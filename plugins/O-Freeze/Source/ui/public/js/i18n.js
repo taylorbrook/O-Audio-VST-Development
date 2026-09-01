@@ -181,7 +181,7 @@ export const I18N = Object.freeze({
               b: 'Captures the incoming audio into a grain buffer and holds it as a sustained texture. Press again to release it and let the input through. Off or On; in Threshold mode the input level drives it instead.' },
         fr: { t: 'Geler',
               b: 'Capture l’audio entrant dans une mémoire de grains et le maintient comme une texture soutenue. Appuyer de nouveau pour relâcher et laisser passer l’entrée. Désactivé ou activé ; en mode Threshold, c’est le niveau d’entrée qui commande.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The reverse pill ────────────────────────────────────────────────────
@@ -192,7 +192,7 @@ export const I18N = Object.freeze({
               b: 'Plays every grain backwards, which softens transients and turns the frozen texture inside out. It changes the character, not the pitch. Off or On.' },
         fr: { t: 'Inversion',
               b: 'Joue chaque grain à l’envers, ce qui adoucit les transitoires et retourne la texture gelée. Cela change le caractère, pas la hauteur. Désactivé ou activé.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The mode toggle ─────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ export const I18N = Object.freeze({
               b: 'Chooses what starts the freeze. Manual arms the button in the centre of the panel; Threshold hands the decision to the input level and the knob beside it. Manual or Threshold.' },
         fr: { t: 'Mode',
               b: 'Choisit ce qui déclenche le gel. Manual arme le bouton au centre du panneau ; Threshold confie la décision au niveau d’entrée et au potentiomètre voisin. Manual ou Threshold.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The six main knobs ──────────────────────────────────────────────────
@@ -226,7 +226,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Threshold',
               termNote: 'the knob\u2019s own .knob-label is static English in index.html and I18N_EXEMPT covers it \u2014 "Threshold" is a MODE AudioParameterChoice option string byte for byte, so a French user reads THRESHOLD on the control. A tip headed Seuil over a knob captioned THRESHOLD names one control twice',
               b: 'Le niveau d’entrée à partir duquel le gel s’enclenche de lui-même, lu uniquement en mode Threshold. L’abaisser pour capter des passages plus discrets, le relever pour ne déclencher que sur les crêtes. De −60 à 0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.drift': {
@@ -234,7 +234,7 @@ export const I18N = Object.freeze({
               b: 'Spreads the grain read positions apart so the frozen texture wanders instead of looping in place. A little removes the static ringing; a lot smears it into a cloud. 0 to 100%.' },
         fr: { t: 'Dérive',
               b: 'Écarte les positions de lecture des grains pour que la texture gelée se déplace au lieu de boucler sur place. Un peu suffit à supprimer la résonance statique ; beaucoup l’étale en un nuage. De 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.size': {
@@ -242,7 +242,7 @@ export const I18N = Object.freeze({
               b: 'The length of each grain taken from the frozen buffer. Short grains give a granular, stuttering texture; long ones keep the source recognisable. 50 to 1000 ms.' },
         fr: { t: 'Taille',
               b: 'La longueur de chaque grain prélevé dans la mémoire gelée. Des grains courts donnent une texture granuleuse et hachée ; des grains longs gardent la source reconnaissable. De 50 à 1000 ms.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // The one parameter whose unit had to be recovered from the page rather
@@ -253,7 +253,7 @@ export const I18N = Object.freeze({
               b: 'How many grains play at once. A low count sounds sparse and rhythmic; a high count blends into a continuous pad and costs more CPU. 2 to 32 grains.' },
         fr: { t: 'Grains',
               b: 'Le nombre de grains joués simultanément. Un faible nombre donne un rendu clairsemé et rythmique ; un nombre élevé se fond en nappe continue et coûte plus de CPU. De 2 à 32 grains.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.detune': {
@@ -261,7 +261,7 @@ export const I18N = Object.freeze({
               b: 'Spreads the pitch of individual grains across a range, thickening the freeze into a chorus. Small amounts add motion; large ones detune the texture audibly. 0 to 50 cents.' },
         fr: { t: 'Désaccord',
               b: 'Étale la hauteur de chaque grain sur une plage, ce qui épaissit le gel en un effet de chorus. De faibles valeurs ajoutent du mouvement ; de fortes valeurs désaccordent la texture de façon audible. De 0 à 50 cents.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.mix': {
@@ -269,7 +269,7 @@ export const I18N = Object.freeze({
               b: 'Balances the frozen texture against the untreated input. At 100% only the freeze is heard; pull it back to keep the live signal underneath. 0 to 100%.' },
         fr: { t: 'Mix',
               b: 'Équilibre la texture gelée et le signal d’entrée non traité. À 100 %, seul le gel est audible ; en réduire la valeur laisse passer le signal direct. De 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The Drift LFO group ─────────────────────────────────────────────────
@@ -278,7 +278,7 @@ export const I18N = Object.freeze({
               b: 'The speed of the LFO that modulates Drift. Slow settings breathe under a pad; fast ones flutter the grain positions. 0.01 to 10 Hz.' },
         fr: { t: 'Vitesse',
               b: 'La vitesse du LFO qui module la dérive. Les réglages lents font respirer une nappe ; les rapides font trembler la position des grains. De 0,01 à 10 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // The CAPTION is Prof. because the knob has a hard 60.00 px budget and
@@ -291,7 +291,7 @@ export const I18N = Object.freeze({
               b: 'How much of the Drift setting the LFO actually sweeps. At zero the LFO does nothing, however fast it runs. 0 to 100%.' },
         fr: { t: 'Profondeur',
               b: 'La part de la dérive que le LFO balaie réellement. À zéro, le LFO n’a aucun effet, quelle que soit sa vitesse. De 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // Bound to #lfo-shape-toggle, which wraps the SHAPE caption and the three
@@ -304,7 +304,7 @@ export const I18N = Object.freeze({
               b: 'The waveform the drift LFO follows. Sine glides, Triangle turns sharply at each end, Random steps to a new value every cycle. Sine, Triangle or Random.' },
         fr: { t: 'Forme',
               b: 'La forme d’onde suivie par le LFO de dérive. Sine glisse, Triangle change de sens brusquement aux extrêmes, Random saute à une nouvelle valeur à chaque cycle. Sine, Triangle ou Random.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The chrome ──────────────────────────────────────────────────────────
@@ -317,7 +317,7 @@ export const I18N = Object.freeze({
               b: 'Opens the settings panel. It holds one control, the language of the interface, and the choice is remembered with the session.' },
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau de réglages. Il contient une seule commande, la langue de l’interface, et le choix est conservé avec la session.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // Bound BARE, not through a wrapper. #gear-btn and #lang-select share
@@ -329,7 +329,7 @@ export const I18N = Object.freeze({
               b: 'The language of these hover descriptions and of the labels on the page. English and French are available; the value readouts stay in English.' },
         fr: { t: 'Langue',
               b: 'La langue de ces descriptions au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -416,7 +416,7 @@ export const LABELS = Object.freeze({
     // for "freeze"; a control that PERFORMS the action takes the infinitive,
     // a state readout would take the noun. Geler is 69.72 px, Gel 41.42 —
     // width does not decide it here, and the choice is on meaning.
-    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'Geler', reviewed: false } },
+    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'Geler', reviewed: true } },
 
     // ── The reverse toggle ──────────────────────────────────────────────────
     // Also an AudioParameterBool ("Reverse", PluginProcessor.cpp:112-115), so
@@ -432,22 +432,22 @@ export const LABELS = Object.freeze({
     // than REVERSE's 57.50, and without the pin that shrink would pull
     // #reverse-container (a non-label element, centred by translateX(-50%))
     // in by 3.20 px and fail assertion 7. See the comment there.
-    'label.reverse': { en: { t: 'Reverse' }, fr: { t: 'Invers.', reviewed: false } },
+    'label.reverse': { en: { t: 'Reverse' }, fr: { t: 'Invers.', reviewed: true } },
 
     // ── The six main knob captions ──────────────────────────────────────────
     // Each is the plugin's own caption for a FLOAT or INT parameter, not a
     // choice option, so all six are localizable under D-01 arm 1 and none is a
     // readout node under arm 3. THRESHOLD is the exception and is EXEMPT — see
     // I18N_EXEMPT, where the reason is the whole judgement call on this plugin.
-    'label.drift':  { en: { t: 'Drift' },  fr: { t: 'Dérive', reviewed: false } },
-    'label.size':   { en: { t: 'Size' },   fr: { t: 'Taille', reviewed: false } },
+    'label.drift':  { en: { t: 'Drift' },  fr: { t: 'Dérive', reviewed: true } },
+    'label.size':   { en: { t: 'Size' },   fr: { t: 'Taille', reviewed: true } },
 
     // GRAINS is the same word in both languages — `grain` is French, and the
     // plural is spelled identically. sameAsEn is the explicit declaration that
     // this is a translation and not an untranslated leftover; without it,
     // check-i18n assertion 4 rejects the entry as a silent passthrough, which
     // is exactly the guard that should fire on a string nobody thought about.
-    'label.grains': { en: { t: 'Grains' }, fr: { t: 'Grains', sameAsEn: true, reviewed: false } },
+    'label.grains': { en: { t: 'Grains' }, fr: { t: 'Grains', sameAsEn: true, reviewed: true } },
 
     // Désacc., the glossary's listed abbreviation for Désaccord. v2.2.0 shipped
     // ÉCART, which the suite glossary now forbids outright ("Désaccord (detune)
@@ -461,7 +461,7 @@ export const LABELS = Object.freeze({
     // inside the 60.00 budget, nothing moves) and the tip title spells out
     // Désaccord. The body already said `désaccordent`; caption and prose now
     // name the control with one word family.
-    'label.detune': { en: { t: 'Detune' }, fr: { t: 'Désacc.', reviewed: false } },
+    'label.detune': { en: { t: 'Detune' }, fr: { t: 'Désacc.', reviewed: true } },
 
     // Mix. v2.2.0 weighed DOSAGE against MÉLANGE; the suite glossary forbids
     // both — "Mixage is the mixing process; Dosage is elegant and nobody else
@@ -471,7 +471,7 @@ export const LABELS = Object.freeze({
     // (this rollout's named hardware-blocked deferral) cannot separate them.
     // Being byte-identical makes it a straight copy, which is what sameAsEn
     // declares: a human looked and agreed the word is French too.
-    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: false } },
+    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: true } },
 
     // ── The LFO group ───────────────────────────────────────────────────────
     // #lfo-group-label is `position: absolute` inside #lfo-group, so its width
@@ -479,9 +479,9 @@ export const LABELS = Object.freeze({
     // left: 12px + 111.61 is still well inside the group's 283.73 px. v2.2.0
     // shipped LFO DÉRIVE (89.03); a noun-noun juxtaposition is English syntax,
     // and the page's own tip bodies already say "le LFO de dérive".
-    'label.driftLfo': { en: { t: 'Drift LFO' }, fr: { t: 'LFO de dérive', reviewed: false } },
+    'label.driftLfo': { en: { t: 'Drift LFO' }, fr: { t: 'LFO de dérive', reviewed: true } },
 
-    'label.rate':  { en: { t: 'Rate' },  fr: { t: 'Vitesse', reviewed: false } },
+    'label.rate':  { en: { t: 'Rate' },  fr: { t: 'Vitesse', reviewed: true } },
 
     // Prof., abbreviated, and this one is a genuine compromise rather than a
     // better word found under pressure. Re-measured at v2.2.1 and BOTH v2.2.0
@@ -494,11 +494,11 @@ export const LABELS = Object.freeze({
     // caption is abbreviated, the way a tight French UI abbreviates it, the
     // TOOLTIP carries Profondeur in full, and both are flagged for a native
     // speaker like every other string here.
-    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: false } },
+    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: true } },
 
     // #lfo-shape-label sits above a 105.67 px selector in a column that
     // shrink-wraps to the WIDER of the two, so FORME's 44.89 is free.
-    'label.shape': { en: { t: 'Shape' }, fr: { t: 'Forme', reviewed: false } },
+    'label.shape': { en: { t: 'Shape' }, fr: { t: 'Forme', reviewed: true } },
 
     // ── The three LFO shape captions ────────────────────────────────────────
     // NOT exempt under D-01 arm 1. The LFO_SHAPE AudioParameterChoice options
@@ -520,12 +520,12 @@ export const LABELS = Object.freeze({
     // against the 37.5 px pin, which re-centres the group and moves 6 boxes.
     // Aléatoire (46.88 -> 62.88) is further out still. This is one of the
     // places the glossary's abbreviation list is load-bearing.
-    'label.shape.sin': { en: { t: 'Sin' }, fr: { t: 'Sin', sameAsEn: true, reviewed: false } },
-    'label.shape.tri': { en: { t: 'Tri' }, fr: { t: 'Tri', sameAsEn: true, reviewed: false } },
-    'label.shape.rnd': { en: { t: 'Rnd' }, fr: { t: 'Alé', reviewed: false } },
+    'label.shape.sin': { en: { t: 'Sin' }, fr: { t: 'Sin', sameAsEn: true, reviewed: true } },
+    'label.shape.tri': { en: { t: 'Tri' }, fr: { t: 'Tri', sameAsEn: true, reviewed: true } },
+    'label.shape.rnd': { en: { t: 'Rnd' }, fr: { t: 'Alé', reviewed: true } },
 
     // ── The settings popover (v2.1.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
@@ -533,8 +533,8 @@ export const LABELS = Object.freeze({
     // aria-label attributes; v2.0.1 had none, and none of them replaces a
     // deleted native title= because there were no native title attributes to
     // delete. No hover-help prose is invented here.
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
 });
 
 // ============================================================================

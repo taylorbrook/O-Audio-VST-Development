@@ -210,7 +210,7 @@ export const I18N = Object.freeze({
               b: 'La vitesse à laquelle l’archet est tiré sur la corde. Un archet rapide excite '
                + 'davantage la corde et éclaircit le timbre ; si l’archet va trop vite pour la '
                + 'pression réglée, la corde siffle au lieu de parler. 0,02 à 2,00 m/s.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.bowPressure': {
         en: { t: 'Bow Pressure',
@@ -221,7 +221,7 @@ export const I18N = Object.freeze({
               b: 'La force normale que l’archet exerce sur la corde. Une pression faible donne '
                + 'un son de surface fin et aéré ; une pression forte accroche davantage et '
                + 'épaissit le son jusqu’au grincement. 0,01 à 5,00 N.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.bowPosition': {
         en: { t: 'Bow Position',
@@ -233,7 +233,7 @@ export const I18N = Object.freeze({
                + 'depuis le chevalet. Les petites valeurs donnent un jeu sul ponticello, vitreux '
                + 'et riche en partiels aigus ; les grandes tendent vers le sul tasto et '
                + 'adoucissent le timbre. 0,02 à 0,30.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.rosin': {
         en: { t: 'Rosin',
@@ -244,7 +244,7 @@ export const I18N = Object.freeze({
               b: 'Façonne la courbe de friction entre le crin et la corde, du lisse à '
              + 'l’agressif. Plus de colophane fait claquer le cycle adhérence-glissement, ce qui '
              + 'aiguise l’attaque et ajoute du mordant. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.bowNoise': {
         en: { t: 'Bow Noise',
@@ -256,7 +256,7 @@ export const I18N = Object.freeze({
              + 'hauteur définie. En petite quantité, il redonne le souffle qu’un guide d’ondes '
              + 'pur laisse de côté ; en grande quantité, il pousse vers un son écrasé, sans note '
              + 'claire. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     // Caption "Hair Stiff." is an abbreviation forced by the 62 px .knob-label
     // cap recorded in this file's LABELS header. The tip has 260 px, so it
@@ -273,7 +273,7 @@ export const I18N = Object.freeze({
              + 'd’O-Bowed, ce qui explique que tous les préréglages d’usine l’y laissent ; à '
              + 'mesure qu’on le monte, le crin fléchit puis lâche et l’attaque s’assouplit. 0,00 '
              + 'à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Humanize ────────────────────────────────────────────────────────────
@@ -293,7 +293,7 @@ export const I18N = Object.freeze({
                + 'chaque voix, afin que deux répétitions d’une note ne soient jamais '
                + 'identiques. À 0 la dérive est entièrement désactivée et le bouton Fréq. voisin '
                + 'reste sans effet. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.humSpeedRate': {
         en: { t: 'Speed Humanize Rate',
@@ -305,7 +305,7 @@ export const I18N = Object.freeze({
                + 'tremblement rapide. Le bouton correspond en interne à une coupure de lissage '
                + 'de 0,15 à 8 Hz, et il reste sans effet tant que Qté Vitesse vaut 0. '
                + '0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.humPressAmt': {
         en: { t: 'Pressure Humanize',
@@ -317,7 +317,7 @@ export const I18N = Object.freeze({
                + 'chaque voix, afin qu’un accord tenu respire au lieu de rester figé. À 0 la '
                + 'dérive est entièrement désactivée et le bouton Fréq. voisin reste sans effet. '
                + '0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.humPressRate': {
         en: { t: 'Pressure Humanize Rate',
@@ -328,7 +328,7 @@ export const I18N = Object.freeze({
               b: 'La rapidité de la dérive de pression d’archet. Le bouton correspond en interne '
                + 'à une coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté '
                + 'Pression vaut 0. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.humPosAmt': {
         en: { t: 'Position Humanize',
@@ -340,7 +340,7 @@ export const I18N = Object.freeze({
                + 'voix — celle que le bras d’un instrumentiste imprime sur une note longue. À 0 '
                + 'elle est entièrement désactivée et le bouton Fréq. voisin reste sans effet. '
                + '0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.humPosRate': {
         en: { t: 'Position Humanize Rate',
@@ -351,7 +351,7 @@ export const I18N = Object.freeze({
               b: 'La rapidité de la dérive du point de contact. Le bouton correspond en interne '
                + 'à une coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté '
                + 'Position vaut 0. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.humRosinAmt': {
         en: { t: 'Rosin Humanize',
@@ -363,7 +363,7 @@ export const I18N = Object.freeze({
                + 'chaque voix, afin que l’accroche de l’attaque varie d’une note à l’autre. À 0 '
                + 'elle est entièrement désactivée et le bouton Fréq. voisin reste sans effet. '
                + '0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.humRosinRate': {
         en: { t: 'Rosin Humanize Rate',
@@ -373,7 +373,7 @@ export const I18N = Object.freeze({
               b: 'La rapidité de la dérive de colophane. Le bouton correspond en interne à une '
                + 'coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté Coloph. '
                + 'vaut 0. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Impossible physics ──────────────────────────────────────────────────
@@ -394,7 +394,7 @@ export const I18N = Object.freeze({
               b: 'Retire l’amortissement de la corde : une note jouée à l’archet continue de '
              + 'sonner une fois l’archet parti. À 1 la boucle ne perd presque rien à chaque '
              + 'passage et la note se tient indéfiniment. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.revFriction': {
         en: { t: 'Reversed Friction',
@@ -407,7 +407,7 @@ export const I18N = Object.freeze({
                + 'vite, au lieu de lâcher. Aucun crin réel n’en est capable ; il en résulte une '
                + 'attaque instable et crachotante qui se stabilise sur un son tenu étrange. '
                + '0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.subHarm': {
         en: { t: 'Sub-Harmonics',
@@ -419,7 +419,7 @@ export const I18N = Object.freeze({
              + 'une octave sous la note jouée, et plus bas encore. Utile pour donner du poids '
              + 'sous un registre aigu maigre ; à réglage élevé, la hauteur elle-même commence à '
              + 'se replier. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Body ────────────────────────────────────────────────────────────────
@@ -435,7 +435,7 @@ export const I18N = Object.freeze({
               b: 'Fait évoluer le résonateur de caisse de la membrane au bois, puis au métal et '
                + 'au verre à mesure qu’on le monte. Le bois se situe vers le milieu de la course '
                + 'et c’est ce que supposent les préréglages d’usine. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.size': {
         en: { t: 'Size',
@@ -447,7 +447,7 @@ export const I18N = Object.freeze({
                + 'en bas de course à une caisse de contrebasse en haut. Les grandes caisses '
                + 'descendent leurs formants et ajoutent du poids dans le bas-médium. '
                + '0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.brightness': {
         en: { t: 'Brightness',
@@ -460,7 +460,7 @@ export const I18N = Object.freeze({
              + 'corde envoie dans la caisse. Baissez-la pour assombrir un archet dur ; la '
              + 'réponse du bouton est non linéaire afin que l’essentiel de sa course couvre la '
              + 'partie réellement utile de la plage. 20 à 20000 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.bodyAmt': {
         en: { t: 'Body Amount',
@@ -471,7 +471,7 @@ export const I18N = Object.freeze({
               b: 'Le dosage entre la corde nue et le résonateur de caisse. À 0 on entend le '
                + 'guide d’ondes seul, mince et synthétique ; à 1 la caisse domine. '
                + '0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── String ──────────────────────────────────────────────────────────────
@@ -485,7 +485,7 @@ export const I18N = Object.freeze({
                + 'épaisse et sombre en haut. Cela change la part d’énergie que la corde accepte '
                + 'de l’archet, si bien qu’un gros calibre demande plus de pression pour parler. '
                + '0,10 à 2,00.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Sympathetic strings ─────────────────────────────────────────────────
@@ -502,7 +502,7 @@ export const I18N = Object.freeze({
               b: 'Le nombre de cordes passives qui vibrent avec la corde frottée, à la manière '
                + 'd’une viole d’amour — c’est le bouton intitulé Nombre. À 0 la section est '
                + 'désactivée et son bouton Quantité est masqué. 0 à 12 cordes.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.amount': {
         en: { t: 'Sympathetic Amount',
@@ -513,7 +513,7 @@ export const I18N = Object.freeze({
               b: 'L’intensité du couplage entre la corde frottée et les cordes passives, donc le '
              + 'volume du halo qu’elles déposent sous la note. Ce bouton n’est à l’écran que '
              + 'lorsque Nombre est supérieur à 0. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.decay': {
         en: { t: 'Sympathetic Decay',
@@ -525,7 +525,7 @@ export const I18N = Object.freeze({
                + 'fois excitées, fixée par leur perte à chaque aller-retour. Les valeurs courtes '
                + 'donnent un miroitement bref, les longues une nappe qui survit à la note qui '
                + 'l’a déclenchée. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Footer ──────────────────────────────────────────────────────────────
@@ -538,7 +538,7 @@ export const I18N = Object.freeze({
               b: 'La fréquence du la de référence sur laquelle le système d’accord est '
                + 'construit. Déplacez-la pour rejoindre un ensemble accordé hors du diapason de '
                + 'concert ; toutes les notes suivent. 220,0 à 880,0 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.width': {
         en: { t: 'Stereo Width',
@@ -549,7 +549,7 @@ export const I18N = Object.freeze({
               b: 'Étale la sortie de la corde et de la caisse dans le champ stéréo. 1,00 est '
                + 'l’image naturelle, en dessous elle se resserre vers le mono, au-dessus elle '
                + 's’élargit au-delà des enceintes. 0,00 à 2,00.',
-              reviewed: false },
+              reviewed: true },
     },
     // The only parameter on this page with a negative range. U+2212 in BOTH
     // languages: a typographic minus is correct in English prose too, and an
@@ -564,7 +564,7 @@ export const I18N = Object.freeze({
               b: 'Le gain général en sortie, appliqué après le résonateur de caisse et l’étage '
                + 'stéréo. Le niveau des modèles physiques varie beaucoup d’un préréglage à '
                + 'l’autre ; c’est ici qu’on les égalise entre eux. −60,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The gear ────────────────────────────────────────────────────────────
@@ -583,7 +583,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau de réglages sous ce bouton. Il contient la langue de '
                + 'l’interface et rien d’autre. Appuyez sur Échap pour le fermer.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The language selector ───────────────────────────────────────────────
@@ -607,7 +607,7 @@ export const I18N = Object.freeze({
               b: 'Choisit la langue de tous les libellés, info-bulles et noms accessibles de ce '
                + 'panneau ; le choix est enregistré avec le plugin. Les valeurs affichées et la '
                + 'page Accord restent en anglais. English ou Français.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -627,41 +627,41 @@ export const LABELS = Object.freeze({
     // button is pinned to 54 px so it cannot push the flex:1 preset display,
     // which leaves 28 px of text budget inside its 12 px side padding. English
     // "Save" is 26.55 and "Enr." is 25.09, so both clear it and neither wraps.
-    'label.save':      { en: { t: 'Save' },     fr: { t: 'Enr.',     reviewed: false } },
+    'label.save':      { en: { t: 'Save' },     fr: { t: 'Enr.',     reviewed: true } },
     // "Accordage" (55.09) does not fit the 62 px pin; "Accord" (37.13) does,
     // against English "Tuning" at 37.97.
-    'label.tuning':    { en: { t: 'Tuning' },   fr: { t: 'Accord',   reviewed: false } },
+    'label.tuning':    { en: { t: 'Tuning' },   fr: { t: 'Accord',   reviewed: true } },
     // The settings popover's one row.
-    'label.language':  { en: { t: 'Language' }, fr: { t: 'Langue',   reviewed: false } },
+    'label.language':  { en: { t: 'Language' }, fr: { t: 'Langue',   reviewed: true } },
 
     // ── Bow ─────────────────────────────────────────────────────────────────
-    'label.bow':       { en: { t: 'Bow' },      fr: { t: 'Archet',   reviewed: false } },
-    'label.speed':     { en: { t: 'Speed' },    fr: { t: 'Vitesse',  reviewed: false } },
-    'label.pressure':  { en: { t: 'Pressure' }, fr: { t: 'Pression', reviewed: false } },
-    'label.position':  { en: { t: 'Position' }, fr: { t: 'Position', reviewed: false, sameAsEn: true } },
+    'label.bow':       { en: { t: 'Bow' },      fr: { t: 'Archet',   reviewed: true } },
+    'label.speed':     { en: { t: 'Speed' },    fr: { t: 'Vitesse',  reviewed: true } },
+    'label.pressure':  { en: { t: 'Pressure' }, fr: { t: 'Pression', reviewed: true } },
+    'label.position':  { en: { t: 'Position' }, fr: { t: 'Position', reviewed: true, sameAsEn: true } },
     // Colophane is the instrument-maker's word for rosin, not a calque.
-    'label.rosin':     { en: { t: 'Rosin' },    fr: { t: 'Colophane', reviewed: false } },
+    'label.rosin':     { en: { t: 'Rosin' },    fr: { t: 'Colophane', reviewed: true } },
     // THE SAME ENGLISH WORD, A SECOND ANSWER, DECIDED BY GEOMETRY — the O-Bass
     // OUT/OUTPUT precedent. This one labels a Humanize grid COLUMN, whose width
     // is the column's width, and the full "Colophane" would push the column 14
     // px wider than its 39.75 px track and overlap its neighbour. Keyed rather
     // than exempted so the abbreviation stays on the reviewer's list.
-    'label.rosinShort': { en: { t: 'Rosin' },   fr: { t: 'Coloph.',  reviewed: false } },
-    'label.noise':     { en: { t: 'Noise' },    fr: { t: 'Bruit',    reviewed: false } },
+    'label.rosinShort': { en: { t: 'Rosin' },   fr: { t: 'Coloph.',  reviewed: true } },
+    'label.noise':     { en: { t: 'Noise' },    fr: { t: 'Bruit',    reviewed: true } },
     // "Raideur du crin" is bow-hair stiffness; the English is already
     // abbreviated ("Hair Stiff.") and the French is abbreviated to match,
     // because the unabbreviated form measures 63 px in a 62 px box.
-    'label.hairStiff': { en: { t: 'Hair Stiff.' }, fr: { t: 'Raid. crin', reviewed: false } },
+    'label.hairStiff': { en: { t: 'Hair Stiff.' }, fr: { t: 'Raid. crin', reviewed: true } },
 
     // ── Humanize ────────────────────────────────────────────────────────────
-    'label.humanize':  { en: { t: 'Humanize' }, fr: { t: 'Humanisation', reviewed: false } },
-    'label.amt':       { en: { t: 'Amt' },      fr: { t: 'Qté',      reviewed: false } },
+    'label.humanize':  { en: { t: 'Humanize' }, fr: { t: 'Humanisation', reviewed: true } },
+    'label.amt':       { en: { t: 'Amt' },      fr: { t: 'Qté',      reviewed: true } },
     // "Fréq." and not "Vitesse": this knob sets the drift rate in Hz and sits
     // directly under a column captioned "Vitesse" (Speed). Two adjacent knobs
     // both reading VITESSE would be a translation that loses information the
     // English carries.
     'label.rate':      { en: { t: 'Rate' },
-                       fr: { t: 'Fréq.', reviewed: false,
+                       fr: { t: 'Fréq.', reviewed: true,
                              termNote: 'the control IS a frequency in Hz — HumanizeEngine.h:83 '
                             + 'maps it to a 0.15-8 Hz smoothing corner — and it sits directly '
                             + 'under a column captioned Vitesse (Speed). Two adjacent knobs both '
@@ -672,71 +672,71 @@ export const LABELS = Object.freeze({
     // The tab buttons are `flex: 1` in a 498 px bar, so each box is 166 px in
     // both languages by construction. Only the TEXT can misbehave, and the
     // longest French here is 133.19 px — one line, 32.8 px of slack.
-    'label.vizBowString':     { en: { t: 'Bow-String' },    fr: { t: 'Archet-corde', reviewed: false } },
-    'label.vizBodySpectrum':  { en: { t: 'Body Spectrum' }, fr: { t: 'Spectre de la caisse', reviewed: false } },
+    'label.vizBowString':     { en: { t: 'Bow-String' },    fr: { t: 'Archet-corde', reviewed: true } },
+    'label.vizBodySpectrum':  { en: { t: 'Body Spectrum' }, fr: { t: 'Spectre de la caisse', reviewed: true } },
     // Schelleng is the physicist; a name is never translated.
-    'label.vizSchelleng':     { en: { t: 'Schelleng' },     fr: { t: 'Schelleng', reviewed: false, sameAsEn: true } },
+    'label.vizSchelleng':     { en: { t: 'Schelleng' },     fr: { t: 'Schelleng', reviewed: true, sameAsEn: true } },
 
     // ── Impossible physics ──────────────────────────────────────────────────
     // .impossible-label is `writing-mode: vertical-rl`, so its LENGTH is its
     // HEIGHT. The word is identical in both languages, which is the only reason
     // that box needs no pin.
-    'label.impossible':   { en: { t: 'Impossible' },    fr: { t: 'Impossible', reviewed: false, sameAsEn: true } },
+    'label.impossible':   { en: { t: 'Impossible' },    fr: { t: 'Impossible', reviewed: true, sameAsEn: true } },
     'label.infSustain':   { en: { t: 'Inf. Sustain' },
-                            fr: { t: 'Tenue inf.', reviewed: false,
+                            fr: { t: 'Tenue inf.', reviewed: true,
                                   termNote: 'the caption half of tip.infSustain’s exemption — '
                                  + 'sustain here is a note that keeps ringing, not the ADSR '
                                  + 'segment' } },
-    'label.revFriction':  { en: { t: 'Rev. Friction' }, fr: { t: 'Frict. inv.', reviewed: false } },
-    'label.subHarm':      { en: { t: 'Sub Harm.' },     fr: { t: 'Sous-harm.', reviewed: false } },
+    'label.revFriction':  { en: { t: 'Rev. Friction' }, fr: { t: 'Frict. inv.', reviewed: true } },
+    'label.subHarm':      { en: { t: 'Sub Harm.' },     fr: { t: 'Sous-harm.', reviewed: true } },
 
     // ── Body ────────────────────────────────────────────────────────────────
     // "Caisse" — the soundbox of a bowed string instrument, not "corps".
-    'label.body':       { en: { t: 'Body' },       fr: { t: 'Caisse',    reviewed: false } },
-    'label.material':   { en: { t: 'Material' },   fr: { t: 'Matériau',  reviewed: false } },
-    'label.size':       { en: { t: 'Size' },       fr: { t: 'Taille',    reviewed: false } },
-    'label.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: false } },
-    'label.bodyAmt':    { en: { t: 'Body Amt' },   fr: { t: 'Qté caisse', reviewed: false } },
+    'label.body':       { en: { t: 'Body' },       fr: { t: 'Caisse',    reviewed: true } },
+    'label.material':   { en: { t: 'Material' },   fr: { t: 'Matériau',  reviewed: true } },
+    'label.size':       { en: { t: 'Size' },       fr: { t: 'Taille',    reviewed: true } },
+    'label.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: true } },
+    'label.bodyAmt':    { en: { t: 'Body Amt' },   fr: { t: 'Qté caisse', reviewed: true } },
 
     // ── String ──────────────────────────────────────────────────────────────
-    'label.string':     { en: { t: 'String' },     fr: { t: 'Corde',     reviewed: false } },
-    'label.gauge':      { en: { t: 'Gauge' },      fr: { t: 'Calibre',   reviewed: false } },
+    'label.string':     { en: { t: 'String' },     fr: { t: 'Corde',     reviewed: true } },
+    'label.gauge':      { en: { t: 'Gauge' },      fr: { t: 'Calibre',   reviewed: true } },
 
     // ── Sympathetic strings ─────────────────────────────────────────────────
-    'label.sympathetic': { en: { t: 'Sympathetic' }, fr: { t: 'Sympathiques', reviewed: false } },
-    'label.count':      { en: { t: 'Count' },      fr: { t: 'Nombre',    reviewed: false } },
-    'label.amount':     { en: { t: 'Amount' },     fr: { t: 'Quantité',  reviewed: false } },
-    'label.decay':      { en: { t: 'Decay' },      fr: { t: 'Déclin',    reviewed: false } },
+    'label.sympathetic': { en: { t: 'Sympathetic' }, fr: { t: 'Sympathiques', reviewed: true } },
+    'label.count':      { en: { t: 'Count' },      fr: { t: 'Nombre',    reviewed: true } },
+    'label.amount':     { en: { t: 'Amount' },     fr: { t: 'Quantité',  reviewed: true } },
+    'label.decay':      { en: { t: 'Decay' },      fr: { t: 'Déclin',    reviewed: true } },
 
     // ── Footer ──────────────────────────────────────────────────────────────
     // "Diapason" is the reference pitch itself (le diapason est à 440 Hz), so
     // the qualifier the English needs is carried by the word. "Diapason réf."
     // measures 72.55 px against a 62 px cap and would have been clipped.
-    'label.refPitch':   { en: { t: 'Ref Pitch' },  fr: { t: 'Diapason',  reviewed: false } },
-    'label.width':      { en: { t: 'Width' },      fr: { t: 'Largeur',   reviewed: false } },
-    'label.output':     { en: { t: 'Output' },     fr: { t: 'Sortie',    reviewed: false } },
+    'label.refPitch':   { en: { t: 'Ref Pitch' },  fr: { t: 'Diapason',  reviewed: true } },
+    'label.width':      { en: { t: 'Width' },      fr: { t: 'Largeur',   reviewed: true } },
+    'label.output':     { en: { t: 'Output' },     fr: { t: 'Sortie',    reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Every one of these is the text of a native title= attribute v1.4.1
     // carried, MOVED not rewritten (contract §4). No hover-help prose is
     // invented here; that is Stage M.
     'aria.presetPrev':   { en: { t: 'Previous Preset' },
-                           fr: { t: 'Préréglage précédent', reviewed: false } },
+                           fr: { t: 'Préréglage précédent', reviewed: true } },
     'aria.presetNext':   { en: { t: 'Next Preset' },
-                           fr: { t: 'Préréglage suivant', reviewed: false } },
+                           fr: { t: 'Préréglage suivant', reviewed: true } },
     'aria.presetBrowse': { en: { t: 'Click to browse presets' },
-                           fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: false } },
+                           fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: true } },
     'aria.settings':     { en: { t: 'Settings' },
-                           fr: { t: 'Réglages', reviewed: false } },
+                           fr: { t: 'Réglages', reviewed: true } },
     'aria.langSelect':   { en: { t: 'Interface language' },
-                           fr: { t: 'Langue de l’interface', reviewed: false } },
+                           fr: { t: 'Langue de l’interface', reviewed: true } },
 
     // ── The one string this page writes from script ─────────────────────────
     // Written through setLabel(), so the element becomes a [data-i18n] element
     // from that moment on and the language sweep owns it. A raw literal there
     // is stranded in the previous language the instant the selector fires.
     'ui.tuningPanelFailed': { en: { t: 'Tuning panel failed to load.' },
-                              fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: false } },
+                              fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: true } },
 });
 
 // ============================================================================

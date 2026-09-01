@@ -198,7 +198,7 @@ export const I18N = Object.freeze({
                + '— l’allure du mouvement du chorus. Les réglages lents dérivent et '
                + 'élargissent le son ; les rapides se resserrent vers le vibrato. '
                + '0,05 à 5,00 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── depth — AudioParameterFloat 0..1, default 0.5 ───────────────────────
@@ -215,7 +215,7 @@ export const I18N = Object.freeze({
               b: 'Règle l’amplitude du balayage du LFO autour du retard central de 10 ms, '
                + 'jusqu’à ±5 ms. Les valeurs basses épaississent le son sans mouvement de '
                + 'hauteur audible ; les valeurs hautes chantent. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── voices — AudioParameterInt 1..8, default 4 ──────────────────────────
@@ -235,7 +235,7 @@ export const I18N = Object.freeze({
                + 'propre phase de LFO et sa position stéréo. Plus de voix épaississent et '
                + 'lissent le chorus ; le niveau étant compensé, le nombre peut être changé '
                + 'pendant le jeu. 1 à 8.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── spread — AudioParameterFloat 0..1, default 0.0 ──────────────────────
@@ -251,7 +251,7 @@ export const I18N = Object.freeze({
               b: 'Décale le retard de base de chaque voix par rapport aux autres, jusqu’à '
                + '±15 ms, pour que les copies ne se superposent plus. Les valeurs basses '
                + 'donnent un ensemble serré ; les hautes, un doublage dispersé. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── width — AudioParameterFloat 0..1, default 0.7 ───────────────────────
@@ -268,7 +268,7 @@ export const I18N = Object.freeze({
               b: 'Règle l’écartement des voix dans l’image stéréo, selon une loi à puissance '
                + 'constante. À 0 % toutes les voix restent au centre, pour un chorus '
                + 'compatible mono ; à 100 % elles occupent tout le champ. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── tone — AudioParameterFloat -1..+1, default 0.0 ──────────────────────
@@ -288,7 +288,7 @@ export const I18N = Object.freeze({
               b: 'Incline la brillance du seul signal traité, par un passe-bas allant de 2 kHz '
                + 'à 20 kHz et centré sur 8 kHz. Les valeurs négatives glissent l’effet sous une '
                + 'piste sèche brillante ; les positives le font scintiller. −100 à +100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── mix — AudioParameterFloat 0..1, default 0.5 ─────────────────────────
@@ -304,7 +304,7 @@ export const I18N = Object.freeze({
               b: 'Équilibre le signal direct et le signal traité. À 50 % les deux sont à '
                + 'niveau égal, pour un doublage classique ; au-delà l’effet domine, et à 100 % '
                + 'le signal direct disparaît. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── drive — AudioParameterFloat 0..1, default 0.3 ───────────────────────
@@ -323,7 +323,7 @@ export const I18N = Object.freeze({
                + 'somme : l’écrêtage doux qu’un chorus à ligne à retard analogique tient de '
                + 'son propre circuit. Gardez-la basse pour la chaleur, montez-la pour le '
                + 'grain. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The gear ───────────────────────────────────────────────────────────
@@ -340,7 +340,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau de réglages au-dessus de ce bouton. Il contient la langue '
                + 'de l’interface et rien d’autre. Appuyez sur Échap pour le fermer.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The language selector ──────────────────────────────────────────────
@@ -359,7 +359,7 @@ export const I18N = Object.freeze({
               b: 'Choisit la langue de tous les libellés, info-bulles et noms accessibles de ce '
                + 'panneau. Le choix est enregistré avec le plugin et restauré à la prochaine '
                + 'ouverture. English ou Français.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -442,7 +442,7 @@ export const LABELS = Object.freeze({
 
     // "Vitesse" rather than "Taux": this is the LFO's rate in Hz, and a French
     // modulation section calls that its speed. The glossary's root term.
-    'label.rate': { en: { t: 'Rate' }, fr: { t: 'Vitesse', reviewed: false } },
+    'label.rate': { en: { t: 'Rate' }, fr: { t: 'Vitesse', reviewed: true } },
 
     // Profondeur is the word a French user expects and it does not fit: 68.02
     // px against a 62 px wrap cliff, so it would render on two lines and push
@@ -451,9 +451,9 @@ export const LABELS = Object.freeze({
     // "depth", and the glossary forbids it. Prof. is the glossary's listed
     // abbreviation OF the expected word, and it is the only option that is both
     // recognisable and comfortable. tip.depth's title spells it out.
-    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: false } },
+    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: true } },
 
-    'label.voices': { en: { t: 'Voices' }, fr: { t: 'Voix', reviewed: false } },
+    'label.voices': { en: { t: 'Voices' }, fr: { t: 'Voix', reviewed: true } },
 
     // v1.4.1: ÉCART -> Étal. The glossary settles Spread on Étalement (Étal.)
     // and gives Écart to Detune, because Écart was doing both jobs across the
@@ -462,7 +462,7 @@ export const LABELS = Object.freeze({
     // widens .knob from 50 to 60.47 and check-ui-labels assertion 7 reports a
     // non-label element moved. Étal. is 28.53 px and moves nothing.
     // tip.spread's title spells it out.
-    'label.spread': { en: { t: 'Spread' }, fr: { t: 'Étal.', reviewed: false } },
+    'label.spread': { en: { t: 'Spread' }, fr: { t: 'Étal.', reviewed: true } },
 
     // THE TIGHTEST STRING ON THE PAGE, 1.89 px under the gate cliff. Crossing
     // it widens .knob by fractions of a pixel and nothing else; the wrap cliff
@@ -470,12 +470,12 @@ export const LABELS = Object.freeze({
     // if a reviewer wants margin rather than the literal translation — but the
     // glossary settles Width on Largeur (Larg., 30.75), so the margin is there
     // without leaving the list.
-    'label.width': { en: { t: 'Width' }, fr: { t: 'Largeur', reviewed: false } },
+    'label.width': { en: { t: 'Width' }, fr: { t: 'Largeur', reviewed: true } },
 
     // A tilt control, dark to bright. "Timbre" is the French word for that
     // quality and the glossary's term for Tone; Tonalité measures 50.73 and
     // would cross the gate cliff.
-    'label.tone': { en: { t: 'Tone' }, fr: { t: 'Timbre', reviewed: false } },
+    'label.tone': { en: { t: 'Tone' }, fr: { t: 'Timbre', reviewed: true } },
 
     // v1.4.1: DOSAGE -> Mix. The glossary settles it — Mix is what every French
     // DAW shows, Mixage is the mixing PROCESS, and Dosage is elegant French
@@ -484,7 +484,7 @@ export const LABELS = Object.freeze({
     // ON PURPOSE still needs a human to agree with it. It also shrinks the
     // caption 41.31 -> 19.91 px, both sides of the 50 px gate cliff, so nothing
     // moves.
-    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: false, sameAsEn: true } },
+    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true } },
 
     // Saturation measures 63.52 — past the WRAP cliff, not merely the gate one,
     // so the full word would put a second line under this knob. Satur. is the
@@ -492,7 +492,7 @@ export const LABELS = Object.freeze({
     // stage), which is why it is preferred over Chaleur (48.11, "warmth" — a
     // marketing word for the same thing, and 1.89 px from the gate cliff).
     // tip.drive's title spells it out.
-    'label.drive': { en: { t: 'Drive' }, fr: { t: 'Satur.', reviewed: false } },
+    'label.drive': { en: { t: 'Drive' }, fr: { t: 'Satur.', reviewed: true } },
 
     // ── The LFO ring heading ────────────────────────────────────────────────
     //
@@ -500,7 +500,7 @@ export const LABELS = Object.freeze({
     // LFO in French audio software, but that is a TRANSLATION JUDGEMENT and an
     // I18N_EXEMPT entry would hide it from the native-speaker worklist forever.
     // Keyed, it is one more `reviewed: false` line somebody has to agree with.
-    'label.lfo': { en: { t: 'LFO' }, fr: { t: 'LFO', reviewed: false, sameAsEn: true } },
+    'label.lfo': { en: { t: 'LFO' }, fr: { t: 'LFO', reviewed: true, sameAsEn: true } },
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -537,11 +537,11 @@ export const LABELS = Object.freeze({
     // version sites and the CHANGELOG, so it was REPORTED rather than fixed
     // here — the pin itself (62 px) and its reasoning are unchanged and still
     // correct, only the second row's caption and number are out of date.
-    'label.load': { en: { t: 'Load' }, fr: { t: 'Charger', reviewed: false } },
-    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: false } },
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Charger', reviewed: true } },
+    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true } },
 
     // ── The settings popover (v1.3.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -563,13 +563,13 @@ export const LABELS = Object.freeze({
     // control user saying the caption still hits the button (WCAG 2.5.3). This
     // is the constraint O-Texture's "Metal — coming soon" landed on from the
     // other direction.
-    'aria.prevPreset': { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',                 reviewed: false } },
-    'aria.nextPreset': { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',                   reviewed: false } },
-    'aria.loadPreset': { en: { t: 'Load preset from file' },  fr: { t: 'Charger un préréglage depuis un fichier', reviewed: false } },
-    'aria.savePreset': { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage',            reviewed: false } },
+    'aria.prevPreset': { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',                 reviewed: true } },
+    'aria.nextPreset': { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',                   reviewed: true } },
+    'aria.loadPreset': { en: { t: 'Load preset from file' },  fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true } },
+    'aria.savePreset': { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage',            reviewed: true } },
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
 });
 
 // ============================================================================

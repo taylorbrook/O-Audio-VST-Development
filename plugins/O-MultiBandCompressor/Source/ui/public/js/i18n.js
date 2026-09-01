@@ -140,77 +140,77 @@ export const I18N = Object.freeze({
               b: 'Level trim applied before the signal is split into bands. Use it to drive the compressors harder or back them off without touching the thresholds. −24 to +24 dB.' },
         fr: { t: 'Gain d’entrée',
               b: 'Correction de niveau appliquée avant la division du signal en bandes. Permet d’attaquer les compresseurs plus fort ou de les ménager sans toucher aux seuils. −24 à +24 dB.',
-              reviewed: false },
+              reviewed: true },
     },
     'mix': {
         en: { t: 'Mix',
               b: 'Blend between the dry input and the compressed output for parallel compression. 0% is fully dry, 100% is fully compressed.' },
         fr: { t: 'Mix',
               b: 'Dosage entre le signal d’entrée direct et la sortie compressée, pour la compression parallèle. 0 % est entièrement direct, 100 % entièrement compressé.',
-              reviewed: false },
+              reviewed: true },
     },
     'auto-makeup': {
         en: { t: 'Auto Makeup',
               b: 'Automatically compensates the level lost to gain reduction in each band, so bypassing the compressor does not jump in volume. Stacks with each band’s Makeup knob.' },
         fr: { t: 'Compensation auto',
               b: 'Compense automatiquement le niveau perdu du fait de la réduction de gain dans chaque bande, afin que le contournement du compresseur ne provoque pas de saut de volume. S’ajoute au bouton Compensation de chaque bande.',
-              reviewed: false },
+              reviewed: true },
     },
     'ms-mode': {
         en: { t: 'Mid / Side Mode',
               b: 'Chooses what the compressors act on. Off processes left and right normally; Mid targets the centre of the image, Side the stereo edges, and Both processes them independently.' },
         fr: { t: 'Mode Mid / Side',
               b: 'Détermine ce sur quoi agissent les compresseurs. « Aucun » traite normalement la gauche et la droite ; « Mid » vise le centre de l’image, « Side » les bords stéréo, et « Les deux » les traite indépendamment.',
-              reviewed: false },
+              reviewed: true },
     },
     'output-gain': {
         en: { t: 'Output Gain',
               b: 'Final level trim, applied after the mix stage. −24 to +24 dB.' },
         fr: { t: 'Gain de sortie',
               b: 'Correction de niveau finale, appliquée après l’étage Mix. −24 à +24 dB.',
-              reviewed: false },
+              reviewed: true },
     },
     'input-meter': {
         en: { t: 'Input Meter',
               b: 'Level entering the plugin, averaged across both channels and measured before the input gain trim.' },
         fr: { t: 'Vumètre d’entrée',
               b: 'Niveau entrant dans le plugin, moyenné sur les deux canaux et mesuré avant la correction de gain d’entrée.',
-              reviewed: false },
+              reviewed: true },
     },
     'output-meter': {
         en: { t: 'Output Meter',
               b: 'Level leaving the plugin, measured after mix and output gain.' },
         fr: { t: 'Vumètre de sortie',
               b: 'Niveau sortant du plugin, mesuré après le Mix et le gain de sortie.',
-              reviewed: false },
+              reviewed: true },
     },
     'spectrum': {
         en: { t: 'Spectrum Analyzer',
               b: 'Real-time input spectrum, 20 Hz to 20 kHz on a logarithmic scale. Drag the vertical lines to move the crossovers.' },
         fr: { t: 'Analyseur de spectre',
               b: 'Spectre d’entrée en temps réel, de 20 Hz à 20 kHz sur une échelle logarithmique. Faites glisser les lignes verticales pour déplacer les points de coupure.',
-              reviewed: false },
+              reviewed: true },
     },
     'crossover1': {
         en: { t: 'Crossover 1',
               b: 'Split point between the Low and Low-Mid bands. Drag left or right to move it; the two band headers update as you go. 20 Hz to 500 Hz.' },
         fr: { t: 'Coupure 1',
               b: 'Point de séparation entre les bandes Grave et Bas-médium. Faites-le glisser à gauche ou à droite ; les deux en-têtes de bande se mettent à jour au fur et à mesure. 20 Hz à 500 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
     'crossover2': {
         en: { t: 'Crossover 2',
               b: 'Split point between the Low-Mid and High-Mid bands. Drag left or right to move it. 200 Hz to 5 kHz.' },
         fr: { t: 'Coupure 2',
               b: 'Point de séparation entre les bandes Bas-médium et Haut-médium. Faites-le glisser à gauche ou à droite. 200 Hz à 5 kHz.',
-              reviewed: false },
+              reviewed: true },
     },
     'crossover3': {
         en: { t: 'Crossover 3',
               b: 'Split point between the High-Mid and High bands. Drag left or right to move it. 2 kHz to 16 kHz.' },
         fr: { t: 'Coupure 3',
               b: 'Point de séparation entre les bandes Haut-médium et Aigu. Faites-le glisser à gauche ou à droite. 2 kHz à 16 kHz.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Band display names ───────────────────────────────────────────────
@@ -218,10 +218,10 @@ export const I18N = Object.freeze({
     // VALUES that TIP_BINDINGS passes as `vars.band`, and tr() resolves a var
     // value that is itself an I18N key to that key's localized title. `b` is
     // deliberately empty — nothing renders a body for a band name.
-    'band.low':   { en: { t: 'Low',      b: '' }, fr: { t: 'Grave',       b: '', reviewed: false } },
-    'band.lomid': { en: { t: 'Low-Mid',  b: '' }, fr: { t: 'Bas-médium',  b: '', reviewed: false } },
-    'band.himid': { en: { t: 'High-Mid', b: '' }, fr: { t: 'Haut-médium', b: '', reviewed: false } },
-    'band.high':  { en: { t: 'High',     b: '' }, fr: { t: 'Aigu',        b: '', reviewed: false } },
+    'band.low':   { en: { t: 'Low',      b: '' }, fr: { t: 'Grave',       b: '', reviewed: true } },
+    'band.lomid': { en: { t: 'Low-Mid',  b: '' }, fr: { t: 'Bas-médium',  b: '', reviewed: true } },
+    'band.himid': { en: { t: 'High-Mid', b: '' }, fr: { t: 'Haut-médium', b: '', reviewed: true } },
+    'band.high':  { en: { t: 'High',     b: '' }, fr: { t: 'Aigu',        b: '', reviewed: true } },
 
     // ── Per-band controls ────────────────────────────────────────────────
     // Identical in all four bands, so the wording lives here once and the band
@@ -231,98 +231,98 @@ export const I18N = Object.freeze({
               b: 'The level at which this band starts to compress. Anything above it is pulled down by the Ratio. −60 to 0 dB.' },
         fr: { t: '{band} — Seuil',
               b: 'Le niveau à partir duquel cette bande commence à compresser. Tout ce qui le dépasse est ramené vers le bas selon le Ratio. −60 à 0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.ratio': {
         en: { t: '{band} — Ratio',
               b: 'How firmly the band is compressed above the threshold. 1:1 leaves it untouched; 20:1 is effectively limiting.' },
         fr: { t: '{band} — Ratio',
               b: 'Fermeté de la compression au-dessus du seuil. 1:1 laisse la bande intacte ; 20:1 revient à de la limitation.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.attack': {
         en: { t: '{band} — Attack',
               b: 'How quickly compression engages once the signal crosses the threshold. Fast settings clamp transients, slow settings let them through. 0.1 to 200 ms.' },
         fr: { t: '{band} — Attaque',
               b: 'Rapidité d’engagement de la compression une fois le seuil franchi. Les réglages rapides brident les transitoires, les lents les laissent passer. 0,1 à 200 ms.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.release': {
         en: { t: '{band} — Release',
               b: 'How quickly compression lets go once the signal falls back below the threshold. Too fast can pump, too slow can choke the band. 10 to 2000 ms.' },
         fr: { t: '{band} — Relâchement',
               b: 'Rapidité avec laquelle la compression relâche une fois le signal redescendu sous le seuil. Trop rapide, elle pompe ; trop lente, elle étouffe la bande. 10 à 2000 ms.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.knee': {
         en: { t: '{band} — Knee',
               b: 'Softens the onset of compression around the threshold. 0 dB is a hard knee that grabs abruptly; 24 dB eases in very gradually.' },
         fr: { t: '{band} — Coude',
               b: 'Adoucit l’entrée en compression autour du seuil. 0 dB donne un coude dur qui saisit brusquement ; 24 dB amène la compression très progressivement.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.makeup': {
         en: { t: '{band} — Makeup',
               b: 'Manual gain applied to this band after compression, to restore what gain reduction took away. −12 to +24 dB.' },
         fr: { t: '{band} — Compensation',
               b: 'Gain manuel appliqué à cette bande après compression, pour restituer ce que la réduction de gain a retiré. −12 à +24 dB.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.solo': {
         en: { t: '{band} — Solo',
               b: 'Hear this band on its own — the other three are muted. Useful for checking where a crossover should sit.' },
         fr: { t: '{band} — Solo',
               b: 'Isole cette bande — les trois autres sont coupées. Pratique pour vérifier où placer un point de coupure.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.bypass': {
         en: { t: '{band} — Bypass',
               b: 'Pass this band through uncompressed. The crossover filtering still applies, so the band stays in phase with the others.' },
         fr: { t: '{band} — Contournement',
               b: 'Laisse passer cette bande sans la compresser. Le filtrage de coupure reste appliqué, la bande reste donc en phase avec les autres.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.sc-listen': {
         en: { t: '{band} — Sidechain Listen',
               b: 'Monitor the detector signal driving this band’s compressor, including its sidechain filtering. This is what the compressor "hears", not what it outputs.' },
         fr: { t: '{band} — Écoute du sidechain',
               b: 'Permet d’écouter le signal du détecteur qui pilote le compresseur de cette bande, filtrage de sidechain compris. C’est ce que le compresseur « entend », pas ce qu’il produit.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.peak-rms': {
         en: { t: '{band} — Peak / RMS',
               b: 'Blends how the band’s level is measured. Peak reacts to individual transients and suits de-essing and plosive control; RMS averages over 10 ms and suits glue and level-riding.' },
         fr: { t: '{band} — Crête / RMS',
               b: 'Dose la façon dont le niveau de la bande est mesuré. Crête réagit aux transitoires isolés et convient au dé-essage et au contrôle des plosives ; RMS moyenne sur 10 ms et convient au liant et au nivellement.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.sc-hpf': {
         en: { t: '{band} — Sidechain High-Pass',
               b: 'High-passes the detector only — the audio itself is untouched. Keeps low energy from triggering gain reduction, for example so subsonic rumble does not duck a whole band. Fully left is Off.' },
         fr: { t: '{band} — Passe-haut du sidechain',
               b: 'Filtre en passe-haut le détecteur uniquement — l’audio lui-même n’est pas touché. Empêche l’énergie grave de déclencher la réduction de gain, par exemple pour qu’un grondement infrasonore ne fasse pas plonger toute une bande. Complètement à gauche : Off.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.sc-lpf': {
         en: { t: '{band} — Sidechain Low-Pass',
               b: 'Low-passes the detector only — the audio itself is untouched. Narrows what the band responds to, for example keeping cymbals and air from holding a de-esser down. Fully left is Off.' },
         fr: { t: '{band} — Passe-bas du sidechain',
               b: 'Filtre en passe-bas le détecteur uniquement — l’audio lui-même n’est pas touché. Restreint ce à quoi la bande réagit, par exemple pour éviter que cymbales et air ne maintiennent un dé-esseur enfoncé. Complètement à gauche : Off.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.gr': {
         en: { t: '{band} — Gain Reduction',
               b: 'How much this band is being compressed right now. The bar fills as gain reduction deepens, up to −24 dB.' },
         fr: { t: '{band} — Réduction de gain',
               b: 'Quantité de compression appliquée à cette bande en ce moment. La barre se remplit à mesure que la réduction de gain s’accentue, jusqu’à −24 dB.',
-              reviewed: false },
+              reviewed: true },
     },
     'band.range': {
         en: { t: '{band} — Frequency Range',
               b: 'The span this band processes. It follows the crossover handles in the analyzer above, so drag them to retune it.' },
         fr: { t: '{band} — Plage de fréquences',
               b: 'L’étendue traitée par cette bande. Elle suit les poignées de coupure de l’analyseur ci-dessus ; déplacez-les pour la réajuster.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Settings popover ─────────────────────────────────────────────────
@@ -331,7 +331,7 @@ export const I18N = Object.freeze({
               b: 'Interface preferences — the language of this hover help, and whether hover help appears at all.' },
         fr: { t: 'Réglages',
               b: 'Préférences d’interface — la langue de cette aide au survol, et son affichage ou non.',
-              reviewed: false },
+              reviewed: true },
     },
     // v1.11.0: through v1.10.0 this entry told the user, in both languages,
     // that control labels stay in English. That is now false — the labels are
@@ -344,7 +344,7 @@ export const I18N = Object.freeze({
               b: 'Language of this hover help and of the labels on the page. The choice is remembered with the session and is not carried by presets. Value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
               b: 'Langue de cette aide au survol et des libellés de la page. Le choix est conservé avec la session et n’est pas transporté par les préréglages. Les valeurs affichées et les noms de préréglages restent en anglais.',
-              reviewed: false },
+              reviewed: true },
     },
     // One key covering both states rather than a pair swapped on click: the
     // canonical applyI18n() re-renders straight from this table on every
@@ -355,7 +355,7 @@ export const I18N = Object.freeze({
               b: 'Turns this hover-help layer on or off for every control. While it is off, this button still explains itself, so help can always be switched back on. The setting is shared by every instance on this machine.' },
         fr: { t: 'Aide au survol',
               b: 'Active ou désactive cette aide au survol pour toutes les commandes. Lorsqu’elle est désactivée, ce bouton continue de s’expliquer, afin de pouvoir toujours la réactiver. Ce réglage est partagé par toutes les instances sur cette machine.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -424,14 +424,14 @@ export const LABELS = Object.freeze({
     // A native reviewer should challenge these two before any other entry in
     // this table: they are the only ones where width, not meaning, picked the
     // word.
-    'label.save':      { en: { t: 'Save' },  fr: { t: 'Enreg.',  reviewed: false } },
-    'label.load':      { en: { t: 'Load' },  fr: { t: 'Ouvrir',  reviewed: false } },
+    'label.save':      { en: { t: 'Save' },  fr: { t: 'Enreg.',  reviewed: true } },
+    'label.load':      { en: { t: 'Load' },  fr: { t: 'Ouvrir',  reviewed: true } },
 
     // ── Settings popover ────────────────────────────────────────────────────
     // Not the `tips-toggle` key: that tip's title is "Hover Help" and this
     // caption is "Hover help". The reuse rule wants both languages identical,
     // and these differ in English before French is even considered.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: false } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
 
     // The hover-help toggle's two faces and the Auto-MU toggle's two faces.
     // They go through setLabel(), so the element becomes a [data-i18n] element
@@ -442,38 +442,38 @@ export const LABELS = Object.freeze({
     // "Marche" / "Arrêt" rather than "Activé" / "Désactivé": the toggle face is
     // 44 px, and this is the vocabulary a piece of hardware uses, which is the
     // register the whole panel is written in.
-    'ui.on':           { en: { t: 'On' },    fr: { t: 'Marche', reviewed: false } },
-    'ui.off':          { en: { t: 'Off' },   fr: { t: 'Arrêt',  reviewed: false } },
+    'ui.on':           { en: { t: 'On' },    fr: { t: 'Marche', reviewed: true } },
+    'ui.off':          { en: { t: 'Off' },   fr: { t: 'Arrêt',  reviewed: true } },
 
     // ── Preset dropdown, built from script ──────────────────────────────────
-    'ui.noPresets':    { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: false } },
+    'ui.noPresets':    { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true } },
     // The preset NAME is substituted, never translated (D-02 — the name is the
     // JSON filename). tr()/trLabel() resolve a var value that is not itself a
     // key literally, which is exactly what is wanted here.
     'ui.deleteConfirm': { en: { t: 'Delete "{name}"?' },
-                          fr: { t: 'Supprimer « {name} » ?', reviewed: false } },
-    'ui.delete':       { en: { t: 'Delete' }, fr: { t: 'Supprimer', reviewed: false } },
-    'ui.cancel':       { en: { t: 'Cancel' }, fr: { t: 'Annuler',   reviewed: false } },
+                          fr: { t: 'Supprimer « {name} » ?', reviewed: true } },
+    'ui.delete':       { en: { t: 'Delete' }, fr: { t: 'Supprimer', reviewed: true } },
+    'ui.cancel':       { en: { t: 'Cancel' }, fr: { t: 'Annuler',   reviewed: true } },
 
     // ── Meters ──────────────────────────────────────────────────────────────
     // Absolutely positioned and translate(-50%) centred, so neither has a
     // rendered box that can push anything.
-    'label.in':        { en: { t: 'IN' },   fr: { t: 'ENT', reviewed: false } },
-    'label.out':       { en: { t: 'OUT' },  fr: { t: 'SOR', reviewed: false } },
+    'label.in':        { en: { t: 'IN' },   fr: { t: 'ENT', reviewed: true } },
+    'label.out':       { en: { t: 'OUT' },  fr: { t: 'SOR', reviewed: true } },
 
     // ── Band controls, one key each, shared by all four bands ───────────────
-    'label.gr':        { en: { t: 'GR' },     fr: { t: 'RG',      reviewed: false } },
-    'label.thresh':    { en: { t: 'Thresh' }, fr: { t: 'Seuil',   reviewed: false } },
+    'label.gr':        { en: { t: 'GR' },     fr: { t: 'RG',      reviewed: true } },
+    'label.thresh':    { en: { t: 'Thresh' }, fr: { t: 'Seuil',   reviewed: true } },
     // Ratio IS the French term (glossary): a straight copy, declared as one.
-    'label.ratio':     { en: { t: 'Ratio' },  fr: { t: 'Ratio',   reviewed: false, sameAsEn: true } },
-    'label.attack':    { en: { t: 'Attack' }, fr: { t: 'Attaque', reviewed: false } },
+    'label.ratio':     { en: { t: 'Ratio' },  fr: { t: 'Ratio',   reviewed: true, sameAsEn: true } },
+    'label.attack':    { en: { t: 'Attack' }, fr: { t: 'Attaque', reviewed: true } },
     // v1.11.1: the glossary's abbreviation, and it is NARROWER than what v1.11.0
     // shipped — Relâch. 38.33 px against Relâche 41.67 px, in a 60.16 px grid
     // track (Range.selectNodeContents at the 900x640 shipping frame). The root
     // Relâchement is 66.88 px: over the track, and it re-deals the three 1fr
     // columns to 55.63/55.64/69.23, which moves every knob inside them.
-    'label.release':   { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: false } },
-    'label.knee':      { en: { t: 'Knee' },   fr: { t: 'Coude',   reviewed: false } },
+    'label.release':   { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: true } },
+    'label.knee':      { en: { t: 'Knee' },   fr: { t: 'Coude',   reviewed: true } },
     // The tip title is "Compensation". MEASURED at the shipping frame it is
     // 69.23 px in a 60.16 px track, and substituting it re-deals the three 1fr
     // columns to 55.63/55.64/69.23 — every knob inside them moves. The glossary
@@ -481,60 +481,60 @@ export const LABELS = Object.freeze({
     // does not carry and the Stage N lint still reports it as G1. Reported rather
     // than exempted: a width constraint is not a contextual exemption, and a
     // termNote here would be the reasoned-exemption mechanism hiding a miss.
-    'label.makeup':    { en: { t: 'Makeup' }, fr: { t: 'Compens.', reviewed: false } },
+    'label.makeup':    { en: { t: 'Makeup' }, fr: { t: 'Compens.', reviewed: true } },
     'label.detector':  { en: { t: 'Detector / Sidechain' },
-                         fr: { t: 'Détecteur / Sidechain', reviewed: false } },
+                         fr: { t: 'Détecteur / Sidechain', reviewed: true } },
     // v1.11.1: the whole word. "Crê" cut a French abbreviation at a vowel, which
     // is not how French abbreviates; Crête/RMS measures 50.27 px inside the same
     // 60.16 px track and moves nothing.
-    'label.pkRms':     { en: { t: 'Pk/RMS' }, fr: { t: 'Crête/RMS', reviewed: false } },
+    'label.pkRms':     { en: { t: 'Pk/RMS' }, fr: { t: 'Crête/RMS', reviewed: true } },
     // "Sidechain" is the term this plugin's own French tooltips use, so the
     // SC prefix survives; PH / PB are passe-haut / passe-bas.
-    'label.scHpf':     { en: { t: 'SC HPF' }, fr: { t: 'SC PH',   reviewed: false } },
-    'label.scLpf':     { en: { t: 'SC LPF' }, fr: { t: 'SC PB',   reviewed: false } },
+    'label.scHpf':     { en: { t: 'SC HPF' }, fr: { t: 'SC PH',   reviewed: true } },
+    'label.scLpf':     { en: { t: 'SC LPF' }, fr: { t: 'SC PB',   reviewed: true } },
 
-    'label.solo':      { en: { t: 'Solo' },      fr: { t: 'Solo', reviewed: false, sameAsEn: true } },
+    'label.solo':      { en: { t: 'Solo' },      fr: { t: 'Solo', reviewed: true, sameAsEn: true } },
     // v1.11.1: the glossary's abbreviation for Bypass. The root Contournement is
     // 89.25 px of text (103.25 px of button) and grows the whole band 188.5 →
     // 221.94 px. Contour. is 64.50 px of button, so the three-button row comes to
     // 40.22 + 64.50 + 68.47 + 10 gap = 183.19 px inside 188.50 — 5.31 px of slack,
     // the tightest measured margin on this page. A wider Windows face lands here
     // first (the standing WebView2 metrics deferral).
-    'label.bypass':    { en: { t: 'Bypass' },    fr: { t: 'Contour.', reviewed: false } },
-    'label.scListen':  { en: { t: 'SC Listen' }, fr: { t: 'Écoute SC', reviewed: false } },
+    'label.bypass':    { en: { t: 'Bypass' },    fr: { t: 'Contour.', reviewed: true } },
+    'label.scListen':  { en: { t: 'SC Listen' }, fr: { t: 'Écoute SC', reviewed: true } },
 
     // ── Global controls ─────────────────────────────────────────────────────
-    'label.input':     { en: { t: 'Input' },   fr: { t: 'Entrée',    reviewed: false } },
-    'label.autoMu':    { en: { t: 'Auto-MU' }, fr: { t: 'Auto-Comp', reviewed: false } },
-    'label.msMode':    { en: { t: 'M/S Mode' },fr: { t: 'Mode M/S',  reviewed: false } },
-    'label.output':    { en: { t: 'Output' },  fr: { t: 'Sortie',    reviewed: false } },
+    'label.input':     { en: { t: 'Input' },   fr: { t: 'Entrée',    reviewed: true } },
+    'label.autoMu':    { en: { t: 'Auto-MU' }, fr: { t: 'Auto-Comp', reviewed: true } },
+    'label.msMode':    { en: { t: 'M/S Mode' },fr: { t: 'Mode M/S',  reviewed: true } },
+    'label.output':    { en: { t: 'Output' },  fr: { t: 'Sortie',    reviewed: true } },
 
     // The M/S mode choices. NOT `ui.off`: this one names a routing mode that is
     // not engaged, not a switch that is turned off, and French separates the
     // two where English does not. Mid and Side are the names of the encoding,
     // used untranslated in French audio work.
-    'label.msOff':     { en: { t: 'Off' },  fr: { t: 'Aucun',    reviewed: false } },
-    'label.msMid':     { en: { t: 'Mid' },  fr: { t: 'Mid',      reviewed: false, sameAsEn: true,
+    'label.msOff':     { en: { t: 'Off' },  fr: { t: 'Aucun',    reviewed: true } },
+    'label.msMid':     { en: { t: 'Mid' },  fr: { t: 'Mid',      reviewed: true, sameAsEn: true,
                                                   termNote: 'this Mid is the M/S ENCODING, not the frequency band — the glossary\'s Médium is the band term and is already used for band.lomid / band.himid on this same page' } },
-    'label.msSide':    { en: { t: 'Side' }, fr: { t: 'Side',     reviewed: false, sameAsEn: true } },
-    'label.msBoth':    { en: { t: 'Both' }, fr: { t: 'Les deux', reviewed: false } },
+    'label.msSide':    { en: { t: 'Side' }, fr: { t: 'Side',     reviewed: true, sameAsEn: true } },
+    'label.msBoth':    { en: { t: 'Both' }, fr: { t: 'Les deux', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
     // the accessible NAME, and a screen reader in French reading an English
     // name is the same failure as a French page with an English caption. None
     // has a rendered box, so none is a geometry risk.
-    'aria.presetPrev':   { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: false } },
-    'aria.presetNext':   { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: false } },
-    'aria.presetList':   { en: { t: 'Presets' },         fr: { t: 'Préréglages',          reviewed: false } },
+    'aria.presetPrev':   { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: true } },
+    'aria.presetNext':   { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: true } },
+    'aria.presetList':   { en: { t: 'Presets' },         fr: { t: 'Préréglages',          reviewed: true } },
     'aria.helpToggle':   { en: { t: 'Toggle hover help' },
-                           fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
+                           fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
     // Static, not composed. Canon v2's attribute sweep resolves a key WITHOUT
     // vars by design, and the dropdown row this button sits in already carries
     // the preset name as its own accessible content, so the row is announced
     // before the button either way. The button additionally points at that name
     // through aria-describedby, so nothing about the composed form is lost.
-    'aria.presetDelete': { en: { t: 'Delete preset' },   fr: { t: 'Supprimer le préréglage', reviewed: false } },
+    'aria.presetDelete': { en: { t: 'Delete preset' },   fr: { t: 'Supprimer le préréglage', reviewed: true } },
 });
 
 // ============================================================================

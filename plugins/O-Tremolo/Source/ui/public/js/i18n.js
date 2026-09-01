@@ -195,7 +195,7 @@ export const I18N = Object.freeze({
               b: 'Règle la rapidité du balayage du trémolo. Avec Sync Tempo activé, le bouton '
                + 'devient un sélecteur et parcourt plutôt les divisions musicales, de 1/1 à 1/32Q. '
                + 'Plage libre de 0,1 à 20,0 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.depth': {
@@ -207,7 +207,7 @@ export const I18N = Object.freeze({
               b: 'Détermine à quel point le trémolo abaisse le niveau au creux de chaque cycle. '
                + 'À 0 % rien ne bouge ; à 100 % le signal atteint le silence. '
                + 'Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The waveform select and the smoothing slider ─────────────────────────
@@ -224,7 +224,7 @@ export const I18N = Object.freeze({
               b: 'Choisit la forme de l’onde de modulation, du gonflement doux au hachage franc. '
                + 'Noise maintient quatre niveaux aléatoires par cycle et Pulse est une porte étroite. '
                + 'Six formes : Sine, Triangle, Phasor, Noise, Square, Pulse.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // SMOOTHING IS THE ONE PARAMETER WITH NO READOUT ANYWHERE ON THE PAGE —
@@ -240,7 +240,7 @@ export const I18N = Object.freeze({
               b: 'Arrondit les angles de l’onde de modulation et adoucit les clics que peuvent '
                + 'produire une onde carrée ou une impulsion. Une sinusoïde est déjà lisse : '
                + 'le réglage y change donc peu. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The two sync toggles ────────────────────────────────────────────────
@@ -258,7 +258,7 @@ export const I18N = Object.freeze({
               b: 'Décale le canal droit d’un demi-cycle : le trémolo balaie alors l’image stéréo '
                + 'au lieu d’abaisser les deux canaux ensemble. Un signal stéréo est nécessaire '
                + 'pour l’entendre. Désactivé ou activé.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // The 120 BPM fallback is in the body because it is audible: in the
@@ -275,7 +275,7 @@ export const I18N = Object.freeze({
                + 'parcourt alors les divisions musicales de 1/1 à 1/32Q plutôt que des Hz '
                + 'libres, et le plugin suppose 120 BPM si l’hôte n’en indique aucun. '
                + 'Désactivé ou activé.',
-              reviewed: false,
+              reviewed: true,
               termNote: 'Synchro Tempo (glossary root) wraps to a widest line of 51.30 px inside #tempoButton’s 42.00 px content box, which is overflow: hidden — measured at the shipping 600 x 400 frame. The tip title mirrors the button caption on purpose, so it carries the same abbreviation.' },
     },
 
@@ -290,7 +290,7 @@ export const I18N = Object.freeze({
               b: 'Opens the settings panel. It holds the interface language and nothing else.' },
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau de réglages. Il ne contient que la langue de l’interface.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // The endonyms are quoted as they appear in the selector — a language name
@@ -304,7 +304,7 @@ export const I18N = Object.freeze({
               b: 'Choisit la langue du texte de l’interface et de cette aide au survol. '
                + 'Les noms de paramètres dans la voie d’automatisation de l’hôte et les valeurs '
                + 'affichées restent en anglais. English ou Français.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -400,8 +400,8 @@ export const LABELS = Object.freeze({
     // and "OUV" hitting their buttons. Both WOULD fit the pin with a period,
     // and would break the rule silently. The glossary normalises a trailing
     // period away, so "Ouv" matches its listed "ouv" either way.
-    'label.load':      { en: { t: 'Load' },       fr: { t: 'Ouv',        reviewed: false } },
-    'label.save':      { en: { t: 'Save' },       fr: { t: 'Enr',        reviewed: false,
+    'label.load':      { en: { t: 'Load' },       fr: { t: 'Ouv',        reviewed: true } },
+    'label.save':      { en: { t: 'Save' },       fr: { t: 'Enr',        reviewed: true,
                                                         termNote: 'Enregistrer 73.28 px and Enreg 35.84 px both overrun #savePreset’s 27.00 px content box, measured at the shipping 600 x 400 frame with the gate’s own Range.selectNodeContents; Enr is 21.50 px and fits. The period stays dropped so label-in-name (WCAG 2.5.3) still matches aria.savePreset — “enr” is a substring of “enregistrer”, “enr.” is not.' } },
 
     // ── The two sync toggles ────────────────────────────────────────────────
@@ -427,8 +427,8 @@ export const LABELS = Object.freeze({
     // key, so the lint flags only one half of a pair the page renders as a
     // matched pair; changing one and not the other would be worse French AND
     // worse design. Both stay, and label.tempoSync carries the termNote.
-    'label.panSync':   { en: { t: 'Pan Sync' },   fr: { t: 'Sync Pan',   reviewed: false } },
-    'label.tempoSync': { en: { t: 'Tempo Sync' }, fr: { t: 'Sync Tempo', reviewed: false,
+    'label.panSync':   { en: { t: 'Pan Sync' },   fr: { t: 'Sync Pan',   reviewed: true } },
+    'label.tempoSync': { en: { t: 'Tempo Sync' }, fr: { t: 'Sync Tempo', reviewed: true,
                           termNote: 'Synchro Tempo, the glossary root, wraps to a widest line of 51.30 px inside this button’s 42.00 px content box (width: 70px, overflow: hidden), measured at the shipping 600 x 400 frame. Synchro Pan is the same 51.30 px. No abbreviation is listed for tempo sync; Sync Tempo is 36.41 px and holds the two-line box the English caption already occupies.' } },
 
     // ── The two knob captions ───────────────────────────────────────────────
@@ -438,8 +438,8 @@ export const LABELS = Object.freeze({
     // (49.84) and INTENSITÉ (48.39) both fit the unpinned column and both say
     // something slightly different. The 60 px pin is what makes keeping the
     // right word free.
-    'label.speed':     { en: { t: 'Speed' },      fr: { t: 'Vitesse',    reviewed: false } },
-    'label.depth':     { en: { t: 'Depth' },      fr: { t: 'Profondeur', reviewed: false } },
+    'label.speed':     { en: { t: 'Speed' },      fr: { t: 'Vitesse',    reviewed: true } },
+    'label.depth':     { en: { t: 'Depth' },      fr: { t: 'Profondeur', reviewed: true } },
 
     // ── The two section headings ────────────────────────────────────────────
     //
@@ -448,8 +448,8 @@ export const LABELS = Object.freeze({
     // ondes), and it is the term a French-language modular front panel uses.
     // The 88 px ceiling is a hard one: FORME D'ONDE at 106.34 px grows the
     // select it sits above.
-    'label.waveform':  { en: { t: 'Waveform' },   fr: { t: 'Onde',       reviewed: false } },
-    'label.smoothing': { en: { t: 'Smoothing' },  fr: { t: 'Lissage',    reviewed: false } },
+    'label.waveform':  { en: { t: 'Waveform' },   fr: { t: 'Onde',       reviewed: true } },
+    'label.smoothing': { en: { t: 'Smoothing' },  fr: { t: 'Lissage',    reviewed: true } },
 
     // ── The preset dropdown, written by setLabel() at runtime ───────────────
     //
@@ -464,10 +464,10 @@ export const LABELS = Object.freeze({
     // it, in either language, so there is no inflection to get wrong at 0, 1
     // and n. The dropdown row it renders into is 256.61 px of content box and
     // the French is well inside it, so the panel does not gain a line.
-    'label.factory':   { en: { t: 'Factory' },    fr: { t: 'Usine',       reviewed: false } },
-    'label.user':      { en: { t: 'User' },       fr: { t: 'Utilisateur', reviewed: false } },
+    'label.factory':   { en: { t: 'Factory' },    fr: { t: 'Usine',       reviewed: true } },
+    'label.user':      { en: { t: 'User' },       fr: { t: 'Utilisateur', reviewed: true } },
     'label.noPresets': { en: { t: 'No presets available' },
-                         fr: { t: 'Aucun préréglage disponible', reviewed: false } },
+                         fr: { t: 'Aucun préréglage disponible', reviewed: true } },
 
     // ── The settings popover (v1.7.0) ───────────────────────────────────────
     //
@@ -482,7 +482,7 @@ export const LABELS = Object.freeze({
     // the panel is shrink-to-fit over max(caption, select), so it would measure
     // 63.55 in English and 62.00 in French and assertion 7 would report the
     // panel, its row and the select as moved.
-    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',     reviewed: false } },
+    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',     reviewed: true } },
 
     // ── Image alternative text ──────────────────────────────────────────────
     //
@@ -494,8 +494,8 @@ export const LABELS = Object.freeze({
     // nothing to do with localization. The images here are img/paper.jpg and
     // img/carrot.png; the authored English is the same two words several
     // siblings carry, and the French matches theirs.
-    'alt.background':  { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: false } },
-    'alt.botanical':   { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: false } },
+    'alt.background':  { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true } },
+    'alt.botanical':   { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -526,18 +526,18 @@ export const LABELS = Object.freeze({
     // the caption still hits the button (WCAG 2.5.3, matched
     // case-insensitively).
     'aria.prevPreset': { en: { t: 'Previous preset' },
-                         fr: { t: 'Préréglage précédent', reviewed: false } },
+                         fr: { t: 'Préréglage précédent', reviewed: true } },
     'aria.nextPreset': { en: { t: 'Next preset' },
-                         fr: { t: 'Préréglage suivant',   reviewed: false } },
+                         fr: { t: 'Préréglage suivant',   reviewed: true } },
     'aria.presetList': { en: { t: 'Click to see all presets' },
-                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: false } },
+                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: false } },
+                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } },
     'aria.savePreset': { en: { t: 'Save current settings' },
-                         fr: { t: 'Enregistrer les réglages actuels', reviewed: false } },
+                         fr: { t: 'Enregistrer les réglages actuels', reviewed: true } },
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
 });
 
 // ============================================================================

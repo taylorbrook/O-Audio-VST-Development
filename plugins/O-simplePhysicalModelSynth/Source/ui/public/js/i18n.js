@@ -147,21 +147,21 @@ export const I18N = Object.freeze({
               b: "Choose the language of the interface, and whether the hover help appears at all. The language is remembered with the session; the hover-help switch is remembered on this computer." },
         fr: { t: "Réglages",
               b: "Choisissez la langue de l’interface, et si l’aide au survol s’affiche. La langue est conservée avec la session ; l’état de l’aide est conservé sur cet ordinateur.",
-              reviewed: false },
+              reviewed: true },
     },
     'lang-select': {
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available; the value readouts, the preset names and the three drop-down menus stay in English." },
         fr: { t: "Langue",
               b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de préréglages et les trois menus déroulants restent en anglais.",
-              reviewed: false },
+              reviewed: true },
     },
     'help-toggle': {
         en: { t: "Hover help",
               b: "Turns these hover explanations off or back on. The switch is remembered on this computer rather than in the session, so it follows you from one project to the next." },
         fr: { t: "Aide au survol",
               b: "Active ou désactive ces explications au survol. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d’un projet à l’autre.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Excitation ──────────────────────────────────────────────────────────
@@ -170,28 +170,28 @@ export const I18N = Object.freeze({
               b: "How energy enters the model: Pluck (noise burst), Strike (mallet impulse), or Bow (sustained friction). Swap it to hear why the same string sounds different plucked vs struck vs bowed." },
         fr: { t: "Excitation",
               b: "Comment l’énergie entre dans le modèle : Pluck (bouffée de bruit), Strike (impulsion de maillet) ou Bow (frottement entretenu). Changez-la pour entendre pourquoi une même corde sonne autrement pincée, frappée ou frottée.",
-              reviewed: false },
+              reviewed: true },
     },
     excitationPosition: {
         en: { t: "Excite Position",
               b: "Where along the string the energy enters. Mid → rounder; near an end → thinner and brighter (a comb filter on the exciter)." },
         fr: { t: "Position d’excitation",
               b: "Où l’énergie entre le long de la corde. Au milieu → plus rond ; près d’une extrémité → plus mince et plus brillant (un filtre en peigne sur l’excitateur).",
-              reviewed: false },
+              reviewed: true },
     },
     excitationColor: {
         en: { t: "Excite Color",
               b: "Brightness / hardness of the exciter. Low = a soft mallet; high = a hard, bright attack." },
         fr: { t: "Couleur d’excitation",
               b: "Brillance et dureté de l’excitateur. Bas = un maillet doux ; haut = une attaque dure et brillante.",
-              reviewed: false },
+              reviewed: true },
     },
     bowForce: {
         en: { t: "Bow Force",
               b: "Bow only. Friction pressure on the stick-slip drive — more force gives a noisier, richer attack. Greyed unless Excitation = Bow." },
         fr: { t: "Pression d’archet",
               b: "Bow uniquement. Pression de frottement sur l’entraînement adhérence-glissement — plus de force donne une attaque plus bruitée et plus riche. Grisé sauf si Excitation = Bow.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Resonator ───────────────────────────────────────────────────────────
@@ -200,28 +200,28 @@ export const I18N = Object.freeze({
               b: "The engine switch. String = Karplus-Strong (a harmonic comb). Modal = a bank of decaying sines (the inharmonic modes of bars & bells)." },
         fr: { t: "Résonateur",
               b: "Le sélecteur de moteur. String = Karplus-Strong (un peigne harmonique). Modal = un banc de sinus qui s’éteignent (les modes inharmoniques des barres et des cloches).",
-              reviewed: false },
+              reviewed: true },
     },
     stringModel: {
         en: { t: "String Model",
               b: "Karplus-Strong is the v1.0 engine. The two-delay Waveguide (which makes excitation position physical) arrives in v1.1." },
         fr: { t: "Modèle de corde",
               b: "Karplus-Strong est le moteur de la v1.0. Le Waveguide à deux lignes à retard (qui rend physique la position d’excitation) arrive en v1.1.",
-              reviewed: false },
+              reviewed: true },
     },
     inharmonicity: {
         en: { t: "Inharmonicity",
               b: "Modal only. Stretches the mode spacing from harmonic (bar-like) toward inharmonic (bell-like): fₖ = f₀·k·√(1+B·k²). The control that makes a bell sound like a bell, not a string." },
         fr: { t: "Inharmonicité",
               b: "Modal uniquement. Étire l’espacement des modes de l’harmonique (proche d’une barre) vers l’inharmonique (proche d’une cloche) : fₖ = f₀·k·√(1+B·k²). La commande qui fait qu’une cloche sonne comme une cloche et non comme une corde.",
-              reviewed: false },
+              reviewed: true },
     },
     modeBrightness: {
         en: { t: "Mode Brightness",
               b: "Modal only. Tilts the upper modes louder and longer — how bright and metallic the struck body is." },
         fr: { t: "Brillance des modes",
               b: "Modal uniquement. Rend les modes aigus plus forts et plus longs — la brillance métallique du corps frappé.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Material / damping ──────────────────────────────────────────────────
@@ -230,21 +230,21 @@ export const I18N = Object.freeze({
               b: "The loop low-pass cutoff. It shaves a little high end on every pass, so the tone darkens as it decays — bright steel ↔ muted nylon." },
         fr: { t: "Amortissement",
               b: "La fréquence de coupure du passe-bas de la boucle. Elle rogne un peu d’aigu à chaque passage : le timbre s’assombrit en s’éteignant — acier brillant ↔ nylon feutré.",
-              reviewed: false },
+              reviewed: true },
     },
     decay: {
         en: { t: "Decay",
               b: "The loop feedback / ring time. Near one = long sustain; lower = a short, damped pluck. Always clamped below 1 so the loop can't run away." },
         fr: { t: "Déclin",
               b: "La réinjection de la boucle, donc la durée de résonance. Proche de un = tenue longue ; plus bas = un pincement court et étouffé. Toujours borné sous 1 pour que la boucle ne s’emballe pas.",
-              reviewed: false },
+              reviewed: true },
     },
     material: {
         en: { t: "Material",
               b: "One knob that co-moves Damping + Decay along the steel↔nylon axis — watch both knobs track as you turn it." },
         fr: { t: "Matériau",
               b: "Un seul bouton qui déplace ensemble Amortissement et Déclin le long de l’axe acier↔nylon — regardez les deux boutons suivre quand vous le tournez.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Tuning ─────────────────────────────────────────────────────────────
@@ -253,14 +253,14 @@ export const I18N = Object.freeze({
               b: "Transpose in semitones (±24)." },
         fr: { t: "Accord grossier",
               b: "Transposition en demi-tons (±24).",
-              reviewed: false },
+              reviewed: true },
     },
     fineTune: {
         en: { t: "Fine Tune",
               b: "Fine pitch in cents (±100)." },
         fr: { t: "Accord fin",
               b: "Hauteur fine en cents (±100).",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Amp / dynamics ─────────────────────────────────────────────────────
@@ -269,28 +269,28 @@ export const I18N = Object.freeze({
               b: "Output amplitude fade-in. Matters most for the sustained Bow — the body's own decay is intrinsic to the model." },
         fr: { t: "Attaque d’amplitude",
               b: "Montée de l’amplitude de sortie. Surtout utile pour le Bow entretenu — le déclin propre du corps est intrinsèque au modèle.",
-              reviewed: false },
+              reviewed: true },
     },
     ampRelease: {
         en: { t: "Amp Release",
               b: "Output fade-out after note-off — how quickly the note is damped when you let go." },
         fr: { t: "Relâchement d’amplitude",
               b: "Descente de la sortie après le relâchement de la touche — la vitesse à laquelle la note est étouffée quand vous lâchez.",
-              reviewed: false },
+              reviewed: true },
     },
     velToBrightness: {
         en: { t: "Velocity → Brightness",
               b: "How much harder playing brightens and strengthens the excitation. The model's dynamic response — play harder, hear brighter." },
         fr: { t: "Vélocité → brillance",
               b: "À quel point jouer plus fort éclaircit et renforce l’excitation. La réponse dynamique du modèle : jouez plus fort, entendez plus brillant.",
-              reviewed: false },
+              reviewed: true },
     },
     outputLevel: {
         en: { t: "Output Level",
               b: "Master output gain (−60 … 0 dB)." },
         fr: { t: "Niveau de sortie",
               b: "Gain de sortie général (−60 … 0 dB).",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Diagram boxes ──────────────────────────────────────────────────────
@@ -301,28 +301,28 @@ export const I18N = Object.freeze({
               b: "Energy is injected here — a pluck, strike, or bow. Its position and color shape the attack before it reaches the resonator." },
         fr: { t: "Excitation",
               b: "L’énergie est injectée ici — un pincement, une frappe ou un coup d’archet. Sa position et sa couleur façonnent l’attaque avant qu’elle n’atteigne le résonateur.",
-              reviewed: false },
+              reviewed: true },
     },
     diagResonator: {
         en: { t: "Resonator loop",
               b: "Pitch comes from the loop length (fundamental = sample rate ÷ delay length). The pulse circling here dims a little each pass — that fading is the note decaying. In Modal mode it becomes the ringing mode stems." },
         fr: { t: "Boucle du résonateur",
               b: "La hauteur vient de la longueur de la boucle (fondamentale = fréquence d’échantillonnage ÷ longueur du retard). L’impulsion qui tourne ici pâlit un peu à chaque passage — cet affaiblissement est la note qui s’éteint. En mode Modal, elle devient les tiges des modes qui résonnent.",
-              reviewed: false },
+              reviewed: true },
     },
     diagMaterial: {
         en: { t: "Material / damping",
               b: "Each pass loses a little energy: the low-pass (Damping) darkens it and the feedback (Decay) sets how long it rings. This is what turns steel into nylon." },
         fr: { t: "Matériau et amortissement",
               b: "Chaque passage perd un peu d’énergie : le passe-bas (Amortissement) l’assombrit et la réinjection (Déclin) fixe la durée de résonance. C’est ce qui transforme l’acier en nylon.",
-              reviewed: false },
+              reviewed: true },
     },
     diagOut: {
         en: { t: "Output",
               b: "The summed 16-voice signal leaving the instrument, scaled by Output Level." },
         fr: { t: "Sortie",
               b: "Le signal des 16 voix sommées qui quitte l’instrument, mis à l’échelle par le Niveau de sortie.",
-              reviewed: false },
+              reviewed: true },
     },
 
 });
@@ -345,26 +345,26 @@ export const LABELS = Object.freeze({
         // pinned, so it wrapped to a second line and pushed the whole page down
         // 12px. Two connecting words are dropped; the sentence still names the
         // engine, the resonator and the genre. 605.4px, 20.9px of clearance.
-        fr: { t: "Synthétiseur à corde Karplus–Strong et résonateur modal · un guide de terrain", reviewed: false },
+        fr: { t: "Synthétiseur à corde Karplus–Strong et résonateur modal · un guide de terrain", reviewed: true },
     },
     'label.presetSave': {
         en: { t: "Save" },
-        fr: { t: "Enreg.", reviewed: false },
+        fr: { t: "Enreg.", reviewed: true },
     },
     'label.presetDelete': {
         en: { t: "Delete" },
-        fr: { t: "Suppr.", reviewed: false },
+        fr: { t: "Suppr.", reviewed: true },
     },
 
     // The two dropdown group headings, written by buildPresetDropdown() through
     // one-line setLabel writers rather than a label STRING argument.
     'label.presetFactory': {
         en: { t: "Factory" },
-        fr: { t: "Usine", reviewed: false },
+        fr: { t: "Usine", reviewed: true },
     },
     'label.presetUser': {
         en: { t: "User" },
-        fr: { t: "Utilisateur", reviewed: false },
+        fr: { t: "Utilisateur", reviewed: true },
     },
 
     // ── Visualization captions ──────────────────────────────────────────────
@@ -373,23 +373,23 @@ export const LABELS = Object.freeze({
     // to the caption — it is the separator the caption ends with in both languages.
     'label.vizSignalFlow': {
         en: { t: "Signal Flow ·" },
-        fr: { t: "Flux du signal ·", reviewed: false },
+        fr: { t: "Flux du signal ·", reviewed: true },
     },
     'label.vizSignalFlowHint': {
         en: { t: "excitation → resonator loop → material → out" },
-        fr: { t: "excitation → boucle du résonateur → matériau → sortie", reviewed: false },
+        fr: { t: "excitation → boucle du résonateur → matériau → sortie", reviewed: true },
     },
     'label.vizSpectrum': {
         en: { t: "Spectrum ·" },
-        fr: { t: "Spectre ·", reviewed: false },
+        fr: { t: "Spectre ·", reviewed: true },
     },
     'label.vizSpectrumHint': {
         en: { t: "harmonic comb vs inharmonic modes" },
-        fr: { t: "peigne harmonique ou modes inharmoniques", reviewed: false },
+        fr: { t: "peigne harmonique ou modes inharmoniques", reviewed: true },
     },
     'label.vizWaveform': {
         en: { t: "Waveform ·" },
-        fr: { t: "Forme d’onde ·", reviewed: false },
+        fr: { t: "Forme d’onde ·", reviewed: true },
     },
     'label.vizWaveformHint': {
         en: { t: "the ringing string / body, decaying" },
@@ -400,7 +400,7 @@ export const LABELS = Object.freeze({
         // dropped and the participle folded into the verb. 135.5px, 41.8px of
         // clearance. The alternative — reserving the second line in BOTH
         // languages — costs 11px of canvas in English for nothing.
-        fr: { t: "la corde ou le corps qui s’éteint", reviewed: false },
+        fr: { t: "la corde ou le corps qui s’éteint", reviewed: true },
     },
 
     // ── Signal-flow diagram ─────────────────────────────────────────────────
@@ -409,37 +409,37 @@ export const LABELS = Object.freeze({
     // ("string · loop" / "modal · stems") are NOT here — see I18N_EXEMPT.
     'label.diagExcite': {
         en: { t: "EXCITE" },
-        fr: { t: "EXCITATION", reviewed: false },
+        fr: { t: "EXCITATION", reviewed: true },
     },
     'label.diagResonator': {
         en: { t: "RESONATOR" },
-        fr: { t: "RÉSONATEUR", reviewed: false },
+        fr: { t: "RÉSONATEUR", reviewed: true },
     },
     'label.diagMaterial': {
         en: { t: "MATERIAL" },
-        fr: { t: "MATÉRIAU", reviewed: false },
+        fr: { t: "MATÉRIAU", reviewed: true },
     },
     'label.diagMaterialSub': {
         en: { t: "damp·decay" },
-        fr: { t: "amort.·déclin", reviewed: false },
+        fr: { t: "amort.·déclin", reviewed: true },
     },
 
     // ── Column headings ─────────────────────────────────────────────────────
     'label.group1': {
         en: { t: "1 · Excitation" },
-        fr: { t: "1 · Excitation", sameAsEn: true, reviewed: false },
+        fr: { t: "1 · Excitation", sameAsEn: true, reviewed: true },
     },
     'label.group2': {
         en: { t: "2 · Resonator" },
-        fr: { t: "2 · Résonateur", reviewed: false },
+        fr: { t: "2 · Résonateur", reviewed: true },
     },
     'label.group3': {
         en: { t: "3 · Material · Tuning" },
-        fr: { t: "3 · Matériau · Accord", reviewed: false },
+        fr: { t: "3 · Matériau · Accord", reviewed: true },
     },
     'label.group4': {
         en: { t: "4 · Amp · Output" },
-        fr: { t: "4 · Ampli · Sortie", reviewed: false },
+        fr: { t: "4 · Ampli · Sortie", reviewed: true },
     },
 
     // ── Control captions ────────────────────────────────────────────────────
@@ -448,15 +448,15 @@ export const LABELS = Object.freeze({
     // and shortened rather than fitted.
     'label.knobType': {
         en: { t: "Type" },
-        fr: { t: "Type", sameAsEn: true, reviewed: false },
+        fr: { t: "Type", sameAsEn: true, reviewed: true },
     },
     'label.knobPosition': {
         en: { t: "Position" },
-        fr: { t: "Position", sameAsEn: true, reviewed: false },
+        fr: { t: "Position", sameAsEn: true, reviewed: true },
     },
     'label.knobColor': {
         en: { t: "Color" },
-        fr: { t: "Couleur", reviewed: false },
+        fr: { t: "Couleur", reviewed: true },
     },
     'label.knobBowForce': {
         en: { t: "Bow Force" },
@@ -467,19 +467,19 @@ export const LABELS = Object.freeze({
         // languages. "Pression" is 48.9px and one line. The knob is greyed unless
         // Excitation = Bow and its tooltip title spells out "Pression d'archet",
         // so the column context carries the word this caption drops.
-        fr: { t: "Pression", reviewed: false },
+        fr: { t: "Pression", reviewed: true },
     },
     'label.knobEngine': {
         en: { t: "Engine" },
-        fr: { t: "Moteur", reviewed: false },
+        fr: { t: "Moteur", reviewed: true },
     },
     'label.knobStringModel': {
         en: { t: "String Model" },
-        fr: { t: "Modèle corde", reviewed: false },
+        fr: { t: "Modèle corde", reviewed: true },
     },
     'label.knobInharmonicity': {
         en: { t: "Inharmonicity" },
-        fr: { t: "Inharmonicité", reviewed: false },
+        fr: { t: "Inharmonicité", reviewed: true },
     },
     'label.knobModeBright': {
         en: { t: "Mode Bright" },
@@ -491,43 +491,43 @@ export const LABELS = Object.freeze({
         // make the French cell 10.5px SHORTER — the same defect as a French
         // caption growing, in the other direction (§7: French getting shorter
         // flags as loudly as French getting longer).
-        fr: { t: "Brillance modes", reviewed: false },
+        fr: { t: "Brillance modes", reviewed: true },
     },
     'label.knobMaterial': {
         en: { t: "Material" },
-        fr: { t: "Matériau", reviewed: false },
+        fr: { t: "Matériau", reviewed: true },
     },
     'label.knobDamping': {
         en: { t: "Damping" },
-        fr: { t: "Amortissement", reviewed: false },
+        fr: { t: "Amortissement", reviewed: true },
     },
     'label.knobDecay': {
         en: { t: "Decay" },
-        fr: { t: "Déclin", reviewed: false },
+        fr: { t: "Déclin", reviewed: true },
     },
     'label.knobCoarse': {
         en: { t: "Coarse" },
-        fr: { t: "Grossier", reviewed: false },
+        fr: { t: "Grossier", reviewed: true },
     },
     'label.knobFine': {
         en: { t: "Fine" },
-        fr: { t: "Fin", reviewed: false },
+        fr: { t: "Fin", reviewed: true },
     },
     'label.knobAttack': {
         en: { t: "Attack" },
-        fr: { t: "Attaque", reviewed: false },
+        fr: { t: "Attaque", reviewed: true },
     },
     'label.knobRelease': {
         en: { t: "Release" },
-        fr: { t: "Relâchement", reviewed: false },
+        fr: { t: "Relâchement", reviewed: true },
     },
     'label.knobVelBright': {
         en: { t: "Vel→Bright" },
-        fr: { t: "Vél→Brill.", reviewed: false },
+        fr: { t: "Vél→Brill.", reviewed: true },
     },
     'label.knobLevel': {
         en: { t: "Level" },
-        fr: { t: "Niveau", reviewed: false },
+        fr: { t: "Niveau", reviewed: true },
     },
 
     // ── On-screen keyboard ──────────────────────────────────────────────────
@@ -536,11 +536,11 @@ export const LABELS = Object.freeze({
     // language-neutral and are not translated.
     'label.keyboard': {
         en: { t: "Play ·" },
-        fr: { t: "Jouer ·", reviewed: false },
+        fr: { t: "Jouer ·", reviewed: true },
     },
     'label.keyboardHint': {
         en: { t: "click the keys or use your computer keyboard (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)" },
-        fr: { t: "cliquez sur les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)", reviewed: false },
+        fr: { t: "cliquez sur les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)", reviewed: true },
     },
 
     // ── Accessible names ────────────────────────────────────────────────────
@@ -548,55 +548,55 @@ export const LABELS = Object.freeze({
     // deletes those); the rest were already aria-labels and are now keyed.
     'aria.presetPrev': {
         en: { t: "Previous preset" },
-        fr: { t: "Préréglage précédent", reviewed: false },
+        fr: { t: "Préréglage précédent", reviewed: true },
     },
     'aria.presetName': {
         en: { t: "Browse presets" },
-        fr: { t: "Parcourir les préréglages", reviewed: false },
+        fr: { t: "Parcourir les préréglages", reviewed: true },
     },
     'aria.presetNext': {
         en: { t: "Next preset" },
-        fr: { t: "Préréglage suivant", reviewed: false },
+        fr: { t: "Préréglage suivant", reviewed: true },
     },
     'aria.presetSave': {
         en: { t: "Save current settings as a user preset" },
-        fr: { t: "Enregistrer les réglages actuels comme préréglage utilisateur", reviewed: false },
+        fr: { t: "Enregistrer les réglages actuels comme préréglage utilisateur", reviewed: true },
     },
     'aria.presetDelete': {
         en: { t: "Delete the current user preset" },
-        fr: { t: "Supprimer le préréglage utilisateur actuel", reviewed: false },
+        fr: { t: "Supprimer le préréglage utilisateur actuel", reviewed: true },
     },
     'aria.presetDropdown': {
         en: { t: "Presets" },
-        fr: { t: "Préréglages", reviewed: false },
+        fr: { t: "Préréglages", reviewed: true },
     },
     'aria.loopDiagram': {
         en: { t: "Excitation to resonator to material to output signal-flow diagram" },
-        fr: { t: "Schéma du flux du signal : excitation, résonateur, matériau, sortie", reviewed: false },
+        fr: { t: "Schéma du flux du signal : excitation, résonateur, matériau, sortie", reviewed: true },
     },
     'aria.comboExcitation': {
         en: { t: "Excitation type" },
-        fr: { t: "Type d’excitation", reviewed: false },
+        fr: { t: "Type d’excitation", reviewed: true },
     },
     'aria.comboResonator': {
         en: { t: "Resonator type" },
-        fr: { t: "Type de résonateur", reviewed: false },
+        fr: { t: "Type de résonateur", reviewed: true },
     },
     'aria.comboStringModel': {
         en: { t: "String model" },
-        fr: { t: "Modèle de corde", reviewed: false },
+        fr: { t: "Modèle de corde", reviewed: true },
     },
     'aria.keyboard': {
         en: { t: "On-screen keyboard" },
-        fr: { t: "Clavier à l’écran", reviewed: false },
+        fr: { t: "Clavier à l’écran", reviewed: true },
     },
     'aria.langSelect': {
         en: { t: "Interface language" },
-        fr: { t: "Langue de l’interface", reviewed: false },
+        fr: { t: "Langue de l’interface", reviewed: true },
     },
     'aria.helpToggle': {
         en: { t: "Toggle tooltips" },
-        fr: { t: "Activer ou désactiver l’aide au survol", reviewed: false },
+        fr: { t: "Activer ou désactiver l’aide au survol", reviewed: true },
     },
 
     // ── The hover-help toggle's two faces ───────────────────────────────────
@@ -604,11 +604,11 @@ export const LABELS = Object.freeze({
     // never a ternary in the argument (check-i18n assertion 13).
     'ui.on': {
         en: { t: "On" },
-        fr: { t: "Activée", reviewed: false },
+        fr: { t: "Activée", reviewed: true },
     },
     'ui.off': {
         en: { t: "Off" },
-        fr: { t: "Désactivée", reviewed: false },
+        fr: { t: "Désactivée", reviewed: true },
     },
 
 });

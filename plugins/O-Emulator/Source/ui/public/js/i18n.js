@@ -184,7 +184,7 @@ export const I18N = Object.freeze({
               b: "Chooses which machine the sound is played through — codec, fixed internal sample rate and output stage all change together. Switching crossfades over 30 ms, so it is safe to change while audio is running. Five settings: SNES, PS1, NES, Game Boy, Genesis." },
         fr: { t: "Console",
               b: "Choisit la machine par laquelle le son passe : codec, fréquence d’échantillonnage interne fixe et étage de sortie changent ensemble. Le changement se fait par un fondu enchaîné de 30 ms, sans risque pendant la lecture. Cinq réglages : SNES, PS1, NES, Game Boy, Genesis.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // crush — 0..100 %, default 50. The "still passes the codec at 0" sentence
@@ -195,7 +195,7 @@ export const I18N = Object.freeze({
               b: "How hard the signal is driven through the console's codec: encoder gain, coarser quantisation steps, and past 80 % the anti-alias filter opening for deliberate aliasing. At 0 the signal still makes the full codec round trip, so this thins the colour rather than bypassing it. 0 to 100 %." },
         fr: { t: "Broyage",
               b: "À quel point le signal est poussé dans le codec de la console : le gain d’encodage, des pas de quantification plus grossiers et, au-delà de 80 %, l’ouverture du filtre anti-repliement pour un repliement volontaire. À 0 le signal traverse quand même tout le codec : ce réglage atténue la couleur, il ne la contourne pas. 0 à 100 %.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // age — 0..100 %, default 20. The noise floor ramps in above ~5 %, which is
@@ -206,7 +206,7 @@ export const I18N = Object.freeze({
               b: "The condition of the hardware: hiss, mains hum, a duller output filter, and a slow wander in the resampling ratio that detunes by up to 15 cents. The noise bed stays silent near the bottom of the range and only comes in above about 5 %. 0 to 100 %." },
         fr: { t: "Âge",
               b: "L’état de la machine : souffle, ronflement secteur, un filtre de sortie plus sourd et une lente dérive du rapport de rééchantillonnage qui désaccorde jusqu’à 15 cents. Le bruit de fond reste inaudible en bas de la course et n’apparaît qu’au-delà d’environ 5 %. 0 à 100 %.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // reverb — 0..100 %, default 0. Available in EVERY console mode, which is
@@ -216,7 +216,7 @@ export const I18N = Object.freeze({
               b: "Send level into the PlayStation reverb — a Hall setting from that console's own register model, available in every console mode, not just PS1. The send is taken after the codec, so the reverb hears the degraded signal rather than the clean one. 0 to 100 %." },
         fr: { t: "Réverb",
               b: "Niveau d’envoi vers la réverbération de la PlayStation : un réglage Hall issu du modèle de registres de cette console, disponible dans tous les modes de console, pas seulement en PS1. L’envoi est pris après le codec, donc la réverbération entend le signal dégradé et non le signal intact. 0 à 100 %.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // mix — 0..100 %, default 100. The Age bed being wet-path only is the part
@@ -226,7 +226,7 @@ export const I18N = Object.freeze({
               b: "Blends the emulated signal against the untouched input. The dry path is delay-compensated, so at 0 % the input passes through unchanged — and the hiss and hum of the Age control go with it, because they live on the wet path only. 0 to 100 %." },
         fr: { t: "Mix",
               b: "Équilibre le signal émulé et l’entrée intacte. Le trajet direct est compensé en latence : à 0 % l’entrée ressort inchangée, et le souffle et le ronflement du réglage Âge disparaissent eux aussi, car ils n’existent que sur le trajet traité. 0 à 100 %.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -241,14 +241,14 @@ export const I18N = Object.freeze({
               b: "Opens the panel that sets the language of this interface. That is all it holds: the labels on this page and this hover help switch with it, and the choice is kept with the session, so a project reopens in the language it was saved in." },
         fr: { t: "Réglages",
               b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue dans laquelle il a été enregistré.",
-              reviewed: false },
+              reviewed: true },
     },
     'tip.langSelect': {
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available. Value readouts, the five console names and preset names stay in English so the page and the host agree." },
         fr: { t: "Langue",
               b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles. Les valeurs affichées, les cinq noms de consoles et les noms de préréglages restent en anglais pour que la page et l’hôte s’accordent.",
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -323,10 +323,10 @@ export const LABELS = Object.freeze({
     // AudioParameterFloats (PluginProcessor.cpp:71-74) — so arm 1 of D-01 does
     // not apply and there is no automation-lane string for a French caption to
     // disagree with.
-    'label.crush':  { en: { t: 'Crush' },  fr: { t: 'Broyage', reviewed: false } },
-    'label.age':    { en: { t: 'Age' },    fr: { t: 'Âge',     reviewed: false } },
-    'label.reverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb',  reviewed: false } },
-    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: false } },
+    'label.crush':  { en: { t: 'Crush' },  fr: { t: 'Broyage', reviewed: true } },
+    'label.age':    { en: { t: 'Age' },    fr: { t: 'Âge',     reviewed: true } },
+    'label.reverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb',  reviewed: true } },
+    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: true } },
 
     // ── The preset band ─────────────────────────────────────────────────────
     // The repo-standard trio, matching O-Bitrot v1.15.0, O-ReverseDelay and
@@ -334,9 +334,9 @@ export const LABELS = Object.freeze({
     // should not be spelled three different ways across the suite. Abbreviated
     // rather than "Enregistrer" / "Charger" / "Supprimer" because this header
     // is 162 px over-full in English before French is asked for anything.
-    'label.save':   { en: { t: 'Save' },   fr: { t: 'Enreg.', reviewed: false } },
-    'label.load':   { en: { t: 'Load' },   fr: { t: 'Ouvrir', reviewed: false } },
-    'label.delete': { en: { t: 'Delete' }, fr: { t: 'Suppr.', reviewed: false } },
+    'label.save':   { en: { t: 'Save' },   fr: { t: 'Enreg.', reviewed: true } },
+    'label.load':   { en: { t: 'Load' },   fr: { t: 'Ouvrir', reviewed: true } },
+    'label.delete': { en: { t: 'Delete' }, fr: { t: 'Suppr.', reviewed: true } },
 
     // The ARMED face of the delete button — the only string on this page
     // written from script. It goes through setLabel(), so the button becomes a
@@ -357,7 +357,7 @@ export const LABELS = Object.freeze({
     // Widening the button is not available — the band's total width is what
     // keeps .brand and .hdr-right still (see the header note above) — and
     // "Sûr ?" carries the same terse register as "Confirm?".
-    'ui.confirm':   { en: { t: 'Confirm?' }, fr: { t: 'Sûr ?', reviewed: false } },
+    'ui.confirm':   { en: { t: 'Confirm?' }, fr: { t: 'Sûr ?', reviewed: true } },
 
     // ── The imprint line ────────────────────────────────────────────────────
     // The naturalist-plate conceit the whole page is built on. Its box is
@@ -369,19 +369,19 @@ export const LABELS = Object.freeze({
     // numeral is a numeral (D-03) and is carried across unchanged.
     'label.plate': {
         en: { t: 'A Survey of Extinct Consoles · Plate CDLXXXVII' },
-        fr: { t: 'Relevé des consoles disparues · Planche CDLXXXVII', reviewed: false },
+        fr: { t: 'Relevé des consoles disparues · Planche CDLXXXVII', reviewed: true },
     },
 
     // ── The settings popover (v1.1.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
     // hears the same language the page is showing.
-    'aria.presetPrev': { en: { t: 'Previous preset' },   fr: { t: 'Préréglage précédent', reviewed: false } },
-    'aria.presetNext': { en: { t: 'Next preset' },       fr: { t: 'Préréglage suivant',   reviewed: false } },
-    'aria.settings':   { en: { t: 'Settings' },          fr: { t: 'Réglages',             reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.presetPrev': { en: { t: 'Previous preset' },   fr: { t: 'Préréglage précédent', reviewed: true } },
+    'aria.presetNext': { en: { t: 'Next preset' },       fr: { t: 'Préréglage suivant',   reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' },          fr: { t: 'Réglages',             reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
 
     // "Console" is spelled identically in French — it is the same Latin root
     // and the same word for the same object. sameAsEn declares that on
@@ -392,7 +392,7 @@ export const LABELS = Object.freeze({
     // "Console" is the AudioParameterChoice's DISPLAY NAME
     // (PluginProcessor.cpp:55) and not one of its option strings. Nothing in a
     // host automation lane is spelled "Console" as a VALUE.
-    'aria.console': { en: { t: 'Console' }, fr: { t: 'Console', sameAsEn: true, reviewed: false } },
+    'aria.console': { en: { t: 'Console' }, fr: { t: 'Console', sameAsEn: true, reviewed: true } },
 });
 
 // ============================================================================

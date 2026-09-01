@@ -29,11 +29,9 @@
     "good" that a regex can see, so that the part a person has to read is the
     only part left for the person.
 
-    It is a REPORT by default and exits 0. `--strict` exits 2 on any failure,
-    for the moment every plugin is clean and the developer chooses to make it a
-    gate. The repo already knows what a permanently-red gate does to the habit
-    of reading gates, and on the day this file was written 43 of 43 plugins
-    failed it.
+    It is a GATE: any finding exits 2. It began as a report with an opt-in
+    flag, because on the day it was written 43 of 43 plugins failed it; the
+    rollout (Stage N, 2026-08-31) took every plugin to 0 and the opt-in went.
 
     ── The checks ────────────────────────────────────────────────────────────
 
@@ -72,7 +70,6 @@
     Usage:
         node scripts/i18n-fr-lint.js                    # all plugins, report
         node scripts/i18n-fr-lint.js --plugin O-Comp    # one plugin
-        node scripts/i18n-fr-lint.js --strict           # exit 2 on any failure
         node scripts/i18n-fr-lint.js --verbose          # every finding, not 12
 
   ==============================================================================
@@ -92,7 +89,10 @@ const TERMS = Object.fromEntries(Object.entries(G.TERMS).map(([k, v]) => [k.repl
 const argv    = process.argv.slice(2);
 const val     = (k) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : null; };
 const only    = val('--plugin');
-const strict  = argv.includes('--strict');
+// Findings FAIL (exit 2). The report-only default and its opt-in flag were for
+// the rollout, when 43 of 43 failed; 43 of 43 pass now (2026-08-31) and the
+// developer, who reads French, reviewed the copy - so this is a gate.
+const strict  = true;
 const verbose = argv.includes('--verbose');
 const MAX_SHOWN = verbose ? Infinity : 12;
 
@@ -230,7 +230,7 @@ async function lintPlugin(name) {
     if (!plugins.length) { console.error(`i18n-fr-lint: no plugin matches --plugin ${only}`); process.exit(1); }
 
     console.log('i18n-fr-lint — French typography and terminology');
-    console.log(`  plugins: ${plugins.length}   mode: ${strict ? 'STRICT (exit 2 on failure)' : 'report'}\n`);
+    console.log(`  plugins: ${plugins.length}   (any finding exits 2)\n`);
 
     const CODES = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'G1', 'C1', 'F1'];
     const totals = Object.fromEntries(CODES.map((c) => [c, 0]));
@@ -269,6 +269,6 @@ async function lintPlugin(name) {
     console.log(`  straight copies fr === en (info): ${sameAsEnTotal}, of which ${sameAsEnFlagged} are covered (sameAsEn: true, or a title over a translated body)   termNote exemptions (info): ${termNoteTotal}`);
     console.log(`  codes: T1 apostrophe  T2 decimal point  T3 % spacing  T4 colon  T5 ;!?  T6 minus  T7 unit  G1 glossary  C1 casing  F1 forbidden word`);
     const anyFail = failedPlugins > 0 || errors > 0;
-    if (strict && anyFail) { console.log('\nSTRICT: failures present — exit 2'); process.exit(2); }
-    console.log(strict ? '\nSTRICT: clean — exit 0' : '\nThis is a REPORT. Exit 0 means the run completed, not that the French is clean.');
+    if (anyFail) { console.log('\nFAIL: findings present — exit 2'); process.exit(2); }
+    console.log('\nCLEAN — exit 0');
 })();

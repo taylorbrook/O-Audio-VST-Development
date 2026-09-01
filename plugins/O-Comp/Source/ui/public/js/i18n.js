@@ -224,7 +224,7 @@ export const I18N = Object.freeze({
               b: "The level the detector has to cross before compression starts. Detection is peak and stereo-linked — the louder channel decides, so both sides duck together and the image stays put. -60 to 0 dB." },
         fr: { t: "Seuil",
               b: "Le niveau que le détecteur doit franchir pour que la compression commence. La détection se fait sur la crête et en liaison stéréo : le canal le plus fort décide, les deux côtés baissent ensemble et l’image reste en place. −60 à 0 dB.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ratio — AudioParameterFloat, 1..20 :1, default 2. The French TITLE is
@@ -236,7 +236,7 @@ export const I18N = Object.freeze({
               b: "How much of each decibel above the threshold survives: at 4:1 an overshoot of 4 dB leaves as 1 dB. At 1:1 nothing is compressed however far the signal goes over, and past roughly 10:1 the behaviour is limiting rather than compression. 1:1 to 20:1." },
         fr: { t: "Ratio",
               b: "La part de chaque décibel au-dessus du seuil qui subsiste : à 4:1 un dépassement de 4 dB ressort à 1 dB. À 1:1 rien n’est comprimé, quelle que soit l’ampleur du dépassement, et au-delà d’environ 10:1 le comportement devient celui d’un limiteur. 1:1 à 20:1.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // attack_time — AudioParameterFloat, 0.1..100 ms, default 10. The value is
@@ -247,7 +247,7 @@ export const I18N = Object.freeze({
               b: "How quickly the detector rises once the signal is over the threshold. Short times catch the transient and flatten the front of a drum; long times let the stick through and start compressing behind it. 0.1 to 100 ms." },
         fr: { t: "Attaque",
               b: "La vitesse à laquelle le détecteur monte une fois le signal au-dessus du seuil. Les temps courts saisissent le transitoire et aplatissent le début d’une frappe ; les temps longs laissent passer l’attaque et compriment derrière elle. 0,1 à 100 ms.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // release_time — AudioParameterFloat, 10..1000 ms, step 1, default 100.
@@ -256,7 +256,7 @@ export const I18N = Object.freeze({
               b: "How quickly the gain comes back once the signal drops under the threshold again. Short times sound lively and can pump audibly on sustained material; long times hold the reduction steady between hits. 10 to 1000 ms." },
         fr: { t: "Relâchement",
               b: "La vitesse à laquelle le gain revient une fois le signal repassé sous le seuil. Les temps courts sonnent vif et peuvent faire pomper le signal de façon audible sur des sons tenus ; les temps longs maintiennent la réduction stable entre les frappes. 10 à 1000 ms.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // knee — AudioParameterFloat, 0..20 dB, default 6. calculateGainReduction()
@@ -268,7 +268,7 @@ export const I18N = Object.freeze({
               b: "The width of the band around the threshold where the ratio arrives gradually instead of all at once. It is centred on the threshold, so half of it sits below and compression begins before the reading reaches the setting. At 0 the knee is hard and the transfer curve corners. 0 to 20 dB." },
         fr: { t: "Coude",
               b: "La largeur de la bande autour du seuil où le ratio s’installe progressivement au lieu d’un seul coup. Elle est centrée sur le seuil : la moitié se trouve en dessous, et la compression commence avant que la lecture n’atteigne le réglage. À 0 le coude est dur et la courbe de transfert forme un angle. 0 à 20 dB.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // output_gain — AudioParameterFloat, -12..+24 dB, default 0. Titled from
@@ -280,7 +280,7 @@ export const I18N = Object.freeze({
               b: "Makeup gain applied after the compressor, to bring the level back to where it started. It is added to whatever Auto-Gain is contributing rather than replacing it, and the sum is smoothed over 20 ms so an automation move cannot zipper. -12 to +24 dB." },
         fr: { t: "Sortie",
               b: "Gain de compensation appliqué après le compresseur, pour ramener le niveau là où il était. Il s’ajoute à ce qu’apporte le Gain auto au lieu de le remplacer, et la somme est lissée sur 20 ms pour qu’un mouvement d’automation ne crépite pas. −12 à +24 dB.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // auto_gain — AudioParameterBool, default off. Its two faces are named in
@@ -296,7 +296,7 @@ export const I18N = Object.freeze({
               b: "Adds makeup gain worked out from the current Threshold and Ratio — half the theoretical amount, so it compensates without overshooting — and follows both as you move them. It stacks with the Output knob rather than replacing it. Two settings: OFF and ON." },
         fr: { t: "Gain auto",
               b: "Ajoute un gain de compensation calculé à partir du Seuil et du Ratio courants — la moitié de la valeur théorique, pour compenser sans dépasser — et suit les deux quand vous les déplacez. Il s’ajoute au réglage Sortie au lieu de le remplacer. Deux positions : ARRÊT et MARCHE.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -310,7 +310,7 @@ export const I18N = Object.freeze({
               b: "Opens the panel that sets the language of this interface. That is all it holds: the labels on this page and this hover help switch with it, and the choice is kept with the session, so a project reopens in the language it was saved in." },
         fr: { t: "Réglages",
               b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // The value readouts named here are the six .value-display nodes, which
@@ -322,7 +322,7 @@ export const I18N = Object.freeze({
               b: "The language of the labels on this page and of this hover help. English and French are available. The value readings under the knobs and the preset names stay in English, so the page and the host agree on what a setting is called." },
         fr: { t: "Langue",
               b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles. Les valeurs affichées sous les boutons rotatifs et les noms de préréglages restent en anglais, pour que la page et l’hôte s’accordent sur le nom d’un réglage.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The three CANVAS-PAINTED strings — NOT tooltips ─────────────────────
@@ -335,11 +335,11 @@ export const I18N = Object.freeze({
     // plugin's own context, not borrowed from another plugin.
     'canvas.envelope': {
         en: { t: 'Envelope',  b: '' },
-        fr: { t: 'Enveloppe', b: '', reviewed: false },
+        fr: { t: 'Enveloppe', b: '', reviewed: true },
     },
     'canvas.gainReduction': {
         en: { t: 'Gain Reduction',    b: '' },
-        fr: { t: 'Réduction de gain', b: '', reviewed: false },
+        fr: { t: 'Réduction de gain', b: '', reviewed: true },
     },
 
     // The live gain-reduction readout, painted at 11px. The VALUE is composed
@@ -355,7 +355,7 @@ export const I18N = Object.freeze({
     // width of the space it replaces, so 62.34 is unchanged.
     'canvas.gr': {
         en: { t: 'GR: {v} dB',  b: '' },
-        fr: { t: 'RG : {v} dB', b: '', reviewed: false },
+        fr: { t: 'RG : {v} dB', b: '', reviewed: true },
     },
 });
 
@@ -443,20 +443,20 @@ export const LABELS = Object.freeze({
     // Ouvrir stays: the glossary accepts it for Load where the button opens a
     // file dialog, and #preset-load calls loadPresetFromFile() — a native open
     // dialog (modules/preset-manager.js). #preset-save is savePresetWithDialog().
-    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: false } },
-    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: false } },
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: true } },
+    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true } },
 
     // ── The six knob captions ───────────────────────────────────────────────
-    'label.threshold': { en: { t: 'Threshold' }, fr: { t: 'Seuil',   reviewed: false } },
+    'label.threshold': { en: { t: 'Threshold' }, fr: { t: 'Seuil',   reviewed: true } },
 
     // "Ratio" is the term in French audio software as well as English. Keyed
     // with sameAsEn rather than exempted: an exemption is matched by TEXT and
     // says nothing about whether anybody looked, while sameAsEn says this was
     // looked at and translates to itself. "Taux" measured 23.84 and would also
     // have fit — the choice is terminology, not geometry.
-    'label.ratio': { en: { t: 'Ratio' }, fr: { t: 'Ratio', reviewed: false, sameAsEn: true } },
+    'label.ratio': { en: { t: 'Ratio' }, fr: { t: 'Ratio', reviewed: true, sameAsEn: true } },
 
-    'label.attack': { en: { t: 'Attack' }, fr: { t: 'Attaque', reviewed: false } },
+    'label.attack': { en: { t: 'Attack' }, fr: { t: 'Attaque', reviewed: true } },
 
     // "Relâch.", the glossary's ABBREVIATION — and the v1.7.0 note that the only
     // alternative to Relâche was a layout change was wrong. Re-measured in this
@@ -469,14 +469,14 @@ export const LABELS = Object.freeze({
     // A caption that is the parameter name with letters missing is not a caption
     // that DISAGREES with the parameter name, so the tip carries the full form
     // rather than the truncation (Stage M2 carried trap 9).
-    'label.release': { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: false } },
+    'label.release': { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: true } },
 
     // "Coude". The v1.7.0 claim that Genou is the standard French rendering of a
     // compressor knee does not survive the glossary, which lists genou as the
     // body part and coude as the term. Coude 31.23 against Genou 31.83 — the
     // .control-group stays 52 either way, so this was never a geometry choice.
-    'label.knee':   { en: { t: 'Knee' },   fr: { t: 'Coude',  reviewed: false } },
-    'label.output': { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: false } },
+    'label.knee':   { en: { t: 'Knee' },   fr: { t: 'Coude',  reviewed: true } },
+    'label.output': { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: true } },
 
     // ── The auto-gain toggle ────────────────────────────────────────────────
     //
@@ -484,7 +484,7 @@ export const LABELS = Object.freeze({
     // "Gain automatique" measured 86.52 and would have widened that column from
     // 70px (the toggle) to 86.52 and re-centred the toggle; "Gain auto" is
     // 47.58 and sits well inside.
-    'label.autoGain': { en: { t: 'Auto-Gain' }, fr: { t: 'Gain auto', reviewed: false } },
+    'label.autoGain': { en: { t: 'Auto-Gain' }, fr: { t: 'Gain auto', reviewed: true } },
 
     // MARCHE / ARRÊT, measured 45.56 and 35.02 against the button's 66px
     // content box (70px minus two 2px borders). DÉSACTIVÉ measured 58.36 and
@@ -495,8 +495,8 @@ export const LABELS = Object.freeze({
     // call: check-i18n assertion 13 rejects a conditional in a setLabel
     // argument, because contract section 6 authors around an inflection rather
     // than engineering one.
-    'label.autoGainOn':  { en: { t: 'ON' },  fr: { t: 'MARCHE', reviewed: false } },
-    'label.autoGainOff': { en: { t: 'OFF' }, fr: { t: 'ARRÊT',  reviewed: false } },
+    'label.autoGainOn':  { en: { t: 'ON' },  fr: { t: 'MARCHE', reviewed: true } },
+    'label.autoGainOff': { en: { t: 'OFF' }, fr: { t: 'ARRÊT',  reviewed: true } },
 
     // ── The visualisation caption ───────────────────────────────────────────
     //
@@ -504,7 +504,7 @@ export const LABELS = Object.freeze({
     // translateX(-50%), inside a 210px panel. It grows SYMMETRICALLY about the
     // panel's centre line, so it pushes nothing: measured 77.42 -> 94.98 box
     // width, still 115px inside the panel it sits in.
-    'label.transferCurve': { en: { t: 'Transfer Curve' }, fr: { t: 'Courbe de transfert', reviewed: false } },
+    'label.transferCurve': { en: { t: 'Transfer Curve' }, fr: { t: 'Courbe de transfert', reviewed: true } },
 
     // ── The preset dropdown, built at runtime ───────────────────────────────
     //
@@ -515,11 +515,11 @@ export const LABELS = Object.freeze({
     // singular and English does not, and contract section 6 declines to build a
     // plural engine for one string: the copy is authored so it reads correctly
     // at zero in both languages instead.
-    'label.presets':   { en: { t: 'Presets' },    fr: { t: 'Préréglages',      reviewed: false } },
-    'label.noPresets': { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: false } },
+    'label.presets':   { en: { t: 'Presets' },    fr: { t: 'Préréglages',      reviewed: true } },
+    'label.noPresets': { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true } },
 
     // ── The settings popover ────────────────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -545,13 +545,13 @@ export const LABELS = Object.freeze({
     //
     // The "un"/"le" asymmetry is deliberate and is the glossary's: Save acts on
     // the preset that is loaded, Load picks an arbitrary one.
-    'aria.prevPreset':    { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',              reviewed: false } },
-    'aria.nextPreset':    { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',                reviewed: false } },
-    'aria.browsePresets': { en: { t: 'Click to browse presets' }, fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: false } },
-    'aria.loadPreset':    { en: { t: 'Load preset' },            fr: { t: 'Ouvrir un préréglage',              reviewed: false } },
-    'aria.savePreset':    { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage',         reviewed: false } },
-    'aria.settings':      { en: { t: 'Settings' },               fr: { t: 'Réglages',                          reviewed: false } },
-    'aria.langSelect':    { en: { t: 'Interface language' },     fr: { t: 'Langue de l’interface',             reviewed: false } },
+    'aria.prevPreset':    { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',              reviewed: true } },
+    'aria.nextPreset':    { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',                reviewed: true } },
+    'aria.browsePresets': { en: { t: 'Click to browse presets' }, fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: true } },
+    'aria.loadPreset':    { en: { t: 'Load preset' },            fr: { t: 'Ouvrir un préréglage',              reviewed: true } },
+    'aria.savePreset':    { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage',         reviewed: true } },
+    'aria.settings':      { en: { t: 'Settings' },               fr: { t: 'Réglages',                          reviewed: true } },
+    'aria.langSelect':    { en: { t: 'Interface language' },     fr: { t: 'Langue de l’interface',             reviewed: true } },
 });
 
 // ============================================================================

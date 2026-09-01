@@ -207,7 +207,7 @@ export const I18N = Object.freeze({
                + 'ou atténué d’un bloc. À utiliser pour donner du corps à une source maigre, '
                + 'ou pour dégager le bas sans toucher aux médiums. Fréquence de 30 à '
                + '500 Hz ; gain de −12,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.lmfBand': {
@@ -222,7 +222,7 @@ export const I18N = Object.freeze({
                + 'centre sans toucher au reste. C’est là que se logent le corps et l’effet de '
                + 'boîte sur la plupart des sources. Fréquence de 100 à 2000 Hz ; gain '
                + 'de −12,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.hmfBand': {
@@ -236,7 +236,7 @@ export const I18N = Object.freeze({
                + 'le cadran intérieur son gain. À utiliser pour la présence et l’attaque, ou '
                + 'pour adoucir la dureté dans la zone où l’oreille est la plus sensible. '
                + 'Fréquence de 500 à 8000 Hz ; gain de −12,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // The one range that had to be read off the formatter rather than the dump:
@@ -254,7 +254,7 @@ export const I18N = Object.freeze({
                + 'est relevé ou atténué d’un bloc. À utiliser pour l’air et le brillant, ou '
                + 'pour arrondir une source trop mordante. Fréquence de 2000 Hz à '
                + '20,0k Hz ; gain de −12,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── THE FOUR BAND SWITCHES ──────────────────────────────────────────────
@@ -279,7 +279,7 @@ export const I18N = Object.freeze({
                + 'du signal. Quand il est désactivé, l’étage de filtrage est court-circuité '
                + 'plutôt qu’aplani : la bande ne peut plus colorer le son du tout, et '
                + 'l’étiquette s’estompe. Off ou On.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.lmfOn': {
@@ -291,7 +291,7 @@ export const I18N = Object.freeze({
               b: 'Cliquez sur l’étiquette pour insérer ou retirer la cloche bas-médium du '
                + 'trajet du signal. Quand elle est désactivée, l’étage de filtrage est '
                + 'court-circuité plutôt qu’aplani, et l’étiquette s’estompe. Off ou On.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.hmfOn': {
@@ -303,7 +303,7 @@ export const I18N = Object.freeze({
               b: 'Cliquez sur l’étiquette pour insérer ou retirer la cloche haut-médium du '
                + 'trajet du signal. Quand elle est désactivée, l’étage de filtrage est '
                + 'court-circuité plutôt qu’aplani, et l’étiquette s’estompe. Off ou On.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.hfOn': {
@@ -317,7 +317,7 @@ export const I18N = Object.freeze({
                + 'du signal. Quand il est désactivé, l’étage de filtrage est court-circuité '
                + 'plutôt qu’aplani : la bande ne peut plus colorer le son du tout, et '
                + 'l’étiquette s’estompe. Off ou On.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── THE TWO Q SELECTORS ─────────────────────────────────────────────────
@@ -337,7 +337,7 @@ export const I18N = Object.freeze({
                + 'atténue autour de sa fréquence centrale. WIDE est large et musical, TIGHT '
                + 'est assez chirurgical pour retirer une résonance sans amaigrir la source. '
                + 'Trois réglages : WIDE, MED, TIGHT — Q 0,5 ; 1,0 et 2,0.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.hmfQ': {
@@ -351,7 +351,7 @@ export const I18N = Object.freeze({
                + 'atténue autour de sa fréquence centrale. WIDE est large et musical, TIGHT '
                + 'est assez chirurgical pour retirer une résonance sans ternir la source. '
                + 'Trois réglages : WIDE, MED, TIGHT — Q 0,5 ; 1,0 et 2,0.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── THE SATURATION SWITCH ───────────────────────────────────────────────
@@ -372,7 +372,7 @@ export const I18N = Object.freeze({
                + 'chaleur harmonique et arrondit les crêtes que l’égaliseur vient de créer. À '
                + 'utiliser quand un relèvement propre sonne cassant ; à laisser désactivé '
                + 'pour un travail correctif chirurgical. Off ou On.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── THE CHROME ──────────────────────────────────────────────────────────
@@ -389,7 +389,7 @@ export const I18N = Object.freeze({
               b: 'Ouvre le panneau de réglages au-dessus de ce bouton. Il contient une seule '
                + 'commande, la langue de l’interface, et se referme par un clic à l’extérieur '
                + 'ou par la touche Échap.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // D-03 IS RESTATED HERE BECAUSE IT IS THE ONE THING A USER WILL TEST. The
@@ -405,7 +405,7 @@ export const I18N = Object.freeze({
               b: 'Choisit la langue de la page : chaque étiquette, chaque nom accessible '
                + 'et cette aide contextuelle. Les valeurs affichées sous les boutons rotatifs '
                + 'conservent leurs nombres et leurs unités anglaises. English ou Français.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -515,10 +515,10 @@ export const LABELS = Object.freeze({
     //     HAUT MEDIUM  97.14   two lines
     // MED.HAUT (70.77) stays on one line only because it has no space in it,
     // and then SPILLS 3.77 px past the box.
-    'label.band.lf':  { en: { t: 'LF SHELF' }, fr: { t: 'LF PLAT.', reviewed: false } },
-    'label.band.lmf': { en: { t: 'LMF' },      fr: { t: 'LMF', reviewed: false, sameAsEn: true } },
-    'label.band.hmf': { en: { t: 'HMF' },      fr: { t: 'HMF', reviewed: false, sameAsEn: true } },
-    'label.band.hf':  { en: { t: 'HF SHELF' }, fr: { t: 'HF PLAT.', reviewed: false } },
+    'label.band.lf':  { en: { t: 'LF SHELF' }, fr: { t: 'LF PLAT.', reviewed: true } },
+    'label.band.lmf': { en: { t: 'LMF' },      fr: { t: 'LMF', reviewed: true, sameAsEn: true } },
+    'label.band.hmf': { en: { t: 'HMF' },      fr: { t: 'HMF', reviewed: true, sameAsEn: true } },
+    'label.band.hf':  { en: { t: 'HF SHELF' }, fr: { t: 'HF PLAT.', reviewed: true } },
 
     // ── The analog-saturation switch ────────────────────────────────────────
     //
@@ -539,7 +539,7 @@ export const LABELS = Object.freeze({
     // SATURATION (62.70) also spills. CHALEUR (47.55) fits and names a
     // different claim — warmth rather than the analogue path — so it was not
     // taken. A reviewer who prefers ANALOGIQUE must widen the button with it.
-    'label.analog': { en: { t: 'ANALOG' }, fr: { t: 'ANALOG.', reviewed: false } },
+    'label.analog': { en: { t: 'ANALOG' }, fr: { t: 'ANALOG.', reviewed: true } },
 
     // ── The VU meter caption ────────────────────────────────────────────────
     //
@@ -547,7 +547,7 @@ export const LABELS = Object.freeze({
     // NIVEAU. The box is the meter's full 108 px content width and the text is
     // centred in it, so NIVEAU (41.33) has 66.67 px spare — the roomiest string
     // on the page by a wide margin.
-    'label.level': { en: { t: 'Level' }, fr: { t: 'Niveau', reviewed: false } },
+    'label.level': { en: { t: 'Level' }, fr: { t: 'Niveau', reviewed: true } },
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -577,8 +577,8 @@ export const LABELS = Object.freeze({
     // what O-Detune already ships for this control — and taking it would
     // require moving aria.loadPreset's French to match, so that label-in-name
     // still holds.
-    'label.save': { en: { t: 'SAVE' }, fr: { t: 'ENREG.',  reviewed: false } },
-    'label.load': { en: { t: 'LOAD' }, fr: { t: 'CHARGER', reviewed: false } },
+    'label.save': { en: { t: 'SAVE' }, fr: { t: 'ENREG.',  reviewed: true } },
+    'label.load': { en: { t: 'LOAD' }, fr: { t: 'CHARGER', reviewed: true } },
 
     // ── The preset dropdown's empty line, written through setLabel() ────────
     //
@@ -592,10 +592,10 @@ export const LABELS = Object.freeze({
     //
     // The English is byte-identical to what v1.1.11 wrote at index.html:1017.
     // No prose was invented; it was moved into the table.
-    'label.noPresets': { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: false } },
+    'label.noPresets': { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true } },
 
     // ── The settings popover (v1.2.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -642,18 +642,18 @@ export const LABELS = Object.freeze({
     // O-Detune, O-DigiDelay, O-FreqPulse and O-Lyrica for the identical
     // control.
     'aria.prevPreset': { en: { t: 'Previous preset' },
-                         fr: { t: 'Préréglage précédent', reviewed: false } },
+                         fr: { t: 'Préréglage précédent', reviewed: true } },
     'aria.nextPreset': { en: { t: 'Next preset' },
-                         fr: { t: 'Préréglage suivant',   reviewed: false } },
+                         fr: { t: 'Préréglage suivant',   reviewed: true } },
     'aria.presetList': { en: { t: 'Click to browse presets' },
-                         fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: false } },
+                         fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: true } },
     'aria.savePreset': { en: { t: 'Save preset to file' },
-                         fr: { t: 'Enregistrer un préréglage dans un fichier', reviewed: false } },
+                         fr: { t: 'Enregistrer un préréglage dans un fichier', reviewed: true } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Charger un préréglage depuis un fichier', reviewed: false } },
+                         fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true } },
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
 });
 
 // ============================================================================

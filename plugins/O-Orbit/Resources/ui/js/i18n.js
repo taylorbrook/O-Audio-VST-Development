@@ -106,7 +106,7 @@ export const I18N = Object.freeze({
               b: 'Choose the language of the interface, and turn the hover help on or off. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
               b: "Choisir la langue de l’interface et activer ou désactiver l’aide au survol. Les deux choix sont conservés avec la session.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // Written to say what is TRUE of canon v2, in both languages: the labels DO
@@ -119,7 +119,7 @@ export const I18N = Object.freeze({
               b: 'The language of the labels on this page and of this hover help. English and French are available; value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
               b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Header preset band ──────────────────────────────────────────────────
@@ -128,42 +128,42 @@ export const I18N = Object.freeze({
               b: 'Step back through the preset list.' },
         fr: { t: 'Préréglage précédent',
               b: 'Reculer dans la liste des préréglages.',
-              reviewed: false },
+              reviewed: true },
     },
     'preset-next': {
         en: { t: 'Next preset',
               b: 'Step forward through the preset list.' },
         fr: { t: 'Préréglage suivant',
               b: 'Avancer dans la liste des préréglages.',
-              reviewed: false },
+              reviewed: true },
     },
     'preset-select': {
         en: { t: 'Preset',
               b: 'The preset currently loaded — click to browse by category. The 12 factory presets are read-only; saving under the same name writes a user copy instead.' },
         fr: { t: 'Préréglage',
               b: "Le préréglage actuellement chargé — cliquer pour parcourir par catégorie. Les 12 préréglages d’usine sont en lecture seule ; enregistrer sous le même nom écrit plutôt une copie utilisateur.",
-              reviewed: false },
+              reviewed: true },
     },
     'preset-save': {
         en: { t: 'Save',
               b: 'Save the current settings as a user preset.' },
         fr: { t: 'Enregistrer',
               b: 'Enregistrer les réglages actuels comme préréglage utilisateur.',
-              reviewed: false },
+              reviewed: true },
     },
     'preset-load': {
         en: { t: 'Load',
               b: 'Load a preset from a file.' },
         fr: { t: 'Ouvrir',
               b: 'Charger un préréglage depuis un fichier.',
-              reviewed: false },
+              reviewed: true },
     },
     'preset-delete': {
         en: { t: 'Delete',
               b: 'Delete the current user preset. Click once to arm it, again to confirm.' },
         fr: { t: 'Supprimer',
               b: 'Supprimer le préréglage utilisateur actuel. Cliquer une fois pour armer, une seconde fois pour confirmer.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Header right ────────────────────────────────────────────────────────
@@ -172,14 +172,14 @@ export const I18N = Object.freeze({
               b: 'Show a short description when the pointer rests on a control. The setting is remembered with the session.' },
         fr: { t: 'Aide au survol',
               b: 'Afficher une courte description lorsque le pointeur se pose sur un contrôle. Le réglage est conservé avec la session.',
-              reviewed: false },
+              reviewed: true },
     },
     'view-toggle': {
         en: { t: 'View',
               b: 'Switch between the motion visualizer and the speaker layout editor.' },
         fr: { t: 'Vue',
               b: "Basculer entre le visualiseur de mouvement et l’éditeur de disposition des enceintes.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Speaker-editor toolbar: the named layout library ────────────────────
@@ -188,42 +188,42 @@ export const I18N = Object.freeze({
               b: 'Load a named custom speaker layout from your library.' },
         fr: { t: 'Dispositions enregistrées',
               b: 'Charger une disposition d’enceintes personnalisée nommée depuis votre bibliothèque.',
-              reviewed: false },
+              reviewed: true },
     },
     'layout-name': {
         en: { t: 'Layout name',
               b: 'Name for saving the current speaker arrangement to your library.' },
         fr: { t: 'Nom de la disposition',
               b: 'Nom sous lequel enregistrer la disposition d’enceintes actuelle dans votre bibliothèque.',
-              reviewed: false },
+              reviewed: true },
     },
     'layout-save-btn': {
         en: { t: 'Save layout',
               b: 'Save the current speaker arrangement under the name to the left.' },
         fr: { t: 'Enregistrer la disposition',
               b: "Enregistrer la disposition d’enceintes actuelle sous le nom saisi à gauche.",
-              reviewed: false },
+              reviewed: true },
     },
     'layout-delete-btn': {
         en: { t: 'Delete layout',
               b: 'Delete the selected saved layout. Click once to arm, again to confirm.' },
         fr: { t: 'Supprimer la disposition',
               b: 'Supprimer la disposition enregistrée sélectionnée. Cliquer une fois pour armer, une seconde fois pour confirmer.',
-              reviewed: false },
+              reviewed: true },
     },
     'export-btn': {
         en: { t: 'Export',
               b: 'Export the current speaker layout to a JSON file for sharing.' },
         fr: { t: 'Exporter',
               b: "Exporter la disposition d’enceintes actuelle vers un fichier JSON à partager.",
-              reviewed: false },
+              reviewed: true },
     },
     'import-btn': {
         en: { t: 'Import',
               b: 'Import a speaker layout from a JSON file.' },
         fr: { t: 'Importer',
               b: "Importer une disposition d’enceintes depuis un fichier JSON.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Motion ──────────────────────────────────────────────────────────────
@@ -239,63 +239,63 @@ export const I18N = Object.freeze({
               b: 'Motion trajectory: Orbit circles, Pendulum swings, Linear sweeps and snaps back, Drift wanders organically, Ping-Pong sweeps back and forth without the snap.' },
         fr: { t: 'Trajectoire',
               b: 'Trajectoire du mouvement : Orbite décrit un cercle, Pendule oscille, Linéaire balaie puis revient d’un coup, Dérive vagabonde de façon organique, Va-et-vient balaie dans les deux sens sans le retour brusque.',
-              reviewed: false },
+              reviewed: true },
     },
     'speed': {
         en: { t: 'Speed',
               b: 'Motion rate in cycles per second. Ignored while Tempo Sync is set to a division.' },
         fr: { t: 'Vitesse',
               b: 'Vitesse du mouvement en cycles par seconde. Ignorée tant que Sync tempo est réglée sur une division.',
-              reviewed: false },
+              reviewed: true },
     },
     'width': {
         en: { t: 'Width',
               b: 'Angular span of the motion in degrees — 360 is a full circle around the listener.' },
         fr: { t: 'Largeur',
               b: 'Étendue angulaire du mouvement en degrés — 360 fait un cercle complet autour de l’auditeur.',
-              reviewed: false },
+              reviewed: true },
     },
     'depth': {
         en: { t: 'Depth',
               b: 'Near/far motion. At 0% the source stays at the Distance radius; higher values move it toward and away from you each cycle.' },
         fr: { t: 'Profondeur',
               b: 'Mouvement de rapprochement et d’éloignement. À 0 %, la source reste au rayon défini par Distance ; au-delà, elle avance et recule à chaque cycle.',
-              reviewed: false },
+              reviewed: true },
     },
     'tilt': {
         en: { t: 'Tilt',
               b: 'Static elevation of the path in degrees, used while Elevation motion is off.' },
         fr: { t: 'Inclinaison',
               b: 'Élévation fixe de la trajectoire en degrés, utilisée tant que le mouvement Élévation est désactivé.',
-              reviewed: false },
+              reviewed: true },
     },
     'phase': {
         en: { t: 'Phase',
               b: 'Offset into the motion cycle in degrees — shifts where the source starts.' },
         fr: { t: 'Phase',
               b: 'Décalage dans le cycle du mouvement en degrés — déplace le point de départ de la source.',
-              reviewed: false },
+              reviewed: true },
     },
     'elevation_enable': {
         en: { t: 'Elevation',
               b: 'Adds vertical motion — the source rises and falls with the cycle instead of staying at the Tilt angle.' },
         fr: { t: 'Élévation',
               b: 'Ajoute un mouvement vertical — la source monte et descend avec le cycle au lieu de rester à l’angle défini par Inclinaison.',
-              reviewed: false },
+              reviewed: true },
     },
     'elevation_range': {
         en: { t: 'Elev Range',
               b: 'How far the elevation swings when Elevation motion is on, in degrees.' },
         fr: { t: 'Plage d’élévation',
               b: 'Amplitude du balayage vertical lorsque le mouvement Élévation est actif, en degrés.',
-              reviewed: false },
+              reviewed: true },
     },
     'tempo_sync': {
         en: { t: 'Tempo Sync',
               b: 'Locks the motion rate to the host tempo at the chosen division: 1/4 is one cycle per beat, 1 Bar one cycle per four beats (4/4 assumed). While the transport plays, motion phase locks to the beat position, so bounces are deterministic.' },
         fr: { t: 'Synchro tempo',
               b: 'Verrouille la vitesse du mouvement sur le tempo de l’hôte à la division choisie : 1/4 donne un cycle par temps, 1 mesure un cycle tous les quatre temps (4/4 supposé). Pendant la lecture, la phase du mouvement se cale sur la position rythmique, ce qui rend les exports déterministes.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Spatial ─────────────────────────────────────────────────────────────
@@ -304,14 +304,14 @@ export const I18N = Object.freeze({
               b: 'Target speaker arrangement. When the track has fewer channels, an energy-preserving downmix kicks in automatically (badge below shows when active).' },
         fr: { t: 'Disposition des enceintes',
               b: 'Disposition d’enceintes visée. Si la piste compte moins de canaux, un mixage réducteur à énergie constante s’active automatiquement (la pastille ci-dessous l’indique).',
-              reviewed: false },
+              reviewed: true },
     },
     'downmix-badge': {
         en: { t: 'Downmix',
               b: 'Shown when the layout has more channels than the track output — an energy-preserving fold-down is active.' },
         fr: { t: 'Mixage réducteur',
               b: 'Apparaît lorsque la disposition compte plus de canaux que la sortie de la piste — un repliement à énergie constante est actif.',
-              reviewed: false,
+              reviewed: true,
               termNote: 'a downmix is a CHANNEL fold-down, not the dry/wet Mix control four cells away; '
                       + '"mixage réducteur" is the term French DAWs print for it, and the glossary forbids '
                       + '"mixage" precisely because it means the mixing process — which is what this badge names' },
@@ -321,28 +321,28 @@ export const I18N = Object.freeze({
               b: 'Base distance of the source in meters — farther is quieter and darker.' },
         fr: { t: 'Distance',
               b: 'Distance de base de la source en mètres — plus loin, plus faible et plus sombre.',
-              reviewed: false },
+              reviewed: true },
     },
     'air_absorption': {
         en: { t: 'Air Absorption',
               b: 'High-frequency loss with distance — more absorption makes distant sources darker.' },
         fr: { t: 'Absorption de l’air',
               b: 'Perte des aigus avec la distance — plus d’absorption assombrit les sources lointaines.',
-              reviewed: false },
+              reviewed: true },
     },
     'attenuation_curve': {
         en: { t: 'Atten Curve',
               b: 'How level falls with distance: Linear, Inverse (1/d), or Inverse Square (1/d²).' },
         fr: { t: 'Courbe d’atténuation',
               b: 'Manière dont le niveau décroît avec la distance : Linéaire, Inverse (1/d) ou Inverse carrée (1/d²).',
-              reviewed: false },
+              reviewed: true },
     },
     'center_diverge': {
         en: { t: 'Center Diverge',
               b: 'Spreads energy into more speakers as it rises — 0% is the sharpest point-source imaging.' },
         fr: { t: 'Divergence centrale',
               b: 'Répartit l’énergie sur davantage d’enceintes à mesure qu’elle augmente — à 0 %, l’image ponctuelle est la plus précise.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Source / Mix ────────────────────────────────────────────────────────
@@ -351,21 +351,21 @@ export const I18N = Object.freeze({
               b: 'Mono sums the input into one moving source; L+R Split moves the left and right channels as two separate sources.' },
         fr: { t: 'Mode source',
               b: 'Mono additionne l’entrée en une seule source mobile ; Séparé G+D déplace les canaux gauche et droit comme deux sources distinctes.',
-              reviewed: false },
+              reviewed: true },
     },
     'lr_offset': {
         en: { t: 'L/R Offset',
               b: 'Angle between the left and right sources in L+R Split mode — 180° keeps them opposite.' },
         fr: { t: 'Décalage G/D',
               b: 'Angle entre les sources gauche et droite en mode Séparé G+D — 180° les maintient opposées.',
-              reviewed: false },
+              reviewed: true },
     },
     'mix': {
         en: { t: 'Mix',
               b: 'Dry/wet balance. Wet is the spatialized signal on all outputs; dry stays on its native input channels.' },
         fr: { t: 'Mix',
               b: 'Équilibre son direct / son traité. Le son traité est le signal spatialisé sur toutes les sorties ; le son direct reste sur ses canaux d’entrée d’origine.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -394,9 +394,9 @@ export const LABELS = Object.freeze({
     // buttons sit in a 34px header band beside a 130-190px preset readout, two
     // 20px nav circles and the gear, at 10px uppercase. The abbreviations are
     // the same ones O-ReverseDelay settled on in Stage H.
-    'label.save':    { en: { t: 'Save' },   fr: { t: 'Enreg.',  reviewed: false } },
-    'label.load':    { en: { t: 'Load' },   fr: { t: 'Ouvrir',  reviewed: false } },
-    'label.delete':  { en: { t: 'Del' },    fr: { t: 'Suppr.',  reviewed: false } },
+    'label.save':    { en: { t: 'Save' },   fr: { t: 'Enreg.',  reviewed: true } },
+    'label.load':    { en: { t: 'Load' },   fr: { t: 'Ouvrir',  reviewed: true } },
+    'label.delete':  { en: { t: 'Del' },    fr: { t: 'Suppr.',  reviewed: true } },
 
     // The armed face of BOTH two-click delete buttons — the preset one in the
     // header and the layout one in the editor toolbar. It goes through
@@ -407,16 +407,16 @@ export const LABELS = Object.freeze({
     // asks for — and the wrong one the moment the page had two languages: an
     // attribute holds ONE string, so a language switch while a button was armed
     // would have restored the ENGLISH armed face.
-    'ui.confirm':    { en: { t: 'Sure?' },  fr: { t: 'Sûr ?',   reviewed: false } },
+    'ui.confirm':    { en: { t: 'Sure?' },  fr: { t: 'Sûr ?',   reviewed: true } },
 
     // ── The view toggle, both faces ─────────────────────────────────────────
     // Written from script on every click, so both faces are keys. Two separate
     // setLabel() calls in the two arms of the if/else, never one call with a
     // ternary in its argument: check-i18n assertion 13 rejects that shape.
     'label.viewMotion': { en: { t: 'Motion View' },
-                          fr: { t: 'Vue mouvement', reviewed: false } },
+                          fr: { t: 'Vue mouvement', reviewed: true } },
     'label.viewEditor': { en: { t: 'Speaker Editor' },
-                          fr: { t: 'Éditeur d’enceintes', reviewed: false } },
+                          fr: { t: 'Éditeur d’enceintes', reviewed: true } },
 
     // ── The elevation toggle, both faces ────────────────────────────────────
     // ONE key pair, TWO controls: the 50px elevation pill (.toggle-label) and
@@ -449,12 +449,12 @@ export const LABELS = Object.freeze({
     // pair fits with room. Fixing the specificity is a CSS change and Stage N
     // takes none; it is reported instead.
     'ui.on':         { en: { t: 'On' },
-                       fr: { t: 'Oui', reviewed: false,
+                       fr: { t: 'Oui', reviewed: true,
                              termNote: 'MARCHE measures 53.06px and ACTIVÉ 46.33px in the elevation pill\'s '
                                      + '46.00px content box, and MARCHE 45.80px in the settings toggle\'s 44.00px '
                                      + 'box — no glossary form fits either site, so the pair stays as drafted' } },
     'ui.off':        { en: { t: 'Off' },
-                       fr: { t: 'Non', reviewed: false,
+                       fr: { t: 'Non', reviewed: true,
                              termNote: 'ARRÊT does fit (41.06px of 46.00, 35.28px of 44.00) but its partner does '
                                      + 'not, and ARRÊT opposite OUI is a mismatched pair on one toggle — held '
                                      + 'with ui.on until the .toggle-label font-size specificity is settled' } },
@@ -464,16 +464,16 @@ export const LABELS = Object.freeze({
     // digits and dots, it is identical in both languages, and the coverage scan
     // classifies it as a non-label for exactly that reason. Only the four
     // WORDED buttons need keys.
-    'label.fmtStereo': { en: { t: 'Stereo' }, fr: { t: 'Stéréo', reviewed: false } },
-    'label.fmtQuad':   { en: { t: 'Quad' },   fr: { t: 'Quad',   reviewed: false, sameAsEn: true } },
-    'label.fmtHex':    { en: { t: 'Hex' },    fr: { t: 'Hexa',   reviewed: false } },
-    'label.fmtOct':    { en: { t: 'Oct' },    fr: { t: 'Octo',   reviewed: false } },
+    'label.fmtStereo': { en: { t: 'Stereo' }, fr: { t: 'Stéréo', reviewed: true } },
+    'label.fmtQuad':   { en: { t: 'Quad' },   fr: { t: 'Quad',   reviewed: true, sameAsEn: true } },
+    'label.fmtHex':    { en: { t: 'Hex' },    fr: { t: 'Hexa',   reviewed: true } },
+    'label.fmtOct':    { en: { t: 'Oct' },    fr: { t: 'Octo',   reviewed: true } },
 
     // ── Editor toolbar: the layout library and file buttons ─────────────────
     'label.layoutsPlaceholder': { en: { t: 'Layouts…' },
-                                  fr: { t: 'Dispositions…', reviewed: false } },
-    'label.export':  { en: { t: 'Export' }, fr: { t: 'Exporter', reviewed: false } },
-    'label.import':  { en: { t: 'Import' }, fr: { t: 'Importer', reviewed: false } },
+                                  fr: { t: 'Dispositions…', reviewed: true } },
+    'label.export':  { en: { t: 'Export' }, fr: { t: 'Exporter', reviewed: true } },
+    'label.import':  { en: { t: 'Import' }, fr: { t: 'Importer', reviewed: true } },
 
     // ── Group headings ──────────────────────────────────────────────────────
     // "Source / Mix", not the v1.2.0 draft's "Source / Mixage": the suite
@@ -482,11 +482,11 @@ export const LABELS = Object.freeze({
     // heading then equals its English, so it carries sameAsEn: true, which is
     // the declaration that a reader looked and agreed the word is French too.
     'label.groupMotion':   { en: { t: 'Motion' },
-                             fr: { t: 'Mouvement', reviewed: false } },
+                             fr: { t: 'Mouvement', reviewed: true } },
     'label.groupSpatial':  { en: { t: 'Spatial' },
-                             fr: { t: 'Spatial', reviewed: false, sameAsEn: true } },
+                             fr: { t: 'Spatial', reviewed: true, sameAsEn: true } },
     'label.groupSourceMix': { en: { t: 'Source / Mix' },
-                              fr: { t: 'Source / Mix', reviewed: false, sameAsEn: true } },
+                              fr: { t: 'Source / Mix', reviewed: true, sameAsEn: true } },
 
     // ── Motion parameter captions ───────────────────────────────────────────
     // Eight of these are identical to their tooltip TITLE in both languages and
@@ -495,14 +495,14 @@ export const LABELS = Object.freeze({
     // ALREADY diverge here (Elev Range / Plage élév., Atten Curve / Courbe
     // attén.) prove the divergence is not hypothetical on this page — the
     // captions live in 90px grid cells and the titles live in a 230px tip.
-    'label.path':      { en: { t: 'Path' },       fr: { t: 'Trajectoire', reviewed: false } },
-    'label.speed':     { en: { t: 'Speed' },      fr: { t: 'Vitesse',     reviewed: false } },
-    'label.width':     { en: { t: 'Width' },      fr: { t: 'Largeur',     reviewed: false } },
-    'label.depth':     { en: { t: 'Depth' },      fr: { t: 'Profondeur',  reviewed: false } },
-    'label.tilt':      { en: { t: 'Tilt' },       fr: { t: 'Inclinaison', reviewed: false } },
-    'label.phase':     { en: { t: 'Phase' },      fr: { t: 'Phase', reviewed: false, sameAsEn: true } },
-    'label.elevation': { en: { t: 'Elevation' },  fr: { t: 'Élévation',   reviewed: false } },
-    'label.elevRange': { en: { t: 'Elev Range' }, fr: { t: 'Plage élév.', reviewed: false } },
+    'label.path':      { en: { t: 'Path' },       fr: { t: 'Trajectoire', reviewed: true } },
+    'label.speed':     { en: { t: 'Speed' },      fr: { t: 'Vitesse',     reviewed: true } },
+    'label.width':     { en: { t: 'Width' },      fr: { t: 'Largeur',     reviewed: true } },
+    'label.depth':     { en: { t: 'Depth' },      fr: { t: 'Profondeur',  reviewed: true } },
+    'label.tilt':      { en: { t: 'Tilt' },       fr: { t: 'Inclinaison', reviewed: true } },
+    'label.phase':     { en: { t: 'Phase' },      fr: { t: 'Phase', reviewed: true, sameAsEn: true } },
+    'label.elevation': { en: { t: 'Elevation' },  fr: { t: 'Élévation',   reviewed: true } },
+    'label.elevRange': { en: { t: 'Elev Range' }, fr: { t: 'Plage élév.', reviewed: true } },
     // SIZED, and this is the one French string on this page that was.
     // "Synchro tempo" measures 105.4px in this cell's own font and the Motion
     // group's grid track is 100.3px (repeat(auto-fit, minmax(90px, 1fr)) over
@@ -510,18 +510,18 @@ export const LABELS = Object.freeze({
     // and pushed the #tempo_sync select down 13px. "Sync tempo" measures 79.2 —
     // 21px of margin — and "Sync" is what French DAW interfaces call this. The
     // full phrase survives as the tooltip TITLE, which renders in a 230px box.
-    'label.tempoSync': { en: { t: 'Tempo Sync' }, fr: { t: 'Sync tempo', reviewed: false } },
+    'label.tempoSync': { en: { t: 'Tempo Sync' }, fr: { t: 'Sync tempo', reviewed: true } },
 
     // ── Path dropdown options ───────────────────────────────────────────────
-    'label.pathOrbit':    { en: { t: 'Orbit' },     fr: { t: 'Orbite',      reviewed: false } },
-    'label.pathPendulum': { en: { t: 'Pendulum' },  fr: { t: 'Pendule',     reviewed: false } },
-    'label.pathDrift':    { en: { t: 'Drift' },     fr: { t: 'Dérive',      reviewed: false } },
-    'label.pathPingPong': { en: { t: 'Ping-Pong' }, fr: { t: 'Va-et-vient', reviewed: false } },
+    'label.pathOrbit':    { en: { t: 'Orbit' },     fr: { t: 'Orbite',      reviewed: true } },
+    'label.pathPendulum': { en: { t: 'Pendulum' },  fr: { t: 'Pendule',     reviewed: true } },
+    'label.pathDrift':    { en: { t: 'Drift' },     fr: { t: 'Dérive',      reviewed: true } },
+    'label.pathPingPong': { en: { t: 'Ping-Pong' }, fr: { t: 'Va-et-vient', reviewed: true } },
 
     // Shared by the Path dropdown and the Atten Curve dropdown. Identical in
     // BOTH languages at both sites, which is the only condition under which the
     // reuse rule allows one key to serve two controls.
-    'label.linear':       { en: { t: 'Linear' },    fr: { t: 'Linéaire',    reviewed: false } },
+    'label.linear':       { en: { t: 'Linear' },    fr: { t: 'Linéaire',    reviewed: true } },
 
     // ── Tempo Sync dropdown: the four WORDED options ────────────────────────
     // The eleven note-value options (1/16T … 1/2D) are digits, slashes and the
@@ -534,10 +534,10 @@ export const LABELS = Object.freeze({
     // to spare, against the v1.2.0 draft's clipped "Désact." 32.69px. The
     // feature sense, not "Aucune": the English is Off, and Off here means the
     // sync is not running, not that a division is unselected.
-    'label.syncOff':   { en: { t: 'Off' },     fr: { t: 'Désactivé',  reviewed: false } },
-    'label.bar1':      { en: { t: '1 Bar' },   fr: { t: '1 mesure',   reviewed: false } },
-    'label.bars2':     { en: { t: '2 Bars' },  fr: { t: '2 mesures',  reviewed: false } },
-    'label.bars4':     { en: { t: '4 Bars' },  fr: { t: '4 mesures',  reviewed: false } },
+    'label.syncOff':   { en: { t: 'Off' },     fr: { t: 'Désactivé',  reviewed: true } },
+    'label.bar1':      { en: { t: '1 Bar' },   fr: { t: '1 mesure',   reviewed: true } },
+    'label.bars2':     { en: { t: '2 Bars' },  fr: { t: '2 mesures',  reviewed: true } },
+    'label.bars4':     { en: { t: '4 Bars' },  fr: { t: '4 mesures',  reviewed: true } },
 
     // ── Spatial parameter captions ──────────────────────────────────────────
     // "Enceintes", not "Disposition des enceintes": this caption sits in a
@@ -545,9 +545,9 @@ export const LABELS = Object.freeze({
     // Layout" already wraps to two lines there. The full phrase is what the
     // TOOLTIP title says.
     'label.speakerLayout': { en: { t: 'Speaker Layout' },
-                             fr: { t: 'Enceintes', reviewed: false } },
+                             fr: { t: 'Enceintes', reviewed: true } },
     'label.distance':      { en: { t: 'Distance' },
-                             fr: { t: 'Distance', reviewed: false, sameAsEn: true } },
+                             fr: { t: 'Distance', reviewed: true, sameAsEn: true } },
     // "Absorption air" is the glossary's short form and it is FREE here: at
     // 11px uppercase it measures 104.17px, the same 104.17px as the English
     // "Air Absorption" it replaces, letter for letter. The v1.2.0 draft's bare
@@ -555,38 +555,38 @@ export const LABELS = Object.freeze({
     // absorbing. The full "Absorption de l'air" is 135.88px and does not fit;
     // it is what the TOOLTIP title says.
     'label.airAbsorption': { en: { t: 'Air Absorption' },
-                             fr: { t: 'Absorption air', reviewed: false } },
+                             fr: { t: 'Absorption air', reviewed: true } },
     'label.attenCurve':    { en: { t: 'Atten Curve' },
-                             fr: { t: 'Courbe attén.', reviewed: false } },
+                             fr: { t: 'Courbe attén.', reviewed: true } },
     'label.centerDiverge': { en: { t: 'Center Diverge' },
-                             fr: { t: 'Divergence', reviewed: false } },
+                             fr: { t: 'Divergence', reviewed: true } },
 
     // ── Speaker Layout dropdown: the four WORDED options ────────────────────
     // Stereo and Quad reuse the toolbar buttons' keys — same string, same two
     // languages, same meaning. Hexaphonic and Octaphonic are the full words the
     // toolbar abbreviates and need their own.
     'label.hexaphonic':    { en: { t: 'Hexaphonic' },
-                             fr: { t: 'Hexaphonique', reviewed: false } },
+                             fr: { t: 'Hexaphonique', reviewed: true } },
     'label.octaphonic':    { en: { t: 'Octaphonic' },
-                             fr: { t: 'Octophonique', reviewed: false } },
+                             fr: { t: 'Octophonique', reviewed: true } },
 
     // ── Atten Curve dropdown options ────────────────────────────────────────
     'label.inverse':       { en: { t: 'Inverse' },
-                             fr: { t: 'Inverse', reviewed: false, sameAsEn: true } },
+                             fr: { t: 'Inverse', reviewed: true, sameAsEn: true } },
     'label.inverseSquare': { en: { t: 'Inverse Square' },
-                             fr: { t: 'Inverse carrée', reviewed: false } },
+                             fr: { t: 'Inverse carrée', reviewed: true } },
 
     // ── Source / Mix ────────────────────────────────────────────────────────
     'label.sourceMode': { en: { t: 'Source Mode' },
-                          fr: { t: 'Mode source', reviewed: false } },
+                          fr: { t: 'Mode source', reviewed: true } },
     'label.mono':       { en: { t: 'Mono' },
-                          fr: { t: 'Mono', reviewed: false, sameAsEn: true } },
+                          fr: { t: 'Mono', reviewed: true, sameAsEn: true } },
     'label.lrSplit':    { en: { t: 'L+R Split' },
-                          fr: { t: 'Séparé G+D', reviewed: false } },
+                          fr: { t: 'Séparé G+D', reviewed: true } },
     'label.lrOffset':   { en: { t: 'L/R Offset' },
-                          fr: { t: 'Décalage G/D', reviewed: false } },
+                          fr: { t: 'Décalage G/D', reviewed: true } },
     'label.mix':        { en: { t: 'Mix' },
-                          fr: { t: 'Mix', reviewed: false, sameAsEn: true } },
+                          fr: { t: 'Mix', reviewed: true, sameAsEn: true } },
 
     // ── The downmix badge ───────────────────────────────────────────────────
     // A COMPOSED entry, and the only one on this page. The two numbers are
@@ -597,7 +597,7 @@ export const LABELS = Object.freeze({
     // ride on the element as data-i18n-vars and the language sweep re-renders
     // the badge with the SAME counts rather than a stale English face.
     'ui.downmix':       { en: { t: '{from}ch → {to}ch' },
-                          fr: { t: '{from} can. → {to} can.', reviewed: false } },
+                          fr: { t: '{from} can. → {to} can.', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // #preset-prev and #preset-next do NOT appear here: their accessible name
@@ -606,20 +606,20 @@ export const LABELS = Object.freeze({
     // it. The four below differ from their control's tip title, or belong to a
     // control that has no tip.
     'aria.browsePresets': { en: { t: 'Browse presets' },
-                            fr: { t: 'Parcourir les préréglages', reviewed: false } },
+                            fr: { t: 'Parcourir les préréglages', reviewed: true } },
     'aria.presets':       { en: { t: 'Presets' },
-                            fr: { t: 'Préréglages', reviewed: false } },
+                            fr: { t: 'Préréglages', reviewed: true } },
     'aria.helpToggle':    { en: { t: 'Toggle hover help' },
-                            fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
+                            fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
     'aria.settings':      { en: { t: 'Settings' },
-                            fr: { t: 'Réglages', reviewed: false } },
+                            fr: { t: 'Réglages', reviewed: true } },
     'aria.langSelect':    { en: { t: 'Interface language' },
-                            fr: { t: 'Langue de l’interface', reviewed: false } },
+                            fr: { t: 'Langue de l’interface', reviewed: true } },
 
     // The layout-name field's placeholder. Lower-case in both, matching the
     // authored English — a placeholder on this page is a hint, not a caption.
     'placeholder.layoutName': { en: { t: 'name…' },
-                                fr: { t: 'nom…', reviewed: false } },
+                                fr: { t: 'nom…', reviewed: true } },
 });
 
 // ============================================================================

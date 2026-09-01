@@ -180,7 +180,7 @@ export const I18N = Object.freeze({
                + 'regroupées en Analog, Digital, Formant, Spectral et Organic ; déposer un fichier '
                + 'WAV sur l’affichage ci-dessus charge la vôtre à la place. Plage : 28 tables '
                + 'd’usine, plus celles que vous importez.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscAPos': {
         en: { t: 'Osc A Position',
@@ -191,7 +191,7 @@ export const I18N = Object.freeze({
               b: 'Balaie les trames de la table sélectionnée, en fondu continu plutôt que par '
                + 'paliers. À moduler depuis un OBF ou l’enveloppe de filtre pour obtenir le timbre '
                + 'mouvant qui fait tout l’intérêt de la synthèse à tables d’onde. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscALevel': {
         en: { t: 'Osc A Level',
@@ -202,7 +202,7 @@ export const I18N = Object.freeze({
               b: 'Niveau de sortie de l’oscillateur A avant les filtres. L’équilibre avec '
                + 'l’oscillateur B se règle séparément par Mix osc en pied de page ; utilisez donc '
                + 'cette commande pour corriger un unisson ou une table trop forte. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscAPan': {
         en: { t: 'Osc A Pan',
@@ -213,7 +213,7 @@ export const I18N = Object.freeze({
               b: 'Place l’oscillateur A dans l’image stéréo, avant les filtres et les effets. Placer '
                + 'A et B de part et d’autre est la façon la plus simple d’élargir un son à deux '
                + 'oscillateurs. Plage de 100L à 100R, C au centre.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscACoarse': {
         en: { t: 'Osc A Coarse',
@@ -223,7 +223,7 @@ export const I18N = Object.freeze({
               b: 'Transpose l’oscillateur A par demi-tons entiers. Deux octaves de part et d’autre : '
                + 'une quinte, une octave ou une couche de lead à deux octaves ne sont qu’à un geste. '
                + 'Plage de −24 à +24 demi-tons.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscAFine': {
         en: { t: 'Osc A Fine',
@@ -234,7 +234,7 @@ export const I18N = Object.freeze({
               b: 'Désaccorde l’oscillateur A en cents, jusqu’à un demi-ton de part et d’autre. '
                + 'Quelques cents d’écart avec l’oscillateur B produisent le battement lent qui '
                + 'épaissit un son sans recourir à l’unisson. Plage de −100 à +100 cents.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscAPhase': {
         en: { t: 'Osc A Phase',
@@ -245,7 +245,7 @@ export const I18N = Object.freeze({
               b: 'Fixe le point de la forme d’onde où l’oscillateur A démarre à chaque note. Un '
                + 'départ fixe rend les attaques identiques d’une note à l’autre, ce qui compte '
                + 'surtout sur les sons percussifs courts. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscAUnison': {
         en: { t: 'Osc A Unison',
@@ -256,7 +256,7 @@ export const I18N = Object.freeze({
               b: 'Empile jusqu’à huit copies désaccordées de l’oscillateur A sur une même note. La '
                + 'pile est compensée en gain : l’augmenter épaissit le son sans le rendre plus fort. '
                + 'Désacc. et Larg. en façonnent le résultat. Plage de 1 à 8 voix.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscADetune': {
         en: { t: 'Osc A Detune',
@@ -267,7 +267,7 @@ export const I18N = Object.freeze({
               b: 'Écarte en hauteur les copies d’unisson, jusqu’à 50 cents sur l’ensemble de la pile. '
                + 'Sans effet tant que Unisson vaut 1. Les petites valeurs donnent un chorus, les '
                + 'grandes la supersaw. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscAWidth': {
         en: { t: 'Osc A Width',
@@ -278,7 +278,7 @@ export const I18N = Object.freeze({
               b: 'Étale les copies d’unisson dans l’image stéréo selon une loi de panoramique à '
                + 'puissance constante. À 0, toute la pile reste où Pano la place ; à 100 %, les voix '
                + 'extrêmes atteignent les bords. Sans effet tant que Unisson vaut 1. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscAWarpType': {
         en: { t: 'Osc A Warp Type',
@@ -291,7 +291,7 @@ export const I18N = Object.freeze({
                + 'synchronisation dure sur une phase maîtresse, Bend une distorsion de phase, FM '
                + 'prend son modulateur sur l’oscillateur B, et Window reprend Sync avec une '
                + 'fenêtre en demi-sinus sur chaque cycle. Plage : Off, Sync, Bend, FM, Window.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscAWarpAmt': {
         en: { t: 'Osc A Warp Amount',
@@ -302,7 +302,7 @@ export const I18N = Object.freeze({
               b: 'Intensité de la déformation choisie : rapport de synchronisation, exposant de '
                + 'distorsion de phase ou indice de FM selon le type retenu. Sans effet tant que '
                + 'Déform. est sur Off. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Oscillator B ────────────────────────────────────────────────────────
@@ -319,7 +319,7 @@ export const I18N = Object.freeze({
               b: 'Choisit la table d’onde lue par l’oscillateur B, parmi les mêmes 28 tables d’usine '
                + 'que l’oscillateur A. L’oscillateur B démarre à un niveau de 0 : montez son Niv. '
                + 'avant d’espérer l’entendre. Plage : 28 tables d’usine, plus celles que vous importez.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscBPos': {
         en: { t: 'Osc B Position',
@@ -330,7 +330,7 @@ export const I18N = Object.freeze({
               b: 'Balaie les trames de la table de l’oscillateur B. Moduler A et B depuis deux OBF '
                + 'différents évite qu’une nappe à deux oscillateurs ne bouge d’un seul bloc. '
                + 'Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscBLevel': {
         en: { t: 'Osc B Level',
@@ -340,7 +340,7 @@ export const I18N = Object.freeze({
               b: 'Niveau de sortie de l’oscillateur B avant les filtres. Sa valeur par défaut est 0 : '
                + 'un son neuf n’utilise que l’oscillateur A tant que vous ne montez pas ce niveau. '
                + 'Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscBPan': {
         en: { t: 'Osc B Pan',
@@ -349,7 +349,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Panoramique osc B',
               b: 'Place l’oscillateur B dans l’image stéréo, avant les filtres et les effets. '
                + 'Plage de 100L à 100R, C au centre.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscBCoarse': {
         en: { t: 'Osc B Coarse',
@@ -360,7 +360,7 @@ export const I18N = Object.freeze({
               b: 'Transpose l’oscillateur B par demi-tons entiers, sur deux octaves de part et '
                + 'd’autre. Décaler B par rapport à A d’une quinte ou d’une octave est la base de la '
                + 'plupart des sons superposés. Plage de −24 à +24 demi-tons.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscBFine': {
         en: { t: 'Osc B Fine',
@@ -370,7 +370,7 @@ export const I18N = Object.freeze({
               b: 'Désaccorde l’oscillateur B en cents, jusqu’à un demi-ton de part et d’autre. Dix ou '
                + 'quinze cents d’écart avec l’oscillateur A donnent le battement lent classique. '
                + 'Plage de −100 à +100 cents.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscBPhase': {
         en: { t: 'Osc B Phase',
@@ -381,7 +381,7 @@ export const I18N = Object.freeze({
               b: 'Fixe le point de la forme d’onde où l’oscillateur B démarre à chaque note. La '
                + 'décaler par rapport à la phase de départ de l’oscillateur A modifie la façon dont '
                + 'les deux s’additionnent au tout début de la note. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscBUnison': {
         en: { t: 'Osc B Unison',
@@ -390,7 +390,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Unisson osc B',
               b: 'Empile jusqu’à huit copies désaccordées de l’oscillateur B sur une même note, avec '
                + 'compensation de gain : le son s’épaissit sans devenir plus fort. Plage de 1 à 8 voix.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscBDetune': {
         en: { t: 'Osc B Detune',
@@ -399,7 +399,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Désaccord osc B',
               b: 'Écarte en hauteur les copies d’unisson de l’oscillateur B, jusqu’à 50 cents sur '
                + 'l’ensemble de la pile. Sans effet tant que Unisson vaut 1. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscBWidth': {
         en: { t: 'Osc B Width',
@@ -410,7 +410,7 @@ export const I18N = Object.freeze({
               b: 'Étale les copies d’unisson de l’oscillateur B dans l’image stéréo. Donner à A et B '
                + 'des largeurs différentes évite que les deux piles n’occupent exactement la même '
                + 'place. Sans effet tant que Unisson vaut 1. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscBWarpType': {
         en: { t: 'Osc B Warp Type',
@@ -421,7 +421,7 @@ export const I18N = Object.freeze({
               b: 'Choisit la manière dont Qté déf. remodèle l’oscillateur B. C’est le miroir de celui '
                + 'de l’oscillateur A : régler les deux sur FM crée une modulation croisée, puisque le '
                + 'modulateur de B est A. Plage : Off, Sync, Bend, FM, Window.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscBWarpAmt': {
         en: { t: 'Osc B Warp Amount',
@@ -430,7 +430,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Quantité de déformation osc B',
               b: 'Intensité de la déformation choisie pour l’oscillateur B. Sans effet tant que '
                + 'Déform. est sur Off. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Sub oscillator and noise ────────────────────────────────────────────
@@ -444,7 +444,7 @@ export const I18N = Object.freeze({
               b: 'Forme d’onde du sous-oscillateur. Sine n’ajoute que du poids ; Square et Saw '
                + 'ajoutent des harmoniques sur lesquelles les filtres peuvent agir. Plage : Sine, '
                + 'Triangle, Saw, Square.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.subOctave': {
         en: { t: 'Sub Octave',
@@ -456,7 +456,7 @@ export const I18N = Object.freeze({
                + 'renfort de grave habituel ; trois ou quatre octaves plus bas se ressentent plus '
                + 'qu’elles ne s’entendent sur la plupart des systèmes. Plage : −1, −2, −3 ou '
                + '−4 octaves.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.subLevel': {
         en: { t: 'Sub Level',
@@ -466,7 +466,7 @@ export const I18N = Object.freeze({
               b: 'Niveau du sous-oscillateur. Sa valeur par défaut est 0 : le sub reste muet tant que '
                + 'vous ne le montez pas. Sa place dans la voix est fixée par Routage, juste à côté. '
                + 'Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.noiseType': {
         en: { t: 'Noise Type',
@@ -479,7 +479,7 @@ export const I18N = Object.freeze({
                + 'plus vers le grave, Digital est un échantillonneur-bloqueur quantifié, Vinyl un '
                + 'bruit filtré en bande avec craquements, et Wind un bruit brun sous un balayage de '
                + 'filtre lent. Plage : White, Pink, Brown, Digital, Vinyl, Wind.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.noiseLevel': {
         en: { t: 'Noise Level',
@@ -490,7 +490,7 @@ export const I18N = Object.freeze({
               b: 'Niveau de la source de bruit, qui suit le même routage que le sub. Sa valeur par '
                + 'défaut est 0. Un soupçon de bruit sous une nappe donne au filtre matière à '
                + 'travailler dans l’aigu. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.subRouting': {
         en: { t: 'Sub Routing',
@@ -501,7 +501,7 @@ export const I18N = Object.freeze({
               b: 'Détermine si le sub et le bruit traversent les filtres ou les contournent. '
                + 'Post-Filter garde le grave stable pendant un balayage de filtre ; Pre-Filter laisse '
                + 'le filtre modeler le sub avec le reste. Plage : Post-Filter, Pre-Filter.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Amplitude envelope ──────────────────────────────────────────────────
@@ -517,7 +517,7 @@ export const I18N = Object.freeze({
               b: 'Temps que met la note à atteindre son niveau plein après l’enfoncement d’une '
                + 'touche. Une ou deux millisecondes donnent un pincé ou un clavier ; une seconde ou '
                + 'plus, une nappe qui monte en fondu. Plage de 1 ms à 10 s.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.ampDecay': {
         en: { t: 'Amp Decay',
@@ -528,7 +528,7 @@ export const I18N = Object.freeze({
               b: 'Temps que met la note à descendre de son sommet jusqu’au niveau de Maintien, touche '
                + 'toujours enfoncée. Avec un Maintien à 0, c’est cette commande seule qui décide de la '
                + 'longueur d’une note pincée. Plage de 1 ms à 10 s.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.ampSustain': {
         en: { t: 'Amp Sustain',
@@ -539,7 +539,7 @@ export const I18N = Object.freeze({
               b: 'Niveau auquel la note se maintient tant que la touche est enfoncée, en fraction de '
                + 'son sommet. À 0, la note s’éteint d’elle-même après le Déclin ; à 100 %, le Déclin '
                + 'n’a plus d’effet audible. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.ampRelease': {
         en: { t: 'Amp Release',
@@ -550,7 +550,7 @@ export const I18N = Object.freeze({
               b: 'Temps que met la note à s’éteindre après le relâchement de la touche. Un relâchement '
                + 'long superpose les notes et consomme plus de voix : souhaitable sur une nappe, '
                + 'moins sur une basse. Plage de 1 ms à 20 s.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Filter envelope ─────────────────────────────────────────────────────
@@ -564,7 +564,7 @@ export const I18N = Object.freeze({
               b: 'Temps que met l’enveloppe de filtre à atteindre son sommet. Les valeurs courtes '
                + 'donnent le claquement en tête d’un balayage de filtre pincé ou percussif. '
                + 'Plage de 1 ms à 10 s.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtDecay': {
         en: { t: 'Filter Decay',
@@ -574,7 +574,7 @@ export const I18N = Object.freeze({
               b: 'Temps que met l’enveloppe de filtre à descendre de son sommet jusqu’à son Maintien. '
                + 'C’est cette commande qui décide de la vitesse de fermeture d’un balayage. '
                + 'Plage de 1 ms à 10 s.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtSustain': {
         en: { t: 'Filter Sustain',
@@ -584,7 +584,7 @@ export const I18N = Object.freeze({
               b: 'Niveau auquel l’enveloppe de filtre se maintient tant que la touche est enfoncée. '
                + 'Ce n’est pas une fréquence de coupure : ce sont les deux boutons Prof. qui décident '
                + 'de la part qui atteint chaque filtre. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtRelease': {
         en: { t: 'Filter Release',
@@ -594,7 +594,7 @@ export const I18N = Object.freeze({
               b: 'Temps que met l’enveloppe de filtre à retomber après le relâchement de la touche. '
                + 'Plus court que le relâchement d’amplitude, il assombrit la traîne pendant qu’elle '
                + 's’éteint. Plage de 1 ms à 20 s.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtAEnvDepth': {
         en: { t: 'Filter A Env Depth',
@@ -606,7 +606,7 @@ export const I18N = Object.freeze({
                + 'Les valeurs négatives ferment le filtre à mesure que l’enveloppe monte. Valeur par '
                + 'défaut 0 : l’enveloppe reste sans effet tant que ce bouton n’est pas tourné. '
                + 'Plage de −100 à +100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtBEnvDepth': {
         en: { t: 'Filter B Env Depth',
@@ -617,7 +617,7 @@ export const I18N = Object.freeze({
               b: 'Part de l’enveloppe de filtre ajoutée à la coupure du filtre B, et dans quel sens. '
                + 'Des signes opposés sur A et B ouvrent un filtre pendant que l’autre se ferme. '
                + 'Plage de −100 à +100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Filters A and B ─────────────────────────────────────────────────────
@@ -634,7 +634,7 @@ export const I18N = Object.freeze({
               b: 'Réponse du filtre A. Les suffixes 12 et 24 donnent la pente en dB par octave : 24 '
                + 'est plus raide et plus spectaculaire sous un balayage, 12 plus doux et laisse '
                + 'davantage d’aigu. Plage : LP12, LP24, HP12, HP24, BP12, BP24, Notch.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtACutoff': {
         en: { t: 'Filter A Cutoff',
@@ -645,7 +645,7 @@ export const I18N = Object.freeze({
               b: 'Fréquence de coupure du filtre A. Elle est grande ouverte par défaut : le filtre '
                + 'reste transparent tant que vous ne le fermez pas ou que l’enveloppe de filtre ne le '
                + 'vise pas. Plage de 20 Hz à 20 kHz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtARes': {
         en: { t: 'Filter A Resonance',
@@ -655,7 +655,7 @@ export const I18N = Object.freeze({
               b: 'Accentuation à la fréquence de coupure du filtre A. Un peu affûte un balayage ; '
                + 'beaucoup transforme le filtre en sifflement chantant qui suit la coupure. '
                + 'Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtADrive': {
         en: { t: 'Filter A Drive',
@@ -664,7 +664,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Saturation du filtre A',
               b: 'Saturation à l’intérieur du filtre A, appliquée à l’entrée du signal. Elle épaissit '
                + 'le son et dompte en même temps une résonance élevée. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtAKeyTrack': {
         en: { t: 'Filter A KeyTrack',
@@ -675,7 +675,7 @@ export const I18N = Object.freeze({
               b: 'Mesure dans laquelle la coupure du filtre A suit la note jouée, en pivotant autour '
                + 'du do central. À 100 %, la coupure double à chaque octave montée : le timbre reste '
                + 'régulier sur tout le clavier au lieu de s’assourdir dans l’aigu. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtBType': {
         en: { t: 'Filter B Type',
@@ -686,7 +686,7 @@ export const I18N = Object.freeze({
               b: 'Réponse du filtre B, parmi les mêmes sept formes que le filtre A. Un passe-bas en A '
                + 'suivi d’un passe-haut en B, en Serial, est la manière habituelle de construire une '
                + 'bande. Plage : LP12, LP24, HP12, HP24, BP12, BP24, Notch.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtBCutoff': {
         en: { t: 'Filter B Cutoff',
@@ -697,7 +697,7 @@ export const I18N = Object.freeze({
               b: 'Fréquence de coupure du filtre B, elle aussi grande ouverte par défaut. Sa position '
                + 'par rapport au filtre A est ce que Routage filt. transforme en bande ou en paire de '
                + 'pointes. Plage de 20 Hz à 20 kHz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtBRes': {
         en: { t: 'Filter B Resonance',
@@ -707,7 +707,7 @@ export const I18N = Object.freeze({
               b: 'Accentuation à la fréquence de coupure du filtre B. Deux pointes résonantes à des '
                + 'fréquences différentes, en Parallel, donnent une couleur vocalique. '
                + 'Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtBDrive': {
         en: { t: 'Filter B Drive',
@@ -718,7 +718,7 @@ export const I18N = Object.freeze({
               b: 'Saturation à l’intérieur du filtre B. En Serial, elle s’applique à un signal déjà '
                + 'façonné par le filtre A : elle colore donc autrement que la Satur. du filtre A au '
                + 'même réglage. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtBKeyTrack': {
         en: { t: 'Filter B KeyTrack',
@@ -727,7 +727,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Suivi de clavier du filtre B',
               b: 'Mesure dans laquelle la coupure du filtre B suit la note jouée, en pivotant autour '
                + 'du do central. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.filtRouting': {
         en: { t: 'Filter Routing',
@@ -738,7 +738,7 @@ export const I18N = Object.freeze({
               b: 'Câblage des deux filtres. Serial fait passer la voix par A puis par B, ce qui '
                + 'permet de construire un passe-bande à partir de deux pentes ; Parallel les fait '
                + 'travailler côte à côte et somme les résultats à mi-gain. Plage : Serial, Parallel.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Tuning tab ──────────────────────────────────────────────────────────
@@ -758,7 +758,7 @@ export const I18N = Object.freeze({
               b: 'Hauteur de référence du la3 (A4), et donc de tout l’instrument. 440 Hz est la norme '
                + 'moderne ; 415 relève du répertoire baroque et 432 est une variante répandue. '
                + 'Plage de 420,0 à 460,0 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.octaveStretch': {
         en: { t: 'Octave Stretch',
@@ -770,7 +770,7 @@ export const I18N = Object.freeze({
                + 'au-dessus, les octaves s’étirent comme sur un piano, en dessous elles se '
                + 'resserrent. S’écarter de 1,00 modifie tous les intervalles de la gamme. '
                + 'Plage de 0,95 à 1,25.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.pitchBendRange': {
         en: { t: 'Pitch Bend Range',
@@ -780,7 +780,7 @@ export const I18N = Object.freeze({
               b: 'Plage de la molette de hauteur, en demi-tons, dans les deux sens. Deux '
                + 'demi-tons est la valeur habituelle ; douze font de la molette un levier d’octave. '
                + 'Plage de 1 à 48 demi-tons.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.glideMode': {
         en: { t: 'Glide Mode',
@@ -791,7 +791,7 @@ export const I18N = Object.freeze({
               b: 'Détermine quand une note glisse vers la suivante. Off ne glisse jamais, Legato '
                + 'glisse seulement entre notes qui se chevauchent, Always glisse à chaque note. '
                + 'Porta en fixe la durée. Plage : Off, Legato, Always.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.glideTime': {
         en: { t: 'Glide Time',
@@ -800,7 +800,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Durée du portamento',
               b: 'Temps que met une note à glisser vers la hauteur suivante. Sans effet tant que Mode '
                + 'porta est sur Off. Plage de 1 ms à 5 s.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Effects: Reverb ─────────────────────────────────────────────────────
@@ -823,7 +823,7 @@ export const I18N = Object.freeze({
                + 'fonctionne et ARRÊT quand elle est contournée — attention, la ligne d’automation '
                + 'nomme ce paramètre Bypass : son On correspond à l’ARRÊT du bouton. '
                + 'Plage : MARCHE, ARRÊT.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbSize': {
         en: { t: 'Reverb Size',
@@ -832,7 +832,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Taille de la réverbération',
               b: 'Longueur du déclin de la plaque. Les petites valeurs donnent une pièce, les grandes '
                + 'une salle qui se prolonge plusieurs secondes après la note. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbDamp': {
         en: { t: 'Reverb Damping',
@@ -843,7 +843,7 @@ export const I18N = Object.freeze({
               b: 'Vitesse à laquelle les aigus s’éteignent dans la traîne. Montez-le pour une pièce '
                + 'douce et boisée, baissez-le pour une plaque brillante qui garde son aigu jusqu’au '
                + 'bout. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbPredelay': {
         en: { t: 'Reverb Pre-delay',
@@ -853,7 +853,7 @@ export const I18N = Object.freeze({
               b: 'Silence entre la note directe et le début de la réverbération. Vingt à quarante '
                + 'millisecondes gardent un lead lisible devant une traîne longue. '
                + 'Plage de 0 à 200 ms.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbMix': {
         en: { t: 'Reverb Mix',
@@ -864,7 +864,7 @@ export const I18N = Object.freeze({
               b: 'Équilibre entre le signal direct et la réverbération. Sa valeur par défaut est 0 : '
                + 'la réverbération reste inaudible tant que vous ne la montez pas, même section sur MARCHE. '
                + 'Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbModDepth': {
         en: { t: 'Reverb Mod Depth',
@@ -875,7 +875,7 @@ export const I18N = Object.freeze({
               b: 'Amplitude de modulation des lignes à retard internes de la plaque. Un peu casse la '
                + 'sonnerie métallique qu’une plaque statique peut développer ; beaucoup désaccorde la '
                + 'traîne de façon audible. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.reverbModRate': {
         en: { t: 'Reverb Mod Rate',
@@ -885,7 +885,7 @@ export const I18N = Object.freeze({
               b: 'Vitesse de cette modulation interne. Les vitesses lentes se perçoivent comme une '
                + 'dérive, les rapides comme un vibrato dans la traîne. Sans effet tant que Mod. vaut '
                + '0. Plage de 0,1 à 5,0 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Effects: Delay ──────────────────────────────────────────────────────
@@ -901,7 +901,7 @@ export const I18N = Object.freeze({
               b: 'Active ou contourne le délai. Le bouton affiche MARCHE tant que le délai fonctionne '
                + 'et ARRÊT quand il est contourné ; le On du paramètre Bypass correspond à l’ARRÊT du '
                + 'bouton. Plage : MARCHE, ARRÊT.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.delayTime': {
         en: { t: 'Delay Time',
@@ -912,7 +912,7 @@ export const I18N = Object.freeze({
               b: 'Écart entre les répétitions lorsque Sync est désactivé. Les temps courts donnent un '
                + 'slapback ou un peigne, les longs laissent des trous audibles. Activer Sync confie '
                + 'ce rôle à Division. Plage de 1 ms à 2 s.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.delayFeedback': {
         en: { t: 'Delay Feedback',
@@ -923,7 +923,7 @@ export const I18N = Object.freeze({
               b: 'Part de chaque répétition réinjectée pour produire la suivante. Le relevé plafonne '
                + 'à 95 %, et c’est délibéré : la ligne reste en deçà de l’auto-oscillation quelle que '
                + 'soit la position du bouton. Plage de 0 à 95 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.delaySync': {
         en: { t: 'Delay Sync',
@@ -933,7 +933,7 @@ export const I18N = Object.freeze({
               b: 'Verrouille le délai sur le tempo de l’hôte. Activé, c’est Division qui fixe l’écart '
                + 'et le bouton Durée est ignoré ; désactivé, c’est Durée qui commande. '
                + 'Plage : Off, On.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.delayDivision': {
         en: { t: 'Delay Division',
@@ -945,7 +945,7 @@ export const I18N = Object.freeze({
                + 'divisions simples sont binaires, le suffixe D marque le pointé et le suffixe T le '
                + 'triolet. Sans effet quand Sync est désactivé. Plage : de 1/1 à 1/32, chacune '
                + 'également pointée et en triolet.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.delayMode': {
         en: { t: 'Delay Mode',
@@ -956,7 +956,7 @@ export const I18N = Object.freeze({
               b: 'Manière dont les deux canaux s’alimentent. Normal garde la gauche et la droite '
                + 'indépendantes ; PingPong les croise, si bien que les répétitions rebondissent d’un '
                + 'côté à l’autre. Plage : Normal, PingPong.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.delayMix': {
         en: { t: 'Delay Mix',
@@ -965,7 +965,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Mix du délai',
               b: 'Équilibre entre le signal direct et les répétitions. Sa valeur par défaut est 0 : '
                + 'le délai reste inaudible tant que vous ne le montez pas. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Effects: Chorus ─────────────────────────────────────────────────────
@@ -980,7 +980,7 @@ export const I18N = Object.freeze({
               b: 'Active ou contourne le chorus. Le bouton affiche MARCHE tant que le chorus '
                + 'fonctionne et ARRÊT quand il est contourné ; le On du paramètre Bypass correspond à '
                + 'l’ARRÊT du bouton. Plage : MARCHE, ARRÊT.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.chorusRate': {
         en: { t: 'Chorus Rate',
@@ -990,7 +990,7 @@ export const I18N = Object.freeze({
               b: 'Vitesse de la modulation du chorus. En dessous de 1 Hz, elle se perçoit comme une '
                + 'dérive lente ; au-delà de quelques hertz, elle devient un vibrato. '
                + 'Plage de 0,1 à 10,0 Hz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.chorusDepth': {
         en: { t: 'Chorus Depth',
@@ -1000,7 +1000,7 @@ export const I18N = Object.freeze({
               b: 'Amplitude avec laquelle la modulation fait varier le temps de retard — ce que '
                + 'l’oreille perçoit comme un désaccord. Les petites profondeurs élargissent, les '
                + 'grandes font chevroter. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.chorusMix': {
         en: { t: 'Chorus Mix',
@@ -1009,7 +1009,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Mix du chorus',
               b: 'Équilibre entre le signal direct et le signal traité. Sa valeur par défaut est 0 : '
                + 'le chorus reste inaudible tant que vous ne le montez pas. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Effects: Distortion ─────────────────────────────────────────────────
@@ -1023,7 +1023,7 @@ export const I18N = Object.freeze({
               b: 'Active ou contourne la distorsion. Le bouton affiche MARCHE tant qu’elle fonctionne '
                + 'et ARRÊT quand elle est contournée ; le On du paramètre Bypass correspond à l’ARRÊT '
                + 'du bouton. Plage : MARCHE, ARRÊT.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.distType': {
         en: { t: 'Distortion Type',
@@ -1036,7 +1036,7 @@ export const I18N = Object.freeze({
                + 'net, Tube écrête différemment les deux alternances pour une couleur asymétrique, et '
                + 'Fold replie le signal sur lui-même pour un grain proche de la modulation en anneau. '
                + 'Plage : SoftClip, HardClip, Tube, Fold.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.distDrive': {
         en: { t: 'Distortion Drive',
@@ -1046,7 +1046,7 @@ export const I18N = Object.freeze({
               b: 'Force avec laquelle le signal est poussé dans la courbe choisie. L’étage est '
                + 'suréchantillonné : les réglages extrêmes ajoutent des harmoniques plutôt que du '
                + 'repliement. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.distMix': {
         en: { t: 'Distortion Mix',
@@ -1056,7 +1056,7 @@ export const I18N = Object.freeze({
               b: 'Équilibre entre le signal propre et le signal distordu : une saturation lourde peut '
                + 'ainsi être mêlée sous un original intact. Sa valeur par défaut est 0. '
                + 'Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Effects: 3-band EQ ──────────────────────────────────────────────────
@@ -1071,7 +1071,7 @@ export const I18N = Object.freeze({
               b: 'Active ou contourne l’égaliseur trois bandes. Le bouton affiche MARCHE tant qu’il '
                + 'fonctionne et ARRÊT quand il est contourné ; le On du paramètre Bypass correspond à '
                + 'l’ARRÊT du bouton. Plage : MARCHE, ARRÊT.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.eqLowGain': {
         en: { t: 'EQ Low Gain',
@@ -1081,7 +1081,7 @@ export const I18N = Object.freeze({
               b: 'Atténuation ou accentuation du plateau grave, tout en fin de chaîne. Corriger ici '
                + 'est en général plus propre que de revenir sur le niveau du sub. '
                + 'Plage de −12,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.eqMidGain': {
         en: { t: 'EQ Mid Gain',
@@ -1091,7 +1091,7 @@ export const I18N = Object.freeze({
               b: 'Atténuation ou accentuation de la bande médium balayable. Quelques décibels retirés '
                + 'dans le médium suffisent à laisser la place à une voix devant une nappe large. '
                + 'Plage de −12,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.eqMidFreq': {
         en: { t: 'EQ Mid Freq',
@@ -1101,7 +1101,7 @@ export const I18N = Object.freeze({
               b: 'Fréquence centrale de la bande médium. Balayez-la avec le Méd. accentué pour '
                + 'repérer la résonance à supprimer, puis creusez à cet endroit. '
                + 'Plage de 200 Hz à 8 kHz.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.eqHighGain': {
         en: { t: 'EQ High Gain',
@@ -1111,7 +1111,7 @@ export const I18N = Object.freeze({
               b: 'Atténuation ou accentuation du plateau aigu. Une légère atténuation ici dompte le '
                + 'haut d’une table brillante sans avoir à fermer les filtres. '
                + 'Plage de −12,0 à +12,0 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── LFO 1 to 4 ──────────────────────────────────────────────────────────
@@ -1140,7 +1140,7 @@ export const I18N = Object.freeze({
                + 'rien de lui-même : routez-le d’abord vers une destination dans l’onglet Mod. '
                + 'Plage de 0,01 à 20 Hz, le relevé à une décimale affichant 0,0 Hz au bas de cette '
                + 'plage.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo1Shape': {
         en: { t: 'LFO 1 Shape',
@@ -1149,7 +1149,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Forme de l’OBF 1',
               b: 'Forme d’onde de l’OBF 1. S&H maintient une nouvelle valeur aléatoire à chaque cycle '
                + 'au lieu de balayer. Plage : Sine, Triangle, Saw, Square, S&H.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo1Sync': {
         en: { t: 'LFO 1 Sync',
@@ -1160,7 +1160,7 @@ export const I18N = Object.freeze({
               b: 'Verrouille l’OBF 1 sur le tempo de l’hôte. Le bouton affiche Libre tant que l’OBF '
                + 'tourne à sa propre Vit. et Synchro lorsqu’il suit une division ; le basculement '
                + 'échange aussi les deux commandes voisines. Plage : Libre, Synchro.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo1Division': {
         en: { t: 'LFO 1 Division',
@@ -1172,7 +1172,7 @@ export const I18N = Object.freeze({
                + 'suffixe D marque le pointé, le suffixe T le triolet. Cette commande est masquée, et '
                + 'le bouton Vit. affiché à sa place, dès que la synchronisation est coupée. '
                + 'Plage : de 1/1 à 1/32, chacune également pointée et en triolet.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo1FreeRun': {
         en: { t: 'LFO 1 Free Run',
@@ -1185,7 +1185,7 @@ export const I18N = Object.freeze({
                + 'le même balayage depuis le même point ; Continu conserve une phase unique d’une '
                + 'note à l’autre, si bien qu’un accord tenu évolue d’un seul mouvement. '
                + 'Plage : Redécl., Continu.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.lfo2Rate': {
@@ -1198,7 +1198,7 @@ export const I18N = Object.freeze({
                + 'rien de lui-même : routez-le d’abord vers une destination dans l’onglet Mod. '
                + 'Plage de 0,01 à 20 Hz, le relevé à une décimale affichant 0,0 Hz au bas de cette '
                + 'plage.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo2Shape': {
         en: { t: 'LFO 2 Shape',
@@ -1207,7 +1207,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Forme de l’OBF 2',
               b: 'Forme d’onde de l’OBF 2. S&H maintient une nouvelle valeur aléatoire à chaque cycle '
                + 'au lieu de balayer. Plage : Sine, Triangle, Saw, Square, S&H.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo2Sync': {
         en: { t: 'LFO 2 Sync',
@@ -1218,7 +1218,7 @@ export const I18N = Object.freeze({
               b: 'Verrouille l’OBF 2 sur le tempo de l’hôte. Le bouton affiche Libre tant que l’OBF '
                + 'tourne à sa propre Vit. et Synchro lorsqu’il suit une division ; le basculement '
                + 'échange aussi les deux commandes voisines. Plage : Libre, Synchro.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo2Division': {
         en: { t: 'LFO 2 Division',
@@ -1230,7 +1230,7 @@ export const I18N = Object.freeze({
                + 'suffixe D marque le pointé, le suffixe T le triolet. Cette commande est masquée, et '
                + 'le bouton Vit. affiché à sa place, dès que la synchronisation est coupée. '
                + 'Plage : de 1/1 à 1/32, chacune également pointée et en triolet.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo2FreeRun': {
         en: { t: 'LFO 2 Free Run',
@@ -1243,7 +1243,7 @@ export const I18N = Object.freeze({
                + 'le même balayage depuis le même point ; Continu conserve une phase unique d’une '
                + 'note à l’autre, si bien qu’un accord tenu évolue d’un seul mouvement. '
                + 'Plage : Redécl., Continu.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.lfo3Rate': {
@@ -1256,7 +1256,7 @@ export const I18N = Object.freeze({
                + 'rien de lui-même : routez-le d’abord vers une destination dans l’onglet Mod. '
                + 'Plage de 0,01 à 20 Hz, le relevé à une décimale affichant 0,0 Hz au bas de cette '
                + 'plage.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo3Shape': {
         en: { t: 'LFO 3 Shape',
@@ -1265,7 +1265,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Forme de l’OBF 3',
               b: 'Forme d’onde de l’OBF 3. S&H maintient une nouvelle valeur aléatoire à chaque cycle '
                + 'au lieu de balayer. Plage : Sine, Triangle, Saw, Square, S&H.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo3Sync': {
         en: { t: 'LFO 3 Sync',
@@ -1276,7 +1276,7 @@ export const I18N = Object.freeze({
               b: 'Verrouille l’OBF 3 sur le tempo de l’hôte. Le bouton affiche Libre tant que l’OBF '
                + 'tourne à sa propre Vit. et Synchro lorsqu’il suit une division ; le basculement '
                + 'échange aussi les deux commandes voisines. Plage : Libre, Synchro.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo3Division': {
         en: { t: 'LFO 3 Division',
@@ -1288,7 +1288,7 @@ export const I18N = Object.freeze({
                + 'suffixe D marque le pointé, le suffixe T le triolet. Cette commande est masquée, et '
                + 'le bouton Vit. affiché à sa place, dès que la synchronisation est coupée. '
                + 'Plage : de 1/1 à 1/32, chacune également pointée et en triolet.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo3FreeRun': {
         en: { t: 'LFO 3 Free Run',
@@ -1301,7 +1301,7 @@ export const I18N = Object.freeze({
                + 'le même balayage depuis le même point ; Continu conserve une phase unique d’une '
                + 'note à l’autre, si bien qu’un accord tenu évolue d’un seul mouvement. '
                + 'Plage : Redécl., Continu.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.lfo4Rate': {
@@ -1314,7 +1314,7 @@ export const I18N = Object.freeze({
                + 'rien de lui-même : routez-le d’abord vers une destination dans l’onglet Mod. '
                + 'Plage de 0,01 à 20 Hz, le relevé à une décimale affichant 0,0 Hz au bas de cette '
                + 'plage.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo4Shape': {
         en: { t: 'LFO 4 Shape',
@@ -1323,7 +1323,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Forme de l’OBF 4',
               b: 'Forme d’onde de l’OBF 4. S&H maintient une nouvelle valeur aléatoire à chaque cycle '
                + 'au lieu de balayer. Plage : Sine, Triangle, Saw, Square, S&H.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo4Sync': {
         en: { t: 'LFO 4 Sync',
@@ -1334,7 +1334,7 @@ export const I18N = Object.freeze({
               b: 'Verrouille l’OBF 4 sur le tempo de l’hôte. Le bouton affiche Libre tant que l’OBF '
                + 'tourne à sa propre Vit. et Synchro lorsqu’il suit une division ; le basculement '
                + 'échange aussi les deux commandes voisines. Plage : Libre, Synchro.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo4Division': {
         en: { t: 'LFO 4 Division',
@@ -1346,7 +1346,7 @@ export const I18N = Object.freeze({
                + 'suffixe D marque le pointé, le suffixe T le triolet. Cette commande est masquée, et '
                + 'le bouton Vit. affiché à sa place, dès que la synchronisation est coupée. '
                + 'Plage : de 1/1 à 1/32, chacune également pointée et en triolet.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.lfo4FreeRun': {
         en: { t: 'LFO 4 Free Run',
@@ -1359,7 +1359,7 @@ export const I18N = Object.freeze({
                + 'le même balayage depuis le même point ; Continu conserve une phase unique d’une '
                + 'note à l’autre, si bien qu’un accord tenu évolue d’un seul mouvement. '
                + 'Plage : Redécl., Continu.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Footer: the two global knobs ────────────────────────────────────────
@@ -1374,7 +1374,7 @@ export const I18N = Object.freeze({
               b: 'Niveau de sortie de l’instrument entier, après les effets. C’est le dernier maillon '
                + 'de la chaîne : servez-vous-en pour caler le son sur le reste de la session, pas '
                + 'pour équilibrer les oscillateurs. Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.oscMix': {
         en: { t: 'Osc Mix',
@@ -1386,7 +1386,7 @@ export const I18N = Object.freeze({
                + '100 % que B, et la valeur par défaut de 50 % donne les deux à poids égal. C’est un '
                + 'mix et non une coupure : chaque oscillateur garde son propre Niv. '
                + 'Plage de 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Chrome ──────────────────────────────────────────────────────────────
@@ -1415,7 +1415,7 @@ export const I18N = Object.freeze({
               b: 'Ouvre le panneau de réglages sous ce bouton. Il ne contient qu’une commande, la '
                + 'langue de l’interface, et ce choix est enregistré avec la session plutôt qu’envoyé '
                + 'à l’hôte comme automation.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.language': {
         en: { t: 'Language',
@@ -1428,7 +1428,7 @@ export const I18N = Object.freeze({
                + 'contextuelle de cette page entre l’anglais et le français, sans rouvrir le '
                + 'plugin. Les relevés de valeur restent en anglais : une indication comme « 375ms » ou '
                + '« 1.2kHz » est identique dans les deux langues. Plage : English, Français.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -1627,193 +1627,193 @@ export const LABELS = Object.freeze({
     // 242.13 px against the English 202.78 and drags the browser 13.1 px left.
     // Anything at or under 202.78 px is free.
     'label.subtitle':        { en: { t: 'Microtonal Wavetable Synthesizer' },
-                               fr: { t: 'Synthé microtonal à tables d’onde', reviewed: false } },
-    'label.language':        { en: { t: 'Language' },      fr: { t: 'Langue',        reviewed: false } },
-    'aria.settings':         { en: { t: 'Settings' },      fr: { t: 'Réglages',      reviewed: false } },
+                               fr: { t: 'Synthé microtonal à tables d’onde', reviewed: true } },
+    'label.language':        { en: { t: 'Language' },      fr: { t: 'Langue',        reviewed: true } },
+    'aria.settings':         { en: { t: 'Settings' },      fr: { t: 'Réglages',      reviewed: true } },
     'aria.presetPrev':       { en: { t: 'Previous Preset' },
-                               fr: { t: 'Préréglage précédent', reviewed: false } },
-    'aria.presetNext':       { en: { t: 'Next Preset' },   fr: { t: 'Préréglage suivant', reviewed: false } },
-    'aria.presetSave':       { en: { t: 'Save Preset' },   fr: { t: 'Enregistrer le préréglage', reviewed: false } },
+                               fr: { t: 'Préréglage précédent', reviewed: true } },
+    'aria.presetNext':       { en: { t: 'Next Preset' },   fr: { t: 'Préréglage suivant', reviewed: true } },
+    'aria.presetSave':       { en: { t: 'Save Preset' },   fr: { t: 'Enregistrer le préréglage', reviewed: true } },
     'aria.presetBrowse':     { en: { t: 'Click to browse presets' },
-                               fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: false } },
+                               fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: true } },
 
     // ── Tabs ────────────────────────────────────────────────────────────────
     // `.tab` is `flex: 1` across the full 1200 px frame, so these five have the
     // most room on the page and are the only captions written out in full.
-    'tab.synth':             { en: { t: 'Synth' },         fr: { t: 'Synthé',        reviewed: false } },
-    'tab.mod':               { en: { t: 'Mod' },           fr: { t: 'Mod',        reviewed: false, sameAsEn: true } },
-    'tab.tuning':            { en: { t: 'Tuning' },        fr: { t: 'Accord',        reviewed: false } },
-    'tab.effects':           { en: { t: 'Effects' },       fr: { t: 'Effets',        reviewed: false } },
-    'tab.wavetable':         { en: { t: 'Wavetable' },     fr: { t: 'Table d’onde',  reviewed: false } },
+    'tab.synth':             { en: { t: 'Synth' },         fr: { t: 'Synthé',        reviewed: true } },
+    'tab.mod':               { en: { t: 'Mod' },           fr: { t: 'Mod',        reviewed: true, sameAsEn: true } },
+    'tab.tuning':            { en: { t: 'Tuning' },        fr: { t: 'Accord',        reviewed: true } },
+    'tab.effects':           { en: { t: 'Effects' },       fr: { t: 'Effets',        reviewed: true } },
+    'tab.wavetable':         { en: { t: 'Wavetable' },     fr: { t: 'Table d’onde',  reviewed: true } },
 
     // ── Synth tab: section headers ──────────────────────────────────────────
-    'label.oscA':            { en: { t: 'Oscillator A' },  fr: { t: 'Oscillateur A', reviewed: false } },
-    'label.oscB':            { en: { t: 'Oscillator B' },  fr: { t: 'Oscillateur B', reviewed: false } },
-    'label.subOsc':          { en: { t: 'Sub Oscillator' }, fr: { t: 'Sous-oscillateur', reviewed: false } },
-    'label.noise':           { en: { t: 'Noise' },         fr: { t: 'Bruit',         reviewed: false } },
-    'label.performance':     { en: { t: 'Performance' },   fr: { t: 'Performance',   reviewed: false, sameAsEn: true } },
-    'label.filterA':         { en: { t: 'Filter A' },      fr: { t: 'Filtre A',      reviewed: false } },
-    'label.filterB':         { en: { t: 'Filter B' },      fr: { t: 'Filtre B',      reviewed: false } },
-    'label.ampEnv':          { en: { t: 'Amp Envelope' },  fr: { t: 'Enveloppe d’amplitude', reviewed: false } },
-    'label.filtEnv':         { en: { t: 'Filter Envelope' }, fr: { t: 'Enveloppe du filtre', reviewed: false } },
+    'label.oscA':            { en: { t: 'Oscillator A' },  fr: { t: 'Oscillateur A', reviewed: true } },
+    'label.oscB':            { en: { t: 'Oscillator B' },  fr: { t: 'Oscillateur B', reviewed: true } },
+    'label.subOsc':          { en: { t: 'Sub Oscillator' }, fr: { t: 'Sous-oscillateur', reviewed: true } },
+    'label.noise':           { en: { t: 'Noise' },         fr: { t: 'Bruit',         reviewed: true } },
+    'label.performance':     { en: { t: 'Performance' },   fr: { t: 'Performance',   reviewed: true, sameAsEn: true } },
+    'label.filterA':         { en: { t: 'Filter A' },      fr: { t: 'Filtre A',      reviewed: true } },
+    'label.filterB':         { en: { t: 'Filter B' },      fr: { t: 'Filtre B',      reviewed: true } },
+    'label.ampEnv':          { en: { t: 'Amp Envelope' },  fr: { t: 'Enveloppe d’amplitude', reviewed: true } },
+    'label.filtEnv':         { en: { t: 'Filter Envelope' }, fr: { t: 'Enveloppe du filtre', reviewed: true } },
     // The four LFO headers hold BUTTON CHILDREN as well as this text, so each
     // one is split into its own <span> (contract section 5). Writing textContent
     // on the header itself would delete the Free / Retrig buttons beside it.
-    'label.lfo1':            { en: { t: 'LFO 1' },         fr: { t: 'OBF 1',         reviewed: false } },
-    'label.lfo2':            { en: { t: 'LFO 2' },         fr: { t: 'OBF 2',         reviewed: false } },
-    'label.lfo3':            { en: { t: 'LFO 3' },         fr: { t: 'OBF 3',         reviewed: false } },
-    'label.lfo4':            { en: { t: 'LFO 4' },         fr: { t: 'OBF 4',         reviewed: false } },
+    'label.lfo1':            { en: { t: 'LFO 1' },         fr: { t: 'OBF 1',         reviewed: true } },
+    'label.lfo2':            { en: { t: 'LFO 2' },         fr: { t: 'OBF 2',         reviewed: true } },
+    'label.lfo3':            { en: { t: 'LFO 3' },         fr: { t: 'OBF 3',         reviewed: true } },
+    'label.lfo4':            { en: { t: 'LFO 4' },         fr: { t: 'OBF 4',         reviewed: true } },
 
     // ── Dropdown captions ───────────────────────────────────────────────────
     // `.dropdown-group` is inline-flex and shrink-wraps around the WIDER of its
     // caption and its <select>, so a caption longer than the select widens the
     // group and pushes every control to its right.
-    'label.shape':           { en: { t: 'Shape' },         fr: { t: 'Forme',         reviewed: false } },
-    'label.warp':            { en: { t: 'Warp' },          fr: { t: 'Déform.',       reviewed: false } },
-    'label.octave':          { en: { t: 'Octave' },        fr: { t: 'Octave',        reviewed: false, sameAsEn: true } },
-    'label.routing':         { en: { t: 'Routing' },       fr: { t: 'Routage',       reviewed: false } },
-    'label.type':            { en: { t: 'Type' },          fr: { t: 'Type',          reviewed: false, sameAsEn: true } },
-    'label.glideMode':       { en: { t: 'Glide Mode' },    fr: { t: 'Mode porta',   reviewed: false } },
-    'label.filterRouting':   { en: { t: 'Filter Routing' }, fr: { t: 'Routage filt.', reviewed: false } },
-    'label.division':        { en: { t: 'Division' },      fr: { t: 'Division',      reviewed: false, sameAsEn: true } },
-    'label.mode':            { en: { t: 'Mode' },          fr: { t: 'Mode',          reviewed: false, sameAsEn: true } },
-    'label.dropWav':         { en: { t: 'Drop WAV' },      fr: { t: 'Déposer WAV',   reviewed: false } },
+    'label.shape':           { en: { t: 'Shape' },         fr: { t: 'Forme',         reviewed: true } },
+    'label.warp':            { en: { t: 'Warp' },          fr: { t: 'Déform.',       reviewed: true } },
+    'label.octave':          { en: { t: 'Octave' },        fr: { t: 'Octave',        reviewed: true, sameAsEn: true } },
+    'label.routing':         { en: { t: 'Routing' },       fr: { t: 'Routage',       reviewed: true } },
+    'label.type':            { en: { t: 'Type' },          fr: { t: 'Type',          reviewed: true, sameAsEn: true } },
+    'label.glideMode':       { en: { t: 'Glide Mode' },    fr: { t: 'Mode porta',   reviewed: true } },
+    'label.filterRouting':   { en: { t: 'Filter Routing' }, fr: { t: 'Routage filt.', reviewed: true } },
+    'label.division':        { en: { t: 'Division' },      fr: { t: 'Division',      reviewed: true, sameAsEn: true } },
+    'label.mode':            { en: { t: 'Mode' },          fr: { t: 'Mode',          reviewed: true, sameAsEn: true } },
+    'label.dropWav':         { en: { t: 'Drop WAV' },      fr: { t: 'Déposer WAV',   reviewed: true } },
 
     // ── The 64 knob captions ────────────────────────────────────────────────
     // Keyed on the STATIC `.knob-container[data-i18n]`, moved onto the generated
     // `.knob-label` span by expandKnobMarkup(). 64 attributes, 35 distinct
     // strings, 35 keys — one per string, shared wherever the caption repeats.
-    'label.position':        { en: { t: 'Position' },      fr: { t: 'Position',      reviewed: false, sameAsEn: true } },
-    'label.level':           { en: { t: 'Level' },         fr: { t: 'Niv.',          reviewed: false } },
-    'label.pan':             { en: { t: 'Pan' },           fr: { t: 'Pano',          reviewed: false } },
+    'label.position':        { en: { t: 'Position' },      fr: { t: 'Position',      reviewed: true, sameAsEn: true } },
+    'label.level':           { en: { t: 'Level' },         fr: { t: 'Niv.',          reviewed: true } },
+    'label.pan':             { en: { t: 'Pan' },           fr: { t: 'Pano',          reviewed: true } },
     // `Grossier` is 51.75 px and clears neither test: the knob column is 52 px, and
     // the neighbouring knob's ROTATED svg puts its own bounding box 5.1 px into
     // this column, which caps a caption here at 49.8 px.
-    'label.coarse':          { en: { t: 'Coarse' },        fr: { t: 'Gross.',        reviewed: false } },
-    'label.fine':            { en: { t: 'Fine' },          fr: { t: 'Fin',           reviewed: false } },
-    'label.phase':           { en: { t: 'Phase' },         fr: { t: 'Phase',         reviewed: false, sameAsEn: true } },
-    'label.unison':          { en: { t: 'Unison' },        fr: { t: 'Unisson',       reviewed: false } },
-    'label.detune':          { en: { t: 'Detune' },        fr: { t: 'Désacc.',       reviewed: false } },
-    'label.width':           { en: { t: 'Width' },         fr: { t: 'Larg.',         reviewed: false } },
-    'label.warpAmt':         { en: { t: 'Warp Amt' },      fr: { t: 'Qté déf.',      reviewed: false } },
-    'label.pbRange':         { en: { t: 'PB Range' },      fr: { t: 'Plage PB',      reviewed: false } },
-    'label.glide':           { en: { t: 'Glide' },         fr: { t: 'Porta',        reviewed: false } },
-    'label.cutoff':          { en: { t: 'Cutoff' },        fr: { t: 'Coupure',       reviewed: false } },
-    'label.reso':            { en: { t: 'Reso' },          fr: { t: 'Réso',          reviewed: false } },
-    'label.drive':           { en: { t: 'Drive' },         fr: { t: 'Satur.',        reviewed: false } },
-    'label.keyTrk':          { en: { t: 'Key Trk' },       fr: { t: 'Suivi',         reviewed: false } },
-    'label.attack':          { en: { t: 'Attack' },        fr: { t: 'Attaque',       reviewed: false } },
-    'label.decay':           { en: { t: 'Decay' },         fr: { t: 'Déclin',         reviewed: false } },
-    'label.sustain':         { en: { t: 'Sustain' },       fr: { t: 'Maint.',         reviewed: false } },
-    'label.release':         { en: { t: 'Release' },       fr: { t: 'Relâch.',       reviewed: false } },
-    'label.depA':            { en: { t: 'Dep A' },         fr: { t: 'Prof A',        reviewed: false } },
-    'label.depB':            { en: { t: 'Dep B' },         fr: { t: 'Prof B',        reviewed: false } },
-    'label.rate':            { en: { t: 'Rate' },          fr: { t: 'Vit.',          reviewed: false } },
-    'label.time':            { en: { t: 'Time' },          fr: { t: 'Durée',         reviewed: false } },
-    'label.feedback':        { en: { t: 'Feedback' },      fr: { t: 'Réinj.',      reviewed: false } },
+    'label.coarse':          { en: { t: 'Coarse' },        fr: { t: 'Gross.',        reviewed: true } },
+    'label.fine':            { en: { t: 'Fine' },          fr: { t: 'Fin',           reviewed: true } },
+    'label.phase':           { en: { t: 'Phase' },         fr: { t: 'Phase',         reviewed: true, sameAsEn: true } },
+    'label.unison':          { en: { t: 'Unison' },        fr: { t: 'Unisson',       reviewed: true } },
+    'label.detune':          { en: { t: 'Detune' },        fr: { t: 'Désacc.',       reviewed: true } },
+    'label.width':           { en: { t: 'Width' },         fr: { t: 'Larg.',         reviewed: true } },
+    'label.warpAmt':         { en: { t: 'Warp Amt' },      fr: { t: 'Qté déf.',      reviewed: true } },
+    'label.pbRange':         { en: { t: 'PB Range' },      fr: { t: 'Plage PB',      reviewed: true } },
+    'label.glide':           { en: { t: 'Glide' },         fr: { t: 'Porta',        reviewed: true } },
+    'label.cutoff':          { en: { t: 'Cutoff' },        fr: { t: 'Coupure',       reviewed: true } },
+    'label.reso':            { en: { t: 'Reso' },          fr: { t: 'Réso',          reviewed: true } },
+    'label.drive':           { en: { t: 'Drive' },         fr: { t: 'Satur.',        reviewed: true } },
+    'label.keyTrk':          { en: { t: 'Key Trk' },       fr: { t: 'Suivi',         reviewed: true } },
+    'label.attack':          { en: { t: 'Attack' },        fr: { t: 'Attaque',       reviewed: true } },
+    'label.decay':           { en: { t: 'Decay' },         fr: { t: 'Déclin',         reviewed: true } },
+    'label.sustain':         { en: { t: 'Sustain' },       fr: { t: 'Maint.',         reviewed: true } },
+    'label.release':         { en: { t: 'Release' },       fr: { t: 'Relâch.',       reviewed: true } },
+    'label.depA':            { en: { t: 'Dep A' },         fr: { t: 'Prof A',        reviewed: true } },
+    'label.depB':            { en: { t: 'Dep B' },         fr: { t: 'Prof B',        reviewed: true } },
+    'label.rate':            { en: { t: 'Rate' },          fr: { t: 'Vit.',          reviewed: true } },
+    'label.time':            { en: { t: 'Time' },          fr: { t: 'Durée',         reviewed: true } },
+    'label.feedback':        { en: { t: 'Feedback' },      fr: { t: 'Réinj.',      reviewed: true } },
     // `Mix` is the word French audio software uses; `Dosage` is more correct and
     // 21 px wider, which is 3 px past the 38.45 px this column can hold.
-    'label.mix':             { en: { t: 'Mix' },           fr: { t: 'Mix',           reviewed: false, sameAsEn: true } },
-    'label.depth':           { en: { t: 'Depth' },         fr: { t: 'Prof.',         reviewed: false } },
-    'label.size':            { en: { t: 'Size' },          fr: { t: 'Taille',        reviewed: false } },
-    'label.damp':            { en: { t: 'Damp' },          fr: { t: 'Amor.',         reviewed: false } },
-    'label.preDly':          { en: { t: 'Pre-Dly' },       fr: { t: 'Pré-dél.',      reviewed: false } },
-    'label.modAmt':          { en: { t: 'Mod' },           fr: { t: 'Mod.',          reviewed: false } },
-    'label.low':             { en: { t: 'Low' },           fr: { t: 'Grave',         reviewed: false } },
-    'label.mid':             { en: { t: 'Mid' },           fr: { t: 'Méd.',          reviewed: false } },
-    'label.midFreq':         { en: { t: 'Mid Freq' },      fr: { t: 'Fq. méd',       reviewed: false } },
-    'label.high':            { en: { t: 'High' },          fr: { t: 'Aigu',          reviewed: false } },
+    'label.mix':             { en: { t: 'Mix' },           fr: { t: 'Mix',           reviewed: true, sameAsEn: true } },
+    'label.depth':           { en: { t: 'Depth' },         fr: { t: 'Prof.',         reviewed: true } },
+    'label.size':            { en: { t: 'Size' },          fr: { t: 'Taille',        reviewed: true } },
+    'label.damp':            { en: { t: 'Damp' },          fr: { t: 'Amor.',         reviewed: true } },
+    'label.preDly':          { en: { t: 'Pre-Dly' },       fr: { t: 'Pré-dél.',      reviewed: true } },
+    'label.modAmt':          { en: { t: 'Mod' },           fr: { t: 'Mod.',          reviewed: true } },
+    'label.low':             { en: { t: 'Low' },           fr: { t: 'Grave',         reviewed: true } },
+    'label.mid':             { en: { t: 'Mid' },           fr: { t: 'Méd.',          reviewed: true } },
+    'label.midFreq':         { en: { t: 'Mid Freq' },      fr: { t: 'Fq. méd',       reviewed: true } },
+    'label.high':            { en: { t: 'High' },          fr: { t: 'Aigu',          reviewed: true } },
 
     // ── Mod matrix ──────────────────────────────────────────────────────────
     'label.modMatrix':       { en: { t: 'Modulation Matrix' },
-                               fr: { t: 'Matrice de modulation', reviewed: false } },
+                               fr: { t: 'Matrice de modulation', reviewed: true } },
     'label.modMatrixInfo':   { en: { t: 'Route any source to any destination. 16 slots available.' },
-                               fr: { t: 'Acheminer n’importe quelle source vers n’importe quelle destination. 16 emplacements disponibles.', reviewed: false } },
+                               fr: { t: 'Acheminer n’importe quelle source vers n’importe quelle destination. 16 emplacements disponibles.', reviewed: true } },
     // `.mod-col-on` is a fixed 36 px column, which is what decides this against
     // the fuller `Activé`.
-    'label.colOn':           { en: { t: 'On' },            fr: { t: 'Act.',          reviewed: false } },
-    'label.colSource':       { en: { t: 'Source' },        fr: { t: 'Source',        reviewed: false, sameAsEn: true } },
-    'label.colDest':         { en: { t: 'Destination' },   fr: { t: 'Destination',   reviewed: false, sameAsEn: true } },
-    'label.colAmount':       { en: { t: 'Amount' },        fr: { t: 'Quantité',      reviewed: false } },
+    'label.colOn':           { en: { t: 'On' },            fr: { t: 'Act.',          reviewed: true } },
+    'label.colSource':       { en: { t: 'Source' },        fr: { t: 'Source',        reviewed: true, sameAsEn: true } },
+    'label.colDest':         { en: { t: 'Destination' },   fr: { t: 'Destination',   reviewed: true, sameAsEn: true } },
+    'label.colAmount':       { en: { t: 'Amount' },        fr: { t: 'Quantité',      reviewed: true } },
 
     // ── Tuning tab ──────────────────────────────────────────────────────────
     // The count is a {token} and the noun is gone — see the header note.
     'label.intervalCount':   { en: { t: 'Intervals ({n})' },
-                               fr: { t: 'Intervalles ({n})', reviewed: false } },
-    'label.tonic':           { en: { t: 'Tonic:' },        fr: { t: 'Ton. :',        reviewed: false } },
-    'label.vizCircle':       { en: { t: 'Circle' },        fr: { t: 'Cercle',        reviewed: false } },
-    'label.vizPolar':        { en: { t: 'Polar' },         fr: { t: 'Polaire',       reviewed: false } },
-    'label.vizMatrix':       { en: { t: 'Matrix' },        fr: { t: 'Matrice',       reviewed: false } },
-    'label.vizTrueKeys':     { en: { t: 'True Keys' },     fr: { t: 'Touches réelles',       reviewed: false } },
-    'label.vizRotation':     { en: { t: 'Rotation' },      fr: { t: 'Rotation',      reviewed: false, sameAsEn: true } },
-    'label.scaleIntervals':  { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: false } },
+                               fr: { t: 'Intervalles ({n})', reviewed: true } },
+    'label.tonic':           { en: { t: 'Tonic:' },        fr: { t: 'Ton. :',        reviewed: true } },
+    'label.vizCircle':       { en: { t: 'Circle' },        fr: { t: 'Cercle',        reviewed: true } },
+    'label.vizPolar':        { en: { t: 'Polar' },         fr: { t: 'Polaire',       reviewed: true } },
+    'label.vizMatrix':       { en: { t: 'Matrix' },        fr: { t: 'Matrice',       reviewed: true } },
+    'label.vizTrueKeys':     { en: { t: 'True Keys' },     fr: { t: 'Touches réelles',       reviewed: true } },
+    'label.vizRotation':     { en: { t: 'Rotation' },      fr: { t: 'Rotation',      reviewed: true, sameAsEn: true } },
+    'label.scaleIntervals':  { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: true } },
     'label.tkHint':          { en: { t: 'Hold 2+ notes to see intervals' },
-                               fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: false } },
-    'label.heldIntervals':   { en: { t: 'Intervals:' },    fr: { t: 'Interv. :',     reviewed: false } },
+                               fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: true } },
+    'label.heldIntervals':   { en: { t: 'Intervals:' },    fr: { t: 'Interv. :',     reviewed: true } },
     'label.span':            { en: { t: 'Span' },
-                               fr: { t: 'Écart', reviewed: false,
+                               fr: { t: 'Écart', reviewed: true,
                                      termNote: 'the cents span of the held notes, printed beside '
                                              + 'label.totalSpan "Écart total" — the glossary\'s own carve-out. '
                                              + 'This page spends Désacc. on detune and Larg. on spread, so '
                                              + 'écart names neither of the two terms the word was banned for' } },
-    'label.totalSpan':       { en: { t: 'Total span' },    fr: { t: 'Écart total',   reviewed: false } },
-    'label.rotationMode':    { en: { t: 'Mode' },          fr: { t: 'Mode',          reviewed: false, sameAsEn: true } },
-    'label.tuningLibrary':   { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque de gammes',  reviewed: false } },
+    'label.totalSpan':       { en: { t: 'Total span' },    fr: { t: 'Écart total',   reviewed: true } },
+    'label.rotationMode':    { en: { t: 'Mode' },          fr: { t: 'Mode',          reviewed: true, sameAsEn: true } },
+    'label.tuningLibrary':   { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque de gammes',  reviewed: true } },
     // The five category captions are keyed HERE, on the filter <select>'s
     // options, and the same five keys are reused by the library list's own
     // category span. The <option value="..."> attributes stay English because
     // they are matched against the C++ category strings.
-    'label.catAll':          { en: { t: 'All Categories' }, fr: { t: 'Toutes catégories', reviewed: false } },
-    'label.catHistorical':   { en: { t: 'Historical' },    fr: { t: 'Historiques',    reviewed: false } },
-    'label.catJust':         { en: { t: 'Just Intonation' }, fr: { t: 'Intonation juste', reviewed: false } },
-    'label.catEqual':        { en: { t: 'Equal Divisions' }, fr: { t: 'Divisions égales', reviewed: false } },
-    'label.catNonOctave':    { en: { t: 'Non-Octave' },    fr: { t: 'Non octaviantes', reviewed: false } },
-    'label.catWorld':        { en: { t: 'World' },         fr: { t: 'Du monde',         reviewed: false } },
-    'label.libNotes':        { en: { t: 'notes' },         fr: { t: 'notes',         reviewed: false, sameAsEn: true } },
-    'label.libPeriod':       { en: { t: 'period' },        fr: { t: 'période',       reviewed: false } },
+    'label.catAll':          { en: { t: 'All Categories' }, fr: { t: 'Toutes catégories', reviewed: true } },
+    'label.catHistorical':   { en: { t: 'Historical' },    fr: { t: 'Historiques',    reviewed: true } },
+    'label.catJust':         { en: { t: 'Just Intonation' }, fr: { t: 'Intonation juste', reviewed: true } },
+    'label.catEqual':        { en: { t: 'Equal Divisions' }, fr: { t: 'Divisions égales', reviewed: true } },
+    'label.catNonOctave':    { en: { t: 'Non-Octave' },    fr: { t: 'Non octaviantes', reviewed: true } },
+    'label.catWorld':        { en: { t: 'World' },         fr: { t: 'Du monde',         reviewed: true } },
+    'label.libNotes':        { en: { t: 'notes' },         fr: { t: 'notes',         reviewed: true, sameAsEn: true } },
+    'label.libPeriod':       { en: { t: 'period' },        fr: { t: 'période',       reviewed: true } },
     // `.knob-label` inside the bespoke A4 knob — same 52 px column as the 64.
-    'label.a4Ref':           { en: { t: 'A4 Ref' },        fr: { t: 'Réf. A4',       reviewed: false } },
+    'label.a4Ref':           { en: { t: 'A4 Ref' },        fr: { t: 'Réf. A4',       reviewed: true } },
     // `.octave-stretch-label` is `min-width: 40px` in a 210 px panel and the
     // slider beside it takes the remainder, so `Étirement` would shrink the
     // slider by 8 px. That is what decides this abbreviation.
-    'label.stretch':         { en: { t: 'Stretch' },       fr: { t: 'Étir.',         reviewed: false } },
-    'label.loadScl':         { en: { t: 'Load .SCL' },     fr: { t: 'Charger .SCL',  reviewed: false } },
-    'label.loadKbm':         { en: { t: 'Load .KBM' },     fr: { t: 'Charger .KBM',  reviewed: false } },
-    'label.saveScl':         { en: { t: 'Save .SCL' },     fr: { t: 'Enreg. .SCL',   reviewed: false } },
-    'label.saveKbm':         { en: { t: 'Save .KBM' },     fr: { t: 'Enreg. .KBM',   reviewed: false } },
-    'label.exportHtml':      { en: { t: 'Export HTML' },   fr: { t: 'Exporter HTML', reviewed: false } },
-    'label.generateScale':   { en: { t: 'Generate Scale' }, fr: { t: 'Générer une gamme', reviewed: false } },
+    'label.stretch':         { en: { t: 'Stretch' },       fr: { t: 'Étir.',         reviewed: true } },
+    'label.loadScl':         { en: { t: 'Load .SCL' },     fr: { t: 'Charger .SCL',  reviewed: true } },
+    'label.loadKbm':         { en: { t: 'Load .KBM' },     fr: { t: 'Charger .KBM',  reviewed: true } },
+    'label.saveScl':         { en: { t: 'Save .SCL' },     fr: { t: 'Enreg. .SCL',   reviewed: true } },
+    'label.saveKbm':         { en: { t: 'Save .KBM' },     fr: { t: 'Enreg. .KBM',   reviewed: true } },
+    'label.exportHtml':      { en: { t: 'Export HTML' },   fr: { t: 'Exporter HTML', reviewed: true } },
+    'label.generateScale':   { en: { t: 'Generate Scale' }, fr: { t: 'Générer une gamme', reviewed: true } },
     'label.genEdo':          { en: { t: 'EDO (Equal Division)' },
-                               fr: { t: 'EDO (division égale)', reviewed: false } },
-    'label.genHarmonic':     { en: { t: 'Harmonic Series' }, fr: { t: 'Série harmonique', reviewed: false } },
+                               fr: { t: 'EDO (division égale)', reviewed: true } },
+    'label.genHarmonic':     { en: { t: 'Harmonic Series' }, fr: { t: 'Série harmonique', reviewed: true } },
     'label.genRank2':        { en: { t: 'Rank-2 Temperament' },
-                               fr: { t: 'Tempérament de rang 2', reviewed: false } },
-    'label.genDivisions':    { en: { t: 'Divisions' },     fr: { t: 'Divisions',     reviewed: false, sameAsEn: true } },
-    'label.genPeriod':       { en: { t: 'Period (cents)' }, fr: { t: 'Période (cents)', reviewed: false } },
-    'label.genStartHarm':    { en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: false } },
-    'label.genEndHarm':      { en: { t: 'End Harmonic' },  fr: { t: 'Harmonique de fin', reviewed: false } },
+                               fr: { t: 'Tempérament de rang 2', reviewed: true } },
+    'label.genDivisions':    { en: { t: 'Divisions' },     fr: { t: 'Divisions',     reviewed: true, sameAsEn: true } },
+    'label.genPeriod':       { en: { t: 'Period (cents)' }, fr: { t: 'Période (cents)', reviewed: true } },
+    'label.genStartHarm':    { en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: true } },
+    'label.genEndHarm':      { en: { t: 'End Harmonic' },  fr: { t: 'Harmonique de fin', reviewed: true } },
     'label.genGenerator':    { en: { t: 'Generator (cents)' },
-                               fr: { t: 'Générateur (cents)', reviewed: false } },
-    'label.genNotes':        { en: { t: 'Notes' },         fr: { t: 'Notes',         reviewed: false, sameAsEn: true } },
-    'label.generate':        { en: { t: 'Generate' },      fr: { t: 'Générer',       reviewed: false } },
+                               fr: { t: 'Générateur (cents)', reviewed: true } },
+    'label.genNotes':        { en: { t: 'Notes' },         fr: { t: 'Notes',         reviewed: true, sameAsEn: true } },
+    'label.generate':        { en: { t: 'Generate' },      fr: { t: 'Générer',       reviewed: true } },
 
     // ── Effects tab ─────────────────────────────────────────────────────────
-    'label.delay':           { en: { t: 'Delay' },         fr: { t: 'Délai',         reviewed: false } },
-    'label.chorus':          { en: { t: 'Chorus' },        fr: { t: 'Chorus',        reviewed: false, sameAsEn: true } },
-    'label.distortion':      { en: { t: 'Distortion' },    fr: { t: 'Distorsion',    reviewed: false } },
-    'label.reverb':          { en: { t: 'Reverb' },        fr: { t: 'Réverb.',       reviewed: false } },
-    'label.eq3':             { en: { t: '3-Band EQ' },     fr: { t: 'EQ 3 bandes',   reviewed: false } },
+    'label.delay':           { en: { t: 'Delay' },         fr: { t: 'Délai',         reviewed: true } },
+    'label.chorus':          { en: { t: 'Chorus' },        fr: { t: 'Chorus',        reviewed: true, sameAsEn: true } },
+    'label.distortion':      { en: { t: 'Distortion' },    fr: { t: 'Distorsion',    reviewed: true } },
+    'label.reverb':          { en: { t: 'Reverb' },        fr: { t: 'Réverb.',       reviewed: true } },
+    'label.eq3':             { en: { t: '3-Band EQ' },     fr: { t: 'EQ 3 bandes',   reviewed: true } },
     // The caption above the delay Sync toggle. `Synchro` is 21 px wider and the
     // cell it sits in is 44.44 px, so it pushed the whole delay row 16 px.
     // `Sync` is current usage in French DAWs; the LFO button keeps `Synchro`,
     // where a section header gives it room.
-    'label.sync':            { en: { t: 'Sync' },          fr: { t: 'Sync',          reviewed: false, sameAsEn: true } },
+    'label.sync':            { en: { t: 'Sync' },          fr: { t: 'Sync',          reviewed: true, sameAsEn: true } },
 
     // ── Wavetable tab ───────────────────────────────────────────────────────
     // `Osc A` is already the French abbreviation; the added period cost 4.2 px in
     // a shrink-wrapping toggle that pushes the harmonic toolbar behind it.
-    'label.oscAShort':       { en: { t: 'Osc A' },         fr: { t: 'Osc A',         reviewed: false, sameAsEn: true } },
-    'label.oscBShort':       { en: { t: 'Osc B' },         fr: { t: 'Osc B',         reviewed: false, sameAsEn: true } },
+    'label.oscAShort':       { en: { t: 'Osc A' },         fr: { t: 'Osc A',         reviewed: true, sameAsEn: true } },
+    'label.oscBShort':       { en: { t: 'Osc B' },         fr: { t: 'Osc B',         reviewed: true, sameAsEn: true } },
     // The seven ops-bar captions below are pinned to their English boxes in CSS,
     // so the row's three separators and its undo/redo pair hold still. Each
     // French string is the longest form that FITS its own English button:
@@ -1822,37 +1822,37 @@ export const LABELS = Object.freeze({
     // `Enregistrer` 60.72 in 24.50. The alternative was pinning to the FRENCH
     // and moving the English row 38 px, which is a visible change to a shipped
     // English UI for no English benefit.
-    'label.harmonics':       { en: { t: 'Harmonics' },     fr: { t: 'Harmon.',       reviewed: false } },
-    'label.waveform':        { en: { t: 'Waveform' },      fr: { t: 'Forme d’onde',  reviewed: false } },
-    'label.normalize':       { en: { t: 'Normalize' },     fr: { t: 'Norm.',         reviewed: false } },
-    'label.normalizeGlobal': { en: { t: 'Normalize Global' }, fr: { t: 'Normaliser tout', reviewed: false } },
-    'label.fadeEdges':       { en: { t: 'Fade Edges' },    fr: { t: 'Fondre',        reviewed: false } },
-    'label.reverse':         { en: { t: 'Reverse' },       fr: { t: 'Invers.',       reviewed: false } },
-    'label.reverseOrder':    { en: { t: 'Reverse Order' }, fr: { t: 'Ordre inv.',    reviewed: false } },
-    'label.smooth':          { en: { t: 'Smooth' },        fr: { t: 'Lisser',        reviewed: false } },
+    'label.harmonics':       { en: { t: 'Harmonics' },     fr: { t: 'Harmon.',       reviewed: true } },
+    'label.waveform':        { en: { t: 'Waveform' },      fr: { t: 'Forme d’onde',  reviewed: true } },
+    'label.normalize':       { en: { t: 'Normalize' },     fr: { t: 'Norm.',         reviewed: true } },
+    'label.normalizeGlobal': { en: { t: 'Normalize Global' }, fr: { t: 'Normaliser tout', reviewed: true } },
+    'label.fadeEdges':       { en: { t: 'Fade Edges' },    fr: { t: 'Fondre',        reviewed: true } },
+    'label.reverse':         { en: { t: 'Reverse' },       fr: { t: 'Invers.',       reviewed: true } },
+    'label.reverseOrder':    { en: { t: 'Reverse Order' }, fr: { t: 'Ordre inv.',    reviewed: true } },
+    'label.smooth':          { en: { t: 'Smooth' },        fr: { t: 'Lisser',        reviewed: true } },
     // TWO keys for one English word. The two modal buttons have room for
     // `Enregistrer`; the ops-bar button is a 24.50 px box.
-    'label.save':            { en: { t: 'Save' },          fr: { t: 'Enregistrer',   reviewed: false } },
-    'label.saveShort':       { en: { t: 'Save' },          fr: { t: 'Enr.',          reviewed: false } },
-    'label.cancel':          { en: { t: 'Cancel' },        fr: { t: 'Annuler',       reviewed: false } },
-    'label.saveWavetable':   { en: { t: 'Save Wavetable' }, fr: { t: 'Enregistrer la table', reviewed: false } },
-    'label.savePreset':      { en: { t: 'Save Preset' },   fr: { t: 'Enregistrer le préréglage', reviewed: false } },
-    'label.userWavetables':  { en: { t: 'User Wavetables' }, fr: { t: 'Tables utilisateur', reviewed: false } },
-    'label.close':           { en: { t: 'Close' },         fr: { t: 'Fermer',        reviewed: false } },
-    'label.delete':          { en: { t: 'Delete' },        fr: { t: 'Supprimer',     reviewed: false } },
-    'label.importWav':       { en: { t: 'Import WAV...' }, fr: { t: 'Importer WAV…', reviewed: false } },
-    'label.manage':          { en: { t: 'Manage...' },     fr: { t: 'Gérer…',        reviewed: false } },
+    'label.save':            { en: { t: 'Save' },          fr: { t: 'Enregistrer',   reviewed: true } },
+    'label.saveShort':       { en: { t: 'Save' },          fr: { t: 'Enr.',          reviewed: true } },
+    'label.cancel':          { en: { t: 'Cancel' },        fr: { t: 'Annuler',       reviewed: true } },
+    'label.saveWavetable':   { en: { t: 'Save Wavetable' }, fr: { t: 'Enregistrer la table', reviewed: true } },
+    'label.savePreset':      { en: { t: 'Save Preset' },   fr: { t: 'Enregistrer le préréglage', reviewed: true } },
+    'label.userWavetables':  { en: { t: 'User Wavetables' }, fr: { t: 'Tables utilisateur', reviewed: true } },
+    'label.close':           { en: { t: 'Close' },         fr: { t: 'Fermer',        reviewed: true } },
+    'label.delete':          { en: { t: 'Delete' },        fr: { t: 'Supprimer',     reviewed: true } },
+    'label.importWav':       { en: { t: 'Import WAV...' }, fr: { t: 'Importer WAV…', reviewed: true } },
+    'label.manage':          { en: { t: 'Manage...' },     fr: { t: 'Gérer…',        reviewed: true } },
     'label.noUserWavetables': { en: { t: 'No user wavetables imported yet.' },
-                               fr: { t: 'Aucune table utilisateur importée pour l’instant.', reviewed: false } },
-    'aria.wavetableName':    { en: { t: 'Wavetable name...' }, fr: { t: 'Nom de la table…', reviewed: false } },
-    'aria.presetName':       { en: { t: 'Preset name...' }, fr: { t: 'Nom du préréglage…', reviewed: false } },
-    'aria.undo':             { en: { t: 'Undo (Ctrl+Z)' }, fr: { t: 'Annuler (Ctrl+Z)', reviewed: false } },
+                               fr: { t: 'Aucune table utilisateur importée pour l’instant.', reviewed: true } },
+    'aria.wavetableName':    { en: { t: 'Wavetable name...' }, fr: { t: 'Nom de la table…', reviewed: true } },
+    'aria.presetName':       { en: { t: 'Preset name...' }, fr: { t: 'Nom du préréglage…', reviewed: true } },
+    'aria.undo':             { en: { t: 'Undo (Ctrl+Z)' }, fr: { t: 'Annuler (Ctrl+Z)', reviewed: true } },
     'aria.redo':             { en: { t: 'Redo (Ctrl+Shift+Z)' },
-                               fr: { t: 'Rétablir (Ctrl+Maj+Z)', reviewed: false } },
+                               fr: { t: 'Rétablir (Ctrl+Maj+Z)', reviewed: true } },
 
     // ── Footer ──────────────────────────────────────────────────────────────
-    'label.master':          { en: { t: 'Master' },        fr: { t: 'Gén.',        reviewed: false } },
-    'label.oscMix':          { en: { t: 'Osc Mix' },       fr: { t: 'Mix osc',       reviewed: false } },
+    'label.master':          { en: { t: 'Master' },        fr: { t: 'Gén.',        reviewed: true } },
+    'label.oscMix':          { en: { t: 'Osc Mix' },       fr: { t: 'Mix osc',       reviewed: true } },
 
     // ── State faces written from script ─────────────────────────────────────
     // Every one goes through setLabel(), so the element becomes a [data-i18n]
@@ -1868,18 +1868,18 @@ export const LABELS = Object.freeze({
     // generic Off/On boilerplate and not an authored choice name. `Free`,
     // `Retrig`, `Free Run` and `Sync` are not byte-identical to anything in the
     // automation lane in the first place.
-    'ui.free':               { en: { t: 'Free' },          fr: { t: 'Libre',         reviewed: false } },
-    'ui.sync':               { en: { t: 'Sync' },          fr: { t: 'Synchro',       reviewed: false } },
+    'ui.free':               { en: { t: 'Free' },          fr: { t: 'Libre',         reviewed: true } },
+    'ui.sync':               { en: { t: 'Sync' },          fr: { t: 'Synchro',       reviewed: true } },
     // "Free Run" and "Free" are different concepts on adjacent buttons — one is
     // "not tempo-synced", the other is "phase runs across notes" — so they get
     // different French rather than colliding on `Libre`.
-    'ui.freeRun':            { en: { t: 'Free Run' },      fr: { t: 'Continu',       reviewed: false } },
-    'ui.retrig':             { en: { t: 'Retrig' },        fr: { t: 'Redécl.',       reviewed: false } },
+    'ui.freeRun':            { en: { t: 'Free Run' },      fr: { t: 'Continu',       reviewed: true } },
+    'ui.retrig':             { en: { t: 'Retrig' },        fr: { t: 'Redécl.',       reviewed: true } },
     // The five bypass buttons carry the same two words in the markup's own
     // upper case. Separate keys, because the ownership mirror asserts
     // dataset.label === textContent and CSS text-transform is not textContent.
-    'ui.bypassOn':           { en: { t: 'ON' },            fr: { t: 'MARCHE',        reviewed: false } },
-    'ui.bypassOff':          { en: { t: 'OFF' },           fr: { t: 'ARRÊT',         reviewed: false } },
+    'ui.bypassOn':           { en: { t: 'ON' },            fr: { t: 'MARCHE',        reviewed: true } },
+    'ui.bypassOff':          { en: { t: 'OFF' },           fr: { t: 'ARRÊT',         reviewed: true } },
 });
 
 // ============================================================================

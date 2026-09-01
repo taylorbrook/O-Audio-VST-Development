@@ -187,21 +187,21 @@ export const I18N = Object.freeze({
               b: 'Biases the grain search toward louder or quieter material, matching each grain’s RMS energy. Turn it down for a hushed bed, up for the most forceful moments in the corpus. 0 to 100%.' },
         fr: { t: 'Énergie',
               b: 'Oriente la recherche de grains vers un matériau plus fort ou plus faible, selon l’énergie RMS de chaque grain. Baissez-le pour une nappe feutrée, montez-le pour les moments les plus puissants du corpus. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.brightness': {
         en: { t: 'Brightness',
               b: 'Biases the search toward darker or brighter grains, matching each grain’s spectral centroid. Low settings favour muffled, body-heavy material; high settings favour air and hiss. 0 to 100%.' },
         fr: { t: 'Brillance',
               b: 'Oriente la recherche vers des grains plus sombres ou plus clairs, selon le centroïde spectral de chaque grain. Les valeurs basses privilégient un matériau étouffé, riche en corps ; les valeurs hautes, l’air et le souffle. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.texture': {
         en: { t: 'Texture',
               b: 'Biases the search between tonal and noisy grains, matching each grain’s spectral flatness. Low settings pick pitched, steady material; high settings pick breath, grit and noise. 0 to 100%.' },
         fr: { t: 'Texture', sameAsEn: true,
               b: 'Oriente la recherche entre des grains tonals et des grains bruités, selon la planéité spectrale de chaque grain. Les valeurs basses choisissent un matériau tenu, à hauteur définie ; les valeurs hautes, le souffle, la rugosité et le bruit. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     // The two scatter axes have their OWN entries rather than one shared one,
     // because they have their own knobs: the XY control here is the scatter map
@@ -213,21 +213,21 @@ export const I18N = Object.freeze({
               b: 'Moves the cursor horizontally across the scatter map and pulls grains from that region of the corpus. Drag on the map itself to move both axes at once. 0 to 100%.' },
         fr: { t: 'Disp. X',
               b: 'Déplace le curseur horizontalement sur la carte de dispersion et puise des grains dans cette zone du corpus. Faites glisser directement sur la carte pour déplacer les deux axes à la fois. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.scatterY': {
         en: { t: 'Scatter Y',
               b: 'Moves the cursor vertically across the scatter map and pulls grains from that region of the corpus. Drag on the map itself to move both axes at once. 0 to 100%.' },
         fr: { t: 'Disp. Y',
               b: 'Déplace le curseur verticalement sur la carte de dispersion et puise des grains dans cette zone du corpus. Faites glisser directement sur la carte pour déplacer les deux axes à la fois. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.variation': {
         en: { t: 'Variation',
               b: 'Randomises the search around the macro settings, so repeated grains are never quite the same. At 0 the same grain returns every time; raise it for a looser, more alive texture. 0 to 100%.' },
         fr: { t: 'Variation', sameAsEn: true,
               b: 'Rend la recherche aléatoire autour des réglages des macros, afin que les grains répétés ne soient jamais tout à fait identiques. À 0, le même grain revient à chaque fois ; montez-le pour une texture plus lâche et plus vivante. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The five bottom-strip knobs ─────────────────────────────────────────
@@ -236,7 +236,7 @@ export const I18N = Object.freeze({
               b: 'Biases the search toward grains taken from a given point in the source recording. At 0 the texture draws on the opening; at the top of the range it draws on the end. 0 to 100%.' },
         fr: { t: 'Position', sameAsEn: true,
               b: 'Oriente la recherche vers des grains issus d’un point donné de l’enregistrement source. À 0, la texture puise au début ; en haut de la plage, à la fin. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     // Range from the DUMP: this knob's readout is blank at runtime. See the
     // header. The dump's label column carries "ms" for GRAIN_SIZE.
@@ -245,7 +245,7 @@ export const I18N = Object.freeze({
               b: 'Sets how long each grain plays. Short values granulate the source into a fine cloud; long values let recognisable fragments of the recording through. 10 to 500 ms.' },
         fr: { t: 'Taille de grain',
               b: 'Définit la durée de lecture de chaque grain. Les valeurs courtes granulent la source en un nuage fin ; les valeurs longues laissent passer des fragments reconnaissables de l’enregistrement. 10 à 500 ms.',
-              reviewed: false },
+              reviewed: true },
     },
     // Range from the DUMP (AudioParameterInt 1..64, no label). "grains" is the
     // page's own noun for what this counts, not an invented unit.
@@ -254,14 +254,14 @@ export const I18N = Object.freeze({
               b: 'Sets how often new grains are fired in the drone mode, thinning the texture out or thickening it. Low values leave audible gaps; high values overlap into a continuous bed. 1 to 64 grains.' },
         fr: { t: 'Densité',
               b: 'Définit la fréquence de déclenchement de nouveaux grains en mode drone, ce qui éclaircit ou épaissit la texture. Les valeurs basses laissent des trous audibles ; les valeurs hautes font se recouvrir les grains en une nappe continue. 1 à 64 grains.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.crossfade': {
         en: { t: 'Crossfade',
               b: 'Shapes each grain’s envelope, from a narrow peak to a wide flat top that overlaps its neighbours. Raise it to smooth a grainy texture, lower it for rhythm and attack. 0 to 100%.' },
         fr: { t: 'Fondu enchaîné',
               b: 'Façonne l’enveloppe de chaque grain, d’un pic étroit à un plateau large qui recouvre ses voisins. Montez-le pour lisser une texture granuleuse, baissez-le pour le rythme et l’attaque. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     // Range from the DUMP (label "dB"); this readout is blank at runtime too.
     // U+2212 MINUS SIGN, not a hyphen, in both languages.
@@ -270,7 +270,7 @@ export const I18N = Object.freeze({
               b: 'Trims the plugin’s output level after the grain cloud has been summed. Dense settings stack many grains at once, so pull it down if the output clips. −60 to +12 dB.' },
         fr: { t: 'Gain', sameAsEn: true,
               b: 'Ajuste le niveau de sortie du plugin après la somme du nuage de grains. Les réglages denses empilent de nombreux grains à la fois : baissez-le si la sortie écrête. −60 à +12 dB.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The MIDI mode select ────────────────────────────────────────────────
@@ -285,7 +285,7 @@ export const I18N = Object.freeze({
               b: 'Chooses how the plugin answers MIDI. Pitch-Mapped transposes grains from the note played, Trigger + Modulate fires a grain per note and takes CC control, and Generative Drone runs on its own with no notes at all. Three settings.' },
         fr: { t: 'Mode MIDI',
               b: 'Choisit la façon dont le plugin répond au MIDI. Pitch-Mapped transpose les grains selon la note jouée, Trigger + Modulate déclenche un grain par note et accepte le contrôle CC, et Generative Drone tourne seul, sans aucune note. Trois réglages.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Chrome ──────────────────────────────────────────────────────────────
@@ -298,7 +298,7 @@ export const I18N = Object.freeze({
               b: 'Opens the settings panel. It holds one control, the interface language. Nothing in it changes the sound or any saved parameter.' },
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau de réglages. Il contient un seul contrôle, la langue de l’interface. Rien ici ne modifie ni le son ni un paramètre enregistré.',
-              reviewed: false },
+              reviewed: true },
     },
     // The endonyms are named verbatim in both bodies: they are what the two
     // options in this select actually say, and they are I18N_EXEMPT for that
@@ -308,7 +308,7 @@ export const I18N = Object.freeze({
               b: 'Chooses the language of the captions and of this hover help. Value readouts stay in English. The choice is saved with the session, not with a preset. English or Français.' },
         fr: { t: 'Langue',
               b: 'Choisit la langue des libellés et de cette aide au survol. Les valeurs affichées restent en anglais. Le choix est enregistré avec la session, pas avec un préréglage. English ou Français.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -382,7 +382,7 @@ export const LABELS = Object.freeze({
     // hide as a deliberate one.
     'label.tagline': {
         en: { t: 'Concatenative Texture Engine' },
-        fr: { t: 'Moteur de texture concaténatif', reviewed: false },
+        fr: { t: 'Moteur de texture concaténatif', reviewed: true },
     },
 
     // ── The scatter placeholder ─────────────────────────────────────────────
@@ -392,11 +392,11 @@ export const LABELS = Object.freeze({
     // only the text.
     'placeholder.dropToBegin': {
         en: { t: 'Drop an audio file to begin' },
-        fr: { t: 'Déposez un fichier audio pour commencer', reviewed: false },
+        fr: { t: 'Déposez un fichier audio pour commencer', reviewed: true },
     },
     'placeholder.webglUnavailable': {
         en: { t: 'WebGL unavailable' },
-        fr: { t: 'WebGL indisponible', reviewed: false },
+        fr: { t: 'WebGL indisponible', reviewed: true },
     },
     // Composed. {path} is the saved corpus path, substituted literally — it is
     // a filesystem path and resolves through trLabel's `resolve` arm to itself
@@ -419,30 +419,30 @@ export const LABELS = Object.freeze({
     // 320 px box, with overflow-wrap: anywhere to break it.
     'placeholder.fileNotFound': {
         en: { t: 'File not found:\n{path}\nDrop a new file to continue.' },
-        fr: { t: 'Fichier introuvable :\n{path}\nDéposez un nouveau fichier pour continuer.', reviewed: false },
+        fr: { t: 'Fichier introuvable :\n{path}\nDéposez un nouveau fichier pour continuer.', reviewed: true },
     },
 
     // ── Macro panel section captions ────────────────────────────────────────
     'section.timbralMacros': {
         en: { t: 'Timbral Macros' },
-        fr: { t: 'Macros timbrales', reviewed: false },
+        fr: { t: 'Macros timbrales', reviewed: true },
     },
     'section.scatterPosition': {
         en: { t: 'Scatter Position' },
-        fr: { t: 'Position de dispersion', reviewed: false },
+        fr: { t: 'Position de dispersion', reviewed: true },
     },
 
     // ── The six macro knobs ─────────────────────────────────────────────────
     // Every one is an AudioParameterFloat display name, not a choice option, so
     // D-01 arm 1 does not apply and they localize. Their .knob-value siblings
     // are the readouts and are untouched.
-    'knob.energy':     { en: { t: 'Energy' },     fr: { t: 'Énergie',   reviewed: false } },
-    'knob.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: false } },
+    'knob.energy':     { en: { t: 'Energy' },     fr: { t: 'Énergie',   reviewed: true } },
+    'knob.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: true } },
     // Identical in French. sameAsEn is REQUIRED here: check-i18n assertion 4
     // rejects a French entry that merely repeats the English unless the repeat
     // is declared deliberate, so an untranslated string cannot hide as a
     // coincidence.
-    'knob.texture':    { en: { t: 'Texture' },    fr: { t: 'Texture',   reviewed: false, sameAsEn: true } },
+    'knob.texture':    { en: { t: 'Texture' },    fr: { t: 'Texture',   reviewed: true, sameAsEn: true } },
     // MEASURED, not guessed. .knob-row .knob-label is a hard `width: 72px`
     // right-aligned box at 9 px with 1 px of letter-spacing. "Dispersion X" is
     // 65.14 px of text and still WRAPS TO TWO LINES in that box — the space
@@ -454,28 +454,28 @@ export const LABELS = Object.freeze({
     //
     // "Disp. X" keeps the section caption's root ("Position de dispersion")
     // and is the same abbreviation shape the two axes already have in English.
-    'knob.scatterX':   { en: { t: 'Scatter X' },  fr: { t: 'Disp. X', reviewed: false } },
-    'knob.scatterY':   { en: { t: 'Scatter Y' },  fr: { t: 'Disp. Y', reviewed: false } },
-    'knob.variation':  { en: { t: 'Variation' },  fr: { t: 'Variation', reviewed: false, sameAsEn: true } },
+    'knob.scatterX':   { en: { t: 'Scatter X' },  fr: { t: 'Disp. X', reviewed: true } },
+    'knob.scatterY':   { en: { t: 'Scatter Y' },  fr: { t: 'Disp. Y', reviewed: true } },
+    'knob.variation':  { en: { t: 'Variation' },  fr: { t: 'Variation', reviewed: true, sameAsEn: true } },
 
     // ── The five bottom-strip knobs ─────────────────────────────────────────
     // The tight row. See the GEOMETRY note above and the pin in the stylesheet.
-    'knob.position':     { en: { t: 'Position' },   fr: { t: 'Position', reviewed: false, sameAsEn: true } },
+    'knob.position':     { en: { t: 'Position' },   fr: { t: 'Position', reviewed: true, sameAsEn: true } },
     // "Grain Size" is GRAIN_SIZE's display name and "Taille de grain" is the
     // glossary ROOT for it. v1.2.0 shipped the abbreviation "Taille grain" on a
     // width argument that v1.1.0 had already made obsolete — see decision 2 in
     // the header. Re-measured at 900 x 600: 76.94 px on one line inside a
     // 173.6 px grid column. The root fits, so the root ships.
-    'knob.grainSize':    { en: { t: 'Grain Size' }, fr: { t: 'Taille de grain', reviewed: false } },
+    'knob.grainSize':    { en: { t: 'Grain Size' }, fr: { t: 'Taille de grain', reviewed: true } },
     // The page caption is "Density"; the parameter is "Grain Density". The
     // caption is what is localized, because the caption is what is rendered.
-    'knob.grainDensity': { en: { t: 'Density' },    fr: { t: 'Densité',  reviewed: false } },
+    'knob.grainDensity': { en: { t: 'Density' },    fr: { t: 'Densité',  reviewed: true } },
     // "Fondu" alone is a FADE. A crossfade is *un fondu enchaîné*, and that is
     // what tip.crossfade's body describes. 80.73 px in the 173.6 px column.
-    'knob.crossfade':    { en: { t: 'Crossfade' },  fr: { t: 'Fondu enchaîné', reviewed: false } },
+    'knob.crossfade':    { en: { t: 'Crossfade' },  fr: { t: 'Fondu enchaîné', reviewed: true } },
     // The page caption is "Gain"; the parameter is "Output Gain". Spelled
     // identically in French, hence sameAsEn.
-    'knob.gain':         { en: { t: 'Gain' },       fr: { t: 'Gain',     reviewed: false, sameAsEn: true } },
+    'knob.gain':         { en: { t: 'Gain' },       fr: { t: 'Gain',     reviewed: true, sameAsEn: true } },
 
     // ── Bottom controls ─────────────────────────────────────────────────────
     // "MIDI Mode" is the MIDI_MODE parameter's DISPLAY NAME, not one of its
@@ -484,7 +484,7 @@ export const LABELS = Object.freeze({
     // protocol name.
     'label.midiMode': {
         en: { t: 'MIDI Mode' },
-        fr: { t: 'Mode MIDI', reviewed: false },
+        fr: { t: 'Mode MIDI', reviewed: true },
     },
     // Used TWICE — on the drop zone in the markup, and by src/app.js when an
     // empty corpus arrives and the placeholder falls back to the same
@@ -492,7 +492,7 @@ export const LABELS = Object.freeze({
     // apart in two files.
     'label.dropZone': {
         en: { t: 'Drop audio file here' },
-        fr: { t: 'Déposez un fichier audio ici', reviewed: false },
+        fr: { t: 'Déposez un fichier audio ici', reviewed: true },
     },
 
     // ── Toasts and the large-file dialog, all written by src/app.js ─────────
@@ -501,13 +501,13 @@ export const LABELS = Object.freeze({
     // already the visible caption of the progress row above.
     'toast.umapCancelled': {
         en: { t: 'UMAP cancelled — using PCA layout' },
-        fr: { t: 'UMAP annulé — disposition PCA conservée', reviewed: false },
+        fr: { t: 'UMAP annulé — disposition PCA conservée', reviewed: true },
     },
     // The FALLBACK only. When C++ supplies a reason it is shown verbatim and is
     // NOT localized — see the note in I18N_EXEMPT.
     'toast.loadFailed': {
         en: { t: 'Failed to load file' },
-        fr: { t: 'Échec du chargement du fichier', reviewed: false },
+        fr: { t: 'Échec du chargement du fichier', reviewed: true },
     },
     // Composed. {size} is a number the caller has already formatted to one
     // decimal; it is a readout and is not translated (D-03). "MB" becomes "Mo",
@@ -518,27 +518,27 @@ export const LABELS = Object.freeze({
     // plural to engineer (contract section 6).
     'dialog.largeFile': {
         en: { t: 'Large file: {size} MB. This may use significant memory.' },
-        fr: { t: 'Fichier volumineux : {size} Mo. Cela peut consommer beaucoup de mémoire.', reviewed: false },
+        fr: { t: 'Fichier volumineux : {size} Mo. Cela peut consommer beaucoup de mémoire.', reviewed: true },
     },
     'dialog.loadAnyway': {
         en: { t: 'Load Anyway' },
-        fr: { t: 'Charger quand même', reviewed: false },
+        fr: { t: 'Charger quand même', reviewed: true },
     },
     // Used twice: the large-file dialog's dismiss button and the UMAP progress
     // row's cancel button. Same word, same meaning, one key.
     'action.cancel': {
         en: { t: 'Cancel' },
-        fr: { t: 'Annuler', reviewed: false },
+        fr: { t: 'Annuler', reviewed: true },
     },
 
     // ── The settings popover (v1.1.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: false } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
     // hears the language the page is showing.
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
 });
 
 // ============================================================================

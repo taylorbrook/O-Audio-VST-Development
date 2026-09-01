@@ -281,7 +281,7 @@ export const I18N = Object.freeze({
               b: "Picks the reverb algorithm: each name is a whole configuration — room size, damping, stereo width, pre-delay, early-reflection spread, and on most types a voicing filter — not just a bigger or smaller room. Size and Decay then scale whatever the type sets, so Size at 100 % on Booth is still a booth. Six settings: Booth, Room, Hall, Spring, Plate, Ambient." },
         fr: { t: "Type",
               b: "Choisit l’algorithme de réverbération : chaque nom est une configuration complète — taille de la pièce, amortissement, largeur stéréo, pré-délai, étalement des premières réflexions et, sur la plupart des types, un filtre de coloration — et non simplement une pièce plus grande ou plus petite. Taille et Déclin viennent ensuite mettre à l’échelle ce que le type a posé : Taille à 100 % sur Booth reste une cabine. Six réglages : Booth, Room, Hall, Spring, Plate, Ambient.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // CHARACTER — AudioParameterFloat, -100 .. +100, default 0.
@@ -296,7 +296,7 @@ export const I18N = Object.freeze({
               b: "Tilts the tone of the reverb tail only; the dry signal is never filtered. Turned left it is warm, a low-pass closing from 20 kHz down to 2 kHz, and turned right it is bright, a high shelf at 4 kHz reaching +6 dB. The readout reads neutral inside a narrow dead zone at the centre, where the filter is bypassed outright: warm 100 % to bright 100 %." },
         fr: { t: "Caractère",
               b: "Incline la couleur de la seule queue de réverbération ; le signal direct n’est jamais filtré. Vers la gauche le son est chaud, un passe-bas qui se referme de 20 kHz jusqu’à 2 kHz, et vers la droite il est brillant, un filtre en plateau aigu à 4 kHz atteignant +6 dB. L’affichage indique neutral dans une étroite zone morte au centre, où le filtre est totalement contourné : de warm 100 % à bright 100 %.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // WET — AudioParameterFloat, 0 .. 100 %, default 25.
@@ -309,7 +309,7 @@ export const I18N = Object.freeze({
               b: "Sets how much reverb is added to the output. It is an independent gain and not a crossfade: turning it up does not turn Dry down, so the two together set the total level as well as the balance. 0 to 100 %." },
         fr: { t: "Traité",
               b: "Règle la quantité de réverbération ajoutée à la sortie. C’est un gain indépendant et non un fondu enchaîné : l’augmenter ne baisse pas Direct, si bien que les deux ensemble déterminent aussi le niveau global et pas seulement l’équilibre. 0 à 100 %.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // DRY — AudioParameterFloat, 0 .. 100 %, default 100.
@@ -319,7 +319,7 @@ export const I18N = Object.freeze({
               b: "Sets how much of the untouched input reaches the output. It is independent of Wet, so pulling it to 0 leaves the reverb tail alone on the output — the setting to use on a send bus — while leaving it at 100 keeps the source at full level. 0 to 100 %." },
         fr: { t: "Direct",
               b: "Règle la quantité de signal d’entrée intact qui atteint la sortie. Elle est indépendante de Traité : la ramener à 0 ne laisse que la queue de réverbération en sortie — le réglage à utiliser sur un bus de départ — tandis que la laisser à 100 conserve la source à plein niveau. 0 à 100 %.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // DECAY — AudioParameterFloat, 0.5 .. 2.0, default 1.0, skew 0.6309.
@@ -334,7 +334,7 @@ export const I18N = Object.freeze({
               b: "Stretches or shortens the tail the Type set, by growing the room and easing its damping together. The centre of the knob is exactly 1.0x — the type's own untouched decay — so this is a trim, not a time in seconds. 0.5x to 2.0x." },
         fr: { t: "Déclin",
               b: "Allonge ou raccourcit la queue posée par le Type, en agrandissant la pièce et en relâchant son amortissement à la fois. Le centre du bouton vaut exactement 1,0x, soit le déclin propre du type : c’est donc un ajustement et non une durée en secondes. De 0,5x à 2,0x.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // SIZE — AudioParameterFloat, 0 .. 100 %, default 50.
@@ -344,7 +344,7 @@ export const I18N = Object.freeze({
               b: "Scales the room the Type chose, from half its size at 0 % to its full size at 100 %. It is relative rather than absolute — Booth at 100 % is still smaller than Hall at 0 % — and it moves only the space, leaving the length of the tail to Decay. 0 to 100 %." },
         fr: { t: "Taille",
               b: "Met à l’échelle la pièce choisie par le Type, de la moitié de sa taille à 0 % jusqu’à sa taille entière à 100 %. C’est une valeur relative et non absolue — Booth à 100 % reste plus petit que Hall à 0 % — et elle n’agit que sur l’espace, la longueur de la queue restant l’affaire de Déclin. 0 à 100 %.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // LPFREQ — AudioParameterFloat, 20 .. 400 Hz, default 200.
@@ -358,7 +358,7 @@ export const I18N = Object.freeze({
               b: "A high-pass on the reverb tail only, for clearing mud out of the bottom of the space without thinning the dry signal. It does nothing at all until the switch below the dial reads ON, and the two small figures either side of the dial are the ends of its travel. 20 to 400 Hz." },
         fr: { t: "Coupe-bas",
               b: "Un passe-haut appliqué à la seule queue de réverbération, pour dégager le bas du spectre sans amaigrir le signal direct. Il ne fait rien du tout tant que l’interrupteur sous le cadran n’affiche pas ACT., et les deux petits chiffres de part et d’autre du cadran sont les extrémités de sa course. De 20 à 400 Hz.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // LPON — AudioParameterFloat over NormalisableRange(0, 1, 1), default 0.
@@ -372,7 +372,7 @@ export const I18N = Object.freeze({
               b: "Switches the low cut in and out; click the word itself to toggle it. While it reads OFF the dial above is dimmed and the filter is bypassed entirely, so an unused low cut costs nothing. Two settings: OFF and ON." },
         fr: { t: "Coupe-bas actif",
               b: "Met le coupe-bas en service ou hors service ; cliquez sur le mot lui-même pour basculer. Tant qu’il affiche DÉS., le cadran au-dessus est estompé et le filtre est totalement contourné : un coupe-bas inutilisé ne coûte rien. Deux réglages : DÉS. et ACT.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -388,7 +388,7 @@ export const I18N = Object.freeze({
               b: "Opens the settings panel, which on this plugin holds a single row: the interface language. Nothing else lives in there — every reverb control is on the front panel." },
         fr: { t: "Réglages",
               b: "Ouvre le panneau de réglages, qui ne contient sur ce plugin qu’une seule ligne : la langue de l’interface. Rien d’autre ne s’y trouve — toutes les commandes de la réverbération sont sur la face avant.",
-              reviewed: false },
+              reviewed: true },
     },
 
     // The two endonyms are named as the selector spells them, and the selector
@@ -402,7 +402,7 @@ export const I18N = Object.freeze({
               b: "Switches every caption, accessible name and hover-help on this page between English and French. The change is immediate and is saved with the plugin's state, so it comes back with the session. Two settings: English and Français." },
         fr: { t: "Langue de l’interface",
               b: "Bascule toutes les légendes, tous les noms accessibles et toute l’aide au survol de cette page entre l’anglais et le français. Le changement est immédiat et il est enregistré avec l’état du plugin : il revient donc avec la session. Deux réglages : English et Français.",
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -503,7 +503,7 @@ export const LABELS = Object.freeze({
     // both would sit 20+ px inside the pin. CARACTÈRE is kept because it is
     // the direct translation of the visible English and this commit translates
     // the page rather than re-naming its controls.
-    'label.character': { en: { t: 'Character' }, fr: { t: 'Caractère', reviewed: false } },
+    'label.character': { en: { t: 'Character' }, fr: { t: 'Caractère', reviewed: true } },
 
     // COUPE-B. IS AN ABBREVIATION AND THE FULL FORM WAS REJECTED ON
     // MEASUREMENT, NOT ON TASTE. COUPE-BAS is 57.22 — 5.22 px PAST cliff A —
@@ -513,7 +513,7 @@ export const LABELS = Object.freeze({
     // FILTRE (34.48), which is unambiguous because this page has exactly one
     // filter but drops the word "low"; C. BAS (32.81); PASSE-HT (47.59).
     // COUPE-B. keeps the low-cut meaning at 4.84 px of headroom.
-    'label.lowCut':    { en: { t: 'Low Cut' },   fr: { t: 'Coupe-b.', reviewed: false } },
+    'label.lowCut':    { en: { t: 'Low Cut' },   fr: { t: 'Coupe-b.', reviewed: true } },
 
     // EFFET / DIRECT is the pair French effects units are silk-screened with,
     // and it is a pair — the reviewer should move both or neither. HUMIDE
@@ -522,8 +522,8 @@ export const LABELS = Object.freeze({
     // geometry one and is recorded as such. DIRECT is 16.40 px WIDER than DRY
     // and that costs nothing, because 37.31 is still 14.69 px under the cliff:
     // measuring the cliff is what turns a scary-looking growth into a non-event.
-    'label.wet':       { en: { t: 'Wet' },       fr: { t: 'Traité',   reviewed: false } },
-    'label.dry':       { en: { t: 'Dry' },       fr: { t: 'Direct',   reviewed: false } },
+    'label.wet':       { en: { t: 'Wet' },       fr: { t: 'Traité',   reviewed: true } },
+    'label.dry':       { en: { t: 'Dry' },       fr: { t: 'Direct',   reviewed: true } },
 
     // DÉCROISSANCE is the full word and it is 77.63 — a SINGLE WORD with no
     // break opportunity, 25.63 px past cliff A. It stops short of cliff C
@@ -532,8 +532,8 @@ export const LABELS = Object.freeze({
     // past the cliff by 0.97 px, which is a miss by rounding. DÉCLIN is the
     // word French reverb manuals use and it fits with 14.20 px to spare;
     // CHUTE (34.00) is the roomier alternative.
-    'label.decay':     { en: { t: 'Decay' },     fr: { t: 'Déclin',   reviewed: false } },
-    'label.size':      { en: { t: 'Size' },      fr: { t: 'Taille',   reviewed: false } },
+    'label.decay':     { en: { t: 'Decay' },     fr: { t: 'Déclin',   reviewed: true } },
+    'label.size':      { en: { t: 'Size' },      fr: { t: 'Taille',   reviewed: true } },
 
     // ── The low-cut ON/OFF toggle ───────────────────────────────────────────
     //
@@ -576,8 +576,8 @@ export const LABELS = Object.freeze({
     // pair. MAR. (25.30) / ARR. (23.06) both fit and are the reviewer's
     // alternative; ACT. / DÉS. is preferred because activé/désactivé is the
     // idiom for a filter ENABLE, where marche/arrêt is a power idiom.
-    'ui.on':           { en: { t: 'ON' },        fr: { t: 'ACT.',     reviewed: false } },
-    'ui.off':          { en: { t: 'OFF' },       fr: { t: 'DÉS.',     reviewed: false } },
+    'ui.on':           { en: { t: 'ON' },        fr: { t: 'ACT.',     reviewed: true } },
+    'ui.off':          { en: { t: 'OFF' },       fr: { t: 'DÉS.',     reviewed: true } },
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -615,8 +615,8 @@ export const LABELS = Object.freeze({
     // and would break the rule silently — the same rule O-AnalogEQ found
     // broken on O-DigiDelay, and which O-Marimba already ships broken twice.
     // LIRE is a whole word, so aria.loadPreset simply begins with it.
-    'label.save':      { en: { t: 'Save' },      fr: { t: 'Enr',      reviewed: false } },
-    'label.load':      { en: { t: 'Load' },      fr: { t: 'Ouv',      reviewed: false } },
+    'label.save':      { en: { t: 'Save' },      fr: { t: 'Enr',      reviewed: true } },
+    'label.load':      { en: { t: 'Load' },      fr: { t: 'Ouv',      reviewed: true } },
 
     // ── The settings popover (v1.6.0) ───────────────────────────────────────
     //
@@ -631,7 +631,7 @@ export const LABELS = Object.freeze({
     // It SHRINKS, which is why .settings-popover carries a hard width: an
     // auto-width panel would contract in French and assertion 7 would report
     // the panel, its row and the select as moved.
-    'label.language':  { en: { t: 'Language' },  fr: { t: 'Langue',   reviewed: false } },
+    'label.language':  { en: { t: 'Language' },  fr: { t: 'Langue',   reviewed: true } },
 
     // ── Image alternative text ──────────────────────────────────────────────
     //
@@ -644,8 +644,8 @@ export const LABELS = Object.freeze({
     // byte-identical to O-Bass's and O-IntonationPad's; the FILES differ
     // (img/paper.jpg + img/flora.png here, not botanical.png) but the authored
     // English alt text is the same two words.
-    'alt.background':  { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: false } },
-    'alt.botanical':   { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: false } },
+    'alt.background':  { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true } },
+    'alt.botanical':   { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -677,16 +677,16 @@ export const LABELS = Object.freeze({
     // préréglage" — so a voice-control user saying the caption still hits the
     // button (WCAG 2.5.3, which matches case-insensitively).
     'aria.prevPreset': { en: { t: 'Previous preset' },
-                         fr: { t: 'Préréglage précédent', reviewed: false } },
+                         fr: { t: 'Préréglage précédent', reviewed: true } },
     'aria.nextPreset': { en: { t: 'Next preset' },
-                         fr: { t: 'Préréglage suivant',   reviewed: false } },
+                         fr: { t: 'Préréglage suivant',   reviewed: true } },
     'aria.savePreset': { en: { t: 'Save preset' },
-                         fr: { t: 'Enregistrer le préréglage', reviewed: false } },
+                         fr: { t: 'Enregistrer le préréglage', reviewed: true } },
     'aria.loadPreset': { en: { t: 'Load preset' },
-                         fr: { t: 'Ouvrir un préréglage',      reviewed: false } },
+                         fr: { t: 'Ouvrir un préréglage',      reviewed: true } },
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
 });
 
 // ============================================================================

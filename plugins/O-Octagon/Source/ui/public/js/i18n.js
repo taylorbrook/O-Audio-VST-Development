@@ -136,14 +136,14 @@ export const I18N = Object.freeze({
               b: 'The performance view — plan, puck, weights, scenes, meters and the DBAP field.' },
         fr: { t: 'Salle',
               b: 'La vue de jeu — le plan, le repère de source, les poids, les scènes, les indicateurs de niveau et le champ DBAP.',
-              reviewed: false },
+              reviewed: true },
     },
     'tab-venue': {
         en: { t: 'Venue',
               b: 'The 42 measured values that define the room — positions, trims, rake — plus venue files, presets, output order and the verify ping.' },
         fr: { t: 'Lieu',
               b: 'Les 42 valeurs mesurées qui définissent la salle — positions, corrections, inclinaison des gradins — ainsi que les fichiers de lieu, les préréglages, l’ordre des sorties et le ping de vérification.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── The settings popover (v1.6.0) ───────────────────────────────────────
@@ -154,14 +154,14 @@ export const I18N = Object.freeze({
               b: 'Choose the language of this hover help, and turn the hover help on or off. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
               b: 'Choisir la langue de cette aide au survol et activer ou désactiver cette aide. Les deux choix sont conservés avec la session.',
-              reviewed: false },
+              reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language this hover help is written in. English and French are available; the labels on the page change with it, but numbers and unit symbols stay as they are.' },
         fr: { t: 'Langue',
               b: 'La langue dans laquelle cette aide au survol est rédigée. L’anglais et le français sont disponibles ; les libellés de la page changent avec elle, mais les nombres et les symboles d’unité restent inchangés.',
-              reviewed: false },
+              reviewed: true },
     },
     // ONE key covering both states, never a state-swapped pair. applyI18n()
     // re-renders every tip straight from this table on a language change, so a
@@ -175,7 +175,7 @@ export const I18N = Object.freeze({
               b: 'Show a short description when the pointer rests on a control. The setting is remembered with the session.' },
         fr: { t: 'Aide au survol',
               b: 'Affiche une courte description lorsque le pointeur s’arrête sur une commande. Le réglage est conservé avec la session.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Banners ─────────────────────────────────────────────────────────────
@@ -184,14 +184,14 @@ export const I18N = Object.freeze({
               b: 'The host negotiated stereo, not the 8\u200A·\u200Achannel rig — what you hear is a fold-down. In Logic, insert via the slot\'s Stereo → 7.1 entry.' },
         fr: { t: 'Mode sécurisé',
               b: 'L’hôte a négocié une sortie stéréo, pas le dispositif à 8\u200A·\u200Acanaux — ce que vous entendez est un repli. Dans Logic, insérez le plugin par l’entrée Stéréo → 7.1 de l’emplacement.',
-              reviewed: false },
+              reviewed: true },
     },
     'map-banner': {
         en: { t: 'Map invalid',
               b: 'A speaker label no longer resolves against the negotiated output set — the reason and the row to fix are printed here. Until fixed, the rig falls back to a raw stereo split.' },
         fr: { t: 'Affectation invalide',
               b: 'Un libellé de haut-parleur ne correspond plus au jeu de sorties négocié — la raison et la ligne à corriger sont indiquées ici. Tant que ce n’est pas corrigé, le dispositif revient à un simple partage stéréo.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'monitor-banner': {
@@ -199,14 +199,14 @@ export const I18N = Object.freeze({
               b: 'Headphone fold of the eight solved feeds into outputs 1\u20112, with the other six muted. Never included in an offline bounce, never remembered across a reload, and switched off when this window closes.' },
         fr: { t: 'Repli de contrôle',
               b: 'Repli casque des huit sorties calculées vers les sorties 1\u20112, les six autres étant coupées. Jamais inclus dans un export hors ligne, jamais conservé au rechargement, et désactivé à la fermeture de cette fenêtre.',
-              reviewed: false },
+              reviewed: true },
     },
     'monitor-toggle': {
         en: { t: 'Monitor on headphones',
               b: 'Fold the eight speaker feeds to a stereo pair so the piece can be heard away from the venue. Position, distance and inter-aural delay come from the measured venue geometry. On the 8‑channel rig this is a listening aid that cannot reach an offline render; on a stereo bus it is on by default, is remembered with the session, and is what the bus outputs.' },
         fr: { t: 'Contrôle au casque',
               b: 'Replie les huit sorties haut-parleur en une paire stéréo pour écouter la pièce hors du lieu. La position, la distance et le retard interaural proviennent de la géométrie mesurée du lieu. Sur le dispositif à 8 canaux, c’est une aide à l’écoute qui ne peut pas atteindre un export hors ligne ; sur un bus stéréo, le repli est actif par défaut, conservé avec la session, et constitue la sortie du bus.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Room plan ───────────────────────────────────────────────────────────
@@ -215,7 +215,7 @@ export const I18N = Object.freeze({
               b: 'Drag to move the source over the plan — writes Source X and Y together. Double-click a knob or slider elsewhere to reset it.' },
         fr: { t: 'Source',
               b: 'Faites glisser pour déplacer la source sur le plan — écrit Source X et Y ensemble. Double-cliquez ailleurs sur un bouton ou un curseur pour le réinitialiser.',
-              reviewed: false },
+              reviewed: true },
     },
     // {n} is a speaker number, substituted literally — not an I18N key. The
     // eight weight cells shared one sentence in the markup and share one entry
@@ -226,7 +226,7 @@ export const I18N = Object.freeze({
               b: 'Speaker {n}’s share of the DBAP solve, 0–1. Double-click the glyph to reassign its physical output; double-click the slider to reset.' },
         fr: { t: 'Poids {n}',
               b: 'Part du haut-parleur {n} dans la résolution DBAP, de 0 à 1. Double-cliquez sur le glyphe pour réaffecter sa sortie physique ; double-cliquez sur le curseur pour réinitialiser.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Position ────────────────────────────────────────────────────────────
@@ -235,28 +235,28 @@ export const I18N = Object.freeze({
               b: 'Left–right position of the source, resolved against the measured speaker bounding box — the metres readout below is live.' },
         fr: { t: 'Source X',
               b: 'Position gauche–droite de la source, rapportée au rectangle englobant mesuré des haut-parleurs — l’affichage en mètres ci-dessous est en temps réel.',
-              reviewed: false },
+              reviewed: true },
     },
     'srcY': {
         en: { t: 'Source Y',
               b: 'Front–back position of the source, resolved against the measured speaker bounding box.' },
         fr: { t: 'Source Y',
               b: 'Position avant–arrière de la source, rapportée au rectangle englobant mesuré des haut-parleurs.',
-              reviewed: false },
+              reviewed: true },
     },
     'srcZ': {
         en: { t: 'Source Z',
               b: 'Source height, −2 to 8 m. Rising toward the speaker plane gets louder and sharper; flying above the array recedes (±6 dB proximity cue). The elevation strip shows it against the rake and the speaker heights — the marker clamps, the numbers never do.' },
         fr: { t: 'Source Z',
               b: 'Hauteur de la source, de −2 à 8 m. En montant vers le plan des haut-parleurs, le son gagne en niveau et en netteté ; en s’élevant au-dessus du dispositif, il s’éloigne (indice de proximité de ±6 dB). La bande d’élévation la situe par rapport à l’inclinaison des gradins et aux hauteurs des haut-parleurs — le repère est borné, jamais les valeurs.',
-              reviewed: false },
+              reviewed: true },
     },
     'width': {
         en: { t: 'Width',
               b: 'Spreads the source into sub-points around its position, up to 12 m apart — wider reads as a broader image across the rig. On stereo material it pulls the L and R feeds to different parts of the room; on mono material, reach for Decorrelate below.' },
         fr: { t: 'Largeur',
               b: 'Répartit la source en points secondaires autour de sa position, jusqu’à 12 m d’écart — plus la valeur est élevée, plus l’image s’élargit sur le dispositif. Sur du matériel stéréo, les voies G et D sont envoyées vers des zones différentes de la salle ; sur du mono, utilisez Décorréler ci-dessous.',
-              reviewed: false },
+              reviewed: true },
     },
     // ── v1.8.0 — the motion engine ──
     'gtab-position': {
@@ -264,91 +264,91 @@ export const I18N = Object.freeze({
               b: 'The anchor: where the source sits, its height and its width. With motion running the anchor is the hollow ghost on the map and the path travels with it.' },
         fr: { t: 'Position',
               b: 'L’ancrage : la position de la source, sa hauteur et sa largeur. Quand le mouvement tourne, l’ancrage est le fantôme creux sur le plan et la trajectoire se déplace avec lui.',
-              reviewed: false },
+              reviewed: true },
     },
     'gtab-motion': {
         en: { t: 'Motion',
               b: 'Generative trajectories around the anchor — orbits, figure-8s, sweeps, a seeded random walk — drawn in venue metres and locked to the host tempo. Switch Motion on and the map draws the trace the source will follow. The dot lights while motion runs.' },
         fr: { t: 'Mouvement',
               b: 'Trajectoires génératives autour de l’ancrage — orbites, huit, balayages, marche aléatoire à graine — tracées en mètres de salle et calées sur le tempo de l’hôte. Activez le mouvement et le plan trace le chemin que suivra la source. Le point s’allume quand le mouvement tourne.',
-              reviewed: false },
+              reviewed: true },
     },
     'motionOn': {
         en: { t: 'Run',
               b: 'Starts the trajectory. Off, the plugin renders exactly as it did before motion existed — bit for bit — and the three position lanes are never written either way: motion is an offset added downstream of them.' },
         fr: { t: 'Marche',
               b: 'Lance la trajectoire. Désactivé, le plugin rend exactement ce qu’il rendait avant l’existence du mouvement — bit pour bit — et les trois pistes de position ne sont jamais écrites dans un cas comme dans l’autre : le mouvement est un décalage ajouté en aval.',
-              reviewed: false },
+              reviewed: true },
     },
     'motionPath': {
         en: { t: 'Path',
               b: 'Orbit (ellipse, Ratio sets the minor axis), Figure-8 (a 1:2 Lissajous), Sweep (a line with a ping-pong fold), Drift (a seeded Perlin walk — no trace, a tail), Pendulum (a single-axis swing) and Spiral (winds in over the first half-cycle, out over the second).' },
         fr: { t: 'Tracé',
               b: 'Orbit (ellipse, Ratio règle le petit axe), Figure-8 (Lissajous 1:2), Sweep (une ligne avec repli aller-retour), Drift (marche de Perlin à graine — pas de trace, une traîne), Pendulum (balancement sur un axe) et Spiral (s’enroule sur la première moitié du cycle, se déroule sur la seconde).',
-              reviewed: false },
+              reviewed: true },
     },
     'motionSync': {
         en: { t: 'Sync',
               b: 'Free runs at the Rate in Hz. A division locks one cycle to the host clock — 1/4 is one cycle per beat, 1 Bar one cycle per four beats (4/4 assumed) — so a bounce is downbeat-aligned and repeatable; with the transport stopped the source rests where playback will resume.' },
         fr: { t: 'Synchro',
               b: 'Le mode Free suit la Vitesse en Hz. Une division cale un cycle sur l’horloge de l’hôte — 1/4 fait un cycle par temps, 1 Bar un cycle par quatre temps (4/4 supposé) — de sorte qu’un export soit aligné sur le temps fort et reproductible ; transport arrêté, la source se pose là où la lecture reprendra.',
-              reviewed: false },
+              reviewed: true },
     },
     'motionRate': {
         en: { t: 'Rate',
               b: 'Cycles per second in Free mode, 0.01 to 4 Hz, centred on 0.3. Ignored while Sync is a tempo division.' },
         fr: { t: 'Vitesse',
               b: 'Cycles par seconde en mode Free, de 0,01 à 4 Hz, centré sur 0,3. Ignoré tant que Synchro est une division du tempo.',
-              reviewed: false },
+              reviewed: true },
     },
     'motionSize': {
         en: { t: 'Size',
               b: 'The path’s extent in venue metres — a 6 m orbit is 6 m across in any hall. It may leave the speaker rig: the hull trim and the rolloff model that honestly, and it is the one gesture no host automation can draw.' },
         fr: { t: 'Taille',
               b: 'L’étendue de la trajectoire en mètres de salle — une orbite de 6 m mesure 6 m de large dans n’importe quelle salle. Elle peut sortir du dispositif de haut-parleurs : l’atténuation hors enveloppe et la décroissance le modélisent honnêtement, et c’est le geste qu’aucune automation d’hôte ne peut dessiner.',
-              reviewed: false },
+              reviewed: true },
     },
     'motionRatio': {
         en: { t: 'Ratio',
               b: 'Minor axis over major, 0 to 1. 1 is a circle; 0 collapses Orbit and Figure-8 onto a line.' },
         fr: { t: 'Ratio',
               b: 'Petit axe sur grand axe, de 0 à 1. 1 donne un cercle ; 0 aplatit Orbit et Figure-8 sur une ligne.',
-              reviewed: false },
+              reviewed: true },
     },
     'motionAngle': {
         en: { t: 'Angle',
               b: 'Rotates the path about the anchor, so a Sweep or a Pendulum can run front-to-back in a portrait room.' },
         fr: { t: 'Angle',
               b: 'Fait pivoter la trajectoire autour de l’ancrage, pour qu’un Sweep ou un Pendulum puisse aller d’avant en arrière dans une salle en longueur.',
-              reviewed: false },
+              reviewed: true },
     },
     'motionHeight': {
         en: { t: 'Height',
               b: 'Vertical amplitude in metres, coupled to the same phase: an orbit tilts into a ring, a figure-8 becomes a lobe. Added to Source Z; the elevation strip shows the live height.' },
         fr: { t: 'Hauteur',
               b: 'Amplitude verticale en mètres, couplée à la même phase : une orbite s’incline en anneau, un huit devient un lobe. Ajoutée à Source Z ; la bande d’élévation montre la hauteur en temps réel.',
-              reviewed: false },
+              reviewed: true },
     },
     'motionPhase': {
         en: { t: 'Phase',
               b: 'Where on the path the cycle starts, in degrees. Offset two instances to stagger them against one beat.' },
         fr: { t: 'Phase',
               b: 'Point de départ du cycle sur la trajectoire, en degrés. Décalez deux instances pour les échelonner sur un même temps.',
-              reviewed: false },
+              reviewed: true },
     },
     'motionSeed': {
         en: { t: 'Seed',
               b: 'Drift only. Picks the wander — shop for a shape, and the preset keeps it. Two bounces of one session are identical.' },
         fr: { t: 'Graine',
               b: 'Drift uniquement. Choisit l’errance — cherchez une forme, le préréglage la conserve. Deux exports d’une même session sont identiques.',
-              reviewed: false },
+              reviewed: true },
     },
     'decorr': {
         en: { t: 'Decorrelate',
               b: 'Makes Width audible on mono material. Width alone moves two IDENTICAL copies of the signal apart in the room, and two identical copies comb rather than widen; this gives each copy its own all-pass network so they share a spectrum but not a phase. Off by default, and inert at Width 0 — where the two feeds land on the same speakers, decorrelating them would only cost you the coherent sum. Expect up to 3 dB less level where the two feeds overlap: that is the combing going away.' },
         fr: { t: 'Décorréler',
               b: 'Rend la Largeur audible sur du matériel mono. La Largeur seule éloigne deux copies IDENTIQUES du signal dans la salle, et deux copies identiques produisent un filtrage en peigne au lieu d’élargir ; ici, chaque copie reçoit son propre réseau passe-tout, de sorte qu’elles partagent le spectre mais pas la phase. Désactivé par défaut, et sans effet à Largeur 0 — là où les deux voies aboutissent aux mêmes haut-parleurs, les décorréler ne ferait que vous coûter la somme cohérente. Attendez-vous à jusqu’à 3 dB de niveau en moins là où les deux voies se recouvrent : c’est le filtrage en peigne qui disparaît.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Solve ───────────────────────────────────────────────────────────────
@@ -358,14 +358,14 @@ export const I18N = Object.freeze({
         fr: { t: 'Décroissance',
               termNote: 'DBAP distance rolloff — a dB-per-doubling attenuation law, not a filter slope; this page has a real filter (Air) and Pente would name that instead',
               b: 'Décroissance DBAP avec la distance, de 3 à 12 dB par doublement de distance. Une valeur élevée concentre fortement l’énergie sur les haut-parleurs les plus proches ; une valeur faible la répartit sur tout le dispositif.',
-              reviewed: false },
+              reviewed: true },
     },
     'blur': {
         en: { t: 'Blur',
               b: 'Softens the distance differences the solve sees — full blur washes the source across the whole array. Scaled with the rig, not in metres, so a patch means the same thing in a club and a hall.' },
         fr: { t: 'Flou',
               b: 'Adoucit les écarts de distance que voit la résolution — au maximum, la source se répand sur tout le dispositif. La valeur suit l’échelle du dispositif et non des mètres, si bien qu’un réglage a le même sens dans un club et dans une grande salle.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Space ───────────────────────────────────────────────────────────────
@@ -374,14 +374,14 @@ export const I18N = Object.freeze({
               b: 'How strongly the source fades as it crosses outside the speaker hull.' },
         fr: { t: 'Atténuation hors enveloppe',
               b: 'Détermine l’intensité avec laquelle la source s’efface lorsqu’elle sort de l’enveloppe des haut-parleurs.',
-              reviewed: false },
+              reviewed: true },
     },
     'airAmount': {
         en: { t: 'Air',
               b: 'Distance air filter — high frequencies fall away as the source sits farther from the array, with the cutoff derived from the venue geometry.' },
         fr: { t: 'Air',
               b: 'Filtre d’air lié à la distance — les aigus s’estompent à mesure que la source s’éloigne du dispositif, la fréquence de coupure étant déduite de la géométrie du lieu.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Output ──────────────────────────────────────────────────────────────
@@ -390,7 +390,7 @@ export const I18N = Object.freeze({
               b: 'Master trim for all eight channels.' },
         fr: { t: 'Sortie',
               b: 'Réglage général de niveau pour les huit canaux.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Scenes ──────────────────────────────────────────────────────────────
@@ -399,49 +399,49 @@ export const I18N = Object.freeze({
               b: 'Arm, then click a U slot to capture the current eight weights into it. Disarms after one capture.' },
         fr: { t: 'Mémoriser',
               b: 'Armez, puis cliquez sur un emplacement U pour y enregistrer les huit poids actuels. Se désarme après une seule capture.',
-              reviewed: false },
+              reviewed: true },
     },
     'scene-all': {
         en: { t: 'All',
               b: 'All eight speakers at full weight.' },
         fr: { t: 'Tous',
               b: 'Les huit haut-parleurs à poids maximal.',
-              reviewed: false },
+              reviewed: true },
     },
     'scene-front': {
         en: { t: 'Front',
               b: 'The front speakers only — membership is derived from the measured geometry, not from fixed slot numbers.' },
         fr: { t: 'Avant',
               b: 'Les haut-parleurs avant uniquement — l’appartenance est déduite de la géométrie mesurée, et non de numéros d’emplacement fixes.',
-              reviewed: false },
+              reviewed: true },
     },
     'scene-rear': {
         en: { t: 'Rear',
               b: 'The rear speakers only, derived from the measured geometry.' },
         fr: { t: 'Arrière',
               b: 'Les haut-parleurs arrière uniquement, déduits de la géométrie mesurée.',
-              reviewed: false },
+              reviewed: true },
     },
     'scene-left': {
         en: { t: 'Left',
               b: 'The left-side speakers only, derived from the measured geometry.' },
         fr: { t: 'Gauche',
               b: 'Les haut-parleurs du côté gauche uniquement, déduits de la géométrie mesurée.',
-              reviewed: false },
+              reviewed: true },
     },
     'scene-right': {
         en: { t: 'Right',
               b: 'The right-side speakers only, derived from the measured geometry.' },
         fr: { t: 'Droite',
               b: 'Les haut-parleurs du côté droit uniquement, déduits de la géométrie mesurée.',
-              reviewed: false },
+              reviewed: true },
     },
     'scene-sides': {
         en: { t: 'Sides',
               b: 'The side speakers only, derived from the measured geometry.' },
         fr: { t: 'Côtés',
               b: 'Les haut-parleurs latéraux uniquement, déduits de la géométrie mesurée.',
-              reviewed: false },
+              reviewed: true },
     },
     // {n} is a slot number, substituted literally. The body names the STORE
     // button by the face the reader can actually see, which since the LABELS
@@ -453,7 +453,7 @@ export const I18N = Object.freeze({
               b: 'Click to recall this stored weight scene. Arm STORE first to capture the current weights into it.' },
         fr: { t: 'Scène utilisateur {n}',
               b: 'Cliquez pour rappeler cette scène de poids enregistrée. Armez d’abord MÉM. pour y enregistrer les poids actuels.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Elevation strip ─────────────────────────────────────────────────────
@@ -462,7 +462,7 @@ export const I18N = Object.freeze({
               b: 'The room side-on — rake line, speaker heights and the source marker. Ear is the listener height under the source; Source is its absolute height.' },
         fr: { t: 'Élévation',
               b: 'La salle vue de côté — ligne d’inclinaison des gradins, hauteurs des haut-parleurs et repère de la source. « Oreille » est la hauteur d’écoute sous la source ; « Source » est sa hauteur absolue.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Venue screen ────────────────────────────────────────────────────────
@@ -471,105 +471,105 @@ export const I18N = Object.freeze({
               b: 'Audience rake — ear height at the front and rear of the seating. Heights between are interpolated along the room depth.' },
         fr: { t: 'Inclinaison',
               b: 'Inclinaison des gradins — hauteur d’oreille à l’avant et à l’arrière du public. Les hauteurs intermédiaires sont interpolées sur la profondeur de la salle.',
-              reviewed: false },
+              reviewed: true },
     },
     'delay': {
         en: { t: 'Alignment delay',
               b: 'Per-speaker delay that time-aligns arrivals at one seat. Derive fills all eight from the measured distances; every value stays editable afterwards.' },
         fr: { t: 'Retard d’alignement',
               b: 'Retard par haut-parleur qui aligne temporellement les arrivées à une place donnée. « Calculer » remplit les huit valeurs à partir des distances mesurées ; chaque valeur reste modifiable ensuite.',
-              reviewed: false },
+              reviewed: true },
     },
     'delay-unit': {
         en: { t: 'Delay unit',
               b: 'Show the Delay column in milliseconds or in metres of path difference. Values are stored as milliseconds either way.' },
         fr: { t: 'Unité de retard',
               b: 'Affiche la colonne Retard en millisecondes ou en mètres de différence de trajet. Les valeurs sont enregistrées en millisecondes dans les deux cas.',
-              reviewed: false },
+              reviewed: true },
     },
     'delay-derive': {
         en: { t: 'Derive delays',
               b: 'Fill all eight delays to time-align arrivals at the centre of the array, at the ear height the rake gives that depth. The farthest speaker gets zero. Every value stays editable afterwards.' },
         fr: { t: 'Calculer les retards',
               b: 'Remplit les huit retards afin d’aligner temporellement les arrivées au centre du dispositif, à la hauteur d’oreille que l’inclinaison donne à cette profondeur. Le haut-parleur le plus éloigné reçoit zéro. Chaque valeur reste modifiable ensuite.',
-              reviewed: false },
+              reviewed: true },
     },
     'output-set': {
         en: { t: 'Output set',
               b: 'The surround format the host negotiated — speaker labels must resolve against it.' },
         fr: { t: 'Jeu de sorties',
               b: 'Le format surround négocié par l’hôte — les libellés des haut-parleurs doivent y correspondre.',
-              reviewed: false },
+              reviewed: true },
     },
     'venue-save': {
         en: { t: 'Save venue',
               b: 'Write the 42 measured values to a .venue file — independent of musical presets.' },
         fr: { t: 'Enregistrer le lieu',
               b: 'Écrit les 42 valeurs mesurées dans un fichier .venue — indépendant des préréglages musicaux.',
-              reviewed: false },
+              reviewed: true },
     },
     'venue-load': {
         en: { t: 'Load venue',
               b: 'Load a .venue file. Rejected if its labels do not resolve against the negotiated output set.' },
         fr: { t: 'Charger un lieu',
               b: 'Charge un fichier .venue. Refusé si ses libellés ne correspondent pas au jeu de sorties négocié.',
-              reviewed: false },
+              reviewed: true },
     },
     'preset-list': {
         en: { t: 'Preset',
               b: 'Musical presets carry the 28 parameters and the four user scenes — never the 42 measured venue values.' },
         fr: { t: 'Préréglage',
               b: 'Les préréglages musicaux contiennent les 28 paramètres et les quatre scènes utilisateur — jamais les 42 valeurs mesurées du lieu.',
-              reviewed: false },
+              reviewed: true },
     },
     'preset-save': {
         en: { t: 'Save preset',
               b: 'Save the current parameters and user scenes as a preset.' },
         fr: { t: 'Enregistrer le préréglage',
               b: 'Enregistre les paramètres et les scènes utilisateur actuels sous forme de préréglage.',
-              reviewed: false },
+              reviewed: true },
     },
     'preset-load': {
         en: { t: 'Load preset',
               b: 'Load the selected preset. The venue is untouched.' },
         fr: { t: 'Charger un préréglage',
               b: 'Charge le préréglage sélectionné. Le lieu n’est pas modifié.',
-              reviewed: false },
+              reviewed: true },
     },
     'oo-direct': {
         en: { t: 'Direct 1–8',
               b: 'Wire speaker n to physical output n under the measured CoreAudio device order — the one-click fix for a rig cabled 1–8.' },
         fr: { t: 'Direct 1–8',
               b: 'Relie le haut-parleur n à la sortie physique n selon l’ordre de périphérique CoreAudio mesuré — la correction en un clic pour un dispositif câblé de 1 à 8.',
-              reviewed: false },
+              reviewed: true },
     },
     'oo-roles': {
         en: { t: 'Roles',
               b: 'Restore the factory surround-role labels.' },
         fr: { t: 'Rôles',
               b: 'Rétablit les libellés de rôles surround d’usine.',
-              reviewed: false },
+              reviewed: true },
     },
     'ping-grid': {
         en: { t: 'Verify ping',
               b: 'Sound a confirmation ping from one speaker. The lit number is what the plugin reports playing — never a timer.' },
         fr: { t: 'Ping de vérification',
               b: 'Émet un ping de confirmation depuis un haut-parleur. Le numéro allumé est celui que le plugin déclare en train de jouer — jamais une minuterie.',
-              reviewed: false },
+              reviewed: true },
     },
     'ping-auto': {
         en: { t: 'Auto ping',
               b: 'Step the ping around all eight speakers in order.' },
         fr: { t: 'Ping automatique',
               b: 'Fait passer le ping successivement sur les huit haut-parleurs, dans l’ordre.',
-              reviewed: false },
+              reviewed: true },
     },
     'ping-stop': {
         en: { t: 'Stop',
               b: 'Stop the ping.' },
         fr: { t: 'Arrêter',
               b: 'Arrête le ping.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Footer readouts ─────────────────────────────────────────────────────
@@ -578,14 +578,14 @@ export const I18N = Object.freeze({
               b: 'The source position in metres, resolved against the live venue geometry.' },
         fr: { t: 'Source',
               b: 'La position de la source en mètres, rapportée à la géométrie du lieu en temps réel.',
-              reviewed: false },
+              reviewed: true },
     },
     'readout-envelope': {
         en: { t: 'Envelope',
               b: 'The drawn plan extent in metres — the speaker bounding box plus its margin.' },
         fr: { t: 'Enveloppe',
               b: 'L’étendue du plan dessiné en mètres — le rectangle englobant des haut-parleurs augmenté de sa marge.',
-              reviewed: false },
+              reviewed: true },
     },
 });
 
@@ -667,8 +667,8 @@ export const LABELS = Object.freeze({
     // ── Header ──────────────────────────────────────────────────────────────
     // The product name itself is I18N_EXEMPT; only the strapline is localized.
     'label.subtitle':    { en: { t: 'Eight · Channel DBAP' },
-                           fr: { t: 'DBAP · Huit canaux', reviewed: false } },
-    'aria.screens':      { en: { t: 'Screen' },  fr: { t: 'Écran', reviewed: false } },
+                           fr: { t: 'DBAP · Huit canaux', reviewed: true } },
+    'aria.screens':      { en: { t: 'Screen' },  fr: { t: 'Écran', reviewed: true } },
 
     // ── Settings popover ────────────────────────────────────────────────────
     // 'lang-select', 'tips-toggle' and 'settings' come from I18N through
@@ -676,18 +676,18 @@ export const LABELS = Object.freeze({
     // languages. The two BUTTON faces do not — a tip title of "Hover help"
     // is not the word printed on the On button.
     'aria.lang-select':  { en: { t: 'Hover help language' },
-                           fr: { t: 'Langue de l’aide au survol', reviewed: false } },
-    'label.on':          { en: { t: 'On' },  fr: { t: 'Marche', reviewed: false } },
-    'label.off':         { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: false } },
+                           fr: { t: 'Langue de l’aide au survol', reviewed: true } },
+    'label.on':          { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true } },
+    'label.off':         { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: true } },
 
     // ── The three frame banners ─────────────────────────────────────────────
     // The TAGS are small-caps badges in a fixed-width slot, so each French tag
     // was chosen to sit inside the English one's box wherever it could.
-    'label.safe-tag':    { en: { t: 'SAFE' },    fr: { t: 'REPLI',    reviewed: false } },
+    'label.safe-tag':    { en: { t: 'SAFE' },    fr: { t: 'REPLI',    reviewed: true } },
     'label.safe-copy':   { en: { t: 'Stereo fold — not the 8 · channel rig' },
-                           fr: { t: 'Repli stéréo — pas le dispositif à 8 · canaux', reviewed: false } },
-    'label.map-tag':     { en: { t: 'MAP' },     fr: { t: 'AFFECT.',  reviewed: false } },
-    'label.monitor-tag': { en: { t: 'MONITOR' }, fr: { t: 'CONTRÔLE', reviewed: false } },
+                           fr: { t: 'Repli stéréo — pas le dispositif à 8 · canaux', reviewed: true } },
+    'label.map-tag':     { en: { t: 'MAP' },     fr: { t: 'AFFECT.',  reviewed: true } },
+    'label.monitor-tag': { en: { t: 'MONITOR' }, fr: { t: 'CONTRÔLE', reviewed: true } },
 
     // The MAP banner's copy half. C++ sends a REASON CODE, never prose — see
     // MAP_REASON_COPY's replacement in app.js — so each code gets two entries:
@@ -696,38 +696,38 @@ export const LABELS = Object.freeze({
     // instead of engineering it, and because assertion 13 rejects the ternary
     // that a single key would need at its call site.
     'map.notEightChannels':     { en: { t: 'output set is not 8 channels' },
-                                  fr: { t: 'le jeu de sorties n’a pas 8 canaux', reviewed: false } },
+                                  fr: { t: 'le jeu de sorties n’a pas 8 canaux', reviewed: true } },
     'map.notEightChannels.spk': { en: { t: 'output set is not 8 channels — speaker {n}' },
-                                  fr: { t: 'le jeu de sorties n’a pas 8 canaux — haut-parleur {n}', reviewed: false } },
+                                  fr: { t: 'le jeu de sorties n’a pas 8 canaux — haut-parleur {n}', reviewed: true } },
     'map.labelNotInSet':        { en: { t: 'label not in the negotiated set' },
-                                  fr: { t: 'libellé absent du jeu négocié', reviewed: false } },
+                                  fr: { t: 'libellé absent du jeu négocié', reviewed: true } },
     'map.labelNotInSet.spk':    { en: { t: 'label not in the negotiated set — speaker {n}' },
-                                  fr: { t: 'libellé absent du jeu négocié — haut-parleur {n}', reviewed: false } },
+                                  fr: { t: 'libellé absent du jeu négocié — haut-parleur {n}', reviewed: true } },
     'map.duplicateLabel':       { en: { t: 'duplicate label' },
-                                  fr: { t: 'libellé en double', reviewed: false } },
+                                  fr: { t: 'libellé en double', reviewed: true } },
     'map.duplicateLabel.spk':   { en: { t: 'duplicate label — speaker {n}' },
-                                  fr: { t: 'libellé en double — haut-parleur {n}', reviewed: false } },
+                                  fr: { t: 'libellé en double — haut-parleur {n}', reviewed: true } },
 
     // The MONITOR banner's copy half and the Venue rail's state line. Both are
     // written by renderMonitor() through setLabel(), so the language sweep owns
     // them: through v1.8.0 they were JS literals, which would have left the
     // banner stranded in English the instant the selector fired mid-fold.
     'monitor.folding':     { en: { t: 'Headphone fold — rig outputs muted' },
-                             fr: { t: 'Repli casque — sorties du dispositif coupées', reviewed: false } },
+                             fr: { t: 'Repli casque — sorties du dispositif coupées', reviewed: true } },
     // WIDTH, and it is the widest string on the whole page. The full form
     // "Désactivé pour l’export hors ligne — l’export est propre" measures
     // 370.8 px against the English 311.2, which puts the banner at 461.7 in a
     // 1100 px header that already carries the title, the tab pair and the gear.
     // Shortened ONCE, here, in the table — never chosen at runtime (D-04).
     'monitor.suppressed':  { en: { t: 'Suppressed for offline render — bounce is clean' },
-                             fr: { t: 'Désactivé hors ligne — l’export est propre', reviewed: false } },
+                             fr: { t: 'Désactivé hors ligne — l’export est propre', reviewed: true } },
     'monitor.unavailable': { en: { t: 'unavailable on this output' },
-                             fr: { t: 'indisponible sur cette sortie', reviewed: false } },
+                             fr: { t: 'indisponible sur cette sortie', reviewed: true } },
     'monitor.armed':       { en: { t: 'armed — suppressed offline' },
-                             fr: { t: 'armé — désactivé hors ligne', reviewed: false } },
+                             fr: { t: 'armé — désactivé hors ligne', reviewed: true } },
     'monitor.folding.rail':{ en: { t: 'folding to outputs 1–2' },
-                             fr: { t: 'repli vers les sorties 1–2', reviewed: false } },
-    'monitor.off':         { en: { t: 'off' }, fr: { t: 'désactivé', reviewed: false } },
+                             fr: { t: 'repli vers les sorties 1–2', reviewed: true } },
+    'monitor.off':         { en: { t: 'off' }, fr: { t: 'désactivé', reviewed: true } },
 
     // v1.11.0 — the stereo-bus binaural arm. The banner's copy half and the
     // rail line, through the same renderMonitor() / setLabel() path.
@@ -735,33 +735,33 @@ export const LABELS = Object.freeze({
     // the gear, and check-ui-labels measured the long form ("Repli binaural du dispositif à
     // 8 · canaux — bus stéréo", 358 px) crossing the 1100 px frame. Shortened ONCE, here.
     'monitor.binaural':    { en: { t: 'Binaural fold — stereo bus, not the rig' },
-                             fr: { t: 'Repli binaural — bus stéréo, pas le dispositif', reviewed: false } },
+                             fr: { t: 'Repli binaural — bus stéréo, pas le dispositif', reviewed: true } },
     'monitor.binaural.rail':{ en: { t: 'binaural on the stereo bus' },
-                             fr: { t: 'binaural sur le bus stéréo', reviewed: false } },
+                             fr: { t: 'binaural sur le bus stéréo', reviewed: true } },
 
     // ── Room screen: the plan, the puck, the weights ────────────────────────
     'aria.puck':         { en: { t: 'Source position' },
-                           fr: { t: 'Position de la source', reviewed: false } },
+                           fr: { t: 'Position de la source', reviewed: true } },
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].flatMap((n) => [
         [`aria.w${n}`, { en: { t: `Weight ${n}` },
-                         fr: { t: `Poids ${n}`, reviewed: false } }],
+                         fr: { t: `Poids ${n}`, reviewed: true } }],
     ])),
 
     // The speaker→output popover.
-    'label.speaker':     { en: { t: 'Speaker' },  fr: { t: 'H.-parleur', reviewed: false } },
+    'label.speaker':     { en: { t: 'Speaker' },  fr: { t: 'H.-parleur', reviewed: true } },
     // WIDTH: the caption sits in a 3-part title line inside a 168 px popover;
     // "Haut-parleur" is the correct full form and is used everywhere it fits.
-    'label.to-output':   { en: { t: '→ output' }, fr: { t: '→ sortie', reviewed: false } },
+    'label.to-output':   { en: { t: '→ output' }, fr: { t: '→ sortie', reviewed: true } },
     'label.out-pop-note':{ en: { t: 'CoreAudio order · confirm with ping' },
-                           fr: { t: 'Ordre CoreAudio · à confirmer par le ping', reviewed: false } },
+                           fr: { t: 'Ordre CoreAudio · à confirmer par le ping', reviewed: true } },
 
     // The plan caption. "Plan" is the same word in both languages.
-    'label.plan':        { en: { t: 'Plan' },  fr: { t: 'Plan', sameAsEn: true, reviewed: false } },
-    'label.field':       { en: { t: 'Field' }, fr: { t: 'Champ', reviewed: false } },
+    'label.plan':        { en: { t: 'Plan' },  fr: { t: 'Plan', sameAsEn: true, reviewed: true } },
+    'label.field':       { en: { t: 'Field' }, fr: { t: 'Champ', reviewed: true } },
 
     // ── Controls column ─────────────────────────────────────────────────────
     'aria.gtabs':        { en: { t: 'Position or Motion' },
-                           fr: { t: 'Position ou mouvement', reviewed: false } },
+                           fr: { t: 'Position ou mouvement', reviewed: true } },
     // 'gtab-position', 'gtab-motion', 'srcX', 'srcY', 'srcZ', 'width',
     // 'decorr', 'motionOn', 'motionPath', 'motionSync', 'motionRate',
     // 'motionSize', 'motionRatio', 'motionAngle', 'motionHeight',
@@ -776,7 +776,7 @@ export const LABELS = Object.freeze({
     // caption and the aria-label (which reads that title) are one name; the
     // entry stays separate only so a tooltip edit cannot resize the cell.
     'label.rolloff':     { en: { t: 'Rolloff' },
-                           fr: { t: 'Décroissance', reviewed: false,
+                           fr: { t: 'Décroissance', reviewed: true,
                                  termNote: 'DBAP distance rolloff — a dB-per-doubling attenuation law, not a filter slope; this page has a real filter (Air) and Pente would name that instead' } },
     // THE REUSE RULE, applied. "Trajectoire" is right for a sentence and
     // measures 66.73 px in a caption track that reaches 52 even after v1.8.0
@@ -789,91 +789,91 @@ export const LABELS = Object.freeze({
     // constraint and the better French agree, which is the only kind of
     // width-driven wording that should not worry a reviewer. Same shape as
     // Stage F's "Suivi tonal", and it is recorded here for the same reason. */
-    'label.motionPath':  { en: { t: 'Path' },       fr: { t: 'Tracé', reviewed: false } },
+    'label.motionPath':  { en: { t: 'Path' },       fr: { t: 'Tracé', reviewed: true } },
     // The tip title is the full "Hull attenuation"; the cell carries the
     // abbreviation the English markup already used.
-    'label.hullAtten':   { en: { t: 'Hull Atten' }, fr: { t: 'Att. env.', reviewed: false } },
+    'label.hullAtten':   { en: { t: 'Hull Atten' }, fr: { t: 'Att. env.', reviewed: true } },
     'aria.hullAtten':    { en: { t: 'Hull Atten' },
-                           fr: { t: 'Atténuation hors enveloppe', reviewed: false } },
+                           fr: { t: 'Atténuation hors enveloppe', reviewed: true } },
 
     // Group headings. None of these has a tooltip of its own.
-    'label.group.solve':   { en: { t: 'Solve' },    fr: { t: 'Calcul', reviewed: false } },
-    'label.group.space':   { en: { t: 'Space' },    fr: { t: 'Espace', reviewed: false } },
-    'label.group.output':  { en: { t: 'Output' },   fr: { t: 'Sortie', reviewed: false } },
-    'label.group.scenes':  { en: { t: 'Scenes' },   fr: { t: 'Scènes', reviewed: false } },
+    'label.group.solve':   { en: { t: 'Solve' },    fr: { t: 'Calcul', reviewed: true } },
+    'label.group.space':   { en: { t: 'Space' },    fr: { t: 'Espace', reviewed: true } },
+    'label.group.output':  { en: { t: 'Output' },   fr: { t: 'Sortie', reviewed: true } },
+    'label.group.scenes':  { en: { t: 'Scenes' },   fr: { t: 'Scènes', reviewed: true } },
 
     // ── Scenes row ──────────────────────────────────────────────────────────
     // UPPERCASE IS AUTHORED, not a text-transform: these seven captions are the
     // literal strings §36 of ui_frontend_check greps for as `>ALL<`, so the
     // French halves are authored uppercase too rather than relying on CSS that
     // is not there.
-    'aria.scene-store':  { en: { t: 'Arm store' },     fr: { t: 'Armer la mémorisation', reviewed: false } },
-    'aria.scene-row':    { en: { t: 'Weight scenes' }, fr: { t: 'Scènes de poids', reviewed: false } },
-    'label.store':       { en: { t: 'STORE' }, fr: { t: 'MÉM.',   reviewed: false } },
-    'label.all':         { en: { t: 'ALL' },   fr: { t: 'TOUS',   reviewed: false } },
-    'label.front':       { en: { t: 'FRONT' }, fr: { t: 'AVANT',  reviewed: false } },
-    'label.rear':        { en: { t: 'REAR' },  fr: { t: 'ARR.',   reviewed: false } },
-    'label.left':        { en: { t: 'LEFT' },  fr: { t: 'GAUCHE', reviewed: false } },
-    'label.right':       { en: { t: 'RIGHT' }, fr: { t: 'DROITE', reviewed: false } },
-    'label.sides':       { en: { t: 'SIDES' }, fr: { t: 'CÔTÉS',  reviewed: false } },
+    'aria.scene-store':  { en: { t: 'Arm store' },     fr: { t: 'Armer la mémorisation', reviewed: true } },
+    'aria.scene-row':    { en: { t: 'Weight scenes' }, fr: { t: 'Scènes de poids', reviewed: true } },
+    'label.store':       { en: { t: 'STORE' }, fr: { t: 'MÉM.',   reviewed: true } },
+    'label.all':         { en: { t: 'ALL' },   fr: { t: 'TOUS',   reviewed: true } },
+    'label.front':       { en: { t: 'FRONT' }, fr: { t: 'AVANT',  reviewed: true } },
+    'label.rear':        { en: { t: 'REAR' },  fr: { t: 'ARR.',   reviewed: true } },
+    'label.left':        { en: { t: 'LEFT' },  fr: { t: 'GAUCHE', reviewed: true } },
+    'label.right':       { en: { t: 'RIGHT' }, fr: { t: 'DROITE', reviewed: true } },
+    'label.sides':       { en: { t: 'SIDES' }, fr: { t: 'CÔTÉS',  reviewed: true } },
 
     // ── Elevation strip ─────────────────────────────────────────────────────
-    'label.ear':         { en: { t: 'Ear' },    fr: { t: 'Oreille', reviewed: false } },
-    'label.source':      { en: { t: 'Source' }, fr: { t: 'Source', sameAsEn: true, reviewed: false } },
-    'label.envelope':    { en: { t: 'Envelope' }, fr: { t: 'Enveloppe', reviewed: false } },
+    'label.ear':         { en: { t: 'Ear' },    fr: { t: 'Oreille', reviewed: true } },
+    'label.source':      { en: { t: 'Source' }, fr: { t: 'Source', sameAsEn: true, reviewed: true } },
+    'label.envelope':    { en: { t: 'Envelope' }, fr: { t: 'Enveloppe', reviewed: true } },
 
     // ── Venue screen: the table head ────────────────────────────────────────
-    'label.vcol.label':  { en: { t: 'Label' },   fr: { t: 'Libellé', reviewed: false } },
-    'label.vcol.trim':   { en: { t: 'Trim dB' }, fr: { t: 'Corr. dB', reviewed: false } },
+    'label.vcol.label':  { en: { t: 'Label' },   fr: { t: 'Libellé', reviewed: true } },
+    'label.vcol.trim':   { en: { t: 'Trim dB' }, fr: { t: 'Corr. dB', reviewed: true } },
     // SPLIT OUT OF ITS <th>. The header cell holds this caption AND the
     // #vcol-delay-unit value span, so the caption needed its own leaf: a keyed
     // element with element children would have its siblings deleted by
     // applyLabel's textContent write. §6 of ui_frontend_check asserts the split.
     'label.vcol.delay':  { en: { t: 'Delay' },
-                           fr: { t: 'Retard', reviewed: false,
+                           fr: { t: 'Retard', reviewed: true,
                                  termNote: 'loudspeaker alignment delay, not the effect — the glossary names this plugin as the case' } },
-    'label.vcol.class':  { en: { t: 'Class' },   fr: { t: 'Classe', reviewed: false } },
+    'label.vcol.class':  { en: { t: 'Class' },   fr: { t: 'Classe', reviewed: true } },
 
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].flatMap((n) => [
         [`aria.spk${n}.label`, { en: { t: `Speaker ${n} channel label` },
-                                 fr: { t: `Libellé de canal du haut-parleur ${n}`, reviewed: false } }],
+                                 fr: { t: `Libellé de canal du haut-parleur ${n}`, reviewed: true } }],
         [`aria.spk${n}.x`,     { en: { t: `Speaker ${n} X metres` },
-                                 fr: { t: `Haut-parleur ${n}, X en mètres`, reviewed: false } }],
+                                 fr: { t: `Haut-parleur ${n}, X en mètres`, reviewed: true } }],
         [`aria.spk${n}.y`,     { en: { t: `Speaker ${n} Y metres` },
-                                 fr: { t: `Haut-parleur ${n}, Y en mètres`, reviewed: false } }],
+                                 fr: { t: `Haut-parleur ${n}, Y en mètres`, reviewed: true } }],
         [`aria.spk${n}.z`,     { en: { t: `Speaker ${n} Z metres` },
-                                 fr: { t: `Haut-parleur ${n}, Z en mètres`, reviewed: false } }],
+                                 fr: { t: `Haut-parleur ${n}, Z en mètres`, reviewed: true } }],
         [`aria.spk${n}.trim`,  { en: { t: `Speaker ${n} trim dB` },
-                                 fr: { t: `Haut-parleur ${n}, correction en dB`, reviewed: false } }],
+                                 fr: { t: `Haut-parleur ${n}, correction en dB`, reviewed: true } }],
         [`aria.spk${n}.delay`, { en: { t: `Speaker ${n} alignment delay` },
-                                 fr: { t: `Haut-parleur ${n}, retard d’alignement`, reviewed: false } }],
+                                 fr: { t: `Haut-parleur ${n}, retard d’alignement`, reviewed: true } }],
     ])),
 
     // ── Venue screen: the rail ──────────────────────────────────────────────
     'aria.rake-front':   { en: { t: 'Rake front metres' },
-                           fr: { t: 'Inclinaison, avant en mètres', reviewed: false } },
+                           fr: { t: 'Inclinaison, avant en mètres', reviewed: true } },
     'aria.rake-rear':    { en: { t: 'Rake rear metres' },
-                           fr: { t: 'Inclinaison, arrière en mètres', reviewed: false } },
+                           fr: { t: 'Inclinaison, arrière en mètres', reviewed: true } },
     // The rake row's two keys are Title Case where the scenes row is uppercase,
     // and they are different words in French too, so they are separate keys.
-    'label.rake-front':  { en: { t: 'Front' }, fr: { t: 'Avant',   reviewed: false } },
-    'label.rake-rear':   { en: { t: 'Rear' },  fr: { t: 'Arrière', reviewed: false } },
+    'label.rake-front':  { en: { t: 'Front' }, fr: { t: 'Avant',   reviewed: true } },
+    'label.rake-rear':   { en: { t: 'Rear' },  fr: { t: 'Arrière', reviewed: true } },
     // The tip title is the full "Alignment delay"; the rail caption is short.
     'label.delay':       { en: { t: 'Delay' },
-                           fr: { t: 'Retard', reviewed: false,
+                           fr: { t: 'Retard', reviewed: true,
                                  termNote: 'loudspeaker alignment delay, not the effect — the glossary names this plugin as the case' } },
-    'label.derive':      { en: { t: 'Derive' }, fr: { t: 'Calculer', reviewed: false } },
+    'label.derive':      { en: { t: 'Derive' }, fr: { t: 'Calculer', reviewed: true } },
     // The tip title is "Output set"; the caption is the one word.
-    'label.set':         { en: { t: 'Set' },    fr: { t: 'Jeu', reviewed: false } },
+    'label.set':         { en: { t: 'Set' },    fr: { t: 'Jeu', reviewed: true } },
 
     'label.group.venue-file':   { en: { t: 'Venue file' },
-                                  fr: { t: 'Fichier de lieu', reviewed: false } },
-    'label.group.preset':       { en: { t: 'Preset' },  fr: { t: 'Préréglage', reviewed: false } },
+                                  fr: { t: 'Fichier de lieu', reviewed: true } },
+    'label.group.preset':       { en: { t: 'Preset' },  fr: { t: 'Préréglage', reviewed: true } },
     'label.group.output-order': { en: { t: 'Output order' },
-                                  fr: { t: 'Ordre des sorties', reviewed: false } },
+                                  fr: { t: 'Ordre des sorties', reviewed: true } },
     'label.group.ping':         { en: { t: 'Ping' },
-                                  fr: { t: 'Ping', sameAsEn: true, reviewed: false } },
-    'label.group.monitor':      { en: { t: 'Monitor' }, fr: { t: 'Contrôle', reviewed: false } },
+                                  fr: { t: 'Ping', sameAsEn: true, reviewed: true } },
+    'label.group.monitor':      { en: { t: 'Monitor' }, fr: { t: 'Contrôle', reviewed: true } },
 
     // RE-MEASURED at Stage N, and the v1.9.0 defence above it did not hold. The
     // venue and preset rows are 278 px, each .vbtn is 133 px border-box with a
@@ -883,16 +883,16 @@ export const LABELS = Object.freeze({
     // "Charger un préréglage"), which "Enreg." and "Ouvrir" were not.
     // Three sibling plugins still ship the abbreviations; converging them is a
     // suite decision, recorded in the Stage N report rather than taken here.
-    'label.save':        { en: { t: 'Save' },   fr: { t: 'Enregistrer', reviewed: false } },
-    'label.load':        { en: { t: 'Load' },   fr: { t: 'Charger', reviewed: false } },
-    'label.auto':        { en: { t: 'Auto' },   fr: { t: 'Auto', sameAsEn: true, reviewed: false } },
-    'label.headphones':  { en: { t: 'Headphones' }, fr: { t: 'Casque', reviewed: false } },
+    'label.save':        { en: { t: 'Save' },   fr: { t: 'Enregistrer', reviewed: true } },
+    'label.load':        { en: { t: 'Load' },   fr: { t: 'Charger', reviewed: true } },
+    'label.auto':        { en: { t: 'Auto' },   fr: { t: 'Auto', sameAsEn: true, reviewed: true } },
+    'label.headphones':  { en: { t: 'Headphones' }, fr: { t: 'Casque', reviewed: true } },
 
     // The output-order advisory line, written by venue.js on the completion of
     // applyOutputOrderPreset. Localized through window.__setLabel for the same
     // reason the monitor line is: an English literal here is stranded English.
-    'oo.direct':         { en: { t: 'direct 1–8' }, fr: { t: 'direct 1–8', sameAsEn: true, reviewed: false } },
-    'oo.roles':          { en: { t: 'roles' },   fr: { t: 'rôles', reviewed: false } },
+    'oo.direct':         { en: { t: 'direct 1–8' }, fr: { t: 'direct 1–8', sameAsEn: true, reviewed: true } },
+    'oo.roles':          { en: { t: 'roles' },   fr: { t: 'rôles', reviewed: true } },
 });
 
 // ============================================================================
