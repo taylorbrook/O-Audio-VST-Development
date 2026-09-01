@@ -865,9 +865,31 @@ body::after {
     outline-offset: 1px;
 }
 
-/* min-width covers the widest of the four faces across both languages —
-   On / Off / Oui / Non — so switching either the state or the language cannot
-   resize the row. */
+/* v1.7.1 CORRECTS THIS NOTE. It used to read "min-width covers the widest of
+   the four faces across both languages — On / Off / Oui / Non — so switching
+   either the state or the language cannot resize the row."
+
+   Two of those four faces no longer exist. The Stage N French review replaced
+   Oui / Non with the glossary's Activée / Désactivée, because On/Off on a
+   hover-help switch is a FEATURE state and not a power state. Measured as
+   rendered in this element at the shipping 700x500 frame:
+
+       Off  40.00   On  40.00   Activée  49.09   Désactivée  61.88
+
+   so 40px no longer covers the widest face and THE BUTTON DOES RESIZE when the
+   state or the language changes.
+
+   THE ROW STILL DOES NOT, and that is the half of the old claim that survives:
+   .settings-popover holds at its 168px min-width, so #lang-select and the left
+   edge of each .settings-row stay put (measured identical across all four
+   faces), and the button grows leftward into the 12px gap. Worst case is the
+   French OFF face beside the French caption — 65.89 + 12 + 61.88 = 139.77
+   against 148px of content width, leaving 8.23px of slack. check-ui-labels
+   reports zero non-label elements moved across all four states.
+
+   Restoring the original invariant would mean widening this pin to ~62px.
+   That is a CSS RULE change, which Stage N does not make; it is left as the
+   developer's call. */
 .settings-toggle {
     min-width: 40px;
     padding: 2px 8px;
