@@ -3,12 +3,12 @@ task: 260826-ieq-multi-language-tooltips-across-all-vst-p
 type: execute
 mode: quick
 status: incomplete
-stages_complete: [A, B, C, D, E, F, G, H, I, J, K, L, M, N]
+stages_complete: [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O]
 stages_remaining: []
 decision_items_closed: [1, 4, 17, 18, 26, 27, 29, 68]
 checkpoint_5_french_review: DONE — Stage N second reading on 43/43, then read by the developer (reads French); 3702 flags reviewed: true
 i18n_exempt_contract: RESOLVED — scoped entries landed between K1 and K2
-stopped_at: "STAGE N COMPLETE 2026-08-31 — Checkpoint 5 as a QA pass, 43 of 43 plugins patch-bumped: every French entry read against its English, scripts/i18n-fr-glossary.js (~260 terms) and scripts/i18n-fr-lint.js. Repo-wide lint --strict 2145 -> 0 on 43/43; boot-all-uis 43/43 clean, 0 DEAD, 19 late (by design), title= 0; check-i18n ALL PASS, 3751 entries; 0 non-label elements moved on every page; auval PASS x43; installed Info.plist audited. 12 lint defects and 1 check-ui-labels gate defect (8b painted rects) found by executors and fixed; 2 glossary terms wrong of ~260; 20 of 43 header width defences proven backwards. STILL OPEN: item 27 (reviewed: false on all 3751 — no native speaker), item 29 (--strict is green and unwired), item 31 (17 plugins without a committed render gate), items 19/22/30/34-68 per-plugin English/CSS/DSP defects. Status stays incomplete only because Checkpoint 5 as WRITTEN (a native speaker) has not happened."
+stopped_at: "STAGE O COMPLETE 2026-08-31 — the English/DSP/CSS defects Stage N found by reading the French: 21 of 21 plugins bumped (20 patch, O-Freeze 2.3.0 minor — detune is true cents), 34 items fixed + item 22 (O-Formant A4 lost on reopen). Every probe failed on the pre-fix code first. DSP-neutral by digest on 6, by untouched sources on 3. O-Bells render gate was backwards since 13fc8dd0 (fixed 47c7be7d). New items 69-82 (O-Bassoon breath seeded by velocity; O-Lyrica auval FAILS pre-existing; tuning-panel family may share the A4 gap; check-ui-labels double-counts coverage). ~45 entries back to reviewed: false for the developer. Standing: items 31, 59, 19, 8, 2, 11. Status stays incomplete only because those standing items are the developer's call to close or drop."
 
 plugins_shipped:
   - name: O-Gain
@@ -6560,3 +6560,93 @@ output byte-identical.
 No DAW on any of the five; WKWebView focus-on-click (macOS WebKit does not focus `<button>` on
 click; Chromium does — the latch is correct in both, only Chromium was driven); O-simpleGrain
 DSP "unchanged" rests on untouched sources, not a digest (item 76).
+
+---
+
+# STAGE O — BATCH O4 COMPLETE, 6 of 6 — STAGE O IS DONE, 21 of 21
+
+PLUGINS.md rows: `849c7548`.
+
+| Plugin | Version | Commit | Items | Proof the probe moved |
+|---|---|---|---|---|
+| O-Contrabass | 1.8.2 | `838bcb78` | 61 | binary `t: 'Note expression'` 0, `'Note Expression'` 3; 21/21 goldens byte-identical |
+| O-FreqPulse | 1.18.2 | `dcd8354d` | 40 | toggle border-box fr 43.52 vs 54.97 (Δ 11.45 on every toggle) → 57 / 57; popover 186 px unchanged |
+| O-SpectralShaper | 1.7.2 | `f66d72b5` | 40 | fr 49.09 vs 61.88 (Δ 12.78) → 64 / 64; popover 168 px unchanged |
+| O-SimpleReverb | 1.7.2 | `9f348083` | 47 | probe 20 FAIL on v1.7.1 → all PASS; binary `Ouaricon Audio v1.5.5` 0; exemption scoped `.footer` |
+| O-Wind | 1.18.2 | `ef759d13` | 62, 65 | `check-ui-labels` coverage **40 of 65 → 65 of 65**, 0 moved on the newly measured tab; banner `(v1.14.0)` → `(v0.0.0-stub)` under the stub |
+| O-simplePhysicalModelSynth | 1.2.2 | `b87e3a73` | 53, 54, 69 | `elementFromPoint` at the select slot: `#combo-stringModel` → `.col-body`; harness sha256 identical (seeded RNGs); 243-element rect diff, 19 moved, all column 2 |
+
+Every one: baseline green, check-ui-labels 0 → 0 moved, check-i18n PASS, i18n-fr-lint exit 0,
+render harness byte-identical where one exists, boot-all-uis 43/43 / 0 DEAD / late unchanged,
+`auval` PASS, installed plist at the new version, old literal 0 / new VALUE ≥ 1 in the binary.
+
+## THE HEADLINE: 25 captions were never measured because a forced click landed on a popover
+
+O-Wind's `tests/i18n-states.json` opened the settings popover before the Effects tab. The gate
+clicks with `force: true`, so the click was dispatched at the tab's centre — where the open
+popover sat — and the popover's `pointerdown` guard swallowed it. No timeout, no error: the
+gate printed PASS with a coverage hole ("40 of 65"). Reordered (tab first, popover last):
+65 of 65, and the Effects tab's French holds — 0 moved, no clip, the four abbreviations stand.
+**A cumulative state list is order-sensitive, and a gate that reports coverage as a number
+nobody reads is a gate with a hole.** `ui_tip_render_check.js` avoids the trap by table order
+only (gear and lang-select are the last two `TIP_BINDINGS` rows) — safe by accident.
+
+## Item 53: there was no waveguide to wire
+
+`StringResonator.h:33` says "dual-rail Waveguide deferred to v1.1"; the file is a single-rail
+Karplus-Strong loop and `stringModel` is declared, relayed, and never read. The dropdown is
+hidden (`hidden` + `.select-cell[hidden] { display:none }` — the author `display:flex` beat the
+UA rule), the parameter and its choice list stay for session compatibility, the tip says
+reserved. Column 2 reflowed (Inharmonicity up a row; nothing outside the column moved). The
+host-visible "String Model" automation lane still exists and still does nothing (item 79).
+
+## Two toggles, two numbers
+
+Item 40's "*Marche* 36.97 / *Désactivée* 61.88" was two pages' faces in one sentence:
+O-FreqPulse's faces are *Marche / Arrêt* (pin 57 px), O-SpectralShaper's *Activée /
+Désactivée* (pin 64 px). Both measured on their own node; both buttons now hold one width
+across both faces in both languages, popovers unchanged.
+
+## Defects found, not fixed (items 79–82)
+
+79. O-simplePhysicalModelSynth "String Model" automation lane is host-visible and inert.
+80. `scripts/check-ui-labels.js` coverage denominator: `pathOf` keys an element by up to two
+    class names, so an element whose class toggles between states counts twice ("67 of 65").
+    Two double-counts could hide two unmeasured elements. `scripts/` — not executor work.
+81. O-Contrabass `#note-expression-toggle` is a click-only `<div>` — no `role`, `tabindex`
+    or `aria-label` (item 11 shape).
+82. `touch CMakeLists.txt` forces a CMake regenerate, and O-TextureForge's `knncolle`
+    FetchContent update step hits the network on every regenerate — one O4 build failed on
+    an SSL timeout and succeeded on retry. Every executor's build pays that fetch.
+- O-Tremolo / O-DigiDelay `getPluginVersion().then(…)` carry no `.catch` (harmless under JUCE).
+- Stage N header blocks on O-Contrabass / O-simplePhysicalModelSynth still say "reviewed:
+  false throughout" / describe a now-hidden caption — history, left.
+
+## STAGE O, closed — the numbers
+
+- **21 of 21 plugins shipped** (20 patch, O-Freeze minor): 34 brief items fixed, 1 optional
+  item taken (22), 0 items refused. Every probe was run on the pre-fix code and FAILED there
+  before it passed — no decoration.
+- **DSP changed on one plugin** (O-Freeze: detune is true cents; plus the float-accumulator
+  grid the measurement exposed). **DSP-neutral by digest** on O-Bells, O-Bowed, O-Tapestop,
+  O-Contrabass, O-simpleAdditive, O-simplePhysicalModelSynth; by untouched sources on
+  O-simpleFM, O-simpleSampler, O-simpleGrain (item 76).
+- **The brief was wrong or stale 11 times** (French forms, counts, mechanisms, line numbers,
+  two pages' numbers in one sentence, a tooltip layer replaced two versions ago, "X is right"
+  claims) — every one caught by an executor reading the source before editing; corrections
+  1–19 carried batch to batch.
+- **Repo-wide after O4:** boot-all-uis 43/43, 0 DEAD, 19 late (O-Bells 2, O-IntonationPad 17,
+  by design); check-i18n ALL PASS; i18n-fr-lint exit 0 on every touched plugin; `check-ui-labels`
+  0 moved on 21/21 in both languages. `reviewed: false` re-opened on ~45 entries across the
+  stage (meaning changes and new keys) — the developer's worklist, `check-i18n` prints it.
+- **Orchestrator commits:** `47c7be7d` (O-Bells gate was backwards), four PLUGINS.md row
+  commits, four stage logs. No push, no tag.
+- **New items 69–82** recorded above; the standing list (31, 59, 19, 8, 2, 11) unchanged.
+- **O-Lyrica `auval` FAILS** (item 72, pre-existing, Free Glissando state round-trip) — the only
+  red `auval` in the suite; decide before any release build of O-Lyrica.
+
+## Not verified — the standing list
+
+No DAW on any of the 21 (headless Chromium + `auval` only; WKWebView focus-on-click and the
+`#versionLabel` pushes proven by C++ + binary grep, not by a host); Standalone `.app` stale
+everywhere; Windows untested; item 76 (time-seeded harness RNG on O-simpleGrain).
