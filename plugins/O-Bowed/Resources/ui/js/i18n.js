@@ -19,7 +19,51 @@
 */
 // ============================================================================
 // i18n.js — O-Bowed on-page copy and hover-help, English + French
-//           (v1.6.0, canon v2)
+//           (v1.6.1, canon v2)
+//
+// ── v1.6.1: FRENCH QA PASS (Stage N, 2026-08-31) ─────────────────────────
+//
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 24 entries of 71 (7 terminology, 8 typography, 8 grammar/agreement,
+// 1 meaning). sameAsEn: kept 3, translated 0. termNote exemptions: 3 (listed by
+// `node scripts/i18n-fr-lint.js --plugin O-Bowed --strict`, which exits 0).
+// Left as drafted: the other 47. reviewed: false throughout — the flag means a
+// NATIVE SPEAKER read it, and none has; this pass was a second machine reading.
+//
+// Decisions the next reader needs:
+//
+//   * "Matière" → "Matériau" (the glossary root term). It measures 45.52 px in
+//     .knob-label — whose cap is 64 px, NOT the 62 px the v1.6.0 block below
+//     still states: index.html:463 raised max-width to 64px at v1.5.0 and this
+//     header was never updated with it. Consequence: "Raideur crin" (63.0 px,
+//     rejected below on the 62 px number) would now FIT. It is kept abbreviated
+//     anyway, because the ENGLISH caption is abbreviated too ("Hair Stiff.")
+//     and matching it is this page's own stated rule.
+//   * "Fréq." KEPT for Rate, with a termNote. HumanizeEngine.h:83 maps the knob
+//     to a 0.15–8 Hz smoothing corner, so it really is a frequency, and it sits
+//     directly under a column captioned Vitesse. "Vitesse" FITS (34.94 px in
+//     the 64 px cap) — the exemption is meaning, not width.
+//   * "Tenue" KEPT for Infinite Sustain, with a termNote. The glossary forbids
+//     it as a rendering of the ADSR sustain SEGMENT; this page carries no
+//     envelope at all, and the control removes the string's damping so the note
+//     keeps ringing — which is "une tenue". "Maintien inf." also fits
+//     (63.52 px). Meaning again, not width; both alternatives were measured
+//     rather than argued.
+//   * "archeté" is not a French word. "la corde frottée" (the organology term
+//     for a bowed string) and "une note jouée à l'archet" replace it in the
+//     three bodies that had it.
+//   * "Le dosage" is KEPT in tip.bodyAmt. Dosage is forbidden as a LABEL
+//     rendering of Mix; this is a BODY describing a dry/wet blend, where it is
+//     the natural French, and the lint does not match bodies against TERMS.
+//   * Bodies address the user as vous and use the imperative ("Baissez-la",
+//     "Déplacez-la", "Appuyez sur Échap"). Unchanged — recorded so the next
+//     pass keeps one register rather than mixing in the infinitive.
+//   * U+00A0 landed 24 times: before ‘:’ and ‘;’, and between every number and
+//     its unit — including m/s and N, which the lint's UNITS list does not
+//     carry, so those two are typography the lint never asked for. Nothing
+//     outside a French string VALUE was touched: both revisions were loaded and
+//     compared field by field — en values changed 0, keys changed 0, NBSP
+//     outside a string literal 0.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -164,8 +208,8 @@ export const I18N = Object.freeze({
                + 'string slips into a whistle instead of speaking. 0.02 to 2.00 m/s.' },
         fr: { t: 'Vitesse d’archet',
               b: 'La vitesse à laquelle l’archet est tiré sur la corde. Un archet rapide excite '
-               + 'davantage la corde et éclaircit le timbre ; trop rapide pour la pression '
-               + 'réglée, la corde siffle au lieu de parler. 0,02 à 2,00 m/s.',
+               + 'davantage la corde et éclaircit le timbre ; si l’archet va trop vite pour la '
+               + 'pression réglée, la corde siffle au lieu de parler. 0,02 à 2,00 m/s.',
               reviewed: false },
     },
     'tip.bowPressure': {
@@ -175,8 +219,8 @@ export const I18N = Object.freeze({
                + 'crunches. 0.01 to 5.00 N.' },
         fr: { t: 'Pression d’archet',
               b: 'La force normale que l’archet exerce sur la corde. Une pression faible donne '
-               + 'un son de surface fin et aéré ; une pression forte accroche davantage et '
-               + 'épaissit le son jusqu’au grincement. 0,01 à 5,00 N.',
+               + 'un son de surface fin et aéré ; une pression forte accroche davantage et '
+               + 'épaissit le son jusqu’au grincement. 0,01 à 5,00 N.',
               reviewed: false },
     },
     'tip.bowPosition': {
@@ -187,7 +231,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Position d’archet',
               b: 'Le point de contact de l’archet sur la corde, en fraction de sa longueur '
                + 'depuis le chevalet. Les petites valeurs donnent un jeu sul ponticello, vitreux '
-               + 'et riche en partiels aigus ; les grandes tendent vers le sul tasto et '
+               + 'et riche en partiels aigus ; les grandes tendent vers le sul tasto et '
                + 'adoucissent le timbre. 0,02 à 0,30.',
               reviewed: false },
     },
@@ -197,9 +241,9 @@ export const I18N = Object.freeze({
                + 'More rosin makes the stick-slip cycle snap harder, which sharpens the attack '
                + 'and adds bite. 0.00 to 1.00.' },
         fr: { t: 'Colophane',
-              b: 'Modèle la courbe de friction entre le crin et la corde, du lisse à l’agressif. '
-               + 'Plus de colophane fait claquer le cycle adhérence-glissement, ce qui aiguise '
-               + 'l’attaque et ajoute du mordant. 0,00 à 1,00.',
+              b: 'Façonne la courbe de friction entre le crin et la corde, du lisse à '
+             + 'l’agressif. Plus de colophane fait claquer le cycle adhérence-glissement, ce qui '
+             + 'aiguise l’attaque et ajoute du mordant. 0,00 à 1,00.',
               reviewed: false },
     },
     'tip.bowNoise': {
@@ -208,9 +252,10 @@ export const I18N = Object.freeze({
                + 'little restores the breath a pure waveguide leaves out; a lot pushes toward a '
                + 'pressed, unvoiced sound with no clear note in it. 0.00 to 1.00.' },
         fr: { t: 'Bruit d’archet',
-              b: 'Ajoute le frottement large bande du crin sur la corde par-dessus le son '
-               + 'harmonique. Un peu redonne le souffle qu’un guide d’ondes pur laisse de côté ; '
-               + 'beaucoup pousse vers un son écrasé, sans note claire. 0,00 à 1,00.',
+              b: 'Ajoute le frottement large bande du crin sur la corde par-dessus le son de '
+             + 'hauteur définie. En petite quantité, il redonne le souffle qu’un guide d’ondes '
+             + 'pur laisse de côté ; en grande quantité, il pousse vers un son écrasé, sans note '
+             + 'claire. 0,00 à 1,00.',
               reviewed: false },
     },
     // Caption "Hair Stiff." is an abbreviation forced by the 62 px .knob-label
@@ -223,10 +268,11 @@ export const I18N = Object.freeze({
                + 'factory preset leaves it there; raising it lets the hair bend and release, '
                + 'loosening the attack. 0.00 to 1.00.' },
         fr: { t: 'Raideur du crin',
-              b: 'Fond le noyau de friction simple avec un modèle de crin élasto-plastique '
-               + 'complet. À 0 le timbre correspond à la voix classique d’O-Bowed, ce qui '
-               + 'explique que tous les préréglages d’usine l’y laissent ; en montant, le crin '
-               + 'fléchit puis relâche et l’attaque s’assouplit. 0,00 à 1,00.',
+              b: 'Passe progressivement du noyau de friction simple à un modèle de crin '
+             + 'élasto-plastique complet. À 0 le timbre correspond à la voix classique '
+             + 'd’O-Bowed, ce qui explique que tous les préréglages d’usine l’y laissent ; à '
+             + 'mesure qu’on le monte, le crin fléchit puis lâche et l’attaque s’assouplit. 0,00 '
+             + 'à 1,00.',
               reviewed: false },
     },
 
@@ -255,9 +301,9 @@ export const I18N = Object.freeze({
                + 'The knob maps internally to a 0.15 to 8 Hz smoothing corner, and it does '
                + 'nothing while Speed Amt is 0. 0.00 to 1.00.' },
         fr: { t: 'Fréquence d’humanisation de la vitesse',
-              b: 'La rapidité de la dérive de vitesse d’archet, d’une houle lente à un '
+              b: 'La rapidité de la dérive de vitesse d’archet, d’une lente ondulation à un '
                + 'tremblement rapide. Le bouton correspond en interne à une coupure de lissage '
-               + 'de 0,15 à 8 Hz, et il reste sans effet tant que Qté Vitesse vaut 0. '
+               + 'de 0,15 à 8 Hz, et il reste sans effet tant que Qté Vitesse vaut 0. '
                + '0,00 à 1,00.',
               reviewed: false },
     },
@@ -280,7 +326,7 @@ export const I18N = Object.freeze({
                + '0.00 to 1.00.' },
         fr: { t: 'Fréquence d’humanisation de la pression',
               b: 'La rapidité de la dérive de pression d’archet. Le bouton correspond en interne '
-               + 'à une coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté '
+               + 'à une coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté '
                + 'Pression vaut 0. 0,00 à 1,00.',
               reviewed: false },
     },
@@ -303,7 +349,7 @@ export const I18N = Object.freeze({
                + '0.00 to 1.00.' },
         fr: { t: 'Fréquence d’humanisation de la position',
               b: 'La rapidité de la dérive du point de contact. Le bouton correspond en interne '
-               + 'à une coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté '
+               + 'à une coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté '
                + 'Position vaut 0. 0,00 à 1,00.',
               reviewed: false },
     },
@@ -325,7 +371,7 @@ export const I18N = Object.freeze({
                + 'smoothing corner, and it does nothing while Rosin Amt is 0. 0.00 to 1.00.' },
         fr: { t: 'Fréquence d’humanisation de la colophane',
               b: 'La rapidité de la dérive de colophane. Le bouton correspond en interne à une '
-               + 'coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté Coloph. '
+               + 'coupure de lissage de 0,15 à 8 Hz, et il reste sans effet tant que Qté Coloph. '
                + 'vaut 0. 0,00 à 1,00.',
               reviewed: false },
     },
@@ -339,9 +385,15 @@ export const I18N = Object.freeze({
                + 'has left it. At 1 the loop loses almost nothing per pass and the note holds '
                + 'indefinitely. 0.00 to 1.00.' },
         fr: { t: 'Tenue infinie',
-              b: 'Retire l’amortissement de la corde : une note archetée continue de sonner une '
-               + 'fois l’archet parti. À 1 la boucle ne perd presque rien à chaque passage et la '
-               + 'note se tient indéfiniment. 0,00 à 1,00.',
+              termNote: 'not the ADSR sustain segment — this page carries no envelope at all. '
+             + 'The control removes the string’s damping so the note keeps ringing, and "une '
+             + 'tenue" is the French musical term for a held note. Maintien is the glossary’s '
+             + 'answer for the envelope stage, which does not exist here; it is not kept out on '
+             + 'width (Maintien inf. measures 63.52 px inside the 64 px .knob-label cap, and '
+             + 'Maint. inf. 50.58).',
+              b: 'Retire l’amortissement de la corde : une note jouée à l’archet continue de '
+             + 'sonner une fois l’archet parti. À 1 la boucle ne perd presque rien à chaque '
+             + 'passage et la note se tient indéfiniment. 0,00 à 1,00.',
               reviewed: false },
     },
     'tip.revFriction': {
@@ -351,9 +403,9 @@ export const I18N = Object.freeze({
                + 'sputtering, unstable attack that settles into an odd steady tone. '
                + '0.00 to 1.00.' },
         fr: { t: 'Friction inversée',
-              b: 'Inverse la courbe de friction : la corde accroche d’autant plus qu’elle glisse '
-               + 'vite, au lieu de lâcher. Aucun crin réel n’en est capable ; il en résulte une '
-               + 'attaque instable et crachotante qui se résout en un son tenu étrange. '
+              b: 'Inverse la courbe de friction : la corde accroche d’autant plus qu’elle glisse '
+               + 'vite, au lieu de lâcher. Aucun crin réel n’en est capable ; il en résulte une '
+               + 'attaque instable et crachotante qui se stabilise sur un son tenu étrange. '
                + '0,00 à 1,00.',
               reviewed: false },
     },
@@ -363,10 +415,10 @@ export const I18N = Object.freeze({
                + 'more below the played note. Useful for weight under a thin high register; at '
                + 'high settings the pitch itself starts to fold down. 0.00 to 1.00.' },
         fr: { t: 'Sous-harmoniques',
-              b: 'Renvoie la corde dans une non-linéarité qui ajoute du contenu à l’octave '
-               + 'inférieure et en dessous. Utile pour donner du poids sous un registre aigu '
-               + 'maigre ; à réglage élevé, la hauteur elle-même commence à se replier. '
-               + '0,00 à 1,00.',
+              b: 'Réinjecte le signal de la corde dans une non-linéarité qui ajoute du contenu '
+             + 'une octave sous la note jouée, et plus bas encore. Utile pour donner du poids '
+             + 'sous un registre aigu maigre ; à réglage élevé, la hauteur elle-même commence à '
+             + 'se replier. 0,00 à 1,00.',
               reviewed: false },
     },
 
@@ -379,7 +431,7 @@ export const I18N = Object.freeze({
               b: 'Morphs the body resonator through membrane, wood, metal and glass as it is '
                + 'raised. Wood sits around the middle of the travel and is what the factory '
                + 'presets assume. 0.00 to 1.00.' },
-        fr: { t: 'Matière',
+        fr: { t: 'Matériau',
               b: 'Fait évoluer le résonateur de caisse de la membrane au bois, puis au métal et '
                + 'au verre à mesure qu’on le monte. Le bois se situe vers le milieu de la course '
                + 'et c’est ce que supposent les préréglages d’usine. 0,00 à 1,00.',
@@ -391,8 +443,8 @@ export const I18N = Object.freeze({
                + 'of the travel to a double-bass-sized one at the top. Larger bodies move their '
                + 'formants down and add low-mid weight. 0.00 to 1.00.' },
         fr: { t: 'Taille',
-              b: 'Met à l’échelle les fréquences du résonateur de caisse, d’un volume de violon '
-               + 'en bas de course à un volume de contrebasse en haut. Les grandes caisses '
+              b: 'Met à l’échelle les fréquences du résonateur de caisse, d’une caisse de violon '
+               + 'en bas de course à une caisse de contrebasse en haut. Les grandes caisses '
                + 'descendent leurs formants et ajoutent du poids dans le bas-médium. '
                + '0,00 à 1,00.',
               reviewed: false },
@@ -405,9 +457,9 @@ export const I18N = Object.freeze({
                + '20 to 20000 Hz.' },
         fr: { t: 'Brillance',
               b: 'Règle la coupure du filtre de chevalet, soit la limite haute de tout ce que la '
-               + 'corde envoie dans la caisse. Baissez-la pour assombrir un archet dur ; le '
-               + 'bouton est incurvé afin que l’essentiel de sa course couvre la partie '
-               + 'réellement utile de la plage. 20 à 20000 Hz.',
+             + 'corde envoie dans la caisse. Baissez-la pour assombrir un archet dur ; la '
+             + 'réponse du bouton est non linéaire afin que l’essentiel de sa course couvre la '
+             + 'partie réellement utile de la plage. 20 à 20000 Hz.',
               reviewed: false },
     },
     'tip.bodyAmt': {
@@ -417,7 +469,7 @@ export const I18N = Object.freeze({
                + 'dominates. 0.00 to 1.00.' },
         fr: { t: 'Quantité de caisse',
               b: 'Le dosage entre la corde nue et le résonateur de caisse. À 0 on entend le '
-               + 'guide d’ondes seul, mince et synthétique ; à 1 la caisse domine. '
+               + 'guide d’ondes seul, mince et synthétique ; à 1 la caisse domine. '
                + '0,00 à 1,00.',
               reviewed: false },
     },
@@ -429,8 +481,8 @@ export const I18N = Object.freeze({
                + 'travel, thick and dark at the top. It changes how much of the bow’s energy the '
                + 'string accepts, so a heavy gauge needs more pressure to speak. 0.10 to 2.00.' },
         fr: { t: 'Calibre de corde',
-              b: 'Règle l’impédance d’onde de la corde : fine et brillante en bas de course, '
-               + 'épaisse et sombre en haut. Elle change la part d’énergie que la corde accepte '
+              b: 'Règle l’impédance d’onde de la corde : fine et brillante en bas de course, '
+               + 'épaisse et sombre en haut. Cela change la part d’énergie que la corde accepte '
                + 'de l’archet, si bien qu’un gros calibre demande plus de pression pour parler. '
                + '0,10 à 2,00.',
               reviewed: false },
@@ -447,7 +499,7 @@ export const I18N = Object.freeze({
                + 'fashion — this is the knob captioned Count. At 0 the section is off and its '
                + 'Amount knob is hidden. 0 to 12 strings.' },
         fr: { t: 'Cordes sympathiques',
-              b: 'Le nombre de cordes passives qui vibrent avec la corde archetée, à la manière '
+              b: 'Le nombre de cordes passives qui vibrent avec la corde frottée, à la manière '
                + 'd’une viole d’amour — c’est le bouton intitulé Nombre. À 0 la section est '
                + 'désactivée et son bouton Quantité est masqué. 0 à 12 cordes.',
               reviewed: false },
@@ -458,9 +510,9 @@ export const I18N = Object.freeze({
                + 'loud their halo sits under the note. This knob is only on screen while '
                + 'Count is above 0. 0.00 to 1.00.' },
         fr: { t: 'Quantité de sympathiques',
-              b: 'L’intensité du couplage entre la corde archetée et les cordes passives, donc '
-               + 'le volume du halo qu’elles posent sous la note. Ce bouton n’est à l’écran que '
-               + 'lorsque Nombre est supérieur à 0. 0,00 à 1,00.',
+              b: 'L’intensité du couplage entre la corde frottée et les cordes passives, donc le '
+             + 'volume du halo qu’elles déposent sous la note. Ce bouton n’est à l’écran que '
+             + 'lorsque Nombre est supérieur à 0. 0,00 à 1,00.',
               reviewed: false },
     },
     'tip.decay': {
@@ -485,7 +537,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Diapason',
               b: 'La fréquence du la de référence sur laquelle le système d’accord est '
                + 'construit. Déplacez-la pour rejoindre un ensemble accordé hors du diapason de '
-               + 'concert ; toutes les notes suivent. 220,0 à 880,0 Hz.',
+               + 'concert ; toutes les notes suivent. 220,0 à 880,0 Hz.',
               reviewed: false },
     },
     'tip.width': {
@@ -510,8 +562,8 @@ export const I18N = Object.freeze({
                + 'trim that matches them to each other. −60.0 to +12.0 dB.' },
         fr: { t: 'Niveau de sortie',
               b: 'Le gain général en sortie, appliqué après le résonateur de caisse et l’étage '
-               + 'stéréo. Les modèles physiques varient beaucoup de niveau d’un préréglage à '
-               + 'l’autre ; c’est ici qu’on les égalise entre eux. −60,0 à +12,0 dB.',
+               + 'stéréo. Le niveau des modèles physiques varie beaucoup d’un préréglage à '
+               + 'l’autre ; c’est ici qu’on les égalise entre eux. −60,0 à +12,0 dB.',
               reviewed: false },
     },
 
@@ -553,7 +605,7 @@ export const I18N = Object.freeze({
                + 'page stay in English. English or Français.' },
         fr: { t: 'Langue',
               b: 'Choisit la langue de tous les libellés, info-bulles et noms accessibles de ce '
-               + 'panneau ; le choix est enregistré avec le plugin. Les valeurs affichées et la '
+               + 'panneau ; le choix est enregistré avec le plugin. Les valeurs affichées et la '
                + 'page Accord restent en anglais. English ou Français.',
               reviewed: false },
     },
@@ -608,7 +660,13 @@ export const LABELS = Object.freeze({
     // directly under a column captioned "Vitesse" (Speed). Two adjacent knobs
     // both reading VITESSE would be a translation that loses information the
     // English carries.
-    'label.rate':      { en: { t: 'Rate' },     fr: { t: 'Fréq.',    reviewed: false } },
+    'label.rate':      { en: { t: 'Rate' },
+                       fr: { t: 'Fréq.', reviewed: false,
+                             termNote: 'the control IS a frequency in Hz — HumanizeEngine.h:83 '
+                            + 'maps it to a 0.15-8 Hz smoothing corner — and it sits directly '
+                            + 'under a column captioned Vitesse (Speed). Two adjacent knobs both '
+                            + 'reading VITESSE would drop information the English carries. '
+                            + 'Vitesse fits (34.94 px in a 64 px cap); it is meaning, not width.' } },
 
     // ── Visualisation tabs ──────────────────────────────────────────────────
     // The tab buttons are `flex: 1` in a 498 px bar, so each box is 166 px in
@@ -624,14 +682,18 @@ export const LABELS = Object.freeze({
     // HEIGHT. The word is identical in both languages, which is the only reason
     // that box needs no pin.
     'label.impossible':   { en: { t: 'Impossible' },    fr: { t: 'Impossible', reviewed: false, sameAsEn: true } },
-    'label.infSustain':   { en: { t: 'Inf. Sustain' },  fr: { t: 'Tenue inf.', reviewed: false } },
+    'label.infSustain':   { en: { t: 'Inf. Sustain' },
+                            fr: { t: 'Tenue inf.', reviewed: false,
+                                  termNote: 'the caption half of tip.infSustain’s exemption — '
+                                 + 'sustain here is a note that keeps ringing, not the ADSR '
+                                 + 'segment' } },
     'label.revFriction':  { en: { t: 'Rev. Friction' }, fr: { t: 'Frict. inv.', reviewed: false } },
     'label.subHarm':      { en: { t: 'Sub Harm.' },     fr: { t: 'Sous-harm.', reviewed: false } },
 
     // ── Body ────────────────────────────────────────────────────────────────
     // "Caisse" — the soundbox of a bowed string instrument, not "corps".
     'label.body':       { en: { t: 'Body' },       fr: { t: 'Caisse',    reviewed: false } },
-    'label.material':   { en: { t: 'Material' },   fr: { t: 'Matière',   reviewed: false } },
+    'label.material':   { en: { t: 'Material' },   fr: { t: 'Matériau',  reviewed: false } },
     'label.size':       { en: { t: 'Size' },       fr: { t: 'Taille',    reviewed: false } },
     'label.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: false } },
     'label.bodyAmt':    { en: { t: 'Body Amt' },   fr: { t: 'Qté caisse', reviewed: false } },

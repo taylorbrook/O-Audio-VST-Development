@@ -21,7 +21,7 @@
   ==============================================================================
 
     ui_tip_render_check.js
-    O-Bowed — hover-help RENDER verification at the shipping viewport (v1.6.0).
+    O-Bowed — hover-help RENDER verification at the shipping viewport (v1.6.1).
 
     WHY THIS FILE EXISTS. No gate in this repo can see a rendered tooltip.
     check-i18n reads the table statically and is satisfied by TIP_BINDINGS being
