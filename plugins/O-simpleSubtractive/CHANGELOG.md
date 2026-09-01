@@ -3,6 +3,24 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.1] — 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **44 of 93 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint: 16 terminology, 39 typography,
+  3 grammar. The visible ones are **Relâche → Relâchement** on both envelope
+  groups, **Glissando → Portamento** for Glide, **Enveloppe d'ampli →
+  Enveloppe d'amplitude**, **Enveloppe de filtre → Enveloppe du filtre**,
+  **Sous → Sub** for the sub-oscillator, straight apostrophes replaced by
+  typographic ones throughout, and no-break spaces before `% : ; ?` and
+  between every number and its unit. Nothing in English changed, and every
+  entry still reads `reviewed: false` — no native speaker has read the French.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
 ## [1.3.0] — 2026-08-27
 
 **The page speaks French, not only the hover help.** Every caption, heading,

@@ -18,7 +18,67 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-simpleSubtractive interface copy, English + French (v1.3.0)
+// i18n.js — O-simpleSubtractive interface copy, English + French (v1.3.1)
+//
+// ── v1.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 44 of 93 entries (16 terminology, 39 typography, 3 grammar; 0
+// meaning — no French sentence was found saying something the English does
+// not, and none had dropped a clause). The three sets overlap: 14 entries took
+// both a term and a typographic fix. sameAsEn: kept 4, translated 0, ADDED 1
+// (label.sub). termNote exemptions: 0 — every glossary term this page uses
+// fits, so nothing needed exempting. Left as drafted: the other 49 entries.
+// reviewed: false throughout — no native speaker yet.
+//
+// The decisions the next reader needs:
+//
+//  · RELÂCHEMENT FITS, measured on this page. The .knob-cell is 54 px and
+//    .knob-label is shrink-to-fit with overflow: visible, so the caption is not
+//    clipped by the cell: Relâche 48.02 px, Relâchement 77.33 px, both ONE line
+//    (h 10.44 px), and the nearest same-row caption is still 218.25 px away.
+//    The glossary abbreviation Relâch. (44.58 px) was not needed. Same verdict
+//    as O-simpleFM's 56 px envelope cells, opposite verdict to O-Comp's 52 px
+//    .control-group — the term is measured per page, never inherited.
+//
+//  · "Enveloppe du filtre" / "Enveloppe d'amplitude" are the glossary roots and
+//    both fit the h2: 158.17 px and 183.06 px in a 255.6 px group title, one
+//    line, the .group-route span still inline beside them. "Enveloppe d'ampli"
+//    also disagreed with the tip title of the very canvas it captions
+//    ("Enveloppe d'amplitude → niveau") — two French names for one control.
+//
+//  · "de filtre" vs "du filtre" IS a distinction, not an inconsistency. The
+//    caption and every DEFINITE reference take the glossary root, "l'enveloppe
+//    du filtre". An INDEFINITE mention keeps "de": "une enveloppe de filtre
+//    rapide" is French, "une enveloppe du filtre rapide" is not. Seven bodies
+//    read one way and five the other for that reason.
+//
+//  · Portamento replaces Glissando for Glide (glossary root), on the caption,
+//    in the tip title and in the two lesson bodies that named it. The English
+//    title glosses itself, "Glide (portamento)"; in French the gloss IS the
+//    term, so the French title is the bare word. 69.42 px in a 60 px cell,
+//    shrink-to-fit, 23.27 px of clearance to the next caption.
+//
+//  · "Sub" is the French too (glossary `sub`) and carries sameAsEn: true. The
+//    draft's "Sous" is a preposition standing alone as a noun caption.
+//
+//  · Three fixes that are neither term nor typography: "Abaissez-la" ->
+//    "Abaissez-le" (the antecedent inside the French sentence is "le coude",
+//    and the English "Lower it" means the corner); "Legato joue une seule note
+//    mais lie" -> "mais liée" (lier is transitive and had no object); and
+//    "cliquez les touches" -> "cliquez sur les touches", the calque, in the
+//    form the rest of the O-simple family ships.
+//
+//  · Choice faces stay English in both languages (I18N_EXEMPT, D-01), so the
+//    French bodies name them capitalised and untranslated — Saw, Square, Sine,
+//    Low-pass, Poly, Mono, Legato — while the same words used generically are
+//    prose and are translated ("une dent de scie brillante").
+//
+//  · GEOMETRY, both gates green and unmoved: 0 non-label elements moved between
+//    languages, and the .frame pane's scroll extent held at 1118 px in both
+//    languages before and after (html{overflow:hidden} clamps
+//    documentElement.scrollHeight at the 820 px viewport, so 1118 is the number
+//    that can move). 35 of 35 tooltip boxes measured identical in size before
+//    and after the pass — the no-break spaces cost no line.
 //
 // UI ROOT IS Source/ui/public. There is no second UI root in this plugin and no
 // Resources/ui staging directory. This file is the sixth SOURCES entry in
@@ -91,7 +151,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of the interface. The choice is remembered with the session.' },
         fr: { t: 'Réglages',
-              b: "Choisir la langue de l'interface. Le choix est conservé avec la session.",
+              b: "Choisir la langue de l’interface. Le choix est conservé avec la session.",
               reviewed: false },
     },
 
@@ -104,7 +164,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of the labels on this page and of this hover help. English and French are available; value readouts and the four drop-down menus stay in English.' },
         fr: { t: 'Langue',
-              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles ; les valeurs affichées et les quatre menus déroulants restent en anglais.",
+              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées et les quatre menus déroulants restent en anglais.",
               reviewed: false },
     },
 
@@ -112,22 +172,22 @@ export const I18N = Object.freeze({
     oscWave: {
         en: { t: 'Oscillator Wave',
               b: 'The raw tone the filter carves from. Saw is the brightest (all harmonics), Square is hollow (odd harmonics), Triangle is soft, Sine is pure — nothing for the filter to remove.' },
-        fr: { t: "Onde de l'oscillateur",
-              b: "Le timbre brut dans lequel le filtre taille. Saw est la plus brillante (tous les harmoniques), Square est creuse (harmoniques impairs), Triangle est douce, Sine est pure — le filtre n'a rien à retirer.",
+        fr: { t: "Onde de l’oscillateur",
+              b: "Le timbre brut dans lequel le filtre taille. Saw est la plus brillante (tous les harmoniques), Square est creuse (harmoniques impairs), Triangle est douce, Sine est pure — le filtre n’a rien à retirer.",
               reviewed: false },
     },
     subLevel: {
         en: { t: 'Sub Oscillator',
               b: 'Mixes in a square wave one octave below the note. Adds body and weight underneath the main oscillator — useful for basses.' },
         fr: { t: 'Sous-oscillateur',
-              b: "Ajoute au mélange une onde carrée une octave sous la note. Apporte du corps et du poids sous l'oscillateur principal — utile pour les basses.",
+              b: "Ajoute au mélange une onde carrée une octave sous la note. Apporte du corps et du poids sous l’oscillateur principal — utile pour les basses.",
               reviewed: false },
     },
     noiseLevel: {
         en: { t: 'Noise',
               b: "Mixes in white noise — every frequency at once. Feed it through the filter to hear the filter's shape on its own, or add breath/air to a tone." },
         fr: { t: 'Bruit',
-              b: "Ajoute au mélange du bruit blanc — toutes les fréquences à la fois. Passez-le dans le filtre pour entendre la forme du filtre seule, ou pour ajouter du souffle et de l'air à un timbre.",
+              b: "Ajoute au mélange du bruit blanc — toutes les fréquences à la fois. Passez-le dans le filtre pour entendre la forme du filtre seule, ou pour ajouter du souffle et de l’air à un timbre.",
               reviewed: false },
     },
 
@@ -136,42 +196,42 @@ export const I18N = Object.freeze({
         en: { t: 'Filter Type',
               b: 'Which side of the cutoff is kept. Low-pass keeps lows (the classic subtractive sound), High-pass keeps highs, Band-pass keeps a band around cutoff, Notch removes a band.' },
         fr: { t: 'Type de filtre',
-              b: "Quel côté de la coupure est conservé. Low-pass garde le grave (le son soustractif classique), High-pass garde l'aigu, Band-pass garde une bande autour de la coupure, Notch retire une bande.",
+              b: "Quel côté de la coupure est conservé. Low-pass garde le grave (le son soustractif classique), High-pass garde l’aigu, Band-pass garde une bande autour de la coupure, Notch retire une bande.",
               reviewed: false },
     },
     filterSlope: {
         en: { t: 'Filter Slope (poles)',
               b: 'How sharply the filter cuts past the cutoff. 6 dB/oct = 1 pole, gentle. 24 dB/oct = 4 poles, steep and aggressive. Steeper = more of the spectrum removed just past the knee.' },
         fr: { t: 'Pente du filtre (pôles)',
-              b: 'Avec quelle netteté le filtre coupe au-delà de la coupure. 6 dB/oct = 1 pôle, doux. 24 dB/oct = 4 pôles, raide et agressif. Plus raide = plus de spectre retiré juste après le coude.',
+              b: 'Avec quelle netteté le filtre coupe au-delà de la coupure. 6 dB/oct = 1 pôle, doux. 24 dB/oct = 4 pôles, raide et agressif. Plus raide = plus de spectre retiré juste après le coude.',
               reviewed: false },
     },
     cutoff: {
         en: { t: 'Cutoff Frequency',
               b: "The corner where the filter starts working. Lower it and watch the spectrum bars above the curve fall away — that's harmonics being removed, the heart of subtractive synthesis." },
         fr: { t: 'Fréquence de coupure',
-              b: 'Le coude où le filtre commence à agir. Abaissez-la et regardez les barres du spectre au-dessus de la courbe disparaître — ce sont des harmoniques qui sont retirés, le cœur de la synthèse soustractive.',
+              b: 'Le coude où le filtre commence à agir. Abaissez-le et regardez les barres du spectre au-dessus de la courbe disparaître — ce sont des harmoniques qui sont retirés, le cœur de la synthèse soustractive.',
               reviewed: false },
     },
     resonance: {
         en: { t: 'Resonance',
               b: "Boosts a peak right at the cutoff. A little adds vocal emphasis; push it far and the filter rings, then self-oscillates into a pure sine whistle at the cutoff — the curve's peak grows into a spike." },
         fr: { t: 'Résonance',
-              b: 'Accentue un pic juste à la coupure. Un peu apporte une emphase vocale ; poussez loin et le filtre sonne, puis auto-oscille en un sifflement sinusoïdal pur à la coupure — le pic de la courbe devient une pointe.',
+              b: 'Accentue un pic juste à la coupure. Un peu apporte une emphase vocale ; poussez loin et le filtre sonne, puis auto-oscille en un sifflement sinusoïdal pur à la coupure — le pic de la courbe devient une pointe.',
               reviewed: false },
     },
     filterEnvAmount: {
         en: { t: 'Filter Env Amount',
               b: 'How far the filter envelope sweeps the cutoff, and in which direction. Positive opens the filter on each note (bright attack); negative closes it. Bipolar: zero means the envelope does nothing.' },
-        fr: { t: "Taux d'enveloppe de filtre",
-              b: "De combien l'enveloppe de filtre balaie la coupure, et dans quel sens. Positif ouvre le filtre à chaque note (attaque brillante) ; négatif le ferme. Bipolaire : à zéro l'enveloppe ne fait rien.",
+        fr: { t: "Taux de l’enveloppe du filtre",
+              b: "De combien l’enveloppe du filtre balaie la coupure, et dans quel sens. Positif ouvre le filtre à chaque note (attaque brillante) ; négatif le ferme. Bipolaire : à zéro l’enveloppe ne fait rien.",
               reviewed: false },
     },
     keyTrack: {
         en: { t: 'Key Tracking',
               b: 'Makes the cutoff follow the note pitch — higher notes open the filter more. At 100% the filter tracks the keyboard so timbre stays consistent across the range.' },
         fr: { t: 'Suivi de clavier',
-              b: 'Fait suivre la hauteur de la note par la coupure — les notes aiguës ouvrent davantage le filtre. À 100 % le filtre suit le clavier, si bien que le timbre reste constant sur toute la tessiture.',
+              b: 'Fait suivre la hauteur de la note par la coupure — les notes aiguës ouvrent davantage le filtre. À 100 % le filtre suit le clavier, si bien que le timbre reste constant sur toute la tessiture.',
               reviewed: false },
     },
 
@@ -180,14 +240,14 @@ export const I18N = Object.freeze({
         en: { t: 'Filter Attack',
               b: 'Time for the filter envelope to rise after note-on — how fast the filter sweep opens.' },
         fr: { t: 'Attaque du filtre',
-              b: "Temps que met l'enveloppe de filtre à monter après le début de note — la vitesse à laquelle le balayage du filtre s'ouvre.",
+              b: "Temps que met l’enveloppe du filtre à monter après le début de note — la vitesse à laquelle le balayage du filtre s’ouvre.",
               reviewed: false },
     },
     filterDecay: {
         en: { t: 'Filter Decay',
               b: 'Time for the filter envelope to fall from its peak to the sustain level — shapes the bright-to-dark motion of a pluck.' },
         fr: { t: 'Déclin du filtre',
-              b: "Temps que met l'enveloppe de filtre à retomber de son sommet au niveau de maintien — façonne le passage du brillant au sombre d'un pincement.",
+              b: "Temps que met l’enveloppe du filtre à retomber de son sommet au niveau de maintien — façonne le passage du brillant au sombre d’un pincement.",
               reviewed: false },
     },
     filterSustain: {
@@ -209,28 +269,28 @@ export const I18N = Object.freeze({
     ampAttack: {
         en: { t: 'Amp Attack',
               b: 'Time for loudness to rise after note-on. Short = a percussive start; long = a slow swell.' },
-        fr: { t: "Attaque d'amplitude",
-              b: 'Temps que met le volume à monter après le début de note. Court = un départ percussif ; long = une montée lente.',
+        fr: { t: "Attaque d’amplitude",
+              b: 'Temps que met le volume à monter après le début de note. Court = un départ percussif ; long = une montée lente.',
               reviewed: false },
     },
     ampDecay: {
         en: { t: 'Amp Decay',
               b: 'Time for loudness to fall from its peak to the sustain level.' },
-        fr: { t: "Déclin d'amplitude",
+        fr: { t: "Déclin d’amplitude",
               b: 'Temps que met le volume à retomber de son sommet au niveau de maintien.',
               reviewed: false },
     },
     ampSustain: {
         en: { t: 'Amp Sustain',
               b: 'Loudness held while the key stays down.' },
-        fr: { t: "Maintien d'amplitude",
+        fr: { t: "Maintien d’amplitude",
               b: 'Volume tenu tant que la touche reste enfoncée.',
               reviewed: false },
     },
     ampRelease: {
         en: { t: 'Amp Release',
               b: 'Time for loudness to fade after the key is released — also sets how long the voice rings out.' },
-        fr: { t: "Relâchement d'amplitude",
+        fr: { t: "Relâchement d’amplitude",
               b: 'Temps que met le volume à disparaître après le relâchement de la touche — fixe aussi la durée pendant laquelle la voix continue de sonner.',
               reviewed: false },
     },
@@ -240,21 +300,21 @@ export const I18N = Object.freeze({
         en: { t: 'Voice Mode',
               b: 'Poly plays chords. Mono plays one note, retriggering the envelopes each time. Legato plays one note but slurs — overlapping notes glide without retriggering.' },
         fr: { t: 'Mode de voix',
-              b: 'Poly joue des accords. Mono joue une seule note, en redéclenchant les enveloppes à chaque fois. Legato joue une seule note mais lie — les notes qui se chevauchent glissent sans redéclenchement.',
+              b: 'Poly joue des accords. Mono joue une seule note, en redéclenchant les enveloppes à chaque fois. Legato joue une seule note mais liée — les notes qui se chevauchent glissent sans redéclenchement.',
               reviewed: false },
     },
     glide: {
         en: { t: 'Glide (portamento)',
               b: 'Time to slide pitch from one note to the next. Most audible in Mono/Legato — zero is an instant jump.' },
-        fr: { t: 'Glissando (portamento)',
-              b: "Temps de glissement de la hauteur d'une note à la suivante. Surtout audible en Mono/Legato — à zéro le saut est instantané.",
+        fr: { t: 'Portamento',
+              b: "Temps de glissement de la hauteur d’une note à la suivante. Surtout audible en Mono/Legato — à zéro le saut est instantané.",
               reviewed: false },
     },
     outputLevel: {
         en: { t: 'Output Level',
               b: 'Master output trim in decibels. -60 dB is silence.' },
         fr: { t: 'Niveau de sortie',
-              b: 'Réglage de la sortie générale en décibels. -60 dB, c’est le silence.',
+              b: 'Réglage de la sortie générale en décibels. −60 dB, c’est le silence.',
               reviewed: false },
     },
 
@@ -263,7 +323,7 @@ export const I18N = Object.freeze({
         en: { t: 'Filter Response over Spectrum',
               b: "The amber line is the filter's frequency response — the shape it imposes. The bars are the live output spectrum. Harmonics sitting above the curve's knee get pushed down: you are watching the filter remove sound." },
         fr: { t: 'Réponse du filtre sur le spectre',
-              b: "La ligne ambrée est la réponse en fréquence du filtre — la forme qu'il impose. Les barres sont le spectre de sortie en direct. Les harmoniques situés au-dessus du coude de la courbe sont abaissés : vous regardez le filtre retirer du son.",
+              b: "La ligne ambrée est la réponse en fréquence du filtre — la forme qu’il impose. Les barres sont le spectre de sortie en direct. Les harmoniques situés au-dessus du coude de la courbe sont abaissés : vous regardez le filtre retirer du son.",
               reviewed: false },
     },
     scope: {
@@ -276,22 +336,22 @@ export const I18N = Object.freeze({
     filterAdsr: {
         en: { t: 'Filter Envelope → cutoff',
               b: "The shape that sweeps the cutoff over time (Attack-Decay-Sustain-Release). The dashed marker shows the envelope's live output as you play — this scale drives brightness, not loudness." },
-        fr: { t: 'Enveloppe de filtre → coupure',
-              b: "La forme qui balaie la coupure dans le temps (attaque, déclin, maintien, relâchement). Le repère pointillé montre la sortie de l'enveloppe en direct pendant que vous jouez — cette échelle pilote la brillance, pas le volume.",
+        fr: { t: 'Enveloppe du filtre → coupure',
+              b: "La forme qui balaie la coupure dans le temps (attaque, déclin, maintien, relâchement). Le repère pointillé montre la sortie de l’enveloppe en direct pendant que vous jouez — cette échelle pilote la brillance, pas le volume.",
               reviewed: false },
     },
     ampAdsr: {
         en: { t: 'Amp Envelope → level',
               b: 'The shape that controls loudness over time. The dashed marker shows its live output — an independent scale from the filter envelope, so brightness and volume can move separately.' },
         fr: { t: 'Enveloppe d’amplitude → niveau',
-              b: "La forme qui contrôle le volume dans le temps. Le repère pointillé montre sa sortie en direct — une échelle indépendante de celle de l'enveloppe de filtre, si bien que brillance et volume peuvent bouger séparément.",
+              b: "La forme qui contrôle le volume dans le temps. Le repère pointillé montre sa sortie en direct — une échelle indépendante de celle de l’enveloppe du filtre, si bien que brillance et volume peuvent bouger séparément.",
               reviewed: false },
     },
     routing: {
         en: { t: 'Signal Path',
               b: 'Oscillator → Filter → Amplifier. The filter envelope routes up into the filter (sweeping cutoff); the amp envelope routes up into the VCA (shaping loudness). Two envelopes, two destinations.' },
         fr: { t: 'Chaîne du signal',
-              b: "Oscillateur → filtre → amplificateur. L'enveloppe de filtre remonte dans le filtre (elle balaie la coupure) ; l'enveloppe d'amplitude remonte dans le VCA (elle façonne le volume). Deux enveloppes, deux destinations.",
+              b: "Oscillateur → filtre → amplificateur. L’enveloppe du filtre remonte dans le filtre (elle balaie la coupure) ; l’enveloppe d’amplitude remonte dans le VCA (elle façonne le volume). Deux enveloppes, deux destinations.",
               reviewed: false },
     },
 
@@ -300,56 +360,56 @@ export const I18N = Object.freeze({
         en: { t: "Saw → LP Sweep · how it's built",
               b: 'The headline move: a bright saw through a 24 dB low-pass with a slow filter envelope. Watch the upper harmonics fall away under the curve as the cutoff opens and closes — the literal subtraction the method is named for.' },
         fr: { t: 'Dent de scie → balayage passe-bas · comment c’est fait',
-              b: 'Le geste emblématique : une dent de scie brillante à travers un passe-bas 24 dB avec une enveloppe de filtre lente. Regardez les harmoniques aigus disparaître sous la courbe pendant que la coupure s’ouvre et se referme — la soustraction littérale qui donne son nom à la méthode.',
+              b: 'Le geste emblématique : une dent de scie brillante à travers un passe-bas 24 dB avec une enveloppe de filtre lente. Regardez les harmoniques aigus disparaître sous la courbe pendant que la coupure s’ouvre et se referme — la soustraction littérale qui donne son nom à la méthode.',
               reviewed: false },
     },
     lessonPluck: {
         en: { t: "Pluck · how it's built",
               b: 'A fast filter envelope (short decay, low sustain) snaps the cutoff bright-then-dark, while a quick amp decay makes a percussive note. Filter env does the timbral work.' },
         fr: { t: 'Pincement · comment c’est fait',
-              b: "Une enveloppe de filtre rapide (déclin court, maintien bas) fait claquer la coupure du brillant vers le sombre, pendant qu'un déclin d'amplitude rapide donne une note percussive. C'est l'enveloppe de filtre qui fait le travail de timbre.",
+              b: "Une enveloppe de filtre rapide (déclin court, maintien bas) fait claquer la coupure du brillant vers le sombre, pendant qu’un déclin d’amplitude rapide donne une note percussive. C’est l’enveloppe du filtre qui fait le travail de timbre.",
               reviewed: false },
     },
     lessonSweep: {
         en: { t: "Sweep Pad · how it's built",
               b: 'Slow amp attack swells the level in; a long, deep filter envelope opens the cutoff gradually — you hear the spectrum brighten over seconds. Pads are about slow envelopes.' },
         fr: { t: 'Nappe balayée · comment c’est fait',
-              b: "Une attaque d'amplitude lente fait monter le niveau ; une enveloppe de filtre longue et profonde ouvre la coupure peu à peu — on entend le spectre s'éclaircir sur plusieurs secondes. Les nappes sont affaire d'enveloppes lentes.",
+              b: "Une attaque d’amplitude lente fait monter le niveau ; une enveloppe de filtre longue et profonde ouvre la coupure peu à peu — on entend le spectre s’éclaircir sur plusieurs secondes. Les nappes sont affaire d’enveloppes lentes.",
               reviewed: false },
     },
     lessonAcid: {
         en: { t: "Acid Bass · how it's built",
               b: 'High resonance + a snappy filter envelope on a saw through a 24 dB low-pass — the squelchy, ringing peak that defines the acid sound. Mono with a touch of glide.' },
         fr: { t: 'Basse acid · comment c’est fait',
-              b: 'Résonance élevée et enveloppe de filtre nerveuse sur une dent de scie à travers un passe-bas 24 dB — le pic sonnant et gluant qui définit le son acid. En mono, avec un soupçon de glissando.',
+              b: 'Résonance élevée et enveloppe de filtre nerveuse sur une dent de scie à travers un passe-bas 24 dB — le pic sonnant et gluant qui définit le son acid. En mono, avec un soupçon de portamento.',
               reviewed: false },
     },
     lessonSelfOsc: {
         en: { t: "Self-Oscillation · how it's built",
               b: 'Resonance pushed to the limit with the oscillators down: the filter rings on its own into a pure sine at the cutoff. The filter becomes the sound source.' },
         fr: { t: 'Auto-oscillation · comment c’est fait',
-              b: 'Résonance poussée à la limite, oscillateurs baissés : le filtre sonne tout seul en une sinusoïde pure à la coupure. Le filtre devient la source sonore.',
+              b: 'Résonance poussée à la limite, oscillateurs baissés : le filtre sonne tout seul en une sinusoïde pure à la coupure. Le filtre devient la source sonore.',
               reviewed: false },
     },
     lessonBrass: {
         en: { t: "Brass Stab · how it's built",
               b: 'Positive filter-env amount so the cutoff opens with the attack and holds — brightness tracks the note like a blown brass instrument. A short, firm amp envelope gives the stab.' },
         fr: { t: 'Coup de cuivres · comment c’est fait',
-              b: "Taux d'enveloppe de filtre positif, si bien que la coupure s'ouvre avec l'attaque et s'y tient — la brillance suit la note comme un cuivre soufflé. Une enveloppe d'amplitude courte et ferme donne le coup.",
+              b: "Taux d’enveloppe de filtre positif, si bien que la coupure s’ouvre avec l’attaque et s’y tient — la brillance suit la note comme un cuivre soufflé. Une enveloppe d’amplitude courte et ferme donne le coup.",
               reviewed: false },
     },
     lessonSquareBass: {
         en: { t: "Square Bass · how it's built",
               b: 'A hollow square wave (odd harmonics only) plus the sub-oscillator an octave down for weight, through a 24 dB low-pass. Mono, so it plays as one solid bass voice — a polysynth is just several of these in parallel.' },
         fr: { t: 'Basse carrée · comment c’est fait',
-              b: 'Une onde carrée creuse (harmoniques impairs seulement) plus le sous-oscillateur une octave en dessous pour le poids, à travers un passe-bas 24 dB. En mono, pour une seule voix de basse bien pleine — un polysynthé, ce sont simplement plusieurs de ces voix en parallèle.',
+              b: 'Une onde carrée creuse (harmoniques impairs seulement) plus le sous-oscillateur une octave en dessous pour le poids, à travers un passe-bas 24 dB. En mono, pour une seule voix de basse bien pleine — un polysynthé, ce sont simplement plusieurs de ces voix en parallèle.',
               reviewed: false },
     },
     lessonNoiseWind: {
         en: { t: "Filtered Noise · how it's built",
               b: 'Push the noise source up and band-pass it: with no harmonic source the filter sculpts pitchless air into wind. Slow envelopes swell it in and out — how subtractive synthesis makes breath and percussion, not just notes.' },
         fr: { t: 'Bruit filtré · comment c’est fait',
-              b: "Montez la source de bruit et passez-la en passe-bande : sans source harmonique, le filtre sculpte de l'air sans hauteur en vent. Des enveloppes lentes le font entrer et sortir — comment la synthèse soustractive fabrique du souffle et de la percussion, et pas seulement des notes.",
+              b: "Montez la source de bruit et passez-la en passe-bande : sans source harmonique, le filtre sculpte de l’air sans hauteur en vent. Des enveloppes lentes le font entrer et sortir — comment la synthèse soustractive fabrique du souffle et de la percussion, et pas seulement des notes.",
               reviewed: false },
     },
 });
@@ -398,7 +458,7 @@ export const LABELS = Object.freeze({
     },
     'label.headlineHint': {
         en: { t: 'the curve is the filter; the bars are what it lets through' },
-        fr: { t: 'la courbe est le filtre ; les barres sont ce qu’il laisse passer',
+        fr: { t: 'la courbe est le filtre ; les barres sont ce qu’il laisse passer',
               reviewed: false },
     },
     'label.scope': {
@@ -454,7 +514,11 @@ export const LABELS = Object.freeze({
         fr: { t: 'Oscillateur', reviewed: false },
     },
     'label.wave': { en: { t: 'Wave' },  fr: { t: 'Onde',  reviewed: false } },
-    'label.sub':   { en: { t: 'Sub' },   fr: { t: 'Sous',  reviewed: false } },
+    // "Sub" is the settled French too (glossary `sub`). "Sous" alone is a
+    // preposition, not a noun: the caption for the sub-oscillator read as the
+    // bare word "under". sameAsEn is the declaration that a reviewer looked
+    // and agreed the English word IS the French one, not a skip.
+    'label.sub':   { en: { t: 'Sub' },   fr: { t: 'Sub', sameAsEn: true, reviewed: false } },
     'label.noise': { en: { t: 'Noise' }, fr: { t: 'Bruit', reviewed: false } },
 
     // ── Filter group ────────────────────────────────────────────────────────
@@ -472,7 +536,7 @@ export const LABELS = Object.freeze({
     // key on the <h2> would delete the span.
     'label.groupFilterEnv': {
         en: { t: 'Filter Envelope' },
-        fr: { t: 'Enveloppe de filtre', reviewed: false },
+        fr: { t: 'Enveloppe du filtre', reviewed: false },
     },
     'label.routeToCutoff': {
         en: { t: '→ cutoff' },
@@ -480,7 +544,7 @@ export const LABELS = Object.freeze({
     },
     'label.groupAmpEnv': {
         en: { t: 'Amp Envelope' },
-        fr: { t: 'Enveloppe d’ampli', reviewed: false },
+        fr: { t: 'Enveloppe d’amplitude', reviewed: false },
     },
     'label.routeToLevel': {
         en: { t: '→ level' },
@@ -491,7 +555,7 @@ export const LABELS = Object.freeze({
     'label.attack':  { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: false } },
     'label.decay':   { en: { t: 'Decay' },   fr: { t: 'Déclin', reviewed: false } },
     'label.sustain': { en: { t: 'Sustain' }, fr: { t: 'Maintien', reviewed: false } },
-    'label.release': { en: { t: 'Release' }, fr: { t: 'Relâche', reviewed: false } },
+    'label.release': { en: { t: 'Release' }, fr: { t: 'Relâchement', reviewed: false } },
 
     // ── Voice / Output group ────────────────────────────────────────────────
     'label.groupOutput': {
@@ -499,7 +563,7 @@ export const LABELS = Object.freeze({
         fr: { t: 'Voix / sortie', reviewed: false },
     },
     'label.mode':  { en: { t: 'Mode' },  fr: { t: 'Mode', sameAsEn: true, reviewed: false } },
-    'label.glide': { en: { t: 'Glide' }, fr: { t: 'Glissando', reviewed: false } },
+    'label.glide': { en: { t: 'Glide' }, fr: { t: 'Portamento', reviewed: false } },
     'label.level': { en: { t: 'Level' }, fr: { t: 'Niveau', reviewed: false } },
 
     // ── Preset tour ─────────────────────────────────────────────────────────
@@ -532,12 +596,12 @@ export const LABELS = Object.freeze({
     },
     'label.captionSawSweep': {
         en: { t: 'Saw → LP Sweep — a bright saw through a 24 dB low-pass with a slow filter envelope. Watch the harmonics fall away under the curve: the subtraction the method is named for.' },
-        fr: { t: 'Dent de scie → balayage passe-bas — une dent de scie brillante à travers un passe-bas 24 dB avec une enveloppe de filtre lente. Regardez les harmoniques disparaître sous la courbe : la soustraction qui donne son nom à la méthode.',
+        fr: { t: 'Dent de scie → balayage passe-bas — une dent de scie brillante à travers un passe-bas 24 dB avec une enveloppe de filtre lente. Regardez les harmoniques disparaître sous la courbe : la soustraction qui donne son nom à la méthode.',
               reviewed: false },
     },
     'label.captionPluck': {
         en: { t: 'Pluck — a fast filter envelope snaps bright-then-dark while the amp decays quickly; the filter envelope does the timbral work.' },
-        fr: { t: 'Pincement — une enveloppe de filtre rapide fait claquer le son du brillant vers le sombre pendant que l’amplitude décline vite ; c’est l’enveloppe de filtre qui fait le travail de timbre.',
+        fr: { t: 'Pincement — une enveloppe de filtre rapide fait claquer le son du brillant vers le sombre pendant que l’amplitude décline vite ; c’est l’enveloppe du filtre qui fait le travail de timbre.',
               reviewed: false },
     },
     'label.captionBrass': {
@@ -552,7 +616,7 @@ export const LABELS = Object.freeze({
     },
     'label.captionAcid': {
         en: { t: 'Acid Bass — high resonance and a snappy filter envelope through a 24 dB low-pass make the squelchy, ringing acid sound. Mono with a touch of glide.' },
-        fr: { t: 'Basse acid — une résonance élevée et une enveloppe de filtre nerveuse à travers un passe-bas 24 dB donnent le son acid gluant et sonnant. En mono, avec un soupçon de glissando.',
+        fr: { t: 'Basse acid — une résonance élevée et une enveloppe de filtre nerveuse à travers un passe-bas 24 dB donnent le son acid gluant et sonnant. En mono, avec un soupçon de portamento.',
               reviewed: false },
     },
     'label.captionSquareBass': {
@@ -562,12 +626,12 @@ export const LABELS = Object.freeze({
     },
     'label.captionNoiseWind': {
         en: { t: 'Noise Wind — band-passed white noise with no harmonic source: the filter sculpts pitchless air into wind. Subtractive synthesis beyond notes.' },
-        fr: { t: 'Vent de bruit — du bruit blanc en passe-bande, sans source harmonique : le filtre sculpte de l’air sans hauteur en vent. La synthèse soustractive au-delà des notes.',
+        fr: { t: 'Vent de bruit — du bruit blanc en passe-bande, sans source harmonique : le filtre sculpte de l’air sans hauteur en vent. La synthèse soustractive au-delà des notes.',
               reviewed: false },
     },
     'label.captionSelfOsc': {
         en: { t: 'Self-Oscillation — resonance at the limit: the filter rings into a pure sine that plays in tune across the keyboard. The filter becomes the source.' },
-        fr: { t: 'Auto-oscillation — résonance à la limite : le filtre sonne en une sinusoïde pure qui joue juste sur tout le clavier. Le filtre devient la source.',
+        fr: { t: 'Auto-oscillation — résonance à la limite : le filtre sonne en une sinusoïde pure qui joue juste sur tout le clavier. Le filtre devient la source.',
               reviewed: false },
     },
 
@@ -587,7 +651,7 @@ export const LABELS = Object.freeze({
     // English nobody asked for.
     'label.kbdHint': {
         en: { t: 'click the keys or use your computer keyboard (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)' },
-        fr: { t: 'cliquez les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)',
+        fr: { t: 'cliquez sur les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)',
               reviewed: false },
     },
 
