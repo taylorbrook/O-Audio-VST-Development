@@ -1392,15 +1392,48 @@
         // ====================================================================
         // Conditional Visibility
         // ====================================================================
+        // v1.6.2 (Stage O item 42): Amount AND Decay hide together at Count 0.
+        // Until v1.6.1 only #sympAmount-ctrl was on this path, so Sympathetic
+        // Decay stayed on screen at Count 0 — where SympatheticStringEngine has
+        // zero strings and the knob is as inert as the one beside it that hid.
+        // Both tips (tip.count, tip.decay) say the knobs are conditional.
         function updateSympVisibility(normSympCount) {
             const def = PARAMS.sympatheticCount;
             const count = Math.round(def.min + normSympCount * (def.max - def.min));
-            const amtCtrl = document.getElementById('sympAmount-ctrl');
-            if (amtCtrl) {
-                if (count > 0) amtCtrl.classList.remove('hidden');
-                else amtCtrl.classList.add('hidden');
+            for (const id of ['sympAmount-ctrl', 'sympDecay-ctrl']) {
+                const ctrl = document.getElementById(id);
+                if (!ctrl) continue;
+                if (count > 0) ctrl.classList.remove('hidden');
+                else ctrl.classList.add('hidden');
             }
         }
+
+        // ====================================================================
+        // Visualization: canvas copy goes through the table (v1.6.2, Stage O
+        // item 41). The three canvases painted 17 English literals with
+        // ctx.fillText in BOTH languages until v1.6.1 — a canvas string has no
+        // element, so it is neither a [data-i18n] node nor a setLabel() target
+        // and check-i18n never sees it. Every string below is now an I18N entry
+        // with an empty body (the O-Comp shape) read through tr() at paint
+        // time; the numeric readouts keep their number formatted by code and
+        // localize only the label and the unit ({v} token).
+        //
+        // The bow-string canvas repaints every frame, so it follows the
+        // selector by itself. The spectrum and Schelleng canvases paint only
+        // on demand, so a language change must trigger them: canon v2's
+        // applyI18n() sets <html lang> on every switch (init, native
+        // preference, selector, __setLanguage), and this observer redraws on
+        // that attribute rather than patching the canon block, which check-i18n
+        // assertion 6 holds byte-equal to scripts/i18n-canon.js.
+        // ====================================================================
+        const cv = (key, vars) => tr(key, uiLanguage, vars).t;
+
+        new MutationObserver(() => {
+            spectrumNeedsRedraw = true;
+            schellengNeedsRedraw = true;
+            if (activeVizTab === 'bodySpectrum') drawBodySpectrum();
+            else if (activeVizTab === 'schelleng') drawSchelleng();
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
 
         // ====================================================================
         // Visualization: Bow-String Animation (Tab 1 - default)
@@ -1465,8 +1498,8 @@
             ctx.fillStyle = '#8B7B6F';
             ctx.font = '9px Georgia';
             ctx.textAlign = 'center';
-            ctx.fillText('Bridge', stringStartX, stringY + 24);
-            ctx.fillText('Nut', stringEndX, stringY + 24);
+            ctx.fillText(cv('canvas.bridge'), stringStartX, stringY + 24);
+            ctx.fillText(cv('canvas.nut'), stringEndX, stringY + 24);
 
             // Draw vibrating string as bezier
             ctx.strokeStyle = '#3C2F2F';
@@ -1531,10 +1564,10 @@
             ctx.fillStyle = '#6B5B4F';
             ctx.font = '10px Georgia';
             ctx.textAlign = 'left';
-            ctx.fillText(`Speed: ${vizState.bowSpeed.toFixed(2)} m/s`, margin, 20);
-            ctx.fillText(`Pressure: ${vizState.bowPressure.toFixed(2)} N`, margin, 34);
-            ctx.fillText(`Position: ${(vizState.bowPosition * 100).toFixed(0)}%`, margin + 160, 20);
-            ctx.fillText(vizState.isPlaying ? 'Playing' : 'Silent', margin + 160, 34);
+            ctx.fillText(cv('canvas.speed',    { v: vizState.bowSpeed.toFixed(2) }), margin, 20);
+            ctx.fillText(cv('canvas.pressure', { v: vizState.bowPressure.toFixed(2) }), margin, 34);
+            ctx.fillText(cv('canvas.position', { v: (vizState.bowPosition * 100).toFixed(0) }), margin + 160, 20);
+            ctx.fillText(cv(vizState.isPlaying ? 'canvas.playing' : 'canvas.silent'), margin + 160, 34);
 
             ctx.restore();
 
@@ -1684,15 +1717,15 @@
             ctx.fillStyle = '#6B5B4F';
             ctx.font = '10px Georgia';
             ctx.textAlign = 'center';
-            ctx.fillText('Frequency', margin.left + plotW / 2, h - 4);
+            ctx.fillText(cv('canvas.frequency'), margin.left + plotW / 2, h - 4);
 
             // Material label
-            const matNames = ['Membrane', 'Wood', 'Metal', 'Glass'];
+            const matKeys = ['canvas.matMembrane', 'canvas.matWood', 'canvas.matMetal', 'canvas.matGlass'];
             const matIdx = Math.min(3, Math.floor(mat * 4));
             ctx.fillStyle = color;
             ctx.font = '11px Georgia';
             ctx.textAlign = 'right';
-            ctx.fillText(matNames[matIdx], w - margin.right, 16);
+            ctx.fillText(cv(matKeys[matIdx]), w - margin.right, 16);
 
             ctx.restore();
             spectrumNeedsRedraw = false;
@@ -1845,25 +1878,25 @@
             ctx.fillStyle = '#6B5B4F';
             ctx.font = '10px Georgia';
             ctx.textAlign = 'center';
-            ctx.fillText('Bow Position (\u03B2)', margin.left + plotW / 2, h - 4);
+            ctx.fillText(cv('canvas.bowPositionAxis'), margin.left + plotW / 2, h - 4);
 
             ctx.save();
             ctx.translate(14, margin.top + plotH / 2);
             ctx.rotate(-Math.PI / 2);
-            ctx.fillText('Bow Pressure (N)', 0, 0);
+            ctx.fillText(cv('canvas.bowPressureAxis'), 0, 0);
             ctx.restore();
 
             // Legend
             ctx.font = '9px Georgia';
             ctx.textAlign = 'left';
             ctx.fillStyle = '#4A6B35';
-            ctx.fillText('P_max (raucous)', w - margin.right - 95, margin.top + 12);
+            ctx.fillText(cv('canvas.pMax'), w - margin.right - 95, margin.top + 12);
             ctx.fillStyle = '#8BA870';
-            ctx.fillText('P_min (slip)', w - margin.right - 95, margin.top + 24);
+            ctx.fillText(cv('canvas.pMin'), w - margin.right - 95, margin.top + 24);
             ctx.fillStyle = 'rgba(107, 142, 78, 0.5)';
             ctx.fillRect(w - margin.right - 105, margin.top + 30, 10, 10);
             ctx.fillStyle = '#6B5B4F';
-            ctx.fillText('Helmholtz', w - margin.right - 95, margin.top + 39);
+            ctx.fillText(cv('canvas.helmholtz'), w - margin.right - 95, margin.top + 39);
 
             ctx.restore();
             schellengNeedsRedraw = false;

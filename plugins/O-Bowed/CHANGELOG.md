@@ -2,6 +2,50 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.6.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+PATCH: two UI defects, no param IDs, ranges, defaults, presets or DSP changed — the render
+harness renders the canonical preset bit-identical to the committed golden.
+
+### Fixed
+
+- **item 41 — the three visualisation canvases:** 17 English strings at 13 `ctx.fillText`
+  sites (`index.html` v1.6.1:1468-1866 — *Bridge*, *Nut*, *Speed: 0.20 m/s*, *Pressure: 0.50 N*,
+  *Position: 12%*, *Playing*, *Silent*, *Frequency*, *Membrane*/*Wood*/*Metal*/*Glass*,
+  *Bow Position (β)*, *Bow Pressure (N)*, *P_max (raucous)*, *P_min (slip)*, *Helmholtz*)
+  painted in English on the French page. They are now 17 `I18N` entries with an empty body
+  (`canvas.*`, the O-Comp shape), read through `tr()` at paint time, so the French page
+  paints *Chevalet*, *Sillet*, *Vitesse : 0.20 m/s* (the number keeps its point, as every
+  readout on this page does — only the label and the unit are localized), *En jeu*, *Au repos*,
+  *Fréquence*, *Bois*/*Métal*/*Verre*, *Position d’archet (β)*, *Pression d’archet (N)*,
+  *P_max (rauque)*, *P_min (glissement)*. *Membrane* and *Helmholtz* (a name) stay. The
+  spectrum and Schelleng canvases paint on demand, so a `MutationObserver` on `<html lang>`
+  — the attribute the i18n canon writes on every switch — now redraws them; the bow-string
+  canvas repaints every frame and follows by itself. Every French string was measured with
+  `measureText` at its canvas font, in this page, against the space the English occupied
+  (498 × 398 canvas): the widest are *Pression d’archet (N)* 93.69 px (English 77.65)
+  rotated on a 338 px plot height, *P_min (glissement)* 78.71 px (50.32) in a 120 px legend
+  slot, and *Chevalet* 34.40 px centred on the canvas edge (half-width 17.20 in 40). No
+  abbreviation, no font change. A `fillText`-recording probe driven en → fr → en confirms
+  every keyed string paints French under `fr` and English under `en`, and that no English
+  literal from the list paints under `fr`.
+- **item 42 — Sympathetic Decay at Count 0:** `updateSympVisibility()` (`index.html:1395`)
+  hid `#sympAmount-ctrl` only, so Decay stayed on screen at Count 0 where the engine has zero
+  strings and the knob does nothing. Both knobs now hide and show together; `tip.count` says
+  "its Amount and Decay knobs are hidden" and `tip.decay` says the knob is only on screen while
+  Count is above 0 (both French bodies follow and are `reviewed: false` again). Probed: at
+  Count 0 both controls have a null `offsetParent` and a 0 × 0 rect; at Count 1 both are
+  62 × 80.6. `tests/i18n-states.json` gains a state that drives Count to 0 through the stub,
+  so `check-ui-labels` measures that state explicitly.
+
+### Not changed
+
+- The 19 unreviewed French entries (17 new, 2 rewritten) are the developer's worklist
+  (`node scripts/check-i18n.js --plugin O-Bowed`).
+- `tests/render-harness/CMakeLists.txt` still hardcodes `JucePlugin_VersionString="1.3.0"`;
+  it names the harness binary, not the plugin, and has been stale since 1.4.0.
+
 ## [1.6.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout — Checkpoint 5 run as a QA

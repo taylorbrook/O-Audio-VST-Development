@@ -1,5 +1,9 @@
 [
   {
+    "name": "sympathetic count at 0 — Amount and Decay both hidden (v1.6.2, Stage O item 42)",
+    "eval": "window.__stubStates.sliders.get('sympatheticCount').setNormalisedValue(0)"
+  },
+  {
     "name": "settings popover open",
     "click": "#gear-btn"
   },
