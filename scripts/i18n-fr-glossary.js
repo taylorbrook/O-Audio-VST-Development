@@ -188,6 +188,8 @@ const TERMS = {
     'end':                      ['fin'],
     'loop crossfade':           ['fondu de boucle'],
     'spread':                   ['étalement', 'étal'],
+    'az spread':                ['étalement en azimut', 'étal. az'],     // O-GrainScatter N7: 41.30 px in a 62 px cell
+    'el spread':                ['étalement en élévation', 'étal. él'],
     'scatter':                  ['dispersion', 'disp'],
     'scatter x':                ['dispersion x', 'disp. x'],   // O-TextureForge: Dispersion X 65.14 px wraps a 72 px box
     'scatter y':                ['dispersion y', 'disp. y'],
