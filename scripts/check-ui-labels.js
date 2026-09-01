@@ -676,7 +676,7 @@ const overlaps = (a, b) =>
         //
         // The hole this leaves, named rather than glossed: an element that both
         // animates AND is pushed by French is excluded. The NOTE below prints
-        // its EN -> FR delta beside its EN -> EN spread so it stays visible.
+        // its EN -> other-language delta beside its EN -> EN spread so it stays visible.
         //
         // Two extra samples, not one: a periodic animation can land on the same
         // phase twice. The spread is taken across all three.
@@ -933,7 +933,7 @@ const overlaps = (a, b) =>
             const fr = snaps[other].before;
             check(fr.docScroll.dw <= en.docScroll.dw + TOL && fr.docScroll.dh <= en.docScroll.dh + TOL,
                 `[6][${other}] ${other} does not enlarge the document's scroll extent — `
-                + `en ${en.docScroll.dw} x ${en.docScroll.dh}, fr ${fr.docScroll.dw} x ${fr.docScroll.dh}`);
+                + `en ${en.docScroll.dw} x ${en.docScroll.dh}, ${other} ${fr.docScroll.dw} x ${fr.docScroll.dh}`);
             if (en.docScroll.bw > en.docScroll.dw + 1 || en.docScroll.bh > en.docScroll.dh + 1)
                 console.log(`   NOTE: [6] body scrolls to ${en.docScroll.bw} x ${en.docScroll.bh} where documentElement `
                     + `reports ${en.docScroll.dw} x ${en.docScroll.dh} — a child overflows a clipped ancestor. `

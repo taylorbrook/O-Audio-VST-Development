@@ -564,7 +564,7 @@ function checkPlugin(p) {
         }
     }
     check(missingLang.length === 0,
-        `[1] every I18N key has both en and fr`
+        `[1] every I18N key has an entry in every declared language (${LANGS.join(', ')})`
         + (missingLang.length ? ` — missing: ${missingLang.slice(0, 6).join(', ')}` : ''));
     check(missingField.length === 0,
         `[1] every language entry has string t and b`
@@ -654,7 +654,7 @@ function checkPlugin(p) {
                 if (!e[lang] || typeof e[lang].t !== 'string') lMissing.push(`${k}.${lang}`);
         }
         check(lMissing.length === 0,
-            `[1] every LABELS key has en and fr with a string t`
+            `[1] every LABELS key has a string t in every declared language (${LANGS.join(', ')})`
             + (lMissing.length ? ` — ${lMissing.length} malformed: ${lMissing.slice(0, 6).join(', ')}` : ''));
 
         const lPass = lkeys.filter((k) => {
