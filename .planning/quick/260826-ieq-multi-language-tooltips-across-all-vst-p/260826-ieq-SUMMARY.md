@@ -6491,3 +6491,72 @@ gate had the assertion (grep of every `ui_tip_render_check.js` / `ui_tooltip_cla
 No DAW on any of the five; O-Formant's panel-readout half of item 22 verified by
 syntax + boot-all-uis only (the ui-stub has no real `getMasterTune`); O-Bowed's material names
 (*Membrane / Métal / Verre*) verified by width + table, not by runtime paint.
+
+---
+
+# STAGE O — BATCH O3 COMPLETE, 5 of 5 — 15 of 21
+
+PLUGINS.md rows: `7e4e77c0`.
+
+| Plugin | Version | Commit | Items | Proof the probe moved |
+|---|---|---|---|---|
+| O-Tapestop | 1.6.2 | `0ddf4ac3` | 38, 39 | label-in-name 0/6 → 6/6; French headings under fr FAIL → PASS (switch without reopening); harness byte-identical |
+| O-simpleGrain | 1.4.2 | `90607db7` | 54, 57, 58, 69 | new state: gate RED **159 moved** on the old caption → 0; caption fr 997.22 → 813.31 px in 846; click-tip 2/12 → 12/12 |
+| O-simpleSampler | 1.4.3 | `e5908c55` | 55, 58 | Stretch state: RED **96 moved** + 2 labels 8.7 px off-frame → 0; readout fr/Stretch 23.75 → 11.88 px tall; click-tip 3/4 → 0/4 |
+| O-simpleAdditive | 1.1.2 | `71c2a63a` | 58 | click-tip **26/41 → 0/41** (10 via focusin, 16 drawbars via hover re-open); golden bit-identical |
+| O-Orbit | 1.2.2 | `30e94100` | 44, 58 | keyboard-open 15/23 → 23/23; dead 9 px rule deleted, computed 11 px before and after, "Non" 26.84 px unchanged |
+
+Every one: baseline green, check-ui-labels 0 → 0 moved (after the driven states), check-i18n
+PASS, i18n-fr-lint exit 0, render harness unchanged where one exists, boot-all-uis 43/43 / 0
+DEAD / late unchanged, `auval` PASS, installed plist at the new version, new VALUE grepped.
+
+## THE HEADLINE: "focus latch" is three different defects on four pages
+
+Item 58 said "a pointer click opens no tip, keyboard focus still does". Counted on each page
+before fixing (carried correction 9): **O-Orbit** had no `focusin` at all (Tab opened nothing);
+**O-simpleGrain / O-simpleSampler** had `focusin` without a latch (click re-opened the tip under
+the pointer); **O-simpleAdditive** had both of those AND a third path the latch cannot see —
+16 drawbars re-opened by HOVER: the press hides the tip, `setFromY` grows the fill under the
+pointer, and the child-boundary `pointerover` re-shows it with no active anchor. Fixed by
+remembering the pressed anchor until the pointer leaves it (what the knobs already did via
+`preventDefault`). A probe that classifies each re-open by tip-y (pointer + 16 = hover,
+anchor-bottom + 16 = focus) is what told them apart.
+
+## A measured number in a brief can be the WRAPPED width
+
+O-simpleGrain's caption was "838.58 px" in Stage N — the Range box of the widest LINE of an
+already-wrapped caption. Natural nowrap width: **997.22 px in an 846 px box** — 161 px over,
+not 7. Correction 43 (measure NOWRAP on the live node) was written for exactly this and the
+number still got inherited. The fix moved the rack 13.19 px back in French; the gate saw it
+only once the state was driven (RED 159 → 0).
+
+## Two dead-rule decisions, one visible, one not
+
+O-Orbit `.toggle-label { font-size: 9px }` lost to `.param-container label { 11px }` (0,1,1
+vs 0,1,0). Promoting it would have shrunk a shipped control's faces (*Non* 26.84 → 22.50 px)
+and let MARCHE fit — a visible change on a shipped control for no reported defect. The Stage K
+header widths were measured at the WINNING 11 px, so the tables were already right; the rule
+was deleted and the "until specificity is settled" comments corrected. `check-ui-labels`
+output byte-identical.
+
+## Defects found, not fixed (items 76–78)
+
+76. **O-simpleGrain's render harness cannot produce a byte-identical digest** — each voice's
+    `juce::Random` (`GrainVoice.h:541`) is default-constructed (time-seeded); two runs of the
+    SAME binary differ in rms/peak. The harness verdict is 15/15 both ways, but "unchanged"
+    is unprovable until the harness build seeds the RNG. Item 69 is clear here: read position
+    is `double` (`Grain.h:48`), the float `rate` quantum is ~2e-4 ct, no grid.
+77. O-Orbit `#view-toggle` is a `<div>` — unreachable by Tab, its tip has no keyboard path
+    (item 11 shape).
+78. check-i18n assertion 13 accepts only LITERAL `setLabel(el, "key")` keys — a table-driven
+    heading writer needs one arrow per row (O-Tapestop). Not wrong, but the next page with
+    a keyed table will hit it.
+- O-simpleSampler `label.captionRepitchStretch` still opens "the headline A/B" — the lesson's
+  own framing, left. O-Tapestop's "User" preset heading verified by key existence only (the
+  stub has no user presets).
+
+## Not verified
+
+No DAW on any of the five; WKWebView focus-on-click (macOS WebKit does not focus `<button>` on
+click; Chromium does — the latch is correct in both, only Chromium was driven); O-simpleGrain
+DSP "unchanged" rests on untouched sources, not a digest (item 76).
