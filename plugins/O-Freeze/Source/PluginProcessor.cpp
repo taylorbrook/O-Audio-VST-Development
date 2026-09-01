@@ -578,8 +578,12 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 float jitterRange = static_cast<float>(grainSize) * driftValue;
                 newGrain.jitterOffset = static_cast<int>(random.nextFloat() * jitterRange);
 
-                // Per-grain pitch micro-detuning (cents → rate multiplier)
-                newGrain.playbackRate = 1.0f + (random.nextFloat() * 2.0f - 1.0f) * (detuneValue / 1200.0f);
+                // Per-grain pitch micro-detuning (cents → rate multiplier).
+                // r is a uniform random spread in [-1, 1]; the knob is the half-width in
+                // cents, so the rate is 2^(r·c/1200). v2.3.0: this was the linear
+                // 1 + r·c/1200, which is not cents — at knob 50 it reached +70.67 /
+                // -73.68 ct (1.41x / 1.47x the label), measured on a frozen 440 Hz sine.
+                newGrain.playbackRate = std::pow(2.0f, (random.nextFloat() * 2.0f - 1.0f) * (detuneValue / 1200.0f));
                 newGrain.fractionalPosition = 0.0f;
 
                 // Advance grain index (round-robin within active count)
@@ -608,9 +612,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 windowValues[g] = hannWindow[grains[g].startSample];
 
                 // Fractional position for pitch-shifted grain read
-                float fp = grains[g].fractionalPosition;
+                double fp = grains[g].fractionalPosition;
                 int intPart = static_cast<int>(fp);
-                float frac = fp - static_cast<float>(intPart);
+                float frac = static_cast<float>(fp - static_cast<double>(intPart));
 
                 // Compute interpolation sample positions (base + fractional offset + jitter + drift)
                 if (reverseActive)

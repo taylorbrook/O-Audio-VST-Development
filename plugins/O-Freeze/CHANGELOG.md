@@ -2,6 +2,50 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.3.0] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+- **item 48 — Detune knob is now true cents:** the knob is labelled in
+  cents and its tooltip says "0 to 50 cents", but `PluginProcessor.cpp:582`
+  mapped it linearly — `playbackRate = 1 + r·(cents/1200)` — and a cent is
+  `2^(1/1200)`. Knob 50 therefore spread grains across +70.67 / −73.68 ct,
+  not ±50; knob 25 reached +35.7 / −36.4; knob 5 reached ±7.2. The map is now
+  `2^(r·cents/1200)`; the random spread `r` (uniform in ±1, drawn per grain)
+  is untouched. Measured on a frozen 440 Hz sine with one seed both sides, so
+  every grain pairs up: at knob 50, 44 grains went from +63.08 / −68.98 ct to
+  +45.59 / −47.01 (per-grain ratio 1.29–1.63, median 1.45); over 209 grains
+  the extremes went from +69.59 / −72.51 to +49.50 / −49.96. After the fix a
+  grain's pitch at knob 25 is 5.00× its pitch at knob 5 and at knob 50 it is
+  10.00× — the knob is linear in cents, which it was not before.
+- **Detune no longer snaps to a 3.4 ct grid** (found by that measurement).
+  Each grain's read position was a `float` accumulator; at a 1000 ms grain
+  (44 100 samples) a float's step is 1/256 of a sample, so the per-sample
+  rate rounded to a multiple of 1/512 and every grain's pitch was quantised
+  to multiples of 3.38 ct (1.69 ct at the default 400 ms) while the knob
+  offers 0.1 ct. At knob 5 the grains sat at 0, ±3.38 or ±6.75 ct and nowhere
+  between. `Grain::fractionalPosition` is now `double`; at knob 5 the measured
+  grains are now continuous (+0.27 … +4.56 ct).
+
+### Changed
+- **The sound of an existing session changes at the same Detune value:** the
+  spread is narrower by 2^(c/1200) against 1 + c/1200 — knob 50 is now
+  ±50 ct, was +70.67 / −73.68 ct (1.41× / 1.47×); knob 25 is ±25, was
+  +35.7 / −36.4; knob 5 is ±5, was ±7.2 — and small values are no longer
+  stepped. To keep the old width, turn the knob up by about 1.4×. Minor bump
+  for that reason.
+
+### Notes
+- No parameter ID, range, default, preset format or state key changed;
+  sessions load and the readout shows what it did. No English or French copy
+  changed: "0 to 50 cents" / "De 0 à 50 cents" was the claim the DSP failed
+  to meet, and is now true.
+- Verified with a scratchpad offline render, not committed: the processor
+  driven at block size 1, a 440 Hz sine frozen, GRAIN_COUNT 2, DRIFT 0, LFO
+  depth 0, pitch read by zero-crossings over the stretch where one grain is
+  alone in the overlap-add. O-Freeze has no committed render harness.
+
 ## [2.2.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.
