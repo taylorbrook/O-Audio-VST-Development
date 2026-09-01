@@ -1,5 +1,32 @@
 # Changelog — O-Orbit
 
+## [1.2.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **23 French entries revised** against the suite glossary and lint: 6 terminology, 15
+  typography, 1 agreement, 1 meaning. The visible ones — **Mixage → Mix** on the Source / Mix
+  heading, the Mix caption and the Mix tooltip title (*mixage* is the mixing process; *Mix* is
+  what French DAWs print for a dry/wet control); **Absorption → Absorption air**, which
+  measures 104.17 px — exactly the width of the English "Air Absorption" it replaces — and
+  restores the half of the name that says what is absorbing; **Désact. → Désactivé** in the
+  Tempo Sync list, which had 40.90 px of room to spare; straight apostrophes → typographic
+  ones; and no-break spaces before `% : ; ?` and between a number and its unit, so a French
+  line never breaks between "0" and "%" or between "1" and "mesure".
+- **A gender error in the Tempo Sync tooltip** — *toutes les quatre temps* → *tous les quatre
+  temps*; *temps* is masculine.
+- **The Speed tooltip** now says *Vitesse* rather than *Fréquence*, matching its own caption
+  and title, and names the control it cross-refers to by the caption on screen (*Sync tempo*).
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so
+  assistive technology reads the page in the language it is displayed in.
+
+Three entries carry a reasoned glossary exemption rather than a change: the **downmix badge**
+keeps *Mixage réducteur* — a channel fold-down is not the dry/wet control — and the elevation
+toggle keeps **Oui / Non**, because no settled form fits the 46 px pill it shares with the
+hover-help button (MARCHE 53.06 px, ACTIVÉ 46.33 px, in a 46.00 px box). All 91 entries remain
+`reviewed: false`: that flag records a native-speaker reading, and none has happened.
+
 ## v1.2.0 — 2026-08-28
 
 Feature release: **the page speaks French, not only the hover help.** Quick task 260826-ieq

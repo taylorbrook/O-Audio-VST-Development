@@ -18,7 +18,40 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Orbit interface copy, English + French (v1.2.0)
+// i18n.js — O-Orbit interface copy, English + French (v1.2.1)
+//
+// ── v1.2.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 23 of 91 entries — 6 terminology, 15 typography, 1 grammar/agreement,
+// 1 meaning, 3 exemption-only (the categories overlap: tempo_sync took two
+// no-break spaces AND an agreement fix, speed took a term AND a cross-reference).
+// sameAsEn: kept 6, translated 0, ADDED 2 (label.mix,
+// label.groupSourceMix — a glossary root term that IS the English word makes
+// the French a straight copy, and check-i18n assertion 4 requires the flag).
+// termNote exemptions: 3 (ui.on, ui.off, downmix-badge — each listed at its
+// entry with the measurement or the sense that earns it).
+// Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
+//
+// Decisions the next reader needs:
+//   · Mix wins over Mixage in three places (the group heading, the caption, the
+//     tip title). "Mixage réducteur" on the downmix badge does NOT change — a
+//     channel fold-down is not the dry/wet control, and it carries a termNote.
+//     The speaker_layout BODY keeps "mixage réducteur" for the same reason;
+//     bodies are not matched against the term list.
+//   · Oui/Non stay on the elevation toggle. No glossary form fits either of the
+//     two controls that key pair drives — the numbers are at the entry. This is
+//     a CSS specificity consequence, reported, not fixed here.
+//   · "Sync tempo" stays as the Tempo Sync caption: "Synchro tempo" WRAPS to
+//     two lines in the 100.28px grid cell (59.58 x 26.00 over two lines against
+//     79.19 x 13.00 on one), which is the one v1.2.0 width defence on this page
+//     that re-measured true. The full "Synchro tempo" survives as the tip title.
+//   · The Speed body now says "Vitesse", not "Fréquence", and names the control
+//     it cross-refers to by its CAPTION ("Sync tempo"), which is what the other
+//     five cross-references in this file already do.
+//   · Fifteen no-break spaces (U+00A0) are now load-bearing across thirteen
+//     French strings — before % : ; ? and between a number and its unit. They
+//     are invisible in a diff and in most editors. Do not retype a French
+//     string by hand; edit it and re-run scripts/i18n-fr-lint.js.
 //
 // UI ROOT IS Resources/ui, NOT Source/ui/public. CMakeLists.txt:54-62 embeds
 // exactly seven files and every one of them is under Resources/ui; the stray
@@ -53,8 +86,10 @@
 // nearly landed on the wrong control in Stage C — so each one gained a
 // data-param attribute naming the parameter its <label for> already names.
 //
-// ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
-// speaker has read it. `node scripts/check-i18n.js` prints the worklist.
+// ALL FRENCH WAS MACHINE-DRAFTED at v1.2.0 and REVIEWED at v1.2.1 against the
+// suite glossary and lint (see the Stage N block above). It stays flagged
+// `reviewed: false`: that flag means a NATIVE SPEAKER has read the entry, and
+// none has. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
 export const LANGUAGES = ['en', 'fr'];
@@ -70,7 +105,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of the interface, and turn the hover help on or off. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: "Choisir la langue de l'interface et activer ou désactiver l'aide au survol. Les deux choix sont conservés avec la session.",
+              b: "Choisir la langue de l’interface et activer ou désactiver l’aide au survol. Les deux choix sont conservés avec la session.",
               reviewed: false },
     },
 
@@ -83,7 +118,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of the labels on this page and of this hover help. English and French are available; value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.",
+              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.",
               reviewed: false },
     },
 
@@ -106,7 +141,7 @@ export const I18N = Object.freeze({
         en: { t: 'Preset',
               b: 'The preset currently loaded — click to browse by category. The 12 factory presets are read-only; saving under the same name writes a user copy instead.' },
         fr: { t: 'Préréglage',
-              b: "Le préréglage actuellement chargé — cliquer pour parcourir par catégorie. Les 12 préréglages d'usine sont en lecture seule ; enregistrer sous le même nom écrit plutôt une copie utilisateur.",
+              b: "Le préréglage actuellement chargé — cliquer pour parcourir par catégorie. Les 12 préréglages d’usine sont en lecture seule ; enregistrer sous le même nom écrit plutôt une copie utilisateur.",
               reviewed: false },
     },
     'preset-save': {
@@ -143,7 +178,7 @@ export const I18N = Object.freeze({
         en: { t: 'View',
               b: 'Switch between the motion visualizer and the speaker layout editor.' },
         fr: { t: 'Vue',
-              b: "Basculer entre le visualiseur de mouvement et l'éditeur de disposition des enceintes.",
+              b: "Basculer entre le visualiseur de mouvement et l’éditeur de disposition des enceintes.",
               reviewed: false },
     },
 
@@ -203,14 +238,14 @@ export const I18N = Object.freeze({
         en: { t: 'Path',
               b: 'Motion trajectory: Orbit circles, Pendulum swings, Linear sweeps and snaps back, Drift wanders organically, Ping-Pong sweeps back and forth without the snap.' },
         fr: { t: 'Trajectoire',
-              b: 'Trajectoire du mouvement : Orbite décrit un cercle, Pendule oscille, Linéaire balaie puis revient d’un coup, Dérive vagabonde de façon organique, Va-et-vient balaie dans les deux sens sans le retour brusque.',
+              b: 'Trajectoire du mouvement : Orbite décrit un cercle, Pendule oscille, Linéaire balaie puis revient d’un coup, Dérive vagabonde de façon organique, Va-et-vient balaie dans les deux sens sans le retour brusque.',
               reviewed: false },
     },
     'speed': {
         en: { t: 'Speed',
               b: 'Motion rate in cycles per second. Ignored while Tempo Sync is set to a division.' },
         fr: { t: 'Vitesse',
-              b: 'Fréquence du mouvement en cycles par seconde. Ignorée tant que Synchro tempo est réglée sur une division.',
+              b: 'Vitesse du mouvement en cycles par seconde. Ignorée tant que Sync tempo est réglée sur une division.',
               reviewed: false },
     },
     'width': {
@@ -224,7 +259,7 @@ export const I18N = Object.freeze({
         en: { t: 'Depth',
               b: 'Near/far motion. At 0% the source stays at the Distance radius; higher values move it toward and away from you each cycle.' },
         fr: { t: 'Profondeur',
-              b: 'Mouvement de rapprochement et d’éloignement. À 0 %, la source reste au rayon défini par Distance ; au-delà, elle avance et recule à chaque cycle.',
+              b: 'Mouvement de rapprochement et d’éloignement. À 0 %, la source reste au rayon défini par Distance ; au-delà, elle avance et recule à chaque cycle.',
               reviewed: false },
     },
     'tilt': {
@@ -259,7 +294,7 @@ export const I18N = Object.freeze({
         en: { t: 'Tempo Sync',
               b: 'Locks the motion rate to the host tempo at the chosen division: 1/4 is one cycle per beat, 1 Bar one cycle per four beats (4/4 assumed). While the transport plays, motion phase locks to the beat position, so bounces are deterministic.' },
         fr: { t: 'Synchro tempo',
-              b: 'Verrouille la vitesse du mouvement sur le tempo de l’hôte à la division choisie : 1/4 donne un cycle par temps, 1 mesure un cycle toutes les quatre temps (4/4 supposé). Pendant la lecture, la phase du mouvement se cale sur la position rythmique, ce qui rend les exports déterministes.',
+              b: 'Verrouille la vitesse du mouvement sur le tempo de l’hôte à la division choisie : 1/4 donne un cycle par temps, 1 mesure un cycle tous les quatre temps (4/4 supposé). Pendant la lecture, la phase du mouvement se cale sur la position rythmique, ce qui rend les exports déterministes.',
               reviewed: false },
     },
 
@@ -276,7 +311,10 @@ export const I18N = Object.freeze({
               b: 'Shown when the layout has more channels than the track output — an energy-preserving fold-down is active.' },
         fr: { t: 'Mixage réducteur',
               b: 'Apparaît lorsque la disposition compte plus de canaux que la sortie de la piste — un repliement à énergie constante est actif.',
-              reviewed: false },
+              reviewed: false,
+              termNote: 'a downmix is a CHANNEL fold-down, not the dry/wet Mix control four cells away; '
+                      + '"mixage réducteur" is the term French DAWs print for it, and the glossary forbids '
+                      + '"mixage" precisely because it means the mixing process — which is what this badge names' },
     },
     'distance': {
         en: { t: 'Distance',
@@ -296,14 +334,14 @@ export const I18N = Object.freeze({
         en: { t: 'Atten Curve',
               b: 'How level falls with distance: Linear, Inverse (1/d), or Inverse Square (1/d²).' },
         fr: { t: 'Courbe d’atténuation',
-              b: 'Manière dont le niveau décroît avec la distance : Linéaire, Inverse (1/d) ou Inverse carrée (1/d²).',
+              b: 'Manière dont le niveau décroît avec la distance : Linéaire, Inverse (1/d) ou Inverse carrée (1/d²).',
               reviewed: false },
     },
     'center_diverge': {
         en: { t: 'Center Diverge',
               b: 'Spreads energy into more speakers as it rises — 0% is the sharpest point-source imaging.' },
         fr: { t: 'Divergence centrale',
-              b: 'Répartit l’énergie sur davantage d’enceintes à mesure qu’elle augmente — à 0 %, l’image ponctuelle est la plus précise.',
+              b: 'Répartit l’énergie sur davantage d’enceintes à mesure qu’elle augmente — à 0 %, l’image ponctuelle est la plus précise.',
               reviewed: false },
     },
 
@@ -312,7 +350,7 @@ export const I18N = Object.freeze({
         en: { t: 'Source Mode',
               b: 'Mono sums the input into one moving source; L+R Split moves the left and right channels as two separate sources.' },
         fr: { t: 'Mode source',
-              b: 'Mono additionne l’entrée en une seule source mobile ; Séparé G+D déplace les canaux gauche et droit comme deux sources distinctes.',
+              b: 'Mono additionne l’entrée en une seule source mobile ; Séparé G+D déplace les canaux gauche et droit comme deux sources distinctes.',
               reviewed: false },
     },
     'lr_offset': {
@@ -325,14 +363,14 @@ export const I18N = Object.freeze({
     'mix': {
         en: { t: 'Mix',
               b: 'Dry/wet balance. Wet is the spatialized signal on all outputs; dry stays on its native input channels.' },
-        fr: { t: 'Mixage',
-              b: 'Équilibre son direct / son traité. Le son traité est le signal spatialisé sur toutes les sorties ; le son direct reste sur ses canaux d’entrée d’origine.',
+        fr: { t: 'Mix',
+              b: 'Équilibre son direct / son traité. Le son traité est le signal spatialisé sur toutes les sorties ; le son direct reste sur ses canaux d’entrée d’origine.',
               reviewed: false },
     },
 });
 
 // ============================================================================
-// LABELS — the page's own captions, v1.2.0
+// LABELS — the page's own captions, v1.2.1
 //
 // Separate from I18N because a tooltip entry is a {title, body} PAIR and a
 // label is one string. trLabel() falls back to I18N, so a control whose tooltip
@@ -344,7 +382,8 @@ export const I18N = Object.freeze({
 // is not enough — reusing there would make every future tooltip copy edit a
 // silent geometry change to a control.
 //
-// ALL FRENCH IS MACHINE-DRAFTED, `reviewed: false`.
+// FRENCH REVIEWED at v1.2.1 against the glossary; still `reviewed: false`,
+// which records the native-speaker reading that has not happened yet.
 // ============================================================================
 
 export const LABELS = Object.freeze({
@@ -368,7 +407,7 @@ export const LABELS = Object.freeze({
     // asks for — and the wrong one the moment the page had two languages: an
     // attribute holds ONE string, so a language switch while a button was armed
     // would have restored the ENGLISH armed face.
-    'ui.confirm':    { en: { t: 'Sure?' },  fr: { t: 'Sûr ?',   reviewed: false } },
+    'ui.confirm':    { en: { t: 'Sure?' },  fr: { t: 'Sûr ?',   reviewed: false } },
 
     // ── The view toggle, both faces ─────────────────────────────────────────
     // Written from script on every click, so both faces are keys. Two separate
@@ -380,13 +419,45 @@ export const LABELS = Object.freeze({
                           fr: { t: 'Éditeur d’enceintes', reviewed: false } },
 
     // ── The elevation toggle, both faces ────────────────────────────────────
-    // A 50px pill at 9px uppercase with a 18px thumb riding over it, so the
-    // budget is three glyphs — the same three "OFF" already spends. "Oui"/"Non"
-    // is the only three-glyph pair that reads; "Activé"/"Désactivé" and even
-    // "Act."/"Dés." are wider than the English they replace. FLAGGED FOR REVIEW:
-    // a native speaker may prefer "I"/"O" here.
-    'ui.on':         { en: { t: 'On' },     fr: { t: 'Oui',     reviewed: false } },
-    'ui.off':        { en: { t: 'Off' },    fr: { t: 'Non',     reviewed: false } },
+    // ONE key pair, TWO controls: the 50px elevation pill (.toggle-label) and
+    // the 46px hover-help button in the settings popover (.settings-toggle).
+    // The tighter of the two governs, and neither takes a glossary form.
+    //
+    // RE-MEASURED at v1.2.1 with Range.selectNodeContents on the shipping frame,
+    // because the v1.2.0 defence above it was arithmetic on the WRONG font. It
+    // said "9px uppercase … the budget is three glyphs". It is not 9px: the
+    // `.toggle-label { font-size: 9px }` rule loses to `.param-container label
+    // { font-size: 11px }` (0,1,1 beats 0,1,0), so the pill renders at 11px and
+    // the authored 9px has been dead since v1.0.0. Measured at the real 11px,
+    // in a 46.00px content box:
+    //
+    //     OUI    22.56   NON    26.84   ARRÊT   41.06   AUCUN  44.13   fit
+    //     ACTIVÉ 46.33 (over by 0.33)   MARCHE  53.06 (over by 7.06)
+    //     DÉSACTIVÉ 70.11              DÉSACTIVÉE 77.83               do not
+    //
+    // and in the settings toggle's 44.00px content box (10px, flex: 0 0 46px,
+    // so it cannot grow): ARRÊT 35.28 and ACTIVÉ 39.67 fit, MARCHE 45.80 is
+    // over by 1.80, DÉSACTIVÉE 66.67 is far over.
+    //
+    // So the OFF side has a glossary form that fits (ARRÊT, both sites) and the
+    // ON side has none — and half a pair is worse French than the calque: an
+    // ARRÊT face whose opposite reads OUI names two different oppositions on
+    // one 24px pill. Both stay, both carry a termNote with the number.
+    //
+    // The exemption is a CSS consequence, not a translation one. At the 9px the
+    // stylesheet asks for, MARCHE measures ≈43.4px and the settled MARCHE/ARRÊT
+    // pair fits with room. Fixing the specificity is a CSS change and Stage N
+    // takes none; it is reported instead.
+    'ui.on':         { en: { t: 'On' },
+                       fr: { t: 'Oui', reviewed: false,
+                             termNote: 'MARCHE measures 53.06px and ACTIVÉ 46.33px in the elevation pill\'s '
+                                     + '46.00px content box, and MARCHE 45.80px in the settings toggle\'s 44.00px '
+                                     + 'box — no glossary form fits either site, so the pair stays as drafted' } },
+    'ui.off':        { en: { t: 'Off' },
+                       fr: { t: 'Non', reviewed: false,
+                             termNote: 'ARRÊT does fit (41.06px of 46.00, 35.28px of 44.00) but its partner does '
+                                     + 'not, and ARRÊT opposite OUI is a mismatched pair on one toggle — held '
+                                     + 'with ui.on until the .toggle-label font-size specificity is settled' } },
 
     // ── Editor toolbar: the eight layout preset buttons ─────────────────────
     // 5.1, 7.1, 5.1.4 and 7.1.4 are absent: a channel-count designation is
@@ -405,12 +476,17 @@ export const LABELS = Object.freeze({
     'label.import':  { en: { t: 'Import' }, fr: { t: 'Importer', reviewed: false } },
 
     // ── Group headings ──────────────────────────────────────────────────────
+    // "Source / Mix", not the v1.2.0 draft's "Source / Mixage": the suite
+    // glossary settles Mix as Mix — it is what every French DAW prints — and
+    // forbids "mixage" in a label because mixage is the mixing PROCESS. The
+    // heading then equals its English, so it carries sameAsEn: true, which is
+    // the declaration that a reader looked and agreed the word is French too.
     'label.groupMotion':   { en: { t: 'Motion' },
                              fr: { t: 'Mouvement', reviewed: false } },
     'label.groupSpatial':  { en: { t: 'Spatial' },
                              fr: { t: 'Spatial', reviewed: false, sameAsEn: true } },
     'label.groupSourceMix': { en: { t: 'Source / Mix' },
-                              fr: { t: 'Source / Mixage', reviewed: false } },
+                              fr: { t: 'Source / Mix', reviewed: false, sameAsEn: true } },
 
     // ── Motion parameter captions ───────────────────────────────────────────
     // Eight of these are identical to their tooltip TITLE in both languages and
@@ -452,13 +528,16 @@ export const LABELS = Object.freeze({
     // T/D suffixes that mean triplet and dotted in both languages' notation.
     // They carry no key and are exempt below.
     //
-    // NOT `ui.off`: that key is the elevation toggle's OFF face, three glyphs
-    // wide by construction. This one sits in an 11px dropdown with room, and
-    // "Non" would read as an answer to a question nobody asked.
-    'label.syncOff':   { en: { t: 'Off' },     fr: { t: 'Désact.',    reviewed: false } },
-    'label.bar1':      { en: { t: '1 Bar' },   fr: { t: '1 mesure',   reviewed: false } },
-    'label.bars2':     { en: { t: '2 Bars' },  fr: { t: '2 mesures',  reviewed: false } },
-    'label.bars4':     { en: { t: '4 Bars' },  fr: { t: '4 mesures',  reviewed: false } },
+    // NOT `ui.off`: that key is the elevation toggle's OFF face, pinned to a
+    // 46px pill. This one sits in an 84.28px dropdown with room, so it takes
+    // the glossary's feature-sense form in full — "Désactivé" 43.38px, 40.90px
+    // to spare, against the v1.2.0 draft's clipped "Désact." 32.69px. The
+    // feature sense, not "Aucune": the English is Off, and Off here means the
+    // sync is not running, not that a division is unselected.
+    'label.syncOff':   { en: { t: 'Off' },     fr: { t: 'Désactivé',  reviewed: false } },
+    'label.bar1':      { en: { t: '1 Bar' },   fr: { t: '1 mesure',   reviewed: false } },
+    'label.bars2':     { en: { t: '2 Bars' },  fr: { t: '2 mesures',  reviewed: false } },
+    'label.bars4':     { en: { t: '4 Bars' },  fr: { t: '4 mesures',  reviewed: false } },
 
     // ── Spatial parameter captions ──────────────────────────────────────────
     // "Enceintes", not "Disposition des enceintes": this caption sits in a
@@ -469,8 +548,14 @@ export const LABELS = Object.freeze({
                              fr: { t: 'Enceintes', reviewed: false } },
     'label.distance':      { en: { t: 'Distance' },
                              fr: { t: 'Distance', reviewed: false, sameAsEn: true } },
+    // "Absorption air" is the glossary's short form and it is FREE here: at
+    // 11px uppercase it measures 104.17px, the same 104.17px as the English
+    // "Air Absorption" it replaces, letter for letter. The v1.2.0 draft's bare
+    // "Absorption" (79.08px) dropped the half of the name that says WHAT is
+    // absorbing. The full "Absorption de l'air" is 135.88px and does not fit;
+    // it is what the TOOLTIP title says.
     'label.airAbsorption': { en: { t: 'Air Absorption' },
-                             fr: { t: 'Absorption', reviewed: false } },
+                             fr: { t: 'Absorption air', reviewed: false } },
     'label.attenCurve':    { en: { t: 'Atten Curve' },
                              fr: { t: 'Courbe attén.', reviewed: false } },
     'label.centerDiverge': { en: { t: 'Center Diverge' },
@@ -501,7 +586,7 @@ export const LABELS = Object.freeze({
     'label.lrOffset':   { en: { t: 'L/R Offset' },
                           fr: { t: 'Décalage G/D', reviewed: false } },
     'label.mix':        { en: { t: 'Mix' },
-                          fr: { t: 'Mixage', reviewed: false } },
+                          fr: { t: 'Mix', reviewed: false, sameAsEn: true } },
 
     // ── The downmix badge ───────────────────────────────────────────────────
     // A COMPOSED entry, and the only one on this page. The two numbers are
