@@ -46,7 +46,7 @@
 namespace OSimpleFM::ParamIDs
 {
     // Core FM controls
-    inline constexpr auto ratio          = "ratio";          // C:M ratio (harmonic vs inharmonic)
+    inline constexpr auto ratio          = "ratio";          // M:C ratio — modulator = carrier × ratio, FMVoice.h:210 (harmonic vs inharmonic)
     inline constexpr auto ratioSnap      = "ratioSnap";      // integer-snap toggle
     inline constexpr auto modIndex       = "modIndex";       // raw radian index I (0–20)
     inline constexpr auto feedback       = "feedback";       // modulator self-feedback (0–1)

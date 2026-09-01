@@ -92,7 +92,7 @@ build (juce::AudioProcessorValueTreeState& apvts)
     std::vector<Preset> presets;
     presets.push_back (makeDefaultPreset (apvts));
 
-    // E-Piano — ratio 1:1 + fast mod-envelope: bright pluck that mellows to a sine.
+    // E-Piano — M:C ratio 1:1 + fast mod-envelope: bright pluck that mellows to a sine.
     presets.push_back (makePreset (apvts, "E-Piano", {
         { ratio, 1.0f }, { ratioSnap, 1.0f }, { modIndex, 5.5f }, { feedback, 0.0f },
         { modFixedMode, 0.0f }, { modFixedHz, 220.0f }, { modEnvToIndex, 1.0f }, { velToIndex, 0.6f },
@@ -108,7 +108,7 @@ build (juce::AudioProcessorValueTreeState& apvts)
         { ampAttack, 0.001f }, { ampDecay, 3.0f }, { ampSustain, 0.0f }, { ampRelease, 3.0f },
         { outputLevel, -4.0f } }));
 
-    // Brass — ratio 1:1, index rises with the amp envelope; sustained, vowel-bright.
+    // Brass — M:C ratio 1:1, index rises with the amp envelope; sustained, vowel-bright.
     presets.push_back (makePreset (apvts, "Brass", {
         { ratio, 1.0f }, { ratioSnap, 1.0f }, { modIndex, 4.0f }, { feedback, 0.0f },
         { modFixedMode, 0.0f }, { modFixedHz, 220.0f }, { modEnvToIndex, 0.8f }, { velToIndex, 0.4f },
@@ -116,7 +116,7 @@ build (juce::AudioProcessorValueTreeState& apvts)
         { ampAttack, 0.06f }, { ampDecay, 0.1f }, { ampSustain, 0.85f }, { ampRelease, 0.2f },
         { outputLevel, -4.0f } }));
 
-    // Clarinet — ratio 2:1 + low index emphasises odd harmonics → hollow, woody tone.
+    // Clarinet — M:C ratio 2:1 (modulator at twice the carrier) + low index emphasises odd harmonics → hollow, woody tone.
     presets.push_back (makePreset (apvts, "Clarinet", {
         { ratio, 2.0f }, { ratioSnap, 1.0f }, { modIndex, 2.2f }, { feedback, 0.0f },
         { modFixedMode, 0.0f }, { modFixedHz, 220.0f }, { modEnvToIndex, 0.3f }, { velToIndex, 0.2f },
