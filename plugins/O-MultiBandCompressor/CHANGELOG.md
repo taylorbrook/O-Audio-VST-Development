@@ -1,5 +1,52 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.11.1 (2026-08-31)
+
+French copy revised. Stage N of the repo-wide i18n rollout — a second reading of
+every French string against the suite glossary (`scripts/i18n-fr-glossary.js`)
+and the French lint (`scripts/i18n-fr-lint.js`). No English copy, key, binding,
+selector or CSS rule changed.
+
+### Changed
+
+- **34 French strings revised across 31 entries** — 10 terminology, 10
+  typography, 6 grammar/register, 8 meaning. The visible ones: the Release
+  caption is **Relâch.** and its tip title **Relâchement** (was Relâche /
+  Rétablissement — *Rétablissement* is not the French for a compressor release);
+  the Ratio caption and tip are **Ratio**, not *Taux*; Bypass is **Contour.** /
+  **Contournement**, not *Dériv.* / *Dérivation*; Pk/RMS is **Crête/RMS**, not
+  *Crê/RMS*, which cut a French abbreviation at a vowel.
+- **The Mid/Side tip names the French option faces.** It listed *Off / Mid /
+  Side / Both* — the English ones. The French UI shows « Aucun », « Mid »,
+  « Side », « Les deux », so the tip described a control that is not there.
+- **Two tips said "mixage" where they meant the Mix knob's stage** (Output Gain,
+  Output Meter). In French that reads as a DAW mixdown.
+- **French typographic spacing throughout**: U+00A0 before `%`, `:`, `;` and
+  `?`, between every number and its unit (*24 dB*, *200 ms*, *20 kHz*, *50 %*),
+  and inside the guillemets. 42 no-break spaces, all inside French strings.
+- **Grammar and register fixes**: the three crossover tips said *Faites-la
+  glisser* of a masculine *point de séparation*; the Release tip said *trop lent*
+  of *la compression*; Solo and Sidechain Listen opened with *Écoute*, which is
+  either the familiar *tu* or a claim that a button hears.
+- **A fast attack no longer "clips".** The Attack tip said *écrêtent les
+  transitoires*; a fast attack brides them.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Not changed, deliberately
+
+- **`reviewed: false` stays false on all 70 entries.** That flag means a native
+  speaker read the string. This pass is a second machine reading against a
+  glossary and a lint; the header records it, the flag records them.
+- **The Makeup caption stays `Compens.`** The glossary's root *Compensation*
+  measures 69.23 px in a 60.16 px grid track and re-deals the three 1fr columns
+  to 55.63/55.64/69.23, moving every knob inside them; the glossary lists no
+  abbreviation for makeup. Reported for the glossary to grow rather than
+  exempted with a `termNote` — a width constraint is not a contextual exemption.
+- **`label.msMid` keeps "Mid"**, with a `termNote`: this is the M/S encoding,
+  not the frequency band the glossary's *Médium* names two rows away.
+
 ## Version 1.11.0 (2026-08-27)
 
 The PAGE speaks French now, not only the hover help. Every control caption,

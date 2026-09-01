@@ -17,6 +17,47 @@
    You should have received a copy of the GNU Affero General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+
+// ── v1.11.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 34 strings across 31 entries (10 terminology, 10 typography,
+// 6 grammar/register, 8 meaning/idiom). sameAsEn: kept 5, ADDED 1
+// (label.ratio — Ratio is the glossary's French, so the caption is now a
+// declared straight copy); translated 0. termNote exemptions: 1 (label.msMid).
+// Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
+// Lint 30 findings → 1; the survivor is label.makeup, recorded at its entry.
+//
+// The decisions a later reader needs, and nothing else:
+//
+//   · Relâche → Relâch. and Dériv. → Contour. are the glossary's ABBREVIATIONS,
+//     taken because both roots are measurably too wide (66.88 px in a 60.16 px
+//     grid track; 103.25 px of button in a row with 5.31 px of slack). Both
+//     numbers are at their entries. Relâch. is NARROWER than the Relâche the
+//     v1.11.0 header defended on width.
+//   · Compens. is NOT a glossary form and the lint still reports it. The
+//     glossary lists no abbreviation for makeup and the root re-deals the knob
+//     grid, so the term is reported for the glossary to grow rather than
+//     exempted — a width constraint is not a contextual exemption.
+//   · label.msMid keeps "Mid" with a termNote: this is the M/S encoding, and
+//     the glossary's Médium is the BAND term, already spent on band.lomid /
+//     band.himid two rows away on the same page.
+//   · The ms-mode body now names the FRENCH option faces the page shows
+//     (« Aucun », « Les deux »); through v1.11.0 it named the English ones, so the
+//     tip described a control the French UI does not have.
+//   · "mix stage" is the Mix knob's stage, not the mixing process: output-gain
+//     and output-meter said "mixage", which reads as a DAW mixdown.
+//   · Register: descriptive sentences are third-person ("Adoucit", "Empêche").
+//     band.solo and band.sc-listen opened with "Écoute", which is either a
+//     tu-imperative (the glossary says vous) or a claim that a button hears.
+//     Both rewritten third-person; user-addressed instructions stay vous-
+//     imperative ("Faites glisser", "déplacez-les"), which is what the rest of
+//     the file already does.
+//   · Dosage is kept in the mix body. It is absent from FORBIDDEN_IN_PROSE on
+//     purpose — it is forbidden as a LABEL for Mix, and as prose it names the
+//     action rather than the control, which the caption "Mix" already names.
+//   · U+00A0 is now load-bearing: 42 of them, all inside fr string values.
+//     `grep -n $'\xc2\xa0' i18n.js | grep -v "t: '\|b: '"` is empty.
+//
 /*
   ==============================================================================
 
@@ -98,77 +139,77 @@ export const I18N = Object.freeze({
         en: { t: 'Input Gain',
               b: 'Level trim applied before the signal is split into bands. Use it to drive the compressors harder or back them off without touching the thresholds. −24 to +24 dB.' },
         fr: { t: 'Gain d’entrée',
-              b: 'Correction de niveau appliquée avant la division du signal en bandes. Permet d’attaquer les compresseurs plus fort ou de les retenir sans toucher aux seuils. −24 à +24 dB.',
+              b: 'Correction de niveau appliquée avant la division du signal en bandes. Permet d’attaquer les compresseurs plus fort ou de les ménager sans toucher aux seuils. −24 à +24 dB.',
               reviewed: false },
     },
     'mix': {
         en: { t: 'Mix',
               b: 'Blend between the dry input and the compressed output for parallel compression. 0% is fully dry, 100% is fully compressed.' },
         fr: { t: 'Mix',
-              b: 'Dosage entre le signal d’entrée non traité et la sortie compressée, pour la compression parallèle. 0 % est entièrement sec, 100 % entièrement compressé.',
+              b: 'Dosage entre le signal d’entrée direct et la sortie compressée, pour la compression parallèle. 0 % est entièrement direct, 100 % entièrement compressé.',
               reviewed: false },
     },
     'auto-makeup': {
         en: { t: 'Auto Makeup',
               b: 'Automatically compensates the level lost to gain reduction in each band, so bypassing the compressor does not jump in volume. Stacks with each band’s Makeup knob.' },
         fr: { t: 'Compensation auto',
-              b: 'Compense automatiquement le niveau perdu par la réduction de gain dans chaque bande, afin que la mise en dérivation ne provoque pas de saut de volume. S’ajoute au bouton Compensation de chaque bande.',
+              b: 'Compense automatiquement le niveau perdu du fait de la réduction de gain dans chaque bande, afin que le contournement du compresseur ne provoque pas de saut de volume. S’ajoute au bouton Compensation de chaque bande.',
               reviewed: false },
     },
     'ms-mode': {
         en: { t: 'Mid / Side Mode',
               b: 'Chooses what the compressors act on. Off processes left and right normally; Mid targets the centre of the image, Side the stereo edges, and Both processes them independently.' },
         fr: { t: 'Mode Mid / Side',
-              b: 'Détermine ce sur quoi agissent les compresseurs. Off traite normalement la gauche et la droite ; Mid vise le centre de l’image, Side les bords stéréo, et Both les traite indépendamment.',
+              b: 'Détermine ce sur quoi agissent les compresseurs. « Aucun » traite normalement la gauche et la droite ; « Mid » vise le centre de l’image, « Side » les bords stéréo, et « Les deux » les traite indépendamment.',
               reviewed: false },
     },
     'output-gain': {
         en: { t: 'Output Gain',
               b: 'Final level trim, applied after the mix stage. −24 to +24 dB.' },
         fr: { t: 'Gain de sortie',
-              b: 'Correction de niveau finale, appliquée après l’étage de mixage. −24 à +24 dB.',
+              b: 'Correction de niveau finale, appliquée après l’étage Mix. −24 à +24 dB.',
               reviewed: false },
     },
     'input-meter': {
         en: { t: 'Input Meter',
               b: 'Level entering the plugin, averaged across both channels and measured before the input gain trim.' },
         fr: { t: 'Vumètre d’entrée',
-              b: 'Niveau entrant dans le plug-in, moyenné sur les deux canaux et mesuré avant la correction de gain d’entrée.',
+              b: 'Niveau entrant dans le plugin, moyenné sur les deux canaux et mesuré avant la correction de gain d’entrée.',
               reviewed: false },
     },
     'output-meter': {
         en: { t: 'Output Meter',
               b: 'Level leaving the plugin, measured after mix and output gain.' },
         fr: { t: 'Vumètre de sortie',
-              b: 'Niveau sortant du plug-in, mesuré après le mixage et le gain de sortie.',
+              b: 'Niveau sortant du plugin, mesuré après le Mix et le gain de sortie.',
               reviewed: false },
     },
     'spectrum': {
         en: { t: 'Spectrum Analyzer',
               b: 'Real-time input spectrum, 20 Hz to 20 kHz on a logarithmic scale. Drag the vertical lines to move the crossovers.' },
         fr: { t: 'Analyseur de spectre',
-              b: 'Spectre d’entrée en temps réel, de 20 Hz à 20 kHz sur une échelle logarithmique. Faites glisser les lignes verticales pour déplacer les points de coupure.',
+              b: 'Spectre d’entrée en temps réel, de 20 Hz à 20 kHz sur une échelle logarithmique. Faites glisser les lignes verticales pour déplacer les points de coupure.',
               reviewed: false },
     },
     'crossover1': {
         en: { t: 'Crossover 1',
               b: 'Split point between the Low and Low-Mid bands. Drag left or right to move it; the two band headers update as you go. 20 Hz to 500 Hz.' },
         fr: { t: 'Coupure 1',
-              b: 'Point de séparation entre les bandes Grave et Bas-médium. Faites-la glisser à gauche ou à droite ; les deux en-têtes de bande se mettent à jour au fur et à mesure. 20 Hz à 500 Hz.',
+              b: 'Point de séparation entre les bandes Grave et Bas-médium. Faites-le glisser à gauche ou à droite ; les deux en-têtes de bande se mettent à jour au fur et à mesure. 20 Hz à 500 Hz.',
               reviewed: false },
     },
     'crossover2': {
         en: { t: 'Crossover 2',
               b: 'Split point between the Low-Mid and High-Mid bands. Drag left or right to move it. 200 Hz to 5 kHz.' },
         fr: { t: 'Coupure 2',
-              b: 'Point de séparation entre les bandes Bas-médium et Haut-médium. Faites-la glisser à gauche ou à droite. 200 Hz à 5 kHz.',
+              b: 'Point de séparation entre les bandes Bas-médium et Haut-médium. Faites-le glisser à gauche ou à droite. 200 Hz à 5 kHz.',
               reviewed: false },
     },
     'crossover3': {
         en: { t: 'Crossover 3',
               b: 'Split point between the High-Mid and High bands. Drag left or right to move it. 2 kHz to 16 kHz.' },
         fr: { t: 'Coupure 3',
-              b: 'Point de séparation entre les bandes Haut-médium et Aigu. Faites-la glisser à gauche ou à droite. 2 kHz à 16 kHz.',
+              b: 'Point de séparation entre les bandes Haut-médium et Aigu. Faites-le glisser à gauche ou à droite. 2 kHz à 16 kHz.',
               reviewed: false },
     },
 
@@ -189,98 +230,98 @@ export const I18N = Object.freeze({
         en: { t: '{band} — Threshold',
               b: 'The level at which this band starts to compress. Anything above it is pulled down by the Ratio. −60 to 0 dB.' },
         fr: { t: '{band} — Seuil',
-              b: 'Le niveau à partir duquel cette bande commence à compresser. Tout ce qui le dépasse est ramené vers le bas selon le Taux. −60 à 0 dB.',
+              b: 'Le niveau à partir duquel cette bande commence à compresser. Tout ce qui le dépasse est ramené vers le bas selon le Ratio. −60 à 0 dB.',
               reviewed: false },
     },
     'band.ratio': {
         en: { t: '{band} — Ratio',
               b: 'How firmly the band is compressed above the threshold. 1:1 leaves it untouched; 20:1 is effectively limiting.' },
-        fr: { t: '{band} — Taux',
-              b: 'Fermeté de la compression au-dessus du seuil. 1:1 laisse la bande intacte ; 20:1 revient à de la limitation.',
+        fr: { t: '{band} — Ratio',
+              b: 'Fermeté de la compression au-dessus du seuil. 1:1 laisse la bande intacte ; 20:1 revient à de la limitation.',
               reviewed: false },
     },
     'band.attack': {
         en: { t: '{band} — Attack',
               b: 'How quickly compression engages once the signal crosses the threshold. Fast settings clamp transients, slow settings let them through. 0.1 to 200 ms.' },
         fr: { t: '{band} — Attaque',
-              b: 'Rapidité d’engagement de la compression une fois le seuil franchi. Les réglages rapides écrêtent les transitoires, les lents les laissent passer. 0,1 à 200 ms.',
+              b: 'Rapidité d’engagement de la compression une fois le seuil franchi. Les réglages rapides brident les transitoires, les lents les laissent passer. 0,1 à 200 ms.',
               reviewed: false },
     },
     'band.release': {
         en: { t: '{band} — Release',
               b: 'How quickly compression lets go once the signal falls back below the threshold. Too fast can pump, too slow can choke the band. 10 to 2000 ms.' },
-        fr: { t: '{band} — Rétablissement',
-              b: 'Rapidité avec laquelle la compression relâche une fois le signal redescendu sous le seuil. Trop rapide, elle pompe ; trop lent, elle étouffe la bande. 10 à 2000 ms.',
+        fr: { t: '{band} — Relâchement',
+              b: 'Rapidité avec laquelle la compression relâche une fois le signal redescendu sous le seuil. Trop rapide, elle pompe ; trop lente, elle étouffe la bande. 10 à 2000 ms.',
               reviewed: false },
     },
     'band.knee': {
         en: { t: '{band} — Knee',
               b: 'Softens the onset of compression around the threshold. 0 dB is a hard knee that grabs abruptly; 24 dB eases in very gradually.' },
         fr: { t: '{band} — Coude',
-              b: 'Adoucit l’entrée en compression autour du seuil. 0 dB donne un coude dur qui saisit brusquement ; 24 dB amène la compression très progressivement.',
+              b: 'Adoucit l’entrée en compression autour du seuil. 0 dB donne un coude dur qui saisit brusquement ; 24 dB amène la compression très progressivement.',
               reviewed: false },
     },
     'band.makeup': {
         en: { t: '{band} — Makeup',
               b: 'Manual gain applied to this band after compression, to restore what gain reduction took away. −12 to +24 dB.' },
         fr: { t: '{band} — Compensation',
-              b: 'Gain manuel appliqué à cette bande après compression, pour restituer ce que la réduction de gain a retiré. −12 à +24 dB.',
+              b: 'Gain manuel appliqué à cette bande après compression, pour restituer ce que la réduction de gain a retiré. −12 à +24 dB.',
               reviewed: false },
     },
     'band.solo': {
         en: { t: '{band} — Solo',
               b: 'Hear this band on its own — the other three are muted. Useful for checking where a crossover should sit.' },
         fr: { t: '{band} — Solo',
-              b: 'Écoute cette bande seule — les trois autres sont coupées. Pratique pour vérifier où placer un point de coupure.',
+              b: 'Isole cette bande — les trois autres sont coupées. Pratique pour vérifier où placer un point de coupure.',
               reviewed: false },
     },
     'band.bypass': {
         en: { t: '{band} — Bypass',
               b: 'Pass this band through uncompressed. The crossover filtering still applies, so the band stays in phase with the others.' },
-        fr: { t: '{band} — Dérivation',
-              b: 'Laisse passer cette bande sans compression. Le filtrage de coupure reste appliqué, la bande reste donc en phase avec les autres.',
+        fr: { t: '{band} — Contournement',
+              b: 'Laisse passer cette bande sans la compresser. Le filtrage de coupure reste appliqué, la bande reste donc en phase avec les autres.',
               reviewed: false },
     },
     'band.sc-listen': {
         en: { t: '{band} — Sidechain Listen',
               b: 'Monitor the detector signal driving this band’s compressor, including its sidechain filtering. This is what the compressor "hears", not what it outputs.' },
         fr: { t: '{band} — Écoute du sidechain',
-              b: 'Écoute le signal du détecteur qui pilote le compresseur de cette bande, filtrage de sidechain compris. C’est ce que le compresseur « entend », pas ce qu’il produit.',
+              b: 'Permet d’écouter le signal du détecteur qui pilote le compresseur de cette bande, filtrage de sidechain compris. C’est ce que le compresseur « entend », pas ce qu’il produit.',
               reviewed: false },
     },
     'band.peak-rms': {
         en: { t: '{band} — Peak / RMS',
               b: 'Blends how the band’s level is measured. Peak reacts to individual transients and suits de-essing and plosive control; RMS averages over 10 ms and suits glue and level-riding.' },
         fr: { t: '{band} — Crête / RMS',
-              b: 'Dose la façon dont le niveau de la bande est mesuré. Crête réagit aux transitoires isolés et convient au dé-essage et au contrôle des plosives ; RMS moyenne sur 10 ms et convient au liant et au nivellement.',
+              b: 'Dose la façon dont le niveau de la bande est mesuré. Crête réagit aux transitoires isolés et convient au dé-essage et au contrôle des plosives ; RMS moyenne sur 10 ms et convient au liant et au nivellement.',
               reviewed: false },
     },
     'band.sc-hpf': {
         en: { t: '{band} — Sidechain High-Pass',
               b: 'High-passes the detector only — the audio itself is untouched. Keeps low energy from triggering gain reduction, for example so subsonic rumble does not duck a whole band. Fully left is Off.' },
         fr: { t: '{band} — Passe-haut du sidechain',
-              b: 'Filtre en passe-haut le détecteur uniquement — l’audio lui-même n’est pas touché. Empêche l’énergie grave de déclencher la réduction de gain, par exemple pour qu’un grondement infrasonore ne fasse pas plonger toute une bande. Complètement à gauche : Off.',
+              b: 'Filtre en passe-haut le détecteur uniquement — l’audio lui-même n’est pas touché. Empêche l’énergie grave de déclencher la réduction de gain, par exemple pour qu’un grondement infrasonore ne fasse pas plonger toute une bande. Complètement à gauche : Off.',
               reviewed: false },
     },
     'band.sc-lpf': {
         en: { t: '{band} — Sidechain Low-Pass',
               b: 'Low-passes the detector only — the audio itself is untouched. Narrows what the band responds to, for example keeping cymbals and air from holding a de-esser down. Fully left is Off.' },
         fr: { t: '{band} — Passe-bas du sidechain',
-              b: 'Filtre en passe-bas le détecteur uniquement — l’audio lui-même n’est pas touché. Restreint ce à quoi la bande réagit, par exemple pour éviter que cymbales et air ne maintiennent un dé-esseur enfoncé. Complètement à gauche : Off.',
+              b: 'Filtre en passe-bas le détecteur uniquement — l’audio lui-même n’est pas touché. Restreint ce à quoi la bande réagit, par exemple pour éviter que cymbales et air ne maintiennent un dé-esseur enfoncé. Complètement à gauche : Off.',
               reviewed: false },
     },
     'band.gr': {
         en: { t: '{band} — Gain Reduction',
               b: 'How much this band is being compressed right now. The bar fills as gain reduction deepens, up to −24 dB.' },
         fr: { t: '{band} — Réduction de gain',
-              b: 'Quantité de compression appliquée à cette bande en ce moment. La barre se remplit à mesure que la réduction de gain s’accentue, jusqu’à −24 dB.',
+              b: 'Quantité de compression appliquée à cette bande en ce moment. La barre se remplit à mesure que la réduction de gain s’accentue, jusqu’à −24 dB.',
               reviewed: false },
     },
     'band.range': {
         en: { t: '{band} — Frequency Range',
               b: 'The span this band processes. It follows the crossover handles in the analyzer above, so drag them to retune it.' },
         fr: { t: '{band} — Plage de fréquences',
-              b: 'L’étendue traitée par cette bande. Elle suit les poignées de coupure de l’analyseur ci-dessus ; déplacez-les pour la réajuster.',
+              b: 'L’étendue traitée par cette bande. Elle suit les poignées de coupure de l’analyseur ci-dessus ; déplacez-les pour la réajuster.',
               reviewed: false },
     },
 
@@ -313,7 +354,7 @@ export const I18N = Object.freeze({
         en: { t: 'Hover Help',
               b: 'Turns this hover-help layer on or off for every control. While it is off, this button still explains itself, so help can always be switched back on. The setting is shared by every instance on this machine.' },
         fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol pour toutes les commandes. Lorsqu’elle est désactivée, ce bouton continue de s’expliquer, afin de pouvoir toujours la réactiver. Ce réglage est partagé par toutes les instances de cette machine.',
+              b: 'Active ou désactive cette aide au survol pour toutes les commandes. Lorsqu’elle est désactivée, ce bouton continue de s’expliquer, afin de pouvoir toujours la réactiver. Ce réglage est partagé par toutes les instances sur cette machine.',
               reviewed: false },
     },
 });
@@ -336,9 +377,10 @@ export const I18N = Object.freeze({
 // of those appears below.
 //
 // It is deliberately NOT used where only the English matches. The Release knob
-// caption is "Relâche" here while its tip title is "{band} — Rétablissement":
-// a 14-character word at 8 px uppercase is ~77 px inside a ~62 px grid track,
-// and the tip has a 230 px cap to wrap into that the knob cell does not.
+// caption is "Relâch." here while its tip title is "{band} — Relâchement":
+// the root is 66.88 px inside a 60.16 px grid track, and the tip has a 230 px
+// cap to wrap into that the knob cell does not. Same for Makeup — "Compens."
+// against a tip title of "{band} — Compensation".
 // Reusing the key there would make every future edit to a tooltip a silent
 // geometry change to a control.
 //
@@ -409,7 +451,7 @@ export const LABELS = Object.freeze({
     // JSON filename). tr()/trLabel() resolve a var value that is not itself a
     // key literally, which is exactly what is wanted here.
     'ui.deleteConfirm': { en: { t: 'Delete "{name}"?' },
-                          fr: { t: 'Supprimer « {name} » ?', reviewed: false } },
+                          fr: { t: 'Supprimer « {name} » ?', reviewed: false } },
     'ui.delete':       { en: { t: 'Delete' }, fr: { t: 'Supprimer', reviewed: false } },
     'ui.cancel':       { en: { t: 'Cancel' }, fr: { t: 'Annuler',   reviewed: false } },
 
@@ -422,25 +464,43 @@ export const LABELS = Object.freeze({
     // ── Band controls, one key each, shared by all four bands ───────────────
     'label.gr':        { en: { t: 'GR' },     fr: { t: 'RG',      reviewed: false } },
     'label.thresh':    { en: { t: 'Thresh' }, fr: { t: 'Seuil',   reviewed: false } },
-    'label.ratio':     { en: { t: 'Ratio' },  fr: { t: 'Taux',    reviewed: false } },
+    // Ratio IS the French term (glossary): a straight copy, declared as one.
+    'label.ratio':     { en: { t: 'Ratio' },  fr: { t: 'Ratio',   reviewed: false, sameAsEn: true } },
     'label.attack':    { en: { t: 'Attack' }, fr: { t: 'Attaque', reviewed: false } },
-    // See the reuse-rule note above: the tip says "Rétablissement", the caption
-    // cannot afford it.
-    'label.release':   { en: { t: 'Release' }, fr: { t: 'Relâche', reviewed: false } },
+    // v1.11.1: the glossary's abbreviation, and it is NARROWER than what v1.11.0
+    // shipped — Relâch. 38.33 px against Relâche 41.67 px, in a 60.16 px grid
+    // track (Range.selectNodeContents at the 900x640 shipping frame). The root
+    // Relâchement is 66.88 px: over the track, and it re-deals the three 1fr
+    // columns to 55.63/55.64/69.23, which moves every knob inside them.
+    'label.release':   { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: false } },
     'label.knee':      { en: { t: 'Knee' },   fr: { t: 'Coude',   reviewed: false } },
-    // The tip title is "Compensation"; at 8 px uppercase that is ~66 px in a
-    // ~62 px track, so the caption is the abbreviated form.
+    // The tip title is "Compensation". MEASURED at the shipping frame it is
+    // 69.23 px in a 60.16 px track, and substituting it re-deals the three 1fr
+    // columns to 55.63/55.64/69.23 — every knob inside them moves. The glossary
+    // lists NO abbreviation for makeup, so this caption keeps a form the glossary
+    // does not carry and the Stage N lint still reports it as G1. Reported rather
+    // than exempted: a width constraint is not a contextual exemption, and a
+    // termNote here would be the reasoned-exemption mechanism hiding a miss.
     'label.makeup':    { en: { t: 'Makeup' }, fr: { t: 'Compens.', reviewed: false } },
     'label.detector':  { en: { t: 'Detector / Sidechain' },
                          fr: { t: 'Détecteur / Sidechain', reviewed: false } },
-    'label.pkRms':     { en: { t: 'Pk/RMS' }, fr: { t: 'Crê/RMS', reviewed: false } },
+    // v1.11.1: the whole word. "Crê" cut a French abbreviation at a vowel, which
+    // is not how French abbreviates; Crête/RMS measures 50.27 px inside the same
+    // 60.16 px track and moves nothing.
+    'label.pkRms':     { en: { t: 'Pk/RMS' }, fr: { t: 'Crête/RMS', reviewed: false } },
     // "Sidechain" is the term this plugin's own French tooltips use, so the
     // SC prefix survives; PH / PB are passe-haut / passe-bas.
     'label.scHpf':     { en: { t: 'SC HPF' }, fr: { t: 'SC PH',   reviewed: false } },
     'label.scLpf':     { en: { t: 'SC LPF' }, fr: { t: 'SC PB',   reviewed: false } },
 
     'label.solo':      { en: { t: 'Solo' },      fr: { t: 'Solo', reviewed: false, sameAsEn: true } },
-    'label.bypass':    { en: { t: 'Bypass' },    fr: { t: 'Dériv.', reviewed: false } },
+    // v1.11.1: the glossary's abbreviation for Bypass. The root Contournement is
+    // 89.25 px of text (103.25 px of button) and grows the whole band 188.5 →
+    // 221.94 px. Contour. is 64.50 px of button, so the three-button row comes to
+    // 40.22 + 64.50 + 68.47 + 10 gap = 183.19 px inside 188.50 — 5.31 px of slack,
+    // the tightest measured margin on this page. A wider Windows face lands here
+    // first (the standing WebView2 metrics deferral).
+    'label.bypass':    { en: { t: 'Bypass' },    fr: { t: 'Contour.', reviewed: false } },
     'label.scListen':  { en: { t: 'SC Listen' }, fr: { t: 'Écoute SC', reviewed: false } },
 
     // ── Global controls ─────────────────────────────────────────────────────
@@ -454,7 +514,8 @@ export const LABELS = Object.freeze({
     // two where English does not. Mid and Side are the names of the encoding,
     // used untranslated in French audio work.
     'label.msOff':     { en: { t: 'Off' },  fr: { t: 'Aucun',    reviewed: false } },
-    'label.msMid':     { en: { t: 'Mid' },  fr: { t: 'Mid',      reviewed: false, sameAsEn: true } },
+    'label.msMid':     { en: { t: 'Mid' },  fr: { t: 'Mid',      reviewed: false, sameAsEn: true,
+                                                  termNote: 'this Mid is the M/S ENCODING, not the frequency band — the glossary\'s Médium is the band term and is already used for band.lomid / band.himid on this same page' } },
     'label.msSide':    { en: { t: 'Side' }, fr: { t: 'Side',     reviewed: false, sameAsEn: true } },
     'label.msBoth':    { en: { t: 'Both' }, fr: { t: 'Les deux', reviewed: false } },
 
