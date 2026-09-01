@@ -862,7 +862,10 @@
        Every rule here pins a container that was SHRINK-TO-FIT and therefore
        resized when its caption changed language. `node
        scripts/check-ui-labels.js --plugin O-Bitrot` reported 78 non-label
-       elements moved at 900 x 740 before them and zero after. D-04 forbids an
+       elements moved at 900 x 740 before them and ONE after — #viewSync's
+       <select>, which is content-sized and 7.0 px wider in French. That one is
+       the standing baseline the gate has reported since v1.15.0; "zero after"
+       was wrong when it was written and is corrected here (v1.15.1). D-04 forbids an
        auto-shrink font and a short-variant fallback, so a fixed box is the
        move available. Widths are MEASURED against the French string, never
        guessed; the CHANGELOG carries the table. */
@@ -919,8 +922,12 @@
     .rot-plate .p-head .annot { flex: 1 1 auto; min-width: 0; }
 
     /* The Splices group in the global strip is sized by its marginal note, not
-       by the button above it: 109.3 -> 128.3. 132 holds the French and leaves
-       the note centred under a 118 px button exactly as the English one is. */
+       by the button above it: 109.3 -> 124.8 (128.3 through v1.15.0, before the
+       Stage N elision fix `lorsque allumé` -> `lorsqu’allumé`). 132 holds the
+       French and leaves the note centred under a 118 px button exactly as the
+       English one is. The longer, fully explicit `lorsqu’il est allumé` is
+       117.95 px of TEXT but WRAPS to two lines in this box and moves 164
+       non-label elements — measured, v1.15.1. */
     .global .g-body > .g-group > .annot { width: 132px; text-align: center; }
 
 </style>
