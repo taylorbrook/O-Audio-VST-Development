@@ -2,6 +2,31 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.3.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout. PATCH: no
+parameter, range, type or state format changed; only French strings, and only
+their values.
+
+### Changed
+
+- **19 French entries revised** against the suite glossary and lint, out of 63.
+  Terminology: the Learn confidence verdict reads **Faible / Moyen / Élevé**
+  rather than Bas / Moy / Haut (French says *confiance faible*, not *confiance
+  basse*), and the tooltip that explains it now uses the same three words the
+  cell shows; the settings caption is **Aide au survol** rather than the
+  abbreviated "Aide", which also ends a disagreement with the tip title on the
+  same control; the hover-help switch's accessible name is **Activer ou
+  désactiver l'aide au survol**; one French word for "switch" (*interrupteur*)
+  where two were in use. Typography: 19 no-break spaces before a colon, before
+  a semicolon and between a number and its unit, and 7 typographic minus signs
+  (−40 à +40 dB) in place of hyphens. Grammar and idiom: *recommandée* agreeing
+  with *sonie*, *norme de l'industrie* for "industry standard", and *par paire*
+  for the pleonastic *comme paire appariée*.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
 ## [1.3.0] - 2026-08-28
 
 The page speaks French, not only the hover help — and the tooltip layer is

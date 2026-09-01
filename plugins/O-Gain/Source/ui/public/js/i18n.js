@@ -18,7 +18,75 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Gain UI copy, English + French (v1.3.0, canon v2)
+// i18n.js — O-Gain UI copy, English + French (v1.3.1, canon v2)
+//
+// ── v1.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ───────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 19 rows of 63 (8 terminology, 12 typography, 1 grammar, 2
+// meaning/idiom — a row can carry more than one). The typography is 19 U+00A0
+// (4 before a colon, 3 before a semicolon, 12 between a number and its unit)
+// and 7 hyphen-minus -> U+2212. No U+202F; 0 straight apostrophes to fix, the
+// v1.3.0 draft was already typographic. Lint 25 findings -> 0, --strict exit 0.
+// sameAsEn: kept 3, translated 0. termNote exemptions: 2 (ui.confLow,
+// ui.confHigh).
+// Left as drafted: the other 44. reviewed: false throughout — no native
+// speaker yet; that flag records a human, and this was a second machine
+// reading against a glossary and a lint.
+//
+// THE DECISIONS A LATER READER NEEDS:
+//
+//   LOW / MED / HIGH IS NOT A FREQUENCY BAND, so the glossary's Grave / Médium
+//   / Aigu is exempted with a termNote on both flagged rows. #learn-confidence
+//   is the Learn verdict — a measurement-QUALITY level — and "Confiance :
+//   Grave" would read as a filter setting. The draft's Bas / Moy / Haut was
+//   the other calque: French says confiance FAIBLE and confiance ÉLEVÉE, not
+//   basse and haute. FAIBLE / MOYEN / ÉLEVÉ, and info-confidence's body now
+//   uses the same three words its own cell shows (they disagreed before).
+//   MEASURED, not assumed: .learn-info-item is 133 px, "Confiance" 44.8 and
+//   the 6 px flex gap leave 82.2 px for the value. FAIBLE 32.14, MOYEN 33.38,
+//   ÉLEVÉ 29.08 — the widest clears by 48.8 px. (LOW 20.92, BAS 16.98,
+//   HAUT 25.75 for comparison.) MED is abbreviated in English only because
+//   MEDIUM is long; MOYEN is already short, so the French trio is three whole
+//   words rather than two-and-an-abbreviation.
+//
+//   label.hoverHelp CARRIES THE ROOT TERM NOW. "Aide" was an abbreviation the
+//   width did not require: .settings-row is a 154 px content box, the pill is
+//   a hard 52 px and the flex gap 10 px, so the nowrap caption has 92 px.
+//   "Aide au survol" renders 70.22 — 21.78 px of clearance, and it is 16.14 px
+//   WIDER than English "Hover help" (54.08) with the row's rect unchanged
+//   because the popover's width is pinned. It also ends a real defect: the
+//   caption said "Aide" while the tip title on the same control said "Aide au
+//   survol". aria.helpToggle likewise takes the full "Activer ou désactiver",
+//   which is what "Toggle" means and what the glossary settles.
+//
+//   ONE FRENCH WORD FOR "SWITCH". The settings body said "interrupteur" and
+//   the tips-toggle body "commutateur" for the same control; a commutateur
+//   selects between paths, an interrupteur opens and closes one. Both read
+//   "interrupteur" now.
+//
+//   NINETEEN NO-BREAK SPACES COST ZERO TIP LINES, and on the narrowest frame
+//   in the repo that was the whole risk. All 26 anchors were hovered through
+//   the renderer's own mouseover + dwell path in both languages, before and
+//   after: 52 tips, every height byte-identical except ms-dec, which LOST a
+//   line (108.14 -> 94.64) when "comme paire appariée" — a pleonasm — became
+//   "par paire". Tightest clearances unchanged: gain-display fr 14.77 px above,
+//   info-short-term fr 11.61 px right, the utility row 48 px below.
+//
+//   T6 IS PROSE HERE, NEVER A READOUT. The seven U+2212 are all inside tooltip
+//   BODIES (-40/+40, -6/+6, -18, -14, -23, -1). The readouts that write "-12"
+//   and "-- dBFS" are I18N_EXEMPT under D-03 and keep their hyphen-minus.
+//
+//   THREE STRAIGHT COPIES ARE LEFT UNFLAGGED ON PURPOSE. The lint lists the
+//   I18N titles gain-knob "Gain", mono "MONO" and ms-enc "ENC" as unflagged
+//   fr === en. Their LABELS twins already carry sameAsEn: true. The I18N
+//   entries do NOT get it, because the flag is entry-scoped: check-i18n
+//   assertion 4 refuses an I18N entry only when the title AND the body match,
+//   and setting the flag on an entry whose body is fully French would disarm
+//   that assertion for a future whole-entry passthrough.
+//
+//   <html lang> now follows the language selector (canon change, all 43
+//   plugins, landed at repo level before this pass).
+// ───────────────────────────────────────────────────────────────────────────
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -122,21 +190,21 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this interface and whether hover help appears. The language is remembered with the session; the hover-help switch is not.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de cette interface et l’affichage de l’aide au survol. La langue est conservée avec la session ; l’interrupteur d’aide ne l’est pas.',
+              b: 'Choisir la langue de cette interface et l’affichage de l’aide au survol. La langue est conservée avec la session ; l’interrupteur d’aide au survol ne l’est pas.',
               reviewed: false },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, meter-mode names and unit symbols stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de modes de vumètre et les symboles d’unité restent en anglais.',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de modes de vumètre et les symboles d’unité restent en anglais.',
               reviewed: false },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
         fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
+              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et cet interrupteur continuent de s’expliquer.',
               reviewed: false },
     },
 
@@ -160,7 +228,7 @@ export const I18N = Object.freeze({
         en: { t: 'Gain Offset',
               b: 'Main gain offset. Set by Learn or adjust manually. Range: -40 to +40 dB' },
         fr: { t: 'Décalage de gain',
-              b: 'Décalage de gain principal. Défini par la mesure ou réglé à la main. Plage : -40 à +40 dB',
+              b: 'Décalage de gain principal. Défini par la mesure ou réglé à la main. Plage : −40 à +40 dB',
               reviewed: false },
     },
     'gain-knob': {
@@ -174,42 +242,42 @@ export const I18N = Object.freeze({
         en: { t: 'Trim',
               b: 'Fine adjustment after Learn mode. Range: -6 to +6 dB. Double-click to reset' },
         fr: { t: 'Ajust.',
-              b: 'Réglage fin après une mesure. Plage : -6 à +6 dB. Double-cliquer pour réinitialiser',
+              b: 'Réglage fin après une mesure. Plage : −6 à +6 dB. Double-cliquer pour réinitialiser',
               reviewed: false },
     },
     'learn-btn': {
         en: { t: 'Learn',
               b: 'Click to start measuring. Play audio for 10-30s, then click again. Gain is set automatically' },
         fr: { t: 'Mesurer',
-              b: 'Cliquer pour lancer la mesure. Jouer 10 à 30 s d’audio, puis cliquer de nouveau. Le gain est réglé automatiquement',
+              b: 'Cliquer pour lancer la mesure. Jouer 10 à 30 s d’audio, puis cliquer de nouveau. Le gain est réglé automatiquement',
               reviewed: false },
     },
     'target-group': {
         en: { t: 'Target',
               b: 'Target loudness for Learn. -18 dB = 0 VU (standard), -14 LUFS = Spotify, -23 LUFS = EBU R128' },
         fr: { t: 'Cible',
-              b: 'Sonie visée par la mesure. -18 dB = 0 VU (norme), -14 LUFS = Spotify, -23 LUFS = EBU R128',
+              b: 'Sonie visée par la mesure. −18 dB = 0 VU (norme), −14 LUFS = Spotify, −23 LUFS = EBU R128',
               reviewed: false },
     },
     'target-knob': {
         en: { t: 'Target Level',
               b: 'Desired output loudness. Drag knob or double-click to reset to -18 dB' },
         fr: { t: 'Niveau cible',
-              b: 'Sonie de sortie souhaitée. Glisser le bouton ou double-cliquer pour revenir à -18 dB',
+              b: 'Sonie de sortie souhaitée. Glisser le bouton ou double-cliquer pour revenir à −18 dB',
               reviewed: false },
     },
     'measure-mode': {
         en: { t: 'Measure',
               b: 'Algorithm used by Learn. LUFS = K-weighted loudness (recommended, industry standard). RMS = simple average level' },
         fr: { t: 'Mesure',
-              b: 'Algorithme utilisé par la mesure. LUFS = sonie pondérée K (recommandé, norme du métier). RMS = niveau moyen simple',
+              b: 'Algorithme utilisé par la mesure. LUFS = sonie pondérée K (recommandée, norme de l’industrie). RMS = niveau moyen simple',
               reviewed: false },
     },
     'meter-mode': {
         en: { t: 'Meter',
               b: 'Meter display type. Peak = instantaneous peaks. RMS = average level. VU = analog-style 300ms ballistics. LUFS = K-weighted momentary loudness (shown while Learn runs; falls back to RMS otherwise)' },
         fr: { t: 'Vumètre',
-              b: 'Type d’affichage du vumètre. Peak = crêtes instantanées. RMS = niveau moyen. VU = balistique analogique de 300 ms. LUFS = sonie momentanée pondérée K (affichée pendant la mesure ; sinon retour au RMS)',
+              b: 'Type d’affichage du vumètre. Peak = crêtes instantanées. RMS = niveau moyen. VU = balistique analogique de 300 ms. LUFS = sonie momentanée pondérée K (affichée pendant la mesure ; sinon retour au RMS)',
               reviewed: false },
     },
     'info-momentary': {
@@ -237,7 +305,7 @@ export const I18N = Object.freeze({
         en: { t: 'Sample Peak',
               b: 'Highest digital sample peak (not oversampled, so inter-sample peaks are not measured). Learn leaves ~3 dB of extra headroom below -1 dBFS to cover them.' },
         fr: { t: 'Crête éch.',
-              b: 'Crête numérique la plus haute (sans suréchantillonnage, donc les crêtes inter-échantillons ne sont pas mesurées). La mesure laisse environ 3 dB de marge supplémentaire sous -1 dBFS pour les couvrir.',
+              b: 'Crête numérique la plus haute (sans suréchantillonnage, donc les crêtes inter-échantillons ne sont pas mesurées). La mesure laisse environ 3 dB de marge supplémentaire sous −1 dBFS pour les couvrir.',
               reviewed: false },
     },
     'info-elapsed': {
@@ -251,7 +319,7 @@ export const I18N = Object.freeze({
         en: { t: 'Confidence',
               b: 'Measurement quality. Low = under 5s. Medium = 5-15s. High = over 15s with stable signal' },
         fr: { t: 'Confiance',
-              b: 'Qualité de la mesure. Bas = moins de 5 s. Moyen = 5 à 15 s. Haut = plus de 15 s avec un signal stable',
+              b: 'Qualité de la mesure. Faible = moins de 5 s. Moyen = 5 à 15 s. Élevé = plus de 15 s avec un signal stable',
               reviewed: false },
     },
     'phase-l': {
@@ -279,7 +347,7 @@ export const I18N = Object.freeze({
         en: { t: 'MONO',
               b: 'Sum to mono: (L+R)/2 on both channels' },
         fr: { t: 'MONO',
-              b: 'Somme en mono : (G+D)/2 sur les deux canaux',
+              b: 'Somme en mono : (G+D)/2 sur les deux canaux',
               reviewed: false },
     },
     'ms-off': {
@@ -300,7 +368,7 @@ export const I18N = Object.freeze({
         en: { t: 'DEC',
               b: 'Decode Mid/Side back to L/R. Place after M/S processing chain. Note: decoding a normal (un-encoded) L/R signal raises level by +6 dB — the inverse gain of ENC — so use ENC->DEC as a matched pair.' },
         fr: { t: 'DÉC',
-              b: 'Décode le Mid/Side vers G/D. À placer après la chaîne de traitement M/S. Remarque : décoder un signal G/D normal (non encodé) élève le niveau de +6 dB — le gain inverse d’ENC — donc utiliser ENC->DÉC comme paire appariée.',
+              b: 'Décode le Mid/Side vers G/D. À placer après la chaîne de traitement M/S. Remarque : décoder un signal G/D normal (non encodé) élève le niveau de +6 dB — le gain inverse d’ENC — donc utiliser ENC->DÉC par paire.',
               reviewed: false },
     },
 });
@@ -424,13 +492,15 @@ export const LABELS = Object.freeze({
     // ── The confidence verdict. See the I18N_EXEMPT note for why these three
     //    are COPY and not a readout, which is the opposite call from the six
     //    timbre words on O-Marimba.
-    'ui.confLow':  { en: { t: 'LOW' },  fr: { t: 'BAS',  reviewed: false } },
-    'ui.confMed':  { en: { t: 'MED' },  fr: { t: 'MOY',  reviewed: false } },
-    'ui.confHigh': { en: { t: 'HIGH' }, fr: { t: 'HAUT', reviewed: false } },
+    'ui.confLow':  { en: { t: 'LOW' },  fr: { t: 'FAIBLE', reviewed: false,
+                       termNote: 'the Learn confidence verdict is a measurement-QUALITY level, not a frequency band — the glossary\'s Grave/Aigu name EQ registers, and "Confiance : Grave" would read as a filter setting' } },
+    'ui.confMed':  { en: { t: 'MED' },  fr: { t: 'MOYEN',  reviewed: false } },
+    'ui.confHigh': { en: { t: 'HIGH' }, fr: { t: 'ÉLEVÉ',  reviewed: false,
+                       termNote: 'the Learn confidence verdict is a measurement-QUALITY level, not a frequency band — see ui.confLow' } },
 
     // ── The settings popover ────────────────────────────────────────────────
     'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: false } },
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide',   reviewed: false } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: false } },
     'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: false } },
     'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: false } },
 
@@ -441,7 +511,7 @@ export const LABELS = Object.freeze({
     //    tooltip competing with the measure-then-pin renderer.
     'aria.settings':   { en: { t: 'Settings' },             fr: { t: 'Réglages',                 reviewed: false } },
     'aria.langSelect': { en: { t: 'Interface language' },    fr: { t: 'Langue de l’interface',    reviewed: false } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' },     fr: { t: 'Activer l’aide au survol', reviewed: false } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: false } },
 });
 
 // ============================================================================
