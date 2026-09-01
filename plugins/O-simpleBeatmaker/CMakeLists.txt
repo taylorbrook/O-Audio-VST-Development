@@ -15,7 +15,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # against JucePlugin_VersionString). Introduced in v1.1.0: through v1.0.3 the
 # harness carried the literal "1.0.1" while the plugin shipped 1.0.3, and its
 # JucePlugin_VersionCode said 0x10000.
-set(OSIMPLEBEATMAKER_VERSION "1.1.1")
+set(OSIMPLEBEATMAKER_VERSION "1.2.0")
 
 juce_add_plugin(O-simpleBeatmaker
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"

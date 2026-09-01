@@ -44,9 +44,12 @@
           <span class="tr-item tr-state"><span id="readTransport" data-i18n="label.freeRun">&#9679; free-run</span></span>
         </div>
 
-        <!-- v1.1.0 - the settings gear. This plugin has never had a hover-help
-             switch and does not gain one here, so the panel holds the language
-             selector alone. -->
+        <!-- v1.1.0 - the settings gear, holding the language selector.
+             v1.2.0 - and the hover-help toggle O-simpleGrain carries. Through
+             v1.1.1 this plugin's help layer was always on and the panel held
+             the language selector alone; the suite's other settings panels
+             offer the switch, and a panel that looks like theirs but lacks it
+             reads as a missing control. -->
         <div id="settings-cluster">
           <button type="button"
                   class="gear-btn"
@@ -69,6 +72,23 @@
                 <option value="fr">Fran&ccedil;ais</option>
               </select>
             </label>
+
+            <!-- The hover-help switch (v1.2.0). Its face is written from script
+                 through setLabel(), so the element becomes a [data-i18n] element
+                 and the language sweep owns it — two calls behind an if/else,
+                 never a ternary in the argument (check-i18n assertion 13).
+
+                 A <div>, not a <label for="help-toggle">: a button is a labelable
+                 element, so a label wrapping one re-dispatches the click and
+                 toggles twice. -->
+            <div class="settings-row">
+              <span class="settings-label" data-i18n="help-toggle">Hover help</span>
+              <button type="button" class="settings-toggle" id="help-toggle"
+                      aria-pressed="true"
+                      data-i18n-aria="aria.helpToggle"
+                      aria-label="Toggle hover help"
+                      data-i18n="ui.on">On</button>
+            </div>
           </div>
         </div>
       </div>

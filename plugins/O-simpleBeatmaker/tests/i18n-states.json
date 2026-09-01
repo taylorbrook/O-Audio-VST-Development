@@ -1,7 +1,11 @@
 [
   {
-    "name": "settings popover OPEN (lang-select — the caption span and the selector are both invisible at rest, so the gate never measures them otherwise)",
+    "name": "settings popover OPEN (the language row and the hover-help row — three labels that are invisible at rest)",
     "click": "#gear-btn"
+  },
+  {
+    "name": "hover help switched OFF (ui.off — the toggle's other face, which no resting state shows)",
+    "click": "#help-toggle"
   },
   {
     "name": "host transport SYNCED (label.synced — the other face of the transport state line, which only a PLAYING host produces; driven as a real frame event through the stub backend, not as a DOM poke)",

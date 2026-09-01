@@ -3,6 +3,43 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.0] — 2026-09-01
+
+### Added
+- **The hover-help switch, in the settings gear beside the language selector.**
+  Through v1.3.1 the gear panel held the language row alone — its comment said
+  a toggle would be a control for a preference that does not exist, because the
+  tooltip engine had no enabled state at all. The suite's other settings panels
+  (O-simpleGrain, O-simpleSampler) offer the switch, and a panel that looks
+  like theirs but lacks it reads as a missing control. Same port as O-simpleFM
+  v1.4.0, same commit: a `.settings-toggle` button (`#help-toggle`,
+  `aria-pressed`) whose face is written through `setLabel` (`ui.on` /
+  `ui.off`, two calls behind an if/else — check-i18n assertion 13);
+  `applyTipsEnabled()` / `setupTipsToggle()` in `app.js`; `show()` returns
+  early when `tipsEnabled` is false, and `hideTooltip` is published so
+  switching off dismisses a tip already showing. Browser-side preference under
+  localStorage `ossub.tipsEnabled` (default on) — no C++ state, no bridge, no parameter.
+  A `<div class="settings-row">`, not a `<label for>`: a button is labelable,
+  and a label wrapping one re-dispatches the click and toggles twice.
+- **Copy.** `help-toggle` (tip), `aria.helpToggle`, `ui.on`, `ui.off` — the
+  French is O-simpleGrain's, byte-identical to entries already `reviewed: true`
+  there, and carried as reviewed here on that basis. The `gear-btn` tip body
+  now names both controls in the panel.
+- **Styling** stays in this plugin's own vocabulary: the selector's box beside
+  it at rest, the gear's `--btn-active` / `--btn-border-active` lit state when
+  pressed.
+- `tests/i18n-states.json` gains the "hover help switched OFF" state so the
+  `ui.off` face is measured by check-ui-labels in both languages.
+
+### Validation
+- check-i18n: 15/15 PASS, 0 / 97 entries unreviewed (36 tooltip, 61 label).
+- i18n-fr-lint: CLEAN, exit 0.
+- boot-all-uis `--strict-tips`: clean, 0 dead / 0 late tip bindings.
+- check-ui-labels: ALL CHECKS PASSED; every `[data-i18n]` element visible in at
+  least one state.
+- Built + installed (VST3 + AU). WebView-only change — no DSP, parameter, or
+  state-format change.
+
 ## [1.3.1] — 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.

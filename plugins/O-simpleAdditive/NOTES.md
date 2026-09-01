@@ -6,6 +6,10 @@ morph, spectral-decay tilt, bit-depth quantizer.
 
 ## Timeline
 
+- **2026-09-01 — v1.2.0** — Hover-help on/off switch added to the settings gear
+  beside the language selector via /improve (the control O-simpleGrain carries;
+  ported with O-simpleFM v1.4.0, O-simpleSubtractive v1.4.0, O-simpleBeatmaker
+  v1.2.0). localStorage `osadd.tipsEnabled`, WebView-only. All i18n/UI gates green.
 - **2026-06-22 — v1.0.0** — Stage 4 complete; pluginval strictness 8 (VST3 + AU)
   and auval pass. Preset save/load bar deferred to v1.1.
 - **2026-06-25 — v1.0.1** — Code-quality bundle: band-limited live drawbar glow,

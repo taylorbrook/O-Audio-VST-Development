@@ -1,7 +1,11 @@
 [
   {
-    "name": "settings popover OPEN (the language row — a label that is invisible at rest)",
+    "name": "settings popover OPEN (the language row and the hover-help row — three labels that are invisible at rest)",
     "click": "#gear-btn"
+  },
+  {
+    "name": "hover help switched OFF (ui.off — the toggle's other face, which no resting state shows)",
+    "click": "#help-toggle"
   },
   {
     "name": "a lesson preset picked (label.captionAcid — the tour caption is chosen by a click and is never the resting string)",
