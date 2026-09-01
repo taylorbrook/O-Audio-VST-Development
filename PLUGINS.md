@@ -33,7 +33,7 @@ Ouaricon Plugins:
 | O-Comp | 📦 Installed | 1.7.1 | Audio Effect (Compressor) | 2026-08-31 |
 | O-AnalogEQ | 📦 Installed | 1.3.1 | Audio Effect (EQ) | 2026-08-31 |
 | O-DigiDelay | 📦 Installed | 1.4.1 | Audio Effect (Delay) | 2026-08-31 |
-| O-SimpleReverb | 📦 Installed | 1.7.1 | Audio Effect (Reverb) | 2026-08-31 |
+| O-SimpleReverb | 📦 Installed | 1.7.2 | Audio Effect (Reverb) | 2026-08-31 |
 | O-Polystutter | 📦 Installed | 1.14.2 | Audio Effect (Beat Repeater) | 2026-08-31 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
 | O-Lyrica | 📦 Installed | 2.4.3 | Synth (Physical Modeling Harp) | 2026-08-31 |
 | O-MultiBandCompressor | 📦 Installed | 1.11.1 | Audio Effect (Dynamics) | 2026-08-31 |
@@ -41,8 +41,8 @@ Ouaricon Plugins:
 | O-IntonationPad | 📦 Installed | 2.9.1 | Synth (Wavetable Pad) | 2026-08-31 |
 | O-Detune | 📦 Installed | 1.7.1 | Audio Effect (Detuning) | 2026-08-31 |
 | O-Freeze | 📦 Installed | 2.3.0 | Audio Effect (Granular Freeze) | 2026-08-31 |
-| O-FreqPulse | 📦 Installed | 1.18.1 | Audio Effect (Spectral Sequencer) | 2026-08-31 |
-| O-SpectralShaper | 📦 Installed | 1.7.1 | Audio Effect (Spectral Transient Shaper) | 2026-08-31 |
+| O-FreqPulse | 📦 Installed | 1.18.2 | Audio Effect (Spectral Sequencer) | 2026-08-31 |
+| O-SpectralShaper | 📦 Installed | 1.7.2 | Audio Effect (Spectral Transient Shaper) | 2026-08-31 |
 | O-GrainScatter | 📦 Installed | 2.6.1 | Audio Effect (Granular Stutter Engine) | 2026-08-31 |
 | O-Chorus | 📦 Installed | 1.4.1 | Audio Effect (Chorus) | 2026-08-31 |
 | O-Orbit | 📦 Installed | 1.2.2 | Audio Effect (Spatial Orbiter) | 2026-08-31 |
@@ -53,8 +53,8 @@ Ouaricon Plugins:
 | O-Formant | 📦 Installed | 1.27.2 | Synth (Physical Model Vocal) | 2026-08-31 |
 | O-Bowed | 📦 Installed | 1.6.2 | Synth (Physical Model Bowed String) | 2026-08-31 |
 | O-Reed | 📦 Installed | 1.3.1 | Synth (Physical Modeling Reed Wind) | 2026-08-31 |
-| O-Wind | 📦 Installed | 1.18.1 | Synth (Physical Model Flute) | 2026-08-31 |
-| O-Contrabass | 📦 Installed | 1.8.1 | Synth (Physical Model Bowed Bass) | 2026-08-31 |
+| O-Wind | 📦 Installed | 1.18.2 | Synth (Physical Model Flute) | 2026-08-31 |
+| O-Contrabass | 📦 Installed | 1.8.2 | Synth (Physical Model Bowed Bass) | 2026-08-31 |
 | O-Bassoon | 🚧 Stage 0 | 1.2.2 | Synth (Physical Model Bassoon) | 2026-08-31 |
 | O-MicrotonalSampler | 📦 Installed | 1.25.1 | Synth (Microtonal Sampler) | 2026-08-31 |
 | O-simpleFM | 📦 Installed | 1.3.2 | Synth (Pedagogical 2-Op FM) | 2026-08-31 |
@@ -63,7 +63,7 @@ Ouaricon Plugins:
 | O-simpleSubtractive | ✅ Working | 1.3.1 | Synth (Pedagogical Subtractive) | 2026-08-31 |
 | O-simpleSampler | ✅ Working | 1.4.3 | Synth (Pedagogical Sampler) | 2026-08-31 |
 | O-simpleBeatmaker | 📦 Installed | 1.1.1 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-08-31 |
-| O-simplePhysicalModelSynth | 📦 Installed | 1.2.1 | Synth (Pedagogical Physical Modeling) | 2026-08-31 |
+| O-simplePhysicalModelSynth | 📦 Installed | 1.2.2 | Synth (Pedagogical Physical Modeling) | 2026-08-31 |
 | O-ReverseDelay | 📦 Installed | 1.10.1 | Audio Effect (Granular Reverse Delay) | 2026-08-31 |
 | O-Octagon | 📦 Installed | 1.11.1-dev | Audio Effect (8-Channel DBAP Spatializer) | 2026-08-31 |
 | O-Bitrot | 📦 Installed | 1.15.1 | Audio Effect (Broken-Media Degradation) | 2026-08-31 |
