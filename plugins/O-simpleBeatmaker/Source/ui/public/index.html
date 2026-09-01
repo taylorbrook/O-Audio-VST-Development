@@ -80,8 +80,12 @@
         <!-- FIVE keyed fragments, and NO wrapper span around them. A wrapper is
              not a [data-i18n] element, so its box is measured by the label
              gate's geometry diff — and its box IS the French sentence's width,
-             which is 142.9px wider than the English one and can never be
-             anything else. Carrying .grid-hint on each fragment instead puts the
+             which is 153.3px wider than the English one and can never be
+             anything else. (142.9px through v1.1.0; v1.1.1 revised the French
+             copy — "cliquez sur une case" for the intransitive verb, and a
+             no-break space opening the ';' fragment. Re-measured: French
+             826.07px against English 672.77px, summed over the five fragments
+             at the 1060x900 frame.) Carrying .grid-hint on each fragment instead puts the
              whole hint inside elements the diff excludes by design, and renders
              identically. -->
         <span class="grid-hint" data-i18n="label.gridHintA">click a cell to light a step; click again to cycle</span> <em class="grid-hint" data-i18n="label.gridHintEm">normal &#8594; accent &#8594; ghost</em><span class="grid-hint" data-i18n="label.gridHintB">; right-click (or</span> <kbd class="grid-hint" data-i18n="label.gridHintKbd">Del</kbd><span class="grid-hint" data-i18n="label.gridHintC">) to clear &#183; the bar sweeping across is the playhead</span>
