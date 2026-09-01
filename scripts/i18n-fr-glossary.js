@@ -98,8 +98,8 @@ const TERMS = {
     'click to browse presets':  ['cliquer pour parcourir les préréglages'],
     'click to see all presets': ['cliquer pour voir tous les préréglages'],
     'all':                      ['tous', 'toutes'],
-    'on':                       ['marche', 'activé', 'activée'],
-    'off':                      ['arrêt', 'désactivé', 'désactivée', 'aucun', 'aucune'],
+    'on':                       ['marche', 'activé', 'activée', 'act'],          // act./dés.: O-Orbit, a 46 px pill (MARCHE 53.06, ACTIVÉ 46.33)
+    'off':                      ['arrêt', 'désactivé', 'désactivée', 'aucun', 'aucune', 'dés'],
     'bypass':                   ['contournement', 'contour'],
     'mono':                     ['mono'],
     'min':                      ['min'],
