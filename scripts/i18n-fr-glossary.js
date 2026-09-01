@@ -175,7 +175,7 @@ const TERMS = {
     'vibrato rate':             ['vitesse du vibrato'],
     'vibrato depth':            ['profondeur du vibrato'],
     'vib rate':                 ['vit. vibrato', 'vit. vibr'],
-    'vib depth':                ['prof. vibrato', 'prof. vibr'],
+    'vib depth':                ['prof. vibrato', 'prof. vibr', 'prof. vib'],   // O-Reed: prof. vibr clears a chevron by 0.19 px
     'mod':                      ['mod'],
     'waveform':                 ['forme d\'onde', 'onde'],
     'waveform ·':               ['forme d\'onde ·'],
@@ -317,7 +317,7 @@ const TERMS = {
     'sympathetic':              ['sympathiques'],
     'air column':               ['colonne d\'air', 'colonne'],
     'resonator':                ['résonateur'],
-    'double reed':              ['anche double'],
+    'double reed':              ['anche double', 'anche dble'],   // O-Reed: 67.20 px in a 68 px ellipsis cap
     'bell size':                ['taille du pavillon', 'pavillon'],
     'bore character':           ['caractère de la perce', 'caract. perce'],
     'drone pitch':              ['hauteur du bourdon', 'bourdon'],
