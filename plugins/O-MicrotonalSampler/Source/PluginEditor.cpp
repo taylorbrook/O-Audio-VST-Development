@@ -832,6 +832,22 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 }
         },
 
+        // v1.25.2: the panel's A4 REF knob had no read path. The STATE half was
+        // already correct (captureTuningValueTree saves the engine's masterTune,
+        // restoreTuningFromValueTree puts it back), so a session saved at 442 Hz
+        // reopened with the engine at 442 and the knob painting 440.0 Hz — the UI
+        // lied about the pitch the plugin was actually sounding.
+        { "getMasterTune",
+                [this] (const juce::Array<juce::var>&,
+                        std::function<void(juce::var)> complete)
+                {
+                    auto* engine = processorRef.getTuningEngine();
+                    complete (juce::var (engine != nullptr
+                                             ? engine->getMasterTune()
+                                             : 440.0));
+                }
+        },
+
         { "getPluginVersion",
                 [] (const juce::Array<juce::var>&,
                     std::function<void(juce::var)> complete)
