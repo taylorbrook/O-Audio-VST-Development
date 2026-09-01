@@ -39,11 +39,11 @@ Ouaricon Plugins:
 | O-MultiBandCompressor | 📦 Installed | 1.11.1 | Audio Effect (Dynamics) | 2026-08-31 |
 | O-Bass | 📦 Installed | 1.5.1 | Audio Effect (Bass Enhancer) | 2026-08-31 |
 | O-IntonationPad | 📦 Installed | 2.9.0 | Synth (Wavetable Pad) | 2026-08-28 |
-| O-Detune | 📦 Installed | 1.7.0 | Audio Effect (Detuning) | 2026-08-30 |
+| O-Detune | 📦 Installed | 1.7.1 | Audio Effect (Detuning) | 2026-08-31 |
 | O-Freeze | 📦 Installed | 2.2.1 | Audio Effect (Granular Freeze) | 2026-08-31 |
 | O-FreqPulse | 📦 Installed | 1.18.1 | Audio Effect (Spectral Sequencer) | 2026-08-31 |
 | O-SpectralShaper | 📦 Installed | 1.7.1 | Audio Effect (Spectral Transient Shaper) | 2026-08-31 |
-| O-GrainScatter | 📦 Installed | 2.6.0 | Audio Effect (Granular Stutter Engine) | 2026-08-30 |
+| O-GrainScatter | 📦 Installed | 2.6.1 | Audio Effect (Granular Stutter Engine) | 2026-08-31 |
 | O-Chorus | 📦 Installed | 1.4.1 | Audio Effect (Chorus) | 2026-08-31 |
 | O-Orbit | 📦 Installed | 1.2.1 | Audio Effect (Spatial Orbiter) | 2026-08-31 |
 | O-TextureForge | 📦 Installed | 1.2.1 | Instrument (Concatenative Synth) | 2026-08-31 |
@@ -52,11 +52,11 @@ Ouaricon Plugins:
 | O-Gain | 📦 Installed | 1.3.1 | Audio Effect (Gain Staging Utility) | 2026-08-31 |
 | O-Formant | 📦 Installed | 1.27.0 | Synth (Physical Model Vocal) | 2026-08-31 |
 | O-Bowed | 📦 Installed | 1.6.1 | Synth (Physical Model Bowed String) | 2026-08-31 |
-| O-Reed | 📦 Installed | 1.3.0 | Synth (Physical Modeling Reed Wind) | 2026-08-30 |
+| O-Reed | 📦 Installed | 1.3.1 | Synth (Physical Modeling Reed Wind) | 2026-08-31 |
 | O-Wind | 📦 Installed | 1.18.0 | Synth (Physical Model Flute) | 2026-08-31 |
-| O-Contrabass | 📦 Installed | 1.8.0 | Synth (Physical Model Bowed Bass) | 2026-08-27 |
+| O-Contrabass | 📦 Installed | 1.8.1 | Synth (Physical Model Bowed Bass) | 2026-08-31 |
 | O-Bassoon | 🚧 Stage 0 | 1.2.1 | Synth (Physical Model Bassoon) | 2026-08-31 |
-| O-MicrotonalSampler | 📦 Installed | 1.25.0 | Synth (Microtonal Sampler) | 2026-08-30 |
+| O-MicrotonalSampler | 📦 Installed | 1.25.1 | Synth (Microtonal Sampler) | 2026-08-31 |
 | O-simpleFM | 📦 Installed | 1.3.1 | Synth (Pedagogical 2-Op FM) | 2026-08-31 |
 | O-simpleAdditive | ✅ Working | 1.1.1 | Synth (Pedagogical Additive + Wavetable) | 2026-08-31 |
 | O-simpleGrain | 📦 Installed | 1.4.1 | Synth (Pedagogical Granular) | 2026-08-31 |
