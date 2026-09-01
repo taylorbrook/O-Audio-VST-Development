@@ -266,6 +266,14 @@ body {
     display: none;
 }
 
+/* NOTE (v1.2.1, measured, not changed): the `font-size: 9px` below NEVER
+   APPLIES. `.param-container label` (0,1,1) beats `.toggle-label` (0,1,0) and
+   this pill has rendered at 11px since v1.0.0. It is recorded rather than
+   fixed because raising the specificity is a visible size change to a shipped
+   control, and because the dead rule is load-bearing on a copy decision: at
+   the 9px asked for here the settled French pair MARCHE/ARRET fits the 46px
+   content box (MARCHE ~43.4px), while at the real 11px it does not (MARCHE
+   53.06px), which is why js/i18n.js holds OUI/NON under a termNote. */
 .toggle-label {
     position: absolute;
     top: 0;
@@ -663,9 +671,16 @@ body {
 }
 .settings-select:focus { outline: none; border-color: #8BA870; }
 
-/* Pinned to the wider of the two languages: "Off" 20.0 / "Non" 22.3,
-   "On" 16.5 / "Oui" 21.6. Without the pin the panel's right edge steps by
-   ~5px when the help is switched on, in French only. */
+/* Pinned to the wider of the two languages. Without the pin the panel's right
+   edge steps by ~5px when the help is switched on, in French only.
+
+   Re-measured at v1.2.1 with Range.selectNodeContents on the real node at the
+   shipping frame, because the v1.2.0 table was ~2px out on every entry:
+   "Off" 19.86 / "Non" 23.17, "On" 15.45 / "Oui" 19.28 (was 20.0 / 22.3 /
+   16.5 / 21.6). The 46px pin — 44.00px of content — still clears all four,
+   and the widest is "Non" at 23.17. It does NOT clear the glossary forms:
+   ARRET 35.28 and ACTIVE 39.67 fit, MARCHE 45.80 and DESACTIVEE 66.67 do not,
+   and `flex: 0 0 46px` cannot grow to take them. */
 .settings-toggle {
     flex: 0 0 46px;
     width: 46px;
