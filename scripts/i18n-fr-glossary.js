@@ -226,7 +226,7 @@ const TERMS = {
     'threshold':                ['seuil'],
     'ratio':                    ['ratio'],
     'knee':                     ['coude'],
-    'makeup':                   ['compensation'],
+    'makeup':                   ['compensation', 'compens'],   // O-MultiBandCompressor: Compensation 69.23 px re-deals a 60.16 px 1fr track
     'makeup gain':              ['gain de compensation'],
     'duck':                     ['ducking'],
     'autogain':                 ['gain auto'],
