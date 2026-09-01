@@ -18,7 +18,92 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-SimpleReverb page labels and hover-help, English + French (v1.7.0)
+// i18n.js — O-SimpleReverb page labels and hover-help, English + French (v1.7.1)
+//
+// ── v1.7.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────
+//
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 14 of 29 entries (9 terminology, 10 typography, 1 grammar, 2 meaning
+// — the categories overlap; most entries carry a typographic edit as well as a
+// word one). sameAsEn: kept 0, translated 0. termNote exemptions: 0.
+// ONE straight copy remains and correctly carries NO flag: tip.type's title is
+// "Type" in both languages over a fully translated body, and check-i18n reads
+// sameAsEn entry-scoped (title AND body) — flagging it would disarm assertion 4
+// for the body too.
+// Left as drafted: the other 15. reviewed: false throughout — no native speaker
+// has read this file, and this pass is a second machine reading, not that one.
+//
+// Lint (scripts/i18n-fr-lint.js) went 35 → 0 and --strict exits 0: 11 straight
+// apostrophes → U+2019, 5 percent signs / 8 colons / 2 semicolons / 2
+// number–unit gaps → U+00A0, 5 glossary misses and 2 forbidden words closed.
+// The file was drafted with the straight apostrophe throughout, so the
+// typography pass touched every body; it ran as a brace-matched state machine
+// over the fr: {} blocks and rewrote only the STRING VALUE of a t:/b: pair.
+// The control: all 31 en: {} blocks, all keys, TIP_BINDINGS and I18N_EXEMPT are
+// byte-identical to the v1.7.0 file, and no U+00A0 landed outside a t:/b: value.
+//
+// DECISIONS THE NEXT READER NEEDS:
+//
+//  1. LIRE → OUV, and the ROOT TERM DOES NOT FIT. `load` settles to Charger
+//     (Charg.), with Ouvrir/Ouv accepted where the button opens a file dialog —
+//     and #preset-load's handler IS loadPresetFromFile() (index.html:1269). The
+//     41/44 px pins recorded below are unchanged, so the content box is 30.00 px:
+//     CHARGER 51.30, OUVRIR 41.34, CHARG. 40.52 are all past it; OUV is 23.17,
+//     6.83 px spare. LIRE (24.22) fitted and was the forbidden word — lire is to
+//     read or to play, not to load.
+//     NO PERIOD, for the reason ENR already carries: label-in-name (WCAG 2.5.3)
+//     matches case-insensitively, "ouv" IS a substring of aria.loadPreset's new
+//     "Ouvrir un préréglage" and "ouv." is NOT. OUV. (24.89) would fit the pin
+//     just as well and would break the rule silently.
+//
+//  2. EFFET → TRAITÉ, AND THE PAIR MOVED WITH IT. The glossary settles wet/dry
+//     as Traité / Direct. The v1.7.0 note below argues EFFET/DIRECT is a pair a
+//     reviewer should move both of or neither — that still holds, and Traité /
+//     Direct IS the pair, with DIRECT already the settled term and unchanged.
+//     Measured: TRAITÉ 36.80 px against cliff A's 52.00, so it is 15.20 px UNDER
+//     the cliff and INERT — the .knob box stays 52.00 and nothing re-centres.
+//     SIGNAL TRAITÉ (77.16) is 25.16 px past the cliff and was rejected on it.
+//
+//  3. THE v1.7.0 WIDTH TABLE WAS RE-MEASURED AND HOLDS TO THE HUNDREDTH. Nine of
+//     twenty-one Stage N plugins found their header wrong about the string it
+//     defended, so this was measured rather than inherited, with the gates' own
+//     method (Range.selectNodeContents on the real node, French, 500 x 350):
+//     LOAD 29.78, LIRE 24.22, CHARG. 40.52, OUVRIR 41.34, CHARGER 51.30, SAVE
+//     26.83, ENR 21.50, ENREG. 38.84, WET 21.89, EFFET 30.52, DRY 20.91, DIRECT
+//     37.31 — every one identical to the number written below.
+//
+//  4. LOANWORDS AND ON-SCREEN FACES, THREE RULES, UNCHANGED. The six TYPE option
+//     faces (Booth … Ambient) and the CHARACTER readout words (warm, bright,
+//     neutral) stay ENGLISH in the French bodies because the page shows them in
+//     English; the lower-case generic "une cabine" in tip.type is prose and is
+//     translated. What DID change is `voicing`, which was an anglicism and not a
+//     face — nothing on this page says the word. It is the type-specific EQ
+//     (PluginProcessor.h:162-163, TypePreset::eqType), so the French now reads
+//     "un filtre de coloration".
+//
+//  5. TWO BODY TERMS SETTLED BY THE SUITE RATHER THAN BY THIS PAGE. `crossfade`
+//     is fondu ENCHAÏNÉ — fondu alone is a fade, which is a different thing from
+//     the crossfade tip.wet says this control is not. And `hover help` is aide au
+//     survol, the form the other plugins use, where tip.langSelect said "aide
+//     contextuelle". Bodies are not matched against the glossary's TERMS, so
+//     neither of these was a lint finding; both are the suite converging.
+//
+//  6. TIP HEIGHTS DID NOT MOVE. Every no-break space is an unbreakable run where
+//     a line break used to be possible, and three bodies also grew. Measured in
+//     tests/ui_tip_render_check.js at the shipping 500 x 350, all ten French tip
+//     rectangles are IDENTICAL before and after — 202.3 / 186.9 / 140.7 / 125.3 /
+//     125.3 / 140.7 / 140.7 / 140.7 / 110.0 / 125.3 px tall, with the tightest
+//     bottom clearance still tip.lowCut's 21.9 px. Read the HEIGHTS, not only
+//     inFrame: a renderer's bottom floor can park a grown tip over the controls
+//     above and still report itself inside the frame.
+//
+//  7. NOT FIXED, REPORTED. The footer wordmark and the console banner both
+//     hard-code "v1.5.5" and have been stale since v1.5.7. The footer string is
+//     an I18N_EXEMPT entry matched BY TEXT, and Stage N does not re-open
+//     exemptions; fixing only the console half would split a documented pair.
+//     The repair the exemption already names — an empty span with
+//     id="versionLabel" filled at runtime, as O-DigiDelay and O-Tremolo do — is
+//     still the right one and still out of a French-copy commit's scope.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -195,7 +280,7 @@ export const I18N = Object.freeze({
         en: { t: "Type",
               b: "Picks the reverb algorithm: each name is a whole configuration — room size, damping, stereo width, pre-delay, early-reflection spread, and on most types a voicing filter — not just a bigger or smaller room. Size and Decay then scale whatever the type sets, so Size at 100 % on Booth is still a booth. Six settings: Booth, Room, Hall, Spring, Plate, Ambient." },
         fr: { t: "Type",
-              b: "Choisit l'algorithme de réverbération : chaque nom est une configuration complète — taille de la pièce, amortissement, largeur stéréo, pré-délai, étalement des premières réflexions et, sur la plupart des types, un filtre de voicing — et non simplement une pièce plus grande ou plus petite. Taille et Déclin viennent ensuite mettre à l'échelle ce que le type a posé : Taille à 100 % sur Booth reste une cabine. Six réglages : Booth, Room, Hall, Spring, Plate, Ambient.",
+              b: "Choisit l’algorithme de réverbération : chaque nom est une configuration complète — taille de la pièce, amortissement, largeur stéréo, pré-délai, étalement des premières réflexions et, sur la plupart des types, un filtre de coloration — et non simplement une pièce plus grande ou plus petite. Taille et Déclin viennent ensuite mettre à l’échelle ce que le type a posé : Taille à 100 % sur Booth reste une cabine. Six réglages : Booth, Room, Hall, Spring, Plate, Ambient.",
               reviewed: false },
     },
 
@@ -210,7 +295,7 @@ export const I18N = Object.freeze({
         en: { t: "Character",
               b: "Tilts the tone of the reverb tail only; the dry signal is never filtered. Turned left it is warm, a low-pass closing from 20 kHz down to 2 kHz, and turned right it is bright, a high shelf at 4 kHz reaching +6 dB. The readout reads neutral inside a narrow dead zone at the centre, where the filter is bypassed outright: warm 100 % to bright 100 %." },
         fr: { t: "Caractère",
-              b: "Incline la couleur de la seule queue de réverbération ; le signal direct n'est jamais filtré. Vers la gauche le son est chaud, un passe-bas qui se referme de 20 kHz jusqu'à 2 kHz, et vers la droite il est brillant, un plateau aigu à 4 kHz atteignant +6 dB. L'affichage indique neutral dans une étroite zone morte au centre, où le filtre est purement contourné : de warm 100 % à bright 100 %.",
+              b: "Incline la couleur de la seule queue de réverbération ; le signal direct n’est jamais filtré. Vers la gauche le son est chaud, un passe-bas qui se referme de 20 kHz jusqu’à 2 kHz, et vers la droite il est brillant, un filtre en plateau aigu à 4 kHz atteignant +6 dB. L’affichage indique neutral dans une étroite zone morte au centre, où le filtre est totalement contourné : de warm 100 % à bright 100 %.",
               reviewed: false },
     },
 
@@ -222,8 +307,8 @@ export const I18N = Object.freeze({
     'tip.wet': {
         en: { t: "Wet",
               b: "Sets how much reverb is added to the output. It is an independent gain and not a crossfade: turning it up does not turn Dry down, so the two together set the total level as well as the balance. 0 to 100 %." },
-        fr: { t: "Effet",
-              b: "Règle la quantité de réverbération ajoutée à la sortie. C'est un gain indépendant et non un fondu : l'augmenter ne baisse pas Direct, si bien que les deux ensemble déterminent aussi le niveau global et pas seulement l'équilibre. 0 à 100 %.",
+        fr: { t: "Traité",
+              b: "Règle la quantité de réverbération ajoutée à la sortie. C’est un gain indépendant et non un fondu enchaîné : l’augmenter ne baisse pas Direct, si bien que les deux ensemble déterminent aussi le niveau global et pas seulement l’équilibre. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -233,7 +318,7 @@ export const I18N = Object.freeze({
         en: { t: "Dry",
               b: "Sets how much of the untouched input reaches the output. It is independent of Wet, so pulling it to 0 leaves the reverb tail alone on the output — the setting to use on a send bus — while leaving it at 100 keeps the source at full level. 0 to 100 %." },
         fr: { t: "Direct",
-              b: "Règle la quantité de signal d'entrée intact qui atteint la sortie. Elle est indépendante d'Effet : la ramener à 0 ne laisse que la queue de réverbération en sortie — le réglage à utiliser sur un bus de départ — tandis que la laisser à 100 conserve la source à plein niveau. 0 à 100 %.",
+              b: "Règle la quantité de signal d’entrée intact qui atteint la sortie. Elle est indépendante de Traité : la ramener à 0 ne laisse que la queue de réverbération en sortie — le réglage à utiliser sur un bus de départ — tandis que la laisser à 100 conserve la source à plein niveau. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -248,7 +333,7 @@ export const I18N = Object.freeze({
         en: { t: "Decay",
               b: "Stretches or shortens the tail the Type set, by growing the room and easing its damping together. The centre of the knob is exactly 1.0x — the type's own untouched decay — so this is a trim, not a time in seconds. 0.5x to 2.0x." },
         fr: { t: "Déclin",
-              b: "Allonge ou raccourcit la queue posée par le Type, en agrandissant la pièce et en relâchant son amortissement à la fois. Le centre du bouton vaut exactement 1,0x, soit le déclin propre du type : c'est donc un ajustement et non une durée en secondes. De 0,5x à 2,0x.",
+              b: "Allonge ou raccourcit la queue posée par le Type, en agrandissant la pièce et en relâchant son amortissement à la fois. Le centre du bouton vaut exactement 1,0x, soit le déclin propre du type : c’est donc un ajustement et non une durée en secondes. De 0,5x à 2,0x.",
               reviewed: false },
     },
 
@@ -258,7 +343,7 @@ export const I18N = Object.freeze({
         en: { t: "Size",
               b: "Scales the room the Type chose, from half its size at 0 % to its full size at 100 %. It is relative rather than absolute — Booth at 100 % is still smaller than Hall at 0 % — and it moves only the space, leaving the length of the tail to Decay. 0 to 100 %." },
         fr: { t: "Taille",
-              b: "Met à l'échelle la pièce choisie par le Type, de la moitié de sa taille à 0 % jusqu'à sa taille entière à 100 %. C'est une valeur relative et non absolue — Booth à 100 % reste plus petit que Hall à 0 % — et elle ne déplace que l'espace, la longueur de la queue restant l'affaire de Déclin. 0 à 100 %.",
+              b: "Met à l’échelle la pièce choisie par le Type, de la moitié de sa taille à 0 % jusqu’à sa taille entière à 100 %. C’est une valeur relative et non absolue — Booth à 100 % reste plus petit que Hall à 0 % — et elle n’agit que sur l’espace, la longueur de la queue restant l’affaire de Déclin. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -272,7 +357,7 @@ export const I18N = Object.freeze({
         en: { t: "Low Cut",
               b: "A high-pass on the reverb tail only, for clearing mud out of the bottom of the space without thinning the dry signal. It does nothing at all until the switch below the dial reads ON, and the two small figures either side of the dial are the ends of its travel. 20 to 400 Hz." },
         fr: { t: "Coupe-bas",
-              b: "Un passe-haut appliqué à la seule queue de réverbération, pour dégager le bas du spectre sans amaigrir le signal direct. Il ne fait rien tant que l'interrupteur sous le cadran n'affiche pas ACT., et les deux petits chiffres de part et d'autre du cadran sont les extrémités de sa course. De 20 à 400 Hz.",
+              b: "Un passe-haut appliqué à la seule queue de réverbération, pour dégager le bas du spectre sans amaigrir le signal direct. Il ne fait rien du tout tant que l’interrupteur sous le cadran n’affiche pas ACT., et les deux petits chiffres de part et d’autre du cadran sont les extrémités de sa course. De 20 à 400 Hz.",
               reviewed: false },
     },
 
@@ -286,7 +371,7 @@ export const I18N = Object.freeze({
         en: { t: "Low Cut On",
               b: "Switches the low cut in and out; click the word itself to toggle it. While it reads OFF the dial above is dimmed and the filter is bypassed entirely, so an unused low cut costs nothing. Two settings: OFF and ON." },
         fr: { t: "Coupe-bas actif",
-              b: "Met le coupe-bas en service ou hors service ; cliquez sur le mot lui-même pour basculer. Tant qu'il affiche DÉS. le cadran au-dessus est estompé et le filtre est totalement contourné : un coupe-bas inutilisé ne coûte rien. Deux réglages : DÉS. et ACT.",
+              b: "Met le coupe-bas en service ou hors service ; cliquez sur le mot lui-même pour basculer. Tant qu’il affiche DÉS., le cadran au-dessus est estompé et le filtre est totalement contourné : un coupe-bas inutilisé ne coûte rien. Deux réglages : DÉS. et ACT.",
               reviewed: false },
     },
 
@@ -302,7 +387,7 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Opens the settings panel, which on this plugin holds a single row: the interface language. Nothing else lives in there — every reverb control is on the front panel." },
         fr: { t: "Réglages",
-              b: "Ouvre le panneau de réglages, qui ne contient sur ce plugin qu'une seule ligne : la langue de l'interface. Rien d'autre ne s'y trouve — toutes les commandes de la réverbération sont sur la face avant.",
+              b: "Ouvre le panneau de réglages, qui ne contient sur ce plugin qu’une seule ligne : la langue de l’interface. Rien d’autre ne s’y trouve — toutes les commandes de la réverbération sont sur la face avant.",
               reviewed: false },
     },
 
@@ -315,8 +400,8 @@ export const I18N = Object.freeze({
     'tip.langSelect': {
         en: { t: "Interface language",
               b: "Switches every caption, accessible name and hover-help on this page between English and French. The change is immediate and is saved with the plugin's state, so it comes back with the session. Two settings: English and Français." },
-        fr: { t: "Langue de l'interface",
-              b: "Bascule toutes les légendes, tous les noms accessibles et toute l'aide contextuelle de cette page entre l'anglais et le français. Le changement est immédiat et il est enregistré avec l'état du plugin : il revient donc avec la session. Deux réglages : English et Français.",
+        fr: { t: "Langue de l’interface",
+              b: "Bascule toutes les légendes, tous les noms accessibles et toute l’aide au survol de cette page entre l’anglais et le français. Le changement est immédiat et il est enregistré avec l’état du plugin : il revient donc avec la session. Deux réglages : English et Français.",
               reviewed: false },
     },
 });
@@ -437,7 +522,7 @@ export const LABELS = Object.freeze({
     // geometry one and is recorded as such. DIRECT is 16.40 px WIDER than DRY
     // and that costs nothing, because 37.31 is still 14.69 px under the cliff:
     // measuring the cliff is what turns a scary-looking growth into a non-event.
-    'label.wet':       { en: { t: 'Wet' },       fr: { t: 'Effet',    reviewed: false } },
+    'label.wet':       { en: { t: 'Wet' },       fr: { t: 'Traité',   reviewed: false } },
     'label.dry':       { en: { t: 'Dry' },       fr: { t: 'Direct',   reviewed: false } },
 
     // DÉCROISSANCE is the full word and it is 77.63 — a SINGLE WORD with no
@@ -531,7 +616,7 @@ export const LABELS = Object.freeze({
     // broken on O-DigiDelay, and which O-Marimba already ships broken twice.
     // LIRE is a whole word, so aria.loadPreset simply begins with it.
     'label.save':      { en: { t: 'Save' },      fr: { t: 'Enr',      reviewed: false } },
-    'label.load':      { en: { t: 'Load' },      fr: { t: 'Lire',     reviewed: false } },
+    'label.load':      { en: { t: 'Load' },      fr: { t: 'Ouv',      reviewed: false } },
 
     // ── The settings popover (v1.6.0) ───────────────────────────────────────
     //
@@ -596,9 +681,9 @@ export const LABELS = Object.freeze({
     'aria.nextPreset': { en: { t: 'Next preset' },
                          fr: { t: 'Préréglage suivant',   reviewed: false } },
     'aria.savePreset': { en: { t: 'Save preset' },
-                         fr: { t: 'Enregistrer un préréglage', reviewed: false } },
+                         fr: { t: 'Enregistrer le préréglage', reviewed: false } },
     'aria.loadPreset': { en: { t: 'Load preset' },
-                         fr: { t: 'Lire un préréglage',        reviewed: false } },
+                         fr: { t: 'Ouvrir un préréglage',      reviewed: false } },
 
     'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },

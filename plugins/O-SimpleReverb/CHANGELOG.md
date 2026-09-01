@@ -2,6 +2,26 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.7.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **14 of 29 French entries revised** against the suite glossary (`scripts/i18n-fr-glossary.js`) and its lint, which went 35 findings to 0 with `--strict` exiting 0. Terminology: **LIRE → OUV** on the preset Load button and *Lire un préréglage* → **Ouvrir un préréglage** on its accessible name (*lire* means to read or to play, never to load); **EFFET → TRAITÉ** on the Wet knob and in its tooltip title, which makes the pair **Traité / Direct** the glossary's settled wet/dry; *Enregistrer un préréglage* → *Enregistrer **le** préréglage*; *un filtre de voicing* → *un filtre de **coloration*** (the anglicism named no on-screen face — it is the type-specific EQ at `PluginProcessor.h:162`); *un fondu* → *un fondu **enchaîné*** for a crossfade; *aide contextuelle* → *aide au survol*. Typography: straight `'` → typographic `’` throughout — the file had been drafted with the straight form, so every body changed — plus U+00A0 before `%`, `:` and `;` and between a number and its unit. Grammar: a missing comma after *Tant qu'il affiche DÉS.*. Meaning: *at all* restored to `tip.lowCut`, and the calque *elle ne déplace que l'espace* replaced by *elle n'agit que sur l'espace*.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so assistive technology reads the page in the language it is displayed in.
+
+### Geometry
+
+- **Zero movement, and zero height movement.** `check-ui-labels --plugin O-SimpleReverb` is BYTE-IDENTICAL to the pre-change baseline — `moved=0` in the geometry diff, the same 10 of 10 `[data-i18n]` elements, `[8b]` still 1. **OUV** measures 23.17 px in a 30.00 px content box (CHARGER 51.30, OUVRIR 41.34 and CHARG. 40.52 are all past the pin) and **TRAITÉ** 36.80 px against cliff A's 52.00, so both are inert. `tests/ui_tip_render_check.js` 169/169: all ten French tooltip rectangles are identical before and after, tightest bottom clearance still 21.9 px on `tip.lowCut`, despite the no-break spaces and three grown bodies.
+- The v1.7.0 header's width table was re-measured with the gates' own method and holds to the hundredth on all twelve strings.
+
+### Known
+
+- `reviewed: false` is unchanged on all 29 entries. This pass is a second machine reading against a glossary and a lint; the flag records a native speaker, and none has read this file.
+- **OUV and ENR carry no period on purpose.** Label-in-name (WCAG 2.5.3) matches case-insensitively: *ouv* is a substring of *Ouvrir un préréglage* and *ouv.* is not.
+- The footer wordmark and the console banner still hard-code `v1.5.5` and are stale by four versions. The footer string is an `I18N_EXEMPT` entry matched by TEXT and Stage N does not re-open exemptions; the repair that exemption already names — an `id="versionLabel"` span filled at runtime — remains the right one.
+
 ## [1.7.0] - 2026-08-30
 
 ### Added
