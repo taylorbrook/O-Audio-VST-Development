@@ -430,3 +430,26 @@ numbers in the batch table are pre-fix.**
     shrink-to-fit with `overflow: visible`; O-Orbit's "9 px pill" renders at 11 px because
     `.toggle-label`'s rule loses on specificity). Score: 9 of 21 headers wrong about the
     string they defended.
+
+## From N5 complete (6 of 6: O-Marimba `2240a80f`, O-Freeze `3bd6b5e8`, O-SimpleReverb `dd1b58e6`, O-DigiDelay `c4a7eac9`, O-Bitrot `143f75c7`, O-Lyrica `d80b0bed`)
+
+37. **T2 keeps its point on an IDENTIFIER and on nothing else:** a surround-format name, a
+    token with two or more dots, a token after a version word (*v*, *version*, *pre-*).
+    O-Bitrot proposed "any token the English also carries"; tried, it zeroed the column —
+    the English writes real decimals with a point too. Rejected; `dfdc9732` is the rule.
+38. **A caption that is an `AudioParameterChoice` face byte-for-byte is exempt and stays
+    English on the knob** (O-Freeze's THRESHOLD, exempt with a reason since Stage K) — so its
+    tip TITLE stays English too, or the control has two names. A `termNote` there is a
+    meaning exemption (correction 33), not a miss.
+39. **A narrower string can cost a line and move 164 elements** — O-Bitrot's correct
+    elision *lorsqu'il est allumé* (117.95 px, narrower than the shipped 128.27) wrapped in
+    a 132 px box; *lorsqu'allumé* (124.8, one line) restored the baseline. And a body edit
+    can FLIP a clamp verdict: O-Bitrot's first pass pushed one tip 74.5 → 89.4 px and
+    flipped it below; trimming two phrases restored 16/13. Read the per-anchor rows.
+40. **Glossary: `mallet` roots on *maillet*** (a *mailloche* beats a bass drum); `load
+    .scl/.kbm` accept *charg.* like their `save` twins; `on`/`off` accept *act./dés.*
+    Two-line fragment captions where French inverts head and modifier (O-Marimba's
+    MALLET/HARDNESS → DURETÉ/MAILLET) are the pair, not the row — one `termNote` per half.
+41. **Two footers hard-code a version in an exempted string** (O-SimpleReverb `v1.5.5`, four
+    versions stale — item 47) — do not touch a text-matched exemption to fix a version; report
+    it. And two more plugins have no focus latch at all (O-Lyrica, O-Orbit): no keyboard half.
