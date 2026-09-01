@@ -18,7 +18,19 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Tremolo page labels and hover-help, English + French (v1.8.1)
+// i18n.js — O-Tremolo page labels and hover-help, English + French (v1.8.2)
+//
+// ── v1.8.2: ENGLISH DEFECT FOUND BY THE FRENCH READING (Stage O, 2026-08-31) ──
+// Item 35. tip.panSync said "It needs a stereo signal to be heard at all".
+// The code gates on the BUS: PluginProcessor.cpp:345 duplicates channel 0
+// into channel 1 on a 1-in/2-out bus, and :352 branches on
+// `panSyncEnabled && numChannels == 2`. A mono SIGNAL on a stereo bus pans;
+// a stereo bus is the condition, a mono bus is the dead state. Both bodies
+// now say so. The French body is a meaning change and is reviewed: false
+// again; no other entry, key, binding, selector or CSS rule changed.
+// Tip height at the shipping 600 x 400 frame: en 98.4 -> 114.5 px (one line
+// gained, 4 lines -> 5), fr 114.5 -> 130.6 px (5 -> 6); both inside the frame
+// (tests/ui_tip_render_check.js 186/186).
 //
 // ── v1.8.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -245,20 +257,26 @@ export const I18N = Object.freeze({
 
     // ── The two sync toggles ────────────────────────────────────────────────
     //
-    // PAN SYNC IS A STEREO-ONLY EFFECT and the body says so, because the
+    // PAN SYNC IS A STEREO-BUS-ONLY EFFECT and the body says so, because the
     // processor's branch is `panSyncEnabled && numChannels == 2`
-    // (PluginProcessor.cpp:352) — on a mono track the button lights up and
+    // (PluginProcessor.cpp:352) — on a mono bus the button lights up and
     // nothing changes, which is precisely the state a tooltip exists to explain.
+    // v1.8.2 (Stage O, item 35): the condition is the BUS, not the signal.
+    // v1.8.0–v1.8.1 said "it needs a stereo signal"; a mono signal on a
+    // stereo bus pans fine, because PluginProcessor.cpp:345 duplicates
+    // channel 0 into channel 1 on a 1→2 bus before :352 tests numChannels.
     'tip.panSync': {
         en: { t: 'Pan Sync',
               b: 'Offsets the right channel by half a cycle, so the tremolo swings across the '
-               + 'stereo image instead of ducking both channels together. It needs a stereo '
-               + 'signal to be heard at all. Off or On.' },
+               + 'stereo image instead of ducking both channels together. The plugin must sit '
+               + 'on a stereo (2-channel) bus; on a mono bus this control has no effect. '
+               + 'Off or On.' },
         fr: { t: 'Sync Pan',
               b: 'Décale le canal droit d’un demi-cycle : le trémolo balaie alors l’image stéréo '
-               + 'au lieu d’abaisser les deux canaux ensemble. Un signal stéréo est nécessaire '
-               + 'pour l’entendre. Désactivé ou activé.',
-              reviewed: true },
+               + 'au lieu d’abaisser les deux canaux ensemble. Le plugin doit être sur un bus '
+               + 'stéréo (2 canaux) ; sur un bus mono, cette commande n’a aucun effet. '
+               + 'Désactivé ou activé.',
+              reviewed: false },
     },
 
     // The 120 BPM fallback is in the body because it is audible: in the
