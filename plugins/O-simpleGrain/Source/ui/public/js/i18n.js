@@ -18,7 +18,86 @@
    along with this program.  If not, see https://www.gnu.org/licenses/ .
 */
 // ============================================================================
-// i18n.js — O-simpleGrain interface copy, English + French (v1.3.0)
+// i18n.js — O-simpleGrain interface copy, English + French (v1.4.1)
+//
+// ── v1.4.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 59 entries of 115 (13 terminology, 36 typography, 0 grammar/
+// agreement, 10 meaning). sameAsEn: kept 7, translated 0. termNote exemptions:
+// 0. Lint 92 findings -> 0 (--strict exit 0): 50 T1, 18 T4, 17 T5, 2 T7,
+// 4 G1, 1 F1. Left as drafted: the rest. reviewed: false throughout — no
+// native speaker yet.
+//
+// The decisions the next reader needs:
+//
+//  * SCATTER IS "Dispersion", NOT "Étalement". The glossary keys scatter to
+//    dispersion and spread to étalement, and this page had them the other way
+//    round. MEASURED at the shipping frame on the real .knob-label node:
+//    Dispersion 60.91 px against the shipped Étalement 61.64 px and the English
+//    SCATTER 45.38 px — the root term is 0.73 px NARROWER than what shipped, so
+//    the group's reserved second line is untouched. The tip title lost its
+//    "temporel" qualifier with it: the English title is the bare caption
+//    "Scatter" and the body already opens on the timing.
+//    Consequences, all measured: the group heading "Spray & Scatter" can no
+//    longer be "Dispersion & étalement" (all four controls in it are a
+//    dispersion now) and is "Dispersions", 91.42 px in a 270 px h2; the
+//    spectrum hint reads "à dispersion 0" (260.58 px, two lines in a 261 px
+//    viz-cell exactly as the English and the previous French were).
+//
+//  * THE ASYNC LESSON CAPTION HAD 1.34 px OF SLACK AND THE APOSTROPHES TOOK IT.
+//    label.captionAsyncCloud is a ONE-LINE string in an 846 px .tour-caption
+//    whose second line is not reserved, so a wrap moves the whole rack down by
+//    one 13.19 px line — check-ui-labels assertion 7 reports it as 159 non-label
+//    elements moved. Shipped French: 840.72 px natural (5.28 px of slack). The
+//    typographic apostrophe alone took it to 844.66 (1.34 px). Adding "une forte
+//    dispersion" for "un fort étalement" took it to 857.50 and it wrapped.
+//    The caption now reads "une forte dispersion déclenche les grains au hasard"
+//    — 805.08 px, 40.92 px of slack, and the same claim the English makes
+//    ("high Scatter randomises grain timing"). The tooltip BODY keeps the longer
+//    "rend aléatoire le déclenchement des grains": a tip has no line budget.
+//    (pattern: correction 39 — a narrower string can still cost a line, so
+//    measure the NATURAL width with nowrap, never the wrapped Range box.)
+//
+//  * A FRENCH BODY MUST NAME THE FRENCH FACE. Ten bodies named controls by their
+//    ENGLISH captions — Scan, Freeze, Pitch Spray, Scatter, Overlap, Taper —
+//    none of which appears anywhere on the French page, because all six captions
+//    localize (Balayage, Gel, Dispersion hauteur, Dispersion, Recouvrement,
+//    Fondu). They now name the French face. The INVERSE rule still holds and is
+//    unchanged: Rectangular / Hann / Gauss / Tukey stay English in both
+//    languages because they are AudioParameterChoice option strings the user
+//    reads on the combo (I18N_EXEMPT by design, brief correction 34).
+//
+//  * ONE FRENCH NAME PER CONTROL. Three controls had two: pitchSpray and
+//    positionSpray carried "Dispersion de hauteur" / "de position" as tip titles
+//    over "Dispersion hauteur" / "position" captions, where the English uses one
+//    string for both; and the Rect Click tour button read "Clic rect." under a
+//    "Clic rectangulaire" tip. The glossary accepts both members of each pair,
+//    so this is a page-consistency choice, not a lint fix. The tour grid is a
+//    fixed 4 × 2 of 110.5 px cells and "Clic rectangulaire" measures 76.8 px in
+//    a 109 px content box, so the abbreviation was not buying width — and the
+//    full form makes the accessible name equal the visible one (WCAG 2.5.3).
+//    aria.helpToggle moved from "les infobulles" to the suite's settled
+//    "l'aide au survol", which is also this page's own tip title for the same
+//    switch. (The ENGLISH still says "Toggle tooltips" over a "Hover help" tip
+//    title — reported, not fixed: Stage N does not touch en.)
+//
+//  * "tenue" -> "soutenue" in the Frozen Pad caption and body. Not the ADSR
+//    Sustain sense the lint's forbidden list is aimed at (that one is
+//    "Maintien", and this page uses it correctly for ampSustain) — here it was
+//    the participle in "une nappe tenue". The synonym removes the collision
+//    without spending a termNote on it.
+//
+//  * THE ON-SCREEN KEYBOARD HINT LOST ITS HAIR SPACES. The English writes the
+//    key letters glued with U+200A hair spaces; the French draft had replaced
+//    every one with a plain space, 35.7 px wider in French only (392.00 vs
+//    356.28 px). Restored, and the sentence converged on the
+//    O-simple* family's settled "le clavier de l'ordinateur".
+//
+//  * sameAsEn: 7 captions keep it — Fragments, Grains, CPU, Source, Grain,
+//    Position, ADSR. Every one is the French word too. Two tooltip TITLES also
+//    equal their English over a translated body (position, lessonFragments) and
+//    correctly carry NO flag: the flag is entry-scoped and would disarm
+//    check-i18n assertion 4 for the whole entry (brief correction 26).
 //
 // UI ROOT IS Source/ui/public. There is no second UI root in this plugin and no
 // Resources/ui staging directory. This file is a SOURCES entry in
@@ -108,21 +187,21 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Choose the language of the interface, and whether the hover help appears at all. The language is remembered with the session; the hover-help switch is remembered on this computer." },
         fr: { t: "Réglages",
-              b: "Choisir la langue de l'interface et l'affichage de l'aide au survol. La langue est conservée avec la session ; l'état de l'aide est conservé sur cet ordinateur.",
+              b: "Choisir la langue de l’interface et l’affichage de l’aide au survol. La langue est conservée avec la session\u00a0; l’état de l’aide est conservé sur cet ordinateur.",
               reviewed: false },
     },
     'lang-select': {
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available; value readouts and the two drop-down menus stay in English." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles ; les valeurs affichées et les deux menus déroulants restent en anglais.",
+              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles\u00a0; les valeurs affichées et les deux menus déroulants restent en anglais.",
               reviewed: false },
     },
     'help-toggle': {
         en: { t: "Hover help",
               b: "Turns these hover explanations off or back on. The switch is remembered on this computer rather than in the session, so it follows you from one project to the next." },
         fr: { t: "Aide au survol",
-              b: "Active ou désactive ces explications au survol. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d'un projet à l'autre.",
+              b: "Active ou désactive ces explications au survol. Le réglage est conservé sur cet ordinateur et non dans la session\u00a0: il vous suit d’un projet à l’autre.",
               reviewed: false },
     },
 
@@ -131,21 +210,21 @@ export const I18N = Object.freeze({
         en: { t: "Source Sample",
               b: "The short sound the synth chops into grains. Granular synthesis never makes tone from scratch — it sprinkles tiny slices of this recording. Pick fire, voice, water, or piano; or drop your own below." },
         fr: { t: "Échantillon source",
-              b: "Le son court que le synthé découpe en grains. La synthèse granulaire ne fabrique jamais un timbre de zéro — elle saupoudre de minuscules tranches de cet enregistrement. Choisissez feu, voix, eau ou piano ; ou déposez le vôtre ci-dessous.",
+              b: "Le son court que le synthé découpe en grains. La synthèse granulaire ne fabrique jamais un timbre de zéro — elle saupoudre de minuscules tranches de cet enregistrement. Choisissez feu, voix, eau ou piano\u00a0; ou déposez le vôtre ci-dessous.",
               reviewed: false },
     },
     loadSource: {
         en: { t: "Load your own",
               b: "Open a file picker to granulate any short .wav / .aif (capped at 10\u00a0s). The same grain controls then operate on your sound — the engine doesn't care what the source is." },
         fr: { t: "Charger le vôtre",
-              b: "Ouvre un sélecteur de fichier pour granuler n'importe quel .wav / .aif court (limité à 10\u00a0s). Les mêmes commandes de grain agissent alors sur votre son — le moteur se moque de la source.",
+              b: "Ouvre un sélecteur de fichier pour granuler n’importe quel .wav / .aif court (limité à 10\u00a0s). Les mêmes commandes de grain agissent alors sur votre son — le moteur se moque de la source.",
               reviewed: false },
     },
     dropZone: {
         en: { t: "Drop a source",
               b: "Drag a .wav / .aif here to granulate your own sound. Files over 10\u00a0s are trimmed (you'll see a notice). Try a spoken word or a field recording — granular makes textures out of anything." },
         fr: { t: "Déposer une source",
-              b: "Glissez un .wav / .aif ici pour granuler votre propre son. Les fichiers de plus de 10\u00a0s sont rognés (un avis s'affiche). Essayez un mot parlé ou un enregistrement de terrain — le granulaire fait des textures avec tout.",
+              b: "Glissez un .wav / .aif ici pour granuler votre propre son. Les fichiers de plus de 10\u00a0s sont rognés (un avis s’affiche). Essayez un mot parlé ou un enregistrement de terrain — le granulaire fait des textures avec tout.",
               reviewed: false },
     },
 
@@ -153,36 +232,36 @@ export const I18N = Object.freeze({
     grainSize: {
         en: { t: "Grain Size",
               b: "How long each slice is, 2–500\u00a0ms. This is the buzz\u00a0↔\u00a0fragments axis: very short grains (a few\u00a0ms) lose the source and turn to tone; long grains (>60\u00a0ms) keep recognisable chunks. With Density it sets how deeply grains overlap (overlap = size\u00a0×\u00a0density)." },
-        fr: { t: "Taille du grain",
-              b: "Durée de chaque tranche, 2–500\u00a0ms. C'est l'axe bourdonnement\u00a0↔\u00a0fragments : les grains très courts (quelques\u00a0ms) perdent la source et deviennent un timbre ; les grains longs (>60\u00a0ms) gardent des morceaux reconnaissables. Avec la densité, cela fixe la profondeur du recouvrement des grains (recouvrement = taille\u00a0×\u00a0densité).",
+        fr: { t: "Taille de grain",
+              b: "Durée de chaque tranche, 2–500\u00a0ms. C’est l’axe bourdonnement\u00a0↔\u00a0fragments\u00a0: les grains très courts (quelques\u00a0ms) perdent la source et deviennent un timbre\u00a0; les grains longs (>60\u00a0ms) gardent des morceaux reconnaissables. Avec la densité, cela fixe la profondeur du recouvrement des grains (recouvrement = taille\u00a0×\u00a0densité).",
               reviewed: false },
     },
     density: {
         en: { t: "Density",
               b: "Grains fired per second, 1–200. Sparse = you hear separated grains; dense = they fuse into a continuous cloud. Overlap-add only sounds smooth when many grains overlap, so Density and Size work together (watch the Overlap readout)." },
         fr: { t: "Densité",
-              b: "Grains déclenchés par seconde, 1–200. Clairsemé = vous entendez des grains séparés ; dense = ils fusionnent en un nuage continu. La sommation par recouvrement ne sonne lisse que si beaucoup de grains se recouvrent : densité et taille travaillent ensemble (surveillez l'affichage Overlap).",
+              b: "Grains déclenchés par seconde, 1–200. Clairsemé = vous entendez des grains séparés\u00a0; dense = ils fusionnent en un nuage continu. La sommation par recouvrement ne sonne lisse que si beaucoup de grains se recouvrent\u00a0: densité et taille travaillent ensemble (surveillez l’affichage Recouvrement).",
               reviewed: false },
     },
     position: {
         en: { t: "Position",
               b: "Where in the source the read head rests, 0–100\u00a0%. It's the point grains are sliced from — sweep it to scrub through the recording. Pairs with Scan (which moves the head) and Freeze (which pins it)." },
         fr: { t: "Position",
-              b: "L'endroit de la source où repose la tête de lecture, 0–100\u00a0%. C'est le point où les grains sont découpés — balayez-le pour parcourir l'enregistrement. Va de pair avec Scan (qui déplace la tête) et Freeze (qui la fige).",
+              b: "L’endroit de la source où repose la tête de lecture, 0–100\u00a0%. C’est le point où les grains sont découpés — balayez-le pour parcourir l’enregistrement. Va de pair avec Balayage (qui déplace la tête) et Gel (qui la fige).",
               reviewed: false },
     },
     scan: {
         en: { t: "Scan / Time-Stretch",
               b: "How fast the read head travels, −200…+200\u00a0%. 0\u00a0% holds on one instant; below 100\u00a0% stretches the source in time without changing pitch; negative scans backwards. This is granular time-stretch." },
         fr: { t: "Balayage / étirement temporel",
-              b: "Vitesse de déplacement de la tête de lecture, −200…+200\u00a0%. À 0\u00a0% elle reste sur un instant ; sous 100\u00a0% la source est étirée dans le temps sans changer de hauteur ; en négatif le balayage se fait à l'envers. C'est l'étirement temporel granulaire.",
+              b: "Vitesse de déplacement de la tête de lecture, −200…+200\u00a0%. À 0\u00a0% elle reste sur un instant\u00a0; sous 100\u00a0% la source est étirée dans le temps sans changer de hauteur\u00a0; en négatif le balayage se fait à l’envers. C’est l’étirement temporel granulaire.",
               reviewed: false },
     },
     freeze: {
         en: { t: "Freeze",
               b: "Pins the read head on the current instant and sustains it forever — the grain stream keeps flowing but never advances through the source. Add Pitch Spray for a shimmering frozen pad. The pin crossfades in, so no click." },
         fr: { t: "Gel",
-              b: "Fige la tête de lecture sur l'instant courant et le tient indéfiniment — le flux de grains continue mais n'avance plus dans la source. Ajoutez du Pitch Spray pour une nappe gelée scintillante. Le gel s'enclenche en fondu, donc sans clic.",
+              b: "Fige la tête de lecture sur l’instant courant et le tient indéfiniment — le flux de grains continue mais n’avance plus dans la source. Ajoutez de la Dispersion hauteur pour une nappe gelée scintillante. Le gel s’enclenche en fondu, donc sans clic.",
               reviewed: false },
     },
 
@@ -191,14 +270,14 @@ export const I18N = Object.freeze({
         en: { t: "Window Shape",
               b: "The fade envelope on each grain. Hann/Gauss fade in and out smoothly so overlapping grains crossfade cleanly. Rectangular is flat with only a 1\u00a0ms guard at each edge — hard-edged and buzzy, the rough end of the lesson. Tukey sits in between: a flat top with a Hann-shaped fade whose length is set by Taper." },
         fr: { t: "Forme de fenêtre",
-              b: "L'enveloppe de fondu appliquée à chaque grain. Hann/Gauss entrent et sortent en douceur, si bien que les grains superposés se fondent proprement. Rectangular est plate avec seulement 1\u00a0ms de garde à chaque bord — dure et bourdonnante, l'extrémité rugueuse de la leçon. Tukey se situe entre les deux : un sommet plat avec un fondu en forme de Hann dont la longueur est réglée par Taper.",
+              b: "L’enveloppe de fondu appliquée à chaque grain. Hann/Gauss entrent et sortent en douceur, si bien que les grains superposés se fondent proprement. Rectangular est plate avec seulement 1\u00a0ms de garde à chaque bord — dure et bourdonnante, l’extrémité rugueuse de la leçon. Tukey se situe entre les deux\u00a0: un sommet plat avec un fondu en forme de Hann dont la longueur est réglée par Fondu.",
               reviewed: false },
     },
     windowTaper: {
         en: { t: "Taper",
               b: "Tukey only: how much of each grain is spent fading, 0–100\u00a0%, split between the two edges. 0\u00a0% is the flat rectangular window (guard-faded); 100\u00a0% is a full Hann. In between you keep a flat, loud middle and buy just enough fade to stop the edges clicking." },
         fr: { t: "Fondu",
-              b: "Tukey uniquement : la part de chaque grain passée en fondu, 0–100\u00a0%, répartie entre les deux bords. 0\u00a0% est la fenêtre rectangulaire plate (avec garde) ; 100\u00a0% est un Hann complet. Entre les deux, on garde un milieu plat et fort et on achète juste assez de fondu pour que les bords cessent de claquer.",
+              b: "Tukey uniquement\u00a0: la part de chaque grain passée en fondu, 0–100\u00a0%, répartie entre les deux bords. 0\u00a0% est la fenêtre rectangulaire plate (avec garde)\u00a0; 100\u00a0% est un Hann complet. Entre les deux, on garde un milieu plat et fort et on achète juste assez de fondu pour que les bords cessent de claquer.",
               reviewed: false },
     },
 
@@ -206,43 +285,43 @@ export const I18N = Object.freeze({
     pitchSpray: {
         en: { t: "Pitch Spray",
               b: "Random per-grain transposition, 0–12\u00a0st. Each grain is nudged up/down by a random amount, so a frozen or static texture starts to shimmer and thicken instead of sitting on one dead pitch." },
-        fr: { t: "Dispersion de hauteur",
-              b: "Transposition aléatoire grain par grain, 0–12\u00a0demi-tons. Chaque grain est décalé au hasard vers le haut ou le bas, si bien qu'une texture gelée ou statique se met à scintiller et à s'épaissir au lieu de rester sur une hauteur morte.",
+        fr: { t: "Dispersion hauteur",
+              b: "Transposition aléatoire grain par grain, 0–12\u00a0demi-tons. Chaque grain est décalé au hasard vers le haut ou le bas, si bien qu’une texture gelée ou statique se met à scintiller et à s’épaissir au lieu de rester sur une hauteur morte.",
               reviewed: false },
     },
     positionSpray: {
         en: { t: "Position Spray",
               b: "Random per-grain read position, 0–100\u00a0%. Scatters where each grain is sliced from around the Position point — turns a tight read into a wash drawn from a whole region of the source (shown as the green band on the waveform)." },
-        fr: { t: "Dispersion de position",
-              b: "Position de lecture aléatoire grain par grain, 0–100\u00a0%. Disperse l'endroit d'où chaque grain est découpé autour du point Position — transforme une lecture serrée en un lavis puisé dans toute une région de la source (visible en bande verte sur la forme d'onde).",
+        fr: { t: "Dispersion position",
+              b: "Position de lecture aléatoire grain par grain, 0–100\u00a0%. Disperse l’endroit d’où chaque grain est découpé autour du point Position — transforme une lecture serrée en un lavis puisé dans toute une région de la source (visible en bande verte sur la forme d’onde).",
               reviewed: false },
     },
     scatter: {
         en: { t: "Scatter",
               b: "Randomises the timing of grains, 0–100\u00a0%. This is the synchronous\u00a0↔\u00a0asynchronous axis: at 0\u00a0% grains fire on a perfect clock (a pitched comb, discrete sidebands); high scatter dissolves the comb into broadband noise. Watch the Spectrum." },
-        fr: { t: "Étalement temporel",
-              b: "Rend aléatoire le moment de déclenchement des grains, 0–100\u00a0%. C'est l'axe synchrone\u00a0↔\u00a0asynchrone : à 0\u00a0% les grains suivent une horloge parfaite (un peigne harmonique, des bandes latérales discrètes) ; une forte dispersion dissout le peigne en bruit large bande. Regardez le spectre.",
+        fr: { t: "Dispersion",
+              b: "Rend aléatoire le moment de déclenchement des grains, 0–100\u00a0%. C’est l’axe synchrone\u00a0↔\u00a0asynchrone\u00a0: à 0\u00a0% les grains suivent une horloge parfaite (un peigne harmonique, des bandes latérales discrètes)\u00a0; une forte dispersion dissout le peigne en bruit large bande. Regardez le spectre.",
               reviewed: false },
     },
     grainPitch: {
         en: { t: "Grain Pitch",
               b: "Global transposition of every grain, −24…+24\u00a0st. Stacks on top of MIDI key-tracking and Pitch Spray — shift the whole cloud up an octave without touching the keyboard." },
         fr: { t: "Hauteur du grain",
-              b: "Transposition globale de tous les grains, −24…+24\u00a0demi-tons. S'ajoute au suivi de clavier MIDI et à la dispersion de hauteur — montez tout le nuage d'une octave sans toucher au clavier.",
+              b: "Transposition globale de tous les grains, −24…+24\u00a0demi-tons. S’ajoute au suivi de clavier MIDI et à la dispersion de hauteur — montez tout le nuage d’une octave sans toucher au clavier.",
               reviewed: false },
     },
     panSpray: {
         en: { t: "Pan Spray",
               b: "Per-grain stereo spread, 0–100\u00a0%. At 0 every grain is centred; raise it and grains scatter left/right (equal-power), widening a mono source into an immersive stereo cloud." },
         fr: { t: "Dispersion stéréo",
-              b: "Étalement stéréo grain par grain, 0–100\u00a0%. À 0 chaque grain est centré ; augmentez et les grains se dispersent à gauche et à droite (à puissance constante), élargissant une source mono en un nuage stéréo enveloppant.",
+              b: "Étalement stéréo grain par grain, 0–100\u00a0%. À 0 chaque grain est centré\u00a0; augmentez et les grains se dispersent à gauche et à droite (à puissance constante), élargissant une source mono en un nuage stéréo enveloppant.",
               reviewed: false },
     },
     velToDensity: {
         en: { t: "Velocity → Density",
               b: "How much your playing velocity drives Density, 0–100\u00a0%. At 0 density is fixed; raise it and harder keys spawn thicker clouds (loudness already follows velocity through the amp envelope — this adds thickness on top)." },
         fr: { t: "Vélocité → densité",
-              b: "À quel point votre vélocité de jeu pilote la densité, 0–100\u00a0%. À 0 la densité est fixe ; augmentez et les touches jouées fort engendrent des nuages plus épais (le volume suit déjà la vélocité par l'enveloppe d'amplitude — ceci ajoute l'épaisseur par-dessus).",
+              b: "À quel point votre vélocité de jeu pilote la densité, 0–100\u00a0%. À 0 la densité est fixe\u00a0; augmentez et les touches jouées fort engendrent des nuages plus épais (le volume suit déjà la vélocité par l’enveloppe d’amplitude — ceci ajoute l’épaisseur par-dessus).",
               reviewed: false },
     },
 
@@ -251,35 +330,35 @@ export const I18N = Object.freeze({
         en: { t: "ADSR On / Off",
               b: "Switches the per-voice amplitude envelope on or off. Off bypasses Attack/Decay/Sustain/Release — each note plays at a flat level while held and, on release, simply stops launching new grains so the cloud fades out over one grain length through the Window envelopes (no click). Turn it on for shaped swells and pads; off for a raw, immediate gate." },
         fr: { t: "ADSR activé / désactivé",
-              b: "Active ou désactive l'enveloppe d'amplitude de chaque voix. Désactivée, elle contourne attaque/déclin/maintien/relâchement — chaque note joue à niveau constant tant qu'elle est tenue puis, au relâchement, cesse simplement de lancer de nouveaux grains, si bien que le nuage s'éteint sur la durée d'un grain à travers les enveloppes de fenêtre (sans clic). Activez-la pour des montées et des nappes façonnées ; désactivez-la pour une porte brute et immédiate.",
+              b: "Active ou désactive l’enveloppe d’amplitude de chaque voix. Désactivée, elle contourne attaque/déclin/maintien/relâchement — chaque note joue à niveau constant tant qu’elle est tenue puis, au relâchement, cesse simplement de lancer de nouveaux grains, si bien que le nuage s’éteint sur la durée d’un grain à travers les enveloppes de fenêtre (sans clic). Activez-la pour des montées et des nappes façonnées\u00a0; désactivez-la pour une porte brute et immédiate.",
               reviewed: false },
     },
     ampAttack: {
         en: { t: "Amp Attack",
               b: "How quickly a note fades in, 0–5\u00a0s. This is the per-voice envelope over the whole grain stream — short for percussive, long for a pad swell. (Each grain has its own tiny Window envelope; this is the bigger one.)" },
-        fr: { t: "Attaque d'amplitude",
-              b: "Rapidité d'entrée en fondu d'une note, 0–5\u00a0s. C'est l'enveloppe de la voix entière sur tout le flux de grains — courte pour du percussif, longue pour une montée de nappe. (Chaque grain a sa propre petite enveloppe de fenêtre ; celle-ci est la grande.)",
+        fr: { t: "Attaque d’amplitude",
+              b: "Rapidité d’entrée en fondu d’une note, 0–5\u00a0s. C’est l’enveloppe de la voix entière sur tout le flux de grains — courte pour du percussif, longue pour une montée de nappe. (Chaque grain a sa propre petite enveloppe de fenêtre\u00a0; celle-ci est la grande.)",
               reviewed: false },
     },
     ampDecay: {
         en: { t: "Amp Decay",
               b: "How the note falls from its attack peak toward the sustain level, 0–5\u00a0s. Together with Sustain it shapes the body of a held note." },
-        fr: { t: "Déclin d'amplitude",
-              b: "Manière dont la note redescend de son pic d'attaque vers le niveau de maintien, 0–5\u00a0s. Avec le maintien, elle façonne le corps d'une note tenue.",
+        fr: { t: "Déclin d’amplitude",
+              b: "Manière dont la note redescend de son pic d’attaque vers le niveau de maintien, 0–5\u00a0s. Avec le maintien, elle façonne le corps d’une note tenue.",
               reviewed: false },
     },
     ampSustain: {
         en: { t: "Amp Sustain",
               b: "The level a held note settles at after the attack/decay, 0–100\u00a0%. 100\u00a0% holds full volume while a key is down; lower it for notes that bloom then back off." },
-        fr: { t: "Maintien d'amplitude",
-              b: "Le niveau auquel une note tenue se stabilise après l'attaque et le déclin, 0–100\u00a0%. À 100\u00a0% le volume reste plein tant que la touche est enfoncée ; abaissez-le pour des notes qui s'épanouissent puis se retirent.",
+        fr: { t: "Maintien d’amplitude",
+              b: "Le niveau auquel une note tenue se stabilise après l’attaque et le déclin, 0–100\u00a0%. À 100\u00a0% le volume reste plein tant que la touche est enfoncée\u00a0; abaissez-le pour des notes qui s’épanouissent puis se retirent.",
               reviewed: false },
     },
     ampRelease: {
         en: { t: "Amp Release",
               b: "How long the note fades out after you let go, 0–5\u00a0s. Long release lets clouds ring on and overlap into the next note — granular pads love a generous release." },
-        fr: { t: "Relâchement d'amplitude",
-              b: "Durée d'extinction de la note après le relâchement de la touche, 0–5\u00a0s. Un long relâchement laisse les nuages résonner et se superposer à la note suivante — les nappes granulaires adorent un relâchement généreux.",
+        fr: { t: "Relâchement d’amplitude",
+              b: "Durée d’extinction de la note après le relâchement de la touche, 0–5\u00a0s. Un long relâchement laisse les nuages résonner et se superposer à la note suivante — les nappes granulaires adorent un relâchement généreux.",
               reviewed: false },
     },
 
@@ -288,7 +367,7 @@ export const I18N = Object.freeze({
         en: { t: "Output Level",
               b: "Master volume trim, −∞…0\u00a0dB. Dense overlapping clouds can pile up energy, so trim here if a thick patch peaks. (Headroom normalisation upstream already tames the worst of it.)" },
         fr: { t: "Niveau de sortie",
-              b: "Réglage du volume général, −∞…0\u00a0dB. Des nuages denses et superposés peuvent accumuler de l'énergie : baissez ici si un patch épais sature. (La normalisation de marge en amont en dompte déjà le pire.)",
+              b: "Réglage du volume général, −∞…0\u00a0dB. Des nuages denses et superposés peuvent accumuler de l’énergie\u00a0: baissez ici si un patch épais sature. (La normalisation de marge en amont en dompte déjà le pire.)",
               reviewed: false },
     },
 
@@ -297,35 +376,35 @@ export const I18N = Object.freeze({
         en: { t: "Grain Cloud",
               b: "Every grain that spawns drops a sepia dot — horizontal = where in the source it was read, vertical = its pitch, dot size = grain length. Raise Density and the cloud thickens; raise the sprays and it spreads out." },
         fr: { t: "Nuage de grains",
-              b: "Chaque grain engendré dépose un point sépia — horizontalement l'endroit de la source où il a été lu, verticalement sa hauteur, la taille du point sa durée. Augmentez la densité et le nuage s'épaissit ; augmentez les dispersions et il s'étale.",
+              b: "Chaque grain engendré dépose un point sépia — horizontalement l’endroit de la source où il a été lu, verticalement sa hauteur, la taille du point sa durée. Augmentez la densité et le nuage s’épaissit\u00a0; augmentez les dispersions et il s’étale.",
               reviewed: false },
     },
     vizWave: {
         en: { t: "Source Waveform",
               b: "The loaded source drawn as a waveform. The brown line is the live read head (Position + Scan), the green band is the Position-Spray range grains are drawn from, and a snowflake pins the head when Freeze is on." },
-        fr: { t: "Forme d'onde de la source",
-              b: "La source chargée tracée en forme d'onde. La ligne brune est la tête de lecture en direct (Position + Scan), la bande verte est la plage de dispersion de position dans laquelle les grains sont puisés, et un flocon fige la tête quand Freeze est actif.",
+        fr: { t: "Forme d’onde de la source",
+              b: "La source chargée tracée en forme d’onde. La ligne brune est la tête de lecture en direct (Position + Balayage), la bande verte est la plage de dispersion de position dans laquelle les grains sont puisés, et un flocon fige la tête quand Gel est actif.",
               reviewed: false },
     },
     vizScope: {
         en: { t: "Output Scope",
               b: "The actual audio coming out, plotted as a waveform. Useful for spotting the hard edges of a rectangular window (the clicks) versus the smooth crossfades of Hann." },
         fr: { t: "Oscilloscope de sortie",
-              b: "L'audio réellement produit, tracé en forme d'onde. Utile pour repérer les bords durs d'une fenêtre rectangulaire (les clics) face aux fondus doux de Hann.",
+              b: "L’audio réellement produit, tracé en forme d’onde. Utile pour repérer les bords durs d’une fenêtre rectangulaire (les clics) face aux fondus doux de Hann.",
               reviewed: false },
     },
     vizSpectrum: {
         en: { t: "Spectrum",
               b: "The frequency content of the output. At Scatter\u00a00 you'll see discrete spikes (the synchronous grain comb — a pitched sound); push Scatter up and the spikes smear into a continuous noise floor. The sync\u00a0→\u00a0async lesson, made visible." },
         fr: { t: "Spectre",
-              b: "Le contenu fréquentiel de la sortie. À Scatter\u00a00 vous verrez des pics discrets (le peigne de grains synchrone — un son harmonique) ; montez Scatter et les pics s'étalent en un plancher de bruit continu. La leçon synchrone\u00a0→\u00a0asynchrone, rendue visible.",
+              b: "Le contenu fréquentiel de la sortie. À Dispersion\u00a00 vous verrez des pics discrets (le peigne de grains synchrone — un son harmonique)\u00a0; montez la Dispersion et les pics s’étalent en un plancher de bruit continu. La leçon synchrone\u00a0→\u00a0asynchrone, rendue visible.",
               reviewed: false },
     },
     readout: {
         en: { t: "Grain Readout",
               b: "Live cost meter. Grains = active grains out of the 192 global cap. Overlap = grain size × density (how many grains sound at once — over ~2× they fuse). The CPU bar tracks the grain load: density × size × polyphony is what makes granular expensive." },
         fr: { t: "Affichage des grains",
-              b: "Compteur de coût en direct. Grains = grains actifs sur la limite globale de 192. Overlap = taille du grain × densité (combien de grains sonnent en même temps — au-delà d'environ 2× ils fusionnent). La barre CPU suit la charge de grains : densité × taille × polyphonie, voilà ce qui rend le granulaire coûteux.",
+              b: "Compteur de coût en direct. Grains = grains actifs sur la limite globale de 192. Recouvrement = taille de grain × densité (combien de grains sonnent en même temps — au-delà d’environ 2× ils fusionnent). La barre CPU suit la charge de grains\u00a0: densité × taille × polyphonie, voilà ce qui rend le granulaire coûteux.",
               reviewed: false },
     },
 
@@ -334,7 +413,7 @@ export const I18N = Object.freeze({
         en: { t: "Single Grain",
               b: "One long grain fired slowly — density at the floor so grains stay separated. Hear a single slice on its own: the atom of granular synthesis." },
         fr: { t: "Grain unique",
-              b: "Un seul grain long déclenché lentement — densité au plancher pour que les grains restent séparés. Écoutez une tranche seule : l'atome de la synthèse granulaire.",
+              b: "Un seul grain long déclenché lentement — densité au plancher pour que les grains restent séparés. Écoutez une tranche seule\u00a0: l’atome de la synthèse granulaire.",
               reviewed: false },
     },
     lessonPitchedBuzz: {
@@ -355,35 +434,35 @@ export const I18N = Object.freeze({
         en: { t: "Smooth Cloud",
               b: "Many overlapping Hann grains fuse into one continuous, glassy texture. Overlap-add doing its job: size × density well above 1." },
         fr: { t: "Nuage lisse",
-              b: "De nombreux grains Hann superposés fusionnent en une texture continue et vitreuse. La sommation par recouvrement à l'œuvre : taille × densité bien au-dessus de 1.",
+              b: "De nombreux grains Hann superposés fusionnent en une texture continue et vitreuse. La sommation par recouvrement à l’œuvre\u00a0: taille × densité bien au-dessus de 1.",
               reviewed: false },
     },
     lessonFrozenPad: {
         en: { t: "Frozen Pad",
               b: "Freeze pins the read head; Pitch Spray shimmers the frozen instant into a sustained, evolving pad that never moves through the source." },
         fr: { t: "Nappe gelée",
-              b: "Freeze fige la tête de lecture ; la dispersion de hauteur fait scintiller l'instant gelé en une nappe tenue et évolutive qui n'avance jamais dans la source.",
+              b: "Gel fige la tête de lecture\u00a0; la dispersion de hauteur fait scintiller l’instant gelé en une nappe soutenue et évolutive qui n’avance jamais dans la source.",
               reviewed: false },
     },
     lessonAsyncCloud: {
         en: { t: "Asynchronous Cloud",
               b: "High Scatter randomises the grain timing — the pitched comb dissolves and the spectrum smears into broadband noise. The async end of the axis." },
         fr: { t: "Nuage asynchrone",
-              b: "Une forte dispersion temporelle rend aléatoire le déclenchement des grains — le peigne harmonique se dissout et le spectre s'étale en bruit large bande. L'extrémité asynchrone de l'axe.",
+              b: "Une forte dispersion rend aléatoire le déclenchement des grains — le peigne harmonique se dissout et le spectre s’étale en bruit large bande. L’extrémité asynchrone de l’axe.",
               reviewed: false },
     },
     lessonGranularFire: {
         en: { t: "Granular Fire",
               b: "The worked example on the crackling-fire recording: a lively grain/spray set that turns a field recording into a moving granular bed." },
         fr: { t: "Feu granulaire",
-              b: "L'exemple travaillé sur l'enregistrement de feu crépitant : un réglage vif de grain et de dispersion qui transforme un enregistrement de terrain en un lit granulaire mouvant.",
+              b: "L’exemple travaillé sur l’enregistrement de feu crépitant\u00a0: un réglage vif de grain et de dispersion qui transforme un enregistrement de terrain en un lit granulaire mouvant.",
               reviewed: false },
     },
     lessonRectClick: {
         en: { t: "Rect Click",
               b: "The rough end of the lesson: a rectangular window is flat with only a 1\u00a0ms guard at each edge, so every grain starts and stops abruptly. Sparse grains let each hard edge stand alone — compare with Hann to hear why windows matter." },
         fr: { t: "Clic rectangulaire",
-              b: "L'extrémité rugueuse de la leçon : une fenêtre rectangulaire est plate avec seulement 1\u00a0ms de garde à chaque bord, donc chaque grain démarre et s'arrête brutalement. Des grains clairsemés laissent chaque bord dur isolé — comparez avec Hann pour entendre pourquoi les fenêtres comptent.",
+              b: "L’extrémité rugueuse de la leçon\u00a0: une fenêtre rectangulaire est plate avec seulement 1\u00a0ms de garde à chaque bord, donc chaque grain démarre et s’arrête brutalement. Des grains clairsemés laissent chaque bord dur isolé — comparez avec Hann pour entendre pourquoi les fenêtres comptent.",
               reviewed: false },
     },
 });
@@ -416,7 +495,7 @@ export const LABELS = Object.freeze({
     },
     'aria.presetTour': {
         en: { t: "Concept presets" },
-        fr: { t: "Préréglages conceptuels", reviewed: false },
+        fr: { t: "Préréglages pédagogiques", reviewed: false },
     },
     'label.tourSingleGrain': {
         en: { t: "Single Grain" },
@@ -448,11 +527,11 @@ export const LABELS = Object.freeze({
     },
     'label.tourRectClick': {
         en: { t: "Rect Click" },
-        fr: { t: "Clic rect.", reviewed: false },
+        fr: { t: "Clic rectangulaire", reviewed: false },
     },
     'label.tourCaption': {
         en: { t: "Hover any control for an explanation · pick a concept preset to hear it isolated." },
-        fr: { t: "Survolez n'importe quelle commande pour une explication · choisissez un préréglage conceptuel pour l'entendre isolé.", reviewed: false },
+        fr: { t: "Survolez n’importe quelle commande pour une explication · choisissez un préréglage pédagogique pour l’entendre isolé.", reviewed: false },
     },
 
     // ── Settings popover — the accessible names and the toggle face.
@@ -460,11 +539,11 @@ export const LABELS = Object.freeze({
     // behind an if/else, never a ternary in the argument (assertion 13). ────────
     'aria.langSelect': {
         en: { t: "Interface language" },
-        fr: { t: "Langue de l'interface", reviewed: false },
+        fr: { t: "Langue de l’interface", reviewed: false },
     },
     'aria.helpToggle': {
         en: { t: "Toggle tooltips" },
-        fr: { t: "Activer ou désactiver les infobulles", reviewed: false },
+        fr: { t: "Activer ou désactiver l’aide au survol", reviewed: false },
     },
     'ui.on': {
         en: { t: "On" },
@@ -499,7 +578,7 @@ export const LABELS = Object.freeze({
     },
     'label.vizWave': {
         en: { t: "Source Waveform ·" },
-        fr: { t: "Forme d'onde source ·", reviewed: false },
+        fr: { t: "Forme d’onde source ·", reviewed: false },
     },
     'label.vizWaveHint': {
         en: { t: "playhead, freeze pin & spray range" },
@@ -515,7 +594,7 @@ export const LABELS = Object.freeze({
     },
     'label.vizScopeHint': {
         en: { t: "the post-gain waveform" },
-        fr: { t: "l'onde après le gain", reviewed: false },
+        fr: { t: "l’onde après le gain", reviewed: false },
     },
     'label.vizSpectrum': {
         en: { t: "Spectrum ·" },
@@ -523,7 +602,7 @@ export const LABELS = Object.freeze({
     },
     'label.vizSpectrumHint': {
         en: { t: "discrete sidebands at scatter 0 → noise as scatter rises" },
-        fr: { t: "bandes latérales discrètes à étalement 0 → bruit quand il monte", reviewed: false },
+        fr: { t: "bandes latérales discrètes à dispersion 0 → bruit quand il monte", reviewed: false },
     },
     'label.readoutGrains': {
         en: { t: "Grains" },
@@ -589,7 +668,7 @@ export const LABELS = Object.freeze({
     },
     'label.groupSpray': {
         en: { t: "Spray & Scatter" },
-        fr: { t: "Dispersion & étalement", reviewed: false },
+        fr: { t: "Dispersions", reviewed: false },
     },
     'label.knobPitchSpray': {
         en: { t: "Pitch Spray" },
@@ -601,7 +680,7 @@ export const LABELS = Object.freeze({
     },
     'label.knobScatter': {
         en: { t: "Scatter" },
-        fr: { t: "Étalement", reviewed: false },
+        fr: { t: "Dispersion", reviewed: false },
     },
     'label.knobGrainPitch': {
         en: { t: "Grain Pitch" },
@@ -617,7 +696,7 @@ export const LABELS = Object.freeze({
     },
     'label.groupEnv': {
         en: { t: "Amplitude Envelope" },
-        fr: { t: "Enveloppe d'amplitude", reviewed: false },
+        fr: { t: "Enveloppe d’amplitude", reviewed: false },
     },
     'label.toggleAdsr': {
         en: { t: "ADSR" },
@@ -655,11 +734,11 @@ export const LABELS = Object.freeze({
     },
     'label.keyboardHint': {
         en: { t: "click the keys or use your computer keyboard (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)" },
-        fr: { t: "cliquez les touches ou utilisez le clavier de votre ordinateur (A S D F G H J K · W E T Y U)", reviewed: false },
+        fr: { t: "cliquez les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)", reviewed: false },
     },
     'aria.keyboard': {
         en: { t: "On-screen keyboard" },
-        fr: { t: "Clavier à l'écran", reviewed: false },
+        fr: { t: "Clavier à l’écran", reviewed: false },
     },
 
     // ── Drop / load status, written from script through setLabel() ──────────
@@ -681,7 +760,7 @@ export const LABELS = Object.freeze({
     },
     'toast.dropFailed': {
         en: { t: "Drop failed: {error}" },
-        fr: { t: "Échec du dépôt : {error}", reviewed: false },
+        fr: { t: "Échec du dépôt\u00a0: {error}", reviewed: false },
     },
     'toast.dropFolder': {
         en: { t: "Drop a single audio file, not a folder" },
@@ -697,7 +776,7 @@ export const LABELS = Object.freeze({
     },
     'label.sourceTruncated': {
         en: { t: "{name} — truncated to 10 s" },
-        fr: { t: "{name} — rogné à 10 s", reviewed: false },
+        fr: { t: "{name} — rogné à 10\u00a0s", reviewed: false },
     },
     'label.sourceLoaded': {
         en: { t: "{name} loaded" },
@@ -705,7 +784,7 @@ export const LABELS = Object.freeze({
     },
     'label.sourceTruncatedGeneric': {
         en: { t: "Source — truncated to 10 s" },
-        fr: { t: "Source — rognée à 10 s", reviewed: false },
+        fr: { t: "Source — rognée à 10\u00a0s", reviewed: false },
     },
     'label.sourceLoadedGeneric': {
         en: { t: "Source loaded" },
@@ -716,7 +795,7 @@ export const LABELS = Object.freeze({
     // raw they would be stranded in whichever language the button was pressed in. ────
     'label.captionSingleGrain': {
         en: { t: "Single Grain — one long grain fired slowly. Density at the floor keeps grains separated: hear a single slice on its own, the atom of granular synthesis." },
-        fr: { t: "Grain unique — un seul grain long déclenché lentement. La densité au plancher garde les grains séparés : écoutez une tranche seule, l'atome de la synthèse granulaire.", reviewed: false },
+        fr: { t: "Grain unique — un seul grain long déclenché lentement. La densité au plancher garde les grains séparés\u00a0: écoutez une tranche seule, l’atome de la synthèse granulaire.", reviewed: false },
     },
     'label.captionPitchedBuzz': {
         en: { t: "Pitched Buzz — tiny grains fired fast and perfectly in sync. The grain rate itself becomes an audible pitch (a comb). Granular can make tone, not just texture." },
@@ -724,27 +803,27 @@ export const LABELS = Object.freeze({
     },
     'label.captionFragments': {
         en: { t: "Fragments — medium grains, sparse. You still recognise chunks of the source: the middle ground between one grain and a smooth cloud." },
-        fr: { t: "Fragments — grains moyens, clairsemés. Vous reconnaissez encore des morceaux de la source : le terrain intermédiaire entre un grain isolé et un nuage lisse.", reviewed: false },
+        fr: { t: "Fragments — grains moyens, clairsemés. Vous reconnaissez encore des morceaux de la source\u00a0: le terrain intermédiaire entre un grain isolé et un nuage lisse.", reviewed: false },
     },
     'label.captionSmoothCloud': {
         en: { t: "Smooth Cloud — many overlapping Hann grains fuse into one continuous, glassy texture. Overlap-add at work: size × density well above 1." },
-        fr: { t: "Nuage lisse — de nombreux grains Hann superposés fusionnent en une texture continue et vitreuse. La sommation par recouvrement à l'œuvre : taille × densité bien au-dessus de 1.", reviewed: false },
+        fr: { t: "Nuage lisse — de nombreux grains Hann superposés fusionnent en une texture continue et vitreuse. La sommation par recouvrement à l’œuvre\u00a0: taille × densité bien au-dessus de 1.", reviewed: false },
     },
     'label.captionFrozenPad': {
         en: { t: "Frozen Pad — Freeze pins the read head; Pitch Spray shimmers the frozen instant into a sustained, evolving pad that never moves through the source." },
-        fr: { t: "Nappe gelée — Freeze fige la tête de lecture ; la dispersion de hauteur fait scintiller l'instant gelé en une nappe tenue et évolutive qui n'avance jamais dans la source.", reviewed: false },
+        fr: { t: "Nappe gelée — Gel fige la tête de lecture\u00a0; la dispersion de hauteur fait scintiller l’instant gelé en une nappe soutenue et évolutive qui n’avance jamais dans la source.", reviewed: false },
     },
     'label.captionAsyncCloud': {
         en: { t: "Asynchronous Cloud — high Scatter randomises grain timing. The pitched comb dissolves and the spectrum smears into broadband noise: the async end of the axis." },
-        fr: { t: "Nuage asynchrone — un fort étalement rend aléatoire le déclenchement des grains. Le peigne harmonique se dissout et le spectre s'étale en bruit large bande : l'extrémité asynchrone de l'axe.", reviewed: false },
+        fr: { t: "Nuage asynchrone — une forte dispersion déclenche les grains au hasard. Le peigne harmonique se dissout et le spectre s’étale en bruit large bande\u00a0: l’extrémité asynchrone de l’axe.", reviewed: false },
     },
     'label.captionGranularFire': {
         en: { t: "Granular Fire — the worked example on the crackling-fire recording. A lively grain/spray set turns a field recording into a moving granular bed." },
-        fr: { t: "Feu granulaire — l'exemple travaillé sur l'enregistrement de feu crépitant. Un réglage vif de grain et de dispersion transforme un enregistrement de terrain en un lit granulaire mouvant.", reviewed: false },
+        fr: { t: "Feu granulaire — l’exemple travaillé sur l’enregistrement de feu crépitant. Un réglage vif de grain et de dispersion transforme un enregistrement de terrain en un lit granulaire mouvant.", reviewed: false },
     },
     'label.captionRectClick': {
         en: { t: "Rect Click — the rough end of the lesson: a rectangular window is flat with only a 1\u00a0ms guard at each edge, so every grain starts and stops abruptly. Sparse grains let each hard edge stand alone. Compare with Hann to hear why windows matter." },
-        fr: { t: "Clic rectangulaire — l'extrémité rugueuse de la leçon : une fenêtre rectangulaire est plate avec seulement 1\u00a0ms de garde à chaque bord, donc chaque grain démarre et s'arrête brutalement. Des grains clairsemés laissent chaque bord dur isolé. Comparez avec Hann pour entendre pourquoi les fenêtres comptent.", reviewed: false },
+        fr: { t: "Clic rectangulaire — l’extrémité rugueuse de la leçon\u00a0: une fenêtre rectangulaire est plate avec seulement 1\u00a0ms de garde à chaque bord, donc chaque grain démarre et s’arrête brutalement. Des grains clairsemés laissent chaque bord dur isolé. Comparez avec Hann pour entendre pourquoi les fenêtres comptent.", reviewed: false },
     },
 });
 
