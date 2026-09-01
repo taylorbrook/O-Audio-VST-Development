@@ -1,10 +1,10 @@
 [
   {
-    "name": "settings popover OPEN (reveals label.language and aria.langSelect — .settings-popover carries [hidden] until the gear is pressed, so display is none and every rect inside it is 0x0)",
-    "click": "#gear-btn"
+    "name": "EFFECTS tab (reveals the four fx titles, the four bypass faces, the delay-mode caption and the SIXTEEN script-written knob captions — .tab-panel is display:none until its tab is active). FIRST, not last: the states are CUMULATIVE on one page, and the settings popover, once open, renders at 698,39 190x40 over the right 190 px of this 300 px tab button at 600,40 — a centre-point click then lands on the popover, whose own pointerdown guard keeps it open, and the tab never activates. Through v1.18.1 that left 25 of 65 [data-i18n] elements NEVER MEASURED by check-ui-labels (Stage O item 62, fixed in v1.18.2 by ordering the popover last). The Sound-tab captions are already measured in the default state, so hiding #tab-sound here loses nothing.",
+    "click": ".tab-btn[data-tab=\"effects\"]"
   },
   {
-    "name": "EFFECTS tab (reveals the four fx titles, the four bypass faces and the SIXTEEN script-written knob captions — .tab-panel is display:none until its tab is active). LAST, because clicking it makes #tab-sound display:none and every caption inside it unmeasurable, and the states are CUMULATIVE.",
-    "click": ".tab-btn[data-tab=\"effects\"]"
+    "name": "settings popover OPEN (reveals label.language and aria.langSelect — .settings-popover carries [hidden] until the gear is pressed, so display is none and every rect inside it is 0x0). LAST, because once open it covers the Effects tab button (see above). It opens over the active Effects tab, so the FX captions are measured a second time here, under it.",
+    "click": "#gear-btn"
   }
 ]
