@@ -19,7 +19,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # against JucePlugin_VersionString). Introduced in v1.2.0: through v1.1.0 the
 # harness carried the literal "1.0.0" while the plugin shipped 1.1.0, so every
 # harness run stamped the real preset directory with a version two releases stale.
-set(OSIMPLEPHYSICALMODELSYNTH_VERSION "1.2.1")
+set(OSIMPLEPHYSICALMODELSYNTH_VERSION "1.2.2")
 
 juce_add_plugin(O-simplePhysicalModelSynth
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"

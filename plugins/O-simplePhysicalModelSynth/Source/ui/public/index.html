@@ -221,7 +221,14 @@
             <select class="combo" id="combo-resonatorType" data-i18n-aria="aria.comboResonator" aria-label="Resonator type"></select>
             <div class="knob-label" data-i18n="label.knobEngine">Engine</div>
           </div>
-          <div class="select-cell" data-param="stringModel">
+          <!-- v1.2.2 (Stage O item 53): HIDDEN. The stringModel parameter is never
+               load()ed — StringResonator.h is a single-rail Karplus-Strong loop and
+               the dual-rail Waveguide it deferred "to v1.1" was never written — so
+               this dropdown moved an automation lane and nothing else. The cell,
+               its relay (COMBO_IDS) and its TIP_BINDINGS row stay so sessions load
+               and the binding resolves; only the `hidden` attribute changed
+               (styles.css .select-cell[hidden]). -->
+          <div class="select-cell" data-param="stringModel" hidden>
             <select class="combo" id="combo-stringModel" data-i18n-aria="aria.comboStringModel" aria-label="String model"></select>
             <div class="knob-label" data-i18n="label.knobStringModel">String Model</div>
           </div>

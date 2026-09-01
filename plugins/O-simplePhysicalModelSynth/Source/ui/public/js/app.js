@@ -339,7 +339,7 @@ function setDisabled(id, disabled) {
 function applyEngineGating() {
   const res = comboState.resonatorType ? comboState.resonatorType.getChoiceIndex() : 0; // 0=String,1=Modal
   const exc = comboState.excitationType ? comboState.excitationType.getChoiceIndex() : 0; // 0=Pluck,1=Strike,2=Bow
-  setDisabled("stringModel",    res !== 0);   // String-only
+  setDisabled("stringModel",    res !== 0);   // String-only (cell is hidden since v1.2.2 — harmless)
   setDisabled("inharmonicity",  res !== 1);   // Modal-only
   setDisabled("modeBrightness", res !== 1);   // Modal-only
   setDisabled("bowForce",       exc !== 2);   // Bow-only
