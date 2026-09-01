@@ -138,7 +138,7 @@ const TERMS = {
     'dither':                   ['dither'],
     'drift':                    ['dérive'],
     'drift depth':              ['profondeur de dérive', 'prof. dérive'],
-    'timing':                   ['décalage'],
+    'timing':                   ['décalage', 'cadence'],   // décalage = a nudge; cadence = a time-base heading (O-Tapestop)
     'swing':                    ['swing'],
     'tempo':                    ['tempo'],
     'tempo sync':               ['synchro tempo', 'sync tempo'],   // O-Tremolo: Synchro Tempo wraps at 51.30 in a 42 px box
@@ -401,6 +401,7 @@ const FORBIDDEN_IN_LABELS = {
 
 // Words that are wrong in tooltip PROSE too — the small, unambiguous set.
 const FORBIDDEN_IN_PROSE = {
+    'plugiciel':     'plugin (masc.) - the suite was split 12 plugins to 3; French DAW documentation says plugin',
     'réverbe':       'réverbération / réverb',
     'genou':         'coude',
     'germe':         'graine',

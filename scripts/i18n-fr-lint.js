@@ -143,7 +143,11 @@ async function lintPlugin(name) {
     for (const [k, v] of Object.entries(m.LABELS || {}))
         rows.push({ kind: 'label', key: k, en: v.en?.t ?? '', fr: v.fr?.t ?? '', frObj: v.fr || {} });
     for (const [k, v] of Object.entries(m.I18N || {})) {
-        rows.push({ kind: 'title', key: k, en: v.en?.t ?? '', fr: v.fr?.t ?? '', frObj: v.fr || {} });
+        rows.push({ kind: 'title', key: k, en: v.en?.t ?? '', fr: v.fr?.t ?? '', frObj: v.fr || {},
+                    // sameAsEn is ENTRY-scoped in check-i18n (title AND body). A title that
+                    // equals its English over a translated body needs no flag - and must
+                    // not get one, or assertion 4 is disarmed for the entry (O-Tapestop N3).
+                    bodyTranslated: (v.fr?.b ?? '') !== '' && norm(v.fr?.b ?? '') !== norm(v.en?.b ?? '') });
         if ((v.en?.b ?? '') !== '' || (v.fr?.b ?? '') !== '')
             rows.push({ kind: 'body', key: k, en: v.en?.b ?? '', fr: v.fr?.b ?? '', frObj: v.fr || {} });
     }
@@ -164,7 +168,7 @@ async function lintPlugin(name) {
         // (O-Texture pilot, tip.mode). Both are listed; the unflagged ones are
         // the ones check-i18n assertion 4 will refuse once they are LABELS or
         // once a tooltip's body matches too.
-        if (norm(r.fr) === norm(r.en)) info.sameAsEn.push({ ...r, flagged: r.frObj.sameAsEn === true });
+        if (norm(r.fr) === norm(r.en)) info.sameAsEn.push({ ...r, flagged: r.frObj.sameAsEn === true || r.bodyTranslated === true });
         // A termNote is THE reasoned exemption, and it exempts the entry from
         // both term checks — G1 and F1. The first draft guarded only G1, so an
         // entry was printed as EXEMPT and counted as an F1 finding in the same
@@ -233,7 +237,7 @@ async function lintPlugin(name) {
 
     console.log(`\n-- summary`);
     console.log(`  plugins with findings: ${failedPlugins} / ${plugins.length}${errors ? `   (${errors} could not be read)` : ''}`);
-    console.log(`  straight copies fr === en (info): ${sameAsEnTotal}, of which ${sameAsEnFlagged} carry sameAsEn: true   termNote exemptions (info): ${termNoteTotal}`);
+    console.log(`  straight copies fr === en (info): ${sameAsEnTotal}, of which ${sameAsEnFlagged} are covered (sameAsEn: true, or a title over a translated body)   termNote exemptions (info): ${termNoteTotal}`);
     console.log(`  codes: T1 apostrophe  T2 decimal point  T3 % spacing  T4 colon  T5 ;!?  T6 minus  T7 unit  G1 glossary  C1 casing  F1 forbidden word`);
     const anyFail = failedPlugins > 0 || errors > 0;
     if (strict && anyFail) { console.log('\nSTRICT: failures present — exit 2'); process.exit(2); }
