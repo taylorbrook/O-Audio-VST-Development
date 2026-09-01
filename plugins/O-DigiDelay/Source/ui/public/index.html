@@ -202,9 +202,14 @@
        that, at dx = -34.20 for the pair.
 
        62 px, border-box — 2 px border and 12 px padding leave a 48 px content
-       box, which holds both captions in both languages:
-           Load 27.00 -> CHARGER 46.52   1.48 px spare
-           Save 24.34 -> SAUVER  39.02   8.98 px spare
+       box, which holds both captions in both languages (re-measured at
+       v1.4.1, when the Stage N glossary pass moved SAUVER to ENREG):
+           Load 27.00 -> CHARGER 46.52    1.48 px spare
+           Save 24.34 -> ENREG   32.50   15.50 px spare
+       ENREG is 6.52 px narrower than the SAUVER this pin was originally sized
+       against, so the pin has MORE room than the comment used to claim, not
+       less. CHARGER is still the binding caption at 1.48 px. ENREGISTRER
+       remains out of reach at 66.52 px and would need the pin raised with it.
        A pinned width makes the row's geometry language-invariant BY
        CONSTRUCTION, which is the same move the settings popover below makes for
        the same reason. 62 is also O-Chorus's number, so the suite's preset bar
