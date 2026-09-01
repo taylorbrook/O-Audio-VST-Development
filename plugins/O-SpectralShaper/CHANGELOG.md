@@ -1,5 +1,23 @@
 # O-SpectralShaper Changelog
 
+## [1.7.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **21 French entries revised** against the suite glossary (`scripts/i18n-fr-glossary.js`) and lint (`scripts/i18n-fr-lint.js`): 13 terminology, 5 typography, 3 meaning, 0 grammar. The lint went **24 findings to 0**, `--strict` exit 0. The most visible: **Tenue → Maintien** on the Sustain caption, both Sustain tip titles and every body that named the curve — the textbook ADSR term; **Aide → Aide au survol** in the settings popover, where the tip title and the accessible name on that same control already said so; **Oui / Non → Activée / Désactivée** on the hover-help switch, because On/Off there is a feature state, not a power state; straight `0.1–50 ms` → `0,1–50 ms` decimal commas; and no-break spaces between every number and its unit (`20 Hz`, `±12 dB`, `100 ms`) and before every `%` and `;`.
+- **Three tooltips named a control by its English caption and now name what the page shows.** The preset body said "utiliser Save" where the French button reads **Enr.**; the draw-mode body said "Freehand" and "Node" where the buttons read **Libre** and **Points**; the lookahead-time body said "voir le commutateur Lookahead" where the toggle reads **Anticipation**. A tip that points at a caption the page does not display is a tip that lies.
+- **"La déflexion maximale est de ±12 dB" → "Le débattement total est de ±12 dB"** on both curve editors. *Déflexion* is a calque of "deflection"; a control's full travel is a *débattement* in French.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so assistive technology reads the page in the language it is displayed in.
+
+### Notes — what was measured, and what was kept
+- **Reset keeps `Init.`, and the 1.7.0 header's width defence is confirmed rather than inherited.** Three of the nine plugins reviewed before this one had a defence that measured backwards, so this one was re-measured with the gate's own method at the shipping 700×500 frame: the glossary's **Réinit.** renders `.curve-reset-btn` at **58.69px** and **Réinit** at 56.30px against its **53.52px** `min-width` pin, and `.curve-controls` is a right-pinned flex row — so the overflow pushes `#attack-undo-btn` and `#attack-redo-btn` **5.17px** and 2.78px left. Those two carry no `data-i18n`, so that is a `check-ui-labels` assertion-7 geometry regression, not a cosmetic one. **Réinitialiser** is 96.39px. Recorded as the single `termNote` on the table.
+- **`Maintien` fits where `Tenue` did**: 57.44px in an 80px `.knob-label`, no wrap, `.knob-wrapper` height unchanged at 87px. **`Aide au survol`** is 65.89px in a nowrap `.settings-label`; the popover holds at its 168px `min-width` and nothing inside it moves.
+- **`.settings-toggle`'s 40px `min-width` no longer covers the widest face.** `Désactivée` renders the button at 61.88px. The **row** still cannot resize — the popover holds at 168px, `#lang-select` and the row's left edge do not move, and 8.23px of slack remains in the 12px gap — but the button does, and the CSS comment that claimed otherwise was corrected. Restoring the invariant would need a wider pin, which is a rule change this stage does not make.
+- **The trailing periods on `Enr.` and `Ouv.` stay.** The label-in-name rule (WCAG 2.5.3) that dropped them elsewhere does not apply here: `#preset-save` and `#preset-load` carry no `aria-label`, so the accessible name **is** the visible caption.
+- **Geometry unchanged**: `check-ui-labels` reports **0 non-label elements moved** between English and French across all four states, 21/21 keyed elements covered, no French caption clipped. `check-i18n` ALL CHECKS PASS, canon v2. `boot-all-uis` 43/43 clean, 0 DEAD.
+- **`reviewed: false` stays `false` on all 47 entries.** That flag means a native speaker has read the string. This pass was a second machine reading against a glossary and a lint; the file header records it, the flag still records the human.
+
 ## [1.7.0] - 2026-08-28
 
 ### Added

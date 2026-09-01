@@ -18,7 +18,75 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-SpectralShaper UI copy, English + French (v1.7.0, canon v2)
+// i18n.js — O-SpectralShaper UI copy, English + French (v1.7.1, canon v2)
+//
+// ── v1.7.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 21 entries (13 terminology, 5 typography, 0 grammar/agreement,
+// 3 meaning). sameAsEn: kept 2, translated 0. termNote exemptions: 1 (listed).
+// Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
+// Lint 24 -> 0, --strict exit 0.
+//
+// Decisions the next reader needs:
+//
+//   RESET KEEPS "Init.", AND THE HEADER'S OLD DEFENCE HOLDS. Three of the nine
+//   plugins reviewed before this one had a width defence that measured
+//   BACKWARDS, so this one was re-measured with the gate's own method
+//   (Range.selectNodeContents on the real node at the shipping 700x500 frame).
+//   It stands: the glossary's Réinit. renders .curve-reset-btn at 58.69px and
+//   Réinit at 56.30px against a 53.52px min-width pin, and the row is an
+//   absolutely positioned right-pinned flex, so the overflow pushes
+//   #attack-undo-btn / #attack-redo-btn 5.17px and 2.78px LEFT. Those two are
+//   NOT [data-i18n] elements, so that is a check-ui-labels assertion-7
+//   geometry regression, not a cosmetic one. Réinitialiser is 96.39px.
+//   Recorded as the one termNote on this file.
+//
+//   SUSTAIN IS "Maintien", NOT "Tenue" — the textbook ADSR term, applied to the
+//   caption, both tip titles and every body that named the curve. Measured at
+//   57.44px in an 80px .knob-label, no wrap, .knob-wrapper height unchanged
+//   at 87px.
+//
+//   "déflexion" BECAME "débattement". The English is "Full deflection is
+//   ±12 dB"; déflexion is a calque, and a control's full travel is a
+//   débattement in French. Both curve bodies carried the sentence.
+//
+//   THREE BODIES NAMED A CONTROL BY ITS ENGLISH CAPTION. The preset body said
+//   "utiliser Save" where the French button reads Enr.; the draw-mode body said
+//   "Freehand" and "Node" where the buttons read Libre and Points; the
+//   lookahead-time body said "voir le commutateur Lookahead" where the toggle
+//   reads Anticipation. A tip that points at a caption the page does not show
+//   is a tip that lies. "Le mode Libre / Le mode Points" also repairs "Points
+//   place", which read as a plural subject on a singular verb.
+//
+//   ON / OFF ARE A FEATURE, NOT A POWER STATE, so the glossary's Activé(e) /
+//   Désactivé(e) pair applies rather than Marche / Arrêt, feminine to agree
+//   with "l'aide au survol". See the note above .settings-toggle in
+//   css/styles.css: 40px no longer covers the widest face (Désactivée renders
+//   the button at 61.88px). The ROW still cannot resize — the popover holds at
+//   168px and #lang-select and the row's own left edge do not move — but the
+//   button does, and the comment that claimed otherwise was corrected.
+//
+//   "Aide" BECAME "Aide au survol". The tip title and the aria-label on this
+//   very control already said "aide au survol"; the popover row alone said
+//   "Aide". Measured at 65.89px in a nowrap .settings-label — the popover
+//   holds at its 168px min-width and nothing inside it moves.
+//
+//   THE TRAILING PERIODS ON "Enr." AND "Ouv." STAY. The label-in-name rule
+//   (WCAG 2.5.3) that dropped them on two other plugins does not apply here:
+//   #preset-save and #preset-load carry no aria-label, so the accessible name
+//   IS the visible caption and the criterion is satisfied by identity rather
+//   than by stem.
+//
+//   REGISTER: the French follows the ENGLISH MOOD, entry by entry — infinitive
+//   where the English is imperative ("Superposer", "Ramener"), indicative where
+//   the English describes ("Dose", "Active ou désactive"). That is the pattern
+//   the v1.7.0 draft already held to, and it was kept.
+//
+//   NO COMMITTED TIP GATE. plugins/O-SpectralShaper/tests/ holds
+//   ui_preset_menu_check.js, i18n-states.json and ui-stub/ — no
+//   ui_tip_render_check.js. Hover help was driven from a scratchpad probe
+//   instead: 28/28 anchors opened in both languages, all inside the frame, all
+//   28 changed text en -> fr. The gap is reported, not filled here.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -104,7 +172,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, preset names and preset category headings stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de préréglages et les intitulés de catégories restent en anglais.',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de préréglages et les intitulés de catégories restent en anglais.',
               reviewed: false },
     },
     'tips-toggle': {
@@ -127,7 +195,7 @@ export const I18N = Object.freeze({
         en: { t: 'Preset Name',
               b: 'The currently loaded preset — click to open the preset menu, grouped by category. Factory presets cannot be overwritten — use Save to store your own.' },
         fr: { t: 'Nom du préréglage',
-              b: 'Le préréglage actuellement chargé — cliquer pour ouvrir le menu des préréglages, groupé par catégorie. Les préréglages d’usine ne peuvent pas être écrasés — utiliser Save pour enregistrer les vôtres.',
+              b: 'Le préréglage actuellement chargé — cliquer pour ouvrir le menu des préréglages, groupé par catégorie. Les préréglages d’usine ne peuvent pas être écrasés — utiliser le bouton Enr. pour enregistrer les vôtres.',
               reviewed: false },
     },
     'preset-next': {
@@ -157,21 +225,21 @@ export const I18N = Object.freeze({
         en: { t: 'Spectrogram',
               b: 'Live frequency analysis, scrolling right to left. Brighter areas are louder; the hotter red-orange tones mark energy the transient detector has flagged as attack.' },
         fr: { t: 'Spectrogramme',
-              b: 'Analyse fréquentielle en direct, défilant de droite à gauche. Les zones claires sont plus fortes ; les teintes rouge-orangé les plus chaudes marquent l’énergie que le détecteur de transitoires a signalée comme attaque.',
+              b: 'Analyse fréquentielle en direct, défilant de droite à gauche. Les zones claires sont plus fortes ; les teintes rouge-orangé les plus chaudes marquent l’énergie que le détecteur de transitoires a signalée comme attaque.',
               reviewed: false },
     },
     'attackCurve': {
         en: { t: 'Attack Curve',
               b: 'Per-band gain applied to detected transients, across 32 logarithmic bands from 20 Hz to Nyquist. Drag up to sharpen a band’s attack, down to soften it. Full deflection is ±12 dB.' },
         fr: { t: 'Courbe d’attaque',
-              b: 'Gain par bande appliqué aux transitoires détectés, sur 32 bandes logarithmiques de 20 Hz à Nyquist. Glisser vers le haut pour aiguiser l’attaque d’une bande, vers le bas pour l’adoucir. La déflexion maximale est de ±12 dB.',
+              b: 'Gain par bande appliqué aux transitoires détectés, sur 32 bandes logarithmiques de 20 Hz à Nyquist. Glisser vers le haut pour aiguiser l’attaque d’une bande, vers le bas pour l’adoucir. Le débattement total est de ±12 dB.',
               reviewed: false },
     },
     'sustainCurve': {
         en: { t: 'Sustain Curve',
               b: 'Per-band gain applied to the sustained body of the signal — everything the detector does not flag as transient — across the same 32 bands. Drag up to thicken a band’s tail, down to tighten it. Full deflection is ±12 dB.' },
-        fr: { t: 'Courbe de tenue',
-              b: 'Gain par bande appliqué au corps tenu du signal — tout ce que le détecteur ne signale pas comme transitoire — sur les mêmes 32 bandes. Glisser vers le haut pour épaissir la traîne d’une bande, vers le bas pour la resserrer. La déflexion maximale est de ±12 dB.',
+        fr: { t: 'Courbe de maintien',
+              b: 'Gain par bande appliqué au corps tenu du signal — tout ce que le détecteur ne signale pas comme transitoire — sur les mêmes 32 bandes. Glisser vers le haut pour épaissir la traîne d’une bande, vers le bas pour la resserrer. Le débattement total est de ±12 dB.',
               reviewed: false },
     },
 
@@ -205,68 +273,75 @@ export const I18N = Object.freeze({
         en: { t: 'Reset',
               b: 'Return every band to 0 dB — flat, with no attack shaping.' },
         fr: { t: 'Réinitialiser',
-              b: 'Ramener toutes les bandes à 0 dB — plat, sans modelage d’attaque.',
+              b: 'Ramener toutes les bandes à 0 dB — plat, sans modelage d’attaque.',
               reviewed: false },
     },
     'sustainReset': {
         en: { t: 'Reset',
               b: 'Return every band to 0 dB — flat, with no sustain shaping.' },
         fr: { t: 'Réinitialiser',
-              b: 'Ramener toutes les bandes à 0 dB — plat, sans modelage de tenue.',
+              b: 'Ramener toutes les bandes à 0 dB — plat, sans modelage du maintien.',
               reviewed: false },
     },
     'drawMode': {
         en: { t: 'Draw Mode',
               b: 'Freehand draws a continuous curve as you drag. Node places draggable control points with smooth interpolation between them.' },
         fr: { t: 'Mode de tracé',
-              b: 'Freehand trace une courbe continue au glissement. Node place des points de contrôle déplaçables avec une interpolation lisse entre eux.',
+              b: 'Le mode Libre trace une courbe continue au glissement. Le mode Points place des points de contrôle déplaçables, avec une interpolation lisse entre eux.',
               reviewed: false },
     },
 
     // ── The knob sidebar ────────────────────────────────────────────────────
-    // Unit symbols, ranges and default values are carried across UNCHANGED:
-    // Hz, dB, ms and % are language-neutral and English number formatting is
-    // retained in both languages (D-03).
+    // Unit SYMBOLS and ranges are carried across unchanged: Hz, dB, ms and %
+    // are language-neutral.
+    //
+    // v1.7.1 CORRECTS THE OTHER HALF OF THIS NOTE. It used to read "English
+    // number formatting is retained in both languages (D-03)", and that
+    // over-read D-03: the exemption is for the READOUT NODE, which formats a
+    // live value, not for prose in a tooltip body. French prose takes the
+    // decimal COMMA ("0,1-50 ms") and a U+00A0 between a number and its unit
+    // and before a % sign. The readouts in index.html are untouched and still
+    // print 10ms, 100%, 0.0dB in both languages.
     'mix': {
         en: { t: 'Mix',
               b: 'Blends the dry input against the spectrally shaped output. 0% is fully dry, 100% fully processed. Default 100%.' },
-        fr: { t: 'Mix',
-              b: 'Dose l’entrée non traitée face à la sortie modelée spectralement. 0% est entièrement sec, 100% entièrement traité. Défaut 100%.',
+        fr: { t: 'Mix', sameAsEn: true,
+              b: 'Dose l’entrée directe face à la sortie modelée spectralement. À 0 % le signal est entièrement direct, à 100 % entièrement traité. Défaut 100 %.',
               reviewed: false },
     },
     'attackTime': {
         en: { t: 'Attack Time',
               b: 'How quickly the transient detector responds, 0.1–50 ms. Short values catch sharp percussive hits; longer values treat more of each note as attack. Default 10 ms.' },
         fr: { t: 'Temps d’attaque',
-              b: 'Vitesse de réaction du détecteur de transitoires, 0.1–50 ms. Les valeurs courtes captent les frappes percussives nettes ; les valeurs longues traitent une plus grande part de chaque note comme attaque. Défaut 10 ms.',
+              b: 'Vitesse de réaction du détecteur de transitoires, 0,1–50 ms. Les valeurs courtes captent les frappes percussives nettes ; les valeurs longues traitent une plus grande part de chaque note comme attaque. Défaut 10 ms.',
               reviewed: false },
     },
     'sustainTime': {
         en: { t: 'Sustain Time',
               b: 'How long a band keeps being treated as sustain after a transient passes, 10–500 ms. Longer values extend the region the Sustain curve acts on. Default 100 ms.' },
-        fr: { t: 'Temps de tenue',
-              b: 'Durée pendant laquelle une bande reste traitée comme tenue après le passage d’un transitoire, 10–500 ms. Les valeurs longues étendent la zone sur laquelle agit la courbe de tenue. Défaut 100 ms.',
+        fr: { t: 'Temps de maintien',
+              b: 'Durée pendant laquelle une bande reste traitée comme du maintien après le passage d’un transitoire, 10–500 ms. Les valeurs longues étendent la zone sur laquelle agit la courbe de maintien. Défaut 100 ms.',
               reviewed: false },
     },
     'sensitivity': {
         en: { t: 'Sensitivity',
               b: 'Threshold for transient detection, 0–100%. Higher values flag more material as transient, shifting the balance from the Sustain curve toward the Attack curve. Default 50%.' },
         fr: { t: 'Sensibilité',
-              b: 'Seuil de détection des transitoires, 0–100%. Les valeurs élevées signalent davantage de matière comme transitoire, déplaçant l’équilibre de la courbe de tenue vers la courbe d’attaque. Défaut 50%.',
+              b: 'Seuil de détection des transitoires, 0–100 %. Les valeurs élevées signalent davantage de matière comme transitoire, déplaçant l’équilibre de la courbe de maintien vers la courbe d’attaque. Défaut 50 %.',
               reviewed: false },
     },
     'outputGain': {
         en: { t: 'Output Gain',
               b: 'Final level trim after shaping, −12 to +12 dB. Use it to compensate when heavy boosting or cutting has changed the overall loudness. Default 0 dB.' },
         fr: { t: 'Gain de sortie',
-              b: 'Ajustement de niveau final après modelage, −12 à +12 dB. À utiliser pour compenser lorsqu’un fort renforcement ou une forte atténuation a changé le niveau global. Défaut 0 dB.',
+              b: 'Ajustement de niveau final après modelage, −12 à +12 dB. À utiliser pour compenser lorsqu’un fort renforcement ou une forte atténuation a changé le niveau global. Défaut 0 dB.',
               reviewed: false },
     },
     'lookaheadTime': {
         en: { t: 'Lookahead Time',
               b: 'Amount of latency reported to the host when Lookahead is on, 0.1–10 ms. Note that Lookahead does not yet alter the sound — see the Lookahead toggle.' },
         fr: { t: 'Temps d’anticipation',
-              b: 'Quantité de latence signalée à l’hôte lorsque l’anticipation est active, 0.1–10 ms. Noter que l’anticipation ne modifie pas encore le son — voir le commutateur Lookahead.',
+              b: 'Quantité de latence signalée à l’hôte lorsque l’anticipation est active, 0,1–10 ms. Noter que l’anticipation ne modifie pas encore le son — voir le commutateur Anticipation.',
               reviewed: false },
     },
     'lookahead': {
@@ -279,7 +354,7 @@ export const I18N = Object.freeze({
 });
 
 // ============================================================================
-// LABELS — the on-page text (v1.7.0, canon v2)
+// LABELS — the on-page text (v1.7.1, canon v2)
 // ============================================================================
 //
 // I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping
@@ -315,14 +390,14 @@ export const LABELS = Object.freeze({
 
     // ── The settings popover ────────────────────────────────────────────────
     'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: false } },
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide',          reviewed: false } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: false } },
 
     // The two faces of the hover-help switch, chosen by an if/else over two
     // literal keys in setTooltipsEnabled — never a ternary inside the setLabel
     // call (check-i18n assertion 13), and never a literal, which would strand
     // an English "On" the moment the language selector fired.
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Oui',           reviewed: false } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Non',           reviewed: false } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Activée',       reviewed: false } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Désactivée',    reviewed: false } },
 
     // ── Preset bar ──────────────────────────────────────────────────────────
     // .preset-action-btn is 9 px uppercase with 0.8 px letter-spacing inside a
@@ -343,7 +418,7 @@ export const LABELS = Object.freeze({
     // caption cannot push anything. They are free to be phrases.
     'label.spectrogram':  { en: { t: 'Spectrogram' },   fr: { t: 'Spectrogramme',      reviewed: false } },
     'label.attackCurve':  { en: { t: 'Attack Curve' },  fr: { t: 'Courbe d’attaque',   reviewed: false } },
-    'label.sustainCurve': { en: { t: 'Sustain Curve' }, fr: { t: 'Courbe de tenue',    reviewed: false } },
+    'label.sustainCurve': { en: { t: 'Sustain Curve' }, fr: { t: 'Courbe de maintien', reviewed: false } },
 
     // ── Plate controls ──────────────────────────────────────────────────────
     // .curve-controls is an absolutely positioned flex row pinned `right: 8px`
@@ -357,8 +432,13 @@ export const LABELS = Object.freeze({
     // PluginProcessor.cpp for CURVE_MODE and nothing comes back. So they are
     // copy, and they localize.
     'label.spectrum':  { en: { t: 'Spectrum' },   fr: { t: 'Spectre',       reviewed: false } },
-    // "Réinit." is 58.69px against a 53.52px pin; "Init." is 45.58px.
-    'label.reset':     { en: { t: 'Reset' },      fr: { t: 'Init.',         reviewed: false } },
+    // The width case for keeping "Init." is the termNote on the entry itself,
+    // re-measured in v1.7.1 rather than inherited. Short form: Réinit. renders
+    // the button at 58.69px against a 53.52px pin and moves two NON-label
+    // siblings.
+    'label.reset':     { en: { t: 'Reset' },
+                         fr: { t: 'Init.', reviewed: false,
+                               termNote: 'width: the glossary’s Réinit. renders the button at 58.69px and Réinit at 56.30px against .curve-reset-btn’s 53.52px pin, pushing the NON-label #attack-undo-btn / #attack-redo-btn 5.17px and 2.78px left — a check-ui-labels assertion-7 geometry regression. Réinitialiser is 96.39px. Init. holds the pin at 53.52px.' } },
     // "Main levée" is 84.75px against a 76.41px pin; "Libre" is 52px and reads
     // as the clear opposite of "Points", which is what the pair has to do.
     'ui.freehand':     { en: { t: 'Freehand' },   fr: { t: 'Libre',         reviewed: false } },
@@ -373,7 +453,7 @@ export const LABELS = Object.freeze({
     // moving the row below it.
     'label.mix':         { en: { t: 'Mix' },         fr: { t: 'Mix',        reviewed: false, sameAsEn: true } },
     'label.attack':      { en: { t: 'Attack' },      fr: { t: 'Attaque',    reviewed: false } },
-    'label.sustain':     { en: { t: 'Sustain' },     fr: { t: 'Tenue',      reviewed: false } },
+    'label.sustain':     { en: { t: 'Sustain' },     fr: { t: 'Maintien',   reviewed: false } },
     'label.sensitivity': { en: { t: 'Sensitivity' }, fr: { t: 'Sensibilité', reviewed: false } },
     'label.output':      { en: { t: 'Output' },      fr: { t: 'Sortie',     reviewed: false } },
     // "Tps antic." rather than "Anticip.": the toggle two rows down is
