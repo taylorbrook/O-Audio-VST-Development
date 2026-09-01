@@ -289,7 +289,7 @@ export const I18N = Object.freeze({
               b: 'Two ways to move pitch. Repitch changes speed to change pitch (like speeding up a record — higher is faster). Stretch holds the timing and moves pitch on its own.' },
         fr: { t: 'Mode de hauteur',
               b: 'Deux façons de déplacer la hauteur. Repitch change la vitesse pour changer la hauteur (comme un disque accéléré — plus c’est aigu, plus c’est rapide). Stretch conserve la durée et déplace la hauteur seule.',
-              reviewed: false },
+              reviewed: true },
     },
     tune: {
         en: { t: 'Tune',

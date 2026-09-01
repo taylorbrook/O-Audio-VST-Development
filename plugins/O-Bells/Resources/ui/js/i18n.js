@@ -230,7 +230,7 @@ export const I18N = Object.freeze({
               b: 'Sets how quickly the hum and the prime — the two lowest partials — give up their energy once the strike and body stages have passed, and how fast the bell fades after the key is released: a 3 s release at 0 %, 0.5 s at 100 %. The higher partials are not touched; the stage times, Material and Acoustic Brightness set their decay. 0 to 100 %.' },
         fr: { t: 'Amortissement',
               b: 'Règle la vitesse à laquelle le bourdon et la prime — les deux partiels les plus graves — perdent leur énergie une fois les étapes de frappe et de corps passées, et la vitesse à laquelle la cloche s’éteint après le relâchement de la touche : relâchement de 3 s à 0 %, de 0,5 s à 100 %. Les partiels aigus ne sont pas touchés ; les durées d’étape, le matériau et la brillance acoustique règlent leur déclin. 0 à 100 %.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.overtoneBrightness': {
         en: { t: 'Overtone Brightness',
@@ -437,7 +437,7 @@ export const I18N = Object.freeze({
               b: 'Shifts the third partial alone — the tierce, the partial that carries a church bell’s minor third — against the fundamental without moving the perceived pitch. The hum, the prime and the higher partials stay where they are. It is the shortest road from a tuned bell to a clangorous one. −100 to +100 cents.' },
         fr: { t: 'Accord des partiels',
               b: 'Ne décale que le troisième partiel — la tierce, le partiel qui porte la tierce mineure de la cloche d’église — par rapport au fondamental, sans déplacer la hauteur perçue. Le bourdon, la prime et les partiels aigus restent en place. C’est le chemin le plus court d’une cloche juste à une cloche au timbre discordant. −100 à +100 cents.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.pitchEnvelope': {
         en: { t: 'Pitch Envelope',

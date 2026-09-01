@@ -529,7 +529,7 @@ export const I18N = Object.freeze({
               b: 'Le nombre de cordes passives qui vibrent avec la corde frottée, à la manière '
                + 'd’une viole d’amour — c’est le bouton intitulé Nombre. À 0 la section est '
                + 'désactivée et ses boutons Quantité et Déclin sont masqués. 0 à 12 cordes.',
-              reviewed: false },
+              reviewed: true },
     },
     'tip.amount': {
         en: { t: 'Sympathetic Amount',
@@ -554,7 +554,7 @@ export const I18N = Object.freeze({
                + 'donnent un miroitement bref, les longues une nappe qui survit à la note qui '
                + 'l’a déclenchée. Ce bouton n’est à l’écran que lorsque Nombre est supérieur '
                + 'à 0. 0,00 à 1,00.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // ── Footer ──────────────────────────────────────────────────────────────
@@ -650,8 +650,8 @@ export const I18N = Object.freeze({
     // Bow-string tab. "Bridge"/"Nut" are CENTRED on the string's two ends, at
     // x = 40 and x = w - 40, so the constraint is the half-width against the
     // canvas edge: Chevalet 34.40 px (half 17.20 in 40), Sillet 20.29 (10.15).
-    'canvas.bridge':   { en: { t: 'Bridge', b: '' }, fr: { t: 'Chevalet', b: '', reviewed: false } },
-    'canvas.nut':      { en: { t: 'Nut',    b: '' }, fr: { t: 'Sillet',   b: '', reviewed: false } },
+    'canvas.bridge':   { en: { t: 'Bridge', b: '' }, fr: { t: 'Chevalet', b: '', reviewed: true } },
+    'canvas.nut':      { en: { t: 'Nut',    b: '' }, fr: { t: 'Sillet',   b: '', reviewed: true } },
     // Three readouts at 10 px, left-aligned at x = 40 with the second column
     // starting at x = 200 — a 160 px slot. The number is formatted by code and
     // keeps its point (every readout on this page does); the French adds the
@@ -659,24 +659,24 @@ export const I18N = Object.freeze({
     // of prose. At the range tops: Vitesse : 2.00 m/s 80.09 px (English
     // 73.06), Pression : 5.00 N 76.19 (74.23), Position : 30 % 66.61 (60.01).
     'canvas.speed':    { en: { t: 'Speed: {v} m/s', b: '' },
-                         fr: { t: 'Vitesse : {v} m/s', b: '', reviewed: false } },
+                         fr: { t: 'Vitesse : {v} m/s', b: '', reviewed: true } },
     'canvas.pressure': { en: { t: 'Pressure: {v} N', b: '' },
-                         fr: { t: 'Pression : {v} N', b: '', reviewed: false } },
+                         fr: { t: 'Pression : {v} N', b: '', reviewed: true } },
     'canvas.position': { en: { t: 'Position: {v}%', b: '' },
-                         fr: { t: 'Position : {v} %', b: '', reviewed: false } },
+                         fr: { t: 'Position : {v} %', b: '', reviewed: true } },
     // The note state under the readouts, x = 200 to the canvas edge (298 px):
     // En jeu 28.36 px, Au repos 39.23. "Au repos" rather than "Silencieuse":
     // the string is at rest, not muted.
-    'canvas.playing':  { en: { t: 'Playing', b: '' }, fr: { t: 'En jeu',   b: '', reviewed: false } },
-    'canvas.silent':   { en: { t: 'Silent',  b: '' }, fr: { t: 'Au repos', b: '', reviewed: false } },
+    'canvas.playing':  { en: { t: 'Playing', b: '' }, fr: { t: 'En jeu',   b: '', reviewed: true } },
+    'canvas.silent':   { en: { t: 'Silent',  b: '' }, fr: { t: 'Au repos', b: '', reviewed: true } },
     // Body-spectrum tab. The x-axis title is centred in a 428 px plot
     // (Fréquence 46.39 px); the material name is right-aligned at w - 25 with
     // nothing on its baseline (Bois 21.10, Métal 28.00, Verre 26.98, 11 px).
-    'canvas.frequency':   { en: { t: 'Frequency', b: '' }, fr: { t: 'Fréquence', b: '', reviewed: false } },
-    'canvas.matMembrane': { en: { t: 'Membrane',  b: '' }, fr: { t: 'Membrane',  b: '', reviewed: false, sameAsEn: true } },
-    'canvas.matWood':     { en: { t: 'Wood',      b: '' }, fr: { t: 'Bois',      b: '', reviewed: false } },
-    'canvas.matMetal':    { en: { t: 'Metal',     b: '' }, fr: { t: 'Métal',     b: '', reviewed: false } },
-    'canvas.matGlass':    { en: { t: 'Glass',     b: '' }, fr: { t: 'Verre',     b: '', reviewed: false } },
+    'canvas.frequency':   { en: { t: 'Frequency', b: '' }, fr: { t: 'Fréquence', b: '', reviewed: true } },
+    'canvas.matMembrane': { en: { t: 'Membrane',  b: '' }, fr: { t: 'Membrane',  b: '', reviewed: true, sameAsEn: true } },
+    'canvas.matWood':     { en: { t: 'Wood',      b: '' }, fr: { t: 'Bois',      b: '', reviewed: true } },
+    'canvas.matMetal':    { en: { t: 'Metal',     b: '' }, fr: { t: 'Métal',     b: '', reviewed: true } },
+    'canvas.matGlass':    { en: { t: 'Glass',     b: '' }, fr: { t: 'Verre',     b: '', reviewed: true } },
     // Schelleng tab. The x title is centred in a 423 px plot; the y title is
     // ROTATED and centred on the 338 px plot height: Position d’archet (β)
     // 90.19 px (English 73.70), Pression d’archet (N) 93.69 (77.65). The
@@ -687,12 +687,12 @@ export const I18N = Object.freeze({
     // d’archet. "glissement" is the bow slipping on the string, not the
     // forbidden "glissé" (a portamento). Helmholtz is a name.
     'canvas.bowPositionAxis': { en: { t: 'Bow Position (β)', b: '' },
-                                fr: { t: 'Position d’archet (β)', b: '', reviewed: false } },
+                                fr: { t: 'Position d’archet (β)', b: '', reviewed: true } },
     'canvas.bowPressureAxis': { en: { t: 'Bow Pressure (N)', b: '' },
-                                fr: { t: 'Pression d’archet (N)', b: '', reviewed: false } },
-    'canvas.pMax':      { en: { t: 'P_max (raucous)', b: '' }, fr: { t: 'P_max (rauque)',     b: '', reviewed: false } },
-    'canvas.pMin':      { en: { t: 'P_min (slip)',    b: '' }, fr: { t: 'P_min (glissement)', b: '', reviewed: false } },
-    'canvas.helmholtz': { en: { t: 'Helmholtz',       b: '' }, fr: { t: 'Helmholtz',          b: '', reviewed: false, sameAsEn: true } },
+                                fr: { t: 'Pression d’archet (N)', b: '', reviewed: true } },
+    'canvas.pMax':      { en: { t: 'P_max (raucous)', b: '' }, fr: { t: 'P_max (rauque)',     b: '', reviewed: true } },
+    'canvas.pMin':      { en: { t: 'P_min (slip)',    b: '' }, fr: { t: 'P_min (glissement)', b: '', reviewed: true } },
+    'canvas.helmholtz': { en: { t: 'Helmholtz',       b: '' }, fr: { t: 'Helmholtz',          b: '', reviewed: true, sameAsEn: true } },
 });
 
 // ============================================================================

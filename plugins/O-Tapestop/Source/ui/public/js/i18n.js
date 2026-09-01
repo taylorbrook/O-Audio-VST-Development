@@ -202,7 +202,7 @@ export const I18N = Object.freeze({
         // ones because that is what the page rendered.
         fr: { t: 'Préréglage',
               b: 'Le préréglage chargé. Cliquer pour ouvrir la liste, groupée en Arrêts de bande, Scratch, Pleurage & Déformation, et Glitch & Chaos.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'preset-save': {
@@ -589,13 +589,13 @@ export const LABELS = Object.freeze({
     // a third name that matched neither. The French keeps the tip titles'
     // settled forms; no new rendering of spin-down / spin-up / pass.
     'aria.stopTime':     { en: { t: 'Spin-Down Time division' },
-                           fr: { t: 'Division de la durée de ralentissement', reviewed: false } },
+                           fr: { t: 'Division de la durée de ralentissement', reviewed: true } },
     'aria.startTime':    { en: { t: 'Spin-Up Time division' },
-                           fr: { t: 'Division de la durée de redémarrage',    reviewed: false } },
+                           fr: { t: 'Division de la durée de redémarrage',    reviewed: true } },
     'aria.envCanvas':    { en: { t: 'Scratch speed envelope' },
                            fr: { t: 'Enveloppe de vitesse du scratch', reviewed: true } },
     'aria.envLength':    { en: { t: 'Pass Length division' },
-                           fr: { t: 'Division de la durée du passage',        reviewed: false } },
+                           fr: { t: 'Division de la durée du passage',        reviewed: true } },
 
     // ── Preset dropdown theme headings (v1.6.2, item 39) ────────────────────
     // Written by app.js's buildPresetDropdown() through setLabel(), one
@@ -604,11 +604,11 @@ export const LABELS = Object.freeze({
     // "Arrêts de bande": the page's French for tape is "bande" (engage-btn,
     // seg-mode-cont, knob-TONE_TRACK). "Pleurage": the Wobble tip title's
     // word (glossary root for wow); "Déformation": the glossary root for warp.
-    'label.themeTapeStops':   { en: { t: 'Tape Stops' },     fr: { t: 'Arrêts de bande',        reviewed: false } },
-    'label.themeScratch':     { en: { t: 'Scratch' },        fr: { t: 'Scratch',                reviewed: false, sameAsEn: true } },
-    'label.themeWobbleWarp':  { en: { t: 'Wobble & Warp' },  fr: { t: 'Pleurage & Déformation', reviewed: false } },
-    'label.themeGlitchChaos': { en: { t: 'Glitch & Chaos' }, fr: { t: 'Glitch & Chaos',         reviewed: false, sameAsEn: true } },
-    'label.themeUser':        { en: { t: 'User' },           fr: { t: 'Utilisateur',            reviewed: false } },
+    'label.themeTapeStops':   { en: { t: 'Tape Stops' },     fr: { t: 'Arrêts de bande',        reviewed: true } },
+    'label.themeScratch':     { en: { t: 'Scratch' },        fr: { t: 'Scratch',                reviewed: true, sameAsEn: true } },
+    'label.themeWobbleWarp':  { en: { t: 'Wobble & Warp' },  fr: { t: 'Pleurage & Déformation', reviewed: true } },
+    'label.themeGlitchChaos': { en: { t: 'Glitch & Chaos' }, fr: { t: 'Glitch & Chaos',         reviewed: true, sameAsEn: true } },
+    'label.themeUser':        { en: { t: 'User' },           fr: { t: 'Utilisateur',            reviewed: true } },
 });
 
 // ============================================================================
