@@ -129,7 +129,9 @@ function typography(fr, en) {
     if (/(^|[^ ]):(?=\s|$)/.test(fr) && !/https?:/.test(fr)) out.push('T4');
     if (/(^|[^ ])[;!?]/.test(fr))                     out.push('T5');
     if (/(^|[\s(«])-\d/.test(fr))                         out.push('T6');
-    if (UNIT_RE.test(fr))                                 out.push('T7');
+    // A decade name (60s, 70s, 80s — O-Detune's wobble_era faces) is not a
+    // number missing its space before "seconds". Same family as T2's list.
+    if (UNIT_RE.test(fr.replace(/\b[1-9]0s\b/g, '')))    out.push('T7');
     return out;
 }
 
