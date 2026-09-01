@@ -1,0 +1,42 @@
+# 260831-wq3 — orchestrator survey (read before planning)
+
+Task: sweep the tuning-panel family for the O-Formant item 22 gap (SUMMARY item 71 in
+`.planning/quick/260826-ieq-multi-language-tooltips-across-all-vst-p/260826-ieq-SUMMARY.md`).
+Reference fix: `git show 420cfe49` (O-Formant v1.27.2). Two halves:
+  (a) STATE half — the A4/stretch knobs write the TuningEngine directly and never a parameter, and
+      getStateInformation saves neither → reopen at 440/1.00. Fix: save `masterTune`/`octaveStretch`
+      from the engine on the tuning state child; restore after the parameter push, `isVoid()` guard,
+      `toString().getDoubleValue()` read (non-parameter number round-trips XML as a STRING var).
+  (b) PANEL half — the vendored tuning-panel.js had no read path: add a `getMasterTune` native fn,
+      read it in `loadInitialState()` (guarded to a finite number — the ui-stub invents a value for
+      unknown native fns; own try so a failure does not skip the interval list), keep `currentHz`
+      updated by `updateKnob`, and start every drag from `currentHz` (was a literal 440 → a second
+      drag threw the first away). Shared module shape: `modules/tuning/scala-tuning-engine/js/tuning-panel.js:943-986`.
+
+## Per-plugin findings (all verified by grep at 2026-08-31, cite these lines in the SUMMARY)
+
+| Plugin | ver | A4 write path | stretch write path | state save | panel read of A4 | verdict |
+|---|---|---|---|---|---|---|
+| O-Bells | 4.3.2 | `setMasterTune` native fn → `tuning_masterTune` PARAM (WR-08, `Source/PluginEditor.cpp:501-511`); listener `PluginProcessor.cpp:1626` forwards to engine | `setOctaveStretch` → `tuning_octaveStretch` PARAM (`PluginEditor.cpp:481-489`) | APVTS params (saved with the tree) | vendored `Resources/ui/js/tuning-panel.js:1012` calls `getMasterTune` at load, `currentHz` at 993/1022; editor `getMasterTune` at 497 | **CLEAN** (both halves already present) |
+| O-IntonationPad | 2.9.1 | `getSliderState('tuning_masterTune')` (`Source/ui/public/js/tuning-panel.js:85,1088-1103`) — PARAM | `getSliderState('tuning_octaveStretch')` (:84) — PARAM | APVTS params; listener pushes via dirty flags (`PluginProcessor.cpp:792-826`) | SliderState `getScaledValue()` — no native fn needed | **CLEAN** (SliderState shape, better than the module's) |
+| O-Lyrica | 2.4.3 | `bindSlider('masterTune')` in `Resources/ui/js/app.js:141` — PARAM; processBlock pushes param→engine `PluginProcessor.cpp:773` | `octaveStretch` PARAM pushed at :781; also JSON save/restore :616/:676 | params + JSON | own param-bound knob, no shared panel | **CLEAN** |
+| O-MicrotonalSampler | 1.25.1 | `setMasterTune` native fn writes ENGINE directly (`Source/PluginEditor.cpp:1601-1615`) | `setOctaveStretch` writes engine (:1584) | `captureTuningValueTree` saves engine `masterTune`+`octaveStretch` (`PluginProcessor.cpp:2844-2845`, restore :2876-2879) → STATE HALF OK | **MISSING**: `Resources/ui/js/tuning-panel.js` `setupRefPitchKnob` (:1010-1050) has `startValue = 440` literal, no `currentHz`, no `startValue = currentHz` on mousedown, `loadInitialState()` (:275-300) never reads A4; editor has `getOctaveStretch` (:824) but NO `getMasterTune` native fn (table style `{ "name", lambda }`) | **PANEL-HALF GAP → port (b)**: add `getMasterTune` to the editor table beside `getOctaveStretch`, port the panel read + `currentHz` from 420cfe49's `tuning-panel.js` hunks. Patch bump 1.25.1 → 1.25.2 |
+| O-Prism | 1.22.1 | `bindKnob('masterTune', …)` `Source/ui/public/index.html:2922` — PARAM | `bindKnob('octaveStretch')` :2923 — PARAM | params (explicit save list `PluginProcessor.cpp:509`) | own param-bound knob | **CLEAN** |
+| O-Reed | 1.3.1 | engine A4 is driven from the `referencePitch` PARAM every block (`PluginProcessor.cpp:411-412`) — saved | n/a | param | **DIFFERENT, LARGER GAP**: index.html:1643 mounts the SHARED module panel with `Juce`, but `Source/PluginEditor.cpp` registers ONLY preset/language native fns (getPresetList, getCurrentPreset, loadPreset, savePreset, selectNext/PreviousPreset, savePresetWithDialog, getUiLanguage, setUiLanguage). None of getTuningIntervals / getTuningName / getTonicNote / getOctaveStretch / setOctaveStretch / getMasterTune / setMasterTune / … exist. The shared panel's `loadInitialState()` (module js:252) throws at its FIRST call (`getTuningIntervals`) and never reaches `refreshMasterTune`; the ref-pitch knob's `setMasterTune` writes go nowhere. O-Reed's own CHANGELOG line 37 claims `referencePitch` "is driven by `#ref-pitch-knob` inside the shared panel" — that claim is false today. | **NOT the 420cfe49 gap** — the whole tuning tab is disconnected (feature-scale wiring, ~20 native fns = O-Wind's editor 300-460 shape). Recommend: PROVE it (native-fn inventory diff: names the shared panel calls vs names the editor registers; plus a ui-stub/boot log or scripted-page probe showing `Failed to load initial state`), REPORT as a deferred defect, do NOT bump. Porting only getMasterTune/setMasterTune would be decorative (load aborts before the read). If the planner disagrees, the minimal in-scope pair is `getMasterTune` (engine read) + `setMasterTune` routed through the `referencePitch` param (O-Wind WR-11 shape, `plugins/O-Wind/Source/PluginEditor.cpp:337-352`). |
+| O-Wind | 1.18.2 | `setMasterTune` → `referencePitch` PARAM (WR-11, `Source/PluginEditor.cpp:341-352`); `getMasterTune` at :337 | `setOctaveStretch` writes engine (:328-330); save callback saves engine `octaveStretch` (`PluginProcessor.cpp:487`, restore :537) | param + JSON | SHARED module panel (`CMakeLists.txt:97` embeds `modules/…/js/tuning-panel.js`), which reads `getMasterTune` at load | **CLEAN** |
+
+Panel JS locations: O-Bells `Resources/ui/js/tuning-panel.js` (vendored); O-IntonationPad `Source/ui/public/js/tuning-panel.js` (vendored, SliderState variant); O-MicrotonalSampler `Resources/ui/js/tuning-panel.js` (vendored); O-Reed and O-Wind embed the SHARED module file via CMake (`/js/tuning-panel.js` served from BinaryData `tuningpanel_js`) — never edit `modules/`; O-Lyrica and O-Prism have no tuning-panel.js (own inline controls).
+
+## Constraints carried from the Stage O brief (`260826-ieq-STAGE-O-BRIEF.md`)
+- Builds behind the mutex `/tmp/claude-501/stagek-build.lock`: take with `mkdir`, release with `rmdir` after `auval`. Wait-loop if taken. `touch CMakeLists.txt` before the build; read the INSTALLED `Info.plist` for the version. Use `./scripts/build-and-install.sh <Name>`.
+- `git commit -- plugins/<Name>` only (path-scoped). No push, no tag, no `--amend`, never `git add -A`. `git branch --show-current` + `git status --short` immediately before each commit (concurrent sessions share the index).
+- PLUGINS.md: the executor does NOT edit it per plugin; ONE final commit updates all changed rows (version + date) — `git commit -- PLUGINS.md`.
+- Never edit `scripts/` or `modules/`.
+- Scratchpad: `/private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/8bc00eca-b311-4564-94c9-500c2cb40695/scratchpad/<Name>/`.
+- Gates for a changed plugin: `node scripts/check-i18n.js --plugin <Name>`, `node scripts/boot-all-uis.js` (43/43, 0 DEAD, plugin's late count unchanged), build + `auval -v aumu <subtype> <manu>`, installed plist version. Any English copy change needs French in the same commit + `node scripts/i18n-fr-lint.js --plugin <Name>` (none expected here).
+- CHANGELOG entry per bumped plugin (O-Formant CHANGELOG.md lines 20-45 is the model prose).
+
+## Probe requirements
+- Where a fix lands (O-MicrotonalSampler): a probe that FAILS before and PASSES after, run both ways, plus a control arm. Panel half → a page-level probe: mount the panel against a stub `Juce` whose `getMasterTune` resolves 442 and assert `#ref-pitch-value` reads `442.0 Hz` after load (before: `440.0 Hz`), then simulate two drags and assert the second starts from the first's end value (before: from 440). `scripts/ui-stub/` + `tests/ui-stub/generic-overrides.json` are the existing stub mechanisms; a scratchpad Playwright/JSDOM script importing the vendored module is also fine. State half there is already OK — confirm with an offline get→set probe only if cheap; otherwise cite 2844/2876.
+- Clean plugins: no code change → no bump; evidence is the file:line citations above, re-verified by the executor (grep), recorded in the SUMMARY.
+- O-Reed: the inventory-diff probe above; recorded as "found, not fixed" with the recommended fix shape.
