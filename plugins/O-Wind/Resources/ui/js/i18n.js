@@ -18,7 +18,18 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Wind visible-text table and hover-help copy, EN + FR (v1.18.1)
+// i18n.js — O-Wind visible-text table and hover-help copy, EN + FR (v1.18.2)
+//
+// ── v1.18.2: STAGE O (2026-08-31) — items 62 and 65, no entry changed ─────────
+// Note 7 of the v1.18.1 block below is CLOSED. tests/i18n-states.json now
+// drives the Effects tab FIRST and the settings popover LAST, so
+// check-ui-labels measures all 65 [data-i18n] elements (40 -> 65; it prints
+// "67 of 65" because the two tab buttons are keyed once per .active state).
+// Measured on that tab by the gate for the first time: 0 non-label elements
+// moved, no French caption clipped or wrapped, in all three states — the four
+// abbreviations note 2 defends (Prof. / Mix / Réinj. / Amort.) stand. And the
+// Effects console banner in index.html reads the version through a new
+// getPluginVersion native function (PluginEditor.cpp) instead of a literal.
 //
 // ── v1.18.1: FRENCH QA PASS (Stage N, 2026-08-31) ───────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.

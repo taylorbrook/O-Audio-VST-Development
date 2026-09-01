@@ -601,6 +601,20 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
                     complete(juce::var(OWindAudioProcessor::languageCode(
                                  processorRef.uiLanguage.load(std::memory_order_acquire))));
                 })
+
+            // =========================================================
+            // v1.18.2 (Stage O, item 65): THE VERSION, pulled once by the page
+            // =========================================================
+            //
+            // The Effects banner in index.html carried a literal v1.14.0
+            // four minor versions after that release. JucePlugin_VersionString
+            // is generated from CMakeLists' VERSION — the one site a bump
+            // touches — so the page reads it here (O-Tremolo's shape,
+            // PluginEditor.cpp:149) instead of holding a copy that drifts.
+            .withNativeFunction("getPluginVersion",
+                [](const juce::Array<juce::var>&, auto complete) {
+                    complete(juce::var(juce::String(JucePlugin_VersionString)));
+                })
     );
 
     addAndMakeVisible(webView.get());

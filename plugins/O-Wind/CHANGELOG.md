@@ -1,5 +1,33 @@
 # O-Wind Changelog
 
+## [1.18.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+
+- **item 62 — `tests/i18n-states.json`, the Effects tab captions:** the states
+  file opened the settings popover FIRST, and the open popover (698,39 190×40)
+  covers the right 190 px of the 300 px Effects tab button at 600,40 — so
+  `check-ui-labels`' centre-point click on the tab landed on the popover, whose
+  own `pointerdown` guard keeps it open, and the Effects state never fired. The
+  four fx titles, the four bypass faces, the delay-mode caption and the sixteen
+  script-written knob captions — 25 of 65 `[data-i18n]` elements — had never
+  been geometry-measured by that gate on this plugin. The states are now
+  Effects tab first, popover last: coverage went **40 of 65 → 65 of 65** (the
+  gate prints "67 of 65" because it keys the two tab buttons once per `.active`
+  state), with 0 non-label elements moved and no French caption clipped or
+  wrapped in any of the three states, both languages. The four Stage N
+  abbreviations on that tab (PROF. / MIX / RÉINJ. / AMORT.) stand as measured.
+- **item 65 — the `[Effects] Panel initialized (v1.14.0)` console banner
+  (`index.html:2590`):** a literal four minor versions stale. The page now pulls
+  a new `getPluginVersion` native function (`PluginEditor.cpp`, O-Tremolo's
+  shape) that returns `JucePlugin_VersionString`, so the banner prints whatever
+  CMakeLists' `VERSION` says and cannot drift again. The three section-header
+  comments naming the release the tab was added in now read "added in v1.14.0".
+
+No DSP, parameter, French copy, English copy or layout rule changed.
+
 ## [1.18.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.

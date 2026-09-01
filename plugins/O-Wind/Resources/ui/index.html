@@ -780,7 +780,7 @@
         }
 
         /* ====================================================================
-           Effects Tab (v1.14.0)
+           Effects Tab (added in v1.14.0)
            ==================================================================== */
         #tab-effects {
             gap: 6px;
@@ -1348,7 +1348,7 @@
             <div id="visual-polish-tuning" class="future-feature" style="display:none;"></div>
         </div>
 
-        <!-- EFFECTS TAB (v1.14.0) -->
+        <!-- EFFECTS TAB (added in v1.14.0) -->
         <div class="tab-panel" id="tab-effects">
             <div class="fx-section" id="chorusSection">
                 <div class="fx-header">
@@ -2266,7 +2266,7 @@
         }
 
         // ====================================================================
-        // Effects Tab (v1.14.0)
+        // Effects Tab (added in v1.14.0)
         // ====================================================================
         const fxKnobDrag = { active: false, state: null, lastY: 0, virtualNorm: 0 };
 
@@ -2587,7 +2587,20 @@
                 setupFxBypassToggle('eq', eqBypassState);
                 setupFxBypassToggle('reverb', reverbBypassState);
 
-                console.log('[Effects] Panel initialized (v1.14.0)');
+                // v1.18.2 (Stage O, item 65): this banner carried a LITERAL
+                // v1.14.0 in parentheses — the release the tab was added in — on a plugin
+                // four minor versions past it. It now reads the version from
+                // the same native function O-Tremolo's footer uses
+                // (PluginEditor.cpp getPluginVersion -> JucePlugin_VersionString,
+                // which CMakeLists' VERSION owns), so this line can never be a
+                // second version site again. The gates' stub answers
+                // '0.0.0-stub'; a backend without the function logs no version.
+                const fxBanner = '[Effects] Panel initialized';
+                try {
+                    Juce.getNativeFunction('getPluginVersion')()
+                        .then((v) => console.log(v ? fxBanner + ' (v' + v + ')' : fxBanner))
+                        .catch(() => console.log(fxBanner));
+                } catch (e) { console.log(fxBanner); }
             } catch (error) {
                 console.error('Failed to initialize effects:', error);
             }
