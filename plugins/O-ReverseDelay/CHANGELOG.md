@@ -4,6 +4,49 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.10.1] — 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+**No parameter, preset, state, DSP or layout change.** Nothing outside `js/i18n.js`
+and this file moved. `check-ui-labels` reports the same **zero** non-label elements
+displaced between English and French, and `tests/ui_tooltip_clamp_check.js` reports
+byte-identical geometry for all 62 anchor measurements (31 anchors × 2 languages):
+8 clamps and 2 below-flips per language, unchanged from Stage D.
+
+### Changed
+
+- **24 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and lint (`scripts/i18n-fr-lint.js`), taking the
+  plugin from 29 findings to 0 at `--strict`. The visible ones:
+  - **PENTE → INCLINAISON** for Tilt. *Pente* is the suite's French for a
+    **rolloff**; the glossary settles Tilt as *Inclinaison*, and the tooltip on
+    that same knob had said *Inclinaison* since v1.9.0 — one control, two French
+    names. Measured, the root fits: 71.13 px in the WINDOW group's 66 px cell,
+    clearing the Taper caption by 24.58 px and the panel's left edge by 19.44 px.
+  - **AMPLEUR → PROFONDEUR** for Drift Depth, which also puts the caption, the
+    tooltip title (*Profondeur de dérive*) and Drift Rate's body on one word.
+  - **Adoucissement → Biseau** in the Taper tooltip title, so that control also
+    has one French name; the body now reads *biseautée* where the English reads
+    "tapered", and the Envelope display's body names the three real captions.
+  - **Mixage → Mix**, **Direction → Sens**, **Atténuation dynamique → Ducking**
+    and **Mode de synchronisation → Mode de synchro** in tooltip titles — all
+    four are the settled suite terms, and *Ducking* now matches the caption the
+    page has always shown.
+  - The Sync-mode and Division bodies name **Libre** and **Synchro**, the page's
+    own segment captions, where the drafts had left the English *Free* / *Sync*.
+  - **French typography throughout**: no-break spaces before `:`, `;` and `?` and
+    between a number and its unit (*7 dB*), on 17 strings.
+- **`<html lang>` now follows the language selector** (canon change, all plugins),
+  so assistive technology reads the page in the language it is displayed in.
+
+### Not changed
+
+`reviewed: false` stays `false` on all 69 entries — it records a **native
+speaker's** reading, and this release is a second machine reading against a
+glossary and a lint. No English copy, no key, no binding, no selector and no CSS
+rule was touched.
+
 ## [1.10.0] — 2026-08-27 — the PAGE speaks French, not only the hover help
 
 **No parameter, preset, state or DSP change.** Every knob, every range, every
