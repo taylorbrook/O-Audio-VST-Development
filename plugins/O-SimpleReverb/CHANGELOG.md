@@ -2,6 +2,19 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.7.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+
+- **item 47 — footer wordmark and console banner:** both hard-coded `v1.5.5` (`index.html:932` and `:1866`) on a plugin at 1.7.1, four versions stale since v1.5.7, inside an `I18N_EXEMPT` entry that matched the literal text → the version now lives in an empty `<span id="versionLabel">` that the page fills at runtime from a new `getPluginVersion()` native function (`PluginEditor.cpp`, `JucePlugin_VersionString`, i.e. the CMake `VERSION`) — the O-DigiDelay / O-Tremolo shape — and the banner reads the same value. The exemption is now `"Ouaricon Audio"` scoped to `.footer` (by element, not by matching a value that changes every release); the span is empty in the markup, so it is no text node a static scan can see, and what it holds at runtime is a readout (D-03). **Fallback is the empty string:** if the native function is missing, throws, rejects or returns nothing, the wordmark reads `Ouaricon Audio` alone and the banner says `UI initialized (version unavailable)` — no invented number. Under the shared ui-stub the span shows the stub's own `v0.0.0-stub`.
+
+### Geometry
+
+- **Zero movement.** `check-ui-labels --plugin O-SimpleReverb` `moved=0` before and after in all three driven states, `[8b]` still 1. The wordmark (Range over `.footer` contents, 500 x 350, identical in both languages): `Ouaricon Audio v1.5.5` (one span) 91.66 px → `Ouaricon Audio v1.7.2` (two spans; the inter-span space adds 1.50) 93.16 px; the fallback `Ouaricon Audio` 64.16 px; the ui-stub's `v0.0.0-stub` face 113.16 px. The footer is `text-align: center` with nothing beside it, so no other element moves. `tests/ui_tip_render_check.js` 169/169 unchanged.
+- After this release the wordmark and the banner are no longer version sites: a bump touches `CMakeLists.txt` `VERSION` and the `i18n.js` header line only.
+
 ## [1.7.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.

@@ -924,12 +924,17 @@
             </div>
 
             <div class="footer">
-                <!-- NOT a [data-i18n] element: a company name plus a version
-                     number, neither of which is translatable. Declared in
-                     I18N_EXEMPT, where the note also records that the literal
-                     is STALE (v1.5.5 against a CMake VERSION of 1.6.0) and why
-                     this commit deliberately does not repair it. -->
-                <span class="version">Ouaricon Audio v1.5.5</span>
+                <!-- NOT a [data-i18n] element: a company name is never
+                     translated, and #versionLabel is filled at runtime from
+                     getPluginVersion() (JucePlugin_VersionString, i.e. the
+                     CMake VERSION) with a version number, which is a readout
+                     (D-03). "Ouaricon Audio" is declared in I18N_EXEMPT scoped
+                     to .footer; the span is EMPTY in the markup, so it is
+                     never a text node a static scan can see. v1.7.2 (Stage O
+                     item 47): this replaced a hard-coded "v1.5.5" that had
+                     been stale since v1.5.7. -->
+                <span class="version">Ouaricon Audio</span>
+                <span class="version" id="versionLabel"></span>
             </div>
         </div>
 
@@ -1863,7 +1868,32 @@
         // ====================================================================
         // INITIALIZATION COMPLETE
         // ====================================================================
-        console.log("Ouaricon Simple Reverb v1.5.5 UI initialized");
+        // v1.7.2: the footer wordmark (#versionLabel) and this banner read the
+        // SAME value, pulled once from the C++ getPluginVersion() native
+        // function (JucePlugin_VersionString — the CMake VERSION). Before
+        // this both hard-coded "v1.5.5" and had been stale since v1.5.7.
+        //
+        // FALLBACK IS THE EMPTY STRING. If the native function is missing,
+        // throws, rejects or resolves to nothing, the span stays EMPTY and
+        // the banner prints no number at all — a wordmark reading "Ouaricon
+        // Audio" alone is true; "vdev" or a guessed number would not be.
+        // Under the shared ui-stub (scripts/ui-stub/generic-juce-stub.js)
+        // the function is modelled and resolves "0.0.0-stub", which the
+        // span shows verbatim: that is the stub naming itself, not a
+        // version this plugin ever shipped.
+        (function announceVersion() {
+            const versionLabel = document.getElementById('versionLabel');
+            const announce = (version) => {
+                const v = (typeof version === 'string' && version.trim()) ? 'v' + version.trim() : '';
+                if (versionLabel) versionLabel.textContent = v;
+                console.log(v ? `Ouaricon Simple Reverb ${v} UI initialized`
+                              : 'Ouaricon Simple Reverb UI initialized (version unavailable)');
+            };
+            let pending;
+            try { pending = getNativeFunction('getPluginVersion')(); }
+            catch (e) { announce(''); return; }
+            Promise.resolve(pending).then(announce, () => announce(''));
+        })();
     </script>
 </body>
 </html>

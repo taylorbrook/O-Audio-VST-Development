@@ -18,7 +18,28 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-SimpleReverb page labels and hover-help, English + French (v1.7.1)
+// i18n.js — O-SimpleReverb page labels and hover-help, English + French (v1.7.2)
+//
+// ── v1.7.2: THE WORDMARK READS THE REAL VERSION (Stage O item 47, 2026-08-31) ─
+//
+// No en or fr entry changed. One I18N_EXEMPT entry changed shape: the text-
+// matched wordmark-plus-v1.5.5 (decision 7 below — four versions stale, and
+// an exemption pinned to a value that moves with every release) became
+// "Ouaricon Audio" SCOPED to .footer, and the version number moved into an
+// empty span, #versionLabel, that index.html fills at runtime from the new
+// getPluginVersion() native function (PluginEditor.cpp, JucePlugin_VersionString
+// — the CMake VERSION). The console banner reads the same value. Fallback when
+// the function is absent, throws, rejects or returns nothing: the EMPTY string
+// — the span stays empty and the banner prints no number. Under the ui-stub the
+// span shows the stub's own "v0.0.0-stub".
+// Measured (Range over .footer contents, 500 x 350, identical in en and fr):
+// the wordmark + v1.5.5 (one span) was 91.66 px; the wordmark + v1.7.2 (two
+// spans, the inter-span space adds 1.50) is 93.16 px; "Ouaricon Audio" alone
+// (fallback) 64.16 px; "Ouaricon Audio v0.0.0-stub" (ui-stub) 113.16 px. The
+// footer is text-align: center with nothing beside it, so no other element
+// moves — check-ui-labels is byte-identical to baseline, moved=0.
+// After this commit the wordmark and the banner are NOT version sites: a bump
+// touches CMakeLists VERSION and this header line only.
 //
 // ── v1.7.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────
 //
@@ -770,15 +791,21 @@ export const I18N_EXEMPT = [
      + 'Contrast #LPFREQ-value, which carries the same class, never holds a number, and IS '
      + 'keyed with the overrule written down in LABELS above'],
 
-    // ── The footer wordmark and its version number ──────────────────────────
-    ['Ouaricon Audio v1.5.5',
-     'the company name plus a VERSION NUMBER (D-03) — neither half is translatable. NOTE for '
-     + 'a human: this string is STALE. It is hard-coded and reads v1.5.5 while CMakeLists.txt '
-     + 'declared VERSION 1.5.7 before this commit and 1.6.0 after it. Deliberately NOT fixed '
-     + 'here: correcting it is a user-visible change unrelated to localization, and two '
-     + 'siblings (O-DigiDelay, O-Tremolo) already solve it properly with an EMPTY span carrying '
-     + 'id="versionLabel" that is filled at runtime, which is the repair this one wants rather '
-     + 'than another hard-coded literal'],
+    // ── The footer wordmark ─────────────────────────────────────────────────
+    //
+    // v1.7.2 (Stage O item 47): SCOPED to .footer, and the version number is
+    // no longer part of the exempted text. Through v1.7.1 this entry matched
+    // the wordmark-plus-v1.5.5 literal by TEXT — an exemption pinned to a
+    // value that changes with every release, and one that had been four
+    // versions stale. The version now lives in an EMPTY span, #versionLabel,
+    // filled at runtime from getPluginVersion() (JucePlugin_VersionString),
+    // the O-DigiDelay / O-Tremolo shape. An empty span is not a text node, so
+    // it needs no exemption; what it holds at runtime is a readout (D-03).
+    ['Ouaricon Audio',
+     'the company name in .footer — a company name is never translated. The span beside it '
+     + '(#versionLabel) is filled at runtime from getPluginVersion() and holds a version number, '
+     + 'which is a readout (D-03)',
+     '.footer'],
 
     // ── Endonyms ────────────────────────────────────────────────────────────
     ['English',  'endonym — a language name is never translated'],
