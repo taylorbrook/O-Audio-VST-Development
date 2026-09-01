@@ -1,5 +1,51 @@
 # O-MicrotonalSampler Changelog
 
+## [1.25.2] - 2026-08-31
+
+The tuning panel's A4 REF knob now reads the engine. Sweep of the tuning-panel
+family for the O-Formant item 22 gap (quick task 260831-wq3, SUMMARY item 71).
+
+### Fixed
+
+- **The A4 REF readout lied about the pitch the plugin was sounding.** The
+  **state** half here was already correct — `captureTuningValueTree`
+  (`PluginProcessor.cpp:2844`) saves the engine's `masterTune` and
+  `restoreTuningFromValueTree` (`:2876`) puts it back — so a session saved with
+  A4 at 442 Hz genuinely reopened with the engine at 442. What was missing was
+  the **panel** half: `Resources/ui/js/tuning-panel.js` had no read path at all.
+  `loadInitialState()` fetched intervals, scale name, tonic and octave stretch
+  and never asked for A4, so the knob kept the `440.0 Hz` its own markup ships
+  with while the engine sounded 442. `Source/PluginEditor.cpp` gains a
+  `getMasterTune` native fn beside `getOctaveStretch` (the editor registers a
+  table of `{ "name", lambda }` pairs, not a `.withNativeFunction` chain), and
+  `loadInitialState()` now reads it in its **own** try/catch — guarded to a
+  finite number, because the ui-stub invents a value for any native fn it does
+  not know, and clamped to the knob's own [400, 480] domain. The separate try
+  matters: a throwing A4 read must not skip `updateIntervalList()` /
+  `updateVisualization()` and blank the whole tuning tab.
+- **Every A4 drag restarted from 440, so a second drag threw the first away.**
+  `setupRefPitchKnob()` seeded `startValue` from a literal `440` and never
+  updated it. It now tracks `currentHz`, written by `updateKnob`, and
+  `mousedown` starts each drag from the value the knob currently shows.
+  `updateKnob` is published as `this.updateRefPitchKnob` so the load-time read
+  can drive it; `attachEventListeners()` runs before `loadInitialState()` in
+  `init()`, so the hook is always present by then.
+- **Probe** (page-level, mounts the vendored panel module in Chromium against a
+  hand-written `juce` stub, so no tracked file is touched):
+  with `getMasterTune` → 442, `#ref-pitch-value` read **`440.0 Hz` before** and
+  **`442.0 Hz` after**; two identical drags ended **450.0 / 450.0 Hz before**
+  (equal — the second discarded the first) and **452.0 / 462.0 Hz after**. The
+  control arm, `getMasterTune` → 440 expecting `440.0 Hz`, passed both ways, so
+  the failing assertion is discriminating rather than always-red.
+
+### Notes
+
+- No parameter, preset-format or state-tree change; no user-visible English or
+  French copy change, so no i18n edit. `getMasterTune` is a read-only native fn.
+  The existing `setMasterTune` (which writes the engine under the persistence
+  lock) is untouched. `modules/` and `scripts/` untouched — this plugin's
+  `tuning-panel.js` is plugin-owned and vendored, and CMake embeds this copy.
+
 ## [1.25.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.

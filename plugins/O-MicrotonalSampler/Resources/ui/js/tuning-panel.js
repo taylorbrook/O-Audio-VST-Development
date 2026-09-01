@@ -291,6 +291,20 @@ export class TuningPanel {
             this.container.querySelector('#octave-stretch').value = stretch;
             this.container.querySelector('#octave-stretch-value').textContent = stretch.toFixed(2);
 
+            // v1.25.2: the A4 REF knob had no read path, so a reopened session
+            // painted 440.0 Hz over an engine restored at 442 (item 22 / item 71).
+            // Guarded: the ui-stub invents a value for any native fn it does not
+            // know, and a non-number must leave the knob at its default.
+            // Own try: a failure here must not skip the interval list below.
+            try {
+                const hz = await this.juce.getNativeFunction('getMasterTune')();
+                if (typeof hz === 'number' && Number.isFinite(hz) && this.updateRefPitchKnob) {
+                    this.updateRefPitchKnob(Math.max(400, Math.min(480, hz)));
+                }
+            } catch (e) {
+                console.error('[TuningPanel] getMasterTune failed:', e);
+            }
+
             // Update UI
             this.updateIntervalList();
             this.updateVisualization();
@@ -1014,8 +1028,13 @@ export class TuningPanel {
         let isDragging = false;
         let startY = 0;
         let startValue = 440;
+        // v1.25.2: the value the knob currently shows. Every drag starts from it
+        // (it used to start from the literal 440 each time, so a second drag threw
+        // the first one away) and loadInitialState() seeds it from the engine.
+        let currentHz = 440;
 
         const updateKnob = (hz) => {
+            currentHz = hz;
             const indicator = this.container.querySelector('#ref-pitch-indicator');
             const valueEl = this.container.querySelector('#ref-pitch-value');
             if (indicator) {
@@ -1027,9 +1046,14 @@ export class TuningPanel {
             }
         };
 
+        // v1.25.2: attachEventListeners() runs before loadInitialState() in
+        // init(), so this hook is always present by the time the A4 read fires.
+        this.updateRefPitchKnob = updateKnob;
+
         knob.addEventListener('mousedown', (e) => {
             isDragging = true;
             startY = e.clientY;
+            startValue = currentHz;
             document.body.style.cursor = 'ns-resize';
         });
 
