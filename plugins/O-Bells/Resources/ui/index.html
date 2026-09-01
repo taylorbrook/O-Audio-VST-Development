@@ -219,10 +219,16 @@
                with `margin-right: auto` here and `margin-left: auto` on the
                button, so the knob row floats in the free space BETWEEN two auto
                margins and moves by HALF of any width change on either side.
-               REVERB -> RÉVERBE is +8.35px and DELAY -> DÉLAI is -2.66px, in
+               REVERB -> RÉVERBE was +8.35px and DELAY -> DÉLAI is -2.66px, in
                opposite directions, so no single translation could have absorbed
                it. Pinned to 62px, which the widest caption in either language
-               (Réverbe, 60.19px) fits. */
+               fits.
+               v4.3.1 RE-MEASURED, because Stage N replaced RÉVERBE with the
+               glossary's RÉVERB: the pair is now REVERB 51.84 -> RÉVERB 51.84,
+               +0.00px, and the widest caption on the row in EITHER language is
+               CHORUS at 53.06px. The 62px pin is unchanged and now carries
+               8.94px of slack. (EN: Chorus 53.06, Delay 42.50, Reverb 51.84,
+               EQ 17.91. FR: Chorus 53.06, Délai 39.84, Réverb 51.84, EQ 17.91.) */
             width: 62px;
             font-size: 11px;
             font-weight: bold;
@@ -1257,7 +1263,8 @@
         }
 
         /* ====================================================================
-           VERSION LABEL (v3.2.1)
+           VERSION LABEL (the heading was stamped at v3.2.1; the label itself
+           is bumped every release and reads v4.3.1 at :1857)
            ==================================================================== */
 
         .version-label {
