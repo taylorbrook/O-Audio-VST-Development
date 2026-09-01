@@ -2,6 +2,48 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.27.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **60 of 182 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint, which went from 85 findings to 0
+  under `--strict`. 29 terminology, 36 typography, 1 agreement, 4 meaning, 2
+  reasoned exemptions. The most visible: **Sauver → Enreg.** on the preset bar
+  and on both tuning-panel save buttons, **Relâche → Relâchement**,
+  **Rétroaction → Réinjection** on the delay, **Jitter → Gigue**, **Écart →
+  Étalement**, **Glissé → Portamento**, **Pente → Inclinaison**, **Ampleur du
+  vibrato → Profondeur du vibrato**, **Chatoiement → Shimmer** on the reverb,
+  **Harm. initiale / finale → Harmonique de départ / de fin**, and no-break
+  spaces before every `:` `;` and unit (`5 dB`, `440 Hz`, `2000 ms`).
+- **Two `plugiciel` became `plugin`** in the Consonant Level and Output Gain
+  tooltips. The suite settled on *ce plugin*, masculine, 2026-08-31.
+- **Four French sentences said something the English does not.** The Rd Mod
+  tooltip's French title was the knob's caption rather than the parameter name
+  and had lost "Depth"; the consonant pad's body called the corner readout an
+  *affichage d'angle*, a calque; the Transition Time body had dropped "between
+  vowels"; and the Pitch Glide body's *démarre juste* reads as "starts in tune"
+  rather than "starts on pitch". The formant-bandwidth clause was singular where
+  the English is plural. No English copy was changed.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Notes
+
+- **Two glossary exemptions, both the same one.** The consonant envelope's HOLD
+  stage keeps *Tenue* where the glossary asks for *Maintien*, because *Maintien*
+  is already this page's Sustain caption, on the same tab, three rows away. Width
+  is not the reason — *Maintien* measures 32.50 px in the 42 px cell. Recorded as
+  a `termNote` on `label.hold` and `tip.consonantHold`.
+- **`reviewed: false` is unchanged on all 182 entries.** That flag means a native
+  speaker read the string. This pass was a second machine reading against a
+  glossary and a lint; the `i18n.js` header records it, the flag records them.
+- No `en` value, key, `TIP_BINDINGS` row, `I18N_EXEMPT` entry, selector or CSS
+  rule was touched. Verified by importing both revisions and comparing.
+
 ## [1.27.0] - 2026-08-31
 
 ### Added — Hover-help, in both languages (Stage M batch M3)
