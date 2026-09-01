@@ -86,8 +86,8 @@ const TERMS = {
     'load':                     ['charger', 'charg', 'ouvrir', 'ouv'],
     'load preset':              ['charger un préréglage', 'ouvrir un préréglage'],
     'load preset from file':    ['charger un préréglage depuis un fichier', 'ouvrir un préréglage depuis un fichier'],
-    'load .scl':                ['charger .scl', 'ouvrir .scl'],
-    'load .kbm':                ['charger .kbm', 'ouvrir .kbm'],
+    'load .scl':                ['charger .scl', 'ouvrir .scl', 'charg. .scl'],   // O-Marimba: CHARGER .SCL grows #scala-buttons 200 -> 215.91 px
+    'load .kbm':                ['charger .kbm', 'ouvrir .kbm', 'charg. .kbm'],
     'load your own':            ['charger le vôtre'],
     'delete':                   ['supprimer', 'suppr'],
     'del':                      ['suppr'],
@@ -300,7 +300,7 @@ const TERMS = {
     // ── physical modelling ──────────────────────────────────────────────────
     'material':                 ['matériau'],
     'hardness':                 ['dureté'],
-    'mallet':                   ['mailloche'],
+    'mallet':                   ['maillet', 'mailloche'],   // maillet for keyboard percussion; a mailloche beats a bass drum (O-Marimba N5)
     'strike':                   ['frappe'],
     'velocity':                 ['vélocité'],
     'rosin':                    ['colophane', 'coloph'],
