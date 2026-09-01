@@ -18,7 +18,20 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-simpleSampler interface copy, English + French (v1.4.2)
+// i18n.js — O-simpleSampler interface copy, English + French (v1.4.3)
+//
+// ── v1.4.3: STAGE O (2026-08-31) — the defects Stage N found in the English ──
+// Item 55a: tip pitchMode and tip lessonRepitchStretch both opened "The
+// headline A/B." The lesson (and its label.captionRepitchStretch) keeps the
+// phrase — it is the tour's framing. The CONTROL tip now opens with what the
+// control is, "Two ways to move pitch." / "Deux façons de déplacer la
+// hauteur." — same two claims after it, no new claim; fr reviewed: false.
+// Tip height unchanged (measured, see CHANGELOG).
+// Item 55b: the French Stretch READOUT face (label.pitchStretch, 189.59 px
+// nowrap) wrapped under a 150 px CSS cap — a width fix in styles.css, not
+// copy: the readout is on its own 215.50 px flex line. tests/i18n-states.json
+// now drives the Stretch state so check-ui-labels measures that face.
+// Item 58: focus latch in js/app.js setupTooltips — no copy change.
 //
 // ── v1.4.2: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -273,10 +286,10 @@ export const I18N = Object.freeze({
     },
     pitchMode: {
         en: { t: 'Pitch Mode',
-              b: 'The headline A/B. Repitch changes speed to change pitch (like speeding up a record — higher is faster). Stretch holds the timing and moves pitch on its own.' },
+              b: 'Two ways to move pitch. Repitch changes speed to change pitch (like speeding up a record — higher is faster). Stretch holds the timing and moves pitch on its own.' },
         fr: { t: 'Mode de hauteur',
-              b: 'Le A/B central. Repitch change la vitesse pour changer la hauteur (comme un disque accéléré — plus c’est aigu, plus c’est rapide). Stretch conserve la durée et déplace la hauteur seule.',
-              reviewed: true },
+              b: 'Deux façons de déplacer la hauteur. Repitch change la vitesse pour changer la hauteur (comme un disque accéléré — plus c’est aigu, plus c’est rapide). Stretch conserve la durée et déplace la hauteur seule.',
+              reviewed: false },
     },
     tune: {
         en: { t: 'Tune',

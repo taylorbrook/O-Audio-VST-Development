@@ -3,6 +3,63 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.3] — 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide
+i18n rollout.
+
+### Fixed
+
+- **item 55a — Pitch Mode tooltip:** `tip.pitchMode` and the tour lesson
+  `tip.lessonRepitchStretch` both opened "The headline A/B." (`js/i18n.js`,
+  the two `b:` lines). The lesson keeps the phrase — it is the tour's framing,
+  and `label.captionRepitchStretch` echoes it. The CONTROL tip now opens with
+  what the control is: **"Two ways to move pitch."** / **"Deux façons de
+  déplacer la hauteur."** — the two claims after it are unchanged, no new
+  claim. French `reviewed: false`. Tip height measured on the real
+  `#tooltip` at 980×720: en 100.59 px → 100.59 (unchanged), fr 100.59 →
+  116.78 (one more line; bottom at y 546, 174 px inside the frame).
+- **item 55b — Repitch/Stretch readout wrapping in French:**
+  `#pitchModeReadout` in the Stretch state read *Stretch — durée conservée,
+  hauteur indépendante* on TWO lines under `.pitch-mode-readout
+  { max-width: 150px }` (`css/styles.css`): 189.59 px of text nowrap, +11.88 px
+  of row height, 96 non-label elements moved between English and French and
+  `label.play` / `label.kbdHint` pushed 8.7 px past the 720 px frame — in a
+  state no gate drove. `tests/i18n-states.json` now drives Pitch Mode to
+  Stretch through the stub's own combo state (`setChoiceIndex(1)`, the
+  O-Bowed shape), and `check-ui-labels` went RED on the unchanged CSS (3
+  FAILED: [5], [6], [7] 96 moved) before the fix. The fix is WIDTH, not copy:
+  the readout is the second flex line of its wrapping `.region-row` (104 px
+  select cell + 16 px gap + even the narrowest 115.30 px face exceeds the
+  215.50 px row), so the whole row is its line and the 150 px cap was
+  arbitrary. `max-width: 200px` — 10.41 px over the widest face, 15.50 px
+  inside the row. Readout width (nowrap, px): en Repitch 115.30, en Stretch
+  147.39, fr Repitch 124.80, fr Stretch 189.59; element height 11.88 in all
+  four (was 23.75 in fr/Stretch); row height 69.31 in all four (was 81.19).
+  `check-ui-labels` 0 moved in all five states after, both languages. The
+  readout is a `[data-i18n]` element written by `setLabel` from
+  `label.pitchStretch`, not a Choice face — a copy fix was possible but the
+  row had the room.
+- **item 58 — focus latch:** a pointer click on a focusable anchor
+  (`#toggle-reverse`, `#btnLoad`, the two combos) fired `pointerdown → hide`
+  and then `focus → focusin → show`, so the tip came straight back under the
+  pointer. Ported the Stage M `lastInputWasPointer` latch (O-Comp v1.7.0
+  `setupTooltips`) into `js/app.js`: `pointerdown` latches, ANY `keydown`
+  releases, `focusin` opens only while released, `focusout` hides, Escape
+  hides. The page's one programmatic `.focus()` (`gearBtn.focus()` in the
+  popover's Escape handler) is covered by construction. Probe, hover-help
+  driven ON through the page's own gear → toggle, body gated: click →
+  tip on 3 of 4 anchors before, 0 of 4 after (the knob took no focus either
+  way); Tab → tip with matching body on all six tour buttons before and
+  after; click `#toggle-reverse`, Shift+Tab, Tab back → tip *Reverse* /
+  *Inversion* after; Escape → hidden. Both languages.
+
+### Not changed
+
+- No DSP: `Source/PluginProcessor.cpp`, `SampleVoice.h`, `SampleSound.h`,
+  `dsp/*.h` byte-identical (sha256 recorded); render harness ALL PASS.
+- No parameter ID, preset format or state-tree key.
+
 ## [1.4.2] — 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.
