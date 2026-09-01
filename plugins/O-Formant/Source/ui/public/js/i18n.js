@@ -18,7 +18,77 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Formant on-page copy, English + French (v1.27.0, canon v2)
+// i18n.js — O-Formant on-page copy, English + French (v1.27.1, canon v2)
+//
+// ── v1.27.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 60 of 182 entries — 29 terminology, 36 typography, 1 grammar
+// (agreement), 4 meaning, 2 reasoned exemptions. Entries carrying two
+// categories are counted in both, so the columns sum past 60. sameAsEn: kept
+// 21, translated 0. termNote exemptions: 2 (listed below). Left as drafted:
+// the other 122. reviewed: false throughout — no native speaker yet.
+// Lint: 85 at baseline (24 F1, 21 T7, 20 G1, 12 T5, 8 T4) -> 0, --strict exit 0.
+//
+// DECISIONS THE NEXT READER NEEDS:
+//
+//   The width defence three captions above USED to carry is BACKWARDS, measured
+//   with Range.selectNodeContents on the real node at the shipping 800x600 frame:
+//     - Save: the v1.26.0 note called "Sauver" the width driver of the centred
+//       preset bar. .preset-save-btn has min-width: 65px and overflow: visible;
+//       "Sauver" measures 46.02 px inside it and "Enreg." 41.84 — NARROWER, same
+//       65 px box, nothing moves. Only "Enregistrer" (78.78) grows the box, to
+//       96.78. The glossary abbreviation was free.
+//     - Vib Rate / Vib Depth: the note defended "Ampleur" over "Profondeur" on a
+//       55 px cell. The glossary's own abbreviated roots are narrower than what
+//       shipped — "Vit. vibrato" 40.95 vs "Vib Vitesse" 41.02, "Prof. vibrato"
+//       45.50 vs "Vib Ampleur" 46.72 — and "Prof. vibrato" cannot be confused
+//       with the effects rack's standalone "Profondeur", which was the note's
+//       actual worry.
+//     - Feedback: "Réinjection" 41.50 is narrower than the forbidden
+//       "Rétroaction" 42.00 in the same 50 px cell.
+//   The one width defence that HOLDS, to the hundredth: "Formant du chanteur" is
+//   74.98 px in a 55 px .knob-wrap with a 10 px gap — it overflows 9.99 px per
+//   side and clears its neighbour by 0.01 px. "F. chanteur" (39.78) stays.
+//
+//   ROOT TERMS APPLIED because they fit (55 px cells, nowrap, overflow: visible,
+//   10 px gaps): Étalement 36.48, Portamento 41.50, Relâchement 46.98,
+//   Inclinaison 40.00, Gigue 22.00, Focalisation 44.00. Harmonique de départ
+//   89.42 and Harmonique de fin 75.55 fit the tuning panel's 118 px .gen-row
+//   label slot (198 px row less the 80 px input).
+//
+//   ABBREVIATION KEPT for width: Damp. "Amortissement" measures 55.00 in the
+//   effects rack's 50 px cell — it clears the 10 px gap by 7.50 px, but it would
+//   be the only caption on the page wider than its own dial column, and O-Prism
+//   already ships the glossary's listed "Amort." (25.75). Convergence, not taste.
+//
+//   TWO termNote EXEMPTIONS, both the same one: the consonant envelope's HOLD
+//   stage keeps "Tenue" where the glossary forbids it, because "Maintien" is
+//   already this page's Sustain caption three rows away on the same tab. Width
+//   is not the reason — Maintien is 32.50 px in the 42 px cell. One French word
+//   on two live controls is the N1 correction-11 defect in mirror image.
+//
+//   FOCUS has no glossary row and "Focale" is the optical focal length, so the
+//   caption and tip.vowelFocus now read Focalisation / Focalisation vocalique.
+//   Reported for the list to grow rather than settled here.
+//
+//   LOANWORDS KEPT: Shimmer (glossary), Chorus, Mix, EQ, Mode, Mod, Gain,
+//   Transition, Trans, Fric, Lab, Alv, Pal, Auto, Rotation, Divisions, Notes,
+//   {n} notes, and canvas "fricative" — 21 straight copies, every one a word
+//   French uses, each declared sameAsEn: true or a title over a translated body.
+//   JITTER did NOT stay: the glossary settles gigue, so the caption, the tip
+//   title and the two cross-references in tip.shimmer's body all moved together.
+//   The AudioParameterChoice faces inside French bodies stay English by design
+//   (Cascade / Parallel / Hybrid, Normal / PingPong) — I18N_EXEMPT, untouched.
+//
+//   REGISTER: vous, imperative for the two pad instructions ("Faites glisser"),
+//   elliptical "À monter / À activer" elsewhere. Unchanged, and consistent.
+//
+//   TYPOGRAPHY was applied by a character-level scanner over the STRING VALUES
+//   inside fr: { } only — not a regex over the file, not a line-scoped state
+//   machine (a `fr: {` inside a comment opens one 17 lines early). 43 literals
+//   took 47 U+00A0; the control imported both revisions and confirmed 0 en
+//   values, 0 keys, 0 TIP_BINDINGS rows and 0 I18N_EXEMPT entries changed, and
+//   that every U+00A0 in the file lies inside a t:/b: string value.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -98,7 +168,7 @@ export const I18N = Object.freeze({
     // element can own it. See the CHANGELOG note about prompt() itself.
     'js.savePresetAs': {
         en: { t: 'Save preset as:', b: '' },
-        fr: { t: 'Enregistrer le préréglage sous :', b: '', reviewed: false },
+        fr: { t: 'Enregistrer le préréglage sous :', b: '', reviewed: false },
     },
 
     // ── HOVER-HELP (v1.27.0, Stage M batch M3) ──────────────────────────────
@@ -143,7 +213,7 @@ export const I18N = Object.freeze({
                + 'Both axes run 0 to 1.' },
         fr: { t: 'Morphose vocalique',
               b: 'Faites glisser le curseur pour passer continûment d’une voyelle à l’autre sur la '
-               + 'pastille ; de gauche à droite c’est Vowel X, de bas en haut Vowel Y. Les glyphes '
+               + 'pastille ; de gauche à droite c’est Vowel X, de bas en haut Vowel Y. Les glyphes '
                + 'API marquent la place de chaque voyelle cardinale et les repères F1..F5 suivent '
                + 'les formants. Les deux axes vont de 0 à 1.', reviewed: false },
     },
@@ -152,7 +222,7 @@ export const I18N = Object.freeze({
               b: 'Sets how sharply the pad snaps to the nearest cardinal vowel. Low values blend '
                + 'the surrounding vowels smoothly, high values pull the sound onto whichever vowel '
                + 'the cursor is closest to. Range 1 to 6.' },
-        fr: { t: 'Focale vocalique',
+        fr: { t: 'Focalisation vocalique',
               b: 'Règle la netteté avec laquelle la pastille se cale sur la voyelle cardinale la '
                + 'plus proche. Les valeurs basses fondent les voyelles voisines, les valeurs hautes '
                + 'tirent le son vers celle dont le curseur est le plus près. Plage 1 à 6.',
@@ -178,8 +248,8 @@ export const I18N = Object.freeze({
                + 'the tone; a lot turns the voice to a whisper. Range 0 to 1.' },
         fr: { t: 'Souffle',
               b: 'Mélange un bruit d’aspiration à la source glottique, la turbulence de l’air '
-               + 'traversant une glotte incomplètement fermée. Un peu élargit la bande passante '
-               + 'des formants et adoucit le timbre ; beaucoup transforme la voix en chuchotement. '
+               + 'traversant une glotte incomplètement fermée. Un peu élargit les bandes '
+               + 'passantes des formants et adoucit le timbre ; beaucoup transforme la voix en chuchotement. '
                + 'Plage 0 à 1.', reviewed: false },
     },
     'tip.vibratoRate': {
@@ -188,17 +258,17 @@ export const I18N = Object.freeze({
                + 'slower reads as a wobble and faster as a tremble. Range 0.5 to 12 Hz.' },
         fr: { t: 'Vitesse du vibrato',
               b: 'Vitesse du vibrato de hauteur. La plage du chant classique se situe entre 5 et '
-               + '7 Hz ; plus lent s’entend comme une oscillation, plus rapide comme un '
-               + 'tremblement. Plage 0,5 à 12 Hz.', reviewed: false },
+               + '7 Hz ; plus lent s’entend comme une oscillation, plus rapide comme un '
+               + 'tremblement. Plage 0,5 à 12 Hz.', reviewed: false },
     },
     'tip.vibratoDepth': {
         en: { t: 'Vibrato Depth',
               b: 'How far the vibrato swings the pitch, in cents either side of the note. Operatic '
                + 'vibrato sits near 50 cents; 15 is a light shimmer. Range 0 to 100 cents.' },
-        fr: { t: 'Ampleur du vibrato',
+        fr: { t: 'Profondeur du vibrato',
               b: 'Amplitude du balancement de hauteur, en cents de part et d’autre de la note. Le '
-               + 'vibrato d’opéra tourne autour de 50 cents ; 15 donne un léger frémissement. '
-               + 'Plage 0 à 100 cents.', reviewed: false },
+               + 'vibrato d’opéra tourne autour de 50 cents ; 15 donne un léger frémissement. '
+               + 'Plage 0 à 100 cents.', reviewed: false },
     },
     'tip.vibratoDelay': {
         en: { t: 'Vibrato Delay',
@@ -207,18 +277,18 @@ export const I18N = Object.freeze({
                + 'than song. Range 0 to 2000 ms.' },
         fr: { t: 'Retard du vibrato',
               b: 'Durée pendant laquelle la note est tenue avant l’entrée progressive du vibrato. '
-               + 'Les chanteurs attaquent droit et ajoutent le vibrato sur la tenue ; un retard fait '
+               + 'Les chanteurs attaquent droit et ajoutent le vibrato sur la tenue ; un retard fait '
                + 'donc lire les notes brèves comme de la parole plutôt que du chant. '
-               + 'Plage 0 à 2000 ms.', reviewed: false },
+               + 'Plage 0 à 2000 ms.', reviewed: false },
     },
     'tip.jitter': {
         en: { t: 'Jitter',
               b: 'Cycle-to-cycle random variation in the glottal period. A small amount is what keeps '
                + 'a synthetic voice from sounding like a buzzer; too much reads as a rough or creaky '
                + 'voice. Range 0 to 1.' },
-        fr: { t: 'Jitter',
+        fr: { t: 'Gigue',
               b: 'Variation aléatoire de la période glottique d’un cycle à l’autre. Une petite dose '
-               + 'empêche une voix de synthèse de sonner comme un vibreur ; trop donne une voix '
+               + 'empêche une voix de synthèse de sonner comme un vibreur ; trop donne une voix '
                + 'rauque ou craquée. Plage 0 à 1.', reviewed: false },
     },
     'tip.shimmer': {
@@ -228,7 +298,7 @@ export const I18N = Object.freeze({
                + 'Range 0 to 1.' },
         fr: { t: 'Shimmer',
               b: 'Variation aléatoire de l’amplitude glottique d’un cycle à l’autre, l’équivalent en '
-               + 'intensité du Jitter. À monter avec le Jitter pour une voix âgée ou mal assurée. '
+               + 'intensité de la Gigue. À monter avec la Gigue pour une voix âgée ou mal assurée. '
                + 'Plage 0 à 1.', reviewed: false },
     },
     'tip.rdModDepth': {
@@ -236,9 +306,9 @@ export const I18N = Object.freeze({
               b: 'How much pitch, velocity and MPE pressure push the Voice Quality Rd around while a '
                + 'note plays. At zero the voice keeps one fixed quality; higher values make loud, high '
                + 'notes press and quiet ones relax. Range 0 to 1.' },
-        fr: { t: 'Mod Rd',
+        fr: { t: 'Profondeur de modulation Rd',
               b: 'Degré auquel la hauteur, la vélocité et la pression MPE font varier le Rd de la '
-               + 'Qualité vocale pendant la note. À zéro la voix garde une qualité fixe ; plus haut, '
+               + 'Qualité vocale pendant la note. À zéro la voix garde une qualité fixe ; plus haut, '
                + 'les notes fortes et aiguës se pressent et les notes douces se détendent. '
                + 'Plage 0 à 1.', reviewed: false },
     },
@@ -247,10 +317,10 @@ export const I18N = Object.freeze({
               b: 'Tilts the overall spectrum of the source, darkening it below zero and brightening it '
                + 'above. Use it to place the voice in a mix without touching the formants. '
                + 'Range −12 to +12 dB.' },
-        fr: { t: 'Pente spectrale',
-              b: 'Incline le spectre général de la source : plus sombre en dessous de zéro, plus clair '
+        fr: { t: 'Inclinaison spectrale',
+              b: 'Incline le spectre général de la source : plus sombre en dessous de zéro, plus clair '
                + 'au-dessus. Sert à placer la voix dans un mixage sans toucher aux formants. '
-               + 'Plage −12 à +12 dB.', reviewed: false },
+               + 'Plage −12 à +12 dB.', reviewed: false },
     },
 
     // ── Consonant ───────────────────────────────────────────────────────────
@@ -262,8 +332,8 @@ export const I18N = Object.freeze({
                + 'lands in. Both axes run 0 to 1.' },
         fr: { t: 'Lieu et mode de la consonne',
               b: 'Faites glisser pour façonner le bruit de consonne. De gauche à droite le lieu '
-               + 'd’articulation, du labial à l’alvéolaire, au palatal puis au vélaire ; de bas en '
-               + 'haut le mode, de l’occlusive à la fricative. Le petit affichage d’angle donne la '
+               + 'd’articulation, du labial à l’alvéolaire, au palatal puis au vélaire ; de bas en '
+               + 'haut le mode, de l’occlusive à la fricative. L’affichage dans le coin donne la '
                + 'fréquence centrale du bruit et le mode obtenu. Les deux axes vont de 0 à 1.',
               reviewed: false },
     },
@@ -272,7 +342,7 @@ export const I18N = Object.freeze({
               b: 'Loudness of the consonant noise relative to the voiced sound. At zero the plugin '
                + 'sings pure vowels. Range 0 to 2.' },
         fr: { t: 'Niveau de consonne',
-              b: 'Intensité du bruit de consonne par rapport au son voisé. À zéro le plugiciel ne '
+              b: 'Intensité du bruit de consonne par rapport au son voisé. À zéro le plugin ne '
                + 'chante que des voyelles. Plage 0 à 2.', reviewed: false },
     },
     'tip.consonantVoicing': {
@@ -300,7 +370,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Attaque de consonne',
               b: 'Temps de montée de l’enveloppe du bruit de consonne. Les valeurs brèves donnent un '
                + 'claquement occlusif, les plus longues une approche qui s’entend comme une '
-               + 'fricative. Plage 1 à 100 ms.', reviewed: false },
+               + 'fricative. Plage 1 à 100 ms.', reviewed: false },
     },
     'tip.consonantHold': {
         en: { t: 'Cons Hold',
@@ -308,8 +378,10 @@ export const I18N = Object.freeze({
                + 'plosives barely do. Range 0 to 200 ms.' },
         fr: { t: 'Tenue de consonne',
               b: 'Durée pendant laquelle le bruit de consonne reste au niveau plein avant de '
-               + 'décroître. Les fricatives tiennent ; les occlusives à peine. Plage 0 à 200 ms.',
-              reviewed: false },
+               + 'décroître. Les fricatives tiennent ; les occlusives à peine. Plage 0 à 200 ms.',
+              reviewed: false,
+              termNote: 'the consonant envelope\'s HOLD stage, named for its caption '
+                      + 'label.hold; Maintien is this page\'s Sustain' },
     },
     'tip.consonantDecay': {
         en: { t: 'Cons Decay',
@@ -317,7 +389,7 @@ export const I18N = Object.freeze({
                + 'Range 5 to 200 ms.' },
         fr: { t: 'Déclin de consonne',
               b: 'Temps de descente de l’enveloppe du bruit de consonne vers la voyelle qui suit. '
-               + 'Plage 5 à 200 ms.', reviewed: false },
+               + 'Plage 5 à 200 ms.', reviewed: false },
     },
     'tip.consonantTransition': {
         en: { t: 'Transition',
@@ -339,8 +411,8 @@ export const I18N = Object.freeze({
                + 'and suits noisier sounds, Hybrid runs both. Cascade, Parallel or Hybrid.' },
         fr: { t: 'Topologie des formants',
               b: 'Choisit le câblage des cinq résonateurs de formant. Cascade est la chaîne série de '
-               + 'Klatt, la plus naturelle pour les voyelles ; Parallel donne à chaque formant son '
-               + 'propre gain et convient aux sons plus bruités ; Hybrid combine les deux. Cascade, '
+               + 'Klatt, la plus naturelle pour les voyelles ; Parallel donne à chaque formant son '
+               + 'propre gain et convient aux sons plus bruités ; Hybrid combine les deux. Cascade, '
                + 'Parallel ou Hybrid.', reviewed: false },
     },
     'tip.formantShift': {
@@ -352,25 +424,25 @@ export const I18N = Object.freeze({
               b: 'Déplace tous les formants ensemble vers le haut ou le bas sans toucher à la '
                + 'hauteur. Vers le bas cela s’entend comme un corps plus grand et une gorge plus '
                + 'profonde, vers le haut comme un corps plus petit. '
-               + 'Plage −24 à +24 demi-tons.', reviewed: false },
+               + 'Plage −24 à +24 demi-tons.', reviewed: false },
     },
     'tip.formantSpread': {
         en: { t: 'Formant Spread',
               b: 'Multiplies the spacing between the formants around the first one. Below 1 crowds '
                + 'them together and thickens the vowel; above 1 opens them out. '
                + 'Range 0.50 to 2.00.' },
-        fr: { t: 'Écart des formants',
+        fr: { t: 'Étalement des formants',
               b: 'Multiplie l’espacement entre les formants autour du premier. En dessous de 1 ils se '
-               + 'resserrent et la voyelle s’épaissit ; au-dessus de 1 ils s’écartent. '
+               + 'resserrent et la voyelle s’épaissit ; au-dessus de 1 ils s’écartent. '
                + 'Plage 0,50 à 2,00.', reviewed: false },
     },
     'tip.pitchGlide': {
         en: { t: 'Pitch Glide',
               b: 'Time taken to slide from the previous note to the new one, the portamento of the '
                + 'voice. At zero every note starts on pitch. Range 0 to 1000 ms.' },
-        fr: { t: 'Glissé de hauteur',
+        fr: { t: 'Portamento de hauteur',
               b: 'Temps mis pour glisser de la note précédente à la nouvelle, le portamento de la '
-               + 'voix. À zéro chaque note démarre juste. Plage 0 à 1000 ms.', reviewed: false },
+               + 'voix. À zéro chaque note démarre directement sur sa hauteur. Plage 0 à 1000 ms.', reviewed: false },
     },
     'tip.transitionTime': {
         en: { t: 'Transition Time',
@@ -379,8 +451,8 @@ export const I18N = Object.freeze({
                + 'does. Range 0 to 1.' },
         fr: { t: 'Temps de transition',
               b: 'Rapidité avec laquelle les filtres de formant se déplacent au changement de '
-               + 'voyelle. Les valeurs basses passent d’un coup, les valeurs hautes fondent l’une '
-               + 'dans l’autre comme le fait un vrai conduit vocal. Plage 0 à 1.', reviewed: false },
+               + 'voyelle. Les valeurs basses sautent d’une voyelle à l’autre, les valeurs hautes '
+               + 'fondent l’une dans l’autre comme le fait un vrai conduit vocal. Plage 0 à 1.', reviewed: false },
     },
     'tip.singersFormant': {
         en: { t: 'Singer’s Formant',
@@ -388,7 +460,7 @@ export const I18N = Object.freeze({
                + 'the resonance trained singers use to carry over an orchestra. Raise it when the '
                + 'voice disappears in a dense mix. Range 0 to 1.' },
         fr: { t: 'Formant du chanteur',
-              b: 'Rassemble les troisième, quatrième et cinquième formants en un amas autour de 3 kHz '
+              b: 'Rassemble les troisième, quatrième et cinquième formants en un amas autour de 3 kHz '
                + 'et le rehausse — la résonance qui permet aux chanteurs formés de passer par-dessus '
                + 'un orchestre. À monter quand la voix disparaît dans un mixage dense. '
                + 'Plage 0 à 1.', reviewed: false },
@@ -400,7 +472,7 @@ export const I18N = Object.freeze({
                + 'Range 0 to 1.' },
         fr: { t: 'Nasalité',
               b: 'Ouvre le voile du palais, couplant la cavité nasale au conduit vocal et ajoutant sa '
-               + 'paire pôle-zéro. Indispensable pour m, n et ng ; un peu sur une voyelle s’entend '
+               + 'paire pôle-zéro. Indispensable pour m, n et ng ; un peu sur une voyelle s’entend '
                + 'comme un rhume. Plage 0 à 1.', reviewed: false },
     },
     'tip.nasalPlace': {
@@ -420,7 +492,7 @@ export const I18N = Object.freeze({
                + 'Range 0.001 to 5 s.' },
         fr: { t: 'Attaque',
               b: 'Temps que met la note à atteindre son niveau plein après l’enfoncement d’une '
-               + 'touche. Plage 0,001 à 5 s.', reviewed: false },
+               + 'touche. Plage 0,001 à 5 s.', reviewed: false },
     },
     'tip.decay': {
         en: { t: 'Decay',
@@ -428,7 +500,7 @@ export const I18N = Object.freeze({
                + 'Range 0.001 to 5 s.' },
         fr: { t: 'Déclin',
               b: 'Temps que met la note à redescendre du niveau plein au niveau de Maintien. '
-               + 'Plage 0,001 à 5 s.', reviewed: false },
+               + 'Plage 0,001 à 5 s.', reviewed: false },
     },
     'tip.sustain': {
         en: { t: 'Sustain',
@@ -442,17 +514,17 @@ export const I18N = Object.freeze({
         en: { t: 'Release',
               b: 'Time the note takes to fade to silence after the key is let go. '
                + 'Range 0.001 to 10 s.' },
-        fr: { t: 'Relâche',
+        fr: { t: 'Relâchement',
               b: 'Temps que met la note à s’éteindre après le relâchement de la touche. '
-               + 'Plage 0,001 à 10 s.', reviewed: false },
+               + 'Plage 0,001 à 10 s.', reviewed: false },
     },
     'tip.outputGain': {
         en: { t: 'Output Gain',
               b: 'Final level of the plugin, applied after the effects rack. '
                + 'Range −60 to +12 dB.' },
         fr: { t: 'Gain de sortie',
-              b: 'Niveau final du plugiciel, appliqué après le rack d’effets. '
-               + 'Plage −60 à +12 dB.', reviewed: false },
+              b: 'Niveau final du plugin, appliqué après le rack d’effets. '
+               + 'Plage −60 à +12 dB.', reviewed: false },
     },
     'tip.stereoWidth': {
         en: { t: 'Stereo Width',
@@ -472,7 +544,7 @@ export const I18N = Object.freeze({
                + 'name are inverted on purpose. Off or On.' },
         fr: { t: 'Contournement du chorus',
               b: 'Insère ou retire le chorus du trajet du signal. Le bouton affiche Marche quand le '
-               + 'chorus fonctionne et Arrêt quand il est contourné : la légende et le nom du '
+               + 'chorus fonctionne et Arrêt quand il est contourné : la légende et le nom du '
                + 'paramètre sont inversés à dessein. Arrêt ou Marche.', reviewed: false },
     },
     'tip.chorusRate': {
@@ -481,7 +553,7 @@ export const I18N = Object.freeze({
                + 'Range 0.1 to 10 Hz.' },
         fr: { t: 'Vitesse du chorus',
               b: 'Vitesse de modulation du retard du chorus. Les réglages lents dérivent, les rapides '
-               + 'chevrotent. Plage 0,1 à 10 Hz.', reviewed: false },
+               + 'chevrotent. Plage 0,1 à 10 Hz.', reviewed: false },
     },
     'tip.chorusDepth': {
         en: { t: 'Chorus Depth',
@@ -508,21 +580,21 @@ export const I18N = Object.freeze({
                + 'name are inverted on purpose. Off or On.' },
         fr: { t: 'Contournement du délai',
               b: 'Insère ou retire le délai du trajet du signal. Le bouton affiche Marche quand le '
-               + 'délai fonctionne et Arrêt quand il est contourné : la légende et le nom du '
+               + 'délai fonctionne et Arrêt quand il est contourné : la légende et le nom du '
                + 'paramètre sont inversés à dessein. Arrêt ou Marche.', reviewed: false },
     },
     'tip.delayTime': {
         en: { t: 'Delay Time',
               b: 'Time between the voice and its first echo. Range 0.001 to 2 s.' },
         fr: { t: 'Durée du délai',
-              b: 'Temps entre la voix et son premier écho. Plage 0,001 à 2 s.', reviewed: false },
+              b: 'Temps entre la voix et son premier écho. Plage 0,001 à 2 s.', reviewed: false },
     },
     'tip.delayFeedback': {
         en: { t: 'Delay Feedback',
               b: 'How much of each echo is fed back to make the next one, which sets how many repeats '
                + 'you hear. The ceiling stops short of 1 so the line cannot run away. '
                + 'Range 0 to 0.95.' },
-        fr: { t: 'Rétroaction du délai',
+        fr: { t: 'Réinjection du délai',
               b: 'Part de chaque écho réinjectée pour produire le suivant, ce qui fixe le nombre de '
                + 'répétitions entendues. Le plafond s’arrête avant 1 pour que la ligne ne s’emballe '
                + 'pas. Plage 0 à 0,95.', reviewed: false },
@@ -553,7 +625,7 @@ export const I18N = Object.freeze({
                + 'name are inverted on purpose. Off or On.' },
         fr: { t: 'Contournement de la réverb',
               b: 'Insère ou retire la réverbération du trajet du signal. Le bouton affiche Marche '
-               + 'quand la réverb fonctionne et Arrêt quand elle est contournée : la légende et le '
+               + 'quand la réverb fonctionne et Arrêt quand elle est contournée : la légende et le '
                + 'nom du paramètre sont inversés à dessein. Arrêt ou Marche.', reviewed: false },
     },
     'tip.reverbSize': {
@@ -580,7 +652,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Pré-délai de la réverb',
               b: 'Intervalle entre la voix directe et le début de la queue de réverbération. Quelques '
                + 'dizaines de millisecondes gardent les mots intelligibles dans une réverb longue. '
-               + 'Plage 0 à 200 ms.', reviewed: false },
+               + 'Plage 0 à 200 ms.', reviewed: false },
     },
     'tip.reverbMod': {
         en: { t: 'Reverb Modulation',
@@ -588,7 +660,7 @@ export const I18N = Object.freeze({
                + 'fixed resonances. A little removes the metallic colouration from a long tail. '
                + 'Range 0 to 1.' },
         fr: { t: 'Modulation de la réverb',
-              b: 'Module la longueur des lignes en peigne avec un banc d’OBF lents pour que la queue '
+              b: 'Module la longueur des lignes en peigne avec un banc de LFO lents pour que la queue '
                + 'ne s’installe pas sur des résonances fixes. Un peu suffit à retirer la coloration '
                + 'métallique d’une queue longue. Plage 0 à 1.', reviewed: false },
     },
@@ -596,7 +668,7 @@ export const I18N = Object.freeze({
         en: { t: 'Reverb Shimmer',
               b: 'Feeds an octave-up copy of the tail back into the reverb, so it climbs as it decays. '
                + 'Range 0 to 1.' },
-        fr: { t: 'Chatoiement de la réverb',
+        fr: { t: 'Shimmer de la réverb',
               b: 'Réinjecte dans la réverb une copie de la queue transposée à l’octave supérieure, si '
                + 'bien qu’elle monte en s’éteignant. Plage 0 à 1.', reviewed: false },
     },
@@ -617,15 +689,15 @@ export const I18N = Object.freeze({
                + 'are inverted on purpose. Off or On.' },
         fr: { t: 'Contournement de l’EQ',
               b: 'Insère ou retire l’égaliseur du trajet du signal. Le bouton affiche Marche quand '
-               + 'l’EQ fonctionne et Arrêt quand il est contourné : la légende et le nom du paramètre '
+               + 'l’EQ fonctionne et Arrêt quand il est contourné : la légende et le nom du paramètre '
                + 'sont inversés à dessein. Arrêt ou Marche.', reviewed: false },
     },
     'tip.eqLowGain': {
         en: { t: 'EQ Low Gain',
               b: 'Cut or boost of the low shelf, hinged at 200 Hz. Range −12 to +12 dB.' },
         fr: { t: 'Gain grave de l’EQ',
-              b: 'Atténuation ou accentuation du plateau grave, articulé à 200 Hz. '
-               + 'Plage −12 à +12 dB.', reviewed: false },
+              b: 'Atténuation ou accentuation du plateau grave, articulé à 200 Hz. '
+               + 'Plage −12 à +12 dB.', reviewed: false },
     },
     'tip.eqMidGain': {
         en: { t: 'EQ Mid Gain',
@@ -633,7 +705,7 @@ export const I18N = Object.freeze({
                + 'Range −12 to +12 dB.' },
         fr: { t: 'Gain médium de l’EQ',
               b: 'Atténuation ou accentuation de la cloche médium, centrée sur la Fréq. méd. de l’EQ. '
-               + 'Plage −12 à +12 dB.', reviewed: false },
+               + 'Plage −12 à +12 dB.', reviewed: false },
     },
     'tip.eqMidFreq': {
         en: { t: 'EQ Mid Freq',
@@ -641,14 +713,14 @@ export const I18N = Object.freeze({
                + '500 and 3000 Hz. Range 200 to 8000 Hz.' },
         fr: { t: 'Fréq. médium de l’EQ',
               b: 'Fréquence centrale de la cloche médium. L’essentiel du caractère des voyelles se '
-               + 'situe entre 500 et 3000 Hz. Plage 200 à 8000 Hz.', reviewed: false },
+               + 'situe entre 500 et 3000 Hz. Plage 200 à 8000 Hz.', reviewed: false },
     },
     'tip.eqHighGain': {
         en: { t: 'EQ High Gain',
               b: 'Cut or boost of the high shelf, hinged at 8 kHz. Range −12 to +12 dB.' },
         fr: { t: 'Gain aigu de l’EQ',
-              b: 'Atténuation ou accentuation du plateau aigu, articulé à 8 kHz. '
-               + 'Plage −12 à +12 dB.', reviewed: false },
+              b: 'Atténuation ou accentuation du plateau aigu, articulé à 8 kHz. '
+               + 'Plage −12 à +12 dB.', reviewed: false },
     },
 
     // ── Lyrics ──────────────────────────────────────────────────────────────
@@ -717,11 +789,16 @@ export const LABELS = Object.freeze({
     'label.language':      { en: { t: 'Language' },   fr: { t: 'Langue',    reviewed: false } },
 
     // ── Preset bar ──────────────────────────────────────────────────────────
-    // "Sauver", not "Enregistrer": the button is the width driver for the
-    // whole centred preset bar (see the .preset-save-btn pin in index.html),
-    // and 11 characters against 4 moved four siblings. The prompt this button
-    // opens says "Enregistrer le préréglage sous :" in full — it has no box.
-    'label.save':          { en: { t: 'Save' },       fr: { t: 'Sauver',    reviewed: false } },
+    // "Enreg." at v1.27.1, and the v1.26.0 note this replaces was backwards.
+    // .preset-save-btn carries min-width: 65px, so the box is 65 px in BOTH
+    // languages whatever the caption; the intrinsic border-box widths are SAVE
+    // 46.83, SAUVER 64.02, ENREG. 59.84. The abbreviation is 4.18 px NARROWER
+    // than the word it replaces and nothing moved. Only "Enregistrer" (96.78
+    // border-box) would break the pin. The pin itself stays load-bearing —
+    // without it SAVE and ENREG. differ by 13.01 px and re-centre the cluster.
+    // The prompt this button opens still says "Enregistrer le préréglage
+    // sous :" in full; it has no box.
+    'label.save':          { en: { t: 'Save' },       fr: { t: 'Enreg.',    reviewed: false } },
     // The "no filter" sentinel of #preset-category. Its VALUE is the string
     // "all" and that is what populateCategories() and the change handler
     // compare, so the visible text is free to change.
@@ -739,16 +816,25 @@ export const LABELS = Object.freeze({
     // glottalRd drives the LF model's Rd shape, which IS the voice quality.
     'label.voiceQ':        { en: { t: 'Voice Q' },    fr: { t: 'Qualité',   reviewed: false } },
     'label.breath':        { en: { t: 'Breath' },     fr: { t: 'Souffle',   reviewed: false } },
-    'label.vibRate':       { en: { t: 'Vib Rate' },   fr: { t: 'Vib Vitesse', reviewed: false } },
-    // "Ampleur" rather than "Profondeur": the cell is 55 px and the standalone
-    // Depth knob in the effects rack already owns "Profondeur".
-    'label.vibDepth':      { en: { t: 'Vib Depth' },  fr: { t: 'Vib Ampleur', reviewed: false } },
+    'label.vibRate':       { en: { t: 'Vib Rate' },   fr: { t: 'Vit. vibrato', reviewed: false } },
+    // "Prof. vibrato" at v1.27.1. The v1.26.0 note chose "Ampleur" to keep the
+    // 55 px cell clear of the effects rack's standalone "Profondeur"; the
+    // glossary's abbreviated root answers both worries at once — it cannot be
+    // confused with the bare "Profondeur" and it is NARROWER than what shipped
+    // (45.50 against "Vib Ampleur" 46.72; "Vit. vibrato" 40.95 against
+    // "Vib Vitesse" 41.02). Measured on this page, nowrap, at 800 x 600.
+    'label.vibDepth':      { en: { t: 'Vib Depth' },  fr: { t: 'Prof. vibrato', reviewed: false } },
     'label.vibDelay':      { en: { t: 'Vib Delay' },  fr: { t: 'Vib Retard',  reviewed: false } },
-    // jitter and shimmer are the terms French voice science uses untranslated.
-    'label.jitter':        { en: { t: 'Jitter' },     fr: { t: 'Jitter',    reviewed: false, sameAsEn: true } },
+    // Shimmer stays — the glossary carries it as a loanword the French audio
+    // press uses. Jitter does NOT: the glossary settles gigue, so the caption,
+    // tip.jitter's title and the two cross-references inside tip.shimmer's body
+    // moved together at v1.27.1. French voice-science papers do write "jitter",
+    // and that argument was weighed and lost to one suite-wide word (22.00 px
+    // against 18.00 in a 55 px cell, so width had nothing to say).
+    'label.jitter':        { en: { t: 'Jitter' },     fr: { t: 'Gigue',     reviewed: false } },
     'label.shimmer':       { en: { t: 'Shimmer' },    fr: { t: 'Shimmer',   reviewed: false, sameAsEn: true } },
     'label.rdMod':         { en: { t: 'Rd Mod' },     fr: { t: 'Mod Rd',    reviewed: false } },
-    'label.tilt':          { en: { t: 'Tilt' },       fr: { t: 'Pente',     reviewed: false } },
+    'label.tilt':          { en: { t: 'Tilt' },       fr: { t: 'Inclinaison', reviewed: false } },
 
     // ── Synth tab: consonant ────────────────────────────────────────────────
     'label.consonant':     { en: { t: 'Consonant' },  fr: { t: 'Consonne',  reviewed: false } },
@@ -767,19 +853,31 @@ export const LABELS = Object.freeze({
     'label.mannerPlosive':   { en: { t: 'Plos' }, fr: { t: 'Occl', reviewed: false } },
     // The consonant envelope column: 42 px cells, the tightest on the page.
     'label.attackShort':   { en: { t: 'Atk' },    fr: { t: 'Att',   reviewed: false } },
-    'label.hold':          { en: { t: 'Hold' },   fr: { t: 'Tenue', reviewed: false } },
+    // "Tenue", not the glossary's "Maintien": Maintien is already this page's
+    // Sustain caption (label.sustain, 32.50 px in the 55 px ADSR cell three
+    // rows away and visible at the same time), and one French word on two
+    // different controls is the N1 correction-11 defect in mirror image.
+    // Width is not the reason — Maintien measures 32.50 px in this 42 px cell.
+    'label.hold':          { en: { t: 'Hold' },   fr: { t: 'Tenue', reviewed: false,
+                             termNote: 'the consonant envelope\'s HOLD stage; Maintien is already '
+                                     + 'label.sustain on this same tab, and two controls sharing '
+                                     + 'one French name is a defect' } },
     'label.transShort':    { en: { t: 'Trans' },  fr: { t: 'Trans', reviewed: false, sameAsEn: true } },
 
     // ── Synth tab: character ────────────────────────────────────────────────
     'label.character':     { en: { t: 'Character' },  fr: { t: 'Caractère', reviewed: false } },
     'label.topology':      { en: { t: 'Topology' },   fr: { t: 'Topologie', reviewed: false } },
     'label.shift':         { en: { t: 'Shift' },      fr: { t: 'Décalage',  reviewed: false } },
-    'label.spread':        { en: { t: 'Spread' },     fr: { t: 'Écart',     reviewed: false } },
-    'label.glide':         { en: { t: 'Glide' },      fr: { t: 'Glissé',    reviewed: false } },
+    'label.spread':        { en: { t: 'Spread' },     fr: { t: 'Étalement', reviewed: false } },
+    'label.glide':         { en: { t: 'Glide' },      fr: { t: 'Portamento', reviewed: false } },
     'label.transition':    { en: { t: 'Transition' }, fr: { t: 'Transition', reviewed: false, sameAsEn: true } },
-    'label.focus':         { en: { t: 'Focus' },      fr: { t: 'Focale',    reviewed: false } },
-    // "Formant du chanteur" is 19 characters in a 55 px cell. The abbreviated
-    // form is what a French singing-synthesis UI uses.
+    'label.focus':         { en: { t: 'Focus' },      fr: { t: 'Focalisation', reviewed: false } },
+    // "Formant du chanteur" measures 74.98 px in this 55 px .knob-wrap, which
+    // is shrink-to-fit with overflow: visible — it would overhang 9.99 px per
+    // side into a 10.00 px gap and clear its neighbour by 0.01 px. This is the
+    // one width defence on the page that HELD when Stage N re-measured it.
+    // "F. chanteur" (39.78) stays, and it is what a French singing-synthesis
+    // UI uses anyway.
     'label.singersFormant':{ en: { t: "Singer's F" }, fr: { t: 'F. chanteur', reviewed: false } },
     'label.nasality':      { en: { t: 'Nasality' },   fr: { t: 'Nasalité',  reviewed: false } },
     'label.nasalPlace':    { en: { t: 'Nasal Place' }, fr: { t: 'Lieu nasal', reviewed: false } },
@@ -791,7 +889,7 @@ export const LABELS = Object.freeze({
     // "Déclin" is 6 characters and fits both, so one key, one string.
     'label.decay':         { en: { t: 'Decay' },      fr: { t: 'Déclin',    reviewed: false } },
     'label.sustain':       { en: { t: 'Sustain' },    fr: { t: 'Maintien',  reviewed: false } },
-    'label.release':       { en: { t: 'Release' },    fr: { t: 'Relâche',   reviewed: false } },
+    'label.release':       { en: { t: 'Release' },    fr: { t: 'Relâchement', reviewed: false } },
     'label.output':        { en: { t: 'Output' },     fr: { t: 'Sortie',    reviewed: false } },
     'label.gain':          { en: { t: 'Gain' },       fr: { t: 'Gain',      reviewed: false, sameAsEn: true } },
     'label.width':         { en: { t: 'Width' },      fr: { t: 'Largeur',   reviewed: false } },
@@ -811,12 +909,12 @@ export const LABELS = Object.freeze({
     'label.depth':         { en: { t: 'Depth' },      fr: { t: 'Profondeur', reviewed: false } },
     'label.mix':           { en: { t: 'Mix' },        fr: { t: 'Mix',       reviewed: false, sameAsEn: true } },
     'label.time':          { en: { t: 'Time' },       fr: { t: 'Durée',     reviewed: false } },
-    'label.feedback':      { en: { t: 'Feedback' },   fr: { t: 'Rétroaction', reviewed: false } },
+    'label.feedback':      { en: { t: 'Feedback' },   fr: { t: 'Réinjection', reviewed: false } },
     // Shared by the delay-mode caption and the tuning panel's rotation-table
     // column header: one word, identical in both languages, one key.
     'label.mode':          { en: { t: 'Mode' },       fr: { t: 'Mode',      reviewed: false, sameAsEn: true } },
     'label.size':          { en: { t: 'Size' },       fr: { t: 'Taille',    reviewed: false } },
-    'label.damp':          { en: { t: 'Damp' },       fr: { t: 'Amortis.',  reviewed: false } },
+    'label.damp':          { en: { t: 'Damp' },       fr: { t: 'Amort.',    reviewed: false } },
     'label.preDelay':      { en: { t: 'Pre-dly' },    fr: { t: 'Pré-délai', reviewed: false } },
     'label.mod':           { en: { t: 'Mod' },        fr: { t: 'Mod',       reviewed: false, sameAsEn: true } },
     'label.low':           { en: { t: 'Low' },        fr: { t: 'Grave',     reviewed: false } },
@@ -837,12 +935,12 @@ export const LABELS = Object.freeze({
     // two captions around two runs of phoneme codes. Split into two keyed
     // spans so applyLabel cannot delete the codes with them; the code runs
     // themselves are I18N_EXEMPT notation.
-    'label.vowels':        { en: { t: 'Vowels:' },     fr: { t: 'Voyelles :', reviewed: false } },
-    'label.consonants':    { en: { t: 'Consonants:' }, fr: { t: 'Consonnes :', reviewed: false } },
+    'label.vowels':        { en: { t: 'Vowels:' },     fr: { t: 'Voyelles :', reviewed: false } },
+    'label.consonants':    { en: { t: 'Consonants:' }, fr: { t: 'Consonnes :', reviewed: false } },
     'label.syllables':     { en: { t: 'Syllables' },   fr: { t: 'Syllabes',  reviewed: false } },
     'label.tuningPanelFailed': {
         en: { t: 'Tuning panel failed to load.' },
-        fr: { t: 'Le panneau d’accord n’a pas pu se charger.', reviewed: false },
+        fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: false },
     },
 
     // ── Tuning tab (js/tuning-panel.js) ─────────────────────────────────────
@@ -891,8 +989,8 @@ export const LABELS = Object.freeze({
     'tuning.stretch':      { en: { t: 'Stretch' },     fr: { t: 'Étirement', reviewed: false } },
     'tuning.loadScl':      { en: { t: 'Load .SCL' },   fr: { t: 'Ouvrir .SCL', reviewed: false } },
     'tuning.loadKbm':      { en: { t: 'Load .KBM' },   fr: { t: 'Ouvrir .KBM', reviewed: false } },
-    'tuning.saveScl':      { en: { t: 'Save .SCL' },   fr: { t: 'Sauver .SCL', reviewed: false } },
-    'tuning.saveKbm':      { en: { t: 'Save .KBM' },   fr: { t: 'Sauver .KBM', reviewed: false } },
+    'tuning.saveScl':      { en: { t: 'Save .SCL' },   fr: { t: 'Enreg. .SCL', reviewed: false } },
+    'tuning.saveKbm':      { en: { t: 'Save .KBM' },   fr: { t: 'Enreg. .KBM', reviewed: false } },
     'tuning.exportHtml':   { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: false } },
     'tuning.generateScale':{ en: { t: 'Generate Scale' }, fr: { t: 'Générer une gamme', reviewed: false } },
     'tuning.genEdo':       { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: false } },
@@ -900,8 +998,8 @@ export const LABELS = Object.freeze({
     'tuning.genRank2':     { en: { t: 'Rank-2 Temperament' },   fr: { t: 'Tempérament de rang 2', reviewed: false } },
     'tuning.divisions':    { en: { t: 'Divisions' },      fr: { t: 'Divisions', reviewed: false, sameAsEn: true } },
     'tuning.period':       { en: { t: 'Period (c)' },     fr: { t: 'Période (c)', reviewed: false } },
-    'tuning.startHarmonic':{ en: { t: 'Start Harmonic' }, fr: { t: 'Harm. initiale', reviewed: false } },
-    'tuning.endHarmonic':  { en: { t: 'End Harmonic' },   fr: { t: 'Harm. finale', reviewed: false } },
+    'tuning.startHarmonic':{ en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: false } },
+    'tuning.endHarmonic':  { en: { t: 'End Harmonic' },   fr: { t: 'Harmonique de fin', reviewed: false } },
     'tuning.generator':    { en: { t: 'Generator (c)' },  fr: { t: 'Générateur (c)', reviewed: false } },
     'tuning.notes':        { en: { t: 'Notes' },          fr: { t: 'Notes',    reviewed: false, sameAsEn: true } },
     'tuning.generate':     { en: { t: 'Generate' },       fr: { t: 'Générer',  reviewed: false } },
