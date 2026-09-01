@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-DigiDelay page labels and hover-help, English + French (v1.4.0)
+// i18n.js — O-DigiDelay page labels and hover-help, English + French (v1.4.1)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -31,6 +31,82 @@
 // converting them to underscores, so a second file named i18n-fr.js would have
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
+//
+// ── v1.4.1: FRENCH QA PASS (Stage N, 2026-08-31) ───────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 20 entries (8 terminology, 9 typography, 0 grammar/agreement,
+// 3 meaning). sameAsEn: kept 1, translated 0. termNote exemptions: 0.
+// Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
+// scripts/i18n-fr-lint.js --plugin O-DigiDelay: 40 findings -> 0, --strict exit 0.
+//
+// THE DECISIONS THE NEXT READER NEEDS:
+//
+//   TEMPS -> DURÉE. The glossary settles `time` as *durée* and DURÉE measures
+//     34.00 px against the 60 px .knob-label pin (TEMPS was 33.02), so the
+//     v1.4.0 header's meaning defence — "DUREE is a duration rather than a
+//     position in time" — was overruled by the suite list, not by width. The
+//     control IS a duration: 1 to 2000 ms, or a note value under SYNC.
+//   ÉCART -> ÉTAL., and this is a WIDTH decision. *Étalement* is the glossary
+//     root and it measures 60.47 px against the 60 px pin — a single word, so
+//     it SPILLS rather than wraps, and 0.47 over is a pass by the gate's 0.5
+//     tolerance rather than by fit. ÉTAL. is 28.53. Same trade as RÉINJ.
+//     (RÉINJECTION 66.30) and the body opens "Étalement :" the way
+//     tip.feedback opens "Réinjection :".
+//   EFFET -> TRAITÉ. The glossary root FITS here — 36.80 px against 60 — so
+//     the WET/DRY pair is now the settled TRAITÉ / DIRECT. tip.dry's body
+//     names the caption and moved with it ("Indépendant de TRAITÉ"), which
+//     also retired an EFFET/effet collision the draft had in one sentence.
+//   SAUVER -> Enreg, CHARGER -> Charger. *Sauver* is a calque and forbidden;
+//     *Enregistrer* needs 66.52 px against .preset-action-btn's 48 px content
+//     box, so the glossary's abbreviation ships. NO TRAILING PERIOD, and that
+//     is label-in-name (WCAG 2.5.3), not taste: `Enreg` is a substring of
+//     "Enregistrer les réglages actuels" and `Enreg.` is not. The knob
+//     captions keep their periods (RÉINJ., ÉTAL.) because no accessible name
+//     depends on their stem. Both captions are now SENTENCE CASE to match the
+//     English "Load"/"Save" they replace (lint C1); .preset-action-btn is
+//     text-transform: uppercase, so the screen is byte-identical either way
+//     and only the lint and the accessible name can see the difference.
+//   aria.loadPreset: *Ouvrir* -> *Charger*. Both are glossary-accepted for
+//     `load`, but the caption above it is CHARGER, so "Ouvrir un préréglage
+//     depuis un fichier" did not CONTAIN its own visible label — label-in-name
+//     was broken in French only. The LABEL IN NAME note below claimed
+//     "Charger un préréglage depuis un fichier"; the code said Ouvrir. The
+//     note was right and the string was wrong. This also breaks the
+//     byte-identity with O-Detune's five aria strings that the note records:
+//     three of the five now differ, deliberately.
+//   aria.presetList: *Cliquez* -> *Cliquer*. An accessible NAME is a name, and
+//     the glossary's register rule makes names infinitive, not conjugated.
+//   BODIES, three meaning-side changes: "durée de retard" / "la durée du
+//     retard" -> "de délai" / "du délai" (the glossary settles `delay` as
+//     *délai*; *ligne à retard* stays, it is the standard French for a delay
+//     LINE); "un réglage de dosage" -> "un réglage Mix" (*Dosage* is the
+//     forbidden rendering of Mix, and this plugin has no mix control — the
+//     sentence exists to say WET is not half of one).
+//   TYPOGRAPHY: 9 straight apostrophes -> U+2019, 7 colons and 1 semicolon and
+//     5 `%` and 4 number-unit gaps given U+00A0. Applied by exact-literal
+//     replacement, one pair per value, each asserted to occur exactly once —
+//     no regex over the file. Audited after: every U+00A0 sits on a `t:` or
+//     `b:` line, and re-importing both revisions shows 0 `en` values changed.
+//
+// GEOMETRY, re-measured at the shipping 700 x 196 frame with the gate's own
+// Range.selectNodeContents method on the real node (correction 4 — three
+// header width defences in this task have measured backwards):
+//
+//     TIME      25.20 -> DURÉE   34.00   26.00 spare
+//     FEEDBACK  53.91 -> RÉINJ.  31.56   28.44 spare
+//     SPREAD    39.31 -> ÉTAL.   28.53   31.47 spare   SHRANK
+//     MOD       23.41 -> MOD     23.41   sameAsEn
+//     WET       21.89 -> TRAITÉ  36.80   23.20 spare
+//     DRY       20.91 -> DIRECT  37.31   22.69 spare
+//     Load      27.00 -> Charger 46.52    1.48 spare   (48 px content box)
+//     Save      24.34 -> Enreg   32.50   15.50 spare   SHRANK vs SAUVER 39.02
+//
+// Non-label elements moved between the languages: 0 before, 0 after.
+// tests/ui_tip_render_check.js 216/216 both runs. Two tips grew a line in
+// French — #spread-container 92 -> 108 px (the "Étalement :" opener) and
+// #dry-container 77 -> 92 px — neither exceeding the 108 px that #sync, #time,
+// #feedback, #gear-btn and #lang-select already rendered at v1.4.0, so no tip
+// parks lower on the page than one that already shipped.
 //
 // ── v1.4.0 GIVES THIS PLUGIN HOVER-HELP, AND A RENDERER TO PAINT IT ────────
 //
@@ -160,7 +236,7 @@ export const I18N = Object.freeze({
         en: { t: "SYNC",
               b: "Locks the delay to the host's tempo, so the TIME knob chooses a note value instead of a time in milliseconds: 1/4, 1/8 and 1/16, each of them straight, dotted, triplet or quintuplet. If the host reports no tempo the delay keeps its millisecond time. Off or On." },
         fr: { t: "SYNCHRO",
-              b: "Verrouille le délai sur le tempo de l'hôte : le bouton TEMPS choisit alors une valeur de note au lieu d'une durée en millisecondes — 1/4, 1/8 et 1/16, chacune simple, pointée, en triolet ou en quintolet. Si l'hôte n'annonce aucun tempo, le délai garde sa durée en millisecondes. Arrêt ou Marche.",
+              b: "Verrouille le délai sur le tempo de l’hôte : le bouton DURÉE choisit alors une valeur de note au lieu d’une durée en millisecondes — 1/4, 1/8 et 1/16, chacune simple, pointée, en triolet ou en quintolet. Si l’hôte n’annonce aucun tempo, le délai garde sa durée en millisecondes. Arrêt ou Marche.",
               reviewed: false },
     },
 
@@ -169,8 +245,8 @@ export const I18N = Object.freeze({
     'tip.time': {
         en: { t: "TIME",
               b: "How long an echo waits before it repeats. With SYNC off this knob is a free delay time in milliseconds; with SYNC on the same knob steps through note values instead, and the readout shows the division rather than a figure. 1 to 2000 ms." },
-        fr: { t: "TEMPS",
-              b: "Le temps qu'un écho attend avant de se répéter. SYNCHRO à l'arrêt, ce bouton donne une durée de retard libre en millisecondes ; SYNCHRO en marche, le même bouton parcourt des valeurs de note et l'affichage montre la division au lieu d'un chiffre. 1 à 2000 ms.",
+        fr: { t: "DURÉE",
+              b: "Le temps qu’un écho attend avant de se répéter. SYNCHRO à l’arrêt, ce bouton donne une durée de délai libre en millisecondes ; SYNCHRO en marche, le même bouton parcourt des valeurs de note et l’affichage montre la division au lieu d’un chiffre. 1 à 2000 ms.",
               reviewed: false },
     },
 
@@ -181,7 +257,7 @@ export const I18N = Object.freeze({
         en: { t: "FEEDBACK",
               b: "How much of each echo is fed back into the delay line, which is what sets how many repeats you hear and how slowly they fade. The return is capped just under unity, so even at the top of the range the tail decays instead of running away. 0 to 100 %." },
         fr: { t: "RÉINJ.",
-              b: "Réinjection : la part de chaque écho renvoyée dans la ligne à retard, ce qui décide du nombre de répétitions et de la lenteur de leur extinction. Le retour est plafonné juste sous l'unité, donc même en haut de la course la traîne s'éteint au lieu de s'emballer. 0 à 100 %.",
+              b: "Réinjection : la part de chaque écho renvoyée dans la ligne à retard, ce qui décide du nombre de répétitions et de la lenteur de leur extinction. Le retour est plafonné juste sous l’unité, donc même en haut de la course la traîne s’éteint au lieu de s’emballer. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -192,8 +268,8 @@ export const I18N = Object.freeze({
     'tip.spread': {
         en: { t: "SPREAD",
               b: "Offsets the right channel's delay from the left by up to 15 ms, so the repeats reach each ear at slightly different times and the echo widens. At 0 both channels share one delay time and the tail stays centred. 0 to 100 %." },
-        fr: { t: "ÉCART",
-              b: "Décale le retard du canal droit par rapport au gauche jusqu'à 15 ms : les répétitions atteignent chaque oreille à des instants légèrement différents et l'écho s'élargit. À 0 les deux canaux partagent la même durée et la traîne reste centrée. 0 à 100 %.",
+        fr: { t: "ÉTAL.",
+              b: "Étalement : décale le délai du canal droit par rapport au gauche jusqu’à 15 ms, si bien que les répétitions atteignent chaque oreille à des instants légèrement différents et que l’écho s’élargit. À 0 les deux canaux partagent la même durée et la traîne reste centrée. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -206,7 +282,7 @@ export const I18N = Object.freeze({
         en: { t: "MOD",
               b: "A slow sine at 0.3 Hz that wanders the delay time by up to 10 ms, detuning each repeat the way tape wow does. Both channels move on the same wave, so it thickens the echo rather than widening it. 0 to 100 %." },
         fr: { t: "MOD",
-              b: "Une sinusoïde lente à 0,3 Hz qui fait dériver la durée du retard jusqu'à 10 ms et désaccorde chaque répétition comme le pleurage d'une bande. Les deux canaux suivent la même onde : cela épaissit l'écho au lieu de l'élargir. 0 à 100 %.",
+              b: "Une sinusoïde lente à 0,3 Hz qui fait dériver la durée du délai jusqu’à 10 ms et désaccorde chaque répétition comme le pleurage d’une bande. Les deux canaux suivent la même onde : cela épaissit l’écho au lieu de l’élargir. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -217,8 +293,8 @@ export const I18N = Object.freeze({
     'tip.wet': {
         en: { t: "WET",
               b: "The level of the delayed signal at the output. It is a level of its own rather than one half of a mix knob, so it does not take anything away from DRY and the two can be raised together. 0 to 100 %." },
-        fr: { t: "EFFET",
-              b: "Le niveau du signal retardé en sortie. C'est un niveau à part entière et non la moitié d'un réglage de dosage : il ne retire rien à DIRECT et les deux peuvent monter ensemble. 0 à 100 %.",
+        fr: { t: "TRAITÉ",
+              b: "Le niveau du signal retardé en sortie. C’est un niveau à part entière et non la moitié d’un réglage Mix : il ne retire rien à DIRECT et les deux peuvent monter ensemble. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -228,7 +304,7 @@ export const I18N = Object.freeze({
         en: { t: "DRY",
               b: "The level of the untouched input at the output. Independent of WET, so pulling it to the bottom leaves the echoes alone on an effect send, and leaving it at the top keeps the source at full level. 0 to 100 %." },
         fr: { t: "DIRECT",
-              b: "Le niveau de l'entrée intacte en sortie. Indépendant d'EFFET : le ramener en bas ne laisse que les échos sur un départ d'effet, le laisser en haut garde la source à plein niveau. 0 à 100 %.",
+              b: "Le niveau de l’entrée intacte en sortie. Indépendant de TRAITÉ : le ramener en bas ne laisse que les échos sur un départ d’effet, le laisser en haut garde la source à plein niveau. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -247,7 +323,7 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Opens the panel that sets the language of this interface. That is all it holds: the labels on this page and this hover help switch with it, and the choice is kept with the session, so a project reopens in the language it was saved in." },
         fr: { t: "Réglages",
-              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d'autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.",
+              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.",
               reviewed: false },
     },
 
@@ -259,7 +335,7 @@ export const I18N = Object.freeze({
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available. Value readouts, the note divisions and preset names stay in English, so the page and the host always name the same thing the same way." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles. Les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais, pour que la page et l'hôte nomment toujours la même chose de la même façon.",
+              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles. Les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais, pour que la page et l’hôte nomment toujours la même chose de la même façon.",
               reviewed: false },
     },
 });
@@ -378,7 +454,7 @@ export const LABELS = Object.freeze({
     // TEMPS is what a French delay calls that; DELAI (31.00) names the effect
     // rather than the quantity, and DUREE (34.00) is a duration rather than a
     // position in time.
-    'label.time': { en: { t: 'TIME' }, fr: { t: 'TEMPS', reviewed: false } },
+    'label.time': { en: { t: 'TIME' }, fr: { t: 'DURÉE', reviewed: false } },
 
     // REINJECTION is the word Logic Pro's French build uses for a delay's
     // feedback and it does not fit: 66.30 px against a 60 px box, and being one
@@ -391,7 +467,7 @@ export const LABELS = Object.freeze({
 
     // Stereo spread of the two delay lines. ECART is also what O-Chorus ships
     // for its own Spread, so the suite says one word for one idea.
-    'label.spread': { en: { t: 'SPREAD' }, fr: { t: 'ÉCART', reviewed: false } },
+    'label.spread': { en: { t: 'SPREAD' }, fr: { t: 'ÉTAL.', reviewed: false } },
 
     // Keyed with sameAsEn rather than exempted, deliberately. "Mod" is the
     // abbreviation of "modulation", which is the same word in French, but that
@@ -405,7 +481,7 @@ export const LABELS = Object.freeze({
     // idiomatic French pairing — the processed signal and the untouched one.
     // The literal MOUILLE (46.09) / SEC (18.91) also fits and is what a
     // dictionary gives, but no French audio interface says it.
-    'label.wet': { en: { t: 'WET' }, fr: { t: 'EFFET',  reviewed: false } },
+    'label.wet': { en: { t: 'WET' }, fr: { t: 'TRAITÉ', reviewed: false } },
     'label.dry': { en: { t: 'DRY' }, fr: { t: 'DIRECT', reviewed: false } },
 
     // ── The sync toggle: its caption and its two faces ──────────────────────
@@ -459,8 +535,8 @@ export const LABELS = Object.freeze({
     // ENREGISTRER is the word a French user would rather see and needs an
     // 80.52 px box — a reviewer who upgrades SAUVER to it must raise the pin
     // with it, or an 11-character caption wraps inside a 16 px-high button.
-    'label.load': { en: { t: 'Load' }, fr: { t: 'CHARGER', reviewed: false } },
-    'label.save': { en: { t: 'Save' }, fr: { t: 'SAUVER',  reviewed: false } },
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Charger', reviewed: false } },
+    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg',   reviewed: false } },
 
     // ── The preset dropdown, written by the controller through setLabel() ───
     //
@@ -508,11 +584,11 @@ export const LABELS = Object.freeze({
     'aria.prevPreset': { en: { t: 'Previous preset' },    fr: { t: 'Préréglage précédent',  reviewed: false } },
     'aria.nextPreset': { en: { t: 'Next preset' },        fr: { t: 'Préréglage suivant',    reviewed: false } },
     'aria.presetList': { en: { t: 'Click to see all presets' },
-                         fr: { t: 'Cliquez pour voir tous les préréglages', reviewed: false } },
+                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: false } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: false } },
+                         fr: { t: 'Charger un préréglage depuis un fichier', reviewed: false } },
     'aria.savePreset': { en: { t: 'Save current settings' },
-                         fr: { t: 'Sauver les réglages actuels', reviewed: false } },
+                         fr: { t: 'Enregistrer les réglages actuels', reviewed: false } },
 
     'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: false } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
