@@ -42,10 +42,16 @@
 //   the other calque: French says confiance FAIBLE and confiance ÉLEVÉE, not
 //   basse and haute. FAIBLE / MOYEN / ÉLEVÉ, and info-confidence's body now
 //   uses the same three words its own cell shows (they disagreed before).
-//   MEASURED, not assumed: .learn-info-item is 133 px, "Confiance" 44.8 and
-//   the 6 px flex gap leave 82.2 px for the value. FAIBLE 32.14, MOYEN 33.38,
-//   ÉLEVÉ 29.08 — the widest clears by 48.8 px. (LOW 20.92, BAS 16.98,
-//   HAUT 25.75 for comparison.) MED is abbreviated in English only because
+//   MEASURED, not assumed, and measured in BOTH languages because the caption
+//   beside the value is itself localized: .learn-info-item is 133 px with a
+//   6 px flex gap, and the label is "Confidence" 44.8 in English but
+//   "Confiance" 39.81 in French — so the value cell has 82.2 px in English and
+//   87.19 px in French. FAIBLE 32.14, MOYEN 33.38, ÉLEVÉ 29.08: the widest
+//   clears by 53.81 px against the French cell, 48.82 against the tighter
+//   English one. (LOW 20.92, BAS 16.98, HAUT 25.75 for comparison.) The first
+//   pass of this note quoted 44.8 as "Confiance" — it was the English label
+//   read before the language switch, the conservative bound under the wrong
+//   name. MED is abbreviated in English only because
 //   MEDIUM is long; MOYEN is already short, so the French trio is three whole
 //   words rather than two-and-an-abbreviation.
 //
