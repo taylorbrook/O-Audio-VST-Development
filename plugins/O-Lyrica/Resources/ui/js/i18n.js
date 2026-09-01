@@ -18,7 +18,18 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Lyrica UI copy, English + French (v2.4.2, canon v2)
+// i18n.js — O-Lyrica UI copy, English + French (v2.4.3, canon v2)
+//
+// ── v2.4.3: ENGLISH DEFECT FOUND BY THE FRENCH (Stage O, 2026-08-31) ───────
+// Item 51: the `technique` body said "Harmonics produce" while the Choice face
+// on #technique reads "Harmonic" (an I18N_EXEMPT choiceMirror, English on
+// screen in both languages). A body must quote the face the user can see, so
+// the en body now says "Harmonic produces". The fr body already quoted the
+// face ("Harmonic donne des sons de cloche") — Stage N wrote it from the face,
+// not from the English — so it is unchanged and keeps reviewed: true. No key,
+// binding, selector or exemption changed; 1 en entry of 167.
+// Tip height, measured at 700 x 450: en 69 px before and after (the sentence
+// lost one glyph and gained one), fr 83 px unchanged.
 //
 // ── v2.4.2: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -321,7 +332,7 @@ export const I18N = Object.freeze({
     },
     'technique': {
         en: { t: 'Technique',
-              b: 'Playing technique changes the excitation character. Harmonics produce bell-like tones; Muted creates percussive plucks.' },
+              b: 'Playing technique changes the excitation character. Harmonic produces bell-like tones; Muted creates percussive plucks.' },
         fr: { t: 'Technique',
               b: 'La technique de jeu change le caractère de l’excitation. Harmonic donne des sons de cloche ; Muted donne des pincements percussifs.',
               reviewed: true },
@@ -519,7 +530,7 @@ export const I18N = Object.freeze({
 });
 
 // ============================================================================
-// LABELS — the on-page text (v2.4.2, canon v2)
+// LABELS — the on-page text (v2.4.3, canon v2)
 // ============================================================================
 //
 // I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping
