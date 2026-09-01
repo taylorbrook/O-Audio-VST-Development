@@ -141,7 +141,8 @@ const TERMS = {
     'timing':                   ['décalage'],
     'swing':                    ['swing'],
     'tempo':                    ['tempo'],
-    'tempo sync':               ['synchro tempo'],
+    'tempo sync':               ['synchro tempo', 'sync tempo'],   // O-Tremolo: Synchro Tempo wraps at 51.30 in a 42 px box
+    'pan sync':                 ['synchro pan', 'sync pan'],       // the matched pair on the same page
     'sync':                     ['synchro', 'sync'],
     'sync mode':                ['mode de synchro', 'mode synchro'],
     '1 bar':                    ['1 mesure', '1 mes'],
