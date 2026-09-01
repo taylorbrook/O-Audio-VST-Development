@@ -54,7 +54,7 @@
 //       content box can never be narrower than its text;
 //     the caption defended as "PRÉ-DÉLAI 61 px" measures 55.86.
 //   Where the root genuinely does not fit, the listed abbreviation is used and
-//   the number is recorded: RÉINJECTION 70.41 against GEOMETRY PIN B's 55 px
+//   the number is recorded: RÉINJECTION 70.41 against GEOMETRY PIN C's 55 px
 //   pin (RÉINJ. 34.50), PRÉ-DÉLAI 55.86 in the 50 px knob column
 //   (PRÉ-DÉL. 47.94, a 2.06 px margin — the tightest caption on this page).
 //
@@ -559,7 +559,7 @@ export const LABELS = Object.freeze({
     'label.preDelay': { en: { t: 'Pre-Dly' }, fr: { t: 'Pré-Dél.',  reviewed: false } },
 
     // v1.7.1 — RÉINJ., the glossary abbreviation, replaces RETOUR (which the
-    // glossary forbids: retour is a monitor send). GEOMETRY PIN B holds this
+    // glossary forbids: retour is a monitor send). GEOMETRY PIN C holds this
     // one caption at width: 55 px, so the root RÉINJECTION at 70.41 px is the
     // one string on this page that WOULD spill its own content box; RÉINJ. is
     // 34.50. The pin stays for the reason it was added — the caption is

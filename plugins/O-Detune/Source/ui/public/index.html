@@ -276,10 +276,16 @@
            the one knob whose caption is wider than its own face and readout
            (Feedback 54.3 > 50), so the caption alone sizes that column.
 
-           RETOUR is 41 px — THIRTEEN PIXELS NARROWER. A French string that
+           RETOUR was 42.39 px — TWELVE PIXELS NARROWER. A French string that
            SHRINKS slides the row exactly as one that grows does, and a clip check
            cannot see it. Pinning the caption to the English box keeps the column
            at 55 px in both languages.
+
+           v1.7.1 replaced RETOUR (a monitor send in French) with the glossary's
+           REINJ., 34.50 px — narrower still, so the pin does MORE work now, not
+           less. The root REINJECTION is 70.41 px and is the one caption on this
+           page that would overrun its own pinned content box, which is why the
+           listed abbreviation is used rather than the root.
 
            IT IS NOT DECORATION. Reverted alone, assertion 7 reports #feedback_knob
            and its face, plus the slider container and the width readout, moved in
@@ -614,8 +620,15 @@
 
            A fixed width makes the row language-invariant by construction. 60 px
            border-box leaves a 46 px content box (2 x 6 px padding, 2 x 1 px
-           border): LOAD 26.9, SAVE 25.0, OUVRIR 38.6, SAUVER 39.1 - so the
-           tightest French margin on this page is 6.9 px.
+           border): LOAD 26.92, SAVE 24.97, OUVRIR 38.64, ENREG 34.02 - so the
+           tightest French margin on this page is 7.36 px, on OUVRIR.
+
+           v1.7.1 re-measured these on the real nodes. SAUVER (39.09) was
+           replaced by the glossary's ENREG, which is NARROWER, so this pin has
+           more room than the v1.6.0 note claimed, not less. The period is
+           dropped from ENREG. (36.94) so the caption stays a substring of the
+           accessible name "Enregistrer les reglages actuels" - WCAG 2.5.3
+           label-in-name.
 
            IT IS NOT DECORATION. Reverted alone, assertion 7 reports
            #prevPreset / #presetName / #nextPreset moved by 31.9 px in French.
