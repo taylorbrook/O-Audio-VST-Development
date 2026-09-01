@@ -18,7 +18,22 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bassoon page labels and hover-help, English + French (v1.2.1)
+// i18n.js — O-Bassoon page labels and hover-help, English + French (v1.2.2)
+//
+// ── v1.2.2: STAGE O, item 36 (2026-08-31) ───────────────────────────────────
+// tip.breath said CC2 "takes over" the knob. BassoonVoice.cpp:167 composes
+// breathSmoother's target as lastUiBreath * cc2Normalised — a PRODUCT: with the
+// knob at 0 a breath controller does nothing, with CC2 at 0 the knob does
+// nothing. aria.breathMeter already said so ("UI breath × CC2"); the tip now
+// says the same thing in tip form (knob = ceiling, CC2 scales it, both above
+// zero) and keeps the true half of the old sentence (the knob alone applies
+// again 500 ms after CC2 stops, BassoonVoice.cpp:202-207). French rewritten
+// in the same commit, reviewed: false again — a meaning change. Tip height
+// at the 260 px cap, measured by tests/ui_tip_render_check.js: en 153.2 ->
+// 219.9 px, fr 136.5 -> 219.9 px; bottom clearance 270.8 / 287.5 -> 204.1 px,
+// right clearance 117.0 px unchanged, still inside the 900 x 600 frame.
+// check-ui-labels byte-identical to its baseline, 0 non-label elements moved.
+// No caption, CSS or other version site changed.
 //
 // ── v1.2.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -180,8 +195,10 @@ export const LANGUAGES = ['en', 'fr'];
 //   rate         at 0 Hz the LFO stops with a RANDOM per-note phase, so the
 //                vibrato freezes into a fixed detune instead of switching off
 //                (Vibrato.cpp reset() + getCurrentCents()).
-//   breath       CC2 takes over multiplicatively and hands back after 500 ms
-//                (BassoonVoice.cpp controllerMoved + setExpression).
+//   breath       CC2 does NOT take over: the effective breath is ui_breath x cc2,
+//                a product (BassoonVoice.cpp:167), so the knob is the ceiling and
+//                both must be above zero; the knob alone applies again 500 ms
+//                after CC2 stops (setExpression's idle window, :202-207).
 //   tone         partials 6-16 only; modes 1-5 are tone-invariant
 //                (ModeBank.cpp:setFundamental, k > 4).
 //   attack char  snapshotted at note-on and velocity-biased by ±0.15
@@ -227,10 +244,10 @@ export const I18N = Object.freeze({
 
     'tip.breath': {
         en: { t: 'Breath',
-              b: 'How hard the instrument is blown. It scales the filtered noise that keeps the modes ringing, so it sets loudness and the amount of audible breath together rather than one after the other. A MIDI breath controller (CC2) takes over while it is moving and hands control back half a second after it stops. 0 to 1.' },
+              b: 'How hard the instrument is blown. It scales the filtered noise that keeps the modes ringing, so it sets loudness and the amount of audible breath together rather than one after the other. A MIDI breath controller (CC2) does not replace this knob: while CC2 is moving, the effective breath is knob × CC2 — the knob sets the ceiling, CC2 scales it, and both must be above zero for the instrument to sound. Half a second after CC2 stops, the knob alone applies again. 0 to 1.' },
         fr: { t: 'Souffle',
-              b: 'La pression du souffle. Elle dose le bruit filtré qui entretient les modes : elle règle donc d’un seul geste le volume et la quantité de souffle audible. Un contrôleur de souffle MIDI (CC2) prend le relais tant qu’il bouge et rend la main une demi-seconde après son arrêt. 0 à 1.',
-              reviewed: true },
+              b: 'La pression du souffle. Elle dose le bruit filtré qui entretient les modes : elle règle donc d’un seul geste le volume et la quantité de souffle audible. Un contrôleur de souffle MIDI (CC2) ne remplace pas ce bouton : tant qu’il bouge, le souffle effectif vaut bouton × CC2 — le bouton fixe le plafond, le CC2 le module, et il faut les deux au-dessus de zéro pour que l’instrument sonne. Une demi-seconde après l’arrêt du CC2, le bouton seul s’applique de nouveau. 0 à 1.',
+              reviewed: false },
     },
 
     'tip.tone': {

@@ -5,6 +5,25 @@ All notable changes to O-Bassoon will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+
+- **item 36 — Breath knob tooltip:** the tip said a MIDI breath controller
+  (CC2) "takes over while it is moving and hands control back half a second
+  after it stops". `BassoonVoice.cpp:167` composes the breath target as
+  `lastUiBreath * cc2Normalised` — a product, not a takeover: with the knob at
+  0 a breath controller does nothing, and with CC2 at 0 the knob does nothing.
+  The tip now says what the breath meter's accessible name (`aria.breathMeter`,
+  "UI breath × CC2") already said — the effective breath is knob × CC2, the
+  knob sets the ceiling, CC2 scales it, both must be above zero — and keeps
+  the half-second idle window after which the knob alone applies again
+  (`BassoonVoice.cpp:202-207`). French rewritten in the same commit
+  (`reviewed: false` — a meaning change). The i18n.js header note that
+  repeated the "takes over" claim is corrected too.
+
 ## [1.2.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.
