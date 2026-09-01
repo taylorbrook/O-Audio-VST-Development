@@ -1094,6 +1094,35 @@ let tooltipsEnabled = false;
 let helpToggleEl = null;
 let setTooltipsEnabledNative = null;
 
+// v2.4.3 (Stage O item 58): THE FOCUS LATCH, ported from O-Comp v1.7.0's
+// setupTooltips (Stage M). Until this version the renderer had no focus path
+// at all — a keyboard user could Tab through every range input and select on
+// the page and never see a tip, which is the accessibility half of hover-help.
+//
+// A focusin rule on its own would be wrong in the other direction: a pointer
+// click on a range input or a select FOCUSES it, so an unconditional focusin
+// would re-open the tip that pointerdown has just hidden, with the pointer
+// still on the control and no further mouseover coming, and it would sit on
+// top of whatever the click opened (measured on the Stage M pilots: the gear's
+// tip covered the settings popover it had just opened by 146 x 35 px). The
+// latch records the LAST INPUT DEVICE: pointerdown sets it, any keydown clears
+// it, and focusin opens a tip only while it is clear.
+//
+// :focus-visible is deliberately NOT the discriminator. Chromium reports it
+// false for a programmatic .focus() following a click, so a gate driving focus
+// directly would measure "no tip" and record that as correct — a false pass
+// built into the fix. An explicit latch is the same rule and is drivable with
+// real events.
+//
+// Two programmatic focus() calls on this page, both covered: the double-click
+// readout editor (bindSlider) follows a pointer sequence, so the latch is set
+// and its <input> opens nothing; initSettingsPopover()'s Escape handler
+// refocuses the gear DURING the keydown, and because initializeTooltips()
+// registers after it, that focusin sees the latch as the popover's opener
+// left it — a gear opened by click gets no tip, one opened from the keyboard
+// does. Both are the device the user is on.
+let lastInputWasPointer = false;
+
 function initializeTooltips() {
     tooltipEl = document.getElementById('tooltip');
     if (!tooltipEl) { console.warn('Tooltip element not found — tooltips disabled'); return; }
@@ -1106,15 +1135,42 @@ function initializeTooltips() {
     // Any press begins a click or a drag: get the tip out of the way and keep it
     // away until release, so it cannot hang over a slider or a knob mid-drag.
     // Capture phase, because the effects knobs call preventDefault in their own
-    // mousedown handlers.
+    // mousedown handlers. The same press latches the input device (above).
     document.addEventListener('pointerdown', () => {
+        lastInputWasPointer = true;
         tooltipSuppressed = true;
         hideTooltip();
     }, true);
 
     document.addEventListener('pointerup', () => { tooltipSuppressed = false; }, true);
 
+    document.addEventListener('focusin', handleTooltipFocusIn);
+    document.addEventListener('focusout', hideTooltip);
+
+    // One keydown listener, two jobs: any key at all means the keyboard is
+    // driving again, which releases the latch; Escape additionally hides.
+    // Independent of initSettingsPopover()'s own Escape handler — both run.
+    document.addEventListener('keydown', (e) => {
+        lastInputWasPointer = false;
+        if (e.key === 'Escape') hideTooltip();
+    });
+
     console.log('Tooltips initialized');
+}
+
+// Keyboard focus opens the anchor's tip at once — no dwell, the user has
+// already arrived — anchored on the control's own rect exactly as the hover
+// path is. Same gates as handleTooltipOver: the anchor must carry data-tip and
+// help must be on (or the anchor data-tip-always).
+function handleTooltipFocusIn(e) {
+    if (lastInputWasPointer) return;
+    const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+    if (!target) return;
+    if (!tipAllowed(target)) return;
+
+    clearTimeout(tooltipTimer);
+    tooltipTarget = target;
+    showTooltip(target);
 }
 
 function initializeHelpToggle() {

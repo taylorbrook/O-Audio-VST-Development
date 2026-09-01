@@ -2,6 +2,35 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.4.3] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+
+- **item 50 — Sympathetic Amount / Sharpness (Q) sliders:** the SOUND tab's last row rested
+  at y 386–410 under the footer (`.footer`, `index.html:538`: `position: absolute; bottom: 0;
+  z-index: 10`, y 392–447), so both range inputs (y 402–408) had no drag surface and no
+  hover-help — `document.elementFromPoint` at their centres returned `div.footer`. The footer
+  cannot shrink (a 42 px keyboard, a 2 px gap and a 7 px help line fill its 55 px), so the
+  SOUND tab's section spacing tightens from 12 px to 6 px (`#sound-tab .section` at
+  `index.html:397`, GEOMETRY RULE 11), scoped to that tab. The row now rests at y 362–386, 6 px clear,
+  and the tab no longer scrolls (334 vs 334; it scrolled 30 px before). What moves, at the
+  700 × 450 frame: String −6, Body −12, Excitation −18, Sympathetic −24 (header and row
+  alike); Main, the header, the tab bar, the footer and the three other tabs: 0.
+- **item 51 — Technique tip:** the body said "Harmonics produce bell-like tones" while the
+  `#technique` Choice face reads "Harmonic" (`index.html:2313`; an `AudioParameterChoice`
+  option, English on screen in both languages). The body now quotes the face: "Harmonic
+  produces bell-like tones". The French body already did ("Harmonic donne des sons de
+  cloche") and is unchanged.
+- **item 58 — keyboard focus opens hover-help:** the renderer had no focus path, so a user
+  tabbing through the page's range inputs and selects never saw a tip. Ported the Stage M
+  `lastInputWasPointer` latch (O-Comp v1.7.0): `focusin` opens the anchor's tip only when the
+  last input was a key; a pointer click on a control still opens nothing (it did not before
+  either, and must not now — the click's own `pointerdown` hides the tip and a focus-driven
+  reopen would sit on top of whatever the click opened). `focusout` hides, any `keydown`
+  releases the latch, Escape hides (`js/app.js`, `initializeTooltips`).
+
 ## [2.4.2] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.

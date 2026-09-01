@@ -375,6 +375,29 @@
             margin-bottom: 12px;
         }
 
+        /* v2.4.3 GEOMETRY RULE 11 (Stage O item 50). The SOUND tab stacks five
+           sections; at 12px between them the Sympathetic row rested at
+           y 386-410 while .footer (position: absolute; bottom: 0; z-index: 10)
+           starts at y 392 - the two range inputs (y 402-408) sat ENTIRELY under
+           the footer, document.elementFromPoint at their centres returned
+           div.footer, and they had neither a drag surface nor hover-help. The
+           footer cannot give the 18px back: its 55px hold a 42px keyboard, a
+           2px gap and a 7px help line. .tab-content ends at y 407, 15px under
+           the footer top, so the tab was also scrolling by 30px (364 vs 334)
+           with nothing to reach.
+
+           6px frees 24: the Sympathetic row now rests at y 362-386, 6px clear
+           of the footer, and the tab no longer scrolls (334 vs 334). Scoped to
+           #sound-tab so the other three tabs keep their 12px rhythm and nothing
+           on them moves. What DOES move, measured at the 700 x 450 frame:
+           String -6, Body -12, Excitation -18, Sympathetic -24 (header and
+           row alike); Main and everything outside the tab: 0. The tuning tab's
+           #generator-section header has the same shape (y 384-412 at rest,
+           tab scrolls 409 vs 334) and is NOT touched here. */
+        #sound-tab .section {
+            margin-bottom: 6px;
+        }
+
         .section-header {
             font-size: 9px;
             font-weight: normal;
