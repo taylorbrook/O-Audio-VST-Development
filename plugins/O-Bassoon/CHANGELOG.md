@@ -5,6 +5,41 @@ All notable changes to O-Bassoon will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **16 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and lint (`scripts/i18n-fr-lint.js`): 5
+  terminology, 6 typography, 4 grammar/idiom, 1 restored meaning. The lint went
+  from 26 findings to 0 and `--strict` exits 0. The two most visible: the
+  Release knob's caption is **Relâch.** rather than *Relâche* — the suite's
+  settled term is *Relâchement*, whose 79.81 px does not fit this caption's
+  78 px box, while the listed abbreviation's 45.59 px is narrower than both
+  *Relâche* and English *Release* — and its tooltip title now spells
+  **Relâchement** out in full. Typographically, 26 no-break spaces landed
+  before every colon and semicolon and between every number and its unit
+  (*0 à 10 Hz*, *2000 ms*, *100 cents*), which is French typographic practice
+  and what the rest of the suite now does.
+- **The attack envelope's tooltip names the textbook ADSR stages** — *étage de
+  déclin* / *étage de maintien* rather than *décroissance* / *palier* — and the
+  attack-character tooltip says *filtrée en passe-bas*, which is what the
+  600 Hz one-pole filter on the soft onset actually is. The vibrato-depth
+  tooltip regained the English's "bends the pitch", which the first draft had
+  dropped.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+English copy, keys, tip bindings, exemptions, markup and CSS are unchanged, and
+every French entry stays `reviewed: false` — no native speaker has read them
+yet. Gates: `check-i18n` ALL CHECKS PASS; `check-ui-labels` byte-identical to
+its pre-change baseline with 0 non-label elements moved in either language;
+`tests/ui_tip_render_check.js` 198 PASS / 0 FAIL with all three negative
+controls firing; `boot-all-uis` 43/43 clean, 0 DEAD bindings.
+
 ## [1.2.0] - 2026-08-30
 
 Hover-help, in both languages — and the renderer that makes it visible, because
