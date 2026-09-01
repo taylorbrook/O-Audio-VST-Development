@@ -289,7 +289,7 @@ const TERMS = {
     'world':                    ['du monde'],
     'non-octave':               ['non octaviantes'],
     'stretch':                  ['étirement', 'étir'],
-    'total span':               ['écart total'],
+    'total span':               ['écart total', 'écart tot', 'étendue'],   // O-MicrotonalSampler: Écart total 53.72 px in a 53 px pin; Étendue is the span too
     'a4 ref':                   ['réf. a4'],
     'hold 2+ notes to see intervals': ['tenir 2 notes ou plus pour voir les intervalles'],
     'tuning panel failed to load.':   ['échec du chargement du panneau d\'accord.'],
