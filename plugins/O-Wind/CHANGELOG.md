@@ -1,5 +1,37 @@
 # O-Wind Changelog
 
+## [1.18.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **59 of 119 French entries revised** against the suite glossary and lint
+  (22 terminology, 26 typography, 7 meaning, 2 grammar, 2 register); the lint
+  went 65 findings to 0 and `--strict` exits 0. The visible ones: the flutter
+  knob is now **FLATT.** (Flatterzunge, the wind technique French scores print)
+  where it read *Frullato*; **DÉCLIN** and **RELÂCH.** replace *Chute* and
+  *Relâche* on the ADSR; **MAINT. INF.** replaces *Tenue inf.*, so the page
+  stops calling one English word two French ones; the four Effects captions
+  *Profond. / Mixage / Réinject. / Amortis.* become **PROF. / MIX / RÉINJ. /
+  AMORT.**; and *Prof. dér. / Vit. dér.* become **PROF. DÉRIVE / VIT. DÉRIVE**.
+  Typographically, 47 no-break spaces now sit before every `%`, `:`, `;`, `!`
+  and `?` and between every number and its unit, as French typesetting requires.
+- **The four effects-bypass tooltips no longer describe a button face that does
+  not exist in French.** Each said "the button reads On"; in French that button
+  reads **MARCHE**, and the French bodies now say so. The automation parameter
+  and its Off / On values stay English, because the host's automation lane does.
+- **Two tooltips restored a word the English has and the French draft had lost**
+  — the Vibrato Drift Depth and Drift Speed tips now name the vibrato they
+  belong to, as their English does.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+No DSP, no parameter, no English copy and no layout rule changed in this
+release. Every French entry is still `reviewed: false`: this was a second
+machine reading against a glossary and a lint, not a native-speaker review.
+
 ## [1.18.0] - 2026-08-31
 
 ### Added — hover-help, in both languages (Stage M batch M3)
