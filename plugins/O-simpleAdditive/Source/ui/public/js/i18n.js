@@ -18,7 +18,14 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-simpleAdditive interface copy, English + French (v1.1.1)
+// i18n.js — O-simpleAdditive interface copy, English + French (v1.1.2)
+//
+// ── v1.1.2: FOCUS LATCH (Stage O item 58, 2026-08-31) ───────────────────────
+// No entry in this table changed. The fix is in js/app.js setupTooltips(): a
+// pointer click no longer opens hover help (26 of the 41 focusable anchors did
+// — 10 through focusin, 16 drawbars through a hover re-open under the pointer),
+// keyboard focus still does. This page has no hover-help toggle and therefore
+// no aria.helpToggle entry — the item 54 rename does not apply here.
 //
 // ── v1.1.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
