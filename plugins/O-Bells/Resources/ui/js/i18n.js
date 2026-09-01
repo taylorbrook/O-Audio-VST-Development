@@ -18,7 +18,65 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bells UI copy, English + French (v4.3.0, canon v2)
+// i18n.js — O-Bells UI copy, English + French (v4.3.1, canon v2)
+//
+// ── v4.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 72 of 186 entries (29 terminology, 56 typography, 0 grammar/
+// agreement, 4 meaning, 2 idiom/register — 19 entries took both passes).
+// sameAsEn: kept 15, translated 0, ADDED 1 (label.mix — Mix is the glossary
+// root AND the English word, so check-i18n assertion 4 needs the flag).
+// termNote exemptions: 0 — every glossary term applied, root or listed
+// abbreviation, and nothing on this page needed a contextual exemption.
+// Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
+//
+// DECISIONS THE NEXT READER NEEDS, each with the measurement behind it:
+//
+//  - RÉVERB, NOT RÉVERBÉRATION. The .fx-title box is 62.00 px and the root
+//    measures 109.38 px against Réverb's 51.84. So the six reverb tip TITLES
+//    all read "… de la réverb" as well, matching the caption the user can see,
+//    rather than putting the root in the titles and the abbreviation on screen.
+//  - FILTRE PB stays on the caption — .lp-filter-toggle's content box is 78 px
+//    and "Filtre passe-bas" measures 100.16 — while tip.lpFilterEnabled's title
+//    spells it out. Both are listed forms of one glossary row, and a 260 px
+//    surface is where an abbreviation stops being necessary (M2 finding 9).
+//  - AMOUNT → QUANTITÉ. Dosage is forbidden and Ampleur is forbidden too (it is
+//    the suite's Depth). The three fine-band BODIES already said "la quantité
+//    d'éclosion", so the caption is settled by its own body. Measured 116.09 /
+//    97.41 / 106.72 / 87.89 / 110.59 px against 234 / 169 / 169 / 169 / 234 px
+//    cells — every one fits with room.
+//  - HUM SUSTAIN → MAINTIEN BOURDON. Tenue is forbidden, and unlike O-Bowed and
+//    O-Formant this page has NO competing Sustain control, so there is nothing
+//    for a termNote to exempt. 114.19 px in a 169 px cell. tip.damping's body
+//    follows it — one page, one word for sustain.
+//  - TUNING TAB → ACCORD, not Gamme. The glossary keeps two words for two
+//    things and this page has both: the tab is the ACCORD, the library holds
+//    GAMMES. 63.19 px in a 265 px flex:1 tab.
+//  - PARTIAL TUNE → "Accord des partiels" on the CAPTION as well as in the tip,
+//    because the root fits: 125.92 px in a 174.5 px cell. One control, one
+//    French name — the caption and the tip title no longer differ.
+//  - "EXP." / "LOG." KEEP THEIR FRENCH ABBREVIATING PERIOD, and
+//    tip.velocityCurve's body still names the ENGLISH faces "Exp" and "Log".
+//    The lint reports both captions as straight copies because its norm()
+//    strips a trailing period; check-i18n compares bytes and does not. NEITHER
+//    may take sameAsEn — flagging one disarms assertion 4 for it (N3
+//    correction 26). Reported to the orchestrator as a lint over-report.
+//  - tip.highFidelity's BODY IS NO LONGER THE v4.1.5 PROSE VERBATIM IN FRENCH.
+//    The draft said "pour une tenue maximale" where the English says "for
+//    maximum sustain fidelity" — it had dropped the fidelity, which is the
+//    whole point of the control. The ENGLISH is still verbatim. It is also the
+//    only tip that grew: 103.2 → 119.9 px, bottom clearance 53.6 → 37.0, top
+//    pinned at 443.2, so it grew DOWNWARD and never reached the y floor.
+//  - CHOICE-PARAMETER FACES STAY ENGLISH inside the French bodies (Bronze, Cast
+//    Iron, Click, Thud, Ping, Normal, PingPong, Linear) because they are
+//    I18N_EXEMPT and render English on screen; LOCALIZED faces are named in
+//    French — the four bypass bodies say "affiche Marche" and ui.on IS Marche.
+//    N4 correction 34 and N8 correction 53, both arms, checked on this page.
+//  - THE TYPOGRAPHY PASS added 69 U+00A0 (30 before %, 4 before a colon, 11
+//    before ; ! ?, 24 between a number and its unit), scoped by a state machine
+//    over the fr: blocks with comment lines skipped, and audited afterwards:
+//    zero U+00A0 outside a t:/b: value, zero en entries changed by import
+//    comparison, TIP_BINDINGS and I18N_EXEMPT byte-identical.
 //
 // LABELS AND HOVER-HELP. v4.2.0 localized the page's captions and shipped I18N
 // empty with TIP_BINDINGS = [], because the plugin had no tooltip renderer at
@@ -151,21 +209,21 @@ export const I18N = Object.freeze({
         en: { t: 'Damping',
               b: 'Sets how quickly the bell’s partials give up their energy. Low values ring on for a long time; high values shorten the tail and thin the sustain. 0 to 100 %.' },
         fr: { t: 'Amortissement',
-              b: 'Règle la vitesse à laquelle les partiels de la cloche perdent leur énergie. Une valeur basse laisse sonner longtemps ; une valeur haute raccourcit la queue et amincit la tenue. 0 à 100 %.',
+              b: 'Règle la vitesse à laquelle les partiels de la cloche perdent leur énergie. Une valeur basse laisse sonner longtemps ; une valeur haute raccourcit la queue et affaiblit le maintien. 0 à 100 %.',
               reviewed: false },
     },
     'tip.overtoneBrightness': {
         en: { t: 'Overtone Brightness',
               b: 'Balances the upper partials against the fundamental. Raise it for a glassy, bell-like shimmer; lower it for a darker, more wooden strike. 0 to 100 %.' },
         fr: { t: 'Brillance harmonique',
-              b: 'Équilibre les partiels aigus par rapport au fondamental. Augmentez pour un miroitement vitreux ; diminuez pour une frappe plus sombre et boisée. 0 à 100 %.',
+              b: 'Équilibre les partiels aigus par rapport au fondamental. Augmentez pour un miroitement vitreux ; diminuez pour une frappe plus sombre et boisée. 0 à 100 %.',
               reviewed: false },
     },
     'tip.acousticBrightness': {
         en: { t: 'Acoustic Brightness',
               b: 'Tilts the whole resonator towards the treble, the way a thinner casting or a harder alloy would. It colours the body rather than the strike. 0 to 100 %.' },
         fr: { t: 'Brillance acoustique',
-              b: 'Incline tout le résonateur vers l’aigu, comme le ferait une fonte plus fine ou un alliage plus dur. Colore le corps plutôt que la frappe. 0 à 100 %.',
+              b: 'Incline tout le résonateur vers l’aigu, comme le ferait une fonte plus fine ou un alliage plus dur. Colore le corps plutôt que la frappe. 0 à 100 %.',
               reviewed: false },
     },
     // The option words stay English on BOTH sides — D-01 arm 1, and they are
@@ -174,21 +232,21 @@ export const I18N = Object.freeze({
         en: { t: 'Material',
               b: 'Chooses the alloy the resonator models, which sets its partial ratios and its natural decay. Bronze is the orchestral tubular-bell voice; Cast Iron is the heaviest and the slowest to die away. Bronze, Brass, Steel, Aluminum or Cast Iron.' },
         fr: { t: 'Matériau',
-              b: 'Choisit l’alliage modélisé par le résonateur, ce qui fixe ses rapports de partiels et sa décroissance naturelle. Bronze est la voix de cloche tubulaire d’orchestre ; Cast Iron est la plus lourde et la plus lente à s’éteindre. Bronze, Brass, Steel, Aluminum ou Cast Iron.',
+              b: 'Choisit l’alliage modélisé par le résonateur, ce qui fixe ses rapports de partiels et sa décroissance naturelle. Bronze est la voix de cloche tubulaire d’orchestre ; Cast Iron est la plus lourde et la plus lente à s’éteindre. Bronze, Brass, Steel, Aluminum ou Cast Iron.',
               reviewed: false },
     },
     'tip.inharmonicity': {
         en: { t: 'Inharmonicity',
               b: 'Pushes the partials away from whole-number ratios, which is what makes a bell sound like a bell rather than an organ pipe. Too much and the pitch turns ambiguous. 0 to 100 %.' },
         fr: { t: 'Inharmonicité',
-              b: 'Écarte les partiels des rapports entiers, ce qui donne à une cloche son timbre plutôt que celui d’un tuyau d’orgue. Trop d’inharmonicité rend la hauteur ambiguë. 0 à 100 %.',
+              b: 'Écarte les partiels des rapports entiers, ce qui donne à une cloche son timbre plutôt que celui d’un tuyau d’orgue. Trop d’inharmonicité rend la hauteur ambiguë. 0 à 100 %.',
               reviewed: false },
     },
     'tip.airAbsorption': {
         en: { t: 'Air Absorption',
               b: 'Models the high frequencies losing energy to the air as the note travels. It darkens the tail progressively rather than all at once. 0 to 100 %.' },
         fr: { t: 'Absorption air',
-              b: 'Modélise la perte d’énergie des aigus dans l’air pendant que la note voyage. Assombrit la queue progressivement plutôt que d’un seul coup. 0 à 100 %.',
+              b: 'Modélise la perte d’énergie des aigus dans l’air pendant que la note voyage. Assombrit la queue progressivement plutôt que d’un seul coup. 0 à 100 %.',
               reviewed: false },
     },
     // UNIT RECOVERED — params.tsv `label` is empty. index.html:2038-2042 renders
@@ -197,7 +255,7 @@ export const I18N = Object.freeze({
         en: { t: 'Air Time',
               b: 'Sets how long that air-absorption darkening takes to run its course. Short values dull the tail almost immediately; long values keep the top open for seconds. 100 ms to 10.0 s.' },
         fr: { t: 'Durée air',
-              b: 'Règle le temps que met cet assombrissement par absorption de l’air à s’accomplir. Les valeurs courtes ternissent la queue presque aussitôt ; les longues gardent l’aigu ouvert pendant des secondes. 100 ms à 10,0 s.',
+              b: 'Règle le temps que met cet assombrissement par absorption de l’air à s’accomplir. Les valeurs courtes ternissent la queue presque aussitôt ; les longues gardent l’aigu ouvert pendant des secondes. 100 ms à 10,0 s.',
               reviewed: false },
     },
     // UNIT RECOVERED — empty `label`; index.html:2048 renders 25 + v*375 ms.
@@ -205,21 +263,21 @@ export const I18N = Object.freeze({
         en: { t: 'Bloom Speed',
               b: 'Bloom is the swell that arrives just after the strike, as the partials come into phase. This sets how long that swell takes to arrive. 25 to 400 ms.' },
         fr: { t: 'Vitesse éclosion',
-              b: 'L’éclosion est l’enflement qui suit immédiatement la frappe, quand les partiels se mettent en phase. Règle le temps que met cet enflement à venir. 25 à 400 ms.',
+              b: 'L’éclosion est l’enflement qui suit immédiatement la frappe, quand les partiels se mettent en phase. Règle le temps que met cet enflement à venir. 25 à 400 ms.',
               reviewed: false },
     },
     'tip.bloomAmount': {
         en: { t: 'Bloom Amount',
               b: 'Sets how much of that post-strike swell is audible. At zero the bell simply decays from its loudest point. 0 to 100 %.' },
-        fr: { t: 'Dosage éclosion',
-              b: 'Règle l’ampleur audible de cet enflement après la frappe. À zéro, la cloche décroît simplement depuis son maximum. 0 à 100 %.',
+        fr: { t: 'Quantité éclosion',
+              b: 'Règle la part audible de cet enflement après la frappe. À zéro, la cloche décroît simplement depuis son maximum. 0 à 100 %.',
               reviewed: false },
     },
     'tip.shimmer': {
         en: { t: 'Shimmer',
               b: 'Adds a slow beating between closely detuned partials — the flutter a real bell gets from its own asymmetry. 0 to 100 %.' },
         fr: { t: 'Shimmer',
-              b: 'Ajoute un battement lent entre des partiels légèrement désaccordés — le frémissement qu’une vraie cloche tient de sa propre asymétrie. 0 à 100 %.',
+              b: 'Ajoute un battement lent entre des partiels légèrement désaccordés — le frémissement qu’une vraie cloche tient de sa propre asymétrie. 0 à 100 %.',
               reviewed: false },
     },
     'tip.bloomFineEnabled': {
@@ -235,42 +293,42 @@ export const I18N = Object.freeze({
         en: { t: 'Speed Low',
               b: 'Sets the bloom time for the low partials alone. Large bells swell slowest down here. Available only while Bloom Fine Controls is on. 15 to 250 ms.' },
         fr: { t: 'Vitesse grave',
-              b: 'Règle le temps d’éclosion des seuls partiels graves. C’est ici que les grandes cloches enflent le plus lentement. Disponible seulement quand les réglages fins d’éclosion sont actifs. 15 à 250 ms.',
+              b: 'Règle le temps d’éclosion des seuls partiels graves. C’est ici que les grandes cloches enflent le plus lentement. Disponible seulement quand les réglages fins d’éclosion sont actifs. 15 à 250 ms.',
               reviewed: false },
     },
     'tip.bloomSpeedMid': {
         en: { t: 'Speed Mid',
               b: 'Sets the bloom time for the middle partials, the band that carries most of the perceived pitch. Available only while Bloom Fine Controls is on. 25 to 400 ms.' },
         fr: { t: 'Vitesse médium',
-              b: 'Règle le temps d’éclosion des partiels médiums, la bande qui porte l’essentiel de la hauteur perçue. Disponible seulement quand les réglages fins d’éclosion sont actifs. 25 à 400 ms.',
+              b: 'Règle le temps d’éclosion des partiels médiums, la bande qui porte l’essentiel de la hauteur perçue. Disponible seulement quand les réglages fins d’éclosion sont actifs. 25 à 400 ms.',
               reviewed: false },
     },
     'tip.bloomSpeedHigh': {
         en: { t: 'Speed High',
               b: 'Sets the bloom time for the high partials. Slow values here make the top of the bell arrive noticeably after the strike. Available only while Bloom Fine Controls is on. 50 to 800 ms.' },
         fr: { t: 'Vitesse aigu',
-              b: 'Règle le temps d’éclosion des partiels aigus. Une valeur lente fait arriver le haut de la cloche nettement après la frappe. Disponible seulement quand les réglages fins d’éclosion sont actifs. 50 à 800 ms.',
+              b: 'Règle le temps d’éclosion des partiels aigus. Une valeur lente fait arriver le haut de la cloche nettement après la frappe. Disponible seulement quand les réglages fins d’éclosion sont actifs. 50 à 800 ms.',
               reviewed: false },
     },
     'tip.bloomAmountLow': {
         en: { t: 'Amount Low',
               b: 'Sets how much bloom the low partials get. Available only while Bloom Fine Controls is on. 0 to 100 %.' },
-        fr: { t: 'Dosage grave',
-              b: 'Règle la quantité d’éclosion appliquée aux partiels graves. Disponible seulement quand les réglages fins d’éclosion sont actifs. 0 à 100 %.',
+        fr: { t: 'Quantité grave',
+              b: 'Règle la quantité d’éclosion appliquée aux partiels graves. Disponible seulement quand les réglages fins d’éclosion sont actifs. 0 à 100 %.',
               reviewed: false },
     },
     'tip.bloomAmountMid': {
         en: { t: 'Amount Mid',
               b: 'Sets how much bloom the middle partials get. Available only while Bloom Fine Controls is on. 0 to 100 %.' },
-        fr: { t: 'Dosage médium',
-              b: 'Règle la quantité d’éclosion appliquée aux partiels médiums. Disponible seulement quand les réglages fins d’éclosion sont actifs. 0 à 100 %.',
+        fr: { t: 'Quantité médium',
+              b: 'Règle la quantité d’éclosion appliquée aux partiels médiums. Disponible seulement quand les réglages fins d’éclosion sont actifs. 0 à 100 %.',
               reviewed: false },
     },
     'tip.bloomAmountHigh': {
         en: { t: 'Amount High',
               b: 'Sets how much bloom the high partials get. Available only while Bloom Fine Controls is on. 0 to 100 %.' },
-        fr: { t: 'Dosage aigu',
-              b: 'Règle la quantité d’éclosion appliquée aux partiels aigus. Disponible seulement quand les réglages fins d’éclosion sont actifs. 0 à 100 %.',
+        fr: { t: 'Quantité aigu',
+              b: 'Règle la quantité d’éclosion appliquée aux partiels aigus. Disponible seulement quand les réglages fins d’éclosion sont actifs. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -280,35 +338,35 @@ export const I18N = Object.freeze({
         en: { t: 'Unison',
               b: 'Stacks slightly detuned copies of the bell for a wider, thicker strike. Every extra voice costs CPU on every note. 1 to 4 voices.' },
         fr: { t: 'Unisson',
-              b: 'Empile des copies légèrement désaccordées de la cloche pour une frappe plus large et plus épaisse. Chaque voix supplémentaire coûte du processeur à chaque note. 1 à 4 voix.',
+              b: 'Empile des copies légèrement désaccordées de la cloche pour une frappe plus large et plus épaisse. Chaque voix supplémentaire coûte du processeur à chaque note. 1 à 4 voix.',
               reviewed: false },
     },
     'tip.unisonDetune': {
         en: { t: 'Detune',
               b: 'Spreads the unison voices apart in pitch. A little thickens; a lot produces a chorus and then sours. Has no effect at one voice. 0 to 50 cents.' },
         fr: { t: 'Désaccord',
-              b: 'Écarte les voix d’unisson en hauteur. Un peu épaissit ; beaucoup produit un chorus puis une fausseté. Sans effet à une seule voix. 0 à 50 cents.',
+              b: 'Écarte les voix d’unisson en hauteur. Un peu épaissit ; beaucoup produit un chorus puis une fausseté. Sans effet à une seule voix. 0 à 50 cents.',
               reviewed: false },
     },
     'tip.octaveBlendSub': {
         en: { t: 'Sub Octave',
               b: 'Blends in a copy of the bell an octave below, for weight underneath the strike. 0 to 100 %.' },
         fr: { t: 'Sous-octave',
-              b: 'Mélange une copie de la cloche une octave plus bas, pour donner du poids sous la frappe. 0 à 100 %.',
+              b: 'Mélange une copie de la cloche une octave plus bas, pour donner du poids sous la frappe. 0 à 100 %.',
               reviewed: false },
     },
     'tip.octaveBlendOct': {
         en: { t: 'Octave Up',
               b: 'Blends in a copy of the bell an octave above, for sparkle on the attack. 0 to 100 %.' },
         fr: { t: 'Octave supérieure',
-              b: 'Mélange une copie de la cloche une octave plus haut, pour donner de l’éclat à l’attaque. 0 à 100 %.',
+              b: 'Mélange une copie de la cloche une octave plus haut, pour donner de l’éclat à l’attaque. 0 à 100 %.',
               reviewed: false },
     },
     'tip.stereoSpread': {
         en: { t: 'Spread',
               b: 'Places the unison and octave voices across the stereo field. At zero everything sits in the centre. 0 to 100 %.' },
         fr: { t: 'Étalement',
-              b: 'Répartit les voix d’unisson et d’octave dans le champ stéréo. À zéro, tout reste au centre. 0 à 100 %.',
+              b: 'Répartit les voix d’unisson et d’octave dans le champ stéréo. À zéro, tout reste au centre. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -317,21 +375,21 @@ export const I18N = Object.freeze({
         en: { t: 'Strike',
               b: 'Moves the striking point along the bell. Near the rim the upper partials dominate; near the crown the fundamental does. 0 to 100 %.' },
         fr: { t: 'Frappe',
-              b: 'Déplace le point de frappe le long de la cloche. Près du bord, les partiels aigus dominent ; près du sommet, c’est le fondamental. 0 à 100 %.',
+              b: 'Déplace le point de frappe le long de la cloche. Près du bord, les partiels aigus dominent ; près du sommet, c’est le fondamental. 0 à 100 %.',
               reviewed: false },
     },
     'tip.malletHardness': {
         en: { t: 'Mallet',
               b: 'Sets how hard the mallet head is. Soft heads excite the low partials and little else; hard heads put a bright click on the front of the note. 0 to 100 %.' },
-        fr: { t: 'Mailloche',
-              b: 'Règle la dureté de la tête de mailloche. Une tête douce n’excite guère que les partiels graves ; une tête dure place un clic brillant en tête de la note. 0 à 100 %.',
+        fr: { t: 'Maillet',
+              b: 'Règle la dureté de la tête de maillet. Une tête douce n’excite guère que les partiels graves ; une tête dure place un clic brillant en tête de la note. 0 à 100 %.',
               reviewed: false },
     },
     'tip.attackLevel': {
         en: { t: 'Attack Amount',
               b: 'Sets how loud the strike transient is against the ringing body that follows it. 0 to 100 %.' },
-        fr: { t: 'Dosage attaque',
-              b: 'Règle le niveau du transitoire de frappe par rapport au corps résonant qui le suit. 0 à 100 %.',
+        fr: { t: 'Quantité attaque',
+              b: 'Règle le niveau du transitoire de frappe par rapport au corps résonant qui le suit. 0 à 100 %.',
               reviewed: false },
     },
     'tip.strikeNoiseChar': {
@@ -358,28 +416,28 @@ export const I18N = Object.freeze({
         en: { t: 'Partial Tune',
               b: 'Detunes the upper partials against the fundamental without moving the perceived pitch. It is the shortest road from a tuned bell to a clangorous one. −100 to +100 cents.' },
         fr: { t: 'Accord des partiels',
-              b: 'Désaccorde les partiels aigus par rapport au fondamental sans déplacer la hauteur perçue. C’est le chemin le plus court d’une cloche juste à une cloche clangoreuse. −100 à +100 cents.',
+              b: 'Désaccorde les partiels aigus par rapport au fondamental sans déplacer la hauteur perçue. C’est le chemin le plus court d’une cloche juste à une cloche au timbre discordant. −100 à +100 cents.',
               reviewed: false },
     },
     'tip.pitchEnvelope': {
         en: { t: 'Pitch Envelope',
               b: 'Sets how far the pitch falls away from its struck value in the first instants of the note — the drop a heavy bell makes as it settles. 0 to 100 %.' },
         fr: { t: 'Enveloppe de hauteur',
-              b: 'Règle l’ampleur de la chute de hauteur dans les premiers instants de la note — l’affaissement d’une cloche lourde qui se stabilise. 0 à 100 %.',
+              b: 'Règle l’ampleur de la chute de hauteur dans les premiers instants de la note — l’affaissement d’une cloche lourde qui se stabilise. 0 à 100 %.',
               reviewed: false },
     },
     'tip.pitchEnvTime': {
         en: { t: 'Pitch Envelope Time',
               b: 'Sets how long that pitch drop takes to complete. Short values read as a click on the attack; long values as an audible bend. 5 to 200 ms.' },
         fr: { t: 'Durée d’enveloppe de hauteur',
-              b: 'Règle la durée de cette chute de hauteur. Les valeurs courtes s’entendent comme un clic sur l’attaque ; les longues comme un glissando audible. 5 à 200 ms.',
+              b: 'Règle la durée de cette chute de hauteur. Les valeurs courtes s’entendent comme un clic sur l’attaque ; les longues comme un glissando audible. 5 à 200 ms.',
               reviewed: false },
     },
     'tip.nonlinearEffects': {
         en: { t: 'Nonlinear',
               b: 'Adds the amplitude-dependent coupling a real bell shows when it is struck hard: partials trade energy and the timbre changes with level. 0 to 100 %.' },
         fr: { t: 'Non linéaire',
-              b: 'Ajoute le couplage dépendant de l’amplitude qu’une vraie cloche manifeste sous une frappe forte : les partiels échangent de l’énergie et le timbre change avec le niveau. 0 à 100 %.',
+              b: 'Ajoute le couplage dépendant de l’amplitude qu’une vraie cloche manifeste sous une frappe forte : les partiels échangent de l’énergie et le timbre change avec le niveau. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -388,14 +446,14 @@ export const I18N = Object.freeze({
         en: { t: 'Strike Time',
               b: 'Sets the length of the first envelope stage — the strike itself — before the body of the note takes over. 5 to 100 ms.' },
         fr: { t: 'Durée frappe',
-              b: 'Règle la durée de la première étape d’enveloppe — la frappe elle-même — avant que le corps de la note prenne le relais. 5 à 100 ms.',
+              b: 'Règle la durée de la première étape d’enveloppe — la frappe elle-même — avant que le corps de la note prenne le relais. 5 à 100 ms.',
               reviewed: false },
     },
     'tip.brilliance': {
         en: { t: 'Brilliance',
               b: 'Sets how long the highest partials survive into the decay. Low values let the top die first, which is what a large bell does. 0 to 100 %.' },
         fr: { t: 'Brillance',
-              b: 'Règle la durée de survie des partiels les plus aigus dans la décroissance. Une valeur basse laisse l’aigu mourir en premier, comme le fait une grande cloche. 0 à 100 %.',
+              b: 'Règle la durée de survie des partiels les plus aigus dans la décroissance. Une valeur basse laisse l’aigu mourir en premier, comme le fait une grande cloche. 0 à 100 %.',
               reviewed: false },
     },
     // UNIT RECOVERED for the upper end — params.tsv gives `ms` 100..5000 and
@@ -404,14 +462,14 @@ export const I18N = Object.freeze({
         en: { t: 'Body Time',
               b: 'Sets the length of the middle envelope stage — the ringing body between the strike and the hum. 100 ms to 5.0 s.' },
         fr: { t: 'Durée corps',
-              b: 'Règle la durée de l’étape médiane de l’enveloppe — le corps résonant entre la frappe et le bourdon. 100 ms à 5,0 s.',
+              b: 'Règle la durée de l’étape médiane de l’enveloppe — le corps résonant entre la frappe et le bourdon. 100 ms à 5,0 s.',
               reviewed: false },
     },
     'tip.humSustain': {
         en: { t: 'Hum Sustain',
               b: 'Sets how long the hum note holds — the lowest partial, an octave under the strike tone — once everything above it has gone. 0 to 100 %.' },
-        fr: { t: 'Tenue bourdon',
-              b: 'Règle la durée de tenue du bourdon — le partiel le plus grave, une octave sous le son de frappe — une fois que tout ce qui est au-dessus a disparu. 0 à 100 %.',
+        fr: { t: 'Maintien bourdon',
+              b: 'Règle la durée de maintien du bourdon — le partiel le plus grave, une octave sous le son de frappe — une fois que tout ce qui est au-dessus a disparu. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -429,7 +487,7 @@ export const I18N = Object.freeze({
         en: { t: 'Cutoff',
               b: 'Sets where that low-pass filter starts to cut. It does nothing until LP Filter is switched on. 200 Hz to 20.0 kHz.' },
         fr: { t: 'Coupure',
-              b: 'Règle la fréquence à laquelle ce filtre passe-bas commence à couper. Sans effet tant que le filtre passe-bas n’est pas activé. 200 Hz à 20,0 kHz.',
+              b: 'Règle la fréquence à laquelle ce filtre passe-bas commence à couper. Sans effet tant que le filtre passe-bas n’est pas activé. 200 Hz à 20,0 kHz.',
               reviewed: false },
     },
 
@@ -443,7 +501,7 @@ export const I18N = Object.freeze({
         en: { t: 'High Fidelity',
               b: 'Disables voice culling for maximum sustain fidelity. May cause CPU overload with long-decay presets and dense polyphony. Off or On.' },
         fr: { t: 'Haute fidélité',
-              b: 'Désactive l’élagage des voix pour une tenue maximale. Peut surcharger le processeur avec des préréglages à longue décroissance et une polyphonie dense. Arrêt ou Marche.',
+              b: 'Désactive l’élagage des voix pour une fidélité maximale du maintien. Peut surcharger le processeur avec des préréglages à longue décroissance et une polyphonie dense. Arrêt ou Marche.',
               reviewed: false },
     },
 
@@ -452,14 +510,14 @@ export const I18N = Object.freeze({
         en: { t: 'Humanize',
               b: 'Varies timing, level and tuning very slightly from note to note, so repeated strikes stop sounding identical. 0 to 100 %.' },
         fr: { t: 'Humanisation',
-              b: 'Fait varier très légèrement le placement, le niveau et l’accord d’une note à l’autre, pour que les frappes répétées cessent d’être identiques. 0 à 100 %.',
+              b: 'Fait varier très légèrement le placement, le niveau et l’accord d’une note à l’autre, pour que les frappes répétées cessent d’être identiques. 0 à 100 %.',
               reviewed: false },
     },
     'tip.outputGain': {
         en: { t: 'Gain',
               b: 'Sets the level leaving the plugin, after the whole effects chain. −24 to +12 dB.' },
         fr: { t: 'Gain',
-              b: 'Règle le niveau en sortie, après toute la chaîne d’effets. −24 à +12 dB.',
+              b: 'Règle le niveau en sortie, après toute la chaîne d’effets. −24 à +12 dB.',
               reviewed: false },
     },
 
@@ -476,7 +534,7 @@ export const I18N = Object.freeze({
         en: { t: 'A4 Reference',
               b: 'Sets the reference frequency the whole tuning is built from — A4, the concert-pitch anchor. Drag the knob up or down. 400.0 to 480.0 Hz.' },
         fr: { t: 'Référence A4',
-              b: 'Règle la fréquence de référence sur laquelle repose tout l’accord — A4, l’ancrage du diapason. Glisser le bouton vers le haut ou vers le bas. 400,0 à 480,0 Hz.',
+              b: 'Règle la fréquence de référence sur laquelle repose tout l’accord — A4, l’ancrage du diapason. Glissez le bouton vers le haut ou vers le bas. 400,0 à 480,0 Hz.',
               reviewed: false },
     },
     // UNIT RECOVERED — empty `label`, and the value is a RATIO with no unit:
@@ -503,21 +561,21 @@ export const I18N = Object.freeze({
         en: { t: 'Chorus Rate',
               b: 'Sets how fast the chorus delay is modulated. Slow settings widen the image; fast settings warble. 0.10 to 10.00 Hz.' },
         fr: { t: 'Vitesse du chorus',
-              b: 'Règle la vitesse de modulation du retard du chorus. Les réglages lents élargissent l’image ; les rapides font trembler. 0,10 à 10,00 Hz.',
+              b: 'Règle la vitesse de modulation du retard du chorus. Les réglages lents élargissent l’image ; les rapides font trembler. 0,10 à 10,00 Hz.',
               reviewed: false },
     },
     'tip.chorusDepth': {
         en: { t: 'Chorus Depth',
               b: 'Sets how far the chorus delay swings. A little thickens; a lot detunes audibly. 0 to 100 %.' },
         fr: { t: 'Profondeur du chorus',
-              b: 'Règle l’amplitude du balayage du retard du chorus. Un peu épaissit ; beaucoup désaccorde de façon audible. 0 à 100 %.',
+              b: 'Règle l’amplitude du balayage du retard du chorus. Un peu épaissit ; beaucoup désaccorde de façon audible. 0 à 100 %.',
               reviewed: false },
     },
     'tip.chorusMix': {
         en: { t: 'Chorus Mix',
               b: 'Balances the chorused signal against the dry bell. 0 to 100 %.' },
-        fr: { t: 'Dosage du chorus',
-              b: 'Équilibre le signal traité par le chorus et la cloche sèche. 0 à 100 %.',
+        fr: { t: 'Mix du chorus',
+              b: 'Équilibre le signal traité par le chorus et la cloche sèche. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -536,28 +594,28 @@ export const I18N = Object.freeze({
         en: { t: 'Delay Time',
               b: 'Sets the gap between the bell and its first echo. 1 to 2000 ms.' },
         fr: { t: 'Durée du délai',
-              b: 'Règle l’écart entre la cloche et son premier écho. 1 à 2000 ms.',
+              b: 'Règle l’écart entre la cloche et son premier écho. 1 à 2000 ms.',
               reviewed: false },
     },
     'tip.delayFeedback': {
         en: { t: 'Delay Feedback',
               b: 'Sets how much of each echo is fed back to make the next one. High values build long trails that fade slowly. 0 to 95 %.' },
         fr: { t: 'Réinjection du délai',
-              b: 'Règle la part de chaque écho réinjectée pour produire le suivant. Les valeurs élevées créent de longues traînées qui s’effacent lentement. 0 à 95 %.',
+              b: 'Règle la part de chaque écho réinjectée pour produire le suivant. Les valeurs élevées créent de longues traînées qui s’effacent lentement. 0 à 95 %.',
               reviewed: false },
     },
     'tip.delayMode': {
         en: { t: 'Delay Mode',
               b: 'Chooses how the repeats are placed in the stereo field. Normal keeps each echo where the bell was; PingPong alternates them left and right. Normal or PingPong.' },
         fr: { t: 'Mode de délai',
-              b: 'Choisit le placement des répétitions dans le champ stéréo. Normal garde chaque écho là où était la cloche ; PingPong les alterne à gauche et à droite. Normal ou PingPong.',
+              b: 'Choisit le placement des répétitions dans le champ stéréo. Normal garde chaque écho là où était la cloche ; PingPong les alterne à gauche et à droite. Normal ou PingPong.',
               reviewed: false },
     },
     'tip.delayMix': {
         en: { t: 'Delay Mix',
               b: 'Balances the echoes against the dry bell. 0 to 100 %.' },
-        fr: { t: 'Dosage du délai',
-              b: 'Équilibre les échos et la cloche sèche. 0 à 100 %.',
+        fr: { t: 'Mix du délai',
+              b: 'Équilibre les échos et la cloche sèche. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -573,28 +631,28 @@ export const I18N = Object.freeze({
         en: { t: 'EQ Low',
               b: 'Cuts or boosts the low shelf, where the hum note lives. −12 to +12 dB.' },
         fr: { t: 'EQ grave',
-              b: 'Atténue ou accentue le plateau grave, là où se trouve le bourdon. −12 à +12 dB.',
+              b: 'Atténue ou accentue le plateau grave, là où se trouve le bourdon. −12 à +12 dB.',
               reviewed: false },
     },
     'tip.eqMidGain': {
         en: { t: 'EQ Mid',
               b: 'Cuts or boosts a peaking band centred on the Mid Freq knob beside it. −12 to +12 dB.' },
         fr: { t: 'EQ médium',
-              b: 'Atténue ou accentue une cloche centrée sur la fréquence médium réglée par le bouton voisin. −12 à +12 dB.',
+              b: 'Atténue ou accentue une bande en cloche centrée sur la fréquence réglée par le bouton Fréq. méd. voisin. −12 à +12 dB.',
               reviewed: false },
     },
     'tip.eqMidFreq': {
         en: { t: 'EQ Mid Frequency',
               b: 'Sets where the mid band sits. Sweep it to find the ringing partial you want to lift or tame. 200 to 8000 Hz.' },
         fr: { t: 'Fréquence médium de l’EQ',
-              b: 'Règle la position de la bande médium. Balayez-la pour trouver le partiel résonant à relever ou à adoucir. 200 à 8000 Hz.',
+              b: 'Règle la position de la bande médium. Balayez-la pour trouver le partiel résonant à relever ou à adoucir. 200 à 8000 Hz.',
               reviewed: false },
     },
     'tip.eqHighGain': {
         en: { t: 'EQ High',
               b: 'Cuts or boosts the high shelf, where the strike noise and the brightest partials sit. −12 to +12 dB.' },
         fr: { t: 'EQ aigu',
-              b: 'Atténue ou accentue le plateau aigu, là où se trouvent le bruit de frappe et les partiels les plus brillants. −12 à +12 dB.',
+              b: 'Atténue ou accentue le plateau aigu, là où se trouvent le bruit de frappe et les partiels les plus brillants. −12 à +12 dB.',
               reviewed: false },
     },
 
@@ -602,50 +660,50 @@ export const I18N = Object.freeze({
     'tip.reverbBypass': {
         en: { t: 'Reverb',
               b: 'Switches the reverb section in and out of the signal path. The button reads On while the effect is running. Off or On.' },
-        fr: { t: 'Réverbe',
+        fr: { t: 'Réverb',
               b: 'Insère ou retire la section de réverbération du trajet du signal. Le bouton affiche Marche tant que l’effet fonctionne. Arrêt ou Marche.',
               reviewed: false },
     },
     'tip.reverbSize': {
         en: { t: 'Reverb Size',
               b: 'Sets how large the modelled space is, and with it how long the tail runs. 0 to 100 %.' },
-        fr: { t: 'Taille de la réverbe',
-              b: 'Règle la taille de l’espace modélisé, et par là même la longueur de la queue. 0 à 100 %.',
+        fr: { t: 'Taille de la réverb',
+              b: 'Règle la taille de l’espace modélisé, et par là même la longueur de la queue. 0 à 100 %.',
               reviewed: false },
     },
     'tip.reverbDamp': {
         en: { t: 'Reverb Damp',
               b: 'Sets how fast the high frequencies disappear from the tail, as soft furnishings would take them. 0 to 100 %.' },
-        fr: { t: 'Amortissement de la réverbe',
-              b: 'Règle la vitesse à laquelle les aigus disparaissent de la queue, comme le feraient des matériaux absorbants. 0 à 100 %.',
+        fr: { t: 'Amortissement de la réverb',
+              b: 'Règle la vitesse à laquelle les aigus disparaissent de la queue, comme le feraient des matériaux absorbants. 0 à 100 %.',
               reviewed: false },
     },
     'tip.reverbPredelay': {
         en: { t: 'Reverb Pre-delay',
               b: 'Holds the reverb back after the strike, which keeps the attack clear and pushes the room further away. 0 to 200 ms.' },
-        fr: { t: 'Pré-délai de la réverbe',
-              b: 'Retarde la réverbération après la frappe, ce qui garde l’attaque nette et éloigne la pièce. 0 à 200 ms.',
+        fr: { t: 'Pré-délai de la réverb',
+              b: 'Retarde la réverbération après la frappe, ce qui garde l’attaque nette et éloigne la pièce. 0 à 200 ms.',
               reviewed: false },
     },
     'tip.reverbMod': {
         en: { t: 'Reverb Mod',
               b: 'Moves the reverb’s internal delays slowly, which stops a long tail settling into a metallic ring. 0 to 100 %.' },
-        fr: { t: 'Modulation de la réverbe',
-              b: 'Déplace lentement les retards internes de la réverbération, ce qui empêche une longue queue de se figer en résonance métallique. 0 à 100 %.',
+        fr: { t: 'Modulation de la réverb',
+              b: 'Déplace lentement les retards internes de la réverbération, ce qui empêche une longue queue de se figer en résonance métallique. 0 à 100 %.',
               reviewed: false },
     },
     'tip.reverbShimmer': {
         en: { t: 'Reverb Shimmer',
               b: 'Feeds an octave-up copy of the tail back into the reverb, so the decay rises instead of only fading. 0 to 100 %.' },
-        fr: { t: 'Shimmer de la réverbe',
-              b: 'Réinjecte dans la réverbération une copie de la queue transposée à l’octave supérieure, de sorte que la décroissance monte au lieu de seulement s’effacer. 0 à 100 %.',
+        fr: { t: 'Shimmer de la réverb',
+              b: 'Réinjecte dans la réverbération une copie de la queue transposée à l’octave supérieure, de sorte que la décroissance monte au lieu de seulement s’effacer. 0 à 100 %.',
               reviewed: false },
     },
     'tip.reverbMix': {
         en: { t: 'Reverb Mix',
               b: 'Balances the reverb against the dry bell. 0 to 100 %.' },
-        fr: { t: 'Dosage de la réverbe',
-              b: 'Équilibre la réverbération et la cloche sèche. 0 à 100 %.',
+        fr: { t: 'Mix de la réverb',
+              b: 'Équilibre la réverbération et la cloche sèche. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -658,7 +716,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Opens the settings panel below the gear. It holds one control: the interface language. Value readouts stay in English whichever language is chosen.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau de réglages sous l’engrenage. Il contient une seule commande : la langue de l’interface. Les valeurs affichées restent en anglais quelle que soit la langue choisie.',
+              b: 'Ouvre le panneau de réglages sous l’engrenage. Il contient une seule commande : la langue de l’interface. Les valeurs affichées restent en anglais quelle que soit la langue choisie.',
               reviewed: false },
     },
     'tip.langSelect': {
@@ -681,7 +739,7 @@ export const LABELS = Object.freeze({
 
     // ── Tab row ─────────────────────────────────────────────────────────────
     'label.tabInstrument': { en: { t: 'Instrument' }, fr: { t: 'Instrument', reviewed: false, sameAsEn: true } },
-    'label.tabTuning':     { en: { t: 'Tuning' },     fr: { t: 'Gamme',      reviewed: false } },
+    'label.tabTuning':     { en: { t: 'Tuning' },     fr: { t: 'Accord',     reviewed: false } },
     'label.tabEffects':    { en: { t: 'Effects' },    fr: { t: 'Effets',     reviewed: false } },
 
     // ── The CPU warning banner, SPLIT — and the readout moved to the FRONT ──
@@ -719,18 +777,18 @@ export const LABELS = Object.freeze({
     // "Shimmer" is, because "shimmer" is a shipped effect NAME across this suite
     // and "bloom" here is a described behaviour.
     'label.bloomSpeed':     { en: { t: 'Bloom Speed' },  fr: { t: 'Vitesse éclosion', reviewed: false } },
-    'label.bloomAmount':    { en: { t: 'Bloom Amount' }, fr: { t: 'Dosage éclosion', reviewed: false } },
+    'label.bloomAmount':    { en: { t: 'Bloom Amount' }, fr: { t: 'Quantité éclosion', reviewed: false } },
     'label.shimmer':        { en: { t: 'Shimmer' },      fr: { t: 'Shimmer', reviewed: false, sameAsEn: true } },
     'label.bloomFineToggle': { en: { t: 'Bloom Fine Controls (Override Mode)' },
-                               fr: { t: 'Réglages fins d’éclosion (mode manuel)', reviewed: false } },
+                               fr: { t: 'Réglages fins d’éclosion (mode prioritaire)', reviewed: false } },
     'label.bloomFineHint':  { en: { t: 'Per-band control - main sliders disabled when active' },
                               fr: { t: 'Réglage par bande - curseurs principaux désactivés', reviewed: false } },
     'label.speedLow':       { en: { t: 'Speed Low' },   fr: { t: 'Vitesse grave', reviewed: false } },
     'label.speedMid':       { en: { t: 'Speed Mid' },   fr: { t: 'Vitesse médium', reviewed: false } },
     'label.speedHigh':      { en: { t: 'Speed High' },  fr: { t: 'Vitesse aigu', reviewed: false } },
-    'label.amountLow':      { en: { t: 'Amount Low' },  fr: { t: 'Dosage grave', reviewed: false } },
-    'label.amountMid':      { en: { t: 'Amount Mid' },  fr: { t: 'Dosage médium', reviewed: false } },
-    'label.amountHigh':     { en: { t: 'Amount High' }, fr: { t: 'Dosage aigu', reviewed: false } },
+    'label.amountLow':      { en: { t: 'Amount Low' },  fr: { t: 'Quantité grave', reviewed: false } },
+    'label.amountMid':      { en: { t: 'Amount Mid' },  fr: { t: 'Quantité médium', reviewed: false } },
+    'label.amountHigh':     { en: { t: 'Amount High' }, fr: { t: 'Quantité aigu', reviewed: false } },
 
     // ── Instrument tab: Ensemble ────────────────────────────────────────────
     'label.secEnsemble': { en: { t: 'Ensemble' }, fr: { t: 'Ensemble', reviewed: false, sameAsEn: true } },
@@ -746,8 +804,8 @@ export const LABELS = Object.freeze({
     // ── Instrument tab: Onsets ──────────────────────────────────────────────
     'label.secOnsets':    { en: { t: 'Onsets' },        fr: { t: 'Attaques', reviewed: false } },
     'label.strike':       { en: { t: 'Strike' },        fr: { t: 'Frappe', reviewed: false } },
-    'label.mallet':       { en: { t: 'Mallet' },        fr: { t: 'Mailloche', reviewed: false } },
-    'label.attackAmount': { en: { t: 'Attack Amount' }, fr: { t: 'Dosage attaque', reviewed: false } },
+    'label.mallet':       { en: { t: 'Mallet' },        fr: { t: 'Maillet', reviewed: false } },
+    'label.attackAmount': { en: { t: 'Attack Amount' }, fr: { t: 'Quantité attaque', reviewed: false } },
     'label.noise':        { en: { t: 'Noise' },         fr: { t: 'Bruit', reviewed: false } },
     'label.velocity':     { en: { t: 'Velocity' },      fr: { t: 'Vélocité', reviewed: false } },
     // The velocityCurve group is three buttons over ONE AudioParameterChoice
@@ -762,7 +820,7 @@ export const LABELS = Object.freeze({
 
     // ── Instrument tab: Advanced ────────────────────────────────────────────
     'label.secAdvanced': { en: { t: 'Advanced' },     fr: { t: 'Avancé', reviewed: false } },
-    'label.partialTune': { en: { t: 'Partial Tune' }, fr: { t: 'Accord partiels', reviewed: false } },
+    'label.partialTune': { en: { t: 'Partial Tune' }, fr: { t: 'Accord des partiels', reviewed: false } },
     'label.pitchEnv':    { en: { t: 'Pitch Env' },    fr: { t: 'Env. hauteur', reviewed: false } },
     // The English is ALREADY abbreviated to fit a quarter-width cell, so the
     // French is held to the same budget rather than spelled out.
@@ -772,11 +830,11 @@ export const LABELS = Object.freeze({
     // ── Instrument tab: Multi-Stage Envelope ────────────────────────────────
     'label.secEnvelope':  { en: { t: 'Multi-Stage Envelope' }, fr: { t: 'Enveloppe multi-étages', reviewed: false } },
     'label.envelopeHint': { en: { t: 'Controls how different frequencies decay over time' },
-                            fr: { t: 'Règle la décroissance des fréquences dans le temps', reviewed: false } },
+                            fr: { t: 'Règle la décroissance des différentes fréquences dans le temps', reviewed: false } },
     'label.strikeTime':   { en: { t: 'Strike Time' }, fr: { t: 'Durée frappe', reviewed: false } },
     'label.brilliance':   { en: { t: 'Brilliance' },  fr: { t: 'Brillance', reviewed: false } },
     'label.bodyTime':     { en: { t: 'Body Time' },   fr: { t: 'Durée corps', reviewed: false } },
-    'label.humSustain':   { en: { t: 'Hum Sustain' }, fr: { t: 'Tenue bourdon', reviewed: false } },
+    'label.humSustain':   { en: { t: 'Hum Sustain' }, fr: { t: 'Maintien bourdon', reviewed: false } },
 
     // ── Instrument tab: Filter / Performance / Output ───────────────────────
     'label.secFilter':      { en: { t: 'Filter' },    fr: { t: 'Filtre', reviewed: false } },
@@ -802,10 +860,10 @@ export const LABELS = Object.freeze({
     'label.fxChorus': { en: { t: 'Chorus' }, fr: { t: 'Chorus',  reviewed: false, sameAsEn: true } },
     'label.fxDelay':  { en: { t: 'Delay' },  fr: { t: 'Délai',   reviewed: false } },
     'label.fxEq':     { en: { t: 'EQ' },     fr: { t: 'EQ',      reviewed: false, sameAsEn: true } },
-    'label.fxReverb': { en: { t: 'Reverb' }, fr: { t: 'Réverbe', reviewed: false } },
+    'label.fxReverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb', reviewed: false } },
     'label.rate':     { en: { t: 'Rate' },     fr: { t: 'Vitesse', reviewed: false } },
     'label.depth':    { en: { t: 'Depth' },    fr: { t: 'Prof.',   reviewed: false } },
-    'label.mix':      { en: { t: 'Mix' },      fr: { t: 'Dosage',  reviewed: false } },
+    'label.mix':      { en: { t: 'Mix' },      fr: { t: 'Mix',  reviewed: false, sameAsEn: true } },
     'label.time':     { en: { t: 'Time' },     fr: { t: 'Durée',   reviewed: false } },
     'label.feedback': { en: { t: 'Feedback' }, fr: { t: 'Réinj.',  reviewed: false } },
     'label.low':      { en: { t: 'Low' },      fr: { t: 'Grave',   reviewed: false } },
@@ -813,7 +871,7 @@ export const LABELS = Object.freeze({
     'label.midFreq':  { en: { t: 'Mid Freq' }, fr: { t: 'Fréq. méd.', reviewed: false } },
     'label.high':     { en: { t: 'High' },     fr: { t: 'Aigu',    reviewed: false } },
     'label.size':     { en: { t: 'Size' },     fr: { t: 'Taille',  reviewed: false } },
-    'label.damp':     { en: { t: 'Damp' },     fr: { t: 'Amortis.', reviewed: false } },
+    'label.damp':     { en: { t: 'Damp' },     fr: { t: 'Amort.', reviewed: false } },
     'label.preDly':   { en: { t: 'Pre-dly' },  fr: { t: 'Pré-dél.', reviewed: false } },
     'label.mod':      { en: { t: 'Mod' },      fr: { t: 'Mod',     reviewed: false, sameAsEn: true } },
     // Worn by the delay-mode dropdown caption AND by the rotation table's first
@@ -841,8 +899,8 @@ export const LABELS = Object.freeze({
     // "0 notes" and French as "0 note", so the noun moved in front of the
     // number and the count now stands alone — correct at 0, 1 and n in both
     // languages with no plural engine anywhere.
-    'label.intervalsHeader': { en: { t: 'Intervals: {n}' }, fr: { t: 'Intervalles : {n}', reviewed: false } },
-    'label.noteCount':       { en: { t: 'Notes: {n}' },     fr: { t: 'Notes : {n}',       reviewed: false } },
+    'label.intervalsHeader': { en: { t: 'Intervals: {n}' }, fr: { t: 'Intervalles : {n}', reviewed: false } },
+    'label.noteCount':       { en: { t: 'Notes: {n}' },     fr: { t: 'Notes : {n}',       reviewed: false } },
     'label.tonic':           { en: { t: 'Tonic' },          fr: { t: 'Tonique', reviewed: false } },
     'label.scaleIntervals':  { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: false } },
     'label.vizCircle':       { en: { t: 'Circle' },    fr: { t: 'Cercle',   reviewed: false } },
