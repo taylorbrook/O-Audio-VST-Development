@@ -162,6 +162,17 @@ OSimpleReverbAudioProcessorEditor::OSimpleReverbAudioProcessorEditor(OSimpleReve
                 complete(juce::var(OSimpleReverbAudioProcessor::languageCode(
                                        processorRef.uiLanguage.load(std::memory_order_acquire))));
             })
+            // ── v1.7.2: the version, read once by the page ─────────────────
+            //
+            // JucePlugin_VersionString is the CMake VERSION (1.7.2) stamped in
+            // by juce_add_plugin, so the footer wordmark and the console banner
+            // can no longer drift from the bundle. The page PULLS once at init
+            // (the O-DigiDelay / O-Tremolo shape); no push, no relay. Before
+            // this the page hard-coded "v1.5.5" and had been four versions
+            // stale (Stage O item 47).
+            .withNativeFunction("getPluginVersion", [](const auto&, auto complete) {
+                complete(juce::String(JucePlugin_VersionString));
+            })
             .withNativeFunction("loadPresetFromFile", [this](const auto&, auto complete) {
                 auto presetsDir = processorRef.presetManager.getPresetsDirectory();
                 fileChooser = std::make_unique<juce::FileChooser>(
