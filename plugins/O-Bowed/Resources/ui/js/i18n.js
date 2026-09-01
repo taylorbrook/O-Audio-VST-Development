@@ -19,7 +19,34 @@
 */
 // ============================================================================
 // i18n.js — O-Bowed on-page copy and hover-help, English + French
-//           (v1.6.1, canon v2)
+//           (v1.6.2, canon v2)
+//
+// ── v1.6.2: DEFECTS FOUND BY READING THE FRENCH (Stage O batch O2, 2026-08-31)
+//
+// Item 41 — the three visualisation canvases painted 17 English literals at
+// 13 ctx.fillText sites (index.html v1.6.1:1468-1866) in BOTH languages:
+// Bridge, Nut, Speed/Pressure/Position readouts, Playing, Silent, Frequency,
+// the four material names, the two Schelleng axis titles, the two boundary
+// legends and Helmholtz. Reported at K3, deferred at M2 and N4. Now 17 I18N
+// entries with an EMPTY body (the O-Comp `canvas.*` shape — a composed string
+// housed in I18N takes no TIP_BINDINGS row, and check-i18n assertion 2 asks
+// for a binding only from a BODIED entry), read through tr() at paint time.
+// The three readouts keep the number formatted by code and localize only the
+// label and the unit ({v}); the decimal stays a point, as every readout on
+// this page does. Two are sameAsEn (Membrane, Helmholtz — a name).
+// Every French string was measured at its canvas font (Georgia 9/10/11 px)
+// with measureText in this page, on the 498 x 398 canvas, against the space
+// the English occupied — the numbers are in the canvas block below and in
+// CHANGELOG 1.6.2. Nothing abbreviated, no font changed. The spectrum and
+// Schelleng canvases paint on demand, so index.html now redraws them from a
+// MutationObserver on <html lang> — the attribute canon v2's applyI18n()
+// writes on every switch — rather than touching the canon block.
+//
+// Item 42 — Sympathetic Decay stayed on screen at Count 0 while Amount hid
+// (updateSympVisibility read #sympAmount-ctrl only). Both hide now;
+// tip.count and tip.decay say so. Their French MEANING changed, so both are
+// reviewed: false again, with the 17 new entries. The TIP_BINDINGS comment
+// below that described the defect is corrected in place.
 //
 // ── v1.6.1: FRENCH QA PASS (Stage N, 2026-08-31) ─────────────────────────
 //
@@ -497,12 +524,12 @@ export const I18N = Object.freeze({
         en: { t: 'Sympathetic Strings',
               b: 'How many passive strings ring along with the bowed one, viola d’amore '
                + 'fashion — this is the knob captioned Count. At 0 the section is off and its '
-               + 'Amount knob is hidden. 0 to 12 strings.' },
+               + 'Amount and Decay knobs are hidden. 0 to 12 strings.' },
         fr: { t: 'Cordes sympathiques',
               b: 'Le nombre de cordes passives qui vibrent avec la corde frottée, à la manière '
                + 'd’une viole d’amour — c’est le bouton intitulé Nombre. À 0 la section est '
-               + 'désactivée et son bouton Quantité est masqué. 0 à 12 cordes.',
-              reviewed: true },
+               + 'désactivée et ses boutons Quantité et Déclin sont masqués. 0 à 12 cordes.',
+              reviewed: false },
     },
     'tip.amount': {
         en: { t: 'Sympathetic Amount',
@@ -519,13 +546,15 @@ export const I18N = Object.freeze({
         en: { t: 'Sympathetic Decay',
               b: 'How long the sympathetic strings keep ringing once excited, set by their loss '
                + 'per round trip. Short values give a brief shimmer, long ones a wash that '
-               + 'outlasts the note that started it. 0.00 to 1.00.' },
+               + 'outlasts the note that started it. This knob is only on screen while Count '
+               + 'is above 0. 0.00 to 1.00.' },
         fr: { t: 'Déclin des sympathiques',
               b: 'La durée pendant laquelle les cordes sympathiques continuent de sonner une '
                + 'fois excitées, fixée par leur perte à chaque aller-retour. Les valeurs courtes '
                + 'donnent un miroitement bref, les longues une nappe qui survit à la note qui '
-               + 'l’a déclenchée. 0,00 à 1,00.',
-              reviewed: true },
+               + 'l’a déclenchée. Ce bouton n’est à l’écran que lorsque Nombre est supérieur '
+               + 'à 0. 0,00 à 1,00.',
+              reviewed: false },
     },
 
     // ── Footer ──────────────────────────────────────────────────────────────
@@ -609,6 +638,61 @@ export const I18N = Object.freeze({
                + 'page Accord restent en anglais. English ou Français.',
               reviewed: true },
     },
+
+    // ── Canvas copy (v1.6.2, Stage O item 41) ───────────────────────────────
+    // Painted with ctx.fillText by the three visualisation canvases in
+    // index.html and read through tr() at paint time. EMPTY bodies: these are
+    // composed strings housed in I18N, not tooltips, and take no TIP_BINDINGS
+    // row (check-i18n asks for a binding only from a bodied entry). Widths
+    // measured with measureText at the canvas font in THIS page, 498 x 398
+    // canvas, against the space the English occupied — see the v1.6.2 header.
+    //
+    // Bow-string tab. "Bridge"/"Nut" are CENTRED on the string's two ends, at
+    // x = 40 and x = w - 40, so the constraint is the half-width against the
+    // canvas edge: Chevalet 34.40 px (half 17.20 in 40), Sillet 20.29 (10.15).
+    'canvas.bridge':   { en: { t: 'Bridge', b: '' }, fr: { t: 'Chevalet', b: '', reviewed: false } },
+    'canvas.nut':      { en: { t: 'Nut',    b: '' }, fr: { t: 'Sillet',   b: '', reviewed: false } },
+    // Three readouts at 10 px, left-aligned at x = 40 with the second column
+    // starting at x = 200 — a 160 px slot. The number is formatted by code and
+    // keeps its point (every readout on this page does); the French adds the
+    // no-break space before the colon and before the unit that the lint asks
+    // of prose. At the range tops: Vitesse : 2.00 m/s 80.09 px (English
+    // 73.06), Pression : 5.00 N 76.19 (74.23), Position : 30 % 66.61 (60.01).
+    'canvas.speed':    { en: { t: 'Speed: {v} m/s', b: '' },
+                         fr: { t: 'Vitesse : {v} m/s', b: '', reviewed: false } },
+    'canvas.pressure': { en: { t: 'Pressure: {v} N', b: '' },
+                         fr: { t: 'Pression : {v} N', b: '', reviewed: false } },
+    'canvas.position': { en: { t: 'Position: {v}%', b: '' },
+                         fr: { t: 'Position : {v} %', b: '', reviewed: false } },
+    // The note state under the readouts, x = 200 to the canvas edge (298 px):
+    // En jeu 28.36 px, Au repos 39.23. "Au repos" rather than "Silencieuse":
+    // the string is at rest, not muted.
+    'canvas.playing':  { en: { t: 'Playing', b: '' }, fr: { t: 'En jeu',   b: '', reviewed: false } },
+    'canvas.silent':   { en: { t: 'Silent',  b: '' }, fr: { t: 'Au repos', b: '', reviewed: false } },
+    // Body-spectrum tab. The x-axis title is centred in a 428 px plot
+    // (Fréquence 46.39 px); the material name is right-aligned at w - 25 with
+    // nothing on its baseline (Bois 21.10, Métal 28.00, Verre 26.98, 11 px).
+    'canvas.frequency':   { en: { t: 'Frequency', b: '' }, fr: { t: 'Fréquence', b: '', reviewed: false } },
+    'canvas.matMembrane': { en: { t: 'Membrane',  b: '' }, fr: { t: 'Membrane',  b: '', reviewed: false, sameAsEn: true } },
+    'canvas.matWood':     { en: { t: 'Wood',      b: '' }, fr: { t: 'Bois',      b: '', reviewed: false } },
+    'canvas.matMetal':    { en: { t: 'Metal',     b: '' }, fr: { t: 'Métal',     b: '', reviewed: false } },
+    'canvas.matGlass':    { en: { t: 'Glass',     b: '' }, fr: { t: 'Verre',     b: '', reviewed: false } },
+    // Schelleng tab. The x title is centred in a 423 px plot; the y title is
+    // ROTATED and centred on the 338 px plot height: Position d’archet (β)
+    // 90.19 px (English 73.70), Pression d’archet (N) 93.69 (77.65). The
+    // legend is left-aligned at w - 120 (95 px to the plot edge, 120 to the
+    // canvas edge): P_max (rauque) 65.17, P_min (glissement) 78.71 (the
+    // widest; English 50.32), Helmholtz 41.95.
+    // Glossary: bow position -> position d’archet, bow pressure -> pression
+    // d’archet. "glissement" is the bow slipping on the string, not the
+    // forbidden "glissé" (a portamento). Helmholtz is a name.
+    'canvas.bowPositionAxis': { en: { t: 'Bow Position (β)', b: '' },
+                                fr: { t: 'Position d’archet (β)', b: '', reviewed: false } },
+    'canvas.bowPressureAxis': { en: { t: 'Bow Pressure (N)', b: '' },
+                                fr: { t: 'Pression d’archet (N)', b: '', reviewed: false } },
+    'canvas.pMax':      { en: { t: 'P_max (raucous)', b: '' }, fr: { t: 'P_max (rauque)',     b: '', reviewed: false } },
+    'canvas.pMin':      { en: { t: 'P_min (slip)',    b: '' }, fr: { t: 'P_min (glissement)', b: '', reviewed: false } },
+    'canvas.helmholtz': { en: { t: 'Helmholtz',       b: '' }, fr: { t: 'Helmholtz',          b: '', reviewed: false, sameAsEn: true } },
 });
 
 // ============================================================================
@@ -785,11 +869,12 @@ export const I18N_EXEMPT = [
 //     (index.html:1191), by `.knob-control[data-param="..."]`. Exactly two
 //     .knob-control nodes have an id — #sympAmount-ctrl and #sympDecay-ctrl —
 //     and using them would make two rows read differently from the other
-//     twenty-six for no gain. CORRECTED at v1.6.1: only the FIRST is on the
-//     conditional-visibility path. updateSympVisibility() (index.html:1395)
-//     reads #sympAmount-ctrl and nothing else, so #sympDecay-ctrl's id is
-//     unused by any code on the page and Sympathetic Decay stays on screen at
-//     Count 0, where it is as inert as the knob beside it that hides.
+//     twenty-six for no gain. CORRECTED at v1.6.1: only the FIRST was on the
+//     conditional-visibility path — updateSympVisibility() read
+//     #sympAmount-ctrl and nothing else, so Sympathetic Decay stayed on screen
+//     at Count 0, where it is as inert as the knob beside it that hid. FIXED
+//     at v1.6.2 (Stage O item 42): the function now reads both ids and the two
+//     knobs hide and show together; tip.count and tip.decay say so.
 //
 //   WRAPPER half — NOT NEEDED. .knob-control IS the hover cell: a 62 px column
 //     holding the 55 px SVG, the caption and the readout, and nothing else
