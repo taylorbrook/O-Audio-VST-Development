@@ -18,7 +18,81 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-GrainScatter LABEL + HOVER-HELP table, English + French (v2.6.0)
+// i18n.js — O-GrainScatter LABEL + HOVER-HELP table, English + French (v2.6.1)
+//
+// ── v2.6.1: FRENCH QA PASS (Stage N, 2026-08-31) ───────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 43 entries of 87 (16 terminology, 21 typography, 5 grammar/register,
+// 1 meaning). sameAsEn: kept 10, translated 0. termNote exemptions: 2 (both on
+// Grain Size, listed at their entries). Left as drafted: the rest.
+// reviewed: false throughout — that flag records a native speaker, and this
+// pass is a second machine reading against a glossary and a lint.
+//
+// The lint went 52 findings -> 0, `--strict` exit 0: 17 T3 (% spacing), 15 T4
+// (colon), 7 T5 (;!?), 5 T7 (number-unit) and 8 G1 (glossary). NOT the 68 the
+// batch table quotes — the N1 pilots' three lint fixes (`daed4a2e`, `8a387f1c`,
+// `6eb042c8`) re-attributed 21 T7 into T4 + T7 and stopped `%` double-reporting
+// before this file was read.
+//
+// ── ÉTALEMENT IS SPREAD, DISPERSION IS SCATTER — settled on this page ───────
+// The draft spent "Dispersion" on BOTH, which is the exact collision the
+// glossary exists to prevent (its "écart" row says so). This page has a real
+// Scatter — the spatial_mode option and the #grain-canvas caption — so:
+//   * label.spread / tip.spread  Dispersion -> Étalement  (53.83 px, 0.19 px
+//     NARROWER than the string it replaces, 8.17 px under the 62 px cap)
+//   * label.azSpread / label.elSpread  Disp. az. / Disp. él. -> Étal. az. /
+//     Étal. él.  (41.30 / 41.17 px, +1.89 each, in the same 62 px cells whose
+//     min-content driver is the longest WORD — 23.14 -> 25.03 px)
+//   * label.vizGrain KEEPS "Dispersion de grains": its English is Grain
+//     SCATTER, and that is the glossary's word for it.
+// The glossary has no `az spread` / `el spread` row; "Étal." is its accepted
+// abbreviation for spread and the composite follows the shipped "Disp. az."
+// shape, not a third invented form. Reported so the row can grow.
+//
+// ── THE OTHER TWO GLOSSARY ROOTS, MEASURED ─────────────────────────────────
+//   * label.reverse  Inverse -> Inversion (49.63 px, 12.37 under the cap). The
+//     root fits; the draft's noun was the adjective.
+//   * label.feedback Réinject. -> Réinj., the glossary's listed abbreviation.
+//     The ROOT "Réinjection" measures 60.27 px in a 62.00 px .knob-container —
+//     1.73 px, which is this file's v2.6.0 header pin and holds when measured
+//     (three of five headers re-measured in this stage did not). Réinj. is
+//     29.39 px, so the caption gets the settled stem with room rather than a
+//     margin no other font face survives. The header's old fallback "Retour"
+//     is a monitor send and is forbidden; that line is rewritten below.
+//
+// ── THE TITLE IS STILL THE CAPTION, AND THAT IS A CHOICE ───────────────────
+// M2 correction 9 accepts both branches. This page keeps the v2.6.0 branch:
+// all 38 tip TITLES equal the caption the tip hangs off, and every abbreviated
+// title's BODY opens by naming the control in full ("La réinjection renvoie…",
+// "L’étalement en azimut détermine…"). The cost is visible and paid here: the
+// Grain Size termNote is spent TWICE, on the caption and on the title, rather
+// than once. Label-in-name holds by stem throughout (Réinj. ⊂ Réinjection,
+// Taille ⊂ Taille de grain, Étal. ⊂ Étalement).
+//
+// ── WHAT THE READING FOUND, beyond the lint ────────────────────────────────
+//   * tip.scan had DROPPED the control's own name: the English opens "Scan
+//     Position moves the read point", the French opened with a bare verb.
+//     Restored — it is the one entry on this page whose French said less than
+//     its English (grew that tip 108.5 -> 123.9 px, still 253 px clear of the
+//     floor).
+//   * tip.reverse: "mêlent grains" -> "mêlent des grains" (missing partitive).
+//   * tip.doppler: "comme une sirène qui passe monte puis descend" is a garden
+//     path in French — the reader parses "qui passe monte". Now "comme une
+//     sirène qui passe, dont le son monte puis redescend".
+//   * tip.spread: "Un peu estompe l’attaque" is a calque; a bare "un peu"
+//     cannot be a French subject. Now the "une faible valeur / une valeur
+//     élevée" pair this file already uses in tip.ampRnd.
+//   * tip.syncMode: "qu'une fois une division choisie" -> "la division".
+//   * tip.feedback: comma splice before "il réchauffe donc" -> colon.
+// Register is unchanged and consistent: vous is never used, instructions are
+// infinitive ("À utiliser pour…", "À monter avec…"), and the option words the
+// dropdowns show stay English inside the French sentences that name them.
+//
+// U+00A0 was inserted before % : ; ! ? and between every number and its unit,
+// inside fr t:/b: string VALUES only — 51 of them, none in a key, a selector,
+// a comment or a termNote, and 0 en values changed (both revisions were
+// imported as modules and compared, not eyeballed in a diff full of invisible
+// characters).
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -93,7 +167,7 @@ export const LANGUAGES = ['en', 'fr'];
 // is reading the page, not the automation lane. Six of those twelve are
 // ABBREVIATIONS forced by this page's 62 px .knob-container cap (Size Rnd, Amp
 // Rnd, Pitch Rnd, Traj Speed, Dist LPF, and their French, which abbreviates
-// harder still — "Alé. haut.", "Vit. traj.", "PB dist.", "Réinject.",
+// harder still — "Alé. haut.", "Vit. traj.", "PB dist.", "Réinj.",
 // "Porte bég.", "Répét."). A 280 px tooltip has no such cap, so every
 // abbreviated title's BODY opens by naming the control in full. Recorded here
 // rather than silently widened: the alternative — a tip titled differently from
@@ -155,9 +229,15 @@ export const I18N = Object.freeze({
                + 'Range 10 to 500 ms.' },
         fr: { t: 'Taille',
               b: 'Règle la longueur de chaque grain lu par le moteur. Les grains courts donnent '
-               + 'une texture ou un bourdonnement; les longs conservent assez de la source pour '
-               + 'rester reconnaissables. Plage de 10 à 500 ms.',
-              reviewed: false },
+               + 'une texture ou un bourdonnement ; les longs conservent assez de la source pour '
+               + 'rester reconnaissables. Plage de 10 à 500 ms.',
+              reviewed: false,
+              termNote: 'width, measured on this page at the shipping 900x800 frame: the glossary '
+                         + 'roots taille de grain (76.94 px nowrap) and taille grain (62.28 px) '
+                         + 'BOTH wrap to two 8.80 px lines inside .knob-name’s 18.00 px content '
+                         + 'box — 17.80 px used, 0.20 px of clearance against check-ui-labels '
+                         + 'assertion 4, on a page whose Windows metrics are unmeasured. Taille '
+                         + 'is 31.33 px on one line and the tip body names the control in full.' },
     },
 
     // The exponential mapping is quoted from GrainScheduler.h:49-50, not
@@ -169,9 +249,9 @@ export const I18N = Object.freeze({
                + 'High settings thicken the cloud into a continuous tone. Range 1 to 100 %.' },
         fr: { t: 'Densité',
               b: 'Règle la fréquence d’apparition des grains lorsque Mode synchro est sur Free, '
-               + 'selon une courbe exponentielle : 1 % donne environ un grain par seconde, 50 % '
-               + 'environ dix, 100 % environ cent. Les valeurs élevées épaississent le nuage '
-               + 'jusqu’au son continu. Plage de 1 à 100 %.',
+               + 'selon une courbe exponentielle : 1 % donne environ un grain par seconde, 50 % '
+               + 'environ dix, 100 % environ cent. Les valeurs élevées épaississent le nuage '
+               + 'jusqu’au son continu. Plage de 1 à 100 %.',
               reviewed: false },
     },
 
@@ -182,10 +262,10 @@ export const I18N = Object.freeze({
                + 'newest input. It is the control to reach for once Freeze is engaged. '
                + 'Range 0 to 100 %.' },
         fr: { t: 'Balayage',
-              b: 'Déplace le point de lecture dans les deux secondes d’audio conservées en '
-               + 'mémoire : les grains sont alors prélevés plus en arrière plutôt que sur '
-               + 'l’entrée la plus récente. C’est la commande à utiliser une fois Geler activé. '
-               + 'Plage de 0 à 100 %.',
+              b: 'La position de balayage déplace le point de lecture dans les deux secondes '
+               + 'd’audio conservées en mémoire : les grains sont alors prélevés plus en arrière '
+               + 'plutôt que sur l’entrée la plus récente. C’est la commande à utiliser une '
+               + 'fois Geler activé. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -194,10 +274,10 @@ export const I18N = Object.freeze({
               b: 'Scatters the read position of each grain around the scan point, by up to one '
                + 'grain length at full setting. A little blurs the attack; a lot smears the '
                + 'source into a cloud. Range 0 to 100 %.' },
-        fr: { t: 'Dispersion',
+        fr: { t: 'Étalement',
               b: 'Disperse la position de lecture de chaque grain autour du point de balayage, '
-               + 'jusqu’à une longueur de grain au maximum. Un peu estompe l’attaque; beaucoup '
-               + 'dissout la source en nuage. Plage de 0 à 100 %.',
+               + 'jusqu’à une longueur de grain au maximum. Une faible valeur estompe '
+               + 'l’attaque ; une valeur élevée dissout la source en nuage. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -206,10 +286,10 @@ export const I18N = Object.freeze({
               b: 'Sets the chance that any given grain plays backwards. It is a probability and '
                + 'not a switch, so mid settings mix forward and reversed grains in the same '
                + 'cloud. Range 0 to 100 %.' },
-        fr: { t: 'Inverse',
+        fr: { t: 'Inversion',
               b: 'Détermine la probabilité qu’un grain donné soit lu à l’envers. C’est une '
-               + 'probabilité et non un commutateur : les réglages intermédiaires mêlent grains '
-               + 'à l’endroit et à l’envers dans le même nuage. Plage de 0 à 100 %.',
+               + 'probabilité et non un commutateur : les réglages intermédiaires mêlent des '
+               + 'grains à l’endroit et à l’envers dans le même nuage. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -218,11 +298,11 @@ export const I18N = Object.freeze({
               b: 'Feeds the granulated output back into the buffer it reads from, so grains '
                + 're-granulate themselves into longer tails. The path is tanh-saturated and '
                + 'gain-limited, so it warms rather than runs away. Range 0 to 100 %.' },
-        fr: { t: 'Réinject.',
-              b: 'La réinjection renvoie la sortie granulée dans la mémoire qu’elle relit : les '
+        fr: { t: 'Réinj.',
+              b: 'La réinjection renvoie la sortie granulée dans la mémoire qu’elle relit : les '
                + 'grains se regranulent alors en traînes plus longues. Le trajet est saturé par '
-               + 'tanh et limité en gain, il réchauffe donc au lieu de s’emballer. '
-               + 'Plage de 0 à 100 %.',
+               + 'tanh et limité en gain : il réchauffe donc au lieu de s’emballer. Plage de 0 à '
+               + '100 %.',
               reviewed: false },
     },
 
@@ -231,8 +311,8 @@ export const I18N = Object.freeze({
               b: 'Balances the untreated input against the granulated output. At 0 % only the '
                + 'dry signal passes; at 100 % only grains are heard. Range 0 to 100 %.' },
         fr: { t: 'Sec/Effet',
-              b: 'Équilibre l’entrée non traitée et la sortie granulée. À 0 % seul le signal sec '
-               + 'passe; à 100 % on n’entend que les grains. Plage de 0 à 100 %.',
+              b: 'Équilibre l’entrée non traitée et la sortie granulée. À 0 % seul le signal sec '
+               + 'passe ; à 100 % on n’entend que les grains. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -244,7 +324,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Alé. taille',
               b: 'L’aléa de taille fait varier la longueur de chaque grain, jusqu’au double de '
                + 'la valeur de Taille au réglage maximal. Cela casse la hauteur métallique '
-               + 'qu’engendre une longueur de grain constante. Plage de 0 à 100 %.',
+               + 'qu’engendre une longueur de grain constante. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -255,8 +335,8 @@ export const I18N = Object.freeze({
                + 'out. Range 0 to 100 %.' },
         fr: { t: 'Alé. ampl.',
               b: 'L’aléa d’amplitude fait varier le niveau de chaque grain, jusqu’à l’atténuer '
-               + 'complètement. De faibles valeurs font respirer un nuage mécanique; de fortes '
-               + 'valeurs l’éclaircissent. Plage de 0 à 100 %.',
+               + 'complètement. De faibles valeurs font respirer un nuage mécanique ; de fortes '
+               + 'valeurs l’éclaircissent. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -271,7 +351,7 @@ export const I18N = Object.freeze({
               b: 'La forme de grain choisit l’enveloppe d’amplitude appliquée à chaque grain, ce '
                + 'qui détermine s’il sonne doux ou percussif. Hann et Blackman sont les plus '
                + 'douces, Trapezoid garde un plateau et Exp Decay donne à chaque grain une '
-               + 'attaque pincée. Six formes : Hann, Triangle, Trapezoid, Tukey, Blackman, '
+               + 'attaque pincée. Six formes : Hann, Triangle, Trapezoid, Tukey, Blackman, '
                + 'Exp Decay.',
               reviewed: false },
     },
@@ -287,8 +367,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Alé. haut.',
               b: 'L’aléa de hauteur détermine l’ampleur de la transposition possible de chaque '
                + 'grain par rapport à la hauteur d’origine, quantifiée sur Gamme et '
-               + 'Fondamentale. À 0 % la fonction est inactive et les commandes Gamme, '
-               + 'Fondamentale et Mode hauteur sont estompées avec elle. Plage de 0 à 100 %.',
+               + 'Fondamentale. À 0 % la fonction est inactive et les commandes Gamme, '
+               + 'Fondamentale et Mode hauteur sont estompées avec elle. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -300,7 +380,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Alé. pan',
               b: 'L’aléa de panoramique disperse chaque grain dans l’image stéréo au lieu de '
                + 'laisser tout le nuage au centre. Ne s’applique qu’au trajet stéréo et reste '
-               + 'sans effet lorsque l’Audio spatial est engagé. Plage de 0 à 100 %.',
+               + 'sans effet lorsque l’Audio spatial est engagé. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -310,9 +390,9 @@ export const I18N = Object.freeze({
                + 'stays in key rather than drifting. It does nothing until Pitch Rnd is above '
                + 'zero. Five scales: Chromatic, Major, Minor, Pentatonic, Whole Tone.' },
         fr: { t: 'Gamme',
-              b: 'Quantifie chaque transposition aléatoire sur une gamme musicale : le nuage '
+              b: 'Quantifie chaque transposition aléatoire sur une gamme musicale : le nuage '
                + 'dispersé reste alors dans la tonalité au lieu de dériver. Sans effet tant que '
-               + 'le réglage Alé. haut. reste à zéro. Cinq gammes : Chromatic, Major, Minor, '
+               + 'le réglage Alé. haut. reste à zéro. Cinq gammes : Chromatic, Major, Minor, '
                + 'Pentatonic, Whole Tone.',
               reviewed: false },
     },
@@ -336,10 +416,10 @@ export const I18N = Object.freeze({
                + 'two. Ladder and Pendulum give an arpeggio where Random gives a cloud. '
                + 'Four modes: Random, Ladder Up, Ladder Down, Pendulum.' },
         fr: { t: 'Mode hauteur',
-              b: 'Choisit la façon dont les grains successifs prennent leur transposition : '
+              b: 'Choisit la façon dont les grains successifs prennent leur transposition : '
                + 'librement au hasard, en montant ou en descendant la gamme degré par degré, ou '
                + 'en faisant l’aller-retour entre les deux. Ladder et Pendulum donnent un arpège '
-               + 'là où Random donne un nuage. Quatre modes : Random, Ladder Up, Ladder Down, '
+               + 'là où Random donne un nuage. Quatre modes : Random, Ladder Up, Ladder Down, '
                + 'Pendulum.',
               reviewed: false },
     },
@@ -355,8 +435,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Mode synchro',
               b: 'Détermine si les grains sont déclenchés au rythme de Densité ou verrouillés '
                + 'sur le tempo de l’hôte selon une division musicale. Probabilité, Répét., '
-               + 'Porte bég. et tout le groupe Rythme euclidien ne s’appliquent qu’une fois une '
-               + 'division choisie. Sept réglages : Free, 1/4, 1/8, 1/16, 1/32, 1/8T, 1/16T.',
+               + 'Porte bég. et tout le groupe Rythme euclidien ne s’appliquent qu’une fois la '
+               + 'division choisie. Sept réglages : Free, 1/4, 1/8, 1/16, 1/32, 1/8T, 1/16T.',
               reviewed: false },
     },
 
@@ -367,8 +447,8 @@ export const I18N = Object.freeze({
                + 'Range 0 to 100 %.' },
         fr: { t: 'Probabilité',
               b: 'Détermine la probabilité qu’un déclenchement prévu produise réellement un '
-               + 'grain, ce qui éclaircit un motif régulier en motif irrégulier. À 100 % chaque '
-               + 'déclenchement se produit. Plage de 0 à 100 %.',
+               + 'grain, ce qui éclaircit un motif régulier en motif irrégulier. À 100 % chaque '
+               + 'déclenchement se produit. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -392,7 +472,7 @@ export const I18N = Object.freeze({
                + 'Sync Mode and a Repeats count above one to be heard at all. Off or On.' },
         fr: { t: 'Porte bég.',
               b: 'La porte de bégaiement coupe le signal sec pendant toute la durée d’une rafale '
-               + 'de répétitions : le bégaiement remplace alors la source au lieu de s’y '
+               + 'de répétitions : le bégaiement remplace alors la source au lieu de s’y '
                + 'superposer. Nécessite un Mode synchro verrouillé au tempo et un réglage '
                + 'Répét. supérieur à un. Désactivé ou activé.',
               reviewed: false },
@@ -406,7 +486,7 @@ export const I18N = Object.freeze({
                + 'granulating that snapshot while live audio passes by underneath. Use Scan to '
                + 'move through what was captured. Off or On.' },
         fr: { t: 'Geler',
-              b: 'Capture les deux dernières secondes d’entrée et les maintient : le moteur '
+              b: 'Capture les deux dernières secondes d’entrée et les maintient : le moteur '
                + 'continue de granuler cet instantané pendant que l’audio en direct défile. '
                + 'Utiliser Balayage pour parcourir ce qui a été capturé. Désactivé ou activé.',
               reviewed: false },
@@ -436,7 +516,7 @@ export const I18N = Object.freeze({
               b: 'Détermine la longueur du motif euclidien en subdivisions, soit le cycle sur '
                + 'lequel les impulsions sont réparties. C’est lorsque le nombre de pas n’est pas '
                + 'un multiple du nombre d’impulsions que les motifs deviennent intéressants. '
-               + 'Plage de 2 à 16 pas.',
+               + 'Plage de 2 à 16 pas.',
               reviewed: false },
     },
 
@@ -446,9 +526,9 @@ export const I18N = Object.freeze({
                + 'without changing which pulses exist. It is the quickest way to shift a figure '
                + 'off the downbeat. Range 0 to 15 steps.' },
         fr: { t: 'Rotation',
-              b: 'Fait tourner le motif euclidien sur lui-même : la première impulsion change de '
+              b: 'Fait tourner le motif euclidien sur lui-même : la première impulsion change de '
                + 'place sans que les impulsions elles-mêmes changent. C’est le moyen le plus '
-               + 'rapide de décaler une figure hors du temps fort. Plage de 0 à 15 pas.',
+               + 'rapide de décaler une figure hors du temps fort. Plage de 0 à 15 pas.',
               reviewed: false },
     },
 
@@ -461,8 +541,8 @@ export const I18N = Object.freeze({
                + 'late. Range 50 to 75 %.' },
         fr: { t: 'Swing',
               b: 'Retarde chaque division à contretemps, ce qui fait tomber le motif en shuffle '
-               + 'plutôt qu’en binaire. 50 % est binaire et 75 % repousse le contretemps d’une '
-               + 'demi-subdivision complète. Plage de 50 à 75 %.',
+               + 'plutôt qu’en binaire. 50 % est binaire et 75 % repousse le contretemps d’une '
+               + 'demi-subdivision complète. Plage de 50 à 75 %.',
               reviewed: false },
     },
 
@@ -477,9 +557,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Mode',
               b: 'Le mode spatial détermine la façon dont les grains sont placés en trois '
                + 'dimensions. Scatter projette chaque grain vers un point aléatoire fixe à '
-               + 'l’intérieur de la dispersion; Trajectory les déplace plutôt le long d’un '
+               + 'l’intérieur de l’étalement ; Trajectory les déplace plutôt le long d’un '
                + 'parcours, ce qui donne vie aux quatre dernières commandes de cette rangée. '
-               + 'Trois modes : Off, Scatter, Trajectory.',
+               + 'Trois modes : Off, Scatter, Trajectory.',
               reviewed: false },
     },
 
@@ -490,7 +570,7 @@ export const I18N = Object.freeze({
                + 'it. Range 0 to 360°.' },
         fr: { t: 'Azimut',
               b: 'Définit la direction horizontale autour de laquelle le nuage de grains est '
-               + 'centré, mesurée dans le sens horaire autour de l’auditeur. Disp. az. disperse '
+               + 'centré, mesurée dans le sens horaire autour de l’auditeur. Étal. az. disperse '
                + 'ensuite les grains de part et d’autre. Plage de 0 à 360°.',
               reviewed: false },
     },
@@ -502,8 +582,8 @@ export const I18N = Object.freeze({
                + 'Range −90 to +90°.' },
         fr: { t: 'Élévation',
               b: 'Définit la hauteur autour de laquelle le nuage de grains est centré, de la '
-               + 'verticale sous l’auditeur à la verticale au-dessus. Disp. él. disperse ensuite '
-               + 'les grains de part et d’autre. Plage de −90 à +90°.',
+               + 'verticale sous l’auditeur à la verticale au-dessus. Étal. él. disperse '
+               + 'ensuite les grains de part et d’autre. Plage de −90 à +90°.',
               reviewed: false },
     },
 
@@ -512,11 +592,11 @@ export const I18N = Object.freeze({
               b: 'Azimuth Spread sets how wide an arc grains are scattered over horizontally, '
                + 'around the Azimuth centre. Width scales this and the vertical spread together. '
                + 'Range 0 to 360°.' },
-        fr: { t: 'Disp. az.',
-              b: 'La dispersion en azimut détermine la largeur de l’arc sur lequel les grains '
+        fr: { t: 'Étal. az.',
+              b: 'L’étalement en azimut détermine la largeur de l’arc sur lequel les grains '
                + 'sont dispersés horizontalement, autour du centre défini par Azimut. Largeur '
-               + 'met cette dispersion et la dispersion verticale à l’échelle ensemble. '
-               + 'Plage de 0 à 360°.',
+               + 'met cet étalement et l’étalement vertical à l’échelle ensemble. Plage de 0 à '
+               + '360°.',
               reviewed: false },
     },
 
@@ -525,10 +605,11 @@ export const I18N = Object.freeze({
               b: 'Elevation Spread sets how far grains are scattered vertically, around the '
                + 'Elevation centre. Width scales this and the horizontal spread together. '
                + 'Range 0 to 180°.' },
-        fr: { t: 'Disp. él.',
-              b: 'La dispersion en élévation détermine l’ampleur de la dispersion verticale des '
-               + 'grains, autour du centre défini par Élévation. Largeur met cette dispersion et '
-               + 'la dispersion horizontale à l’échelle ensemble. Plage de 0 à 180°.',
+        fr: { t: 'Étal. él.',
+              b: 'L’étalement en élévation détermine la hauteur de l’arc sur lequel les grains '
+               + 'sont dispersés verticalement, autour du centre défini par Élévation. Largeur '
+               + 'met cet étalement et l’étalement horizontal à l’échelle ensemble. Plage de 0 '
+               + 'à 180°.',
               reviewed: false },
     },
 
@@ -539,8 +620,8 @@ export const I18N = Object.freeze({
                + 'darkens as it recedes as well. Range 0 to 100 %.' },
         fr: { t: 'Distance',
               b: 'Place le nuage de grains plus près ou plus loin de l’auditeur. À utiliser pour '
-               + 'reculer une texture derrière le mixage plutôt que d’en baisser le niveau; avec '
-               + 'PB dist. relevé, elle s’assombrit aussi en s’éloignant. Plage de 0 à 100 %.',
+               + 'reculer une texture derrière le mixage plutôt que d’en baisser le niveau ; avec '
+               + 'PB dist. relevé, elle s’assombrit aussi en s’éloignant. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -550,9 +631,9 @@ export const I18N = Object.freeze({
                + 'Azimuth and Elevation centre at 0 % and opening it to the full spread at '
                + '100 %. Range 0 to 100 %.' },
         fr: { t: 'Largeur',
-              b: 'La largeur spatiale met les deux arcs de dispersion à l’échelle en même '
-               + 'temps : à 0 % le nuage se referme sur le centre défini par Azimut et '
-               + 'Élévation, à 100 % il s’ouvre à la dispersion complète. Plage de 0 à 100 %.',
+              b: 'La largeur spatiale met les deux arcs d’étalement à l’échelle en même temps : '
+               + 'à 0 % le nuage se referme sur le centre défini par Azimut et Élévation, '
+               + 'à 100 % il s’ouvre à l’étalement complet. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -564,7 +645,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Trajectoire',
               b: 'Choisit le parcours suivi par les grains pendant qu’ils sonnent, une fois Mode '
                + 'réglé sur Trajectory. Orbital tourne autour de l’auditeur, Spiral monte en '
-               + 'tournant et Random dérive. Quatre parcours : Static, Orbital, Spiral, Random.',
+               + 'tournant et Random dérive. Quatre parcours : Static, Orbital, Spiral, Random.',
               reviewed: false },
     },
 
@@ -576,7 +657,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Vit. traj.',
               b: 'La vitesse de trajectoire met à l’échelle la rapidité de déplacement des '
                + 'grains le long du parcours choisi, de l’immobilité à quatre fois la vitesse de '
-               + 'base. À monter avec Doppler pour un passage audible. Plage de 0 à 400 %.',
+               + 'base. À monter avec Doppler pour un passage audible. Plage de 0 à 400 %.',
               reviewed: false },
     },
 
@@ -589,8 +670,8 @@ export const I18N = Object.freeze({
                + 'stays bright. Range 0 to 100 %.' },
         fr: { t: 'PB dist.',
               b: 'Le passe-bas de distance détermine dans quelle mesure Distance assombrit le '
-               + 'nuage, en dosant un filtre qui se referme de 20 kHz à 5 kHz à distance '
-               + 'maximale. À 0 % un nuage éloigné reste brillant. Plage de 0 à 100 %.',
+               + 'nuage, en dosant un filtre qui se referme de 20 kHz à 5 kHz à distance '
+               + 'maximale. À 0 % un nuage éloigné reste brillant. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -601,9 +682,9 @@ export const I18N = Object.freeze({
                + 'Trajectory and some Traj Speed. Range 0 to 100 %.' },
         fr: { t: 'Doppler',
               b: 'Décale la hauteur d’un grain en mouvement selon son déplacement, comme une '
-               + 'sirène qui passe monte puis descend. Ne se manifeste que si les grains bougent '
-               + 'réellement : il faut donc une Trajectoire et un peu de Vit. traj. '
-               + 'Plage de 0 à 100 %.',
+               + 'sirène qui passe, dont le son monte puis redescend. Ne se manifeste que si '
+               + 'les grains bougent réellement : il faut donc une Trajectoire et un peu de Vit. '
+               + 'traj. Plage de 0 à 100 %.',
               reviewed: false },
     },
 
@@ -616,9 +697,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Lissage',
               b: 'Le lissage spatial détermine le temps que met l’encodeur à suivre un '
                + 'changement de position, en faisant glisser les coefficients ambisoniques au '
-               + 'lieu de les faire sauter. Les valeurs courtes suivent une trajectoire rapide; '
+               + 'lieu de les faire sauter. Les valeurs courtes suivent une trajectoire rapide ; '
                + 'les longues suppriment le crépitement d’un saut de position. '
-               + 'Plage de 1 à 200 ms.',
+               + 'Plage de 1 à 200 ms.',
               reviewed: false },
     },
 
@@ -696,26 +777,41 @@ export const LABELS = Object.freeze({
                                fr: { t: 'Audio spatial', reviewed: false } },
 
     // ── Core Engine ─────────────────────────────────────────────────────────
-    // "Taille" rather than "Taille grain": every knob in this group acts on a
-    // grain, the sibling GRAIN SHAPE caption is already the bare word "Shape",
-    // and "Taille grain" wraps to two 9 px line boxes in an 18 px content box —
-    // 0.5 px from the assertion-4 wrap failure on a Windows metric.
+    // "Taille" rather than the glossary's "Taille de grain" / "Taille grain",
+    // and v2.6.1 re-measured both rather than inheriting the claim: 76.94 px
+    // and 62.28 px nowrap, so BOTH wrap to two 8.80 px line boxes inside an
+    // 18.00 px content box — 17.80 px used, 0.20 px of clearance against
+    // check-ui-labels assertion 4, tighter than the v2.6.0 note's "0.5 px".
+    // Every knob in this group acts on a grain and the sibling GRAIN SHAPE
+    // caption is already the bare word "Shape". Carried as the termNote on the
+    // entry, with the numbers, so the glossary can grow an abbreviation.
     'label.grainSize':     { en: { t: 'Grain Size' },
-                             fr: { t: 'Taille', reviewed: false } },                 // 50.61 -> 31.33  SHRANK
+                             fr: { t: 'Taille', reviewed: false,
+                                   termNote: 'width, measured on this page at the shipping '
+                                            + '900x800 frame: the glossary roots taille de grain '
+                                            + '(76.94 px nowrap) and taille grain (62.28 px) BOTH '
+                                            + 'wrap to two 8.80 px lines inside .knob-name’s '
+                                            + '18.00 px content box — 17.80 px used, 0.20 px of '
+                                            + 'clearance against check-ui-labels assertion 4, on '
+                                            + 'a page whose Windows metrics are unmeasured. '
+                                            + 'Taille is 31.33 px on one line and the tip body '
+                                            + 'names the control in full.' } },   // 50.61 -> 31.33  SHRANK
     'label.density':       { en: { t: 'Density' },
                              fr: { t: 'Densité', reviewed: false } },                // 38.34 -> 38.64
     'label.scan':          { en: { t: 'Scan' },
                              fr: { t: 'Balayage', reviewed: false } },               // 23.14 -> 46.11
     'label.spread':        { en: { t: 'Spread' },
-                             fr: { t: 'Dispersion', reviewed: false } },             // 34.58 -> 54.02, 7.98 under the 62 px cap
+                             fr: { t: 'Étalement', reviewed: false } },              // 34.58 -> 53.83, 8.17 under the 62 px cap
     'label.reverse':       { en: { t: 'Reverse' },
-                             fr: { t: 'Inverse', reviewed: false } },                // 40.23 -> 38.64  SHRANK
-    // "Réinjection" (60.27) is the precise term and clears the cap by 1.73 px —
-    // rejected on that margin alone, not on taste: it is tighter than every
-    // margin shipped in batch K2 and this page's Windows metrics are unmeasured.
-    // "Retour" (36.41) is the reviewer's roomier lever.
+                             fr: { t: 'Inversion', reviewed: false } },              // 40.23 -> 49.63, 12.37 under the cap
+    // v2.6.1: the glossary's listed abbreviation, re-measured on this page.
+    // "Réinjection" is 60.27 px in the 62.00 px .knob-container — the v2.6.0
+    // pin holds — and "Réinj." is 29.39. The old note offered "Retour" as the
+    // roomier lever; Retour is a monitor send and the glossary forbids it.
+    // The tip body opens "La réinjection renvoie…", so the root is one hover
+    // away from the caption that abbreviates it.
     'label.feedback':      { en: { t: 'Feedback' },
-                             fr: { t: 'Réinject.', reviewed: false } },              // 46.53 -> 46.20
+                             fr: { t: 'Réinj.', reviewed: false } },                 // 46.53 -> 29.39  SHRANK
     'label.dryWet':        { en: { t: 'Dry/Wet' },
                              fr: { t: 'Sec/Effet', reviewed: false } },              // 41.77 -> 48.09
     'label.sizeRnd':       { en: { t: 'Size Rnd' },
@@ -793,9 +889,9 @@ export const LABELS = Object.freeze({
     'label.elevation':     { en: { t: 'Elevation' },
                              fr: { t: 'Élévation', reviewed: false } },              // 50.64 -> 50.64  IDENTICAL WIDTH
     'label.azSpread':      { en: { t: 'Az Spread' },
-                             fr: { t: 'Disp. az.', reviewed: false } },              // 48.19 -> 39.41  SHRANK
+                             fr: { t: 'Étal. az.', reviewed: false } },              // 48.19 -> 41.30  SHRANK
     'label.elSpread':      { en: { t: 'El Spread' },
-                             fr: { t: 'Disp. él.', reviewed: false } },              // 48.06 -> 39.28  SHRANK
+                             fr: { t: 'Étal. él.', reviewed: false } },              // 48.06 -> 41.17  SHRANK
     'label.distance':      { en: { t: 'Distance' },
                              fr: { t: 'Distance', reviewed: false, sameAsEn: true } },
     'label.width':         { en: { t: 'Width' },

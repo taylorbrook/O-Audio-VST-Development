@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.6.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout — the 38 hover-help entries and 49 captions drafted at v2.6.0 were read one by one against their English and against the suite glossary (`scripts/i18n-fr-glossary.js`), which did not exist when they were written.
+
+### Changed
+- **43 French entries revised** against the suite glossary and lint — 16 terminology, 21 typography, 5 grammar/register, 1 meaning, out of 87. The visible ones: **Dispersion → Étalement** for *Spread* and **Disp. az. / Disp. él. → Étal. az. / Étal. él.**, because the draft spent one French word on both *Spread* and *Scatter* while this page has a real Scatter (the spatial-mode option and the grain-canvas caption); **Inverse → Inversion** for *Reverse*; **Réinject. → Réinj.**, the glossary's listed abbreviation for *Feedback*; and typographic no-break spaces before `%` `:` `;` and between every number and its unit (*0 à 100 %*, *10 à 500 ms*, *20 kHz*), 51 in all.
+- **Six sentences rewritten for French rather than for the lint.** `tip.scan` had dropped the control's own name (the English opens "Scan Position moves the read point"); `tip.doppler`'s "une sirène qui passe monte puis descend" was a garden path; `tip.spread`'s "Un peu estompe l'attaque" was a calque with no French subject; `tip.reverse` was missing a partitive ("mêlent grains"); `tip.syncMode` read "qu'une fois une division choisie"; `tip.feedback` carried a comma splice.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so assistive technology reads the page in the language it is displayed in.
+- **`Grain Size` keeps the caption `Taille`**, with the measurement recorded on the entry as a `termNote`: both glossary forms — *Taille de grain* (76.94 px) and *Taille grain* (62.28 px) — wrap to two 8.80 px lines inside an 18.00 px content box, leaving 0.20 px against `check-ui-labels` assertion 4 on a page whose Windows metrics are unmeasured.
+
+### Fixed
+- Nothing behavioural. No English copy, key, tip binding, exemption, selector, CSS rule, parameter, preset or DSP path was touched, and `reviewed: false` stays on all 87 entries — that flag records a native speaker, and none has read this file yet.
+
+### Testing
+- `i18n-fr-lint --plugin O-GrainScatter --strict`: **52 findings → 0, exit 0** (17 T3, 15 T4, 7 T5, 5 T7, 8 G1 closed). Two `termNote` exemptions, both on Grain Size, both carrying their measured px.
+- **Scope control, not a diff read:** both revisions imported as ES modules and compared field by field — **0 `en` values changed**, `TIP_BINDINGS` / `I18N_EXEMPT` / `LANGUAGES` byte-identical, no key added or removed, no `reviewed` or `sameAsEn` flag moved. All 51 U+00A0 land inside a French `t:`/`b:` value; none in a key, a selector, a comment or a `termNote`.
+- `check-ui-labels`: **output structurally identical to the pre-change run** — 78 PASS, 0 FAIL, `[7]` no non-label element moved in either, same `[8b]` decoration counts of 65 / 27 / 59, same 900 x 800 scroll extent in both languages. The five renamed captions were measured in this page's own node first: Étalement 53.83 px (0.19 *narrower* than Dispersion), Inversion 49.63, Réinj. 29.39, Étal. az. 41.30, Étal. él. 41.17, all in 62.00 px cells whose min-content driver is the longest word.
+- `tests/ui_tip_render_check.js`: **796 / 796**, unchanged, 38 anchors driven in `en → fr → en` with both feature gates opened through the page's own listeners. Per-anchor tip heights read before and after: **2 of 38 moved** — `scan_position` 108.5 → 123.9 px (the restored control name) and `spatial_width` 108.5 → 93.2 px — tallest tip unchanged at 139.3 px in an 800 px frame, 19 flips and 0 clamp-edge contacts in both languages, and 0 English tip heights changed.
+- `check-i18n`: ALL CHECKS PASS, canon v2, 38 tips bound. `boot-all-uis`: **43 / 43 clean, 0 warn, 0 failed, 0 DEAD bindings**, and O-GrainScatter contributes none of the 19 late bindings in the suite.
+- `auval -v aufx OuGS OuDv`: **AU VALIDATION SUCCEEDED**. The installed bundle was verified to carry a changed French **value** (`t: 'Étalement'`) with `LC_ALL=C grep -a`, and its `Info.plist` was read for the new version — `strings` splits on the multi-byte `é`, and a re-embedded binary-data blob can ship beside a stale `Info.plist`.
+
 ## [2.6.0] - 2026-08-30
 
 Hover-help, in both languages. Every one of the 36 parameters now carries a tooltip, as do the gear and the language selector — 38 entries, English and French, drafted for review. **And the copy is not the whole change: this page had no way to paint a tooltip at all**, so a renderer and a surface land in the same commit.
