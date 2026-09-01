@@ -38,7 +38,7 @@ Ouaricon Plugins:
 | O-Lyrica | 📦 Installed | 2.4.2 | Synth (Physical Modeling Harp) | 2026-08-31 |
 | O-MultiBandCompressor | 📦 Installed | 1.11.1 | Audio Effect (Dynamics) | 2026-08-31 |
 | O-Bass | 📦 Installed | 1.5.1 | Audio Effect (Bass Enhancer) | 2026-08-31 |
-| O-IntonationPad | 📦 Installed | 2.9.0 | Synth (Wavetable Pad) | 2026-08-28 |
+| O-IntonationPad | 📦 Installed | 2.9.1 | Synth (Wavetable Pad) | 2026-08-31 |
 | O-Detune | 📦 Installed | 1.7.1 | Audio Effect (Detuning) | 2026-08-31 |
 | O-Freeze | 📦 Installed | 2.2.1 | Audio Effect (Granular Freeze) | 2026-08-31 |
 | O-FreqPulse | 📦 Installed | 1.18.1 | Audio Effect (Spectral Sequencer) | 2026-08-31 |
@@ -50,10 +50,10 @@ Ouaricon Plugins:
 | O-Texture | 📦 Installed | 0.3.1 | Instrument/Effect (Neural Texture Synth) | 2026-08-31 |
 | O-Prism | 📦 Installed | 1.22.0 | Synth (Microtonal Wavetable) | 2026-08-31 |
 | O-Gain | 📦 Installed | 1.3.1 | Audio Effect (Gain Staging Utility) | 2026-08-31 |
-| O-Formant | 📦 Installed | 1.27.0 | Synth (Physical Model Vocal) | 2026-08-31 |
+| O-Formant | 📦 Installed | 1.27.1 | Synth (Physical Model Vocal) | 2026-08-31 |
 | O-Bowed | 📦 Installed | 1.6.1 | Synth (Physical Model Bowed String) | 2026-08-31 |
 | O-Reed | 📦 Installed | 1.3.1 | Synth (Physical Modeling Reed Wind) | 2026-08-31 |
-| O-Wind | 📦 Installed | 1.18.0 | Synth (Physical Model Flute) | 2026-08-31 |
+| O-Wind | 📦 Installed | 1.18.1 | Synth (Physical Model Flute) | 2026-08-31 |
 | O-Contrabass | 📦 Installed | 1.8.1 | Synth (Physical Model Bowed Bass) | 2026-08-31 |
 | O-Bassoon | 🚧 Stage 0 | 1.2.1 | Synth (Physical Model Bassoon) | 2026-08-31 |
 | O-MicrotonalSampler | 📦 Installed | 1.25.1 | Synth (Microtonal Sampler) | 2026-08-31 |
