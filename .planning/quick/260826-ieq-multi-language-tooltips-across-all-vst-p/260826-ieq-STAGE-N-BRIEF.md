@@ -500,3 +500,21 @@ numbers in the batch table are pre-fix.**
     `tip.revBore`: top 409.9 → 393.2, bottom clearance pinned, growth going upward over the
     controls with `inFrame` green). And *Écart total* at 53.72 px in a 53.00 px `flex: 0 1
     auto` pin moves the wrapper by 0.72 px — assertion 7 sees it; the abbreviation exists now.
+
+## From N8 complete (3 of 3: O-IntonationPad `ac2a7323`, O-Wind `33adb342`, O-Formant `5c91939b`)
+
+52. **`check-ui-labels` 8b now compares PAINTED rects** (clipped by overflow ancestors).
+    O-IntonationPad's settled *Accord* went red on a zero-pixel overlap with a panel
+    scrolled 44 px outside its tab's clip; the executor proved it with `elementFromPoint`
+    and a *Gamme* negative control, shipped the settled term, and reported — the right
+    call. Fixed in `scripts/`, not with a one-plugin workaround.
+53. **A LOCALIZED face must be named in the language it renders in** — correction 34's
+    mirror. O-Wind's four bypass bodies said "affiche On" for buttons that read MARCHE in
+    French (`data-i18n="label.fx.on"`). Check whether a face is exempt (English on screen)
+    or keyed (French on screen) before naming it.
+54. **Glossary: `focus` → *Focalisation*, `true keys` → *Touches réelles* / *Touches*.**
+    *Tenue* is right on O-Formant's Hold control because *Maintien* is already its Sustain
+    three rows away (one word, two live controls — correction 11 in mirror).
+55. **The commit-message trap:** O-Formant wrote "all four DSP claims verified" before
+    running the check, committed, then found one wrong. Run the check first; a claim in a
+    commit body cannot be amended in this checkout.
