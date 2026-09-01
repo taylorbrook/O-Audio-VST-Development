@@ -2,6 +2,51 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.6.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout — Checkpoint 5 run as a QA
+pass against a suite glossary and a lint, not as a re-translation. PATCH: copy and one
+canon behaviour only. No param IDs, ranges, defaults, English copy, keys or DSP changed.
+
+### Changed
+
+- **24 French entries of 71 revised** against `scripts/i18n-fr-glossary.js` and
+  `scripts/i18n-fr-lint.js` — 7 terminology, 8 typography, 8 grammar/agreement, 1 meaning.
+  The lint went 27 findings → 0 (`--strict` exits 0). The visible ones:
+  - **Matière → Matériau** on the Body section's caption and its tooltip title, the
+    suite's settled word for what a resonator is made of.
+  - **"la corde archetée" → "la corde frottée"**, and "une note archetée" → "une note
+    jouée à l'archet": *archeté* is not a French word, while *cordes frottées* is the
+    organology term for bowed strings.
+  - **No-break spaces** before every `:` and `;` and between every number and its unit —
+    *8 Hz*, *220,0 à 880,0 Hz*, *−60,0 à +12,0 dB*, and also *2,00 m/s* and *5,00 N*,
+    which the lint's unit list does not yet carry.
+  - **A dropped clause restored** in Sub-Harmonics: the French said "an octave lower and
+    below" with nothing for *lower* to be lower than; it now says *une octave sous la note
+    jouée*, which is what the English says.
+  - Four calques and dangling referents rewritten — *Un peu redonne / beaucoup pousse*,
+    *une houle lente*, *le bouton est incurvé*, *Elle change la part d'énergie*.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so
+  assistive technology reads the page in the language it is displayed in.
+- **Two glossary terms kept against the lint, with a recorded reason** (`termNote`), and
+  both alternatives measured rather than argued: **Fréq.** for the Humanize Rate knobs
+  (`HumanizeEngine.h:83` maps them to a 0.15–8 Hz corner, so it really is a frequency, and
+  they sit under a column captioned *Vitesse*), and **Tenue** for Infinite Sustain (this
+  page carries no envelope, so the glossary's *Maintien* — which settles the ADSR sustain
+  segment — names something that does not exist here).
+- **A stale width number corrected in `js/i18n.js`'s header.** It still described
+  `.knob-label` as a 62 px cap; `index.html:463` raised `max-width` to 64 px at v1.5.0.
+
+### Not changed
+
+- `reviewed: false` on all 71 entries. The flag means a native speaker has read the
+  string; this pass was a second machine reading against a glossary, and the header
+  records it instead.
+- The 15 English strings the three visualisation canvases paint with `ctx.fillText`
+  (*Bridge*, *Nut*, *Frequency*, *Playing*, *Silent*, *Helmholtz*, the four material
+  names, …). They were reported at Stage K3 and named a Stage-M backlog; they are still
+  hardcoded in `index.html` and have no French value to review.
+
 ## [1.6.0] - 2026-08-30
 
 Hover-help, in both languages. Stage M batch M2 of the suite-wide i18n rollout.
