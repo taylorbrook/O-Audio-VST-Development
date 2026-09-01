@@ -3,6 +3,43 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.1] — 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **52 of the 84 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint: 58 findings → 0.
+  - **Typography** throughout — straight apostrophes became typographic ones
+    (`l'interface` → `l’interface`), and a no-break space now sits before every
+    `%`, `:` and `;` and inside the guillemets around « Off », so a French
+    sentence can no longer break in front of its own punctuation.
+  - **Terminology**, where the suite had settled on another word: the two Scan
+    LFO captions are now VITESSE DU LFO and PROFONDEUR DU LFO (was AMPLEUR
+    LFO — *ampleur* was the minority reading of "depth"), BIT DEPTH is
+    RÉSOLUTION, RELEASE is RELÂCHEMENT in full, the lesson row reads LEÇONS,
+    and the four amplitude-envelope tooltips are titled "Attaque d’amplitude"
+    rather than "Attaque ampl.". Scan is named *Balayage* in every caption,
+    title and heading on the page.
+  - **Five sentences whose meaning had drifted from the English**: both Scan
+    LFO tips had dropped the control they drive ("qui balaie automatiquement"
+    said nothing about Scan), the Sawtooth lesson said "des harmoniques" where
+    the English says *all* overtones, and the oscilloscope hint had lost
+    "single-cycle".
+  - Root terms fit here: VITESSE DU LFO wraps to two lines inside a caption box
+    that already reserves two, PROFONDEUR DU LFO (69.36 px) and RELÂCHEMENT
+    (77.33 px) clear their neighbours in a 56–58 px cell, and no non-label
+    element moves between English and French — unchanged from v1.1.0. The one
+    abbreviation kept for width is DÉCROISS. SPECTRALE, which the glossary
+    accepts.
+  - Four captions are now substrings of the accessible name they label
+    (WCAG 2.5.3 label-in-name): LFO Rate, LFO Depth, Bit Depth and Release.
+  - **All French is still machine-drafted and flagged `reviewed: false`.** This
+    was a second reading against a glossary and a lint, not a native review.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
 ## [1.1.0] — 2026-08-27
 
 ### Added
