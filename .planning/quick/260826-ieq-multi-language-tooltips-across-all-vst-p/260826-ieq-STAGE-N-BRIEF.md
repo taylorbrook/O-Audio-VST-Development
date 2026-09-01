@@ -389,3 +389,44 @@ numbers in the batch table are pre-fix.**
     *Désactivée* on O-FreqPulse and O-SpectralShaper: the button resizes between its own
     French faces, inside popover slack, both geometry gates green — a CSS decision recorded
     in comments, not taken (item 40).
+
+## From N4 complete (6 of 6: O-Bowed `a7ff4f35`, O-Emulator `8d2bfcba`, O-ReverseDelay `33feb09c`, O-Octagon `af42a44e`, O-MultiBandCompressor `5247ce85`, O-Orbit `79b4cc93`)
+
+31. **BUILD TRAP — `touch plugins/<Name>/CMakeLists.txt` immediately before the build, and
+    read the INSTALLED `Info.plist` before calling a version bump shipped.** A concurrent
+    executor's CMake regenerate can stamp `build/build.ninja` NEWER than your `CMakeLists`
+    edit, so ninja treats the re-run edge as satisfied: the binary-data `i18n.js` re-embeds
+    (every string grep passes) while `JuceLibraryCode/<target>/Info.plist` keeps the OLD
+    version. O-ReverseDelay shipped 1.10.1 source in a 1.10.0 bundle on its first build and
+    caught it. Verify with
+    `/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" ~/Library/Audio/Plug-Ins/Components/<Name>-dev.component/Contents/Info.plist`.
+    (All 25 bundles shipped so far were audited after the fact: none stale.)
+32. **The glossary grew again from measurements:** `crush` accepts *écras.* / *broyage*;
+    `confirm?` accepts *sûr ?*; `makeup` accepts *compens.*; `on`/`off` accept *act.* /
+    *dés.* for a pill under 46 px; `m/s` is a unit. **T2 skips surround-format names**
+    (`5.1`, `7.1`, `7.1.4` — "7,1" is not a channel format). **A forbidden key ending in a
+    period now matches** (`Dériv.`, `Fréq.`, `Flatt.` drew G1 and not F1 before).
+33. **An exemption on MEANING is the glossary working, not failing** — record it and move
+    on: *Fréq.* for a control that IS a frequency under a column already captioned
+    *Vitesse* (O-Bowed); *Tenue* for an infinite-sustain switch on a page with no ADSR
+    (O-Bowed); *Mid* for the M/S encoding beside bands already named *Médium* (MBC);
+    *Retard* for an alignment delay and *Décroissance* for a DBAP distance law on a page
+    whose real filter would take *Pente* (O-Octagon); *Temps* as a panel heading over three
+    controls of which only one is a duration (O-ReverseDelay); *Mixage réducteur* for a
+    fold-down badge (O-Orbit). None of these is width, and none is a `termNote` hiding a miss.
+34. **Parameter-choice faces are English on screen in BOTH languages** (`AudioParameterChoice`
+    option strings are `I18N_EXEMPT` by design) — so a French body that names a choice must
+    name the ENGLISH face the user can see, capitalised: *Orbit*, *Free*, not *Orbite*,
+    *Libre* (O-Octagon, 21 choices; O-MultiBandCompressor's M/S tip named faces that do not
+    exist in French). A lower-case generic (*une orbite*) is prose and is translated.
+35. **A probe that does not park the pointer reports a healthy anchor dead**, in one
+    language, non-deterministically — the closing click leaves the cursor on the gear and
+    `target === tipTarget` short-circuits (O-Orbit). `mouse.move(2,2)` before each sweep.
+36. **`sameAsEn` on an I18N entry is still entry-scoped** — the four executors of N4 all got
+    it right; O-Octagon left ten titles unflagged over translated bodies. And the sixth,
+    seventh, eighth header width defences went backwards (O-Bowed's "62 px hard cap" was
+    raised to 64 at v1.5.0 and never updated; O-Octagon's *Décroissance* "72 px cell"
+    measured 81.59 in 88; O-ReverseDelay's *Profondeur* "0.4 px over, a clip" was
+    shrink-to-fit with `overflow: visible`; O-Orbit's "9 px pill" renders at 11 px because
+    `.toggle-label`'s rule loses on specificity). Score: 9 of 21 headers wrong about the
+    string they defended.
