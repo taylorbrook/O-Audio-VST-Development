@@ -5,6 +5,20 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+
+- **item 35 — Pan Sync tooltip (`tip.panSync`):** the body said the effect *needs a stereo signal to be heard at all*. The code gates on the **bus**, not the signal: `PluginProcessor.cpp:345` duplicates channel 0 into channel 1 on a 1-in/2-out bus (`totalInputChannels == 1 && totalOutputChannels == 2 && numChannels == 2`), and `:352` branches on `panSyncEnabled && numChannels == 2`. A mono signal on a stereo track therefore pans; only a mono **bus** silences the control. Both bodies now say *the plugin must sit on a stereo (2-channel) bus; on a mono bus this control has no effect* / *Le plugin doit être sur un bus stéréo (2 canaux) ; sur un bus mono, cette commande n’a aucun effet*. The French body is a meaning change and carries `reviewed: false` again. `aria.*`, `NOTES.md` and the source comments make no "stereo signal" claim; nothing else changed.
+
+### Notes
+
+- **Tip height, shipping 600 × 400 frame** (`tests/ui_tip_render_check.js --verbose`): en **98.4 → 114.5 px** (four lines to five), fr **114.5 → 130.6 px** (five to six); the pan tip rect stays fully inside the frame in both languages, 186/186.
+- **Gates:** `check-ui-labels` 0 non-label elements moved before and after · `check-i18n` ALL CHECKS PASS · `i18n-fr-lint --strict` exit 0 · `boot-all-uis` 43/43, 0 DEAD, O-Tremolo late count unchanged · `auval` PASS · installed plist 1.8.2.
+- **Non-breaking.** No parameter, preset format or state key changed; no DSP changed; no CSS changed.
+
 ## [1.8.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout — a second reading of every French entry against the suite glossary (`scripts/i18n-fr-glossary.js`) and the ten-check French lint (`scripts/i18n-fr-lint.js`), which did not exist when the drafts were written. `node scripts/i18n-fr-lint.js --plugin O-Tremolo` went from **14 findings to 0**, `--strict` exits 0.
