@@ -1,5 +1,19 @@
 # O-Prism Changelog
 
+## v1.22.1 (2026-08-31)
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **148 French rows revised across 125 of the 262 entries**, against the suite glossary (`scripts/i18n-fr-glossary.js`) and its lint. 43 terminology, 91 typography, 10 caption cross-references (2 of which also carried a gender/agreement fix) and 4 restored meanings. The most visible: **Chute → Déclin**, **Tenue → Maint.**, **Relâche → Relâch.**, **Réaction → Réinj.**, **Réverbe → Réverbération** in seven reverb tips, **Dosage → Mix** in four, **Ampl. PB → Plage PB**, **ÉG 3 bandes → EQ 3 bandes**, **Enveloppe ampli → Enveloppe d'amplitude**, **Touches → Touches réelles**, and no-break spaces before every `%`, `:`, `;` and unit (161 of them).
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so assistive technology reads the page in the language it is displayed in.
+- Two French bodies had lost a clause the English carries, and got it back: the mod-matrix line now says the 16 slots are *disponibles*, and the empty wavetable manager says *pour l'instant*. One named the wrong thing — a pan was described with *étaler*, the verb of Étalement — and one called the product a *greffon*; the suite settled on *ce plugin*, masculine.
+
+### Not fixed — reported instead
+- **Five captions cannot carry their settled French at this frame**, each measured NOWRAP with the caption's own font at 1200×800 and re-run through `check-ui-labels`: `Portamento` is 71.52 px in a 52.00 px `.knob-container` (7 elements move) and `Mode de portamento` 114.13 px in a 66.00 px `.dropdown-group` (9 move), so **Glissé / Mode glissé stay**; `Général` is 46.61 px against a 44.01 px `.footer-param` and shifts the footer 2.6 px in all thirteen gate states, so **Maître stays**; `Fréq. méd.` widens `#knob-eqMidFreq` by 8.3 px, so **Fq. méd stays**; and `Amort.` at 40.20 px fits the container but crosses the ROTATED svg box of two neighbouring knobs (assertion [8b], painted rects), so **Amor. stays**. The glossary lists no abbreviation for `glide` or for `master` — that is the gap, and it is reported rather than invented around.
+- **`Écart` keeps `Span`** under a `termNote`: the glossary's own carve-out is "Écart total stays for span", this page spends `Désacc.` on detune and `Larg.` on spread, and the sibling caption is `Écart total`.
+- **`tip.language` keeps one decimal point and one missing number–unit space.** It QUOTES the readouts `375ms` and `1.2kHz`, in a sentence whose whole point is that a readout does not follow French convention (D-03 exempts the readout node). The lint reads them as T2 and T7; a typography code is not `termNote`-able.
+
 ## v1.22.0 (2026-08-31)
 
 ### Added
