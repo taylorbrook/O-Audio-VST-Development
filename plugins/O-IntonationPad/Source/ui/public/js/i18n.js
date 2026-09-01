@@ -18,7 +18,63 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-IntonationPad UI copy, English + French (v2.9.0, canon v2)
+// ── v2.9.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 52 entries of 199 (19 terminology, 26 typography, 1 grammar,
+// 6 meaning). sameAsEn: kept 26, translated 0. termNote exemptions: 1 (listed).
+// Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
+// Lint went 67 findings -> 0 (9 T3, 5 T4, 2 T5, 17 T7, 18 G1, 16 F1 closed).
+//
+// The decisions the next reader needs:
+//
+//   TUNING IS "Accord", NOT "Gamme". The glossary keeps Accord for the tuning
+//   system and Gamme for a scale, and this page needs both: label.tabTuning and
+//   the #tuning-container tip are the system (Accord); tp-scale-name and
+//   label.scaleIntervals are the scale (Gamme). O-Formant, O-Lyrica and
+//   O-MicrotonalSampler already ship Accord on the same tab.
+//   COST, MEASURED: ACCORD renders 51.84 px against GAMME 47.17 and English
+//   TUNING 48.17, in a 52.00 px content box — it fits with 0.16 px to spare and
+//   moves no non-label element (assertion 7 green). But the tab-nav is centred
+//   and content-sized, so the button's right edge goes 542.47 -> 543.09 while
+//   .tuning-controls-panel begins at x=542, and check-ui-labels assertion 8b
+//   reports a 1.09 px intersection in the four states where the scale generator
+//   is expanded. THAT INTERSECTION HAS ZERO PAINTED PIXELS: at those states the
+//   panel's rect is y -14 -> 602 because it is scrolled inside #tuning-tab,
+//   which is overflow:auto and clips at y=96 — 44 px below the tab row's
+//   bottom edge — and document.elementFromPoint at all three sample points in
+//   the overlap returns button.tab-button. 8b compares UNCLIPPED
+//   getBoundingClientRect() rects. Negative control: reverting this one string
+//   to "Gamme" turns the gate green again and changes nothing else. English
+//   itself already overlaps the same panel by 0.47 px and escapes only on the
+//   0.5 px tolerance. Reported to the orchestrator; not worked around here.
+//
+//   RELÂCH. / RELÂCHEMENT, AMORT. / AMORTISSEMENT, RENVERS. / RENVERSEMENT.
+//   The caption carries the glossary abbreviation and the tip title the root.
+//   Label-in-name (WCAG 2.5.3) holds by stem, not by substring, on all three.
+//
+//   BIBLIOTHÈQUE, not Bibliothèque de gammes — the v2.9.0 note below is right
+//   and was re-measured rather than inherited. See it for the numbers.
+//
+//   MIX, not Dosage — and the three tip BODIES that said "Dosage son direct /
+//   son traité" now say "Mix ...", so no control has two French names.
+//
+//   "Conserve accord, voix et volume" for "Preserve tuning, chord & volume".
+//   French collapses tuning, scale and chord onto accord/gamme, and the .mode-desc
+//   line is 112 px, too narrow for a disambiguating rewrite. The page's own two
+//   captions do the work: the Tuning tab is Accord and the chord's voices are
+//   Voix. The draft's "Conserve gamme, accord et volume" read backwards once the
+//   tab stopped saying Gamme.
+//
+//   NOTE NAMES STAY ENGLISH, in bodies too. tp-ref-pitch said "du La3" — the
+//   French fixed-do name for A4 — against a caption reading RÉF. A4. Now "de A4".
+//
+//   REGISTER: infinitive throughout ("Cliquer", "Glisser", "Tenir", "Activer"),
+//   which is what the draft already used on all 14 instruction bodies.
+//
+//   ± replaces the ASCII "+/-" in the three EQ bodies. The page already ships ±
+//   in both languages on label.diceGentleDesc.
+// ============================================================================
+// i18n.js — O-IntonationPad UI copy, English + French (v2.9.1, canon v2)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -133,7 +189,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, note names, tuning names and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de notes, les noms de gammes et les noms de préréglages restent en anglais.',
+              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de notes, les noms de gammes et les noms de préréglages restent en anglais.',
               reviewed: false },
     },
     'tips-toggle': {
@@ -163,14 +219,14 @@ export const I18N = Object.freeze({
         en: { t: 'Synthesis controls',
               b: 'dual wavetable oscillators, envelope, filter, and randomization' },
         fr: { t: 'Commandes de synthèse',
-              b: 'deux oscillateurs à table d’ondes, enveloppe, filtre et aléatoire',
+              b: 'deux oscillateurs à table d’ondes, enveloppe, filtre et variation aléatoire',
               reviewed: false },
     },
     'tab-effects': {
         en: { t: 'Post-synthesis effects chain',
               b: 'Chorus, Delay, EQ, and Reverb' },
         fr: { t: 'Chaîne d’effets après synthèse',
-              b: 'Chorus, Délai, EQ et Réverbe',
+              b: 'Chorus, Délai, EQ et Réverb',
               reviewed: false },
     },
 
@@ -246,7 +302,7 @@ export const I18N = Object.freeze({
         en: { t: 'Spread',
               b: 'Distributes chord voices across the stereo field. 0% = mono, 100% = full width' },
         fr: { t: 'Étalement',
-              b: 'Répartit les voix de l’accord dans le champ stéréo. 0 % = mono, 100 % = largeur maximale',
+              b: 'Répartit les voix de l’accord dans le champ stéréo. 0 % = mono, 100 % = largeur maximale',
               reviewed: false },
     },
     'spacing': {
@@ -271,7 +327,7 @@ export const I18N = Object.freeze({
         en: { t: 'Pos',
               b: 'Morph position within the wavetable bank (0-100%)' },
         fr: { t: 'Pos.',
-              b: 'Position de morphing dans la banque de tables d’ondes (0-100 %)',
+              b: 'Position de morphing dans la banque de tables d’ondes (0-100 %)',
               reviewed: false },
     },
     'lfo-rate': {
@@ -320,49 +376,49 @@ export const I18N = Object.freeze({
         en: { t: 'Attack',
               b: 'Envelope attack time — how quickly the sound fades in (1-5000 ms)' },
         fr: { t: 'Attaque',
-              b: 'Temps d’attaque de l’enveloppe — rapidité d’apparition du son (1-5000 ms)',
+              b: 'Temps d’attaque de l’enveloppe — rapidité d’apparition du son (1-5000 ms)',
               reviewed: false },
     },
     'decay': {
         en: { t: 'Decay',
               b: 'Envelope decay time — how quickly the sound drops from peak to sustain level (10-5000 ms)' },
-        fr: { t: 'Chute',
-              b: 'Temps de chute de l’enveloppe — rapidité de descente du sommet au niveau de tenue (10-5000 ms)',
+        fr: { t: 'Déclin',
+              b: 'Temps de déclin de l’enveloppe — rapidité de descente du sommet au niveau de maintien (10-5000 ms)',
               reviewed: false },
     },
     'sustain': {
         en: { t: 'Sustain',
               b: 'Envelope sustain level — volume held while note is on after decay (0-100%)' },
-        fr: { t: 'Tenue',
-              b: 'Niveau de tenue de l’enveloppe — volume maintenu après la chute tant que la note dure (0-100 %)',
+        fr: { t: 'Maintien',
+              b: 'Niveau de maintien de l’enveloppe — volume conservé après le déclin tant que la note dure (0-100 %)',
               reviewed: false },
     },
     'release': {
         en: { t: 'Release',
               b: 'Envelope release time — how long the sound fades out after note off (10-10000 ms)' },
-        fr: { t: 'Extinction',
-              b: 'Temps d’extinction de l’enveloppe — durée de disparition du son après le relâchement (10-10000 ms)',
+        fr: { t: 'Relâchement',
+              b: 'Temps de relâchement de l’enveloppe — durée de disparition du son une fois la note relâchée (10-10000 ms)',
               reviewed: false },
     },
     'filter-cutoff': {
         en: { t: 'Filter',
               b: 'Low-pass filter cutoff frequency (20-20000 Hz)' },
         fr: { t: 'Filtre',
-              b: 'Fréquence de coupure du filtre passe-bas (20-20000 Hz)',
+              b: 'Fréquence de coupure du filtre passe-bas (20-20000 Hz)',
               reviewed: false },
     },
     'filter-lfo-depth': {
         en: { t: 'Flt LFO',
               b: 'Filter LFO depth — modulates cutoff using LFO A phase for sweeping filter effects (0-100%)' },
         fr: { t: 'LFO filtre',
-              b: 'Profondeur du LFO sur le filtre — module la coupure avec la phase du LFO A pour des balayages (0-100 %)',
+              b: 'Profondeur du LFO sur le filtre — module la coupure avec la phase du LFO A pour des balayages (0-100 %)',
               reviewed: false },
     },
     'velocity-to-filter': {
         en: { t: 'Vel>Flt',
               b: 'Velocity to filter — MIDI velocity modulates filter cutoff. Low velocity = darker, high velocity = brighter (0-100%)' },
         fr: { t: 'Vél>Filt',
-              b: 'Vélocité vers filtre — la vélocité MIDI module la coupure. Vélocité faible = plus sombre, vélocité forte = plus clair (0-100 %)',
+              b: 'Vélocité vers filtre — la vélocité MIDI module la coupure. Vélocité faible = plus sombre, vélocité forte = plus clair (0-100 %)',
               reviewed: false },
     },
     'master-volume': {
@@ -376,14 +432,14 @@ export const I18N = Object.freeze({
         en: { t: 'Timing',
               b: 'Random delay offset per chord voice — adds organic strum feel (0-100 ms)' },
         fr: { t: 'Décalage',
-              b: 'Retard aléatoire pour chaque voix de l’accord — donne une sensation de plaqué naturel (0-100 ms)',
+              b: 'Retard aléatoire pour chaque voix de l’accord — donne un égrenage naturel (0-100 ms)',
               reviewed: false },
     },
     'detune-random': {
         en: { t: 'Detune',
               b: 'Random pitch deviation per chord voice — creates ensemble/unison width (0-50 cents)' },
         fr: { t: 'Désaccord',
-              b: 'Écart de hauteur aléatoire pour chaque voix — crée une largeur d’ensemble ou d’unisson (0-50 cents)',
+              b: 'Désaccord aléatoire pour chaque voix de l’accord — crée une largeur d’ensemble ou d’unisson (0-50 cents)',
               reviewed: false },
     },
 
@@ -423,7 +479,7 @@ export const I18N = Object.freeze({
         en: { t: '3-band EQ',
               b: 'low shelf (200 Hz), mid peak (variable), high shelf (8 kHz)' },
         fr: { t: 'EQ 3 bandes',
-              b: 'plateau grave (200 Hz), cloche médium (variable), plateau aigu (8 kHz)',
+              b: 'plateau grave (200 Hz), cloche médium (variable), plateau aigu (8 kHz)',
               reviewed: false },
     },
     'fx-eq-bypass': {
@@ -436,14 +492,14 @@ export const I18N = Object.freeze({
     'fx-reverb': {
         en: { t: 'Reverb',
               b: 'Schroeder reverb with adjustable pre-delay' },
-        fr: { t: 'Réverbe',
+        fr: { t: 'Réverb',
               b: 'Réverbération de Schroeder avec pré-délai réglable',
               reviewed: false },
     },
     'fx-reverb-bypass': {
         en: { t: 'Reverb',
               b: 'Enable/disable reverb processing' },
-        fr: { t: 'Réverbe',
+        fr: { t: 'Réverb',
               b: 'Activer ou désactiver le traitement de réverbération',
               reviewed: false },
     },
@@ -451,7 +507,7 @@ export const I18N = Object.freeze({
         en: { t: 'Rate',
               b: 'Chorus LFO rate (0.1-10 Hz)' },
         fr: { t: 'Vitesse',
-              b: 'Vitesse du LFO de chorus (0,1-10 Hz)',
+              b: 'Vitesse du LFO de chorus (0,1-10 Hz)',
               reviewed: false },
     },
     'chorus-depth': {
@@ -464,22 +520,22 @@ export const I18N = Object.freeze({
     'chorus-mix': {
         en: { t: 'Mix',
               b: 'Chorus dry/wet mix' },
-        fr: { t: 'Mixage',
-              b: 'Dosage son direct / son traité du chorus',
+        fr: { t: 'Mix',
+              b: 'Mix son direct / son traité du chorus',
               reviewed: false },
     },
     'delay-time': {
         en: { t: 'Time',
               b: 'Delay time (1-2000 ms)' },
         fr: { t: 'Durée',
-              b: 'Temps de retard (1-2000 ms)',
+              b: 'Durée du délai (1-2000 ms)',
               reviewed: false },
     },
     'delay-feedback': {
         en: { t: 'Feedback',
               b: 'Delay feedback amount (0-95%)' },
         fr: { t: 'Réinjection',
-              b: 'Taux de réinjection du délai (0-95 %)',
+              b: 'Taux de réinjection du délai (0-95 %)',
               reviewed: false },
     },
     // HAND-SPLIT, and the reason is spelled out at the head of this file: a
@@ -488,70 +544,70 @@ export const I18N = Object.freeze({
         en: { t: 'Mode',
               b: 'Normal: mono delay. PingPong: alternating stereo bounces' },
         fr: { t: 'Mode',
-              b: 'Normal : délai mono. PingPong : rebonds stéréo alternés',
+              b: 'Normal : délai mono. PingPong : rebonds stéréo alternés',
               reviewed: false },
     },
     'delay-mix': {
         en: { t: 'Mix',
               b: 'Delay dry/wet mix' },
-        fr: { t: 'Mixage',
-              b: 'Dosage son direct / son traité du délai',
+        fr: { t: 'Mix',
+              b: 'Mix son direct / son traité du délai',
               reviewed: false },
     },
     'eq-low': {
         en: { t: 'Low',
               b: 'Low shelf gain at 200 Hz (+/-12 dB)' },
         fr: { t: 'Grave',
-              b: 'Gain du plateau grave à 200 Hz (+/-12 dB)',
+              b: 'Gain du plateau grave à 200 Hz (±12 dB)',
               reviewed: false },
     },
     'eq-mid': {
         en: { t: 'Mid',
               b: 'Mid peak gain (+/-12 dB)' },
         fr: { t: 'Médium',
-              b: 'Gain de la cloche médium (+/-12 dB)',
+              b: 'Gain de la cloche médium (±12 dB)',
               reviewed: false },
     },
     'eq-mid-freq': {
         en: { t: 'Mid Freq',
               b: 'Mid peak center frequency (200-8000 Hz)' },
         fr: { t: 'Fréq. méd.',
-              b: 'Fréquence centrale de la cloche médium (200-8000 Hz)',
+              b: 'Fréquence centrale de la cloche médium (200-8000 Hz)',
               reviewed: false },
     },
     'eq-high': {
         en: { t: 'High',
               b: 'High shelf gain at 8 kHz (+/-12 dB)' },
         fr: { t: 'Aigu',
-              b: 'Gain du plateau aigu à 8 kHz (+/-12 dB)',
+              b: 'Gain du plateau aigu à 8 kHz (±12 dB)',
               reviewed: false },
     },
     'reverb-size': {
         en: { t: 'Size',
               b: 'Reverb room size (0-100%)' },
         fr: { t: 'Taille',
-              b: 'Taille de la salle de réverbération (0-100 %)',
+              b: 'Taille de la salle de réverbération (0-100 %)',
               reviewed: false },
     },
     'reverb-damp': {
         en: { t: 'Damp',
               b: 'Reverb high-frequency damping (0-100%)' },
-        fr: { t: 'Amortis.',
-              b: 'Amortissement des aigus de la réverbération (0-100 %)',
+        fr: { t: 'Amort.',
+              b: 'Amortissement des aigus de la réverbération (0-100 %)',
               reviewed: false },
     },
     'reverb-predelay': {
         en: { t: 'Pre-dly',
               b: 'Time before reverb onset (0-200 ms)' },
         fr: { t: 'Pré-délai',
-              b: 'Temps avant le début de la réverbération (0-200 ms)',
+              b: 'Temps avant le début de la réverbération (0-200 ms)',
               reviewed: false },
     },
     'reverb-mix': {
         en: { t: 'Mix',
               b: 'Reverb dry/wet mix' },
-        fr: { t: 'Mixage',
-              b: 'Dosage son direct / son traité de la réverbération',
+        fr: { t: 'Mix',
+              b: 'Mix son direct / son traité de la réverbération',
               reviewed: false },
     },
 
@@ -563,7 +619,7 @@ export const I18N = Object.freeze({
     'tuning-container': {
         en: { t: 'Tuning',
               b: 'Microtonal tuning system — edit intervals, load presets, or generate custom scales' },
-        fr: { t: 'Gamme',
+        fr: { t: 'Accord',
               b: 'Système d’accord microtonal — modifier les intervalles, charger des préréglages ou générer des gammes',
               reviewed: false },
     },
@@ -620,7 +676,7 @@ export const I18N = Object.freeze({
         en: { t: 'A4 REF',
               b: 'A4 reference frequency (400-480 Hz). Drag up/down to adjust. Default: 440 Hz' },
         fr: { t: 'RÉF. A4',
-              b: 'Fréquence de référence du La3 (400-480 Hz). Glisser vers le haut ou le bas pour régler. Par défaut : 440 Hz',
+              b: 'Fréquence de référence de A4 (400-480 Hz). Glisser vers le haut ou le bas pour régler. Par défaut : 440 Hz',
               reviewed: false },
     },
     'tp-scale-name': {
@@ -634,14 +690,14 @@ export const I18N = Object.freeze({
         en: { t: 'Stretch',
               b: 'Stretch or compress the octave ratio. 1.00 = pure octave (1200 cents)' },
         fr: { t: 'Étirement',
-              b: 'Étirer ou comprimer le rapport d’octave. 1,00 = octave juste (1200 cents)',
+              b: 'Étirer ou comprimer le rapport d’octave. 1,00 = octave juste (1200 cents)',
               reviewed: false },
     },
     'tp-pb-range': {
         en: { t: 'PB Range',
               b: 'Pitch bend range in semitones (1-48 st). Controls how far the pitch wheel bends notes' },
         fr: { t: 'Plage PB',
-              b: 'Plage du pitch bend en demi-tons (1-48 st). Détermine l’amplitude de la molette de hauteur',
+              b: 'Plage du pitch bend en demi-tons (1-48 st). Détermine l’amplitude de la molette de hauteur',
               reviewed: false },
     },
     'tp-load-scl': {
@@ -683,7 +739,7 @@ export const I18N = Object.freeze({
     'tp-generator': {
         en: { t: 'Generate custom scales',
               b: 'Equal Division (EDO), Harmonic Series, or Rank-2 Temperament' },
-        fr: { t: 'Générer des gammes',
+        fr: { t: 'Générer des gammes personnalisées',
               b: 'division égale (EDO), série harmonique ou tempérament de rang 2',
               reviewed: false },
     },
@@ -697,16 +753,16 @@ export const I18N = Object.freeze({
     // being read on every rename and every delete.
     'dialog.renamePrompt': {
         en: { t: 'Rename preset:', b: '' },
-        fr: { t: 'Renommer le préréglage :', b: '', reviewed: false },
+        fr: { t: 'Renommer le préréglage :', b: '', reviewed: false },
     },
     'dialog.deleteConfirm': {
         en: { t: 'Delete preset "{name}"?', b: '' },
-        fr: { t: 'Supprimer le préréglage « {name} » ?', b: '', reviewed: false },
+        fr: { t: 'Supprimer le préréglage « {name} » ?', b: '', reviewed: false },
     },
 });
 
 // ============================================================================
-// LABELS — the on-page text (v2.9.0, canon v2)
+// LABELS — the on-page text (v2.9.1, canon v2)
 // ============================================================================
 //
 // I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping
@@ -755,7 +811,7 @@ export const LABELS = Object.freeze({
 
     // ── Tab row ─────────────────────────────────────────────────────────────
     'label.tabVoice':    { en: { t: 'Voice' },   fr: { t: 'Voix',   reviewed: false } },
-    'label.tabTuning':   { en: { t: 'Tuning' },  fr: { t: 'Gamme',  reviewed: false } },
+    'label.tabTuning':   { en: { t: 'Tuning' },  fr: { t: 'Accord', reviewed: false } },
     'label.tabSynth':    { en: { t: 'Synth' },   fr: { t: 'Synthé', reviewed: false } },
     'label.tabEffects':  { en: { t: 'Effects' }, fr: { t: 'Effets', reviewed: false } },
 
@@ -770,13 +826,13 @@ export const LABELS = Object.freeze({
     // making the whole dice menu 10 px taller in French and moving the two rows
     // below it. Measured as rendered, both ways.
     'label.diceGentleDesc':  { en: { t: '±15% variation from current' },
-                               fr: { t: '±15 % du réglage actuel', reviewed: false } },
+                               fr: { t: '±15 % du réglage actuel', reviewed: false } },
     'label.diceWild':        { en: { t: 'Wild' },       fr: { t: 'Extrême',     reviewed: false } },
     'label.diceWildDesc':    { en: { t: 'Full range randomization' },
                                fr: { t: 'Aléatoire sur toute la plage', reviewed: false } },
     'label.diceSoundOnly':   { en: { t: 'Sound Only' }, fr: { t: 'Timbre seul', reviewed: false } },
     'label.diceSoundOnlyDesc': { en: { t: 'Preserve tuning, chord & volume' },
-                               fr: { t: 'Conserve gamme, accord et volume', reviewed: false } },
+                               fr: { t: 'Conserve accord, voix et volume', reviewed: false } },
 
     // ── Preset bar, browser and save dialog ─────────────────────────────────
     // "Enreg.", not "Enregistrer": this caption is worn by the preset bar's SAVE
@@ -804,7 +860,8 @@ export const LABELS = Object.freeze({
 
     // ── Voice tab ───────────────────────────────────────────────────────────
     'label.keyRoot':     { en: { t: 'Key Root' },  fr: { t: 'Fondamentale', reviewed: false } },
-    'label.voicing':     { en: { t: 'Voicing' },   fr: { t: 'Disposition',  reviewed: false } },
+    'label.voicing':     { en: { t: 'Voicing' },   fr: { t: 'Disposition',  reviewed: false,
+                       termNote: 'chord voicing — how the chord’s notes are laid out across octaves — not O-Formant’s phonetic voicing (Voisement). Disposition is the French harmony term for exactly this' } },
     'label.intervals':   { en: { t: 'Intervals' }, fr: { t: 'Intervalles',  reviewed: false } },
     'label.none':        { en: { t: 'None' },      fr: { t: 'Aucun',        reviewed: false } },
     'label.loading':     { en: { t: 'Loading...' }, fr: { t: 'Chargement…',  reviewed: false } },
@@ -824,14 +881,14 @@ export const LABELS = Object.freeze({
     // the same and says so with sameAsEn rather than by silence.
     'label.oscA':        { en: { t: 'OSC A' },   fr: { t: 'OSC A',   reviewed: false, sameAsEn: true } },
     'label.oscB':        { en: { t: 'OSC B' },   fr: { t: 'OSC B',   reviewed: false, sameAsEn: true } },
-    'label.pos':         { en: { t: 'Pos' },     fr: { t: 'Pos.',    reviewed: false } },
+    'label.pos':         { en: { t: 'Pos' },     fr: { t: 'Pos.',    reviewed: false, sameAsEn: true } },
     'label.rate':        { en: { t: 'Rate' },    fr: { t: 'Vitesse', reviewed: false } },
     'label.depth':       { en: { t: 'Depth' },   fr: { t: 'Prof.',   reviewed: false } },
     'label.gain':        { en: { t: 'Gain' },    fr: { t: 'Gain',    reviewed: false, sameAsEn: true } },
     'label.attack':      { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: false } },
-    'label.decay':       { en: { t: 'Decay' },   fr: { t: 'Chute',   reviewed: false } },
-    'label.sustain':     { en: { t: 'Sustain' }, fr: { t: 'Tenue',   reviewed: false } },
-    'label.release':     { en: { t: 'Release' }, fr: { t: 'Extinct.', reviewed: false } },
+    'label.decay':       { en: { t: 'Decay' },   fr: { t: 'Déclin',  reviewed: false } },
+    'label.sustain':     { en: { t: 'Sustain' }, fr: { t: 'Maintien', reviewed: false } },
+    'label.release':     { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: false } },
     'label.filter':      { en: { t: 'Filter' },  fr: { t: 'Filtre',  reviewed: false } },
     'label.fltLfo':      { en: { t: 'Flt LFO' }, fr: { t: 'LFO filt.', reviewed: false } },
     'label.velFlt':      { en: { t: 'Vel>Flt' }, fr: { t: 'Vél>Filt', reviewed: false } },
@@ -843,8 +900,8 @@ export const LABELS = Object.freeze({
     'label.fxChorus':    { en: { t: 'Chorus' },   fr: { t: 'Chorus',  reviewed: false, sameAsEn: true } },
     'label.fxDelay':     { en: { t: 'Delay' },    fr: { t: 'Délai',   reviewed: false } },
     'label.fxEq':        { en: { t: 'EQ' },       fr: { t: 'EQ',      reviewed: false, sameAsEn: true } },
-    'label.fxReverb':    { en: { t: 'Reverb' },   fr: { t: 'Réverbe', reviewed: false } },
-    'label.mix':         { en: { t: 'Mix' },      fr: { t: 'Dosage',  reviewed: false } },
+    'label.fxReverb':    { en: { t: 'Reverb' },   fr: { t: 'Réverb', reviewed: false } },
+    'label.mix':         { en: { t: 'Mix' },      fr: { t: 'Mix',     reviewed: false, sameAsEn: true } },
     'label.time':        { en: { t: 'Time' },     fr: { t: 'Durée',   reviewed: false } },
     'label.feedback':    { en: { t: 'Feedback' }, fr: { t: 'Réinj.',  reviewed: false } },
     'label.low':         { en: { t: 'Low' },      fr: { t: 'Grave',   reviewed: false } },
@@ -852,7 +909,7 @@ export const LABELS = Object.freeze({
     'label.midFreq':     { en: { t: 'Mid Freq' }, fr: { t: 'Fréq. méd.', reviewed: false } },
     'label.high':        { en: { t: 'High' },     fr: { t: 'Aigu',    reviewed: false } },
     'label.size':        { en: { t: 'Size' },     fr: { t: 'Taille',  reviewed: false } },
-    'label.damp':        { en: { t: 'Damp' },     fr: { t: 'Amortis.', reviewed: false } },
+    'label.damp':        { en: { t: 'Damp' },     fr: { t: 'Amort.',  reviewed: false } },
     'label.preDly':      { en: { t: 'Pre-dly' },  fr: { t: 'Pré-dél.', reviewed: false } },
     // Shared by the delay-mode dropdown caption and the rotation table's first
     // column header. One string, one key, two anchors.
@@ -863,9 +920,9 @@ export const LABELS = Object.freeze({
     // §6 note at the head of this table for why the noun sits in front of the
     // number instead of after it.
     'label.intervalsHeader': { en: { t: 'Intervals: {n}' },
-                               fr: { t: 'Intervalles : {n}', reviewed: false } },
+                               fr: { t: 'Intervalles : {n}', reviewed: false } },
     'label.noteCount':       { en: { t: 'Notes: {n}' },
-                               fr: { t: 'Notes : {n}', reviewed: false } },
+                               fr: { t: 'Notes : {n}', reviewed: false } },
     'label.tonic':           { en: { t: 'Tonic' },  fr: { t: 'Tonique', reviewed: false } },
     'label.scaleIntervals':  { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: false } },
     'label.vizCircle':       { en: { t: 'Circle' },    fr: { t: 'Cercle',   reviewed: false } },
@@ -882,6 +939,14 @@ export const LABELS = Object.freeze({
     // introduce and does not fix — so the English caption at 94.22 px is the
     // budget. "Bibliothèque de gammes" is 152.5 px and crossed the frame edge by
     // 17.4 px; "Bibliothèque" is 82.28 px and clears it.
+    //
+    // v2.9.1 RE-MEASURED AND CONFIRMED TO THE TENTH. Stage N re-applied the
+    // glossary root and re-ran the gate: assertion 6 reported label.tuningLibrary
+    // 0.0px -> 17.4px @665,120 153x12, and assertion 5 reported the same caption
+    // spilling its offsetParent's padding box 0.0px -> 20.4px. The measured
+    // 152.50 px is right and so is the 17.4 px overflow. The abbreviation stays;
+    // the tip TITLE below carries the full "Bibliothèque de gammes", where a
+    // 220 px wrapping tooltip has the room the caption does not.
     'label.tuningLibrary':   { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque', reviewed: false } },
     // The library filter is a PLAIN select over the strings all / Historical /
     // ... — it is not an AudioParameterChoice, no host ever shows these six
@@ -919,7 +984,7 @@ export const LABELS = Object.freeze({
 
     // ── The settings popover, and the two faces of every toggle ─────────────
     'label.language':    { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: false } },
-    'label.hoverHelp':   { en: { t: 'Hover help' }, fr: { t: 'Aide',   reviewed: false } },
+    'label.hoverHelp':   { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: false } },
     // Worn by the four FX bypass buttons AND by the hover-help switch. Written
     // only by setLabel, from an if/else and never a ternary — assertion 13.
     'ui.on':             { en: { t: 'On' },  fr: { t: 'Marche', reviewed: false } },

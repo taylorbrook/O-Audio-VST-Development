@@ -1,5 +1,33 @@
 # O-IntonationPad Changelog
 
+## [2.9.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **52 French entries revised** (of 199) against the suite glossary and lint: 19
+  terminology, 26 typography, 1 grammar, 6 meaning. The visible ones: the Tuning tab
+  reads **Accord** rather than *Gamme* (French keeps *Accord* for a tuning system and
+  *Gamme* for a scale, and this page shows both); the ADSR row reads **Déclin /
+  Maintien / Relâch.** rather than *Chute / Tenue / Extinct.*; **Mix** replaces
+  *Dosage* and *Mixage* on the four dry/wet controls and in their tooltip bodies;
+  **Réverb** replaces *Réverbe*, **Amort.** replaces *Amortis.*, and the settings
+  popover says **Aide au survol** rather than *Aide*, which is what its own switch
+  tooltip already called it.
+- **Typography, throughout the French copy**: a no-break space before every `%`, `:`
+  and `;` and between every number and its unit (*5000 ms*, *20000 Hz*, *±12 dB*,
+  *1200 cents*, *48 st*), and inside the guillemets of the delete-preset prompt. The
+  three EQ tooltips use `±` where they used the ASCII `+/-`.
+- **Four French sentences said something the English does not.** The timing tooltip
+  promised *un plaqué naturel* — a block chord — for a control that offsets each voice
+  in time, and now says *un égrenage naturel*; the A4-reference tooltip named the pitch
+  *La3* against a caption reading *RÉF. A4*, and now names *A4*; the scale-generator
+  tooltip had dropped "custom"; and the Sound-Only dice caption said *Conserve gamme,
+  accord et volume*, which reads backwards once the Tuning tab stops saying *Gamme*.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so
+  assistive technology reads the page in the language it is displayed in.
+
 ## [2.9.0] - 2026-08-28
 
 ### Added
