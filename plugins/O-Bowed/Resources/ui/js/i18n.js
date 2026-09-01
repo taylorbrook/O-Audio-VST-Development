@@ -783,9 +783,13 @@ export const I18N_EXEMPT = [
 //   SELECTOR half — FALSE. 28 of the 30 anchors below carry no id at all.
 //     The knobs are addressed the way the page's own bindSliderParam() does it
 //     (index.html:1191), by `.knob-control[data-param="..."]`. Exactly two
-//     .knob-control nodes have an id (#sympAmount-ctrl, #sympDecay-ctrl, added
-//     for the conditional-visibility path) and using them would make two rows
-//     read differently from the other twenty-six for no gain.
+//     .knob-control nodes have an id — #sympAmount-ctrl and #sympDecay-ctrl —
+//     and using them would make two rows read differently from the other
+//     twenty-six for no gain. CORRECTED at v1.6.1: only the FIRST is on the
+//     conditional-visibility path. updateSympVisibility() (index.html:1395)
+//     reads #sympAmount-ctrl and nothing else, so #sympDecay-ctrl's id is
+//     unused by any code on the page and Sympathetic Decay stays on screen at
+//     Count 0, where it is as inert as the knob beside it that hides.
 //
 //   WRAPPER half — NOT NEEDED. .knob-control IS the hover cell: a 62 px column
 //     holding the 55 px SVG, the caption and the readout, and nothing else
