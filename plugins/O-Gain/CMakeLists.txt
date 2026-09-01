@@ -8,7 +8,7 @@ juce_add_plugin(O-Gain
     PLUGIN_CODE OGan
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Gain${OUARICON_DEV_SUFFIX}"
-    VERSION 1.3.1
+    VERSION 1.3.2
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )

@@ -2,6 +2,31 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.3.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide
+i18n rollout. PATCH: no parameter, range, type or state format changed; one
+tooltip body in two languages.
+
+### Fixed
+
+- **item 37 — Confidence tooltip (`info-confidence`):** the body stated only
+  the 5 s / 15 s elapsed-time thresholds. The gate at
+  `PluginProcessor.cpp:1027` also holds the verdict at LOW while fewer than
+  `kConfidenceMinBlocks` = 50 gating blocks (`:133`) have been analysed,
+  whatever the elapsed time. A gating block is 400 ms of K-weighted power
+  stored once per 100 ms hop (`:947-978`), so the 50th arrives at ~5.3 s —
+  after the 5 s clock — and the block count is the condition that actually
+  governs. Both bodies now read: Low = under 5 s, **or fewer than 50 analysis
+  blocks (400 ms each, one every 100 ms) whatever the time elapsed**; Medium =
+  5–15 s; High = over 15 s. The former "High … with stable signal" lost its
+  last clause: nothing about signal stability feeds `confidence` in the source.
+  The French entry is `reviewed: false` again. Tip height at 350×500 read
+  before and after through the page's own renderer: 67.64 px (3 lines) in both
+  languages → 81.14 px en (4 lines) / 94.64 px fr (5 lines), placed above the
+  anchor with 334 px of clearance to the frame top in French; no anchor
+  overlap, no tip off-frame across all 26 anchors.
+
 ## [1.3.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout. PATCH: no

@@ -18,7 +18,37 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Gain UI copy, English + French (v1.3.1, canon v2)
+// i18n.js — O-Gain UI copy, English + French (v1.3.2, canon v2)
+//
+// ── v1.3.2: ENGLISH READ AGAINST THE CODE (Stage O, item 37, 2026-08-31) ──
+// info-confidence's body stated only the 5 s / 15 s thresholds. The gate at
+// PluginProcessor.cpp:1027 is
+//   if (elapsed < kConfidenceLowSeconds || gatingBlockCount < kConfidenceMinBlocks)
+// with kConfidenceMinBlocks = 50 (:133): the verdict reads LOW until 50 gating
+// blocks exist, whatever the clock says. A gating block (:947-978) is the mean
+// K-weighted power over a 400 ms window (kLufsBlockSeconds, 4 sub-blocks),
+// stored once per 100 ms hop (kLufsHopSeconds) once all 4 sub-blocks have
+// samples — so block 50 lands at ~5.3 s, 0.3 s AFTER the clock threshold, and
+// the block count is what actually holds LOW in practice. Both bodies now name
+// the 50-block minimum with the block length and the hop, so a reader cannot
+// multiply 50 x 400 ms into 20 s. The old "High = over 15s with stable signal"
+// lost its last clause: nothing about signal stability feeds `confidence`
+// (blocks are counted before the -70 LUFS absolute gate, which only affects
+// the integrated value), so it was a claim the source does not make.
+// fr rewritten for the same meaning change: reviewed: false again on that one
+// entry (the developer re-reads it). Glossary: no row for "block"/"analysis";
+// "blocs d’analyse" is plain French, "quel que soit le temps écoulé" carries
+// "whatever the time elapsed". Typography: U+2019 in d’analyse, U+00A0
+// between every number and unit (5 s, 400 ms, 100 ms, 15 s).
+// HEIGHT READ BEFORE AND AFTER at 350 x 500 through the renderer's own
+// mouseover + dwell path (scratchpad probe; this plugin has no committed
+// render gate): 67.64 px / 3 body lines in both languages -> en 81.14 (4
+// lines), fr 94.64 (5 lines). Placement stays "above" (anchor top 437),
+// the tip's top edge is 347.86 (en) / 334.36 (fr) from the frame top, right
+// clearance 9.50 unchanged, no anchor overlap, and the tallest tip on the
+// page is still info-sample-peak fr at 108.14. 26 anchors swept, none
+// off-frame, in both languages, before and after.
+// ───────────────────────────────────────────────────────────────────────────
 //
 // ── v1.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ───────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -323,10 +353,10 @@ export const I18N = Object.freeze({
     },
     'info-confidence': {
         en: { t: 'Confidence',
-              b: 'Measurement quality. Low = under 5s. Medium = 5-15s. High = over 15s with stable signal' },
+              b: 'Measurement quality. Low = under 5s, or fewer than 50 analysis blocks (400ms each, one every 100ms) whatever the time elapsed. Medium = 5-15s. High = over 15s' },
         fr: { t: 'Confiance',
-              b: 'Qualité de la mesure. Faible = moins de 5 s. Moyen = 5 à 15 s. Élevé = plus de 15 s avec un signal stable',
-              reviewed: true },
+              b: 'Qualité de la mesure. Faible = moins de 5 s, ou moins de 50 blocs d’analyse (400 ms chacun, un toutes les 100 ms) quel que soit le temps écoulé. Moyen = 5 à 15 s. Élevé = plus de 15 s',
+              reviewed: false },
     },
     'phase-l': {
         en: { t: 'PH L',
