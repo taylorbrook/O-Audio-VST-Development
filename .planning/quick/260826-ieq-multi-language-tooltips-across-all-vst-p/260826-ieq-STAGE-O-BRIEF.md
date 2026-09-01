@@ -183,3 +183,25 @@ Where this section disagrees with anything above, THIS section wins.
    `KeyboardComponentBase::octaveNumForMiddleC` settle it; carry the note numbers too.
 7. **Set `reviewed: false` on every entry whose French MEANING you change**, not only on new
    entries. O1 flipped 7 (O-simpleFM), 1–2 elsewhere; the developer re-reads them.
+
+# CARRIED FROM O2 (O-Gain `f5ed6f9a`, O-Formant `420cfe49`, O-Bells `19c3a9e2`, O-Bowed `3302286f`, O-Lyrica `fc159b51`)
+
+8. **Your `tests/` gate may fail at BASELINE.** Run it before any edit; if it is red on the
+   unchanged tree, say so in the first line of your report and do not "fix" it silently.
+   (O-Bells' gate asserted `reviewed: false` everywhere — backwards since `13fc8dd0`; the
+   orchestrator fixed it in `47c7be7d`.) A gate red both ways proves nothing about your change.
+9. **Count before you fix.** Three of five O2 briefs had the wrong number or the wrong
+   mechanism (15 vs 17 canvas strings; a `focusin` path that did not exist; a tooltip layer
+   replaced two versions ago). The section names the defect; the source names the fix.
+10. **A focus-latch port (item 58) is: `pointerdown` latches, ANY `keydown` releases, `focusin`
+    opens only while released, `focusout` hides, Escape hides** — and cover every programmatic
+    `.focus()` call on the page (readout editors, popover-close → gear). Probe: click → no tip
+    (before AND after); Tab → tip (fails before). If your page has no `focusin` handler at all,
+    the defect is "Tab opens nothing", not "click opens a tip".
+11. **Adjacent claims in the same tip body are in scope** when the source contradicts them
+    (O-Gain's "with stable signal"). Removing a false clause is a fix; adding a new claim is not.
+12. **Layout fixes report a full-rect diff of every element**, not just the two you moved
+    (O-Lyrica: 743 elements, 81 moved, every one named by panel and axis). Prefer one scoped
+    margin over a footer/position change.
+13. **`auval` can FAIL for a pre-existing reason** (O-Lyrica, Free Glissando state). Run it 2×,
+    show the failing ParameterID, confirm it is identical at the parent commit, ship, report.
