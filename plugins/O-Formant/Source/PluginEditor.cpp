@@ -324,6 +324,12 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                 complete (juce::var (processorRef.tuningEngine.getOctaveStretch()));
             })
 
+            // v1.27.2: the panel's A4 REF knob had no read path, so a reopened
+            // session showed 440.0 Hz over an engine restored at 442 (M3 finding 7).
+            .withNativeFunction ("getMasterTune", [this] (auto, auto complete) {
+                complete (juce::var (processorRef.tuningEngine.getMasterTune()));
+            })
+
             .withNativeFunction ("setOctaveStretch", [this] (const auto& args, auto complete) {
                 if (args.size() >= 1)
                 {

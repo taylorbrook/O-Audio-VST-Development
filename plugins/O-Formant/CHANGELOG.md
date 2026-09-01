@@ -2,6 +2,59 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.27.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+
+- **item 63 — Formant Spread tooltip:** the body said the spacing is multiplied
+  "around the first one". Both filter banks scale each formant's distance from
+  the MEAN of the five shifted frequencies — `Source/dsp/FormantFilterBank.h:98-107`
+  and `Source/dsp/CascadeFormantBank.h:106-116` both compute
+  `centerOfMass = Σ shiftedFreq / 5` and `finalFreq = centerOfMass + (shiftedFreq −
+  centerOfMass) × spread`, and the pad overlay (`main.js applyShiftSpread`) does the
+  same — so F1 moves too, in the opposite direction from F4/F5. The body now reads
+  "Scales how far each of the five formants sits from their average frequency."
+  French: *Multiplie la distance de chacun des cinq formants à leur fréquence
+  moyenne.*, `reviewed: false`. Title, range sentence and the two banks unchanged.
+  Tip height 94.6 px → 94.6 px in both languages (body 162 → 172 chars en,
+  171 → 186 fr; still three lines at the 260 px width).
+- **item 22 — A4 reference lost on session reopen (Stage M3 finding 7):** the
+  tuning panel's A4 REF and Stretch knobs write the engine directly
+  (`PluginEditor.cpp` `setMasterTune` / `setOctaveStretch`) and never the
+  `tuning_masterTune` / `tuning_octaveStretch` parameters; `getStateInformation()`
+  saved neither, and `setStateInformation()` pushed the never-updated parameters
+  (440 Hz / 1.00) back into the engine. `PluginProcessor.cpp` now writes
+  `masterTune` and `octaveStretch` into the existing `tuningEngine` state child and
+  restores them after the parameter push, guarded with `isVoid()` and read with
+  `getDoubleValue()` (a non-parameter number on this tree round-trips through XML
+  as a string). Pre-1.27.2 sessions carry neither property and load exactly as
+  before. Offline save/reopen probe (fresh processor, `getStateInformation` →
+  `setStateInformation`): A4 442.00 / stretch 1.0500 reopened as **440.00 / 1.0000
+  before**, **442.00 / 1.0500 after**, note 69 → 442.000 Hz; the untouched-default
+  control arm reads 440.00 / 1.0000 both ways.
+- **item 22, the half the panel owned:** the A4 REF knob had no read path, so a
+  restored engine at 442 sat under a readout of *440.0 Hz*, and every drag started
+  from a literal 440 — a second drag threw the first away. `PluginEditor.cpp` gains
+  `getMasterTune` beside `getOctaveStretch`; `tuning-panel.js` reads it in
+  `loadInitialState()` (guarded to a finite number, since the ui-stub invents a
+  value for any native fn it does not know) and each drag now starts from the
+  value the knob shows. This is the shape the shared `scala-tuning-engine` panel
+  already carries; the vendored copy predated it.
+
+### Notes
+
+- Parameter IDs, preset format and state-tree keys unchanged; the two new
+  properties are additive on the `tuningEngine` child. `tuning_masterTune` /
+  `tuning_octaveStretch` remain host-visible parameters nothing listens to —
+  automating them does nothing live, as before. Reported, not changed.
+- Gates: `check-ui-labels` 0 non-label elements moved (unchanged), `check-i18n`
+  ALL CHECKS PASS, `i18n-fr-lint --strict` 0, `tests/ui_tip_render_check.js`
+  exit 0 (tallest 125.3 px both languages), `boot-all-uis` 43/43, 0 DEAD,
+  O-Formant 0 late (unchanged), `auval -v aumu OuFm OuDv` PASS, installed
+  plist 1.27.2.
+
 ## [1.27.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.
