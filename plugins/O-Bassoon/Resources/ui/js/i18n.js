@@ -247,7 +247,7 @@ export const I18N = Object.freeze({
               b: 'How hard the instrument is blown. It scales the filtered noise that keeps the modes ringing, so it sets loudness and the amount of audible breath together rather than one after the other. A MIDI breath controller (CC2) does not replace this knob: while CC2 is moving, the effective breath is knob × CC2 — the knob sets the ceiling, CC2 scales it, and both must be above zero for the instrument to sound. Half a second after CC2 stops, the knob alone applies again. 0 to 1.' },
         fr: { t: 'Souffle',
               b: 'La pression du souffle. Elle dose le bruit filtré qui entretient les modes : elle règle donc d’un seul geste le volume et la quantité de souffle audible. Un contrôleur de souffle MIDI (CC2) ne remplace pas ce bouton : tant qu’il bouge, le souffle effectif vaut bouton × CC2 — le bouton fixe le plafond, le CC2 le module, et il faut les deux au-dessus de zéro pour que l’instrument sonne. Une demi-seconde après l’arrêt du CC2, le bouton seul s’applique de nouveau. 0 à 1.',
-              reviewed: false },
+              reviewed: true },
     },
 
     'tip.tone': {

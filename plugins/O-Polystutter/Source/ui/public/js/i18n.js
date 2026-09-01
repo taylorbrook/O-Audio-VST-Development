@@ -467,7 +467,7 @@ export const I18N = Object.freeze({
               b: 'Enable MIDI note triggering. C3, C#3, D3 and D#3 (notes 60–63) trigger lanes 1–4; G3 (note 67) triggers all enabled lanes. Any other note is ignored.' },
         fr: { t: 'MIDI',
               b: 'Activer le déclenchement par notes MIDI. C3, C#3, D3 et D#3 (notes 60 à 63) déclenchent les pistes 1 à 4 ; G3 (note 67) déclenche toutes les pistes actives. Toute autre note est ignorée.',
-              reviewed: false, sameAsEn: true },
+              reviewed: true, sameAsEn: true },
     },
     'trig': {
         en: { t: 'Trigger',

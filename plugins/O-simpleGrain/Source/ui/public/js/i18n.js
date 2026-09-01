@@ -820,7 +820,7 @@ export const LABELS = Object.freeze({
     },
     'label.captionPitchedBuzz': {
         en: { t: "Pitched Buzz — tiny grains fired fast and in sync. Their rate becomes an audible pitch (a comb): granular can make tone, not just texture." },
-        fr: { t: "Bourdon harmonique — grains minuscules, déclenchés vite et en phase. Leur cadence devient une hauteur audible (un peigne)\u00a0: le granulaire peut faire du timbre, pas que de la texture.", reviewed: false },
+        fr: { t: "Bourdon harmonique — grains minuscules, déclenchés vite et en phase. Leur cadence devient une hauteur audible (un peigne)\u00a0: le granulaire peut faire du timbre, pas que de la texture.", reviewed: true },
     },
     'label.captionFragments': {
         en: { t: "Fragments — medium grains, sparse. You still recognise chunks of the source: the middle ground between one grain and a smooth cloud." },

@@ -356,7 +356,7 @@ export const I18N = Object.freeze({
               b: 'Measurement quality. Low = under 5s, or fewer than 50 analysis blocks (400ms each, one every 100ms) whatever the time elapsed. Medium = 5-15s. High = over 15s' },
         fr: { t: 'Confiance',
               b: 'Qualité de la mesure. Faible = moins de 5 s, ou moins de 50 blocs d’analyse (400 ms chacun, un toutes les 100 ms) quel que soit le temps écoulé. Moyen = 5 à 15 s. Élevé = plus de 15 s',
-              reviewed: false },
+              reviewed: true },
     },
     'phase-l': {
         en: { t: 'PH L',

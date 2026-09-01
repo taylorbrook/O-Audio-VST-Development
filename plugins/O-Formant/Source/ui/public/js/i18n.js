@@ -443,7 +443,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Étalement des formants',
               b: 'Multiplie la distance de chacun des cinq formants à leur fréquence moyenne. '
                + 'En dessous de 1 ils se resserrent et la voyelle s’épaissit ; au-dessus de 1 '
-               + 'ils s’écartent. Plage 0,50 à 2,00.', reviewed: false },
+               + 'ils s’écartent. Plage 0,50 à 2,00.', reviewed: true },
     },
     'tip.pitchGlide': {
         en: { t: 'Pitch Glide',

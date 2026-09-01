@@ -222,7 +222,7 @@ export const I18N = Object.freeze({
               b: "Frequency of the modulator relative to the carrier. Whole-number ratios (1, 2, 3...) give harmonic, pitched timbres; irrational ratios (1.41, 2.76) give inharmonic, bell-like tones." },
         fr: { t: "Rapport (M : P)",
               b: "Fréquence du modulateur par rapport à la porteuse. Les rapports entiers (1, 2, 3...) donnent des timbres harmoniques, à hauteur définie ; les rapports irrationnels (1,41 ; 2,76) donnent des sons inharmoniques, proches de la cloche.",
-              reviewed: false },
+              reviewed: true },
     },
     modIndex: {
         en: { t: "Modulation Index",
@@ -335,7 +335,7 @@ export const I18N = Object.freeze({
               b: "Quantises the M:C ratio to whole numbers — instantly snaps an inharmonic tone to a harmonic one." },
         fr: { t: "Rapport entier",
               b: "Arrondit le rapport M:P à des nombres entiers — ramène instantanément un son inharmonique vers un son harmonique.",
-              reviewed: false },
+              reviewed: true },
     },
     modFixedMode: {
         en: { t: "Fixed Mode",
@@ -361,7 +361,7 @@ export const I18N = Object.freeze({
               b: "The two numbers that define the tone, updating as you play. Left — the M : C ratio: the modulator's frequency relative to the played note, which sets which harmonics appear (whole numbers = pitched, irrational = bell-like). Right — I, the modulation index: how hard the modulator bends the carrier, which sets the brightness (more index = more sidebands)." },
         fr: { t: "Affichage FM en direct",
               b: "Les deux nombres qui définissent le timbre, mis à jour pendant le jeu. À gauche — le rapport M : P, la fréquence du modulateur par rapport à la note jouée, qui détermine quelles harmoniques apparaissent (entiers = hauteur définie, irrationnels = son de cloche). À droite — I, l’indice de modulation : à quel point le modulateur infléchit la porteuse, ce qui détermine la brillance (indice plus élevé = plus de bandes latérales).",
-              reviewed: false },
+              reviewed: true },
     },
     // MOVED from the native title= on #carrierNullBadge, verbatim, entities
     // decoded. The zero-width space inside "f\u200bc" is authored: it lets the
@@ -382,7 +382,7 @@ export const I18N = Object.freeze({
               b: "Modulator:carrier 1:1 (harmonic). A fast mod-envelope (decay 0.45 s → zero sustain) sweeps the index down from 5.5, so a bright pluck attack collapses to a near-pure sine as it rings. Velocity adds index — strike harder, sound brighter." },
         fr: { t: "E-Piano · comment il est fait",
               b: "Modulateur:porteuse 1:1 (harmonique). Une enveloppe de modulation rapide (déclin 0,45 s → maintien nul) fait descendre l’indice depuis 5,5 : une attaque pincée brillante s’effondre vers une sinusoïde presque pure pendant que la note sonne. La vélocité ajoute de l’indice — plus on frappe fort, plus le son est brillant.",
-              reviewed: false },
+              reviewed: true },
     },
     lessonTubular: {
         en: { t: "Tubular Bell · how it's built",
@@ -396,14 +396,14 @@ export const I18N = Object.freeze({
               b: "Modulator:carrier 1:1 (harmonic). The index (4) swells in with the attack and holds at sustain — brightness tracks loudness, the way a blown brass note brightens as it gets louder." },
         fr: { t: "Brass · comment il est fait",
               b: "Modulateur:porteuse 1:1 (harmonique). L’indice (4) enfle avec l’attaque et tient au niveau de maintien — la brillance suit le volume, comme une note de cuivre qui s’éclaircit à mesure qu’on souffle plus fort.",
-              reviewed: false },
+              reviewed: true },
     },
     lessonClarinet: {
         en: { t: "Clarinet · how it's built",
               b: "Modulator:carrier 2:1. A low index (2.2) keeps the spectrum sparse, and the 2:1 ratio emphasises odd harmonics → the hollow, stopped-pipe woody tone. High sustain, so it speaks steadily like a reed." },
         fr: { t: "Clarinet · comment il est fait",
               b: "Modulateur:porteuse 2:1. Un indice faible (2,2) garde le spectre clairsemé, et le rapport 2:1 met en avant les harmoniques impaires → le timbre creux et boisé du tuyau bouché. Maintien élevé : le son parle de façon régulière, comme une anche.",
-              reviewed: false },
+              reviewed: true },
     },
     lessonClang: {
         en: { t: "Clang Bell · how it's built",
@@ -525,7 +525,7 @@ export const LABELS = Object.freeze({
     // per word would be two translations to keep in step.
     'label.knobRatio': {
         en: { t: "Ratio M:C" },
-        fr: { t: "Rapport M:P", reviewed: false },
+        fr: { t: "Rapport M:P", reviewed: true },
     },
     'label.knobModIndex': {
         en: { t: "Mod Index" },

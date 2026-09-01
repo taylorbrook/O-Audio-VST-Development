@@ -223,7 +223,7 @@ export const I18N = Object.freeze({
               b: "Reserved. Karplus-Strong is the only engine; the Waveguide choice is not implemented and the control is hidden. The parameter stays so existing sessions and automation still load." },
         fr: { t: "Modèle de corde",
               b: "Réservé. Karplus-Strong est le seul moteur ; le choix Waveguide n’est pas implémenté et la commande est masquée. Le paramètre reste pour que les sessions et l’automation existantes se chargent encore.",
-              reviewed: false },
+              reviewed: true },
     },
     inharmonicity: {
         en: { t: "Inharmonicity",

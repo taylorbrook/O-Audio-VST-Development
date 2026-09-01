@@ -276,7 +276,7 @@ export const I18N = Object.freeze({
                + 'au lieu d’abaisser les deux canaux ensemble. Le plugin doit être sur un bus '
                + 'stéréo (2 canaux) ; sur un bus mono, cette commande n’a aucun effet. '
                + 'Désactivé ou activé.',
-              reviewed: false },
+              reviewed: true },
     },
 
     // The 120 BPM fallback is in the body because it is audible: in the
