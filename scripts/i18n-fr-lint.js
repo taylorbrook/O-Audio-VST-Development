@@ -110,12 +110,21 @@ const letters = (s) => String(s).replace(/\{[^}]*\}/g, '').replace(/[^A-Za-zÀ-�
 const isAllCaps = (s) => { const l = letters(s); return l.length >= 2 && l === l.toUpperCase(); };
 const hasLower  = (s) => /[a-zà-ÿœ]/.test(letters(s));
 
-function typography(fr) {
+function typography(fr, en) {
     const out = [];
     if (/[A-Za-zÀ-ÿ]'[A-Za-zÀ-ÿŒœ]/.test(fr))            out.push('T1');
-    // A surround-format name is an identifier, not a number: "7,1" is not a
-    // channel format in any DAW (O-Octagon N4, quoting Logic's own menu entry).
-    if (/\d\.\d/.test(fr.replace(/\b(?:5\.1|7\.1|9\.1|5\.1\.2|5\.1\.4|7\.1\.2|7\.1\.4|9\.1\.4|9\.1\.6)\b/g, ''))) out.push('T2');
+    // An IDENTIFIER keeps its point; a NUMBER takes a comma. Identifiers are:
+    // a surround-format name (Logic's "7.1", O-Octagon N4), any token with two
+    // or more dots ("7.1.4", "1.10.0"), and a token that follows a version word
+    // ("pre-1.10", "la version 1.10", "v1.7", O-Bitrot N5). "7,1" is not a
+    // format and "1,10" is not a version. NOT "any token the English also
+    // carries": the English writes real decimals with a point too, so that
+    // rule exempted exactly the defect T2 exists for (it zeroed the column).
+    const frStripped = fr
+        .replace(/\b(?:5\.1|7\.1|9\.1|5\.1\.2|5\.1\.4|7\.1\.2|7\.1\.4|9\.1\.4|9\.1\.6)\b/g, '')
+        .replace(/\d+(?:\.\d+){2,}/g, '')
+        .replace(/(\b(?:v|ver\.?|version|pre-|antérieure? à la version)\s*)\d+(?:\.\d+)+/gi, '$1');
+    if (/\d\.\d/.test(frStripped))                        out.push('T2');
     if (/\d ?%/.test(fr))                                 out.push('T3');
     if (/(^|[^ ]):(?=\s|$)/.test(fr) && !/https?:/.test(fr)) out.push('T4');
     if (/(^|[^ ])[;!?]/.test(fr))                     out.push('T5');
@@ -163,7 +172,7 @@ async function lintPlugin(name) {
     const info = { sameAsEn: [], termNote: [] };
     for (const r of rows) {
         if (!r.fr) continue;
-        for (const code of typography(r.fr)) findings.push({ code, ...r });
+        for (const code of typography(r.fr, r.en)) findings.push({ code, ...r });
         if (r.kind === 'body') {
             for (const w of forbidden(r.fr, G.FORBIDDEN_IN_PROSE))
                 findings.push({ code: 'F1', ...r, note: `"${w}" → ${G.FORBIDDEN_IN_PROSE[w]}` });
