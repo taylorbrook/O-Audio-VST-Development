@@ -94,7 +94,12 @@ private:
         int position = 0;         // Base position in freeze buffer (set at activation, fixed)
         int jitterOffset = 0;     // Per-grain random position offset (decorrelates overlapping grains)
         float playbackRate = 1.0f;        // Pitch micro-detuning rate multiplier
-        float fractionalPosition = 0.0f;  // Fractional read offset from base position
+        // Fractional read offset from base position. DOUBLE, not float (v2.3.0):
+        // a float accumulator at 44100 samples (1000 ms grain) has an ulp of
+        // 2^-8, so adding a rate of 1.004 per sample rounds the rate itself to a
+        // multiple of 1/512 -- every grain's pitch snapped to a 3.38 ct grid,
+        // measured. The knob claims 0.1 ct.
+        double fractionalPosition = 0.0;
         bool active = false;      // Grain active flag
     };
 

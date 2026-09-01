@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Freeze page labels and hover-help, English + French (v2.2.1)
+// i18n.js — O-Freeze page labels and hover-help, English + French (v2.3.0)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -31,6 +31,12 @@
 // converting them to underscores, so a second file named i18n-fr.js would have
 // to be reached as the symbol i18nfr_js (critical_binary_data_strips_hyphens).
 // One combined file for both languages sidesteps the question entirely.
+//
+// ── v2.3.0: NO COPY CHANGE (Stage O item 48, 2026-08-31) ─────────────────
+// tip.detune's "0 to 50 cents" / "De 0 à 50 cents" was the claim, and the DSP
+// did not meet it: PluginProcessor.cpp mapped the knob linearly (1 + c/1200),
+// so knob 50 spread grains to +70.67 / -73.68 ct. The DSP now uses 2^(c/1200)
+// and the copy, unchanged, is now true. Nothing else on this page moved.
 //
 // ── v2.2.1: FRENCH QA PASS (Stage N, 2026-08-31) ─────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
