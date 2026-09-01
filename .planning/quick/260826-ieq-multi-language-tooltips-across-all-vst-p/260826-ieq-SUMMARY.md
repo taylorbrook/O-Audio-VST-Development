@@ -6417,3 +6417,77 @@ grains (O-simpleGrain, O-GrainScatter, O-TextureForge — item 69, not checked).
 No DAW listen on any of the five; O-Freeze not measured at 48/96/192 kHz (the `double` fix
 covers it by construction); the scratchpad pitch harness uses `#define private public` to
 seed the grain RNG and is not promotable as-is (item 31 still stands for O-Freeze).
+
+---
+
+# STAGE O — BATCH O2 COMPLETE, 5 of 5 — 10 of 21
+
+PLUGINS.md rows: `95c1118a`. Orchestrator commit `47c7be7d` (O-Bells render gate, see below).
+
+| Plugin | Version | Commit | Items | Proof the probe moved |
+|---|---|---|---|---|
+| O-Gain | 1.3.2 | `f5ed6f9a` | 37 | 26-anchor height probe at 350×500: tip 67.6 → 81.1 en / 94.6 fr, top edge 334 px from frame top, none off-frame |
+| O-Formant | 1.27.2 | `420cfe49` | 63, **22** | save/reopen probe: A4 442 / stretch 1.05 → 440 / 1.00 BEFORE, 442 / 1.05 AFTER, note 69 → 442.000 Hz; spread tip 94.6 → 94.6 px |
+| O-Bells | 4.3.2 | `19c3a9e2` | 66 | 75-case render (notes × damping × tierce), sha256 identical before/after the dead-write removal; seed 999 differs (probe can fail) |
+| O-Bowed | 1.6.2 | `3302286f` | 41, 42 | `fillText` probe: 13 English strings under fr → 0; 12 French; repaint on switch; widest *Pression d’archet (N)* 93.69 px in 338; Decay 62×80.6 → 0×0 at Count 0 |
+| O-Lyrica | 2.4.3 | `fc159b51` | 50, 51, 58 | `elementFromPoint` at both slider centres: `div.footer` → `input#sympatheticAmount/Q`; 81 elements moved, all SOUND tab, all −6/−12/−18/−24 in y; Tab → tip opens (failed before) |
+
+Every one: check-ui-labels 0 → 0 moved, check-i18n PASS, i18n-fr-lint exit 0, boot-all-uis
+43/43 / 0 DEAD / late unchanged (O-Bells 2), installed plist at the new version (AU + VST3),
+new VALUE grepped in the installed binary. `auval` PASS on four; **O-Lyrica `auval` FAILS,
+pre-existing and unchanged** (below).
+
+## THE HEADLINE: item 22 was two bugs, and the brief's "optional" was the cheaper one
+
+A4 was lost on reopen because `setMasterTune` wrote the engine directly and
+`getStateInformation` never saved it; `setStateInformation` then pushed the never-touched
+`tuning_masterTune` parameter (440) back over the engine. 23 lines in `PluginProcessor.cpp`
+(save + restore on the existing `tuningEngine` child, `isVoid()` guard, string-var read).
+But the panel had **no A4 read path**: a restored 442 would have sat under a *440.0 Hz*
+readout and every drag started from a literal 440 — the vendored `tuning-panel.js` predated
+the shared module's `getMasterTune` (`modules/tuning/scala-tuning-engine/js/tuning-panel.js:943-986`).
+Ported into the vendored copy; `modules/` untouched. **Item 71:** the other tuning-panel
+plugins (O-Bells, O-IntonationPad, O-Lyrica, O-MicrotonalSampler, O-Prism, O-Reed, O-Wind)
+may carry the same pre-`getMasterTune` vendored copy and the same state gap — not checked.
+
+## A gate went red the day the suite was read
+
+`plugins/O-Bells/tests/ui_tip_render_check.js` asserted **every** French entry is
+`reviewed: false` — written when no native speaker existed, backwards since `13fc8dd0`
+flipped the suite to `true`. It failed at baseline and after; the executor reported it rather
+than editing a gate outside its item. Fixed by the orchestrator (`47c7be7d`): the flag must be
+a BOOLEAN, the `false` count is printed as the developer's worklist (2 of 65). Only O-Bells'
+gate had the assertion (grep of every `ui_tip_render_check.js` / `ui_tooltip_clamp_check.js`).
+
+## The brief was wrong three more times
+
+- O-Gain's "frame trap" described the v1.2 pure-CSS `::after` tooltips; Stage J replaced them
+  with the shared JS renderer. Measured through the renderer.
+- O-Bowed: "15 canvas strings" is 17 at 13 `fillText` sites.
+- O-Lyrica item 58: "a pointer click opens a tip via focusin" — there was NO `focusin` handler;
+  the defect was the other half (Tab opened nothing). The latch port fixed the real one.
+- (O-Gain also removed "High = over 15 s *with stable signal*" — nothing in the code reads
+  signal stability into `confidence`.)
+
+## Defects found, not fixed (items 71–75)
+
+71. Tuning-panel family: vendored `tuning-panel.js` without `getMasterTune` + the same
+    `getStateInformation` gap (above).
+72. **O-Lyrica `auval` FAIL, pre-existing, stable 4/4**: ParameterID 1275870432 "Free
+    Glissando" saved 0.338 vs current 0 — `freeToggle` / `scaleToggle` mutual exclusion
+    (`PluginProcessor.cpp:1042/1047`) rewrites the restored value. Stage N recorded it as
+    benign since v1.30.0; an `auval` FAIL is not benign for a release build — decide.
+73. O-Formant `tuning_masterTune` / `tuning_octaveStretch` are host-visible parameters with
+    no listener — automating them does nothing; the parameter view still shows 440 after a
+    reopen at 442.
+74. O-Lyrica TUNING tab `#generator-section` header (y 384–412) rests across the footer top —
+    the item-50 shape on the other tab. `app.js:852` banner `v1.32.0` is a stale literal.
+75. O-Bells `noteVariationDecay` is drawn and now feeds nothing (kept so the RNG sequence is
+    unchanged). O-Bowed `tests/render-harness/CMakeLists.txt` pins `1.3.0`. O-Formant
+    `TuningEngine::setBuiltInPreset()` prints to stdout on every call.
+
+## Not verified
+
+No DAW on any of the five; O-Formant's panel-readout half of item 22 verified by
+syntax + boot-all-uis only (the ui-stub has no real `getMasterTune`); O-Bowed's material names
+(*Membrane / Métal / Verre*) verified by width + table, not by runtime paint.
