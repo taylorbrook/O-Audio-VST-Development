@@ -6352,3 +6352,68 @@ committed render gate (item 31); guillemet spacing has no rule (item 59).
 - **Items 29 / 68 — CLOSED.** `--strict` is gone; `scripts/i18n-fr-lint.js` exits 2 on any
   finding by default. Nothing in CI runs it (no CI test target exists) — run it by hand after
   any French edit.
+
+---
+
+# STAGE O — BATCH O1 COMPLETE, 5 of 5 — 5 of 21
+
+Stage O fixes the English / DSP / CSS defects Stage N found by reading the French against the
+code (brief: `260826-ieq-STAGE-O-BRIEF.md`). One executor per plugin, one bump each, builds on
+the Stage K mutex, path-scoped commits, no push. PLUGINS.md rows: `68b52758`.
+
+| Plugin | Version | Commit | Item | Proof the probe moved |
+|---|---|---|---|---|
+| O-Freeze | **2.3.0** (minor) | `89f82a6a` | 48 DSP | knob 50: +63.1/−69.0 ct → +45.6/−47.0 (44 grains); 209 grains +69.6/−72.5 → +49.5/−50.0 |
+| O-simpleFM | 1.3.2 | `aa76ef71` | 30 labels | auval `Name: Ratio (M:C)`; binary `Ratio (C:M)` ×0; render harness byte-identical |
+| O-Polystutter | 1.14.2 | `c5f42cf7` | 34 tip | probe 6 assertions FAIL before → 19/19; tip fr 86.6 → 102.0 px, inside frame |
+| O-Tremolo | 1.8.2 | `00b98b5e` | 35 tip | render gate 186/186; pan tip fr 114.5 → 130.6 px |
+| O-Bassoon | 1.2.2 | `97db3b04` | 36 tip | render gate 198/198; breath tip fr 136.5 → 219.9 px, 204 px clearance |
+
+Every one: check-ui-labels 0 → 0 moved, check-i18n PASS, i18n-fr-lint exit 0, boot-all-uis
+43/43 / 0 DEAD / late unchanged, `auval` PASS, installed plist at the new version (AU + VST3),
+new French VALUE grepped in the installed binary with `LC_ALL=C grep -a`.
+
+## THE HEADLINE: the knob-5 measurement could not show ±5 ct until a second bug was fixed
+
+O-Freeze's detune was linear (`1 + c/1200`), as the brief said — but the scratchpad harness
+found the pre-fix grains at knob 5 sitting at exactly 0 / ±3.38 / ±6.75 ct and nowhere else.
+`Grain::fractionalPosition` was a `float` accumulator: at a 1000 ms grain its ulp is 2⁻⁸, so
+every per-sample rate rounded to a multiple of 1/512 — **every grain's pitch was snapped to a
+3.38 ct grid** (1.69 ct at the default 400 ms). Fixed in the same commit (`double`). After the
+fix each grain's knob-25 pitch is 5.000× its knob-5 pitch and knob-50 is 9.999× — it was not
+before. The same `float` read-position pattern is a candidate in every granular plugin at long
+grains (O-simpleGrain, O-GrainScatter, O-TextureForge — item 69, not checked).
+
+## The brief was wrong twice, both caught by reading the source
+
+- O-simpleFM's French target in the brief (`Ratio M:C`) ignored Stage K: *Rapport* (the
+  glossary reserves *ratio* for dynamics) and **P** for *porteuse*. Shipped `Rapport M:P` /
+  `Rapport (M : P)`. **A brief's French is a suggestion; the glossary and the Stage K header
+  are the spec.**
+- "The Clarinet lesson is right" — its odd-harmonic claim was; its opening "Carrier:modulator
+  2:1" was backwards for a preset at ratio 2.0. Fixed.
+- O-Polystutter: the brief's "C4–D#4 in JUCE/Yamaha C3=60 numbering" contradicts itself; the
+  plugin's own docs and JUCE's `octaveNumForMiddleC = 3` settle C3 = 60, and the body carries
+  the note numbers so a C4 = 60 host still agrees.
+
+## Defects found, not fixed (items 69–70)
+
+69. Float fractional read positions in other granular plugins (above).
+70. **O-Bassoon's Breath knob is dead for a fresh note until an expression parameter moves.**
+    `BassoonVoice.cpp:107-108` seeds `breathSmoother` / `lastUiBreath` from note VELOCITY at
+    note-on; `PluginProcessor.cpp:311-321` dispatches `setExpression()` only when an
+    expression param changed by > 0.001 since the last dispatch. With a static knob a new
+    note's breath is its velocity, and CC2 multiplies velocity, not the knob — the new tip
+    ("knob sets the ceiling") is exact only after a knob has moved since the note started.
+    Comment cites CONTEXT-rev-3 as a design decision. The breath meter shows velocity for an
+    untouched knob.
+- O-Polystutter's `midi` entry (and ~17 others in that file) carries `sameAsEn: true` over a
+  translated body with an English-equal title — correction 26 says no flag; both gates pass.
+- O-Bassoon's PLUGINS.md status `🚧 Stage 0` is stale (STATUS.md: stage 4 in progress).
+- O-Freeze `README.md:76` says `V1.0.0`.
+
+## Not verified
+
+No DAW listen on any of the five; O-Freeze not measured at 48/96/192 kHz (the `double` fix
+covers it by construction); the scratchpad pitch harness uses `#define private public` to
+seed the grain RNG and is not promotable as-is (item 31 still stands for O-Freeze).

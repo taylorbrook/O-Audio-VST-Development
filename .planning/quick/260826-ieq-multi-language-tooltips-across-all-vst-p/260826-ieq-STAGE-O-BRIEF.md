@@ -158,3 +158,28 @@ Item 31 (committed render gates for 17 plugins), item 59 (guillemet spacing rule
 ## Report back, per plugin
 Version + sha + files; each item: fixed / not fixed and why, with the measurement or probe
 that proves it; gates; installed plist; the PLUGINS.md row (not written).
+
+---
+
+# CARRIED FROM O1 (O-Freeze `89f82a6a`, O-simpleFM `aa76ef71`, O-Polystutter `c5f42cf7`, O-Tremolo `00b98b5e`, O-Bassoon `97db3b04`)
+
+Where this section disagrees with anything above, THIS section wins.
+
+1. **The brief's French is a suggestion; the glossary and your Stage K header are the spec.**
+   O-simpleFM's target `Ratio M:C` ignored the settled *Rapport* and *P* (porteuse). Read
+   `scripts/i18n-fr-glossary.js` and the header before you write a French label.
+2. **Verify every "X is right" claim in your section against the source** before leaving it.
+   The Clarinet lesson the brief called right opened with the backwards ratio.
+3. **A measurement that cannot show the expected number is telling you about a second bug.**
+   O-Freeze's knob-5 grains sat on a 3.38 ct grid: a `float` fractional read position at a
+   1000 ms grain. If your plugin is granular (O-simpleGrain), READ the fractional-position
+   type and REPORT it (item 69) — do not fix it in Stage O unless your item is DSP.
+4. **Tip bodies grow by a line; read the height in both languages before/after** and state the
+   clearance. O-Bassoon's breath tip went 136.5 → 219.9 px inside a 260 px cap; on O-Gain's
+   350×500 frame that margin does not exist — split a sentence before you overflow.
+5. **Dev AU triple is `<subtype> OuDv`** (`auval -v aumu/aufx <Sub> OuDv`); a wrong guess inside
+   the lock wastes the mutex. Take the lock for build + auval only (O1 held it ≤ 2 min each).
+6. **A brief's note-name convention may contradict itself** — the plugin's own docs and
+   `KeyboardComponentBase::octaveNumForMiddleC` settle it; carry the note numbers too.
+7. **Set `reviewed: false` on every entry whose French MEANING you change**, not only on new
+   entries. O1 flipped 7 (O-simpleFM), 1–2 elsewhere; the developer re-reads them.
