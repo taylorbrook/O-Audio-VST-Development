@@ -5876,3 +5876,82 @@ six plugins**, zero of them visible to any gate.
 
 No native speaker; no DAW; Chromium only; the Standalone stale on all six. O-Polystutter
 has no committed render gate (item 31 — now 2 of 9 in this stage).
+
+# STAGE N — BATCH N3 COMPLETE, 6 of 6 — 15 of 43
+
+| Plugin | Version | Commit | Lint | Changed | Geometry | Render |
+|---|---|---|---|---|---|---|
+| O-Tapestop | 1.6.1 | `a51c7468` | 20 → 0 | 21 of 109 rows | 0 → 0 | clamp gate 35/13/4 both languages, unchanged |
+| O-FreqPulse | 1.18.1 | `1d16dd0d` (+`6a6d6894`) | 21 → 0 | 19 of 67 | 0 → 0 | probe 1766 assertions, 56 bindings |
+| O-Gain | 1.3.1 | `efd92f51` (+`e30017c1`, `6f81d0ea`) | 25 → 0 | 19 of 63 | 0 → 0 | probe 52 tips, heights unchanged |
+| O-SpectralShaper | 1.7.1 | `3e7631aa` (+`4da9bd6a`) | 24 → 0 | 21 of 71 | 0 → 0 | probe 288, 28 anchors |
+| O-Bassoon | 1.2.1 | `e76224af` | 26 → 0 | 16 of 44 | 0 → 0 | 198/198 |
+| O-TextureForge | 1.2.1 | `6de042ff` (+`18aca4ee`) | 19 → 0 | 17 of 41 | 0 → 0 | 287/287 |
+
+`boot-all-uis` 43/43 / 0 DEAD on every run; `auval` PASS ×6; the sanisizer hazard did not
+fire on O-TextureForge, whose `i18n.js` is its own binary-data resource and not a webpack
+input.
+
+## THE HEADLINE: a 0 G1 on a page the glossary barely covers is coverage, not a verdict
+
+O-TextureForge measured that `TERMS` matched **3 of its 12 parameter captions**; two of the
+nine unmatched ones were wrong by reading (*Fondu* for a crossfade, *Taille grain*). The
+glossary grew `crossfade`, `scatter x/y`, `timing → cadence` (heading sense), `disp`. The
+lint's straight-copy INFO is now scoped the way `check-i18n`'s flag is (entry, not row) —
+a French title over a translated body needs no flag and must not get one.
+
+## *ce plugin*, settled
+
+The suite was split 12 plugins *plugin* / 3 *plugiciel* / 0 *extension* (O-Tapestop asked
+for the tie-break). Settled on *plugin*, masculine; *plugiciel* forbidden in prose;
+O-Tapestop's one occurrence fixed by the orchestrator copy-only.
+
+## Header width defences: 5 of 15 backwards, 0 of 15 wrong about a recorded number
+
+O-Gain's popover note ("Hover help is the widest row, 12 px to spare" — it was Language,
+29.2) and O-Tapestop's *Suivi tonal* ("97 px in an 88 px cell" — 91.97 px, and the cell was
+never the constraint) join O-Comp, O-Chorus, O-AnalogEQ. Five headers held to the
+hundredth. O-Gain's own first-draft header quoted a number under the wrong label
+(*Confiance* 44.8 was *Confidence*) and caught itself — corrected in `6f81d0ea`.
+
+## What the lint cannot see — the meaning column, N3
+
+Restored omissions: *grit* (O-TextureForge), "bends the pitch" (O-Bassoon), *whether*
+(O-FreqPulse), a closing range (O-Texture, N2). Wrong claims: *accelerating a tail*
+(O-Bassoon), *the values overlap* for *the grains* (O-TextureForge), *intonné*, *lit* for a
+bed, *corpulent* for body-heavy. Three bodies on O-SpectralShaper named a control by its
+ENGLISH caption (*Save*, *Freehand*, *Lookahead*) where the French page reads *Enr.*,
+*Libre*, *Anticipation* — correction 23's shape, three times on one page.
+
+## Renderer finding — the floor absorbs growth
+
+O-Gain's +440-char plant grew a tip 54 → 203 px and it **stayed in frame**, parked over
+the controls above by the `Math.max(M, ny)` floor; `inFrame` cannot see a body that grows
+on that page. Heights are the discriminator. O-FreqPulse's negative control (remove the
+v1.18.0 bottom clamp) reproduced Stage J's finding exactly: one French tip, 15.00 px off
+the bottom, 0 px of slack at the shipped face.
+
+## English defects found by reading French (items 36–40)
+
+36. O-Bassoon `tip.breath` says CC2 "takes over"; the code multiplies UI breath × CC2, so a
+    breath controller does nothing with the knob at 0. `aria.breathMeter` on the same
+    feature says it right.
+37. O-Gain `tip.info-confidence` omits the 50-block minimum that also forces LOW
+    (`kConfidenceMinBlocks`); a user running Learn 8 s on a sparse signal sees LOW unexplained.
+38. O-Tapestop: three division selects carry `aria-label` "Stop Time" / "Start Time" /
+    "Env Length" against tip titles *Spin-Down Time* / *Spin-Up Time* / *Pass Length* and a
+    visible caption *Division* — three names per control, WCAG 2.5.3, both languages.
+39. O-Tapestop `PRESET_THEMES` (`app.js:597-605`) is unlocalized English prose written via
+    `textContent` — *Tape Stops / Scratch / Wobble & Warp / Glitch & Chaos* render on the
+    French page. The draft's translated headings in a body were describing headings that do
+    not exist in French; renamed back to match.
+40. `.settings-toggle` `min-width: 40px` no longer covers *Marche* (36.97 px in a 22 px
+    content box) or *Désactivée* (61.88) — the button resizes between its own French faces on
+    O-FreqPulse and O-SpectralShaper, inside popover slack, both gates green. A ~55–62 px
+    pin is a CSS decision Stage N does not take. Also: O-TextureForge `tip.midiMode` implies
+    CC control distinguishes Trigger + Modulate (Drone takes CC too; T+M is monophonic).
+
+## Not verified
+
+No native speaker; no DAW; Chromium only; Standalone stale; 3 more plugins with no
+committed render gate (O-FreqPulse, O-Gain, O-SpectralShaper — item 31 now 5 of 15).
