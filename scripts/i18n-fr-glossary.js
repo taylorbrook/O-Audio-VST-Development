@@ -289,6 +289,8 @@ const TERMS = {
     'world':                    ['du monde'],
     'non-octave':               ['non octaviantes'],
     'stretch':                  ['étirement', 'étir'],
+    'focus':                    ['focalisation'],   // O-Formant: how sharply the pad snaps; Focale is optics
+    'true keys':                ['touches réelles', 'touches'],   // O-Formant measured 62.55 px in a 66.80 px .viz-btn
     'total span':               ['écart total', 'écart tot', 'étendue'],   // O-MicrotonalSampler: Écart total 53.72 px in a 53 px pin; Étendue is the span too
     'a4 ref':                   ['réf. a4'],
     'hold 2+ notes to see intervals': ['tenir 2 notes ou plus pour voir les intervalles'],
