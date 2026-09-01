@@ -2,6 +2,42 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.6.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+
+- **item 38 — the three division selects' accessible names:** `#combo-STOP_SYNC_DIV`,
+  `#combo-START_SYNC_DIV` and `#combo-ENV_SYNC_DIV` (`index.html:227`, `:252`, `:293`;
+  keys `aria.stopTime` / `aria.startTime` / `aria.envLength`) were named "Stop Time" /
+  "Start Time" / "Env Length" — a third name that matched neither the visible caption
+  *Division* nor the hover-help titles *Spin-Down Time* / *Spin-Up Time* / *Pass
+  Length*, so the accessible name contained no visible text (WCAG 2.5.3, label-in-name).
+  Each is now the tip title plus what the control is: "Spin-Down Time division",
+  "Spin-Up Time division", "Pass Length division"; in French "Division de la durée de
+  ralentissement" / "… de redémarrage" / "… du passage" — the tip titles' settled forms
+  plus the caption's own word, no new rendering of spin-down / spin-up / pass. Both the
+  caption and the title are now substrings of the name in both languages (probed on all
+  six name/language pairs; 0 of 6 held before, 6 of 6 hold now).
+- **item 39 — preset-dropdown theme headings:** `PRESET_THEMES` (`app.js:597-605`) wrote
+  "Tape Stops" / "Scratch" / "Wobble & Warp" / "Glitch & Chaos" — and the trailing
+  "User" group, same mechanism — as English literals through `textContent`, so the
+  French page showed English group names and the v1.6.1 `preset-name` tip had to name
+  them in English to be truthful. The five headings are now `label.theme*` keys written
+  through `setLabel()` (one literal key per row, as check-i18n assertion 13 requires),
+  so they are `[data-i18n]` elements the language sweep owns: switching language
+  re-renders an OPEN dropdown (probed: fr headings under fr live, after reopen, and
+  restored under en). French: *Arrêts de bande*, *Scratch*, *Pleurage & Déformation*,
+  *Glitch & Chaos*, *Utilisateur*. The `preset-name` French body names the French
+  headings. 9 of 79 French entries are `reviewed: false` for the developer to re-read
+  (5 new, 4 whose meaning changed).
+
+### Not changed
+
+- No parameter IDs, preset format, state keys, DSP, or CSS. Render harness 69/69,
+  output byte-identical to v1.6.1.
+
 ## [1.6.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.

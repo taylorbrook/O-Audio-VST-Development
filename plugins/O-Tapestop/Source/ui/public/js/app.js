@@ -594,15 +594,29 @@ function armedConfirmDelete() {
 // sort (factory + user) and the preset JSON format is untouched. This map
 // must track the factory names in PluginProcessor.cpp — an unmapped factory
 // preset is not lost, it just falls into the trailing "User" group.
+//
+// v1.6.2 (Stage O item 39): each theme's HEADING is a `label.theme*` key in
+// i18n.js, written through setLabel() so the heading becomes a [data-i18n]
+// element the language sweep owns — through v1.6.1 the headings were English
+// literals written by textContent, so the French page showed English group
+// names its own preset-name tip could only describe in English. The
+// heading is a one-line arrow per row rather than a key string, because
+// check-i18n assertion 13 accepts only a LITERAL key in a setLabel() call:
+// `setLabel(head, row.key)` would be a computed key the gate cannot check.
+// The preset NAMES stay raw: a name IS the JSON filename (I18N_EXEMPT, D-02).
 const PRESET_THEMES = [
-  ["Tape Stops", ["Classic Half-Bar Stop", "Classic 1-Bar Stop", "DJ Spinup",
-                  "Tempo-Synced Short Stop", "Slow-Tape Drag", "Power Cut",
-                  "Cassette Eject", "Two-Bar Dive", "Snap Back", "Half-Mix Stop"]],
-  ["Scratch", ["Baby Scratch", "Chirp Flare", "Stutter-Scratch", "Transformer",
-               "Tape Rewind", "Orbit", "Crab Roll"]],
-  ["Wobble & Warp", ["Subtle Wobble", "Warped Record", "Drunk Tape", "Seasick",
-                     "Tape Flutter", "Pitch Tide", "Loose Capstan"]],
-  ["Glitch & Chaos", ["Glitch", "Total Meltdown", "Sputter", "Data Rot"]],
+  [(el) => setLabel(el, "label.themeTapeStops"),
+   ["Classic Half-Bar Stop", "Classic 1-Bar Stop", "DJ Spinup",
+    "Tempo-Synced Short Stop", "Slow-Tape Drag", "Power Cut",
+    "Cassette Eject", "Two-Bar Dive", "Snap Back", "Half-Mix Stop"]],
+  [(el) => setLabel(el, "label.themeScratch"),
+   ["Baby Scratch", "Chirp Flare", "Stutter-Scratch", "Transformer",
+    "Tape Rewind", "Orbit", "Crab Roll"]],
+  [(el) => setLabel(el, "label.themeWobbleWarp"),
+   ["Subtle Wobble", "Warped Record", "Drunk Tape", "Seasick",
+    "Tape Flutter", "Pitch Tide", "Loose Capstan"]],
+  [(el) => setLabel(el, "label.themeGlitchChaos"),
+   ["Glitch", "Total Meltdown", "Sputter", "Data Rot"]],
 ];
 
 // Rebuilt from scratch on every open — the list is small and this sidesteps
@@ -615,11 +629,11 @@ function buildPresetDropdown(panel) {
   const current = presetManager.getCurrentPreset();
   const mapped = new Set(PRESET_THEMES.flatMap(([, names]) => names));
 
-  const addGroup = (label, names) => {
+  const addGroup = (labelHeading, names) => {
     if (!names.length) return;
     const head = document.createElement("div");
     head.className = "dropdown-theme";
-    head.textContent = label;
+    labelHeading(head);
     panel.appendChild(head);
     for (const name of names) {
       const item = document.createElement("div");
@@ -637,9 +651,9 @@ function buildPresetDropdown(panel) {
 
   // Curated order within factory themes; only names the C++ side actually
   // reported survive the filter (a renamed factory preset can't ghost-list).
-  for (const [label, names] of PRESET_THEMES)
-    addGroup(label, names.filter((n) => all.includes(n)));
-  addGroup("User", all.filter((n) => !mapped.has(n)));
+  for (const [labelHeading, names] of PRESET_THEMES)
+    addGroup(labelHeading, names.filter((n) => all.includes(n)));
+  addGroup((el) => setLabel(el, "label.themeUser"), all.filter((n) => !mapped.has(n)));
 }
 
 function openPresetDropdown() {

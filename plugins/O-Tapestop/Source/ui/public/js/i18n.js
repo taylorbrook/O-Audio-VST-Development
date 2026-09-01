@@ -18,7 +18,40 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Tapestop hover-help copy, English + French (v1.6.1)
+// i18n.js — O-Tapestop hover-help copy, English + French (v1.6.2)
+//
+// ── v1.6.2: ENGLISH DEFECTS FOUND BY THE FRENCH (Stage O, 2026-08-31) ──────
+// Two defects Stage N found by reading the French against the code, fixed
+// in both languages in one commit. reviewed: false on every entry whose
+// French MEANING changed (4) and on every new entry (5) — 9 of 79 to re-read.
+//
+//  * Item 38 — the three division <select>s (#combo-STOP_SYNC_DIV,
+//    #combo-START_SYNC_DIV, #combo-ENV_SYNC_DIV) carried the accessible
+//    names "Stop Time" / "Start Time" / "Env Length" while their hover-help
+//    titles read "Spin-Down Time" / "Spin-Up Time" / "Pass Length" and their
+//    visible caption reads "Division": three names for one control, and
+//    the accessible name contained neither of the other two (WCAG 2.5.3,
+//    label-in-name). The name is now the tip title plus what the control IS:
+//    "Spin-Down Time division", and in French "Division de la durée de
+//    ralentissement" — the tip title's settled form (Durée de ralentissement
+//    / de redémarrage / du passage, all reviewed) plus the caption's own
+//    word, so both the caption and the title are substrings of the name in
+//    both languages. No new French form for spin-down / spin-up / pass.
+//
+//  * Item 39 — the preset dropdown's four theme headings (PRESET_THEMES in
+//    app.js) were English literals written by textContent, so the French
+//    page showed "Tape Stops" / "Wobble & Warp" as group names, and the v1.6.1
+//    preset-name body had to name them in English to be truthful. They are
+//    now `label.theme*` keys written through setLabel() (plus the trailing
+//    "User" group, same mechanism, same defect), so a language switch
+//    re-renders an OPEN dropdown, and preset-name's French body names the
+//    French headings. French forms: "Arrêts de bande" (the page's own word
+//    for tape), "Scratch" (as label.modeScratch), "Pleurage & Déformation"
+//    (the Wobble tip title's root + the glossary's warp), "Glitch & Chaos"
+//    (both French as they stand), "Utilisateur" (as the preset tips say
+//    "préréglage utilisateur"). Straight copies carry sameAsEn: true — these
+//    are LABELS entries, one string, so the flag disarms nothing (cf. the
+//    v1.6.1 note on tooltip TITLES below, which is about I18N entries).
 //
 // ── v1.6.1: FRENCH QA PASS (Stage N, 2026-08-31) ───────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -58,11 +91,12 @@
 //    AND body are both straight copies" and would disarm assertion 4 for those
 //    entries; all three have French bodies. The lint reports them as INFO only.
 //
-//  * The preset dropdown's theme headings are HARD-CODED ENGLISH in app.js
-//    (PRESET_THEMES, :597-605) and are not localized, so preset-name's French
-//    body now names them as the user will read them — "Tape Stops, Scratch,
-//    Wobble & Warp, et Glitch & Chaos". The draft translated them, which would
-//    have sent a French user looking for headings that are not on the page.
+//  * (Superseded by v1.6.2, item 39 above.) The preset dropdown's theme
+//    headings were HARD-CODED ENGLISH in app.js (PRESET_THEMES) and not
+//    localized, so preset-name's French body named them in English — "Tape
+//    Stops, Scratch, Wobble & Warp, et Glitch & Chaos" — rather than send a
+//    French user looking for headings that were not on the page. v1.6.2 keys
+//    the headings, and the body names the French ones.
 //
 //  * Register: this page is INFINITIVE. Five sites already were (the footer,
 //    both envelope hints, settings, preset-name); the two imperative bodies
@@ -163,9 +197,12 @@ export const I18N = Object.freeze({
     'preset-name': {
         en: { t: 'Preset',
               b: 'The loaded preset. Click to open the list, grouped into Tape Stops, Scratch, Wobble & Warp, and Glitch & Chaos.' },
+        // v1.6.2: the headings are localized now (label.theme*), so the body
+        // names them as the French page shows them. v1.6.1 named the English
+        // ones because that is what the page rendered.
         fr: { t: 'Préréglage',
-              b: 'Le préréglage chargé. Cliquer pour ouvrir la liste, groupée en Tape Stops, Scratch, Wobble & Warp, et Glitch & Chaos.',
-              reviewed: true },
+              b: 'Le préréglage chargé. Cliquer pour ouvrir la liste, groupée en Arrêts de bande, Scratch, Pleurage & Déformation, et Glitch & Chaos.',
+              reviewed: false },
     },
 
     'preset-save': {
@@ -545,11 +582,33 @@ export const LABELS = Object.freeze({
     'aria.presetNext':   { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: true } },
     'aria.modeCont':     { en: { t: 'Continuous motion' },fr: { t: 'Mouvement continu',    reviewed: true } },
     'aria.syncSegments': { en: { t: 'Sync Mode' },        fr: { t: 'Mode de synchro', reviewed: true } },
-    'aria.stopTime':     { en: { t: 'Stop Time' },        fr: { t: 'Durée d’arrêt',        reviewed: true } },
-    'aria.startTime':    { en: { t: 'Start Time' },       fr: { t: 'Durée de démarrage',   reviewed: true } },
+    // v1.6.2 (item 38): the three division selects are named after their tip
+    // title plus what the control is, so the visible caption "Division" and
+    // the title are both substrings of the accessible name (WCAG 2.5.3) —
+    // through v1.6.1 these read "Stop Time" / "Start Time" / "Env Length",
+    // a third name that matched neither. The French keeps the tip titles'
+    // settled forms; no new rendering of spin-down / spin-up / pass.
+    'aria.stopTime':     { en: { t: 'Spin-Down Time division' },
+                           fr: { t: 'Division de la durée de ralentissement', reviewed: false } },
+    'aria.startTime':    { en: { t: 'Spin-Up Time division' },
+                           fr: { t: 'Division de la durée de redémarrage',    reviewed: false } },
     'aria.envCanvas':    { en: { t: 'Scratch speed envelope' },
                            fr: { t: 'Enveloppe de vitesse du scratch', reviewed: true } },
-    'aria.envLength':    { en: { t: 'Env Length' },       fr: { t: 'Durée d’enveloppe',    reviewed: true } },
+    'aria.envLength':    { en: { t: 'Pass Length division' },
+                           fr: { t: 'Division de la durée du passage',        reviewed: false } },
+
+    // ── Preset dropdown theme headings (v1.6.2, item 39) ────────────────────
+    // Written by app.js's buildPresetDropdown() through setLabel(), one
+    // literal key per PRESET_THEMES row plus the trailing user group. The
+    // preset NAMES under them stay raw (a name IS the JSON filename, D-02).
+    // "Arrêts de bande": the page's French for tape is "bande" (engage-btn,
+    // seg-mode-cont, knob-TONE_TRACK). "Pleurage": the Wobble tip title's
+    // word (glossary root for wow); "Déformation": the glossary root for warp.
+    'label.themeTapeStops':   { en: { t: 'Tape Stops' },     fr: { t: 'Arrêts de bande',        reviewed: false } },
+    'label.themeScratch':     { en: { t: 'Scratch' },        fr: { t: 'Scratch',                reviewed: false, sameAsEn: true } },
+    'label.themeWobbleWarp':  { en: { t: 'Wobble & Warp' },  fr: { t: 'Pleurage & Déformation', reviewed: false } },
+    'label.themeGlitchChaos': { en: { t: 'Glitch & Chaos' }, fr: { t: 'Glitch & Chaos',         reviewed: false, sameAsEn: true } },
+    'label.themeUser':        { en: { t: 'User' },           fr: { t: 'Utilisateur',            reviewed: false } },
 });
 
 // ============================================================================
