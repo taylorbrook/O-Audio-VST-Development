@@ -18,7 +18,80 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Reed page labels and hover-help, English + French (v1.3.0)
+// i18n.js — O-Reed page labels and hover-help, English + French (v1.3.1)
+//
+// ── v1.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 42 entries of 90 (2 terminology, 26 typography, 2 grammar/agreement,
+// 4 idiom/register, 3 meaning, 5 termNote-only). sameAsEn: kept 6, translated 0.
+// termNote exemptions: 6 (listed below). Left as drafted: the other 48.
+// reviewed: false throughout — no native speaker yet.
+//
+// Lint 53 -> 0, --strict exit 0 (6 G1, 3 F1, 4 T3, 20 T4, 11 T5, 9 T7 closed).
+// 59 U+00A0 inserted (2 -> 61), all inside a `t:`/`b:` string value of an `fr:`
+// object; the pass was a brace-matched scope over the fr objects with comments
+// masked out, and the control that both `en` sub-objects, all 90 keys,
+// I18N_EXEMPT and TIP_BINDINGS are byte-identical was run by IMPORTING both
+// revisions, not by reading the diff.
+//
+// DECISIONS THE NEXT READER NEEDS:
+//
+//  1. THE 68px CAP WAS RE-MEASURED, and v1.3.0's header was RIGHT twice. Anche
+//     double is 67.20 px and Flatterzunge 67.36 px against the 68.00 px
+//     .knob-label max-width — 0.80 and 0.64 px, tighter than the 1.02 px that
+//     made v1.3.0 reject "Dureté anche", and .knob-label carries
+//     text-overflow: ellipsis, so the failure mode is a silent truncation on a
+//     Windows/WebView2 font metric. Both keep their abbreviation with a
+//     termNote carrying the number.
+//  2. CLIFF 4 CLAIMED A THIRD CAPTION, and the gate proved it rather than the
+//     header arguing it. The glossary form "Prof. vibr." (50.08 px) was shipped
+//     into check-ui-labels and [8b] FAILED: vibratoDepth is FIRST in its row,
+//     centred at x 57.00, and the collapsed Expression section keeps its
+//     rectangle over the next section-header, whose chevron ends at x 33.00 —
+//     so anything wider than 48.00 px intersects it. Root "Prof. vibrato" is
+//     64.80 and the listed "Prof. vibr" is 47.63 (0.19 px clear). Vib Prof.
+//     stays, and Vib Vit. stays WITH it: the two are one matched pair on one
+//     row, and "Vit. vibr." fits perfectly well on its own (41.94 px, 17 px
+//     clear) — applying the glossary to only the half that fits would put the
+//     head noun on opposite sides of two adjacent captions.
+//  3. Amortis. -> Amort. and Réinject. -> Réinjection are the two captions the
+//     glossary MOVED. Amortissement itself is 74.27 px and clips outright;
+//     Réinjection is 58.06 px with 9.94 px of the cap and clears every
+//     neighbour in the collapsed state, so the ROOT ships.
+//  4. Flatt. is a MEANING exemption before it is a width one: the parameter is
+//     flutterTongue, so the glossary row that applies is `flutter tongue ->
+//     Flatterzunge`, not `flutter -> Scintillement` (a tape artefact, and
+//     69.47 px, which clips). Tenue inf. / Tenue infinie are meaning
+//     exemptions too — O-Reed has NO ADSR and no sustain-level parameter
+//     anywhere, so Maintien would name a control that does not exist.
+//  5. ONE CONTROL HAD TWO FRENCH NAMES (the O-Comp N1 finding). The dropdown
+//     caption read "Mode polyphonique" while its own tip title and
+//     tip.maxVoices' body both said "Mode de polyphonie". The caption moved to
+//     "Mode de polyphonie" — it sits in a >=662 px block and is not width-
+//     constrained. The mirror case went the other way: tip.polyMode's body
+//     said "Voix maximales" where the knob it points at reads "Voix max", so
+//     the BODY moved, restoring the English pattern where a body names a
+//     control by the caption the user is looking at.
+//  6. THE LOANWORDS STAY. Growl, Subtone, Embouchure, Instrument, FX and
+//     Expression are the six sameAsEn captions and every one is a word French
+//     audio uses unchanged; none was translated. tip.embouchure and tip.subtone
+//     carry an English-equal TITLE over a translated body and take NO flag
+//     (N3 correction 26 — the flag is entry-scoped and would disarm check-i18n
+//     assertion 4 for the body).
+//  7. ONE TIP GREW A LINE: tip.embouchure 136.5 -> 153.2 px, because the French
+//     had dropped the English's "rest opening" and had a dangling gérondif.
+//     It is not floored (136.8 px of bottom clearance) and the page's tallest
+//     tip is unchanged at 186.5 px. A second improvement was REVERTED for the
+//     same reason O-Texture reverted "appuyer dessus" in N2: tip.revBore's
+//     wording was taste, not a defect, and it pushed that tip onto the
+//     renderer's bottom FLOOR — the top edge moved 409.9 -> 393.2 px while the
+//     bottom clearance stayed pinned at 36.9, i.e. the growth went UPWARD over
+//     the controls with inFrame still green (N3 correction 30).
+//  8. NOTHING HERE TOUCHES THE TUNING TAB. Unlike the other seven plugins that
+//     carry scala-tuning-engine panel copies, O-Reed keeps the whole tab in
+//     I18N_EXEMPT as shared-module territory, so there were no tuning strings
+//     to converge on the settled forms. #ref-pitch-knob is module-owned and was
+//     not touched.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -224,7 +297,7 @@ export const I18N = Object.freeze({
         en: { t: 'Instrument Preset',
               b: 'Records which of the twenty-one instruments this patch is aiming at, and it rides with the session and with the host’s automation lane. It moves no other control and no part of the sound reads it: the instrument is shaped by the pad above and by the bore and reed knobs below. Bb Clarinet to Impossible Bore, 21 choices.' },
         fr: { t: 'Préréglage d’instrument',
-              b: 'Indique lequel des vingt-et-un instruments ce patch vise ; la valeur est conservée avec la session et exposée à l’automation de l’hôte. Elle ne déplace aucune autre commande et aucune partie du son ne la lit : l’instrument se façonne avec le pavé ci-dessus et avec les boutons de perce et d’anche en dessous. De « Bb Clarinet » à « Impossible Bore », 21 choix.',
+              b: 'Indique lequel des vingt-et-un instruments ce patch vise ; la valeur est conservée avec la session et exposée à l’automation de l’hôte. Elle ne déplace aucune autre commande et aucune partie du son ne la lit : l’instrument se façonne avec le pavé ci-dessus et avec les boutons de perce et d’anche en dessous. De « Bb Clarinet » à « Impossible Bore », 21 choix.',
               reviewed: false },
     },
 
@@ -233,7 +306,7 @@ export const I18N = Object.freeze({
         en: { t: 'Breath Pressure',
               b: 'Mouth pressure on the reed, and the main dynamic control here: at zero the reed never beats and the note does not speak, and raising it opens and brightens the tone. Note velocity shortens the attack on top of this, from 50 ms down to 5 ms, so the same setting speaks differently under a hard strike. 0 to 1.' },
         fr: { t: 'Pression du souffle',
-              b: 'La pression de la bouche sur l’anche, et le principal réglage de nuance ici : à zéro l’anche ne bat pas et la note ne parle pas, et en montant le son s’ouvre et s’éclaircit. La vélocité raccourcit l’attaque par-dessus, de 50 ms à 5 ms, si bien que le même réglage parle autrement sous une frappe forte. 0 à 1.',
+              b: 'La pression de la bouche sur l’anche, et le principal réglage de nuance ici : à zéro l’anche ne bat pas et la note ne parle pas, et plus elle monte, plus le son s’ouvre et s’éclaircit. La vélocité raccourcit l’attaque par-dessus, de 50 ms à 5 ms, si bien que le même réglage parle autrement sous une frappe forte. 0 à 1.',
               reviewed: false },
     },
 
@@ -243,7 +316,7 @@ export const I18N = Object.freeze({
         en: { t: 'Embouchure',
               b: 'Lip force on the reed: raising it stiffens the reed, damps it and closes its rest opening, so the tone brightens, the pitch lifts a little and the note is harder to start. It is also the target the Lip setting of Vibrato Source modulates. 0 to 1.' },
         fr: { t: 'Embouchure',
-              b: 'La force des lèvres sur l’anche : en montant, l’anche se raidit, s’amortit et se referme, donc le son s’éclaircit, la hauteur monte un peu et la note démarre plus difficilement. C’est aussi la cible que module le réglage « Lip » de Source du vibrato. 0 à 1.',
+              b: 'La force des lèvres sur l’anche : plus elle augmente, plus l’anche se raidit, s’amortit et referme son ouverture au repos, donc le son s’éclaircit, la hauteur monte un peu et la note démarre plus difficilement. C’est aussi la cible que module le réglage « Lip » de Source du vibrato. 0 à 1.',
               reviewed: false },
     },
 
@@ -251,7 +324,7 @@ export const I18N = Object.freeze({
         en: { t: 'Reed Hardness',
               b: 'Stiffness of the reed, from a soft one to a hard one. A soft reed speaks easily and stays dark under pressure; a hard reed needs more breath, takes longer to start and holds its brightness in the loud dynamics. 0 to 1.' },
         fr: { t: 'Dureté de l’anche',
-              b: 'La raideur de l’anche, d’une anche souple à une anche dure. Une anche souple parle facilement et reste sombre sous la pression ; une anche dure demande plus de souffle, met plus de temps à démarrer et garde sa brillance dans les nuances fortes. 0 à 1.',
+              b: 'La raideur de l’anche, d’une anche souple à une anche dure. Une anche souple parle facilement et reste sombre sous la pression ; une anche dure demande plus de souffle, met plus de temps à démarrer et garde sa brillance dans les nuances fortes. 0 à 1.',
               reviewed: false },
     },
 
@@ -259,7 +332,7 @@ export const I18N = Object.freeze({
         en: { t: 'Output Gain',
               b: 'Master level, applied after the bore, the radiation filter and the output limiter. It is the last stage, so it cannot be used to drive the model harder — Breath Pressure is the control for that. −60.0 to +12.0 dB.' },
         fr: { t: 'Gain de sortie',
-              b: 'Le niveau général, appliqué après la perce, le filtre de rayonnement et le limiteur de sortie. C’est le dernier étage : il ne permet pas de pousser le modèle plus fort — Pression du souffle est la commande faite pour cela. −60,0 à +12,0 dB.',
+              b: 'Le niveau général, appliqué après la perce, le filtre de rayonnement et le limiteur de sortie. C’est le dernier étage : il ne permet pas de pousser le modèle plus fort — Pression du souffle est la commande faite pour cela. −60,0 à +12,0 dB.',
               reviewed: false },
     },
 
@@ -268,7 +341,7 @@ export const I18N = Object.freeze({
         en: { t: 'Bore Character',
               b: 'Morphs the bore from cylindrical to conical, and it is the X axis of the pad above. A cylinder resonates at a quarter wavelength and sounds odd harmonics only — the hollow clarinet register; a cone resonates at a half wavelength and sounds the whole series, the saxophone and oboe end. 0 to 1.' },
         fr: { t: 'Caractère de la perce',
-              b: 'Fait passer la perce du cylindre au cône, et c’est l’axe X du pavé ci-dessus. Un cylindre résonne au quart d’onde et ne sonne que les harmoniques impaires — le registre creux de la clarinette ; un cône résonne à la demi-onde et sonne toute la série, du côté du saxophone et du hautbois. 0 à 1.',
+              b: 'Fait passer la perce du cylindre au cône, et c’est l’axe X du pavé ci-dessus. Un cylindre résonne au quart d’onde et ne sonne que les harmoniques impaires — le registre creux de la clarinette ; un cône résonne à la demi-onde et sonne toute la série, du côté du saxophone et du hautbois. 0 à 1.',
               reviewed: false },
     },
 
@@ -276,7 +349,7 @@ export const I18N = Object.freeze({
         en: { t: 'Bore Diameter',
               b: 'Width of the bore at the throat, from about 2 mm to 20 mm. A narrow bore loses more high frequency to wall friction and sounds darker and more resistant; a wide one is brighter and blows freer. 0 to 1.' },
         fr: { t: 'Diamètre de la perce',
-              b: 'La largeur de la perce à la gorge, d’environ 2 mm à 20 mm. Une perce étroite perd davantage d’aigu par frottement aux parois et sonne plus sombre et plus résistante ; une perce large est plus claire et se joue plus librement. 0 à 1.',
+              b: 'La largeur de la perce à la gorge, d’environ 2 mm à 20 mm. Une perce étroite perd davantage d’aigu par frottement aux parois et sonne plus sombre et plus résistante ; une perce large est plus claire et se joue plus librement. 0 à 1.',
               reviewed: false },
     },
 
@@ -284,7 +357,7 @@ export const I18N = Object.freeze({
         en: { t: 'Bell Size',
               b: 'Flare of the bell, which sets the frequency above which the bore stops reflecting and starts radiating — 800 Hz at the bottom of the range, 6 kHz at the top. A small bell keeps the energy inside the tube and sounds contained; a large one projects and brightens. 0 to 1.' },
         fr: { t: 'Taille du pavillon',
-              b: 'L’évasement du pavillon, qui fixe la fréquence au-dessus de laquelle la perce cesse de réfléchir et se met à rayonner — 800 Hz en bas de la course, 6 kHz en haut. Un petit pavillon garde l’énergie dans le tube et sonne contenu ; un grand projette et éclaircit. 0 à 1.',
+              b: 'L’évasement du pavillon, qui fixe la fréquence au-dessus de laquelle la perce cesse de réfléchir et se met à rayonner — 800 Hz en bas de la course, 6 kHz en haut. Un petit pavillon garde l’énergie dans le tube et sonne contenu ; un grand projette et éclaircit. 0 à 1.',
               reviewed: false },
     },
 
@@ -292,7 +365,7 @@ export const I18N = Object.freeze({
         en: { t: 'Bore Length',
               b: 'Effective length of the tube, about 20 cm to 1.5 m. The played pitch does not follow it — that comes from the keyboard and from the tuning system — this sets how far the cone has flared along the tube, so it colours the tone instead of transposing it, and it does nothing at all while Bore Character is fully cylindrical. 0 to 1.' },
         fr: { t: 'Longueur de la perce',
-              b: 'La longueur utile du tube, d’environ 20 cm à 1,5 m. La hauteur jouée ne la suit pas — elle vient du clavier et du système d’accord — ce réglage fixe l’évasement du cône le long du tube : il colore le timbre au lieu de transposer, et il ne fait rien tant que Caractère de la perce est entièrement cylindrique. 0 à 1.',
+              b: 'La longueur utile du tube, d’environ 20 cm à 1,5 m. La hauteur jouée ne la suit pas — elle vient du clavier et du système d’accord — ce réglage fixe l’évasement du cône le long du tube : il colore le timbre au lieu de transposer, et il ne fait rien tant que Caractère de la perce est entièrement cylindrique. 0 à 1.',
               reviewed: false },
     },
 
@@ -302,7 +375,7 @@ export const I18N = Object.freeze({
         en: { t: 'Tone Hole Cutoff',
               b: 'Opens and closes four tone holes together, and it reads backwards from a filter cutoff: at 200 Hz all four are open and the tone is dark and vented, at 8000 Hz all four are closed and the bore rings its full length. They open one at a time as the value falls, so the change arrives in steps rather than smoothly. 200 to 8000 Hz.' },
         fr: { t: 'Coupure des trous de jeu',
-              b: 'Ouvre et ferme quatre trous de jeu ensemble, et la lecture est inversée par rapport à une fréquence de coupure : à 200 Hz les quatre sont ouverts et le son est sombre et aéré, à 8000 Hz les quatre sont fermés et la perce sonne sur toute sa longueur. Ils s’ouvrent un par un à mesure que la valeur descend : le changement arrive par paliers. 200 à 8000 Hz.',
+              b: 'Ouvre et ferme quatre trous de jeu ensemble, et la lecture est inversée par rapport à une fréquence de coupure : à 200 Hz les quatre sont ouverts et le son est sombre et aéré, à 8000 Hz les quatre sont fermés et la perce sonne sur toute sa longueur. Ils s’ouvrent un par un à mesure que la valeur descend : le changement arrive par paliers. 200 à 8000 Hz.',
               reviewed: false },
     },
 
@@ -310,7 +383,7 @@ export const I18N = Object.freeze({
         en: { t: 'Register Hole',
               b: 'Opens the register hole — the small vent a player uses to overblow into the upper register. It is a narrower junction than the tone holes, so it thins the fundamental and lets the second mode take over rather than simply darkening the tone. 0 to 1.' },
         fr: { t: 'Trou de registre',
-              b: 'Ouvre le trou de registre — le petit évent dont le joueur se sert pour passer dans le registre supérieur. C’est une jonction plus étroite que les trous de jeu : il affaiblit le fondamental et laisse le deuxième mode prendre le dessus au lieu de simplement assombrir le son. 0 à 1.',
+              b: 'Ouvre le trou de registre — le petit évent dont le joueur se sert pour passer dans le registre supérieur. C’est une jonction plus étroite que les trous de jeu : il affaiblit le fondamental et laisse le deuxième mode prendre le dessus au lieu de simplement assombrir le son. 0 à 1.',
               reviewed: false },
     },
 
@@ -320,7 +393,7 @@ export const I18N = Object.freeze({
         en: { t: 'Bore Profile',
               b: 'Chooses how the cone’s taper is spread along the tube: Simple gives one even taper, and Multi-segment narrows the first half and flares the second, which is closer to a real saxophone and puts weight in the low register. Neither does anything while Bore Character is fully cylindrical. Simple or Multi-segment.' },
         fr: { t: 'Profil de perce',
-              b: 'Choisit la répartition de la conicité le long du tube : « Simple » donne une conicité uniforme, « Multi-segment » resserre la première moitié et évase la seconde, ce qui se rapproche d’un vrai saxophone et donne du corps au grave. Ni l’un ni l’autre n’agit tant que Caractère de la perce est entièrement cylindrique. « Simple » ou « Multi-segment ».',
+              b: 'Choisit la répartition de la conicité le long du tube : « Simple » donne une conicité uniforme, « Multi-segment » resserre la première moitié et évase la seconde, ce qui se rapproche d’un vrai saxophone et donne du corps au grave. Ni l’un ni l’autre n’agit tant que Caractère de la perce est entièrement cylindrique. « Simple » ou « Multi-segment ».',
               reviewed: false },
     },
 
@@ -329,7 +402,7 @@ export const I18N = Object.freeze({
         en: { t: 'Reed Opening',
               b: 'How far the reed sits off the lay when nothing is blowing, from 0.1 mm to 1.5 mm. A wide opening gives a large dynamic range but needs more breath to close; a narrow one speaks at a whisper and saturates early. 0 to 1.' },
         fr: { t: 'Ouverture de l’anche',
-              b: 'L’écart entre l’anche et la table quand rien ne souffle, de 0,1 mm à 1,5 mm. Une grande ouverture donne une large dynamique mais demande plus de souffle pour se fermer ; une petite ouverture parle dans un murmure et sature tôt. 0 à 1.',
+              b: 'L’écart entre l’anche et la table quand rien ne souffle, de 0,1 mm à 1,5 mm. Une grande ouverture donne une large dynamique mais demande plus de souffle pour se fermer ; une petite ouverture parle dans un murmure et sature tôt. 0 à 1.',
               reviewed: false },
     },
 
@@ -337,7 +410,7 @@ export const I18N = Object.freeze({
         en: { t: 'Reed Mass',
               b: 'Mass per unit area of the reed. A light reed follows the air almost instantly and gives a clean, fast onset; a heavy one lags, rings at its own resonance and puts a thicker, slower transient in front of every note. 0 to 1.' },
         fr: { t: 'Masse de l’anche',
-              b: 'La masse par unité de surface de l’anche. Une anche légère suit l’air presque instantanément et donne une attaque nette et rapide ; une anche lourde traîne, résonne sur sa propre fréquence et place un transitoire plus épais et plus lent devant chaque note. 0 à 1.',
+              b: 'La masse par unité de surface de l’anche. Une anche légère suit l’air presque instantanément et donne une attaque nette et rapide ; une anche lourde traîne, résonne à sa propre fréquence et place un transitoire plus épais et plus lent devant chaque note. 0 à 1.',
               reviewed: false },
     },
 
@@ -345,7 +418,7 @@ export const I18N = Object.freeze({
         en: { t: 'Reed Damping',
               b: 'How quickly the reed’s own vibration dies away. Low values let the reed ring alongside the bore and add a reedy edge; high values mute it, and the tone is then driven almost entirely by the tube. 0 to 1.' },
         fr: { t: 'Amortissement de l’anche',
-              b: 'La vitesse à laquelle la vibration propre de l’anche s’éteint. Des valeurs basses laissent l’anche résonner à côté de la perce et ajoutent un mordant d’anche ; des valeurs hautes l’étouffent, et le son est alors porté presque entièrement par le tube. 0 à 1.',
+              b: 'La vitesse à laquelle la vibration propre de l’anche s’éteint. Des valeurs basses laissent l’anche résonner en même temps que la perce et ajoutent un mordant d’anche ; des valeurs hautes l’étouffent, et le son est alors porté presque entièrement par le tube. 0 à 1.',
               reviewed: false },
     },
 
@@ -353,7 +426,7 @@ export const I18N = Object.freeze({
         en: { t: 'Double Reed',
               b: 'Moves the reed from single to double, and it is the Y axis of the pad above. A double reed confines the airflow between two blades instead of a blade and a lay, which narrows the opening and brings in the buzz and the compressed dynamics of the oboe and duduk family. 0 to 1.' },
         fr: { t: 'Anche double',
-              b: 'Fait passer l’anche de simple à double, et c’est l’axe Y du pavé ci-dessus. Une anche double confine le flux entre deux lames au lieu d’une lame et d’une table : l’ouverture se resserre, et l’on gagne le grain et la dynamique resserrée de la famille du hautbois et du duduk. 0 à 1.',
+              b: 'Fait passer l’anche de simple à double, et c’est l’axe Y du pavé ci-dessus. Une anche double confine le flux entre deux lames au lieu d’une lame et d’une table : l’ouverture se resserre, et l’on gagne le grain et la dynamique resserrée de la famille du hautbois et du duduk. 0 à 1.',
               reviewed: false },
     },
 
@@ -361,7 +434,7 @@ export const I18N = Object.freeze({
         en: { t: 'Mouthpiece Volume',
               b: 'Volume of the mouthpiece chamber, from nothing to about 15 cm³. At zero the chamber is bypassed entirely and the reed drives the bore directly; opening it adds a Helmholtz compliance that flattens the upper register and rounds the attack. 0 to 1.' },
         fr: { t: 'Volume du bec',
-              b: 'Le volume de la chambre du bec, de rien à environ 15 cm³. À zéro la chambre est court-circuitée et l’anche attaque la perce directement ; en l’ouvrant, on ajoute une compliance de Helmholtz qui baisse le registre aigu et arrondit l’attaque. 0 à 1.',
+              b: 'Le volume de la chambre du bec, de rien à environ 15 cm³. À zéro la chambre est court-circuitée et l’anche attaque la perce directement ; en l’ouvrant, on ajoute une compliance de Helmholtz qui baisse le registre aigu et arrondit l’attaque. 0 à 1.',
               reviewed: false },
     },
 
@@ -370,7 +443,7 @@ export const I18N = Object.freeze({
         en: { t: 'Vibrato Depth',
               b: 'Depth of the vibrato. Where it lands is set by Vibrato Source, so one depth can read as a pitch bend, a swell or a throat flutter — and at zero the modulator is skipped entirely rather than running silently. 0 to 1.' },
         fr: { t: 'Profondeur du vibrato',
-              b: 'La profondeur du vibrato. Sa cible est fixée par Source du vibrato : à profondeur égale, il peut s’entendre comme une inflexion de hauteur, un gonflement ou un battement de gorge — et à zéro le modulateur est court-circuité plutôt que de tourner en silence. 0 à 1.',
+              b: 'La profondeur du vibrato. Sa cible est fixée par Source du vibrato : à profondeur égale, il peut s’entendre comme une inflexion de hauteur, un gonflement ou un battement de gorge — et à zéro le modulateur est court-circuité plutôt que de tourner en silence. 0 à 1.',
               reviewed: false },
     },
 
@@ -378,7 +451,7 @@ export const I18N = Object.freeze({
         en: { t: 'Vibrato Rate',
               b: 'Speed of the vibrato. Wind players sit between about 4 and 7 Hz — below that it reads as a swell, above it as a bleat — and the phase restarts at every note, so repeated notes vibrate identically. 1.0 to 10.0 Hz.' },
         fr: { t: 'Vitesse du vibrato',
-              b: 'La vitesse du vibrato. Les vents se tiennent entre 4 et 7 Hz environ — plus lent, cela s’entend comme un gonflement, plus rapide comme un chevrotement — et la phase repart à chaque note, si bien que des notes répétées vibrent à l’identique. 1,0 à 10,0 Hz.',
+              b: 'La vitesse du vibrato. Les vents se tiennent entre 4 et 7 Hz environ — plus lent, cela s’entend comme un gonflement, plus rapide comme un chevrotement — et la phase repart à chaque note, si bien que des notes répétées vibrent à l’identique. 1,0 à 10,0 Hz.',
               reviewed: false },
     },
 
@@ -387,7 +460,7 @@ export const I18N = Object.freeze({
         en: { t: 'Vibrato Source',
               b: 'Chooses what the vibrato modulates. Lip moves the embouchure and reads as a vibrato of pitch and colour; Breath moves the mouth pressure and reads as a swell; Throat modulates the bore itself and gives a shallower, more internal flutter. Lip, Breath or Throat.' },
         fr: { t: 'Source du vibrato',
-              b: 'Choisit ce que module le vibrato. « Lip » agit sur l’embouchure et s’entend comme un vibrato de hauteur et de couleur ; « Breath » agit sur la pression de bouche et s’entend comme un gonflement ; « Throat » module la perce elle-même et donne un battement plus discret et plus interne. « Lip », « Breath » ou « Throat ».',
+              b: 'Choisit ce que module le vibrato. « Lip » agit sur l’embouchure et s’entend comme un vibrato de hauteur et de couleur ; « Breath » agit sur la pression de bouche et s’entend comme un gonflement ; « Throat » module la perce elle-même et donne un battement plus discret et plus interne. « Lip », « Breath » ou « Throat ».',
               reviewed: false },
     },
 
@@ -395,7 +468,7 @@ export const I18N = Object.freeze({
         en: { t: 'Growl Amount',
               b: 'Adds the growl a player gets by humming into the instrument: a fixed 120 Hz modulation of the mouth pressure, up to 30% deep. The rate does not follow the note, so the growl beats against the played pitch instead of tracking it. 0 to 1.' },
         fr: { t: 'Quantité de growl',
-              b: 'Ajoute le growl qu’un joueur obtient en chantant dans l’instrument : une modulation fixe de la pression de bouche à 120 Hz, jusqu’à 30 % de profondeur. La vitesse ne suit pas la note : le growl bat contre la hauteur jouée au lieu de la suivre. 0 à 1.',
+              b: 'Ajoute le growl qu’un joueur obtient en chantant dans l’instrument : une modulation fixe de la pression de bouche à 120 Hz, jusqu’à 30 % de profondeur. La vitesse ne suit pas la note : le growl bat contre la hauteur jouée au lieu de la suivre. 0 à 1.',
               reviewed: false },
     },
 
@@ -403,7 +476,7 @@ export const I18N = Object.freeze({
         en: { t: 'Flutter Tongue',
               b: 'Flutter tongue — the rolled tongue against the reed, built here from a 25 Hz half-wave that digs into the mouth pressure by up to 40%. It only ever takes pressure away and never adds any, so raising it lowers the average level as well as roughening the tone. 0 to 1.' },
         fr: { t: 'Flatterzunge',
-              b: 'Le flatterzunge — la langue roulée contre l’anche, réalisé ici par une demi-onde à 25 Hz qui creuse la pression de bouche jusqu’à 40 %. Elle ne fait que retirer de la pression, jamais en ajouter : en montant, on baisse aussi le niveau moyen en plus de rendre le son plus rugueux. 0 à 1.',
+              b: 'Le flatterzunge — la langue roulée contre l’anche, réalisé ici par une demi-onde à 25 Hz qui creuse la pression de bouche jusqu’à 40 %. Il ne fait que retirer de la pression, jamais en ajouter : en montant, on baisse aussi le niveau moyen en plus de rendre le son plus rugueux. 0 à 1.',
               reviewed: false },
     },
 
@@ -411,7 +484,7 @@ export const I18N = Object.freeze({
         en: { t: 'Subtone',
               b: 'The breathy subtone a player gets by damping the reed with the lip and blowing softly. It does three things at once — adds air noise, tightens the embouchure and takes up to 30% off the mouth pressure — so the note goes quieter as well as breathier. 0 to 1.' },
         fr: { t: 'Subtone',
-              b: 'Le subtone soufflé qu’un joueur obtient en amortissant l’anche avec la lèvre et en soufflant doucement. Il fait trois choses à la fois — il ajoute du bruit d’air, resserre l’embouchure et retire jusqu’à 30 % de la pression de bouche — la note devient donc à la fois plus douce et plus soufflée. 0 à 1.',
+              b: 'Le subtone soufflé qu’un joueur obtient en amortissant l’anche avec la lèvre et en soufflant doucement. Il fait trois choses à la fois — il ajoute du bruit d’air, resserre l’embouchure et retire jusqu’à 30 % de la pression de bouche — la note devient donc à la fois plus douce et plus soufflée. 0 à 1.',
               reviewed: false },
     },
 
@@ -419,7 +492,7 @@ export const I18N = Object.freeze({
         en: { t: 'Attack Chiff',
               b: 'The pressure overshoot at the start of a note — the chiff a wind instrument makes before the tone settles. It is scaled by velocity as well as by this control, up to 30% above the held pressure, so at a soft velocity it barely appears however high this is set. 0 to 1.' },
         fr: { t: 'Bruit d’attaque',
-              b: 'Le dépassement de pression au début de la note — le bruit d’attaque qu’un instrument à vent produit avant que le son s’installe. Il est pondéré par la vélocité autant que par ce réglage, jusqu’à 30 % au-dessus de la pression tenue, si bien qu’à faible vélocité il s’entend à peine quel que soit le réglage. 0 à 1.',
+              b: 'Le dépassement de pression au début de la note — le bruit d’attaque qu’un instrument à vent produit avant que le son s’installe. Il est pondéré par la vélocité autant que par ce réglage, jusqu’à 30 % au-dessus de la pression tenue, si bien qu’à faible vélocité il s’entend à peine quel que soit le réglage. 0 à 1.',
               reviewed: false },
     },
 
@@ -427,7 +500,7 @@ export const I18N = Object.freeze({
         en: { t: 'Air Noise',
               b: 'Breath noise mixed in at the reed. It is scaled by the airflow and by the mouth pressure rather than sitting there as a fixed layer, so it swells with the dynamics and disappears when the note is not sounding. 0 to 1.' },
         fr: { t: 'Bruit d’air',
-              b: 'Le bruit de souffle mêlé au niveau de l’anche. Il est pondéré par le débit d’air et par la pression de bouche plutôt que d’être une couche fixe : il enfle avec la nuance et disparaît quand la note ne sonne pas. 0 à 1.',
+              b: 'Le bruit de souffle introduit à l’anche. Il est pondéré par le débit d’air et par la pression de bouche plutôt que d’être une couche fixe : il enfle avec la nuance et disparaît quand la note ne sonne pas. 0 à 1.',
               reviewed: false },
     },
 
@@ -436,7 +509,8 @@ export const I18N = Object.freeze({
         en: { t: 'Infinite Sustain',
               b: 'Removes the bore’s losses: the bell stops radiating and reflects everything back, and the wall losses fall away to nothing. At 1 the tube is lossless and rings on indefinitely after the breath stops, instead of decaying. 0 to 1.' },
         fr: { t: 'Tenue infinie',
-              b: 'Supprime les pertes de la perce : le pavillon cesse de rayonner et renvoie tout, et les pertes aux parois tombent à zéro. À 1, le tube est sans pertes et continue de sonner indéfiniment après l’arrêt du souffle au lieu de s’éteindre. 0 à 1.',
+              termNote: 'meaning: no ADSR on this page (no sustain-level parameter exists in O-Reed) — this is the bore ringing on without losses, not an envelope stage. Maintien infini would name an envelope O-Reed does not have. Matches label.knob.infSustain',
+              b: 'Supprime les pertes de la perce : le pavillon cesse de rayonner et renvoie tout, et les pertes aux parois tombent à zéro. À 1, le tube est sans pertes et continue de sonner indéfiniment après l’arrêt du souffle au lieu de s’éteindre. 0 à 1.',
               reviewed: false },
     },
 
@@ -444,7 +518,7 @@ export const I18N = Object.freeze({
         en: { t: 'Reverse Bore',
               b: 'Runs the bore’s taper backwards, so the tube narrows toward the bell instead of flaring — nothing is built this way, and the result sits somewhere between a pinched hichiriki and no acoustic parallel at all. It does nothing while Bore Character is fully cylindrical, because a cylinder has no taper to reverse. 0 to 1.' },
         fr: { t: 'Perce inversée',
-              b: 'Inverse la conicité de la perce : le tube se resserre vers le pavillon au lieu de s’évaser — rien ne se fabrique ainsi, et le résultat tient du hichiriki pincé et de rien de connu. Le réglage ne fait rien tant que Caractère de la perce est entièrement cylindrique, puisqu’un cylindre n’a pas de conicité à inverser. 0 à 1.',
+              b: 'Inverse la conicité de la perce : le tube se resserre vers le pavillon au lieu de s’évaser — rien ne se fabrique ainsi, et le résultat tient du hichiriki pincé et de rien de connu. Le réglage ne fait rien tant que Caractère de la perce est entièrement cylindrique, puisqu’un cylindre n’a pas de conicité à inverser. 0 à 1.',
               reviewed: false },
     },
 
@@ -452,7 +526,7 @@ export const I18N = Object.freeze({
         en: { t: 'Feedback Path',
               b: 'Cross-couples the two bores: the reed hears a blend of its own tube and the drone tube instead of its own alone, up to half and half. It has no effect unless Dual Bore is on, and high settings lock the two tubes together so the drone pulls the played pitch. 0 to 1.' },
         fr: { t: 'Chemin de réinjection',
-              b: 'Couple les deux perces : l’anche entend un mélange de son propre tube et du tube de bourdon au lieu du sien seul, jusqu’à moitié-moitié. Le réglage reste sans effet si Double perce n’est pas activée, et en position haute les deux tubes se verrouillent, si bien que le bourdon tire la hauteur jouée. 0 à 1.',
+              b: 'Couple les deux perces : l’anche entend un mélange de son propre tube et du tube de bourdon au lieu du sien seul, jusqu’à parts égales. Le réglage reste sans effet si Double perce n’est pas activée, et en position haute les deux tubes se verrouillent, si bien que le bourdon tire la hauteur jouée. 0 à 1.',
               reviewed: false },
     },
 
@@ -462,7 +536,7 @@ export const I18N = Object.freeze({
         en: { t: 'Drone Pitch',
               b: 'Tunes the second bore against the played note, in cents: 0 is a unison, ±1200 is an octave and ±2400 is two. It has no effect unless Dual Bore is on. −2400 to +2400 cents.' },
         fr: { t: 'Hauteur du bourdon',
-              b: 'Accorde la seconde perce par rapport à la note jouée, en cents : 0 pour l’unisson, ±1200 pour l’octave et ±2400 pour deux octaves. Le réglage reste sans effet si Double perce n’est pas activée. −2400 à +2400 cents.',
+              b: 'Accorde la seconde perce par rapport à la note jouée, en cents : 0 pour l’unisson, ±1200 pour l’octave et ±2400 pour deux octaves. Le réglage reste sans effet si Double perce n’est pas activée. −2400 à +2400 cents.',
               reviewed: false },
     },
 
@@ -481,7 +555,7 @@ export const I18N = Object.freeze({
         en: { t: 'Max Voices',
               b: 'Ceiling on how many notes can sound at once, and it only applies while Polyphony Mode is Polyphonic — in Monophonic the instrument plays one note whatever this says. Each voice is a full waveguide, so the CPU cost rises with it. 1 to 16 voices.' },
         fr: { t: 'Voix maximales',
-              b: 'Le plafond du nombre de notes simultanées, et il ne s’applique que si Mode de polyphonie est sur « Polyphonic » — en « Monophonic », l’instrument ne joue qu’une note quel que soit ce réglage. Chaque voix est un guide d’onde complet : le coût processeur monte avec elle. 1 à 16 voix.',
+              b: 'Le plafond du nombre de notes simultanées, et il ne s’applique que si Mode de polyphonie est sur « Polyphonic » — en « Monophonic », l’instrument ne joue qu’une note quel que soit ce réglage. Chaque voix est un guide d’onde complet : le coût processeur monte avec elle. 1 à 16 voix.',
               reviewed: false },
     },
 
@@ -489,7 +563,7 @@ export const I18N = Object.freeze({
         en: { t: 'Polyphony Mode',
               b: 'Monophonic plays one note at a time, which is what a real reed instrument does and what the legato and voice-stealing behaviour is written for. Polyphonic lets notes overlap, up to the Max Voices ceiling and at the matching cost in CPU. Monophonic or Polyphonic.' },
         fr: { t: 'Mode de polyphonie',
-              b: '« Monophonic » ne joue qu’une note à la fois, ce que fait un vrai instrument à anche et ce pour quoi le legato et le vol de voix sont écrits. « Polyphonic » laisse les notes se superposer, jusqu’au plafond de Voix maximales et pour le coût processeur correspondant. « Monophonic » ou « Polyphonic ».',
+              b: '« Monophonic » ne joue qu’une note à la fois, ce que fait un vrai instrument à anche et ce pour quoi le legato et le vol de voix sont écrits. « Polyphonic » laisse les notes se superposer, jusqu’au plafond de Voix max et pour le coût processeur correspondant. « Monophonic » ou « Polyphonic ».',
               reviewed: false },
     },
 
@@ -503,7 +577,7 @@ export const I18N = Object.freeze({
         en: { t: 'Oversampling',
               b: 'Internal sample-rate multiplier for the reed and the bore, which are nonlinear and would alias without it. 4x is cleaner on high notes and at extreme reed settings and costs roughly twice the CPU; the latency the plugin reports to the host is fixed at the 2x figure and does not follow this control. 2x or 4x.' },
         fr: { t: 'Suréchantillonnage',
-              b: 'Le multiplicateur de fréquence d’échantillonnage interne de l’anche et de la perce, qui sont non linéaires et créeraient du repliement sans lui. « 4x » est plus propre dans l’aigu et sur les réglages d’anche extrêmes, pour environ deux fois le coût processeur ; la latence annoncée à l’hôte reste celle de « 2x » et ne suit pas ce réglage. « 2x » ou « 4x ».',
+              b: 'Le multiplicateur de fréquence d’échantillonnage interne de l’anche et de la perce, qui sont non linéaires et créeraient du repliement sans lui. « 4x » est plus propre dans l’aigu et sur les réglages d’anche extrêmes, pour environ deux fois le coût processeur ; la latence annoncée à l’hôte reste celle de « 2x » et ne suit pas ce réglage. « 2x » ou « 4x ».',
               reviewed: false },
     },
 
@@ -518,7 +592,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Opens the panel that sets the language of this interface. That is all it holds: the captions on this page and this hover help change with it, and the choice is kept with the session, so a project reopens in the language it was saved in.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.',
+              b: 'Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et cette aide au survol changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue où il a été enregistré.',
               reviewed: false },
     },
 
@@ -532,7 +606,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of the captions on this page and of this hover help. English and French are available. Value readouts, the option words inside the dropdowns and the fifteen instrument markers on the pad stay in English in both languages, and so does the Tuning tab — its panel comes from a shared module that is not part of this plugin.' },
         fr: { t: 'Langue',
-              b: 'La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont proposés. Les valeurs affichées, les intitulés d’options des menus déroulants et les quinze repères d’instruments du pavé restent en anglais dans les deux langues, tout comme l’onglet Accord : son panneau provient d’un module partagé qui n’appartient pas à ce plugin.',
+              b: 'La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont proposés. Les valeurs affichées, les intitulés d’options des menus déroulants et les quinze repères d’instruments du pavé restent en anglais dans les deux langues, tout comme l’onglet Accord : son panneau provient d’un module partagé qui n’appartient pas à ce plugin.',
               reviewed: false },
     },
 });
@@ -620,7 +694,7 @@ export const I18N = Object.freeze({
 //       Register      42.44 -> Registre      42.44
 //       Opening       39.36 -> Ouvert.       37.39   SHRANK — see CLIFF 4
 //       Mass          22.97 -> Masse         28.50
-//       Damping       40.81 -> Amortis.      41.47
+//       Damping       40.81 -> Amort.        33.27   SHRANK  (v1.3.1)
 //       Double Reed   60.58 -> Anche dble    54.59   SHRANK
 //       Mouthpiece    57.48 -> Bec           16.50   SHRANK
 //       Vib Depth     45.89 -> Vib Prof.     41.72   SHRANK
@@ -632,11 +706,12 @@ export const I18N = Object.freeze({
 //       Air Noise     43.66 -> Bruit d’air   52.09
 //       Inf. Sustain  56.34 -> Tenue inf.    48.73   SHRANK
 //       Rev. Bore     44.98 -> Perce inv.    47.77
-//       Feedback      44.94 -> Réinject.     44.41   SHRANK
+//       Feedback      44.94 -> Réinjection   58.06           (v1.3.1)
 //       Drone Pitch   58.77 -> Bourdon       43.03   SHRANK
 //       Max Voices    52.66 -> Voix max      42.89   SHRANK
 //
-//   TWELVE of the 27 SHRINK. That is the half of the risk a clip check is
+//   TWELVE of the 27 SHRINK (v1.3.1 moved one in and one out: Amort. shrank,
+//   Réinjection stopped shrinking, so the count is unchanged). That is the half of the risk a clip check is
 //   blind to, and the reason the before/after diff is run in both directions.
 //   "Dureté anche" was measured and REJECTED at 66.98 — 1.02px of a 68px cap is
 //   inside the band where a Windows/WebView2 font metric decides whether a
@@ -816,26 +891,38 @@ export const LABELS = Object.freeze({
     // "Sound Design" chevron below: chevron right edge 33.00, English "Opening"
     // left edge 37.31 (4.31px clear), "Ouverture" left edge 30.64 (2.36px OVER).
     // "Ouvert." is 38.30 — 5.30px clear, BETTER than English — and matches this
-    // page's own abbreviation style (Reed Hard., Inf. Sustain, Amortis., Flatt.,
-    // Réinject.). See the gate note in the commit message: nothing here is ever
+    // page's own abbreviation style (Reed Hard., Inf. Sustain, Amort., Flatt.,
+    // Vib Prof.). See the gate note in the commit message: nothing here is ever
     // PAINTED on the chevron, because the caption is clipped out of existence by
     // its ancestor, and assertion 8b compares rectangles without asking that.
     'label.knob.opening': { en: { t: 'Opening' }, fr: { t: 'Ouvert.', reviewed: false } },
     'label.knob.mass':    { en: { t: 'Mass' },    fr: { t: 'Masse',     reviewed: false } },
-    'label.knob.damping': { en: { t: 'Damping' }, fr: { t: 'Amortis.',  reviewed: false } },
+    'label.knob.damping': { en: { t: 'Damping' }, fr: { t: 'Amort.',    reviewed: false } },
 
     // "Anche double" is 67.20 against a 68px cap — 0.80px, which is the same
     // Windows-metric band that rejected "Dureté anche". The page's own
     // abbreviation style gives "Anche dble" at 54.59 with 13.41px to spare, and
     // the XY pad's Y-axis caption above it already spells the phrase out in
     // full where there is room for it.
-    'label.knob.doubleReed': { en: { t: 'Double Reed' }, fr: { t: 'Anche dble', reviewed: false } },
+    'label.knob.doubleReed': {
+        en: { t: 'Double Reed' },
+        fr: { t: 'Anche dble', reviewed: false,
+              termNote: 'width, re-measured in v1.3.1: the glossary root Anche double is 67.20 px against the 68.00 px .knob-label max-width — 0.80 px, inside the same Windows/WebView2 font-metric band that made v1.3.0 reject Dureté anche at 1.02 px, and .knob-label carries text-overflow: ellipsis so the failure is a silent truncation. The full term already ships twice on this page: the XY pad Y-axis caption (label.xy.axisY) and this control tip title' },
+    },
 
     // mouthpieceVol. "le bec" is the mouthpiece of a clarinet or saxophone.
     'label.knob.mouthpiece': { en: { t: 'Mouthpiece' }, fr: { t: 'Bec', reviewed: false } },
 
-    'label.knob.vibDepth': { en: { t: 'Vib Depth' }, fr: { t: 'Vib Prof.', reviewed: false } },
-    'label.knob.vibRate':  { en: { t: 'Vib Rate' },  fr: { t: 'Vib Vit.',  reviewed: false } },
+    'label.knob.vibDepth': {
+        en: { t: 'Vib Depth' },
+        fr: { t: 'Vib Prof.', reviewed: false,
+              termNote: 'GEOMETRY, measured in v1.3.1, and the gate proved it: CLIFF 4 below. This caption is centred at x 57.00 in a 23..91 cell, and the collapsed Expression section keeps its rectangle over the next section-header, whose chevron ends at x 33.00 — so any caption wider than 48.00 px intersects it. The glossary root Prof. vibrato is 64.80 px and the listed abbreviation Prof. vibr is 47.63 px (0.19 px of clearance). Prof. vibr. was SHIPPED into check-ui-labels and [8b] FAILED on exactly this pair of rectangles at 50.08 px. Kept with label.knob.vibRate as one matched pair' },
+    },
+    'label.knob.vibRate':  {
+        en: { t: 'Vib Rate' },
+        fr: { t: 'Vib Vit.', reviewed: false,
+              termNote: 'the other half of the pair. Vit. vibr. (41.94 px) and even the root Vit. vibrato (56.66 px) both FIT here — this knob is second in the row with 17 px of clearance to its left neighbour, not first against a chevron. It is held to Vib Prof. because the two are one matched pair on one row (English Vib Depth / Vib Rate), and applying the glossary to only the half that fits would put the head noun on opposite sides of two adjacent captions. N6 correction 40: the pair is the unit, one termNote per half' },
+    },
 
     // A saxophone growl is called a growl in French too.
     'label.knob.growl': {
@@ -845,7 +932,11 @@ export const LABELS = Object.freeze({
 
     // flutterTongue. French scores mark it "Flatt." (Flatterzunge), the same
     // abbreviation a French wind player reads on the page.
-    'label.knob.flutter': { en: { t: 'Flutter' }, fr: { t: 'Flatt.', reviewed: false } },
+    'label.knob.flutter': {
+        en: { t: 'Flutter' },
+        fr: { t: 'Flatt.', reviewed: false,
+              termNote: 'MEANING, then width. The parameter is flutterTongue — the wind technique — not tape wow-and-flutter, so the glossary row that applies is `flutter tongue -> Flatterzunge`, not `flutter -> Scintillement` (which is also 69.47 px and clips the 68.00 px cap outright). Flatterzunge itself measures 67.36 px, 0.64 px of the cap, tighter than the Anche double case above. Flatt. is the abbreviation French scores print for it and is the form a French wind player reads; the tip title spells Flatterzunge out in full' },
+    },
 
     // A saxophone subtone is called a subtone in French too.
     'label.knob.subtone': {
@@ -860,9 +951,13 @@ export const LABELS = Object.freeze({
 
     'label.knob.airNoise': { en: { t: 'Air Noise' }, fr: { t: 'Bruit d’air', reviewed: false } },
 
-    'label.knob.infSustain': { en: { t: 'Inf. Sustain' }, fr: { t: 'Tenue inf.', reviewed: false } },
+    'label.knob.infSustain': {
+        en: { t: 'Inf. Sustain' },
+        fr: { t: 'Tenue inf.', reviewed: false,
+              termNote: 'meaning: this page has no ADSR — there is no sustain-level parameter anywhere in O-Reed, and infiniteSustain removes the bore losses so the TUBE holds on. Maintien is the ADSR sustain level and would name a control that does not exist here. Same exemption O-Bowed took in N4 for the same shape' },
+    },
     'label.knob.revBore':    { en: { t: 'Rev. Bore' },    fr: { t: 'Perce inv.', reviewed: false } },
-    'label.knob.feedback':   { en: { t: 'Feedback' },     fr: { t: 'Réinject.',  reviewed: false } },
+    'label.knob.feedback':   { en: { t: 'Feedback' },     fr: { t: 'Réinjection', reviewed: false } },
 
     // dronePitch, -2400..2400 cents. "un bourdon" IS a drone; the readout beside
     // it carries the cents.
@@ -888,7 +983,7 @@ export const LABELS = Object.freeze({
     },
     'label.dropdown.polyMode': {
         en: { t: 'Poly Mode' },
-        fr: { t: 'Mode polyphonique', reviewed: false },
+        fr: { t: 'Mode de polyphonie', reviewed: false },
     },
     'label.dropdown.oversampling': {
         en: { t: 'Oversampling' },
