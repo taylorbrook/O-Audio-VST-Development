@@ -5,8 +5,8 @@ mode: quick
 status: incomplete
 stages_complete: [A, B, C, D, E, F, G, H, I, J, K, L, M, N]
 stages_remaining: []
-decision_items_closed: [1, 4, 17, 18, 26]
-checkpoint_5_french_review: SECOND READING DONE (Stage N, 43/43) — 3751 entries, 0 read by a native speaker
+decision_items_closed: [1, 4, 17, 18, 26, 27, 29, 68]
+checkpoint_5_french_review: DONE — Stage N second reading on 43/43, then read by the developer (reads French); 3702 flags reviewed: true
 i18n_exempt_contract: RESOLVED — scoped entries landed between K1 and K2
 stopped_at: "STAGE N COMPLETE 2026-08-31 — Checkpoint 5 as a QA pass, 43 of 43 plugins patch-bumped: every French entry read against its English, scripts/i18n-fr-glossary.js (~260 terms) and scripts/i18n-fr-lint.js. Repo-wide lint --strict 2145 -> 0 on 43/43; boot-all-uis 43/43 clean, 0 DEAD, 19 late (by design), title= 0; check-i18n ALL PASS, 3751 entries; 0 non-label elements moved on every page; auval PASS x43; installed Info.plist audited. 12 lint defects and 1 check-ui-labels gate defect (8b painted rects) found by executors and fixed; 2 glossary terms wrong of ~260; 20 of 43 header width defences proven backwards. STILL OPEN: item 27 (reviewed: false on all 3751 — no native speaker), item 29 (--strict is green and unwired), item 31 (17 plugins without a committed render gate), items 19/22/30/34-68 per-plugin English/CSS/DSP defects. Status stays incomplete only because Checkpoint 5 as WRITTEN (a native speaker) has not happened."
 
@@ -6344,3 +6344,11 @@ No native speaker (item 27); no DAW test on any of the 43 (`auval` + headless Ch
 never WKWebView); Standalone `.app` stale everywhere; Windows/WebView2 metrics untested and
 now carrying ~1500 no-break spaces of new unbreakable runs; 17 plugins still have no
 committed render gate (item 31); guillemet spacing has no rule (item 59).
+
+## Post-stage, developer decisions (2026-08-31)
+
+- **Item 27 — CLOSED.** The developer reads French and checked the copy: all 3702 flags are
+  `reviewed: true` (`13fc8dd0`, metadata only, no bumps). `check-i18n`'s worklist reads 0.
+- **Items 29 / 68 — CLOSED.** `--strict` is gone; `scripts/i18n-fr-lint.js` exits 2 on any
+  finding by default. Nothing in CI runs it (no CI test target exists) — run it by hand after
+  any French edit.
