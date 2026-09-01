@@ -927,10 +927,22 @@ body {
 }
 
 /* v1.4.2: the buttons carry their own names rather than S / B / SC glyphs, so
-   they size to their text. The band column is 190px wide inside its padding and
-   the three labels come to roughly 155px including gaps, which leaves headroom
-   without the row drifting off centre. white-space: nowrap keeps "SC LISTEN" on
-   one line — wrapping would make that button two rows tall and break the row. */
+   they size to their text. white-space: nowrap keeps "SC LISTEN" on one line —
+   wrapping would make that button two rows tall and break the row.
+
+   v1.11.1: the width numbers this comment used to carry were an estimate and
+   are now measured, at the 900x640 shipping frame, on the real nodes. The row's
+   content box is 188.50 px (.button-row is width:100% inside the band, which is
+   188.50 px inside its padding — not the 190 px this comment claimed).
+
+     EN  SOLO 40.22 + BYPASS 49.66 + SC LISTEN 63.48 + 2x5 gap = 163.36  (25.14 free)
+     FR  SOLO 40.22 + CONTOUR. 64.50 + ÉCOUTE SC 68.47 + 2x5 gap = 183.19  (5.31 free)
+
+   5.31 px is the tightest measured margin anywhere on this page, and it is a
+   French margin: Stage N took CONTOUR. as the glossary's abbreviation for Bypass
+   (the root CONTOURNEMENT is 103.25 px of button and grows the band to 221.94
+   px). A wider Windows/WebView2 face lands here before it lands anywhere else —
+   that is the standing hardware-blocked deferral, aimed at a specific row. */
 .band-button {
     height: 20px;
     padding: 0 5px;
