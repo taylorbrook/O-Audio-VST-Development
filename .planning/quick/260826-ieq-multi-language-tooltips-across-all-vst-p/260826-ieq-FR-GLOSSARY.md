@@ -101,6 +101,8 @@ reviewer's.
 - Sentences end with a period in a body; a title carries none.
 - No anglicism where a French term is established (the table above), and no forced
   translation where the loanword is the term (the last row).
+- **The product is *ce plugin* (masculine)** — not *plugiciel* (OQLF, three plugins had it),
+  not *extension*. Settled 2026-08-31 from a 12-to-3 split; *plugiciel* is forbidden in prose.
 
 ## What stays English
 

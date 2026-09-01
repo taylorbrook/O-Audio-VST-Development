@@ -359,3 +359,33 @@ numbers in the batch table are pre-fix.**
     and O-Tremolo's `tip.panSync` (says a stereo *signal* is needed; the gate is on the
     *bus*, and a mono source on a stereo bus hears it). Decision items 34 and 35. Neither
     language was changed.
+
+## From N3 complete (6 of 6: O-Tapestop `a51c7468`, O-FreqPulse `1d16dd0d`, O-Gain `efd92f51`, O-SpectralShaper `3e7631aa`, O-Bassoon `e76224af`, O-TextureForge `6de042ff`)
+
+26. **A tooltip TITLE that equals its English over a translated body takes NO `sameAsEn`
+    flag.** `check-i18n` reads the flag entry-scoped (title AND body); flagging such an entry
+    disarms assertion 4 for it. The lint now counts those titles as covered and lists only
+    the real unflagged copies (O-Tapestop, O-Gain both reasoned this out independently).
+27. **The product is *ce plugin*, masculine.** Not *plugiciel* (now forbidden in prose), not
+    *extension*. O-Tapestop's one occurrence was fixed by the orchestrator as a copy-only
+    `fix:`; O-Formant (2) and O-MicrotonalSampler (4) will meet it as F1.
+28. **`timing` accepts *cadence*** for the time-base heading sense (O-Tapestop); *décalage*
+    stays for a nudge. **`crossfade`, `scatter x/y`** rows exist now; *fondu* alone is a fade.
+    O-TextureForge found the glossary matched 3 of its 12 captions — **a 0 G1 on a page the
+    glossary barely covers is coverage, not a verdict**; read those captions by hand.
+29. **Two tooling traps from O-SpectralShaper, both caught by a control:** a `fr: {` inside a
+    COMMENT opened a line-scoped state machine 17 lines early and rewrote the version string
+    `v1.7.0` → `v1,7,0` under the decimal rule — skip comment lines and scope rewrites to the
+    STRING VALUE of a `t:`/`b:` pair; and a U+00A0 constant typed in a script can be an
+    ASCII space (or a NUL) — write `' '` and assert `ord(...) == 0xA0`.
+30. **Fourth and fifth header width defences proven backwards** (O-Gain's popover note,
+    O-Tapestop's *Suivi tonal* "97 px in an 88 px cell" — measured 91.97 px with 28 px clear
+    on each side because `.knob-label` is shrink-to-fit with `overflow: visible`). Score:
+    5 of 15 headers wrong about the string they defended; O-Bass, O-Tremolo, O-Bassoon,
+    O-SpectralShaper (and O-TextureForge on *Dispersion X*) held to the hundredth.
+    Also: **a renderer's bottom FLOOR can absorb a grown tip** and park it over the controls
+    above with `inFrame` still green (O-Gain, +440 chars) — read tip HEIGHTS before/after,
+    not only in-frame. And `.settings-toggle`'s `min-width: 40px` no longer covers *Marche* /
+    *Désactivée* on O-FreqPulse and O-SpectralShaper: the button resizes between its own
+    French faces, inside popover slack, both geometry gates green — a CSS decision recorded
+    in comments, not taken (item 40).
