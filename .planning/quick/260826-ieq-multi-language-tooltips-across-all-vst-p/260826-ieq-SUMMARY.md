@@ -6101,3 +6101,65 @@ spoken for; *En mode CUSTOM* on a page whose button reads PERSO; *matière* for 
 
 No native speaker; no DAW; Chromium only; Standalone stale; O-Marimba and O-Lyrica have no
 committed render gate (item 31: 10 of 27). Repo lint total **1215** (from 2145).
+
+# STAGE N — BATCH N6 COMPLETE, the O-simple* family, 6 of 6 — 33 of 43
+
+| Plugin | Version | Commit | Lint | Changed | Geometry | Probe |
+|---|---|---|---|---|---|---|
+| O-simpleBeatmaker | 1.1.1 | `768b07c7` (+`63935f5e`) | 42 → 0 | 32 of 81 | 0 → 0 at setSize; 128 → 128 at the 860×640 min (pre-existing) | 1352/1352, both frames |
+| O-simplePhysicalModelSynth | 1.2.1 | `efadae9c` | 49 → 0 | 33 of 77 | 0 → 0 | 305/305; render-harness ALL PASS |
+| O-simpleSubtractive | 1.3.1 | `2d7ee7f9` | 55 → 0 | 44 of 93 | 0 → 0; `.frame` 1118 held | 479/479 |
+| O-simpleAdditive | 1.1.1 | `3cc2e392` (+`3cc703c8`) | 58 → 0 | 52 of 84 | 0 → 0 | 630/630 |
+| O-simpleSampler | 1.4.2 | `e1684b33` (+`cff2d42a`) | 71 → 0 | 68 of 145 rows | 0 → 0; content 821.83 both | 37/37 ×2, seventh tour button binds |
+| O-simpleGrain | 1.4.1 | `dd69886e` | 92 → 0 | 59 of 115 | 0 → 0 after a caption rewrite | 372/372; harness 15/15 |
+
+Installed plists verified on all six; `boot-all-uis` 43/43 / 0 DEAD; `auval` PASS ×6. **Every
+straight apostrophe in the suite's straight-apostrophe family is gone** (T1: 246 → 46 — the
+rest are on N7–N9 plugins).
+
+## THE HEADLINE: the family's captions live 1–5 px from a wrap, and a wrap moves a rack
+
+O-simpleGrain's tour caption had 5.28 px of slack; the typographic apostrophe alone took
+it to 1.34, the terminology fix wrapped it, and assertion 7 reported **159 non-label
+elements moved** — the whole rack dropped 13.19 px. Reworded shorter with the same claim
+(805 px, 40.92 slack). O-simpleBeatmaker spent 10.39 of its 17.56 px of banked margin on
+the same kind of hint. These pages were designed to the pixel in English; French copy edits
+on them are geometry edits.
+
+## Same term, three verdicts
+
+*Relâchement* (77.33 px, measured identically on all three pages) fits O-simpleFM and
+O-simpleSubtractive with room and crosses O-simpleSampler's neighbour by 2.14 px. Same
+cell width class; different gaps. Correction 42: measure the gap, not the cell.
+
+## Meaning column, N6
+
+*chœur*-class errors continued: *fût* (a drum shell) for "the instrument" (O-simpleBeatmaker);
+*temps forts* (beats 1 and 3) for "the backbeat"; "the SAME buffer" and "single-cycle" and
+"individual grains" dropped; *soutenue* for *tenue* on a pad; both Scan-LFO bodies on
+O-simpleAdditive had lost the control they drive. Zero grammar defects on two pages —
+the drafts were sound where they were plain.
+
+## Defects found by reading French (items 53–58)
+
+53. **O-simplePhysicalModelSynth `stringModel` is a dead parameter** — never `load()`ed;
+    its tooltip still says the Waveguide "arrives in v1.1" on a 1.2.1 plugin.
+54. **`aria.helpToggle` says "Toggle tooltips" against a tip title "Hover help"** on
+    O-simplePhysicalModelSynth and O-simpleGrain — two English names for one control.
+55. O-simpleSampler: `tip.pitchMode` and `tip.lessonRepitchStretch` open with the identical
+    "The headline A/B."; `#pitchModeReadout` wraps to two lines in French in the Stretch
+    state, which no committed gate drives.
+56. **O-simpleBeatmaker at its 860×640 resize minimum moves 128 non-label elements between
+    languages** — pre-existing at v1.1.0 (two hints wrap), invisible to every gate because
+    the gates measure `setSize` only.
+57. O-simpleGrain `tests/i18n-states.json` names the wrong caption as the longest; the
+    actual longest French caption already wraps at v1.4.0 and shifts the rack 13.19 px in
+    a state no gate drives.
+58. **No focus latch on five pages** (O-Lyrica, O-Orbit, O-simpleSampler, O-simpleGrain,
+    O-simpleAdditive): `focusin` opens a tip unconditionally, so a click parks one. Item 44
+    widened.
+
+## Not verified
+
+No native speaker; no DAW; Chromium only; Standalone stale; none of the six has a
+committed render gate (item 31: 16 of 33). Repo lint total **833** (from 2145).
