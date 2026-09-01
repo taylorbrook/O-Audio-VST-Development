@@ -236,10 +236,19 @@
            rectangle language-invariant. Together they add 0.39 px, measured,
            and the title's two line boxes do not reflow.
 
-           Both French captions SHRINK (ENR 21.50 vs SAVE 26.83, LIRE 24.22 vs
-           LOAD 29.78), so unpinned these two contract by 10.89 px between them
+           Both French captions SHRINK (ENR 21.50 vs SAVE 26.83, OUV 23.17 vs
+           LOAD 29.78), so unpinned these two contract by 11.94 px between them
            and re-centre the bar. Removed alone, each reports the preset cluster
-           and the title as moved. */
+           and the title as moved.
+
+           v1.7.1 (Stage N): the Load caption was LIRE 24.22 through v1.7.0 and
+           the contraction was 10.89 px. `lire` is the glossary's forbidden word
+           for `load` — it means to read or to play — and the root term does not
+           fit: CHARGER 51.30, OUVRIR 41.34 and CHARG. 40.52 are all past this
+           44 px pin's 30.00 px content box. OUV is 23.17, 6.83 px spare, and
+           carries no period so label-in-name still holds against
+           aria.loadPreset's "Ouvrir un préréglage". THE PINS DO NOT MOVE: a
+           narrower French caption is exactly what they exist to absorb. */
         #preset-save,
         #preset-load {
             text-align: center;
@@ -375,11 +384,17 @@
            dx=0.50.
 
            THE OTHER FIVE ARE DELIBERATELY UNPINNED, and that is a measured
-           decision rather than an oversight: LOW CUT/COUPE-B., WET/EFFET,
+           decision rather than an oversight: LOW CUT/COUPE-B., WET/TRAITÉ,
            DRY/DIRECT, DECAY/DÉCLIN and SIZE/TAILLE are ALL under 52.00 in BOTH
            languages, so those boxes are 52.00 px either way and a width there
            would have a negative control that passes with nothing behind it.
-           Leaving them off is also what keeps cliff A observable. */
+           Leaving them off is also what keeps cliff A observable.
+
+           v1.7.1 (Stage N): WET's French was EFFET 30.52 through v1.7.0 and is
+           now TRAITÉ 36.80, the glossary's settled wet/dry against DIRECT. It
+           is still 15.20 px UNDER cliff A, so the claim above is unchanged and
+           this knob stays unpinned. SIGNAL TRAITÉ (77.16) would have been
+           25.16 px past the cliff and was rejected on that. */
 
         #CHARACTER-knob > .knob-label {
             width: 62px;
