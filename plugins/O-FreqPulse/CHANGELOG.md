@@ -2,6 +2,21 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.18.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+- **item 40 — hover-help toggle (`.settings-toggle`, `#tips-toggle`):** the button resized between its own two French faces — `min-width: 40px` (styles.css:924, border-box) covered *Off* / *On* (15.34 / 14.69 px of text) but not v1.18.1's *Arrêt* / *Marche* (25.52 / 36.97 px), so the button was content-sized at 43.52 px on *Arrêt* and 54.97 px on *Marche*, an 11.45 px jump every time hover help was toggled in French → `min-width: 57px`, the measured wider face plus 2.03 px slack. Every face now measures 57.00 px in both languages; the popover holds its 186 px and no non-label element moves. The CSS comment carries the four measured faces and the date.
+
+### Verification
+
+- Toggle-width probe (scratchpad, live node, 850 × 550, `Range.selectNodeContents` + `getBoundingClientRect`): **before** fr Arrêt 43.52 / Marche 54.97 (FAIL, Δ 11.45), en 40 / 40; **after** all four faces 57.00 (PASS), popover 186 before and after in both languages.
+- `node scripts/check-ui-labels.js --plugin O-FreqPulse` — ALL CHECKS PASSED, 0 non-label elements moved between English and French, before and after, all six states.
+- `node scripts/check-i18n.js --plugin O-FreqPulse` — ALL CHECKS PASS. `node scripts/i18n-fr-lint.js --plugin O-FreqPulse --strict` — exit 0 (no French changed).
+- `node scripts/boot-all-uis.js` — 43/43, 0 DEAD, O-FreqPulse late count unchanged.
+- `auval -v aufx OFPu OuDv` — PASS; installed `Info.plist` reads 1.18.2; `min-width: 57px` is in the installed bundle.
+
 ## [1.18.1] - 2026-08-31
 
 PATCH: the French copy is revised — a second reading of all 67 machine drafts against the suite glossary and lint. No English copy, no keys, no bindings, no CSS, no audio-path, parameter or DSP changes.

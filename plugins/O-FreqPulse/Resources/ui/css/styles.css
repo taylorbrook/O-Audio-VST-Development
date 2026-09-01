@@ -909,19 +909,25 @@ html, body {
 
 /* Same engaged/idle pair as the gear, in a pill rather than a circle so the
    On/Off caption fits. min-width covers the widest of the four faces across both
-   languages — On / Off / Oui / Non — so switching either the state or the
-   language cannot resize the row.
-   v1.18.1 BREAKS THAT INVARIANT, stated rather than left to be discovered. The
-   Stage N glossary settles On/Off as Marche/Arrêt (Oui/Non are answers, not
-   states), and Marche measures 36.97px against this 22px content box, so the
-   button leaves its min-width and becomes content-sized: 54.97px on Marche,
-   43.52px on Arrêt. It grows LEFTWARD inside a right-anchored popover, so no
-   non-label element moves and the popover holds its 186px — but the button now
-   resizes 11.45px between its own two French faces. Raising min-width to 55px
-   would restore the claim; that is a layout decision and a copy pass did not
-   take it. */
+   languages so switching either the state or the language cannot resize the row.
+   v1.18.2 (Stage O item 40, 2026-08-31): the pin is 57px, MEASURED on the live
+   node at the 850x550 frame (box-sizing: border-box, so the pin is on the
+   border box: 1px border + 8px padding each side = 18px around the text):
+     Off    15.34px text -> 40.00 border-box at the old 40px pin
+     On     14.69px text -> 40.00
+     Arrêt  25.52px text -> 43.52 (content-sized: the old pin was exceeded)
+     Marche 36.97px text -> 54.97 (content-sized)
+   v1.18.1's Marche/Arrêt (the Stage N glossary; Oui/Non are answers, not
+   states) had the button resizing 11.45px between its own two French faces
+   under the old 40px pin. 57 = 54.97 + 2.03px slack; every face now measures
+   57.00 in both languages, and the row's arithmetic still fits the popover:
+   76.55 (Aide au survol) + 12 gap + 57 = 145.55 in the 162px content box, so
+   the popover holds its 186px min-width and nothing outside the button moves
+   (check-ui-labels: 0 non-label elements moved, both languages, before and
+   after). The button grows LEFTWARD inside the right-anchored popover; its
+   right edge stays at 824. This is the only .settings-toggle on the page. */
 .settings-toggle {
-    min-width: 40px;
+    min-width: 57px;
     padding: 2px 8px;
     flex: 0 0 auto;
     border: 1px solid var(--border-accent);
