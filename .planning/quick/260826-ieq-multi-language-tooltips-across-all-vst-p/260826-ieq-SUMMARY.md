@@ -5809,3 +5809,70 @@ the accessible name read the table, and a screen reader handed `VITESSE` may spe
   `measureText` (2.75 px, identical to the ASCII space; a U+FFFF probe at 7.944 proves tofu
   would have been visible) and by grep in the binary. Nobody has seen it rendered.
 - Repo lint total after N1 and the three fixes: **1835** (from 2145).
+
+# STAGE N — BATCH N2 COMPLETE, 6 of 6
+
+| Plugin | Version | Commit | Lint | Changed | Geometry | Render |
+|---|---|---|---|---|---|---|
+| O-AnalogSaturation | 1.3.1 | `d793390e` | 6 → 0 | 5 of 15 | 0 → 0 | 31/31 |
+| O-Bass | 1.5.1 | `506e6541` (+`86dae51d`) | 12 → 0 | 9 of 24 | 0 → 0 | 125/125 |
+| O-Texture | 0.3.1 | `8fad691a` | 13 → 0 | 10 of 26 | 0 → 0 | 208/208 |
+| O-Polystutter | 1.14.1 | `911a516e` (+`638c9a79`) | 15 → 0 | 15 of 133 rows | 0 → 0 | probe 34/34, 105 anchors |
+| O-Tremolo | 1.8.1 | `d0bc5840` (+`5fe568b6`) | 14 → 0 | 11 of 29 | 0 → 0 | 186/186 |
+| O-AnalogEQ | 1.3.1 | `04ac4aaf` (+`32759a48`) | 20 → 0 | 14 of 43 | 0 → 0 | 308/308 |
+
+Nine plugins done. Repo lint total **1835 → 1755 → (after N2) see below**; `boot-all-uis`
+43/43 / 0 DEAD on every run; `auval` PASS on all six.
+
+## The brief was wrong about `sameAsEn`
+
+It said `termNote` was the only key an executor would add. O-Texture applied the glossary's
+*Mix* to a caption that had read *Mélange*, the French became a straight copy of the
+English, and `check-i18n` assertion 4 hard-failed until `sameAsEn: true` was added. That
+key is the existing, correct declaration — the brief now says so (correction 15), and the
+lint's straight-copy census counts the CONDITION (`fr === en`: 327 suite-wide, 219
+flagged) instead of the flag, which had printed 0 on a page that had one (`a43233dd`,
+`b43f763f`).
+
+## Glossary growth, all from measurements
+
+`enr` for *save* (O-Bass, a 28 px content box); `sync tempo` and a `pan sync` row
+(O-Tremolo — the lint had flagged exactly half of a matched pair). No settled term was
+wrong; two were declined in BODIES for context and recorded in headers rather than
+exempted (*gain d'entrée* on a plugin named for saturation; *filtre en bascule* for a tilt
+filter that is described, not captioned).
+
+## Third header defence proven backwards; two held
+
+O-AnalogEQ's ENREG. is 3.75 px narrower than the SAUVER its header defended. O-Bass's and
+O-Tremolo's headers re-measured to the hundredth. Running score: 3 of 9 headers wrong about
+the string they defended, 0 of 9 wrong about the numbers they recorded.
+
+## Meaning defects the lint cannot see — the category that justifies the stage
+
+Omissions: O-Texture restored a closing range the draft had dropped; O-AnalogSaturation
+restored DIODE's "harder". Wrong claims: *un clic à côté* (next to) for "a click
+elsewhere"; *pendant ce temps* (meanwhile) for a condition; *replier du repliement*
+(folding the folding); *discret* (unobtrusive) for "quiet"; *séparer … entre* (calque);
+*sous les boutons* on pages that have both buttons and knobs. **Twelve meaning fixes across
+six plugins**, zero of them visible to any gate.
+
+## English defects found by reading French
+
+- **O-Polystutter `midi` body**: says C1–B1 trigger lanes 1–4 and any other note triggers
+  all; `TriggerRouter.cpp:76-85` routes notes 60–63 and only 67 triggers all. The source
+  comment is wrong too. Item 34.
+- **O-Tremolo `tip.panSync`**: says a stereo *signal* is needed; the gate is on the bus
+  (`PluginProcessor.cpp:345` duplicates mono into channel 1 on a 1→2 bus). Item 35.
+- O-Bass's `.meter-label` 24 px guard, declared decorative at v1.4.0, is load-bearing now
+  (planting its removal fails assertion 7). Comment corrected.
+
+## Decision items added
+
+34. O-Polystutter MIDI tooltip states the wrong notes in both languages.
+35. O-Tremolo Pan Sync tooltip states a signal condition where the code has a bus condition.
+
+## Not verified
+
+No native speaker; no DAW; Chromium only; the Standalone stale on all six. O-Polystutter
+has no committed render gate (item 31 — now 2 of 9 in this stage).

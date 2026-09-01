@@ -330,3 +330,32 @@ numbers in the batch table are pre-fix.**
 19. **A French body that DROPPED a clause the English has is a meaning defect** — O-Texture
     restored a closing range ("De 0,00 à 1,00.") the draft had lost; O-AnalogSaturation
     restored DIODE's "harder". Read for omissions, not only for errors.
+
+## From N2 complete (6 of 6: + O-Polystutter `911a516e`, O-Tremolo `d0bc5840`, O-AnalogEQ `04ac4aaf`)
+
+20. **Third header width defence proven backwards.** O-AnalogEQ's v1.3.0 header defended
+    SAUVER on width; ENREG. measures 35.50 px against SAUVER's 39.25 — 3.75 px narrower.
+    Three of nine plugins so far. O-Bass's and O-Tremolo's headers held to the hundredth.
+    The rule stands: re-measure, never inherit.
+21. **Label-in-name (WCAG 2.5.3) decides the PERIOD on a narrow abbreviation.** O-Bass and
+    O-Tremolo both shipped `OUV` / `ENR` without the period: `Ouv` ⊂ *Ouvrir un préréglage
+    depuis un fichier* and `Enr` ⊂ *Enregistrer les réglages actuels*, while `Ouv.` and
+    `Enreg.` are not substrings. The glossary's trailing-period normalisation accepts both.
+    On a 420–600 px frame, prefer the period-less form when it closes label-in-name.
+22. **The glossary gained `enr` (save), `sync tempo` (tempo sync) and a `pan sync` row.**
+    O-Tremolo found the lint flagging exactly half of a matched pair (`SYNC PAN` / `SYNC
+    TEMPO`, *Synchro Tempo* 51.30 px in a 42 px `overflow: hidden` box). Two termNotes on
+    that plugin are now redundant; harmless, and the next executor on it may drop them.
+23. **A body's terminology can be settled by its own caption.** O-Polystutter tied *à la
+    main* → *manuellement* to the MAN/Manuel caption; O-Bass moved *bulle d'aide* to the
+    *aide au survol* 21 siblings use. Read the body against the captions on the same page.
+24. **Pointer-unreachable anchors are the shipped default on tabbed/lane pages** — 81 of 105
+    on O-Polystutter at rest. A scratchpad probe pins the rest state and drives out through
+    the page's own controls (M2 trap 5), never by stripping a class.
+25. **Dispatch correction:** the `TIGHT` clip on O-AnalogEQ is item 10 of the M brief's
+    "DECISION ITEMS — added by M2" (line ~1212), not item 10 of the M2 corrections list.
+    Two English tooltip defects were found by reading the French — O-Polystutter's MIDI body
+    (says C1–B1 / any other note; the router takes notes 60–63 and only 67 triggers all)
+    and O-Tremolo's `tip.panSync` (says a stereo *signal* is needed; the gate is on the
+    *bus*, and a mono source on a stereo bus hears it). Decision items 34 and 35. Neither
+    language was changed.
