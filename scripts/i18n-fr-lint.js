@@ -191,7 +191,9 @@ async function lintPlugin(name) {
         // (O-Texture pilot, tip.mode). Both are listed; the unflagged ones are
         // the ones check-i18n assertion 4 will refuse once they are LABELS or
         // once a tooltip's body matches too.
-        if (norm(r.fr) === norm(r.en)) info.sameAsEn.push({ ...r, flagged: r.frObj.sameAsEn === true || r.bodyTranslated === true });
+        // Byte compare, like check-i18n assertion 4: 'Exp' vs 'Exp.' is NOT a copy
+        // and must not be told to take a flag (O-Bells N9).
+        if (String(r.fr).trim() === String(r.en).trim()) info.sameAsEn.push({ ...r, flagged: r.frObj.sameAsEn === true || r.bodyTranslated === true });
         // A termNote is THE reasoned exemption, and it exempts the entry from
         // both term checks — G1 and F1. The first draft guarded only G1, so an
         // entry was printed as EXEMPT and counted as an F1 finding in the same
