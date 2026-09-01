@@ -496,7 +496,16 @@ body {
    The row CAN afford it: group-row 1 is already 129.9px tall in both languages
    because the Spectral group's "Spectral Decay" wraps, so this costs row 1
    nothing; group-row 2 grows 10.4px, and the frame has ~33px of slack
-   (content 891 in 924 usable). Measured after: content 902 in 924. */
+   (content 891 in 924 usable). Measured after: content 902 in 924.
+
+   v1.1.1 (Stage N) — the two captions this comment names were revised to the
+   suite glossary's terms and the rule is unchanged, but the strings are not:
+   "Vitesse LFO" is now "Vitesse du LFO", which wraps VITESSE / DU LFO at the
+   same 42.20px max line width, and "Ampleur LFO" is now "Profondeur du LFO"
+   (69.36px, two lines, shrink-to-fit with overflow visible — 5.68px past each
+   side of the 58px cell, clear of both neighbours). The reserved two lines
+   still absorb both, and check-ui-labels still reports 0 non-label elements
+   moved between the two languages. */
 .knob-label {
   font-size: 9.5px;
   text-transform: uppercase;
@@ -558,7 +567,14 @@ body {
    shrink-wrapping its six buttons, whose captions are 386.6px of text in
    English and 428.3px in French. Both are [data-i18n] elements and excluded
    from the geometry diff; their CONTAINER was not, and was reported moving
-   dx=80.3 dw=41.7. The caption stays on line 2, right-aligned, in both. */
+   dx=80.3 dw=41.7. The caption stays on line 2, right-aligned, in both.
+
+   v1.1.1 (Stage N) — the French caption inside that pin is "Leçons" (46.09px),
+   not the "Préréglages" (83.8px) this comment was written for: the glossary
+   accepts "Leçons" for "Lesson Presets" and "Préréglages" alone was not one of
+   its renderings. The pin is what makes the swap free — 46.09px and 83.8px
+   both sit inside the same 99px box, so neither the button group nor the
+   caption moves. */
 .tour-label {
   flex: 0 0 99px;
   font-size: 10px;
