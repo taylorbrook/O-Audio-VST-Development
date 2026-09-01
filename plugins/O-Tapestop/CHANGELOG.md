@@ -2,6 +2,40 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.6.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **21 French entries revised** against the suite glossary and lint (20 lint
+  findings → 0): terminology (`Dosage` → `Mix`, `Synchronisé` → `Synchro`,
+  `Suivi tonal` → `Suivi de timbre`, `Mode de synchronisation` → `Mode de
+  synchro`), typography (no-break spaces before `;` `?` `:` and between every
+  number and its unit — `20 Hz`, `150 Hz`, `+12 dB`), agreement and register
+  (`Verrouillée` → `Verrouillé`, and the two imperative tooltip bodies moved to
+  the infinitive the rest of the page already used), and two meaning fixes: the
+  Motion Depth tip said "deux centièmes de dérive" where the English means two
+  musical *cents*, and the Preset tip translated four dropdown headings that are
+  hard-coded English on the page, so a French user would have gone looking for
+  headings that are not there.
+- **`Suivi de timbre` is back on the TONE TRACK caption.** v1.6.0 replaced it
+  with `Suivi tonal` on a width claim ("97 px in an 88 px knob cell"). Measured
+  at the shipping frame the string is 91.97 px, and `.knob-label` is
+  shrink-to-fit with `overflow: visible`, so the cell is not the constraint: the
+  caption centres inside `.group-output`'s padding box with 28.02 px clear on
+  each side. No CSS changed.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Not changed
+
+- `reviewed: false` stays on all 74 entries. That flag means a native speaker
+  read the entry; this was a second machine reading against a glossary and a
+  lint, and the file header records it instead.
+- No English copy, no keys, no tip bindings, no selectors, no CSS.
+
 ## [1.6.0] — 2026-08-27 — the page itself speaks French, not only its hover help
 
 v1.5.0 shipped French tooltips over English labels, and its own `lang-select`
