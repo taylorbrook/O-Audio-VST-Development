@@ -605,6 +605,13 @@ async function selfTest() {
     }
     console.log(`  straight copies zh === en (info): ${sameAsEnTotal}   termNote exemptions (info): ${termNoteTotal}`);
     console.log(`  BELOW SHIP BAR — entries at reviewed:'mt' (machine draft, unchecked): ${mtTotal}`);
+    // Z6's coverage is DISCLOSED, never silent. A rule that is inert on 549 of
+    // 552 terms and does not say so is the "gate goes green on unchecked
+    // content" failure this whole rollout exists to prevent.
+    const glossaryTerms = Object.keys(G.TERMS);
+    const budgeted = glossaryTerms.filter((t) => G.TERM_META[t] && G.TERM_META[t].maxChars !== null).length;
+    const unbudgeted = glossaryTerms.length - budgeted;
+    console.log(`  Z6 coverage: ${budgeted} of ${glossaryTerms.length} glossary terms carry a measured budget; ${unbudgeted} are UNBUDGETED and Z6 is inert on them — Stages 2-4 fill these from the check-ui-labels zh arm`);
     console.log(`  codes: Z1 ASCII punctuation  Z2 U+00A0 before punctuation  Z3 Traditional-only  Z4 Latin/CJK spacing  Z5 glossary  Z6 budget  Z7 full-width Latin  F1 forbidden  R1 reviewed enum`);
     console.log(`\nREPORT ONLY — exit 0. This becomes a gate (exit 2) once the O-Chorus pilot is at zero findings.`);
 })();
