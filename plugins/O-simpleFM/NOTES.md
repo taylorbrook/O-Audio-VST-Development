@@ -27,7 +27,7 @@ None. All findings from the 2026-07-15 full-plugin code review (CODE_REVIEW.md: 
 
 ## Additional Notes
 
-Deliberately simple 2-operator **phase-modulation** synth built for teaching FM. One carrier, one modulator, C:M ratio, raw radian modulation index (0–20), DX7-style self-feedback, independent mod + amp ADSRs (mod env → index is the headline feature). 16-voice polyphony. WebView UI with first-class teaching visuals: live spectrum analyzer (4096/Blackman-Harris FFT), oscilloscope, operator routing diagram, per-parameter hover tooltips, educational preset tour.
+Deliberately simple 2-operator **phase-modulation** synth built for teaching FM. One carrier, one modulator, M:C ratio (modulator = carrier × ratio), raw radian modulation index (0–20), DX7-style self-feedback, independent mod + amp ADSRs (mod env → index is the headline feature). 16-voice polyphony. WebView UI with first-class teaching visuals: live spectrum analyzer (4096/Blackman-Harris FFT), oscilloscope, operator routing diagram, per-parameter hover tooltips, educational preset tour.
 
 Key Stage 0 decisions: PM not true FM; raw radian index exposed; 16 voices; anti-aliasing via sine LUT + key-tracked index ceiling + 2× polyphase-IIR oversampling (4× + band-limited wavetables only for opt-in non-sine operators). Real-time-safe lock-free `AbstractFifo` audio→UI tap; FFT on message-thread Timer.
 

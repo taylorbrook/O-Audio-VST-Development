@@ -357,7 +357,7 @@ body {
   color: var(--brown-text);
   letter-spacing: 0.5px;
   white-space: nowrap;
-  cursor: help;   /* hoverable: explains the C:M ratio and modulation index */
+  cursor: help;   /* hoverable: explains the M:C ratio and modulation index */
 }
 .routing-meta {
   font-size: 10px;

@@ -60,7 +60,7 @@ OSimpleFMAudioProcessor::createParameterLayout()
 
     //--- Core FM controls --------------------------------------------------
     params.push_back (std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { ratio, 1 }, "Ratio (C:M)",
+        juce::ParameterID { ratio, 1 }, "Ratio (M:C)",
         juce::NormalisableRange<float> { 0.5f, 16.0f, 0.01f }, 1.0f));
 
     params.push_back (std::make_unique<juce::AudioParameterBool>(

@@ -18,7 +18,28 @@
    along with this program.  If not, see https://www.gnu.org/licenses/ .
 */
 // ============================================================================
-// i18n.js — O-simpleFM interface copy, English + French (v1.3.1)
+// i18n.js — O-simpleFM interface copy, English + French (v1.3.2)
+//
+// ── v1.3.2: RATIO LABELS READ M:C (Stage O, item 30, 2026-08-31) ──────────
+// FMVoice.h:210 — `const double fm = fixedMode ? (double) fixedHz :
+// (carrierHz * ratioCur);` — the knob is the MODULATOR-to-carrier ratio, and
+// the English labels said C:M. Changed, EN then FR, both in this commit:
+//   ratio.t          "Ratio (C : M)"     -> "Ratio (M : C)"
+//                    "Rapport (P : M)"   -> "Rapport (M : P)"
+//   label.knobRatio  "Ratio C:M"         -> "Ratio M:C"        (53.17 px both, same glyphs reordered; fr 67.38)
+//                    "Rapport P:M"       -> "Rapport M:P"
+//   ratioSnap.b      "the C:M ratio"     -> "the M:C ratio"    / "le rapport M:P"
+//   readout.b        "the C : M ratio"   -> "the M : C ratio"  / "le rapport M : P"
+//   lessonEpiano.b, lessonBrass.b, lessonClarinet.b
+//                    "Carrier:modulator" -> "Modulator:carrier" / "Modulateur:porteuse"
+//     (1:1 is direction-neutral on E-Piano and Brass; Clarinet's "2:1" was the
+//     one that contradicted the code — ratio 2.0 puts the modulator at TWICE the
+//     carrier, which is what makes the odd-harmonic claim true.)
+// The tip BODY ("Frequency of the modulator relative to the carrier") and the
+// automation-lane name in PluginProcessor.cpp:63 ("Ratio (M:C)") follow; the
+// parameter ID "ratio" is unchanged, sessions load. French: P = porteuse
+// (Stage K's letter, kept), only the order swapped; the seven fr entries touched
+// are reviewed: false again for the developer to re-read.
 //
 // ── v1.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -74,22 +95,23 @@
 //    (short) form for "lesson presets", and the root "Préréglages de leçon"
 //    wraps to two lines inside the 99 px .tour-label pin (max line 83.8 px),
 //    which would grow the tour row.
-//  - "Rapport", NOT "Ratio", for the C:M ratio. The glossary settles Ratio ->
+//  - "Rapport", NOT "Ratio", for the M:C ratio. The glossary settles Ratio ->
 //    Ratio for the DYNAMICS control (it sits in the dynamics block, beside
-//    Seuil and Coude); this is a frequency ratio, where "rapport C:M" is the
+//    Seuil and Coude); this is a frequency ratio, where "rapport M:P" is the
 //    French of the FM literature. The lint agrees — it keys on the full English
-//    caption, and "ratio (c : m)" is not in TERMS.
+//    caption, and "ratio (m : c)" is not in TERMS.
 //  - "hauteur définie" REPLACED "accordé" for "pitched" in four bodies. An
 //    inharmonic bell is not out of tune; it has no definite pitch, and that
 //    distinction is the lesson this plugin teaches.
-//  - THE C:M ORDERING IS THE ENGLISH'S, AND THE ENGLISH IS INVERTED. FMVoice.h:210
+//  - THE C:M ORDERING WAS THE ENGLISH'S, AND THE ENGLISH WAS INVERTED. FMVoice.h:210
 //    computes fm = carrierHz * ratio, so the knob is the MODULATOR-to-carrier
 //    ratio: at 2.00 the modulator runs at twice the carrier, which is C:M = 1:2.
 //    The tip BODY ("Fréquence du modulateur par rapport à la porteuse") and the
-//    Clarinet lesson's odd-harmonic claim are both correct under that reading;
+//    Clarinet lesson's odd-harmonic claim were both correct under that reading;
 //    only the "C : M" ordering in the caption, the tip title and the automation
-//    name is backwards. Stage N does not change English — the French mirrors it
-//    deliberately, and the defect is reported.
+//    name was backwards. Stage N did not change English — the French mirrored it
+//    deliberately and the defect was reported; v1.3.2 (Stage O, block above)
+//    fixed both languages.
 //
 // UI ROOT IS Source/ui/public. There is no second UI root in this plugin. This
 // file is a SOURCES entry in juce_add_binary_data(O-simpleFM_UIResources) and is
@@ -150,8 +172,8 @@
 // LABELS NEVER REUSE A TOOLTIP KEY for a caption. trLabel() falls back to I18N,
 // and three of this page's captions do happen to equal their tip title today
 // ("Feedback", "Ratio Snap", "Fixed Mode") — but most do not ("Level" vs
-// "Output Level", "Fixed Hz" vs "Fixed Modulator Hz", "Ratio C:M" vs
-// "Ratio (C : M)"), and a rule that holds for three of nineteen is a rule nobody
+// "Output Level", "Fixed Hz" vs "Fixed Modulator Hz", "Ratio M:C" vs
+// "Ratio (M : C)"), and a rule that holds for three of nineteen is a rule nobody
 // can apply. A caption and a tip title also diverge the moment either is edited,
 // which would make a tooltip copy edit a silent geometry change to a control.
 // The ONE place the fallback is used on purpose is data-i18n-aria on the fifteen
@@ -196,11 +218,11 @@ export const I18N = Object.freeze({
 
     // ── Operators ───────────────────────────────────────────────────────────
     ratio: {
-        en: { t: "Ratio (C : M)",
+        en: { t: "Ratio (M : C)",
               b: "Frequency of the modulator relative to the carrier. Whole-number ratios (1, 2, 3...) give harmonic, pitched timbres; irrational ratios (1.41, 2.76) give inharmonic, bell-like tones." },
-        fr: { t: "Rapport (P : M)",
+        fr: { t: "Rapport (M : P)",
               b: "Fréquence du modulateur par rapport à la porteuse. Les rapports entiers (1, 2, 3...) donnent des timbres harmoniques, à hauteur définie ; les rapports irrationnels (1,41 ; 2,76) donnent des sons inharmoniques, proches de la cloche.",
-              reviewed: true },
+              reviewed: false },
     },
     modIndex: {
         en: { t: "Modulation Index",
@@ -310,10 +332,10 @@ export const I18N = Object.freeze({
     // ── Toggles ─────────────────────────────────────────────────────────────
     ratioSnap: {
         en: { t: "Ratio Snap",
-              b: "Quantises the C:M ratio to whole numbers — instantly snaps an inharmonic tone to a harmonic one." },
+              b: "Quantises the M:C ratio to whole numbers — instantly snaps an inharmonic tone to a harmonic one." },
         fr: { t: "Rapport entier",
-              b: "Arrondit le rapport P:M à des nombres entiers — ramène instantanément un son inharmonique vers un son harmonique.",
-              reviewed: true },
+              b: "Arrondit le rapport M:P à des nombres entiers — ramène instantanément un son inharmonique vers un son harmonique.",
+              reviewed: false },
     },
     modFixedMode: {
         en: { t: "Fixed Mode",
@@ -336,10 +358,10 @@ export const I18N = Object.freeze({
     },
     readout: {
         en: { t: "Live FM Readout",
-              b: "The two numbers that define the tone, updating as you play. Left — the C : M ratio: the modulator's frequency relative to the played note, which sets which harmonics appear (whole numbers = pitched, irrational = bell-like). Right — I, the modulation index: how hard the modulator bends the carrier, which sets the brightness (more index = more sidebands)." },
+              b: "The two numbers that define the tone, updating as you play. Left — the M : C ratio: the modulator's frequency relative to the played note, which sets which harmonics appear (whole numbers = pitched, irrational = bell-like). Right — I, the modulation index: how hard the modulator bends the carrier, which sets the brightness (more index = more sidebands)." },
         fr: { t: "Affichage FM en direct",
-              b: "Les deux nombres qui définissent le timbre, mis à jour pendant le jeu. À gauche — le rapport P : M, la fréquence du modulateur par rapport à la note jouée, qui détermine quelles harmoniques apparaissent (entiers = hauteur définie, irrationnels = son de cloche). À droite — I, l’indice de modulation : à quel point le modulateur infléchit la porteuse, ce qui détermine la brillance (indice plus élevé = plus de bandes latérales).",
-              reviewed: true },
+              b: "Les deux nombres qui définissent le timbre, mis à jour pendant le jeu. À gauche — le rapport M : P, la fréquence du modulateur par rapport à la note jouée, qui détermine quelles harmoniques apparaissent (entiers = hauteur définie, irrationnels = son de cloche). À droite — I, l’indice de modulation : à quel point le modulateur infléchit la porteuse, ce qui détermine la brillance (indice plus élevé = plus de bandes latérales).",
+              reviewed: false },
     },
     // MOVED from the native title= on #carrierNullBadge, verbatim, entities
     // decoded. The zero-width space inside "f\u200bc" is authored: it lets the
@@ -357,10 +379,10 @@ export const I18N = Object.freeze({
     // after it, for the same reason the button faces are exempt below.
     lessonEpiano: {
         en: { t: "E-Piano · how it's built",
-              b: "Carrier:modulator 1:1 (harmonic). A fast mod-envelope (decay 0.45 s → zero sustain) sweeps the index down from 5.5, so a bright pluck attack collapses to a near-pure sine as it rings. Velocity adds index — strike harder, sound brighter." },
+              b: "Modulator:carrier 1:1 (harmonic). A fast mod-envelope (decay 0.45 s → zero sustain) sweeps the index down from 5.5, so a bright pluck attack collapses to a near-pure sine as it rings. Velocity adds index — strike harder, sound brighter." },
         fr: { t: "E-Piano · comment il est fait",
-              b: "Porteuse:modulateur 1:1 (harmonique). Une enveloppe de modulation rapide (déclin 0,45 s → maintien nul) fait descendre l’indice depuis 5,5 : une attaque pincée brillante s’effondre vers une sinusoïde presque pure pendant que la note sonne. La vélocité ajoute de l’indice — plus on frappe fort, plus le son est brillant.",
-              reviewed: true },
+              b: "Modulateur:porteuse 1:1 (harmonique). Une enveloppe de modulation rapide (déclin 0,45 s → maintien nul) fait descendre l’indice depuis 5,5 : une attaque pincée brillante s’effondre vers une sinusoïde presque pure pendant que la note sonne. La vélocité ajoute de l’indice — plus on frappe fort, plus le son est brillant.",
+              reviewed: false },
     },
     lessonTubular: {
         en: { t: "Tubular Bell · how it's built",
@@ -371,17 +393,17 @@ export const I18N = Object.freeze({
     },
     lessonBrass: {
         en: { t: "Brass · how it's built",
-              b: "Carrier:modulator 1:1 (harmonic). The index (4) swells in with the attack and holds at sustain — brightness tracks loudness, the way a blown brass note brightens as it gets louder." },
+              b: "Modulator:carrier 1:1 (harmonic). The index (4) swells in with the attack and holds at sustain — brightness tracks loudness, the way a blown brass note brightens as it gets louder." },
         fr: { t: "Brass · comment il est fait",
-              b: "Porteuse:modulateur 1:1 (harmonique). L’indice (4) enfle avec l’attaque et tient au niveau de maintien — la brillance suit le volume, comme une note de cuivre qui s’éclaircit à mesure qu’on souffle plus fort.",
-              reviewed: true },
+              b: "Modulateur:porteuse 1:1 (harmonique). L’indice (4) enfle avec l’attaque et tient au niveau de maintien — la brillance suit le volume, comme une note de cuivre qui s’éclaircit à mesure qu’on souffle plus fort.",
+              reviewed: false },
     },
     lessonClarinet: {
         en: { t: "Clarinet · how it's built",
-              b: "Carrier:modulator 2:1. A low index (2.2) keeps the spectrum sparse, and the 2:1 ratio emphasises odd harmonics → the hollow, stopped-pipe woody tone. High sustain, so it speaks steadily like a reed." },
+              b: "Modulator:carrier 2:1. A low index (2.2) keeps the spectrum sparse, and the 2:1 ratio emphasises odd harmonics → the hollow, stopped-pipe woody tone. High sustain, so it speaks steadily like a reed." },
         fr: { t: "Clarinet · comment il est fait",
-              b: "Porteuse:modulateur 2:1. Un indice faible (2,2) garde le spectre clairsemé, et le rapport 2:1 met en avant les harmoniques impaires → le timbre creux et boisé du tuyau bouché. Maintien élevé : le son parle de façon régulière, comme une anche.",
-              reviewed: true },
+              b: "Modulateur:porteuse 2:1. Un indice faible (2,2) garde le spectre clairsemé, et le rapport 2:1 met en avant les harmoniques impaires → le timbre creux et boisé du tuyau bouché. Maintien élevé : le son parle de façon régulière, comme une anche.",
+              reviewed: false },
     },
     lessonClang: {
         en: { t: "Clang Bell · how it's built",
@@ -502,8 +524,8 @@ export const LABELS = Object.freeze({
     // the amplitude rack: the two racks show the same four words, and two keys
     // per word would be two translations to keep in step.
     'label.knobRatio': {
-        en: { t: "Ratio C:M" },
-        fr: { t: "Rapport P:M", reviewed: true },
+        en: { t: "Ratio M:C" },
+        fr: { t: "Rapport M:P", reviewed: false },
     },
     'label.knobModIndex': {
         en: { t: "Mod Index" },

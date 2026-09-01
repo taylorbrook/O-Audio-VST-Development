@@ -3,6 +3,43 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.2] — 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+- **item 30 — the ratio labels read M:C, the direction the voice computes.**
+  `FMVoice.h:210` is `const double fm = fixedMode ? (double) fixedHz :
+  (carrierHz * ratioCur);` — the modulator runs at carrier × ratio, so the knob
+  is the MODULATOR-to-carrier ratio, and every label said the opposite. Changed
+  in both languages, same commit: the knob caption **Ratio C:M → Ratio M:C**
+  (*Rapport P:M → Rapport M:P*), the tip title **Ratio (C : M) → Ratio (M : C)**
+  (*Rapport (P : M) → Rapport (M : P)*), the Ratio Snap and Live FM Readout tip
+  bodies (*the C:M ratio → the M:C ratio*), and the E-Piano / Brass / Clarinet
+  lesson openings (*Carrier:modulator → Modulator:carrier*; 1:1 is direction-
+  neutral, Clarinet's "2:1" was the one that contradicted the code — the preset
+  sets ratio 2.0, the modulator at twice the carrier, which is exactly what makes
+  its odd-harmonic claim true). The tip body ("Frequency of the modulator
+  relative to the carrier") was already right and is unchanged.
+- **The automation-lane name** (`PluginProcessor.cpp:63`) is now `Ratio (M:C)`.
+  The parameter ID `ratio` and its range are unchanged — saved sessions and
+  presets load exactly as before; only the host's lane label changes.
+- Source comments that carried the same inversion: `PluginProcessor.h` ParamIDs,
+  the three `FactoryPresets.cpp` preset headers, the `.routing-readout` CSS
+  comment, NOTES.md's description.
+
+### Verified
+- Caption width unchanged by construction (same glyphs, reordered): *Ratio M:C*
+  53.17 px, *Rapport M:P* 67.38 px in the 9.5 px uppercase caption, identical
+  before and after; `check-ui-labels` 0 non-label elements moved in all four
+  states, PASS/FAIL lines byte-identical to the 1.3.1 baseline. `check-i18n`
+  PASS; `i18n-fr-lint --strict` CLEAN; `boot-all-uis` 43/43, 0 DEAD, no late
+  binding on this plugin. A scratchpad hover probe on the ratio anchor fails 4
+  assertions on 1.3.1 and passes all 15 here (title and body differ by language,
+  tip inside the 760 × 980 frame). `tests/render-harness` ALL PASS with the same
+  numbers as 1.3.1 (label-only change; rms 0.4454, carrier-null ratio 0.0001).
+- The seven French entries touched are `reviewed: false` again for re-reading.
+
 ## [1.3.1] — 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout — a second reading of
