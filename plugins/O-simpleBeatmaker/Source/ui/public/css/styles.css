@@ -231,6 +231,31 @@ body {
   background-repeat: no-repeat;
 }
 .settings-select:focus { outline: none; border-color: var(--green-mid); }
+
+/* The hover-help switch (v1.2.0). The selector's paper, 1.5px rule and radius
+   at rest; the gear's --btn-active lit state when pressed. min-width, never
+   width, for the same reason as the selector above. */
+.settings-toggle {
+  font-family: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--brown-text);
+  background: var(--bg-paper);
+  border: 1.5px solid var(--brown-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  min-width: 96px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.settings-toggle:hover { border-color: var(--green-mid); }
+.settings-toggle[aria-pressed="true"] {
+  color: var(--green-darkest);
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+}
+.settings-toggle:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
 .tr-item { color: var(--brown-text); }
 /* Three pins, per ELEMENT rather than per class (batch I2 lesson 8): the strip
    sits at the right-hand end of a space-between header, so every pixel it loses

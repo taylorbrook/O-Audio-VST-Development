@@ -18,7 +18,7 @@
    along with this program.  If not, see https://www.gnu.org/licenses/ .
 */
 // ============================================================================
-// i18n.js — O-simpleBeatmaker interface copy, English + French (v1.1.1)
+// i18n.js — O-simpleBeatmaker interface copy, English + French (v1.2.0)
 //
 // ── v1.1.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -147,14 +147,15 @@ export const LANGUAGES = ['en', 'fr'];
 export const I18N = Object.freeze({
 
     // ── The settings popover (v1.1.0) ───────────────────────────────────────
-    // The gear is new. This plugin has never had a hover-help switch and does
-    // not gain one here: the panel holds the language selector alone, so there
-    // is exactly one setting in it and nothing to group.
+    // The gear holds the language selector and, since v1.2.0, the hover-help
+    // switch. Through v1.1.1 this plugin's help layer was always on and the
+    // panel held the selector alone; the switch is the one O-simpleGrain
+    // carries, and its copy is that plugin's, verbatim.
     'gear-btn': {
         en: { t: "Settings",
-              b: "Choose the language of the interface. The choice is remembered with the session, so a project reopens in the language you left it in." },
+              b: "Choose the language of the interface and switch this hover help off or on. The language is remembered with the session, so a project reopens in the language you left it in; the help switch is remembered on this computer." },
         fr: { t: "Réglages",
-              b: "Choisir la langue de l’interface. Le choix est conservé avec la session : un projet se rouvre dans la langue où vous l’avez laissé.",
+              b: "Choisir la langue de l’interface et activer ou désactiver cette aide au survol. La langue est conservée avec la session : un projet se rouvre dans la langue où vous l’avez laissé ; le réglage de l’aide est conservé sur cet ordinateur.",
               reviewed: true },
     },
     'lang-select': {
@@ -162,6 +163,13 @@ export const I18N = Object.freeze({
               b: "The language of the labels on this page and of this hover help. English and French are available; the value readouts, the six lesson-preset names and the MIDI note numbers stay in English." },
         fr: { t: "Langue",
               b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées, les noms des six préréglages de leçon et les numéros de note MIDI restent en anglais.",
+              reviewed: true },
+    },
+    'help-toggle': {
+        en: { t: "Hover help",
+              b: "Turns these hover explanations off or back on. The switch is remembered on this computer rather than in the session, so it follows you from one project to the next." },
+        fr: { t: "Aide au survol",
+              b: "Active ou désactive ces explications au survol. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d’un projet à l’autre.",
               reviewed: true },
     },
 
@@ -683,6 +691,19 @@ export const LABELS = Object.freeze({
         en: { t: "Interface language" },
         fr: { t: "Langue de l’interface", reviewed: true },
     },
+    'aria.helpToggle': {
+        en: { t: "Toggle hover help" },
+        fr: { t: "Activer ou désactiver l’aide au survol", reviewed: true },
+    },
+    // The switch's two faces, written through setLabel from applyTipsEnabled.
+    'ui.on': {
+        en: { t: "On" },
+        fr: { t: "Activée", reviewed: true },
+    },
+    'ui.off': {
+        en: { t: "Off" },
+        fr: { t: "Désactivée", reviewed: true },
+    },
 });
 
 // ─────────────────────────────────────────────────────────────── bindings ──
@@ -695,6 +716,7 @@ export const LABELS = Object.freeze({
 export const TIP_BINDINGS = [
     ['#gear-btn',                            'gear-btn'],
     ['#lang-select',                         'lang-select'],
+    ['#help-toggle',                         'help-toggle'],
 
     ['#gridPanel',                           'grid'],
     ['#lanePanel',                           'lane'],

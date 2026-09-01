@@ -380,6 +380,45 @@ function updateRouting() {
   }
 }
 
+// ── Hover-help switch (v1.4.0) ──────────────────────────────────────────────
+// The toggle O-simpleGrain carries, ported. It is a BROWSER-side preference
+// under localStorage "osfm.tipsEnabled", not session state: this plugin has no
+// tooltips bridge and never had one, and C++ state for it would be a new
+// persistence surface rather than a settings-panel change. The tooltip engine
+// below reads tipsEnabled at show time, so the switch takes effect on the next
+// hover with nothing to rebind.
+let tipsEnabled = true;                 // shipped default; localStorage wins at boot
+let hideTooltip = () => {};             // published by setupTooltips (used by the toggle)
+
+function applyTipsEnabled(on) {
+  tipsEnabled = !!on;
+  if (!tipsEnabled) hideTooltip();
+
+  const btn = document.getElementById("help-toggle");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+  // Two calls behind an if/else, never a ternary in the setLabel argument:
+  // check-i18n assertion 13 rejects a conditional anywhere inside the call, and
+  // it is right to — a reviewer cannot tell a message-selection ternary from a
+  // hand-inflection one.
+  if (tipsEnabled) setLabel(btn, "ui.on");
+  else             setLabel(btn, "ui.off");
+}
+
+function setupTipsToggle() {
+  const btn = document.getElementById("help-toggle");
+  if (!btn) { console.error("Missing help-toggle element"); return; }
+
+  let stored = null;
+  try { stored = localStorage.getItem("osfm.tipsEnabled"); } catch (e) { stored = null; }
+  applyTipsEnabled(stored !== "false");
+
+  btn.addEventListener("click", () => {
+    applyTipsEnabled(!tipsEnabled);
+    try { localStorage.setItem("osfm.tipsEnabled", String(tipsEnabled)); } catch (e) { /* private mode */ }
+  });
+}
+
 // ── Tooltips ────────────────────────────────────────────────────────────────
 // The copy is no longer looked up here: applyI18n has already written it onto
 // each anchor as data-tip-title + data-tip, in the current language, and it
@@ -396,6 +435,7 @@ function setupTooltips() {
   // tags; the words are unchanged and the tags are gone (check-i18n assertion 9
   // forbids an angle bracket in an i18n.js string literal).
   const show = (el, x, y) => {
+    if (!tipsEnabled) return;
     const title = el.getAttribute("data-tip-title");
     const body = el.getAttribute("data-tip");
     if (!title && !body) return;
@@ -420,6 +460,7 @@ function setupTooltips() {
     tip.style.top = `${Math.max(8, ny)}px`;
   };
   const hide = () => { tip.classList.remove("show"); tip.setAttribute("aria-hidden", "true"); active = null; };
+  hideTooltip = hide;
 
   // DELEGATED on the document rather than attached per element. No anchor
   // carries data-tip until applyI18n has run, so the v1.2.5
@@ -466,7 +507,8 @@ function setupTooltips() {
 }
 
 // ── Settings popover (v1.3.0) ───────────────────────────────────────────────
-// The gear panel holding the language selector. All state lives in this
+// The gear panel holding the language selector and, since v1.4.0, the
+// hover-help switch (wired by setupTipsToggle above). All state lives in this
 // closure, so nothing here can join a TDZ chain.
 //
 // Styled in O-simpleFM's own aged-paper field-guide vocabulary in
@@ -1062,6 +1104,7 @@ function boot() {
   // already paid for once.
   try { setupSettingsPopover(); } catch (e) { console.error("settings popover init failed:", e); }
   try { initI18n(); }             catch (e) { console.error("i18n init failed:", e); }
+  try { setupTipsToggle(); }      catch (e) { console.error("tips toggle init failed:", e); }
 
   setupTooltips();
   setupPresets();

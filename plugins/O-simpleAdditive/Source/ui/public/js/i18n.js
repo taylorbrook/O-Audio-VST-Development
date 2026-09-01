@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-simpleAdditive interface copy, English + French (v1.1.2)
+// i18n.js — O-simpleAdditive interface copy, English + French (v1.2.0)
 //
 // ── v1.1.2: FOCUS LATCH (Stage O item 58, 2026-08-31) ───────────────────────
 // No entry in this table changed. The fix is in js/app.js setupTooltips(): a
@@ -153,15 +153,15 @@ export const LANGUAGES = ['en', 'fr'];
 export const I18N = Object.freeze({
 
     // ── The settings popover (v1.1.0) ───────────────────────────────────────
-    // The gear is new. This plugin has no hover-help bridge and never had a "?"
-    // toggle — its help layer is always on — so the panel holds the language
-    // selector alone. A toggle row would be a control for a preference that
-    // does not exist (O-ReverseDelay D13: no setTooltipsEnabled, ever).
+    // The gear holds the language selector and, since v1.2.0, the hover-help
+    // switch. Through v1.1.2 this plugin's help layer was always on and the
+    // panel held the selector alone; the switch is the one O-simpleGrain
+    // carries, and its copy is that plugin's, verbatim.
     'gear-btn': {
         en: { t: 'Settings',
-              b: 'Choose the language of the interface. The choice is remembered with the session.' },
+              b: 'Choose the language of the interface and switch this hover help off or on. The language is remembered with the session; the help switch is remembered on this computer.' },
         fr: { t: 'Réglages',
-              b: "Choisissez la langue de l’interface. Le choix est conservé avec la session.",
+              b: "Choisissez la langue de l’interface et activez ou désactivez cette aide au survol. La langue est conservée avec la session ; le réglage de l’aide est conservé sur cet ordinateur.",
               reviewed: true },
     },
 
@@ -175,6 +175,13 @@ export const I18N = Object.freeze({
               b: 'The language of the labels on this page and of this hover help. English and French are available; value readouts and the two drop-down menus stay in English.' },
         fr: { t: 'Langue',
               b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées et les deux menus déroulants restent en anglais.",
+              reviewed: true },
+    },
+    'help-toggle': {
+        en: { t: 'Hover help',
+              b: 'Turns these hover explanations off or back on. The switch is remembered on this computer rather than in the session, so it follows you from one project to the next.' },
+        fr: { t: "Aide au survol",
+              b: "Active ou désactive ces explications au survol. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d’un projet à l’autre.",
               reviewed: true },
     },
 
@@ -716,6 +723,16 @@ export const LABELS = Object.freeze({
     'aria.langSelect': {
         en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true },
     },
+    'aria.helpToggle': {
+        en: { t: 'Toggle hover help' }, fr: { t: "Activer ou désactiver l’aide au survol", reviewed: true },
+    },
+    // The switch's two faces, written through setLabel from applyTipsEnabled.
+    'ui.on': {
+        en: { t: 'On' }, fr: { t: 'Activée', reviewed: true },
+    },
+    'ui.off': {
+        en: { t: 'Off' }, fr: { t: 'Désactivée', reviewed: true },
+    },
     'aria.keyboard': {
         en: { t: 'On-screen keyboard' }, fr: { t: 'Clavier à l’écran', reviewed: true },
     },
@@ -779,6 +796,7 @@ export const I18N_EXEMPT = [
 export const TIP_BINDINGS = [
     ['#gear-btn',                        'gear-btn'],
     ['#lang-select',                     'lang-select'],
+    ['#help-toggle',                     'help-toggle'],
 
     ['#drawbar-panel',                   'drawbars'],
 

@@ -1,3 +1,10 @@
 [
-  { "name": "settings popover open", "click": "#gear-btn" }
+  {
+    "name": "settings popover OPEN (the language row and the hover-help row — three labels that are invisible at rest)",
+    "click": "#gear-btn"
+  },
+  {
+    "name": "hover help switched OFF (ui.off — the toggle's other face, which no resting state shows)",
+    "click": "#help-toggle"
+  }
 ]

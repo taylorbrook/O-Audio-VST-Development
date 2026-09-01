@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.5
+- **Version:** 1.4.0
 - **Type:** Synth (Pedagogical 2-Operator FM/PM)
 
 ## Lifecycle Timeline
@@ -20,6 +20,8 @@
 - **2026-07-15 (v1.2.3):** Resolved the deferred Info findings IN-01..IN-04 via /improve-review. IN-01: index taper/range constants single-sourced as `OSimpleFM::kIndexMax`/`kIndexTaper` in `FMVoice.h` (consumed by the DSP taper, param range, `/kIndexMax` re-normalization, and render-harness carrier-null test; JS mirrors as `INDEX_MAX`/`INDEX_TAPER` with cross-refs). IN-02: `handleUiMidi` clamps the WebView-supplied note to 0–127. IN-03: `scaledMidi.ensureSize` 4 KB → 16 KB (removes the last audio-thread reallocation path). IN-04: knobs double-click-reset to default via new `getParameterDefaults` native fn (full drag gesture, so hosts record the automation touch). All CODE_REVIEW.md findings now resolved. Validation: auval PASS; render harness ALL PASS (7/7 — carrier-null@2.405 proves the taper refactor is bit-equivalent).
 
 - **2026-08-25 (v1.2.5):** Fixed clicks on note-off (any settings) via /improve. Root cause: `pushParamsToVoices()` called `juce::ADSR::setParameters()` every block; its `recalculateRates()` derives the release slope from SUSTAIN, clobbering the envelope-value-based rate `noteOff()` computes — and with amp sustain = 0 (four factory presets) the zero rate makes `recalculateRates()` hard-reset the envelope one block after note-off, truncating the tail (the click). Fix: `FMVoice` caches incoming ADSR params, pushes to the live envelopes only on value change and never mid-release; deferred changes apply at the next note-on. New render-harness `noteoff-click` probe (tail-rings-on + max sample-to-sample jump); verified failing against v1.2.4 code (negative control: tailRms 0.0000 / maxJump 0.39) and passing with the fix (0.2826 / 0.0356). Validation: harness 8/8 ALL PASS, auval registered, built + installed.
+
+- **2026-09-01 (v1.4.0):** Added the hover-help on/off switch to the settings gear beside the language selector via /improve — the control O-simpleGrain and O-simpleSampler already carry and this panel lacked. Browser-side preference (localStorage `osfm.tipsEnabled`, default on), `show()` gated on it, face written through `setLabel` (`ui.on`/`ui.off`), French copied from O-simpleGrain's reviewed entries. WebView-only. Validation: check-i18n 15/15 + 0 unreviewed, fr-lint clean, boot-all-uis clean (0 dead bindings), check-ui-labels ALL PASS (40/40 visible, new OFF state), built + installed, auval registered.
 
 ## Known Issues
 

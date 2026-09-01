@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.2
+- **Version:** 1.2.0
 - **Type:** Synth (Pedagogical Step-Sequencer Drum Machine)
 
 ## Lifecycle Timeline
@@ -24,6 +24,7 @@
   1.0.1 (missed CMakeLists VERSION bump — now fixed) and folded in IN-09: viz
   loop constructed a MidiMessage for SysEx on the audio thread; WR-03 raw-byte
   gate applied. Render-harness 12/12 probes pass. Reinstalled.
+- **2026-09-01 (v1.2.0):** Hover-help on/off switch added to the settings gear beside the language selector via /improve (the control O-simpleGrain carries; ported with O-simpleFM v1.4.0, O-simpleAdditive v1.2.0, O-simpleSubtractive v1.4.0). localStorage `osbm.tipsEnabled`, WebView-only; harness VersionCode followed to 0x10200. All i18n/UI gates green; built + installed.
 
 ## Known Issues
 

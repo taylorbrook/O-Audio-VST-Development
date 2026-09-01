@@ -538,6 +538,45 @@ function rewireResize() {
   });
 }
 
+// ── Hover-help switch (v1.2.0) ──────────────────────────────────────────────
+// The toggle O-simpleGrain carries, ported. It is a BROWSER-side preference
+// under localStorage "osadd.tipsEnabled", not session state: this plugin has no
+// tooltips bridge and never had one, and C++ state for it would be a new
+// persistence surface rather than a settings-panel change. The tooltip engine
+// below reads tipsEnabled at show time, so the switch takes effect on the next
+// hover with nothing to rebind.
+let tipsEnabled = true;                 // shipped default; localStorage wins at boot
+let hideTooltip = () => {};             // published by the tooltip setup (used by the toggle)
+
+function applyTipsEnabled(on) {
+  tipsEnabled = !!on;
+  if (!tipsEnabled) hideTooltip();
+
+  const btn = document.getElementById("help-toggle");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+  // Two calls behind an if/else, never a ternary in the setLabel argument:
+  // check-i18n assertion 13 rejects a conditional anywhere inside the call, and
+  // it is right to — a reviewer cannot tell a message-selection ternary from a
+  // hand-inflection one.
+  if (tipsEnabled) setLabel(btn, "ui.on");
+  else             setLabel(btn, "ui.off");
+}
+
+function setupTipsToggle() {
+  const btn = document.getElementById("help-toggle");
+  if (!btn) { console.error("Missing help-toggle element"); return; }
+
+  let stored = null;
+  try { stored = localStorage.getItem("osadd.tipsEnabled"); } catch (e) { stored = null; }
+  applyTipsEnabled(stored !== "false");
+
+  btn.addEventListener("click", () => {
+    applyTipsEnabled(!tipsEnabled);
+    try { localStorage.setItem("osadd.tipsEnabled", String(tipsEnabled)); } catch (e) { /* private mode */ }
+  });
+}
+
 // ── Tooltips ────────────────────────────────────────────────────────────────
 function setupTooltips() {
   const tip = document.getElementById("tooltip");
@@ -552,6 +591,7 @@ function setupTooltips() {
   // table-sourced rather than a fixed literal, and localized copy must never
   // reach a markup path.
   const show = (el, x, y) => {
+    if (!tipsEnabled) return;
     const title = el.getAttribute("data-tip-title");
     const body = el.getAttribute("data-tip");
     if (!title && !body) return;
@@ -576,6 +616,7 @@ function setupTooltips() {
     tip.style.top = `${Math.max(8, ny)}px`;
   };
   const hide = () => { tip.classList.remove("show"); tip.setAttribute("aria-hidden", "true"); active = null; };
+  hideTooltip = hide;
 
   // DELEGATED on the document rather than attached per element. The anchors do
   // not carry data-tip until applyI18n has run and the sixteen drawbar cells do
@@ -829,7 +870,8 @@ function setupKeyboard() {
 }
 
 // ── Settings popover (v1.1.0) ───────────────────────────────────────────────
-// The gear panel holding the language selector. All state lives in this
+// The gear panel holding the language selector and, since v1.2.0, the
+// hover-help switch (wired by setupTipsToggle above). All state lives in this
 // closure, so nothing here can join a TDZ chain.
 //
 // The panel holds the selector ALONE: this plugin has no tooltips bridge and
@@ -891,6 +933,7 @@ function boot() {
   // failure this repo has already paid for once.
   try { setupSettingsPopover(); } catch (e) { console.error("settings popover init failed:", e); }
   try { initI18n(); }             catch (e) { console.error("i18n init failed:", e); }
+  try { setupTipsToggle(); }      catch (e) { console.error("tips toggle init failed:", e); }
 
   DRAWBAR_IDS.forEach(bindDrawbar);
   KNOB_IDS.forEach(bindKnob);
