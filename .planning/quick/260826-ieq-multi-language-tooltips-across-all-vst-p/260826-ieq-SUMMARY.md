@@ -3,12 +3,12 @@ task: 260826-ieq-multi-language-tooltips-across-all-vst-p
 type: execute
 mode: quick
 status: incomplete
-stages_complete: [A, B, C, D, E, F, G, H, I, J, K, L, M]
+stages_complete: [A, B, C, D, E, F, G, H, I, J, K, L, M, N]
 stages_remaining: []
-decision_items_closed: [1, 17, 18, 26]
-checkpoint_5_french_review: OPEN — 3751 entries, 0 reviewed
+decision_items_closed: [1, 4, 17, 18, 26]
+checkpoint_5_french_review: SECOND READING DONE (Stage N, 43/43) — 3751 entries, 0 read by a native speaker
 i18n_exempt_contract: RESOLVED — scoped entries landed between K1 and K2
-stopped_at: "ALL STAGES A–M COMPLETE, 43 of 43 plugins localized (labels + hover-help, EN/FR). Decision items 17 (`56cdbb37`), 18 (`cec3f857`) and 26 (`242983a4`, O-simpleSampler v1.4.1) CLOSED; extractor artifacts for the remaining 36 plugins committed (`aaab5318`). Baseline re-run 2026-08-31: `check-i18n --strict-v2` ALL CHECKS PASS, 43 canon v2 / 0 canon v1; `boot-all-uis` 43/43 clean, 0 warn, 0 failed, 0 DEAD tip bindings (19 late, all correct: O-Bells 2, O-IntonationPad 17); native title= 0 repo-wide. OPEN: Checkpoint 5 — 3751 French entries, all `reviewed: false`, none read by a native speaker. Open per-plugin items: 19 (O-Prism 64 mod-matrix params unreachable by TIP_BINDINGS), item-18 ROLLOUT call sites (O-Reed/O-Wind referencePitch live in the shared scala-tuning-engine tuning-panel.js; O-Formant tuning panel), `<html lang=\"en\">` hard-coded on all 43 (canon-owned, never follows the selector), items 2/11 (toggle uniformity, keyboard reach), and the non-i18n findings 5–10, 20–24. Status stays incomplete ONLY because Checkpoint 5 is a plan checkpoint that has not run."
+stopped_at: "STAGE N COMPLETE 2026-08-31 — Checkpoint 5 as a QA pass, 43 of 43 plugins patch-bumped: every French entry read against its English, scripts/i18n-fr-glossary.js (~260 terms) and scripts/i18n-fr-lint.js. Repo-wide lint --strict 2145 -> 0 on 43/43; boot-all-uis 43/43 clean, 0 DEAD, 19 late (by design), title= 0; check-i18n ALL PASS, 3751 entries; 0 non-label elements moved on every page; auval PASS x43; installed Info.plist audited. 12 lint defects and 1 check-ui-labels gate defect (8b painted rects) found by executors and fixed; 2 glossary terms wrong of ~260; 20 of 43 header width defences proven backwards. STILL OPEN: item 27 (reviewed: false on all 3751 — no native speaker), item 29 (--strict is green and unwired), item 31 (17 plugins without a committed render gate), items 19/22/30/34-68 per-plugin English/CSS/DSP defects. Status stays incomplete only because Checkpoint 5 as WRITTEN (a native speaker) has not happened."
 
 plugins_shipped:
   - name: O-Gain
@@ -6288,3 +6288,59 @@ that is not French (*rugosifie*); *Mod Rd* (a caption) as a tip title that had l
 
 No native speaker; no DAW; Chromium only; Standalone stale; O-Formant's installed bundle is
 one CSS comment behind HEAD. Repo lint total after N8: **the two N9 plugins carry it all.**
+
+# STAGE N — BATCH N9 COMPLETE, 2 of 2 — STAGE N IS DONE, 43 of 43
+
+| Plugin | Version | Commit | Lint | Changed | Geometry | Render |
+|---|---|---|---|---|---|---|
+| O-Bells | 4.3.1 | `33a24c58` (+`e0962b99`) | 115 → 0 | 72 of 186 | 0 → 0 | 1024/1024, every tab; 2 late / 0 dead held |
+| O-Prism | 1.22.1 | `c704cabb` (+ orchestrator copy-only fix) | 235 → 19 → 0 | 125 of 262 | 0 → 0 | 2180/2180, every tab and modal |
+
+O-Prism's last 19 were tooling: `glide` and `master` had no abbreviation and their roots do
+not fit (Portamento 71.52 px in 52; Général 46.61 in 44.01 — measured, and *Glissé* /
+*Maître* were the forbidden words the page had kept), plus two readouts a sentence quotes
+verbatim. The glossary grew *porta / gén / fq. méd / amor*; the lint learned that text inside
+« » is quoted screen text; the two forbidden captions were fixed by the orchestrator
+copy-only (*Porta*, *Mode porta*, *Gén.*), `check-ui-labels` ALL PASSED, rebuilt.
+
+## STAGE N, closed — the numbers
+
+- **43 of 43 plugins shipped a patch bump** with every French entry read against its
+  English, the glossary and the lint. Every one: `--strict` 0, **0 non-label elements
+  moved** between languages (O-Bitrot's standing 1 unchanged), its render gate or a
+  scratchpad probe green in both languages with tip heights read, `boot-all-uis` 43/43,
+  `auval` PASS, installed `Info.plist` at the new version.
+- **Repo-wide French lint: 2145 → 0** (`node scripts/i18n-fr-lint.js --strict` exits 0 on
+  43/43). Final census: `boot-all-uis` clean 43/43, **0 DEAD**, 19 late (O-Bells 2,
+  O-IntonationPad 17 — by design), native `title=` 0; `check-i18n` ALL CHECKS PASS, 3751
+  entries, all `reviewed: false` — **no native speaker has read one** (item 27 stands).
+- **Glossary:** ~260 settled terms; **2 were wrong** (*mailloche*; `load .scl` lacking its
+  twin's abbreviation) and ~30 rows were added or extended from executors' measurements.
+  60 `termNote` exemptions across the suite, every one on meaning, none on width.
+- **Lint defects found by the executors and fixed: 12** (termNote scope, glossary-accepted F1,
+  T7 missing-space, `%` double-count, straight-copy condition and entry scope, trailing-period
+  keys twice, T2 identifiers (and one wrong rule reverted), decade names, prose scan on every
+  row, quoted screen text). **One gate defect fixed:** `check-ui-labels` 8b now compares
+  painted (clipped) rects.
+- **Header width defences: 20 of 43 wrong about the string they defended, 0 wrong about a
+  number they recorded** — "re-measure, never inherit" held for the whole stage.
+- **Meaning defects the lint cannot see:** ~120 sentences across 43 plugins — dropped clauses,
+  calques (*lit* for bed, *chœur* for chorus, *fût* for instrument), faces named in the wrong
+  language, wrong antecedents, one typo that changed the noun (*Fond enchaîné*).
+
+## Decision items added, N9
+
+66. O-Bells `tip.partialTuning` says "the upper partials" — the code moves the tierce only;
+    `tip.damping` overstates its scope; `ModalPartial::decayRate` is a dead write with the
+    damping mapping inverted relative to the two live paths.
+67. O-Prism's `glide` and `master` captions could not carry any listed root; *porta* / *gén.*
+    are now settled abbreviations — a native reader may prefer others.
+68. `--strict` is green on 43/43 for the first time and **still nothing calls it** (item 29).
+    Wiring `node scripts/i18n-fr-lint.js --strict` beside `check-i18n` is one line.
+
+## Not verified — the standing list
+
+No native speaker (item 27); no DAW test on any of the 43 (`auval` + headless Chromium only,
+never WKWebView); Standalone `.app` stale everywhere; Windows/WebView2 metrics untested and
+now carrying ~1500 no-break spaces of new unbreakable runs; 17 plugins still have no
+committed render gate (item 31); guillemet spacing has no rule (item 59).
