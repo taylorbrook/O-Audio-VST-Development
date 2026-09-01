@@ -26,7 +26,7 @@
 Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
-| O-Bells | 📦 Installed | 4.3.0 | Synth (Physical Modeling Bells) | 2026-08-31 |
+| O-Bells | 📦 Installed | 4.3.1 | Synth (Physical Modeling Bells) | 2026-08-31 |
 | O-Tremolo | 📦 Installed | 1.8.1 | Audio Effect (Tremolo) | 2026-08-31 |
 | O-AnalogSaturation | 📦 Installed | 1.3.1 | Audio Effect (Saturation) | 2026-08-31 |
 | O-Marimba | 📦 Installed | 1.13.1 | Synth (Physical Model) | 2026-08-31 |
@@ -48,7 +48,7 @@ Ouaricon Plugins:
 | O-Orbit | 📦 Installed | 1.2.1 | Audio Effect (Spatial Orbiter) | 2026-08-31 |
 | O-TextureForge | 📦 Installed | 1.2.1 | Instrument (Concatenative Synth) | 2026-08-31 |
 | O-Texture | 📦 Installed | 0.3.1 | Instrument/Effect (Neural Texture Synth) | 2026-08-31 |
-| O-Prism | 📦 Installed | 1.22.0 | Synth (Microtonal Wavetable) | 2026-08-31 |
+| O-Prism | 📦 Installed | 1.22.1 | Synth (Microtonal Wavetable) | 2026-08-31 |
 | O-Gain | 📦 Installed | 1.3.1 | Audio Effect (Gain Staging Utility) | 2026-08-31 |
 | O-Formant | 📦 Installed | 1.27.1 | Synth (Physical Model Vocal) | 2026-08-31 |
 | O-Bowed | 📦 Installed | 1.6.1 | Synth (Physical Model Bowed String) | 2026-08-31 |
