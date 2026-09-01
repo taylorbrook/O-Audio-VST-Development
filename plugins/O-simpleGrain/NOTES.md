@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.1
+- **Version:** 1.4.2
 - **Type:** Synth (Pedagogical Granular)
 
 ## Lifecycle Timeline

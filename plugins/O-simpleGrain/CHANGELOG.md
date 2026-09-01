@@ -3,6 +3,63 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.2] — 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+- **item 57 — Pitched Buzz tour caption (`label.captionPitchedBuzz`):** the
+  French caption wrapped and moved the whole rack down one line, in a state no
+  gate drove. Measured NOWRAP on the live `#tourCaption` at the 900 × 760 frame:
+  997.22 px natural in the 846 px box (the 838.58 px Stage N reported was the
+  wrapped Range box — the widest LINE, not the string), English 693.00. Wrapped,
+  the caption stood 26.38 px tall instead of 13.19, the header grew 80.38 →
+  93.56 and `.workspace` (the rack) moved y 109.38 → 122.56 — 13.19 px, French
+  only. `tests/i18n-states.json` named `captionAsyncCloud` as the longest
+  caption and never picked Pitched Buzz, so `check-ui-labels` reported 0
+  moved. The Pitched Buzz state is now in `tests/i18n-states.json`; with it
+  and the OLD caption, assertion 7 fails with 159 non-label elements moved
+  (`.header` dh +13.2, `.workspace` and everything under it dy +13.2) — the
+  proof the state is driven. Caption reworded shorter, same claim, both
+  languages (correction 43): en "Pitched Buzz — tiny grains fired fast and in
+  sync. Their rate becomes an audible pitch (a comb): granular can make tone,
+  not just texture." 606.84 px; fr "Bourdon harmonique — grains minuscules,
+  déclenchés vite et en phase. Leur cadence devient une hauteur audible
+  (un peigne) : le granulaire peut faire du timbre, pas que de la texture."
+  813.31 px, 32.69 px of slack. After: caption 13.19 px tall, header 80.38,
+  `.workspace` y 109.38 in both languages; `check-ui-labels` 0 moved across
+  default + 4 states. The lesson tip body (`lessonPitchedBuzz`) keeps the full
+  wording — a tip has no line budget. French `reviewed: false`.
+- **item 54 — hover-help switch accessible name (`aria.helpToggle`):** English
+  "Toggle tooltips" → "Toggle hover help" (`i18n.js`). The switch's own tip
+  title is "Hover help" and the French already read *Activer ou désactiver
+  l’aide au survol* — one name per control, settled for the whole family.
+  French unchanged, `reviewed: true` kept.
+- **item 58 — focus latch (`js/app.js` `setupTooltips`):** a pointer click on
+  any anchor that takes focus (the eight `.tour-btn` lesson buttons, the gear,
+  the language select) hid the hover tip on `pointerdown` and then re-opened
+  it from `focusin`, so the tip came straight back under the pointer. Ported
+  the Stage M `lastInputWasPointer` latch (O-Comp v1.7.0): `pointerdown`
+  latches, any `keydown` releases, `focusin` opens only while released,
+  `focusout` hides, Escape hides. The page's one programmatic `.focus()`
+  (popover Escape → gear) follows a keydown, so the gear's tip still opens —
+  keyboard-driven. Probe with real events, hover-help driven on through the
+  page's own toggle, both languages: click `.tour-btn[Fragments]` → tip
+  "Fragments" shown BEFORE (FAIL), hidden AFTER; Tab → "Smooth Cloud" /
+  *Nuage lisse* shown before and after; Escape hides; Tab again → tip; click
+  on a knob → no tip both ways (knobs never took focus from a click). 2 of 12
+  checks failed before, 12 of 12 pass after, 0 page errors.
+
+### Changed
+- `tests/i18n-states.json` gains the Pitched Buzz state (5 states driven).
+
+No DSP change: nothing under `Source/` outside `ui/public/` changed. The
+render harness passes 15/15 before and after; its printed rms/peak fields are
+NOT byte-comparable run to run — each voice's `juce::Random` (`GrainVoice.h:541`)
+is default-constructed, i.e. time-seeded, so two runs of the SAME binary differ
+(reported, not fixed: not a Stage O item). No parameter, preset or state-tree
+change.
+
 ## [1.4.1] — 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.

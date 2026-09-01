@@ -8,7 +8,11 @@
     "click": "#help-toggle"
   },
   {
-    "name": "a lesson preset picked (label.captionAsyncCloud — the longest of the eight captions; the tour caption is chosen by a click and is never the resting string)",
+    "name": "a lesson preset picked (label.captionAsyncCloud — the tour caption is chosen by a click and is never the resting string)",
     "click": ".tour-btn[data-preset=\"Asynchronous Cloud\"]"
+  },
+  {
+    "name": "the Pitched Buzz lesson picked (label.captionPitchedBuzz — the widest of the eight captions in French — 997.22 px natural NOWRAP in the 846 px box before v1.4.2, one wrapped line that moved the rack 13.19 px; this state is what makes assertion 7 see it)",
+    "click": ".tour-btn[data-preset=\"Pitched Buzz\"]"
   }
 ]
