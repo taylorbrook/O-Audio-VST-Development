@@ -188,8 +188,9 @@
      (Content boxes measured, not derived: the 1.5 px borders round to 1 px
      each side in device pixels, so each box is 1 px wider than the arithmetic.
      "Sûr ?" is 26.23 ONE LINE in this box; the 17.69 a first pass recorded was
-     the widest line of the WRAPPED string in the unpinned 33 px box, which is
-     the same wrap the armed row of NC-1 below reproduces.)
+     the widest line of the WRAPPED string in the unpinned 33 px box.
+     STALE SINCE v1.2.1 — see the NC note below: that wrap is no longer
+     reachable, because Stage N put a U+00A0 before the "?".)
 
      38 + 39 + 51 = 128.00 against English's natural 38.25 + 40.48 + 49.41 =
      128.14, so the band goes 284.14 -> 284.00 and .hdr-right 126.20 -> 126.34.
@@ -198,9 +199,19 @@
      THE PIN IS NOT DECORATION — negative control, run: reverting these three
      rules alone with the French left in place fails assertion 7 in all three
      states. At rest, .preset-band dw=+16.5 and .hdr-right and .brand both
-     dx=+16.5 dw=-16.5. With the delete button ARMED it is worse: "Sûr ?" wraps
-     in the unpinned 33 px box and the band grows 4 px TALLER, moving
-     #preset-prev, #preset-next and #preset-name as well. */
+     dx=+16.5 dw=-16.5.
+
+     THE ARMED CASE CHANGED AT v1.2.1, and the old wording is kept above so the
+     change is legible. Through v1.2.0 "Sûr ?" carried an ASCII space, so with
+     the pin reverted it WRAPPED in the unpinned box — 17.69 px on two lines,
+     band 266.69 x 30, four pixels TALLER, which moved #preset-prev,
+     #preset-next and #preset-name as well. Stage N put a U+00A0 before the
+     "?", and a no-break space is not a break opportunity: re-measured, the
+     unpinned armed button is now 26.23 px on ONE line, band 275.23 x 26. The
+     pin is still load-bearing — 275.23 against the pinned 284.00 is 8.77 px,
+     which still slides .hdr-right and .brand — but it is now a WIDTH failure
+     only, not a width-and-height one. The pin got no weaker; the way it fails
+     without it got quieter, which is the reason to write the number down. */
   #preset-save   { width: 38px; padding: 2px 0 3px; }
   #preset-load   { width: 39px; padding: 2px 0 3px; }
   #preset-delete { width: 51px; padding: 2px 0 3px; }
