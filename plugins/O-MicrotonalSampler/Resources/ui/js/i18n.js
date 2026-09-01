@@ -18,7 +18,121 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-MicrotonalSampler UI copy, English + French (v1.25.0, canon v2)
+// i18n.js — O-MicrotonalSampler UI copy, English + French (v1.25.1, canon v2)
+//
+// ── v1.25.1: FRENCH QA PASS (Stage N, 2026-08-31) ───────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 73 values of 290, across 270 entries (28 terminology, 38 typography,
+// 2 casing, 5 meaning; 0 grammar — the drafts were sound on agreement).
+// sameAsEn: kept 9, added 4, translated 0. termNote exemptions: 5 (listed).
+// Lint 74 -> 1, --strict NOT 0: the one residual is a glossary gap, below.
+// Left as drafted: the other 217 values. reviewed: false throughout — no
+// native speaker yet.
+//
+// THE DECISIONS THE NEXT READER NEEDS, each measured on THIS page at 900 x 640
+// with Range.selectNodeContents on the real node in its own computed font,
+// never inherited from a header:
+//
+//   THE CONTROL STRIP'S TWO VERDICTS GO OPPOSITE WAYS. The .ouaricon-knob cell
+//   is 58.39-58.41 px and shrink-to-fit; Maintien at 55.69 is the tightest
+//   survivor, as the v1.25.0 header said. DÉCLIN FITS AND CHUTE WAS WRONG:
+//   Déclin measures 41.64 px against Chute's 38.78 — 16.75 px of clearance —
+//   and Chute was drawing both a G1 and an F1 while the tip beside it already
+//   said Déclin, which is two French names for one control (N1 correction 11).
+//   RELÂCHEMENT DOES NOT: 83.84 px in a 58.41 px cell wraps to two lines, so
+//   Relâch. (48.95) stays, and that half of the v1.25.0 header is CONFIRMED by
+//   measurement rather than inherited. Dyn Rng had THREE French names — Ét.
+//   dyn. on the knob, Plage dynamique in the tip, Amplitude dynamique in the
+//   aria-label. Settled on Plage dynamique, and the caption moved to Pl. dyn.
+//   (48.98, +0.64 px over Ét. dyn., 6.71 px inside Maintien) so the caption
+//   stems from the accessible name. Label-in-name (WCAG 2.5.3) still does not
+//   close on it — but it does not close in ENGLISH either (Dyn Rng is not a
+//   substring of Dynamic Range), so no caption was invented to force it.
+//
+//   THE TUNING PANEL CONVERGES ON THE SETTLED FORMS, and three of them are
+//   NARROWER than what shipped: Accord 41.20 vs Gamme 44.33, Rotation 33.53 vs
+//   Rotations 38.03, Non octaviantes 71.72 vs Non-octaviantes 72.27. Also
+//   applied: Intervalles de la gamme (104.16 in a 300 px block), Bibliothèque
+//   de gammes (152.50 with 25.76 px of clearance to .library-toggle), RÉF. A4
+//   (33.88), Tenir 2 notes ou plus… (234.61, 5.02 px NARROWER than the
+//   imperative Tenez it replaces). Rotation is byte-equal to its English and
+//   now carries sameAsEn: true, the same declaration O-Bells, O-IntonationPad,
+//   O-Lyrica and O-Prism carry on the same string.
+//
+//   TWO TUNING-PANEL ROOTS DO NOT FIT, and the abbreviation the glossary lists
+//   is the answer, not a CSS edit. Générateur (c) is 70.56 px and Harmonique de
+//   fin is 88.81 px; both sit in the generator row, which already overhangs its
+//   offsetParent in ENGLISH (genGenerator 36.3 px), and at those widths
+//   check-ui-labels [8b] reports each of them intersecting .dynamics-mode-control
+//   — a control they clear in English. Génér. (c) (48.00) and Harm. de fin
+//   (59.33) ship. Harmonique de départ stays the root beside its abbreviated
+//   twin because it fits: the asymmetry is measured, not an oversight.
+//
+//   ÉCART TOTAL IS 0.72 px TOO WIDE AND IS THE ONE LINT FINDING LEFT. The True
+//   Keys total row is `justify-content: space-between` and its caption sits in
+//   a `flex: 0 1 auto` <span> pinned at 53.00 px. Total span (en) is 52.91 and
+//   Étendue is 42.22, so both sit inside the pin; Écart total is 53.72 and
+//   forces the wrapper to 53.72, which check-ui-labels [7] reports as a
+//   non-label element moved. Nothing else moves — .tk-cents stays at x=316.72
+//   and the row height stays 23.39 in all three — but the baseline was 0 moved
+//   and this stage does not spend it. The glossary lists no abbreviation for
+//   `total span` and inventing a third form is forbidden, so Étendue ships and
+//   the measurement is reported so the list can grow (Écart tot. would be 48.23
+//   and fits, if the glossary chooses to accept it).
+//
+//   THE INTERVAL COUNT KEEPS ITS ABBREVIATION and the v1.25.0 header's REASON
+//   is right while its NUMBER is stale: it says 114.45 px, the caption measures
+//   119.67, and the full Intervalles · notes : {n} is 150.86 in the 142 px
+//   column — so it would still wrap and still push the interval list 14 px.
+//
+//   CC N° / PC N° follow the English casing (C1). CC# and PC# carry no
+//   lowercase letter, so the lint reads them as all-caps captions and the
+//   French symbol word follows. Nothing on this page uppercases with CSS.
+//
+//   FIVE termNote EXEMPTIONS, and none of them is width hiding behind meaning:
+//   label.ksLow / label.ksHigh and label.thLow / label.thHigh are the two ENDS
+//   of a range read off a pair of number fields — MIDI note numbers in the
+//   keyswitch row, controller VALUES 0-127 in the CC trigger table. Grave and
+//   Aigu name a timbral register, which neither pair holds. On the keyswitch
+//   pair the width agrees (Grave 30.00 in a 26.00 px box whose only clearance
+//   is the 4.00 px gap to its own input); in the table it does NOT (grave fits
+//   at 33.13 in a 104.66 px th), which is how you can tell the reason is the
+//   meaning. aria.dynamicsMode keeps « après mixage » because that is the
+//   mixing PROCESS the velocity layers are summed by — the post-mix trim of
+//   the English — and there is no Mix control anywhere on this page.
+//
+//   VIDER BECAME EFFACER IN ALL EIGHT PLACES, not just the one the lint named.
+//   `clear` roots on effacer; leaving Vider on the seven siblings would have
+//   left one English verb with two French faces on one page (N2 correction 23).
+//
+//   sameAsEn ADDED to four straight copies the lint's fr === en condition
+//   surfaced: tech. / tech. / Expr. are French abbreviations of technique and
+//   expression, and Rotation is French. All four are declarations that a reader
+//   looked, not gaps.
+//
+//   FOUR STRINGS SAID plugiciel, WHICH IS NOW FORBIDDEN IN PROSE — but the lint
+//   did not report one of them. FORBIDDEN_IN_PROSE is scanned on `body` rows
+//   only, and all four live in a LABELS `t:` (two missing-folder dialog
+//   messages, two preset aria-labels), so they are prose that no prose check
+//   reaches. Fixed here; reported to the orchestrator as a lint gap.
+//
+//   KEPT AS DRAFTED, deliberately: Détection auto for "Reset to auto-detect"
+//   and Parcourir… for "Browse for folder…" (standard French button faces that
+//   say what the button does); Valeurs par défaut for "Reset to defaults" (a
+//   French UI noun phrase, and 89.08 px against the English's 82.56 in a
+//   caption that already overhangs 32.2 px in English); the arrow form of
+//   trimHint, because the fuller "Double-clic sur un curseur pour revenir à
+//   0 dB" is 207.95 px against the English's 162.42 in a caption that already
+//   overhangs its offsetParent by 214.7 px in ENGLISH, so it would spill MORE
+//   in French; and STAN for DAW, which is the only French rendering in the
+//   suite (2 occurrences, 0 for DAW).
+//
+//   THE ONE MEANING RESTORATION THE GEOMETRY REFUSED: rrBodyAfter's "explicit"
+//   and "filenames" (463.03 px against the shipped 343.69) put a third line
+//   into the round-robin dialog paragraph, moved 11 non-label elements by
+//   20.3 px and made the caption intersect the three <code> filename tokens it
+//   wraps. "couche de vélocité" in rrBodyBefore fits in the same two lines and
+//   ships; "explicites … noms de fichiers" does not.
 //
 // LABELS AND HOVER-HELP. v1.24.0 shipped labels only: this plugin had no
 // data-tip renderer and no tooltip copy, only native title= attributes — five
@@ -123,19 +237,19 @@ export const I18N = Object.freeze({
     // ── toasts ────────────────────────────────────────────────────────────
     'toast.filesSkipped': {
         en: { t: 'Files skipped: {n}', b: '' },
-        fr: { t: 'Fichiers ignorés : {n}', b: '', reviewed: false } },
+        fr: { t: 'Fichiers ignorés : {n}', b: '', reviewed: false } },
     'toast.nothingToDelete': {
         en: { t: 'Nothing to delete on that cell.', b: '' },
         fr: { t: 'Rien à supprimer dans cette case.', b: '', reviewed: false } },
     'toast.layerCleared': {
         en: { t: 'Layer {mark} · samples removed: {n}', b: '' },
-        fr: { t: 'Couche {mark} · échantillons supprimés : {n}', b: '', reviewed: false } },
+        fr: { t: 'Couche {mark} · échantillons supprimés : {n}', b: '', reviewed: false } },
     'toast.layerAlreadyEmpty': {
         en: { t: 'Layer {mark} was already empty.', b: '' },
         fr: { t: 'La couche {mark} était déjà vide.', b: '', reviewed: false } },
     'toast.loopPointsApplied': {
         en: { t: 'Loop points applied · samples updated: {n}', b: '' },
-        fr: { t: 'Points de boucle appliqués · échantillons mis à jour : {n}', b: '', reviewed: false } },
+        fr: { t: 'Points de boucle appliqués · échantillons mis à jour : {n}', b: '', reviewed: false } },
     'toast.noLoopableSamples': {
         en: { t: 'No loopable samples to update.', b: '' },
         fr: { t: 'Aucun échantillon bouclable à mettre à jour.', b: '', reviewed: false } },
@@ -171,10 +285,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Échec de la localisation du dossier', b: '', reviewed: false } },
     'toast.embedDialogMissing': {
         en: { t: 'Internal UI error: confirmation dialog unavailable — embed cancelled.', b: '' },
-        fr: { t: 'Erreur interne : boîte de confirmation indisponible — intégration annulée.', b: '', reviewed: false } },
+        fr: { t: 'Erreur interne : boîte de confirmation indisponible — intégration annulée.', b: '', reviewed: false } },
     'toast.rrDialogMissing': {
         en: { t: 'Internal UI error: round-robin confirmation dialog unavailable — load cancelled.', b: '' },
-        fr: { t: 'Erreur interne : boîte de confirmation round-robin indisponible — chargement annulé.', b: '', reviewed: false } },
+        fr: { t: 'Erreur interne : boîte de confirmation round-robin indisponible — chargement annulé.', b: '', reviewed: false } },
     'toast.techniquePresetApplied': {
         en: { t: 'Applied {family} technique names', b: '' },
         fr: { t: 'Noms de techniques « {family} » appliqués', b: '', reviewed: false } },
@@ -184,7 +298,7 @@ export const I18N = Object.freeze({
     // through trLabel() at the call site.
     'msg.deleteSampleTitle': {
         en: { t: 'Delete this sample?', b: '' },
-        fr: { t: 'Supprimer cet échantillon ?', b: '', reviewed: false } },
+        fr: { t: 'Supprimer cet échantillon ?', b: '', reviewed: false } },
     'msg.deleteSampleBody': {
         en: { t: 'Remove the sample on {note}, velocity layer {mark}{tech}.', b: '' },
         fr: { t: 'Retirer l’échantillon sur {note}, couche de vélocité {mark}{tech}.', b: '', reviewed: false } },
@@ -193,22 +307,22 @@ export const I18N = Object.freeze({
         fr: { t: 'Supprimer', b: '', reviewed: false } },
     'msg.clearLayerTitle': {
         en: { t: 'Clear velocity layer {mark}?', b: '' },
-        fr: { t: 'Vider la couche de vélocité {mark} ?', b: '', reviewed: false } },
+        fr: { t: 'Effacer la couche de vélocité {mark} ?', b: '', reviewed: false } },
     'msg.clearLayerBody': {
         en: { t: 'Remove every sample in velocity layer {mark}, across all techniques. This cannot be undone.', b: '' },
         fr: { t: 'Retirer tous les échantillons de la couche de vélocité {mark}, pour toutes les techniques. Action irréversible.', b: '', reviewed: false } },
     'msg.clearLayerBtn': {
         en: { t: 'Clear layer', b: '' },
-        fr: { t: 'Vider la couche', b: '', reviewed: false } },
+        fr: { t: 'Effacer la couche', b: '', reviewed: false } },
     'msg.clearAllTitle': {
         en: { t: 'Clear all samples?', b: '' },
-        fr: { t: 'Vider tous les échantillons ?', b: '', reviewed: false } },
+        fr: { t: 'Effacer tous les échantillons ?', b: '', reviewed: false } },
     'msg.clearAllBody': {
         en: { t: 'All loaded samples will be removed from the sample map. Active notes will finish playing, but new note-ons will produce silence until samples are loaded again. This cannot be undone.', b: '' },
-        fr: { t: 'Tous les échantillons chargés seront retirés de la carte. Les notes en cours iront à leur terme, mais les nouvelles notes resteront silencieuses jusqu’au prochain chargement. Action irréversible.', b: '', reviewed: false } },
+        fr: { t: 'Tous les échantillons chargés seront retirés de la carte d’échantillons. Les notes en cours iront à leur terme, mais les nouvelles notes resteront silencieuses jusqu’au prochain chargement. Action irréversible.', b: '', reviewed: false } },
     'msg.clearBtn': {
         en: { t: 'Clear', b: '' },
-        fr: { t: 'Vider', b: '', reviewed: false } },
+        fr: { t: 'Effacer', b: '', reviewed: false } },
 
     // The folder-load explain line: EIGHT keyed faces, not four ternaries.
     // The key is the branch, so nothing inflects inside a string.
@@ -217,25 +331,25 @@ export const I18N = Object.freeze({
         fr: { t: 'Ajouter les échantillons à {layer}, en ignorant les jetons de vélocité du nom de fichier.', b: '', reviewed: false } },
     'msg.floAppendTokens': {
         en: { t: 'Add samples; filename tokens (v1–v4, p/mp/mf/f) decide layer.', b: '' },
-        fr: { t: 'Ajouter les échantillons ; les jetons du nom de fichier (v1–v4, p/mp/mf/f) décident de la couche.', b: '', reviewed: false } },
+        fr: { t: 'Ajouter les échantillons ; les jetons du nom de fichier (v1–v4, p/mp/mf/f) décident de la couche.', b: '', reviewed: false } },
     'msg.floReplaceLayerForced': {
         en: { t: 'Clear {layer} and add the new samples there.', b: '' },
-        fr: { t: 'Vider {layer} et y ajouter les nouveaux échantillons.', b: '', reviewed: false } },
+        fr: { t: 'Effacer {layer} et y ajouter les nouveaux échantillons.', b: '', reviewed: false } },
     'msg.floReplaceLayerTokens': {
         en: { t: 'Clear {layer}; filename tokens decide where new samples land.', b: '' },
-        fr: { t: 'Vider {layer} ; les jetons du nom de fichier décident où atterrissent les nouveaux échantillons.', b: '', reviewed: false } },
+        fr: { t: 'Effacer {layer} ; les jetons du nom de fichier décident où atterrissent les nouveaux échantillons.', b: '', reviewed: false } },
     'msg.floReplaceAllForced': {
         en: { t: 'Replace existing samples; new ones land on {layer}.', b: '' },
-        fr: { t: 'Remplacer les échantillons existants ; les nouveaux atterrissent sur {layer}.', b: '', reviewed: false } },
+        fr: { t: 'Remplacer les échantillons existants ; les nouveaux atterrissent sur {layer}.', b: '', reviewed: false } },
     'msg.floReplaceAllTokens': {
         en: { t: 'Replace existing samples; filename tokens decide layer.', b: '' },
-        fr: { t: 'Remplacer les échantillons existants ; les jetons du nom de fichier décident de la couche.', b: '', reviewed: false } },
+        fr: { t: 'Remplacer les échantillons existants ; les jetons du nom de fichier décident de la couche.', b: '', reviewed: false } },
     'msg.floMergeRrForced': {
         en: { t: 'Layer onto {layer}: collisions become round-robin variants (cap 64 per cell).', b: '' },
-        fr: { t: 'Superposer sur {layer} : les collisions deviennent des variantes round-robin (max. 64 par case).', b: '', reviewed: false } },
+        fr: { t: 'Superposer sur {layer} : les collisions deviennent des variantes round-robin (max. 64 par case).', b: '', reviewed: false } },
     'msg.floMergeRrTokens': {
         en: { t: 'Layer existing notes: collisions become round-robin variants. Filename tokens decide layer.', b: '' },
-        fr: { t: 'Superposer les notes existantes : les collisions deviennent des variantes round-robin. Les jetons du nom de fichier décident de la couche.', b: '', reviewed: false } },
+        fr: { t: 'Superposer les notes existantes : les collisions deviennent des variantes round-robin. Les jetons du nom de fichier décident de la couche.', b: '', reviewed: false } },
     'msg.floTechniqueForced': {
         en: { t: 'Technique forced to "{name}".', b: '' },
         fr: { t: 'Technique forcée sur « {name} ».', b: '', reviewed: false } },
@@ -253,22 +367,22 @@ export const I18N = Object.freeze({
         fr: { t: 'Vél. {mark} ({range})', b: '', reviewed: false } },
     'aria.cellTech': {
         en: { t: 'tech: {name}', b: '' },
-        fr: { t: 'technique : {name}', b: '', reviewed: false } },
+        fr: { t: 'technique : {name}', b: '', reviewed: false } },
     'aria.cellVariants': {
         en: { t: 'variants: {n}', b: '' },
-        fr: { t: 'variantes : {n}', b: '', reviewed: false } },
+        fr: { t: 'variantes : {n}', b: '', reviewed: false } },
     'aria.velLabel': {
         en: { t: 'Dynamic {mark} (layer {layer}): MIDI velocity {range} — right-click to clear this layer', b: '' },
-        fr: { t: 'Nuance {mark} (couche {layer}) : vélocité MIDI {range} — clic droit pour vider cette couche', b: '', reviewed: false } },
+        fr: { t: 'Nuance {mark} (couche {layer}) : vélocité MIDI {range} — clic droit pour effacer cette couche', b: '', reviewed: false } },
     'aria.switchToVariant': {
         en: { t: 'Switch to variant {n}', b: '' },
         fr: { t: 'Passer à la variante {n}', b: '', reviewed: false } },
     'aria.techTabLoaded': {
         en: { t: 'Technique {i}: {name} — cells loaded: {n}  (right-click to rename)', b: '' },
-        fr: { t: 'Technique {i} : {name} — cases chargées : {n}  (clic droit pour renommer)', b: '', reviewed: false } },
+        fr: { t: 'Technique {i} : {name} — cases chargées : {n}  (clic droit pour renommer)', b: '', reviewed: false } },
     'aria.techTabEmpty': {
         en: { t: 'Technique {i}: {name} — empty  (right-click to rename)', b: '' },
-        fr: { t: 'Technique {i} : {name} — vide  (clic droit pour renommer)', b: '', reviewed: false } },
+        fr: { t: 'Technique {i} : {name} — vide  (clic droit pour renommer)', b: '', reviewed: false } },
     'aria.trimWholeTechnique': {
         en: { t: 'Trim the whole "{name}" technique (all layers)', b: '' },
         fr: { t: 'Ajuster toute la technique « {name} » (toutes les couches)', b: '', reviewed: false } },
@@ -352,13 +466,13 @@ export const I18N = Object.freeze({
         en: { t: 'Attack',
               b: 'Fade-in time from note-on to full level. Raise it to soften a percussive sample onset; leave it near zero to keep the recording’s own transient. 0 to 10 s.' },
         fr: { t: 'Attaque',
-              b: 'Temps de montée entre l’enfoncement de la note et le niveau maximal. Augmentez-le pour adoucir une attaque percussive ; laissez-le près de zéro pour conserver le transitoire de l’enregistrement. 0 à 10 s.',
+              b: 'Temps de montée entre l’enfoncement de la note et le niveau maximal. Augmentez-le pour adoucir l’attaque percussive d’un échantillon ; laissez-le près de zéro pour conserver le transitoire de l’enregistrement. 0 à 10 s.',
               reviewed: false } },
     'tip.decay': {
         en: { t: 'Decay',
               b: 'Time to fall from the peak to the sustain level, once the attack has finished. It only bites when Sustain sits below 1.00. 0 to 10 s.' },
         fr: { t: 'Déclin',
-              b: 'Temps de descente du sommet vers le niveau de maintien, une fois l’attaque terminée. Il n’agit que si le maintien est inférieur à 1,00. 0 à 10 s.',
+              b: 'Temps de descente du sommet vers le niveau de maintien, une fois l’attaque terminée. Il n’agit que si le maintien est inférieur à 1,00. 0 à 10 s.',
               reviewed: false } },
     'tip.sustain': {
         en: { t: 'Sustain',
@@ -369,14 +483,14 @@ export const I18N = Object.freeze({
     'tip.release': {
         en: { t: 'Release',
               b: 'Fade-out time after note-off. A long value lets a hall tail ring on; a short one cuts the note clean. 0 to 10 s.' },
-        fr: { t: 'Extinction',
-              b: 'Temps de descente après le relâchement de la note. Une valeur longue laisse la queue de salle résonner ; une valeur courte coupe la note net. 0 à 10 s.',
+        fr: { t: 'Relâchement',
+              b: 'Temps de descente après le relâchement de la note. Une valeur longue laisse la queue de salle résonner ; une valeur courte coupe la note net. 0 à 10 s.',
               reviewed: false } },
     'tip.polyphony': {
         en: { t: 'Polyphony',
               b: 'Greatest number of notes that may sound at once. Lower it to cap CPU on a large library; past the limit the oldest voice is stolen. 1 to 16 voices.' },
         fr: { t: 'Polyphonie',
-              b: 'Nombre maximal de notes pouvant sonner en même temps. Abaissez-le pour limiter le processeur sur une grande banque ; au-delà de la limite, la voix la plus ancienne est remplacée. 1 à 16 voix.',
+              b: 'Nombre maximal de notes pouvant sonner en même temps. Abaissez-le pour limiter le processeur sur une grande banque ; au-delà de la limite, la voix la plus ancienne est remplacée. 1 à 16 voix.',
               reviewed: false } },
     'tip.velocityCrossfade': {
         en: { t: 'Velocity Crossfade',
@@ -388,31 +502,31 @@ export const I18N = Object.freeze({
         en: { t: 'Expression',
               b: 'Overall playing level, driven live by MIDI CC 11. What it does depends on the Dynamics mode: a post-mix volume trim under Velocity, a layer morph under CC Crossfade. 0 to 100 %.' },
         fr: { t: 'Expression',
-              b: 'Niveau de jeu global, piloté en direct par le CC MIDI 11. Son effet dépend du mode de dynamique : un simple réglage de volume après mixage en Velocity, un fondu entre couches en CC Crossfade. 0 à 100 %.',
+              b: 'Niveau de jeu global, piloté en direct par le CC MIDI 11. Son effet dépend du mode de dynamique : un simple réglage de volume après mixage en Velocity, un fondu entre couches en CC Crossfade. 0 à 100 %.',
               reviewed: false } },
     'tip.dynamicsMode': {
         en: { t: 'Dynamics Mode',
               b: 'Chooses what MIDI CC 11 controls. Velocity: note-on velocity picks the layer and CC 11 is only a volume trim. CC Crossfade: CC 11 morphs across every velocity layer mid-note, changing timbre as well as loudness.' },
         fr: { t: 'Mode de dynamique',
-              b: 'Détermine ce que pilote le CC MIDI 11. Velocity : la vélocité choisit la couche et le CC 11 n’est qu’un réglage de volume. CC Crossfade : le CC 11 fond toutes les couches de vélocité en cours de note, changeant le timbre autant que l’intensité.',
+              b: 'Détermine ce que pilote le CC MIDI 11. Velocity : la vélocité choisit la couche et le CC 11 n’est qu’un réglage de volume. CC Crossfade : le CC 11 fond toutes les couches de vélocité en cours de note, changeant le timbre autant que l’intensité.',
               reviewed: false } },
     'tip.dynamicRange': {
         en: { t: 'Dynamic Range',
               b: 'How much quieter the softest layer sits below the loudest under CC Crossfade. Widen it for an exposed orchestral line, narrow it for a mix that must stay present throughout. 0.0 to 40.0 dB.' },
         fr: { t: 'Plage dynamique',
-              b: 'Écart de niveau entre la couche la plus douce et la plus forte, en mode CC Crossfade. Élargissez-la pour une ligne orchestrale exposée, resserrez-la pour un mixage qui doit rester présent de bout en bout. 0,0 à 40,0 dB.',
+              b: 'Différence de niveau entre la couche la plus douce et la plus forte, en mode CC Crossfade. Élargissez-la pour une ligne orchestrale exposée, resserrez-la pour un mixage qui doit rester présent de bout en bout. 0,0 à 40,0 dB.',
               reviewed: false } },
     'tip.outputGain': {
         en: { t: 'Output Gain',
               b: 'Final level of the whole instrument, applied after every technique and layer trim. Use it to seat this instance against the rest of the mix. −24 to +24 dB.' },
         fr: { t: 'Gain de sortie',
-              b: 'Niveau final de tout l’instrument, appliqué après chaque ajustement de technique et de couche. Utilisez-le pour caler cette instance sur le reste du mixage. −24 à +24 dB.',
+              b: 'Niveau final de tout l’instrument, appliqué après chaque ajustement de technique et de couche. Utilisez-le pour caler cette instance sur le reste du mixage. −24 à +24 dB.',
               reviewed: false } },
     'tip.techniqueCount': {
         en: { t: 'Technique Count',
               b: 'How many playing-technique slots this instrument exposes. Add one for each articulation you have samples for; removing a slot hides its cells rather than deleting them. 1 to 8 slots.' },
         fr: { t: 'Nombre de techniques',
-              b: 'Nombre d’emplacements de technique de jeu proposés par l’instrument. Ajoutez-en un par articulation dont vous avez des échantillons ; en retirer un masque ses cases sans les supprimer. 1 à 8 emplacements.',
+              b: 'Nombre d’emplacements de technique de jeu proposés par l’instrument. Ajoutez-en un par articulation dont vous avez des échantillons ; en retirer un masque ses cases sans les supprimer. 1 à 8 emplacements.',
               reviewed: false } },
     'tip.techniqueSelect': {
         en: { t: 'Technique Select',
@@ -424,13 +538,13 @@ export const I18N = Object.freeze({
         en: { t: 'Keyswitch Enabled',
               b: 'Turns keyswitching on: a note-on inside the range beside it selects a technique instead of sounding. It is off by default, so no note is ever swallowed until you ask for it. Off or On.' },
         fr: { t: 'Commutation par touche',
-              b: 'Active la commutation par touche : une note jouée dans la plage voisine choisit une technique au lieu de sonner. Elle est désactivée par défaut, afin qu’aucune note ne soit absorbée sans votre accord. Arrêt ou Marche.',
+              b: 'Active la commutation par touche : une note jouée dans la plage voisine choisit une technique au lieu de sonner. Elle est désactivée par défaut, afin qu’aucune note ne soit absorbée sans votre accord. Arrêt ou Marche.',
               reviewed: false } },
     'tip.ksLowNote': {
         en: { t: 'Keyswitch Low Note',
               b: 'Bottom of the keyswitch range, as a MIDI note number. Keep it below the register you actually play — the default, MIDI 0, is well out of the way. 0 to 127.' },
         fr: { t: 'Note basse de commutation',
-              b: 'Limite inférieure de la plage de commutation, en numéro de note MIDI. Gardez-la sous le registre que vous jouez réellement ; la valeur par défaut, MIDI 0, est largement à l’écart. 0 à 127.',
+              b: 'Limite inférieure de la plage de commutation, en numéro de note MIDI. Gardez-la sous le registre que vous jouez réellement ; la valeur par défaut, MIDI 0, est largement à l’écart. 0 à 127.',
               reviewed: false } },
     'tip.ksHighNote': {
         en: { t: 'Keyswitch High Note',
@@ -448,7 +562,7 @@ export const I18N = Object.freeze({
         en: { t: 'CC Number',
               b: 'Which MIDI controller drives technique selection. CC 32 is the default; avoid CC 11, which Expression already listens to. 0 to 119.' },
         fr: { t: 'Numéro de CC',
-              b: 'Contrôleur MIDI qui pilote la sélection de technique. Le CC 32 est la valeur par défaut ; évitez le CC 11, déjà écouté par l’expression. 0 à 119.',
+              b: 'Contrôleur MIDI qui pilote la sélection de technique. Le CC 32 est la valeur par défaut ; évitez le CC 11, déjà écouté par Expression. 0 à 119.',
               reviewed: false } },
     'tip.pcEnabled': {
         en: { t: 'Program Change Enabled',
@@ -485,7 +599,7 @@ export const LABELS = Object.freeze({
     // I18N_EXEMPT below. #tuning-readout holds the active tuning's name, which
     // is data from the C++ engine.
     'label.tabSampleMap':  { en: { t: 'Sample Map' },   fr: { t: 'Échantillons',  reviewed: false } },
-    'label.tabTuning':     { en: { t: 'Tuning' },       fr: { t: 'Gamme',         reviewed: false } },
+    'label.tabTuning':     { en: { t: 'Tuning' },       fr: { t: 'Accord',         reviewed: false } },
     'label.tabAbout':      { en: { t: 'About' },        fr: { t: 'À propos',      reviewed: false } },
     'label.savePreset':    { en: { t: 'Save Preset…' }, fr: { t: 'Enreg. prér.…', reviewed: false } },
     'label.loadPreset':    { en: { t: 'Load Preset…' }, fr: { t: 'Ouvrir prér.…', reviewed: false } },
@@ -496,7 +610,7 @@ export const LABELS = Object.freeze({
     'label.or':             { en: { t: 'or' },              fr: { t: 'ou',                     reviewed: false } },
     'label.loadFolder':     { en: { t: 'Load Folder…' },    fr: { t: 'Charger dossier…',       reviewed: false } },
     'label.batchLoop':      { en: { t: 'Batch loop…' },     fr: { t: 'Boucles en lot…',        reviewed: false } },
-    'label.clearSamples':   { en: { t: 'Clear samples' },   fr: { t: 'Vider',                  reviewed: false } },
+    'label.clearSamples':   { en: { t: 'Clear samples' },   fr: { t: 'Effacer',                  reviewed: false } },
 
     // ── Technique preset row ──────────────────────────────────────────────
     // The four family names are CAPTIONS: the <option> VALUES the code keys on
@@ -514,14 +628,16 @@ export const LABELS = Object.freeze({
     // KS is the standard abbreviation for a keyswitch in both languages, and
     // Dorico's own French UI keeps it; sameAsEn is a decision, not a gap.
     'label.ks':     { en: { t: 'KS' },   fr: { t: 'KS',   reviewed: false, sameAsEn: true } },
-    'label.ksLow':  { en: { t: 'low' },  fr: { t: 'min',  reviewed: false } },
-    'label.ksHigh': { en: { t: 'high' }, fr: { t: 'max',  reviewed: false } },
+    'label.ksLow':  { en: { t: 'low' },  fr: { t: 'min',  reviewed: false,
+                                                termNote: 'the two BOUNDS of a MIDI note-number range, read off the pair of number fields beside them — Grave/Aigu name a timbral register, not a range end. Width says the same: Grave is 30.00 px in a 26.00 px box whose only clearance is the 4.00 px gap to its own input' } },
+    'label.ksHigh': { en: { t: 'high' }, fr: { t: 'max',  reviewed: false,
+                                                termNote: 'the two BOUNDS of a MIDI note-number range, read off the pair of number fields beside them — Grave/Aigu name a timbral register, not a range end. Width says the same: Grave is 30.00 px in a 26.00 px box whose only clearance is the 4.00 px gap to its own input' } },
 
     // ── Trigger panel ─────────────────────────────────────────────────────
     'label.triggersHeading':   { en: { t: 'Triggers (CC + PC)' },            fr: { t: 'Déclencheurs (CC + PC)',        reviewed: false } },
     'label.triggerPrecedence': { en: { t: 'KS > CC > PC > history' },        fr: { t: 'KS > CC > PC > historique',     reviewed: false } },
     'label.ccTrigger':         { en: { t: 'CC trigger' },                    fr: { t: 'Déclencheur CC',                reviewed: false } },
-    'label.ccNumber':          { en: { t: 'CC#' },                           fr: { t: 'CC n°',                         reviewed: false } },
+    'label.ccNumber':          { en: { t: 'CC#' },                           fr: { t: 'CC N°',                         reviewed: false } },
     'label.ccHint':            { en: { t: 'value 0–127 → technique slot' },  fr: { t: 'valeur 0–127 → emplacement',    reviewed: false } },
     'label.pcTrigger':         { en: { t: 'PC trigger' },                    fr: { t: 'Déclencheur PC',                reviewed: false } },
     'label.pcHint':            { en: { t: 'program # → technique slot' },    fr: { t: 'n° de programme → emplacement', reviewed: false } },
@@ -529,12 +645,14 @@ export const LABELS = Object.freeze({
     // element: two <th>slot</th> nodes need two keys or the second is never
     // swept. Hence the `2` suffixes rather than a shared key.
     'label.thSlot':  { en: { t: 'slot' }, fr: { t: 'empl.', reviewed: false } },
-    'label.thLow':   { en: { t: 'low' },  fr: { t: 'min',   reviewed: false } },
-    'label.thHigh':  { en: { t: 'high' }, fr: { t: 'max',   reviewed: false } },
-    'label.thTech':  { en: { t: 'tech' }, fr: { t: 'tech.', reviewed: false } },
+    'label.thLow':   { en: { t: 'low' },  fr: { t: 'min',   reviewed: false,
+                                                 termNote: 'in the CC-trigger table, low/high are controller VALUES 0-127, not pitches; Grave/Aigu would name a register this column never holds (it fits at 33.13 px in a 104.66 px th, so this is meaning, not width)' } },
+    'label.thHigh':  { en: { t: 'high' }, fr: { t: 'max',   reviewed: false,
+                                                 termNote: 'in the CC-trigger table, low/high are controller VALUES 0-127, not pitches; Grave/Aigu would name a register this column never holds (it fits at 33.13 px in a 104.66 px th, so this is meaning, not width)' } },
+    'label.thTech':  { en: { t: 'tech' }, fr: { t: 'tech.', reviewed: false, sameAsEn: true } },
     'label.thSlot2': { en: { t: 'slot' }, fr: { t: 'empl.', reviewed: false } },
-    'label.thPc':    { en: { t: 'PC#' },  fr: { t: 'PC n°', reviewed: false } },
-    'label.thTech2': { en: { t: 'tech' }, fr: { t: 'tech.', reviewed: false } },
+    'label.thPc':    { en: { t: 'PC#' },  fr: { t: 'PC N°', reviewed: false } },
+    'label.thTech2': { en: { t: 'tech' }, fr: { t: 'tech.', reviewed: false, sameAsEn: true } },
     'label.resetDefaults': { en: { t: 'Reset to defaults' }, fr: { t: 'Valeurs par défaut', reviewed: false } },
 
     // ── Trim panel ────────────────────────────────────────────────────────
@@ -544,7 +662,7 @@ export const LABELS = Object.freeze({
     // — Italian musical notation, not English — and are exempt too.
     'label.trimsHeading':   { en: { t: 'Trims (loudness)' },                       fr: { t: 'Ajustements (niveau)',                       reviewed: false } },
     'label.trimTechnique':  { en: { t: 'Technique' },                              fr: { t: 'Technique',                                  reviewed: false, sameAsEn: true } },
-    'label.trimHint':       { en: { t: 'Double-click a slider to reset to 0 dB' }, fr: { t: 'Double-clic sur un curseur → 0 dB', reviewed: false } },
+    'label.trimHint':       { en: { t: 'Double-click a slider to reset to 0 dB' }, fr: { t: 'Double-clic sur un curseur → 0 dB', reviewed: false } },
     'label.resetAllTrims':  { en: { t: 'Reset all trims' },                        fr: { t: 'Tout réinitialiser',                         reviewed: false } },
 
     // ── Grid context menu + issues ────────────────────────────────────────
@@ -555,14 +673,14 @@ export const LABELS = Object.freeze({
     // §6 — the count sits after a colon beside an invariant plural noun
     // phrase, so nothing inflects at 0, 1 or n in either language.
     'label.issuesSummary':     { en: { t: 'Issues · files skipped: {n}' },
-                                 fr: { t: 'Problèmes · fichiers ignorés : {n}', reviewed: false } },
+                                 fr: { t: 'Problèmes · fichiers ignorés : {n}', reviewed: false } },
 
     // ── Loop editor ───────────────────────────────────────────────────────
     'label.loopPlaceholder': { en: { t: 'Select a loaded sample slot to edit loop points' },
                                fr: { t: 'Sélectionnez une case chargée pour modifier ses points de boucle', reviewed: false } },
-    'label.loopStartCap':    { en: { t: 'Loop start:' },          fr: { t: 'Début de boucle :',   reviewed: false } },
-    'label.loopEndCap':      { en: { t: 'Loop end:' },            fr: { t: 'Fin de boucle :',     reviewed: false } },
-    'label.loopModeCap':     { en: { t: 'Mode:' },                fr: { t: 'Mode :',              reviewed: false } },
+    'label.loopStartCap':    { en: { t: 'Loop start:' },          fr: { t: 'Début de boucle :',   reviewed: false } },
+    'label.loopEndCap':      { en: { t: 'Loop end:' },            fr: { t: 'Fin de boucle :',     reviewed: false } },
+    'label.loopModeCap':     { en: { t: 'Mode:' },                fr: { t: 'Mode :',              reviewed: false } },
     'label.loopReset':       { en: { t: 'Reset to auto-detect' }, fr: { t: 'Détection auto',      reviewed: false } },
     'label.loopCancel':      { en: { t: 'Cancel' },               fr: { t: 'Annuler',             reviewed: false } },
     'label.loopApply':       { en: { t: 'Apply' },                fr: { t: 'Appliquer',           reviewed: false } },
@@ -572,14 +690,14 @@ export const LABELS = Object.freeze({
     // EVERY dialog's Cancel button carries its OWN key. A key is owned by one
     // element (contract §1) and applyI18n sweeps per element, so seven dialogs
     // sharing one 'label.cancel' would leave six of them unswept.
-    'label.areYouSure': { en: { t: 'Are you sure?' }, fr: { t: 'Êtes-vous sûr ?', reviewed: false } },
+    'label.areYouSure': { en: { t: 'Are you sure?' }, fr: { t: 'Êtes-vous sûr ?', reviewed: false } },
     'label.cancel':     { en: { t: 'Cancel' },        fr: { t: 'Annuler',         reviewed: false } },
     'label.confirm':    { en: { t: 'Confirm' },       fr: { t: 'Confirmer',       reviewed: false } },
 
     // ── Batch loop dialog ─────────────────────────────────────────────────
     'label.batchLoopTitle':  { en: { t: 'Batch loop points' }, fr: { t: 'Points de boucle en lot', reviewed: false } },
     'label.batchLoopBlurb':  { en: { t: 'Apply one loop region to every loaded sample at once. One-shot samples (too short to loop) are left untouched.' },
-                               fr: { t: 'Applique une région de boucle à tous les échantillons chargés. Les one-shot (trop courts) restent intacts.', reviewed: false } },
+                               fr: { t: 'Applique une même région de boucle à tous les échantillons chargés. Les one-shot (trop courts pour boucler) restent intacts.', reviewed: false } },
     'label.blUnits':         { en: { t: 'Units' },             fr: { t: 'Unités',           reviewed: false } },
     'label.blProportional':  { en: { t: 'Proportional (%)' },  fr: { t: 'Proportionnel (%)', reviewed: false } },
     'label.blMilliseconds':  { en: { t: 'Milliseconds' },      fr: { t: 'Millisecondes',    reviewed: false } },
@@ -588,7 +706,7 @@ export const LABELS = Object.freeze({
     'label.cancelBl':        { en: { t: 'Cancel' },            fr: { t: 'Annuler',          reviewed: false } },
     'label.blApplyAll':      { en: { t: 'Apply to all' },      fr: { t: 'Tout appliquer',   reviewed: false } },
     'label.blErrPercent':    { en: { t: 'Start and end must be 0–100 %, with end greater than start.' },
-                               fr: { t: 'Début et fin doivent être entre 0 et 100 %, la fin après le début.', reviewed: false } },
+                               fr: { t: 'Début et fin doivent être entre 0 et 100 %, la fin après le début.', reviewed: false } },
     'label.blErrMs':         { en: { t: 'Start and end must be in ms, with end greater than start.' },
                                fr: { t: 'Début et fin doivent être en ms, la fin après le début.', reviewed: false } },
 
@@ -617,9 +735,9 @@ export const LABELS = Object.freeze({
                                          fr: { t: 'Le dossier d’échantillons enregistré est introuvable. Localisez-le maintenant, ou passez et chargez les échantillons manuellement.', reviewed: false } },
     'label.dragDropNotEmbedded':       { en: { t: 'Drag-dropped samples not embedded' }, fr: { t: 'Échantillons déposés non intégrés', reviewed: false } },
     'label.dragDropMsgNamed':          { en: { t: 'Samples were drag-dropped from "{name}" without "Embed audio" enabled, so they could not be re-loaded automatically. Re-drag the folder onto the plugin, or browse to its current location.' },
-                                         fr: { t: 'Les échantillons ont été déposés depuis « {name} » sans « Intégrer l’audio », ils n’ont donc pas pu être rechargés automatiquement. Redéposez le dossier sur le plugiciel, ou parcourez jusqu’à son emplacement actuel.', reviewed: false } },
+                                         fr: { t: 'Les échantillons ont été déposés depuis « {name} » sans « Intégrer l’audio », ils n’ont donc pas pu être rechargés automatiquement. Redéposez le dossier sur le plugin, ou parcourez jusqu’à son emplacement actuel.', reviewed: false } },
     'label.dragDropMsgUnnamed':        { en: { t: 'Samples were drag-dropped without "Embed audio" enabled, so they could not be re-loaded automatically. Re-drag the folder onto the plugin, or browse to its current location.' },
-                                         fr: { t: 'Les échantillons ont été déposés sans « Intégrer l’audio », ils n’ont donc pas pu être rechargés automatiquement. Redéposez le dossier sur le plugiciel, ou parcourez jusqu’à son emplacement actuel.', reviewed: false } },
+                                         fr: { t: 'Les échantillons ont été déposés sans « Intégrer l’audio », ils n’ont donc pas pu être rechargés automatiquement. Redéposez le dossier sur le plugin, ou parcourez jusqu’à son emplacement actuel.', reviewed: false } },
     'label.skip':                      { en: { t: 'Skip' },              fr: { t: 'Passer',             reviewed: false } },
     'label.locateFolder':              { en: { t: 'Locate folder…' },    fr: { t: 'Localiser le dossier…', reviewed: false } },
     'label.browseForFolder':           { en: { t: 'Browse for folder…' }, fr: { t: 'Parcourir…',        reviewed: false } },
@@ -629,9 +747,9 @@ export const LABELS = Object.freeze({
     // literals the C++ FilenameParser matches and must not be translated.
     'label.rrTitle':      { en: { t: 'Multiple samples for the same note' }, fr: { t: 'Plusieurs échantillons pour la même note', reviewed: false } },
     'label.rrBodyBefore': { en: { t: 'The folder contains more than one sample for the same note and velocity layer, without explicit' },
-                            fr: { t: 'Le dossier contient plusieurs échantillons pour la même note et la même couche, sans jetons', reviewed: false } },
+                            fr: { t: 'Le dossier contient plusieurs échantillons pour la même note et la même couche de vélocité, sans jetons', reviewed: false } },
     'label.rrBodyAfter':  { en: { t: 'tokens in the filenames. Treat them as round-robin variants?' },
-                            fr: { t: 'dans les noms. Les traiter comme des variantes round-robin ?', reviewed: false } },
+                            fr: { t: 'dans les noms. Les traiter comme des variantes round-robin ?', reviewed: false } },
     'label.rrCancel':     { en: { t: 'Cancel load' },       fr: { t: 'Annuler le chargement', reviewed: false } },
     'label.rrAccept':     { en: { t: 'Treat as variants' }, fr: { t: 'Traiter en variantes',  reviewed: false } },
     'label.rrCellHead':   { en: { t: 'MIDI {n} · {mark}' }, fr: { t: 'MIDI {n} · {mark}',     reviewed: false, sameAsEn: true } },
@@ -663,7 +781,7 @@ export const LABELS = Object.freeze({
     'label.floLoad':             { en: { t: 'Load…' },  fr: { t: 'Charger…', reviewed: false } },
 
     // ── Embed-size confirmation ───────────────────────────────────────────
-    'label.embedTitle':      { en: { t: 'Embed audio in project?' }, fr: { t: 'Intégrer l’audio au projet ?', reviewed: false } },
+    'label.embedTitle':      { en: { t: 'Embed audio in project?' }, fr: { t: 'Intégrer l’audio au projet ?', reviewed: false } },
     'label.embedDetail':     { en: { t: 'The audio data will be written into your DAW project file. Project saves and reopens will be slower for large libraries, but the samples will travel with the project across folders and machines.' },
                                fr: { t: 'Les données audio seront écrites dans le fichier de projet de votre STAN. Les enregistrements et réouvertures seront plus lents pour les grandes bibliothèques, mais les échantillons suivront le projet d’un dossier ou d’une machine à l’autre.', reviewed: false } },
     'label.embedMsgNamed':   { en: { t: 'Embedding folder "{name}" will add ~{size} to your project state.' },
@@ -679,9 +797,9 @@ export const LABELS = Object.freeze({
     // colon instead, so neither inflects.
     'label.mergeTitle':        { en: { t: 'Cell already has samples' }, fr: { t: 'La case contient déjà des échantillons', reviewed: false } },
     'label.mergeMsgCapped':    { en: { t: '{note} layer {mark} is at the maximum · variants held: {n}. Replace the cell, or cancel.' },
-                                 fr: { t: '{note} couche {mark} est au maximum · variantes présentes : {n}. Remplacez la case, ou annulez.', reviewed: false } },
+                                 fr: { t: '{note} couche {mark} est au maximum · variantes présentes : {n}. Remplacez la case, ou annulez.', reviewed: false } },
     'label.mergeMsgAdd':       { en: { t: '{note} layer {mark} · variants held: {n}. Add this sample as round-robin variant {next}, or replace the cell?' },
-                                 fr: { t: '{note} couche {mark} · variantes présentes : {n}. Ajouter cet échantillon comme variante round-robin {next}, ou remplacer la case ?', reviewed: false } },
+                                 fr: { t: '{note} couche {mark} · variantes présentes : {n}. Ajouter cet échantillon comme variante round-robin {next}, ou remplacer la case ?', reviewed: false } },
     'label.cancelMerge':       { en: { t: 'Cancel' },             fr: { t: 'Annuler',            reviewed: false } },
     'label.mergeReplaceCell':  { en: { t: 'Replace cell' },       fr: { t: 'Remplacer la case',  reviewed: false } },
     'label.mergeAddRr':        { en: { t: 'Add as round-robin' }, fr: { t: 'Ajouter en round-robin', reviewed: false } },
@@ -691,14 +809,14 @@ export const LABELS = Object.freeze({
     'label.renameTitle':  { en: { t: 'Rename technique' }, fr: { t: 'Renommer la technique', reviewed: false } },
     'label.renameSlot':   { en: { t: 'Slot' },             fr: { t: 'Empl.',                 reviewed: false } },
     'label.renameBody':   { en: { t: ': enter a new name. Names appear in the tab strip and Dorico expression maps.' },
-                            fr: { t: ' : saisissez un nouveau nom. Il apparaît dans la barre d’onglets et les cartes d’expression Dorico.', reviewed: false } },
+                            fr: { t: ' : saisissez un nouveau nom. Il apparaît dans la barre d’onglets et les cartes d’expression Dorico.', reviewed: false } },
     'label.cancelRename': { en: { t: 'Cancel' }, fr: { t: 'Annuler',   reviewed: false } },
     'label.renameSave':   { en: { t: 'Save' },   fr: { t: 'Enregistrer', reviewed: false } },
 
     // ── About ─────────────────────────────────────────────────────────────
     // The two headings are the product name and the company name — exempt.
     'label.aboutTagline': { en: { t: 'Microtonal sample engine for Dorico microtonal playback.' },
-                            fr: { t: 'Moteur d’échantillons microtonal pour la lecture microtonale de Dorico.', reviewed: false } },
+                            fr: { t: 'Moteur d’échantillonnage microtonal pour la lecture microtonale de Dorico.', reviewed: false } },
     'label.aboutBlurb':   { en: { t: 'Per-key, per-velocity-layer sample mapping with offline loop auto-detection, manual loop editing, and the Ouaricon tuning-system family. Built on JUCE 8.' },
                             fr: { t: 'Mappage par touche et par couche de vélocité, détection automatique des boucles, édition manuelle, et les systèmes d’accord Ouaricon. Bâti sur JUCE 8.', reviewed: false } },   // 2 lines, measured; the fuller draft was 3 and grew the About card 20.14px
     'label.madeBy':       { en: { t: 'Made by' }, fr: { t: 'Réalisé par', reviewed: false } },
@@ -720,13 +838,13 @@ export const LABELS = Object.freeze({
     // (41.22), each measured IN this element so letter-spacing and the real
     // font are in play. Maintien is the tightest survivor at 55.69px.
     'label.knobAttack':   { en: { t: 'Attack' },   fr: { t: 'Attaque',  reviewed: false } },
-    'label.knobDecay':    { en: { t: 'Decay' },    fr: { t: 'Chute',    reviewed: false } },
+    'label.knobDecay':    { en: { t: 'Decay' },    fr: { t: 'Déclin',    reviewed: false } },
     'label.knobSustain':  { en: { t: 'Sustain' },  fr: { t: 'Maintien', reviewed: false } },
     'label.knobRelease':  { en: { t: 'Release' },  fr: { t: 'Relâch.',  reviewed: false } },
     'label.knobPoly':     { en: { t: 'Poly' },     fr: { t: 'Polyph.',  reviewed: false } },
     'label.knobVelXf':    { en: { t: 'Vel-XF' },   fr: { t: 'Vél-XF',   reviewed: false } },
-    'label.knobExpr':     { en: { t: 'Expr' },     fr: { t: 'Expr.',    reviewed: false } },
-    'label.knobDynRng':   { en: { t: 'Dyn Rng' },  fr: { t: 'Ét. dyn.', reviewed: false } },
+    'label.knobExpr':     { en: { t: 'Expr' },     fr: { t: 'Expr.',    reviewed: false, sameAsEn: true } },
+    'label.knobDynRng':   { en: { t: 'Dyn Rng' },  fr: { t: 'Pl. dyn.', reviewed: false } },
     'label.knobOutGain':  { en: { t: 'Out Gain' }, fr: { t: 'Sortie',   reviewed: false } },
     'label.dynamics':     { en: { t: 'Dynamics' }, fr: { t: 'Dynamique', reviewed: false } },
 
@@ -738,30 +856,30 @@ export const LABELS = Object.freeze({
     'label.vizPolar':       { en: { t: 'Polar' },      fr: { t: 'Polaire',  reviewed: false } },
     'label.vizMatrix':      { en: { t: 'Matrix' },     fr: { t: 'Matrice',  reviewed: false } },
     'label.vizTrueKeys':    { en: { t: 'True Keys' },  fr: { t: 'Touches',  reviewed: false } },
-    'label.vizRotation':    { en: { t: 'Rotation' },   fr: { t: 'Rotations', reviewed: false } },
-    'label.scaleIntervals': { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles', reviewed: false } },
-    'label.tkHint':         { en: { t: 'Hold 2+ notes to see intervals' }, fr: { t: 'Tenez 2 notes ou plus pour voir les intervalles', reviewed: false } },
+    'label.vizRotation':    { en: { t: 'Rotation' },   fr: { t: 'Rotation', reviewed: false, sameAsEn: true } },
+    'label.scaleIntervals': { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: false } },
+    'label.tkHint':         { en: { t: 'Hold 2+ notes to see intervals' }, fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: false } },
     'label.totalSpan':      { en: { t: 'Total span' }, fr: { t: 'Étendue',        reviewed: false } },
     'label.rotationMode':   { en: { t: 'Mode' },       fr: { t: 'Mode', reviewed: false, sameAsEn: true } },
     'label.intervalsCount': { en: { t: 'Intervals · notes: {n}' },
-                              fr: { t: 'Interv. · notes : {n}', reviewed: false } },   // 114.45px in a
+                              fr: { t: 'Interv. · notes : {n}', reviewed: false } },   // 114.45px in a
                               // 142px column, measured. The fuller 'Intervalles · notes : {n}'
                               // is 2 lines and pushes the whole interval list down 14px; the
                               // one-line alternative 'Intervalles · {n} notes' fits at 138.44
                               // but inflects wrongly at n=1, so per contract §6 the count stays
                               // after the colon beside an invariant noun instead.
     'label.tonic':          { en: { t: 'Tonic' },      fr: { t: 'Tonique',  reviewed: false } },
-    'label.tuningLibrary':  { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque', reviewed: false } },
+    'label.tuningLibrary':  { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque de gammes', reviewed: false } },
     'label.catAll':         { en: { t: 'All Categories' },  fr: { t: 'Toutes catégories', reviewed: false } },
     'label.catHistorical':  { en: { t: 'Historical' },      fr: { t: 'Historiques',       reviewed: false } },
     'label.catJust':        { en: { t: 'Just Intonation' }, fr: { t: 'Intonation juste',  reviewed: false } },
     'label.catEdo':         { en: { t: 'Equal Divisions' }, fr: { t: 'Divisions égales',  reviewed: false } },
-    'label.catNonOctave':   { en: { t: 'Non-Octave' },      fr: { t: 'Non-octaviantes',   reviewed: false } },
+    'label.catNonOctave':   { en: { t: 'Non-Octave' },      fr: { t: 'Non octaviantes',   reviewed: false } },
     'label.catWorld':       { en: { t: 'World' },           fr: { t: 'Du monde',          reviewed: false } },
-    'label.noteCount':      { en: { t: 'notes: {n}' },      fr: { t: 'notes : {n}',       reviewed: false } },
+    'label.noteCount':      { en: { t: 'notes: {n}' },      fr: { t: 'notes : {n}',       reviewed: false } },
     // A4 stays A4: it is letter pitch notation, which the C++ TuningEngine and
     // the .scl/.kbm formats also speak. Only REF is a word.
-    'label.a4Ref':          { en: { t: 'A4 REF' },  fr: { t: 'RÉF A4',    reviewed: false } },
+    'label.a4Ref':          { en: { t: 'A4 REF' },  fr: { t: 'RÉF. A4',    reviewed: false } },
     'label.stretch':        { en: { t: 'Stretch' }, fr: { t: 'Étirement', reviewed: false } },
     'label.loadScl':        { en: { t: 'Load .SCL' },   fr: { t: 'Ouvrir .SCL',   reviewed: false } },
     'label.loadKbm':        { en: { t: 'Load .KBM' },   fr: { t: 'Ouvrir .KBM',   reviewed: false } },
@@ -783,7 +901,7 @@ export const LABELS = Object.freeze({
     'label.genNotes':         { en: { t: 'Notes' },          fr: { t: 'Notes', reviewed: false, sameAsEn: true } },
     'label.generate':         { en: { t: 'Generate' },       fr: { t: 'Générer', reviewed: false } },
     'label.tuningPanelUnavailable': { en: { t: 'Tuning panel unavailable.' },
-                                      fr: { t: 'Panneau de gamme indisponible.', reviewed: false } },
+                                      fr: { t: 'Panneau d’accord indisponible.', reviewed: false } },
 
     // ── ACCESSIBLE NAMES declared in markup or by a literal dataset write ──
     //
@@ -791,12 +909,12 @@ export const LABELS = Object.freeze({
     // native title= attributes and THREE of the JS-written ones, moved here
     // per contract §4 with their own v1.23.10 wording, VERBATIM. No new prose
     // is invented: Stage M authors hover-help, this rule does not.
-    'aria.savePreset':       { en: { t: 'Save plugin state to .omspreset' },   fr: { t: 'Enregistrer l’état du plugiciel dans un .omspreset', reviewed: false } },
-    'aria.loadPreset':       { en: { t: 'Load plugin state from .omspreset' }, fr: { t: 'Charger l’état du plugiciel depuis un .omspreset',  reviewed: false } },
+    'aria.savePreset':       { en: { t: 'Save plugin state to .omspreset' },   fr: { t: 'Enregistrer l’état du plugin dans un .omspreset', reviewed: false } },
+    'aria.loadPreset':       { en: { t: 'Load plugin state from .omspreset' }, fr: { t: 'Charger l’état du plugin depuis un .omspreset',  reviewed: false } },
     'aria.settings':         { en: { t: 'Settings' },           fr: { t: 'Réglages',            reviewed: false } },
     'aria.langSelect':       { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
     'aria.techniquePreset':  { en: { t: 'Rename all technique slots to match a Dorico instrument family (slot order matches the keyswitch order in the O-MicrotonalSampler expression maps)' },
-                               fr: { t: 'Renommer tous les emplacements de technique selon une famille d’instruments Dorico (l’ordre des emplacements suit celui des keyswitches dans les cartes d’expression O-MicrotonalSampler)', reviewed: false } },
+                               fr: { t: 'Renommer tous les emplacements de technique selon une famille d’instruments Dorico (l’ordre des emplacements suit celui des commutations par touche dans les cartes d’expression O-MicrotonalSampler)', reviewed: false } },
     'aria.playingTechniques': { en: { t: 'Playing techniques' },     fr: { t: 'Techniques de jeu',          reviewed: false } },
     'aria.addTechnique':      { en: { t: 'Add technique slot' },     fr: { t: 'Ajouter un emplacement de technique', reviewed: false } },
     'aria.removeTechnique':   { en: { t: 'Remove last technique slot' }, fr: { t: 'Retirer le dernier emplacement de technique', reviewed: false } },
@@ -810,12 +928,13 @@ export const LABELS = Object.freeze({
     'aria.floTechnique':      { en: { t: 'Target technique slot' }, fr: { t: 'Emplacement de technique cible', reviewed: false } },
     'aria.renameInput':       { en: { t: 'New technique name' },    fr: { t: 'Nouveau nom de technique',   reviewed: false } },
     'aria.dynamicsMode':      { en: { t: 'Dynamics Mode — how MIDI CC 11 shapes dynamics. Velocity: note-on velocity picks the layer, CC 11 is a post-mix volume trim (v1.20 behaviour). CC Crossfade: CC 11 morphs across all velocity layers mid-note (timbre + loudness, like pro sustain patches).' },
-                                fr: { t: 'Mode de dynamique — comment le CC MIDI 11 façonne la dynamique. Velocity : la vélocité de la note choisit la couche, le CC 11 sert d’ajustement de volume après mixage (comportement v1.20). CC Crossfade : le CC 11 fond toutes les couches de vélocité au cours de la note (timbre + niveau, comme les patches de tenue professionnels).', reviewed: false } },
+                                fr: { t: 'Mode de dynamique — comment le CC MIDI 11 façonne la dynamique. Velocity : la vélocité de la note choisit la couche, le CC 11 sert d’ajustement de volume après mixage (comportement v1.20). CC Crossfade : le CC 11 fond toutes les couches de vélocité au cours de la note (timbre + niveau, comme les patches professionnels de notes tenues).', reviewed: false,
+                                  termNote: '« après mixage » is the mixing PROCESS the layers are summed by — the post-mix trim of the English — not the Mix control the forbidden entry targets. There is no Mix control on this page' } },
     'aria.dynamicsModeShort': { en: { t: 'Dynamics Mode' }, fr: { t: 'Mode de dynamique', reviewed: false } },
     'aria.knobExpr':          { en: { t: 'Expression (MIDI CC 11) — dynamics control, independent of velocity layer' },
                                 fr: { t: 'Expression (CC MIDI 11) — contrôle de la dynamique, indépendant de la couche de vélocité', reviewed: false } },
     'aria.knobDynRng':        { en: { t: 'Dynamic Range (CC Crossfade only) — dB span between pp and ff. 0 dB = flat; higher = louder ff / quieter pp. Fixes "forte too soft, piano too loud" in Dorico.' },
-                                fr: { t: 'Amplitude dynamique (CC Crossfade uniquement) — écart en dB entre pp et ff. 0 dB = plat ; plus haut = ff plus fort / pp plus doux. Corrige le « forte trop faible, piano trop fort » dans Dorico.', reviewed: false } },
+                                fr: { t: 'Plage dynamique (CC Crossfade uniquement) — différence en dB entre pp et ff. 0 dB = plat ; plus haut = ff plus fort / pp plus doux. Corrige le « forte trop faible, piano trop fort » dans Dorico.', reviewed: false } },
     'aria.loopResetOneShot':  { en: { t: 'Sample is one-shot — no loop region detected.' },
                                 fr: { t: 'Échantillon one-shot — aucune région de boucle détectée.', reviewed: false } },
 });

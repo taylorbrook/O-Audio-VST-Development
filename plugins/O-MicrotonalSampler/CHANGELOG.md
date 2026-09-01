@@ -1,5 +1,31 @@
 # O-MicrotonalSampler Changelog
 
+## [1.25.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **73 French values revised** of 290, across all 270 entries, against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint: 28 terminology, 38 typography, 2 casing,
+  5 restored meaning. Lint findings 74 → 1. The visible ones: the Decay knob now reads
+  **Déclin** rather than *Chute*, which is also what its own tooltip already said; the
+  Release tooltip title is **Relâchement** rather than *Extinction*, matching the
+  **Relâch.** on the knob; every *Vider* is **Effacer**; the Tuning tab is **Accord**;
+  the tuning panel takes the settled shared forms — **Intervalles de la gamme**,
+  **Bibliothèque de gammes**, **RÉF. A4**, **Rotation**, **Non octaviantes**,
+  **Tenir 2 notes ou plus…** — the same strings O-Bells, O-IntonationPad, O-Lyrica and
+  O-Prism carry over the same panel; and four occurrences of *plugiciel* are now
+  **plugin**, the settled masculine.
+- **One French name per control.** Dynamic Range had three — *Ét. dyn.* on the knob,
+  *Plage dynamique* in its tooltip, *Amplitude dynamique* in its accessible name. It is
+  **Plage dynamique** everywhere now, with **Pl. dyn.** on the 58 px knob caption.
+- **French typography throughout**: a no-break space before `% : ; ! ?` and between a
+  number and its unit (*0 à 10 s*, *−24 à +24 dB*, *0 à 100 %*), so a value and its unit
+  can no longer be split across a line.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so
+  assistive technology reads the page in the language it is displayed in.
+
 ## [1.25.0] - 2026-08-30
 
 ### Added
