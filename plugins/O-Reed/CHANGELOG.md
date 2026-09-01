@@ -1,5 +1,17 @@
 # O-Reed Changelog
 
+## v1.3.1 (2026-08-31)
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **42 of the 90 French entries revised** against the suite glossary (`scripts/i18n-fr-glossary.js`) and lint, which goes from 53 findings to 0 under `--strict`. Two captions move to the settled suite term — `Amortis.` → **Amort.** and `Réinject.` → **Réinjection**; 33 entries gain French typography (59 no-break spaces before `%`, `:`, `;` and between every number and its unit — `800 Hz`, `−60,0 à +12,0 dB`, `0,1 mm`, `16 voix`); and nine entries are corrected for grammar, idiom or meaning. The English copy, the keys, the bindings and the exemptions are byte-identical, and `reviewed: false` still stands on every entry — no native speaker has read this yet.
+- **One control had two French names.** The polyphony dropdown's caption read *Mode polyphonique* while its own tooltip and the Max Voices tooltip both said *Mode de polyphonie*; the caption now matches. The mirror case went the other way — the Polyphony Mode tooltip pointed at *Voix maximales* where the knob it names reads **Voix max**, so the tooltip moved.
+- **Four French sentences said less than their English.** The Embouchure tooltip had dropped the reed's *rest* opening and hung a gérondif off the wrong subject; the Flutter Tongue tooltip agreed a pronoun to the wrong noun; the Reed Mass, Reed Damping and Air Noise tooltips carried calques (*résonne sur sa propre fréquence*, *résonner à côté de la perce*, *mêlé au niveau de l'anche*) where French has a plain form.
+- **Six entries carry a `termNote`** — a recorded, reasoned exemption rather than silence. *Anche dble* and *Flatt.* are width: the settled *Anche double* (67.20 px) and *Flatterzunge* (67.36 px) sit 0.80 and 0.64 px inside a 68.00 px caption cap that truncates silently. *Vib Prof.* / *Vib Vit.* are geometry: the glossary form measured 50.08 px and the label-collision gate failed on it. *Tenue inf.* / *Tenue infinie* are meaning: O-Reed has no ADSR, so the envelope term *Maintien* would name a control that does not exist.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so assistive technology reads the page in the language it is displayed in.
+
 ## v1.3.0 (2026-08-30)
 
 ### Added
