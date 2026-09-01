@@ -1,5 +1,34 @@
 # O-Detune Changelog
 
+## [1.7.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **26 French entries revised** against the suite glossary and lint: ten
+  terminology fixes in a caption or tooltip title, twenty typographic (straight
+  apostrophes to `’`, no-break spaces before `%`, `:` and `;`, and between a
+  number and its unit), two agreement fixes and four where the French had
+  drifted from what the English says. The visible ones: **SAUVER → ENREG**,
+  **AMPLEUR → PROFONDEUR**, **RETOUR → RÉINJ.** (*retour* is a monitor send in
+  French, not delay feedback), **PRÉ-DLY → PRÉ-DÉL.**, and the blend caption
+  **MÉLANGE → FONDU**. The preset button's accessible name is now *Enregistrer
+  les réglages actuels*, which is also what makes the shortened ENREG caption a
+  substring of its own accessible name (WCAG 2.5.3 label-in-name).
+- **One French sentence said the wrong thing.** The Blend tooltip opened
+  *"Fond enchaîné"* — a background, not a crossfade; it now reads *"Fondu
+  enchaîné"*. Three smaller corrections went with it: the Sync body called the
+  host transport *le défilement*, the Width body said *dose* where the control
+  scales a level, and the Random body named the modulation amount *amplitude*
+  where the knob beside it is captioned *Profondeur*.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+Every French entry is still flagged `reviewed: false`: this was a second
+machine reading against a glossary and a lint, not a native speaker's.
+
 ## [1.7.0] - 2026-08-30
 
 ### Added

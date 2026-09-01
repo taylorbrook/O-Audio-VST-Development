@@ -18,7 +18,64 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Detune page labels and hover-help, English + French (v1.7.0)
+// i18n.js — O-Detune page labels and hover-help, English + French (v1.7.1)
+//
+// ── v1.7.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 26 of 47 entries — 10 terminology in a label or tooltip title plus
+// 5 body alignments to those terms, 20 typography, 2 grammar/agreement,
+// 4 meaning (an entry can be in more than one column). sameAsEn: kept 3
+// (Detune, Sync, Mix), translated 0. Two more titles equal their English over
+// a translated body (tip.sync, tip.mix) and correctly carry NO flag — the flag
+// is entry-scoped and would disarm check-i18n assertion 4 for the body too.
+// termNote exemptions: 3 (listed below).
+// Left as drafted: the rest. reviewed: false throughout — no native speaker yet.
+//
+// The decisions the next reader needs:
+//
+//   PRODUCT NAME. label.productName keeps "Detune" with sameAsEn AND now a
+//   termNote: it is the product word of the .logo "Ouaricon Detune", and a
+//   product name is not translated. The knob keyed label.detune carries the
+//   glossary root Désaccord and always has. OUARICON DÉSACCORD would also be
+//   312.95 px against OUARICON DETUNE's 261.81 in a 262 px header slot.
+//
+//   BLEND. The glossary settles `blend` → Mix, and this page also has the
+//   dry/wet control that row is written for (label.mix). Applying it would
+//   print MIX on two different parameters in one French frame while English
+//   keeps them apart, so label.blend and tip.blend take the crossfade word
+//   the body has always used: Fondu. Both carry the termNote.
+//
+//   THREE v1.7.0 WIDTH DEFENCES WERE BACKWARDS, re-measured on the real nodes
+//   at 600 x 480 with Range.selectNodeContents:
+//     SAUVER 39.09 vs ENREG. 36.94 — the glossary term is NARROWER;
+//     AMPLEUR 49.91 vs PROFONDEUR 71.25 — the box is the 91 px grid cell that
+//       GEOMETRY PIN B holds at width: 100%, not the 52 px knob FACE, and
+//       .knob-label is shrink-to-fit with overflow: visible, so its own
+//       content box can never be narrower than its text;
+//     the caption defended as "PRÉ-DÉLAI 61 px" measures 55.86.
+//   Where the root genuinely does not fit, the listed abbreviation is used and
+//   the number is recorded: RÉINJECTION 70.41 against GEOMETRY PIN B's 55 px
+//   pin (RÉINJ. 34.50), PRÉ-DÉLAI 55.86 in the 50 px knob column
+//   (PRÉ-DÉL. 47.94, a 2.06 px margin — the tightest caption on this page).
+//
+//   THE PERIOD ON ENREG IS DROPPED, deliberately: "Enreg" is a substring of
+//   the accessible name "Enregistrer les réglages actuels" and "Enreg." is
+//   not, so label-in-name (WCAG 2.5.3) holds only period-less. RÉINJ. keeps
+//   its period — it is a knob caption with no accessible name to be a
+//   substring of, and a French abbreviation takes one.
+//
+//   BODIES ARE NOT MATCHED AGAINST THE TERM LIST, and two readings were kept
+//   on purpose: tip.detune's "Écart de hauteur entre les voix" describes how
+//   far apart they are pitched (the CAPTION carries the term, Désaccord), and
+//   the option faces 60s / 70s / 80s stay verbatim English inside the French
+//   body because that is what the exempt menu shows in both languages.
+//
+//   ONE LINT FINDING IS LEFT OPEN, and it is a false positive: T7 reports
+//   tip.era's six "60s" / "70s" / "80s" tokens as a number missing its
+//   no-break space before the unit "s". They are wobble_era option faces
+//   (PluginProcessor.cpp:53), not seconds; "60 s" would name a menu entry
+//   that does not exist. Reported to the orchestrator; scripts/ not edited,
+//   and no termNote was invented to hide it (termNote exempts G1/F1 only).
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -176,7 +233,7 @@ export const I18N = Object.freeze({
         en: { t: "Era",
               b: "Gives the wobble a decade's character by scaling how deep it swings: 60s is the deepest, 70s neutral, 80s the most restrained. Reach for it to age or calm the modulation without touching Depth. Three settings: 60s, 70s and 80s." },
         fr: { t: "Époque",
-              b: "Donne au pleurage le caractère d'une décennie en dosant l'amplitude de son oscillation : 60s est la plus marquée, 70s est neutre, 80s la plus retenue. À utiliser pour vieillir ou assagir la modulation sans toucher à Ampleur. Trois positions : 60s, 70s et 80s.",
+              b: "Donne au pleurage le caractère d’une décennie en réglant l’amplitude de son oscillation : 60s est la plus marquée, 70s est neutre, 80s la plus retenue. À utiliser pour vieillir ou assagir la modulation sans toucher à Profondeur. Trois positions : 60s, 70s et 80s.",
               reviewed: false },
     },
 
@@ -184,7 +241,7 @@ export const I18N = Object.freeze({
         en: { t: "Shape",
               b: "The waveform driving the pitch modulation. Sine glides evenly, Triangle turns more sharply at the extremes, and Random holds a new value each cycle for an unsteady, worn-tape stagger. Three settings: Sine, Triangle and Random." },
         fr: { t: "Forme",
-              b: "L'onde qui pilote la modulation de hauteur. Sine glisse régulièrement, Triangle marque davantage les extrêmes, et Random tient une nouvelle valeur à chaque cycle, pour l'irrégularité d'une bande usée. Trois positions : Sine, Triangle et Random.",
+              b: "L’onde qui pilote la modulation de hauteur. Sine glisse régulièrement, Triangle marque davantage les extrêmes, et Random tient une nouvelle valeur à chaque cycle, pour l’irrégularité d’une bande usée. Trois positions : Sine, Triangle et Random.",
               reviewed: false },
     },
 
@@ -192,7 +249,7 @@ export const I18N = Object.freeze({
         en: { t: "Rate",
               b: "How fast the pitch drifts up and down. Slow settings read as tape wow, fast ones as flutter, and switching Sync on replaces this reading with a musical division of the host tempo. 0.1 to 10.0 Hz." },
         fr: { t: "Vitesse",
-              b: "Rapidité de la dérive de hauteur. Un réglage lent évoque le pleurage d'une bande, un réglage rapide son scintillement, et activer Sync remplace cet affichage par une division musicale du tempo de l'hôte. 0,1 à 10,0 Hz.",
+              b: "Rapidité de la dérive de hauteur. Un réglage lent évoque le pleurage d’une bande, un réglage rapide son scintillement, et activer Sync remplace cet affichage par une division musicale du tempo de l’hôte. 0,1 à 10,0 Hz.",
               reviewed: false },
     },
 
@@ -200,15 +257,15 @@ export const I18N = Object.freeze({
         en: { t: "Sync",
               b: "Locks the wobble to the host tempo, so the Rate readout becomes a musical division from four bars down to a thirty-second note. Leave it off for a free-running drift that ignores the transport. Off or on." },
         fr: { t: "Sync",
-              b: "Cale le pleurage sur le tempo de l'hôte : l'affichage de Vitesse devient une division musicale, de quatre mesures à la triple croche. Laissez-le inactif pour une dérive libre, indifférente au défilement. Désactivé ou activé.",
+              b: "Cale le pleurage sur le tempo de l’hôte : l’affichage de Vitesse devient une division musicale, de quatre mesures à la triple croche. Laissez-le inactif pour une dérive libre, indifférente au transport. Désactivé ou activé.",
               reviewed: false },
     },
 
     'tip.depth': {
         en: { t: "Depth",
               b: "How far the pitch swings on each cycle. A handful of cents drifts almost unnoticed; past about forty the warble becomes the effect rather than the colour. Era scales this amount before it reaches the delay line. 0 to 100 cents." },
-        fr: { t: "Ampleur",
-              b: "Amplitude de l'oscillation de hauteur à chaque cycle. Quelques cents dérivent presque sans se faire remarquer ; au-delà de quarante environ, le chevrotement devient l'effet plutôt que sa couleur. Époque met cette valeur à l'échelle avant la ligne à retard. 0 à 100 cents.",
+        fr: { t: "Profondeur",
+              b: "Amplitude de l’oscillation de hauteur à chaque cycle. Quelques cents dérivent presque sans se faire remarquer ; au-delà de quarante environ, le chevrotement devient l’effet plutôt que sa couleur. Époque met cette valeur à l’échelle avant la ligne à retard. 0 à 100 cents.",
               reviewed: false },
     },
 
@@ -217,9 +274,10 @@ export const I18N = Object.freeze({
     'tip.blend': {
         en: { t: "Blend",
               b: "Crossfades the two engines: at 0% you hear Wobble alone, at 100% Unison alone, and anywhere between you hear both. The two panels fade with it, so the page shows which engine is doing the work. 0 to 100%." },
-        fr: { t: "Mélange",
-              b: "Fond enchaîné entre les deux moteurs : à 0 % vous entendez le Pleurage seul, à 100 % l'Unisson seul, et entre les deux, les deux à la fois. Les panneaux s'estompent en conséquence, la page montre donc quel moteur travaille. 0 à 100 %.",
-              reviewed: false },
+        fr: { t: "Fondu",
+              b: "Fondu enchaîné entre les deux moteurs : à 0 % vous entendez le Pleurage seul, à 100 % l’Unisson seul, et partout entre les deux, les deux à la fois. Les panneaux s’estompent en conséquence, la page montre donc quel moteur travaille. 0 à 100 %.",
+              reviewed: false,
+              termNote: 'blend → Mix would collide with the dry/wet Mix control on this same page; this control crossfades the Wobble and Unison engines, so it takes the crossfade term' },
     },
 
     // ── The unison engine ───────────────────────────────────────────────────
@@ -228,7 +286,7 @@ export const I18N = Object.freeze({
         en: { t: "Voices",
               b: "How many detuned copies the unison engine stacks. More voices thicken the chorus and soften transients; the sum is gain-compensated and soft-limited, so the level holds as you add them. Five settings: 2, 3, 4, 5 and 7." },
         fr: { t: "Voix",
-              b: "Nombre de copies désaccordées empilées par le moteur d'unisson. Plus de voix épaississent le chœur et adoucissent les transitoires ; la somme est compensée en gain puis limitée en douceur, le niveau tient donc quand vous en ajoutez. Cinq positions : 2, 3, 4, 5 et 7.",
+              b: "Nombre de copies désaccordées empilées par le moteur d’unisson. Plus de voix épaississent le chœur et adoucissent les transitoires ; la somme est compensée en gain puis limitée en douceur, le niveau tient donc quand vous en ajoutez. Cinq positions : 2, 3, 4, 5 et 7.",
               reviewed: false },
     },
 
@@ -236,7 +294,7 @@ export const I18N = Object.freeze({
         en: { t: "Distribution",
               b: "How the voices are spaced around the centre. Linear spreads them evenly, Exp pushes the outermost pair further out than the inner ones, and Random scatters them and reveals the Random knob beside it. Three settings: Linear, Exp and Random." },
         fr: { t: "Répartition",
-              b: "Manière dont les voix se répartissent autour du centre. Linear les espace régulièrement, Exp éloigne les voix extrêmes plus que les voix internes, et Random les disperse en faisant apparaître le potentiomètre Aléatoire à côté. Trois positions : Linear, Exp et Random.",
+              b: "Manière dont les voix se répartissent autour du centre. Linear les espace régulièrement, Exp éloigne les voix extrêmes plus que les voix internes, et Random les disperse en faisant apparaître le potentiomètre Aléatoire à côté. Trois positions : Linear, Exp et Random.",
               reviewed: false },
     },
 
@@ -244,7 +302,7 @@ export const I18N = Object.freeze({
         en: { t: "Detune",
               b: "How far apart the unison voices are pitched. A few cents shimmer like a chorus; toward the top the stack drifts into a frankly out-of-tune ensemble. 0 to 50 cents." },
         fr: { t: "Désaccord",
-              b: "Écart de hauteur entre les voix d'unisson. Quelques cents font miroiter le son comme un chorus ; vers le haut de la course, l'empilement glisse vers un ensemble franchement faux. 0 à 50 cents.",
+              b: "Écart de hauteur entre les voix d’unisson. Quelques cents font miroiter le son comme un chorus ; vers le haut de la course, l’empilement glisse vers un ensemble franchement faux. 0 à 50 cents.",
               reviewed: false },
     },
 
@@ -252,7 +310,7 @@ export const I18N = Object.freeze({
         en: { t: "Spread",
               b: "Pans the unison voices across the stereo field on a constant-power law. At 0% they stack in the centre; at 100% the outermost pair sits hard left and hard right. This is the width of the voices, not of the output. 0 to 100%." },
         fr: { t: "Étalement",
-              b: "Répartit les voix d'unisson dans l'image stéréo selon une loi à puissance constante. À 0 % elles se superposent au centre ; à 100 % les voix extrêmes occupent les bords gauche et droit. Il s'agit de la largeur des voix, pas de celle de la sortie. 0 à 100 %.",
+              b: "Répartit les voix d’unisson dans l’image stéréo selon une loi à puissance constante. À 0 % elles se superposent au centre ; à 100 % les voix extrêmes occupent les bords gauche et droit. Il s’agit de la largeur des voix, pas de celle de la sortie. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -260,7 +318,7 @@ export const I18N = Object.freeze({
         en: { t: "Random",
               b: "Humanises the stack by varying each voice's modulation rate and depth on its own, so no two drift in step. At 0% the chosen distribution is followed exactly. This knob is only shown while Distribution is set to Random. 0 to 100%." },
         fr: { t: "Aléatoire",
-              b: "Humanise l'empilement en faisant varier séparément la vitesse et l'amplitude de modulation de chaque voix, pour qu'aucune ne dérive au même rythme. À 0 % la répartition choisie est suivie à la lettre. Ce potentiomètre n'apparaît que lorsque Répartition est sur Random. 0 à 100 %.",
+              b: "Humanise l’empilement en faisant varier séparément la vitesse et la profondeur de modulation de chaque voix, pour qu’aucune ne dérive au même rythme. À 0 % la répartition choisie est suivie à la lettre. Ce potentiomètre n’apparaît que lorsque Répartition est sur Random. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -270,7 +328,7 @@ export const I18N = Object.freeze({
         en: { t: "Width",
               b: "Scales the side channel of the finished signal: 0% collapses it to mono, 100% leaves the image as the engines made it, and 200% pushes it wider than the source. Mono-Safe pins this at 0% and greys the slider out. 0 to 200%." },
         fr: { t: "Largeur",
-              b: "Dose le canal latéral du signal fini : 0 % le replie en mono, 100 % laisse l'image telle que les moteurs l'ont faite, et 200 % l'élargit au-delà de la source. Mono-Sûr fixe ce réglage à 0 % et grise le curseur. 0 à 200 %.",
+              b: "Règle le niveau du canal latéral du signal fini : 0 % le replie en mono, 100 % laisse l’image telle que les moteurs l’ont faite, et 200 % l’élargit au-delà de la source. Mono-Sûr fixe ce réglage à 0 % et grise le curseur. 0 à 200 %.",
               reviewed: false },
     },
 
@@ -278,15 +336,15 @@ export const I18N = Object.freeze({
         en: { t: "Pre-Delay",
               b: "Holds the signal back before either engine sees it, which reads as depth and distance rather than as an echo. Raise Feedback alongside it to turn the same line into a short repeat. 0 to 50 ms." },
         fr: { t: "Pré-Délai",
-              b: "Retient le signal avant que les moteurs ne le reçoivent, ce qui s'entend comme de la profondeur et de la distance plutôt que comme un écho. Montez Retour en même temps pour transformer cette même ligne en courte répétition. 0 à 50 ms.",
+              b: "Retient le signal avant que les moteurs ne le reçoivent, ce qui s’entend comme de la profondeur et de la distance plutôt que comme un écho. Montez Réinjection en même temps pour transformer cette même ligne en courte répétition. 0 à 50 ms.",
               reviewed: false },
     },
 
     'tip.feedback': {
         en: { t: "Feedback",
               b: "Sends the pre-delay output back into its own input, so each repeat arrives quieter than the last. It has nothing to recirculate while Pre-Delay sits at 0 ms. 0 to 80%." },
-        fr: { t: "Retour",
-              b: "Réinjecte la sortie du pré-délai dans sa propre entrée : chaque répétition arrive plus faible que la précédente. Il n'a rien à faire recirculer tant que Pré-Délai reste à 0 ms. 0 à 80 %.",
+        fr: { t: "Réinjection",
+              b: "Réinjecte la sortie du pré-délai dans sa propre entrée : chaque répétition arrive plus faible que la précédente. Elle n’a rien à faire recirculer tant que Pré-Délai reste à 0 ms. 0 à 80 %.",
               reviewed: false },
     },
 
@@ -294,7 +352,7 @@ export const I18N = Object.freeze({
         en: { t: "Mono-Safe",
               b: "Compresses the side channel so a detuned stack survives a mono fold-down instead of cancelling itself. While it is on, Width is pinned at 0% and its slider is greyed out. Off or on." },
         fr: { t: "Mono-Sûr",
-              b: "Comprime le canal latéral pour qu'un empilement désaccordé survive à un repli mono au lieu de s'annuler lui-même. Tant qu'il est actif, Largeur est fixée à 0 % et son curseur est grisé. Désactivé ou activé.",
+              b: "Comprime le canal latéral pour qu’un empilement désaccordé survive à un repli mono au lieu de s’annuler lui-même. Tant qu’il est actif, Largeur est fixée à 0 % et son curseur est grisé. Désactivé ou activé.",
               reviewed: false },
     },
 
@@ -302,7 +360,7 @@ export const I18N = Object.freeze({
         en: { t: "Mix",
               b: "Balances the processed signal against the untouched input, after both engines and before the width stage. Keep it low when you want thickening rather than an effect. 0 to 100%." },
         fr: { t: "Mix",
-              b: "Équilibre le signal traité et l'entrée intacte, après les deux moteurs et avant l'étage de largeur. Gardez-le bas quand vous cherchez un épaississement plutôt qu'un effet. 0 à 100 %.",
+              b: "Équilibre le signal traité et l’entrée intacte, après les deux moteurs et avant l’étage de largeur. Gardez-le bas quand vous cherchez un épaississement plutôt qu’un effet. 0 à 100 %.",
               reviewed: false },
     },
 
@@ -317,15 +375,15 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Opens the settings panel, above the gear. It carries a single control: the language this interface is written in." },
         fr: { t: "Réglages",
-              b: "Ouvre le panneau de réglages, au-dessus de la roue dentée. Il ne porte qu'un seul réglage : la langue dans laquelle cette interface est écrite.",
+              b: "Ouvre le panneau de réglages, au-dessus de la roue dentée. Il ne porte qu’un seul réglage : la langue dans laquelle cette interface est écrite.",
               reviewed: false },
     },
 
     'tip.language': {
         en: { t: "Interface language",
               b: "Switches every caption, accessible name and hover-help body on this page between English and Français. The value readouts stay as they are — they are numbers and units, which do not translate. The choice is saved with the session." },
-        fr: { t: "Langue de l'interface",
-              b: "Bascule chaque légende, chaque nom accessible et chaque bulle d'aide de cette page entre English et Français. Les valeurs affichées ne changent pas : ce sont des nombres et des unités, qui ne se traduisent pas. Le choix est enregistré avec la session.",
+        fr: { t: "Langue de l’interface",
+              b: "Bascule chaque légende, chaque nom accessible et chaque aide au survol de cette page entre English et Français. Les valeurs affichées ne changent pas : ce sont des nombres et des unités, qui ne se traduisent pas. Le choix est enregistré avec la session.",
               reviewed: false },
     },
 });
@@ -395,20 +453,31 @@ export const LABELS = Object.freeze({
     // and "Detune" is also the caption of the unison detune knob, which does
     // translate. sameAsEn says "this was looked at and translates to itself"
     // where silence would say nothing.
-    'label.productName': { en: { t: 'Detune' }, fr: { t: 'Detune', reviewed: false, sameAsEn: true } },
+    'label.productName': { en: { t: 'Detune' },
+                           fr: { t: 'Detune', reviewed: false, sameAsEn: true,
+                                 termNote: 'the PRODUCT word of the .logo name "Ouaricon Detune", not the unison knob — a product name is not translated, and OUARICON DÉSACCORD measures 312.95 px against OUARICON DETUNE 261.81 in a 262 px header slot. The control keyed label.detune below DOES carry Désaccord' } },
 
     // ── The preset bar ──────────────────────────────────────────────────────
     //
-    // OUVRIR / SAUVER rather than CHARGER / ENREGISTRER. Both buttons are
+    // OUVRIR / ENREG rather than CHARGER / ENREGISTRER. Both buttons are
     // shrink-to-fit inside a `justify-content: space-between` header, so every
     // pixel a caption gains pushes #prevPreset, #presetName and #nextPreset to
     // the LEFT, toward a 22 px logo that ends at x = 282. The buttons are
-    // pinned to 60 px to make the row language-invariant, and CHARGER (47 px
-    // of text) plus ENREGISTRER (74 px) would have needed a 66 px pin that
-    // leaves a 2 px gap to the logo. OUVRIR and SAUVER are the compact
-    // idiomatic pair and fit the 42 px content box with 2 px to spare.
+    // pinned to 60 px to make the row language-invariant, and CHARGER (47.69
+    // px of text) plus ENREGISTRER (69.64) would have needed a 66 px pin that
+    // leaves a 2 px gap to the logo.
+    //
+    // v1.7.1 — the v1.7.0 defence of SAUVER on width was BACKWARDS, measured on
+    // the real node at 600 x 480: ENREG. is 36.94 px against SAUVER's 39.09, so
+    // the glossary term is 2.15 px NARROWER than the calque it replaces. Both
+    // clear the 46 px content box. The PERIOD is dropped because "Enreg" is a
+    // substring of the accessible name "Enregistrer les réglages actuels" and
+    // "Enreg." is not — WCAG 2.5.3 label-in-name holds only period-less.
+    // OUVRIR (38.64) already matches its own aria name and is a glossary-
+    // accepted rendering of Load for a button that opens a file dialog, so the
+    // pair reads as the standard French Fichier menu: Ouvrir / Enregistrer.
     'label.load': { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: false } },
-    'label.save': { en: { t: 'Save' }, fr: { t: 'Sauver', reviewed: false } },
+    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg', reviewed: false } },
 
     // ── The wobble engine ───────────────────────────────────────────────────
     //
@@ -427,16 +496,28 @@ export const LABELS = Object.freeze({
     // inside its grid cell. Both facts point the same way.
     'label.sync':   { en: { t: 'Sync' },   fr: { t: 'Sync', reviewed: false, sameAsEn: true } },
 
-    // "Ampleur" rather than "Profondeur". Both are correct for modulation
-    // depth; Profondeur renders 68 px against a 52 px knob face and would need
-    // the caption to overflow its own box, which assertion 4 reads as a spill.
-    // Ampleur is 48 px and fits the face with room.
-    'label.depth':  { en: { t: 'Depth' },  fr: { t: 'Ampleur',   reviewed: false } },
+    // v1.7.1 — PROFONDEUR, the glossary root, replaces AMPLEUR. The v1.7.0
+    // defence measured the wrong box: .knob-label is shrink-to-fit with
+    // `overflow: visible` inside the 91 px grid cell that GEOMETRY PIN B holds
+    // at width: 100%, not against the 52 px knob FACE. PROFONDEUR is 71.25 px
+    // in that 91 px cell — 19.75 px of clearance, and its own content box can
+    // never be narrower than its text, so assertion 4 could not have fired.
+    // (AMPLEUR was 49.91, PROF. would be 30.33; neither is needed.)
+    'label.depth':  { en: { t: 'Depth' },  fr: { t: 'Profondeur', reviewed: false } },
 
     // ── The blend control ───────────────────────────────────────────────────
-    // The section is sized by the 64 px knob face, not by this caption, so
-    // MÉLANGE at 55 px changes nothing.
-    'label.blend':  { en: { t: 'Blend' },  fr: { t: 'Mélange',   reviewed: false } },
+    //
+    // v1.7.1 — NOT "Mix", which is what the glossary settles for `blend`. This
+    // page carries BOTH controls: label.mix below is the dry/wet the glossary
+    // row is written for, and applying the row here would print MIX on two
+    // different parameters in the same French frame while English keeps them
+    // apart. The control crossfades the two engines, which is what the body
+    // has always said, so it takes the crossfade word. FONDU is 41.17 px where
+    // MÉLANGE was 57.02 and the section is sized by the 64 px knob face, so
+    // neither number is load-bearing.
+    'label.blend':  { en: { t: 'Blend' },
+                      fr: { t: 'Fondu', reviewed: false,
+                            termNote: 'blend → Mix would collide with the dry/wet Mix control on this same page; this control crossfades the Wobble and Unison engines, so it takes the crossfade term' } },
 
     // ── The unison engine ───────────────────────────────────────────────────
     'label.unison': { en: { t: 'Unison' }, fr: { t: 'Unisson',   reviewed: false } },
@@ -468,17 +549,23 @@ export const LABELS = Object.freeze({
     // rather than in the markup, where only one of the two languages could
     // have it. The caption was split out of the node it shared with
     // #width_value per contract §5.
-    'label.width':    { en: { t: 'Width:' },  fr: { t: 'Largeur :', reviewed: false } },
+    'label.width':    { en: { t: 'Width:' },  fr: { t: 'Largeur :', reviewed: false } },
 
-    // Pré-Dly mirrors the English abbreviation of "Pre-Delay" rather than
-    // spelling out PRÉ-DÉLAI, which is 61 px against a 50 px knob column.
-    'label.preDelay': { en: { t: 'Pre-Dly' }, fr: { t: 'Pré-Dly',   reviewed: false } },
+    // v1.7.1 — PRÉ-DÉL., the glossary abbreviation, replaces the invented
+    // PRÉ-DLY (which was neither French nor a listed form). Measured in the
+    // 50 px knob column: PRÉ-DÉLAI 55.86 overruns it by 5.86 px, PRÉ-DÉL.
+    // 47.94 clears it by 2.06 — the tightest caption margin on this page. The
+    // TIP title spells out Pré-Délai, which is what a 260 px tooltip is for.
+    'label.preDelay': { en: { t: 'Pre-Dly' }, fr: { t: 'Pré-Dél.',  reviewed: false } },
 
-    // 13 px NARROWER than the English. The caption is pinned to the English
-    // box precisely because of that: the output row's middle columns are
-    // `auto`, so a caption that shrinks slides the row exactly as one that
-    // grows does.
-    'label.feedback': { en: { t: 'Feedback' }, fr: { t: 'Retour',   reviewed: false } },
+    // v1.7.1 — RÉINJ., the glossary abbreviation, replaces RETOUR (which the
+    // glossary forbids: retour is a monitor send). GEOMETRY PIN B holds this
+    // one caption at width: 55 px, so the root RÉINJECTION at 70.41 px is the
+    // one string on this page that WOULD spill its own content box; RÉINJ. is
+    // 34.50. The pin stays for the reason it was added — the caption is
+    // narrower than FEEDBACK (54.25) and a shrinking caption slides the
+    // `auto` output-row columns exactly as a growing one does.
+    'label.feedback': { en: { t: 'Feedback' }, fr: { t: 'Réinj.',   reviewed: false } },
 
     // A coined compound mirroring the English one, which is itself coined.
     // "Compatible mono" is the descriptive French but renders 98 px into a
@@ -501,12 +588,17 @@ export const LABELS = Object.freeze({
     'aria.langSelect':   { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: false } },
     'aria.prevPreset':   { en: { t: 'Previous preset' },    fr: { t: 'Préréglage précédent',  reviewed: false } },
     'aria.nextPreset':   { en: { t: 'Next preset' },        fr: { t: 'Préréglage suivant',    reviewed: false } },
+    // v1.7.1 — the accessible names take the glossary's settled forms. The
+    // list name goes INFINITIVE ("Cliquer") where the tooltip bodies stay
+    // imperative ("Laissez-le inactif"): a name is a noun phrase, a body
+    // addresses the reader. aria.savePreset is also what makes the button's
+    // ENREG caption a label-in-name substring.
     'aria.presetList':   { en: { t: 'Click to see all presets' },
-                           fr: { t: 'Cliquez pour voir tous les préréglages', reviewed: false } },
+                           fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: false } },
     'aria.loadPreset':   { en: { t: 'Load preset from file' },
                            fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: false } },
     'aria.savePreset':   { en: { t: 'Save current settings' },
-                           fr: { t: 'Sauver les réglages actuels', reviewed: false } },
+                           fr: { t: 'Enregistrer les réglages actuels', reviewed: false } },
 });
 
 // ============================================================================
