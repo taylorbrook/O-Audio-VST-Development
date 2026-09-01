@@ -1,5 +1,39 @@
 # O-TextureForge Changelog
 
+## [1.2.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **17 of 41 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint, which went from 19 findings to 0
+  under `--strict`. Ten carry a terminology or idiom fix, thirteen a typography
+  fix, seven a grammar or agreement fix and two a meaning fix. The most visible:
+  the GRAIN SIZE caption is now **Taille de grain** (the glossary root, not the
+  v1.2.0 abbreviation), CROSSFADE is **Fondu enchaîné** rather than *Fondu* —
+  *fondu* alone is a fade, not a crossfade — a *bed* of grains is a **nappe**
+  rather than a literal *lit*, and no-break spaces now sit before `%`, `;` and
+  `:` and between every number and its unit, as French typography requires.
+- **Two French sentences said something the English does not.** The TEXTURE tip
+  listed two of the English's three qualities and has its third restored
+  (*la rugosité*, for "grit"); the DENSITY tip said the high *values* overlap
+  when it is the *grains* that overlap. Neither language's meaning was invented
+  — the English was checked against `GrainScheduler.cpp` first.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+- Four tip titles that are the same word in both languages — Texture, Variation,
+  Position, Gain — now carry the explicit `sameAsEn: true` declaration, so an
+  untranslated string cannot hide among them as a coincidence.
+
+### Notes
+- `reviewed: false` is unchanged on all 41 entries. That flag means *a native
+  speaker read this*, and none has; this pass is a second machine reading
+  against a glossary and a lint, recorded in the `i18n.js` header.
+- Scatter X / Y keep **Disp. X** / **Disp. Y**. The glossary root *Dispersion X*
+  measures 65.14 px and wraps to two lines inside the hard 72 px caption box,
+  taking the label from 10 px tall to 20.
+
 ## [1.2.0] - 2026-08-30
 
 ### Added

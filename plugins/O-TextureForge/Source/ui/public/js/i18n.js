@@ -18,7 +18,7 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-TextureForge page labels and hover-help, English + French (v1.2.0)
+// i18n.js — O-TextureForge page labels and hover-help, English + French (v1.2.1)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -32,6 +32,57 @@
 // companion module beside this one is js/i18n_init.js — an UNDERSCORE, for the
 // same reason: it embeds as i18n_init_js, where i18n-init.js would embed as
 // the unreadable i18ninit_js.
+//
+// ── v1.2.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 17 of 41 entries (10 terminology/idiom, 13 typography, 7 grammar or
+// agreement, 2 meaning — an entry can carry more than one). sameAsEn: kept 8,
+// translated 0. termNote exemptions: 0 — no glossary term is contextually wrong
+// on this page. Left as drafted: the rest, including both chrome tips and
+// tip.midiMode. reviewed: false throughout — no native speaker yet.
+//
+// DECISIONS THE NEXT READER NEEDS:
+//
+// 1. "Disp. X" / "Disp. Y" KEPT, and the v1.2.0 defence below is CONFIRMED by
+//    re-measurement, not inherited: at the shipping 900 x 600, in the hard
+//    72 px `.knob-row .knob-label` box, the glossary root "Dispersion X" is
+//    65.14 px and still WRAPS TO TWO LINES (the space before the axis letter is
+//    the break opportunity), taking the label rect 10 px -> 20 px and its top
+//    296 -> 291. "Disp. X" is 38.78 px on one line, "Disp. Y" 37.92. The
+//    glossary keys 'scatter' -> *dispersion*; the abbreviation keeps that root.
+//
+// 2. "Taille grain" -> "Taille de grain", because the v1.2.0 width defence for
+//    the abbreviation MEASURED BACKWARDS. It was written as if `.bottom-knobs`
+//    were still `justify-content: space-around`, where any caption width moved
+//    all five groups. v1.1.0 replaced that with a five-column grid at 1fr —
+//    173.6 px per column, caption-independent, with its own negative control in
+//    the stylesheet. Measured now: "Taille de grain" is 76.94 px on ONE line in
+//    a 173.6 px column, 96.66 px of clearance, `overflow: visible`, no clip and
+//    no wrap. The glossary root fits, so the glossary root is what ships.
+//
+// 3. "Fondu" -> "Fondu enchaîné" for CROSSFADE. *Fondu* alone is a fade; a
+//    crossfade is *un fondu enchaîné*, which is what the body describes — grain
+//    envelopes overlapping their neighbours. 80.73 px in the same 173.6 px
+//    column. 'crossfade' is not yet a glossary key; reported so the list can
+//    grow rather than settled here.
+//
+// 4. THE CAPTION AND ITS TIP TITLE MOVE TOGETHER. Two French names for one
+//    control is a defect, so knob.grainSize/tip.grainSize and
+//    knob.crossfade/tip.crossfade were changed as pairs. Same reason
+//    aria.settings and tip.settings both read *Réglages*.
+//
+// 5. *nappe*, not *lit*, for "bed" (tip.energy, tip.grainDensity). *Lit* is a
+//    literal calque; *nappe* is the French audio term for a sustained layer,
+//    and the glossary already uses it for 'looped pad'.
+//
+// 6. The three MIDI option words stay ENGLISH inside the French body, unchanged
+//    from v1.2.0 and for the same reason — see the note above tip.midiMode.
+//
+// 7. TYPOGRAPHY, 20 U+00A0 inserted, all inside fr string VALUES: before % (8),
+//    before ; (6), before : (3), and between a number and its unit (3 — 500 ms,
+//    +12 dB, {size} Mo). U+2019 apostrophes and the U+2212 minus were already
+//    correct at v1.2.0; T1, T2 and T6 were clean at baseline. The lint went
+//    19 findings -> 0 (`--strict` exit 0).
 //
 // ── v1.2.0: HOVER-HELP ARRIVES, AND IT NEEDED A RENDERER AS WELL AS COPY ────
 //
@@ -135,21 +186,21 @@ export const I18N = Object.freeze({
         en: { t: 'Energy',
               b: 'Biases the grain search toward louder or quieter material, matching each grain’s RMS energy. Turn it down for a hushed bed, up for the most forceful moments in the corpus. 0 to 100%.' },
         fr: { t: 'Énergie',
-              b: 'Oriente la recherche de grains vers un matériau plus fort ou plus doux, selon l’énergie RMS de chaque grain. Baissez-le pour un lit feutré, montez-le pour les moments les plus puissants du corpus. 0 à 100 %.',
+              b: 'Oriente la recherche de grains vers un matériau plus fort ou plus faible, selon l’énergie RMS de chaque grain. Baissez-le pour une nappe feutrée, montez-le pour les moments les plus puissants du corpus. 0 à 100 %.',
               reviewed: false },
     },
     'tip.brightness': {
         en: { t: 'Brightness',
               b: 'Biases the search toward darker or brighter grains, matching each grain’s spectral centroid. Low settings favour muffled, body-heavy material; high settings favour air and hiss. 0 to 100%.' },
         fr: { t: 'Brillance',
-              b: 'Oriente la recherche vers des grains plus sombres ou plus clairs, selon le centroïde spectral de chaque grain. Les valeurs basses privilégient un matériau étouffé et corpulent ; les valeurs hautes, l’air et le souffle. 0 à 100 %.',
+              b: 'Oriente la recherche vers des grains plus sombres ou plus clairs, selon le centroïde spectral de chaque grain. Les valeurs basses privilégient un matériau étouffé, riche en corps ; les valeurs hautes, l’air et le souffle. 0 à 100 %.',
               reviewed: false },
     },
     'tip.texture': {
         en: { t: 'Texture',
               b: 'Biases the search between tonal and noisy grains, matching each grain’s spectral flatness. Low settings pick pitched, steady material; high settings pick breath, grit and noise. 0 to 100%.' },
-        fr: { t: 'Texture',
-              b: 'Oriente la recherche entre des grains tonals et des grains bruités, selon la planéité spectrale de chaque grain. Les valeurs basses choisissent un matériau tenu et intonné ; les valeurs hautes, le souffle et le bruit. 0 à 100 %.',
+        fr: { t: 'Texture', sameAsEn: true,
+              b: 'Oriente la recherche entre des grains tonals et des grains bruités, selon la planéité spectrale de chaque grain. Les valeurs basses choisissent un matériau tenu, à hauteur définie ; les valeurs hautes, le souffle, la rugosité et le bruit. 0 à 100 %.',
               reviewed: false },
     },
     // The two scatter axes have their OWN entries rather than one shared one,
@@ -161,21 +212,21 @@ export const I18N = Object.freeze({
         en: { t: 'Scatter X',
               b: 'Moves the cursor horizontally across the scatter map and pulls grains from that region of the corpus. Drag on the map itself to move both axes at once. 0 to 100%.' },
         fr: { t: 'Disp. X',
-              b: 'Déplace le curseur horizontalement sur la carte de dispersion et puise les grains dans cette zone du corpus. Faites glisser directement sur la carte pour déplacer les deux axes à la fois. 0 à 100 %.',
+              b: 'Déplace le curseur horizontalement sur la carte de dispersion et puise des grains dans cette zone du corpus. Faites glisser directement sur la carte pour déplacer les deux axes à la fois. 0 à 100 %.',
               reviewed: false },
     },
     'tip.scatterY': {
         en: { t: 'Scatter Y',
               b: 'Moves the cursor vertically across the scatter map and pulls grains from that region of the corpus. Drag on the map itself to move both axes at once. 0 to 100%.' },
         fr: { t: 'Disp. Y',
-              b: 'Déplace le curseur verticalement sur la carte de dispersion et puise les grains dans cette zone du corpus. Faites glisser directement sur la carte pour déplacer les deux axes à la fois. 0 à 100 %.',
+              b: 'Déplace le curseur verticalement sur la carte de dispersion et puise des grains dans cette zone du corpus. Faites glisser directement sur la carte pour déplacer les deux axes à la fois. 0 à 100 %.',
               reviewed: false },
     },
     'tip.variation': {
         en: { t: 'Variation',
               b: 'Randomises the search around the macro settings, so repeated grains are never quite the same. At 0 the same grain returns every time; raise it for a looser, more alive texture. 0 to 100%.' },
-        fr: { t: 'Variation',
-              b: 'Randomise la recherche autour des réglages de macros, afin que les grains répétés ne soient jamais tout à fait identiques. À 0, le même grain revient à chaque fois ; montez-le pour une texture plus lâche et plus vivante. 0 à 100 %.',
+        fr: { t: 'Variation', sameAsEn: true,
+              b: 'Rend la recherche aléatoire autour des réglages des macros, afin que les grains répétés ne soient jamais tout à fait identiques. À 0, le même grain revient à chaque fois ; montez-le pour une texture plus lâche et plus vivante. 0 à 100 %.',
               reviewed: false },
     },
 
@@ -183,8 +234,8 @@ export const I18N = Object.freeze({
     'tip.position': {
         en: { t: 'Position',
               b: 'Biases the search toward grains taken from a given point in the source recording. At 0 the texture draws on the opening; at the top of the range it draws on the end. 0 to 100%.' },
-        fr: { t: 'Position',
-              b: 'Oriente la recherche vers les grains issus d’un point donné de l’enregistrement source. À 0, la texture puise dans le début ; en haut de la plage, dans la fin. 0 à 100 %.',
+        fr: { t: 'Position', sameAsEn: true,
+              b: 'Oriente la recherche vers des grains issus d’un point donné de l’enregistrement source. À 0, la texture puise au début ; en haut de la plage, à la fin. 0 à 100 %.',
               reviewed: false },
     },
     // Range from the DUMP: this knob's readout is blank at runtime. See the
@@ -192,8 +243,8 @@ export const I18N = Object.freeze({
     'tip.grainSize': {
         en: { t: 'Grain Size',
               b: 'Sets how long each grain plays. Short values granulate the source into a fine cloud; long values let recognisable fragments of the recording through. 10 to 500 ms.' },
-        fr: { t: 'Taille grain',
-              b: 'Définit la durée de lecture de chaque grain. Les valeurs courtes granulent la source en un nuage fin ; les valeurs longues laissent passer des fragments reconnaissables de l’enregistrement. 10 à 500 ms.',
+        fr: { t: 'Taille de grain',
+              b: 'Définit la durée de lecture de chaque grain. Les valeurs courtes granulent la source en un nuage fin ; les valeurs longues laissent passer des fragments reconnaissables de l’enregistrement. 10 à 500 ms.',
               reviewed: false },
     },
     // Range from the DUMP (AudioParameterInt 1..64, no label). "grains" is the
@@ -202,14 +253,14 @@ export const I18N = Object.freeze({
         en: { t: 'Density',
               b: 'Sets how often new grains are fired in the drone mode, thinning the texture out or thickening it. Low values leave audible gaps; high values overlap into a continuous bed. 1 to 64 grains.' },
         fr: { t: 'Densité',
-              b: 'Définit la fréquence de déclenchement des nouveaux grains en mode drone, ce qui éclaircit ou épaissit la texture. Les valeurs basses laissent des trous audibles ; les valeurs hautes se recouvrent en un lit continu. 1 à 64 grains.',
+              b: 'Définit la fréquence de déclenchement de nouveaux grains en mode drone, ce qui éclaircit ou épaissit la texture. Les valeurs basses laissent des trous audibles ; les valeurs hautes font se recouvrir les grains en une nappe continue. 1 à 64 grains.',
               reviewed: false },
     },
     'tip.crossfade': {
         en: { t: 'Crossfade',
               b: 'Shapes each grain’s envelope, from a narrow peak to a wide flat top that overlaps its neighbours. Raise it to smooth a grainy texture, lower it for rhythm and attack. 0 to 100%.' },
-        fr: { t: 'Fondu',
-              b: 'Façonne l’enveloppe de chaque grain, d’un pic étroit à un plateau large qui recouvre ses voisins. Montez-le pour lisser une texture granuleuse, baissez-le pour le rythme et l’attaque. 0 à 100 %.',
+        fr: { t: 'Fondu enchaîné',
+              b: 'Façonne l’enveloppe de chaque grain, d’un pic étroit à un plateau large qui recouvre ses voisins. Montez-le pour lisser une texture granuleuse, baissez-le pour le rythme et l’attaque. 0 à 100 %.',
               reviewed: false },
     },
     // Range from the DUMP (label "dB"); this readout is blank at runtime too.
@@ -217,8 +268,8 @@ export const I18N = Object.freeze({
     'tip.gain': {
         en: { t: 'Gain',
               b: 'Trims the plugin’s output level after the grain cloud has been summed. Dense settings stack many grains at once, so pull it down if the output clips. −60 to +12 dB.' },
-        fr: { t: 'Gain',
-              b: 'Ajuste le niveau de sortie du plugin après la somme du nuage de grains. Les réglages denses empilent de nombreux grains à la fois : baissez-le si la sortie écrête. −60 à +12 dB.',
+        fr: { t: 'Gain', sameAsEn: true,
+              b: 'Ajuste le niveau de sortie du plugin après la somme du nuage de grains. Les réglages denses empilent de nombreux grains à la fois : baissez-le si la sortie écrête. −60 à +12 dB.',
               reviewed: false },
     },
 
@@ -246,7 +297,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Opens the settings panel. It holds one control, the interface language. Nothing in it changes the sound or any saved parameter.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau de réglages. Il contient un seul contrôle, la langue de l’interface. Rien ici ne modifie le son ni un paramètre enregistré.',
+              b: 'Ouvre le panneau de réglages. Il contient un seul contrôle, la langue de l’interface. Rien ici ne modifie ni le son ni un paramètre enregistré.',
               reviewed: false },
     },
     // The endonyms are named verbatim in both bodies: they are what the two
@@ -299,18 +350,27 @@ export const I18N = Object.freeze({
 //
 // ── GEOMETRY — MEASURED at the shipping 900 x 600, not reasoned ─────────────
 //
-// The tight place on this page is .bottom-knobs, and the reason is
-// justify-content: space-around over five shrink-wrapped .bottom-knob-group
-// columns. Under space-around the free space is divided around items of
-// whatever width they happen to have, so ANY change to any caption's width
-// moves ALL FIVE GROUPS — and a group is not a label and not inside one, so
-// every one of them is an assertion-7 element. Both directions are fatal
-// there: a French caption that GROWS past the 38 px knob widens its group, and
-// one that SHRINKS below the widest English caption narrows it. Four of this
-// page's twelve French captions are shorter than their English source, so the
-// shrink case is not hypothetical here.
+// .bottom-knobs USED TO BE the tight place, and it is not any more. THROUGH
+// v1.0.2 it was justify-content: space-around over five shrink-wrapped
+// .bottom-knob-group columns, which divides the free space around items of
+// whatever width they happen to have — so ANY change to any caption's width
+// moved ALL FIVE GROUPS, in both directions, and a group is not a label and not
+// inside one, so every one of them was an assertion-7 element.
 //
-// The pin is in the stylesheet with its reasoning and its negative control.
+// v1.1.0 REPLACED IT with a five-column grid at 1fr, pinned in the stylesheet
+// with its reasoning and its negative control. Every group is 173.6 px whatever
+// it contains, so no caption in either language can move anything, and a
+// caption's only remaining constraint is its own content box (assertion 4).
+//
+// READ THAT TENSE CAREFULLY. v1.2.0's caption notes were written as if
+// space-around were still live and defended an abbreviation on a width cost
+// that no longer exists; v1.2.1 re-measured and applied the glossary root. The
+// live constraint is the 173.6 px column, NOT the 38 px knob.
+//
+// The macro panel is a different box and its constraint IS still live:
+// .knob-row .knob-label is a hard `width: 72px`, right-aligned, 9 px with 1 px
+// of letter-spacing, `white-space: normal`. A caption over ~65 px wraps to two
+// lines there — which is what keeps "Disp. X" from becoming "Dispersion X".
 // The per-caption measurements are in the commit message.
 // ============================================================================
 
@@ -322,7 +382,7 @@ export const LABELS = Object.freeze({
     // hide as a deliberate one.
     'label.tagline': {
         en: { t: 'Concatenative Texture Engine' },
-        fr: { t: 'Moteur de texture concaténative', reviewed: false },
+        fr: { t: 'Moteur de texture concaténatif', reviewed: false },
     },
 
     // ── The scatter placeholder ─────────────────────────────────────────────
@@ -359,7 +419,7 @@ export const LABELS = Object.freeze({
     // 320 px box, with overflow-wrap: anywhere to break it.
     'placeholder.fileNotFound': {
         en: { t: 'File not found:\n{path}\nDrop a new file to continue.' },
-        fr: { t: 'Fichier introuvable :\n{path}\nDéposez un nouveau fichier pour continuer.', reviewed: false },
+        fr: { t: 'Fichier introuvable :\n{path}\nDéposez un nouveau fichier pour continuer.', reviewed: false },
     },
 
     // ── Macro panel section captions ────────────────────────────────────────
@@ -401,15 +461,18 @@ export const LABELS = Object.freeze({
     // ── The five bottom-strip knobs ─────────────────────────────────────────
     // The tight row. See the GEOMETRY note above and the pin in the stylesheet.
     'knob.position':     { en: { t: 'Position' },   fr: { t: 'Position', reviewed: false, sameAsEn: true } },
-    // "Grain Size" is GRAIN_SIZE's display name. "Taille grain" drops the
-    // preposition rather than reading "Taille de grain" because this caption
-    // sits in a 8 px uppercase row where the extra word is 18 px it does not
-    // have; the shortened form is the same shape as the English compound.
-    'knob.grainSize':    { en: { t: 'Grain Size' }, fr: { t: 'Taille grain', reviewed: false } },
+    // "Grain Size" is GRAIN_SIZE's display name and "Taille de grain" is the
+    // glossary ROOT for it. v1.2.0 shipped the abbreviation "Taille grain" on a
+    // width argument that v1.1.0 had already made obsolete — see decision 2 in
+    // the header. Re-measured at 900 x 600: 76.94 px on one line inside a
+    // 173.6 px grid column. The root fits, so the root ships.
+    'knob.grainSize':    { en: { t: 'Grain Size' }, fr: { t: 'Taille de grain', reviewed: false } },
     // The page caption is "Density"; the parameter is "Grain Density". The
     // caption is what is localized, because the caption is what is rendered.
     'knob.grainDensity': { en: { t: 'Density' },    fr: { t: 'Densité',  reviewed: false } },
-    'knob.crossfade':    { en: { t: 'Crossfade' },  fr: { t: 'Fondu',    reviewed: false } },
+    // "Fondu" alone is a FADE. A crossfade is *un fondu enchaîné*, and that is
+    // what tip.crossfade's body describes. 80.73 px in the 173.6 px column.
+    'knob.crossfade':    { en: { t: 'Crossfade' },  fr: { t: 'Fondu enchaîné', reviewed: false } },
     // The page caption is "Gain"; the parameter is "Output Gain". Spelled
     // identically in French, hence sameAsEn.
     'knob.gain':         { en: { t: 'Gain' },       fr: { t: 'Gain',     reviewed: false, sameAsEn: true } },
@@ -455,7 +518,7 @@ export const LABELS = Object.freeze({
     // plural to engineer (contract section 6).
     'dialog.largeFile': {
         en: { t: 'Large file: {size} MB. This may use significant memory.' },
-        fr: { t: 'Fichier volumineux : {size} Mo. Cela peut consommer beaucoup de mémoire.', reviewed: false },
+        fr: { t: 'Fichier volumineux : {size} Mo. Cela peut consommer beaucoup de mémoire.', reviewed: false },
     },
     'dialog.loadAnyway': {
         en: { t: 'Load Anyway' },
