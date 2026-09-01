@@ -18,6 +18,18 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
+// ── v1.18.2: STAGE O item 40 (2026-08-31) — no copy change, CSS only ───────
+// The v1.18.1 block below records that Marche/Arrêt made the hover-help
+// toggle RESIZE 11.45 px between its own two French faces (43.52 / 54.97
+// border-box against a 40 px min-width). styles.css `.settings-toggle` now
+// pins min-width: 57px (54.97 measured on Marche + 2.03 slack; box-sizing is
+// border-box), so all four faces — Off 15.34 / On 14.69 / Arrêt 25.52 /
+// Marche 36.97 px of text — measure 57.00 in both languages. Popover stays
+// 186 px (76.55 + 12 + 57 = 145.55 in its 162 px content box); 0 non-label
+// elements moved in either language. No fr entry changed; reviewed flags
+// untouched. The stale "cannot happen" sentence in the v1.18.1 block is
+// history and is left as written.
+// ============================================================================
 // ── v1.18.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
 // Changed: 19 entries of 67 (9 terminology, 6 typography, 2 grammar/register,
@@ -73,7 +85,7 @@
 //     Not one tip box changed size or position — all 56 anchors re-measured
 //     before and after, en and fr.
 // ============================================================================
-// i18n.js — O-FreqPulse UI copy, English + French (v1.18.1, canon v2)
+// i18n.js — O-FreqPulse UI copy, English + French (v1.18.2, canon v2)
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -383,7 +395,7 @@ export const I18N = Object.freeze({
 });
 
 // ============================================================================
-// LABELS — the on-page text (v1.18.1, canon v2)
+// LABELS — the on-page text (v1.18.2, canon v2)
 // ============================================================================
 //
 // I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping
