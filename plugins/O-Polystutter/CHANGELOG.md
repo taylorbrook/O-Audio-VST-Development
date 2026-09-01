@@ -2,6 +2,32 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.14.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+
+- **item 34 — MIDI tooltip:** the body said "Notes C1-B1 trigger lanes 1-4, any
+  other note triggers all enabled lanes". Neither claim was true:
+  `Source/DSP/TriggerRouter.cpp:76-85` routes notes 60–63 to lanes 1–4, note 67
+  to every enabled lane, and ignores everything else — C1–B1 (notes 24–35) did
+  nothing. Both languages now read **C3, C#3, D3 and D#3 (notes 60–63) trigger
+  lanes 1–4; G3 (note 67) triggers all enabled lanes. Any other note is
+  ignored.** Note names follow the convention the plugin's own documents and
+  source comments use (middle C = C3 = note 60, JUCE's default) and carry the
+  note numbers, so a host that displays C4 for note 60 still agrees with them.
+  The routing itself is unchanged — the tooltip now follows the code. Rendered
+  on the MIDI toggle inside the 1000 × 690 frame: en 71.17 → 86.56 px tall,
+  fr 86.56 → 101.95 px, both still inside the frame (fr top edge 510.05).
+  `check-ui-labels` still reports 0 non-label elements moved. The French entry
+  is `reviewed: false` again because its meaning changed.
+- **`TriggerRouter.cpp:69-74` source comment** labelled notes 61–63 as D3 / E3 /
+  F3 — a diatonic run the code never routes (the four lanes sit on four
+  CONSECUTIVE semitones, C3 to D#3). The comment now names C#3 / D3 / D#3, states
+  the octave convention, and says that every other note is ignored, so the next
+  reader fixes the right side.
+
 ## [1.14.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.

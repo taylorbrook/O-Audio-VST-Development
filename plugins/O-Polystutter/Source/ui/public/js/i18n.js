@@ -18,7 +18,24 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Polystutter UI copy, English + French (v1.14.1, canon v2)
+// i18n.js — O-Polystutter UI copy, English + French (v1.14.2, canon v2)
+//
+// ── v1.14.2: ENGLISH FOLLOWS THE CODE (Stage O, item 34, 2026-08-31) ────────
+// The `midi` body claimed "Notes C1-B1 trigger lanes 1-4, any other note
+// triggers all enabled lanes". TriggerRouter.cpp:76-85 routes notes 60-63 to
+// lanes 1-4, note 67 to every enabled lane, and drops everything else. Both
+// bodies now name those notes. Octave convention: the plugin's own documents
+// and source comments write middle C as C3 (= note 60, the JUCE keyboard
+// component's octaveNumForMiddleC default), so the body says C3, C#3, D3, D#3
+// and G3 — and carries the note NUMBERS in brackets, because a host that
+// displays C4 for note 60 would otherwise disagree with it. Note names stay
+// English in French (Stage N's rule). The French entry is `reviewed: false`
+// again: its meaning changed.
+// Rendered on #midi_toggle (1000 x 690 frame, tip max-width 220 px, placed
+// above the anchor): en 71.17 -> 86.56 px, fr 86.56 -> 101.95 px; both still
+// inside the frame (fr bottom edge 612.00, top 510.05). The routing itself is
+// unchanged. Source comment TriggerRouter.cpp:69-74 corrected in the same
+// commit (it labelled 61-63 as D3/E3/F3).
 //
 // ── v1.14.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -66,7 +83,8 @@
 //   DSP (TriggerRouter.cpp:76-85 routes notes 60-63, and only note 67 triggers
 //   all lanes; every other note does nothing). Stage N does not change English
 //   copy, so the French mirrors the English deliberately and the defect is
-//   reported for a later stage.
+//   reported for a later stage. FIXED in v1.14.2 (Stage O, item 34) — see the
+//   block above; the sentence now reads "C3, C#3, D3 et D#3 (notes 60 à 63)".
 //
 //   DÉGRADATION BANDE stays telegraphic. "DÉGRADATION DE BANDE" measures
 //   166.89 px against the current 144.97 and the header's own 10 px of
@@ -446,10 +464,10 @@ export const I18N = Object.freeze({
     },
     'midi': {
         en: { t: 'MIDI',
-              b: 'Enable MIDI note triggering. Notes C1-B1 trigger lanes 1-4, any other note triggers all enabled lanes.' },
+              b: 'Enable MIDI note triggering. C3, C#3, D3 and D#3 (notes 60–63) trigger lanes 1–4; G3 (note 67) triggers all enabled lanes. Any other note is ignored.' },
         fr: { t: 'MIDI',
-              b: 'Activer le déclenchement par notes MIDI. Les notes C1 à B1 déclenchent les pistes 1 à 4 ; toute autre note déclenche toutes les pistes actives.',
-              reviewed: true, sameAsEn: true },
+              b: 'Activer le déclenchement par notes MIDI. C3, C#3, D3 et D#3 (notes 60 à 63) déclenchent les pistes 1 à 4 ; G3 (note 67) déclenche toutes les pistes actives. Toute autre note est ignorée.',
+              reviewed: false, sameAsEn: true },
     },
     'trig': {
         en: { t: 'Trigger',
@@ -480,7 +498,7 @@ export const I18N = Object.freeze({
 });
 
 // ============================================================================
-// LABELS — the on-page text (v1.14.1, canon v2)
+// LABELS — the on-page text (v1.14.2, canon v2)
 // ============================================================================
 //
 // I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping

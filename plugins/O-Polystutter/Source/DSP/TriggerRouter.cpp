@@ -66,16 +66,21 @@ void TriggerRouter::parseMidiMessages(const juce::MidiBuffer& midiMessages)
         {
             int note = message.getNoteNumber();
 
-            // MIDI Note Routing (from architecture.md):
-            // C3 (note 60) → Lane 1
-            // D3 (note 61) → Lane 2
-            // E3 (note 62) → Lane 3
-            // F3 (note 63) → Lane 4
-            // G3 (note 67) → Trigger all lanes (handled in PluginProcessor)
+            // MIDI Note Routing — four CONSECUTIVE semitones, not a diatonic
+            // run. Note names use middle C = C3 = note 60 — the JUCE keyboard
+            // component's octaveNumForMiddleC default and architecture.md's
+            // convention:
+            // C3  (note 60) → Lane 1
+            // C#3 (note 61) → Lane 2
+            // D3  (note 62) → Lane 3
+            // D#3 (note 63) → Lane 4
+            // G3  (note 67) → Trigger all lanes (handled in PluginProcessor)
+            // Every other note is ignored. The `midi` tooltip in
+            // ui/public/js/i18n.js names these same notes — keep them in step.
 
             if (note >= 60 && note <= 63)
             {
-                // Map C3-F3 to lanes 0-3
+                // Map C3-D#3 (60-63) to lanes 0-3
                 midiTriggeredLane = note - 60;
             }
             else if (note == 67)
