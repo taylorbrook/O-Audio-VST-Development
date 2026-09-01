@@ -453,3 +453,26 @@ numbers in the batch table are pre-fix.**
 41. **Two footers hard-code a version in an exempted string** (O-SimpleReverb `v1.5.5`, four
     versions stale — item 47) — do not touch a text-matched exemption to fix a version; report
     it. And two more plugins have no focus latch at all (O-Lyrica, O-Orbit): no keyboard half.
+
+## From N6 complete (the O-simple* family, 6 of 6: O-simpleBeatmaker `768b07c7`, O-simplePhysicalModelSynth `efadae9c`, O-simpleSubtractive `2d7ee7f9`, O-simpleAdditive `3cc2e392`, O-simpleSampler `e1684b33`, O-simpleGrain `dd69886e`)
+
+42. **The same 77.33 px *Relâchement* got THREE verdicts on three O-simple* pages:** fits
+    O-simpleFM's and O-simpleSubtractive's 56/54 px shrink-to-fit cells with room, crosses
+    its neighbour by 2.14 px on O-simpleSampler's 54 px cells with 14 px gaps. Measure the
+    GAP to the neighbour, not the cell.
+43. **One typographic apostrophe can be the line.** O-simpleGrain's tour caption sat at
+    5.28 px of slack in an 846 px box; `'` → `’` took it to 1.34; the terminology fix
+    wrapped it and moved 159 elements. Reworded shorter, same claim. Measure captions
+    NOWRAP, not the wrapped Range box (which reports the widest line and reads as narrower).
+44. **Reach low anchors through `scrollIntoView` / the page's own scroll path.** Four of six
+    family pages scroll (`.frame` or an inner stage); a raw `mouse.move` past `innerHeight`
+    reports healthy anchors dead — three executors lost a probe run to it.
+45. **The ui-stub disables hover-help at boot on this family** (`getTipsEnabled` resolves
+    `undefined` → `applyTipsEnabled(false)`); drive it on through the page's own toggle
+    before the sweep. And a probe verdict written as `title === title && body === body`
+    passes with an English TITLE planted — gate the BODY (O-simpleSampler's control).
+46. **Glossary:** `fine` collides with an `end` caption (both *Fin*) — an `end` row exists
+    now and *affinage* is accepted for `fine` on such a page; *mailloche* is out of the list
+    and forbidden in prose; `loop crossfade` has a row. And `bit depth → Résolution` was
+    NARROWER than the draft it replaced (65.64 vs 81.77 px) — measure before assuming a
+    root is longer.
