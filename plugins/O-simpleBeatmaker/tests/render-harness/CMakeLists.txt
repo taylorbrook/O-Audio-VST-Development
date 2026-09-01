@@ -56,7 +56,7 @@ target_compile_definitions(O-simpleBeatmaker-render-test PRIVATE
     # v1.0.3 this said "1.0.1" while the plugin shipped 1.0.3 and the code said
     # 0x10000.
     JucePlugin_VersionString="${OSIMPLEBEATMAKER_VERSION}"
-    JucePlugin_VersionCode=0x10100
+    JucePlugin_VersionCode=0x10101
     JucePlugin_IsSynth=1
     JucePlugin_WantsMidiInput=1
     JucePlugin_ProducesMidiOutput=0

@@ -3,6 +3,44 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **32 of the 81 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and lint (`scripts/i18n-fr-lint.js`): 42
+  findings to 0, `--strict` exit 0. Twenty-one entries were typography only —
+  straight apostrophes to typographic ones throughout, and no-break spaces
+  before `%`, `:`, `;` and between a number and its unit (`-60 dB`,
+  `12 demi-tons`, `0 %`, `100 %`). Eleven carry a wording change.
+- **"Cliquez sur", not "cliquez"** — `cliquer` is intransitive in French, and
+  three sites carried the English transitive. The width-pinned step-grid hint
+  now reads *cliquez sur une case pour allumer un pas* : *case* is the ordinary
+  French for a square in a grid and is short enough to keep the Clear-all
+  button on one row (344.03 px against the shipped 336.69; the faithful
+  *cellule* is 354.70 and wraps it). *Case* carries through the grid and
+  pattern-length tooltips so the page has one word for one thing.
+- **Three tooltips no longer say something the English does not.** *Fût* is a
+  drum shell, and two of the six voices have none, so Tone and Solo now say
+  *l'instrument* where the English says "the drum". The Ghost Notes lesson said
+  *entre les temps forts* — beats 1 and 3 in French — where the English says
+  BACKBEATS, and now names *le backbeat*. The MIDI readout tooltip had dropped
+  the English's "the SAME buffer" and has it back.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+### Notes
+- `reviewed: false` stays `false` on all 81 entries. The flag means *a native
+  speaker read this*; Stage N is a second machine reading against a glossary
+  and a lint, and it is recorded in the `js/i18n.js` header instead.
+- The step-grid hint's clearance inside its row is now 7.17 px, down from
+  17.56 px. That margin was banked in v1.1.0 against Windows/WebView2 font
+  metrics, which remain unmeasured; the header records the one-line reversal if
+  a Windows pass ever needs it back.
+- No English copy, key, binding, selector, exemption or CSS rule changed.
+
 ## [1.1.0] — 2026-08-28
 
 **The PAGE speaks French, not only the hover help.** Every caption, column
