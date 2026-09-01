@@ -476,3 +476,27 @@ numbers in the batch table are pre-fix.**
     and forbidden in prose; `loop crossfade` has a row. And `bit depth → Résolution` was
     NARROWER than the draft it replaced (65.64 vs 81.77 px) — measure before assuming a
     root is longer.
+
+## From N7 complete (5 of 5: O-Reed `a382dae4`, O-Contrabass `33cecfe5`, O-GrainScatter `f438d23e`, O-Detune `29152c60`, O-MicrotonalSampler `2dadaeeb`)
+
+47. **Prose-forbidden words are now scanned on EVERY row** — a dialog message or an aria
+    name in `LABELS` is prose; O-MicrotonalSampler's four *plugiciel* in `label.dragDrop*`
+    and `aria.*Preset` drew nothing while the scan was body-only. O-Formant's two will now.
+48. **Read a body's cross-references against the captions BOTH ways.** O-Reed's caption said
+    *Mode polyphonique* while its tip title and a neighbour's body said *Mode de polyphonie*
+    (caption moved); its `tip.polyMode` said *Voix maximales* where the knob reads *Voix
+    max* (body moved). O-GrainScatter's draft had spent ONE French word on both Spread
+    and Scatter on a page that has a real Scatter — the glossary split is the proof case.
+49. **Glossary rows added from measurements:** `az spread` / `el spread`, `anche dble`,
+    `prof. vib`, `écart tot` + `étendue` for `total span`, a `body` row carrying both
+    *Corps* and *Caisse* (item 60). **A TERMS key ending in a period is reachable now**
+    (`tuning panel failed to load.` was the one unreachable row of ~240). **T7 skips a
+    decade name** (`60s/70s/80s` faces on O-Detune) but still fires on `20s`.
+50. **Bare `s` in UNITS matches identifiers** the way bare `m`/`N` did — report, do not
+    `termNote` a typography code (it exempts G1/F1 only). And a `%` split across two
+    concatenated literals (`'… à 100 '` + `'% il …'`) reports T3 that no per-literal
+    rewriter sees — re-run the lint after any body re-wrap, not only after the pass.
+51. **A stylistic rewrite that hits the renderer's bottom floor gets reverted** (O-Reed's
+    `tip.revBore`: top 409.9 → 393.2, bottom clearance pinned, growth going upward over the
+    controls with `inFrame` green). And *Écart total* at 53.72 px in a 53.00 px `flex: 0 1
+    auto` pin moves the wrapper by 0.72 px — assertion 7 sees it; the abbreviation exists now.
