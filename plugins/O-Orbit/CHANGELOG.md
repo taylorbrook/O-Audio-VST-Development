@@ -1,5 +1,36 @@
 # Changelog — O-Orbit
 
+## [1.2.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+- **item 58 — hover help, keyboard half:** the page opened tips on `mouseover` only; there was
+  no `focusin` handler at all, so Tab into a control opened nothing and the hover help had no
+  keyboard half. `app.js` `initializeHoverHelp()` now carries the Stage M focus latch
+  (`lastInputWasPointer`, O-Comp v1.7.0): `pointerdown` latches, any `keydown` releases,
+  `focusin` opens the focused anchor's tip only while released, `focusout` hides, Escape hides.
+  A mouse click on the gear, a select or a button still opens no tip (it focuses the control,
+  and an unconditional `focusin` rule would have re-opened the tip pointerdown had just hidden,
+  over the popover the click opened). The popover's own Escape handler refocuses the gear by
+  script; it registers first and reads the latch as the click left it, so no tip lands on the
+  gear as the popover closes. Probe at the 800×600 frame, both languages: click #gear-btn → no
+  tip before and after; Tab → the Path cell's tip (91.4 px en / 106.2 px fr), Tab → Tempo Sync
+  (121.1 / 135.9 px), Shift+Tab ×2 → the gear (76.5 px), every tip inside the frame — 8 of 23
+  assertions failed before, 0 after.
+- **item 44 — `.toggle-label { font-size: 9px }`:** dead since v1.0.0 — `.param-container
+  label { font-size: 11px }` (0,1,1) beats it (0,1,0), `getComputedStyle` reads 11px. Deleted
+  rather than promoted: promoting would have shrunk the elevation pill's face on a shipped
+  control (Non 26.84 → 22.50 px, Off 23.19 → 19.52 px; the 50×24 pill itself unchanged), and
+  every width in the `i18n.js` header was measured at the winning 11px, so nothing on screen
+  moves. The Oui/Non exemption on that pill is therefore permanent at 11px (MARCHE 53.06 px in
+  a 46 px content box; it would have fit at the 9px that never rendered, 44.52 px). The
+  `styles.css` note and the `i18n.js` comments that said "until the specificity is settled"
+  are corrected in place. `check-ui-labels`: 0 non-label elements moved, both languages, before
+  and after.
+
+No English or French copy changed.
+
 ## [1.2.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.

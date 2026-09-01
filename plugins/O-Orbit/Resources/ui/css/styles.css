@@ -266,14 +266,18 @@ body {
     display: none;
 }
 
-/* NOTE (v1.2.1, measured, not changed): the `font-size: 9px` below NEVER
-   APPLIES. `.param-container label` (0,1,1) beats `.toggle-label` (0,1,0) and
-   this pill has rendered at 11px since v1.0.0. It is recorded rather than
-   fixed because raising the specificity is a visible size change to a shipped
-   control, and because the dead rule is load-bearing on a copy decision: at
-   the 9px asked for here the settled French pair MARCHE/ARRET fits the 46px
-   content box (MARCHE ~43.4px), while at the real 11px it does not (MARCHE
-   53.06px), which is why js/i18n.js holds OUI/NON under a termNote. */
+/* The pill's face renders at the 11px of `.param-container label` (0,1,1),
+   the same rule that sizes every caption in the cell. Through v1.2.1 this
+   block also carried `font-size: 9px`, which (0,1,0) never won — the pill has
+   rendered at 11px since v1.0.0 (Stage N measured it; getComputedStyle reads
+   11px). v1.2.2 removed the dead declaration rather than raise its
+   specificity: raising it would have shrunk the glyphs on a shipped control
+   (Non 26.84 → 22.50px, Off 23.19 → 19.52px in the 46px content box; the
+   50x24 pill itself unchanged), and every width recorded in js/i18n.js was
+   measured at the winning 11px, so nothing on screen moves. The copy
+   consequence stands as measured: at 11px MARCHE (53.06px) does not fit and
+   OUI/NON stay under a termNote; at the 9px that was never rendered it would
+   have (MARCHE 44.52px). */
 .toggle-label {
     position: absolute;
     top: 0;
@@ -288,7 +292,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 9px;
     letter-spacing: 1px;
     text-transform: uppercase;
 }

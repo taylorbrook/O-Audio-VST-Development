@@ -18,7 +18,20 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Orbit interface copy, English + French (v1.2.1)
+// i18n.js — O-Orbit interface copy, English + French (v1.2.2)
+//
+// ── v1.2.2: STAGE O (2026-08-31) — items 44 and 58, no copy changed ─────────
+// No en or fr value, key, TIP_BINDINGS row or I18N_EXEMPT entry changed.
+//   · Item 58: app.js gained the keyboard half of hover help (the Stage M
+//     lastInputWasPointer latch): Tab into an anchor opens its tip, a click
+//     does not. Nothing here to change — the bodies were always the same in
+//     both paths.
+//   · Item 44: the dead `.toggle-label { font-size: 9px }` was DELETED from
+//     styles.css, not promoted. The pill keeps rendering at the 11px it has
+//     always rendered at, so every width in this file — all measured at 11px —
+//     still holds, and the ui.on / ui.off exemption below is now permanent
+//     rather than "until the specificity is settled". The sentences that said
+//     otherwise are corrected in place.
 //
 // ── v1.2.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -39,8 +52,9 @@
 //     The speaker_layout BODY keeps "mixage réducteur" for the same reason;
 //     bodies are not matched against the term list.
 //   · Oui/Non stay on the elevation toggle. No glossary form fits either of the
-//     two controls that key pair drives — the numbers are at the entry. This is
-//     a CSS specificity consequence, reported, not fixed here.
+//     two controls that key pair drives — the numbers are at the entry. At
+//     v1.2.1 this was reported as a CSS specificity consequence; at v1.2.2 the
+//     dead 9px rule was removed and 11px is the pill's size by decision.
 //   · "Sync tempo" stays as the Tempo Sync caption: "Synchro tempo" WRAPS to
 //     two lines in the 100.28px grid cell (59.58 x 26.00 over two lines against
 //     79.19 x 13.00 on one), which is the one v1.2.0 width defence on this page
@@ -425,11 +439,12 @@ export const LABELS = Object.freeze({
     //
     // RE-MEASURED at v1.2.1 with Range.selectNodeContents on the shipping frame,
     // because the v1.2.0 defence above it was arithmetic on the WRONG font. It
-    // said "9px uppercase … the budget is three glyphs". It is not 9px: the
-    // `.toggle-label { font-size: 9px }` rule loses to `.param-container label
-    // { font-size: 11px }` (0,1,1 beats 0,1,0), so the pill renders at 11px and
-    // the authored 9px has been dead since v1.0.0. Measured at the real 11px,
-    // in a 46.00px content box:
+    // said "9px uppercase … the budget is three glyphs". It was never 9px: the
+    // `.toggle-label { font-size: 9px }` rule lost to `.param-container label
+    // { font-size: 11px }` (0,1,1 beats 0,1,0), so the pill rendered at 11px
+    // from v1.0.0, and at v1.2.2 the dead declaration was deleted — 11px is the
+    // pill's size by decision now, not by accident. Measured at that 11px,
+    // in a 46.00px content box (re-confirmed at v1.2.2, same numbers):
     //
     //     OUI    22.56   NON    26.84   ARRÊT   41.06   AUCUN  44.13   fit
     //     ACTIVÉ 46.33 (over by 0.33)   MARCHE  53.06 (over by 7.06)
@@ -444,10 +459,11 @@ export const LABELS = Object.freeze({
     // ARRÊT face whose opposite reads OUI names two different oppositions on
     // one 24px pill. Both stay, both carry a termNote with the number.
     //
-    // The exemption is a CSS consequence, not a translation one. At the 9px the
-    // stylesheet asks for, MARCHE measures ≈43.4px and the settled MARCHE/ARRÊT
-    // pair fits with room. Fixing the specificity is a CSS change and Stage N
-    // takes none; it is reported instead.
+    // The exemption is a size consequence, not a translation one. At 9px MARCHE
+    // measures 44.52px and the settled MARCHE/ARRÊT pair would fit; but 9px was
+    // never rendered, promoting it would shrink the face of a shipped control,
+    // and v1.2.2 removed the dead rule instead. The exemption is permanent at
+    // 11px unless the pill itself is widened.
     'ui.on':         { en: { t: 'On' },
                        fr: { t: 'Oui', reviewed: true,
                              termNote: 'MARCHE measures 53.06px and ACTIVÉ 46.33px in the elevation pill\'s '
@@ -457,7 +473,7 @@ export const LABELS = Object.freeze({
                        fr: { t: 'Non', reviewed: true,
                              termNote: 'ARRÊT does fit (41.06px of 46.00, 35.28px of 44.00) but its partner does '
                                      + 'not, and ARRÊT opposite OUI is a mismatched pair on one toggle — held '
-                                     + 'with ui.on until the .toggle-label font-size specificity is settled' } },
+                                     + 'with ui.on; the pill is 11px by decision since v1.2.2 (dead 9px rule removed)' } },
 
     // ── Editor toolbar: the eight layout preset buttons ─────────────────────
     // 5.1, 7.1, 5.1.4 and 7.1.4 are absent: a channel-count designation is
