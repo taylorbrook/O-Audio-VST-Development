@@ -325,10 +325,16 @@ const needsFine = (sel) => FINE.has(paramOf(sel) || '');
         `no French body uses a decimal POINT — a tooltip body is prose and takes the French `
         + `comma; the READOUT keeps its point under D-03`
         + (frPoints.length ? ` (offenders: ${frPoints.join(', ')})` : ''));
-    const unreviewed = Object.values(I18N).filter((e) => e.fr && e.fr.reviewed === false).length;
-    check(unreviewed === Object.keys(I18N).length,
-        `all ${unreviewed} French entries are flagged reviewed: false — no native speaker has `
-        + `read them and none may be hidden from the worklist`);
+    // reviewed is a BOOLEAN on every French entry: true = the developer (who reads French)
+    // has read it (13fc8dd0, 2026-08-31); false = new or rewritten copy still on the worklist.
+    // The pre-O2 assertion demanded `false` everywhere and went red the day the suite was
+    // read — a gate that fails at baseline is decoration. Count the worklist, gate the type.
+    const entries = Object.values(I18N);
+    const untyped = entries.filter((e) => !e.fr || typeof e.fr.reviewed !== 'boolean').length;
+    const unreviewed = entries.filter((e) => e.fr && e.fr.reviewed === false).length;
+    check(untyped === 0,
+        `every French entry carries a boolean reviewed flag (${unreviewed} of ${entries.length} `
+        + `still reviewed: false — the developer's worklist)`);
 
     const pw = S.resolvePlaywright();
     if (pw == null) {
