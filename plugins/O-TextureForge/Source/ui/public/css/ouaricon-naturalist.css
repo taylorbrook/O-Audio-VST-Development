@@ -293,9 +293,13 @@ body::after {
    Through v1.0.2 this was `display: flex; justify-content: space-around`, which
    divides the free space around five SHRINK-WRAPPED columns. That makes every
    group's position a function of every caption's rendered width, in BOTH
-   directions: "Grain Size" -> "Taille grain" widens its group 50.61 -> 62.28
-   and "Crossfade" -> "Fondu" narrows its group 51.56 -> 38, and each one shoves
-   the rest of the row. A .bottom-knob-group is not a label and not inside one,
+   directions: "Grain Size" -> "Taille de grain" widens its group 50.61 -> 76.94
+   and "Crossfade" -> "Fondu enchaîné" widens its 51.56 -> 80.73, and each one
+   shoves the rest of the row. (v1.2.0 spelled those two captions "Taille grain"
+   62.28 and "Fondu" 31.44 — the second one NARROWER than its English source, so
+   the shrink direction was the live one then. v1.2.1 applied the glossary root
+   to both, which is only safe BECAUSE of the grid below.)
+   A .bottom-knob-group is not a label and not inside one,
    so all of that is check-ui-labels assertion 7, which reported 12 moved
    elements across three groups, their knobs, their indicators and one readout.
 
