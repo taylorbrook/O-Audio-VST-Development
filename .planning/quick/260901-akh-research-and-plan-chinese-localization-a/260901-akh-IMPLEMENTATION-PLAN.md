@@ -17,8 +17,13 @@ for Stage 2 onward.
 
 ## Decisions to confirm before Stage 0
 
-These six are the developer's, not an executor's. Nothing below Stage 0 should start until (a),
-(b), (c) and (d) are settled; (e) and (f) can settle during Stage 0.
+**CONFIRMED by the developer, 2026-09-01 — all six, per the recommendation column:**
+(a) Simplified first · (b) key `zh-Hans` · (c) `reviewed` enum `'mt'|'bt'|'native'` for zh-Hans only ·
+(d) **ship at `'bt'`, no native reader** — `'native'` is not a gate anywhere in this rollout ·
+(e) pilot O-Chorus · (f) delete the four unserved `i18n-index-draft.html` files before the P1/P2 sweep.
+Stage 0 is unblocked. Executors treat these as locked; do not re-open them.
+
+These six were the developer's, not an executor's. The table below is kept as the record of why.
 
 | # | Decision | Recommendation | Consequence of the other branch |
 |---|---|---|---|
