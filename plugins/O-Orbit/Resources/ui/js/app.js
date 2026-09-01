@@ -1344,6 +1344,22 @@ function initializePresetBand() {
 // to its right, so measure at left:0, pin the width in px, THEN place.
 // Every show is gated on the "?" toggle's state, which round-trips through the
 // processor. The toggle's own tip carries data-tip-always.
+//
+// v1.2.2: the KEYBOARD half. Through v1.2.1 this page opened tips on mouseover
+// only — Tab into a control opened nothing, so hover help had no keyboard half
+// at all (Stage N found it, Stage O item 58). The Stage M latch from O-Comp
+// v1.7.0 is ported below: focusin opens the anchor's tip, but only when the
+// focus arrived from the keyboard. A mouse click on a <button> or a <select>
+// FOCUSES it, so an unconditional focusin rule would re-open the tip that
+// pointerdown has just hidden — with the pointer still on the anchor and no
+// further mouseover coming — on top of whatever the click opened (measured on
+// the Stage M pilots: the gear's tip covered the settings popover it had just
+// opened by 146 x 35 px). :focus-visible is deliberately NOT the discriminator:
+// Chromium reports it false for a programmatic .focus() after a click, so a
+// gate driving focus directly would read "no tip" and record a false pass. An
+// explicit latch on the LAST INPUT DEVICE is the same rule and is drivable
+// with real events: pointerdown sets it, any keydown clears it, focusin opens
+// only while it is clear.
 
 function initializeHoverHelp() {
     const TOOLTIP_MARGIN = 8;       // gap to control AND to the viewport edge
@@ -1355,6 +1371,7 @@ function initializeHoverHelp() {
     let tipTimer = null;
     let tipTarget = null;
     let tipSuppressed = false;      // true between pointerdown and pointerup
+    let lastInputWasPointer = false; // the focus latch (v1.2.2): set by pointerdown, cleared by any keydown
     let tipsEnabled = false;        // the "?" state; PULLED from C++ at init
     let setTipsFn = null;
 
@@ -1476,11 +1493,48 @@ function initializeHoverHelp() {
 
     // Any press begins a click or a drag: hide the tip and keep it away until
     // release. CAPTURE phase — the knobs preventDefault in their own handlers.
+    // The same press latches the input device (see the block comment above).
     document.addEventListener('pointerdown', () => {
+        lastInputWasPointer = true;
         tipSuppressed = true;
         hideTip();
     }, true);
     document.addEventListener('pointerup', () => { tipSuppressed = false; }, true);
+
+    // Keyboard focus opens the anchor's tip at once — no dwell, the user has
+    // already arrived — placed on the control's own rect exactly as the hover
+    // path places it. Same gates as the mouseover path: the anchor must carry
+    // data-tip and help must be on (or the anchor data-tip-always).
+    //
+    // Programmatic .focus() calls on this page are covered by the latch, not
+    // listed: initializeSettingsPopover()'s Escape handler refocuses the gear
+    // DURING the keydown, and because it registered before this function, that
+    // focusin still sees the latch as the popover's opener left it — set, when
+    // the popover was opened by a click, so no tip lands on the gear over the
+    // popover's closing; clear, when it was opened from the keyboard, in which
+    // case the gear already had focus and no focusin fires. The keydown
+    // listener below then runs and releases the latch. layoutSaveBtn's
+    // `layoutNameInput.focus()` on an empty name follows a click or an Enter
+    // and reads the latch the same way.
+    document.addEventListener('focusin', (e) => {
+        if (lastInputWasPointer) return;
+        const target = e.target.closest ? e.target.closest('[data-tip]') : null;
+        if (!target) return;
+        if (!tipAllowed(target)) return;
+        clearTimeout(tipTimer);
+        tipTarget = target;
+        showTip(target);
+    });
+    document.addEventListener('focusout', hideTip);
+
+    // One keydown listener, two jobs: any key at all means the keyboard is
+    // driving again, which releases the latch; Escape additionally hides.
+    // Independent of the popover's and the preset menu's own Escape handlers —
+    // all three run.
+    document.addEventListener('keydown', (e) => {
+        lastInputWasPointer = false;
+        if (e.key === 'Escape') hideTip();
+    });
 
     if (toggleEl) {
         toggleEl.addEventListener('click', () => {
