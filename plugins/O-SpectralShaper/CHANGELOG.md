@@ -1,5 +1,12 @@
 # O-SpectralShaper Changelog
 
+## [1.7.2] - 2026-08-31
+
+Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
+
+### Fixed
+- **item 40 — the hover-help switch in the settings popover (`.settings-toggle`, `css/styles.css`):** its `min-width: 40px` covered the English faces (On / Off both render the button at 40.00 px) but not the French ones, so the button **resized between its own two French faces on every toggle** — `Désactivée` 61.88 px, `Activée` 49.09 px, its left edge jumping 12.78 px inside the row. The pin is now **64 px**, measured on the live node at the shipping 700×500 frame: the widest face's text is 43.88 px, plus 8 px padding and 1 px border each side (the rule is `box-sizing: border-box`, so the pin governs the border-box), plus 2.12 px of slack. The button now renders 64.00 px on all four faces in both languages; the popover holds at 168 px, `#lang-select` and the row's left edge do not move, and `check-ui-labels` reports 0 non-label elements moved in both languages across all four driven states. Worst-case row is the French caption beside the French face: 65.89 + 12 + 64 = 141.89 px against 148 px of content width, 6.11 px to spare. No copy changed; no French changed; no parameter, preset or state-format change.
+
 ## [1.7.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.

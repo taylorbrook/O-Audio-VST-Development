@@ -18,7 +18,13 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-SpectralShaper UI copy, English + French (v1.7.1, canon v2)
+// i18n.js — O-SpectralShaper UI copy, English + French (v1.7.2, canon v2)
+//
+// ── v1.7.2: STAGE O, ITEM 40 (2026-08-31) — no copy changed in this file ──
+// The .settings-toggle min-width in css/styles.css is pinned 40px -> 64px so
+// the hover-help switch no longer resizes between Activée (49.09px) and
+// Désactivée (61.88px). The block below records the widths as measured in
+// v1.7.1; the CSS comment above .settings-toggle carries the v1.7.2 numbers.
 //
 // ── v1.7.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -65,6 +71,7 @@
 //   the button at 61.88px). The ROW still cannot resize — the popover holds at
 //   168px and #lang-select and the row's own left edge do not move — but the
 //   button does, and the comment that claimed otherwise was corrected.
+//   (v1.7.2 pins it to 64px; the button no longer resizes.)
 //
 //   "Aide" BECAME "Aide au survol". The tip title and the aria-label on this
 //   very control already said "aide au survol"; the popover row alone said
