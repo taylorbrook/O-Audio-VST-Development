@@ -2,6 +2,35 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.3.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **72 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint: 29 terminology, 56 typography,
+  4 meaning, 2 idiom and register, 0 grammar or agreement. The visible ones are
+  MAILLOCHE → **MAILLET** (a *mailloche* beats a bass drum, not a bell), DOSAGE
+  → **MIX** on the three FX mix knobs and **QUANTITÉ** on the five Amount
+  captions, RÉVERBE → **RÉVERB** (*réverbe* is not a word), TENUE BOURDON →
+  **MAINTIEN BOURDON**, and the Tuning tab from GAMME to **ACCORD** — a *gamme*
+  is a scale, and the library on that tab is full of them.
+- **French typography throughout the tooltips**: 69 no-break spaces added
+  before `%`, before a colon and before `; ! ?`, and between every number and
+  its unit, so a range like `100 ms à 10,0 s` can no longer break across a line
+  in the middle of a measurement.
+- Two tooltips said something the English did not, and now do not: High
+  Fidelity's body had dropped the *fidelity* it is named for, and the EQ Mid
+  body called its peaking band *une cloche* on a plugin whose every other
+  sentence uses that word for the instrument.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+All French is still flagged `reviewed: false`: this pass is a second machine
+reading against a glossary and a lint, not a native speaker's.
+
 ## [4.3.0] - 2026-08-31
 
 ### Added — hover-help, in both languages
