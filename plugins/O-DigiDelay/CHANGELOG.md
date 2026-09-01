@@ -5,6 +5,38 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **20 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint, which went from 40 findings to
+  0 (`--strict` exit 0). Eight terminology changes, nine typographic, three of
+  meaning. The visible ones: the SPREAD knob reads **ÉTAL.** rather than ÉCART
+  (*Écart* is the suite's word for detune, and *Étalement* at 60.47 px does not
+  fit a 60 px caption box), the WET knob reads **TRAITÉ** rather than EFFET,
+  the TIME knob reads **DURÉE** rather than TEMPS, and the preset bar's Save
+  button reads **ENREG** rather than SAUVER (*Sauver* is a calque;
+  *Enregistrer* needs 66.52 px in a 48 px box). Straight apostrophes became
+  typographic ones throughout, and no-break spaces now sit before `:`, `;`, `%`
+  and between every number and its unit, so a French body no longer breaks a
+  line in front of a punctuation mark or between "15" and "ms".
+- **The French accessible name of the preset LOAD button now contains its own
+  caption.** It read "Ouvrir un préréglage depuis un fichier" under a button
+  captioned CHARGER, so a voice-control user saying the visible word did not
+  hit the button (WCAG 2.5.3, label in name). It now reads "Charger un
+  préréglage depuis un fichier". The Save button's abbreviation ships without a
+  trailing period for the same reason — `Enreg` is a stem of "Enregistrer les
+  réglages actuels" and `Enreg.` is not.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+All French remains `reviewed: false`: this pass is a second machine reading
+against a glossary and a lint, not a native-speaker review.
+
 ## [1.4.0] - 2026-08-30
 
 ### Added
