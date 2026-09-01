@@ -150,7 +150,12 @@ html, body {
    moves BOTH the bar and the h1 by half the delta — Load 40.2 -> Ouvrir 48.3 and
    Save 38.5 -> Enreg. 48.2 shifted five header elements by 8.9px each. 50px
    covers the widest of the four faces in both languages with 1.7px to spare, so
-   the bar's width no longer depends on the language at all. */
+   the bar's width no longer depends on the language at all.
+   v1.18.1: the French Save face is `Enreg`, not `Enreg.` — 44.97px border-box
+   against Enreg.'s 48.17, so the pin's margin widens to 5.0px and its conclusion
+   is unchanged. The period was dropped for label-in-name, not for width; the
+   ROOT term Enregistrer is 71.70px border-box and is exactly what this pin
+   cannot absorb. */
 .preset-action-btn {
     background: var(--border-accent);
     color: var(--bg-paper);
@@ -298,8 +303,9 @@ html, body {
    100px gives the caption 54.0px: 5.2px of clearance on the longest French word,
    which is the margin Windows/WebView2 font metrics are a named deferral about.
    Column 5 holds the per-band Mix caption plus its 36px slider and a 3px gap;
-   the caption is pinned at 26px below (Mix 13.8 / Mixage 25.8), so the cell needs
-   65px. Both widths come out of the 1fr step lane, which loses 28px across 32
+   the caption is pinned at 26px below (Mix 13.8 / Mixage 25.8 — v1.18.1 settles
+   the French on `Mix`, so both languages now measure 13.8 and the pin is no
+   longer what keeps the slider still), so the cell needs 65px. Both widths come out of the 1fr step lane, which loses 28px across 32
    cells — 0.9px per cell. */
 .band-row {
     flex: 1;
@@ -319,7 +325,11 @@ html, body {
 /* v1.18.0: pinned at 26px, the wider of Mix 13.8 and Mixage 25.8. Unpinned, the
    French caption pushed the slider 12.0px right in all four bands. flex-basis
    rather than min-width would work equally here, but min-width is what makes the
-   intent — a floor, never a cap — legible next to the nowrap. */
+   intent — a floor, never a cap — legible next to the nowrap.
+   v1.18.1: the Stage N glossary settles Mix -> Mix, so the French caption is
+   13.8px too and this floor is no longer load-bearing for the language. It is
+   KEPT rather than removed: it is also what stops the four sliders from sitting
+   at different x, and removing it is a layout change with its own gate run. */
 .band-mix label {
     flex: 0 0 auto;
     min-width: 26px;
@@ -900,7 +910,16 @@ html, body {
 /* Same engaged/idle pair as the gear, in a pill rather than a circle so the
    On/Off caption fits. min-width covers the widest of the four faces across both
    languages — On / Off / Oui / Non — so switching either the state or the
-   language cannot resize the row. */
+   language cannot resize the row.
+   v1.18.1 BREAKS THAT INVARIANT, stated rather than left to be discovered. The
+   Stage N glossary settles On/Off as Marche/Arrêt (Oui/Non are answers, not
+   states), and Marche measures 36.97px against this 22px content box, so the
+   button leaves its min-width and becomes content-sized: 54.97px on Marche,
+   43.52px on Arrêt. It grows LEFTWARD inside a right-anchored popover, so no
+   non-label element moves and the popover holds its 186px — but the button now
+   resizes 11.45px between its own two French faces. Raising min-width to 55px
+   would restore the claim; that is a layout decision and a copy pass did not
+   take it. */
 .settings-toggle {
     min-width: 40px;
     padding: 2px 8px;
