@@ -267,7 +267,7 @@ function initializeTooltips() {
 
     document.addEventListener('pointerup', () => { tooltipSuppressed = false; }, true);
 
-    console.log('[v2.9.0] Tooltips initialized');
+    console.log('[v2.9.1] Tooltips initialized');
 }
 
 function initializeHelpToggle() {
