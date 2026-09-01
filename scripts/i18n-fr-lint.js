@@ -179,11 +179,12 @@ async function lintPlugin(name) {
     for (const r of rows) {
         if (!r.fr) continue;
         for (const code of typography(r.fr, r.en)) findings.push({ code, ...r });
-        if (r.kind === 'body') {
-            for (const w of forbidden(r.fr, G.FORBIDDEN_IN_PROSE))
-                findings.push({ code: 'F1', ...r, note: `"${w}" → ${G.FORBIDDEN_IN_PROSE[w]}` });
-            continue;
-        }
+        // A prose-forbidden word is forbidden EVERYWHERE - a LABELS dialog message
+        // or an aria name is prose too (O-MicrotonalSampler N7: four 'plugiciel'
+        // in label./aria. entries drew nothing while the scan was body-only).
+        for (const w of forbidden(r.fr, G.FORBIDDEN_IN_PROSE))
+            findings.push({ code: 'F1', ...r, note: `"${w}" → ${G.FORBIDDEN_IN_PROSE[w]}` });
+        if (r.kind === 'body') continue;
         // labels and titles from here on
         // A straight copy is the CONDITION (fr === en), not the flag. The first
         // draft counted the flag and printed 0 on a page with an unflagged copy
