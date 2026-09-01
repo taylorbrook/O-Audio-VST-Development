@@ -4,6 +4,38 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.8.1] — 2026-08-31 — French copy revised
+
+French copy revised. Stage N of the repo-wide i18n rollout (quick task
+260826-ieq) — a second reading of every French entry against the suite glossary
+(`scripts/i18n-fr-glossary.js`) and the ten mechanical checks in
+`scripts/i18n-fr-lint.js`. No English copy, key, binding, selector or exemption
+changed; `reviewed: false` still stands on all 103 entries, because that flag
+means a native speaker read them and none has.
+
+### Changed
+
+- **47 of 103 French entries revised** against the suite glossary and lint,
+  taking this plugin from 70 lint findings to 0 under `--strict`. 17
+  terminology, 22 typography, 4 grammar/agreement, 3 meaning, 1 flag. The
+  visible ones: **Extinction / Chute → Relâchement / Relâch.** (one control had
+  two French names, and the glossary forbids both words), **Dosage → Mix** on
+  the body-mix knob and its tip, **Fréquence → Vitesse** and **Ampleur →
+  Profondeur** on the vibrato and LFO pairs, **Satur. → Saturation** (the root
+  fits — the file's own 66 px claim measured 55.00 in a 62 px cell), and the
+  shared tuning-panel notice moved to **Échec du chargement du panneau
+  d’accord.**, the form O-Bassoon, O-Bowed, O-Reed and O-Wind already ship.
+- **Typography throughout the French**: straight apostrophes → typographic
+  (`l'archet` → `l’archet`, 48 of them), and a no-break space before every `;`
+  and between every number and its unit (`1,5 m/s`, `880 Hz`, `−60 à +12 dB`).
+- **Four sentences corrected against their English**: a dangling modifier in the
+  bow-pressure tip, an intransitive *replier* in the stereo-width tip, *plus de
+  poitrine* → *plus de coffre* for "more chest", and the bow-noise bed now
+  *court sous le son* rather than merely accompanying it.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
 ## [1.8.0] — 2026-08-27 — The PAGE speaks French, not only the hover help
 
 Canon v2 of the suite-wide i18n retrofit (quick task 260826-ieq, Stage I).
