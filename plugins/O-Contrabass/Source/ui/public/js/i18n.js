@@ -18,7 +18,59 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Contrabass interface copy, English + French (v1.8.0)
+// i18n.js — O-Contrabass interface copy, English + French (v1.8.1)
+//
+// ── v1.8.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
+//
+// Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
+// Changed: 47 entries of 103 (17 terminology, 22 typography, 4 grammar/
+// agreement, 3 meaning, 1 flag). sameAsEn: kept 9, translated 0, added 1
+// (label.mix, now the glossary root "Mix" and therefore a straight copy),
+// removed 1 (note-expression-toggle — its BODY is translated, so the entry is
+// not a straight copy and the flag was disarming check-i18n assertion 4 for
+// it). termNote exemptions: 2 (both listed by
+// `node scripts/i18n-fr-lint.js --plugin O-Contrabass --strict`, which exits 0
+// against a baseline of 70 findings: 33 T1, 8 T5, 8 T7, 11 G1, 10 F1).
+// Left as drafted: the other 56. reviewed: false throughout — the flag means a
+// NATIVE SPEAKER read it, and none has; this was a second machine reading.
+//
+// Decisions the next reader needs:
+//
+//   * THE KNOB CELL IS 62 px, not the 55 px the LABELS block claimed through
+//     v1.8.0, and .knob-label truncates with an ellipsis rather than pushing a
+//     neighbour. Three of this file's width claims were wrong when measured
+//     (Saturation 55.00 not 66, Amortissement 74.27 not 84, the cell itself);
+//     each is corrected at its entry. "Saturation" now fits and ships.
+//   * Release: "Extinction" / "Chute" were two French names for one control,
+//     and the glossary forbids both. The tip carries the root "Relâchement",
+//     the caption the listed abbreviation "Relâch." (the root wraps at 64.95).
+//   * Rate/Depth are Vitesse/Profondeur here, NOT Fréquence/Ampleur — even
+//     though both LFOs are specified in Hz. O-Bowed's Fréq. exemption was for a
+//     knob sitting directly under a column already captioned Vitesse; nothing
+//     on this page collides that way, and the body of VIBRATO_RATE already
+//     said "Vitesse" while its title said "Fréquence".
+//   * "Tenue infinie" / "Tenue inf." KEPT against the glossary's Maintien, with
+//     a termNote on each half. This page carries no envelope, only a Release,
+//     so there is no ADSR sustain segment for Maintien to name. MEANING, not
+//     width: Maint. inf. measures 50.58 px and would have fit. Converges with
+//     O-Bowed v1.6.1, which reasoned the same exemption on the same control.
+//   * "Corps" is KEPT for Body. O-Bowed says "Caisse" and argues it is the
+//     organology term; "body" is not a glossary row, so neither is settled.
+//     Reported for the glossary rather than changed on one page — two plugins
+//     disagreeing is exactly what the list exists to decide.
+//   * "Dosage" stays in two BODIES (INFINITE_SUSTAIN, MASTER_SAT_AMOUNT) where
+//     it means an amount, and is gone from both places it was a NAME
+//     (label.mix, BODY_MIX). Bodies are not matched against TERMS.
+//   * Register: bodies are INFINITIVE throughout (Choisir, Reculer, Cliquer,
+//     Double-cliquer, Afficher) and address the user as vous. One register per
+//     plugin — keep it.
+//   * U+00A0 landed 21 times: before every ';' and between every number and its
+//     unit, including m/s, N, dBFS and VU, which the lint's UNITS list does not
+//     all carry. The cents sign stays glued (±1200¢) because the English glues
+//     it and no gate asks otherwise. Nothing outside a French string VALUE was
+//     touched: both revisions were imported and compared field by field — en
+//     values changed 0, key sets changed 0, TIP_BINDINGS / I18N_EXEMPT /
+//     LANGUAGES byte-identical, and no U+00A0 sits outside a t:/b: value.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -64,7 +116,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of the interface, and turn the hover help on or off. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: "Choisir la langue de l'interface et activer ou désactiver l'aide au survol. Les deux choix sont conservés avec la session.",
+              b: "Choisir la langue de l’interface et activer ou désactiver l’aide au survol. Les deux choix sont conservés avec la session.",
               reviewed: false },
     },
 
@@ -76,7 +128,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of the labels on this page and of this hover help. English and French are available; value readouts, note names and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: "La langue des libellés de cette page et de cette aide au survol. L'anglais et le français sont disponibles ; les valeurs affichées, les noms de notes et les noms de préréglages restent en anglais.",
+              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de notes et les noms de préréglages restent en anglais.",
               reviewed: false },
     },
 
@@ -92,7 +144,7 @@ export const I18N = Object.freeze({
         en: { t: 'Preset',
               b: 'The preset currently loaded — click to browse the full list. Factory presets are read-only; saving under the same name writes a user copy.' },
         fr: { t: 'Préréglage',
-              b: "Le préréglage actuellement chargé — cliquer pour parcourir la liste complète. Les préréglages d'usine sont en lecture seule ; enregistrer sous le même nom écrit une copie utilisateur.",
+              b: "Le préréglage actuellement chargé — cliquer pour parcourir la liste complète. Les préréglages d’usine sont en lecture seule ; enregistrer sous le même nom écrit une copie utilisateur.",
               reviewed: false },
     },
     'preset-next': {
@@ -120,14 +172,14 @@ export const I18N = Object.freeze({
         en: { t: 'Tuning',
               b: 'The full tuning panel — intervals table, scale library, generators, .scl/.kbm files.' },
         fr: { t: 'Accord',
-              b: "Le panneau d'accord complet — table des intervalles, bibliothèque de gammes, générateurs, fichiers .scl/.kbm.",
+              b: "Le panneau d’accord complet — table des intervalles, bibliothèque de gammes, générateurs, fichiers .scl/.kbm.",
               reviewed: false },
     },
     'help-toggle': {
         en: { t: 'Hover help',
               b: 'Show a short description when the pointer rests on a control. The setting is remembered with the session.' },
         fr: { t: 'Aide au survol',
-              b: "Afficher une brève description lorsque le pointeur s'arrête sur une commande. Le réglage est conservé avec la session.",
+              b: "Afficher une brève description lorsque le pointeur s’arrête sur une commande. Le réglage est conservé avec la session.",
               reviewed: false },
     },
 
@@ -135,50 +187,50 @@ export const I18N = Object.freeze({
     'BOW_SPEED': {
         en: { t: 'Bow speed',
               b: 'How fast the bow travels, 0.02–1.5 m/s. Slow bows choke and darken; fast bows loosen and sing.' },
-        fr: { t: "Vitesse d'archet",
-              b: "Vitesse de déplacement de l'archet, 0,02–1,5 m/s. Un archet lent étouffe et assombrit ; un archet rapide libère et fait chanter.",
+        fr: { t: "Vitesse d’archet",
+              b: "Vitesse de déplacement de l’archet, 0,02–1,5 m/s. Un archet lent étouffe et assombrit ; un archet rapide libère et fait chanter.",
               reviewed: false },
     },
     'BOW_PRESSURE': {
         en: { t: 'Bow pressure',
               b: 'Bow force on the string, 0.05–8 N. Too light skates into surface sound, too heavy drives into raucous scratch — the Schelleng diagram shows where you are.' },
-        fr: { t: "Pression d'archet",
-              b: "Force de l'archet sur la corde, 0,05–8 N. Trop légère, le son glisse en surface ; trop lourde, il verse dans le grattement rauque — le diagramme de Schelleng indique où vous êtes.",
+        fr: { t: "Pression d’archet",
+              b: "Force de l’archet sur la corde, 0,05–8 N. Trop légère, elle fait glisser le son en surface ; trop lourde, elle verse dans le grattement rauque — le diagramme de Schelleng indique où vous êtes.",
               reviewed: false },
     },
     'BOW_POSITION': {
         en: { t: 'Bow position',
               b: 'Where the bow crosses the string, as fraction β of its length. Near the bridge (low β) is brighter but harder to speak; toward the fingerboard is warmer.' },
-        fr: { t: "Position d'archet",
-              b: "Point de contact de l'archet sur la corde, en fraction β de sa longueur. Près du chevalet (β faible), le son est plus brillant mais parle plus difficilement ; vers la touche, il est plus chaud.",
+        fr: { t: "Position d’archet",
+              b: "Point de contact de l’archet sur la corde, en fraction β de sa longueur. Près du chevalet (β faible), le son est plus brillant mais parle plus difficilement ; vers la touche, il est plus chaud.",
               reviewed: false },
     },
     'ROSIN': {
         en: { t: 'Rosin',
               b: 'Bow grip — the strength of the stick-slip friction. More rosin bites harder and speaks faster.' },
         fr: { t: 'Colophane',
-              b: "Adhérence de l'archet — la force du frottement adhérence-glissement. Plus de colophane mord davantage et fait parler plus vite.",
+              b: "Adhérence de l’archet — la force du frottement adhérence-glissement. Plus de colophane mord davantage et fait parler plus vite.",
               reviewed: false },
     },
     'BOW_NOISE': {
         en: { t: 'Bow noise',
               b: 'Level of the bow-hair noise bed — the breathy scratch riding under the tone.' },
-        fr: { t: "Bruit d'archet",
-              b: "Niveau du lit de bruit de crin — le grattement soufflé qui accompagne le son.",
+        fr: { t: "Bruit d’archet",
+              b: "Niveau du lit de bruit de crin — le grattement soufflé qui court sous le son.",
               reviewed: false },
     },
     'RELEASE': {
         en: { t: 'Release',
               b: 'How long the string keeps ringing once the bow lifts, 0.05–20 s.' },
-        fr: { t: 'Extinction',
-              b: "Durée de résonance de la corde après le retrait de l'archet, 0,05–20 s.",
+        fr: { t: 'Relâchement',
+              b: "Durée de résonance de la corde après le retrait de l’archet, 0,05–20 s.",
               reviewed: false },
     },
     'canvas-schelleng': {
         en: { t: 'Schelleng diagram',
               b: 'Where the current bow speed × pressure sits. The green band is the Helmholtz regime — the singing zone between surface sound and raucous; its wedge shifts with bow position β.' },
         fr: { t: 'Diagramme de Schelleng',
-              b: "Où se situe le couple vitesse × pression actuel. La bande verte est le régime de Helmholtz — la zone chantante entre le son de surface et le rauque ; son coin se déplace avec la position d'archet β.",
+              b: "Où se situe le couple vitesse × pression actuel. La bande verte est le régime de Helmholtz — la zone chantante entre le son de surface et le rauque ; son coin se déplace avec la position d’archet β.",
               reviewed: false },
     },
 
@@ -187,20 +239,20 @@ export const I18N = Object.freeze({
         en: { t: 'Body size',
               b: 'Size of the modeled body resonator. Larger bodies shift the eight modes down — more chest, less bark.' },
         fr: { t: 'Taille du corps',
-              b: 'Taille du résonateur de corps modélisé. Un corps plus grand abaisse les huit modes — plus de poitrine, moins de mordant.',
+              b: 'Taille du résonateur de corps modélisé. Un corps plus grand abaisse les huit modes — plus de coffre, moins de mordant.',
               reviewed: false },
     },
     'BODY_DAMPING': {
         en: { t: 'Body damping',
               b: 'How quickly the body modes ring out. High damping dries and tightens the resonance.' },
         fr: { t: 'Amortissement du corps',
-              b: "Vitesse d'extinction des modes du corps. Un amortissement élevé assèche et resserre la résonance.",
+              b: "Vitesse d’extinction des modes du corps. Un amortissement élevé assèche et resserre la résonance.",
               reviewed: false },
     },
     'BODY_MIX': {
         en: { t: 'Body mix',
               b: 'Balance of body resonance against the raw string signal.' },
-        fr: { t: 'Dosage du corps',
+        fr: { t: 'Mix du corps',
               b: 'Équilibre entre la résonance du corps et le signal brut de la corde.',
               reviewed: false },
     },
@@ -208,7 +260,7 @@ export const I18N = Object.freeze({
         en: { t: 'Brightness',
               b: 'Master tone low-pass, 80 Hz–12 kHz. Below it the instrument darkens toward felt.' },
         fr: { t: 'Brillance',
-              b: "Passe-bas de tonalité générale, 80 Hz–12 kHz. En dessous, l'instrument s'assombrit vers le feutre.",
+              b: "Passe-bas de tonalité générale, 80 Hz–12 kHz. En dessous, l’instrument s’assombrit vers le feutre.",
               reviewed: false },
     },
     'canvas-spectrum': {
@@ -224,7 +276,7 @@ export const I18N = Object.freeze({
         en: { t: 'Tension',
               b: 'String tension. Tighter strings respond faster and sound more focused; slack strings growl and flex.' },
         fr: { t: 'Tension',
-              b: 'Tension des cordes. Des cordes plus tendues répondent plus vite et sonnent plus focalisées ; des cordes lâches grondent et fléchissent.',
+              b: 'Tension des cordes. Des cordes plus tendues répondent plus vite et donnent un son plus focalisé ; des cordes lâches grondent et fléchissent.',
               reviewed: false },
     },
     'STRING_STIFFNESS': {
@@ -238,7 +290,7 @@ export const I18N = Object.freeze({
         en: { t: 'Active strings',
               b: 'How many of the four strings (E–A–D–G, low to high) are on the instrument. Notes land on the string that can reach them.' },
         fr: { t: 'Cordes actives',
-              b: "Combien des quatre cordes (E–A–D–G, de la grave à l'aiguë) sont montées sur l'instrument. Chaque note se place sur la corde capable de l'atteindre.",
+              b: "Combien des quatre cordes (E–A–D–G, de la grave à l’aiguë) sont montées sur l’instrument. Chaque note se place sur la corde capable de l’atteindre.",
               reviewed: false },
     },
     'fine-tuners': {
@@ -282,20 +334,20 @@ export const I18N = Object.freeze({
         en: { t: 'Expression',
               b: 'One-knob intensity macro — leans bow speed, pressure and vibrato together from restful to fervent.' },
         fr: { t: 'Expression',
-              b: "Macro d'intensité à un seul bouton — incline ensemble vitesse d'archet, pression et vibrato, du calme au fervent.",
+              b: "Macro d’intensité à un seul bouton — oriente ensemble vitesse d’archet, pression et vibrato, du calme à la ferveur.",
               reviewed: false },
     },
     'VIBRATO_RATE': {
         en: { t: 'Vibrato rate',
               b: 'Vibrato speed, 0.1–12 Hz.' },
-        fr: { t: 'Fréquence du vibrato',
-              b: 'Vitesse du vibrato, 0,1–12 Hz.',
+        fr: { t: 'Vitesse du vibrato',
+              b: 'Vitesse du vibrato, 0,1–12 Hz.',
               reviewed: false },
     },
     'VIBRATO_DEPTH': {
         en: { t: 'Vibrato depth',
               b: 'Vibrato width in cents, 0–50¢. At 0 the left hand holds still.' },
-        fr: { t: 'Ampleur du vibrato',
+        fr: { t: 'Profondeur du vibrato',
               b: 'Largeur du vibrato en cents, 0–50¢. À 0, la main gauche reste immobile.',
               reviewed: false },
     },
@@ -303,21 +355,21 @@ export const I18N = Object.freeze({
         en: { t: 'Vibrato onset',
               b: 'Delay before vibrato blooms after a note starts, 0–3000 ms — the straight-tone attack of a real player.' },
         fr: { t: 'Entrée du vibrato',
-              b: "Délai avant l'épanouissement du vibrato après le début d'une note, 0–3000 ms — l'attaque en son droit d'un vrai instrumentiste.",
+              b: "Délai avant l’épanouissement du vibrato après le début d’une note, 0–3000 ms — l’attaque en son droit d’un vrai instrumentiste.",
               reviewed: false },
     },
     'SLOW_LFO_RATE': {
         en: { t: 'LFO rate',
               b: 'Rate of the slow bow drift, 0.05–2 Hz — a once-per-phrase wander of the bowing.' },
-        fr: { t: 'Fréquence du LFO',
-              b: "Fréquence de la dérive lente d'archet, 0,05–2 Hz — une errance du coup d'archet, une fois par phrase.",
+        fr: { t: 'Vitesse du LFO',
+              b: "Vitesse de la dérive lente d’archet, 0,05–2 Hz — une errance du coup d’archet, une fois par phrase.",
               reviewed: false },
     },
     'SLOW_LFO_DEPTH': {
         en: { t: 'LFO depth',
               b: 'Depth of the slow bow drift. At 0 the bow holds perfectly steady.' },
-        fr: { t: 'Ampleur du LFO',
-              b: "Ampleur de la dérive lente d'archet. À 0, l'archet reste parfaitement stable.",
+        fr: { t: 'Profondeur du LFO',
+              b: "Profondeur de la dérive lente d’archet. À 0, l’archet reste parfaitement stable.",
               reviewed: false },
     },
 
@@ -326,7 +378,13 @@ export const I18N = Object.freeze({
         en: { t: 'Infinite sustain',
               b: 'Bow-forever amount. Raise it and held notes stop decaying — the drone wakes.' },
         fr: { t: 'Tenue infinie',
-              b: "Dosage de l'archet perpétuel. En le montant, les notes tenues cessent de décroître — le bourdon s'éveille.",
+              termNote: 'not the ADSR sustain segment — this page carries no envelope at all, '
+                      + 'only a Release. The control stops the string losing energy so the note '
+                      + 'keeps sounding, and "une tenue" is the French musical term for a held '
+                      + 'note. MEANING, not width: a tip title is unconstrained, and the caption '
+                      + 'half fits too (Maint. inf. 50.58 px in a 62 px cell). Converges with '
+                      + 'O-Bowed v1.6.1, which reasoned the same exemption on the same control.',
+              b: "Dosage de l’archet perpétuel. En le montant, les notes tenues cessent de décroître — le bourdon s’éveille.",
               reviewed: false },
     },
     'SUB_HARMONICS': {
@@ -342,14 +400,14 @@ export const I18N = Object.freeze({
         en: { t: 'Level',
               b: 'Output level, −60 to +12 dB.' },
         fr: { t: 'Niveau',
-              b: 'Niveau de sortie, −60 à +12 dB.',
+              b: 'Niveau de sortie, −60 à +12 dB.',
               reviewed: false },
     },
     'WIDTH': {
         en: { t: 'Width',
               b: 'Stereo width. 1.00× is the natural body image; 0 collapses to mono, 2× exaggerates.' },
         fr: { t: 'Largeur',
-              b: "Largeur stéréo. 1,00× est l'image naturelle du corps ; 0 replie en mono, 2× exagère.",
+              b: "Largeur stéréo. 1,00× est l’image naturelle du corps ; 0 replie l’image en mono, 2× exagère.",
               reviewed: false },
     },
     'MASTER_SAT_AMOUNT': {
@@ -363,14 +421,14 @@ export const I18N = Object.freeze({
         en: { t: 'Ceiling',
               b: 'Limiter ceiling, −6 to 0 dBFS. The output never crosses this.' },
         fr: { t: 'Plafond',
-              b: 'Plafond du limiteur, −6 à 0 dBFS. La sortie ne le franchit jamais.',
+              b: 'Plafond du limiteur, −6 à 0 dBFS. La sortie ne le franchit jamais.',
               reviewed: false },
     },
     'canvas-vu': {
         en: { t: 'VU meter',
               b: 'Output level after the limiter, VU-ballistic. 0 VU = −18 dBFS RMS.' },
         fr: { t: 'VU-mètre',
-              b: 'Niveau de sortie après le limiteur, balistique VU. 0 VU = −18 dBFS RMS.',
+              b: 'Niveau de sortie après le limiteur, balistique VU. 0 VU = −18 dBFS RMS.',
               reviewed: false },
     },
 
@@ -379,21 +437,21 @@ export const I18N = Object.freeze({
         en: { t: 'Reference pitch',
               b: 'Concert pitch for A4, 220–880 Hz. Everything tunes around it.' },
         fr: { t: 'Diapason',
-              b: "Hauteur de référence du A4, 220–880 Hz. Tout s'accorde autour d'elle.",
+              b: "Hauteur de référence du A4, 220–880 Hz. Tout s’accorde autour d’elle.",
               reviewed: false },
     },
     'tuning-system': {
         en: { t: 'Tuning system',
               b: 'Where the tuning comes from — a loaded Scala scale, an MTS-ESP master, or plain 12-TET.' },
-        fr: { t: "Système d'accord",
-              b: "D'où vient l'accord — une gamme Scala chargée, un maître MTS-ESP, ou le 12-TET simple.",
+        fr: { t: "Système d’accord",
+              b: "D’où vient l’accord — une gamme Scala chargée, une source maître MTS-ESP ou le 12-TET simple.",
               reviewed: false },
     },
     'scl-load-btn': {
         en: { t: 'Load .scl',
               b: 'Load a Scala tuning file (.scl) and switch the tuning system to it.' },
         fr: { t: 'Charger .scl',
-              b: "Charger un fichier d'accord Scala (.scl) et y basculer le système d'accord.",
+              b: "Charger un fichier d’accord Scala (.scl) et y basculer le système d’accord.",
               reviewed: false },
     },
     'note-expression-toggle': {
@@ -401,12 +459,12 @@ export const I18N = Object.freeze({
               b: 'Per-note VST3 pitch (Note Expression) for hosts like Cubase and Dorico — microtonal scores play in tune.' },
         fr: { t: 'Note Expression',
               b: "Hauteur VST3 par note (Note Expression) pour les hôtes comme Cubase et Dorico — les partitions microtonales sonnent juste.",
-              reviewed: false, sameAsEn: true },
+              reviewed: false },
     },
 });
 
 // ============================================================================
-// LABELS — the page's own captions, v1.8.0
+// LABELS — the page's own captions, v1.8.1
 //
 // Separate from I18N because a tooltip entry is a {title, body} PAIR and a
 // label is one string. trLabel() falls back to I18N, so a control whose tooltip
@@ -434,11 +492,18 @@ export const LABELS = Object.freeze({
     },
 
     // ── Preset bar and tab strip ────────────────────────────────────────────
-    // NOT the `preset-save` tooltip key: that title is "Enregistrer" (11
-    // characters), and this button sits in a header band that already carries
-    // the wordmark, a 300 px preset readout, two nav arrows, the tab pair, the
-    // gear and the brand line. "Enreg." is the same abbreviation the other
-    // three shipped preset bars landed on, measured.
+    // NOT the `preset-save` tooltip key: that title is "Enregistrer", and this
+    // button sits in a header band that already carries the wordmark, a preset
+    // readout, two nav arrows, the tab pair, the gear and the brand line.
+    // v1.8.1 — this defence was TESTED rather than inherited (Stage N found
+    // five headers wrong about the string they defended). Planting the root
+    // "Enregistrer" (65.73 px) grows the button 66 -> 77.61 px and MOVES 12
+    // elements: the nav arrows compress 21.81 -> 20.84, #preset-name shifts
+    // left 0.96, and the whole tab strip plus the gear slide right 9.69 px.
+    // check-ui-labels assertion 7 would fail on it. "Enreg." (38.00 px) and
+    // "Enreg" (34.27) both move nothing; the glossary lists both. The period
+    // stays because this button carries no aria-label, so its accessible name
+    // IS its caption and there is no label-in-name substring to close.
     'label.save':       { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: false } },
     // The tab captions DO reuse their tooltip titles: "Main"/"Principal" and
     // "Tuning"/"Accord" are identical strings in both tables, so a single key
@@ -478,7 +543,7 @@ export const LABELS = Object.freeze({
     'label.subResonator':  { en: { t: 'resonator · 8 modes' },
                              fr: { t: 'résonateur · 8 modes', reviewed: false } },
     'label.subVibrato':    { en: { t: 'vibrato · bow drift' },
-                             fr: { t: "vibrato · dérive d'archet", reviewed: false } },
+                             fr: { t: "vibrato · dérive d’archet", reviewed: false } },
     // SIZED, and recorded here with the measurement that forced it. The full
     // form "point de fonctionnement de l'archet" is 156.3 px, and this panel
     // head is 314 px carrying a 167.4 px title beside it, so the pair wrapped
@@ -491,40 +556,61 @@ export const LABELS = Object.freeze({
                              fr: { t: 'vitesse × pression, log–log · le coin suit β', reviewed: false } },
 
     // ── Knob captions ───────────────────────────────────────────────────────
-    // Every one of these sits in a 55 px knob cell in a three- or four-across
-    // row, so the cell width is what the French had to fit. Where the tooltip
-    // title is longer than the cell the caption gets its own shorter key, per
-    // the reuse rule.
+    // v1.8.1 — RE-MEASURED. The cell is 62 px, not the 55 px this block said
+    // through v1.8.0: .knob-control is width:62px and .knob-label is
+    // max-width:62px / nowrap / overflow:hidden + text-overflow:ellipsis
+    // (index.html:544, :570). A caption over 62 px does not push a neighbour —
+    // it is ELLIPSIS-TRUNCATED in place, which check-ui-labels assertion 4
+    // catches. Every French caption below was measured with
+    // Range.selectNodeContents on its own node at the shipping 1000x650 frame.
+    // Where the tooltip title is longer than the cell the caption gets its own
+    // shorter key, per the reuse rule.
     'label.speed':      { en: { t: 'Speed' },      fr: { t: 'Vitesse',   reviewed: false } },
     'label.pressure':   { en: { t: 'Pressure' },   fr: { t: 'Pression',  reviewed: false } },
     'label.position':   { en: { t: 'Position' },   fr: { t: 'Position',  reviewed: false, sameAsEn: true } },
     'label.rosin':      { en: { t: 'Rosin' },      fr: { t: 'Colophane', reviewed: false } },
     'label.noise':      { en: { t: 'Noise' },      fr: { t: 'Bruit',     reviewed: false } },
-    // The tooltip title is "Extinction" (63 px). "Chute" is the shorter form a
-    // caption uses for the same idea and fits the 55 px cell.
-    'label.release':    { en: { t: 'Release' },    fr: { t: 'Chute',     reviewed: false } },
+    // v1.8.1 — "Chute" was the caption for a title that read "Extinction"; the
+    // glossary settles Release on Relâchement, and forbids both words. The root
+    // measures 64.95 px and wraps the 62 px cell, so the caption takes the
+    // listed abbreviation Relâch. (36.95 px) while the tip carries the root.
+    'label.release':    { en: { t: 'Release' },    fr: { t: 'Relâch.',   reviewed: false } },
     'label.size':       { en: { t: 'Size' },       fr: { t: 'Taille',    reviewed: false } },
-    // "Amortissement" is 84 px in a 55 px cell. "Amort." is the standard
-    // abbreviation and is what the cell holds.
+    // "Amortissement" measures 74.27 px — not the 84 px this line claimed —
+    // and still wraps the 62 px cell, so "Amort." (33.27 px) stands. The
+    // glossary lists it. Re-measured at v1.8.1; the verdict did not change.
     'label.damping':    { en: { t: 'Damping' },    fr: { t: 'Amort.',    reviewed: false } },
-    'label.mix':        { en: { t: 'Mix' },        fr: { t: 'Dosage',    reviewed: false } },
+    'label.mix':        { en: { t: 'Mix' },        fr: { t: 'Mix',       reviewed: false, sameAsEn: true } },
     'label.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: false } },
     'label.tension':    { en: { t: 'Tension' },    fr: { t: 'Tension',   reviewed: false, sameAsEn: true } },
     'label.stiffness':  { en: { t: 'Stiffness' },  fr: { t: 'Raideur',   reviewed: false } },
     'label.expression': { en: { t: 'Expression' }, fr: { t: 'Expression', reviewed: false, sameAsEn: true } },
-    // "Vib" is already the abbreviation of "Vibrato" in English and reads the
-    // same way in French, so only the second word changes.
-    'label.vibRate':    { en: { t: 'Vib Rate' },   fr: { t: 'Vib Fréq.', reviewed: false } },
-    'label.vibDepth':   { en: { t: 'Vib Depth' },  fr: { t: 'Vib Ampl.', reviewed: false } },
-    'label.vibOnset':   { en: { t: 'Vib Onset' },  fr: { t: 'Vib Entrée', reviewed: false } },
-    'label.lfoRate':    { en: { t: 'LFO Rate' },   fr: { t: 'LFO Fréq.', reviewed: false } },
-    'label.lfoDepth':   { en: { t: 'LFO Depth' },  fr: { t: 'LFO Ampl.', reviewed: false } },
-    'label.infSustain': { en: { t: 'Inf. Sustain' }, fr: { t: 'Tenue inf.', reviewed: false } },
+    // v1.8.1 — the three vibrato captions and the two LFO captions now carry
+    // the glossary's own abbreviations, head first the way French inverts them:
+    // Vit. vibr. 41.94 px, Prof. vibr. 50.08, Entrée vibr. 59.36, Vit. LFO
+    // 35.47, Prof. LFO 43.61 — all one line in the 62 px cell. The roots do not
+    // all fit (Vit. vibrato 56.66 does, Prof. vibrato 64.80 wraps), and a
+    // matched pair is worth more here than one root beside one abbreviation.
+    'label.vibRate':    { en: { t: 'Vib Rate' },   fr: { t: 'Vit. vibr.', reviewed: false } },
+    'label.vibDepth':   { en: { t: 'Vib Depth' },  fr: { t: 'Prof. vibr.', reviewed: false } },
+    'label.vibOnset':   { en: { t: 'Vib Onset' },  fr: { t: 'Entrée vibr.', reviewed: false } },
+    'label.lfoRate':    { en: { t: 'LFO Rate' },   fr: { t: 'Vit. LFO',   reviewed: false } },
+    'label.lfoDepth':   { en: { t: 'LFO Depth' },  fr: { t: 'Prof. LFO',  reviewed: false } },
+    // The caption half of INFINITE_SUSTAIN’s exemption. Measured in this page’s
+    // own 62 px .knob-label: Tenue inf. 48.73 px, Maint. inf. 50.58 — both fit,
+    // so the exemption is MEANING, not width. Maintien inf. is 63.52 and wraps.
+    'label.infSustain': { en: { t: 'Inf. Sustain' },
+                          fr: { t: 'Tenue inf.', reviewed: false,
+                                termNote: 'the caption half of INFINITE_SUSTAIN’s exemption — '
+                                        + 'sustain here is a note that keeps sounding, not the '
+                                        + 'ADSR segment; this page has no envelope' } },
     'label.subHarm':    { en: { t: 'Sub-Harm.' },  fr: { t: 'Sous-harm.', reviewed: false } },
     'label.level':      { en: { t: 'Level' },      fr: { t: 'Niveau',    reviewed: false } },
     'label.width':      { en: { t: 'Width' },      fr: { t: 'Largeur',   reviewed: false } },
-    // The tooltip title is "Saturation" (66 px). "Satur." is the caption form.
-    'label.saturate':   { en: { t: 'Saturate' },   fr: { t: 'Satur.',    reviewed: false } },
+    // v1.8.1 — "Saturation" measures 55.00 px, NOT the 66 px this line claimed,
+    // and fits the 62 px cell with 7 px to spare. The English caption is not
+    // abbreviated either, so the French stops being: one control, one name.
+    'label.saturate':   { en: { t: 'Saturate' },   fr: { t: 'Saturation', reviewed: false } },
     'label.ceiling':    { en: { t: 'Ceiling' },    fr: { t: 'Plafond',   reviewed: false } },
 
     // ── Strings panel ───────────────────────────────────────────────────────
@@ -545,7 +631,11 @@ export const LABELS = Object.freeze({
                              fr: { t: 'monter pour éveiller', reviewed: false } },
 
     // ── Microtonal strip ────────────────────────────────────────────────────
-    'label.tuningSystem':  { en: { t: 'Tuning System' }, fr: { t: "Système d'accord", reviewed: false } },
+    // .strip-field-label is text-transform: uppercase, so this renders SYSTÈME
+    // D’ACCORD on screen; the table keeps the English caption's mixed case,
+    // which is what the lint and the accessible name read. The typographic
+    // apostrophe costs 0.09 px (97.52 -> 97.61) inside the 98 px pin.
+    'label.tuningSystem':  { en: { t: 'Tuning System' }, fr: { t: "Système d’accord", reviewed: false } },
     'label.loadScl':       { en: { t: 'Load .scl…' },    fr: { t: 'Charger .scl…',    reviewed: false } },
     'label.noteExpression': { en: { t: 'Note Expression' },
                               fr: { t: 'Note Expression', reviewed: false, sameAsEn: true } },
@@ -558,8 +648,13 @@ export const LABELS = Object.freeze({
     // Through v1.7.2 this was an innerHTML string literal in the catch arm. It
     // is the one prose string this page writes from script that is not a
     // toggle face, and it went through untranslated on a French page.
+    // v1.8.1 — the glossary's settled form, which O-Bassoon, O-Bowed, O-Reed
+    // and O-Wind already ship. The copies converging is the point; the panel
+    // is shared code. (The glossary's TERMS key for it ends in a period, which
+    // the lint's own norm() strips before the lookup, so G1 can never reach
+    // this row — reported to the orchestrator, not worked around.)
     'label.tuningLoadFailed': { en: { t: 'Tuning panel failed to load.' },
-                                fr: { t: "Le panneau d'accord n'a pas pu être chargé.", reviewed: false } },
+                                fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: false } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
@@ -569,9 +664,9 @@ export const LABELS = Object.freeze({
     'aria.presetPrev':  { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: false } },
     'aria.presetNext':  { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: false } },
     'aria.helpToggle':  { en: { t: 'Toggle hover help' },
-                          fr: { t: "Activer ou désactiver l'aide au survol", reviewed: false } },
+                          fr: { t: "Activer ou désactiver l’aide au survol", reviewed: false } },
     'aria.langSelect':  { en: { t: 'Interface language' },
-                          fr: { t: "Langue de l'interface", reviewed: false } },
+                          fr: { t: "Langue de l’interface", reviewed: false } },
     'aria.settings':    { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: false } },
 });
 
