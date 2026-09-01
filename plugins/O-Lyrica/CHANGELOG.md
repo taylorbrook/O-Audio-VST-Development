@@ -2,6 +2,42 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.4.2] - 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+
+- **37 French entries revised** against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint, out of 167. The lint went 42 findings to 0
+  and `--strict` exits 0. Twenty-one terminology, fourteen typography, two meaning.
+  The visible ones: the four ON/OFF faces stopped answering a question and started naming a
+  state (`OUI`/`NON` → `ACTIVÉ`/`DÉSACTIVÉ` on the glissando section toggles, `Oui`/`Non` →
+  `Act.`/`Dés.` on the four effect bypass pills and the hover-help switch, whose 34 px and
+  40 px `min-width` pins the abbreviation respects to the hundredth); `Réverbe` → `Réverb`,
+  because *réverbe* is not a French word; `Mixage` → `Mix`, which is what a French DAW
+  shows; `Amortis.` → `Amort.`; `Matière` → `Matériau`; `Courbe` → `Forme`; `Aide` → `Aide
+  au survol`; `Général` → `Principal` for the SOUND tab's first section, leaving *Général*
+  to the master volume it belongs to. A "tuning" is now a **gamme** in every body — the word
+  *tempérament* is reserved for a temperament, which this plugin also has two of. Two
+  captions got back what the English says and the French had dropped: `Chevalet` →
+  `Brill. chevalet` and `Notes de commande` → `Réglages des notes de commande`.
+  Typography throughout: no-break spaces before `%`, `:` and `;` and between every number
+  and its unit, per the Imprimerie nationale.
+- **`<html lang>` now follows the language selector** (canon change, all plugins), so
+  assistive technology reads the page in the language it is displayed in.
+
+### Notes
+
+- `reviewed: false` still stands on all 167 entries. That flag means a native speaker read
+  the string; this pass was a second machine reading against a glossary and a lint, and the
+  header of `js/i18n.js` records it instead.
+- No English copy, key, binding, selector, CSS rule or `I18N_EXEMPT` entry changed. The 56
+  exemptions stand, 46 of them `AudioParameterChoice` option strings that are English on
+  screen in both languages — which is why the French bodies name **Gut**, **Wire**,
+  **Crystal**, **Spruce**, **Maple**, **Exotic**, **Harmonic**, **Muted**, **Major**,
+  **Minor**, **Pentatonic** and **Custom** in English: those are the faces the user can see.
+
 ## [2.4.1] - 2026-08-29
 
 ### Fixed
