@@ -2,6 +2,34 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.18.1] - 2026-08-31
+
+PATCH: the French copy is revised — a second reading of all 67 machine drafts against the suite glossary and lint. No English copy, no keys, no bindings, no CSS, no audio-path, parameter or DSP changes.
+
+### Changed
+
+- **19 French entries revised** against `scripts/i18n-fr-glossary.js` and `scripts/i18n-fr-lint.js`: 9 terminology, 6 typography, 2 grammar/register, 2 straight-copy declarations (four entries carry more than one). The lint went **21 findings → 0**, `--strict` exit 0, with **no `termNote` exemption** — every settled term fitted on this page. The visible ones: **Mixage → Mix** on the footer caption, the four band-mix cells and two tip titles; **Oui / Non → Marche / Arrêt** on the hover-help switch (*Oui/Non* are answers, not states); **Aide → Aide au survol** in the settings popover, now the same string as that control's own tip title; **Enreg. → Enreg**, the period dropped so the caption is a substring of its accessible name `Enregistrer les réglages actuels` (WCAG 2.5.3 label-in-name) at zero geometry cost — the button is pinned at 50 px and measures 50.00 either way.
+- **15 no-break spaces** (U+00A0) in French prose: six before `%`, seven before `;`, two between a number and its unit — *0 %*, *droite ;*, *0-500 ms*. French typography, and the one place a Stage N pass can lengthen an unbreakable run inside a 220 px tooltip. It did not: **all 56 tip anchors were re-measured before and after, in both languages, and not one tip box changed size or position.**
+- **The settings tip lost a clause its English has and got it back**, and now uses the page's own imperative voice: *Choisir la langue… et l'affichage de l'aide au survol* → *Choisissez la langue… et l'affichage **ou non** de l'aide au survol*. Ten sibling bodies were already imperative (*Cliquez*, *Faites glisser*, *Choisissez*); this was the only infinitive.
+- **One control, one French name.** `aria.solo` was *Isoler cette bande* while the caption and the tip title said *Solo*; it is *Mettre cette bande en solo* now. `euc-phase`'s body says *en mode Manuel qu'Euclidien*, following the page's own `label.manual` / `label.euclidean` captions, the way `band.mode`'s body already did.
+- **`<html lang>` now follows the language selector** (a canon change, all 43 plugins), so assistive technology reads the page in the language it is displayed in.
+
+### Verification
+
+- `node scripts/i18n-fr-lint.js --plugin O-FreqPulse --strict` — **exit 0**, 0 findings across all ten codes (baseline 21: 5 G1, 3 F1, 7 T5, 4 T3, 2 T7). Straight copies 9 of 9 flagged `sameAsEn: true`, 0 `termNote`.
+- `node scripts/check-i18n.js --plugin O-FreqPulse` — ALL CHECKS PASS, canon v2.
+- `node scripts/check-ui-labels.js --plugin O-FreqPulse` — ALL CHECKS PASSED across the same six states. **Zero non-label elements moved**, before and after, and the visible element set is identical in both languages. Vacuity moved 27/30 → **22/30 (73 %, floor 25 %)**: `label.mix` is bound to five elements and the settled French for *Mix* is *Mix*.
+- **Hover-help was verified by RENDERING.** This plugin predates `tests/ui_tip_render_check.js`, so the arm was driven from a scratchpad probe: all **56** `TIP_BINDINGS` rows resolved the way `applyI18n` resolves them (11 of the 56 decorate a `.control` / `.control-group` **wrapper**, so an enumeration of id'd `[data-tip]` nodes covers only 45), three states, both languages — **1766 assertions, 0 failures**. Every tip opened with a non-empty title and body, at or under the 220 px cap, fully inside the 850 × 550 frame, arrow still inside its anchor. Anchors an open overlay paints over are hit-tested with `elementFromPoint` and driven in another state rather than counted as reachable.
+- **The bottom clamp is still load-bearing, and the French tip is still the one that proves it.** Removing v1.18.0's `if (top > maxTop)` line from the served copy reproduces exactly one failure — the French `#grid-area` tip, 220 × 97, at `top` 468 in a 550 px frame, **15.00 px off the bottom** — and no English one. Clamped, it sits at 445 with the full 8 px margin and 0 px to spare.
+- `node scripts/boot-all-uis.js` — 43/43 clean, 0 warn, 0 failed, **0 DEAD** bindings, 0 late on this plugin, native `title=` still 0 repo-wide.
+- `auval -v aufx OFPu OuDv` — PASS. The installed VST3 and AU both carry the revised French values.
+
+### Notes
+
+- **`reviewed: false` is unchanged on all 67 entries.** That flag means a native speaker read the string; this pass is a second machine reading against a glossary and a lint, and it is recorded in the `i18n.js` header instead.
+- **Three width comments in `styles.css` are now stale** and are corrected in a separate comment-only commit: `.preset-action-btn` cites `Enreg. 48.2`, `.band-mix label` cites `Mixage 25.8`, and `.settings-toggle` claims its 40 px `min-width` covers the widest of *On / Off / Oui / Non*. It no longer does — `Marche` measures 36.97 px in a 22 px content box, so the switch becomes content-sized in French and **resizes 11.45 px between its own two faces**. It grows leftward inside a right-anchored popover, so nothing else moves and the popover stays at 186 px. Changing the CSS is out of a copy pass's scope.
+- **Not verified:** no DAW test — `auval` and headless Chromium only, never a real WKWebView. Windows/WebView2 font metrics remain the standing hardware-blocked deferral, and French no-break spaces are new surface for it: a wider face shows first inside a fixed 220 px tooltip.
+
 ## [1.18.0] - 2026-08-28
 
 MINOR: the PAGE speaks French, not only the hover help — and this plugin's second tooltip renderer is deleted, not disabled. No audio-path, parameter, or DSP changes. One new non-parameter state-tree property (`uiLanguage`).
