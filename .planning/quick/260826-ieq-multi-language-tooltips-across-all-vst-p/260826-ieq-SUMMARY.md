@@ -5955,3 +5955,82 @@ the bottom, 0 px of slack at the shipped face.
 
 No native speaker; no DAW; Chromium only; Standalone stale; 3 more plugins with no
 committed render gate (O-FreqPulse, O-Gain, O-SpectralShaper — item 31 now 5 of 15).
+
+# STAGE N — BATCH N4 COMPLETE, 6 of 6 — 21 of 43
+
+| Plugin | Version | Commit | Lint | Changed | Geometry | Render |
+|---|---|---|---|---|---|---|
+| O-Bowed | 1.6.1 | `a7ff4f35` (+`2988870d`) | 27 → 0 | 24 of 71 | 0 → 0 | 456/456; DSP golden bit-identical |
+| O-Emulator | 1.2.1 | `8d2bfcba` (+`907a191e`) | 26 → 0* | 9 of 22 | 0 → 0 | 123/123 |
+| O-ReverseDelay | 1.10.1 | `33feb09c` | 29 → 0 | 24 of 69 | 0 → 0 | clamp gate 8/2 both languages, 62 rows byte-identical |
+| O-Octagon | 1.11.1 | `af42a44e` | 30 → 0* | 40 of 187 | 0 → 0 | probe 67 anchors ×2; 6 committed gates green |
+| O-MultiBandCompressor | 1.11.1 | `5247ce85` (+`e88b5e87`) | 30 → 0* | 31 of 98 rows | 0 → 0 | probe 70/70; preset harness 47 active, 0 fail |
+| O-Orbit | 1.2.1 | `79b4cc93` (+`ee1e3d44`) | 29 → 0 | 23 of 91 | 0 → 0 | probe 34 anchors ×2, heights identical |
+
+\* closed to 0 by a glossary/lint change with no plugin change (`def4f1bb`, `0b5f22df`,
+`77a11cbd`). `boot-all-uis` 43/43 / 0 DEAD on every run; `auval` PASS ×6.
+
+## THE HEADLINE: a bundle can carry new strings and an old version, and every grep passes
+
+O-ReverseDelay's first build shipped 1.10.1 source in a 1.10.0 bundle: a sibling's CMake
+regenerate had stamped `build.ninja` six seconds NEWER than its `CMakeLists.txt` edit, so
+ninja skipped the re-run; the binary-data `i18n.js` re-embedded and every string control
+passed while `Info.plist` kept 1.10.0. The executor read the installed plist and rebuilt.
+**All 25 bundles shipped in Stage N so far were then audited with PlistBuddy: none stale.**
+Correction 31: `touch` the CMakeLists before the build; verify the installed plist.
+
+## The lint's last two holes, found by reading two tables against each other
+
+- A forbidden key ending in a period (`dériv.`, `fréq.`, `flatt.`) could never match a
+  caption whose period is trailing — `norm()` had stripped it. MBC saw *Dériv.* draw G1
+  and not F1 while *Relâche* drew both. Fixed `0b5f22df`; the stem match then fired
+  correctly on nine not-yet-reviewed plugins and on none of the shipped ones.
+- T2 read Logic's `7.1` as a decimal (O-Octagon, quoting the DAW's own menu). Fixed
+  `77a11cbd` with a format-name skip; a real decimal beside one still fires.
+
+Glossary growth, all measured: *écras./broyage*, *sûr ?*, *compens.*, *act./dés.*, `m/s`.
+**Still no settled term wrong** — six contextual exemptions this batch, every one on
+meaning, none on width (correction 33).
+
+## Nine of twenty-one header width defences proven backwards
+
+O-Bowed's "62 px hard cap" was raised to 64 at v1.5.0 and the header never followed;
+O-Octagon's *Décroissance* fits 81.59 in 88 where the header said 72 holds 9; O-ReverseDelay's
+*Profondeur* "0.4 px over — a clip" was shrink-to-fit with `overflow: visible`; O-Orbit's
+"9 px pill" has rendered at 11 px since v1.0.0 because `.toggle-label { font-size: 9px }`
+loses on specificity — so MARCHE/ARRÊT would fit at the size the stylesheet asks for.
+Nine wrong about the string; still zero wrong about a number they actually recorded.
+
+## Parameter faces are English in both languages — and the French bodies named them in French
+
+O-Octagon's six motion choices and fifteen sync divisions are `juce::StringArray` literals,
+exempt by design, rendered in English on the French page. The drafts told the user to find
+*Orbite / Huit / Balayage / Dérive / Pendule / Spirale* — words no dropdown shows. MBC's M/S
+tip named *Off / Mid / Side / Both* where the French select reads *Aucun / Mid / Side / Les
+deux*. Correction 34: a capitalised face is named as the user sees it.
+
+## Defects found by reading French (items 41–46)
+
+41. **O-Bowed's 15 `fillText` strings are English literals in `index.html`**, never keyed —
+    K3 reported them, the K4 addendum called them a Stage M backlog, M2 did not take them.
+    A `fillText`-recording probe painted 41 identical strings in both languages
+    (*Bridge*, *Nut*, *Speed: 0.20 m/s*, *Bow Pressure (N)*, *Helmholtz*…). Invisible to
+    all three gates.
+42. **O-Bowed: Sympathetic Decay stays on screen at Count 0**, exactly as inert as
+    Sympathetic Amount, which `updateSympVisibility()` hides.
+43. **O-ReverseDelay `knob-drive` body says "Regen Makeup sets how long the tail lasts"** —
+    that control's caption and title are *Regen*; the body names a control the page does
+    not show by that name.
+44. **O-Orbit `.toggle-label { font-size: 9px }` is dead CSS** (specificity 0,1,0 vs 0,1,1);
+    and **the page has no focus latch** — hover-help opens on `mouseover` only, so it has no
+    keyboard half at all (a wider case of item 11).
+45. **MBC's three-button row now has 5.31 px of French slack** in 188.50 (`Contour.` 64.50
+    against a root *Contournement* that grows the band to 221.94) — the suite's most exposed
+    Windows/WebView2 metric.
+46. **O-Emulator `.hdr` is 162 px over-full in English** (pre-existing, v1.0.1) and its
+    segment caption reads `GB` against a Choice option and `#consoleInfo` reading *Game Boy*.
+
+## Not verified
+
+No native speaker; no DAW; Chromium only; Standalone stale; 3 more without a committed
+render gate (O-Octagon, MBC, O-Orbit — item 31 now 8 of 21). Repo lint total **1447**.
