@@ -958,5 +958,5 @@ window.addEventListener('DOMContentLoaded', () => {
   initI18n();
   initializeTooltips();
 
-  console.log('O-Gain v1.3.1 UI loaded');
+  console.log('O-Gain v1.3.2 UI loaded');
 });
