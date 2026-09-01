@@ -412,6 +412,6 @@ const FORBIDDEN_IN_PROSE = {
 };
 
 // Units that must be glued to their number with U+00A0 in French prose.
-const UNITS = ['dB', 'ms', 'Hz', 'kHz', 's', 'st', 'cents', 'BPM', 'bpm', 'octaves', 'octave', 'demi-tons', 'demi-ton', 'voix', 'mesures', 'mesure', 'pas', '%'];
+const UNITS = ['dB', 'ms', 'Hz', 'kHz', 's', 'st', 'cents', 'BPM', 'bpm', 'octaves', 'octave', 'demi-tons', 'demi-ton', 'voix', 'mesures', 'mesure', 'pas', 'm/s', '%'];   // not 'm' or 'N': a bare letter matches prose (O-Bowed N4)
 
 module.exports = { TERMS, FORBIDDEN_IN_LABELS, FORBIDDEN_IN_PROSE, UNITS };
