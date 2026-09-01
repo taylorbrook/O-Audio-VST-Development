@@ -516,7 +516,10 @@ body {
 /* v1.8.0 — the two sublabels that grow in French, pinned to the wider language
    so the caption span beside them keeps a constant box. Measured, not guessed:
    resonator 87.7 -> resonateur 92.7, and vibrato/bow drift 81.7 -> 107.1.
-   text-align:right above keeps the text where it already sits. */
+   text-align:right above keeps the text where it already sits.
+   v1.8.1 — re-measured after the Stage N typography pass: the vibrato sublabel
+   is "vibrato · dérive d’archet" now, and the typographic apostrophe made it
+   NARROWER, 107.08 -> 106.89. Both pins still hold with room. */
 .sec-body .sublabel       { min-width: 93px; }
 .sec-expression .sublabel { min-width: 108px; }
 
@@ -736,7 +739,10 @@ body {
 /* v1.8.0 — pinned to the wider language so the select, the .scl button and the
    Note Expression toggle stop sliding: Tuning System 80.3 -> Systeme d'accord
    97.5. Scoped to > so the Note Expression caption, which is identical in both
-   languages inside .toggle-field, is not widened for nothing. */
+   languages inside .toggle-field, is not widened for nothing.
+   v1.8.1 — the caption is "Système d’accord" since the Stage N typography pass;
+   the typographic apostrophe costs 0.09 px (97.52 -> 97.61), still inside the
+   98 px pin. */
 .strip-field > .strip-field-label { min-width: 98px; }
 .strip-field-label {
     font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;
