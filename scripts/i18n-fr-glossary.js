@@ -91,7 +91,7 @@ const TERMS = {
     'load your own':            ['charger le vôtre'],
     'delete':                   ['supprimer', 'suppr'],
     'del':                      ['suppr'],
-    'confirm?':                 ['confirmer ?'],
+    'confirm?':                 ['confirmer ?', 'sûr ?'],           // O-Emulator: Confirmer ? 58.59 px in a 49 px pinned box
     'reset':                    ['réinitialiser', 'réinit'],
     'clear':                    ['effacer'],
     'store':                    ['mémoriser', 'mém'],
@@ -218,7 +218,7 @@ const TERMS = {
     '3-band eq':                ['eq 3 bandes'],
     'drive':                    ['saturation', 'satur'],
     'saturate':                 ['saturation', 'satur'],
-    'crush':                    ['écrasement'],
+    'crush':                    ['écrasement', 'écras', 'broyage'],   // O-Emulator: Écrasement 82.45 px slides four knobs; Écras. 46.70 / Broyage 59.17 fit a 60 px column
     'bit depth':                ['résolution'],
     'analog':                   ['analog'],
 
