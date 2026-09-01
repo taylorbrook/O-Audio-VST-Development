@@ -3,6 +3,44 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.1] — 2026-08-31
+
+French copy revised. Stage N of the repo-wide i18n rollout.
+
+### Changed
+- **59 French entries revised** (of 115) against the suite glossary
+  (`scripts/i18n-fr-glossary.js`) and its lint (`scripts/i18n-fr-lint.js`):
+  92 findings to 0, `--strict` exit 0. 13 terminology, 36 typography,
+  10 meaning, 0 grammar. The visible ones:
+  - **Scatter is now *Dispersion*** on the knob and in its tooltip title (it
+    read *Étalement* / *Étalement temporel*, which the glossary settles on
+    *spread*). The group heading follows: *Spray & Scatter* is **Dispersions**.
+  - **Ten tooltip bodies now name the FRENCH control faces.** They referred to
+    *Scan*, *Freeze*, *Pitch Spray*, *Scatter*, *Overlap* and *Taper* — English
+    captions that do not appear anywhere on the French page, which shows
+    *Balayage*, *Gel*, *Dispersion hauteur*, *Dispersion*, *Recouvrement* and
+    *Fondu*. The window-shape names (*Rectangular*, *Hann*, *Gauss*, *Tukey*)
+    still stay English in both languages: they are the host automation contract
+    and the user reads them on the combo.
+  - **One French name per control.** The Rect Click lesson button reads
+    *Clic rectangulaire* rather than *Clic rect.* (its own tooltip already said
+    so, and the fixed 110.5 px tour grid had 32 px to spare); the two spray
+    tooltips now use their own captions' wording; the hover-help switch's
+    accessible name is *Activer ou désactiver l'aide au survol*, the same words
+    as its tooltip title.
+  - **Typography:** straight apostrophes to typographic ones throughout (50),
+    no-break spaces before `:` and `;` (35) and between a number and its unit
+    (2). The on-screen-keyboard hint got back the hair spaces between the key
+    letters that the English has and the French draft had dropped.
+  - *Préréglages conceptuels* to *Préréglages pédagogiques*, and *Taille du
+    grain* to *Taille de grain*, both suite-settled terms.
+- **`<html lang>` now follows the language selector** (canon change, all
+  plugins), so assistive technology reads the page in the language it is
+  displayed in.
+
+No English copy, key, tooltip binding, selector or CSS rule changed; no DSP
+change. The French remains `reviewed: false` — no native speaker has read it.
+
 ## [1.4.0] — 2026-08-28
 
 **Longer grains, a Tukey window with a Taper knob, the envelope beside the

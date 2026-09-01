@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.0
+- **Version:** 1.4.1
 - **Type:** Synth (Pedagogical Granular)
 
 ## Lifecycle Timeline
@@ -20,6 +20,7 @@
 - **2026-08-25 (v1.2.1):** Note-off click fix (ported from O-simpleFM v1.2.5) — see CHANGELOG. Per-block `juce::ADSR::setParameters()` clobbered the note-off release rate; with sustain 0 it hard-reset the envelope one block after note-off (audible click at any release setting). GrainVoice now pushes envelope params only on value change and never mid-release. New render gate (`noteoff-click`, negative-control verified against v1.2.0). All 12 gates PASS, installed (VST3 + AU).
 - **2026-08-28 (v1.3.0):** EN/FR page-level i18n — see CHANGELOG.
 - **2026-08-28 (v1.4.0):** Grain Size ceiling 500 ms; Tukey window + Taper knob (`windowTaper`, 20th param); envelope inset moved beside the Shape combo; rectangular window rounded with a 1 ms guard fade (root cause of the clicks: flat-1.0 LUT = full-scale step at every grain edge). Three new render gates, 15/15 PASS, negative-control verified. Installed (VST3 + AU) — see CHANGELOG.
+- **2026-08-31 (v1.4.1):** French copy QA pass (Stage N of the repo-wide i18n rollout) — see CHANGELOG. 59 of 115 French entries revised against `scripts/i18n-fr-glossary.js` and `scripts/i18n-fr-lint.js` (92 lint findings -> 0, `--strict` exit 0); Scatter re-termed *Dispersion*; ten tooltip bodies now name the French control faces instead of the English ones; `<html lang>` follows the selector (canon change, all plugins). Geometry unchanged (0 non-label elements moved in either language, 4 states); hover-help probed 372/372 with 0 out-of-frame; auval SUCCEEDED, installed (VST3 + AU).
 
 ## Known Issues
 
