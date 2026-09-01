@@ -58,12 +58,12 @@ Ouaricon Plugins:
 | O-Bassoon | 🚧 Stage 0 | 1.2.1 | Synth (Physical Model Bassoon) | 2026-08-31 |
 | O-MicrotonalSampler | 📦 Installed | 1.25.0 | Synth (Microtonal Sampler) | 2026-08-30 |
 | O-simpleFM | 📦 Installed | 1.3.1 | Synth (Pedagogical 2-Op FM) | 2026-08-31 |
-| O-simpleAdditive | ✅ Working | 1.1.0 | Synth (Pedagogical Additive + Wavetable) | 2026-08-27 |
-| O-simpleGrain | 📦 Installed | 1.4.0 | Synth (Pedagogical Granular) | 2026-08-28 |
-| O-simpleSubtractive | ✅ Working | 1.3.0 | Synth (Pedagogical Subtractive) | 2026-08-27 |
-| O-simpleSampler | ✅ Working | 1.4.1 | Synth (Pedagogical Sampler) | 2026-08-31 |
-| O-simpleBeatmaker | 📦 Installed | 1.1.0 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-08-28 |
-| O-simplePhysicalModelSynth | 📦 Installed | 1.2.0 | Synth (Pedagogical Physical Modeling) | 2026-08-28 |
+| O-simpleAdditive | ✅ Working | 1.1.1 | Synth (Pedagogical Additive + Wavetable) | 2026-08-31 |
+| O-simpleGrain | 📦 Installed | 1.4.1 | Synth (Pedagogical Granular) | 2026-08-31 |
+| O-simpleSubtractive | ✅ Working | 1.3.1 | Synth (Pedagogical Subtractive) | 2026-08-31 |
+| O-simpleSampler | ✅ Working | 1.4.2 | Synth (Pedagogical Sampler) | 2026-08-31 |
+| O-simpleBeatmaker | 📦 Installed | 1.1.1 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-08-31 |
+| O-simplePhysicalModelSynth | 📦 Installed | 1.2.1 | Synth (Pedagogical Physical Modeling) | 2026-08-31 |
 | O-ReverseDelay | 📦 Installed | 1.10.1 | Audio Effect (Granular Reverse Delay) | 2026-08-31 |
 | O-Octagon | 📦 Installed | 1.11.1-dev | Audio Effect (8-Channel DBAP Spatializer) | 2026-08-31 |
 | O-Bitrot | 📦 Installed | 1.15.1 | Audio Effect (Broken-Media Degradation) | 2026-08-31 |
