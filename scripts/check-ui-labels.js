@@ -160,6 +160,25 @@ const PROBE = () => {
         const b = el.getBoundingClientRect();
         return { x: b.x, y: b.y, w: b.width, h: b.height };
     };
+    // The VISIBLE rect: r(el) intersected with every ancestor that clips
+    // (overflow auto/hidden/scroll/clip). getBoundingClientRect reports the
+    // unclipped box, so a panel scrolled inside an `overflow: auto` tab can
+    // "intersect" a button 44 px outside that tab's clip with zero painted
+    // pixels between them. O-IntonationPad's ACCORD tab (51.84 px in a 52 px
+    // box) went red on 8b in 4 of 20 states that way, in Stage N; English
+    // itself sat 0.03 px from the same false verdict. Used by 8b only.
+    const vr = (el) => {
+        let b = r(el);
+        for (let p = el.parentElement; p; p = p.parentElement) {
+            const cs = getComputedStyle(p);
+            if (!/(auto|hidden|scroll|clip)/.test(cs.overflowX + ' ' + cs.overflowY)) continue;
+            const pb = p.getBoundingClientRect();
+            const x1 = Math.max(b.x, pb.x), y1 = Math.max(b.y, pb.y);
+            const x2 = Math.min(b.x + b.w, pb.x + pb.width), y2 = Math.min(b.y + b.h, pb.y + pb.height);
+            b = { x: x1, y: y1, w: Math.max(0, x2 - x1), h: Math.max(0, y2 - y1) };
+        }
+        return b;
+    };
 
     // The path is the KEY assertion 7 diffs English against French on, so it
     // has to identify an element uniquely. It used to stop after 6 segments,
@@ -315,6 +334,7 @@ const PROBE = () => {
             datasetLabel: el.dataset.label === undefined ? null : el.dataset.label,
             visible: visible(el),
             rect: r(el),
+            vrect: vr(el),
             overlay: overlayOf(el),
             overflow: `${cs.overflow} ${cs.overflowX}`,
             whiteSpace: cs.whiteSpace,
@@ -406,7 +426,7 @@ const PROBE = () => {
             || el.tagName === 'META' || el.tagName === 'LINK' || el.tagName === 'TITLE') continue;
         if (insideLabel(el)) continue;
         if (!visible(el)) continue;
-        out.others.push({ path: pathOf(el), rect: r(el), overlay: overlayOf(el),
+        out.others.push({ path: pathOf(el), rect: r(el), vrect: vr(el), overlay: overlayOf(el),
                           inert: getComputedStyle(el).pointerEvents === 'none' });
     }
 
@@ -979,7 +999,8 @@ const overlaps = (a, b) =>
                 if (o.inert) { inertSkips.add(o.path); continue; }
                 if (overlaps(L.rect, o.rect)) continue;      // together in English already
                 const fo = frOthers.get(o.path);
-                if (!fo || !overlaps(fl.rect, fo.rect)) continue;
+                // Compare what is PAINTED: the rects clipped by their overflow ancestors.
+                if (!fo || !overlaps(fl.vrect || fl.rect, fo.vrect || fo.rect)) continue;
                 ((L.overlay || null) !== (o.overlay || null) ? grewCrossLayer : grewInto)
                     .push(`${L.key} x ${o.path}`);
             }
