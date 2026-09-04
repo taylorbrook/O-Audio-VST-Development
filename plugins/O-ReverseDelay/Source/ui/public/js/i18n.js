@@ -119,7 +119,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this hover help. The choice is remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisissez la langue de cette aide au survol. Le choix est conservé avec la session.',
+              b: 'Choisissez la langue de ces infobulles. Le choix est conservé avec la session.',
               reviewed: true },
     },
     // v1.10.0: through v1.9.0 this entry told the user, in both languages, that
@@ -132,7 +132,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
               reviewed: true },
     },
     // v1.11.0 — the switch that reaches this whole layer.
@@ -140,8 +140,8 @@ export const I18N = Object.freeze({
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this '
                + 'switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
@@ -463,7 +463,7 @@ export const LABELS = Object.freeze({
     // 'hover help', 'on' and 'off'. They take the same review mark this file's
     // other roots carry, and for the same reason — they are not new machine
     // output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
     'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
     'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
 
@@ -557,7 +557,7 @@ export const LABELS = Object.freeze({
     // the control now sets the language of the whole page.
     'aria.langSelect':   { en: { t: 'Interface language' },
                            fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
     'aria.noteDivision': { en: { t: 'Note Division' }, fr: { t: 'Division de note', reviewed: true } },
     'aria.grainShape':   { en: { t: 'Grain Shape' },  fr: { t: 'Forme de grain', reviewed: true } },
     'aria.envCanvas':    { en: { t: 'Grain amplitude envelope' },

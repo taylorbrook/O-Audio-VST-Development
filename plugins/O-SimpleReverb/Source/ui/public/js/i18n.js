@@ -422,7 +422,7 @@ export const I18N = Object.freeze({
         en: { t: "Interface language",
               b: "Switches every caption, accessible name and hover-help on this page between English and French. The change is immediate and is saved with the plugin's state, so it comes back with the session. Two settings: English and Français." },
         fr: { t: "Langue de l’interface",
-              b: "Bascule toutes les légendes, tous les noms accessibles et toute l’aide au survol de cette page entre l’anglais et le français. Le changement est immédiat et il est enregistré avec l’état du plugin : il revient donc avec la session. Deux réglages : English et Français.",
+              b: "Bascule toutes les légendes, tous les noms accessibles et toutes les infobulles de cette page entre l’anglais et le français. Le changement est immédiat et il est enregistré avec l’état du plugin : il revient donc avec la session. Deux réglages : English et Français.",
               reviewed: true },
     },
     // v1.8.0 — the switch that reaches this whole layer.
@@ -430,8 +430,8 @@ export const I18N = Object.freeze({
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this '
                + 'switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
@@ -669,7 +669,7 @@ export const LABELS = Object.freeze({
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
 
     // ── Image alternative text ──────────────────────────────────────────────
     //
@@ -725,7 +725,7 @@ export const LABELS = Object.freeze({
 
     'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
 });
 
 // ============================================================================

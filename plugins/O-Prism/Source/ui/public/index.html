@@ -121,10 +121,20 @@ body {
    THE WIDTH IS NOW PINNED, and that pin REPLACES the per-caption pin that used
    to sit on .settings-label. Both existed for the same reason — the panel is
    `right: 0`, so anything that changes its width moves its LEFT edge — but a
-   caption pin only covers the captions it was measured against, and the French
-   AIDE AU SURVOL is far wider than the 59.77 px LANGUAGE box it was set to. A
-   hard panel width makes the rectangle language-invariant by construction and
-   lets every caption inside it size itself honestly. */
+   caption pin only covers the captions it was measured against. The French
+   hover-help caption overflowed the 59.77 px LANGUAGE box that pin was set to,
+   and it still does: RE-MEASURED at v1.23.1, when it became "Infobulles", it
+   renders 68.98 px — narrower than the caption it replaced but still 9.21 px
+   past that box, and 1.55 px under the English "Hover help" at 70.53. A hard
+   panel width makes the rectangle language-invariant by construction and lets
+   every caption inside it size itself honestly.
+
+   THE PIN STAYS, and a shorter French caption is not a reason to retire it.
+   The pin's job is that this panel's rect cannot move with language in EITHER
+   direction; check-ui-labels assertion 7 reports any language-driven resize as
+   a failure whichever way it goes. A caption that happens to fit today does not
+   make a per-caption pin safe tomorrow — which is the exact reasoning that
+   retired the last one. */
 .settings-popover {
     display: none;
     position: absolute;

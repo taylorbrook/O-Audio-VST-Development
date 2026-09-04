@@ -1424,8 +1424,8 @@ export const I18N = Object.freeze({
                + 'in English — a figure like 375ms or 1.2kHz is the same in both. '
                + 'Range: English, Français.' },
         fr: { t: 'Langue',
-              b: 'Bascule d’un coup toutes les légendes, tous les titres de section et toute l’aide '
-               + 'contextuelle de cette page entre l’anglais et le français, sans rouvrir le '
+              b: 'Bascule d’un coup toutes les légendes, tous les titres de section et toutes les '
+               + 'infobulles de cette page entre l’anglais et le français, sans rouvrir le '
                + 'plugin. Les relevés de valeur restent en anglais : une indication comme « 375ms » ou '
                + '« 1.2kHz » est identique dans les deux langues. Plage : English, Français.',
               reviewed: true },
@@ -1435,8 +1435,8 @@ export const I18N = Object.freeze({
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this '
                + 'switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
@@ -1646,11 +1646,11 @@ export const LABELS = Object.freeze({
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
     'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
     'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
     'aria.settings':         { en: { t: 'Settings' },      fr: { t: 'Réglages',      reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
     'aria.presetPrev':       { en: { t: 'Previous Preset' },
                                fr: { t: 'Préréglage précédent', reviewed: true } },
     'aria.presetNext':       { en: { t: 'Next Preset' },   fr: { t: 'Préréglage suivant', reviewed: true } },

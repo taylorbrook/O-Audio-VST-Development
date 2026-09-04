@@ -13,7 +13,7 @@ juce_add_plugin(OuariconReverseDelay
     # preset .factory-version sentinel, which is what makes preset table edits
     # actually reach disk instead of being a silent no-op — v1.1.0 adds the four
     # randomisation keys to all eight presets, so this bump is load-bearing.
-    VERSION 1.11.0
+    VERSION 1.11.1
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
