@@ -154,7 +154,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this plugin, and turn the hover help on or off. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de ce plugin et activer ou désactiver l’aide au survol. Les deux choix sont conservés avec la session.',
+              b: 'Choisir la langue de ce plugin et activer ou désactiver les infobulles. Les deux choix sont conservés avec la session.',
               reviewed: true },
     },
 
@@ -166,15 +166,15 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
               reviewed: true },
     },
 
     'help-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns the hover descriptions on and off for every control on this page. The setting is saved with the session.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive les descriptions au survol pour toutes les commandes de cette page. Le réglage est conservé avec la session.',
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive les infobulles pour toutes les commandes de cette page. Le réglage est conservé avec la session.',
               reviewed: true },
     },
 
@@ -492,7 +492,7 @@ export const LABELS = Object.freeze({
     // Not 'help-toggle': that tip's title is "Hover Help", this caption is
     // "Hover help". The reuse rule wants both languages identical, and these
     // differ in English before French is even considered.
-    'label.hoverHelp':   { en: { t: 'Hover help' },  fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp':   { en: { t: 'Hover help' },  fr: { t: 'Infobulles', reviewed: true } },
 
     // The hover-help toggle's two faces, and the delete button's armed face.
     // These are the only three strings on this page written from script. They
@@ -577,7 +577,7 @@ export const LABELS = Object.freeze({
     'aria.langSelect':   { en: { t: 'Interface language' },
                            fr: { t: 'Langue de l’interface', reviewed: true } },
     'aria.helpToggle':   { en: { t: 'Toggle hover help' },
-                           fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+                           fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
     'aria.presetPrev':   { en: { t: 'Previous preset' },  fr: { t: 'Préréglage précédent', reviewed: true } },
     'aria.presetNext':   { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: true } },
     'aria.modeCont':     { en: { t: 'Continuous motion' },fr: { t: 'Mouvement continu',    reviewed: true } },

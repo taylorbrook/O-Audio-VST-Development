@@ -66,17 +66,30 @@
 //
 //   ON / OFF ARE A FEATURE, NOT A POWER STATE, so the glossary's Activé(e) /
 //   Désactivé(e) pair applies rather than Marche / Arrêt, feminine to agree
-//   with "l'aide au survol". See the note above .settings-toggle in
+//   with the noun naming the hover-help surface.
+//
+//   OPEN, v1.7.3: that noun became "les infobulles" — feminine PLURAL — so the
+//   agreement these two faces were chosen for no longer holds; ui.on / ui.off
+//   should read "Activées" / "Désactivées". They are NOT changed here. The
+//   260903-ukp sheet the developer read was built from strings CONTAINING the
+//   superseded phrase, and these contain no phrase at all — the dependency is
+//   stated only in this comment — so they were never read, and a string nobody
+//   read must not ship at reviewed: true. Same in O-simpleSampler and
+//   O-simpleSubtractive. See the note above .settings-toggle in
 //   css/styles.css: 40px no longer covers the widest face (Désactivée renders
 //   the button at 61.88px). The ROW still cannot resize — the popover holds at
 //   168px and #lang-select and the row's own left edge do not move — but the
 //   button does, and the comment that claimed otherwise was corrected.
 //   (v1.7.2 pins it to 64px; the button no longer resizes.)
 //
-//   "Aide" BECAME "Aide au survol". The tip title and the aria-label on this
-//   very control already said "aide au survol"; the popover row alone said
-//   "Aide". Measured at 65.89px in a nowrap .settings-label — the popover
-//   holds at its 168px min-width and nothing inside it moves.
+//   "Aide" BECAME the full suite term, which at v1.7.3 is "Infobulles". The
+//   tip title and the aria-label on this very control already carried the full
+//   term; the popover row alone said "Aide". RE-MEASURED at v1.7.3:
+//   "Infobulles" renders 45.55px in a nowrap .settings-label, down from the
+//   65.89px of the caption it replaces (recorded in the CHANGELOG and not
+//   repeated here, so a repo grep for it stays at zero), and 4.17px NARROWER
+//   than English "Hover help" (49.72). The popover holds at its 168px
+//   min-width and nothing inside it moves, either way.
 //
 //   THE TRAILING PERIODS ON "Enr." AND "Ouv." STAY. The label-in-name rule
 //   (WCAG 2.5.3) that dropped them on two other plugins does not apply here:
@@ -172,21 +185,21 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this interface and whether hover help appears. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de cette interface et l’affichage de l’aide au survol. Les deux choix sont conservés avec la session.',
+              b: 'Choisir la langue de cette interface et l’affichage des infobulles. Les deux choix sont conservés avec la session.',
               reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, preset names and preset category headings stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de préréglages et les intitulés de catégories restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de préréglages et les intitulés de catégories restent en anglais.',
               reviewed: true },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
 
@@ -397,7 +410,7 @@ export const LABELS = Object.freeze({
 
     // ── The settings popover ────────────────────────────────────────────────
     'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: true } },
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
 
     // The two faces of the hover-help switch, chosen by an if/else over two
     // literal keys in setTooltipsEnabled — never a ternary inside the setLabel
@@ -474,7 +487,7 @@ export const LABELS = Object.freeze({
     'aria.presets':      { en: { t: 'Presets' },              fr: { t: 'Préréglages',           reviewed: true } },
     'aria.langSelect':   { en: { t: 'Interface language' },   fr: { t: 'Langue de l’interface', reviewed: true } },
     'aria.helpToggle':   { en: { t: 'Toggle hover help' },
-                           fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+                           fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
 });
 
 // ============================================================================
