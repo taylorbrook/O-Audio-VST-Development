@@ -131,7 +131,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this hover help, and turn the hover help on or off. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de cette aide au survol et activer ou désactiver cette aide. Les deux choix sont conservés avec la session.',
+              b: 'Choisir la langue de ces infobulles et les activer ou les désactiver. Les deux choix sont conservés avec la session.',
               reviewed: true },
     },
 
@@ -145,7 +145,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
               reviewed: true },
     },
 
@@ -200,7 +200,7 @@ export const I18N = Object.freeze({
     'help-toggle': {
         en: { t: 'Hover help',
               b: 'Show a short description when the pointer rests on a control. The setting is remembered with the session.' },
-        fr: { t: 'Aide au survol',
+        fr: { t: 'Infobulles',
               b: 'Affiche une courte description lorsque le pointeur s’arrête sur une commande. Le réglage est conservé avec la session.',
               reviewed: true },
     },
@@ -592,7 +592,7 @@ export const I18N = Object.freeze({
 // trLabel() falls back to I18N when a key is absent here, so a control whose
 // tooltip TITLE already IS its caption carries ONE key. That fallback is used
 // ONLY where the string is identical in BOTH languages: `lang-select`
-// (Language / Langue), `help-toggle` (Hover help / Aide au survol), `settings`
+// (Language / Langue), `help-toggle` (Hover help / Infobulles), `settings`
 // for the gear and the popover's accessible name, `preset-prev` / `preset-next`
 // for the two nav buttons' accessible names, `clockModeSeg` (Clock / Horloge),
 // `seedRo` (Seed / Germe) and `MIX` (Mix / Dosage). None of those appears below.
@@ -744,7 +744,7 @@ export const LABELS = Object.freeze({
     'aria.langSelect':   { en: { t: 'Interface language' },
                            fr: { t: 'Langue de l’interface', reviewed: true } },
     'aria.helpToggle':   { en: { t: 'Toggle hover help' },
-                           fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+                           fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
 });
 
 // ============================================================================

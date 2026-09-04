@@ -104,8 +104,10 @@
 //   carry a noun. tip.settings said "un clic à côté" (a click NEXT TO it)
 //   where the English says "a click elsewhere" — a small, real meaning drift
 //   — and now says "ailleurs". tip.language dropped "Parameter" from
-//   "Parameter values" and used "bulle d’aide" where 21 sibling plugins say
-//   "aide au survol"; both restored.
+//   "Parameter values" and used a one-off French name for the hover-help
+//   surface where 21 sibling plugins used the settled one; both restored.
+//   (v1.6.1: that settled term is now "Infobulles" suite-wide — see the
+//   CHANGELOG, which is where the superseded wording is recorded.)
 //
 //   REGISTER IS vous THROUGHOUT, and the imperative is the one instruction
 //   form on this page (tip.frequency's "Descendez-le / montez-le"). Captions
@@ -285,7 +287,7 @@ export const I18N = Object.freeze({
                + 'English and French. Parameter values, units and preset names stay as they '
                + 'are. The choice is saved with the plugin and comes back with the session.' },
         fr: { t: 'Langue',
-              b: 'Bascule chaque libellé, chaque nom accessible et l’aide au survol de cette '
+              b: 'Bascule chaque libellé, chaque nom accessible et chaque infobulle de cette '
                + 'page entre l’anglais et le français. Les valeurs des paramètres, les unités '
                + 'et les noms de préréglages restent inchangés. Le choix est enregistré avec le plugin et revient avec la '
                + 'session.',
@@ -296,8 +298,8 @@ export const I18N = Object.freeze({
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this '
                + 'switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
@@ -532,7 +534,7 @@ export const LABELS = Object.freeze({
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
     'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
     'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
 
@@ -592,7 +594,7 @@ export const LABELS = Object.freeze({
 
     'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
 });
 
 // ============================================================================
