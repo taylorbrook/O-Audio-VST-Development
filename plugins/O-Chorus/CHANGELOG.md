@@ -1,5 +1,146 @@
 # O-Chorus Changelog
 
+## [1.5.0] - 2026-09-03
+
+Simplified Chinese. O-Chorus is the pilot for the zh-Hans rollout — every
+structural question the remaining 42 plugins will ask was answered here first.
+
+### Added
+
+- **A third language, `zh-Hans`.** All 28 entries — 18 labels and 10 tooltips
+  with a title and a body each — plus the endonym 简体中文 in the selector,
+  written as the numeric references `&#31616;&#20307;&#20013;&#25991;` to match
+  the existing `Fran&ccedil;ais` convention. The stored session/preset property
+  round-trips the BCP-47 tag through a three-branch, **pure-ASCII** C++ codec;
+  not one Han character exists anywhere under `Source/**/*.{h,cpp}`.
+- **Terminology from the suite glossary, not from this file.** Every English
+  string that is a `TERMS` key takes that term's root rendering, settled across
+  552 shared strings in Stage 1 — *Rate 速率, Depth 深度, Voices 复音数, Spread
+  扩散, Width 宽度, Tone 音色, Mix 混合, Drive 驱动, Load 载入, Save 保存*. Lint
+  rule Z5 holds the file to them. *LFO* ships as the English token keyed
+  `sameAsEn`, so a human still has to agree with it rather than it being
+  silently exempted.
+
+### Changed
+
+- **Character budgets: none needed, and the measurement is the point.** The
+  three measured O-Chorus cells are unchanged — *depth* 62 px wrap cliff / 10 px
+  = 6 characters, *save* the same 6, *spread* 50 px gate cliff / 10 px = 5 — and
+  every Chinese caption fits at **2 characters**. Every one is *narrower* than
+  its English original, by 0.3 to 19.7 px in the real `.knob-label` node. This is
+  the exact inverse of French, where three of eight captions had to be
+  abbreviated. **Chinese buys width and spends height.**
+- **Three line-height pins, and one width pin.** `line-height: normal` is the
+  font's own metrics, and Han faces carry taller ones: 26 elements moved on the
+  first Chinese run. Each pin is the node's measured English line box over its
+  font size, written unitless so it is font-independent:
+  - `.knob-label` — **EN 10.00 px / 9 px → 1.1111**. Closed 24 of the 26: its
+    growth to 13.00 px grew `.knob` and `.knob-container` and pushed
+    `.knob-value` down 3 px on all eight knobs.
+  - `.preset-action` — same 10.00 px / 9 px ratio (the LOAD/SAVE buttons went
+    14.00 → 17.00 px border-box).
+  - `.settings-label` — same ratio. **Assertion 7 never named this one and could
+    not:** the settings popover is `hidden` at rest, so the gate cannot measure
+    it. Forced open it is the identical defect. It happens not to propagate today
+    only because `.settings-select` is 16 px and taller than both — luck, not
+    design, since the row is `space-between` with a `nowrap` caption.
+  - **The 26th mover was not a line height.** `#lang-select` measured 65 px in
+    English and French and 64 px in Chinese. The three endonyms are
+    language-*invariant* (27.501 / 30.489 / 36.792 px in every pass), so the
+    widest option cannot explain it — with `appearance: auto` Chromium derives
+    the control's intrinsic width from the **selected** option's font run, and
+    the Han endonym resolves through PingFang SC a pixel narrower. Pinned to
+    65 px, its existing English intrinsic, so English and French are unchanged
+    and only the Chinese pass moves.
+
+  No global `line-height` was added: a global one moves English geometry, which
+  would be a regression rather than a fix.
+- **CJK font tail on five of the page's eight `font-family` declarations**
+  (`, 'PingFang SC', 'Microsoft YaHei', sans-serif`). The set was **measured** —
+  `getComputedStyle().fontFamily` read on every node that holds or can receive a
+  Han codepoint — not derived from the `[data-i18n]` list, which would have
+  missed two of the five: `.tooltip` carries no keyed attribute and is filled
+  from `data-tip` at hover time, and `.settings-select` holds the only Han in the
+  markup. The other three took the tail: `.container` (the inherited stack),
+  `.preset-action`, `.settings-label`. **The three omitted, each justified by
+  what it renders:** `.preset-nav` (the glyphs U+25C0/U+25B6, whose names live in
+  `aria-label` and are never rendered text), `.preset-dropdown-item` (preset
+  names are the JSON filenames on disk, ASCII by contract), and `#gear-btn` (the
+  single gear glyph U+2699; its tip paints in `#tooltip`). Latin still resolves
+  to Garamond first, so English geometry is unmoved.
+- **`tests/ui_tip_render_check.js` drives the table's own `LANGUAGES`** instead
+  of a hard-coded `['en','fr','en']`, and fails rather than falling back to a
+  default pair. Re-run unchanged it would have passed *vacuously* for Chinese —
+  and it is the only gate that measures a tooltip against the 125 px frame.
+  A second hard-coded pair was found below the first: tip heights were recorded
+  only while `drivenStates.length <= 2`, so the Chinese pass rendered and
+  asserted correctly while recording nothing. Its assertion 5 now gates on the
+  pass **differing** from English rather than *growing*: French wraps to more
+  lines, Chinese to fewer (6 tips shrank, 0 grew), so a growth assertion would
+  have failed a correct Chinese table.
+
+### Quality — read this before trusting the Chinese
+
+- **The ship bar is an independently back-translated draft, and there is NO
+  NATIVE CHINESE READER on this project.** Nobody who reads Chinese as a first
+  language has looked at any string here. All 28 entries are at the second of
+  three review levels: drafted, then read back against the English triple by
+  triple, all 38 rows. The third level — native review — remains open and is not
+  a gate. This is a *disclosed* quality level, not a hidden one; the lint prints
+  the count below the bar on every run.
+- **What made the back-translation independent.** The batch is emitted with the
+  English deliberately withheld, and the reverse pass was run by a different
+  model in a fresh session with the row **ids blinded** to `r01..r38` — an id
+  like `label.depth` leaks the English word it is meant to recover. Both
+  provenance strings are recorded so the bar is auditable:
+  - forward: `claude-opus-5 gsd-executor forward draft, 2026-09-03`
+  - reverse: `claude-sonnet-5 independent reverse pass, blind row ids r01-r38
+    rejoined by orchestrator, 2026-09-03`
+
+  The ingest tool refuses a provenance that is missing or byte-identical to the
+  forward one; **both refusal shapes were fired deliberately as positive controls
+  before the real run was trusted**, because a refusal that never fires proves
+  nothing.
+- **38 triples read: 24 exact, 14 accepted as synonyms, 0 corrected.** The
+  lexical score is a sort key, not a verdict — the lowest-scoring triple of all
+  38 (*Voices → 复音数 → "Voice Count"*, score 0.00) is correct, because 复音数
+  states the count sense the English leaves implicit and the parameter is
+  literally an integer 1 to 8. Each accepted drift and its reason is recorded in
+  the `i18n.js` header.
+- **≤9 px LEGIBILITY TIER — a disclosed limitation.** Han glyphs carry far more
+  stroke detail into the same em than Latin, and at or below 9 px they are at the
+  legibility floor. Five of this page's localized nodes render at 9 px. The suite
+  **ships at parity size anyway**, because raising the Chinese size would move
+  English geometry and break the zero-shift guarantee the gates enforce. Chinese
+  users on this page read captions at the floor. Known, accepted, not hidden.
+- **Risk A5 was NOT closed, and is not silently dropped.** The research doc's
+  `line-height: normal` +30% figure was reconfirmed on the real page in Chromium
+  (10.00 → 13.00 px at 9 px, exactly the predicted row), but the re-measurement
+  **in the shipped WKWebView was not taken because it cannot be**: this plugin's
+  WebView bridge exposes twelve native functions and no `evaluateJavascript`
+  path, so nothing can read a computed style from inside the host without
+  shipping a debug hook in a release build. The figure remains a
+  headless-Chromium number. Recorded in `research/i18n-zh-hans-localization.md`
+  §3.4 and its A5 risk row.
+
+### Known issues
+
+- **The lint's Traditional-only set and the glossary contradict each other on
+  像 (U+50CF).** The set is derived from OpenCC as
+  `keys(TSCharacters) \ keys(STCharacters)`, and that difference contains 像 — a
+  standard simplified character, and the one the glossary's own root rendering
+  for *pan* uses (声像). Any plugin with a Pan control will have rule Z5 *require*
+  a rendering that rule Z3 then *flags*. Two drafts here tripped it and were
+  reworded to 声场 / 立体声场, which is legitimate for a chorus but is a route
+  around the defect, not a fix — a plugin with a Pan knob cannot reword past it.
+  Reported for the rollout; not fixed here.
+- **`tip.language`'s English and French bodies still name two of three
+  languages** ("English or Français" / "English ou Français"), authored when the
+  selector had two options. The Chinese body names all three, and the
+  back-translation surfaced the mismatch. Correcting the other two means editing
+  a French string a human has already signed off, which needs a French review
+  pass this release does not carry.
+
 ## [1.4.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.

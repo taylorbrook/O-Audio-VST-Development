@@ -163,17 +163,73 @@
 // expect this on every plugin whose language selector is inside a
 // space-between row.
 //
-// ── THE REVIEW LIFECYCLE ────────────────────────────────────────────────────
+// ── THE REVIEW LIFECYCLE, AND WHERE THESE 28 ENTRIES SIT ────────────────────
 //
 // The zh flag is an ENUM, not the boolean French uses, because nobody on this
 // project reads Chinese. Three levels: the machine-draft level, the
-// back-translated level, and the native-reviewed level. Every entry below is at
-// the FIRST of the three — a machine draft nobody has checked. Stage 2's Task 3
-// promotes them to the second once an INDEPENDENT reverse pass, run by an agent
-// that never saw this file's English, has been read against it triple by triple.
-// The ship bar is the second level; the third stays open and is not a blocker.
-// Lint rule R1 reports every entry below the bar on every run, so the gap is
-// disclosed rather than inferred.
+// back-translated level, and the native-reviewed level.
+//
+// ALL 28 ENTRIES ARE AT THE SHIP BAR — the SECOND of the three. Each was
+// drafted, then read back against its English through an INDEPENDENT reverse
+// pass, triple by triple, all 38 rows.
+//
+// THE THIRD LEVEL STAYS OPEN, AND IT IS NOT A BLOCKER. **This project has no
+// native Chinese reader.** Nobody who reads Chinese as a first language has
+// looked at any string in this file. That is a DISCLOSED quality level, not a
+// hidden one: lint rule R1 prints the count below the bar on every run, and the
+// CHANGELOG says it in the same words. Shipping at the second level is a
+// decision; shipping at it silently would be a defect.
+//
+// WHAT MADE THE REVERSE PASS INDEPENDENT. `--emit` withholds the English from
+// the batch by design, so the reverse agent saw the Chinese and nothing else.
+// It was a different model in a fresh session, and the row IDS WERE BLINDED to
+// r01..r38 before it ran — an id like `label.depth` leaks the English word it
+// is supposed to recover, so joining on real ids would have handed the answer
+// to the pass being tested. The orchestrator rejoined the real ids afterwards.
+// `--ingest` refuses a provenance that is missing or byte-identical to the
+// forward one; both refusal shapes were fired deliberately as positive controls
+// before the real run was trusted, because a refusal that never fires proves
+// nothing. Both provenance strings are named in the CHANGELOG, so the bar is
+// auditable after the fact.
+//
+// ── THE 38 TRIPLES: 24 EXACT, 14 ACCEPTED AS SYNONYMS, 0 CORRECTED ──────────
+//
+// No triple said something its English did not, so no Chinese string was
+// changed. The lexical score is a SORT KEY, not a verdict — the four lowest
+// scores below are all correct and one of the 1.00s would still have needed
+// reading. The accepted drifts, each with the reason it is not an error:
+//
+//   Voices -> 复音数 -> "Voice Count"  (score 0.00, the LOWEST of the 38, and
+//     correct). 复音数 carries the COUNT sense explicitly where the English
+//     leaves it implicit. The parameter is literally an integer count, 1 to 8,
+//     so the explicitness is right. It is also the glossary root: changing it
+//     would trip Z5.
+//   Spread -> 扩散 -> "Spread [or: Diffusion]"   glossary root. 扩散 covers both
+//     senses in audio Chinese. O-Chorus has no Diffusion control, so nothing
+//     collides HERE — but a reverb with both Spread and Diffusion would have
+//     two English controls competing for one Chinese word. Flagged for Stage 3.
+//   Tone -> 音色 -> "Tone [or: Timbre]"   glossary root, same shape: 音色 is
+//     literally timbre, and this control is a brightness tilt. No separate
+//     Timbre control exists here. Same Stage-3 flag.
+//   pan position -> 声场位置 -> "position in the sound field"  and
+//   stereo image -> 立体声场 -> "stereo field"
+//     BOTH ARE CONSEQUENCES OF THE 像 DEFECT BELOW, not free choices. The
+//     natural renderings (声像 / 立体声像) are what the glossary settles for
+//     `pan`, and Z3 flags them. Recorded here so the next reader knows these
+//     two strings were STEERED by a tooling defect and should be revisited when
+//     it is fixed.
+//   "high values sing" -> "sing out with noticeable warble", and
+//   "slow settings drift and widen" -> "widens the sound field"
+//     explicitations. Chinese does not carry an objectless "widen" comfortably,
+//     and "sing" is a term of art the surrounding clause already defines by
+//     contrast ("without audible pitch movement"). Both make explicit what the
+//     English says by implication; neither adds a claim.
+//   "bucket-brigade chorus" -> "bucket-brigade delay circuit"   a BBD chorus IS
+//     built on a bucket-brigade delay line, so the Chinese is the more precise
+//     of the two, not a different claim.
+//   The remaining body drifts (mix, spread, tone, settings, drive) are sentence
+//     shape only — "double-track effect" for "doubling", "staggers" for
+//     "offsets" — with no change of control, range or unit.
 //
 // ── TWO FINDINGS THIS PILOT SURFACED, NEITHER FIXED HERE ────────────────────
 //
@@ -377,7 +433,7 @@ export const I18N = Object.freeze({
               b: '设定 LFO 扫描每个声部延迟时间的快慢，也就是合唱运动的速度。'
                + '慢速设定会漂移并展宽声场；快速设定则收紧，趋向颤音。'
                + '0.05 到 5.00 Hz。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── depth — AudioParameterFloat 0..1, default 0.5 ───────────────────────
@@ -399,7 +455,7 @@ export const I18N = Object.freeze({
               b: '设定 LFO 让每个声部的延迟围绕 10 ms 中心摆动的幅度，最大 ±5 ms。'
                + '低值只让声音变厚，不产生可闻的音高起伏；高值则唱出明显的颤动。'
                + '0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── voices — AudioParameterInt 1..8, default 4 ──────────────────────────
@@ -424,7 +480,7 @@ export const I18N = Object.freeze({
               b: '叠加进湿信号的延迟副本数量，每个副本都有自己的 LFO 相位和声场位置。'
                + '声部越多，合唱越厚实平滑；输出已作电平补偿，因此可以在演奏中改变数量。'
                + '1 到 8。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── spread — AudioParameterFloat 0..1, default 0.0 ──────────────────────
@@ -445,7 +501,7 @@ export const I18N = Object.freeze({
               b: '把每个声部的基础延迟相互错开，最多 ±15 ms，让各副本不再彼此重叠。'
                + '低值给出一个紧凑的整体；高值给出分散的、双轨般的感觉。'
                + '0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── width — AudioParameterFloat 0..1, default 0.7 ───────────────────────
@@ -467,7 +523,7 @@ export const I18N = Object.freeze({
               b: '按等功率定律缩放各声部在立体声场中彼此拉开的距离。'
                + '在 0% 时所有声部都居于正中，得到单声道安全的合唱；在 100% 时它们占满整个声场。'
                + '0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── tone — AudioParameterFloat -1..+1, default 0.0 ──────────────────────
@@ -492,7 +548,7 @@ export const I18N = Object.freeze({
               b: '只倾斜合唱信号的明亮度，经由一个从 2 kHz 到 20 kHz、中心在 8 kHz 的低通。'
                + '负值把效果藏到明亮的干信号之下；正值让它闪烁。'
                + '−100 到 +100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── mix — AudioParameterFloat 0..1, default 0.5 ─────────────────────────
@@ -513,7 +569,7 @@ export const I18N = Object.freeze({
               b: '在干信号与合唱信号之间做平衡。'
                + '在 50% 时两者电平相当，得到经典的双轨效果；再往上效果占主导，到 100% 时干信号完全消失。'
                + '0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── drive — AudioParameterFloat 0..1, default 0.3 ───────────────────────
@@ -537,7 +593,7 @@ export const I18N = Object.freeze({
               b: '在各声部相加之前，为每个延迟声部加上非对称的 tanh 饱和——模拟斗链式延迟电路自身产生的柔和削波。'
                + '低值带来温暖，调高则带来颗粒感。'
                + '0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The gear ───────────────────────────────────────────────────────────
@@ -559,7 +615,7 @@ export const I18N = Object.freeze({
               b: '在此按钮上方打开设置面板。'
                + '面板中只有界面语言一项，没有别的。'
                + '按 Escape 键关闭。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The language selector ──────────────────────────────────────────────
@@ -583,7 +639,7 @@ export const I18N = Object.freeze({
               b: '选择本面板上所有标签、提示和无障碍名称的语言。'
                + '该选择会随插件一同保存，下次打开时恢复。'
                + 'English、Français 或简体中文。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
@@ -666,7 +722,7 @@ export const LABELS = Object.freeze({
 
     // "Vitesse" rather than "Taux": this is the LFO's rate in Hz, and a French
     // modulation section calls that its speed. The glossary's root term.
-    'label.rate': { en: { t: 'Rate' }, fr: { t: 'Vitesse', reviewed: true }, 'zh-Hans': { t: '速率', reviewed: 'mt' } },
+    'label.rate': { en: { t: 'Rate' }, fr: { t: 'Vitesse', reviewed: true }, 'zh-Hans': { t: '速率', reviewed: 'bt' } },
 
     // Profondeur is the word a French user expects and it does not fit: 68.02
     // px against a 62 px wrap cliff, so it would render on two lines and push
@@ -675,9 +731,9 @@ export const LABELS = Object.freeze({
     // "depth", and the glossary forbids it. Prof. is the glossary's listed
     // abbreviation OF the expected word, and it is the only option that is both
     // recognisable and comfortable. tip.depth's title spells it out.
-    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: true }, 'zh-Hans': { t: '深度', reviewed: 'mt' } },
+    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: true }, 'zh-Hans': { t: '深度', reviewed: 'bt' } },
 
-    'label.voices': { en: { t: 'Voices' }, fr: { t: 'Voix', reviewed: true }, 'zh-Hans': { t: '复音数', reviewed: 'mt' } },
+    'label.voices': { en: { t: 'Voices' }, fr: { t: 'Voix', reviewed: true }, 'zh-Hans': { t: '复音数', reviewed: 'bt' } },
 
     // v1.4.1: ÉCART -> Étal. The glossary settles Spread on Étalement (Étal.)
     // and gives Écart to Detune, because Écart was doing both jobs across the
@@ -686,7 +742,7 @@ export const LABELS = Object.freeze({
     // widens .knob from 50 to 60.47 and check-ui-labels assertion 7 reports a
     // non-label element moved. Étal. is 28.53 px and moves nothing.
     // tip.spread's title spells it out.
-    'label.spread': { en: { t: 'Spread' }, fr: { t: 'Étal.', reviewed: true }, 'zh-Hans': { t: '扩散', reviewed: 'mt' } },
+    'label.spread': { en: { t: 'Spread' }, fr: { t: 'Étal.', reviewed: true }, 'zh-Hans': { t: '扩散', reviewed: 'bt' } },
 
     // THE TIGHTEST STRING ON THE PAGE, 1.89 px under the gate cliff. Crossing
     // it widens .knob by fractions of a pixel and nothing else; the wrap cliff
@@ -694,12 +750,12 @@ export const LABELS = Object.freeze({
     // if a reviewer wants margin rather than the literal translation — but the
     // glossary settles Width on Largeur (Larg., 30.75), so the margin is there
     // without leaving the list.
-    'label.width': { en: { t: 'Width' }, fr: { t: 'Largeur', reviewed: true }, 'zh-Hans': { t: '宽度', reviewed: 'mt' } },
+    'label.width': { en: { t: 'Width' }, fr: { t: 'Largeur', reviewed: true }, 'zh-Hans': { t: '宽度', reviewed: 'bt' } },
 
     // A tilt control, dark to bright. "Timbre" is the French word for that
     // quality and the glossary's term for Tone; Tonalité measures 50.73 and
     // would cross the gate cliff.
-    'label.tone': { en: { t: 'Tone' }, fr: { t: 'Timbre', reviewed: true }, 'zh-Hans': { t: '音色', reviewed: 'mt' } },
+    'label.tone': { en: { t: 'Tone' }, fr: { t: 'Timbre', reviewed: true }, 'zh-Hans': { t: '音色', reviewed: 'bt' } },
 
     // v1.4.1: DOSAGE -> Mix. The glossary settles it — Mix is what every French
     // DAW shows, Mixage is the mixing PROCESS, and Dosage is elegant French
@@ -708,7 +764,7 @@ export const LABELS = Object.freeze({
     // ON PURPOSE still needs a human to agree with it. It also shrinks the
     // caption 41.31 -> 19.91 px, both sides of the 50 px gate cliff, so nothing
     // moves.
-    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '混合', reviewed: 'mt' } },
+    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '混合', reviewed: 'bt' } },
 
     // Saturation measures 63.52 — past the WRAP cliff, not merely the gate one,
     // so the full word would put a second line under this knob. Satur. is the
@@ -716,7 +772,7 @@ export const LABELS = Object.freeze({
     // stage), which is why it is preferred over Chaleur (48.11, "warmth" — a
     // marketing word for the same thing, and 1.89 px from the gate cliff).
     // tip.drive's title spells it out.
-    'label.drive': { en: { t: 'Drive' }, fr: { t: 'Satur.', reviewed: true }, 'zh-Hans': { t: '驱动', reviewed: 'mt' } },
+    'label.drive': { en: { t: 'Drive' }, fr: { t: 'Satur.', reviewed: true }, 'zh-Hans': { t: '驱动', reviewed: 'bt' } },
 
     // ── The LFO ring heading ────────────────────────────────────────────────
     //
@@ -724,7 +780,7 @@ export const LABELS = Object.freeze({
     // LFO in French audio software, but that is a TRANSLATION JUDGEMENT and an
     // I18N_EXEMPT entry would hide it from the native-speaker worklist forever.
     // Keyed, it is one more `reviewed: false` line somebody has to agree with.
-    'label.lfo': { en: { t: 'LFO' }, fr: { t: 'LFO', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: 'LFO', reviewed: 'mt', sameAsEn: true } },
+    'label.lfo': { en: { t: 'LFO' }, fr: { t: 'LFO', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: 'LFO', reviewed: 'bt', sameAsEn: true } },
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -761,11 +817,11 @@ export const LABELS = Object.freeze({
     // version sites and the CHANGELOG, so it was REPORTED rather than fixed
     // here — the pin itself (62 px) and its reasoning are unchanged and still
     // correct, only the second row's caption and number are out of date.
-    'label.load': { en: { t: 'Load' }, fr: { t: 'Charger', reviewed: true }, 'zh-Hans': { t: '载入', reviewed: 'mt' } },
-    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true }, 'zh-Hans': { t: '保存', reviewed: 'mt' } },
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Charger', reviewed: true }, 'zh-Hans': { t: '载入', reviewed: 'bt' } },
+    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true }, 'zh-Hans': { t: '保存', reviewed: 'bt' } },
 
     // ── The settings popover (v1.3.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'mt' } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'bt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -788,18 +844,18 @@ export const LABELS = Object.freeze({
     // is the constraint O-Texture's "Metal — coming soon" landed on from the
     // other direction.
     'aria.prevPreset': { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',                 reviewed: true },
-                       'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
+                       'zh-Hans': { t: '上一个预设', reviewed: 'bt' } },
     'aria.nextPreset': { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',                   reviewed: true },
-                       'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
+                       'zh-Hans': { t: '下一个预设', reviewed: 'bt' } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },  fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true },
-                       'zh-Hans': { t: '从文件载入预设', reviewed: 'mt' } },
+                       'zh-Hans': { t: '从文件载入预设', reviewed: 'bt' } },
     'aria.savePreset': { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage',            reviewed: true },
-                       'zh-Hans': { t: '保存预设', reviewed: 'mt' } },
+                       'zh-Hans': { t: '保存预设', reviewed: 'bt' } },
 
     'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true },
-                       'zh-Hans': { t: '设置', reviewed: 'mt' } },
+                       'zh-Hans': { t: '设置', reviewed: 'bt' } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true },
-                       'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
+                       'zh-Hans': { t: '界面语言', reviewed: 'bt' } },
 });
 
 // ============================================================================
