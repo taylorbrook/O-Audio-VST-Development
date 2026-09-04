@@ -7,7 +7,7 @@ juce_add_plugin(O-Bass
     PLUGIN_CODE OBas
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bass${OUARICON_DEV_SUFFIX}"
-    VERSION 1.5.1
+    VERSION 1.6.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )

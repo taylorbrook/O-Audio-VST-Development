@@ -314,7 +314,7 @@ function outsideViewport(rect, W, H) {
         const anchorsClosed = ['#sync-container', '#time-container', '#feedback-container',
                                '#spread-container', '#mod-container', '#wet-container',
                                '#dry-container'];
-        const anchorsOpen   = ['#gear-btn', '#lang-select'];
+        const anchorsOpen   = ['#gear-btn', '#lang-select', '#tips-toggle'];
 
         async function setPopover(open) {
             const isOpen = await page.evaluate(() =>

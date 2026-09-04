@@ -5,6 +5,53 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-09-03
+
+A switch for the hover help. The tooltip layer this plugin already had could
+not be turned off; twenty of the suite's forty-three plugins already carried
+that switch and twenty-three did not. This closes one of the twenty-three.
+
+### Added
+
+- **A hover-help switch in the settings popover.** `#tips-toggle`, a second
+  `.settings-row` under the language selector, on the newer `#tips-toggle` /
+  `label.hoverHelp` convention rather than the older `#help-toggle` spelling.
+  It gates the tooltip renderer's own `show()` — a delegated renderer has no
+  bindings to unbind — and persists under the localStorage key
+  `otrem.tipsEnabled`.
+- **`data-tip-always` on `#gear-btn` and on `#tips-toggle`, and on nothing
+  else.** Those two controls are the ones that REACH and RESTORE the help
+  layer, so they keep explaining themselves while it is off. `#lang-select`
+  deliberately does not carry it: it is only reachable through the gear, which
+  already explained itself on the way in.
+- **Five i18n keys, four of them settled roots copied rather than authored.**
+  `label.hoverHelp`, `ui.on`, `ui.off` and `aria.helpToggle` take the French
+  glossary roots verbatim from `scripts/i18n-fr-glossary.js` — *Aide au survol
+  / Marche / Arrêt / Activer ou désactiver l'aide au survol*. The fifth,
+  `tip.tipsToggle`, is the tooltip's own title and body.
+
+### Measured
+
+- **The popover grew from 116 px to 120 px, and the widening was measured in BOTH languages rather than only in the one that forced it.** This panel stacks its caption ABOVE its control, so the caption gets the panel's full content box: at 116 px that box was 94.00 px and the French *AIDE AU SURVOL* renders at **95.98 px**, which `check-ui-labels` [4] reported as a 1.98 px overflow. 120 px gives a 98.00 px box. English at the SAME width — the half a *make French fit* change usually skips — is *HOVER HELP* **71.95 px** and *LANGUAGE* **63.55 px**, both well inside; French *LANGUE* is **47.11 px**. It stays a HARD width, not a min-width, so the panel's rectangle is still language-invariant by construction. The panel occupies **y 276..363, 120 x 87 px, identical in both languages** in a 600 x 400 frame, and is absolutely positioned against the gear at `right: 0`, so nothing outside it moves.
+- **The switch's face is a `min-width: 42px` floor, not a pinned width**, so a
+  longer French face grows LEFTWARD into slack the popover already has. The row
+  is `space-between` and the button is a `[data-i18n]` node, so nothing the
+  geometry gate measures moves. `check-ui-labels` [7] reports **0 non-label
+  elements displaced** between English and French, and the visible element set
+  identical in both.
+- Every declaration in `.settings-toggle` above the four switch-specific ones
+  is **copied from this page's own language `<select>`** — its font stack, ink,
+  plate, hairline and radius — so the two controls in the popover match by
+  construction rather than by a second designer re-deciding them.
+
+### Decided
+
+- **Default is ON.** The previous version showed hover help unconditionally, so
+  ON is the setting that leaves an existing user's plugin behaving exactly as
+  it did. Default OFF would additionally have made `boot-all-uis --strict-tips`
+  measure an empty tip surface and call it correct.
+
+
 ## [1.8.2] - 2026-08-31
 
 Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
