@@ -58,7 +58,7 @@
                 id="gear-btn"
                 aria-haspopup="dialog"
                 aria-expanded="false"
-                data-i18n-aria="settings" aria-label="Settings">&#9881;</button>
+                data-i18n-aria="settings" aria-label="Settings" data-tip-always>&#9881;</button>
 
         <div class="settings-popover" id="settings-popover"
              role="dialog" data-i18n-aria="settings" aria-label="Settings" hidden>
@@ -79,6 +79,24 @@
               <option value="fr">Fran&ccedil;ais</option>
             </select>
           </label>
+
+          <!-- v1.11.0: the hover-help switch. A <div>, NEVER a
+               <label for="tips-toggle">: a button is a labelable element, so a label
+               wrapping one re-dispatches the click and the switch toggles twice. The
+               button names itself with aria-label instead.
+
+               data-tip-always goes on this button and on #gear-btn and on nothing
+               else. Those two controls are the ones that REACH and RESTORE the help
+               layer, so they keep explaining themselves while it is off. #lang-select
+               deliberately does not carry it: it is only reachable through the gear,
+               which already explained itself on the way in. -->
+          <div class="settings-row">
+            <span class="settings-label" data-i18n="label.hoverHelp" data-label="Hover help">Hover help</span>
+            <button type="button" class="settings-toggle" id="tips-toggle"
+                    aria-pressed="true" data-i18n-aria="aria.helpToggle"
+                    aria-label="Toggle hover help"
+                    data-i18n="ui.on" data-tip-always>On</button>
+          </div>
         </div>
       </div>
     </header>

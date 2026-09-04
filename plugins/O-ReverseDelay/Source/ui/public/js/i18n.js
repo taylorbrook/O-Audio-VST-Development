@@ -135,6 +135,16 @@ export const I18N = Object.freeze({
               b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
               reviewed: true },
     },
+    // v1.11.0 — the switch that reaches this whole layer.
+    'tips-toggle': {
+        en: { t: 'Hover Help',
+              b: 'Turns this hover help on and off. With it off, only the gear and this '
+               + 'switch keep explaining themselves.' },
+        fr: { t: 'Aide au survol',
+              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+               + 'l’engrenage et ce commutateur continuent de s’expliquer.',
+              reviewed: true },
+    },
 
     // ── TIME ────────────────────────────────────────────────────────────────
     'syncSegments': {
@@ -442,6 +452,21 @@ export const LABELS = Object.freeze({
     // mid-arm would have restored the ENGLISH armed face.
     'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: true } },
 
+    // v1.11.0. THE SETTINGS POPOVER'S CAPTION KEY IS 'lang-select', WHICH LIVES
+    // IN I18N, NOT HERE — this page's language caption resolves through that tip
+    // entry's own title. The three keys below are LABELS keys and belong in this
+    // table instead: an I18N entry must carry a body as well as a title
+    // (check-i18n assertion [1]), and a two-character switch face has no body.
+    //
+    // All three renderings are settled glossary ROOTS, copied rather than
+    // authored: scripts/i18n-fr-glossary.js carries them as the roots for
+    // 'hover help', 'on' and 'off'. They take the same review mark this file's
+    // other roots carry, and for the same reason — they are not new machine
+    // output.
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+
     // ── Group headings and captions ─────────────────────────────────────────
     // v1.10.1: the glossary settles "Time" as Durée, for a control that IS a
     // duration. This is the row-1 PANEL HEADING over a sync-mode switch, a
@@ -532,6 +557,7 @@ export const LABELS = Object.freeze({
     // the control now sets the language of the whole page.
     'aria.langSelect':   { en: { t: 'Interface language' },
                            fr: { t: 'Langue de l’interface', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
     'aria.noteDivision': { en: { t: 'Note Division' }, fr: { t: 'Division de note', reviewed: true } },
     'aria.grainShape':   { en: { t: 'Grain Shape' },  fr: { t: 'Forme de grain', reviewed: true } },
     'aria.envCanvas':    { en: { t: 'Grain amplitude envelope' },
@@ -568,6 +594,7 @@ export const I18N_EXEMPT = [
 export const TIP_BINDINGS = [
     ['#gear-btn',            'settings'],
     ['#lang-select',         'lang-select'],
+    ['#tips-toggle',         'tips-toggle'],
 
     ['#syncSegments',        'syncSegments'],
     ['#knob-delayTime',      'knob-delayTime'],

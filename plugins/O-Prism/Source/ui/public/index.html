@@ -111,28 +111,51 @@ body {
     transition: background 0.15s, color 0.15s;
 }
 .gear-btn:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+/* v1.23.0: TWO ROWS, so this is now a flex COLUMN. Until this version the
+   popover was a single flat flex row — the caption and the <select> were direct
+   children and there was no .settings-row wrapper anywhere on the page. A
+   second control could have been appended flat, making one four-item row, but
+   that puts both captions on the same baseline and makes the panel's width the
+   sum of two captions that change length independently with the language.
+
+   THE WIDTH IS NOW PINNED, and that pin REPLACES the per-caption pin that used
+   to sit on .settings-label. Both existed for the same reason — the panel is
+   `right: 0`, so anything that changes its width moves its LEFT edge — but a
+   caption pin only covers the captions it was measured against, and the French
+   AIDE AU SURVOL is far wider than the 59.77 px LANGUAGE box it was set to. A
+   hard panel width makes the rectangle language-invariant by construction and
+   lets every caption inside it size itself honestly. */
 .settings-popover {
     display: none;
     position: absolute;
     top: 26px;
     right: 0;
     z-index: 9998;
+    width: 168px;
     background: #3C2F2F;
     border: 1px solid #8B7355;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
     padding: 8px 10px;
     border-radius: 2px;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
     white-space: nowrap;
 }
 .settings-popover.visible { display: flex; }
+
+/* New in v1.23.0 — this page had no row wrapper at all before. */
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
 .settings-label {
-    /* GEOMETRY PIN, English box (59.77 px). `Langue` is 14.97 px narrower than
-       `Language`, and the popover is `right: 0`, so a narrower caption moves
-       the popover's LEFT edge. */
-    display: inline-block;
-    width: 59.77px;
+    /* The v1.22.x `width: 59.77px` English-box pin is GONE, replaced by the
+       hard width on .settings-popover above. It was doing the panel's job from
+       inside one caption, and it could not survive a second caption of a
+       different length. */
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 1.2px;
@@ -149,6 +172,46 @@ body {
     cursor: pointer;
 }
 .settings-select:focus { outline: 1px solid #C9A27B; }
+
+/* v1.23.0 THE HOVER-HELP SWITCH.
+
+   Every declaration above the switch-specific four is COPIED FROM
+   this page's own language <select>, not pasted in from the reference
+   implementation. The two controls sit one row apart in the same popover,
+   so the button inherits this plugin's font stack, ink, plate, hairline and
+   radius by construction rather than by a second designer re-deciding them.
+
+   min-width, NOT width: it floors the two short English faces so they size
+   alike, and lets a longer French one (Marche / Arrêt) grow LEFTWARD into
+   slack the popover already has. The row is space-between and the button is
+   a [data-i18n] node, so a face that grows moves nothing the geometry gate
+   measures — verified with check-ui-labels [7] after the port. */
+.settings-toggle {
+  background: #2A2020;
+  border: 1px solid #8B7355;
+  color: #F5E6D3;
+  font-family: 'Garamond', 'Georgia', serif;
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+  min-width: 42px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.settings-toggle[aria-pressed="true"] {
+  background: #C9A27B;
+  border-color: #C9A27B;
+  color: #2A2020;
+}
+
+.settings-toggle:focus-visible {
+  outline: 2px solid #C9A27B;
+  outline-offset: 1px;
+}
+
 
 /* ─── PRESET BROWSER (persistent in header) ─── */
 .preset-browser {
@@ -1141,13 +1204,33 @@ body {
          it as its own PAINT LAYER and does not compare its caption against the
          page underneath it. -->
     <div class="settings-wrap">
-        <button class="gear-btn" id="gear-btn" data-i18n-aria="aria.settings">&#9881;</button>
+        <button class="gear-btn" id="gear-btn" data-i18n-aria="aria.settings" data-tip-always>&#9881;</button>
         <div class="settings-popover" id="settings-popover">
-            <span class="settings-label" data-i18n="label.language">Language</span>
-            <select id="lang-select" class="settings-select">
-                <option value="en">English</option>
-                <option value="fr">Français</option>
-            </select>
+            <div class="settings-row">
+                <span class="settings-label" data-i18n="label.language">Language</span>
+                <select id="lang-select" class="settings-select">
+                    <option value="en">English</option>
+                    <option value="fr">Français</option>
+                </select>
+            </div>
+
+            <!-- v1.23.0: the hover-help switch. A <div>, NEVER a
+                 <label for="tips-toggle">: a button is a labelable element, so a label
+                 wrapping one re-dispatches the click and the switch toggles twice. The
+                 button names itself with aria-label instead.
+
+                 data-tip-always goes on this button and on #gear-btn and on nothing
+                 else. Those two controls are the ones that REACH and RESTORE the help
+                 layer, so they keep explaining themselves while it is off. #lang-select
+                 deliberately does not carry it: it is only reachable through the gear,
+                 which already explained itself on the way in. -->
+            <div class="settings-row">
+              <span class="settings-label" data-i18n="label.hoverHelp" data-label="Hover help">Hover help</span>
+              <button type="button" class="settings-toggle" id="tips-toggle"
+                      aria-pressed="true" data-i18n-aria="aria.helpToggle"
+                      aria-label="Toggle hover help"
+                      data-i18n="ui.on" data-tip-always>On</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1960,6 +2043,53 @@ function localizeSubtree(root) {
 }
 window.__localizeSubtree = localizeSubtree;
 
+// ════════════════════════════════════════════════════════════════════════
+// The hover-help switch (v1.23.0)
+// ════════════════════════════════════════════════════════════════════════
+//
+// OUTSIDE the applyI18n/initI18n region, deliberately: check-i18n assertion
+// [6] byte-compares that region, comment-stripped and whitespace-normalised,
+// against scripts/i18n-canon.js. A character added inside it fails the drift
+// gate on all 43 plugins' behalf.
+//
+// DEFAULT IS ON. The version before this one showed hover help
+// unconditionally, so ON is the setting that leaves an existing user's
+// plugin behaving exactly as it did. Default OFF would additionally make
+// boot-all-uis --strict-tips measure an empty tip surface and call it
+// correct.
+
+let tipsEnabled = true;
+let hideTip = () => {};
+
+function applyTipsEnabled(on) {
+    tipsEnabled = !!on;
+    if (!tipsEnabled) hideTip();
+    const btn = document.getElementById('tips-toggle');
+    if (!btn) return;
+    btn.setAttribute('aria-pressed', tipsEnabled ? 'true' : 'false');
+    // TWO CALLS BEHIND AN if/else, never a ternary inside the setLabel
+    // argument: check-i18n assertion [13] rejects a conditional anywhere in
+    // that call, because an inflection decided in JS is a string no
+    // translator can see.
+    if (tipsEnabled) setLabel(btn, 'ui.on');
+    else             setLabel(btn, 'ui.off');
+}
+
+function initializeTipsToggle() {
+    const btn = document.getElementById('tips-toggle');
+    if (!btn) { console.error('Missing tips-toggle element'); return; }
+    let stored = null;
+    try { stored = localStorage.getItem('oprism.tipsEnabled'); } catch (e) { stored = null; }
+    // Anything that is not the literal string 'false' — including a first
+    // run with nothing stored, and a private-mode throw — resolves to ON.
+    applyTipsEnabled(stored !== 'false');
+    btn.addEventListener('click', () => {
+        applyTipsEnabled(!tipsEnabled);
+        try { localStorage.setItem('oprism.tipsEnabled', String(tipsEnabled)); }
+        catch (e) { /* private mode: the switch still works, it just forgets */ }
+    });
+}
+
 // ── hover-help renderer (v1.22.0) ───────────────────────────────────────────
 //
 // THE CANON DOES NOT PAINT ANYTHING. applyI18n() writes `data-tip-title` and
@@ -2046,6 +2176,11 @@ function setupTooltips() {
     };
 
     const show = (el, x, y) => {
+        // THE SWITCH, and it is a SHOW gate rather than a bind gate: the
+        // renderer is delegated on document, so there is nothing to unbind.
+        // data-tip-always survives it — see the markup comment on #tips-toggle
+        // for which two controls carry it and why.
+        if (!tipsEnabled && !el.hasAttribute('data-tip-always')) return;
         const title = el.getAttribute('data-tip-title');
         const body  = el.getAttribute('data-tip');
         if (!title && !body) return;
@@ -2067,6 +2202,12 @@ function setupTooltips() {
         tip.setAttribute('aria-hidden', 'true');
         active = null;
     };
+
+    // Published to the module scope so applyTipsEnabled() can pull a tip
+    // down at the instant the switch goes Off. hide is a closure over the
+    // surface and the active anchor, so it cannot simply be hoisted out; a
+    // reference is the whole of the coupling.
+    hideTip = hide;
 
     const anchorOf = (t) => (t && t.closest ? t.closest('[data-tip]') : null);
 
@@ -4395,7 +4536,7 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
 // setupTooltips() sits AFTER initI18n() and inside the SAME try/catch,
 // deliberately on both counts: no anchor carries data-tip until applyI18n() has
 // written it, and a throw in either must not cost the page a knob.
-try { initI18n(); setupTooltips(); } catch (e) { console.error('[i18n] init failed:', e); }
+try { initI18n(); setupTooltips(); initializeTipsToggle(); } catch (e) { console.error('[i18n] init failed:', e); }
 </script>
 
 <!-- Wavetable Manager Modal -->
