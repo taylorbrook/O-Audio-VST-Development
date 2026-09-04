@@ -627,26 +627,41 @@ export const I18N = Object.freeze({
 
     // ── The language selector ──────────────────────────────────────────────
     //
-    // The two option words are named in both bodies as ENDONYMS, which is what
-    // the selector itself shows and what I18N_EXEMPT already reasons about
-    // below. They are not AudioParameterChoice options — this plugin has none —
-    // so D-01 arm 1 is not in play; they stay English because a language name
-    // is never translated, in prose or in a selector.
+    // v1.5.1 (Stage 3, ZH3-08): all three bodies ENUMERATED the options —
+    // "English or Français" / "English ou Français" / "English、Français
+    // 或简体中文". The first two went FALSE at v1.5.0, when the selector gained
+    // a third <option> and nobody re-read the prose that counted them.
+    //
+    // The enumeration is REMOVED, not extended. Naming all three in the en and
+    // fr bodies would put Han inside them, which moves the English tooltip's own
+    // geometry and drags the CJK font tail onto the very baseline every gate
+    // measures against; and a body that counts its control's options goes stale
+    // again at the next language. The selector already lists them, in their
+    // endonyms — the one form a reader recognises without knowing the page
+    // language — so counting them in prose duplicates the control it describes.
+    //
+    // The zh-Hans sentence was TRUE. It comes out anyway, because three bodies
+    // that describe the same control differently is what let the en and fr ones
+    // rot unnoticed. Its entry drops to 'mt': the string it was back-translated
+    // at no longer exists.
+    //
+    // The endonyms themselves are not AudioParameterChoice options — this plugin
+    // has none — so D-01 arm 1 is not in play; they stay in their own scripts
+    // because a language name is never translated, in prose or in a selector.
     'tip.language': {
         en: { t: 'Language',
               b: 'Chooses the language of every caption, tooltip and accessible name on this '
                + 'panel. The choice is saved with the plugin and restored the next time it '
-               + 'opens. English or Français.' },
+               + 'opens.' },
         fr: { t: 'Langue',
               b: 'Choisit la langue de tous les libellés, info-bulles et noms accessibles de ce '
                + 'panneau. Le choix est enregistré avec le plugin et restauré à la prochaine '
-               + 'ouverture. English ou Français.',
+               + 'ouverture.',
               reviewed: true },
         'zh-Hans': { t: '语言',
               b: '选择本面板上所有标签、提示和无障碍名称的语言。'
-               + '该选择会随插件一同保存，下次打开时恢复。'
-               + 'English、Français 或简体中文。',
-              reviewed: 'bt' },
+               + '该选择会随插件一同保存，下次打开时恢复。',
+              reviewed: 'mt' },
     },
 
     // ── tip.tipsToggle (v1.6.0) — the switch that reaches this whole layer ──
