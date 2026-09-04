@@ -98,8 +98,13 @@ const TERMS = {
     'click to browse presets':  ['cliquer pour parcourir les préréglages'],
     'click to see all presets': ['cliquer pour voir tous les préréglages'],
     'all':                      ['tous', 'toutes'],
-    'on':                       ['marche', 'activé', 'activée', 'act'],          // act./dés.: O-Orbit, a 46 px pill (MARCHE 53.06, ACTIVÉ 46.33)
-    'off':                      ['arrêt', 'désactivé', 'désactivée', 'aucun', 'aucune', 'dés'],
+    'on':                       ['marche', 'activé', 'activée', 'activées', 'act'],          // act./dés.: O-Orbit, a 46 px pill (MARCHE 53.06, ACTIVÉ 46.33)
+    'off':                      ['arrêt', 'désactivé', 'désactivée', 'désactivées', 'aucun', 'aucune', 'dés'],
+    // PLURAL 'activées'/'désactivées': the hover-help switch in O-simpleSampler,
+    // O-simpleSubtractive and O-SpectralShaper labels its two faces after the
+    // thing it governs, and that thing is 'les infobulles' — feminine PLURAL as
+    // of 260903-ukp. The singulars stay: every other plugin's toggle agrees with
+    // a singular antecedent, and dropping them would turn 40 green gates red.
     'bypass':                   ['contournement', 'contour'],
     'mono':                     ['mono'],
     'min':                      ['min'],

@@ -35,18 +35,32 @@ comments only — no parameter, range, type or state format changed.
   `Hover help` (49.72). The popover holds its 168 px min-width and nothing
   inside it moves, either way. The `.settings-toggle` 64 px pin is unchanged.
 
-### Known issue (open, deliberately not guessed)
+### Fixed — the switch faces now agree
 
-- **The switch's two faces `ui.on` / `ui.off` still read `Activée` /
-  `Désactivée` — feminine SINGULAR.** They were chosen to agree with the noun
-  naming the hover-help surface, and that noun is now feminine PLURAL, so they
-  should read `Activées` / `Désactivées`. NOT changed here: the before→after
-  sheet the developer read was built from strings CONTAINING the superseded
-  phrase, and these contain no phrase at all — the dependency is stated only in
-  a source comment beside them — so they were never read, and a string nobody
-  read must not ship at `reviewed: true`. Same in O-simpleSampler and
-  O-simpleSubtractive. Reported rather than invented.
-
+- **The switch's two faces `ui.on` / `ui.off` now read `Activées` /
+  `Désactivées`** — feminine PLURAL, agreeing with the noun this switch governs,
+  which is `les infobulles` as of this release. They were singular because they
+  agreed with the singular noun the suite used before it. That dependency is
+  stated only in a source comment beside them: the two faces carry no occurrence
+  of the noun, so the sweep that rewrote every string mentioning it did not reach
+  them. They kept `reviewed: true` — these are the grammar-forced number of a
+  word the developer read and approved, not authored wording.
+- **The `.settings-toggle` 64 px `min-width` no longer covers the widest face,
+  and was NOT changed.** Re-measured with the plural: en `Off` holds the pin at
+  64.00 px; fr `Désactivées` is content-sized at **65.77 px** (47.77 text + 18
+  padding), so the button resizes **1.77 px** between languages — which is what
+  the v1.7.2 pin was raised to 64 px to stop. Nothing is clipped and nothing
+  outside the button moves. **No gate sees it:** `.settings-toggle` carries
+  `data-i18n`, so it is a LABEL, and `check-ui-labels` assertion [7] watches
+  NON-label elements — the plugin exits 0. Left for a deliberate decision rather
+  than widened on the spot: closing it means `min-width: 66px` (2.23 px slack).
+  The faces are not to be abbreviated to fit 64.
+- `scripts/i18n-fr-glossary.js` accepts `activées` / `désactivées` on the
+  `on` / `off` rows alongside the existing renderings. The singulars stay: every
+  other plugin's toggle agrees with a singular antecedent. **Positive control
+  fired before the glossary moved** — the plural on an unchanged glossary made
+  `i18n-fr-lint` exit **2** with two G1 findings naming both faces; with the
+  glossary landed the same file exits **0**.
 
 ## [1.7.2] - 2026-08-31
 

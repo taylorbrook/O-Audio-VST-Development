@@ -32,18 +32,22 @@ comments only — no parameter, range, type or state format changed.
 - Every changed body was read by the developer at a blocking checkpoint
   *before* it was written, so each ships `reviewed: true` legitimately and the
   repo-wide unreviewed-French TOTAL stays at 0.
-### Known issue (open, deliberately not guessed)
+### Fixed — the switch faces now agree
 
-- **The switch's two faces `ui.on` / `ui.off` still read `Activée` /
-  `Désactivée` — feminine SINGULAR.** They were chosen to agree with the noun
-  naming the hover-help surface, and that noun is now feminine PLURAL, so the
-  agreement no longer holds; they should read `Activées` / `Désactivées`. They
-  are NOT changed here. The before→after sheet the developer read was built from
-  strings that CONTAIN the old phrase, and these contain no phrase at all — the
-  dependency exists only in a source comment beside them — so they were never on
-  the sheet, and a string nobody read must not ship at `reviewed: true`. Same in
-  O-simpleSubtractive and O-SpectralShaper. Reported rather than invented.
-
+- **The switch's two faces `ui.on` / `ui.off` now read `Activées` /
+  `Désactivées`** — feminine PLURAL, agreeing with the noun this switch governs,
+  which is `les infobulles` as of this release. They were singular because they
+  agreed with the singular noun the suite used before it. That dependency is
+  stated only in a source comment beside them: the two faces carry no occurrence
+  of the noun, so the sweep that rewrote every string mentioning it did not reach
+  them. They kept `reviewed: true` — these are the grammar-forced number of a
+  word the developer read and approved, not authored wording.
+- `scripts/i18n-fr-glossary.js` accepts `activées` / `désactivées` on the
+  `on` / `off` rows alongside the existing renderings. The singulars stay: every
+  other plugin's toggle agrees with a singular antecedent. **Positive control
+  fired before the glossary moved** — the plural on an unchanged glossary made
+  `i18n-fr-lint` exit **2** with two G1 findings naming both faces; with the
+  glossary landed the same file exits **0**.
 
 ## [1.4.0] — 2026-09-01
 
