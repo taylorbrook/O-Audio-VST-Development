@@ -12,7 +12,7 @@ juce_add_plugin(OuariconOctagon
     PLUGIN_CODE              OuOc            # verified unused across all 39 existing plugins
     FORMATS                  VST3 AU Standalone
     PRODUCT_NAME             "O-Octagon${OUARICON_DEV_SUFFIX}"
-    VERSION                  1.11.1           # NOT PLUGIN_VERSION — that keyword is not a JUCE
+    VERSION                  1.11.2           # NOT PLUGIN_VERSION — that keyword is not a JUCE
                                              # keyword, is silently ignored, and ships 1.0.0 anyway
     NEEDS_WEB_BROWSER        TRUE
     NEEDS_WEBVIEW2           TRUE
