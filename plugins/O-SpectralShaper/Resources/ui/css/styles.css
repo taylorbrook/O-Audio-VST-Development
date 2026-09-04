@@ -865,25 +865,56 @@ body::after {
     outline-offset: 1px;
 }
 
-/* v1.7.2 (Stage O, item 40, 2026-08-31): min-width PINNED TO THE WIDEST FACE.
-   box-sizing is border-box (the global rule), so this pin governs the
-   BORDER-BOX: text + 8px padding each side + 1px border each side. Measured
-   with Range.selectNodeContents on the live #tips-toggle at the shipping
-   700x500 frame, text width / resulting border-box:
+/* min-width PINNED TO THE WIDEST FACE. box-sizing is border-box (the global
+   rule), so this pin governs the BORDER-BOX: text + 8px padding each side +
+   1px border each side. Measured with Range.selectNodeContents on the live
+   #tips-toggle at the shipping 700x500 frame, text width / resulting
+   border-box.
+
+   v1.7.2 (Stage O, item 40, 2026-08-31) raised it 40px -> 64px:
 
        Off  13.70 / 40.00   On  12.23 / 40.00
        Activée  31.09 / 49.09   Désactivée  43.88 / 61.88
 
    Under the old 40px pin the button RESIZED between its own two French faces
-   (61.88 -> 49.09 on every toggle, its left edge jumping 12.78px). 64px covers
-   the widest face with 2.12px of slack; the button now renders 64.00px on all
-   four faces in both languages, and the row's worst case — French caption
-   65.89 + 12 gap + 64 = 141.89 against the popover's 148px content width —
-   leaves 6.11px. The popover holds at 168px, #lang-select and the row's left
-   edge do not move, check-ui-labels reports 0 non-label elements moved.
+   (61.88 -> 49.09 on every toggle, its left edge jumping 12.78px).
+
+   v1.7.3 (2026-09-04) raises it 64px -> 66px. The French faces became PLURAL
+   when the hover-help surface they name became "les infobulles" — Activées /
+   Désactivées — and the longer face outgrew the 64px pin:
+
+       Off  13.70 / 64.00   (pin held)
+       Désactivées  47.77 / 65.77   (CONTENT-SIZED — the pin did not hold)
+
+   so the button resized 1.77px between languages again, which is exactly what
+   the v1.7.2 pin exists to prevent. 66px covers the widest face with 2.23px of
+   slack — 65.77 rounded up, the same way 64px was 61.88 rounded up. Verified by
+   rendering all four faces in both languages at the shipping frame:
+
+       en  Off  13.70 / 66.00        en  On  12.23 / 66.00
+       fr  Désactivées  47.77 / 66.00   fr  Activées  35.00 / 66.00
+
+   Identical border-box on every face; before the change en read 64.00 against
+   fr's 65.77.
+
+   THE FACES WERE NOT ABBREVIATED TO FIT. A pin exists so the geometry follows
+   the words; shortening the words to fit the pin inverts that, and the glossary
+   settles those two faces for the whole suite.
+
+   The row's worst case is French caption 45.55 + 12 gap + 66 = 123.55 against
+   the popover's 148px content width, leaving 24.45px. The popover holds at
+   168px, #lang-select and the row's left edge do not move, check-ui-labels
+   reports 0 non-label elements moved.
+
+   NOTE FOR WHOEVER READS THIS NEXT: no gate would have caught the v1.7.3
+   breach. .settings-toggle carries data-i18n, so it is a LABEL, and
+   check-ui-labels assertion [7] watches NON-label elements — the plugin exited
+   0 while the button was resizing. A width-pinned control that is itself a
+   localized label is in that assertion's blind spot; it has to be measured by
+   hand, as both of these revisions were.
    This is the only .settings-toggle in the popover. */
 .settings-toggle {
-    min-width: 64px;
+    min-width: 66px;
     padding: 2px 8px;
     flex: 0 0 auto;
     border: 1px solid var(--brown-border);
