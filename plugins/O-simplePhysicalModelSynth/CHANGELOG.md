@@ -3,6 +3,58 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.3] — 2026-09-03
+
+The French rendering of the hover-help surface changes suite-wide (task
+260903-ukp; O-Gain 1.3.3 was the tracer). PATCH: French strings and source
+comments only — no parameter, range, type or state format changed.
+
+### Changed
+
+- **The French caption is now `Infobulles`** (feminine plural). The superseded
+  rendering named the ACTION — help on hover; *infobulle* is the noun French
+  DAW and OS interfaces use for the surface itself. The glossary root moved
+  with it, ROOT-ONLY: `scripts/i18n-fr-glossary.js` now reads
+  `'hover help': ['infobulles']` and
+  `'toggle hover help': ['activer ou désactiver les infobulles']`, with the old
+  rendering REMOVED rather than kept as an accepted alternate — so a plugin
+  drifting back is a red G1 gate, not a silent pass.
+- **Every sentence re-agreed from feminine singular to feminine plural**, not
+  substituted: `cette …` → `ces infobulles`, `l’…` → `les infobulles`,
+  `de l’…` → `des infobulles`, `toute l’…` → `toutes les infobulles`,
+  `Une fois désactivée` → `Une fois désactivées`; the distributive `chaque …`
+  → `chaque infobulle` is the one place the new term stays singular.
+  Bare back-references that carried no occurrence of the old phrase — clauses
+  reading *le réglage de l’aide*, *l’état de l’aide*, *son affichage ou non*,
+  and the pronouns in *Lorsqu’elle est désactivée … la réactiver* — were
+  rewritten too. A regex pass would have left every one of them pointing at an
+  antecedent that no longer exists.
+- Every changed body was read by the developer at a blocking checkpoint
+  *before* it was written, so each ships `reviewed: true` legitimately and the
+  repo-wide unreviewed-French TOTAL stays at 0.
+- **The stale width comment in `css/styles.css` re-measured, not scaled.**
+  From `check-ui-labels --verbose`: `Infobulles` renders **71.13 px** where the
+  superseded caption rendered 96.0. It is now 0.82 px NARROWER than English
+  `Hover help` (71.95) rather than 24 px wider. The row is 210 px, the switch
+  78 px, the gap 12 px — 120 px of clearance. **The deliberate absence of a
+  width pin here is unchanged**: a min-width was written for this row once, its
+  negative control passed, and it was removed rather than kept and claimed.
+- A Stage-N history note records that `aria.helpToggle` originally said
+  *les infobulles* before the Stage-N pass replaced it. This release restores
+  the plugin's own wording.
+### Known issue (open, deliberately not guessed)
+
+- **The switch's two faces `ui.on` / `ui.off` still read `Activée` /
+  `Désactivée` — feminine SINGULAR.** They were chosen to agree with the noun
+  naming the hover-help surface, and that noun is now feminine PLURAL, so the
+  agreement no longer holds; they should read `Activées` / `Désactivées`. They
+  are NOT changed here. The before→after sheet the developer read was built from
+  strings that CONTAIN the old phrase, and these contain no phrase at all — the
+  dependency exists only in a source comment beside them — so they were never on
+  the sheet, and a string nobody read must not ship at `reviewed: true`. Same in
+  O-simpleSubtractive and O-SpectralShaper. Reported rather than invented.
+
+
 ## [1.2.2] — 2026-08-31
 
 Defects found by reading the French against the code. Stage O of the repo-wide i18n

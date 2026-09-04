@@ -155,21 +155,21 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Choose the language of the interface and switch this hover help off or on. The language is remembered with the session, so a project reopens in the language you left it in; the help switch is remembered on this computer." },
         fr: { t: "Réglages",
-              b: "Choisir la langue de l’interface et activer ou désactiver cette aide au survol. La langue est conservée avec la session : un projet se rouvre dans la langue où vous l’avez laissé ; le réglage de l’aide est conservé sur cet ordinateur.",
+              b: "Choisir la langue de l’interface et activer ou désactiver ces infobulles. La langue est conservée avec la session : un projet se rouvre dans la langue où vous l’avez laissé ; le réglage des infobulles est conservé sur cet ordinateur.",
               reviewed: true },
     },
     'lang-select': {
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available; the value readouts, the six lesson-preset names and the MIDI note numbers stay in English." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées, les noms des six préréglages de leçon et les numéros de note MIDI restent en anglais.",
+              b: "La langue des libellés de cette page et de ces infobulles. L’anglais et le français sont disponibles ; les valeurs affichées, les noms des six préréglages de leçon et les numéros de note MIDI restent en anglais.",
               reviewed: true },
     },
     'help-toggle': {
         en: { t: "Hover help",
               b: "Turns these hover explanations off or back on. The switch is remembered on this computer rather than in the session, so it follows you from one project to the next." },
-        fr: { t: "Aide au survol",
-              b: "Active ou désactive ces explications au survol. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d’un projet à l’autre.",
+        fr: { t: "Infobulles",
+              b: "Active ou désactive ces infobulles. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d’un projet à l’autre.",
               reviewed: true },
     },
 
@@ -693,7 +693,7 @@ export const LABELS = Object.freeze({
     },
     'aria.helpToggle': {
         en: { t: "Toggle hover help" },
-        fr: { t: "Activer ou désactiver l’aide au survol", reviewed: true },
+        fr: { t: "Activer ou désactiver les infobulles", reviewed: true },
     },
     // The switch's two faces, written through setLabel from applyTipsEnabled.
     'ui.on': {
