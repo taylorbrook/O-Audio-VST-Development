@@ -743,7 +743,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'Switches every caption and every hover-help note on the page between English and French. Value readouts stay in English so they keep matching the host’s automation lane. English or Français.' },
         fr: { t: 'Langue',
-              b: 'Bascule chaque libellé et chaque bulle d’aide de la page entre l’anglais et le français. Les valeurs affichées restent en anglais afin de continuer à correspondre à la piste d’automation de l’hôte. English ou Français.',
+              b: 'Bascule chaque libellé et chaque infobulle de la page entre l’anglais et le français. Les valeurs affichées restent en anglais afin de continuer à correspondre à la piste d’automation de l’hôte. English ou Français.',
               reviewed: true },
     },
     // v4.4.0 — the switch that reaches this whole layer.
@@ -751,8 +751,8 @@ export const I18N = Object.freeze({
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this '
                + 'switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
@@ -928,7 +928,7 @@ export const LABELS = Object.freeze({
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
 
     // ── Tuning panel (js/tuning-panel.js) ───────────────────────────────────
     // PARAMETERISED entries, written through data-i18n-vars. Contract §6: the
@@ -993,7 +993,7 @@ export const LABELS = Object.freeze({
     'alt.snail':            { en: { t: 'Snail' }, fr: { t: 'Escargot', reviewed: true } },
     'aria.settings':        { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true } },
     'aria.langSelect':      { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle':      { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.helpToggle':      { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
     'aria.doubleClickEdit': { en: { t: 'Double-click to edit' }, fr: { t: 'Double-cliquer pour modifier', reviewed: true } },
 });
 
