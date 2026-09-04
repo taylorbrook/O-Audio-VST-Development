@@ -1,5 +1,142 @@
 # O-Octagon Changelog
 
+## v1.12.0 (2026-09-04)
+
+Simplified Chinese. MINOR: a third language on the hover-help and label tables,
+plus the geometry pins that make it fit. No parameter, range, type or state
+format changed, and no English or French string moved except one factual
+correction noted below.
+
+### Added
+
+- **`zh-Hans` across the whole page — 187 entries (59 tooltip, 128 label),
+  246 back-translation rows.** `LANGUAGES` is now `['en', 'fr', 'zh-Hans']` and
+  the endonym `简体中文` sits beside `Français` in the selector, written as the
+  numeric references `&#31616;&#20307;&#20013;&#25991;` to match the
+  `Fran&ccedil;ais` convention already there. Every English label and tooltip
+  title that is a term in `scripts/i18n-zh-glossary.js` renders as that term's
+  ROOT; lint rule Z5 reports zero.
+- **The C++ language codec grew a third branch.** `languageCode()` and
+  `languageIndex()` in `PluginProcessor.h` now map index 2 to `"zh-Hans"`, both
+  halves pure ASCII — the BCP-47 tag is the one spelling of Chinese that crosses
+  the C++ boundary, and no Han codepoint exists anywhere in this plugin's
+  `Source/**/*.{h,cpp}`. The three stale comments claiming the codec "maps
+  anything that is not \"fr\" to 0" were repaired in the same pass.
+- **`tests/ui_layout_check.js` gained section 34 — a language arm, where it had
+  none.** Through v1.11.2 this 2302-line gate had NO language machinery of any
+  kind, so every box its thirty-three sections pin was pinned against English
+  alone. Section 34 reads `LANGUAGES` out of the plugin's own `js/i18n.js` and
+  FAILS rather than falling back to a default pair, derives its box set from the
+  gate file's own source so a section added later joins automatically, proves
+  each switch took by reading `#lang-select` back, sweeps BOTH screens, and
+  labels every failure with its language. Its positive control was fired:
+  reverting one width pin produced a `zh-Hans`-only FAIL with the `fr` arm still
+  green.
+
+### Changed
+
+- **The CJK font tail went on TWO CUSTOM PROPERTIES, not on 29 declarations.**
+  `index.html` carries zero `font-family` rules; all 29 live in
+  `css/styles.css` and every one is `var(--serif)` or `var(--mono)`, so
+  `, "PingFang SC", "Microsoft YaHei"` was appended to those two tokens.
+  The set was MEASURED — the page served, switched to Chinese, and
+  `getComputedStyle().fontFamily` read on every node that holds or can receive a
+  Han codepoint — never derived from the 170 `[data-i18n]` nodes, which would
+  have missed the `#tooltip` surface (filled from `data-tip` at hover time,
+  never keyed) and the endonym `<option>` (the only Han in the markup).
+  Exactly three stacks resolve Han; the third, a bare `Arial`, was LEFT ALONE
+  because it is Chromium's UA default on `<input type="range">` and is reached
+  only through `aria-label` — an accessible name is spoken, never rendered, so
+  there is no glyph to fall back for. Latin still resolves to Iowan Old Style
+  and ui-monospace first, so English geometry is unmoved.
+- **Line-height pinned on the caption classes Chinese moved, each at its own
+  measured English line box, unitless.** `styles.css` declared `line-height` on
+  two rules before this version, so every caption inherited the font's own
+  metrics and the first Chinese run moved 98 non-label elements in the default
+  state and 196 on the Venue screen. The two families round differently and one
+  number cannot serve the page: the serif floors to 10 px → 13.00,
+  11 px → 15.00, 12 px → 16.00, 9.5 px → 13.00, and the mono to 9 px → 10.00,
+  10 px → 11.00, 11 px → 13.00. A class appearing at two sizes took two pins.
+  **No global `line-height` was added** — a global one moves English geometry,
+  which is the regression these gates exist to catch.
+- **Five geometry pins for the width and wrap differences, each measured in all
+  three languages and pinned at the widest or tallest.** Chinese buys width and
+  spends height, so unlike French its failures are SHRINKS:
+
+  | node | EN | FR | zh | pin |
+  |---|---|---|---|---|
+  | `#readout-label-source` | 54.95 | 54.95 | 12.42 | `min-width: 55px` |
+  | `.plan-caption > .caption-key` | 35.91 | 35.91 | 37.27 | `min-width: 38px` |
+  | `.rail-line .cell-label` | 19.55 | 19.78 | 39.64 | `min-width: 40px` |
+  | `.out-pop-title` | 27.00 | 27.00 | 14.00 | `min-height: 27px` |
+  | `.out-pop-note` | 25.97 | 25.97 | 12.98 | `min-height: 26px` |
+
+  The last two are an UN-WRAP: both fit one line in Chinese where English and
+  French need two, so `#out-pop` reported `dh = -26` and pulled all eight output
+  buttons 13 px *up*. The `.plan-caption` pin carries `:not(.caption-field)`
+  because without it, at specificity (0,2,0) and later in the file, it silently
+  overrode v1.9.0's `.caption-field { min-width: 50px }` and moved
+  `#field-legend` 8.1 px on the FRENCH arm — a regression caught only because
+  `check-ui-labels` drives every language in one run.
+- **`tip.lang-select` no longer enumerates the available languages.** Both the
+  English and French bodies read "English and French are available" / "l'anglais
+  et le français sont disponibles", which the third `<option>` made false. The
+  enumeration was REMOVED rather than extended: naming all three would put Han
+  inside the `en` and `fr` bodies, moving the English tooltip's own geometry and
+  dragging the CJK tail onto the baseline every gate measures against. The
+  selector already lists the languages in their endonyms, which is the one form
+  a reader recognises without already knowing the page language.
+
+### Notes
+
+- **NO new `BUDGETS` cell was needed, and that is a measurement, not an
+  omission.** `styles.css` carries eleven `text-transform: uppercase` rules and
+  `text-transform` is a NO-OP on Han, so an English caption renders uppercased
+  and wider while its Chinese counterpart does not. Assertion 4 of
+  `check-ui-labels` passed on all three arms — no Chinese caption exceeds its own
+  content box — and every already-pinned cell has room: `.caption-field` 50 px
+  holds 声场, `#readout-label-envelope` 82 px holds 包络, `#btn-scene-store`
+  46 px holds 存储. The three existing budget cells are O-Chorus's and are
+  untouched.
+- **The `<meta charset>` at byte 2926 is past the 1024-byte prescan window, and
+  it was never the encoding guarantee.** `PluginEditor::getResource()` already
+  serves `index.html` as `text/html; charset=utf-8`, so the transport header
+  carries it. The numeric-entity endonym is belt-and-braces.
+- No localized node on this page renders at or below 9 px in Chinese, so the
+  ≤9 px legibility tier the rollout discloses does not apply here. The venue
+  table heads and the rake keys are 9 px and are pinned, but they hold Latin or
+  two-glyph Han that clears the tier's concern.
+
+### Review status — READ THIS BEFORE TRUSTING A CHINESE STRING
+
+**All 187 entries ship at `reviewed: 'bt'`, the SECOND of three levels, and
+this project has NO NATIVE CHINESE READER.** Nobody who reads Chinese as a first
+language has looked at any string in this plugin. That is a DISCLOSED quality
+level, not a hidden one: lint rule R1 prints the count below the bar on every
+run, and shipping at this level is a decision — shipping at it silently would be
+a defect. The third level stays open and is not a blocker.
+
+What `'bt'` asserts here: every one of the 246 rows was drafted, emitted with the
+English withheld and the row ids BLINDED (opaque 12-hex under a per-batch salt,
+so an id like `label.rolloff` cannot leak the English word it is meant to
+recover), read back into English by a separate pass that had never seen this
+plugin's source, and then read triple by triple. Both blinding controls were
+fired on the batch itself: 246/246 ids matched `^[0-9a-f]{12}$`, and a grep for
+plugin names and key fragments returned 0. The provenance strings, which
+`--ingest` refuses to accept as missing or identical, were:
+
+- forward — `forward zh-Hans draft authored by the Stage-3 Task-1 executor
+  (Claude Opus 4.6, GSD quick-260904-g5l), 2026-09-04`
+- reverse — `reverse pass: blind zh->en by claude-sonnet-5 subagent, batch file
+  only, no manifest, no plugin context, 2026-09-04`
+
+246 joined, 0 refused, 0 unjoinable. **No triple said something its English did
+not, so no Chinese word was changed.** One whitespace-only correction was made
+after the read — two stray spaces between Han runs in the `puck` body, which no
+lint rule catches because Z4 polices the Latin/Han boundary only. The accepted
+drifts and the single one that needed a decision (`aria.scene-store`) are each
+recorded with their reason in the `js/i18n.js` header.
+
 ## v1.11.2 (2026-09-03)
 
 The French rendering of the hover-help surface changes suite-wide (task

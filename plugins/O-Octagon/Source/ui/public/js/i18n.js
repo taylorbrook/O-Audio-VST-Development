@@ -39,20 +39,65 @@
 // project reads Chinese: 'mt' (machine draft), 'bt' (back-translated through an
 // INDEPENDENT reverse pass), 'native'.
 //
-// EVERY ENTRY IS AT 'mt' AS THIS COMMENT IS WRITTEN, and that is deliberate,
-// not an oversight. The 246-row batch has been emitted with
-// `scripts/i18n-zh-backtranslate.js --emit O-Octagon --plugin O-Octagon`, ids
-// blinded to opaque 12-hex under a per-batch salt, English withheld. Until a
-// SEPARATE pass — one that has never seen this plugin's English source — has
-// read that Chinese back into English and the 246 triples have been read,
-// 'bt' would be claiming a review that did not happen. The session that wrote
-// the Chinese cannot be the session that blindly reverses it: it would
-// round-trip its own vocabulary and read clean while the Chinese was wrong,
-// which is the single failure the flag exists to prevent.
+// ALL 187 ENTRIES ARE AT 'bt' — the SECOND of the three levels. Each was
+// drafted, then read back against its English through an INDEPENDENT reverse
+// pass, triple by triple, all 246 rows.
 //
-// lint rule R1 prints the count below the bar on every run, so this state is
-// DISCLOSED rather than hidden. `node scripts/i18n-zh-lint.js --plugin
-// O-Octagon` currently reads "BELOW SHIP BAR ... 187".
+// WHAT MADE THE REVERSE PASS INDEPENDENT. `--emit` withholds the English from
+// the batch by design, and since 37c9b2ab the row IDS ARE BLINDED — opaque
+// 12-hex under a per-batch salt — because an id like `label.rolloff` leaks the
+// English word it is supposed to recover, and joining on real ids would hand
+// the answer to the pass being tested. Both blinding controls were fired on
+// THIS batch, not merely assumed to work: every one of the 246 ids matched
+// /^[0-9a-f]{12}$/, and `grep -cE 'O-|label\.|tip\.'` over the batch returned
+// 0 — no plugin name, no key fragment. The reverse pass was a different model
+// in a fresh session, handed the batch file and nothing else, explicitly
+// forbidden the repo and the manifest. `--ingest` refuses a provenance that is
+// missing or byte-identical to the forward one; both strings are recorded in
+// the manifest and named in the CHANGELOG, so the bar is auditable after the
+// fact. 246 joined, 0 REFUSED, 0 unjoinable.
+//
+// ── THE 246 TRIPLES: 0 CORRECTED, 1 TYPOGRAPHY FIX, THE REST ACCEPTED ───────
+//
+// NO TRIPLE SAID SOMETHING ITS ENGLISH DID NOT, so no Chinese WORD was changed.
+// The lexical score is a SORT KEY, not a verdict: the thirteen 0.00 rows are
+// all correct, and several 1.00 rows would still have needed reading. The
+// drifts worth recording, each with the reason it is not an error:
+//
+//   aria.scene-store   en "Arm store" -> 存储待命 -> en' "Store armed"
+//       THE ONLY ONE THAT NEEDED A DECISION. English names an ACTION and the
+//       reverse pass returned a STATE. Chinese does not mark the causative /
+//       stative distinction on a verb-object compound, so 存储待命 carries both
+//       readings and neither is available to disambiguate. KEPT, because the
+//       control is a TOGGLE whose aria-pressed already carries armed-vs-not:
+//       the accessible NAME should name the control, and the state belongs to
+//       the state attribute. Rewriting to a causative 使存储待命 would have
+//       duplicated aria-pressed in prose and, being a changed word, would have
+//       needed a second reverse pass to stay at 'bt'.
+//   label.plan     "Plan"  -> 平面图 -> "Floor plan"     more specific, and right
+//   label.field    "Field" -> 声场   -> "Sound field"    the DBAP field IS a sound field
+//   label.set      "Set"   -> 输出集 -> "Output set"     the deliberate expansion; see the
+//                                                       .rail-line pin in styles.css
+//   label.derive   "Derive"-> 计算   -> "Calculate"      matches the French "Calculer"
+//   rake           "Rake"  -> 坡度   -> "Slope"          audience rake IS the seating slope
+//   *ping*         "ping"  -> 激励   -> "stimulus"       the glossary root
+//   label.vcol.class "Class" -> 类别 -> "Category"       same sense, venue table column
+//   the eight aria.spkN.{x,y,z} "Speaker N X metres" -> "Speaker N, X coordinate (m)"
+//                                                       adds "coordinate", which is what X is
+//   plural / part-of-speech only: oo-roles, label.group.scenes, aria.scene-row,
+//       decorr, delay-derive — Chinese marks neither number nor part of speech.
+//
+// ONE STRING WAS CORRECTED AFTER THE READ, AND IT CHANGED NO TOKEN. Triple 96
+// (the `puck` body) showed 同时写入 源 X 与 源 Y — two stray U+0020 between Han
+// runs, from writing the caption name 源 X as if the space belonged to the word
+// rather than to the Latin boundary. Removed. This did NOT go back for a second
+// reverse pass, and the reason is that re-looping it would have been theatre:
+// Chinese has no word delimiter, an interior space is noise a reader steps over,
+// and every token either side is byte-identical. A scan of the whole table for
+// the same defect (/\p{Script=Han} \p{Script=Han}/u) now returns ZERO. Note
+// that no lint rule catches this: Z4 polices the Latin/Han boundary only, so a
+// space between two Han runs is invisible to it. It was found by READING, which
+// is the argument for reading all 246 rather than the twelve the tool prints.
 //
 // THE THIRD LEVEL STAYS OPEN AND IS NOT A BLOCKER. **This project has no native
 // Chinese reader.** Nobody who reads Chinese as a first language has looked at
@@ -268,7 +313,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '房间',
               b: '演出视图：平面图、源点、权重、场景、电平表以及 DBAP 声场。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tab-venue': {
         en: { t: 'Venue',
@@ -279,7 +324,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '场地',
               b: '定义这个厅堂的 42 个实测值：位置、微调电平、观众席坡度，'
                 + '另有场地文件、预设、输出顺序和验证激励。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The settings popover (v1.6.0) ───────────────────────────────────────
@@ -294,7 +339,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '设置',
               b: '选择这项悬停帮助的语言，并开启或关闭悬停帮助。'
                 + '两项选择都会随会话一同保存。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'lang-select': {
         // v1.12.0 — THE ENUMERATION WAS REMOVED, not extended (deviation Rule 1).
@@ -318,7 +363,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '语言',
               b: '这项悬停帮助所用的语言。'
                 + '页面上的标签会随之改变，但数字和单位符号保持不变。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // ONE key covering both states, never a state-swapped pair. applyI18n()
     // re-renders every tip straight from this table on a language change, so a
@@ -336,7 +381,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '悬停帮助',
               b: '当指针停在某个控件上时显示一段简短说明。'
                 + '该设置会随会话一同保存。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Banners ─────────────────────────────────────────────────────────────
@@ -349,7 +394,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '安全模式',
               b: '宿主协商出的是立体声，而不是 8 通道扩声系统，你听到的是一次折叠。'
                 + '在 Logic 中，请通过插件槽的立体声 → 7.1 条目插入。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'map-banner': {
         en: { t: 'Map invalid',
@@ -360,7 +405,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '映射无效',
               b: '某个扬声器标签已无法与协商得到的输出集对应，原因和需要修正的行都显示在这里。'
                 + '在修正之前，扩声系统会退回到简单的立体声分配。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     'monitor-banner': {
@@ -372,7 +417,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '监听折叠',
               b: '把八路解算后的馈送折叠到输出 1‑2，其余六路静音。'
                 + '离线导出中绝不包含，重新载入后不会保留，本窗口关闭时自动关闭。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'monitor-toggle': {
         en: { t: 'Monitor on headphones',
@@ -384,7 +429,7 @@ export const I18N = Object.freeze({
               b: '把八路扬声器馈送折叠成一对立体声，让作品在场地之外也能听到。'
                 + '位置、距离和双耳时间差都来自实测的场地几何。'
                 + '在 8 通道扩声系统上，这是一项无法进入离线渲染的试听辅助；在立体声总线上，它默认开启，随会话一同保存，并且就是总线的输出。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Room plan ───────────────────────────────────────────────────────────
@@ -395,9 +440,9 @@ export const I18N = Object.freeze({
               b: 'Faites glisser pour déplacer la source sur le plan — écrit Source X et Y ensemble. Double-cliquez ailleurs sur un bouton ou un curseur pour le réinitialiser.',
               reviewed: true },
         'zh-Hans': { t: '源',
-              b: '拖动即可在平面图上移动声源，同时写入 源 X 与 源 Y。'
+              b: '拖动即可在平面图上移动声源，同时写入源 X 与源 Y。'
                 + '双击别处的旋钮或推子可将其复位。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // {n} is a speaker number, substituted literally — not an I18N key. The
     // eight weight cells shared one sentence in the markup and share one entry
@@ -412,7 +457,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '权重 {n}',
               b: '扬声器 {n} 在 DBAP 解算中所占的份额，0 到 1。'
                 + '双击该图标可重新指定它的物理输出；双击推子可复位。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Position ────────────────────────────────────────────────────────────
@@ -424,7 +469,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '源 X',
               b: '声源的左右位置，按实测的扬声器包围盒解算，下方以米为单位的读数是实时的。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'srcY': {
         en: { t: 'Source Y',
@@ -434,7 +479,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '源 Y',
               b: '声源的前后位置，按实测的扬声器包围盒解算。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'srcZ': {
         en: { t: 'Source Z',
@@ -446,7 +491,7 @@ export const I18N = Object.freeze({
               b: '声源高度，−2 到 8 m。'
                 + '升向扬声器平面时更响也更清晰；升到阵列上方则远去（±6 dB 的距离感提示）。'
                 + '仰角带会把它对照坡度和各扬声器高度显示出来，标记会被限位，数值永远不会。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'width': {
         en: { t: 'Width',
@@ -457,7 +502,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '宽度',
               b: '把声源展开成围绕其位置的若干子点，最远相距 12 m，数值越大，在整个扩声系统上读到的像越宽。'
                 + '对立体声素材，它把左右两路拉到厅堂的不同区域；对单声道素材，请使用下方的去相关。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // ── v1.8.0 — the motion engine ──
     'gtab-position': {
@@ -469,7 +514,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '位置',
               b: '锚点：声源所在的位置、它的高度和宽度。'
                 + '运动开启时，锚点是平面图上那个空心的幽灵标记，轨迹随它一同移动。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'gtab-motion': {
         en: { t: 'Motion',
@@ -480,7 +525,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '运动',
               b: '围绕锚点生成的轨迹——环绕、8 字、扫掠、带种子的随机游走——以场地米为单位绘制，并锁定到宿主速度。'
                 + '开启运动后，平面图会画出声源将要走过的轨迹线。运动运行时那个点会亮起。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'motionOn': {
         en: { t: 'Run',
@@ -491,7 +536,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '运行',
               b: '启动轨迹。'
                 + '关闭时，插件的渲染与运动功能存在之前完全一致，逐比特相同；无论开关与否，三条位置轨道都不会被写入：运动是在它们之后叠加的一个偏移。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'motionPath': {
         en: { t: 'Path',
@@ -502,7 +547,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '路径',
               b: 'Orbit（椭圆，Ratio 决定短轴）、Figure-8（1:2 利萨如图形）、Sweep（一条带往返折返的直线）、'
                 + 'Drift（带种子的柏林游走，没有轨迹线，只有拖尾）、Pendulum（单轴摆动）和 Spiral（前半周期向内卷，后半周期向外展）。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'motionSync': {
         en: { t: 'Sync',
@@ -514,7 +559,7 @@ export const I18N = Object.freeze({
               b: 'Free 模式按速率以 Hz 运行。'
                 + '选择一个时值则把一个周期锁到宿主时钟上，1/4 是每拍一个周期，1 Bar 是每四拍一个周期（按 4/4 计），这样导出就对齐强拍并可重现；'
                 + '走带停止时，声源停在播放将要恢复的位置。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'motionRate': {
         en: { t: 'Rate',
@@ -525,7 +570,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '速率',
               b: 'Free 模式下每秒的周期数，0.01 到 4 Hz，中心在 0.3。'
                 + '当同步选为一个速度时值时，本参数被忽略。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'motionSize': {
         en: { t: 'Size',
@@ -536,7 +581,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '尺寸',
               b: '轨迹在场地米中的范围，一个 6 m 的环绕在任何厅堂里都是 6 m 宽。'
                 + '它可以走出扬声器阵列：外壳衰减和滚降会如实地建模这一点，而这也是任何宿主自动化都画不出来的动作。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'motionRatio': {
         en: { t: 'Ratio',
@@ -547,7 +592,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '比率',
               b: '短轴与长轴之比，0 到 1。'
                 + '1 得到一个圆；0 把 Orbit 和 Figure-8 压成一条线。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'motionAngle': {
         en: { t: 'Angle',
@@ -557,7 +602,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '角度',
               b: '让轨迹绕锚点旋转，这样 Sweep 或 Pendulum 在纵深型的厅堂里也能前后运行。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'motionHeight': {
         en: { t: 'Height',
@@ -568,7 +613,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '高度',
               b: '垂直方向的幅度，以米为单位，与同一相位耦合：一个环绕会倾斜成一个环，一个 8 字会变成一个瓣。'
                 + '它叠加到源 Z 之上；仰角带显示实时高度。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'motionPhase': {
         en: { t: 'Phase',
@@ -579,7 +624,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '相位',
               b: '周期从轨迹上的哪一点开始，以度为单位。'
                 + '把两个实例错开，就能让它们在同一拍上交错。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'motionSeed': {
         en: { t: 'Seed',
@@ -590,7 +635,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '种子',
               b: '仅对 Drift 有效。'
                 + '它挑选游走的形态，找到一个满意的形状后，预设就会保留它。同一会话的两次导出完全相同。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'decorr': {
         en: { t: 'Decorrelate',
@@ -602,7 +647,7 @@ export const I18N = Object.freeze({
               b: '让宽度在单声道素材上变得可闻。'
                 + '单靠宽度只是把两份完全相同的信号副本在厅堂中拉开，而两份相同的副本只会产生梳状滤波而不会变宽；这里给每份副本各自的全通网络，使它们共享频谱但不共享相位。'
                 + '默认关闭，并且在宽度为 0 时不起作用：两路馈送落在同一批扬声器上时，去相关只会让你失去相干相加。两路馈送重叠处电平最多会低 3 dB，那正是梳状滤波在消失。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Solve ───────────────────────────────────────────────────────────────
@@ -616,7 +661,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '滚降',
               b: 'DBAP 距离滚降，每距离加倍 3 到 12 dB。'
                 + '数值越高，能量越集中到最近的扬声器上；越低则铺满整个阵列。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'blur': {
         en: { t: 'Blur',
@@ -627,7 +672,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '模糊',
               b: '柔化解算所看到的距离差异，模糊到最大时声源会铺满整个阵列。'
                 + '它按扩声系统的尺度缩放，而不是按米，因此同一组参数在小俱乐部和大厅里含义相同。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Space ───────────────────────────────────────────────────────────────
@@ -639,7 +684,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '外壳衰减',
               b: '声源越出扬声器外壳时衰减的强弱。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'airAmount': {
         en: { t: 'Air',
@@ -649,7 +694,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '空气',
               b: '与距离相关的空气滤波，声源离阵列越远，高频衰减越多，截止频率由场地几何推导得出。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Output ──────────────────────────────────────────────────────────────
@@ -661,7 +706,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '输出',
               b: '八个通道的总电平微调。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Scenes ──────────────────────────────────────────────────────────────
@@ -674,7 +719,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '存储',
               b: '先让它待命，再点击一个 U 槽，把当前的八个权重写入其中。'
                 + '一次捕获之后自动解除待命。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'scene-all': {
         en: { t: 'All',
@@ -684,7 +729,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '全部',
               b: '八个扬声器全部处于最大权重。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'scene-front': {
         en: { t: 'Front',
@@ -694,7 +739,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '前',
               b: '仅前方的扬声器，成员由实测几何推导，而不是由固定的槽位编号决定。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'scene-rear': {
         en: { t: 'Rear',
@@ -704,7 +749,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '后',
               b: '仅后方的扬声器，由实测几何推导。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'scene-left': {
         en: { t: 'Left',
@@ -714,7 +759,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '左',
               b: '仅左侧的扬声器，由实测几何推导。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'scene-right': {
         en: { t: 'Right',
@@ -724,7 +769,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '右',
               b: '仅右侧的扬声器，由实测几何推导。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'scene-sides': {
         en: { t: 'Sides',
@@ -734,7 +779,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '侧向',
               b: '仅侧面的扬声器，由实测几何推导。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // {n} is a slot number, substituted literally. The body names the STORE
     // button by the face the reader can actually see, which since the LABELS
@@ -750,7 +795,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '用户场景 {n}',
               b: '点击可调出这个已存储的权重场景。'
                 + '先让“存储”待命，才能把当前权重写入其中。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Elevation strip ─────────────────────────────────────────────────────
@@ -763,7 +808,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '仰角',
               b: '从侧面看到的厅堂：坡度线、各扬声器高度和声源标记。'
                 + '“耳”是声源下方的听音高度；“源”是它的绝对高度。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Venue screen ────────────────────────────────────────────────────────
@@ -776,7 +821,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '坡度',
               b: '观众席坡度，即座席前端和后端的耳朵高度。'
                 + '中间的高度沿厅堂纵深插值得到。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'delay': {
         en: { t: 'Alignment delay',
@@ -787,7 +832,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '对齐延迟',
               b: '逐扬声器的延迟，使各路声音在某一个座位上同时到达。'
                 + '“计算”会依据实测距离填满全部八个值；之后每个值仍可编辑。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'delay-unit': {
         en: { t: 'Delay unit',
@@ -798,7 +843,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '延迟单位',
               b: '把“延迟”列显示为毫秒，或显示为路程差的米数。'
                 + '两种情况下数值都以毫秒存储。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'delay-derive': {
         en: { t: 'Derive delays',
@@ -809,7 +854,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '计算延迟',
               b: '填入全部八个延迟，使各路声音在阵列中心、在坡度给出的该纵深处的耳朵高度上同时到达。'
                 + '最远的扬声器取零。之后每个值仍可编辑。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'output-set': {
         en: { t: 'Output set',
@@ -819,7 +864,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '输出集',
               b: '宿主协商得到的环绕格式，扬声器标签必须能与它对应。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'venue-save': {
         en: { t: 'Save venue',
@@ -829,7 +874,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '保存场地',
               b: '把 42 个实测值写入一个 venue 文件，与音乐预设互不相干。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'venue-load': {
         en: { t: 'Load venue',
@@ -840,7 +885,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '载入场地',
               b: '载入一个 venue 文件。'
                 + '如果其中的标签无法与协商得到的输出集对应，则会被拒绝。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'preset-list': {
         en: { t: 'Preset',
@@ -850,7 +895,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '预设',
               b: '音乐预设包含 28 个参数和四个用户场景，绝不包含 42 个实测场地值。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'preset-save': {
         en: { t: 'Save preset',
@@ -860,7 +905,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '保存预设',
               b: '把当前的参数和用户场景保存为一个预设。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'preset-load': {
         en: { t: 'Load preset',
@@ -870,7 +915,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '载入预设',
               b: '载入所选预设。场地不受影响。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'oo-direct': {
         en: { t: 'Direct 1–8',
@@ -881,7 +926,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '直达 1–8',
               b: '按实测的 CoreAudio 设备顺序，把扬声器 n 接到物理输出 n，'
                 + '这是为按 1 到 8 布线的扩声系统准备的一键修正。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'oo-roles': {
         en: { t: 'Roles',
@@ -891,7 +936,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '角色',
               b: '恢复出厂的环绕角色标签。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'ping-grid': {
         en: { t: 'Verify ping',
@@ -902,7 +947,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '验证激励',
               b: '从某一个扬声器发出一次确认激励。'
                 + '亮起的编号是插件报告正在播放的那一个，而不是一个计时器。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'ping-auto': {
         en: { t: 'Auto ping',
@@ -912,7 +957,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '自动激励',
               b: '让激励按顺序依次经过全部八个扬声器。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'ping-stop': {
         en: { t: 'Stop',
@@ -922,7 +967,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '停止',
               b: '停止激励。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Footer readouts ─────────────────────────────────────────────────────
@@ -934,7 +979,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '源',
               b: '以米表示的声源位置，按实时的场地几何解算。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'readout-envelope': {
         en: { t: 'Envelope',
@@ -944,7 +989,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '包络',
               b: '绘制的平面图范围，以米为单位，即扬声器包围盒加上它的边距。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
@@ -1027,9 +1072,9 @@ export const LABELS = Object.freeze({
     // The product name itself is I18N_EXEMPT; only the strapline is localized.
     'label.subtitle':    { en: { t: 'Eight · Channel DBAP' },
                            fr: { t: 'DBAP · Huit canaux', reviewed: true },
-                           'zh-Hans': { t: '八 · 通道 DBAP', reviewed: 'mt' } },
+                           'zh-Hans': { t: '八 · 通道 DBAP', reviewed: 'bt' } },
     'aria.screens':      { en: { t: 'Screen' },  fr: { t: 'Écran', reviewed: true },
-                                                 'zh-Hans': { t: '屏幕', reviewed: 'mt' } },
+                                                 'zh-Hans': { t: '屏幕', reviewed: 'bt' } },
 
     // ── Settings popover ────────────────────────────────────────────────────
     // 'lang-select', 'tips-toggle' and 'settings' come from I18N through
@@ -1038,24 +1083,24 @@ export const LABELS = Object.freeze({
     // is not the word printed on the On button.
     'aria.lang-select':  { en: { t: 'Hover help language' },
                            fr: { t: 'Langue des infobulles', reviewed: true },
-                           'zh-Hans': { t: '悬停帮助语言', reviewed: 'mt' } },
+                           'zh-Hans': { t: '悬停帮助语言', reviewed: 'bt' } },
     'label.on':          { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true },
-                                             'zh-Hans': { t: '开', reviewed: 'mt' } },
+                                             'zh-Hans': { t: '开', reviewed: 'bt' } },
     'label.off':         { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: true },
-                                             'zh-Hans': { t: '关', reviewed: 'mt' } },
+                                             'zh-Hans': { t: '关', reviewed: 'bt' } },
 
     // ── The three frame banners ─────────────────────────────────────────────
     // The TAGS are small-caps badges in a fixed-width slot, so each French tag
     // was chosen to sit inside the English one's box wherever it could.
     'label.safe-tag':    { en: { t: 'SAFE' },    fr: { t: 'REPLI',    reviewed: true },
-                                                 'zh-Hans': { t: '安全', reviewed: 'mt' } },
+                                                 'zh-Hans': { t: '安全', reviewed: 'bt' } },
     'label.safe-copy':   { en: { t: 'Stereo fold — not the 8 · channel rig' },
                            fr: { t: 'Repli stéréo — pas le dispositif à 8 · canaux', reviewed: true },
-                           'zh-Hans': { t: '立体声折叠，不是 8 · 通道扩声系统', reviewed: 'mt' } },
+                           'zh-Hans': { t: '立体声折叠，不是 8 · 通道扩声系统', reviewed: 'bt' } },
     'label.map-tag':     { en: { t: 'MAP' },     fr: { t: 'AFFECT.',  reviewed: true },
-                                                 'zh-Hans': { t: '映射', reviewed: 'mt' } },
+                                                 'zh-Hans': { t: '映射', reviewed: 'bt' } },
     'label.monitor-tag': { en: { t: 'MONITOR' }, fr: { t: 'CONTRÔLE', reviewed: true },
-                                                 'zh-Hans': { t: '监听', reviewed: 'mt' } },
+                                                 'zh-Hans': { t: '监听', reviewed: 'bt' } },
 
     // The MAP banner's copy half. C++ sends a REASON CODE, never prose — see
     // MAP_REASON_COPY's replacement in app.js — so each code gets two entries:
@@ -1065,22 +1110,22 @@ export const LABELS = Object.freeze({
     // that a single key would need at its call site.
     'map.notEightChannels':     { en: { t: 'output set is not 8 channels' },
                                   fr: { t: 'le jeu de sorties n’a pas 8 canaux', reviewed: true },
-                                  'zh-Hans': { t: '输出集不是 8 通道', reviewed: 'mt' } },
+                                  'zh-Hans': { t: '输出集不是 8 通道', reviewed: 'bt' } },
     'map.notEightChannels.spk': { en: { t: 'output set is not 8 channels — speaker {n}' },
                                   fr: { t: 'le jeu de sorties n’a pas 8 canaux — haut-parleur {n}', reviewed: true },
-                                  'zh-Hans': { t: '输出集不是 8 通道——扬声器 {n}', reviewed: 'mt' } },
+                                  'zh-Hans': { t: '输出集不是 8 通道——扬声器 {n}', reviewed: 'bt' } },
     'map.labelNotInSet':        { en: { t: 'label not in the negotiated set' },
                                   fr: { t: 'libellé absent du jeu négocié', reviewed: true },
-                                  'zh-Hans': { t: '标签不在协商得到的集合中', reviewed: 'mt' } },
+                                  'zh-Hans': { t: '标签不在协商得到的集合中', reviewed: 'bt' } },
     'map.labelNotInSet.spk':    { en: { t: 'label not in the negotiated set — speaker {n}' },
                                   fr: { t: 'libellé absent du jeu négocié — haut-parleur {n}', reviewed: true },
-                                  'zh-Hans': { t: '标签不在协商得到的集合中——扬声器 {n}', reviewed: 'mt' } },
+                                  'zh-Hans': { t: '标签不在协商得到的集合中——扬声器 {n}', reviewed: 'bt' } },
     'map.duplicateLabel':       { en: { t: 'duplicate label' },
                                   fr: { t: 'libellé en double', reviewed: true },
-                                  'zh-Hans': { t: '标签重复', reviewed: 'mt' } },
+                                  'zh-Hans': { t: '标签重复', reviewed: 'bt' } },
     'map.duplicateLabel.spk':   { en: { t: 'duplicate label — speaker {n}' },
                                   fr: { t: 'libellé en double — haut-parleur {n}', reviewed: true },
-                                  'zh-Hans': { t: '标签重复——扬声器 {n}', reviewed: 'mt' } },
+                                  'zh-Hans': { t: '标签重复——扬声器 {n}', reviewed: 'bt' } },
 
     // The MONITOR banner's copy half and the Venue rail's state line. Both are
     // written by renderMonitor() through setLabel(), so the language sweep owns
@@ -1088,7 +1133,7 @@ export const LABELS = Object.freeze({
     // banner stranded in English the instant the selector fired mid-fold.
     'monitor.folding':     { en: { t: 'Headphone fold — rig outputs muted' },
                              fr: { t: 'Repli casque — sorties du dispositif coupées', reviewed: true },
-                             'zh-Hans': { t: '耳机折叠——扩声系统输出已静音', reviewed: 'mt' } },
+                             'zh-Hans': { t: '耳机折叠——扩声系统输出已静音', reviewed: 'bt' } },
     // WIDTH, and it is the widest string on the whole page. The full form
     // "Désactivé pour l’export hors ligne — l’export est propre" measures
     // 370.8 px against the English 311.2, which puts the banner at 461.7 in a
@@ -1096,18 +1141,18 @@ export const LABELS = Object.freeze({
     // Shortened ONCE, here, in the table — never chosen at runtime (D-04).
     'monitor.suppressed':  { en: { t: 'Suppressed for offline render — bounce is clean' },
                              fr: { t: 'Désactivé hors ligne — l’export est propre', reviewed: true },
-                             'zh-Hans': { t: '离线渲染时停用——导出干净', reviewed: 'mt' } },
+                             'zh-Hans': { t: '离线渲染时停用——导出干净', reviewed: 'bt' } },
     'monitor.unavailable': { en: { t: 'unavailable on this output' },
                              fr: { t: 'indisponible sur cette sortie', reviewed: true },
-                             'zh-Hans': { t: '此输出上不可用', reviewed: 'mt' } },
+                             'zh-Hans': { t: '此输出上不可用', reviewed: 'bt' } },
     'monitor.armed':       { en: { t: 'armed — suppressed offline' },
                              fr: { t: 'armé — désactivé hors ligne', reviewed: true },
-                             'zh-Hans': { t: '已待命——离线时停用', reviewed: 'mt' } },
+                             'zh-Hans': { t: '已待命——离线时停用', reviewed: 'bt' } },
     'monitor.folding.rail':{ en: { t: 'folding to outputs 1–2' },
                              fr: { t: 'repli vers les sorties 1–2', reviewed: true },
-                             'zh-Hans': { t: '正折叠到输出 1–2', reviewed: 'mt' } },
+                             'zh-Hans': { t: '正折叠到输出 1–2', reviewed: 'bt' } },
     'monitor.off':         { en: { t: 'off' }, fr: { t: 'désactivé', reviewed: true },
-                                               'zh-Hans': { t: '关', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '关', reviewed: 'bt' } },
 
     // v1.11.0 — the stereo-bus binaural arm. The banner's copy half and the
     // rail line, through the same renderMonitor() / setLabel() path.
@@ -1116,42 +1161,42 @@ export const LABELS = Object.freeze({
     // 8 · canaux — bus stéréo", 358 px) crossing the 1100 px frame. Shortened ONCE, here.
     'monitor.binaural':    { en: { t: 'Binaural fold — stereo bus, not the rig' },
                              fr: { t: 'Repli binaural — bus stéréo, pas le dispositif', reviewed: true },
-                             'zh-Hans': { t: '双耳折叠——立体声总线，而非扩声系统', reviewed: 'mt' } },
+                             'zh-Hans': { t: '双耳折叠——立体声总线，而非扩声系统', reviewed: 'bt' } },
     'monitor.binaural.rail':{ en: { t: 'binaural on the stereo bus' },
                              fr: { t: 'binaural sur le bus stéréo', reviewed: true },
-                             'zh-Hans': { t: '立体声总线上的双耳折叠', reviewed: 'mt' } },
+                             'zh-Hans': { t: '立体声总线上的双耳折叠', reviewed: 'bt' } },
 
     // ── Room screen: the plan, the puck, the weights ────────────────────────
     'aria.puck':         { en: { t: 'Source position' },
                            fr: { t: 'Position de la source', reviewed: true },
-                           'zh-Hans': { t: '声源位置', reviewed: 'mt' } },
+                           'zh-Hans': { t: '声源位置', reviewed: 'bt' } },
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].flatMap((n) => [
         [`aria.w${n}`, { en: { t: `Weight ${n}` },
                          fr: { t: `Poids ${n}`, reviewed: true },
-                         'zh-Hans': { t: `权重 ${n}`, reviewed: 'mt' } }],
+                         'zh-Hans': { t: `权重 ${n}`, reviewed: 'bt' } }],
     ])),
 
     // The speaker→output popover.
     'label.speaker':     { en: { t: 'Speaker' },  fr: { t: 'H.-parleur', reviewed: true },
-                                                  'zh-Hans': { t: '扬声器', reviewed: 'mt' } },
+                                                  'zh-Hans': { t: '扬声器', reviewed: 'bt' } },
     // WIDTH: the caption sits in a 3-part title line inside a 168 px popover;
     // "Haut-parleur" is the correct full form and is used everywhere it fits.
     'label.to-output':   { en: { t: '→ output' }, fr: { t: '→ sortie', reviewed: true },
-                                                  'zh-Hans': { t: '→ 输出', reviewed: 'mt' } },
+                                                  'zh-Hans': { t: '→ 输出', reviewed: 'bt' } },
     'label.out-pop-note':{ en: { t: 'CoreAudio order · confirm with ping' },
                            fr: { t: 'Ordre CoreAudio · à confirmer par le ping', reviewed: true },
-                           'zh-Hans': { t: 'CoreAudio 顺序 · 用激励确认', reviewed: 'mt' } },
+                           'zh-Hans': { t: 'CoreAudio 顺序 · 用激励确认', reviewed: 'bt' } },
 
     // The plan caption. "Plan" is the same word in both languages.
     'label.plan':        { en: { t: 'Plan' },  fr: { t: 'Plan', sameAsEn: true, reviewed: true },
-                                               'zh-Hans': { t: '平面图', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '平面图', reviewed: 'bt' } },
     'label.field':       { en: { t: 'Field' }, fr: { t: 'Champ', reviewed: true },
-                                               'zh-Hans': { t: '声场', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '声场', reviewed: 'bt' } },
 
     // ── Controls column ─────────────────────────────────────────────────────
     'aria.gtabs':        { en: { t: 'Position or Motion' },
                            fr: { t: 'Position ou mouvement', reviewed: true },
-                           'zh-Hans': { t: '位置或运动', reviewed: 'mt' } },
+                           'zh-Hans': { t: '位置或运动', reviewed: 'bt' } },
     // 'gtab-position', 'gtab-motion', 'srcX', 'srcY', 'srcZ', 'width',
     // 'decorr', 'motionOn', 'motionPath', 'motionSync', 'motionRate',
     // 'motionSize', 'motionRatio', 'motionAngle', 'motionHeight',
@@ -1168,7 +1213,7 @@ export const LABELS = Object.freeze({
     'label.rolloff':     { en: { t: 'Rolloff' },
                            fr: { t: 'Décroissance', reviewed: true,
                                  termNote: 'DBAP distance rolloff — a dB-per-doubling attenuation law, not a filter slope; this page has a real filter (Air) and Pente would name that instead' },
-                           'zh-Hans': { t: '滚降', reviewed: 'mt' } },
+                           'zh-Hans': { t: '滚降', reviewed: 'bt' } },
     // THE REUSE RULE, applied. "Trajectoire" is right for a sentence and
     // measures 66.73 px in a caption track that reaches 52 even after v1.8.0
     // widened it (Stage N re-measured: 66.73, not the 66.7 recorded here —
@@ -1181,24 +1226,24 @@ export const LABELS = Object.freeze({
     // width-driven wording that should not worry a reviewer. Same shape as
     // Stage F's "Suivi tonal", and it is recorded here for the same reason. */
     'label.motionPath':  { en: { t: 'Path' },       fr: { t: 'Tracé', reviewed: true },
-                                                    'zh-Hans': { t: '路径', reviewed: 'mt' } },
+                                                    'zh-Hans': { t: '路径', reviewed: 'bt' } },
     // The tip title is the full "Hull attenuation"; the cell carries the
     // abbreviation the English markup already used.
     'label.hullAtten':   { en: { t: 'Hull Atten' }, fr: { t: 'Att. env.', reviewed: true },
-                                                    'zh-Hans': { t: '外壳衰减', reviewed: 'mt' } },
+                                                    'zh-Hans': { t: '外壳衰减', reviewed: 'bt' } },
     'aria.hullAtten':    { en: { t: 'Hull Atten' },
                            fr: { t: 'Atténuation hors enveloppe', reviewed: true },
-                           'zh-Hans': { t: '外壳衰减', reviewed: 'mt' } },
+                           'zh-Hans': { t: '外壳衰减', reviewed: 'bt' } },
 
     // Group headings. None of these has a tooltip of its own.
     'label.group.solve':   { en: { t: 'Solve' },    fr: { t: 'Calcul', reviewed: true },
-                                                    'zh-Hans': { t: '解算', reviewed: 'mt' } },
+                                                    'zh-Hans': { t: '解算', reviewed: 'bt' } },
     'label.group.space':   { en: { t: 'Space' },    fr: { t: 'Espace', reviewed: true },
-                                                    'zh-Hans': { t: '空间', reviewed: 'mt' } },
+                                                    'zh-Hans': { t: '空间', reviewed: 'bt' } },
     'label.group.output':  { en: { t: 'Output' },   fr: { t: 'Sortie', reviewed: true },
-                                                    'zh-Hans': { t: '输出', reviewed: 'mt' } },
+                                                    'zh-Hans': { t: '输出', reviewed: 'bt' } },
     'label.group.scenes':  { en: { t: 'Scenes' },   fr: { t: 'Scènes', reviewed: true },
-                                                    'zh-Hans': { t: '场景', reviewed: 'mt' } },
+                                                    'zh-Hans': { t: '场景', reviewed: 'bt' } },
 
     // ── Scenes row ──────────────────────────────────────────────────────────
     // UPPERCASE IS AUTHORED, not a text-transform: these seven captions are the
@@ -1206,37 +1251,37 @@ export const LABELS = Object.freeze({
     // French halves are authored uppercase too rather than relying on CSS that
     // is not there.
     'aria.scene-store':  { en: { t: 'Arm store' },     fr: { t: 'Armer la mémorisation', reviewed: true },
-                                                       'zh-Hans': { t: '存储待命', reviewed: 'mt' } },
+                                                       'zh-Hans': { t: '存储待命', reviewed: 'bt' } },
     'aria.scene-row':    { en: { t: 'Weight scenes' }, fr: { t: 'Scènes de poids', reviewed: true },
-                                                       'zh-Hans': { t: '权重场景', reviewed: 'mt' } },
+                                                       'zh-Hans': { t: '权重场景', reviewed: 'bt' } },
     'label.store':       { en: { t: 'STORE' }, fr: { t: 'MÉM.',   reviewed: true },
-                                               'zh-Hans': { t: '存储', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '存储', reviewed: 'bt' } },
     'label.all':         { en: { t: 'ALL' },   fr: { t: 'TOUS',   reviewed: true },
-                                               'zh-Hans': { t: '全部', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '全部', reviewed: 'bt' } },
     'label.front':       { en: { t: 'FRONT' }, fr: { t: 'AVANT',  reviewed: true },
-                                               'zh-Hans': { t: '前', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '前', reviewed: 'bt' } },
     'label.rear':        { en: { t: 'REAR' },  fr: { t: 'ARR.',   reviewed: true },
-                                               'zh-Hans': { t: '后', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '后', reviewed: 'bt' } },
     'label.left':        { en: { t: 'LEFT' },  fr: { t: 'GAUCHE', reviewed: true },
-                                               'zh-Hans': { t: '左', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '左', reviewed: 'bt' } },
     'label.right':       { en: { t: 'RIGHT' }, fr: { t: 'DROITE', reviewed: true },
-                                               'zh-Hans': { t: '右', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '右', reviewed: 'bt' } },
     'label.sides':       { en: { t: 'SIDES' }, fr: { t: 'CÔTÉS',  reviewed: true },
-                                               'zh-Hans': { t: '侧向', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '侧向', reviewed: 'bt' } },
 
     // ── Elevation strip ─────────────────────────────────────────────────────
     'label.ear':         { en: { t: 'Ear' },    fr: { t: 'Oreille', reviewed: true },
-                                                'zh-Hans': { t: '耳', reviewed: 'mt' } },
+                                                'zh-Hans': { t: '耳', reviewed: 'bt' } },
     'label.source':      { en: { t: 'Source' }, fr: { t: 'Source', sameAsEn: true, reviewed: true },
-                                                'zh-Hans': { t: '源', reviewed: 'mt' } },
+                                                'zh-Hans': { t: '源', reviewed: 'bt' } },
     'label.envelope':    { en: { t: 'Envelope' }, fr: { t: 'Enveloppe', reviewed: true },
-                                                  'zh-Hans': { t: '包络', reviewed: 'mt' } },
+                                                  'zh-Hans': { t: '包络', reviewed: 'bt' } },
 
     // ── Venue screen: the table head ────────────────────────────────────────
     'label.vcol.label':  { en: { t: 'Label' },   fr: { t: 'Libellé', reviewed: true },
-                                                 'zh-Hans': { t: '标签', reviewed: 'mt' } },
+                                                 'zh-Hans': { t: '标签', reviewed: 'bt' } },
     'label.vcol.trim':   { en: { t: 'Trim dB' }, fr: { t: 'Corr. dB', reviewed: true },
-                                                 'zh-Hans': { t: '微调 dB', reviewed: 'mt' } },
+                                                 'zh-Hans': { t: '微调 dB', reviewed: 'bt' } },
     // SPLIT OUT OF ITS <th>. The header cell holds this caption AND the
     // #vcol-delay-unit value span, so the caption needed its own leaf: a keyed
     // element with element children would have its siblings deleted by
@@ -1244,68 +1289,68 @@ export const LABELS = Object.freeze({
     'label.vcol.delay':  { en: { t: 'Delay' },
                            fr: { t: 'Retard', reviewed: true,
                                  termNote: 'loudspeaker alignment delay, not the effect — the glossary names this plugin as the case' },
-                           'zh-Hans': { t: '延迟', reviewed: 'mt' } },
+                           'zh-Hans': { t: '延迟', reviewed: 'bt' } },
     'label.vcol.class':  { en: { t: 'Class' },   fr: { t: 'Classe', reviewed: true },
-                                                 'zh-Hans': { t: '类别', reviewed: 'mt' } },
+                                                 'zh-Hans': { t: '类别', reviewed: 'bt' } },
 
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].flatMap((n) => [
         [`aria.spk${n}.label`, { en: { t: `Speaker ${n} channel label` },
                                  fr: { t: `Libellé de canal du haut-parleur ${n}`, reviewed: true },
-                                 'zh-Hans': { t: `扬声器 ${n} 的通道标签`, reviewed: 'mt' } }],
+                                 'zh-Hans': { t: `扬声器 ${n} 的通道标签`, reviewed: 'bt' } }],
         [`aria.spk${n}.x`,     { en: { t: `Speaker ${n} X metres` },
                                  fr: { t: `Haut-parleur ${n}, X en mètres`, reviewed: true },
-                                 'zh-Hans': { t: `扬声器 ${n}，X 坐标（米）`, reviewed: 'mt' } }],
+                                 'zh-Hans': { t: `扬声器 ${n}，X 坐标（米）`, reviewed: 'bt' } }],
         [`aria.spk${n}.y`,     { en: { t: `Speaker ${n} Y metres` },
                                  fr: { t: `Haut-parleur ${n}, Y en mètres`, reviewed: true },
-                                 'zh-Hans': { t: `扬声器 ${n}，Y 坐标（米）`, reviewed: 'mt' } }],
+                                 'zh-Hans': { t: `扬声器 ${n}，Y 坐标（米）`, reviewed: 'bt' } }],
         [`aria.spk${n}.z`,     { en: { t: `Speaker ${n} Z metres` },
                                  fr: { t: `Haut-parleur ${n}, Z en mètres`, reviewed: true },
-                                 'zh-Hans': { t: `扬声器 ${n}，Z 坐标（米）`, reviewed: 'mt' } }],
+                                 'zh-Hans': { t: `扬声器 ${n}，Z 坐标（米）`, reviewed: 'bt' } }],
         [`aria.spk${n}.trim`,  { en: { t: `Speaker ${n} trim dB` },
                                  fr: { t: `Haut-parleur ${n}, correction en dB`, reviewed: true },
-                                 'zh-Hans': { t: `扬声器 ${n}，微调电平（dB）`, reviewed: 'mt' } }],
+                                 'zh-Hans': { t: `扬声器 ${n}，微调电平（dB）`, reviewed: 'bt' } }],
         [`aria.spk${n}.delay`, { en: { t: `Speaker ${n} alignment delay` },
                                  fr: { t: `Haut-parleur ${n}, retard d’alignement`, reviewed: true },
-                                 'zh-Hans': { t: `扬声器 ${n}，对齐延迟`, reviewed: 'mt' } }],
+                                 'zh-Hans': { t: `扬声器 ${n}，对齐延迟`, reviewed: 'bt' } }],
     ])),
 
     // ── Venue screen: the rail ──────────────────────────────────────────────
     'aria.rake-front':   { en: { t: 'Rake front metres' },
                            fr: { t: 'Inclinaison, avant en mètres', reviewed: true },
-                           'zh-Hans': { t: '坡度，前端米数', reviewed: 'mt' } },
+                           'zh-Hans': { t: '坡度，前端米数', reviewed: 'bt' } },
     'aria.rake-rear':    { en: { t: 'Rake rear metres' },
                            fr: { t: 'Inclinaison, arrière en mètres', reviewed: true },
-                           'zh-Hans': { t: '坡度，后端米数', reviewed: 'mt' } },
+                           'zh-Hans': { t: '坡度，后端米数', reviewed: 'bt' } },
     // The rake row's two keys are Title Case where the scenes row is uppercase,
     // and they are different words in French too, so they are separate keys.
     'label.rake-front':  { en: { t: 'Front' }, fr: { t: 'Avant',   reviewed: true },
-                                               'zh-Hans': { t: '前', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '前', reviewed: 'bt' } },
     'label.rake-rear':   { en: { t: 'Rear' },  fr: { t: 'Arrière', reviewed: true },
-                                               'zh-Hans': { t: '后', reviewed: 'mt' } },
+                                               'zh-Hans': { t: '后', reviewed: 'bt' } },
     // The tip title is the full "Alignment delay"; the rail caption is short.
     'label.delay':       { en: { t: 'Delay' },
                            fr: { t: 'Retard', reviewed: true,
                                  termNote: 'loudspeaker alignment delay, not the effect — the glossary names this plugin as the case' },
-                           'zh-Hans': { t: '延迟', reviewed: 'mt' } },
+                           'zh-Hans': { t: '延迟', reviewed: 'bt' } },
     'label.derive':      { en: { t: 'Derive' }, fr: { t: 'Calculer', reviewed: true },
-                                                'zh-Hans': { t: '计算', reviewed: 'mt' } },
+                                                'zh-Hans': { t: '计算', reviewed: 'bt' } },
     // The tip title is "Output set"; the caption is the one word.
     'label.set':         { en: { t: 'Set' },    fr: { t: 'Jeu', reviewed: true },
-                                                'zh-Hans': { t: '输出集', reviewed: 'mt' } },
+                                                'zh-Hans': { t: '输出集', reviewed: 'bt' } },
 
     'label.group.venue-file':   { en: { t: 'Venue file' },
                                   fr: { t: 'Fichier de lieu', reviewed: true },
-                                  'zh-Hans': { t: '场地文件', reviewed: 'mt' } },
+                                  'zh-Hans': { t: '场地文件', reviewed: 'bt' } },
     'label.group.preset':       { en: { t: 'Preset' },  fr: { t: 'Préréglage', reviewed: true },
-                                                        'zh-Hans': { t: '预设', reviewed: 'mt' } },
+                                                        'zh-Hans': { t: '预设', reviewed: 'bt' } },
     'label.group.output-order': { en: { t: 'Output order' },
                                   fr: { t: 'Ordre des sorties', reviewed: true },
-                                  'zh-Hans': { t: '输出顺序', reviewed: 'mt' } },
+                                  'zh-Hans': { t: '输出顺序', reviewed: 'bt' } },
     'label.group.ping':         { en: { t: 'Ping' },
                                   fr: { t: 'Ping', sameAsEn: true, reviewed: true },
-                                  'zh-Hans': { t: '激励', reviewed: 'mt' } },
+                                  'zh-Hans': { t: '激励', reviewed: 'bt' } },
     'label.group.monitor':      { en: { t: 'Monitor' }, fr: { t: 'Contrôle', reviewed: true },
-                                                        'zh-Hans': { t: '监听', reviewed: 'mt' } },
+                                                        'zh-Hans': { t: '监听', reviewed: 'bt' } },
 
     // RE-MEASURED at Stage N, and the v1.9.0 defence above it did not hold. The
     // venue and preset rows are 278 px, each .vbtn is 133 px border-box with a
@@ -1316,21 +1361,21 @@ export const LABELS = Object.freeze({
     // Three sibling plugins still ship the abbreviations; converging them is a
     // suite decision, recorded in the Stage N report rather than taken here.
     'label.save':        { en: { t: 'Save' },   fr: { t: 'Enregistrer', reviewed: true },
-                                                'zh-Hans': { t: '保存', reviewed: 'mt' } },
+                                                'zh-Hans': { t: '保存', reviewed: 'bt' } },
     'label.load':        { en: { t: 'Load' },   fr: { t: 'Charger', reviewed: true },
-                                                'zh-Hans': { t: '载入', reviewed: 'mt' } },
+                                                'zh-Hans': { t: '载入', reviewed: 'bt' } },
     'label.auto':        { en: { t: 'Auto' },   fr: { t: 'Auto', sameAsEn: true, reviewed: true },
-                                                'zh-Hans': { t: '自动', reviewed: 'mt' } },
+                                                'zh-Hans': { t: '自动', reviewed: 'bt' } },
     'label.headphones':  { en: { t: 'Headphones' }, fr: { t: 'Casque', reviewed: true },
-                                                    'zh-Hans': { t: '耳机', reviewed: 'mt' } },
+                                                    'zh-Hans': { t: '耳机', reviewed: 'bt' } },
 
     // The output-order advisory line, written by venue.js on the completion of
     // applyOutputOrderPreset. Localized through window.__setLabel for the same
     // reason the monitor line is: an English literal here is stranded English.
     'oo.direct':         { en: { t: 'direct 1–8' }, fr: { t: 'direct 1–8', sameAsEn: true, reviewed: true },
-                                                    'zh-Hans': { t: '直达 1–8', reviewed: 'mt' } },
+                                                    'zh-Hans': { t: '直达 1–8', reviewed: 'bt' } },
     'oo.roles':          { en: { t: 'roles' },   fr: { t: 'rôles', reviewed: true },
-                                                 'zh-Hans': { t: '角色', reviewed: 'mt' } },
+                                                 'zh-Hans': { t: '角色', reviewed: 'bt' } },
 });
 
 // ============================================================================
