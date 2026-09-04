@@ -81,8 +81,9 @@
 
 'use strict';
 
-const fs   = require('fs');
-const path = require('path');
+const fs     = require('fs');
+const path   = require('path');
+const crypto = require('crypto');
 const { pathToFileURL } = require('url');
 
 const LANG = 'zh-Hans';
@@ -165,21 +166,78 @@ function emit() {
     }
     return collect().then(({ results }) => {
         const rows = results.flatMap((r) => r.rows).filter((r) => r.zh);
+
         // THE ENGLISH IS WITHHELD. This is the independence mechanism, not an
         // oversight: a reverse pass that can see the source round-trips the
         // source's own vocabulary and reads clean while the Chinese is wrong.
-        const tsv = rows.map((r) => `${r.id}\t${String(r.zh).replace(/\t|\n/g, ' ')}`).join('\n') + '\n';
+        //
+        // Withholding the `en` column is not enough on its own. The real id is
+        // `O-Chorus|label|label.rate`, and the key names ARE the English —
+        // label.rate, label.depth, label.voices. For roughly every row the
+        // source was handed over in the adjacent column while the header
+        // declared it withheld. So the id is BLINDED: a per-batch salt, and
+        // each row's public id is a truncated sha256 over salt + NUL + real id.
+        //
+        // The salt is per BATCH, which is what makes two emits of the same
+        // target share zero ids: a leaked batch cannot be cross-referenced
+        // against another batch, and the manifest is the only way back.
+        const salt = crypto.randomBytes(16).toString('hex');
+        const blindId = (realId, width) =>
+            crypto.createHash('sha256').update(`${salt}\0${realId}`).digest('hex').slice(0, width);
+
+        // Widen on collision rather than emit two rows sharing an id — a
+        // collision would silently merge two captions in the join.
+        let width = 12;
+        let ids = new Map();   // blinded -> real
+        for (; width <= 64; width += 4) {
+            ids = new Map();
+            for (const r of rows) ids.set(blindId(r.id, width), r.id);
+            if (ids.size === rows.length) break;
+        }
+        if (ids.size !== rows.length) {
+            console.log(`REFUSED: could not derive collision-free blinded ids for ${rows.length} rows even at 64 hex characters.`);
+            console.log('\nREPORT ONLY — exit 0. Nothing was written.');
+            return;
+        }
+
+        const blindedOf = new Map([...ids].map(([b, real]) => [real, b]));
+        // Sort by the blinded id. The natural emit order groups by plugin and
+        // then by label / title / body, and that structure is itself a hint the
+        // reverse pass should not see.
+        const emitRows = rows
+            .map((r) => ({ bid: blindedOf.get(r.id), zh: String(r.zh).replace(/\t|\n/g, ' ') }))
+            .sort((a, b) => (a.bid < b.bid ? -1 : a.bid > b.bid ? 1 : 0));
+
+        const tsv = emitRows.map((r) => `${r.bid}\t${r.zh}`).join('\n') + '\n';
         fs.writeFileSync(out, tsv, 'utf8');
+
+        // The manifest is now the ONLY route from a blinded row back to a live
+        // corpus row. If it is lost, the batch is unjoinable — which is the
+        // point: blinding must make ingest impossible without it rather than
+        // silently wrong.
+        const idMap = Object.fromEntries(ids);
+        if (Object.keys(idMap).length !== rows.length) {
+            console.log(`REFUSED: the id map covers ${Object.keys(idMap).length} of ${rows.length} rows.`);
+            console.log('\nREPORT ONLY — exit 0.');
+            return;
+        }
         const manifest = {
             emittedAt: new Date().toISOString(),
             target: target || '--all',
             rows: rows.length,
             forwardProvenance: val('--forward-provenance') || null,
-            note: 'The English source is deliberately absent from the batch. Return id \\t en-prime.',
+            blinded: true,
+            salt,
+            ids: idMap,
+            note: 'The English source is deliberately absent from the batch, and the row ids are '
+                + 'BLINDED so they carry neither the plugin name nor the i18n key. Return '
+                + 'blindedId \\t en-prime, with the id EXACTLY as received, unchanged. This '
+                + 'manifest is the only route back to the real rows — keep it, and do not send '
+                + 'it with the batch.',
         };
         fs.writeFileSync(`${out}.manifest.json`, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
-        console.log(`emitted ${rows.length} rows (id + zh only; the English is withheld) -> ${out}`);
-        console.log(`manifest -> ${out}.manifest.json`);
+        console.log(`emitted ${rows.length} rows (blinded id + zh only; the English and the key names are withheld) -> ${out}`);
+        console.log(`manifest -> ${out}.manifest.json   (the ONLY route back — do not send it with the batch)`);
         if (!rows.length) console.log('VACUITY: the corpus carries no zh-Hans string yet, so the batch is empty — nothing was emitted to translate back.');
     });
 }
@@ -321,13 +379,27 @@ async function ingest() {
         return;
     }
 
+    // The manifest's id map is the ONLY route from a blinded returned id back
+    // to a live corpus row. A batch with no map predates the blinding change
+    // and must be re-emitted rather than joined by guesswork.
+    if (!manifest.ids || typeof manifest.ids !== 'object' || !Object.keys(manifest.ids).length) {
+        return refuse([`${manifestPath} carries no id map.`,
+                       'This batch was emitted before the row ids were blinded, so there is no route from a',
+                       'returned id back to a corpus row except guessing that the returned id IS the real one —',
+                       'which is exactly the leak the blinding removed.'],
+                      { headline: 'the batch manifest carries no id map — a pre-blinding batch cannot be joined',
+                        remedy: ['Re-emit the batch with the current tool, then run the reverse pass again.'] });
+    }
+    const realOf = new Map(Object.entries(manifest.ids));
+
     const { results } = await collect();
     const byId = new Map(results.flatMap((r) => r.rows).map((r) => [r.id, r]));
 
     const triples = [];
     const orphans = [];
     for (const [id, enPrime] of returned) {
-        const row = byId.get(id);
+        const realId = realOf.get(id);
+        const row = realId ? byId.get(realId) : null;
         if (!row) { orphans.push(id); continue; }
         triples.push({ ...row, enPrime, s: score(row.en, enPrime) });
     }
@@ -341,6 +413,15 @@ async function ingest() {
     console.log(`  manifest: ${manifestPath}`);
     console.log(`  forward pass recorded at emit: ${JSON.stringify(fwd)}`);
     console.log(`  joined: ${triples.length}${orphans.length ? `   unjoinable ids: ${orphans.length}` : ''}\n`);
+    // Every returned id unjoinable is not partial drift — it is the WRONG
+    // manifest for this batch. Under blinded ids the two look identical from a
+    // `joined: 0` header above an empty triple list, so say it out loud.
+    if (returned.size && !triples.length) {
+        console.log(`  WRONG MANIFEST FOR THIS BATCH: all ${returned.size} returned ids are unjoinable, not one.`);
+        console.log(`  Blinded ids are salted PER BATCH, so a returned file joins only against the manifest of`);
+        console.log(`  the emit it came from. ${manifestPath} is a different batch's manifest (or the returned`);
+        console.log(`  ids were rewritten in transit — they must come back exactly as sent).\n`);
+    }
     for (const t of triples.slice(0, MAX_SHOWN)) {
         console.log(`  ${t.s.toFixed(2)}  ${t.id}`);
         console.log(`        en   ${t.en}`);
