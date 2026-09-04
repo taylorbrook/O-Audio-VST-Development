@@ -129,7 +129,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of the interface, and turn the hover help on or off. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: "Choisir la langue de l’interface et activer ou désactiver l’aide au survol. Les deux choix sont conservés avec la session.",
+              b: "Choisir la langue de l’interface et activer ou désactiver les infobulles. Les deux choix sont conservés avec la session.",
               reviewed: true },
     },
 
@@ -141,7 +141,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of the labels on this page and of this hover help. English and French are available; value readouts, note names and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de notes et les noms de préréglages restent en anglais.",
+              b: "La langue des libellés de cette page et de ces infobulles. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de notes et les noms de préréglages restent en anglais.",
               reviewed: true },
     },
 
@@ -191,7 +191,7 @@ export const I18N = Object.freeze({
     'help-toggle': {
         en: { t: 'Hover help',
               b: 'Show a short description when the pointer rests on a control. The setting is remembered with the session.' },
-        fr: { t: 'Aide au survol',
+        fr: { t: 'Infobulles',
               b: "Afficher une brève description lorsque le pointeur s’arrête sur une commande. Le réglage est conservé avec la session.",
               reviewed: true },
     },
@@ -677,7 +677,7 @@ export const LABELS = Object.freeze({
     'aria.presetPrev':  { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: true } },
     'aria.presetNext':  { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: true } },
     'aria.helpToggle':  { en: { t: 'Toggle hover help' },
-                          fr: { t: "Activer ou désactiver l’aide au survol", reviewed: true } },
+                          fr: { t: "Activer ou désactiver les infobulles", reviewed: true } },
     'aria.langSelect':  { en: { t: 'Interface language' },
                           fr: { t: "Langue de l’interface", reviewed: true } },
     'aria.settings':    { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true } },

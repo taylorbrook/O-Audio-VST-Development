@@ -13,7 +13,7 @@ juce_add_plugin(O-Contrabass
     # silently ignores). Without it the bundle Info.plist reports JUCE's 1.0.0
     # default, so v1.0.0 was correct only by coincidence and any future bump
     # would never have reached the built artefact.
-    VERSION 1.8.2
+    VERSION 1.8.3
 
     # Synthesizer configuration (juce8-critical-patterns #22)
     IS_SYNTH TRUE

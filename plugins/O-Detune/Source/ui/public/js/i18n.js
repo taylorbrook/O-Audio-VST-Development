@@ -383,7 +383,7 @@ export const I18N = Object.freeze({
         en: { t: "Interface language",
               b: "Switches every caption, accessible name and hover-help body on this page between English and Français. The value readouts stay as they are — they are numbers and units, which do not translate. The choice is saved with the session." },
         fr: { t: "Langue de l’interface",
-              b: "Bascule chaque légende, chaque nom accessible et chaque aide au survol de cette page entre English et Français. Les valeurs affichées ne changent pas : ce sont des nombres et des unités, qui ne se traduisent pas. Le choix est enregistré avec la session.",
+              b: "Bascule chaque légende, chaque nom accessible et chaque infobulle de cette page entre English et Français. Les valeurs affichées ne changent pas : ce sont des nombres et des unités, qui ne se traduisent pas. Le choix est enregistré avec la session.",
               reviewed: true },
     },
     // v1.8.0 — the switch that reaches this whole layer.
@@ -391,8 +391,8 @@ export const I18N = Object.freeze({
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this '
                + 'switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
@@ -594,7 +594,7 @@ export const LABELS = Object.freeze({
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
     'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
     'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
 
@@ -605,7 +605,7 @@ export const LABELS = Object.freeze({
     // translated. Nothing here is new prose.
     'aria.settings':     { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
     'aria.langSelect':   { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
     'aria.prevPreset':   { en: { t: 'Previous preset' },    fr: { t: 'Préréglage précédent',  reviewed: true } },
     'aria.nextPreset':   { en: { t: 'Next preset' },        fr: { t: 'Préréglage suivant',    reviewed: true } },
     // v1.7.1 — the accessible names take the glossary's settled forms. The

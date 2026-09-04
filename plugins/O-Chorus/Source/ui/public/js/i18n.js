@@ -615,7 +615,7 @@ export const I18N = Object.freeze({
                + 'and the hover-help switch. Press Escape to close it.' },
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau de réglages au-dessus de ce bouton. Il contient la langue '
-               + 'de l’interface et le commutateur d’aide au survol. Appuyez sur Échap pour '
+               + 'de l’interface et le commutateur des infobulles. Appuyez sur Échap pour '
                + 'le fermer.',
               reviewed: true },
         'zh-Hans': { t: '设置',
@@ -664,8 +664,8 @@ export const I18N = Object.freeze({
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this '
                + 'switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
         // reviewed: 'mt', NOT 'bt', and this is the one entry in the file
@@ -869,7 +869,7 @@ export const LABELS = Object.freeze({
     // help'), and the Chinese are the roots at scripts/i18n-zh-glossary.js for
     // the same four terms. They carry the same review marks the rest of this
     // file's roots carry for the same reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' } },
     'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true },        'zh-Hans': { t: '开', reviewed: 'bt' } },
     'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true },        'zh-Hans': { t: '关', reviewed: 'bt' } },
 
@@ -906,7 +906,7 @@ export const LABELS = Object.freeze({
                        'zh-Hans': { t: '设置', reviewed: 'bt' } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true },
                        'zh-Hans': { t: '界面语言', reviewed: 'bt' } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' },  fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' },  fr: { t: 'Activer ou désactiver les infobulles', reviewed: true },
                        'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' } },
 });
 
