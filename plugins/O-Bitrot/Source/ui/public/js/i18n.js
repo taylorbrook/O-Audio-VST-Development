@@ -18,7 +18,8 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bitrot hover-help copy, English + French (v1.15.1)
+// i18n.js — O-Bitrot page labels and hover-help: English, French and
+// Simplified Chinese (v1.16.0)
 //
 // ── v1.15.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -119,8 +120,143 @@
 // ALL FRENCH IS MACHINE-DRAFTED AND FLAGGED `reviewed: false`. No native
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
+//
+// ── v1.16.0: SIMPLIFIED CHINESE (zh-Hans rollout Stage 3, 2026-09-04) ───────
+//
+// 117 entries — 55 I18N (a title and a body each) + 62 LABELS (a title each) —
+// which is 172 back-translation rows. LANGUAGES is three long, the widening
+// shape check-i18n assertion [1] accepts alongside the two-language one.
+//
+// ── THE RENDERINGS ARE THE GLOSSARY'S, NOT THIS FILE'S ──────────────────────
+//
+// Every English string that is a TERMS key in scripts/i18n-zh-glossary.js takes
+// that term's ROOT rendering. Lint rule Z5 holds this file to them; the run is
+// ZERO findings across all nine rules (Z1 Z2 Z3 Z4 Z5 Z6 Z7 F1 R1).
+//
+// FOUR termNote EXEMPTIONS, and they are TWO homograph collisions, each one hit
+// twice because the caption and the tooltip title are separate rows:
+//
+//   Mains  -> 市电,   NOT the glossary root 主输出.
+//       Two senses of one English word. 主输出 is a mixer's main OUTPUT bus;
+//       this control names the 50/60 Hz hum frequency of a line-noise bed, and
+//       the root would label a thing that does not exist on this page. 市电 is
+//       the power supply. (label.mains, CODEC_MAINS)
+//
+//   Jitter -> 时基抖动, NOT the shared root 抖动.
+//       DITHER AND JITTER SHARE ONE GLOSSARY ROOT, and on this page they are
+//       TWO KNOBS TWO CELLS APART inside the same Crush plate. Rendering both
+//       抖动 would ship an identical caption on two different controls. Dither
+//       KEEPS the root — 抖动 is the DSP process's own Chinese name and takes no
+//       qualifier — and Jitter takes the standard qualified form 时基抖动,
+//       time-base jitter, which is what Chinese audio writing calls it.
+//       Qualifying jitter is idiomatic; qualifying dither is not. That
+//       asymmetry is why the root went to dither. (label.jitter, CRUSH_JITTER)
+//
+// TWO sameAsEn ENTRIES: label.agc and CODEC_AGC's title, both the token AGC.
+// Flagged rather than exempted, for the reason the French entry gives — an
+// identical string that is identical ON PURPOSE still needs a human to agree.
+//
+// TERMS THIS PLUGIN SETTLED that the 552-term glossary does not carry. Recorded
+// so the Stage-4 lo-fi/degradation plugins inherit rather than re-derive:
+//
+//     tape 磁带          hiss 嘶声 (root)     wow & flutter 慢抖与快抖
+//     dropout 失落       stop (tape) 停带     CD skip CD 跳碟
+//     locked groove 锁纹  groove jump 跳纹    vinyl 黑胶      pops 爆音
+//     rot (bit rot) 腐化  bit flip 位翻转     garble 乱码     sticky 卡死
+//     packet 数据包       loss rate 丢包率    burstiness 突发性
+//     concealment 丢包隐藏  comfort noise 舒适噪声
+//     codec 编解码器      line coding 线路编码  line noise 线路噪声
+//     mains (electrical) 市电   decimation 抽取   sample rate 采样率
+//     jitter 时基抖动     dither 抖动          seed 种子 (root)
+//     reseed 重设种子     splice 剪接          hard edges 硬边缘 (root)
+//     anti-shock loop 防震循环   servo seek 伺服寻道   sector 扇区
+//     warp (a disc) 扭曲 in the caption, 翘曲 in the BODIES — the glossary root
+//         is 扭曲 and Z5 requires it on the title, but the physical deformation
+//         of an LP is 翘曲 in Chinese and that is the word the two bodies use.
+//
+// ── THE TYPOGRAPHY RULES ────────────────────────────────────────────────────
+//   Z1  full-width punctuation throughout — ，。；、 never ASCII.
+//   Z2  NO U+00A0 anywhere. The French bodies on this same page carry them by
+//       rule; the full-width forms already carry their own sidebearing. Same
+//       file, opposite rule.
+//   Z4  ONE PLAIN U+0020 at every Latin/digit-to-Han boundary — "20 ms 数据包",
+//       "1.10 之前的会话", "μ-law 压扩或 GSM 全速率". Chosen once and applied
+//       TABLE-WIDE; the unspaced count is zero, so the rule holds by
+//       consistency rather than by majority.
+//   Z7  no full-width Latin or digits. Units stay ASCII — ms, Hz, kHz, LSB, %.
+//
+//   AND ONE NO LINT CAN SEE: a space between TWO HAN RUNS. Z4's census only
+//   matches a Latin/digit run adjacent to a Han run, so 写入 源 is invisible to
+//   it and to the other eight rules. O-Octagon shipped one and caught it by
+//   READING, not by a gate. This table was scanned for /\p{Script=Han}
+//   \p{Script=Han}/u and returns 0.
+//
+// ── THE CJK FONT TAIL: ONE TOKEN, ONE OMISSION ──────────────────────────────
+//
+// The tail is `, 'PingFang SC', 'Microsoft YaHei', sans-serif`. All 13
+// `font-family` declarations in index.html read `var(--serif)`, so it went on
+// the TOKEN — see the block at the top of the inline <style>.
+//
+// The set was MEASURED: the page served, switched to Chinese, and
+// getComputedStyle().fontFamily read on every node that holds OR CAN RECEIVE a
+// Han codepoint (own text, data-tip, data-tip-title, aria-label, data-label,
+// data-on/off/confirm). 118 nodes resolved through --serif. Two of them a
+// [data-i18n]-derived scan would have MISSED, and they are the same two
+// O-Chorus and O-Octagon found — the #tooltip surface, filled from data-tip at
+// hover time and never keyed, and the endonym <option>, the only Han in the
+// markup. That is now 3-for-3; treat it as universal.
+//
+// LEFT UNTOUCHED (1): #diceBtn.die resolves to Chromium's UA button default,
+// Arial. It is reached by the Han scan only through its data-tip — the die face
+// is the glyph U+2685 — and a data-tip paints into #tooltip, which IS --serif.
+// There is no Han glyph to fall back for. The omission is recorded because a
+// wave that appends the tail to everything it measured can no longer tell a
+// needed tail from a decorative one.
+//
+// ── GEOMETRY: CHINESE BUYS WIDTH AND SPENDS HEIGHT ──────────────────────────
+//
+// The first Chinese run moved 185 non-label elements. Nine CSS pins closed all
+// of them, and every value is a MEASURED English number — see the v1.16.0 block
+// in index.html for the table. Seven are unitless line-heights against
+// `line-height: normal`, which is the FONT'S OWN metrics; two are widths on
+// content-sized <select>s. NO GLOBAL line-height was added: a global one moves
+// English geometry, which is the regression the gates exist to catch.
+//
+// THE TWO <select>s MOVED IN OPPOSITE DIRECTIONS, and that is the finding:
+//   #viewSync   en 58 -> fr 65 -> zh 66   pinned 66   GREW
+//   PACKET_CONCEAL  en 82 -> fr 82 -> zh 57   pinned 82   SHRANK by 25 px
+// An assertion phrased "the non-English pass must not GROW box X" is VACUOUS
+// against Chinese. Assert equality, not an inequality.
+//
+// ── THE CHARACTER BUDGETS: NONE WAS ADDED, AND THE MEASUREMENT IS WHY ───────
+//
+// maxChars = floor(cellWidthPx / fontSizePx). A knob column is pinned at 64 px
+// and .ctl-label renders at 9.5 px, so the budget is 6 characters. The two
+// longest Chinese captions on the page are 时基抖动 and 舒适噪声, four each,
+// measuring 43.64 px in a 64 px cell. check-ui-labels assertion 4 passes on all
+// three arms. The three existing BUDGETS cells are O-Chorus's and are
+// UNTOUCHED; scripts/i18n-zh-glossary.js is not in this change.
+//
+// This is the opposite of French, where THREE of this page's captions had to be
+// abbreviated to fit — Prof., Dissim., Clics. Every Chinese caption here is
+// NARROWER than its English original except two.
+//
+// ── THE BAR IS reviewed: 'bt', AND WHAT THAT ASSERTS ────────────────────────
+//
+// 'bt' means a SECOND, INDEPENDENT pass — one that never saw the English source
+// — rendered the Chinese back into English, and the drift was read against the
+// original. 'native' stays OPEN and is NOT a blocker: THIS PROJECT HAS NO
+// NATIVE CHINESE READER, and that is a disclosed quality level rather than a
+// hidden one.
+//
+// AUTHOR AT 'mt'. Every entry below was inserted at 'mt' and promoted only
+// after the reverse pass, because a premature 'bt' is INVISIBLE to every
+// automated check in this repo: check-i18n accepts it as a valid enum member
+// and the zh lint's R1 only reports entries BELOW the bar. The flag is the one
+// field no gate can validate.
+// ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 export const I18N = Object.freeze({
 
@@ -133,8 +269,21 @@ export const I18N = Object.freeze({
         fr: { t: 'Réglages',
               b: 'Choisir la langue de ces infobulles et les activer ou les désactiver. Les deux choix sont conservés avec la session.',
               reviewed: true },
+        'zh-Hans': { t: '设置',
+                     b: '选择这些悬停帮助的语言，并开启或关闭悬停帮助。两项选择都会随会话一起保存。',
+                     reviewed: 'mt' },
     },
 
+    // v1.16.0: the body ENUMERATED its own options — "English and French are
+    // available" — which the new zh-Hans <option> made false in the shipped copy
+    // of BOTH languages. The enumeration is REMOVED rather than extended: naming
+    // all three would put Han inside the en and fr bodies, which moves the
+    // English tooltip's own geometry and drags the CJK tail onto the very
+    // baseline every gate measures against. The selector already lists the
+    // languages, in their endonyms — the one form a reader recognises without
+    // knowing the page language — so a body that counts them duplicates the
+    // control it describes and goes stale again at the next language added.
+    //
     // v1.15.0: through v1.14.0 this entry told the user, in both languages,
     // that the labels on the page do not change. That is now false — they do.
     // Rewritten to say what is true, INCLUDING the half that stayed true:
@@ -143,10 +292,13 @@ export const I18N = Object.freeze({
     // name IS the filename (D-02).
     'lang-select': {
         en: { t: 'Language',
-              b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts and preset names stay in English.' },
+              b: 'The language of this hover help and of the labels on the page. Value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. Les valeurs affichées et les noms de préréglages restent en anglais.',
               reviewed: true },
+        'zh-Hans': { t: '语言',
+                     b: '这些悬停帮助和页面标签的语言。数值读数与预设名称始终保持英文。',
+                     reviewed: 'mt' },
     },
 
     'preset-prev': {
@@ -155,6 +307,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Préréglage précédent',
               b: 'Revenir en arrière dans la liste des préréglages.',
               reviewed: true },
+
+        'zh-Hans': { t: '上一个预设',
+
+                 b: '在预设列表中后退一步。',
+
+                 reviewed: 'mt' },
     },
 
     'preset-next': {
@@ -163,6 +321,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Préréglage suivant',
               b: 'Avancer dans la liste des préréglages.',
               reviewed: true },
+
+        'zh-Hans': { t: '下一个预设',
+
+                 b: '在预设列表中前进一步。',
+
+                 reviewed: 'mt' },
     },
 
     'preset-select': {
@@ -171,6 +335,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Préréglage',
               b: 'Le préréglage actuellement chargé — cliquer pour les parcourir tous par catégorie. Les 28 préréglages d’usine sont en lecture seule ; enregistrer sous le même nom crée une copie utilisateur à la place.',
               reviewed: true },
+
+        'zh-Hans': { t: '预设',
+
+                 b: '当前载入的预设 —— 点击可按类别浏览全部预设。28 个出厂预设为只读；以同名保存时会改为写入一份用户副本。',
+
+                 reviewed: 'mt' },
     },
 
     'preset-save': {
@@ -179,6 +349,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Enregistrer',
               b: 'Enregistrer les réglages actuels comme préréglage utilisateur.',
               reviewed: true },
+
+        'zh-Hans': { t: '保存',
+
+                 b: '将当前设置保存为用户预设。',
+
+                 reviewed: 'mt' },
     },
 
     'preset-load': {
@@ -187,6 +363,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Charger',
               b: 'Charger un préréglage depuis un fichier.',
               reviewed: true },
+
+        'zh-Hans': { t: '载入',
+
+                 b: '从文件载入一个预设。',
+
+                 reviewed: 'mt' },
     },
 
     'preset-delete': {
@@ -195,6 +377,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Supprimer',
               b: 'Supprimer le préréglage utilisateur actuel. Un premier clic arme, un second confirme.',
               reviewed: true },
+
+        'zh-Hans': { t: '删除',
+
+                 b: '删除当前的用户预设。第一次点击进入待命，再次点击确认。',
+
+                 reviewed: 'mt' },
     },
 
     'help-toggle': {
@@ -203,6 +391,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Infobulles',
               b: 'Affiche une courte description lorsque le pointeur s’arrête sur une commande. Le réglage est conservé avec la session.',
               reviewed: true },
+
+        'zh-Hans': { t: '悬停帮助',
+
+                 b: '当指针停在某个控件上时显示一段简短说明。该设置会随会话一起保存。',
+
+                 reviewed: 'mt' },
     },
 
     'TAPE_ENABLE': {
@@ -211,6 +405,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Bande',
               b: 'Active la famille bande — arrêts de défilement, pertes d’oxyde, pleurage et scintillement, et souffle.',
               reviewed: true },
+
+        'zh-Hans': { t: '磁带',
+
+                 b: '启用磁带族 —— 停带动作、氧化层失落、慢抖与快抖，以及嘶声。',
+
+                 reviewed: 'mt' },
     },
 
     'TAPE_PROB': {
@@ -219,6 +419,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Probabilité',
               b: 'À quelle fréquence la famille bande déclenche un événement, par top d’horloge. À 0 la famille reste muette même si elle est activée.',
               reviewed: true },
+
+        'zh-Hans': { t: '概率',
+
+                 b: '磁带族每个时钟脉冲触发一次事件的频繁程度。为 0 时即使已启用，该族也保持静默。',
+
+                 reviewed: 'mt' },
     },
 
     'TAPE_STOP_PROB': {
@@ -227,6 +433,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Part d’arrêts',
               b: 'La part des événements de bande qui deviennent un arrêt-redémarrage complet plutôt qu’une perte de niveau.',
               reviewed: true },
+
+        'zh-Hans': { t: '停带占比',
+
+                 b: '磁带事件中成为完整停带再启动动作、而非一次失落的比例。',
+
+                 reviewed: 'mt' },
     },
 
     'TAPE_DROP': {
@@ -235,6 +447,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Part de pertes',
               b: 'La part des événements de bande qui deviennent une perte d’oxyde — une chute à 10–70 % du niveau avec un filtre mêlé. Les vraies pertes ne coupent presque jamais ; une coupure franche s’entend comme un montage.',
               reviewed: true },
+
+        'zh-Hans': { t: '失落占比',
+
+                 b: '磁带事件中成为氧化层失落的比例 —— 电平跌至 10–70%，并混入一个滤波器。真实的失落几乎从不完全静音；彻底静音听起来像一处剪辑。',
+
+                 reviewed: 'mt' },
     },
 
     'TAPE_WOW': {
@@ -243,6 +461,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Pleurage et scintillement',
               b: 'Profondeur de la dérive lente de vitesse et de son scintillement plus rapide. Ceci module la vitesse de lecture : sa pente est donc une variation de hauteur.',
               reviewed: true },
+
+        'zh-Hans': { t: '慢抖与快抖',
+
+                 b: '慢速漂移及其较快抖动的深度。它调制的是读取速率，因此其斜率就是音高。',
+
+                 reviewed: 'mt' },
     },
 
     'TAPE_HISS': {
@@ -251,6 +475,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Souffle',
               b: 'Niveau de la nappe de souffle de bande. Il joue dès que la famille est activée, indépendamment des événements.',
               reviewed: true },
+
+        'zh-Hans': { t: '嘶声',
+
+                 b: '磁带嘶声底层的电平。只要该族已启用就持续存在，与事件无关。',
+
+                 reviewed: 'mt' },
     },
 
     'TAPE_RAMP': {
@@ -259,6 +489,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Rampe d’arrêt',
               b: 'Le temps que met un arrêt à ralentir puis à repartir. 20–500 ms.',
               reviewed: true },
+
+        'zh-Hans': { t: '停带斜坡',
+
+                 b: '一次停带动作减速停止再重新起转所需的时间。20–500 ms。',
+
+                 reviewed: 'mt' },
     },
 
     'CD_ENABLE': {
@@ -267,6 +503,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Saut de CD',
               b: 'Active la famille CD — bégaiements de boucle anti-choc, bourdonnement quantifié au secteur et recherches de servo.',
               reviewed: true },
+
+        'zh-Hans': { t: 'CD 跳碟',
+
+                 b: '启用 CD 族 —— 防震循环卡顿、按扇区量化的嗡鸣，以及伺服寻道。',
+
+                 reviewed: 'mt' },
     },
 
     'CD_PROB': {
@@ -275,6 +517,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Probabilité',
               b: 'À quelle fréquence la famille CD déclenche un saut, par top d’horloge.',
               reviewed: true },
+
+        'zh-Hans': { t: '概率',
+
+                 b: 'CD 族每个时钟脉冲触发一次跳碟的频繁程度。',
+
+                 reviewed: 'mt' },
     },
 
     'CD_SEVERITY': {
@@ -283,6 +531,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Gravité',
               b: 'À quel point le disque est abîmé. Au-delà des seuils hauts, les fenêtres de boucle se quantifient sur le pas de secteur — le bourdonnement de la famille des 75 Hz d’une vraie boucle anti-choc — et les relâchements passent par une recherche de servo au lieu de se rétablir instantanément.',
               reviewed: true },
+
+        'zh-Hans': { t: '程度',
+
+                 b: '光盘损坏的程度。超过较高的阈值后，循环窗口会量化到扇区步长 —— 真实防震循环那种 75 Hz 一族的嗡鸣 —— 释放时也会经过一次伺服寻道，而不是立即恢复。',
+
+                 reviewed: 'mt' },
     },
 
     'CD_SEGMENT': {
@@ -291,6 +545,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Longueur de boucle',
               b: 'Longueur du segment que répète un bégaiement anti-choc. 10–400 ms.',
               reviewed: true },
+
+        'zh-Hans': { t: '循环长度',
+
+                 b: '防震卡顿所重复片段的长度。10–400 ms。',
+
+                 reviewed: 'mt' },
     },
 
     'VINYL_ENABLE': {
@@ -299,6 +559,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Vinyle',
               b: 'Active la famille vinyle — sauts de sillon et sillons fermés, craquements de surface, usure et déformation.',
               reviewed: true },
+
+        'zh-Hans': { t: '黑胶',
+
+                 b: '启用黑胶族 —— 跳纹与锁纹、表面爆音、磨损与扭曲。',
+
+                 reviewed: 'mt' },
     },
 
     'VINYL_PROB': {
@@ -307,6 +573,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Probabilité',
               b: 'À quelle fréquence la famille vinyle déclenche un saut de sillon ou un sillon fermé, par top d’horloge.',
               reviewed: true },
+
+        'zh-Hans': { t: '概率',
+
+                 b: '黑胶族每个时钟脉冲触发一次跳纹或锁纹的频繁程度。',
+
+                 reviewed: 'mt' },
     },
 
     'VINYL_RPM': {
@@ -315,6 +587,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse',
               b: 'Vitesse du disque. Fixe la période de révolution, à laquelle sont asservies la distance du saut de sillon et l’ondulation du voilage.',
               reviewed: true },
+
+        'zh-Hans': { t: '速度',
+
+                 b: '唱片转速。它决定每转的周期，跳纹的距离与翘曲的摆动都锁定在这个周期上。',
+
+                 reviewed: 'mt' },
     },
 
     'VINYL_POP': {
@@ -323,6 +601,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Clics et craquements',
               b: 'Densité des craquements et crépitements de surface. Ils jouent dès que la famille est activée, indépendamment des événements.',
               reviewed: true },
+
+        'zh-Hans': { t: '爆音',
+
+                 b: '表面噼啪声与爆音的密度。只要该族已启用就持续存在，与事件无关。',
+
+                 reviewed: 'mt' },
     },
 
     'VINYL_WEAR': {
@@ -331,6 +615,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Usure',
               b: 'Niveau de la nappe de bruit de sillon usé — le grondement sourd sous un disque trop joué.',
               reviewed: true },
+
+        'zh-Hans': { t: '磨损',
+
+                 b: '磨损纹路噪声底层的电平 —— 一张放旧了的唱片下面那种沉闷的轰鸣。',
+
+                 reviewed: 'mt' },
     },
 
     'VINYL_WARP': {
@@ -339,6 +629,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Déformation',
               b: 'Profondeur de l’ondulation de hauteur d’un disque voilé, une fois par tour. À 100 %, la vitesse de lecture dévie de 0,6 %, ce qui correspond à l’extrême d’un microsillon visiblement voilé.',
               reviewed: true },
+
+        'zh-Hans': { t: '扭曲',
+
+                 b: '一张翘曲唱片每转一次的音高摆动深度。在 100% 时读取速率偏离 0.6%，这已是肉眼可见翘曲的密纹唱片的极限。',
+
+                 reviewed: 'mt' },
     },
 
     'PACKET_ENABLE': {
@@ -347,6 +643,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Paquets',
               b: 'Active la famille paquets — pertes de paquets de 20 ms en rafales, avec une stratégie de dissimulation.',
               reviewed: true },
+
+        'zh-Hans': { t: '数据包',
+
+                 b: '启用数据包族 —— 成串丢失的 20 ms 数据包，并带有一种隐藏策略。',
+
+                 reviewed: 'mt' },
     },
 
     'PACKET_LOSS': {
@@ -355,6 +657,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Taux de perte',
               b: 'Part des paquets de 20 ms qui n’arrivent pas.',
               reviewed: true },
+
+        'zh-Hans': { t: '丢包率',
+
+                 b: '未能到达的 20 ms 数据包所占的比例。',
+
+                 reviewed: 'mt' },
     },
 
     'PACKET_BURST': {
@@ -363,6 +671,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Groupement en rafales',
               b: 'À quel point les pertes se groupent. À 0 elles sont indépendantes ; plus haut, la chaîne reste dans son mauvais état et les paquets tombent par séries plutôt qu’un par un.',
               reviewed: true },
+
+        'zh-Hans': { t: '突发性',
+
+                 b: '丢包聚集的程度。为 0 时各次丢包彼此独立；数值越高，链路越是停留在坏状态，数据包便成串丢失而不是逐个丢失。',
+
+                 reviewed: 'mt' },
     },
 
     'PACKET_CONCEAL': {
@@ -371,6 +685,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Dissimulation',
               b: 'Ce que fait le décodeur d’un paquet manquant — Silence, Répéter le précédent, le laisser en Déclin ou Substituer de la matière nouvelle.',
               reviewed: true },
+
+        'zh-Hans': { t: '丢包隐藏',
+
+                 b: '解码器如何处理一个缺失的数据包 —— 静音、重复上一个、让它衰减，或者替换为新的素材。',
+
+                 reviewed: 'mt' },
     },
 
     'PACKET_COMFORT': {
@@ -379,6 +699,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Bruit de confort',
               b: 'Niveau du bruit de confort injecté sous les paquets dissimulés, comme le fait un vrai codec pour éviter que la ligne ne semble morte.',
               reviewed: true },
+
+        'zh-Hans': { t: '舒适噪声',
+
+                 b: '在被隐藏的数据包下方注入的舒适噪声电平，真实的编解码器正是这样做，以免线路听起来像断了。',
+
+                 reviewed: 'mt' },
     },
 
     'CODEC_ENABLE': {
@@ -387,6 +713,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Codec',
               b: 'Active la famille codec — une chaîne téléphonique : limitation de bande, codage μ-law ou GSM, AGC et bruit de ligne.',
               reviewed: true },
+
+        'zh-Hans': { t: '编解码器',
+
+                 b: '启用编解码器族 —— 一条电话链路：带宽限制、μ-law 或 GSM 编码、AGC 与线路噪声。',
+
+                 reviewed: 'mt' },
     },
 
     'CODEC_MODE': {
@@ -395,6 +727,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Codage de ligne',
               b: 'Compression μ-law ou GSM plein débit. Le GSM ajoute une structure de trames : un paquet perdu emporte donc toute sa trame.',
               reviewed: true },
+
+        'zh-Hans': { t: '线路编码',
+
+                 b: 'μ-law 压扩或 GSM 全速率。GSM 增加了帧结构，因此一个丢失的数据包会连同它所在的整帧一起丢掉。',
+
+                 reviewed: 'mt' },
     },
 
     'CODEC_MIX': {
@@ -403,6 +741,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Mix',
               b: 'Quelle part du signal codé remplace le signal direct à travers cet étage.',
               reviewed: true },
+
+        'zh-Hans': { t: '混融',
+
+                 b: '经过这一级时，编码后的信号替换掉直达信号的比例。',
+
+                 reviewed: 'mt' },
     },
 
     'CODEC_AGC': {
@@ -411,6 +755,14 @@ export const I18N = Object.freeze({
         fr: { t: 'AGC',
               b: 'Profondeur de la commande automatique de gain (AGC) rapide après le codec — une grande part de ce qui fait qu’un téléphone sonne comme un téléphone. À 0 le gain est exactement unitaire.',
               reviewed: true },
+
+        'zh-Hans': { t: 'AGC',
+
+                 b: '编解码器之后那道快速自动增益控制（AGC）的深度 —— 电话之所以听起来像电话，很大程度上就在于此。为 0 时增益恰为 1。',
+
+                 sameAsEn: true,
+
+                 reviewed: 'mt' },
     },
 
     'CODEC_MAINS': {
@@ -419,6 +771,14 @@ export const I18N = Object.freeze({
         fr: { t: 'Secteur',
               b: 'Fréquence du ronflement secteur et de ses harmoniques dans la nappe de bruit de ligne. Sans effet tant que Bruit est à 0.',
               reviewed: true },
+
+        'zh-Hans': { t: '市电',
+
+                 b: '线路噪声底层中的交流声频率及其谐波。噪声为 0 时不起作用。',
+
+                 reviewed: 'mt',
+
+                 termNote: 'the electrical MAINS, not a mixer’s main outputs. Same reasoning as label.mains: the glossary root 主输出 renders the OTHER sense of this English word and would be flatly wrong on a hum-frequency control.' },
     },
 
     'CODEC_NOISE': {
@@ -427,6 +787,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Bruit de ligne',
               b: 'Niveau de la nappe de bruit de ligne — ronflement secteur et souffle d’une mauvaise connexion.',
               reviewed: true },
+
+        'zh-Hans': { t: '线路噪声',
+
+                 b: '线路噪声底层的电平 —— 市电交流声，加上接触不良时的嘶声。',
+
+                 reviewed: 'mt' },
     },
 
     'CRUSH_ENABLE': {
@@ -435,6 +801,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Écrasement',
               b: 'Active la famille écrasement — réduction de résolution, décimation de fréquence d’échantillonnage avec gigue et dither.',
               reviewed: true },
+
+        'zh-Hans': { t: '压碎',
+
+                 b: '启用压碎族 —— 位深削减、带时基抖动的采样率抽取，以及抖动。',
+
+                 reviewed: 'mt' },
     },
 
     'CRUSH_BITS': {
@@ -443,6 +815,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Résolution',
               b: 'Profondeur de quantification, 1–16 bits. À 16 l’étage est transparent au bit près.',
               reviewed: true },
+
+        'zh-Hans': { t: '位深',
+
+                 b: '量化深度，1–16 位。为 16 时该级做到逐位透明。',
+
+                 reviewed: 'mt' },
     },
 
     'CRUSH_RATE': {
@@ -451,6 +829,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Fréquence d’échantillonnage',
               b: 'Fréquence de décimation — la grille sur laquelle le signal est ré-échantillonné. De 500 Hz à 20 kHz.',
               reviewed: true },
+
+        'zh-Hans': { t: '采样率',
+
+                 b: '抽取频率 —— 信号被重新采样到的栅格。500 Hz 到 20 kHz。',
+
+                 reviewed: 'mt' },
     },
 
     'CRUSH_JITTER': {
@@ -459,6 +843,14 @@ export const I18N = Object.freeze({
         fr: { t: 'Gigue',
               b: 'Erreur temporelle aléatoire sur la grille de décimation, si bien que les instants d’échantillonnage tombent à côté de l’horloge.',
               reviewed: true },
+
+        'zh-Hans': { t: '时基抖动',
+
+                 b: '抽取栅格上的随机时间误差，使采样点落在时钟之外。',
+
+                 reviewed: 'mt',
+
+                 termNote: 'the same 抖动 collision as label.jitter, resolved the same way: 时基抖动 for the timing error, 抖动 kept for dither.' },
     },
 
     'CRUSH_ENV_AMT': {
@@ -467,6 +859,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Enveloppe',
               b: 'Bipolaire : dans quelle mesure l’enveloppe d’entrée fait varier la résolution. En positif, les passages forts se nettoient ; en négatif, ils se salissent.',
               reviewed: true },
+
+        'zh-Hans': { t: '包络',
+
+                 b: '双极性：输入包络牵动位深的幅度。正值让强奏段落变干净，负值让它们变脏。',
+
+                 reviewed: 'mt' },
     },
 
     'CRUSH_DITHER': {
@@ -475,6 +873,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Dither',
               b: 'Bruit ajouté avant la quantification, en LSB — il échange la distorsion de quantification contre un plancher de bruit stable.',
               reviewed: true },
+
+        'zh-Hans': { t: '抖动',
+
+                 b: '量化之前加入的噪声，以 LSB 为单位 —— 用一层稳定的本底噪声换掉量化失真。',
+
+                 reviewed: 'mt' },
     },
 
     'ROT_ENABLE': {
@@ -483,6 +887,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Corruption',
               b: 'Active la famille corruption — inversions de bits, blocages de décodage et plages de décodage erroné. Désactivée, elle ne tire aucun nombre aléatoire : une session antérieure à la version 1.10 rend donc un résultat identique au bit près.',
               reviewed: true },
+
+        'zh-Hans': { t: '腐化',
+
+                 b: '启用腐化族 —— 位翻转、解码卡死，以及错误解码造成的乱码段落。关闭时它完全不抽取随机数，因此 1.10 之前的会话渲染结果逐位一致。',
+
+                 reviewed: 'mt' },
     },
 
     'ROT_PROB': {
@@ -491,6 +901,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Probabilité',
               b: 'À quelle fréquence la famille corruption déclenche un événement, par top d’horloge.',
               reviewed: true },
+
+        'zh-Hans': { t: '概率',
+
+                 b: '腐化族每个时钟脉冲触发一次事件的频繁程度。',
+
+                 reviewed: 'mt' },
     },
 
     'ROT_DEPTH': {
@@ -499,6 +915,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Gravité d’inversion',
               b: 'Fait passer le taux d’inversion de bits d’un tic occasionnel à un hachis numérique dense et ouvre le champ de bits atteignable du bit 3 jusqu’au bit 14. Au plus un échantillon sur quatre est touché.',
               reviewed: true },
+
+        'zh-Hans': { t: '翻转程度',
+
+                 b: '把位翻转的速率从偶尔一声轻响一路推到密集的数字碎噪，并把可触及的位域从第 3 位一直放开到第 14 位。任何时候最多只有四分之一的采样被动过。',
+
+                 reviewed: 'mt' },
     },
 
     'ROT_STICK': {
@@ -507,6 +929,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Part de blocages',
               b: 'La part des événements de corruption qui deviennent un blocage de décodage — le décodeur reste accroché à une seule valeur.',
               reviewed: true },
+
+        'zh-Hans': { t: '卡死占比',
+
+                 b: '腐化事件中成为解码卡死的比例 —— 解码器停在某一个数值上不动。',
+
+                 reviewed: 'mt' },
     },
 
     'ROT_GARBLE': {
@@ -515,6 +943,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Part de brouillage',
               b: 'La part des événements de corruption restants qui deviennent une plage de décodage erroné. Ce qui survit aux deux parts est une fenêtre d’inversion de bits.',
               reviewed: true },
+
+        'zh-Hans': { t: '乱码占比',
+
+                 b: '剩余的腐化事件中成为错误解码段落的比例。两道占比之后仍然存留的，就是一段位翻转窗口。',
+
+                 reviewed: 'mt' },
     },
 
     'clockModeSeg': {
@@ -523,6 +957,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Horloge',
               b: 'Détermine si les événements sont cadencés sur le tempo de l’hôte ou sur une fréquence libre.',
               reviewed: true },
+
+        'zh-Hans': { t: '时钟',
+
+                 b: '决定事件是按宿主速度排程，还是按一个自由运行的频率排程。',
+
+                 reviewed: 'mt' },
     },
 
     'CLOCK_SYNC_DIV': {
@@ -531,6 +971,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Division',
               b: 'Division musicale sur laquelle bat l’horloge d’événements, asservie au tempo de l’hôte.',
               reviewed: true },
+
+        'zh-Hans': { t: '分割',
+
+                 b: '事件时钟所走的音乐分割，锁定到宿主速度。',
+
+                 reviewed: 'mt' },
     },
 
     'viewFree': {
@@ -539,6 +985,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Fréquence libre',
               b: 'Fréquence de l’horloge d’événements en marche libre, 0,1–20 Hz. Ignore le tempo de l’hôte.',
               reviewed: true },
+
+        'zh-Hans': { t: '自由频率',
+
+                 b: '自由运行的事件时钟频率，0.1–20 Hz。忽略宿主速度。',
+
+                 reviewed: 'mt' },
     },
 
     'seedRo': {
@@ -547,6 +999,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Graine',
               b: 'La graine dont dérive chaque flux aléatoire. La même graine à la même position de transport donne les mêmes événements à chaque rendu.',
               reviewed: true },
+
+        'zh-Hans': { t: '种子',
+
+                 b: '每一路随机流所派生自的种子。同一个种子在同一个走带位置上，每次渲染都给出相同的事件。',
+
+                 reviewed: 'mt' },
     },
 
     'diceBtn': {
@@ -555,6 +1013,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Nouvelle graine',
               b: 'Tirer une nouvelle graine. Tout ce qui est stochastique est relancé : la prise devient donc une autre prise.',
               reviewed: true },
+
+        'zh-Hans': { t: '重设种子',
+
+                 b: '抽取一个新的种子。所有随机的部分都会重掷，于是这一条就变成了另一条。',
+
+                 reviewed: 'mt' },
     },
 
     'edgeBtn': {
@@ -563,6 +1027,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Fronts francs',
               b: 'Contourne les courts fondus aux limites des événements, si bien que les entrées et les sorties deviennent de vraies marches. Allumé signifie contourné.',
               reviewed: true },
+
+        'zh-Hans': { t: '硬边缘',
+
+                 b: '旁通事件边界处的短交叉淡化，使进入与退出成为真正的阶跃。点亮表示已旁通。',
+
+                 reviewed: 'mt' },
     },
 
     'MIX': {
@@ -571,6 +1041,12 @@ export const I18N = Object.freeze({
         fr: { t: 'Mix',
               b: 'Équilibre direct/traité de toute la chaîne de traitement.',
               reviewed: true },
+
+        'zh-Hans': { t: '混合',
+
+                 b: '整条处理链的干湿混合。',
+
+                 reviewed: 'mt' },
     },
 });
 
@@ -580,7 +1056,7 @@ export const I18N = Object.freeze({
 // the tip binds through the knob and `closest(wrapper)` walks back up to the
 // cell the tip belongs on. That is exactly what the wrapper slot is for.
 // ============================================================================
-// LABELS — the on-page text (v1.15.0, canon v2)
+// LABELS — the on-page text (v1.16.0 adds zh-Hans; canon v2)
 // ============================================================================
 //
 // I18N above is HOVER-HELP copy: a title and a body rendered into a wrapping
@@ -632,9 +1108,9 @@ export const LABELS = Object.freeze({
     // "Enregistrer" (76 px), "Charger" and "Supprimer", and this band's three
     // buttons sit in a header row that already carries a wordmark, a preset
     // readout and a two-line imprint. Measured, not guessed — see the CHANGELOG.
-    'label.save':      { en: { t: 'Save' },   fr: { t: 'Enreg.',  reviewed: true } },
-    'label.load':      { en: { t: 'Load' },   fr: { t: 'Ouvrir',  reviewed: true } },
-    'label.delete':    { en: { t: 'Delete' }, fr: { t: 'Suppr.',  reviewed: true } },
+    'label.save':      { en: { t: 'Save' },   fr: { t: 'Enreg.',  reviewed: true }, 'zh-Hans': { t: '保存', reviewed: 'mt' } },
+    'label.load':      { en: { t: 'Load' },   fr: { t: 'Ouvrir',  reviewed: true }, 'zh-Hans': { t: '载入', reviewed: 'mt' } },
+    'label.delete':    { en: { t: 'Delete' }, fr: { t: 'Suppr.',  reviewed: true }, 'zh-Hans': { t: '删除', reviewed: 'mt' } },
     // The armed face of the delete button, and the two faces of every on/off
     // toggle on the page. These are the only strings here written from script.
     // They go through setLabel(), so the element becomes a [data-i18n] element
@@ -643,93 +1119,115 @@ export const LABELS = Object.freeze({
     // answer while the page was English-only and the wrong one the moment it
     // had two languages: an attribute holds ONE string, so switching to French
     // mid-session restored an English "On".
-    'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: true } },
+    'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: true }, 'zh-Hans': { t: '确认？', reviewed: 'mt' } },
     // "Marche" / "Arrêt" rather than "Activé" / "Désactivé": the seven panel
     // buttons are 34 px, and this is the vocabulary a piece of hardware uses,
     // which is the register this whole catalogue is written in.
-    'ui.on':           { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: true } },
+    'ui.on':           { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'mt' } },
+    'ui.off':          { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'mt' } },
 
     // ── Header imprint ──────────────────────────────────────────────────────
     'label.plate':     { en: { t: 'A Catalogue of Failing Media · Plate XLVII' },
-                         fr: { t: 'Catalogue des supports défaillants · Pl. XLVII', reviewed: true } },
+                         fr: { t: 'Catalogue des supports défaillants · Pl. XLVII', reviewed: true },
+                         'zh-Hans': { t: '失效媒介图录 · 图版 XLVII',
+                                      reviewed: 'mt' } },
 
     // ── Panel captions ──────────────────────────────────────────────────────
     // The em-dash belongs to the caption, not to the plate number beside it.
-    'label.capTape':   { en: { t: '— Tape' },    fr: { t: '— Bande',       reviewed: true } },
-    'label.capCd':     { en: { t: '— CD Skip' }, fr: { t: '— Saut de CD',  reviewed: true } },
-    'label.capVinyl':  { en: { t: '— Vinyl' },   fr: { t: '— Vinyle',      reviewed: true } },
-    'label.capPacket': { en: { t: '— Packet' },  fr: { t: '— Paquets',     reviewed: true } },
-    'label.capCodec':  { en: { t: '— Codec' },   fr: { t: '— Codec',       reviewed: true, sameAsEn: true } },
-    'label.capCrush':  { en: { t: '— Crush' },   fr: { t: '— Écrasement',  reviewed: true } },
-    'label.capRot':    { en: { t: '— Rot' },     fr: { t: '— Corruption',  reviewed: true } },
+    'label.capTape':   { en: { t: '— Tape' },    fr: { t: '— Bande',       reviewed: true }, 'zh-Hans': { t: '— 磁带', reviewed: 'mt' } },
+    'label.capCd':     { en: { t: '— CD Skip' }, fr: { t: '— Saut de CD',  reviewed: true }, 'zh-Hans': { t: '— CD 跳碟', reviewed: 'mt' } },
+    'label.capVinyl':  { en: { t: '— Vinyl' },   fr: { t: '— Vinyle',      reviewed: true }, 'zh-Hans': { t: '— 黑胶', reviewed: 'mt' } },
+    'label.capPacket': { en: { t: '— Packet' },  fr: { t: '— Paquets',     reviewed: true }, 'zh-Hans': { t: '— 数据包', reviewed: 'mt' } },
+    'label.capCodec':  { en: { t: '— Codec' },   fr: { t: '— Codec',       reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '— 编解码器', reviewed: 'mt' } },
+    'label.capCrush':  { en: { t: '— Crush' },   fr: { t: '— Écrasement',  reviewed: true }, 'zh-Hans': { t: '— 压碎', reviewed: 'mt' } },
+    'label.capRot':    { en: { t: '— Rot' },     fr: { t: '— Corruption',  reviewed: true }, 'zh-Hans': { t: '— 腐化', reviewed: 'mt' } },
     'label.capGlobal': { en: { t: '— Global · Clock & Provenance' },
-                         fr: { t: '— Global · Horloge et provenance', reviewed: true } },
+                         fr: { t: '— Global · Horloge et provenance', reviewed: true },
+                         'zh-Hans': { t: '— 全局 · 时钟与来源',
+                                      reviewed: 'mt' } },
 
     // ── Knob and control captions ───────────────────────────────────────────
     // "Prob" is already the abbreviation of "Probability" in English; "Prob."
     // is the same abbreviation in French and is what fits the same cell.
-    'label.prob':      { en: { t: 'Prob' },     fr: { t: 'Prob.',      reviewed: true, sameAsEn: true } },
-    'label.stop':      { en: { t: 'Stop' },     fr: { t: 'Arrêt',      reviewed: true } },
-    'label.drop':      { en: { t: 'Drop' },     fr: { t: 'Pertes',     reviewed: true } },
-    'label.wow':       { en: { t: 'Wow' },      fr: { t: 'Pleurage',   reviewed: true } },
-    'label.hiss':      { en: { t: 'Hiss' },     fr: { t: 'Souffle',    reviewed: true } },
-    'label.ramp':      { en: { t: 'Ramp' },     fr: { t: 'Rampe',      reviewed: true } },
-    'label.severity':  { en: { t: 'Severity' }, fr: { t: 'Gravité',    reviewed: true } },
-    'label.segment':   { en: { t: 'Segment' },  fr: { t: 'Segment',    reviewed: true, sameAsEn: true } },
-    'label.speed':     { en: { t: 'Speed' },    fr: { t: 'Vitesse',    reviewed: true } },
+    'label.prob':      { en: { t: 'Prob' },     fr: { t: 'Prob.',      reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '概率', reviewed: 'mt' } },
+    'label.stop':      { en: { t: 'Stop' },     fr: { t: 'Arrêt',      reviewed: true }, 'zh-Hans': { t: '停止', reviewed: 'mt' } },
+    'label.drop':      { en: { t: 'Drop' },     fr: { t: 'Pertes',     reviewed: true }, 'zh-Hans': { t: '失落', reviewed: 'mt' } },
+    'label.wow':       { en: { t: 'Wow' },      fr: { t: 'Pleurage',   reviewed: true }, 'zh-Hans': { t: '慢抖', reviewed: 'mt' } },
+    'label.hiss':      { en: { t: 'Hiss' },     fr: { t: 'Souffle',    reviewed: true }, 'zh-Hans': { t: '嘶声', reviewed: 'mt' } },
+    'label.ramp':      { en: { t: 'Ramp' },     fr: { t: 'Rampe',      reviewed: true }, 'zh-Hans': { t: '斜坡', reviewed: 'mt' } },
+    'label.severity':  { en: { t: 'Severity' }, fr: { t: 'Gravité',    reviewed: true }, 'zh-Hans': { t: '程度', reviewed: 'mt' } },
+    'label.segment':   { en: { t: 'Segment' },  fr: { t: 'Segment',    reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '片段', reviewed: 'mt' } },
+    'label.speed':     { en: { t: 'Speed' },    fr: { t: 'Vitesse',    reviewed: true }, 'zh-Hans': { t: '速度', reviewed: 'mt' } },
     // The VINYL_POP tip says "Craquements", which is the right word and 11
     // characters too many for a 76 px column. "Clics" is what the same defect
     // is called in the shorter register a caption is written in.
-    'label.pop':       { en: { t: 'Pop' },      fr: { t: 'Clics',      reviewed: true } },
-    'label.wear':      { en: { t: 'Wear' },     fr: { t: 'Usure',      reviewed: true } },
-    'label.warp':      { en: { t: 'Warp' },     fr: { t: 'Déform.',    reviewed: true } },
-    'label.loss':      { en: { t: 'Loss' },     fr: { t: 'Pertes',     reviewed: true } },
-    'label.burst':     { en: { t: 'Burst' },    fr: { t: 'Rafales',    reviewed: true } },
-    'label.conceal':   { en: { t: 'Conceal' },  fr: { t: 'Dissim.',    reviewed: true } },
-    'label.comfort':   { en: { t: 'Comfort' },  fr: { t: 'Confort',    reviewed: true } },
-    'label.line':      { en: { t: 'Line' },     fr: { t: 'Ligne',      reviewed: true } },
-    'label.blend':     { en: { t: 'Blend' },    fr: { t: 'Mix',        reviewed: true } },
-    'label.agc':       { en: { t: 'AGC' },      fr: { t: 'AGC',        reviewed: true, sameAsEn: true } },
-    'label.mains':     { en: { t: 'Mains' },    fr: { t: 'Secteur',    reviewed: true } },
-    'label.noise':     { en: { t: 'Noise' },    fr: { t: 'Bruit',      reviewed: true } },
-    'label.bits':      { en: { t: 'Bits' },     fr: { t: 'Bits',       reviewed: true, sameAsEn: true } },
+    'label.pop':       { en: { t: 'Pop' },      fr: { t: 'Clics',      reviewed: true }, 'zh-Hans': { t: '爆音', reviewed: 'mt' } },
+    'label.wear':      { en: { t: 'Wear' },     fr: { t: 'Usure',      reviewed: true }, 'zh-Hans': { t: '磨损', reviewed: 'mt' } },
+    'label.warp':      { en: { t: 'Warp' },     fr: { t: 'Déform.',    reviewed: true }, 'zh-Hans': { t: '扭曲', reviewed: 'mt' } },
+    'label.loss':      { en: { t: 'Loss' },     fr: { t: 'Pertes',     reviewed: true }, 'zh-Hans': { t: '丢包', reviewed: 'mt' } },
+    'label.burst':     { en: { t: 'Burst' },    fr: { t: 'Rafales',    reviewed: true }, 'zh-Hans': { t: '突发', reviewed: 'mt' } },
+    'label.conceal':   { en: { t: 'Conceal' },  fr: { t: 'Dissim.',    reviewed: true }, 'zh-Hans': { t: '隐藏', reviewed: 'mt' } },
+    'label.comfort':   { en: { t: 'Comfort' },  fr: { t: 'Confort',    reviewed: true }, 'zh-Hans': { t: '舒适噪声', reviewed: 'mt' } },
+    'label.line':      { en: { t: 'Line' },     fr: { t: 'Ligne',      reviewed: true }, 'zh-Hans': { t: '线路', reviewed: 'mt' } },
+    'label.blend':     { en: { t: 'Blend' },    fr: { t: 'Mix',        reviewed: true }, 'zh-Hans': { t: '混融', reviewed: 'mt' } },
+    'label.agc':       { en: { t: 'AGC' },      fr: { t: 'AGC',        reviewed: true, sameAsEn: true }, 'zh-Hans': { t: 'AGC', sameAsEn: true, reviewed: 'mt' } },
+    'label.mains':     { en: { t: 'Mains' },    fr: { t: 'Secteur',    reviewed: true },
+        'zh-Hans': { t: '市电',
+                     reviewed: 'mt',
+                     termNote: 'the electrical MAINS. This control names the 50/60 Hz hum frequency of the line-noise bed. The glossary root 主输出 is a mixer’s main OUTPUT bus — the other sense of the same English word — and would name a thing that does not exist on this page. 市电 is the power supply.' } },
+    'label.noise':     { en: { t: 'Noise' },    fr: { t: 'Bruit',      reviewed: true }, 'zh-Hans': { t: '噪声', reviewed: 'mt' } },
+    'label.bits':      { en: { t: 'Bits' },     fr: { t: 'Bits',       reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '位深', reviewed: 'mt' } },
     'label.rate':      { en: { t: 'Rate' },     fr: { t: 'Fréq.',      reviewed: true,
-                                                     termNote: 'the control IS a frequency in Hz — CRUSH_RATE is the decimation grid, 500 Hz to 20 kHz, and its own tip title is « Fréquence d’échantillonnage ». Vitesse would rename a sample rate after a speed. Not width: Vitesse measures 46.41 px in the 64 px .ctl and would fit.' } },
-    'label.jitter':    { en: { t: 'Jitter' },   fr: { t: 'Gigue',      reviewed: true } },
-    'label.env':       { en: { t: 'Env' },      fr: { t: 'Env.',       reviewed: true, sameAsEn: true } },
+                                                     termNote: 'the control IS a frequency in Hz — CRUSH_RATE is the decimation grid, 500 Hz to 20 kHz, and its own tip title is « Fréquence d’échantillonnage ». Vitesse would rename a sample rate after a speed. Not width: Vitesse measures 46.41 px in the 64 px .ctl and would fit.' },
+        'zh-Hans': { t: '速率',
+                     reviewed: 'mt' } },
+    'label.jitter':    { en: { t: 'Jitter' },   fr: { t: 'Gigue',      reviewed: true },
+        'zh-Hans': { t: '时基抖动',
+                     reviewed: 'mt',
+                     termNote: 'Dither and Jitter share ONE glossary root, 抖动, and both controls sit in the SAME Crush panel two cells apart — an identical caption on two different knobs. Dither keeps the root (抖动 is the DSP process’s own Chinese name and takes no qualifier); Jitter takes the standard qualified form 时基抖动, time-base jitter, which is what Chinese audio literature calls it.' } },
+    'label.env':       { en: { t: 'Env' },      fr: { t: 'Env.',       reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '包络', reviewed: 'mt' } },
     // The loanword. French audio work says "dithering"; the tip spells it out,
     // the caption keeps the four-letter form the English caption uses.
-    'label.dither':    { en: { t: 'Dither' },   fr: { t: 'Dither',     reviewed: true, sameAsEn: true } },
-    'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Prof.',      reviewed: true } },
-    'label.sticky':    { en: { t: 'Sticky' },   fr: { t: 'Blocages',   reviewed: true } },
-    'label.garble':    { en: { t: 'Garble' },   fr: { t: 'Brouillage', reviewed: true } },
+    'label.dither':    { en: { t: 'Dither' },   fr: { t: 'Dither',     reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '抖动', reviewed: 'mt' } },
+    'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Prof.',      reviewed: true }, 'zh-Hans': { t: '深度', reviewed: 'mt' } },
+    'label.sticky':    { en: { t: 'Sticky' },   fr: { t: 'Blocages',   reviewed: true }, 'zh-Hans': { t: '卡死', reviewed: 'mt' } },
+    'label.garble':    { en: { t: 'Garble' },   fr: { t: 'Brouillage', reviewed: true }, 'zh-Hans': { t: '乱码', reviewed: 'mt' } },
 
     // ── Choices inside two <select>s and two segmented controls ─────────────
-    'label.silence':   { en: { t: 'Silence' },    fr: { t: 'Silence',    reviewed: true, sameAsEn: true } },
-    'label.repeat':    { en: { t: 'Repeat' },     fr: { t: 'Répéter',    reviewed: true } },
-    'label.decay':     { en: { t: 'Decay' },      fr: { t: 'Déclin',     reviewed: true } },
-    'label.substitute':{ en: { t: 'Substitute' }, fr: { t: 'Substituer', reviewed: true } },
-    'label.sync':      { en: { t: 'Sync' },       fr: { t: 'Synchro',    reviewed: true } },
-    'label.free':      { en: { t: 'Free' },       fr: { t: 'Libre',      reviewed: true } },
-    'label.oneBar':    { en: { t: '1 bar' },      fr: { t: '1 mes.',     reviewed: true } },
+    'label.silence':   { en: { t: 'Silence' },    fr: { t: 'Silence',    reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '静音', reviewed: 'mt' } },
+    'label.repeat':    { en: { t: 'Repeat' },     fr: { t: 'Répéter',    reviewed: true }, 'zh-Hans': { t: '重复', reviewed: 'mt' } },
+    'label.decay':     { en: { t: 'Decay' },      fr: { t: 'Déclin',     reviewed: true }, 'zh-Hans': { t: '衰减', reviewed: 'mt' } },
+    'label.substitute':{ en: { t: 'Substitute' }, fr: { t: 'Substituer', reviewed: true }, 'zh-Hans': { t: '替换', reviewed: 'mt' } },
+    'label.sync':      { en: { t: 'Sync' },       fr: { t: 'Synchro',    reviewed: true }, 'zh-Hans': { t: '同步', reviewed: 'mt' } },
+    'label.free':      { en: { t: 'Free' },       fr: { t: 'Libre',      reviewed: true }, 'zh-Hans': { t: '自由', reviewed: 'mt' } },
+    'label.oneBar':    { en: { t: '1 bar' },      fr: { t: '1 mes.',     reviewed: true }, 'zh-Hans': { t: '1 小节', reviewed: 'mt' } },
 
     // ── Global strip ────────────────────────────────────────────────────────
-    'label.splices':   { en: { t: 'Splices' },    fr: { t: 'Raccords',    reviewed: true } },
-    'label.hardEdges': { en: { t: 'Hard Edges' }, fr: { t: 'Fronts francs', reviewed: true } },
+    'label.splices':   { en: { t: 'Splices' },    fr: { t: 'Raccords',    reviewed: true }, 'zh-Hans': { t: '剪接', reviewed: 'mt' } },
+    'label.hardEdges': { en: { t: 'Hard Edges' }, fr: { t: 'Fronts francs', reviewed: true }, 'zh-Hans': { t: '硬边缘', reviewed: 'mt' } },
 
     // ── Annotations ─────────────────────────────────────────────────────────
     // Set in the small italic hand this catalogue uses for a marginal note.
     'label.annotRevQuantum': { en: { t: 'rev. quantum' },
-                               fr: { t: 'quantum de tour', reviewed: true } },
+                               fr: { t: 'quantum de tour', reviewed: true },
+                               'zh-Hans': { t: '每转步长',
+                                            reviewed: 'mt' } },
     'label.annotPackets':    { en: { t: '20 ms packets' },
-                               fr: { t: 'paquets de 20 ms', reviewed: true } },
+                               fr: { t: 'paquets de 20 ms', reviewed: true },
+                               'zh-Hans': { t: '20 ms 数据包',
+                                            reviewed: 'mt' } },
     'label.annotHum':        { en: { t: 'hum + harmonics' },
-                               fr: { t: 'ronflement + harmoniques', reviewed: true } },
+                               fr: { t: 'ronflement + harmoniques', reviewed: true },
+                               'zh-Hans': { t: '交流声 + 谐波',
+                                            reviewed: 'mt' } },
     'label.annotSplices':    { en: { t: 'crossfades bypassed when lit' },
-                               fr: { t: 'fondus contournés lorsqu’allumé', reviewed: true } },
+                               fr: { t: 'fondus contournés lorsqu’allumé', reviewed: true },
+                               'zh-Hans': { t: '点亮时旁通交叉淡化',
+                                            reviewed: 'mt' } },
     'label.annotRot':        { en: { t: 'bit flips · sticky decode · wrong-decode stretches' },
-                               fr: { t: 'inversions de bits · décodage bloqué · plages mal décodées', reviewed: true } },
+                               fr: { t: 'inversions de bits · décodage bloqué · plages mal décodées', reviewed: true },
+                               'zh-Hans': { t: '位翻转 · 解码卡死 · 错误解码段落',
+                                            reviewed: 'mt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
@@ -737,14 +1235,20 @@ export const LABELS = Object.freeze({
     // name is the same failure as a French page with an English caption. None
     // has a rendered box, so none is a geometry risk.
     'aria.presetBrowse': { en: { t: 'Browse presets' },
-                           fr: { t: 'Parcourir les préréglages', reviewed: true } },
-    'aria.presets':      { en: { t: 'Presets' }, fr: { t: 'Préréglages', reviewed: true } },
+                           fr: { t: 'Parcourir les préréglages', reviewed: true },
+                           'zh-Hans': { t: '浏览预设',
+                                        reviewed: 'mt' } },
+    'aria.presets':      { en: { t: 'Presets' }, fr: { t: 'Préréglages', reviewed: true }, 'zh-Hans': { t: '预设', reviewed: 'mt' } },
     // v1.15.0: this one was ALSO false copy. It read "Hover help language"
     // while the control now sets the language of the whole page.
     'aria.langSelect':   { en: { t: 'Interface language' },
-                           fr: { t: 'Langue de l’interface', reviewed: true } },
+                           fr: { t: 'Langue de l’interface', reviewed: true },
+                           'zh-Hans': { t: '界面语言',
+                                        reviewed: 'mt' } },
     'aria.helpToggle':   { en: { t: 'Toggle hover help' },
-                           fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+                           fr: { t: 'Activer ou désactiver les infobulles', reviewed: true },
+                           'zh-Hans': { t: '开关悬停帮助',
+                                        reviewed: 'mt' } },
 });
 
 // ============================================================================
@@ -760,6 +1264,13 @@ export const I18N_EXEMPT = [
     ['O-BITROT',       'the product name — a product name is never translated'],
     ['Ouaricon Audio', 'the company name'],
 
+    // v1.16.0. The markup writes it as the numeric references
+    // &#31616;&#20307;&#20013;&#25991; (index.html), matching the existing
+    // Fran&ccedil;ais convention — but the parser DECODES them before the
+    // uncovered-text sweep runs, so assertion 10 sees these four characters and
+    // the exemption has to carry the DECODED text, not the entity spelling.
+    ['简体中文', 'endonym — a language name is never translated'],
+
     // #preset-name displays the loaded preset. The name IS the JSON filename
     // (OuariconPresetManager.h:283-285), so translating it breaks recall: a
     // session saved against "Cassette Eject" would not resolve its French.
@@ -767,23 +1278,26 @@ export const I18N_EXEMPT = [
     ['Default', 'a factory preset name — exempt under D-02, because the name IS the JSON filename'],
 
     // The plate numbering of the catalogue conceit. "Tab." abbreviates Table in
-    // English and Tableau in French to the same three characters, and a Roman
-    // numeral is a Roman numeral, so every one of these renders identically in
-    // both languages. Listed individually rather than as a pattern: an
+    // English and Tableau in French to the same three characters, a Roman
+    // numeral is a Roman numeral, and the whole token is the catalogue's own
+    // typographic device rather than prose — so every one of these renders
+    // identically in ALL THREE languages, Chinese included. Listed individually
+    // rather than as a pattern: an
     // exemption that matched "Tab. *" would silently swallow a future caption
     // that happened to start the same way.
-    ['Tab. I',    'plate numbering — "Tab." + a Roman numeral reads identically in French'],
-    ['Tab. II',   'plate numbering — identical in French'],
-    ['Tab. III',  'plate numbering — identical in French'],
-    ['Tab. IV',   'plate numbering — identical in French'],
-    ['Tab. V',    'plate numbering — identical in French'],
-    ['Tab. VI',   'plate numbering — identical in French'],
-    ['Tab. VII',  'plate numbering — identical in French'],
-    ['Tab. VIII', 'plate numbering — identical in French'],
+    ['Tab. I',    'plate numbering — "Tab." + a Roman numeral reads identically in French, and is left as-is in Chinese, where it is the catalogue\'s typographic device rather than prose'],
+    ['Tab. II',   'plate numbering — identical in French and in Chinese'],
+    ['Tab. III',  'plate numbering — identical in French and in Chinese'],
+    ['Tab. IV',   'plate numbering — identical in French and in Chinese'],
+    ['Tab. V',    'plate numbering — identical in French and in Chinese'],
+    ['Tab. VI',   'plate numbering — identical in French and in Chinese'],
+    ['Tab. VII',  'plate numbering — identical in French and in Chinese'],
+    ['Tab. VIII', 'plate numbering — identical in French and in Chinese'],
 
     // The two line-coding standards named on the Codec plate. A codec's name is
     // a proper noun: ITU-T G.711 μ-law and ETSI GSM 06.10 are called that in
-    // every language, and the tooltip for CODEC_MODE explains what they are.
+    // every language — Chinese technical prose writes both in Latin — and the
+    // tooltip for CODEC_MODE explains what they are.
     ['μ-law', 'the name of a line-coding standard (ITU-T G.711) — a standard is not translated'],
     ['GSM',   'the name of a line-coding standard (ETSI GSM 06.10) — a standard is not translated'],
 ];

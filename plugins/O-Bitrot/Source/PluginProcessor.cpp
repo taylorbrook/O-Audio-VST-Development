@@ -1803,8 +1803,9 @@ void OBitrotAudioProcessor::setStateInformation(const void* data, int sizeInByte
         // rebuilds every property as a var over the attribute STRING
         // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.14.0 session
         // has no such property at all and the default (English) stands.
-        // languageIndex() clamps anything that is not "fr" to 0, so a
-        // hand-edited value degrades to English rather than to a bad index.
+        // languageIndex() clamps anything it does not recognise to 0 — "fr"
+        // is 1 and "zh-Hans" is 2 as of v1.16.0 — so a hand-edited value
+        // degrades to English rather than to a bad index.
         const juce::var lang = apvts.state.getProperty("uiLanguage");
 
         if (! lang.isVoid())

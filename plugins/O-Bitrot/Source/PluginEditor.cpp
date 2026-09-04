@@ -183,9 +183,10 @@ OBitrotAudioProcessorEditor::OBitrotAudioProcessorEditor(OBitrotAudioProcessor& 
     options = options.withNativeFunction("setUiLanguage",
         [this](auto& args, auto complete)
         {
-            // languageIndex() maps anything that is not "fr" to 0, so an
-            // unexpected argument from the page degrades to English rather than
-            // being stored unvalidated.
+            // languageIndex() maps anything it does not recognise to 0 —
+            // "fr" is 1 and "zh-Hans" is 2 as of v1.16.0 — so an unexpected
+            // argument from the page degrades to English rather than being
+            // stored unvalidated.
             if (args.size() > 0)
                 audioProcessor.uiLanguage.store(
                     OBitrotAudioProcessor::languageIndex(args[0].toString()),

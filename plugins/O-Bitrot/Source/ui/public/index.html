@@ -24,7 +24,28 @@
     --seg-a: #F5DEB3;
     --seg-b: #E8D5B7;
     --knob-core: #FFF8DC;
-    --serif: 'EB Garamond', 'Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+    /* v1.16.0 — THE CJK TAIL, ON THE TOKEN. Every one of this page's 13
+       `font-family` declarations reads `var(--serif)`, so the whole page
+       resolves through THIS ONE DECLARATION and the tail belongs here rather
+       than on thirteen rules. The set was MEASURED, never reasoned from the
+       [data-i18n] list: the page was served, switched to Chinese, and
+       getComputedStyle().fontFamily read on every node that holds or can
+       receive a Han codepoint (own text, data-tip, data-tip-title, aria-label,
+       data-label, data-on/off/confirm). 118 nodes resolved through --serif and
+       exactly ONE did not — see the omission below.
+
+       Latin still resolves to EB Garamond FIRST, so English geometry is
+       unmoved. That is proved by the EN arm of check-ui-labels assertion 7, not
+       asserted here. */
+    --serif: 'EB Garamond', 'Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+
+    /* LEFT UNTOUCHED (1): `#diceBtn.die`, which declares no font-family and so
+       takes Chromium's UA button default, Arial. It is reached by the Han scan
+       only through its `data-tip` — the die face itself is the glyph U+2685 —
+       and a data-tip paints into #tooltip, which IS var(--serif). There is no
+       Han glyph to fall back for on this element. Recording the reason matters:
+       a wave that appends the tail to everything it measured cannot afterwards
+       tell a needed tail from a decorative one. */
   }
 
   body {
@@ -921,6 +942,36 @@
     .rot-plate .p-head .caption { flex: 0 0 150px; }
     .rot-plate .p-head .annot { flex: 1 1 auto; min-width: 0; }
 
+    /* ── v1.16.0 · ZH3-09 — #viewSync's <select>, THE STANDING BASELINE ───
+       This closes a failure that existed BEFORE any Chinese work: since
+       v1.15.0 `check-ui-labels --plugin O-Bitrot` has exited 2 with two
+       identical FAILs, one per state, naming
+       `#viewSync>select.field:nth-child(1)  dx=-3.5 dw=7.0` on the FRENCH arm.
+       The comment above called it "the standing baseline". It was a defect with
+       a note attached, and this rule is the fix.
+
+       WHY IT MOVES. With `appearance: none` Chromium still derives a <select>'s
+       intrinsic width from its WIDEST option's font run, not from the selected
+       one — the same mechanism that moved O-Chorus's #lang-select by 1 px. The
+       widest option here is the one carrying data-i18n="label.oneBar".
+
+       MEASURED IN ALL THREE, on the shipping node at 900 x 740, and pinned at
+       the WIDEST — which is the law this file already states above and follows
+       twice. box-sizing is border-box page-wide, so the pin is the whole box:
+
+         lang     widest option run   + 31 px padding + 2 px border   box
+         en       "1 bar"    24.30                                    58
+         fr       "1 mes."   31.13                                    65
+         zh-Hans  "1 小节"    32.34                                    66   <- pin
+
+       English grows 8 px against the current release. That is the same move
+       #preset-save / #preset-load / #preset-delete and .hdr-right already made
+       in v1.15.0, and it is the only one D-04 leaves available: an auto-shrink
+       font and a short-variant fallback are both forbidden. Assertion 7
+       compares English against each other language WITHIN ONE RUN, so one
+       pinned box makes all three agree and both FAILs become PASSes. */
+    #viewSync > select.field { width: 66px; }
+
     /* The Splices group in the global strip is sized by its marginal note, not
        by the button above it: 109.3 -> 124.8 (128.3 through v1.15.0, before the
        Stage N elision fix `lorsque allumé` -> `lorsqu’allumé`). 132 holds the
@@ -929,6 +980,92 @@
        117.95 px of TEXT but WRAPS to two lines in this box and moves 164
        non-label elements — measured, v1.15.1. */
     .global .g-body > .g-group > .annot { width: 132px; text-align: center; }
+
+    /* ══ v1.16.0 — Simplified Chinese geometry ═════════════════════════════
+       Chinese BUYS WIDTH AND SPENDS HEIGHT, which is the opposite of French,
+       and the mechanism is `line-height: normal` — the FONT'S OWN METRICS. A
+       Han face carries taller ones than EB Garamond, so every caption that
+       inherited `normal` grew its line box the moment the page switched. The
+       first Chinese run reported 185 non-label elements moved; every one of
+       them traced back to the seven leaf classes below.
+
+       Each pin is the MEASURED English used line-height over that element's own
+       font size, written UNITLESS so it stays a ratio rather than a size. There
+       is deliberately NO global `line-height` rule: a global one moves English
+       geometry, which is the regression these gates exist to catch. English is
+       unchanged BY CONSTRUCTION here — the pin is its own current value — and
+       the EN and fr arms of check-ui-labels assertion 7 are what prove it.
+
+         selector                 font-size   EN used line-height   unitless
+         .ctl-label                 9.5 px          10 px          10/9.5
+         .g-label                     9 px          10 px          10/9
+         .settings-label              9 px          10 px          10/9
+         .annot                     8.5 px          10 px          10/8.5
+         .preset-btn                 10 px          11 px          1.1
+         .p-head .en                 10 px          11 px          1.1
+         #clockModeSeg button        11 px          12 px          12/11
+
+       NOT PINNED, and each for a measured reason:
+         .ro / .seg button / .caption span / em   never carry Han (readouts are
+             English by D-03, the plate numbers are I18N_EXEMPT, the segment
+             faces are units) or already sit in a fixed-height box.
+         .settings-toggle   declares `height: 21px`, so its line box cannot
+             change the box. 关 / 开 move nothing.
+         .plate / .brand    inherit `line-height: 1.45` from .hdr-right, an
+             explicit value that `normal` never reaches.
+         .preset-menu-item / #preset-name   preset names are the JSON filenames
+             on disk (D-02) and never localize, so no Han ever renders here.
+
+       SPECIFICITY WAS CHECKED against the v1.15.0 block above before this one
+       was appended — a pin block at the END of a stylesheet outranks every
+       earlier pin of equal-or-lower specificity that targets an overlapping
+       set, and O-Octagon lost a v1.9.0 French pin exactly that way. None of the
+       seven selectors below collides with a v1.15.0 rule on `line-height`;
+       `.p-head .en` and `#clockModeSeg button` appear in both blocks but for
+       `width`, not for this property. */
+    .ctl-label           { line-height: 1.0526316; }   /* 10 / 9.5  */
+    .g-label             { line-height: 1.1111111; }   /* 10 / 9    */
+    .settings-label      { line-height: 1.1111111; }   /* 10 / 9    */
+    .annot               { line-height: 1.1764706; }   /* 10 / 8.5  */
+    #preset-save,
+    #preset-load,
+    #preset-delete       { line-height: 1.1; }         /* 11 / 10   */
+    .p-head .en          { line-height: 1.1; }         /* 11 / 10   */
+    #clockModeSeg button { line-height: 1.0909091; }   /* 12 / 11   */
+
+    /* The panel-head caption is NOT a [data-i18n] element — its keyed <span>
+       child is — so it is a NON-label element and assertion 7 measures it. Its
+       own line box is set by whichever inline child is tallest, and the keyed
+       span is the one that turns Han. TWO PINS, because the caption renders at
+       TWO sizes and one ratio cannot serve both: seven plates at 12 px, and the
+       global strip's at 11 px from an inline style. This is the same
+       one-class-two-sizes trap O-Octagon hit on .vcell-value. */
+    .p-head .caption          { line-height: 1.25; }        /* 15 / 12   */
+    .global .p-head .caption  { line-height: 1.0909091; }   /* 12 / 11   */
+
+    /* #edgeBtn holds TWO inline children at two sizes — the caption span at
+       11 px and the fleuron U+2766 at 8 px. Pinning the button alone would
+       inherit the 12/11 ratio down onto the 8 px fleuron and change its box on
+       the ENGLISH arm too, so the fleuron is pinned back at its own measured
+       ratio. English is unmoved on both. */
+    #edgeBtn                  { line-height: 1.0909091; }   /* 12 / 11   */
+    #edgeBtn .flr             { line-height: 1.125; }       /*  9 / 8    */
+
+    /* THE SECOND CONTENT-SIZED <select>, and the same mechanism as #viewSync
+       above — but this one moves the OTHER WAY. Chinese renders all four
+       concealment faces at exactly 23.30 px (静音 / 重复 / 衰减 / 替换 are two
+       characters each), against Substitute's 48.02, so the control SHRANK by
+       25 px and pulled the Comfort knob column 8.3 px left with it.
+
+         lang     widest option run                     box
+         en       "Substitute"  48.02                   82   <- pin
+         fr       "Substituer"  48.63                   82
+         zh-Hans  any of four   23.30                   57
+
+       A gate assertion phrased "the non-English pass must not GROW box X" is
+       VACUOUS against this. Chinese buys width; the failure shape is a SHRINK,
+       and the pin is still the widest of the three. */
+    select.field[data-param="PACKET_CONCEAL"] { width: 82px; }
 
 </style>
 </head>
@@ -1009,11 +1146,25 @@
               <span class="settings-label" data-i18n="lang-select" data-label="Language">Language</span>
               <!-- ENDONYMS. Never localized and never written by a state
                    updater: a French speaker looking for their language looks
-                   for "Fran&ccedil;ais". -->
+                   for "Fran&ccedil;ais", and a Chinese one for
+                   "&#31616;&#20307;&#20013;&#25991;".
+
+                   v1.16.0 writes the Chinese endonym as NUMERIC CHARACTER
+                   REFERENCES, matching the Fran&ccedil;ais convention beside
+                   it. This page's <meta charset> sits at byte 46, well inside
+                   the 1024-byte prescan window, and PluginEditor.cpp serves
+                   index.html as `text/html; charset=utf-8` — so the encoding
+                   question does not arise here on either count. The entities
+                   are for ONE convention across all 43 plugins, five of which
+                   declare their charset past the prescan window. The
+                   I18N_EXEMPT entry in js/i18n.js carries the DECODED text,
+                   because the coverage parser resolves these references before
+                   the uncovered-text sweep ever runs. -->
               <select class="settings-select" id="lang-select"
                       data-i18n-aria="aria.langSelect" aria-label="Hover help language" data-tip-always>
                 <option value="en">English</option>
                 <option value="fr">Fran&ccedil;ais</option>
+                <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
               </select>
             </label>
 
