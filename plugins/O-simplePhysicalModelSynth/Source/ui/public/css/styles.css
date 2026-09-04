@@ -246,12 +246,17 @@ body {
 .settings-row + .settings-row { border-top: 1px dotted rgba(139, 115, 85, 0.4); }
 
 /* No width pin here, deliberately. The row is space-between with a fixed-width
-   right-hand control, so the caption's own box positions nothing: "Language"
-   63.5px / "Langue" 47.1px and "Hover help" 72.0px / "Aide au survol" 96.0px all
-   leave the selector and the switch exactly where they were. A min-width was
-   written for it and its negative control PASSED, so it was removed rather than
-   kept and claimed. The widest French caption (96.0px) still clears the switch:
-   the row is 210px, the switch 78px and the gap 12px, leaving 120px. */
+   right-hand control, so the caption's own box positions nothing. RE-MEASURED
+   at v1.2.3, when the French hover-help caption became "Infobulles":
+   "Language" 63.55px / "Langue" 47.11px and "Hover help" 71.95px /
+   "Infobulles" 71.13px all leave the selector and the switch exactly where they
+   were. A min-width was written for this and its negative control PASSED, so it
+   was removed rather than kept and claimed. The widest French caption is now
+   71.13px, down from the 96.0px the superseded caption rendered (that caption
+   is recorded in the CHANGELOG and not repeated here, so a repo grep for it
+   stays at zero) — and it is now 0.82px NARROWER than its English counterpart
+   rather than 24px wider. It clears the switch with room to spare: the row is
+   210px, the switch 78px and the gap 12px, leaving 120px. */
 .settings-label {
   flex: 0 0 auto;
   font-size: 10px;

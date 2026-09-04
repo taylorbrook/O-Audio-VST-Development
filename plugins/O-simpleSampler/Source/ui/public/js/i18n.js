@@ -81,7 +81,10 @@
 //     FIXED 96.00 px box in the 192 px settings row and never resizes between
 //     its own faces — "Désactivée" fits with 27 px to spare. The glossary's
 //     Activé(e)/Désactivé(e) pair is the one for a feature; the feminine
-//     agrees with "l'aide au survol".
+//     agreed with the then-settled French noun for the hover-help surface.
+//     SEE THE HEADER NOTE AT aria.helpToggle: v1.4.4 made that noun PLURAL
+//     ("les infobulles"), so this feminine SINGULAR pair no longer agrees with
+//     its antecedent. Left as-is deliberately and reported, not guessed.
 //   * Two termNote exemptions, both the same one: the glossary roots "fine"
 //     on "Fin", and this page ALREADY names the End knob "Fin" (label.end,
 //     and the tip title "Fin"). Applying it would give two controls on one
@@ -180,7 +183,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of the interface and whether the hover help appears. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: "Choisir la langue de l’interface et l’affichage de l’aide au survol. Les deux choix sont conservés avec la session.",
+              b: "Choisir la langue de l’interface et l’affichage des infobulles. Les deux choix sont conservés avec la session.",
               reviewed: true },
     },
 
@@ -193,14 +196,14 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'The language of the labels on this page and of this hover help. English and French are available; value readouts and the two drop-down menus stay in English.' },
         fr: { t: 'Langue',
-              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles\u00a0; les valeurs affichées et les deux menus déroulants restent en anglais.",
+              b: "La langue des libellés de cette page et de ces infobulles. L’anglais et le français sont disponibles\u00a0; les valeurs affichées et les deux menus déroulants restent en anglais.",
               reviewed: true },
     },
 
     'help-toggle': {
         en: { t: 'Hover help',
               b: 'Switches these explanations off or back on. The choice is saved with the session, so a project you come back to opens the way you left it.' },
-        fr: { t: 'Aide au survol',
+        fr: { t: 'Infobulles',
               b: "Active ou désactive ces explications. Le choix est enregistré avec la session\u00a0: un projet rouvert se présente comme vous l’avez laissé.",
               reviewed: true },
     },
@@ -498,9 +501,18 @@ export const LABELS = Object.freeze({
     // faces and the accessible names are label-only and live here.
     'aria.settings':   { en: { t: 'Settings' },            fr: { t: 'Réglages', reviewed: true } },
     'aria.langSelect': { en: { t: 'Interface language' },  fr: { t: "Langue de l’interface", reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' },   fr: { t: "Activer ou désactiver l’aide au survol", reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' },   fr: { t: "Activer ou désactiver les infobulles", reviewed: true } },
     // "Activée"/"Désactivée", the glossary's pair for a FEATURE, feminine to
-    // agree with "l'aide au survol". Through v1.4.1 this was "Oui"/"Non", and
+    // agree with the noun naming the hover-help surface.
+    //
+    // OPEN, v1.4.4: that noun became "les infobulles" — feminine PLURAL — so
+    // the agreement these two faces were chosen for no longer holds; they
+    // should read "Activées"/"Désactivées". They are NOT changed here. The
+    // 260903-ukp sheet the developer read did not carry them (it was built from
+    // strings CONTAINING the old phrase, and these contain no phrase at all —
+    // the dependency is stated only in this comment), and a string nobody read
+    // must not ship at reviewed: true. Same in O-simpleSubtractive and
+    // O-SpectralShaper. Through v1.4.1 this was "Oui"/"Non", and
     // the header defended that pair on width. Measured at v1.4.2: the face is
     // a FIXED 96.00 px box in the 192 px settings row — every candidate
     // returns elW 96.00, so it never resizes between its own faces — and

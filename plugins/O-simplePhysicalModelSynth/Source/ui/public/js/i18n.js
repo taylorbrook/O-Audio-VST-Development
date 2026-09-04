@@ -31,7 +31,8 @@
 //   bodies now say the control is reserved; fr reviewed: false (meaning change).
 // item 54: aria.helpToggle en "Toggle tooltips" → "Toggle hover help", the
 //   family's settled name (O-simpleGrain shipped it in O3). The fr already read
-//   "Activer ou désactiver l’aide au survol"; reviewed: true stays.
+//   the then-settled French for it; reviewed: true stays. That French became
+//   "Activer ou désactiver les infobulles" at v1.2.3 — see the CHANGELOG.
 //
 // ── v1.2.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -74,7 +75,9 @@
 //   - centièmes → cents in the Fine Tune body. The cent is the unit; a
 //     centième is a hundredth of anything.
 //   - aria.helpToggle said "les infobulles" while the same control's tip title
-//     says "Aide au survol" — two French names for one control. Now one.
+//     said something else — two French names for one control. Now one.
+//     (v1.2.3: that one name is "Infobulles" — this entry's original word,
+//     which the Stage N pass had replaced. See the CHANGELOG.)
 //   - Label-in-name (WCAG 2.5.3) holds BY STEM on the two abbreviated preset
 //     verbs: Enreg. ⊂ "Enregistrer les réglages actuels…", Suppr. ⊂
 //     "Supprimer le préréglage utilisateur actuel". Not invented captions.
@@ -159,21 +162,21 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Choose the language of the interface, and whether the hover help appears at all. The language is remembered with the session; the hover-help switch is remembered on this computer." },
         fr: { t: "Réglages",
-              b: "Choisissez la langue de l’interface, et si l’aide au survol s’affiche. La langue est conservée avec la session ; l’état de l’aide est conservé sur cet ordinateur.",
+              b: "Choisissez la langue de l’interface, et si les infobulles s’affichent. La langue est conservée avec la session ; l’état des infobulles est conservé sur cet ordinateur.",
               reviewed: true },
     },
     'lang-select': {
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available; the value readouts, the preset names and the three drop-down menus stay in English." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de préréglages et les trois menus déroulants restent en anglais.",
+              b: "La langue des libellés de cette page et de ces infobulles. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de préréglages et les trois menus déroulants restent en anglais.",
               reviewed: true },
     },
     'help-toggle': {
         en: { t: "Hover help",
               b: "Turns these hover explanations off or back on. The switch is remembered on this computer rather than in the session, so it follows you from one project to the next." },
-        fr: { t: "Aide au survol",
-              b: "Active ou désactive ces explications au survol. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d’un projet à l’autre.",
+        fr: { t: "Infobulles",
+              b: "Active ou désactive ces infobulles. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d’un projet à l’autre.",
               reviewed: true },
     },
 
@@ -612,7 +615,7 @@ export const LABELS = Object.freeze({
     },
     'aria.helpToggle': {
         en: { t: "Toggle hover help" },
-        fr: { t: "Activer ou désactiver l’aide au survol", reviewed: true },
+        fr: { t: "Activer ou désactiver les infobulles", reviewed: true },
     },
 
     // ── The hover-help toggle's two faces ───────────────────────────────────

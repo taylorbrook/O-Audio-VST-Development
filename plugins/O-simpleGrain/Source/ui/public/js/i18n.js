@@ -23,8 +23,10 @@
 // ── v1.4.2: ENGLISH / TEST-DATA DEFECTS (Stage O, 2026-08-31) ─────────────
 // Stage N read the French against the code and found these; Stage O fixes them.
 //  * item 54 — aria.helpToggle en "Toggle tooltips" -> "Toggle hover help": the
-//    switch's own tip title is "Hover help" and the French already said
-//    "l'aide au survol" (one name per control; fr unchanged, reviewed: true kept).
+//    switch's own tip title is "Hover help" and the French already used the
+//    then-settled suite term (one name per control; fr unchanged,
+//    reviewed: true kept). That term became "Infobulles" at v1.4.3 — see the
+//    CHANGELOG, which is where the superseded wording is recorded.
 //  * item 57 — label.captionPitchedBuzz was the caption that wrapped, not
 //    captionAsyncCloud. MEASURED NOWRAP on the live #tourCaption at 900x760:
 //    fr 997.22 px natural in the 846 px box (the 838.58 the Stage N report
@@ -97,10 +99,13 @@
 //    fixed 4 × 2 of 110.5 px cells and "Clic rectangulaire" measures 76.8 px in
 //    a 109 px content box, so the abbreviation was not buying width — and the
 //    full form makes the accessible name equal the visible one (WCAG 2.5.3).
-//    aria.helpToggle moved from "les infobulles" to the suite's settled
-//    "l'aide au survol", which is also this page's own tip title for the same
-//    switch. (The ENGLISH still says "Toggle tooltips" over a "Hover help" tip
-//    title — reported, not fixed: Stage N does not touch en.)
+//    aria.helpToggle moved from "les infobulles" to the term the suite had
+//    settled on at the time, which was also this page's own tip title for the
+//    same switch. NOTE FOR THE RECORD: v1.4.3 reversed that settlement and the
+//    suite root is "les infobulles" again — this page's original wording, which
+//    the Stage N pass had replaced. See the CHANGELOG. (The ENGLISH still says
+//    "Toggle tooltips" over a "Hover help" tip title — reported, not fixed:
+//    Stage N does not touch en.)
 //
 //  * "tenue" -> "soutenue" in the Frozen Pad caption and body. Not the ADSR
 //    Sustain sense the lint's forbidden list is aimed at (that one is
@@ -208,21 +213,21 @@ export const I18N = Object.freeze({
         en: { t: "Settings",
               b: "Choose the language of the interface, and whether the hover help appears at all. The language is remembered with the session; the hover-help switch is remembered on this computer." },
         fr: { t: "Réglages",
-              b: "Choisir la langue de l’interface et l’affichage de l’aide au survol. La langue est conservée avec la session\u00a0; l’état de l’aide est conservé sur cet ordinateur.",
+              b: "Choisir la langue de l’interface et l’affichage des infobulles. La langue est conservée avec la session\u00a0; l’état des infobulles est conservé sur cet ordinateur.",
               reviewed: true },
     },
     'lang-select': {
         en: { t: "Language",
               b: "The language of the labels on this page and of this hover help. English and French are available; value readouts and the two drop-down menus stay in English." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles\u00a0; les valeurs affichées et les deux menus déroulants restent en anglais.",
+              b: "La langue des libellés de cette page et de ces infobulles. L’anglais et le français sont disponibles\u00a0; les valeurs affichées et les deux menus déroulants restent en anglais.",
               reviewed: true },
     },
     'help-toggle': {
         en: { t: "Hover help",
               b: "Turns these hover explanations off or back on. The switch is remembered on this computer rather than in the session, so it follows you from one project to the next." },
-        fr: { t: "Aide au survol",
-              b: "Active ou désactive ces explications au survol. Le réglage est conservé sur cet ordinateur et non dans la session\u00a0: il vous suit d’un projet à l’autre.",
+        fr: { t: "Infobulles",
+              b: "Active ou désactive ces infobulles. Le réglage est conservé sur cet ordinateur et non dans la session\u00a0: il vous suit d’un projet à l’autre.",
               reviewed: true },
     },
 
@@ -564,7 +569,7 @@ export const LABELS = Object.freeze({
     },
     'aria.helpToggle': {
         en: { t: "Toggle hover help" },
-        fr: { t: "Activer ou désactiver l’aide au survol", reviewed: true },
+        fr: { t: "Activer ou désactiver les infobulles", reviewed: true },
     },
     'ui.on': {
         en: { t: "On" },
