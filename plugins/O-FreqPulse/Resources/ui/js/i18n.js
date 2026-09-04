@@ -53,10 +53,16 @@
 //     justify-content: center, so that moves the h1 too (CHANGELOG v1.18.0
 //     measured five header elements at 8.9 px each).
 //
-//   Aide -> Aide au survol   76.55 px. The .settings-row is space-between
-//     inside the popover's 162 px content box: 76.55 + 12 gap + 54.97 toggle
-//     = 143.52, so 18.48 px of slack and the popover stays at its 186 px
-//     min-width. Same string as the tips-toggle tip title, which is the point.
+//   Aide -> the glossary root, which at v1.18.3 became `Infobulles`   54.16 px
+//     (RE-MEASURED at v1.18.3, not scaled from the superseded caption; that
+//     caption is recorded in the CHANGELOG and deliberately not repeated here,
+//     so a repo grep for it stays at zero). The .settings-row is space-between
+//     inside the popover's 162 px content box: 54.16 + 12 gap + 57 toggle
+//     = 123.16, so 38.84 px of slack — up from 18.48, because the new caption
+//     is 22.39 px shorter — and the popover stays at its 186 px min-width.
+//     `Infobulles` is also 4.84 px NARROWER than English `Hover help` (59.00),
+//     where the superseded French caption was the wider of the two. Same string
+//     as the tips-toggle tip title, which is the point.
 //
 //   Oui/Non -> Marche/Arrêt   The glossary is explicit that Oui/Non are
 //     answers, not states. Marche 36.97 px / Arrêt 25.52 against the toggle's
@@ -159,21 +165,21 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this interface and whether hover help appears. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisissez la langue de cette interface et l’affichage ou non de l’aide au survol. Les deux choix sont conservés avec la session.',
+              b: 'Choisissez la langue de cette interface et l’affichage ou non des infobulles. Les deux choix sont conservés avec la session.',
               reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, note divisions and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais.',
               reviewed: true },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
 
@@ -447,7 +453,7 @@ export const LABELS = Object.freeze({
 
     // ── The settings popover ────────────────────────────────────────────────
     'label.language':     { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: true } },
-    'label.hoverHelp':    { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp':    { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
     // The two faces of the hover-help switch. KEYS through setLabel(), not
     // literals: a literal holds one string, so switching to French mid-session
     // would restore an English "On". Written from an if/else with two literal
@@ -510,7 +516,7 @@ export const LABELS = Object.freeze({
     'aria.presetLoad':    { en: { t: 'Load preset from file' }, fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } },
     'aria.presetSave':    { en: { t: 'Save current settings' }, fr: { t: 'Enregistrer les réglages actuels',       reviewed: true } },
     'aria.langSelect':    { en: { t: 'Interface language' },    fr: { t: 'Langue de l’interface',         reviewed: true } },
-    'aria.helpToggle':    { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.helpToggle':    { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
     'aria.closePanel':    { en: { t: 'Close band controls' },   fr: { t: 'Fermer les réglages de la bande', reviewed: true } },
     // The five accessible names on runtime-built controls whose only visible
     // text is a glyph — M, S, the empty-set sign, the die face and the

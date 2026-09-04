@@ -920,9 +920,15 @@ html, body {
    v1.18.1's Marche/Arrêt (the Stage N glossary; Oui/Non are answers, not
    states) had the button resizing 11.45px between its own two French faces
    under the old 40px pin. 57 = 54.97 + 2.03px slack; every face now measures
-   57.00 in both languages, and the row's arithmetic still fits the popover:
-   76.55 (Aide au survol) + 12 gap + 57 = 145.55 in the 162px content box, so
-   the popover holds its 186px min-width and nothing outside the button moves
+   57.00 in both languages, and the row's arithmetic still fits the popover.
+   RE-MEASURED at v1.18.3, when the French caption became `Infobulles`:
+   54.16 (Infobulles) + 12 gap + 57 = 123.16 in the 162px content box, leaving
+   38.84px of slack where the superseded caption left 18.48 (that caption is
+   recorded in the CHANGELOG and not repeated here, so a repo grep for it stays
+   at zero). THE 57px PIN IS UNCHANGED AND STAYS: it exists so the BUTTON cannot
+   resize between its own two French faces (Marche 36.97 / Arrêt 25.52), which
+   has nothing to do with how wide the caption beside it happens to be. The
+   popover holds its 186px min-width and nothing outside the button moves
    (check-ui-labels: 0 non-label elements moved, both languages, before and
    after). The button grows LEFTWARD inside the right-anchored popover; its
    right edge stays at 824. This is the only .settings-toggle on the page. */

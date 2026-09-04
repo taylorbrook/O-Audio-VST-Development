@@ -182,21 +182,21 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this interface and whether hover help appears. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de cette interface et l’affichage de l’aide au survol. Les deux choix sont conservés avec la session.',
+              b: 'Choisir la langue de cette interface et l’affichage des infobulles. Les deux choix sont conservés avec la session.',
               reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, note names, tuning names and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de notes, les noms de gammes et les noms de préréglages restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de notes, les noms de gammes et les noms de préréglages restent en anglais.',
               reviewed: true },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
 
@@ -984,7 +984,7 @@ export const LABELS = Object.freeze({
 
     // ── The settings popover, and the two faces of every toggle ─────────────
     'label.language':    { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: true } },
-    'label.hoverHelp':   { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp':   { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
     // Worn by the four FX bypass buttons AND by the hover-help switch. Written
     // only by setLabel, from an if/else and never a ternary — assertion 13.
     'ui.on':             { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true } },
@@ -1011,7 +1011,7 @@ export const LABELS = Object.freeze({
     'aria.doubleClickEdit': { en: { t: 'Double-click to edit' }, fr: { t: 'Double-cliquer pour modifier', reviewed: true } },
     'aria.settings':       { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true } },
     'aria.langSelect':     { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle':     { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.helpToggle':     { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
 });
 
 // ============================================================================
