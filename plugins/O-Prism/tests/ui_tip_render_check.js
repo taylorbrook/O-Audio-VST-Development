@@ -239,10 +239,10 @@ const HIDDEN_WHEN_SYNC = new Set([
         process.exit(1);
     }
 
-    // The two chrome anchors: #gear-btn is always visible, but #lang-select lives
-    // inside `.settings-popover`, which is `display: none` until the gear is
-    // clicked.
-    const POPOVER_ONLY = new Set(['#lang-select']);
+    // The three chrome anchors: #gear-btn is always visible, but #lang-select
+    // and (since v1.23.0) #tips-toggle live inside `.settings-popover`, which is
+    // `display: none` until the gear is clicked.
+    const POPOVER_ONLY = new Set(['#lang-select', '#tips-toggle']);
 
     const built = S.buildRoot(PLUGIN, { repoRoot: REPO_ROOT });
     const misses = [];
@@ -959,8 +959,10 @@ const HIDDEN_WHEN_SYNC = new Set([
         // are bound. The other 68 are reported in i18n.js's I18N header and in the
         // commit message — 64 async mod-matrix rows, `tonic` (async), and three
         // with no control at all (`tuningPreset`, `stereoWidth`, `velocityCurve`).
-        check(TIP_BINDINGS.length === 107,
-            `[8] 105 parameter tips + 2 chrome tips = 107 bindings — got ${TIP_BINDINGS.length}`);
+        // v1.23.0: THREE chrome tips — #tips-toggle joined #gear-btn and
+        // #lang-select when the settings popover grew a hover-help switch.
+        check(TIP_BINDINGS.length === 108,
+            `[8] 105 parameter tips + 3 chrome tips = 108 bindings — got ${TIP_BINDINGS.length}`);
         const modAnchors = await page.evaluate(() =>
             document.querySelectorAll('[id^="modSlot"]').length);
         check(modAnchors === 0,

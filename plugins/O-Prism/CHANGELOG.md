@@ -1,5 +1,66 @@
 # O-Prism Changelog
 
+## v1.23.0 (2026-09-03)
+
+A switch for the hover help, and the settings popover becomes two rows to hold it.
+
+### Added
+
+- **A hover-help switch in the settings popover.** `#tips-toggle`, a second
+  `.settings-row` under the language selector, on the newer `#tips-toggle` /
+  `label.hoverHelp` convention rather than the older `#help-toggle` spelling. It
+  gates the tooltip renderer's own show path — a delegated renderer has no
+  bindings to unbind — and persists under the localStorage key `oprism.tipsEnabled`.
+- **`data-tip-always` on `#gear-btn` and on `#tips-toggle`, and on nothing
+  else.** Those two controls are the ones that REACH and RESTORE the help layer,
+  so they keep explaining themselves while it is off. `#lang-select`
+  deliberately does not carry it: it is only reachable through the gear, which
+  already explained itself on the way in.
+- **Five i18n keys, four of them settled roots copied rather than authored.**
+  `label.hoverHelp`, `ui.on`, `ui.off` and `aria.helpToggle` take the French
+  glossary roots verbatim from `scripts/i18n-fr-glossary.js` — *Aide au survol /
+  Marche / Arrêt / Activer ou désactiver l'aide au survol*. The fifth,
+  `tip.tipsToggle`, is the tooltip's own title and body.
+
+### Changed — the popover is now a COLUMN, and the pin moved with it
+
+- Until this version the popover was a **single flat flex row**: the caption and
+  the `<select>` were direct children and there was no `.settings-row` wrapper
+  anywhere on the page. A second control could have been appended flat, making
+  one four-item row, but that puts both captions on the same baseline and makes
+  the panel's width the sum of two captions that change length independently
+  with the language. It is a two-row `flex-direction: column` now, with a
+  `.settings-row` wrapper that this page did not previously have.
+- **The `width: 59.77px` pin on `.settings-label` is GONE, replaced by a hard
+  `width: 168px` on `.settings-popover`.** Both existed for the same reason —
+  the panel is `right: 0`, so anything that changes its width moves its LEFT
+  edge — but a caption pin only covers the captions it was measured against.
+  MEASURED: the French *AIDE AU SURVOL* renders at **92.45 px**, half again the
+  59.77 px English *LANGUAGE* box the pin was set to; under the old pin it would
+  have overflowed silently. The panel pin makes the rectangle language-invariant
+  by construction and lets every caption inside it size itself honestly —
+  English *HOVER HELP* 70.53 px, French *LANGUE* 44.80 px, all inside 168 px.
+
+### Measured
+
+- The panel occupies **y 32..92, 168 x 60 px — byte-identical in English and
+  French** — inside a 1200 x 800 frame. The switch face grows 42.00 -> 43.61 px
+  for *Marche*, leftward into the panel's own slack. `check-ui-labels` [7]
+  reports **0 non-label elements displaced** and the visible element set
+  identical in both languages.
+
+### Also driven
+
+- `tests/ui_tip_render_check.js` now counts **three** chrome tips (108 bindings,
+  not 107) and drives `#tips-toggle` through the popover-open state its sibling
+  `#lang-select` already used — an anchor inside a `display: none` panel measures
+  0 x 0 and would have been reported unhoverable.
+
+### Decided
+
+- **Default is ON.** v1.22.1 showed hover help unconditionally, so ON is the
+  setting that leaves an existing user's plugin behaving exactly as it did.
+
 ## v1.22.1 (2026-08-31)
 
 French copy revised. Stage N of the repo-wide i18n rollout.

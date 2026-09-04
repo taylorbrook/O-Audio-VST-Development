@@ -1133,6 +1133,12 @@ function showTooltip(target) {
   // The pointer may have moved on, or gone down, during the delay.
   if (!tooltipEl || tooltipSuppressed || target !== tooltipTarget) return;
 
+  // v1.11.0 THE SWITCH, and it is a SHOW gate rather than a bind gate: this
+  // renderer is delegated on document, so there is nothing to unbind.
+  // data-tip-always survives it — see the markup comment on #tips-toggle in
+  // index.html for which two controls carry it and why.
+  if (!tipsEnabled && !target.hasAttribute("data-tip-always")) return;
+
   const title = target.getAttribute("data-tip-title");
   const body  = target.getAttribute("data-tip");
 
@@ -1205,6 +1211,54 @@ function hideTooltip() {
   tooltipEl.setAttribute("aria-hidden", "true");
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// The hover-help switch (v1.11.0)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// OUTSIDE the applyI18n/initI18n region, deliberately: check-i18n assertion [6]
+// byte-compares that region, comment-stripped and whitespace-normalised,
+// against scripts/i18n-canon.js. A character added inside it fails the drift
+// gate on all 43 plugins' behalf.
+//
+// DEFAULT IS ON. v1.10.1 showed hover help unconditionally, so ON is the setting
+// that leaves an existing user's plugin behaving exactly as it did. Default OFF
+// would additionally make boot-all-uis --strict-tips measure an empty tip
+// surface and call it correct.
+//
+// hideTooltip() is a module-level function on this page rather than a closure,
+// so unlike the sibling plugins this one needs no published reference.
+
+let tipsEnabled = true;
+
+function applyTipsEnabled(on) {
+  tipsEnabled = !!on;
+  if (!tipsEnabled) hideTooltip();
+  const btn = document.getElementById("tips-toggle");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", tipsEnabled ? "true" : "false");
+  // TWO CALLS IN TWO BRANCHES, never one call with a ternary — the same rule
+  // the delete/confirm pair above already follows, and the one check-i18n
+  // assertion [13] enforces: an inflection decided in JS is a string no
+  // translator can see.
+  if (tipsEnabled) setLabel(btn, "ui.on");
+  else             setLabel(btn, "ui.off");
+}
+
+function initTipsToggle() {
+  const btn = document.getElementById("tips-toggle");
+  if (!btn) { console.error("Missing tips-toggle element"); return; }
+  let stored = null;
+  try { stored = localStorage.getItem("ord.tipsEnabled"); } catch (e) { stored = null; }
+  // Anything that is not the literal string "false" — including a first run with
+  // nothing stored, and a private-mode throw — resolves to ON.
+  applyTipsEnabled(stored !== "false");
+  btn.addEventListener("click", () => {
+    applyTipsEnabled(!tipsEnabled);
+    try { localStorage.setItem("ord.tipsEnabled", String(tipsEnabled)); }
+    catch (e) { /* private mode: the switch still works, it just forgets */ }
+  });
+}
+
 function initTooltips() {
   tooltipEl = document.getElementById("tooltip");
   if (!tooltipEl) { console.warn("Tooltip element not found — tooltips disabled"); return; }
@@ -1261,6 +1315,10 @@ function init() {
   try { initI18n(); }           catch (e) { console.error("i18n init failed:", e); }
 
   initTooltips();
+  // AFTER initI18n(), which has already written the button's English face; this
+  // reads setLabel() to rewrite it from the stored state. Its own try/catch,
+  // matching the two above: a missing switch must not take the renderer down.
+  try { initTipsToggle(); } catch (e) { console.error("tips toggle init failed:", e); }
   initGrainMeter(Juce);          // v1.3.0 (B2); self-contained failure
   // AFTER bindKnob/bindSelectCombo above: it subscribes to sliderState[...] and
   // shapeState, which those calls create. Ordering here is load-bearing in the

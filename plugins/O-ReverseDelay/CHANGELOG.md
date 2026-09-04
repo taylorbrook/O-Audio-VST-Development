@@ -4,6 +4,64 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.11.0] — 2026-09-03
+
+A switch for the hover help. This plugin's tooltip layer could not be turned
+off; twenty of the suite's forty-three plugins already carried that switch and
+twenty-three did not. This closes one of the twenty-three.
+
+### Added
+
+- **A hover-help switch in the settings popover.** `#tips-toggle`, a second
+  `.settings-row` under the language selector, on the newer `#tips-toggle` /
+  `label.hoverHelp` convention rather than the older `#help-toggle` spelling. It
+  gates the tooltip renderer's own show path — a delegated renderer has no
+  bindings to unbind — and persists under the localStorage key `ord.tipsEnabled`.
+- **`data-tip-always` on `#gear-btn` and on `#tips-toggle`, and on nothing
+  else.** Those two controls are the ones that REACH and RESTORE the help layer,
+  so they keep explaining themselves while it is off. `#lang-select`
+  deliberately does not carry it: it is only reachable through the gear, which
+  already explained itself on the way in.
+- **Four i18n keys, all of them settled glossary roots copied rather than
+  authored** — *Aide au survol / Marche / Arrêt / Activer ou désactiver l'aide
+  au survol*, verbatim from `scripts/i18n-fr-glossary.js` — plus the tip entry
+  `tips-toggle`, keyed in this page's own BARE spelling to match `lang-select`
+  rather than importing the sibling plugins' `tip.` prefix into a file that has
+  never used one.
+
+### Where the keys had to go, and why it is not arbitrary
+
+- **`label.hoverHelp`, `ui.on` and `ui.off` are LABELS entries, not I18N
+  entries.** This page's language caption resolves through the `lang-select`
+  I18N entry's own title, so `lang-select` is the caption key AND a tip key —
+  which makes it a misleading anchor for anything new. An I18N entry must carry
+  a body as well as a title (`check-i18n` assertion [1]) and a two-character
+  switch face has no body to write, so all three live in `LABELS` beside
+  `ui.confirm`.
+
+### Measured
+
+- The panel occupies **y 54..141, 196 x 87 px — byte-identical in English and
+  French** — inside a 940 x 768 frame, anchored `right: 0` against a
+  `.settings-cluster` that does not move between languages. The switch face
+  grows **42.00 -> 53.20 px** for *Marche*, leftward into the panel's own slack;
+  `check-ui-labels` [7] reports **0 non-label elements displaced**.
+
+### Decided
+
+- **Default is ON.** v1.10.1 showed hover help unconditionally, so ON is the
+  setting that leaves an existing user's plugin behaving exactly as it did.
+
+### Not covered
+
+- **This plugin has no `tests/ui_tip_render_check.js`** — it is one of two of the
+  forty-three without one. The switch was verified with the cross-plugin
+  functional probe used on the other twenty-two (default ON, both flip
+  directions, the tip disappearing and RETURNING, both `data-tip-always`
+  controls surviving while `#lang-select` stays silent, the face localized, and
+  the localStorage write both ways), but that probe is not committed here and
+  this plugin therefore carries no standing regression gate for the switch.
+
 ## [1.10.1] — 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.
