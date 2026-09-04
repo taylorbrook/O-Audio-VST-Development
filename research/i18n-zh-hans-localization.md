@@ -360,7 +360,12 @@ intent of the existing flag.
 
 New tool: **`scripts/i18n-zh-backtranslate.js`** — emits `en -> zh -> en'` triples for diffing,
 per plugin, `--verbose` for all. Report first, gate once the corpus is at zero findings (the exact
-lifecycle `i18n-fr-lint.js` went through).
+lifecycle `i18n-fr-lint.js` went through). As of 2026-09-04 the emitted **row ids are blinded**:
+a per-batch salt plus a truncated sha256, because the real id (`O-Chorus|label|label.rate`) carries
+both the plugin identity and — in the key name — the English the batch claims to withhold. Two
+emits of the same target therefore share zero ids, and `--ingest` **requires a resolvable manifest**:
+its id map is the only route back, and an absent, ambiguous, unparseable, id-map-less or
+forward-provenance-less manifest refuses rather than reporting a triple it cannot vouch for.
 
 ### 6.3 The zh lint ruleset
 
@@ -370,7 +375,7 @@ lifecycle `i18n-fr-lint.js` went through).
 |---|---|---|
 | **Z1** | Full-width punctuation in zh prose; ASCII `,.:;?!()` forbidden outside a Latin/unit token | The zh convention; ASCII punctuation in Han prose is the #1 MT tell |
 | **Z2** | **No U+00A0** before `: ; ! ? %` — the inverse of fr T3/T4/T5 | Full-width forms carry their own sidebearing |
-| **Z3** | **No Traditional-only characters** in a `zh-Hans` table | Mixed-variant output is the second most common MT artifact. Derive the character set from OpenCC data rather than a hand list |
+| **Z3** | **No Traditional-only characters** in a `zh-Hans` table | Mixed-variant output is the second most common MT artifact. Derive the character set from OpenCC data rather than a hand list — as `keys(TSCharacters) \ keys(STCharacters)` **minus every TS key that appears in its own value list**. That third clause is load-bearing: a TS key mapping to itself (`像<TAB>像 象`) survives T→S conversion unchanged and is a live simplified character, and such keys never appear as ST keys. Without it the set holds 941 extra characters including 像, the second character of 声像 — the glossary's only accepted rendering of `pan`. Generator: `scripts/gen-zh-trad-only.js`, committed, with an offline `--verify` |
 | **Z4** | **Latin/CJK spacing consistency** — one plain U+0020 between a Latin/digit run and a Han run, everywhere or nowhere; pick a space | Follow the fr precedent's reasoning about U+202F: a thin space (U+2009/U+200A) has no glyph in some faces and would render as a box where no gate looks |
 | **Z5** | **Glossary conformance** (the G1 analogue) against `scripts/i18n-zh-glossary.js` | Same mechanism, same 543-term problem |
 | **Z6** | **Character budget** — a caption exceeding `maxChars = floor(cellWidthPx / fontSizePx)` characters | The abbreviation analogue; see §4 |
