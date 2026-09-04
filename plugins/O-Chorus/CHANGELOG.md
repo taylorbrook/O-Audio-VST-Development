@@ -1,5 +1,94 @@
 # O-Chorus Changelog
 
+## [1.6.0] - 2026-09-03
+
+A switch for the hover help. v1.4.0 gave this plugin a tooltip layer and no way
+to turn it off; twenty of the suite's forty-three plugins already had that
+switch, and this version starts closing the other twenty-three.
+
+### Added
+
+- **A hover-help switch in the settings popover.** `#tips-toggle`, a second
+  `.settings-row` under the language selector, on the newer `#tips-toggle` /
+  `label.hoverHelp` convention eight sibling plugins already use rather than the
+  older `#help-toggle` spelling of the other eleven. It gates `setupTooltips`'s
+  own `show()` — a delegated renderer has no bindings to unbind — and persists
+  under the localStorage key `ochor.tipsEnabled`.
+- **`data-tip-always` on `#gear-btn` and on `#tips-toggle`, and on nothing
+  else.** Those two controls are the ones that REACH and RESTORE the help layer,
+  so they keep explaining themselves while it is off. `#lang-select`
+  deliberately does not carry it: it is only reachable through the gear, which
+  already explained itself on the way in. `tests/ui_tip_render_check.js` [8]
+  asserts that asymmetry directly — a blanket exemption would pass a
+  "data-tip-always works" check just as well.
+- **Five i18n keys, four of them settled roots copied rather than authored.**
+  `label.hoverHelp`, `ui.on`, `ui.off` and `aria.helpToggle` take the glossary
+  roots verbatim in both new languages — *Aide au survol / Marche / Arrêt /
+  Activer ou désactiver l'aide au survol* from `scripts/i18n-fr-glossary.js`,
+  and *悬停帮助 / 开 / 关 / 开关悬停帮助* from `scripts/i18n-zh-glossary.js`. The
+  fifth, `tip.tipsToggle`, is the tooltip's own title and body.
+- **`tests/ui_tip_render_check.js` section 8**, sixteen assertions over the
+  switch: default ON, the flip in both directions, the knob tip disappearing and
+  RETURNING, both `data-tip-always` controls surviving the gate, `#lang-select`
+  staying silent, the face localized in all three languages in both states, and
+  the localStorage write in both directions.
+
+### Changed
+
+- **`tip.settings`'s body no longer says the panel holds the interface language
+  "and nothing else".** It holds two rows now. A tip that describes a panel by
+  enumerating its contents has to be re-read every time the panel changes, and
+  this one was one version stale the moment the row landed.
+- **Two comments that asserted the opposite of the code they sat above** —
+  index.html's "ONE row, because this plugin has no hover-help to toggle" and
+  the settings-popover block's "ONE row. This plugin has no hover-help to switch
+  on or off". Both were written at v1.3.0, both were falsified by v1.4.0's
+  tooltip layer, and both survived v1.4.0 and v1.5.0 untouched. A canon line
+  three authors reach around is a canon line that stops being read.
+
+### Measured
+
+- **The second row costs nothing.** With the popover forced open, it occupies
+  **y 40..94, 170 x 54 px — byte-identical in English, French and Chinese.** Its
+  top edge clears the frame's own top by 40 px in a 125 px frame, the shortest
+  in the repo. The 170 px width pin, the 6 px flex gap and the 7px/9px padding
+  all stand unchanged; nothing was widened to fit anything.
+- **The switch's own face measures 42.00 x 16.00 px in all three languages.**
+  *On* / *Marche* / *开* all fit inside the 42 px `min-width` floor, so the
+  button never grows and never moves the caption beside it. The `height: 16px`
+  pin is the load-bearing one: it matches `.settings-select` exactly, so this
+  row is the same height as the language row whichever script renders it. Left
+  unpinned, the face's line box follows the script — the same defect
+  `.settings-label` was pinned against in v1.5.0 — and would have moved the
+  LANGUAGE row and the popover's top edge in Chinese only.
+- `check-ui-labels` reports **0 non-label elements displaced** across en / fr /
+  zh-Hans, and the visible element set identical in all three.
+
+### Decided
+
+- **Default is ON.** v1.5.0 showed hover help unconditionally, so ON is the
+  setting that leaves an existing user's plugin behaving exactly as it did.
+  Default OFF would additionally have made `boot-all-uis --strict-tips` and
+  `tests/ui_tip_render_check.js` measure an empty tip surface and call it
+  correct. O-Polystutter ships this same control defaulting OFF; that is a
+  choice its own tooltip history earned, and it is not inherited here.
+- **Keyed `tip.tipsToggle`, not the bare `tips-toggle` the eight sibling
+  plugins use.** Every key in this file carries the `tip.` prefix, and one
+  exception is drift no lint can see.
+
+### Known gap
+
+- **Two `zh-Hans` entries ship at `reviewed: 'mt'`, below this rollout's `'bt'`
+  ship bar** — `tip.tipsToggle`'s body (new prose) and `tip.settings`'s body
+  (rewritten above). `'bt'` asserts that a second, INDEPENDENT pass, one that
+  never saw the English, rendered the Chinese back and the drift was read. No
+  such pass was available in the session that wrote these two strings, and the
+  session that wrote them cannot be the session that blindly reverses them.
+  Marking them `'bt'` would have been claiming a review that did not happen. The
+  other 42 zh-Hans entries, including all four new glossary roots, remain at
+  `'bt'`. Queued for the next reverse batch:
+  `node scripts/i18n-zh-backtranslate.js --emit O-Chorus`.
+
 ## [1.5.0] - 2026-09-03
 
 Simplified Chinese. O-Chorus is the pilot for the zh-Hans rollout — every

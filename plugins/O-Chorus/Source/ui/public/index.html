@@ -532,6 +532,61 @@
       outline-offset: 1px;
     }
 
+    /* v1.6.0 HOVER-HELP SWITCH. Ported from O-Polystutter's .settings-toggle
+       and recolored into this page's own palette — the rgba(74,59,42,0.4)
+       hairline .gear-btn and .settings-select already share, #3C2F2F ink, and
+       the #3a5c4a green this page uses for every active/hover state — rather
+       than pasting in O-Polystutter's #6B8E4E, which is that plugin's system.
+
+       TWO PINS, BOTH LOAD-BEARING, BOTH FOR THE SAME REASON THE TWO ABOVE ARE.
+       This button carries a [data-i18n] face (On / Marche / 开), so its own
+       rectangle is exempt from check-ui-labels assertion 7 — but .settings-row
+       is NOT a label, and a row is exactly as tall as its tallest child.
+       Left unpinned, this face's line box would follow the script — the same
+       defect .settings-label above it is already pinned against — growing this
+       row, moving the LANGUAGE row above it, and moving the popover's own top
+       edge, in Chinese only.
+
+         height: 16px   matches .settings-select exactly, so this row is the
+                        same height as the language row in every language and
+                        the popover's geometry is language-invariant by
+                        construction rather than by luck.
+         line-height    unitless and pinned, so the face centres identically
+                        whichever script renders it.
+
+       width is deliberately NOT pinned, only FLOORED: min-width sizes the two
+       short English faces alike, and any longer face grows leftward into slack
+       the 170 px popover already has. MEASURED at 42.00 x 16.00 px in all three
+       languages — On / Marche / 开 all fit inside the 42 px floor — so the
+       button's own rectangle happens not to move either. check-ui-labels [7]
+       reports 0 non-label elements displaced across en / fr / zh-Hans. */
+    .settings-toggle {
+      flex: 0 0 auto;
+      min-width: 42px;
+      height: 16px;
+      padding: 0 6px;
+      background: none;
+      border: 1px solid rgba(74, 59, 42, 0.4);
+      border-radius: 2px;
+      color: #3C2F2F;
+      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 9px;
+      line-height: 1.2;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .settings-toggle[aria-pressed="true"] {
+      background: #3a5c4a;
+      border-color: #3a5c4a;
+      color: #f5e6d3;
+    }
+
+    .settings-toggle:focus-visible {
+      outline: 1px solid #3a5c4a;
+      outline-offset: 1px;
+    }
+
     /* ===== HOVER-HELP (v1.4.0) =====
        The surface the delegated renderer paints into. Styled in THIS page's
        vocabulary rather than pasted in from the reference implementation: the
@@ -796,14 +851,16 @@
       </div>
     </div>
 
-    <!-- v1.3.0: the settings cluster. ONE row, because this plugin has no
-         hover-help to toggle — authoring that copy is Stage M's job and this
-         commit does not invent it. Positioned absolutely in the empty
-         bottom-left margin so that no existing element moves to make room. -->
+    <!-- v1.3.0: the settings cluster. Positioned absolutely in the empty
+         bottom-left margin so that no existing element moves to make room.
+         v1.6.0: TWO rows. The hover-help switch that v1.3.0's comment here
+         deferred to a later stage now exists, and this comment says so rather
+         than continuing to assert the opposite of the markup below it. -->
     <div class="settings-cluster">
       <button type="button" class="gear-btn" id="gear-btn"
               aria-haspopup="dialog" aria-expanded="false"
-              data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+              data-i18n-aria="aria.settings" aria-label="Settings"
+              data-tip-always>&#9881;</button>
 
       <div class="settings-popover" id="settings-popover"
            role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
@@ -830,6 +887,23 @@
             <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
           </select>
         </label>
+
+        <!-- A <div>, NEVER a <label for="tips-toggle">: a button is a labelable
+             element, so a label wrapping one re-dispatches the click and the
+             switch toggles twice. The button names itself with aria-label.
+
+             data-tip-always on this button and on #gear-btn, and on nothing
+             else. Those two controls are the ones that REACH and RESTORE the
+             help layer, so they keep explaining themselves while it is off.
+             #lang-select deliberately does not carry it: it is only reachable
+             through the gear, which already explained itself on the way in. -->
+        <div class="settings-row">
+          <span class="settings-label" data-i18n="label.hoverHelp" data-label="Hover help">Hover help</span>
+          <button type="button" class="settings-toggle" id="tips-toggle"
+                  aria-pressed="true" data-i18n-aria="aria.helpToggle"
+                  aria-label="Toggle hover help"
+                  data-i18n="ui.on" data-tip-always>On</button>
+        </div>
       </div>
     </div>
 
@@ -1202,10 +1276,15 @@
     // The settings popover (v1.3.0)
     // ════════════════════════════════════════════════════════════════════════
     //
-    // ONE row. This plugin has no hover-help to switch on or off — v1.2.3
-    // carried no data-tip anywhere — and authoring that copy is Stage M's job,
-    // so the popover holds the language selector alone. The panel opens
-    // UPWARDS: the gear is 5 px from the BOTTOM of a 125 px frame.
+    // TWO rows as of v1.6.0 — the language selector and the hover-help switch.
+    // v1.3.0's comment here said "ONE row, this plugin has no hover-help to
+    // switch on or off"; v1.4.0 gave it one and left the sentence standing.
+    // The panel opens UPWARDS: the gear is 5 px from the BOTTOM of a 125 px
+    // frame. MEASURED at v1.6.0 with the second row added, and identical in
+    // all three languages: the popover occupies y 40..94, 170 x 54 px. Its top
+    // edge clears the frame's own top by 40 px, so the second row cost nothing
+    // — the 170 px width pin, the popover's 6 px gap and 7px/9px padding and
+    // the 125 px frame all stand unchanged.
 
     let settingsPopoverEl = null;
     let gearBtnEl = null;
@@ -1291,6 +1370,11 @@
         let active = null;
 
         const show = (el, x, y) => {
+            // THE SWITCH, and it is a SHOW gate rather than a bind gate: the
+            // renderer is delegated on document, so there is nothing to unbind.
+            // data-tip-always survives the gate — see the markup comment on
+            // #tips-toggle for which two controls carry it and why.
+            if (!tipsEnabled && !el.hasAttribute('data-tip-always')) return;
             const title = el.getAttribute('data-tip-title');
             const body  = el.getAttribute('data-tip');
             if (!title && !body) return;
@@ -1341,6 +1425,12 @@
             tip.setAttribute('aria-hidden', 'true');
             active = null;
         };
+
+        // Published to the module scope so applyTipsEnabled() can pull a tip
+        // down at the instant the switch goes Off. hide is a closure over `tip`
+        // and `active`, so it cannot simply be hoisted out; a reference is the
+        // whole of the coupling.
+        hideTip = hide;
 
         const anchorOf = (t) => (t && t.closest ? t.closest('[data-tip]') : null);
 
@@ -1405,6 +1495,53 @@
         });
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    // The hover-help switch (v1.6.0)
+    // ════════════════════════════════════════════════════════════════════════
+    //
+    // OUTSIDE the applyI18n/initI18n region above, deliberately: check-i18n
+    // assertion [6] byte-compares that region, comment-stripped and
+    // whitespace-normalised, against scripts/i18n-canon.js. A character added
+    // inside it fails the drift gate on all 43 plugins' behalf.
+    //
+    // DEFAULT IS ON. v1.5.0 showed hover help unconditionally, so ON is the
+    // setting that leaves an existing user's plugin behaving exactly as it did.
+    // Default OFF would additionally make boot-all-uis --strict-tips and
+    // tests/ui_tip_render_check.js measure an empty tip surface and call it
+    // correct.
+
+    let tipsEnabled = true;
+    let hideTip = () => {};
+
+    function applyTipsEnabled(on) {
+        tipsEnabled = !!on;
+        if (!tipsEnabled) hideTip();
+        const btn = document.getElementById('tips-toggle');
+        if (!btn) return;
+        btn.setAttribute('aria-pressed', tipsEnabled ? 'true' : 'false');
+        // TWO CALLS BEHIND AN if/else, never a ternary inside the setLabel
+        // argument: check-i18n assertion [13] rejects a conditional anywhere in
+        // that call, because an inflection decided in JS is a string no
+        // translator can see.
+        if (tipsEnabled) setLabel(btn, 'ui.on');
+        else             setLabel(btn, 'ui.off');
+    }
+
+    function initializeTipsToggle() {
+        const btn = document.getElementById('tips-toggle');
+        if (!btn) { console.error('Missing tips-toggle element'); return; }
+        let stored = null;
+        try { stored = localStorage.getItem('ochor.tipsEnabled'); } catch (e) { stored = null; }
+        // Anything that is not the literal string 'false' — including a first
+        // run with nothing stored, and a private-mode throw — resolves to ON.
+        applyTipsEnabled(stored !== 'false');
+        btn.addEventListener('click', () => {
+            applyTipsEnabled(!tipsEnabled);
+            try { localStorage.setItem('ochor.tipsEnabled', String(tipsEnabled)); }
+            catch (e) { /* private mode: the switch still works, it just forgets */ }
+        });
+    }
+
     // Guarded, and LAST. Every parameter binding above has already been
     // registered, so an i18n failure leaves an English plugin that still works
     // rather than a dead page.
@@ -1417,7 +1554,7 @@
     // reaching a lower let/const is the TDZ throw that would take this whole
     // inline module with it (pattern_module_toplevel_init_tdz).
     initializeSettingsPopover();
-    try { initI18n(); setupTooltips(); } catch (e) { console.error('i18n init failed:', e); }
+    try { initI18n(); setupTooltips(); initializeTipsToggle(); } catch (e) { console.error('i18n init failed:', e); }
   </script>
 </body>
 </html>

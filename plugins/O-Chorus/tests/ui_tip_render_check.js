@@ -377,7 +377,10 @@ function outsideViewport(rect, W, H) {
         // container. The gear is hovered in the open state too, so the pass
         // covers the state a user is actually in when they reach for it.
         const anchorsClosed = TIP_BINDINGS.filter(b => /^\.knob\[/.test(b[0])).map(b => b[0]);
-        const anchorsOpen   = ['#gear-btn', '#lang-select'];
+        // v1.6.0: #tips-toggle joins the OPEN group. It lives inside the same
+        // [hidden] popover #lang-select does, so it does not exist to a pointer
+        // until the gear is clicked.
+        const anchorsOpen   = ['#gear-btn', '#lang-select', '#tips-toggle'];
         check(anchorsClosed.length + anchorsOpen.length === TIP_BINDINGS.length,
             `[1] every binding is driven below — ${anchorsClosed.length} knob(s) + `
             + `${anchorsOpen.length} chrome vs ${TIP_BINDINGS.length} row(s)`);
@@ -733,6 +736,125 @@ function outsideViewport(rect, W, H) {
         }
         await page.keyboard.press('Escape');
         await page.waitForTimeout(150);
+
+        // ── 8. THE HOVER-HELP SWITCH (v1.6.0) ───────────────────────────────
+        //
+        // Four states, driven in order, and the pass is only meaningful because
+        // it asserts BOTH directions: a gate that only checked "no tip when
+        // off" would be green on a page whose tips never render at all
+        // (pattern_probe_must_target_the_branch_the_fix_changed). Every ON
+        // assertion below is the discriminator for the OFF one beside it.
+        console.log('\n-- 8. the hover-help switch');
+
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(150);
+        await page.evaluate(() => window.__setLanguage('en'));
+        await page.waitForTimeout(150);
+
+        const readToggle = () => page.evaluate(() => {
+            const b = document.getElementById('tips-toggle');
+            return b ? { pressed: b.getAttribute('aria-pressed'), face: (b.textContent || '').trim() } : null;
+        });
+
+        await setPopover(true);
+        let tg = await readToggle();
+        check(tg !== null, '[8] #tips-toggle exists in the open popover');
+        check(tg && tg.pressed === 'true' && tg.face === 'On',
+            `[8] DEFAULT IS ON — aria-pressed="true", face "On" (got ${tg && tg.pressed}/"${tg && tg.face}")`);
+
+        // ON: a knob tip renders. This is the control for the OFF pass below.
+        await setPopover(false);
+        const onKnob = await hoverAnchor('.knob[data-param="rate"]', '.knob-container');
+        check(!!(onKnob && onKnob.tip.shown && (onKnob.tip.title || onKnob.tip.body)),
+            '[8] ON: hovering a knob renders a tip — the control the OFF pass is measured against');
+
+        // Flip it OFF.
+        await setPopover(true);
+        await page.click('#tips-toggle');
+        await page.waitForTimeout(180);
+        tg = await readToggle();
+        check(tg && tg.pressed === 'false' && tg.face === 'Off',
+            `[8] the click flipped it — aria-pressed="false", face "Off" (got ${tg && tg.pressed}/"${tg && tg.face}")`);
+
+        // OFF: the SAME knob renders nothing.
+        await setPopover(false);
+        const offKnob = await hoverAnchor('.knob[data-param="rate"]', '.knob-container');
+        check(!!(offKnob && !(offKnob.tip.shown && (offKnob.tip.title || offKnob.tip.body))),
+            '[8] OFF: the same knob renders no tip — the switch gates show(), not the bindings',
+            offKnob ? `still showing "${offKnob.tip.title}"` : 'anchor not found');
+
+        // OFF: the two data-tip-always controls STILL explain themselves. Without
+        // this half, a user who switches the help off has no help telling them
+        // how to switch it back on.
+        await setPopover(true);
+        const offGear = await hoverAnchor('#gear-btn');
+        check(!!(offGear && offGear.tip.shown && (offGear.tip.title || offGear.tip.body)),
+            '[8] OFF: #gear-btn still renders its tip — data-tip-always survives the gate',
+            offGear ? `shown=${offGear.tip.shown} title="${offGear.tip.title}"` : 'anchor not found');
+        const offSwitch = await hoverAnchor('#tips-toggle');
+        check(!!(offSwitch && offSwitch.tip.shown && (offSwitch.tip.title || offSwitch.tip.body)),
+            '[8] OFF: #tips-toggle still renders its own tip — the way back is still explained',
+            offSwitch ? `shown=${offSwitch.tip.shown} title="${offSwitch.tip.title}"` : 'anchor not found');
+        // And #lang-select deliberately does NOT carry data-tip-always, so it is
+        // silent — the assertion that the gate is a gate and not a no-op.
+        const offLang = await hoverAnchor('#lang-select');
+        check(!!(offLang && !(offLang.tip.shown && (offLang.tip.title || offLang.tip.body))),
+            '[8] OFF: #lang-select is silent — data-tip-always is an opt-in, not a blanket exemption',
+            offLang ? `still showing "${offLang.tip.title}"` : 'anchor not found');
+
+        // The face is localized in both remaining languages while OFF.
+        for (const [lang, want] of [['fr', 'Arrêt'], ['zh-Hans', '关']]) {
+            await page.evaluate((l) => window.__setLanguage(l), lang);
+            await page.waitForTimeout(150);
+            const t = await readToggle();
+            check(!!(t && t.face === want),
+                `[8] OFF face is localized in ${lang} — expected "${want}", got "${t && t.face}"`);
+        }
+        await page.evaluate(() => window.__setLanguage('en'));
+        await page.waitForTimeout(150);
+
+        // Flip it back ON and prove the knob tip returns — the round trip, not
+        // just the one-way trip.
+        await setPopover(true);
+        await page.click('#tips-toggle');
+        await page.waitForTimeout(180);
+        tg = await readToggle();
+        check(tg && tg.pressed === 'true' && tg.face === 'On',
+            `[8] the second click restored it — aria-pressed="true", face "On" (got ${tg && tg.pressed}/"${tg && tg.face}")`);
+        for (const [lang, want] of [['fr', 'Marche'], ['zh-Hans', '开']]) {
+            await page.evaluate((l) => window.__setLanguage(l), lang);
+            await page.waitForTimeout(150);
+            const t = await readToggle();
+            check(!!(t && t.face === want),
+                `[8] ON face is localized in ${lang} — expected "${want}", got "${t && t.face}"`);
+        }
+        await page.evaluate(() => window.__setLanguage('en'));
+        await page.waitForTimeout(150);
+        await setPopover(false);
+        const backKnob = await hoverAnchor('.knob[data-param="rate"]', '.knob-container');
+        check(!!(backKnob && backKnob.tip.shown && (backKnob.tip.title || backKnob.tip.body)),
+            '[8] ON again: the knob tip returns — the gate releases as well as it holds');
+
+        // PERSISTENCE. The switch writes localStorage on every flip, so the
+        // stored value is read back rather than the in-memory flag.
+        await setPopover(true);
+        await page.click('#tips-toggle');
+        await page.waitForTimeout(180);
+        const stored = await page.evaluate(() => {
+            try { return localStorage.getItem('ochor.tipsEnabled'); } catch (e) { return 'THREW'; }
+        });
+        check(stored === 'false',
+            `[8] the OFF state is persisted under ochor.tipsEnabled — got ${JSON.stringify(stored)}`);
+        await page.click('#tips-toggle');
+        await page.waitForTimeout(180);
+        const stored2 = await page.evaluate(() => {
+            try { return localStorage.getItem('ochor.tipsEnabled'); } catch (e) { return 'THREW'; }
+        });
+        check(stored2 === 'true',
+            `[8] and the ON state overwrites it — got ${JSON.stringify(stored2)}`);
+        await setPopover(false);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(120);
 
         // ── housekeeping ────────────────────────────────────────────────────
         console.log('');

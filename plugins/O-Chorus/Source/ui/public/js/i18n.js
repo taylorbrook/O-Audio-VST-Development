@@ -603,19 +603,26 @@ export const I18N = Object.freeze({
     // control and M1 does not add one, so promising it would be a tip that
     // lies. One row, the language selector, and Escape closes it
     // (index.html's initializeSettingsPopover).
+    // v1.6.0: the body no longer says "the interface language AND NOTHING
+    // ELSE". The popover grew a second row in this version, and a tip that
+    // describes the panel by enumerating its contents has to be re-read every
+    // time the panel changes — so it now names both rows. The zh-Hans arm drops
+    // to 'mt' with the rest of the changed prose: the string it was
+    // back-translated at no longer exists.
     'tip.settings': {
         en: { t: 'Settings',
               b: 'Opens the settings panel above this button. It holds the interface language '
-               + 'and nothing else. Press Escape to close it.' },
+               + 'and the hover-help switch. Press Escape to close it.' },
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau de réglages au-dessus de ce bouton. Il contient la langue '
-               + 'de l’interface et rien d’autre. Appuyez sur Échap pour le fermer.',
+               + 'de l’interface et le commutateur d’aide au survol. Appuyez sur Échap pour '
+               + 'le fermer.',
               reviewed: true },
         'zh-Hans': { t: '设置',
               b: '在此按钮上方打开设置面板。'
-               + '面板中只有界面语言一项，没有别的。'
+               + '面板中有界面语言和悬停帮助开关两项。'
                + '按 Escape 键关闭。',
-              reviewed: 'bt' },
+              reviewed: 'mt' },
     },
 
     // ── The language selector ──────────────────────────────────────────────
@@ -640,6 +647,39 @@ export const I18N = Object.freeze({
                + '该选择会随插件一同保存，下次打开时恢复。'
                + 'English、Français 或简体中文。',
               reviewed: 'bt' },
+    },
+
+    // ── tip.tipsToggle (v1.6.0) — the switch that reaches this whole layer ──
+    //
+    // Keyed 'tip.tipsToggle' rather than the bare 'tips-toggle' eight sibling
+    // plugins use, because every key in THIS file carries the 'tip.' prefix and
+    // one exception is the drift a lint cannot see.
+    //
+    // The zh-Hans BODY is the only genuinely new translation in this version.
+    // Every other Chinese string added at v1.6.0 is a settled glossary ROOT
+    // taken verbatim from scripts/i18n-zh-glossary.js — 悬停帮助 / 开 / 关 /
+    // 开关悬停帮助 — and 设置 for the gear, which this body reuses rather than
+    // inventing a second word for the same control.
+    'tip.tipsToggle': {
+        en: { t: 'Hover Help',
+              b: 'Turns this hover help on and off. With it off, only the gear and this '
+               + 'switch keep explaining themselves.' },
+        fr: { t: 'Aide au survol',
+              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+               + 'l’engrenage et ce commutateur continuent de s’expliquer.',
+              reviewed: true },
+        // reviewed: 'mt', NOT 'bt', and this is the one entry in the file
+        // below the rollout's ship bar. 'bt' asserts that a SECOND, INDEPENDENT
+        // pass — one that never saw the English — rendered this Chinese back
+        // into English and the drift was read. The title 悬停帮助 is a settled
+        // glossary root and would qualify; the BODY is new prose written in
+        // this same session, and the session that wrote it cannot be the
+        // session that blindly reverses it. Claiming 'bt' here would be
+        // claiming a review that did not happen. Queued for the next reverse
+        // batch: scripts/i18n-zh-backtranslate.js --emit O-Chorus.
+        'zh-Hans': { t: '悬停帮助',
+              b: '开关这项悬停帮助。关闭后，只有设置齿轮和这个开关继续解释自己。',
+              reviewed: 'mt' },
     },
 });
 
@@ -823,6 +863,16 @@ export const LABELS = Object.freeze({
     // ── The settings popover (v1.3.0) ───────────────────────────────────────
     'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'bt' } },
 
+    // v1.6.0. All four renderings below are settled ROOTS, copied rather than
+    // authored: the French are the glossary roots at
+    // scripts/i18n-fr-glossary.js ('hover help', 'on', 'off', 'toggle hover
+    // help'), and the Chinese are the roots at scripts/i18n-zh-glossary.js for
+    // the same four terms. They carry the same review marks the rest of this
+    // file's roots carry for the same reason — they are not new machine output.
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true },        'zh-Hans': { t: '开', reviewed: 'bt' } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true },        'zh-Hans': { t: '关', reviewed: 'bt' } },
+
     // ── Accessible names ────────────────────────────────────────────────────
     //
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
@@ -856,6 +906,8 @@ export const LABELS = Object.freeze({
                        'zh-Hans': { t: '设置', reviewed: 'bt' } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true },
                        'zh-Hans': { t: '界面语言', reviewed: 'bt' } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' },  fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true },
+                       'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' } },
 });
 
 // ============================================================================
@@ -944,6 +996,7 @@ export const TIP_BINDINGS = [
     ['.knob[data-param="drive"]',  'tip.drive',  '.knob-container'],
     ['#gear-btn',                  'tip.settings'],
     ['#lang-select',               'tip.language'],
+    ['#tips-toggle',               'tip.tipsToggle'],
 ];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a
