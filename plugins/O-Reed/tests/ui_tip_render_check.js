@@ -355,14 +355,26 @@ const EXPAND_ALL = () =>
             rowIsAnchor: !!(row && row.hasAttribute('data-tip')),
             rowHoldsGear: !!(row && row.contains(gear)),
             rowCount: document.querySelectorAll('.settings-row').length,
+            rowHoldsLang: !!(row && row.contains(sel)),
+            rowHoldsTips: !!(row && document.getElementById('tips-toggle')
+                             && row.contains(document.getElementById('tips-toggle'))),
         };
     });
     check(chrome.gearAnchor && chrome.rowIsAnchor && !chrome.rowHoldsGear,
         `[1] the two chrome anchors are DISJOINT — #gear-btn is its own anchor, #lang-select `
         + `walks to .settings-row, and .settings-row does not contain the gear (O-Comp's trap)`);
-    check(chrome.rowCount === 1,
-        `[1] .settings-row is unique on this page — ${chrome.rowCount} node(s). A wrapper class `
-        + `that matches twice makes closest() right by luck (O-Tremolo's .waveform-section)`);
+    // v1.4.0 REPLACES A PROXY WITH THE PROPERTY IT STOOD FOR. Until the hover-help
+    // switch landed there was exactly one .settings-row, and this line asserted
+    // that count — a proxy for "closest() is right by construction, not by luck"
+    // (O-Tremolo's .waveform-section). There are two rows now, and the count is
+    // no longer the question: the binding resolves #lang-select by its unique id
+    // and then walks ANCESTORS with closest(), which cannot reach a sibling row
+    // however many exist. What must hold is that the resolved wrapper is the row
+    // holding #lang-select and NOT the one holding the switch, asserted directly.
+    check(chrome.rowHoldsLang && !chrome.rowHoldsTips,
+        `[1] #lang-select's wrapper is ITS OWN row — contains #lang-select `
+        + `(${chrome.rowHoldsLang}) and not #tips-toggle (${chrome.rowHoldsTips}), `
+        + `across ${chrome.rowCount} .settings-row node(s)`);
 
     // ── the hover driver ────────────────────────────────────────────────────
     // Hovers a DESCENDANT of the anchor wherever one exists, not the anchor

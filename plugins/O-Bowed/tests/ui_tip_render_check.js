@@ -219,9 +219,11 @@ const READ_TIP = `() => {
 
     // ── the table ───────────────────────────────────────────────────────────
     const { I18N, TIP_BINDINGS, LANGUAGES } = loadTable(i18nSrc);
-    check(Array.isArray(TIP_BINDINGS) && TIP_BINDINGS.length === 30,
-        `TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} anchor(s), expected 30 `
-        + `(${KNOB_COUNT} parameters with a control + #gear-btn + #lang-select)`);
+    // v1.7.0: THREE chrome anchors, not two — #tips-toggle joined #gear-btn and
+    // #lang-select when the settings popover grew a hover-help switch.
+    check(Array.isArray(TIP_BINDINGS) && TIP_BINDINGS.length === 31,
+        `TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} anchor(s), expected 31 `
+        + `(${KNOB_COUNT} parameters with a control + #gear-btn + #lang-select + #tips-toggle)`);
     check(LANGUAGES.join(',') === 'en,fr', `LANGUAGES is en,fr — got ${LANGUAGES.join(',')}`);
 
     const pw = S.resolvePlaywright();

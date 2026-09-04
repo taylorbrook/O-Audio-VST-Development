@@ -11,7 +11,7 @@ juce_add_plugin(O-Bassoon
     PLUGIN_CODE OBsn
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bassoon${OUARICON_DEV_SUFFIX}"
-    VERSION "1.2.2"
+    VERSION "1.3.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE

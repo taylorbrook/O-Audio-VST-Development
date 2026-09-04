@@ -746,6 +746,16 @@ export const I18N = Object.freeze({
               b: 'Bascule chaque libellé et chaque bulle d’aide de la page entre l’anglais et le français. Les valeurs affichées restent en anglais afin de continuer à correspondre à la piste d’automation de l’hôte. English ou Français.',
               reviewed: true },
     },
+    // v4.4.0 — the switch that reaches this whole layer.
+    'tip.tipsToggle': {
+        en: { t: 'Hover Help',
+              b: 'Turns this hover help on and off. With it off, only the gear and this '
+               + 'switch keep explaining themselves.' },
+        fr: { t: 'Aide au survol',
+              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+               + 'l’engrenage et ce commutateur continuent de s’expliquer.',
+              reviewed: true },
+    },
 });
 
 export const LABELS = Object.freeze({
@@ -913,6 +923,13 @@ export const LABELS = Object.freeze({
     // ── The settings popover (new in v4.2.0) ────────────────────────────────
     'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
+    // v4.4.0. All four renderings below are settled glossary ROOTS, copied
+    // rather than authored: scripts/i18n-fr-glossary.js carries them as the
+    // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
+    // the same review mark this file's other roots carry, and for the same
+    // reason — they are not new machine output.
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+
     // ── Tuning panel (js/tuning-panel.js) ───────────────────────────────────
     // PARAMETERISED entries, written through data-i18n-vars. Contract §6: the
     // inflection is authored AROUND, not engineered. English pluralizes zero as
@@ -976,6 +993,7 @@ export const LABELS = Object.freeze({
     'alt.snail':            { en: { t: 'Snail' }, fr: { t: 'Escargot', reviewed: true } },
     'aria.settings':        { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true } },
     'aria.langSelect':      { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
+    'aria.helpToggle':      { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
     'aria.doubleClickEdit': { en: { t: 'Double-click to edit' }, fr: { t: 'Double-cliquer pour modifier', reviewed: true } },
 });
 
@@ -1231,6 +1249,7 @@ export const TIP_BINDINGS = [
     // ── Chrome ──────────────────────────────────────────────────────────────
     ['#gear-btn',    'tip.gearBtn',    null],
     ['#lang-select', 'tip.langSelect', '.settings-row'],
+    ['#tips-toggle', 'tip.tipsToggle'],
 ];
 
 export function tr(key, lang, vars) {
