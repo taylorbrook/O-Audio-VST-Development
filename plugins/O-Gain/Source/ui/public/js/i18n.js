@@ -85,15 +85,21 @@
 //   MEDIUM is long; MOYEN is already short, so the French trio is three whole
 //   words rather than two-and-an-abbreviation.
 //
-//   label.hoverHelp CARRIES THE ROOT TERM NOW. "Aide" was an abbreviation the
-//   width did not require: .settings-row is a 154 px content box, the pill is
-//   a hard 52 px and the flex gap 10 px, so the nowrap caption has 92 px.
-//   "Aide au survol" renders 70.22 — 21.78 px of clearance, and it is 16.14 px
-//   WIDER than English "Hover help" (54.08) with the row's rect unchanged
-//   because the popover's width is pinned. It also ends a real defect: the
-//   caption said "Aide" while the tip title on the same control said "Aide au
-//   survol". aria.helpToggle likewise takes the full "Activer ou désactiver",
-//   which is what "Toggle" means and what the glossary settles.
+//   label.hoverHelp CARRIES THE ROOT TERM NOW, and at v1.3.3 that root
+//   CHANGED to "Infobulles" — the word French DAW and OS interfaces use for the
+//   surface itself, where the v1.3.2 term named the ACTION (see CHANGELOG
+//   v1.3.3, which is where the superseded wording is recorded; this file no
+//   longer carries it, so a repo grep for it stays at zero).
+//   .settings-row is a 154 px content box, the pill is a hard 52 px and the
+//   flex gap 10 px, so the nowrap caption has 92 px. "Infobulles" renders
+//   49.69 (re-measured, not scaled) — 42.31 px of clearance, and 4.39 px
+//   NARROWER than English "Hover help" (54.08); the v1.3.2 caption was 16.14 px
+//   WIDER at 70.22. The row's rect is unchanged either way because
+//   the popover's width is pinned; see the width table beside .settings-popover
+//   in index.html. The term is PLURAL, so every sentence about it agrees
+//   plural — "ces infobulles", "une fois désactivées". aria.helpToggle
+//   likewise takes the full "Activer ou désactiver les infobulles", which is
+//   what "Toggle" means and what the glossary settles.
 //
 //   ONE FRENCH WORD FOR "SWITCH". The settings body said "interrupteur" and
 //   the tips-toggle body "commutateur" for the same control; a commutateur
@@ -226,21 +232,21 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this interface and whether hover help appears. The language is remembered with the session; the hover-help switch is not.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de cette interface et l’affichage de l’aide au survol. La langue est conservée avec la session ; l’interrupteur d’aide au survol ne l’est pas.',
+              b: 'Choisir la langue de cette interface et l’affichage des infobulles. La langue est conservée avec la session ; l’interrupteur des infobulles ne l’est pas.',
               reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, meter-mode names and unit symbols stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de modes de vumètre et les symboles d’unité restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de modes de vumètre et les symboles d’unité restent en anglais.',
               reviewed: true },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et cet interrupteur continuent de s’expliquer.',
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls l’engrenage et cet interrupteur continuent de s’expliquer.',
               reviewed: true },
     },
 
@@ -536,7 +542,7 @@ export const LABELS = Object.freeze({
 
     // ── The settings popover ────────────────────────────────────────────────
     'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: true } },
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
     'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
     'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
 
@@ -547,7 +553,7 @@ export const LABELS = Object.freeze({
     //    tooltip competing with the measure-then-pin renderer.
     'aria.settings':   { en: { t: 'Settings' },             fr: { t: 'Réglages',                 reviewed: true } },
     'aria.langSelect': { en: { t: 'Interface language' },    fr: { t: 'Langue de l’interface',    reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
 });
 
 // ============================================================================
