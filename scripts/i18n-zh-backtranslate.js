@@ -68,7 +68,13 @@
         node scripts/i18n-zh-backtranslate.js --emit O-Chorus --out /tmp/b.tsv \
              --forward-provenance "claude-opus draft, 2026-09-01"
         node scripts/i18n-zh-backtranslate.js --ingest /tmp/b.en.tsv \
-             --provenance "gpt-5 reverse pass, fresh session, 2026-09-02"
+             --provenance "gpt-5 reverse pass, fresh session, 2026-09-02" \
+             [--manifest /tmp/b.tsv.manifest.json]
+             # manifest resolution, first hit wins: an explicit --manifest (never
+             # silently ignored) -> <ingest>.manifest.json -> the emit form with an
+             # `.en` segment dropped before the final extension -> a scan of the
+             # ingest file's directory, which must find exactly one. Zero, two or
+             # more, unparseable, or no recorded forward pass all REFUSE.
 
   ==============================================================================
 */
@@ -178,36 +184,130 @@ function emit() {
     });
 }
 
-function refuse(why) {
-    console.log(`REFUSED: back-translation provenance is missing or identical to the forward pass — this triple proves nothing`);
-    console.log(`  ${why}`);
-    console.log(`  Re-run with --provenance "<what produced the en-prime, and when>", naming a pass that`);
-    console.log(`  is NOT the one that produced the Chinese. A reverse pass that can see the source — or`);
-    console.log(`  that IS the source — round-trips its own vocabulary and reads clean while the Chinese`);
-    console.log(`  is wrong. That is the failure this refusal exists to prevent.`);
+const DEFAULT_HEADLINE = 'back-translation provenance is missing or identical to the forward pass — this triple proves nothing';
+const DEFAULT_REMEDY = [
+    'Re-run with --provenance "<what produced the en-prime, and when>", naming a pass that',
+    'is NOT the one that produced the Chinese. A reverse pass that can see the source — or',
+    'that IS the source — round-trips its own vocabulary and reads clean while the Chinese',
+    'is wrong. That is the failure this refusal exists to prevent.',
+];
+
+// Every refusal goes through here so they all keep the tool's report-only
+// exit-0 contract: a refusal is a reported RESULT, never a crash.
+function refuse(why, opts = {}) {
+    console.log(`REFUSED: ${opts.headline || DEFAULT_HEADLINE}`);
+    for (const line of [].concat(why)) console.log(`  ${line}`);
+    for (const line of opts.remedy || DEFAULT_REMEDY) console.log(`  ${line}`);
     console.log(`\nREPORT ONLY — exit 0. A refusal is a reported result, not a crash.`);
+}
+
+// ── manifest resolution ─────────────────────────────────────────────────────
+// The manifest is the ONLY record of which pass produced the Chinese, so the
+// identity refusal cannot run without it.
+//
+// It used to be derived in one expression — `val('--manifest') ||
+// `${file}.manifest.json`` — from the file passed to --ingest, which is the
+// RETURNED en' file, while --emit writes its manifest beside its --out file.
+// In the documented workflow (emit /tmp/b.tsv, ingest /tmp/b.en.tsv) those two
+// never coincide, so the lookup landed on /tmp/b.en.tsv.manifest.json, which
+// never exists. `manifest` stayed null, `fwd` stayed null, the identity refusal
+// was skipped, and the report printed a parenthetical announcing its own
+// inertness before carrying on to print triples anyway.
+const MANIFEST_SUFFIX = '.manifest.json';
+
+// `b.en.tsv` -> `b.tsv`: drop an `.en` segment sitting immediately before the
+// final extension. This is what makes the documented workflow resolve with no
+// argument at all.
+function emitFormOf(file) {
+    const m = path.basename(file).match(/^(.*)\.en(\.[^.]+)$/);
+    return m ? path.join(path.dirname(file), m[1] + m[2]) : null;
+}
+
+// Returns { path } on success, or { refusal: {why, opts} } — never guesses.
+function resolveManifestPath(file) {
+    const headline = 'the batch manifest could not be resolved — without it the forward pass is unknown and the identity check cannot run';
+
+    // 1. An explicit --manifest is NEVER silently ignored.
+    const explicit = val('--manifest');
+    if (explicit) {
+        if (!fs.existsSync(explicit)) {
+            return { refusal: { why: [`--manifest ${explicit} does not exist.`,
+                                     'An explicit path is taken at its word; the tool does not fall back to a search behind your back.'],
+                                opts: { headline, remedy: ['Pass the manifest --emit actually wrote, or drop --manifest to let the tool derive it.'] } } };
+        }
+        return { path: explicit };
+    }
+
+    // 2. Derived from the ingest path, in a fixed documented order.
+    const tried = [`${file}${MANIFEST_SUFFIX}`];
+    const emitForm = emitFormOf(file);
+    if (emitForm) tried.push(`${emitForm}${MANIFEST_SUFFIX}`);
+    for (const c of tried) if (fs.existsSync(c)) return { path: c };
+
+    // 3. A scan of the ingest file's own directory. Exactly one match, or refuse.
+    const dir = path.dirname(path.resolve(file));
+    let found = [];
+    try {
+        found = fs.readdirSync(dir).filter((n) => n.endsWith(MANIFEST_SUFFIX)).sort()
+            .map((n) => path.join(dir, n));
+    } catch { found = []; }
+
+    if (found.length === 1) return { path: found[0] };
+    if (found.length > 1) {
+        return { refusal: { why: [`AMBIGUOUS: ${found.length} manifests sit beside ${file} and none matches a derived name:`,
+                                 ...found.map((f) => `    ${f}`),
+                                 'The tool does not guess which batch this file came back from — joining against the wrong',
+                                 'manifest silently reports triples for rows that were never in this batch.'],
+                            opts: { headline, remedy: ['Name the right one with --manifest <path>.'] } } };
+    }
+    return { refusal: { why: ['No manifest found. Tried, in order:',
+                             ...tried.map((f) => `    ${f}`),
+                             `    a scan of ${dir} for *${MANIFEST_SUFFIX} (0 matches)`],
+                        opts: { headline, remedy: ['Pass --manifest <path> naming the manifest --emit wrote beside its --out file.'] } } };
 }
 
 async function ingest() {
     const file = val('--ingest');
     const provenance = val('--provenance');
 
-    // The refusal is checked BEFORE the file is read. A triple whose reverse
+    // The refusal is checked BEFORE anything is read. A triple whose reverse
     // pass is unrecorded proves nothing, so there is nothing to gain by
-    // parsing it first.
+    // parsing anything first — and it costs no file read.
     if (!provenance || !String(provenance).trim())
         return refuse('no --provenance was given.');
 
-    const manifestPath = val('--manifest') || `${file}.manifest.json`;
-    let manifest = null;
-    if (fs.existsSync(manifestPath)) {
-        try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); } catch { manifest = null; }
+    // The batch file is checked BEFORE the manifest, so a mistyped batch path
+    // reports the missing file rather than a manifest complaint about it.
+    if (!file || !fs.existsSync(file)) { console.log(`ingest: no such file: ${file}`); console.log('\nREPORT ONLY — exit 0.'); return; }
+
+    const resolved = resolveManifestPath(file);
+    if (resolved.refusal) return refuse(resolved.refusal.why, resolved.refusal.opts);
+    const manifestPath = resolved.path;
+
+    // A manifest that fails to parse must REFUSE naming the error. Swallowing
+    // the throw and continuing with a null manifest is the same inert path by
+    // another route.
+    let manifest;
+    try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); }
+    catch (e) {
+        return refuse([`${manifestPath} could not be parsed: ${String(e.message).split('\n')[0]}`,
+                       'A manifest that does not parse records nothing, and a triple with no recorded forward pass proves nothing.'],
+                      { headline: 'the batch manifest is unreadable — the identity check cannot run',
+                        remedy: ['Re-emit the batch, or repair the manifest JSON.'] });
     }
+
     const fwd = manifest && manifest.forwardProvenance;
-    if (fwd && String(fwd).trim().toLowerCase() === String(provenance).trim().toLowerCase())
+    if (!fwd || !String(fwd).trim()) {
+        return refuse([`${manifestPath} records no forward provenance.`,
+                       'The batch was emitted without --forward-provenance, so there is nothing to compare',
+                       'the reverse pass against: the tool cannot tell an independent pass from the pass',
+                       'that produced the Chinese, which is the ONE thing this check exists to tell apart.'],
+                      { headline: 'the batch was emitted with no recorded forward pass — the identity check cannot run',
+                        remedy: ['Re-emit with --forward-provenance "<what produced the Chinese, and when>", then re-run the reverse pass.'] });
+    }
+    if (String(fwd).trim().toLowerCase() === String(provenance).trim().toLowerCase())
         return refuse(`--provenance is byte-identical to the forward pass recorded at emit time (${JSON.stringify(fwd)}).`);
 
-    if (!file || !fs.existsSync(file)) { console.log(`ingest: no such file: ${file}`); console.log('\nREPORT ONLY — exit 0.'); return; }
     const returned = new Map();
     for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
         if (!line.trim() || line.startsWith('#')) continue;
@@ -235,7 +335,11 @@ async function ingest() {
 
     console.log('i18n-zh-backtranslate --ingest — en -> zh -> en\' triples, worst drift first');
     console.log(`  provenance (reverse pass): ${JSON.stringify(provenance)}`);
-    console.log(`  forward pass recorded at emit: ${fwd ? JSON.stringify(fwd) : '(none recorded — the manifest was not found beside the batch)'}`);
+    // No parenthetical about a missing manifest: there is no longer a path on
+    // which ingest reports a triple without a resolved manifest, which is the
+    // whole fix. The refusal always existed — it simply never had its input.
+    console.log(`  manifest: ${manifestPath}`);
+    console.log(`  forward pass recorded at emit: ${JSON.stringify(fwd)}`);
     console.log(`  joined: ${triples.length}${orphans.length ? `   unjoinable ids: ${orphans.length}` : ''}\n`);
     for (const t of triples.slice(0, MAX_SHOWN)) {
         console.log(`  ${t.s.toFixed(2)}  ${t.id}`);
