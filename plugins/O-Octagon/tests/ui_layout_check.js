@@ -2288,6 +2288,145 @@ async function nudge(page, id) {
         window.__OCTAGON_STUB__.resetVenue();
     });
 
+    // ════════════════════════════════════════════════════════════════════════
+    // SECTION 34 — LANGUAGE INVARIANCE OF EVERY PINNED BOX (v1.12.0, ZH3-04)
+    //
+    // Through v1.11.2 this file had NO language machinery of any kind. 2302
+    // lines, and `grep -niE "lang|i18n|french|fr\b|locale"` returned nothing: it
+    // measured the rendered page in whatever language it happened to load in,
+    // which is English. So every box the thirty-three sections above pin was
+    // pinned against ONE language, and a caption that resized a cell in another
+    // one would have gone green here forever.
+    //
+    // WHAT THIS SECTION UNIQUELY OWNS. scripts/check-ui-labels.js already
+    // measures caption geometry generically and already drives all three
+    // languages. It does NOT know that #plan-layers, #miniplan, #elev-strip,
+    // #scene-row and the venue table columns are PINNED — those are pinned
+    // here, by the sections above, against numbers this file computed from the
+    // stub payload. Language-invariance of a pinned box is exactly what an
+    // uppercase page carrying a script that CANNOT BE UPPERCASED puts at risk:
+    // `text-transform: uppercase` is a no-op on Han, so an English caption in
+    // one of styles.css's eleven uppercase cells renders wider than its Chinese
+    // counterpart while the cell it sits in does not move. Against a pinned box
+    // that is a FIT question, and it belongs to the file that did the pinning.
+    //
+    // THE BOX SET IS DERIVED FROM THIS FILE'S OWN SOURCE, not transcribed. Every
+    // selector the other sections reach for with getElementById() or
+    // querySelector() joins the invariance set automatically, so a section added
+    // next year is covered on the day it is written. A transcribed list is a
+    // list that goes stale in one row and passes every gate — §21's argument
+    // about the module registry, applied to this file.
+    //
+    // IT FAILS RATHER THAN DEFAULTING. If LANGUAGES cannot be read out of
+    // js/i18n.js, this section reports a FAILURE and measures nothing. A gate
+    // that falls back to a default pair is a gate that goes green on unchecked
+    // content — which is the entire class of defect the zh-Hans rollout found in
+    // fourteen sibling gates that hard-code a two-language literal. (That literal
+    // is not spelled out here on purpose: `grep` for it across plugins/*/tests
+    // is how the remaining fourteen are inventoried, and a mention inside a
+    // comment in a gate that no longer has the defect is a false positive that
+    // makes the inventory lie.)
+    // ════════════════════════════════════════════════════════════════════════
+    head(34, 'every pinned box is identical in every language the plugin declares (v1.12.0)');
+
+    // ── the languages, READ from the plugin's own table ──
+    let LANGS = null;
+    {
+        const i18nSrc = fs.readFileSync(path.join(publicDir, 'js', 'i18n.js'), 'utf8');
+        const m = i18nSrc.match(/export\s+const\s+LANGUAGES\s*=\s*\[([^\]]*)\]/);
+        if (m) {
+            const parsed = m[1].split(',').map(t => t.trim().replace(/^['"`]|['"`]$/g, '')).filter(Boolean);
+            if (parsed.length >= 2 && parsed[0] === 'en') LANGS = parsed;
+        }
+    }
+    check(LANGS !== null,
+        `LANGUAGES was READ from js/i18n.js, has at least two entries and begins with 'en' — `
+        + `got ${LANGS ? `[${LANGS.join(', ')}]` : 'NOTHING, and this section refuses to assume a pair'}`);
+
+    if (LANGS === null) {
+        check(false, 'section 34 measured nothing — a language loop that cannot read the table must FAIL, never default');
+    } else {
+        // ── the boxes, DERIVED from this file's own source ──
+        const selfSrc = fs.readFileSync(__filename, 'utf8');
+        const BOXES = [...new Set([
+            ...[...selfSrc.matchAll(/getElementById\s*\(\s*'([^']+)'/g)].map(mm => '#' + mm[1]),
+            ...[...selfSrc.matchAll(/querySelector\s*\(\s*'([^']+)'/g)].map(mm => mm[1]),
+        ])].sort();
+
+        const ctxL = await browser.newContext({
+            viewport: { width: SHIP_W, height: SHIP_H }, deviceScaleFactor: 1 });
+        const pageL = await ctxL.newPage();
+        await pageL.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+        await pageL.waitForTimeout(SETTLE_MS);
+
+        check(await pageL.evaluate(() => typeof window.__setLanguage === 'function'),
+            'window.__setLanguage is exposed — the canon block in js/i18n.js and js/app.js is present and ran');
+
+        const snapshot = async (lang, where) => {
+            await pageL.evaluate(l => window.__setLanguage(l), lang);
+            await pageL.waitForTimeout(SETTLE_MS);
+            // THE SWITCH MUST BE PROVED TO HAVE TAKEN. A pass in which
+            // __setLanguage silently did nothing measures English three times
+            // and reports three PASSes.
+            const readBack = await pageL.evaluate(() => {
+                const sel = document.querySelector('#lang-select');
+                return sel ? sel.value : null;
+            });
+            check(readBack === lang,
+                `[${lang}][${where}] the switch actually took — #lang-select reads back "${readBack}"`);
+            return pageL.evaluate((sels) => Object.fromEntries(sels.map((sel) => {
+                let el = null;
+                try { el = document.querySelector(sel); } catch (e) { el = null; }
+                if (!el) return [sel, null];
+                const r = el.getBoundingClientRect();
+                if (r.width === 0 && r.height === 0) return [sel, null];
+                return [sel, { x: +r.x.toFixed(2), y: +r.y.toFixed(2),
+                               w: +r.width.toFixed(2), h: +r.height.toFixed(2) }];
+            })), BOXES);
+        };
+
+        // BOTH SCREENS. Roughly half the pinned boxes live on the Venue screen
+        // and measure 0 x 0 while the Room screen is up, so a single-screen
+        // sweep would silently drop them.
+        for (const screen of ['room', 'venue']) {
+            await pageL.evaluate((s) => {
+                const btn = document.querySelector(s === 'venue' ? '#tab-venue' : '#tab-room');
+                if (btn) btn.click();
+            }, screen);
+            await pageL.waitForTimeout(SETTLE_MS);
+
+            const base = await snapshot('en', screen);
+            const live = Object.keys(base).filter(k => base[k] !== null);
+
+            // [non-vacuity] A sweep that resolved nothing would report every
+            // language identical and pass. The floor is deliberately generous —
+            // it is here to catch a page that failed to render, not to pin a count.
+            check(live.length >= 12,
+                `[non-vacuity][${screen}] the English sweep resolved ${live.length} of ${BOXES.length} pinned boxes`);
+
+            for (const lang of LANGS.filter(l => l !== 'en')) {
+                const other = await snapshot(lang, screen);
+                const moved = live.filter((k) => {
+                    const a = base[k], b = other[k];
+                    if (!b) return true;
+                    return a.x !== b.x || a.y !== b.y || a.w !== b.w || a.h !== b.h;
+                });
+                // EVERY FAILURE CARRIES ITS LANGUAGE, so a Chinese-only defect
+                // is never read as a general one.
+                check(moved.length === 0,
+                    `[${lang}][${screen}] every pinned box is identical to English`
+                    + (moved.length ? ` — ${moved.length} moved: ` + moved.slice(0, 8).map((k) => {
+                        const a = base[k], b = other[k];
+                        return b ? `${k} dx=${(b.x - a.x).toFixed(1)} dy=${(b.y - a.y).toFixed(1)} `
+                                 + `dw=${(b.w - a.w).toFixed(1)} dh=${(b.h - a.h).toFixed(1)}`
+                                 : `${k} VANISHED`;
+                      }).join('; ') : ''));
+            }
+        }
+
+        await ctxL.close();
+    }
+
     // ── done ─────────────────────────────────────────────────────────────────
     await context.close();
     await browser.close();

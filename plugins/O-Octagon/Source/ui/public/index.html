@@ -111,11 +111,23 @@
             <span class="cell-label" data-i18n="lang-select" data-label="Language">Language</span>
             <!-- ENDONYMS. Never localized and never written by a state
                  updater: a French speaker looking for their language looks
-                 for "Français". -->
+                 for "Français".
+
+                 NUMERIC CHARACTER REFERENCES, v1.12.0. The Chinese endonym is
+                 written &#31616;&#20307;&#20013;&#25991; rather than as literal
+                 Han, matching the Fran&ccedil;ais convention beside it. That is
+                 not cosmetic here: this file's <meta charset> sits at BYTE 2926,
+                 past the 1024-byte prescan window a browser uses to guess an
+                 encoding before it has parsed a declaration, so entities are
+                 what keep the encoding question from arising at all. The
+                 I18N_EXEMPT entry in js/i18n.js carries the DECODED text,
+                 because the coverage scanner resolves references before it
+                 classifies. -->
             <select class="settings-select" id="lang-select"
                     aria-label="Hover help language" data-i18n-aria="aria.lang-select" data-tip-always>
               <option value="en">English</option>
               <option value="fr">Fran&ccedil;ais</option>
+              <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
             </select>
           </label>
 

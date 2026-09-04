@@ -1194,9 +1194,9 @@ void OOctagonProcessor::setStateInformation (const void* data, int sizeInBytes)
                                   std::memory_order_release);
 
         // v1.6.0 — same shape for the language. Pre-1.6.0 sessions have no attribute, so the
-        // default (English) stands. languageIndex() clamps anything that is not "fr" to 0, so a
-        // hand-edited or corrupt value degrades to English rather than reaching storage
-        // unvalidated. The editor PULLS this via getUiLanguage at page init, never a push.
+        // default (English) stands. languageIndex() clamps anything that is neither "fr" nor
+        // "zh-Hans" to 0, so a hand-edited or corrupt value degrades to English rather than
+        // reaching storage unvalidated. The editor PULLS this via getUiLanguage at page init, never a push.
         if (xml->hasAttribute ("uiLanguage"))
             uiLanguage.store (languageIndex (xml->getStringAttribute ("uiLanguage")),
                               std::memory_order_release);

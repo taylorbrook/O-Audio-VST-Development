@@ -63,9 +63,40 @@
   /* ── Alert. SAFE, MAP, and v1.7.0's MONITOR (which FILLS with it). ── */
   --alert:       #C2793A;
 
-  /* ── Type ── */
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  --mono:  ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  /* ── Type ──────────────────────────────────────────────────────────────────
+     THE CJK TAIL (v1.12.0, zh-Hans). Both tokens end with
+     'PingFang SC', 'Microsoft YaHei', sans-serif so a Han codepoint has a named
+     face to land on instead of whatever the platform picks.
+
+     THE SET WAS MEASURED, NOT REASONED. The page was served, switched to
+     Chinese, and getComputedStyle().fontFamily read on every node that HOLDS or
+     CAN RECEIVE a Han codepoint — its own text nodes, its data-tip, its
+     data-tip-title, its aria-label. Exactly THREE resolved stacks came back, and
+     two of them are these tokens. A [data-i18n]-derived scan would have missed
+     both the tooltip surface (#tooltip is filled from data-tip at hover time and
+     never carries a key) and the endonym <option> (the one place Han reaches the
+     MARKUP), which is the O-Chorus finding repeating here.
+
+     THIS FILE IS EXTERNAL, and that is the Stage-3 structural finding: index.html
+     carries ZERO font-family declarations, so an executor grepping the markup for
+     `font-family` on this plugin gets no hits and would conclude there is nothing
+     to do. All 29 declarations live here — and every one of them is
+     var(--serif) or var(--mono), so the whole page resolves through these TWO
+     tokens. O-Chorus needed five separate appends against eight literal stacks;
+     this plugin needs two, because the type is tokenised.
+
+     THE THIRD MEASURED STACK IS LEFT UNTOUCHED, and the reason is what makes the
+     other two believable: it is the bare `Arial` Chromium's UA sheet gives an
+     <input type="range">, reached ONLY through aria-label on the sixteen sliders.
+     An accessible name is never rendered text — it is spoken, and a screen reader
+     picks its own voice and face. There is no glyph to fall back for.
+
+     NO :root:lang(zh-Hans) RULE. Any element declaring its own font-family
+     outranks a :root rule, and 29 of them do. Latin still resolves to Iowan Old
+     Style / ui-monospace FIRST, so English geometry is unmoved — proved by the EN
+     arm of check-ui-labels assertion 7, not asserted here. ── */
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "PingFang SC", "Microsoft YaHei", serif;
+  --mono:  ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", "PingFang SC", "Microsoft YaHei", monospace;
 
   /* ── Frame contract. Mirrored by PluginEditor.cpp setSize(1100, 720). ── */
   --frame-w: 1100px;
@@ -1728,3 +1759,161 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 
 .tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--rule); }
 .tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--rule); }
+
+/* ══ v1.12.0 — THE zh-Hans LINE-HEIGHT PINS ═══════════════════════════════════
+
+   `line-height: normal` is THE FONT'S OWN METRICS, and Han faces carry taller
+   ones. This file declared line-height on only TWO rules before this block, so
+   every caption on the page inherited `normal` from the UA — and that inherited
+   set was the ENTIRE assertion-7 exposure: the first Chinese run moved 98
+   non-label elements in the default state and 196 on the Venue screen, every
+   one of them reported with `lh=normal`.
+
+   EACH PIN IS THAT NODE'S OWN MEASURED ENGLISH LINE BOX OVER ITS OWN FONT SIZE,
+   written UNITLESS so the used value no longer depends on which face resolves
+   the glyph. The measurements are Range.selectNodeContents() on the real node at
+   the shipping 1100 x 720, with white-space forced to nowrap so a wrapped node
+   reports ONE line box rather than two.
+
+   NO GLOBAL `line-height` WAS ADDED. A global one moves English geometry, which
+   is the regression these gates exist to catch, not a fix. The EN arm of
+   check-ui-labels assertion 7 is what proves English is unmoved.
+
+   THE TWO FAMILIES ROUND DIFFERENTLY, and that is why one number cannot serve
+   the page. Iowan Old Style's `normal` is 15/11 and floors to integer px, so
+   10 px -> 13.00, 11 px -> 15.00, 12 px -> 16.00, 9.5 px -> 13.00 — four
+   different unitless values. The mono stack's floors to 9 px -> 10.00,
+   10 px -> 11.00, 11 px -> 13.00. A class that appears at TWO sizes therefore
+   needs TWO pins: .vcell-value is 11 px in the rail and 9 px inside
+   .vcol-head, and one ratio would misplace whichever it did not measure.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── serif, 11 px -> 15.00 ── */
+.subtitle,
+.screen-tab,
+.group-tab,
+.group-title            { line-height: 1.3636; }
+
+/* ── serif, 12 px -> 16.00 ── */
+.cell-label,
+.elev-readouts span,
+.rail-line span         { line-height: 1.3333; }
+
+/* ── serif, 10 px -> 13.00 ── */
+.caption-key,
+.readout-label,
+.safe-copy              { line-height: 1.3; }
+
+/* ── serif, 9.5 px -> 13.00 ── */
+.out-pop-note           { line-height: 1.3684; }
+
+/* ── mono, 10 px -> 11.00 ── */
+.scene-btn,
+.store-toggle,
+.vbtn,
+.safe-tag,
+.map-tag,
+.monitor-tag,
+.map-copy,
+.monitor-copy,
+.caption-note,
+.vcell-num              { line-height: 1.1; }
+
+/* ── mono, 11 px -> 13.00 ── */
+.cell-value,
+.vcell-value,
+.readout,
+#vmonitor-state         { line-height: 1.1818; }
+
+/* ── mono, 9 px -> 10.00. Written AFTER the 11 px block and at higher
+      specificity, because these are the same classes at a smaller size. ── */
+.vcol-head,
+.vcol-head .vcell-value,
+.cell-label.vrake-key,
+.w-label,
+.w-value                { line-height: 1.1111; }
+
+/* ══ v1.12.0 — THE TWO zh-Hans WIDTH PINS ═════════════════════════════════════
+
+   The line-height pins above closed 98 of the 102 movers the first Chinese run
+   reported. The four that survived carried dx ONLY — dy=0, dh=0 — and that is
+   the tell: a line-height defect moves things DOWN, a width defect moves them
+   SIDEWAYS. What remained is a CONTENT-SIZED CAPTION in a flow row, shrinking
+   under Chinese and dragging its non-label neighbours left with it.
+
+   This is the same class of defect as v1.9.0's ENVELOPE -> ENVELOPPE pin
+   fifteen lines above, arriving from the opposite direction: French GREW a
+   caption, Chinese SHRINKS one. Chinese buys width and spends height, so on
+   every plugin in this rollout the width failures will be shrinks.
+
+   MEASURED IN ALL THREE LANGUAGES AND PINNED AT THE WIDEST, which is the law
+   this file already follows. Pinning at the widest leaves English and French on
+   the value they already had wherever they were the widest, and moves only the
+   language that shrank onto it — so assertion 7, which compares EN against each
+   other language WITHIN ONE RUN, sees zero.
+
+     #readout-label-source   SOURCE  54.95  ·  SOURCE 54.95  ·  源      12.42
+         -> min-width 55px. The 42.53 px that #readout-metres and both envelope
+            readouts walked left is exactly 54.95 - 12.42.
+
+     .plan-caption > .caption-key   PLAN 35.91 · PLAN 35.91 · 平面图 37.27
+         -> min-width 38px. Here Chinese is the WIDER one (three Han glyphs at
+            10 px with 0.22em tracking beat four Latin letters), so the 1.36 px
+            that #venue-name, the Field key and #field-legend walked RIGHT is a
+            growth, not a shrink. Pinned on THIS key rather than on .caption-key,
+            because the same class is also the Speaker caption inside
+            .out-pop-title, where the pin would be wrong — the v1.9.0 comment
+            above made the same call for the same reason.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#readout-label-source        { min-width: 55px; display: inline-block; }
+.plan-caption > .caption-key:not(.caption-field) { min-width: 38px; display: inline-block; }
+
+/* :not(.caption-field) IS LOAD-BEARING, and the first draft of this pin did not
+   have it. `.plan-caption > .caption-key` is specificity (0,2,0) and sits later
+   in the file than v1.9.0's `.caption-field { min-width: 50px }` at (0,1,0), so
+   it silently overrode the FRENCH pin — CHAMP fell back from 50 to 38 and
+   #field-legend moved 8.1 px on the fr arm, a regression this Chinese work had
+   no business causing. The zh arm reported it too, at -2.1. Both arms are what
+   caught it, which is the argument for running every language in one gate. */
+
+/* ══ v1.12.0 — THE TWO zh-Hans UN-WRAP PINS ═══════════════════════════════════
+
+   The third and least obvious shape, and the one a Stage-4 executor is most
+   likely to misread. Inside the 168 px speaker -> output popover the title and
+   the note both WRAP TO TWO LINES in English and in French, and Chinese fits
+   each on ONE:
+
+     .out-pop-title   EN 27.00  ·  FR 27.00  ·  zh 14.00   (dh = -13)
+     .out-pop-note    EN 25.97  ·  FR 25.97  ·  zh 12.98   (dh = -13)
+
+   So #out-pop reported dh = -26 and pulled all eight output buttons 13 px UP.
+   That is a NEGATIVE geometry diff — Chinese did not overflow anything, it
+   under-filled a box English needed two lines for. The instinct on reading
+   "11 moved" is to look for something that grew; nothing did.
+
+   PINNED TO THE ENGLISH TWO-LINE BOX, not shrunk to the Chinese one, because
+   the English wrap is the real layout and the popover is sized around it. Every
+   language now reserves the same room, so the diff is zero in all three and the
+   English and French renderings are byte-unchanged.
+
+   The general rule for the volume waves: Chinese buys width and spends height,
+   so its geometry failures are SHRINKS — an un-wrapped caption, a narrower
+   content-sized cell — where French's are GROWTHS. A gate assertion that only
+   looks for growth is blind to every one of them.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.out-pop-title { min-height: 27px; }
+.out-pop-note  { min-height: 26px; }
+
+/* ── v1.12.0 — the venue rail's SET caption, the last width pin.
+      SET 19.55 · JEU 19.78 · 输出集 39.64, in a .rail-line whose value node has
+      272 px of room, so #vset-name walked 20.1 px right and lost 20.1 px of
+      width on the Chinese arm. English writes the three-letter abbreviation of
+      "Output set" and French writes "Jeu"; Chinese has no shorter honest form
+      than 输出集 — 输出 alone is the Output GROUP heading on the other screen and
+      would name two different things with one word. So the cell is pinned at the
+      widest of the three rather than the caption abbreviated to meet a cell that
+      had 252 px to spare. Same law as .caption-field and #readout-label-envelope
+      above; the only new thing is which language was the widest. ── */
+.rail-line .cell-label { min-width: 40px; display: inline-block; }

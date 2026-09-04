@@ -437,11 +437,17 @@ public:
         PULLED once by the page at init through getUiLanguage. */
     std::atomic<int> uiLanguage { 0 };
 
-    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
-        hand-edited session or an unexpected bridge argument degrades to English
-        rather than being stored unvalidated. */
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    /** The codec. THREE branches as of v1.12.0 (zh-Hans). languageIndex() maps
+        anything that is neither "fr" nor "zh-Hans" to 0, so a hand-edited
+        session or an unexpected bridge argument degrades to English rather than
+        being stored unvalidated. Both halves are PURE ASCII: the BCP-47 tag is
+        the one spelling of Chinese that crosses this boundary, and no Han
+        codepoint may exist anywhere in this plugin's C++. A third branch on one
+        side and two on the other would silently degrade Chinese to English, so
+        the two functions are edited as a pair and check-i18n's language list is
+        what keeps them honest. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
    #if OOCTAGON_INSTRUMENT
     /** The 17 smoothers' current values — test targets only (PLAN-2.2 P20). */
