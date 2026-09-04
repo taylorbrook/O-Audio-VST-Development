@@ -26,8 +26,8 @@
     matching this repo's existing no-shared-UI-module convention. This script is
     the only mitigation available under that rule: it makes the cost DETECTABLE.
 
-    Fifteen assertions per localized plugin. 1-9 apply to every plugin; 10-13
-    and 15 describe canon v2 and are reported SKIPPED on a plugin still on v1,
+    Sixteen assertions per localized plugin. 1-9 and 16 apply to every plugin;
+    10-13 and 15 describe canon v2 and are reported SKIPPED on a plugin still on v1,
     because a gate that goes red the moment it is written and stays red for a
     whole rollout teaches the team to ignore gates:
 
@@ -79,6 +79,20 @@
          setLabel key exists in LABELS or I18N, and every LABELS key is
          referenced by at least one element or setLabel call — a dead key is a
          translation nobody sees, drifting silently.
+     16  A LANGUAGE SELECTOR IMPLIES A HOVER-HELP SWITCH. index.html carrying
+         `id="lang-select"` must also carry exactly one of `id="help-toggle"` or
+         `id="tips-toggle"`, that element must be named by a TIP_BINDINGS
+         selector, and the key it binds must exist in I18N. Hover help that
+         cannot be switched off is hover help in the way, and until 2026-09-03
+         twenty-three of the forty-three shipped a language selector without a
+         way to turn the tips off. THREE separate checks, not one conjunction:
+         a single `&&` reports "failed" without saying which half. BOTH id
+         spellings are accepted — eleven plugins are on `#help-toggle` and
+         twelve on `#tips-toggle`, and a gate demanding one spelling would be a
+         rename of eleven shipped plugins disguised as a lint. The number of
+         plugins EXAMINED is reported in the summary and zero is a FAILURE, not
+         a pass: every one of the forty-three has a language selector, so a run
+         that examined none has stopped looking rather than found nothing.
 
     Usage:
         node scripts/check-i18n.js
@@ -130,6 +144,13 @@ const pluginsDir = path.join(repoRoot, 'plugins');
 // ──────────────────────────────────────────────────────────── assertions ──
 let failed = 0;
 let scope  = '';
+
+// Assertion [16]'s NON-VACUITY counter. Every one of the 43 plugins carries a
+// language selector, so a run that examined none has stopped looking rather than
+// found nothing — and a gate that passes because it found nothing to check is
+// the failure mode this whole script exists to prevent. Reported and asserted in
+// the summary, in the same spirit as assertion [2]'s bound count.
+let langSelectPlugins = 0;
 
 function head(name) {
     scope = name;
@@ -604,6 +625,55 @@ function checkPlugin(p) {
     check(unresolved.length === 0,
         `[2] every TIP_BINDINGS key exists in I18N`
         + (unresolved.length ? ` — dangling: ${unresolved.slice(0, 6).join(', ')}` : ''));
+
+    // ── 16. a language selector implies a hover-help switch ──────────────
+    //
+    // Hover help that cannot be switched off is hover help in the way. Until
+    // 2026-09-03 twenty-three of the forty-three plugins shipped a language
+    // selector and no way to turn the tips off; this is the gate that keeps
+    // that closed.
+    //
+    // BOTH ID SPELLINGS ARE ACCEPTED, deliberately. Eleven plugins are on the
+    // older `#help-toggle` with a `help-toggle` label key and twelve on the
+    // newer `#tips-toggle` with `label.hoverHelp`. A gate demanding one
+    // spelling would be a rename of eleven shipped plugins disguised as a lint,
+    // and neither convention is being retired.
+    //
+    // THREE CHECKS, NOT ONE CONJUNCTION. `a && b && c` reports "failed" without
+    // saying which half, and the three failure modes want different fixes: a
+    // missing control is markup work, an unbound control is a TIP_BINDINGS row,
+    // and a dangling key is an I18N entry. Each runs only when the one before
+    // it held — a binding assertion over a control that does not exist is not a
+    // second finding, it is the same finding said twice.
+    if (fs.existsSync(p.indexHtml)) {
+        const rawHtml = stripHtmlComments(fs.readFileSync(p.indexHtml, 'utf8'));
+        if (/id="lang-select"/.test(rawHtml)) {
+            ++langSelectPlugins;
+            const TOGGLE_IDS = ['help-toggle', 'tips-toggle'];
+            const present = TOGGLE_IDS.filter((id) => rawHtml.includes(`id="${id}"`));
+            check(present.length === 1,
+                `[16] index.html has a language selector and EXACTLY ONE hover-help switch `
+                + `(#help-toggle or #tips-toggle) — found ${present.length}`
+                + (present.length ? `: ${present.map((i) => '#' + i).join(', ')}` : ''));
+
+            if (present.length === 1) {
+                const id = present[0];
+                // The row may name the control bare (`#tips-toggle`) or inside a
+                // longer selector, so the id is matched WITHIN the selector
+                // rather than against it.
+                const row = bindings.find((b) => Array.isArray(b)
+                    && typeof b[0] === 'string' && b[0].includes(`#${id}`));
+                check(!!row,
+                    `[16] #${id} is named by a TIP_BINDINGS selector — a switch that turns the `
+                    + `help layer off while carrying no tip of its own leaves no way back`);
+
+                if (row) {
+                    check(row[1] in (I18N || {}),
+                        `[16] the key #${id} binds exists in I18N — got ${JSON.stringify(row[1])}`);
+                }
+            }
+        }
+    }
 
     // ── 4. no silent French passthrough ──────────────────────────────────
     const passthrough = keys.filter(k => {
@@ -1248,6 +1318,17 @@ console.log('\n-- canon');
     if (offCanon.length)
         console.log(`  OFF CANON  ${String(offCanon.length).padStart(3)}  ${offCanon.join(', ')}`
             + '  — each has already failed assertion 6 by name');
+}
+
+console.log('\n-- [16] language selector -> hover-help switch');
+{
+    scope = 'repo';
+    check(langSelectPlugins > 0,
+        `[16] ${langSelectPlugins} plugin(s) with a language selector were EXAMINED`
+        + (langSelectPlugins === 0
+            ? ' — zero is not a legitimate zero here: every plugin in this suite has one, so a '
+              + 'run that examined none has stopped looking rather than found nothing'
+            : ' — each was required to carry exactly one hover-help switch, bound and keyed'));
 }
 
 console.log(`\n${failed === 0 ? 'ALL CHECKS PASS' : `${failed} FAILED`} — ${plugins.length} localized plugin(s)`);
