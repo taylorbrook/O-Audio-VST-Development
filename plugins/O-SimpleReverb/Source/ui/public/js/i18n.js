@@ -425,6 +425,16 @@ export const I18N = Object.freeze({
               b: "Bascule toutes les légendes, tous les noms accessibles et toute l’aide au survol de cette page entre l’anglais et le français. Le changement est immédiat et il est enregistré avec l’état du plugin : il revient donc avec la session. Deux réglages : English et Français.",
               reviewed: true },
     },
+    // v1.8.0 — the switch that reaches this whole layer.
+    'tip.tipsToggle': {
+        en: { t: 'Hover Help',
+              b: 'Turns this hover help on and off. With it off, only the gear and this '
+               + 'switch keep explaining themselves.' },
+        fr: { t: 'Aide au survol',
+              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+               + 'l’engrenage et ce commutateur continuent de s’expliquer.',
+              reviewed: true },
+    },
 });
 
 // ============================================================================
@@ -654,6 +664,13 @@ export const LABELS = Object.freeze({
     // the panel, its row and the select as moved.
     'label.language':  { en: { t: 'Language' },  fr: { t: 'Langue',   reviewed: true } },
 
+    // v1.8.0. All four renderings below are settled glossary ROOTS, copied
+    // rather than authored: scripts/i18n-fr-glossary.js carries them as the
+    // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
+    // the same review mark this file's other roots carry, and for the same
+    // reason — they are not new machine output.
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+
     // ── Image alternative text ──────────────────────────────────────────────
     //
     // Two decorative <img> layers, keyed through data-i18n-alt rather than
@@ -708,6 +725,7 @@ export const LABELS = Object.freeze({
 
     'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
 });
 
 // ============================================================================
@@ -876,6 +894,7 @@ export const TIP_BINDINGS = [
 
     ['#gear-btn',       'tip.gearBtn'],
     ['#lang-select',    'tip.langSelect'],
+    ['#tips-toggle',    'tip.tipsToggle'],
 ];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a

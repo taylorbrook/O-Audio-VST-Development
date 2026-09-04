@@ -192,7 +192,7 @@ const ANCHORS_DEFAULT = [
 ];
 const ANCHOR_RANDOM = '#random_amt_knob';   // needs unison_dist = Random
 const ANCHOR_WIDTH  = '#width';             // needs mono_safe = Off
-const ANCHORS_CHROME = ['#gear-btn', '#lang-select'];   // need the popover open
+const ANCHORS_CHROME = ['#gear-btn', '#lang-select', '#tips-toggle'];   // need the popover open
 
 (async () => {
     console.log(`ui_tip_render_check — ${PLUGIN} hover-help, RENDERED\n`);
