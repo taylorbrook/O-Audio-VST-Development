@@ -2,6 +2,267 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.16.0] - 2026-09-04
+
+Simplified Chinese. MINOR: a third language on the hover-help and label tables,
+plus the CSS pins its geometry needs — no parameter, range, type or state format
+changed (task quick-260904-g5l, Stage 3 ZH3-02 / ZH3-05 / ZH3-09).
+
+**This release also CLOSES the standing 2-FAIL French geometry baseline that
+`check-ui-labels` has reported on this plugin since v1.15.0.** The gate goes
+from **exit 2 with 2 FAIL** to **exit 0 with 0 FAIL**.
+
+### Added
+
+- **`LANGUAGES` is `['en', 'fr', 'zh-Hans']`**, and all **117** entries — 55
+  `I18N` (a title and a body each) plus 62 `LABELS` — carry a `zh-Hans` value.
+  172 back-translation rows. `i18n-zh-lint` reports **zero findings** across all
+  nine rules (Z1 Z2 Z3 Z4 Z5 Z6 Z7 F1 R1).
+- **The endonym** `简体中文` as a numeric-entity `<option>` beside `Français`,
+  with the DECODED text in `I18N_EXEMPT` — the coverage parser resolves the
+  references before the uncovered-text sweep runs. This page's `<meta charset>`
+  is at byte 46, well inside the prescan window, and `PluginEditor.cpp` already
+  serves `index.html` as `text/html; charset=utf-8`; the entities are for one
+  convention across all 43 plugins, five of which declare their charset past
+  that window.
+- **A three-branch, pure-ASCII language codec.** `languageCode(2)` returns
+  `"zh-Hans"` and `languageIndex("zh-Hans")` returns 2; anything unrecognised
+  still degrades to English rather than being stored unvalidated. The BCP-47
+  subtag is the one spelling of a language that crosses the C++/JS boundary —
+  **no Han codepoint exists anywhere in this plugin's C++**, verified by a
+  Han-scoped scan whose positive control fires on `js/i18n.js`.
+
+### Fixed
+
+- **`#viewSync`'s `<select>` is PINNED at 66 px, and the two French geometry
+  FAILs are gone.** Since v1.15.0 the gate has reported
+  `#viewSync>select.field:nth-child(1) dx=-3.5 dw=7.0` on the French arm, once
+  per state, and the comment in `index.html` called it "the standing baseline".
+  It was a defect with a note attached.
+
+  With `appearance: none` Chromium still derives a `<select>`'s intrinsic width
+  from its **widest option's** font run, not from the selected one — the same
+  mechanism that moved O-Chorus's `#lang-select` by 1 px. The widest option here
+  carries `data-i18n="label.oneBar"`. Measured on the shipping node at 900 × 740
+  and pinned at the widest of three, which is the law this file already states
+  and follows twice (`box-sizing` is `border-box` page-wide, so the pin is the
+  whole box):
+
+  | language | widest option run | + 31 px padding + 2 px border | box |
+  |---|---|---|---|
+  | en | `1 bar` 24.30 px | | 58 |
+  | fr | `1 mes.` 31.13 px | | 65 |
+  | zh-Hans | `1 小节` 32.34 px | | **66 ← pin** |
+
+  English grows 8 px against v1.15.2. That is the same move
+  `#preset-save` / `#preset-load` / `#preset-delete` and `.hdr-right` already
+  made in v1.15.0, and it is the only one D-04 leaves available — an
+  auto-shrink font and a short-variant fallback are both forbidden. Assertion 7
+  compares English against each other language **within one run**, so one pinned
+  box makes all three agree.
+
+- **`lang-select`'s body ENUMERATED its own options.** The `en` body read
+  *"English and French are available"* and the `fr` body *"L'anglais et le
+  français sont disponibles"*; the new `zh-Hans` `<option>` made both false. The
+  enumeration is **REMOVED, not extended** — naming all three would put Han
+  inside the `en` and `fr` bodies, which moves the English tooltip's own
+  geometry and drags the CJK font tail onto the very baseline every gate
+  measures against, and a body that counts its control's options goes stale
+  again at the next language. The `I18N_EXEMPT` reasons for the plate numbering
+  and the two codec names named only French and now name all three.
+
+- **Three stale source comments** asserting that `languageIndex()` "maps
+  anything that is not `fr` to 0" — in `PluginProcessor.h`, `PluginEditor.cpp`
+  and `PluginProcessor.cpp`.
+
+### Changed — the CJK font tail, on ONE token
+
+The tail is `, 'PingFang SC', 'Microsoft YaHei', sans-serif`. **All 13**
+`font-family` declarations on this page read `var(--serif)`, so it went on the
+token rather than on thirteen rules.
+
+The set was **MEASURED**, never derived from the `[data-i18n]` list: the page
+served, switched to Chinese, and `getComputedStyle().fontFamily` read on every
+node that holds **or can receive** a Han codepoint — own text, `data-tip`,
+`data-tip-title`, `aria-label`, `data-label`, `data-on/off/confirm`. **118**
+nodes resolved through `--serif`. Two of them a keyed-node scan would have
+missed, and they are the same two O-Chorus and O-Octagon found: the `#tooltip`
+surface, filled from `data-tip` at hover time and never keyed, and the endonym
+`<option>`, the only Han in the markup.
+
+**LEFT UNTOUCHED (1):** `#diceBtn.die`, which declares no `font-family` and so
+takes Chromium's UA button default, Arial. It is reached by the Han scan only
+through its `data-tip` — the die face is the glyph U+2685 — and a `data-tip`
+paints into `#tooltip`, which **is** `--serif`. There is no Han glyph to fall
+back for. The omission is recorded because a page that takes the tail everywhere
+it measured can no longer tell a needed tail from a decorative one.
+
+Latin still resolves to EB Garamond FIRST, so English geometry is unmoved. The
+EN arm of assertion 7 is what proves that.
+
+### Changed — geometry: Chinese buys width and spends height
+
+The first Chinese run moved **185** non-label elements. Nine pins closed all of
+them, every value a measured English number, and **no global `line-height` was
+added** — a global one moves English geometry, which is the regression these
+gates exist to catch.
+
+**Seven unitless line-height pins**, against `line-height: normal`, which is the
+font's own metrics:
+
+| selector | font-size | EN used line-height | unitless |
+|---|---|---|---|
+| `.ctl-label` | 9.5 px | 10 px | 10/9.5 |
+| `.g-label` | 9 px | 10 px | 10/9 |
+| `.settings-label` | 9 px | 10 px | 10/9 |
+| `.annot` | 8.5 px | 10 px | 10/8.5 |
+| `.preset-btn` ×3 | 10 px | 11 px | 1.1 |
+| `.p-head .en` | 10 px | 11 px | 1.1 |
+| `#clockModeSeg button` | 11 px | 12 px | 12/11 |
+
+**`.caption` needed TWO pins for one class**: seven plate captions render at
+12 px (EN line box 15) and the global strip's renders at 11 px from an inline
+style (EN line box 12). One ratio cannot serve both — `1.25` and `12/11`.
+
+**And a pin can leak DOWN into a child at a different size.** `#edgeBtn` holds
+two inline children, the caption span at 11 px and a fleuron U+2766 at 8 px.
+Pinning the button alone inherits `12/11` onto the fleuron and moves its box on
+the **English** arm, 9 → 8.73 px. The fleuron is pinned back at its own measured
+ratio, `9/8`.
+
+**Two width pins, and the two `<select>`s moved in OPPOSITE directions:**
+
+| element | en | fr | zh | pinned | direction |
+|---|---|---|---|---|---|
+| `#viewSync > select.field` | 58 | 65 | **66** | 66 | Chinese GREW |
+| `select.field[data-param="PACKET_CONCEAL"]` | **82** | 82 | 57 | 82 | Chinese SHRANK 25 px |
+
+Chinese renders all four concealment faces at exactly 23.30 px — 静音 / 重复 /
+衰减 / 替换 are two characters each — against `Substitute`'s 48.02, and the
+25 px shrink pulled the Comfort knob column 8.3 px left. **An assertion phrased
+"the non-English pass must not GROW box X" is vacuous against Chinese, and one
+phrased "must not SHRINK" is vacuous against half of it. Assert equality.**
+
+**NOT pinned, each for a measured reason:** `.ro` / `.seg button` /
+`.caption > em` never carry Han (readouts are English by D-03, the plate numbers
+are `I18N_EXEMPT`, the segment faces are units); `.settings-toggle` declares
+`height: 21px`, so its line box cannot move its box; `.plate` / `.brand` inherit
+an explicit `line-height: 1.45` from `.hdr-right`, which `normal` never reaches;
+`.preset-menu-item` / `#preset-name` show preset names, which are the JSON
+filenames on disk (D-02) and never localize.
+
+### Changed — `tests/ui_tooltip_clamp_check.js` now measures Chinese
+
+- **`LANGS` is DERIVED from the table's own `LANGUAGES`, and there is no default
+  pair.** The gate prints an ABORT and exits non-zero if `LANGUAGES` is
+  unreadable. A gate that falls back to a pair goes green on unchecked content,
+  which is worse than one that fails — the failure is visible and the silence is
+  not. Through v1.15.2 the literal here named English and French, so the
+  `zh-Hans` addition would have gone unmeasured.
+- **The copy-differs assertion runs per non-English language**, so adding a
+  language adds an assertion instead of leaving one unwatched.
+- **The geometry discriminator gates on DIFFERING, and reports the direction.**
+  The v1.15.2 framing assumed the non-English pass costs MORE, because French
+  wraps to more lines inside the 230 px cap. Measured here:
+
+  ```
+  en:      55 anchors  clamped 15  flipped-below 10  tallest 119.1
+  fr:      55 anchors  clamped 16  flipped-below 13  tallest 133.9
+  zh-Hans: 55 anchors  clamped 14  flipped-below  9  tallest  92.4
+  ```
+
+  **Chinese is 26.7 px SHORTER at its tallest and costs one FEWER clamp and one
+  FEWER flip.** A growth-only test fails a correct Chinese table. Non-vacuity is
+  proved on the zh arm by 14 clamps engaged, not zero.
+
+### Terminology — two homograph collisions, and what the reverse pass measured
+
+Six `termNote` exemptions across four entries, and they are two collisions, each
+hit twice because a caption and its tooltip title are separate rows.
+
+**`Dither` and `Jitter` share ONE glossary root, `抖动`, and on this page they
+are two knobs two cells apart in the same Crush plate.** The first draft kept
+the root on Dither and qualified only Jitter, on the theory that qualifying
+jitter is idiomatic and qualifying dither is not. The blind reverse pass
+demolished it:
+
+| row | zh | en' |
+|---|---|---|
+| `label.dither` | 抖动 | **Jitter** |
+| `CRUSH_DITHER` title | 抖动 | **Jitter** |
+| `CRUSH_JITTER` title | 时基抖动 | Timebase jitter ✓ |
+| `CRUSH_ENABLE` body | …以及抖动。 | *"…decimation with timebase jitter, and jitter."* |
+
+That last one is not a sentence. **Both sides are now qualified: Jitter
+`时基抖动` (time-base jitter), Dither `抖动噪声` (dither noise)** — dither *is*
+noise added before quantisation, so the qualifier is the definition, not a
+hedge. Round 2 returned "Dither noise" for both rows and *"bit depth reduction,
+sample rate decimation with time-base jitter, and dither noise"* for the body.
+
+**`Mains` → `市电`, not the root `主输出`.** Two senses of one English word:
+`主输出` is a mixer's main OUTPUT bus, and this control names the 50/60 Hz hum
+frequency of a line-noise bed. The root would label a thing that does not exist
+on this page.
+
+**`Z5` reported ZERO findings through the entire wrong dither draft** — `抖动` is
+exactly what the glossary asks for, on both keys. `F1` is silent because the
+rendering is accepted. `check-ui-labels` is silent because the two captions are
+different strings. **Every automated check in this repo passes a table that
+ships an unreadable sentence.** Only the reverse pass found it.
+
+### Character budgets — none was added, and the measurement is why
+
+`maxChars = floor(cellWidthPx / fontSizePx)`. A knob column is pinned at 64 px
+and `.ctl-label` renders at 9.5 px, so the budget is 6 characters. The longest
+Chinese captions are `时基抖动`, `抖动噪声` and `舒适噪声`, four each, measuring
+43.64 px in a 64 px cell; `check-ui-labels` assertion 4 passes on all three arms.
+`scripts/i18n-zh-glossary.js` is **not** in this release — its three `BUDGETS`
+cells are O-Chorus's and are intact.
+
+This is the opposite of French, where three of this page's captions had to be
+abbreviated to fit — `Prof.`, `Dissim.`, `Clics`.
+
+### The review bar
+
+**Every one of the 172 rows is `reviewed: 'bt'`, over TWO rounds and 179
+triples.** `'bt'` asserts that a second, independent pass — one that never saw
+the English source — rendered the Chinese back into English and the drift was
+read against the original.
+
+- **Round 1, all 172 rows.**
+  forward: `forward zh-Hans draft authored by the Stage-3 Task-2 executor (Claude Opus 4.6, GSD quick-260904-g5l), 2026-09-04`
+  reverse: `reverse pass O-Bitrot batch: blind zh->en by claude-sonnet-5 subagent, batch file only, no manifest, no plugin context, 2026-09-04`
+  172 joined, 0 REFUSED, 0 unjoinable. **Seven rows were re-authored rather than
+  accepted** — the two dither rows, `CRUSH_ENABLE`, `edgeBtn` (whose `旁通`
+  parsed as an attributive, not the imperative verb, losing the control's action
+  entirely), `CRUSH_ENV_AMT`, `seedRo` (whose `走带位置` came back "tape
+  position" on a plugin whose first family IS tape) and `TAPE_WOW`.
+- **Round 2, the seven changed rows**, re-emitted under a fresh per-batch salt
+  so it shares no id with round 1, and read by a **fresh** reverse agent with no
+  round-1 exposure.
+  forward: `forward zh-Hans CORRECTION draft (7 rows re-authored after the round-1 triple read) by the Stage-3 Task-2 executor (Claude Opus 4.6, GSD quick-260904-g5l), 2026-09-04`
+  reverse: `reverse pass O-Bitrot correction batch: blind zh->en by fresh claude-sonnet-5 subagent, batch file only, no manifest, no plugin context, no round-1 exposure, 2026-09-04`
+  7 joined, 0 REFUSED, 0 unjoinable. Every one now says what its English says.
+
+Both rounds were read with `--verbose`. **`--ingest` truncates to 12, and not
+one of the seven rows was in that window** — their ranks by lexical score were
+1, 14, 39, 50, 56, 79 and 84, four of them scoring 0.50 or above. The score is a
+sort key, not a verdict.
+
+All blinding controls were fired rather than assumed: 172/172 and 7/7 ids opaque
+12-hex, 0 key or plugin-name fragments in either batch, ids returned
+byte-identical and in order.
+
+**`'native'` stays OPEN and is not a blocker. This project has no native Chinese
+reader.** That is a disclosed quality level, not a hidden one.
+
+### Legibility
+
+No localized node on this page renders below 9 px: the smallest is `.annot` at
+8.5 px, which carries marginal notes only, and every localized caption sits at
+9 px or above. The ≤9 px tier is therefore not reached by any Chinese string
+that names a control.
+
 ## [1.15.2] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task

@@ -259,6 +259,85 @@
 // automated check in this repo: check-i18n accepts it as a valid enum member
 // and the zh lint's R1 only reports entries BELOW the bar. The flag is the one
 // field no gate can validate.
+//
+// ── THE REVIEW THAT ACTUALLY HAPPENED: TWO ROUNDS, 179 TRIPLES ─────────────
+//
+// ROUND 1 — all 172 rows. Provenance:
+//   forward  "forward zh-Hans draft authored by the Stage-3 Task-2 executor
+//            (Claude Opus 4.6, GSD quick-260904-g5l), 2026-09-04"
+//   reverse  "reverse pass O-Bitrot batch: blind zh->en by claude-sonnet-5
+//            subagent, batch file only, no manifest, no plugin context,
+//            2026-09-04"
+// 172 joined, 0 REFUSED, 0 unjoinable. Read with --verbose: the default output
+// truncates to 12, and NOT ONE of the seven rows below was in that window.
+//
+// SEVEN ROWS WERE RE-AUTHORED, not accepted:
+//   * label.dither and CRUSH_DITHER's title — see the 抖动 note above. The
+//     unqualified root came back "Jitter", twice.
+//   * CRUSH_ENABLE's body — came back "decimation with timebase jitter, and
+//     jitter", which is not a sentence.
+//   * edgeBtn's body — `旁通事件边界处的短交叉淡化` parsed as an ATTRIBUTIVE
+//     rather than as the imperative verb, and came back "A short crossfade at
+//     the boundaries of a bypassed event", which describes nothing the control
+//     does. Chinese marks no imperative and 旁通X的Y is a valid attributive.
+//     Rewritten with 将…旁通掉, which forces the verb reading.
+//   * CRUSH_ENV_AMT's body — `牵动位深的幅度` attached 的幅度 to 位深 instead of
+//     to the clause. Now 能把位深推动多少.
+//   * seedRo's body — `走带位置` came back "tape position". On a plugin whose
+//     first family IS tape that is a live confusion; the English means the HOST
+//     transport. Now 宿主走带位置.
+//   * TAPE_WOW's body — carried a bare 抖动 for FLUTTER, a third sense of the
+//     token on a page already disambiguating two. Now 更快的快抖, the term this
+//     entry's own title establishes.
+//
+// ROUND 2 — the seven changed rows only, re-emitted under a FRESH per-batch
+// salt so it shares no id with round 1, and read by a FRESH reverse agent with
+// no round-1 exposure. Provenance:
+//   forward  "forward zh-Hans CORRECTION draft (7 rows re-authored after the
+//            round-1 triple read) by the Stage-3 Task-2 executor (Claude Opus
+//            4.6, GSD quick-260904-g5l), 2026-09-04"
+//   reverse  "reverse pass O-Bitrot correction batch: blind zh->en by fresh
+//            claude-sonnet-5 subagent, batch file only, no manifest, no plugin
+//            context, no round-1 exposure, 2026-09-04"
+// 7 joined, 0 REFUSED, 0 unjoinable. Every one now says what its English says:
+// 抖动噪声 -> "Dither noise" (both rows), edgeBtn -> "Bypasses the short
+// crossfade at event boundaries", seedRo -> "at the same host transport
+// position", and CRUSH_ENABLE -> "bit depth reduction, sample rate decimation
+// with time-base jitter, and dither noise" — a sentence.
+//
+// ── DRIFTS READ AND ACCEPTED, each with its reason ─────────────────────────
+// An accepted drift with no recorded reason is indistinguishable from an
+// unread one, so every one of them is named here.
+//
+//   TAPE_WOW body   快抖 -> "the faster jitter", where the English says
+//       FLUTTER. Kept. 慢抖 is the glossary ROOT for `Wow` and 快抖 is its
+//       partner — the pair IS this entry's own title, 慢抖与快抖. A contextless
+//       reader renders 抖 as "jitter" because 抖 is the shared morpheme, not
+//       because the Chinese names the Crush control: 快抖, 时基抖动 and 抖动噪声
+//       are three distinct strings and none collides on the page. This is
+//       materially different from the round-1 defect, where 抖动 was
+//       BYTE-IDENTICAL to another control's caption.
+//   label.conceal   隐藏 -> "Hide". 丢包隐藏 is the standard Chinese for
+//       packet-loss concealment and the tip title carries it in full; the
+//       caption abbreviates it exactly as English `Conceal` abbreviates
+//       `Concealment`, and the four <select> faces beside it pin the sense.
+//   label.drop      失落 -> "Dropout" — en' returned the English word itself.
+//       失落 is the magnetic-recording term.
+//   label.severity / CD_SEVERITY  程度 -> "Amount". Glossary root; the body
+//       pins the sense with 光盘损坏的程度.
+//   label.capRot / ROT_ENABLE  腐化 -> "Corruption", which is the word the
+//       French entry uses for the same family.
+//   label.wow       慢抖 -> "Slow jitter". Glossary root; Chinese has no single
+//       word for wow, which is why the pair exists.
+//   label.capGlobal 来源 -> "Source" for `Provenance`. The group holds the seed
+//       readout and the reseed button — where the take came from.
+//   label.annotRevQuantum  每转步长 -> "Steps per revolution".
+//   Chinese needs no abbreviation, so 位深 / 丢包 / 舒适噪声 render the caption
+//       and the tooltip title identically where English abbreviates
+//       (Bits/Bit depth, Loss/Loss rate, Comfort/Comfort noise).
+//   Number- and part-of-speech-only, which Chinese does not mark: 硬边缘 ->
+//       "Hard edge", 爆音 -> "Pop", 预设 -> "Preset", 乱码 -> "Garbled",
+//       剪接 -> "Splice", 20 ms 数据包 -> "20 ms packet".
 // ============================================================================
 
 export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
@@ -435,7 +514,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '慢抖与快抖',
                      b: '慢速漂移与更快的快抖两者的深度。它调制的是读取速率，因此其斜率就是音高。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     'TAPE_HISS': {
@@ -701,7 +780,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '压碎',
                      b: '启用压碎族 —— 位深削减、带时基抖动的采样率抽取，以及抖动噪声。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     'CRUSH_BITS': {
@@ -746,7 +825,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '包络',
                      b: '双极性：输入包络能把位深推动多少。正值让强奏段落变干净，负值让它们变脏。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     'CRUSH_DITHER': {
@@ -757,7 +836,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '抖动噪声',
                      b: '量化之前加入的噪声，以 LSB 为单位 —— 用一层稳定的本底噪声换掉量化失真。',
-                     reviewed: 'mt',
+                     reviewed: 'bt',
                      termNote: 'Dither and Jitter share ONE glossary root, 抖动, and both controls sit in the SAME Crush panel two cells apart — an identical caption on two different knobs. BOTH sides are therefore qualified: Jitter takes 时基抖动 (time-base jitter) and Dither takes 抖动噪声 (dither noise), which is what it is — noise added before quantisation. The unqualified root was tried FIRST and the blind reverse pass returned JITTER for it, twice, and turned CRUSH_ENABLE’s body into “decimation with timebase jitter, and jitter”. That measurement is why the root is not used here.' },
     },
 
@@ -857,7 +936,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '种子',
                      b: '每一路随机流所派生自的种子。同一个种子在同一个宿主走带位置上，每次渲染都给出相同的事件。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     'diceBtn': {
@@ -879,7 +958,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '硬边缘',
                      b: '将事件边界处的短交叉淡化旁通掉，使进入与退出成为真正的阶跃。点亮表示已旁通。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     'MIX': {
@@ -1034,7 +1113,7 @@ export const LABELS = Object.freeze({
     // the caption keeps the four-letter form the English caption uses.
     'label.dither':    { en: { t: 'Dither' },   fr: { t: 'Dither',     reviewed: true, sameAsEn: true },
                        'zh-Hans': { t: '抖动噪声',
-                                    reviewed: 'mt',
+                                    reviewed: 'bt',
                                     termNote: 'Dither and Jitter share ONE glossary root, 抖动, and both controls sit in the SAME Crush panel two cells apart — an identical caption on two different knobs. BOTH sides are therefore qualified: Jitter takes 时基抖动 (time-base jitter) and Dither takes 抖动噪声 (dither noise), which is what it is — noise added before quantisation. The unqualified root was tried FIRST and the blind reverse pass returned JITTER for it, twice, and turned CRUSH_ENABLE’s body into “decimation with timebase jitter, and jitter”. That measurement is why the root is not used here.' } },
     'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Prof.',      reviewed: true }, 'zh-Hans': { t: '深度', reviewed: 'bt' } },
     'label.sticky':    { en: { t: 'Sticky' },   fr: { t: 'Blocages',   reviewed: true }, 'zh-Hans': { t: '卡死', reviewed: 'bt' } },
