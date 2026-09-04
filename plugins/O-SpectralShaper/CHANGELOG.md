@@ -45,16 +45,32 @@ comments only — no parameter, range, type or state format changed.
   of the noun, so the sweep that rewrote every string mentioning it did not reach
   them. They kept `reviewed: true` — these are the grammar-forced number of a
   word the developer read and approved, not authored wording.
-- **The `.settings-toggle` 64 px `min-width` no longer covers the widest face,
-  and was NOT changed.** Re-measured with the plural: en `Off` holds the pin at
-  64.00 px; fr `Désactivées` is content-sized at **65.77 px** (47.77 text + 18
-  padding), so the button resizes **1.77 px** between languages — which is what
-  the v1.7.2 pin was raised to 64 px to stop. Nothing is clipped and nothing
-  outside the button moves. **No gate sees it:** `.settings-toggle` carries
-  `data-i18n`, so it is a LABEL, and `check-ui-labels` assertion [7] watches
-  NON-label elements — the plugin exits 0. Left for a deliberate decision rather
-  than widened on the spot: closing it means `min-width: 66px` (2.23 px slack).
-  The faces are not to be abbreviated to fit 64.
+- **The `.settings-toggle` `min-width` raised 64 px → 66 px, so the button stops
+  resizing between languages.** The plural faces outgrew the 64 px pin: en `Off`
+  held it at 64.00 px while fr `Désactivées` went content-sized at **65.77 px**
+  (47.77 text + 18 padding), a 1.77 px resize — exactly what v1.7.2 raised the
+  pin to 64 px to prevent. 66 px is 65.77 rounded up with **2.23 px of slack**,
+  the same way 64 px was 61.88 rounded up. Proven by rendering all four faces in
+  both languages, not by reading attributes:
+
+  | | before | after |
+  |---|---|---|
+  | en `Off` | 64.00 | **66.00** |
+  | en `On` | 64.00 | **66.00** |
+  | fr `Désactivées` | **65.77** | **66.00** |
+  | fr `Activées` | 64.00 | **66.00** |
+
+  Identical border-box on every face now; the row's worst case is
+  `45.55 + 12 gap + 66 = 123.55` against the popover's 148 px content width,
+  leaving 24.45 px. The popover holds 168 px and nothing outside the button
+  moves. **The faces were not abbreviated to fit** — a pin exists so the
+  geometry follows the words.
+- **No gate would have caught the breach**, which is recorded in the CSS comment
+  for whoever reads it next: `.settings-toggle` carries `data-i18n`, so it is a
+  LABEL, and `check-ui-labels` assertion [7] watches NON-label elements — the
+  plugin exited 0 the whole time the button was resizing. A width-pinned control
+  that is itself a localized label sits in that assertion's blind spot and has
+  to be measured by hand.
 - `scripts/i18n-fr-glossary.js` accepts `activées` / `désactivées` on the
   `on` / `off` rows alongside the existing renderings. The singulars stay: every
   other plugin's toggle agrees with a singular antecedent. **Positive control
