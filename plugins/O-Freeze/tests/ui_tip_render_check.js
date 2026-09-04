@@ -313,7 +313,7 @@ function outsideViewport(rect, W, H) {
                                '#threshold-knob', '#drift-knob', '#grain-size-knob',
                                '#grain-count-knob', '#detune-knob', '#mix-knob',
                                '#lfo-rate-knob', '#lfo-depth-knob', '#lfo-shape-toggle'];
-        const anchorsOpen   = ['#gear-btn', '#lang-select'];
+        const anchorsOpen   = ['#gear-btn', '#lang-select', '#tips-toggle'];
 
         check(anchorsClosed.length + anchorsOpen.length === TIP_BINDINGS.length,
             `[1] the driving loop covers every binding — ${anchorsClosed.length} + `
