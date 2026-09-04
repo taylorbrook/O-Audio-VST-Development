@@ -196,6 +196,24 @@ larger, unmeasured exposure.
 geometry — a regression). Let the zh arm of `check-ui-labels` assertion 7 name each offender, then
 pin *that node's* computed line-height explicitly so both languages agree.
 
+> **Risk A5, Stage 2 (2026-09-03) — STILL CHROMIUM-MEASURED, UNCONFIRMED IN WKWebView.** The
+> O-Chorus pilot reconfirmed the 9px row on the real shipping page: `.knob-label` measured
+> **10.00 px in English and 13.00 px in Chinese**, exactly the +30% above, and the recommendation
+> held — three unitless pins at the measured EN ratio (10.00/9 = 1.1111) closed 25 of the 26
+> assertion-7 movers with English unmoved. **But the re-measurement in the shipped WKWebView was
+> NOT taken, because it cannot be with what the plugin exposes:** O-Chorus's WebView bridge has
+> twelve native functions (ten preset, `getUiLanguage`, `setUiLanguage`) and no
+> `evaluateJavascript` path, so nothing can read `getComputedStyle` from inside the AU/VST3 host.
+> Taking it would mean shipping a style-reading debug hook in a release plugin. The figure
+> therefore remains a headless-Chromium number and should still not be quoted as an exact
+> WKWebView value. It is recorded here as a known limitation rather than dropped.
+>
+> Stage 2 also found a geometry mover that is **not** a line-height at all and that §3.4 does not
+> predict: a `<select>` whose intrinsic width Chromium derives from the **selected** option's font
+> run, so the control measured 65 px with a Latin endonym selected and 64 px with the Han one —
+> even though the option set is language-invariant. Any plugin whose language selector sits in a
+> `space-between` row will show it. Fix is a width pin at the existing English intrinsic.
+
 ---
 
 ## 4. Width geometry
@@ -465,7 +483,7 @@ and is not duplicated here.
 | A2 | Simplified is the larger commercial market for this suite | §2 | A Traditional-first decision would reverse the variant order; the schema key `zh-Hans`/`zh-Hant` recommendation is unaffected either way |
 | A3 | No native Chinese reviewer is available | §6.2 | If one is, the review model upgrades to `'native'` with no schema change — the enum was designed for exactly that |
 | A4 | Chromium's default generic-serif for zh-Hans on Windows is SimSun | §3.1 | If it is YaHei on Win11, the CJK-tail edit is a polish item rather than a legibility fix. Measured on macOS only |
-| A5 | WKWebView's Han fallback behaves like the Chromium measurement taken here (all width/height numbers came from headless Chromium on macOS) | §3.4, §4 | The em-advance law is a property of the CJK faces themselves and will hold; the `line-height: normal` +30% figure should be re-measured on WKWebView before it is quoted as an exact number |
+| A5 | WKWebView's Han fallback behaves like the Chromium measurement taken here (all width/height numbers came from headless Chromium on macOS) | §3.4, §4 | The em-advance law is a property of the CJK faces themselves and will hold; the `line-height: normal` +30% figure should be re-measured on WKWebView before it is quoted as an exact number. **OPEN after Stage 2 (2026-09-03):** reconfirmed in Chromium on the real page (10.00 -> 13.00 px at 9px) and the pin strategy works, but the WKWebView measurement was NOT taken — the shipped bridge exposes no `evaluateJavascript` and no style-reading native function, so it would require shipping a debug hook. See the note in §3.4. |
 
 ## Sources
 
