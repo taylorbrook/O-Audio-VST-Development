@@ -411,6 +411,11 @@ html, body {
   justify-content: space-between;
   gap: 10px;
 }
+
+/* v1.28.0. The panel is display: block, not a flex column, so a second row
+   needs its own vertical separation — a gap on the parent would do nothing
+   here. 6 px matches the flex gap the sibling plugins' popovers use. */
+.settings-row + .settings-row { margin-top: 6px; }
 .settings-label {
   font-size: 10px;
   color: #3C2F2F;
@@ -426,6 +431,46 @@ html, body {
   padding: 1px 4px;
   cursor: pointer;
 }
+
+/* v1.28.0 THE HOVER-HELP SWITCH.
+
+   Every declaration above the switch-specific four is COPIED FROM
+   this page's own language <select>, not pasted in from the reference
+   implementation. The two controls sit one row apart in the same popover,
+   so the button inherits this plugin's font stack, ink, plate, hairline and
+   radius by construction rather than by a second designer re-deciding them.
+
+   min-width, NOT width: it floors the two short English faces so they size
+   alike, and lets a longer French one (Marche / Arrêt) grow LEFTWARD into
+   slack the popover already has. The row is space-between and the button is
+   a [data-i18n] node, so a face that grows moves nothing the geometry gate
+   measures — verified with check-ui-labels [7] after the port. */
+.settings-toggle {
+  background: #F5E6D3;
+  border: 1px solid #8B7355;
+  border-radius: 3px;
+  color: #3C2F2F;
+  font-family: 'Garamond', serif;
+  font-size: 10px;
+  padding: 1px 4px;
+  flex: 0 0 auto;
+  min-width: 42px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.settings-toggle[aria-pressed="true"] {
+  background: #6B8E4E;
+  border-color: #6B8E4E;
+  color: #EDD9C4;
+}
+
+.settings-toggle:focus-visible {
+  outline: 2px solid #6B8E4E;
+  outline-offset: 1px;
+}
+
 
 /* Preset bar */
 .preset-bar {
@@ -1038,7 +1083,7 @@ canvas#consonant-xy-pad {
   <div class="header">
     <h1>O-Formant</h1>
     <span data-i18n="label.subtitle">vocal synthesizer</span>
-    <button class="gear-btn" id="gear-btn" data-i18n-aria="label.settings">&#9881;</button>
+    <button class="gear-btn" id="gear-btn" data-i18n-aria="label.settings" data-tip-always>&#9881;</button>
     <div class="settings-popover" id="settings-popover">
       <div class="settings-title" data-i18n="label.settings">Settings</div>
       <div class="settings-row">
@@ -1047,6 +1092,24 @@ canvas#consonant-xy-pad {
           <option value="en">English</option>
           <option value="fr">Fran&ccedil;ais</option>
         </select>
+      </div>
+
+      <!-- v1.28.0: the hover-help switch. A SIBLING of the language row, not a
+           child of it. A <div>, NEVER a <label for="tips-toggle">: a button is
+           a labelable element, so a label wrapping one re-dispatches the click
+           and the switch toggles twice. The button names itself with aria-label.
+
+           data-tip-always goes on this button and on #gear-btn and on nothing
+           else. Those two controls are the ones that REACH and RESTORE the help
+           layer, so they keep explaining themselves while it is off.
+           #lang-select deliberately does not carry it: it is only reachable
+           through the gear, which already explained itself on the way in. -->
+      <div class="settings-row">
+        <span class="settings-label" data-i18n="label.hoverHelp" data-label="Hover help">Hover help</span>
+        <button type="button" class="settings-toggle" id="tips-toggle"
+                aria-pressed="true" data-i18n-aria="aria.helpToggle"
+                aria-label="Toggle hover help"
+                data-i18n="ui.on" data-tip-always>On</button>
       </div>
     </div>
   </div>

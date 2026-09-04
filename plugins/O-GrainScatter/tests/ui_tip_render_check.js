@@ -204,7 +204,7 @@ function outsideViewport(rect, W, H) {
 
     // The two chrome anchors live inside a [hidden] popover and do not exist to
     // a pointer until the gear is clicked.
-    const CHROME = new Set(['#gear-btn', '#lang-select']);
+    const CHROME = new Set(['#gear-btn', '#lang-select', '#tips-toggle']);
 
     // ── THE GATED FOURTEEN ──────────────────────────────────────────────────
     //
@@ -798,9 +798,11 @@ function outsideViewport(rect, W, H) {
             document.querySelectorAll('[data-param]').length);
         check(bySel.size === TIP_BINDINGS.length,
             `[8] every TIP_BINDINGS row was resolved — ${bySel.size} of ${TIP_BINDINGS.length}`);
-        check(TIP_BINDINGS.length === boundParams + 2,
-            `[8] one tip per on-page control plus the two chrome anchors — `
-            + `${boundParams} [data-param] elements + 2 vs ${TIP_BINDINGS.length} bindings`);
+        // v2.7.0: THREE chrome anchors — #tips-toggle joined #gear-btn and
+        // #lang-select when the settings popover grew a hover-help switch.
+        check(TIP_BINDINGS.length === boundParams + 3,
+            `[8] one tip per on-page control plus the three chrome anchors — `
+            + `${boundParams} [data-param] elements + 3 vs ${TIP_BINDINGS.length} bindings`);
 
     } finally {
         await browser.close();

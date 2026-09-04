@@ -1,5 +1,60 @@
 # O-MicrotonalSampler Changelog
 
+## [1.26.0] - 2026-09-03
+
+A switch for the hover help. The tooltip layer this plugin already had could
+not be turned off; twenty of the suite's forty-three plugins already carried
+that switch and twenty-three did not. This closes one of the twenty-three.
+
+### Added
+
+- **A hover-help switch in the settings popover.** `#tips-toggle`, a second
+  `.settings-row` under the language selector, on the newer `#tips-toggle` /
+  `label.hoverHelp` convention rather than the older `#help-toggle` spelling.
+  It gates the tooltip renderer's own `show()` — a delegated renderer has no
+  bindings to unbind — and persists under the localStorage key
+  `oms.tipsEnabled`.
+- **`data-tip-always` on `#gear-btn` and on `#tips-toggle`, and on nothing
+  else.** Those two controls are the ones that REACH and RESTORE the help
+  layer, so they keep explaining themselves while it is off. `#lang-select`
+  deliberately does not carry it: it is only reachable through the gear, which
+  already explained itself on the way in.
+- **Five i18n keys, four of them settled roots copied rather than authored.**
+  `label.hoverHelp`, `ui.on`, `ui.off` and `aria.helpToggle` take the French
+  glossary roots verbatim from `scripts/i18n-fr-glossary.js` — *Aide au survol
+  / Marche / Arrêt / Activer ou désactiver l'aide au survol*. The fifth,
+  `tip.tipsToggle`, is the tooltip's own title and body.
+
+### Measured
+
+- **The second row costs nothing.** With the popover forced open it occupies **y 51.5..128.5, 208 x 77 px — byte-identical in English and French** — inside a 900 x 640 frame. The switch face grows 42.00 -> 50.66 px for *Marche*, leftward into the panel's own slack; `check-ui-labels` [7] reports 0 non-label elements displaced.
+- **The switch's face is a `min-width: 42px` floor, not a pinned width**, so a
+  longer French face grows LEFTWARD into slack the popover already has. The row
+  is `space-between` and the button is a `[data-i18n]` node, so nothing the
+  geometry gate measures moves. `check-ui-labels` [7] reports **0 non-label
+  elements displaced** between English and French, and the visible element set
+  identical in both.
+- Every declaration in `.settings-toggle` above the four switch-specific ones
+  is **copied from this page's own language `<select>`** — its font stack, ink,
+  plate, hairline and radius — so the two controls in the popover match by
+  construction rather than by a second designer re-deciding them.
+
+### Decided
+
+- **Default is ON.** The previous version showed hover help unconditionally, so
+  ON is the setting that leaves an existing user's plugin behaving exactly as
+  it did. Default OFF would additionally have made `boot-all-uis --strict-tips`
+  measure an empty tip surface and call it correct.
+
+### Not reused
+
+- **This page has its own `<input type="checkbox">` controls and the switch is
+  NOT one of them.** It is a `<button class="settings-toggle">` with
+  `aria-pressed`, matching the twenty-two sibling plugins rather than this
+  page's local checkbox vocabulary — a checkbox and a pressed-state button are
+  different things to a screen reader, and the switch is the latter.
+
+
 ## [1.25.2] - 2026-08-31
 
 The tuning panel's A4 REF knob now reads the engine. Sweep of the tuning-panel
