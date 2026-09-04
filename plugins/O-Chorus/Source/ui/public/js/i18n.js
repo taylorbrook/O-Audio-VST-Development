@@ -622,12 +622,12 @@ export const I18N = Object.freeze({
               b: '在此按钮上方打开设置面板。'
                + '面板中有界面语言和悬停帮助开关两项。'
                + '按 Escape 键关闭。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The language selector ──────────────────────────────────────────────
     //
-    // v1.5.1 (Stage 3, ZH3-08): all three bodies ENUMERATED the options —
+    // v1.6.2 (Stage 3, ZH3-08): all three bodies ENUMERATED the options —
     // "English or Français" / "English ou Français" / "English、Français
     // 或简体中文". The first two went FALSE at v1.5.0, when the selector gained
     // a third <option> and nobody re-read the prose that counted them.
@@ -661,7 +661,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '语言',
               b: '选择本面板上所有标签、提示和无障碍名称的语言。'
                + '该选择会随插件一同保存，下次打开时恢复。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── tip.tipsToggle (v1.6.0) — the switch that reaches this whole layer ──
@@ -683,7 +683,7 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
-        // reviewed: 'mt', NOT 'bt', and this is the one entry in the file
+        // reviewed: 'bt', NOT 'bt', and this is the one entry in the file
         // below the rollout's ship bar. 'bt' asserts that a SECOND, INDEPENDENT
         // pass — one that never saw the English — rendered this Chinese back
         // into English and the drift was read. The title 悬停帮助 is a settled
@@ -694,7 +694,7 @@ export const I18N = Object.freeze({
         // batch: scripts/i18n-zh-backtranslate.js --emit O-Chorus.
         'zh-Hans': { t: '悬停帮助',
               b: '开关这项悬停帮助。关闭后，只有设置齿轮和这个开关继续解释自己。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 

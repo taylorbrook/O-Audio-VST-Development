@@ -1,5 +1,63 @@
 # O-Chorus Changelog
 
+## [1.6.2] - 2026-09-04
+
+Closes the last four Simplified Chinese rows below the rollout's ship bar, and
+removes a sentence that had been false in two languages since v1.5.0. PATCH:
+tooltip copy and review flags only — no parameter, range, type or state format
+changed (task quick-260904-g5l, Stage 3 ZH3-08).
+
+### Fixed
+
+- **`tip.language`'s body ENUMERATED the selector's options, and two of the
+  three copies were false.** The `en` body read *"English or Français."* and the
+  `fr` body *"English ou Français."* — both went false at **v1.5.0**, when the
+  selector gained its `zh-Hans` `<option>` and nobody re-read the prose that
+  counted them. Shipped that way for a day.
+
+  The enumeration is **REMOVED, not extended.** Naming all three inside the `en`
+  and `fr` bodies would put Han in them, which moves the English tooltip's own
+  geometry and drags the CJK font tail onto the very baseline every gate
+  measures against — and a body that counts its control's options goes stale
+  again at the next language added. The selector already lists them, in their
+  endonyms, which is the one form a reader recognises without knowing the page
+  language.
+
+  The `zh-Hans` sentence enumerated all three and was TRUE. It came out anyway:
+  three bodies describing one control differently is exactly what let the other
+  two rot unnoticed.
+
+### Changed
+
+- **All four zh-Hans rows below the ship bar are now `reviewed: 'bt'`, and
+  O-Chorus reports 0 entries below it.** `tip.settings` and `tip.tipsToggle`
+  had been queued since v1.6.0; `tip.language` joined them when its body
+  changed, because the string it was back-translated at no longer existed.
+
+  `tip.tipsToggle`'s v1.5.0 comment reserved it at `'mt'` on the grounds that
+  the session that wrote a body cannot be the session that blindly reverses it,
+  and named the exact command that would clear it. That reason was right and is
+  now **satisfied rather than overridden** — the queued batch was run.
+
+- **The whole 44-row table was re-read, not just the six changed rows.**
+  `--emit` is table-scoped rather than ship-bar-scoped, so the batch carried all
+  44; the 38 rows already at `'bt'` got a second independent reading and all
+  hold. Zero drifts across the 44 triples.
+
+### Back-translation provenance
+
+- **forward** — `forward zh-Hans draft authored by the Stage-3 Task-2 executor (Claude Opus 4.6, GSD quick-260904-g5l), 2026-09-04`
+- **reverse** — `reverse pass O-Chorus batch: blind zh->en by claude-sonnet-5 subagent, batch file only, no manifest, no plugin context, 2026-09-04`
+
+A separate **claude-sonnet-5** subagent was handed the blinded batch file and
+nothing else — no manifest, no repo access, no plugin name. All three blinding
+controls fired: 44/44 ids opaque 12-hex, 0 key or plugin-name fragments in the
+batch, ids returned byte-identical and in order. `--ingest` joined 44, refused 0,
+0 unjoinable.
+
+**The bar is `reviewed: 'bt'`, and `'native'` stays open.** This project has **no
+native Chinese reader**. That is a disclosed quality level, not a hidden one.
+
 ## [1.6.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
