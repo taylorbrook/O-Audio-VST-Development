@@ -2,6 +2,56 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.3.3] - 2026-09-03
+
+The French rendering of the hover-help surface changes suite-wide, and O-Gain
+is the tracer. PATCH: seven French strings and two width comments; no
+parameter, range, type or state format changed.
+
+### Changed
+
+- **The French caption is now `Infobulles`** (plural), replacing
+  `Aide au survol`. The old term named the ACTION — help on hover; *infobulle*
+  is the noun French DAW and OS interfaces use for the surface itself. The
+  glossary root moved with it, ROOT-ONLY: `scripts/i18n-fr-glossary.js` now
+  reads `'hover help': ['infobulles']` and
+  `'toggle hover help': ['activer ou désactiver les infobulles']`, with the old
+  rendering REMOVED rather than kept as an accepted alternate — so a plugin
+  drifting back is a red G1 gate, not a silent pass.
+- **Every sentence re-agreed from feminine singular to feminine plural.** All
+  seven French sites in `js/i18n.js`:
+  `label.hoverHelp` and the `tips-toggle` title → `Infobulles`;
+  `aria.helpToggle` → `Activer ou désactiver les infobulles`;
+  `tips-toggle` body → *Active ou désactive **ces infobulles**. Une fois
+  **désactivées**, seuls l'engrenage et cet interrupteur continuent de
+  s'expliquer.*; `lang-select` body → *La langue de **ces infobulles** et des
+  libellés de la page…*; `settings` body → *…et l'affichage **des
+  infobulles**. La langue est conservée avec la session ; l'interrupteur **des
+  infobulles** ne l'est pas.*
+- **The positive control fired before any plugin file was touched.** With the
+  glossary changed and all 43 plugins still on the old wording,
+  `node scripts/i18n-fr-lint.js --plugin O-Gain` exited **2** with 3 G1
+  findings, and the repo-wide `node scripts/i18n-fr-lint.js` exited **2** with
+  **117 G1 findings across 43 / 43 plugins**. G1 is therefore proven to be
+  reading the new root, not decorating a pass.
+
+### Fixed
+
+- **Two stale width comments re-measured, not scaled.** Both cited the old
+  caption's rendered width and would have become false the moment it changed.
+  `index.html` (`.settings-popover` width table) and the `js/i18n.js` header
+  note now read from `check-ui-labels --plugin O-Gain --verbose`:
+  `Infobulles` renders **49.69 px** against the old caption's 70.22, so the
+  hover-help row falls from 132.22 to **111.69** in a 154 px content box and
+  goes from the WIDEST French row to the narrowest of the four. The widest row
+  is now the LANGUAGE row in both languages (en 124.8, slack 29.2; fr 113.67,
+  slack 40.33), and the panel's tightest fit is 29.2 px rather than 21.78.
+  `Infobulles` is 4.39 px NARROWER than English `Hover help` (54.08), reversing
+  a caption that used to be 16.14 px wider.
+- **The `.settings-popover` width pin is unchanged and stays.** It exists so
+  the panel's rect cannot move with language in EITHER direction; a caption
+  that happens to be short today is not a reason to retire it.
+
 ## [1.3.2] - 2026-08-31
 
 Defects found by reading the French against the code. Stage O of the repo-wide

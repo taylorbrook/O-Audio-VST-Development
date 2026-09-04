@@ -76,8 +76,8 @@ const TERMS = {
     // ── chrome, shared by all 43 ────────────────────────────────────────────
     'settings':                 ['réglages'],
     'interface language':       ['langue de l\'interface'],
-    'hover help':               ['aide au survol'],
-    'toggle hover help':        ['activer ou désactiver l\'aide au survol'],
+    'hover help':               ['infobulles'],
+    'toggle hover help':        ['activer ou désactiver les infobulles'],
     'save':                     ['enregistrer', 'enreg', 'enr'],   // enr: O-Bass, a 28 px content box (Enreg. 38.84)
     'save preset':              ['enregistrer le préréglage'],
     'save current settings':    ['enregistrer les réglages actuels'],

@@ -537,7 +537,7 @@
        languages and any language-driven resize is a reported failure. A hard
        width makes the panel's rect language-invariant by construction.
 
-       RE-MEASURED AT v1.3.1, and the v1.3.0 note above it was wrong twice.
+       RE-MEASURED AT v1.3.3, when the French caption became "Infobulles".
        176 px is a 154 px content box; each row is space-between with a 10 px
        gap, and the select is a language-invariant 68 px (its width comes from
        the endonym "Français", which is the same string in both languages).
@@ -545,15 +545,25 @@
 
          en  Language 46.8 + select 68        = 124.8   slack 29.2   <- widest en
          en  Hover help 54.08 + pill 52       = 116.08  slack 37.92
-         fr  Langue 35.67 + select 68         = 113.67  slack 40.33
-         fr  Aide au survol 70.22 + pill 52   = 132.22  slack 21.78  <- widest fr
+         fr  Langue 35.67 + select 68         = 113.67  slack 40.33  <- widest fr
+         fr  Infobulles 49.69 + pill 52       = 111.69  slack 42.33  <- narrowest
 
-       So the widest English row is the LANGUAGE row, not the hover-help one;
-       and the widest French row became the hover-help row at v1.3.1, when the
-       caption took the glossary's root term "Aide au survol" in place of the
-       abbreviated "Aide" (22.22 px). The tightest fit on this panel is 21.78 px,
-       not the 12 px the old note claimed — that figure matches no row in either
-       language. Comment only; no rule here changed. */
+       The widest row is the LANGUAGE row in BOTH languages now. Through v1.3.2
+       the French hover-help row was the widest of the four: its caption then
+       rendered 70.22 px and the row summed to 132.22, slack 21.78. v1.3.3
+       replaced that caption with the glossary's new root "Infobulles"
+       (49.69 px) — 20.53 px shorter and, unusually, 4.39 px NARROWER than
+       English "Hover help"; the row fell to 111.69 and became the roomiest on
+       the panel. The superseded French wording is recorded in CHANGELOG v1.3.3
+       and deliberately not repeated here, so a repo grep for it stays at zero. The tightest fit is now 29.2 px, on the English LANGUAGE
+       row, and it is language-invariant — the French language row clears by
+       40.33.
+
+       THE PIN STAYS, and the shorter caption is not a reason to retire it.
+       The pin exists so this panel's rect cannot move with language at all;
+       assertion 7 would report any resize as a failure whichever direction it
+       went. A caption that happens to be short today does not make a
+       min-width safe tomorrow. Comment only; no rule here changed. */
     .settings-popover {
       position: absolute;
       top: calc(100% + 6px);

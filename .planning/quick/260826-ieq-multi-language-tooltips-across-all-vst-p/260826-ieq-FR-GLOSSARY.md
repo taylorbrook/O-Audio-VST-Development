@@ -36,6 +36,7 @@ pinned. Full list in the JS.
 
 | English | French | Why this one |
 |---|---|---|
+| Hover help | **Infobulles** (toggle: *Activer ou désactiver les infobulles*) | Reverses the Stage-N choice (2026-09-03, task 260903-ukp). *Infobulle* is the word French DAW and OS interfaces use for the surface itself; *aide au survol* named the ACTION, help-on-hover. Plural because the switch governs all of them at once — so every sentence about it agrees plural (*ces infobulles*, *une fois désactivées*). The one singular case is *chaque infobulle*. Root-only: the old rendering is REMOVED, not kept as an alternate, so a plugin drifting back is a red G1. |
 | Save / Load | **Enregistrer** (Enreg.) / **Charger** (Charg.) — *Ouvrir* accepted where the button opens a file dialog and the K header pinned it | Standard French menu vocabulary. *Sauver* is a calque; *Lire* means read or play. |
 | On / Off | **Marche / Arrêt** for a power state; **Activé(e) / Désactivé(e)** for a feature; **Aucun(e)** where Off means none selected | Three pairs by meaning, not nine by author. *Oui/Non* are answers, not states. |
 | Attack / Decay / Sustain / Release | **Attaque / Déclin / Maintien / Relâchement** (Att. / Décl. / Maint. / Relâch.) | The textbook ADSR. *Tenue* and *Chute* are metaphors; *Relâche* is a theatre closure; *Extinction* is a reverb tail. |
