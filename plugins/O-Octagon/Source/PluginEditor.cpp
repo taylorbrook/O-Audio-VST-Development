@@ -1455,8 +1455,9 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
     options = options.withNativeFunction ("setUiLanguage",
         [this] (auto& args, auto complete)
         {
-            // languageIndex() maps anything that is not "fr" to 0, so an unexpected argument
-            // from the page degrades to English rather than being stored unvalidated.
+            // languageIndex() maps anything that is neither "fr" nor "zh-Hans" to 0, so an
+            // unexpected argument from the page degrades to English rather than being stored
+            // unvalidated.
             if (args.size() > 0)
                 processorRef.uiLanguage.store (
                     OOctagonProcessor::languageIndex (args[0].toString()),
