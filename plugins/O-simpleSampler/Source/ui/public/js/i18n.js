@@ -80,11 +80,10 @@
 //     v1.4.0 header defended the short pair on width; measured, the face is a
 //     FIXED 96.00 px box in the 192 px settings row and never resizes between
 //     its own faces — "Désactivée" fits with 27 px to spare. The glossary's
-//     Activé(e)/Désactivé(e) pair is the one for a feature; the feminine
-//     agreed with the then-settled French noun for the hover-help surface.
-//     SEE THE HEADER NOTE AT aria.helpToggle: v1.4.4 made that noun PLURAL
-//     ("les infobulles"), so this feminine SINGULAR pair no longer agrees with
-//     its antecedent. Left as-is deliberately and reported, not guessed.
+//     Activé(e)/Désactivé(e) pair is the one for a feature; the agreement is
+//     with the noun naming the hover-help surface, which as of v1.4.4 is
+//     "les infobulles" — feminine PLURAL. The faces are therefore
+//     "Activées"/"Désactivées"; see the note beside ui.on/ui.off.
 //   * Two termNote exemptions, both the same one: the glossary roots "fine"
 //     on "Fin", and this page ALREADY names the End knob "Fin" (label.end,
 //     and the tip title "Fin"). Applying it would give two controls on one
@@ -502,24 +501,23 @@ export const LABELS = Object.freeze({
     'aria.settings':   { en: { t: 'Settings' },            fr: { t: 'Réglages', reviewed: true } },
     'aria.langSelect': { en: { t: 'Interface language' },  fr: { t: "Langue de l’interface", reviewed: true } },
     'aria.helpToggle': { en: { t: 'Toggle hover help' },   fr: { t: "Activer ou désactiver les infobulles", reviewed: true } },
-    // "Activée"/"Désactivée", the glossary's pair for a FEATURE, feminine to
-    // agree with the noun naming the hover-help surface.
-    //
-    // OPEN, v1.4.4: that noun became "les infobulles" — feminine PLURAL — so
-    // the agreement these two faces were chosen for no longer holds; they
-    // should read "Activées"/"Désactivées". They are NOT changed here. The
-    // 260903-ukp sheet the developer read did not carry them (it was built from
-    // strings CONTAINING the old phrase, and these contain no phrase at all —
-    // the dependency is stated only in this comment), and a string nobody read
-    // must not ship at reviewed: true. Same in O-simpleSubtractive and
-    // O-SpectralShaper. Through v1.4.1 this was "Oui"/"Non", and
+    // "Activées"/"Désactivées", the glossary's pair for a FEATURE, agreeing
+    // with the noun naming the hover-help surface — "les infobulles", feminine
+    // PLURAL as of v1.4.4. THE AGREEMENT IS THE WHOLE REASON THESE TWO STRINGS
+    // HAVE THE SHAPE THEY DO, and it is stated only here: the faces carry no
+    // occurrence of that noun, so a sweep over strings that mention it does not
+    // reach them. They were singular through v1.4.3, agreeing with the singular
+    // noun the suite used then. Same pair, same reason, in O-simpleSubtractive
+    // and O-SpectralShaper. The glossary accepts both numbers on 'on'/'off'
+    // because every other plugin's toggle still agrees with a singular
+    // antecedent. Through v1.4.1 this was "Oui"/"Non", and
     // the header defended that pair on width. Measured at v1.4.2: the face is
     // a FIXED 96.00 px box in the 192 px settings row — every candidate
     // returns elW 96.00, so it never resizes between its own faces — and
     // "Désactivée" measures 62.77 px inside it. The width defence was
     // backwards; Oui/Non are answers, not states.
-    'ui.on':           { en: { t: 'On' },                  fr: { t: 'Activée', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },                 fr: { t: 'Désactivée', reviewed: true } },
+    'ui.on':           { en: { t: 'On' },                  fr: { t: 'Activées', reviewed: true } },
+    'ui.off':          { en: { t: 'Off' },                 fr: { t: 'Désactivées', reviewed: true } },
 
     // ── Concept-preset tour ─────────────────────────────────────────────────
     // The BUTTON faces are abbreviations of the C++ preset names, which is why

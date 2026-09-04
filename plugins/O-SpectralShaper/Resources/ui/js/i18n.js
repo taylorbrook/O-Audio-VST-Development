@@ -65,22 +65,33 @@
 //   place", which read as a plural subject on a singular verb.
 //
 //   ON / OFF ARE A FEATURE, NOT A POWER STATE, so the glossary's Activé(e) /
-//   Désactivé(e) pair applies rather than Marche / Arrêt, feminine to agree
-//   with the noun naming the hover-help surface.
-//
-//   OPEN, v1.7.3: that noun became "les infobulles" — feminine PLURAL — so the
-//   agreement these two faces were chosen for no longer holds; ui.on / ui.off
-//   should read "Activées" / "Désactivées". They are NOT changed here. The
-//   260903-ukp sheet the developer read was built from strings CONTAINING the
-//   superseded phrase, and these contain no phrase at all — the dependency is
-//   stated only in this comment — so they were never read, and a string nobody
-//   read must not ship at reviewed: true. Same in O-simpleSampler and
+//   Désactivé(e) pair applies rather than Marche / Arrêt, agreeing with the
+//   noun naming the hover-help surface — "les infobulles", feminine PLURAL as
+//   of v1.7.3, so ui.on / ui.off read "Activées" / "Désactivées". They were
+//   singular through v1.7.2, agreeing with the singular noun the suite used
+//   then. That dependency is stated only here: the two faces carry no
+//   occurrence of the noun, so a sweep over strings that mention it does not
+//   reach them. Same pair, same reason, in O-simpleSampler and
 //   O-simpleSubtractive. See the note above .settings-toggle in
-//   css/styles.css: 40px no longer covers the widest face (Désactivée renders
-//   the button at 61.88px). The ROW still cannot resize — the popover holds at
-//   168px and #lang-select and the row's own left edge do not move — but the
-//   button does, and the comment that claimed otherwise was corrected.
-//   (v1.7.2 pins it to 64px; the button no longer resizes.)
+//   css/styles.css. The ROW still cannot resize — the popover holds at 168px
+//   and #lang-select and the row's own left edge do not move — but the button
+//   does, and the comment that once claimed otherwise was corrected.
+//
+//   THE 64px min-width NO LONGER COVERS THE WIDEST FACE. v1.7.2 raised it to
+//   64px and recorded "the button no longer resizes"; that was true of the
+//   SINGULAR faces. RE-MEASURED at v1.7.3 with the plural:
+//
+//     en  "Off"          box 64.00   (min-width holds)
+//     fr  "Désactivées"  box 65.77 = 47.77 text + 18 padding   <- content-sized
+//
+//   so the button resizes 1.77px between languages again. NOTHING IS CLIPPED
+//   and nothing outside the button moves; check-ui-labels exits 0, because
+//   .settings-toggle carries data-i18n and is therefore a LABEL — assertion [7]
+//   watches NON-label elements, so no gate sees this. It is recorded here
+//   rather than silently fixed: raising the pin is a geometry decision, and
+//   this file's own history shows the last person to make it wrote a sentence
+//   that later became false. Closing it means 66px (2.23px of slack), and
+//   the faces are NOT to be abbreviated to fit 64.
 //
 //   "Aide" BECAME the full suite term, which at v1.7.3 is "Infobulles". The
 //   tip title and the aria-label on this very control already carried the full
@@ -416,8 +427,8 @@ export const LABELS = Object.freeze({
     // literal keys in setTooltipsEnabled — never a ternary inside the setLabel
     // call (check-i18n assertion 13), and never a literal, which would strand
     // an English "On" the moment the language selector fired.
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Activée',       reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Désactivée',    reviewed: true } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Activées',      reviewed: true } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Désactivées',   reviewed: true } },
 
     // ── Preset bar ──────────────────────────────────────────────────────────
     // .preset-action-btn is 9 px uppercase with 0.8 px letter-spacing inside a

@@ -677,11 +677,17 @@ export const LABELS = Object.freeze({
         en: { t: 'Toggle hover help' }, fr: { t: "Activer ou désactiver les infobulles", reviewed: true },
     },
     // The switch's two faces, written through setLabel from applyTipsEnabled.
+    // FEMININE PLURAL, agreeing with the noun naming the hover-help surface —
+    // "les infobulles" as of v1.4.1. Singular through v1.4.0, agreeing with the
+    // singular noun the suite used then. The dependency is stated only here:
+    // these faces carry no occurrence of that noun, so a sweep over strings
+    // that mention it does not reach them. Same pair, same reason, in
+    // O-simpleSampler and O-SpectralShaper.
     'ui.on': {
-        en: { t: 'On' }, fr: { t: 'Activée', reviewed: true },
+        en: { t: 'On' }, fr: { t: 'Activées', reviewed: true },
     },
     'ui.off': {
-        en: { t: 'Off' }, fr: { t: 'Désactivée', reviewed: true },
+        en: { t: 'Off' }, fr: { t: 'Désactivées', reviewed: true },
     },
     'aria.keyboard': {
         en: { t: 'On-screen keyboard' }, fr: { t: 'Clavier à l’écran', reviewed: true },
