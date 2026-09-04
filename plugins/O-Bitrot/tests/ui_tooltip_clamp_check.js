@@ -191,12 +191,38 @@ function serve(root) {
         .replace(/(^|\n)(\s*)export\s+(const|let|function|class)\s/g, '$1$2$3 ');
     const i18nBox = { console: { warn() {}, error() {}, log() {} } };
     vm.createContext(i18nBox);
-    vm.runInContext(`${i18nSrc}\n;globalThis.__x = { I18N, TIP_BINDINGS };`,
+    vm.runInContext(`${i18nSrc}\n;globalThis.__x = { I18N, TIP_BINDINGS, LANGUAGES };`,
                     i18nBox, { timeout: 5000 });
     const expectedAnchors = i18nBox.__x.TIP_BINDINGS.length;
 
     check(expectedAnchors > 0,
         `TIP_BINDINGS parsed from js/i18n.js — expecting ${expectedAnchors} anchors`);
+
+    // ── v1.16.0 · ZH3-05 — THE LANGUAGE LIST IS DERIVED, AND FAILING IS THE
+    //    FALLBACK ────────────────────────────────────────────────────────────
+    // Through v1.15.2 this file carried a hard-coded two-element LANGS literal
+    // naming English and French. When
+    // js/i18n.js gained 'zh-Hans' the sweep below would have gone on driving
+    // two languages and reporting a confident pass over content it never
+    // rendered — the exact vacuity the clamp counter and the copy-differs
+    // assertion further down exist to catch, arriving through the one door
+    // neither of them watches.
+    //
+    // There is deliberately NO DEFAULT PAIR. A gate that falls back to
+    // a two-language pair when it cannot read LANGUAGES is a gate that goes green on
+    // unchecked content, which is worse than one that fails: the failure is
+    // visible and the silence is not.
+    const LANGS = i18nBox.__x.LANGUAGES;
+    check(Array.isArray(LANGS) && LANGS.length >= 2 && LANGS[0] === 'en'
+          && LANGS.every(l => typeof l === 'string' && l),
+        `LANGUAGES parsed from js/i18n.js and drives this sweep — got `
+        + `${JSON.stringify(LANGS)}. NOT defaulted: a gate that falls back to a `
+        + `two-language pair reports a pass over content it never rendered`);
+    if (!Array.isArray(LANGS) || LANGS.length < 2) {
+        console.log('\n  ABORT: LANGUAGES is unreadable, so nothing below would '
+                  + 'mean anything. Refusing to sweep a guessed language list.');
+        process.exit(failed || 1);
+    }
 
     const resolvePlaywright = () => {
         const { execSync } = require('child_process');
@@ -434,7 +460,7 @@ function serve(root) {
     // would make the two runs' failures impossible to line up against each
     // other, and would break the probe lookups below that address a control by
     // its English name.
-    const LANGS = ['en', 'fr'];
+    // LANGS is DERIVED above, from the table's own LANGUAGES. See ZH3-05.
     const tipTextByLang = new Map();
     const stats = new Map();
 
@@ -635,23 +661,28 @@ function serve(root) {
                         measured: measured.size });
     }
 
-    // French must actually BE French. Without this the sweep could run twice
-    // over identical English text and report a confident, meaningless pass —
-    // the same class of vacuity the clamp counter guards against.
+    // Each non-English pass must actually BE that language. Without this the
+    // sweep could run N times over identical English text and report a
+    // confident, meaningless pass — the same class of vacuity the clamp counter
+    // guards against. v1.16.0: run PER LANGUAGE rather than once against fr, so
+    // adding a language adds an assertion instead of leaving one unwatched.
     {
         const en = tipTextByLang.get('en') || {};
-        const fr = tipTextByLang.get('fr') || {};
         const byProbe = new Map(anchors.map(a => [String(a.i), a.label]));
-        const same = Object.keys(en).filter(k => fr[k]
-            && en[k].t === fr[k].t && en[k].b === fr[k].b);
-        check(same.length === 0,
-            `every anchor's copy actually CHANGED between en and fr — `
-            + `${Object.keys(en).length - same.length}/${Object.keys(en).length} differ`
-            + (same.length ? ' — UNCHANGED: ' + same.map(k => byProbe.get(k) || k).join(', ') : ''));
+        for (const lang of LANGS.filter(l => l !== 'en')) {
+            const other = tipTextByLang.get(lang) || {};
+            const same = Object.keys(en).filter(k => other[k]
+                && en[k].t === other[k].t && en[k].b === other[k].b);
+            check(same.length === 0,
+                `[${lang}] every anchor's copy actually CHANGED between en and ${lang} — `
+                + `${Object.keys(en).length - same.length}/${Object.keys(en).length} differ`
+                + (same.length ? ' — UNCHANGED: ' + same.map(k => byProbe.get(k) || k).join(', ') : ''));
+        }
     }
 
     // ── The Stage D deliverable, printed rather than only asserted ───────────
-    console.log('\n   ── en vs fr geometry, measured at ' + SHIP_W + ' x ' + SHIP_H + ' ──');
+    console.log('\n   ── ' + LANGS.join(' vs ') + ' geometry, measured at '
+                + SHIP_W + ' x ' + SHIP_H + ' ──');
     for (const lang of LANGS) {
         const st = stats.get(lang);
         if (!st) continue;
@@ -660,13 +691,38 @@ function serve(root) {
             + `tallest ${st.tallest.toFixed(1)}  right-most ${st.worstRightLabel} @ `
             + `${st.worstRight.toFixed(1)} of ${SHIP_W} (limit ${SHIP_W - TOOLTIP_MARGIN})`);
     }
+
+    // v1.16.0 — THE DISCRIMINATOR GATES ON DIFFERING, AND REPORTS THE
+    // DIRECTION. Through v1.15.2 this was a French-only line whose whole framing
+    // assumed the non-English pass costs MORE: French wraps to more lines inside
+    // the 230 px cap and grows. CHINESE SAYS THE SAME THING IN FEWER CHARACTERS
+    // AND SHRINKS — measured here, and measured the same way in Stage 2 on
+    // O-Chorus, where 6 tips shrank and 0 grew. Any assertion phrased "the
+    // non-English pass must GROW box X" fails a CORRECT Chinese table.
+    //
+    // What makes a language pass non-vacuous is that it measured DIFFERENT boxes
+    // at all — in either direction — which is what the assertion below tests.
+    // The direction is reported, never required.
     {
-        const e = stats.get('en'), f = stats.get('fr');
-        if (e && f)
-            console.log(`   French costs ${f.flipped - e.flipped >= 0 ? '+' : ''}`
-                + `${f.flipped - e.flipped} vertical flip(s) and `
-                + `${f.clamped - e.clamped >= 0 ? '+' : ''}${f.clamped - e.clamped} clamp(s), `
-                + `and is ${(f.tallest - e.tallest).toFixed(1)} px taller at its tallest.`);
+        const e = stats.get('en');
+        for (const lang of LANGS.filter(l => l !== 'en')) {
+            const o = stats.get(lang);
+            if (!e || !o) continue;
+            const dTall = +(o.tallest - e.tallest).toFixed(1);
+            const dWide = +(o.widest - e.widest).toFixed(1);
+            const sign = (n) => (n >= 0 ? '+' : '') + n;
+            console.log(`   ${lang} costs ${sign(o.flipped - e.flipped)} vertical flip(s) and `
+                + `${sign(o.clamped - e.clamped)} clamp(s); tallest ${sign(dTall)} px `
+                + `(${dTall > 0 ? 'TALLER' : dTall < 0 ? 'SHORTER' : 'identical'}), `
+                + `widest ${sign(dWide)} px `
+                + `(${dWide > 0 ? 'WIDER' : dWide < 0 ? 'NARROWER' : 'identical'}).`);
+            check(dTall !== 0 || dWide !== 0 || o.clamped !== e.clamped,
+                `[${lang}] the tip GEOMETRY differs from English somewhere — tallest `
+                + `${sign(dTall)} px, widest ${sign(dWide)} px, clamped `
+                + `${sign(o.clamped - e.clamped)}. Gated on DIFFERING, not on growing: `
+                + `Chinese is shorter than its English and a growth-only test would `
+                + `fail a correct table`);
+        }
     }
 
     // Leave the page in English for the stress and layout stages below, so
