@@ -1,5 +1,36 @@
 # O-Detune Changelog
 
+## [1.8.1] - 2026-09-03
+
+The French rendering of the hover-help surface changes suite-wide (task
+260903-ukp; O-Gain 1.3.3 was the tracer). PATCH: French strings and source
+comments only — no parameter, range, type or state format changed.
+
+### Changed
+
+- **The French caption is now `Infobulles`** (feminine plural). The superseded
+  rendering named the ACTION — help on hover; *infobulle* is the noun French
+  DAW and OS interfaces use for the surface itself. The glossary root moved
+  with it, ROOT-ONLY: `scripts/i18n-fr-glossary.js` now reads
+  `'hover help': ['infobulles']` and
+  `'toggle hover help': ['activer ou désactiver les infobulles']`, with the old
+  rendering REMOVED rather than kept as an accepted alternate — so a plugin
+  drifting back is a red G1 gate, not a silent pass.
+- **Every sentence re-agreed from feminine singular to feminine plural**, not
+  substituted: `cette …` → `ces infobulles`, `l’…` → `les infobulles`,
+  `de l’…` → `des infobulles`, `toute l’…` → `toutes les infobulles`,
+  `Une fois désactivée` → `Une fois désactivées`; the distributive `chaque …`
+  → `chaque infobulle` is the one place the new term stays singular.
+  Bare back-references that carried no occurrence of the old phrase — clauses
+  reading *le réglage de l’aide*, *l’état de l’aide*, *son affichage ou non*,
+  and the pronouns in *Lorsqu’elle est désactivée … la réactiver* — were
+  rewritten too. A regex pass would have left every one of them pointing at an
+  antecedent that no longer exists.
+- Every changed body was read by the developer at a blocking checkpoint
+  *before* it was written, so each ships `reviewed: true` legitimately and the
+  repo-wide unreviewed-French TOTAL stays at 0.
+
+
 ## [1.8.0] - 2026-09-03
 
 A switch for the hover help. The tooltip layer this plugin already had could
