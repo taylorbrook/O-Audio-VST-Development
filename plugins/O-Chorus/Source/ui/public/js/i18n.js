@@ -18,7 +18,181 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Chorus page labels and hover-help, English + French (v1.4.1)
+// i18n.js — O-Chorus page labels and hover-help, English, French and
+// Simplified Chinese (v1.5.0)
+//
+// ── v1.5.0: SIMPLIFIED CHINESE (zh-Hans rollout Stage 2, 2026-09-03) ────────
+//
+// O-Chorus is the zh-Hans PILOT. Every structural question Stage 3 and the
+// Stage 4 waves will ask is answered here, on 28 entries, and written down in
+// this header rather than left in a session's context.
+//
+// 28 ENTRIES: 18 LABELS (a title each) + 10 I18N (a title and a body each).
+// LANGUAGES is three long, which is the shape check-i18n assertion [1] accepts
+// alongside the two-language one — a widening, so the other 42 plugins stay
+// green unconverted.
+//
+// ── THE RENDERINGS ARE THE GLOSSARY'S, NOT THIS FILE'S ──────────────────────
+//
+// Every English string that is a TERMS key in scripts/i18n-zh-glossary.js takes
+// that term's ROOT rendering — the first element of its array. They were
+// settled in Stage 1 across 552 shared strings and are not re-decided here;
+// lint rule Z5 is what holds this file to them:
+//
+//     Rate 速率   Depth 深度   Voices 复音数   Spread 扩散   Width 宽度
+//     Tone 音色   Mix 混合     Drive 驱动      Load 载入     Save 保存
+//     Language 语言           Settings 设置
+//     Previous preset 上一个预设      Next preset 下一个预设
+//     Load preset from file 从文件载入预设    Save preset 保存预设
+//     Interface language 界面语言
+//
+// LFO IS THE EIGHTEENTH and ships as the English token, keyed sameAsEn rather
+// than exempted — for exactly the reason the French entry gives: an identical
+// string that is identical ON PURPOSE still needs a human to agree with it.
+//
+// MIX IS 混合, AND THE NEAR MISS IS THE POINT. 混音 is in the glossary's
+// FORBIDDEN_IN_LABELS (it is the mixing PROCESS, not a wet/dry blend) and is a
+// substring of accepted forms, so containment alone would not have caught a
+// wrong choice. 混合 is the root and is what went in.
+//
+// ── THE BODIES, AND THE TYPOGRAPHY RULES THEY ANSWER TO ─────────────────────
+//
+// Ten tooltip bodies, mirroring the English: at most three sentences, ending
+// with the range and unit. The rules are the zh lint's, and Z2 is the
+// DELIBERATE INVERSE of the French rules on this same page:
+//
+//   Z1  full-width punctuation throughout — ，。；、 never ASCII , . ; ,
+//       because ASCII punctuation in Han prose carries the wrong sidebearing.
+//   Z2  NO U+00A0, anywhere. The French bodies above carry 25 of them; the
+//       full-width forms already carry their own half-em sidebearing and adding
+//       a no-break space doubles it. Same page, opposite rule.
+//   Z4  ONE PLAIN U+0020 between every Latin/digit run and every Han run —
+//       "设定 LFO 扫描", "0 到 100%". Chosen once and applied across the whole
+//       table: the rule is TABLE-SCOPED, so the MIXTURE is the finding, not
+//       either form. Every boundary in these ten bodies is the spaced form; the
+//       unspaced count is zero.
+//   Z7  no full-width Latin or digits. Units stay ASCII Latin tokens — ms, Hz,
+//       kHz, %, tanh, LFO, Escape.
+//
+// ── THE CHARACTER BUDGETS THAT APPLIED ──────────────────────────────────────
+//
+// maxChars = floor(cellWidthPx / fontSizePx), at the 10 px caption size. Three
+// O-Chorus cells were measured in Stage 1 and are unchanged here:
+//
+//     depth   62 px wrap cliff / 10 px = 6   深度 is 2   FITS
+//     save    62 px wrap cliff / 10 px = 6   保存 is 2   FITS
+//     spread  50 px gate cliff / 10 px = 5   扩散 is 2   FITS
+//
+// NO NEW BUDGET CELL WAS ADDED, and the measurement is why: every Chinese
+// caption is NARROWER than its English original, by 0.3 to 19.7 px in the real
+// .knob-label node. Not one crosses either cliff. This is the opposite of
+// French, where three of eight had to be abbreviated. Chinese buys width and
+// spends HEIGHT — see the pins below.
+//
+// ── THE CJK FONT TAIL: FIVE OF THE EIGHT STACKS ─────────────────────────────
+//
+// The tail is `, 'PingFang SC', 'Microsoft YaHei', sans-serif`, appended to the
+// declarations Han ACTUALLY RESOLVES THROUGH. The set was MEASURED — the page
+// was served, switched to Chinese, and getComputedStyle().fontFamily read on
+// every node that holds or can receive a Han codepoint — never reasoned from
+// the [data-i18n] list, which would have missed two of the five.
+//
+//   TOOK THE TAIL (5)
+//     .container       the INHERITED stack: .knob-label, .lfo-ring-label,
+//                      .title, .knob-container. Each re-declaration below
+//                      overrides inheritance, so this one covers only what
+//                      inherits from it.
+//     .preset-action   the LOAD / SAVE captions — 载入 / 保存.
+//     .settings-label  the LANGUAGE caption inside the popover — 语言.
+//     .settings-select the endonym <option>. NOT a [data-i18n] node: this is
+//                      the one place Han reaches the MARKUP.
+//     .tooltip         the runtime hover surface. NEVER carries [data-i18n] —
+//                      the renderer fills it from data-tip / data-tip-title at
+//                      hover time, so a scan of keyed nodes alone would have
+//                      missed it and every Chinese tooltip would have fallen
+//                      back to a system face.
+//
+//   LEFT UNTOUCHED (3), each justified by what it RENDERS
+//     .preset-nav          the glyphs U+25C0 / U+25B6. Their names live in
+//                          aria-label, which is never rendered text.
+//     .preset-dropdown-item preset NAMES, which are the JSON filenames on disk
+//                          (D-02). Localizing one would orphan the file, so
+//                          this stack is ASCII by contract.
+//     #gear-btn            the single gear glyph U+2699. Its tip paints in
+//                          #tooltip, not in the button.
+//
+// Latin still resolves to Garamond FIRST, so English geometry is unmoved. The
+// EN arm of check-ui-labels assertion 7 is what proves that; it is a gate, not
+// a claim made here.
+//
+// ── THE LINE-HEIGHT AUDIT: THREE PINS, AND ONE THAT IS NOT A LINE HEIGHT ────
+//
+// The UA's `line-height: normal` is the FONT'S OWN METRICS, and Han faces carry
+// taller ones. Three explicit unitless declarations already existed (1 on
+// #gear-btn, 1.2 on .settings-select, 1.3 on .tooltip) and all three were
+// already font-independent — .tip-title measured 11.688 px in BOTH languages,
+// confirming research §3.4. Everything else inherited `normal`, and that was
+// the entire assertion-7 exposure: 26 elements moved on the first zh run.
+//
+// Each pin is the node's MEASURED EN line box over its font size, written
+// UNITLESS so it is font-independent and shifts nothing. NO GLOBAL
+// line-height was added: a global one moves English geometry, which is a
+// regression, not a fix.
+//
+//     .knob-label      EN 10.00 px / 9 px -> 1.1111   closed 24 of the 26
+//     .preset-action   EN 10.00 px / 9 px -> 1.1111   dy=-1.5 dh=+3.0
+//     .settings-label  EN 10.00 px / 9 px -> 1.1111   see below
+//
+// .settings-label WAS NOT NAMED BY ASSERTION 7, AND COULD NOT BE: the popover
+// is `hidden` at rest, so the gate never measures it. Forced open it is the
+// same defect, 10.00 -> 13.00 px. It happens not to propagate today only
+// because .settings-select is 16 px and taller than both — luck, not design,
+// since the row is space-between with a nowrap caption. Pinned on the same
+// ratio.
+//
+// THE 26th MOVER WAS NOT A LINE HEIGHT AT ALL. #lang-select measured 65 px in
+// English and French and 64 px in Chinese, and walked 1 px right in a
+// space-between row. The three endonyms are language-INVARIANT (they are never
+// translated) and measure 27.501 / 30.489 / 36.792 px whatever the page
+// language — so the widest OPTION cannot be the cause. With appearance:auto
+// Chromium derives the control's intrinsic width from the SELECTED option's
+// font run, and when the Chinese endonym is selected that run resolves through
+// PingFang SC and rounds a pixel narrower. Pinned to 65 px — the EXISTING
+// English intrinsic — so English and French are byte-unchanged and only the
+// Chinese pass moves, onto the value the other two already had. Stage 3 should
+// expect this on every plugin whose language selector is inside a
+// space-between row.
+//
+// ── THE REVIEW LIFECYCLE ────────────────────────────────────────────────────
+//
+// The zh flag is an ENUM, not the boolean French uses, because nobody on this
+// project reads Chinese. Three levels: the machine-draft level, the
+// back-translated level, and the native-reviewed level. Every entry below is at
+// the FIRST of the three — a machine draft nobody has checked. Stage 2's Task 3
+// promotes them to the second once an INDEPENDENT reverse pass, run by an agent
+// that never saw this file's English, has been read against it triple by triple.
+// The ship bar is the second level; the third stays open and is not a blocker.
+// Lint rule R1 reports every entry below the bar on every run, so the gap is
+// disclosed rather than inferred.
+//
+// ── TWO FINDINGS THIS PILOT SURFACED, NEITHER FIXED HERE ────────────────────
+//
+// 1. THE Z3 SET AND THE GLOSSARY DISAGREE ABOUT 像. The lint's Traditional-only
+//    set is derived from OpenCC as keys(TSCharacters) \ keys(STCharacters), and
+//    that difference CONTAINS 像 — a standard simplified character, and the one
+//    the glossary's own root rendering for `pan` uses (声像). So any plugin with
+//    a Pan control will have Z5 REQUIRE a rendering that Z3 then FLAGS. Two
+//    drafts here tripped it and were reworded (声场 / 立体声场), which is a
+//    legitimate route around it for a chorus, but it is not a fix and Stage 3
+//    cannot reword its way past a Pan knob. Reported, not fixed: scope for this
+//    task is the glossary's BUDGETS only.
+//
+// 2. tip.language's ENGLISH AND FRENCH BODIES NOW NAME TWO OF THREE LANGUAGES.
+//    Both end "English or Français" / "English ou Français", authored when the
+//    selector had two options. The Chinese body names all three. Correcting the
+//    other two means editing a French string a human has already signed off on,
+//    which needs a French review pass this task does not carry. Reported for
+//    the developer rather than silently rewritten.
 //
 // ── v1.4.1: FRENCH QA PASS (Stage N, 2026-08-31) ────────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -141,7 +315,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — hover-help copy. {t, b}: a title and a body.
@@ -199,6 +373,11 @@ export const I18N = Object.freeze({
                + 'élargissent le son ; les rapides se resserrent vers le vibrato. '
                + '0,05 à 5,00 Hz.',
               reviewed: true },
+        'zh-Hans': { t: '速率',
+              b: '设定 LFO 扫描每个声部延迟时间的快慢，也就是合唱运动的速度。'
+               + '慢速设定会漂移并展宽声场；快速设定则收紧，趋向颤音。'
+               + '0.05 到 5.00 Hz。',
+              reviewed: 'mt' },
     },
 
     // ── depth — AudioParameterFloat 0..1, default 0.5 ───────────────────────
@@ -216,6 +395,11 @@ export const I18N = Object.freeze({
                + 'jusqu’à ±5 ms. Les valeurs basses épaississent le son sans mouvement de '
                + 'hauteur audible ; les valeurs hautes chantent. 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '深度',
+              b: '设定 LFO 让每个声部的延迟围绕 10 ms 中心摆动的幅度，最大 ±5 ms。'
+               + '低值只让声音变厚，不产生可闻的音高起伏；高值则唱出明显的颤动。'
+               + '0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── voices — AudioParameterInt 1..8, default 4 ──────────────────────────
@@ -236,6 +420,11 @@ export const I18N = Object.freeze({
                + 'lissent le chorus ; le niveau étant compensé, le nombre peut être changé '
                + 'pendant le jeu. 1 à 8.',
               reviewed: true },
+        'zh-Hans': { t: '复音数',
+              b: '叠加进湿信号的延迟副本数量，每个副本都有自己的 LFO 相位和声场位置。'
+               + '声部越多，合唱越厚实平滑；输出已作电平补偿，因此可以在演奏中改变数量。'
+               + '1 到 8。',
+              reviewed: 'mt' },
     },
 
     // ── spread — AudioParameterFloat 0..1, default 0.0 ──────────────────────
@@ -252,6 +441,11 @@ export const I18N = Object.freeze({
                + '±15 ms, pour que les copies ne se superposent plus. Les valeurs basses '
                + 'donnent un ensemble serré ; les hautes, un doublage dispersé. 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '扩散',
+              b: '把每个声部的基础延迟相互错开，最多 ±15 ms，让各副本不再彼此重叠。'
+               + '低值给出一个紧凑的整体；高值给出分散的、双轨般的感觉。'
+               + '0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── width — AudioParameterFloat 0..1, default 0.7 ───────────────────────
@@ -269,6 +463,11 @@ export const I18N = Object.freeze({
                + 'constante. À 0 % toutes les voix restent au centre, pour un chorus '
                + 'compatible mono ; à 100 % elles occupent tout le champ. 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '宽度',
+              b: '按等功率定律缩放各声部在立体声场中彼此拉开的距离。'
+               + '在 0% 时所有声部都居于正中，得到单声道安全的合唱；在 100% 时它们占满整个声场。'
+               + '0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── tone — AudioParameterFloat -1..+1, default 0.0 ──────────────────────
@@ -289,6 +488,11 @@ export const I18N = Object.freeze({
                + 'à 20 kHz et centré sur 8 kHz. Les valeurs négatives glissent l’effet sous une '
                + 'piste sèche brillante ; les positives le font scintiller. −100 à +100 %.',
               reviewed: true },
+        'zh-Hans': { t: '音色',
+              b: '只倾斜合唱信号的明亮度，经由一个从 2 kHz 到 20 kHz、中心在 8 kHz 的低通。'
+               + '负值把效果藏到明亮的干信号之下；正值让它闪烁。'
+               + '−100 到 +100%。',
+              reviewed: 'mt' },
     },
 
     // ── mix — AudioParameterFloat 0..1, default 0.5 ─────────────────────────
@@ -305,6 +509,11 @@ export const I18N = Object.freeze({
                + 'niveau égal, pour un doublage classique ; au-delà l’effet domine, et à 100 % '
                + 'le signal direct disparaît. 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '混合',
+              b: '在干信号与合唱信号之间做平衡。'
+               + '在 50% 时两者电平相当，得到经典的双轨效果；再往上效果占主导，到 100% 时干信号完全消失。'
+               + '0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── drive — AudioParameterFloat 0..1, default 0.3 ───────────────────────
@@ -324,6 +533,11 @@ export const I18N = Object.freeze({
                + 'son propre circuit. Gardez-la basse pour la chaleur, montez-la pour le '
                + 'grain. 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '驱动',
+              b: '在各声部相加之前，为每个延迟声部加上非对称的 tanh 饱和——模拟斗链式延迟电路自身产生的柔和削波。'
+               + '低值带来温暖，调高则带来颗粒感。'
+               + '0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── The gear ───────────────────────────────────────────────────────────
@@ -341,6 +555,11 @@ export const I18N = Object.freeze({
               b: 'Ouvre le panneau de réglages au-dessus de ce bouton. Il contient la langue '
                + 'de l’interface et rien d’autre. Appuyez sur Échap pour le fermer.',
               reviewed: true },
+        'zh-Hans': { t: '设置',
+              b: '在此按钮上方打开设置面板。'
+               + '面板中只有界面语言一项，没有别的。'
+               + '按 Escape 键关闭。',
+              reviewed: 'mt' },
     },
 
     // ── The language selector ──────────────────────────────────────────────
@@ -360,6 +579,11 @@ export const I18N = Object.freeze({
                + 'panneau. Le choix est enregistré avec le plugin et restauré à la prochaine '
                + 'ouverture. English ou Français.',
               reviewed: true },
+        'zh-Hans': { t: '语言',
+              b: '选择本面板上所有标签、提示和无障碍名称的语言。'
+               + '该选择会随插件一同保存，下次打开时恢复。'
+               + 'English、Français 或简体中文。',
+              reviewed: 'mt' },
     },
 });
 
@@ -442,7 +666,7 @@ export const LABELS = Object.freeze({
 
     // "Vitesse" rather than "Taux": this is the LFO's rate in Hz, and a French
     // modulation section calls that its speed. The glossary's root term.
-    'label.rate': { en: { t: 'Rate' }, fr: { t: 'Vitesse', reviewed: true } },
+    'label.rate': { en: { t: 'Rate' }, fr: { t: 'Vitesse', reviewed: true }, 'zh-Hans': { t: '速率', reviewed: 'mt' } },
 
     // Profondeur is the word a French user expects and it does not fit: 68.02
     // px against a 62 px wrap cliff, so it would render on two lines and push
@@ -451,9 +675,9 @@ export const LABELS = Object.freeze({
     // "depth", and the glossary forbids it. Prof. is the glossary's listed
     // abbreviation OF the expected word, and it is the only option that is both
     // recognisable and comfortable. tip.depth's title spells it out.
-    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: true } },
+    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: true }, 'zh-Hans': { t: '深度', reviewed: 'mt' } },
 
-    'label.voices': { en: { t: 'Voices' }, fr: { t: 'Voix', reviewed: true } },
+    'label.voices': { en: { t: 'Voices' }, fr: { t: 'Voix', reviewed: true }, 'zh-Hans': { t: '复音数', reviewed: 'mt' } },
 
     // v1.4.1: ÉCART -> Étal. The glossary settles Spread on Étalement (Étal.)
     // and gives Écart to Detune, because Écart was doing both jobs across the
@@ -462,7 +686,7 @@ export const LABELS = Object.freeze({
     // widens .knob from 50 to 60.47 and check-ui-labels assertion 7 reports a
     // non-label element moved. Étal. is 28.53 px and moves nothing.
     // tip.spread's title spells it out.
-    'label.spread': { en: { t: 'Spread' }, fr: { t: 'Étal.', reviewed: true } },
+    'label.spread': { en: { t: 'Spread' }, fr: { t: 'Étal.', reviewed: true }, 'zh-Hans': { t: '扩散', reviewed: 'mt' } },
 
     // THE TIGHTEST STRING ON THE PAGE, 1.89 px under the gate cliff. Crossing
     // it widens .knob by fractions of a pixel and nothing else; the wrap cliff
@@ -470,12 +694,12 @@ export const LABELS = Object.freeze({
     // if a reviewer wants margin rather than the literal translation — but the
     // glossary settles Width on Largeur (Larg., 30.75), so the margin is there
     // without leaving the list.
-    'label.width': { en: { t: 'Width' }, fr: { t: 'Largeur', reviewed: true } },
+    'label.width': { en: { t: 'Width' }, fr: { t: 'Largeur', reviewed: true }, 'zh-Hans': { t: '宽度', reviewed: 'mt' } },
 
     // A tilt control, dark to bright. "Timbre" is the French word for that
     // quality and the glossary's term for Tone; Tonalité measures 50.73 and
     // would cross the gate cliff.
-    'label.tone': { en: { t: 'Tone' }, fr: { t: 'Timbre', reviewed: true } },
+    'label.tone': { en: { t: 'Tone' }, fr: { t: 'Timbre', reviewed: true }, 'zh-Hans': { t: '音色', reviewed: 'mt' } },
 
     // v1.4.1: DOSAGE -> Mix. The glossary settles it — Mix is what every French
     // DAW shows, Mixage is the mixing PROCESS, and Dosage is elegant French
@@ -484,7 +708,7 @@ export const LABELS = Object.freeze({
     // ON PURPOSE still needs a human to agree with it. It also shrinks the
     // caption 41.31 -> 19.91 px, both sides of the 50 px gate cliff, so nothing
     // moves.
-    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true } },
+    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '混合', reviewed: 'mt' } },
 
     // Saturation measures 63.52 — past the WRAP cliff, not merely the gate one,
     // so the full word would put a second line under this knob. Satur. is the
@@ -492,7 +716,7 @@ export const LABELS = Object.freeze({
     // stage), which is why it is preferred over Chaleur (48.11, "warmth" — a
     // marketing word for the same thing, and 1.89 px from the gate cliff).
     // tip.drive's title spells it out.
-    'label.drive': { en: { t: 'Drive' }, fr: { t: 'Satur.', reviewed: true } },
+    'label.drive': { en: { t: 'Drive' }, fr: { t: 'Satur.', reviewed: true }, 'zh-Hans': { t: '驱动', reviewed: 'mt' } },
 
     // ── The LFO ring heading ────────────────────────────────────────────────
     //
@@ -500,7 +724,7 @@ export const LABELS = Object.freeze({
     // LFO in French audio software, but that is a TRANSLATION JUDGEMENT and an
     // I18N_EXEMPT entry would hide it from the native-speaker worklist forever.
     // Keyed, it is one more `reviewed: false` line somebody has to agree with.
-    'label.lfo': { en: { t: 'LFO' }, fr: { t: 'LFO', reviewed: true, sameAsEn: true } },
+    'label.lfo': { en: { t: 'LFO' }, fr: { t: 'LFO', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: 'LFO', reviewed: 'mt', sameAsEn: true } },
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -537,11 +761,11 @@ export const LABELS = Object.freeze({
     // version sites and the CHANGELOG, so it was REPORTED rather than fixed
     // here — the pin itself (62 px) and its reasoning are unchanged and still
     // correct, only the second row's caption and number are out of date.
-    'label.load': { en: { t: 'Load' }, fr: { t: 'Charger', reviewed: true } },
-    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true } },
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Charger', reviewed: true }, 'zh-Hans': { t: '载入', reviewed: 'mt' } },
+    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true }, 'zh-Hans': { t: '保存', reviewed: 'mt' } },
 
     // ── The settings popover (v1.3.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'mt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -563,13 +787,19 @@ export const LABELS = Object.freeze({
     // control user saying the caption still hits the button (WCAG 2.5.3). This
     // is the constraint O-Texture's "Metal — coming soon" landed on from the
     // other direction.
-    'aria.prevPreset': { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',                 reviewed: true } },
-    'aria.nextPreset': { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',                   reviewed: true } },
-    'aria.loadPreset': { en: { t: 'Load preset from file' },  fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true } },
-    'aria.savePreset': { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage',            reviewed: true } },
+    'aria.prevPreset': { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',                 reviewed: true },
+                       'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
+    'aria.nextPreset': { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',                   reviewed: true },
+                       'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
+    'aria.loadPreset': { en: { t: 'Load preset from file' },  fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true },
+                       'zh-Hans': { t: '从文件载入预设', reviewed: 'mt' } },
+    'aria.savePreset': { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage',            reviewed: true },
+                       'zh-Hans': { t: '保存预设', reviewed: 'mt' } },
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true },
+                       'zh-Hans': { t: '设置', reviewed: 'mt' } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true },
+                       'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
 });
 
 // ============================================================================
@@ -599,6 +829,7 @@ export const I18N_EXEMPT = [
     // ── Endonyms ────────────────────────────────────────────────────────────
     ['English',  'endonym — a language name is never translated'],
     ['Français', 'endonym — a language name is never translated'],
+    ['简体中文', 'endonym — a language name is never translated. The markup writes it as the numeric references &#31616;&#20307;&#20013;&#25991; (index.html), but the parser decodes them before the sweep ever runs, so assertion 10 sees these four characters and the exemption has to carry the DECODED text'],
 ];
 
 // ============================================================================

@@ -198,9 +198,9 @@ OChorusAudioProcessorEditor::OChorusAudioProcessorEditor(OChorusAudioProcessor& 
     options = options.withNativeFunction("setUiLanguage",
         [this](const juce::Array<juce::var>& args, std::function<void(juce::var)> complete)
         {
-            // languageIndex() maps anything that is not "fr" to 0, so an
-            // unexpected argument from the page degrades to English rather than
-            // being stored unvalidated.
+            // languageIndex() maps anything that is neither "fr" nor "zh-Hans"
+            // to 0, so an unexpected argument from the page degrades to English
+            // rather than being stored unvalidated.
             if (args.size() > 0)
                 audioProcessor.uiLanguage.store(
                     OChorusAudioProcessor::languageIndex(args[0].toString()),

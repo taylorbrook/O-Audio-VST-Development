@@ -149,8 +149,8 @@ void OChorusAudioProcessor::setStateInformation(const void* data, int sizeInByte
     // `var (value)` over the attribute STRING
     // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.3.0 session has no
     // such property at all and the default (English) stands. languageIndex()
-    // clamps anything that is not "fr" to 0, so a hand-edited value degrades to
-    // English rather than to a bad index.
+    // clamps anything that is neither "fr" nor "zh-Hans" to 0, so a hand-edited
+    // value degrades to English rather than to a bad index.
     //
     // The editor PULLS this through the getUiLanguage native fn at page init
     // rather than being pushed from here — a push would race the WebView's load.
