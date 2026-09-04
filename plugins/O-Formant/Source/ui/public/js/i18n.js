@@ -765,7 +765,7 @@ export const I18N = Object.freeze({
                + 'unit symbols. English or Français.' },
         fr: { t: 'Langue',
               b: 'Fait passer de l’anglais au français toutes les étiquettes, tous les titres, toutes '
-               + 'les légendes de bouton et toute l’aide contextuelle de la page. Les valeurs '
+               + 'les légendes de bouton et toutes les infobulles de la page. Les valeurs '
                + 'affichées gardent leur format numérique et leurs unités en anglais. English ou '
                + 'Français.', reviewed: true },
     },
@@ -774,8 +774,8 @@ export const I18N = Object.freeze({
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this '
                + 'switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
@@ -812,7 +812,7 @@ export const LABELS = Object.freeze({
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
     'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
     'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
 
@@ -1045,7 +1045,7 @@ export const LABELS = Object.freeze({
                              fr: { t: 'Revenir à la première syllabe', reviewed: true } },
     'aria.langSelect':     { en: { t: 'Interface language' },
                              fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
     'placeholder.lyrics':  { en: { t: 'Type ARPABET phonemes separated by spaces (e.g. HH AH L OW W ER L D)' },
                              fr: { t: 'Saisir des phonèmes ARPABET séparés par des espaces (ex. HH AH L OW W ER L D)',
                                    reviewed: true } },

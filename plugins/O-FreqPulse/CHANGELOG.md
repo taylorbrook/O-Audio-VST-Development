@@ -2,6 +2,48 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.18.3] - 2026-09-03
+
+The French rendering of the hover-help surface changes suite-wide (task
+260903-ukp; O-Gain 1.3.3 was the tracer). PATCH: French strings and source
+comments only — no parameter, range, type or state format changed.
+
+### Changed
+
+- **The French caption is now `Infobulles`** (feminine plural). The superseded
+  rendering named the ACTION — help on hover; *infobulle* is the noun French
+  DAW and OS interfaces use for the surface itself. The glossary root moved
+  with it, ROOT-ONLY: `scripts/i18n-fr-glossary.js` now reads
+  `'hover help': ['infobulles']` and
+  `'toggle hover help': ['activer ou désactiver les infobulles']`, with the old
+  rendering REMOVED rather than kept as an accepted alternate — so a plugin
+  drifting back is a red G1 gate, not a silent pass.
+- **Every sentence re-agreed from feminine singular to feminine plural**, not
+  substituted: `cette …` → `ces infobulles`, `l’…` → `les infobulles`,
+  `de l’…` → `des infobulles`, `toute l’…` → `toutes les infobulles`,
+  `Une fois désactivée` → `Une fois désactivées`; the distributive `chaque …`
+  → `chaque infobulle` is the one place the new term stays singular.
+  Bare back-references that carried no occurrence of the old phrase — clauses
+  reading *le réglage de l’aide*, *l’état de l’aide*, *son affichage ou non*,
+  and the pronouns in *Lorsqu’elle est désactivée … la réactiver* — were
+  rewritten too. A regex pass would have left every one of them pointing at an
+  antecedent that no longer exists.
+- Every changed body was read by the developer at a blocking checkpoint
+  *before* it was written, so each ships `reviewed: true` legitimately and the
+  repo-wide unreviewed-French TOTAL stays at 0.
+- **Two stale width comments re-measured, not scaled** — both cited the
+  superseded caption's rendered width and would have become false the moment it
+  changed. From `check-ui-labels --plugin O-FreqPulse --verbose`: `Infobulles`
+  renders **54.16 px** where the old caption rendered 76.55, so the settings row
+  sums to `54.16 + 12 gap + 57 toggle = 123.16` in the 162 px content box —
+  **38.84 px of slack**, up from 18.48. `Infobulles` is also 4.84 px NARROWER
+  than English `Hover help` (59.00), reversing a caption that used to be wider.
+- **The `.settings-toggle` 57 px pin is unchanged and stays.** It exists so the
+  BUTTON cannot resize between its own two French faces (Marche 36.97 /
+  Arrêt 25.52); that has nothing to do with how wide the caption beside it is,
+  and a shorter caption is not a reason to retire it.
+
+
 ## [1.18.2] - 2026-08-31
 
 Defects found by reading the French against the code. Stage O of the repo-wide i18n rollout.
