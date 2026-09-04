@@ -153,14 +153,14 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this hover help, and turn the hover help on or off. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de cette aide au survol et activer ou désactiver cette aide. Les deux choix sont conservés avec la session.',
+              b: 'Choisir la langue de ces infobulles et les activer ou les désactiver. Les deux choix sont conservés avec la session.',
               reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language this hover help is written in. English and French are available; the labels on the page change with it, but numbers and unit symbols stay as they are.' },
         fr: { t: 'Langue',
-              b: 'La langue dans laquelle cette aide au survol est rédigée. L’anglais et le français sont disponibles ; les libellés de la page changent avec elle, mais les nombres et les symboles d’unité restent inchangés.',
+              b: 'La langue dans laquelle ces infobulles sont rédigées. L’anglais et le français sont disponibles ; les libellés de la page changent avec elle, mais les nombres et les symboles d’unité restent inchangés.',
               reviewed: true },
     },
     // ONE key covering both states, never a state-swapped pair. applyI18n()
@@ -173,7 +173,7 @@ export const I18N = Object.freeze({
     'tips-toggle': {
         en: { t: 'Hover help',
               b: 'Show a short description when the pointer rests on a control. The setting is remembered with the session.' },
-        fr: { t: 'Aide au survol',
+        fr: { t: 'Infobulles',
               b: 'Affiche une courte description lorsque le pointeur s’arrête sur une commande. Le réglage est conservé avec la session.',
               reviewed: true },
     },
@@ -676,7 +676,7 @@ export const LABELS = Object.freeze({
     // languages. The two BUTTON faces do not — a tip title of "Hover help"
     // is not the word printed on the On button.
     'aria.lang-select':  { en: { t: 'Hover help language' },
-                           fr: { t: 'Langue de l’aide au survol', reviewed: true } },
+                           fr: { t: 'Langue des infobulles', reviewed: true } },
     'label.on':          { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true } },
     'label.off':         { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: true } },
 

@@ -330,7 +330,7 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Interface preferences — the language of this hover help, and whether hover help appears at all.' },
         fr: { t: 'Réglages',
-              b: 'Préférences d’interface — la langue de cette aide au survol, et son affichage ou non.',
+              b: 'Préférences d’interface — la langue de ces infobulles, et leur affichage ou non.',
               reviewed: true },
     },
     // v1.11.0: through v1.10.0 this entry told the user, in both languages,
@@ -343,7 +343,7 @@ export const I18N = Object.freeze({
         en: { t: 'Language',
               b: 'Language of this hover help and of the labels on the page. The choice is remembered with the session and is not carried by presets. Value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'Langue de cette aide au survol et des libellés de la page. Le choix est conservé avec la session et n’est pas transporté par les préréglages. Les valeurs affichées et les noms de préréglages restent en anglais.',
+              b: 'Langue de ces infobulles et des libellés de la page. Le choix est conservé avec la session et n’est pas transporté par les préréglages. Les valeurs affichées et les noms de préréglages restent en anglais.',
               reviewed: true },
     },
     // One key covering both states rather than a pair swapped on click: the
@@ -353,8 +353,8 @@ export const I18N = Object.freeze({
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover-help layer on or off for every control. While it is off, this button still explains itself, so help can always be switched back on. The setting is shared by every instance on this machine.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol pour toutes les commandes. Lorsqu’elle est désactivée, ce bouton continue de s’expliquer, afin de pouvoir toujours la réactiver. Ce réglage est partagé par toutes les instances sur cette machine.',
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles pour toutes les commandes. Lorsqu’elles sont désactivées, ce bouton continue de s’expliquer, afin de pouvoir toujours les réactiver. Ce réglage est partagé par toutes les instances sur cette machine.',
               reviewed: true },
     },
 });
@@ -431,7 +431,7 @@ export const LABELS = Object.freeze({
     // Not the `tips-toggle` key: that tip's title is "Hover Help" and this
     // caption is "Hover help". The reuse rule wants both languages identical,
     // and these differ in English before French is even considered.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
 
     // The hover-help toggle's two faces and the Auto-MU toggle's two faces.
     // They go through setLabel(), so the element becomes a [data-i18n] element
@@ -528,7 +528,7 @@ export const LABELS = Object.freeze({
     'aria.presetNext':   { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: true } },
     'aria.presetList':   { en: { t: 'Presets' },         fr: { t: 'Préréglages',          reviewed: true } },
     'aria.helpToggle':   { en: { t: 'Toggle hover help' },
-                           fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+                           fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
     // Static, not composed. Canon v2's attribute sweep resolves a key WITHOUT
     // vars by design, and the dropdown row this button sits in already carries
     // the preset name as its own accessible content, so the row is announced

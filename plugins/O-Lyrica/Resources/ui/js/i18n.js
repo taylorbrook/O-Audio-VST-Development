@@ -64,10 +64,15 @@
 //   48.95 to 87.20. Amort. 38.77 px is the listed abbreviation and is 10.18 px
 //   narrower than the Amortis. it replaces.
 //
-//   Aide au survol (the glossary root) APPLIED at 65.89 px: .settings-row is
-//   space-between over 154 px of content, so 65.89 + 12 gap + the 40 px toggle
-//   leaves 36 px of slack, the popover stays 178 px and the toggle's left edge
-//   does not move. The v2.4.0 draft's four-letter Aide was not forced by width.
+//   Infobulles — the glossary root as of v2.4.4, RE-MEASURED at 45.55 px rather
+//   than scaled from the caption it replaces (that caption is recorded in the
+//   CHANGELOG and deliberately not repeated here, so a repo grep for it stays
+//   at zero). .settings-row is space-between over 154 px of content, so
+//   45.55 + 12 gap + the 40 px toggle leaves 56.45 px of slack — up from 36 —
+//   the popover stays 178 px and the toggle's left edge does not move. The new
+//   caption is 4.17 px NARROWER than English "Hover help" (49.72), where the
+//   v2.4.3 one was 16.17 px wider; the French row is no longer the widest of
+//   the two. Neither caption was ever forced by width, then or now.
 //
 //   Brill. chevalet replaces Chevalet: the caption had dropped what English's
 //   own abbreviation keeps ("Bridge Bright" is bridge AND brightness). 84.34 px
@@ -186,21 +191,21 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this interface and whether hover help appears. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de cette interface et l’affichage de l’aide au survol. Les deux choix sont conservés avec la session.',
+              b: 'Choisir la langue de cette interface et l’affichage des infobulles. Les deux choix sont conservés avec la session.',
               reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, dropdown choices, tuning names and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les choix des menus, les noms de gammes et les noms de préréglages restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les choix des menus, les noms de gammes et les noms de préréglages restent en anglais.',
               reviewed: true },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
 
@@ -738,7 +743,7 @@ export const LABELS = Object.freeze({
 
     // ── The settings popover ────────────────────────────────────────────────
     'label.language':       { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: true } },
-    'label.hoverHelp':      { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'label.hoverHelp':      { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
 
     // ── Button faces, both of them keyed ────────────────────────────────────
     // FOUR faces, not two, because this page has two casings and they are two
@@ -789,7 +794,7 @@ export const LABELS = Object.freeze({
     'aria.presetLoad':      { en: { t: 'Load preset' },       fr: { t: 'Ouvrir un préréglage',   reviewed: true } },
     'aria.langSelect':      { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
     'aria.helpToggle':      { en: { t: 'Toggle hover help' },
-                              fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+                              fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
 
     // v2.4.1: was `valueDisplay.title = 'Double-click to edit'` in app.js — a
     // native title= written from JS, which contract §4 deletes rather than
