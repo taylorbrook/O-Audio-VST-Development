@@ -39,7 +39,7 @@ juce_add_plugin(${PROJECT_NAME}
     PLUGIN_CODE OuTx
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Texture${OUARICON_DEV_SUFFIX}"
-    VERSION 0.3.1
+    VERSION 0.4.0
     IS_SYNTH TRUE
     # MIDI input is required by the AU spec for MusicDevice (aumu) — auval
     # fails without it — even though v0.1.x ignores all MIDI (IN-07).

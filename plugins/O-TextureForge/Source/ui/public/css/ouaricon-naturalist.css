@@ -588,6 +588,47 @@ body::after {
     outline-offset: 1px;
 }
 
+/* v1.3.0 THE HOVER-HELP SWITCH.
+
+   Every declaration above the switch-specific four is COPIED FROM
+   this page's own language <select>, not pasted in from the reference
+   implementation. The two controls sit one row apart in the same popover,
+   so the button inherits this plugin's font stack, ink, plate, hairline and
+   radius by construction rather than by a second designer re-deciding them.
+
+   min-width, NOT width: it floors the two short English faces so they size
+   alike, and lets a longer French one (Marche / Arrêt) grow LEFTWARD into
+   slack the popover already has. The row is space-between and the button is
+   a [data-i18n] node, so a face that grows moves nothing the geometry gate
+   measures — verified with check-ui-labels [7] after the port. */
+.settings-toggle {
+  font-family: var(--font-primary);
+  font-size: 9px;
+  color: var(--text-primary);
+  background: rgba(255,248,220,0.6);
+  border: 1px solid var(--knob-border);
+  border-radius: 3px;
+  padding: 2px 6px;
+  outline: none;
+  flex: 0 0 auto;
+  min-width: 42px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.settings-toggle[aria-pressed="true"] {
+  background: var(--active-green-dark);
+  border-color: var(--active-green-dark);
+  color: var(--paper-bg);
+}
+
+.settings-toggle:focus-visible {
+  outline: 2px solid var(--active-green-dark);
+  outline-offset: 1px;
+}
+
+
 /* ===== HOVER-HELP (v1.2.0) =====================================================
    The surface js/i18n_init.js paints. ONE element, delegated, cursor-following.
 

@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // because it reads data-tip attributes that applyI18n has not written yet at
   // module-evaluation time, and because a throw out of a top-level call here
   // would take every initializer below it (pattern_module_toplevel_init_tdz).
-  try { initI18n(); setupTooltips(); } catch (e) { console.error('i18n init failed:', e); }
+  try { initI18n(); setupTooltips(); initializeTipsToggle(); } catch (e) { console.error('i18n init failed:', e); }
   bindSettingsPopover();
   watchLanguageForCanvasRepaint();
   initRelays();
@@ -936,6 +936,53 @@ function formatValue(v) {
   return v.toFixed(2);
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// The hover-help switch (v1.28.0)
+// ════════════════════════════════════════════════════════════════════════
+//
+// OUTSIDE the applyI18n/initI18n region, deliberately: check-i18n assertion
+// [6] byte-compares that region, comment-stripped and whitespace-normalised,
+// against scripts/i18n-canon.js. A character added inside it fails the drift
+// gate on all 43 plugins' behalf.
+//
+// DEFAULT IS ON. The version before this one showed hover help
+// unconditionally, so ON is the setting that leaves an existing user's
+// plugin behaving exactly as it did. Default OFF would additionally make
+// boot-all-uis --strict-tips measure an empty tip surface and call it
+// correct.
+
+let tipsEnabled = true;
+let hideTip = () => {};
+
+function applyTipsEnabled(on) {
+    tipsEnabled = !!on;
+    if (!tipsEnabled) hideTip();
+    const btn = document.getElementById('tips-toggle');
+    if (!btn) return;
+    btn.setAttribute('aria-pressed', tipsEnabled ? 'true' : 'false');
+    // TWO CALLS BEHIND AN if/else, never a ternary inside the setLabel
+    // argument: check-i18n assertion [13] rejects a conditional anywhere in
+    // that call, because an inflection decided in JS is a string no
+    // translator can see.
+    if (tipsEnabled) setLabel(btn, 'ui.on');
+    else             setLabel(btn, 'ui.off');
+}
+
+function initializeTipsToggle() {
+    const btn = document.getElementById('tips-toggle');
+    if (!btn) { console.error('Missing tips-toggle element'); return; }
+    let stored = null;
+    try { stored = localStorage.getItem('ofmt.tipsEnabled'); } catch (e) { stored = null; }
+    // Anything that is not the literal string 'false' — including a first
+    // run with nothing stored, and a private-mode throw — resolves to ON.
+    applyTipsEnabled(stored !== 'false');
+    btn.addEventListener('click', () => {
+        applyTipsEnabled(!tipsEnabled);
+        try { localStorage.setItem('ofmt.tipsEnabled', String(tipsEnabled)); }
+        catch (e) { /* private mode: the switch still works, it just forgets */ }
+    });
+}
+
 // ============================================================================
 // Hover-help renderer (v1.27.0)
 // ============================================================================
@@ -1016,6 +1063,11 @@ function setupTooltips() {
   };
 
   const show = (el, x, y) => {
+      // THE SWITCH, and it is a SHOW gate rather than a bind gate: the
+      // renderer is delegated on document, so there is nothing to unbind.
+      // data-tip-always survives it — see the markup comment on #tips-toggle
+      // for which two controls carry it and why.
+      if (!tipsEnabled && !el.hasAttribute('data-tip-always')) return;
     const title = el.getAttribute('data-tip-title');
     const body  = el.getAttribute('data-tip');
     if (!title && !body) return;
@@ -1037,6 +1089,12 @@ function setupTooltips() {
     tip.setAttribute('aria-hidden', 'true');
     active = null;
   };
+
+  // Published to the module scope so applyTipsEnabled() can pull a tip
+  // down at the instant the switch goes Off. hide is a closure over the
+  // surface and the active anchor, so it cannot simply be hoisted out; a
+  // reference is the whole of the coupling.
+  hideTip = hide;
 
   const anchorOf = (t) => (t && t.closest ? t.closest('[data-tip]') : null);
 

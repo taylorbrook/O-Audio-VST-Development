@@ -355,6 +355,46 @@ body {
     padding: 3px 6px;
 }
 
+/* v1.26.0 THE HOVER-HELP SWITCH.
+
+   Every declaration above the switch-specific four is COPIED FROM
+   this page's own language <select>, not pasted in from the reference
+   implementation. The two controls sit one row apart in the same popover,
+   so the button inherits this plugin's font stack, ink, plate, hairline and
+   radius by construction rather than by a second designer re-deciding them.
+
+   min-width, NOT width: it floors the two short English faces so they size
+   alike, and lets a longer French one (Marche / Arrêt) grow LEFTWARD into
+   slack the popover already has. The row is space-between and the button is
+   a [data-i18n] node, so a face that grows moves nothing the geometry gate
+   measures — verified with check-ui-labels [7] after the port. */
+.settings-toggle {
+  background: rgba(255, 255, 255, 0.35);
+  border: 1px solid var(--border-warm);
+  border-radius: 3px;
+  color: var(--text-body);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 3px 6px;
+  flex: 0 0 auto;
+  min-width: 42px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.settings-toggle[aria-pressed="true"] {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: var(--bg-card);
+}
+
+.settings-toggle:focus-visible {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 2px;
+}
+
+
 /* v1.24.0: the tuning-panel mount-failure notice. Was an inline `style=` on an
    innerHTML string; it is a keyed caption now, so it needs a class. */
 .tuning-panel-unavailable {

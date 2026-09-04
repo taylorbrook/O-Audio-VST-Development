@@ -589,6 +589,16 @@ export const I18N = Object.freeze({
         fr: { t: 'Langue',
               b: 'Bascule toutes les légendes, tous les boutons et toute l’aide au survol de cette page entre l’anglais et le français. Les valeurs affichées, les noms de systèmes d’accord, les noms de notes et les noms de fichiers de préréglages restent inchangés.',
               reviewed: true } },
+    // v1.26.0 — the switch that reaches this whole layer.
+    'tip.tipsToggle': {
+        en: { t: 'Hover Help',
+              b: 'Turns this hover help on and off. With it off, only the gear and this '
+               + 'switch keep explaining themselves.' },
+        fr: { t: 'Aide au survol',
+              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+               + 'l’engrenage et ce commutateur continuent de s’expliquer.',
+              reviewed: true },
+    },
 });
 
 // ── LABELS — one string, no body ───────────────────────────────────────────
@@ -604,6 +614,15 @@ export const LABELS = Object.freeze({
     'label.savePreset':    { en: { t: 'Save Preset…' }, fr: { t: 'Enreg. prér.…', reviewed: true } },
     'label.loadPreset':    { en: { t: 'Load Preset…' }, fr: { t: 'Ouvrir prér.…', reviewed: true } },
     'label.language':      { en: { t: 'Language' },     fr: { t: 'Langue',        reviewed: true } },
+
+    // v1.26.0. All four renderings below are settled glossary ROOTS, copied
+    // rather than authored: scripts/i18n-fr-glossary.js carries them as the
+    // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
+    // the same review mark this file's other roots carry, and for the same
+    // reason — they are not new machine output.
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
 
     // ── Folder drop zone ──────────────────────────────────────────────────
     'label.dropFolderHere': { en: { t: 'Drop folder here' }, fr: { t: 'Déposer un dossier ici', reviewed: true } },
@@ -913,6 +932,7 @@ export const LABELS = Object.freeze({
     'aria.loadPreset':       { en: { t: 'Load plugin state from .omspreset' }, fr: { t: 'Charger l’état du plugin depuis un .omspreset',  reviewed: true } },
     'aria.settings':         { en: { t: 'Settings' },           fr: { t: 'Réglages',            reviewed: true } },
     'aria.langSelect':       { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
     'aria.techniquePreset':  { en: { t: 'Rename all technique slots to match a Dorico instrument family (slot order matches the keyswitch order in the O-MicrotonalSampler expression maps)' },
                                fr: { t: 'Renommer tous les emplacements de technique selon une famille d’instruments Dorico (l’ordre des emplacements suit celui des commutations par touche dans les cartes d’expression O-MicrotonalSampler)', reviewed: true } },
     'aria.playingTechniques': { en: { t: 'Playing techniques' },     fr: { t: 'Techniques de jeu',          reviewed: true } },
@@ -1103,6 +1123,7 @@ export const TIP_BINDINGS = [
     // ── chrome, BARE (see above) ──────────────────────────────────────────
     ['#gear-btn',                                'tip.gear'],
     ['#lang-select',                             'tip.langSelect'],
+    ['#tips-toggle',                             'tip.tipsToggle'],
 ];
 
 // The canon block imports this by name and calls it for every TIP_BINDINGS

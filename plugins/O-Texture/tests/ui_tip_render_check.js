@@ -214,8 +214,18 @@ const READ_TIP = `() => {
         '[0] no native title= attribute reintroduced by the renderer (contract §4)');
     // The renderer is called AFTER initI18n(), inside the same try/catch. Before
     // initI18n() every anchor is bare and every hover would open an empty box.
-    check(/try\s*\{\s*initI18n\(\);\s*setupTooltips\(\);\s*\}\s*catch/.test(main),
+    // v0.4.0: the same try/catch now also carries initializeTipsToggle(), which
+    // needs setLabel() and would be a TDZ throw taking the whole module if it
+    // were called at top level. The ORDER assertion is what matters and is
+    // unchanged — initI18n() first, then the renderer — so the pattern admits
+    // further guarded calls after setupTooltips() rather than pinning the line
+    // byte-for-byte and going red the next time one is added.
+    check(/try\s*\{\s*initI18n\(\);\s*setupTooltips\(\);[^}]*\}\s*catch/.test(main),
         '[0] setupTooltips() is called AFTER initI18n() and inside the same try/catch');
+    check(/try\s*\{[^}]*initializeTipsToggle\(\);[^}]*\}\s*catch/.test(main),
+        '[0] initializeTipsToggle() is inside that SAME guarded block — it reads setLabel, '
+        + 'and a top-level call reaching a lower let/const is the TDZ throw that takes the '
+        + 'whole module with it');
 
     // ── the table ───────────────────────────────────────────────────────────
     const { I18N, TIP_BINDINGS, LANGUAGES } = loadTable(i18nSrc);

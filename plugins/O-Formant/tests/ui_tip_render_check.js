@@ -211,7 +211,7 @@ const PAGE_UNREACHABLE = [
         process.exit(1);
     }
 
-    const CHROME = new Set(['#gear-btn', '#lang-select']);
+    const CHROME = new Set(['#gear-btn', '#lang-select', '#tips-toggle']);
 
     const built = S.buildRoot(PLUGIN, { repoRoot: REPO_ROOT });
     const misses = [];
@@ -890,8 +890,11 @@ const PAGE_UNREACHABLE = [
         const dataParams = await page.evaluate(() => document.querySelectorAll('[data-param]').length);
         check(dataParams === 47,
             `[8] the page carries 47 [data-param] control cells — got ${dataParams}`);
-        check(TIP_BINDINGS.length === dataParams + 10,
-            `[8] one tip per control: ${dataParams} [data-param] cells + 10 non-data-param anchors `
+        // v1.28.0: ELEVEN non-[data-param] anchors, not ten — #tips-toggle joined
+        // #gear-btn and #lang-select when the settings popover grew a hover-help
+        // switch.
+        check(TIP_BINDINGS.length === dataParams + 11,
+            `[8] one tip per control: ${dataParams} [data-param] cells + 11 non-data-param anchors `
             + `vs ${TIP_BINDINGS.length} bindings`);
         check(resolution.filter(r => r.found).length === TIP_BINDINGS.length,
             `[8] every TIP_BINDINGS row resolved — ${resolution.filter(r => r.found).length} of `
