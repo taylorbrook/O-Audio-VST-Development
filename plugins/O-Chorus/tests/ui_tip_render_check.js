@@ -64,13 +64,37 @@
     page that has room and certifies nothing
     (pattern_tooltip_clamp_gate_viewport_sensitive).
 
-    ── AND FRENCH IS THE OTHER HALF ────────────────────────────────────────────
+    ── AND THE OTHER LANGUAGES ARE THE OTHER HALF ──────────────────────────────
 
     French runs 15-20 % longer, wraps to more lines against the 384 px max-width
     cap, and GROWS THE TIP'S HEIGHT. In a 109 px well one extra wrapped line is
     13 px of a budget that only holds six, so a tip that fits in English can
-    overflow in French. Every assertion therefore runs in both languages rather
-    than in English with a French spot-check.
+    overflow in French. Every assertion therefore runs in every language rather
+    than in English with a spot-check.
+
+    ── v1.5.0: THE LANGUAGE LIST IS THE TABLE'S, NOT A HARD-CODED PAIR ─────────
+
+    Until v1.5.0 this file hard-coded `{ en: {}, fr: {} }` and
+    `for (const lang of ['en','fr','en'])`. Stage 0 of the zh-Hans rollout made
+    the two REPO-level gates language-agnostic and did not reach per-plugin test
+    files, so re-running this one unchanged would have passed VACUOUSLY for
+    Chinese: three green passes over a language it never drove. That is research
+    P-5's exact failure mode, and it matters here more than anywhere else,
+    because this is the ONLY gate that measures a tooltip against the 125 px
+    frame — check-ui-labels measures captions, never the hover surface.
+
+    LANGUAGES now comes from the REAL imported table (loadTable() already
+    evaluates the module, so no regex has to guess at it) and the file FAILS
+    rather than falling back to a default pair. A silent fallback is
+    indistinguishable from the vacuity this gate exists to prevent.
+
+    THE DIRECTION OF THE CHANGE IS NOT THE CLAIM. French wraps to MORE lines;
+    Chinese says the same thing in fewer characters and wraps to FEWER, so the
+    same tip measured 64.7 px in English and 51.7 px in Chinese. An assertion
+    that demanded GROWTH would therefore fail on a correct Chinese table while
+    certifying nothing extra about French. What makes the pass non-vacuous is
+    that it measured DIFFERENT boxes at all; assertion 5 asserts that, per
+    language, and reports the direction rather than requiring one.
 
     Usage:
         node plugins/O-Chorus/tests/ui_tip_render_check.js
@@ -212,13 +236,27 @@ function outsideViewport(rect, W, H) {
     note(`tooltip max-width parsed from index.html: ${CAP === null ? 'NOT FOUND' : CAP + 'px'}`);
 
     const table = await loadTable();
-    const { I18N, TIP_BINDINGS } = table;
+    const { I18N, TIP_BINDINGS, LANGUAGES } = table;
     note(`table: ${Object.keys(I18N).length} I18N entries, ${TIP_BINDINGS.length} TIP_BINDINGS rows\n`);
 
     if (!Array.isArray(TIP_BINDINGS) || TIP_BINDINGS.length === 0) {
         check(false, '[0] TIP_BINDINGS is non-empty — a render gate over zero bindings is vacuous');
         process.exit(1);
     }
+
+    // The language set this gate drives. It FAILS rather than falling back to a
+    // default pair: a gate that quietly measured ['en','fr'] on a table that
+    // ships three languages would report a confident PASS having never rendered
+    // the third, which is the vacuity this whole file exists to catch.
+    if (!Array.isArray(LANGUAGES) || LANGUAGES.length === 0 || LANGUAGES[0] !== 'en') {
+        check(false, `[0] LANGUAGES exports from i18n.js and begins with 'en' — got `
+            + `${JSON.stringify(LANGUAGES)}. Without it this gate cannot know which languages `
+            + `to drive and every assertion below would pass vacuously`);
+        process.exit(1);
+    }
+    const LANGS  = LANGUAGES;
+    const NON_EN = LANGS.filter(l => l !== 'en');
+    note(`languages ${LANGS.join(', ')} (from the plugin's own i18n.js LANGUAGES export)\n`);
 
     const built = S.buildRoot(PLUGIN, { repoRoot: REPO_ROOT });
     const misses = [];
@@ -253,7 +291,7 @@ function outsideViewport(rect, W, H) {
             pageErrors.slice(0, 3).join(' | '));
 
         check(CAP !== null && CAP > 0,
-            `[0] .tooltip carries a max-width cap — without one French runs off the right edge `
+            `[0] .tooltip carries a max-width cap — without one a longer language runs off the right edge `
             + `instead of wrapping (parsed ${CAP}px)`);
 
         // ── the surface itself ──────────────────────────────────────────────
@@ -379,12 +417,17 @@ function outsideViewport(rect, W, H) {
             return { box, tip: await page.evaluate(READ_TIP) };
         }
 
-        const heights = { en: {}, fr: {} };
+        const heights = Object.fromEntries(LANGS.map(l => [l, {}]));
         const placement = [];
         const drivenStates = [];
 
-        for (const lang of ['en', 'fr', 'en']) {
+        // [...LANGS, 'en'] preserves the there-and-back semantic the hard-coded
+        // ['en','fr','en'] had: every declared language is driven in order, then
+        // English is driven once more so the RETURN pass still runs and
+        // assertion 5's byte-equality claim below still has a pass to stand on.
+        for (const lang of [...LANGS, 'en']) {
             const pass = drivenStates.filter(s => s === lang).length === 0 ? '' : ' (return pass)';
+            const isFirstPass = pass === '';
             drivenStates.push(lang);
             console.log(`\n-- language: ${lang}${pass}`);
 
@@ -440,7 +483,15 @@ function outsideViewport(rect, W, H) {
                         + `${t.rect.left.toFixed(1)},${t.rect.top.toFixed(1)})`,
                         out.length ? out.join('; ') : null);
 
-                    if (drivenStates.length <= 2) {
+                    // v1.5.0: THE SECOND HARD-CODED PAIR, one level below the loop.
+                    // This read `drivenStates.length <= 2` — "the first two passes",
+                    // which is en and fr and nothing else. With a third language
+                    // the zh-Hans pass drove, rendered and asserted correctly but
+                    // recorded NO height, so assertion 5 below read undefined for
+                    // every zh selector. Keyed off the language instead: record on
+                    // each language's FIRST pass, skip only the return pass, which
+                    // would otherwise overwrite the English baseline with itself.
+                    if (isFirstPass) {
                         heights[lang][sel] = t.rect.h;
                         placement.push({
                             lang, sel,
@@ -483,31 +534,42 @@ function outsideViewport(rect, W, H) {
         note(`tallest tip anywhere: ${tallest.lang} ${tallest.sel} at ${tallest.h.toFixed(1)} px — `
            + `${(H - 2 * MARGIN - tallest.h).toFixed(1)} px of headroom in the ${H - 2 * MARGIN} px well`);
 
-        // ── 5. FRENCH REALLY IS TALLER, and English really came back ────────
+        // ── 5. EACH TRANSLATED PASS REALLY MEASURED SOMETHING ELSE ──────────
         //
-        // The point of running both languages is that French wraps to more lines
-        // against the max-width cap. If it did NOT, the two passes would be the
-        // same measurement twice and assertion 4's French half would be
-        // decoration. Measured from the FIRST en pass and the fr pass, so no
-        // extra driving is needed to make the claim.
+        // The point of running every language is that each one wraps DIFFERENTLY
+        // against the max-width cap. If a pass did not, it would be the same
+        // measurement twice and assertion 4's half for that language would be
+        // decoration. Measured from the FIRST en pass and each language's own
+        // pass, so no extra driving is needed to make the claim.
+        //
+        // DIFFERS, NOT GROWS. French wraps to more lines and grows; Chinese says
+        // the same thing in fewer characters and SHRINKS. Requiring growth would
+        // fail a correct Chinese table while adding nothing to the French claim.
+        // The direction is reported on every run; only the difference is gated.
         const allSel = [...anchorsClosed, ...anchorsOpen];
-        const grew = allSel.filter(s => heights.fr[s] > heights.en[s] + 0.5);
-        const same = allSel.filter(s => Math.abs(heights.fr[s] - heights.en[s]) <= 0.5);
-        const shrank = allSel.filter(s => heights.fr[s] < heights.en[s] - 0.5);
-        check(grew.length > 0,
-            `[5] French GROWS at least one tip's height against the ${CAP} px cap — `
-            + allSel.map(s => `${s.replace(/^\.knob\[data-param="|"\]$/g, '')} `
-                            + `${heights.en[s].toFixed(0)}->${heights.fr[s].toFixed(0)}`).join(', '),
-            grew.length ? null
-                : 'no tip grew: the fr pass measured the same boxes as en, so its clamp half is decoration');
-        note(`${grew.length} grew, ${same.length} unchanged, ${shrank.length} SHRANK in French`);
+        for (const other of NON_EN) {
+            const h = heights[other];
+            const grew   = allSel.filter(s => h[s] > heights.en[s] + 0.5);
+            const same   = allSel.filter(s => Math.abs(h[s] - heights.en[s]) <= 0.5);
+            const shrank = allSel.filter(s => h[s] < heights.en[s] - 0.5);
+            check(grew.length + shrank.length > 0,
+                `[5][${other}] the ${other} pass CHANGES at least one tip's height against the `
+                + `${CAP} px cap — `
+                + allSel.map(s => `${s.replace(/^\.knob\[data-param="|"\]$/g, '')} `
+                                + `${heights.en[s].toFixed(0)}->${h[s].toFixed(0)}`).join(', '),
+                (grew.length + shrank.length) ? null
+                    : `no tip changed height: the ${other} pass measured the same boxes as en, so its `
+                      + `clamp half is decoration`);
+            note(`${other}: ${grew.length} grew, ${same.length} unchanged, ${shrank.length} shrank`);
+        }
 
         await page.evaluate(() => window.__setLanguage('en'));
         await page.waitForTimeout(150);
         const backEn = await hoverAnchor('.knob[data-param="drive"]', '.knob-container');
         check(backEn && backEn.tip.title === I18N['tip.drive'].en.t
                      && backEn.tip.body  === I18N['tip.drive'].en.b,
-            '[5] English comes back after the French pass — byte-equal again');
+            `[5] English comes back after the ${NON_EN.join(' and ')} pass${NON_EN.length > 1 ? 'es' : ''}`
+            + ` — byte-equal again`);
 
         // ── 6. THE NEGATIVE CONTROL ─────────────────────────────────────────
         //
