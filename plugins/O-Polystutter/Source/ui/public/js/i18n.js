@@ -66,10 +66,16 @@
 //   min-width: 190 px (its widest French row is 165.15 px), so nothing moves:
 //   check-ui-labels [7] still reports 0 non-label elements displaced.
 //
-//   "Hover help" -> "Aide au survol", the glossary root, at 71.77 px in a
-//   white-space: nowrap .settings-label. "Aide" alone named a different thing
-//   from the aria-label ("Activer ou désactiver l'aide au survol") on the same
-//   row.
+//   "Hover help" -> the glossary root, which at v1.14.3 became "Infobulles":
+//   49.61 px in a white-space: nowrap .settings-label, RE-MEASURED rather than
+//   scaled from the caption it replaces (that caption is recorded in the
+//   CHANGELOG and deliberately not repeated here, so a repo grep for it stays
+//   at zero — it rendered 71.77). The French caption is now 4.58 px NARROWER
+//   than English "Hover help" (54.19), where it used to be 17.58 px wider, and
+//   the French hover-help row sums to 49.61 + 61.38 toggle = 110.99 in the
+//   168 px content box. Nothing moves either way: the popover is pinned at
+//   min-width 190 px. "Aide" alone had named a different thing from the
+//   aria-label on the same row, which is why the root was applied at all.
 //
 //   PING stays PING (sameAsEn) and the tip title moved to it, not the other
 //   way round. The caption is the English abbreviation and the title said
@@ -173,21 +179,21 @@ export const I18N = Object.freeze({
         en: { t: 'Settings',
               b: 'Choose the language of this interface and whether hover help appears. Both choices are remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Choisir la langue de cette interface et l’affichage de l’aide au survol. Les deux choix sont conservés avec la session.',
+              b: 'Choisir la langue de cette interface et l’affichage des infobulles. Les deux choix sont conservés avec la session.',
               reviewed: true },
     },
     'lang-select': {
         en: { t: 'Language',
               b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, note divisions and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de cette aide au survol et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais.',
               reviewed: true },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
               b: 'Turns this hover help on and off. With it off, only the gear and this switch keep explaining themselves.' },
-        fr: { t: 'Aide au survol',
-              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
+        fr: { t: 'Infobulles',
+              b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
     },
 
@@ -552,7 +558,7 @@ export const LABELS = Object.freeze({
 
     // ── The settings popover ────────────────────────────────────────────────
     'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: true } },
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },  // 71.77
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },  // 49.61
     // The two faces of the hover-help switch. KEYS through setLabel(), not
     // literals: a literal holds one string, so switching to French mid-session
     // would restore an English "On". Written from an if/else with two literal
@@ -638,7 +644,7 @@ export const LABELS = Object.freeze({
                          fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
     'aria.helpToggle': { en: { t: 'Toggle hover help' },
-                         fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
+                         fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
     // Bound by assigning dataset.i18nAria with a plain string literal in
     // buildPresetDropdown, which check-i18n assertion 15 counts as a reference
     // for exactly this case: an element the controller creates cannot carry the

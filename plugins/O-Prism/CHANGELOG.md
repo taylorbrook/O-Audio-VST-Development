@@ -1,5 +1,53 @@
 # O-Prism Changelog
 
+## v1.23.1 (2026-09-03)
+
+The French rendering of the hover-help surface changes suite-wide (task
+260903-ukp; O-Gain 1.3.3 was the tracer). PATCH: French strings and source
+comments only — no parameter, range, type or state format changed.
+
+### Changed
+
+- **The French caption is now `Infobulles`** (feminine plural). The superseded
+  rendering named the ACTION — help on hover; *infobulle* is the noun French
+  DAW and OS interfaces use for the surface itself. The glossary root moved
+  with it, ROOT-ONLY: `scripts/i18n-fr-glossary.js` now reads
+  `'hover help': ['infobulles']` and
+  `'toggle hover help': ['activer ou désactiver les infobulles']`, with the old
+  rendering REMOVED rather than kept as an accepted alternate — so a plugin
+  drifting back is a red G1 gate, not a silent pass.
+- **Every sentence re-agreed from feminine singular to feminine plural**, not
+  substituted: `cette …` → `ces infobulles`, `l’…` → `les infobulles`,
+  `de l’…` → `des infobulles`, `toute l’…` → `toutes les infobulles`,
+  `Une fois désactivée` → `Une fois désactivées`; the distributive `chaque …`
+  → `chaque infobulle` is the one place the new term stays singular.
+  Bare back-references that carried no occurrence of the old phrase — clauses
+  reading *le réglage de l’aide*, *l’état de l’aide*, *son affichage ou non*,
+  and the pronouns in *Lorsqu’elle est désactivée … la réactiver* — were
+  rewritten too. A regex pass would have left every one of them pointing at an
+  antecedent that no longer exists.
+- Every changed body was read by the developer at a blocking checkpoint
+  *before* it was written, so each ships `reviewed: true` legitimately and the
+  repo-wide unreviewed-French TOTAL stays at 0.
+- **§5 fold-in.** `tip.language` rendered this same concept as *aide
+  contextuelle*, split across a `+` continuation so that no single-line grep
+  reached it: `'… et toute l’aide ' + 'contextuelle de cette page …'`. It now
+  reads `'… et toutes les ' + 'infobulles de cette page …'`. It was found by
+  splicing concat boundaries out before matching — a line-oriented sweep would
+  have shipped a third French name for the surface in the one plugin whose
+  width comment is about exactly that caption.
+- **The `.settings-popover` width justification comment re-measured, and THE
+  PIN STAYS.** `Infobulles` renders **68.98 px** — narrower than the caption it
+  replaces, but still 9.21 px past the 59.77 px LANGUAGE box the retired
+  per-caption pin was set against, and 1.55 px under English `Hover help`
+  (70.53). The comment's example changed; its rule did not. The pin exists so
+  this `right: 0` panel's rect cannot move with language in EITHER direction —
+  assertion 7 reports any language-driven resize as a failure whichever way it
+  goes — and a caption that happens to fit today is not a reason to retire it.
+  That is the same reasoning that retired the per-caption pin in the first
+  place.
+
+
 ## v1.23.0 (2026-09-03)
 
 A switch for the hover help, and the settings popover becomes two rows to hold it.
