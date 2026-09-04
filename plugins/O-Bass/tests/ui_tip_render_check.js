@@ -295,7 +295,7 @@ function outsideViewport(rect, W, H) {
         // container. The gear is hovered in the open state too, so the pass
         // covers the state a user is actually in when they reach for it.
         const anchorsClosed = ['#frequencyKnob', '#enhanceKnob', '#outputKnob'];
-        const anchorsOpen   = ['#gear-btn', '#lang-select'];
+        const anchorsOpen   = ['#gear-btn', '#lang-select', '#tips-toggle'];
 
         async function setPopover(open) {
             const isOpen = await page.evaluate(() =>

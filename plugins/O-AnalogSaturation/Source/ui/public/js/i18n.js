@@ -166,6 +166,16 @@ export const I18N = Object.freeze({
               b: 'La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles. Les boutons de modèle et de qualité gardent leur nom anglais à dessein, afin que la page et la voie d’automation de l’hôte désignent le même réglage de la même façon.',
               reviewed: true },
     },
+    // v1.4.0 — the switch that reaches this whole layer.
+    'tip.tipsToggle': {
+        en: { t: 'Hover Help',
+              b: 'Turns this hover help on and off. With it off, only the gear and this '
+               + 'switch keep explaining themselves.' },
+        fr: { t: 'Aide au survol',
+              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+               + 'l’engrenage et ce commutateur continuent de s’expliquer.',
+              reviewed: true },
+    },
 
     // ── The four parameters ─────────────────────────────────────────────────
 
@@ -301,11 +311,21 @@ export const LABELS = Object.freeze({
     // ── The settings popover (v1.2.0) ───────────────────────────────────────
     'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
+    // v1.4.0. All four renderings below are settled glossary ROOTS, copied
+    // rather than authored: scripts/i18n-fr-glossary.js carries them as the
+    // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
+    // the same review mark this file's other roots carry, and for the same
+    // reason — they are not new machine output.
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria / data-i18n-alt, so a
     // screen reader hears the same language the page is showing.
     'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
 
     // The decorative plate behind the knob. Its alt text was the page's only
     // prose-bearing attribute at v1.1.6 and was unkeyed; it is keyed here
@@ -394,6 +414,7 @@ export const I18N_EXEMPT = [
 export const TIP_BINDINGS = [
     ['#gear-btn',       'tip.gear'],
     ['#lang-select',    'tip.lang'],
+    ['#tips-toggle',    'tip.tipsToggle'],
 
     ['#intensityKnob',  'tip.intensity', '.knob-container'],
     ['.model-button',   'tip.model',     '.model-buttons'],

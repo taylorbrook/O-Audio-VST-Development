@@ -108,7 +108,7 @@ function runtimeParamCount(file) {
 }
 
 // ── the two chrome anchors every M-stage page carries ───────────────────────
-const CHROME = ['#gear-btn', '#lang-select'];
+const CHROME = ['#gear-btn', '#lang-select', '#tips-toggle'];
 
 // #lang-select lives inside the settings popover, which ships `hidden`. A hover
 // on a display:none element resolves to nothing, so the popover is opened first.

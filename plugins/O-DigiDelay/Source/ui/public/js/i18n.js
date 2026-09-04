@@ -338,6 +338,16 @@ export const I18N = Object.freeze({
               b: "La langue des libellés de cette page et de cette aide au survol. L’anglais et le français sont disponibles. Les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais, pour que la page et l’hôte nomment toujours la même chose de la même façon.",
               reviewed: true },
     },
+    // v1.5.0 — the switch that reaches this whole layer.
+    'tip.tipsToggle': {
+        en: { t: 'Hover Help',
+              b: 'Turns this hover help on and off. With it off, only the gear and this '
+               + 'switch keep explaining themselves.' },
+        fr: { t: 'Aide au survol',
+              b: 'Active ou désactive cette aide au survol. Une fois désactivée, seuls '
+               + 'l’engrenage et ce commutateur continuent de s’expliquer.',
+              reviewed: true },
+    },
 });
 
 // ============================================================================
@@ -555,6 +565,15 @@ export const LABELS = Object.freeze({
     // ── The settings popover (v1.3.0) ───────────────────────────────────────
     'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
 
+    // v1.5.0. All four renderings below are settled glossary ROOTS, copied
+    // rather than authored: scripts/i18n-fr-glossary.js carries them as the
+    // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
+    // the same review mark this file's other roots carry, and for the same
+    // reason — they are not new machine output.
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Aide au survol', reviewed: true } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+
     // ── Accessible names ────────────────────────────────────────────────────
     //
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
@@ -592,6 +611,7 @@ export const LABELS = Object.freeze({
 
     'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
     'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver l’aide au survol', reviewed: true } },
 });
 
 // ============================================================================
@@ -682,6 +702,7 @@ export const TIP_BINDINGS = [
 
     ['#gear-btn',           'tip.gearBtn'],
     ['#lang-select',        'tip.langSelect'],
+    ['#tips-toggle',        'tip.tipsToggle'],
 ];
 
 // The tooltip lookup. Returns {t, b} — never null, never a bare key without a

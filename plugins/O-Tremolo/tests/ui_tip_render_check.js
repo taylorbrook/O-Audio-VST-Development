@@ -309,7 +309,7 @@ function outsideViewport(rect, W, H) {
         // pass covers the state a user is actually in when they reach for it.
         const anchorsClosed = ['#speedKnob', '#depthKnob', '#waveformSelect',
                                '#smoothingSlider', '#panButton', '#tempoButton'];
-        const anchorsOpen   = ['#gear-btn', '#lang-select'];
+        const anchorsOpen   = ['#gear-btn', '#lang-select', '#tips-toggle'];
 
         async function setPopover(open) {
             const isOpen = await page.evaluate(() =>

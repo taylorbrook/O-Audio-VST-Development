@@ -674,6 +674,47 @@
       outline-offset: 1px;
     }
 
+    /* v1.4.0 THE HOVER-HELP SWITCH.
+
+       Every declaration above the switch-specific four is COPIED FROM
+       this page's own language <select>, not pasted in from the reference
+       implementation. The two controls sit one row apart in the same popover,
+       so the button inherits this plugin's font stack, ink, plate, hairline and
+       radius by construction rather than by a second designer re-deciding them.
+
+       min-width, NOT width: it floors the two short English faces so they size
+       alike, and lets a longer French one (Marche / Arrêt) grow LEFTWARD into
+       slack the popover already has. The row is space-between and the button is
+       a [data-i18n] node, so a face that grows moves nothing the geometry gate
+       measures — verified with check-ui-labels [7] after the port. */
+    .settings-toggle {
+      padding: 1px 3px;
+      background: rgba(255, 248, 220, 0.6);
+      border: 1px solid #3C5C1A;
+      border-radius: 2px;
+      color: #3C2F2F;
+      font-family: Garamond, serif;
+      font-size: 9px;
+      line-height: 1.2;
+      flex: 0 0 auto;
+      min-width: 42px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .settings-toggle[aria-pressed="true"] {
+      background: #3C5C1A;
+      border-color: #3C5C1A;
+      color: #FFF8DC;
+    }
+
+    .settings-toggle:focus-visible {
+      outline: 1px solid #3C5C1A;
+      outline-offset: 1px;
+    }
+
+
     /* ====================================================================
        HOVER-HELP (v1.3.0) — the surface the delegated renderer paints into
        ====================================================================
@@ -997,7 +1038,7 @@
       <div class="settings-cluster">
         <button type="button" class="gear-btn" id="gear-btn"
                 aria-haspopup="dialog" aria-expanded="false"
-                data-i18n-aria="aria.settings" aria-label="Settings">&#9881;</button>
+                data-i18n-aria="aria.settings" aria-label="Settings" data-tip-always>&#9881;</button>
 
         <div class="settings-popover" id="settings-popover"
              role="dialog" data-i18n-aria="aria.settings" aria-label="Settings" hidden>
@@ -1011,6 +1052,24 @@
               <option value="fr">Fran&ccedil;ais</option>
             </select>
           </label>
+
+          <!-- v1.4.0: the hover-help switch. A <div>, NEVER a
+               <label for="tips-toggle">: a button is a labelable element, so a label
+               wrapping one re-dispatches the click and the switch toggles twice. The
+               button names itself with aria-label instead.
+
+               data-tip-always goes on this button and on #gear-btn and on nothing
+               else. Those two controls are the ones that REACH and RESTORE the help
+               layer, so they keep explaining themselves while it is off. #lang-select
+               deliberately does not carry it: it is only reachable through the gear,
+               which already explained itself on the way in. -->
+          <div class="settings-row">
+            <span class="settings-label" data-i18n="label.hoverHelp" data-label="Hover help">Hover help</span>
+            <button type="button" class="settings-toggle" id="tips-toggle"
+                    aria-pressed="true" data-i18n-aria="aria.helpToggle"
+                    aria-label="Toggle hover help"
+                    data-i18n="ui.on" data-tip-always>On</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1588,6 +1647,53 @@
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // The hover-help switch (v1.4.0)
+    // ════════════════════════════════════════════════════════════════════════
+    //
+    // OUTSIDE the applyI18n/initI18n region, deliberately: check-i18n assertion
+    // [6] byte-compares that region, comment-stripped and whitespace-normalised,
+    // against scripts/i18n-canon.js. A character added inside it fails the drift
+    // gate on all 43 plugins' behalf.
+    //
+    // DEFAULT IS ON. The version before this one showed hover help
+    // unconditionally, so ON is the setting that leaves an existing user's
+    // plugin behaving exactly as it did. Default OFF would additionally make
+    // boot-all-uis --strict-tips measure an empty tip surface and call it
+    // correct.
+
+    let tipsEnabled = true;
+    let hideTip = () => {};
+
+    function applyTipsEnabled(on) {
+        tipsEnabled = !!on;
+        if (!tipsEnabled) hideTip();
+        const btn = document.getElementById('tips-toggle');
+        if (!btn) return;
+        btn.setAttribute('aria-pressed', tipsEnabled ? 'true' : 'false');
+        // TWO CALLS BEHIND AN if/else, never a ternary inside the setLabel
+        // argument: check-i18n assertion [13] rejects a conditional anywhere in
+        // that call, because an inflection decided in JS is a string no
+        // translator can see.
+        if (tipsEnabled) setLabel(btn, 'ui.on');
+        else             setLabel(btn, 'ui.off');
+    }
+
+    function initializeTipsToggle() {
+        const btn = document.getElementById('tips-toggle');
+        if (!btn) { console.error('Missing tips-toggle element'); return; }
+        let stored = null;
+        try { stored = localStorage.getItem('oaeq.tipsEnabled'); } catch (e) { stored = null; }
+        // Anything that is not the literal string 'false' — including a first
+        // run with nothing stored, and a private-mode throw — resolves to ON.
+        applyTipsEnabled(stored !== 'false');
+        btn.addEventListener('click', () => {
+            applyTipsEnabled(!tipsEnabled);
+            try { localStorage.setItem('oaeq.tipsEnabled', String(tipsEnabled)); }
+            catch (e) { /* private mode: the switch still works, it just forgets */ }
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // HOVER-HELP (v1.3.0)
     // ════════════════════════════════════════════════════════════════════════
     //
@@ -1654,6 +1760,11 @@
         let active = null;
 
         const show = (el, x, y) => {
+            // THE SWITCH, and it is a SHOW gate rather than a bind gate: the
+            // renderer is delegated on document, so there is nothing to unbind.
+            // data-tip-always survives it — see the markup comment on #tips-toggle
+            // for which two controls carry it and why.
+            if (!tipsEnabled && !el.hasAttribute('data-tip-always')) return;
             const title = el.getAttribute('data-tip-title');
             const body  = el.getAttribute('data-tip');
             if (!title && !body) return;
@@ -1719,6 +1830,12 @@
             tip.setAttribute('aria-hidden', 'true');
             active = null;
         };
+
+        // Published to the module scope so applyTipsEnabled() can pull a tip
+        // down at the instant the switch goes Off. hide is a closure over the
+        // surface and the active anchor, so it cannot simply be hoisted out; a
+        // reference is the whole of the coupling.
+        hideTip = hide;
 
         const anchorOf = (t) => (t && t.closest ? t.closest('[data-tip]') : null);
 
@@ -1803,7 +1920,7 @@
     // inline module — and therefore the ENTIRE UI — with it
     // (pattern_module_toplevel_init_tdz).
     initializeSettingsPopover();
-    try { initI18n(); setupTooltips(); } catch (e) { console.error('i18n init failed:', e); }
+    try { initI18n(); setupTooltips(); initializeTipsToggle(); } catch (e) { console.error('i18n init failed:', e); }
   </script>
 </body>
 </html>

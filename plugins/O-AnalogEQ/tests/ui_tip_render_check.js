@@ -397,7 +397,7 @@ function outsideViewport(rect, W, H) {
         // does not exist to a pointer until the panel is open — it is inside a
         // [hidden] container. The gear is hovered in the open state too, so the
         // pass covers the state a user is actually in when they reach for it.
-        const anchorsOpen   = ['#gear-btn', '#lang-select'];
+        const anchorsOpen   = ['#gear-btn', '#lang-select', '#tips-toggle'];
         const anchorsClosed = TIP_BINDINGS.map(b => b[0]).filter(s => !anchorsOpen.includes(s));
         check(anchorsClosed.length + anchorsOpen.length === TIP_BINDINGS.length,
             `[1] every binding is driven below — ${anchorsClosed.length} parameter + `
