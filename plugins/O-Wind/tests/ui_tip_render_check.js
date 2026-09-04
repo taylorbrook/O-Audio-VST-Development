@@ -167,7 +167,7 @@ const MARGIN = 8;               // setupTooltips()'s clamp margin
 const DOCUMENTED_MAX_W = 260;   // .tooltip max-width
 const SOUND_KNOBS = 26;         // .knob-control cells createKnobSVG() builds into
 const FX_KNOBS    = 16;         // .knob-container cells makeFxKnob() builds
-const TIP_COUNT   = 52;         // 50 parameters with a control + 2 chrome
+const TIP_COUNT   = 53;         // 50 parameters with a control + 3 chrome (v1.19.0: + #tips-toggle)
 
 let failed = 0;
 function check(cond, desc) {
@@ -290,7 +290,7 @@ const isAdsrKnob = (sel) => /data-param="adsr(Attack|Decay|Sustain|Release)"/.te
     const { I18N, TIP_BINDINGS, LANGUAGES } = loadTable(i18nSrc);
     check(Array.isArray(TIP_BINDINGS) && TIP_BINDINGS.length === TIP_COUNT,
         `[0] TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} anchor(s), expected `
-        + `${TIP_COUNT} (50 parameters with a control + #gear-btn + #lang-select; the dump has `
+        + `${TIP_COUNT} (50 parameters with a control + #gear-btn + #lang-select + #tips-toggle; the dump has `
         + `56 rows and six parameters have no control on this page)`);
     check(LANGUAGES.join(',') === 'en,fr', `[0] LANGUAGES is en,fr — got ${LANGUAGES.join(',')}`);
     check(TIP_BINDINGS.filter(([s]) => isEffectsAnchor(s)).length === 21,

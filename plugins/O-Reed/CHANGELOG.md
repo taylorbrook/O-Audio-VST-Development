@@ -1,5 +1,66 @@
 # O-Reed Changelog
 
+## v1.4.0 (2026-09-03)
+
+A switch for the hover help. v1.3.0 gave this plugin 35 tooltips and no way to
+turn them off; twenty of the suite's forty-three plugins already carried that
+switch and twenty-three did not. This closes one of the twenty-three.
+
+### Added
+
+- **A hover-help switch in the settings popover.** `#tips-toggle`, a second
+  `.settings-row` under the language selector, on the newer `#tips-toggle` /
+  `label.hoverHelp` convention rather than the older `#help-toggle` spelling. It
+  gates `setupTooltips`'s own `show()` — a delegated renderer has no bindings to
+  unbind — and persists under the localStorage key `oreed.tipsEnabled`.
+- **`data-tip-always` on `#gear-btn` and on `#tips-toggle`, and on nothing
+  else.** Those two controls are the ones that REACH and RESTORE the help layer,
+  so they keep explaining themselves while it is off. `#lang-select`
+  deliberately does not carry it: it is only reachable through the gear, which
+  already explained itself on the way in.
+- **Five i18n keys, four of them settled roots copied rather than authored.**
+  `label.hoverHelp`, `ui.on`, `ui.off` and `aria.helpToggle` take the French
+  glossary roots verbatim from `scripts/i18n-fr-glossary.js` — *Aide au survol /
+  Marche / Arrêt / Activer ou désactiver l'aide au survol*. The fifth,
+  `tip.tipsToggle`, is the tooltip's own title and body.
+
+### Measured
+
+- **The second row costs nothing.** With the popover forced open it occupies
+  **y 37..103.59, 190 x 66.59 px — byte-identical in English and French** —
+  inside a 900 x 600 frame. The switch face grows 42.00 -> 45.30 px for
+  *Marche*, leftward into slack the panel already had; `check-ui-labels` [7]
+  reports **0 non-label elements displaced**.
+- Every declaration in `.settings-toggle` above the four switch-specific ones is
+  **copied from this page's own language `<select>`** — its font stack, ink,
+  plate, hairline and radius — so the two controls in the popover match by
+  construction rather than by a second designer re-deciding them.
+
+### Also driven
+
+- `tests/ui_tip_render_check.js` [1] **replaces a proxy with the property it
+  stood for.** Until this version there was exactly one `.settings-row`, and the
+  gate asserted that count as a stand-in for *closest() is right by
+  construction, not by luck*. There are two rows now. The count is no longer the
+  question: the binding resolves `#lang-select` by its unique id and then walks
+  ANCESTORS with `closest()`, which cannot reach a sibling row however many
+  exist. What must hold — and is now asserted directly — is that the resolved
+  wrapper contains `#lang-select` and does NOT contain `#tips-toggle`.
+
+### Decided
+
+- **Default is ON.** v1.3.1 showed hover help unconditionally, so ON is the
+  setting that leaves an existing user's plugin behaving exactly as it did.
+  Default OFF would additionally have made `boot-all-uis --strict-tips` and
+  `tests/ui_tip_render_check.js` measure an empty tip surface and call it
+  correct.
+
+### Not touched
+
+- **The tuning tab is a standing open defect and is untouched here.** This
+  version changes the settings popover, the tooltip renderer and the i18n table,
+  and nothing else.
+
 ## v1.3.1 (2026-08-31)
 
 French copy revised. Stage N of the repo-wide i18n rollout.

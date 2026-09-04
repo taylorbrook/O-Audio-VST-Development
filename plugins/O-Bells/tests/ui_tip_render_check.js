@@ -238,7 +238,7 @@ const READ_TIP = `() => {
 const FINE = new Set(['bloomSpeedLow', 'bloomSpeedMid', 'bloomSpeedHigh',
                       'bloomAmountLow', 'bloomAmountMid', 'bloomAmountHigh']);
 const TUNING_SELS  = new Set(['#ref-pitch-knob', '#octave-stretch']);
-const POPOVER_SELS = new Set(['#lang-select']);
+const POPOVER_SELS = new Set(['#lang-select', '#tips-toggle']);
 const paramOf = (sel) => (sel.match(/data-param="([^"]+)"/) || [])[1] || null;
 const tabFor  = (sel) => {
     if (TUNING_SELS.has(sel)) return 'tuning';
@@ -481,6 +481,9 @@ const needsFine = (sel) => FINE.has(paramOf(sel) || '');
             rowIsAnchor: !!(row && row.hasAttribute('data-tip')),
             rowHoldsGear: !!(row && row.contains(gear)),
             rowCount: document.querySelectorAll('.settings-row').length,
+            rowHoldsLang: !!(row && row.contains(sel)),
+            rowHoldsTips: !!(row && document.getElementById('tips-toggle')
+                             && row.contains(document.getElementById('tips-toggle'))),
             clusterHoldsBoth: !!(document.querySelector('.settings-cluster')
                 && document.querySelector('.settings-cluster').contains(gear)
                 && document.querySelector('.settings-cluster').contains(sel)),
@@ -492,9 +495,19 @@ const needsFine = (sel) => FINE.has(paramOf(sel) || '');
     check(chrome.clusterHoldsBoth,
         `[1c] .settings-cluster really does contain BOTH — which is why the gear is bound bare. `
         + `If this ever fails the bare binding has stopped being load-bearing`);
-    check(chrome.rowCount === 1,
-        `[1c] .settings-row is unique on this page — ${chrome.rowCount} node(s). A wrapper class `
-        + `that matches twice makes closest() right by luck (O-Tremolo's .waveform-section)`);
+    // v4.4.0 REPLACES A PROXY WITH THE PROPERTY IT STOOD FOR. Until the hover-help
+    // switch landed there was exactly one .settings-row, and this line asserted
+    // that count — a proxy for "closest() is right by construction, not by luck"
+    // (O-Tremolo's .waveform-section). There are two rows now, and the count is
+    // no longer the question: the binding resolves #lang-select by its unique id
+    // and then walks ANCESTORS with closest(), which cannot reach a sibling row
+    // however many exist. What must hold is that the resolved wrapper is the row
+    // holding #lang-select and NOT the one holding the switch, and that is now
+    // asserted directly rather than inferred from a count.
+    check(chrome.rowHoldsLang && !chrome.rowHoldsTips,
+        `[1c] #lang-select's wrapper is ITS OWN row — contains #lang-select `
+        + `(${chrome.rowHoldsLang}) and not #tips-toggle (${chrome.rowHoldsTips}), `
+        + `across ${chrome.rowCount} .settings-row node(s)`);
 
     // ── the state driver — the page's own path, never a class strip ─────────
     let curTab = 'instrument';
