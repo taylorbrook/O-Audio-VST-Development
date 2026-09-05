@@ -5,6 +5,63 @@ All notable changes to O-Texture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-09-04
+
+**Simplified Chinese.** Every caption, hover-help body and accessible name
+renders in 简体中文 alongside English and French. MINOR: a language is added; no
+parameter, range, type or state format changed.
+
+Wave 4a of the suite-wide zh-Hans rollout.
+
+### Added
+
+- **`zh-Hans` on all 31 entries.** 20 of the 31 name strings take their rendering from `scripts/i18n-zh-glossary.js`; the other eleven are the latent-space vocabulary this plugin invents. Lint rule Z5 enforces the
+  glossary renderings.
+- **The endonym `简体中文`** in the language selector, as numeric character
+  references.
+- **A third branch in the language codec** (`PluginProcessor.h`), pure ASCII.
+  **No Han character exists anywhere under `Source/`.**
+
+### Changed
+
+- **The CJK font tail on six declarations, ALL OF THEM IN
+  `css/ouaricon-naturalist.css`.** `index.html` carries zero `font-family`
+  declarations, so grepping the markup for one returns nothing and would suggest
+  there is nothing to do.
+- **Four line-height pins.** The failures here were SHRINKS — the XY pad and
+  both character sliders lost 4 px — because Chinese says the same thing in
+  fewer characters and the captions above them took less height. An assertion
+  phrased "must not grow" would have been vacuous against every one of them.
+- **`tests/ui_tip_render_check.js` derives its language list** instead of
+  asserting the pair, and refuses a list it cannot read.
+
+### Fixed
+
+- **Two hover-help bodies stated things that were false**, in English and in
+  French both, and both are removed rather than extended. `tip.gearBtn` said the settings panel holds nothing but the language while the hover-help switch sits beside it, and `tip.langSelect` counted the selector's options. No gate can
+  see this class of defect — the sentences stay grammatical and the tooltips
+  render — and both edits are deletions, so the French review flags stand.
+- **`tip.xyPad` reads 控制板 rather than 板.** The first reverse pass returned
+  "XY Board" — the plank sense rather than the control sense.
+
+### Review status
+
+Every Chinese string is at **`reviewed: 'bt'`** — drafted, then read back through
+an INDEPENDENT reverse pass, triple by triple, all 43 rows, twice.
+
+- forward: `claude-opus-5 forward draft, quick-260904-qrc Task 3, 2026-09-04`
+- reverse round 1: `claude-sonnet-4-5 reverse pass, fresh non-interactive
+  session, no tools, cwd outside the repo, 2026-09-04`
+- reverse round 2: `claude-opus-5 reverse pass, SECOND fresh session, fresh
+  salt, no tools, cwd outside the repo, 2026-09-04`
+
+The English was withheld from every batch and the row ids were blinded with a
+per-batch salt, so no pass could recover a string's source or correlate one
+round against another. Round 2 shares zero ids with round 1 and confirmed the correction, returning "XY control pad".
+
+**The native-reader level stays OPEN, and that is disclosed rather than hidden.**
+This project has no native Chinese reader.
+
 ## [0.4.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task

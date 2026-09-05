@@ -252,7 +252,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '模式',
           b: 'Generate 只从模型合成织体，完全不需要音频输入。Transform 会把输入的音频通过同一个模型重塑，目前尚未实现，所以它的按钮是禁用的。Generate 或 Transform。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ── The XY pad: TWO parameters, ONE control ─────────────────────────────
@@ -277,7 +277,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: 'XY 控制板',
           b: '拖动圆点在模型的潜空间中移动：左右是 X，上下是 Y。它们是训练过程找到的两个最活跃的维度，因此织体在这里变化最大，而 X 同时还承载两个声道之间的立体声展开。两个轴都不是具名的控制项——你听到的就是模型在那里学到的东西——两者都在 0.000 到 1.000 之间。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ── The three vertical sliders ──────────────────────────────────────────
@@ -292,7 +292,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '性格 A',
           b: '潜空间的第三个维度，特意放在板外，这样在那里找到的织体可以在不离开该位置的情况下加以变化。它承载的模型方差比 X 或 Y 都少，因此同样的行程带来的变化比两者都小。0.00 到 1.00。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // CHARACTER_B is dimension 3, variance 0.7 — the least active of the four.
@@ -304,7 +304,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '性格 B',
           b: '第四个潜空间维度，也是本插件所公开的四个当中最不活跃的一个。等到板与性格 A 已经找到织体之后再动它，也就是当你想要的改动是四者中最小的那一个时。0.00 到 1.00。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // EVOLVE drives a 1-D Perlin walk over the eight REMAINING active latent
@@ -321,7 +321,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '演化',
           b: '织体自行漂移的快慢：在另外八个潜空间维度上做平滑的随机游走，每 2048 个采样的块走一步。响应是平方的，所以全部缓慢可用的运动都落在范围的下半部分。0.00 是完全静止，到 1.00。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ── The source row ──────────────────────────────────────────────────────
@@ -338,7 +338,7 @@ export const I18N = Object.freeze({
     'zh-Hans': { t: '源',
           b: '选择生成器从哪一个已训练的织体模型解码。今天只有 Rain 有模型——其余五个按钮在各自的模型训练好之前保持禁用，按下不会有任何反应。Rain、Metal、Wind、Crowd、'
            + 'Synth、Organic。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ── The bottom strip ────────────────────────────────────────────────────
@@ -357,7 +357,7 @@ export const I18N = Object.freeze({
     'zh-Hans': { t: '明亮度',
           b: '一个以 800 Hz 为支点的倾斜滤波器，作用在解码器之后：调高则频谱高端抬起而低端落下，调低则两者互换。它是本插件唯一的音色控制，而在 0.00 时它是被直接旁通的，而不只是变平。'
            + '−1.00 到 +1.00。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // MIX is a LEVEL, not a blend, and the tooltip says so. processBlock ends
@@ -376,7 +376,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '混合',
           b: '所生成织体的输出电平。Generate 模式没有输入信号可供平衡，因此这是一条从静音到满量的直接淡入，而不是干湿控制。0.00 到 1.00。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // FREEZE — AudioParameterBool. PerlinNoise1D::advance returns immediately
@@ -392,7 +392,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '冻结',
           b: '把演化的游走原地保持住，使织体停止漂移，维持现状。开启期间其余部分仍然响应——板、两个性格滑块、明亮度与混合都照常工作。关或开。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -416,7 +416,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '设置',
           b: '打开设定本界面语言的面板。本页的说明文字与这些悬停帮助会随之切换，该选择随工程一同保存，因此会话会以保存时的语言重新打开。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
     'tip.langSelect': {
         en: { t: "Language",
@@ -426,7 +426,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '语言',
           b: '本页说明文字与这些悬停帮助的语言。数值读数、六个源名称与两个模式名称保持英文，让页面与宿主的自动化通道对同一个设置的称呼保持一致。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
     // v0.4.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -439,7 +439,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '悬停帮助',
           b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 });
 
@@ -520,20 +520,20 @@ export const LABELS = Object.freeze({
     // of margin — thinner than any margin this rollout has accepted, and the
     // Windows/WebView2 font metrics that would decide it are the named
     // hardware-blocked deferral. "Car. A" is 33.4 px with 16.6 px to spare.
-    'label.charA':  { en: { t: 'Char A' }, fr: { t: 'Car. A', reviewed: true }, 'zh-Hans': { t: '性格 A', reviewed: 'mt' } },
-    'label.charB':  { en: { t: 'Char B' }, fr: { t: 'Car. B', reviewed: true }, 'zh-Hans': { t: '性格 B', reviewed: 'mt' } },
+    'label.charA':  { en: { t: 'Char A' }, fr: { t: 'Car. A', reviewed: true }, 'zh-Hans': { t: '性格 A', reviewed: 'bt' } },
+    'label.charB':  { en: { t: 'Char B' }, fr: { t: 'Car. B', reviewed: true }, 'zh-Hans': { t: '性格 B', reviewed: 'bt' } },
 
     // Same 50 px budget, and the single-word case. MEASURED: "Évolution" is
     // 52.5 px and is ONE WORD, so it cannot wrap — it overhangs the 50 px
     // column into the 8 px gap beside it. "Évolue" fits at 36.7 px but is a
     // conjugated verb where the two neighbours are noun abbreviations.
     // "Évol." is 27.5 px and matches their shape.
-    'label.evolve': { en: { t: 'Evolve' }, fr: { t: 'Évol.', reviewed: true }, 'zh-Hans': { t: '演化', reviewed: 'mt' } },
+    'label.evolve': { en: { t: 'Evolve' }, fr: { t: 'Évol.', reviewed: true }, 'zh-Hans': { t: '演化', reviewed: 'bt' } },
 
     // ── The two knobs ───────────────────────────────────────────────────────
     // Captions, NOT readouts: .knob-value is a separate sibling node and is the
     // only thing that ever holds a number here (D-01 arm 3, contract 5).
-    'label.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: true }, 'zh-Hans': { t: '明亮度', reviewed: 'mt' } },
+    'label.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: true }, 'zh-Hans': { t: '明亮度', reviewed: 'bt' } },
 
     // MIX is the APVTS parameter ID and "Mix" its display name, not a choice
     // option — an AudioParameterFloat has no option strings for a French
@@ -545,32 +545,32 @@ export const LABELS = Object.freeze({
     // straight copy is deliberate, so it carries sameAsEn: true for
     // check-i18n assertion 4; it is also the only French caption on this page
     // that now agrees byte-for-byte with the host's automation lane.
-    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '混合', reviewed: 'mt' } },
+    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '混合', reviewed: 'bt' } },
 
     // FREEZE is an AudioParameterBool. Same reasoning as MIX: no option
     // strings, so nothing in the host is spelled "Freeze" for this to contradict.
     // .freeze-label is text-transform: uppercase, so the table holds the
     // authored case and the page renders GEL.
-    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'Gel', reviewed: true }, 'zh-Hans': { t: '冻结', reviewed: 'mt' } },
+    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'Gel', reviewed: true }, 'zh-Hans': { t: '冻结', reviewed: 'bt' } },
 
     // ── The settings popover (v0.2.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'mt' } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'bt' } },
 
     // v0.4.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'mt' } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'mt' } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'bt' } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'bt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
     // hears the same language the page is showing.
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'mt' } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'bt' } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'bt' } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' } },
 
     // ── The six not-yet-implemented controls ────────────────────────────────
     //
@@ -585,12 +585,12 @@ export const LABELS = Object.freeze({
     // The identifier half stays byte-identical in French for the same reason
     // the visible caption does — it is a SOURCE / MODE choice option (D-01
     // arm 1). Only the status half is translated.
-    'aria.soon.transform': { en: { t: 'Transform — coming soon' }, fr: { t: 'Transform — bientôt disponible', reviewed: true }, 'zh-Hans': { t: 'Transform — 即将推出', reviewed: 'mt' } },
-    'aria.soon.metal':     { en: { t: 'Metal — coming soon' },     fr: { t: 'Metal — bientôt disponible',     reviewed: true }, 'zh-Hans': { t: 'Metal — 即将推出', reviewed: 'mt' } },
-    'aria.soon.wind':      { en: { t: 'Wind — coming soon' },      fr: { t: 'Wind — bientôt disponible',      reviewed: true }, 'zh-Hans': { t: 'Wind — 即将推出', reviewed: 'mt' } },
-    'aria.soon.crowd':     { en: { t: 'Crowd — coming soon' },     fr: { t: 'Crowd — bientôt disponible',     reviewed: true }, 'zh-Hans': { t: 'Crowd — 即将推出', reviewed: 'mt' } },
-    'aria.soon.synth':     { en: { t: 'Synth — coming soon' },     fr: { t: 'Synth — bientôt disponible',     reviewed: true }, 'zh-Hans': { t: 'Synth — 即将推出', reviewed: 'mt' } },
-    'aria.soon.organic':   { en: { t: 'Organic — coming soon' },   fr: { t: 'Organic — bientôt disponible',   reviewed: true }, 'zh-Hans': { t: 'Organic — 即将推出', reviewed: 'mt' } },
+    'aria.soon.transform': { en: { t: 'Transform — coming soon' }, fr: { t: 'Transform — bientôt disponible', reviewed: true }, 'zh-Hans': { t: 'Transform — 即将推出', reviewed: 'bt' } },
+    'aria.soon.metal':     { en: { t: 'Metal — coming soon' },     fr: { t: 'Metal — bientôt disponible',     reviewed: true }, 'zh-Hans': { t: 'Metal — 即将推出', reviewed: 'bt' } },
+    'aria.soon.wind':      { en: { t: 'Wind — coming soon' },      fr: { t: 'Wind — bientôt disponible',      reviewed: true }, 'zh-Hans': { t: 'Wind — 即将推出', reviewed: 'bt' } },
+    'aria.soon.crowd':     { en: { t: 'Crowd — coming soon' },     fr: { t: 'Crowd — bientôt disponible',     reviewed: true }, 'zh-Hans': { t: 'Crowd — 即将推出', reviewed: 'bt' } },
+    'aria.soon.synth':     { en: { t: 'Synth — coming soon' },     fr: { t: 'Synth — bientôt disponible',     reviewed: true }, 'zh-Hans': { t: 'Synth — 即将推出', reviewed: 'bt' } },
+    'aria.soon.organic':   { en: { t: 'Organic — coming soon' },   fr: { t: 'Organic — bientôt disponible',   reviewed: true }, 'zh-Hans': { t: 'Organic — 即将推出', reviewed: 'bt' } },
 });
 
 // ============================================================================
