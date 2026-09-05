@@ -617,7 +617,7 @@ export const LABELS = Object.freeze({
     // and left in place. The keys and the French are byte-identical to
     // O-IntonationPad's, which carries the identical two images.
     'alt.background': { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true }, 'zh-Hans': { t: '背景', reviewed: 'mt' } },
-    'alt.botanical':  { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true }, 'zh-Hans': { t: '植物律', reviewed: 'mt' } },
+    'alt.botanical':  { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true }, 'zh-Hans': { t: '植物插画', termNote: 'the glossary root for `botanical` is 植物律, and 律 is temperament or law. This is the alt text of a DECORATIVE PLANT ILLUSTRATION, and the root FAILED THE REVERSE READ TWICE, from two different models in independent sessions: round 1 returned \'Phytometric\' and round 2 \'Plant Law [or: Plant Rhythm]\'. Neither is the English. A row whose back-translation is not its source has not met the \'bt\' bar, so this is an evidenced defect rather than a terminology preference, which is what termNote is for. 植物插画 matches the rendering this same wave gave O-AnalogSaturation\'s decorative plate (蛇形插画). The root itself is reported to the glossary owners rather than edited here, because changing it would put other plugins out of Z5 conformance', reviewed: 'mt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
