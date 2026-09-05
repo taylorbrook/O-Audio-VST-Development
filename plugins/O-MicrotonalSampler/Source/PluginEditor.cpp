@@ -766,9 +766,10 @@ OMicrotonalSamplerAudioProcessorEditor::buildNativeFunctionRegistry()
                 [this] (const juce::Array<juce::var>& args,
                         std::function<void(juce::var)> complete)
                 {
-                    // languageIndex() maps anything that is not "fr" to 0, so an
-                    // unexpected argument from the page degrades to English
-                    // rather than being stored unvalidated.
+                    // languageIndex() maps anything it does not recognise to 0,
+                    // so an unexpected argument from the page degrades to
+                    // English rather than being stored unvalidated. It knows
+                    // "fr" and "zh-Hans" as of v1.27.0.
                     if (args.size() > 0)
                         processorRef.uiLanguage.store (
                             OMicrotonalSamplerAudioProcessor::languageIndex (args[0].toString()),

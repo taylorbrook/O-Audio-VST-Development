@@ -270,7 +270,49 @@ const NEEDS_POPOVER       = new Set(['#lang-select']);
     const { I18N, TIP_BINDINGS, LANGUAGES } = loadTable(i18nSrc);
     check(Array.isArray(TIP_BINDINGS) && TIP_BINDINGS.length > 0,
         `TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} row(s)`);
-    check(LANGUAGES.join(',') === 'en,fr', `LANGUAGES is en,fr — got ${LANGUAGES.join(',')}`);
+    // ZH3-07 (v1.27.0). This line used to read
+    //     check(LANGUAGES.join(',') === <a two-entry literal>, ...)
+    // and it was a HARD break, not the silent vacuity the other per-plugin gates
+    // carry: the moment a third language landed in the table this gate FAILED,
+    // loudly, on a correct file. A literal is the wrong instrument either way —
+    // it asserts today's list rather than the property the rest of this file
+    // actually depends on.
+    //
+    // What the sweep below genuinely requires is a SHAPE, and these three
+    // assertions state it:
+    //   1. the list is readable and non-empty — see the abort immediately below;
+    //   2. English is FIRST, because every later arm byte-compares against the
+    //      English baseline captured by the first sweep and the '[5] switching
+    //      back' assertion restores to LANGUAGES[0];
+    //   3. every declared language has an entry on every BOUND tip key, so a
+    //      language added to the list but not to the table fails here, at the
+    //      table, instead of 22 anchors later with a null-entry message.
+    //
+    // DERIVE-OR-ABORT, never derive-or-default. A gate that falls back to a pair
+    // when it cannot read the table goes green on unchecked content, which is
+    // strictly worse than one that fails: the failure is visible and the silence
+    // is not. loadTable() already throws if LANGUAGES is absent (the vm binding
+    // is a ReferenceError); this makes the malformed-but-present case loud too.
+    if (!Array.isArray(LANGUAGES) || LANGUAGES.length === 0) {
+        console.log(`  FAIL: [1] LANGUAGES could not be derived from js/i18n.js — got `
+                    + `${JSON.stringify(LANGUAGES)}. ABORTING rather than assuming a default `
+                    + `language list; an assumed list would measure nothing and report success.`);
+        process.exit(2);
+    }
+    check(LANGUAGES.length >= 2,
+        `[1] LANGUAGES declares at least two languages — got ${LANGUAGES.length} `
+        + `(${LANGUAGES.join(', ')})`);
+    check(LANGUAGES[0] === 'en',
+        `[1] LANGUAGES[0] is the English baseline every other arm compares against `
+        + `— got "${LANGUAGES[0]}"`);
+    const missingLang = [];
+    for (const [, key] of TIP_BINDINGS) {
+        for (const l of LANGUAGES) if (!(I18N[key] || {})[l]) missingLang.push(`${key}/${l}`);
+    }
+    check(missingLang.length === 0,
+        `[1] every declared language has an entry on all ${TIP_BINDINGS.length} bound tip keys `
+        + `— ${LANGUAGES.join(', ')}`
+        + (missingLang.length === 0 ? '' : ` (missing: ${missingLang.slice(0, 8).join(', ')})`));
 
     // The 51 body-less entries are NOT hover-help and must not become it. This
     // is the assertion that catches an accidental body on a toast the day
@@ -522,7 +564,7 @@ const NEEDS_POPOVER       = new Set(['#lang-select']);
         return seen;
     };
 
-    await sweep('en');
+    await sweep(LANGUAGES[0]);
 
     // ── NC-3. the child-boundary rule ───────────────────────────────────────
     // pointerout fires at EVERY internal boundary. Without the
@@ -540,23 +582,41 @@ const NEEDS_POPOVER       = new Set(['#lang-select']);
         + `— still "${afterMove.title}"`);
     await park();
 
-    // ── 5. French, then back ────────────────────────────────────────────────
-    // French runs 15-20% longer, wraps to more lines against the max-width cap
-    // and grows the tip's HEIGHT, so a tip that fits in English can overflow the
-    // bottom of the frame in French. That is why the whole sweep repeats rather
-    // than spot-checking one anchor.
-    await page.evaluate((l) => window.__setLanguage(l), 'fr');
-    await page.waitForTimeout(200);
-    const frLang = await page.evaluate(() => document.getElementById('lang-select').value);
-    check(frLang === 'fr', `[5] window.__setLanguage('fr') took — selector reads "${frLang}"`);
-    await sweep('fr');
+    // ── 5. every non-baseline language, then back ───────────────────────────
+    // Each declared language repeats the WHOLE sweep rather than spot-checking
+    // one anchor, because the failure this catches is a tip that fits in one
+    // language and leaves the frame in another, and which anchor overflows is a
+    // property of the copy rather than of the control.
+    //
+    // The two directions are BOTH real, and an assertion that assumes one is
+    // blind to the other. French runs 15-20% longer, wraps to more lines against
+    // the max-width cap and grows the tip's HEIGHT. Chinese says the same thing
+    // in fewer characters, wraps BETWEEN characters rather than at spaces, and
+    // SHRINKS — measured across this stage, 6 tips shrank and 0 grew on the
+    // sibling plugin. Nothing below gates on a direction: assertion 4 is a cap
+    // (`<= MAX_W`) and a containment (`inFrame`), both of which a shorter tip
+    // satisfies as honestly as a longer one. Non-vacuity comes from assertion 3
+    // byte-comparing 22 anchors against a DIFFERENT table per language, not from
+    // any box having moved a particular way.
+    //
+    // The loop is derived from the table's own LANGUAGES (asserted for shape at
+    // [1] above) and never from a literal, so a language added to i18n.js is
+    // driven here on the same commit that adds it.
+    for (const lang of LANGUAGES.slice(1)) {
+        await page.evaluate((l) => window.__setLanguage(l), lang);
+        await page.waitForTimeout(200);
+        const got = await page.evaluate(() => document.getElementById('lang-select').value);
+        check(got === lang,
+            `[5] window.__setLanguage('${lang}') took — selector reads "${got}"`);
+        await sweep(lang);
+    }
 
-    await page.evaluate((l) => window.__setLanguage(l), 'en');
+    await page.evaluate((l) => window.__setLanguage(l), LANGUAGES[0]);
     await page.waitForTimeout(200);
     const backSt = await hoverAndRead('[data-knob-id="ctrl-output-gain"] .ouaricon-knob-visual');
-    check(backSt.visible && backSt.title === I18N['tip.outputGain'].en.t
-          && backSt.body === I18N['tip.outputGain'].en.b,
-        `[5] switching back to English restores the English tip byte-for-byte `
+    const baseTip = I18N['tip.outputGain'][LANGUAGES[0]];
+    check(backSt.visible && backSt.title === baseTip.t && backSt.body === baseTip.b,
+        `[5] switching back to "${LANGUAGES[0]}" restores the baseline tip byte-for-byte `
         + `— "${backSt.title}"`);
     await park();
 

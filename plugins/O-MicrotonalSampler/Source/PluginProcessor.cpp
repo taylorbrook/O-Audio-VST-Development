@@ -3179,8 +3179,9 @@ void OMicrotonalSamplerAudioProcessor::restoreStateValueTree (const juce::ValueT
     // as `var (value)` over the attribute STRING
     // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.24.0 session has
     // no such property at all and the default (English) stands. languageIndex()
-    // clamps anything that is not "fr" to 0, so a hand-edited value degrades to
-    // English rather than to a bad index.
+    // clamps anything it does not recognise to 0 — it knows "fr" and, as of
+    // v1.27.0, "zh-Hans" — so a hand-edited value degrades to English rather
+    // than to a bad index.
     //
     // The editor PULLS this through the getUiLanguage native fn at page init
     // rather than being pushed from here — a push would race the WebView load.

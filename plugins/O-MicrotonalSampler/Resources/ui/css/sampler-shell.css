@@ -69,7 +69,7 @@ body {
                 url('/images/paper1.jpg') center/cover no-repeat fixed,
                 var(--bg-cream);
     color: var(--text-body);
-    font-family: 'Garamond', 'Times New Roman', serif;
+    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 14px;
     line-height: 1.4;
 }
@@ -1213,7 +1213,7 @@ body {
     gap: 4px;
     font-size: 12px;
     color: var(--text-secondary);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 .loop-meta span {
@@ -1335,7 +1335,7 @@ body {
 }
 
 .about-title {
-    font-family: 'Garamond', 'Times New Roman', serif;
+    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 22px;
     font-weight: normal;
     color: var(--text-body);
@@ -1344,7 +1344,7 @@ body {
 }
 
 .about-version {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     font-size: 12px;
     color: var(--accent-gold);
     letter-spacing: 0.06em;
@@ -1376,7 +1376,7 @@ body {
     border-top: 1px solid var(--border-warm);
     font-size: 12px;
     color: var(--text-muted);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 .about-link {
@@ -1487,7 +1487,7 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     cursor: pointer;
 }
 
@@ -1495,7 +1495,7 @@ body {
     font-size: 10px;
     color: var(--text-muted);
     font-weight: 600;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     min-height: 1em;
     letter-spacing: 0.02em;
 }
@@ -1522,7 +1522,7 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 .seg-toggle {
@@ -1543,7 +1543,7 @@ body {
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     padding: 5px 10px;
     cursor: pointer;
     transition: background 140ms ease, color 140ms ease;
@@ -1637,7 +1637,7 @@ body {
     font-weight: 600;
     color: var(--text-secondary);
     margin-right: 4px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 .le-variant-tabs .le-variant-tab {
     min-width: 26px;
@@ -1650,7 +1650,7 @@ body {
     font-size: 11px;
     font-weight: 600;
     cursor: pointer;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 .le-variant-tabs .le-variant-tab:hover {
@@ -1688,7 +1688,7 @@ body {
     font-weight: 600;
     color: var(--text-primary);
     font-size: 12px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     margin-bottom: 4px;
 }
 .rr-confirm-filename-list {
@@ -1697,7 +1697,7 @@ body {
     list-style: disc;
     color: var(--text-secondary);
     font-size: 11px;
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
 }
 .rr-confirm-filename-list > li {
     padding: 1px 0;
@@ -1849,7 +1849,7 @@ body {
 }
 
 .ks-range-label > input[type="number"] {
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
     width: 56px;
     padding: 2px 4px;
     border: 1px solid var(--border-warm);
@@ -1908,7 +1908,7 @@ body {
 }
 
 .trigger-precedence {
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
     font-weight: 400;
     font-size: 11px;
     color: var(--text-muted);
@@ -1957,7 +1957,7 @@ body {
 }
 
 .trigger-cc-number-label > input[type="number"] {
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
     width: 56px;
     padding: 2px 4px;
     border: 1px solid var(--border-warm);
@@ -1978,7 +1978,7 @@ body {
 .trigger-table {
     width: 100%;
     border-collapse: collapse;
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
     font-size: 11px;
 }
 
@@ -2060,7 +2060,7 @@ body {
 }
 
 .trim-active-tech {
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
     font-weight: 400;
     font-size: 11px;
     color: var(--text-muted);
@@ -2091,7 +2091,7 @@ body {
 }
 
 .trim-layer-label {
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
     font-weight: 500;
     color: var(--text-muted);
 }
@@ -2106,7 +2106,7 @@ body {
 .trim-readout {
     flex: 0 0 56px;
     text-align: right;
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
     font-size: 11px;
     color: var(--text-body);
 }
@@ -2170,8 +2170,14 @@ body {
    language. EN/FR: 99.97/133.72, 116.83/136.00, 109.05/128.11, and "Clear
    samples" 108.92/61.05 — the one that SHRINKS, pinned to ENGLISH so English
    does not move. Per-element, never a uniform rule on the row. */
-#folder-drop-zone > .drop-zone-text { min-width: 134px; }
-#folder-drop-zone > .drop-zone-or   { min-width: 13px; }
+/* v1.27.0 (zh-Hans): both floors RAISED. min-width is a FLOOR, not a cap — the
+   French-era pin below held only because French was NARROWER than the English
+   it was measured against. Chinese is WIDER on both of these (137.70 vs 134.00,
+   13.27 vs 13.00), so it sailed straight past the pin and pushed all four
+   .drop-zone-sep dots sideways. An element that already carries a min-width is
+   NOT automatically safe in a third language. */
+#folder-drop-zone > .drop-zone-text { min-width: 138px; }
+#folder-drop-zone > .drop-zone-or   { min-width: 14px; }
 #folder-drop-zone > #load-folder-btn { min-width: 136px; }
 #folder-drop-zone > #batch-loop-btn  { min-width: 129px; }
 #folder-drop-zone > #clear-samples-btn { min-width: 109px; }
@@ -2388,7 +2394,7 @@ body {
     z-index: 1100;
     max-width: 260px;
     padding: 7px 10px 8px;
-    font-family: 'Garamond', 'Times New Roman', serif;
+    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 12px;
     line-height: 1.38;
     color: var(--text-body);
@@ -2417,4 +2423,141 @@ body {
     text-transform: uppercase;
     color: var(--accent-gold);
     margin-bottom: 3px;
+}
+
+/* ── THE CJK TAIL ON THE UA-DEFAULT CONTROLS (v1.27.0, zh-Hans) ──────────────
+   The shell half of the rule documented at the foot of css/tuning-panel.css.
+   #trigger-reset and #trim-reset are <button>s that declare no font-family, so
+   they take Chromium's UA default (bare Arial) and render 恢复默认值 /
+   全部重置 through it. Arial stays FIRST so their English metrics are
+   unchanged. ────────────────────────────────────────────────────────────── */
+#trigger-reset,
+#trim-reset {
+    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* ── MEASURED LINE-HEIGHT PINS (v1.27.0, zh-Hans) ────────────────────────────
+   `line-height: normal` is the FONT'S OWN metrics, and a line box under it
+   takes the tallest strut on the line. Han resolves through PingFang SC, whose
+   metrics are taller than the Latin faces here, so every element that inherited
+   `normal` and holds text grew — 504 of the 646 elements check-ui-labels [7]
+   reported as moved were this one cause.
+
+   Each value below is the EN USED line-height, measured with
+   Range.selectNodeContents() over the element's own text node in its own
+   computed font, and written UNITLESS at that ratio so the box is identical in
+   all three languages. Measured, never guessed, and never a global rule: a
+   global line-height moves ENGLISH geometry, which is the regression the gates
+   exist to catch.
+
+     selector             font-size   EN line box   unitless
+     .tab-btn             14px        15px          15/14
+     .header-action-btn   12px        14px          14/12
+     #load-folder-btn     14px        15px          15/14
+     #batch-loop-btn      14px        15px          15/14
+     #clear-samples-btn   14px        15px          15/14
+     #trigger-reset       11px        12px          12/11
+     #trim-reset          11px        12px          12/11
+
+   NO SPECIFICITY COLLISION: none of these selectors declared a line-height
+   before, and this block is checked against the file's other 13 declarations.
+   Task 1 of this stage shipped a pin that silently overrode a v1.9.0 FRENCH pin
+   on a sibling selector and moved the fr arm — caught only because the gate
+   drives every language in one run. ──────────────────────────────────────── */
+.tab-btn           { line-height: 1.0714286; }   /* 15 / 14 */
+.header-action-btn { line-height: 1.1666667; }   /* 14 / 12 */
+#load-folder-btn,
+#batch-loop-btn,
+#clear-samples-btn { line-height: 1.0714286; }   /* 15 / 14 */
+#trigger-reset,
+#trim-reset        { line-height: 1.0909091; }   /* 12 / 11 */
+
+/* ── MEASURED WIDTH PINS (v1.27.0, zh-Hans) ──────────────────────────────────
+   Chinese buys width and spends height, so these two content-sized buttons
+   SHRANK — the opposite of the French case this file already pinned for, and
+   the direction a "must not grow" assertion is blind to.
+
+     element             en       fr       zh       pinned
+     #save-preset-btn    89.66    90.31    83.02    91
+     #load-preset-btn    90.98    90.66    83.02    91
+
+   The buttons themselves are [data-i18n] LABELS, and a label changing size is
+   expected — check-ui-labels assertion 7 sweeps NON-label elements. What failed
+   is their container: .header-actions went 222.64 -> 208.03 and pushed
+   #tab-strip 7.3 px sideways, so the report named a strip that has no copy in
+   it at all. Pinning the two buttons makes the row width language-invariant and
+   the strip stops moving.
+
+   PINNED AT THE WIDEST OF ALL THREE, which is the law this suite already
+   follows, and it does grow the English box by 1.34 px against the current
+   release. That is the move that remains once an auto-shrink font and a
+   short-variant fallback are both forbidden. ────────────────────────────────*/
+#save-preset-btn,
+#load-preset-btn { min-width: 91px; }
+
+/* ── MEASURED LINE-HEIGHT PINS, ROUND 2 (v1.27.0, zh-Hans) ───────────────────
+   The first pass pinned the buttons visible AT REST. These four families live
+   inside dialogs, a context menu and a popover — none of which is in the DOM at
+   rest, so the first sweep could not name them. They were found by driving
+   every state in tests/i18n-states.json, which is the same list the geometry
+   gate drives. THE GATE CANNOT NAME WHAT NEVER RENDERS, and a screen-by-screen
+   guess misses exactly the surfaces a user only sees once.
+
+     selector                        font-size   EN content box   unitless
+     .confirm-dialog-actions button  14px        16px             16/14
+     .loop-editor-actions button     13px        16px             16/13
+     #cell-context-menu button       13px        16px             16/13
+     .settings-toggle                12px        15px             15/12
+
+   Derived from the BOX (height - padding - border), not from the Range rect:
+   the two disagree by 1 px on this page because Range measures the text's own
+   ink rect while the box is sized by the strut. ─────────────────────────────*/
+.confirm-dialog-actions button { line-height: 1.1428571; }   /* 16 / 14 */
+.loop-editor-actions button    { line-height: 1.2307692; }   /* 16 / 13 */
+#cell-context-menu button      { line-height: 1.2307692; }   /* 16 / 13 */
+.settings-toggle               { line-height: 1.25; }        /* 15 / 12 */
+
+/* ── THE UN-WRAP PINS (v1.27.0, zh-Hans) ─────────────────────────────────────
+   The last shape, and the counter-intuitive one. Chinese says the same thing in
+   fewer characters, so these two prose blocks fit in ONE FEWER LINE than the
+   English they translate, and the dialog around them got SHORTER — every
+   report was dh=-20.3, exactly one line-height, and the instinct on reading
+   "3 moved" is to hunt for something that grew. Nothing did.
+
+     element                                        en / fr     zh        pinned
+     #missing-folder-dialog .confirm-dialog-message  81.19 *    60.89     81.19
+     #rr-confirm-dialog     .confirm-dialog-message  61.89      41.59     61.89
+
+   * the missing-folder <p> carries FOUR different messages (named / unnamed x
+     filesystem / drag-drop) and the controller sets no per-kind class, so one
+     box has to hold the tallest of them. The drag-drop face is 4 lines and the
+     filesystem face 3, so this pin also makes the dialog stop resizing between
+     its own two kinds — in every language, English included.
+
+   min-height, never height: the box may still GROW if a translation needs more
+   room. It is a floor under the un-wrap, not a cap. ────────────────────────*/
+#missing-folder-dialog .confirm-dialog-message { min-height: 81.19px; }
+#rr-confirm-dialog     .confirm-dialog-message { min-height: 61.89px; }
+
+/* ── THE INLINE <code> TOKENS IN THE ROUND-ROBIN DIALOG (v1.27.0, zh-Hans) ────
+   The un-wrap pin above holds the PARAGRAPH's box, but not the flow inside it.
+   This paragraph is prose interrupted by three <code> filename tokens, and the
+   tokens sit on the line AFTER the keyed span that precedes them:
+
+     span[label.rrBodyBefore]   en / fr 40.59 (2 lines)   zh 20.30 (1 line)
+     the three <code> tokens    en / fr y=279.75          zh y=259.47
+
+   So the tokens moved up by exactly one line-height while the paragraph around
+   them stayed put — three non-label elements moving because the PROSE BEFORE
+   THEM got shorter. Pinning the span's box to its English two-line height puts
+   them back, in every language.
+
+   The span is already full-width inline-block, so its following content starts
+   on the next line rather than sharing its last baseline; that is why a
+   min-height here moves the tokens instead of merely padding the box.
+   v1.25.1's header records that this same paragraph refused a French wording
+   restoration for the mirror-image reason — it made the caption INTERSECT these
+   three tokens. This paragraph is the delicate one on the page. ────────────*/
+#rr-confirm-dialog .confirm-dialog-message > span[data-i18n="label.rrBodyBefore"] {
+    min-height: 40.59px;
 }
