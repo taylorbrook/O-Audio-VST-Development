@@ -338,7 +338,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '强度',
               b: '设定进入所选模型的输入驱动，并同时决定有多少饱和信号叠回干净信号之上。'
-               + '低值带来柔和的泛音暖意；高值则修圆峰值并加厚音色。'
+               + '低值带来柔和的谐波暖意；高值则修圆峰值并加厚音色。'
                + '0 到 100%。',
               reviewed: 'mt' },
     },
@@ -359,9 +359,9 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '模型',
               b: '选择饱和电路。MAGNETIC 模拟磁带磁滞，带有低频磁头凸起与柔化的高频；'
-               + 'TUBE 非对称削波，产生偶次泛音与临场感提升；'
+               + 'TUBE 非对称削波，产生偶次谐波与临场感提升；'
                + 'TRANSFORMER 是柔和的 tanh 曲线，低频有分量、高频有光泽；'
-               + 'DIODE 对称削波，带来更硬的奇次泛音棱角。'
+               + 'DIODE 对称削波，带来更硬的奇次谐波棱角。'
                + '四个设定：MAGNETIC、TUBE、TRANSFORMER、DIODE。',
               reviewed: 'mt' },
     },
