@@ -18,7 +18,57 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Texture page labels and hover-help, English + French (v0.3.1)
+// i18n.js — O-Texture page labels and hover-help, English, French and Simplified
+// Chinese (v0.4.0)
+//
+// ── v0.4.0: SIMPLIFIED CHINESE (zh-Hans rollout Stage 4, wave 4a) ──
+//
+// 31 entries — 19 labels and 12 hover-help entries. LANGUAGES is three long.
+//
+// ── THE RENDERINGS ARE THE GLOSSARY'S ───────────────────────────────────────
+// Every English name string that is a TERMS key in scripts/i18n-zh-glossary.js
+// takes that term's ROOT rendering, which lint rule Z5 enforces. 20 of this page's 31 name strings are glossary roots; eleven are authored, most of them the latent-space vocabulary this plugin invents.
+//
+// ── TYPOGRAPHY ──────────────────────────────────────────────────────────────
+//   Z1 full-width punctuation; ASCII punctuation inside a Latin or numeric
+//      token is masked first.  Z2 NO U+00A0 anywhere — the inverse of the
+//      French rules on this same page.  Z4 one plain U+0020 at every
+//      Latin/digit-to-Han boundary, table-wide.  Z7 no full-width Latin or
+//      digits; units and AudioParameterChoice option words stay ASCII.
+//      Z8 no plain space between two Han code points.
+//
+// ── THE CJK FONT TAIL ───────────────────────────────────────────────────────
+// MEASURED, never reasoned from the [data-i18n] list: the page was served,
+// switched to Chinese, every state in tests/i18n-states.json driven and every
+// [data-tip] anchor hovered, and getComputedStyle().fontFamily read on every
+// node that HOLDS or CAN RECEIVE a Han codepoint.
+// SIX declarations took it, and ALL SIX LIVE IN css/ouaricon-naturalist.css:
+// index.html carries ZERO font-family declarations, so an executor grepping the
+// markup for `font-family` on this plugin gets no hits and would conclude there
+// is nothing to do.
+// The tail goes BEFORE the trailing generic, never after: Chromium resolves a
+// bare `serif` against the document's lang, so under zh-Hans the generic is
+// already a Chinese face and a tail written after it is never consulted.
+// Stacks that render no Han are deliberately untouched — the gear glyph reaches
+// Han only through data-tip (which paints in #tooltip) and aria-label (which is
+// spoken, not rendered), and the preset rows carry filenames.
+//
+// ── GEOMETRY ────────────────────────────────────────────────────────────────
+// Four line-height pins. The failures here were SHRINKS — dh of −4 on the XY pad and both character sliders — because Chinese says the same thing in fewer characters and the captions above them took less height. Every ratio in the pin block is the element's own measured
+// ENGLISH line box over its own font size, derived from the BOX rather than a
+// text ink rect, written unitless and scoped per family. No global
+// line-height: a global rule moves English, which is the regression the gates
+// exist to catch. The en and fr arms report 0 FAIL before and after.
+//
+// ── TWO FALSE SENTENCES REMOVED, NOT EXTENDED ───────────────────────────────
+// tip.gearBtn claimed the settings panel holds nothing but the language while the hover-help switch sits beside it; tip.langSelect counted the selector's options. Both are deletions, in English and French both, so the French
+// review flags stand. No gate can see this class of defect: the sentences stay
+// grammatical and the tooltips still render.
+//
+// ── THE REVIEW LIFECYCLE ────────────────────────────────────────────────────
+// The zh flag is an ENUM, not the boolean French uses, because nobody on this
+// project reads Chinese. The native-reviewed level stays OPEN and is disclosed
+// rather than hidden — lint rule R1 prints the count below the bar every run.
 //
 // ── v0.3.1: FRENCH QA PASS (Stage N, 2026-08-31) ──────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -138,7 +188,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — hover-help copy. {en:{t,b}, fr:{t,b,reviewed}}.
@@ -200,6 +250,9 @@ export const I18N = Object.freeze({
         fr: { t: "Mode",
               b: "Generate synthétise la texture à partir du seul modèle, sans aucune entrée audio. Transform remodèlera l’audio entrant par le même modèle mais n’est pas encore implémenté, d’où son bouton désactivé. Generate ou Transform.",
               reviewed: true },
+    'zh-Hans': { t: '模式',
+          b: 'Generate 只从模型合成织体，完全不需要音频输入。Transform 会把输入的音频通过同一个模型重塑，目前尚未实现，所以它的按钮是禁用的。Generate 或 Transform。',
+          reviewed: 'mt' },
     },
 
     // ── The XY pad: TWO parameters, ONE control ─────────────────────────────
@@ -222,6 +275,9 @@ export const I18N = Object.freeze({
         fr: { t: "Pad XY",
               b: "Faites glisser le point pour parcourir l’espace latent du modèle : de gauche à droite pour X, de bas en haut pour Y. Ce sont les deux dimensions les plus actives trouvées à l’entraînement, donc c’est là que la texture change le plus, et X porte aussi l’étalement stéréo entre les deux canaux. Aucun des deux axes n’est un réglage nommé — ce que vous entendez est ce que le modèle a appris à cet endroit — et tous deux vont de 0,000 à 1,000.",
               reviewed: true },
+    'zh-Hans': { t: 'XY 板',
+          b: '拖动圆点在模型的潜空间中移动：左右是 X，上下是 Y。它们是训练过程找到的两个最活跃的维度，因此织体在这里变化最大，而 X 同时还承载两个声道之间的立体声展开。两个轴都不是具名的控制项——你听到的就是模型在那里学到的东西——两者都在 0.000 到 1.000 之间。',
+          reviewed: 'mt' },
     },
 
     // ── The three vertical sliders ──────────────────────────────────────────
@@ -234,6 +290,9 @@ export const I18N = Object.freeze({
         fr: { t: "Caractère A",
               b: "La troisième dimension de l’espace latent, tenue à l’écart du pad pour qu’une texture trouvée dessus puisse varier sans quitter sa position. Elle porte moins de variance du modèle que X ou Y : la même course produit donc un changement plus fin que sur l’un ou l’autre. De 0,00 à 1,00.",
               reviewed: true },
+    'zh-Hans': { t: '性格 A',
+          b: '潜空间的第三个维度，特意放在板外，这样在那里找到的织体可以在不离开该位置的情况下加以变化。它承载的模型方差比 X 或 Y 都少，因此同样的行程带来的变化比两者都小。0.00 到 1.00。',
+          reviewed: 'mt' },
     },
 
     // CHARACTER_B is dimension 3, variance 0.7 — the least active of the four.
@@ -243,6 +302,9 @@ export const I18N = Object.freeze({
         fr: { t: "Caractère B",
               b: "La quatrième dimension latente, et la moins active des quatre dimensions proposées ici. Utilisez-la en dernier, une fois la texture trouvée avec le pad et Caractère A, quand le déplacement voulu est le plus fin des quatre. De 0,00 à 1,00. De 0,00 à 1,00.",
               reviewed: true },
+    'zh-Hans': { t: '性格 B',
+          b: '第四个潜空间维度，也是本插件所公开的四个当中最不活跃的一个。等到板与性格 A 已经找到织体之后再动它，也就是当你想要的改动是四者中最小的那一个时。0.00 到 1.00。',
+          reviewed: 'mt' },
     },
 
     // EVOLVE drives a 1-D Perlin walk over the eight REMAINING active latent
@@ -257,6 +319,9 @@ export const I18N = Object.freeze({
         fr: { t: "Évolution",
               b: "La vitesse à laquelle la texture dérive d’elle-même : une marche aléatoire lissée sur huit autres dimensions latentes, à raison d’un pas par bloc de 2048 échantillons. La réponse est mise au carré, donc tout le mouvement lent et utilisable se trouve dans la moitié basse de la course. De 0,00, parfaitement immobile, à 1,00.",
               reviewed: true },
+    'zh-Hans': { t: '演化',
+          b: '织体自行漂移的快慢：在另外八个潜空间维度上做平滑的随机游走，每 2048 个采样的块走一步。响应是平方的，所以全部缓慢可用的运动都落在范围的下半部分。0.00 是完全静止，到 1.00。',
+          reviewed: 'mt' },
     },
 
     // ── The source row ──────────────────────────────────────────────────────
@@ -270,6 +335,10 @@ export const I18N = Object.freeze({
         fr: { t: "Source",
               b: "Choisit le modèle de texture entraîné dont le générateur décode le son. Seul Rain dispose d’un modèle aujourd’hui : les cinq autres boutons restent désactivés tant que le leur n’est pas entraîné, et les presser ne fait rien. Rain, Metal, Wind, Crowd, Synth, Organic.",
               reviewed: true },
+    'zh-Hans': { t: '源',
+          b: '选择生成器从哪一个已训练的织体模型解码。今天只有 Rain 有模型——其余五个按钮在各自的模型训练好之前保持禁用，按下不会有任何反应。Rain、Metal、Wind、Crowd、'
+           + 'Synth、Organic。',
+          reviewed: 'mt' },
     },
 
     // ── The bottom strip ────────────────────────────────────────────────────
@@ -285,6 +354,10 @@ export const I18N = Object.freeze({
         fr: { t: "Brillance",
               b: "Un filtre en bascule pivotant à 800 Hz, appliqué après le décodeur : vers le haut, les aigus montent pendant que les graves reculent ; vers le bas, les deux s’inversent. C’est la seule correction tonale du plugin, et à 0,00 elle est réellement contournée et pas seulement plate. De −1,00 à +1,00.",
               reviewed: true },
+    'zh-Hans': { t: '明亮度',
+          b: '一个以 800 Hz 为支点的倾斜滤波器，作用在解码器之后：调高则频谱高端抬起而低端落下，调低则两者互换。它是本插件唯一的音色控制，而在 0.00 时它是被直接旁通的，而不只是变平。'
+           + '−1.00 到 +1.00。',
+          reviewed: 'mt' },
     },
 
     // MIX is a LEVEL, not a blend, and the tooltip says so. processBlock ends
@@ -301,6 +374,9 @@ export const I18N = Object.freeze({
         fr: { t: "Mix",
               b: "Le niveau de sortie de la texture générée. Le mode Generate n’a aucun signal d’entrée à doser, il s’agit donc d’un simple fondu du silence au plein niveau et non d’un équilibre entre son direct et son traité. De 0,00 à 1,00.",
               reviewed: true },
+    'zh-Hans': { t: '混合',
+          b: '所生成织体的输出电平。Generate 模式没有输入信号可供平衡，因此这是一条从静音到满量的直接淡入，而不是干湿控制。0.00 到 1.00。',
+          reviewed: 'mt' },
     },
 
     // FREEZE — AudioParameterBool. PerlinNoise1D::advance returns immediately
@@ -314,6 +390,9 @@ export const I18N = Object.freeze({
         fr: { t: "Gel",
               b: "Fige la marche d’Évolution exactement où elle en est : la texture cesse de dériver et reste telle quelle. Tout le reste répond encore tant que le gel est actif — le pad, les deux curseurs de Caractère, Brillance et Mix continuent de fonctionner. Désactivé ou activé.",
               reviewed: true },
+    'zh-Hans': { t: '冻结',
+          b: '把演化的游走原地保持住，使织体停止漂移，维持现状。开启期间其余部分仍然响应——板、两个性格滑块、明亮度与混合都照常工作。关或开。',
+          reviewed: 'mt' },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -331,17 +410,23 @@ export const I18N = Object.freeze({
     // property (PluginProcessor.cpp:613).
     'tip.gearBtn': {
         en: { t: "Settings",
-              b: "Opens the panel that sets the language of this interface. That is all it holds: the captions on this page and this hover help switch with it, and the choice is saved with the project, so a session reopens in the language it was saved in." },
+              b: "Opens the panel that sets the language of this interface. The captions on this page and this hover help switch with it, and the choice is saved with the project, so a session reopens in the language it was saved in." },
         fr: { t: "Réglages",
-              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et ces infobulles changent avec elle, et le choix est enregistré avec le projet — une session se rouvre donc dans la langue enregistrée.",
+              b: "Ouvre le panneau qui règle la langue de cette interface. Les libellés de cette page et ces infobulles changent avec elle, et le choix est enregistré avec le projet — une session se rouvre donc dans la langue enregistrée.",
               reviewed: true },
+    'zh-Hans': { t: '设置',
+          b: '打开设定本界面语言的面板。本页的说明文字与这些悬停帮助会随之切换，该选择随工程一同保存，因此会话会以保存时的语言重新打开。',
+          reviewed: 'mt' },
     },
     'tip.langSelect': {
         en: { t: "Language",
-              b: "The language of the captions on this page and of this hover help. English and French are available. The value readouts, the six source names and the two mode names stay in English so that the page and the host's automation lane agree about the same setting." },
+              b: "The language of the captions on this page and of this hover help. The value readouts, the six source names and the two mode names stay in English so that the page and the host's automation lane agree about the same setting." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de ces infobulles. L’anglais et le français sont disponibles. Les valeurs affichées, les six noms de sources et les deux noms de modes restent en anglais pour que la page et la voie d’automation de l’hôte s’accordent sur un même réglage.",
+              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées, les six noms de sources et les deux noms de modes restent en anglais pour que la page et la voie d’automation de l’hôte s’accordent sur un même réglage.",
               reviewed: true },
+    'zh-Hans': { t: '语言',
+          b: '本页说明文字与这些悬停帮助的语言。数值读数、六个源名称与两个模式名称保持英文，让页面与宿主的自动化通道对同一个设置的称呼保持一致。',
+          reviewed: 'mt' },
     },
     // v0.4.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -352,6 +437,9 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+    'zh-Hans': { t: '悬停帮助',
+          b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
+          reviewed: 'mt' },
     },
 });
 
@@ -432,20 +520,20 @@ export const LABELS = Object.freeze({
     // of margin — thinner than any margin this rollout has accepted, and the
     // Windows/WebView2 font metrics that would decide it are the named
     // hardware-blocked deferral. "Car. A" is 33.4 px with 16.6 px to spare.
-    'label.charA':  { en: { t: 'Char A' }, fr: { t: 'Car. A', reviewed: true } },
-    'label.charB':  { en: { t: 'Char B' }, fr: { t: 'Car. B', reviewed: true } },
+    'label.charA':  { en: { t: 'Char A' }, fr: { t: 'Car. A', reviewed: true }, 'zh-Hans': { t: '性格 A', reviewed: 'mt' } },
+    'label.charB':  { en: { t: 'Char B' }, fr: { t: 'Car. B', reviewed: true }, 'zh-Hans': { t: '性格 B', reviewed: 'mt' } },
 
     // Same 50 px budget, and the single-word case. MEASURED: "Évolution" is
     // 52.5 px and is ONE WORD, so it cannot wrap — it overhangs the 50 px
     // column into the 8 px gap beside it. "Évolue" fits at 36.7 px but is a
     // conjugated verb where the two neighbours are noun abbreviations.
     // "Évol." is 27.5 px and matches their shape.
-    'label.evolve': { en: { t: 'Evolve' }, fr: { t: 'Évol.', reviewed: true } },
+    'label.evolve': { en: { t: 'Evolve' }, fr: { t: 'Évol.', reviewed: true }, 'zh-Hans': { t: '演化', reviewed: 'mt' } },
 
     // ── The two knobs ───────────────────────────────────────────────────────
     // Captions, NOT readouts: .knob-value is a separate sibling node and is the
     // only thing that ever holds a number here (D-01 arm 3, contract 5).
-    'label.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: true } },
+    'label.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: true }, 'zh-Hans': { t: '明亮度', reviewed: 'mt' } },
 
     // MIX is the APVTS parameter ID and "Mix" its display name, not a choice
     // option — an AudioParameterFloat has no option strings for a French
@@ -457,32 +545,32 @@ export const LABELS = Object.freeze({
     // straight copy is deliberate, so it carries sameAsEn: true for
     // check-i18n assertion 4; it is also the only French caption on this page
     // that now agrees byte-for-byte with the host's automation lane.
-    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true } },
+    'label.mix': { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '混合', reviewed: 'mt' } },
 
     // FREEZE is an AudioParameterBool. Same reasoning as MIX: no option
     // strings, so nothing in the host is spelled "Freeze" for this to contradict.
     // .freeze-label is text-transform: uppercase, so the table holds the
     // authored case and the page renders GEL.
-    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'Gel', reviewed: true } },
+    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'Gel', reviewed: true }, 'zh-Hans': { t: '冻结', reviewed: 'mt' } },
 
     // ── The settings popover (v0.2.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'mt' } },
 
     // v0.4.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'mt' } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'mt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
     // hears the same language the page is showing.
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'mt' } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
 
     // ── The six not-yet-implemented controls ────────────────────────────────
     //
@@ -497,12 +585,12 @@ export const LABELS = Object.freeze({
     // The identifier half stays byte-identical in French for the same reason
     // the visible caption does — it is a SOURCE / MODE choice option (D-01
     // arm 1). Only the status half is translated.
-    'aria.soon.transform': { en: { t: 'Transform — coming soon' }, fr: { t: 'Transform — bientôt disponible', reviewed: true } },
-    'aria.soon.metal':     { en: { t: 'Metal — coming soon' },     fr: { t: 'Metal — bientôt disponible',     reviewed: true } },
-    'aria.soon.wind':      { en: { t: 'Wind — coming soon' },      fr: { t: 'Wind — bientôt disponible',      reviewed: true } },
-    'aria.soon.crowd':     { en: { t: 'Crowd — coming soon' },     fr: { t: 'Crowd — bientôt disponible',     reviewed: true } },
-    'aria.soon.synth':     { en: { t: 'Synth — coming soon' },     fr: { t: 'Synth — bientôt disponible',     reviewed: true } },
-    'aria.soon.organic':   { en: { t: 'Organic — coming soon' },   fr: { t: 'Organic — bientôt disponible',   reviewed: true } },
+    'aria.soon.transform': { en: { t: 'Transform — coming soon' }, fr: { t: 'Transform — bientôt disponible', reviewed: true }, 'zh-Hans': { t: 'Transform — 即将推出', reviewed: 'mt' } },
+    'aria.soon.metal':     { en: { t: 'Metal — coming soon' },     fr: { t: 'Metal — bientôt disponible',     reviewed: true }, 'zh-Hans': { t: 'Metal — 即将推出', reviewed: 'mt' } },
+    'aria.soon.wind':      { en: { t: 'Wind — coming soon' },      fr: { t: 'Wind — bientôt disponible',      reviewed: true }, 'zh-Hans': { t: 'Wind — 即将推出', reviewed: 'mt' } },
+    'aria.soon.crowd':     { en: { t: 'Crowd — coming soon' },     fr: { t: 'Crowd — bientôt disponible',     reviewed: true }, 'zh-Hans': { t: 'Crowd — 即将推出', reviewed: 'mt' } },
+    'aria.soon.synth':     { en: { t: 'Synth — coming soon' },     fr: { t: 'Synth — bientôt disponible',     reviewed: true }, 'zh-Hans': { t: 'Synth — 即将推出', reviewed: 'mt' } },
+    'aria.soon.organic':   { en: { t: 'Organic — coming soon' },   fr: { t: 'Organic — bientôt disponible',   reviewed: true }, 'zh-Hans': { t: 'Organic — 即将推出', reviewed: 'mt' } },
 });
 
 // ============================================================================
