@@ -88,7 +88,7 @@ parameter, range, type or state format changed, and no DSP was touched.
 `check-i18n` exit 0; `check-ui-labels` exit 0, 0 FAIL on all three arms;
 `i18n-zh-lint` 0 findings, `BELOW SHIP BAR 0`; `i18n-fr-lint` exit 0; the tip
 gate passes with a real Chinese arm. Zero Han under `Source/**` with the
-positive control fired. `auval -v aufx OuSr Ouar` AU VALIDATION SUCCEEDED.
+positive control fired. `auval -v aufx OuSr OuDv` AU VALIDATION SUCCEEDED.
 
 ## [1.8.1] - 2026-09-03
 

@@ -140,7 +140,7 @@ in its own commit earlier in the same task; `i18n-fr-lint` exit 0, French
 untouched; `tests/ui_tip_render_check.js` 263 PASS; `boot-all-uis --strict-tips`
 0 dead and 0 late bindings. Zero Han characters anywhere under `Source/**` —
 `perl -CSD` with a Han script property, and the positive control fired on the
-same run against `js/i18n.js`. `auval -v aufx OuTr Ouar` AU VALIDATION
+same run against `js/i18n.js`. `auval -v aufx OuTr OuDv` AU VALIDATION
 SUCCEEDED.
 
 ## [1.9.1] - 2026-09-03
