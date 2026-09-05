@@ -86,11 +86,17 @@ public:
     // ------------------------------------------------------------------------
     std::atomic<int> uiLanguage { 0 };
 
-    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
-        hand-edited session or an unexpected argument from the page degrades to
-        English rather than being stored unvalidated. */
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    /** The codec. languageIndex() maps anything that is neither "fr" nor
+        "zh-Hans" to 0, so a hand-edited session or an unexpected argument from
+        the page degrades to English rather than being stored unvalidated.
+
+        PURE ASCII, AND THAT IS THE CONTRACT. Not one Han character exists
+        anywhere under Source/ — every Chinese string lives in the UI table
+        (Source/ui/public/js/i18n.js), and the one Han string in the markup is
+        written as numeric character references. What is persisted here is a
+        language CODE, which is an ASCII identifier in every language. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
 private:
     // Parameter layout creation
