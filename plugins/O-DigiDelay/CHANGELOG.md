@@ -5,6 +5,95 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-09-05
+
+**Simplified Chinese.** Every caption, hover-help body and accessible name now
+renders in `zh-Hans` alongside English and French — 36 entries, 46 emitter rows.
+MINOR: a language is added and two English hover-help bodies are corrected; no
+parameter, range, type or state format changed, and no DSP was touched.
+
+### Added
+
+- **`zh-Hans` on all 36 entries.** `LANGUAGES` reads three, the selector carries
+  a third `<option>` written as numeric character references
+  (`&#31616;&#20307;&#20013;&#25991;`), and `PluginProcessor.h`'s
+  `languageCode` / `languageIndex` codec is three-way and pure ASCII.
+
+  **DISCLOSED QUALITY LEVEL: `reviewed: 'bt'`, not `'native'`.** This project
+  has no native Chinese reader, so the ship bar for the Chinese rollout is a
+  BACK-TRANSLATION: an independent pass that has never seen the English source
+  renders the shipped Chinese back into English, and the drift is read in a
+  language this project can read. **Every one of the 46 rows was carried through
+  that pass and read**, with `--verbose` rather than the twelve the default view
+  prints.
+
+      forward   claude-opus-5 forward draft, quick task 260905-acr, 2026-09-05
+      reverse   claude-sonnet-4-5, fresh non-interactive session, no tools,
+                cwd outside the repo, 2026-09-05
+
+  `reviewed: 'native'` stays OPEN and is printed by the lint's R1 rule on every
+  run. Nothing here has been read by a native speaker.
+
+  Every drift was accepted with a written reason; none could send a reader to a
+  different control, which is the discriminator. The recurring shape is
+  ABBREVIATION EXPANSION and is not a defect: this page's captions are
+  all-caps abbreviations — MOD, SPREAD, OUT — and Chinese has no equivalent
+  two-glyph abbreviation convention, so the round trip spells them out
+  ("Modulation", "Widen", "Output") while the zh the user actually reads is
+  correct.
+
+  `spread` carries two glossary roots and took the listed alternate 展宽 rather
+  than 扩散, which is reverb DIFFUSION — the same rendering O-IntonationPad's
+  stereo spread took in the same wave, so one idea reads as one word across the
+  suite.
+
+- **A CJK font tail on all nine font stacks**, placed BEFORE the trailing
+  generic. Chromium resolves a bare generic against the document's `lang`, so
+  under `zh-Hans` it is already a Chinese face and a tail written after it is
+  never consulted. **This is the only plugin in its wave that needed the tail
+  and nothing else:** all nine stacks already named `'Times New Roman'` ahead of
+  the generic, so none of its Latin was ever exposed to the document language.
+  Verified by computed style with the page in Chinese: 22 Han-bearing nodes of
+  65 visible, all 22 through a PingFang SC stack.
+
+### Fixed
+
+- **Two hover-help bodies asserted things that were no longer true**, in English
+  and in French both. The gear body said the settings panel holds nothing
+  besides the interface language — true when written, false since the
+  hover-help switch landed in the same panel — and the language body spelled out
+  the two languages the selector then held. Both clauses are DELETED rather than
+  extended: an enumeration is false again the next time a row or an option
+  lands, which is exactly how both of these broke.
+
+- **Seven elements grew 2 to 3 px on the Chinese arm** from `line-height:
+  normal`, which is not a number — it is whatever the resolved face calls its
+  natural line box, and the resolved face changes with the document language.
+  Each leaf is now pinned to its own measured English box, unitless and scoped;
+  every pin is a no-op in English and French.
+
+- **`tests/ui_tip_render_check.js` named its own languages and asserted a
+  direction.** It iterated a three-element array literal, which is the spelling
+  the repo-wide inventory grep cannot see, so it was invisible to that census as
+  well as to itself. And its assertion `[5]` required the non-English pass to be
+  strictly TALLER — true for French, **false for Chinese, which says the same
+  thing in fewer glyphs and SHRINKS the tip**: measured here, SPREAD 92 → 77,
+  WET 92 → 77, DRY 92 → 77. The old line would have hard-failed the Chinese arm
+  on a page where nothing was wrong. The list is now derived from the table's
+  own `LANGUAGES` export behind a derive-or-abort guard — an empty list exits
+  non-zero rather than walking zero languages and reporting green — and the
+  assertion now requires a DIFFERENCE in either direction, per non-English
+  language. The gate runs 300 checks where it ran 186.
+
+### Verification
+
+`check-i18n` exit 0; `check-ui-labels` exit 0 with 0 FAIL on the English, French
+and Chinese arms; `i18n-zh-lint` 0 findings and `BELOW SHIP BAR 0` — authored
+under that lint as a **gate** rather than a report, flipped earlier in the same
+task; `i18n-fr-lint` exit 0; the tip gate 300 PASS. Zero Han characters anywhere
+under `Source/**`, with the positive control fired on the same run.
+`auval -v aufx OuDD Ouar` AU VALIDATION SUCCEEDED.
+
 ## [1.5.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
