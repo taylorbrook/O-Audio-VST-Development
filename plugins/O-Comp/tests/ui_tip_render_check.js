@@ -205,7 +205,27 @@ const READ_TIP = `() => {
     const { I18N, TIP_BINDINGS, LANGUAGES } = loadTable(i18nSrc);
     check(Array.isArray(TIP_BINDINGS) && TIP_BINDINGS.length > 0,
         `TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} anchor(s)`);
-    check(LANGUAGES.join(',') === 'en,fr', `LANGUAGES is en,fr — got ${LANGUAGES.join(',')}`);
+    // ── the language list is DERIVED, and it ABORTS rather than falling back ──
+    //
+    // This gate used to ASSERT the pair — `LANGUAGES.join(',') === 'en,fr'` —
+    // which is the shape that hard-fails the day a third language lands, and it
+    // is on the repo-wide inventory of two-language gate files for exactly that
+    // reason. It now derives the list instead, so a fourth language is
+    // exercised without editing this file.
+    //
+    // AND IT ABORTS. A derivation that quietly yielded an empty list would turn
+    // the sweep below into a loop that runs zero times and prints nothing,
+    // which reads as a pass. The control is fired deliberately by planting an
+    // empty LANGUAGES and confirming a non-zero exit, because a refusal that
+    // has never fired proves nothing.
+    if (!Array.isArray(LANGUAGES) || LANGUAGES.length < 2 || LANGUAGES[0] !== 'en') {
+        check(false, `[0] LANGUAGES derived to a usable list — got ${JSON.stringify(LANGUAGES)}. `
+                   + 'This gate refuses to run on a language set it cannot read rather than '
+                   + 'silently measuring English against itself.');
+        process.exit(2);
+    }
+    const OTHER_LANGS = LANGUAGES.filter((l) => l !== 'en');
+    check(true, `[0] LANGUAGES derived: ${LANGUAGES.join(', ')} — read from the table, never named here`);
 
     // The three canvas entries (empty body) must stay OUT of the bindings. A
     // binding on one of them would paint an empty surface on hover and would
@@ -393,16 +413,19 @@ const READ_TIP = `() => {
 
     await sweep('en');
 
-    // ── 5. French, then back ────────────────────────────────────────────────
-    // French runs 15-20% longer, wraps to more lines against the max-width cap
-    // and grows the tip's HEIGHT, so a tip that fits in English can overflow the
-    // bottom of a 360px frame in French. That is why the whole sweep repeats
-    // rather than spot-checking one anchor.
-    await page.evaluate((l) => window.__setLanguage(l), 'fr');
-    await page.waitForTimeout(150);
-    const frLang = await page.evaluate(() => document.getElementById('lang-select').value);
-    check(frLang === 'fr', `[5] window.__setLanguage('fr') took — selector reads "${frLang}"`);
-    await sweep('fr');
+    // ── 5. every non-English arm the table declares, then back ──────────────
+    // The arms differ from English in OPPOSITE directions and the sweep has to
+    // survive both: French runs 15-20% longer and wraps to more lines against
+    // the max-width cap, growing the tip's HEIGHT, while Chinese says the same
+    // thing in fewer characters and wraps SHORTER. Every assertion inside
+    // sweep() is a containment or an equality, so neither direction is assumed.
+    for (const lang of OTHER_LANGS) {
+        await page.evaluate((l) => window.__setLanguage(l), lang);
+        await page.waitForTimeout(150);
+        const got = await page.evaluate(() => document.getElementById('lang-select').value);
+        check(got === lang, `[5] window.__setLanguage('${lang}') took — selector reads "${got}"`);
+        await sweep(lang);
+    }
 
     await page.evaluate((l) => window.__setLanguage(l), 'en');
     await page.waitForTimeout(150);

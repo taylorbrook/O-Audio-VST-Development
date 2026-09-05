@@ -48,7 +48,7 @@
       background-size: cover;
       background-position: center;
       color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', serif;
+      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     }
 
     /* Container fills entire window */
@@ -183,7 +183,7 @@
 
     .preset-dropdown-header {
       padding: 3px 8px;
-      font-family: Garamond, 'Times New Roman', serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 9px;
       color: #5C4033;
       font-weight: bold;
@@ -223,7 +223,7 @@
       background: rgba(139, 115, 85, 0.3);
       border: 1px solid #8B7355;
       border-radius: 2px;
-      font-family: Garamond, 'Times New Roman', serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 9px;
       color: #3C2F2F;
       cursor: pointer;
@@ -517,7 +517,7 @@
       border: 1px solid #8B7355;
       border-radius: 2px;
       color: #3C2F2F;
-      font-family: Garamond, 'Times New Roman', serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 10px;
       line-height: 1.2;
       cursor: pointer;
@@ -548,7 +548,7 @@
       border: 1px solid #8B7355;
       border-radius: 2px;
       color: #3C2F2F;
-      font-family: Garamond, 'Times New Roman', serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 10px;
       line-height: 1.2;
       outline: none;
@@ -616,7 +616,7 @@
       z-index: 70;
       max-width: 250px;
       padding: 7px 10px 8px;
-      font-family: Garamond, 'Times New Roman', serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 11.5px;
       line-height: 1.4;
       color: #3C2F2F;
@@ -650,7 +650,28 @@
       top: 0;
       left: 0;
     }
-  </style>
+  
+/* ══════════════════════════════════════════════════════════════════════════
+   zh-Hans GEOMETRY PINS
+
+   Han faces carry taller metrics than the Latin faces above, so every caption
+   that inherited the UA's `line-height: normal` changed height the moment its
+   text became Chinese, and in normal flow that moved everything below it.
+
+   EVERY RATIO IS MEASURED: the element's own ENGLISH line box over its own
+   font size, where the line box is derived from the BOX (height minus padding
+   minus border) and never from a text ink rect. Written unitless so it is
+   font-independent, and scoped per family so nothing else inherits it. There is
+   NO GLOBAL line-height — a global rule moves English, which is the regression
+   these gates exist to catch. Checked for specificity against the existing
+   declarations in this file before being appended.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.param-label                { line-height: 1.0909; }   /* EN box 12 px at 11 px */
+.viz-label,
+.settings-label,
+.preset-dropdown-header     { line-height: 1.1111; }   /* EN box 10 px at 9 px  */
+</style>
 </head>
 <body>
   <div class="container">
@@ -718,6 +739,11 @@
                   data-i18n-aria="aria.langSelect" aria-label="Interface language">
             <option value="en">English</option>
             <option value="fr">Fran&ccedil;ais</option>
+            <!-- NUMERIC ENTITIES: the markup path stays pure ASCII on disk
+                 whatever a later editor's encoding does to it. This <option> is
+                 the ONLY place Han reaches this file, and a keyed scan never
+                 sees it - an endonym carries no data-i18n. -->
+            <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
           </select>
         </label>
 
@@ -1333,7 +1359,7 @@
           ? `-${meterState.gainReduction.toFixed(1)}`
           : '0.0';
         envCtx.fillStyle = '#3C2F2F';
-        envCtx.font = '11px Garamond, serif';
+        envCtx.font = '11px Garamond, "PingFang SC", "Microsoft YaHei", serif';
         envCtx.fillText(
           trLabel('canvas.gr', uiLanguage, { v: grValue }),
           10, envCanvas.height - 25
@@ -1351,7 +1377,7 @@
         // Both are drawn at x = 10 in a 308px canvas, so length is free:
         // measured 33.99 -> 38.49 and 56.74 -> 65.48 with ctx.measureText.
         envCtx.fillStyle = '#5C4033';
-        envCtx.font = '9px Garamond, serif';
+        envCtx.font = '9px Garamond, "PingFang SC", "Microsoft YaHei", serif';
         envCtx.fillText(trLabel('canvas.envelope', uiLanguage), 10, 15);
         envCtx.fillText(trLabel('canvas.gainReduction', uiLanguage), 10, envCanvas.height / 2 + 35);
 
