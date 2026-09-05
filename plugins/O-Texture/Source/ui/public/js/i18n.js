@@ -275,7 +275,7 @@ export const I18N = Object.freeze({
         fr: { t: "Pad XY",
               b: "Faites glisser le point pour parcourir l’espace latent du modèle : de gauche à droite pour X, de bas en haut pour Y. Ce sont les deux dimensions les plus actives trouvées à l’entraînement, donc c’est là que la texture change le plus, et X porte aussi l’étalement stéréo entre les deux canaux. Aucun des deux axes n’est un réglage nommé — ce que vous entendez est ce que le modèle a appris à cet endroit — et tous deux vont de 0,000 à 1,000.",
               reviewed: true },
-    'zh-Hans': { t: 'XY 板',
+    'zh-Hans': { t: 'XY 控制板',
           b: '拖动圆点在模型的潜空间中移动：左右是 X，上下是 Y。它们是训练过程找到的两个最活跃的维度，因此织体在这里变化最大，而 X 同时还承载两个声道之间的立体声展开。两个轴都不是具名的控制项——你听到的就是模型在那里学到的东西——两者都在 0.000 到 1.000 之间。',
           reviewed: 'mt' },
     },
