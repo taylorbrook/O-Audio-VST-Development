@@ -108,7 +108,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — hover-help copy. {en:{t, b}, fr:{t, b, reviewed}}.
@@ -185,6 +185,9 @@ export const I18N = Object.freeze({
         fr: { t: "Console",
               b: "Choisit la machine par laquelle le son passe : codec, fréquence d’échantillonnage interne fixe et étage de sortie changent ensemble. Le changement se fait par un fondu enchaîné de 30 ms, sans risque pendant la lecture. Cinq réglages : SNES, PS1, NES, Game Boy, Genesis.",
               reviewed: true },
+        'zh-Hans': { t: '控制台',
+              b: '选择声音经由哪一台机器播放 — 编解码器、固定的内部采样率与输出级会一起改变。切换时以 30 ms 交叉淡化，因此在有音频运行时切换是安全的。五档：SNES、PS1、NES、Game Boy、Genesis。',
+              reviewed: 'mt' },
     },
 
     // crush — 0..100 %, default 50. The "still passes the codec at 0" sentence
@@ -196,6 +199,9 @@ export const I18N = Object.freeze({
         fr: { t: "Broyage",
               b: "À quel point le signal est poussé dans le codec de la console : le gain d’encodage, des pas de quantification plus grossiers et, au-delà de 80 %, l’ouverture du filtre anti-repliement pour un repliement volontaire. À 0 le signal traverse quand même tout le codec : ce réglage atténue la couleur, il ne la contourne pas. 0 à 100 %.",
               reviewed: true },
+        'zh-Hans': { t: '压碎',
+              b: '信号被多用力地推过控制台的编解码器：编码器增益、更粗的量化步进，超过 80% 后还会打开抗混叠滤波器以获得刻意的混叠。为 0 时信号仍然走完整个编解码往返，因此这个旋钮是让色彩变淡，而不是把它旁通。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // age — 0..100 %, default 20. The noise floor ramps in above ~5 %, which is
@@ -207,6 +213,9 @@ export const I18N = Object.freeze({
         fr: { t: "Âge",
               b: "L’état de la machine : souffle, ronflement secteur, un filtre de sortie plus sourd et une lente dérive du rapport de rééchantillonnage qui désaccorde jusqu’à 15 cents. Le bruit de fond reste inaudible en bas de la course et n’apparaît qu’au-delà d’environ 5 %. 0 à 100 %.",
               reviewed: true },
+        'zh-Hans': { t: '老化',
+              b: '硬件的状况：嘶声、市电哼声、更闷的输出滤波器，以及重采样比率的缓慢游移，最多可失谐 15 音分。噪声底在行程底端保持安静，大约 5% 以上才进来。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // reverb — 0..100 %, default 0. Available in EVERY console mode, which is
@@ -217,6 +226,9 @@ export const I18N = Object.freeze({
         fr: { t: "Réverb",
               b: "Niveau d’envoi vers la réverbération de la PlayStation : un réglage Hall issu du modèle de registres de cette console, disponible dans tous les modes de console, pas seulement en PS1. L’envoi est pris après le codec, donc la réverbération entend le signal dégradé et non le signal intact. 0 à 100 %.",
               reviewed: true },
+        'zh-Hans': { t: '混响',
+              b: '送入 PlayStation 混响的发送电平 — 取自该主机自身寄存器模型的一个 Hall 设定，在每一种控制台模式下都可用，不只是 PS1。发送取自编解码器之后，因此混响听到的是劣化后的信号而不是干净的信号。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // mix — 0..100 %, default 100. The Age bed being wet-path only is the part
@@ -227,6 +239,9 @@ export const I18N = Object.freeze({
         fr: { t: "Mix",
               b: "Équilibre le signal émulé et l’entrée intacte. Le trajet direct est compensé en latence : à 0 % l’entrée ressort inchangée, et le souffle et le ronflement du réglage Âge disparaissent eux aussi, car ils n’existent que sur le trajet traité. 0 à 100 %.",
               reviewed: true },
+        'zh-Hans': { t: '混合',
+              b: '在模拟出的信号与未经处理的输入之间调和。干路径经过延迟补偿，因此在 0% 时输入原样通过 — 老化控件的嘶声与哼声也随之消失，因为它们只存在于湿路径上。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -236,19 +251,42 @@ export const I18N = Object.freeze({
     // no hover-help on/off toggle — not a C++ one, not a localStorage one — so
     // the panel holds the language selector and nothing else, and the tip says
     // exactly that. A tip that promised a toggle would be a tip that lies.
+    // TWO ENUMERATIONS DELETED IN v1.4.0, EN AND FR BOTH.
+    //
+    // The gear body asserted that the settings panel holds nothing besides the
+    // interface language. That was true when it was written and stopped being
+    // true when the hover-help switch landed in the same panel — the tip has
+    // been describing one of two controls and denying the second ever since.
+    //
+    // The language body ended by spelling out the two languages the selector
+    // then held, which was true for exactly as long as the selector held two
+    // and became false the moment this version added a third.
+    //
+    // BOTH ARE DELETIONS RATHER THAN EXTENSIONS. An enumeration is false again
+    // the next time a row or an option lands, which is how both of these broke;
+    // and the selector already lists the languages in their own endonyms, which
+    // is the one form a reader recognises without knowing the page language.
+    // Neither superseded sentence is reproduced in these comments, so a
+    // repo-wide grep for either stays at zero on this file.
     'tip.gearBtn': {
         en: { t: "Settings",
-              b: "Opens the panel that sets the language of this interface. That is all it holds: the labels on this page and this hover help switch with it, and the choice is kept with the session, so a project reopens in the language it was saved in." },
+              b: "Opens the panel that sets the language of this interface. The labels on this page and this hover help switch with it, and the choice is kept with the session, so a project reopens in the language it was saved in." },
         fr: { t: "Réglages",
-              b: "Ouvre le panneau qui règle la langue de cette interface. Il ne contient rien d’autre : les libellés de cette page et ces infobulles changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue dans laquelle il a été enregistré.",
+              b: "Ouvre le panneau qui règle la langue de cette interface. Les libellés de cette page et ces infobulles changent avec elle, et le choix est conservé avec la session — un projet se rouvre dans la langue dans laquelle il a été enregistré.",
               reviewed: true },
+        'zh-Hans': { t: '设置',
+              b: '打开设定本界面语言的面板。本页的标签与这些悬停帮助会随之切换，该选择随会话一同保存，因此项目会以保存时的语言重新打开。',
+              reviewed: 'mt' },
     },
     'tip.langSelect': {
         en: { t: "Language",
-              b: "The language of the labels on this page and of this hover help. English and French are available. Value readouts, the five console names and preset names stay in English so the page and the host agree." },
+              b: "The language of the labels on this page and of this hover help. Value readouts, the five console names and preset names stay in English so the page and the host agree." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de ces infobulles. L’anglais et le français sont disponibles. Les valeurs affichées, les cinq noms de consoles et les noms de préréglages restent en anglais pour que la page et l’hôte s’accordent.",
+              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées, les cinq noms de consoles et les noms de préréglages restent en anglais pour que la page et l’hôte s’accordent.",
               reviewed: true },
+        'zh-Hans': { t: '语言',
+              b: '本页标签与这些悬停帮助的语言。数值读数、五个控制台名称与预设名称保持英文，让页面与宿主保持一致。',
+              reviewed: 'mt' },
     },
     // v1.3.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -259,6 +297,9 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+        'zh-Hans': { t: '悬停帮助',
+              b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
+              reviewed: 'mt' },
     },
 });
 
@@ -333,10 +374,10 @@ export const LABELS = Object.freeze({
     // AudioParameterFloats (PluginProcessor.cpp:71-74) — so arm 1 of D-01 does
     // not apply and there is no automation-lane string for a French caption to
     // disagree with.
-    'label.crush':  { en: { t: 'Crush' },  fr: { t: 'Broyage', reviewed: true } },
-    'label.age':    { en: { t: 'Age' },    fr: { t: 'Âge',     reviewed: true } },
-    'label.reverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb',  reviewed: true } },
-    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: true } },
+    'label.crush':  { en: { t: 'Crush' },  fr: { t: 'Broyage', reviewed: true } , 'zh-Hans': { t: '压碎', reviewed: 'mt' }},
+    'label.age':    { en: { t: 'Age' },    fr: { t: 'Âge',     reviewed: true } , 'zh-Hans': { t: '老化', reviewed: 'mt' }},
+    'label.reverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb',  reviewed: true } , 'zh-Hans': { t: '混响', reviewed: 'mt' }},
+    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: true } , 'zh-Hans': { t: '混合', reviewed: 'mt' }},
 
     // ── The preset band ─────────────────────────────────────────────────────
     // The repo-standard trio, matching O-Bitrot v1.15.0, O-ReverseDelay and
@@ -344,9 +385,9 @@ export const LABELS = Object.freeze({
     // should not be spelled three different ways across the suite. Abbreviated
     // rather than "Enregistrer" / "Charger" / "Supprimer" because this header
     // is 162 px over-full in English before French is asked for anything.
-    'label.save':   { en: { t: 'Save' },   fr: { t: 'Enreg.', reviewed: true } },
-    'label.load':   { en: { t: 'Load' },   fr: { t: 'Ouvrir', reviewed: true } },
-    'label.delete': { en: { t: 'Delete' }, fr: { t: 'Suppr.', reviewed: true } },
+    'label.save':   { en: { t: 'Save' },   fr: { t: 'Enreg.', reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' }},
+    'label.load':   { en: { t: 'Load' },   fr: { t: 'Ouvrir', reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'mt' }},
+    'label.delete': { en: { t: 'Delete' }, fr: { t: 'Suppr.', reviewed: true } , 'zh-Hans': { t: '删除', reviewed: 'mt' }},
 
     // The ARMED face of the delete button — the only string on this page
     // written from script. It goes through setLabel(), so the button becomes a
@@ -367,7 +408,7 @@ export const LABELS = Object.freeze({
     // Widening the button is not available — the band's total width is what
     // keeps .brand and .hdr-right still (see the header note above) — and
     // "Sûr ?" carries the same terse register as "Confirm?".
-    'ui.confirm':   { en: { t: 'Confirm?' }, fr: { t: 'Sûr ?', reviewed: true } },
+    'ui.confirm':   { en: { t: 'Confirm?' }, fr: { t: 'Sûr ?', reviewed: true } , 'zh-Hans': { t: '确认？', reviewed: 'mt' }},
 
     // ── The imprint line ────────────────────────────────────────────────────
     // The naturalist-plate conceit the whole page is built on. Its box is
@@ -380,28 +421,29 @@ export const LABELS = Object.freeze({
     'label.plate': {
         en: { t: 'A Survey of Extinct Consoles · Plate CDLXXXVII' },
         fr: { t: 'Relevé des consoles disparues · Planche CDLXXXVII', reviewed: true },
+'zh-Hans': { t: '已灭绝主机图鉴 · 图版 CDLXXXVII—', reviewed: 'mt' }
     },
 
     // ── The settings popover (v1.1.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' }},
 
     // v1.3.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
     // hears the same language the page is showing.
-    'aria.presetPrev': { en: { t: 'Previous preset' },   fr: { t: 'Préréglage précédent', reviewed: true } },
-    'aria.presetNext': { en: { t: 'Next preset' },       fr: { t: 'Préréglage suivant',   reviewed: true } },
-    'aria.settings':   { en: { t: 'Settings' },          fr: { t: 'Réglages',             reviewed: true } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+    'aria.presetPrev': { en: { t: 'Previous preset' },   fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'mt' }},
+    'aria.presetNext': { en: { t: 'Next preset' },       fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'mt' }},
+    'aria.settings':   { en: { t: 'Settings' },          fr: { t: 'Réglages',             reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'mt' }},
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'mt' }},
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }},
 
     // "Console" is spelled identically in French — it is the same Latin root
     // and the same word for the same object. sameAsEn declares that on
@@ -412,7 +454,7 @@ export const LABELS = Object.freeze({
     // "Console" is the AudioParameterChoice's DISPLAY NAME
     // (PluginProcessor.cpp:55) and not one of its option strings. Nothing in a
     // host automation lane is spelled "Console" as a VALUE.
-    'aria.console': { en: { t: 'Console' }, fr: { t: 'Console', sameAsEn: true, reviewed: true } },
+    'aria.console': { en: { t: 'Console' }, fr: { t: 'Console', sameAsEn: true, reviewed: true } , 'zh-Hans': { t: '控制台', reviewed: 'mt' }},
 });
 
 // ============================================================================

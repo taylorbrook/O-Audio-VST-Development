@@ -24,7 +24,7 @@
     --seg-a: #F5DEB3;
     --seg-b: #E8D5B7;
     --knob-core: #FFF8DC;
-    --serif: 'EB Garamond', 'Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+    --serif: 'EB Garamond', 'Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   }
 
   /* ============ per-console accent system ============
@@ -620,6 +620,45 @@
     color: var(--accent-dark);
     margin-bottom: 2px;
   }
+  /* ── LINE-HEIGHT PINS (v1.4.0, the Chinese arm) ────────────────────────────
+     `line-height: normal` is not a number: it is whatever the RESOLVED FACE
+     calls its natural line box, and the resolved face changes with the document
+     language. PingFang SC reports a taller natural box than Times New Roman at
+     the same size, so each leaf below grew 2 to 4 px on the Chinese arm with no
+     other change, and the growth cascaded up through its ancestors.
+
+     Each value is DERIVED FROM THAT LEAF'S OWN MEASURED ENGLISH BOX — height
+     minus its own padding minus its own border, divided by its own font-size —
+     never copied between selectors, never global, and unitless.
+
+     EVERY PIN IS A NO-OP IN ENGLISH AND IN FRENCH; check-ui-labels reports 0
+     moved elements on both those arms after they land.
+
+     R8: this page's existing line-height declarations (.preset-nav, .hdr-right,
+     .gear-btn, .settings-select, .settings-toggle, .tooltip) were read first
+     for a specificity conflict. None targets a selector below.
+
+     Measured with getComputedStyle at the shipping frame, English arm:
+
+       .preset-btn      fs 10  content 11.00  -> 1.1
+       .ctl-label       fs 13  content 16.00  -> 1.2308
+       .settings-label  fs 11  content 12.00  -> 1.0909  */
+  /* THE PLATE CAPTION SHRINKS, which is the other half of R7 and the one a
+     wide test viewport cannot see. At the shipping 700 x 380 frame the engraved
+     caption wraps to THREE lines in English and in French (41.30 px = 3 x
+     13.775) and to TWO in Chinese (27.53) — Han says it in fewer glyphs — so
+     .hdr-right lost 13.8 px and slid the brand line up under it. Measured at
+     the shipping frame; at 1200 px wide all three languages fit on one line and
+     the defect is invisible, which is why the frame is parsed from
+     PluginEditor.cpp rather than chosen.
+
+     The pin is a FLOOR at the measured English box, so it is a no-op on the two
+     arms already sitting exactly on it. */
+  .plate { min-height: 41.33px; }
+  .preset-btn { line-height: 1.1; }
+  .ctl-label { line-height: 1.2308; }
+  .settings-label { line-height: 1.0909; }
+
 </style>
 </head>
 <body data-console="0">
@@ -745,6 +784,7 @@
                   data-i18n-aria="aria.langSelect" aria-label="Interface language">
             <option value="en">English</option>
             <option value="fr">Fran&ccedil;ais</option>
+            <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
           </select>
         </label>
 
