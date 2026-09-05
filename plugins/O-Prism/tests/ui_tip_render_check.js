@@ -231,7 +231,29 @@ const HIDDEN_WHEN_SYNC = new Set([
     note(`shipping frame from PluginEditor.cpp setSize(): ${W} x ${H}`);
 
     const table = await loadTable();
-    const { I18N, TIP_BINDINGS } = table;
+    const { LANGUAGES, I18N, TIP_BINDINGS } = table;
+
+    // ── the language list is DERIVED, and it ABORTS rather than falling back ──
+    //
+    // v1.24.0. Until then §2/3/4 walked the literal ['en', 'fr', 'en'] and §5
+    // measured heightsFor('fr'). That THREE-element literal is why the repo-wide
+    // inventory of two-language gate files reported this one clean: the census
+    // greps for a two-element ['en', 'fr'], and a round-trip literal with the
+    // return pass spelled inside it does not match. The file was every bit as
+    // two-language as the twelve on that list.
+    //
+    // Derived from the plugin's own LANGUAGES export, so a fourth language is
+    // exercised without editing this file. It REFUSES a list it cannot read:
+    // an empty derivation would leave §2/3/4 measuring English against itself
+    // and §5 with nothing to compare, and both would print a confident pass.
+    if (!Array.isArray(LANGUAGES) || LANGUAGES.length < 2 || LANGUAGES[0] !== 'en') {
+        check(false, '[0] LANGUAGES derived to a usable list — got ' + JSON.stringify(LANGUAGES)
+                   + '. This gate refuses to run on a language set it cannot read rather than '
+                   + 'silently measuring English against itself.');
+        process.exit(2);
+    }
+    const OTHER_LANGS = LANGUAGES.filter((l) => l !== 'en');
+    note(`languages: ${LANGUAGES.join(', ')} (derived from i18n.js LANGUAGES, never named here)`);
     note(`table: ${Object.keys(I18N).length} I18N entries, ${TIP_BINDINGS.length} TIP_BINDINGS rows`);
 
     if (!Array.isArray(TIP_BINDINGS) || TIP_BINDINGS.length === 0) {
@@ -526,11 +548,11 @@ const HIDDEN_WHEN_SYNC = new Set([
         await setLfoSync(false);
         note('the loop below drives each LFO anchor into the state that reveals it, one at a time');
 
-        // ── 2/3/4, in en then fr then en ────────────────────────────────────
+        // ── 2/3/4: English, then every other arm the table declares, then back ──
         const allSel = TIP_BINDINGS.map(b => b[0]);
         let seenEn = false;
 
-        for (const lang of ['en', 'fr', 'en']) {
+        for (const lang of ['en', ...OTHER_LANGS, 'en']) {
             const isReturn = lang === 'en' && seenEn;
             seenEn = seenEn || lang === 'en';
             console.log(`\n-- 2/3/4. language: ${lang}${isReturn ? ' (return pass)' : ''}`);
@@ -618,13 +640,13 @@ const HIDDEN_WHEN_SYNC = new Set([
                 tiny.map(([s, a]) => `${s} ${Math.round(a)} px2`).join(', '));
         }
 
-        // ── 5. FRENCH REALLY IS TALLER, and English really came back ────────
+        // ── 5. THE OTHER ARMS REALLY MEASURE SOMETHING ELSE, and English came back ──
         //
-        // Re-measured rather than inferred: the point of running both languages
-        // is that French wraps to more lines against the 280 px max-width cap. If
-        // it did NOT, the two passes would be the same measurement twice and
-        // assertion 4's French half would be decoration.
-        console.log('\n-- 5. French height vs English');
+        // Re-measured rather than inferred. Measured on this page: French runs
+        // TALLER against the 280 px cap (139.3 px against English's 123.9) and
+        // Chinese runs SHORTER (108.5 px) — which is why the assertion below
+        // tests for a DIFFERENCE and not for growth.
+        console.log('\n-- 5. non-English tip height against English');
         const SAMPLE = allSel.filter(s => (TAB_OF(s) === null)
                                        && !HIDDEN_UNTIL_SYNC.has(s)
                                        && !POPOVER_ONLY.has(s)
@@ -639,20 +661,33 @@ const HIDDEN_WHEN_SYNC = new Set([
             }
             return h;
         }
+        // DIRECTION-AGNOSTIC, and that is the point of the rewrite. French runs
+        // 15-20% longer and wraps TALLER against the cap; Chinese says the same
+        // thing in fewer characters and wraps SHORTER. An assertion phrased "the
+        // other language GREW" is vacuous against Chinese, and one phrased
+        // "shrank" would be vacuous against French. What both share, and what
+        // this gate actually needs, is that the pass MEASURED SOMETHING ELSE:
+        // if no tip's height differs from English, the non-English pass is the
+        // same measurement twice and its half of assertion 4 is decoration.
         const hEn = await heightsFor('en');
-        const hFr = await heightsFor('fr');
-        const grew   = SAMPLE.filter(s => hFr[s] > hEn[s] + 0.5);
-        const shrank = SAMPLE.filter(s => hFr[s] < hEn[s] - 0.5);
-        const same   = SAMPLE.filter(s => Math.abs(hFr[s] - hEn[s]) <= 0.5);
-        check(grew.length > 0,
-            `[5] French GROWS at least one tip's height against the 280 px cap — `
-            + `${grew.length} grew, ${same.length} unchanged, ${shrank.length} shrank `
-            + `(of ${SAMPLE.length} sampled)`,
-            grew.length ? null
-                : 'no tip grew: the fr pass measured the same boxes as en, so its clamp half is decoration');
-        note(`tallest en ${Math.max(...SAMPLE.map(s => hEn[s])).toFixed(1)} px, `
-           + `tallest fr ${Math.max(...SAMPLE.map(s => hFr[s])).toFixed(1)} px`);
-        if (verbose) for (const s of grew) note(`  grew: ${s} ${hEn[s].toFixed(0)} -> ${hFr[s].toFixed(0)}`);
+        for (const lang of OTHER_LANGS) {
+            const hL = await heightsFor(lang);
+            const grew   = SAMPLE.filter(s => hL[s] > hEn[s] + 0.5);
+            const shrank = SAMPLE.filter(s => hL[s] < hEn[s] - 0.5);
+            const same   = SAMPLE.filter(s => Math.abs(hL[s] - hEn[s]) <= 0.5);
+            check(grew.length + shrank.length > 0,
+                `[5] ${lang} CHANGES at least one tip's height against the 280 px cap — `
+                + `${grew.length} grew, ${shrank.length} shrank, ${same.length} unchanged `
+                + `(of ${SAMPLE.length} sampled)`,
+                (grew.length + shrank.length) ? null
+                    : `no tip moved: the ${lang} pass measured the same boxes as en, so its clamp half is decoration`);
+            note(`tallest en ${Math.max(...SAMPLE.map(s => hEn[s])).toFixed(1)} px, `
+               + `tallest ${lang} ${Math.max(...SAMPLE.map(s => hL[s])).toFixed(1)} px`);
+            if (verbose) {
+                for (const s of grew)   note(`  grew:   ${s} ${hEn[s].toFixed(0)} -> ${hL[s].toFixed(0)}`);
+                for (const s of shrank) note(`  shrank: ${s} ${hEn[s].toFixed(0)} -> ${hL[s].toFixed(0)}`);
+            }
+        }
 
         await page.evaluate(() => window.__setLanguage('en'));
         await page.waitForTimeout(180);
