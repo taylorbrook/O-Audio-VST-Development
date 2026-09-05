@@ -109,7 +109,7 @@ const { pathToFileURL } = require('url');
 const G = require(path.join(__dirname, 'i18n-zh-glossary.js'));
 
 const LANG  = 'zh-Hans';
-const CODES = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6', 'Z7', 'F1', 'R1'];
+const CODES = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6', 'Z7', 'F1', 'R1', 'Z8'];
 const REVIEWED_ENUM = ['mt', 'bt', 'native'];
 
 const argv    = process.argv.slice(2);
@@ -543,6 +543,20 @@ const SELF_TESTS = {
                     { module: MOD(`{ 'label.depth': { en: { t: 'Depth' }, 'zh-Hans': { t: '\u6df1\u5ea6', reviewed: true } } }`) }],
         control: [{ module: MOD(`{ 'label.depth': { en: { t: 'Depth' }, 'zh-Hans': { t: '\u6df1\u5ea6', reviewed: 'bt' } } }`) },
                   { module: MOD(`{ 'label.depth': { en: { t: 'Depth' }, 'zh-Hans': { t: '\u6df1\u5ea6', reviewed: 'mt' } } }`) }],
+    },
+    Z8: {
+        why: 'a plain U+0020 between two Han code points \u2014 intra-Han whitespace the Latin/Han boundary census cannot see',
+        // \u5199\u5165 \u6e90 \u2014 the shape Stage 3 found by READING O-Octagon's `puck`
+        // body. No rule could see it: Z4 only classifies gaps at a Latin/Han
+        // boundary, and this gap has Han on both sides.
+        violation: { rows: [ROW('\u5199\u5165 \u6e90')] },
+        // Control 1 is Z4's business, not Z8's, and Z8 must not poach it.
+        // Control 2 is correct full-width punctuation with no space anywhere.
+        // Control 3 has a space after \u8fdf, but what follows is an ASCII paren,
+        // not a Han character.
+        control: [{ rows: [ROW('20 ms \u5ef6\u8fdf')] },
+                  { rows: [ROW('\u6df7\u97f3\uff0c\u6df1\u5ea6')] },
+                  { rows: [BODY('\u5ef6\u8fdf (delay) 20 ms')] }],
     },
 };
 
