@@ -214,7 +214,29 @@ function outsideViewport(rect, W, H) {
     note(`tooltip max-width parsed from index.html: ${CAP === null ? 'NOT FOUND' : CAP + 'px'}`);
 
     const table = await loadTable();
-    const { I18N, TIP_BINDINGS } = table;
+    const { I18N, TIP_BINDINGS, LANGUAGES } = table;
+
+    // ── THE LANGUAGE LIST IS DERIVED, NEVER SPELLED ─────────────────────────
+    //
+    // This gate used to iterate a three-element array literal naming the
+    // languages it knew about, in the syntax the repo-wide inventory grep
+    // cannot see — so it was invisible to the census as well as to itself. A
+    // gate that spells its own languages cannot see a new one arrive: every
+    // assertion below would have kept passing while covering two thirds of the
+    // page.
+    //
+    // DERIVE-OR-ABORT. An empty derived list would walk zero languages and
+    // report every assertion green, which is a worse failure than the
+    // hard-coded list it replaces. Planting an empty export was observed to
+    // trip this line.
+    if (!Array.isArray(LANGUAGES) || LANGUAGES.length < 2 || !LANGUAGES.includes('en')) {
+        console.error('[0] LANGUAGES derived from the table is unusable — got '
+            + JSON.stringify(LANGUAGES) + '. A gate that walks an empty or single-entry '
+            + 'language list passes vacuously, so this aborts instead.');
+        process.exit(1);
+    }
+    const LANG_WALK = ['en', ...LANGUAGES.filter((l) => l !== 'en'), 'en'];
+
     note(`table: ${Object.keys(I18N).length} I18N entries, ${TIP_BINDINGS.length} TIP_BINDINGS rows\n`);
 
     if (!Array.isArray(TIP_BINDINGS) || TIP_BINDINGS.length === 0) {
@@ -440,11 +462,11 @@ function outsideViewport(rect, W, H) {
             return { box, tip: await page.evaluate(READ_TIP) };
         }
 
-        const heights = { en: {}, fr: {} };
+        const heights = Object.fromEntries(LANGUAGES.map((l) => [l, {}]));
         const placement = [];
         const drivenStates = [];
 
-        for (const lang of ['en', 'fr', 'en']) {
+        for (const lang of LANG_WALK) {
             const pass = drivenStates.filter(s => s === lang).length === 0 ? '' : ' (return pass)';
             drivenStates.push(lang);
             console.log(`\n-- language: ${lang}${pass}`);
@@ -503,7 +525,13 @@ function outsideViewport(rect, W, H) {
                         + `${t.rect.left.toFixed(1)},${t.rect.top.toFixed(1)})`,
                         out.length ? out.join('; ') : null);
 
-                    if (drivenStates.length <= 2) {
+                    // NOT `<= 2`. That literal meant "the number of
+                    // languages, not counting the return pass" and was a THIRD
+                    // place this file spelled its own language count — so with
+                    // a third language the zh pass recorded no heights at all
+                    // and assertion 5 below failed reporting that nothing
+                    // moved, on a page where everything had. Derived now.
+                    if (drivenStates.length <= LANGUAGES.length) {
                         heights[lang][sel] = t.rect.h;
                         placement.push({
                             lang, sel,
@@ -691,23 +719,26 @@ function outsideViewport(rect, W, H) {
         // decoration. Measured from the FIRST en pass and the fr pass, so no
         // extra driving is needed to make the claim.
         const allSel = [...anchorsClosed, ...anchorsOpen];
-        const grew   = allSel.filter(s => heights.fr[s] > heights.en[s] + 0.5);
-        const same   = allSel.filter(s => Math.abs(heights.fr[s] - heights.en[s]) <= 0.5);
-        const shrank = allSel.filter(s => heights.fr[s] < heights.en[s] - 0.5);
-        check(grew.length > 0,
-            `[5] French GROWS at least one tip's height against the ${CAP} px cap`,
-            grew.length ? null
-                : 'no tip grew: the fr pass measured the same boxes as en, so its clamp half is decoration');
-        note(`${grew.length} grew, ${same.length} unchanged, ${shrank.length} SHRANK in French`);
-        for (const s of allSel)
-            note(`   ${s.padEnd(50)} en ${heights.en[s].toFixed(1)} -> fr ${heights.fr[s].toFixed(1)}`);
+        for (const lang of LANGUAGES.filter((l) => l !== 'en')) {
+            const h = heights[lang];
+            const grew   = allSel.filter(s => h[s] > heights.en[s] + 0.5);
+            const same   = allSel.filter(s => Math.abs(h[s] - heights.en[s]) <= 0.5);
+            const shrank = allSel.filter(s => h[s] < heights.en[s] - 0.5);
+            check(grew.length + shrank.length > 0,
+                `[5][${lang}] at least one tip's height DIFFERS from English against the ${CAP} px cap`,
+                (grew.length + shrank.length) ? null
+                    : `no tip moved: the ${lang} pass measured the same boxes as en, so its clamp half is decoration`);
+            note(`${grew.length} grew, ${same.length} unchanged, ${shrank.length} SHRANK in ${lang}`);
+            for (const s of allSel)
+                note(`   ${s.padEnd(50)} en ${heights.en[s].toFixed(1)} -> ${lang} ${h[s].toFixed(1)}`);
+        }
 
         await page.evaluate(() => window.__setLanguage('en'));
         await page.waitForTimeout(150);
         const backEn = await hoverAnchor('#analog');
         check(backEn && backEn.tip.title === I18N['tip.analog'].en.t
                      && backEn.tip.body  === I18N['tip.analog'].en.b,
-            '[5] English comes back after the French pass — byte-equal again');
+            '[5] English comes back after the non-English passes — byte-equal again');
 
         // ── 5b. THE KNOB'S OWN VALUE READOUT, MEASURED NOT ASSUMED ──────────
         //

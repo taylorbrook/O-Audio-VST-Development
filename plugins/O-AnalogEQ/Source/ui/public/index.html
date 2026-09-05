@@ -54,7 +54,7 @@
       align-items: center;
       justify-content: center;
       background: #000;
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     }
 
     .container {
@@ -116,7 +116,7 @@
       left: 12px;
       width: 400px;
       height: 24px;
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 18px;
       text-align: left;
       letter-spacing: 0.15em;
@@ -152,7 +152,7 @@
        edit on this control cannot fail silently.
     */
     .band-label {
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 11px;
       text-align: center;
       letter-spacing: 0.12em;
@@ -175,7 +175,7 @@
     }
 
     .sublabel {
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 8px;
       text-align: center;
       letter-spacing: 0.1em;
@@ -293,7 +293,7 @@
       background: #8B7355;
       border: 1px solid #5C4033;
       border-radius: 3px;
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 8px;
       letter-spacing: 0.08em;
       color: #FFF;
@@ -327,7 +327,7 @@
     .three-way-option {
       flex: 1;
       padding: 3px 8px;
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 7px;
       letter-spacing: 0.06em;
       color: #FFF;
@@ -418,7 +418,7 @@
 
     .db-readout {
       position: absolute;
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 9px;
       text-align: center;
       color: #3C2F2F;
@@ -442,7 +442,7 @@
       border: 1px solid #5C4033;
       border-radius: 3px;
       color: #FFF;
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 9px;
       letter-spacing: 0.06em;
       cursor: pointer;
@@ -496,7 +496,7 @@
       min-width: 100px;
       max-width: 140px;
       text-align: center;
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 10px;
       letter-spacing: 0.08em;
       color: #3C2F2F;
@@ -537,7 +537,7 @@
 
     .preset-dropdown-header {
       padding: 4px 8px 2px;
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 8px;
       letter-spacing: 0.1em;
       color: #8B7355;
@@ -547,7 +547,7 @@
 
     .preset-dropdown-item {
       padding: 4px 10px;
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 10px;
       color: #3C2F2F;
       cursor: pointer;
@@ -579,7 +579,21 @@
       z-index: 60;
     }
 
+    /* ── A FOURTH FONT CARRIER: A BUTTON WITH NO DECLARATION AT ALL ─────────
+       Measured, not predicted, and this page's .gear-btn rule declares no
+       font-family. A form control does NOT inherit font-family — the UA
+       stylesheet gives it one, here Arial — so a sweep that reads every
+       declaration and every SVG presentation attribute in this file finds
+       nothing wrong with it, and only computed style finds it. Arial has no Han
+       glyphs, so under a Chinese document language the gear's own tip title and
+       aria-label were resolved by the document-language fallback rather than by
+       anything this page names: W1's inert-tail failure arriving through an
+       ABSENT declaration instead of a misplaced one.
+
+       ARIAL STAYS FIRST so the Latin metrics of the English and French arms do
+       not move for a defect that only exists on the Chinese one. */
     .gear-btn {
+        font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
       width: 18px;
       height: 18px;
       padding: 0;
@@ -648,7 +662,7 @@
     /* nowrap because the row is space-between: a caption that wrapped would
        grow the row's height and move the control beside it. */
     .settings-label {
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 9px;
       color: #3C2F2F;
       text-transform: uppercase;
@@ -663,7 +677,7 @@
       border: 1px solid #3C5C1A;
       border-radius: 2px;
       color: #3C2F2F;
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 9px;
       line-height: 1.2;
       cursor: pointer;
@@ -693,7 +707,7 @@
       border: 1px solid #3C5C1A;
       border-radius: 2px;
       color: #3C2F2F;
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 9px;
       line-height: 1.2;
       flex: 0 0 auto;
@@ -790,7 +804,7 @@
       border: 1px solid #5C4033;
       border-radius: 4px;
       box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.35);
-      font-family: Garamond, serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 10px;
       line-height: 1.35;
       color: #3C2F2F;
@@ -813,6 +827,42 @@
       color: #5C4033;
       margin-bottom: 2px;
     }
+        /* ── LINE-HEIGHT PINS (v1.5.0, the Chinese arm) ──────────────────────
+           `line-height: normal` is not a number: it is whatever the RESOLVED
+           FACE calls its natural line box, and the resolved face changes with
+           the document language. PingFang SC reports a taller natural box than
+           Times New Roman at the same size, so every leaf below grew 2 to 4 px
+           on the Chinese arm with no other change, and the growth cascaded up
+           through its ancestors.
+
+           Each value is DERIVED FROM THAT LEAF'S OWN MEASURED ENGLISH BOX —
+           height minus its own padding minus its own border, divided by its own
+           font-size — never copied between selectors, never set globally, and
+           unitless so a leaf that inherits into a differently sized child
+           scales rather than pinning the child to the parent's pixel box.
+
+           EVERY PIN IS A NO-OP IN ENGLISH AND IN FRENCH. That is the test:
+           check-ui-labels reports 0 moved elements on both those arms after
+           they land.
+
+           R8: the line-height declarations this page already carried were read
+           first for a specificity conflict. None targets any selector below.
+
+           Measured with getComputedStyle at the shipping frame, English arm:
+             .band-label         fs 11  content 12.00  -> 1.0909
+             .preset-action-btn  fs 9   content 10.00  -> 1.1111
+             .settings-label     fs 9   content 10.00  -> 1.1111
+             .vu-meter-label     fs 10  content 11.00  -> 1.1 */
+        .band-label {
+            line-height: 1.0909;
+        }
+        .preset-action-btn,
+        .settings-label {
+            line-height: 1.1111;
+        }
+        .vu-meter-label {
+            line-height: 1.1;
+        }
   </style>
 </head>
 <body>
@@ -865,12 +915,12 @@
             <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
             <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
           </g>
-          <text x="12.8" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">30</text>
-          <text x="1" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">124</text>
-          <text x="23.4" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">218</text>
-          <text x="61.6" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">312</text>
-          <text x="84" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">406</text>
-          <text x="72.2" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">500</text>
+          <text x="12.8" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">30</text>
+          <text x="1" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">124</text>
+          <text x="23.4" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">218</text>
+          <text x="61.6" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">312</text>
+          <text x="84" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">406</text>
+          <text x="72.2" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">500</text>
         </svg>
         <div class="dual-knob-container" data-param-outer="lf_freq" data-param-inner="lf_gain">
           <div class="knob-outer" id="lf_freq_knob">
@@ -901,12 +951,12 @@
             <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
             <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
           </g>
-          <text x="12.8" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">100</text>
-          <text x="1" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">480</text>
-          <text x="23.4" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">860</text>
-          <text x="61.6" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">1.2k</text>
-          <text x="84" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">1.6k</text>
-          <text x="72.2" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">2k</text>
+          <text x="12.8" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">100</text>
+          <text x="1" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">480</text>
+          <text x="23.4" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">860</text>
+          <text x="61.6" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">1.2k</text>
+          <text x="84" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">1.6k</text>
+          <text x="72.2" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">2k</text>
         </svg>
         <div class="dual-knob-container" data-param-outer="lmf_freq" data-param-inner="lmf_gain">
           <div class="knob-outer" id="lmf_freq_knob">
@@ -942,12 +992,12 @@
             <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
             <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
           </g>
-          <text x="12.8" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">500</text>
-          <text x="1" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">2k</text>
-          <text x="23.4" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">3.5k</text>
-          <text x="61.6" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">5k</text>
-          <text x="84" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">6.5k</text>
-          <text x="72.2" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">8k</text>
+          <text x="12.8" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">500</text>
+          <text x="1" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">2k</text>
+          <text x="23.4" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">3.5k</text>
+          <text x="61.6" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">5k</text>
+          <text x="84" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">6.5k</text>
+          <text x="72.2" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">8k</text>
         </svg>
         <div class="dual-knob-container" data-param-outer="hmf_freq" data-param-inner="hmf_gain">
           <div class="knob-outer" id="hmf_freq_knob">
@@ -983,12 +1033,12 @@
             <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
             <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
           </g>
-          <text x="12.8" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">2k</text>
-          <text x="1" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">5.6k</text>
-          <text x="23.4" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">9.2k</text>
-          <text x="61.6" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">13k</text>
-          <text x="84" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">16k</text>
-          <text x="72.2" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">20k</text>
+          <text x="12.8" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">2k</text>
+          <text x="1" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">5.6k</text>
+          <text x="23.4" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="end">9.2k</text>
+          <text x="61.6" y="5.1" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">13k</text>
+          <text x="84" y="35.9" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">16k</text>
+          <text x="72.2" y="72.2" dy="0.35em" font-size="8" fill="#5C4033" font-family="Garamond, 'Times New Roman', serif" text-anchor="start">20k</text>
         </svg>
         <div class="dual-knob-container" data-param-outer="hf_freq" data-param-inner="hf_gain">
           <div class="knob-outer" id="hf_freq_knob">
@@ -1050,6 +1100,7 @@
                     data-i18n-aria="aria.langSelect" aria-label="Interface language">
               <option value="en">English</option>
               <option value="fr">Fran&ccedil;ais</option>
+              <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
             </select>
           </label>
 
