@@ -27,18 +27,18 @@ Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
 | O-Bells | 📦 Installed | 4.3.2 | Synth (Physical Modeling Bells) | 2026-08-31 |
-| O-Tremolo | 📦 Installed | 1.8.2 | Audio Effect (Tremolo) | 2026-08-31 |
+| O-Tremolo | 📦 Installed | 1.10.0 | Audio Effect (Tremolo) | 2026-09-05 |
 | O-AnalogSaturation | 📦 Installed | 1.5.0 | Audio Effect (Saturation) |  2026-09-04 |
 | O-Marimba | 📦 Installed | 1.13.1 | Synth (Physical Model) | 2026-08-31 |
 | O-Comp | 📦 Installed | 1.9.0 | Audio Effect (Compressor) |  2026-09-04 |
-| O-AnalogEQ | 📦 Installed | 1.3.1 | Audio Effect (EQ) | 2026-08-31 |
-| O-DigiDelay | 📦 Installed | 1.4.1 | Audio Effect (Delay) | 2026-08-31 |
-| O-SimpleReverb | 📦 Installed | 1.7.2 | Audio Effect (Reverb) | 2026-08-31 |
+| O-AnalogEQ | 📦 Installed | 1.5.0 | Audio Effect (EQ) | 2026-09-05 |
+| O-DigiDelay | 📦 Installed | 1.6.0 | Audio Effect (Delay) | 2026-09-05 |
+| O-SimpleReverb | 📦 Installed | 1.9.0 | Audio Effect (Reverb) | 2026-09-05 |
 | O-Polystutter | 📦 Installed | 1.14.2 | Audio Effect (Beat Repeater) | 2026-08-31 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
 | O-Lyrica | 📦 Installed | 2.4.3 | Synth (Physical Modeling Harp) | 2026-08-31 |
 | O-MultiBandCompressor | 📦 Installed | 1.11.1 | Audio Effect (Dynamics) | 2026-08-31 |
 | O-Bass | 📦 Installed | 1.7.0 | Audio Effect (Bass Enhancer) |  2026-09-04 |
-| O-IntonationPad | 📦 Installed | 2.9.1 | Synth (Wavetable Pad) | 2026-08-31 |
+| O-IntonationPad | 📦 Installed | 2.10.0 | Synth (Wavetable Pad) | 2026-09-05 |
 | O-Detune | 📦 Installed | 1.7.1 | Audio Effect (Detuning) | 2026-08-31 |
 | O-Freeze | 📦 Installed | 2.5.0 | Audio Effect (Granular Freeze) |  2026-09-04 |
 | O-FreqPulse | 📦 Installed | 1.18.2 | Audio Effect (Spectral Sequencer) | 2026-08-31 |
@@ -68,7 +68,7 @@ Ouaricon Plugins:
 | O-Octagon | 📦 Installed | 1.12.0 | Audio Effect (8-Channel DBAP Spatializer) | 2026-09-04 |
 | O-Bitrot | 📦 Installed | 1.16.0 | Audio Effect (Broken-Media Degradation) | 2026-09-04 |
 | O-Tapestop | 📦 Installed | 1.6.2 | Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed) | 2026-08-31 |
-| O-Emulator | 📦 Installed | 1.2.1 | Audio Effect (Retro Console Emulation) | 2026-08-31 |
+| O-Emulator | 📦 Installed | 1.4.0 | Audio Effect (Retro Console Emulation) | 2026-09-05 |
 
 **For detailed plugin information (lifecycle timeline, known issues, parameters, etc.), see:**
 `plugins/[PluginName]/NOTES.md`
