@@ -2,6 +2,94 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.9.0] - 2026-09-05
+
+**Simplified Chinese.** Every caption, hover-help body and accessible name now
+renders in `zh-Hans` alongside English and French — 32 entries, 43 emitter rows.
+MINOR: a language is added and two English hover-help bodies are corrected; no
+parameter, range, type or state format changed, and no DSP was touched.
+
+### Added
+
+- **`zh-Hans` on all 32 entries.** `LANGUAGES` reads three, the selector carries
+  a third `<option>` written as numeric character references, and the
+  `languageCode` / `languageIndex` codec is three-way and pure ASCII. The six
+  reverb type names — Booth, Room, Hall, Spring, Plate, Ambient — and the
+  `neutral` readout word stay English inside the Chinese bodies: they are
+  `AudioParameterChoice` strings and readout text, and they are what the page
+  itself says in every language.
+
+  **DISCLOSED QUALITY LEVEL: `reviewed: 'bt'`, not `'native'`.** This project
+  has no native Chinese reader, so the ship bar is a BACK-TRANSLATION: an
+  independent pass that has never seen the English renders the shipped Chinese
+  back into English, and the drift is read in a language this project can read.
+  All 43 rows were carried through that pass, twice — the second round with a
+  fresh salt and a **different model**, because a fresh session of the same
+  model guards against correlation but not against self-agreement.
+
+      forward   claude-opus-5 forward draft + round-1 correction, 2026-09-05
+      reverse 1 claude-sonnet-4-5, fresh non-interactive session, no tools,
+                cwd outside the repo
+      reverse 2 claude-opus-4-1, second fresh session, fresh salt, no tools,
+                cwd outside the repo
+
+  `reviewed: 'native'` stays OPEN and is printed by the lint's R1 rule on every
+  run. Nothing here has been read by a native speaker.
+
+  **One row failed the first read and was re-authored, and the failure is worth
+  recording because it is a shape any localization wave can repeat silently.**
+  Two edits landed together: the English and French gear bodies had their
+  exclusivity clause deleted, and the Chinese row for that same body was
+  authored — from the text as it stood BEFORE the deletion. So the Chinese went
+  on asserting that the panel holds only one row after the English had stopped,
+  and **every automated gate was green**: `check-i18n` only asks that the key
+  resolves, the lint only checks typography and terminology, and no tool in this
+  repo compares a `zh` body against its own `en`. The reverse reader returned
+  the deleted sentence, in the language it had been deleted from. Round 2
+  returned the corrected English byte-for-byte.
+
+- **A CJK font tail before the trailing generic on every stack that can render
+  a Han glyph.** Chromium resolves a bare generic against the document's `lang`,
+  so under `zh-Hans` it is already a Chinese face and a tail written after it is
+  never consulted. Verified by computed style: 13 Han-bearing nodes of 62
+  visible, all 13 through a PingFang SC stack.
+
+### Fixed
+
+- **Five font stacks named no face this machine has.** Six of the eleven already
+  named `'Times New Roman'`; the other five read `'Garamond', serif` and nothing
+  else. Garamond is absent here (0 family matches against 4 for Times New
+  Roman), so those five reached their trailing generic for every codepoint they
+  rendered — Latin included — and a bare generic resolves against the DOCUMENT
+  language, so their ASCII changed face the moment the page language did, with
+  no translated string anywhere near it.
+
+- **The language hover-help STATED A COUNT as well as naming the pair**, in one
+  sentence, and the gear body separately asserted that nothing besides the
+  language lives in the settings panel — false since the hover-help switch
+  landed there. The count is the form that reads most obviously wrong the moment
+  a third option is in the selector. All of it deleted, English and French, not
+  extended into a three-item list.
+
+- **Four elements grew 3 px on the Chinese arm** from `line-height: normal`
+  resolving against a taller Chinese face. Pinned to their own measured English
+  boxes, unitless and scoped, no-ops in English and French.
+
+- **`tests/ui_tip_render_check.js` asserted `LANGUAGES.join(',') === 'en,fr'`.**
+  That is the worse of the two ways a gate can name its own languages: it does
+  not merely fail to notice a third, it **hard-fails the day one arrives, on a
+  table that is correct**. Replaced with a derive-or-abort check that the list
+  is usable — an array, English present, more than one entry — because an empty
+  or single-entry list would let every language-driven assertion pass vacuously.
+  A planted empty export was observed to trip it.
+
+### Verification
+
+`check-i18n` exit 0; `check-ui-labels` exit 0, 0 FAIL on all three arms;
+`i18n-zh-lint` 0 findings, `BELOW SHIP BAR 0`; `i18n-fr-lint` exit 0; the tip
+gate passes with a real Chinese arm. Zero Han under `Source/**` with the
+positive control fired. `auval -v aufx OuSr Ouar` AU VALIDATION SUCCEEDED.
+
 ## [1.8.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
