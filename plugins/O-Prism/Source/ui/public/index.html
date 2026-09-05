@@ -34,7 +34,7 @@ html, body {
     overflow: hidden;
     background: #F5E6D3;
     color: #3C2F2F;
-    font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+    font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 11px;
     user-select: none;
     -webkit-user-select: none;
@@ -175,7 +175,7 @@ body {
     background: #2A2020;
     border: 1px solid #8B7355;
     color: #F5E6D3;
-    font-family: 'Garamond', 'Georgia', serif;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 10px;
     padding: 2px 4px;
     border-radius: 2px;
@@ -200,7 +200,7 @@ body {
   background: #2A2020;
   border: 1px solid #8B7355;
   color: #F5E6D3;
-  font-family: 'Garamond', 'Georgia', serif;
+  font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 10px;
   padding: 2px 4px;
   border-radius: 2px;
@@ -366,7 +366,7 @@ body {
     text-transform: uppercase;
     letter-spacing: 1.5px;
     font-size: 12px;
-    font-family: 'Garamond', 'Georgia', serif;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
     color: #5C4033;
     border-right: 1px solid #8B7355;
     transition: background 0.2s, color 0.2s;
@@ -669,7 +669,7 @@ body {
     pointer-events: none;
     align-items: center;
     justify-content: center;
-    font-family: 'Garamond', 'Georgia', serif;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 12px;
     color: #5C4033;
     font-weight: bold;
@@ -699,7 +699,7 @@ body {
     min-width: 280px;
     max-width: 400px;
     max-height: 400px;
-    font-family: 'Garamond', 'Georgia', serif;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
     color: #3C2F2F;
 }
 .wt-modal h3 {
@@ -726,6 +726,10 @@ body {
     font-size: 11px;
 }
 .wt-modal-list .wt-delete-btn {
+      /* The UA sheet gives a <button> that names no family a bare Arial,
+         and this caption is Chinese in the zh pass (setLabel label.delete).
+         Arial stays FIRST so the Latin metrics are byte-unchanged. */
+      font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
     background: transparent;
     border: 1px solid #A0522D;
     color: #A0522D;
@@ -760,7 +764,7 @@ body {
     background: #EBD9C7;
     border: 1px solid #8B7355;
     color: #5C4033;
-    font-family: 'Garamond', 'Georgia', serif;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 10px;
     padding: 4px 10px;
     border-radius: 3px;
@@ -844,7 +848,7 @@ body {
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 1px;
-    font-family: 'Garamond', 'Georgia', serif;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
     line-height: 1.2;
 }
 .bypass-toggle.off {
@@ -943,7 +947,7 @@ body {
 }
 .viz-btn {
     padding: 5px 12px;
-    font-family: 'Garamond', 'Georgia', serif;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
     color: #5C4033; background: rgba(212, 196, 176, 0.7);
     border: 1px solid #8B7355; border-radius: 3px;
@@ -1054,7 +1058,7 @@ body {
 .tuning-file-section { display: flex; flex-direction: column; gap: 4px; }
 .tuning-file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .tuning-file-btn {
-    padding: 6px 8px; font-family: 'Garamond', 'Georgia', serif;
+    padding: 6px 8px; font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px;
     color: #5C4033; background: rgba(212, 196, 176, 0.7);
     border: 1px solid #8B7355; border-radius: 2px;
@@ -1079,7 +1083,7 @@ body {
 .library-filter { margin-bottom: 8px; }
 .library-filter-select {
     width: 100%; padding: 5px 6px;
-    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 10px;
     color: #3C2F2F; background: rgba(245, 230, 211, 0.9);
     border: 1px solid #8B7355; border-radius: 3px; cursor: pointer; outline: none;
 }
@@ -1113,7 +1117,7 @@ body {
 .generator-type-row { margin-bottom: 8px; }
 .generator-type-select {
     width: 100%; padding: 5px 6px;
-    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 10px;
     color: #3C2F2F; background: rgba(245, 230, 211, 0.9);
     border: 1px solid #8B7355; border-radius: 3px; cursor: pointer; outline: none;
 }
@@ -1129,7 +1133,7 @@ body {
 .gen-row input[type="number"]:focus { outline: none; border-color: #6B8E4E; }
 .generator-btn {
     width: 100%; padding: 8px;
-    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 10px;
     text-transform: uppercase; letter-spacing: 0.5px; color: #3C2F2F;
     background: linear-gradient(to bottom, rgba(139, 168, 112, 0.6), rgba(107, 142, 78, 0.7));
     border: 1px solid #6B8E4E; border-radius: 4px; cursor: pointer; transition: all 0.15s;
@@ -1170,7 +1174,7 @@ body {
     border-radius: 3px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
     padding: 7px 10px;
-    font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+    font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 11px;
     line-height: 1.4;
     opacity: 0;
@@ -1187,6 +1191,166 @@ body {
     color: #C9A27B;
     margin-bottom: 3px;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   zh-Hans GEOMETRY PINS (v1.24.0)
+
+   Han faces carry taller metrics than Georgia, so every element that inherited
+   the UA's `line-height: normal` grew 3-4 px the moment its caption became
+   Chinese — and because the tab bar and the section headers are in normal flow,
+   that pushed everything below them. 33 assertion-7 failures across the 23
+   states, all on the zh arm; the en and fr arms were clean before this block
+   and are clean after it, which is the only reason it is allowed to exist.
+
+   EVERY RATIO BELOW IS MEASURED, NOT CHOSEN. It is the element's own ENGLISH
+   line box divided by its own font-size, where the line box is derived from the
+   BOX — height minus padding minus border — and never from a text ink rect: on
+   a strut-sized box the two disagree by about a pixel. Written UNITLESS so it
+   is font-independent, and scoped per family so nothing else inherits it.
+
+   NO GLOBAL line-height. A global rule would move English, which is the
+   regression these gates exist to catch, not a fix.
+
+   A CLASS AT TWO SIZES NEEDS TWO PINS — see .tab (12 px) against
+   .dropdown-label (8 px). The ratios below are grouped by the box they were
+   measured from, so a family appears exactly once.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* EN line box 12 px at font-size 11 px */
+.mod-matrix-info,
+.hn-span,
+.wt-label,
+.wt-op-btn,
+.wt-modal-close                 { line-height: 1.0909; }
+
+/* EN line box 11 px at font-size 10 px */
+.header-bar .subtitle,
+.section-header,
+.toggle-btn,
+.mod-col-on, .mod-col-src, .mod-col-dst, .mod-col-amt,
+.viz-btn,
+.pitch-circle-label,
+.hn-label,
+.generator-btn,
+.settings-toggle                { line-height: 1.1000; }
+
+/* EN line box 10 px at font-size 9 px */
+.knob-label,
+.interval-list-header,
+.library-header-text,
+.generator-header-text,
+.tuning-file-btn,
+.gen-row label,
+.wt-waveform-preview-label,
+.wt-modal-list .wt-delete-btn,
+.settings-label                 { line-height: 1.1111; }
+
+/* EN line box 9 px at font-size 8 px */
+.dropdown-label,
+.footer-label,
+.tonic-label,
+.octave-stretch-label,
+.li-cat                         { line-height: 1.1250; }
+
+/* EN line box 14 px at font-size 12 px */
+.tab,
+.wt-osc-btn                     { line-height: 1.1667; }
+
+/* EN line box 15 px at font-size 13 px */
+.tk-hint                        { line-height: 1.1538; }
+
+/* EN line box 16 px at font-size 14 px */
+.wt-modal h3,
+.wt-save-modal h3               { line-height: 1.1429; }
+
+/* ── WIDTH, not height ────────────────────────────────────────────────────
+   The subtitle is the third of four `space-between` children of .header-bar,
+   so its width decides where the preset browser sits. The comment on
+   .header-bar .subtitle above records that a French-era `width: 202.78px` pin
+   was reverted because French ran only 1.31 px narrow and 1.31 px split across
+   the gaps landed under tolerance — "a pin whose negative control passes is
+   decoration". That reasoning was right on the evidence it had and is wrong
+   now: Chinese runs 109.01 px narrower, which is 36.34 px per gap across three
+   gaps, and it moved seven non-label elements in all 24 states.
+
+   min-width rather than width, at the measured ENGLISH box: English is
+   unchanged, French rises 1.31 px to meet it exactly (so the fr arm gets
+   STRICTER, not looser), and Chinese stops dragging the browser sideways. */
+.header-bar .subtitle           { min-width: 202.78px; }
+
+/* ── Latin letterspacing does not apply to Han ────────────────────────────
+   `.footer-label` is `text-transform: uppercase; letter-spacing: 1.2px` — the
+   two conventions that make a short Latin caption read as a label. Neither
+   survives translation: `text-transform` is a no-op on Han, and 1.2 px between
+   ideographs is not a Chinese typographic convention, it is just 6 px of extra
+   box on a five-character caption.
+
+   MEASURED: 振荡器混合 renders 46.89 px against the 42.14 px both English and
+   French need, which pushed .footer-param past the 44 px its knob sets and
+   moved seven footer elements in all 24 states. Removing the letterspacing
+   takes it to 40.9 px, back inside the knob's own width, and nothing moves.
+
+   SCOPED TO THE LANGUAGE ATTRIBUTE, so it cannot reach the en or fr arm at
+   all — the rule does not exist unless the document is in Chinese. Note this
+   is NOT the :root:lang() shape O-Octagon's stylesheet rules out; that note is
+   about font-family, where 29 element-level declarations would outrank a :root
+   rule. letter-spacing here has no competing declaration to lose to. */
+html[lang="zh-Hans"] .footer-label { letter-spacing: normal; }
+
+/* ── The AUTO-SIZED TABLE, which is the one place "Chinese is narrower so it
+   fits" is actively false ─────────────────────────────────────────────────
+   A Latin word's min-content width is the whole word; a Han run's is ONE
+   character, because Han wraps between characters. In #rotation-view's
+   auto-layout table that let the 模式 header be squeezed to 72.47 px against
+   the 82.02 px "Mode" needs — NARROWER than the English it replaced — and the
+   whole 808 px table redistributed the 9.55 px across the other ten columns,
+   so every one of them reported a move. The header row also grew 3 px.
+
+   nowrap alone stops the wrap but leaves the column narrower, so the table
+   still differs; the min-width at the measured English column is what makes
+   the two identical. */
+.rotation-table th                          { line-height: 1; white-space: nowrap; }
+.rotation-table th:first-child,
+.rotation-table td:first-child              { min-width: 82.02px; }
+
+/* ── The un-wrap, inside a row rather than a paragraph ────────────────────
+   The true-keys grid's last row holds `label.totalSpan`, and its own line box
+   grew 2 px, lifting every interval row above it. Both pins are the element's
+   own measured English box over its own font size, so neither moves English:
+   the span is 15/12, the strong inside it 14/12. A single pin on the parent
+   would have forced the strong to 15 px too and moved the EN arm — the
+   pin-leaks-into-a-differently-sized-child shape. */
+.tk-interval span                           { line-height: 1.25; }
+.tk-interval strong                         { line-height: 1.1667; }
+
+/* The library rows carry their category and note count as loose text on
+   .library-item-info itself, so pinning .li-cat inside it was not enough:
+   9 px box at 8 px, measured on the English. Six rows x 2 px is the 6 px the
+   whole controls panel grew. */
+.library-item-info                          { line-height: 1.1250; }
+
+/* The total-span row's span is NOT a [data-i18n] element - the <strong> inside
+   it is - so the gate measures it as ordinary page furniture, and 总跨度 is
+   27.6 px narrower than "Total span". Floored at the measured ENGLISH width;
+   French already runs 0.28 px over that and is untouched, and the interval
+   rows above are 76.55 px wide and never reach the floor. */
+.tk-interval span                           { min-width: 64.41px; }
+
+/* ── Padding sized for a Latin caption, on a Han one ──────────────────────
+   .wt-osc-btn carries `padding: 4px 16px` — 32 px of side padding to give the
+   five characters of "Osc A" presence in a toggle. 振荡器 A needs 52.70 px of
+   text against that caption's 39.31 px, so at the same padding each button
+   runs 86.70 px against 73.31 px and the pair widened .wt-osc-toggle by
+   26.8 px in six states.
+
+   Pinning the button at the Chinese width would widen the English buttons by
+   13 px each, and pinning at the English width would push the Chinese text out
+   of its own box. Trimming the side padding to 9.3 px in Chinese ONLY puts the
+   button back at 73.30 px against English's 73.31 px, and the caption still
+   clears the border by more than a character's width.
+
+   Scoped to the language attribute, so the en and fr arms cannot see it. */
+html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right: 9.3px; }
 </style>
 </head>
 <body>
@@ -1221,6 +1385,12 @@ body {
                 <select id="lang-select" class="settings-select">
                     <option value="en">English</option>
                     <option value="fr">Français</option>
+                    <!-- NUMERIC ENTITIES: the markup path stays pure ASCII on
+                         disk whatever a later editor's encoding does to it.
+                         This <option> is the ONLY place Han reaches this file,
+                         and a keyed scan never sees it - an endonym carries no
+                         data-i18n because it is never translated. -->
+                    <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                 </select>
             </div>
 
