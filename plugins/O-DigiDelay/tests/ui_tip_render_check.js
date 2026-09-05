@@ -197,7 +197,33 @@ function outsideViewport(rect, W, H) {
     note(`shipping frame from PluginEditor.cpp setSize(): ${W} x ${H}`);
 
     const table = await loadTable();
-    const { I18N, TIP_BINDINGS } = table;
+    const { I18N, TIP_BINDINGS, LANGUAGES } = table;
+
+    // ── THE LANGUAGE LIST IS DERIVED, NEVER SPELLED ─────────────────────────
+    //
+    // This gate used to name the languages it knew about. A gate that spells
+    // its own languages cannot see a new one arrive: the day the table grew a
+    // third, every assertion below would have kept passing while covering two
+    // thirds of the page. Worse, the repo-wide inventory that hunts for exactly
+    // this defect greps for one spelling of the defect, and this file used
+    // another — so it was invisible to the census as well as to itself.
+    //
+    // DERIVE-OR-ABORT. A derived list can go EMPTY — a renamed export, a table
+    // that failed to parse into what was expected — and an empty list would
+    // walk zero languages and report every assertion green, which is a worse
+    // failure than the hard-coded list it replaces. The shape is therefore
+    // checked before it is used. Planting an empty export was observed to trip
+    // this line.
+    if (!Array.isArray(LANGUAGES) || LANGUAGES.length < 2 || !LANGUAGES.includes('en')) {
+        console.error('[0] LANGUAGES derived from the table is unusable — got '
+            + JSON.stringify(LANGUAGES) + '. A gate that walks an empty or single-entry '
+            + 'language list passes vacuously, so this aborts instead.');
+        process.exit(1);
+    }
+    // English first and English last: the return pass proves the sweep RESTORES
+    // rather than merely changes. The middle is whatever the table ships.
+    const LANG_WALK = ['en', ...LANGUAGES.filter((l) => l !== 'en'), 'en'];
+
     note(`table: ${Object.keys(I18N).length} I18N entries, ${TIP_BINDINGS.length} TIP_BINDINGS rows\n`);
 
     if (!Array.isArray(TIP_BINDINGS) || TIP_BINDINGS.length === 0) {
@@ -357,7 +383,7 @@ function outsideViewport(rect, W, H) {
         // it, in the popover state it is actually reachable in.
         const sized = new Set();
 
-        for (const lang of ['en', 'fr', 'en']) {
+        for (const lang of LANG_WALK) {
             const pass = drivenStates.filter(s => s === lang).length === 0 ? '' : ' (return pass)';
             drivenStates.push(lang);
             console.log(`\n-- language: ${lang}${pass}`);
@@ -483,24 +509,42 @@ function outsideViewport(rect, W, H) {
             }
             return h;
         }
+        // ── 5. THE NON-ENGLISH PASS MEASURED SOMETHING ELSE, and English came back
+        //
+        // What this assertion is FOR is catching a run in which the non-English
+        // pass measured the same boxes as English — because then it is the same
+        // measurement twice and assertion 4's non-English half is decoration.
+        //
+        // IT USED TO ASSERT A DIRECTION, AND THAT WAS WRONG THE DAY A THIRD
+        // LANGUAGE ARRIVED. The old line required the non-English pass to be
+        // strictly TALLER: true for French, which wraps to more lines against
+        // the max-width cap, and false for Simplified Chinese, which says the
+        // same thing in fewer glyphs and SHRINKS the tip. Asserting the French
+        // direction hard-fails the Chinese arm on a page where nothing is wrong
+        // — a gate failing for being right.
+        //
+        // A DIFFERENCE is what the assertion actually needs, in either
+        // direction, per non-English language off the derived list.
         const hEn = await heightsFor('en');
-        const hFr = await heightsFor('fr');
-        const grew = anchorsClosed.filter(s => hFr[s] > hEn[s] + 0.5);
+        for (const lang of LANGUAGES.filter((l) => l !== 'en')) {
+        const hFr = await heightsFor(lang);
+        const grew = anchorsClosed.filter(s => Math.abs(hFr[s] - hEn[s]) > 0.5);
         const same = anchorsClosed.filter(s => Math.abs(hFr[s] - hEn[s]) <= 0.5);
         console.log('');
         check(grew.length > 0,
-            `[5] French GROWS at least one tip's height against the 300 px cap — `
+            `[5][${lang}] at least one tip's height DIFFERS from English against the 300 px cap — `
             + anchorsClosed.map(s => `${s.replace('-container', '')} ${hEn[s].toFixed(0)}->${hFr[s].toFixed(0)}`).join(', '),
             grew.length ? null
-                : 'no tip grew: the fr pass measured the same boxes as en, so its clamp half is decoration');
-        if (same.length) note(`${same.length} tip(s) the same height in both languages: ${same.join(', ')}`);
+                : `no tip moved: the ${lang} pass measured the same boxes as en, so its clamp half is decoration`);
+        if (same.length) note(`${same.length} tip(s) the same height in en and ${lang}: ${same.join(', ')}`);
+        }
 
         await page.evaluate(() => window.__setLanguage('en'));
         await page.waitForTimeout(150);
         const backEn = await hoverAnchor('#dry-container', null);
         check(backEn && backEn.tip.title === I18N['tip.dry'].en.t
                      && backEn.tip.body  === I18N['tip.dry'].en.b,
-            '[5] English comes back after the French pass — byte-equal again');
+            '[5] English comes back after the non-English passes — byte-equal again');
 
         // ── 6. THE NEGATIVE CONTROL ─────────────────────────────────────────
         //
