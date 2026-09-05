@@ -240,7 +240,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '同步',
               b: '把延迟锁定到宿主的节奏速度，于是 TIME 旋钮选择的是音符时值而不是毫秒时间：1/4、1/8 与 1/16，每一种都可以是普通、附点、三连音或五连音。宿主未报告速度时，延迟保持其毫秒时间。关或开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // time — 1 .. 2000 ms, default 500. This is also the entry that documents
@@ -253,7 +253,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '时间',
               b: '一次回声等待多久才重复。关闭同步时，这个旋钮是以毫秒计的自由延迟时间；开启同步后，同一个旋钮改为在音符时值之间逐档切换，读数显示的是时值而不是数字。1 到 2000 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // feedback — 0 .. 100 %, default 30. The 0.95 ceiling is the sentence: the
@@ -267,7 +267,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '反馈',
               b: '每次回声有多少被送回延迟线，这决定了你能听到多少次重复、以及它们衰减得有多慢。回送量被限制在略低于单位增益处，因此即使调到顶端，尾音也会衰减而不会失控。0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // spread — 0 .. 100 %, default 0. It offsets the RIGHT channel only, by up
@@ -282,7 +282,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '展宽',
               b: '把右声道的延迟相对左声道最多偏移 15 ms，于是重复到达两耳的时间略有不同，回声因此变宽。为 0 时两个声道共用同一个延迟时间，尾音保持居中。0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // mod — 0 .. 100 %, default 0. One 0.3 Hz sine (prepareToPlay, lfo
@@ -298,7 +298,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '调制',
               b: '一个 0.3 Hz 的缓慢正弦波，让延迟时间最多游移 10 ms，像磁带抖晃那样把每次重复都轻微失谐。两个声道跟随同一条波形，因此它让回声变厚而不是变宽。0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // wet — 0 .. 100 %, default 30. WET and DRY are two independent gains
@@ -313,7 +313,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '湿',
               b: '延迟信号在输出端的电平。它是一个独立的电平，而不是混合旋钮的一半，因此不会从 DRY 那里拿走任何东西，两者可以一起提升。0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // dry — 0 .. 100 %, default 100. The send case is the one that earns the
@@ -326,7 +326,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '干',
               b: '未经处理的输入在输出端的电平。它与 WET 相互独立，因此把它拉到底就只在效果发送上留下回声，把它保持在顶端则让源信号保持满电平。0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -365,7 +365,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '设置',
               b: '打开设定本界面语言的面板。本页的标签与这些悬停帮助会随之切换，该选择随会话一同保存，因此项目会以保存时的语言重新打开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // The one entry that tells a user what does NOT change with the selector.
@@ -380,7 +380,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '语言',
               b: '本页标签与这些悬停帮助的语言。数值读数、音符时值与预设名称保持英文，让页面与宿主始终以同一种方式称呼同一个东西。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // v1.5.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -393,7 +393,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '悬停帮助',
               b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
@@ -511,7 +511,7 @@ export const LABELS = Object.freeze({
     // TEMPS is what a French delay calls that; DELAI (31.00) names the effect
     // rather than the quantity, and DUREE (34.00) is a duration rather than a
     // position in time.
-    'label.time': { en: { t: 'TIME' }, fr: { t: 'DURÉE', reviewed: true } , 'zh-Hans': { t: '时间', reviewed: 'mt' }},
+    'label.time': { en: { t: 'TIME' }, fr: { t: 'DURÉE', reviewed: true } , 'zh-Hans': { t: '时间', reviewed: 'bt' }},
 
     // REINJECTION is the word Logic Pro's French build uses for a delay's
     // feedback and it does not fit: 66.30 px against a 60 px box, and being one
@@ -520,11 +520,11 @@ export const LABELS = Object.freeze({
     // but both name something else in an audio context (a return bus, a
     // reaction). REINJ. is the abbreviation OF the expected word, which is the
     // same trade O-Chorus made for PROF.
-    'label.feedback': { en: { t: 'FEEDBACK' }, fr: { t: 'RÉINJ.', reviewed: true } , 'zh-Hans': { t: '反馈', reviewed: 'mt' }},
+    'label.feedback': { en: { t: 'FEEDBACK' }, fr: { t: 'RÉINJ.', reviewed: true } , 'zh-Hans': { t: '反馈', reviewed: 'bt' }},
 
     // Stereo spread of the two delay lines. ECART is also what O-Chorus ships
     // for its own Spread, so the suite says one word for one idea.
-    'label.spread': { en: { t: 'SPREAD' }, fr: { t: 'ÉTAL.', reviewed: true } , 'zh-Hans': { t: '展宽', reviewed: 'mt' }},
+    'label.spread': { en: { t: 'SPREAD' }, fr: { t: 'ÉTAL.', reviewed: true } , 'zh-Hans': { t: '展宽', reviewed: 'bt' }},
 
     // Keyed with sameAsEn rather than exempted, deliberately. "Mod" is the
     // abbreviation of "modulation", which is the same word in French, but that
@@ -532,21 +532,21 @@ export const LABELS = Object.freeze({
     // the native-speaker worklist forever. Keyed, it is one more
     // `reviewed: false` line somebody has to agree with. MODUL. (40.06) also
     // fits if a reviewer wants the fuller form.
-    'label.mod': { en: { t: 'MOD' }, fr: { t: 'MOD', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '调制', reviewed: 'mt' }},
+    'label.mod': { en: { t: 'MOD' }, fr: { t: 'MOD', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '调制', reviewed: 'bt' }},
 
     // WET / DRY is a pair and is translated as a pair. EFFET / DIRECT is the
     // idiomatic French pairing — the processed signal and the untouched one.
     // The literal MOUILLE (46.09) / SEC (18.91) also fits and is what a
     // dictionary gives, but no French audio interface says it.
-    'label.wet': { en: { t: 'WET' }, fr: { t: 'TRAITÉ', reviewed: true } , 'zh-Hans': { t: '湿', reviewed: 'mt' }},
-    'label.dry': { en: { t: 'DRY' }, fr: { t: 'DIRECT', reviewed: true } , 'zh-Hans': { t: '干', reviewed: 'mt' }},
+    'label.wet': { en: { t: 'WET' }, fr: { t: 'TRAITÉ', reviewed: true } , 'zh-Hans': { t: '湿', reviewed: 'bt' }},
+    'label.dry': { en: { t: 'DRY' }, fr: { t: 'DIRECT', reviewed: true } , 'zh-Hans': { t: '干', reviewed: 'bt' }},
 
     // ── The sync toggle: its caption and its two faces ──────────────────────
     //
     // THE TIGHTEST STRING ON THE PAGE, 1.39 px under the 50.00 px cliff at
     // which `.toggle-container` widens and re-centres #sync inside it.
     // SYNCHRONISATION measures 96.52 and moves the toggle 23.25 px right.
-    'label.sync': { en: { t: 'SYNC' }, fr: { t: 'SYNCHRO', reviewed: true } , 'zh-Hans': { t: '同步', reviewed: 'mt' }},
+    'label.sync': { en: { t: 'SYNC' }, fr: { t: 'SYNCHRO', reviewed: true } , 'zh-Hans': { t: '同步', reviewed: 'bt' }},
 
     // The two faces of #sync, written by the controller through setLabel() and
     // therefore [data-i18n] elements from that moment on — no second code path
@@ -558,8 +558,8 @@ export const LABELS = Object.freeze({
     // LOW/MED/HIGH localize.
     //
     // Both fit the fixed 50 x 24 face with room: MARCHE 43.31, ARRET 33.52.
-    'label.on':  { en: { t: 'ON' },  fr: { t: 'MARCHE', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
-    'label.off': { en: { t: 'OFF' }, fr: { t: 'ARRÊT',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
+    'label.on':  { en: { t: 'ON' },  fr: { t: 'MARCHE', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'bt' }},
+    'label.off': { en: { t: 'OFF' }, fr: { t: 'ARRÊT',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' }},
 
     // ── The output meter caption ────────────────────────────────────────────
     //
@@ -575,7 +575,7 @@ export const LABELS = Object.freeze({
     // widened to 40 px in index.html, positioned so the METER does not move,
     // and the pre-existing English overhang is repaired in the same edit.
     // SORTIE then has 4.23 px spare.
-    'label.out': { en: { t: 'OUT' }, fr: { t: 'SORTIE', reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'mt' }},
+    'label.out': { en: { t: 'OUT' }, fr: { t: 'SORTIE', reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'bt' }},
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -592,8 +592,8 @@ export const LABELS = Object.freeze({
     // ENREGISTRER is the word a French user would rather see and needs an
     // 80.52 px box — a reviewer who upgrades SAUVER to it must raise the pin
     // with it, or an 11-character caption wraps inside a 16 px-high button.
-    'label.load': { en: { t: 'Load' }, fr: { t: 'Charger', reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'mt' }},
-    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg',   reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' }},
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Charger', reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'bt' }},
+    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg',   reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'bt' }},
 
     // ── The preset dropdown, written by the controller through setLabel() ───
     //
@@ -606,20 +606,20 @@ export const LABELS = Object.freeze({
     // one plugin. check-i18n assertion 13 rejects a ternary inside a setLabel
     // argument so it cannot creep back, which is why the ON/OFF pair above is
     // written as two if/else calls rather than one conditional key.
-    'label.presets':    { en: { t: 'Presets' },              fr: { t: 'Préréglages',                reviewed: true } , 'zh-Hans': { t: '预设', reviewed: 'mt' }},
-    'label.noPresets':  { en: { t: 'No presets available' }, fr: { t: 'Aucun préréglage disponible', reviewed: true } , 'zh-Hans': { t: '没有可用预设', reviewed: 'mt' }},
+    'label.presets':    { en: { t: 'Presets' },              fr: { t: 'Préréglages',                reviewed: true } , 'zh-Hans': { t: '预设', reviewed: 'bt' }},
+    'label.noPresets':  { en: { t: 'No presets available' }, fr: { t: 'Aucun préréglage disponible', reviewed: true } , 'zh-Hans': { t: '没有可用预设', reviewed: 'bt' }},
 
     // ── The settings popover (v1.3.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' }},
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'bt' }},
 
     // v1.5.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' }},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'bt' }},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' }},
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -647,18 +647,18 @@ export const LABELS = Object.freeze({
     // PRESET NAME, which changes at runtime and is exempt under D-02, so no
     // fixed accessible name can contain it. The same trade was made on
     // O-Detune, O-FreqPulse and O-Lyrica for the identical control.
-    'aria.prevPreset': { en: { t: 'Previous preset' },    fr: { t: 'Préréglage précédent',  reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'mt' }},
-    'aria.nextPreset': { en: { t: 'Next preset' },        fr: { t: 'Préréglage suivant',    reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'mt' }},
+    'aria.prevPreset': { en: { t: 'Previous preset' },    fr: { t: 'Préréglage précédent',  reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'bt' }},
+    'aria.nextPreset': { en: { t: 'Next preset' },        fr: { t: 'Préréglage suivant',    reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'bt' }},
     'aria.presetList': { en: { t: 'Click to see all presets' },
-                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true } , 'zh-Hans': { t: '点击查看全部预设', reviewed: 'mt' }},
+                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true } , 'zh-Hans': { t: '点击查看全部预设', reviewed: 'bt' }},
     'aria.loadPreset': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true } , 'zh-Hans': { t: '从文件载入预设', reviewed: 'mt' }},
+                         fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true } , 'zh-Hans': { t: '从文件载入预设', reviewed: 'bt' }},
     'aria.savePreset': { en: { t: 'Save current settings' },
-                         fr: { t: 'Enregistrer les réglages actuels', reviewed: true } , 'zh-Hans': { t: '保存当前设置', reviewed: 'mt' }},
+                         fr: { t: 'Enregistrer les réglages actuels', reviewed: true } , 'zh-Hans': { t: '保存当前设置', reviewed: 'bt' }},
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'mt' }},
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'mt' }},
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }},
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'bt' }},
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'bt' }},
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' }},
 });
 
 // ============================================================================
