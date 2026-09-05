@@ -169,7 +169,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — hover-help copy. {en:{t, b}, fr:{t, b, reviewed}}.
@@ -303,6 +303,9 @@ export const I18N = Object.freeze({
         fr: { t: "Type",
               b: "Choisit l’algorithme de réverbération : chaque nom est une configuration complète — taille de la pièce, amortissement, largeur stéréo, pré-délai, étalement des premières réflexions et, sur la plupart des types, un filtre de coloration — et non simplement une pièce plus grande ou plus petite. Taille et Déclin viennent ensuite mettre à l’échelle ce que le type a posé : Taille à 100 % sur Booth reste une cabine. Six réglages : Booth, Room, Hall, Spring, Plate, Ambient.",
               reviewed: true },
+        'zh-Hans': { t: '类型',
+              b: '选择混响算法：每个名称都是一整套配置 — 房间大小、阻尼、立体声宽度、预延迟、早期反射扩散，以及在大多数类型上还有一个音色滤波器 — 而不只是房间大一点或小一点。尺寸与衰减随后只是缩放该类型已经设定好的东西，因此 Booth 上把尺寸开到 100% 仍然是一个隔音间。六档：Booth、Room、Hall、Spring、Plate、Ambient。',
+              reviewed: 'mt' },
     },
 
     // CHARACTER — AudioParameterFloat, -100 .. +100, default 0.
@@ -318,6 +321,9 @@ export const I18N = Object.freeze({
         fr: { t: "Caractère",
               b: "Incline la couleur de la seule queue de réverbération ; le signal direct n’est jamais filtré. Vers la gauche le son est chaud, un passe-bas qui se referme de 20 kHz jusqu’à 2 kHz, et vers la droite il est brillant, un filtre en plateau aigu à 4 kHz atteignant +6 dB. L’affichage indique neutral dans une étroite zone morte au centre, où le filtre est totalement contourné : de warm 100 % à bright 100 %.",
               reviewed: true },
+        'zh-Hans': { t: '特性',
+              b: '只倾斜混响尾音的音色；干信号从不被滤波。向左转是暖的，一个从 20 kHz 向下收到 2 kHz 的低通；向右转是亮的，一个在 4 kHz 处最高达 +6 dB 的高频搁架。读数在中心一段很窄的死区内显示 neutral，此时滤波器被直接旁通：暖 100% 到亮 100%。',
+              reviewed: 'mt' },
     },
 
     // WET — AudioParameterFloat, 0 .. 100 %, default 25.
@@ -331,6 +337,9 @@ export const I18N = Object.freeze({
         fr: { t: "Traité",
               b: "Règle la quantité de réverbération ajoutée à la sortie. C’est un gain indépendant et non un fondu enchaîné : l’augmenter ne baisse pas Direct, si bien que les deux ensemble déterminent aussi le niveau global et pas seulement l’équilibre. 0 à 100 %.",
               reviewed: true },
+        'zh-Hans': { t: '湿',
+              b: '设定有多少混响被加进输出。它是一个独立的增益而不是交叉淡化：把它调大并不会把干信号调小，因此两者合起来既决定平衡也决定总电平。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // DRY — AudioParameterFloat, 0 .. 100 %, default 100.
@@ -341,6 +350,9 @@ export const I18N = Object.freeze({
         fr: { t: "Direct",
               b: "Règle la quantité de signal d’entrée intact qui atteint la sortie. Elle est indépendante de Traité : la ramener à 0 ne laisse que la queue de réverbération en sortie — le réglage à utiliser sur un bus de départ — tandis que la laisser à 100 conserve la source à plein niveau. 0 à 100 %.",
               reviewed: true },
+        'zh-Hans': { t: '干',
+              b: '设定有多少未经处理的输入到达输出。它与湿相互独立，因此把它拉到 0 就只在输出上留下混响尾音 — 用在发送总线上的设定 — 而保持在 100 则让源信号保持满电平。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // DECAY — AudioParameterFloat, 0.5 .. 2.0, default 1.0, skew 0.6309.
@@ -356,6 +368,9 @@ export const I18N = Object.freeze({
         fr: { t: "Déclin",
               b: "Allonge ou raccourcit la queue posée par le Type, en agrandissant la pièce et en relâchant son amortissement à la fois. Le centre du bouton vaut exactement 1,0x, soit le déclin propre du type : c’est donc un ajustement et non une durée en secondes. De 0,5x à 2,0x.",
               reviewed: true },
+        'zh-Hans': { t: '衰减',
+              b: '在类型设定的尾音基础上把它拉长或缩短，做法是同时把房间变大并放松其阻尼。旋钮的中心正好是 1.0x — 该类型自身未经改动的衰减 — 因此这是一个微调，而不是以秒计的时间。0.5x 到 2.0x。',
+              reviewed: 'mt' },
     },
 
     // SIZE — AudioParameterFloat, 0 .. 100 %, default 50.
@@ -366,6 +381,9 @@ export const I18N = Object.freeze({
         fr: { t: "Taille",
               b: "Met à l’échelle la pièce choisie par le Type, de la moitié de sa taille à 0 % jusqu’à sa taille entière à 100 %. C’est une valeur relative et non absolue — Booth à 100 % reste plus petit que Hall à 0 % — et elle n’agit que sur l’espace, la longueur de la queue restant l’affaire de Déclin. 0 à 100 %.",
               reviewed: true },
+        'zh-Hans': { t: '尺寸',
+              b: '缩放类型所选的房间，从 0% 时的一半大小到 100% 时的完整大小。它是相对的而不是绝对的 — Booth 在 100% 时仍然小于 Hall 在 0% 时 — 而且它只移动空间，尾音的长短交给衰减。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // LPFREQ — AudioParameterFloat, 20 .. 400 Hz, default 200.
@@ -380,6 +398,9 @@ export const I18N = Object.freeze({
         fr: { t: "Coupe-bas",
               b: "Un passe-haut appliqué à la seule queue de réverbération, pour dégager le bas du spectre sans amaigrir le signal direct. Il ne fait rien du tout tant que l’interrupteur sous le cadran n’affiche pas ACT., et les deux petits chiffres de part et d’autre du cadran sont les extrémités de sa course. De 20 à 400 Hz.",
               reviewed: true },
+        'zh-Hans': { t: '低切',
+              b: '只作用在混响尾音上的高通，用来清掉空间底部的浑浊而不让干信号变薄。只有当旋钮下方的开关显示 ON 时它才起作用，旋钮两侧的两个小数字是它行程的两端。20 到 400 Hz。',
+              reviewed: 'mt' },
     },
 
     // LPON — AudioParameterFloat over NormalisableRange(0, 1, 1), default 0.
@@ -394,6 +415,9 @@ export const I18N = Object.freeze({
         fr: { t: "Coupe-bas actif",
               b: "Met le coupe-bas en service ou hors service ; cliquez sur le mot lui-même pour basculer. Tant qu’il affiche DÉS., le cadran au-dessus est estompé et le filtre est totalement contourné : un coupe-bas inutilisé ne coûte rien. Deux réglages : DÉS. et ACT.",
               reviewed: true },
+        'zh-Hans': { t: '低切开启',
+              b: '把低切接入或移出；点击这个词本身即可切换。显示 OFF 时上方的旋钮变暗，滤波器被完全旁通，因此一个不用的低切不花任何代价。两档：OFF 与 ON。',
+              reviewed: 'mt' },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -404,12 +428,36 @@ export const I18N = Object.freeze({
     // panel holds the language selector and nothing else, and the tip says
     // exactly that. O-Tapestop's wording promises a toggle that does not exist
     // here; a tip that lies is worse than no tip.
+    // TWO ENUMERATIONS DELETED IN v1.9.0, EN AND FR BOTH.
+    //
+    // The gear body asserted that the settings panel holds nothing besides the
+    // interface language. That was true when it was written and stopped being
+    // true when the hover-help switch landed in the same panel — the tip has
+    // been describing one of two controls and denying the second ever since.
+    //
+    // The language body ended by spelling out the two languages the selector
+    // then held, which was true for exactly as long as the selector held two
+    // and became false the moment this version added a third.
+    //
+    // BOTH ARE DELETIONS RATHER THAN EXTENSIONS. An enumeration is false again
+    // the next time a row or an option lands, which is how both of these broke;
+    // and the selector already lists the languages in their own endonyms, which
+    // is the one form a reader recognises without knowing the page language.
+    // Neither superseded sentence is reproduced in these comments, so a
+    // repo-wide grep for either stays at zero on this file.
+    // N11 — THIS PLUGIN'S LANGUAGE BODY STATED A COUNT as well as naming the
+    // pair, and it did both in one sentence. The count is the form that reads
+    // most obviously wrong the moment a third option is in the selector. Both
+    // halves go.
     'tip.gearBtn': {
         en: { t: "Settings",
-              b: "Opens the settings panel, which on this plugin holds a single row: the interface language. Nothing else lives in there — every reverb control is on the front panel." },
+              b: "Opens the settings panel, where the interface language is set." },
         fr: { t: "Réglages",
-              b: "Ouvre le panneau de réglages, qui ne contient sur ce plugin qu’une seule ligne : la langue de l’interface. Rien d’autre ne s’y trouve — toutes les commandes de la réverbération sont sur la face avant.",
+              b: "Ouvre le panneau de réglages, où se règle la langue de l’interface.",
               reviewed: true },
+        'zh-Hans': { t: '设置',
+              b: '打开设置面板，本插件的面板中只有一行：界面语言。',
+              reviewed: 'mt' },
     },
 
     // The two endonyms are named as the selector spells them, and the selector
@@ -420,10 +468,13 @@ export const I18N = Object.freeze({
     // property (PluginProcessor.cpp:659-660).
     'tip.langSelect': {
         en: { t: "Interface language",
-              b: "Switches every caption, accessible name and hover-help on this page between English and French. The change is immediate and is saved with the plugin's state, so it comes back with the session. Two settings: English and Français." },
+              b: "Switches every caption, accessible name and hover-help on this page. The change is immediate and is saved with the plugin's state, so it comes back with the session." },
         fr: { t: "Langue de l’interface",
-              b: "Bascule toutes les légendes, tous les noms accessibles et toutes les infobulles de cette page entre l’anglais et le français. Le changement est immédiat et il est enregistré avec l’état du plugin : il revient donc avec la session. Deux réglages : English et Français.",
+              b: "Bascule toutes les légendes, tous les noms accessibles et toutes les infobulles de cette page. Le changement est immédiat et il est enregistré avec l’état du plugin : il revient donc avec la session.",
               reviewed: true },
+        'zh-Hans': { t: '界面语言',
+              b: '切换本页每一个标题、无障碍名称与悬停帮助的语言。切换立即生效，并随插件状态一同保存，因此它会跟着会话回来。',
+              reviewed: 'mt' },
     },
     // v1.8.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -434,6 +485,9 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+        'zh-Hans': { t: '悬停帮助',
+              b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
+              reviewed: 'mt' },
     },
 });
 
@@ -534,7 +588,7 @@ export const LABELS = Object.freeze({
     // both would sit 20+ px inside the pin. CARACTÈRE is kept because it is
     // the direct translation of the visible English and this commit translates
     // the page rather than re-naming its controls.
-    'label.character': { en: { t: 'Character' }, fr: { t: 'Caractère', reviewed: true } },
+    'label.character': { en: { t: 'Character' }, fr: { t: 'Caractère', reviewed: true } , 'zh-Hans': { t: '特性', reviewed: 'mt' }},
 
     // COUPE-B. IS AN ABBREVIATION AND THE FULL FORM WAS REJECTED ON
     // MEASUREMENT, NOT ON TASTE. COUPE-BAS is 57.22 — 5.22 px PAST cliff A —
@@ -544,7 +598,7 @@ export const LABELS = Object.freeze({
     // FILTRE (34.48), which is unambiguous because this page has exactly one
     // filter but drops the word "low"; C. BAS (32.81); PASSE-HT (47.59).
     // COUPE-B. keeps the low-cut meaning at 4.84 px of headroom.
-    'label.lowCut':    { en: { t: 'Low Cut' },   fr: { t: 'Coupe-b.', reviewed: true } },
+    'label.lowCut':    { en: { t: 'Low Cut' },   fr: { t: 'Coupe-b.', reviewed: true } , 'zh-Hans': { t: '低切', reviewed: 'mt' }},
 
     // EFFET / DIRECT is the pair French effects units are silk-screened with,
     // and it is a pair — the reviewer should move both or neither. HUMIDE
@@ -553,8 +607,8 @@ export const LABELS = Object.freeze({
     // geometry one and is recorded as such. DIRECT is 16.40 px WIDER than DRY
     // and that costs nothing, because 37.31 is still 14.69 px under the cliff:
     // measuring the cliff is what turns a scary-looking growth into a non-event.
-    'label.wet':       { en: { t: 'Wet' },       fr: { t: 'Traité',   reviewed: true } },
-    'label.dry':       { en: { t: 'Dry' },       fr: { t: 'Direct',   reviewed: true } },
+    'label.wet':       { en: { t: 'Wet' },       fr: { t: 'Traité',   reviewed: true } , 'zh-Hans': { t: '湿', reviewed: 'mt' }},
+    'label.dry':       { en: { t: 'Dry' },       fr: { t: 'Direct',   reviewed: true } , 'zh-Hans': { t: '干', reviewed: 'mt' }},
 
     // DÉCROISSANCE is the full word and it is 77.63 — a SINGLE WORD with no
     // break opportunity, 25.63 px past cliff A. It stops short of cliff C
@@ -563,8 +617,8 @@ export const LABELS = Object.freeze({
     // past the cliff by 0.97 px, which is a miss by rounding. DÉCLIN is the
     // word French reverb manuals use and it fits with 14.20 px to spare;
     // CHUTE (34.00) is the roomier alternative.
-    'label.decay':     { en: { t: 'Decay' },     fr: { t: 'Déclin',   reviewed: true } },
-    'label.size':      { en: { t: 'Size' },      fr: { t: 'Taille',   reviewed: true } },
+    'label.decay':     { en: { t: 'Decay' },     fr: { t: 'Déclin',   reviewed: true } , 'zh-Hans': { t: '衰减', reviewed: 'mt' }},
+    'label.size':      { en: { t: 'Size' },      fr: { t: 'Taille',   reviewed: true } , 'zh-Hans': { t: '尺寸', reviewed: 'mt' }},
 
     // ── The low-cut ON/OFF toggle ───────────────────────────────────────────
     //
@@ -607,8 +661,8 @@ export const LABELS = Object.freeze({
     // pair. MAR. (25.30) / ARR. (23.06) both fit and are the reviewer's
     // alternative; ACT. / DÉS. is preferred because activé/désactivé is the
     // idiom for a filter ENABLE, where marche/arrêt is a power idiom.
-    'ui.on':           { en: { t: 'ON' },        fr: { t: 'ACT.',     reviewed: true } },
-    'ui.off':          { en: { t: 'OFF' },       fr: { t: 'DÉS.',     reviewed: true } },
+    'ui.on':           { en: { t: 'ON' },        fr: { t: 'ACT.',     reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
+    'ui.off':          { en: { t: 'OFF' },       fr: { t: 'DÉS.',     reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -646,8 +700,8 @@ export const LABELS = Object.freeze({
     // and would break the rule silently — the same rule O-AnalogEQ found
     // broken on O-DigiDelay, and which O-Marimba already ships broken twice.
     // LIRE is a whole word, so aria.loadPreset simply begins with it.
-    'label.save':      { en: { t: 'Save' },      fr: { t: 'Enr',      reviewed: true } },
-    'label.load':      { en: { t: 'Load' },      fr: { t: 'Ouv',      reviewed: true } },
+    'label.save':      { en: { t: 'Save' },      fr: { t: 'Enr',      reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' }},
+    'label.load':      { en: { t: 'Load' },      fr: { t: 'Ouv',      reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'mt' }},
 
     // ── The settings popover (v1.6.0) ───────────────────────────────────────
     //
@@ -662,14 +716,14 @@ export const LABELS = Object.freeze({
     // It SHRINKS, which is why .settings-popover carries a hard width: an
     // auto-width panel would contract in French and assertion 7 would report
     // the panel, its row and the select as moved.
-    'label.language':  { en: { t: 'Language' },  fr: { t: 'Langue',   reviewed: true } },
+    'label.language':  { en: { t: 'Language' },  fr: { t: 'Langue',   reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' }},
 
     // v1.8.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
 
     // ── Image alternative text ──────────────────────────────────────────────
     //
@@ -682,8 +736,8 @@ export const LABELS = Object.freeze({
     // byte-identical to O-Bass's and O-IntonationPad's; the FILES differ
     // (img/paper.jpg + img/flora.png here, not botanical.png) but the authored
     // English alt text is the same two words.
-    'alt.background':  { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true } },
-    'alt.botanical':   { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true } },
+    'alt.background':  { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true } , 'zh-Hans': { t: '背景', reviewed: 'mt' }},
+    'alt.botanical':   { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true } , 'zh-Hans': { t: '植物插画', termNote: 'the glossary root for `botanical` is 植物律, and 律 is temperament or law. This is the alt text of a DECORATIVE PLANT ILLUSTRATION, and the root FAILED THE REVERSE READ TWICE on O-Bass, from two different models in independent sessions: "Phytometric" and "Plant Law". Neither is the English, so this is an evidenced defect rather than a terminology preference. 植物插画 is the rendering wave 4a settled on the identical string; this row copies it rather than re-deriving one. The root itself is reported to the glossary owners rather than edited here: changing a settled root puts other plugins out of Z5 conformance.', reviewed: 'mt' }},
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -715,17 +769,17 @@ export const LABELS = Object.freeze({
     // préréglage" — so a voice-control user saying the caption still hits the
     // button (WCAG 2.5.3, which matches case-insensitively).
     'aria.prevPreset': { en: { t: 'Previous preset' },
-                         fr: { t: 'Préréglage précédent', reviewed: true } },
+                         fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'mt' }},
     'aria.nextPreset': { en: { t: 'Next preset' },
-                         fr: { t: 'Préréglage suivant',   reviewed: true } },
+                         fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'mt' }},
     'aria.savePreset': { en: { t: 'Save preset' },
-                         fr: { t: 'Enregistrer le préréglage', reviewed: true } },
+                         fr: { t: 'Enregistrer le préréglage', reviewed: true } , 'zh-Hans': { t: '保存预设', reviewed: 'mt' }},
     'aria.loadPreset': { en: { t: 'Load preset' },
-                         fr: { t: 'Ouvrir un préréglage',      reviewed: true } },
+                         fr: { t: 'Ouvrir un préréglage',      reviewed: true } , 'zh-Hans': { t: '载入预设', reviewed: 'mt' }},
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'mt' }},
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'mt' }},
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }},
 });
 
 // ============================================================================
