@@ -2,6 +2,88 @@
 
 All notable changes to O-Emulator are documented here.
 
+## [1.4.0] - 2026-09-05
+
+**Simplified Chinese.** Every caption, hover-help body and accessible name now
+renders in `zh-Hans` alongside English and French — 27 entries, 35 emitter rows.
+MINOR: a language is added and two English hover-help bodies are corrected; no
+parameter, range, type or state format changed, and no DSP was touched.
+
+### Added
+
+- **`zh-Hans` on all 27 entries.** `LANGUAGES` reads three, the selector carries
+  a third `<option>` written as numeric character references, and the
+  `languageCode` / `languageIndex` codec is three-way and pure ASCII.
+
+  **THE FIVE CONSOLE NAMES STAY ENGLISH INSIDE THE CHINESE SENTENCES.** SNES,
+  PS1, NES, Game Boy and Genesis are `AudioParameterChoice` strings, and they
+  are what the selector, the segment readout and the host automation lane all
+  say — so a Chinese reader hunting for "Game Boy" must be told "Game Boy". This
+  plugin's exemption list is the largest relative to its table, sixteen entries
+  covering the console names and their codec strings, and every one was screened
+  both ways: an exempt option word must survive verbatim into the Chinese, and a
+  non-exempt caption must not. The engraved plate caption is NOT exempt and is
+  translated; its Roman numeral is a plate NUMBER — a figure, not prose — and
+  stays exactly as engraved.
+
+  **DISCLOSED QUALITY LEVEL: `reviewed: 'bt'`, not `'native'`.** This project
+  has no native Chinese reader, so the ship bar is a BACK-TRANSLATION: an
+  independent pass that has never seen the English renders the shipped Chinese
+  back into English, and the drift is read in a language this project can read.
+  All 35 rows were carried through that pass and read with `--verbose`.
+
+      forward   claude-opus-5 forward draft, quick task 260905-acr, 2026-09-05
+      reverse   claude-sonnet-4-5, fresh non-interactive session, no tools,
+                cwd outside the repo, 2026-09-05
+
+  `reviewed: 'native'` stays OPEN and is printed by the lint's R1 rule on every
+  run. Nothing here has been read by a native speaker. Every drift was accepted
+  with a written reason; none could send a reader to a different control.
+
+- **A CJK font tail on the whole page in ONE EDIT.** This plugin resolves every
+  one of its eight font declarations through the `--serif` custom property, so
+  the tail went on the token rather than on eight stacks. The token already
+  named `'Times New Roman'` ahead of the generic, so its Latin was never exposed
+  and only the tail was needed. Verified by computed style: 14 Han-bearing nodes
+  of 39 visible, all 14 through a PingFang SC stack.
+
+### Fixed
+
+- **Two hover-help bodies asserted things that were no longer true**, in English
+  and French both. The gear body said the settings panel holds nothing besides
+  the interface language — false since the hover-help switch landed in the same
+  panel — and the language body spelled out the two languages the selector then
+  held. Both DELETED rather than extended: an enumeration is false again the
+  next time a row or an option lands, which is how both of these broke.
+
+- **The engraved plate caption shrank a line on the Chinese arm, and only at the
+  shipping frame.** At 700 x 380 it wraps to THREE lines in English and French
+  (41.30 px) and TWO in Chinese (27.53) — Han says it in fewer glyphs — so the
+  header block lost 13.8 px and slid the brand line up under it. **At a wide
+  test viewport all three languages fit on one line and the defect does not
+  exist**, which is why the measurement harness now parses the frame from
+  `PluginEditor.cpp` exactly as `check-ui-labels` does. Floored at the measured
+  English box, a no-op on the two arms already sitting on it.
+
+- **Three elements grew 2 to 4 px on the Chinese arm** from `line-height:
+  normal`, which is not a number: it is whatever the resolved face calls its
+  natural line box, and the resolved face changes with the document language.
+  Pinned to their own measured English boxes, unitless and scoped.
+
+- **`tests/ui_tip_render_check.js` asserted `LANGUAGES.join(',') === 'en,fr'`**,
+  which does not merely fail to notice a third language — it hard-fails the day
+  one arrives, on a table that is correct. Replaced with a derive-or-abort check
+  that the list is usable, because an empty or single-entry list would let every
+  language-driven assertion pass vacuously. A planted empty export was observed
+  to trip it.
+
+### Verification
+
+`check-i18n` exit 0; `check-ui-labels` exit 0, 0 FAIL on all three arms;
+`i18n-zh-lint` 0 findings, `BELOW SHIP BAR 0`; `i18n-fr-lint` exit 0; the tip
+gate passes with a real Chinese arm. Zero Han under `Source/**` with the
+positive control fired. `auval -v aufx OEmu Ouar` AU VALIDATION SUCCEEDED.
+
 ## [1.3.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task

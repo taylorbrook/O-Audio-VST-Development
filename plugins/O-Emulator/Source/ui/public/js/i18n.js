@@ -187,7 +187,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '控制台',
               b: '选择声音经由哪一台机器播放 — 编解码器、固定的内部采样率与输出级会一起改变。切换时以 30 ms 交叉淡化，因此在有音频运行时切换是安全的。五档：SNES、PS1、NES、Game Boy、Genesis。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // crush — 0..100 %, default 50. The "still passes the codec at 0" sentence
@@ -201,7 +201,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '压碎',
               b: '信号被多用力地推过控制台的编解码器：编码器增益、更粗的量化步进，超过 80% 后还会打开抗混叠滤波器以获得刻意的混叠。为 0 时信号仍然走完整个编解码往返，因此这个旋钮是让色彩变淡，而不是把它旁通。0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // age — 0..100 %, default 20. The noise floor ramps in above ~5 %, which is
@@ -215,7 +215,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '老化',
               b: '硬件的状况：嘶声、市电哼声、更闷的输出滤波器，以及重采样比率的缓慢游移，最多可失谐 15 音分。噪声底在行程底端保持安静，大约 5% 以上才进来。0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // reverb — 0..100 %, default 0. Available in EVERY console mode, which is
@@ -228,7 +228,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '混响',
               b: '送入 PlayStation 混响的发送电平 — 取自该主机自身寄存器模型的一个 Hall 设定，在每一种控制台模式下都可用，不只是 PS1。发送取自编解码器之后，因此混响听到的是劣化后的信号而不是干净的信号。0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // mix — 0..100 %, default 100. The Age bed being wet-path only is the part
@@ -241,7 +241,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '混合',
               b: '在模拟出的信号与未经处理的输入之间调和。干路径经过延迟补偿，因此在 0% 时输入原样通过 — 老化控件的嘶声与哼声也随之消失，因为它们只存在于湿路径上。0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -276,7 +276,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '设置',
               b: '打开设定本界面语言的面板。本页的标签与这些悬停帮助会随之切换，该选择随会话一同保存，因此项目会以保存时的语言重新打开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.langSelect': {
         en: { t: "Language",
@@ -286,7 +286,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '语言',
               b: '本页标签与这些悬停帮助的语言。数值读数、五个控制台名称与预设名称保持英文，让页面与宿主保持一致。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // v1.3.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -299,7 +299,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '悬停帮助',
               b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
@@ -374,10 +374,10 @@ export const LABELS = Object.freeze({
     // AudioParameterFloats (PluginProcessor.cpp:71-74) — so arm 1 of D-01 does
     // not apply and there is no automation-lane string for a French caption to
     // disagree with.
-    'label.crush':  { en: { t: 'Crush' },  fr: { t: 'Broyage', reviewed: true } , 'zh-Hans': { t: '压碎', reviewed: 'mt' }},
-    'label.age':    { en: { t: 'Age' },    fr: { t: 'Âge',     reviewed: true } , 'zh-Hans': { t: '老化', reviewed: 'mt' }},
-    'label.reverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb',  reviewed: true } , 'zh-Hans': { t: '混响', reviewed: 'mt' }},
-    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: true } , 'zh-Hans': { t: '混合', reviewed: 'mt' }},
+    'label.crush':  { en: { t: 'Crush' },  fr: { t: 'Broyage', reviewed: true } , 'zh-Hans': { t: '压碎', reviewed: 'bt' }},
+    'label.age':    { en: { t: 'Age' },    fr: { t: 'Âge',     reviewed: true } , 'zh-Hans': { t: '老化', reviewed: 'bt' }},
+    'label.reverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb',  reviewed: true } , 'zh-Hans': { t: '混响', reviewed: 'bt' }},
+    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: true } , 'zh-Hans': { t: '混合', reviewed: 'bt' }},
 
     // ── The preset band ─────────────────────────────────────────────────────
     // The repo-standard trio, matching O-Bitrot v1.15.0, O-ReverseDelay and
@@ -385,9 +385,9 @@ export const LABELS = Object.freeze({
     // should not be spelled three different ways across the suite. Abbreviated
     // rather than "Enregistrer" / "Charger" / "Supprimer" because this header
     // is 162 px over-full in English before French is asked for anything.
-    'label.save':   { en: { t: 'Save' },   fr: { t: 'Enreg.', reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' }},
-    'label.load':   { en: { t: 'Load' },   fr: { t: 'Ouvrir', reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'mt' }},
-    'label.delete': { en: { t: 'Delete' }, fr: { t: 'Suppr.', reviewed: true } , 'zh-Hans': { t: '删除', reviewed: 'mt' }},
+    'label.save':   { en: { t: 'Save' },   fr: { t: 'Enreg.', reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'bt' }},
+    'label.load':   { en: { t: 'Load' },   fr: { t: 'Ouvrir', reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'bt' }},
+    'label.delete': { en: { t: 'Delete' }, fr: { t: 'Suppr.', reviewed: true } , 'zh-Hans': { t: '删除', reviewed: 'bt' }},
 
     // The ARMED face of the delete button — the only string on this page
     // written from script. It goes through setLabel(), so the button becomes a
@@ -408,7 +408,7 @@ export const LABELS = Object.freeze({
     // Widening the button is not available — the band's total width is what
     // keeps .brand and .hdr-right still (see the header note above) — and
     // "Sûr ?" carries the same terse register as "Confirm?".
-    'ui.confirm':   { en: { t: 'Confirm?' }, fr: { t: 'Sûr ?', reviewed: true } , 'zh-Hans': { t: '确认？', reviewed: 'mt' }},
+    'ui.confirm':   { en: { t: 'Confirm?' }, fr: { t: 'Sûr ?', reviewed: true } , 'zh-Hans': { t: '确认？', reviewed: 'bt' }},
 
     // ── The imprint line ────────────────────────────────────────────────────
     // The naturalist-plate conceit the whole page is built on. Its box is
@@ -421,29 +421,29 @@ export const LABELS = Object.freeze({
     'label.plate': {
         en: { t: 'A Survey of Extinct Consoles · Plate CDLXXXVII' },
         fr: { t: 'Relevé des consoles disparues · Planche CDLXXXVII', reviewed: true },
-'zh-Hans': { t: '已灭绝主机图鉴 · 图版 CDLXXXVII—', reviewed: 'mt' }
+'zh-Hans': { t: '已灭绝主机图鉴 · 图版 CDLXXXVII—', reviewed: 'bt' }
     },
 
     // ── The settings popover (v1.1.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' }},
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'bt' }},
 
     // v1.3.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' }},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'bt' }},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' }},
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
     // hears the same language the page is showing.
-    'aria.presetPrev': { en: { t: 'Previous preset' },   fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'mt' }},
-    'aria.presetNext': { en: { t: 'Next preset' },       fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'mt' }},
-    'aria.settings':   { en: { t: 'Settings' },          fr: { t: 'Réglages',             reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'mt' }},
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'mt' }},
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }},
+    'aria.presetPrev': { en: { t: 'Previous preset' },   fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'bt' }},
+    'aria.presetNext': { en: { t: 'Next preset' },       fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'bt' }},
+    'aria.settings':   { en: { t: 'Settings' },          fr: { t: 'Réglages',             reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'bt' }},
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'bt' }},
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' }},
 
     // "Console" is spelled identically in French — it is the same Latin root
     // and the same word for the same object. sameAsEn declares that on
@@ -454,7 +454,7 @@ export const LABELS = Object.freeze({
     // "Console" is the AudioParameterChoice's DISPLAY NAME
     // (PluginProcessor.cpp:55) and not one of its option strings. Nothing in a
     // host automation lane is spelled "Console" as a VALUE.
-    'aria.console': { en: { t: 'Console' }, fr: { t: 'Console', sameAsEn: true, reviewed: true } , 'zh-Hans': { t: '控制台', reviewed: 'mt' }},
+    'aria.console': { en: { t: 'Console' }, fr: { t: 'Console', sameAsEn: true, reviewed: true } , 'zh-Hans': { t: '控制台', reviewed: 'bt' }},
 });
 
 // ============================================================================
