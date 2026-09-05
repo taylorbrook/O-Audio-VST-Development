@@ -18,7 +18,60 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Bass page labels and hover-help, English + French (v1.5.1)
+// i18n.js — O-Bass page labels and hover-help, English, French and Simplified
+// Chinese (v1.6.0)
+//
+// ── v1.6.0: SIMPLIFIED CHINESE (zh-Hans rollout Stage 4, wave 4a) ──
+//
+// 29 entries — 23 labels and 6 hover-help entries. LANGUAGES is three long.
+//
+// ── THE RENDERINGS ARE THE GLOSSARY'S ───────────────────────────────────────
+// Every English name string that is a TERMS key in scripts/i18n-zh-glossary.js
+// takes that term's ROOT rendering, which lint rule Z5 enforces. 28 of this page's 29 name strings are glossary roots; one is authored.
+//
+// ── TYPOGRAPHY ──────────────────────────────────────────────────────────────
+//   Z1 full-width punctuation; ASCII punctuation inside a Latin or numeric
+//      token is masked first.  Z2 NO U+00A0 anywhere — the inverse of the
+//      French rules on this same page.  Z4 one plain U+0020 at every
+//      Latin/digit-to-Han boundary, table-wide.  Z7 no full-width Latin or
+//      digits; units and AudioParameterChoice option words stay ASCII.
+//      Z8 no plain space between two Han code points.
+//
+// ── THE CJK FONT TAIL ───────────────────────────────────────────────────────
+// MEASURED, never reasoned from the [data-i18n] list: the page was served,
+// switched to Chinese, every state in tests/i18n-states.json driven and every
+// [data-tip] anchor hovered, and getComputedStyle().fontFamily read on every
+// node that HOLDS or CAN RECEIVE a Han codepoint.
+// FIVE declarations took the tail and TWO more were repaired without it:
+// .preset-nav-btn and .preset-name read `'Garamond', serif`, and Garamond is
+// not a macOS face, so the bare generic was the only survivor of those stacks —
+// and Chromium resolves a generic against the document's lang, which would have
+// rendered their Latin in a Chinese face under zh while rendering Times under
+// en and fr. Naming Times New Roman pins them; they carry no Han, so they take
+// no CJK tail.
+// The tail goes BEFORE the trailing generic, never after: Chromium resolves a
+// bare `serif` against the document's lang, so under zh-Hans the generic is
+// already a Chinese face and a tail written after it is never consulted.
+// Stacks that render no Han are deliberately untouched — the gear glyph reaches
+// Han only through data-tip (which paints in #tooltip) and aria-label (which is
+// spoken, not rendered), and the preset rows carry filenames.
+//
+// ── GEOMETRY ────────────────────────────────────────────────────────────────
+// Seven line-height pins closed 13 movers across the knob row. Every ratio in the pin block is the element's own measured
+// ENGLISH line box over its own font size, derived from the BOX rather than a
+// text ink rect, written unitless and scoped per family. No global
+// line-height: a global rule moves English, which is the regression the gates
+// exist to catch. The en and fr arms report 0 FAIL before and after.
+//
+// ── TWO FALSE SENTENCES REMOVED, NOT EXTENDED ───────────────────────────────
+// tip.settings claimed the panel holds one control while the hover-help switch sits beside the selector; tip.language named the two available languages. Both are deletions, in English and French both, so the French
+// review flags stand. No gate can see this class of defect: the sentences stay
+// grammatical and the tooltips still render.
+//
+// ── THE REVIEW LIFECYCLE ────────────────────────────────────────────────────
+// The zh flag is an ENUM, not the boolean French uses, because nobody on this
+// project reads Chinese. The native-reviewed level stays OPEN and is disclosed
+// rather than hidden — lint rule R1 prints the count below the bar every run.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -155,7 +208,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — hover-help copy. {t, b}: a title and a body.
@@ -207,6 +260,9 @@ export const I18N = Object.freeze({
                + 'ne renforcer que le sub, montez-le pour épaissir aussi le bas-médium. '
                + '40 à 200 Hz.',
               reviewed: true },
+    'zh-Hans': { t: '频率',
+          b: '设定分频点，把输入信号切分为本插件所增强的低频段与不作处理的高频段。往下调可以让加强只作用于超低频，往上调则连低中频也一并加厚。40 到 200 Hz。',
+          reviewed: 'mt' },
     },
 
     // ── enhance — AudioParameterFloat, 0..100 %, default 50 ────────────────
@@ -224,6 +280,9 @@ export const I18N = Object.freeze({
                + 'coupure. Un léger renfort soude le mixage ; un renfort marqué reconstruit un '
                + 'grave qu’une petite enceinte laisse encore entendre. 0 à 100 %.',
               reviewed: true },
+    'zh-Hans': { t: '增强',
+          b: '设定分频点以下的频段被加入多少加强。少量能把一首混音黏合起来；大量则重建出一段小音箱也听得见的低频。0 到 100%。',
+          reviewed: 'mt' },
     },
 
     // ── output — AudioParameterFloat, −18..+18 dB, default 0 ───────────────
@@ -245,6 +304,9 @@ export const I18N = Object.freeze({
                + 'côté s’allume tant que le limiteur interne retient les crêtes. '
                + '−18 à +18 dB.',
               reviewed: true },
+    'zh-Hans': { t: '输出',
+          b: '微调离开插件的电平，让增强后的信号可以与未处理的信号作比较。下方的表头显示结果，旁边的指示灯在内部限制器压住峰值时点亮。−18 到 +18 dB。',
+          reviewed: 'mt' },
     },
 
     // ── #gear-btn — chrome, not a parameter ────────────────────────
@@ -258,14 +320,15 @@ export const I18N = Object.freeze({
     // not there.
     'tip.settings': {
         en: { t: 'Settings',
-              b: 'Opens a small panel holding one control: the language this interface is '
-               + 'written in. Nothing in it changes the sound or the current preset. Escape or '
+              b: 'Opens a small panel. Nothing in it changes the sound or the current preset. Escape or '
                + 'a click elsewhere closes it again.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre un petit panneau contenant un seul réglage : la langue de cette '
-               + 'interface. Rien n’y modifie le son ni le préréglage en cours. Échap ou un clic '
+              b: 'Ouvre un petit panneau. Rien n’y modifie le son ni le préréglage en cours. Échap ou un clic '
                + 'ailleurs le referme.',
               reviewed: true },
+    'zh-Hans': { t: '设置',
+          b: '打开一个小面板。其中的选择都不会改变声音或当前预设。按 Escape 或点击别处即可关闭。',
+          reviewed: 'mt' },
     },
 
     // ── #lang-select — chrome, not a parameter ─────────────────────
@@ -283,15 +346,17 @@ export const I18N = Object.freeze({
     // the control is an identifier, the sentence about it is copy.
     'tip.language': {
         en: { t: 'Language',
-              b: 'Switches every caption, accessible name and hover-help on this page between '
-               + 'English and French. Parameter values, units and preset names stay as they '
+              b: 'Switches every caption, accessible name and hover-help on this page. Parameter values, units and preset names stay as they '
                + 'are. The choice is saved with the plugin and comes back with the session.' },
         fr: { t: 'Langue',
               b: 'Bascule chaque libellé, chaque nom accessible et chaque infobulle de cette '
-               + 'page entre l’anglais et le français. Les valeurs des paramètres, les unités '
+               + 'page. Les valeurs des paramètres, les unités '
                + 'et les noms de préréglages restent inchangés. Le choix est enregistré avec le plugin et revient avec la '
                + 'session.',
               reviewed: true },
+    'zh-Hans': { t: '语言',
+          b: '切换本页所有标签、无障碍名称与悬停帮助的语言。参数值、单位与预设名称保持不变。该选择会随插件一同保存，并随会话回来。',
+          reviewed: 'mt' },
     },
     // v1.6.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -302,6 +367,9 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+    'zh-Hans': { t: '悬停帮助',
+          b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
+          reviewed: 'mt' },
     },
 });
 
@@ -413,9 +481,9 @@ export const LABELS = Object.freeze({
     // are under that floor, so the container is 65.00 px in either language.
     // A `width` here would have a negative control that PASSES, which by the
     // batch rule is decoration.
-    'label.frequency': { en: { t: 'Frequency' }, fr: { t: 'Fréquence', reviewed: true } },
-    'label.enhance':   { en: { t: 'Enhance' },   fr: { t: 'Renfort',   reviewed: true } },
-    'label.output':    { en: { t: 'Output' },    fr: { t: 'Sortie',    reviewed: true } },
+    'label.frequency': { en: { t: 'Frequency' }, fr: { t: 'Fréquence', reviewed: true }, 'zh-Hans': { t: '频率', reviewed: 'mt' } },
+    'label.enhance':   { en: { t: 'Enhance' },   fr: { t: 'Renfort',   reviewed: true }, 'zh-Hans': { t: '增强', reviewed: 'mt' } },
+    'label.output':    { en: { t: 'Output' },    fr: { t: 'Sortie',    reviewed: true }, 'zh-Hans': { t: '输出', reviewed: 'mt' } },
 
     // ── The limiter indicator caption ───────────────────────────────────────
     //
@@ -429,7 +497,7 @@ export const LABELS = Object.freeze({
     // LIMITE (43.27) is the word and it does not fit: it is 7.72 px wider than
     // the English, and cliff B has 0.00 px to give. ECRET. (42.77, écrêtage)
     // is wider still. LIM. is the abbreviation French-market limiters carry.
-    'label.limit': { en: { t: 'Limit' }, fr: { t: 'Lim.', reviewed: true } },
+    'label.limit': { en: { t: 'Limit' }, fr: { t: 'Lim.', reviewed: true }, 'zh-Hans': { t: '限制', reviewed: 'mt' } },
 
     // ── The output-meter caption ────────────────────────────────────────────
     //
@@ -461,7 +529,7 @@ export const LABELS = Object.freeze({
     // SORTIE, because its container has 14 px of slack and this one has none.
     // The same English word gets two different answers on one page, decided by
     // geometry. That is a legitimate thing to disagree with.
-    'label.out': { en: { t: 'Out' }, fr: { t: 'Sor', reviewed: true } },
+    'label.out': { en: { t: 'Out' }, fr: { t: 'Sor', reviewed: true }, 'zh-Hans': { t: '输出', reviewed: 'mt' } },
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -496,7 +564,7 @@ export const LABELS = Object.freeze({
     // broken on O-DigiDelay's CHARGER/Ouvrir pair.
     //
     // LIRE is a whole word, so aria.loadPreset simply begins with it.
-    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouv',  reviewed: true } },
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouv',  reviewed: true }, 'zh-Hans': { t: '载入', reviewed: 'mt' } },
     'label.save': { en: { t: 'Save' },
                     fr: { t: 'Enr', reviewed: true,
                           termNote: 'the 46 px .preset-save-btn pin is a 28 px content box and '
@@ -506,7 +574,7 @@ export const LABELS = Object.freeze({
                                   + 'is the shipped stem, and it is also the only one that keeps WCAG '
                                   + '2.5.3 label-in-name against aria.savePreset — enr is a substring of '
                                   + 'Enregistrer les réglages actuels, enreg. is not. Reported to Stage N '
-                                  + 'so the glossary can grow a 3-glyph abbreviation.' } },
+                                  + 'so the glossary can grow a 3-glyph abbreviation.' }, 'zh-Hans': { t: '保存', reviewed: 'mt' } },
 
     // ── The preset dropdown, written through setLabel() ─────────────────────
     //
@@ -523,20 +591,20 @@ export const LABELS = Object.freeze({
     // table. The dropdown is `left: 0; right: 0` of the 280.61 px preset bar,
     // so both have ~240 px of content box and neither is anywhere near a cliff.
     'label.noPresets': { en: { t: 'No presets available' },
-                         fr: { t: 'Aucun préréglage disponible', reviewed: true } },
-    'label.factory':   { en: { t: 'Factory' }, fr: { t: 'Usine', reviewed: true } },
+                         fr: { t: 'Aucun préréglage disponible', reviewed: true }, 'zh-Hans': { t: '没有可用预设', reviewed: 'mt' } },
+    'label.factory':   { en: { t: 'Factory' }, fr: { t: 'Usine', reviewed: true }, 'zh-Hans': { t: '出厂', reviewed: 'mt' } },
 
     // ── The settings popover (v1.4.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'mt' } },
 
     // v1.6.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'mt' } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'mt' } },
 
     // ── Image alternative text ──────────────────────────────────────────────
     //
@@ -548,8 +616,8 @@ export const LABELS = Object.freeze({
     // that has nothing to do with localization, so the strings are translated
     // and left in place. The keys and the French are byte-identical to
     // O-IntonationPad's, which carries the identical two images.
-    'alt.background': { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true } },
-    'alt.botanical':  { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true } },
+    'alt.background': { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true }, 'zh-Hans': { t: '背景', reviewed: 'mt' } },
+    'alt.botanical':  { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true }, 'zh-Hans': { t: '植物律', reviewed: 'mt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -582,19 +650,19 @@ export const LABELS = Object.freeze({
     // O-AnalogEQ, O-Detune, O-DigiDelay, O-FreqPulse and O-Lyrica for the
     // identical control.
     'aria.prevPreset': { en: { t: 'Previous preset' },
-                         fr: { t: 'Préréglage précédent', reviewed: true } },
+                         fr: { t: 'Préréglage précédent', reviewed: true }, 'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
     'aria.nextPreset': { en: { t: 'Next preset' },
-                         fr: { t: 'Préréglage suivant',   reviewed: true } },
+                         fr: { t: 'Préréglage suivant',   reviewed: true }, 'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
     'aria.presetList': { en: { t: 'Click to see all presets' },
-                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true } },
+                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true }, 'zh-Hans': { t: '点击查看全部预设', reviewed: 'mt' } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } },
+                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true }, 'zh-Hans': { t: '从文件载入预设', reviewed: 'mt' } },
     'aria.savePreset': { en: { t: 'Save current settings' },
-                         fr: { t: 'Enregistrer les réglages actuels', reviewed: true } },
+                         fr: { t: 'Enregistrer les réglages actuels', reviewed: true }, 'zh-Hans': { t: '保存当前设置', reviewed: 'mt' } },
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'mt' } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
 });
 
 // ============================================================================
