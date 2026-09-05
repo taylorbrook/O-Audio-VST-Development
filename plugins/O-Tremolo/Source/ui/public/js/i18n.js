@@ -376,8 +376,8 @@ export const I18N = Object.freeze({
     },
 
     // THE BODY NO LONGER NAMES THE OPTIONS. v1.8.0 ended both bodies with a
-    // fixed pair — "English or Français" / "English ou Français" — which was
-    // true for exactly as long as the selector held two entries and became
+    // sentence that spelled out the two languages the selector then held. It
+    // was true for exactly as long as the selector held two entries and became
     // false the moment this version added a third. The sentence is DELETED
     // rather than widened to three, for the same reason the gear body's
     // exclusivity clause is: a body that enumerates a control's options has to
