@@ -270,11 +270,18 @@ public:
     // ------------------------------------------------------------------------
     std::atomic<int> uiLanguage { 0 };
 
-    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
-        hand-edited session or an unexpected argument from the page degrades to
-        English rather than being stored unvalidated. */
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    /** The codec. languageIndex() maps anything it does not recognise to 0, so
+        a hand-edited session or an unexpected argument from the page degrades
+        to English rather than being stored unvalidated.
+
+        v1.27.0 adds the third branch for Simplified Chinese. The BCP-47 tag
+        "zh-Hans" is the one spelling that crosses the whole UI/C++ boundary,
+        and it is PURE ASCII on both sides on purpose: no Han character exists
+        anywhere in this plugin's C++, which is a gate the build enforces. A
+        third branch on one side and two on the other would silently degrade
+        Chinese to English with no other symptom. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
     // Public access to tuning engine (forward-compat for Phase 2.1+)
     TuningEngine* getTuningEngine() { return &tuningEngine; }

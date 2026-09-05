@@ -51,7 +51,7 @@
     padding: 15px;
     background: var(--tuning-bg);
     border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
     font-size: 11px;
     color: var(--tuning-text);
 }
@@ -671,4 +671,86 @@
 
 .tuning-panel.compact .viz-container {
     min-height: 150px;
+}
+
+/* ── THE CJK TAIL ON THE UA-DEFAULT CONTROLS (v1.27.0, zh-Hans) ──────────────
+   Measured, not reasoned: serving the page, switching to Chinese and reading
+   getComputedStyle(node).fontFamily on every node that HOLDS or CAN RECEIVE a
+   Han codepoint returned FIVE distinct stacks. Four are declared in these two
+   stylesheets and took the tail in place. The fifth is bare `Arial` — and
+   Arial is not declared anywhere in this plugin. It is Chromium's UA default
+   for a <button> or a <select> that names no font-family, and the nine
+   controls below are exactly that.
+
+   THIS IS WHERE THIS PLUGIN DIVERGES FROM O-Octagon, and the divergence is the
+   reason the set had to be measured per plugin rather than inherited. On
+   O-Octagon the bare-Arial stack was reached ONLY through aria-label on its
+   sliders, so it was correctly left alone: an accessible name is never
+   rendered text — it is spoken, and the screen reader picks its own face, so
+   there is no glyph to fall back for. Here the same stack carries VISIBLE
+   Chinese on nine controls (载入 .scl, 生成, 圆周, 全部类别 …), and leaving it
+   would put every one of them on whatever the system happened to substitute.
+
+   The five range sliders in sampler-shell.css that reach Arial only through
+   aria-label (#trim-tech-slider, #trim-layer-slider-0..3) are still left
+   alone, for O-Octagon's reason. Recording both halves is the point: a wave
+   that appends the tail to everything it measured can no longer tell a needed
+   tail from a decorative one.
+
+   ARIAL STAYS FIRST. Latin must resolve to exactly the face it resolved to
+   before, so English geometry cannot move — the two CJK faces are reachable
+   only by a codepoint Arial does not carry. That is proved by the EN arm of
+   check-ui-labels assertion 7, not asserted here. Inheriting the panel font
+   instead would have been the tidier CSS and would have moved every English
+   box on this screen. ─────────────────────────────────────────────────────── */
+.viz-btn,
+.tuning-file-btn,
+.generator-btn,
+.library-filter-select,
+.library-filter-select option,
+.generator-type-select,
+.generator-type-select option {
+    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* ── MEASURED LINE-HEIGHT PINS (v1.27.0, zh-Hans) ────────────────────────────
+   The tuning-panel half of the block documented at the foot of
+   css/sampler-shell.css. This file declared NO line-height at all before
+   v1.27.0, so every one of its captions inherited `normal` from the UA and the
+   whole screen was exposure.
+
+     selector            font-size   EN line box   unitless
+     .viz-btn            9px         10px          10/9
+     .tuning-file-btn    9px         10px          10/9
+     .generator-btn      10px        11px          11/10
+
+   .viz-btn.active and .tuning-file-btn.tuning-export-btn declare no
+   line-height of their own, so the base pins reach them. ────────────────── */
+.viz-btn,
+.tuning-file-btn { line-height: 1.1111111; }   /* 10 / 9 */
+.generator-btn   { line-height: 1.1; }         /* 11 / 10 */
+
+/* ── THE ROTATION TABLE'S MODE HEADER (v1.27.0, zh-Hans) ─────────────────────
+   HAN WRAPS BETWEEN CHARACTERS, so a Han run's MIN-CONTENT width is ONE
+   character, while a Latin word's min-content is the whole word. In an auto
+   table with 13 columns competing for width, that lets a Han header be squeezed
+   BELOW its own two-character width and wrap — even though it is narrower than
+   the English it replaced. Measured on this table:
+
+     th "Mode"  en 34.06 x 18.19    fr 34.06 x 18.19
+     th "模式"  zh 22.88 x 29.38    <- narrower AND two lines
+
+   The whole header row followed it to 29.38 and the table to 425.23 x 248.63,
+   which surfaced as thirteen <th> elements moving with dh=11.2 — one whole
+   line-height — and nothing in that report points at the one cell that caused
+   it.
+
+   `nowrap` alone is not enough: it stops the wrap but leaves the column at
+   26 px against English's 34.06, so the table width still differs and every
+   cell still moves. The min-width is the measured English column, so all three
+   languages land on the same box and English is UNCHANGED — the pin only ever
+   binds on the Chinese arm. ────────────────────────────────────────────────*/
+.rotation-table tr:first-child th:first-child {
+    white-space: nowrap;
+    min-width: 34.06px;
 }
