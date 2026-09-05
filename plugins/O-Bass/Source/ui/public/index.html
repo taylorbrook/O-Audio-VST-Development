@@ -43,7 +43,7 @@
             justify-content: center;
             align-items: center;
             background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
         }
 
         .plugin-container {
@@ -134,7 +134,7 @@
             background: rgba(107, 142, 35, 0.4);
             border: 1px solid #3C5C1A;
             border-radius: 3px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', serif;
             font-size: 14px;
             font-weight: bold;
             color: #2C3E10;
@@ -154,7 +154,7 @@
             min-width: 100px;
             max-width: 140px;
             text-align: center;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', serif;
             font-size: 12px;
             color: #3C2F2F;
             padding: 2px 6px;
@@ -199,7 +199,7 @@
             background: rgba(107, 142, 35, 0.3);
             border: 1px solid #3C5C1A;
             border-radius: 3px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -217,7 +217,7 @@
             background: rgba(107, 142, 35, 0.3);
             border: 1px solid #3C5C1A;
             border-radius: 3px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -653,7 +653,7 @@
            push existed; here the keyed span sits inside a flex column whose
            height it changes. */
         .settings-label {
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #3C2F2F;
             text-transform: uppercase;
@@ -668,7 +668,7 @@
             border: 1px solid #3C5C1A;
             border-radius: 2px;
             color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
@@ -698,7 +698,7 @@
           border: 1px solid #3C5C1A;
           border-radius: 2px;
           color: #3C2F2F;
-          font-family: 'Garamond', 'Times New Roman', serif;
+          font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
           font-size: 10px;
           line-height: 1.2;
           flex: 0 0 auto;
@@ -779,7 +779,7 @@
             border: 2px solid #5C4033;
             border-radius: 4px;
             box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.3);
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             line-height: 1.35;
             color: #3C2F2F;
@@ -804,7 +804,31 @@
             margin-bottom: 3px;
         }
 
-    </style>
+    
+/* ══════════════════════════════════════════════════════════════════════════
+   zh-Hans GEOMETRY PINS
+
+   Han faces carry taller metrics than the Latin faces above, so every caption
+   that inherited the UA's `line-height: normal` changed height the moment its
+   text became Chinese, and in normal flow that moved everything below it.
+
+   EVERY RATIO IS MEASURED: the element's own ENGLISH line box over its own
+   font size, where the line box is derived from the BOX (height minus padding
+   minus border) and never from a text ink rect. Written unitless so it is
+   font-independent, and scoped per family so nothing else inherits it. There is
+   NO GLOBAL line-height — a global rule moves English, which is the regression
+   these gates exist to catch. Checked for specificity against the existing
+   declarations in this file before being appended.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.limit-label                { line-height: 1.0909; }   /* EN box 12 px at 11 px */
+.preset-load-btn,
+.preset-save-btn,
+.meter-label,
+.settings-label             { line-height: 1.1000; }   /* EN box 11 px at 10 px */
+.preset-dropdown-header     { line-height: 1.1111; }   /* EN box 10 px at 9 px  */
+.knob-label                 { line-height: 1.2500; }   /* EN box 15 px at 12 px */
+</style>
 </head>
 <body>
     <div class="plugin-container">
@@ -906,6 +930,11 @@
                             data-i18n-aria="aria.langSelect" aria-label="Interface language">
                         <option value="en">English</option>
                         <option value="fr">Fran&ccedil;ais</option>
+                        <!-- NUMERIC ENTITIES: the markup path stays pure ASCII on disk
+                             whatever a later editor's encoding does to it. This <option> is
+                             the ONLY place Han reaches this file, and a keyed scan never
+                             sees it - an endonym carries no data-i18n. -->
+                        <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                     </select>
                 </label>
 
