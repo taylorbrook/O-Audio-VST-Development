@@ -36,7 +36,7 @@
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
-            font-family: 'Georgia', 'Times New Roman', serif;
+            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             background: #1a1410;
         }
 
@@ -499,7 +499,7 @@
         /* nowrap because the row is space-between: a caption that wrapped would
            grow the row's height and move the control beside it. */
         .settings-label {
-            font-family: 'Georgia', 'Times New Roman', serif;
+            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             letter-spacing: 1px;
             color: #b0a590;
@@ -514,7 +514,7 @@
             border: 1px solid rgba(139, 115, 85, 0.4);
             border-radius: 3px;
             color: #b0a590;
-            font-family: 'Georgia', 'Times New Roman', serif;
+            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
@@ -544,7 +544,7 @@
           border: 1px solid rgba(139, 115, 85, 0.4);
           border-radius: 3px;
           color: #b0a590;
-          font-family: 'Georgia', 'Times New Roman', serif;
+          font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
           font-size: 10px;
           line-height: 1.2;
           flex: 0 0 auto;
@@ -694,7 +694,7 @@
             border: 1px solid rgba(139, 115, 85, 0.4);
             border-radius: 3px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
-            font-family: 'Georgia', 'Times New Roman', serif;
+            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             line-height: 1.4;
             color: #b0a590;
@@ -717,7 +717,50 @@
             color: #7a9a8a;
             text-transform: uppercase;
         }
-    </style>
+    
+/* ══════════════════════════════════════════════════════════════════════════
+   zh-Hans GEOMETRY PINS
+
+   Han faces carry taller metrics than the Latin faces above, so every caption
+   that inherited the UA's `line-height: normal` changed height the moment its
+   text became Chinese, and in normal flow that moved everything below it.
+
+   EVERY RATIO IS MEASURED: the element's own ENGLISH line box over its own
+   font size, where the line box is derived from the BOX (height minus padding
+   minus border) and never from a text ink rect. Written unitless so it is
+   font-independent, and scoped per family so nothing else inherits it. There is
+   NO GLOBAL line-height — a global rule moves English, which is the regression
+   these gates exist to catch. Checked for specificity against the existing
+   declarations in this file before being appended.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.knob-label,
+.lfo-shape-option,
+#reverse-toggle,
+#lfo-group-label,
+#lfo-shape-label            { line-height: 1.0909; }   /* EN box 12 px at 11 px */
+
+/* ── HAN WRAPS BETWEEN CHARACTERS ─────────────────────────────────────────
+   A Latin word's minimum width is the whole word; a Han run's is ONE
+   character. 正弦 was squeezed to 28.75 px against the 33.80 px "Sin" needs and
+   WRAPPED to two lines — 31.97 px tall against 19.98 — while being NARROWER
+   than the English it replaced, which then pulled #lfo-group in by 8.7 px.
+   nowrap stops the wrap; the min-width is what makes the button the same size
+   it is in English, because nowrap alone would leave it narrower. */
+.lfo-shape-option           { white-space: nowrap; min-width: 33.8px; box-sizing: border-box; }
+
+/* And the padding was sized for a three-letter Latin abbreviation. 正弦 is two
+   full-width ideographs — 22.0 px of text against "Sin"'s 17.8 — so at 8 px a
+   side the button runs 40.09 px where English runs 33.80. The side
+   padding is trimmed in Chinese ONLY, to the value MEASURED to put the button
+   back at 33.80 px rather than a value calculated from the glyph advance --
+   the calculated 5.9 px left it 2.08 px wide, because the Latin letter-spacing
+   applies between the ideographs too. Scoped to the
+   language attribute, so the en and fr arms cannot see it. */
+html[lang="zh-Hans"] .lfo-shape-option { padding-left: 4.86px; padding-right: 4.86px; }
+.settings-label             { line-height: 1.1000; }   /* EN box 11 px at 10 px */
+#freeze-label               { line-height: 1.1875; }   /* EN box 19 px at 16 px */
+</style>
 </head>
 <body>
     <div id="app">
@@ -755,6 +798,11 @@
                             data-i18n-aria="aria.langSelect" aria-label="Interface language">
                         <option value="en">English</option>
                         <option value="fr">Fran&ccedil;ais</option>
+                        <!-- NUMERIC ENTITIES: the markup path stays pure ASCII on disk
+                             whatever a later editor's encoding does to it. This <option> is
+                             the ONLY place Han reaches this file, and a keyed scan never
+                             sees it - an endonym carries no data-i18n. -->
+                        <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                     </select>
                 </label>
 
