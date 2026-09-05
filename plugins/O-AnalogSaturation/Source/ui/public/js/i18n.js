@@ -290,7 +290,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '设置',
               b: '打开包含界面语言的面板。该选择会随会话一同保存，因此项目会以保存时的语言重新打开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // The last sentence is not decoration: it is the page telling the user why
@@ -305,7 +305,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '语言',
               b: '本页标签与这些悬停帮助的语言。模型与质量按钮特意保留英文名称，'
                + '让页面与宿主的自动化通道用同样的方式称呼同一个设置。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // v1.4.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -319,7 +319,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '悬停帮助',
               b: '开启或关闭这些悬停帮助。关闭后，'
                + '只有齿轮和这个开关仍会自我说明。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The four parameters ─────────────────────────────────────────────────
@@ -340,7 +340,7 @@ export const I18N = Object.freeze({
               b: '设定进入所选模型的输入驱动，并同时决定有多少饱和信号叠回干净信号之上。'
                + '低值带来柔和的谐波暖意；高值则修圆峰值并加厚音色。'
                + '0 到 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // MODEL — AudioParameterChoice, 4 options (PluginProcessor.cpp:50).
@@ -363,7 +363,7 @@ export const I18N = Object.freeze({
                + 'TRANSFORMER 是柔和的 tanh 曲线，低频有分量、高频有光泽；'
                + 'DIODE 对称削波，带来更硬的奇次谐波棱角。'
                + '四个设定：MAGNETIC、TUBE、TRANSFORMER、DIODE。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // QUALITY — AudioParameterChoice, 3 options (PluginProcessor.cpp:58).
@@ -384,7 +384,7 @@ export const I18N = Object.freeze({
                + 'MID 以 2x 过采样，HIGH 以 4x，'
                + '两者都会把各自的滤波器延迟报告给宿主以便补偿。'
                + 'LOW、MID 或 HIGH。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // AUTOGAIN — AudioParameterBool, default false (PluginProcessor.cpp:63-67).
@@ -402,7 +402,7 @@ export const I18N = Object.freeze({
               b: '把输出电平拉回到输入电平，让强度或模型的改变以音色而非响度来判断。'
                + '它以平滑的斜坡跟随信号的 RMS，并被限制在 0.1 到 10 倍之间，'
                + '因此能抬起安静的段落而不失控。关或开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
@@ -452,22 +452,22 @@ export const LABELS = Object.freeze({
     // Full words rather than the ENT/SORT abbreviations: .vu-label is centred
     // by transform inside a 90 px face with nothing beside it, so the extra
     // characters cost nothing and the meaning is not left to be guessed.
-    'label.in':  { en: { t: 'IN' },  fr: { t: 'ENTRÉE', reviewed: true }, 'zh-Hans': { t: '输入', reviewed: 'mt' } },
-    'label.out': { en: { t: 'OUT' }, fr: { t: 'SORTIE', reviewed: true }, 'zh-Hans': { t: '输出', reviewed: 'mt' } },
+    'label.in':  { en: { t: 'IN' },  fr: { t: 'ENTRÉE', reviewed: true }, 'zh-Hans': { t: '输入', reviewed: 'bt' } },
+    'label.out': { en: { t: 'OUT' }, fr: { t: 'SORTIE', reviewed: true }, 'zh-Hans': { t: '输出', reviewed: 'bt' } },
 
     // ── The intensity knob ──────────────────────────────────────────────────
     // The caption under the knob, NOT a readout: this node never holds a
     // number. The knob has no numeric readout at all on this page — the value
     // is shown by the indicator dot and by the snake's opacity — so there is no
     // readout/label node to split (contract §5).
-    'label.intensity': { en: { t: 'INTENSITY' }, fr: { t: 'INTENSITÉ', reviewed: true }, 'zh-Hans': { t: '强度', reviewed: 'mt' } },
+    'label.intensity': { en: { t: 'INTENSITY' }, fr: { t: 'INTENSITÉ', reviewed: true }, 'zh-Hans': { t: '强度', reviewed: 'bt' } },
 
     // ── The quality section heading ─────────────────────────────────────────
     // The heading localizes; the three BUTTONS under it do not. The heading is
     // this page's own caption for the group, and "Quality" is the
     // AudioParameterChoice's DISPLAY NAME rather than one of its option
     // strings, so nothing in the host automation lane is spelled "QUALITY".
-    'label.quality': { en: { t: 'QUALITY' }, fr: { t: 'QUALITÉ', reviewed: true }, 'zh-Hans': { t: '质量', reviewed: 'mt' } },
+    'label.quality': { en: { t: 'QUALITY' }, fr: { t: 'QUALITÉ', reviewed: true }, 'zh-Hans': { t: '质量', reviewed: 'bt' } },
 
     // ── The auto-gain toggle ────────────────────────────────────────────────
     // AUTOGAIN is the APVTS parameter ID, not a choice option — the parameter
@@ -475,32 +475,32 @@ export const LABELS = Object.freeze({
     // (PluginProcessor.cpp:63-67). A bool has no option strings, so there is no
     // automation-lane string for a French caption to disagree with, and arm 1
     // of D-01 does not apply. GAIN AUTO is the standard French word order.
-    'label.autogain': { en: { t: 'AUTOGAIN' }, fr: { t: 'GAIN AUTO', reviewed: true }, 'zh-Hans': { t: '自动增益', reviewed: 'mt' } },
+    'label.autogain': { en: { t: 'AUTOGAIN' }, fr: { t: 'GAIN AUTO', reviewed: true }, 'zh-Hans': { t: '自动增益', reviewed: 'bt' } },
 
     // ── The settings popover (v1.2.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'mt' } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'bt' } },
 
     // v1.4.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'mt' } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'mt' } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'bt' } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'bt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria / data-i18n-alt, so a
     // screen reader hears the same language the page is showing.
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'mt' } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'bt' } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'bt' } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' } },
 
     // The decorative plate behind the knob. Its alt text was the page's only
     // prose-bearing attribute at v1.1.6 and was unkeyed; it is keyed here
     // rather than emptied, because the illustration changes with the model and
     // a blind user is entitled to know something is there.
-    'alt.snake': { en: { t: 'Snake illustration' }, fr: { t: 'Illustration de serpent', reviewed: true }, 'zh-Hans': { t: '蛇形插画', reviewed: 'mt' } },
+    'alt.snake': { en: { t: 'Snake illustration' }, fr: { t: 'Illustration de serpent', reviewed: true }, 'zh-Hans': { t: '蛇形插画', reviewed: 'bt' } },
 });
 
 // ============================================================================
