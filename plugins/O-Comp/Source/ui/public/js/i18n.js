@@ -281,7 +281,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '阈值',
           b: '检测器必须越过这个电平，压缩才开始。检测取峰值并且立体声联动——由较响的声道决定，因此两侧一起被压下，声像保持不动。−60 到 0 dB。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ratio — AudioParameterFloat, 1..20 :1, default 2. The French TITLE is
@@ -296,7 +296,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '比率',
           b: '阈值之上每一个分贝有多少被保留下来：4:1 时超出 4 dB 只留下 1 dB。1:1 时无论信号超出多少都不压缩，而超过大约 10:1 之后，行为更接近限制而不是压缩。1:1 到 20:1。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // attack_time — AudioParameterFloat, 0.1..100 ms, default 10. The value is
@@ -310,7 +310,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '起音',
           b: '信号越过阈值之后检测器上升的快慢。时间短会抓住瞬态并压平鼓的音头；时间长则放过鼓槌的击打，在它之后才开始压缩。0.1 到 100 ms。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // release_time — AudioParameterFloat, 10..1000 ms, step 1, default 100.
@@ -322,7 +322,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '释音',
           b: '信号重新落到阈值之下后增益恢复的快慢。时间短听起来更有生气，在持续的素材上可能出现可闻的抽吸；时间长则在每次击打之间稳住衰减量。10 到 1000 ms。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // knee — AudioParameterFloat, 0..20 dB, default 6. calculateGainReduction()
@@ -337,7 +337,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '拐点',
           b: '阈值附近这一段的宽度，在其中比率是逐渐到位而不是一步到位的。它以阈值为中心，所以有一半落在阈值之下，压缩在读数到达设定值之前就已开始。为 0 时拐点是硬的，传输曲线出现折角。0 到 20 dB。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // output_gain — AudioParameterFloat, -12..+24 dB, default 0. Titled from
@@ -352,7 +352,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '输出',
           b: '压缩器之后施加的补偿增益，把电平带回原来的位置。它是叠加在自动增益之上而不是取代它，两者之和经过 20 ms 平滑，所以自动化的移动不会产生阶梯噪声。−12 到 +24 dB。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // auto_gain — AudioParameterBool, default off. Its two faces are named in
@@ -371,7 +371,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '自动增益',
           b: '根据当前的阈值与比率算出补偿增益并加上——只取理论值的一半，因此补偿而不过冲——并随这两个参数的改变而跟随。它与输出旋钮叠加，而不是取代它。两个设定：OFF 与 ON。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -388,7 +388,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '设置',
           b: '打开设定本界面语言的面板。本页的标签与这些悬停帮助会随之切换，该选择随会话一同保存，因此项目会以保存时的语言重新打开。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // The value readouts named here are the six .value-display nodes, which
@@ -403,7 +403,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '语言',
           b: '本页标签与这些悬停帮助的语言。旋钮下方的数值读数与预设名称保持英文，让页面与宿主对同一个设置的称呼保持一致。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
     // v1.8.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -416,7 +416,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '悬停帮助',
           b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ── The three CANVAS-PAINTED strings — NOT tooltips ─────────────────────
@@ -430,12 +430,12 @@ export const I18N = Object.freeze({
     'canvas.envelope': {
         en: { t: 'Envelope',  b: '' },
         fr: { t: 'Enveloppe', b: '', reviewed: true },
-        'zh-Hans': { t: '包络', b: '', reviewed: 'mt' },
+        'zh-Hans': { t: '包络', b: '', reviewed: 'bt' },
     },
     'canvas.gainReduction': {
         en: { t: 'Gain Reduction',    b: '' },
         fr: { t: 'Réduction de gain', b: '', reviewed: true },
-        'zh-Hans': { t: '增益衰减', b: '', reviewed: 'mt' },
+        'zh-Hans': { t: '增益衰减', b: '', reviewed: 'bt' },
     },
 
     // The live gain-reduction readout, painted at 11px. The VALUE is composed
@@ -452,7 +452,7 @@ export const I18N = Object.freeze({
     'canvas.gr': {
         en: { t: 'GR: {v} dB',  b: '' },
         fr: { t: 'RG : {v} dB', b: '', reviewed: true },
-        'zh-Hans': { t: '增益衰减：{v} dB', b: '', reviewed: 'mt' },
+        'zh-Hans': { t: '增益衰减：{v} dB', b: '', reviewed: 'bt' },
     },
 });
 
@@ -540,20 +540,20 @@ export const LABELS = Object.freeze({
     // Ouvrir stays: the glossary accepts it for Load where the button opens a
     // file dialog, and #preset-load calls loadPresetFromFile() — a native open
     // dialog (modules/preset-manager.js). #preset-save is savePresetWithDialog().
-    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: true }, 'zh-Hans': { t: '载入', reviewed: 'mt' } },
-    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true }, 'zh-Hans': { t: '保存', reviewed: 'mt' } },
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: true }, 'zh-Hans': { t: '载入', reviewed: 'bt' } },
+    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true }, 'zh-Hans': { t: '保存', reviewed: 'bt' } },
 
     // ── The six knob captions ───────────────────────────────────────────────
-    'label.threshold': { en: { t: 'Threshold' }, fr: { t: 'Seuil',   reviewed: true }, 'zh-Hans': { t: '阈值', reviewed: 'mt' } },
+    'label.threshold': { en: { t: 'Threshold' }, fr: { t: 'Seuil',   reviewed: true }, 'zh-Hans': { t: '阈值', reviewed: 'bt' } },
 
     // "Ratio" is the term in French audio software as well as English. Keyed
     // with sameAsEn rather than exempted: an exemption is matched by TEXT and
     // says nothing about whether anybody looked, while sameAsEn says this was
     // looked at and translates to itself. "Taux" measured 23.84 and would also
     // have fit — the choice is terminology, not geometry.
-    'label.ratio': { en: { t: 'Ratio' }, fr: { t: 'Ratio', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '比率', reviewed: 'mt' } },
+    'label.ratio': { en: { t: 'Ratio' }, fr: { t: 'Ratio', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '比率', reviewed: 'bt' } },
 
-    'label.attack': { en: { t: 'Attack' }, fr: { t: 'Attaque', reviewed: true }, 'zh-Hans': { t: '起音', reviewed: 'mt' } },
+    'label.attack': { en: { t: 'Attack' }, fr: { t: 'Attaque', reviewed: true }, 'zh-Hans': { t: '起音', reviewed: 'bt' } },
 
     // "Relâch.", the glossary's ABBREVIATION — and the v1.7.0 note that the only
     // alternative to Relâche was a layout change was wrong. Re-measured in this
@@ -566,14 +566,14 @@ export const LABELS = Object.freeze({
     // A caption that is the parameter name with letters missing is not a caption
     // that DISAGREES with the parameter name, so the tip carries the full form
     // rather than the truncation (Stage M2 carried trap 9).
-    'label.release': { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: true }, 'zh-Hans': { t: '释音', reviewed: 'mt' } },
+    'label.release': { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: true }, 'zh-Hans': { t: '释音', reviewed: 'bt' } },
 
     // "Coude". The v1.7.0 claim that Genou is the standard French rendering of a
     // compressor knee does not survive the glossary, which lists genou as the
     // body part and coude as the term. Coude 31.23 against Genou 31.83 — the
     // .control-group stays 52 either way, so this was never a geometry choice.
-    'label.knee':   { en: { t: 'Knee' },   fr: { t: 'Coude',  reviewed: true }, 'zh-Hans': { t: '拐点', reviewed: 'mt' } },
-    'label.output': { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: true }, 'zh-Hans': { t: '输出', reviewed: 'mt' } },
+    'label.knee':   { en: { t: 'Knee' },   fr: { t: 'Coude',  reviewed: true }, 'zh-Hans': { t: '拐点', reviewed: 'bt' } },
+    'label.output': { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: true }, 'zh-Hans': { t: '输出', reviewed: 'bt' } },
 
     // ── The auto-gain toggle ────────────────────────────────────────────────
     //
@@ -581,7 +581,7 @@ export const LABELS = Object.freeze({
     // "Gain automatique" measured 86.52 and would have widened that column from
     // 70px (the toggle) to 86.52 and re-centred the toggle; "Gain auto" is
     // 47.58 and sits well inside.
-    'label.autoGain': { en: { t: 'Auto-Gain' }, fr: { t: 'Gain auto', reviewed: true }, 'zh-Hans': { t: '自动增益', reviewed: 'mt' } },
+    'label.autoGain': { en: { t: 'Auto-Gain' }, fr: { t: 'Gain auto', reviewed: true }, 'zh-Hans': { t: '自动增益', reviewed: 'bt' } },
 
     // MARCHE / ARRÊT, measured 45.56 and 35.02 against the button's 66px
     // content box (70px minus two 2px borders). DÉSACTIVÉ measured 58.36 and
@@ -592,8 +592,8 @@ export const LABELS = Object.freeze({
     // call: check-i18n assertion 13 rejects a conditional in a setLabel
     // argument, because contract section 6 authors around an inflection rather
     // than engineering one.
-    'label.autoGainOn':  { en: { t: 'ON' },  fr: { t: 'MARCHE', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'mt' } },
-    'label.autoGainOff': { en: { t: 'OFF' }, fr: { t: 'ARRÊT',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'mt' } },
+    'label.autoGainOn':  { en: { t: 'ON' },  fr: { t: 'MARCHE', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'bt' } },
+    'label.autoGainOff': { en: { t: 'OFF' }, fr: { t: 'ARRÊT',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'bt' } },
 
     // ── The visualisation caption ───────────────────────────────────────────
     //
@@ -601,7 +601,7 @@ export const LABELS = Object.freeze({
     // translateX(-50%), inside a 210px panel. It grows SYMMETRICALLY about the
     // panel's centre line, so it pushes nothing: measured 77.42 -> 94.98 box
     // width, still 115px inside the panel it sits in.
-    'label.transferCurve': { en: { t: 'Transfer Curve' }, fr: { t: 'Courbe de transfert', reviewed: true }, 'zh-Hans': { t: '传输曲线', reviewed: 'mt' } },
+    'label.transferCurve': { en: { t: 'Transfer Curve' }, fr: { t: 'Courbe de transfert', reviewed: true }, 'zh-Hans': { t: '传输曲线', reviewed: 'bt' } },
 
     // ── The preset dropdown, built at runtime ───────────────────────────────
     //
@@ -612,20 +612,20 @@ export const LABELS = Object.freeze({
     // singular and English does not, and contract section 6 declines to build a
     // plural engine for one string: the copy is authored so it reads correctly
     // at zero in both languages instead.
-    'label.presets':   { en: { t: 'Presets' },    fr: { t: 'Préréglages',      reviewed: true }, 'zh-Hans': { t: '预设', reviewed: 'mt' } },
-    'label.noPresets': { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true }, 'zh-Hans': { t: '无预设', reviewed: 'mt' } },
+    'label.presets':   { en: { t: 'Presets' },    fr: { t: 'Préréglages',      reviewed: true }, 'zh-Hans': { t: '预设', reviewed: 'bt' } },
+    'label.noPresets': { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true }, 'zh-Hans': { t: '无预设', reviewed: 'bt' } },
 
     // ── The settings popover ────────────────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'mt' } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'bt' } },
 
     // v1.8.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'mt' } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'mt' } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'bt' } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'bt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -651,14 +651,14 @@ export const LABELS = Object.freeze({
     //
     // The "un"/"le" asymmetry is deliberate and is the glossary's: Save acts on
     // the preset that is loaded, Load picks an arbitrary one.
-    'aria.prevPreset':    { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',              reviewed: true }, 'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
-    'aria.nextPreset':    { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',                reviewed: true }, 'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
-    'aria.browsePresets': { en: { t: 'Click to browse presets' }, fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: true }, 'zh-Hans': { t: '点击浏览预设', reviewed: 'mt' } },
-    'aria.loadPreset':    { en: { t: 'Load preset' },            fr: { t: 'Ouvrir un préréglage',              reviewed: true }, 'zh-Hans': { t: '载入预设', reviewed: 'mt' } },
-    'aria.savePreset':    { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage',         reviewed: true }, 'zh-Hans': { t: '保存预设', reviewed: 'mt' } },
-    'aria.settings':      { en: { t: 'Settings' },               fr: { t: 'Réglages',                          reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'mt' } },
-    'aria.langSelect':    { en: { t: 'Interface language' },     fr: { t: 'Langue de l’interface',             reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
+    'aria.prevPreset':    { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',              reviewed: true }, 'zh-Hans': { t: '上一个预设', reviewed: 'bt' } },
+    'aria.nextPreset':    { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',                reviewed: true }, 'zh-Hans': { t: '下一个预设', reviewed: 'bt' } },
+    'aria.browsePresets': { en: { t: 'Click to browse presets' }, fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: true }, 'zh-Hans': { t: '点击浏览预设', reviewed: 'bt' } },
+    'aria.loadPreset':    { en: { t: 'Load preset' },            fr: { t: 'Ouvrir un préréglage',              reviewed: true }, 'zh-Hans': { t: '载入预设', reviewed: 'bt' } },
+    'aria.savePreset':    { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage',         reviewed: true }, 'zh-Hans': { t: '保存预设', reviewed: 'bt' } },
+    'aria.settings':      { en: { t: 'Settings' },               fr: { t: 'Réglages',                          reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'bt' } },
+    'aria.langSelect':    { en: { t: 'Interface language' },     fr: { t: 'Langue de l’interface',             reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'bt' } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' } },
 });
 
 // ============================================================================
