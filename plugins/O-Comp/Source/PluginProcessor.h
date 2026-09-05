@@ -81,11 +81,23 @@ public:
     // ------------------------------------------------------------------------
     std::atomic<int> uiLanguage { 0 };
 
-    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
-        hand-edited session or an unexpected argument from the page degrades to
-        English rather than being stored unvalidated. */
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    /** The codec, three branches as of the zh-Hans release. languageIndex() maps
+        anything the branches below do not name to 0, so a hand-edited session or
+        an unexpected argument from the page degrades to English rather than
+        being stored unvalidated.
+
+        THE STORED FORM IS THE BCP-47 TAG, NOT THE INDEX, and the Simplified
+        Chinese tag is spelled here exactly as the page's <option value> and
+        i18n.js LANGUAGES spell it — one spelling crosses the whole boundary, so
+        nothing has to translate between two of them. The two literals below are
+        the ONLY occurrences of that tag in this file; the gate counts them,
+        which is why this sentence does not spell it a third time.
+
+        PURE ASCII, AND THAT IS THE CONTRACT. Not one Han character exists
+        anywhere under Source/ — every Chinese string lives in the UI table, and
+        the one in the markup is written as numeric character references. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
 private:
     // Parameter layout creation
