@@ -179,23 +179,26 @@
 // NARROWER than the "Mode" it replaced. The whole header row followed it.
 // "Chinese is narrower so it fits" is false in any auto-sized grid or table.
 //
-// ── A LINT CONTRADICTION, REPORTED RATHER THAN WORKED AROUND ────────────────
-// i18n-zh-lint reports EIGHT Z1 findings on this table, and SIX of them are
+// ── A LINT CONTRADICTION, DIAGNOSED HERE AND FIXED IN THE TOOL ──────────────
+// i18n-zh-lint reported EIGHT Z1 findings on this table, and SIX of them were
 // BYTE-IDENTICAL TO THE GLOSSARY'S OWN ROOTS: 载入 .scl, 载入 .kbm, 保存 .scl,
 // 保存 .kbm (TERMS['load .scl'] etc.) and 否则使用文件名标记 ( .
-// Z5 COMPELS the root and Z1 THEN FLAGS IT. The two rules disagree, and the
-// strings are not the thing that is wrong.
+// Z5 COMPELLED the root and Z1 THEN FLAGGED IT. The two rules disagreed, and
+// the strings were not the thing that was wrong.
 //
-// Cause: ruleZ1's maskLatin() masks ASCII punctuation only BETWEEN two
+// Cause: ruleZ1's maskLatin() masked ASCII punctuation only BETWEEN two
 // alphanumerics (1.5, kHz/ms, 20-40). A LEADING-DOT file extension (.scl) has
-// no alphanumeric before the dot, so the dot survives masking and reads as
-// Han-prose punctuation. The unbalanced "(" is the second gap: maskLatin only
-// masks BALANCED parens, and this string is deliberately split around markup.
-// The remaining two findings (aria.savePreset / aria.loadPreset, ".omspreset")
-// are the same extension shape, following the house style the glossary sets.
-// Left as authored and reported as a TOOL defect, on the Task-1 precedent for
-// Z3's 像 false positive. The lint is REPORT-ONLY (exit 0) so nothing is
-// blocked.
+// no alphanumeric before the dot, so the dot survived masking and read as
+// Han-prose punctuation. The unbalanced "(" was the second gap: maskLatin
+// masked only BALANCED parens, and this string is deliberately split around
+// markup. The remaining two findings (aria.savePreset / aria.loadPreset,
+// ".omspreset") are the same extension shape, following the house style the
+// glossary sets.
+// Left as authored, because the TOOL was the thing that was wrong — the
+// Task-1 precedent for Z3's 像 false positive. maskLatin was fixed in
+// scripts/i18n-zh-lint.js under quick task 260904-q4j, each of the two gaps
+// with a control observed RED before the fix landed, and the repo-wide Z1
+// count went 8 -> 0 without one character of this table changing.
 //
 // ── DOMAIN VOCABULARY SETTLED HERE (for the Stage-4 synth and tuning plugins)
 // The glossary already carried 65 of this page's terms, including several the
