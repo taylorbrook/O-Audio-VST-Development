@@ -50,7 +50,7 @@
             justify-content: center;
             align-items: center;
             background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
         }
 
         .plugin-container {
@@ -123,7 +123,7 @@
             border: 1px solid #5C4033;
             border-radius: 3px;
             padding: 3px 8px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 14px;
             color: #3C2F2F;
             cursor: pointer;
@@ -139,7 +139,7 @@
             border: 1px solid #5C4033;
             border-radius: 3px;
             padding: 3px 10px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 12px;
             color: #3C2F2F;
             min-width: 130px;
@@ -207,7 +207,7 @@
             border: 1px solid #8B7355;
             border-radius: 3px;
             padding: 3px 6px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #5C4033;
             cursor: pointer;
@@ -270,7 +270,7 @@
             border: 2px solid #5C4033;
             border-radius: 4px;
             padding: 6px 12px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 14px;
             color: #3C2F2F;
             cursor: pointer;
@@ -509,7 +509,7 @@
             position: absolute;
             font-size: 8px;
             color: #5C4033;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
         }
 
         /* Footer */
@@ -554,7 +554,7 @@
             border: 1px solid #5C4033;
             border-radius: 50%;
             color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             line-height: 1;
             cursor: pointer;
@@ -628,7 +628,7 @@
            commit 4fa586e8 added assertion 8b for. The plant result is in the
            report. */
         .settings-label {
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #3C2F2F;
             text-transform: uppercase;
@@ -643,7 +643,7 @@
             border: 1px solid #5C4033;
             border-radius: 2px;
             color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
@@ -673,7 +673,7 @@
           border: 1px solid #5C4033;
           border-radius: 2px;
           color: #3C2F2F;
-          font-family: 'Garamond', 'Times New Roman', serif;
+          font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
           font-size: 10px;
           line-height: 1.2;
           flex: 0 0 auto;
@@ -756,7 +756,7 @@
             z-index: 70;
             max-width: 220px;
             padding: 6px 9px 7px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             line-height: 1.4;
             color: #3C2F2F;
@@ -782,6 +782,40 @@
             letter-spacing: 1px;
             color: #3C5C1A;
             margin-bottom: 2px;
+        }
+        /* ── LINE-HEIGHT PINS (v1.9.0, the Chinese arm) ──────────────────────
+           `line-height: normal` is not a number: it is whatever the RESOLVED
+           FACE calls its natural line box, and the resolved face changes with
+           the document language. PingFang SC reports a taller natural box than
+           Times New Roman at the same size, so every leaf below grew 2 to 4 px
+           on the Chinese arm with no other change, and the growth cascaded up
+           through its ancestors.
+
+           Each value is DERIVED FROM THAT LEAF'S OWN MEASURED ENGLISH BOX —
+           height minus its own padding minus its own border, divided by its own
+           font-size — never copied between selectors, never set globally, and
+           unitless so a leaf that inherits into a differently sized child
+           scales rather than pinning the child to the parent's pixel box.
+
+           EVERY PIN IS A NO-OP IN ENGLISH AND IN FRENCH. That is the test:
+           check-ui-labels reports 0 moved elements on both those arms after
+           they land.
+
+           R8: the line-height declarations this page already carried were read
+           first for a specificity conflict. None targets any selector below.
+
+           Measured with getComputedStyle at the shipping frame, English arm:
+             .knob-label         fs 9   content 10.00  -> 1.1111
+             .preset-action-btn  fs 10  content 11.00  -> 1.1
+             .settings-label     fs 10  content 11.00  -> 1.1
+             .knob-value.toggle-btn  fs 10  content 11.00  -> 1.1 */
+        .knob-label {
+            line-height: 1.1111;
+        }
+        .preset-action-btn,
+        .settings-label,
+        .knob-value.toggle-btn {
+            line-height: 1.1;
         }
     </style>
 </head>
@@ -999,6 +1033,7 @@
                             data-i18n-aria="aria.langSelect" aria-label="Interface language">
                         <option value="en">English</option>
                         <option value="fr">Fran&ccedil;ais</option>
+                        <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                     </select>
                 </label>
 

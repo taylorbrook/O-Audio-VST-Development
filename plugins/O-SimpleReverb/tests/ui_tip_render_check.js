@@ -217,7 +217,26 @@ const READ_TIP = `() => {
     const { I18N, TIP_BINDINGS, LANGUAGES } = loadTable(i18nSrc);
     check(Array.isArray(TIP_BINDINGS) && TIP_BINDINGS.length > 0,
         `TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} anchor(s) expected`);
-    check(LANGUAGES.join(',') === 'en,fr', `LANGUAGES is en,fr — got ${LANGUAGES.join(',')}`);
+    // ── THE LANGUAGE LIST IS DERIVED, NEVER SPELLED ─────────────────────────
+    //
+    // This line used to compare the joined list against a fixed pair, so it
+    // did not merely fail to notice a third language — it HARD-FAILED the day
+    // one arrived, on a table that was correct. A gate that names its own
+    // languages is wrong twice over: blind while the list matches, and a false
+    // alarm the moment it stops.
+    //
+    // DERIVE-OR-ABORT is what it needs instead. The claim worth making is that
+    // the list is USABLE — an array, English present, more than one entry —
+    // because an empty or single-entry list would let every language-driven
+    // assertion below pass vacuously. Planting an empty export was observed to
+    // trip this check.
+    check(Array.isArray(LANGUAGES) && LANGUAGES.length >= 2 && LANGUAGES.includes('en'),
+        `LANGUAGES is a usable multi-language list including en — got ${JSON.stringify(LANGUAGES)}`);
+    if (!Array.isArray(LANGUAGES) || LANGUAGES.length < 2 || !LANGUAGES.includes('en')) {
+        console.error('[0] aborting rather than driving zero non-English arms');
+        process.exit(1);
+    }
+    const NON_EN = LANGUAGES.filter((l) => l !== 'en');
 
     // The two nested anchors are the one structural claim this file makes about
     // the page, so it is asserted rather than assumed: if #LPFREQ-value ever
