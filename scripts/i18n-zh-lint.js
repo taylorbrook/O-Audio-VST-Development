@@ -233,9 +233,32 @@ function maskLatin(s) {
     // A parenthesised aside with no Han inside is a Latin gloss; the parens
     // belong to it and go with it.
     out = out.replace(/\(([^()]*)\)/g, (m, inner) => (HAN.test(inner) ? m : ' '));
+    // A MARKUP-SPLIT label: a single unmatched '(' at end of string, whose
+    // closing paren lives in a sibling DOM node and is therefore not in this
+    // string to be balanced against. O-MicrotonalSampler's
+    // label.floTokensBefore / floTokensBefore2 are the corpus shapes.
+    // ORDER IS LOAD-BEARING: this runs AFTER the balanced replacement above,
+    // so a genuine balanced pair is never half-consumed. ANCHORING AT END OF
+    // STRING IS THE WHOLE DISCRIMINATOR: an unmatched '(' anywhere else still
+    // fires (self-test Z1 violation C).
+    out = out.replace(/\(\s*$/, ' ');
     // A Latin/number token, including any ASCII punctuation BETWEEN two
-    // alphanumerics (1.5, kHz/ms, don't, 20-40) and a trailing percent.
-    out = out.replace(/[A-Za-z0-9]+(?:[.,:'’\/\-][A-Za-z0-9]+)*%?/g, ' ');
+    // alphanumerics (1.5, kHz/ms, don't, 20-40), an optional LEADING dot, and
+    // a trailing percent.
+    //
+    // THE LEADING DOT is a file extension written bare: `.scl`, `.kbm`,
+    // `.omspreset`. The glossary compels these renderings, so Z1 flagging them
+    // put two rules in this one file in disagreement (Z5 compels the root, Z1
+    // then flagged it). DISCLOSED BLINDNESS, the price of the widening: a Han
+    // character followed IMMEDIATELY by an ASCII period and then Latin with no
+    // space between (e.g. 混音.mix) now reads as an extension token and its
+    // period goes unseen. That shape does not occur in the corpus and would be
+    // a typing slip rather than a typography choice; the wider, spaced form
+    // `混音. Mix` still fires because the period there is followed by a space.
+    // Same house style as the Z6 coverage disclosure: an inert or blinded rule
+    // that does not announce itself is the failure this rollout exists to
+    // prevent.
+    out = out.replace(/\.?[A-Za-z0-9]+(?:[.,:'’\/\-][A-Za-z0-9]+)*%?/g, ' ');
     return out;
 }
 const ASCII_PUNCT = /[,.:;?!()]/;
@@ -416,12 +439,35 @@ const BODY = (zh, en = 'fixture prose') => ({ kind: 'body', isBody: true, key: '
 const SELF_TESTS = {
     Z1: {
         why: 'ASCII comma and period in Han prose, where the full-width forms belong',
-        violation: { rows: [BODY('\u6df7\u97f3, \u6df1\u5ea6.')] },
-        // Both controls matter. The second is the rule's whole difficulty: ASCII
-        // punctuation INSIDE a Latin or unit token is legal and must stay silent.
+        // Three violations, each a different discriminator for the maskLatin
+        // widenings of 2026-09-04 (quick task 260904-q4j). All three fired
+        // BEFORE those widenings and must still fire after:
+        //   D  \u6df7\u97f3, \u6df1\u5ea6.  genuine Han-prose comma and period \u2014 the
+        //      leading-dot extension mask must not swallow them.
+        //   C  \u6df7\u97f3 ( \u6df1\u5ea6  an unmatched open paren that is NOT at
+        //      end of string \u2014 the end-of-string paren mask must not reach it.
+        //   E  \u6df7\u97f3 (\u6df1\u5ea6)  a BALANCED ASCII pair with Han inside. Han in
+        //      parens takes the full-width forms, so the balanced branch
+        //      deliberately keeps this; the end-of-string branch must not
+        //      reach around it and half-consume the pair.
+        violation: [{ rows: [BODY('\u6df7\u97f3, \u6df1\u5ea6.')] },
+                    { rows: [BODY('\u6df7\u97f3 ( \u6df1\u5ea6')] },
+                    { rows: [BODY('\u6df7\u97f3 (\u6df1\u5ea6)')] }],
+        // Controls 1-3 are the original set. The second is the rule's whole
+        // difficulty: ASCII punctuation INSIDE a Latin or unit token is legal
+        // and must stay silent. Controls A and B were added RED \u2014 both FIRED
+        // before the maskLatin fix, which is what proves they are pointed at
+        // the branch the fix changed. They are the two corpus shapes the fix
+        // exists for:
+        //   A  \u8f7d\u5165 .scl  a leading-dot file extension, compelled by the
+        //      glossary itself (O-MicrotonalSampler load/save labels).
+        //   B  \u5426\u5219\u4f7f\u7528\u6587\u4ef6\u540d\u6807\u8bb0 (  a markup-split label whose
+        //      closing paren lives in a sibling DOM node.
         control: [{ rows: [BODY('\u6df7\u97f3\uff0c\u6df1\u5ea6\u3002')] },
                   { rows: [BODY('\u5ef6\u8fdf (delay) 20 ms')] },
-                  { rows: [BODY('\u622a\u6b62\u9891\u7387 1.5 kHz\uff0c\u8303\u56f4 20 Hz-20 kHz\u3002')] }],
+                  { rows: [BODY('\u622a\u6b62\u9891\u7387 1.5 kHz\uff0c\u8303\u56f4 20 Hz-20 kHz\u3002')] },
+                  { rows: [BODY('\u8f7d\u5165 .scl')] },
+                  { rows: [BODY('\u5426\u5219\u4f7f\u7528\u6587\u4ef6\u540d\u6807\u8bb0 (')] }],
     },
     Z2: {
         why: 'a U+00A0 before punctuation — the deliberate inverse of French T3/T4/T5',
