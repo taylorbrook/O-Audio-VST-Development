@@ -79,6 +79,84 @@
     reading only. Every run prints the ratio between the two counts to stderr,
     so a reader comparing this run against a wave-4b number can see why it moved.
 
+    ── THE FOUR SCREENS ────────────────────────────────────────
+
+    Promoting the MEASUREMENT alone does not close wave 4b's complaint: that
+    wave rebuilt the ANALYSIS by hand too, and the next wave would rebuild it
+    wrong the same way. So the four screens it ran by hand are here, as
+    --report filters over the same rows.
+
+    Every screen is a PURE FUNCTION over the row array. Nothing in a screen
+    touches Playwright, the filesystem or the network. That is what makes
+    --from work:
+
+        node scripts/measure-ui.js --report undeclared-font --from /tmp/rows.json
+
+    re-runs a screen against a saved measurement with no browser at all, so a
+    screen can be re-run, diffed and reviewed long after the run that produced
+    the rows. With --from, --plugin is not required.
+
+    EVERY SCREEN PRINTS ITS COUNT, INCLUDING WHEN IT IS 0. A screen that prints
+    nothing on a clean plugin is indistinguishable from a screen that did not
+    run, and three of these four read 0 on every plugin wave 4b already
+    repaired. The count line is fixed in format, one per screen, on stderr:
+
+        <screen-name>: <count> finding(s)
+
+    A screen whose fields are absent from the rows prints
+
+        <screen-name>: SKIPPED — needs --mode box (field <name> not present)
+
+    and NO finding count, because a screen that could not run must not be
+    mistaken for a screen that ran and found nothing. That distinction is the
+    whole point of printing a count at 0.
+
+    undeclared-font   Visible nodes carrying Han in any carrier whose computed
+                      font-family names NO CJK face. This is FORM 4 of the
+                      font-carrier census (wave 4b, C2): <button>, <select> and
+                      <input> do NOT inherit font-family — the UA stylesheet
+                      gives them one, on this build Arial — so a sweep that
+                      reads every CSS declaration AND every SVG attribute in
+                      both files still misses them. No grep can see this class.
+                      The face list is a named constant and is PRINTED on every
+                      run, so a clean result is distinguishable from a result
+                      produced by an empty list. --cjk-faces extends it.
+
+    line-height-normal  Visible Han-carrying LEAF nodes whose computed
+                      line-height resolves to `normal`. Restricted to leaves for
+                      the reason check-ui-labels restricts its clip check to
+                      them: a container's box does not report a text metric.
+
+    wrap-count        Per node, lines = round((h - pt - pb - bt - bb) /
+                      lineHeightPx), reported where the count DIFFERS between
+                      English and any non-English language. lineHeightPx is the
+                      computed value, or fsn * 1.2 when it resolves to `normal`
+                      — an APPROXIMATION of the UA's normal line box, not a
+                      measurement. So a node the line-height-normal screen also
+                      catches is a node whose wrap count is ESTIMATED rather
+                      than measured, and the two screens should be read
+                      together. Needs --mode box.
+
+    svg-font-attr     Two counts, both printed:
+                        (a) every node carrying a font-family PRESENTATION
+                            ATTRIBUTE — the raw count, which is this screen's
+                            own liveness signal;
+                        (b) the subset whose attribute DIVERGES from the
+                            computed stack.
+                      (b) is the useful half, and the reason this is a
+                      divergence report rather than a presence report: a
+                      presentation attribute has the LOWEST specificity of any
+                      font-family source, so a CSS rule overrides it silently.
+                      On O-AnalogEQ the 24 attributes read
+                      `Garamond, 'Times New Roman', serif` while the computed
+                      stack carries the CJK tail. Someone reading only the
+                      markup concludes the tail is missing; someone reading only
+                      the computed style never learns the markup disagrees.
+                      Those 24 are numeric tick labels and carry no Han, so a
+                      divergence there is a finding to READ, not a defect.
+
+    A screen with findings still exits 0. --report with an unknown name exits 2.
+
     ── Exit codes ─────────────────────────────────────────────────────────────
 
         0    the run completed — read stdout
@@ -130,18 +208,26 @@ const select   = val('--select') || '';
 const repoRoot = val('--root') || REPO_ROOT;
 const verbose  = argv.includes('--verbose');
 
+const SCREEN_ORDER = ['undeclared-font', 'line-height-normal', 'wrap-count', 'svg-font-attr'];
+
 const USAGE = [
     'usage: node scripts/measure-ui.js --plugin <Name> [--mode fonts|box] [--select <css>]',
-    '                                  [--root DIR] [--verbose]',
+    '                                  [--report <screen>] [--root DIR] [--verbose]',
+    '       node scripts/measure-ui.js --report <screen> --from <rows.json>',
     '',
-    '  --plugin <Name>   the plugin to measure (required)',
+    '  --plugin <Name>   the plugin to measure (required unless --from is given)',
     '  --mode fonts|box  fonts: computed font stack per node (default)',
     '                    box:   fonts PLUS the full geometry a wrap count needs',
     '  --select <css>    restrict the sweep to nodes matching this selector',
+    '  --report <screen> run a defect screen over the rows; counts go to stderr',
+    '                    ' + SCREEN_ORDER.join(' | ') + ' | all',
+    '  --from <file>     read rows from a saved JSON array instead of measuring',
+    '  --cjk-faces <a,b> extend the CJK face list undeclared-font checks against',
     '  --root DIR        repo-root override (fixture trees)',
     '  --verbose         diagnostics to stderr, including skipped states',
     '',
     'exit: 0 run completed  1 harness could not run  2 usage  77 no Playwright',
+    '      a screen finding defects is 0 \u2014 this is a report, not a gate',
 ].join('\n');
 
 // Han + CJK Ext-A, written as escaped code points rather than literal glyphs so
@@ -363,23 +449,185 @@ async function measure() {
     return rows;
 }
 
+// ── the defect screens ─────────────────────────────────────────────────────
+//
+// Every screen is a PURE FUNCTION (rows, opts) -> { name, needs, count,
+// findings, notes }. No I/O, no browser, no filesystem — which is exactly what
+// lets --from re-run one against a saved measurement.
+
+// The CJK faces actually shipped by this repo today, counted over
+// plugins/*/Source/ui/public: PingFang SC 147, Microsoft YaHei 137,
+// Songti SC 3. It is a CONSTANT, and that is a disclosed limitation: a face a
+// future plugin ships and nobody adds here reads as an undeclared font. The
+// list is PRINTED on every run so a clean result cannot be confused with a
+// result produced by an empty list. --cjk-faces extends it.
+const CJK_FACES = ['PingFang SC', 'Microsoft YaHei', 'Songti SC'];
+
+// The UA's `normal` line box is not exposed anywhere. 1.2 is the conventional
+// approximation, and it is an APPROXIMATION — see the wrap-count note above.
+const NORMAL_LINE_BOX = 1.2;
+
+function esc(x) { return x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+function normStack(v) {
+    return String(v || '').replace(/["']/g, '').split(',')
+        .map((t) => t.trim().toLowerCase()).filter(Boolean).join(', ');
+}
+
+function lineBoxPx(r) {
+    if (!r.lh || r.lh === 'normal') return (r.fsn || 0) * NORMAL_LINE_BOX;
+    const v = parseFloat(r.lh);
+    return isFinite(v) ? v : 0;
+}
+
+function lineCount(r) {
+    const lb = lineBoxPx(r);
+    if (!(lb > 0)) return null;
+    const content = r.h - r.pt - r.pb - r.bt - r.bb;
+    if (!(content > 0)) return null;
+    return Math.round(content / lb);
+}
+
+const SCREENS = {
+    'undeclared-font': {
+        needs: ['ff'],
+        run(rows, opts) {
+            const faces = opts.cjkFaces;
+            const re = new RegExp(faces.map(esc).join('|'), 'i');
+            const findings = rows
+                .filter((r) => r.vis && r.han && !re.test(r.ff || ''))
+                .map((r) => `${r.lang}  ${r.key}  (${r.id})  "${r.own}"  ff=${r.ff}`);
+            return { count: findings.length, findings,
+                     notes: [`faces checked against: ${faces.join(', ')}`] };
+        },
+    },
+
+    'line-height-normal': {
+        needs: ['lh', 'kids'],
+        run(rows) {
+            const findings = rows
+                .filter((r) => r.vis && r.han && r.kids === 0 && r.lh === 'normal')
+                .map((r) => `${r.lang}  ${r.key}  (${r.id})  "${r.own}"  font-size=${r.fs}`);
+            return { count: findings.length, findings,
+                     notes: ['leaf nodes only — a container box does not report a text metric'] };
+        },
+    },
+
+    'wrap-count': {
+        needs: ['h', 'pt', 'pb', 'bt', 'bb', 'lh', 'fsn'],
+        run(rows) {
+            const byKey = new Map();
+            for (const r of rows) {
+                if (!(r.vis && r.kids === 0 && r.own)) continue;
+                if (!byKey.has(r.key)) byKey.set(r.key, new Map());
+                byKey.get(r.key).set(r.lang, r);
+            }
+            const findings = [];
+            let estimated = 0;
+            for (const [key, langs] of byKey) {
+                const en = langs.get('en');
+                if (!en) continue;
+                const nEn = lineCount(en);
+                if (nEn === null) continue;
+                if (!en.lh || en.lh === 'normal') ++estimated;
+                for (const [lang, r] of langs) {
+                    if (lang === 'en') continue;
+                    const n = lineCount(r);
+                    if (n === null || n === nEn) continue;
+                    findings.push(`${key}  (${en.id})  "${en.own}"  en=${nEn} line(s), ${lang}=${n} line(s)`);
+                }
+            }
+            return { count: findings.length, findings,
+                     notes: [`${byKey.size} text-bearing leaf node(s) compared; `
+                           + `${estimated} of them ESTIMATED at fsn * ${NORMAL_LINE_BOX} `
+                           + '(line-height: normal) rather than measured'] };
+        },
+    },
+
+    'svg-font-attr': {
+        needs: ['ffAttr', 'ff'],
+        run(rows) {
+            // Counted per DOM node, not per row: a presentation attribute is a
+            // property of the markup and does not vary by language, so counting
+            // rows would simply multiply by the language count.
+            const carriers = new Map();
+            const diverging = new Map();
+            for (const r of rows) {
+                if (!r.ffAttr) continue;
+                if (!carriers.has(r.key)) carriers.set(r.key, r);
+                if (normStack(r.ffAttr) !== normStack(r.ff) && !diverging.has(r.key)) diverging.set(r.key, r);
+            }
+            const findings = Array.from(diverging.values())
+                .map((r) => `${r.key}  (${r.id})  attr=[${r.ffAttr}]  computed=[${r.ff}]`);
+            return { count: findings.length, findings, carriers: carriers.size,
+                     notes: [`${carriers.size} node(s) carry a font-family presentation attribute`] };
+        },
+    },
+};
+
+// Fixed line format, because a paraphrase would make the verify blocks that
+// match on it lie. See the header.
+function runScreen(name, rows, opts) {
+    const sc = SCREENS[name];
+    const probe = rows.length ? rows[0] : null;
+    const missing = probe ? sc.needs.find((f) => !(f in probe)) : sc.needs[0];
+
+    if (missing) {
+        console.error(`${name}: SKIPPED — needs --mode box (field ${missing} not present)`);
+        return;
+    }
+
+    const res = sc.run(rows, opts);
+
+    if (name === 'svg-font-attr')
+        console.error(`${name}: ${res.carriers} attribute carrier(s), ${res.count} finding(s)`);
+    else
+        console.error(`${name}: ${res.count} finding(s)`);
+
+    for (const n of res.notes || []) console.error(`  ${n}`);
+    for (const f of res.findings) console.error(`    ${f}`);
+}
+
 // ── CLI ────────────────────────────────────────────────────────────────────
 
 if (require.main === module) {
-    if (!plugin) { console.log(USAGE); process.exit(2); }
+    const report   = val('--report');
+    const from     = val('--from');
+    const cjkExtra = val('--cjk-faces');
+    const cjkFaces = CJK_FACES.concat((cjkExtra || '').split(',').map((x) => x.trim()).filter(Boolean));
+
+    if (report && report !== 'all' && !SCREENS[report]) {
+        console.log(USAGE);
+        console.log(`\n--report: no such screen '${report}'. Valid: ${SCREEN_ORDER.join(', ')}, all`);
+        process.exit(2);
+    }
+    if (!plugin && !from) { console.log(USAGE); process.exit(2); }
     if (mode !== 'fonts' && mode !== 'box') {
         console.log(USAGE);
         console.log(`\n--mode must be 'fonts' or 'box' (got '${mode}')`);
         process.exit(2);
     }
 
-    measure().then((rows) => {
+    const emit = (rows) => {
         process.stdout.write(JSON.stringify(rows));
         process.stdout.write('\n');
-    }).catch((e) => {
-        console.error('measure-ui: ' + (e && e.stack ? e.stack : e));
-        process.exit(1);
-    });
+        if (report) for (const name of (report === 'all' ? SCREEN_ORDER : [report]))
+            runScreen(name, rows, { cjkFaces });
+    };
+
+    if (from) {
+        let rows;
+        try { rows = JSON.parse(fs.readFileSync(from, 'utf8')); }
+        catch (e) { die(1, `--from ${from}: ${e.message}`); }
+        if (!Array.isArray(rows)) die(1, `--from ${from}: not a JSON array of rows`);
+        if (verbose) console.error(`measure-ui: ${rows.length} row(s) read from ${from} — no browser launched`);
+        emit(rows);
+    } else {
+        measure().then(emit).catch((e) => {
+            console.error('measure-ui: ' + (e && e.stack ? e.stack : e));
+            process.exit(1);
+        });
+    }
 }
 
-module.exports = { HAN_SRC, pageProbe };
+module.exports = { HAN_SRC, pageProbe, SCREENS, SCREEN_ORDER, CJK_FACES, NORMAL_LINE_BOX };
