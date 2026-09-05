@@ -184,6 +184,12 @@
         node scripts/measure-ui.js --plugin O-AnalogEQ --select text
         node scripts/measure-ui.js --plugin O-Fixture --root /tmp/fix --verbose
 
+    The reasoning behind every note above, the measured evidence for each, the
+    positive controls that make a screen's 0 readable, the known limitations and
+    the record of what was deliberately NOT promoted alongside this file:
+
+        scripts/measure-ui-README.md
+
   ==============================================================================
 */
 
