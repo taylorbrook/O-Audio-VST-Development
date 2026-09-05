@@ -131,7 +131,34 @@ const NEUTRAL = { x: 10, y: 440 };
     }
 
     const i18nFile = path.join(pluginRoot, 'Source', 'ui', 'public', 'js', 'i18n.js');
-    const { I18N, TIP_BINDINGS } = loadI18n(i18nFile);
+    const { LANGUAGES, I18N, TIP_BINDINGS } = loadI18n(i18nFile);
+
+    // ── the language list is DERIVED, and it ABORTS rather than falling back ──
+    //
+    // v1.5.0. Until then §6 named its one non-English arm positionally, in the
+    // call itself. That spelling carries no array literal, so the repo-wide
+    // inventory of two-language gate files — which greps for one — reported this
+    // file CLEAN while it was every bit as two-language as the twelve on the
+    // list. A gate that names its languages anywhere cannot see a third one
+    // arrive, whichever syntax it uses to name them.
+    //
+    // Derived from the plugin's own LANGUAGES export, so the day a fourth
+    // language lands this file exercises it without being edited.
+    //
+    // AND IT ABORTS. A derivation that quietly yields an empty list would turn
+    // §6 into a loop that runs zero times and prints nothing, which reads as a
+    // pass — the vacuous-green failure this whole file exists to refuse. The
+    // control below is fired deliberately by planting an empty LANGUAGES and
+    // confirming a non-zero exit, because a refusal that has never fired proves
+    // nothing.
+    if (!Array.isArray(LANGUAGES) || LANGUAGES.length < 2 || LANGUAGES[0] !== 'en') {
+        console.log('  FAIL: LANGUAGES did not derive to a usable list — got '
+                  + JSON.stringify(LANGUAGES) + '. This gate refuses to run on a language set it '
+                  + 'cannot read rather than silently measuring English against itself.');
+        process.exit(2);
+    }
+    const OTHER_LANGS = LANGUAGES.filter((l) => l !== 'en');
+    console.log(`  languages: ${LANGUAGES.join(', ')} (derived from i18n.js LANGUAGES, never named here)`);
 
     const size = readEditorSize(PLUGIN);
     if (!size) { console.log('  FAIL: no setSize() in PluginEditor.cpp — the shipping frame is unknown'); process.exit(1); }
@@ -338,7 +365,15 @@ const NEUTRAL = { x: 10, y: 440 };
     }
 
     const en1 = await driveLanguage('en', '3-5. ENGLISH');
-    const fr  = await driveLanguage('fr', '6. FRENCH — 15-20% longer copy, wrapping taller against the 260 px cap');
+
+    // Every non-English arm the table declares, in order. French runs 15-20%
+    // longer than its English and wraps taller against the 260 px cap; Chinese
+    // runs SHORTER and wraps shorter, so an assertion written to catch one of
+    // them would be blind to the other. §5's three checks are all equalities or
+    // containments and are direction-agnostic by construction.
+    for (const lang of OTHER_LANGS)
+        await driveLanguage(lang, `6. ${lang.toUpperCase()} — copy of a different length against the same 260 px cap`);
+
     const en2 = await driveLanguage('en', '7. BACK TO ENGLISH — the switch is reversible');
 
     check(en2.exact === en1.exact && en2.shown === en1.shown,
