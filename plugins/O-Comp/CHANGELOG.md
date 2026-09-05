@@ -2,6 +2,65 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.9.0] - 2026-09-04
+
+**Simplified Chinese.** Every caption, hover-help body and accessible name
+renders in 简体中文 alongside English and French. MINOR: a language is added; no
+parameter, range, type or state format changed.
+
+Wave 4a of the suite-wide zh-Hans rollout.
+
+### Added
+
+- **`zh-Hans` on all 39 entries.** 36 of the 39 name strings take their rendering from `scripts/i18n-zh-glossary.js`. Lint rule Z5 enforces the
+  glossary renderings.
+- **The endonym `简体中文`** in the language selector, as numeric character
+  references.
+- **A third branch in the language codec** (`PluginProcessor.h`), pure ASCII.
+  **No Han character exists anywhere under `Source/`.**
+
+### Changed
+
+- **The CJK font tail on six measured declarations**, placed before the trailing
+  generic rather than after it: Chromium resolves a bare `serif` against the
+  document's language, so a tail written after the generic is never consulted.
+- **AND ON THE TWO CANVAS FONT STRINGS.** The envelope display draws its
+  captions with `ctx.fillText`, and canvas text is not in the DOM — no CSS rule
+  reaches it and `check-ui-labels` cannot measure it, so a missing face there
+  would have shipped as a silent fallback that no gate in this repo can see.
+- **Four line-height pins** closed thirteen moved elements across the control
+  groups. Each ratio is the element's own measured English line box over its own
+  font size; the English and French arms report 0 FAIL before and after.
+- **`tests/ui_tip_render_check.js` derives its language list.** It previously
+  ASSERTED the pair and would have hard-failed the day a third language landed.
+  It now sweeps every non-English arm and refuses a list it cannot read.
+
+### Fixed
+
+- **Two hover-help bodies stated things that were false**, in English and in
+  French both, and both are removed rather than extended. `tip.gearBtn` said the settings panel holds nothing but the language while the hover-help switch has sat beside it since v1.6.0, and `tip.langSelect` counted the selector's options. No gate can
+  see this class of defect — the sentences stay grammatical and the tooltips
+  render — and both edits are deletions, so the French review flags stand.
+
+
+### Review status
+
+Every Chinese string is at **`reviewed: 'bt'`** — drafted, then read back through
+an INDEPENDENT reverse pass, triple by triple, all 49 rows, twice.
+
+- forward: `claude-opus-5 forward draft, quick-260904-qrc Task 3, 2026-09-04`
+- reverse round 1: `claude-sonnet-4-5 reverse pass, fresh non-interactive
+  session, no tools, cwd outside the repo, 2026-09-04`
+- reverse round 2: `claude-opus-5 reverse pass, SECOND fresh session, fresh
+  salt, no tools, cwd outside the repo, 2026-09-04`
+
+The English was withheld from every batch and the row ids were blinded with a
+per-batch salt, so no pass could recover a string's source or correlate one
+round against another. Round 2 shares zero ids with round 1 and returned no re-authors.
+
+**The native-reader level stays OPEN, and that is disclosed rather than hidden.**
+This project has no native Chinese reader.
+
 ## [1.8.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
