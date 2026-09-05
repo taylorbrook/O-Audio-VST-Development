@@ -129,8 +129,17 @@ public:
     int  getUiLanguageIndex() const           { return uiLanguage.load(std::memory_order_acquire); }
     void setUiLanguageIndex(int i)            { uiLanguage.store(i, std::memory_order_release); }
 
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    /* PURE ASCII, AND THAT IS THE CONTRACT. Not one Han character exists
+       anywhere under Source/ — every Chinese string lives in the UI table
+       (Source/ui/public/js/i18n.js), and the one Han string in the markup is
+       written as numeric character references. What is persisted here is a
+       language CODE, which is an ASCII identifier in every language.
+
+       languageIndex() maps anything that is neither "fr" nor "zh-Hans" to 0, so
+       a hand-edited session or an unexpected argument from the page degrades to
+       English rather than being stored unvalidated. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
 private:
     // v2.9.0: UI language index (0 = en, 1 = fr), saved with plugin state as

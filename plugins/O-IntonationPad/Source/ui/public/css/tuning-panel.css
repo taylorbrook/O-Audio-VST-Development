@@ -45,7 +45,7 @@
     padding: 15px;
     background: var(--tuning-bg);
     border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
     font-size: 11px;
     color: var(--tuning-text);
 }
@@ -190,6 +190,38 @@
     gap: 4px;
 }
 
+
+
+/* ── LINE-HEIGHT PINS (v2.10.0) ──────────────────────────────────────────────
+   The tuning panel's half of the pin set. See the block headed "LINE-HEIGHT
+   PINS" in index.html for why `line-height: normal` is language-dependent and
+   how each value below was derived from its own measured English box. */
+.tuning-file-btn {
+    line-height: 1.1111;
+}
+.generator-btn {
+    line-height: 1.1;
+}
+.interval-list-header,
+.library-header-text,
+.generator-header-text,
+.gen-row label {
+    line-height: 1.2;
+}
+.pitch-circle-label,
+.ref-knob-label,
+.tonic-label,
+.octave-stretch-label {
+    line-height: 1.2222;
+}
+/* The same fourth carrier, on the tuning panel's own buttons — see the block
+   in index.html headed "A FOURTH FONT CARRIER". Arial stays first so the Latin
+   metrics of the English and French arms do not move. */
+.viz-btn,
+.tuning-file-btn,
+.generator-btn {
+    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
 .viz-btn {
     flex: 1;
     padding: 6px 8px;
@@ -289,6 +321,7 @@
     color: var(--tuning-text-muted);
     font-style: italic;
     font-size: 11px;
+    line-height: 1.1818;   /* 13.00 measured English box / 11px — see the pin block above */
 }
 
 .tk-grid {
@@ -314,7 +347,7 @@
 }
 
 .tk-cents {
-    font-family: monospace;
+    font-family: 'Menlo', 'Consolas', 'PingFang SC', 'Microsoft YaHei', monospace;
     font-size: 11px;
     color: var(--tuning-accent, #8B7355);
 }
@@ -339,10 +372,33 @@
     padding: 3px 5px;
     border: 1px solid var(--tuning-border);
     text-align: center;
+    /* 17.00 measured English box, minus 6 px padding, minus 2 px border,
+       = 9.00 / 8px. See the pin block in index.html. */
+    line-height: 1.125;
 }
 
 .rotation-table th {
     background: rgba(139, 115, 85, 0.15);
+}
+
+/* ── A HAN RUN'S MIN-CONTENT WIDTH IS ONE CHARACTER (v2.10.0) ────────────────
+   The rotation table is auto-sized: every column is as wide as its content
+   needs. A Latin word has a min-content width of the whole word, because there
+   is no break opportunity inside it — but Chinese breaks between ANY two Han
+   characters, so 模式 has a min-content width of one glyph. The mode column
+   therefore collapsed from 34.06 px to 20.98 px and wrapped its own header to
+   two lines, taking the table from 205 px to 217 px and every column after it
+   sideways.
+
+   The repair is BOTH halves, and neither works alone: nowrap removes the break
+   opportunity so the header cannot split, and the min-width floors the column
+   at the box English already occupies so nowrap has somewhere to sit. Measured
+   at the shipping frame: 34.06 px in English and in French, rounded up to 35.
+   A floor is a no-op on both those arms — they already exceed it — which is
+   what keeps this a Chinese-only repair. */
+.rotation-table th.rotation-mode-header {
+    white-space: nowrap;
+    min-width: 35px;
 }
 
 .rotation-table .current-tonic {
