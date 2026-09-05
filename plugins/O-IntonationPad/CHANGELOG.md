@@ -1,5 +1,138 @@
 # O-IntonationPad Changelog
 
+## [2.10.0] - 2026-09-05
+
+**Simplified Chinese.** The interface, all 80 hover-help anchors and the
+accessible names now render in `zh-Hans` alongside English and French — 199
+entries, 276 emitter rows, the largest table in the suite's Chinese rollout so
+far. MINOR: a language is added, one English hover-help body is corrected, and
+the tuning panel's load order is fixed; no parameter, range, type or state
+format changed, and no DSP was touched.
+
+### Added
+
+- **`zh-Hans` on all 199 entries** — 79 hover-help entries and 120 labels,
+  captions, aria names and image alternatives, across the Voice, Tuning, Synth
+  and Effects tabs. `LANGUAGES` reads three, the selector carries a third
+  `<option>` written as numeric character references
+  (`&#31616;&#20307;&#20013;&#25991;`), and `PluginProcessor.h`'s
+  `languageCode` / `languageIndex` codec is three-way and pure ASCII.
+
+  **DISCLOSED QUALITY LEVEL: `reviewed: 'bt'`, not `'native'`.** This project
+  has no native Chinese reader, so the ship bar is a BACK-TRANSLATION: an
+  independent pass that has never seen the English renders the shipped Chinese
+  back into English, and the drift is read in a language this project can read.
+  All 276 rows were carried through that pass **three times**:
+
+      forward   claude-opus-5 forward draft, quick task 260905-acr, 2026-09-05
+      reverse 1 claude-sonnet-4-5, fresh non-interactive session, no tools,
+                cwd outside the repo
+      reverse 2 claude-opus-4-1, second fresh session, fresh salt, no tools —
+                a DIFFERENT MODEL, because a fresh session of the same model
+                guards against correlation but not against self-agreement
+      reverse 3 claude-sonnet-4-5, third fresh session, fresh salt, no tools
+
+  Every round used a fresh salt, and the control fired each time: round 3's
+  blinded row ids share none with round 1 and none with round 2.
+
+  **Three rows failed and were re-authored.** The discriminator is collision on
+  the page, not drift distance — can a reader on this page confuse this string
+  with another control on it?
+
+  - `Stretch` was drafted on the glossary root `延展` and came back as
+    "Sustain" on the caption and "Spread" on the tooltip title. Both name a
+    different control on this same page: the envelope sustain is `延音`
+    (sharing the first character) and the stereo spread is `展宽` (sharing the
+    second). One row colliding with two neighbours. Now `拉伸`, which shares no
+    character with either; rounds 2 and 3 both returned "Stretch".
+  - `Timing` was drafted on `时值` and **two different models in two sessions
+    both returned "Duration"** — and they are right about the Chinese: `时值`
+    is a note's value in beats, while this control is a random timing offset
+    per chord voice. Agreement across two models is what makes it an evidenced
+    defect rather than one reader's preference. Now `时序`; round 3 returned
+    "Timing".
+  - `Pitch circle` was drafted on `音高圆盘` and came back "Pitch wheel" —
+    which on this page is a real and different thing, described in the PB Range
+    tip. Now `音高圆环`; round 3 returned "Pitch circle".
+
+  `reviewed: 'native'` stays OPEN and is printed by the lint's R1 rule on every
+  run. Nothing here has been read by a native speaker.
+
+- **A CJK font tail on every stack that can render a Han glyph**, in BOTH
+  `index.html` and `css/tuning-panel.css`, placed BEFORE the trailing generic.
+  Chromium resolves a bare generic against the document's `lang`, so under
+  `zh-Hans` it is already a Chinese face and a tail written after it is never
+  consulted. Verified by computed style across all 19 states: 103 Han-bearing
+  nodes of 291 visible, all 103 reaching a PingFang SC stack.
+
+### Fixed
+
+- **Nineteen font stacks named no face this machine has.** Eighteen read
+  `'Garamond', serif` in the markup, and the nineteenth — the purest case in
+  the suite — was a lone `font-family: monospace` in `css/tuning-panel.css`,
+  naming nothing at all, so BOTH its Latin and its Han were resolved by the
+  document language. Garamond is absent here (0 family matches, against 4 for
+  Times New Roman and 4 for Menlo), so every one of the eighteen reached its
+  trailing generic for every codepoint including Latin. **An editor who read
+  only the markup would have covered eighteen of nineteen and left the worst
+  one.** All now name an installed face; the mono stack takes
+  `'Menlo', 'Consolas'` ahead of the tail.
+
+- **Thirteen `<button>` elements rendered their Chinese through no declaration
+  at all.** A form control does not inherit `font-family` — the UA stylesheet
+  gives it one, here Arial — so a sweep that reads every declaration in both
+  files finds nothing wrong with them and only computed style finds them. Arial
+  has no Han glyphs, so their Chinese captions were resolved by the
+  document-language fallback. Arial is kept FIRST so the Latin metrics of the
+  English and French arms do not move.
+
+- **Thirty-five text leaves grew 2 to 4 px on the Chinese arm**, cascading to
+  +17 px on the tuning panel and +18 px on the dice menu. `line-height: normal`
+  is not a number: it is whatever the resolved face calls its natural line box,
+  and the resolved face changes with the document language. Thirteen pins and
+  three floors, each derived from that leaf's own measured English box — height
+  minus its own padding minus its own border, divided by its own line count,
+  divided by its own font-size. Unitless, scoped, never global, and no-ops in
+  English and French.
+
+- **The rotation table's mode column collapsed to one character wide.** A Latin
+  word's min-content width is the whole word; Chinese breaks between any two
+  Han characters, so `模式` has a min-content width of one glyph. The
+  auto-sized column shrank from 34.06 px to 20.98 px and wrapped its own header
+  to two lines, taking the table from 205 px to 217 px. Repaired with `nowrap`
+  **and** a `min-width` floored at the English box — neither works alone.
+
+- **The tuning panel's 80 tip anchors did not exist when the first sweep ran.**
+  Seventeen `TIP_BINDINGS` selectors resolved to nothing on that pass. They
+  were bound by a later re-sweep and DID carry their tips at settle — measured,
+  80 of 80 in all three languages, so this was never user-visible — but the
+  page spent its first frames with a seventeen-anchor hole in the help layer,
+  and the boot census could not tell that hole from a permanent one. The import
+  is now static and the panel's synchronous `render()` runs at module top
+  level, ahead of the first sweep; `render()` is idempotent so `init()`'s own
+  call is a no-op rather than a second subtree the sweep has never seen. The
+  asynchronous half now waits for `DOMContentLoaded` explicitly rather than
+  being pushed past it by an accidental network round trip.
+
+- **The language hover-help enumerated the selector's options**, in English and
+  in French. True while the selector held two entries and false the moment this
+  version added a third. Deleted rather than widened. The GEAR body is the
+  opposite case and was deliberately left alone: it names both of its choices
+  and is correct — checked, not assumed.
+
+### Verification
+
+`check-i18n` exit 0 with `LANGUAGES` reading three; `check-ui-labels` exit 0,
+0 FAIL on the English, French and Chinese arms across all 19 states;
+`i18n-zh-lint` 0 findings with three `termNote` exemptions reported —
+authored under that lint as a **gate** rather than a report, and it blocked one
+of this version's own corrections until the exemption was stated on the tooltip
+title as well as the caption; `i18n-fr-lint` exit 0; `boot-all-uis
+--strict-tips` 0 dead and 0 late bindings, with O-Bells still reporting its
+known 2 as the control that the census is not blind. Zero Han characters
+anywhere under `Source/**`, with the positive control fired on the same run.
+`auval -v aumu OuIP Ouar` AU VALIDATION SUCCEEDED.
+
 ## [2.9.2] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
