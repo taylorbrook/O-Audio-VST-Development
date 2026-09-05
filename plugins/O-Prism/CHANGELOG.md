@@ -1,5 +1,106 @@
 # O-Prism Changelog
 
+## v1.24.0 (2026-09-04)
+
+**Simplified Chinese.** Every caption, section heading, tab, hover-help body and
+accessible name renders in 简体中文 alongside English and French. MINOR: a
+language is added; no parameter, range, type or state format changed.
+
+Wave 4a of the suite-wide zh-Hans rollout, and the largest table in that wave —
+267 entries, 375 rows, 23 UI states.
+
+### Added
+
+- **`zh-Hans` on all 267 entries** — 159 labels and 108 hover-help entries.
+  150 of the name strings take their rendering from
+  `scripts/i18n-zh-glossary.js`, which lint rule Z5 enforces; the other 117 are
+  authored, nearly all as compounds of roots the glossary does settle
+  (振荡器 A 截止, 滤波器 B 共振), so the page reads as one vocabulary.
+- **The endonym `简体中文`** in the language selector, as numeric character
+  references.
+- **A third branch in the language codec** (`PluginProcessor.h`), pure ASCII.
+  **No Han character exists anywhere under `Source/`.**
+
+### Changed
+
+- **`Division` and `Divisions` no longer collide.** Both root on 分割, and this
+  page carries both: the LFO and delay tempo-sync note value, and the count of
+  equal divisions of the period in the scale generator. Nothing automated can
+  see this — 分割 is exactly what the glossary asks on both keys, so Z5, F1 and
+  `check-ui-labels` are all silent. **Both** sides are qualified, never one:
+  节拍分割 and 等分数, each carrying a `termNote`. 等分数 is the rendering
+  Stage 3 settled on O-MicrotonalSampler's identical control, and it now reads
+  as one vocabulary with 等分 and 等分八度 beside it in the same panel.
+- **The CJK font tail on 18 measured stacks** across `index.html` and
+  `css/wavetable-editor.css`, plus one bare-Arial UA default that carries a
+  visible caption and takes the tail with Arial kept first. Stacks that render
+  no Han — the gear and preset glyphs, the preset names, the numeric readouts —
+  are deliberately untouched.
+- **Geometry pinned for Chinese without moving English or French.** 33
+  `check-ui-labels` failures to zero across all 23 states, in four distinct
+  shapes: line-height inheritance (64 of 76 node shapes); the subtitle
+  *shrinking* 109 px and dragging the preset browser sideways as the third of
+  four `space-between` children; the auto-sized rotation table, where a Han
+  run's minimum width is one character and 模式 was squeezed *narrower* than the
+  "Mode" it replaced; and Latin display conventions applied to Han — letter
+  spacing on a footer caption and button padding sized for "Osc A" — both
+  corrected under `html[lang="zh-Hans"]`, which the English and French arms
+  cannot see. Every ratio is the element's own measured English line box over
+  its own font size.
+- **`tests/ui_tip_render_check.js` derives its language list** from the table's
+  own `LANGUAGES` export and asserts that a non-English pass *differs* from
+  English rather than that it *grows*. Measured here, French grows a tip to
+  139.3 px and Chinese shrinks it to 108.5 against English's 123.9, so the old
+  assertion would have hard-failed on Chinese. It aborts on a list it cannot
+  read rather than looping zero times and printing a pass.
+
+### Fixed
+
+- **Two hover-help bodies stated things that were false**, in English and in
+  French both, and both are removed rather than extended. `tip.language`
+  enumerated the available languages twice — in its prose and again in its range
+  clause — and went stale the moment a third arrived. `tip.gear` said the
+  settings panel "holds one control, the interface language"; v1.23.0 added the
+  hover-help switch beside it, so that claim shipped false for four versions.
+  No gate can see either: both sentences stay grammatical and both tooltips
+  render.
+- **Seventeen Chinese bodies named the wrong kind of button.** A word that is an
+  `AudioParameterChoice` option string stays English in every language, because
+  it is what the button says; a word that is a localized caption must be in
+  Chinese, or the body sends a reader looking for a control that is not on the
+  page. `Serial` and `Parallel` had been translated and are restored; the LFO
+  sync, free-run and effect bypass captions had been left in English and now
+  read 自由 / 同步 / 重触发 / 自由运行 / 开 / 关, matching the buttons.
+- **Five range clauses now name the unit the readout prints** — ` st` and ` ct`
+  rather than 半音 and 音分, so the tooltip and the knob agree.
+
+### Review status
+
+Every Chinese string is at **`reviewed: 'bt'`** — drafted, then read back through
+an INDEPENDENT reverse pass, triple by triple, all 375 rows, twice.
+
+- forward: `claude-opus-5 forward draft + round-1 corrections, quick-260904-qrc
+  Task 2, 2026-09-04`
+- reverse round 1: `claude-sonnet-4-5 reverse pass, four fresh non-interactive
+  sessions, no tools, cwd outside the repo, 2026-09-04`
+- reverse round 2: `claude-opus-5 reverse pass, four SECOND fresh sessions,
+  fresh salt, no tools, cwd outside the repo, 2026-09-04`
+
+The English was withheld from both batches and the row ids were blinded with a
+per-batch salt; round 2 shares zero ids with round 1 and returned no re-authors.
+
+**The native-reader level stays OPEN, and that is disclosed rather than hidden.**
+This project has no native Chinese reader.
+
+One rendering is recorded as a concern rather than changed: `label.genRank2`
+ships 二阶音律, the glossary's settled root, which back-translates as
+"second-order temperament". In regular-temperament theory a rank is the number
+of independent generators — 秩 in Chinese mathematics, not 阶. Stage 3 hit this
+on O-MicrotonalSampler and reverted the same change for the same reason: there
+is no page collision here and no native reader to adjudicate it, so overriding a
+settled glossary root on one executor's judgement is exactly what the glossary
+exists to prevent.
+
 ## v1.23.1 (2026-09-03)
 
 The French rendering of the hover-help surface changes suite-wide (task
