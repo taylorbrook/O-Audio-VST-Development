@@ -42,7 +42,7 @@
       -webkit-user-select: none;
       cursor: default;
       overflow: hidden;
-      font-family: 'Garamond', 'Times New Roman', serif;
+      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -297,7 +297,15 @@
       padding: 0 8px;
       font-size: 7px;
       color: #3C2F2F;
-      font-family: 'Garamond', serif;
+      /* 'Times New Roman' NAMED, not left to the generic. Garamond is not a
+         macOS face, so on this platform the trailing generic is the only
+         survivor of this stack — and Chromium resolves a generic against the
+         document's lang, which made these ASCII dB ticks render Times under en
+         and fr and Songti SC under zh-Hans. All six ticks then shrank and the
+         space-between row redistributed: twelve reported movers, none of them
+         holding a translated string. No CJK tail here — nothing in .vu-scale
+         can ever hold a Han codepoint; the ticks are numbers. */
+      font-family: 'Garamond', 'Times New Roman', serif;
       pointer-events: none;
     }
 
@@ -420,7 +428,7 @@
       border: 2px solid #3C5C1A;
       border-radius: 4px;
       color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', serif;
+      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.6px;
@@ -540,7 +548,7 @@
     /* nowrap because the row is space-between: a caption that wrapped would
        grow the row's height and move the control beside it. */
     .settings-label {
-      font-family: 'Garamond', 'Times New Roman', serif;
+      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 10px;
       color: #3C2F2F;
       text-transform: uppercase;
@@ -555,7 +563,7 @@
       border: 1px solid #3C5C1A;
       border-radius: 3px;
       color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', serif;
+      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 10px;
       line-height: 1.2;
       cursor: pointer;
@@ -585,7 +593,7 @@
       border: 1px solid #3C5C1A;
       border-radius: 3px;
       color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', serif;
+      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 10px;
       line-height: 1.2;
       flex: 0 0 auto;
@@ -653,7 +661,7 @@
       border-radius: 5px;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
       color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', serif;
+      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 12px;
       line-height: 1.35;
       opacity: 0;
@@ -702,12 +710,12 @@
          cannot hide here as a deliberate one. -->
     <div class="title">OUARICON SATURATION</div>
 
-    <!-- The settings cluster. STILL ONE ROW at v1.3.0, which now has hover-help
-         but no switch for it: adding one would mean a persisted preference
-         through C++ and a data-tip-always bypass so the switch's own tip
-         survives being switched off. Two plugins in the suite have that toggle
-         and nineteen do not; making the suite uniform is its own pass, not a
-         side effect of this one. The gear's tip says so in as many words. -->
+    <!-- The settings cluster. TWO ROWS since v1.4.0 - the language selector and
+         the hover-help switch, which is authored twenty lines below. The
+         comment that used to sit here said the row had no such switch and was
+         left behind when v1.4.0 added it; so was the gear tooltip's body, which
+         shipped the same false claim for a version. Both are corrected at
+         v1.5.0. Nothing enumerates this popover's contents any more. -->
     <div class="settings-cluster">
       <button type="button" class="gear-btn" id="gear-btn"
               aria-haspopup="dialog" aria-expanded="false"
@@ -726,6 +734,12 @@
                   data-i18n-aria="aria.langSelect" aria-label="Interface language">
             <option value="en">English</option>
             <option value="fr">Fran&ccedil;ais</option>
+            <!-- NUMERIC ENTITIES, matching the &ccedil; above: the markup path
+                 stays pure ASCII on disk whatever a later editor's encoding
+                 does to it. This <option> is the ONLY place Han reaches this
+                 file, and a keyed scan never sees it - it carries no
+                 data-i18n, because an endonym is not translated. -->
+            <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
           </select>
         </label>
 
