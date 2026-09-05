@@ -456,7 +456,13 @@ export const I18N = Object.freeze({
               b: "Ouvre le panneau de réglages, où se règle la langue de l’interface.",
               reviewed: true },
         'zh-Hans': { t: '设置',
-              b: '打开设置面板，本插件的面板中只有一行：界面语言。',
+              // AUTHORED FROM THE CORRECTED ENGLISH, not the superseded one.
+              // The first draft of this row was written from the body as it
+              // stood BEFORE this same commit deleted its exclusivity clause,
+              // so the Chinese went on asserting that the panel holds a single
+              // row after the English had stopped — and the blind reverse read
+              // returned exactly that sentence, which is how it was found.
+              b: '打开设置面板，界面语言在这里设定。',
               reviewed: 'mt' },
     },
 
