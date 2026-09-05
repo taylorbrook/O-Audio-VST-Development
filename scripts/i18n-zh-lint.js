@@ -78,6 +78,14 @@
                          disclosure is the value this rule adds over
                          check-i18n.js assertion [5], which only asks that the
                          flag be present.
+      Z8  intra-Han sp   a plain U+0020 between two Han code points. Added
+                         2026-09-04, after Stage 3 found the shape by READING
+                         rather than by any rule — hence its position last in
+                         CODES and last in every column, legend and table that
+                         derives from CODES. Scoped to the PLAIN space only, so
+                         its zero can be checked against an independent scan;
+                         Z2 and Z4 police the other whitespace classes at their
+                         own boundaries.
 
     NOT PORTED, deliberately. French T1-T7 are French typography and Z2 is the
     exact inverse of three of them; porting them would be actively wrong, not
@@ -314,6 +322,26 @@ function ruleZ7(zh) {
     return /[０-９Ａ-Ｚａ-ｚ]/.test(zh);
 }
 
+// ── Z8 ──────────────────────────────────────────────────────────────────────
+// A plain U+0020 between two Han code points. Stage 3 found this by READING
+// O-Octagon's `puck` body; no rule could see it, because Z4 only classifies the
+// gap at a boundary between a Latin/digit run and a Han run, and here there is
+// Han on both sides.
+//
+// SCOPED TO THE PLAIN SPACE ON PURPOSE, and the scope is not an oversight.
+// U+00A0, U+2009, U+200A and U+3000 between two Han characters are all
+// defensible additions on their own, and they are deliberately NOT included:
+// this rule's zero column is validated by agreeing with an INDEPENDENT
+// standalone scan, and that scan is defined on the plain space. Widening the
+// predicate here would break the agreement test and leave the rule resting on
+// its own word. The other whitespace classes are already policed at their own
+// boundaries — Z2 for U+00A0 before punctuation, Z4 for the thin spaces and
+// for Latin/Han spacing consistency.
+const HAN_SPACE_HAN = /\p{Script=Han} \p{Script=Han}/u;
+function ruleZ8(zh) {
+    return HAN_SPACE_HAN.test(zh);
+}
+
 // ── F1 ──────────────────────────────────────────────────────────────────────
 // Chinese has no word delimiter, so containment is the only available test —
 // the French stem/lookahead machinery has nothing to anchor to here.
@@ -358,6 +386,10 @@ function lintRows(rows, opts = {}) {
         const z3 = ruleZ3(r.zh);
         if (z3) findings.push({ code: 'Z3', ...r, note: `Traditional-only: ${z3.join(' ')}` });
         if (ruleZ7(r.zh)) findings.push({ code: 'Z7', ...r, note: 'full-width Latin or digits' });
+        // Evaluated here, with the row-scoped rules, so it reaches BODIES as
+        // well as labels and titles. The real defect Stage 3 found was in a
+        // body, and a rule pushed only on the label branch would have missed it.
+        if (ruleZ8(r.zh)) findings.push({ code: 'Z8', ...r, note: 'plain U+0020 between two Han characters — intra-Han whitespace the Latin/Han boundary census cannot see' });
 
         const kinds = boundaryKinds(r.zh);
         if (kinds.includes('thin'))
@@ -664,6 +696,6 @@ async function selfTest() {
     const budgeted = glossaryTerms.filter((t) => G.TERM_META[t] && G.TERM_META[t].maxChars !== null).length;
     const unbudgeted = glossaryTerms.length - budgeted;
     console.log(`  Z6 coverage: ${budgeted} of ${glossaryTerms.length} glossary terms carry a measured budget; ${unbudgeted} are UNBUDGETED and Z6 is inert on them — Stages 2-4 fill these from the check-ui-labels zh arm`);
-    console.log(`  codes: Z1 ASCII punctuation  Z2 U+00A0 before punctuation  Z3 Traditional-only  Z4 Latin/CJK spacing  Z5 glossary  Z6 budget  Z7 full-width Latin  F1 forbidden  R1 reviewed enum`);
+    console.log(`  codes: Z1 ASCII punctuation  Z2 U+00A0 before punctuation  Z3 Traditional-only  Z4 Latin/CJK spacing  Z5 glossary  Z6 budget  Z7 full-width Latin  F1 forbidden  R1 reviewed enum  Z8 intra-Han space`);
     console.log(`\nREPORT ONLY — exit 0. This becomes a gate (exit 2) once the O-Chorus pilot is at zero findings.`);
 })();
