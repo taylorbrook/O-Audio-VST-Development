@@ -1,5 +1,94 @@
 # O-AnalogEQ Changelog
 
+## [1.5.0] - 2026-09-05
+
+**Simplified Chinese.** Every caption, hover-help body and accessible name now
+renders in `zh-Hans` alongside English and French — 35 entries, 49 emitter rows.
+MINOR: a language is added and two English hover-help bodies are corrected; no
+parameter, range, type or state format changed, and no DSP was touched.
+
+### Added
+
+- **`zh-Hans` on all 35 entries.** `LANGUAGES` reads three, the selector carries
+  a third `<option>` as numeric character references, and the
+  `languageCode` / `languageIndex` codec is three-way and pure ASCII. WIDE, MED
+  and TIGHT stay English inside the Chinese Q bodies: they are
+  `AudioParameterChoice` strings and they are what the button on the page says.
+
+  **DISCLOSED QUALITY LEVEL: `reviewed: 'bt'`, not `'native'`.** This project
+  has no native Chinese reader, so the ship bar for the Chinese rollout is a
+  BACK-TRANSLATION: an independent pass that has never seen the English source
+  renders the shipped Chinese back into English, and the drift is read in a
+  language this project can read. **Every one of the 49 rows was carried through
+  that pass and read**, with `--verbose` rather than the twelve the default view
+  prints.
+
+      forward   claude-opus-5 forward draft, quick task 260905-acr, 2026-09-05
+      reverse   claude-sonnet-4-5, fresh non-interactive session, no tools,
+                cwd outside the repo, 2026-09-05
+
+  `reviewed: 'native'` stays OPEN and is printed by the lint's R1 rule on every
+  run. Nothing here has been read by a native speaker.
+
+  Every drift accepted with a written reason. The recurring shape is
+  ABBREVIATION EXPANSION — LMF and HMF come back as "Low-mid" and "High-mid",
+  because the Chinese spells out what the English initialises — and no drift
+  could send a reader to a different control.
+
+### Fixed
+
+- **Forty font carriers, in THREE different forms, all of them the
+  bare-generic shape — and a sweep of the obvious form finds fifteen.**
+  - **15 CSS declarations** reading `font-family: Garamond, serif`.
+  - **24 SVG `font-family=` presentation attributes**, one per frequency tick on
+    the four dial faces. Not a declaration and not in a stylesheet, so the
+    property-and-colon grep never sees them; `getComputedStyle` does reach SVG
+    `<text>`, which is the argument for measuring rather than grepping. All 24
+    hold nothing but ASCII figures, so they took the face-naming repair and no
+    CJK tail — there is no Han on them to fall back for.
+  - **1 `<button>` with no declaration at all.** `.gear-btn` declares no
+    `font-family`, and a form control does not inherit one — the UA stylesheet
+    gives it Arial. Invisible to a sweep of every declaration AND every
+    attribute in the file; only computed style finds it.
+
+  Garamond is absent on this machine (0 family matches for Garamond, EB Garamond
+  and Adobe Garamond Pro, against 4 installed families for Times New Roman), so
+  all 39 Garamond carriers reached their trailing generic for **every codepoint
+  they rendered, Latin included** — and a bare generic resolves against the
+  DOCUMENT language. The ASCII on the whole page, every dial tick included,
+  changed face and metrics the moment the page language changed. **That half of
+  this fix holds no Chinese at all and was invisible to every gate in this repo
+  until a third language arrived.** Arial is kept first on the gear so the
+  English and French Latin metrics do not move.
+
+- **Two hover-help bodies asserted things that were no longer true**, in English
+  and French both: the gear body claimed the panel holds one control, and the
+  language body ended with a fixed pair. Both deleted rather than extended.
+
+- **Four elements grew 3 to 4 px on the Chinese arm** from `line-height: normal`
+  resolving against a taller Chinese face. Pinned to their own measured English
+  boxes, unitless and scoped, no-ops in English and French.
+
+- **`tests/ui_tip_render_check.js` carried THREE language defects where two were
+  expected.** It iterated a three-element array literal naming its languages, in
+  the off-census spelling. Its assertion `[5]` required the non-English pass to
+  be strictly TALLER, which the Chinese arm refutes — measured, **0 grew and 5
+  SHRANK**. And a third, found only by running it: `if (drivenStates.length <=
+  2)` guarded the height recording, where the literal `2` meant "the number of
+  languages, not counting the return pass" — a third place the file spelled its
+  own language count, in a form no census greps for. With three languages the
+  Chinese pass recorded no heights at all and assertion 5 failed reporting that
+  nothing had moved, on a page where five things had. All three are now derived
+  from the table's own export, behind a derive-or-abort guard. The gate runs 415
+  checks where it ran 260.
+
+### Verification
+
+`check-i18n` exit 0; `check-ui-labels` exit 0, 0 FAIL on all three arms;
+`i18n-zh-lint` 0 findings, `BELOW SHIP BAR 0`; `i18n-fr-lint` exit 0; the tip
+gate 415 PASS. Zero Han under `Source/**` with the positive control fired.
+`auval -v aufx OuAE Ouar` AU VALIDATION SUCCEEDED.
+
 ## [1.4.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
