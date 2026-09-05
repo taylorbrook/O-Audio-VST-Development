@@ -38,12 +38,58 @@
             overflow: hidden;
         }
 
+        /* ── THE TWO HALVES OF THE FONT WORK (v1.10.0) ──────────────────────
+           Twelve font-family declarations on this page, and they needed TWO
+           DIFFERENT REPAIRS. Recording which took which is the point of this
+           block: a wave that appends the CJK tail to everything it measured can
+           no longer tell a needed tail from a decorative one.
+
+           HALF ONE — NAME A FACE. Six stacks read `'Garamond', serif` and
+           nothing else. Garamond is ABSENT on this machine (system_profiler
+           SPFontsDataType reports 0 family matches for Garamond, EB Garamond and
+           Adobe Garamond Pro; Times New Roman reports 4 installed families), so
+           each of those six reached its trailing generic for EVERY codepoint it
+           rendered — Latin included. A bare `serif` resolves against the
+           DOCUMENT language, so the ASCII on those nodes changed face and
+           metrics the moment the page language changed, with no translated
+           string anywhere near it. This half holds no Chinese at all and is
+           invisible to every gate until a third language arrives.
+
+             .preset-nav-btn  .preset-name  .preset-save-btn
+             .preset-load-btn  .toggle-button  .waveform-selector
+
+           HALF TWO — THE CJK TAIL, BEFORE THE TRAILING GENERIC. Chromium
+           resolves a bare `serif` against the document's lang, so under
+           zh-Hans the generic is ALREADY a Chinese face and a tail written
+           AFTER it is never consulted — dead code that still looks right on
+           macOS. The shipped suite convention is therefore
+           `…, 'PingFang SC', 'Microsoft YaHei', serif`.
+
+           The other six already named Times New Roman and took the tail alone:
+
+             body  .gear-btn  .settings-label  .settings-select
+             .settings-toggle  .tooltip
+
+           MEASURED, not grepped: with the page in Chinese and both states in
+           tests/i18n-states.json driven, 19 visible nodes hold or can receive a
+           Han codepoint (own text, data-tip, data-tip-title or aria-label) and
+           all 19 resolve through a stack containing PingFang SC. Two of those 19
+           are the nodes a keyed scan always misses — #tooltip, filled from
+           data-tip at hover time and never keyed, and the endonym <option>,
+           the only Han in this markup.
+
+           ONE TAIL IS DECORATIVE AND IS KEPT DELIBERATELY: .waveform-selector's
+           own text is the six WAVEFORM_PARAM option names, which stay English in
+           every language, so it can never render a Han glyph. It needed half one
+           and not half two. It keeps the tail so the six preset/control stacks
+           on this page stay one string rather than two that differ by a reason
+           nobody will remember. */
         body {
             display: flex;
             justify-content: center;
             align-items: center;
             background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
         }
 
         .plugin-container {
@@ -116,7 +162,7 @@
             background: rgba(107, 142, 35, 0.4);
             border: 1px solid #3C5C1A;
             border-radius: 3px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 14px;
             font-weight: bold;
             color: #2C3E10;
@@ -136,7 +182,7 @@
             min-width: 100px;
             max-width: 140px;
             text-align: center;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 12px;
             color: #3C2F2F;
             padding: 2px 6px;
@@ -185,10 +231,11 @@
         .preset-save-btn {
             width: 45px;
             padding: 3px 8px;
+            line-height: 1.1;
             background: rgba(107, 142, 35, 0.3);
             border: 1px solid #3C5C1A;
             border-radius: 3px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -225,6 +272,7 @@
         .preset-dropdown-header {
             padding: 4px 8px;
             font-size: 9px;
+            line-height: 1.1111;   /* 19.00 - 8 pad - 1 border = 10.00 / 9px — see the pin block above */
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -258,13 +306,59 @@
         /* Load button style */
         /* v1.7.0: WIDTH PIN, LOAD-BEARING — see .preset-save-btn above for the
            measurement and the negative control. 47.78 -> 48. */
+        /* ── LINE-HEIGHT PINS (v1.10.0, the Chinese arm) ────────────────────
+           `line-height: normal` is not a number — it is whatever the RESOLVED
+           FACE says its natural line box is, and the resolved face changes with
+           the document language. PingFang SC reports a taller natural line box
+           than Times New Roman at the same font-size, so every leaf below grew
+           between 2 and 6 px on the Chinese arm with no other change, and the
+           growth CASCADED: +2 on .knob-label became +2 on .knob-container, +4
+           on .knobs-row and +16 on .controls-section.
+
+           Each pin below is DERIVED FROM THAT LEAF'S OWN MEASURED ENGLISH BOX,
+           height minus padding minus border, divided by its own font-size —
+           never copied between selectors, and never set globally, because a
+           global line-height would relayout every language at once for a defect
+           that lives on four elements. They are UNITLESS so a leaf that
+           inherits into a differently sized child scales rather than pinning
+           the child to the parent's pixel box.
+
+           Measured at the shipping frame with getComputedStyle, English arm:
+
+             .preset-load-btn / .preset-save-btn  19.00 - 6 pad - 2 border
+                                                  = 11.00 / 10px = 1.1   (1 line)
+             .toggle-button                       42.00 - 16 pad - 4 border
+                                                  = 22.00 / 2 lines
+                                                  = 11.00 / 10px = 1.1   (2 lines)
+             .knob-label                          16.00 - 0 - 0
+                                                  = 16.00 / 13px = 1.2308
+             .section-label                       15.00 - 0 - 0
+                                                  = 15.00 / 12px = 1.25
+             .settings-label                      11.00 - 0 - 0
+                                                  = 11.00 / 10px = 1.1
+             .preset-dropdown-header              19.00 - 8 pad - 1 border
+                                                  = 10.00 /  9px = 1.1111
+
+           THE LAST TWO ARE ONLY REACHABLE THROUGH A STATE. .settings-label
+           lives inside the gear popover and .preset-dropdown-header inside the
+           preset dropdown, so neither renders on the default page and neither
+           appears in a measurement that does not drive tests/i18n-states.json.
+           The first pass of this pin set missed both for exactly that reason
+           and check-ui-labels named them; the harness now walks every state.
+
+           EVERY ONE IS A NO-OP IN ENGLISH AND IN FRENCH — that is the test, and
+           check-ui-labels reports 0 moved elements on both those arms after the
+           pins. R8: the four line-height declarations this page already carried
+           (:718 on .tooltip, :853, :883, :956) were read first for a
+           specificity conflict; none of them targets any selector below. */
         .preset-load-btn {
             width: 48px;
             padding: 3px 8px;
+            line-height: 1.1;
             background: rgba(107, 142, 35, 0.3);
             border: 1px solid #3C5C1A;
             border-radius: 3px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -308,10 +402,11 @@
         .toggle-button {
             width: 70px;
             padding: 8px 12px;
+            line-height: 1.1;
             background: rgba(139, 168, 112, 0.3);
             border: 2px solid #3C5C1A;
             border-radius: 4px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #2C3E10;
             cursor: pointer;
@@ -522,6 +617,7 @@
 
         .knob-label {
             font-size: 13px;
+            line-height: 1.2308;
             color: #3C2F2F;
             font-weight: 600;
         }
@@ -540,6 +636,7 @@
 
         .section-label {
             font-size: 12px;
+            line-height: 1.25;
             color: #3C2F2F;
             font-weight: 600;
             text-transform: uppercase;
@@ -552,7 +649,7 @@
             background: rgba(139, 168, 112, 0.3);
             border: 2px solid #5C4033;
             border-radius: 4px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 13px;
             color: #3C2F2F;
             cursor: pointer;
@@ -713,7 +810,7 @@
             border: 1px solid #5C4033;
             border-radius: 50%;
             color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             line-height: 1;
             cursor: pointer;
@@ -830,8 +927,9 @@
            mechanism assertion 8b exists for. The plant result is in the
            report. */
         .settings-label {
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
+            line-height: 1.1;      /* 11.00 - 0 - 0 = 11.00 / 10px — see the pin block above */
             color: #3C2F2F;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -848,7 +946,7 @@
             border: 1px solid #5C4033;
             border-radius: 2px;
             color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
@@ -878,7 +976,7 @@
           border: 1px solid #5C4033;
           border-radius: 2px;
           color: #3C2F2F;
-          font-family: 'Garamond', 'Times New Roman', serif;
+          font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
           font-size: 10px;
           line-height: 1.2;
           flex: 0 0 auto;
@@ -951,7 +1049,7 @@
             z-index: 70;
             max-width: 240px;
             padding: 6px 9px 7px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11.5px;
             line-height: 1.4;
             color: #3C2F2F;
@@ -1097,6 +1195,7 @@
                             data-i18n-aria="aria.langSelect" aria-label="Interface language">
                         <option value="en">English</option>
                         <option value="fr">Fran&ccedil;ais</option>
+                        <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                     </select>
                 </label>
 

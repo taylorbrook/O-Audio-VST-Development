@@ -131,7 +131,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — hover-help copy, authored in v1.8.0. {t, b}: a title and a body.
@@ -211,6 +211,11 @@ export const I18N = Object.freeze({
                + 'devient un sélecteur et parcourt plutôt les divisions musicales, de 1/1 à 1/32Q. '
                + 'Plage libre de 0,1 à 20,0 Hz.',
               reviewed: true },
+        // The division strings 1/1 … 1/32Q are SYNC_DIVISION_PARAM choice values
+        // verbatim and stay so here, exactly as #speedValue renders them.
+        'zh-Hans': { t: '速度',
+              b: '设定颤音扫动的快慢。开启节拍同步后，旋钮变成步进器，改为在 1/1 到 1/32Q 的音乐分割之间逐档切换。自由运行范围 0.1 到 20.0 Hz。',
+              reviewed: 'mt' },
     },
 
     'tip.depth': {
@@ -223,6 +228,12 @@ export const I18N = Object.freeze({
                + 'À 0 % rien ne bouge ; à 100 % le signal atteint le silence. '
                + 'Plage de 0 à 100 %.',
               reviewed: true },
+        // NO U+00A0 ANYWHERE IN A zh BODY. Z2 is the deliberate INVERSE of the
+        // French T3/T4/T5 rule: the full-width forms carry their own half-em
+        // sidebearing, so a no-break space before % or ； would double it.
+        'zh-Hans': { t: '深度',
+              b: '每个周期的谷底处，颤音把电平压低多少。0% 时纹丝不动；100% 时信号降到静音。范围 0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── The waveform select and the smoothing slider ─────────────────────────
@@ -240,6 +251,15 @@ export const I18N = Object.freeze({
                + 'Noise maintient quatre niveaux aléatoires par cycle et Pulse est une porte étroite. '
                + 'Six formes : Sine, Triangle, Phasor, Noise, Square, Pulse.',
               reviewed: true },
+        // THE SIX OPTION NAMES SURVIVE VERBATIM (W3 / D-01 arm 1). They are
+        // byte-identical WAVEFORM_PARAM choice strings and the <select> renders
+        // them in English in every language, so a Chinese reader hunting for
+        // “Pulse” in the selector must be told “Pulse”. The sentence around them
+        // is Chinese; the option names are not. The enumeration takes the
+        // ideographic comma 、, which separates list items rather than clauses.
+        'zh-Hans': { t: '波形',
+              b: '选择调制波的形状，从平缓的起伏到硬切的通断。Noise 每个周期保持四个随机电平，Pulse 则是一道窄门。六种形状：Sine、Triangle、Phasor、Noise、Square、Pulse。',
+              reviewed: 'mt' },
     },
 
     // SMOOTHING IS THE ONE PARAMETER WITH NO READOUT ANYWHERE ON THE PAGE —
@@ -256,6 +276,15 @@ export const I18N = Object.freeze({
                + 'produire une onde carrée ou une impulsion. Une sinusoïde est déjà lisse : '
                + 'le réglage y change donc peu. Plage de 0 à 100 %.',
               reviewed: true },
+        // 方波 is the glossary root for `square`, and 脉冲 / 正弦波 are the wave
+        // SHAPES described in prose — not the <select> option strings — so they
+        // translate where Sine and Square in tip.waveform do not. The
+        // discriminator is mechanical (W3): a word the reader has to match
+        // against a control on the page stays English; a word that only
+        // describes stays in the page language.
+        'zh-Hans': { t: '平滑',
+              b: '把调制波的棱角磨圆，减轻方波或脉冲形状可能产生的咔哒声。正弦波本就平滑，因此在那里改变不大。范围 0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── The two sync toggles ────────────────────────────────────────────────
@@ -280,6 +309,14 @@ export const I18N = Object.freeze({
                + 'stéréo (2 canaux) ; sur un bus mono, cette commande n’a aucun effet. '
                + 'Désactivé ou activé.',
               reviewed: true },
+        // 关或开 — the glossary roots for `off` and `on`. These are
+        // AudioParameterBool strings that appear NOWHERE on this page, so
+        // nothing has to agree with them visually and they translate: the other
+        // side of the line tip.waveform's option names sit on. The parentheses
+        // are FULL-WIDTH; Z1 takes the ASCII forms as a finding inside Han prose.
+        'zh-Hans': { t: '声像同步',
+              b: '把右声道偏移半个周期，颤音于是横跨立体声像来回摆动，而不是把两个声道一起压低。插件必须位于立体声（双声道）总线上；在单声道总线上，本控件不起作用。关或开。',
+              reviewed: 'mt' },
     },
 
     // The 120 BPM fallback is in the body because it is audible: in the
@@ -298,34 +335,68 @@ export const I18N = Object.freeze({
                + 'Désactivé ou activé.',
               reviewed: true,
               termNote: 'Synchro Tempo (glossary root) wraps to a widest line of 51.30 px inside #tempoButton’s 42.00 px content box, which is overflow: hidden — measured at the shipping 600 x 400 frame. The tip title mirrors the button caption on purpose, so it carries the same abbreviation.' },
+        // R3 PAGE COLLISION, RESOLVED. The glossary renders `speed` as 速度 and
+        // `tempo` as 速度 or 节奏速度 — the SAME first root for two different
+        // English keys that co-occur on this page (label.speed and this body's
+        // “host tempo”). 速度 is kept for Speed, which is a caption the user
+        // reads on the knob, and tempo takes the glossary's own listed
+        // alternate 节奏速度 here. Both renderings are glossary-sanctioned; the
+        // qualification is on the side that is only ever prose.
+        'zh-Hans': { t: '节拍同步',
+              b: '把颤音速率锁定到宿主的节奏速度。此时速度旋钮会在 1/1 到 1/32Q 的音乐分割之间逐档切换，而不是自由的 Hz；宿主未报告节奏速度时按 120 BPM 计算。关或开。',
+              reviewed: 'mt' },
     },
 
     // ── The two chrome tips ─────────────────────────────────────────────────
     //
-    // THE GEAR TIP DESCRIBES ONLY WHAT THE POPOVER ACTUALLY HOLDS. O-Tapestop's
-    // wording promises a hover-help on/off toggle; this plugin has one row and
-    // that row is the language selector. A tip that lies about a control is
-    // worse than no tip, and this task has already had to rewrite two of them.
+    // THE GEAR TIP DESCRIBES ONLY WHAT THE POPOVER ACTUALLY HOLDS, and as of
+    // v1.10.0 it no longer claims to describe ALL of it.
+    //
+    // v1.8.0 wrote "It holds the interface language and nothing else" against a
+    // popover that did hold exactly one row. v1.9.0 then added the hover-help
+    // switch to the same popover and left the sentence alone, so the tip has
+    // been false since — it names one of two controls and asserts there is no
+    // other. The EXCLUSIVITY CLAUSE IS DELETED in both shipped languages rather
+    // than extended into a two-item list, because an enumeration is false again
+    // the next time a row lands, which is precisely how this one broke. The same
+    // deletion is made in tip.language, which enumerated the SELECTOR's options.
+    //
+    // What replaces it says what the panel is FOR. The selector below already
+    // lists the languages in their endonyms — the one form a reader recognises
+    // without already knowing the page language — so no body has to.
     'tip.settings': {
         en: { t: 'Settings',
-              b: 'Opens the settings panel. It holds the interface language and nothing else.' },
+              b: 'Opens the settings panel. The interface language is set here.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau de réglages. Il ne contient que la langue de l’interface.',
+              b: 'Ouvre le panneau de réglages. La langue de l’interface s’y règle.',
               reviewed: true },
+        'zh-Hans': { t: '设置',
+              b: '打开设置面板。界面语言在这里设定。',
+              reviewed: 'mt' },
     },
 
-    // The endonyms are quoted as they appear in the selector — a language name
-    // is never translated, which is why they are in I18N_EXEMPT below.
+    // THE BODY NO LONGER NAMES THE OPTIONS. v1.8.0 ended both bodies with a
+    // fixed pair — "English or Français" / "English ou Français" — which was
+    // true for exactly as long as the selector held two entries and became
+    // false the moment this version added a third. The sentence is DELETED
+    // rather than widened to three, for the same reason the gear body's
+    // exclusivity clause is: a body that enumerates a control's options has to
+    // be re-edited every time the control grows, in every language, and it is
+    // the edit that gets forgotten. The endonyms still live in I18N_EXEMPT
+    // below, because the <option> texts themselves are never translated.
     'tip.language': {
         en: { t: 'Language',
               b: 'Chooses the language of the interface text and of this hover-help. '
                + 'Parameter names in the host automation lane and the values on screen stay '
-               + 'English. English or Français.' },
+               + 'English.' },
         fr: { t: 'Langue',
               b: 'Choisit la langue du texte de l’interface et de ces infobulles. '
                + 'Les noms de paramètres dans la voie d’automatisation de l’hôte et les valeurs '
-               + 'affichées restent en anglais. English ou Français.',
+               + 'affichées restent en anglais.',
               reviewed: true },
+        'zh-Hans': { t: '语言',
+              b: '选择界面文字与这些悬停帮助的语言。宿主自动化通道中的参数名称以及屏幕上显示的数值保持英文。',
+              reviewed: 'mt' },
     },
     // v1.9.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -336,6 +407,13 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+        // Copied from the rendering this same rollout settled on O-Comp and
+        // O-Prism rather than re-authored: the switch is the same control with
+        // the same wording on every plugin that carries it, so a reader who has
+        // met it once should not meet a second phrasing.
+        'zh-Hans': { t: '悬停帮助',
+              b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
+              reviewed: 'mt' },
     },
 });
 
@@ -431,9 +509,9 @@ export const LABELS = Object.freeze({
     // and "OUV" hitting their buttons. Both WOULD fit the pin with a period,
     // and would break the rule silently. The glossary normalises a trailing
     // period away, so "Ouv" matches its listed "ouv" either way.
-    'label.load':      { en: { t: 'Load' },       fr: { t: 'Ouv',        reviewed: true } },
+    'label.load':      { en: { t: 'Load' },       fr: { t: 'Ouv',        reviewed: true }, 'zh-Hans': { t: '载入', reviewed: 'mt' } },
     'label.save':      { en: { t: 'Save' },       fr: { t: 'Enr',        reviewed: true,
-                                                        termNote: 'Enregistrer 73.28 px and Enreg 35.84 px both overrun #savePreset’s 27.00 px content box, measured at the shipping 600 x 400 frame with the gate’s own Range.selectNodeContents; Enr is 21.50 px and fits. The period stays dropped so label-in-name (WCAG 2.5.3) still matches aria.savePreset — “enr” is a substring of “enregistrer”, “enr.” is not.' } },
+                                                        termNote: 'Enregistrer 73.28 px and Enreg 35.84 px both overrun #savePreset’s 27.00 px content box, measured at the shipping 600 x 400 frame with the gate’s own Range.selectNodeContents; Enr is 21.50 px and fits. The period stays dropped so label-in-name (WCAG 2.5.3) still matches aria.savePreset — “enr” is a substring of “enregistrer”, “enr.” is not.' }, 'zh-Hans': { t: '保存', reviewed: 'mt' } },
 
     // ── The two sync toggles ────────────────────────────────────────────────
     //
@@ -458,9 +536,9 @@ export const LABELS = Object.freeze({
     // key, so the lint flags only one half of a pair the page renders as a
     // matched pair; changing one and not the other would be worse French AND
     // worse design. Both stay, and label.tempoSync carries the termNote.
-    'label.panSync':   { en: { t: 'Pan Sync' },   fr: { t: 'Sync Pan',   reviewed: true } },
+    'label.panSync':   { en: { t: 'Pan Sync' },   fr: { t: 'Sync Pan',   reviewed: true }, 'zh-Hans': { t: '声像同步', reviewed: 'mt' } },
     'label.tempoSync': { en: { t: 'Tempo Sync' }, fr: { t: 'Sync Tempo', reviewed: true,
-                          termNote: 'Synchro Tempo, the glossary root, wraps to a widest line of 51.30 px inside this button’s 42.00 px content box (width: 70px, overflow: hidden), measured at the shipping 600 x 400 frame. Synchro Pan is the same 51.30 px. No abbreviation is listed for tempo sync; Sync Tempo is 36.41 px and holds the two-line box the English caption already occupies.' } },
+                          termNote: 'Synchro Tempo, the glossary root, wraps to a widest line of 51.30 px inside this button’s 42.00 px content box (width: 70px, overflow: hidden), measured at the shipping 600 x 400 frame. Synchro Pan is the same 51.30 px. No abbreviation is listed for tempo sync; Sync Tempo is 36.41 px and holds the two-line box the English caption already occupies.' }, 'zh-Hans': { t: '节拍同步', reviewed: 'mt' } },
 
     // ── The two knob captions ───────────────────────────────────────────────
     //
@@ -469,8 +547,8 @@ export const LABELS = Object.freeze({
     // (49.84) and INTENSITÉ (48.39) both fit the unpinned column and both say
     // something slightly different. The 60 px pin is what makes keeping the
     // right word free.
-    'label.speed':     { en: { t: 'Speed' },      fr: { t: 'Vitesse',    reviewed: true } },
-    'label.depth':     { en: { t: 'Depth' },      fr: { t: 'Profondeur', reviewed: true } },
+    'label.speed':     { en: { t: 'Speed' },      fr: { t: 'Vitesse',    reviewed: true }, 'zh-Hans': { t: '速度', reviewed: 'mt' } },
+    'label.depth':     { en: { t: 'Depth' },      fr: { t: 'Profondeur', reviewed: true }, 'zh-Hans': { t: '深度', reviewed: 'mt' } },
 
     // ── The two section headings ────────────────────────────────────────────
     //
@@ -479,8 +557,8 @@ export const LABELS = Object.freeze({
     // ondes), and it is the term a French-language modular front panel uses.
     // The 88 px ceiling is a hard one: FORME D'ONDE at 106.34 px grows the
     // select it sits above.
-    'label.waveform':  { en: { t: 'Waveform' },   fr: { t: 'Onde',       reviewed: true } },
-    'label.smoothing': { en: { t: 'Smoothing' },  fr: { t: 'Lissage',    reviewed: true } },
+    'label.waveform':  { en: { t: 'Waveform' },   fr: { t: 'Onde',       reviewed: true }, 'zh-Hans': { t: '波形', reviewed: 'mt' } },
+    'label.smoothing': { en: { t: 'Smoothing' },  fr: { t: 'Lissage',    reviewed: true }, 'zh-Hans': { t: '平滑', reviewed: 'mt' } },
 
     // ── The preset dropdown, written by setLabel() at runtime ───────────────
     //
@@ -495,10 +573,10 @@ export const LABELS = Object.freeze({
     // it, in either language, so there is no inflection to get wrong at 0, 1
     // and n. The dropdown row it renders into is 256.61 px of content box and
     // the French is well inside it, so the panel does not gain a line.
-    'label.factory':   { en: { t: 'Factory' },    fr: { t: 'Usine',       reviewed: true } },
-    'label.user':      { en: { t: 'User' },       fr: { t: 'Utilisateur', reviewed: true } },
+    'label.factory':   { en: { t: 'Factory' },    fr: { t: 'Usine',       reviewed: true }, 'zh-Hans': { t: '出厂', reviewed: 'mt' } },
+    'label.user':      { en: { t: 'User' },       fr: { t: 'Utilisateur', reviewed: true }, 'zh-Hans': { t: '用户', reviewed: 'mt' } },
     'label.noPresets': { en: { t: 'No presets available' },
-                         fr: { t: 'Aucun préréglage disponible', reviewed: true } },
+                         fr: { t: 'Aucun préréglage disponible', reviewed: true }, 'zh-Hans': { t: '没有可用预设', reviewed: 'mt' } },
 
     // ── The settings popover (v1.7.0) ───────────────────────────────────────
     //
@@ -513,16 +591,16 @@ export const LABELS = Object.freeze({
     // the panel is shrink-to-fit over max(caption, select), so it would measure
     // 63.55 in English and 62.00 in French and assertion 7 would report the
     // panel, its row and the select as moved.
-    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',     reviewed: true } },
+    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',     reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'mt' } },
 
     // v1.9.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'mt' } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'mt' } },
 
     // ── Image alternative text ──────────────────────────────────────────────
     //
@@ -534,8 +612,9 @@ export const LABELS = Object.freeze({
     // nothing to do with localization. The images here are img/paper.jpg and
     // img/carrot.png; the authored English is the same two words several
     // siblings carry, and the French matches theirs.
-    'alt.background':  { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true } },
-    'alt.botanical':   { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true } },
+    'alt.background':  { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true }, 'zh-Hans': { t: '背景', reviewed: 'mt' } },
+    'alt.botanical':   { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true }, 'zh-Hans': { t: '植物插画', reviewed: 'mt',
+                          termNote: 'the glossary root for `botanical` is 植物律, and 律 is temperament or law. This is the alt text of a DECORATIVE PLANT ILLUSTRATION. The root was carried to the reverse read TWICE on O-Bass, by two different models in independent sessions, and came back as “Phytometric” and “Plant Law” — neither is the English, so it is an evidenced defect rather than a terminology preference. 植物插画 is the rendering wave 4a settled on the identical string in O-Bass, and this row copies it rather than re-deriving one. The root itself is reported to the glossary owners rather than edited here: changing a settled root puts other plugins out of Z5 conformance.' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -566,19 +645,19 @@ export const LABELS = Object.freeze({
     // the caption still hits the button (WCAG 2.5.3, matched
     // case-insensitively).
     'aria.prevPreset': { en: { t: 'Previous preset' },
-                         fr: { t: 'Préréglage précédent', reviewed: true } },
+                         fr: { t: 'Préréglage précédent', reviewed: true }, 'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
     'aria.nextPreset': { en: { t: 'Next preset' },
-                         fr: { t: 'Préréglage suivant',   reviewed: true } },
+                         fr: { t: 'Préréglage suivant',   reviewed: true }, 'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
     'aria.presetList': { en: { t: 'Click to see all presets' },
-                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true } },
+                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true }, 'zh-Hans': { t: '点击查看全部预设', reviewed: 'mt' } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } },
+                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true }, 'zh-Hans': { t: '从文件载入预设', reviewed: 'mt' } },
     'aria.savePreset': { en: { t: 'Save current settings' },
-                         fr: { t: 'Enregistrer les réglages actuels', reviewed: true } },
+                         fr: { t: 'Enregistrer les réglages actuels', reviewed: true }, 'zh-Hans': { t: '保存当前设置', reviewed: 'mt' } },
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'mt' } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
 });
 
 // ============================================================================
@@ -653,6 +732,9 @@ export const I18N_EXEMPT = [
     ['English',  'an endonym in #lang-select — a language name is never translated, because a '
                + 'French speaker looking for their language looks for "Français"'],
     ['Français', 'an endonym in #lang-select — a language name is never translated'],
+    ['简体中文', 'an endonym in #lang-select — a language name is never translated. It is the '
+               + 'ONLY Han in index.html and it is written there as numeric character '
+               + 'references, so the markup file itself stays pure ASCII'],
 ];
 
 // ============================================================================
