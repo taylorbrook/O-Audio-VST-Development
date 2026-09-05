@@ -5,6 +5,144 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-09-05
+
+**Simplified Chinese.** The interface, the hover-help and the accessible names
+now render in `zh-Hans` alongside English and French — 34 entries, 43 emitter
+rows. MINOR: a language is added and two English hover-help bodies are
+corrected; no parameter, range, type or state format changed, and no DSP was
+touched.
+
+### Added
+
+- **`zh-Hans` on every entry in both tables** — 9 hover-help entries and 25
+  labels, aria names and image alternatives. `LANGUAGES` reads three, the
+  selector carries a third `<option>` written as numeric character references
+  (`&#31616;&#20307;&#20013;&#25991;`), and `PluginProcessor.h`'s
+  `languageCode` / `languageIndex` codec is three-way.
+
+  **DISCLOSED QUALITY LEVEL: `reviewed: 'bt'`, not `'native'`.** This project
+  has no native Chinese reader, so the ship bar for the Chinese rollout is a
+  BACK-TRANSLATION: an independent pass that has never seen the English source
+  renders the shipped Chinese back into English, and the drift is read in a
+  language this project can read. Every one of the 43 rows was carried through
+  that pass and read — all of them, with `--verbose`, not the twelve the
+  default view prints.
+
+      forward   claude-opus-5 forward draft, quick task 260905-acr, 2026-09-05
+      reverse   claude-sonnet-4-5, fresh non-interactive session, no tools,
+                cwd outside the repo, 2026-09-05
+
+  `reviewed: 'native'` stays OPEN and is printed by the lint's R1 rule on every
+  run. Nothing here has been read by a native speaker.
+
+  **What the reverse read found, and why each was accepted.** No row was
+  re-authored: no drift on this page could send a reader to a different
+  control, which is the discriminator — collision on the page, not drift
+  distance. The three worth recording:
+
+  - `Smoothing` → `平滑` → **"Smooth"**. The lowest-scoring row in the batch,
+    and an English part-of-speech artefact rather than a meaning drift: 平滑 is
+    both the noun and the adjective, and it is the settled glossary root. No
+    other control on this page is about smoothing, so there is nothing to
+    confuse it with.
+  - `Tempo Sync` → `节拍同步` → **"Beat sync"**. 节拍 is beat or metre rather
+    than tempo, and this is the settled glossary root for `tempo sync` across
+    the suite — re-authoring it here would put every other plugin out of Z5
+    conformance for one plugin's reading. The internal cross-reference survived
+    intact, which is the thing that actually matters: `tip.speed`'s body came
+    back as "when beat sync is enabled", naming the button by exactly the
+    string the button shows.
+  - `Botanical` → `植物插画` → **"Plant illustration"**. Carried verbatim from
+    O-Bass, where the glossary root 植物律 failed the reverse read TWICE
+    ("Phytometric", "Plant Law") before being replaced. The row carries a
+    termNote with that evidence. The root itself is reported to the glossary
+    owners rather than edited here.
+
+- **A CJK font tail on every stack that can render a Han glyph** —
+  `…, 'PingFang SC', 'Microsoft YaHei', serif`, placed BEFORE the trailing
+  generic. Chromium resolves a bare `serif` against the document's `lang`, so
+  under `zh-Hans` the generic is already a Chinese face and a tail written
+  after it is never consulted — it would be dead code that still looked right
+  on macOS. Measured by computed style with the page in Chinese across both
+  states in `tests/i18n-states.json`: 19 visible nodes hold or can receive a
+  Han codepoint (own text, `data-tip`, `data-tip-title`, `aria-label`) and all
+  19 resolve through a PingFang SC stack.
+
+### Fixed
+
+- **Six font stacks named no face this machine has, and their ASCII changed
+  face with the page language.** `.preset-nav-btn`, `.preset-name`,
+  `.preset-save-btn`, `.preset-load-btn`, `.toggle-button` and
+  `.waveform-selector` read `'Garamond', serif` and nothing else. Garamond is
+  absent here — `system_profiler SPFontsDataType` reports 0 family matches for
+  Garamond, EB Garamond and Adobe Garamond Pro, against 4 installed families
+  for Times New Roman — so all six reached their trailing generic for EVERY
+  codepoint they rendered, Latin included, and a bare `serif` resolves against
+  the DOCUMENT language. The Latin on those nodes therefore changed face and
+  metrics the moment the page language changed, with no translated string
+  anywhere near it. All six now name `'Times New Roman'`. **This half of the
+  font work holds no Chinese at all and was invisible to every gate in this
+  repo until a third language arrived.**
+
+- **Seven elements grew between 2 and 6 px on the Chinese arm from
+  `line-height: normal`.** `normal` is not a number — it is whatever the
+  RESOLVED FACE calls its natural line box, and the resolved face changes with
+  the document language. PingFang SC reports a taller natural box than Times
+  New Roman at the same size, and the growth cascaded: +2 px on `.knob-label`
+  became +16 px on `.controls-section`. Each of the seven leaves is now pinned
+  to its own measured English box — height minus padding minus border, divided
+  by its own font-size, unitless and scoped, never global. Every pin is a no-op
+  in English and in French, which is the test: `check-ui-labels` reports 0
+  moved elements on both those arms.
+
+- **Two hover-help bodies asserted things that were no longer true, in English
+  and in French both.**
+  - `tip.settings` said the settings panel "holds the interface language and
+    nothing else". True at v1.8.0, when the popover held one row; false since
+    v1.9.0 put the hover-help switch in the same popover. The EXCLUSIVITY
+    CLAUSE is deleted rather than extended into a two-item list — an
+    enumeration is false again the next time a row lands, which is exactly how
+    this one broke.
+  - `tip.language` ended both bodies with the fixed pair "English or Français".
+    Deleted, not widened to three, for the same reason. The selector already
+    lists the languages in their endonyms, which is the one form a reader
+    recognises without knowing the page language.
+
+- **`tests/ui_tip_render_check.js` named its own languages and asserted a
+  direction.** Two defects that would each have shipped silently:
+  - It iterated a three-element array literal naming its languages, so it could
+    not see a third arrive — and it used the array-literal spelling rather than
+    the joined-pair one the repo-wide inventory greps for, so it was invisible
+    to that census as well as to itself. The list is now DERIVED from the
+    table's own `LANGUAGES` export, behind a derive-or-abort guard: an empty or
+    single-entry list exits non-zero rather than walking zero languages and
+    reporting every assertion green.
+  - Assertion `[5]` required the non-English pass to be strictly TALLER than
+    English on at least one tip. True for French, which wraps to more lines
+    against the 240 px cap; **false for Chinese, which says the same thing in
+    fewer glyphs and SHRINKS the tip** — measured here, `#depthKnob` 98 → 82
+    and `#tempoButton` 114 → 98. The assertion would have hard-failed the
+    Chinese arm on a page where nothing was wrong. It now asserts a DIFFERENCE
+    in either direction, per non-English language off the derived list, which
+    is what it was always for: catching a pass that measured the same boxes as
+    English and is therefore decoration.
+
+  The gate runs 263 checks where it ran 186 over two languages.
+
+### Verification
+
+`check-i18n` exit 0 with `LANGUAGES` reading three; `check-ui-labels` exit 0
+with 0 FAIL on the English, French and Chinese arms across both states;
+`i18n-zh-lint` 0 findings and `BELOW SHIP BAR 0` — and this is the first plugin
+in the rollout authored under that lint as a GATE rather than a report, flipped
+in its own commit earlier in the same task; `i18n-fr-lint` exit 0, French
+untouched; `tests/ui_tip_render_check.js` 263 PASS; `boot-all-uis --strict-tips`
+0 dead and 0 late bindings. Zero Han characters anywhere under `Source/**` —
+`perl -CSD` with a Han script property, and the positive control fired on the
+same run against `js/i18n.js`. `auval -v aufx OuTr Ouar` AU VALIDATION
+SUCCEEDED.
+
 ## [1.9.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
