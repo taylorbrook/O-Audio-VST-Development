@@ -92,7 +92,7 @@ and Chinese arms; `i18n-zh-lint` 0 findings and `BELOW SHIP BAR 0` — authored
 under that lint as a **gate** rather than a report, flipped earlier in the same
 task; `i18n-fr-lint` exit 0; the tip gate 300 PASS. Zero Han characters anywhere
 under `Source/**`, with the positive control fired on the same run.
-`auval -v aufx OuDD Ouar` AU VALIDATION SUCCEEDED.
+`auval -v aufx OuDD OuDv` AU VALIDATION SUCCEEDED.
 
 ## [1.5.1] - 2026-09-03
 

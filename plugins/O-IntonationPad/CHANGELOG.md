@@ -131,7 +131,7 @@ title as well as the caption; `i18n-fr-lint` exit 0; `boot-all-uis
 --strict-tips` 0 dead and 0 late bindings, with O-Bells still reporting its
 known 2 as the control that the census is not blind. Zero Han characters
 anywhere under `Source/**`, with the positive control fired on the same run.
-`auval -v aumu OuIP Ouar` AU VALIDATION SUCCEEDED.
+`auval -v aumu OuIP OuDv` AU VALIDATION SUCCEEDED.
 
 ## [2.9.2] - 2026-09-03
 
