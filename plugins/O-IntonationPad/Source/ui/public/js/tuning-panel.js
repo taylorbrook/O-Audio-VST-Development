@@ -77,7 +77,13 @@ export class TuningPanel {
     }
 
     async init() {
-        this.render();
+        // IDEMPOTENT ON PURPOSE (v2.10.0). app.js now calls render() at module
+        // top level, before DOMContentLoaded and therefore before the first
+        // applyI18n() sweep, so this panel's 80 tip anchors exist when that
+        // sweep runs. Rendering a second time here would replace the whole
+        // subtree with nodes the sweep has never seen and put all 17 of the
+        // tuning tab's bindings straight back into the late column.
+        if (!this.rendered) this.render();
 
         // Create APVTS-backed SliderStates for octave stretch and master tune
         if (this.juce && this.juce.getSliderState) {
@@ -125,6 +131,7 @@ export class TuningPanel {
     // ═══════════════════════════════════════════════════════════════════
 
     render() {
+        this.rendered = true;
         this.container.innerHTML = `
             <div class="tuning-panel">
                 <!-- LEFT: Interval List -->

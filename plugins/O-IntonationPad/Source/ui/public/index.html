@@ -44,7 +44,7 @@
             justify-content: center;
             align-items: center;
             background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
         }
 
         .plugin-container {
@@ -127,7 +127,7 @@
             background: rgba(139, 168, 112, 0.3);
             border: 2px solid #5C4033;
             border-radius: 4px 4px 0 0;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -309,7 +309,7 @@
             background: rgba(139, 168, 112, 0.3);
             border: 2px solid #5C4033;
             border-radius: 4px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             color: #3C2F2F;
             cursor: pointer;
@@ -536,7 +536,7 @@
             background: rgba(139, 168, 112, 0.3);
             border: 1px solid #5C4033;
             border-radius: 3px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 9px;
             color: #3C2F2F;
             cursor: pointer;
@@ -656,7 +656,7 @@
             background: rgba(107, 142, 35, 0.5);
             border: 1px solid #5C4033;
             border-radius: 3px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 9px;
             color: #1a2a10;
             cursor: pointer;
@@ -701,7 +701,7 @@
             border: 2px solid #5C4033;
             border-radius: 50%;
             background: rgba(139, 168, 112, 0.3);
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 14px;
             font-weight: bold;
             color: #3C2F2F;
@@ -758,7 +758,7 @@
         }
 
         .settings-label {
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             color: #3C2F2F;
             letter-spacing: 0.5px;
@@ -772,7 +772,7 @@
             border-radius: 3px;
             background: rgba(139, 168, 112, 0.25);
             color: #3C2F2F;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             line-height: 1.2;
             cursor: pointer;
@@ -794,7 +794,7 @@
             border-radius: 3px;
             background: rgba(139, 168, 112, 0.25);
             color: #3C2F2F;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             line-height: 1.2;
             cursor: pointer;
@@ -816,6 +816,126 @@
             flex-shrink: 0;
         }
 
+
+        /* ── A FOURTH FONT CARRIER: A BUTTON WITH NO DECLARATION AT ALL ──────
+           Measured, not predicted. With the page in Chinese and all 19 states
+           driven, thirteen Han-bearing nodes resolved to a bare `Arial` — and
+           not one of them carries a font-family declaration anywhere in this
+           page or in css/tuning-panel.css.
+
+           They are <button> elements, and a form control does NOT inherit
+           font-family: the UA stylesheet gives it one, which on this build is
+           Arial. So a sweep that reads every declaration in both files finds
+           nothing wrong with them, and a sweep that reads computed style finds
+           all thirteen. Arial has no Han glyphs, so under a Chinese document
+           language every Han caption on those buttons was resolved by the
+           document-language fallback rather than by anything this page names —
+           the same inert-tail failure W1 describes, arriving through an absent
+           declaration instead of a misplaced one.
+
+           ARIAL STAYS FIRST, DELIBERATELY. Naming the page's serif stack here
+           would change the Latin metrics of thirteen buttons on the English
+           and French arms, for a defect that only exists on the Chinese one.
+           Keeping Arial in front leaves every Latin glyph byte-identical and
+           only redirects the Han. */
+
+        /* ── LINE-HEIGHT PINS (v2.10.0, the Chinese arm) ─────────────────────
+           `line-height: normal` is not a number. It is whatever the RESOLVED
+           FACE calls its natural line box, and the resolved face changes with
+           the document language: PingFang SC reports a taller natural box than
+           Times New Roman at the same font-size. Thirty-five text leaves on
+           this page therefore grew 2 to 4 px on the Chinese arm with no other
+           change, and the growth CASCADED — +4 px on .knob-label became +17 px
+           on #tuning-container and +18 px on #diceMenu.
+
+           EVERY VALUE BELOW IS DERIVED FROM THAT LEAF'S OWN MEASURED ENGLISH
+           BOX: height, minus its own padding, minus its own border, divided by
+           its own line count, divided by its own font-size. Nothing is copied
+           between selectors and nothing is set globally — a global line-height
+           would relayout all three languages at once for a defect that lives on
+           thirty-five elements. They are UNITLESS so a leaf that inherits into
+           a differently sized child scales instead of pinning the child to the
+           parent's pixel box, and A CLASS AT TWO SIZES NEEDS TWO PINS, which is
+           why the 9 px and 11 px groups below are separate.
+
+           R8: the three line-height declarations this page already carried
+           (.settings-popover select, .settings-toggle, .tooltip-body) were read
+           first for a specificity conflict. None targets any selector below.
+
+           Measured with getComputedStyle at the shipping 800 x 500 frame,
+           English arm, across all 19 states in tests/i18n-states.json:
+
+             font-size  content box   pin      leaves
+             9px        10.00          1.1111  file, bypass and interval buttons
+             9px        11.00          1.2222  the four small tuning captions
+             10px       11.00          1.1000  generate, save, category, freq
+             10px       12.00          1.2000  the three section headers
+             11px       12.00          1.0909  tabs, knob captions, fx and
+                                               settings titles, dialog buttons
+             14px       16.00          1.1429  the save-dialog title
+             16px       18.00          1.1250  the preset-browser title
+
+           EVERY PIN IS A NO-OP IN ENGLISH AND IN FRENCH. That is the test, not
+           a hope: check-ui-labels reports 0 moved elements on both those arms
+           after the pins land. */
+        .fx-bypass-btn,
+        .interval-quick-btn {
+            line-height: 1.1111;
+        }
+        .preset-category-btn,
+        .preset-save-btn,
+        .freq-placeholder {
+            line-height: 1.1;
+        }
+        /* The dice menu is the one place on this page where a SHRINK is the
+           problem rather than a growth (R7). Its three descriptions are two
+           lines of English and two lines of French inside a 112 px box, and one
+           line of Chinese — Han says the same thing in roughly half the glyphs.
+           So the menu's own height changed by 18 px between languages while
+           every caption in it was correct.
+
+           The pin is therefore a FLOOR at the measured English box rather than
+           a line-height alone: 20.00 px for the two-line description and
+           48.00 px for the item that holds it. A floor is a no-op in English
+           and in French, which already sit exactly on it, and it stops the
+           Chinese arm collapsing the menu under them. line-height: 1.1111 is
+           the same derivation the other 9 px leaves take (20.00 / 2 lines /
+           9 px). */
+        .mode-desc {
+            line-height: 1.1111;
+            min-height: 20px;
+        }
+        .dice-menu-item {
+            min-height: 48px;
+            /* The item's own text line — its unclassed name <span> inherits
+               font-size 12 from here. 48.00 English box, minus 12 px padding,
+               minus the 20.00 px description box below it, leaves 16.00 for the
+               name: 16.00 / 12px. .mode-desc's own pin above wins inside it. */
+            line-height: 1.3333;
+        }
+        .tab-button,
+        .knob-label,
+        .fx-title,
+        .settings-label,
+        .preset-save-cancel,
+        .preset-save-confirm {
+            line-height: 1.0909;
+        }
+        .preset-save-dialog-title {
+            line-height: 1.1429;
+        }
+        .preset-browser-title {
+            line-height: 1.125;
+        }
+        .tonic-label,
+        .octave-stretch-label {
+            line-height: 1.2222;
+        }
+        .dice-btn,
+        .preset-nav-btn,
+        .preset-item-action-btn {
+            font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
         .dice-btn {
             width: 26px;
             height: 26px;
@@ -868,7 +988,7 @@
             padding: 6px 12px;
             background: none;
             border: none;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 12px;
             color: #d4c9b0;
             text-align: left;
@@ -901,7 +1021,7 @@
             padding: 6px 10px;
             background: rgba(60, 47, 47, 0.92);
             color: #FFF8DC;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
             border-radius: 4px;
             pointer-events: none;
             opacity: 0;
@@ -1025,7 +1145,7 @@
 
         .preset-name-display {
             flex: 1;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 12px;
             color: #3C2F2F;
             text-align: center;
@@ -1052,7 +1172,7 @@
             border: 1px solid rgba(92, 64, 51, 0.4);
             border-radius: 3px;
             background: rgba(139, 168, 112, 0.2);
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #3C2F2F;
             cursor: pointer;
@@ -1092,7 +1212,7 @@
         }
 
         .preset-browser-title {
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 16px;
             color: #d4c9b0;
             letter-spacing: 2px;
@@ -1129,7 +1249,7 @@
             border: 1px solid rgba(139, 168, 112, 0.3);
             border-radius: 12px;
             background: none;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #d4c9b0;
             cursor: pointer;
@@ -1187,7 +1307,7 @@
 
         .preset-item-name {
             flex: 1;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 12px;
             color: #d4c9b0;
             white-space: nowrap;
@@ -1196,7 +1316,7 @@
         }
 
         .preset-item-category {
-            font-family: -apple-system, sans-serif;
+            font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
             font-size: 8px;
             color: rgba(212, 201, 176, 0.5);
             text-transform: uppercase;
@@ -1267,7 +1387,7 @@
         }
 
         .preset-save-dialog-title {
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 14px;
             color: #d4c9b0;
             letter-spacing: 1px;
@@ -1282,7 +1402,7 @@
             border-radius: 4px;
             background: rgba(0, 0, 0, 0.2);
             color: #d4c9b0;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 12px;
             margin-bottom: 10px;
             outline: none;
@@ -1299,7 +1419,7 @@
             border-radius: 4px;
             background: rgba(0, 0, 0, 0.2);
             color: #d4c9b0;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 12px;
             margin-bottom: 12px;
             outline: none;
@@ -1315,7 +1435,7 @@
             padding: 5px 14px;
             border: 1px solid rgba(92, 64, 51, 0.5);
             border-radius: 4px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             cursor: pointer;
             text-transform: uppercase;
@@ -1409,6 +1529,7 @@
                                 <select id="lang-select" data-i18n-aria="aria.langSelect" aria-label="Interface language">
                                     <option value="en">English</option>
                                     <option value="fr">Fran&ccedil;ais</option>
+                                    <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                                 </select>
                             </label>
 

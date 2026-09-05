@@ -46,6 +46,11 @@
 import * as Juce from './juce/index.js';
 import { NOTE_NAMES } from './constants.js';
 import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
+// STATIC, not a dynamic import inside the initializer below (v2.10.0). A
+// static import is resolved before one line of this module runs, which is what
+// lets the tuning panel paint its subtree BEFORE the first applyI18n() sweep.
+// See the initializer at the foot of this file for why that ordering matters.
+import { TuningPanel } from './tuning-panel.js';
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1022,11 +1027,59 @@ document.addEventListener('DOMContentLoaded', () => {
 // TUNING PANEL INITIALIZATION
 // ====================================================================
 
+// THE PANEL PAINTS BEFORE THE FIRST SWEEP, AND THAT IS THE WHOLE POINT.
+//
+// Through v2.9.2 this block dynamically imported tuning-panel.js and awaited
+// init() — so the panel's subtree did not exist until well after
+// DOMContentLoaded, and the first applyI18n() sweep warned about SEVENTEEN
+// TIP_BINDINGS selectors it could not resolve: #interval-list, the five
+// .viz-btn faces, #library-section, #ref-pitch-knob, #scale-name-display,
+// #octave-stretch, #pitch-bend-range, the five scale-file buttons and
+// #generator-section. boot-all-uis --strict-tips reported all seventeen as
+// LATE. They were bound by the re-sweep below and DID carry their tips at
+// settle — measured, in all three languages, 80 of 80 anchors — so this was
+// never a user-visible defect. It was a real ordering defect all the same: the
+// page spent its first frames with a seventeen-anchor hole in the help layer,
+// and the census could not tell that hole from a permanent one.
+//
+// render() is SYNCHRONOUS. Only init()'s slider-state wiring and
+// loadInitialState() need to await anything. So the render is pulled up to
+// module top level — which runs before DOMContentLoaded, and therefore before
+// initI18n() — and init() is left to do the asynchronous half. render() is
+// idempotent so init()'s own call is a no-op rather than a second subtree the
+// sweep has never seen.
+const tuningContainer = document.getElementById('tuning-container');
+const tuningPanel = tuningContainer ? new TuningPanel(tuningContainer, Juce) : null;
+if (tuningPanel) tuningPanel.render();
+
 (async () => {
     try {
-        const { TuningPanel } = await import('./tuning-panel.js');
-        const container = document.getElementById('tuning-container');
-        const tuningPanel = new TuningPanel(container, Juce);
+        if (!tuningPanel) throw new Error('#tuning-container not found');
+
+        // WAIT FOR DOMContentLoaded BEFORE THE ASYNC HALF. The render above is
+        // deliberately early; this is deliberately not.
+        //
+        // Making the import static removed the network round trip that used to
+        // push init() past DOMContentLoaded by accident, so the re-sweep at the
+        // foot of this block started running BEFORE the handler that builds the
+        // page's forty knobs — and warned about all forty. That traded
+        // seventeen late anchors for forty. The ordering is now explicit rather
+        // than incidental: paint the panel first so the first sweep can see it,
+        // then wait for the rest of the page to exist before doing anything
+        // that sweeps.
+        // NOT `readyState === 'loading'`. A module script is deferred, so by the
+        // time this line runs the document has finished PARSING and readyState
+        // already reads 'interactive' — while DOMContentLoaded has not fired
+        // yet, because it fires after the deferred scripts execute. Guarding on
+        // 'loading' therefore skipped the wait entirely and this block ran
+        // first anyway, warning about all forty knobs. Observed, then fixed.
+        // Only 'complete' means the event is genuinely past.
+        if (document.readyState !== 'complete')
+            await new Promise((r) => {
+                document.addEventListener('DOMContentLoaded', r, { once: true });
+                window.addEventListener('load', r, { once: true });   // safety net
+            });
+
         await tuningPanel.init();
 
         // Expose note highlighting for C++ evaluateJavascript calls
