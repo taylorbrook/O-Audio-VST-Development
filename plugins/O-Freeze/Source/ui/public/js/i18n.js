@@ -18,7 +18,65 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-Freeze page labels and hover-help, English + French (v2.3.0)
+// i18n.js — O-Freeze page labels and hover-help, English, French and Simplified
+// Chinese (v2.4.0)
+//
+// ── v2.4.0: SIMPLIFIED CHINESE (zh-Hans rollout Stage 4, wave 4a) ──
+//
+// 36 entries — 21 labels and 15 hover-help entries. LANGUAGES is three long.
+//
+// ── THE RENDERINGS ARE THE GLOSSARY'S ───────────────────────────────────────
+// Every English name string that is a TERMS key in scripts/i18n-zh-glossary.js
+// takes that term's ROOT rendering, which lint rule Z5 enforces. 33 of this page's 36 name strings are glossary roots; three are authored.
+//
+// ── TYPOGRAPHY ──────────────────────────────────────────────────────────────
+//   Z1 full-width punctuation; ASCII punctuation inside a Latin or numeric
+//      token is masked first.  Z2 NO U+00A0 anywhere — the inverse of the
+//      French rules on this same page.  Z4 one plain U+0020 at every
+//      Latin/digit-to-Han boundary, table-wide.  Z7 no full-width Latin or
+//      digits; units and AudioParameterChoice option words stay ASCII.
+//      Z8 no plain space between two Han code points.
+//
+// ── THE CJK FONT TAIL ───────────────────────────────────────────────────────
+// MEASURED, never reasoned from the [data-i18n] list: the page was served,
+// switched to Chinese, every state in tests/i18n-states.json driven and every
+// [data-tip] anchor hovered, and getComputedStyle().fontFamily read on every
+// node that HOLDS or CAN RECEIVE a Han codepoint.
+// FIVE declarations took it — html/body, .settings-label, .settings-select,
+// .settings-toggle and .tooltip.
+// The tail goes BEFORE the trailing generic, never after: Chromium resolves a
+// bare `serif` against the document's lang, so under zh-Hans the generic is
+// already a Chinese face and a tail written after it is never consulted.
+// Stacks that render no Han are deliberately untouched — the gear glyph reaches
+// Han only through data-tip (which paints in #tooltip) and aria-label (which is
+// spoken, not rendered), and the preset rows carry filenames.
+//
+// ── GEOMETRY ────────────────────────────────────────────────────────────────
+// Seven line-height pins, plus the one shape this wave keeps meeting: HAN WRAPS
+// BETWEEN CHARACTERS, so a Han run's minimum width is ONE character. 正弦 was
+// squeezed to 28.75 px against the 33.80 px "Sin" needs and wrapped to two
+// lines while being NARROWER than the English it replaced, pulling #lfo-group
+// in by 8.7 px. `white-space: nowrap` stops the wrap; a min-width is what makes
+// the button the same size English gives it, because nowrap alone leaves it
+// narrower; and the side padding — sized for a three-letter Latin abbreviation
+// — is trimmed under html[lang="zh-Hans"], which the en and fr arms cannot see.
+// That trim is a MEASURED value, not a calculated one: the figure derived from
+// the glyph advance left the button 2.08 px wide, because the Latin
+// letter-spacing applies between the ideographs too. Every ratio in the pin block is the element's own measured
+// ENGLISH line box over its own font size, derived from the BOX rather than a
+// text ink rect, written unitless and scoped per family. No global
+// line-height: a global rule moves English, which is the regression the gates
+// exist to catch. The en and fr arms report 0 FAIL before and after.
+//
+// ── TWO FALSE SENTENCES REMOVED, NOT EXTENDED ───────────────────────────────
+// tip.settings claimed the panel holds one control when the hover-help switch is beside the selector; tip.langSelect counted the selector's options. Both are deletions, in English and French both, so the French
+// review flags stand. No gate can see this class of defect: the sentences stay
+// grammatical and the tooltips still render.
+//
+// ── THE REVIEW LIFECYCLE ────────────────────────────────────────────────────
+// The zh flag is an ENUM, not the boolean French uses, because nobody on this
+// project reads Chinese. The native-reviewed level stays OPEN and is disclosed
+// rather than hidden — lint rule R1 prints the count below the bar every run.
 //
 // An ES module that EXPORTS ONLY. It must never self-execute: a bare top-level
 // statement here throws out of module evaluation and takes every later
@@ -144,7 +202,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — hover-help copy. {en:{t,b}, fr:{t,b,reviewed}}.
@@ -188,6 +246,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Geler',
               b: 'Capture l’audio entrant dans une mémoire de grains et le maintient comme une texture soutenue. Appuyer de nouveau pour relâcher et laisser passer l’entrée. Désactivé ou activé ; en mode Threshold, c’est le niveau d’entrée qui commande.',
               reviewed: true },
+    'zh-Hans': { t: '冻结',
+          b: '把输入的音频捕捉进颗粒缓冲区，并作为持续的织体保持住。再按一次即可释放，让输入信号通过。关或开；在 Threshold 模式下改由输入电平驱动。',
+          reviewed: 'mt' },
     },
 
     // ── The reverse pill ────────────────────────────────────────────────────
@@ -199,6 +260,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Inversion',
               b: 'Joue chaque grain à l’envers, ce qui adoucit les transitoires et retourne la texture gelée. Cela change le caractère, pas la hauteur. Désactivé ou activé.',
               reviewed: true },
+    'zh-Hans': { t: '反向',
+          b: '让每一颗颗粒倒放，这会柔化瞬态，把冻结的织体由内向外翻转。它改变的是性格，不是音高。关或开。',
+          reviewed: 'mt' },
     },
 
     // ── The mode toggle ─────────────────────────────────────────────────────
@@ -213,6 +277,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Mode',
               b: 'Choisit ce qui déclenche le gel. Manual arme le bouton au centre du panneau ; Threshold confie la décision au niveau d’entrée et au potentiomètre voisin. Manual ou Threshold.',
               reviewed: true },
+    'zh-Hans': { t: '模式',
+          b: '选择由什么来启动冻结。Manual 启用面板中央的按钮；Threshold 把这个决定交给输入电平和旁边的旋钮。Manual 或 Threshold。',
+          reviewed: 'mt' },
     },
 
     // ── The six main knobs ──────────────────────────────────────────────────
@@ -233,6 +300,9 @@ export const I18N = Object.freeze({
               termNote: 'the knob\u2019s own .knob-label is static English in index.html and I18N_EXEMPT covers it \u2014 "Threshold" is a MODE AudioParameterChoice option string byte for byte, so a French user reads THRESHOLD on the control. A tip headed Seuil over a knob captioned THRESHOLD names one control twice',
               b: 'Le niveau d’entrée à partir duquel le gel s’enclenche de lui-même, lu uniquement en mode Threshold. L’abaisser pour capter des passages plus discrets, le relever pour ne déclencher que sur les crêtes. De −60 à 0 dB.',
               reviewed: true },
+    'zh-Hans': { t: '阈值',
+          b: '冻结自行接通所依据的输入电平，仅在 Threshold 模式下读取。调低可以抓住更安静的素材；调高则只有峰值才会触发。−60 到 0 dB。',
+          reviewed: 'mt' },
     },
 
     'tip.drift': {
@@ -241,6 +311,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Dérive',
               b: 'Écarte les positions de lecture des grains pour que la texture gelée se déplace au lieu de boucler sur place. Un peu suffit à supprimer la résonance statique ; beaucoup l’étale en un nuage. De 0 à 100 %.',
               reviewed: true },
+    'zh-Hans': { t: '漂移',
+          b: '把各颗粒的读取位置拉开，使冻结的织体游走而不是原地循环。少量可以去掉静止的环鸣；大量则把它抹成一片云。0 到 100%。',
+          reviewed: 'mt' },
     },
 
     'tip.size': {
@@ -249,6 +322,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Taille',
               b: 'La longueur de chaque grain prélevé dans la mémoire gelée. Des grains courts donnent une texture granuleuse et hachée ; des grains longs gardent la source reconnaissable. De 50 à 1000 ms.',
               reviewed: true },
+    'zh-Hans': { t: '尺寸',
+          b: '从冻结缓冲区中取出的每一颗颗粒的长度。短颗粒给出颗粒感强、断续的织体；长颗粒则让素材仍然可辨。50 到 1000 ms。',
+          reviewed: 'mt' },
     },
 
     // The one parameter whose unit had to be recovered from the page rather
@@ -260,6 +336,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Grains',
               b: 'Le nombre de grains joués simultanément. Un faible nombre donne un rendu clairsemé et rythmique ; un nombre élevé se fond en nappe continue et coûte plus de CPU. De 2 à 32 grains.',
               reviewed: true },
+    'zh-Hans': { t: '颗粒',
+          b: '同时发声的颗粒数量。数量少听起来稀疏而有节奏感；数量多则融合成连续的铺底，也更耗 CPU。2 到 32 颗。',
+          reviewed: 'mt' },
     },
 
     'tip.detune': {
@@ -268,6 +347,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Désaccord',
               b: 'Étale la hauteur de chaque grain sur une plage, ce qui épaissit le gel en un effet de chorus. De faibles valeurs ajoutent du mouvement ; de fortes valeurs désaccordent la texture de façon audible. De 0 à 50 cents.',
               reviewed: true },
+    'zh-Hans': { t: '失谐',
+          b: '把各颗粒的音高在一个范围内拉开，把冻结加厚成合唱。少量增加动感；大量则让织体出现可闻的失谐。0 到 50 音分。',
+          reviewed: 'mt' },
     },
 
     'tip.mix': {
@@ -276,6 +358,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Mix',
               b: 'Équilibre la texture gelée et le signal d’entrée non traité. À 100 %, seul le gel est audible ; en réduire la valeur laisse passer le signal direct. De 0 à 100 %.',
               reviewed: true },
+    'zh-Hans': { t: '混合',
+          b: '在冻结的织体与未处理的输入之间取得平衡。为 100% 时只听到冻结；往回拉可以让实时信号留在下面。0 到 100%。',
+          reviewed: 'mt' },
     },
 
     // ── The Drift LFO group ─────────────────────────────────────────────────
@@ -285,6 +370,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse',
               b: 'La vitesse du LFO qui module la dérive. Les réglages lents font respirer une nappe ; les rapides font trembler la position des grains. De 0,01 à 10 Hz.',
               reviewed: true },
+    'zh-Hans': { t: '速率',
+          b: '调制漂移的 LFO 的速度。慢速设定在铺底之下呼吸；快速则让颗粒位置颤动。0.01 到 10 Hz。',
+          reviewed: 'mt' },
     },
 
     // The CAPTION is Prof. because the knob has a hard 60.00 px budget and
@@ -298,6 +386,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Profondeur',
               b: 'La part de la dérive que le LFO balaie réellement. À zéro, le LFO n’a aucun effet, quelle que soit sa vitesse. De 0 à 100 %.',
               reviewed: true },
+    'zh-Hans': { t: '深度',
+          b: 'LFO 实际扫过漂移设定值的多少。为零时无论 LFO 跑得多快都不起作用。0 到 100%。',
+          reviewed: 'mt' },
     },
 
     // Bound to #lfo-shape-toggle, which wraps the SHAPE caption and the three
@@ -311,6 +402,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Forme',
               b: 'La forme d’onde suivie par le LFO de dérive. Sine glisse, Triangle change de sens brusquement aux extrêmes, Random saute à une nouvelle valeur à chaque cycle. Sine, Triangle ou Random.',
               reviewed: true },
+    'zh-Hans': { t: '形状',
+          b: '漂移 LFO 所遵循的波形。Sine 平滑滑行，Triangle 在两端急转，Random 每个周期跳到一个新值。Sine、Triangle 或 Random。',
+          reviewed: 'mt' },
     },
 
     // ── The chrome ──────────────────────────────────────────────────────────
@@ -320,10 +414,13 @@ export const I18N = Object.freeze({
     // is worse than no tip.
     'tip.settings': {
         en: { t: 'Settings',
-              b: 'Opens the settings panel. It holds one control, the language of the interface, and the choice is remembered with the session.' },
+              b: 'Opens the settings panel. The labels on this page and this hover help switch with the language chosen there, and the choice is remembered with the session.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau de réglages. Il contient une seule commande, la langue de l’interface, et le choix est conservé avec la session.',
+              b: 'Ouvre le panneau de réglages. Les libellés de cette page et ces infobulles suivent la langue qui y est choisie, et le choix est conservé avec la session.',
               reviewed: true },
+    'zh-Hans': { t: '设置',
+          b: '打开设置面板。本页的标签与这些悬停帮助会随其中的选择切换，该选择随会话一同记住。',
+          reviewed: 'mt' },
     },
 
     // Bound BARE, not through a wrapper. #gear-btn and #lang-select share
@@ -332,10 +429,13 @@ export const I18N = Object.freeze({
     // own hover cell here.
     'tip.langSelect': {
         en: { t: 'Language',
-              b: 'The language of these hover descriptions and of the labels on the page. English and French are available; the value readouts stay in English.' },
+              b: 'The language of these hover descriptions and of the labels on the page. the value readouts stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. les valeurs affichées restent en anglais.',
               reviewed: true },
+    'zh-Hans': { t: '语言',
+          b: '这些悬停说明与页面标签的语言；数值读数保持英文。',
+          reviewed: 'mt' },
     },
     // v2.4.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -346,6 +446,9 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+    'zh-Hans': { t: '悬停帮助',
+          b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
+          reviewed: 'mt' },
     },
 });
 
@@ -432,7 +535,7 @@ export const LABELS = Object.freeze({
     // for "freeze"; a control that PERFORMS the action takes the infinitive,
     // a state readout would take the noun. Geler is 69.72 px, Gel 41.42 —
     // width does not decide it here, and the choice is on meaning.
-    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'Geler', reviewed: true } },
+    'label.freeze': { en: { t: 'Freeze' }, fr: { t: 'Geler', reviewed: true }, 'zh-Hans': { t: '冻结', reviewed: 'mt' } },
 
     // ── The reverse toggle ──────────────────────────────────────────────────
     // Also an AudioParameterBool ("Reverse", PluginProcessor.cpp:112-115), so
@@ -448,22 +551,22 @@ export const LABELS = Object.freeze({
     // than REVERSE's 57.50, and without the pin that shrink would pull
     // #reverse-container (a non-label element, centred by translateX(-50%))
     // in by 3.20 px and fail assertion 7. See the comment there.
-    'label.reverse': { en: { t: 'Reverse' }, fr: { t: 'Invers.', reviewed: true } },
+    'label.reverse': { en: { t: 'Reverse' }, fr: { t: 'Invers.', reviewed: true }, 'zh-Hans': { t: '反向', reviewed: 'mt' } },
 
     // ── The six main knob captions ──────────────────────────────────────────
     // Each is the plugin's own caption for a FLOAT or INT parameter, not a
     // choice option, so all six are localizable under D-01 arm 1 and none is a
     // readout node under arm 3. THRESHOLD is the exception and is EXEMPT — see
     // I18N_EXEMPT, where the reason is the whole judgement call on this plugin.
-    'label.drift':  { en: { t: 'Drift' },  fr: { t: 'Dérive', reviewed: true } },
-    'label.size':   { en: { t: 'Size' },   fr: { t: 'Taille', reviewed: true } },
+    'label.drift':  { en: { t: 'Drift' },  fr: { t: 'Dérive', reviewed: true }, 'zh-Hans': { t: '漂移', reviewed: 'mt' } },
+    'label.size':   { en: { t: 'Size' },   fr: { t: 'Taille', reviewed: true }, 'zh-Hans': { t: '尺寸', reviewed: 'mt' } },
 
     // GRAINS is the same word in both languages — `grain` is French, and the
     // plural is spelled identically. sameAsEn is the explicit declaration that
     // this is a translation and not an untranslated leftover; without it,
     // check-i18n assertion 4 rejects the entry as a silent passthrough, which
     // is exactly the guard that should fire on a string nobody thought about.
-    'label.grains': { en: { t: 'Grains' }, fr: { t: 'Grains', sameAsEn: true, reviewed: true } },
+    'label.grains': { en: { t: 'Grains' }, fr: { t: 'Grains', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: '颗粒', reviewed: 'mt' } },
 
     // Désacc., the glossary's listed abbreviation for Désaccord. v2.2.0 shipped
     // ÉCART, which the suite glossary now forbids outright ("Désaccord (detune)
@@ -477,7 +580,7 @@ export const LABELS = Object.freeze({
     // inside the 60.00 budget, nothing moves) and the tip title spells out
     // Désaccord. The body already said `désaccordent`; caption and prose now
     // name the control with one word family.
-    'label.detune': { en: { t: 'Detune' }, fr: { t: 'Désacc.', reviewed: true } },
+    'label.detune': { en: { t: 'Detune' }, fr: { t: 'Désacc.', reviewed: true }, 'zh-Hans': { t: '失谐', reviewed: 'mt' } },
 
     // Mix. v2.2.0 weighed DOSAGE against MÉLANGE; the suite glossary forbids
     // both — "Mixage is the mixing process; Dosage is elegant and nobody else
@@ -487,7 +590,7 @@ export const LABELS = Object.freeze({
     // (this rollout's named hardware-blocked deferral) cannot separate them.
     // Being byte-identical makes it a straight copy, which is what sameAsEn
     // declares: a human looked and agreed the word is French too.
-    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: true } },
+    'label.mix':    { en: { t: 'Mix' },    fr: { t: 'Mix', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: '混合', reviewed: 'mt' } },
 
     // ── The LFO group ───────────────────────────────────────────────────────
     // #lfo-group-label is `position: absolute` inside #lfo-group, so its width
@@ -495,9 +598,9 @@ export const LABELS = Object.freeze({
     // left: 12px + 111.61 is still well inside the group's 283.73 px. v2.2.0
     // shipped LFO DÉRIVE (89.03); a noun-noun juxtaposition is English syntax,
     // and the page's own tip bodies already say "le LFO de dérive".
-    'label.driftLfo': { en: { t: 'Drift LFO' }, fr: { t: 'LFO de dérive', reviewed: true } },
+    'label.driftLfo': { en: { t: 'Drift LFO' }, fr: { t: 'LFO de dérive', reviewed: true }, 'zh-Hans': { t: '漂移 LFO', reviewed: 'mt' } },
 
-    'label.rate':  { en: { t: 'Rate' },  fr: { t: 'Vitesse', reviewed: true } },
+    'label.rate':  { en: { t: 'Rate' },  fr: { t: 'Vitesse', reviewed: true }, 'zh-Hans': { t: '速率', reviewed: 'mt' } },
 
     // Prof., abbreviated, and this one is a genuine compromise rather than a
     // better word found under pressure. Re-measured at v2.2.1 and BOTH v2.2.0
@@ -510,11 +613,11 @@ export const LABELS = Object.freeze({
     // caption is abbreviated, the way a tight French UI abbreviates it, the
     // TOOLTIP carries Profondeur in full, and both are flagged for a native
     // speaker like every other string here.
-    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: true } },
+    'label.depth': { en: { t: 'Depth' }, fr: { t: 'Prof.', reviewed: true }, 'zh-Hans': { t: '深度', reviewed: 'mt' } },
 
     // #lfo-shape-label sits above a 105.67 px selector in a column that
     // shrink-wraps to the WIDER of the two, so FORME's 44.89 is free.
-    'label.shape': { en: { t: 'Shape' }, fr: { t: 'Forme', reviewed: true } },
+    'label.shape': { en: { t: 'Shape' }, fr: { t: 'Forme', reviewed: true }, 'zh-Hans': { t: '形状', reviewed: 'mt' } },
 
     // ── The three LFO shape captions ────────────────────────────────────────
     // NOT exempt under D-01 arm 1. The LFO_SHAPE AudioParameterChoice options
@@ -536,21 +639,21 @@ export const LABELS = Object.freeze({
     // against the 37.5 px pin, which re-centres the group and moves 6 boxes.
     // Aléatoire (46.88 -> 62.88) is further out still. This is one of the
     // places the glossary's abbreviation list is load-bearing.
-    'label.shape.sin': { en: { t: 'Sin' }, fr: { t: 'Sin', sameAsEn: true, reviewed: true } },
-    'label.shape.tri': { en: { t: 'Tri' }, fr: { t: 'Tri', sameAsEn: true, reviewed: true } },
-    'label.shape.rnd': { en: { t: 'Rnd' }, fr: { t: 'Alé', reviewed: true } },
+    'label.shape.sin': { en: { t: 'Sin' }, fr: { t: 'Sin', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: '正弦', reviewed: 'mt' } },
+    'label.shape.tri': { en: { t: 'Tri' }, fr: { t: 'Tri', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: '三角', reviewed: 'mt' } },
+    'label.shape.rnd': { en: { t: 'Rnd' }, fr: { t: 'Alé', reviewed: true }, 'zh-Hans': { t: '随机', reviewed: 'mt' } },
 
     // ── The settings popover (v2.1.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'mt' } },
 
     // v2.4.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'mt' } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'mt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
@@ -558,9 +661,9 @@ export const LABELS = Object.freeze({
     // aria-label attributes; v2.0.1 had none, and none of them replaces a
     // deleted native title= because there were no native title attributes to
     // delete. No hover-help prose is invented here.
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'mt' } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
 });
 
 // ============================================================================
