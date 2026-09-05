@@ -262,7 +262,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '频率',
           b: '设定分频点，把输入信号切分为本插件所增强的低频段与不作处理的高频段。往下调可以让加强只作用于超低频，往上调则连低中频也一并加厚。40 到 200 Hz。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ── enhance — AudioParameterFloat, 0..100 %, default 50 ────────────────
@@ -282,7 +282,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '增强',
           b: '设定分频点以下的频段被加入多少加强。少量能把一首混音黏合起来；大量则重建出一段小音箱也听得见的低频。0 到 100%。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ── output — AudioParameterFloat, −18..+18 dB, default 0 ───────────────
@@ -306,7 +306,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '输出',
           b: '微调离开插件的电平，让增强后的信号可以与未处理的信号作比较。下方的表头显示结果，旁边的指示灯在内部限制器压住峰值时点亮。−18 到 +18 dB。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ── #gear-btn — chrome, not a parameter ────────────────────────
@@ -328,7 +328,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '设置',
           b: '打开一个小面板。其中的选择都不会改变声音或当前预设。按 Escape 或点击别处即可关闭。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 
     // ── #lang-select — chrome, not a parameter ─────────────────────
@@ -356,7 +356,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '语言',
           b: '切换本页所有标签、无障碍名称与悬停帮助的语言。参数值、单位与预设名称保持不变。该选择会随插件一同保存，并随会话回来。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
     // v1.6.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -369,7 +369,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     'zh-Hans': { t: '悬停帮助',
           b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
-          reviewed: 'mt' },
+          reviewed: 'bt' },
     },
 });
 
@@ -481,9 +481,9 @@ export const LABELS = Object.freeze({
     // are under that floor, so the container is 65.00 px in either language.
     // A `width` here would have a negative control that PASSES, which by the
     // batch rule is decoration.
-    'label.frequency': { en: { t: 'Frequency' }, fr: { t: 'Fréquence', reviewed: true }, 'zh-Hans': { t: '频率', reviewed: 'mt' } },
-    'label.enhance':   { en: { t: 'Enhance' },   fr: { t: 'Renfort',   reviewed: true }, 'zh-Hans': { t: '增强', reviewed: 'mt' } },
-    'label.output':    { en: { t: 'Output' },    fr: { t: 'Sortie',    reviewed: true }, 'zh-Hans': { t: '输出', reviewed: 'mt' } },
+    'label.frequency': { en: { t: 'Frequency' }, fr: { t: 'Fréquence', reviewed: true }, 'zh-Hans': { t: '频率', reviewed: 'bt' } },
+    'label.enhance':   { en: { t: 'Enhance' },   fr: { t: 'Renfort',   reviewed: true }, 'zh-Hans': { t: '增强', reviewed: 'bt' } },
+    'label.output':    { en: { t: 'Output' },    fr: { t: 'Sortie',    reviewed: true }, 'zh-Hans': { t: '输出', reviewed: 'bt' } },
 
     // ── The limiter indicator caption ───────────────────────────────────────
     //
@@ -497,7 +497,7 @@ export const LABELS = Object.freeze({
     // LIMITE (43.27) is the word and it does not fit: it is 7.72 px wider than
     // the English, and cliff B has 0.00 px to give. ECRET. (42.77, écrêtage)
     // is wider still. LIM. is the abbreviation French-market limiters carry.
-    'label.limit': { en: { t: 'Limit' }, fr: { t: 'Lim.', reviewed: true }, 'zh-Hans': { t: '限制', reviewed: 'mt' } },
+    'label.limit': { en: { t: 'Limit' }, fr: { t: 'Lim.', reviewed: true }, 'zh-Hans': { t: '限制', reviewed: 'bt' } },
 
     // ── The output-meter caption ────────────────────────────────────────────
     //
@@ -529,7 +529,7 @@ export const LABELS = Object.freeze({
     // SORTIE, because its container has 14 px of slack and this one has none.
     // The same English word gets two different answers on one page, decided by
     // geometry. That is a legitimate thing to disagree with.
-    'label.out': { en: { t: 'Out' }, fr: { t: 'Sor', reviewed: true }, 'zh-Hans': { t: '输出', reviewed: 'mt' } },
+    'label.out': { en: { t: 'Out' }, fr: { t: 'Sor', reviewed: true }, 'zh-Hans': { t: '输出', reviewed: 'bt' } },
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -564,7 +564,7 @@ export const LABELS = Object.freeze({
     // broken on O-DigiDelay's CHARGER/Ouvrir pair.
     //
     // LIRE is a whole word, so aria.loadPreset simply begins with it.
-    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouv',  reviewed: true }, 'zh-Hans': { t: '载入', reviewed: 'mt' } },
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouv',  reviewed: true }, 'zh-Hans': { t: '载入', reviewed: 'bt' } },
     'label.save': { en: { t: 'Save' },
                     fr: { t: 'Enr', reviewed: true,
                           termNote: 'the 46 px .preset-save-btn pin is a 28 px content box and '
@@ -574,7 +574,7 @@ export const LABELS = Object.freeze({
                                   + 'is the shipped stem, and it is also the only one that keeps WCAG '
                                   + '2.5.3 label-in-name against aria.savePreset — enr is a substring of '
                                   + 'Enregistrer les réglages actuels, enreg. is not. Reported to Stage N '
-                                  + 'so the glossary can grow a 3-glyph abbreviation.' }, 'zh-Hans': { t: '保存', reviewed: 'mt' } },
+                                  + 'so the glossary can grow a 3-glyph abbreviation.' }, 'zh-Hans': { t: '保存', reviewed: 'bt' } },
 
     // ── The preset dropdown, written through setLabel() ─────────────────────
     //
@@ -591,20 +591,20 @@ export const LABELS = Object.freeze({
     // table. The dropdown is `left: 0; right: 0` of the 280.61 px preset bar,
     // so both have ~240 px of content box and neither is anywhere near a cliff.
     'label.noPresets': { en: { t: 'No presets available' },
-                         fr: { t: 'Aucun préréglage disponible', reviewed: true }, 'zh-Hans': { t: '没有可用预设', reviewed: 'mt' } },
-    'label.factory':   { en: { t: 'Factory' }, fr: { t: 'Usine', reviewed: true }, 'zh-Hans': { t: '出厂', reviewed: 'mt' } },
+                         fr: { t: 'Aucun préréglage disponible', reviewed: true }, 'zh-Hans': { t: '没有可用预设', reviewed: 'bt' } },
+    'label.factory':   { en: { t: 'Factory' }, fr: { t: 'Usine', reviewed: true }, 'zh-Hans': { t: '出厂', reviewed: 'bt' } },
 
     // ── The settings popover (v1.4.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'mt' } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'bt' } },
 
     // v1.6.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'mt' } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'mt' } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' } },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'bt' } },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'bt' } },
 
     // ── Image alternative text ──────────────────────────────────────────────
     //
@@ -616,8 +616,8 @@ export const LABELS = Object.freeze({
     // that has nothing to do with localization, so the strings are translated
     // and left in place. The keys and the French are byte-identical to
     // O-IntonationPad's, which carries the identical two images.
-    'alt.background': { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true }, 'zh-Hans': { t: '背景', reviewed: 'mt' } },
-    'alt.botanical':  { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true }, 'zh-Hans': { t: '植物插画', termNote: 'the glossary root for `botanical` is 植物律, and 律 is temperament or law. This is the alt text of a DECORATIVE PLANT ILLUSTRATION, and the root FAILED THE REVERSE READ TWICE, from two different models in independent sessions: round 1 returned \'Phytometric\' and round 2 \'Plant Law [or: Plant Rhythm]\'. Neither is the English. A row whose back-translation is not its source has not met the \'bt\' bar, so this is an evidenced defect rather than a terminology preference, which is what termNote is for. 植物插画 matches the rendering this same wave gave O-AnalogSaturation\'s decorative plate (蛇形插画). The root itself is reported to the glossary owners rather than edited here, because changing it would put other plugins out of Z5 conformance', reviewed: 'mt' } },
+    'alt.background': { en: { t: 'Background' }, fr: { t: 'Arrière-plan',    reviewed: true }, 'zh-Hans': { t: '背景', reviewed: 'bt' } },
+    'alt.botanical':  { en: { t: 'Botanical' },  fr: { t: 'Motif botanique', reviewed: true }, 'zh-Hans': { t: '植物插画', termNote: 'the glossary root for `botanical` is 植物律, and 律 is temperament or law. This is the alt text of a DECORATIVE PLANT ILLUSTRATION, and the root FAILED THE REVERSE READ TWICE, from two different models in independent sessions: round 1 returned \'Phytometric\' and round 2 \'Plant Law [or: Plant Rhythm]\'. Neither is the English. A row whose back-translation is not its source has not met the \'bt\' bar, so this is an evidenced defect rather than a terminology preference, which is what termNote is for. 植物插画 matches the rendering this same wave gave O-AnalogSaturation\'s decorative plate (蛇形插画). The root itself is reported to the glossary owners rather than edited here, because changing it would put other plugins out of Z5 conformance', reviewed: 'bt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -650,19 +650,19 @@ export const LABELS = Object.freeze({
     // O-AnalogEQ, O-Detune, O-DigiDelay, O-FreqPulse and O-Lyrica for the
     // identical control.
     'aria.prevPreset': { en: { t: 'Previous preset' },
-                         fr: { t: 'Préréglage précédent', reviewed: true }, 'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
+                         fr: { t: 'Préréglage précédent', reviewed: true }, 'zh-Hans': { t: '上一个预设', reviewed: 'bt' } },
     'aria.nextPreset': { en: { t: 'Next preset' },
-                         fr: { t: 'Préréglage suivant',   reviewed: true }, 'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
+                         fr: { t: 'Préréglage suivant',   reviewed: true }, 'zh-Hans': { t: '下一个预设', reviewed: 'bt' } },
     'aria.presetList': { en: { t: 'Click to see all presets' },
-                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true }, 'zh-Hans': { t: '点击查看全部预设', reviewed: 'mt' } },
+                         fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true }, 'zh-Hans': { t: '点击查看全部预设', reviewed: 'bt' } },
     'aria.loadPreset': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true }, 'zh-Hans': { t: '从文件载入预设', reviewed: 'mt' } },
+                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true }, 'zh-Hans': { t: '从文件载入预设', reviewed: 'bt' } },
     'aria.savePreset': { en: { t: 'Save current settings' },
-                         fr: { t: 'Enregistrer les réglages actuels', reviewed: true }, 'zh-Hans': { t: '保存当前设置', reviewed: 'mt' } },
+                         fr: { t: 'Enregistrer les réglages actuels', reviewed: true }, 'zh-Hans': { t: '保存当前设置', reviewed: 'bt' } },
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'mt' } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'bt' } },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'bt' } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }, 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' } },
 });
 
 // ============================================================================
