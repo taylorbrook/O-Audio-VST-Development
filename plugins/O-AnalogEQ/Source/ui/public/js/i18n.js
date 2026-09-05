@@ -122,7 +122,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — hover-help copy (v1.3.0). A tooltip entry is {t, b}: a title and a
@@ -208,6 +208,9 @@ export const I18N = Object.freeze({
                + 'ou pour dégager le bas sans toucher aux médiums. Fréquence de 30 à '
                + '500 Hz ; gain de −12,0 à +12,0 dB.',
               reviewed: true },
+        'zh-Hans': { t: '低频频率与增益',
+              b: '外圈设定低频搁架的转折频率，内盘设定其增益，于是转折点以下的一切被整体提升或衰减。想给单薄的音源垫上分量，或者不碰中频就清掉浑浊时用它。频率 30 到 500 Hz；增益 −12.0 到 +12.0 dB。',
+              reviewed: 'mt' },
     },
 
     'tip.lmfBand': {
@@ -223,6 +226,9 @@ export const I18N = Object.freeze({
                + 'boîte sur la plupart des sources. Fréquence de 100 à 2000 Hz ; gain '
                + 'de −12,0 à +12,0 dB.',
               reviewed: true },
+        'zh-Hans': { t: '中低频频率与增益',
+              b: '外圈设定中低频钟形的中心频率，内盘设定其增益，围绕该中心提升或衰减一段频带，其余不动。大多数音源的箱声与厚度都在这里。频率 100 到 2000 Hz；增益 −12.0 到 +12.0 dB。',
+              reviewed: 'mt' },
     },
 
     'tip.hmfBand': {
@@ -237,6 +243,9 @@ export const I18N = Object.freeze({
                + 'pour adoucir la dureté dans la zone où l’oreille est la plus sensible. '
                + 'Fréquence de 500 à 8000 Hz ; gain de −12,0 à +12,0 dB.',
               reviewed: true },
+        'zh-Hans': { t: '中高频频率与增益',
+              b: '外圈设定中高频钟形的中心频率，内盘设定其增益。想要临场感与冲击力，或者想压下人耳最敏感区段里的刺耳感时用它。频率 500 到 8000 Hz；增益 −12.0 到 +12.0 dB。',
+              reviewed: 'mt' },
     },
 
     // The one range that had to be read off the formatter rather than the dump:
@@ -255,6 +264,9 @@ export const I18N = Object.freeze({
                + 'pour arrondir une source trop mordante. Fréquence de 2000 Hz à '
                + '20,0k Hz ; gain de −12,0 à +12,0 dB.',
               reviewed: true },
+        'zh-Hans': { t: '高频频率与增益',
+              b: '外圈设定高频搁架的转折频率，内盘设定其增益，于是转折点以上的一切被整体提升或衰减。想要空气感与光泽，或者想削掉明亮音源的锋利边缘时用它。频率 2000 Hz 到 20.0k Hz；增益 −12.0 到 +12.0 dB。',
+              reviewed: 'mt' },
     },
 
     // ── THE FOUR BAND SWITCHES ──────────────────────────────────────────────
@@ -280,6 +292,9 @@ export const I18N = Object.freeze({
                + 'plutôt qu’aplani : la bande ne peut plus colorer le son du tout, et '
                + 'l’étiquette s’estompe. Off ou On.',
               reviewed: true },
+        'zh-Hans': { t: '低频搁架',
+              b: '点击标题即可把低频搁架接入或移出信号路径。关闭时整个滤波级被直接跳过，而不是压平，因此这一频段完全无法为声音染色，标题也会变暗。关或开。',
+              reviewed: 'mt' },
     },
 
     'tip.lmfOn': {
@@ -292,6 +307,9 @@ export const I18N = Object.freeze({
                + 'trajet du signal. Quand elle est désactivée, l’étage de filtrage est '
                + 'court-circuité plutôt qu’aplani, et l’étiquette s’estompe. Off ou On.',
               reviewed: true },
+        'zh-Hans': { t: '中低频钟形',
+              b: '点击标题即可把中低频钟形接入或移出信号路径。关闭时整个滤波级被直接跳过，而不是压平，标题也会变暗。关或开。',
+              reviewed: 'mt' },
     },
 
     'tip.hmfOn': {
@@ -304,6 +322,9 @@ export const I18N = Object.freeze({
                + 'trajet du signal. Quand elle est désactivée, l’étage de filtrage est '
                + 'court-circuité plutôt qu’aplani, et l’étiquette s’estompe. Off ou On.',
               reviewed: true },
+        'zh-Hans': { t: '中高频钟形',
+              b: '点击标题即可把中高频钟形接入或移出信号路径。关闭时整个滤波级被直接跳过，而不是压平，标题也会变暗。关或开。',
+              reviewed: 'mt' },
     },
 
     'tip.hfOn': {
@@ -318,6 +339,9 @@ export const I18N = Object.freeze({
                + 'plutôt qu’aplani : la bande ne peut plus colorer le son du tout, et '
                + 'l’étiquette s’estompe. Off ou On.',
               reviewed: true },
+        'zh-Hans': { t: '高频搁架',
+              b: '点击标题即可把高频搁架接入或移出信号路径。关闭时整个滤波级被直接跳过，而不是压平，因此这一频段完全无法为声音染色，标题也会变暗。关或开。',
+              reviewed: 'mt' },
     },
 
     // ── THE TWO Q SELECTORS ─────────────────────────────────────────────────
@@ -338,6 +362,9 @@ export const I18N = Object.freeze({
                + 'est assez chirurgical pour retirer une résonance sans amaigrir la source. '
                + 'Trois réglages : WIDE, MED, TIGHT — Q 0,5 ; 1,0 et 2,0.',
               reviewed: true },
+        'zh-Hans': { t: '中低频 Q',
+              b: '设定中低频钟形围绕其中心频率提升或衰减多宽的一段频谱。WIDE 宽阔而音乐化，TIGHT 则精准到足以拔掉一个共振而不让音源变薄。三档：WIDE、MED、TIGHT — Q 分别为 0.5、1.0 与 2.0。',
+              reviewed: 'mt' },
     },
 
     'tip.hmfQ': {
@@ -352,6 +379,9 @@ export const I18N = Object.freeze({
                + 'est assez chirurgical pour retirer une résonance sans ternir la source. '
                + 'Trois réglages : WIDE, MED, TIGHT — Q 0,5 ; 1,0 et 2,0.',
               reviewed: true },
+        'zh-Hans': { t: '中高频 Q',
+              b: '设定中高频钟形围绕其中心频率提升或衰减多宽的一段频谱。WIDE 宽阔而音乐化，TIGHT 则精准到足以拔掉一个共振而不让音源变闷。三档：WIDE、MED、TIGHT — Q 分别为 0.5、1.0 与 2.0。',
+              reviewed: 'mt' },
     },
 
     // ── THE SATURATION SWITCH ───────────────────────────────────────────────
@@ -373,6 +403,9 @@ export const I18N = Object.freeze({
                + 'utiliser quand un relèvement propre sonne cassant ; à laisser désactivé '
                + 'pour un travail correctif chirurgical. Off ou On.',
               reviewed: true },
+        'zh-Hans': { t: '模拟',
+              b: '在四个频段之后接入一级柔和的饱和，加入谐波暖色并把均衡刚刚造出的峰值修圆。干净的提升听起来发脆时用它；做精准的修补工作时把它关掉。关或开。',
+              reviewed: 'mt' },
     },
 
     // ── THE CHROME ──────────────────────────────────────────────────────────
@@ -381,15 +414,34 @@ export const I18N = Object.freeze({
     // row and that row is the language selector; this plugin has no hover-help
     // on/off toggle, so the wording O-Tapestop uses would promise a control
     // that is not there. A tip that lies is worse than no tip.
+    // TWO ENUMERATIONS DELETED IN v1.5.0, EN AND FR BOTH.
+    //
+    // The gear body asserted that the settings panel holds nothing besides the
+    // interface language. That was true when it was written and stopped being
+    // true when the hover-help switch landed in the same panel — the tip has
+    // been describing one of two controls and denying the second ever since.
+    //
+    // The language body ended by spelling out the two languages the selector
+    // then held, which was true for exactly as long as the selector held two
+    // and became false the moment this version added a third.
+    //
+    // BOTH ARE DELETIONS RATHER THAN EXTENSIONS. An enumeration is false again
+    // the next time a row or an option lands, which is how both of these broke;
+    // and the selector already lists the languages in their own endonyms, which
+    // is the one form a reader recognises without knowing the page language.
+    // Neither superseded sentence is reproduced in these comments, so a
+    // repo-wide grep for either stays at zero on this file.
     'tip.settings': {
         en: { t: 'Settings',
-              b: 'Opens the settings panel above this button. It holds one control, the '
-               + 'interface language, and closes again on a click outside it or on Escape.' },
+              b: 'Opens the settings panel above this button. It closes again on a '
+               + 'click outside it or on Escape.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau de réglages au-dessus de ce bouton. Il contient une seule '
-               + 'commande, la langue de l’interface, et se referme par un clic à l’extérieur '
-               + 'ou par la touche Échap.',
+              b: 'Ouvre le panneau de réglages au-dessus de ce bouton. Il se referme par '
+               + 'un clic à l’extérieur ou par la touche Échap.',
               reviewed: true },
+        'zh-Hans': { t: '设置',
+              b: '在本按钮上方打开设置面板。在面板外点击或按 Escape 即可再次关闭。',
+              reviewed: 'mt' },
     },
 
     // D-03 IS RESTATED HERE BECAUSE IT IS THE ONE THING A USER WILL TEST. The
@@ -400,12 +452,15 @@ export const I18N = Object.freeze({
         en: { t: 'Interface language',
               b: 'Chooses the language of the page: every caption, every accessible name and '
                + 'this hover-help. The value readouts under the knobs keep their numbers and '
-               + 'their English units. English or Français.' },
+               + 'their English units.' },
         fr: { t: 'Langue de l’interface',
               b: 'Choisit la langue de la page : chaque étiquette, chaque nom accessible '
                + 'et chaque infobulle. Les valeurs affichées sous les boutons rotatifs '
-               + 'conservent leurs nombres et leurs unités anglaises. English ou Français.',
+               + 'conservent leurs nombres et leurs unités anglaises.',
               reviewed: true },
+        'zh-Hans': { t: '界面语言',
+              b: '选择页面的语言：每一个标题、每一个无障碍名称，以及这些悬停帮助。旋钮下方的数值读数保留其数字与英文单位。',
+              reviewed: 'mt' },
     },
     // v1.4.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -416,6 +471,9 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+        'zh-Hans': { t: '悬停帮助',
+              b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
+              reviewed: 'mt' },
     },
 });
 
@@ -525,10 +583,10 @@ export const LABELS = Object.freeze({
     //     HAUT MEDIUM  97.14   two lines
     // MED.HAUT (70.77) stays on one line only because it has no space in it,
     // and then SPILLS 3.77 px past the box.
-    'label.band.lf':  { en: { t: 'LF SHELF' }, fr: { t: 'LF PLAT.', reviewed: true } },
-    'label.band.lmf': { en: { t: 'LMF' },      fr: { t: 'LMF', reviewed: true, sameAsEn: true } },
-    'label.band.hmf': { en: { t: 'HMF' },      fr: { t: 'HMF', reviewed: true, sameAsEn: true } },
-    'label.band.hf':  { en: { t: 'HF SHELF' }, fr: { t: 'HF PLAT.', reviewed: true } },
+    'label.band.lf':  { en: { t: 'LF SHELF' }, fr: { t: 'LF PLAT.', reviewed: true } , 'zh-Hans': { t: '低频搁架', reviewed: 'mt' }},
+    'label.band.lmf': { en: { t: 'LMF' },      fr: { t: 'LMF', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '中低频', reviewed: 'mt' }},
+    'label.band.hmf': { en: { t: 'HMF' },      fr: { t: 'HMF', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '中高频', reviewed: 'mt' }},
+    'label.band.hf':  { en: { t: 'HF SHELF' }, fr: { t: 'HF PLAT.', reviewed: true } , 'zh-Hans': { t: '高频搁架', reviewed: 'mt' }},
 
     // ── The analog-saturation switch ────────────────────────────────────────
     //
@@ -549,7 +607,7 @@ export const LABELS = Object.freeze({
     // SATURATION (62.70) also spills. CHALEUR (47.55) fits and names a
     // different claim — warmth rather than the analogue path — so it was not
     // taken. A reviewer who prefers ANALOGIQUE must widen the button with it.
-    'label.analog': { en: { t: 'ANALOG' }, fr: { t: 'ANALOG.', reviewed: true } },
+    'label.analog': { en: { t: 'ANALOG' }, fr: { t: 'ANALOG.', reviewed: true } , 'zh-Hans': { t: '模拟', reviewed: 'mt' }},
 
     // ── The VU meter caption ────────────────────────────────────────────────
     //
@@ -557,7 +615,7 @@ export const LABELS = Object.freeze({
     // NIVEAU. The box is the meter's full 108 px content width and the text is
     // centred in it, so NIVEAU (41.33) has 66.67 px spare — the roomiest string
     // on the page by a wide margin.
-    'label.level': { en: { t: 'Level' }, fr: { t: 'Niveau', reviewed: true } },
+    'label.level': { en: { t: 'Level' }, fr: { t: 'Niveau', reviewed: true } , 'zh-Hans': { t: '电平', reviewed: 'mt' }},
 
     // ── The two preset buttons ──────────────────────────────────────────────
     //
@@ -587,8 +645,8 @@ export const LABELS = Object.freeze({
     // what O-Detune already ships for this control — and taking it would
     // require moving aria.loadPreset's French to match, so that label-in-name
     // still holds.
-    'label.save': { en: { t: 'SAVE' }, fr: { t: 'ENREG.',  reviewed: true } },
-    'label.load': { en: { t: 'LOAD' }, fr: { t: 'CHARGER', reviewed: true } },
+    'label.save': { en: { t: 'SAVE' }, fr: { t: 'ENREG.',  reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' }},
+    'label.load': { en: { t: 'LOAD' }, fr: { t: 'CHARGER', reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'mt' }},
 
     // ── The preset dropdown's empty line, written through setLabel() ────────
     //
@@ -602,19 +660,19 @@ export const LABELS = Object.freeze({
     //
     // The English is byte-identical to what v1.1.11 wrote at index.html:1017.
     // No prose was invented; it was moved into the table.
-    'label.noPresets': { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true } },
+    'label.noPresets': { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true } , 'zh-Hans': { t: '无预设', reviewed: 'mt' }},
 
     // ── The settings popover (v1.2.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' }},
 
     // v1.4.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
@@ -661,19 +719,19 @@ export const LABELS = Object.freeze({
     // O-Detune, O-DigiDelay, O-FreqPulse and O-Lyrica for the identical
     // control.
     'aria.prevPreset': { en: { t: 'Previous preset' },
-                         fr: { t: 'Préréglage précédent', reviewed: true } },
+                         fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'mt' }},
     'aria.nextPreset': { en: { t: 'Next preset' },
-                         fr: { t: 'Préréglage suivant',   reviewed: true } },
+                         fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'mt' }},
     'aria.presetList': { en: { t: 'Click to browse presets' },
-                         fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: true } },
+                         fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: true } , 'zh-Hans': { t: '点击浏览预设', reviewed: 'mt' }},
     'aria.savePreset': { en: { t: 'Save preset to file' },
-                         fr: { t: 'Enregistrer un préréglage dans un fichier', reviewed: true } },
+                         fr: { t: 'Enregistrer un préréglage dans un fichier', reviewed: true } , 'zh-Hans': { t: '保存预设到文件', reviewed: 'mt' }},
     'aria.loadPreset': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true } },
+                         fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true } , 'zh-Hans': { t: '从文件载入预设', reviewed: 'mt' }},
 
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'mt' }},
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'mt' }},
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }},
 });
 
 // ============================================================================
