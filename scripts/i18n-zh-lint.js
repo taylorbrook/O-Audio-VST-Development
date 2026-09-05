@@ -24,15 +24,25 @@
     i18n-zh-lint.js — Simplified Chinese typography and terminology, across
     every plugin.
 
-    ── REPORT TODAY, GATE LATER ──────────────────────────────────────────────
+    ── THIS IS A GATE ────────────────────────────────────────────────────────
 
-    This tool ships as a REPORT: it exits 0 regardless of what it finds. It is
-    promoted to a GATE — exit 2 on any finding — only once the Stage 2 pilot
-    (O-Chorus) is at zero findings. That is the exact lifecycle
-    scripts/i18n-fr-lint.js went through: report-only on the day 43 of 43
-    plugins failed it, a gate on 2026-08-31 once the rollout had taken every
-    plugin to 0. Shipping it as a gate on day one would let a half-built lint
-    block Stage 2, which is the failure this ordering exists to avoid.
+    This tool EXITS 2 on any finding. It shipped as a report — exit 0 whatever
+    it found — and was promoted on 2026-09-05, at the start of Stage 4 wave 4b,
+    once the promotion criterion it set for itself was met and measured: the
+    Stage 2 pilot (O-Chorus) and the whole corpus at zero findings (1034
+    entries, 0 / 43 plugins) with --self-test at 10/10. That is the exact
+    lifecycle scripts/i18n-fr-lint.js went through: report-only on the day 43
+    of 43 plugins failed it, a gate on 2026-08-31 once the rollout had taken
+    every plugin to 0. Shipping either one as a gate on day one would have let
+    a half-built lint block the rollout, which is the failure the ordering
+    exists to avoid; keeping it a report past its own criterion is the opposite
+    failure, and a report that has to be remembered is not a gate.
+
+    AUTHORING IS NOT BLOCKED. Entries at reviewed:'mt' — machine draft, not yet
+    read back — are counted in the BELOW SHIP BAR line and are NOT findings.
+    A wave can draft a whole table under the live gate and still exit 0; only
+    a typography or terminology violation blocks. That routing is load-bearing
+    and must not be changed without changing this paragraph with it.
 
     WHAT IT IS. check-i18n.js proves the MECHANISM: every key resolves, every
     entry carries a reviewed flag, the canon has not drifted. It says nothing
@@ -642,7 +652,7 @@ async function selfTest() {
     if (!plugins.length) { console.error(`i18n-zh-lint: no plugin matches --plugin ${only}`); return; }
 
     console.log('i18n-zh-lint — Simplified Chinese typography and terminology');
-    console.log(`  plugins: ${plugins.length}   (REPORT: exits 0 whatever it finds; becomes a gate once the O-Chorus pilot is at zero)\n`);
+    console.log(`  plugins: ${plugins.length}   (GATE: exit 2 on any finding; entries at reviewed:'mt' are counted, not failed)\n`);
 
     const totals = Object.fromEntries(CODES.map((c) => [c, 0]));
     let failedPlugins = 0, errors = 0, zhTotal = 0, sameAsEnTotal = 0, termNoteTotal = 0, mtTotal = 0;
@@ -697,5 +707,26 @@ async function selfTest() {
     const unbudgeted = glossaryTerms.length - budgeted;
     console.log(`  Z6 coverage: ${budgeted} of ${glossaryTerms.length} glossary terms carry a measured budget; ${unbudgeted} are UNBUDGETED and Z6 is inert on them — Stages 2-4 fill these from the check-ui-labels zh arm`);
     console.log(`  codes: Z1 ASCII punctuation  Z2 U+00A0 before punctuation  Z3 Traditional-only  Z4 Latin/CJK spacing  Z5 glossary  Z6 budget  Z7 full-width Latin  F1 forbidden  R1 reviewed enum  Z8 intra-Han space`);
-    console.log(`\nREPORT ONLY — exit 0. This becomes a gate (exit 2) once the O-Chorus pilot is at zero findings.`);
+    // ── the gate ────────────────────────────────────────────────────────────
+    // Promoted from report-only on 2026-09-05 (Stage 4 wave 4b), against a
+    // corpus measured at 0 findings across 43 plugins with --self-test 10/10.
+    //
+    // A findings count is the only thing that blocks. mtTotal is deliberately
+    // NOT in this expression: authoring a table happens at reviewed:'mt', and
+    // a gate that failed on machine drafts would make it impossible to commit
+    // a table between authoring and the reverse read — which is exactly the
+    // shape every wave of this rollout uses.
+    //
+    // A plugin that could not be READ blocks too. Its row printed ERROR and
+    // contributed no findings, so without this the corpus zero would include
+    // a plugin nothing was checked on — the vacuity failure this whole tool
+    // is built to refuse.
+    const findingTotal = Object.values(totals).reduce((a, b) => a + b, 0);
+    if (findingTotal || errors) {
+        console.log(`\nGATE FAILED — exit 2. ${findingTotal} finding(s) across ${failedPlugins} plugin(s)`
+            + `${errors ? `, and ${errors} plugin(s) could not be read` : ''}.`);
+        process.exit(2);
+    }
+    console.log(`\nGATE PASSED — exit 0. 0 findings across ${plugins.length} plugin(s).`
+        + `${mtTotal ? `  (${mtTotal} entr${mtTotal === 1 ? 'y is' : 'ies are'} at reviewed:'mt' — counted, not failed.)` : ''}`);
 })();
