@@ -2,6 +2,94 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.5.0] - 2026-09-04
+
+**Simplified Chinese.** The page, the hover help and every accessible name now
+render in 简体中文 alongside English and French. MINOR: a language is added; no
+parameter, range, type or state format changed, and the persisted language is
+still a BCP-47 tag on the APVTS tree.
+
+Wave 4a of the suite-wide zh-Hans rollout, and its TRACER — the smallest table
+in the wave, taken end to end through every layer before the other five copy it.
+
+### Added
+
+- **`zh-Hans` on all 20 entries** — 7 hover-help entries (a title and a body
+  each) and 13 labels. Twelve of the page's fourteen name strings are terms in
+  `scripts/i18n-zh-glossary.js` and take that term's root rendering, which lint
+  rule Z5 enforces: 输入 输出 强度 质量 自动增益 语言 悬停帮助 开 关 设置
+  界面语言 开关悬停帮助. The two that are not glossary terms are `Model` (模型)
+  and the snake plate's alt text (蛇形插画).
+- **The endonym `简体中文` in the language selector**, written as numeric
+  character references to match the `&ccedil;` already in the markup.
+- **A third branch in the language codec** (`PluginProcessor.h`). The stored
+  form is the BCP-47 tag, spelled identically in the C++, the `<option value>`
+  and `i18n.js`. **No Han character exists anywhere under `Source/`** — the C++
+  carries only the ASCII tag.
+
+### Changed
+
+- **The CJK font tail goes on six of the page's ten font stacks**, and it goes
+  BEFORE the trailing generic rather than after it. Chromium resolves a bare
+  `serif` against the document's language, so under `zh-Hans` the generic is
+  already a Chinese face and a tail written after it is never consulted —
+  measured with `CSS.getPlatformFontsForNode`: after the generic the Han
+  rendered Songti SC, before it the same node renders the PingFang SC the stack
+  names. Latin is unaffected: Times New Roman precedes the tail and answers for
+  it, and the English and French geometry arms are unmoved.
+- **`.vu-scale` now names its face instead of leaving it to the generic.** The
+  stack read `'Garamond', serif`, Garamond is not a macOS face, so the generic
+  was the only survivor — and the ASCII dB ticks therefore rendered Times under
+  English and French and Songti SC under Chinese. All six ticks shrank and the
+  space-between row redistributed: twelve reported movers, not one of them
+  holding a translated string. This was the page's ONLY geometry failure; no
+  line-height pin was needed anywhere, and the three existing min-width pins
+  were re-measured against the Chinese render rather than assumed safe.
+- **`tests/ui_tip_render_check.js` derives its language list** from the table's
+  own `LANGUAGES` export instead of naming `fr` positionally. The old spelling
+  carried no array literal, so the repo-wide inventory of two-language gate
+  files reported this one clean while it was every bit as two-language as the
+  twelve on that list. It ABORTS on a list it cannot read rather than looping
+  zero times and printing a pass; the control was fired.
+
+### Fixed
+
+- **Two hover-help bodies stated things that were false**, in English and in
+  French both, and both are REMOVED rather than extended. `tip.lang` counted the
+  selector's options ("English and French are available") and went false the
+  moment a third landed. `tip.gear` said the settings panel holds no hover-help
+  switch — and v1.4.0 put one there, so that claim shipped false for a whole
+  version. No gate in this repo can see either: the sentences stay grammatical
+  and the tooltips still render. The selector already lists the languages in
+  their endonyms, which is the one form a reader recognises without knowing the
+  page language. Both edits are deletions, so the French review flags stand.
+- **`偶次谐波` / `奇次谐波` for even- and odd-order harmonics**, corrected from
+  the forward draft's `泛音` (the overtone series — a related but distinct
+  numbering). The reverse pass could not surface this: `en'` came back
+  "harmonic" either way.
+
+### Review status
+
+Every Chinese string is at **`reviewed: 'bt'`** — drafted, then read back
+through an INDEPENDENT reverse pass, triple by triple, all 27 rows, twice.
+
+- forward: `claude-opus-5 forward draft + round-1 correction, quick-260904-qrc
+  Task 1, 2026-09-04`
+- reverse round 1: `claude-sonnet-4-5 reverse pass, fresh non-interactive
+  session, no tools, cwd outside the repo, 2026-09-04`
+- reverse round 2: `claude-opus-5 reverse pass, SECOND fresh session, fresh
+  salt, no tools, cwd outside the repo, 2026-09-04`
+
+The English was withheld from both batches and the row ids were blinded with a
+per-batch salt, so no reverse pass could recover a string's source or correlate
+round 2 against round 1. Round 2 shares zero ids with round 1 and returned no
+re-authors.
+
+**The native-reader level stays OPEN, and that is disclosed rather than hidden.**
+This project has no native Chinese reader; nobody who reads Chinese as a first
+language has read any string in this file. Lint rule `R1` prints the count below
+the bar on every run.
+
 ## [1.4.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
