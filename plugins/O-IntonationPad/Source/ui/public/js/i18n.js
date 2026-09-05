@@ -548,7 +548,11 @@ export const I18N = Object.freeze({
         fr: { t: 'Décalage',
               b: 'Retard aléatoire pour chaque voix de l’accord — donne un égrenage naturel (0-100 ms)',
               reviewed: true },
-        'zh-Hans': { t: '时值',
+        // Title 时序, not the glossary root 时值 — see label.timing's termNote.
+        // A tip title is lint-checked separately from its caption, so the
+        // exemption is stated on both or the pair drifts apart.
+        'zh-Hans': { t: '时序',
+              termNote: 'mirrors label.timing, whose termNote records the evidence: two blind reverse reads from two models both returned the glossary root 时值 as \'Duration\' rather than \'Timing\'.',
               b: '每个和弦声部的随机延迟偏移，带来自然的扫弦感（0-100 ms）',
               reviewed: 'mt' },
     },
@@ -831,7 +835,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Cercle des hauteurs',
               b: 'intervalles en rayons autour d’un cercle. Les notes actives apparaissent en rouge',
               reviewed: true },
-        'zh-Hans': { t: '音高圆盘',
+        'zh-Hans': { t: '音高圆环',
               b: '音程呈辐条状环绕圆周排列。活动音符以红色高亮',
               reviewed: 'mt' },
     },
@@ -911,7 +915,11 @@ export const I18N = Object.freeze({
         fr: { t: 'Étirement',
               b: 'Étirer ou comprimer le rapport d’octave. 1,00 = octave juste (1200 cents)',
               reviewed: true },
-        'zh-Hans': { t: '延展',
+        // Title 拉伸, not the glossary root 延展 — see label.stretch's termNote.
+        // The tooltip title mirrors the button caption on purpose, so it takes
+        // the same correction the caption did.
+        'zh-Hans': { t: '拉伸',
+              termNote: 'the glossary root for `stretch` is 延展; this title mirrors label.stretch, whose termNote records the evidence — the blind reverse read returned 延展 as both \'Sustain\' and \'Spread\', naming two OTHER controls on this page (延音 and 展宽, one shared character each). A tip title is lint-checked separately from its caption, so the exemption has to be stated twice or the pair goes out of sync the day one of them is edited.',
               b: '拉伸或压缩八度比率。1.00 为纯八度（1200 音分）',
               reviewed: 'mt' },
     },
@@ -1142,7 +1150,7 @@ export const LABELS = Object.freeze({
     'label.fltLfo':      { en: { t: 'Flt LFO' }, fr: { t: 'LFO filt.', reviewed: true } , 'zh-Hans': { t: '滤波 LFO', reviewed: 'mt' }},
     'label.velFlt':      { en: { t: 'Vel>Flt' }, fr: { t: 'Vél>Filt', reviewed: true } , 'zh-Hans': { t: '力度>滤波', reviewed: 'mt' }},
     'label.volume':      { en: { t: 'Volume' },  fr: { t: 'Volume',  reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '音量', reviewed: 'mt' }},
-    'label.timing':      { en: { t: 'Timing' },  fr: { t: 'Décalage', reviewed: true } , 'zh-Hans': { t: '时值', reviewed: 'mt' }},
+    'label.timing':      { en: { t: 'Timing' },  fr: { t: 'Décalage', reviewed: true } , 'zh-Hans': { t: '时序', termNote: 'the glossary root for `timing` is 时值, which in Chinese music theory is the DURATION of a note — its value in beats. This control is a random timing OFFSET per chord voice (a strum feel), which is a different idea, and two independent blind reverse reads in two sessions from two different models both returned 时值 as \'Duration\' rather than \'Timing\'. Same evidence shape as alt.botanical on O-Bass: a row whose back-translation is not its source has not met the \'bt\' bar, and agreement across two models makes it an evidenced defect rather than one reader\'s preference. 时序 is the ordinary term for timing in the sense of when things happen. The root itself is reported to the glossary owners rather than edited here: changing a settled root puts other plugins out of Z5 conformance.', reviewed: 'mt' }},
     'label.detune':      { en: { t: 'Detune' },  fr: { t: 'Désacc.', reviewed: true } , 'zh-Hans': { t: '失谐', reviewed: 'mt' }},
 
     // ── Effects tab ─────────────────────────────────────────────────────────
@@ -1210,7 +1218,7 @@ export const LABELS = Object.freeze({
     'label.catWorld':          { en: { t: 'World' },           fr: { t: 'Du monde',      reviewed: true } , 'zh-Hans': { t: '世界音律', reviewed: 'mt' }},
     // "A4" is a pitch identifier and stays; only the abbreviation "REF" moves.
     'label.a4Ref':       { en: { t: 'A4 REF' },   fr: { t: 'RÉF. A4',   reviewed: true } , 'zh-Hans': { t: 'A4 基准', reviewed: 'mt' }},
-    'label.stretch':     { en: { t: 'Stretch' },  fr: { t: 'Étirement', reviewed: true } , 'zh-Hans': { t: '延展', reviewed: 'mt' }},
+    'label.stretch':     { en: { t: 'Stretch' },  fr: { t: 'Étirement', reviewed: true } , 'zh-Hans': { t: '拉伸', termNote: 'the glossary root for `stretch` is 延展, and the blind reverse read returned it as "Sustain" on the caption and "Spread" on the tooltip title — BOTH of which name a different control on this same page: label.sustain is the envelope sustain (延音, and 延展 shares its first character) and label.spread is the stereo spread (展宽, which shares its second). A rendering a reader can confuse with two other controls on the page it lives on has not met the \'bt\' bar; the discriminator for this rollout is collision on the page, not drift distance, and this row collided twice. 拉伸 is the ordinary Chinese verb for stretching a thing and shares no character with either neighbour. The root itself is reported to the glossary owners rather than edited here: changing a settled root puts other plugins out of Z5 conformance.', reviewed: 'mt' }},
     'label.pbRange':     { en: { t: 'PB Range' }, fr: { t: 'Plage PB',  reviewed: true } , 'zh-Hans': { t: '弯音范围', reviewed: 'mt' }},
     // The four file buttons keep their EXTENSIONS, which are file-format
     // identifiers, and translate only the verb.
