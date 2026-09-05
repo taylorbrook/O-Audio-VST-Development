@@ -1,5 +1,70 @@
 # O-Bass Changelog
 
+## [1.7.0] - 2026-09-04
+
+**Simplified Chinese.** Every caption, hover-help body and accessible name
+renders in 简体中文 alongside English and French. MINOR: a language is added; no
+parameter, range, type or state format changed.
+
+Wave 4a of the suite-wide zh-Hans rollout.
+
+### Added
+
+- **`zh-Hans` on all 29 entries.** 28 of the 29 name strings take their rendering from `scripts/i18n-zh-glossary.js`. Lint rule Z5 enforces the
+  glossary renderings.
+- **The endonym `简体中文`** in the language selector, as numeric character
+  references.
+- **A third branch in the language codec** (`PluginProcessor.h`), pure ASCII.
+  **No Han character exists anywhere under `Source/`.**
+
+### Changed
+
+- **The CJK font tail on five measured declarations, and two more stacks
+  repaired without one.** `.preset-nav-btn` and `.preset-name` read
+  `'Garamond', serif`; Garamond is not a macOS face, so the bare generic was the
+  only survivor — and Chromium resolves a generic against the document's
+  language, so their Latin would have rendered in a Chinese face under Chinese
+  while rendering Times under English and French. Naming Times New Roman pins
+  them. They carry no Han, so they take no CJK tail.
+- **Seven line-height pins** closed thirteen moved elements across the knob row.
+
+### Fixed
+
+- **Two hover-help bodies stated things that were false**, in English and in
+  French both, and both are removed rather than extended. `tip.settings` said the panel holds one control while the hover-help switch sits beside the selector, and `tip.language` named the two available languages. No gate can
+  see this class of defect — the sentences stay grammatical and the tooltips
+  render — and both edits are deletions, so the French review flags stand.
+- **`alt.botanical` no longer reads 植物律.** The glossary's settled root for
+  `botanical` uses 律 — temperament or law — on the alt text of a decorative
+  plant illustration, and it FAILED THE REVERSE READ TWICE, from two different
+  models: "Phytometric", then "Plant Law [or: Plant Rhythm]". A row whose
+  back-translation is not its English has not met the `bt` bar, so this is an
+  evidenced defect rather than a preference, which is what a `termNote` is for.
+  It now reads 植物插画, matching this wave's rendering of O-AnalogSaturation's
+  decorative plate, and a third pass returned "Plant illustration". **The
+  glossary itself is not edited** — changing a settled root could put other
+  plugins out of conformance, so it is reported to its owners instead.
+
+### Review status
+
+Every Chinese string is at **`reviewed: 'bt'`** — drafted, then read back through
+an INDEPENDENT reverse pass, triple by triple, all 35 rows, three times.
+
+- forward: `claude-opus-5 forward draft, quick-260904-qrc Task 3, 2026-09-04`
+- reverse round 1: `claude-sonnet-4-5 reverse pass, fresh non-interactive
+  session, no tools, cwd outside the repo, 2026-09-04`
+- reverse round 2: `claude-opus-5 reverse pass, SECOND fresh session, fresh
+  salt, no tools, cwd outside the repo, 2026-09-04`
+- reverse round 3: `claude-sonnet-4-5 reverse pass, THIRD fresh session, fresh
+  salt, no tools, cwd outside the repo, 2026-09-04`
+
+The English was withheld from every batch and the row ids were blinded with a
+per-batch salt, so no pass could recover a string's source or correlate one
+round against another. Each round shares zero ids with the last.
+
+**The native-reader level stays OPEN, and that is disclosed rather than hidden.**
+This project has no native Chinese reader.
+
 ## [1.6.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
