@@ -379,7 +379,7 @@ export const I18N = Object.freeze({
                + 'Plage de −24 à +24 demi-tons.',
               reviewed: true },
     'zh-Hans': { t: '振荡器 A 粗调',
-          b: '以整半音移调振荡器 A，上下各两个八度，因此五度、八度或高两个八度的主音叠层都只有一转之遥。范围 −24 到 +24 半音。',
+          b: '以整半音移调振荡器 A，上下各两个八度，因此五度、八度或高两个八度的主音叠层都只有一转之遥。范围 −24 到 +24 st。',
           reviewed: 'mt' },
     },
     'tip.oscAFine': {
@@ -393,7 +393,7 @@ export const I18N = Object.freeze({
                + 'épaissit un son sans recourir à l’unisson. Plage de −100 à +100 cents.',
               reviewed: true },
     'zh-Hans': { t: '振荡器 A 微调',
-          b: '以音分微调振荡器 A 的音高，上下各一个整半音。相对振荡器 B 偏移几个音分，就能得到不用齐奏也能加厚音色的缓慢拍频。范围 −100 到 +100 音分。',
+          b: '以音分微调振荡器 A 的音高，上下各一个整半音。相对振荡器 B 偏移几个音分，就能得到不用齐奏也能加厚音色的缓慢拍频。范围 −100 到 +100 ct。',
           reviewed: 'mt' },
     },
     'tip.oscAPhase': {
@@ -553,7 +553,7 @@ export const I18N = Object.freeze({
                + 'plupart des sons superposés. Plage de −24 à +24 demi-tons.',
               reviewed: true },
     'zh-Hans': { t: '振荡器 B 粗调',
-          b: '以整半音移调振荡器 B，上下各两个八度。让 B 相对 A 偏移一个五度或一个八度，是大多数叠层音色的搭建方式。范围 −24 到 +24 半音。',
+          b: '以整半音移调振荡器 B，上下各两个八度。让 B 相对 A 偏移一个五度或一个八度，是大多数叠层音色的搭建方式。范围 −24 到 +24 st。',
           reviewed: 'mt' },
     },
     'tip.oscBFine': {
@@ -566,7 +566,7 @@ export const I18N = Object.freeze({
                + 'Plage de −100 à +100 cents.',
               reviewed: true },
     'zh-Hans': { t: '振荡器 B 微调',
-          b: '以音分微调振荡器 B 的音高，上下各一个整半音。相对振荡器 A 偏移十到十五音分，就是经典的缓慢拍频。范围 −100 到 +100 音分。',
+          b: '以音分微调振荡器 B 的音高，上下各一个整半音。相对振荡器 A 偏移十到十五音分，就是经典的缓慢拍频。范围 −100 到 +100 ct。',
           reviewed: 'mt' },
     },
     'tip.oscBPhase': {
@@ -969,7 +969,7 @@ export const I18N = Object.freeze({
                + 'bande. Plage : LP12, LP24, HP12, HP24, BP12, BP24, Notch.',
               reviewed: true },
     'zh-Hans': { t: '滤波器 B 类型',
-          b: '滤波器 B 的响应，与滤波器 A 同样的七种形状。串联时用低通的 A 接高通的 B，是搭出一个频段的常规做法。范围：LP12、LP24、HP12、HP24、BP12、BP24、'
+          b: '滤波器 B 的响应，与滤波器 A 同样的七种形状。Serial 时用低通的 A 接高通的 B，是搭出一个频段的常规做法。范围：LP12、LP24、HP12、HP24、BP12、BP24、'
            + 'Notch。',
           reviewed: 'mt' },
     },
@@ -997,7 +997,7 @@ export const I18N = Object.freeze({
                + 'Plage de 0 à 100 %.',
               reviewed: true },
     'zh-Hans': { t: '滤波器 B 共振',
-          b: '滤波器 B 在截止频率处的强调。并联时两个位于不同频率的共振峰会给出类似元音的音色。范围 0 到 100%。',
+          b: '滤波器 B 在截止频率处的强调。Parallel 时两个位于不同频率的共振峰会给出类似元音的音色。范围 0 到 100%。',
           reviewed: 'mt' },
     },
     'tip.filtBDrive': {
@@ -1011,7 +1011,7 @@ export const I18N = Object.freeze({
                + 'même réglage. Plage de 0 à 100 %.',
               reviewed: true },
     'zh-Hans': { t: '滤波器 B 驱动',
-          b: '滤波器 B 内部的饱和。串联时它作用在已被滤波器 A 塑造过的信号上，因此在相同设定下它的染色与滤波器 A 的驱动不同。范围 0 到 100%。',
+          b: '滤波器 B 内部的饱和。Serial 时它作用在已被滤波器 A 塑造过的信号上，因此在相同设定下它的染色与滤波器 A 的驱动不同。范围 0 到 100%。',
           reviewed: 'mt' },
     },
     'tip.filtBKeyTrack': {
@@ -1037,7 +1037,7 @@ export const I18N = Object.freeze({
                + 'travailler côte à côte et somme les résultats à mi-gain. Plage : Serial, Parallel.',
               reviewed: true },
     'zh-Hans': { t: '滤波器路由',
-          b: '两个滤波器的接法。串联让声部先经过 A 再经过 B，这是用两段斜率搭出带通的方式；并联让它们并排运行，并以一半增益求和。范围：Serial、Parallel。',
+          b: '两个滤波器的接法。Serial 让声部先经过 A 再经过 B，这是用两段斜率搭出带通的方式；Parallel 让它们并排运行，并以一半增益求和。范围：Serial、Parallel。',
           reviewed: 'mt' },
     },
 
@@ -1088,7 +1088,7 @@ export const I18N = Object.freeze({
                + 'Plage de 1 à 48 demi-tons.',
               reviewed: true },
     'zh-Hans': { t: '弯音范围',
-          b: '弯音轮向两个方向弯多少个半音。两个半音是常见的默认值；十二个半音则把弯音轮变成一根八度杠杆。范围 1 到 48 半音。',
+          b: '弯音轮向两个方向弯多少个半音。两个半音是常见的默认值；十二个半音则把弯音轮变成一根八度杠杆。范围 1 到 48 st。',
           reviewed: 'mt' },
     },
     'tip.glideMode': {
@@ -1140,7 +1140,7 @@ export const I18N = Object.freeze({
                + 'Plage : MARCHE, ARRÊT.',
               reviewed: true },
     'zh-Hans': { t: '混响旁通',
-          b: '把混响接入或旁通。混响运行时按钮显示 ON，被旁通时显示 OFF——注意自动化通道把这个参数叫作 Bypass，所以它的 On 对应这个按钮的 OFF。范围：ON、OFF。',
+          b: '把混响接入或旁通。混响运行时按钮显示开，被旁通时显示关——注意自动化通道把这个参数叫作 Bypass，所以它的 On 对应这个按钮的 OFF。范围：开、关。',
           reviewed: 'mt' },
     },
     'tip.reverbSize': {
@@ -1193,7 +1193,7 @@ export const I18N = Object.freeze({
                + 'Plage de 0 à 100 %.',
               reviewed: true },
     'zh-Hans': { t: '混响混合',
-          b: '干信号与混响之间的平衡。它默认为 0，所以即使这一段已经开着，在提高它之前混响仍然听不见。范围 0 到 100%。',
+          b: '干信号与混响之间的平衡。它默认为 0，所以即使这一段已经切到开，在提高它之前混响仍然听不见。范围 0 到 100%。',
           reviewed: 'mt' },
     },
     'tip.reverbModDepth': {
@@ -1239,7 +1239,7 @@ export const I18N = Object.freeze({
                + 'bouton. Plage : MARCHE, ARRÊT.',
               reviewed: true },
     'zh-Hans': { t: '延迟旁通',
-          b: '把延迟接入或旁通。延迟运行时按钮显示 ON，被旁通时显示 OFF；自动化通道的 Bypass On 对应这个按钮的 OFF。范围：ON、OFF。',
+          b: '把延迟接入或旁通。延迟运行时按钮显示开，被旁通时显示关；自动化通道的 Bypass On 对应这个按钮的 OFF。范围：开、关。',
           reviewed: 'mt' },
     },
     'tip.delayTime': {
@@ -1339,7 +1339,7 @@ export const I18N = Object.freeze({
                + 'l’ARRÊT du bouton. Plage : MARCHE, ARRÊT.',
               reviewed: true },
     'zh-Hans': { t: '合唱旁通',
-          b: '把合唱接入或旁通。合唱运行时按钮显示 ON，被旁通时显示 OFF；自动化通道的 Bypass On 对应这个按钮的 OFF。范围：ON、OFF。',
+          b: '把合唱接入或旁通。合唱运行时按钮显示开，被旁通时显示关；自动化通道的 Bypass On 对应这个按钮的 OFF。范围：开、关。',
           reviewed: 'mt' },
     },
     'tip.chorusRate': {
@@ -1394,7 +1394,7 @@ export const I18N = Object.freeze({
                + 'du bouton. Plage : MARCHE, ARRÊT.',
               reviewed: true },
     'zh-Hans': { t: '失真旁通',
-          b: '把失真接入或旁通。运行时按钮显示 ON，被旁通时显示 OFF；自动化通道的 Bypass On 对应这个按钮的 OFF。范围：ON、OFF。',
+          b: '把失真接入或旁通。运行时按钮显示开，被旁通时显示关；自动化通道的 Bypass On 对应这个按钮的 OFF。范围：开、关。',
           reviewed: 'mt' },
     },
     'tip.distType': {
@@ -1455,7 +1455,7 @@ export const I18N = Object.freeze({
                + 'l’ARRÊT du bouton. Plage : MARCHE, ARRÊT.',
               reviewed: true },
     'zh-Hans': { t: '均衡旁通',
-          b: '把三段均衡接入或旁通。运行时按钮显示 ON，被旁通时显示 OFF；自动化通道的 Bypass On 对应这个按钮的 OFF。范围：ON、OFF。',
+          b: '把三段均衡接入或旁通。运行时按钮显示开，被旁通时显示关；自动化通道的 Bypass On 对应这个按钮的 OFF。范围：开、关。',
           reviewed: 'mt' },
     },
     'tip.eqLowGain': {
@@ -1565,7 +1565,7 @@ export const I18N = Object.freeze({
                + 'échange aussi les deux commandes voisines. Plage : Libre, Synchro.',
               reviewed: true },
     'zh-Hans': { t: 'LFO 1 同步',
-          b: '把 LFO 1 锁到宿主速度上。LFO 按自身速率运行时按钮显示 Free，跟随时值时显示 Sync；切换时也会替换旁边显示的是两个控件中的哪一个。范围：Free、Sync。',
+          b: '把 LFO 1 锁到宿主速度上。LFO 按自身速率运行时按钮显示自由，跟随时值时显示同步；切换时也会替换旁边显示的是两个控件中的哪一个。范围：自由、同步。',
           reviewed: 'mt' },
     },
     'tip.lfo1Division': {
@@ -1596,8 +1596,8 @@ export const I18N = Object.freeze({
                + 'Plage : Redécl., Continu.',
               reviewed: true },
     'zh-Hans': { t: 'LFO 1 自由运行',
-          b: '决定 LFO 1 的相位是否在每个音符上重新开始。Retrig 让每个音符都从同一点得到同样的扫描；Free Run 让一个相位跨音符持续运行，因此按住的和弦会一起运动，而不是各自处在散乱的相位上。'
-           + '范围：Retrig、Free Run。',
+          b: '决定 LFO 1 的相位是否在每个音符上重新开始。重触发让每个音符都从同一点得到同样的扫描；自由运行让一个相位跨音符持续运行，因此按住的和弦会一起运动，而不是各自处在散乱的相位上。'
+           + '范围：重触发、自由运行。',
           reviewed: 'mt' },
     },
 
@@ -1639,7 +1639,7 @@ export const I18N = Object.freeze({
                + 'échange aussi les deux commandes voisines. Plage : Libre, Synchro.',
               reviewed: true },
     'zh-Hans': { t: 'LFO 2 同步',
-          b: '把 LFO 2 锁到宿主速度上。LFO 按自身速率运行时按钮显示 Free，跟随时值时显示 Sync；切换时也会替换旁边显示的是两个控件中的哪一个。范围：Free、Sync。',
+          b: '把 LFO 2 锁到宿主速度上。LFO 按自身速率运行时按钮显示自由，跟随时值时显示同步；切换时也会替换旁边显示的是两个控件中的哪一个。范围：自由、同步。',
           reviewed: 'mt' },
     },
     'tip.lfo2Division': {
@@ -1670,8 +1670,8 @@ export const I18N = Object.freeze({
                + 'Plage : Redécl., Continu.',
               reviewed: true },
     'zh-Hans': { t: 'LFO 2 自由运行',
-          b: '决定 LFO 2 的相位是否在每个音符上重新开始。Retrig 让每个音符都从同一点得到同样的扫描；Free Run 让一个相位跨音符持续运行，因此按住的和弦会一起运动，而不是各自处在散乱的相位上。'
-           + '范围：Retrig、Free Run。',
+          b: '决定 LFO 2 的相位是否在每个音符上重新开始。重触发让每个音符都从同一点得到同样的扫描；自由运行让一个相位跨音符持续运行，因此按住的和弦会一起运动，而不是各自处在散乱的相位上。'
+           + '范围：重触发、自由运行。',
           reviewed: 'mt' },
     },
 
@@ -1713,7 +1713,7 @@ export const I18N = Object.freeze({
                + 'échange aussi les deux commandes voisines. Plage : Libre, Synchro.',
               reviewed: true },
     'zh-Hans': { t: 'LFO 3 同步',
-          b: '把 LFO 3 锁到宿主速度上。LFO 按自身速率运行时按钮显示 Free，跟随时值时显示 Sync；切换时也会替换旁边显示的是两个控件中的哪一个。范围：Free、Sync。',
+          b: '把 LFO 3 锁到宿主速度上。LFO 按自身速率运行时按钮显示自由，跟随时值时显示同步；切换时也会替换旁边显示的是两个控件中的哪一个。范围：自由、同步。',
           reviewed: 'mt' },
     },
     'tip.lfo3Division': {
@@ -1744,8 +1744,8 @@ export const I18N = Object.freeze({
                + 'Plage : Redécl., Continu.',
               reviewed: true },
     'zh-Hans': { t: 'LFO 3 自由运行',
-          b: '决定 LFO 3 的相位是否在每个音符上重新开始。Retrig 让每个音符都从同一点得到同样的扫描；Free Run 让一个相位跨音符持续运行，因此按住的和弦会一起运动，而不是各自处在散乱的相位上。'
-           + '范围：Retrig、Free Run。',
+          b: '决定 LFO 3 的相位是否在每个音符上重新开始。重触发让每个音符都从同一点得到同样的扫描；自由运行让一个相位跨音符持续运行，因此按住的和弦会一起运动，而不是各自处在散乱的相位上。'
+           + '范围：重触发、自由运行。',
           reviewed: 'mt' },
     },
 
@@ -1787,7 +1787,7 @@ export const I18N = Object.freeze({
                + 'échange aussi les deux commandes voisines. Plage : Libre, Synchro.',
               reviewed: true },
     'zh-Hans': { t: 'LFO 4 同步',
-          b: '把 LFO 4 锁到宿主速度上。LFO 按自身速率运行时按钮显示 Free，跟随时值时显示 Sync；切换时也会替换旁边显示的是两个控件中的哪一个。范围：Free、Sync。',
+          b: '把 LFO 4 锁到宿主速度上。LFO 按自身速率运行时按钮显示自由，跟随时值时显示同步；切换时也会替换旁边显示的是两个控件中的哪一个。范围：自由、同步。',
           reviewed: 'mt' },
     },
     'tip.lfo4Division': {
@@ -1818,8 +1818,8 @@ export const I18N = Object.freeze({
                + 'Plage : Redécl., Continu.',
               reviewed: true },
     'zh-Hans': { t: 'LFO 4 自由运行',
-          b: '决定 LFO 4 的相位是否在每个音符上重新开始。Retrig 让每个音符都从同一点得到同样的扫描；Free Run 让一个相位跨音符持续运行，因此按住的和弦会一起运动，而不是各自处在散乱的相位上。'
-           + '范围：Retrig、Free Run。',
+          b: '决定 LFO 4 的相位是否在每个音符上重新开始。重触发让每个音符都从同一点得到同样的扫描；自由运行让一个相位跨音符持续运行，因此按住的和弦会一起运动，而不是各自处在散乱的相位上。'
+           + '范围：重触发、自由运行。',
           reviewed: 'mt' },
     },
 
