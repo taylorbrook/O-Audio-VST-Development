@@ -32,6 +32,62 @@
 // blocker: THIS PROJECT HAS NO NATIVE CHINESE READER. That is a disclosed
 // quality level, not a hidden one.
 //
+// ── THE REVIEW THAT ACTUALLY HAPPENED: TWO ROUNDS, 297 TRIPLES ──────────────
+// Round 1: all 296 rows emitted blinded (opaque 12-hex ids, per-batch salt, the
+// English and the key names withheld) and read by a blind claude-sonnet-5
+// subagent given the batch file and nothing else — no manifest, no repo access.
+// 296 joined, 0 REFUSED, 0 unjoinable. ALL 296 TRIPLES WERE READ with
+// --verbose; the default output truncates to twelve, which is 4% of this batch,
+// and across the two prior tasks of this stage ZERO of eight real findings
+// ranked inside the twelve. The score is a SORT KEY, not a verdict.
+//
+// ONE ROW WAS RE-AUTHORED, and it is the defect class THIS FILE's own v1.25.1
+// header already records in French (N1 correction 11: two French names for one
+// control). The Vel-XF knob caption read 力度渐变 — "velocity FADE" — while its
+// own tooltip title read 力度交叉渐变, "velocity crossfade". English "Vel-XF" is
+// a true abbreviation of "Velocity Crossfade"; 力度渐变 was not an abbreviation
+// of anything, it was a second and competing name for one control. Now 力度交叉,
+// a literal prefix of its own title, at identical width (4 Han either way).
+//
+// Round 2 read that one row under a FRESH per-batch salt (no id shared with
+// round 1, so the reader could not correlate which row had been rejected) and a
+// FRESH agent with no round-1 exposure — both matter, and they guard different
+// things: the salt stops correlation, the fresh agent stops it agreeing with
+// its own earlier answer. It returned "Dynamics Crossover".
+//
+// THAT WAS ACCEPTED, on the collision discriminator rather than the drift
+// distance. 交叉 occurs in exactly TWO strings in this whole table — this
+// caption and its own tooltip title — so it collides with nothing. 力度 is
+// velocity everywhere on this page (力度层, MIDI 力度) while Dynamics has its
+// own separate rendering 动态 (动态/动态模式/动态范围), so the two never share a
+// string; "Dynamics" was the contextless reader's gloss of 力度, not a page
+// ambiguity. And there is no crossover control here to confuse it with — a
+// filter crossover would be 分频, which appears nowhere. THE QUESTION IS NOT
+// HOW FAR en' DRIFTED. It is whether a reader ON THE PAGE can confuse this
+// string with another control on the same page.
+//
+// ONE CANDIDATE CORRECTION WAS REVERSED, and the reason belongs here because it
+// is the boundary of this executor's authority. label.genRank2 (二阶音律) came
+// back "Second-order tuning", and in regular-temperament theory "rank" is the
+// number of independent generators — 秩 in Chinese mathematics, not 阶. I
+// changed it to 秩 2 音律 and Z5 fired: 二阶音律 IS THE GLOSSARY'S OWN ROOT.
+// Unlike label.genDivisions, which earned its termNote on an objective PAGE
+// COLLISION, this is a pure terminology preference with no collision and no
+// native reader to adjudicate it. Reverted to the root, and the concern is
+// recorded for the glossary owners instead of settled unilaterally in one
+// plugin's table.
+//
+// ACCEPTED SYNONYMS, each read and each kept: 圆周 (Circle -> "Circumference"),
+// 木管 (Winds -> "Woodwinds" — Dorico's Winds family IS the woodwinds),
+// 真实键位, 历史音律 / 世界音律, 极坐标, 终止泛音 — all glossary roots;
+// 浏览… / 自动检测 / 全部重置, which mirror decisions this file's French already
+// settled; and the large set of number- and part-of-speech-only rows Chinese
+// cannot mark at all. One deserves a native reader's eye when there is one:
+// label.tkHint's root 按住 2 个以上音符 came back "more than 2 notes", where the
+// English is "2+". 以上 is INCLUSIVE by the GB/T convention, so the root is
+// right and the English gloss is loose — but it is the one row where a wrong
+// reading would cost a user a working feature.
+//
 // ── THE GLOSSARY-ROOT COLLISION, AND WHY IT IS NOT THE DITHER/JITTER SHAPE ──
 // Screening this page's English against the 552-term glossary BEFORE authoring
 // (the Task-2 procedure) found three English pairs sharing one Chinese root:
@@ -381,97 +437,97 @@ export const I18N = Object.freeze({
     'toast.filesSkipped': {
         en: { t: 'Files skipped: {n}', b: '' },
         fr: { t: 'Fichiers ignorés : {n}', b: '', reviewed: true },
-        'zh-Hans': { t: '已跳过文件：{n}', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '已跳过文件：{n}', b: '', reviewed: 'bt' }
     },
     'toast.nothingToDelete': {
         en: { t: 'Nothing to delete on that cell.', b: '' },
         fr: { t: 'Rien à supprimer dans cette case.', b: '', reviewed: true },
-        'zh-Hans': { t: '该格没有可删除的内容。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '该格没有可删除的内容。', b: '', reviewed: 'bt' }
     },
     'toast.layerCleared': {
         en: { t: 'Layer {mark} · samples removed: {n}', b: '' },
         fr: { t: 'Couche {mark} · échantillons supprimés : {n}', b: '', reviewed: true },
-        'zh-Hans': { t: '层 {mark} · 已移除采样：{n}', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '层 {mark} · 已移除采样：{n}', b: '', reviewed: 'bt' }
     },
     'toast.layerAlreadyEmpty': {
         en: { t: 'Layer {mark} was already empty.', b: '' },
         fr: { t: 'La couche {mark} était déjà vide.', b: '', reviewed: true },
-        'zh-Hans': { t: '层 {mark} 本来就是空的。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '层 {mark} 本来就是空的。', b: '', reviewed: 'bt' }
     },
     'toast.loopPointsApplied': {
         en: { t: 'Loop points applied · samples updated: {n}', b: '' },
         fr: { t: 'Points de boucle appliqués · échantillons mis à jour : {n}', b: '', reviewed: true },
-        'zh-Hans': { t: '循环点已应用 · 已更新采样：{n}', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '循环点已应用 · 已更新采样：{n}', b: '', reviewed: 'bt' }
     },
     'toast.noLoopableSamples': {
         en: { t: 'No loopable samples to update.', b: '' },
         fr: { t: 'Aucun échantillon bouclable à mettre à jour.', b: '', reviewed: true },
-        'zh-Hans': { t: '没有可循环的采样需要更新。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '没有可循环的采样需要更新。', b: '', reviewed: 'bt' }
     },
     'toast.loopApplyNote': {
         en: { t: 'New loop points apply to next note-on.', b: '' },
         fr: { t: 'Les nouveaux points de boucle prennent effet à la prochaine note.', b: '', reviewed: true },
-        'zh-Hans': { t: '新的循环点将在下一个音符触发时生效。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '新的循环点将在下一个音符触发时生效。', b: '', reviewed: 'bt' }
     },
     'toast.resizeWider': {
         en: { t: 'Resize wider to use the loop editor.', b: '' },
         fr: { t: 'Élargissez la fenêtre pour utiliser l’éditeur de boucle.', b: '', reviewed: true },
-        'zh-Hans': { t: '把窗口调宽才能使用循环编辑器。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '把窗口调宽才能使用循环编辑器。', b: '', reviewed: 'bt' }
     },
     'toast.folderLoadFailed': {
         en: { t: 'Folder load failed', b: '' },
         fr: { t: 'Échec du chargement du dossier', b: '', reviewed: true },
-        'zh-Hans': { t: '文件夹载入失败', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '文件夹载入失败', b: '', reviewed: 'bt' }
     },
     'toast.waveformUnavailable': {
         en: { t: 'Unable to load waveform for this cell.', b: '' },
         fr: { t: 'Impossible de charger la forme d’onde de cette case.', b: '', reviewed: true },
-        'zh-Hans': { t: '无法载入该格的波形。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '无法载入该格的波形。', b: '', reviewed: 'bt' }
     },
     'toast.presetSaved': {
         en: { t: 'Preset saved', b: '' },
         fr: { t: 'Préréglage enregistré', b: '', reviewed: true },
-        'zh-Hans': { t: '预设已保存', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '预设已保存', b: '', reviewed: 'bt' }
     },
     'toast.presetSaveFailed': {
         en: { t: 'Save preset failed', b: '' },
         fr: { t: 'Échec de l’enregistrement du préréglage', b: '', reviewed: true },
-        'zh-Hans': { t: '预设保存失败', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '预设保存失败', b: '', reviewed: 'bt' }
     },
     'toast.presetLoaded': {
         en: { t: 'Preset loaded', b: '' },
         fr: { t: 'Préréglage chargé', b: '', reviewed: true },
-        'zh-Hans': { t: '预设已载入', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '预设已载入', b: '', reviewed: 'bt' }
     },
     'toast.presetLoadFailed': {
         en: { t: 'Load preset failed', b: '' },
         fr: { t: 'Échec du chargement du préréglage', b: '', reviewed: true },
-        'zh-Hans': { t: '预设载入失败', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '预设载入失败', b: '', reviewed: 'bt' }
     },
     'toast.folderLocated': {
         en: { t: 'Folder located — loading…', b: '' },
         fr: { t: 'Dossier localisé — chargement…', b: '', reviewed: true },
-        'zh-Hans': { t: '已定位文件夹——正在载入…', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '已定位文件夹——正在载入…', b: '', reviewed: 'bt' }
     },
     'toast.locateFolderFailed': {
         en: { t: 'Locate folder failed', b: '' },
         fr: { t: 'Échec de la localisation du dossier', b: '', reviewed: true },
-        'zh-Hans': { t: '文件夹定位失败', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '文件夹定位失败', b: '', reviewed: 'bt' }
     },
     'toast.embedDialogMissing': {
         en: { t: 'Internal UI error: confirmation dialog unavailable — embed cancelled.', b: '' },
         fr: { t: 'Erreur interne : boîte de confirmation indisponible — intégration annulée.', b: '', reviewed: true },
-        'zh-Hans': { t: '内部界面错误：确认对话框不可用——嵌入已取消。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '内部界面错误：确认对话框不可用——嵌入已取消。', b: '', reviewed: 'bt' }
     },
     'toast.rrDialogMissing': {
         en: { t: 'Internal UI error: round-robin confirmation dialog unavailable — load cancelled.', b: '' },
         fr: { t: 'Erreur interne : boîte de confirmation round-robin indisponible — chargement annulé.', b: '', reviewed: true },
-        'zh-Hans': { t: '内部界面错误：循环轮替确认对话框不可用——载入已取消。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '内部界面错误：循环轮替确认对话框不可用——载入已取消。', b: '', reviewed: 'bt' }
     },
     'toast.techniquePresetApplied': {
         en: { t: 'Applied {family} technique names', b: '' },
         fr: { t: 'Noms de techniques « {family} » appliqués', b: '', reviewed: true },
-        'zh-Hans': { t: '已应用 {family} 技法名称', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '已应用 {family} 技法名称', b: '', reviewed: 'bt' }
     },
 
     // ── confirmation-dialog arguments ─────────────────────────────────────
@@ -480,47 +536,47 @@ export const I18N = Object.freeze({
     'msg.deleteSampleTitle': {
         en: { t: 'Delete this sample?', b: '' },
         fr: { t: 'Supprimer cet échantillon ?', b: '', reviewed: true },
-        'zh-Hans': { t: '删除这个采样吗？', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '删除这个采样吗？', b: '', reviewed: 'bt' }
     },
     'msg.deleteSampleBody': {
         en: { t: 'Remove the sample on {note}, velocity layer {mark}{tech}.', b: '' },
         fr: { t: 'Retirer l’échantillon sur {note}, couche de vélocité {mark}{tech}.', b: '', reviewed: true },
-        'zh-Hans': { t: '移除 {note} 上、力度层 {mark}{tech} 的采样。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '移除 {note} 上、力度层 {mark}{tech} 的采样。', b: '', reviewed: 'bt' }
     },
     'msg.deleteBtn': {
         en: { t: 'Delete', b: '' },
         fr: { t: 'Supprimer', b: '', reviewed: true },
-        'zh-Hans': { t: '删除', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '删除', b: '', reviewed: 'bt' }
     },
     'msg.clearLayerTitle': {
         en: { t: 'Clear velocity layer {mark}?', b: '' },
         fr: { t: 'Effacer la couche de vélocité {mark} ?', b: '', reviewed: true },
-        'zh-Hans': { t: '清除力度层 {mark} 吗？', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '清除力度层 {mark} 吗？', b: '', reviewed: 'bt' }
     },
     'msg.clearLayerBody': {
         en: { t: 'Remove every sample in velocity layer {mark}, across all techniques. This cannot be undone.', b: '' },
         fr: { t: 'Retirer tous les échantillons de la couche de vélocité {mark}, pour toutes les techniques. Action irréversible.', b: '', reviewed: true },
-        'zh-Hans': { t: '移除力度层 {mark} 中所有技法下的每一个采样。此操作无法撤销。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '移除力度层 {mark} 中所有技法下的每一个采样。此操作无法撤销。', b: '', reviewed: 'bt' }
     },
     'msg.clearLayerBtn': {
         en: { t: 'Clear layer', b: '' },
         fr: { t: 'Effacer la couche', b: '', reviewed: true },
-        'zh-Hans': { t: '清除该层', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '清除该层', b: '', reviewed: 'bt' }
     },
     'msg.clearAllTitle': {
         en: { t: 'Clear all samples?', b: '' },
         fr: { t: 'Effacer tous les échantillons ?', b: '', reviewed: true },
-        'zh-Hans': { t: '清除全部采样吗？', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '清除全部采样吗？', b: '', reviewed: 'bt' }
     },
     'msg.clearAllBody': {
         en: { t: 'All loaded samples will be removed from the sample map. Active notes will finish playing, but new note-ons will produce silence until samples are loaded again. This cannot be undone.', b: '' },
         fr: { t: 'Tous les échantillons chargés seront retirés de la carte d’échantillons. Les notes en cours iront à leur terme, mais les nouvelles notes resteront silencieuses jusqu’au prochain chargement. Action irréversible.', b: '', reviewed: true },
-        'zh-Hans': { t: '所有已载入的采样都会从采样映射中移除。正在发声的音符会播放完，但在重新载入采样之前，新的音符触发只会产生静音。此操作无法撤销。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '所有已载入的采样都会从采样映射中移除。正在发声的音符会播放完，但在重新载入采样之前，新的音符触发只会产生静音。此操作无法撤销。', b: '', reviewed: 'bt' }
     },
     'msg.clearBtn': {
         en: { t: 'Clear', b: '' },
         fr: { t: 'Effacer', b: '', reviewed: true },
-        'zh-Hans': { t: '清除', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '清除', b: '', reviewed: 'bt' }
     },
 
     // The folder-load explain line: EIGHT keyed faces, not four ternaries.
@@ -528,47 +584,47 @@ export const I18N = Object.freeze({
     'msg.floAppendForced': {
         en: { t: 'Add samples to {layer}, ignoring filename velocity tokens.', b: '' },
         fr: { t: 'Ajouter les échantillons à {layer}, en ignorant les jetons de vélocité du nom de fichier.', b: '', reviewed: true },
-        'zh-Hans': { t: '把采样添加到 {layer}，忽略文件名中的力度标记。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '把采样添加到 {layer}，忽略文件名中的力度标记。', b: '', reviewed: 'bt' }
     },
     'msg.floAppendTokens': {
         en: { t: 'Add samples; filename tokens (v1–v4, p/mp/mf/f) decide layer.', b: '' },
         fr: { t: 'Ajouter les échantillons ; les jetons du nom de fichier (v1–v4, p/mp/mf/f) décident de la couche.', b: '', reviewed: true },
-        'zh-Hans': { t: '添加采样；由文件名标记（v1–v4、p/mp/mf/f）决定所在层。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '添加采样；由文件名标记（v1–v4、p/mp/mf/f）决定所在层。', b: '', reviewed: 'bt' }
     },
     'msg.floReplaceLayerForced': {
         en: { t: 'Clear {layer} and add the new samples there.', b: '' },
         fr: { t: 'Effacer {layer} et y ajouter les nouveaux échantillons.', b: '', reviewed: true },
-        'zh-Hans': { t: '清除 {layer} 并把新采样添加到那里。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '清除 {layer} 并把新采样添加到那里。', b: '', reviewed: 'bt' }
     },
     'msg.floReplaceLayerTokens': {
         en: { t: 'Clear {layer}; filename tokens decide where new samples land.', b: '' },
         fr: { t: 'Effacer {layer} ; les jetons du nom de fichier décident où atterrissent les nouveaux échantillons.', b: '', reviewed: true },
-        'zh-Hans': { t: '清除 {layer}；由文件名标记决定新采样的落点。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '清除 {layer}；由文件名标记决定新采样的落点。', b: '', reviewed: 'bt' }
     },
     'msg.floReplaceAllForced': {
         en: { t: 'Replace existing samples; new ones land on {layer}.', b: '' },
         fr: { t: 'Remplacer les échantillons existants ; les nouveaux atterrissent sur {layer}.', b: '', reviewed: true },
-        'zh-Hans': { t: '替换现有采样；新的采样落在 {layer}。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '替换现有采样；新的采样落在 {layer}。', b: '', reviewed: 'bt' }
     },
     'msg.floReplaceAllTokens': {
         en: { t: 'Replace existing samples; filename tokens decide layer.', b: '' },
         fr: { t: 'Remplacer les échantillons existants ; les jetons du nom de fichier décident de la couche.', b: '', reviewed: true },
-        'zh-Hans': { t: '替换现有采样；由文件名标记决定所在层。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '替换现有采样；由文件名标记决定所在层。', b: '', reviewed: 'bt' }
     },
     'msg.floMergeRrForced': {
         en: { t: 'Layer onto {layer}: collisions become round-robin variants (cap 64 per cell).', b: '' },
         fr: { t: 'Superposer sur {layer} : les collisions deviennent des variantes round-robin (max. 64 par case).', b: '', reviewed: true },
-        'zh-Hans': { t: '叠加到 {layer}：冲突的采样成为循环轮替变体（每格上限 64 个）。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '叠加到 {layer}：冲突的采样成为循环轮替变体（每格上限 64 个）。', b: '', reviewed: 'bt' }
     },
     'msg.floMergeRrTokens': {
         en: { t: 'Layer existing notes: collisions become round-robin variants. Filename tokens decide layer.', b: '' },
         fr: { t: 'Superposer les notes existantes : les collisions deviennent des variantes round-robin. Les jetons du nom de fichier décident de la couche.', b: '', reviewed: true },
-        'zh-Hans': { t: '叠加到现有音符：冲突的采样成为循环轮替变体。由文件名标记决定所在层。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '叠加到现有音符：冲突的采样成为循环轮替变体。由文件名标记决定所在层。', b: '', reviewed: 'bt' }
     },
     'msg.floTechniqueForced': {
         en: { t: 'Technique forced to "{name}".', b: '' },
         fr: { t: 'Technique forcée sur « {name} ».', b: '', reviewed: true },
-        'zh-Hans': { t: '技法已强制为“{name}”。', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '技法已强制为“{name}”。', b: '', reviewed: 'bt' }
     },
 
     // ── composed ACCESSIBLE NAMES ─────────────────────────────────────────
@@ -582,72 +638,72 @@ export const I18N = Object.freeze({
     'aria.cellVel': {
         en: { t: 'Vel {mark} ({range})', b: '' },
         fr: { t: 'Vél. {mark} ({range})', b: '', reviewed: true },
-        'zh-Hans': { t: '力度 {mark}（{range}）', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '力度 {mark}（{range}）', b: '', reviewed: 'bt' }
     },
     'aria.cellTech': {
         en: { t: 'tech: {name}', b: '' },
         fr: { t: 'technique : {name}', b: '', reviewed: true },
-        'zh-Hans': { t: '技法：{name}', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '技法：{name}', b: '', reviewed: 'bt' }
     },
     'aria.cellVariants': {
         en: { t: 'variants: {n}', b: '' },
         fr: { t: 'variantes : {n}', b: '', reviewed: true },
-        'zh-Hans': { t: '变体：{n}', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '变体：{n}', b: '', reviewed: 'bt' }
     },
     'aria.velLabel': {
         en: { t: 'Dynamic {mark} (layer {layer}): MIDI velocity {range} — right-click to clear this layer', b: '' },
         fr: { t: 'Nuance {mark} (couche {layer}) : vélocité MIDI {range} — clic droit pour effacer cette couche', b: '', reviewed: true },
-        'zh-Hans': { t: '力度记号 {mark}（第 {layer} 层）：MIDI 力度 {range}——右键单击可清除该层', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '力度记号 {mark}（第 {layer} 层）：MIDI 力度 {range}——右键单击可清除该层', b: '', reviewed: 'bt' }
     },
     'aria.switchToVariant': {
         en: { t: 'Switch to variant {n}', b: '' },
         fr: { t: 'Passer à la variante {n}', b: '', reviewed: true },
-        'zh-Hans': { t: '切换到变体 {n}', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '切换到变体 {n}', b: '', reviewed: 'bt' }
     },
     'aria.techTabLoaded': {
         en: { t: 'Technique {i}: {name} — cells loaded: {n}  (right-click to rename)', b: '' },
         fr: { t: 'Technique {i} : {name} — cases chargées : {n}  (clic droit pour renommer)', b: '', reviewed: true },
-        'zh-Hans': { t: '技法 {i}：{name}——已载入格子：{n}（右键单击可重命名）', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '技法 {i}：{name}——已载入格子：{n}（右键单击可重命名）', b: '', reviewed: 'bt' }
     },
     'aria.techTabEmpty': {
         en: { t: 'Technique {i}: {name} — empty  (right-click to rename)', b: '' },
         fr: { t: 'Technique {i} : {name} — vide  (clic droit pour renommer)', b: '', reviewed: true },
-        'zh-Hans': { t: '技法 {i}：{name}——空（右键单击可重命名）', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '技法 {i}：{name}——空（右键单击可重命名）', b: '', reviewed: 'bt' }
     },
     'aria.trimWholeTechnique': {
         en: { t: 'Trim the whole "{name}" technique (all layers)', b: '' },
         fr: { t: 'Ajuster toute la technique « {name} » (toutes les couches)', b: '', reviewed: true },
-        'zh-Hans': { t: '微调整个“{name}”技法（所有层）', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '微调整个“{name}”技法（所有层）', b: '', reviewed: 'bt' }
     },
     'aria.slotN': {
         en: { t: 'slot {n}', b: '' },
         fr: { t: 'emplacement {n}', b: '', reviewed: true },
-        'zh-Hans': { t: '插槽 {n}', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '插槽 {n}', b: '', reviewed: 'bt' }
     },
     'aria.midiN': {
         en: { t: 'MIDI {n}', b: '' },
         fr: { t: 'MIDI {n}', b: '', reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: 'MIDI {n}', b: '', reviewed: 'mt', sameAsEn: true }
+        'zh-Hans': { t: 'MIDI {n}', b: '', reviewed: 'bt', sameAsEn: true }
     },
     'aria.loaded': {
         en: { t: 'Loaded', b: '' },
         fr: { t: 'Chargé', b: '', reviewed: true },
-        'zh-Hans': { t: '已载入', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '已载入', b: '', reviewed: 'bt' }
     },
     'aria.unnamed': {
         en: { t: '(unnamed)', b: '' },
         fr: { t: '(sans nom)', b: '', reviewed: true },
-        'zh-Hans': { t: '（未命名）', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '（未命名）', b: '', reviewed: 'bt' }
     },
     'aria.unknown': {
         en: { t: '(unknown)', b: '' },
         fr: { t: '(inconnu)', b: '', reviewed: true },
-        'zh-Hans': { t: '（未知）', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '（未知）', b: '', reviewed: 'bt' }
     },
     'aria.emptyPath': {
         en: { t: '(empty path)', b: '' },
         fr: { t: '(chemin vide)', b: '', reviewed: true },
-        'zh-Hans': { t: '（空路径）', b: '', reviewed: 'mt' }
+        'zh-Hans': { t: '（空路径）', b: '', reviewed: 'bt' }
     },
 
     // ── HOVER-HELP, v1.25.0 (Stage M) — THE ONLY BODIED ENTRIES IN THIS FILE ──
@@ -713,7 +769,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Attaque',
               b: 'Temps de montée entre l’enfoncement de la note et le niveau maximal. Augmentez-le pour adoucir l’attaque percussive d’un échantillon ; laissez-le près de zéro pour conserver le transitoire de l’enregistrement. 0 à 10 s.',
               reviewed: true },
-        'zh-Hans': { t: '起音', b: '从音符触发到达到满电平的淡入时间。调高它可以柔化打击性采样的起始；保持接近零则保留录音本身的瞬态。0 至 10 s。', reviewed: 'mt' }
+        'zh-Hans': { t: '起音', b: '从音符触发到达到满电平的淡入时间。调高它可以柔化打击性采样的起始；保持接近零则保留录音本身的瞬态。0 至 10 s。', reviewed: 'bt' }
     },
     'tip.decay': {
         en: { t: 'Decay',
@@ -721,7 +777,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Déclin',
               b: 'Temps de descente du sommet vers le niveau de maintien, une fois l’attaque terminée. Il n’agit que si le maintien est inférieur à 1,00. 0 à 10 s.',
               reviewed: true },
-        'zh-Hans': { t: '衰减', b: '起音结束后，从峰值下降到延音电平所需的时间。只有当延音低于 1.00 时它才起作用。0 至 10 s。', reviewed: 'mt' }
+        'zh-Hans': { t: '衰减', b: '起音结束后，从峰值下降到延音电平所需的时间。只有当延音低于 1.00 时它才起作用。0 至 10 s。', reviewed: 'bt' }
     },
     'tip.sustain': {
         en: { t: 'Sustain',
@@ -729,7 +785,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Maintien',
               b: 'Niveau auquel se stabilise une note tenue après le déclin, en fraction du niveau propre de l’échantillon. À 1,00 l’échantillon est joué tel quel et le déclin n’a aucun effet. 0,00 à 1,00.',
               reviewed: true },
-        'zh-Hans': { t: '延音', b: '衰减之后，持续按住的音符稳定下来的电平，以采样自身电平的比例表示。在 1.00 时采样原样播放，衰减不起任何作用。0.00 至 1.00。', reviewed: 'mt' }
+        'zh-Hans': { t: '延音', b: '衰减之后，持续按住的音符稳定下来的电平，以采样自身电平的比例表示。在 1.00 时采样原样播放，衰减不起任何作用。0.00 至 1.00。', reviewed: 'bt' }
     },
     'tip.release': {
         en: { t: 'Release',
@@ -737,7 +793,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Relâchement',
               b: 'Temps de descente après le relâchement de la note. Une valeur longue laisse la queue de salle résonner ; une valeur courte coupe la note net. 0 à 10 s.',
               reviewed: true },
-        'zh-Hans': { t: '释音', b: '松开音符之后的淡出时间。较长的值让厅堂尾音继续延续；较短的值则干净地切断音符。0 至 10 s。', reviewed: 'mt' }
+        'zh-Hans': { t: '释音', b: '松开音符之后的淡出时间。较长的值让厅堂尾音继续延续；较短的值则干净地切断音符。0 至 10 s。', reviewed: 'bt' }
     },
     'tip.polyphony': {
         en: { t: 'Polyphony',
@@ -745,7 +801,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Polyphonie',
               b: 'Nombre maximal de notes pouvant sonner en même temps. Abaissez-le pour limiter le processeur sur une grande banque ; au-delà de la limite, la voix la plus ancienne est remplacée. 1 à 16 voix.',
               reviewed: true },
-        'zh-Hans': { t: '复音数', b: '允许同时发声的最大音符数。在大型音色库上调低它可以限制 CPU 占用；超出上限时最旧的声部会被抢占。1 至 16 个声部。', reviewed: 'mt' }
+        'zh-Hans': { t: '复音数', b: '允许同时发声的最大音符数。在大型音色库上调低它可以限制 CPU 占用；超出上限时最旧的声部会被抢占。1 至 16 个声部。', reviewed: 'bt' }
     },
     'tip.velocityCrossfade': {
         en: { t: 'Velocity Crossfade',
@@ -753,7 +809,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Fondu de vélocité',
               b: 'Degré de fondu entre couches de vélocité voisines, au lieu d’un basculement net. À 0,00 chaque couche commence exactement là où s’arrête la précédente. 0,00 à 1,00.',
               reviewed: true },
-        'zh-Hans': { t: '力度交叉渐变', b: '相邻力度层相互融合而不是突然切换的程度。在 0.00 时每一层正好从下一层结束的地方开始。0.00 至 1.00。', reviewed: 'mt' }
+        'zh-Hans': { t: '力度交叉渐变', b: '相邻力度层相互融合而不是突然切换的程度。在 0.00 时每一层正好从下一层结束的地方开始。0.00 至 1.00。', reviewed: 'bt' }
     },
     'tip.expression': {
         en: { t: 'Expression',
@@ -761,7 +817,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Expression',
               b: 'Niveau de jeu global, piloté en direct par le CC MIDI 11. Son effet dépend du mode de dynamique : un simple réglage de volume après mixage en Velocity, un fondu entre couches en CC Crossfade. 0 à 100 %.',
               reviewed: true },
-        'zh-Hans': { t: '表情', b: '整体演奏电平，由 MIDI CC 11 实时驱动。它的作用取决于动态模式：在 Velocity 下是混合之后的音量微调，在 CC Crossfade 下则是层间渐变。0 至 100 %。', reviewed: 'mt' }
+        'zh-Hans': { t: '表情', b: '整体演奏电平，由 MIDI CC 11 实时驱动。它的作用取决于动态模式：在 Velocity 下是混合之后的音量微调，在 CC Crossfade 下则是层间渐变。0 至 100 %。', reviewed: 'bt' }
     },
     'tip.dynamicsMode': {
         en: { t: 'Dynamics Mode',
@@ -769,7 +825,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Mode de dynamique',
               b: 'Détermine ce que pilote le CC MIDI 11. Velocity : la vélocité choisit la couche et le CC 11 n’est qu’un réglage de volume. CC Crossfade : le CC 11 fond toutes les couches de vélocité en cours de note, changeant le timbre autant que l’intensité.',
               reviewed: true },
-        'zh-Hans': { t: '动态模式', b: '选择 MIDI CC 11 控制什么。Velocity：音符触发力度挑选力度层，CC 11 只是一个音量微调。CC Crossfade：CC 11 在音符持续期间在所有力度层之间渐变，既改变音色也改变响度。', reviewed: 'mt' }
+        'zh-Hans': { t: '动态模式', b: '选择 MIDI CC 11 控制什么。Velocity：音符触发力度挑选力度层，CC 11 只是一个音量微调。CC Crossfade：CC 11 在音符持续期间在所有力度层之间渐变，既改变音色也改变响度。', reviewed: 'bt' }
     },
     'tip.dynamicRange': {
         en: { t: 'Dynamic Range',
@@ -777,7 +833,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Plage dynamique',
               b: 'Différence de niveau entre la couche la plus douce et la plus forte, en mode CC Crossfade. Élargissez-la pour une ligne orchestrale exposée, resserrez-la pour un mixage qui doit rester présent de bout en bout. 0,0 à 40,0 dB.',
               reviewed: true },
-        'zh-Hans': { t: '动态范围', b: '在 CC Crossfade 下，最轻的一层比最响的一层低多少。为暴露的管弦声部把它加宽，为必须始终保持存在感的混音把它收窄。0.0 至 40.0 dB。', reviewed: 'mt' }
+        'zh-Hans': { t: '动态范围', b: '在 CC Crossfade 下，最轻的一层比最响的一层低多少。为暴露的管弦声部把它加宽，为必须始终保持存在感的混音把它收窄。0.0 至 40.0 dB。', reviewed: 'bt' }
     },
     'tip.outputGain': {
         en: { t: 'Output Gain',
@@ -785,7 +841,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Gain de sortie',
               b: 'Niveau final de tout l’instrument, appliqué après chaque ajustement de technique et de couche. Utilisez-le pour caler cette instance sur le reste du mixage. −24 à +24 dB.',
               reviewed: true },
-        'zh-Hans': { t: '输出增益', b: '整件乐器的最终电平，在所有技法微调和层微调之后施加。用它把这个实例安放在混音的其余部分之中。−24 至 +24 dB。', reviewed: 'mt' }
+        'zh-Hans': { t: '输出增益', b: '整件乐器的最终电平，在所有技法微调和层微调之后施加。用它把这个实例安放在混音的其余部分之中。−24 至 +24 dB。', reviewed: 'bt' }
     },
     'tip.techniqueCount': {
         en: { t: 'Technique Count',
@@ -793,7 +849,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Nombre de techniques',
               b: 'Nombre d’emplacements de technique de jeu proposés par l’instrument. Ajoutez-en un par articulation dont vous avez des échantillons ; en retirer un masque ses cases sans les supprimer. 1 à 8 emplacements.',
               reviewed: true },
-        'zh-Hans': { t: '技法数量', b: '这件乐器开放多少个演奏技法插槽。为每一种你有采样的演奏法添加一个；移除插槽只是隐藏它的格子，并不删除它们。1 至 8 个插槽。', reviewed: 'mt' }
+        'zh-Hans': { t: '技法数量', b: '这件乐器开放多少个演奏技法插槽。为每一种你有采样的演奏法添加一个；移除插槽只是隐藏它的格子，并不删除它们。1 至 8 个插槽。', reviewed: 'bt' }
     },
     'tip.techniqueSelect': {
         en: { t: 'Technique Select',
@@ -801,7 +857,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Technique active',
               b: 'L’emplacement de technique en cours de lecture, celui que la carte d’échantillons et les ajustements modifient. Cliquez sur un onglet pour changer, clic droit pour le renommer. Emplacements 1 à 8.',
               reviewed: true },
-        'zh-Hans': { t: '技法选择', b: '当前发声的技法插槽，也是采样映射和微调正在编辑的那一个。单击标签可切换，右键单击标签可重命名。插槽 1 至 8。', reviewed: 'mt' }
+        'zh-Hans': { t: '技法选择', b: '当前发声的技法插槽，也是采样映射和微调正在编辑的那一个。单击标签可切换，右键单击标签可重命名。插槽 1 至 8。', reviewed: 'bt' }
     },
     'tip.ksEnabled': {
         en: { t: 'Keyswitch Enabled',
@@ -809,7 +865,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Commutation par touche',
               b: 'Active la commutation par touche : une note jouée dans la plage voisine choisit une technique au lieu de sonner. Elle est désactivée par défaut, afin qu’aucune note ne soit absorbée sans votre accord. Arrêt ou Marche.',
               reviewed: true },
-        'zh-Hans': { t: '启用键位切换', b: '打开键位切换：落在旁边范围内的音符会选择一个技法，而不发声。它默认关闭，因此在你主动要求之前不会有任何音符被吞掉。关或开。', reviewed: 'mt' }
+        'zh-Hans': { t: '启用键位切换', b: '打开键位切换：落在旁边范围内的音符会选择一个技法，而不发声。它默认关闭，因此在你主动要求之前不会有任何音符被吞掉。关或开。', reviewed: 'bt' }
     },
     'tip.ksLowNote': {
         en: { t: 'Keyswitch Low Note',
@@ -817,7 +873,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Note basse de commutation',
               b: 'Limite inférieure de la plage de commutation, en numéro de note MIDI. Gardez-la sous le registre que vous jouez réellement ; la valeur par défaut, MIDI 0, est largement à l’écart. 0 à 127.',
               reviewed: true },
-        'zh-Hans': { t: '键位切换最低音', b: '键位切换范围的下端，以 MIDI 音符号表示。把它保持在你实际演奏的音区之下——默认值 MIDI 0 远离演奏区域。0 至 127。', reviewed: 'mt' }
+        'zh-Hans': { t: '键位切换最低音', b: '键位切换范围的下端，以 MIDI 音符号表示。把它保持在你实际演奏的音区之下——默认值 MIDI 0 远离演奏区域。0 至 127。', reviewed: 'bt' }
     },
     'tip.ksHighNote': {
         en: { t: 'Keyswitch High Note',
@@ -825,7 +881,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Note haute de commutation',
               b: 'Limite supérieure de la plage de commutation. Laissez un demi-ton par emplacement au-dessus de la note basse, sans quoi deux touches visent la même technique. 0 à 127.',
               reviewed: true },
-        'zh-Hans': { t: '键位切换最高音', b: '键位切换范围的上端。在最低音之上为每个插槽留出一个半音，否则两个琴键会落到同一个技法上。0 至 127。', reviewed: 'mt' }
+        'zh-Hans': { t: '键位切换最高音', b: '键位切换范围的上端。在最低音之上为每个插槽留出一个半音，否则两个琴键会落到同一个技法上。0 至 127。', reviewed: 'bt' }
     },
     'tip.ccSelectEnabled': {
         en: { t: 'CC Select Enabled',
@@ -833,7 +889,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Sélection par CC',
               b: 'Permet à un contrôleur MIDI de choisir la technique selon sa valeur, d’après le tableau ci-dessous. La commutation par touche reste prioritaire là où les deux sont actives. Arrêt ou Marche.',
               reviewed: true },
-        'zh-Hans': { t: '启用 CC 选择', b: '让某个 MIDI 控制器根据它的值、通过下方的表格来选择技法。两者同时启用时，键位切换仍然优先。关或开。', reviewed: 'mt' }
+        'zh-Hans': { t: '启用 CC 选择', b: '让某个 MIDI 控制器根据它的值、通过下方的表格来选择技法。两者同时启用时，键位切换仍然优先。关或开。', reviewed: 'bt' }
     },
     'tip.ccNumber': {
         en: { t: 'CC Number',
@@ -841,7 +897,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Numéro de CC',
               b: 'Contrôleur MIDI qui pilote la sélection de technique. Le CC 32 est la valeur par défaut ; évitez le CC 11, déjà écouté par Expression. 0 à 119.',
               reviewed: true },
-        'zh-Hans': { t: 'CC 号', b: '哪一个 MIDI 控制器驱动技法选择。默认是 CC 32；避开 CC 11，表情已经在监听它。0 至 119。', reviewed: 'mt' }
+        'zh-Hans': { t: 'CC 号', b: '哪一个 MIDI 控制器驱动技法选择。默认是 CC 32；避开 CC 11，表情已经在监听它。0 至 119。', reviewed: 'bt' }
     },
     'tip.pcEnabled': {
         en: { t: 'Program Change Enabled',
@@ -849,7 +905,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Changement de programme',
               b: 'Permet à un changement de programme MIDI de choisir la technique, d’après le tableau ci-dessous. Il vient en dernier, après la commutation par touche et le CC. Arrêt ou Marche.',
               reviewed: true },
-        'zh-Hans': { t: '启用程序变更', b: '让 MIDI 程序变更通过下方的表格选择技法。它的优先级最低，排在键位切换和 CC 之后。关或开。', reviewed: 'mt' }
+        'zh-Hans': { t: '启用程序变更', b: '让 MIDI 程序变更通过下方的表格选择技法。它的优先级最低，排在键位切换和 CC 之后。关或开。', reviewed: 'bt' }
     },
 
     // ── the two chrome tips ────────────────────────────────────────────────
@@ -864,7 +920,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Réglages',
               b: 'Ouvre le panneau de réglages. Il contient la langue de l’interface, et rien d’autre. Survolez n’importe quelle commande de cette page pour obtenir la même aide que celle-ci.',
               reviewed: true },
-        'zh-Hans': { t: '设置', b: '打开设置面板。它只包含界面语言，没有别的。把指针停在本页任何一个控件上，都会得到你正在读的这种帮助。', reviewed: 'mt' }
+        'zh-Hans': { t: '设置', b: '打开设置面板。它只包含界面语言，没有别的。把指针停在本页任何一个控件上，都会得到你正在读的这种帮助。', reviewed: 'bt' }
     },
     'tip.langSelect': {
         en: { t: 'Language',
@@ -883,7 +939,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Langue',
               b: 'Change la langue de toutes les légendes, de tous les boutons et de toutes les infobulles de cette page. Les valeurs affichées, les noms de systèmes d’accord, les noms de notes et les noms de fichiers de préréglages restent inchangés.',
               reviewed: true },
-        'zh-Hans': { t: '语言', b: '切换本页每一个标题、按钮和悬停帮助的语言。数值读数、调音名称、音名和预设文件名保持原样。', reviewed: 'mt' }
+        'zh-Hans': { t: '语言', b: '切换本页每一个标题、按钮和悬停帮助的语言。数值读数、调音名称、音名和预设文件名保持原样。', reviewed: 'bt' }
     },
     // v1.26.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -894,7 +950,7 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
-        'zh-Hans': { t: '悬停帮助', b: '打开或关闭这个悬停帮助。关闭之后，只有齿轮和这个开关还会继续解释自己。', reviewed: 'mt' }
+        'zh-Hans': { t: '悬停帮助', b: '打开或关闭这个悬停帮助。关闭之后，只有齿轮和这个开关还会继续解释自己。', reviewed: 'bt' }
     },
 });
 
@@ -906,22 +962,22 @@ export const LABELS = Object.freeze({
     // I18N_EXEMPT below. #tuning-readout holds the active tuning's name, which
     // is data from the C++ engine.
     'label.tabSampleMap':  { en: { t: 'Sample Map' },   fr: { t: 'Échantillons',  reviewed: true },
-        'zh-Hans': { t: '采样映射', reviewed: 'mt' }
+        'zh-Hans': { t: '采样映射', reviewed: 'bt' }
     },
     'label.tabTuning':     { en: { t: 'Tuning' },       fr: { t: 'Accord',         reviewed: true },
-        'zh-Hans': { t: '调音', reviewed: 'mt' }
+        'zh-Hans': { t: '调音', reviewed: 'bt' }
     },
     'label.tabAbout':      { en: { t: 'About' },        fr: { t: 'À propos',      reviewed: true },
-        'zh-Hans': { t: '关于', reviewed: 'mt' }
+        'zh-Hans': { t: '关于', reviewed: 'bt' }
     },
     'label.savePreset':    { en: { t: 'Save Preset…' }, fr: { t: 'Enreg. prér.…', reviewed: true },
-        'zh-Hans': { t: '保存预设…', reviewed: 'mt' }
+        'zh-Hans': { t: '保存预设…', reviewed: 'bt' }
     },
     'label.loadPreset':    { en: { t: 'Load Preset…' }, fr: { t: 'Ouvrir prér.…', reviewed: true },
-        'zh-Hans': { t: '载入预设…', reviewed: 'mt' }
+        'zh-Hans': { t: '载入预设…', reviewed: 'bt' }
     },
     'label.language':      { en: { t: 'Language' },     fr: { t: 'Langue',        reviewed: true },
-        'zh-Hans': { t: '语言', reviewed: 'mt' }
+        'zh-Hans': { t: '语言', reviewed: 'bt' }
     },
 
     // v1.26.0. All four renderings below are settled glossary ROOTS, copied
@@ -930,30 +986,30 @@ export const LABELS = Object.freeze({
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
     'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true },
-        'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }
+        'zh-Hans': { t: '悬停帮助', reviewed: 'bt' }
     },
     'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true },
-        'zh-Hans': { t: '开', reviewed: 'mt' }
+        'zh-Hans': { t: '开', reviewed: 'bt' }
     },
     'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true },
-        'zh-Hans': { t: '关', reviewed: 'mt' }
+        'zh-Hans': { t: '关', reviewed: 'bt' }
     },
 
     // ── Folder drop zone ──────────────────────────────────────────────────
     'label.dropFolderHere': { en: { t: 'Drop folder here' }, fr: { t: 'Déposer un dossier ici', reviewed: true },
-        'zh-Hans': { t: '将文件夹拖放到此处', reviewed: 'mt' }
+        'zh-Hans': { t: '将文件夹拖放到此处', reviewed: 'bt' }
     },
     'label.or':             { en: { t: 'or' },              fr: { t: 'ou',                     reviewed: true },
-        'zh-Hans': { t: '或', reviewed: 'mt' }
+        'zh-Hans': { t: '或', reviewed: 'bt' }
     },
     'label.loadFolder':     { en: { t: 'Load Folder…' },    fr: { t: 'Charger dossier…',       reviewed: true },
-        'zh-Hans': { t: '载入文件夹…', reviewed: 'mt' }
+        'zh-Hans': { t: '载入文件夹…', reviewed: 'bt' }
     },
     'label.batchLoop':      { en: { t: 'Batch loop…' },     fr: { t: 'Boucles en lot…',        reviewed: true },
-        'zh-Hans': { t: '批量循环…', reviewed: 'mt' }
+        'zh-Hans': { t: '批量循环…', reviewed: 'bt' }
     },
     'label.clearSamples':   { en: { t: 'Clear samples' },   fr: { t: 'Effacer',                  reviewed: true },
-        'zh-Hans': { t: '清除采样', reviewed: 'mt' }
+        'zh-Hans': { t: '清除采样', reviewed: 'bt' }
     },
 
     // ── Technique preset row ──────────────────────────────────────────────
@@ -962,89 +1018,89 @@ export const LABELS = Object.freeze({
     // AudioParameterChoice option or a JSON preset filename. The toast that
     // reports the change reads these same four keys, so the two cannot drift.
     'label.techniquePreset': { en: { t: 'Technique preset' }, fr: { t: 'Préréglage de techniques', reviewed: true },
-        'zh-Hans': { t: '技法预设', reviewed: 'mt' }
+        'zh-Hans': { t: '技法预设', reviewed: 'bt' }
     },
     'label.chooseFamily':    { en: { t: 'Choose family…' },   fr: { t: 'Choisir une famille…',    reviewed: true },
-        'zh-Hans': { t: '选择乐器族…', reviewed: 'mt' }
+        'zh-Hans': { t: '选择乐器族…', reviewed: 'bt' }
     },
     'label.familyStrings':   { en: { t: 'Strings' },          fr: { t: 'Cordes',                  reviewed: true },
-        'zh-Hans': { t: '弦乐', reviewed: 'mt' }
+        'zh-Hans': { t: '弦乐', reviewed: 'bt' }
     },
     'label.familyWinds':     { en: { t: 'Winds' },            fr: { t: 'Bois',                    reviewed: true },
-        'zh-Hans': { t: '木管', reviewed: 'mt' }
+        'zh-Hans': { t: '木管', reviewed: 'bt' }
     },
     'label.familyBrass':     { en: { t: 'Brass' },            fr: { t: 'Cuivres',                 reviewed: true },
-        'zh-Hans': { t: '铜管', reviewed: 'mt' }
+        'zh-Hans': { t: '铜管', reviewed: 'bt' }
     },
     'label.familyGeneric':   { en: { t: 'Generic' },          fr: { t: 'Générique',               reviewed: true },
-        'zh-Hans': { t: '通用', reviewed: 'mt' }
+        'zh-Hans': { t: '通用', reviewed: 'bt' }
     },
 
     // ── Keyswitch controls ────────────────────────────────────────────────
     // KS is the standard abbreviation for a keyswitch in both languages, and
     // Dorico's own French UI keeps it; sameAsEn is a decision, not a gap.
     'label.ks':     { en: { t: 'KS' },   fr: { t: 'KS',   reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: 'KS', reviewed: 'mt', sameAsEn: true }
+        'zh-Hans': { t: 'KS', reviewed: 'bt', sameAsEn: true }
     },
     'label.ksLow':  { en: { t: 'low' },  fr: { t: 'min',  reviewed: true,
                                                 termNote: 'the two BOUNDS of a MIDI note-number range, read off the pair of number fields beside them — Grave/Aigu name a timbral register, not a range end. Width says the same: Grave is 30.00 px in a 26.00 px box whose only clearance is the 4.00 px gap to its own input' },
-        'zh-Hans': { t: '低', reviewed: 'mt' }
+        'zh-Hans': { t: '低', reviewed: 'bt' }
     },
     'label.ksHigh': { en: { t: 'high' }, fr: { t: 'max',  reviewed: true,
                                                 termNote: 'the two BOUNDS of a MIDI note-number range, read off the pair of number fields beside them — Grave/Aigu name a timbral register, not a range end. Width says the same: Grave is 30.00 px in a 26.00 px box whose only clearance is the 4.00 px gap to its own input' },
-        'zh-Hans': { t: '高', reviewed: 'mt' }
+        'zh-Hans': { t: '高', reviewed: 'bt' }
     },
 
     // ── Trigger panel ─────────────────────────────────────────────────────
     'label.triggersHeading':   { en: { t: 'Triggers (CC + PC)' },            fr: { t: 'Déclencheurs (CC + PC)',        reviewed: true },
-        'zh-Hans': { t: '触发（CC + PC）', reviewed: 'mt' }
+        'zh-Hans': { t: '触发（CC + PC）', reviewed: 'bt' }
     },
     'label.triggerPrecedence': { en: { t: 'KS > CC > PC > history' },        fr: { t: 'KS > CC > PC > historique',     reviewed: true },
-        'zh-Hans': { t: 'KS > CC > PC > 历史', reviewed: 'mt' }
+        'zh-Hans': { t: 'KS > CC > PC > 历史', reviewed: 'bt' }
     },
     'label.ccTrigger':         { en: { t: 'CC trigger' },                    fr: { t: 'Déclencheur CC',                reviewed: true },
-        'zh-Hans': { t: 'CC 触发', reviewed: 'mt' }
+        'zh-Hans': { t: 'CC 触发', reviewed: 'bt' }
     },
     'label.ccNumber':          { en: { t: 'CC#' },                           fr: { t: 'CC N°',                         reviewed: true },
-        'zh-Hans': { t: 'CC 号', reviewed: 'mt' }
+        'zh-Hans': { t: 'CC 号', reviewed: 'bt' }
     },
     'label.ccHint':            { en: { t: 'value 0–127 → technique slot' },  fr: { t: 'valeur 0–127 → emplacement',    reviewed: true },
-        'zh-Hans': { t: '值 0–127 → 技法插槽', reviewed: 'mt' }
+        'zh-Hans': { t: '值 0–127 → 技法插槽', reviewed: 'bt' }
     },
     'label.pcTrigger':         { en: { t: 'PC trigger' },                    fr: { t: 'Déclencheur PC',                reviewed: true },
-        'zh-Hans': { t: 'PC 触发', reviewed: 'mt' }
+        'zh-Hans': { t: 'PC 触发', reviewed: 'bt' }
     },
     'label.pcHint':            { en: { t: 'program # → technique slot' },    fr: { t: 'n° de programme → emplacement', reviewed: true },
-        'zh-Hans': { t: '程序号 → 技法插槽', reviewed: 'mt' }
+        'zh-Hans': { t: '程序号 → 技法插槽', reviewed: 'bt' }
     },
     // The two tables have IDENTICAL headers, and a key is owned by ONE
     // element: two <th>slot</th> nodes need two keys or the second is never
     // swept. Hence the `2` suffixes rather than a shared key.
     'label.thSlot':  { en: { t: 'slot' }, fr: { t: 'empl.', reviewed: true },
-        'zh-Hans': { t: '插槽', reviewed: 'mt' }
+        'zh-Hans': { t: '插槽', reviewed: 'bt' }
     },
     'label.thLow':   { en: { t: 'low' },  fr: { t: 'min',   reviewed: true,
                                                  termNote: 'in the CC-trigger table, low/high are controller VALUES 0-127, not pitches; Grave/Aigu would name a register this column never holds (it fits at 33.13 px in a 104.66 px th, so this is meaning, not width)' },
-        'zh-Hans': { t: '低', reviewed: 'mt' }
+        'zh-Hans': { t: '低', reviewed: 'bt' }
     },
     'label.thHigh':  { en: { t: 'high' }, fr: { t: 'max',   reviewed: true,
                                                  termNote: 'in the CC-trigger table, low/high are controller VALUES 0-127, not pitches; Grave/Aigu would name a register this column never holds (it fits at 33.13 px in a 104.66 px th, so this is meaning, not width)' },
-        'zh-Hans': { t: '高', reviewed: 'mt' }
+        'zh-Hans': { t: '高', reviewed: 'bt' }
     },
     'label.thTech':  { en: { t: 'tech' }, fr: { t: 'tech.', reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: '技法', reviewed: 'mt' }
+        'zh-Hans': { t: '技法', reviewed: 'bt' }
     },
     'label.thSlot2': { en: { t: 'slot' }, fr: { t: 'empl.', reviewed: true },
-        'zh-Hans': { t: '插槽', reviewed: 'mt' }
+        'zh-Hans': { t: '插槽', reviewed: 'bt' }
     },
     'label.thPc':    { en: { t: 'PC#' },  fr: { t: 'PC N°', reviewed: true },
-        'zh-Hans': { t: 'PC 号', reviewed: 'mt' }
+        'zh-Hans': { t: 'PC 号', reviewed: 'bt' }
     },
     'label.thTech2': { en: { t: 'tech' }, fr: { t: 'tech.', reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: '技法', reviewed: 'mt' }
+        'zh-Hans': { t: '技法', reviewed: 'bt' }
     },
     'label.resetDefaults': { en: { t: 'Reset to defaults' }, fr: { t: 'Valeurs par défaut', reviewed: true },
-        'zh-Hans': { t: '恢复默认值', reviewed: 'mt' }
+        'zh-Hans': { t: '恢复默认值', reviewed: 'bt' }
     },
 
     // ── Trim panel ────────────────────────────────────────────────────────
@@ -1053,63 +1109,63 @@ export const LABELS = Object.freeze({
     // I18N_EXEMPT. The four layer captions p / mp / mf / f are dynamic markings
     // — Italian musical notation, not English — and are exempt too.
     'label.trimsHeading':   { en: { t: 'Trims (loudness)' },                       fr: { t: 'Ajustements (niveau)',                       reviewed: true },
-        'zh-Hans': { t: '微调（响度）', reviewed: 'mt' }
+        'zh-Hans': { t: '微调（响度）', reviewed: 'bt' }
     },
     'label.trimTechnique':  { en: { t: 'Technique' },                              fr: { t: 'Technique',                                  reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: '技法', reviewed: 'mt' }
+        'zh-Hans': { t: '技法', reviewed: 'bt' }
     },
     'label.trimHint':       { en: { t: 'Double-click a slider to reset to 0 dB' }, fr: { t: 'Double-clic sur un curseur → 0 dB', reviewed: true },
-        'zh-Hans': { t: '双击滑块可回到 0 dB', reviewed: 'mt' }
+        'zh-Hans': { t: '双击滑块可回到 0 dB', reviewed: 'bt' }
     },
     'label.resetAllTrims':  { en: { t: 'Reset all trims' },                        fr: { t: 'Tout réinitialiser',                         reviewed: true },
-        'zh-Hans': { t: '全部重置', reviewed: 'mt' }
+        'zh-Hans': { t: '全部重置', reviewed: 'bt' }
     },
 
     // ── Grid context menu + issues ────────────────────────────────────────
     'label.ctxReplace':        { en: { t: 'Replace…' },         fr: { t: 'Remplacer…',             reviewed: true },
-        'zh-Hans': { t: '替换…', reviewed: 'mt' }
+        'zh-Hans': { t: '替换…', reviewed: 'bt' }
     },
     'label.ctxOpenLoopEditor': { en: { t: 'Open Loop Editor' }, fr: { t: 'Ouvrir l’éditeur de boucle', reviewed: true },
-        'zh-Hans': { t: '打开循环编辑器', reviewed: 'mt' }
+        'zh-Hans': { t: '打开循环编辑器', reviewed: 'bt' }
     },
     'label.ctxDeleteSample':   { en: { t: 'Delete sample' },    fr: { t: 'Supprimer l’échantillon', reviewed: true },
-        'zh-Hans': { t: '删除采样', reviewed: 'mt' }
+        'zh-Hans': { t: '删除采样', reviewed: 'bt' }
     },
     'label.issues':            { en: { t: 'Issues' },           fr: { t: 'Problèmes',              reviewed: true },
-        'zh-Hans': { t: '问题', reviewed: 'mt' }
+        'zh-Hans': { t: '问题', reviewed: 'bt' }
     },
     // §6 — the count sits after a colon beside an invariant plural noun
     // phrase, so nothing inflects at 0, 1 or n in either language.
     'label.issuesSummary':     { en: { t: 'Issues · files skipped: {n}' },
                                  fr: { t: 'Problèmes · fichiers ignorés : {n}', reviewed: true },
-        'zh-Hans': { t: '问题 · 已跳过文件：{n}', reviewed: 'mt' }
+        'zh-Hans': { t: '问题 · 已跳过文件：{n}', reviewed: 'bt' }
     },
 
     // ── Loop editor ───────────────────────────────────────────────────────
     'label.loopPlaceholder': { en: { t: 'Select a loaded sample slot to edit loop points' },
                                fr: { t: 'Sélectionnez une case chargée pour modifier ses points de boucle', reviewed: true },
-        'zh-Hans': { t: '选择一个已载入的采样格以编辑循环点', reviewed: 'mt' }
+        'zh-Hans': { t: '选择一个已载入的采样格以编辑循环点', reviewed: 'bt' }
     },
     'label.loopStartCap':    { en: { t: 'Loop start:' },          fr: { t: 'Début de boucle :',   reviewed: true },
-        'zh-Hans': { t: '循环起点：', reviewed: 'mt' }
+        'zh-Hans': { t: '循环起点：', reviewed: 'bt' }
     },
     'label.loopEndCap':      { en: { t: 'Loop end:' },            fr: { t: 'Fin de boucle :',     reviewed: true },
-        'zh-Hans': { t: '循环终点：', reviewed: 'mt' }
+        'zh-Hans': { t: '循环终点：', reviewed: 'bt' }
     },
     'label.loopModeCap':     { en: { t: 'Mode:' },                fr: { t: 'Mode :',              reviewed: true },
-        'zh-Hans': { t: '模式：', reviewed: 'mt' }
+        'zh-Hans': { t: '模式：', reviewed: 'bt' }
     },
     'label.loopReset':       { en: { t: 'Reset to auto-detect' }, fr: { t: 'Détection auto',      reviewed: true },
-        'zh-Hans': { t: '自动检测', reviewed: 'mt' }
+        'zh-Hans': { t: '自动检测', reviewed: 'bt' }
     },
     'label.loopCancel':      { en: { t: 'Cancel' },               fr: { t: 'Annuler',             reviewed: true },
-        'zh-Hans': { t: '取消', reviewed: 'mt' }
+        'zh-Hans': { t: '取消', reviewed: 'bt' }
     },
     'label.loopApply':       { en: { t: 'Apply' },                fr: { t: 'Appliquer',           reviewed: true },
-        'zh-Hans': { t: '应用', reviewed: 'mt' }
+        'zh-Hans': { t: '应用', reviewed: 'bt' }
     },
     'label.variantOf':       { en: { t: 'Variant {i} of {n}' },   fr: { t: 'Variante {i} sur {n}', reviewed: true },
-        'zh-Hans': { t: '变体 {i} / {n}', reviewed: 'mt' }
+        'zh-Hans': { t: '变体 {i} / {n}', reviewed: 'bt' }
     },
 
     // ── Generic confirmation dialog ───────────────────────────────────────
@@ -1117,80 +1173,80 @@ export const LABELS = Object.freeze({
     // element (contract §1) and applyI18n sweeps per element, so seven dialogs
     // sharing one 'label.cancel' would leave six of them unswept.
     'label.areYouSure': { en: { t: 'Are you sure?' }, fr: { t: 'Êtes-vous sûr ?', reviewed: true },
-        'zh-Hans': { t: '确定吗？', reviewed: 'mt' }
+        'zh-Hans': { t: '确定吗？', reviewed: 'bt' }
     },
     'label.cancel':     { en: { t: 'Cancel' },        fr: { t: 'Annuler',         reviewed: true },
-        'zh-Hans': { t: '取消', reviewed: 'mt' }
+        'zh-Hans': { t: '取消', reviewed: 'bt' }
     },
     'label.confirm':    { en: { t: 'Confirm' },       fr: { t: 'Confirmer',       reviewed: true },
-        'zh-Hans': { t: '确认', reviewed: 'mt' }
+        'zh-Hans': { t: '确认', reviewed: 'bt' }
     },
 
     // ── Batch loop dialog ─────────────────────────────────────────────────
     'label.batchLoopTitle':  { en: { t: 'Batch loop points' }, fr: { t: 'Points de boucle en lot', reviewed: true },
-        'zh-Hans': { t: '批量循环点', reviewed: 'mt' }
+        'zh-Hans': { t: '批量循环点', reviewed: 'bt' }
     },
     'label.batchLoopBlurb':  { en: { t: 'Apply one loop region to every loaded sample at once. One-shot samples (too short to loop) are left untouched.' },
                                fr: { t: 'Applique une même région de boucle à tous les échantillons chargés. Les one-shot (trop courts pour boucler) restent intacts.', reviewed: true },
-        'zh-Hans': { t: '一次为所有已载入的采样应用同一个循环区间。单次采样（太短，无法循环）保持不变。', reviewed: 'mt' }
+        'zh-Hans': { t: '一次为所有已载入的采样应用同一个循环区间。单次采样（太短，无法循环）保持不变。', reviewed: 'bt' }
     },
     'label.blUnits':         { en: { t: 'Units' },             fr: { t: 'Unités',           reviewed: true },
-        'zh-Hans': { t: '单位', reviewed: 'mt' }
+        'zh-Hans': { t: '单位', reviewed: 'bt' }
     },
     'label.blProportional':  { en: { t: 'Proportional (%)' },  fr: { t: 'Proportionnel (%)', reviewed: true },
-        'zh-Hans': { t: '比例（%）', reviewed: 'mt' }
+        'zh-Hans': { t: '比例（%）', reviewed: 'bt' }
     },
     'label.blMilliseconds':  { en: { t: 'Milliseconds' },      fr: { t: 'Millisecondes',    reviewed: true },
-        'zh-Hans': { t: '毫秒', reviewed: 'mt' }
+        'zh-Hans': { t: '毫秒', reviewed: 'bt' }
     },
     'label.blLoopStart':     { en: { t: 'Loop start' },        fr: { t: 'Début de boucle',  reviewed: true },
-        'zh-Hans': { t: '循环起点', reviewed: 'mt' }
+        'zh-Hans': { t: '循环起点', reviewed: 'bt' }
     },
     'label.blLoopEnd':       { en: { t: 'Loop end' },          fr: { t: 'Fin de boucle',    reviewed: true },
-        'zh-Hans': { t: '循环终点', reviewed: 'mt' }
+        'zh-Hans': { t: '循环终点', reviewed: 'bt' }
     },
     'label.cancelBl':        { en: { t: 'Cancel' },            fr: { t: 'Annuler',          reviewed: true },
-        'zh-Hans': { t: '取消', reviewed: 'mt' }
+        'zh-Hans': { t: '取消', reviewed: 'bt' }
     },
     'label.blApplyAll':      { en: { t: 'Apply to all' },      fr: { t: 'Tout appliquer',   reviewed: true },
-        'zh-Hans': { t: '全部应用', reviewed: 'mt' }
+        'zh-Hans': { t: '全部应用', reviewed: 'bt' }
     },
     'label.blErrPercent':    { en: { t: 'Start and end must be 0–100 %, with end greater than start.' },
                                fr: { t: 'Début et fin doivent être entre 0 et 100 %, la fin après le début.', reviewed: true },
-        'zh-Hans': { t: '起点与终点必须在 0 至 100 % 之间，且终点大于起点。', reviewed: 'mt' }
+        'zh-Hans': { t: '起点与终点必须在 0 至 100 % 之间，且终点大于起点。', reviewed: 'bt' }
     },
     'label.blErrMs':         { en: { t: 'Start and end must be in ms, with end greater than start.' },
                                fr: { t: 'Début et fin doivent être en ms, la fin après le début.', reviewed: true },
-        'zh-Hans': { t: '起点与终点必须以毫秒为单位，且终点大于起点。', reviewed: 'mt' }
+        'zh-Hans': { t: '起点与终点必须以毫秒为单位，且终点大于起点。', reviewed: 'bt' }
     },
 
     // ── Diagnostic dialog ─────────────────────────────────────────────────
     'label.diagnostic':      { en: { t: 'Diagnostic' },  fr: { t: 'Diagnostic', reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: '诊断', reviewed: 'mt' }
+        'zh-Hans': { t: '诊断', reviewed: 'bt' }
     },
     'label.diagnosticHint':  { en: { t: 'Auto-copied to clipboard. Select the text below and ⌘C if it wasn\'t.' },
                                fr: { t: 'Copié automatiquement dans le presse-papiers. Sinon, sélectionnez le texte ci-dessous puis ⌘C.', reviewed: true },
-        'zh-Hans': { t: '已自动复制到剪贴板。若未复制，请选中下方文本并按 ⌘C。', reviewed: 'mt' }
+        'zh-Hans': { t: '已自动复制到剪贴板。若未复制，请选中下方文本并按 ⌘C。', reviewed: 'bt' }
     },
     'label.diagCopied':      { en: { t: 'Auto-copied to clipboard. (Select below + ⌘C if you need it again.)' },
                                fr: { t: 'Copié automatiquement dans le presse-papiers. (Sélectionnez ci-dessous + ⌘C si besoin.)', reviewed: true },
-        'zh-Hans': { t: '已自动复制到剪贴板。（如需再次复制，请选中下方文本并按 ⌘C。）', reviewed: 'mt' }
+        'zh-Hans': { t: '已自动复制到剪贴板。（如需再次复制，请选中下方文本并按 ⌘C。）', reviewed: 'bt' }
     },
     'label.diagCopyBlocked': { en: { t: 'Clipboard write blocked — select the text below and ⌘C to copy.' },
                                fr: { t: 'Écriture dans le presse-papiers bloquée — sélectionnez le texte ci-dessous puis ⌘C.', reviewed: true },
-        'zh-Hans': { t: '剪贴板写入被阻止——请选中下方文本并按 ⌘C 复制。', reviewed: 'mt' }
+        'zh-Hans': { t: '剪贴板写入被阻止——请选中下方文本并按 ⌘C 复制。', reviewed: 'bt' }
     },
     'label.copyAgain':       { en: { t: 'Copy again' },  fr: { t: 'Copier à nouveau', reviewed: true },
-        'zh-Hans': { t: '再次复制', reviewed: 'mt' }
+        'zh-Hans': { t: '再次复制', reviewed: 'bt' }
     },
     'label.copied':          { en: { t: 'Copied ✓' },    fr: { t: 'Copié ✓',          reviewed: true },
-        'zh-Hans': { t: '已复制 ✓', reviewed: 'mt' }
+        'zh-Hans': { t: '已复制 ✓', reviewed: 'bt' }
     },
     'label.copyFailed':      { en: { t: 'Copy failed' }, fr: { t: 'Échec de la copie', reviewed: true },
-        'zh-Hans': { t: '复制失败', reviewed: 'mt' }
+        'zh-Hans': { t: '复制失败', reviewed: 'bt' }
     },
     'label.close':           { en: { t: 'Close' },       fr: { t: 'Fermer',           reviewed: true },
-        'zh-Hans': { t: '关闭', reviewed: 'mt' }
+        'zh-Hans': { t: '关闭', reviewed: 'bt' }
     },
 
     // ── Missing-folder dialog ─────────────────────────────────────────────
@@ -1199,146 +1255,146 @@ export const LABELS = Object.freeze({
     // separately rather than interpolated, so neither reads as a sentence with
     // a hole in it.
     'label.folderNotFound':            { en: { t: 'Sample folder not found' }, fr: { t: 'Dossier d’échantillons introuvable', reviewed: true },
-        'zh-Hans': { t: '找不到采样文件夹', reviewed: 'mt' }
+        'zh-Hans': { t: '找不到采样文件夹', reviewed: 'bt' }
     },
     'label.folderNotFoundMsgNamed':    { en: { t: 'The sample folder "{name}" was not found at its saved location. Locate it now, or skip and load samples manually.' },
                                          fr: { t: 'Le dossier d’échantillons « {name} » est introuvable à son emplacement enregistré. Localisez-le maintenant, ou passez et chargez les échantillons manuellement.', reviewed: true },
-        'zh-Hans': { t: '在保存的位置找不到采样文件夹“{name}”。现在定位它，或跳过并手动载入采样。', reviewed: 'mt' }
+        'zh-Hans': { t: '在保存的位置找不到采样文件夹“{name}”。现在定位它，或跳过并手动载入采样。', reviewed: 'bt' }
     },
     'label.folderNotFoundMsgUnnamed':  { en: { t: 'The saved sample folder was not found. Locate it now, or skip and load samples manually.' },
                                          fr: { t: 'Le dossier d’échantillons enregistré est introuvable. Localisez-le maintenant, ou passez et chargez les échantillons manuellement.', reviewed: true },
-        'zh-Hans': { t: '找不到已保存的采样文件夹。现在定位它，或跳过并手动载入采样。', reviewed: 'mt' }
+        'zh-Hans': { t: '找不到已保存的采样文件夹。现在定位它，或跳过并手动载入采样。', reviewed: 'bt' }
     },
     'label.dragDropNotEmbedded':       { en: { t: 'Drag-dropped samples not embedded' }, fr: { t: 'Échantillons déposés non intégrés', reviewed: true },
-        'zh-Hans': { t: '拖放的采样未嵌入', reviewed: 'mt' }
+        'zh-Hans': { t: '拖放的采样未嵌入', reviewed: 'bt' }
     },
     'label.dragDropMsgNamed':          { en: { t: 'Samples were drag-dropped from "{name}" without "Embed audio" enabled, so they could not be re-loaded automatically. Re-drag the folder onto the plugin, or browse to its current location.' },
                                          fr: { t: 'Les échantillons ont été déposés depuis « {name} » sans « Intégrer l’audio », ils n’ont donc pas pu être rechargés automatiquement. Redéposez le dossier sur le plugin, ou parcourez jusqu’à son emplacement actuel.', reviewed: true },
-        'zh-Hans': { t: '采样是从“{name}”拖放进来的，且未启用“嵌入音频”，因此无法自动重新载入。请把文件夹重新拖到插件上，或浏览到它当前的位置。', reviewed: 'mt' }
+        'zh-Hans': { t: '采样是从“{name}”拖放进来的，且未启用“嵌入音频”，因此无法自动重新载入。请把文件夹重新拖到插件上，或浏览到它当前的位置。', reviewed: 'bt' }
     },
     'label.dragDropMsgUnnamed':        { en: { t: 'Samples were drag-dropped without "Embed audio" enabled, so they could not be re-loaded automatically. Re-drag the folder onto the plugin, or browse to its current location.' },
                                          fr: { t: 'Les échantillons ont été déposés sans « Intégrer l’audio », ils n’ont donc pas pu être rechargés automatiquement. Redéposez le dossier sur le plugin, ou parcourez jusqu’à son emplacement actuel.', reviewed: true },
-        'zh-Hans': { t: '采样是拖放进来的，且未启用“嵌入音频”，因此无法自动重新载入。请把文件夹重新拖到插件上，或浏览到它当前的位置。', reviewed: 'mt' }
+        'zh-Hans': { t: '采样是拖放进来的，且未启用“嵌入音频”，因此无法自动重新载入。请把文件夹重新拖到插件上，或浏览到它当前的位置。', reviewed: 'bt' }
     },
     'label.skip':                      { en: { t: 'Skip' },              fr: { t: 'Passer',             reviewed: true },
-        'zh-Hans': { t: '跳过', reviewed: 'mt' }
+        'zh-Hans': { t: '跳过', reviewed: 'bt' }
     },
     'label.locateFolder':              { en: { t: 'Locate folder…' },    fr: { t: 'Localiser le dossier…', reviewed: true },
-        'zh-Hans': { t: '定位文件夹…', reviewed: 'mt' }
+        'zh-Hans': { t: '定位文件夹…', reviewed: 'bt' }
     },
     'label.browseForFolder':           { en: { t: 'Browse for folder…' }, fr: { t: 'Parcourir…',        reviewed: true },
-        'zh-Hans': { t: '浏览…', reviewed: 'mt' }
+        'zh-Hans': { t: '浏览…', reviewed: 'bt' }
     },
 
     // ── Round-robin confirmation ──────────────────────────────────────────
     // SPLIT per §5: the paragraph wraps three <code> filename tokens, which are
     // literals the C++ FilenameParser matches and must not be translated.
     'label.rrTitle':      { en: { t: 'Multiple samples for the same note' }, fr: { t: 'Plusieurs échantillons pour la même note', reviewed: true },
-        'zh-Hans': { t: '同一音符有多个采样', reviewed: 'mt' }
+        'zh-Hans': { t: '同一音符有多个采样', reviewed: 'bt' }
     },
     'label.rrBodyBefore': { en: { t: 'The folder contains more than one sample for the same note and velocity layer, without explicit' },
                             fr: { t: 'Le dossier contient plusieurs échantillons pour la même note et la même couche de vélocité, sans jetons', reviewed: true },
-        'zh-Hans': { t: '该文件夹中同一音符、同一力度层有多个采样，文件名中没有明确的', reviewed: 'mt' }
+        'zh-Hans': { t: '该文件夹中同一音符、同一力度层有多个采样，文件名中没有明确的', reviewed: 'bt' }
     },
     'label.rrBodyAfter':  { en: { t: 'tokens in the filenames. Treat them as round-robin variants?' },
                             fr: { t: 'dans les noms. Les traiter comme des variantes round-robin ?', reviewed: true },
-        'zh-Hans': { t: '标记。要把它们当作循环轮替变体吗？', reviewed: 'mt' }
+        'zh-Hans': { t: '标记。要把它们当作循环轮替变体吗？', reviewed: 'bt' }
     },
     'label.rrCancel':     { en: { t: 'Cancel load' },       fr: { t: 'Annuler le chargement', reviewed: true },
-        'zh-Hans': { t: '取消载入', reviewed: 'mt' }
+        'zh-Hans': { t: '取消载入', reviewed: 'bt' }
     },
     'label.rrAccept':     { en: { t: 'Treat as variants' }, fr: { t: 'Traiter en variantes',  reviewed: true },
-        'zh-Hans': { t: '当作变体', reviewed: 'mt' }
+        'zh-Hans': { t: '当作变体', reviewed: 'bt' }
     },
     'label.rrCellHead':   { en: { t: 'MIDI {n} · {mark}' }, fr: { t: 'MIDI {n} · {mark}',     reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: 'MIDI {n} · {mark}', reviewed: 'mt', sameAsEn: true }
+        'zh-Hans': { t: 'MIDI {n} · {mark}', reviewed: 'bt', sameAsEn: true }
     },
 
     // ── Folder-load options dialog ────────────────────────────────────────
     'label.floTitle':            { en: { t: 'Load samples' },          fr: { t: 'Charger des échantillons', reviewed: true },
-        'zh-Hans': { t: '载入采样', reviewed: 'mt' }
+        'zh-Hans': { t: '载入采样', reviewed: 'bt' }
     },
     'label.floLayer':            { en: { t: 'Layer' },                 fr: { t: 'Couche',                   reviewed: true },
-        'zh-Hans': { t: '层', reviewed: 'mt' }
+        'zh-Hans': { t: '层', reviewed: 'bt' }
     },
     'label.floTechnique':        { en: { t: 'Technique' },             fr: { t: 'Technique', reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: '技法', reviewed: 'mt' }
+        'zh-Hans': { t: '技法', reviewed: 'bt' }
     },
     'label.floWhenLoading':      { en: { t: 'When loading' },          fr: { t: 'Au chargement',            reviewed: true },
-        'zh-Hans': { t: '载入时', reviewed: 'mt' }
+        'zh-Hans': { t: '载入时', reviewed: 'bt' }
     },
     'label.floAddToLayer':       { en: { t: 'Add to layer' },          fr: { t: 'Ajouter à la couche',      reviewed: true },
-        'zh-Hans': { t: '添加到该层', reviewed: 'mt' }
+        'zh-Hans': { t: '添加到该层', reviewed: 'bt' }
     },
     'label.floReplaceLayer':     { en: { t: 'Replace this layer' },    fr: { t: 'Remplacer cette couche',   reviewed: true },
-        'zh-Hans': { t: '替换该层', reviewed: 'mt' }
+        'zh-Hans': { t: '替换该层', reviewed: 'bt' }
     },
     'label.floReplaceAll':       { en: { t: 'Replace all samples' },   fr: { t: 'Remplacer tout',           reviewed: true },
-        'zh-Hans': { t: '替换全部采样', reviewed: 'mt' }
+        'zh-Hans': { t: '替换全部采样', reviewed: 'bt' }
     },
     'label.floMergeRr':          { en: { t: 'Layer as round-robin' },  fr: { t: 'Superposer en round-robin', reviewed: true },
-        'zh-Hans': { t: '叠加为循环轮替', reviewed: 'mt' }
+        'zh-Hans': { t: '叠加为循环轮替', reviewed: 'bt' }
     },
     'label.floForceLayer':       { en: { t: 'Force all samples onto this layer' },     fr: { t: 'Forcer tous les échantillons sur cette couche',    reviewed: true },
-        'zh-Hans': { t: '强制所有采样进入该层', reviewed: 'mt' }
+        'zh-Hans': { t: '强制所有采样进入该层', reviewed: 'bt' }
     },
     'label.floForceTechnique':   { en: { t: 'Force all samples onto this technique' }, fr: { t: 'Forcer tous les échantillons sur cette technique', reviewed: true },
-        'zh-Hans': { t: '强制所有采样进入该技法', reviewed: 'mt' }
+        'zh-Hans': { t: '强制所有采样进入该技法', reviewed: 'bt' }
     },
     // SPLIT per §5 around the <code> filename tokens. Two keys per half,
     // because the same English opens both lines and each <span> is its own
     // element with its own key.
     'label.floTokensBefore':     { en: { t: 'Otherwise filename tokens (' }, fr: { t: 'Sinon les jetons du fichier (', reviewed: true },
-        'zh-Hans': { t: '否则使用文件名标记 (', reviewed: 'mt' }
+        'zh-Hans': { t: '否则使用文件名标记 (', reviewed: 'bt' }
     },
     'label.floTokensBefore2':    { en: { t: 'Otherwise filename tokens (' }, fr: { t: 'Sinon les jetons du fichier (', reviewed: true },
-        'zh-Hans': { t: '否则使用文件名标记 (', reviewed: 'mt' }
+        'zh-Hans': { t: '否则使用文件名标记 (', reviewed: 'bt' }
     },
     'label.floTokensAfterLayer': { en: { t: ', etc.) decide the layer' },     fr: { t: ', etc.) décident de la couche',        reviewed: true },
-        'zh-Hans': { t: '等）决定所在层', reviewed: 'mt' }
+        'zh-Hans': { t: '等）决定所在层', reviewed: 'bt' }
     },
     'label.floTokensAfterTech':  { en: { t: ', etc.) decide the technique' }, fr: { t: ', etc.) décident de la technique',     reviewed: true },
-        'zh-Hans': { t: '等）决定所用技法', reviewed: 'mt' }
+        'zh-Hans': { t: '等）决定所用技法', reviewed: 'bt' }
     },
     'label.floEmbed':            { en: { t: 'Embed audio in project state' }, fr: { t: 'Intégrer l’audio dans le projet', reviewed: true },
-        'zh-Hans': { t: '将音频嵌入工程状态', reviewed: 'mt' }
+        'zh-Hans': { t: '将音频嵌入工程状态', reviewed: 'bt' }
     },
     'label.floEmbedSize':        { en: { t: 'Project state will grow by ~{size}.' },
                                    fr: { t: 'L’état du projet augmentera d’environ {size}.', reviewed: true },
-        'zh-Hans': { t: '工程状态将增大约 {size}。', reviewed: 'mt' }
+        'zh-Hans': { t: '工程状态将增大约 {size}。', reviewed: 'bt' }
     },
     'label.floEmbedSizePending': { en: { t: 'Size will be confirmed after folder selection.' },
                                    fr: { t: 'La taille sera confirmée après le choix du dossier.', reviewed: true },
-        'zh-Hans': { t: '选定文件夹后将确认大小。', reviewed: 'mt' }
+        'zh-Hans': { t: '选定文件夹后将确认大小。', reviewed: 'bt' }
     },
     'label.cancelFlo':           { en: { t: 'Cancel' }, fr: { t: 'Annuler', reviewed: true },
-        'zh-Hans': { t: '取消', reviewed: 'mt' }
+        'zh-Hans': { t: '取消', reviewed: 'bt' }
     },
     'label.floLoad':             { en: { t: 'Load…' },  fr: { t: 'Charger…', reviewed: true },
-        'zh-Hans': { t: '载入…', reviewed: 'mt' }
+        'zh-Hans': { t: '载入…', reviewed: 'bt' }
     },
 
     // ── Embed-size confirmation ───────────────────────────────────────────
     'label.embedTitle':      { en: { t: 'Embed audio in project?' }, fr: { t: 'Intégrer l’audio au projet ?', reviewed: true },
-        'zh-Hans': { t: '将音频嵌入工程吗？', reviewed: 'mt' }
+        'zh-Hans': { t: '将音频嵌入工程吗？', reviewed: 'bt' }
     },
     'label.embedDetail':     { en: { t: 'The audio data will be written into your DAW project file. Project saves and reopens will be slower for large libraries, but the samples will travel with the project across folders and machines.' },
                                fr: { t: 'Les données audio seront écrites dans le fichier de projet de votre STAN. Les enregistrements et réouvertures seront plus lents pour les grandes bibliothèques, mais les échantillons suivront le projet d’un dossier ou d’une machine à l’autre.', reviewed: true },
-        'zh-Hans': { t: '音频数据将写入你的宿主工程文件。对大型音色库来说，工程的保存与重新打开会变慢，但采样会随工程在不同文件夹和不同机器之间一同迁移。', reviewed: 'mt' }
+        'zh-Hans': { t: '音频数据将写入你的宿主工程文件。对大型音色库来说，工程的保存与重新打开会变慢，但采样会随工程在不同文件夹和不同机器之间一同迁移。', reviewed: 'bt' }
     },
     'label.embedMsgNamed':   { en: { t: 'Embedding folder "{name}" will add ~{size} to your project state.' },
                                fr: { t: 'Intégrer le dossier « {name} » ajoutera environ {size} à l’état du projet.', reviewed: true },
-        'zh-Hans': { t: '嵌入文件夹“{name}”将为工程状态增加约 {size}。', reviewed: 'mt' }
+        'zh-Hans': { t: '嵌入文件夹“{name}”将为工程状态增加约 {size}。', reviewed: 'bt' }
     },
     'label.embedMsgUnnamed': { en: { t: 'Embedding this folder will add ~{size} to your project state.' },
                                fr: { t: 'Intégrer ce dossier ajoutera environ {size} à l’état du projet.', reviewed: true },
-        'zh-Hans': { t: '嵌入该文件夹将为工程状态增加约 {size}。', reviewed: 'mt' }
+        'zh-Hans': { t: '嵌入该文件夹将为工程状态增加约 {size}。', reviewed: 'bt' }
     },
     'label.cancelEmbed':     { en: { t: 'Cancel' },         fr: { t: 'Annuler',           reviewed: true },
-        'zh-Hans': { t: '取消', reviewed: 'mt' }
+        'zh-Hans': { t: '取消', reviewed: 'bt' }
     },
     'label.embedAndLoad':    { en: { t: 'Embed and load' }, fr: { t: 'Intégrer et charger', reviewed: true },
-        'zh-Hans': { t: '嵌入并载入', reviewed: 'mt' }
+        'zh-Hans': { t: '嵌入并载入', reviewed: 'bt' }
     },
 
     // ── Per-cell merge dialog ─────────────────────────────────────────────
@@ -1346,57 +1402,57 @@ export const LABELS = Object.freeze({
     // interpolated it mid-sentence. Both faces now carry the count after a
     // colon instead, so neither inflects.
     'label.mergeTitle':        { en: { t: 'Cell already has samples' }, fr: { t: 'La case contient déjà des échantillons', reviewed: true },
-        'zh-Hans': { t: '该格已有采样', reviewed: 'mt' }
+        'zh-Hans': { t: '该格已有采样', reviewed: 'bt' }
     },
     'label.mergeMsgCapped':    { en: { t: '{note} layer {mark} is at the maximum · variants held: {n}. Replace the cell, or cancel.' },
                                  fr: { t: '{note} couche {mark} est au maximum · variantes présentes : {n}. Remplacez la case, ou annulez.', reviewed: true },
-        'zh-Hans': { t: '{note} 力度层 {mark} 已达上限 · 现有变体：{n}。请替换该格，或取消。', reviewed: 'mt' }
+        'zh-Hans': { t: '{note} 力度层 {mark} 已达上限 · 现有变体：{n}。请替换该格，或取消。', reviewed: 'bt' }
     },
     'label.mergeMsgAdd':       { en: { t: '{note} layer {mark} · variants held: {n}. Add this sample as round-robin variant {next}, or replace the cell?' },
                                  fr: { t: '{note} couche {mark} · variantes présentes : {n}. Ajouter cet échantillon comme variante round-robin {next}, ou remplacer la case ?', reviewed: true },
-        'zh-Hans': { t: '{note} 力度层 {mark} · 现有变体：{n}。把这个采样添加为循环轮替变体 {next}，还是替换该格？', reviewed: 'mt' }
+        'zh-Hans': { t: '{note} 力度层 {mark} · 现有变体：{n}。把这个采样添加为循环轮替变体 {next}，还是替换该格？', reviewed: 'bt' }
     },
     'label.cancelMerge':       { en: { t: 'Cancel' },             fr: { t: 'Annuler',            reviewed: true },
-        'zh-Hans': { t: '取消', reviewed: 'mt' }
+        'zh-Hans': { t: '取消', reviewed: 'bt' }
     },
     'label.mergeReplaceCell':  { en: { t: 'Replace cell' },       fr: { t: 'Remplacer la case',  reviewed: true },
-        'zh-Hans': { t: '替换该格', reviewed: 'mt' }
+        'zh-Hans': { t: '替换该格', reviewed: 'bt' }
     },
     'label.mergeAddRr':        { en: { t: 'Add as round-robin' }, fr: { t: 'Ajouter en round-robin', reviewed: true },
-        'zh-Hans': { t: '添加为循环轮替', reviewed: 'mt' }
+        'zh-Hans': { t: '添加为循环轮替', reviewed: 'bt' }
     },
 
     // ── Technique rename dialog ───────────────────────────────────────────
     // SPLIT per §5: the paragraph wraps the live slot number.
     'label.renameTitle':  { en: { t: 'Rename technique' }, fr: { t: 'Renommer la technique', reviewed: true },
-        'zh-Hans': { t: '重命名技法', reviewed: 'mt' }
+        'zh-Hans': { t: '重命名技法', reviewed: 'bt' }
     },
     'label.renameSlot':   { en: { t: 'Slot' },             fr: { t: 'Empl.',                 reviewed: true },
-        'zh-Hans': { t: '插槽', reviewed: 'mt' }
+        'zh-Hans': { t: '插槽', reviewed: 'bt' }
     },
     'label.renameBody':   { en: { t: ': enter a new name. Names appear in the tab strip and Dorico expression maps.' },
                             fr: { t: ' : saisissez un nouveau nom. Il apparaît dans la barre d’onglets et les cartes d’expression Dorico.', reviewed: true },
-        'zh-Hans': { t: '：输入一个新名称。名称会出现在标签栏和 Dorico 表情映射中。', reviewed: 'mt' }
+        'zh-Hans': { t: '：输入一个新名称。名称会出现在标签栏和 Dorico 表情映射中。', reviewed: 'bt' }
     },
     'label.cancelRename': { en: { t: 'Cancel' }, fr: { t: 'Annuler',   reviewed: true },
-        'zh-Hans': { t: '取消', reviewed: 'mt' }
+        'zh-Hans': { t: '取消', reviewed: 'bt' }
     },
     'label.renameSave':   { en: { t: 'Save' },   fr: { t: 'Enregistrer', reviewed: true },
-        'zh-Hans': { t: '保存', reviewed: 'mt' }
+        'zh-Hans': { t: '保存', reviewed: 'bt' }
     },
 
     // ── About ─────────────────────────────────────────────────────────────
     // The two headings are the product name and the company name — exempt.
     'label.aboutTagline': { en: { t: 'Microtonal sample engine for Dorico microtonal playback.' },
                             fr: { t: 'Moteur d’échantillonnage microtonal pour la lecture microtonale de Dorico.', reviewed: true },
-        'zh-Hans': { t: '用于 Dorico 微分音回放的微分音采样引擎。', reviewed: 'mt' }
+        'zh-Hans': { t: '用于 Dorico 微分音回放的微分音采样引擎。', reviewed: 'bt' }
     },
     'label.aboutBlurb':   { en: { t: 'Per-key, per-velocity-layer sample mapping with offline loop auto-detection, manual loop editing, and the Ouaricon tuning-system family. Built on JUCE 8.' },
                             fr: { t: 'Mappage par touche et par couche de vélocité, détection automatique des boucles, édition manuelle, et les systèmes d’accord Ouaricon. Bâti sur JUCE 8.', reviewed: true },
-        'zh-Hans': { t: '按键、按力度层的采样映射，带离线循环自动检测、手动循环编辑，以及 Ouaricon 调音体系族。基于 JUCE 8 构建。', reviewed: 'mt' }
+        'zh-Hans': { t: '按键、按力度层的采样映射，带离线循环自动检测、手动循环编辑，以及 Ouaricon 调音体系族。基于 JUCE 8 构建。', reviewed: 'bt' }
     },   // 2 lines, measured; the fuller draft was 3 and grew the About card 20.14px
     'label.madeBy':       { en: { t: 'Made by' }, fr: { t: 'Réalisé par', reviewed: true },
-        'zh-Hans': { t: '制作', reviewed: 'mt' }
+        'zh-Hans': { t: '制作', reviewed: 'bt' }
     },
 
     // ── Control strip ─────────────────────────────────────────────────────
@@ -1416,34 +1472,34 @@ export const LABELS = Object.freeze({
     // (41.22), each measured IN this element so letter-spacing and the real
     // font are in play. Maintien is the tightest survivor at 55.69px.
     'label.knobAttack':   { en: { t: 'Attack' },   fr: { t: 'Attaque',  reviewed: true },
-        'zh-Hans': { t: '起音', reviewed: 'mt' }
+        'zh-Hans': { t: '起音', reviewed: 'bt' }
     },
     'label.knobDecay':    { en: { t: 'Decay' },    fr: { t: 'Déclin',    reviewed: true },
-        'zh-Hans': { t: '衰减', reviewed: 'mt' }
+        'zh-Hans': { t: '衰减', reviewed: 'bt' }
     },
     'label.knobSustain':  { en: { t: 'Sustain' },  fr: { t: 'Maintien', reviewed: true },
-        'zh-Hans': { t: '延音', reviewed: 'mt' }
+        'zh-Hans': { t: '延音', reviewed: 'bt' }
     },
     'label.knobRelease':  { en: { t: 'Release' },  fr: { t: 'Relâch.',  reviewed: true },
-        'zh-Hans': { t: '释音', reviewed: 'mt' }
+        'zh-Hans': { t: '释音', reviewed: 'bt' }
     },
     'label.knobPoly':     { en: { t: 'Poly' },     fr: { t: 'Polyph.',  reviewed: true },
-        'zh-Hans': { t: '复音数', reviewed: 'mt' }
+        'zh-Hans': { t: '复音数', reviewed: 'bt' }
     },
     'label.knobVelXf':    { en: { t: 'Vel-XF' },   fr: { t: 'Vél-XF',   reviewed: true },
-        'zh-Hans': { t: '力度渐变', reviewed: 'mt' }
+        'zh-Hans': { t: '力度交叉', reviewed: 'bt' }
     },
     'label.knobExpr':     { en: { t: 'Expr' },     fr: { t: 'Expr.',    reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: '表情', reviewed: 'mt' }
+        'zh-Hans': { t: '表情', reviewed: 'bt' }
     },
     'label.knobDynRng':   { en: { t: 'Dyn Rng' },  fr: { t: 'Pl. dyn.', reviewed: true },
-        'zh-Hans': { t: '动态范围', reviewed: 'mt' }
+        'zh-Hans': { t: '动态范围', reviewed: 'bt' }
     },
     'label.knobOutGain':  { en: { t: 'Out Gain' }, fr: { t: 'Sortie',   reviewed: true },
-        'zh-Hans': { t: '输出增益', reviewed: 'mt' }
+        'zh-Hans': { t: '输出增益', reviewed: 'bt' }
     },
     'label.dynamics':     { en: { t: 'Dynamics' }, fr: { t: 'Dynamique', reviewed: true },
-        'zh-Hans': { t: '动态', reviewed: 'mt' }
+        'zh-Hans': { t: '动态', reviewed: 'bt' }
     },
 
     // ── Tuning panel (js/tuning-panel.js) ─────────────────────────────────
@@ -1451,35 +1507,35 @@ export const LABELS = Object.freeze({
     // interval-quality abbreviations and the generated scale names are NOT
     // keyed — see the note above I18N_EXEMPT.
     'label.vizCircle':      { en: { t: 'Circle' },     fr: { t: 'Cercle',   reviewed: true },
-        'zh-Hans': { t: '圆周', reviewed: 'mt' }
+        'zh-Hans': { t: '圆周', reviewed: 'bt' }
     },
     'label.vizPolar':       { en: { t: 'Polar' },      fr: { t: 'Polaire',  reviewed: true },
-        'zh-Hans': { t: '极坐标', reviewed: 'mt' }
+        'zh-Hans': { t: '极坐标', reviewed: 'bt' }
     },
     'label.vizMatrix':      { en: { t: 'Matrix' },     fr: { t: 'Matrice',  reviewed: true },
-        'zh-Hans': { t: '矩阵', reviewed: 'mt' }
+        'zh-Hans': { t: '矩阵', reviewed: 'bt' }
     },
     'label.vizTrueKeys':    { en: { t: 'True Keys' },  fr: { t: 'Touches',  reviewed: true },
-        'zh-Hans': { t: '真实键位', reviewed: 'mt' }
+        'zh-Hans': { t: '真实键位', reviewed: 'bt' }
     },
     'label.vizRotation':    { en: { t: 'Rotation' },   fr: { t: 'Rotation', reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: '旋转', reviewed: 'mt' }
+        'zh-Hans': { t: '旋转', reviewed: 'bt' }
     },
     'label.scaleIntervals': { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: true },
-        'zh-Hans': { t: '音阶音程', reviewed: 'mt' }
+        'zh-Hans': { t: '音阶音程', reviewed: 'bt' }
     },
     'label.tkHint':         { en: { t: 'Hold 2+ notes to see intervals' }, fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: true },
-        'zh-Hans': { t: '按住 2 个以上音符可查看音程', reviewed: 'mt' }
+        'zh-Hans': { t: '按住 2 个以上音符可查看音程', reviewed: 'bt' }
     },
     'label.totalSpan':      { en: { t: 'Total span' }, fr: { t: 'Étendue',        reviewed: true },
-        'zh-Hans': { t: '总跨度', reviewed: 'mt' }
+        'zh-Hans': { t: '总跨度', reviewed: 'bt' }
     },
     'label.rotationMode':   { en: { t: 'Mode' },       fr: { t: 'Mode', reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: '模式', reviewed: 'mt' }
+        'zh-Hans': { t: '模式', reviewed: 'bt' }
     },
     'label.intervalsCount': { en: { t: 'Intervals · notes: {n}' },
                               fr: { t: 'Interv. · notes : {n}', reviewed: true },
-        'zh-Hans': { t: '音程 · 音符：{n}', reviewed: 'mt' }
+        'zh-Hans': { t: '音程 · 音符：{n}', reviewed: 'bt' }
     },   // 114.45px in a
                               // 142px column, measured. The fuller 'Intervalles · notes : {n}'
                               // is 2 lines and pushes the whole interval list down 14px; the
@@ -1487,97 +1543,97 @@ export const LABELS = Object.freeze({
                               // but inflects wrongly at n=1, so per contract §6 the count stays
                               // after the colon beside an invariant noun instead.
     'label.tonic':          { en: { t: 'Tonic' },      fr: { t: 'Tonique',  reviewed: true },
-        'zh-Hans': { t: '主音', reviewed: 'mt' }
+        'zh-Hans': { t: '主音', reviewed: 'bt' }
     },
     'label.tuningLibrary':  { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque de gammes', reviewed: true },
-        'zh-Hans': { t: '调音库', reviewed: 'mt' }
+        'zh-Hans': { t: '调音库', reviewed: 'bt' }
     },
     'label.catAll':         { en: { t: 'All Categories' },  fr: { t: 'Toutes catégories', reviewed: true },
-        'zh-Hans': { t: '全部类别', reviewed: 'mt' }
+        'zh-Hans': { t: '全部类别', reviewed: 'bt' }
     },
     'label.catHistorical':  { en: { t: 'Historical' },      fr: { t: 'Historiques',       reviewed: true },
-        'zh-Hans': { t: '历史音律', reviewed: 'mt' }
+        'zh-Hans': { t: '历史音律', reviewed: 'bt' }
     },
     'label.catJust':        { en: { t: 'Just Intonation' }, fr: { t: 'Intonation juste',  reviewed: true },
-        'zh-Hans': { t: '纯律', reviewed: 'mt' }
+        'zh-Hans': { t: '纯律', reviewed: 'bt' }
     },
     'label.catEdo':         { en: { t: 'Equal Divisions' }, fr: { t: 'Divisions égales',  reviewed: true },
-        'zh-Hans': { t: '等分', reviewed: 'mt' }
+        'zh-Hans': { t: '等分', reviewed: 'bt' }
     },
     'label.catNonOctave':   { en: { t: 'Non-Octave' },      fr: { t: 'Non octaviantes',   reviewed: true },
-        'zh-Hans': { t: '非八度', reviewed: 'mt' }
+        'zh-Hans': { t: '非八度', reviewed: 'bt' }
     },
     'label.catWorld':       { en: { t: 'World' },           fr: { t: 'Du monde',          reviewed: true },
-        'zh-Hans': { t: '世界音律', reviewed: 'mt' }
+        'zh-Hans': { t: '世界音律', reviewed: 'bt' }
     },
     'label.noteCount':      { en: { t: 'notes: {n}' },      fr: { t: 'notes : {n}',       reviewed: true },
-        'zh-Hans': { t: '音符：{n}', reviewed: 'mt' }
+        'zh-Hans': { t: '音符：{n}', reviewed: 'bt' }
     },
     // A4 stays A4: it is letter pitch notation, which the C++ TuningEngine and
     // the .scl/.kbm formats also speak. Only REF is a word.
     'label.a4Ref':          { en: { t: 'A4 REF' },  fr: { t: 'RÉF. A4',    reviewed: true },
-        'zh-Hans': { t: 'A4 基准', reviewed: 'mt' }
+        'zh-Hans': { t: 'A4 基准', reviewed: 'bt' }
     },
     'label.stretch':        { en: { t: 'Stretch' }, fr: { t: 'Étirement', reviewed: true },
-        'zh-Hans': { t: '延展', reviewed: 'mt' }
+        'zh-Hans': { t: '延展', reviewed: 'bt' }
     },
     'label.loadScl':        { en: { t: 'Load .SCL' },   fr: { t: 'Ouvrir .SCL',   reviewed: true },
-        'zh-Hans': { t: '载入 .scl', reviewed: 'mt' }
+        'zh-Hans': { t: '载入 .scl', reviewed: 'bt' }
     },
     'label.loadKbm':        { en: { t: 'Load .KBM' },   fr: { t: 'Ouvrir .KBM',   reviewed: true },
-        'zh-Hans': { t: '载入 .kbm', reviewed: 'mt' }
+        'zh-Hans': { t: '载入 .kbm', reviewed: 'bt' }
     },
     'label.saveScl':        { en: { t: 'Save .SCL' },   fr: { t: 'Enreg. .SCL',   reviewed: true },
-        'zh-Hans': { t: '保存 .scl', reviewed: 'mt' }
+        'zh-Hans': { t: '保存 .scl', reviewed: 'bt' }
     },
     'label.saveKbm':        { en: { t: 'Save .KBM' },   fr: { t: 'Enreg. .KBM',   reviewed: true },
-        'zh-Hans': { t: '保存 .kbm', reviewed: 'mt' }
+        'zh-Hans': { t: '保存 .kbm', reviewed: 'bt' }
     },
     'label.exportHtml':     { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: true },
-        'zh-Hans': { t: '导出 HTML', reviewed: 'mt' }
+        'zh-Hans': { t: '导出 HTML', reviewed: 'bt' }
     },
     'label.generateScale':  { en: { t: 'Generate Scale' },      fr: { t: 'Générer une gamme', reviewed: true },
-        'zh-Hans': { t: '生成音阶', reviewed: 'mt' }
+        'zh-Hans': { t: '生成音阶', reviewed: 'bt' }
     },
     'label.genEdo':         { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: true },
-        'zh-Hans': { t: '等分八度 (EDO)', reviewed: 'mt' }
+        'zh-Hans': { t: '等分八度 (EDO)', reviewed: 'bt' }
     },
     'label.genHarmonic':    { en: { t: 'Harmonic Series' },      fr: { t: 'Série harmonique',     reviewed: true },
-        'zh-Hans': { t: '泛音列', reviewed: 'mt' }
+        'zh-Hans': { t: '泛音列', reviewed: 'bt' }
     },
     'label.genRank2':       { en: { t: 'Rank-2 Temperament' },   fr: { t: 'Tempérament de rang 2', reviewed: true },
-        'zh-Hans': { t: '二阶音律', reviewed: 'mt' }
+        'zh-Hans': { t: '二阶音律', reviewed: 'bt' }
     },
     // Two Period (c) labels: one in the EDO row, one in the Rank-2 row. Each
     // <label> is its own element and so needs its own key.
     'label.genDivisions':     { en: { t: 'Divisions' },      fr: { t: 'Divisions', reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: '等分数', reviewed: 'mt',
+        'zh-Hans': { t: '等分数', reviewed: 'bt',
                      termNote: 'the glossary root for `divisions` is the GENERIC 分割 (cutting a thing apart), and this field is not that. It is the COUNT of equal divisions of the period, and it sits two cells from label.catEdo, whose English "Equal Divisions" takes the glossary root 等分. Shipping 分割 here would put two renderings of one concept in one generator panel — the collision Task 2 hit on Dither/Jitter, arriving through a root that renders the OTHER sense. 等分数 is 等分 plus the count morpheme, so the two cells now read as one vocabulary' }
     },
     'label.genPeriod':        { en: { t: 'Period (c)' },     fr: { t: 'Période (c)', reviewed: true },
-        'zh-Hans': { t: '周期 (C)', reviewed: 'mt' }
+        'zh-Hans': { t: '周期 (C)', reviewed: 'bt' }
     },
     'label.genStartHarmonic': { en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: true },
-        'zh-Hans': { t: '起始泛音', reviewed: 'mt' }
+        'zh-Hans': { t: '起始泛音', reviewed: 'bt' }
     },
     'label.genEndHarmonic':   { en: { t: 'End Harmonic' },   fr: { t: 'Harm. de fin',         reviewed: true },
-        'zh-Hans': { t: '终止泛音', reviewed: 'mt' }
+        'zh-Hans': { t: '终止泛音', reviewed: 'bt' }
     },
     'label.genGenerator':     { en: { t: 'Generator (c)' },  fr: { t: 'Génér. (c)',           reviewed: true },
-        'zh-Hans': { t: '生成元 (C)', reviewed: 'mt' }
+        'zh-Hans': { t: '生成元 (C)', reviewed: 'bt' }
     },
     'label.genR2Period':      { en: { t: 'Period (c)' },     fr: { t: 'Période (c)',          reviewed: true },
-        'zh-Hans': { t: '周期 (C)', reviewed: 'mt' }
+        'zh-Hans': { t: '周期 (C)', reviewed: 'bt' }
     },
     'label.genNotes':         { en: { t: 'Notes' },          fr: { t: 'Notes', reviewed: true, sameAsEn: true },
-        'zh-Hans': { t: '音符', reviewed: 'mt' }
+        'zh-Hans': { t: '音符', reviewed: 'bt' }
     },
     'label.generate':         { en: { t: 'Generate' },       fr: { t: 'Générer', reviewed: true },
-        'zh-Hans': { t: '生成', reviewed: 'mt' }
+        'zh-Hans': { t: '生成', reviewed: 'bt' }
     },
     'label.tuningPanelUnavailable': { en: { t: 'Tuning panel unavailable.' },
                                       fr: { t: 'Panneau d’accord indisponible.', reviewed: true },
-        'zh-Hans': { t: '调音面板不可用。', reviewed: 'mt' }
+        'zh-Hans': { t: '调音面板不可用。', reviewed: 'bt' }
     },
 
     // ── ACCESSIBLE NAMES declared in markup or by a literal dataset write ──
@@ -1587,79 +1643,79 @@ export const LABELS = Object.freeze({
     // per contract §4 with their own v1.23.10 wording, VERBATIM. No new prose
     // is invented: Stage M authors hover-help, this rule does not.
     'aria.savePreset':       { en: { t: 'Save plugin state to .omspreset' },   fr: { t: 'Enregistrer l’état du plugin dans un .omspreset', reviewed: true },
-        'zh-Hans': { t: '将插件状态保存为 .omspreset', reviewed: 'mt' }
+        'zh-Hans': { t: '将插件状态保存为 .omspreset', reviewed: 'bt' }
     },
     'aria.loadPreset':       { en: { t: 'Load plugin state from .omspreset' }, fr: { t: 'Charger l’état du plugin depuis un .omspreset',  reviewed: true },
-        'zh-Hans': { t: '从 .omspreset 载入插件状态', reviewed: 'mt' }
+        'zh-Hans': { t: '从 .omspreset 载入插件状态', reviewed: 'bt' }
     },
     'aria.settings':         { en: { t: 'Settings' },           fr: { t: 'Réglages',            reviewed: true },
-        'zh-Hans': { t: '设置', reviewed: 'mt' }
+        'zh-Hans': { t: '设置', reviewed: 'bt' }
     },
     'aria.langSelect':       { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true },
-        'zh-Hans': { t: '界面语言', reviewed: 'mt' }
+        'zh-Hans': { t: '界面语言', reviewed: 'bt' }
     },
     'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true },
-        'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }
+        'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' }
     },
     'aria.techniquePreset':  { en: { t: 'Rename all technique slots to match a Dorico instrument family (slot order matches the keyswitch order in the O-MicrotonalSampler expression maps)' },
                                fr: { t: 'Renommer tous les emplacements de technique selon une famille d’instruments Dorico (l’ordre des emplacements suit celui des commutations par touche dans les cartes d’expression O-MicrotonalSampler)', reviewed: true },
-        'zh-Hans': { t: '把所有技法插槽重命名为某个 Dorico 乐器族（插槽顺序与 O-MicrotonalSampler 表情映射中的键位切换顺序一致）', reviewed: 'mt' }
+        'zh-Hans': { t: '把所有技法插槽重命名为某个 Dorico 乐器族（插槽顺序与 O-MicrotonalSampler 表情映射中的键位切换顺序一致）', reviewed: 'bt' }
     },
     'aria.playingTechniques': { en: { t: 'Playing techniques' },     fr: { t: 'Techniques de jeu',          reviewed: true },
-        'zh-Hans': { t: '演奏技法', reviewed: 'mt' }
+        'zh-Hans': { t: '演奏技法', reviewed: 'bt' }
     },
     'aria.addTechnique':      { en: { t: 'Add technique slot' },     fr: { t: 'Ajouter un emplacement de technique', reviewed: true },
-        'zh-Hans': { t: '添加技法插槽', reviewed: 'mt' }
+        'zh-Hans': { t: '添加技法插槽', reviewed: 'bt' }
     },
     'aria.removeTechnique':   { en: { t: 'Remove last technique slot' }, fr: { t: 'Retirer le dernier emplacement de technique', reviewed: true },
-        'zh-Hans': { t: '移除最后一个技法插槽', reviewed: 'mt' }
+        'zh-Hans': { t: '移除最后一个技法插槽', reviewed: 'bt' }
     },
     'aria.trimTech':          { en: { t: 'Technique master trim (dB)' }, fr: { t: 'Ajustement général de la technique (dB)', reviewed: true },
-        'zh-Hans': { t: '技法总微调（dB）', reviewed: 'mt' }
+        'zh-Hans': { t: '技法总微调（dB）', reviewed: 'bt' }
     },
     'aria.trimLayer0':        { en: { t: 'Layer p trim (dB)' },  fr: { t: 'Ajustement de la couche p (dB)',  reviewed: true },
-        'zh-Hans': { t: 'p 层微调（dB）', reviewed: 'mt' }
+        'zh-Hans': { t: 'p 层微调（dB）', reviewed: 'bt' }
     },
     'aria.trimLayer1':        { en: { t: 'Layer mp trim (dB)' }, fr: { t: 'Ajustement de la couche mp (dB)', reviewed: true },
-        'zh-Hans': { t: 'mp 层微调（dB）', reviewed: 'mt' }
+        'zh-Hans': { t: 'mp 层微调（dB）', reviewed: 'bt' }
     },
     'aria.trimLayer2':        { en: { t: 'Layer mf trim (dB)' }, fr: { t: 'Ajustement de la couche mf (dB)', reviewed: true },
-        'zh-Hans': { t: 'mf 层微调（dB）', reviewed: 'mt' }
+        'zh-Hans': { t: 'mf 层微调（dB）', reviewed: 'bt' }
     },
     'aria.trimLayer3':        { en: { t: 'Layer f trim (dB)' },  fr: { t: 'Ajustement de la couche f (dB)',  reviewed: true },
-        'zh-Hans': { t: 'f 层微调（dB）', reviewed: 'mt' }
+        'zh-Hans': { t: 'f 层微调（dB）', reviewed: 'bt' }
     },
     'aria.closeLoopEditor':   { en: { t: 'Close loop editor' },  fr: { t: 'Fermer l’éditeur de boucle', reviewed: true },
-        'zh-Hans': { t: '关闭循环编辑器', reviewed: 'mt' }
+        'zh-Hans': { t: '关闭循环编辑器', reviewed: 'bt' }
     },
     'aria.floLayer':          { en: { t: 'Target velocity layer' }, fr: { t: 'Couche de vélocité cible',   reviewed: true },
-        'zh-Hans': { t: '目标力度层', reviewed: 'mt' }
+        'zh-Hans': { t: '目标力度层', reviewed: 'bt' }
     },
     'aria.floTechnique':      { en: { t: 'Target technique slot' }, fr: { t: 'Emplacement de technique cible', reviewed: true },
-        'zh-Hans': { t: '目标技法插槽', reviewed: 'mt' }
+        'zh-Hans': { t: '目标技法插槽', reviewed: 'bt' }
     },
     'aria.renameInput':       { en: { t: 'New technique name' },    fr: { t: 'Nouveau nom de technique',   reviewed: true },
-        'zh-Hans': { t: '新的技法名称', reviewed: 'mt' }
+        'zh-Hans': { t: '新的技法名称', reviewed: 'bt' }
     },
     'aria.dynamicsMode':      { en: { t: 'Dynamics Mode — how MIDI CC 11 shapes dynamics. Velocity: note-on velocity picks the layer, CC 11 is a post-mix volume trim (v1.20 behaviour). CC Crossfade: CC 11 morphs across all velocity layers mid-note (timbre + loudness, like pro sustain patches).' },
                                 fr: { t: 'Mode de dynamique — comment le CC MIDI 11 façonne la dynamique. Velocity : la vélocité de la note choisit la couche, le CC 11 sert d’ajustement de volume après mixage (comportement v1.20). CC Crossfade : le CC 11 fond toutes les couches de vélocité au cours de la note (timbre + niveau, comme les patches professionnels de notes tenues).', reviewed: true,
                                   termNote: '« après mixage » is the mixing PROCESS the layers are summed by — the post-mix trim of the English — not the Mix control the forbidden entry targets. There is no Mix control on this page' },
-        'zh-Hans': { t: '动态模式——MIDI CC 11 如何塑造动态。Velocity：音符触发力度挑选力度层，CC 11 是混合之后的音量微调（v1.20 的行为）。CC Crossfade：CC 11 在音符持续期间在所有力度层之间渐变（音色加响度，与专业长音音色一样）。', reviewed: 'mt' }
+        'zh-Hans': { t: '动态模式——MIDI CC 11 如何塑造动态。Velocity：音符触发力度挑选力度层，CC 11 是混合之后的音量微调（v1.20 的行为）。CC Crossfade：CC 11 在音符持续期间在所有力度层之间渐变（音色加响度，与专业长音音色一样）。', reviewed: 'bt' }
     },
     'aria.dynamicsModeShort': { en: { t: 'Dynamics Mode' }, fr: { t: 'Mode de dynamique', reviewed: true },
-        'zh-Hans': { t: '动态模式', reviewed: 'mt' }
+        'zh-Hans': { t: '动态模式', reviewed: 'bt' }
     },
     'aria.knobExpr':          { en: { t: 'Expression (MIDI CC 11) — dynamics control, independent of velocity layer' },
                                 fr: { t: 'Expression (CC MIDI 11) — contrôle de la dynamique, indépendant de la couche de vélocité', reviewed: true },
-        'zh-Hans': { t: '表情（MIDI CC 11）——独立于力度层的动态控制', reviewed: 'mt' }
+        'zh-Hans': { t: '表情（MIDI CC 11）——独立于力度层的动态控制', reviewed: 'bt' }
     },
     'aria.knobDynRng':        { en: { t: 'Dynamic Range (CC Crossfade only) — dB span between pp and ff. 0 dB = flat; higher = louder ff / quieter pp. Fixes "forte too soft, piano too loud" in Dorico.' },
                                 fr: { t: 'Plage dynamique (CC Crossfade uniquement) — différence en dB entre pp et ff. 0 dB = plat ; plus haut = ff plus fort / pp plus doux. Corrige le « forte trop faible, piano trop fort » dans Dorico.', reviewed: true },
-        'zh-Hans': { t: '动态范围（仅 CC Crossfade）——pp 与 ff 之间的 dB 差值。0 dB = 平坦；数值越高，ff 越响、pp 越轻。修正 Dorico 中“强奏太弱、弱奏太响”的问题。', reviewed: 'mt' }
+        'zh-Hans': { t: '动态范围（仅 CC Crossfade）——pp 与 ff 之间的 dB 差值。0 dB = 平坦；数值越高，ff 越响、pp 越轻。修正 Dorico 中“强奏太弱、弱奏太响”的问题。', reviewed: 'bt' }
     },
     'aria.loopResetOneShot':  { en: { t: 'Sample is one-shot — no loop region detected.' },
                                 fr: { t: 'Échantillon one-shot — aucune région de boucle détectée.', reviewed: true },
-        'zh-Hans': { t: '该采样为单次采样——未检测到循环区间。', reviewed: 'mt' }
+        'zh-Hans': { t: '该采样为单次采样——未检测到循环区间。', reviewed: 'bt' }
     },
 });
 

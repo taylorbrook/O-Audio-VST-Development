@@ -1,5 +1,120 @@
 # O-MicrotonalSampler Changelog
 
+## [1.27.0] - 2026-09-04
+
+### Added — Simplified Chinese (zh-Hans rollout, Stage 3)
+
+- **The interface speaks Simplified Chinese.** `LANGUAGES` becomes
+  `['en', 'fr', 'zh-Hans']` and all **275 entries / 296 back-translation rows**
+  carry a zh-Hans value — the largest table in the suite. The selector gains a
+  third `<option>` written as numeric character references
+  (`&#31616;&#20307;&#20013;&#25991;`), so this file and `index.html` stay pure
+  ASCII on disk while the endonym renders as 简体中文.
+- **The C++ codec takes a third branch.** `languageCode()` / `languageIndex()`
+  now map `zh-Hans` <-> 2, both pure ASCII: the BCP-47 tag is the one spelling
+  that crosses the whole UI/C++ boundary, and no Han character exists anywhere
+  in this plugin's C++. Two stale "anything that is not fr" comments in
+  `PluginEditor.cpp` and `PluginProcessor.cpp` were repaired with it.
+
+### Quality level — disclosed, not hidden
+
+Every zh-Hans entry ships at `reviewed: 'bt'`. That asserts a **second,
+independent pass** — a blind agent that never saw the English source — rendered
+the Chinese back into English and the drift was read against the original. It
+took two rounds and 297 triples; **all 296 were read**, not the twelve the tool
+prints by default. `'native'` stays open. **This project has no native Chinese
+reader.**
+
+One row was re-authored: the **Vel-XF** knob caption read 力度渐变 ("velocity
+*fade*") against its own tooltip title 力度交叉渐变 ("velocity crossfade") —
+two names for one control, the same defect class the v1.25.1 French pass
+recorded as N1 correction 11. It now reads 力度交叉, a literal prefix of its own
+title, at identical width.
+
+### Terminology
+
+- **A glossary-root collision was screened before authoring and resolved.**
+  `Divisions` roots on 分割, the generic "cutting a thing apart", and would have
+  sat two cells from `Equal Divisions` (等分) and `EDO (Equal Division)`
+  (等分八度) in the same generator panel — two renderings of one concept. Ships
+  as **等分数** with the reasoning recorded as a `termNote` at the entry.
+- New domain vocabulary settled for the Stage-4 synth and tuning plugins:
+  采样 (never 样品) · 采样映射 · 力度层 · 循环轮替 · 键位切换 · 程序变更 ·
+  复音数 · 动态范围 · 音分 · 泛音列 · 二阶音律 · 单次采样 · 宿主 · 循环点.
+- Mode names stay **English** inside the bodies: `Velocity` and `CC Crossfade`
+  are `dynamics_mode` `AudioParameterChoice` options and the host automation
+  lane shows those exact words.
+
+### Typography and layout
+
+- **CJK font tail on the measured stacks, across both stylesheets.** The
+  resolution set was measured — serve, switch to Chinese, read
+  `getComputedStyle().fontFamily` on every node that holds or can receive a Han
+  codepoint, across both screens and every state in `tests/i18n-states.json` —
+  and returned **five** stacks. Four are declared here and took the tail in
+  place (23 declarations). The fifth is bare **Arial**, Chromium's UA default
+  for a `<button>` or `<select>` that names no font-family: **eleven** of those
+  carry visible Chinese and took the tail with **Arial kept first** so Latin
+  metrics are unchanged; the **five** reached only through `aria-label` on
+  sliders were deliberately left alone, because an accessible name is spoken
+  rather than rendered and there is no glyph to fall back for. Three further
+  monospace stacks (`.missing-folder-path`, `.diagnostic-pre`, `.tk-cents`) were
+  left alone because no Han node ever reaches them.
+- **Thirteen measured line-height pins.** `line-height: normal` is the font's
+  own metrics and Han faces carry taller ones; it accounted for 504 of the 646
+  moved elements. Each pin is the **measured English line box**, written
+  unitless. No global rule — a global `line-height` moves English geometry,
+  which is the regression the gates exist to catch. Half the families live in
+  dialogs, a context menu and a popover and could only be found by driving every
+  gate state: **the gate cannot name what never renders**.
+- **Width pins, measured across all three languages and set at the widest.**
+  `#save-preset-btn` / `#load-preset-btn` (89.66 en / 90.31 fr / 83.02 zh -> 91)
+  — Chinese SHRANK here and pushed `#tab-strip` 7.3 px, a non-label element
+  moving because of copy that is not in it. **Two existing French-era
+  `min-width` pins were silently exceeded**: `.drop-zone-text` was pinned at 134
+  and Chinese renders 137.70. `min-width` is a floor, not a cap.
+- **Un-wrap pins.** Chinese says the same thing in fewer characters, so two
+  dialog paragraphs took one fewer line and their dialogs got *shorter* — every
+  report was `dh=-20.3` and nothing grew. In the round-robin dialog the
+  paragraph's own box was not enough: three inline `<code>` tokens sat a line
+  higher because the prose before them shortened.
+- **The rotation table's Mode header is pinned and no longer wraps.** Han wraps
+  *between characters*, so a Han run's min-content width is ONE character where
+  a Latin word's is the whole word. In the 13-column auto table that let 模式
+  (22.88 px) be squeezed below its own two-character width and wrap to two
+  lines — while being **narrower** than the "Mode" it replaced.
+
+`check-ui-labels` went from 160 FAIL to **0**, with 84 `fr` and 84 `zh-Hans`
+geometry PASSes and a 99% vacuity control proving the Chinese pass rendered.
+
+### Changed — tooling
+
+- `tests/ui_tip_render_check.js` **hard-asserted a two-language literal** and
+  failed outright the moment a third language landed. It now asserts the *shape*
+  the sweep needs — list readable and non-empty, English first, every declared
+  language present on all 22 bound tip keys — and **aborts rather than
+  defaulting** when it cannot read the table, because a gate that falls back to
+  a pair goes green on unchecked content. The drive loop is derived from the
+  table's own `LANGUAGES`. Both halves were proved before the i18n edit landed:
+  the changed gate passes on the two-language table, and the abort fires with
+  exit 2 on a planted empty `LANGUAGES`.
+
+### Verified
+
+- The **v1.24.0 inline-pluralization removal was verified, not assumed**: a live
+  scan of `Resources/ui/js/*.js` and `index.html`, comment-stripped, with the
+  regex first fired against a positive control carrying all three removed shapes
+  (4/4 on the control, **0 live sites** in the plugin).
+
+### Known limitation
+
+`i18n-zh-lint` reports 8 `Z1` findings on this table and **six are
+byte-identical to the glossary's own roots** (载入 .scl and siblings, 否则使用文
+件名标记 `(`). `Z5` compels the root and `Z1` then flags it. The cause is in
+`maskLatin()`, which masks ASCII punctuation only *between* two alphanumerics,
+so a leading-dot file extension survives; the strings are not what is wrong.
+Reported as a tool defect rather than worked around. The lint is report-only.
+
 ## [1.26.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
