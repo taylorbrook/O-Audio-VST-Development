@@ -65,6 +65,11 @@
                                     data-i18n-aria="aria.langSelect" aria-label="Interface language">
                                 <option value="en">English</option>
                                 <option value="fr">Fran&ccedil;ais</option>
+                                <!-- NUMERIC ENTITIES: the markup path stays pure ASCII on disk
+                                     whatever a later editor's encoding does to it. This <option> is
+                                     the ONLY place Han reaches this file, and a keyed scan never
+                                     sees it - an endonym carries no data-i18n. -->
+                                <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                             </select>
                         </label>
 
