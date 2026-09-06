@@ -3,6 +3,82 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.0] - 2026-09-06
+
+Simplified Chinese joins English and French (task 260906-h8y, wave 4e). MINOR: a
+third language, seventeen geometry pins and four font-stack tails — no parameter,
+range, type, DSP path or state format changed, and the English and French pages
+are unchanged in geometry, measured node for node.
+
+### Added
+
+- **Simplified Chinese across the whole hover-help and label surface** — 111
+  rows (26 tooltip entries as title + body, 4 accessible-name titles, and 55
+  labels), reachable from the `简体中文` entry in the settings popover's language
+  selector. The endonym is written as the numeric character references
+  `&#31616;&#20307;&#20013;&#25991;`, copied from the shipped convention rather
+  than retyped, and carries a reasoned `I18N_EXEMPT` entry because the coverage
+  scanner sees the DECODED characters.
+- **Disclosed quality level: `reviewed: 'bt'` — back-translated, not native.**
+  Every one of the 111 rows was authored at `'mt'`, committed, then emitted in
+  two independently salted, id-blinded batches (56 + 55, disjoint and covering
+  every row exactly once) to a blind reader running in a fresh session from a
+  directory outside this repository with every tool disabled and no access to
+  the English source, the key names or any file. All 111 returned triples were
+  read. Nothing needed re-authoring, so there is no second round. No native
+  Chinese speaker has read this page, and the lint prints that fact on every run.
+
+### Changed
+
+- **The language hover help no longer counts the selector's options.** Its
+  English and its French both named a fixed pair. That sentence was true while
+  the selector held two options and went false the moment a third arrived. The
+  half that stayed true — the value readouts, the six lesson-preset names and
+  the MIDI note numbers are English in every language — is kept, because it is a
+  fact about those things rather than about the list. The settings body one
+  entry above was read in full and deliberately LEFT: it already names both of
+  the panel's controls and is already true.
+- **Four font stacks carry a CJK tail**, placed BEFORE the trailing generic:
+  Chromium resolves a bare `serif` or `monospace` against the document's `lang`,
+  so under `lang="zh-Hans"` the generic is already a Chinese face and a tail
+  written after it is never consulted. The Latin half of every stack here was
+  already safe — `Times New Roman` and `Menlo` are on the build machine while
+  `Garamond`, `EB Garamond`, `Adobe Garamond Pro` and `Consolas` are not — so
+  each named Latin face stays first and neither Latin arm moves. The
+  `--symbol-font` token is included because the gear button carries a Chinese
+  tooltip the moment the table lands, even though its own glyph is `⚙`.
+- **Sixteen `line-height` pins replace `line-height: normal`, and a
+  seventeenth pins a caption ROW.** A Chinese face returns a line box roughly
+  **30 % taller** than a Latin one at the same font-size (measured here: 11 → 15
+  px at 10.5 px, 11 → 14 px at 10 px, 12 → 16 px at 11 and 11.5 px, 15 → 17 px at
+  12 and 12.5 px), so every caption grew and pushed 234–385 elements per state
+  out of place. Each pin is the MEASURED English CONTENT line box over its own
+  font-size, with padding and border subtracted first, so neither Latin arm can
+  move; each goes inside the rule that already owns its selector rather than into
+  a new higher-specificity block.
+- **The four caption rows are pinned as LINE BOXES, not as leaves.** Every leaf
+  inside `.grid-label`, `.lane-label`, `.midi-label` and `.tour-label` reports an
+  identical box in English and in Chinese, and the rows still grew 2 px each,
+  because an inline box's height comes from the used face's ascent and descent
+  rather than from the element's own box. No per-leaf census can see that; only
+  the container delta reports it.
+- **A width floor for the tempo transport key.** `速度` measures 22.47 px against
+  `TEMPO`'s 37.5 px, and un-floored it narrowed the transport strip 15 px, which
+  widened the title block 8.8 px and moved the whole header. The floor is the
+  EXACT measured English box, in the shape this file already uses for its other
+  two transport keys, so neither Latin arm moves.
+- **The transport state line reads `● 自由` and `● 已同步`.** `#readTransport`
+  carries a 53 px floor placed for French; the fuller `● 自由运行` measures
+  59.3 px and would have grown the cell. The copy was the lever rather than the
+  floor — the same trade the French made when it chose `● libre`.
+- **`PluginProcessor.h`'s language codec is three-way**, in pure ASCII. The file
+  carries the BCP-47 tag and nothing else — no Chinese character exists anywhere
+  under `Source/`.
+- **`Del` stays `Del` in Chinese, with the reason recorded at the entry.** It is
+  a KEYCAP, decided by the hardware rather than the language, exactly as the
+  French row reads `Suppr`. The glossary root `删除` names the Delete ACTION and
+  would be wrong on a key face.
+
 ## [1.2.1] — 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
