@@ -2,6 +2,80 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.4.0] - 2026-09-05
+
+Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c).
+MINOR: a third language, one font edit and eleven geometry pins. No parameter,
+range, type or state format changed, and no audio path was touched.
+
+### Added
+
+- **`zh-Hans` on every one of the 89 emitter rows** — 26 `I18N` entries (title
+  and body) and 37 `LABELS` entries. Authored at `reviewed: 'mt'`, committed
+  there, and promoted to **`reviewed: 'bt'`** only after an independent blind
+  reverse read. `'native'` stays open on every row: this project has no native
+  Chinese reader, and `i18n-zh-lint` rule R1 prints that quality level on every
+  run rather than leaving it to a reader's memory.
+- **The endonym `简体中文`**, written as numeric character references to match
+  this file's existing convention for `Français`.
+- **A three-way `languageCode` / `languageIndex` codec.** Anything that is
+  neither `fr` nor `zh-Hans` degrades to English. **No Chinese character appears
+  anywhere under `Source/`** — the C++ carries only the ASCII code.
+
+### Changed
+
+- **The language hover-help lost its enumeration, in English and French alike.**
+  It named the selector's options in full, which was true for exactly as long as
+  the selector held two entries. Deleted rather than widened to three: a body
+  that lists a control's options has to be re-edited every time the control
+  grows, in every language, and it is that edit that gets forgotten. The
+  selector already lists the languages in their own endonyms — the one place the
+  list cannot go stale. The Chinese was authored from the corrected English.
+- **`Measure` diverges from the glossary root, on the record.** The suite
+  glossary settles `measure` as the musical **bar**. This control selects the
+  measurement *algorithm* Learn uses, so the settled root would have printed a
+  bar line on a loudness meter. It renders 测量 under a `termNote`, which is the
+  lint's own sanctioned escape — and the blind reverse reader, who had never
+  seen the English, read 测量 back as "Measure".
+- **One font edit covers the whole page.** Every `font-family` here other than
+  the one at `index.html:43` reads `inherit`, so the CJK tail lands once —
+  **before the trailing generic**, because Chromium resolves a bare `serif`
+  against the document's `lang` and a tail written after it is never consulted.
+  No face had to be named: Garamond is not installed on the build machine
+  (measured, 0 family matches) but Georgia and Times New Roman both are.
+- **Eleven `line-height` pins.** `line-height: normal` is whatever the resolved
+  face reports as its natural line box, and the resolved face changes with the
+  document language — so every Han-carrying leaf grew 2–3 px and the growth
+  cascaded in *both* directions on a 350 × 500 frame: the meter section lost 8 px
+  of height while the utility row gained 6, moving 52 elements. Each pin is
+  derived from that leaf's own measured English box, unitless, never global.
+  `.utility-btn` needed the pin derived **per line**: seven buttons share a
+  334 px flex row, so their captions already wrap in English and the measured box
+  is two line boxes, not one.
+
+### Deliberately unchanged, and recorded as checked
+
+- **The gear hover-help is CORRECT and is untouched.** It names both of the
+  popover's controls — the language and the hover-help switch — and says which of
+  the two is remembered. Four of this wave's six plugins carry a gear body
+  claiming the panel holds nothing but the language; this is one of the two that
+  does not. Read in full, in both languages, and recorded as a checked
+  non-defect.
+- **No `tests/ui_tip_render_check.js` was written.** This plugin has never had
+  one; writing a render gate is a separate pass with its own budget, and a gate
+  invented mid-localization is a gate nobody has calibrated.
+
+### Verified
+
+- `check-i18n` exit 0; `check-ui-labels` exit 0 with **0 FAIL on the English,
+  French and Chinese arms**; `i18n-zh-lint` 0 findings and `BELOW SHIP BAR 0`;
+  `i18n-fr-lint` exit 0 — French untouched.
+- `measure-ui --mode box --report all` reads **0 on all four screens beside 46
+  visible Han-bearing nodes, none of which resolves to a non-CJK face**. A zero
+  from a Han-gated screen run before the table lands is not a zero at all.
+- Zero Han under `Source/**/*.{h,cpp}`, positive control fired on the same run.
+- `auval -v` AU VALIDATION SUCCEEDED, triple read off `auval -a`.
+
 ## [1.3.3] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide, and O-Gain
