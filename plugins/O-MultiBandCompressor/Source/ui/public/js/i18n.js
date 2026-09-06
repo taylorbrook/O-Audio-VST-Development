@@ -83,7 +83,7 @@
   ==============================================================================
 */
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // The band ids used throughout app.js, and the display-name key each one maps
 // to. The names are i18n keys rather than literals because they are COMPOSED
@@ -141,6 +141,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Gain d’entrée',
               b: 'Correction de niveau appliquée avant la division du signal en bandes. Permet d’attaquer les compresseurs plus fort ou de les ménager sans toucher aux seuils. −24 à +24 dB.',
               reviewed: true },
+
+        'zh-Hans': { t: '输入增益',
+              b: '在信号分成多个频段之前施加的电平微调。用它把压缩器推得更狠或收得更轻，而不必改动阈值。−24 到 +24 dB。',
+              reviewed: 'mt' },
     },
     'mix': {
         en: { t: 'Mix',
@@ -148,6 +152,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Mix',
               b: 'Dosage entre le signal d’entrée direct et la sortie compressée, pour la compression parallèle. 0 % est entièrement direct, 100 % entièrement compressé.',
               reviewed: true },
+
+        'zh-Hans': { t: '混合',
+              b: '在干输入与压缩后的输出之间调配比例，用于并行压缩。0% 为完全干声，100% 为完全压缩。',
+              reviewed: 'mt' },
     },
     'auto-makeup': {
         en: { t: 'Auto Makeup',
@@ -155,6 +163,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Compensation auto',
               b: 'Compense automatiquement le niveau perdu du fait de la réduction de gain dans chaque bande, afin que le contournement du compresseur ne provoque pas de saut de volume. S’ajoute au bouton Compensation de chaque bande.',
               reviewed: true },
+
+        'zh-Hans': { t: '自动补偿增益',
+              b: '自动补回每个频段因增益衰减而损失的电平，使旁通压缩器时音量不会跳变。与各频段的补偿旋钮叠加生效。',
+              reviewed: 'mt' },
     },
     'ms-mode': {
         en: { t: 'Mid / Side Mode',
@@ -162,6 +174,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Mode Mid / Side',
               b: 'Détermine ce sur quoi agissent les compresseurs. « Aucun » traite normalement la gauche et la droite ; « Mid » vise le centre de l’image, « Side » les bords stéréo, et « Les deux » les traite indépendamment.',
               reviewed: true },
+
+        'zh-Hans': { t: 'Mid / Side 模式',
+              b: '决定压缩器作用于什么。“无”按常规处理左右声道；“Mid”针对声像的中央，“Side”针对立体声两侧，“两者”则分别独立处理。',
+              reviewed: 'mt' },
     },
     'output-gain': {
         en: { t: 'Output Gain',
@@ -169,6 +185,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Gain de sortie',
               b: 'Correction de niveau finale, appliquée après l’étage Mix. −24 à +24 dB.',
               reviewed: true },
+
+        'zh-Hans': { t: '输出增益',
+              b: '最终的电平微调，施加在混合级之后。−24 到 +24 dB。',
+              reviewed: 'mt' },
     },
     'input-meter': {
         en: { t: 'Input Meter',
@@ -176,6 +196,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Vumètre d’entrée',
               b: 'Niveau entrant dans le plugin, moyenné sur les deux canaux et mesuré avant la correction de gain d’entrée.',
               reviewed: true },
+
+        'zh-Hans': { t: '输入电平表',
+              b: '进入插件的电平，对两个声道取平均，并在输入增益微调之前测量。',
+              reviewed: 'mt' },
     },
     'output-meter': {
         en: { t: 'Output Meter',
@@ -183,6 +207,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Vumètre de sortie',
               b: 'Niveau sortant du plugin, mesuré après le Mix et le gain de sortie.',
               reviewed: true },
+
+        'zh-Hans': { t: '输出电平表',
+              b: '离开插件的电平，在混合与输出增益之后测量。',
+              reviewed: 'mt' },
     },
     'spectrum': {
         en: { t: 'Spectrum Analyzer',
@@ -190,13 +218,61 @@ export const I18N = Object.freeze({
         fr: { t: 'Analyseur de spectre',
               b: 'Spectre d’entrée en temps réel, de 20 Hz à 20 kHz sur une échelle logarithmique. Faites glisser les lignes verticales pour déplacer les points de coupure.',
               reviewed: true },
+
+        'zh-Hans': { t: '频谱分析仪',
+              b: '实时输入频谱，20 Hz 到 20 kHz，采用对数刻度。拖动竖线可移动分频点。',
+              reviewed: 'mt' },
     },
+
+    // ── THE CANVAS-PAINTED CAPTION — NOT A TOOLTIP ──────────────────────────
+    //
+    // v1.12.0. js/app.js paints a watermark caption into the spectrum canvas
+    // inside initializeSpectrumPlaceholder(), the branch that runs while the
+    // analyser has nothing to show. A canvas string has NO ELEMENT, so it can
+    // be neither a [data-i18n] node nor a setLabel() target, and every gate in
+    // this repo is blind to it: check-i18n assertion 10 walks TEXT NODES and
+    // assertion 12 scans textContent / innerText writes — neither reaches
+    // fillText — check-ui-labels has no canvas awareness, and measure-ui reads
+    // computed style on elements. It went out in FRENCH untranslated too, for
+    // the whole of the French rollout, and nothing reported it.
+    //
+    // Housed in I18N with an EMPTY BODY and read through tr() from the paint
+    // routine, which is the shape O-Comp and then O-SpectralShaper shipped for
+    // the same problem. It is deliberately NOT in LABELS: assertion 15 fails
+    // any LABELS key that no element and no setLabel call reaches, and a tr()
+    // call from a paint routine is in neither set, so a canvas string put there
+    // would report as a DEAD key on a page that actually paints it.
+    //
+    // A SEPARATE KEY from 'spectrum' above, whose English happens to match. The
+    // tooltip title and the watermark are different surfaces with different
+    // width constraints, and sharing one key would make a future re-wording of
+    // the tooltip a silent change to what the canvas paints.
+    //
+    // VERIFYING IT IS THE HARD PART, and the check is on the SOURCE rather than
+    // the paint: the branch runs only while the analyser is empty, which is not
+    // reliably producible here. The assertion is that app.js no longer calls
+    // fillText with a string literal for this caption — a negative grep on the
+    // CALL SHAPE, not on the sentence, so a re-worded literal fails it too. The
+    // one fillText literal that survives, one line below the call, is a
+    // build-stage marker: a product question, not a localization one, left
+    // exactly as found and recorded for the developer.
+    'canvas.spectrumPlaceholder': {
+        en: { t: 'Spectrum Analyzer', b: '' },
+        fr: { t: 'Analyseur de spectre', b: '', reviewed: true },
+
+        'zh-Hans': { t: '频谱分析仪', b: '', reviewed: 'mt' },
+    },
+
     'crossover1': {
         en: { t: 'Crossover 1',
               b: 'Split point between the Low and Low-Mid bands. Drag left or right to move it; the two band headers update as you go. 20 Hz to 500 Hz.' },
         fr: { t: 'Coupure 1',
               b: 'Point de séparation entre les bandes Grave et Bas-médium. Faites-le glisser à gauche ou à droite ; les deux en-têtes de bande se mettent à jour au fur et à mesure. 20 Hz à 500 Hz.',
               reviewed: true },
+
+        'zh-Hans': { t: '分频点 1',
+              b: '“低频”与“中低频”两个频段之间的分割点。左右拖动即可移动；两个频段的标题会随之更新。20 Hz 到 500 Hz。',
+              reviewed: 'mt' },
     },
     'crossover2': {
         en: { t: 'Crossover 2',
@@ -204,6 +280,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Coupure 2',
               b: 'Point de séparation entre les bandes Bas-médium et Haut-médium. Faites-le glisser à gauche ou à droite. 200 Hz à 5 kHz.',
               reviewed: true },
+
+        'zh-Hans': { t: '分频点 2',
+              b: '“中低频”与“中高频”两个频段之间的分割点。左右拖动即可移动。200 Hz 到 5 kHz。',
+              reviewed: 'mt' },
     },
     'crossover3': {
         en: { t: 'Crossover 3',
@@ -211,6 +291,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Coupure 3',
               b: 'Point de séparation entre les bandes Haut-médium et Aigu. Faites-le glisser à gauche ou à droite. 2 kHz à 16 kHz.',
               reviewed: true },
+
+        'zh-Hans': { t: '分频点 3',
+              b: '“中高频”与“高频”两个频段之间的分割点。左右拖动即可移动。2 kHz 到 16 kHz。',
+              reviewed: 'mt' },
     },
 
     // ── Band display names ───────────────────────────────────────────────
@@ -218,10 +302,10 @@ export const I18N = Object.freeze({
     // VALUES that TIP_BINDINGS passes as `vars.band`, and tr() resolves a var
     // value that is itself an I18N key to that key's localized title. `b` is
     // deliberately empty — nothing renders a body for a band name.
-    'band.low':   { en: { t: 'Low',      b: '' }, fr: { t: 'Grave',       b: '', reviewed: true } },
-    'band.lomid': { en: { t: 'Low-Mid',  b: '' }, fr: { t: 'Bas-médium',  b: '', reviewed: true } },
-    'band.himid': { en: { t: 'High-Mid', b: '' }, fr: { t: 'Haut-médium', b: '', reviewed: true } },
-    'band.high':  { en: { t: 'High',     b: '' }, fr: { t: 'Aigu',        b: '', reviewed: true } },
+    'band.low':   { en: { t: 'Low',      b: '' }, fr: { t: 'Grave',       b: '', reviewed: true } , 'zh-Hans': { t: '低频', b: '', reviewed: 'mt', termNote: 'the four band headers name FREQUENCY BANDS of a multiband compressor, not the low half of a low/high pair. The settled root 低 alone reads as an adjective beside 高 and gives no clue that these four captions partition the spectrum; 低频 is what a Chinese compressor names its bottom band, and it is what the three crossover bodies on this same page name it. Its sibling 高频 carries the same note' }},
+    'band.lomid': { en: { t: 'Low-Mid',  b: '' }, fr: { t: 'Bas-médium',  b: '', reviewed: true } , 'zh-Hans': { t: '中低频', b: '', reviewed: 'mt' }},
+    'band.himid': { en: { t: 'High-Mid', b: '' }, fr: { t: 'Haut-médium', b: '', reviewed: true } , 'zh-Hans': { t: '中高频', b: '', reviewed: 'mt' }},
+    'band.high':  { en: { t: 'High',     b: '' }, fr: { t: 'Aigu',        b: '', reviewed: true } , 'zh-Hans': { t: '高频', b: '', reviewed: 'mt', termNote: 'the band-header sibling of 低频 above — a FREQUENCY BAND, not the high half of a high/low pair. 高中 is unusable for High-Mid (it is the word for a secondary school), so the four headers take the 中低频 / 中高频 pattern and low and high follow it' }},
 
     // ── Per-band controls ────────────────────────────────────────────────
     // Identical in all four bands, so the wording lives here once and the band
@@ -232,6 +316,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Seuil',
               b: 'Le niveau à partir duquel cette bande commence à compresser. Tout ce qui le dépasse est ramené vers le bas selon le Ratio. −60 à 0 dB.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 阈值',
+              b: '该频段开始压缩的电平。超过它的部分按比率被压下来。−60 到 0 dB。',
+              reviewed: 'mt' },
     },
     'band.ratio': {
         en: { t: '{band} — Ratio',
@@ -239,6 +327,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Ratio',
               b: 'Fermeté de la compression au-dessus du seuil. 1:1 laisse la bande intacte ; 20:1 revient à de la limitation.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 比率',
+              b: '阈值之上该频段被压缩的力度。1:1 保持原样；20:1 基本等同于限幅。',
+              reviewed: 'mt' },
     },
     'band.attack': {
         en: { t: '{band} — Attack',
@@ -246,6 +338,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Attaque',
               b: 'Rapidité d’engagement de la compression une fois le seuil franchi. Les réglages rapides brident les transitoires, les lents les laissent passer. 0,1 à 200 ms.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 起音',
+              b: '信号越过阈值后压缩介入的快慢。快的设置会压住瞬态，慢的设置则放它们过去。0.1 到 200 ms。',
+              reviewed: 'mt' },
     },
     'band.release': {
         en: { t: '{band} — Release',
@@ -253,6 +349,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Relâchement',
               b: 'Rapidité avec laquelle la compression relâche une fois le signal redescendu sous le seuil. Trop rapide, elle pompe ; trop lente, elle étouffe la bande. 10 à 2000 ms.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 释音',
+              b: '信号回落到阈值以下后压缩松开的快慢。太快会抽吸，太慢会闷住这个频段。10 到 2000 ms。',
+              reviewed: 'mt' },
     },
     'band.knee': {
         en: { t: '{band} — Knee',
@@ -260,6 +360,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Coude',
               b: 'Adoucit l’entrée en compression autour du seuil. 0 dB donne un coude dur qui saisit brusquement ; 24 dB amène la compression très progressivement.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 拐点',
+              b: '柔化阈值附近压缩的起始。0 dB 是硬拐点，抓得很突然；24 dB 则非常平缓地过渡进来。',
+              reviewed: 'mt' },
     },
     'band.makeup': {
         en: { t: '{band} — Makeup',
@@ -267,6 +371,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Compensation',
               b: 'Gain manuel appliqué à cette bande après compression, pour restituer ce que la réduction de gain a retiré. −12 à +24 dB.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 补偿增益',
+              b: '压缩之后施加于该频段的手动增益，用来补回增益衰减拿走的部分。−12 到 +24 dB。',
+              reviewed: 'mt' },
     },
     'band.solo': {
         en: { t: '{band} — Solo',
@@ -274,6 +382,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Solo',
               b: 'Isole cette bande — les trois autres sont coupées. Pratique pour vérifier où placer un point de coupure.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 独奏',
+              b: '单独试听这个频段——其余三个静音。便于确认分频点该放在哪里。',
+              reviewed: 'mt' },
     },
     'band.bypass': {
         en: { t: '{band} — Bypass',
@@ -281,6 +393,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Contournement',
               b: 'Laisse passer cette bande sans la compresser. Le filtrage de coupure reste appliqué, la bande reste donc en phase avec les autres.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 旁通',
+              b: '让这个频段不经压缩直接通过。分频滤波仍然生效，因此该频段与其他频段保持相位一致。',
+              reviewed: 'mt' },
     },
     'band.sc-listen': {
         en: { t: '{band} — Sidechain Listen',
@@ -288,6 +404,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Écoute du sidechain',
               b: 'Permet d’écouter le signal du détecteur qui pilote le compresseur de cette bande, filtrage de sidechain compris. C’est ce que le compresseur « entend », pas ce qu’il produit.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 侧链监听',
+              b: '监听驱动该频段压缩器的检测信号，包括它的侧链滤波在内。这是压缩器“听到”的东西，不是它送出去的东西。',
+              reviewed: 'mt' },
     },
     'band.peak-rms': {
         en: { t: '{band} — Peak / RMS',
@@ -295,6 +415,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Crête / RMS',
               b: 'Dose la façon dont le niveau de la bande est mesuré. Crête réagit aux transitoires isolés et convient au dé-essage et au contrôle des plosives ; RMS moyenne sur 10 ms et convient au liant et au nivellement.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 峰值 / RMS',
+              b: '调配该频段电平的测量方式。峰值对单个瞬态起反应，适合去齿音和控制爆破音；RMS 在 10 ms 上取平均，适合黏合与电平跟随。',
+              reviewed: 'mt' },
     },
     'band.sc-hpf': {
         en: { t: '{band} — Sidechain High-Pass',
@@ -302,6 +426,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Passe-haut du sidechain',
               b: 'Filtre en passe-haut le détecteur uniquement — l’audio lui-même n’est pas touché. Empêche l’énergie grave de déclencher la réduction de gain, par exemple pour qu’un grondement infrasonore ne fasse pas plonger toute une bande. Complètement à gauche : Off.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 侧链高通',
+              b: '只对检测器作高通滤波——音频本身不受影响。避免低频能量触发增益衰减，例如让次声隆隆声不至于压下整个频段。旋到最左为 Off。',
+              reviewed: 'mt' },
     },
     'band.sc-lpf': {
         en: { t: '{band} — Sidechain Low-Pass',
@@ -309,6 +437,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Passe-bas du sidechain',
               b: 'Filtre en passe-bas le détecteur uniquement — l’audio lui-même n’est pas touché. Restreint ce à quoi la bande réagit, par exemple pour éviter que cymbales et air ne maintiennent un dé-esseur enfoncé. Complètement à gauche : Off.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 侧链低通',
+              b: '只对检测器作低通滤波——音频本身不受影响。收窄该频段响应的范围，例如避免镲片和空气声一直压住去齿音。旋到最左为 Off。',
+              reviewed: 'mt' },
     },
     'band.gr': {
         en: { t: '{band} — Gain Reduction',
@@ -316,6 +448,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Réduction de gain',
               b: 'Quantité de compression appliquée à cette bande en ce moment. La barre se remplit à mesure que la réduction de gain s’accentue, jusqu’à −24 dB.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 增益衰减',
+              b: '此刻该频段被压缩的程度。增益衰减越深，条形填得越满，最深到 −24 dB。',
+              reviewed: 'mt' },
     },
     'band.range': {
         en: { t: '{band} — Frequency Range',
@@ -323,6 +459,10 @@ export const I18N = Object.freeze({
         fr: { t: '{band} — Plage de fréquences',
               b: 'L’étendue traitée par cette bande. Elle suit les poignées de coupure de l’analyseur ci-dessus ; déplacez-les pour la réajuster.',
               reviewed: true },
+
+        'zh-Hans': { t: '{band} — 频率范围',
+              b: '该频段处理的跨度。它跟随上方分析仪里的分频手柄，拖动手柄即可重新调整。',
+              reviewed: 'mt' },
     },
 
     // ── Settings popover ─────────────────────────────────────────────────
@@ -332,6 +472,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Réglages',
               b: 'Préférences d’interface — la langue de ces infobulles, et leur affichage ou non.',
               reviewed: true },
+
+        'zh-Hans': { t: '设置',
+              b: '界面偏好设置——这些悬停帮助的语言，以及是否显示悬停帮助。',
+              reviewed: 'mt' },
     },
     // v1.11.0: through v1.10.0 this entry told the user, in both languages,
     // that control labels stay in English. That is now false — the labels are
@@ -345,6 +489,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Langue',
               b: 'Langue de ces infobulles et des libellés de la page. Le choix est conservé avec la session et n’est pas transporté par les préréglages. Les valeurs affichées et les noms de préréglages restent en anglais.',
               reviewed: true },
+
+        'zh-Hans': { t: '语言',
+              b: '这些悬停帮助和页面标签所用的语言。该选择随会话一起记住，不随预设携带。数值读数和预设名称保持英文。',
+              reviewed: 'mt' },
     },
     // One key covering both states rather than a pair swapped on click: the
     // canonical applyI18n() re-renders straight from this table on every
@@ -356,6 +504,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Infobulles',
               b: 'Active ou désactive ces infobulles pour toutes les commandes. Lorsqu’elles sont désactivées, ce bouton continue de s’expliquer, afin de pouvoir toujours les réactiver. Ce réglage est partagé par toutes les instances sur cette machine.',
               reviewed: true },
+
+        'zh-Hans': { t: '悬停帮助',
+              b: '为所有控件打开或关闭这一层悬停帮助。关闭之后，这个按钮仍然会解释自己，因此随时可以把帮助重新打开。该设置由本机上的每个实例共享。',
+              reviewed: 'mt' },
     },
 });
 
@@ -424,14 +576,14 @@ export const LABELS = Object.freeze({
     // A native reviewer should challenge these two before any other entry in
     // this table: they are the only ones where width, not meaning, picked the
     // word.
-    'label.save':      { en: { t: 'Save' },  fr: { t: 'Enreg.',  reviewed: true } },
-    'label.load':      { en: { t: 'Load' },  fr: { t: 'Ouvrir',  reviewed: true } },
+    'label.save':      { en: { t: 'Save' },  fr: { t: 'Enreg.',  reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' }},
+    'label.load':      { en: { t: 'Load' },  fr: { t: 'Ouvrir',  reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'mt' }},
 
     // ── Settings popover ────────────────────────────────────────────────────
     // Not the `tips-toggle` key: that tip's title is "Hover Help" and this
     // caption is "Hover help". The reuse rule wants both languages identical,
     // and these differ in English before French is even considered.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
 
     // The hover-help toggle's two faces and the Auto-MU toggle's two faces.
     // They go through setLabel(), so the element becomes a [data-i18n] element
@@ -442,38 +594,41 @@ export const LABELS = Object.freeze({
     // "Marche" / "Arrêt" rather than "Activé" / "Désactivé": the toggle face is
     // 44 px, and this is the vocabulary a piece of hardware uses, which is the
     // register the whole panel is written in.
-    'ui.on':           { en: { t: 'On' },    fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },   fr: { t: 'Arrêt',  reviewed: true } },
+    'ui.on':           { en: { t: 'On' },    fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
+    'ui.off':          { en: { t: 'Off' },   fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
 
     // ── Preset dropdown, built from script ──────────────────────────────────
-    'ui.noPresets':    { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true } },
+    'ui.noPresets':    { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true } , 'zh-Hans': { t: '无预设', reviewed: 'mt' }},
     // The preset NAME is substituted, never translated (D-02 — the name is the
     // JSON filename). tr()/trLabel() resolve a var value that is not itself a
     // key literally, which is exactly what is wanted here.
     'ui.deleteConfirm': { en: { t: 'Delete "{name}"?' },
+
+        'zh-Hans': { t: '删除“{name}”？',
+              reviewed: 'mt' },
                           fr: { t: 'Supprimer « {name} » ?', reviewed: true } },
-    'ui.delete':       { en: { t: 'Delete' }, fr: { t: 'Supprimer', reviewed: true } },
-    'ui.cancel':       { en: { t: 'Cancel' }, fr: { t: 'Annuler',   reviewed: true } },
+    'ui.delete':       { en: { t: 'Delete' }, fr: { t: 'Supprimer', reviewed: true } , 'zh-Hans': { t: '删除', reviewed: 'mt' }},
+    'ui.cancel':       { en: { t: 'Cancel' }, fr: { t: 'Annuler',   reviewed: true } , 'zh-Hans': { t: '取消', reviewed: 'mt' }},
 
     // ── Meters ──────────────────────────────────────────────────────────────
     // Absolutely positioned and translate(-50%) centred, so neither has a
     // rendered box that can push anything.
-    'label.in':        { en: { t: 'IN' },   fr: { t: 'ENT', reviewed: true } },
-    'label.out':       { en: { t: 'OUT' },  fr: { t: 'SOR', reviewed: true } },
+    'label.in':        { en: { t: 'IN' },   fr: { t: 'ENT', reviewed: true } , 'zh-Hans': { t: '入', reviewed: 'mt', termNote: 'the METER cap, the abbreviated face of the pair the glossary settles as 输入/入. The knob caption label.input two rows down takes the full 输入, and both render on this page at once — the R3 screen reported the collision before a string was written, and it is resolved by qualifying BOTH sides from the glossary\'s own alternatives rather than by exempting one' }},
+    'label.out':       { en: { t: 'OUT' },  fr: { t: 'SOR', reviewed: true } , 'zh-Hans': { t: '出', reviewed: 'mt', termNote: 'the METER cap, paired with 入 above and distinguished from the 输出 of label.output by exactly the abbreviation the English IN / Output pair uses' }},
 
     // ── Band controls, one key each, shared by all four bands ───────────────
-    'label.gr':        { en: { t: 'GR' },     fr: { t: 'RG',      reviewed: true } },
-    'label.thresh':    { en: { t: 'Thresh' }, fr: { t: 'Seuil',   reviewed: true } },
+    'label.gr':        { en: { t: 'GR' },     fr: { t: 'RG',      reviewed: true } , 'zh-Hans': { t: '增减', reviewed: 'mt', termNote: 'the gain-reduction meter cap. The tip title band.gr carries the full 增益衰减; this is the two-character face that fits the 32 px meter column, formed the way the English GR and the French RG are — from the two head characters of the phrase it abbreviates' }},
+    'label.thresh':    { en: { t: 'Thresh' }, fr: { t: 'Seuil',   reviewed: true } , 'zh-Hans': { t: '阈值', reviewed: 'mt' }},
     // Ratio IS the French term (glossary): a straight copy, declared as one.
-    'label.ratio':     { en: { t: 'Ratio' },  fr: { t: 'Ratio',   reviewed: true, sameAsEn: true } },
-    'label.attack':    { en: { t: 'Attack' }, fr: { t: 'Attaque', reviewed: true } },
+    'label.ratio':     { en: { t: 'Ratio' },  fr: { t: 'Ratio',   reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '比率', reviewed: 'mt' }},
+    'label.attack':    { en: { t: 'Attack' }, fr: { t: 'Attaque', reviewed: true } , 'zh-Hans': { t: '起音', reviewed: 'mt' }},
     // v1.11.1: the glossary's abbreviation, and it is NARROWER than what v1.11.0
     // shipped — Relâch. 38.33 px against Relâche 41.67 px, in a 60.16 px grid
     // track (Range.selectNodeContents at the 900x640 shipping frame). The root
     // Relâchement is 66.88 px: over the track, and it re-deals the three 1fr
     // columns to 55.63/55.64/69.23, which moves every knob inside them.
-    'label.release':   { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: true } },
-    'label.knee':      { en: { t: 'Knee' },   fr: { t: 'Coude',   reviewed: true } },
+    'label.release':   { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: true } , 'zh-Hans': { t: '释音', reviewed: 'mt' }},
+    'label.knee':      { en: { t: 'Knee' },   fr: { t: 'Coude',   reviewed: true } , 'zh-Hans': { t: '拐点', reviewed: 'mt' }},
     // The tip title is "Compensation". MEASURED at the shipping frame it is
     // 69.23 px in a 60.16 px track, and substituting it re-deals the three 1fr
     // columns to 55.63/55.64/69.23 — every knob inside them moves. The glossary
@@ -481,60 +636,68 @@ export const LABELS = Object.freeze({
     // does not carry and the Stage N lint still reports it as G1. Reported rather
     // than exempted: a width constraint is not a contextual exemption, and a
     // termNote here would be the reasoned-exemption mechanism hiding a miss.
-    'label.makeup':    { en: { t: 'Makeup' }, fr: { t: 'Compens.', reviewed: true } },
+    'label.makeup':    { en: { t: 'Makeup' }, fr: { t: 'Compens.', reviewed: true } , 'zh-Hans': { t: '补偿', reviewed: 'mt' }},
     'label.detector':  { en: { t: 'Detector / Sidechain' },
+
+        'zh-Hans': { t: '检测器 / 侧链',
+              reviewed: 'mt' },
                          fr: { t: 'Détecteur / Sidechain', reviewed: true } },
     // v1.11.1: the whole word. "Crê" cut a French abbreviation at a vowel, which
     // is not how French abbreviates; Crête/RMS measures 50.27 px inside the same
     // 60.16 px track and moves nothing.
-    'label.pkRms':     { en: { t: 'Pk/RMS' }, fr: { t: 'Crête/RMS', reviewed: true } },
+    'label.pkRms':     { en: { t: 'Pk/RMS' }, fr: { t: 'Crête/RMS', reviewed: true } , 'zh-Hans': { t: '峰值/RMS', reviewed: 'mt' }},
     // "Sidechain" is the term this plugin's own French tooltips use, so the
     // SC prefix survives; PH / PB are passe-haut / passe-bas.
-    'label.scHpf':     { en: { t: 'SC HPF' }, fr: { t: 'SC PH',   reviewed: true } },
-    'label.scLpf':     { en: { t: 'SC LPF' }, fr: { t: 'SC PB',   reviewed: true } },
+    'label.scHpf':     { en: { t: 'SC HPF' }, fr: { t: 'SC PH',   reviewed: true } , 'zh-Hans': { t: 'SC 高通', reviewed: 'mt' }},
+    'label.scLpf':     { en: { t: 'SC LPF' }, fr: { t: 'SC PB',   reviewed: true } , 'zh-Hans': { t: 'SC 低通', reviewed: 'mt' }},
 
-    'label.solo':      { en: { t: 'Solo' },      fr: { t: 'Solo', reviewed: true, sameAsEn: true } },
+    'label.solo':      { en: { t: 'Solo' },      fr: { t: 'Solo', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '独奏', reviewed: 'mt' }},
     // v1.11.1: the glossary's abbreviation for Bypass. The root Contournement is
     // 89.25 px of text (103.25 px of button) and grows the whole band 188.5 →
     // 221.94 px. Contour. is 64.50 px of button, so the three-button row comes to
     // 40.22 + 64.50 + 68.47 + 10 gap = 183.19 px inside 188.50 — 5.31 px of slack,
     // the tightest measured margin on this page. A wider Windows face lands here
     // first (the standing WebView2 metrics deferral).
-    'label.bypass':    { en: { t: 'Bypass' },    fr: { t: 'Contour.', reviewed: true } },
-    'label.scListen':  { en: { t: 'SC Listen' }, fr: { t: 'Écoute SC', reviewed: true } },
+    'label.bypass':    { en: { t: 'Bypass' },    fr: { t: 'Contour.', reviewed: true } , 'zh-Hans': { t: '旁通', reviewed: 'mt' }},
+    'label.scListen':  { en: { t: 'SC Listen' }, fr: { t: 'Écoute SC', reviewed: true } , 'zh-Hans': { t: 'SC 监听', reviewed: 'mt' }},
 
     // ── Global controls ─────────────────────────────────────────────────────
-    'label.input':     { en: { t: 'Input' },   fr: { t: 'Entrée',    reviewed: true } },
-    'label.autoMu':    { en: { t: 'Auto-MU' }, fr: { t: 'Auto-Comp', reviewed: true } },
-    'label.msMode':    { en: { t: 'M/S Mode' },fr: { t: 'Mode M/S',  reviewed: true } },
-    'label.output':    { en: { t: 'Output' },  fr: { t: 'Sortie',    reviewed: true } },
+    'label.input':     { en: { t: 'Input' },   fr: { t: 'Entrée',    reviewed: true } , 'zh-Hans': { t: '输入', reviewed: 'mt' }},
+    'label.autoMu':    { en: { t: 'Auto-MU' }, fr: { t: 'Auto-Comp', reviewed: true } , 'zh-Hans': { t: '自动补偿', reviewed: 'mt' }},
+    'label.msMode':    { en: { t: 'M/S Mode' },fr: { t: 'Mode M/S',  reviewed: true } , 'zh-Hans': { t: 'M/S 模式', reviewed: 'mt' }},
+    'label.output':    { en: { t: 'Output' },  fr: { t: 'Sortie',    reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'mt' }},
 
     // The M/S mode choices. NOT `ui.off`: this one names a routing mode that is
     // not engaged, not a switch that is turned off, and French separates the
     // two where English does not. Mid and Side are the names of the encoding,
     // used untranslated in French audio work.
-    'label.msOff':     { en: { t: 'Off' },  fr: { t: 'Aucun',    reviewed: true } },
+    'label.msOff':     { en: { t: 'Off' },  fr: { t: 'Aucun',    reviewed: true } , 'zh-Hans': { t: '无', reviewed: 'mt', termNote: 'this Off names an M/S routing mode that is NOT ENGAGED, not a switch turned off — the same distinction French draws with « Aucun » against « Arrêt ». The settled 关 is spent on ui.off, the hover-help switch face, which renders on the same settings popover' }},
     'label.msMid':     { en: { t: 'Mid' },  fr: { t: 'Mid',      reviewed: true, sameAsEn: true,
-                                                  termNote: 'this Mid is the M/S ENCODING, not the frequency band — the glossary\'s Médium is the band term and is already used for band.lomid / band.himid on this same page' } },
-    'label.msSide':    { en: { t: 'Side' }, fr: { t: 'Side',     reviewed: true, sameAsEn: true } },
-    'label.msBoth':    { en: { t: 'Both' }, fr: { t: 'Les deux', reviewed: true } },
+                                                  termNote: 'this Mid is the M/S ENCODING, not the frequency band — the glossary\'s Médium is the band term and is already used for band.lomid / band.himid on this same page' },
+                                            'zh-Hans': { t: 'Mid', reviewed: 'mt', sameAsEn: true,
+                                                  termNote: 'this Mid is the M/S ENCODING, not the frequency band — the glossary\'s 中频 is the band term and this page already spends it on band.lomid / band.himid. M/S encoding names are used untranslated in Chinese audio work, as they are in French' } },
+    'label.msSide':    { en: { t: 'Side' }, fr: { t: 'Side',     reviewed: true, sameAsEn: true } , 'zh-Hans': { t: 'Side', reviewed: 'mt', sameAsEn: true }},
+    'label.msBoth':    { en: { t: 'Both' }, fr: { t: 'Les deux', reviewed: true } , 'zh-Hans': { t: '两者', reviewed: 'mt' }},
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
     // the accessible NAME, and a screen reader in French reading an English
     // name is the same failure as a French page with an English caption. None
     // has a rendered box, so none is a geometry risk.
-    'aria.presetPrev':   { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: true } },
-    'aria.presetNext':   { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: true } },
-    'aria.presetList':   { en: { t: 'Presets' },         fr: { t: 'Préréglages',          reviewed: true } },
+    'aria.presetPrev':   { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'mt' }},
+    'aria.presetNext':   { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'mt' }},
+    'aria.presetList':   { en: { t: 'Presets' },         fr: { t: 'Préréglages',          reviewed: true } , 'zh-Hans': { t: '预设', reviewed: 'mt' }},
     'aria.helpToggle':   { en: { t: 'Toggle hover help' },
+
+        'zh-Hans': { t: '开关悬停帮助',
+              reviewed: 'mt' },
                            fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
     // Static, not composed. Canon v2's attribute sweep resolves a key WITHOUT
     // vars by design, and the dropdown row this button sits in already carries
     // the preset name as its own accessible content, so the row is announced
     // before the button either way. The button additionally points at that name
     // through aria-describedby, so nothing about the composed form is lost.
-    'aria.presetDelete': { en: { t: 'Delete preset' },   fr: { t: 'Supprimer le préréglage', reviewed: true } },
+    'aria.presetDelete': { en: { t: 'Delete preset' },   fr: { t: 'Supprimer le préréglage', reviewed: true } , 'zh-Hans': { t: '删除预设', reviewed: 'mt' }},
 });
 
 // ============================================================================

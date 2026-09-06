@@ -1,3 +1,4 @@
 [
-  { "name": "settings popover OPEN", "click": "#gear-btn" }
+  { "name": "settings popover OPEN", "click": "#gear-btn" },
+  { "name": "preset dropdown OPEN", "click": "#presetName" }
 ]

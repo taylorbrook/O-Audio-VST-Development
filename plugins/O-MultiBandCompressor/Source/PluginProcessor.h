@@ -91,8 +91,26 @@ public:
     //==========================================================================
     std::atomic<int> uiLanguage { 0 };
 
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int         languageIndex  (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    /** The codec. languageIndex() maps anything that is neither "fr" nor
+        "zh-Hans" to 0, so a hand-edited session or an unexpected argument from
+        the page degrades to English rather than being stored unvalidated.
+
+        NO CHINESE CHARACTER APPEARS ANYWHERE UNDER Source/ — every Chinese
+        string lives in the UI table (Source/ui/public/js/i18n.js), and the one
+        Han string in the markup is written as numeric character references.
+        What is persisted here is a language CODE, which is an ASCII identifier
+        in every language.
+
+        THIS PAIR WAS HAND-EDITED. Through v1.11.2 the two lines diverged from
+        the copies in every sibling plugin by single spaces — the return type on
+        the second line was padded one column short and both signatures carried
+        two spaces before the parameter list — and they carried no doc comment
+        at all. A sweep keyed on the sibling text would have matched neither
+        line, reported success, and left this plugin shipping a two-way codec
+        behind a three-language table. The whitespace is normalised to the
+        sibling form here so the next sweep can reach it. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
     // Access to gain reduction meters for UI (all 4 bands)
     float getLowBandGainReduction() const { return lowBandGainReduction.load(std::memory_order_relaxed); }
