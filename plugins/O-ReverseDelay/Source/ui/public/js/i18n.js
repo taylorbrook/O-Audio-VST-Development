@@ -135,7 +135,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '设置',
               b: '选择这些悬停帮助的语言，以及悬停帮助是否显示。该选择随会话一起记住。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // v1.10.0: through v1.9.0 this entry told the user, in both languages, that
     // the labels on the page do not change. That is now false — they do.
@@ -158,7 +158,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '语言',
               b: '这些悬停帮助和页面标签所用的语言。数值读数和预设名称保持英文。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // v1.11.0 — the switch that reaches this whole layer.
     'tips-toggle': {
@@ -173,7 +173,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '悬停帮助',
               b: '开启或关闭这些悬停帮助。关闭之后，只有齿轮和这个开关仍会解释自己。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── TIME ────────────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '同步模式',
               b: '自由以毫秒读取延迟；同步则把它锁到宿主的速度网格上。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-delayTime': {
         en: { t: 'Delay',
@@ -199,7 +199,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '延迟',
               b: '颗粒回溯的距离。设置得长时听成一句句分开的倒放乐句；短时则融成一片涂抹。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'combo-noteDivision': {
         en: { t: 'Division',
@@ -211,7 +211,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '分割',
               b: '同步点亮时延迟所遵循的音符时值——包含附点（D）与三连音（T）。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── GRAIN ───────────────────────────────────────────────────────────────
@@ -225,7 +225,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '颗粒尺寸',
               b: '每个倒放片段的长度。长颗粒绽放、涨起；短颗粒则窸窣作响。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-density': {
         en: { t: 'Density',
@@ -237,7 +237,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '密度',
               b: '同一时刻重叠的颗粒数量。稀疏的设置断续，密集的设置倾泻而出。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── FEEDBACK ────────────────────────────────────────────────────────────
@@ -251,7 +251,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '反馈',
               b: '回到缓冲区的那部分声浪。每一轮都会再倒放一次，所以尾音不断向自身折回。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-lowCut': {
         en: { t: 'Low Cut',
@@ -263,7 +263,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '低切',
               b: '在反馈环路内部削减低频——每一轮都变得更轻。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-highCut': {
         en: { t: 'High Cut',
@@ -275,7 +275,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '高切',
               b: '在反馈环路内部削减高频——每一轮都变得更暗、更远。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── OUTPUT ──────────────────────────────────────────────────────────────
@@ -289,7 +289,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '宽度',
               b: '把颗粒铺开在立体声场中。为零时它们全叠在中央。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-mix': {
         en: { t: 'Mix',
@@ -301,7 +301,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '混合',
               b: '干输入与倒放声浪之间的平衡。等功率，所以总电平保持不变。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── RANDOM (v1.1.0) ─────────────────────────────────────────────────────
@@ -315,7 +315,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '抖动',
               b: '打散每个新颗粒的启动时机。为零时颗粒按严格的网格到达，会对持续的素材产生梳状滤波；提高它，声浪就松开成一片云团。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-delayScatter': {
         en: { t: 'Scatter',
@@ -325,9 +325,16 @@ export const I18N = Object.freeze({
               reviewed: true },
     
 
-        'zh-Hans': { t: '散布',
+        'zh-Hans': { t: '延迟散布',
               b: '分散每个颗粒回溯的距离。它加厚涂抹感，却不移动延迟的节奏锚点，因为平均回溯距离没有改变。',
-              reviewed: 'mt' },
+              termNote: 'QUALIFIED after the blind reverse read. The glossary root 散布 came back as '
+                      + '"Spread" — and so did 扩散度, the settled root for the Diffusion knob two '
+                      + 'groups away on the same page. Neither is the wrong word and the two do not '
+                      + 'share a rendering, so no mechanical check could see it; only the reverse '
+                      + 'read did. This side is qualified because it is the one that is ambiguous '
+                      + 'about WHAT it scatters — it scatters the delay reach — while Diffusion is '
+                      + 'not ambiguous about anything and keeps its root.',
+              reviewed: 'bt' },
     },
     'knob-sizeRandom': {
         en: { t: 'Size Random',
@@ -339,7 +346,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '尺寸随机',
               b: '改变每个颗粒的长度。单靠抖动会让每个颗粒保持同一形状；这一项去掉最后的规整感。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-gainRandom': {
         en: { t: 'Gain Random',
@@ -351,7 +358,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '增益随机',
               b: '改变每个颗粒的电平，带来纵深与微光。它作用在反馈抽头之后，所以绝不会改变尾音的长短。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── WINDOW (v1.2.0 / v1.4.0) ────────────────────────────────────────────
@@ -365,7 +372,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '形状',
               b: '每个颗粒所经过的包络。Hann 是出厂的钟形；Tukey 保持自身电平，听起来更开阔；Expo-Decay 则像拨奏。五种形状的电平都做过匹配，所以这里改变的是音色而不是响度。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-grainTilt': {
         en: { t: 'Tilt',
@@ -377,7 +384,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '倾斜',
               b: '在颗粒内部移动包络的峰点。居中即为对称窗。向上调，每个颗粒先缓缓涨起再切断——倒着涨进一个瞬态，这正是使用反向延迟的理由。向下调则得到一个拨奏式的衰减颗粒。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-tukeyTaper': {
         en: { t: 'Taper',
@@ -389,7 +396,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '渐变',
               b: 'Tukey 颗粒中被做成渐变的比例。低值近乎矩形——边缘迅速，开阔而带门限感。1.00 是完整的升余弦，也就是 Hann 窗。整个范围的电平都做过匹配，所以这里改变的是特性而不是响度。仅对 Tukey 形状生效。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'envelopeCell': {
         en: { t: 'Envelope',
@@ -401,7 +408,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '包络',
               b: '施加在每个颗粒上的振幅包络，按形状、倾斜和渐变当前的设置显示。时间从左到右横跨一个颗粒，虚线是中点。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── COUNT (v1.3.0) ──────────────────────────────────────────────────────
@@ -415,7 +422,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '颗粒数量',
               b: '允许同时重叠的颗粒上限，密度再在其中缩放。调高可得到更密、更平滑、更接近混响的声浪；出厂设置为 8。无论这里设成多少，密度为零时始终给出两个重叠的颗粒。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'grainMeter': {
         en: { t: 'Grain Meter',
@@ -427,7 +434,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '颗粒表',
               b: '此刻真正在发声的颗粒，以及尺寸、密度和数量在它们之间产生的重叠。没有演奏时读数为零。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── MOTION (v1.6.0) ─────────────────────────────────────────────────────
@@ -441,7 +448,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '冻结',
               b: '停止向缓冲区写入，而颗粒继续读取它，于是声浪无限保持下去。干声原样通过，释放时缓冲区从中断处继续采集。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-direction': {
         en: { t: 'Direction',
@@ -453,7 +460,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '方向',
               b: '有多少颗粒正向播放而不是倒放。为零时每个颗粒都是倒放的。调高之后，正向颗粒会像一路干净的延迟抽头那样融入——再加上散布，就能把它们打散成一片正向云团。整个范围的电平都做过匹配。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-regenMakeup': {
         en: { t: 'Regen',
@@ -465,7 +472,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '再生',
               b: '反馈环路内部的额外增益。这个拓扑每绕一圈损失约 7 dB，所以为零时即使反馈到 100 最终也会淡去；提高它才能得到真正无尽的声浪，再往上便进入环路软削波的自激。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── SOURCE / DUCK / DRIFT (v1.7.0) ──────────────────────────────────────
@@ -479,7 +486,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '源',
               b: '每个颗粒读取什么。单声道先把输入相加再做颗粒化，于是宽度铺开的是同一个信号的副本。立体声则按每个颗粒各自的位置逐颗粒读取左或右，于是宽阔的素材能把声像带过整片声浪。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-duck': {
         en: { t: 'Duck',
@@ -491,7 +498,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '闪避',
               b: '在干声演奏时把声浪压下去，并让它在空隙里重新涨起。为零时湿声不受影响。它绝不会改变尾音的长短——只改变你何时听见它。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-driftRate': {
         en: { t: 'Drift Rate',
@@ -503,7 +510,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '漂移速率',
               b: '延迟时间游走的快慢。慢的设置像长声浪下的磁带慢抖，快的则像尾音上的颤音。在深度提高之前没有作用。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-driftDepth': {
         en: { t: 'Drift Depth',
@@ -515,7 +522,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '漂移深度',
               b: '延迟时间游走的幅度，按当前延迟设定值的比例计。每个颗粒在启动的那一刻就被固定下来，所以这一项能涂抹并失谐尾音而绝不会产生咔嗒声。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── COLOUR (v1.7.2) ─────────────────────────────────────────────────────
@@ -529,7 +536,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '扩散度',
               b: '在每一轮再循环时把重复涂抹开，于是尾音模糊成一片声浪，而不是逐字重述那团颗粒云。它无法让延迟更响，也无法把它推入反馈——只是重新排布已经存在的东西。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'knob-drive': {
         en: { t: 'Drive',
@@ -541,7 +548,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '驱动',
               b: '在匹配的电平上使反馈环路饱和，因此改变的是尾音的音色而不是长度。响的重复被压缩、变钝，轻的则保持干净，这使尾音在衰减时绽放。再生决定尾音有多长，这一项决定它听起来是什么样。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
@@ -616,20 +623,20 @@ export const LABELS = Object.freeze({
                          fr: { t: 'Délai inversé granulaire · Guide de terrain', reviewed: true } ,
 
         'zh-Hans': { t: '颗粒反向延迟 · 实地指南',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Preset bar ──────────────────────────────────────────────────────────
-    'label.save':      { en: { t: 'Save' },   fr: { t: 'Enreg.',  reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' },},
-    'label.load':      { en: { t: 'Load' },   fr: { t: 'Ouvrir',  reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'mt' },},
-    'label.delete':    { en: { t: 'Delete' }, fr: { t: 'Suppr.',  reviewed: true } , 'zh-Hans': { t: '删除', reviewed: 'mt' },},
+    'label.save':      { en: { t: 'Save' },   fr: { t: 'Enreg.',  reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'bt' },},
+    'label.load':      { en: { t: 'Load' },   fr: { t: 'Ouvrir',  reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'bt' },},
+    'label.delete':    { en: { t: 'Delete' }, fr: { t: 'Suppr.',  reviewed: true } , 'zh-Hans': { t: '删除', reviewed: 'bt' },},
     // The armed face of the delete button. It goes through setLabel(), so the
     // element becomes a [data-i18n] element and the language sweep owns it —
     // through v1.9.0 it was a data-confirm ATTRIBUTE, which was the right
     // answer while the page was English-only and the wrong one the moment it
     // had two languages: an attribute holds ONE string, so a language switch
     // mid-arm would have restored the ENGLISH armed face.
-    'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: true } , 'zh-Hans': { t: '确认？', reviewed: 'mt' },},
+    'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: true } , 'zh-Hans': { t: '确认？', reviewed: 'bt' },},
 
     // v1.11.0. THE SETTINGS POPOVER'S CAPTION KEY IS 'lang-select', WHICH LIVES
     // IN I18N, NOT HERE — this page's language caption resolves through that tip
@@ -642,9 +649,9 @@ export const LABELS = Object.freeze({
     // 'hover help', 'on' and 'off'. They take the same review mark this file's
     // other roots carry, and for the same reason — they are not new machine
     // output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' },},
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' },},
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' },},
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' },},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'bt' },},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' },},
 
     // ── Group headings and captions ─────────────────────────────────────────
     // v1.10.1: the glossary settles "Time" as Durée, for a control that IS a
@@ -655,18 +662,18 @@ export const LABELS = Object.freeze({
                                                      termNote: 'panel heading for the time-domain group (sync mode, delay, division), not a duration parameter — Durée names only one of the three controls under it' } ,
 
         'zh-Hans': { t: '时间',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'label.free':      { en: { t: 'Free' },     fr: { t: 'Libre',     reviewed: true } , 'zh-Hans': { t: '自由', reviewed: 'mt' },},
-    'label.sync':      { en: { t: 'Sync' },     fr: { t: 'Synchro',   reviewed: true } , 'zh-Hans': { t: '同步', reviewed: 'mt' },},
-    'label.grain':     { en: { t: 'Grain' },    fr: { t: 'Grain',     reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '颗粒', reviewed: 'mt' },},
-    'label.size':      { en: { t: 'Size' },     fr: { t: 'Taille',    reviewed: true } , 'zh-Hans': { t: '尺寸', reviewed: 'mt' },},
-    'label.amount':    { en: { t: 'Amount' },   fr: { t: 'Quantité',  reviewed: true } , 'zh-Hans': { t: '量', reviewed: 'mt' },},
-    'label.output':    { en: { t: 'Output' },   fr: { t: 'Sortie',    reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'mt' },},
-    'label.random':    { en: { t: 'Random' },   fr: { t: 'Aléa',      reviewed: true } , 'zh-Hans': { t: '随机', reviewed: 'mt' },},
-    'label.sizeRnd':   { en: { t: 'Size Rnd' }, fr: { t: 'Aléa taille', reviewed: true } , 'zh-Hans': { t: '尺寸随机', reviewed: 'mt' },},
-    'label.gainRnd':   { en: { t: 'Gain Rnd' }, fr: { t: 'Aléa gain', reviewed: true } , 'zh-Hans': { t: '增益随机', reviewed: 'mt' },},
-    'label.window':    { en: { t: 'Window' },   fr: { t: 'Fenêtre',   reviewed: true } , 'zh-Hans': { t: '窗口', reviewed: 'mt' },},
+    'label.free':      { en: { t: 'Free' },     fr: { t: 'Libre',     reviewed: true } , 'zh-Hans': { t: '自由', reviewed: 'bt' },},
+    'label.sync':      { en: { t: 'Sync' },     fr: { t: 'Synchro',   reviewed: true } , 'zh-Hans': { t: '同步', reviewed: 'bt' },},
+    'label.grain':     { en: { t: 'Grain' },    fr: { t: 'Grain',     reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '颗粒', reviewed: 'bt' },},
+    'label.size':      { en: { t: 'Size' },     fr: { t: 'Taille',    reviewed: true } , 'zh-Hans': { t: '尺寸', reviewed: 'bt' },},
+    'label.amount':    { en: { t: 'Amount' },   fr: { t: 'Quantité',  reviewed: true } , 'zh-Hans': { t: '量', reviewed: 'bt' },},
+    'label.output':    { en: { t: 'Output' },   fr: { t: 'Sortie',    reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'bt' },},
+    'label.random':    { en: { t: 'Random' },   fr: { t: 'Aléa',      reviewed: true } , 'zh-Hans': { t: '随机', reviewed: 'bt' },},
+    'label.sizeRnd':   { en: { t: 'Size Rnd' }, fr: { t: 'Aléa taille', reviewed: true } , 'zh-Hans': { t: '尺寸随机', reviewed: 'bt' },},
+    'label.gainRnd':   { en: { t: 'Gain Rnd' }, fr: { t: 'Aléa gain', reviewed: true } , 'zh-Hans': { t: '增益随机', reviewed: 'bt' },},
+    'label.window':    { en: { t: 'Window' },   fr: { t: 'Fenêtre',   reviewed: true } , 'zh-Hans': { t: '窗口', reviewed: 'bt' },},
     // These two do NOT reuse knob-grainTilt / knob-tukeyTaper, and the reason is
     // measured: the WINDOW group's cells are 66 px (every other knob cell on the
     // page is 72), and "Inclinaison" is 71.13 px and "Adoucissement" 91.94. The
@@ -691,21 +698,21 @@ export const LABELS = Object.freeze({
     // control defect. Biseau wins because it is the name that can be rendered
     // in the cell, and the body now says "biseautée" where the English says
     // "tapered".
-    'label.tilt':      { en: { t: 'Tilt' },     fr: { t: 'Inclinaison', reviewed: true } , 'zh-Hans': { t: '倾斜', reviewed: 'mt' },},
-    'label.taper':     { en: { t: 'Taper' },    fr: { t: 'Biseau',    reviewed: true } , 'zh-Hans': { t: '渐变', reviewed: 'mt' },},
-    'label.count':     { en: { t: 'Count' },    fr: { t: 'Nombre',    reviewed: true } , 'zh-Hans': { t: '数量', reviewed: 'mt' },},
-    'label.motion':    { en: { t: 'Motion' },   fr: { t: 'Mouvement', reviewed: true } , 'zh-Hans': { t: '运动', reviewed: 'mt' },},
-    'label.off':       { en: { t: 'Off' },      fr: { t: 'Arrêt',     reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' },},
-    'label.mono':      { en: { t: 'Mono' },     fr: { t: 'Mono',      reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '单声道', reviewed: 'mt' },},
-    'label.stereo':    { en: { t: 'Stereo' },   fr: { t: 'Stéréo',    reviewed: true } , 'zh-Hans': { t: '立体声', reviewed: 'mt' },},
+    'label.tilt':      { en: { t: 'Tilt' },     fr: { t: 'Inclinaison', reviewed: true } , 'zh-Hans': { t: '倾斜', reviewed: 'bt' },},
+    'label.taper':     { en: { t: 'Taper' },    fr: { t: 'Biseau',    reviewed: true } , 'zh-Hans': { t: '渐变', reviewed: 'bt' },},
+    'label.count':     { en: { t: 'Count' },    fr: { t: 'Nombre',    reviewed: true } , 'zh-Hans': { t: '数量', reviewed: 'bt' },},
+    'label.motion':    { en: { t: 'Motion' },   fr: { t: 'Mouvement', reviewed: true } , 'zh-Hans': { t: '运动', reviewed: 'bt' },},
+    'label.off':       { en: { t: 'Off' },      fr: { t: 'Arrêt',     reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' },},
+    'label.mono':      { en: { t: 'Mono' },     fr: { t: 'Mono',      reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '单声道', reviewed: 'bt' },},
+    'label.stereo':    { en: { t: 'Stereo' },   fr: { t: 'Stéréo',    reviewed: true } , 'zh-Hans': { t: '立体声', reviewed: 'bt' },},
     // The loanword — the word this technique is called by in a French control
     // room, and what the glossary settles for "Duck" suite-wide. v1.10.0
     // shipped it as the caption while knob-duck's TIP said "Atténuation
     // dynamique"; v1.10.1 put the tip on the same word, so the control has one
     // French name and the tip's body does the explaining instead.
-    'label.duck':      { en: { t: 'Duck' },     fr: { t: 'Ducking',   reviewed: true } , 'zh-Hans': { t: '闪避', reviewed: 'mt' },},
-    'label.drift':     { en: { t: 'Drift' },    fr: { t: 'Dérive',    reviewed: true } , 'zh-Hans': { t: '漂移', reviewed: 'mt' },},
-    'label.rate':      { en: { t: 'Rate' },     fr: { t: 'Vitesse',   reviewed: true } , 'zh-Hans': { t: '速率', reviewed: 'mt' },},
+    'label.duck':      { en: { t: 'Duck' },     fr: { t: 'Ducking',   reviewed: true } , 'zh-Hans': { t: '闪避', reviewed: 'bt' },},
+    'label.drift':     { en: { t: 'Drift' },    fr: { t: 'Dérive',    reviewed: true } , 'zh-Hans': { t: '漂移', reviewed: 'bt' },},
+    'label.rate':      { en: { t: 'Rate' },     fr: { t: 'Vitesse',   reviewed: true } , 'zh-Hans': { t: '速率', reviewed: 'bt' },},
     // v1.10.1: v1.10.0 read "Profondeur is 72.4 px in a 72 px cell — 0.4 px
     // over, which is a clip rather than a near miss" and shipped Ampleur.
     // Re-measured, the number was right (72.36 px) and the conclusion was
@@ -716,21 +723,21 @@ export const LABELS = Object.freeze({
     // also puts the caption, knob-driftDepth's title ("Profondeur de dérive")
     // and knob-driftRate's body ("tant que la Profondeur reste à zéro") on one
     // word. "Ampleur" is forbidden for Depth suite-wide (lint F1).
-    'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Profondeur', reviewed: true } , 'zh-Hans': { t: '深度', reviewed: 'mt' },},
-    'label.colour':    { en: { t: 'Colour' },   fr: { t: 'Couleur',   reviewed: true } , 'zh-Hans': { t: '音色', reviewed: 'mt' },},
+    'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Profondeur', reviewed: true } , 'zh-Hans': { t: '深度', reviewed: 'bt' },},
+    'label.colour':    { en: { t: 'Colour' },   fr: { t: 'Couleur',   reviewed: true } , 'zh-Hans': { t: '音色', reviewed: 'bt' },},
 
     // ── The grain meter's two captions ──────────────────────────────────────
     // Their VALUE spans are readouts and are never keyed: updateGrainMeter()
     // writes `${active}` and `${overlap.toFixed(1)}×` into siblings, which is
     // exactly the split contract §5 asks for and which this page already had.
-    'label.active':    { en: { t: 'Active' },   fr: { t: 'Actifs',    reviewed: true } , 'zh-Hans': { t: '活动', reviewed: 'mt' },},
-    'label.overlap':   { en: { t: 'Overlap' },  fr: { t: 'Recouvr.',  reviewed: true } , 'zh-Hans': { t: '重叠', reviewed: 'mt' },},
+    'label.active':    { en: { t: 'Active' },   fr: { t: 'Actifs',    reviewed: true } , 'zh-Hans': { t: '活动', reviewed: 'bt' },},
+    'label.overlap':   { en: { t: 'Overlap' },  fr: { t: 'Recouvr.',  reviewed: true } , 'zh-Hans': { t: '重叠', reviewed: 'bt' },},
 
     'label.footer':    { en: { t: 'Drag vertically · wheel or arrows to trim · double-click to reset' },
                          fr: { t: 'Glisser verticalement · molette ou flèches pour ajuster · double-clic pour réinitialiser', reviewed: true } ,
 
         'zh-Hans': { t: '垂直拖动 · 滚轮或方向键微调 · 双击重置',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Accessible names ────────────────────────────────────────────────────
@@ -738,26 +745,26 @@ export const LABELS = Object.freeze({
     // the accessible NAME, and a screen reader in French reading an English
     // name is the same failure as a French page with an English caption. None
     // has a rendered box, so none is a geometry risk.
-    'aria.presetPrev':   { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'mt' },},
-    'aria.presetNext':   { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'mt' },},
+    'aria.presetPrev':   { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'bt' },},
+    'aria.presetNext':   { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'bt' },},
     // v1.10.0: this was ALSO false copy. It read "Hover help language" while
     // the control now sets the language of the whole page.
     'aria.langSelect':   { en: { t: 'Interface language' },
                            fr: { t: 'Langue de l’interface', reviewed: true } ,
 
         'zh-Hans': { t: '界面语言',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' },},
-    'aria.noteDivision': { en: { t: 'Note Division' }, fr: { t: 'Division de note', reviewed: true } , 'zh-Hans': { t: '音符时值', reviewed: 'mt' },},
-    'aria.grainShape':   { en: { t: 'Grain Shape' },  fr: { t: 'Forme de grain', reviewed: true } , 'zh-Hans': { t: '颗粒形状', reviewed: 'mt' },},
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' },},
+    'aria.noteDivision': { en: { t: 'Note Division' }, fr: { t: 'Division de note', reviewed: true } , 'zh-Hans': { t: '音符时值', reviewed: 'bt' },},
+    'aria.grainShape':   { en: { t: 'Grain Shape' },  fr: { t: 'Forme de grain', reviewed: true } , 'zh-Hans': { t: '颗粒形状', reviewed: 'bt' },},
     'aria.envCanvas':    { en: { t: 'Grain amplitude envelope' },
                            fr: { t: 'Enveloppe d’amplitude de grain', reviewed: true } ,
 
         'zh-Hans': { t: '颗粒振幅包络',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'aria.sourceMode':   { en: { t: 'Source Mode' },  fr: { t: 'Mode de source', reviewed: true } , 'zh-Hans': { t: '源模式', reviewed: 'mt' },},
+    'aria.sourceMode':   { en: { t: 'Source Mode' },  fr: { t: 'Mode de source', reviewed: true } , 'zh-Hans': { t: '源模式', reviewed: 'bt' },},
 });
 
 // ============================================================================

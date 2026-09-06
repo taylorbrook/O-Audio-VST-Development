@@ -4,6 +4,81 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.12.0] — 2026-09-06
+
+O-ReverseDelay speaks Simplified Chinese. Stage 4 wave 4d of the zh-Hans
+rollout: **106 emitter rows** — 32 hover-help entries with their bodies and 42
+on-page labels. MINOR: a language is added; no parameter, range, type or state
+format changed, and the English and French pages are byte-identical in geometry
+to 1.11.1.
+
+### Added
+
+- **`zh-Hans` on every `I18N` and `LABELS` key**, and the Simplified Chinese
+  endonym in the language selector, its markup copied byte-for-byte from a
+  shipped wave-4c plugin rather than retyped.
+- **The CJK tail on the `--serif` token**, and that is the whole font surface of
+  this plugin: all ten `font-family` declarations in `css/styles.css` read
+  `var(--serif)`, the token already names Times New Roman, which is installed,
+  and the computed census finds ZERO form controls on the UA face and ZERO nodes
+  resolving to a bare generic. One edit covers the page — the only plugin in the
+  wave where the face-naming and form-control halves of the repair do not apply
+  at all.
+- **Nine unitless `line-height` pins**, each the leaf's own measured English
+  content line box over its own font-size at the 940 x 768 shipping frame across
+  all three states.
+
+### Changed
+
+- **The settings hover-help now names BOTH controls the panel holds.** Through
+  1.11.1 it named the language and stopped, while the panel has held the
+  hover-help switch since 1.11.0 — a defect of OMISSION, so nothing in the
+  sentence was false in words and no negative grep or probe could name it. Only
+  reading the body against the live panel finds it. This is an ADDITION, not the
+  deletion every prior release in the rollout has made.
+- **The language hover-help no longer names the selector's options.** A list
+  written into the copy goes false every time a language is added.
+- **`tests/ui_tooltip_clamp_check.js` now opens `js/i18n.js`, which it never
+  did.** The file held no reference to the table at all — no loader, no import,
+  no path — so its two-element language list could not be derived from anything
+  until one was built. It now derives the list through a `vm` sandbox, loops it
+  at both walk sites, and compares EVERY non-English language where three sites
+  read a per-language map by a literal key. Two of those three fed a real
+  hard-fail assertion, so without them the Chinese page would have been driven,
+  measured and never compared. A planted empty language export makes the gate
+  abort rather than sweep a default.
+- **`tests/ui_frontend_check.js` had a stale assertion and had been red since
+  1.11.0.** It required the `ui.on` / `ui.off` label pair to be ABSENT, on the
+  reasoning that this plugin has no hover-help toggle — which 1.11.0 shipped.
+  The check is INVERTED rather than deleted: the pair is now required, because a
+  toggle whose two faces are raw literals rather than table keys is stranded in
+  the previous language the instant the selector fires. The gate is otherwise
+  language-blind by measurement and was left untouched.
+
+### Review level
+
+Every Chinese row ships at **`reviewed: 'bt'`** — machine-drafted, then read
+back through a blind reverse pass with the English withheld, the row ids salted,
+repository access forbidden and all 106 triples read. One row was re-authored:
+the Scatter knob's glossary root came back as "Spread", and so did the settled
+root for the Diffusion knob two groups away on the same page. Neither rendering
+is the wrong word and the two do not share a rendering, so no mechanical check
+could see it — only the reverse read did. The Scatter side is qualified because
+it is the one that is ambiguous about WHAT it scatters. A correction round with
+a fresh salt, a fresh session and a different model returned "Delay Spread" and
+"Diffusion Amount" and corrected nothing further.
+
+`reviewed: 'native'` stays OPEN. No native Simplified Chinese reader has passed
+over this copy.
+
+### Note on Han line boxes
+
+A Han glyph's line box under `line-height: normal` is roughly 30% taller than a
+Latin one at the same font size. That is why this release carries nine
+line-height pins rather than one global rule: every pin is a measurement of this
+page, not a constant.
+
+
 ## [1.11.1] — 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
