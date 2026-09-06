@@ -35,7 +35,7 @@ Ouaricon Plugins:
 | O-DigiDelay | 📦 Installed | 1.6.0 | Audio Effect (Delay) | 2026-09-05 |
 | O-SimpleReverb | 📦 Installed | 1.9.0 | Audio Effect (Reverb) | 2026-09-05 |
 | O-Polystutter | 📦 Installed | 1.14.2 | Audio Effect (Beat Repeater) | 2026-08-31 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
-| O-Lyrica | 📦 Installed | 2.4.3 | Synth (Physical Modeling Harp) | 2026-08-31 |
+| O-Lyrica | 📦 Installed | 2.5.0 | Synth (Physical Modeling Harp) | 2026-09-06 |
 | O-MultiBandCompressor | 📦 Installed | 1.12.0 | Audio Effect (Dynamics) | 2026-08-31 |
 | O-Bass | 📦 Installed | 1.7.0 | Audio Effect (Bass Enhancer) |  2026-09-04 |
 | O-IntonationPad | 📦 Installed | 2.10.0 | Synth (Wavetable Pad) | 2026-09-05 |
@@ -57,17 +57,17 @@ Ouaricon Plugins:
 | O-Contrabass | 📦 Installed | 1.8.2 | Synth (Physical Model Bowed Bass) | 2026-08-31 |
 | O-Bassoon | 📦 Installed | 1.4.0 | Synth (Physical Model Bassoon) | 2026-09-05 |
 | O-MicrotonalSampler | 📦 Installed | 1.27.0 | Synth (Microtonal Sampler) | 2026-09-04 |
-| O-simpleFM | 📦 Installed | 1.4.0 | Synth (Pedagogical 2-Op FM) | 2026-09-01 |
+| O-simpleFM | 📦 Installed | 1.5.0 | Synth (Pedagogical 2-Op FM) | 2026-09-06 |
 | O-simpleAdditive | 📦 Installed | 1.2.0 | Synth (Pedagogical Additive + Wavetable) | 2026-09-01 |
 | O-simpleGrain | 📦 Installed | 1.4.2 | Synth (Pedagogical Granular) | 2026-08-31 |
 | O-simpleSubtractive | 📦 Installed | 1.4.0 | Synth (Pedagogical Subtractive) | 2026-09-01 |
 | O-simpleSampler | ✅ Working | 1.4.3 | Synth (Pedagogical Sampler) | 2026-08-31 |
-| O-simpleBeatmaker | 📦 Installed | 1.2.0 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-09-01 |
-| O-simplePhysicalModelSynth | 📦 Installed | 1.2.2 | Synth (Pedagogical Physical Modeling) | 2026-08-31 |
+| O-simpleBeatmaker | 📦 Installed | 1.3.0 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-09-06 |
+| O-simplePhysicalModelSynth | 📦 Installed | 1.3.0 | Synth (Pedagogical Physical Modeling) | 2026-09-06 |
 | O-ReverseDelay | 📦 Installed | 1.12.0 | Audio Effect (Granular Reverse Delay) | 2026-08-31 |
 | O-Octagon | 📦 Installed | 1.12.0 | Audio Effect (8-Channel DBAP Spatializer) | 2026-09-04 |
 | O-Bitrot | 📦 Installed | 1.16.0 | Audio Effect (Broken-Media Degradation) | 2026-09-04 |
-| O-Tapestop | 📦 Installed | 1.6.2 | Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed) | 2026-08-31 |
+| O-Tapestop | 📦 Installed | 1.7.0 | Audio Effect (Tapestop/Start + Scratch/Continuous Varispeed) | 2026-09-06 |
 | O-Emulator | 📦 Installed | 1.4.0 | Audio Effect (Retro Console Emulation) | 2026-09-05 |
 
 **For detailed plugin information (lifecycle timeline, known issues, parameters, etc.), see:**
