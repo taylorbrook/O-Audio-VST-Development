@@ -6,5 +6,9 @@
   {
     "name": "hover help switched OFF (ui.off — the switch's other face, which no resting state shows; the popover is still open from the state above)",
     "click": "#help-toggle"
+  },
+  {
+    "name": "engine switched to MODAL (label.knobInharmonicity and label.knobModeBright — both cells carry .pm-disabled at rest, which is opacity 0.38, and check-ui-labels counts an element under 1.0 opacity as never visible, so both captions were driven, rendered and NEVER COMPARED across languages. measure-ui saw them: the Mode Bright caption wraps to two lines in English and one in Chinese and its cell shrank 10.4px. This drives the REAL selector — applyEngineGating and applyDiagramSkin both fire from resonatorType's own change event — rather than poking the class.",
+    "eval": "const s = document.getElementById('combo-resonatorType'); s.selectedIndex = 1; s.dispatchEvent(new Event('change'));"
   }
 ]
