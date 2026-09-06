@@ -112,6 +112,7 @@ const fs   = require('fs');
 const os   = require('os');
 const path = require('path');
 const http = require('http');
+const vm   = require('vm');   // v1.12.0 — the language list is derived from js/i18n.js
 
 const pluginRoot = path.resolve(__dirname, '..');
 const repoRoot   = path.resolve(pluginRoot, '..', '..');
@@ -350,10 +351,44 @@ function serve(root) {
     // attributes synchronously and fires NO `change` event, so the ui-stub needs
     // no promise contract and no native round-trip has to complete first.
     //
-    // Every failure is LABELLED with its language. Without that a French-only
-    // failure reads as a mysterious regression in a file that never mentions
-    // French.
-    const LANGS = ['en', 'fr'];
+    // Every failure is LABELLED with its language. Without that a failure in one
+    // language reads as a mysterious regression in a file that never names it.
+    // ── v1.12.0 — THE LANGUAGE LIST IS DERIVED, AND FAILING IS THE FALLBACK ─
+    //
+    // Through v1.11.1 the line below was a two-element literal, and this file
+    // opened js/i18n.js nowhere at all — no I18N, no TIP_BINDINGS, no loader,
+    // no path to the table. So there was nothing to derive FROM, and a language
+    // added to the table was swept by nothing here: the sweep would have gone
+    // on driving two languages and reporting a confident pass over content it
+    // never rendered.
+    //
+    // js/i18n.js is an ES module inside a package with no "type": "module", so
+    // neither require() nor a synchronous import() can read it. It is evaluated
+    // in a vm sandbox with the export keywords stripped, exactly as
+    // scripts/check-i18n.js does it and exactly as the same-named gate on
+    // O-Bitrot does.
+    //
+    // There is deliberately NO DEFAULT PAIR. A gate that falls back to a
+    // two-language list when it cannot read LANGUAGES is a gate that goes green
+    // on unchecked content, which is worse than one that fails: the failure is
+    // visible and the silence is not.
+    const i18nSrc = fs.readFileSync(path.join(publicDir, 'js', 'i18n.js'), 'utf8')
+        .replace(/(^|\n)(\s*)export\s+(const|let|function|class)\s/g, '$1$2$3 ');
+    const i18nBox = { console: { warn() {}, error() {}, log() {} } };
+    vm.createContext(i18nBox);
+    vm.runInContext(`${i18nSrc}\n;globalThis.__x = { I18N, TIP_BINDINGS, LANGUAGES };`,
+                    i18nBox, { timeout: 5000 });
+    const LANGS = i18nBox.__x.LANGUAGES;
+    check(Array.isArray(LANGS) && LANGS.length >= 2 && LANGS[0] === 'en'
+          && LANGS.every(l => typeof l === 'string' && l),
+        `LANGUAGES parsed from js/i18n.js and drives this sweep — got `
+        + `${JSON.stringify(LANGS)}. NOT defaulted: a gate that falls back to a `
+        + `two-language list reports a pass over content it never rendered`);
+    if (!Array.isArray(LANGS) || LANGS.length < 2) {
+        console.log('\n  ABORT: LANGUAGES is unreadable, so nothing below would '
+                  + 'mean anything. Refusing to sweep a guessed language list.');
+        process.exit(failed || 1);
+    }
 
     // lang -> the two tip attributes of every anchor, so "French actually
     // rendered" is asserted rather than assumed. A run where __setLanguage
@@ -540,18 +575,30 @@ function serve(root) {
                         measured: measured.size });
     }
 
-    // French must actually BE French. Without this the sweep could run twice
-    // over identical English text and report a confident, meaningless pass —
-    // the same class of vacuity assertion 2's clamp counter guards against.
+    // Each non-English pass must actually BE that language. Without this the
+    // sweep could run N times over identical English text and report a
+    // confident, meaningless pass — the same class of vacuity assertion 2's
+    // clamp counter guards against.
+    //
+    // v1.12.0: this reads the per-language map by a DERIVED key rather than by
+    // a literal one. Deriving the list above and leaving this comparison
+    // spelling two language codes by hand would have left a real hard-fail
+    // assertion still comparing exactly two languages — the Chinese page would
+    // have been driven, measured and never compared, and the gate would have
+    // reported green having proved nothing about the language it just rendered.
+    // A map read spells no list, so no grep for a two-element array would have
+    // found it either.
     {
         const en = tipTextByLang.get('en') || {};
-        const fr = tipTextByLang.get('fr') || {};
-        const same = Object.keys(en).filter(id => fr[id]
-            && en[id].t === fr[id].t && en[id].b === fr[id].b);
-        check(same.length === 0,
-            `every anchor's copy actually CHANGED between en and fr — `
-            + `${Object.keys(en).length - same.length}/${Object.keys(en).length} differ`
-            + (same.length ? ' — UNCHANGED: ' + same.join(', ') : ''));
+        for (const lang of LANGS.filter(l => l !== 'en')) {
+            const other = tipTextByLang.get(lang) || {};
+            const same = Object.keys(en).filter(id => other[id]
+                && en[id].t === other[id].t && en[id].b === other[id].b);
+            check(same.length === 0,
+                `[${lang}] every anchor's copy actually CHANGED between en and ${lang} — `
+                + `${Object.keys(en).length - same.length}/${Object.keys(en).length} differ`
+                + (same.length ? ' — UNCHANGED: ' + same.join(', ') : ''));
+        }
     }
 
     // ── The Stage D deliverable, printed rather than only asserted ───────────
@@ -566,13 +613,23 @@ function serve(root) {
             + `tallest ${st.tallest.toFixed(1)}  right-most #${st.worstRightId} @ `
             + `${st.worstRight.toFixed(1)} of ${SHIP_W} (limit ${SHIP_W - TOOLTIP_MARGIN})`);
     }
+    // v1.12.0: GENERALIZED RATHER THAN LEFT. This pair feeds a console.log and
+    // nothing else, so leaving it would not have made any assertion vacuous —
+    // but an unexamined print and an unexamined assertion look identical in a
+    // diff, and a report that names only French under a three-language table is
+    // a report that stops being true without ever failing. The direction is
+    // REPORTED, never required: Chinese runs shorter than English here and its
+    // tallest tip is smaller, which is a fact about the language, not a defect.
     {
-        const e = stats.get('en'), f = stats.get('fr');
-        if (e && f)
-            console.log(`   French costs ${f.flipped - e.flipped >= 0 ? '+' : ''}`
-                + `${f.flipped - e.flipped} vertical flip(s) and `
-                + `${f.clamped - e.clamped >= 0 ? '+' : ''}${f.clamped - e.clamped} clamp(s), `
-                + `and is ${(f.tallest - e.tallest).toFixed(1)} px taller at its tallest.`);
+        const e = stats.get('en');
+        for (const lang of LANGS.filter(l => l !== 'en')) {
+            const o = stats.get(lang);
+            if (!e || !o) continue;
+            const sign = (n) => (n >= 0 ? '+' : '') + n;
+            console.log(`   ${lang} costs ${sign(o.flipped - e.flipped)} vertical flip(s) and `
+                + `${sign(o.clamped - e.clamped)} clamp(s), `
+                + `and is ${(o.tallest - e.tallest).toFixed(1)} px taller at its tallest.`);
+        }
     }
 
     // ── v1.7.3 (IN-03): the WINDOW panel's height budget, MEASURED ───────────

@@ -212,7 +212,16 @@
   --text-emboss:   rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
 
-  --serif: 'Garamond', 'EB Garamond', 'Times New Roman', serif;
+  /* v1.12.0 — the CJK tail. Times New Roman is named here and IS installed, so
+     the Latin half of this stack was already safe and the face-naming half of
+     the repair does not apply: this token takes the tail and nothing else. It
+     is the whole font surface of this plugin — all ten font-family
+     declarations in this file read var(--serif), and the computed census finds
+     ZERO form controls on the UA face and ZERO nodes resolving to a bare
+     generic. One edit covers the page. The tail goes BEFORE the trailing
+     generic because under a Chinese document language a bare `serif` is
+     ALREADY a Chinese face, and a tail written after it is never consulted. */
+  --serif: 'Garamond', 'EB Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1194,3 +1203,52 @@ body {
   bottom: 100%;
   border-bottom-color: var(--brown-frame);
 }
+
+
+/* ── LINE-HEIGHT PINS (v1.12.0, the zh-Hans rollout) ─────────────────────────
+
+   A Han glyph's line box under `line-height: normal` is roughly 30% taller than
+   a Latin one at the same font-size, so every caption leaf that inherited
+   `normal` GREW when the page went Chinese and pushed everything below it down:
+   check-ui-labels named 109 moved elements on the zh arm at its worst state,
+   and the WINDOW panel's own height budget overflowed by 5 px (218 into 213).
+
+   Each pin is that leaf's OWN MEASURED ENGLISH CONTENT line box — padding and
+   border subtracted, line count checked before dividing — over its own
+   font-size, written unitless, never global. Measured with
+   scripts/measure-ui.js --mode box across all 3 states at the parsed 940 x 768
+   shipping frame:
+
+     selector            font-size  English line box  pin
+     .knob-label            9.5px         10px        10 / 9.5 = 1.0526316
+     .meter-label           9.5px         10px        10 / 9.5 = 1.0526316
+     .group-label            11px         12px        12 / 11  = 1.0909091
+     .settings-toggle        11px         12px        12 / 11  = 1.0909091
+     .settings-label         10px         11px        11 / 10  = 1.1
+     .subtitle               10px         11px        11 / 10  = 1.1
+     .preset-btn             10px         11px        11 / 10  = 1.1
+     .segment                10px         11px        11 / 10  = 1.1
+     .footer-text             9px         10px        10 /  9  = 1.1111111
+
+   THE PIN IS LANGUAGE-INDEPENDENT ON PURPOSE. Each value is what English and
+   French already computed, so neither arm moves; only the Chinese box comes
+   back to it.
+
+   R8: this stylesheet carried THREE line-height declarations before this
+   release — .gear-btn, .preset-nav and .tooltip-body — and not one of them is a
+   selector below. Grepped, not assumed. These rules sit at the end of the file
+   so they win at equal specificity over the earlier .preset-btn and
+   .footer-text blocks without raising specificity anywhere.                  */
+
+.knob-label,
+.meter-label      { line-height: 1.0526316; }   /* 10.00 / 9.5px */
+
+.group-label,
+.settings-toggle  { line-height: 1.0909091; }   /* 12.00 / 11px  */
+
+.settings-label,
+.subtitle,
+.preset-btn,
+.segment          { line-height: 1.1; }         /* 11.00 / 10px  */
+
+.footer-text      { line-height: 1.1111111; }   /* 10.00 / 9px   */
