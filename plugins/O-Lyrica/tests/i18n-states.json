@@ -20,8 +20,8 @@
     "click": "#tab-tuning"
   },
   {
-    "name": "the scale generator expanded (Generate Scale's three type options, the EDO form's Divisions and Period captions and the Generate button all sit inside a collapsed .generator-content)",
-    "click": ".generator-header"
+    "name": "the scale generator expanded (Generate Scale's three type options, the EDO form's Divisions and Period captions and the Generate button all sit inside a collapsed .generator-content). EVAL, not a click, and the reason is measured: .generator-header sits at (472, 393, 200x19) and the topmost element at its centre point is the footer keyboard's white key for note 71, so a FORCED click dispatches into the keyboard and toggleGenerator never fires. The step does not throw, --verbose logs no skip, and the whole generator form -- ten captions -- was silently never measured on any arm until elementFromPoint was asked what was actually under the cursor.",
+    "eval": "window.toggleGenerator();"
   },
   {
     "name": "the generator switched to Harmonic Series (label.genStart and label.genEnd exist only in that form — handleGeneratorTypeChange REBUILDS #generator-inputs, so no single state can show all three forms at once)",

@@ -205,8 +205,8 @@ public:
     int  getUiLanguageIndex() const { return uiLanguage.load(std::memory_order_acquire); }
     void setUiLanguageIndex(int i)  { uiLanguage.store(i, std::memory_order_release); }
 
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    static juce::String languageCode  (int i)                 { return i == 2 ? "zh-Hans" : i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "zh-Hans" ? 2 : s == "fr" ? 1 : 0; }
 
     // v1.30.0: Glissando mode state (0=Off, 1=Free, 2=ScaleLocked)
     std::atomic<int> activeGlissandoMode { 0 };
