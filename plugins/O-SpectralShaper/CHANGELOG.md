@@ -1,5 +1,96 @@
 # O-SpectralShaper Changelog
 
+## [1.8.0] - 2026-09-05
+
+Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c).
+MINOR: a third language, a canvas caption that had never been localized in any
+language, one font-token edit and six geometry pins. No parameter, range, type or
+state format changed, and no audio path was touched.
+
+### Added
+
+- **`zh-Hans` on every one of the 72 emitter rows** — 25 `I18N` entries and 23
+  `LABELS` entries. Authored at `reviewed: 'mt'`, committed there, and promoted to
+  **`reviewed: 'bt'`** only after two independent blind reverse reads. `'native'`
+  stays open on every row: this project has no native Chinese reader, and
+  `i18n-zh-lint` rule R1 prints that quality level on every run.
+- **The endonym `简体中文`**, as numeric character references.
+- **A three-way `languageCode` / `languageIndex` codec.** Anything that is
+  neither `fr` nor `zh-Hans` degrades to English. **No Chinese character appears
+  anywhere under `Source/`.**
+- **`canvas.webglUnsupported` — a string that has never been localized in ANY
+  language.** `js/components/Spectrogram.js` painted one hard-coded English
+  sentence into its own canvas inside the Canvas-2D fallback. A canvas string has
+  no element, so every gate in this repo is blind to it: `check-i18n` walks text
+  nodes and `textContent` writes and neither reaches `fillText`, `check-ui-labels`
+  has no canvas awareness, and `measure-ui` reads computed style on elements. It
+  shipped in English on the French page for the whole of the French rollout and
+  nothing reported it. It now lives in `I18N` with an empty body and is read
+  through `tr()` from the render path — the shape O-Comp already ships for the
+  same problem — and it is deliberately **not** in `LABELS`, because assertion 15
+  fails a `LABELS` key that no element and no `setLabel` call reaches.
+
+### Changed
+
+- **The language hover-help lost its enumeration, in English and French alike.**
+  It named the selector's options in full, true for exactly as long as the
+  selector held two entries. Deleted rather than widened; the selector already
+  lists the languages in their own endonyms, the one place the list cannot go
+  stale. The Chinese was authored from the corrected English.
+- **The draw-mode hover-help now names its two buttons by their Chinese
+  captions.** The first draft spelled them "Freehand" and "Node", which are keyed
+  labels that *do* translate — so the body was telling a Chinese reader to press
+  two buttons that are not on the screen. The French body already got this right.
+  An option word stays verbatim only when it is `I18N_EXEMPT`, because an exempt
+  option reads the same in every language.
+- **One token edit covers twelve declarations.** Every `font-family` on this page
+  resolves through `--serif`, so the CJK tail lands once — **before the trailing
+  generic**, because Chromium resolves a bare `serif` against the document's
+  `lang` and a tail written after it is never consulted. No face had to be named:
+  of the four Latin families listed, only Times New Roman is installed on the
+  build machine (measured — Garamond 0, EB Garamond 0, Adobe Garamond Pro 0,
+  Times New Roman 4).
+- **Six `line-height` pins.** `line-height: normal` is whatever the resolved face
+  reports as its natural line box, and that face changes with the document
+  language; every Han-carrying leaf grew 3 px and the growth cascaded down the
+  knob sidebar as an accumulating `dy`, moving 22 elements. Each pin is derived
+  from that leaf's own measured English box, unitless, never global.
+
+### Deliberately unchanged, and recorded as checked
+
+- **The gear hover-help is CORRECT.** It names both of the popover's controls and
+  says both choices are remembered. Four of this wave's six plugins carry a gear
+  body claiming the panel holds nothing but the language; this is one of the two
+  that does not.
+- **`tests/ui_preset_menu_check.js` needed no repair.** Read end to end: 407 lines
+  with no language reference of any kind — no `LANGUAGES`, no `'en'`, no `'fr'`,
+  no integer near a language walk. Confirmed mechanically with comments stripped.
+  It still passes.
+- **The two `fillText` sites in `js/components/CurveEditor.js`.** They draw
+  numeric axis ticks through a stack that names Times New Roman, which is
+  installed. Nothing there translates and nothing there resolves through a Chinese
+  face — an evidenced non-finding, read rather than assumed.
+- **The six French-era `min-width` pins were RE-MEASURED**, not inherited. A
+  French-era floor is a floor, not safety. All six hold on the Chinese arm.
+
+### Verified
+
+- `check-i18n` exit 0; `check-ui-labels` exit 0 with **0 FAIL on the English,
+  French and Chinese arms**; `i18n-zh-lint` 0 findings and `BELOW SHIP BAR 0`;
+  `i18n-fr-lint` exit 0 — French untouched.
+- **No `fillText` call in this plugin takes a string literal** — a negative grep
+  on the call shape, not on the sentence, so a re-worded literal fails it too.
+- `measure-ui --mode box --report all`: `undeclared-font` 0, `wrap-count` 0,
+  `svg-font-attr` 0, beside 41 visible Han-bearing nodes of which none resolves to
+  a non-CJK face. `line-height-normal` reads 11, every one an evidenced non-mover.
+- Zero Han under `Source/**/*.{h,cpp}`, positive control fired on the same run.
+- Two blind reverse reads against **two different models**, each from a fresh
+  session outside the repo with no tool access, on separately salted batches.
+  Both read the canvas caption back as "WebGL not supported" — the only evidence
+  available that it is right, since the branch that paints it cannot be produced
+  on this machine.
+- `auval -v` AU VALIDATION SUCCEEDED, triple read off `auval -a`.
+
 ## [1.7.3] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
