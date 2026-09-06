@@ -65,7 +65,14 @@
             width: 900px;
             height: 600px;
             overflow: hidden;
-            font-family: 'EB Garamond', 'Garamond', 'Georgia', 'Times New Roman', serif;
+            /* CJK tail BEFORE the trailing generic. Chromium resolves a bare
+               `serif` against the document's lang, so under zh-Hans the generic
+               is ALREADY a Chinese face and a tail written after it is never
+               consulted — and the page still looks right on macOS, which is what
+               makes that mistake survive review. Times New Roman is measured
+               installed on the build machine (4 family matches), so the Latin
+               half of this stack was already safe and only the tail was missing. */
+            font-family: 'EB Garamond', 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             background: var(--bg-paper);
             color: var(--brown-text);
         }
@@ -134,13 +141,31 @@
         }
 
         .header-title {
-            font-family: 'EB Garamond', 'Garamond', serif;
+            /* FACE-NAMING ONLY, AND DELIBERATELY NO CJK TAIL. This is the
+               wave's only Latin-exposed bare generic: neither EB Garamond nor
+               Garamond is installed on the build machine (measured with
+               system_profiler SPFontsDataType — 0 family matches each), so the
+               stack fell straight through to `serif`, which Chromium resolves
+               against the DOCUMENT LANGUAGE. Under zh-Hans that made this node's
+               Latin glyphs come out of a Chinese serif face, with different
+               metrics from the English arm and nothing translated anywhere near
+               it. Times New Roman is named to close that.
+
+               NO TAIL, on purpose. This node renders the literal product name,
+               which is an I18N_EXEMPT string and stays English in every language,
+               so it can never receive a Han codepoint and a tail here would be
+               decoration. Keeping the two halves of the font work separable is
+               what makes it possible to say which sites needed which — a wave
+               that appends the tail to everything it measured can no longer tell
+               a needed tail from a decorative one. */
+            font-family: 'EB Garamond', 'Garamond', 'Times New Roman', serif;
             font-size: 16px;
             letter-spacing: 1.5px;
             font-style: italic;
         }
 
         .header-subtitle {
+            line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the pin block above */
             font-size: 10px;
             letter-spacing: 1.5px;
             text-transform: uppercase;
@@ -219,7 +244,51 @@
             position: relative;
         }
 
+        /* ── LINE-HEIGHT PINS (v1.4.0, the Chinese arm) ───────────────────────
+           `line-height: normal` is not a number — it is whatever the RESOLVED
+           FACE reports as its natural line box, and the resolved face changes
+           with the document language. PingFang SC reports a taller natural line
+           box than Times New Roman at the same font-size, so every Han-carrying
+           leaf below grew 2 to 4 px on the Chinese arm with no other change, and
+           the growth cascaded through the two-column sections grid: 103 non-label
+           elements moved, all of them by an accumulating dy or dh.
+
+           Each pin is DERIVED FROM THAT LEAF'S OWN MEASURED ENGLISH BOX — height
+           minus padding minus border, over its own font-size — never copied
+           between selectors and never set globally. They are UNITLESS so a leaf
+           that inherits into a differently sized child scales rather than
+           pinning the child to the parent's pixel box.
+
+           Measured at the shipping 900 x 600 frame with getComputedStyle,
+           English arm, both states in tests/i18n-states.json driven. Note the
+           frame is written `setSize (900, 600)` with a space before the paren;
+           both check-ui-labels and measure-ui parse it correctly, but a
+           hand-rolled parser keyed on `setSize(` would miss it and silently
+           measure Chromium's 1280x720 default instead.
+
+             .section-label      12.00 - 0 - 0 = 12.00 / 11px   = 1.0909
+             .knob-endlabels     10.00 - 0 - 0 = 10.00 /  8.5px = 1.1765
+             .header-subtitle    11.00 - 0 - 0 = 11.00 / 10px   = 1.1
+             .settings-label     11.00 - 0 - 0 = 11.00 / 10px   = 1.1
+             .about-tagline      16.00 - 0 - 0 = 16.00 / 14px   = 1.1429
+
+           R8: the six line-height declarations this page already carried (:326,
+           :501 .about-blurb, :550, :626, :656, :739) were read for a specificity
+           conflict FIRST; none of them targets any selector above. .about-blurb
+           at :501 is the one to notice — it is the sibling of .about-tagline and
+           it already carries `line-height: 1.55`, which is why that paragraph
+           does NOT appear in the pin list even though it is the longest Han run
+           on the page.
+
+           EVERY ONE IS A NO-OP IN ENGLISH AND IN FRENCH — that is the test, and
+           check-ui-labels reports 0 moved elements on both those arms after the
+           pins. */
+        .knob-endlabels {
+            line-height: 1.1765;   /* 10.00 - 0 - 0 = 10.00 / 8.5px — see the pin block above */
+        }
+
         .section-label {
+            line-height: 1.0909;   /* 12.00 - 0 - 0 = 12.00 / 11px — see the pin block above */
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 1.2px;
@@ -409,7 +478,14 @@
             --tuning-input-bg: rgba(255, 248, 230, 0.9);
             --tuning-hover: rgba(107, 142, 78, 0.2);
             --tuning-active: rgba(107, 142, 78, 0.3);
-            font-family: 'EB Garamond', 'Garamond', 'Times New Roman', serif;
+            /* CJK tail BEFORE the trailing generic. Chromium resolves a bare
+               `serif` against the document's lang, so under zh-Hans the generic
+               is ALREADY a Chinese face and a tail written after it is never
+               consulted — and the page still looks right on macOS, which is what
+               makes that mistake survive review. Times New Roman is measured
+               installed on the build machine (4 family matches), so the Latin
+               half of this stack was already safe and only the tail was missing. */
+            font-family: 'EB Garamond', 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             height: 100%;
             display: block;
             position: relative;
@@ -429,7 +505,24 @@
             text-align: center;
         }
         .about-title {
-            font-family: 'EB Garamond', 'Garamond', serif;
+            /* FACE-NAMING ONLY, AND DELIBERATELY NO CJK TAIL. This is the
+               wave's only Latin-exposed bare generic: neither EB Garamond nor
+               Garamond is installed on the build machine (measured with
+               system_profiler SPFontsDataType — 0 family matches each), so the
+               stack fell straight through to `serif`, which Chromium resolves
+               against the DOCUMENT LANGUAGE. Under zh-Hans that made this node's
+               Latin glyphs come out of a Chinese serif face, with different
+               metrics from the English arm and nothing translated anywhere near
+               it. Times New Roman is named to close that.
+
+               NO TAIL, on purpose. This node renders the literal product name,
+               which is an I18N_EXEMPT string and stays English in every language,
+               so it can never receive a Han codepoint and a tail here would be
+               decoration. Keeping the two halves of the font work separable is
+               what makes it possible to say which sites needed which — a wave
+               that appends the tail to everything it measured can no longer tell
+               a needed tail from a decorative one. */
+            font-family: 'EB Garamond', 'Garamond', 'Times New Roman', serif;
             font-size: 28px;
             font-style: italic;
             color: var(--brown-frame);
@@ -443,12 +536,49 @@
             margin-bottom: 18px;
         }
         .about-tagline {
+            line-height: 1.1429;   /* 16.00 - 0 - 0 = 16.00 / 14px — see the pin block above */
             font-size: 14px;
             font-style: italic;
             color: var(--brown-text);
             margin-bottom: 12px;
         }
+        /* ── THE ABOUT TAB'S OWN THREE PINS ──────────────────────────────────
+           This tab is reachable only through a state, so none of the three
+           appears in a measurement that does not drive tests/i18n-states.json.
+
+             .about-version    12.00 - 0 - 0 = 12.00 / 11px = 1.0909
+             .about-meta       14.00 - 0 - 0 = 14.00 / 12px = 1.1667
+             .about-version [data-i18n]  a WIDTH FLOOR at 57.72 px
+
+           The width floor is the interesting one. The version row is a caption
+           followed by the version NUMBER, and the caption is 57.72 px in English
+           and French but 24.89 px in Chinese, so the number slid 16.4 px left —
+           a non-label element displaced by a label that shrank. The [data-i18n]
+           attribute selector is what keeps the floor OFF the number beside it:
+           the caption is the only span in that row that carries one. */
+        .about-version {
+            line-height: 1.0909;   /* 12.00 - 0 - 0 = 12.00 / 11px */
+        }
+        .about-version [data-i18n] {
+            min-width: 57.72px;    /* en 57.72, fr 57.72, zh 24.89 — pinned at the widest */
+            display: inline-block;
+        }
+        .about-meta {
+            line-height: 1.1667;   /* 14.00 - 0 - 0 = 14.00 / 12px */
+        }
+
         .about-blurb {
+            /* HEIGHT FLOOR, LOAD-BEARING, and it exists because the Chinese is
+               SHORTER — the half a clip check is blind to. Measured at the
+               shipping 900 x 600 frame: this paragraph wraps to THREE lines in
+               English and in French (58.13 px at line-height 1.55) and to TWO in
+               Chinese (38.75 px), because the same claim takes fewer characters.
+               19.38 px lost here shrinks .about-card and drags .about-meta 15.4 px
+               up after it. Pinned at the height of the WIDEST of the three, so
+               the pin is a no-op in English and French and a floor only in
+               Chinese. It is a min-height and not a height: a floor must never
+               cap a language that needs a fourth line. */
+            min-height: 58.13px;
             font-size: 12.5px;
             line-height: 1.55;
             color: var(--brown-text-light);
@@ -559,6 +689,7 @@
         /* nowrap because the row is space-between: a caption that wrapped would
            grow the row's height and move the control beside it. */
         .settings-label {
+            line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the pin block above */
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 1.2px;
@@ -749,6 +880,7 @@
                             data-i18n-aria="aria.langSelect" aria-label="Interface language">
                         <option value="en">English</option>
                         <option value="fr">Fran&ccedil;ais</option>
+                        <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                     </select>
                 </label>
 
