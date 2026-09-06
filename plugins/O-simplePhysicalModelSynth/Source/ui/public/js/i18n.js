@@ -166,7 +166,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '设置',
                      b: '选择界面语言，以及是否显示这些悬停帮助。语言随会话保存；悬停帮助开关保存在这台电脑上。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'lang-select': {
         en: { t: "Language",
@@ -176,7 +176,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '语言',
                      b: '本页标签和这些悬停帮助所用的语言。数值读数、预设名称和三个下拉菜单保持英文。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'help-toggle': {
         en: { t: "Hover help",
@@ -186,7 +186,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '悬停帮助',
                      b: '开启或关闭这些悬停说明。该开关保存在这台电脑上而不是会话里，因此会跟随您从一个项目到下一个项目。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Excitation ──────────────────────────────────────────────────────────
@@ -198,7 +198,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '激励',
                      b: '能量以什么方式进入模型：Pluck（噪声脉冲）、Strike（槌击冲激）或 Bow（持续摩擦）。换一个来听听为什么同一根弦拨、击、拉出来的声音不一样。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     excitationPosition: {
         en: { t: "Excite Position",
@@ -208,7 +208,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '激励位置',
                      b: '能量沿弦长在哪里进入。居中 → 更圆润；靠近一端 → 更单薄也更明亮（相当于在激励端加了一个梳状滤波器）。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     excitationColor: {
         en: { t: "Excite Color",
@@ -218,7 +218,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '激励音色',
                      b: '激励体的明亮度与硬度。低 = 一支软槌；高 = 一次坚硬明亮的起音。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     bowForce: {
         en: { t: "Bow Force",
@@ -228,7 +228,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '弓压',
                      b: '仅限 Bow。作用在粘滑驱动上的摩擦压力 —— 压力越大，起音越噪也越丰满。除非激励为 Bow，否则变灰。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Resonator ───────────────────────────────────────────────────────────
@@ -240,7 +240,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '共鸣器',
                      b: '引擎开关。String = Karplus-Strong（一把谐波梳）。Modal = 一组逐渐衰减的正弦（棒与钟的非谐模态）。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     stringModel: {
         // v1.2.2 (Stage O item 53): the control is hidden — this entry stays
@@ -253,7 +253,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '弦模型',
                      b: '保留项。Karplus-Strong 是唯一的引擎；Waveguide 这个选项没有实现，控件已隐藏。参数保留下来，好让现有的会话和自动化仍能载入。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     inharmonicity: {
         en: { t: "Inharmonicity",
@@ -263,7 +263,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '非谐性',
                      b: '仅限 Modal。把模态间距从谐波（近似棒）拉伸到非谐（近似钟）：fₖ = f₀·k·√(1+B·k²)。正是这个控件让一口钟听起来像钟，而不像一根弦。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     modeBrightness: {
         en: { t: "Mode Brightness",
@@ -273,7 +273,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '模态亮度',
                      b: '仅限 Modal。让高阶模态更响也更持久 —— 决定被敲击的琴体有多明亮、多金属。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Material / damping ──────────────────────────────────────────────────
@@ -285,7 +285,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '阻尼',
                      b: '环路低通的截止频率。它在每一圈都削掉一点高频，于是音色在衰减过程中逐渐变暗 —— 明亮的钢弦 ↔ 沉闷的尼龙弦。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     decay: {
         en: { t: "Decay",
@@ -295,7 +295,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '衰减',
                      b: '环路反馈量，也就是余音长度。接近一 = 长延音；更低 = 一次短促、被抑制的拨奏。始终被钳制在 1 以下，环路才不会失控。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     material: {
         en: { t: "Material",
@@ -305,7 +305,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '材质',
                      b: '一个旋钮，沿钢弦↔尼龙弦这条轴同时移动阻尼与衰减 —— 转动它时看着两个旋钮一起跟动。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Tuning ─────────────────────────────────────────────────────────────
@@ -317,7 +317,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '粗调',
                      b: '以半音移调（±24）。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     fineTune: {
         en: { t: "Fine Tune",
@@ -327,7 +327,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '微调',
                      b: '以音分微调音高（±100）。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Amp / dynamics ─────────────────────────────────────────────────────
@@ -339,7 +339,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '振幅起音',
                      b: '输出振幅的淡入。对持续的 Bow 最重要 —— 琴体自身的衰减是模型固有的。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     ampRelease: {
         en: { t: "Amp Release",
@@ -349,7 +349,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '振幅释音',
                      b: '松开按键后输出的淡出 —— 决定放手时这个音被抑制得多快。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     velToBrightness: {
         en: { t: "Velocity → Brightness",
@@ -359,7 +359,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '力度 → 亮度',
                      b: '弹得更用力会在多大程度上让激励更明亮、更有力。这是模型的动态响应：弹得越重，听到的越亮。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     outputLevel: {
         en: { t: "Output Level",
@@ -369,7 +369,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '输出电平',
                      b: '总输出增益（−60 … 0 dB）。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Diagram boxes ──────────────────────────────────────────────────────
@@ -383,7 +383,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '激励',
                      b: '能量在这里注入 —— 一次拨奏、一次敲击或一次运弓。它的位置和音色在到达共鸣器之前塑造起音。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     diagResonator: {
         en: { t: "Resonator loop",
@@ -393,7 +393,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '共鸣器环路',
                      b: '音高来自环路长度（基频 = 采样率 ÷ 延迟长度）。在这里绕圈的脉冲每转一圈都暗一点 —— 这个逐渐消退就是音在衰减。在 Modal 模式下，它变成振响的模态竖条。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     diagMaterial: {
         en: { t: "Material / damping",
@@ -403,7 +403,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '材质与阻尼',
                      b: '每一圈都损失一点能量：低通（阻尼）让它变暗，反馈（衰减）决定它响多久。正是这一步把钢弦变成尼龙弦。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     diagOut: {
         en: { t: "Output",
@@ -413,7 +413,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '输出',
                      b: '16 个声部求和后离开乐器的信号，由输出电平缩放。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
 });
@@ -437,17 +437,17 @@ export const LABELS = Object.freeze({
         // 12px. Two connecting words are dropped; the sentence still names the
         // engine, the resonator and the genre. 605.4px, 20.9px of clearance.
         fr: { t: "Synthétiseur à corde Karplus–Strong et résonateur modal · un guide de terrain", reviewed: true },
-        'zh-Hans': { t: 'Karplus–Strong 弦与模态共鸣器合成器 · 实地指南', reviewed: 'mt' },
+        'zh-Hans': { t: 'Karplus–Strong 弦与模态共鸣器合成器 · 实地指南', reviewed: 'bt' },
     },
     'label.presetSave': {
         en: { t: "Save" },
         fr: { t: "Enreg.", reviewed: true },
-        'zh-Hans': { t: '保存', reviewed: 'mt' },
+        'zh-Hans': { t: '保存', reviewed: 'bt' },
     },
     'label.presetDelete': {
         en: { t: "Delete" },
         fr: { t: "Suppr.", reviewed: true },
-        'zh-Hans': { t: '删除', reviewed: 'mt' },
+        'zh-Hans': { t: '删除', reviewed: 'bt' },
     },
 
     // The two dropdown group headings, written by buildPresetDropdown() through
@@ -455,12 +455,12 @@ export const LABELS = Object.freeze({
     'label.presetFactory': {
         en: { t: "Factory" },
         fr: { t: "Usine", reviewed: true },
-        'zh-Hans': { t: '出厂', reviewed: 'mt' },
+        'zh-Hans': { t: '出厂', reviewed: 'bt' },
     },
     'label.presetUser': {
         en: { t: "User" },
         fr: { t: "Utilisateur", reviewed: true },
-        'zh-Hans': { t: '用户', reviewed: 'mt' },
+        'zh-Hans': { t: '用户', reviewed: 'bt' },
     },
 
     // ── Visualization captions ──────────────────────────────────────────────
@@ -470,27 +470,27 @@ export const LABELS = Object.freeze({
     'label.vizSignalFlow': {
         en: { t: "Signal Flow ·" },
         fr: { t: "Flux du signal ·", reviewed: true },
-        'zh-Hans': { t: '信号流 ·', reviewed: 'mt' },
+        'zh-Hans': { t: '信号流 ·', reviewed: 'bt' },
     },
     'label.vizSignalFlowHint': {
         en: { t: "excitation → resonator loop → material → out" },
         fr: { t: "excitation → boucle du résonateur → matériau → sortie", reviewed: true },
-        'zh-Hans': { t: '激励 → 共鸣器环路 → 材质 → 输出', reviewed: 'mt' },
+        'zh-Hans': { t: '激励 → 共鸣器环路 → 材质 → 输出', reviewed: 'bt' },
     },
     'label.vizSpectrum': {
         en: { t: "Spectrum ·" },
         fr: { t: "Spectre ·", reviewed: true },
-        'zh-Hans': { t: '频谱 ·', reviewed: 'mt' },
+        'zh-Hans': { t: '频谱 ·', reviewed: 'bt' },
     },
     'label.vizSpectrumHint': {
         en: { t: "harmonic comb vs inharmonic modes" },
         fr: { t: "peigne harmonique ou modes inharmoniques", reviewed: true },
-        'zh-Hans': { t: '谐波梳状谱与非谐模态的对比', reviewed: 'mt' },
+        'zh-Hans': { t: '谐波梳状谱与非谐模态的对比', reviewed: 'bt' },
     },
     'label.vizWaveform': {
         en: { t: "Waveform ·" },
         fr: { t: "Forme d’onde ·", reviewed: true },
-        'zh-Hans': { t: '波形 ·', reviewed: 'mt' },
+        'zh-Hans': { t: '波形 ·', reviewed: 'bt' },
     },
     'label.vizWaveformHint': {
         en: { t: "the ringing string / body, decaying" },
@@ -502,7 +502,7 @@ export const LABELS = Object.freeze({
         // clearance. The alternative — reserving the second line in BOTH
         // languages — costs 11px of canvas in English for nothing.
         fr: { t: "la corde ou le corps qui s’éteint", reviewed: true },
-        'zh-Hans': { t: '正在衰减的振响琴弦或琴体', reviewed: 'mt' },
+        'zh-Hans': { t: '正在衰减的振响琴弦或琴体', reviewed: 'bt' },
     },
 
     // ── Signal-flow diagram ─────────────────────────────────────────────────
@@ -512,44 +512,44 @@ export const LABELS = Object.freeze({
     'label.diagExcite': {
         en: { t: "EXCITE" },
         fr: { t: "EXCITATION", reviewed: true },
-        'zh-Hans': { t: '激励', reviewed: 'mt' },
+        'zh-Hans': { t: '激励', reviewed: 'bt' },
     },
     'label.diagResonator': {
         en: { t: "RESONATOR" },
         fr: { t: "RÉSONATEUR", reviewed: true },
-        'zh-Hans': { t: '共鸣器', reviewed: 'mt' },
+        'zh-Hans': { t: '共鸣器', reviewed: 'bt' },
     },
     'label.diagMaterial': {
         en: { t: "MATERIAL" },
         fr: { t: "MATÉRIAU", reviewed: true },
-        'zh-Hans': { t: '材质', reviewed: 'mt' },
+        'zh-Hans': { t: '材质', reviewed: 'bt' },
     },
     'label.diagMaterialSub': {
         en: { t: "damp·decay" },
         fr: { t: "amort.·déclin", reviewed: true },
-        'zh-Hans': { t: '阻尼·衰减', reviewed: 'mt' },
+        'zh-Hans': { t: '阻尼·衰减', reviewed: 'bt' },
     },
 
     // ── Column headings ─────────────────────────────────────────────────────
     'label.group1': {
         en: { t: "1 · Excitation" },
         fr: { t: "1 · Excitation", sameAsEn: true, reviewed: true },
-        'zh-Hans': { t: '1 · 激励', reviewed: 'mt' },
+        'zh-Hans': { t: '1 · 激励', reviewed: 'bt' },
     },
     'label.group2': {
         en: { t: "2 · Resonator" },
         fr: { t: "2 · Résonateur", reviewed: true },
-        'zh-Hans': { t: '2 · 共鸣器', reviewed: 'mt' },
+        'zh-Hans': { t: '2 · 共鸣器', reviewed: 'bt' },
     },
     'label.group3': {
         en: { t: "3 · Material · Tuning" },
         fr: { t: "3 · Matériau · Accord", reviewed: true },
-        'zh-Hans': { t: '3 · 材质 · 调音', reviewed: 'mt' },
+        'zh-Hans': { t: '3 · 材质 · 调音', reviewed: 'bt' },
     },
     'label.group4': {
         en: { t: "4 · Amp · Output" },
         fr: { t: "4 · Ampli · Sortie", reviewed: true },
-        'zh-Hans': { t: '4 · 放大 · 输出', reviewed: 'mt' },
+        'zh-Hans': { t: '4 · 振幅 · 输出', reviewed: 'bt' },
     },
 
     // ── Control captions ────────────────────────────────────────────────────
@@ -559,17 +559,17 @@ export const LABELS = Object.freeze({
     'label.knobType': {
         en: { t: "Type" },
         fr: { t: "Type", sameAsEn: true, reviewed: true },
-        'zh-Hans': { t: '类型', reviewed: 'mt' },
+        'zh-Hans': { t: '类型', reviewed: 'bt' },
     },
     'label.knobPosition': {
         en: { t: "Position" },
         fr: { t: "Position", sameAsEn: true, reviewed: true },
-        'zh-Hans': { t: '位置', reviewed: 'mt' },
+        'zh-Hans': { t: '位置', reviewed: 'bt' },
     },
     'label.knobColor': {
         en: { t: "Color" },
         fr: { t: "Couleur", reviewed: true },
-        'zh-Hans': { t: '音色', reviewed: 'mt' },
+        'zh-Hans': { t: '音色', reviewed: 'bt' },
     },
     'label.knobBowForce': {
         en: { t: "Bow Force" },
@@ -581,22 +581,22 @@ export const LABELS = Object.freeze({
         // Excitation = Bow and its tooltip title spells out "Pression d'archet",
         // so the column context carries the word this caption drops.
         fr: { t: "Pression", reviewed: true },
-        'zh-Hans': { t: '弓压', reviewed: 'mt' },
+        'zh-Hans': { t: '弓压', reviewed: 'bt' },
     },
     'label.knobEngine': {
         en: { t: "Engine" },
         fr: { t: "Moteur", reviewed: true },
-        'zh-Hans': { t: '引擎', reviewed: 'mt' },
+        'zh-Hans': { t: '引擎', reviewed: 'bt' },
     },
     'label.knobStringModel': {
         en: { t: "String Model" },
         fr: { t: "Modèle corde", reviewed: true },
-        'zh-Hans': { t: '弦模型', reviewed: 'mt' },
+        'zh-Hans': { t: '弦模型', reviewed: 'bt' },
     },
     'label.knobInharmonicity': {
         en: { t: "Inharmonicity" },
         fr: { t: "Inharmonicité", reviewed: true },
-        'zh-Hans': { t: '非谐性', reviewed: 'mt' },
+        'zh-Hans': { t: '非谐性', reviewed: 'bt' },
     },
     'label.knobModeBright': {
         en: { t: "Mode Bright" },
@@ -609,52 +609,52 @@ export const LABELS = Object.freeze({
         // caption growing, in the other direction (§7: French getting shorter
         // flags as loudly as French getting longer).
         fr: { t: "Brillance modes", reviewed: true },
-        'zh-Hans': { t: '模态亮度', reviewed: 'mt' },
+        'zh-Hans': { t: '模态亮度', reviewed: 'bt' },
     },
     'label.knobMaterial': {
         en: { t: "Material" },
         fr: { t: "Matériau", reviewed: true },
-        'zh-Hans': { t: '材质', reviewed: 'mt' },
+        'zh-Hans': { t: '材质', reviewed: 'bt' },
     },
     'label.knobDamping': {
         en: { t: "Damping" },
         fr: { t: "Amortissement", reviewed: true },
-        'zh-Hans': { t: '阻尼', reviewed: 'mt' },
+        'zh-Hans': { t: '阻尼', reviewed: 'bt' },
     },
     'label.knobDecay': {
         en: { t: "Decay" },
         fr: { t: "Déclin", reviewed: true },
-        'zh-Hans': { t: '衰减', reviewed: 'mt' },
+        'zh-Hans': { t: '衰减', reviewed: 'bt' },
     },
     'label.knobCoarse': {
         en: { t: "Coarse" },
         fr: { t: "Grossier", reviewed: true },
-        'zh-Hans': { t: '粗调', reviewed: 'mt' },
+        'zh-Hans': { t: '粗调', reviewed: 'bt' },
     },
     'label.knobFine': {
         en: { t: "Fine" },
         fr: { t: "Fin", reviewed: true },
-        'zh-Hans': { t: '微调', reviewed: 'mt' },
+        'zh-Hans': { t: '微调', reviewed: 'bt' },
     },
     'label.knobAttack': {
         en: { t: "Attack" },
         fr: { t: "Attaque", reviewed: true },
-        'zh-Hans': { t: '起音', reviewed: 'mt' },
+        'zh-Hans': { t: '起音', reviewed: 'bt' },
     },
     'label.knobRelease': {
         en: { t: "Release" },
         fr: { t: "Relâchement", reviewed: true },
-        'zh-Hans': { t: '释音', reviewed: 'mt' },
+        'zh-Hans': { t: '释音', reviewed: 'bt' },
     },
     'label.knobVelBright': {
         en: { t: "Vel→Bright" },
         fr: { t: "Vél→Brill.", reviewed: true },
-        'zh-Hans': { t: '力度→亮度', reviewed: 'mt' },
+        'zh-Hans': { t: '力度→亮度', reviewed: 'bt' },
     },
     'label.knobLevel': {
         en: { t: "Level" },
         fr: { t: "Niveau", reviewed: true },
-        'zh-Hans': { t: '电平', reviewed: 'mt' },
+        'zh-Hans': { t: '电平', reviewed: 'bt' },
     },
 
     // ── On-screen keyboard ──────────────────────────────────────────────────
@@ -664,12 +664,12 @@ export const LABELS = Object.freeze({
     'label.keyboard': {
         en: { t: "Play ·" },
         fr: { t: "Jouer ·", reviewed: true },
-        'zh-Hans': { t: '播放 ·', reviewed: 'mt' },
+        'zh-Hans': { t: '播放 ·', reviewed: 'bt' },
     },
     'label.keyboardHint': {
         en: { t: "click the keys or use your computer keyboard (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)" },
         fr: { t: "cliquez sur les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)", reviewed: true },
-        'zh-Hans': { t: '点击琴键或使用电脑键盘 (A S D F G H J K · W E T Y U)', reviewed: 'mt' },
+        'zh-Hans': { t: '点击琴键或使用电脑键盘 (A S D F G H J K · W E T Y U)', reviewed: 'bt' },
     },
 
     // ── Accessible names ────────────────────────────────────────────────────
@@ -678,67 +678,67 @@ export const LABELS = Object.freeze({
     'aria.presetPrev': {
         en: { t: "Previous preset" },
         fr: { t: "Préréglage précédent", reviewed: true },
-        'zh-Hans': { t: '上一个预设', reviewed: 'mt' },
+        'zh-Hans': { t: '上一个预设', reviewed: 'bt' },
     },
     'aria.presetName': {
         en: { t: "Browse presets" },
         fr: { t: "Parcourir les préréglages", reviewed: true },
-        'zh-Hans': { t: '浏览预设', reviewed: 'mt' },
+        'zh-Hans': { t: '浏览预设', reviewed: 'bt' },
     },
     'aria.presetNext': {
         en: { t: "Next preset" },
         fr: { t: "Préréglage suivant", reviewed: true },
-        'zh-Hans': { t: '下一个预设', reviewed: 'mt' },
+        'zh-Hans': { t: '下一个预设', reviewed: 'bt' },
     },
     'aria.presetSave': {
         en: { t: "Save current settings as a user preset" },
         fr: { t: "Enregistrer les réglages actuels comme préréglage utilisateur", reviewed: true },
-        'zh-Hans': { t: '将当前设置保存为用户预设', reviewed: 'mt' },
+        'zh-Hans': { t: '将当前设置保存为用户预设', reviewed: 'bt' },
     },
     'aria.presetDelete': {
         en: { t: "Delete the current user preset" },
         fr: { t: "Supprimer le préréglage utilisateur actuel", reviewed: true },
-        'zh-Hans': { t: '删除当前用户预设', reviewed: 'mt' },
+        'zh-Hans': { t: '删除当前用户预设', reviewed: 'bt' },
     },
     'aria.presetDropdown': {
         en: { t: "Presets" },
         fr: { t: "Préréglages", reviewed: true },
-        'zh-Hans': { t: '预设', reviewed: 'mt' },
+        'zh-Hans': { t: '预设', reviewed: 'bt' },
     },
     'aria.loopDiagram': {
         en: { t: "Excitation to resonator to material to output signal-flow diagram" },
         fr: { t: "Schéma du flux du signal : excitation, résonateur, matériau, sortie", reviewed: true },
-        'zh-Hans': { t: '从激励到共鸣器再到材质与输出的信号流示意图', reviewed: 'mt' },
+        'zh-Hans': { t: '从激励到共鸣器再到材质与输出的信号流示意图', reviewed: 'bt' },
     },
     'aria.comboExcitation': {
         en: { t: "Excitation type" },
         fr: { t: "Type d’excitation", reviewed: true },
-        'zh-Hans': { t: '激励类型', reviewed: 'mt' },
+        'zh-Hans': { t: '激励类型', reviewed: 'bt' },
     },
     'aria.comboResonator': {
         en: { t: "Resonator type" },
         fr: { t: "Type de résonateur", reviewed: true },
-        'zh-Hans': { t: '共鸣器类型', reviewed: 'mt' },
+        'zh-Hans': { t: '共鸣器类型', reviewed: 'bt' },
     },
     'aria.comboStringModel': {
         en: { t: "String model" },
         fr: { t: "Modèle de corde", reviewed: true },
-        'zh-Hans': { t: '弦模型', reviewed: 'mt' },
+        'zh-Hans': { t: '弦模型', reviewed: 'bt' },
     },
     'aria.keyboard': {
         en: { t: "On-screen keyboard" },
         fr: { t: "Clavier à l’écran", reviewed: true },
-        'zh-Hans': { t: '屏幕键盘', reviewed: 'mt' },
+        'zh-Hans': { t: '屏幕键盘', reviewed: 'bt' },
     },
     'aria.langSelect': {
         en: { t: "Interface language" },
         fr: { t: "Langue de l’interface", reviewed: true },
-        'zh-Hans': { t: '界面语言', reviewed: 'mt' },
+        'zh-Hans': { t: '界面语言', reviewed: 'bt' },
     },
     'aria.helpToggle': {
         en: { t: "Toggle hover help" },
         fr: { t: "Activer ou désactiver les infobulles", reviewed: true },
-        'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' },
+        'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' },
     },
 
     // ── The hover-help toggle's two faces ───────────────────────────────────
@@ -747,12 +747,12 @@ export const LABELS = Object.freeze({
     'ui.on': {
         en: { t: "On" },
         fr: { t: "Activée", reviewed: true },
-        'zh-Hans': { t: '开启', reviewed: 'mt' },
+        'zh-Hans': { t: '开启', reviewed: 'bt' },
     },
     'ui.off': {
         en: { t: "Off" },
         fr: { t: "Désactivée", reviewed: true },
-        'zh-Hans': { t: '关闭', reviewed: 'mt' },
+        'zh-Hans': { t: '关闭', reviewed: 'bt' },
     },
 
 });

@@ -3,6 +3,96 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.0] - 2026-09-06
+
+Simplified Chinese joins English and French (task 260906-h8y, wave 4e). MINOR: a
+third language, five line-height pins, one caption floor, four font-stack tails
+and one new UI-test state — no parameter, range, type, DSP path or state format
+changed, and the English and French pages are unchanged in geometry, measured
+node for node.
+
+### Added
+
+- **Simplified Chinese across the whole hover-help and label surface** — 101
+  rows (24 tooltip entries as title + body, plus 53 labels), reachable from the
+  `简体中文` entry in the settings popover's language selector. The endonym is
+  written as the numeric character references `&#31616;&#20307;&#20013;&#25991;`,
+  copied from the shipped convention rather than retyped, and carries a reasoned
+  `I18N_EXEMPT` entry because the coverage scanner sees the DECODED characters.
+- **Disclosed quality level: `reviewed: 'bt'` — back-translated, not native.**
+  Every one of the 101 rows was authored at `'mt'`, committed, then emitted in
+  two independently salted, id-blinded batches (51 + 50, disjoint and covering
+  every row exactly once) to a blind reader running in a fresh session from a
+  directory outside this repository with every tool disabled and no access to
+  the English source, the key names or any file. All 101 returned triples were
+  read; one row was re-authored and confirmed by a second round with a fresh
+  salt, a fresh session and a DIFFERENT model. No native Chinese speaker has read
+  this page, and the lint prints that fact on every run.
+- **A third UI-test state, and it exists because of a measurement.**
+  `check-ui-labels` reported three `[data-i18n]` captions that "never became
+  visible" under the two-state walk. Two of them —`Inharmonicity` and
+  `Mode Bright` — sit in cells carrying `.pm-disabled`, which is `opacity: 0.38`:
+  rendered, driven, and never COMPARED across languages, while `measure-ui`
+  independently saw the Mode Bright caption's cell shrink 10.4 px in Chinese. The
+  new state switches the engine to Modal through the REAL selector — both
+  `applyEngineGating` and `applyDiagramSkin` fire from `resonatorType`'s own
+  change event — rather than poking a class, and takes the coverage hole from
+  three to one. The remaining one is `String Model`, whose cell has carried the
+  `hidden` attribute by design since v1.2.2, and is therefore structurally
+  unmeasurable rather than unmeasured.
+
+### Changed
+
+- **The language hover help no longer counts the selector's options.** Its
+  English and its French both named a fixed pair. That sentence was true while
+  the selector held two options and went false the moment a third arrived. The
+  half that stayed true — the value readouts, the preset names and the three
+  drop-down menus are English in every language — is kept, because it is a fact
+  about those things rather than about the list. The settings body one entry
+  above was read in full and deliberately LEFT: it already names both of the
+  panel's controls and is already true.
+- **The fourth column heading reads `4 · 振幅 · 输出`, not `4 · 放大 · 输出`.**
+  The blind reverse read returned "4 · Amplify · Output" for the first draft.
+  `Amp` here is AMPLITUDE, not an amplifier, and the two knob tooltips directly
+  beneath already said `振幅起音` and `振幅释音` — a page that disagreed with
+  itself. The second reading, on a different model, returned
+  "4 · Amplitude · Output".
+- **Four font stacks carry a CJK tail**, placed BEFORE the trailing generic, and
+  across TWO distinct serif shapes on different selectors plus the
+  `--symbol-font` token. Chromium resolves a bare `serif` against the document's
+  `lang`, so under `lang="zh-Hans"` the generic is already a Chinese face and a
+  tail written after it is never consulted. `Times New Roman` and `Apple Symbols`
+  are the installed faces that already win, so the named faces stay first and
+  neither Latin arm moves.
+- **Five `line-height` pins replace `line-height: normal`.** A Chinese face
+  returns a line box roughly **30 % taller** than a Latin one at the same
+  font-size (measured here: 11 → 14 px at 10 px, 12 → 16 px at 11 px, 15 → 17 px
+  at 12 px), so every caption grew and pushed 44–144 elements per state out of
+  place. Each pin is the MEASURED English CONTENT line box over its own
+  font-size, with padding and border subtracted first, so neither Latin arm can
+  move. `.viz-label` and `.keyboard-label` are pinned as LINE BOXES rather than
+  as leaves: every leaf inside them reports an identical box in both languages
+  and the rows still grew 3 px, because an inline box's height comes from the
+  used face's ascent and descent.
+- **A min-height floor on the Mode Bright caption alone.** It is this page's only
+  caption that WRAPS in English (two line boxes, 20.88 px) and not in Chinese
+  (`模态亮度`, one line, 10.44 px), so its cell shrank 10.4 px and pulled its
+  readout up with it. The floor is the EXACT measured English box and is scoped
+  by the key it renders, because the other sixteen `.knob-label` captions are one
+  line in English and a shared floor would have grown all of them.
+- **`PluginProcessor.h`'s language codec is three-way**, in pure ASCII. The file
+  carries the BCP-47 tag and nothing else — no Chinese character exists anywhere
+  under `Source/`.
+
+### Unchanged, and recorded as checked
+
+- **`Pluck` / `Strike` / `Bow` and `String` / `Modal` stay English inside the
+  Chinese bodies.** They are `AudioParameterChoice` entries the three combos
+  display in English under D-01 and are `I18N_EXEMPT`, so a body that names one
+  must reproduce it verbatim; the group heading beside them IS keyed, so
+  "unless Excitation = Bow" reads `除非激励为 Bow`. Both directions of the
+  membership check were run.
+
 ## [1.2.3] — 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
