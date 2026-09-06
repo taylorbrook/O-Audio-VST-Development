@@ -122,7 +122,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — hover-help copy. {en:{t,b}, fr:{t,b,reviewed}}.
@@ -235,6 +235,10 @@ export const I18N = Object.freeze({
         fr: { t: "Époque",
               b: "Donne au pleurage le caractère d’une décennie en réglant l’amplitude de son oscillation : 60s est la plus marquée, 70s est neutre, 80s la plus retenue. À utiliser pour vieillir ou assagir la modulation sans toucher à Profondeur. Trois positions : 60s, 70s et 80s.",
               reviewed: true },
+    
+        'zh-Hans': { t: '年代',
+              b: '通过缩放摇摆的摆动幅度，赋予它某个年代的性格：60s 最深，70s 中性，80s 最克制。想让调制变得陈旧或安静下来又不动深度时，就用它。三个档位：60s、70s 和 80s。',
+              reviewed: 'mt' },
     },
 
     'tip.shape': {
@@ -243,6 +247,10 @@ export const I18N = Object.freeze({
         fr: { t: "Forme",
               b: "L’onde qui pilote la modulation de hauteur. Sine glisse régulièrement, Triangle marque davantage les extrêmes, et Random tient une nouvelle valeur à chaque cycle, pour l’irrégularité d’une bande usée. Trois positions : Sine, Triangle et Random.",
               reviewed: true },
+    
+        'zh-Hans': { t: '形状',
+              b: '驱动音高调制的波形。Sine 平滑地滑动，Triangle 在两端转折得更急，Random 每个周期取一个新值，带来磁带磨损般的不稳定顿挫。三个档位：Sine、Triangle 和 Random。',
+              reviewed: 'mt' },
     },
 
     'tip.rate': {
@@ -251,6 +259,10 @@ export const I18N = Object.freeze({
         fr: { t: "Vitesse",
               b: "Rapidité de la dérive de hauteur. Un réglage lent évoque le pleurage d’une bande, un réglage rapide son scintillement, et activer Sync remplace cet affichage par une division musicale du tempo de l’hôte. 0,1 à 10,0 Hz.",
               reviewed: true },
+    
+        'zh-Hans': { t: '速率',
+              b: '音高上下漂移的快慢。慢速听起来像磁带的低频晃动，快速则像高频抖动；开启同步后，这里的读数会换成宿主速度的音乐分割。0.1 到 10.0 Hz。',
+              reviewed: 'mt' },
     },
 
     'tip.sync': {
@@ -259,6 +271,10 @@ export const I18N = Object.freeze({
         fr: { t: "Sync",
               b: "Cale le pleurage sur le tempo de l’hôte : l’affichage de Vitesse devient une division musicale, de quatre mesures à la triple croche. Laissez-le inactif pour une dérive libre, indifférente au transport. Désactivé ou activé.",
               reviewed: true },
+    
+        'zh-Hans': { t: '同步',
+              b: '把摇摆锁定到宿主速度，速率读数因此变成音乐分割，从四小节一直到三十二分音符。想要不理会走带的自由漂移，就让它保持关闭。关闭或开启。',
+              reviewed: 'mt' },
     },
 
     'tip.depth': {
@@ -267,6 +283,10 @@ export const I18N = Object.freeze({
         fr: { t: "Profondeur",
               b: "Amplitude de l’oscillation de hauteur à chaque cycle. Quelques cents dérivent presque sans se faire remarquer ; au-delà de quarante environ, le chevrotement devient l’effet plutôt que sa couleur. Époque met cette valeur à l’échelle avant la ligne à retard. 0 à 100 cents.",
               reviewed: true },
+    
+        'zh-Hans': { t: '深度',
+              b: '每个周期里音高摆动的幅度。几个音分的漂移几乎察觉不到；超过四十左右，颤抖本身就成了效果，而不再只是音色。年代会在这个量到达延迟线之前对它做缩放。0 到 100 音分。',
+              reviewed: 'mt' },
     },
 
     // ── The blend control ───────────────────────────────────────────────────
@@ -278,6 +298,10 @@ export const I18N = Object.freeze({
               b: "Fondu enchaîné entre les deux moteurs : à 0 % vous entendez le Pleurage seul, à 100 % l’Unisson seul, et partout entre les deux, les deux à la fois. Les panneaux s’estompent en conséquence, la page montre donc quel moteur travaille. 0 à 100 %.",
               reviewed: true,
               termNote: 'blend → Mix would collide with the dry/wet Mix control on this same page; this control crossfades the Wobble and Unison engines, so it takes the crossfade term' },
+    
+        'zh-Hans': { t: '混融',
+              b: '在两个引擎之间交叉淡变：0% 时只听到摇摆，100% 时只听到齐奏，介于两者之间则两者都听得到。两个面板也随之淡入淡出，页面因此显示出正在工作的是哪个引擎。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── The unison engine ───────────────────────────────────────────────────
@@ -288,6 +312,10 @@ export const I18N = Object.freeze({
         fr: { t: "Voix",
               b: "Nombre de copies désaccordées empilées par le moteur d’unisson. Plus de voix épaississent le chœur et adoucissent les transitoires ; la somme est compensée en gain puis limitée en douceur, le niveau tient donc quand vous en ajoutez. Cinq positions : 2, 3, 4, 5 et 7.",
               reviewed: true },
+    
+        'zh-Hans': { t: '复音数',
+              b: '齐奏引擎叠加多少个失谐副本。副本越多，合唱感越厚，瞬态越柔和；总和经过增益补偿并做了软限幅，因此叠加得再多，电平也保持稳定。五个档位：2、3、4、5 和 7。',
+              reviewed: 'mt' },
     },
 
     'tip.dist': {
@@ -296,6 +324,10 @@ export const I18N = Object.freeze({
         fr: { t: "Répartition",
               b: "Manière dont les voix se répartissent autour du centre. Linear les espace régulièrement, Exp éloigne les voix extrêmes plus que les voix internes, et Random les disperse en faisant apparaître le potentiomètre Aléatoire à côté. Trois positions : Linear, Exp et Random.",
               reviewed: true },
+    
+        'zh-Hans': { t: '分布',
+              b: '各个声部围绕中心的排布方式。Linear 让它们均匀分开，Exp 把最外侧的一对推得比内侧更远，Random 则把它们打散，并让旁边的随机旋钮显现出来。三个档位：Linear、Exp 和 Random。',
+              reviewed: 'mt' },
     },
 
     'tip.detune': {
@@ -304,6 +336,10 @@ export const I18N = Object.freeze({
         fr: { t: "Désaccord",
               b: "Écart de hauteur entre les voix d’unisson. Quelques cents font miroiter le son comme un chorus ; vers le haut de la course, l’empilement glisse vers un ensemble franchement faux. 0 à 50 cents.",
               reviewed: true },
+    
+        'zh-Hans': { t: '失谐',
+              b: '齐奏各声部之间的音高间距。几个音分会像合唱一样闪烁；越往上，整叠声音就越滑向一个明显走音的合奏。0 到 50 音分。',
+              reviewed: 'mt' },
     },
 
     'tip.spread': {
@@ -312,6 +348,10 @@ export const I18N = Object.freeze({
         fr: { t: "Étalement",
               b: "Répartit les voix d’unisson dans l’image stéréo selon une loi à puissance constante. À 0 % elles se superposent au centre ; à 100 % les voix extrêmes occupent les bords gauche et droit. Il s’agit de la largeur des voix, pas de celle de la sortie. 0 à 100 %.",
               reviewed: true },
+    
+        'zh-Hans': { t: '扩散',
+              b: '按等功率定律把齐奏各声部铺开在立体声场中。0% 时它们叠在正中；100% 时最外侧的一对分别位于最左和最右。这是各声部的宽度，不是输出的宽度。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     'tip.random': {
@@ -320,6 +360,10 @@ export const I18N = Object.freeze({
         fr: { t: "Aléatoire",
               b: "Humanise l’empilement en faisant varier séparément la vitesse et la profondeur de modulation de chaque voix, pour qu’aucune ne dérive au même rythme. À 0 % la répartition choisie est suivie à la lettre. Ce potentiomètre n’apparaît que lorsque Répartition est sur Random. 0 à 100 %.",
               reviewed: true },
+    
+        'zh-Hans': { t: '随机',
+              b: '让每个声部的调制速率和深度各自变化，使任意两个都不会同步漂移，从而把整叠声音人性化。0% 时严格遵循所选的分布。只有当分布设为 Random 时才会显示这个旋钮。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── The output section ──────────────────────────────────────────────────
@@ -330,6 +374,10 @@ export const I18N = Object.freeze({
         fr: { t: "Largeur",
               b: "Règle le niveau du canal latéral du signal fini : 0 % le replie en mono, 100 % laisse l’image telle que les moteurs l’ont faite, et 200 % l’élargit au-delà de la source. Mono-Sûr fixe ce réglage à 0 % et grise le curseur. 0 à 200 %.",
               reviewed: true },
+    
+        'zh-Hans': { t: '宽度',
+              b: '缩放成品信号的侧声道：0% 把它折叠成单声道，100% 保持引擎做出的声像不变，200% 则把它推得比源更宽。单声道兼容会把这里固定在 0% 并把滑块变灰。0 到 200%。',
+              reviewed: 'mt' },
     },
 
     'tip.preDelay': {
@@ -338,6 +386,10 @@ export const I18N = Object.freeze({
         fr: { t: "Pré-Délai",
               b: "Retient le signal avant que les moteurs ne le reçoivent, ce qui s’entend comme de la profondeur et de la distance plutôt que comme un écho. Montez Réinjection en même temps pour transformer cette même ligne en courte répétition. 0 à 50 ms.",
               reviewed: true },
+    
+        'zh-Hans': { t: '预延迟',
+              b: '在两个引擎接收信号之前先把它拖住，听起来像是深度和距离，而不是回声。同时提高反馈，就能把同一条延迟线变成一小段重复。0 到 50 ms。',
+              reviewed: 'mt' },
     },
 
     'tip.feedback': {
@@ -346,6 +398,10 @@ export const I18N = Object.freeze({
         fr: { t: "Réinjection",
               b: "Réinjecte la sortie du pré-délai dans sa propre entrée : chaque répétition arrive plus faible que la précédente. Elle n’a rien à faire recirculer tant que Pré-Délai reste à 0 ms. 0 à 80 %.",
               reviewed: true },
+    
+        'zh-Hans': { t: '反馈',
+              b: '把预延迟的输出送回它自己的输入，因此每一次重复都比上一次更轻。预延迟停在 0 ms 时，它没有任何东西可以循环。0 到 80%。',
+              reviewed: 'mt' },
     },
 
     'tip.monoSafe': {
@@ -354,6 +410,10 @@ export const I18N = Object.freeze({
         fr: { t: "Mono-Sûr",
               b: "Comprime le canal latéral pour qu’un empilement désaccordé survive à un repli mono au lieu de s’annuler lui-même. Tant qu’il est actif, Largeur est fixée à 0 % et son curseur est grisé. Désactivé ou activé.",
               reviewed: true },
+    
+        'zh-Hans': { t: '单声道兼容',
+              b: '压缩侧声道，让失谐的一整叠声音在折叠成单声道时得以保留，而不是自我抵消。开启期间，宽度被固定在 0%，其滑块变灰。关闭或开启。',
+              reviewed: 'mt' },
     },
 
     'tip.mix': {
@@ -362,29 +422,58 @@ export const I18N = Object.freeze({
         fr: { t: "Mix",
               b: "Équilibre le signal traité et l’entrée intacte, après les deux moteurs et avant l’étage de largeur. Gardez-le bas quand vous cherchez un épaississement plutôt qu’un effet. 0 à 100 %.",
               reviewed: true },
+    
+        'zh-Hans': { t: '混合',
+              b: '在两个引擎之后、宽度级之前，平衡处理后的信号与未经处理的输入。想要加厚而不是做成一个效果时，把它保持在低位。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── The chrome ──────────────────────────────────────────────────────────
     //
     // The gear tip is what tells a user hover-help exists at all, so it must
-    // describe what this popover ACTUALLY holds and nothing more. It holds one
-    // row. O-Tapestop's wording promises a hover-help toggle; this plugin has
-    // none, and a tip that lies is worse than no tip.
+    // describe what this popover ACTUALLY holds and nothing more.
+    //
+    // v1.9.0 — BOTH BODIES BELOW LOST AN ENUMERATION, in en and fr alike.
+    //
+    // The gear body ended with a clause asserting the popover held nothing
+    // besides the language row. That stopped being true when v1.8.0 added the
+    // hover-help switch, and no gate in this repo could see it: check-i18n
+    // assertion 16 REQUIRES that switch to exist, keyed and bound, which is
+    // precisely what makes the clause false. It is DELETED rather than widened
+    // to two rows, because a body that counts a panel's controls has to be
+    // re-edited every time the panel grows, in every language, and it is that
+    // edit that gets forgotten.
+    //
+    // The language body named the selector's options in full. That was true
+    // for exactly as long as the selector held two entries and became false
+    // the moment this version added a third. Deleted for the same reason, and
+    // because the selector already lists the languages in their own endonyms —
+    // the one place the list cannot go stale. The superseded phrasings are in
+    // the CHANGELOG and deliberately not repeated here, so a repo grep for
+    // either stays at zero.
 
     'tip.settings': {
         en: { t: "Settings",
-              b: "Opens the settings panel, above the gear. It carries a single control: the language this interface is written in." },
+              b: "Opens the settings panel, above the gear." },
         fr: { t: "Réglages",
-              b: "Ouvre le panneau de réglages, au-dessus de la roue dentée. Il ne porte qu’un seul réglage : la langue dans laquelle cette interface est écrite.",
+              b: "Ouvre le panneau de réglages, au-dessus de la roue dentée.",
               reviewed: true },
+    
+        'zh-Hans': { t: '设置',
+              b: '打开齿轮上方的设置面板。',
+              reviewed: 'mt' },
     },
 
     'tip.language': {
         en: { t: "Interface language",
-              b: "Switches every caption, accessible name and hover-help body on this page between English and Français. The value readouts stay as they are — they are numbers and units, which do not translate. The choice is saved with the session." },
+              b: "Switches every caption, accessible name and hover-help body on this page into the language you pick. The value readouts stay as they are — they are numbers and units, which do not translate. The choice is saved with the session." },
         fr: { t: "Langue de l’interface",
-              b: "Bascule chaque légende, chaque nom accessible et chaque infobulle de cette page entre English et Français. Les valeurs affichées ne changent pas : ce sont des nombres et des unités, qui ne se traduisent pas. Le choix est enregistré avec la session.",
+              b: "Bascule chaque légende, chaque nom accessible et chaque infobulle de cette page dans la langue choisie. Les valeurs affichées ne changent pas : ce sont des nombres et des unités, qui ne se traduisent pas. Le choix est enregistré avec la session.",
               reviewed: true },
+    
+        'zh-Hans': { t: '界面语言',
+              b: '把本页的每一条说明文字、每一个无障碍名称和每一段悬停帮助正文切换成所选的语言。数值读数保持原样：它们是数字和单位，不需要翻译。所选语言随会话一起保存。',
+              reviewed: 'mt' },
     },
     // v1.8.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -395,6 +484,10 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+    
+        'zh-Hans': { t: '悬停帮助',
+              b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
+              reviewed: 'mt' },
     },
 });
 
@@ -465,7 +558,8 @@ export const LABELS = Object.freeze({
     // where silence would say nothing.
     'label.productName': { en: { t: 'Detune' },
                            fr: { t: 'Detune', reviewed: true, sameAsEn: true,
-                                 termNote: 'the PRODUCT word of the .logo name "Ouaricon Detune", not the unison knob — a product name is not translated, and OUARICON DÉSACCORD measures 312.95 px against OUARICON DETUNE 261.81 in a 262 px header slot. The control keyed label.detune below DOES carry Désaccord' } },
+                                 termNote: 'the PRODUCT word of the .logo name "Ouaricon Detune", not the unison knob — a product name is not translated, and OUARICON DÉSACCORD measures 312.95 px against OUARICON DETUNE 261.81 in a 262 px header slot. The control keyed label.detune below DOES carry Désaccord' } , 'zh-Hans': { t: 'Detune', reviewed: 'mt', sameAsEn: true,
+                                 termNote: 'the PRODUCT word of the .logo name "Ouaricon Detune", not the unison knob — a product name is not translated. The control keyed label.detune below DOES carry the glossary root' }},
 
     // ── The preset bar ──────────────────────────────────────────────────────
     //
@@ -486,8 +580,8 @@ export const LABELS = Object.freeze({
     // OUVRIR (38.64) already matches its own aria name and is a glossary-
     // accepted rendering of Load for a button that opens a file dialog, so the
     // pair reads as the standard French Fichier menu: Ouvrir / Enregistrer.
-    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: true } },
-    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg', reviewed: true } },
+    'label.load': { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'mt' }},
+    'label.save': { en: { t: 'Save' }, fr: { t: 'Enreg', reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' }},
 
     // ── The wobble engine ───────────────────────────────────────────────────
     //
@@ -495,16 +589,16 @@ export const LABELS = Object.freeze({
     // engine models — where a literal "Oscillation" would name the mechanism
     // and lose the tape. The panel caption is a 191 px block, so length is
     // free here.
-    'label.wobble': { en: { t: 'Wobble' }, fr: { t: 'Pleurage',  reviewed: true } },
-    'label.era':    { en: { t: 'Era' },    fr: { t: 'Époque',    reviewed: true } },
-    'label.shape':  { en: { t: 'Shape' },  fr: { t: 'Forme',     reviewed: true } },
-    'label.rate':   { en: { t: 'Rate' },   fr: { t: 'Vitesse',   reviewed: true } },
+    'label.wobble': { en: { t: 'Wobble' }, fr: { t: 'Pleurage',  reviewed: true } , 'zh-Hans': { t: '摇摆', reviewed: 'mt' }},
+    'label.era':    { en: { t: 'Era' },    fr: { t: 'Époque',    reviewed: true } , 'zh-Hans': { t: '年代', reviewed: 'mt' }},
+    'label.shape':  { en: { t: 'Shape' },  fr: { t: 'Forme',     reviewed: true } , 'zh-Hans': { t: '形状', reviewed: 'mt' }},
+    'label.rate':   { en: { t: 'Rate' },   fr: { t: 'Vitesse',   reviewed: true } , 'zh-Hans': { t: '速率', reviewed: 'mt' }},
 
     // "Sync" is the term in French audio software as well, and this caption
     // sits under a 36 px toggle in a container the toggle sizes: a translation
     // wider than 36 px would grow the container and re-centre the toggle
     // inside its grid cell. Both facts point the same way.
-    'label.sync':   { en: { t: 'Sync' },   fr: { t: 'Sync', reviewed: true, sameAsEn: true } },
+    'label.sync':   { en: { t: 'Sync' },   fr: { t: 'Sync', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '同步', reviewed: 'mt' }},
 
     // v1.7.1 — PROFONDEUR, the glossary root, replaces AMPLEUR. The v1.7.0
     // defence measured the wrong box: .knob-label is shrink-to-fit with
@@ -513,7 +607,7 @@ export const LABELS = Object.freeze({
     // in that 91 px cell — 19.75 px of clearance, and its own content box can
     // never be narrower than its text, so assertion 4 could not have fired.
     // (AMPLEUR was 49.91, PROF. would be 30.33; neither is needed.)
-    'label.depth':  { en: { t: 'Depth' },  fr: { t: 'Profondeur', reviewed: true } },
+    'label.depth':  { en: { t: 'Depth' },  fr: { t: 'Profondeur', reviewed: true } , 'zh-Hans': { t: '深度', reviewed: 'mt' }},
 
     // ── The blend control ───────────────────────────────────────────────────
     //
@@ -527,30 +621,30 @@ export const LABELS = Object.freeze({
     // neither number is load-bearing.
     'label.blend':  { en: { t: 'Blend' },
                       fr: { t: 'Fondu', reviewed: true,
-                            termNote: 'blend → Mix would collide with the dry/wet Mix control on this same page; this control crossfades the Wobble and Unison engines, so it takes the crossfade term' } },
+                            termNote: 'blend → Mix would collide with the dry/wet Mix control on this same page; this control crossfades the Wobble and Unison engines, so it takes the crossfade term' } , 'zh-Hans': { t: '混融', reviewed: 'mt' }},
 
     // ── The unison engine ───────────────────────────────────────────────────
-    'label.unison': { en: { t: 'Unison' }, fr: { t: 'Unisson',   reviewed: true } },
-    'label.voices': { en: { t: 'Voices' }, fr: { t: 'Voix',      reviewed: true } },
+    'label.unison': { en: { t: 'Unison' }, fr: { t: 'Unisson',   reviewed: true } , 'zh-Hans': { t: '齐奏', reviewed: 'mt' }},
+    'label.voices': { en: { t: 'Voices' }, fr: { t: 'Voix',      reviewed: true } , 'zh-Hans': { t: '复音数', reviewed: 'mt' }},
 
     // "Dist" is itself an abbreviation of the parameter's display name,
     // "Unison Distribution". The French abbreviates the same way rather than
     // spelling out RÉPARTITION where the English does not.
-    'label.dist':   { en: { t: 'Dist' },   fr: { t: 'Répart.',   reviewed: true } },
+    'label.dist':   { en: { t: 'Dist' },   fr: { t: 'Répart.',   reviewed: true } , 'zh-Hans': { t: '分布', reviewed: 'mt' }},
 
     // The knob caption, NOT the product name in the logo. This one translates.
-    'label.detune': { en: { t: 'Detune' }, fr: { t: 'Désaccord', reviewed: true } },
+    'label.detune': { en: { t: 'Detune' }, fr: { t: 'Désaccord', reviewed: true } , 'zh-Hans': { t: '失谐', reviewed: 'mt' }},
 
     // Stereo panning width of the unison voices — distinct from the output
     // Width slider below, which is the stereo image of the whole plugin.
     // Étalement and Largeur keep the two apart in French as Spread and Width
     // do in English.
-    'label.spread': { en: { t: 'Spread' }, fr: { t: 'Étalement', reviewed: true } },
+    'label.spread': { en: { t: 'Spread' }, fr: { t: 'Étalement', reviewed: true } , 'zh-Hans': { t: '扩散', reviewed: 'mt' }},
 
     // The per-voice variation knob. Its parameter is an AudioParameterFloat
     // named "Randomization" — NOT one of unison_dist's option strings — so
     // arm 1 does not reach it and it localizes. See the collision note above.
-    'label.random': { en: { t: 'Random' }, fr: { t: 'Aléatoire', reviewed: true } },
+    'label.random': { en: { t: 'Random' }, fr: { t: 'Aléatoire', reviewed: true } , 'zh-Hans': { t: '随机', reviewed: 'mt' }},
 
     // ── The output section ──────────────────────────────────────────────────
     //
@@ -559,14 +653,14 @@ export const LABELS = Object.freeze({
     // rather than in the markup, where only one of the two languages could
     // have it. The caption was split out of the node it shared with
     // #width_value per contract §5.
-    'label.width':    { en: { t: 'Width:' },  fr: { t: 'Largeur :', reviewed: true } },
+    'label.width':    { en: { t: 'Width:' },  fr: { t: 'Largeur :', reviewed: true } , 'zh-Hans': { t: '宽度：', reviewed: 'mt' }},
 
     // v1.7.1 — PRÉ-DÉL., the glossary abbreviation, replaces the invented
     // PRÉ-DLY (which was neither French nor a listed form). Measured in the
     // 50 px knob column: PRÉ-DÉLAI 55.86 overruns it by 5.86 px, PRÉ-DÉL.
     // 47.94 clears it by 2.06 — the tightest caption margin on this page. The
     // TIP title spells out Pré-Délai, which is what a 260 px tooltip is for.
-    'label.preDelay': { en: { t: 'Pre-Dly' }, fr: { t: 'Pré-Dél.',  reviewed: true } },
+    'label.preDelay': { en: { t: 'Pre-Dly' }, fr: { t: 'Pré-Dél.',  reviewed: true } , 'zh-Hans': { t: '预延迟', reviewed: 'mt' }},
 
     // v1.7.1 — RÉINJ., the glossary abbreviation, replaces RETOUR (which the
     // glossary forbids: retour is a monitor send). GEOMETRY PIN C holds this
@@ -575,50 +669,50 @@ export const LABELS = Object.freeze({
     // 34.50. The pin stays for the reason it was added — the caption is
     // narrower than FEEDBACK (54.25) and a shrinking caption slides the
     // `auto` output-row columns exactly as a growing one does.
-    'label.feedback': { en: { t: 'Feedback' }, fr: { t: 'Réinj.',   reviewed: true } },
+    'label.feedback': { en: { t: 'Feedback' }, fr: { t: 'Réinj.',   reviewed: true } , 'zh-Hans': { t: '反馈', reviewed: 'mt' }},
 
     // A coined compound mirroring the English one, which is itself coined.
     // "Compatible mono" is the descriptive French but renders 98 px into a
     // 59 px pinned box.
-    'label.monoSafe': { en: { t: 'Mono-Safe' }, fr: { t: 'Mono-Sûr', reviewed: true } },
+    'label.monoSafe': { en: { t: 'Mono-Safe' }, fr: { t: 'Mono-Sûr', reviewed: true } , 'zh-Hans': { t: '单声道兼容', reviewed: 'mt' }},
 
     // "Mix" is the term in French audio software. Kept rather than "Mixage",
     // which is the ACT of mixing rather than the dry/wet control.
-    'label.mix':      { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true } },
+    'label.mix':      { en: { t: 'Mix' }, fr: { t: 'Mix', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '混合', reviewed: 'mt' }},
 
     // ── The settings popover (v1.6.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' }},
 
     // v1.8.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
 
     // ── Accessible names ────────────────────────────────────────────────────
     //
     // The five entries below are the text of the five native title=
     // attributes v1.5.4 carried, moved verbatim under contract §4 and then
     // translated. Nothing here is new prose.
-    'aria.settings':     { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
-    'aria.langSelect':   { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
-    'aria.prevPreset':   { en: { t: 'Previous preset' },    fr: { t: 'Préréglage précédent',  reviewed: true } },
-    'aria.nextPreset':   { en: { t: 'Next preset' },        fr: { t: 'Préréglage suivant',    reviewed: true } },
+    'aria.settings':     { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'mt' }},
+    'aria.langSelect':   { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'mt' }},
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }},
+    'aria.prevPreset':   { en: { t: 'Previous preset' },    fr: { t: 'Préréglage précédent',  reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'mt' }},
+    'aria.nextPreset':   { en: { t: 'Next preset' },        fr: { t: 'Préréglage suivant',    reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'mt' }},
     // v1.7.1 — the accessible names take the glossary's settled forms. The
     // list name goes INFINITIVE ("Cliquer") where the tooltip bodies stay
     // imperative ("Laissez-le inactif"): a name is a noun phrase, a body
     // addresses the reader. aria.savePreset is also what makes the button's
     // ENREG caption a label-in-name substring.
     'aria.presetList':   { en: { t: 'Click to see all presets' },
-                           fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true } },
+                           fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true } , 'zh-Hans': { t: '点击查看全部预设', reviewed: 'mt' }},
     'aria.loadPreset':   { en: { t: 'Load preset from file' },
-                           fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } },
+                           fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } , 'zh-Hans': { t: '从文件载入预设', reviewed: 'mt' }},
     'aria.savePreset':   { en: { t: 'Save current settings' },
-                           fr: { t: 'Enregistrer les réglages actuels', reviewed: true } },
+                           fr: { t: 'Enregistrer les réglages actuels', reviewed: true } , 'zh-Hans': { t: '保存当前设置', reviewed: 'mt' }},
 });
 
 // ============================================================================

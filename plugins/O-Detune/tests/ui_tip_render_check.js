@@ -216,8 +216,34 @@ const ANCHORS_CHROME = ['#gear-btn', '#lang-select', '#tips-toggle'];   // need 
     note(`shipping frame from PluginEditor.cpp setSize(): ${W} x ${H}`);
 
     const table = await loadTable();
-    const { I18N, TIP_BINDINGS } = table;
+    const { I18N, TIP_BINDINGS, LANGUAGES } = table;
     note(`table: ${Object.keys(I18N).length} I18N entries, ${TIP_BINDINGS.length} TIP_BINDINGS rows\n`);
+
+    // ── THE LANGUAGE LIST IS DERIVED, AND A DERIVATION THAT GOES EMPTY IS AN
+    //    ABORT RATHER THAN A GREEN RUN ─────────────────────────────────────
+    //
+    // A gate has TWO language sites, and they are not the same code. One is the
+    // assertion that says which languages the table holds; the other is the
+    // sweep that actually renders them. This file used to spell its sweep out
+    // as an array written by hand, which is the form a repo-wide census cannot
+    // see at all — no name to grep for. A hand-written sweep reports every
+    // assertion below green having never rendered a language the table has
+    // since gained, and it does it silently, which is the worst shape a gate
+    // can have.
+    //
+    // Both sites now read the table's own export. The guard immediately below
+    // is what stops that derivation from failing OPEN: a table that exports
+    // nothing to walk must make this gate EXIT NON-ZERO, not sweep zero
+    // languages and print a clean sheet.
+    if (!Array.isArray(LANGUAGES) || LANGUAGES.length < 2 || LANGUAGES[0] !== 'en') {
+        console.error('[0] LANGUAGES must be a derived list of at least two entries beginning with '
+                    + 'English. A gate that sweeps a list it cannot read would report every '
+                    + 'assertion green having rendered nothing. Got: ' + JSON.stringify(LANGUAGES));
+        process.exit(1);
+    }
+    const NON_EN = LANGUAGES.filter(l => l !== 'en');
+    const WALK   = [...LANGUAGES, 'en'];   // ... and back to English at the end
+    note(`languages derived from the table: ${LANGUAGES.join(' -> ')} (walk ${WALK.join(' -> ')})\n`);
 
     if (!Array.isArray(TIP_BINDINGS) || TIP_BINDINGS.length === 0) {
         check(false, '[0] TIP_BINDINGS is non-empty — a render gate over zero bindings is vacuous');
@@ -461,10 +487,10 @@ const ANCHORS_CHROME = ['#gear-btn', '#lang-select', '#tips-toggle'];   // need 
                    + `${t.rect.w.toFixed(1)}x${t.rect.h.toFixed(1)}`);
         }
 
-        // ── the driving loop, en -> fr -> en ────────────────────────────────
+        // ── the driving loop, over the DERIVED list and back to English ────
         const drivenStates = [];
 
-        for (const lang of ['en', 'fr', 'en']) {
+        for (const lang of WALK) {
             const pass = drivenStates.includes(lang) ? ' (return pass)' : '';
             drivenStates.push(lang);
             console.log(`\n-- language: ${lang}${pass}`);
@@ -499,14 +525,22 @@ const ANCHORS_CHROME = ['#gear-btn', '#lang-select', '#tips-toggle'];   // need 
             await setPopover(false);
         }
 
-        // ── 5. FRENCH REALLY IS TALLER, and English really came back ────────
+        // ── 5. EACH NON-ENGLISH PASS MEASURED SOMETHING ELSE, and English
+        //       really came back ──────────────────────────────────────────────
         //
-        // Re-measured here rather than inferred from the loop: the point of
-        // running both languages is that French wraps to more lines against the
-        // 240 px max-width cap, and if it did NOT the two passes would be the
-        // same measurement twice and assertion 4's French half would be
-        // decoration.
-        console.log('\n-- 5. French height vs English');
+        // Re-measured here rather than inferred from the loop. What this
+        // assertion is FOR is catching a pass that measured English twice: if
+        // no tip's height moves, the second pass is the same measurement over
+        // again and its half of assertion 4's clamp is decoration.
+        //
+        // It asserts a DIFFERENCE, in either direction, and it did not always.
+        // The earlier form required the other language to be strictly TALLER,
+        // which held while the only other language was one that wraps to more
+        // lines against the 240 px cap. Chinese does the opposite — the same
+        // sentence occupies fewer lines — so a one-directional test hard-fails
+        // a page on which nothing whatever is wrong. Direction was never the
+        // property worth asserting; movement is.
+        console.log('\n-- 5. non-English tip heights against English');
         async function heightsFor(lang) {
             await page.evaluate((l) => window.__setLanguage(l), lang);
             await page.waitForTimeout(150);
@@ -519,23 +553,25 @@ const ANCHORS_CHROME = ['#gear-btn', '#lang-select', '#tips-toggle'];   // need 
             return h;
         }
         const hEn = await heightsFor('en');
-        const hFr = await heightsFor('fr');
-        const grew = ANCHORS_DEFAULT.filter(s => hFr[s] > hEn[s] + 0.5);
-        const same = ANCHORS_DEFAULT.filter(s => Math.abs(hFr[s] - hEn[s]) <= 0.5);
-        check(grew.length > 0,
-            `[5] French GROWS at least one tip's height against the 240 px cap — ${grew.length} of `
-            + `${ANCHORS_DEFAULT.length} grew`,
-            grew.length ? null
-                : 'no tip grew: the fr pass measured the same boxes as en, so its clamp half is decoration');
-        note(ANCHORS_DEFAULT.map(s => `${s.replace('#', '')} ${hEn[s].toFixed(0)}->${hFr[s].toFixed(0)}`).join(', '));
-        if (same.length) note(`${same.length} tip(s) the same height in both languages: ${same.join(', ')}`);
+        for (const lang of NON_EN) {
+            const h = await heightsFor(lang);
+            const moved = ANCHORS_DEFAULT.filter(s => Math.abs(h[s] - hEn[s]) > 0.5);
+            const same  = ANCHORS_DEFAULT.filter(s => Math.abs(h[s] - hEn[s]) <= 0.5);
+            check(moved.length > 0,
+                `[5][${lang}] at least one tip's height DIFFERS from English against the 240 px cap `
+                + `— ${moved.length} of ${ANCHORS_DEFAULT.length} moved`,
+                moved.length ? null
+                    : `no tip moved: the ${lang} pass measured the same boxes as en, so its clamp half is decoration`);
+            note(`${lang}: ` + ANCHORS_DEFAULT.map(s => `${s.replace('#', '')} ${hEn[s].toFixed(0)}->${h[s].toFixed(0)}`).join(', '));
+            if (same.length) note(`${same.length} tip(s) identical in en and ${lang}: ${same.join(', ')}`);
+        }
 
         await page.evaluate(() => window.__setLanguage('en'));
         await page.waitForTimeout(150);
         const backEn = await hoverAnchor('#mix_knob');
         check(backEn && backEn.tip.title === I18N['tip.mix'].en.t
                      && backEn.tip.body  === I18N['tip.mix'].en.b,
-            '[5] English comes back after the French pass — byte-equal again');
+            `[5] English comes back after the ${NON_EN.join(' and ')} pass(es) — byte-equal again`);
 
         // ── 6. THE NEGATIVE CONTROL ─────────────────────────────────────────
         //
@@ -687,7 +723,7 @@ const ANCHORS_CHROME = ['#gear-btn', '#lang-select', '#tips-toggle'];   // need 
             `[7] zero native title= attributes on the page — got ${nativeTitles}`);
 
         console.log('');
-        note(`states driven: en/fr/en x { default, unison_dist=Random, mono_safe=Off, popover open }`);
+        note(`states driven: ${WALK.join('/')} x { default, unison_dist=Random, mono_safe=Off, popover open }`);
         note(`states NOT driven: wobble_sync on (the Rate readout's musical-division branch — it `
            + `changes a READOUT node, never a tip), preset dropdown open (no anchors inside it)`);
 

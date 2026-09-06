@@ -54,7 +54,7 @@
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
-            font-family: 'Georgia', 'Times New Roman', serif;
+            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             background: #1a1410;
         }
 
@@ -126,7 +126,56 @@
             padding: 12px 14px;
         }
 
+        /* ── LINE-HEIGHT PINS (v1.9.0, the Chinese arm) ─────────────────────
+           `line-height: normal` is not a number — it is whatever the RESOLVED
+           FACE reports as its natural line box, and the resolved face changes
+           with the document language. PingFang SC reports a taller natural line
+           box than Georgia at the same font-size, so every leaf named below grew
+           3 to 4 px on the Chinese arm with no other change, and the growth
+           CASCADED: +3 on .knob-label became +3 on the knob group, +6 on
+           .engine-controls and +13 on .engines-row. check-ui-labels [7] reported
+           89 moved non-label elements against a page on which nothing was wrong.
+
+           Each pin is DERIVED FROM THAT LEAF'S OWN MEASURED ENGLISH BOX — height
+           minus padding minus border, divided by its own font-size — never
+           copied between selectors and never set globally, because a global
+           line-height relayouts every language at once for a defect that lives
+           on nine elements. They are UNITLESS so a leaf that inherits into a
+           differently sized child scales rather than pinning the child to the
+           parent's pixel box.
+
+           Measured at the shipping 600 x 480 frame with getComputedStyle,
+           English arm, every state in tests/i18n-states.json driven:
+
+             .panel-label        12.00 - 0 - 0             = 12.00 / 11px = 1.0909
+             .blend-label        11.00 - 0 - 0             = 11.00 / 10px = 1.1
+             .knob-label         10.00 - 0 - 0             = 10.00 /  9px = 1.1111
+             .dropdown-label     10.00 - 0 - 0             = 10.00 /  9px = 1.1111
+             .toggle-label       10.00 - 0 - 0             = 10.00 /  9px = 1.1111
+             .slider-caption     10.00 - 0 - 0             = 10.00 /  9px = 1.1111
+             .settings-label     10.00 - 0 - 0             = 10.00 /  9px = 1.1111
+             .preset-name        18.00 - 4 pad - 2 border  = 12.00 / 11px = 1.0909
+             .preset-action-btn  16.00 - 4 pad - 2 border  = 10.00 /  9px = 1.1111
+
+           THE LAST THREE ARE ONLY REACHABLE THROUGH A STATE — .settings-label
+           lives inside the gear popover, and .preset-name and .preset-action-btn
+           are measured with the preset bar in its default state but carry a Han
+           aria-label written by applyI18n. A measurement that does not drive
+           tests/i18n-states.json cannot see the first of them at all.
+
+           .preset-name's own text is the exempt preset name and its box is
+           identical on both arms; it is pinned anyway so the screen that names
+           it reads zero rather than reading a residual a later wave has to
+           re-adjudicate.
+
+           EVERY ONE IS A NO-OP IN ENGLISH AND IN FRENCH — that is the test, and
+           check-ui-labels reports 0 moved elements on both those arms after the
+           pins. R8: the five line-height declarations this page already carried
+           (:569 .preset-nav-btn, :729 .gear-btn, :811 .settings-select, :842
+           .settings-toggle, :921 .tooltip) were read first for a specificity
+           conflict; none of them targets any selector above. */
         .panel-label {
+            line-height: 1.0909;   /* 12.00 - 0 - 0 = 12.00 / 11px — see the pin block above */
             font-size: 11px;
             font-weight: 400;
             text-transform: uppercase;
@@ -168,6 +217,7 @@
         }
 
         .blend-label {
+            line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the pin block above */
             font-size: 10px;
             letter-spacing: 1px;
             color: var(--text-secondary);
@@ -231,6 +281,7 @@
         }
 
         .knob-label {
+            line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 /  9px — see the pin block above */
             font-size: 9px;
             letter-spacing: 0.8px;
             color: var(--text-secondary);
@@ -318,6 +369,7 @@
         }
 
         .dropdown-label {
+            line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 /  9px — see the pin block above */
             font-size: 9px;
             letter-spacing: 0.8px;
             color: var(--text-secondary);
@@ -330,7 +382,7 @@
             border-radius: 3px;
             padding: 6px 10px;
             color: var(--text-primary);
-            font-family: 'Georgia', 'Times New Roman', serif;
+            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             cursor: pointer;
             outline: none;
@@ -400,6 +452,14 @@
             text-transform: uppercase;
         }
 
+        /* The caption has no rule of its own — it inherits .slider-label at
+           9 px. The pin goes HERE rather than on the parent because the parent
+           also contains #width_value at 10 px, whose own measured box is 11.00,
+           and a unitless pin on the parent would give the readout 11.11. */
+        .slider-caption {
+            line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
+        }
+
         /* Narrowed from `.slider-label span` in v1.6.0. Contract section 5 split
            the shared caption/readout node into two spans, and the old selector
            would have restyled the CAPTION as a readout — muted, 10 px. There is
@@ -411,6 +471,14 @@
         }
 
         .slider {
+            /* FORM 4 — the face that no file declares. A form control takes
+               its font-family from the UA stylesheet, not from an ancestor, so
+               this input resolved to bare Arial: the one node on this page whose
+               face no grep of any file in this repo could see, found by a
+               computed-style census instead. Arial stays FIRST so the Latin
+               metrics of the English and French arms do not move; the CJK tail
+               follows it and precedes the generic. */
+            font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
             -webkit-appearance: none;
             width: 100%;
             height: 6px;
@@ -507,6 +575,7 @@
         }
 
         .toggle-label {
+            line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 /  9px — see the pin block above */
             font-size: 9px;
             color: var(--text-secondary);
             letter-spacing: 0.5px;
@@ -552,7 +621,7 @@
             border-radius: 3px;
             color: var(--text-primary);
             font-size: 11px;
-            font-family: 'Georgia', serif;
+            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -567,6 +636,7 @@
         }
 
         .preset-name {
+            line-height: 1.0909;   /* 18.00 - 4 pad - 2 border = 12.00 / 11px — see the pin block above */
             font-size: 11px;
             color: var(--text-primary);
             min-width: 100px;
@@ -587,6 +657,7 @@
         }
 
         .preset-action-btn {
+            line-height: 1.1111;   /* 16.00 - 4 pad - 2 border = 10.00 / 9px — see the pin block above */
             /* 6 px sides rather than 8. box-sizing is border-box globally and the
                width below is pinned, so this changes NO outer rectangle - it only
                widens the content box the caption sits in, from 42 to 46 px. It was
@@ -598,7 +669,7 @@
             border-radius: 3px;
             color: var(--text-secondary);
             font-size: 9px;
-            font-family: 'Georgia', serif;
+            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             cursor: pointer;
@@ -667,7 +738,7 @@
             font-size: 11px;
             color: var(--text-primary);
             cursor: pointer;
-            font-family: 'Georgia', serif;
+            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
             transition: background 0.1s;
         }
 
@@ -716,7 +787,7 @@
             border: 1px solid var(--panel-border);
             border-radius: 3px;
             color: var(--text-primary);
-            font-family: 'Georgia', serif;
+            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             line-height: 1;
             cursor: pointer;
@@ -784,6 +855,7 @@
         /* nowrap because the row is space-between: a caption that wrapped would
            grow the row's height and move the control beside it. */
         .settings-label {
+            line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 /  9px — see the pin block above */
             font-size: 9px;
             color: var(--text-secondary);
             letter-spacing: 0.5px;
@@ -798,7 +870,7 @@
             border: 1px solid var(--border-walnut);
             border-radius: 3px;
             color: var(--text-primary);
-            font-family: 'Georgia', 'Times New Roman', serif;
+            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
@@ -829,7 +901,7 @@
           border: 1px solid var(--border-walnut);
           border-radius: 3px;
           color: var(--text-primary);
-          font-family: 'Georgia', 'Times New Roman', serif;
+          font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
           font-size: 10px;
           line-height: 1.2;
           outline: none;
@@ -908,7 +980,7 @@
             border: 1px solid var(--border-walnut);
             border-radius: 4px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-            font-family: 'Georgia', 'Times New Roman', serif;
+            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             line-height: 1.4;
             color: var(--text-primary);
@@ -964,6 +1036,7 @@
                             data-i18n-aria="aria.langSelect" aria-label="Interface language">
                         <option value="en">English</option>
                         <option value="fr">Fran&ccedil;ais</option>
+                        <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                     </select>
                 </label>
 
