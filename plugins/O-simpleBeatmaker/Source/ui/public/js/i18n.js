@@ -142,7 +142,7 @@
 // has read it. node scripts/check-i18n.js prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 export const I18N = Object.freeze({
 
@@ -157,13 +157,19 @@ export const I18N = Object.freeze({
         fr: { t: "Réglages",
               b: "Choisir la langue de l’interface et activer ou désactiver ces infobulles. La langue est conservée avec la session : un projet se rouvre dans la langue où vous l’avez laissé ; le réglage des infobulles est conservé sur cet ordinateur.",
               reviewed: true },
+        'zh-Hans': { t: '设置',
+                     b: '选择界面语言，并开启或关闭这些悬停帮助。语言随会话保存，因此项目会以您离开时的语言重新打开；帮助开关保存在这台电脑上。',
+                     reviewed: 'mt' },
     },
     'lang-select': {
         en: { t: "Language",
-              b: "The language of the labels on this page and of this hover help. English and French are available; the value readouts, the six lesson-preset names and the MIDI note numbers stay in English." },
+              b: "The language of the labels on this page and of this hover help. The value readouts, the six lesson-preset names and the MIDI note numbers stay in English." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de ces infobulles. L’anglais et le français sont disponibles ; les valeurs affichées, les noms des six préréglages de leçon et les numéros de note MIDI restent en anglais.",
+              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées, les noms des six préréglages de leçon et les numéros de note MIDI restent en anglais.",
               reviewed: true },
+        'zh-Hans': { t: '语言',
+                     b: '本页标签和这些悬停帮助所用的语言。数值读数、六个教学预设名称和 MIDI 音符编号保持英文。',
+                     reviewed: 'mt' },
     },
     'help-toggle': {
         en: { t: "Hover help",
@@ -171,6 +177,9 @@ export const I18N = Object.freeze({
         fr: { t: "Infobulles",
               b: "Active ou désactive ces infobulles. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d’un projet à l’autre.",
               reviewed: true },
+        'zh-Hans': { t: '悬停帮助',
+                     b: '开启或关闭这些悬停说明。该开关保存在这台电脑上而不是会话里，因此会跟随您从一个项目到下一个项目。',
+                     reviewed: 'mt' },
     },
 
     // ── The three visualization panels ──────────────────────────────────────
@@ -180,6 +189,9 @@ export const I18N = Object.freeze({
         fr: { t: "La grille de pas",
               b: "Chaque ligne est une voix de batterie, chaque colonne un pas de double croche. Cliquez sur une case pour allumer un pas ; cliquez à nouveau pour parcourir normal → accent → fantôme (la hauteur de la case = la vélocité) ; clic droit pour effacer. La barre ambre qui balaie est la tête de lecture — quand elle croise une case allumée, cette voix se déclenche.",
               reviewed: true },
+        'zh-Hans': { t: '步进网格',
+                     b: '每一行是一个鼓声部，每一列是一个十六分音符步。点击格子点亮一步；再次点击可循环普通 → 重音 → 幽灵音（格子高度 = 力度）；右键点击清除。横向扫过的琥珀色光条是播放头 —— 当它经过一个点亮的格子时，该声部发声。',
+                     reviewed: 'mt' },
     },
     lane: {
         en: { t: "Timing / Groove Lane",
@@ -187,6 +199,9 @@ export const I18N = Object.freeze({
         fr: { t: "Voie de placement / groove",
               b: "La vue phare : chaque point est une frappe, placée à son moment réel par rapport à sa ligne de grille. Un trait à gauche du repère = en avance, à droite = en retard. C’est le Δt exact appliqué à l’audio — tournez Swing et regardez les contretemps glisser ensemble vers la droite ; Humaniser les disperse ; Quantifier resserre la dispersion tout en laissant le swing.",
               reviewed: true },
+        'zh-Hans': { t: '节奏位置 / 律动轨道',
+                     b: '最亮眼的视图：每个点是一次敲击，按它相对于网格线的真实时刻放置。线在刻度左侧 = 提前，右侧 = 滞后。这就是烘焙进音频的那个 Δt —— 转动摇摆，看弱拍一起向右漂移；人性化把它们打散；量化把散开的点拉回网格，同时保留摇摆。',
+                     reviewed: 'mt' },
     },
     midi: {
         en: { t: "Live MIDI Readout",
@@ -194,6 +209,9 @@ export const I18N = Object.freeze({
         fr: { t: "Lecture MIDI en direct",
               b: "Chaque note-on au moment où elle part, depuis le séquenceur (SÉQ) et depuis les notes que vous jouez (MIDI). La grille et cette liste sont deux vues d’un même flux MIDI — le séquenceur émet littéralement ces messages dans le même tampon que votre jeu.",
               reviewed: true },
+        'zh-Hans': { t: 'MIDI 实时读数',
+                     b: '每一个 note-on 在触发时的样子，既有来自音序器（SEQ）的，也有来自您弹入的音符（MIDI）的。网格和这个列表是同一条 MIDI 流的两个视图 —— 音序器确实把这些消息发进了与您演奏相同的缓冲区。',
+                     reviewed: 'mt' },
     },
     clearGrid: {
         en: { t: "Clear All",
@@ -201,6 +219,9 @@ export const I18N = Object.freeze({
         fr: { t: "Tout effacer",
               b: "Efface tous les pas du motif sur les six voix — une grille vierge pour repartir sur un nouveau rythme.",
               reviewed: true },
+        'zh-Hans': { t: '全部清除',
+                     b: '擦除全部六个声部上模式里的每一步 —— 一张空白网格，用来从头做一段新的节奏。',
+                     reviewed: 'mt' },
     },
 
     // ── Global timing-feel parameters ───────────────────────────────────────
@@ -210,6 +231,9 @@ export const I18N = Object.freeze({
         fr: { t: "Swing",
               b: "Retarde chaque double croche à contretemps, ce qui transforme une grille rigide en shuffle. 0 % est parfaitement droit ; 75 % est le swing maximal à la manière des MPC. Point clé : le swing n’est pas retiré par la quantification — c’est un retard musical voulu, pas une erreur.",
               reviewed: true },
+        'zh-Hans': { t: '摇摆',
+                     b: '延迟每一个弱拍十六分音符，把僵硬的网格变成 shuffle。0% 完全笔直；75% 是 MPC 风格的最大摇摆量。关键一点：摇摆不会被量化清除 —— 它是有意为之的音乐性滞后，不是失误。',
+                     reviewed: 'mt' },
     },
     humanize: {
         en: { t: "Humanize",
@@ -217,6 +241,9 @@ export const I18N = Object.freeze({
         fr: { t: "Humaniser",
               b: "Ajoute à chaque frappe une petite instabilité aléatoire de placement et de vélocité, comme un batteur humain qui ne tombe jamais exactement sur la grille. Une petite dose réveille un motif plat ; l’excès le rend brouillon. Regardez la voie se disperser à mesure que vous montez le bouton.",
               reviewed: true },
+        'zh-Hans': { t: '人性化',
+                     b: '为每一次敲击加入一点随机的位置与力度抖动，就像人类鼓手永远不会精确落在网格上。少量能让呆板的模式活过来；过量则显得凌乱。提高它时看轨道上的点散开。',
+                     reviewed: 'mt' },
     },
     quantizeStrength: {
         en: { t: "Quantize Strength",
@@ -224,6 +251,9 @@ export const I18N = Object.freeze({
         fr: { t: "Force de quantification",
               b: "À quel point les frappes sont ramenées sur la grille. À 100 % l’humanisation aléatoire est entièrement retirée (parfaitement serré) ; à 0 % toute l’instabilité est gardée. C’est exactement le compromis dont parle le métier : quantifier assez pour que la partie tienne, sans quantifier au point de lui retirer sa vie. Le swing survit à la quantification — seule la part aléatoire est ramenée.",
               reviewed: true },
+        'zh-Hans': { t: '量化强度',
+                     b: '敲击被拉回网格的力度有多大。在 100% 时随机的人性化被完全清除（绝对紧凑）；在 0% 时抖动全部保留。这正是这门手艺所说的取舍：量化到足以让声部站得住，又不至于把它的生气量化掉。摇摆在量化后依然存在 —— 只有随机的那部分会被拉回。',
+                     reviewed: 'mt' },
     },
     tempo: {
         en: { t: "Tempo",
@@ -231,6 +261,9 @@ export const I18N = Object.freeze({
         fr: { t: "Tempo",
               b: "Vitesse de lecture en battements par minute — utilisée quand il n’y a pas de transport hôte (l’application autonome, ou une STAN à l’arrêt). Quand une STAN joue, la grille se cale sur le tempo de l’hôte à la place.",
               reviewed: true },
+        'zh-Hans': { t: '速度',
+                     b: '以每分钟拍数计的播放速度 —— 在没有宿主走带时使用（独立应用，或已停止的宿主）。当宿主在播放时，网格改为锁定到宿主的速度。',
+                     reviewed: 'mt' },
     },
     patternLength: {
         en: { t: "Pattern Length",
@@ -238,6 +271,9 @@ export const I18N = Object.freeze({
         fr: { t: "Longueur du motif",
               b: "Combien de pas dure la boucle avant de se répéter : 8, 16 ou 32. Raccourcir puis rallonger conserve les cases que vous avez dessinées — elles sont mémorisées, simplement pas jouées tant que la boucle est courte.",
               reviewed: true },
+        'zh-Hans': { t: '模式长度',
+                     b: '循环在重复之前有多少步：8、16 或 32。缩短再放长会保留您画过的格子 —— 它们被记住了，只是在循环较短时不播放。',
+                     reviewed: 'mt' },
     },
     outputLevel: {
         en: { t: "Output Level",
@@ -245,6 +281,9 @@ export const I18N = Object.freeze({
         fr: { t: "Niveau de sortie",
               b: "Ajustement du niveau général en décibels. −60 dB, c’est le silence.",
               reviewed: true },
+        'zh-Hans': { t: '输出电平',
+                     b: '以分贝计的总输出微调。−60 dB 即静音。',
+                     reviewed: 'mt' },
     },
 
     // ── Per-voice parameters ────────────────────────────────────────────────
@@ -259,6 +298,9 @@ export const I18N = Object.freeze({
         fr: { t: "Accord",
               b: "Décale la hauteur de cette voix vers le haut ou le bas, jusqu’à une octave (±12 demi-tons). Accordez la grosse caisse vers le bas pour du poids, les toms en escalier sur un fill.",
               reviewed: true },
+        'zh-Hans': { t: '调音',
+                     b: '把这个声部的音高上下移动最多一个八度（±12 个半音）。把底鼓调低以获得厚重感，把嗵鼓在一段过门里逐级调开。',
+                     reviewed: 'mt' },
     },
     voiceDecay: {
         en: { t: "Decay",
@@ -266,6 +308,9 @@ export const I18N = Object.freeze({
         fr: { t: "Déclin",
               b: "Combien de temps la voix résonne. Court la réduit à un tic serré ; long la laisse gronder ou grésiller. La plage musicale diffère selon la voix (le grondement d’une grosse caisse contre le tic d’un charley fermé).",
               reviewed: true },
+        'zh-Hans': { t: '衰减',
+                     b: '这个声部延续多久。短把它收成一个紧凑的点击声；长让它轰鸣或嘶嘶作响。音乐上可用的范围因声部而异（底鼓的轰鸣对比闭镲的点击）。',
+                     reviewed: 'mt' },
     },
     voiceTone: {
         en: { t: "Tone",
@@ -273,6 +318,9 @@ export const I18N = Object.freeze({
         fr: { t: "Timbre",
               b: "Le bouton de caractère de la voix — claquant, brillance, corps contre bruit, selon l’instrument. Balayez-le pour entendre le timbre passer du sombre au brillant (ou du corps au bruit).",
               reviewed: true },
+        'zh-Hans': { t: '音色',
+                     b: '这个声部的性格旋钮 —— 依乐器不同，是清脆度、亮度或体感与噪声的比例。扫动它可以听到音色从暗到亮（或从体感到噪声）的变化。',
+                     reviewed: 'mt' },
     },
     voiceLevel: {
         en: { t: "Level",
@@ -280,6 +328,9 @@ export const I18N = Object.freeze({
         fr: { t: "Niveau",
               b: "Le volume de cette voix dans le mixage, en décibels. −60 dB la rend muette.",
               reviewed: true },
+        'zh-Hans': { t: '电平',
+                     b: '这个声部在混合中的音量，以分贝计。−60 dB 会让它静音。',
+                     reviewed: 'mt' },
     },
     voiceMute: {
         en: { t: "Mute",
@@ -287,6 +338,9 @@ export const I18N = Object.freeze({
         fr: { t: "Muet",
               b: "Rend cette voix silencieuse sans effacer son motif — isolez une partie en rendant les autres muettes, ou faites sortir puis revenir une voix.",
               reviewed: true },
+        'zh-Hans': { t: '静音',
+                     b: '让这个声部静音而不擦除它的模式 —— 把其余声部设为静音来突出一个声部，或让一个声部退出再回来。',
+                     reviewed: 'mt' },
     },
     voiceSolo: {
         en: { t: "Solo",
@@ -294,6 +348,9 @@ export const I18N = Object.freeze({
         fr: { t: "Solo",
               b: "Ne joue que la ou les voix isolées et rend tout le reste muet. Idéal pour entendre exactement ce que fait un seul instrument dans le groove.",
               reviewed: true },
+        'zh-Hans': { t: '独奏',
+                     b: '只播放被独奏的声部，其余全部静音。非常适合准确听出某一个鼓在律动里在做什么。',
+                     reviewed: 'mt' },
     },
 
     // ── The lesson tour ─────────────────────────────────────────────────────
@@ -311,6 +368,9 @@ export const I18N = Object.freeze({
         fr: { t: "Préréglages de leçon",
               b: "Une visite guidée où chaque préréglage isole une seule idée — droit contre swingué, accents, notes fantômes, humanisation, quantification. Cliquez-en un pour le charger, puis tournez un bouton pour entendre le concept.",
               reviewed: true },
+        'zh-Hans': { t: '教学预设',
+                     b: '一次引导式巡览，每个预设单独呈现一个概念 —— 笔直对比摇摆、重音、幽灵音、人性化、量化。点击一个来加载它，然后转动一个旋钮来听这个概念。',
+                     reviewed: 'mt' },
     },
     lessonStraight: {
         en: { t: "Straight",
@@ -318,6 +378,9 @@ export const I18N = Object.freeze({
         fr: { t: "Straight",
               b: "Un motif plat, sans feeling — chaque frappe exactement sur la grille, à une seule vélocité. La référence dont tout le reste s’écarte.",
               reviewed: true },
+        'zh-Hans': { t: 'Straight',
+                     b: '一个平直、没有律动感的模式 —— 每一次敲击都精确落在网格上，只用一种力度。其余一切都从这个基准出发。',
+                     reviewed: 'mt' },
     },
     lessonAccents: {
         en: { t: "Backbeat + Accents",
@@ -325,6 +388,9 @@ export const I18N = Object.freeze({
         fr: { t: "Backbeat + Accents",
               b: "Caisse claire sur 2 et 4 avec des accents marqués, des frappes plus douces entre — comment la vélocité seule transforme une marche en groove.",
               reviewed: true },
+        'zh-Hans': { t: 'Backbeat + Accents',
+                     b: '军鼓落在第 2 和第 4 拍并带强重音，之间是较轻的敲击 —— 仅凭力度就把进行曲变成律动。',
+                     reviewed: 'mt' },
     },
     lessonGhost: {
         en: { t: "Ghost Notes",
@@ -332,6 +398,9 @@ export const I18N = Object.freeze({
         fr: { t: "Ghost Notes",
               b: "Des frappes de caisse claire discrètes glissées entre celles du backbeat — le secret d’un motif qui respire.",
               reviewed: true },
+        'zh-Hans': { t: 'Ghost Notes',
+                     b: '夹在反拍之间的轻声军鼓敲击 —— 让一个模式会呼吸的秘诀。',
+                     reviewed: 'mt' },
     },
     lessonSwing: {
         en: { t: "Triplet Swing",
@@ -339,6 +408,9 @@ export const I18N = Object.freeze({
         fr: { t: "Triplet Swing",
               b: "Le même motif avec le swing poussé — sentez les contretemps glisser en retard vers le shuffle.",
               reviewed: true },
+        'zh-Hans': { t: 'Triplet Swing',
+                     b: '同一个模式，把摇摆推高 —— 感受弱拍滑向滞后，成为 shuffle。',
+                     reviewed: 'mt' },
     },
     lessonHumanized: {
         en: { t: "Humanized",
@@ -346,6 +418,9 @@ export const I18N = Object.freeze({
         fr: { t: "Humanized",
               b: "Un motif serré assoupli par l’humanisation — regardez la voie se disperser hors des lignes de grille.",
               reviewed: true },
+        'zh-Hans': { t: 'Humanized',
+                     b: '一个紧凑的模式被人性化放松 —— 看轨道上的点从网格线上散开。',
+                     reviewed: 'mt' },
     },
     lessonQuantize: {
         en: { t: "Quantize Demo",
@@ -353,6 +428,9 @@ export const I18N = Object.freeze({
         fr: { t: "Quantize Demo",
               b: "Montez l’humanisation, puis balayez la force de quantification pour resserrer la dispersion — le compromis rendu audible et visible.",
               reviewed: true },
+        'zh-Hans': { t: 'Quantize Demo',
+                     b: '把人性化调高，然后扫动量化强度把散开的点拉回 —— 让这个取舍既可听见又可看见。',
+                     reviewed: 'mt' },
     },
 
     // ── Step-cell accessible names (NOT hover help — see the header note) ────
@@ -362,18 +440,30 @@ export const I18N = Object.freeze({
     'aria.cellOff': {
         en: { t: "{voice} step {step}: off", b: '' },
         fr: { t: "{voice} pas {step} : éteint", b: '', reviewed: true },
+        'zh-Hans': { t: '{voice}第 {step} 步：关闭',
+                     b: '',
+                     reviewed: 'mt' },
     },
     'aria.cellNormal': {
         en: { t: "{voice} step {step}: normal (velocity {vel})", b: '' },
         fr: { t: "{voice} pas {step} : normal (vélocité {vel})", b: '', reviewed: true },
+        'zh-Hans': { t: '{voice}第 {step} 步：普通（力度 {vel}）',
+                     b: '',
+                     reviewed: 'mt' },
     },
     'aria.cellAccent': {
         en: { t: "{voice} step {step}: accent (velocity {vel})", b: '' },
         fr: { t: "{voice} pas {step} : accent (vélocité {vel})", b: '', reviewed: true },
+        'zh-Hans': { t: '{voice}第 {step} 步：重音（力度 {vel}）',
+                     b: '',
+                     reviewed: 'mt' },
     },
     'aria.cellGhost': {
         en: { t: "{voice} step {step}: ghost (velocity {vel})", b: '' },
         fr: { t: "{voice} pas {step} : fantôme (vélocité {vel})", b: '', reviewed: true },
+        'zh-Hans': { t: '{voice}第 {step} 步：幽灵音（力度 {vel}）',
+                     b: '',
+                     reviewed: 'mt' },
     },
 });
 
@@ -396,6 +486,7 @@ export const LABELS = Object.freeze({
         // sentence still names the machine, all four timing controls and the
         // series. 690.0px, 16.4px of clearance.
         fr: { t: "Boîte à rythmes pas à pas · programmez, puis voyez vélocité, swing, quantification et humanisation remodeler le rythme · guide de terrain", reviewed: true },
+        'zh-Hans': { t: '步进音序鼓机 · 编写一段节奏，然后看力度、摇摆、量化与人性化如何重塑它 · 实地指南', reviewed: 'mt' },
     },
 
     // The transport strip. The NUMBERS beside these three are readouts and are
@@ -403,14 +494,17 @@ export const LABELS = Object.freeze({
     'label.trTempo': {
         en: { t: "tempo" },
         fr: { t: "tempo", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: '速度', reviewed: 'mt' },
     },
     'label.trLength': {
         en: { t: "length" },
         fr: { t: "longueur", reviewed: true },
+        'zh-Hans': { t: '长度', reviewed: 'mt' },
     },
     'label.trSteps': {
         en: { t: "steps" },
         fr: { t: "pas", reviewed: true },
+        'zh-Hans': { t: '步', reviewed: 'mt' },
     },
     // The two faces of the transport state line. It is NOT a parameter mirror:
     // there is no sync parameter in the APVTS — frame.sync is host transport
@@ -420,10 +514,12 @@ export const LABELS = Object.freeze({
     'label.freeRun': {
         en: { t: "● free-run" },
         fr: { t: "● libre", reviewed: true },
+        'zh-Hans': { t: '● 自由', reviewed: 'mt' },
     },
     'label.synced': {
         en: { t: "● synced" },
         fr: { t: "● synchro", reviewed: true },
+        'zh-Hans': { t: '● 已同步', reviewed: 'mt' },
     },
 
     // ── Step grid ───────────────────────────────────────────────────────────
@@ -434,6 +530,7 @@ export const LABELS = Object.freeze({
     'label.gridCaption': {
         en: { t: "Step Grid ·" },
         fr: { t: "Grille de pas ·", reviewed: true },
+        'zh-Hans': { t: '步进网格 ·', reviewed: 'mt' },
     },
     'label.gridHintA': {
         en: { t: "click a cell to light a step; click again to cycle" },
@@ -457,10 +554,12 @@ export const LABELS = Object.freeze({
         // from 17.56px. The last candidate is the reversal if a Windows pass
         // ever needs the margin back; it costs naming the step.
         fr: { t: "cliquez sur une case pour allumer un pas ; cliquez encore pour parcourir", reviewed: true },
+        'zh-Hans': { t: '点击一个格子点亮一步；再次点击可循环', reviewed: 'mt' },
     },
     'label.gridHintEm': {
         en: { t: "normal → accent → ghost" },
         fr: { t: "normal → accent → fantôme", reviewed: true },
+        'zh-Hans': { t: '普通 → 重音 → 幽灵音', reviewed: 'mt' },
     },
     'label.gridHintB': {
         en: { t: "; right-click (or" },
@@ -470,6 +569,7 @@ export const LABELS = Object.freeze({
         // which spaces before a semicolon — and the space must be no-break, or a
         // line could start with the ';'. +3.05px on the hint row.
         fr: { t: " ; clic droit (ou", reviewed: true },
+        'zh-Hans': { t: '；右键点击（或', reviewed: 'mt' },
     },
     // The keycap. French keyboards print "Suppr" on the key English keyboards
     // print "Del" on, so this is the one string on the page whose translation is
@@ -477,6 +577,10 @@ export const LABELS = Object.freeze({
     'label.gridHintKbd': {
         en: { t: "Del" },
         fr: { t: "Suppr", reviewed: true },
+        'zh-Hans': { t: 'Del',
+                     sameAsEn: true,
+                     termNote: 'a KEYCAP, not the Delete action. This string is decided by the hardware, and the key that clears a cell is printed Del on a Chinese keyboard exactly as it is on an English one — which is why the French row reads Suppr rather than the French for delete. The glossary root 删除 names the ACTION and would be wrong on a key face.',
+                     reviewed: 'mt' },
     },
     'label.gridHintC': {
         en: { t: ") to clear · the bar sweeping across is the playhead" },
@@ -496,46 +600,56 @@ export const LABELS = Object.freeze({
         // 2.0px. This string is unchanged and the trade it records is now worth
         // more, not less.
         fr: { t: ") pour effacer · la barre mobile est la tête de lecture", reviewed: true },
+        'zh-Hans': { t: '）清除 · 横向扫过的光条是播放头', reviewed: 'mt' },
     },
     'label.clearAll': {
         en: { t: "Clear all" },
         fr: { t: "Tout effacer", reviewed: true },
+        'zh-Hans': { t: '全部清除', reviewed: 'mt' },
     },
 
     // ── Timing / groove lane ────────────────────────────────────────────────
     'label.laneCaption': {
         en: { t: "Timing / Groove Lane ·" },
         fr: { t: "Voie de placement / groove ·", reviewed: true },
+        'zh-Hans': { t: '节奏位置 / 律动轨道 ·', reviewed: 'mt' },
     },
     'label.laneHint': {
         en: { t: "each hit's actual offset from its grid line — left of the line = early, right = late. This is the Δt baked into the audio, not a guess." },
         fr: { t: "le décalage réel de chaque frappe par rapport à sa ligne de grille — à gauche de la ligne = en avance, à droite = en retard. C’est le Δt inscrit dans l’audio, pas une estimation.", reviewed: true },
+        'zh-Hans': { t: '每次敲击相对于其网格线的真实偏移 —— 线的左侧 = 提前，右侧 = 滞后。这是烘焙进音频的 Δt，不是估算。', reviewed: 'mt' },
     },
     'label.lkGrid': {
         en: { t: "│ grid line (nominal step)" },
         fr: { t: "│ ligne de grille (pas nominal)", reviewed: true },
+        'zh-Hans': { t: '│ 网格线（名义步）', reviewed: 'mt' },
     },
     'label.lkSwing': {
         en: { t: "swing → steady lateness on off-beats" },
         fr: { t: "swing → retard régulier sur les contretemps", reviewed: true },
+        'zh-Hans': { t: '摇摆 → 弱拍上稳定的滞后', reviewed: 'mt' },
     },
     'label.lkHuman': {
         en: { t: "humanize → random scatter" },
         fr: { t: "humaniser → dispersion aléatoire", reviewed: true },
+        'zh-Hans': { t: '人性化 → 随机散开', reviewed: 'mt' },
     },
     'label.lkQuant': {
         en: { t: "quantize → pulls scatter back" },
         fr: { t: "quantifier → resserre la dispersion", reviewed: true },
+        'zh-Hans': { t: '量化 → 把散开拉回', reviewed: 'mt' },
     },
 
     // ── Live MIDI readout ───────────────────────────────────────────────────
     'label.midiCaption': {
         en: { t: "Live MIDI Readout ·" },
         fr: { t: "Lecture MIDI en direct ·", reviewed: true },
+        'zh-Hans': { t: 'MIDI 实时读数 ·', reviewed: 'mt' },
     },
     'label.midiHint': {
         en: { t: "note-on messages as steps fire — the grid and this list are two views of one MIDI stream" },
         fr: { t: "les messages note-on au déclenchement de chaque pas — la grille et cette liste sont deux vues d’un même flux MIDI", reviewed: true },
+        'zh-Hans': { t: '各步触发时的 note-on 消息 —— 网格和这个列表是同一条 MIDI 流的两个视图', reviewed: 'mt' },
     },
     // The two source tags and the two field names of a readout ROW. The numbers
     // they carry are readouts and substitute verbatim (D-03); the words around
@@ -544,60 +658,76 @@ export const LABELS = Object.freeze({
     'label.srcSeq': {
         en: { t: "SEQ" },
         fr: { t: "SÉQ", reviewed: true },
+        'zh-Hans': { t: '音序', reviewed: 'mt' },
     },
     'label.srcMidi': {
         en: { t: "MIDI" },
         fr: { t: "MIDI", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: 'MIDI',
+                     sameAsEn: true,
+                     reviewed: 'mt' },
     },
     'label.midiNote': {
         en: { t: "note {n}" },
         fr: { t: "note {n}", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: '音符 {n}', reviewed: 'mt' },
     },
     'label.midiVel': {
         en: { t: "vel {v}" },
         fr: { t: "vél {v}", reviewed: true },
+        'zh-Hans': { t: '力度 {v}', reviewed: 'mt' },
     },
 
     // ── Control groups ──────────────────────────────────────────────────────
     'label.groupTiming': {
         en: { t: "Timing Feel" },
         fr: { t: "Placement rythmique", reviewed: true },
+        'zh-Hans': { t: '节奏手感', reviewed: 'mt' },
     },
     'label.knobSwing': {
         en: { t: "Swing" },
         fr: { t: "Swing", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: '摇摆', reviewed: 'mt' },
     },
     'label.knobHumanize': {
         en: { t: "Humanize" },
         fr: { t: "Humaniser", reviewed: true },
+        'zh-Hans': { t: '人性化', reviewed: 'mt' },
     },
     'label.knobQuantize': {
         en: { t: "Quantize" },
         fr: { t: "Quantifier", reviewed: true },
+        'zh-Hans': { t: '量化', reviewed: 'mt' },
     },
     'label.knobTempo': {
         en: { t: "Tempo" },
         fr: { t: "Tempo", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: '速度', reviewed: 'mt' },
     },
     'label.knobPatternLength': {
         en: { t: "Pattern Length" },
         fr: { t: "Longueur du motif", reviewed: true },
+        'zh-Hans': { t: '模式长度', reviewed: 'mt' },
     },
     'label.groupVoices': {
         en: { t: "Drum Voices" },
         fr: { t: "Voix de batterie", reviewed: true },
+        'zh-Hans': { t: '鼓声部', reviewed: 'mt' },
     },
     'label.groupRoute': {
         en: { t: "tune · decay · tone · level · mute / solo" },
         fr: { t: "accord · déclin · timbre · niveau · muet / solo", reviewed: true },
+        'zh-Hans': { t: '调音 · 衰减 · 音色 · 电平 · 静音 / 独奏', reviewed: 'mt' },
     },
     'label.groupMaster': {
         en: { t: "Master" },
         fr: { t: "Général", reviewed: true },
+        'zh-Hans': { t: '总控', reviewed: 'mt' },
     },
     'label.knobOutput': {
         en: { t: "Output" },
         fr: { t: "Sortie", reviewed: true },
+        'zh-Hans': { t: '输出', reviewed: 'mt' },
     },
 
     // ── The six voice names ─────────────────────────────────────────────────
@@ -608,26 +738,32 @@ export const LABELS = Object.freeze({
     'label.voiceKick': {
         en: { t: "Kick" },
         fr: { t: "Grosse caisse", reviewed: true },
+        'zh-Hans': { t: '底鼓', reviewed: 'mt' },
     },
     'label.voiceSnare': {
         en: { t: "Snare" },
         fr: { t: "Caisse claire", reviewed: true },
+        'zh-Hans': { t: '军鼓', reviewed: 'mt' },
     },
     'label.voiceClap': {
         en: { t: "Clap" },
         fr: { t: "Clap", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: '拍手', reviewed: 'mt' },
     },
     'label.voiceClosedHat': {
         en: { t: "Closed Hat" },
         fr: { t: "Charley fermé", reviewed: true },
+        'zh-Hans': { t: '闭镲', reviewed: 'mt' },
     },
     'label.voiceOpenHat': {
         en: { t: "Open Hat" },
         fr: { t: "Charley ouvert", reviewed: true },
+        'zh-Hans': { t: '开镲', reviewed: 'mt' },
     },
     'label.voiceTom': {
         en: { t: "Tom" },
         fr: { t: "Tom", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: '嗵鼓', reviewed: 'mt' },
     },
 
     // ── The four repeating voice-knob captions and the two toggles ──────────
@@ -638,26 +774,32 @@ export const LABELS = Object.freeze({
     'label.knobTune': {
         en: { t: "Tune" },
         fr: { t: "Accord", reviewed: true },
+        'zh-Hans': { t: '调音', reviewed: 'mt' },
     },
     'label.knobDecay': {
         en: { t: "Decay" },
         fr: { t: "Déclin", reviewed: true },
+        'zh-Hans': { t: '衰减', reviewed: 'mt' },
     },
     'label.knobTone': {
         en: { t: "Tone" },
         fr: { t: "Timbre", reviewed: true },
+        'zh-Hans': { t: '音色', reviewed: 'mt' },
     },
     'label.knobLevel': {
         en: { t: "Level" },
         fr: { t: "Niveau", reviewed: true },
+        'zh-Hans': { t: '电平', reviewed: 'mt' },
     },
     'label.mute': {
         en: { t: "Mute" },
         fr: { t: "Muet", reviewed: true },
+        'zh-Hans': { t: '静音', reviewed: 'mt' },
     },
     'label.solo': {
         en: { t: "Solo" },
         fr: { t: "Solo", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: '独奏', reviewed: 'mt' },
     },
 
     // ── Lesson tour ─────────────────────────────────────────────────────────
@@ -666,20 +808,24 @@ export const LABELS = Object.freeze({
     'label.tourHeading': {
         en: { t: "Lesson Presets" },
         fr: { t: "Préréglages de leçon", reviewed: true },
+        'zh-Hans': { t: '教学预设', reviewed: 'mt' },
     },
     'label.tourSoon': {
         en: { t: "(click one — each isolates a single idea)" },
         fr: { t: "(cliquez-en un — chacun isole une seule idée)", reviewed: true },
+        'zh-Hans': { t: '（点击其中一个 —— 每个都单独呈现一个概念）', reviewed: 'mt' },
     },
     'label.tourCaption': {
         en: { t: "Hover any control for a plain-language explanation · click a lesson preset to load it, then tweak a knob." },
         fr: { t: "Survolez une commande pour une explication en langage clair · cliquez sur un préréglage de leçon pour le charger, puis tournez un bouton.", reviewed: true },
+        'zh-Hans': { t: '悬停任意控件即可看到通俗解释 · 点击一个教学预设来加载它，然后转动一个旋钮。', reviewed: 'mt' },
     },
     // {name} is the preset name the button carries and substitutes VERBATIM: it
     // is the name the lesson row shows and the name C++ knows (D-02).
     'label.tourLoaded': {
         en: { t: "“{name}” loaded — tweak a knob to hear the concept." },
         fr: { t: "« {name} » chargé — tournez un bouton pour entendre le concept.", reviewed: true },
+        'zh-Hans': { t: '“{name}”已加载 —— 转动一个旋钮来听这个概念。', reviewed: 'mt' },
     },
 
     // ── The settings popover ────────────────────────────────────────────────
@@ -690,19 +836,23 @@ export const LABELS = Object.freeze({
     'aria.langSelect': {
         en: { t: "Interface language" },
         fr: { t: "Langue de l’interface", reviewed: true },
+        'zh-Hans': { t: '界面语言', reviewed: 'mt' },
     },
     'aria.helpToggle': {
         en: { t: "Toggle hover help" },
         fr: { t: "Activer ou désactiver les infobulles", reviewed: true },
+        'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' },
     },
     // The switch's two faces, written through setLabel from applyTipsEnabled.
     'ui.on': {
         en: { t: "On" },
         fr: { t: "Activée", reviewed: true },
+        'zh-Hans': { t: '开启', reviewed: 'mt' },
     },
     'ui.off': {
         en: { t: "Off" },
         fr: { t: "Désactivée", reviewed: true },
+        'zh-Hans': { t: '关闭', reviewed: 'mt' },
     },
 });
 
@@ -819,6 +969,7 @@ export const I18N_EXEMPT = [
     // "Français", not "French".
     ['English',  'endonym — a language name is never translated'],
     ['Français', 'endonym — a language name is never translated'],
+    ['简体中文', 'endonym — a language name is never translated. Written in index.html as numeric character references and copied byte-for-byte from plugins/O-Detune/Source/ui/public/index.html, never retyped'],
 ];
 
 export function tr(key, lang, vars) {
