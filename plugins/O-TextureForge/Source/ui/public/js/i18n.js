@@ -201,7 +201,7 @@ export const I18N = Object.freeze({
               reviewed: true },
     
         'zh-Hans': { t: '明亮度',
-              b: '让搜索偏向更暗或更亮的颗粒，依据每个颗粒的频谱质心。低值偏向沉闷、以共鸣体为主的素材；高值偏向空气感和嘶声。0 到 100%。',
+              b: '让搜索偏向更暗或更亮的颗粒，依据每个颗粒的频谱质心。低值偏向沉闷、以中低频为主的素材；高值偏向空气感和嘶声。0 到 100%。',
               reviewed: 'mt' },
     },
     'tip.texture': {
@@ -468,7 +468,7 @@ export const LABELS = Object.freeze({
     'label.tagline': {
         en: { t: 'Concatenative Texture Engine' },
         fr: { t: 'Moteur de texture concaténatif', reviewed: true },
-     'zh-Hans': { t: '串联式纹理引擎', reviewed: 'mt' }},
+     'zh-Hans': { t: '拼接式纹理引擎', reviewed: 'mt' }},
 
     // ── The scatter placeholder ─────────────────────────────────────────────
     // Three states of ONE element, written by src/app.js. Before v1.1.0 all
@@ -608,7 +608,7 @@ export const LABELS = Object.freeze({
     'dialog.loadAnyway': {
         en: { t: 'Load Anyway' },
         fr: { t: 'Charger quand même', reviewed: true },
-     'zh-Hans': { t: '仍然载入', reviewed: 'mt' }},
+     'zh-Hans': { t: '仍要载入', reviewed: 'mt' }},
     // Used twice: the large-file dialog's dismiss button and the UMAP progress
     // row's cancel button. Same word, same meaning, one key.
     'action.cancel': {
