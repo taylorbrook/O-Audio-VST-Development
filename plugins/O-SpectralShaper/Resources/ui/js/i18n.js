@@ -220,7 +220,7 @@ export const I18N = Object.freeze({
     'canvas.webglUnsupported': {
         en: { t: 'WebGL not supported', b: '' },
         fr: { t: 'WebGL non pris en charge', b: '', reviewed: true },
-        'zh-Hans': { t: '不支持 WebGL', b: '', reviewed: 'mt' },
+        'zh-Hans': { t: '不支持 WebGL', b: '', reviewed: 'bt' },
     },
 
     'settings': {
@@ -232,7 +232,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '设置',
               b: '选择本界面的语言，以及是否显示悬停帮助。两项选择都随会话一起记住。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // v1.8.0 — THE LANGUAGE BODY LOST ITS ENUMERATION, in en and fr alike. It
     // named the selector's options in full, which was true for exactly as long
@@ -259,7 +259,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '语言',
               b: '这些悬停帮助和页面标签所用的语言。数值读数、预设名称和预设类别标题保持英文。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
@@ -270,7 +270,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '悬停帮助',
               b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Preset bar ──────────────────────────────────────────────────────────
@@ -283,7 +283,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '上一个预设',
               b: '在预设列表中后退一步。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'preset-name': {
         en: { t: 'Preset Name',
@@ -294,7 +294,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '预设名称',
               b: '当前载入的预设。点击可打开按类别分组的预设菜单。出厂预设无法覆盖，请用保存来存放你自己的预设。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'preset-next': {
         en: { t: 'Next Preset',
@@ -305,7 +305,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '下一个预设',
               b: '在预设列表中前进一步。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'preset-save': {
         en: { t: 'Save Preset',
@@ -316,7 +316,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '保存预设',
               b: '把当前设置连同两条塑形曲线一起存为用户预设。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'preset-load': {
         en: { t: 'Load Preset',
@@ -327,7 +327,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '载入预设',
               b: '从磁盘打开一个预设文件。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The specimen plates ─────────────────────────────────────────────────
@@ -340,7 +340,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '语图',
               b: '实时频率分析，自右向左滚动。越亮的区域越响；偏红橙的色调标出瞬态检测器判定为起音的能量。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'attackCurve': {
         en: { t: 'Attack Curve',
@@ -351,7 +351,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '起音曲线',
               b: '施加在检测到的瞬态上的分频段增益，覆盖从 20 Hz 到奈奎斯特频率的 32 个对数频段。向上拖动让某个频段的起音更锐利，向下拖动则让它更柔和。满偏为 ±12 dB。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'sustainCurve': {
         en: { t: 'Sustain Curve',
@@ -362,7 +362,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '延音曲线',
               b: '施加在信号延续部分上的分频段增益，也就是检测器没有判定为瞬态的一切，覆盖同样的 32 个频段。向上拖动让某个频段的尾音更厚，向下拖动则让它更紧。满偏为 ±12 dB。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Plate controls ──────────────────────────────────────────────────────
@@ -379,7 +379,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '频谱',
               b: '在曲线后面叠加实时输入频谱，这样绘制时就能看出哪些频段真正在活动。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'undo': {
         en: { t: 'Undo',
@@ -390,7 +390,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '撤销',
               b: '在曲线编辑中后退一步（Ctrl+Z）。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'redo': {
         en: { t: 'Redo',
@@ -401,7 +401,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '重做',
               b: '在曲线编辑中前进一步（Ctrl+Shift+Z）。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'attackReset': {
         en: { t: 'Reset',
@@ -412,7 +412,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '重置',
               b: '把每个频段都归回 0 dB，成为一条不做起音塑形的平线。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'sustainReset': {
         en: { t: 'Reset',
@@ -423,7 +423,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '重置',
               b: '把每个频段都归回 0 dB，成为一条不做延音塑形的平线。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'drawMode': {
         en: { t: 'Draw Mode',
@@ -441,7 +441,7 @@ export const I18N = Object.freeze({
         // blind reverse read is what surfaced it.
         'zh-Hans': { t: '绘制模式',
               b: '手绘模式在拖动时画出一条连续的曲线。节点模式放置可拖动的控制点，并在点与点之间做平滑插值。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The knob sidebar ────────────────────────────────────────────────────
@@ -464,7 +464,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '混合',
               b: '在干输入与频谱塑形后的输出之间做混合。0% 完全是干声，100% 完全是处理后的信号。默认 100%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'attackTime': {
         en: { t: 'Attack Time',
@@ -475,7 +475,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '起音时间',
               b: '瞬态检测器的响应速度，0.1–50 ms。取短值可以抓住锐利的打击音；取长值则会把每个音符更多的部分当作起音。默认 10 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'sustainTime': {
         en: { t: 'Sustain Time',
@@ -486,7 +486,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '延音时间',
               b: '一个频段在瞬态过去之后还被当作延音多久，10–500 ms。取长值会扩大延音曲线作用的区域。默认 100 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'sensitivity': {
         en: { t: 'Sensitivity',
@@ -497,7 +497,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '灵敏度',
               b: '瞬态检测的阈值，0–100%。取高值会把更多素材判定为瞬态，把平衡从延音曲线推向起音曲线。默认 50%。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'outputGain': {
         en: { t: 'Output Gain',
@@ -508,7 +508,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '输出增益',
               b: '塑形之后的最终电平微调，−12 到 +12 dB。当大幅提升或削减改变了整体响度时，用它来补偿。默认 0 dB。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'lookaheadTime': {
         en: { t: 'Lookahead Time',
@@ -519,7 +519,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '前瞻时间',
               b: '前瞻开启时向宿主报告的延迟量，0.1–10 ms。注意前瞻目前还不会改变声音，参见前瞻开关。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'lookahead': {
         en: { t: 'Lookahead',
@@ -530,7 +530,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '前瞻',
               b: '目前不起作用。检测与塑形后的信号被延迟同样的量，因此两者仍然时间对齐，听感上没有任何变化，它只是向宿主报告新增的延迟。真正的前瞻计划在未来版本中实现。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
@@ -570,15 +570,15 @@ export const I18N = Object.freeze({
 export const LABELS = Object.freeze({
 
     // ── The settings popover ────────────────────────────────────────────────
-    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' }},
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
+    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'bt' }},
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' }},
 
     // The two faces of the hover-help switch, chosen by an if/else over two
     // literal keys in setTooltipsEnabled — never a ternary inside the setLabel
     // call (check-i18n assertion 13), and never a literal, which would strand
     // an English "On" the moment the language selector fired.
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Activées',      reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Désactivées',   reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Activées',      reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'bt' }},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Désactivées',   reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' }},
 
     // ── Preset bar ──────────────────────────────────────────────────────────
     // .preset-action-btn is 9 px uppercase with 0.8 px letter-spacing inside a
@@ -590,16 +590,16 @@ export const LABELS = Object.freeze({
     // not in getComputedStyle().font).
     // "Enreg." (55.06px) and "Ouvrir" (57.31px) both overran their pins; the
     // standard French UI abbreviations fit at 41.45px and 41.80px.
-    'label.save':      { en: { t: 'Save' },       fr: { t: 'Enr.',          reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' }},
-    'label.load':      { en: { t: 'Load' },       fr: { t: 'Ouv.',          reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'mt' }},
+    'label.save':      { en: { t: 'Save' },       fr: { t: 'Enr.',          reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'bt' }},
+    'label.load':      { en: { t: 'Load' },       fr: { t: 'Ouv.',          reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'bt' }},
 
     // ── The specimen plates ─────────────────────────────────────────────────
     // .spectrogram-label and .curve-label are absolutely positioned overlays
     // with `pointer-events: none`, so they are out of flow: a longer French
     // caption cannot push anything. They are free to be phrases.
-    'label.spectrogram':  { en: { t: 'Spectrogram' },   fr: { t: 'Spectrogramme',      reviewed: true } , 'zh-Hans': { t: '语图', reviewed: 'mt' }},
-    'label.attackCurve':  { en: { t: 'Attack Curve' },  fr: { t: 'Courbe d’attaque',   reviewed: true } , 'zh-Hans': { t: '起音曲线', reviewed: 'mt' }},
-    'label.sustainCurve': { en: { t: 'Sustain Curve' }, fr: { t: 'Courbe de maintien', reviewed: true } , 'zh-Hans': { t: '延音曲线', reviewed: 'mt' }},
+    'label.spectrogram':  { en: { t: 'Spectrogram' },   fr: { t: 'Spectrogramme',      reviewed: true } , 'zh-Hans': { t: '语图', reviewed: 'bt' }},
+    'label.attackCurve':  { en: { t: 'Attack Curve' },  fr: { t: 'Courbe d’attaque',   reviewed: true } , 'zh-Hans': { t: '起音曲线', reviewed: 'bt' }},
+    'label.sustainCurve': { en: { t: 'Sustain Curve' }, fr: { t: 'Courbe de maintien', reviewed: true } , 'zh-Hans': { t: '延音曲线', reviewed: 'bt' }},
 
     // ── Plate controls ──────────────────────────────────────────────────────
     // .curve-controls is an absolutely positioned flex row pinned `right: 8px`
@@ -612,18 +612,18 @@ export const LABELS = Object.freeze({
     // there is no draw-mode parameter in createParameterLayout — grep
     // PluginProcessor.cpp for CURVE_MODE and nothing comes back. So they are
     // copy, and they localize.
-    'label.spectrum':  { en: { t: 'Spectrum' },   fr: { t: 'Spectre',       reviewed: true } , 'zh-Hans': { t: '频谱', reviewed: 'mt' }},
+    'label.spectrum':  { en: { t: 'Spectrum' },   fr: { t: 'Spectre',       reviewed: true } , 'zh-Hans': { t: '频谱', reviewed: 'bt' }},
     // The width case for keeping "Init." is the termNote on the entry itself,
     // re-measured in v1.7.1 rather than inherited. Short form: Réinit. renders
     // the button at 58.69px against a 53.52px pin and moves two NON-label
     // siblings.
     'label.reset':     { en: { t: 'Reset' },
                          fr: { t: 'Init.', reviewed: true,
-                               termNote: 'width: the glossary’s Réinit. renders the button at 58.69px and Réinit at 56.30px against .curve-reset-btn’s 53.52px pin, pushing the NON-label #attack-undo-btn / #attack-redo-btn 5.17px and 2.78px left — a check-ui-labels assertion-7 geometry regression. Réinitialiser is 96.39px. Init. holds the pin at 53.52px.' } , 'zh-Hans': { t: '重置', reviewed: 'mt' }},
+                               termNote: 'width: the glossary’s Réinit. renders the button at 58.69px and Réinit at 56.30px against .curve-reset-btn’s 53.52px pin, pushing the NON-label #attack-undo-btn / #attack-redo-btn 5.17px and 2.78px left — a check-ui-labels assertion-7 geometry regression. Réinitialiser is 96.39px. Init. holds the pin at 53.52px.' } , 'zh-Hans': { t: '重置', reviewed: 'bt' }},
     // "Main levée" is 84.75px against a 76.41px pin; "Libre" is 52px and reads
     // as the clear opposite of "Points", which is what the pair has to do.
-    'ui.freehand':     { en: { t: 'Freehand' },   fr: { t: 'Libre',         reviewed: true } , 'zh-Hans': { t: '手绘', reviewed: 'mt' }},
-    'ui.node':         { en: { t: 'Node' },       fr: { t: 'Points',        reviewed: true } , 'zh-Hans': { t: '节点', reviewed: 'mt' }},
+    'ui.freehand':     { en: { t: 'Freehand' },   fr: { t: 'Libre',         reviewed: true } , 'zh-Hans': { t: '手绘', reviewed: 'bt' }},
+    'ui.node':         { en: { t: 'Node' },       fr: { t: 'Points',        reviewed: true } , 'zh-Hans': { t: '节点', reviewed: 'bt' }},
 
     // ── The knob sidebar ────────────────────────────────────────────────────
     // Each caption sits in a ~86 px column of a 180 px two-column grid at 10 px
@@ -632,23 +632,23 @@ export const LABELS = Object.freeze({
     // wrapping behaviour is authored rather than avoided — see the CHANGELOG
     // for the `.knob-label` height reservation that keeps a French caption from
     // moving the row below it.
-    'label.mix':         { en: { t: 'Mix' },         fr: { t: 'Mix',        reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '混合', reviewed: 'mt' }},
-    'label.attack':      { en: { t: 'Attack' },      fr: { t: 'Attaque',    reviewed: true } , 'zh-Hans': { t: '起音', reviewed: 'mt' }},
-    'label.sustain':     { en: { t: 'Sustain' },     fr: { t: 'Maintien',   reviewed: true } , 'zh-Hans': { t: '延音', reviewed: 'mt' }},
-    'label.sensitivity': { en: { t: 'Sensitivity' }, fr: { t: 'Sensibilité', reviewed: true } , 'zh-Hans': { t: '灵敏度', reviewed: 'mt' }},
-    'label.output':      { en: { t: 'Output' },      fr: { t: 'Sortie',     reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'mt' }},
+    'label.mix':         { en: { t: 'Mix' },         fr: { t: 'Mix',        reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '混合', reviewed: 'bt' }},
+    'label.attack':      { en: { t: 'Attack' },      fr: { t: 'Attaque',    reviewed: true } , 'zh-Hans': { t: '起音', reviewed: 'bt' }},
+    'label.sustain':     { en: { t: 'Sustain' },     fr: { t: 'Maintien',   reviewed: true } , 'zh-Hans': { t: '延音', reviewed: 'bt' }},
+    'label.sensitivity': { en: { t: 'Sensitivity' }, fr: { t: 'Sensibilité', reviewed: true } , 'zh-Hans': { t: '灵敏度', reviewed: 'bt' }},
+    'label.output':      { en: { t: 'Output' },      fr: { t: 'Sortie',     reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'bt' }},
     // "Tps antic." rather than "Anticip.": the toggle two rows down is
     // "Anticipation", and two adjacent controls reading the same abbreviated
     // word is worse than a slightly clipped-looking one. English draws the same
     // distinction with "LA Time" against "Lookahead".
-    'label.laTime':      { en: { t: 'LA Time' },     fr: { t: 'Tps antic.', reviewed: true } , 'zh-Hans': { t: '前瞻时间', reviewed: 'mt' }},
-    'label.lookahead':   { en: { t: 'Lookahead' },   fr: { t: 'Anticipation', reviewed: true } , 'zh-Hans': { t: '前瞻', reviewed: 'mt' }},
+    'label.laTime':      { en: { t: 'LA Time' },     fr: { t: 'Tps antic.', reviewed: true } , 'zh-Hans': { t: '前瞻时间', reviewed: 'bt' }},
+    'label.lookahead':   { en: { t: 'Lookahead' },   fr: { t: 'Anticipation', reviewed: true } , 'zh-Hans': { t: '前瞻', reviewed: 'bt' }},
 
     // ── Accessible names ────────────────────────────────────────────────────
-    'aria.presets':      { en: { t: 'Presets' },              fr: { t: 'Préréglages',           reviewed: true } , 'zh-Hans': { t: '预设', reviewed: 'mt' }},
-    'aria.langSelect':   { en: { t: 'Interface language' },   fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'mt' }},
+    'aria.presets':      { en: { t: 'Presets' },              fr: { t: 'Préréglages',           reviewed: true } , 'zh-Hans': { t: '预设', reviewed: 'bt' }},
+    'aria.langSelect':   { en: { t: 'Interface language' },   fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'bt' }},
     'aria.helpToggle':   { en: { t: 'Toggle hover help' },
-                           fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }},
+                           fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' }},
 });
 
 // ============================================================================
