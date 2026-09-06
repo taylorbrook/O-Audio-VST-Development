@@ -171,7 +171,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '设置',
               b: '选择本界面的语言，以及是否显示悬停帮助。两项选择都随会话一起记住。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // v1.19.0 CORRECTION. Through v1.18.3 this body listed the selector's options
     // by name, in both languages. The selector now offers a third, so a list
@@ -191,7 +191,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '语言',
               b: '这些悬停帮助和页面标签所用的语言。数值读数、音符时值和预设名称保持英文。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
@@ -203,7 +203,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '悬停帮助',
               b: '开启或关闭这些悬停帮助。关闭之后，只有齿轮和这个开关仍会解释自己。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The grid ────────────────────────────────────────────────────────────
@@ -220,7 +220,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '步进网格',
               b: '步进音序网格。每一行是一个频段；点击单元格可开关该步。播放时激活的步会高亮为绿色。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Band controls panel ─────────────────────────────────────────────────
@@ -234,7 +234,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '欧几里得步数',
               b: '欧几里得模式的总长度。超出此长度的步会绕回开头。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'euc-pulses': {
         en: { t: 'Euclidean Pulses',
@@ -246,7 +246,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '欧几里得脉冲',
               b: '在模式长度上尽可能均匀分布的激活拍数。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'euc-offset': {
         en: { t: 'Euclidean Offset',
@@ -258,7 +258,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '欧几里得偏移',
               b: '把生成的模式旋转这么多步，改变节奏从哪里开始。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'euc-phase': {
         en: { t: 'Phase',
@@ -270,7 +270,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '相位',
               b: '把本频段的模式读取位置移动 N 步。可在各频段之间造出相位错开的复节奏。在手动和欧几里得两种模式下都有效。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'euc-band-steps': {
         en: { t: 'Band Steps',
@@ -282,7 +282,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '频段步数',
               b: '为本频段覆盖全局步数（0 表示跟随全局）。各频段步数不同时便形成复拍循环。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Footer: the global controls ─────────────────────────────────────────
@@ -296,7 +296,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '混合',
               b: '在干声（未处理）与湿声（已门限）之间调配比例。0% 时只听到干声，100% 时只听到门限后的输出。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'steps': {
         en: { t: 'Steps',
@@ -308,7 +308,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '步',
               b: '设定序列中激活步的数量（2 到 32）。数值越高，模式越长越复杂。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'rate': {
         en: { t: 'Rate',
@@ -320,7 +320,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '速率',
               b: '设定每一步所同步的音符时值。较小的值（1/32）造出更快的模式；较大的值（1/1）造出更慢的模式。T = 三连音，D = 附点。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'swing': {
         en: { t: 'Swing',
@@ -332,7 +332,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '摇摆',
               b: '延迟每隔一步的时机，做出摇曳的律动感。0% 时时值平直；数值越高，奇数步越往后推。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'attack': {
         en: { t: 'Attack',
@@ -344,7 +344,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '起音',
               b: '某一步转为开启时的淡入时间（0 到 500 ms）。数值越低起音越锐利，越高则越柔和地涨起。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'release': {
         en: { t: 'Release',
@@ -356,7 +356,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '释音',
               b: '某一步转为关闭时的淡出时间（0 到 500 ms）。数值越低切断越干脆，越高则留下柔和的尾音。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Band display names ──────────────────────────────────────────────────
@@ -371,10 +371,10 @@ export const I18N = Object.freeze({
     // would pin every band tip to whichever language loaded the module.
     //
     // SUB is `sameAsEn` on purpose: it is the word a French control room uses.
-    'bandName.sub':  { en: { t: 'SUB',  b: '' }, fr: { t: 'SUB',    b: '', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '超低频', b: '', reviewed: 'mt' },},
-    'bandName.low':  { en: { t: 'LOW',  b: '' }, fr: { t: 'GRAVE',  b: '', reviewed: true } , 'zh-Hans': { t: '低', b: '', reviewed: 'mt' },},
-    'bandName.mid':  { en: { t: 'MID',  b: '' }, fr: { t: 'MÉDIUM', b: '', reviewed: true } , 'zh-Hans': { t: '中', b: '', reviewed: 'mt' },},
-    'bandName.high': { en: { t: 'HIGH', b: '' }, fr: { t: 'AIGU',   b: '', reviewed: true } , 'zh-Hans': { t: '高', b: '', reviewed: 'mt' },},
+    'bandName.sub':  { en: { t: 'SUB',  b: '' }, fr: { t: 'SUB',    b: '', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '超低频', b: '', reviewed: 'bt' },},
+    'bandName.low':  { en: { t: 'LOW',  b: '' }, fr: { t: 'GRAVE',  b: '', reviewed: true } , 'zh-Hans': { t: '低', b: '', reviewed: 'bt' },},
+    'bandName.mid':  { en: { t: 'MID',  b: '' }, fr: { t: 'MÉDIUM', b: '', reviewed: true } , 'zh-Hans': { t: '中', b: '', reviewed: 'bt' },},
+    'bandName.high': { en: { t: 'HIGH', b: '' }, fr: { t: 'AIGU',   b: '', reviewed: true } , 'zh-Hans': { t: '高', b: '', reviewed: 'bt' },},
 
     // ── Per-band controls ───────────────────────────────────────────────────
     // Identical in all four bands, so the wording lives here once and the band
@@ -391,7 +391,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '{band} 频段',
               b: '显示本频段的频率范围。频率由各频段之间的分频滑块设定。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'band.mute': {
         en: { t: 'Mute',
@@ -403,7 +403,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '静音',
               b: '旁通 {band} 频段的音序器（音频原样通过，不受影响）。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'band.solo': {
         en: { t: 'Solo',
@@ -415,7 +415,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '独奏',
               b: '把其他所有频段静音，只让 {band} 参与音序。再次点击可取消独奏。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'band.clear': {
         en: { t: 'Clear',
@@ -427,7 +427,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '清除',
               b: '把本频段的所有步重置为关闭。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'band.random': {
         en: { t: 'Random',
@@ -439,7 +439,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '随机',
               b: '用随机模式填充各步（每一步 50% 的概率）。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'band.rate': {
         en: { t: '{band} Rate',
@@ -451,7 +451,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '{band} 速率',
               b: '为本频段覆盖全局速率。Global 表示跟随主速率旋钮。设定一个具体的时值即可做复拍音序。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'band.mix': {
         en: { t: '{band} Mix',
@@ -463,7 +463,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '{band} 混合',
               b: '控制在关闭的步上音量下降多少。100% 时关闭的步完全静音；0% 时不产生任何门限。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'band.mode': {
         en: { t: 'Mode',
@@ -475,7 +475,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '模式',
               b: '点击可在手动（自己绘制模式）与欧几里得（按算法生成节奏）之间切换。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'band.expand': {
         en: { t: 'Expand',
@@ -487,7 +487,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '展开',
               b: '打开频段控制面板（相位、步以及欧几里得设置）。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The crossover and boundary sliders ──────────────────────────────────
@@ -501,7 +501,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '低频边界',
               b: '设定纳入处理的最低频率。低于此频率的部分不受影响。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'crossover-1': {
         en: { t: 'Crossover 1',
@@ -513,7 +513,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '分频点 1',
               b: '超低频段与低频段之间的分界点。拖动可调整超低频在哪里结束、低频从哪里开始。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'crossover-2': {
         en: { t: 'Crossover 2',
@@ -525,7 +525,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '分频点 2',
               b: '低频段与中频段之间的分界点。拖动可调整这个频率边界。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'crossover-3': {
         en: { t: 'Crossover 3',
@@ -537,7 +537,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '分频点 3',
               b: '中频段与高频段之间的分界点。拖动可调整中频在哪里结束、高频从哪里开始。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'freq-high': {
         en: { t: 'High Boundary',
@@ -549,7 +549,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '高频边界',
               b: '设定纳入处理的最高频率。高于此频率的部分不受影响。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
@@ -595,28 +595,28 @@ export const LABELS = Object.freeze({
                             fr: { t: 'Séquenceur à pas par bandes de fréquences', reviewed: true } ,
 
         'zh-Hans': { t: '频段步进音序器',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Preset bar ──────────────────────────────────────────────────────────
-    'label.load':         { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'mt' },},
-    'label.save':         { en: { t: 'Save' }, fr: { t: 'Enreg',  reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' },},
+    'label.load':         { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'bt' },},
+    'label.save':         { en: { t: 'Save' }, fr: { t: 'Enreg',  reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'bt' },},
     // Written by setLabel() from showPresetDropdown(), which through v1.17.0
     // built this row with innerHTML and a markup fragment. It is createElement +
     // setLabel now: assertion 12 reports a raw prose write inside a template
     // string, and no I18N_EXEMPT entry could cover it, because an exemption
     // lives in this file where assertion 9 forbids that character.
-    'label.noPresets':    { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true } , 'zh-Hans': { t: '无预设', reviewed: 'mt' },},
+    'label.noPresets':    { en: { t: 'No presets' }, fr: { t: 'Aucun préréglage', reviewed: true } , 'zh-Hans': { t: '无预设', reviewed: 'bt' },},
 
     // ── The settings popover ────────────────────────────────────────────────
-    'label.language':     { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' },},
-    'label.hoverHelp':    { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' },},
+    'label.language':     { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'bt' },},
+    'label.hoverHelp':    { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' },},
     // The two faces of the hover-help switch. KEYS through setLabel(), not
     // literals: a literal holds one string, so switching to French mid-session
     // would restore an English "On". Written from an if/else with two literal
     // keys, never a ternary inside the call — check-i18n assertion 13.
-    'ui.on':              { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' },},
-    'ui.off':             { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' },},
+    'ui.on':              { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'bt' },},
+    'ui.off':             { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' },},
 
     // ── Band controls panel ─────────────────────────────────────────────────
     // ONE key with a {token}, not two. The panel is display:none at rest, and
@@ -628,27 +628,27 @@ export const LABELS = Object.freeze({
                             fr: { t: 'Réglages de la bande {band}', reviewed: true } ,
 
         'zh-Hans': { t: '{band} 频段控制',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'label.pulses':       { en: { t: 'Pulses' }, fr: { t: 'Impulsions', reviewed: true } , 'zh-Hans': { t: '脉冲', reviewed: 'mt' },},
-    'label.offset':       { en: { t: 'Offset' }, fr: { t: 'Décalage',   reviewed: true } , 'zh-Hans': { t: '偏移', reviewed: 'mt' },},
-    'label.phase':        { en: { t: 'Phase' },  fr: { t: 'Phase',      reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '相位', reviewed: 'mt' },},
+    'label.pulses':       { en: { t: 'Pulses' }, fr: { t: 'Impulsions', reviewed: true } , 'zh-Hans': { t: '脉冲', reviewed: 'bt' },},
+    'label.offset':       { en: { t: 'Offset' }, fr: { t: 'Décalage',   reviewed: true } , 'zh-Hans': { t: '偏移', reviewed: 'bt' },},
+    'label.phase':        { en: { t: 'Phase' },  fr: { t: 'Phase',      reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '相位', reviewed: 'bt' },},
 
     // ── Captions shared by the footer row and the panel ─────────────────────
     // `label.steps` is used FIVE times: the footer caption, the panel's
     // Euclidean-length caption and the panel's band-step caption. Same English
     // word, same French word, one key — not three copies that could drift.
-    'label.steps':        { en: { t: 'Steps' },   fr: { t: 'Pas',     reviewed: true } , 'zh-Hans': { t: '步', reviewed: 'mt' },},
-    'label.mix':          { en: { t: 'Mix' },     fr: { t: 'Mix',     reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '混合', reviewed: 'mt' },},
-    'label.rate':         { en: { t: 'Rate' },    fr: { t: 'Vitesse', reviewed: true } , 'zh-Hans': { t: '速率', reviewed: 'mt' },},
-    'label.swing':        { en: { t: 'Swing' },   fr: { t: 'Swing',   reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '摇摆', reviewed: 'mt' },},
-    'label.attack':       { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: true } , 'zh-Hans': { t: '起音', reviewed: 'mt' },},
+    'label.steps':        { en: { t: 'Steps' },   fr: { t: 'Pas',     reviewed: true } , 'zh-Hans': { t: '步', reviewed: 'bt' },},
+    'label.mix':          { en: { t: 'Mix' },     fr: { t: 'Mix',     reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '混合', reviewed: 'bt' },},
+    'label.rate':         { en: { t: 'Rate' },    fr: { t: 'Vitesse', reviewed: true } , 'zh-Hans': { t: '速率', reviewed: 'bt' },},
+    'label.swing':        { en: { t: 'Swing' },   fr: { t: 'Swing',   reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '摇摆', reviewed: 'bt' },},
+    'label.attack':       { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: true } , 'zh-Hans': { t: '起音', reviewed: 'bt' },},
     // The full word, not an abbreviation: .control is `flex: 1`, i.e. flex-basis
     // ZERO, so all six footer cells are 121.7px wide whatever their caption says
     // and the caption cannot move its neighbours. Measured, not assumed — the
     // trap in the other direction (a flex:1 1 auto row where the basis IS the
     // content) is what makes a "fixed" diff come back byte-identical.
-    'label.release':      { en: { t: 'Release' }, fr: { t: 'Relâchement', reviewed: true } , 'zh-Hans': { t: '释音', reviewed: 'mt' },},
+    'label.release':      { en: { t: 'Release' }, fr: { t: 'Relâchement', reviewed: true } , 'zh-Hans': { t: '释音', reviewed: 'bt' },},
 
     // ── The band mode caption ───────────────────────────────────────────────
     // Both faces of a clickable caption a state updater rewrites, which is
@@ -656,8 +656,8 @@ export const LABELS = Object.freeze({
     // mirrors under D-01: the per-band euclidean switch is an
     // AudioParameterBool, so no automation lane ever shows either of these two
     // words, and translating them cannot make the page and the host disagree.
-    'label.manual':       { en: { t: 'Manual' },    fr: { t: 'Manuel',    reviewed: true } , 'zh-Hans': { t: '手动', reviewed: 'mt' },},
-    'label.euclidean':    { en: { t: 'Euclidean' }, fr: { t: 'Euclidien', reviewed: true } , 'zh-Hans': { t: '欧几里得', reviewed: 'mt' },},
+    'label.manual':       { en: { t: 'Manual' },    fr: { t: 'Manuel',    reviewed: true } , 'zh-Hans': { t: '手动', reviewed: 'bt' },},
+    'label.euclidean':    { en: { t: 'Euclidean' }, fr: { t: 'Euclidien', reviewed: true } , 'zh-Hans': { t: '欧几里得', reviewed: 'bt' },},
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
@@ -670,19 +670,19 @@ export const LABELS = Object.freeze({
     // has a data-tip it renders a second, untranslated OS tooltip competing with
     // the measure-then-pin renderer, and check-i18n assertion 11 now fails on
     // any that survive.
-    'aria.presetPrev':    { en: { t: 'Previous preset' },       fr: { t: 'Préréglage précédent',          reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'mt' },},
-    'aria.presetNext':    { en: { t: 'Next preset' },           fr: { t: 'Préréglage suivant',            reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'mt' },},
+    'aria.presetPrev':    { en: { t: 'Previous preset' },       fr: { t: 'Préréglage précédent',          reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'bt' },},
+    'aria.presetNext':    { en: { t: 'Next preset' },           fr: { t: 'Préréglage suivant',            reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'bt' },},
     'aria.presetName':    { en: { t: 'Click to see all presets' },
                             fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true } ,
 
         'zh-Hans': { t: '点击查看全部预设',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'aria.presetLoad':    { en: { t: 'Load preset from file' }, fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } , 'zh-Hans': { t: '从文件载入预设', reviewed: 'mt' },},
-    'aria.presetSave':    { en: { t: 'Save current settings' }, fr: { t: 'Enregistrer les réglages actuels',       reviewed: true } , 'zh-Hans': { t: '保存当前设置', reviewed: 'mt' },},
-    'aria.langSelect':    { en: { t: 'Interface language' },    fr: { t: 'Langue de l’interface',         reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'mt' },},
-    'aria.helpToggle':    { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' },},
-    'aria.closePanel':    { en: { t: 'Close band controls' },   fr: { t: 'Fermer les réglages de la bande', reviewed: true } , 'zh-Hans': { t: '关闭频段控制', reviewed: 'mt' },},
+    'aria.presetLoad':    { en: { t: 'Load preset from file' }, fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } , 'zh-Hans': { t: '从文件载入预设', reviewed: 'bt' },},
+    'aria.presetSave':    { en: { t: 'Save current settings' }, fr: { t: 'Enregistrer les réglages actuels',       reviewed: true } , 'zh-Hans': { t: '保存当前设置', reviewed: 'bt' },},
+    'aria.langSelect':    { en: { t: 'Interface language' },    fr: { t: 'Langue de l’interface',         reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'bt' },},
+    'aria.helpToggle':    { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' },},
+    'aria.closePanel':    { en: { t: 'Close band controls' },   fr: { t: 'Fermer les réglages de la bande', reviewed: true } , 'zh-Hans': { t: '关闭频段控制', reviewed: 'bt' },},
     // The five accessible names on runtime-built controls whose only visible
     // text is a glyph — M, S, the empty-set sign, the die face and the
     // disclosure triangle. Bound by assigning dataset.i18nAria with a plain
@@ -694,12 +694,12 @@ export const LABELS = Object.freeze({
     // They carry no {band}: applyI18nAttributes() resolves with vars = null by
     // design, so a token here would render literally. The band name is the
     // adjacent caption in the same cell and the tip says it in full.
-    'aria.mute':          { en: { t: 'Mute this band' },        fr: { t: 'Rendre cette bande muette',     reviewed: true } , 'zh-Hans': { t: '静音此频段', reviewed: 'mt' },},
-    'aria.solo':          { en: { t: 'Solo this band' },        fr: { t: 'Mettre cette bande en solo',    reviewed: true } , 'zh-Hans': { t: '独奏此频段', reviewed: 'mt' },},
-    'aria.clear':         { en: { t: 'Clear this band' },       fr: { t: 'Effacer cette bande',           reviewed: true } , 'zh-Hans': { t: '清除此频段', reviewed: 'mt' },},
-    'aria.random':        { en: { t: 'Randomize this band' },   fr: { t: 'Rendre cette bande aléatoire',  reviewed: true } , 'zh-Hans': { t: '随机化此频段', reviewed: 'mt' },},
-    'aria.expand':        { en: { t: 'Open band controls' },    fr: { t: 'Ouvrir les réglages de la bande', reviewed: true } , 'zh-Hans': { t: '打开频段控制', reviewed: 'mt' },},
-    'aria.bandRate':      { en: { t: 'Band rate override' },    fr: { t: 'Vitesse propre à la bande',     reviewed: true } , 'zh-Hans': { t: '频段速率覆盖', reviewed: 'mt' },},
+    'aria.mute':          { en: { t: 'Mute this band' },        fr: { t: 'Rendre cette bande muette',     reviewed: true } , 'zh-Hans': { t: '静音此频段', reviewed: 'bt' },},
+    'aria.solo':          { en: { t: 'Solo this band' },        fr: { t: 'Mettre cette bande en solo',    reviewed: true } , 'zh-Hans': { t: '独奏此频段', reviewed: 'bt' },},
+    'aria.clear':         { en: { t: 'Clear this band' },       fr: { t: 'Effacer cette bande',           reviewed: true } , 'zh-Hans': { t: '清除此频段', reviewed: 'bt' },},
+    'aria.random':        { en: { t: 'Randomize this band' },   fr: { t: 'Rendre cette bande aléatoire',  reviewed: true } , 'zh-Hans': { t: '随机化此频段', reviewed: 'bt' },},
+    'aria.expand':        { en: { t: 'Open band controls' },    fr: { t: 'Ouvrir les réglages de la bande', reviewed: true } , 'zh-Hans': { t: '打开频段控制', reviewed: 'bt' },},
+    'aria.bandRate':      { en: { t: 'Band rate override' },    fr: { t: 'Vitesse propre à la bande',     reviewed: true } , 'zh-Hans': { t: '频段速率覆盖', reviewed: 'bt' },},
 });
 
 // ============================================================================
