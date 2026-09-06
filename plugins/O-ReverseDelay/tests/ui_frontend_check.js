@@ -830,13 +830,26 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
             `every data-i18n key in index.html resolves in LABELS or I18N and carries en AND fr`
             + (badLabel.length ? ' — BAD: ' + badLabel.join('; ') : ''));
 
-        // D13 in its label form. This plugin has NO hover-help toggle and never
-        // will, so it has no ui.on / ui.off pair — the popover carries the
-        // language selector alone. A key named for one appearing here would mean
-        // the toggle had been reintroduced through the label table.
+        // D13 in its label form, INVERTED at v1.12.0 and failing on the tree as
+        // found before that.
+        //
+        // This assertion was written at v1.10.0, when D13 recorded that the
+        // popover carried the language selector alone, and it required the
+        // ui.on / ui.off pair to be ABSENT. v1.11.0 added the hover-help toggle
+        // to this plugin — #tips-toggle in the markup, a tips-toggle entry in
+        // the table, and the ui.on / ui.off pair the button's two faces are
+        // written from — and check-i18n assertion 16 has required that switch on
+        // every localized plugin since. So the premise was falsified two
+        // releases ago and this check had been red ever since, asserting the
+        // absence of a control the plugin ships.
+        //
+        // Inverted rather than deleted: the pair is now REQUIRED, because a
+        // toggle whose two faces are raw literals rather than table keys is
+        // stranded in the previous language the instant the selector fires.
         const toggleKeys = [...new Set(markupKeys)].filter((k) => /^ui\.(on|off)$/.test(k));
-        check(toggleKeys.length === 0,
-            'no ui.on / ui.off label key exists — D13: this plugin has no hover-help toggle'
+        check(toggleKeys.length > 0,
+            'the ui.on / ui.off label pair exists — the hover-help toggle v1.11.0 added '
+            + 'writes its two faces through the table, not as literals'
             + (toggleKeys.length ? ' — FOUND: ' + toggleKeys.join(', ') : ''));
     }
 
