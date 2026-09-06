@@ -1,5 +1,94 @@
 # O-TextureForge Changelog
 
+## [1.4.0] - 2026-09-05
+
+Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c).
+MINOR: a third language, one font-token edit, twelve geometry pins and a repaired
+render gate. No parameter, range, type or state format changed, no audio path was
+touched, and **the webpack bundle was not rebuilt**.
+
+### Added
+
+- **`zh-Hans` on every one of the 61 emitter rows** — 15 `I18N` entries (title
+  and body) and 31 `LABELS` entries. Authored at `reviewed: 'mt'`, committed
+  there, and promoted to **`reviewed: 'bt'`** only after two independent blind
+  reverse reads. `'native'` stays open on every row: this project has no native
+  Chinese reader, and `i18n-zh-lint` rule R1 prints that quality level on every
+  run rather than leaving it to a reader's memory.
+- **The endonym `简体中文`**, as numeric character references.
+- **A three-way `languageCode` / `languageIndex` codec.** Anything that is
+  neither `fr` nor `zh-Hans` degrades to English. **No Chinese character appears
+  anywhere under `Source/`.**
+- **A second UI state**, driving the file-size overlay. See below — the first
+  state file drove one state, and the overlay was invisible to every measurement
+  because of it.
+
+### Changed
+
+- **The file-size dialog's two buttons now name a face.** `src/app.js` builds
+  that overlay at runtime, and its buttons carry only background, colour, border,
+  padding, radius, cursor and font-size — a form control does *not* inherit
+  `font-family`, so both took the UA stylesheet's bare Arial, a face with no Han
+  glyphs, under captions that come from the label table and *do* translate.
+  **The repair is a CSS rule, not a source edit**: a stylesheet reaches a
+  runtime-created node just as well as an inline style would, and it keeps the
+  committed bundle and its source in sync for free.
+- **One token edit covers six declarations.** Every `font-family` on this page
+  resolves through `--font-primary`, so the CJK tail lands once — *before* the
+  trailing generic, because Chromium resolves a bare `serif` against the
+  document's `lang` and a tail written after it is never consulted. No face had
+  to be named: Garamond is not installed on the build machine (measured, 0 family
+  matches) but Georgia and Times New Roman both are.
+- **Twelve geometry pins.** Nine are `line-height`, each derived from that leaf's
+  own measured English box, unitless, never global. `.knob-label` is pinned
+  **twice** — it renders at 9 px in `.knob-row` and 8 px in `.bottom-knob-group`,
+  and 10/9 and 9/8 are different ratios, so one unitless number cannot serve both.
+  The other three exist because **the Chinese is smaller**, which is the half a
+  clip check is blind to: the MIDI-mode caption is 55.17 px in English and French
+  and 44.94 in Chinese, so the selector beside it slid 10.23 px left; and the
+  file-size dialog's message is two lines in English and French and one in
+  Chinese *and* the widest child of a shrink-to-fit dialog, so the dialog came out
+  14.5 px narrower and shifted sideways. All three are `min-*`, never fixed: a
+  floor must not cap a language that needs a third line or a wider sentence.
+- **Two hover-help bodies lost an enumeration, in English and French alike.** The
+  gear body counted the popover's controls and named the only one it found, which
+  stopped being true when v1.3.0 added the hover-help switch — `check-i18n`
+  assertion [16] *requires* that switch, which is what made the clause false. The
+  language body ended by naming the selector's options in full. The endonyms still
+  live in `I18N_EXEMPT`, because the `<option>` texts are never translated: the
+  selector is now the only place the list appears, and the one place it cannot go
+  stale.
+- **`tests/ui_tip_render_check.js` derives its language list at BOTH of its two
+  language sites.** The joined-pair assertion was the loud half; the two
+  hand-written sweep calls were the silent one, and no repo-wide census can see
+  them because a call site spells no list to grep for. Guarded so a list that goes
+  empty makes the gate exit non-zero rather than sweep nothing and report green.
+- **Three strings were re-authored after the blind reverse read.** The tagline
+  named the wrong synthesis technique — 串联 is *series* in the electrical sense
+  where the technique is concatenative, 拼接. The dialog's confirm button was in
+  the wrong grammatical mood, reading as a progress report rather than an
+  intention. And the brightness body described a resonator this plugin does not
+  model. None of the three was findable by any gate in this repo.
+
+### Verified
+
+- `check-i18n` exit 0; `check-ui-labels` exit 0 with **0 FAIL on the English,
+  French and Chinese arms**; `i18n-zh-lint` 0 findings and `BELOW SHIP BAR 0`;
+  `i18n-fr-lint` exit 0 — French untouched.
+- `measure-ui --mode box --report all`: `undeclared-font` **2 → 0**, `wrap-count`
+  **1 → 0**, `svg-font-attr` 0, beside 38 visible Han-bearing nodes of which none
+  resolves to a non-CJK face. `line-height-normal` reads 2, both evidenced
+  non-movers.
+- **`git diff --stat` on `js/app.bundle.js` is EMPTY.** The i18n pass is entirely
+  outside the webpack bundle, which the render gate has asserted since v1.1.0 and
+  which was confirmed independently: the bundle contains zero occurrences of
+  `applyI18n`, `data-i18n` or `data-tip`.
+- The render gate passes with a real Chinese arm swept, and its derive-or-abort
+  guard was **fired**: a planted empty language export makes it exit non-zero, and
+  the reverting edit leaves the table byte-identical by sha256.
+- Zero Han under `Source/**/*.{h,cpp}`, positive control fired on the same run.
+- `auval -v` AU VALIDATION SUCCEEDED, triple read off `auval -a`.
+
 ## [1.3.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
