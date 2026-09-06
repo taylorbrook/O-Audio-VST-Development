@@ -432,8 +432,15 @@ export const I18N = Object.freeze({
               b: 'Le mode Libre trace une courbe continue au glissement. Le mode Points place des points de contrôle déplaçables, avec une interpolation lisse entre eux.',
               reviewed: true },
     
+        // THE BODY NAMES THE BUTTONS BY THEIR LOCALIZED CAPTIONS, which is what
+        // the French body does and what the D-01 visibility rule requires:
+        // Freehand and Node are NOT in I18N_EXEMPT — they are keyed labels
+        // (ui.freehand, ui.node) that DO translate on the page — so a body that
+        // spelled them in English would be telling a Chinese reader to press two
+        // buttons that do not exist. The first draft did exactly that and the
+        // blind reverse read is what surfaced it.
         'zh-Hans': { t: '绘制模式',
-              b: 'Freehand 在拖动时画出一条连续的曲线。Node 放置可拖动的控制点，并在点与点之间做平滑插值。',
+              b: '手绘模式在拖动时画出一条连续的曲线。节点模式放置可拖动的控制点，并在点与点之间做平滑插值。',
               reviewed: 'mt' },
     },
 
