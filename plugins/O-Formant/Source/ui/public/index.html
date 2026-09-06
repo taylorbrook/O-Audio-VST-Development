@@ -31,7 +31,7 @@
 html, body {
   width: 800px; height: 600px;
   overflow: hidden;
-  font-family: 'Garamond', 'Times New Roman', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   background: #F5E6D3;
   color: #3C2F2F;
   user-select: none;
@@ -65,7 +65,7 @@ html, body {
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: color 0.15s, border-color 0.15s;
-  font-family: 'Garamond', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   display: flex;
   align-items: center;
 }
@@ -133,7 +133,7 @@ html, body {
   color: #F5E6D3;
   border: none;
   border-radius: 3px;
-  font-family: 'Garamond', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 8px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -169,7 +169,7 @@ html, body {
   border: 1px solid #8B7355;
   border-radius: 3px;
   color: #3C2F2F;
-  font-family: 'Garamond', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 9px;
   padding: 2px 4px;
   cursor: pointer;
@@ -214,7 +214,7 @@ html, body {
   border: 1px solid rgba(139,115,85,0.4);
   border-radius: 3px;
   color: #8B7355;
-  font-family: 'Garamond', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -240,14 +240,14 @@ html, body {
   border: 1px solid #8B7355;
   border-radius: 3px;
   color: #3C2F2F;
-  font-family: 'Courier New', monospace;
+  font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
   font-size: 12px;
   padding: 8px 10px;
   resize: none;
   outline: none;
   letter-spacing: 1px;
 }
-#lyrics-input::placeholder { color: #B8A590; font-style: italic; font-family: 'Garamond', serif; letter-spacing: 0; font-size: 11px; }
+#lyrics-input::placeholder { color: #B8A590; font-style: italic; font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif; letter-spacing: 0; font-size: 11px; }
 #lyrics-input:focus { border-color: #6B8E4E; }
 .lyrics-help {
   font-size: 8px;
@@ -275,7 +275,7 @@ html, body {
    span (contract §5) the counter was the only span in this row, and the loose
    selector would now repaint "Syllables" in Courier green. */
 #lyrics-counter {
-  font-family: 'Courier New', monospace;
+  font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
   font-size: 10px;
   color: #6B8E4E;
   letter-spacing: 0;
@@ -308,7 +308,7 @@ html, body {
   border: 1px solid rgba(139,115,85,0.3);
   border-radius: 3px;
   padding: 4px 8px;
-  font-family: 'Courier New', monospace;
+  font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
   font-size: 11px;
   color: #3C2F2F;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
@@ -340,7 +340,28 @@ html, body {
 }
 #tuning-container .tuning-panel {
   height: 100%;
-  font-family: 'Garamond', 'Times New Roman', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+}
+/* THE FORM-4 REPAIR, v1.29.0.
+   A <button>, <input> or <select> takes its face from the UA stylesheet rather
+   than from an ancestor, so the 31 form controls js/tuning-panel.js builds at
+   runtime resolved to a bare `Arial` that no file in this plugin declares —
+   invisible to every grep, visible only to the computed census. NO OTHER form
+   control on this page is affected: the computed census reports every
+   button/input/select OUTSIDE #tuning-container already carrying a declared
+   stack, and every one INSIDE it on the bare UA face, so this descendant rule
+   reaches exactly the 31 and nothing else. Measured, not assumed.
+
+   ARIAL IS KEPT FIRST so the Latin metrics of the en and fr arms do not move:
+   it is the face these controls already resolved to. The tail goes after it and
+   before the generic, because under a Chinese document language a bare
+   `sans-serif` is ALREADY a Chinese face and a tail written after it would
+   never be consulted. */
+#tuning-container button,
+#tuning-container input,
+#tuning-container select,
+#tuning-container textarea {
+  font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 /* Header */
@@ -378,7 +399,7 @@ html, body {
   line-height: 1;
   padding: 2px 4px;
   cursor: pointer;
-  font-family: 'Garamond', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   transition: color 0.15s;
 }
 .gear-btn:hover { color: #3C2F2F; }
@@ -426,7 +447,7 @@ html, body {
   border: 1px solid #8B7355;
   border-radius: 3px;
   color: #3C2F2F;
-  font-family: 'Garamond', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 10px;
   padding: 1px 4px;
   cursor: pointer;
@@ -450,7 +471,7 @@ html, body {
   border: 1px solid #8B7355;
   border-radius: 3px;
   color: #3C2F2F;
-  font-family: 'Garamond', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 10px;
   padding: 1px 4px;
   flex: 0 0 auto;
@@ -491,7 +512,7 @@ html, body {
   color: #6B8E4E;
   cursor: pointer;
   padding: 0 4px;
-  font-family: 'Garamond', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   line-height: 1;
 }
 .preset-bar .preset-nav:hover {
@@ -511,7 +532,7 @@ html, body {
   border: 1px solid #8B7355;
   border-radius: 3px;
   color: #3C2F2F;
-  font-family: 'Garamond', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 10px;
   padding: 1px 4px;
   cursor: pointer;
@@ -521,7 +542,7 @@ html, body {
   border: 1px solid rgba(139,115,85,0.4);
   border-radius: 3px;
   color: #8B7355;
-  font-family: 'Garamond', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 10px;
   padding: 1px 8px;
   cursor: pointer;
@@ -794,7 +815,7 @@ canvas#xy-pad {
   border: none;
   border-right: 1px solid rgba(139,115,85,0.3);
   color: #8B7355;
-  font-family: 'Garamond', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 9px;
   padding: 3px 10px;
   cursor: pointer;
@@ -1058,7 +1079,7 @@ canvas#consonant-xy-pad {
   border: 1px solid #8B7355;
   border-radius: 4px;
   box-shadow: 2px 4px 12px rgba(60,47,47,0.45);
-  font-family: 'Garamond', 'Times New Roman', serif;
+  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 11px;
   line-height: 1.4;
   opacity: 0;
@@ -1075,6 +1096,98 @@ canvas#consonant-xy-pad {
   color: #C4A882;
   margin-bottom: 3px;
 }
+
+/* ── LINE-HEIGHT PINS (v1.29.0, the zh-Hans rollout) ─────────────────────────
+
+   A Han glyph's line box under `line-height: normal` is roughly 30% taller than
+   a Latin one at the same font-size, so every caption leaf that inherited
+   `normal` GREW when the page went Chinese, and the growth propagated down the
+   column: 101 leaves grew and `check-ui-labels` named 240 moved elements on the
+   zh arm, against none on the fr arm.
+
+   Each pin is that leaf's OWN MEASURED ENGLISH CONTENT LINE BOX divided by its
+   own font-size, written unitless, never global. Padding and border were
+   subtracted before dividing — a bordered button's box is not its line box —
+   and the line COUNT was checked before dividing, because a caption that
+   already wraps in English gives two line boxes and a naive box-over-font-size
+   ratio doubles the pin. Every leaf below renders ONE line in all three
+   languages; the one that does not is handled by a floor further down.
+   Measured with scripts/measure-ui.js --mode box across all 15 states at the
+   parsed 800 x 600 shipping frame.
+
+     font-size  English line box  pin
+       8px             9px        9 / 8  = 1.125
+       8px  (th)       8px        8 / 8  = 1.0
+       9px            10px        10 / 9 = 1.1111111
+      10px            11px        11 / 10 = 1.1
+      11px            12px        12 / 11 = 1.0909091
+
+   THE PIN IS LANGUAGE-INDEPENDENT ON PURPOSE. Each value is what English and
+   French already computed, so neither arm moves; only the Chinese box is
+   brought back to it. A pin written under `html[lang="zh-Hans"]` would leave
+   the box language-dependent and would have to be re-derived every time the
+   type scale changed.
+
+   R8: the whole file carried FOUR line-height declarations before this release
+   — .lyrics-help, .gear-btn, .preset-bar .preset-nav and .tooltip — and not one
+   of them is a selector below. Grepped, not assumed, so no French-era
+   declaration is silently un-pinned by a new rule at higher specificity.      */
+
+.cxy-label,
+.fx-bypass-btn                  { line-height: 1.125; }      /*  9.00 /  8px */
+.rotation-table th              { line-height: 1.0; }        /*  8.00 /  8px */
+
+.knob-label,
+.settings-title,
+.toggle-label,
+.segmented-label,
+.lyrics-btn,
+.viz-btn,
+.tonic-label,
+.pitch-circle-label,
+.ref-knob-label,
+.octave-stretch-label,
+.tuning-file-btn                { line-height: 1.1111111; }  /* 10.00 /  9px */
+
+.fx-title,
+.param-group h3,
+.bottom-group h3,
+.lyrics-header h3,
+.gen-row label,
+.lyrics-syllable-label span,
+.settings-toggle,
+.preset-bar .preset-save-btn,
+.library-header-text,
+.generator-header-text,
+.generator-btn                  { line-height: 1.1; }        /* 11.00 / 10px */
+
+.header span,
+.settings-label,
+.xy-area h2,
+.tk-hint                        { line-height: 1.0909091; }  /* 12.00 / 11px */
+
+/* THE ONE FLOOR (N9), and the one leaf that is not a line-height case at all.
+   `Intervals (11 notes)` wraps to TWO line boxes in English inside the interval
+   list's column; the Chinese `音程（11 个音）` says it in one, so the header
+   SHRANK by 8 px and pulled the whole interval list up with it. That is a line
+   COUNT difference, not a line height difference, and no line-height pin can
+   reach it. A floor at the measured English two-line box holds the box while
+   leaving a language that needs a third line free to grow past it — a floor,
+   never a fixed height. */
+.interval-list-header           { min-height: 22px; }        /* 2 x 11.00px  */
+
+/* THE SECOND FLOOR (N9), and the only WIDTH finding in the wave on this plugin.
+   The rotation table's first column is auto-sized by its widest cell, which is
+   the `Mode` header — every other cell in that column is a one- or two-character
+   note name. `模式` is NARROWER than `Mode` at 8px (27.36px against 30.56px
+   border-box), so the column shrank by 3.20px in Chinese and re-centred the
+   whole 346.56px table inside its panel. The pin is the MEASURED English
+   border-box width of that header, so neither the en nor the fr arm moves —
+   both render the same Latin `Mode` — and it is a FLOOR, so a language whose
+   word for Mode is wider is free to widen the column rather than being clipped
+   by it. box-sizing is border-box page-wide (index.html:30), so this value is
+   the border box and not the content box. */
+.rotation-table th:first-child  { min-width: 30.56px; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -1091,6 +1204,7 @@ canvas#consonant-xy-pad {
         <select id="lang-select" data-i18n-aria="aria.langSelect">
           <option value="en">English</option>
           <option value="fr">Fran&ccedil;ais</option>
+          <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
         </select>
       </div>
 
