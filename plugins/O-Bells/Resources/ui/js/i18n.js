@@ -1162,7 +1162,7 @@ export const LABELS = Object.freeze({
     'label.pitchEnv':    { en: { t: 'Pitch Env' },    fr: { t: 'Env. hauteur', reviewed: true } , 'zh-Hans': { t: '音高包络', reviewed: 'mt' }},
     // The English is ALREADY abbreviated to fit a quarter-width cell, so the
     // French is held to the same budget rather than spelled out.
-    'label.pEnvTime':    { en: { t: 'P.Env Time' },   fr: { t: 'Durée env.', reviewed: true } , 'zh-Hans': { t: '包络时间', reviewed: 'mt' }},
+    'label.pEnvTime':    { en: { t: 'P.Env Time' },   fr: { t: 'Durée env.', reviewed: true } , 'zh-Hans': { t: '音高包络时间', reviewed: 'mt' }},
     'label.nonlinear':   { en: { t: 'Nonlinear' },    fr: { t: 'Non linéaire', reviewed: true } , 'zh-Hans': { t: '非线性', reviewed: 'mt' }},
 
     // ── Instrument tab: Multi-Stage Envelope ────────────────────────────────
