@@ -1,5 +1,94 @@
 # O-Detune Changelog
 
+## [1.9.0] - 2026-09-05
+
+Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c —
+O-Detune is the wave's tracer). MINOR: a third language, a repaired render gate
+and nine geometry pins. No parameter, range, type or state format changed, and
+no audio path was touched.
+
+### Added
+
+- **`zh-Hans` on every one of the 71 emitter rows** — 19 `I18N` entries (title
+  and body) and 33 `LABELS` entries. Authored at `reviewed: 'mt'`, committed
+  there, and promoted to **`reviewed: 'bt'`** only after an independent blind
+  reverse read. `'native'` stays open on every row: this project has no native
+  Chinese reader, and `i18n-zh-lint` rule R1 prints that quality level on every
+  run rather than leaving it to a reader's memory.
+- **The endonym `简体中文`** beside `English` and `Français`, written as numeric
+  character references to match this file's existing convention for `Français`.
+- **A three-way `languageCode` / `languageIndex` codec** in `PluginProcessor.h`.
+  Anything that is neither `fr` nor `zh-Hans` degrades to English, so a
+  hand-edited session cannot store an unvalidated value. **No Chinese character
+  appears anywhere under `Source/`** — the C++ carries only the ASCII code.
+
+### Changed
+
+- **Two hover-help bodies lost an enumeration, in English and French alike.**
+  The gear body asserted the settings popover held nothing besides the language
+  row, which stopped being true when v1.8.0 added the hover-help switch — and
+  `check-i18n` assertion [16] *requires* that switch, which is exactly what made
+  the sentence false. The language body named the selector's options in full,
+  true for as long as the selector held two entries. Both are **deletions**, not
+  extensions: a body that counts a panel's controls has to be re-edited every
+  time the panel grows, in every language, and it is that edit that gets
+  forgotten. The Chinese was authored from the corrected English, after a
+  re-read — no tool in this repo compares a `zh` body against its own `en`.
+- **`tests/ui_tip_render_check.js` derives its language list at BOTH of its two
+  language sites.** A gate has an assertion site and a *walk* site and they are
+  separate code. This file's walk was a three-element array written by hand —
+  the form no repo-wide census can see, because there is no name to grep for.
+  Both now read the table's own `LANGUAGES` export, guarded so that a list that
+  goes empty makes the gate **exit non-zero** rather than sweep zero languages
+  and report a clean sheet. The guard was fired against the walk, not assumed.
+- **Assertion `[5]` asserts a difference where it used to assert a direction.**
+  It required the non-English pass to be strictly *taller*, which held while the
+  only other language wrapped to more lines against the 240 px cap. Chinese does
+  the opposite — the `zh` arm shrank 13 of 14 tips — so the old form would have
+  hard-failed a page on which nothing was wrong. What the assertion is for is
+  catching a pass that measured English twice; movement is the property that
+  tests, not direction. Evaluated per non-English language off the derived list.
+- **All nine font stacks carry a CJK tail, placed BEFORE the trailing generic.**
+  Chromium resolves a bare `serif` against the document's `lang`, so under
+  `zh-Hans` the generic is already a Chinese face and a tail written after it is
+  never consulted — and the page still looks right on macOS, which is what makes
+  that mistake survive review. **No face had to be named**: Georgia is installed
+  on the build machine (measured with `system_profiler SPFontsDataType`, 4
+  family matches), so every stack was already Latin-safe.
+- **The one node whose face no file declared.** The `#width` range input took its
+  typeface from the UA stylesheet, not from anything the page declares, so no
+  grep of any file in this repo could see it; a computed-style census found it.
+  Repaired on `.slider` with **Arial first**, then the tail, so the Latin metrics
+  of the English and French arms do not move.
+- **Nine `line-height` pins.** `line-height: normal` is not a number — it is
+  whatever the resolved face reports as its natural line box, and the resolved
+  face changes with the document language. Every Han-carrying leaf grew 3–4 px
+  and the growth cascaded to 89 moved non-label elements. Each pin is derived
+  from that leaf's own measured English box (height minus padding minus border),
+  unitless, never global; the five `line-height` declarations the page already
+  carried were read for a specificity conflict first, and none of them targets a
+  pinned selector.
+
+### Verified
+
+- `check-i18n` exit 0 with `LANGUAGES` reading three; `check-ui-labels` exit 0
+  with **0 FAIL on the English, French and Chinese arms**; `i18n-zh-lint` 0
+  findings and `BELOW SHIP BAR 0`; `i18n-fr-lint` exit 0 — French untouched.
+- `measure-ui --mode box --report all` reads **0 on all four screens beside 45
+  visible Han-bearing nodes, none of which resolves to a non-CJK face**. A zero
+  from a Han-gated screen run before the table lands is not a zero at all, so
+  every screen here was run afterwards and every zero is quoted with the
+  non-empty count that makes it a measurement.
+- Zero Han under `Source/**/*.{h,cpp}`, with a positive control fired on the
+  same run against the UI table — a negative grep whose control was never run is
+  not evidence.
+- The blind reverse read ran twice, against **two different models**, each from
+  a fresh session outside the repo with no tool access and repo access forbidden
+  in the prompt, on separately salted batches. Round one caught two bodies whose
+  Chinese was ambiguous on the page and both were re-authored; round two,
+  independently, read both corrections back as the English says them.
+- `auval -v` AU VALIDATION SUCCEEDED, triple read off `auval -a`.
+
 ## [1.8.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
