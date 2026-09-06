@@ -164,7 +164,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '歌词',
               b: '',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // The manner-of-articulation word in the consonant pad's live readout,
@@ -172,9 +172,9 @@ export const I18N = Object.freeze({
     // not, because the axis captions directly above it — Fric / Plos — are
     // [data-i18n] elements and reading French on the axis with English in the
     // readout under it is the exact split this stage exists to close.
-    'canvas.plosive':   { en: { t: 'plosive',   b: '' }, fr: { t: 'occlusive', b: '', reviewed: true } , 'zh-Hans': { t: '塞音', b: '', reviewed: 'mt' },},
-    'canvas.fricative': { en: { t: 'fricative', b: '' }, fr: { t: 'fricative', b: '', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '擦音', b: '', reviewed: 'mt' },},
-    'canvas.mixed':     { en: { t: 'mixed',     b: '' }, fr: { t: 'mixte',     b: '', reviewed: true } , 'zh-Hans': { t: '混合音', b: '', reviewed: 'mt' },},
+    'canvas.plosive':   { en: { t: 'plosive',   b: '' }, fr: { t: 'occlusive', b: '', reviewed: true } , 'zh-Hans': { t: '塞音', b: '', reviewed: 'bt' },},
+    'canvas.fricative': { en: { t: 'fricative', b: '' }, fr: { t: 'fricative', b: '', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '擦音', b: '', reviewed: 'bt' },},
+    'canvas.mixed':     { en: { t: 'mixed',     b: '' }, fr: { t: 'mixte',     b: '', reviewed: true } , 'zh-Hans': { t: '塞擦音', b: '', reviewed: 'bt' },},
 
     // ── Runtime-composed strings that are not element text ──────────────────
 
@@ -187,7 +187,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '预设另存为：',
               b: '',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── HOVER-HELP (v1.27.0, Stage M batch M3) ──────────────────────────────
@@ -239,7 +239,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '元音变形',
               b: '拖动光标即可在面板上排布的各个元音之间连续变形；从左到右是 Vowel X，从下到上是 Vowel Y。国际音标符号标出每个基本元音的位置，F1 至 F5 的标记跟踪各共振峰。两个轴的范围都是 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.vowelFocus': {
         en: { t: 'Vowel Focus',
@@ -255,7 +255,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '元音聚焦',
               b: '设定面板向最近的基本元音吸附的锐利程度。低值把周围的元音平滑地融合在一起，高值把声音拉向光标最靠近的那一个。范围 1 到 6。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Glottal source ──────────────────────────────────────────────────────
@@ -273,7 +273,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '嗓音音质',
               b: '设定 Liljencrants-Fant 声门脉冲的 Rd 形状，低端是紧绷、挤压的嗓音，高端是放松、带气声的嗓音。当一个声音听起来过硬或过软时，先动这个参数。范围 0.30 到 2.70。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.breathiness': {
         en: { t: 'Breathiness',
@@ -289,7 +289,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '气声度',
               b: '把送气噪声混入声门源，也就是空气通过未完全闭合的声门时产生的湍流。少量会加宽共振峰的带宽并柔化音色；大量则把嗓音变成耳语。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.vibratoRate': {
         en: { t: 'Vibrato Rate',
@@ -303,7 +303,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '颤音速率',
               b: '音高颤音的速度。5 到 7 Hz 左右是古典演唱的范围；更慢听起来像晃动，更快像发抖。范围 0.5 到 12 Hz。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.vibratoDepth': {
         en: { t: 'Vibrato Depth',
@@ -317,7 +317,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '颤音深度',
               b: '颤音在音符两侧摆动音高的幅度，以音分计。歌剧式颤音接近 50 音分；15 是轻微的闪烁。范围 0 到 100 音分。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.vibratoDelay': {
         en: { t: 'Vibrato Delay',
@@ -333,7 +333,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '颤音延迟',
               b: '一个音符被持续多久之后颤音才淡入。歌手起音时唱得平直，在延长音上才加入颤音，因此设置延迟会让短音符听起来像说话而不是歌唱。范围 0 到 2000 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.jitter': {
         en: { t: 'Jitter',
@@ -348,7 +348,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '抖动',
               b: '声门周期逐周期的随机变化。少量正是让合成嗓音不像蜂鸣器的原因；过多则听成粗糙或嘶哑的嗓音。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.shimmer': {
         en: { t: 'Shimmer',
@@ -361,10 +361,10 @@ export const I18N = Object.freeze({
                + 'Plage 0 à 1.', reviewed: true },
     
 
-        'zh-Hans': { t: '振幅抖动',
+        'zh-Hans': { t: '振幅微扰',
               b: '声门振幅逐周期的随机变化，是抖动在响度上的对应量。要做出苍老或不稳的嗓音，请与抖动一起提高它。范围 0 到 1。',
               termNote: 'the GLOTTAL shimmer — cycle-to-cycle amplitude perturbation of the voice source. The glossary root 微光 is the REVERB sense and is already spent on tip.reverbShimmer on this same plugin\'s effects tab',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.rdModDepth': {
         en: { t: 'Rd Mod Depth',
@@ -380,7 +380,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: 'Rd 调制深度',
               b: '音高、力度和 MPE 压力在发音过程中推动嗓音音质 Rd 变化的程度。为零时嗓音保持一种固定的音质；数值越高，响亮的高音越挤压，轻柔的音越放松。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.spectralTilt': {
         en: { t: 'Spectral Tilt',
@@ -395,7 +395,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '频谱倾斜',
               b: '倾斜声源的整体频谱，零以下变暗，零以上变亮。用它在混音中安置人声而不必触碰共振峰。范围 −12 到 +12 dB。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Consonant ───────────────────────────────────────────────────────────
@@ -415,7 +415,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '辅音的部位与方式',
               b: '拖动即可塑造辅音噪声。从左到右设定发音部位，由双唇经齿龈、硬腭到软腭；从下到上设定发音方式，由塞音到擦音。角落的读数显示噪声的中心频率和所落入的发音方式。两个轴的范围都是 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.consonantLevel': {
         en: { t: 'Consonant Level',
@@ -428,7 +428,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '辅音电平',
               b: '辅音噪声相对于浊音部分的响度。为零时插件只唱纯元音。范围 0 到 2。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.consonantVoicing': {
         en: { t: 'Voicing',
@@ -442,7 +442,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '清浊度',
               b: '让辅音在清音与浊音之间过渡——也就是 s 与 z、p 与 b 之间的差别。范围 0 到 1。',
               termNote: 'the CONSONANT voicing, voiceless against voiced. The glossary root 和声排列 is chord voicing, a different sense that does not occur on this page',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.autoConsonant': {
         en: { t: 'Auto Consonant',
@@ -457,7 +457,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '自动辅音',
               b: '开启后，每次音符触发都会在元音之前先发一个辅音，而不必等待单独的触发。想用一个琴键弹出完整的辅音加元音音节时就打开它。关或开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.consonantAttack': {
         en: { t: 'Cons Attack',
@@ -471,7 +471,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '辅音起音',
               b: '辅音噪声包络的上升时间。短值给出塞音式的爆破，较长的值给出听起来像擦音的渐进。范围 1 到 100 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.consonantHold': {
         en: { t: 'Cons Hold',
@@ -487,7 +487,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '辅音保持',
               b: '辅音噪声在开始衰减之前停留在满电平的时长。擦音会保持，塞音几乎不保持。范围 0 到 200 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.consonantDecay': {
         en: { t: 'Cons Decay',
@@ -500,7 +500,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '辅音衰减',
               b: '辅音噪声包络进入随后那个元音时的下降时间。范围 5 到 200 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.consonantTransition': {
         en: { t: 'Transition',
@@ -517,7 +517,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '辅音过渡',
               b: '元音起始时，辅音把第二和第三共振峰拉向自身位置的强度——这正是听者据以判断听到了哪个辅音的线索。为零时共振峰直接跳到元音。范围 0 到 1。',
               termNote: 'the CONSONANT transition. This page also carries a Transition Time knob in the Character section, so both sides are qualified rather than one',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Character ───────────────────────────────────────────────────────────
@@ -535,7 +535,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '共振峰拓扑',
               b: '选择五个共振峰谐振器的连接方式。Cascade 是 Klatt 的串联链，对元音最自然；Parallel 让每个共振峰有各自的增益，适合噪声更多的声音；Hybrid 两者并用。Cascade、Parallel 或 Hybrid。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.formantShift': {
         en: { t: 'Formant Shift',
@@ -551,7 +551,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '共振峰移位',
               b: '在不改变音高的前提下把所有共振峰一起上移或下移。下移听起来像更大的身体和更深的喉咙，上移则像更小的。范围 −24 到 +24 个半音。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.formantSpread': {
         en: { t: 'Formant Spread',
@@ -566,7 +566,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '共振峰展宽',
               b: '缩放五个共振峰各自与其平均频率之间的距离。小于 1 时它们靠拢，元音变厚；大于 1 时它们散开。范围 0.50 到 2.00。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.pitchGlide': {
         en: { t: 'Pitch Glide',
@@ -579,7 +579,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '音高滑音',
               b: '从上一个音符滑向新音符所用的时间，也就是嗓音的滑音。为零时每个音符都直接从自身的音高开始。范围 0 到 1000 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.transitionTime': {
         en: { t: 'Transition Time',
@@ -594,7 +594,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '过渡时间',
               b: '元音改变时共振峰滤波器移动的快慢。低值在元音之间跳变，高值像真实的声道那样把一个元音抹入下一个。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.singersFormant': {
         en: { t: 'Singer’s Formant',
@@ -610,7 +610,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '歌手共振峰',
               b: '把第三、第四和第五共振峰聚成 3 kHz 附近的一簇并加以提升——这是受过训练的歌手用来穿透乐队的共鸣。当人声在密集的混音中消失时提高它。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.nasalCoupling': {
         en: { t: 'Nasality',
@@ -625,7 +625,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '鼻音度',
               b: '打开软腭，把鼻腔耦合到声道并加入它的极点零点对。发 m、n 和 ng 时必需；在元音上加一点听起来像感冒。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.nasalPlace': {
         en: { t: 'Nasal Place',
@@ -639,7 +639,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '鼻音位置',
               b: '让鼻腔共振沿声道移动，低端是 m，经过 n，到高端的 ng。只有当鼻音度大于零时才听得到。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Envelope and output ─────────────────────────────────────────────────
@@ -654,7 +654,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '起音',
               b: '按下琴键后音符达到满电平所需的时间。范围 0.001 到 5 s。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.decay': {
         en: { t: 'Decay',
@@ -667,7 +667,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '衰减',
               b: '音符从满电平降到延音电平所需的时间。范围 0.001 到 5 s。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.sustain': {
         en: { t: 'Sustain',
@@ -680,7 +680,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '延音',
               b: '琴键保持按下时音符维持的电平，以满电平的比例表示。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.release': {
         en: { t: 'Release',
@@ -693,7 +693,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '释音',
               b: '松开琴键后音符淡至无声所需的时间。范围 0.001 到 10 s。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.outputGain': {
         en: { t: 'Output Gain',
@@ -706,7 +706,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '输出增益',
               b: '插件的最终电平，施加在效果机架之后。范围 −60 到 +12 dB。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.stereoWidth': {
         en: { t: 'Stereo Width',
@@ -720,7 +720,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '立体声宽度',
               b: '按音符编号把各声部铺开在立体声场中，低音在左，高音在右。为零时每个声部都位于中央。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Effects: chorus ─────────────────────────────────────────────────────
@@ -737,7 +737,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '合唱旁通',
               b: '把合唱接入或移出信号路径。合唱运行时按钮显示开，被旁通时显示关，因此按钮上的字与参数名是有意相反的。关或开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.chorusRate': {
         en: { t: 'Chorus Rate',
@@ -750,7 +750,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '合唱速率',
               b: '合唱延迟调制的速度。慢的设置会漂移，快的会颤动。范围 0.1 到 10 Hz。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.chorusDepth': {
         en: { t: 'Chorus Depth',
@@ -763,7 +763,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '合唱深度',
               b: '合唱调制其延迟时间的幅度，也就是你听到的失谐量。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.chorusMix': {
         en: { t: 'Chorus Mix',
@@ -776,7 +776,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '合唱混合',
               b: '干声与经过合唱的副本之间的平衡。为零时即使合唱在运行也听不见。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Effects: delay ──────────────────────────────────────────────────────
@@ -793,7 +793,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '延迟旁通',
               b: '把延迟接入或移出信号路径。延迟运行时按钮显示开，被旁通时显示关，因此按钮上的字与参数名是有意相反的。关或开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.delayTime': {
         en: { t: 'Delay Time',
@@ -804,7 +804,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '延迟时间',
               b: '人声与它第一次回声之间的时间。范围 0.001 到 2 s。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.delayFeedback': {
         en: { t: 'Delay Feedback',
@@ -819,7 +819,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '延迟反馈',
               b: '每次回声被送回以产生下一次的比例，它决定你听到多少次重复。上限止于 1 之前，使这条线路不会失控。范围 0 到 0.95。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.delayMode': {
         en: { t: 'Delay Mode',
@@ -833,7 +833,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '延迟模式',
               b: 'Normal 把两个声道送入同一条延迟线。PingPong 把它们交叉馈送，使重复在左右之间交替。Normal 或 PingPong。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.delayMix': {
         en: { t: 'Delay Mix',
@@ -846,7 +846,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '延迟混合',
               b: '干声与延迟副本之间的平衡。为零时即使延迟在运行也听不见。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Effects: reverb ─────────────────────────────────────────────────────
@@ -863,7 +863,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '混响旁通',
               b: '把混响接入或移出信号路径。混响运行时按钮显示开，被旁通时显示关，因此按钮上的字与参数名是有意相反的。关或开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.reverbSize': {
         en: { t: 'Reverb Size',
@@ -875,7 +875,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '混响尺寸',
               b: '所模拟房间的尺寸，它决定尾音延续的长度。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.reverbDamp': {
         en: { t: 'Reverb Damping',
@@ -889,7 +889,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '混响阻尼',
               b: '尾音中高频被吸收的快慢。低值给出明亮的瓷砖房间，高值给出柔和的挂帘房间。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.reverbPredelay': {
         en: { t: 'Reverb Pre-delay',
@@ -904,7 +904,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '混响预延迟',
               b: '干声与混响尾音开始之间的间隔。几十毫秒就能让歌词在长混响里保持清晰。范围 0 到 200 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.reverbMod': {
         en: { t: 'Reverb Modulation',
@@ -919,7 +919,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '混响调制',
               b: '用一组慢速 LFO 调制梳状延迟的长度，使尾音不会停在固定的共振上。一点点就能去掉长尾音的金属味。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.reverbShimmer': {
         en: { t: 'Reverb Shimmer',
@@ -932,7 +932,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '混响微光',
               b: '把尾音升高八度的副本送回混响，使它在衰减的同时向上攀升。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.reverbMix': {
         en: { t: 'Reverb Mix',
@@ -945,7 +945,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '混响混合',
               b: '干声与混响之间的平衡。为零时即使混响在运行也听不见。范围 0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Effects: EQ ─────────────────────────────────────────────────────────
@@ -962,7 +962,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '均衡旁通',
               b: '把均衡器接入或移出信号路径。均衡运行时按钮显示开，被旁通时显示关，因此按钮上的字与参数名是有意相反的。关或开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.eqLowGain': {
         en: { t: 'EQ Low Gain',
@@ -974,7 +974,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '均衡低频增益',
               b: '低频搁架的衰减或提升，转折点在 200 Hz。范围 −12 到 +12 dB。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.eqMidGain': {
         en: { t: 'EQ Mid Gain',
@@ -987,7 +987,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '均衡中频增益',
               b: '中频钟形带的衰减或提升，中心位于均衡的中频频率。范围 −12 到 +12 dB。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.eqMidFreq': {
         en: { t: 'EQ Mid Freq',
@@ -1000,7 +1000,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '均衡中频频率',
               b: '中频钟形带的中心频率。元音特征的大部分位于 500 到 3000 Hz 之间。范围 200 到 8000 Hz。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tip.eqHighGain': {
         en: { t: 'EQ High Gain',
@@ -1012,7 +1012,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '均衡高频增益',
               b: '高频搁架的衰减或提升，转折点在 8 kHz。范围 −12 到 +12 dB。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Lyrics ──────────────────────────────────────────────────────────────
@@ -1029,7 +1029,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '启用歌词',
               b: '把元音和辅音光标交给歌词引擎，它会在每个音符上依次走过上方输入的 ARPABET 音素。开启期间两个面板不再跟随鼠标。关或开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Chrome ──────────────────────────────────────────────────────────────
@@ -1057,7 +1057,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '设置',
               b: '在此按钮正下方打开设置面板。面板中有界面语言和悬停帮助开关。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // v1.29.0 CORRECTION. Through v1.28.1 this body named the selector's
     // options and gave their count, in both languages. The selector now offers
@@ -1079,7 +1079,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '语言',
               b: '把页面上的每一个标签、每一个标题、每一处按钮文字和每一条悬停帮助都切换成所选的语言。数值读数保持英文的数字格式和单位符号。所选语言随会话一起记住。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // v1.28.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -1094,7 +1094,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '悬停帮助',
               b: '开启或关闭这些悬停帮助。关闭之后，只有齿轮和这个开关仍会解释自己。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
@@ -1118,20 +1118,20 @@ export const I18N = Object.freeze({
 export const LABELS = Object.freeze({
 
     // ── Header ──────────────────────────────────────────────────────────────
-    'label.subtitle':      { en: { t: 'vocal synthesizer' }, fr: { t: 'synthétiseur vocal', reviewed: true } , 'zh-Hans': { t: '人声合成器', reviewed: 'mt' },},
+    'label.subtitle':      { en: { t: 'vocal synthesizer' }, fr: { t: 'synthétiseur vocal', reviewed: true } , 'zh-Hans': { t: '人声合成器', reviewed: 'bt' },},
 
     // ── Settings popover (v1.26.0) ──────────────────────────────────────────
-    'label.settings':      { en: { t: 'Settings' },   fr: { t: 'Réglages',  reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'mt' },},
-    'label.language':      { en: { t: 'Language' },   fr: { t: 'Langue',    reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' },},
+    'label.settings':      { en: { t: 'Settings' },   fr: { t: 'Réglages',  reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'bt' },},
+    'label.language':      { en: { t: 'Language' },   fr: { t: 'Langue',    reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'bt' },},
 
     // v1.28.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' },},
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' },},
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' },},
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' },},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'bt' },},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' },},
 
     // ── Preset bar ──────────────────────────────────────────────────────────
     // "Enreg." at v1.27.1, and the v1.26.0 note this replaces was backwards.
@@ -1143,61 +1143,61 @@ export const LABELS = Object.freeze({
     // without it SAVE and ENREG. differ by 13.01 px and re-centre the cluster.
     // The prompt this button opens still says "Enregistrer le préréglage
     // sous :" in full; it has no box.
-    'label.save':          { en: { t: 'Save' },       fr: { t: 'Enreg.',    reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' },},
+    'label.save':          { en: { t: 'Save' },       fr: { t: 'Enreg.',    reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'bt' },},
     // The "no filter" sentinel of #preset-category. Its VALUE is the string
     // "all" and that is what populateCategories() and the change handler
     // compare, so the visible text is free to change.
-    'label.allCategories': { en: { t: 'All' },        fr: { t: 'Toutes',    reviewed: true } , 'zh-Hans': { t: '全部', reviewed: 'mt' },},
+    'label.allCategories': { en: { t: 'All' },        fr: { t: 'Toutes',    reviewed: true } , 'zh-Hans': { t: '全部', reviewed: 'bt' },},
 
     // ── Tabs ────────────────────────────────────────────────────────────────
-    'label.tabSynth':      { en: { t: 'Synth' },      fr: { t: 'Synthé',    reviewed: true } , 'zh-Hans': { t: '合成器', reviewed: 'mt' },},
-    'label.tabLyrics':     { en: { t: 'Lyrics' },     fr: { t: 'Paroles',   reviewed: true } , 'zh-Hans': { t: '歌词', reviewed: 'mt' },},
-    'label.tabTuning':     { en: { t: 'Tuning' },     fr: { t: 'Accord',    reviewed: true } , 'zh-Hans': { t: '调音', reviewed: 'mt' },},
-    'label.tabEffects':    { en: { t: 'Effects' },    fr: { t: 'Effets',    reviewed: true } , 'zh-Hans': { t: '效果', reviewed: 'mt' },},
+    'label.tabSynth':      { en: { t: 'Synth' },      fr: { t: 'Synthé',    reviewed: true } , 'zh-Hans': { t: '合成器', reviewed: 'bt' },},
+    'label.tabLyrics':     { en: { t: 'Lyrics' },     fr: { t: 'Paroles',   reviewed: true } , 'zh-Hans': { t: '歌词', reviewed: 'bt' },},
+    'label.tabTuning':     { en: { t: 'Tuning' },     fr: { t: 'Accord',    reviewed: true } , 'zh-Hans': { t: '调音', reviewed: 'bt' },},
+    'label.tabEffects':    { en: { t: 'Effects' },    fr: { t: 'Effets',    reviewed: true } , 'zh-Hans': { t: '效果', reviewed: 'bt' },},
 
     // ── Synth tab: vowel pad and glottal source ─────────────────────────────
-    'label.vowelMorph':    { en: { t: 'Vowel Morph' },    fr: { t: 'Morphose vocalique', reviewed: true } , 'zh-Hans': { t: '元音变形', reviewed: 'mt' },},
-    'label.glottalSource': { en: { t: 'Glottal Source' }, fr: { t: 'Source glottique',   reviewed: true } , 'zh-Hans': { t: '声门源', reviewed: 'mt' },},
+    'label.vowelMorph':    { en: { t: 'Vowel Morph' },    fr: { t: 'Morphose vocalique', reviewed: true } , 'zh-Hans': { t: '元音变形', reviewed: 'bt' },},
+    'label.glottalSource': { en: { t: 'Glottal Source' }, fr: { t: 'Source glottique',   reviewed: true } , 'zh-Hans': { t: '声门源', reviewed: 'bt' },},
     // glottalRd drives the LF model's Rd shape, which IS the voice quality.
-    'label.voiceQ':        { en: { t: 'Voice Q' },    fr: { t: 'Qualité',   reviewed: true } , 'zh-Hans': { t: '音质', reviewed: 'mt' },},
-    'label.breath':        { en: { t: 'Breath' },     fr: { t: 'Souffle',   reviewed: true } , 'zh-Hans': { t: '气息', reviewed: 'mt' },},
-    'label.vibRate':       { en: { t: 'Vib Rate' },   fr: { t: 'Vit. vibrato', reviewed: true } , 'zh-Hans': { t: '颤音速率', reviewed: 'mt' },},
+    'label.voiceQ':        { en: { t: 'Voice Q' },    fr: { t: 'Qualité',   reviewed: true } , 'zh-Hans': { t: '音质', reviewed: 'bt' },},
+    'label.breath':        { en: { t: 'Breath' },     fr: { t: 'Souffle',   reviewed: true } , 'zh-Hans': { t: '气息', reviewed: 'bt' },},
+    'label.vibRate':       { en: { t: 'Vib Rate' },   fr: { t: 'Vit. vibrato', reviewed: true } , 'zh-Hans': { t: '颤音速率', reviewed: 'bt' },},
     // "Prof. vibrato" at v1.27.1. The v1.26.0 note chose "Ampleur" to keep the
     // 55 px cell clear of the effects rack's standalone "Profondeur"; the
     // glossary's abbreviated root answers both worries at once — it cannot be
     // confused with the bare "Profondeur" and it is NARROWER than what shipped
     // (45.50 against "Vib Ampleur" 46.72; "Vit. vibrato" 40.95 against
     // "Vib Vitesse" 41.02). Measured on this page, nowrap, at 800 x 600.
-    'label.vibDepth':      { en: { t: 'Vib Depth' },  fr: { t: 'Prof. vibrato', reviewed: true } , 'zh-Hans': { t: '颤音深度', reviewed: 'mt' },},
-    'label.vibDelay':      { en: { t: 'Vib Delay' },  fr: { t: 'Vib Retard',  reviewed: true } , 'zh-Hans': { t: '颤音延迟', reviewed: 'mt' },},
+    'label.vibDepth':      { en: { t: 'Vib Depth' },  fr: { t: 'Prof. vibrato', reviewed: true } , 'zh-Hans': { t: '颤音深度', reviewed: 'bt' },},
+    'label.vibDelay':      { en: { t: 'Vib Delay' },  fr: { t: 'Vib Retard',  reviewed: true } , 'zh-Hans': { t: '颤音延迟', reviewed: 'bt' },},
     // Shimmer stays — the glossary carries it as a loanword the French audio
     // press uses. Jitter does NOT: the glossary settles gigue, so the caption,
     // tip.jitter's title and the two cross-references inside tip.shimmer's body
     // moved together at v1.27.1. French voice-science papers do write "jitter",
     // and that argument was weighed and lost to one suite-wide word (22.00 px
     // against 18.00 in a 55 px cell, so width had nothing to say).
-    'label.jitter':        { en: { t: 'Jitter' },     fr: { t: 'Gigue',     reviewed: true } , 'zh-Hans': { t: '抖动', reviewed: 'mt' },},
-    'label.shimmer':       { en: { t: 'Shimmer' },    fr: { t: 'Shimmer',   reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '振幅抖动', termNote: 'the GLOTTAL shimmer — cycle-to-cycle amplitude perturbation. 微光 is the reverb sense and is already spent on the effects tab', reviewed: 'mt' },},
-    'label.rdMod':         { en: { t: 'Rd Mod' },     fr: { t: 'Mod Rd',    reviewed: true } , 'zh-Hans': { t: 'Rd 调制', reviewed: 'mt' },},
-    'label.tilt':          { en: { t: 'Tilt' },       fr: { t: 'Inclinaison', reviewed: true } , 'zh-Hans': { t: '倾斜', reviewed: 'mt' },},
+    'label.jitter':        { en: { t: 'Jitter' },     fr: { t: 'Gigue',     reviewed: true } , 'zh-Hans': { t: '抖动', reviewed: 'bt' },},
+    'label.shimmer':       { en: { t: 'Shimmer' },    fr: { t: 'Shimmer',   reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '振幅微扰', termNote: 'the GLOTTAL shimmer — cycle-to-cycle amplitude perturbation. 微光 is the reverb sense and is already spent on the effects tab. RE-AUTHORED after the blind reverse read: the first rendering came back as "Amplitude Jitter", colliding with the Jitter knob beside it', reviewed: 'bt' },},
+    'label.rdMod':         { en: { t: 'Rd Mod' },     fr: { t: 'Mod Rd',    reviewed: true } , 'zh-Hans': { t: 'Rd 调制', reviewed: 'bt' },},
+    'label.tilt':          { en: { t: 'Tilt' },       fr: { t: 'Inclinaison', reviewed: true } , 'zh-Hans': { t: '倾斜', reviewed: 'bt' },},
 
     // ── Synth tab: consonant ────────────────────────────────────────────────
-    'label.consonant':     { en: { t: 'Consonant' },  fr: { t: 'Consonne',  reviewed: true } , 'zh-Hans': { t: '辅音', reviewed: 'mt' },},
-    'label.level':         { en: { t: 'Level' },      fr: { t: 'Niveau',    reviewed: true } , 'zh-Hans': { t: '电平', reviewed: 'mt' },},
-    'label.voicing':       { en: { t: 'Voicing' },    fr: { t: 'Voisement', reviewed: true } , 'zh-Hans': { t: '清浊度', termNote: 'the CONSONANT voicing, voiceless against voiced; 和声排列 is chord voicing and does not occur on this page', reviewed: 'mt' },},
-    'label.auto':          { en: { t: 'Auto' },       fr: { t: 'Auto',      reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '自动', reviewed: 'mt' },},
+    'label.consonant':     { en: { t: 'Consonant' },  fr: { t: 'Consonne',  reviewed: true } , 'zh-Hans': { t: '辅音', reviewed: 'bt' },},
+    'label.level':         { en: { t: 'Level' },      fr: { t: 'Niveau',    reviewed: true } , 'zh-Hans': { t: '电平', reviewed: 'bt' },},
+    'label.voicing':       { en: { t: 'Voicing' },    fr: { t: 'Voisement', reviewed: true } , 'zh-Hans': { t: '清浊度', termNote: 'the CONSONANT voicing, voiceless against voiced; 和声排列 is chord voicing and does not occur on this page', reviewed: 'bt' },},
+    'label.auto':          { en: { t: 'Auto' },       fr: { t: 'Auto',      reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '自动', reviewed: 'bt' },},
     // Place and manner of articulation, abbreviated to fit the 8 px overlay on
     // the consonant pad. The French terms are labial / alvéolaire / palatal /
     // vélaire and fricative / occlusive, so four of the six abbreviate the
     // same way and two do not.
-    'label.placeLabial':     { en: { t: 'Lab' },  fr: { t: 'Lab',  reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '双唇', reviewed: 'mt' },},
-    'label.placeAlveolar':   { en: { t: 'Alv' },  fr: { t: 'Alv',  reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '齿龈', reviewed: 'mt' },},
-    'label.placePalatal':    { en: { t: 'Pal' },  fr: { t: 'Pal',  reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '硬腭', reviewed: 'mt' },},
-    'label.placeVelar':      { en: { t: 'Vel' },  fr: { t: 'Vél',  reviewed: true } , 'zh-Hans': { t: '软腭', reviewed: 'mt' },},
-    'label.mannerFricative': { en: { t: 'Fric' }, fr: { t: 'Fric', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '擦音', reviewed: 'mt' },},
-    'label.mannerPlosive':   { en: { t: 'Plos' }, fr: { t: 'Occl', reviewed: true } , 'zh-Hans': { t: '塞音', reviewed: 'mt' },},
+    'label.placeLabial':     { en: { t: 'Lab' },  fr: { t: 'Lab',  reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '双唇', reviewed: 'bt' },},
+    'label.placeAlveolar':   { en: { t: 'Alv' },  fr: { t: 'Alv',  reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '齿龈', reviewed: 'bt' },},
+    'label.placePalatal':    { en: { t: 'Pal' },  fr: { t: 'Pal',  reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '硬腭', reviewed: 'bt' },},
+    'label.placeVelar':      { en: { t: 'Vel' },  fr: { t: 'Vél',  reviewed: true } , 'zh-Hans': { t: '软腭', reviewed: 'bt' },},
+    'label.mannerFricative': { en: { t: 'Fric' }, fr: { t: 'Fric', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '擦音', reviewed: 'bt' },},
+    'label.mannerPlosive':   { en: { t: 'Plos' }, fr: { t: 'Occl', reviewed: true } , 'zh-Hans': { t: '塞音', reviewed: 'bt' },},
     // The consonant envelope column: 42 px cells, the tightest on the page.
-    'label.attackShort':   { en: { t: 'Atk' },    fr: { t: 'Att',   reviewed: true } , 'zh-Hans': { t: '辅音起音', reviewed: 'mt' },},
+    'label.attackShort':   { en: { t: 'Atk' },    fr: { t: 'Att',   reviewed: true } , 'zh-Hans': { t: '辅音起音', reviewed: 'bt' },},
     // "Tenue", not the glossary's "Maintien": Maintien is already this page's
     // Sustain caption (label.sustain, 32.50 px in the 55 px ADSR cell three
     // rows away and visible at the same time), and one French word on two
@@ -1209,91 +1209,91 @@ export const LABELS = Object.freeze({
                                      + 'one French name is a defect' } ,
 
         'zh-Hans': { t: '保持',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'label.transShort':    { en: { t: 'Trans' },  fr: { t: 'Trans', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '辅音过渡', reviewed: 'mt' },},
+    'label.transShort':    { en: { t: 'Trans' },  fr: { t: 'Trans', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '辅音过渡', reviewed: 'bt' },},
 
     // ── Synth tab: character ────────────────────────────────────────────────
-    'label.character':     { en: { t: 'Character' },  fr: { t: 'Caractère', reviewed: true } , 'zh-Hans': { t: '特性', reviewed: 'mt' },},
-    'label.topology':      { en: { t: 'Topology' },   fr: { t: 'Topologie', reviewed: true } , 'zh-Hans': { t: '拓扑', reviewed: 'mt' },},
-    'label.shift':         { en: { t: 'Shift' },      fr: { t: 'Décalage',  reviewed: true } , 'zh-Hans': { t: '移位', reviewed: 'mt' },},
-    'label.spread':        { en: { t: 'Spread' },     fr: { t: 'Étalement', reviewed: true } , 'zh-Hans': { t: '展宽', reviewed: 'mt' },},
-    'label.glide':         { en: { t: 'Glide' },      fr: { t: 'Portamento', reviewed: true } , 'zh-Hans': { t: '滑音', reviewed: 'mt' },},
-    'label.transition':    { en: { t: 'Transition' }, fr: { t: 'Transition', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '过渡时间', termNote: 'the Transition Time knob in the Character section; the consonant envelope on the same tab carries its own Transition, so both are qualified', reviewed: 'mt' },},
-    'label.focus':         { en: { t: 'Focus' },      fr: { t: 'Focalisation', reviewed: true } , 'zh-Hans': { t: '聚焦', reviewed: 'mt' },},
+    'label.character':     { en: { t: 'Character' },  fr: { t: 'Caractère', reviewed: true } , 'zh-Hans': { t: '特性', reviewed: 'bt' },},
+    'label.topology':      { en: { t: 'Topology' },   fr: { t: 'Topologie', reviewed: true } , 'zh-Hans': { t: '拓扑', reviewed: 'bt' },},
+    'label.shift':         { en: { t: 'Shift' },      fr: { t: 'Décalage',  reviewed: true } , 'zh-Hans': { t: '移位', reviewed: 'bt' },},
+    'label.spread':        { en: { t: 'Spread' },     fr: { t: 'Étalement', reviewed: true } , 'zh-Hans': { t: '展宽', reviewed: 'bt' },},
+    'label.glide':         { en: { t: 'Glide' },      fr: { t: 'Portamento', reviewed: true } , 'zh-Hans': { t: '滑音', reviewed: 'bt' },},
+    'label.transition':    { en: { t: 'Transition' }, fr: { t: 'Transition', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '过渡时间', termNote: 'the Transition Time knob in the Character section; the consonant envelope on the same tab carries its own Transition, so both are qualified', reviewed: 'bt' },},
+    'label.focus':         { en: { t: 'Focus' },      fr: { t: 'Focalisation', reviewed: true } , 'zh-Hans': { t: '聚焦', reviewed: 'bt' },},
     // "Formant du chanteur" measures 74.98 px in this 55 px .knob-wrap, which
     // is shrink-to-fit with overflow: visible — it would overhang 9.99 px per
     // side into a 10.00 px gap and clear its neighbour by 0.01 px. This is the
     // one width defence on the page that HELD when Stage N re-measured it.
     // "F. chanteur" (39.78) stays, and it is what a French singing-synthesis
     // UI uses anyway.
-    'label.singersFormant':{ en: { t: "Singer's F" }, fr: { t: 'F. chanteur', reviewed: true } , 'zh-Hans': { t: '歌手共振峰', reviewed: 'mt' },},
-    'label.nasality':      { en: { t: 'Nasality' },   fr: { t: 'Nasalité',  reviewed: true } , 'zh-Hans': { t: '鼻音度', reviewed: 'mt' },},
-    'label.nasalPlace':    { en: { t: 'Nasal Place' }, fr: { t: 'Lieu nasal', reviewed: true } , 'zh-Hans': { t: '鼻音位置', reviewed: 'mt' },},
+    'label.singersFormant':{ en: { t: "Singer's F" }, fr: { t: 'F. chanteur', reviewed: true } , 'zh-Hans': { t: '歌手共振峰', reviewed: 'bt' },},
+    'label.nasality':      { en: { t: 'Nasality' },   fr: { t: 'Nasalité',  reviewed: true } , 'zh-Hans': { t: '鼻音度', reviewed: 'bt' },},
+    'label.nasalPlace':    { en: { t: 'Nasal Place' }, fr: { t: 'Lieu nasal', reviewed: true } , 'zh-Hans': { t: '鼻音位置', reviewed: 'bt' },},
 
     // ── Synth tab: envelope and output ──────────────────────────────────────
-    'label.envelope':      { en: { t: 'Envelope' },   fr: { t: 'Enveloppe', reviewed: true } , 'zh-Hans': { t: '包络', reviewed: 'mt' },},
-    'label.attack':        { en: { t: 'Attack' },     fr: { t: 'Attaque',   reviewed: true } , 'zh-Hans': { t: '起音', reviewed: 'mt' },},
+    'label.envelope':      { en: { t: 'Envelope' },   fr: { t: 'Enveloppe', reviewed: true } , 'zh-Hans': { t: '包络', reviewed: 'bt' },},
+    'label.attack':        { en: { t: 'Attack' },     fr: { t: 'Attaque',   reviewed: true } , 'zh-Hans': { t: '起音', reviewed: 'bt' },},
     // Shared by the ADSR decay (55 px) and the consonant decay (42 px):
     // "Déclin" is 6 characters and fits both, so one key, one string.
-    'label.decay':         { en: { t: 'Decay' },      fr: { t: 'Déclin',    reviewed: true } , 'zh-Hans': { t: '衰减', reviewed: 'mt' },},
-    'label.sustain':       { en: { t: 'Sustain' },    fr: { t: 'Maintien',  reviewed: true } , 'zh-Hans': { t: '延音', reviewed: 'mt' },},
-    'label.release':       { en: { t: 'Release' },    fr: { t: 'Relâchement', reviewed: true } , 'zh-Hans': { t: '释音', reviewed: 'mt' },},
-    'label.output':        { en: { t: 'Output' },     fr: { t: 'Sortie',    reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'mt' },},
-    'label.gain':          { en: { t: 'Gain' },       fr: { t: 'Gain',      reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '增益', reviewed: 'mt' },},
-    'label.width':         { en: { t: 'Width' },      fr: { t: 'Largeur',   reviewed: true } , 'zh-Hans': { t: '宽度', reviewed: 'mt' },},
+    'label.decay':         { en: { t: 'Decay' },      fr: { t: 'Déclin',    reviewed: true } , 'zh-Hans': { t: '衰减', reviewed: 'bt' },},
+    'label.sustain':       { en: { t: 'Sustain' },    fr: { t: 'Maintien',  reviewed: true } , 'zh-Hans': { t: '延音', reviewed: 'bt' },},
+    'label.release':       { en: { t: 'Release' },    fr: { t: 'Relâchement', reviewed: true } , 'zh-Hans': { t: '释音', reviewed: 'bt' },},
+    'label.output':        { en: { t: 'Output' },     fr: { t: 'Sortie',    reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'bt' },},
+    'label.gain':          { en: { t: 'Gain' },       fr: { t: 'Gain',      reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '增益', reviewed: 'bt' },},
+    'label.width':         { en: { t: 'Width' },      fr: { t: 'Largeur',   reviewed: true } , 'zh-Hans': { t: '宽度', reviewed: 'bt' },},
 
     // ── Effects tab ─────────────────────────────────────────────────────────
-    'label.chorus':        { en: { t: 'Chorus' },     fr: { t: 'Chorus',    reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '合唱', reviewed: 'mt' },},
-    'label.delay':         { en: { t: 'Delay' },      fr: { t: 'Délai',     reviewed: true } , 'zh-Hans': { t: '延迟', reviewed: 'mt' },},
-    'label.reverb':        { en: { t: 'Reverb' },     fr: { t: 'Réverb',    reviewed: true } , 'zh-Hans': { t: '混响', reviewed: 'mt' },},
-    'label.eq':            { en: { t: 'EQ' },         fr: { t: 'EQ',        reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '均衡', reviewed: 'mt' },},
+    'label.chorus':        { en: { t: 'Chorus' },     fr: { t: 'Chorus',    reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '合唱', reviewed: 'bt' },},
+    'label.delay':         { en: { t: 'Delay' },      fr: { t: 'Délai',     reviewed: true } , 'zh-Hans': { t: '延迟', reviewed: 'bt' },},
+    'label.reverb':        { en: { t: 'Reverb' },     fr: { t: 'Réverb',    reviewed: true } , 'zh-Hans': { t: '混响', reviewed: 'bt' },},
+    'label.eq':            { en: { t: 'EQ' },         fr: { t: 'EQ',        reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '均衡', reviewed: 'bt' },},
     // The four bypass buttons' two faces. Written from script, so they go
     // through setLabel() and the element becomes a [data-i18n] element from
     // that moment on — a raw literal there is stranded in the previous
     // language the instant the selector fires.
-    'label.on':            { en: { t: 'On' },         fr: { t: 'Marche',    reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' },},
-    'label.off':           { en: { t: 'Off' },        fr: { t: 'Arrêt',     reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' },},
-    'label.rate':          { en: { t: 'Rate' },       fr: { t: 'Vitesse',   reviewed: true } , 'zh-Hans': { t: '速率', reviewed: 'mt' },},
-    'label.depth':         { en: { t: 'Depth' },      fr: { t: 'Profondeur', reviewed: true } , 'zh-Hans': { t: '深度', reviewed: 'mt' },},
-    'label.mix':           { en: { t: 'Mix' },        fr: { t: 'Mix',       reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '混合', reviewed: 'mt' },},
-    'label.time':          { en: { t: 'Time' },       fr: { t: 'Durée',     reviewed: true } , 'zh-Hans': { t: '时间', reviewed: 'mt' },},
-    'label.feedback':      { en: { t: 'Feedback' },   fr: { t: 'Réinjection', reviewed: true } , 'zh-Hans': { t: '反馈', reviewed: 'mt' },},
+    'label.on':            { en: { t: 'On' },         fr: { t: 'Marche',    reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'bt' },},
+    'label.off':           { en: { t: 'Off' },        fr: { t: 'Arrêt',     reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' },},
+    'label.rate':          { en: { t: 'Rate' },       fr: { t: 'Vitesse',   reviewed: true } , 'zh-Hans': { t: '速率', reviewed: 'bt' },},
+    'label.depth':         { en: { t: 'Depth' },      fr: { t: 'Profondeur', reviewed: true } , 'zh-Hans': { t: '深度', reviewed: 'bt' },},
+    'label.mix':           { en: { t: 'Mix' },        fr: { t: 'Mix',       reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '混合', reviewed: 'bt' },},
+    'label.time':          { en: { t: 'Time' },       fr: { t: 'Durée',     reviewed: true } , 'zh-Hans': { t: '时间', reviewed: 'bt' },},
+    'label.feedback':      { en: { t: 'Feedback' },   fr: { t: 'Réinjection', reviewed: true } , 'zh-Hans': { t: '反馈', reviewed: 'bt' },},
     // Shared by the delay-mode caption and the tuning panel's rotation-table
     // column header: one word, identical in both languages, one key.
-    'label.mode':          { en: { t: 'Mode' },       fr: { t: 'Mode',      reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '模式', reviewed: 'mt' },},
-    'label.size':          { en: { t: 'Size' },       fr: { t: 'Taille',    reviewed: true } , 'zh-Hans': { t: '尺寸', reviewed: 'mt' },},
-    'label.damp':          { en: { t: 'Damp' },       fr: { t: 'Amort.',    reviewed: true } , 'zh-Hans': { t: '阻尼', reviewed: 'mt' },},
-    'label.preDelay':      { en: { t: 'Pre-dly' },    fr: { t: 'Pré-délai', reviewed: true } , 'zh-Hans': { t: '预延迟', reviewed: 'mt' },},
-    'label.mod':           { en: { t: 'Mod' },        fr: { t: 'Mod',       reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '调制', reviewed: 'mt' },},
-    'label.low':           { en: { t: 'Low' },        fr: { t: 'Grave',     reviewed: true } , 'zh-Hans': { t: '低', reviewed: 'mt' },},
-    'label.mid':           { en: { t: 'Mid' },        fr: { t: 'Médium',    reviewed: true } , 'zh-Hans': { t: '中', reviewed: 'mt' },},
-    'label.midFreq':       { en: { t: 'Mid Freq' },   fr: { t: 'Fréq. méd.', reviewed: true } , 'zh-Hans': { t: '中频频率', reviewed: 'mt' },},
-    'label.high':          { en: { t: 'High' },       fr: { t: 'Aigu',      reviewed: true } , 'zh-Hans': { t: '高', reviewed: 'mt' },},
+    'label.mode':          { en: { t: 'Mode' },       fr: { t: 'Mode',      reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '模式', reviewed: 'bt' },},
+    'label.size':          { en: { t: 'Size' },       fr: { t: 'Taille',    reviewed: true } , 'zh-Hans': { t: '尺寸', reviewed: 'bt' },},
+    'label.damp':          { en: { t: 'Damp' },       fr: { t: 'Amort.',    reviewed: true } , 'zh-Hans': { t: '阻尼', reviewed: 'bt' },},
+    'label.preDelay':      { en: { t: 'Pre-dly' },    fr: { t: 'Pré-délai', reviewed: true } , 'zh-Hans': { t: '预延迟', reviewed: 'bt' },},
+    'label.mod':           { en: { t: 'Mod' },        fr: { t: 'Mod',       reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '调制', reviewed: 'bt' },},
+    'label.low':           { en: { t: 'Low' },        fr: { t: 'Grave',     reviewed: true } , 'zh-Hans': { t: '低', reviewed: 'bt' },},
+    'label.mid':           { en: { t: 'Mid' },        fr: { t: 'Médium',    reviewed: true } , 'zh-Hans': { t: '中', reviewed: 'bt' },},
+    'label.midFreq':       { en: { t: 'Mid Freq' },   fr: { t: 'Fréq. méd.', reviewed: true } , 'zh-Hans': { t: '中频频率', reviewed: 'bt' },},
+    'label.high':          { en: { t: 'High' },       fr: { t: 'Aigu',      reviewed: true } , 'zh-Hans': { t: '高', reviewed: 'bt' },},
 
     // ── Lyrics tab ──────────────────────────────────────────────────────────
-    'label.arpabetInput':  { en: { t: 'ARPABET Input' }, fr: { t: 'Saisie ARPABET', reviewed: true } , 'zh-Hans': { t: 'ARPABET 输入', reviewed: 'mt' },},
-    'label.enable':        { en: { t: 'Enable' },     fr: { t: 'Activer',   reviewed: true } , 'zh-Hans': { t: '启用', reviewed: 'mt' },},
-    'label.loop':          { en: { t: 'Loop' },       fr: { t: 'Boucle',    reviewed: true } , 'zh-Hans': { t: '循环', reviewed: 'mt' },},
+    'label.arpabetInput':  { en: { t: 'ARPABET Input' }, fr: { t: 'Saisie ARPABET', reviewed: true } , 'zh-Hans': { t: 'ARPABET 输入', reviewed: 'bt' },},
+    'label.enable':        { en: { t: 'Enable' },     fr: { t: 'Activer',   reviewed: true } , 'zh-Hans': { t: '启用', reviewed: 'bt' },},
+    'label.loop':          { en: { t: 'Loop' },       fr: { t: 'Boucle',    reviewed: true } , 'zh-Hans': { t: '循环', reviewed: 'bt' },},
     // "Réinit.", not "Réinitialiser": 13 characters against 5 grew
     // .lyrics-controls by 45 px and dragged four elements left. The full
     // sentence survives on the button's accessible name (aria.resetLyrics),
     // which has no box to fit.
-    'label.reset':         { en: { t: 'Reset' },      fr: { t: 'Réinit.',   reviewed: true } , 'zh-Hans': { t: '重置', reviewed: 'mt' },},
+    'label.reset':         { en: { t: 'Reset' },      fr: { t: 'Réinit.',   reviewed: true } , 'zh-Hans': { t: '重置', reviewed: 'bt' },},
     // The help line under the ARPABET box is ONE text node in v1.25.4 holding
     // two captions around two runs of phoneme codes. Split into two keyed
     // spans so applyLabel cannot delete the codes with them; the code runs
     // themselves are I18N_EXEMPT notation.
-    'label.vowels':        { en: { t: 'Vowels:' },     fr: { t: 'Voyelles :', reviewed: true } , 'zh-Hans': { t: '元音：', reviewed: 'mt' },},
-    'label.consonants':    { en: { t: 'Consonants:' }, fr: { t: 'Consonnes :', reviewed: true } , 'zh-Hans': { t: '辅音：', reviewed: 'mt' },},
-    'label.syllables':     { en: { t: 'Syllables' },   fr: { t: 'Syllabes',  reviewed: true } , 'zh-Hans': { t: '音节', reviewed: 'mt' },},
+    'label.vowels':        { en: { t: 'Vowels:' },     fr: { t: 'Voyelles :', reviewed: true } , 'zh-Hans': { t: '元音：', reviewed: 'bt' },},
+    'label.consonants':    { en: { t: 'Consonants:' }, fr: { t: 'Consonnes :', reviewed: true } , 'zh-Hans': { t: '辅音：', reviewed: 'bt' },},
+    'label.syllables':     { en: { t: 'Syllables' },   fr: { t: 'Syllabes',  reviewed: true } , 'zh-Hans': { t: '音节', reviewed: 'bt' },},
     'label.tuningPanelFailed': {
         en: { t: 'Tuning panel failed to load.' },
         fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: true },
     
 
         'zh-Hans': { t: '调音面板载入失败。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Tuning tab (js/tuning-panel.js) ─────────────────────────────────────
@@ -1312,62 +1312,62 @@ export const LABELS = Object.freeze({
                              fr: { t: 'Intervalles ({n} notes)', reviewed: true } ,
 
         'zh-Hans': { t: '音程（{n} 个音）',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'tuning.tonic':        { en: { t: 'Tonic' },      fr: { t: 'Tonique',   reviewed: true } , 'zh-Hans': { t: '主音', reviewed: 'mt' },},
+    'tuning.tonic':        { en: { t: 'Tonic' },      fr: { t: 'Tonique',   reviewed: true } , 'zh-Hans': { t: '主音', reviewed: 'bt' },},
     // The note count under each library row. "notes" is the same word in
     // French, so the entry exists to KEY the node rather than to change it:
     // an unkeyed node here is indistinguishable from one somebody forgot, and
     // this template is an `html +=` accumulator, which assertion 12 cannot
     // read at all.
-    'tuning.noteCount':    { en: { t: '{n} notes' },  fr: { t: '{n} notes', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '{n} 个音', reviewed: 'mt' },},
-    'tuning.vizCircle':    { en: { t: 'Circle' },     fr: { t: 'Cercle',    reviewed: true } , 'zh-Hans': { t: '圆周', reviewed: 'mt' },},
-    'tuning.vizPolar':     { en: { t: 'Polar' },      fr: { t: 'Polaire',   reviewed: true } , 'zh-Hans': { t: '极坐标', reviewed: 'mt' },},
-    'tuning.vizMatrix':    { en: { t: 'Matrix' },     fr: { t: 'Matrice',   reviewed: true } , 'zh-Hans': { t: '矩阵', reviewed: 'mt' },},
-    'tuning.vizTrueKeys':  { en: { t: 'True Keys' },  fr: { t: 'Touches',   reviewed: true } , 'zh-Hans': { t: '真实键位', reviewed: 'mt' },},
-    'tuning.vizRotation':  { en: { t: 'Rotation' },   fr: { t: 'Rotation',  reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '旋转', reviewed: 'mt' },},
+    'tuning.noteCount':    { en: { t: '{n} notes' },  fr: { t: '{n} notes', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '{n} 个音', reviewed: 'bt' },},
+    'tuning.vizCircle':    { en: { t: 'Circle' },     fr: { t: 'Cercle',    reviewed: true } , 'zh-Hans': { t: '圆周', reviewed: 'bt' },},
+    'tuning.vizPolar':     { en: { t: 'Polar' },      fr: { t: 'Polaire',   reviewed: true } , 'zh-Hans': { t: '极坐标', reviewed: 'bt' },},
+    'tuning.vizMatrix':    { en: { t: 'Matrix' },     fr: { t: 'Matrice',   reviewed: true } , 'zh-Hans': { t: '矩阵', reviewed: 'bt' },},
+    'tuning.vizTrueKeys':  { en: { t: 'True Keys' },  fr: { t: 'Touches',   reviewed: true } , 'zh-Hans': { t: '真实键位', reviewed: 'bt' },},
+    'tuning.vizRotation':  { en: { t: 'Rotation' },   fr: { t: 'Rotation',  reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '旋转', reviewed: 'bt' },},
     'tuning.scaleIntervals': { en: { t: 'Scale Intervals' },
                                fr: { t: 'Intervalles de la gamme', reviewed: true } ,
 
         'zh-Hans': { t: '音阶音程',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tuning.tkHint':       { en: { t: 'Hold 2+ notes to see intervals' },
                              fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: true } ,
 
         'zh-Hans': { t: '按住 2 个以上音符可查看音程',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'tuning.library':      { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque', reviewed: true } , 'zh-Hans': { t: '调音库', reviewed: 'mt' },},
+    'tuning.library':      { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque', reviewed: true } , 'zh-Hans': { t: '调音库', reviewed: 'bt' },},
     // The library filter <option>s. Their VALUE is matched against the
     // `category` field of getEmbeddedTuningList(), so only the text moves.
-    'tuning.catAll':       { en: { t: 'All Categories' },   fr: { t: 'Toutes catégories', reviewed: true } , 'zh-Hans': { t: '全部类别', reviewed: 'mt' },},
-    'tuning.catHistorical':{ en: { t: 'Historical' },       fr: { t: 'Historiques',   reviewed: true } , 'zh-Hans': { t: '历史音律', reviewed: 'mt' },},
-    'tuning.catJust':      { en: { t: 'Just Intonation' },  fr: { t: 'Intonation juste', reviewed: true } , 'zh-Hans': { t: '纯律', reviewed: 'mt' },},
-    'tuning.catEqual':     { en: { t: 'Equal Divisions' },  fr: { t: 'Divisions égales', reviewed: true } , 'zh-Hans': { t: '等分', reviewed: 'mt' },},
-    'tuning.catNonOctave': { en: { t: 'Non-Octave' },       fr: { t: 'Non octaviantes', reviewed: true } , 'zh-Hans': { t: '非八度', reviewed: 'mt' },},
-    'tuning.catWorld':     { en: { t: 'World' },            fr: { t: 'Du monde',      reviewed: true } , 'zh-Hans': { t: '世界音律', reviewed: 'mt' },},
+    'tuning.catAll':       { en: { t: 'All Categories' },   fr: { t: 'Toutes catégories', reviewed: true } , 'zh-Hans': { t: '全部类别', reviewed: 'bt' },},
+    'tuning.catHistorical':{ en: { t: 'Historical' },       fr: { t: 'Historiques',   reviewed: true } , 'zh-Hans': { t: '历史音律', reviewed: 'bt' },},
+    'tuning.catJust':      { en: { t: 'Just Intonation' },  fr: { t: 'Intonation juste', reviewed: true } , 'zh-Hans': { t: '纯律', reviewed: 'bt' },},
+    'tuning.catEqual':     { en: { t: 'Equal Divisions' },  fr: { t: 'Divisions égales', reviewed: true } , 'zh-Hans': { t: '等分', reviewed: 'bt' },},
+    'tuning.catNonOctave': { en: { t: 'Non-Octave' },       fr: { t: 'Non octaviantes', reviewed: true } , 'zh-Hans': { t: '非八度', reviewed: 'bt' },},
+    'tuning.catWorld':     { en: { t: 'World' },            fr: { t: 'Du monde',      reviewed: true } , 'zh-Hans': { t: '世界音律', reviewed: 'bt' },},
     // A4 stays: it is scientific pitch notation, and the French octave
     // numbering for the same pitch is La3, which would silently rename the
     // reference the .scl / .kbm files are written against.
-    'tuning.a4Ref':        { en: { t: 'A4 REF' },      fr: { t: 'RÉF. A4',   reviewed: true } , 'zh-Hans': { t: 'A4 基准', reviewed: 'mt' },},
-    'tuning.stretch':      { en: { t: 'Stretch' },     fr: { t: 'Étirement', reviewed: true } , 'zh-Hans': { t: '延展', reviewed: 'mt' },},
-    'tuning.loadScl':      { en: { t: 'Load .SCL' },   fr: { t: 'Ouvrir .SCL', reviewed: true } , 'zh-Hans': { t: '载入 .scl', reviewed: 'mt' },},
-    'tuning.loadKbm':      { en: { t: 'Load .KBM' },   fr: { t: 'Ouvrir .KBM', reviewed: true } , 'zh-Hans': { t: '载入 .kbm', reviewed: 'mt' },},
-    'tuning.saveScl':      { en: { t: 'Save .SCL' },   fr: { t: 'Enreg. .SCL', reviewed: true } , 'zh-Hans': { t: '保存 .scl', reviewed: 'mt' },},
-    'tuning.saveKbm':      { en: { t: 'Save .KBM' },   fr: { t: 'Enreg. .KBM', reviewed: true } , 'zh-Hans': { t: '保存 .kbm', reviewed: 'mt' },},
-    'tuning.exportHtml':   { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: true } , 'zh-Hans': { t: '导出 HTML', reviewed: 'mt' },},
-    'tuning.generateScale':{ en: { t: 'Generate Scale' }, fr: { t: 'Générer une gamme', reviewed: true } , 'zh-Hans': { t: '生成音阶', reviewed: 'mt' },},
-    'tuning.genEdo':       { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: true } , 'zh-Hans': { t: '等分八度 (EDO)', reviewed: 'mt' },},
-    'tuning.genHarmonic':  { en: { t: 'Harmonic Series' },      fr: { t: 'Série harmonique', reviewed: true } , 'zh-Hans': { t: '泛音列', reviewed: 'mt' },},
-    'tuning.genRank2':     { en: { t: 'Rank-2 Temperament' },   fr: { t: 'Tempérament de rang 2', reviewed: true } , 'zh-Hans': { t: '二阶音律', reviewed: 'mt' },},
-    'tuning.divisions':    { en: { t: 'Divisions' },      fr: { t: 'Divisions', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '分割', reviewed: 'mt' },},
-    'tuning.period':       { en: { t: 'Period (c)' },     fr: { t: 'Période (c)', reviewed: true } , 'zh-Hans': { t: '周期 (C)', reviewed: 'mt' },},
-    'tuning.startHarmonic':{ en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: true } , 'zh-Hans': { t: '起始泛音', reviewed: 'mt' },},
-    'tuning.endHarmonic':  { en: { t: 'End Harmonic' },   fr: { t: 'Harmonique de fin', reviewed: true } , 'zh-Hans': { t: '终止泛音', reviewed: 'mt' },},
-    'tuning.generator':    { en: { t: 'Generator (c)' },  fr: { t: 'Générateur (c)', reviewed: true } , 'zh-Hans': { t: '生成元 (C)', reviewed: 'mt' },},
-    'tuning.notes':        { en: { t: 'Notes' },          fr: { t: 'Notes',    reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '音符', reviewed: 'mt' },},
-    'tuning.generate':     { en: { t: 'Generate' },       fr: { t: 'Générer',  reviewed: true } , 'zh-Hans': { t: '生成', reviewed: 'mt' },},
+    'tuning.a4Ref':        { en: { t: 'A4 REF' },      fr: { t: 'RÉF. A4',   reviewed: true } , 'zh-Hans': { t: 'A4 基准', reviewed: 'bt' },},
+    'tuning.stretch':      { en: { t: 'Stretch' },     fr: { t: 'Étirement', reviewed: true } , 'zh-Hans': { t: '延展', reviewed: 'bt' },},
+    'tuning.loadScl':      { en: { t: 'Load .SCL' },   fr: { t: 'Ouvrir .SCL', reviewed: true } , 'zh-Hans': { t: '载入 .scl', reviewed: 'bt' },},
+    'tuning.loadKbm':      { en: { t: 'Load .KBM' },   fr: { t: 'Ouvrir .KBM', reviewed: true } , 'zh-Hans': { t: '载入 .kbm', reviewed: 'bt' },},
+    'tuning.saveScl':      { en: { t: 'Save .SCL' },   fr: { t: 'Enreg. .SCL', reviewed: true } , 'zh-Hans': { t: '保存 .scl', reviewed: 'bt' },},
+    'tuning.saveKbm':      { en: { t: 'Save .KBM' },   fr: { t: 'Enreg. .KBM', reviewed: true } , 'zh-Hans': { t: '保存 .kbm', reviewed: 'bt' },},
+    'tuning.exportHtml':   { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: true } , 'zh-Hans': { t: '导出 HTML', reviewed: 'bt' },},
+    'tuning.generateScale':{ en: { t: 'Generate Scale' }, fr: { t: 'Générer une gamme', reviewed: true } , 'zh-Hans': { t: '生成音阶', reviewed: 'bt' },},
+    'tuning.genEdo':       { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: true } , 'zh-Hans': { t: '等分八度 (EDO)', reviewed: 'bt' },},
+    'tuning.genHarmonic':  { en: { t: 'Harmonic Series' },      fr: { t: 'Série harmonique', reviewed: true } , 'zh-Hans': { t: '泛音列', reviewed: 'bt' },},
+    'tuning.genRank2':     { en: { t: 'Rank-2 Temperament' },   fr: { t: 'Tempérament de rang 2', reviewed: true } , 'zh-Hans': { t: '二阶音律', reviewed: 'bt' },},
+    'tuning.divisions':    { en: { t: 'Divisions' },      fr: { t: 'Divisions', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '分割', reviewed: 'bt' },},
+    'tuning.period':       { en: { t: 'Period (c)' },     fr: { t: 'Période (c)', reviewed: true } , 'zh-Hans': { t: '周期 (C)', reviewed: 'bt' },},
+    'tuning.startHarmonic':{ en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: true } , 'zh-Hans': { t: '起始泛音', reviewed: 'bt' },},
+    'tuning.endHarmonic':  { en: { t: 'End Harmonic' },   fr: { t: 'Harmonique de fin', reviewed: true } , 'zh-Hans': { t: '终止泛音', reviewed: 'bt' },},
+    'tuning.generator':    { en: { t: 'Generator (c)' },  fr: { t: 'Générateur (c)', reviewed: true } , 'zh-Hans': { t: '生成元 (C)', reviewed: 'bt' },},
+    'tuning.notes':        { en: { t: 'Notes' },          fr: { t: 'Notes',    reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '音符', reviewed: 'bt' },},
+    'tuning.generate':     { en: { t: 'Generate' },       fr: { t: 'Générer',  reviewed: true } , 'zh-Hans': { t: '生成', reviewed: 'bt' },},
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is the accessible NAME. A screen reader in French reading
@@ -1375,28 +1375,28 @@ export const LABELS = Object.freeze({
     // caption. None of these has a rendered box, so none is a geometry risk.
     // The four below replace the four native title= attributes v1.25.4
     // carried: their text is MOVED, not re-authored (contract §4).
-    'aria.presetPrev':     { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'mt' },},
-    'aria.presetNext':     { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'mt' },},
-    'aria.loopToggle':     { en: { t: 'Toggle loop' },     fr: { t: 'Activer ou désactiver la boucle', reviewed: true } , 'zh-Hans': { t: '开关循环', reviewed: 'mt' },},
+    'aria.presetPrev':     { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'bt' },},
+    'aria.presetNext':     { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'bt' },},
+    'aria.loopToggle':     { en: { t: 'Toggle loop' },     fr: { t: 'Activer ou désactiver la boucle', reviewed: true } , 'zh-Hans': { t: '开关循环', reviewed: 'bt' },},
     'aria.resetLyrics':    { en: { t: 'Reset to first syllable' },
                              fr: { t: 'Revenir à la première syllabe', reviewed: true } ,
 
         'zh-Hans': { t: '回到第一个音节',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'aria.langSelect':     { en: { t: 'Interface language' },
                              fr: { t: 'Langue de l’interface', reviewed: true } ,
 
         'zh-Hans': { t: '界面语言',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' },},
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' },},
     'placeholder.lyrics':  { en: { t: 'Type ARPABET phonemes separated by spaces (e.g. HH AH L OW W ER L D)' },
                              fr: { t: 'Saisir des phonèmes ARPABET séparés par des espaces (ex. HH AH L OW W ER L D)',
                                    reviewed: true } ,
 
         'zh-Hans': { t: '输入以空格分隔的 ARPABET 音素（例如 HH AH L OW W ER L D）',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
