@@ -61,7 +61,7 @@
   --shadow-medium: rgba(0, 0, 0, 0.25);
   --shadow-heavy: rgba(0, 0, 0, 0.5);
   --text-emboss: rgba(255, 255, 255, 0.5);
-  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', serif;
+  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -76,7 +76,7 @@ html, body {
 }
 
 body {
-  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   color: var(--brown-text);
   background:
     radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
@@ -136,6 +136,7 @@ body {
   color: var(--brown-soft);
   opacity: 0.85;
   margin-top: 1px;
+  line-height: 1.2;   /* zh pin: en content box 15px at 12.5px */
   /* 640px through v1.0.3, where the English 625.6px cleared it by 14.4px and any
      longer string wrapped. Raised to the space the title block actually has now
      that its basis is pinned; the English strapline is unchanged at 625.6px and
@@ -208,6 +209,7 @@ body {
   font-size: 11.5px;
   font-weight: 600;
   color: var(--brown-text);
+  line-height: 1.0434783;   /* zh pin: en content box 12px at 11.5px */
 }
 /* select.combo's caret and paper, at popover scale. min-width, never width, so
    a platform with wider font metrics grows the box instead of clipping it. */
@@ -246,6 +248,7 @@ body {
   border-radius: 4px;
   padding: 4px 8px;
   min-width: 96px;
+  line-height: 1.1;   /* zh pin: en content box 11px at 10px */
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
@@ -273,12 +276,13 @@ body {
               transport starts either — a pre-existing twitch, fixed for free.
    The cost lands in ENGLISH as a 16.7px gap after LENGTH, and in French as
    trailing space after "pas" and "libre". */
-.tr-key-length { display: inline-block; min-width: 60px; }
-.tr-unit-steps { display: inline-block; min-width: 21px; }
+.tr-key-tempo  { display: inline-block; min-width: 37.5px; line-height: 1.047619; }   /* zh floor: the EXACT measured English box ("TEMPO" 37.5px) — 速度 is 22.47px and un-floored it narrowed the whole transport strip 15px. zh pin: en content box 11px at 10.5px */
+.tr-key-length { display: inline-block; min-width: 60px; line-height: 1.047619; }   /* zh pin: en content box 11px at 10.5px */
+.tr-unit-steps { display: inline-block; min-width: 21px; line-height: 1.047619; }   /* zh pin: en content box 11px at 10.5px */
 .tr-label { font-style: italic; opacity: 0.6; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; }
 .tr-unit { opacity: 0.6; font-size: 10.5px; }
 .tr-item span[id] { font-weight: 700; font-variant-numeric: tabular-nums; }
-.tr-state #readTransport { color: var(--brown-soft); font-weight: 600; display: inline-block; min-width: 53px; }
+.tr-state #readTransport { color: var(--brown-soft); font-weight: 600; display: inline-block; min-width: 53px; line-height: 1.25; }   /* zh pin: en content box 15px at 12px — the leading bullet comes from --symbol-font and sets a taller line box than the page serif */
 .tr-state #readTransport.synced { color: var(--green-dark); }
 
 /* ── Step grid (headline) ───────────────────────────────────────────────── */
@@ -288,6 +292,13 @@ body {
   font-weight: 700;
   color: var(--green-dark);
   letter-spacing: 0.3px;
+  /* zh pin: en content box 15px at 12px. These three rows are LINE BOXES the
+     census cannot see — every leaf inside them reports an identical box on both
+     arms and the container still grew 2px, because an inline box's height is the
+     used face's ascent+descent and PingFang SC's are taller than Times New
+     Roman's (M9's shape, one level up). The ratio inherits, so the 11px hints,
+     the 9.5px keycap and the 12px captions all resolve under the row's own box. */
+  line-height: 1.25;
 }
 .grid-hint, .lane-hint, .midi-hint {
   font-weight: 400;
@@ -297,7 +308,7 @@ body {
   font-size: 11px;
 }
 .grid-label kbd {
-  font-family: 'Menlo', 'Consolas', monospace;
+  font-family: 'Menlo', 'Consolas', 'PingFang SC', 'Microsoft YaHei', monospace;
   font-size: 9.5px;
   background: rgba(92, 64, 51, 0.12);
   border: 1px solid rgba(92, 64, 51, 0.3);
@@ -313,6 +324,7 @@ body {
   border-radius: 4px;
   padding: 2px 9px;
   margin-left: 8px;
+  line-height: 1.047619;   /* zh pin: en content box 11px at 10.5px */
   cursor: pointer;
   vertical-align: middle;
   transition: background 0.12s ease, border-color 0.12s ease;
@@ -414,6 +426,10 @@ body {
 .lane-legend {
   display: flex; flex-wrap: wrap; gap: 14px;
   font-size: 10.5px; font-style: italic; color: var(--brown-soft); opacity: 0.85;
+  /* zh pin: en content box 11.19px at 10.5px. The four .lk spans are FLEX ITEMS
+     here, so each is block-level and its box IS its line box; the pin inherits
+     down rather than being repeated on a selector that has no rule of its own. */
+  line-height: 1.0657143;
 }
 .lk::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
 .lk-grid::before  { background: var(--brown-border); }
@@ -430,7 +446,7 @@ body {
   border-radius: 6px;
   background: #2a2118;
   color: #e8d5b7;
-  font-family: 'Menlo', 'Consolas', monospace;
+  font-family: 'Menlo', 'Consolas', 'PingFang SC', 'Microsoft YaHei', monospace;
   font-size: 11px;
   line-height: 1.5;
   padding: 4px 9px;
@@ -476,6 +492,7 @@ body {
   border-bottom: 1px solid rgba(139, 115, 85, 0.4);
   padding-bottom: 3px;
   letter-spacing: 0.3px;
+  line-height: 1.2;   /* zh pin: en content box 15px at 12.5px */
 }
 .group-route { font-weight: 400; font-style: italic; font-size: 10.5px; opacity: 0.7; color: var(--brown-soft); }
 
@@ -574,7 +591,7 @@ select.combo:focus { outline: none; border-color: var(--green-mid); }
   flex-direction: column;
   gap: 5px;
 }
-.vs-name { font-size: 11.5px; font-weight: 700; color: var(--voice-hue, var(--brown-text)); filter: brightness(0.7); }
+.vs-name { font-size: 11.5px; font-weight: 700; color: var(--voice-hue, var(--brown-text)); filter: brightness(0.7); line-height: 1.0434783; }   /* zh pin: en content box 12px at 11.5px */
 .vs-knobs { display: flex; gap: 7px; flex-wrap: wrap; }
 .vs-toggles { display: flex; gap: 6px; margin-top: 1px; }
 .toggle-btn {
@@ -588,6 +605,7 @@ select.combo:focus { outline: none; border-color: var(--green-mid); }
   border: 1.5px solid var(--btn-border);
   border-radius: 4px;
   padding: 3px 0;
+  line-height: 1.047619;   /* zh pin: en content box 11px at 10.5px */
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
 }
@@ -603,7 +621,7 @@ select.combo:focus { outline: none; border-color: var(--green-mid); }
   flex-direction: column;
   gap: 6px;
 }
-.tour-label { font-size: 12px; font-weight: 700; color: var(--green-dark); }
+.tour-label { font-size: 12px; font-weight: 700; color: var(--green-dark); line-height: 1.25; }   /* zh pin: en content box 15px at 12px — the fourth caption row of the same LINE-BOX class as .grid-label / .lane-label / .midi-label */
 .tour-soon { font-weight: 400; font-style: italic; font-size: 10.5px; opacity: 0.6; }
 .tour-buttons { display: flex; flex-wrap: wrap; gap: 7px; }
 .tour-btn {
@@ -619,7 +637,7 @@ select.combo:focus { outline: none; border-color: var(--green-mid); }
 }
 .tour-btn:hover { background: var(--bg-paper-mid); border-color: var(--green-mid); }
 .tour-btn.armed { background: var(--btn-active); color: #fff8dc; border-color: var(--btn-border-active); }
-.tour-caption { font-size: 11px; font-style: italic; color: var(--brown-soft); opacity: 0.85; }
+.tour-caption { font-size: 11px; font-style: italic; color: var(--brown-soft); opacity: 0.85; line-height: 1.0909091; }   /* zh pin: en content box 12px at 11px */
 
 /* ── Tooltip ────────────────────────────────────────────────────────────── */
 .tooltip {
