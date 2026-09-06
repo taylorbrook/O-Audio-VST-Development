@@ -209,7 +209,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '设置',
                      b: '选择界面语言，并开启或关闭这些悬停帮助。语言随会话保存，因此项目会以保存时的语言重新打开；帮助开关保存在这台电脑上。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'lang-select': {
         en: { t: "Language",
@@ -219,7 +219,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '语言',
                      b: '本页标签和这些悬停帮助所用的语言。数值读数、预设名称和课程按钮保持英文。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'help-toggle': {
         en: { t: "Hover help",
@@ -229,7 +229,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '悬停帮助',
                      b: '开启或关闭这些悬停说明。该开关保存在这台电脑上而不是会话里，因此会跟随您从一个项目到下一个项目。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Operators ───────────────────────────────────────────────────────────
@@ -241,7 +241,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '比率（M:C）',
                      b: '调制器相对于载波的频率。整数比率（1、2、3…）给出谐波性的、有确定音高的音色；无理数比率（1.41、2.76）给出非谐性的、类似钟声的音。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     modIndex: {
         en: { t: "Modulation Index",
@@ -251,7 +251,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '调制指数',
                      b: '调制器把载波的相位弯折得有多厉害。零 = 纯正弦。提高它会长出更多也更响的边频 —— FM 亮度的核心。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     feedback: {
         en: { t: "Feedback",
@@ -261,7 +261,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '反馈',
                      b: '把调制器绕回它自己。让调制器的波形从正弦推向锯齿，再推向噪声 —— 把频谱抹开。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     modFixedHz: {
         en: { t: "Fixed Modulator Hz",
@@ -271,7 +271,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '固定调制器频率',
                      b: '固定模式开启时，调制器以这个绝对频率运行，而不跟随所弹的音符 —— 产生类似共振峰、与键位无关的音色。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     modEnvToIndex: {
         en: { t: "Env → Index Depth",
@@ -279,9 +279,9 @@ export const I18N = Object.freeze({
         fr: { t: "Profondeur env. → indice",
               b: "Dans quelle mesure l’enveloppe du modulateur pilote l’indice au fil du temps. C’est ce qui fait évoluer le timbre après la frappe (attaque brillante → fin de son adoucie).",
               reviewed: true },
-        'zh-Hans': { t: '包络 → 指数深度',
-                     b: '调制器包络在多大程度上随时间驱动指数。这让音色在按键之后不断演变（明亮的起音 → 柔和的尾音）。',
-                     reviewed: 'mt' },
+        'zh-Hans': { t: '包络 → 调制指数深度',
+                     b: '调制器包络在多大程度上随时间驱动调制指数。这让音色在按键之后不断演变（明亮的起音 → 柔和的尾音）。',
+                     reviewed: 'bt' },
     },
     velToIndex: {
         en: { t: "Velocity → Index",
@@ -289,9 +289,9 @@ export const I18N = Object.freeze({
         fr: { t: "Vélocité → indice",
               b: "Laisse la force de jeu s’ajouter à l’indice de modulation — plus la frappe est forte, plus le son est brillant, comme sur un instrument acoustique.",
               reviewed: true },
-        'zh-Hans': { t: '力度 → 指数',
+        'zh-Hans': { t: '力度 → 调制指数',
                      b: '让您弹得多用力加到调制指数上 —— 敲得越重越明亮，就像一件原声乐器。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Modulator envelope ──────────────────────────────────────────────────
@@ -303,7 +303,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '调制起音',
                      b: '音符开始后，调制器（亮度）包络上升所需的时间。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     modDecay: {
         en: { t: "Mod Decay",
@@ -313,7 +313,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '调制衰减',
                      b: '调制器包络从峰值降到其延音电平所需的时间。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     modSustain: {
         en: { t: "Mod Sustain",
@@ -323,7 +323,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '调制延音',
                      b: '按键保持按下时所维持的亮度电平。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     modRelease: {
         en: { t: "Mod Release",
@@ -333,7 +333,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '调制释音',
                      b: '松开按键后亮度消退所需的时间。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Amplitude envelope ──────────────────────────────────────────────────
@@ -345,7 +345,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '振幅起音',
                      b: '音符开始后响度上升所需的时间。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     ampDecay: {
         en: { t: "Amp Decay",
@@ -355,7 +355,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '振幅衰减',
                      b: '响度从峰值降到其延音电平所需的时间。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     ampSustain: {
         en: { t: "Amp Sustain",
@@ -365,7 +365,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '振幅延音',
                      b: '按键保持按下时所维持的响度。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     ampRelease: {
         en: { t: "Amp Release",
@@ -375,7 +375,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '振幅释音',
                      b: '松开按键后响度消退所需的时间 —— 它同时决定这个声部还会延续多久。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Output ──────────────────────────────────────────────────────────────
@@ -387,7 +387,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '输出电平',
                      b: '以分贝计的总输出微调。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Toggles ─────────────────────────────────────────────────────────────
@@ -399,7 +399,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '比率吸附',
                      b: '把 M:C 比率量化到整数 —— 立刻把一个非谐性的音拉回谐波性的音。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     modFixedMode: {
         en: { t: "Fixed Mode",
@@ -409,7 +409,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '固定模式',
                      b: '让调制器从跟随音符（比率）切换到以 Hz 计的固定频率（由固定频率设定）。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── The routing diagram, its readout and its teaching badge ─────────────
@@ -423,8 +423,8 @@ export const I18N = Object.freeze({
               b: "MOD module la phase de POR ; la boucle de MOD sur lui-même est la réinjection. L’épaisseur des flèches reflète l’indice de modulation et le taux de réinjection.",
               reviewed: true },
         'zh-Hans': { t: '信号路径',
-                     b: '调制器调制载波的相位；调制器绕回自身的环路就是反馈。箭头粗细反映调制指数和反馈量。',
-                     reviewed: 'mt' },
+                     b: '调制器对载波的相位进行调制；调制器绕回自身的环路就是反馈。箭头粗细反映调制指数和反馈量。',
+                     reviewed: 'bt' },
     },
     readout: {
         en: { t: "Live FM Readout",
@@ -433,8 +433,8 @@ export const I18N = Object.freeze({
               b: "Les deux nombres qui définissent le timbre, mis à jour pendant le jeu. À gauche — le rapport M : P, la fréquence du modulateur par rapport à la note jouée, qui détermine quelles harmoniques apparaissent (entiers = hauteur définie, irrationnels = son de cloche). À droite — I, l’indice de modulation : à quel point le modulateur infléchit la porteuse, ce qui détermine la brillance (indice plus élevé = plus de bandes latérales).",
               reviewed: true },
         'zh-Hans': { t: 'FM 实时读数',
-                     b: '定义音色的两个数字，随演奏更新。左边 —— M:C 比率：调制器相对于所弹音符的频率，它决定出现哪些谐波（整数 = 有确定音高，无理数 = 钟声般）。右边 —— I，调制指数：调制器把载波弯折得有多厉害，它决定亮度（指数越大，边频越多）。',
-                     reviewed: 'mt' },
+                     b: '定义音色的两个数字，随演奏更新。左边 —— M:C 比率：调制器相对于所弹音符的频率，它决定出现哪些谐波（整数 = 有确定音高，无理数 = 钟声般）。右边 —— I，调制指数：调制器把载波弯折得有多厉害，它决定亮度（调制指数越大，边频越多）。',
+                     reviewed: 'bt' },
     },
     // MOVED from the native title= on #carrierNullBadge, verbatim, entities
     // decoded. The zero-width space inside "f\u200bc" is authored: it lets the
@@ -447,7 +447,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '载波零点',
                      b: '载波零点：调制指数正处在贝塞尔函数 J₀ 的第一个零点（β ≈ 2.405），因此载波（f​c）消失，全部能量转入边频。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Lesson presets ──────────────────────────────────────────────────────
@@ -460,8 +460,8 @@ export const I18N = Object.freeze({
               b: "Modulateur:porteuse 1:1 (harmonique). Une enveloppe de modulation rapide (déclin 0,45 s → maintien nul) fait descendre l’indice depuis 5,5 : une attaque pincée brillante s’effondre vers une sinusoïde presque pure pendant que la note sonne. La vélocité ajoute de l’indice — plus on frappe fort, plus le son est brillant.",
               reviewed: true },
         'zh-Hans': { t: 'E-Piano · 它是怎么搭出来的',
-                     b: '调制器与载波 1:1（谐波性）。一条快速的调制包络（衰减 0.45 秒 → 延音为零）把指数从 5.5 一路扫下来，于是明亮的拨奏起音在延续中塌缩成近乎纯粹的正弦。力度会加指数 —— 弹得越重，声音越亮。',
-                     reviewed: 'mt' },
+                     b: '调制器与载波 1:1（谐波性）。一条快速的调制包络（衰减 0.45 秒 → 延音为零）把调制指数从 5.5 一路扫下来，于是明亮的拨奏起音在延续中塌缩成近乎纯粹的正弦。力度会加调制指数 —— 弹得越重，声音越亮。',
+                     reviewed: 'bt' },
     },
     lessonTubular: {
         en: { t: "Tubular Bell · how it's built",
@@ -470,8 +470,8 @@ export const I18N = Object.freeze({
               b: "Un rapport inharmonique de 1,41 (≈√2, rapport entier désactivé) place les bandes latérales à des multiples non entiers : les partiels ne fusionnent jamais en une hauteur définie — d’où la sonnerie métallique. Un indice élevé (8) et de longs déclins d’environ 3 s le laissent scintiller jusqu’au bout.",
               reviewed: true },
         'zh-Hans': { t: 'Tubular Bell · 它是怎么搭出来的',
-                     b: '1.41 的非谐性比率（≈√2，吸附关闭）把边频放在非整数倍上，于是各分音永远不会融合成一个音高 —— 那正是金属般的鸣响。高指数（8）加上约 3 秒的长衰减让它一路闪烁着散去。',
-                     reviewed: 'mt' },
+                     b: '1.41 的非谐性比率（≈√2，吸附关闭）把边频放在非整数倍上，于是各分音永远不会融合成一个音高 —— 那正是金属般的鸣响。高调制指数（8）加上约 3 秒的长衰减让它一路闪烁着散去。',
+                     reviewed: 'bt' },
     },
     lessonBrass: {
         en: { t: "Brass · how it's built",
@@ -480,8 +480,8 @@ export const I18N = Object.freeze({
               b: "Modulateur:porteuse 1:1 (harmonique). L’indice (4) enfle avec l’attaque et tient au niveau de maintien — la brillance suit le volume, comme une note de cuivre qui s’éclaircit à mesure qu’on souffle plus fort.",
               reviewed: true },
         'zh-Hans': { t: 'Brass · 它是怎么搭出来的',
-                     b: '调制器与载波 1:1（谐波性）。指数（4）随起音一起涨起来并停在延音上 —— 亮度跟着响度走，就像一个吹奏的铜管音在变响时同时变亮。',
-                     reviewed: 'mt' },
+                     b: '调制器与载波 1:1（谐波性）。调制指数（4）随起音一起涨起来并停在延音上 —— 亮度跟着响度走，就像一个吹奏的铜管音在变响时同时变亮。',
+                     reviewed: 'bt' },
     },
     lessonClarinet: {
         en: { t: "Clarinet · how it's built",
@@ -490,8 +490,8 @@ export const I18N = Object.freeze({
               b: "Modulateur:porteuse 2:1. Un indice faible (2,2) garde le spectre clairsemé, et le rapport 2:1 met en avant les harmoniques impaires → le timbre creux et boisé du tuyau bouché. Maintien élevé : le son parle de façon régulière, comme une anche.",
               reviewed: true },
         'zh-Hans': { t: 'Clarinet · 它是怎么搭出来的',
-                     b: '调制器与载波 2:1。低指数（2.2）让频谱保持稀疏，而 2:1 的比率强调奇次谐波 → 那种空心的、闭管木质音色。延音很高，所以它像簧片一样稳稳地发声。',
-                     reviewed: 'mt' },
+                     b: '调制器与载波 2:1。低调制指数（2.2）让频谱保持稀疏，而 2:1 的比率强调奇次谐波 → 那种空心的、闭管木质音色。延音很高，所以它像簧片一样稳稳地发声。',
+                     reviewed: 'bt' },
     },
     lessonClang: {
         en: { t: "Clang Bell · how it's built",
@@ -500,8 +500,8 @@ export const I18N = Object.freeze({
               b: "Un rapport inharmonique de 3,46 et un indice très élevé (14) projettent un fourré dense de bandes latérales à des multiples non entiers ; 60 % de réinjection pousse le modulateur vers le bruit. Le spectre s’étale en un fracas atonal plutôt qu’en une hauteur définie.",
               reviewed: true },
         'zh-Hans': { t: 'Clang Bell · 它是怎么搭出来的',
-                     b: '3.46 的非谐性比率加上非常高的指数（14）抛出一大丛非整数边频；60% 的反馈把调制器推向噪声。频谱抹成一记无调性的撞击声，而不是一个音高。',
-                     reviewed: 'mt' },
+                     b: '3.46 的非谐性比率加上非常高的调制指数（14）抛出一大丛非整数边频；60% 的反馈把调制器推向噪声。频谱抹成一记无调性的撞击声，而不是一个音高。',
+                     reviewed: 'bt' },
     },
 });
 
@@ -515,19 +515,19 @@ export const LABELS = Object.freeze({
     'label.subtitle': {
         en: { t: "Two-Operator Phase-Modulation Synthesizer · A Field Guide" },
         fr: { t: "Synthétiseur deux opérateurs à modulation de phase · un guide de terrain", reviewed: true },
-        'zh-Hans': { t: '双算子相位调制合成器 · 实地指南', reviewed: 'mt' },
+        'zh-Hans': { t: '双算子相位调制合成器 · 实地指南', reviewed: 'bt' },
     },
     // The preset bar. The NAME shown between them is a preset name and is never
     // translated (D-02); these two are verbs on buttons and are.
     'label.presetSave': {
         en: { t: "Save" },
         fr: { t: "Enreg.", reviewed: true },
-        'zh-Hans': { t: '保存', reviewed: 'mt' },
+        'zh-Hans': { t: '保存', reviewed: 'bt' },
     },
     'label.presetDelete': {
         en: { t: "Delete" },
         fr: { t: "Suppr.", reviewed: true },
-        'zh-Hans': { t: '删除', reviewed: 'mt' },
+        'zh-Hans': { t: '删除', reviewed: 'bt' },
     },
 
     // ── Visualization captions ──────────────────────────────────────────────
@@ -536,17 +536,17 @@ export const LABELS = Object.freeze({
     'label.vizSpectrum': {
         en: { t: "Spectrum ·" },
         fr: { t: "Spectre ·", reviewed: true },
-        'zh-Hans': { t: '频谱 ·', reviewed: 'mt' },
+        'zh-Hans': { t: '频谱 ·', reviewed: 'bt' },
     },
     'label.vizSpectrumHint': {
         en: { t: "discrete sidebands bloom as Mod Index rises" },
         fr: { t: "les bandes latérales discrètes éclosent quand l’indice monte", reviewed: true },
-        'zh-Hans': { t: '调制指数升高时，离散的边频逐一绽开', reviewed: 'mt' },
+        'zh-Hans': { t: '调制指数升高时，离散的边频逐一绽开', reviewed: 'bt' },
     },
     'label.vizWaveform': {
         en: { t: "Waveform ·" },
         fr: { t: "Forme d’onde ·", reviewed: true },
-        'zh-Hans': { t: '波形 ·', reviewed: 'mt' },
+        'zh-Hans': { t: '波形 ·', reviewed: 'bt' },
     },
     // SHORTENED, and flagged for the reviewer. The faithful "la forme de la
     // porteuse qui en résulte" measures 226.1px against the ~165px this hint has
@@ -559,14 +559,14 @@ export const LABELS = Object.freeze({
     'label.vizWaveformHint': {
         en: { t: "the resulting carrier shape" },
         fr: { t: "la porteuse qui en résulte", reviewed: true },
-        'zh-Hans': { t: '由此得到的载波形状', reviewed: 'mt' },
+        'zh-Hans': { t: '由此得到的载波形状', reviewed: 'bt' },
     },
 
     // ── Routing diagram ─────────────────────────────────────────────────────
     'label.signalPath': {
         en: { t: "Signal Path" },
         fr: { t: "Chaîne du signal", reviewed: true },
-        'zh-Hans': { t: '信号路径', reviewed: 'mt' },
+        'zh-Hans': { t: '信号路径', reviewed: 'bt' },
     },
     // The two operator nodes. Three letters each in BOTH languages, on purpose:
     // they sit inside 48 px SVG circles and the French abbreviation of
@@ -575,17 +575,17 @@ export const LABELS = Object.freeze({
     'label.opMod': {
         en: { t: "MOD" },
         fr: { t: "MOD", sameAsEn: true, reviewed: true },
-        'zh-Hans': { t: '调制', reviewed: 'mt' },
+        'zh-Hans': { t: '调制', reviewed: 'bt' },
     },
     'label.opCar': {
         en: { t: "CAR" },
         fr: { t: "POR", reviewed: true },
-        'zh-Hans': { t: '载波', reviewed: 'mt' },
+        'zh-Hans': { t: '载波', reviewed: 'bt' },
     },
     'label.carrierNull': {
         en: { t: "carrier null" },
         fr: { t: "porteuse nulle", reviewed: true },
-        'zh-Hans': { t: '载波零点', reviewed: 'mt' },
+        'zh-Hans': { t: '载波零点', reviewed: 'bt' },
     },
     // The routing meta line, composed. Through v1.2.5 this read
     // "harmonic · ≈ 1 sideband" / "≈ 4 sidebands" — an inline English plural.
@@ -597,34 +597,34 @@ export const LABELS = Object.freeze({
     'label.metaHarmonic': {
         en: { t: "harmonic · sidebands ≈ {n}" },
         fr: { t: "harmonique · bandes latérales ≈ {n}", reviewed: true },
-        'zh-Hans': { t: '谐波性 · 边频 ≈ {n}', reviewed: 'mt' },
+        'zh-Hans': { t: '谐波性 · 边频 ≈ {n}', reviewed: 'bt' },
     },
     'label.metaInharmonic': {
         en: { t: "inharmonic · sidebands ≈ {n}" },
         fr: { t: "inharmonique · bandes latérales ≈ {n}", reviewed: true },
-        'zh-Hans': { t: '非谐性 · 边频 ≈ {n}', reviewed: 'mt' },
+        'zh-Hans': { t: '非谐性 · 边频 ≈ {n}', reviewed: 'bt' },
     },
 
     // ── Group headings ──────────────────────────────────────────────────────
     'label.groupOperators': {
         en: { t: "Operators" },
         fr: { t: "Opérateurs", reviewed: true },
-        'zh-Hans': { t: '算子', reviewed: 'mt' },
+        'zh-Hans': { t: '算子', reviewed: 'bt' },
     },
     'label.groupModEnv': {
         en: { t: "Modulator Envelope" },
         fr: { t: "Enveloppe du modulateur", reviewed: true },
-        'zh-Hans': { t: '调制器包络', reviewed: 'mt' },
+        'zh-Hans': { t: '调制器包络', reviewed: 'bt' },
     },
     'label.groupAmpEnv': {
         en: { t: "Amplitude Envelope" },
         fr: { t: "Enveloppe d’amplitude", reviewed: true },
-        'zh-Hans': { t: '振幅包络', reviewed: 'mt' },
+        'zh-Hans': { t: '振幅包络', reviewed: 'bt' },
     },
     'label.groupOutput': {
         en: { t: "Output" },
         fr: { t: "Sortie", reviewed: true },
-        'zh-Hans': { t: '输出', reviewed: 'mt' },
+        'zh-Hans': { t: '输出', reviewed: 'bt' },
     },
 
     // ── Knob captions ───────────────────────────────────────────────────────
@@ -634,116 +634,116 @@ export const LABELS = Object.freeze({
     'label.knobRatio': {
         en: { t: "Ratio M:C" },
         fr: { t: "Rapport M:P", reviewed: true },
-        'zh-Hans': { t: '比率 M:C', reviewed: 'mt' },
+        'zh-Hans': { t: '比率 M:C', reviewed: 'bt' },
     },
     'label.knobModIndex': {
         en: { t: "Mod Index" },
         fr: { t: "Indice mod.", reviewed: true },
-        'zh-Hans': { t: '调制指数', reviewed: 'mt' },
+        'zh-Hans': { t: '调制指数', reviewed: 'bt' },
     },
     'label.knobFeedback': {
         en: { t: "Feedback" },
         fr: { t: "Réinjection", reviewed: true },
-        'zh-Hans': { t: '反馈', reviewed: 'mt' },
+        'zh-Hans': { t: '反馈', reviewed: 'bt' },
     },
     'label.knobFixedHz': {
         en: { t: "Fixed Hz" },
         fr: { t: "Fréq. fixe", reviewed: true,
               termNote: 'this control IS an absolute frequency in Hz (FMVoice.h:210 uses it as fm when Fixed Mode is on), which is the one case the glossary\'s own gloss on "fréq." allows — it forbids Fréq. only where the English is a rate' },
-        'zh-Hans': { t: '固定频率', reviewed: 'mt' },
+        'zh-Hans': { t: '固定频率', reviewed: 'bt' },
     },
     'label.knobEnvIndex': {
         en: { t: "Env→Index" },
         fr: { t: "Env→Indice", reviewed: true },
-        'zh-Hans': { t: '包络→指数', reviewed: 'mt' },
+        'zh-Hans': { t: '包络→指数', reviewed: 'bt' },
     },
     'label.knobVelIndex': {
         en: { t: "Vel→Index" },
         fr: { t: "Véloc→Indice", reviewed: true },
-        'zh-Hans': { t: '力度→指数', reviewed: 'mt' },
+        'zh-Hans': { t: '力度→指数', reviewed: 'bt' },
     },
     'label.knobAttack': {
         en: { t: "Attack" },
         fr: { t: "Attaque", reviewed: true },
-        'zh-Hans': { t: '起音', reviewed: 'mt' },
+        'zh-Hans': { t: '起音', reviewed: 'bt' },
     },
     'label.knobDecay': {
         en: { t: "Decay" },
         fr: { t: "Déclin", reviewed: true },
-        'zh-Hans': { t: '衰减', reviewed: 'mt' },
+        'zh-Hans': { t: '衰减', reviewed: 'bt' },
     },
     'label.knobSustain': {
         en: { t: "Sustain" },
         fr: { t: "Maintien", reviewed: true },
-        'zh-Hans': { t: '延音', reviewed: 'mt' },
+        'zh-Hans': { t: '延音', reviewed: 'bt' },
     },
     'label.knobRelease': {
         en: { t: "Release" },
         fr: { t: "Relâchement", reviewed: true },
-        'zh-Hans': { t: '释音', reviewed: 'mt' },
+        'zh-Hans': { t: '释音', reviewed: 'bt' },
     },
     'label.knobLevel': {
         en: { t: "Level" },
         fr: { t: "Niveau", reviewed: true },
-        'zh-Hans': { t: '电平', reviewed: 'mt' },
+        'zh-Hans': { t: '电平', reviewed: 'bt' },
     },
 
     // ── Toggle faces ────────────────────────────────────────────────────────
     'label.toggleRatioSnap': {
         en: { t: "Ratio Snap" },
         fr: { t: "Rapport entier", reviewed: true },
-        'zh-Hans': { t: '比率吸附', reviewed: 'mt' },
+        'zh-Hans': { t: '比率吸附', reviewed: 'bt' },
     },
     'label.toggleFixedMode': {
         en: { t: "Fixed Mode" },
         fr: { t: "Mode fixe", reviewed: true },
-        'zh-Hans': { t: '固定模式', reviewed: 'mt' },
+        'zh-Hans': { t: '固定模式', reviewed: 'bt' },
     },
 
     // ── Lesson tour ─────────────────────────────────────────────────────────
     'label.lessonPresets': {
         en: { t: "Lesson Presets" },
         fr: { t: "Leçons", reviewed: true },
-        'zh-Hans': { t: '教学预设', reviewed: 'mt' },
+        'zh-Hans': { t: '教学预设', reviewed: 'bt' },
     },
     'label.tourCaption': {
         en: { t: "Hover any control for an explanation · pick a lesson to hear a concept." },
         fr: { t: "Survolez un réglage pour une explication · choisissez une leçon pour entendre une notion.", reviewed: true },
-        'zh-Hans': { t: '悬停任意控件查看说明 · 选择一课来听一个概念。', reviewed: 'mt' },
+        'zh-Hans': { t: '悬停任意控件查看说明 · 选择一课来听一个概念。', reviewed: 'bt' },
     },
     // The five captions the tour buttons write. Each begins with the preset
     // NAME, which stays English for the same reason the button faces do.
     'label.captionEpiano': {
         en: { t: "E-Piano — ratio 1:1 + a fast mod-envelope makes a bright pluck that mellows to a sine." },
         fr: { t: "E-Piano — rapport 1:1 et une enveloppe de modulation rapide : un pincement brillant qui s’adoucit vers une sinusoïde.", reviewed: true },
-        'zh-Hans': { t: 'E-Piano —— 1:1 比率加一条快速的调制包络，做出一个渐渐柔化为正弦的明亮拨奏。', reviewed: 'mt' },
+        'zh-Hans': { t: 'E-Piano —— 1:1 比率加一条快速的调制包络，做出一个渐渐柔化为正弦的明亮拨奏。', reviewed: 'bt' },
     },
     'label.captionTubular': {
         en: { t: "Tubular Bell — an inharmonic ratio (1.41) sprays non-integer sidebands → metallic ring." },
         fr: { t: "Tubular Bell — un rapport inharmonique (1,41) projette des bandes latérales non entières → sonnerie métallique.", reviewed: true },
-        'zh-Hans': { t: 'Tubular Bell —— 非谐性比率（1.41）喷出非整数边频 → 金属般的鸣响。', reviewed: 'mt' },
+        'zh-Hans': { t: 'Tubular Bell —— 非谐性比率（1.41）喷出非整数边频 → 金属般的鸣响。', reviewed: 'bt' },
     },
     'label.captionBrass': {
         en: { t: "Brass — ratio 1:1, index rises with the amp envelope; sustained, vowel-bright." },
         fr: { t: "Brass — rapport 1:1, l’indice monte avec l’enveloppe d’amplitude ; tenu, brillant comme une voyelle.", reviewed: true },
-        'zh-Hans': { t: 'Brass —— 1:1 比率，指数随振幅包络上升；持续，亮如元音。', reviewed: 'mt' },
+        'zh-Hans': { t: 'Brass —— 1:1 比率，调制指数随振幅包络上升；持续，亮如元音。', reviewed: 'bt' },
     },
     'label.captionClarinet': {
         en: { t: "Clarinet — ratio 2:1 + low index emphasises odd harmonics → hollow, woody tone." },
         fr: { t: "Clarinet — rapport 2:1 et indice faible mettent en avant les harmoniques impaires → timbre creux et boisé.", reviewed: true },
-        'zh-Hans': { t: 'Clarinet —— 2:1 比率加低指数强调奇次谐波 → 空心的木质音色。', reviewed: 'mt' },
+        'zh-Hans': { t: 'Clarinet —— 2:1 比率加低调制指数强调奇次谐波 → 空心的木质音色。', reviewed: 'bt' },
     },
     'label.captionClang': {
         en: { t: "Clang Bell — high index + feedback smears the spectrum into a dense, noisy strike." },
         fr: { t: "Clang Bell — indice élevé et réinjection étalent le spectre en une frappe dense et bruitée.", reviewed: true },
-        'zh-Hans': { t: 'Clang Bell —— 高指数加反馈把频谱抹成一记密实而带噪的撞击。', reviewed: 'mt' },
+        'zh-Hans': { t: 'Clang Bell —— 高调制指数加反馈把频谱抹成一记密实而带噪的撞击。', reviewed: 'bt' },
     },
 
     // ── On-screen keyboard ──────────────────────────────────────────────────
     'label.play': {
         en: { t: "Play ·" },
         fr: { t: "Jouer ·", reviewed: true },
-        'zh-Hans': { t: '播放 ·', reviewed: 'mt' },
+        'zh-Hans': { t: '播放 ·', reviewed: 'bt' },
     },
     // The letter run is the QWERTY row the page listens for, separated by hair
     // spaces. The letters are key NAMES on the user's own keyboard and are not
@@ -751,7 +751,7 @@ export const LABELS = Object.freeze({
     'label.kbdHint': {
         en: { t: "click the keys or use your computer keyboard (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)" },
         fr: { t: "cliquez sur les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)", reviewed: true },
-        'zh-Hans': { t: '点击琴键或使用电脑键盘 (A S D F G H J K · W E T Y U)', reviewed: 'mt' },
+        'zh-Hans': { t: '点击琴键或使用电脑键盘 (A S D F G H J K · W E T Y U)', reviewed: 'bt' },
     },
 
     // ── Built from script ───────────────────────────────────────────────────
@@ -761,12 +761,12 @@ export const LABELS = Object.freeze({
     'label.presetFactory': {
         en: { t: "Factory" },
         fr: { t: "Usine", reviewed: true },
-        'zh-Hans': { t: '出厂', reviewed: 'mt' },
+        'zh-Hans': { t: '出厂', reviewed: 'bt' },
     },
     'label.presetUser': {
         en: { t: "User" },
         fr: { t: "Utilisateur", reviewed: true },
-        'zh-Hans': { t: '用户', reviewed: 'mt' },
+        'zh-Hans': { t: '用户', reviewed: 'bt' },
     },
     // The in-DOM delete confirmation. The preset NAME is substituted, never
     // translated (D-02 — the name is the JSON filename); trLabel resolves a var
@@ -774,17 +774,17 @@ export const LABELS = Object.freeze({
     'ui.deleteConfirm': {
         en: { t: "Delete preset \"{name}\"?" },
         fr: { t: "Supprimer le préréglage « {name} » ?", reviewed: true },
-        'zh-Hans': { t: '删除预设“{name}”？', reviewed: 'mt' },
+        'zh-Hans': { t: '删除预设“{name}”？', reviewed: 'bt' },
     },
     'ui.delete': {
         en: { t: "Delete" },
         fr: { t: "Supprimer", reviewed: true },
-        'zh-Hans': { t: '删除', reviewed: 'mt' },
+        'zh-Hans': { t: '删除', reviewed: 'bt' },
     },
     'ui.cancel': {
         en: { t: "Cancel" },
         fr: { t: "Annuler", reviewed: true },
-        'zh-Hans': { t: '取消', reviewed: 'mt' },
+        'zh-Hans': { t: '取消', reviewed: 'bt' },
     },
 
     // ── Accessible names ────────────────────────────────────────────────────
@@ -795,28 +795,28 @@ export const LABELS = Object.freeze({
     'aria.settings': {
         en: { t: "Settings" },
         fr: { t: "Réglages", reviewed: true },
-        'zh-Hans': { t: '设置', reviewed: 'mt' },
+        'zh-Hans': { t: '设置', reviewed: 'bt' },
     },
     'aria.langSelect': {
         en: { t: "Interface language" },
         fr: { t: "Langue de l’interface", reviewed: true },
-        'zh-Hans': { t: '界面语言', reviewed: 'mt' },
+        'zh-Hans': { t: '界面语言', reviewed: 'bt' },
     },
     'aria.helpToggle': {
         en: { t: "Toggle hover help" },
         fr: { t: "Activer ou désactiver les infobulles", reviewed: true },
-        'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' },
+        'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' },
     },
     // The switch's two faces, written through setLabel from applyTipsEnabled.
     'ui.on': {
         en: { t: "On" },
         fr: { t: "Activée", reviewed: true },
-        'zh-Hans': { t: '开启', reviewed: 'mt' },
+        'zh-Hans': { t: '开启', reviewed: 'bt' },
     },
     'ui.off': {
         en: { t: "Off" },
         fr: { t: "Désactivée", reviewed: true },
-        'zh-Hans': { t: '关闭', reviewed: 'mt' },
+        'zh-Hans': { t: '关闭', reviewed: 'bt' },
     },
     // MOVED from four native title= attributes deleted per contract §4. Two of
     // them (prev/next) duplicated an aria-label that was already there; the
@@ -824,37 +824,37 @@ export const LABELS = Object.freeze({
     'aria.presetPrev': {
         en: { t: "Previous preset" },
         fr: { t: "Préréglage précédent", reviewed: true },
-        'zh-Hans': { t: '上一个预设', reviewed: 'mt' },
+        'zh-Hans': { t: '上一个预设', reviewed: 'bt' },
     },
     'aria.presetNext': {
         en: { t: "Next preset" },
         fr: { t: "Préréglage suivant", reviewed: true },
-        'zh-Hans': { t: '下一个预设', reviewed: 'mt' },
+        'zh-Hans': { t: '下一个预设', reviewed: 'bt' },
     },
     'aria.presetName': {
         en: { t: "Browse presets" },
         fr: { t: "Parcourir les préréglages", reviewed: true },
-        'zh-Hans': { t: '浏览预设', reviewed: 'mt' },
+        'zh-Hans': { t: '浏览预设', reviewed: 'bt' },
     },
     'aria.presetSave': {
         en: { t: "Save current settings as a user preset" },
         fr: { t: "Enregistrer les réglages actuels comme préréglage utilisateur", reviewed: true },
-        'zh-Hans': { t: '将当前设置保存为用户预设', reviewed: 'mt' },
+        'zh-Hans': { t: '将当前设置保存为用户预设', reviewed: 'bt' },
     },
     'aria.presetDelete': {
         en: { t: "Delete the current user preset" },
         fr: { t: "Supprimer le préréglage utilisateur actuel", reviewed: true },
-        'zh-Hans': { t: '删除当前用户预设', reviewed: 'mt' },
+        'zh-Hans': { t: '删除当前用户预设', reviewed: 'bt' },
     },
     'aria.presetDropdown': {
         en: { t: "Presets" },
         fr: { t: "Préréglages", reviewed: true },
-        'zh-Hans': { t: '预设', reviewed: 'mt' },
+        'zh-Hans': { t: '预设', reviewed: 'bt' },
     },
     'aria.keyboard': {
         en: { t: "On-screen keyboard" },
         fr: { t: "Clavier à l’écran", reviewed: true },
-        'zh-Hans': { t: '屏幕键盘', reviewed: 'mt' },
+        'zh-Hans': { t: '屏幕键盘', reviewed: 'bt' },
     },
 });
 

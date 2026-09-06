@@ -3,6 +3,98 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.0] - 2026-09-06
+
+Simplified Chinese joins English and French (task 260906-h8y, wave 4e). MINOR: a
+third language, nine line-height pins, two strapline floors and two font-stack
+tails — no parameter, range, type, DSP path or state format changed, and the
+English and French pages are unchanged in geometry, measured node for node.
+
+### Added
+
+- **Simplified Chinese across the whole hover-help and label surface** — 112
+  rows (28 tooltip entries as title + body, plus 56 labels), reachable from the
+  `简体中文` entry in the settings popover's language selector. The endonym is
+  written as the numeric character references `&#31616;&#20307;&#20013;&#25991;`,
+  copied from the shipped convention rather than retyped, and carries a reasoned
+  `I18N_EXEMPT` entry because the coverage scanner sees the DECODED characters.
+- **Disclosed quality level: `reviewed: 'bt'` — back-translated, not native.**
+  Every one of the 112 rows was authored at `'mt'`, committed, then emitted in
+  two independently salted, id-blinded batches (56 + 56, disjoint and covering
+  every row exactly once) to a blind reader running in a fresh session from a
+  directory outside this repository with every tool disabled and no access to
+  the English source, the key names or any file. All 112 returned triples were
+  read; fourteen rows were re-authored and confirmed by a second round with a
+  fresh salt, a fresh session and a DIFFERENT model. No native Chinese speaker
+  has read this page, and the lint prints that fact on every run.
+
+### Changed
+
+- **The language hover help no longer counts the selector's options.** Its
+  English and its French both named a fixed pair. That sentence was true while
+  the selector held two options and went false the moment a third arrived. The
+  half that stayed true — the value readouts, the preset names and the lesson
+  buttons are English in every language — is kept, because it is a fact about
+  those things rather than about the list. The settings body one entry above was
+  read in full and deliberately LEFT: it already names both of the panel's
+  controls and is already true.
+- **Fourteen rows say `调制指数` where they first said `指数`.** The blind
+  reverse read returned **"Exponent"** for every bare `指数` in the table — a
+  different quantity from the modulation index, and a reading a user would carry
+  away wrong. The two arrow captions `Env→Index` and `Vel→Index` are the one
+  place the fuller form does not fit: they sit in `white-space: nowrap` knob
+  cells, and `包络→调制指数` measures ~71 px against the English caption's
+  63.98 px. They are left, and the second reading — on a different model —
+  returned `Env → Index` and `Vel → Index` correctly, because an arrow caption
+  standing beside the `调制指数` knob has an anchor that a sentence does not.
+- **The signal-path body names its verb explicitly.** `调制器调制载波的相位` is
+  grammatically ambiguous between a clause and a noun phrase, and the reverse
+  read returned the noun phrase. `调制器对载波的相位进行调制` cannot be read
+  either way.
+- **Two font stacks carry a CJK tail**, placed BEFORE the trailing generic:
+  Chromium resolves a bare `serif` against the document's `lang`, so under
+  `lang="zh-Hans"` the generic is already a Chinese face and a tail written
+  after it is never consulted. `Times New Roman` and `Apple Symbols` are the
+  installed faces that already win — for Latin and for the `⚙`/`❦`/`♪` glyphs
+  respectively — so the named faces stay first and neither Latin arm moves.
+- **Nine `line-height` pins replace `line-height: normal`.** A Chinese face
+  returns a line box roughly **30 % taller** than a Latin one at the same
+  font-size (measured here: 10 → 13 px at 9 px, 11 → 14 px at 10 px, 12 → 16 px
+  at 11 px, 15 → 17 px at 12 px), so every caption grew and pushed 41–156
+  elements per state out of place. Each pin is the MEASURED English CONTENT line
+  box over its own font-size, with padding and border subtracted first, so
+  neither Latin arm can move. `.viz-label` and `.keyboard-label` are pinned as
+  LINE BOXES rather than as leaves: every leaf inside them reports an identical
+  box in both languages and the rows still grew 3 px, because an inline box's
+  height comes from the used face's ascent and descent.
+- **Two floors on the strapline, at the EXACT measured English box.** This page
+  is the wave's one shrink-in-both-dimensions case: the English strapline WRAPS
+  to two lines at 346.31 × 24 and the Chinese fits on one at 190.36 × 16, so the
+  title block shrink-wrapped 156 px narrower and 8 px shorter and dragged the
+  whole preset bar 78 px left. `min-width: 346.31px` and `min-height: 24px` —
+  floors, never fixed sizes, and never rounded, so neither Latin arm moves.
+- **The two signal-path operator nodes read `调制` and `载波`.** The glossary's
+  settled root for `MOD` is `调制`, so `CAR` follows it to `载波` and the pair
+  stays a pair. Both readers returned "Modulation" and "Carrier": the Chinese
+  node face reads as the process where the English abbreviation reads as the
+  operator. It is left as it stands, because nothing else on this page can be
+  confused with it, the tooltip beneath it names the operator in a full sentence,
+  and the fuller `调制器` measures 29.6 px against the English `MOD`'s 23.08 px
+  inside a fixed SVG operator box.
+- **`PluginProcessor.h`'s language codec is three-way**, in pure ASCII. The file
+  carries the BCP-47 tag and nothing else — no Chinese character exists anywhere
+  under `Source/`.
+
+### Unchanged, and recorded as checked
+
+- **`js/app.js:877` still paints `ctx.fillText("fc", …)`.** The carrier-frequency
+  marker on the spectrum canvas is language-neutral notation, the same class as
+  O-Formant's `F1..F5`, and the neighbouring `fillText(fmtTickHz(f), …)` paints a
+  formatted number. Both were read, checked against `I18N_EXEMPT` and left.
+- **`.routing-label` still wraps to two lines in French.** `measure-ui` reports
+  it, it was measured on the tree as found before any of this work, and nothing
+  in this release touches it.
+
 ## [1.4.1] — 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
