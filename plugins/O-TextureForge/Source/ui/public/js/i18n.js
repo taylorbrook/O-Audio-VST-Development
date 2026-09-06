@@ -117,7 +117,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — hover-help copy (v1.2.0). {en:{t, b}, fr:{t, b, reviewed}}.
@@ -188,6 +188,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Énergie',
               b: 'Oriente la recherche de grains vers un matériau plus fort ou plus faible, selon l’énergie RMS de chaque grain. Baissez-le pour une nappe feutrée, montez-le pour les moments les plus puissants du corpus. 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '能量',
+              b: '让颗粒搜索偏向更响或更轻的素材，依据每个颗粒的 RMS 能量。调低可得到安静的铺底，调高则取语料库中最有力的时刻。0 到 100%。',
+              reviewed: 'mt' },
     },
     'tip.brightness': {
         en: { t: 'Brightness',
@@ -195,6 +199,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Brillance',
               b: 'Oriente la recherche vers des grains plus sombres ou plus clairs, selon le centroïde spectral de chaque grain. Les valeurs basses privilégient un matériau étouffé, riche en corps ; les valeurs hautes, l’air et le souffle. 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '明亮度',
+              b: '让搜索偏向更暗或更亮的颗粒，依据每个颗粒的频谱质心。低值偏向沉闷、以共鸣体为主的素材；高值偏向空气感和嘶声。0 到 100%。',
+              reviewed: 'mt' },
     },
     'tip.texture': {
         en: { t: 'Texture',
@@ -202,6 +210,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Texture', sameAsEn: true,
               b: 'Oriente la recherche entre des grains tonals et des grains bruités, selon la planéité spectrale de chaque grain. Les valeurs basses choisissent un matériau tenu, à hauteur définie ; les valeurs hautes, le souffle, la rugosité et le bruit. 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '纹理',
+              b: '让搜索在有调颗粒与噪声颗粒之间偏移，依据每个颗粒的频谱平坦度。低值挑出有音高的稳定素材；高值挑出气声、砂砾感和噪声。0 到 100%。',
+              reviewed: 'mt' },
     },
     // The two scatter axes have their OWN entries rather than one shared one,
     // because they have their own knobs: the XY control here is the scatter map
@@ -214,6 +226,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Disp. X',
               b: 'Déplace le curseur horizontalement sur la carte de dispersion et puise des grains dans cette zone du corpus. Faites glisser directement sur la carte pour déplacer les deux axes à la fois. 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '散布 X',
+              b: '让光标在散布图上水平移动，并从语料库的那个区域取用颗粒。直接在图上拖动可同时移动两个轴。0 到 100%。',
+              reviewed: 'mt' },
     },
     'tip.scatterY': {
         en: { t: 'Scatter Y',
@@ -221,6 +237,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Disp. Y',
               b: 'Déplace le curseur verticalement sur la carte de dispersion et puise des grains dans cette zone du corpus. Faites glisser directement sur la carte pour déplacer les deux axes à la fois. 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '散布 Y',
+              b: '让光标在散布图上垂直移动，并从语料库的那个区域取用颗粒。直接在图上拖动可同时移动两个轴。0 到 100%。',
+              reviewed: 'mt' },
     },
     'tip.variation': {
         en: { t: 'Variation',
@@ -228,6 +248,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Variation', sameAsEn: true,
               b: 'Rend la recherche aléatoire autour des réglages des macros, afin que les grains répétés ne soient jamais tout à fait identiques. À 0, le même grain revient à chaque fois ; montez-le pour une texture plus lâche et plus vivante. 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '变化',
+              b: '在宏观设定周围对搜索做随机化，使重复出现的颗粒永远不完全相同。为 0 时每次都返回同一个颗粒；调高可得到更松弛、更有生气的纹理。0 到 100%。',
+              reviewed: 'mt' },
     },
 
     // ── The five bottom-strip knobs ─────────────────────────────────────────
@@ -237,6 +261,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Position', sameAsEn: true,
               b: 'Oriente la recherche vers des grains issus d’un point donné de l’enregistrement source. À 0, la texture puise au début ; en haut de la plage, à la fin. 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '位置',
+              b: '让搜索偏向取自源录音中某个位置的颗粒。为 0 时纹理取自开头；到范围顶端时取自结尾。0 到 100%。',
+              reviewed: 'mt' },
     },
     // Range from the DUMP: this knob's readout is blank at runtime. See the
     // header. The dump's label column carries "ms" for GRAIN_SIZE.
@@ -246,6 +274,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Taille de grain',
               b: 'Définit la durée de lecture de chaque grain. Les valeurs courtes granulent la source en un nuage fin ; les valeurs longues laissent passer des fragments reconnaissables de l’enregistrement. 10 à 500 ms.',
               reviewed: true },
+    
+        'zh-Hans': { t: '颗粒尺寸',
+              b: '设定每个颗粒播放多久。短值把源素材颗粒化成细密的云；长值则让录音中可辨认的片段透出来。10 到 500 ms。',
+              reviewed: 'mt' },
     },
     // Range from the DUMP (AudioParameterInt 1..64, no label). "grains" is the
     // page's own noun for what this counts, not an invented unit.
@@ -255,6 +287,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Densité',
               b: 'Définit la fréquence de déclenchement de nouveaux grains en mode drone, ce qui éclaircit ou épaissit la texture. Les valeurs basses laissent des trous audibles ; les valeurs hautes font se recouvrir les grains en une nappe continue. 1 à 64 grains.',
               reviewed: true },
+    
+        'zh-Hans': { t: '密度',
+              b: '设定在持续音模式下新颗粒被触发的频率，让纹理变稀或变密。低值会留下听得见的空隙；高值则重叠成一张连续的铺底。1 到 64 个颗粒。',
+              reviewed: 'mt' },
     },
     'tip.crossfade': {
         en: { t: 'Crossfade',
@@ -262,6 +298,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Fondu enchaîné',
               b: 'Façonne l’enveloppe de chaque grain, d’un pic étroit à un plateau large qui recouvre ses voisins. Montez-le pour lisser une texture granuleuse, baissez-le pour le rythme et l’attaque. 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '交叉渐变',
+              b: '塑造每个颗粒的包络，从窄峰到与相邻颗粒重叠的宽平顶。调高可让颗粒感的纹理变平滑，调低则换来节奏和起音。0 到 100%。',
+              reviewed: 'mt' },
     },
     // Range from the DUMP (label "dB"); this readout is blank at runtime too.
     // U+2212 MINUS SIGN, not a hyphen, in both languages.
@@ -271,6 +311,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Gain', sameAsEn: true,
               b: 'Ajuste le niveau de sortie du plugin après la somme du nuage de grains. Les réglages denses empilent de nombreux grains à la fois : baissez-le si la sortie écrête. −60 à +12 dB.',
               reviewed: true },
+    
+        'zh-Hans': { t: '增益',
+              b: '在颗粒云求和之后微调插件的输出电平。密度高时会同时叠加许多颗粒，因此输出削波就把它拉下来。−60 到 +12 dB。',
+              reviewed: 'mt' },
     },
 
     // ── The MIDI mode select ────────────────────────────────────────────────
@@ -286,6 +330,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Mode MIDI',
               b: 'Choisit la façon dont le plugin répond au MIDI. Pitch-Mapped transpose les grains selon la note jouée, Trigger + Modulate déclenche un grain par note et accepte le contrôle CC, et Generative Drone tourne seul, sans aucune note. Trois réglages.',
               reviewed: true },
+    
+        'zh-Hans': { t: 'MIDI 模式',
+              b: '选择插件如何响应 MIDI。Pitch-Mapped 按所弹音符移调颗粒，Trigger + Modulate 每个音符触发一个颗粒并接受 CC 控制，Generative Drone 则完全不需要音符自行运行。三个档位。',
+              reviewed: 'mt' },
     },
 
     // ── Chrome ──────────────────────────────────────────────────────────────
@@ -295,20 +343,43 @@ export const I18N = Object.freeze({
     // promised one would be a tip that lies.
     'tip.settings': {
         en: { t: 'Settings',
-              b: 'Opens the settings panel. It holds one control, the interface language. Nothing in it changes the sound or any saved parameter.' },
+              b: 'Opens the settings panel. Nothing in it changes the sound or any saved parameter.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau de réglages. Il contient un seul contrôle, la langue de l’interface. Rien ici ne modifie ni le son ni un paramètre enregistré.',
+              b: 'Ouvre le panneau de réglages. Rien ici ne modifie ni le son ni un paramètre enregistré.',
               reviewed: true },
+    
+        'zh-Hans': { t: '设置',
+              b: '打开设置面板。其中任何内容都不会改变声音或任何已保存的参数。',
+              reviewed: 'mt' },
     },
-    // The endonyms are named verbatim in both bodies: they are what the two
-    // options in this select actually say, and they are I18N_EXEMPT for that
-    // reason (a language name is never translated).
+    // v1.4.0 — BOTH BODIES BELOW LOST AN ENUMERATION, in en and fr alike.
+    //
+    // The gear body counted the popover's controls and named the only one it
+    // found. That stopped being true when v1.3.0 added the hover-help switch,
+    // and no gate in this repo could see it: check-i18n assertion [16] REQUIRES
+    // that switch to exist, keyed and bound, which is precisely what makes the
+    // clause false.
+    //
+    // The language body ended by naming the selector's options in full. That was
+    // true for exactly as long as the selector held two entries and became false
+    // the moment this version added a third. Both are DELETIONS rather than
+    // extensions: a body that lists a control's options has to be re-edited every
+    // time the control grows, in every language, and it is that edit that gets
+    // forgotten. The endonyms still live in I18N_EXEMPT below, because the
+    // <option> texts themselves are never translated — the selector is now the
+    // only place the list appears, and it is the one place it cannot go stale.
+    // The superseded phrasings are in the CHANGELOG and deliberately not repeated
+    // here, so a repo grep for either stays at zero.
     'tip.language': {
         en: { t: 'Language',
-              b: 'Chooses the language of the captions and of this hover help. Value readouts stay in English. The choice is saved with the session, not with a preset. English or Français.' },
+              b: 'Chooses the language of the captions and of this hover help. Value readouts stay in English. The choice is saved with the session, not with a preset.' },
         fr: { t: 'Langue',
-              b: 'Choisit la langue des libellés et de ces infobulles. Les valeurs affichées restent en anglais. Le choix est enregistré avec la session, pas avec un préréglage. English ou Français.',
+              b: 'Choisit la langue des libellés et de ces infobulles. Les valeurs affichées restent en anglais. Le choix est enregistré avec la session, pas avec un préréglage.',
               reviewed: true },
+    
+        'zh-Hans': { t: '语言',
+              b: '选择说明文字和这些悬停帮助所用的语言。数值读数保持英文。所选语言随会话保存，而不是随预设保存。',
+              reviewed: 'mt' },
     },
     // v1.3.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -319,6 +390,10 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+    
+        'zh-Hans': { t: '悬停帮助',
+              b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
+              reviewed: 'mt' },
     },
 });
 
@@ -393,7 +468,7 @@ export const LABELS = Object.freeze({
     'label.tagline': {
         en: { t: 'Concatenative Texture Engine' },
         fr: { t: 'Moteur de texture concaténatif', reviewed: true },
-    },
+     'zh-Hans': { t: '串联式纹理引擎', reviewed: 'mt' }},
 
     // ── The scatter placeholder ─────────────────────────────────────────────
     // Three states of ONE element, written by src/app.js. Before v1.1.0 all
@@ -403,11 +478,11 @@ export const LABELS = Object.freeze({
     'placeholder.dropToBegin': {
         en: { t: 'Drop an audio file to begin' },
         fr: { t: 'Déposez un fichier audio pour commencer', reviewed: true },
-    },
+     'zh-Hans': { t: '拖入一个音频文件即可开始', reviewed: 'mt' }},
     'placeholder.webglUnavailable': {
         en: { t: 'WebGL unavailable' },
         fr: { t: 'WebGL indisponible', reviewed: true },
-    },
+     'zh-Hans': { t: 'WebGL 不可用', reviewed: 'mt' }},
     // Composed. {path} is the saved corpus path, substituted literally — it is
     // a filesystem path and resolves through trLabel's `resolve` arm to itself
     // because no LABELS key is spelled like a path.
@@ -430,29 +505,29 @@ export const LABELS = Object.freeze({
     'placeholder.fileNotFound': {
         en: { t: 'File not found:\n{path}\nDrop a new file to continue.' },
         fr: { t: 'Fichier introuvable :\n{path}\nDéposez un nouveau fichier pour continuer.', reviewed: true },
-    },
+     'zh-Hans': { t: '找不到文件：\n{path}\n拖入一个新文件以继续。', reviewed: 'mt' }},
 
     // ── Macro panel section captions ────────────────────────────────────────
     'section.timbralMacros': {
         en: { t: 'Timbral Macros' },
         fr: { t: 'Macros timbrales', reviewed: true },
-    },
+     'zh-Hans': { t: '音色宏控', reviewed: 'mt' }},
     'section.scatterPosition': {
         en: { t: 'Scatter Position' },
         fr: { t: 'Position de dispersion', reviewed: true },
-    },
+     'zh-Hans': { t: '散布位置', reviewed: 'mt' }},
 
     // ── The six macro knobs ─────────────────────────────────────────────────
     // Every one is an AudioParameterFloat display name, not a choice option, so
     // D-01 arm 1 does not apply and they localize. Their .knob-value siblings
     // are the readouts and are untouched.
-    'knob.energy':     { en: { t: 'Energy' },     fr: { t: 'Énergie',   reviewed: true } },
-    'knob.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: true } },
+    'knob.energy':     { en: { t: 'Energy' },     fr: { t: 'Énergie',   reviewed: true } , 'zh-Hans': { t: '能量', reviewed: 'mt' }},
+    'knob.brightness': { en: { t: 'Brightness' }, fr: { t: 'Brillance', reviewed: true } , 'zh-Hans': { t: '明亮度', reviewed: 'mt' }},
     // Identical in French. sameAsEn is REQUIRED here: check-i18n assertion 4
     // rejects a French entry that merely repeats the English unless the repeat
     // is declared deliberate, so an untranslated string cannot hide as a
     // coincidence.
-    'knob.texture':    { en: { t: 'Texture' },    fr: { t: 'Texture',   reviewed: true, sameAsEn: true } },
+    'knob.texture':    { en: { t: 'Texture' },    fr: { t: 'Texture',   reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '纹理', reviewed: 'mt' }},
     // MEASURED, not guessed. .knob-row .knob-label is a hard `width: 72px`
     // right-aligned box at 9 px with 1 px of letter-spacing. "Dispersion X" is
     // 65.14 px of text and still WRAPS TO TWO LINES in that box — the space
@@ -464,28 +539,28 @@ export const LABELS = Object.freeze({
     //
     // "Disp. X" keeps the section caption's root ("Position de dispersion")
     // and is the same abbreviation shape the two axes already have in English.
-    'knob.scatterX':   { en: { t: 'Scatter X' },  fr: { t: 'Disp. X', reviewed: true } },
-    'knob.scatterY':   { en: { t: 'Scatter Y' },  fr: { t: 'Disp. Y', reviewed: true } },
-    'knob.variation':  { en: { t: 'Variation' },  fr: { t: 'Variation', reviewed: true, sameAsEn: true } },
+    'knob.scatterX':   { en: { t: 'Scatter X' },  fr: { t: 'Disp. X', reviewed: true } , 'zh-Hans': { t: '散布 X', reviewed: 'mt' }},
+    'knob.scatterY':   { en: { t: 'Scatter Y' },  fr: { t: 'Disp. Y', reviewed: true } , 'zh-Hans': { t: '散布 Y', reviewed: 'mt' }},
+    'knob.variation':  { en: { t: 'Variation' },  fr: { t: 'Variation', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '变化', reviewed: 'mt' }},
 
     // ── The five bottom-strip knobs ─────────────────────────────────────────
     // The tight row. See the GEOMETRY note above and the pin in the stylesheet.
-    'knob.position':     { en: { t: 'Position' },   fr: { t: 'Position', reviewed: true, sameAsEn: true } },
+    'knob.position':     { en: { t: 'Position' },   fr: { t: 'Position', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '位置', reviewed: 'mt' }},
     // "Grain Size" is GRAIN_SIZE's display name and "Taille de grain" is the
     // glossary ROOT for it. v1.2.0 shipped the abbreviation "Taille grain" on a
     // width argument that v1.1.0 had already made obsolete — see decision 2 in
     // the header. Re-measured at 900 x 600: 76.94 px on one line inside a
     // 173.6 px grid column. The root fits, so the root ships.
-    'knob.grainSize':    { en: { t: 'Grain Size' }, fr: { t: 'Taille de grain', reviewed: true } },
+    'knob.grainSize':    { en: { t: 'Grain Size' }, fr: { t: 'Taille de grain', reviewed: true } , 'zh-Hans': { t: '颗粒尺寸', reviewed: 'mt' }},
     // The page caption is "Density"; the parameter is "Grain Density". The
     // caption is what is localized, because the caption is what is rendered.
-    'knob.grainDensity': { en: { t: 'Density' },    fr: { t: 'Densité',  reviewed: true } },
+    'knob.grainDensity': { en: { t: 'Density' },    fr: { t: 'Densité',  reviewed: true } , 'zh-Hans': { t: '密度', reviewed: 'mt' }},
     // "Fondu" alone is a FADE. A crossfade is *un fondu enchaîné*, and that is
     // what tip.crossfade's body describes. 80.73 px in the 173.6 px column.
-    'knob.crossfade':    { en: { t: 'Crossfade' },  fr: { t: 'Fondu enchaîné', reviewed: true } },
+    'knob.crossfade':    { en: { t: 'Crossfade' },  fr: { t: 'Fondu enchaîné', reviewed: true } , 'zh-Hans': { t: '交叉渐变', reviewed: 'mt' }},
     // The page caption is "Gain"; the parameter is "Output Gain". Spelled
     // identically in French, hence sameAsEn.
-    'knob.gain':         { en: { t: 'Gain' },       fr: { t: 'Gain',     reviewed: true, sameAsEn: true } },
+    'knob.gain':         { en: { t: 'Gain' },       fr: { t: 'Gain',     reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '增益', reviewed: 'mt' }},
 
     // ── Bottom controls ─────────────────────────────────────────────────────
     // "MIDI Mode" is the MIDI_MODE parameter's DISPLAY NAME, not one of its
@@ -495,7 +570,7 @@ export const LABELS = Object.freeze({
     'label.midiMode': {
         en: { t: 'MIDI Mode' },
         fr: { t: 'Mode MIDI', reviewed: true },
-    },
+     'zh-Hans': { t: 'MIDI 模式', reviewed: 'mt' }},
     // Used TWICE — on the drop zone in the markup, and by src/app.js when an
     // empty corpus arrives and the placeholder falls back to the same
     // invitation. One key rather than two copies of one sentence drifting
@@ -503,7 +578,7 @@ export const LABELS = Object.freeze({
     'label.dropZone': {
         en: { t: 'Drop audio file here' },
         fr: { t: 'Déposez un fichier audio ici', reviewed: true },
-    },
+     'zh-Hans': { t: '把音频文件拖到这里', reviewed: 'mt' }},
 
     // ── Toasts and the large-file dialog, all written by src/app.js ─────────
     // "UMAP" and "PCA" are untranslated: both are algorithm names used in
@@ -512,13 +587,13 @@ export const LABELS = Object.freeze({
     'toast.umapCancelled': {
         en: { t: 'UMAP cancelled — using PCA layout' },
         fr: { t: 'UMAP annulé — disposition PCA conservée', reviewed: true },
-    },
+     'zh-Hans': { t: 'UMAP 已取消——改用 PCA 布局', reviewed: 'mt' }},
     // The FALLBACK only. When C++ supplies a reason it is shown verbatim and is
     // NOT localized — see the note in I18N_EXEMPT.
     'toast.loadFailed': {
         en: { t: 'Failed to load file' },
         fr: { t: 'Échec du chargement du fichier', reviewed: true },
-    },
+     'zh-Hans': { t: '文件加载失败', reviewed: 'mt' }},
     // Composed. {size} is a number the caller has already formatted to one
     // decimal; it is a readout and is not translated (D-03). "MB" becomes "Mo",
     // which is the French unit symbol for megabyte and is a genuine
@@ -529,36 +604,36 @@ export const LABELS = Object.freeze({
     'dialog.largeFile': {
         en: { t: 'Large file: {size} MB. This may use significant memory.' },
         fr: { t: 'Fichier volumineux : {size} Mo. Cela peut consommer beaucoup de mémoire.', reviewed: true },
-    },
+     'zh-Hans': { t: '大文件：{size} MB。这可能占用大量内存。', reviewed: 'mt' }},
     'dialog.loadAnyway': {
         en: { t: 'Load Anyway' },
         fr: { t: 'Charger quand même', reviewed: true },
-    },
+     'zh-Hans': { t: '仍然载入', reviewed: 'mt' }},
     // Used twice: the large-file dialog's dismiss button and the UMAP progress
     // row's cancel button. Same word, same meaning, one key.
     'action.cancel': {
         en: { t: 'Cancel' },
         fr: { t: 'Annuler', reviewed: true },
-    },
+     'zh-Hans': { t: '取消', reviewed: 'mt' }},
 
     // ── The settings popover (v1.1.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' }},
 
     // v1.3.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
     // hears the language the page is showing.
-    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' },           fr: { t: 'Réglages',              reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'mt' }},
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'mt' }},
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }},
 });
 
 // ============================================================================
