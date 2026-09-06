@@ -2,6 +2,65 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.19.0] - 2026-09-06
+
+O-FreqPulse speaks Simplified Chinese. Stage 4 wave 4d of the zh-Hans rollout:
+**96 emitter rows** — 33 hover-help entries with their bodies and 34 on-page
+labels. MINOR: a language is added; no parameter, range, type or state format
+changed, and the English and French pages are byte-identical in geometry to
+1.18.3.
+
+### Added
+
+- **`zh-Hans` on every `I18N` and `LABELS` key**, and the Simplified Chinese
+  endonym in the language selector, its markup copied byte-for-byte from a
+  shipped wave-4c plugin rather than retyped.
+- **A form-4 rule for the 24 form controls that were still on the UA face.**
+  `css/styles.css` already carried NINE `font-family: inherit` declarations, so a
+  grep of it reports a plugin that has had this repair; the computed census
+  reports a plugin that has had it on SOME controls, and 24 were still resolving
+  to a bare `Arial` no file declares — the five global sliders, the four per-band
+  mix sliders, the five crossover divider sliders, the five Euclidean number
+  inputs, the four band expand buttons and the panel close button. The rule is
+  ELEMENT-LEVEL on purpose: at specificity (0,0,1) it loses to every class and id
+  rule on the page, so the 77 controls already resolving to Georgia through an
+  explicit `inherit` and the 8 already naming Arial keep exactly what they had.
+  Arial is kept FIRST so the Latin metrics of the en and fr arms do not move.
+- **The CJK tail on the three declared stacks.** Two name Georgia, which is
+  installed, and took the tail alone. One names Arial and then the sans generic:
+  Arial carries no Han, so a Han-bearing node there fell through to the
+  document-language face, and its tail goes before that generic.
+- **Eleven unitless `line-height` pins across five font sizes.** The three
+  `label` populations are pinned SEPARATELY — 8px in the band mix rows, 12px in
+  the Euclidean panel, 11px in the footer — because one element type rendered at
+  three sizes needs three pins on three selectors, and a single rule would have
+  been wrong in two places out of three.
+
+### Changed
+
+- **The language hover-help no longer names the selector's options.** A list
+  written into the copy goes false every time a language is added.
+- **The settings hover-help was READ AND LEFT.** It already names both of the
+  popover's controls. Recorded as a checked non-defect.
+
+### Review level
+
+Every Chinese row ships at **`reviewed: 'bt'`** — machine-drafted, then read back
+through a blind reverse pass with the English withheld, the row ids salted,
+repository access forbidden and all 96 triples read. NO ROW WAS RE-AUTHORED:
+every recovered English named the same control. A round that corrects nothing
+needs no second round, so there was none.
+
+`reviewed: 'native'` stays OPEN. No native Simplified Chinese reader has passed
+over this copy.
+
+### Note on Han line boxes
+
+A Han glyph's line box under `line-height: normal` is roughly 30% taller than a
+Latin one at the same font size, which is why this release carries eleven
+measured pins rather than one global rule.
+
+
 ## [1.18.3] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
