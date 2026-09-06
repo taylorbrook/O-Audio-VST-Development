@@ -207,7 +207,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '设置',
               b: '选择本界面的语言，以及是否显示悬停帮助。两项选择都随会话一起记住。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // v1.14.0 CORRECTION. Through v1.13.2 this body listed the selector's options
     // by name, in both languages. The selector now offers a third, so a list
@@ -228,7 +228,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '语言',
               b: '这些悬停帮助和页面标签所用的语言。数值读数、音名、调音名称和预设名称保持英文。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
@@ -240,7 +240,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '悬停帮助',
               b: '开启或关闭这些悬停帮助。关闭之后，只有齿轮和这个开关仍会解释自己。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── SOUND tab. All fifteen below SPLIT CLEANLY on the single ": ". ──────
@@ -254,7 +254,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '槌硬度',
               b: '控制虚拟琴槌的硬度。软槌（0%）产生温暖、圆润的音色；硬槌（100%）造出明亮、有颗粒感的起音。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'material': {
         en: { t: 'Material Hardness',
@@ -266,7 +266,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '材质硬度',
               b: '模拟音板的材质密度。数值较低时接近较软的红木，较高时接近密度更大、延音更长的合成材料。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'resonance': {
         en: { t: 'Resonance',
@@ -278,7 +278,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '共振',
               b: '控制共鸣管的耦合程度。数值越高延音越长，并加入马林巴共鸣管特有的绽放感。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'strike': {
         en: { t: 'Strike Position',
@@ -290,7 +290,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '击奏位置',
               b: '琴槌击打音板的位置。Center（0%）强调基频；Edge（100%）带出更高的分音与泛音。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'damping': {
         en: { t: 'Overtone Damping',
@@ -302,7 +302,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '泛音阻尼',
               b: '控制高次谐波衰减的快慢。数值较低时保留明亮的泛音；较高时得到更纯净、更偏基频的音色。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tone': {
         en: { t: 'Tone',
@@ -314,7 +314,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '音色',
               b: '整体明亮度控制。相当于一个柔和的低通滤波器。数值较低时音色更暗；较高时保留更多高频成分。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'waveform': {
         en: { t: 'Waveform',
@@ -326,7 +326,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '波形',
               b: '马林巴声波的实时可视化。显示这些音色控件如何影响每个音符的谐波内容。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'velocity': {
         en: { t: 'Velocity Curve',
@@ -338,7 +338,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '力度曲线',
               b: '塑造 MIDI 力度对音量的影响。低值给出压缩、均匀的响应；高值给出对比更强、更富表现力的演奏。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'response': {
         en: { t: 'Response Graph',
@@ -350,7 +350,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '响应曲线图',
               b: '力度曲线的可视化表示。X 轴是输入力度，Y 轴是输出音量。曲线越陡，动态范围越大。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'output': {
         en: { t: 'Output Level',
@@ -362,7 +362,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '输出电平',
               b: '以分贝（dB）计的主音量控制。0 dB 为单位增益。用它把电平与混音中的其他乐器对齐。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'level-meter': {
         en: { t: 'Level Meter',
@@ -374,7 +374,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '电平表',
               b: '显示当前的输出电平。让峰值保持在 0 dB 以下以免削波。指针实时跟随音频的动态。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── TUNING tab ──────────────────────────────────────────────────────────
@@ -388,7 +388,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '音程列表',
               b: '显示每个音阶级数的音分偏移。100 音分等于 1 个半音。在自定义模式下可以编辑这些数值以构建微分音音阶。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'pitch-circle': {
         en: { t: 'Scale Circle',
@@ -400,7 +400,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '音阶圆环',
               b: '音阶音程围绕八度的可视化表示。线条显示每个音符相对于平均律所处的位置。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'tuning-mode': {
         en: { t: 'Tuning Mode',
@@ -412,7 +412,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: '调音模式',
               b: '12-TET 使用标准平均律；自定义启用 Scala 文件载入以支持微分音音阶；MTS-ESP 连接到外部调音主控。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'a4-ref': {
         en: { t: 'A4 Reference',
@@ -424,7 +424,7 @@ export const I18N = Object.freeze({
 
         'zh-Hans': { t: 'A4 基准音高',
               b: 'A4 的标准音高。通常为 440 Hz。历史音律可能使用 415 Hz（巴洛克）或 432 Hz。可在 400 到 480 Hz 之间调节。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
@@ -493,13 +493,13 @@ export const LABELS = Object.freeze({
     // ── Header: preset bar ──────────────────────────────────────────────────
     // The preset NAME is not keyed: the name IS the JSON filename
     // (OuariconPresetManager.h:283-285), so translating it breaks recall.
-    'label.load':  { en: { t: 'LOAD' }, fr: { t: 'CHARG.', reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'mt' },},
-    'label.save':  { en: { t: 'SAVE' }, fr: { t: 'ENREG.', reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'mt' },},
+    'label.load':  { en: { t: 'LOAD' }, fr: { t: 'CHARG.', reviewed: true } , 'zh-Hans': { t: '载入', reviewed: 'bt' },},
+    'label.save':  { en: { t: 'SAVE' }, fr: { t: 'ENREG.', reviewed: true } , 'zh-Hans': { t: '保存', reviewed: 'bt' },},
 
     // ── Tab row ─────────────────────────────────────────────────────────────
-    'label.tabSound':   { en: { t: 'SOUND' },   fr: { t: 'SON',    reviewed: true } , 'zh-Hans': { t: '声音', reviewed: 'mt' },},
-    'label.tabTuning':  { en: { t: 'TUNING' },  fr: { t: 'ACCORD', reviewed: true } , 'zh-Hans': { t: '调音', reviewed: 'mt' },},
-    'label.tabEffects': { en: { t: 'EFFECTS' }, fr: { t: 'EFFETS', reviewed: true } , 'zh-Hans': { t: '效果', reviewed: 'mt' },},
+    'label.tabSound':   { en: { t: 'SOUND' },   fr: { t: 'SON',    reviewed: true } , 'zh-Hans': { t: '声音', reviewed: 'bt' },},
+    'label.tabTuning':  { en: { t: 'TUNING' },  fr: { t: 'ACCORD', reviewed: true } , 'zh-Hans': { t: '调音', reviewed: 'bt' },},
+    'label.tabEffects': { en: { t: 'EFFECTS' }, fr: { t: 'EFFETS', reviewed: true } , 'zh-Hans': { t: '效果', reviewed: 'bt' },},
 
     // ── SOUND tab: the six knob captions. The four two-line ones are FRAGMENT
     //    pairs — see the block comment above before reading a row alone.
@@ -507,32 +507,32 @@ export const LABELS = Object.freeze({
                                                    termNote: 'line 1 of the two-line caption DURETÉ / MAILLET. French inverts head and modifier, so line 1 carries the head noun (hardness) and line 2 the modifier (mallet) — the caption is the pair, not the row' } ,
 
         'zh-Hans': { t: '槌',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'label.malletL2':   { en: { t: 'HARDNESS' }, fr: { t: 'MAILLET',   reviewed: true,
                                                    termNote: 'line 2 of DURETÉ / MAILLET — the inverted pair, as above. Also NOT the glossary\'s mailloche: a mailloche is a bass-drum beater; keyboard-percussion mallets are maillets, and MAILLOCHE measures 67.89 px in the 61.00 px .knob-label besides' } ,
 
         'zh-Hans': { t: '硬度',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'label.materialL1': { en: { t: 'MATERIAL' }, fr: { t: 'DURETÉ',    reviewed: true,
                                                    termNote: 'line 1 of the two-line caption DURETÉ / MATÉRIAU — the same head-and-modifier inversion as the mallet pair' } ,
 
         'zh-Hans': { t: '材质',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'label.materialL2': { en: { t: 'HARDNESS' }, fr: { t: 'MATÉRIAU',  reviewed: true,
                                                    termNote: 'line 2 of DURETÉ / MATÉRIAU — the inverted pair. MATÉRIAU is the glossary root for material and measures 59.67 px inside the 61.00 px .knob-label, so the column does not widen' } ,
 
         'zh-Hans': { t: '硬度',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'label.resonance':  { en: { t: 'RESONANCE' }, fr: { t: 'RÉSONANCE', reviewed: true } , 'zh-Hans': { t: '共振', reviewed: 'mt' },},
+    'label.resonance':  { en: { t: 'RESONANCE' }, fr: { t: 'RÉSONANCE', reviewed: true } , 'zh-Hans': { t: '共振', reviewed: 'bt' },},
     'label.strikeL1':   { en: { t: 'STRIKE' },   fr: { t: 'POINT',     reviewed: true,
                                                    termNote: 'line 1 of the two-line caption POINT / FRAPPE — the pair reads "point de frappe" and carries the glossary root frappe on line 2' } ,
 
         'zh-Hans': { t: '击奏',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // "DE FRAPPE" measured 61.52 px against the 55 px knob column and widened
     // it, dragging the knob 3.3 px sideways. French routinely drops the
@@ -542,47 +542,47 @@ export const LABELS = Object.freeze({
                                                    termNote: 'line 2 of POINT / FRAPPE — the inverted pair. POSITION on this line would read "point de position"' } ,
 
         'zh-Hans': { t: '位置',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'label.dampingL1':  { en: { t: 'OVERTONE' }, fr: { t: 'AMORT.',    reviewed: true } , 'zh-Hans': { t: '泛音', reviewed: 'mt' },},
+    'label.dampingL1':  { en: { t: 'OVERTONE' }, fr: { t: 'AMORT.',    reviewed: true } , 'zh-Hans': { t: '泛音', reviewed: 'bt' },},
     'label.dampingL2':  { en: { t: 'DAMPING' },  fr: { t: 'HARMON.',   reviewed: true,
                                                    termNote: 'line 2 of AMORT. / HARMON. — the glossary root amortissement is on line 1; this line carries the modifier. HARMONIQUES measures 84.91 px against the 62.00 px .knob-label' } ,
 
         'zh-Hans': { t: '阻尼',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'label.tone':       { en: { t: 'TONE' },     fr: { t: 'TIMBRE',    reviewed: true } , 'zh-Hans': { t: '音色', reviewed: 'mt' },},
+    'label.tone':       { en: { t: 'TONE' },     fr: { t: 'TIMBRE',    reviewed: true } , 'zh-Hans': { t: '音色', reviewed: 'bt' },},
 
     // ── SOUND tab: velocity section ─────────────────────────────────────────
-    'label.velocity': { en: { t: 'VELOCITY' }, fr: { t: 'VÉLOCITÉ', reviewed: true } , 'zh-Hans': { t: '力度', reviewed: 'mt' },},
-    'label.response': { en: { t: 'RESPONSE' }, fr: { t: 'RÉPONSE',  reviewed: true } , 'zh-Hans': { t: '响应', reviewed: 'mt' },},
+    'label.velocity': { en: { t: 'VELOCITY' }, fr: { t: 'VÉLOCITÉ', reviewed: true } , 'zh-Hans': { t: '力度', reviewed: 'bt' },},
+    'label.response': { en: { t: 'RESPONSE' }, fr: { t: 'RÉPONSE',  reviewed: true } , 'zh-Hans': { t: '响应', reviewed: 'bt' },},
     // The two axis captions are 6 px absolute-positioned marks INSIDE a 105 px
     // curve box, 2 px from its edges. "Sortie"/"Entrée" render 17.7 px and
     // 18.5 px against "Out" 10.1 px and "In" 6.4 px, which pushes the x mark
     // over the curve. Abbreviated to the same three-glyph budget the English
     // uses; measured, not guessed.
-    'label.axisOut':  { en: { t: 'Out' },      fr: { t: 'Sort',     reviewed: true } , 'zh-Hans': { t: '出', reviewed: 'mt' },},
-    'label.axisIn':   { en: { t: 'In' },       fr: { t: 'Entr',     reviewed: true } , 'zh-Hans': { t: '入', reviewed: 'mt' },},
+    'label.axisOut':  { en: { t: 'Out' },      fr: { t: 'Sort',     reviewed: true } , 'zh-Hans': { t: '出', reviewed: 'bt' },},
+    'label.axisIn':   { en: { t: 'In' },       fr: { t: 'Entr',     reviewed: true } , 'zh-Hans': { t: '入', reviewed: 'bt' },},
 
     // ── SOUND tab: output section ───────────────────────────────────────────
-    'label.output': { en: { t: 'OUTPUT' }, fr: { t: 'SORTIE', reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'mt' },},
-    'label.level':  { en: { t: 'Level' },  fr: { t: 'Niveau', reviewed: true } , 'zh-Hans': { t: '电平', reviewed: 'mt' },},
+    'label.output': { en: { t: 'OUTPUT' }, fr: { t: 'SORTIE', reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'bt' },},
+    'label.level':  { en: { t: 'Level' },  fr: { t: 'Niveau', reviewed: true } , 'zh-Hans': { t: '电平', reviewed: 'bt' },},
 
     // ── TUNING tab ──────────────────────────────────────────────────────────
     // The static header index.html authors, and the one updateIntervalListUI()
     // injects with the count. Two keys because they are two different strings
     // in the same slot: the static one renders only in the instant before the
     // first updateIntervalListUI() pass.
-    'label.intervals': { en: { t: 'Intervals' }, fr: { t: 'Intervalles', reviewed: true } , 'zh-Hans': { t: '音程', reviewed: 'mt' },},
+    'label.intervals': { en: { t: 'Intervals' }, fr: { t: 'Intervalles', reviewed: true } , 'zh-Hans': { t: '音程', reviewed: 'bt' },},
     'label.intervalHeader': {
         en: { t: 'Intervals: {n}' },
         fr: { t: 'Intervalles : {n}', reviewed: true },
     
 
         'zh-Hans': { t: '音程：{n}',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'label.tonic': { en: { t: 'Tonic:' }, fr: { t: 'Tonique :', reviewed: true } , 'zh-Hans': { t: '主音：', reviewed: 'mt' },},
+    'label.tonic': { en: { t: 'Tonic:' }, fr: { t: 'Tonique :', reviewed: true } , 'zh-Hans': { t: '主音：', reviewed: 'bt' },},
     // The circle's own caption. "Intervalles de la gamme" is 108.6 px under a
     // 150 px circle whose caption cell is 150 px, so the full form fits; it is
     // used rather than abbreviated.
@@ -592,17 +592,17 @@ export const LABELS = Object.freeze({
     
 
         'zh-Hans': { t: '音阶音程',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // Only the middle button of the three-way tuning-mode control is keyed.
     // 12-TET and MTS-ESP are the AudioParameterChoice option strings verbatim
     // and are I18N_EXEMPT under D-01; CUSTOM is not (the option is "Scala"),
     // so it is a plain caption and localizes. See the I18N_EXEMPT note.
-    'label.custom': { en: { t: 'CUSTOM' }, fr: { t: 'PERSO', reviewed: true } , 'zh-Hans': { t: '自定义', reviewed: 'mt' },},
+    'label.custom': { en: { t: 'CUSTOM' }, fr: { t: 'PERSO', reviewed: true } , 'zh-Hans': { t: '自定义', reviewed: 'bt' },},
     // "A4" is kept: it is the pitch identifier the 440 Hz readout beside it
     // refers to, not a word. French note naming would make it "La3", which
     // would disagree with every tuning reference the user reads elsewhere.
-    'label.a4ref': { en: { t: 'A4 REF' }, fr: { t: 'RÉF. A4', reviewed: true } , 'zh-Hans': { t: 'A4 基准', reviewed: 'mt' },},
+    'label.a4ref': { en: { t: 'A4 REF' }, fr: { t: 'RÉF. A4', reviewed: true } , 'zh-Hans': { t: 'A4 基准', reviewed: 'bt' },},
 
     // The four Scala file buttons are .btn-small at 7 px. "CHARG." and "ENREG."
     // are the same abbreviations the preset bar uses, so the page abbreviates
@@ -612,61 +612,61 @@ export const LABELS = Object.freeze({
                          termNote: 'width, measured on this page: the glossary lists charger .scl | ouvrir .scl and no abbreviation, although it does list enreg. .scl for the SAME row of .btn-small buttons. CHARGER .SCL grows #scala-buttons from 200.00 px to 215.91 px inside a 200.00 px .tuning-status-section; OUVRIR .SCL grows it 1.06 px and moves five non-label elements. CHARG. is the form the glossary accepts for bare load and the one the preset bar uses' } ,
 
         'zh-Hans': { t: '载入 .scl',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     'label.loadKbm': { en: { t: 'LOAD .KBM' },
                    fr: { t: 'CHARG. .KBM', reviewed: true,
                          termNote: 'width — same measurement and same row as label.loadScl' } ,
 
         'zh-Hans': { t: '载入 .kbm',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'label.saveScl': { en: { t: 'SAVE .SCL' }, fr: { t: 'ENREG. .SCL', reviewed: true } , 'zh-Hans': { t: '保存 .scl', reviewed: 'mt' },},
-    'label.saveKbm': { en: { t: 'SAVE .KBM' }, fr: { t: 'ENREG. .KBM', reviewed: true } , 'zh-Hans': { t: '保存 .kbm', reviewed: 'mt' },},
+    'label.saveScl': { en: { t: 'SAVE .SCL' }, fr: { t: 'ENREG. .SCL', reviewed: true } , 'zh-Hans': { t: '保存 .scl', reviewed: 'bt' },},
+    'label.saveKbm': { en: { t: 'SAVE .KBM' }, fr: { t: 'ENREG. .KBM', reviewed: true } , 'zh-Hans': { t: '保存 .kbm', reviewed: 'bt' },},
 
     // The MTS-ESP status line is one .mts-label holding a prefix and a status
     // span. The prefix is keyed on its own fragment so applyLabel's textContent
     // write cannot delete the status span beside it. The protocol name is not
     // translated; the French colon takes its narrow no-break space.
-    'label.mtsPrefix':   { en: { t: 'MTS-ESP:' },     fr: { t: 'MTS-ESP :',   reviewed: true } , 'zh-Hans': { t: 'MTS-ESP：', reviewed: 'mt' },},
-    'label.disconnected': { en: { t: 'Disconnected' }, fr: { t: 'Déconnecté', reviewed: true } , 'zh-Hans': { t: '未连接', reviewed: 'mt' },},
+    'label.mtsPrefix':   { en: { t: 'MTS-ESP:' },     fr: { t: 'MTS-ESP :',   reviewed: true } , 'zh-Hans': { t: 'MTS-ESP：', reviewed: 'bt' },},
+    'label.disconnected': { en: { t: 'Disconnected' }, fr: { t: 'Déconnecté', reviewed: true } , 'zh-Hans': { t: '未连接', reviewed: 'bt' },},
 
-    'label.clickToPlay': { en: { t: 'Click to play' }, fr: { t: 'Cliquer pour jouer', reviewed: true } , 'zh-Hans': { t: '点击播放', reviewed: 'mt' },},
+    'label.clickToPlay': { en: { t: 'Click to play' }, fr: { t: 'Cliquer pour jouer', reviewed: true } , 'zh-Hans': { t: '点击播放', reviewed: 'bt' },},
 
     // ── The preset dropdown's two group headings ────────────────────────────
     // Chrome, not data: these are section captions the page invents, and unlike
     // the preset NAMES beneath them they never reach C++ and never become a
     // filename. Same call O-Lyrica made for Factory / Custom.
-    'label.presetFactory': { en: { t: 'Factory' }, fr: { t: 'Usine',       reviewed: true } , 'zh-Hans': { t: '出厂', reviewed: 'mt' },},
-    'label.presetUser':    { en: { t: 'User' },    fr: { t: 'Utilisateur', reviewed: true } , 'zh-Hans': { t: '用户', reviewed: 'mt' },},
+    'label.presetFactory': { en: { t: 'Factory' }, fr: { t: 'Usine',       reviewed: true } , 'zh-Hans': { t: '出厂', reviewed: 'bt' },},
+    'label.presetUser':    { en: { t: 'User' },    fr: { t: 'Utilisateur', reviewed: true } , 'zh-Hans': { t: '用户', reviewed: 'bt' },},
 
     // ── The settings popover ────────────────────────────────────────────────
-    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' },},
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' },},
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche',        reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' },},
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',         reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' },},
+    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue',        reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'bt' },},
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' },},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche',        reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'bt' },},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',         reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' },},
 
     // ── Accessible names. Keyed through data-i18n-aria, which resolves through
     //    the same sweep with setAttribute. Every one of these replaces a native
     //    title= that contract §4 deletes: a native title renders a second,
     //    untranslated OS tooltip competing with the measure-then-pin renderer.
-    'aria.settings':    { en: { t: 'Settings' },              fr: { t: 'Réglages',                  reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'mt' },},
-    'aria.langSelect':  { en: { t: 'Interface language' },     fr: { t: 'Langue de l’interface',     reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'mt' },},
-    'aria.helpToggle':  { en: { t: 'Toggle hover help' },      fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' },},
-    'aria.prevPreset':  { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',      reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'mt' },},
-    'aria.nextPreset':  { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',        reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'mt' },},
-    'aria.loadPreset':  { en: { t: 'Load preset from file' },  fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true } , 'zh-Hans': { t: '从文件载入预设', reviewed: 'mt' },},
-    'aria.savePreset':  { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage', reviewed: true } , 'zh-Hans': { t: '保存预设', reviewed: 'mt' },},
-    'aria.botanical':   { en: { t: 'Botanical illustration' }, fr: { t: 'Illustration botanique',    reviewed: true } , 'zh-Hans': { t: '植物插画', reviewed: 'mt' },},
+    'aria.settings':    { en: { t: 'Settings' },              fr: { t: 'Réglages',                  reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'bt' },},
+    'aria.langSelect':  { en: { t: 'Interface language' },     fr: { t: 'Langue de l’interface',     reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'bt' },},
+    'aria.helpToggle':  { en: { t: 'Toggle hover help' },      fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' },},
+    'aria.prevPreset':  { en: { t: 'Previous preset' },        fr: { t: 'Préréglage précédent',      reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'bt' },},
+    'aria.nextPreset':  { en: { t: 'Next preset' },            fr: { t: 'Préréglage suivant',        reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'bt' },},
+    'aria.loadPreset':  { en: { t: 'Load preset from file' },  fr: { t: 'Charger un préréglage depuis un fichier', reviewed: true } , 'zh-Hans': { t: '从文件载入预设', reviewed: 'bt' },},
+    'aria.savePreset':  { en: { t: 'Save preset' },            fr: { t: 'Enregistrer le préréglage', reviewed: true } , 'zh-Hans': { t: '保存预设', reviewed: 'bt' },},
+    'aria.botanical':   { en: { t: 'Botanical illustration' }, fr: { t: 'Illustration botanique',    reviewed: true } , 'zh-Hans': { t: '植物插画', reviewed: 'bt' },},
     // The three injected by updateIntervalListUI()'s tonic selector.
     'aria.tonicSelector': { en: { t: 'Change tonic note (transposes instrument)' },
                             fr: { t: 'Changer la tonique (transpose l’instrument)', reviewed: true } ,
 
         'zh-Hans': { t: '更改主音（移调乐器）',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
-    'aria.tonicPrev':     { en: { t: 'Previous note' }, fr: { t: 'Note précédente', reviewed: true } , 'zh-Hans': { t: '上一个音符', reviewed: 'mt' },},
-    'aria.tonicNext':     { en: { t: 'Next note' },     fr: { t: 'Note suivante',   reviewed: true } , 'zh-Hans': { t: '下一个音符', reviewed: 'mt' },},
+    'aria.tonicPrev':     { en: { t: 'Previous note' }, fr: { t: 'Note précédente', reviewed: true } , 'zh-Hans': { t: '上一个音符', reviewed: 'bt' },},
+    'aria.tonicNext':     { en: { t: 'Next note' },     fr: { t: 'Note suivante',   reviewed: true } , 'zh-Hans': { t: '下一个音符', reviewed: 'bt' },},
 });
 
 // ============================================================================

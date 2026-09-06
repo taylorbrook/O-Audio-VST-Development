@@ -2,6 +2,74 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.14.0] - 2026-09-06
+
+O-Marimba speaks Simplified Chinese. Stage 4 wave 4d of the zh-Hans rollout:
+**87 emitter rows** — 18 hover-help entries with their bodies and 51 on-page
+labels, covering the sound tab, the tuning tab and Scala mode. MINOR: a language
+is added; no parameter, range, type or state format changed, and the English and
+French pages are byte-identical in geometry to 1.13.2.
+
+### Added
+
+- **`zh-Hans` on every `I18N` and `LABELS` key**, and the Simplified Chinese
+  endonym in the language selector, its markup copied byte-for-byte from a
+  shipped wave-4c plugin rather than retyped and exempted beside the two
+  endonyms already in `I18N_EXEMPT`.
+- **A named face on the two NAKED GENERICS.** `index.html` L755 and L765
+  declared `font-family: monospace` and named no family at all, reaching 12
+  nodes — the purest form of the defect in the whole rollout. Under a Chinese
+  document language even a digit readout there resolves through the
+  document-language mono face and changes metrics with no translated string near
+  it. Both now name Courier New, which is installed, with the CJK tail before
+  their own mono generic. One further declaration named Garamond and fell
+  straight to the serif generic (7 nodes); Garamond is not installed here, so its
+  only survivor WAS the generic. Six more already named Times New Roman or
+  Georgia and took the tail alone.
+- **Fourteen unitless `line-height` pins across five font sizes**, each the
+  leaf's own measured English content line box over its own font-size at the
+  600 x 400 shipping frame. `.settings-label`'s existing `line-height: 1.2` is
+  REPLACED rather than duplicated: 1.2 was a round number and the leaf's own
+  English line box is 11px at 10px, so 1.1 is what the en and fr arms already
+  render and neither moves.
+- **A fifth knob-column width pin.** Four columns were pinned at 1.13.0 and
+  1.13.1 because their French caption measured differently; RESONANCE was
+  explicitly left out because RÉSONANCE measures the same column. The Chinese
+  does not — it is 14.02 px narrower, so the shrink-to-fit column collapsed onto
+  the 55 px knob and dragged the knob, its indicator and its readout 7 px
+  sideways. Pinned to the EXACT measured English border box, 69.02 px, rather
+  than rounded up, so neither Latin arm moves at all.
+
+### Changed
+
+- **The language hover-help no longer names the selector's options.** A list
+  written into the copy goes false every time a language is added.
+- **The settings hover-help was READ AND LEFT.** It already names both of the
+  popover's controls, which is what the live panel holds. Recorded as a checked
+  non-defect rather than inferred from a zero — four waves of mechanical
+  deletion have made deletion the reflex, and here the reflex is wrong.
+
+### Review level
+
+Every Chinese row ships at **`reviewed: 'bt'`** — machine-drafted, then read back
+through a blind reverse pass with the English withheld, the row ids salted,
+repository access forbidden and all 87 triples read. NO ROW WAS RE-AUTHORED: every
+recovered English named the same control, and the rows that scored lowest are the
+reverse read working rather than drifting — an uppercase two-line caption comes
+back as its ordinary-case word, and a glossary root comes back as a synonym of the
+English it stands for. A round that corrects nothing needs no second round, so
+there was none.
+
+`reviewed: 'native'` stays OPEN. No native Simplified Chinese reader has passed
+over this copy.
+
+### Note on Han line boxes
+
+A Han glyph's line box under `line-height: normal` is roughly 30% taller than a
+Latin one at the same font size, which is why this release carries fourteen
+measured pins rather than one global rule.
+
+
 ## [1.13.2] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
