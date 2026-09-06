@@ -2,6 +2,77 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.29.0] - 2026-09-06
+
+O-Formant speaks Simplified Chinese. Stage 4 wave 4d of the zh-Hans rollout,
+the heavy plugin of the wave: **245 emitter rows** — 63 hover-help entries with
+their bodies and 124 on-page labels — across the synth, lyrics, tuning and
+effects tabs and this plugin's own 1068-line tuning panel. MINOR: a language is
+added; no parameter, range, type or state format changed, and the English and
+French pages are byte-identical in geometry to 1.28.1.
+
+### Added
+
+- **`zh-Hans` on every `I18N` and `LABELS` key**, and the Simplified Chinese
+  endonym in the language selector, its markup copied byte-for-byte from a
+  shipped wave-4c plugin rather than retyped.
+- **The CJK font tail on every stack that can receive a Han codepoint**, and an
+  installed face on the twelve that had none. Twelve declarations named Garamond
+  and then fell straight to the serif generic; Garamond is not installed on the
+  build machine, so under a Chinese document language those 21 nodes rendered
+  this plugin's ENGLISH through a Chinese face. Three more named Times New
+  Roman and three named Courier New — both installed — and took the tail alone.
+- **A form-4 rule for the 31 form controls the tuning panel builds at runtime.**
+  A `<button>`, `<input>` or `<select>` takes its face from the UA stylesheet,
+  not from an ancestor, so all 31 resolved to a bare `Arial` no file in this
+  plugin declares. Arial is kept FIRST in the new rule so the Latin metrics of
+  the English and French arms do not move.
+- **28 unitless `line-height` pins and two floors.** Each pin is the leaf's own
+  measured English content line box over its own font-size, derived per line at
+  the 800 x 600 shipping frame across all 15 states. The two floors are not
+  line-height cases at all: `Intervals (11 notes)` wraps to two lines in English
+  and to one in Chinese, and the rotation table's first column is auto-sized by
+  a `Mode` header that is 3.20 px narrower in Chinese.
+
+### Changed
+
+- **The settings hover-help no longer says the panel holds the interface
+  language and nothing else.** It has held two controls since 1.28.0 added the
+  hover-help switch, so that sentence had been false for two releases — as had
+  the comment above it, which said the same thing in stronger terms.
+- **The language hover-help no longer names the selector's options.** A list
+  written into the copy goes false every time a language is added; the body now
+  says what the control does and leaves the list to the control.
+- **`tests/ui_tip_render_check.js` derives its language list from the table**
+  where it carried a hand-written array, and its height assertion now requires a
+  DIFFERENCE rather than growth. The old form demanded that the non-English pass
+  be strictly taller, which is true of French and false of Chinese — this run
+  measures the tallest tip at 125.3 px in English and French and 110.0 px in
+  Simplified Chinese, so the gate would have hard-failed a page on which nothing
+  was wrong.
+
+### Review level
+
+Every Chinese row ships at **`reviewed: 'bt'`** — machine-drafted, then read
+back through a blind reverse pass with the English withheld, the row ids salted,
+repository access forbidden and every one of the 245 triples read. Two rows were
+re-authored because the reverse read returned a NEIGHBOURING control's name: the
+glottal Shimmer knob, whose first rendering came back as "Amplitude Jitter" with
+the Jitter knob immediately beside it, and the consonant pad's `mixed` manner
+readout, which came back as "Mix". A correction round with a fresh salt, a fresh
+session and a different model returned "Amplitude Perturbation" and "Affricate"
+and corrected nothing further.
+
+`reviewed: 'native'` stays OPEN. No native Simplified Chinese reader has passed
+over this copy.
+
+### Note on Han line boxes
+
+A Han glyph's line box under `line-height: normal` is roughly 30% taller than a
+Latin one at the same font size. That is why this release carries 28 line-height
+pins rather than a single global rule: every pin is a measurement of this page,
+not a constant.
+
 ## [1.28.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
