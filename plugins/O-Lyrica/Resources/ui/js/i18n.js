@@ -195,7 +195,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '设置',
                      b: '选择此界面的语言，以及是否显示悬停帮助。两项选择都会随会话一起保存。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'lang-select': {
         en: { t: 'Language',
@@ -205,7 +205,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '语言',
                      b: '这些悬停帮助和页面标签所用的语言。数值读数、下拉选项、音阶名称和预设名称保持英文。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
@@ -215,7 +215,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '悬停帮助',
                      b: '开启或关闭这些悬停帮助。关闭后，只有齿轮按钮和此开关仍会说明自身。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── SOUND tab — Main ────────────────────────────────────────────────────
@@ -227,7 +227,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '明亮度',
                      b: '控制弦音的高频成分。数值越高，声音越明亮、越辉煌。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'timbre': {
         en: { t: 'Timbre',
@@ -237,7 +237,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '音色',
                      b: '调节弦的音色温暖程度。数值越低，音色越暗、越温暖；数值越高则更明亮。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'decayTime': {
         en: { t: 'Decay Time',
@@ -247,7 +247,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '衰减时间',
                      b: '弦被拨动后持续共鸣的时长。衰减越长，音符越绵延、越空灵。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'attackNoise': {
         en: { t: 'Attack Noise',
@@ -257,7 +257,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '起音噪声',
                      b: '拨弦瞬态噪声的量。数值越高，起音越沙哑、越有敲击感。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'humanize': {
         en: { t: 'Humanize',
@@ -267,7 +267,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '人性化',
                      b: '为拨弦位置、手指硬度、音高和起音噪声逐音添加自然变化。营造真实而有机的演奏，没有两个音符听起来完全相同。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── SOUND tab — String ──────────────────────────────────────────────────
@@ -279,7 +279,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '材质',
                      b: '弦的材质影响音色、明亮度和延音。Gut 温暖圆润；Wire 明亮；Crystal 带有钟鸣质感。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'stringTension': {
         en: { t: 'Tension',
@@ -289,7 +289,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '张力',
                      b: '弦的松紧影响共振和明亮度。张力越高，音色越明亮、共振越强。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'stringGauge': {
         en: { t: 'Gauge',
@@ -299,7 +299,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '弦径',
                      b: '弦的粗细影响阻尼。细弦更明亮、衰减更快；粗弦更暗、更厚实。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'stringLength': {
         en: { t: 'Length',
@@ -309,7 +309,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '长度',
                      b: '虚拟弦长影响衰减的特性。短弦衰减干脆；长弦延音更久，尾音更弥散。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'stringStiffness': {
         en: { t: 'Stiffness',
@@ -319,7 +319,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '劲度',
                      b: '控制泛音的展宽（非谐性）。数值越高，泛音越接近钟声，略微失谐。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── SOUND tab — Body ────────────────────────────────────────────────────
@@ -331,7 +331,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '尺寸',
                      b: '音板尺寸影响低频响应和整体的饱满度。共鸣体越大，音色越深沉、共振越强。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'bodyResonance': {
         en: { t: 'Resonance',
@@ -341,7 +341,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '共振',
                      b: '共鸣体的共振量。数值越高，为弦音加入的共鸣体振动越多。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'woodType': {
         en: { t: 'Wood Type',
@@ -351,7 +351,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '木材种类',
                      b: '音板木材影响音色特性。Spruce 均衡；Maple 明亮；Exotic 木材音色独特。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'bodyModeSpread': {
         en: { t: 'Mode Spread',
@@ -361,7 +361,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '模态扩散',
                      b: '将共鸣体的共振模态在频率上展开。数值越高，共振越复杂、越弥散。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'bridgeBrightness': {
         en: { t: 'Bridge Brightness',
@@ -371,7 +371,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '琴马明亮度',
                      b: '影响高频从弦传递到共鸣体的程度。数值越高，声音越清晰、越有轮廓。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── SOUND tab — Excitation ──────────────────────────────────────────────
@@ -383,7 +383,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '拨弦位置',
                      b: '拨动琴弦的位置。靠近音孔（0%）低频更多；靠近琴马（100%）更辉煌。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'fingerHardness': {
         en: { t: 'Finger Hardness',
@@ -393,7 +393,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '手指硬度',
                      b: '拨弦手指的硬实程度。柔软指腹（0%）音色圆润；坚硬指甲（100%）音色尖锐。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'technique': {
         en: { t: 'Technique',
@@ -403,7 +403,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '技法',
                      b: '演奏技法改变激励的特性。Harmonic 产生钟鸣般的音色；Muted 产生敲击感的拨奏。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── SOUND tab — Sympathetic ─────────────────────────────────────────────
@@ -415,7 +415,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '量',
                      b: '共鸣弦共振的强度：未被弹奏的弦对已奏音符产生多大的共振。让声音更丰满。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'sympatheticQ': {
         en: { t: 'Sharpness (Q)',
@@ -425,7 +425,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '锐度 (Q)',
                      b: '共鸣弦滤波器的调谐锐度。Q 值越高，共振越集中、余音越持久。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── TECHNIQUES tab — Keyswitches ────────────────────────────────────────
@@ -437,7 +437,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '自由键位',
                      b: '按住即可启动自由滑音的 MIDI 音符。键位音符会被滤除，不参与发声。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'scaleKeyswitchNote': {
         en: { t: 'Scale KS',
@@ -447,7 +447,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '音阶键位',
                      b: '按住即可启动音阶锁定滑音的 MIDI 音符。键位音符会被滤除，不参与发声。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── TECHNIQUES tab — Free Glissando ─────────────────────────────────────
@@ -462,7 +462,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '同步',
                      b: '将自由滑音的扫描时长锁定到宿主的节奏速度。设为节奏值时，时间滑杆会被同步后的时长取代。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'glissandoTime': {
         en: { t: 'Time',
@@ -472,7 +472,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '时间',
                      b: '自由模式下音高扫描所需的时长。10 ms 几乎是瞬间跳变；50 ms（默认）是平滑的滑音；200-500 ms 形成缓慢而富于表情的连音滑奏。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'freeShape': {
         en: { t: 'Shape',
@@ -482,7 +482,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '形状',
                      b: '自由滑音扫描的加速曲线。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'freeInterval': {
         en: { t: 'Interval',
@@ -492,7 +492,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '音程',
                      b: '自由滑音扫描的跨度，以半音计。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'freeDirection': {
         en: { t: 'Direction',
@@ -502,7 +502,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '方向',
                      b: '自由滑音是向上扫向所奏音符，还是向下扫向它。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'freeCustomSemitones': {
         en: { t: 'Custom Semitones',
@@ -512,7 +512,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '自定义半音',
                      b: '自由滑音扫描距离的精确半音数（1-48）。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── TECHNIQUES tab — Scale-Locked Glissando ─────────────────────────────
@@ -524,7 +524,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '音阶',
                      b: '音阶锁定滑音所用的音阶。Major/Minor/Pentatonic 是 12 音的模式；Custom 通过开关按钮逐个选择音级。对于不是 12 音的音律，Major/Minor/Pentatonic 不可用。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'glissandoTonic': {
         en: { t: 'Tonic',
@@ -534,7 +534,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '主音',
                      b: '滑音音阶的根音。与调音选项卡的主音相互独立。决定哪些音符属于所选的音阶模式。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'scaleTempoSync': {
         en: { t: 'Sync',
@@ -544,7 +544,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '同步',
                      b: '将音阶锁定滑音的总时长锁定到宿主的节奏速度。设为节奏值时，速度滑杆会被同步后的计时取代。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'glissandoSpeed': {
         en: { t: 'Speed',
@@ -554,7 +554,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '速度',
                      b: '滑音扫过音阶音符的快慢。8 n/s 缓慢而富于表情；21 n/s 是好莱坞式的快速扫弦。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'glissandoShape': {
         en: { t: 'Shape',
@@ -564,7 +564,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '形状',
                      b: '音阶锁定滑音扫描的加速曲线。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'glissandoInterval': {
         en: { t: 'Interval',
@@ -574,7 +574,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '音程',
                      b: '音阶锁定滑音扫描的跨度，以半音计。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'glissandoDirection': {
         en: { t: 'Direction',
@@ -584,7 +584,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '方向',
                      b: '音阶锁定滑音是向上扫向所奏音符，还是向下扫向它。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'glissandoCustomSemitones': {
         en: { t: 'Custom Semitones',
@@ -594,7 +594,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '自定义半音',
                      b: '音阶锁定滑音扫描距离的精确半音数（1-48）。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'glissandoExcitation': {
         en: { t: 'Gliss Softness',
@@ -604,7 +604,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '滑音柔和度',
                      b: '滑音过程中激励变化的幅度。0% 是完整而有意的拨奏；60%（默认）是真实的扫拂；100% 是极轻盈空灵的扫弦。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'glissandoHumanize': {
         en: { t: 'Humanize',
@@ -614,7 +614,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '人性化',
                      b: '为滑音的每一步添加自然的时值抖动。模拟真实竖琴演奏者手臂扫过琴弦时的轻微不规则。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'glissandoVelStart': {
         en: { t: 'Dynamics Start',
@@ -624,7 +624,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '起始力度',
                      b: '滑音扫描起点的力度。数值越低，起音越柔和、阻尼越多。默认的 50% 给出含蓄的引入。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'glissandoVelEnd': {
         en: { t: 'Dynamics End',
@@ -634,7 +634,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '结束力度',
                      b: '滑音扫描终点的力度。数值越高，延音越明亮。默认的 70% 给出自然的渐强上行。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── TUNING tab ──────────────────────────────────────────────────────────
@@ -646,7 +646,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: 'A4 基准音高',
                      b: 'A4 的音准基准。标准为 440 Hz。历史音律有时使用 415 Hz（巴洛克）或 432 Hz。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'octave-stretch': {
         en: { t: 'Octave Stretch',
@@ -656,7 +656,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '八度延展',
                      b: '略微拉伸八度。大于 1.0 的数值会加宽八度（类似钢琴）。用于补偿弦的非谐性。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Footer ──────────────────────────────────────────────────────────────
@@ -668,7 +668,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: '主音量',
                      b: '乐器最终的输出电平。以 dB 显示。0 dB 为单位增益（不作改变）。',
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 });
 
@@ -723,35 +723,35 @@ export const LABELS = Object.freeze({
     // pattern_js_state_updater_overwrites_html_labels — so the text moved into
     // its own span first.
     'label.voices':     { en: { t: 'Voices:' },  fr: { t: 'Voix :',   reviewed: true },
-                        'zh-Hans': { t: '声部：', reviewed: 'mt' } },
+                        'zh-Hans': { t: '声部：', reviewed: 'bt' } },
     'label.save':       { en: { t: 'Save' },     fr: { t: 'Enreg.',   reviewed: true },
-                        'zh-Hans': { t: '保存', reviewed: 'mt' } },
+                        'zh-Hans': { t: '保存', reviewed: 'bt' } },
     'label.load':       { en: { t: 'Load' },     fr: { t: 'Ouvrir',   reviewed: true },
-                        'zh-Hans': { t: '载入', reviewed: 'mt' } },
+                        'zh-Hans': { t: '载入', reviewed: 'bt' } },
 
     // ── Tab bar ─────────────────────────────────────────────────────────────
     // .tab is `flex: 1` across the full 700 px, so a caption cannot move its
     // neighbours here; these are sized for legibility, not for width.
     'label.tabSound':      { en: { t: 'SOUND' },      fr: { t: 'SON',        reviewed: true },
-                        'zh-Hans': { t: '声音', reviewed: 'mt' } },
+                        'zh-Hans': { t: '声音', reviewed: 'bt' } },
     'label.tabTechniques': { en: { t: 'TECHNIQUES' }, fr: { t: 'TECHNIQUES', reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '演奏技法', reviewed: 'mt' } },
+                        'zh-Hans': { t: '演奏技法', reviewed: 'bt' } },
     'label.tabTuning':     { en: { t: 'TUNING' },     fr: { t: 'ACCORD',     reviewed: true },
-                        'zh-Hans': { t: '调音', reviewed: 'mt' } },
+                        'zh-Hans': { t: '调音', reviewed: 'bt' } },
     'label.tabEffects':    { en: { t: 'EFFECTS' },    fr: { t: 'EFFETS',     reviewed: true },
-                        'zh-Hans': { t: '效果', reviewed: 'mt' } },
+                        'zh-Hans': { t: '效果', reviewed: 'bt' } },
 
     // ── SOUND tab — section headers ─────────────────────────────────────────
     'label.secMain':        { en: { t: 'Main' },        fr: { t: 'Principal',   reviewed: true },
-                        'zh-Hans': { t: '主', reviewed: 'mt' } },
+                        'zh-Hans': { t: '主', reviewed: 'bt' } },
     'label.secString':      { en: { t: 'String' },      fr: { t: 'Corde',       reviewed: true },
-                        'zh-Hans': { t: '弦', reviewed: 'mt' } },
+                        'zh-Hans': { t: '弦', reviewed: 'bt' } },
     'label.secBody':        { en: { t: 'Body' },        fr: { t: 'Caisse',      reviewed: true },
-                        'zh-Hans': { t: '共鸣体', reviewed: 'mt' } },
+                        'zh-Hans': { t: '共鸣体', reviewed: 'bt' } },
     'label.secExcitation':  { en: { t: 'Excitation' },  fr: { t: 'Excitation',  reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '激励', reviewed: 'mt' } },
+                        'zh-Hans': { t: '激励', reviewed: 'bt' } },
     'label.secSympathetic': { en: { t: 'Sympathetic' }, fr: { t: 'Sympathiques', reviewed: true },
-                        'zh-Hans': { t: '共鸣弦', reviewed: 'mt' } },
+                        'zh-Hans': { t: '共鸣弦', reviewed: 'bt' } },
 
     // ── SOUND tab — captions ────────────────────────────────────────────────
     // Every one of these sits in a 100-140 px `flex: 1 1 0` cell at 9 px
@@ -760,86 +760,86 @@ export const LABELS = Object.freeze({
     // letter-spacing are not in the font shorthand, and a probe that ignores
     // them reads a French caption narrower than it paints.
     'label.brightness':     { en: { t: 'Brightness' },      fr: { t: 'Brillance',       reviewed: true },
-                        'zh-Hans': { t: '明亮度', reviewed: 'mt' } },
+                        'zh-Hans': { t: '明亮度', reviewed: 'bt' } },
     'label.timbre':         { en: { t: 'Timbre' },          fr: { t: 'Timbre',          reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '音色', reviewed: 'mt' } },
+                        'zh-Hans': { t: '音色', reviewed: 'bt' } },
     'label.decayTime':      { en: { t: 'Decay Time' },      fr: { t: 'Déclin',          reviewed: true },
-                        'zh-Hans': { t: '衰减时间', reviewed: 'mt' } },
+                        'zh-Hans': { t: '衰减时间', reviewed: 'bt' } },
     'label.attackNoise':    { en: { t: 'Attack Noise' },    fr: { t: 'Bruit d’attaque', reviewed: true },
-                        'zh-Hans': { t: '起音噪声', reviewed: 'mt' } },
+                        'zh-Hans': { t: '起音噪声', reviewed: 'bt' } },
     'label.humanize':       { en: { t: 'Humanize' },        fr: { t: 'Humaniser',       reviewed: true },
-                        'zh-Hans': { t: '人性化', reviewed: 'mt' } },
+                        'zh-Hans': { t: '人性化', reviewed: 'bt' } },
     'label.material':       { en: { t: 'Material' },        fr: { t: 'Matériau',        reviewed: true },
-                        'zh-Hans': { t: '材质', reviewed: 'mt' } },
+                        'zh-Hans': { t: '材质', reviewed: 'bt' } },
     'label.tension':        { en: { t: 'Tension' },         fr: { t: 'Tension',         reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '张力', reviewed: 'mt' } },
+                        'zh-Hans': { t: '张力', reviewed: 'bt' } },
     'label.gauge':          { en: { t: 'Gauge' },           fr: { t: 'Calibre',         reviewed: true },
-                        'zh-Hans': { t: '弦径', reviewed: 'mt' } },
+                        'zh-Hans': { t: '弦径', reviewed: 'bt' } },
     'label.length':         { en: { t: 'Length' },          fr: { t: 'Longueur',        reviewed: true },
-                        'zh-Hans': { t: '长度', reviewed: 'mt' } },
+                        'zh-Hans': { t: '长度', reviewed: 'bt' } },
     'label.stiffness':      { en: { t: 'Stiffness' },       fr: { t: 'Raideur',         reviewed: true },
-                        'zh-Hans': { t: '劲度', reviewed: 'mt' } },
+                        'zh-Hans': { t: '劲度', reviewed: 'bt' } },
     'label.size':           { en: { t: 'Size' },            fr: { t: 'Taille',          reviewed: true },
-                        'zh-Hans': { t: '尺寸', reviewed: 'mt' } },
+                        'zh-Hans': { t: '尺寸', reviewed: 'bt' } },
     'label.resonance':      { en: { t: 'Resonance' },       fr: { t: 'Résonance',       reviewed: true },
-                        'zh-Hans': { t: '共振', reviewed: 'mt' } },
+                        'zh-Hans': { t: '共振', reviewed: 'bt' } },
     'label.woodType':       { en: { t: 'Wood Type' },       fr: { t: 'Bois',            reviewed: true },
-                        'zh-Hans': { t: '木材种类', reviewed: 'mt' } },
+                        'zh-Hans': { t: '木材种类', reviewed: 'bt' } },
     'label.modeSpread':     { en: { t: 'Mode Spread' },     fr: { t: 'Étalement',       reviewed: true },
-                        'zh-Hans': { t: '模态扩散', reviewed: 'mt' } },
+                        'zh-Hans': { t: '模态扩散', reviewed: 'bt' } },
     'label.bridgeBright':   { en: { t: 'Bridge Bright' },   fr: { t: 'Brill. chevalet', reviewed: true },
-                        'zh-Hans': { t: '琴马亮度', reviewed: 'mt' } },
+                        'zh-Hans': { t: '琴马亮度', reviewed: 'bt' } },
     'label.pluckPosition':  { en: { t: 'Pluck Position' },  fr: { t: 'Pincement',       reviewed: true },
-                        'zh-Hans': { t: '拨弦位置', reviewed: 'mt' } },
+                        'zh-Hans': { t: '拨弦位置', reviewed: 'bt' } },
     'label.fingerHardness': { en: { t: 'Finger Hardness' }, fr: { t: 'Dureté du doigt', reviewed: true },
-                        'zh-Hans': { t: '手指硬度', reviewed: 'mt' } },
+                        'zh-Hans': { t: '手指硬度', reviewed: 'bt' } },
     'label.technique':      { en: { t: 'Technique' },       fr: { t: 'Technique',       reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '技法', reviewed: 'mt' } },
+                        'zh-Hans': { t: '技法', reviewed: 'bt' } },
     'label.amount':         { en: { t: 'Amount' },          fr: { t: 'Quantité',        reviewed: true },
-                        'zh-Hans': { t: '量', reviewed: 'mt' } },
+                        'zh-Hans': { t: '量', reviewed: 'bt' } },
     'label.sharpnessQ':     { en: { t: 'Sharpness (Q)' },   fr: { t: 'Finesse (Q)',     reviewed: true },
-                        'zh-Hans': { t: '锐度 (Q)', reviewed: 'mt' } },
+                        'zh-Hans': { t: '锐度 (Q)', reviewed: 'bt' } },
 
     // ── TECHNIQUES tab ──────────────────────────────────────────────────────
     // The two glissando section headings each share their row with a toggle
     // button, so the caption moved into its own span rather than sitting as a
     // bare text node beside an element child.
     'label.secKeyswitch':   { en: { t: 'Keyswitch Settings' },      fr: { t: 'Réglages des notes de commande', reviewed: true },
-                        'zh-Hans': { t: '键位设置', reviewed: 'mt' } },
+                        'zh-Hans': { t: '键位设置', reviewed: 'bt' } },
     'label.freeKS':         { en: { t: 'Free KS' },                 fr: { t: 'Cmde libre',           reviewed: true },
-                        'zh-Hans': { t: '自由键位', reviewed: 'mt' } },
+                        'zh-Hans': { t: '自由键位', reviewed: 'bt' } },
     'label.scaleKS':        { en: { t: 'Scale KS' },                fr: { t: 'Cmde gamme',           reviewed: true },
-                        'zh-Hans': { t: '音阶键位', reviewed: 'mt' } },
+                        'zh-Hans': { t: '音阶键位', reviewed: 'bt' } },
     'label.secFreeGliss':   { en: { t: 'Free Glissando' },          fr: { t: 'Glissando libre',      reviewed: true },
-                        'zh-Hans': { t: '自由滑音', reviewed: 'mt' } },
+                        'zh-Hans': { t: '自由滑音', reviewed: 'bt' } },
     'label.secScaleGliss':  { en: { t: 'Scale-Locked Glissando' },  fr: { t: 'Glissando sur gamme',  reviewed: true },
-                        'zh-Hans': { t: '音阶锁定滑音', reviewed: 'mt' } },
+                        'zh-Hans': { t: '音阶锁定滑音', reviewed: 'bt' } },
     'label.sync':           { en: { t: 'Sync' },                    fr: { t: 'Sync',                 reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '同步', reviewed: 'mt' } },
+                        'zh-Hans': { t: '同步', reviewed: 'bt' } },
     'label.time':           { en: { t: 'Time' },                    fr: { t: 'Durée',                reviewed: true },
-                        'zh-Hans': { t: '时间', reviewed: 'mt' } },
+                        'zh-Hans': { t: '时间', reviewed: 'bt' } },
     'label.shape':          { en: { t: 'Shape' },                   fr: { t: 'Forme',                reviewed: true },
-                        'zh-Hans': { t: '形状', reviewed: 'mt' } },
+                        'zh-Hans': { t: '形状', reviewed: 'bt' } },
     'label.interval':       { en: { t: 'Interval' },                fr: { t: 'Intervalle',           reviewed: true },
-                        'zh-Hans': { t: '音程', reviewed: 'mt' } },
+                        'zh-Hans': { t: '音程', reviewed: 'bt' } },
     'label.direction':      { en: { t: 'Direction' },               fr: { t: 'Sens',                 reviewed: true },
-                        'zh-Hans': { t: '方向', reviewed: 'mt' } },
+                        'zh-Hans': { t: '方向', reviewed: 'bt' } },
     'label.semitones':      { en: { t: 'Semitones' },               fr: { t: 'Demi-tons',            reviewed: true },
-                        'zh-Hans': { t: '半音数', reviewed: 'mt' } },
+                        'zh-Hans': { t: '半音数', reviewed: 'bt' } },
     'label.scale':          { en: { t: 'Scale' },                   fr: { t: 'Gamme',                reviewed: true },
-                        'zh-Hans': { t: '音阶', reviewed: 'mt' } },
+                        'zh-Hans': { t: '音阶', reviewed: 'bt' } },
     'label.key':            { en: { t: 'Key' },                     fr: { t: 'Tonique',              reviewed: true },
-                        'zh-Hans': { t: '主音', reviewed: 'mt' } },
+                        'zh-Hans': { t: '主音', reviewed: 'bt' } },
     'label.degrees':        { en: { t: 'Degrees' },                 fr: { t: 'Degrés',               reviewed: true },
-                        'zh-Hans': { t: '音级', reviewed: 'mt' } },
+                        'zh-Hans': { t: '音级', reviewed: 'bt' } },
     'label.speed':          { en: { t: 'Speed' },                   fr: { t: 'Vitesse',              reviewed: true },
-                        'zh-Hans': { t: '速度', reviewed: 'mt' } },
+                        'zh-Hans': { t: '速度', reviewed: 'bt' } },
     'label.softness':       { en: { t: 'Softness' },                fr: { t: 'Douceur',              reviewed: true },
-                        'zh-Hans': { t: '柔和度', reviewed: 'mt' } },
+                        'zh-Hans': { t: '柔和度', reviewed: 'bt' } },
     'label.dynStart':       { en: { t: 'Dynamics: Start' },         fr: { t: 'Dynamique : début',    reviewed: true },
-                        'zh-Hans': { t: '力度：起始', reviewed: 'mt' } },
+                        'zh-Hans': { t: '力度：起始', reviewed: 'bt' } },
     'label.dynEnd':         { en: { t: 'Dynamics: End' },           fr: { t: 'Dynamique : fin',      reviewed: true },
-                        'zh-Hans': { t: '力度：结束', reviewed: 'mt' } },
+                        'zh-Hans': { t: '力度：结束', reviewed: 'bt' } },
 
     // ── TUNING tab ──────────────────────────────────────────────────────────
     // A PARAMETERISED entry, written by __setLabel from updateIntervalListUI
@@ -852,106 +852,107 @@ export const LABELS = Object.freeze({
     // whatever the language happened to be then.
     'label.intervalsHeader': { en: { t: 'Intervals ({n} notes)' },
                                fr: { t: 'Intervalles ({n} notes)', reviewed: true },
-                        'zh-Hans': { t: '音程（{n} 个音）', reviewed: 'mt' } },
+                        'zh-Hans': { t: '音程（{n} 个音）', reviewed: 'bt' } },
     'label.vizCircle':      { en: { t: 'Circle' },          fr: { t: 'Cercle',        reviewed: true },
-                        'zh-Hans': { t: '圆周', reviewed: 'mt' } },
+                        'zh-Hans': { t: '圆周', reviewed: 'bt' } },
     'label.vizPolar':       { en: { t: 'Polar' },           fr: { t: 'Polaire',       reviewed: true },
-                        'zh-Hans': { t: '极坐标', reviewed: 'mt' } },
+                        'zh-Hans': { t: '极坐标', reviewed: 'bt' } },
     'label.vizMatrix':      { en: { t: 'Matrix' },          fr: { t: 'Matrice',       reviewed: true },
-                        'zh-Hans': { t: '矩阵', reviewed: 'mt' } },
+                        'zh-Hans': { t: '矩阵', reviewed: 'bt' } },
     'label.vizTrueKeys':    { en: { t: 'True Keys' },       fr: { t: 'Touches',       reviewed: true },
-                        'zh-Hans': { t: '真实键位', reviewed: 'mt' } },
+                        'zh-Hans': { t: '真实键位', reviewed: 'bt' } },
     'label.vizRotation':    { en: { t: 'Rotation' },        fr: { t: 'Rotation',      reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '旋转', reviewed: 'mt' } },
+                        'zh-Hans': { t: '旋转', reviewed: 'bt' } },
     'label.scaleIntervals': { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: true },
-                        'zh-Hans': { t: '音阶音程', reviewed: 'mt' } },
+                        'zh-Hans': { t: '音阶音程', reviewed: 'bt' } },
     'label.tkHint':         { en: { t: 'Hold 2+ notes to see intervals' },
                               fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: true },
-                        'zh-Hans': { t: '按住 2 个以上音符可查看音程', reviewed: 'mt' } },
+                        'zh-Hans': { t: '按住 2 个以上音符可查看音程', reviewed: 'bt' } },
     'label.tuningLibrary':  { en: { t: 'Tuning Library' },  fr: { t: 'Bibliothèque de gammes', reviewed: true },
-                        'zh-Hans': { t: '调音库', reviewed: 'mt' } },
+                        'zh-Hans': { t: '调音库', reviewed: 'bt' } },
     // "A4" is a pitch identifier and stays; only the abbreviation "REF" is
     // translated. The cell is a fixed 60 px .ref-knob-label.
     'label.a4Ref':          { en: { t: 'A4 REF' },          fr: { t: 'RÉF. A4',       reviewed: true },
-                        'zh-Hans': { t: 'A4 基准', reviewed: 'mt' } },
+                        'zh-Hans': { t: 'A4 基准', reviewed: 'bt' } },
     'label.stretch':        { en: { t: 'Stretch' },         fr: { t: 'Étirement',     reviewed: true },
-                        'zh-Hans': { t: '延展', reviewed: 'mt' } },
+                        'zh-Hans': { t: '延展', reviewed: 'bt' } },
     // The four file buttons keep their EXTENSIONS, which are file-format
     // identifiers, and translate only the verb.
     'label.loadScl':        { en: { t: 'Load .SCL' },       fr: { t: 'Ouvrir .SCL',   reviewed: true },
-                        'zh-Hans': { t: '载入 .scl', reviewed: 'mt' } },
+                        'zh-Hans': { t: '载入 .scl', reviewed: 'bt' } },
     'label.loadKbm':        { en: { t: 'Load .KBM' },       fr: { t: 'Ouvrir .KBM',   reviewed: true },
-                        'zh-Hans': { t: '载入 .kbm', reviewed: 'mt' } },
+                        'zh-Hans': { t: '载入 .kbm', reviewed: 'bt' } },
     'label.saveScl':        { en: { t: 'Save .SCL' },       fr: { t: 'Enreg. .SCL',   reviewed: true },
-                        'zh-Hans': { t: '保存 .scl', reviewed: 'mt' } },
+                        'zh-Hans': { t: '保存 .scl', reviewed: 'bt' } },
     'label.saveKbm':        { en: { t: 'Save .KBM' },       fr: { t: 'Enreg. .KBM',   reviewed: true },
-                        'zh-Hans': { t: '保存 .kbm', reviewed: 'mt' } },
+                        'zh-Hans': { t: '保存 .kbm', reviewed: 'bt' } },
     'label.exportHtml':     { en: { t: 'Export HTML' },     fr: { t: 'Exporter HTML', reviewed: true },
-                        'zh-Hans': { t: '导出 HTML', reviewed: 'mt' } },
+                        'zh-Hans': { t: '导出 HTML', reviewed: 'bt' } },
     'label.generateScale':  { en: { t: 'Generate Scale' },  fr: { t: 'Générer une gamme', reviewed: true },
-                        'zh-Hans': { t: '生成音阶', reviewed: 'mt' } },
+                        'zh-Hans': { t: '生成音阶', reviewed: 'bt' } },
     // The generator-type select is a PLAIN select over the string values
     // edo / harmonic / rank2 — it is not an AudioParameterChoice, no host ever
     // shows these three strings, and translating them cannot make the page and
     // an automation lane disagree. That is the discriminator; the thirteen
     // dropdowns that ARE choice parameters are exempt below.
     'label.genEdo':         { en: { t: 'EDO (Equal Division)' },  fr: { t: 'EDO (division égale)',    reviewed: true },
-                        'zh-Hans': { t: '等分八度 (EDO)', reviewed: 'mt' } },
+                        'zh-Hans': { t: '等分八度 (EDO)', reviewed: 'bt' } },
     'label.genHarmonic':    { en: { t: 'Harmonic Series' },       fr: { t: 'Série harmonique',        reviewed: true },
-                        'zh-Hans': { t: '泛音列', reviewed: 'mt' } },
+                        'zh-Hans': { t: '泛音列', reviewed: 'bt' } },
     'label.genRank2':       { en: { t: 'Rank-2 Temperament' },    fr: { t: 'Tempérament de rang 2',   reviewed: true },
-                        'zh-Hans': { t: '二阶音律', reviewed: 'mt' } },
+                        'zh-Hans': { t: '二阶音律', reviewed: 'bt' } },
     'label.genDivisions':   { en: { t: 'Divisions' },      fr: { t: 'Divisions',       reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '分割', reviewed: 'mt' } },
+                        'zh-Hans': { t: '分割', reviewed: 'bt' } },
     'label.genPeriod':      { en: { t: 'Period (¢)' },     fr: { t: 'Période (¢)',     reviewed: true },
-                        'zh-Hans': { t: '周期（¢）', reviewed: 'mt' } },
+                        'zh-Hans': { t: '周期（¢）', reviewed: 'bt' } },
     'label.genStart':       { en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: true },
-                        'zh-Hans': { t: '起始泛音', reviewed: 'mt' } },
+                        'zh-Hans': { t: '起始泛音', reviewed: 'bt' } },
     'label.genEnd':         { en: { t: 'End Harmonic' },   fr: { t: 'Harmonique de fin',    reviewed: true },
-                        'zh-Hans': { t: '终止泛音', reviewed: 'mt' } },
+                        'zh-Hans': { t: '终止泛音', reviewed: 'bt' } },
     'label.genGenerator':   { en: { t: 'Generator (¢)' },  fr: { t: 'Générateur (¢)',  reviewed: true },
-                        'zh-Hans': { t: '生成音程（¢）', reviewed: 'mt' } },
+                        'zh-Hans': { t: '生成元（¢）', reviewed: 'bt',
+                                     termNote: 'the rank-2 generator, and the rendering is qualified away from the obvious one. 生成音程 was authored first and the blind reverse pass returned "Generate Interval (¢)" — a VERB PHRASE, because this caption sits directly above the 生成 (Generate) button in the same collapsed panel and a reader meets the two together as an action and its target. 生成元 is the settled term for a generator in tuning theory and reads only as a noun. Nothing mechanical could see this: neither string is a TERMS key, Z5 is silent on both, and the downstream check looks for two keys mapping to ONE string while these map to two.' } },
     'label.genCount':       { en: { t: 'Notes' },          fr: { t: 'Notes',           reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '音符', reviewed: 'mt' } },
+                        'zh-Hans': { t: '音符', reviewed: 'bt' } },
     'label.generate':       { en: { t: 'Generate' },       fr: { t: 'Générer',         reviewed: true },
-                        'zh-Hans': { t: '生成', reviewed: 'mt' } },
+                        'zh-Hans': { t: '生成', reviewed: 'bt' } },
     'label.tonicPrefix':    { en: { t: 'Tonic:' },         fr: { t: 'Tonique :',       reviewed: true },
-                        'zh-Hans': { t: '主音：', reviewed: 'mt' } },
+                        'zh-Hans': { t: '主音：', reviewed: 'bt' } },
     // The rotation matrix's first column header and the True Keys summary row.
     // Both are built inside a `html +=` accumulation, which extractJsRows does
     // NOT scan — it reads assignments to textContent / innerText / innerHTML.
     // They are keyed anyway, by a __setLabel call on the injected node, and the
     // blind spot is named in the CHANGELOG rather than left to be discovered.
     'label.mode':           { en: { t: 'Mode' },           fr: { t: 'Mode',            reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '模式', reviewed: 'mt' } },
+                        'zh-Hans': { t: '模式', reviewed: 'bt' } },
     'label.totalSpan':      { en: { t: 'Total span' },     fr: { t: 'Écart total',     reviewed: true },
-                        'zh-Hans': { t: '总跨度', reviewed: 'mt' } },
+                        'zh-Hans': { t: '总跨度', reviewed: 'bt' } },
 
     // ── EFFECTS tab ─────────────────────────────────────────────────────────
     'label.fxChorus':       { en: { t: 'Chorus' },  fr: { t: 'Chorus',  reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '合唱', reviewed: 'mt' } },
+                        'zh-Hans': { t: '合唱', reviewed: 'bt' } },
     'label.fxDelay':        { en: { t: 'Delay' },   fr: { t: 'Délai',   reviewed: true },
-                        'zh-Hans': { t: '延迟', reviewed: 'mt' } },
+                        'zh-Hans': { t: '延迟', reviewed: 'bt' } },
     'label.fxReverb':       { en: { t: 'Reverb' },  fr: { t: 'Réverb',  reviewed: true },
-                        'zh-Hans': { t: '混响', reviewed: 'mt' } },
+                        'zh-Hans': { t: '混响', reviewed: 'bt' } },
     'label.fxEq':           { en: { t: 'EQ' },      fr: { t: 'EQ',      reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '均衡', reviewed: 'mt' } },
+                        'zh-Hans': { t: '均衡', reviewed: 'bt' } },
     // The sixteen knob captions, written by makeFxKnob. Through v2.3.3 that
     // function built the whole knob with innerHTML and the caption was a raw
     // interpolated string; it is createElement + setLabel now, and the caption
     // list carries KEYS rather than English.
     'label.knRate':         { en: { t: 'Rate' },     fr: { t: 'Vitesse',     reviewed: true },
-                        'zh-Hans': { t: '速率', reviewed: 'mt' } },
+                        'zh-Hans': { t: '速率', reviewed: 'bt' } },
     'label.knDepth':        { en: { t: 'Depth' },    fr: { t: 'Profondeur',  reviewed: true },
-                        'zh-Hans': { t: '深度', reviewed: 'mt' } },
+                        'zh-Hans': { t: '深度', reviewed: 'bt' } },
     'label.knMix':          { en: { t: 'Mix' },      fr: { t: 'Mix',         reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '混合', reviewed: 'mt' } },
+                        'zh-Hans': { t: '混合', reviewed: 'bt' } },
     'label.knFeedback':     { en: { t: 'Feedback' }, fr: { t: 'Réinjection', reviewed: true },
-                        'zh-Hans': { t: '反馈', reviewed: 'mt' } },
+                        'zh-Hans': { t: '反馈', reviewed: 'bt' } },
     'label.knLow':          { en: { t: 'Low' },      fr: { t: 'Grave',       reviewed: true },
-                        'zh-Hans': { t: '低', reviewed: 'mt' } },
+                        'zh-Hans': { t: '低', reviewed: 'bt' } },
     'label.knMid':          { en: { t: 'Mid' },      fr: { t: 'Médium',      reviewed: true },
-                        'zh-Hans': { t: '中', reviewed: 'mt' } },
+                        'zh-Hans': { t: '中', reviewed: 'bt' } },
     // Abbreviated to fit the 70px knob cell: the full "Fréq. médium" renders
     // 75px, which is the ONLY French caption on this page that would have set
     // the cell width by itself. English abbreviates the same caption for the
@@ -959,29 +960,29 @@ export const LABELS = Object.freeze({
     // because there is exactly ONE French string here, not a pair chosen at
     // runtime.
     'label.knMidFreq':      { en: { t: 'Mid Freq' }, fr: { t: 'Fréq. méd.', reviewed: true },
-                        'zh-Hans': { t: '中频频率', reviewed: 'mt' } },
+                        'zh-Hans': { t: '中频频率', reviewed: 'bt' } },
     'label.knHigh':         { en: { t: 'High' },     fr: { t: 'Aigu',        reviewed: true },
-                        'zh-Hans': { t: '高', reviewed: 'mt' } },
+                        'zh-Hans': { t: '高', reviewed: 'bt' } },
     'label.knDamp':         { en: { t: 'Damp' },     fr: { t: 'Amort.',      reviewed: true },
-                        'zh-Hans': { t: '阻尼', reviewed: 'mt' } },
+                        'zh-Hans': { t: '阻尼', reviewed: 'bt' } },
     'label.knPredelay':     { en: { t: 'Pre-dly' },  fr: { t: 'Pré-délai',   reviewed: true },
-                        'zh-Hans': { t: '预延迟', reviewed: 'mt' } },
+                        'zh-Hans': { t: '预延迟', reviewed: 'bt' } },
     'label.knMod':          { en: { t: 'Mod' },      fr: { t: 'Mod',         reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '调制', reviewed: 'mt' } },
+                        'zh-Hans': { t: '调制', reviewed: 'bt' } },
     'label.knShimmer':      { en: { t: 'Shimmer' },  fr: { t: 'Shimmer',     reviewed: true, sameAsEn: true },
-                        'zh-Hans': { t: '微光', reviewed: 'mt' } },
+                        'zh-Hans': { t: '微光', reviewed: 'bt' } },
 
     // ── Footer ──────────────────────────────────────────────────────────────
     'label.master':         { en: { t: 'Master' },        fr: { t: 'Général',          reviewed: true },
-                        'zh-Hans': { t: '总控', reviewed: 'mt' } },
+                        'zh-Hans': { t: '总控', reviewed: 'bt' } },
     'label.clickToPlay':    { en: { t: 'Click to play' }, fr: { t: 'Cliquer pour jouer', reviewed: true },
-                        'zh-Hans': { t: '点击播放', reviewed: 'mt' } },
+                        'zh-Hans': { t: '点击播放', reviewed: 'bt' } },
 
     // ── The settings popover ────────────────────────────────────────────────
     'label.language':       { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: true },
-                        'zh-Hans': { t: '语言', reviewed: 'mt' } },
+                        'zh-Hans': { t: '语言', reviewed: 'bt' } },
     'label.hoverHelp':      { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true },
-                        'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },
+                        'zh-Hans': { t: '悬停帮助', reviewed: 'bt' } },
 
     // ── Button faces, both of them keyed ────────────────────────────────────
     // FOUR faces, not two, because this page has two casings and they are two
@@ -998,13 +999,13 @@ export const LABELS = Object.freeze({
     // disagree. That is carried item 8's discriminator — does it track a
     // PARAMETER's choice STRING — and the answer here is no.
     'ui.onCaps':            { en: { t: 'ON' },  fr: { t: 'ACTIVÉ',    reviewed: true },
-                        'zh-Hans': { t: '开启', reviewed: 'mt' } },
+                        'zh-Hans': { t: '开启', reviewed: 'bt' } },
     'ui.offCaps':           { en: { t: 'OFF' }, fr: { t: 'DÉSACTIVÉ', reviewed: true },
-                        'zh-Hans': { t: '关闭', reviewed: 'mt' } },
+                        'zh-Hans': { t: '关闭', reviewed: 'bt' } },
     'ui.on':                { en: { t: 'On' },  fr: { t: 'Act.',      reviewed: true },
-                        'zh-Hans': { t: '开', reviewed: 'mt' } },
+                        'zh-Hans': { t: '开', reviewed: 'bt' } },
     'ui.off':               { en: { t: 'Off' }, fr: { t: 'Dés.',      reviewed: true },
-                        'zh-Hans': { t: '关', reviewed: 'mt' } },
+                        'zh-Hans': { t: '关', reviewed: 'bt' } },
 
     // ── The preset dropdown ─────────────────────────────────────────────────
     // "Factory" is the GROUP HEADING above the preset list — chrome, and it
@@ -1013,10 +1014,10 @@ export const LABELS = Object.freeze({
     // recall outright. They are written from a variable, not a literal, so no
     // exemption entry can or need cover them.
     'label.factory':        { en: { t: 'Factory' }, fr: { t: 'Usine', reviewed: true },
-                        'zh-Hans': { t: '出厂', reviewed: 'mt' } },
+                        'zh-Hans': { t: '出厂', reviewed: 'bt' } },
     'label.noPresets':      { en: { t: 'No presets available' },
                               fr: { t: 'Aucun préréglage disponible', reviewed: true },
-                        'zh-Hans': { t: '没有可用预设', reviewed: 'mt' } },
+                        'zh-Hans': { t: '没有可用预设', reviewed: 'bt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
@@ -1031,21 +1032,21 @@ export const LABELS = Object.freeze({
     // tooltip competing with the measure-then-pin renderer, and check-i18n
     // assertion 11 now fails on any that survive in the markup.
     'aria.presetPrev':      { en: { t: 'Previous preset' },   fr: { t: 'Préréglage précédent',   reviewed: true },
-                        'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
+                        'zh-Hans': { t: '上一个预设', reviewed: 'bt' } },
     'aria.presetNext':      { en: { t: 'Next preset' },       fr: { t: 'Préréglage suivant',     reviewed: true },
-                        'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
+                        'zh-Hans': { t: '下一个预设', reviewed: 'bt' } },
     'aria.presetName':      { en: { t: 'Click to see all presets' },
                               fr: { t: 'Cliquer pour voir tous les préréglages', reviewed: true },
-                        'zh-Hans': { t: '点击查看全部预设', reviewed: 'mt' } },
+                        'zh-Hans': { t: '点击查看全部预设', reviewed: 'bt' } },
     'aria.presetSave':      { en: { t: 'Save preset' },       fr: { t: 'Enregistrer le préréglage', reviewed: true },
-                        'zh-Hans': { t: '保存预设', reviewed: 'mt' } },
+                        'zh-Hans': { t: '保存预设', reviewed: 'bt' } },
     'aria.presetLoad':      { en: { t: 'Load preset' },       fr: { t: 'Ouvrir un préréglage',   reviewed: true },
-                        'zh-Hans': { t: '载入预设', reviewed: 'mt' } },
+                        'zh-Hans': { t: '载入预设', reviewed: 'bt' } },
     'aria.langSelect':      { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true },
-                        'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
+                        'zh-Hans': { t: '界面语言', reviewed: 'bt' } },
     'aria.helpToggle':      { en: { t: 'Toggle hover help' },
                               fr: { t: 'Activer ou désactiver les infobulles', reviewed: true },
-                        'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
+                        'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' } },
 
     // v2.4.1: was `valueDisplay.title = 'Double-click to edit'` in app.js — a
     // native title= written from JS, which contract §4 deletes rather than
@@ -1055,28 +1056,28 @@ export const LABELS = Object.freeze({
     // accessible name the language sweep owns.
     'aria.valueEdit':       { en: { t: 'Double-click to edit' },
                               fr: { t: 'Double-cliquer pour modifier', reviewed: true },
-                        'zh-Hans': { t: '双击编辑', reviewed: 'mt' } },
+                        'zh-Hans': { t: '双击编辑', reviewed: 'bt' } },
     // The two faces of the tonic selector's own accessible name. Chosen by an
     // if/else over two literal keys in updateIntervalListUI, never a ternary.
     'aria.tonicSelector12': { en: { t: 'Change tonic note (transposes instrument)' },
                               fr: { t: 'Changer la tonique (transpose l’instrument)', reviewed: true },
-                        'zh-Hans': { t: '更改主音（移调乐器）', reviewed: 'mt' } },
+                        'zh-Hans': { t: '更改主音（移调乐器）', reviewed: 'bt' } },
     'aria.tonicSelectorN':  { en: { t: 'Transpose by semitones (shifts scale anchor point)' },
                               fr: { t: 'Transposer en demi-tons (déplace le point d’ancrage de la gamme)', reviewed: true },
-                        'zh-Hans': { t: '按半音移调（移动音阶的锚点）', reviewed: 'mt' } },
+                        'zh-Hans': { t: '按半音移调（移动音阶的锚点）', reviewed: 'bt' } },
     'aria.tonicPrev':       { en: { t: 'Previous note' },     fr: { t: 'Note précédente',        reviewed: true },
-                        'zh-Hans': { t: '上一个音符', reviewed: 'mt' } },
+                        'zh-Hans': { t: '上一个音符', reviewed: 'bt' } },
     'aria.tonicNext':       { en: { t: 'Next note' },         fr: { t: 'Note suivante',          reviewed: true },
-                        'zh-Hans': { t: '下一个音符', reviewed: 'mt' } },
+                        'zh-Hans': { t: '下一个音符', reviewed: 'bt' } },
     'aria.deviation':       { en: { t: 'Deviation from equal temperament' },
                               fr: { t: 'Déviation par rapport au tempérament égal', reviewed: true },
-                        'zh-Hans': { t: '与十二平均律的偏差', reviewed: 'mt' } },
+                        'zh-Hans': { t: '与十二平均律的偏差', reviewed: 'bt' } },
     'aria.libraryToggle':   { en: { t: 'Show or hide the tuning library' },
                               fr: { t: 'Afficher ou masquer la bibliothèque de gammes', reviewed: true },
-                        'zh-Hans': { t: '显示或隐藏调音库', reviewed: 'mt' } },
+                        'zh-Hans': { t: '显示或隐藏调音库', reviewed: 'bt' } },
     'aria.generatorToggle': { en: { t: 'Show or hide the scale generator' },
                               fr: { t: 'Afficher ou masquer le générateur de gammes', reviewed: true },
-                        'zh-Hans': { t: '显示或隐藏音阶生成器', reviewed: 'mt' } },
+                        'zh-Hans': { t: '显示或隐藏音阶生成器', reviewed: 'bt' } },
 });
 
 // ============================================================================

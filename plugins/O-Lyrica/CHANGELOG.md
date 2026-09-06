@@ -2,6 +2,100 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.5.0] - 2026-09-06
+
+Simplified Chinese joins English and French across the whole interface (task
+260906-h8y, wave 4e of the zh-Hans rollout; O-Tapestop 1.7.0 was the tracer).
+MINOR: a new language, a new `<option>`, a three-way language codec and the CSS
+that keeps the page from moving under it. No parameter, range, type or state
+format changed, and no English or French string changed except the one noted
+below.
+
+### Added
+
+- **213 rows of Simplified Chinese** — 46 hover-help entries as a title and a
+  body, plus 121 on-page labels, aria names and button faces. Every one at
+  `reviewed: 'bt'`: an INDEPENDENT back-translation, zh -> en', produced by a
+  reader that never saw the English, read against the English source by the
+  developer. `reviewed: 'native'` stays OPEN — this project has no native
+  Simplified Chinese reader, and that is a disclosed quality level rather than
+  a silent one. `scripts/i18n-zh-lint.js` prints it on every run.
+- **The endonym `简体中文`** in the language selector, written as the numeric
+  character references `&#31616;&#20307;&#20013;&#25991;` and copied
+  byte-for-byte from the shipped convention rather than retyped, with a
+  matching `I18N_EXEMPT` entry carrying the DECODED characters — the parser
+  decodes the entities before the coverage sweep runs, so an exemption written
+  in entity form would never match.
+- **`languageCode` / `languageIndex` widened to three-way**, in pure ASCII on
+  both the encode and the decode line. No Chinese character exists anywhere
+  under `Source/`.
+
+### Changed
+
+- **The `Language` hover help no longer counts the selector's options.** It said
+  *"English and French are available"* in English and the equivalent in French;
+  a third option makes both false. The clause is deleted in BOTH languages and
+  the still-true exception list — value readouts, dropdown choices, tuning names
+  and preset names stay in English — is kept. This is the only English or French
+  string this release touches. The `Settings` body was read in full and
+  deliberately left: it already names the language selector AND the hover-help
+  switch, and is true as it stands.
+- **Every font stack now names a CJK face before its generic**, and three
+  separate defects were behind that one sentence. Twelve stacks whose Latin was
+  already safe took the tail only. SEVEN declarations read `font-family:
+  monospace` and named no family at all — 157 nodes, which under `lang="zh-Hans"`
+  resolve even a digit readout through a Chinese mono face and change its metrics
+  with no translated string anywhere near them; those now name Menlo first, then
+  Courier New, then the CJK tail. And 39 form controls — 27 range inputs and the
+  twelve custom-degree toggles — declared no family at all and took the
+  user-agent's bare Arial; they are closed by an element-level
+  `button, input, textarea` rule at specificity (0,0,1), which loses to every
+  class and id rule on the page and so reaches exactly the undeclared set. The
+  per-stack census reads 539 / 157 / 39 / 1 / 1 before AND after, which is what
+  proves the repair reached that set and nothing else.
+- **Twenty-five `line-height` pins**, each derived from the measured English
+  CONTENT box — padding and border subtracted first — per line and per font size,
+  and each placed inside the rule that already owns its selector. Chinese line
+  boxes at `line-height: normal` run roughly 30% taller than the Latin ones the
+  page was laid out against; unpinned, that displaced a hundred leaves.
+- **`Voices:` renders `声部：` rather than the primary glossary root.** Both are
+  settled renderings. The primary one measures 44.89 px against a 37 px
+  French-era floor on `.voice-label`, so it SET the cell's width and dragged the
+  preset browser 3.9 px; the alternate fits under the floor and the header does
+  not move on any arm.
+- **The rotation matrix's first column header** takes `white-space: nowrap` and a
+  floor at the exact measured English border box, 21.34 px, scoped to
+  `:first-child` so the twelve digit columns keep their own 18 px. Without it
+  `模式` wrapped to two lines in an 18 px auto-sized cell and grew the table 7 px.
+- **`Generator (¢)` renders `生成元（¢）`, and the reason is recorded at the
+  entry.** The first rendering was `生成音程（¢）`, and the blind reverse pass read
+  it back as *"Generate Interval (¢)"* — a verb phrase, because the caption sits
+  directly above the `生成` (Generate) button in the same collapsed panel. A
+  second round with a fresh reader, a fresh salt and a different model returned
+  *"Generator (¢)"* for `生成元`, so the pair is broken. Nothing mechanical could
+  have found this: neither string is a glossary key, so the terminology lint is
+  silent on both, and the downstream collision check looks for two keys mapping
+  to ONE string while these map to two.
+- **`tests/i18n-states.json`: the scale-generator state is an eval, not a
+  click.** The step never threw and `--verbose` logged no skip, but
+  `document.elementFromPoint` reports the footer keyboard's white key as the
+  topmost element at `.generator-header`'s centre, so a forced click dispatched
+  into the keyboard and `toggleGenerator` never fired. The entire generator form
+  — ten captions — had never been measured on any arm. Closing the hole exposed
+  twelve real geometry failures that a green gate had been hiding.
+
+### Verified
+
+`check-i18n` and `check-ui-labels` exit 0, with 0 moved on the English, French
+AND Chinese arms across all fifteen states and every state confirmed to have
+applied. `i18n-zh-lint` reports 0 findings across all 213 rows and
+`BELOW SHIP BAR 0`; `i18n-fr-lint` exits 0, and no French box moved.
+`measure-ui --report all` reads `undeclared-font` 0, `wrap-count` 0 and
+`svg-font-attr` 0 against 181 visible Han-bearing nodes, with no node left on a
+bare generic; every `line-height-normal` residual is an evidenced non-mover whose
+English and Chinese heights are equal. `boot-all-uis --strict-tips` reports 0
+dead and 0 late bindings.
+
 ## [2.4.4] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
