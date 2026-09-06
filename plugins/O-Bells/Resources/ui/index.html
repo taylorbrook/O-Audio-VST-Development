@@ -54,7 +54,7 @@
             align-items: center;
             min-height: 100%;
             background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 
             /* Native feel CSS */
             user-select: none;
@@ -215,6 +215,7 @@
         }
 
         .fx-title {
+            line-height: 1.0909;   /* 12.00 - 0 - 0 = 12.00 / 11px — see the LINE-HEIGHT PINS block */
             /* v4.2.0 GEOMETRY PIN. .fx-section lays out [title …knobs… button]
                with `margin-right: auto` here and `margin-left: auto` on the
                button, so the knob row floats in the free space BETWEEN two auto
@@ -239,6 +240,7 @@
         }
 
         .fx-bypass-btn {
+            line-height: 1.1111;   /* 16.00 - 4 pad -2 border = 10.00 / 9px — see the LINE-HEIGHT PINS block */
             /* v4.2.0 GEOMETRY PIN. The other half of the same pair: ON ->
                MARCHE is 16.48px wider and walked all four knob rows 8.2px left.
                Pinned to a width the FRENCH fits (45.48px), because MARCHE and
@@ -325,6 +327,7 @@
         }
 
         #effects-tab .knob-label {
+            line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the LINE-HEIGHT PINS block */
             width: 100%;              /* v4.2.0 geometry pin — see .knob-container */
             text-align: center;
             white-space: nowrap;
@@ -396,6 +399,23 @@
         }
 
         .footer-gain-label {
+            /* WIDTH PIN, LOAD-BEARING, AND IT EXISTS BECAUSE THE CHINESE IS
+               NARROWER. Measured at the shipping 800 x 600 frame on all three
+               arms: en 26.50, fr 26.50, zh 20.41. This span is a flex item in a
+               `flex-shrink: 0` row, so 6.09 px lost here shrinks .footer-gain
+               itself and slides #footer-gain-slider, its thumb and
+               #footer-gain-value 6.09 px left — and then, because the footer
+               centres what is left, drags the whole 380 px keyboard block 3.05 px
+               with it. 44 non-label elements moved, in every one of the 14 states,
+               from one caption. Pinned at the WIDEST of the three, so the pin is
+               a no-op in English and in French and a floor only in Chinese.
+               R8: this selector carried no min-width before; checked, not assumed.
+               The `letter-spacing: 1px` below is a Latin display convention and
+               it does reach the Han — it is left alone deliberately, because
+               after this pin nothing measures as displaced and a trim would be an
+               unmeasured change to a rendering that already ships. */
+            min-width: 26.5px;
+            line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the LINE-HEIGHT PINS block */
             font-size: 9px;
             color: #3C2F2F;
             text-transform: uppercase;
@@ -487,6 +507,7 @@
         }
 
         .footer-keyboard-help {
+            line-height: 1.1429;   /* 8.00 - 0 - 0 = 8.00 / 7px — see the LINE-HEIGHT PINS block */
             font-size: 7px;
             color: #8B7355;
         }
@@ -500,6 +521,7 @@
         }
 
         .section-title {
+            line-height: 1.0909;   /* 16.00 - 4 pad = 12.00 / 11px — see the LINE-HEIGHT PINS block */
             font-size: 11px;
             font-weight: 500;
             letter-spacing: 1px;
@@ -536,7 +558,60 @@
             align-items: center;
         }
 
+        /* ── LINE-HEIGHT PINS (v4.5.0, the Chinese arm) ─────────────────────
+           `line-height: normal` is not a number — it is whatever the RESOLVED
+           FACE reports as its natural line box, and the resolved face changes
+           with the document language. PingFang SC reports a taller natural line
+           box than Times New Roman at the same font-size, so every Han-carrying
+           leaf below grew 3 to 4 px on the Chinese arm with no other change, and
+           on this page the growth cascades hardest: 584 visible leaves resolve
+           `normal`, ten times this wave's median.
+
+           584 is the UPPER BOUND, not the worklist. Only Han-carrying leaves
+           reach the screen, and only some of those MOVE — a readout whose own
+           text is digits carries Han solely in a data-tip or an aria-label and
+           its box is identical on both arms. Every pin below was derived from
+           that leaf's OWN MEASURED ENGLISH BOX (height minus padding minus
+           border) divided by its own font-size, is UNITLESS so a leaf that
+           inherits into a differently sized child scales rather than pinning the
+           child to the parent's pixel box, and is never global: a global
+           line-height would relayout every language at once for a defect that
+           lives on a named set of elements.
+
+           Measured at the shipping 800 x 600 frame with getComputedStyle,
+           English arm, all 14 states in tests/i18n-states.json driven
+           CUMULATIVELY (a state here can require an earlier one — the generator
+           section is reachable only through the tuning tab):
+
+             .param-label        11.00 - 0 - 0            = 11.00 / 10px = 1.1
+             .section-title      16.00 - 4 pad - 0        = 12.00 / 11px = 1.0909
+             .fx-title           12.00 - 0 - 0            = 12.00 / 11px = 1.0909
+             .toggle-label       11.00 - 0 - 0            = 11.00 / 10px = 1.1
+             .section-hint       10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+             .choice-button      26.00 -12 pad - 2 border = 10.00 /  9px = 1.1111
+             .fx-bypass-btn      16.00 - 4 pad - 2 border = 10.00 /  9px = 1.1111
+             .preset-action-btn  22.00 -10 pad - 2 border = 10.00 /  9px = 1.1111
+             .settings-label     10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+             .footer-gain-label  10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+             .footer-keyboard-help 8.00 - 0 - 0           =  8.00 /  7px = 1.1429
+             #effects-tab .knob-label 10.00 - 0 - 0       = 10.00 /  9px = 1.1111
+
+           R8: the five line-height declarations this page already carried
+           (:993 .gear-btn, :1046 .settings-select, :1073 .settings-toggle,
+           :1287 .cpu-warning, :1380 .tooltip) were read for a specificity
+           conflict FIRST; none of them targets any selector above. `.toggle-label`
+           and `.section-hint` are each declared at higher specificity elsewhere
+           in this file (:781 :827 :867 and :730 :919) and NEITHER of those rules
+           declares line-height, so the low-specificity pins below reach them.
+
+           EVERY ONE IS A NO-OP IN ENGLISH AND IN FRENCH — that is the test, and
+           check-ui-labels reports 0 moved elements on both those arms after the
+           pins. */
+        .toggle-label { line-height: 1.1; }
+        .section-hint { line-height: 1.1111; }
+
         .param-label {
+            line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the LINE-HEIGHT PINS block */
             font-size: 10px;
             font-weight: 400;
             letter-spacing: 0.8px;
@@ -599,6 +674,7 @@
         }
 
         .choice-button {
+            line-height: 1.1111;   /* 26.00 -12 pad -2 border = 10.00 / 9px — see the LINE-HEIGHT PINS block */
             flex: 1;
             padding: 6px 10px;
             background: rgba(139, 168, 112, 0.3);
@@ -1028,6 +1104,7 @@
         /* nowrap because the row is space-between: a caption that wrapped would
            grow the row's height and move the control beside it. */
         .settings-label {
+            line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the LINE-HEIGHT PINS block */
             font-size: 9px;
             letter-spacing: 0.5px;
             text-transform: uppercase;
@@ -1212,6 +1289,7 @@
         }
 
         .preset-action-btn {
+            line-height: 1.1111;   /* 22.00 -10 pad -2 border = 10.00 / 9px — see the LINE-HEIGHT PINS block */
             /* v4.2.0 GEOMETRY PIN. Shrink-wrapped, and .preset-browser is the
                right-hand child of a `space-between` header bar, so ANY width
                change walks the whole preset browser sideways: SAVE -> ENREG.
@@ -1259,7 +1337,7 @@
             --tuning-input-bg: rgba(255, 248, 230, 0.9);
             --tuning-hover: rgba(184, 134, 11, 0.2);
             --tuning-active: rgba(184, 134, 11, 0.3);
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             height: 100%;
         }
 
@@ -1444,6 +1522,7 @@
                                         aria-label="Interface language" data-i18n-aria="aria.langSelect">
                                     <option value="en">English</option>
                                     <option value="fr">Fran&ccedil;ais</option>
+                                    <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                                 </select>
                             </label>
 

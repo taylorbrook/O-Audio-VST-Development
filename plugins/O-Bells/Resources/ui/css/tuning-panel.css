@@ -44,6 +44,35 @@
    MAIN CONTAINER
    ═══════════════════════════════════════════════════════════════════ */
 
+/* ── FORM 4: THE THIRTY-TWO NODES NO FILE DECLARES ──────────────────────────
+   A form control does NOT inherit font-family. It takes its face from the UA
+   stylesheet, which on this platform is bare Arial — so 13 <button>, 17 <input>
+   and 2 <select> inside this panel resolved to a face that has no Han glyphs at
+   all, and their Chinese captions would have been resolved by the DOCUMENT
+   LANGUAGE fallback rather than by anything the page names. That is the
+   inert-tail failure arriving through an ABSENT declaration, and no grep of any
+   file in this repo can see it: the census that found all 32 was a
+   computed-style sweep (scripts/measure-ui.js --report undeclared-font).
+
+   index.html already carries `font-family: inherit` at six sites (:256, :359,
+   :991, :1044, :1071, :1378). Those are the MAIN page's controls, they were read
+   first, and they do NOT reach any of the 32 — a plugin that has been given this
+   repair on some of its controls is not a plugin that has had it.
+
+   ARIAL STAYS FIRST, deliberately. The English and French arms already render
+   these captions in Arial, so naming it first leaves their Latin metrics exactly
+   where they are and the tail is reached only by a codepoint Arial cannot draw.
+   Verified by re-running the undeclared-font screen, not by reading this rule.
+
+   The list is the measured one, written out rather than swept with a bare
+   `button, input, select` so that a control added later shows up as a new
+   finding instead of being silently absorbed by a wildcard. */
+.tuning-panel button,
+.tuning-panel input,
+.tuning-panel select {
+    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
 .tuning-panel {
     display: grid;
     grid-template-columns: 160px 1fr 220px;
@@ -51,7 +80,10 @@
     padding: 15px;
     background: var(--tuning-bg);
     border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    /* CJK tail BEFORE the trailing generic: Chromium resolves a bare
+       `sans-serif` against the document's lang, so under zh-Hans the generic is
+       already a Chinese face and a tail written after it is never consulted. */
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
     font-size: 11px;
     color: var(--tuning-text);
 }
@@ -83,7 +115,35 @@
     overflow-y: auto;
 }
 
+/* ── LINE-HEIGHT PINS (v4.5.0, the Chinese arm) ─────────────────────────────
+   The same defect as index.html's pin block and the same derivation: each value
+   is that leaf's own measured English box (height minus padding minus border)
+   over its own font-size, unitless, never global. This file is the tuning panel,
+   which is reachable only through a tab click, so none of these leaves appears
+   in a measurement that does not drive tests/i18n-states.json.
+
+   Measured at the shipping 800 x 600 frame, English arm:
+
+     .interval-list-header   11.00 - 0 - 0            = 11.00 / 10px = 1.1
+     .tonic-label            10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+     .viz-btn                24.00 -12 pad - 2 border = 10.00 /  9px = 1.1111
+     .pitch-circle-label     10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+     .rotation-table th      16.00 - 6 pad - 2 border =  8.00 /  8px = 1  (+ nowrap)
+     .tk-total-label         11.00 - 0 - 0            = 11.00 / 10px = 1.1
+     .library-header-text    11.00 - 0 - 0            = 11.00 / 10px = 1.1
+     .generator-header-text  11.00 - 0 - 0            = 11.00 / 10px = 1.1
+     .library-item-desc      10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+     .generator-btn          27.00 -16 pad - 0        = 11.00 / 10px = 1.1
+     .gen-row label          11.00 - 0 - 0            = 11.00 / 10px = 1.1
+     .ref-knob-label         10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+     .octave-stretch-label   10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+     .tuning-file-btn        24.00 -12 pad - 2 border = 10.00 /  9px = 1.1111
+
+   R8: this file carried NO line-height declaration at all before this block, so
+   there was no specificity conflict to resolve — checked, not assumed. */
+
 .interval-list-header {
+    line-height: 1.1;   /* 11.00 / 10px — see the LINE-HEIGHT PINS block */
     font-weight: 600;
     font-size: 10px;
     text-transform: uppercase;
@@ -120,6 +180,7 @@
 }
 
 .tonic-label {
+    line-height: 1.1111;   /* 10.00 / 9px — see the LINE-HEIGHT PINS block */
     flex: 0 0 42px;         /* v4.2.0 geometry pin — see .tonic-selector */
     font-size: 9px;
     text-transform: uppercase;
@@ -223,6 +284,7 @@
    gives every caption a 45.6px content box, and the widest one-line string in
    either language fits it. */
 .viz-btn {
+    line-height: 1.1111;   /* 24.00 -12 pad -2 border = 10.00 / 9px — see the LINE-HEIGHT PINS block */
     flex: 1;
     white-space: nowrap;
     padding: 6px 4px;
@@ -282,6 +344,7 @@
 }
 
 .pitch-circle-label {
+    line-height: 1.1111;   /* 10.00 / 9px — see the LINE-HEIGHT PINS block */
     font-size: 9px;
     color: var(--tuning-text-muted);
     margin-top: 8px;
@@ -346,6 +409,7 @@
    not, and it grew 1.5px in French. The key moved onto the span itself and the
    bold moved into CSS. */
 .tk-total-label {
+    line-height: 1.1;   /* 11.00 / 10px — see the LINE-HEIGHT PINS block */
     font-weight: 700;
 }
 
@@ -355,7 +419,15 @@
 }
 
 .tk-cents {
-    font-family: monospace;
+    /* THE WAVE'S ONLY NAKED GENERIC, AND THE ONE SITE WHERE BOTH HALVES OF THE
+       FONT WORK LAND ON ONE DECLARATION. `monospace` names no face at all, so
+       under zh-Hans even these cents digits were resolved through the DOCUMENT
+       LANGUAGE's mono face — a readout changing metrics with no translated
+       string anywhere near it. Menlo is named first (measured installed on the
+       build machine, 4 family matches) so the Latin digits keep the metrics the
+       English and French arms already ship; the CJK tail follows because the
+       panel is data-i18n-driven and this selector is broad. */
+    font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
     font-size: 11px;
     color: var(--tuning-accent, #8B7355);
 }
@@ -383,7 +455,32 @@
 }
 
 .rotation-table th {
+    /* THE ROTATION TABLE'S CORNER HEADER IS THE ONLY Han IN EITHER TABLE, and it
+       is the one node in this plugin that exhibits the third geometry shape: a
+       Han run whose MIN-CONTENT WIDTH IS ONE CHARACTER. `Mode` cannot break in a
+       narrow auto-sized column; its two-character Chinese rendering breaks
+       between the two characters, taking the header row from 16 px to 29 px and
+       every one of the thirteen note-name headers beside it from one estimated
+       line to two — an ASCII cell reported as a wrap defect because its ROW grew.
+       nowrap is the fix and the line-height pin is what keeps the single line the
+       same box it is in English: 16.00 - 6 pad - 2 border = 8.00 / 8px = 1.
+       .matrix-table's headers are note names in every language and take neither. */
+    white-space: nowrap;
+    line-height: 1;
     background: rgba(139, 115, 85, 0.15);
+}
+
+/* WIDTH PIN ON THE CORNER HEADER ONLY, AND IT IS A FLOOR BECAUSE THE CHINESE IS
+   NARROWER. Measured at the shipping 800 x 600 frame: en 30.56, fr 30.56, zh
+   27.36. This is the one th in the table that carries copy; the thirteen beside
+   it are note names in every language. Losing 3.2 px here narrows the whole
+   auto-sized table and slides every one of those thirteen headers and every data
+   cell under them — 228 non-label elements moved from one two-character caption.
+   Pinned at the WIDEST of the three, so it is a no-op in English and in French.
+   The [data-i18n] attribute selector is what keeps the pin off the note names:
+   the corner header is the only cell in either table that has one. */
+.rotation-table th[data-i18n] {
+    min-width: 30.56px;
 }
 
 .rotation-table .current-tonic {
@@ -428,6 +525,7 @@
 
 .library-header-text,
 .generator-header-text {
+    line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the LINE-HEIGHT PINS block */
     font-weight: 600;
     font-size: 10px;
     text-transform: uppercase;
@@ -490,6 +588,7 @@
 }
 
 .library-item-desc {
+    line-height: 1.1111;   /* 10.00 / 9px — see the LINE-HEIGHT PINS block */
     font-size: 9px;
     color: var(--tuning-text-muted);
 }
@@ -507,6 +606,7 @@
 }
 
 .gen-row label {
+    line-height: 1.1;   /* 11.00 / 10px — see the LINE-HEIGHT PINS block */
     font-size: 10px;
     color: var(--tuning-text-muted);
 }
@@ -522,6 +622,7 @@
 }
 
 .generator-btn {
+    line-height: 1.1;   /* 27.00 -16 pad = 11.00 / 10px — see the LINE-HEIGHT PINS block */
     width: 100%;
     padding: 8px;
     background: var(--tuning-accent);
@@ -569,6 +670,7 @@
 }
 
 .ref-knob-label {
+    line-height: 1.1111;   /* 10.00 / 9px — see the LINE-HEIGHT PINS block */
     font-size: 9px;
     text-transform: uppercase;
     color: var(--tuning-text-muted);
@@ -607,6 +709,7 @@
    ÉTIREMENT is 10.98px wider and moved both by exactly that. 52px fits
    Étirement (51px) and leaves Stretch 12px of slack. */
 .octave-stretch-label {
+    line-height: 1.1111;   /* 10.00 / 9px — see the LINE-HEIGHT PINS block */
     flex: 0 0 52px;
     font-size: 9px;
     text-transform: uppercase;
@@ -649,6 +752,7 @@
 }
 
 .tuning-file-btn {
+    line-height: 1.1111;   /* 24.00 -12 pad -2 border = 10.00 / 9px — see the LINE-HEIGHT PINS block */
     padding: 6px 8px;
     background: rgba(255, 255, 255, 0.6);
     border: 1px solid var(--tuning-border);
