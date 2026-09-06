@@ -204,6 +204,29 @@ const PAGE_UNREACHABLE = [
 
     const table = await loadTable();
     const { I18N, TIP_BINDINGS } = table;
+
+    // ── THE LANGUAGE LIST IS DERIVED, NOT WRITTEN HERE ──────────────────────
+    //
+    // Through v1.28.1 the walk below carried a hand-written array of language
+    // codes and this file named the table's language export nowhere at all. A
+    // hand-written array spells no identifier, so no repo-wide census could see
+    // it, and a language added to the table was swept by nothing here until
+    // somebody remembered to edit two more places by hand.
+    //
+    // DERIVE-OR-ABORT. A derived list that comes back empty, or that loses
+    // English, would make every loop below walk zero languages and report every
+    // assertion green — a gate that proves nothing while printing that it did.
+    // So the shape is asserted and the run is ABORTED rather than defaulted:
+    // a gate that cannot read the list must not sweep a guess.
+    const LANGS = table.LANGUAGES;
+    if (!Array.isArray(LANGS) || LANGS.length < 2 || !LANGS.includes('en')) {
+        console.log('  FAIL: [0] LANGUAGES could not be derived from the table '
+                  + `(got ${JSON.stringify(LANGS)}) — aborting rather than sweeping a default`);
+        process.exit(1);
+    }
+    const NON_EN = LANGS.filter(l => l !== 'en');
+    console.log(`   language list derived from the table: ${LANGS.join(', ')} `
+              + `(${NON_EN.length} non-English)`);
     note(`table: ${Object.keys(I18N).length} I18N entries, ${TIP_BINDINGS.length} TIP_BINDINGS rows`);
 
     if (!Array.isArray(TIP_BINDINGS) || TIP_BINDINGS.length === 0) {
@@ -485,9 +508,10 @@ const PAGE_UNREACHABLE = [
                         .concat([{ tab: null, popover: true,
                                    list: resolution.filter(r => r.tab === null).map(r => r.sel) }]);
 
-        // ══════════════ 2 / 3 / 4, in en -> fr -> en ═══════════════════════
+        // ══════════════ 2 / 3 / 4, English, then every other language the
+        //                table declares, then back to English ═══════════════
         let seenEn = false;
-        for (const lang of ['en', 'fr', 'en']) {
+        for (const lang of ['en', ...NON_EN, 'en']) {
             const isReturn = lang === 'en' && seenEn;
             seenEn = seenEn || lang === 'en';
             console.log(`\n-- 2/3/4. language: ${lang}${isReturn ? ' (return pass)' : ''}`);
@@ -568,13 +592,23 @@ const PAGE_UNREACHABLE = [
                + `tallest ${maxH.toFixed(1)} px`);
         }
 
-        // ── 5. FRENCH REALLY IS TALLER, and English really came back ────────
+        // ── 5. EVERY NON-ENGLISH PASS REALLY MEASURED SOMETHING ELSE, and
+        //       English really came back ─────────────────────────────────────
         //
         // Re-measured rather than inferred from the loop: the point of running
-        // both languages is that French wraps to more lines against the 260 px
-        // cap, and if it did NOT the two passes would be the same measurement
-        // twice and assertion 4's French half would be decoration.
-        console.log('\n-- 5. French height vs English');
+        // more than one language is that the others lay out differently against
+        // the 260 px cap, and if a pass did NOT it would be the same
+        // measurement twice and assertion 4's half of it would be decoration.
+        //
+        // v1.29.0: THIS ASSERTS A MAGNITUDE, NOT A DIRECTION. Through v1.28.1
+        // it required the non-English pass to be strictly TALLER on at least one
+        // tip, which is true of French — it wraps to more lines — and false of
+        // Simplified Chinese, which says the same thing in fewer glyphs and
+        // SHRINKS almost every tip. A direction test would have hard-failed the
+        // Chinese arm on a page where nothing was wrong. What the assertion is
+        // actually for is catching a pass that measured English twice, and a
+        // difference in either direction settles that.
+        console.log('\n-- 5. non-English tip height against English');
         const SAMPLE = resolution.filter(r => r.tab === 'synth').map(r => r.sel);
         async function heightsFor(lang) {
             await page.evaluate((l) => window.__setLanguage(l), lang);
@@ -588,18 +622,24 @@ const PAGE_UNREACHABLE = [
             return h;
         }
         const hEn = await heightsFor('en');
-        const hFr = await heightsFor('fr');
-        const grew   = SAMPLE.filter(s => hFr[s] > hEn[s] + 0.5);
-        const shrank = SAMPLE.filter(s => hFr[s] < hEn[s] - 0.5);
-        const same   = SAMPLE.filter(s => Math.abs(hFr[s] - hEn[s]) <= 0.5);
-        check(grew.length > 0,
-            `[5] French GROWS at least one tip's height against the 260 px cap — ${grew.length} grew, `
-            + `${same.length} unchanged, ${shrank.length} shrank`,
-            grew.length ? null
-                : 'no tip grew: the fr pass measured the same boxes as en, so its clamp half is decoration');
-        note(`tallest en ${Math.max(...SAMPLE.map(s => hEn[s])).toFixed(1)} px, `
-           + `tallest fr ${Math.max(...SAMPLE.map(s => hFr[s])).toFixed(1)} px`);
-        if (verbose) for (const s of grew) note(`  grew: ${s} ${hEn[s].toFixed(0)} -> ${hFr[s].toFixed(0)}`);
+        note(`tallest en ${Math.max(...SAMPLE.map(s => hEn[s])).toFixed(1)} px`);
+        for (const lang of NON_EN) {
+            const hL = await heightsFor(lang);
+            const grew   = SAMPLE.filter(s => hL[s] > hEn[s] + 0.5);
+            const shrank = SAMPLE.filter(s => hL[s] < hEn[s] - 0.5);
+            const same   = SAMPLE.filter(s => Math.abs(hL[s] - hEn[s]) <= 0.5);
+            check(grew.length + shrank.length > 0,
+                `[5] ${lang} lays at least one tip out to a DIFFERENT height than English against the `
+                + `260 px cap — ${grew.length} grew, ${same.length} unchanged, ${shrank.length} shrank`,
+                grew.length + shrank.length ? null
+                    : `no tip differed: the ${lang} pass measured the same boxes as en, so its clamp `
+                      + 'half is decoration');
+            note(`tallest ${lang} ${Math.max(...SAMPLE.map(s => hL[s])).toFixed(1)} px`);
+            if (verbose) {
+                for (const s of grew)   note(`  grew:   ${s} ${hEn[s].toFixed(0)} -> ${hL[s].toFixed(0)}`);
+                for (const s of shrank) note(`  shrank: ${s} ${hEn[s].toFixed(0)} -> ${hL[s].toFixed(0)}`);
+            }
+        }
 
         await page.evaluate(() => window.__setLanguage('en'));
         await page.waitForTimeout(150);
