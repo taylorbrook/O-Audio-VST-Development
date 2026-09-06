@@ -59,7 +59,7 @@
   --text-emboss: rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
   /* Symbol-glyph fallback — Garamond lacks ❦ / ♪ on Windows; these fonts carry them. */
-  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', serif;
+  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -74,7 +74,7 @@ html, body {
 }
 
 body {
-  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   color: var(--brown-text);
   background:
     radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
@@ -146,6 +146,7 @@ body {
   text-transform: uppercase;
   color: var(--brown-border);
   margin-top: 2px;
+  line-height: 1.0909091;   /* zh pin: en content box 12px at 11px */
 }
 
 /* ── Preset bar (header, right) ──────────────────────────────────────────── */
@@ -263,6 +264,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--brown-border);
+  line-height: 1.1;   /* zh pin: en content box 11px at 10px */
 }
 
 .settings-select,
@@ -352,6 +354,7 @@ body {
   letter-spacing: 1px;
   color: var(--brown-border);
   margin-bottom: 4px;
+  line-height: 1.1;   /* zh pin: en content box 11px at 10px */
 }
 .viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-mid); opacity: 0.85; }
 
@@ -401,7 +404,7 @@ body {
 .box-rect-res { fill: rgba(245, 236, 215, 0.5); stroke: var(--brown-frame); stroke-width: 2; }
 .box-text {
   fill: var(--green-darkest);
-  font-family: 'Garamond', 'EB Garamond', 'Times New Roman', serif;
+  font-family: 'Garamond', 'EB Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 13px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -409,7 +412,7 @@ body {
 }
 .box-sub {
   fill: var(--brown-border);
-  font-family: 'Garamond', 'EB Garamond', 'Times New Roman', serif;
+  font-family: 'Garamond', 'EB Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   font-size: 9px;
   letter-spacing: 0.4px;
   font-style: italic;
@@ -457,6 +460,7 @@ body {
   margin-bottom: 8px;
   border-bottom: 1px dotted rgba(139, 115, 85, 0.4);
   padding-bottom: 3px;
+  line-height: 1.25;   /* zh pin: en content box 15px at 12px */
 }
 .col-body {
   display: flex;
@@ -533,6 +537,8 @@ body {
   text-align: center;
   line-height: 1.1;
 }
+.knob-label[data-i18n="label.knobModeBright"] { min-height: 20.88px; }   /* zh floor: the EXACT measured English box. This is the page's only caption that WRAPS in English and not in Chinese, so the cell shrank 10.4px and dragged its readout. Scoped by key, because the other sixteen .knob-label captions are one line in English and a shared floor would grow them all. */
+
 .knob-value {
   font-size: 11px;
   color: var(--brown-text);
@@ -583,7 +589,7 @@ body {
   padding: 8px 14px 4px;
   border-top: 1px solid rgba(139, 115, 85, 0.4);
 }
-.keyboard-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--brown-border); }
+.keyboard-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--brown-border); line-height: 1.1; }   /* zh pin: en content box 11px at 10px */
 .kbd-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-mid); opacity: 0.85; }
 .keyboard {
   position: relative;
