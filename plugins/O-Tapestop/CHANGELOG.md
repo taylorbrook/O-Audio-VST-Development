@@ -2,6 +2,74 @@
 
 All notable changes to O-Tapestop are documented here.
 
+## [1.7.0] - 2026-09-06
+
+Simplified Chinese joins English and French (task 260906-h8y, wave 4e; O-Tapestop
+is the wave's tracer). MINOR: a third language, a repaired test gate, nine
+line-height pins and one font-stack tail — no parameter, range, type, DSP path
+or state format changed, and the English and French pages are unchanged in
+geometry, measured node for node.
+
+### Added
+
+- **Simplified Chinese across the whole hover-help and label surface** — 114
+  rows (35 tooltip entries as title + body, plus 44 labels), reachable from the
+  `简体中文` entry in the settings popover's language selector. The selector's
+  endonym is written as the numeric character references
+  `&#31616;&#20307;&#20013;&#25991;`, copied from the shipped convention rather
+  than retyped, and carries a reasoned `I18N_EXEMPT` entry because the coverage
+  scanner sees the DECODED characters.
+- **Disclosed quality level: `reviewed: 'bt'` — back-translated, not native.**
+  Every one of the 114 rows was authored at `'mt'`, committed, then emitted in
+  two independently salted, id-blinded batches to a blind reader running in a
+  fresh session from a directory outside this repository with every tool
+  disabled and no access to the English source, the key names or any file. All
+  114 returned triples were read. Two rows were re-authored and confirmed by a
+  second round with a fresh salt and a DIFFERENT model; the rest were accepted
+  with a written reason. No native Chinese speaker has read this page, and the
+  lint prints that fact on every run.
+
+### Changed
+
+- **The language hover help no longer counts the selector's options.** Its
+  English and its French both named a fixed pair. That sentence was true while
+  the selector held two options and went false the moment a third arrived. The
+  half that stayed true — value readouts are English in every language — is
+  kept, because it is a fact about the readouts rather than about the list.
+- **`tests/ui_tooltip_clamp_check.js` now derives its language list from the
+  table it is testing.** The file already required `vm`, already read
+  `js/i18n.js`, and already ran it in a sandbox — but published
+  `{ I18N, TIP_BINDINGS }` and referred to `LANGUAGES` exactly zero times, so it
+  had a loader and still nothing to derive from. `LANGUAGES` joins that set; the
+  list is derived, its shape asserted, and an unreadable list ABORTS rather than
+  falling back to a guessed pair, because a gate that guesses reports a pass over
+  content it never rendered. Both walks follow the derived list, and the three
+  per-language map lookups that enumerated languages by literal key are
+  generalized — including the copy-differs hard-fail, which left alone would have
+  compared exactly two languages while the Chinese page was driven, measured and
+  never compared. The three RESET-scoped English reads that keep the stress
+  stage's numbers comparable with earlier releases are deliberately preserved,
+  with the classification recorded at each site.
+- **The `--serif` token carries a CJK tail**, placed BEFORE the trailing generic:
+  Chromium resolves a bare `serif` against the document's `lang`, so under
+  `lang="zh-Hans"` the generic is already a Chinese face and a tail written after
+  it is never consulted. `Garamond` and `EB Garamond` are absent from the build
+  machine and `Times New Roman` is present, so the Latin half of the stack was
+  already safe and the named Latin face stays first — one token edit reaching 13
+  declarations and 168 visible nodes, with the English and French arms measured
+  unmoved afterwards.
+- **Nine `line-height` pins replace `line-height: normal`.** A Chinese face
+  returns a line box roughly **30 % taller** than a Latin one at the same
+  font-size (measured here: 10 → 13 px at 9 and 9.5 px, 11 → 14 px at 10 px,
+  12 → 16 px at 11 px), so every caption grew and pushed 49–59 elements per state
+  out of place. Each pin is the MEASURED English CONTENT line box over its own
+  font-size, with padding and border subtracted first, so neither Latin arm can
+  move. The pins go inside the rules that already own each selector rather than
+  into a new higher-specificity block.
+- **`PluginProcessor.h`'s language codec is three-way**, in pure ASCII. The file
+  carries the BCP-47 tag and nothing else — no Chinese character exists anywhere
+  under `Source/`.
+
 ## [1.6.3] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
