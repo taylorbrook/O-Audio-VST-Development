@@ -49,7 +49,7 @@
 html, body {
     width: 100%;
     height: 100%;
-    font-family: 'Georgia', 'Times New Roman', serif;
+    font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     color: var(--text-primary);
     background: var(--bg-paper);
     /* Native feel CSS */
@@ -453,7 +453,7 @@ html, body {
     background: rgba(60, 47, 47, 0.3);
     color: rgba(232, 213, 183, 0.6);
     font-size: 8px;
-    font-family: 'Arial', sans-serif;
+    font-family: 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     font-weight: bold;
     cursor: pointer;
     display: flex;
@@ -991,7 +991,7 @@ html, body {
     border: 1px solid rgba(139, 115, 85, 0.6);
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    font-family: 'Georgia', 'Times New Roman', serif;
+    font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     pointer-events: none;
     opacity: 0;
     transition: opacity 150ms ease;
@@ -1050,3 +1050,89 @@ html, body {
     outline-offset: 2px;
 }
 
+
+
+/* ── THE FORM-4 REPAIR (v1.19.0, the zh-Hans rollout) ────────────────────────
+
+   A <button>, <input> or <select> takes its face from the UA stylesheet rather
+   than from an ancestor, so a form control with no font-family of its own
+   resolves to a bare `Arial` that no file in this plugin declares.
+
+   NINE `font-family: inherit` DECLARATIONS ALREADY SAT IN THIS FILE — L115,
+   L168, L207, L397, L606, L780, L824, L885, L899 and L943 — and the computed
+   census still found 24 form controls on the UA face. A grep of this stylesheet
+   reports a plugin that has had the form-4 repair; the census reports a plugin
+   that has had it on SOME controls. Those are different plugins and only one
+   instrument can tell them apart. The 24 are the five global sliders, the four
+   per-band mix sliders, the five crossover divider sliders, the five Euclidean
+   number inputs, the four band expand buttons and the panel close button —
+   every one of them built at runtime by js/app.js or left classless in the
+   markup.
+
+   THIS IS AN ELEMENT-LEVEL RULE ON PURPOSE, and that is what makes it safe: at
+   specificity (0,0,1) it loses to every class and id rule on the page, so the
+   76 controls that already resolve to Georgia through an explicit `inherit` and
+   the 8 that already name Arial keep exactly what they had. It reaches the 24
+   that declare nothing and nothing else. Verified by re-running the
+   undeclared-font screen, not by reading the CSS.
+
+   ARIAL IS KEPT FIRST so the Latin metrics of the en and fr arms do not move —
+   it is the face these controls already resolved to — and the CJK tail goes
+   after it and BEFORE the generic, because under a Chinese document language a
+   bare `sans-serif` is already a Chinese face and a tail written after it would
+   never be consulted.                                                        */
+button,
+input,
+select,
+textarea {
+    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+
+/* ── LINE-HEIGHT PINS (v1.19.0, the zh-Hans rollout) ─────────────────────────
+
+   A Han glyph's line box under `line-height: normal` is roughly 30% taller than
+   a Latin one at the same font-size, so every caption leaf that inherited
+   `normal` GREW when the page went Chinese and pushed what sat below it down.
+   check-ui-labels named up to 203 moved elements on the zh arm.
+
+   Each pin is that leaf's OWN MEASURED ENGLISH CONTENT line box — padding and
+   border subtracted — over its own font-size, unitless, never global. The three
+   `label` populations are pinned SEPARATELY because they render at three
+   different sizes, which is the N11 case: one class at two sizes needs two pins
+   and two selectors to hang them on, and here it is three. Measured with
+   scripts/measure-ui.js --mode box across all 5 states at the parsed 850 x 550
+   shipping frame:
+
+     selector                font-size  English line box  pin
+     .band-mix label              8px          9px        9 / 8   = 1.125
+     .control-group label        12px         14px        14 / 12 = 1.1666667
+     #euc-band-title             18px         21px        21 / 18 = 1.1666667
+     .control label              11px         12px        12 / 11 = 1.0909091
+     .settings-label             11px         12px        12 / 11 = 1.0909091
+     .tagline                    11px         12px        12 / 11 = 1.0909091
+     #loadPreset, #savePreset    10px         11px        11 / 10 = 1.1
+     .band-mode (#mode-0..3)      9px         10px        10 / 9  = 1.1111111
+
+   THE PIN IS LANGUAGE-INDEPENDENT ON PURPOSE. Each value is what English and
+   French already computed, so neither arm moves; only the Chinese box comes
+   back to it.
+
+   R8: this stylesheet carried SIX line-height declarations before this release
+   and not one of them is a selector below — grepped, not assumed. These rules
+   sit at the end of the file so they win at equal specificity without raising
+   it anywhere.                                                               */
+
+.band-mix label                 { line-height: 1.125; }        /*  9.00 /  8px */
+
+.control-group label,
+#euc-band-title                 { line-height: 1.1666667; }    /* 14.00 / 12px, 21.00 / 18px */
+
+.control label,
+.settings-label,
+.tagline                        { line-height: 1.0909091; }    /* 12.00 / 11px */
+
+#loadPreset,
+#savePreset                     { line-height: 1.1; }          /* 11.00 / 10px */
+
+.band-mode                      { line-height: 1.1111111; }    /* 10.00 /  9px */
