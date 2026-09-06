@@ -2,6 +2,109 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.5.0] - 2026-09-05
+
+Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c).
+MINOR: a third language, a repaired render gate, 26 line-height pins and two
+width pins. No parameter, range, type or state format changed, and no audio path
+was touched.
+
+### Added
+
+- **`zh-Hans` on every one of the 255 emitter rows** — 66 `I18N` entries (title
+  and body) and 123 `LABELS` entries, the largest table in the wave. Authored at
+  `reviewed: 'mt'`, committed there, and promoted to **`reviewed: 'bt'`** only
+  after two independent blind reverse reads. `'native'` stays open on every row:
+  this project has no native Chinese reader, and `i18n-zh-lint` rule R1 prints
+  that quality level on every run rather than leaving it to a reader's memory.
+- **The endonym `简体中文`**, written as numeric character references to match
+  this file's existing convention for `Français`.
+- **A three-way `languageCode` / `languageIndex` codec.** Anything that is
+  neither `fr` nor `zh-Hans` degrades to English. **No Chinese character appears
+  anywhere under `Source/`** — the C++ carries only the ASCII code.
+
+### Changed
+
+- **Two hover-help bodies lost an enumeration, in English and French alike.** The
+  gear body counted the settings popover's controls and named the only one it
+  found, which stopped being true when v4.4.0 added the hover-help switch —
+  `check-i18n` assertion [16] *requires* that switch, which is precisely what made
+  the clause false. The language body named the selector's options twice, once in
+  prose and once as a trailing range clause. Both are deletions, not extensions,
+  and the Chinese was authored from the corrected English after a re-read.
+- **The tuning panel's 32 form-4 nodes now name a face.** A form control does not
+  inherit `font-family`; it takes the UA stylesheet's, which here is bare Arial —
+  a face with no Han glyphs. 13 `<button>`, 17 `<input>` and 2 `<select>` would
+  have had their Chinese captions resolved by the document-language fallback
+  instead of by anything the page names, and **no grep of any file in this repo
+  can see that**, because the defect is an *absent* declaration. A computed-style
+  census found all 32. Arial stays **first** so the Latin metrics of the English
+  and French arms do not move. `index.html` already carried `font-family: inherit`
+  at six sites; those are the main page's controls, they were read first, and they
+  reach none of the 32 — a plugin given this repair on some of its controls is not
+  a plugin that has had it.
+- **`css/tuning-panel.css`'s bare `monospace` now names Menlo and carries the CJK
+  tail.** It named no face at all, so under `zh-Hans` even the cents readouts'
+  digits were resolved through the document language's mono face — a readout
+  changing metrics with no translated string anywhere near it.
+- **The CJK tail on the three declared stacks, placed BEFORE the trailing
+  generic.** Chromium resolves a bare generic against the document's `lang`, so
+  under `zh-Hans` the generic is already a Chinese face and a tail written after
+  it is never consulted — and the page still looks right on macOS, which is what
+  makes that mistake survive review.
+- **26 `line-height` pins.** `line-height: normal` is not a number — it is
+  whatever the resolved face reports, and the resolved face changes with the
+  document language. 584 visible leaves resolve `normal` on this page, ten times
+  the wave's median; 584 is the upper bound, not the worklist, because only
+  Han-carrying leaves reach the screen and only some of those move. Each pin is
+  derived from that leaf's own measured English box, unitless, never global.
+- **Two width pins, both FLOORS, because the Chinese is NARROWER** — the half a
+  clip check is blind to. `.footer-gain-label` (en 26.50, fr 26.50, zh 20.41) is a
+  flex item in a `flex-shrink: 0` row, so 6.09 px lost there shrank the gain
+  block, slid the slider and its readout, and dragged the whole 380 px keyboard
+  block after it: 44 elements moved in all 14 states, from one caption. The
+  rotation table's corner header (en 30.56, fr 30.56, zh 27.36) additionally takes
+  `nowrap`: its two-character Chinese broke *between* the characters — a
+  min-content width of one glyph in an auto-sized column — which grew the header
+  row and reported all thirteen ASCII note-name headers beside it as wrap defects.
+- **`tests/ui_tip_render_check.js` derives its language list at BOTH of its two
+  language sites.** The joined-pair assertion was the loud half; the two
+  hand-written sweep calls were the silent one, and no repo-wide census can see
+  them because a call site spells no list to grep for. Guarded so a list that goes
+  empty makes the gate exit non-zero rather than sweep nothing and report green.
+
+### Deliberately unchanged, and recorded as checked
+
+- **The two late tip bindings** (`#ref-pitch-knob`, `#octave-stretch`) are pinned
+  by this gate's own `EXPECTED_LATE` assertion, which documents them as designed
+  behaviour. They are the suite's `boot-all-uis` census control; a run reporting
+  zero would mean the census had gone blind, not that anything had been fixed.
+- **`js/tuning-panel.js`** is this plugin's own copy, not the shared
+  `scala-tuning-engine` module, and already carries 45 `data-i18n` hooks. Its
+  captions are part of the 255 rows and the file itself needed no edit.
+- **One glossary collision, screened and ruled out on evidence.** 阻尼 is reached
+  by both `label.damping` and `label.damp`, but the two controls live in mutually
+  exclusive tab panels and can never be on screen together. Qualifying both sides
+  would have made the reverb caption the widest in a narrow knob row — a geometry
+  defect introduced to solve a collision that cannot occur.
+
+### Verified
+
+- `check-i18n` exit 0; `check-ui-labels` exit 0 with **0 FAIL on the English,
+  French and Chinese arms across all 14 states**; `i18n-zh-lint` 0 findings and
+  `BELOW SHIP BAR 0`; `i18n-fr-lint` exit 0 — French untouched.
+- `measure-ui --mode box --report all` over 3219 measured nodes: `undeclared-font`
+  **196 → 0**, `wrap-count` 0, `svg-font-attr` 0. `line-height-normal` reads 19,
+  every one an evidenced non-mover whose English box equals its Chinese box.
+- Zero Han under `Source/**/*.{h,cpp}`, positive control fired on the same run.
+- The blind reverse read ran twice against **two different models**, each from a
+  fresh session outside the repo with no tool access and repo access forbidden in
+  the prompt, on separately salted batches and in chunks of 85 rows. Round one
+  caught one caption whose Chinese named the wrong control on a tab where both
+  were visible; round two, independently, read the correction back as the
+  tooltip's own title.
+- `auval -v` AU VALIDATION SUCCEEDED, triple read off `auval -a`.
+
 ## [4.4.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
