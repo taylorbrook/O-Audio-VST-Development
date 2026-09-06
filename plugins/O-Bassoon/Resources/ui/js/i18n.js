@@ -225,7 +225,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '速率',
               b: '音高颤音的速度。每个声部有一个正弦振荡器，把整个模态组上下弯折。每个音符都以随机相位起振，因此 0 Hz 时颤音会冻结成一个固定的小失谐，而不是关闭——把深度设为 0 才让它静止。0 到 10 Hz。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     'tip.depth': {
@@ -237,7 +237,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '深度',
               b: '颤音把音高向音符两侧弯折多远，以音分计——100 音分是一个半音。巴松演奏者的颤音处在这个范围最低的五分之一里，再往上都是刻意为之的效果。0 到 100 音分。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     'tip.onset': {
@@ -249,7 +249,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '起始',
               b: '颤音达到全深度之前的等待时间。每次触键都让淡入从零重新开始，并在这段时间里均匀地引入，也就是管乐演奏者先平直、再逐渐加温的入音方式。0 到 2000 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Expression ──────────────────────────────────────────────────────────
@@ -263,7 +263,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '气息',
               b: '乐器被吹奏的力度。它缩放让各模态持续鸣响的滤波噪声，因此响度和可听见的气息声是一起被设定的，而不是一前一后。MIDI 呼吸控制器（CC2）并不取代这个旋钮：当 CC2 在变化时，实际气息等于旋钮 × CC2——旋钮设定上限，CC2 对它做缩放，两者都必须大于零，乐器才会发声。CC2 停止半秒之后，重新只由旋钮决定。0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     'tip.tone': {
@@ -275,7 +275,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '音色',
               b: '高阶分音还能鸣响多久：第 6 到第 16 个分音获得其标称长度 0.3 到 1.5 倍之间的衰减，前五个则不受影响。低值是一支阴暗、迅速被阻尼的簧片；高值让高阶模态的嗡响一直活在音符底下。0 到 1。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     'tip.attackChar': {
@@ -287,7 +287,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '起音特性',
               b: '在两种激励形状之间渐变音符的开头：为 0 时是一次柔和的 30 ms 低通涌起，为 1 时是一记锐利的 7.5 ms 噪声爆发，也就是吐音式的发音。音符力度会把这个值上下移动最多 0.15，结果在触键瞬间被冻结，因此在音符进行中自动化它没有作用。0 到 1，从柔和到吐音。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Envelope ────────────────────────────────────────────────────────────
@@ -301,7 +301,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '起音',
               b: '音符开始之后，振幅包络爬到满电平需要多久。这里没有衰减段也没有延音段——包络只是保持到松键为止——所以起音和释音就是整个形状。0 到 2000 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     'tip.release': {
@@ -313,7 +313,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '释音',
               b: '松键之后音符淡出需要多久。它只塑造振幅：模态组在底下自带最长 2.5 秒的共鸣尾音，因此设得短是把那条尾音切断，而不是让它衰减得更快。0 到 3000 ms。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── Voicing & Output ────────────────────────────────────────────────────
@@ -327,7 +327,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '复音数',
               b: '最多可以同时发声的音符数。这个上限在每次触键时检查：超过之后就收回一个声部，优先收回已经进入释音尾巴的那个，否则收回最早的音符。调低上限绝不会切断已经在发声的音符。1 到 16 个声部。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     'tip.output': {
@@ -339,7 +339,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '输出',
               b: '施加在各声部总和上的最终电平，在每个块里做斜坡处理，因此推动它不会产生咔哒声。十六个声部一起要比一个响得多，所以密集段落就在这里往回拉。−24 到 +6 dB。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // ── The two chrome controls ─────────────────────────────────────────────
@@ -366,7 +366,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '设置',
               b: '打开设定本界面语言的面板。本页的说明文字和这些悬停帮助会随之改变，所选语言随会话一起保留，因此工程会以保存时的语言重新打开。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 
     // The last sentence is a statement of fact recorded in I18N_EXEMPT below:
@@ -383,7 +383,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '语言',
               b: '本页说明文字和这些悬停帮助所用的语言。数值读数在每种语言中都保持为数字和单位，而调音选项卡仍是英文——它的面板来自一个共享模块，不属于这个插件。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
     // v1.3.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -397,7 +397,7 @@ export const I18N = Object.freeze({
     
         'zh-Hans': { t: '悬停帮助',
               b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
-              reviewed: 'mt' },
+              reviewed: 'bt' },
     },
 });
 
@@ -466,14 +466,14 @@ export const LABELS = Object.freeze({
     'label.subtitle': {
         en: { t: 'Ouaricon · Modal Synthesis Bassoon' },
         fr: { t: 'Ouaricon · Basson à synthèse modale', reviewed: true },
-     'zh-Hans': { t: 'Ouaricon · 模态合成巴松', reviewed: 'mt' }},
+     'zh-Hans': { t: 'Ouaricon · 模态合成巴松', reviewed: 'bt' }},
 
     // ── Tab bar ─────────────────────────────────────────────────────────────
     // Three `flex: 1` buttons, 300 px each, centred text. The widest French
     // caption is 72.5 px, so the row cannot be pushed by any of them.
-    'label.tab.sound':  { en: { t: 'Sound' },  fr: { t: 'Son',      reviewed: true } , 'zh-Hans': { t: '声音', reviewed: 'mt' }},
-    'label.tab.tuning': { en: { t: 'Tuning' }, fr: { t: 'Accord',   reviewed: true } , 'zh-Hans': { t: '调音', reviewed: 'mt' }},
-    'label.tab.about':  { en: { t: 'About' },  fr: { t: 'À propos', reviewed: true } , 'zh-Hans': { t: '关于', reviewed: 'mt' }},
+    'label.tab.sound':  { en: { t: 'Sound' },  fr: { t: 'Son',      reviewed: true } , 'zh-Hans': { t: '声音', reviewed: 'bt' }},
+    'label.tab.tuning': { en: { t: 'Tuning' }, fr: { t: 'Accord',   reviewed: true } , 'zh-Hans': { t: '调音', reviewed: 'bt' }},
+    'label.tab.about':  { en: { t: 'About' },  fr: { t: 'À propos', reviewed: true } , 'zh-Hans': { t: '关于', reviewed: 'bt' }},
 
     // ── Section headings ────────────────────────────────────────────────────
     // `sameAsEn: true` is an ASSERTION, not a shrug: "Vibrato" and "Expression"
@@ -483,34 +483,34 @@ export const LABELS = Object.freeze({
     'label.section.vibrato': {
         en: { t: 'Vibrato' },
         fr: { t: 'Vibrato', reviewed: true, sameAsEn: true },
-     'zh-Hans': { t: '颤音', reviewed: 'mt' }},
+     'zh-Hans': { t: '颤音', reviewed: 'bt' }},
     'label.section.expression': {
         en: { t: 'Expression' },
         fr: { t: 'Expression', reviewed: true, sameAsEn: true },
-     'zh-Hans': { t: '表情', reviewed: 'mt' }},
+     'zh-Hans': { t: '表情', reviewed: 'bt' }},
     'label.section.envelope': {
         en: { t: 'Envelope' },
         fr: { t: 'Enveloppe', reviewed: true },
-     'zh-Hans': { t: '包络', reviewed: 'mt' }},
+     'zh-Hans': { t: '包络', reviewed: 'bt' }},
     'label.section.voicing': {
         en: { t: 'Voicing & Output' },
         fr: { t: 'Voix et sortie', reviewed: true },
-     'zh-Hans': { t: '声部与输出', reviewed: 'mt' }},
+     'zh-Hans': { t: '声部与输出', reviewed: 'bt' }},
 
     // ── Knob captions ───────────────────────────────────────────────────────
     // Captions under the knob, never the value beside them: the .knob-value
     // sibling is a separate node and stays untouched (contract §5 — the split
     // this page already had).
-    'label.knob.rate':   { en: { t: 'Rate' },   fr: { t: 'Vitesse',    reviewed: true } , 'zh-Hans': { t: '速率', reviewed: 'mt' }},
-    'label.knob.depth':  { en: { t: 'Depth' },  fr: { t: 'Profondeur', reviewed: true } , 'zh-Hans': { t: '深度', reviewed: 'mt' }},
+    'label.knob.rate':   { en: { t: 'Rate' },   fr: { t: 'Vitesse',    reviewed: true } , 'zh-Hans': { t: '速率', reviewed: 'bt' }},
+    'label.knob.depth':  { en: { t: 'Depth' },  fr: { t: 'Profondeur', reviewed: true } , 'zh-Hans': { t: '深度', reviewed: 'bt' }},
 
     // vibrato_onset is the DELAY before the vibrato speaks, 0-2000 ms
     // (PluginProcessor.cpp, "Vibrato Onset"). "Délai" is the French term for
     // that delay; "Début" would name the moment rather than the wait.
-    'label.knob.onset':  { en: { t: 'Onset' },  fr: { t: 'Délai',      reviewed: true } , 'zh-Hans': { t: '起始', reviewed: 'mt' }},
+    'label.knob.onset':  { en: { t: 'Onset' },  fr: { t: 'Délai',      reviewed: true } , 'zh-Hans': { t: '起始', reviewed: 'bt' }},
 
-    'label.knob.breath': { en: { t: 'Breath' }, fr: { t: 'Souffle',    reviewed: true } , 'zh-Hans': { t: '气息', reviewed: 'mt' }},
-    'label.knob.tone':   { en: { t: 'Tone' },   fr: { t: 'Timbre',     reviewed: true } , 'zh-Hans': { t: '音色', reviewed: 'mt' }},
+    'label.knob.breath': { en: { t: 'Breath' }, fr: { t: 'Souffle',    reviewed: true } , 'zh-Hans': { t: '气息', reviewed: 'bt' }},
+    'label.knob.tone':   { en: { t: 'Tone' },   fr: { t: 'Timbre',     reviewed: true } , 'zh-Hans': { t: '音色', reviewed: 'bt' }},
 
     // attack_character, whose English caption is ALREADY an abbreviation of the
     // parameter's display name "Attack Character" and already runs to 73.0 px of
@@ -524,19 +524,19 @@ export const LABELS = Object.freeze({
     'label.knob.attackChar': {
         en: { t: 'Attack Char' },
         fr: { t: 'Caractère', reviewed: true },
-     'zh-Hans': { t: '起音特性', reviewed: 'mt' }},
+     'zh-Hans': { t: '起音特性', reviewed: 'bt' }},
 
-    'label.knob.attack':  { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: true } , 'zh-Hans': { t: '起音', reviewed: 'mt' }},
-    'label.knob.release': { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: true } , 'zh-Hans': { t: '释音', reviewed: 'mt' }},
-    'label.knob.voices':  { en: { t: 'Voices' },  fr: { t: 'Voix',    reviewed: true } , 'zh-Hans': { t: '复音数', reviewed: 'mt' }},
-    'label.knob.output':  { en: { t: 'Output' },  fr: { t: 'Sortie',  reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'mt' }},
+    'label.knob.attack':  { en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: true } , 'zh-Hans': { t: '起音', reviewed: 'bt' }},
+    'label.knob.release': { en: { t: 'Release' }, fr: { t: 'Relâch.', reviewed: true } , 'zh-Hans': { t: '释音', reviewed: 'bt' }},
+    'label.knob.voices':  { en: { t: 'Voices' },  fr: { t: 'Voix',    reviewed: true } , 'zh-Hans': { t: '复音数', reviewed: 'bt' }},
+    'label.knob.output':  { en: { t: 'Output' },  fr: { t: 'Sortie',  reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'bt' }},
 
     // ── The attack_character end-label pair ─────────────────────────────────
     // "Détaché" is the bassoon articulation term a French player would use for a
     // tongued note; "Coup de langue" is the literal phrase and is twice as wide
     // in a 78 px row that already carries two captions.
-    'label.end.soft':    { en: { t: 'Soft' },    fr: { t: 'Doux',    reviewed: true } , 'zh-Hans': { t: '柔和', reviewed: 'mt' }},
-    'label.end.tongued': { en: { t: 'Tongued' }, fr: { t: 'Détaché', reviewed: true } , 'zh-Hans': { t: '吐音', reviewed: 'mt' }},
+    'label.end.soft':    { en: { t: 'Soft' },    fr: { t: 'Doux',    reviewed: true } , 'zh-Hans': { t: '柔和', reviewed: 'bt' }},
+    'label.end.tongued': { en: { t: 'Tongued' }, fr: { t: 'Détaché', reviewed: true } , 'zh-Hans': { t: '吐音', reviewed: 'bt' }},
 
     // ── About card ──────────────────────────────────────────────────────────
     // "Version" is the same word in French, hence the flag. The NUMBER beside it
@@ -546,11 +546,11 @@ export const LABELS = Object.freeze({
     'label.about.version': {
         en: { t: 'Version' },
         fr: { t: 'Version', reviewed: true, sameAsEn: true },
-     'zh-Hans': { t: '版本', reviewed: 'mt' }},
+     'zh-Hans': { t: '版本', reviewed: 'bt' }},
     'label.about.tagline': {
         en: { t: 'Modal-synthesis bassoon for sustained microtonal long tones.' },
         fr: { t: 'Basson à synthèse modale pour de longues tenues microtonales.', reviewed: true },
-     'zh-Hans': { t: '用于持续微分音长音的模态合成巴松。', reviewed: 'mt' }},
+     'zh-Hans': { t: '用于持续微分音长音的模态合成巴松。', reviewed: 'bt' }},
 
     // AUTHORED TO THE ENGLISH LINE COUNT, not merely translated. The card is
     // `max-width: 540px` and its `.about-meta` row below is NOT a label, so a
@@ -566,11 +566,11 @@ export const LABELS = Object.freeze({
     'label.about.blurb': {
         en: { t: 'Polyphonic 1–16 voices, VST3 Note Expression + MPE for Dorico microtonal playback, breath/CC2 expression, vibrato, and the Ouaricon tuning-system family. Built on JUCE 8.' },
         fr: { t: 'Polyphonie de 1 à 16 voix, VST3 Note Expression + MPE pour la lecture microtonale dans Dorico, expression au souffle/CC2, vibrato et la famille de systèmes d’accord Ouaricon. Conçu avec JUCE 8.', reviewed: true },
-     'zh-Hans': { t: '1–16 声部复音，支持 VST3 Note Expression + MPE，用于 Dorico 的微分音回放，气息/CC2 表情，颤音，以及 Ouaricon 调音系统家族。基于 JUCE 8 构建。', reviewed: 'mt' }},
+     'zh-Hans': { t: '1–16 声部复音，支持 VST3 Note Expression + MPE，用于 Dorico 的微分音回放，气息/CC2 表情，颤音，以及 Ouaricon 调音系统家族。基于 JUCE 8 构建。', reviewed: 'bt' }},
     'label.about.madeBy': {
         en: { t: 'Made by' },
         fr: { t: 'Réalisé par', reviewed: true },
-     'zh-Hans': { t: '制作', reviewed: 'mt' }},
+     'zh-Hans': { t: '制作', reviewed: 'bt' }},
 
     // ── The company name, KEYED rather than exempt, and why ─────────────────
     //
@@ -594,20 +594,20 @@ export const LABELS = Object.freeze({
     'label.about.company': {
         en: { t: 'Ouaricon' },
         fr: { t: 'Ouaricon', reviewed: true, sameAsEn: true },
-     'zh-Hans': { t: 'Ouaricon', reviewed: 'mt', sameAsEn: true,
+     'zh-Hans': { t: 'Ouaricon', reviewed: 'bt', sameAsEn: true,
                                   termNote: 'the brand word — a brand is never translated. sameAsEn says this was looked at and translates to itself, where silence would say nothing' }},
 
     // ── The settings popover (v1.1.0) ───────────────────────────────────────
-    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' }},
+    'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'bt' }},
 
     // v1.3.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'bt' }},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'bt' }},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' }},
 
     // ── The one JS-written string on this page ──────────────────────────────
     // The tuning panel is lazy-mounted on the first Tuning-tab activation and
@@ -618,7 +618,7 @@ export const LABELS = Object.freeze({
     'label.tuningLoadFailed': {
         en: { t: 'Tuning panel failed to load.' },
         fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: true },
-     'zh-Hans': { t: '调音面板载入失败', reviewed: 'mt' }},
+     'zh-Hans': { t: '调音面板载入失败', reviewed: 'bt' }},
 
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
@@ -633,25 +633,25 @@ export const LABELS = Object.freeze({
     'aria.vibratoDot': {
         en: { t: 'Vibrato envelope' },
         fr: { t: 'Enveloppe du vibrato', reviewed: true },
-     'zh-Hans': { t: '颤音包络', reviewed: 'mt' }},
+     'zh-Hans': { t: '颤音包络', reviewed: 'bt' }},
     'aria.breathMeter': {
         en: { t: 'Effective breath (UI breath × CC2)' },
         fr: { t: 'Souffle effectif (souffle de l’interface × CC2)', reviewed: true },
-     'zh-Hans': { t: '实际气息（界面气息 × CC2）', reviewed: 'mt' }},
+     'zh-Hans': { t: '实际气息（界面气息 × CC2）', reviewed: 'bt' }},
     'aria.voiceDots': {
         en: { t: 'Live active voice count' },
         fr: { t: 'Nombre de voix actives en temps réel', reviewed: true },
-     'zh-Hans': { t: '实时活动声部数', reviewed: 'mt' }},
+     'zh-Hans': { t: '实时活动声部数', reviewed: 'bt' }},
 
     'aria.settings': {
         en: { t: 'Settings' },
         fr: { t: 'Réglages', reviewed: true },
-     'zh-Hans': { t: '设置', reviewed: 'mt' }},
+     'zh-Hans': { t: '设置', reviewed: 'bt' }},
     'aria.langSelect': {
         en: { t: 'Interface language' },
         fr: { t: 'Langue de l’interface', reviewed: true },
-     'zh-Hans': { t: '界面语言', reviewed: 'mt' }},
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }},
+     'zh-Hans': { t: '界面语言', reviewed: 'bt' }},
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'bt' }},
 });
 
 // ============================================================================

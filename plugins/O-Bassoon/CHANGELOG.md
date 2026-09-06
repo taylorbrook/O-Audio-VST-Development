@@ -5,6 +5,95 @@ All notable changes to O-Bassoon will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-09-05
+
+Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c).
+MINOR: a third language, four font-site edits, eight geometry pins and a repaired
+render gate. No parameter, range, type or state format changed, and no audio path
+was touched.
+
+### Added
+
+- **`zh-Hans` on every one of the 62 emitter rows** — 13 `I18N` entries (title
+  and body) and 36 `LABELS` entries. Authored at `reviewed: 'mt'`, committed
+  there, and promoted to **`reviewed: 'bt'`** only after an independent blind
+  reverse read. `'native'` stays open on every row: this project has no native
+  Chinese reader, and `i18n-zh-lint` rule R1 prints that quality level on every
+  run rather than leaving it to a reader's memory.
+- **The endonym `简体中文`**, as numeric character references.
+- **A three-way `languageCode` / `languageIndex` codec.** Anything that is
+  neither `fr` nor `zh-Hans` degrades to English. **No Chinese character appears
+  anywhere under `Source/`.**
+
+### Changed
+
+- **Two hover-help bodies lost an enumeration, in English and French alike.** The
+  gear body said the settings panel held the language row and nothing besides,
+  which stopped being true when v1.3.0 added the hover-help switch — `check-i18n`
+  assertion [16] *requires* that switch, which is precisely what made the clause
+  false. The language body named the selector's options in full. Both are
+  deletions, not extensions, and the Chinese was authored from the corrected
+  English after a re-read.
+- **The two Latin-exposed bare generics now name a face, and take NO CJK tail.**
+  `.header-title` and `.about-title` read `'EB Garamond', 'Garamond', serif` and
+  neither family is installed on the build machine (measured — 0 matches each),
+  so the stack fell straight through to a bare generic, which Chromium resolves
+  against the *document language*: under `zh-Hans` those nodes' Latin glyphs came
+  out of a Chinese serif face with different metrics from the English arm. Times
+  New Roman is named to close that. They take **no tail** because both render the
+  literal product name, which is `I18N_EXEMPT` and stays English in every
+  language — a tail there would be decoration, and a wave that appends the tail to
+  everything it measured can no longer tell a needed tail from a decorative one.
+- **The two stacks that already name an installed face take the tail only**,
+  placed *before* the trailing generic.
+- **Eight geometry pins.** Five are `line-height`, each derived from that leaf's
+  own measured English box, unitless, never global; the cascade they close moved
+  103 non-label elements through the two-column sections grid. The other three
+  are on the About tab and exist because **the Chinese is SHORTER** — the half a
+  clip check is blind to. The blurb wraps to three lines in English and French and
+  two in Chinese, so it lost 19.38 px, shrank the card and dragged the credit row
+  15.4 px up after it; it now carries a `min-height` floor at the English height,
+  which is a floor and not a cap, so a language needing a fourth line still gets
+  one. And the version row's caption is 57.72 px in English and 24.89 px in
+  Chinese, so the version *number* beside it slid 16.4 px left — a non-label
+  element displaced by a label that shrank.
+- **`tests/ui_tip_render_check.js` derives its language list at BOTH of its two
+  language sites.** The joined-pair assertion was the loud half; the two
+  hand-written sweep calls were the silent one, and no repo-wide census can see
+  them because a call site spells no list to grep for. Guarded so a list that goes
+  empty makes the gate exit non-zero rather than sweep nothing and report green.
+
+### Deliberately unchanged, and recorded as checked
+
+- **The Tuning tab stays in English, and the copy says so in all three
+  languages.** Its panel is `modules/tuning/scala-tuning-engine/js/tuning-panel.js`
+  — 1041 lines holding **0 `data-i18n`, 0 `applyI18n` and 0 occurrences of
+  `'fr'`**, so it has no i18n hooks in *any* language. Five plugins embed it
+  (O-Bassoon, O-Bowed, O-Contrabass, O-Reed, O-Wind), which makes any edit a
+  five-plugin change with five builds and five `auval`s. The language hover-help
+  already disclosed this in English and French, and the Chinese row carries the
+  same disclosure. Recorded as a deferred item with all five consumers named.
+
+### Verified
+
+- `check-i18n` exit 0; `check-ui-labels` exit 0 with **0 FAIL on the English,
+  French and Chinese arms**; `i18n-zh-lint` 0 findings and `BELOW SHIP BAR 0`;
+  `i18n-fr-lint` exit 0 — French untouched.
+- The render gate passes with a real Chinese arm swept, and its derive-or-abort
+  guard was **fired** rather than assumed: a planted empty language export makes
+  it exit non-zero, and the reverting edit leaves the table byte-identical by
+  sha256.
+- `measure-ui --mode box --report all`: `undeclared-font` 0, `wrap-count` 0,
+  `svg-font-attr` 0, beside 43 visible Han-bearing nodes of which none resolves to
+  a non-CJK face. `line-height-normal` reads 3, all of them tab buttons whose
+  height is 36 px on both arms.
+- Zero Han under `Source/**/*.{h,cpp}`, positive control fired on the same run.
+- One glossary catch worth recording: the first draft rendered the tuning-panel
+  load failure as a near-synonym of the phrase the suite has already settled, and
+  rule Z5 reported it. A second rendering that reads perfectly well is still a
+  second rendering, and Z5 is the only thing in this repo that can see it.
+- `auval -v` AU VALIDATION SUCCEEDED, triple read off `auval -a`.
+
 ## [1.3.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
