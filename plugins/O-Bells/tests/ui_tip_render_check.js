@@ -311,7 +311,30 @@ const needsFine = (sel) => FINE.has(paramOf(sel) || '');
     const { I18N, TIP_BINDINGS, LANGUAGES } = loadTable(i18nSrc);
     check(Array.isArray(TIP_BINDINGS) && TIP_BINDINGS.length > 0,
         `TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} anchor(s)`);
-    check(LANGUAGES.join(',') === 'en,fr', `LANGUAGES is en,fr — got ${LANGUAGES.join(',')}`);
+    // ── THE LANGUAGE LIST IS DERIVED AT BOTH OF THIS GATE'S TWO LANGUAGE
+    //    SITES, AND A DERIVATION THAT GOES EMPTY IS AN ABORT ─────────────────
+    //
+    // A gate has TWO language sites and they are not the same code. One is the
+    // assertion just below, which says which languages the table holds. The
+    // other is the render SWEEP further down, which used to be called twice with
+    // the language written out by hand. Repairing only the assertion leaves a
+    // gate that hard-fails loudly the day a third language lands and then, once
+    // that hard failure is "fixed", reports every assertion green having never
+    // rendered the third language at all. The silent half is the dangerous one.
+    //
+    // The guard is what stops the derivation from failing OPEN: a table that
+    // exports nothing to walk must make this gate EXIT NON-ZERO, not sweep zero
+    // languages and print a clean sheet.
+    if (!Array.isArray(LANGUAGES) || LANGUAGES.length < 2 || LANGUAGES[0] !== 'en') {
+        console.error('[0] LANGUAGES must be a derived list of at least two entries beginning '
+                    + 'with English. A gate that sweeps a list it cannot read would report every '
+                    + 'assertion green having rendered nothing. Got: ' + JSON.stringify(LANGUAGES));
+        process.exit(1);
+    }
+    const NON_EN = LANGUAGES.filter((l) => l !== 'en');
+    check(LANGUAGES.length >= 2 && LANGUAGES[0] === 'en',
+        `LANGUAGES is derived from the table and holds ${LANGUAGES.length} entries — `
+        + `${LANGUAGES.join(', ')}`);
     check(Object.keys(I18N).length === TIP_BINDINGS.length,
         `every I18N entry is bound and every binding has an entry — ${Object.keys(I18N).length} `
         + `entries vs ${TIP_BINDINGS.length} bindings`);
@@ -788,17 +811,25 @@ const needsFine = (sel) => FINE.has(paramOf(sel) || '');
     await setTab('instrument');
     await park();
 
-    // ── 5. French, then back ────────────────────────────────────────────────
-    // French runs 15-20% longer, wraps to more lines against the max-width cap
-    // and grows the tip's HEIGHT, so a tip that fits in English can overflow the
-    // bottom of the frame in French. That is why the whole sweep repeats rather
-    // than spot-checking one anchor.
-    await page.evaluate((l) => window.__setLanguage(l), 'fr');
-    await page.waitForTimeout(150);
-    const frLang = await page.evaluate(() => document.getElementById('lang-select').value);
-    check(frLang === 'fr', `[5] window.__setLanguage('fr') took — selector reads "${frLang}"`);
-    const tallestFr = await sweep('fr');
-    console.log(`   FR grows the tallest tip ${tallestEn.h.toFixed(1)} -> ${tallestFr.h.toFixed(1)}px`);
+    // ── 5. EVERY NON-ENGLISH LANGUAGE THE TABLE HOLDS, then back ────────────
+    // A different language changes the tip's HEIGHT against the max-width cap,
+    // in either direction: one that runs longer wraps to more lines and can
+    // overflow the bottom of the frame, and one that runs shorter shrinks the
+    // box its neighbours were measured against. That is why the whole sweep
+    // repeats per language rather than spot-checking one anchor.
+    //
+    // The list is DERIVED. This loop replaces two hand-written calls, which is
+    // the second of this gate's two language sites and the one a repo-wide
+    // census cannot see, because a call site spells no list to grep for.
+    for (const lang of NON_EN) {
+        await page.evaluate((l) => window.__setLanguage(l), lang);
+        await page.waitForTimeout(150);
+        const got = await page.evaluate(() => document.getElementById('lang-select').value);
+        check(got === lang, `[5] window.__setLanguage('${lang}') took — selector reads "${got}"`);
+        const tallest = await sweep(lang);
+        console.log(`   ${lang} takes the tallest tip ${tallestEn.h.toFixed(1)} -> `
+            + `${tallest.h.toFixed(1)}px`);
+    }
 
     await page.evaluate((l) => window.__setLanguage(l), 'en');
     await page.waitForTimeout(150);
