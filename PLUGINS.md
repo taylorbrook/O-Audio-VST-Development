@@ -26,7 +26,7 @@
 Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
-| O-Bells | 📦 Installed | 4.3.2 | Synth (Physical Modeling Bells) | 2026-08-31 |
+| O-Bells | 📦 Installed | 4.5.0 | Synth (Physical Modeling Bells) | 2026-09-05 |
 | O-Tremolo | 📦 Installed | 1.10.0 | Audio Effect (Tremolo) | 2026-09-05 |
 | O-AnalogSaturation | 📦 Installed | 1.5.0 | Audio Effect (Saturation) |  2026-09-04 |
 | O-Marimba | 📦 Installed | 1.13.1 | Synth (Physical Model) | 2026-08-31 |
@@ -39,23 +39,23 @@ Ouaricon Plugins:
 | O-MultiBandCompressor | 📦 Installed | 1.11.1 | Audio Effect (Dynamics) | 2026-08-31 |
 | O-Bass | 📦 Installed | 1.7.0 | Audio Effect (Bass Enhancer) |  2026-09-04 |
 | O-IntonationPad | 📦 Installed | 2.10.0 | Synth (Wavetable Pad) | 2026-09-05 |
-| O-Detune | 📦 Installed | 1.7.1 | Audio Effect (Detuning) | 2026-08-31 |
+| O-Detune | 📦 Installed | 1.9.0 | Audio Effect (Detuning) | 2026-09-05 |
 | O-Freeze | 📦 Installed | 2.5.0 | Audio Effect (Granular Freeze) |  2026-09-04 |
 | O-FreqPulse | 📦 Installed | 1.18.2 | Audio Effect (Spectral Sequencer) | 2026-08-31 |
-| O-SpectralShaper | 📦 Installed | 1.7.2 | Audio Effect (Spectral Transient Shaper) | 2026-08-31 |
+| O-SpectralShaper | 📦 Installed | 1.8.0 | Audio Effect (Spectral Transient Shaper) | 2026-09-05 |
 | O-GrainScatter | 📦 Installed | 2.6.1 | Audio Effect (Granular Stutter Engine) | 2026-08-31 |
 | O-Chorus | 📦 Installed | 1.6.2 | Audio Effect (Chorus) | 2026-09-04 |
 | O-Orbit | 📦 Installed | 1.2.2 | Audio Effect (Spatial Orbiter) | 2026-08-31 |
-| O-TextureForge | 📦 Installed | 1.2.1 | Instrument (Concatenative Synth) | 2026-08-31 |
+| O-TextureForge | 📦 Installed | 1.4.0 | Instrument (Concatenative Synth) | 2026-09-05 |
 | O-Texture | 📦 Installed | 0.5.0 | Instrument/Effect (Neural Texture Synth) |  2026-09-04 |
 | O-Prism | 📦 Installed | 1.24.0 | Synth (Microtonal Wavetable) |  2026-09-04 |
-| O-Gain | 📦 Installed | 1.3.2 | Audio Effect (Gain Staging Utility) | 2026-08-31 |
+| O-Gain | 📦 Installed | 1.4.0 | Audio Effect (Gain Staging Utility) | 2026-09-05 |
 | O-Formant | 📦 Installed | 1.27.2 | Synth (Physical Model Vocal) | 2026-08-31 |
 | O-Bowed | 📦 Installed | 1.6.2 | Synth (Physical Model Bowed String) | 2026-08-31 |
 | O-Reed | 📦 Installed | 1.3.1 | Synth (Physical Modeling Reed Wind) | 2026-08-31 |
 | O-Wind | 📦 Installed | 1.18.2 | Synth (Physical Model Flute) | 2026-08-31 |
 | O-Contrabass | 📦 Installed | 1.8.2 | Synth (Physical Model Bowed Bass) | 2026-08-31 |
-| O-Bassoon | 🚧 Stage 0 | 1.2.2 | Synth (Physical Model Bassoon) | 2026-08-31 |
+| O-Bassoon | 📦 Installed | 1.4.0 | Synth (Physical Model Bassoon) | 2026-09-05 |
 | O-MicrotonalSampler | 📦 Installed | 1.27.0 | Synth (Microtonal Sampler) | 2026-09-04 |
 | O-simpleFM | 📦 Installed | 1.4.0 | Synth (Pedagogical 2-Op FM) | 2026-09-01 |
 | O-simpleAdditive | 📦 Installed | 1.2.0 | Synth (Pedagogical Additive + Wavetable) | 2026-09-01 |
