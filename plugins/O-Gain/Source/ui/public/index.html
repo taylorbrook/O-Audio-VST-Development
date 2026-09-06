@@ -40,7 +40,16 @@
       overflow: hidden;
       background: #F5E6D3;
       color: #3C2F2F;
-      font-family: Garamond, 'Georgia', 'Times New Roman', serif;
+      /* CJK tail BEFORE the trailing generic. Chromium resolves a bare `serif`
+         against the document's lang, so under zh-Hans the generic is already a
+         Chinese face and a tail written after it is never consulted — and the
+         page still looks right on macOS, which is what makes that mistake
+         survive review. ONE declaration covers this whole page: every other
+         font-family here reads `inherit`. Garamond is NOT installed on the
+         build machine (measured, 0 family matches) but Georgia and Times New
+         Roman both are, so the Latin half was already safe and no face had to
+         be named. */
+      font-family: Garamond, 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 11px;
     }
 
@@ -117,7 +126,54 @@
        shoves both meter bars and the dB readout down, moving the whole column.
        Costs English nothing: INPUT is 33.3 px and OUTPUT 42.9 px, neither
        wraps today. */
+    /* ── LINE-HEIGHT PINS (v1.4.0, the Chinese arm) ───────────────────────────
+       `line-height: normal` is not a number — it is whatever the RESOLVED FACE
+       reports as its natural line box, and the resolved face changes with the
+       document language. PingFang SC reports a taller natural line box than
+       Georgia at the same font-size, so every Han-carrying leaf below grew 2 to
+       3 px on the Chinese arm with no other change, and the growth CASCADED in
+       BOTH directions on a 350 x 500 frame: the meter section lost 8 px of
+       height while the utility row gained 6, moving 52 non-label elements.
+
+       Each pin is DERIVED FROM THAT LEAF'S OWN MEASURED ENGLISH BOX — height
+       minus padding minus border, over its own font-size — never copied between
+       selectors and never set globally. They are UNITLESS so a leaf that
+       inherits into a differently sized child scales rather than pinning the
+       child to the parent's pixel box.
+
+       Measured at the shipping 350 x 500 frame with getComputedStyle, English
+       arm, all five states in tests/i18n-states.json driven:
+
+         .meter-label        10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+         .gain-display-label 10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+         .knob-label         10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+         .target-label       10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+         .learn-info-title   10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+         .learn-info-label   10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+         .learn-info-value   10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+         .mode-label          9.00 - 0 - 0            =  9.00 /  8px = 1.125
+         .settings-label     11.00 - 0 - 0            = 11.00 / 10px = 1.1
+         .learn-btn          26.00 -12 pad - 2 border = 12.00 / 11px = 1.0909
+         .utility-btn        32.00 - 8 pad - 2 border = 22.00 over TWO LINES
+                                                      = 11.00 / 10px = 1.1
+
+       THE LAST ONE IS THE ONE WORTH READING TWICE. Seven buttons share a 334 px
+       flex row, so they shrink and their captions WRAP: "M/S OFF" is already two
+       lines in English. The measured box is therefore two line boxes, and the
+       pin has to be derived PER LINE — a pin of 22/10 would have made a single
+       line 22 px tall and left the two-line case at 44. Dividing the measured
+       box by the line COUNT before dividing by the font-size is what the wave-4b
+       precedent on O-Tremolo's .toggle-button does, for exactly this reason.
+
+       R8: the six line-height declarations this page already carried (:213
+       .gain-display-value, :523 .gear-btn, :622 .settings-popover select, :645
+       .settings-toggle, :682 .tooltip, :710 .tooltip-body) were read for a
+       specificity conflict FIRST; none of them targets any selector above.
+
+       EVERY ONE IS A NO-OP IN ENGLISH AND IN FRENCH — that is the test, and
+       check-ui-labels reports 0 moved elements on both those arms after them. */
     .meter-label {
+      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
       color: #8B7355;
       letter-spacing: 1px;
@@ -190,6 +246,7 @@
       max-width: 220px;
     }
     .gain-display-label {
+      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
       color: #8B7355;
       letter-spacing: 1px;
@@ -225,6 +282,7 @@
       gap: 2px;
     }
     .knob-label {
+      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
       color: #8B7355;
       text-transform: uppercase;
@@ -291,6 +349,7 @@
        than hidden: the resting LEARN pill is 40 px wider than in v1.2.1 and
        the Target block sits 40 px further right. */
     .learn-btn {
+      line-height: 1.0909;   /* 26.00 -12 pad -2 border = 12.00 / 11px — see the pin block above */
       flex: 0 0 121px;
       white-space: nowrap;
       padding: 6px 16px;
@@ -333,6 +392,7 @@
       flex: 0 0 91px;
     }
     .target-label {
+      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
       color: #8B7355;
       text-transform: uppercase;
@@ -369,6 +429,7 @@
       align-items: center;
     }
     .mode-label {
+      line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px — see the pin block above */
       font-size: 8px;
       color: #8B7355;
       text-transform: uppercase;
@@ -416,6 +477,7 @@
       display: block;
     }
     .learn-info-title {
+      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
       color: #8B7355;
       text-transform: uppercase;
@@ -433,10 +495,12 @@
       gap: 6px;
     }
     .learn-info-label {
+      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
       color: #8B7355;
     }
     .learn-info-value {
+      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
       color: #3C2F2F;
       font-variant-numeric: tabular-nums;
@@ -454,6 +518,7 @@
       flex-shrink: 0;
     }
     .utility-btn {
+      line-height: 1.1;   /* 32.00 -8 pad -2 border = 22.00 over TWO lines = 11.00 / 10px — see the pin block above */
       padding: 4px 10px;
       border: 1px solid #8B7355;
       border-radius: 3px;
@@ -594,6 +659,7 @@
     /* nowrap because the row is space-between: a caption that wrapped would
        grow the row's height and move the control beside it. */
     .settings-label {
+      line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the pin block above */
       font-family: inherit;
       font-size: 10px;
       color: #3C2F2F;
@@ -756,6 +822,7 @@
             <select id="lang-select" data-i18n-aria="aria.langSelect" aria-label="Interface language">
               <option value="en">English</option>
               <option value="fr">Fran&ccedil;ais</option>
+              <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
             </select>
           </label>
 
