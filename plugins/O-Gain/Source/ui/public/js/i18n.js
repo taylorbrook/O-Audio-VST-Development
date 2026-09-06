@@ -211,7 +211,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // key -> { en: {t, b}, fr: {t, b, reviewed} }
 //   t = tooltip title (the small-caps line), b = tooltip body.
@@ -234,13 +234,38 @@ export const I18N = Object.freeze({
         fr: { t: 'Réglages',
               b: 'Choisir la langue de cette interface et l’affichage des infobulles. La langue est conservée avec la session ; l’interrupteur des infobulles ne l’est pas.',
               reviewed: true },
+    
+        'zh-Hans': { t: '设置',
+              b: '选择本界面的语言，以及是否显示悬停帮助。语言随会话一起记住，悬停帮助开关则不会。',
+              reviewed: 'mt' },
     },
+    // v1.4.0 — THE LANGUAGE BODY LOST ITS ENUMERATION, in en and fr alike. It
+    // named the selector's options in full, which was true for exactly as long
+    // as the selector held two entries and became false the moment this version
+    // added a third. DELETED rather than widened, because a body that lists a
+    // control's options has to be re-edited every time the control grows, in
+    // every language, and it is that edit that gets forgotten — and because the
+    // selector already lists the languages in their own endonyms, the one place
+    // the list cannot go stale. The superseded phrasing is in the CHANGELOG and
+    // deliberately not repeated here, so a repo grep for it stays at zero.
+    //
+    // THE GEAR BODY ABOVE IS CORRECT AND IS LEFT ALONE. It names BOTH of the
+    // popover's controls — the language and the hover-help switch — and says
+    // which of the two is remembered. Four of this wave's six plugins carry a
+    // gear body asserting the panel holds nothing but the language; this is one
+    // of the two that does not. Read in full, in both languages, and recorded as
+    // a CHECKED non-defect: an unexamined correct body and an unexamined false
+    // one look identical in a diff.
     'lang-select': {
         en: { t: 'Language',
-              b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, meter-mode names and unit symbols stay in English.' },
+              b: 'The language of this hover help and of the labels on the page. Value readouts, meter-mode names and unit symbols stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les noms de modes de vumètre et les symboles d’unité restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. Les valeurs affichées, les noms de modes de vumètre et les symboles d’unité restent en anglais.',
               reviewed: true },
+    
+        'zh-Hans': { t: '语言',
+              b: '这些悬停帮助和页面标签所用的语言。数值读数、表模式名称和单位符号保持英文。',
+              reviewed: 'mt' },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
@@ -248,6 +273,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Infobulles',
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls l’engrenage et cet interrupteur continuent de s’expliquer.',
               reviewed: true },
+    
+        'zh-Hans': { t: '悬停帮助',
+              b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
+              reviewed: 'mt' },
     },
 
     // ── The twenty-three ported tips. NONE split on a ": ". Every title is
@@ -258,6 +287,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Entrée',
               b: 'Niveau d’entrée après les utilitaires de canal, avant application du gain',
               reviewed: true },
+    
+        'zh-Hans': { t: '输入',
+              b: '经过声道工具之后、施加增益之前的输入电平',
+              reviewed: 'mt' },
     },
     'output-meter': {
         en: { t: 'Output',
@@ -265,6 +298,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Sortie',
               b: 'Niveau de sortie après application du gain',
               reviewed: true },
+    
+        'zh-Hans': { t: '输出',
+              b: '施加增益之后的输出电平',
+              reviewed: 'mt' },
     },
     'gain-display': {
         en: { t: 'Gain Offset',
@@ -272,6 +309,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Décalage de gain',
               b: 'Décalage de gain principal. Défini par la mesure ou réglé à la main. Plage : −40 à +40 dB',
               reviewed: true },
+    
+        'zh-Hans': { t: '增益偏移',
+              b: '主增益偏移。由学习设定，也可手动调整。范围：-40 到 +40 dB',
+              reviewed: 'mt' },
     },
     'gain-knob': {
         en: { t: 'Gain',
@@ -279,6 +320,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Gain',
               b: 'Glisser pour régler le gain. Double-cliquer pour réinitialiser. Maintenir Maj pour un réglage fin',
               reviewed: true },
+    
+        'zh-Hans': { t: '增益',
+              b: '拖动以设定增益。双击复位。按住 Shift 可精细调整',
+              reviewed: 'mt' },
     },
     'trim-knob': {
         en: { t: 'Trim',
@@ -286,6 +331,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Ajust.',
               b: 'Réglage fin après une mesure. Plage : −6 à +6 dB. Double-cliquer pour réinitialiser',
               reviewed: true },
+    
+        'zh-Hans': { t: '微调电平',
+              b: '学习模式之后的精细调整。范围：-6 到 +6 dB。双击复位',
+              reviewed: 'mt' },
     },
     'learn-btn': {
         en: { t: 'Learn',
@@ -293,6 +342,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Mesurer',
               b: 'Cliquer pour lancer la mesure. Jouer 10 à 30 s d’audio, puis cliquer de nouveau. Le gain est réglé automatiquement',
               reviewed: true },
+    
+        'zh-Hans': { t: '学习',
+              b: '点击开始测量。播放 10-30s 音频，然后再次点击。增益会自动设定',
+              reviewed: 'mt' },
     },
     'target-group': {
         en: { t: 'Target',
@@ -300,6 +353,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Cible',
               b: 'Sonie visée par la mesure. −18 dB = 0 VU (norme), −14 LUFS = Spotify, −23 LUFS = EBU R128',
               reviewed: true },
+    
+        'zh-Hans': { t: '目标',
+              b: '学习的目标响度。-18 dB = 0 VU（标准），-14 LUFS = Spotify，-23 LUFS = EBU R128',
+              reviewed: 'mt' },
     },
     'target-knob': {
         en: { t: 'Target Level',
@@ -307,6 +364,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Niveau cible',
               b: 'Sonie de sortie souhaitée. Glisser le bouton ou double-cliquer pour revenir à −18 dB',
               reviewed: true },
+    
+        'zh-Hans': { t: '目标电平',
+              b: '期望的输出响度。拖动旋钮，或双击复位到 -18 dB',
+              reviewed: 'mt' },
     },
     'measure-mode': {
         en: { t: 'Measure',
@@ -314,6 +375,16 @@ export const I18N = Object.freeze({
         fr: { t: 'Mesure',
               b: 'Algorithme utilisé par la mesure. LUFS = sonie pondérée K (recommandée, norme de l’industrie). RMS = niveau moyen simple',
               reviewed: true },
+    
+        'zh-Hans': { t: '测量',
+              b: '学习所用的算法。LUFS = K 计权响度（推荐，行业标准）。RMS = 简单平均电平',
+              reviewed: 'mt',
+              // The glossary settles `measure` as the musical BAR. This selects
+              // the measurement ALGORITHM, not a bar line. The exemption is
+              // ENTRY-SCOPED, so the caption keyed label.measure carries its own
+              // copy of this note — one termNote does not cover the pair, and
+              // the lint reported the title while the caption was already clear.
+              termNote: 'the glossary settles measure -> the musical BAR; this is the measurement ALGORITHM selector. Entry-scoped, so label.measure carries its own copy' },
     },
     'meter-mode': {
         en: { t: 'Meter',
@@ -321,6 +392,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Vumètre',
               b: 'Type d’affichage du vumètre. Peak = crêtes instantanées. RMS = niveau moyen. VU = balistique analogique de 300 ms. LUFS = sonie momentanée pondérée K (affichée pendant la mesure ; sinon retour au RMS)',
               reviewed: true },
+    
+        'zh-Hans': { t: '表',
+              b: '表的显示类型。Peak = 瞬时峰值。RMS = 平均电平。VU = 模拟风格的 300ms 弹道。LUFS = K 计权瞬时响度（学习运行时显示，否则回落到 RMS）',
+              reviewed: 'mt' },
     },
     'info-momentary': {
         en: { t: 'Momentary',
@@ -328,6 +403,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Momentané',
               b: 'Sonie de la fenêtre des 400 dernières ms',
               reviewed: true },
+    
+        'zh-Hans': { t: '瞬时',
+              b: '最近 400ms 窗口的响度',
+              reviewed: 'mt' },
     },
     'info-short-term': {
         en: { t: 'Short-term',
@@ -335,6 +414,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Court terme',
               b: 'Sonie moyennée sur les 3 dernières secondes',
               reviewed: true },
+    
+        'zh-Hans': { t: '短时',
+              b: '最近 3 秒内平均的响度',
+              reviewed: 'mt' },
     },
     'info-integrated': {
         en: { t: 'Integrated',
@@ -342,6 +425,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Intégré',
               b: 'Sonie globale depuis le début de la mesure (avec seuillage, utilisée pour le calcul du gain)',
               reviewed: true },
+    
+        'zh-Hans': { t: '整体',
+              b: '自学习开始以来的总体响度（带门限，用于增益计算）',
+              reviewed: 'mt' },
     },
     'info-sample-peak': {
         en: { t: 'Sample Peak',
@@ -349,6 +436,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Crête éch.',
               b: 'Crête numérique la plus haute (sans suréchantillonnage, donc les crêtes inter-échantillons ne sont pas mesurées). La mesure laisse environ 3 dB de marge supplémentaire sous −1 dBFS pour les couvrir.',
               reviewed: true },
+    
+        'zh-Hans': { t: '采样峰值',
+              b: '最高的数字采样峰值（未过采样，因此不测量采样间峰值）。学习会在 -1 dBFS 以下再留约 3 dB 的余量来覆盖它们。',
+              reviewed: 'mt' },
     },
     'info-elapsed': {
         en: { t: 'Elapsed',
@@ -356,6 +447,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Écoulé',
               b: 'Durée de la mesure en cours. 10 à 30 secondes recommandées',
               reviewed: true },
+    
+        'zh-Hans': { t: '已用时',
+              b: '学习已经运行了多久。推荐 10-30 秒',
+              reviewed: 'mt' },
     },
     'info-confidence': {
         en: { t: 'Confidence',
@@ -363,6 +458,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Confiance',
               b: 'Qualité de la mesure. Faible = moins de 5 s, ou moins de 50 blocs d’analyse (400 ms chacun, un toutes les 100 ms) quel que soit le temps écoulé. Moyen = 5 à 15 s. Élevé = plus de 15 s',
               reviewed: true },
+    
+        'zh-Hans': { t: '置信度',
+              b: '测量质量。低 = 不足 5s，或者无论已用多久、分析块少于 50 个（每块 400ms，每 100ms 一个）。中 = 5-15s。高 = 超过 15s',
+              reviewed: 'mt' },
     },
     'phase-l': {
         en: { t: 'PH L',
@@ -370,6 +469,10 @@ export const I18N = Object.freeze({
         fr: { t: 'PH G',
               b: 'Inverse la polarité du canal gauche (inversion de phase de 180 degrés)',
               reviewed: true },
+    
+        'zh-Hans': { t: '相位 L',
+              b: '翻转左声道极性（180 度相位反转）',
+              reviewed: 'mt' },
     },
     'phase-r': {
         en: { t: 'PH R',
@@ -377,6 +480,10 @@ export const I18N = Object.freeze({
         fr: { t: 'PH D',
               b: 'Inverse la polarité du canal droit (inversion de phase de 180 degrés)',
               reviewed: true },
+    
+        'zh-Hans': { t: '相位 R',
+              b: '翻转右声道极性（180 度相位反转）',
+              reviewed: 'mt' },
     },
     'swap': {
         en: { t: 'SWAP',
@@ -384,6 +491,10 @@ export const I18N = Object.freeze({
         fr: { t: 'PERM',
               b: 'Permute les canaux gauche et droit',
               reviewed: true },
+    
+        'zh-Hans': { t: '交换',
+              b: '交换左右声道',
+              reviewed: 'mt' },
     },
     'mono': {
         en: { t: 'MONO',
@@ -391,6 +502,10 @@ export const I18N = Object.freeze({
         fr: { t: 'MONO',
               b: 'Somme en mono : (G+D)/2 sur les deux canaux',
               reviewed: true },
+    
+        'zh-Hans': { t: '单声道',
+              b: '求和为单声道：两个声道都是 (L+R)/2',
+              reviewed: 'mt' },
     },
     'ms-off': {
         en: { t: 'M/S OFF',
@@ -398,6 +513,10 @@ export const I18N = Object.freeze({
         fr: { t: 'M/S ARR',
               b: 'Traitement Mid-Side désactivé (stéréo normale)',
               reviewed: true },
+    
+        'zh-Hans': { t: 'M/S 关',
+              b: '中侧处理关闭（普通立体声）',
+              reviewed: 'mt' },
     },
     'ms-enc': {
         en: { t: 'ENC',
@@ -405,6 +524,10 @@ export const I18N = Object.freeze({
         fr: { t: 'ENC',
               b: 'Encode G/D en Mid/Side. À utiliser avec un second O-Gain réglé sur DÉC après le traitement',
               reviewed: true },
+    
+        'zh-Hans': { t: '编码',
+              b: '把 L/R 编码为中/侧。处理之后配合第二个 O-Gain 并设为解码使用',
+              reviewed: 'mt' },
     },
     'ms-dec': {
         en: { t: 'DEC',
@@ -412,6 +535,10 @@ export const I18N = Object.freeze({
         fr: { t: 'DÉC',
               b: 'Décode le Mid/Side vers G/D. À placer après la chaîne de traitement M/S. Remarque : décoder un signal G/D normal (non encodé) élève le niveau de +6 dB — le gain inverse d’ENC — donc utiliser ENC->DÉC par paire.',
               reviewed: true },
+    
+        'zh-Hans': { t: '解码',
+              b: '把中/侧解码回 L/R。放在 M/S 处理链之后。注意：对普通的（未编码的）L/R 信号做解码会把电平抬高 +6 dB，也就是编码的反向增益，所以编码与解码要成对使用。',
+              reviewed: 'mt' },
     },
 });
 
@@ -467,12 +594,12 @@ export const I18N = Object.freeze({
 export const LABELS = Object.freeze({
 
     // ── Meter columns ───────────────────────────────────────────────────────
-    'label.input':  { en: { t: 'Input' },  fr: { t: 'Entrée', reviewed: true } },
-    'label.output': { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: true } },
+    'label.input':  { en: { t: 'Input' },  fr: { t: 'Entrée', reviewed: true } , 'zh-Hans': { t: '输入', reviewed: 'mt' }},
+    'label.output': { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'mt' }},
 
     // ── The big gain readout's caption. The readout itself and its "dB" unit
     //    are NOT keyed — contract §5, D-03.
-    'label.gainOffset': { en: { t: 'Gain Offset' }, fr: { t: 'Décalage de gain', reviewed: true } },
+    'label.gainOffset': { en: { t: 'Gain Offset' }, fr: { t: 'Décalage de gain', reviewed: true } , 'zh-Hans': { t: '增益偏移', reviewed: 'mt' }},
 
     // ── Knob captions ───────────────────────────────────────────────────────
     // GAIN is spelled identically in French and is KEYED rather than exempted:
@@ -481,25 +608,26 @@ export const LABELS = Object.freeze({
     // translates to itself". sameAsEn: true is what says the second thing out
     // loud — assertion 4 rejects a silent fr === en passthrough, because that
     // is indistinguishable from a translation somebody forgot to write.
-    'label.gain':        { en: { t: 'Gain' },         fr: { t: 'Gain', reviewed: true, sameAsEn: true } },
-    'label.trim':        { en: { t: 'Trim' },         fr: { t: 'Ajust.',       reviewed: true } },
-    'label.targetLevel': { en: { t: 'Target Level' }, fr: { t: 'Niveau cible', reviewed: true } },
-    'label.target':      { en: { t: 'Target' },       fr: { t: 'Cible',        reviewed: true } },
+    'label.gain':        { en: { t: 'Gain' },         fr: { t: 'Gain', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '增益', reviewed: 'mt' }},
+    'label.trim':        { en: { t: 'Trim' },         fr: { t: 'Ajust.',       reviewed: true } , 'zh-Hans': { t: '微调电平', reviewed: 'mt' }},
+    'label.targetLevel': { en: { t: 'Target Level' }, fr: { t: 'Niveau cible', reviewed: true } , 'zh-Hans': { t: '目标电平', reviewed: 'mt' }},
+    'label.target':      { en: { t: 'Target' },       fr: { t: 'Cible',        reviewed: true } , 'zh-Hans': { t: '目标', reviewed: 'mt' }},
 
     // ── Mode-selector captions. The OPTION captions beside them (LUFS, RMS,
     //    Peak, VU) are the AudioParameterChoice option strings verbatim and are
     //    I18N_EXEMPT under D-01 — see the note there.
-    'label.measure': { en: { t: 'Measure' }, fr: { t: 'Mesure',  reviewed: true } },
-    'label.meter':   { en: { t: 'Meter' },   fr: { t: 'Vumètre', reviewed: true } },
+    'label.measure': { en: { t: 'Measure' }, fr: { t: 'Mesure',  reviewed: true } , 'zh-Hans': { t: '测量', reviewed: 'mt',
+                       termNote: 'the glossary settles measure -> the musical BAR. This control selects the measurement ALGORITHM used by Learn (LUFS or RMS), so the settled root would print a bar line on a loudness meter. Its own tooltip title takes the same rendering' }},
+    'label.meter':   { en: { t: 'Meter' },   fr: { t: 'Vumètre', reviewed: true } , 'zh-Hans': { t: '表', reviewed: 'mt' }},
 
     // ── The Learn panel ─────────────────────────────────────────────────────
-    'label.learnAnalysis': { en: { t: 'Learn Analysis' }, fr: { t: 'Analyse de mesure', reviewed: true } },
-    'label.momentary':     { en: { t: 'Momentary' },      fr: { t: 'Momentané',   reviewed: true } },
-    'label.shortTerm':     { en: { t: 'Short-term' },     fr: { t: 'Court terme',  reviewed: true } },
-    'label.integrated':    { en: { t: 'Integrated' },     fr: { t: 'Intégré',      reviewed: true } },
-    'label.samplePeak':    { en: { t: 'Sample Peak' },    fr: { t: 'Crête éch.',   reviewed: true } },
-    'label.elapsed':       { en: { t: 'Elapsed' },        fr: { t: 'Écoulé',       reviewed: true } },
-    'label.confidence':    { en: { t: 'Confidence' },     fr: { t: 'Confiance',    reviewed: true } },
+    'label.learnAnalysis': { en: { t: 'Learn Analysis' }, fr: { t: 'Analyse de mesure', reviewed: true } , 'zh-Hans': { t: '学习分析', reviewed: 'mt' }},
+    'label.momentary':     { en: { t: 'Momentary' },      fr: { t: 'Momentané',   reviewed: true } , 'zh-Hans': { t: '瞬时', reviewed: 'mt' }},
+    'label.shortTerm':     { en: { t: 'Short-term' },     fr: { t: 'Court terme',  reviewed: true } , 'zh-Hans': { t: '短时', reviewed: 'mt' }},
+    'label.integrated':    { en: { t: 'Integrated' },     fr: { t: 'Intégré',      reviewed: true } , 'zh-Hans': { t: '整体', reviewed: 'mt' }},
+    'label.samplePeak':    { en: { t: 'Sample Peak' },    fr: { t: 'Crête éch.',   reviewed: true } , 'zh-Hans': { t: '采样峰值', reviewed: 'mt' }},
+    'label.elapsed':       { en: { t: 'Elapsed' },        fr: { t: 'Écoulé',       reviewed: true } , 'zh-Hans': { t: '已用时', reviewed: 'mt' }},
+    'label.confidence':    { en: { t: 'Confidence' },     fr: { t: 'Confiance',    reviewed: true } , 'zh-Hans': { t: '置信度', reviewed: 'mt' }},
 
     // ── The utility row. See the min-content note in the block comment above:
     //    every French caption's widest WORD matches its English counterpart's,
@@ -507,53 +635,53 @@ export const LABELS = Object.freeze({
     //
     //    PH is an abbreviation of "phase", which is the same word in French, so
     //    only the channel letter moves: L/R -> G/D (gauche / droite).
-    'label.phaseL': { en: { t: 'PH L' },    fr: { t: 'PH G',    reviewed: true } },
-    'label.phaseR': { en: { t: 'PH R' },    fr: { t: 'PH D',    reviewed: true } },
-    'label.swap':   { en: { t: 'SWAP' },    fr: { t: 'PERM',    reviewed: true } },
+    'label.phaseL': { en: { t: 'PH L' },    fr: { t: 'PH G',    reviewed: true } , 'zh-Hans': { t: '相位 L', reviewed: 'mt' }},
+    'label.phaseR': { en: { t: 'PH R' },    fr: { t: 'PH D',    reviewed: true } , 'zh-Hans': { t: '相位 R', reviewed: 'mt' }},
+    'label.swap':   { en: { t: 'SWAP' },    fr: { t: 'PERM',    reviewed: true } , 'zh-Hans': { t: '交换', reviewed: 'mt' }},
     // MONO and ENC are spelled identically in French — "mono" is the same word
     // and "ENC" the same abbreviation of encoder/encode. Declared, not silent.
-    'label.mono':   { en: { t: 'MONO' },    fr: { t: 'MONO', reviewed: true, sameAsEn: true } },
+    'label.mono':   { en: { t: 'MONO' },    fr: { t: 'MONO', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '单声道', reviewed: 'mt' }},
     // The three M/S captions are NOT the ms_mode option strings — those are
     // "Off", "Encode", "Decode" (PluginProcessor.cpp:238-243) and none of these
     // three matches one byte for byte. They are plain captions, so they
     // localize. ARR is "arrêt", the same abbreviation the hover-help switch
     // uses for Off.
-    'label.msOff':  { en: { t: 'M/S OFF' }, fr: { t: 'M/S ARR', reviewed: true } },
-    'label.msEnc':  { en: { t: 'ENC' },     fr: { t: 'ENC',  reviewed: true, sameAsEn: true } },
-    'label.msDec':  { en: { t: 'DEC' },     fr: { t: 'DÉC',     reviewed: true } },
+    'label.msOff':  { en: { t: 'M/S OFF' }, fr: { t: 'M/S ARR', reviewed: true } , 'zh-Hans': { t: 'M/S 关', reviewed: 'mt' }},
+    'label.msEnc':  { en: { t: 'ENC' },     fr: { t: 'ENC',  reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '编码', reviewed: 'mt' }},
+    'label.msDec':  { en: { t: 'DEC' },     fr: { t: 'DÉC',     reviewed: true } , 'zh-Hans': { t: '解码', reviewed: 'mt' }},
 
     // ── The Learn button's four faces, written from script by setLabel() ────
     // ui.learn is also the caption authored in index.html, so the button is a
     // [data-i18n] element from first paint rather than from the first meter
     // tick. The other three replace v1.2.1's raw textContent literals.
-    'ui.learn':    { en: { t: 'LEARN' },       fr: { t: 'MESURER',   reviewed: true } },
-    'ui.learning': { en: { t: 'LEARNING...' }, fr: { t: 'MESURE...', reviewed: true } },
-    'ui.done':     { en: { t: 'DONE' },        fr: { t: 'TERMINÉ',   reviewed: true } },
-    'ui.tooQuiet': { en: { t: 'TOO QUIET' },   fr: { t: 'TROP BAS',  reviewed: true } },
+    'ui.learn':    { en: { t: 'LEARN' },       fr: { t: 'MESURER',   reviewed: true } , 'zh-Hans': { t: '学习', reviewed: 'mt' }},
+    'ui.learning': { en: { t: 'LEARNING...' }, fr: { t: 'MESURE...', reviewed: true } , 'zh-Hans': { t: '学习中…', reviewed: 'mt' }},
+    'ui.done':     { en: { t: 'DONE' },        fr: { t: 'TERMINÉ',   reviewed: true } , 'zh-Hans': { t: '完成', reviewed: 'mt' }},
+    'ui.tooQuiet': { en: { t: 'TOO QUIET' },   fr: { t: 'TROP BAS',  reviewed: true } , 'zh-Hans': { t: '信号过弱', reviewed: 'mt' }},
 
     // ── The confidence verdict. See the I18N_EXEMPT note for why these three
     //    are COPY and not a readout, which is the opposite call from the six
     //    timbre words on O-Marimba.
     'ui.confLow':  { en: { t: 'LOW' },  fr: { t: 'FAIBLE', reviewed: true,
-                       termNote: 'the Learn confidence verdict is a measurement-QUALITY level, not a frequency band — the glossary\'s Grave/Aigu name EQ registers, and "Confiance : Grave" would read as a filter setting' } },
-    'ui.confMed':  { en: { t: 'MED' },  fr: { t: 'MOYEN',  reviewed: true } },
+                       termNote: 'the Learn confidence verdict is a measurement-QUALITY level, not a frequency band — the glossary\'s Grave/Aigu name EQ registers, and "Confiance : Grave" would read as a filter setting' } , 'zh-Hans': { t: '低', reviewed: 'mt' }},
+    'ui.confMed':  { en: { t: 'MED' },  fr: { t: 'MOYEN',  reviewed: true } , 'zh-Hans': { t: '中', reviewed: 'mt' }},
     'ui.confHigh': { en: { t: 'HIGH' }, fr: { t: 'ÉLEVÉ',  reviewed: true,
-                       termNote: 'the Learn confidence verdict is a measurement-QUALITY level, not a frequency band — see ui.confLow' } },
+                       termNote: 'the Learn confidence verdict is a measurement-QUALITY level, not a frequency band — see ui.confLow' } , 'zh-Hans': { t: '高', reviewed: 'mt' }},
 
     // ── The settings popover ────────────────────────────────────────────────
-    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: true } },
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'mt' }},
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } , 'zh-Hans': { t: '开', reviewed: 'mt' }},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'mt' }},
 
     // ── Accessible names. Keyed through data-i18n-aria, which resolves through
     //    the same sweep with setAttribute. aria.helpToggle replaces the ONE
     //    native title= this page carried (#help-btn "Toggle tooltips"), which
     //    contract §4 deletes: a native title renders a second, untranslated OS
     //    tooltip competing with the measure-then-pin renderer.
-    'aria.settings':   { en: { t: 'Settings' },             fr: { t: 'Réglages',                 reviewed: true } },
-    'aria.langSelect': { en: { t: 'Interface language' },    fr: { t: 'Langue de l’interface',    reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+    'aria.settings':   { en: { t: 'Settings' },             fr: { t: 'Réglages',                 reviewed: true } , 'zh-Hans': { t: '设置', reviewed: 'mt' }},
+    'aria.langSelect': { en: { t: 'Interface language' },    fr: { t: 'Langue de l’interface',    reviewed: true } , 'zh-Hans': { t: '界面语言', reviewed: 'mt' }},
+    'aria.helpToggle': { en: { t: 'Toggle hover help' },     fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }},
 });
 
 // ============================================================================
