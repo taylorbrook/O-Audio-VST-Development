@@ -53,7 +53,7 @@
             align-items: center;
             min-height: 100%;
             background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 
             /* Native feel CSS */
             user-select: none;
@@ -146,6 +146,7 @@
            non-replaced inline box, which is also why assertion 4 could not
            express itself about this element before. */
         .voice-label {
+            line-height: 1.1;   /* zh pin: 11px English CONTENT line box over 10px font-size */
             display: inline-block;
             min-width: 37px;
         }
@@ -277,11 +278,12 @@
            covers all four faces, so the pair is also the same size as each
            other, which they were not before. */
         .preset-action-btn {
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             min-width: 56px;
             text-align: center;
             padding: 3px 8px;
             font-size: 9px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             color: #3C2F2F;
             background: rgba(212, 196, 176, 0.8);
             border: 1px solid #8B7355;
@@ -399,6 +401,7 @@
         }
 
         .section-header {
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
             font-weight: normal;
             color: #5C4033;
@@ -428,6 +431,7 @@
         }
 
         .slider-label {
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
             color: #3C2F2F;
             text-transform: uppercase;
@@ -496,6 +500,7 @@
         }
 
         .dropdown-label {
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
             color: #3C2F2F;
             text-transform: uppercase;
@@ -508,7 +513,7 @@
             appearance: none;
             width: 100%;
             padding: 5px 25px 5px 8px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #3C2F2F;
             background: linear-gradient(to bottom, #FAF0E6 0%, #EBD9C7 100%);
@@ -562,6 +567,7 @@
            caption's 6.48px pushed the slider, the keyboard and every key in it.
            inline-block for the same reason as .voice-label. */
         .master-label {
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             display: inline-block;
             min-width: 49px;
             font-size: 9px;
@@ -678,6 +684,7 @@
         }
 
         .footer-keyboard-help {
+            line-height: 1.1428571;   /* zh pin: 8px English CONTENT line box over 7px font-size */
             font-size: 7px;
             color: #8B7355;
             text-align: center;
@@ -753,6 +760,7 @@
            deliberately: lowering it would move all four knob rows, and the
            number now carries slack rather than a wrong claim. */
         .fx-title {
+            line-height: 1.0909091;   /* zh pin: 12px English CONTENT line box over 11px font-size */
             min-width: 61px;
             font-size: 11px;
             font-weight: bold;
@@ -781,6 +789,7 @@
            abbreviation. Raising the pin to 35px is the other option and is a CSS
            decision Stage N does not take. */
         .fx-bypass-btn {
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             min-width: 34px;
             text-align: center;
             padding: 2px 8px;
@@ -865,6 +874,7 @@
         }
 
         #effects-tab .knob-label {
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
             color: #3C2F2F;
             font-weight: 600;
@@ -929,6 +939,7 @@
         }
 
         .pitch-circle-label {
+            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
             position: absolute;
             bottom: -16px;
             width: 100%;
@@ -961,6 +972,7 @@
         }
 
         .interval-list-header {
+            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
             font-size: 8px;
             color: #5C4033;
             text-transform: uppercase;
@@ -990,6 +1002,7 @@
            was still being flex-shrunk inside an over-full row, and left a 0.9px
            residual. Unshrunk, TONIQUE : is 34.67px. */
         .tonic-label {
+            line-height: 1.1428571;   /* zh pin: 8px English CONTENT line box over 7px font-size */
             font-size: 7px;
             color: #5C4033;
             text-transform: uppercase;
@@ -1053,7 +1066,7 @@
             background: rgba(245, 230, 211, 0.8);
             border: 1px solid rgba(139, 115, 85, 0.4);
             border-radius: 2px;
-            font-family: monospace;
+            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
             font-size: 8px;
             color: #3C2F2F;
             text-align: right;
@@ -1127,6 +1140,7 @@
         }
 
         .ref-knob-label {
+            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
             font-size: 8px;
             color: #5C4033;
             text-transform: uppercase;
@@ -1168,8 +1182,9 @@
         }
 
         .tuning-file-btn {
+            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
             padding: 5px 6px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 8px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
@@ -1218,6 +1233,7 @@
         }
 
         .generator-header-text {
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
             color: #5C4033;
             text-transform: uppercase;
@@ -1250,7 +1266,7 @@
         .generator-type-select {
             width: 100%;
             padding: 5px 6px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #3C2F2F;
             background: rgba(245, 230, 211, 0.9);
@@ -1275,6 +1291,7 @@
         }
 
         .gen-row label {
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
             color: #5C4033;
             flex-shrink: 0;
@@ -1283,7 +1300,7 @@
         .gen-row input[type="number"] {
             width: 70px;
             padding: 4px 6px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #3C2F2F;
             background: rgba(255, 248, 220, 0.9);
@@ -1298,9 +1315,10 @@
         }
 
         .generator-btn {
+            line-height: 1.1;   /* zh pin: 11px English CONTENT line box over 10px font-size */
             width: 100%;
             padding: 8px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -1341,6 +1359,7 @@
            ÉTIREMENT renders 49.83px and pushed the flex: 1 slider beside it
            9.8px right. Raised to the wider of the two. */
         .octave-stretch-label {
+            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
             font-size: 8px;
             color: #5C4033;
             text-transform: uppercase;
@@ -1386,7 +1405,7 @@
 
         .octave-stretch-value {
             font-size: 9px;
-            font-family: monospace;
+            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
             color: #3C2F2F;
             min-width: 32px;
             text-align: right;
@@ -1411,8 +1430,9 @@
 
         /* v1.30.0: Glissando toggle buttons */
         .gliss-toggle {
+            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
             padding: 2px 8px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 8px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
@@ -1456,8 +1476,9 @@
         }
 
         .viz-btn {
+            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
             padding: 4px 8px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 8px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
@@ -1562,7 +1583,7 @@
         }
 
         .matrix-cell {
-            font-family: monospace;
+            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
             font-size: 7px;
         }
 
@@ -1577,6 +1598,7 @@
         }
 
         .tk-hint {
+            line-height: 1.0909091;   /* zh pin: 12px English CONTENT line box over 11px font-size */
             font-size: 11px;
             color: #5C4033;
             opacity: 0.7;
@@ -1609,7 +1631,7 @@
         }
 
         .tk-cents {
-            font-family: monospace;
+            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
             font-size: 11px;
             color: #3C5C1A;
             font-weight: 600;
@@ -1637,9 +1659,26 @@
         }
 
         .rotation-table th {
+            line-height: 1;   /* zh pin: 7px English CONTENT line box over 7px font-size */
+            white-space: nowrap;   /* zh: 模式 wraps to two lines in an 18px auto-sized cell */
             background: rgba(139, 115, 85, 0.2);
             font-weight: 500;
             color: #3C2F2F;
+        }
+
+        /* zh FLOOR, not a clip. This table is auto-layout and OVERFLOWS its 220px
+           container, so its width is set by its own columns rather than by the
+           container — and the first column is the only one holding a word. 模式
+           renders 15.31px of content against "Mode"'s 17.34px, so the column, the
+           table and every heading to its right shift ~1px on the Chinese arm alone.
+           The floor is the EXACT measured English border box, 21.34px, so English
+           and French sit on it unchanged and the Chinese rises to meet it.
+           Scoped to :first-child at (0,2,1): the shared `.rotation-table th,
+           .rotation-table td` rule above declares min-width: 18px, and this raises
+           that floor for ONE cell rather than lowering it for any — the twelve digit
+           columns keep their 18px. */
+        .rotation-table th:first-child {
+            min-width: 21.34px;
         }
 
         .mode-name {
@@ -1649,7 +1688,7 @@
         }
 
         .int-cell {
-            font-family: monospace;
+            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
             font-size: 7px;
         }
 
@@ -1679,13 +1718,13 @@
         }
 
         .cents-value {
-            font-family: monospace;
+            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
             font-size: 8px;
             color: #3C2F2F;
         }
 
         .deviation {
-            font-family: monospace;
+            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
             font-size: 7px;
             opacity: 0.8;
             min-width: 32px;
@@ -1720,6 +1759,7 @@
         }
 
         .library-header-text {
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
             color: #5C4033;
             text-transform: uppercase;
@@ -1752,7 +1792,7 @@
         .library-filter-select {
             width: 100%;
             padding: 5px 6px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #3C2F2F;
             background: rgba(245, 230, 211, 0.9);
@@ -1867,7 +1907,7 @@
             color: #5C4033;
             font-size: 12px;
             font-weight: bold;
-            font-family: 'Georgia', serif;
+            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
             line-height: 1;
             cursor: pointer;
             display: flex;
@@ -1923,6 +1963,7 @@
         }
 
         .settings-label {
+            line-height: 1.1;   /* zh pin: 11px English CONTENT line box over 10px font-size */
             font-family: inherit;
             font-size: 10px;
             color: #5C4033;
@@ -2019,7 +2060,7 @@
             border: 1px solid rgba(139, 115, 85, 0.6);
             border-radius: 4px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             pointer-events: none;
             opacity: 0;
             transition: opacity 150ms ease;
@@ -2070,6 +2111,42 @@
             outline: 1px dashed rgba(139, 168, 112, 0.4);
             outline-offset: 2px;
         }
+        /* ── v2.5.0: the form-4 repair (Simplified Chinese) ──────────────────
+           Thirty-nine form controls on this page declared NO font-family at
+           all and took their face from the user-agent stylesheet's bare Arial:
+           twenty-seven range inputs and the twelve custom-degree toggle
+           buttons. Under lang="zh-Hans" a control with no declared family
+           resolves its accessible name against the document language, so the
+           face is chosen by the page's lang attribute rather than by the page.
+
+           An ELEMENT-LEVEL rule rather than an id list, because this page
+           builds most of its captions at runtime: handleGeneratorTypeChange
+           rebuilds #generator-inputs three times during the state walk, the
+           twelve degree toggles are created by a loop, and the EFFECTS knob
+           captions are written by setLabel from js/app.js. An enumeration of
+           ids would name a set that does not exist at rest.
+
+           At specificity (0,0,1) this loses to every class and id rule on the
+           page, so it reaches exactly the undeclared set by construction and
+           the other stack populations do not move — verified by re-running the
+           undeclared-font screen and comparing the per-stack counts, not by
+           reading this rule.
+
+           `select` is DELIBERATELY ABSENT from the selector list. The shipped
+           shape elsewhere in the suite is `button, input, select, textarea`,
+           but this page already carries an element-level `select` rule of its
+           own further up, at the SAME specificity; a later one here would win
+           the cascade and pull every dropdown off its declared serif stack,
+           moving the English and French arms. Measured: none of the
+           thirty-nine undeclared controls is a select.
+
+           Arial FIRST so the Latin metrics of a digit face do not move, then
+           the CJK tail BEFORE the generic — under zh-Hans the bare generic is
+           already a Chinese face and a tail written after it is never read. */
+        button, input, textarea {
+            font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+
     </style>
 </head>
 <body>
@@ -2100,6 +2177,7 @@
                     <select id="lang-select" data-i18n-aria="aria.langSelect" aria-label="Interface language">
                         <option value="en">English</option>
                         <option value="fr">Fran&ccedil;ais</option>
+                        <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                     </select>
                 </label>
 
