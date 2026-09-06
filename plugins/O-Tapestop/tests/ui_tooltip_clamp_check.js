@@ -198,7 +198,12 @@ function serve(root) {
         .replace(/(^|\n)(\s*)export\s+(const|let|function|class)\s/g, '$1$2$3 ');
     const i18nBox = { console: { warn() {}, error() {}, log() {} } };
     vm.createContext(i18nBox);
-    vm.runInContext(`${i18nSrc}\n;globalThis.__x = { I18N, TIP_BINDINGS };`,
+    //
+    // v1.7.0: LANGUAGES joins the published set. The loader, the sandbox and the
+    // parsed table were all already here — only the object literal below was
+    // short a name, which is why a grep for `vm` or `runInContext` reported this
+    // file ready while it still had nothing to derive a language list FROM.
+    vm.runInContext(`${i18nSrc}\n;globalThis.__x = { I18N, TIP_BINDINGS, LANGUAGES };`,
                     i18nBox, { timeout: 5000 });
     const expectedAnchors = i18nBox.__x.TIP_BINDINGS.length;
 
@@ -452,7 +457,24 @@ function serve(root) {
     // failure reads as a mysterious regression in a file that never mentions
     // French. The anchor LABELS stay stable: this page's labels prefer the
     // element id, so they do not localize with the copy.
-    const LANGS = ['en', 'fr'];
+    //
+    // v1.7.0: the list is DERIVED from the table's own export rather than spelled
+    // here. There is deliberately NO DEFAULT PAIR. A gate that falls back to a
+    // hard-coded list when it cannot read LANGUAGES is a gate that goes green on
+    // unchecked content, which is worse than one that fails: the failure is
+    // visible and the silence is not.
+    const LANGS = i18nBox.__x.LANGUAGES;
+    check(Array.isArray(LANGS) && LANGS.length >= 2 && LANGS[0] === 'en'
+          && LANGS.every(l => typeof l === 'string' && l),
+        `LANGUAGES parsed from js/i18n.js and drives this sweep — got `
+        + `${JSON.stringify(LANGS)}. NOT defaulted: a gate that falls back to a `
+        + `two-language list reports a pass over content it never rendered`);
+    if (!Array.isArray(LANGS) || LANGS.length < 2) {
+        console.log('\n  ABORT: LANGUAGES is unreadable, so nothing below would '
+                  + 'mean anything. Refusing to sweep a guessed language list.');
+        process.exit(failed || 1);
+    }
+
     const tipTextByLang = new Map();
     const stats = new Map();
 
@@ -635,16 +657,26 @@ function serve(root) {
     // French must actually BE French. Without this the sweep could run twice
     // over identical English text and report a confident, meaningless pass —
     // the same class of vacuity the clamp counter guards against.
+    //
+    // v1.7.0: THE SITE THAT MATTERED MOST. This is the file's only REAL hard-fail
+    // on the language copy, and it read the two maps by literal key. Deriving the
+    // list above and repairing both walks would have left it comparing exactly two
+    // languages: the Chinese page would have been driven, measured — and never
+    // compared, with the gate reporting green having proved nothing about the
+    // language it had just rendered. A Map read spells no list, so no grep for a
+    // two-element array would have found it either.
     {
         const en = tipTextByLang.get('en') || {};
-        const fr = tipTextByLang.get('fr') || {};
         const byProbe = new Map(anchors.map(a => [String(a.i), a.label]));
-        const same = Object.keys(en).filter(k => fr[k]
-            && en[k].t === fr[k].t && en[k].b === fr[k].b);
-        check(same.length === 0,
-            `every anchor's copy actually CHANGED between en and fr — `
-            + `${Object.keys(en).length - same.length}/${Object.keys(en).length} differ`
-            + (same.length ? ' — UNCHANGED: ' + same.map(k => byProbe.get(k) || k).join(', ') : ''));
+        for (const lang of LANGS.filter(l => l !== 'en')) {
+            const other = tipTextByLang.get(lang) || {};
+            const same = Object.keys(en).filter(k => other[k]
+                && en[k].t === other[k].t && en[k].b === other[k].b);
+            check(same.length === 0,
+                `[${lang}] every anchor's copy actually CHANGED between en and ${lang} — `
+                + `${Object.keys(en).length - same.length}/${Object.keys(en).length} differ`
+                + (same.length ? ' — UNCHANGED: ' + same.map(k => byProbe.get(k) || k).join(', ') : ''));
+        }
     }
 
     // ── The Stage D deliverable, printed rather than only asserted ───────────
@@ -657,20 +689,42 @@ function serve(root) {
             + `tallest ${st.tallest.toFixed(1)}  right-most ${st.worstRightLabel} @ `
             + `${st.worstRight.toFixed(1)} of ${SHIP_W} (limit ${SHIP_W - TOOLTIP_MARGIN})`);
     }
+    // v1.7.0: GENERALIZED RATHER THAN LEFT, following the precedent O-ReverseDelay
+    // set one wave ago. This pair feeds a console.log and nothing else, so leaving
+    // it would not have made any assertion vacuous — but an unexamined print and an
+    // unexamined assertion look identical in a diff, and a report that names only
+    // French under a three-language table is a report that stops being true without
+    // ever failing. The direction is REPORTED, never required: Chinese runs shorter
+    // than English here, so its tallest tip is smaller, which is a fact about the
+    // language rather than a defect.
     {
-        const e = stats.get('en'), f = stats.get('fr');
-        if (e && f)
-            console.log(`   French costs ${f.flipped - e.flipped >= 0 ? '+' : ''}`
-                + `${f.flipped - e.flipped} vertical flip(s) and `
-                + `${f.clamped - e.clamped >= 0 ? '+' : ''}${f.clamped - e.clamped} clamp(s), `
-                + `and is ${(f.tallest - e.tallest).toFixed(1)} px taller at its tallest.`);
+        const e = stats.get('en');
+        for (const lang of LANGS.filter(l => l !== 'en')) {
+            const o = stats.get(lang);
+            if (!e || !o) continue;
+            const sign = (n) => (n >= 0 ? '+' : '') + n;
+            console.log(`   ${lang} costs ${sign(o.flipped - e.flipped)} vertical flip(s) and `
+                + `${sign(o.clamped - e.clamped)} clamp(s), `
+                + `and is ${(o.tallest - e.tallest).toFixed(1)} px taller at its tallest.`);
+        }
     }
 
     // Leave the page in English for the stress and layout stages below, so
     // their numbers stay comparable with every earlier release's.
+    //
+    // v1.7.0 CLASSIFICATION — the three reads in this block LOOK like the
+    // per-language map lookups repaired above and are deliberately NOT
+    // generalized. This one is a RESET, not an enumeration: the comment
+    // directly above says what it is for. The two below it read the language
+    // the page was just reset to, so the stress-stage numbers are quoted in
+    // one language BY DESIGN. Generalizing any of the three would make those
+    // numbers incomparable with every prior release — a correct three-language
+    // repair that silently regresses a different stage of the same gate.
     await page.evaluate(() => window.__setLanguage('en'));
 
+    // RESET-SCOPED (see above): reads the language just restored, not a list.
     const worstRight = (stats.get('en') || {}).worstRight ?? -1;
+    // RESET-SCOPED (see above): same read, for the label of the same figure.
     const worstRightLabel = (stats.get('en') || {}).worstRightLabel ?? '-';
 
     console.log(`\n   right-most tip: ${worstRightLabel} ends at ${worstRight.toFixed(1)} `

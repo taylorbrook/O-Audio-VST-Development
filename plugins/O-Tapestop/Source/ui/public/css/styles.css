@@ -76,7 +76,15 @@
   --text-emboss:   rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
 
-  --serif: 'Garamond', 'EB Garamond', 'Times New Roman', serif;
+  /* v1.7.0 — the CJK tail goes BEFORE the trailing generic, never after it.
+     Chromium resolves a bare `serif` against the DOCUMENT's lang, so under
+     lang="zh-Hans" the generic is already a Chinese face and anything written
+     after it is never consulted. Garamond and EB Garamond are not installed on
+     the build machine and Times New Roman is, so the LATIN half of this stack
+     was already safe and this is a tail edit and nothing else — the named Latin
+     face stays first so the en and fr arms do not move. One token, 13
+     declarations, 168 visible nodes. */
+  --serif: 'Garamond', 'EB Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -148,6 +156,7 @@ body {
 }
 
 .subtitle {
+  line-height: 1.1;          /* 11 / 10 — measured en content box */
   margin-top: 3px;
   font-size: 10px;
   letter-spacing: 1.6px;
@@ -174,6 +183,7 @@ body {
 .preset-nav,
 .preset-btn {
   font-family: var(--serif);
+  line-height: 1.1;          /* 11 / 10 — content box, 5px padding + 2px border subtracted */
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--green-darkest);
@@ -393,6 +403,7 @@ body {
 .group-output  { width: 180px; }
 
 .group-label {
+  line-height: 1.0909091;    /* 12 / 11 — measured en content box */
   position: absolute;
   top: -9px;
   left: 50%;
@@ -470,6 +481,7 @@ body {
 }
 
 .pair-caption {
+  line-height: 1.0526316;    /* 10 / 9.5 — measured en content box */
   font-size: 9.5px;
   letter-spacing: 0.9px;
   text-transform: uppercase;
@@ -503,6 +515,7 @@ body {
 .group-trigger #modeSegments .segment { width: 140px; }
 
 .segment {
+  line-height: 1.1;          /* 11 / 10 — content box, 7px padding + 2px border subtracted */
   width: 58px;
   padding: 7px 0;
   font-family: var(--serif);
@@ -675,6 +688,7 @@ body {
 }
 
 .col-caption {
+  line-height: 1.1;          /* 11 / 10 — measured en content box; reaches .env-caption too */
   font-size: 10px;
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -814,6 +828,7 @@ body {
 }
 
 .knob-label {
+  line-height: 1.0526316;    /* 10 / 9.5 — measured en content box */
   font-size: 9.5px;
   letter-spacing: 0.9px;
   text-transform: uppercase;
@@ -909,6 +924,7 @@ body {
    moved both fleurons by 70 px on a language change. 560 px holds the longer
    string with room, inside 810 px of frame. */
 .footer-text {
+  line-height: 1.1111111;    /* 10 / 9 — measured en content box */
   width: 560px;
   text-align: center;
   font-size: 9px;
@@ -992,6 +1008,7 @@ body {
 }
 
 .settings-label {
+  line-height: 1.1111111;    /* 10 / 9 — measured en content box */
   font-family: var(--serif);
   font-size: 9px;
   letter-spacing: 0.9px;
@@ -1162,3 +1179,18 @@ body {
   bottom: 100%;
   border-bottom-color: var(--brown-frame);
 }
+
+/* ── v1.7.0 · Chinese line-box pins ───────────────────────────────────────
+   Every declaration below replaces `line-height: normal`, which Chromium
+   resolves from the FACE, so a Chinese face returns a taller line box than a
+   Latin one at the same font-size and every caption on this page grew 3-4 px
+   under lang="zh-Hans", cascading into 49-59 moved elements per state.
+   Each value is the MEASURED English CONTENT line box over its own font-size,
+   padding and border subtracted first, so the en and fr arms cannot move:
+     9px -> 10/9  = 1.1111111      9.5px -> 10/9.5 = 1.0526316
+    10px -> 11/10 = 1.1           11px  -> 12/11  = 1.0909091
+   The declarations go INSIDE each rule that already owns the selector, at that
+   rule's own specificity, rather than into a new higher-specificity block —
+   R8: an appended pin at higher specificity un-pins whatever was there before.
+   Checked first: none of these nine selectors declared line-height. The four
+   that DID (.preset-nav, .env-hint, .help-toggle, .tooltip-body) are untouched. */

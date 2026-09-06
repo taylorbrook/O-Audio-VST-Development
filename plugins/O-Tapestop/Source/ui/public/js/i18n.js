@@ -143,7 +143,7 @@
 // `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 export const I18N = Object.freeze({
 
@@ -156,18 +156,34 @@ export const I18N = Object.freeze({
         fr: { t: 'Réglages',
               b: 'Choisir la langue de ce plugin et activer ou désactiver les infobulles. Les deux choix sont conservés avec la session.',
               reviewed: true },
+        'zh-Hans': { t: '设置',
+                     b: '选择本插件的语言，并开启或关闭悬停帮助。两项选择都随会话一同保存。',
+                     reviewed: 'mt' },
     },
 
     // v1.6.0: this entry told the user, in both languages, that the labels on
     // the page do not change. That is now false — they do. Rewritten to say
     // what is true, INCLUDING the half that stayed true: readouts are English
     // in both languages (D-03), so `250 ms` reads the same either way.
+    //
+    // v1.7.0: the clause that COUNTED and NAMED the selector's options is
+    // gone from the English and the French both. It was true while the
+    // selector held exactly two options and went false the moment a third
+    // arrived; a body that enumerates a list it does not own is a body that
+    // expires silently. The half that stayed true is kept, because it is a
+    // fact about the READOUTS rather than about the list. The superseded
+    // sentence is deliberately not quoted here (C8): spelling it in the
+    // comment that explains its removal would keep this repo's own
+    // stale-enumeration probe reporting a plugin that is already fixed.
     'lang-select': {
         en: { t: 'Language',
-              b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts stay in English.' },
+              b: 'The language of this hover help and of the labels on the page. Value readouts stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. Les valeurs affichées restent en anglais.',
               reviewed: true },
+        'zh-Hans': { t: '语言',
+                     b: '这些悬停帮助和页面标签所用的语言。数值读数保持英文。',
+                     reviewed: 'mt' },
     },
 
     'help-toggle': {
@@ -176,6 +192,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Infobulles',
               b: 'Active ou désactive les infobulles pour toutes les commandes de cette page. Le réglage est conservé avec la session.',
               reviewed: true },
+        'zh-Hans': { t: '悬停帮助',
+                     b: '为本页每一个控件开启或关闭悬停说明。该设置随会话一同保存。',
+                     reviewed: 'mt' },
     },
 
     'preset-prev': {
@@ -184,6 +203,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Précédent',
               b: 'Recule d’une entrée dans la liste des préréglages, d’usine comme utilisateur.',
               reviewed: true },
+        'zh-Hans': { t: '上一个',
+                     b: '在预设列表中后退一项，出厂预设与用户预设一视同仁。',
+                     reviewed: 'mt' },
     },
 
     'preset-next': {
@@ -192,6 +214,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Suivant',
               b: 'Avance d’une entrée dans la liste des préréglages, d’usine comme utilisateur.',
               reviewed: true },
+        'zh-Hans': { t: '下一个',
+                     b: '在预设列表中前进一项，出厂预设与用户预设一视同仁。',
+                     reviewed: 'mt' },
     },
 
     'preset-name': {
@@ -203,6 +228,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Préréglage',
               b: 'Le préréglage chargé. Cliquer pour ouvrir la liste, groupée en Arrêts de bande, Scratch, Pleurage & Déformation, et Glitch & Chaos.',
               reviewed: true },
+        'zh-Hans': { t: '预设',
+                     b: '已载入的预设。点击可展开列表，分为磁带停转、刮擦、摇摆与扭曲、故障与混沌四组。',
+                     reviewed: 'mt' },
     },
 
     'preset-save': {
@@ -211,6 +239,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Enregistrer',
               b: 'Écrit toutes les commandes, y compris l’enveloppe de scratch dessinée, dans un préréglage utilisateur.',
               reviewed: true },
+        'zh-Hans': { t: '保存',
+                     b: '将每一个控件（含绘制的刮擦包络）写入用户预设。',
+                     reviewed: 'mt' },
     },
 
     'preset-load': {
@@ -219,6 +250,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Charger',
               b: 'Ouvre un fichier de préréglage sur le disque plutôt que depuis la liste ci-dessus.',
               reviewed: true },
+        'zh-Hans': { t: '载入',
+                     b: '从磁盘打开预设文件，而不是从上面的列表中选择。',
+                     reviewed: 'mt' },
     },
 
     'preset-delete': {
@@ -227,6 +261,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Supprimer',
               b: 'Supprime le préréglage utilisateur chargé. Un premier clic arme, un second confirme. Les préréglages d’usine sont protégés.',
               reviewed: true },
+        'zh-Hans': { t: '删除',
+                     b: '移除已载入的用户预设。点击一次进入待确认状态，再点一次确认。出厂预设受保护。',
+                     reviewed: 'mt' },
     },
 
     'engage-btn': {
@@ -235,6 +272,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Enclencher',
               b: 'La commande de jeu. Elle se maintient : l’enfoncer démarre le geste que décrit le Mode courant, la relâcher rend la main au transport. L’automatiser ou l’assigner en MIDI, et laisser le reste de la page tranquille.',
               reviewed: true },
+        'zh-Hans': { t: '启动',
+                     b: '演奏控件，带自锁：按下时开始当前“模式”所描述的动作，松开时把走带交还。为它写自动化或做 MIDI 映射，页面其余部分保持不动。',
+                     reviewed: 'mt' },
     },
 
     'seg-mode-stop': {
@@ -243,6 +283,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Mode arrêt',
               b: 'La bobine qui perd son alimentation. Enclencher fait ralentir la bande jusqu’à l’arrêt ; relâcher la fait remonter à sa vitesse. Ralentissement et Redémarrage façonnent chaque moitié séparément.',
               reviewed: true },
+        'zh-Hans': { t: '停止模式',
+                     b: '卷盘失去动力。按下“启动”让磁带减速至停止，松开则让它重新加速到正常速度。“减速”与“加速”分别塑造这两个半程。',
+                     reviewed: 'mt' },
     },
 
     'seg-mode-scratch': {
@@ -251,6 +294,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Mode scratch',
               b: 'Une main sur le plateau. Enclencher joue un passage de la courbe de vitesse dessinée, marche arrière comprise, puis revient à la vitesse normale.',
               reviewed: true },
+        'zh-Hans': { t: '刮擦模式',
+                     b: '一只手按在唱盘上。按下“启动”会播放绘制的速度曲线的一次通过，反向也包括在内，然后回到正常速度。',
+                     reviewed: 'mt' },
     },
 
     'seg-mode-cont': {
@@ -259,6 +305,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Mode mouvement',
               b: 'Une bande usée qui ne se stabilise jamais. Enclencher maintient la vitesse en modulation continue tant que le bouton reste allumé — pleurage, embardée ou bégaiement, selon le Caractère.',
               reviewed: true },
+        'zh-Hans': { t: '运动模式',
+                     b: '永不安定的磨损磁带。只要“启动”保持点亮，速度就一直处于连续调制中——摇摆、踉跄或断续，取决于“特性”。',
+                     reviewed: 'mt' },
     },
 
     'seg-sync-sync': {
@@ -267,6 +316,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Synchro',
               b: 'Toutes les durées de cette page s’asservissent à la grille de tempo de l’hôte et se choisissent en divisions de note. Bascule les trois panneaux à la fois.',
               reviewed: true },
+        'zh-Hans': { t: '同步',
+                     b: '本页每一段时长都锁定到宿主的速度网格上，并以音符分割来选择。一次切换全部三个面板。',
+                     reviewed: 'mt' },
     },
 
     'seg-sync-free': {
@@ -275,6 +327,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Libre',
               b: 'Toutes les durées se règlent en millisecondes (ou en hertz, pour le Mouvement) et ignorent le tempo de l’hôte. Bascule les trois panneaux à la fois.',
               reviewed: true },
+        'zh-Hans': { t: '自由',
+                     b: '每一段时长都以毫秒设定（“运动”则以赫兹），并忽略宿主速度。一次切换全部三个面板。',
+                     reviewed: 'mt' },
     },
 
     'ratio-fill': {
@@ -283,6 +338,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse de lecture',
               b: 'Affichage en direct de la vitesse du transport. 1× est la vitesse normale, 0 l’arrêt complet, et tout ce qui est à gauche de zéro défile à l’envers.',
               reviewed: true },
+        'zh-Hans': { t: '播放速率',
+                     b: '走带速度的实时读数。1× 为正常，0 为完全停止，零点左侧的一切都在反向运行。',
+                     reviewed: 'mt' },
     },
 
     'combo-STOP_SYNC_DIV': {
@@ -291,6 +349,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Durée de ralentissement',
               b: 'Le temps que met la bobine à atteindre l’arrêt complet, en division de note du tempo de l’hôte. Verrouillé à l’instant où Enclencher est pressé — le modifier en cours de geste est sans effet.',
               reviewed: true },
+        'zh-Hans': { t: '减速时间',
+                     b: '卷盘到达静止所需的时间，以宿主速度的音符分割表示。按下“启动”的瞬间即被锁存，动作进行中再移动它不起作用。',
+                     reviewed: 'mt' },
     },
 
     'knob-STOP_FREE_MS': {
@@ -299,6 +360,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Durée de ralentissement',
               b: 'Le temps que met la bobine à atteindre l’arrêt complet, en millisecondes. Verrouillé à l’instant où Enclencher est pressé.',
               reviewed: true },
+        'zh-Hans': { t: '减速时间',
+                     b: '卷盘到达静止所需的时间，以毫秒计。按下“启动”的瞬间即被锁存。',
+                     reviewed: 'mt' },
     },
 
     'knob-STOP_CURVE': {
@@ -307,6 +371,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Courbe de ralentissement',
               b: 'Façonne la chute. À 0 la vitesse descend en ligne droite ; à 100 elle s’effondre d’un coup puis rampe sur la dernière portion. 50 correspond à la physique d’une platine.',
               reviewed: true },
+        'zh-Hans': { t: '减速曲线',
+                     b: '塑造下落的形状。为 0 时速度沿直线下降；为 100 时先骤然坠落，再缓慢爬完最后一段。50 是唱盘的物理特性。',
+                     reviewed: 'mt' },
     },
 
     'combo-START_SYNC_DIV': {
@@ -315,6 +382,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Durée de redémarrage',
               b: 'Le temps que met la bobine à retrouver sa pleine vitesse une fois Enclencher relâché, en division de note du tempo de l’hôte.',
               reviewed: true },
+        'zh-Hans': { t: '加速时间',
+                     b: '松开“启动”后卷盘恢复全速所需的时间，以宿主速度的音符分割表示。',
+                     reviewed: 'mt' },
     },
 
     'knob-START_FREE_MS': {
@@ -323,6 +393,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Durée de redémarrage',
               b: 'Le temps que met la bobine à retrouver sa pleine vitesse une fois Enclencher relâché, en millisecondes.',
               reviewed: true },
+        'zh-Hans': { t: '加速时间',
+                     b: '松开“启动”后卷盘恢复全速所需的时间，以毫秒计。',
+                     reviewed: 'mt' },
     },
 
     'knob-START_CURVE': {
@@ -331,6 +404,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Courbe de redémarrage',
               b: 'Façonne le retour. À 0 la vitesse monte en ligne droite ; à 100 elle traîne près de l’arrêt puis se précipite à la fin. 50 correspond à la physique d’une platine.',
               reviewed: true },
+        'zh-Hans': { t: '加速曲线',
+                     b: '塑造回升的形状。为 0 时速度沿直线上升；为 100 时先在接近静止处停留，再在末尾冲回。50 是唱盘的物理特性。',
+                     reviewed: 'mt' },
     },
 
     'envCanvas': {
@@ -339,6 +415,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Enveloppe de scratch',
               b: 'La vitesse tout au long d’un passage. La ligne 1× est la vitesse normale, 0 l’immobilité, et tout ce qui passe sous la ligne 0 se lit à l’envers — jusqu’à −2×. Glisser les points pour la remodeler.',
               reviewed: true },
+        'zh-Hans': { t: '刮擦包络',
+                     b: '一次通过之内的速度。1× 线为正常速度，0 为静止，0 线以下的一切都反向播放，最低到 −2×。拖动节点即可重新塑形。',
+                     reviewed: 'mt' },
     },
 
     'combo-ENV_SYNC_DIV': {
@@ -347,6 +426,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Durée du passage',
               b: 'Le temps que dure un parcours complet de l’enveloppe dessinée, en division de note du tempo de l’hôte.',
               reviewed: true },
+        'zh-Hans': { t: '通过长度',
+                     b: '走完绘制的包络一趟所需的时间，以宿主速度的音符分割表示。',
+                     reviewed: 'mt' },
     },
 
     'knob-ENV_FREE_MS': {
@@ -355,6 +437,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Durée du passage',
               b: 'Le temps que dure un parcours complet de l’enveloppe dessinée, en millisecondes.',
               reviewed: true },
+        'zh-Hans': { t: '通过长度',
+                     b: '走完绘制的包络一趟所需的时间，以毫秒计。',
+                     reviewed: 'mt' },
     },
 
     'seg-char-wobble': {
@@ -363,6 +448,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Pleurage',
               b: 'Pleurage et scintillement déterministes — une sinusoïde régulière surmontée d’une bande de scintillement à trois harmoniques. Le versant nauséeux de la bande usée.',
               reviewed: true },
+        'zh-Hans': { t: '摇摆',
+                     b: '确定性的抖晃：一条稳定的正弦，上方叠加三次谐波的抖动带。磨损磁带中最令人晕眩的一端。',
+                     reviewed: 'mt' },
     },
 
     'seg-char-random': {
@@ -371,6 +459,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Aléatoire',
               b: 'Une marche aléatoire qui dérive sur trois échelles de temps à la fois. Elle ne se répète jamais et ne se pose jamais tout à fait.',
               reviewed: true },
+        'zh-Hans': { t: '随机',
+                     b: '同时跨越三个时间尺度的漂移随机游走。它从不重复，也从不真正安定。',
+                     reviewed: 'mt' },
     },
 
     'seg-char-glitch': {
@@ -379,6 +470,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Glitch',
               b: 'Un séquenceur sur grille qui déclenche des événements de vitesse discrets — creux, blocages à mi-vitesse, coups en marche arrière. Le Chaos décide combien se déclenchent et à quel point ils raccourcissent.',
               reviewed: true },
+        'zh-Hans': { t: '故障',
+                     b: '一个网格调度器触发离散的速度事件：下陷、半速停滞、反向刺击。“混沌”决定触发多少个，以及它们有多短。',
+                     reviewed: 'mt' },
     },
 
     'combo-CONT_RATE_SYNC_DIV': {
@@ -387,6 +481,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse du mouvement',
               b: 'À quelle vitesse le mouvement se répète, en division de note du tempo de l’hôte.',
               reviewed: true },
+        'zh-Hans': { t: '运动速率',
+                     b: '运动循环的快慢，以宿主速度的音符分割表示。',
+                     reviewed: 'mt' },
     },
 
     'knob-CONT_RATE_HZ': {
@@ -395,6 +492,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse du mouvement',
               b: 'À quelle vitesse le mouvement se répète, en hertz. 0,05 Hz correspond à un balayage lent toutes les vingt secondes ; 20 Hz à un bourdonnement.',
               reviewed: true },
+        'zh-Hans': { t: '运动速率',
+                     b: '运动循环的快慢，以赫兹计。0.05 Hz 是每二十秒一次的缓慢扫描；20 Hz 则是一阵嗡鸣。',
+                     reviewed: 'mt' },
     },
 
     'knob-CONT_DEPTH': {
@@ -403,6 +503,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Profondeur du mouvement',
               b: 'Écart de vitesse maximal, dosé à l’oreille plutôt que linéairement : 0 représente à peine deux centièmes de demi-ton de dérive, 50 environ un pour cent, et 100 atteint près de deux demi-tons.',
               reviewed: true },
+        'zh-Hans': { t: '运动深度',
+                     b: '峰值速度偏离量，按听感而非线性缩放：0 时几乎只有两音分的漂移，50 时约为百分之一，100 时可达约两个半音。',
+                     reviewed: 'mt' },
     },
 
     'knob-CONT_CHAOS': {
@@ -411,6 +514,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Chaos',
               b: 'À quel point le mouvement est irrégulier. À 0, chaque Caractère joue sa forme la plus sage et la plus reproductible ; en montant, le Pleurage se met à trembler, la dérive de l’Aléatoire s’élargit, et les événements de Glitch deviennent plus rapides et plus courts.',
               reviewed: true },
+        'zh-Hans': { t: '混沌',
+                     b: '运动有多不规则。为 0 时每种“特性”都以最温顺、最可重复的形态运行；调高它会让“摇摆”产生抖动，让“随机”的漂移变宽，并解锁更快更短的“故障”事件。',
+                     reviewed: 'mt' },
     },
 
     'knob-TONE_TRACK': {
@@ -419,6 +525,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Suivi de timbre',
               b: 'Assombrit le trajet en vitesse variable à mesure que la bande ralentit, comme la bande et le vinyle perdent leurs aigus hors vitesse. À 0 rien n’est filtré ; à 100 l’arrêt complet descend jusqu’à 150 Hz. À pleine vitesse le trajet reste toujours ouvert.',
               reviewed: true },
+        'zh-Hans': { t: '音色跟随',
+                     b: '随着磁带变慢让变速通路变暗，正如磁带和黑胶在偏离正常速度时失去高频。为 0 时不作滤波；为 100 时完全静止可下探到 150 Hz。全速时始终不加衰减。',
+                     reviewed: 'mt' },
     },
 
     'knob-MIX': {
@@ -427,6 +536,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Mix',
               b: 'Équilibre entre le signal direct et le trajet en vitesse variable — un simple fondu croisé, qui sert donc aussi de mélange parallèle. Ne s’applique qu’à la chaîne enclenchée ; hors enclenchement la sortie est le signal direct au bit près.',
               reviewed: true },
+        'zh-Hans': { t: '混合',
+                     b: '干输入与变速通路之间的平衡：一次直接的交叉淡化，因此它同时可当作并联混合使用。仅作用于已启动的信号链；未启动时的输出是逐比特的干信号。',
+                     reviewed: 'mt' },
     },
 
     'knob-OUTPUT_GAIN': {
@@ -435,6 +547,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Gain de sortie',
               b: 'Ajustement final, de −24 à +12 dB. Comme le Mix, il ne porte que sur la chaîne enclenchée et revient progressivement à l’unité pendant le fondu de resynchronisation.',
               reviewed: true },
+        'zh-Hans': { t: '输出增益',
+                     b: '最终微调，−24 至 +12 dB。与“混合”一样，它仅作用于已启动的信号链，并在重新同步的淡化过程中滑回单位增益。',
+                     reviewed: 'mt' },
     },
 });
 
@@ -492,7 +607,8 @@ export const LABELS = Object.freeze({
     // Not 'help-toggle': that tip's title is "Hover Help", this caption is
     // "Hover help". The reuse rule wants both languages identical, and these
     // differ in English before French is even considered.
-    'label.hoverHelp':   { en: { t: 'Hover help' },  fr: { t: 'Infobulles', reviewed: true } },
+    'label.hoverHelp':   { en: { t: 'Hover help' },  fr: { t: 'Infobulles', reviewed: true },
+                         'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },
 
     // The hover-help toggle's two faces, and the delete button's armed face.
     // These are the only three strings on this page written from script. They
@@ -504,54 +620,80 @@ export const LABELS = Object.freeze({
     // "Marche" / "Arrêt" rather than "Activé" / "Désactivé": the toggle face is
     // 44 px, and this is the vocabulary a piece of hardware uses, which is the
     // register the whole panel is written in.
-    'ui.on':             { en: { t: 'On' },          fr: { t: 'Marche',        reviewed: true } },
-    'ui.off':            { en: { t: 'Off' },         fr: { t: 'Arrêt',         reviewed: true } },
-    'ui.confirm':        { en: { t: 'Confirm?' },    fr: { t: 'Confirmer ?',   reviewed: true } },
+    'ui.on':             { en: { t: 'On' },          fr: { t: 'Marche',        reviewed: true },
+                         'zh-Hans': { t: '开', reviewed: 'mt' } },
+    'ui.off':            { en: { t: 'Off' },         fr: { t: 'Arrêt',         reviewed: true },
+                         'zh-Hans': { t: '关', reviewed: 'mt' } },
+    'ui.confirm':        { en: { t: 'Confirm?' },    fr: { t: 'Confirmer ?',   reviewed: true },
+                         'zh-Hans': { t: '确认？', reviewed: 'mt' } },
 
     // ── Header ──────────────────────────────────────────────────────────────
     'label.subtitle':    { en: { t: 'Varispeed Transport · A Field Guide' },
-                           fr: { t: 'Transport à vitesse variable · Guide de terrain', reviewed: true } },
+                           fr: { t: 'Transport à vitesse variable · Guide de terrain', reviewed: true },
+                         'zh-Hans': { t: '变速走带 · 实地指南', reviewed: 'mt' } },
 
     // ── TRIGGER panel ───────────────────────────────────────────────────────
-    'label.trigger':     { en: { t: 'Trigger' },     fr: { t: 'Déclenchement', reviewed: true } },
-    'label.mode':        { en: { t: 'Mode' },        fr: { t: 'Mode',          reviewed: true, sameAsEn: true } },
-    'label.modeStop':    { en: { t: 'Stop' },        fr: { t: 'Arrêt',         reviewed: true } },
-    'label.modeScratch': { en: { t: 'Scratch' },     fr: { t: 'Scratch',       reviewed: true, sameAsEn: true } },
+    'label.trigger':     { en: { t: 'Trigger' },     fr: { t: 'Déclenchement', reviewed: true },
+                         'zh-Hans': { t: '触发', reviewed: 'mt' } },
+    'label.mode':        { en: { t: 'Mode' },        fr: { t: 'Mode',          reviewed: true, sameAsEn: true },
+                         'zh-Hans': { t: '模式', reviewed: 'mt' } },
+    'label.modeStop':    { en: { t: 'Stop' },        fr: { t: 'Arrêt',         reviewed: true },
+                         'zh-Hans': { t: '停止', reviewed: 'mt' } },
+    'label.modeScratch': { en: { t: 'Scratch' },     fr: { t: 'Scratch',       reviewed: true, sameAsEn: true },
+                         'zh-Hans': { t: '刮擦', reviewed: 'mt' } },
     // Shared by the MODE segment, the CHARACTER pane's Motion caption and
     // #modeSegments' aria-label: one concept, one string, one key.
-    'label.motion':      { en: { t: 'Motion' },      fr: { t: 'Mouvement',     reviewed: true } },
+    'label.motion':      { en: { t: 'Motion' },      fr: { t: 'Mouvement',     reviewed: true },
+                         'zh-Hans': { t: '运动', reviewed: 'mt' } },
     'label.timing':      { en: { t: 'Timing' },
                            fr: { t: 'Cadence', reviewed: true,
                                  termNote: 'the caption heads the SYNC/FREE pair — it names the time BASE, '
                                          + 'not the rhythmic offset the glossary term "décalage" means; '
-                                         + 'this page carries no nudge control' } },
-    'label.sync':        { en: { t: 'Sync' },        fr: { t: 'Synchro',       reviewed: true } },
-    'label.playback':    { en: { t: 'Playback' },    fr: { t: 'Lecture',       reviewed: true } },
+                                         + 'this page carries no nudge control' },
+                         'zh-Hans': { t: '计时', reviewed: 'mt',
+                                       termNote: 'this caption heads the SYNC/FREE switch and names a time BASE, not a duration. The glossary root 时值 is the note-VALUE sense and goes false on the FREE arm, where every duration is set in milliseconds; it also sits one character from label.time 时间 on the same page, which is the collision the reader would actually make.' } },
+    'label.sync':        { en: { t: 'Sync' },        fr: { t: 'Synchro',       reviewed: true },
+                         'zh-Hans': { t: '同步', reviewed: 'mt' } },
+    'label.playback':    { en: { t: 'Playback' },    fr: { t: 'Lecture',       reviewed: true },
+                         'zh-Hans': { t: '播放', reviewed: 'mt' } },
 
     // ── CENTER panel ────────────────────────────────────────────────────────
-    'label.transport':   { en: { t: 'Transport' },   fr: { t: 'Transport',     reviewed: true, sameAsEn: true } },
-    'label.spinDown':    { en: { t: 'Spin Down' },   fr: { t: 'Ralentissement', reviewed: true } },
-    'label.spinUp':      { en: { t: 'Spin Up' },     fr: { t: 'Redémarrage',   reviewed: true } },
-    'label.division':    { en: { t: 'Division' },    fr: { t: 'Division',      reviewed: true, sameAsEn: true } },
-    'label.time':        { en: { t: 'Time' },        fr: { t: 'Durée',         reviewed: true } },
-    'label.curve':       { en: { t: 'Curve' },       fr: { t: 'Courbe',        reviewed: true } },
-    'label.passLength':  { en: { t: 'Pass Length' }, fr: { t: 'Passage',       reviewed: true } },
+    'label.transport':   { en: { t: 'Transport' },   fr: { t: 'Transport',     reviewed: true, sameAsEn: true },
+                         'zh-Hans': { t: '走带', reviewed: 'mt' } },
+    'label.spinDown':    { en: { t: 'Spin Down' },   fr: { t: 'Ralentissement', reviewed: true },
+                         'zh-Hans': { t: '减速', reviewed: 'mt' } },
+    'label.spinUp':      { en: { t: 'Spin Up' },     fr: { t: 'Redémarrage',   reviewed: true },
+                         'zh-Hans': { t: '加速', reviewed: 'mt' } },
+    'label.division':    { en: { t: 'Division' },    fr: { t: 'Division',      reviewed: true, sameAsEn: true },
+                         'zh-Hans': { t: '分割', reviewed: 'mt' } },
+    'label.time':        { en: { t: 'Time' },        fr: { t: 'Durée',         reviewed: true },
+                         'zh-Hans': { t: '时间', reviewed: 'mt' } },
+    'label.curve':       { en: { t: 'Curve' },       fr: { t: 'Courbe',        reviewed: true },
+                         'zh-Hans': { t: '曲线', reviewed: 'mt' } },
+    'label.passLength':  { en: { t: 'Pass Length' }, fr: { t: 'Passage',       reviewed: true },
+                         'zh-Hans': { t: '通过长度', reviewed: 'mt' } },
 
     // The envelope hint is TWO text nodes around a <br> in one .env-hint div.
     // Keyed as two spans rather than one key with a \n: applyLabel writes
     // textContent, which would delete the <br> and collapse the two lines into
     // one, and the second line is what tells the user how to REMOVE a point.
     'label.envHint1':    { en: { t: 'Drag points · double-click to add' },
-                           fr: { t: 'Glisser les points · double-clic pour ajouter', reviewed: true } },
+                           fr: { t: 'Glisser les points · double-clic pour ajouter', reviewed: true },
+                         'zh-Hans': { t: '拖动节点 · 双击添加', reviewed: 'mt' } },
     'label.envHint2':    { en: { t: 'alt-click removes · drag a diamond to bend' },
-                           fr: { t: 'alt-clic pour retirer · glisser un losange pour infléchir', reviewed: true } },
+                           fr: { t: 'alt-clic pour retirer · glisser un losange pour infléchir', reviewed: true },
+                         'zh-Hans': { t: 'alt 点击删除 · 拖动菱形可弯曲', reviewed: 'mt' } },
 
-    'label.character':   { en: { t: 'Character' },   fr: { t: 'Caractère',     reviewed: true } },
-    'label.rate':        { en: { t: 'Rate' },        fr: { t: 'Vitesse',       reviewed: true } },
-    'label.depth':       { en: { t: 'Depth' },       fr: { t: 'Profondeur',    reviewed: true } },
+    'label.character':   { en: { t: 'Character' },   fr: { t: 'Caractère',     reviewed: true },
+                         'zh-Hans': { t: '特性', reviewed: 'mt' } },
+    'label.rate':        { en: { t: 'Rate' },        fr: { t: 'Vitesse',       reviewed: true },
+                         'zh-Hans': { t: '速率', reviewed: 'mt' } },
+    'label.depth':       { en: { t: 'Depth' },       fr: { t: 'Profondeur',    reviewed: true },
+                         'zh-Hans': { t: '深度', reviewed: 'mt' } },
 
     // ── OUTPUT panel ────────────────────────────────────────────────────────
-    'label.output':      { en: { t: 'Output' },      fr: { t: 'Sortie',        reviewed: true } },
+    'label.output':      { en: { t: 'Output' },      fr: { t: 'Sortie',        reviewed: true },
+                         'zh-Hans': { t: '输出', reviewed: 'mt' } },
     // v1.6.1: this key and the knob-TONE_TRACK tip title now carry the SAME
     // French, the glossary root "Suivi de timbre". v1.6.0 shipped the shorter
     // "Suivi tonal" here and defended it at "97 px in an 88 px knob cell";
@@ -561,13 +703,16 @@ export const LABELS = Object.freeze({
     // box [671, 819], 28.02 px clear on each side. The keys still stay separate
     // (the reuse rule is an allowance, not an obligation): one is a 9.5 px
     // caption in a fixed column, the other is prose in a 230 px tip.
-    'label.toneTrack':   { en: { t: 'Tone Track' },  fr: { t: 'Suivi de timbre', reviewed: true } },
+    'label.toneTrack':   { en: { t: 'Tone Track' },  fr: { t: 'Suivi de timbre', reviewed: true },
+                         'zh-Hans': { t: '音色跟随', reviewed: 'mt' } },
     // NOT knob-OUTPUT_GAIN, whose title is "Output Gain": this caption is the
     // bare word, under an OUTPUT group heading that already says the rest.
-    'label.gain':        { en: { t: 'Gain' },        fr: { t: 'Gain',          reviewed: true, sameAsEn: true } },
+    'label.gain':        { en: { t: 'Gain' },        fr: { t: 'Gain',          reviewed: true, sameAsEn: true },
+                         'zh-Hans': { t: '增益', reviewed: 'mt' } },
 
     'label.footer':      { en: { t: 'Drag vertically · wheel or arrows to trim · double-click to reset' },
-                           fr: { t: 'Glisser verticalement · molette ou flèches pour ajuster · double-clic pour réinitialiser', reviewed: true } },
+                           fr: { t: 'Glisser verticalement · molette ou flèches pour ajuster · double-clic pour réinitialiser', reviewed: true },
+                         'zh-Hans': { t: '垂直拖动 · 滚轮或方向键微调 · 双击重置', reviewed: 'mt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
@@ -575,13 +720,19 @@ export const LABELS = Object.freeze({
     // name is the same failure as a French page with an English caption. These
     // have no rendered box, so none of them is a geometry risk.
     'aria.langSelect':   { en: { t: 'Interface language' },
-                           fr: { t: 'Langue de l’interface', reviewed: true } },
+                           fr: { t: 'Langue de l’interface', reviewed: true },
+                         'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
     'aria.helpToggle':   { en: { t: 'Toggle hover help' },
-                           fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
-    'aria.presetPrev':   { en: { t: 'Previous preset' },  fr: { t: 'Préréglage précédent', reviewed: true } },
-    'aria.presetNext':   { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: true } },
-    'aria.modeCont':     { en: { t: 'Continuous motion' },fr: { t: 'Mouvement continu',    reviewed: true } },
-    'aria.syncSegments': { en: { t: 'Sync Mode' },        fr: { t: 'Mode de synchro', reviewed: true } },
+                           fr: { t: 'Activer ou désactiver les infobulles', reviewed: true },
+                         'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
+    'aria.presetPrev':   { en: { t: 'Previous preset' },  fr: { t: 'Préréglage précédent', reviewed: true },
+                         'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
+    'aria.presetNext':   { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: true },
+                         'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
+    'aria.modeCont':     { en: { t: 'Continuous motion' },fr: { t: 'Mouvement continu',    reviewed: true },
+                         'zh-Hans': { t: '连续运动', reviewed: 'mt' } },
+    'aria.syncSegments': { en: { t: 'Sync Mode' },        fr: { t: 'Mode de synchro', reviewed: true },
+                         'zh-Hans': { t: '同步模式', reviewed: 'mt' } },
     // v1.6.2 (item 38): the three division selects are named after their tip
     // title plus what the control is, so the visible caption "Division" and
     // the title are both substrings of the accessible name (WCAG 2.5.3) —
@@ -589,13 +740,17 @@ export const LABELS = Object.freeze({
     // a third name that matched neither. The French keeps the tip titles'
     // settled forms; no new rendering of spin-down / spin-up / pass.
     'aria.stopTime':     { en: { t: 'Spin-Down Time division' },
-                           fr: { t: 'Division de la durée de ralentissement', reviewed: true } },
+                           fr: { t: 'Division de la durée de ralentissement', reviewed: true },
+                         'zh-Hans': { t: '减速时间分割', reviewed: 'mt' } },
     'aria.startTime':    { en: { t: 'Spin-Up Time division' },
-                           fr: { t: 'Division de la durée de redémarrage',    reviewed: true } },
+                           fr: { t: 'Division de la durée de redémarrage',    reviewed: true },
+                         'zh-Hans': { t: '加速时间分割', reviewed: 'mt' } },
     'aria.envCanvas':    { en: { t: 'Scratch speed envelope' },
-                           fr: { t: 'Enveloppe de vitesse du scratch', reviewed: true } },
+                           fr: { t: 'Enveloppe de vitesse du scratch', reviewed: true },
+                         'zh-Hans': { t: '刮擦速度包络', reviewed: 'mt' } },
     'aria.envLength':    { en: { t: 'Pass Length division' },
-                           fr: { t: 'Division de la durée du passage',        reviewed: true } },
+                           fr: { t: 'Division de la durée du passage',        reviewed: true },
+                         'zh-Hans': { t: '通过长度分割', reviewed: 'mt' } },
 
     // ── Preset dropdown theme headings (v1.6.2, item 39) ────────────────────
     // Written by app.js's buildPresetDropdown() through setLabel(), one
@@ -604,11 +759,16 @@ export const LABELS = Object.freeze({
     // "Arrêts de bande": the page's French for tape is "bande" (engage-btn,
     // seg-mode-cont, knob-TONE_TRACK). "Pleurage": the Wobble tip title's
     // word (glossary root for wow); "Déformation": the glossary root for warp.
-    'label.themeTapeStops':   { en: { t: 'Tape Stops' },     fr: { t: 'Arrêts de bande',        reviewed: true } },
-    'label.themeScratch':     { en: { t: 'Scratch' },        fr: { t: 'Scratch',                reviewed: true, sameAsEn: true } },
-    'label.themeWobbleWarp':  { en: { t: 'Wobble & Warp' },  fr: { t: 'Pleurage & Déformation', reviewed: true } },
-    'label.themeGlitchChaos': { en: { t: 'Glitch & Chaos' }, fr: { t: 'Glitch & Chaos',         reviewed: true, sameAsEn: true } },
-    'label.themeUser':        { en: { t: 'User' },           fr: { t: 'Utilisateur',            reviewed: true } },
+    'label.themeTapeStops':   { en: { t: 'Tape Stops' },     fr: { t: 'Arrêts de bande',        reviewed: true },
+                              'zh-Hans': { t: '磁带停转', reviewed: 'mt' } },
+    'label.themeScratch':     { en: { t: 'Scratch' },        fr: { t: 'Scratch',                reviewed: true, sameAsEn: true },
+                              'zh-Hans': { t: '刮擦', reviewed: 'mt' } },
+    'label.themeWobbleWarp':  { en: { t: 'Wobble & Warp' },  fr: { t: 'Pleurage & Déformation', reviewed: true },
+                              'zh-Hans': { t: '摇摆与扭曲', reviewed: 'mt' } },
+    'label.themeGlitchChaos': { en: { t: 'Glitch & Chaos' }, fr: { t: 'Glitch & Chaos',         reviewed: true, sameAsEn: true },
+                              'zh-Hans': { t: '故障与混沌', reviewed: 'mt' } },
+    'label.themeUser':        { en: { t: 'User' },           fr: { t: 'Utilisateur',            reviewed: true },
+                              'zh-Hans': { t: '用户', reviewed: 'mt' } },
 });
 
 // ============================================================================
@@ -637,6 +797,13 @@ export const I18N_EXEMPT = [
     // a session saved against "Cathedral" would not resolve "Cathédrale".
     // "Default" is the placeholder the manager overwrites on its first pass.
     ['Default',                 'a factory preset name — exempt under D-02, because the name IS the JSON filename'],
+
+    // v1.7.0 — the Chinese endonym in #lang-select. The markup writes it as
+    // the numeric character references &#31616;&#20307;&#20013;&#25991;, copied
+    // byte-for-byte from the shipped convention rather than retyped, but the
+    // parser decodes them before the coverage sweep ever runs, so THIS entry
+    // has to carry the DECODED four characters or the exemption never matches.
+    ['简体中文',            'an endonym — a language name is never translated'],
 ];
 
 // [selector, key] or [selector, key, wrapperSelector]. The selector is the
