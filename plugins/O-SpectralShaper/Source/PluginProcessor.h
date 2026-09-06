@@ -121,8 +121,13 @@ public:
     int  getUiLanguageIndex() const { return uiLanguage.load(std::memory_order_acquire); }
     void setUiLanguageIndex(int i)  { uiLanguage.store(i, std::memory_order_release); }
 
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    // languageIndex() maps anything that is neither "fr" nor "zh-Hans" to 0, so
+    // a hand-edited session degrades to English rather than storing an
+    // unvalidated value. NO CHINESE CHARACTER APPEARS ANYWHERE UNDER Source/ —
+    // every Chinese string lives in Resources/ui/js/i18n.js, and the one Han
+    // string in the markup is written as numeric character references.
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
 private:
     // DSP Components (declared BEFORE parameters for correct initialization order)

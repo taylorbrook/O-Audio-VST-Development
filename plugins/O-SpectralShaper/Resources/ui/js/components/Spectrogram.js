@@ -27,6 +27,11 @@
  * - Logarithmic frequency axis
  */
 
+// The one user-facing string this component paints lives in the shared table,
+// not here. See js/i18n.js, key `canvas.webglUnsupported`, for why a canvas
+// string has to be housed in I18N with an empty body rather than in LABELS.
+import { tr } from '../i18n.js';
+
 export class Spectrogram {
     constructor(canvasId, options = {}) {
         this.canvas = document.getElementById(canvasId);
@@ -413,13 +418,32 @@ export class Spectrogram {
         this.isReady = false;
 
         // TODO: Implement Canvas 2D fallback if needed
-        // For now, just display a message
+        // For now, just display a message.
+        //
+        // THE MESSAGE IS READ FROM THE TABLE, not written here. A canvas string
+        // has no element, so no gate in this repo can see it: check-i18n walks
+        // text nodes and textContent writes, check-ui-labels has no canvas
+        // awareness, and measure-ui reads computed style on elements. This
+        // sentence shipped in English on the French page for the whole of the
+        // French rollout and nothing reported it.
+        //
+        // The language comes from document.documentElement.lang, which app.js
+        // sets on every language change, rather than from a value passed in:
+        // this branch is reached from the constructor, before any controller
+        // could hand it one, and the attribute is live at that point.
+        //
+        // The font stack carries the CJK tail before its trailing generic, for
+        // the same reason every stack on this page does — a bare `serif` under a
+        // Chinese document language is already resolved to a Chinese face and a
+        // tail written after it is never consulted.
+        const lang = document.documentElement.lang || 'en';
         this.ctx.fillStyle = '#1C1712';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.fillStyle = '#C9B79A';
-        this.ctx.font = "14px Garamond, 'Times New Roman', serif";
+        this.ctx.font = "14px Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif";
         this.ctx.textAlign = 'center';
-        this.ctx.fillText('WebGL not supported', this.canvas.width / 2, this.canvas.height / 2);
+        this.ctx.fillText(tr('canvas.webglUnsupported', lang).t,
+                          this.canvas.width / 2, this.canvas.height / 2);
     }
 
     // ============================================================================

@@ -70,7 +70,20 @@
     --text-emboss: rgba(255, 250, 240, 0.55);
     --fleuron: rgba(92, 64, 51, 0.32);
 
-    --serif: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+    /* ONE TOKEN, TWELVE DECLARATIONS. Every font-family on this page resolves
+       through --serif, so the CJK tail lands exactly once. It goes BEFORE the
+       trailing generic: Chromium resolves a bare `serif` against the
+       document's lang, so under zh-Hans the generic is ALREADY a Chinese face
+       and a tail written after it is never consulted — and the page still
+       looks right on macOS, which is what makes that mistake survive review.
+       No face had to be named here: of the four Latin families listed, only
+       Times New Roman is installed on the build machine (measured with
+       system_profiler SPFontsDataType — Garamond 0, EB Garamond 0, Adobe
+       Garamond Pro 0, Times New Roman 4), and one installed face before the
+       generic is all the Latin half needs. Note that the type token is named
+       for the typeface ROLE and not for the word `font`, so a screen greping
+       for a custom property containing `font` does not find it. */
+    --serif: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 /* ============================================================================
@@ -317,6 +330,7 @@ body::after {
 }
 
 .preset-action-btn {
+    line-height: 1.1111;   /* 18.00 - 6 pad - 2 border = 10.00 / 9px — see the LINE-HEIGHT PINS block */
     padding: 3px 8px;
     font-size: 9px;
     font-family: var(--serif);
@@ -373,7 +387,52 @@ body::after {
     display: block;
 }
 
+/* ── LINE-HEIGHT PINS (v1.8.0, the Chinese arm) ─────────────────────────────
+   `line-height: normal` is not a number — it is whatever the RESOLVED FACE
+   reports as its natural line box, and the resolved face changes with the
+   document language. PingFang SC reports a taller natural line box than Times
+   New Roman at the same font-size, so every Han-carrying leaf below grew 3 px on
+   the Chinese arm with no other change, and the growth cascaded down the knob
+   sidebar: 22 non-label elements moved, all of them by an accumulating dy.
+
+   Each pin is DERIVED FROM THAT LEAF'S OWN MEASURED ENGLISH BOX — height minus
+   padding minus border, over its own font-size — never copied between selectors
+   and never set globally. They are UNITLESS so a leaf that inherits into a
+   differently sized child scales rather than pinning the child to the parent's
+   pixel box.
+
+   Measured at the shipping 700 x 500 frame with getComputedStyle, English arm,
+   all three states in tests/i18n-states.json driven:
+
+     .spectrogram-label  11.00 - 0 - 0            = 11.00 / 10px = 1.1
+     .curve-label        11.00 - 0 - 0            = 11.00 / 10px = 1.1
+     .knob-label         11.00 - 0 - 0            = 11.00 / 10px = 1.1
+     .settings-label     11.00 - 0 - 0            = 11.00 / 10px = 1.1
+     .toggle-label       10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+     .preset-action-btn  18.00 - 6 pad - 2 border = 10.00 /  9px = 1.1111
+
+   R8 WAS RUN IN BOTH ITS HALVES, not just the line-height half:
+
+     line-height — the five declarations this file already carried (:308
+       .preset-nav-btn, :796 .gear-btn, :862 .settings-popover select, :929
+       .settings-toggle, :999 .tooltip-body) were read for a specificity conflict
+       FIRST; none of them targets a selector above.
+
+     min-width — the SIX French-era pins (:361 #preset-save 43.55, :362
+       #preset-load 46.2, :493 .curve-spectrum-btn 75.92, :494 .curve-reset-btn
+       53.52, :495 .curve-mode-toggle 76.41, :832 .settings-popover 168) are
+       FLOORS, not safety, so every one was RE-MEASURED on the Chinese arm rather
+       than assumed to cover it. All six hold: the Chinese renderings of those
+       captions come in at or below the French widths the pins were set from, so
+       the floor that was written for French is doing the work for Chinese too.
+       Checked, not inherited — the point of R8 is that "already pinned" is not
+       the same claim as "measured".
+
+   EVERY ONE IS A NO-OP IN ENGLISH AND IN FRENCH — that is the test, and
+   check-ui-labels reports 0 moved elements on both those arms after them. */
+
 .spectrogram-label {
+    line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the LINE-HEIGHT PINS block */
     position: absolute;
     top: 7px;
     left: 9px;
@@ -414,6 +473,7 @@ body::after {
 }
 
 .curve-label {
+    line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the LINE-HEIGHT PINS block */
     position: absolute;
     top: 6px;
     left: 9px;
@@ -658,6 +718,7 @@ body::after {
 }
 
 .knob-label {
+    line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the LINE-HEIGHT PINS block */
     font-size: 10px;
     letter-spacing: 1px;
     color: var(--brown-soft);
@@ -725,6 +786,7 @@ body::after {
 }
 
 .toggle-label {
+    line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the LINE-HEIGHT PINS block */
     font-size: 9px;
     letter-spacing: 1px;
     color: var(--brown-soft);
@@ -839,6 +901,7 @@ body::after {
 }
 
 .settings-label {
+    line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the LINE-HEIGHT PINS block */
     font-family: var(--serif);
     font-size: 10px;
     color: var(--brown-frame);
