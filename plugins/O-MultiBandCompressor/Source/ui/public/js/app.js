@@ -892,10 +892,38 @@ function initializeSpectrumPlaceholder() {
     ctx.stroke();
 
     // Add text
+    //
+    // THE CAPTION IS READ FROM THE TABLE, not written here. A canvas string has
+    // no element, so no gate in this repo can see it: check-i18n assertion 10
+    // walks text nodes and assertion 12 scans textContent / innerText writes —
+    // neither reaches fillText — check-ui-labels has no canvas awareness, and
+    // measure-ui reads computed style on elements. This caption shipped in
+    // English on the French page for the whole of the French rollout and
+    // nothing reported it.
+    //
+    // The key lives in I18N with an empty body, deliberately NOT in LABELS:
+    // assertion 15 fails a LABELS key that no element and no setLabel call
+    // reaches, and a tr() call from a paint routine is in neither set.
+    //
+    // The language comes from document.documentElement.lang, which the language
+    // sweep sets on every change, rather than from a value passed in: this
+    // routine is called from the boot path before any controller could hand it
+    // one, and the attribute is live at that point.
+    //
+    // The font stack now names an installed face and carries the CJK tail
+    // BEFORE its trailing generic. Garamond alone is not installed on the build
+    // machine, so the bare stack resolved to whatever the UA chose; under a
+    // Chinese document language a trailing generic is already a Chinese face,
+    // and a tail written after it would never be consulted.
+    const canvasLang = document.documentElement.lang || 'en';
     ctx.fillStyle = 'rgba(60, 47, 47, 0.4)';
-    ctx.font = '14px Garamond';
+    ctx.font = "14px Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif";
     ctx.textAlign = 'center';
-    ctx.fillText('Spectrum Analyzer', width / 2, height / 2 - 10);
+    ctx.fillText(tr('canvas.spectrumPlaceholder', canvasLang).t, width / 2, height / 2 - 10);
+    // NOT a localization site. This is a build-stage marker on a user-visible
+    // surface — a product question with no localization budget attached — and
+    // it is left exactly as found. Recorded for the developer in the wave's
+    // deferred-items.md with this file and line.
     ctx.fillText('(Phase 5.3)', width / 2, height / 2 + 10);
 }
 
