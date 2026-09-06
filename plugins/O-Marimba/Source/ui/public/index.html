@@ -53,7 +53,7 @@
             align-items: center;
             min-height: 100%;
             background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 
             /* Native feel CSS */
             user-select: none;
@@ -424,6 +424,16 @@
                MATERIAL/HARDNESS  60.80  ->  DURETÉ/MATÉRIAU  59.67   (v1.13.1)
                OVERTONE/DAMPING   61.11  ->  AMORT./HARMON.   53.95
                VELOCITY           58.00  ->  VÉLOCITÉ         56.89                */
+        /* v1.14.0 — the FIFTH column, and the reason the note above needed
+           amending. RESONANCE was left unpinned because RÉSONANCE measures the
+           same column; 共振 does not — it is 14.02 px narrower, which let the
+           column shrink-wrap to the 55 px knob and dragged the knob, its
+           indicator and its readout 7 px sideways. Pinned to the EXACT measured
+           English border box rather than rounded up, so the en and fr arms do
+           not move at all:
+
+               RESONANCE          69.02  ->  共振             55.00              */
+        .knob-col-resonance { width: 69.02px; }
         .knob-col-mallet   { width: 61px; }
         .knob-col-material { width: 61px; }
         .knob-col-damping  { width: 62px; }
@@ -441,7 +451,7 @@
             border: 2px solid #3C5C1A;
             border-radius: 4px;
             padding: 6px 14px;
-            font-family: 'Garamond', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.8px;
@@ -752,7 +762,7 @@
 
         .interval-cents {
             color: #6B8E4E;
-            font-family: monospace;
+            font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
             font-size: 8px;
         }
 
@@ -762,7 +772,7 @@
             background: rgba(255, 255, 255, 0.7);
             border: 1px solid #8B7355;
             border-radius: 2px;
-            font-family: monospace;
+            font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
             font-size: 8px;
             color: #3C2F2F;
             text-align: right;
@@ -1031,7 +1041,7 @@
             color: #5C4033;
             font-size: 12px;
             font-weight: bold;
-            font-family: 'Georgia', serif;
+            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -1087,7 +1097,7 @@
         }
 
         .settings-label {
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #3C2F2F;
             letter-spacing: 0.5px;
@@ -1101,7 +1111,7 @@
             border-radius: 3px;
             background: rgba(139, 168, 112, 0.25);
             color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
@@ -1123,7 +1133,7 @@
             border-radius: 3px;
             background: rgba(139, 168, 112, 0.25);
             color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
@@ -1159,7 +1169,7 @@
             padding: 6px 10px;
             border: 1px solid rgba(139, 115, 85, 0.6);
             border-radius: 4px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             line-height: 1.4;
             max-width: 200px;
             z-index: 1000;
@@ -1215,7 +1225,67 @@
             outline: 1px dashed rgba(139, 168, 112, 0.4);
             outline-offset: 2px;
         }
-    </style>
+    
+        /* ── LINE-HEIGHT PINS (v1.14.0, the zh-Hans rollout) ─────────────────
+
+           A Han glyph's line box under `line-height: normal` is roughly 30%
+           taller than a Latin one at the same font-size, so every caption leaf
+           that inherited `normal` GREW when the page went Chinese and pushed
+           what sat below it down the column. check-ui-labels named up to 78
+           moved elements on the zh arm and one label — the response graph's
+           `In` axis caption — grew into the velocity curve canvas it had
+           cleared in English.
+
+           Each pin is that leaf's OWN MEASURED ENGLISH CONTENT line box —
+           padding and border subtracted, line count checked before dividing —
+           over its own font-size, unitless, never global. Measured with
+           scripts/measure-ui.js --mode box across all 3 states at the parsed
+           600 x 400 shipping frame:
+
+             font-size  English line box  pin
+                6px           6px         6 / 6  = 1.0
+                7px           8px         8 / 7  = 1.1428571
+                8px           9px         9 / 8  = 1.125
+                9px          10px         10 / 9 = 1.1111111
+               10px          11px         11 / 10 = 1.1
+             7px, TWO lines  16px         8 / 7  = 1.1428571  (.btn-small wraps
+                                          in both languages — the pin is
+                                          per LINE, so the same ratio holds)
+
+           THE PIN IS LANGUAGE-INDEPENDENT ON PURPOSE. Each value is what
+           English and French already computed, so neither arm moves; only the
+           Chinese box comes back to it.
+
+           R8: this page carried FOUR line-height declarations before this
+           release — .settings-label, .settings-popover select, .tooltip and
+           .tooltip-body — and only .settings-label is a selector below. Its
+           existing 1.2 is REPLACED here rather than duplicated, and 1.2 was a
+           round number rather than a measurement: the leaf's own English line
+           box is 11px at 10px, so 1.1 is what the en and fr arms actually
+           render and neither moves.                                          */
+
+        .velocity-curve-display .axis-label      { line-height: 1.0; }        /*  6.00 /  6px */
+
+        .velocity-curve-display .title-label,
+        .vu-meter-label,
+        .tonic-label,
+        .btn.btn-small                           { line-height: 1.1428571; }  /*  8.00 /  7px */
+
+        .pitch-circle-label,
+        .interval-list-header,
+        .keyboard-help                           { line-height: 1.125; }      /*  9.00 /  8px */
+
+        /* .mts-label is `display: none` until MTS-ESP mode is entered, so the
+           census reports it at h=0 and only the state-driven gate sees it grow.
+           Same 9px ratio as the two preset buttons; its WIDTH was already pinned
+           at v1.13.0 by `flex: 0 0 91px`, so only the line box needed holding. */
+        .preset-save, .preset-load,
+        .mts-label                               { line-height: 1.1111111; }  /* 10.00 /  9px */
+
+        .knob-label,
+        .settings-label,
+        #btn-scala                               { line-height: 1.1; }        /* 11.00 / 10px */
+</style>
 </head>
 <body>
     <div class="plugin-container">
@@ -1242,6 +1312,7 @@
                     <select id="lang-select" data-i18n-aria="aria.langSelect" aria-label="Interface language">
                         <option value="en">English</option>
                         <option value="fr">Fran&ccedil;ais</option>
+                        <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                     </select>
                 </label>
 
@@ -1308,7 +1379,7 @@
                 <div class="knob-sublabel" id="material-value">50%</div>
             </div>
 
-            <div class="knob-container" style="left: 200px; top: 15px;">
+            <div class="knob-container knob-col-resonance" style="left: 200px; top: 15px;">
                 <div class="knob small" id="resonance-knob">
                     <div class="knob-indicator" id="resonance-indicator"></div>
                 </div>
