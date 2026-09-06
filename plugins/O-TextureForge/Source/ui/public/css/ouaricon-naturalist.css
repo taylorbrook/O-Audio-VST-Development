@@ -38,7 +38,16 @@
     --amber: #8B6914;
     --amber-light: #C9A27B;
     --toggle-active: rgba(107,142,35,0.5);
-    --font-primary: 'Garamond', 'Georgia', 'Times New Roman', serif;
+    /* ONE TOKEN, SIX DECLARATIONS. Every font-family on this page resolves
+       through --font-primary, so the CJK tail lands exactly once. It goes
+       BEFORE the trailing generic: Chromium resolves a bare `serif` against
+       the document's lang, so under zh-Hans the generic is ALREADY a Chinese
+       face and a tail written after it is never consulted — and the page still
+       looks right on macOS, which is what makes that mistake survive review.
+       No face had to be named: Garamond is not installed on the build machine
+       (measured, 0 family matches) but Georgia and Times New Roman both are,
+       so the Latin half of the stack was already safe. */
+    --font-primary: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * {
@@ -101,7 +110,51 @@ body::after {
     color: var(--text-primary);
 }
 
+/* ── LINE-HEIGHT PINS (v1.4.0, the Chinese arm) ─────────────────────────────
+   `line-height: normal` is not a number — it is whatever the RESOLVED FACE
+   reports as its natural line box, and the resolved face changes with the
+   document language. PingFang SC reports a taller natural line box than Georgia
+   at the same font-size, so every Han-carrying leaf below grew 2 to 3 px on the
+   Chinese arm with no other change, and the growth cascaded through the macro
+   panel and the bottom knob group: 37 non-label elements moved.
+
+   Each pin is DERIVED FROM THAT LEAF'S OWN MEASURED ENGLISH BOX — height minus
+   padding minus border, over its own font-size — never copied between selectors
+   and never set globally. They are UNITLESS so a leaf that inherits into a
+   differently sized child scales rather than pinning the child to the parent's
+   pixel box.
+
+   .knob-label IS PINNED TWICE, and that is the point of deriving rather than
+   copying. It renders at 9px in .knob-row and at 8px in .bottom-knob-group, and
+   9/8 and 10/9 are different ratios — one unitless number cannot serve both. The
+   stylesheet already scopes the two by parent, so the two pins have somewhere to
+   live; a class rendered at two sizes with only ONE selector would have needed a
+   new one.
+
+   Measured at the shipping 900 x 600 frame with getComputedStyle, English arm,
+   both states in tests/i18n-states.json driven:
+
+     .header .tagline                       11.00 - 0 - 0 = 11.00 / 10px = 1.1
+     .scatter-placeholder .placeholder-text 15.00 - 0 - 0 = 15.00 / 13px = 1.1538
+     .macro-panel .section-label             9.00 - 0 - 0 =  9.00 /  8px = 1.125
+     .knob-row .knob-label                  10.00 - 0 - 0 = 10.00 /  9px = 1.1111
+     .bottom-knob-group .knob-label          9.00 - 0 - 0 =  9.00 /  8px = 1.125
+     .midi-mode-label                        9.00 - 0 - 0 =  9.00 /  8px = 1.125
+     .settings-label                        10.00 - 0 - 0 = 10.00 /  9px = 1.1111
+     .settings-toggle    16.00 - 4 pad - 2 border = 10.00 /  9px = 1.1111
+     #file-size-overlay button  31.00 -16 pad - 0 = 15.00 / 13px = 1.1538
+
+   R8: the two line-height declarations this file already carried (:511 .gear-btn,
+   :678 .tooltip) were read for a specificity conflict FIRST; neither targets any
+   selector above. The one existing min-width (:623 .settings-toggle, 42px) is a
+   French-era floor and was RE-MEASURED rather than assumed to cover Chinese — 开
+   and 关 are both far inside it.
+
+   EVERY ONE IS A NO-OP IN ENGLISH AND IN FRENCH — that is the test, and
+   check-ui-labels reports 0 moved elements on both those arms after them. */
+
 .header .tagline {
+    line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the LINE-HEIGHT PINS block */
     font-size: 10px;
     font-style: italic;
     color: var(--text-secondary);
@@ -184,6 +237,7 @@ body::after {
    path check-i18n assertion 9 forbids for machine-drafted French. The break is
    now a \n in the table and this declaration is what renders it. */
 .scatter-placeholder .placeholder-text {
+    line-height: 1.1538;   /* 15.00 - 0 - 0 = 15.00 / 13px — see the LINE-HEIGHT PINS block */
     display: block;
     white-space: pre-line;
     /* The fileNotFound message interpolates a filesystem PATH, which has no
@@ -203,6 +257,7 @@ body::after {
 }
 
 .macro-panel .section-label {
+    line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px — see the LINE-HEIGHT PINS block */
     font-size: 8px;
     text-transform: uppercase;
     letter-spacing: 2px;
@@ -218,6 +273,7 @@ body::after {
 }
 
 .knob-row .knob-label {
+    line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the LINE-HEIGHT PINS block */
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -327,6 +383,7 @@ body::after {
 }
 
 .bottom-knob-group .knob-label {
+    line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px — see the LINE-HEIGHT PINS block */
     font-size: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -367,6 +424,17 @@ body::after {
 }
 
 .midi-mode-label {
+    /* WIDTH FLOOR, LOAD-BEARING, AND IT EXISTS BECAUSE THE CHINESE IS NARROWER.
+       Measured at the shipping 900 x 600 frame: en 55.17, fr 55.17, zh 44.94.
+       This caption and the #midi-mode <select> beside it share a row, so 10.23 px
+       lost here slides the whole select left — a non-label element displaced by a
+       label that SHRANK, which is the half a clip check is blind to. Pinned at
+       the widest of the three, so the pin is a no-op in English and French and a
+       floor only in Chinese. display:inline-block is what makes min-width apply
+       to a span at all. R8: this selector carried no min-width before; checked. */
+    min-width: 55.17px;
+    display: inline-block;
+    line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px — see the LINE-HEIGHT PINS block */
     font-size: 8px;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -563,6 +631,7 @@ body::after {
 /* nowrap because the row is space-between: a caption that wrapped would grow the
    row's height and move the control beside it, which is an assertion-7 element. */
 .settings-label {
+    line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the LINE-HEIGHT PINS block */
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -602,6 +671,7 @@ body::after {
    a [data-i18n] node, so a face that grows moves nothing the geometry gate
    measures — verified with check-ui-labels [7] after the port. */
 .settings-toggle {
+    line-height: 1.1111;   /* 16.00 - 4 pad - 2 border = 10.00 / 9px — see the LINE-HEIGHT PINS block */
   font-family: var(--font-primary);
   font-size: 9px;
   color: var(--text-primary);
@@ -685,4 +755,62 @@ body::after {
     letter-spacing: 1.5px;
     color: var(--amber-light);
     margin-bottom: 3px;
+}
+
+/* ── FORM 4, CREATED BY THE WEBPACK BUNDLE ──────────────────────────────────
+
+   src/app.js builds a #file-size-overlay at runtime. Its wrapper carries an
+   inline `font-family:inherit`, but the two <button> elements inside it carry
+   only background, colour, border, padding, radius, cursor and font-size — and a
+   form control does NOT inherit font-family. Both therefore took the UA
+   stylesheet's bare Arial, a face with no Han glyphs, while their captions come
+   from the label table and DO translate. No file in this repo declares a face for
+   them and no grep could see that, because the defect is an ABSENT declaration.
+
+   THE MEASUREMENT THAT FOUND THEM, AND ITS LIMIT, BOTH STATED. The plugin's
+   state file drove ONE state, so nothing ever opened this overlay and the
+   undeclared-font screen read 0 — a vacuum, not a clean bill. A second state was
+   added and the screen then named both buttons by id, resolving to `ff=Arial`
+   with Chinese captions. That state is a SELECTOR-REACH PROBE, not the shipped
+   code path: showFileSizeWarning() is a bundle-local function the page does not
+   expose, so no state file can call it. The probe builds an element with the same
+   id and the same button structure, which is exactly the question a selector can
+   answer — `#file-size-overlay button` either matches or it does not, and the
+   real overlay has that id and those buttons.
+
+   THE REPAIR IS IN CSS AND NOT IN src/app.js, DELIBERATELY. A stylesheet rule
+   reaches a runtime-created node just as well as an inline style would, and it
+   keeps the webpack bundle and its source in sync for free: js/app.bundle.js is a
+   COMMITTED build artefact, so a source edit without a rebuild — or a rebuild
+   without a commit — ships a page that does not match its source and nothing
+   reports it. Repairing here means `git diff --stat` on the bundle stays empty,
+   which is the control that they agree.
+
+   ARIAL STAYS FIRST so the Latin metrics of the English and French arms do not
+   move; the tail is reached only by a codepoint Arial cannot draw. */
+#file-size-overlay button {
+    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    line-height: 1.1538;   /* 31.00 - 16 pad - 0 = 15.00 / 13px — see the LINE-HEIGHT PINS block */
+}
+
+/* HEIGHT FLOOR ON THE DIALOG'S MESSAGE, because the Chinese is SHORTER — the
+   half a clip check is blind to. The sentence wraps to TWO lines in English and
+   French (32.00 px) and to ONE in Chinese (16.00 px), because the same claim
+   takes fewer characters, and 16 px lost there moves both buttons under it up.
+   A min-height, not a height: a floor must never cap a language that needs a
+   third line. */
+#file-size-msg {
+    /* TWO FLOORS ON ONE NODE, and both exist because the Chinese is smaller.
+       HEIGHT: the sentence wraps to TWO lines in English and French (32.00 px)
+       and to ONE in Chinese (16.00 px), because the same claim takes fewer
+       characters, and 16 px lost there moves both buttons under it up.
+       WIDTH: this paragraph is the widest child of a shrink-to-fit dialog, so
+       270.00 px in English and French against 255.45 in Chinese made the whole
+       dialog 14.5 px narrower and shifted it 7.3 px sideways inside its centred
+       parent. Pinning the paragraph is what holds the dialog, and it is one
+       declaration rather than a width pin on each of the two buttons beside it.
+       Both are min-*, never fixed: a floor must not cap a language that needs a
+       third line or a wider sentence. */
+    min-height: 32px;
+    min-width: 270px;
 }

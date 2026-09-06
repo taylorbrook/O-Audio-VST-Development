@@ -2,5 +2,9 @@
   {
     "name": "settings popover open",
     "click": "#gear-btn"
+  },
+  {
+    "name": "file-size overlay open (selector-reach probe, see the note in css/ouaricon-naturalist.css)",
+    "eval": "(function(){var o=document.getElementById('file-size-overlay');if(o)return;o=document.createElement('div');o.id='file-size-overlay';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999;';o.innerHTML='<div style=\"background:#2B2B2B;border:1px solid #8B6914;border-radius:8px;padding:24px;text-align:center;max-width:320px;color:#C9A27B;font-family:inherit;\"><p id=\"file-size-msg\" style=\"margin:0 0 16px;font-size:14px;\"></p><button id=\"btn-load-anyway\" style=\"background:#8B6914;color:#F5E6D3;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;margin-right:8px;font-size:13px;\"></button><button id=\"btn-cancel-load\" style=\"background:transparent;color:#C9A27B;border:1px solid #C9A27B;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:13px;\"></button></div>';document.body.appendChild(o);window.__setLabel(document.getElementById('file-size-msg'),'dialog.largeFile',{size:42});window.__setLabel(document.getElementById('btn-load-anyway'),'dialog.loadAnyway');window.__setLabel(document.getElementById('btn-cancel-load'),'action.cancel');})();"
   }
 ]
