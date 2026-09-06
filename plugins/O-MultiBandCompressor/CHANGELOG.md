@@ -1,5 +1,95 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.12.0 (2026-09-06)
+
+**Simplified Chinese (`zh-Hans`) joins English and French.** Stage 4 wave 4d of
+the suite-wide localization rollout, and this plugin was the wave's tracer.
+MINOR: a third language, one new hover-help key, font and line-height work, and
+a three-way language codec. No parameter, range, type or state format changed;
+no English or French string changed.
+
+### Added
+
+- **99 rows of Simplified Chinese** — every key in both `I18N` and `LABELS`,
+  plus one new entry (below). The endonym `简体中文` joins the language selector,
+  written as numeric character references and copied byte for byte from a
+  shipped sibling rather than retyped.
+- **`canvas.spectrumPlaceholder`** — the spectrum canvas painted one hard-coded
+  English phrase that no gate in this repo can see: `check-i18n` walks text
+  nodes and `textContent` writes, `check-ui-labels` has no canvas awareness, and
+  `measure-ui` reads computed style on elements. None of them reaches
+  `fillText`. It shipped untranslated on the **French** page too, for the whole
+  of the French rollout. It is now an `I18N` key with an empty body, read
+  through `tr()` from the paint routine and deliberately not in `LABELS`. The
+  build-stage marker painted one line below it is a product question with no
+  localization budget attached and is left exactly as found.
+
+### Changed
+
+- **`PluginProcessor.h`'s language codec is three-way, and it was edited by
+  hand.** Through 1.11.2 the `languageCode` / `languageIndex` pair diverged from
+  the copy in every sibling plugin by single spaces — the return type padded one
+  column short, two spaces before each parameter list — and carried no doc
+  comment. A sweep keyed on the sibling text matches neither line, reports
+  success, and would have left this plugin shipping a two-way codec behind a
+  three-language table. The edit is proved by a grep asserting the Chinese code
+  on both the encode and the decode line, never by a sweep's exit code. No
+  Chinese character exists anywhere under `Source/` — what is persisted is an
+  ASCII language code.
+- **Seven `line-height` pins.** A Han glyph's line box under `line-height:
+  normal` is roughly **30% taller** than a Latin one at the same font-size, so
+  every caption leaf that inherited `normal` grew when the page went Chinese and
+  the growth propagated — each of the four band headers gained 4 px, which
+  walked every knob, meter and readout below it down the page.
+  `check-ui-labels` named **187 moved elements** on the Chinese arm and none on
+  the French one. Each pin is that leaf's own measured English line box divided
+  by its own font-size, written unitless and never global, and the value is what
+  English and French already computed, so neither of those arms moves.
+- **Font stacks carry a CJK tail before their trailing generic.** All seven
+  declared `Garamond, 'Times New Roman', serif` stacks name Times New Roman,
+  which is installed, so the Latin half was already safe and each took the tail
+  and nothing else. Chromium resolves a bare `serif` against the document's
+  `lang`, so under `zh-Hans` the generic is already a Chinese face and a tail
+  written after it is never consulted.
+- **`.toggle-button` names a face for the first time.** Four `font-family:
+  inherit` declarations already sat in this stylesheet; a grep of it reports a
+  plugin that has had the form-control repair, and the computed census reports
+  one node — `#auto-makeup` — still resolving to a bare `Arial` that no file
+  here declares. Arial is kept FIRST, then the tail, so the English and French
+  Latin metrics do not move.
+- **`tests/i18n-states.json` drives a second state.** The single state never
+  opened the preset dropdown, which carries five keys built at runtime; the
+  measured node count went 975 → 999.
+
+### Not changed, and checked rather than assumed
+
+- **Both hover-help bodies were already true.** This is the first plugin in the
+  rollout whose language body carries no enumeration of the selector's options,
+  and whose settings body already names both of the popover's controls. Every
+  wave before this one deleted a stale sentence here; this one read both bodies
+  in full and left them. The stale-enumeration probe reads 0 on this file, and
+  it read 0 before the work too.
+- **The `html` element resolves to the UA default** because the page declares
+  its stack on `body`. It renders no text and everything under `body`
+  re-declares, so it is read, left, and recorded rather than repaired.
+
+### Review status
+
+Every Chinese row ships `reviewed: 'bt'` — **back-translated, not native**.
+This project has no native Chinese reader, so the substitute is an independent
+blind reverse pass: the Chinese was emitted with the English deliberately
+withheld and the row ids blinded behind a per-batch salt, rendered back into
+English by a separate model in a fresh session with repository access forbidden,
+and every one of the 99 triples was read. `reviewed: 'native'` stays open and is
+a disclosed quality level, printed by the lint's R1 on every run.
+
+One row was re-authored on that evidence. The gain-reduction meter cap was first
+drafted as a two-character contraction built the way English `GR` and French
+`RG` are; the blind reader returned it as *"Increase/Decrease"* — the opposite
+of what the meter shows. It now carries the whole phrase. A correction round
+with a fresh salt, a fresh session and a **different model** returned *"Gain
+Reduction"*, and corrected nothing further, so there was no round two.
+
 ## Version 1.11.2 (2026-09-03)
 
 The French rendering of the hover-help surface changes suite-wide (task
