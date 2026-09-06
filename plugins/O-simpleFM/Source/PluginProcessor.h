@@ -147,11 +147,16 @@ public:
     // The editor PULLS it once at page init; nothing pushes.
     std::atomic<int> uiLanguage { 0 };
 
-    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+    /** The codec. languageIndex() maps anything it does not recognise to 0, so a
         hand-edited session or an unexpected argument from the page degrades to
-        English rather than being stored unvalidated. */
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+        English rather than being stored unvalidated.
+
+        v1.5.0 widened both halves to carry Simplified Chinese. The code is the
+        ASCII BCP-47 tag and nothing else: no Chinese character belongs anywhere
+        under Source/, because the page owns the copy and this file owns only the
+        identifier the page and the session agree on. */
+    static juce::String languageCode  (int i)                 { return i == 2 ? "zh-Hans" : (i == 1 ? "fr" : "en"); }
+    static int          languageIndex (const juce::String& s) { return s == "zh-Hans" ? 2 : (s == "fr" ? 1 : 0); }
 
 private:
     //==========================================================================

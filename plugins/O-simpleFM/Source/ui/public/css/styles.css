@@ -58,7 +58,7 @@
   --text-emboss: rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
   /* Symbol-glyph fallback — Garamond lacks ❦ / ♪ on Windows; these fonts carry them. */
-  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', serif;
+  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -73,7 +73,7 @@ html, body {
 }
 
 body {
-  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   color: var(--brown-text);
   background:
     radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
@@ -161,6 +161,9 @@ body {
   text-transform: uppercase;
   color: var(--brown-border);
   margin-top: 2px;
+  line-height: 1.0909091;   /* zh pin: en content box 12px PER LINE at 11px (the English is two lines) */
+  min-width: 346.31px;      /* zh floor: the EXACT measured English box. The English strapline WRAPS here and the Chinese does not */
+  min-height: 24px;         /* zh floor: two English line boxes */
 }
 .fleuron-row { font-size: 22px; color: var(--fleuron-color); }
 
@@ -242,6 +245,7 @@ body {
   font-size: 11px;
   letter-spacing: 0.5px;
   color: var(--brown-text);
+  line-height: 1.0909091;   /* zh pin: en content box 12px at 11px */
 }
 /* The preset-bar button, at panel scale, with its width PINNED. Left to
    shrink-to-fit it would step with the endonym the user picked, moving the
@@ -312,6 +316,11 @@ body {
   letter-spacing: 1px;
   color: var(--brown-border);
   margin-bottom: 4px;
+  /* zh pin: en content box 11px at 10px. This row is a LINE BOX the census
+     cannot see — both its leaves report an identical box on both arms and the
+     row still grew 3px, because an inline box's height is the used face's
+     ascent+descent (M9's shape, one level up). */
+  line-height: 1.1;
 }
 .viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-mid); opacity: 0.85; }
 .canvas-wrap {
@@ -393,6 +402,7 @@ body {
   letter-spacing: 0.3px;
   color: var(--green-mid);
   white-space: nowrap;
+  line-height: 1.1;   /* zh pin: en content box 11px at 10px */
 }
 /* Carrier-null teaching badge — lights when the effective index ≈ Bessel J₀
    zero (β ≈ 2.405) and the carrier collapses into the sidebands. */
@@ -411,6 +421,7 @@ body {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.6px;
+  line-height: 1.1111111;   /* zh pin: en content box 10px at 9px */
   color: #f5f0e6;
   background: var(--green-mid);
   border: 1px solid var(--green-darkest);
@@ -443,6 +454,7 @@ body {
   margin-bottom: 6px;
   border-bottom: 1px dotted rgba(139, 115, 85, 0.4);
   padding-bottom: 3px;
+  line-height: 1.25;   /* zh pin: en content box 15px at 12px */
 }
 .knob-row {
   display: flex;
@@ -561,6 +573,7 @@ body {
   border: 2px solid var(--btn-border);
   border-radius: 5px;
   padding: 7px 16px;
+  line-height: 1.1;   /* zh pin: en content box 11px at 10px (29px box less 7+7 padding and 2+2 border) */
   cursor: pointer;
   box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
   transition: all 0.2s ease;
@@ -599,6 +612,7 @@ body {
   letter-spacing: 1.2px;
   color: var(--brown-border);
   flex: 0 0 99px;
+  line-height: 1.1;   /* zh pin: en content box 11px at 10px */
 }
 .tour-buttons { display: flex; gap: 8px; }
 .tour-btn {
@@ -631,6 +645,7 @@ body {
   flex: 0 0 100%;
   opacity: 0.85;
   text-align: right;
+  line-height: 1.0909091;   /* zh pin: en content box 12px at 11px */
 }
 
 /* ── On-screen keyboard ─────────────────────────────────────────────────── */
@@ -646,6 +661,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--brown-border);
+  line-height: 1.1;   /* zh pin: en content box 11px at 10px */
 }
 .kbd-hint {
   text-transform: none;
