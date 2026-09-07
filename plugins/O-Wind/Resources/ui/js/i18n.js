@@ -280,7 +280,7 @@
 // Two of the nine were carrying English into a French UI. Both are fixed here.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — hover-help copy. {t, b}: a title and a body.
@@ -334,6 +334,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Pression du souffle',
               b: 'Force avec laquelle le souffle passe sur le biseau. Les valeurs basses donnent un son doux et soufflé qui parle à peine ; les valeurs hautes poussent le jet vers un régime fort et riche en harmoniques. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '气压', b: '演奏者向吹口吹气的力度。低值给出柔和、气声重、几乎不发音的音色；高值把气束推入响亮而泛音丰富的状态。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.embouchure': {
         en: { t: 'Embouchure',
@@ -341,6 +343,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Embouchure',
               b: 'Règle la forme du jet d’air sur le biseau — le rapport entre la largeur du jet et la perce. Les valeurs basses assombrissent et stabilisent le son ; les hautes l’éclaircissent et facilitent le passage à l’octave. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '口型', b: '塑造气束与吹口边缘的关系 —— 气束宽度与管径之比。低值使音色更暗、更稳定；高值使音色更亮，也更容易越吹到高八度。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.breathNoise': {
         en: { t: 'Breath Noise',
@@ -348,6 +352,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Bruit de souffle',
               b: 'Turbulence mêlée au jet d’air. Un peu garde le son vivant ; trop enterre la hauteur sous le vent. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '气息噪声', b: '混入气束的湍流。少量能让音色保持鲜活；过多则会把音高埋进风声里。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
 
     // ── Resonator ───────────────────────────────────────────────────────────
@@ -357,6 +363,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Matériau',
               b: 'Macro de timbre sur la matière de la perce : 0,00 pour un bois ou un bambou sombre, 1,00 pour un métal brillant. À utiliser en premier quand un instrument sonne juste mais dans la mauvaise couleur. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '材质', b: '横跨管体材质的音色宏控：0.00 是深色的木或竹，1.00 是明亮的金属。当一件乐器听起来对了却是错的颜色时，先动它。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.toneColor': {
         en: { t: 'Tone Color',
@@ -364,6 +372,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Timbre',
               b: 'Incline le spectre, échangeant le poids du fondamental contre la brillance harmonique. Il agit après Matériau plutôt qu’à sa place. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '音色', b: '使频谱倾斜，在基频的厚度与泛音的明亮度之间取舍。它作用在材质之后，而不是代替材质。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.airColumn': {
         en: { t: 'Air Column',
@@ -371,6 +381,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Colonne d’air',
               b: 'Met à l’échelle la longueur utile de la perce, qui fixe la position des résonances par rapport à la note jouée. Les valeurs basses donnent un tube court et perçant façon piccolo ; les hautes, un tube long et creux. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '气柱', b: '缩放管体的有效长度，也就决定了共振点相对于所奏音高的位置。低值听起来短而尖锐，像短笛；高值则长而空。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.jetReflection': {
         en: { t: 'Jet Reflection',
@@ -378,6 +390,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Réflexion du jet',
               b: 'Coefficient de réflexion à la jonction entre le jet et la perce. Les valeurs négatives inversent l’onde de retour et amincissent le son ; les positives le renforcent. Plage −1,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '气束反射', b: '气束与管体交界处的反射系数。负值把返回的波反相，使音色变薄；正值则加强它。范围 −1.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.endReflection': {
         en: { t: 'End Reflection',
@@ -385,6 +399,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Réflexion de l’extrémité',
               b: 'Coefficient de réflexion à l’extrémité ouverte de la perce. Il fixe l’énergie qui revient au lieu de rayonner : les valeurs basses fuient, les hautes font sonner. Plage −1,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '端口反射', b: '管体开口端的反射系数。它决定有多少能量返回而不是辐射出去，所以低值漏气、高值鸣响。范围 −1.00 到 1.00。', reviewed: 'mt' },
     },
 
     // ── ADSR envelope ───────────────────────────────────────────────────────
@@ -398,6 +414,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Enveloppe ADSR',
               b: 'Active l’enveloppe d’amplitude. Désactivée, une note ne suit que la pression du souffle, ce qui est le comportement normal d’un instrument à vent, et les quatre potentiomètres voisins n’ont aucun effet. La ligne d’automation la nomme ADSR Enabled ; elle affiche Off ou On.',
               reviewed: true },
+    
+        'zh-Hans': { t: 'ADSR 包络', b: '打开振幅包络。关闭时音符只跟随气压，这也是管乐器通常的行为，旁边四个旋钮不起作用。自动化通道把它命名为 ADSR Enabled；它读作关闭或开启。', reviewed: 'mt' },
     },
     'tip.adsrAttack': {
         en: { t: 'ADSR Attack',
@@ -405,6 +423,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Attaque ADSR',
               b: 'Temps que met l’enveloppe pour atteindre son niveau maximal après le début d’une note. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 1 ms à 5 s, affichée en millisecondes sous une seconde.',
               reviewed: true },
+    
+        'zh-Hans': { t: 'ADSR 起音', b: '音符开始后包络到达满电平所用的时间。仅在 ADSR 包络开启时有效。范围 1 ms 到 5 s，低于一秒时以毫秒显示。', reviewed: 'mt' },
     },
     'tip.adsrDecay': {
         en: { t: 'ADSR Decay',
@@ -412,6 +432,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Déclin ADSR',
               b: 'Temps de descente du sommet de l’attaque jusqu’au niveau de maintien. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 1 ms à 5 s, affichée en millisecondes sous une seconde.',
               reviewed: true },
+    
+        'zh-Hans': { t: 'ADSR 衰减', b: '从起音峰值下落到延音电平所用的时间。仅在 ADSR 包络开启时有效。范围 1 ms 到 5 s，低于一秒时以毫秒显示。', reviewed: 'mt' },
     },
     'tip.adsrSustain': {
         en: { t: 'ADSR Sustain',
@@ -419,6 +441,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Maintien ADSR',
               b: 'Niveau auquel la note se tient une fois le déclin terminé, en fraction du sommet de l’attaque. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: 'ADSR 延音', b: '衰减结束后音符保持的电平，以起音峰值的比例表示。仅在 ADSR 包络开启时有效。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.adsrRelease': {
         en: { t: 'ADSR Release',
@@ -426,6 +450,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Relâchement ADSR',
               b: 'Temps que met la note à s’éteindre après le relâchement de la touche. Actif seulement lorsque l’enveloppe ADSR est activée. Plage 1 ms à 10 s, affichée en millisecondes sous une seconde.',
               reviewed: true },
+    
+        'zh-Hans': { t: 'ADSR 释音', b: '松键之后音符淡出所用的时间。仅在 ADSR 包络开启时有效。范围 1 ms 到 10 s，低于一秒时以毫秒显示。', reviewed: 'mt' },
     },
 
     // ── Expression ──────────────────────────────────────────────────────────
@@ -435,6 +461,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse du vibrato',
               b: 'Vitesse du vibrato de hauteur. Environ 5 Hz est la norme orchestrale ; plus lent donne une houle, plus rapide un tremblement nerveux. Plage 2,0 à 8,0 Hz.',
               reviewed: true },
+    
+        'zh-Hans': { t: '颤音速率', b: '音高颤音的速度。5 Hz 左右是管弦乐的常规；更慢听起来像涨落，更快则像紧张的抖动。范围 2.0 到 8.0 Hz。', reviewed: 'mt' },
     },
     'tip.vibratoDepth': {
         en: { t: 'Vibrato Pitch',
@@ -442,6 +470,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Hauteur du vibrato',
               b: 'Amplitude de la déviation de hauteur du vibrato. À 0,00 le vibrato est muet quoi que fasse la vitesse du vibrato. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '颤音音高', b: '颤音把音高弯曲多远。在 0.00 时，无论颤音速率在做什么，颤音都是无声的。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.vibratoTremolo': {
         en: { t: 'Vibrato Tremolo',
@@ -449,6 +479,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Trémolo du vibrato',
               b: 'Ajoute une modulation d’amplitude verrouillée sur la phase du vibrato, de sorte que la note respire en niveau autant qu’en hauteur. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '颤音震音', b: '加入锁定在颤音自身相位上的振幅调制，于是音符不只在音高上呼吸，在电平上也随之呼吸。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.vibratoDriftDepth': {
         en: { t: 'Vibrato Drift Depth',
@@ -456,6 +488,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Profondeur de la dérive du vibrato',
               b: 'Amplitude de l’errance spontanée de la vitesse et de la profondeur du vibrato. Un peu suffit pour qu’un vibrato d’une régularité mécanique cesse de sonner synthétique. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '颤音漂移深度', b: '颤音的速率与深度自行游移的幅度。少量就能让机器般规整的颤音不再显得合成。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.vibratoDriftSpeed': {
         en: { t: 'Vibrato Drift Speed',
@@ -463,6 +497,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse de la dérive du vibrato',
               b: 'Vitesse d’évolution de cette errance. Sans effet tant que la profondeur de la dérive reste à zéro. Plage 0,10 à 2,00 Hz.',
               reviewed: true },
+    
+        'zh-Hans': { t: '颤音漂移速度', b: '这种游移演化的快慢。当颤音漂移深度停在零时它不起作用。范围 0.10 到 2.00 Hz。', reviewed: 'mt' },
     },
     'tip.flutterTongue': {
         en: { t: 'Flutter Tongue',
@@ -470,6 +506,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Flatterzunge',
               b: 'Profondeur de la modulation d’amplitude du flatterzunge — le r roulé que le joueur produit avec la langue en soufflant. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '花舌', b: '花舌振幅调制的深度 —— 演奏者一边吹一边用舌头打出的那个滚舌音。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.flutterRate': {
         en: { t: 'Flutter Rate',
@@ -477,6 +515,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse du Flatterzunge',
               b: 'Vitesse de la modulation du flatterzunge. Sans effet tant que le flatterzunge reste à zéro. Plage 15,0 à 30,0 Hz.',
               reviewed: true },
+    
+        'zh-Hans': { t: '花舌速率', b: '花舌调制的速度。当花舌停在零时它不起作用。范围 15.0 到 30.0 Hz。', reviewed: 'mt' },
     },
     'tip.growl': {
         en: { t: 'Growl',
@@ -484,6 +524,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Growl',
               b: 'Un second oscillateur qui module la réinjection de la perce, à la place du couplage des cordes vocales qu’un joueur obtient en fredonnant tout en soufflant. Il rend le son plus rugueux au lieu de l’adoucir. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '喉音', b: '第二个振荡器调制管体反馈，替代演奏者一边吹一边哼唱时得到的声带耦合。它使音色变粗糙，而不是变甜美。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
 
     // ── Output ──────────────────────────────────────────────────────────────
@@ -493,6 +535,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Largeur',
               b: 'Étalement stéréo de la sortie. 0,00 donne du mono, 1,00 la largeur naturelle, et 2,00 va au-delà. Plage 0,00 à 2,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '宽度', b: '输出的立体声展开。0.00 是单声道，1.00 是自然宽度，2.00 则超出它。范围 0.00 到 2.00。', reviewed: 'mt' },
     },
     'tip.formant': {
         en: { t: 'Formant',
@@ -500,6 +544,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Formant',
               b: 'Importance de la résonance de formant de la tête — un pic fixe qui colore toutes les notes de la même façon. Il ajoute jusqu’à 6 dB de gain au sommet. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '共振峰', b: '笛头共振峰的突出程度 —— 一个固定的峰，把每个音都染上同样的颜色。它在峰值处最多加上 6 dB 增益。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.outputLevel': {
         en: { t: 'Output Level',
@@ -507,6 +553,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Niveau de sortie',
               b: 'Gain général en sortie, appliqué après la chaîne d’effets. Plage −60,0 à +12,0 dB.',
               reviewed: true },
+    
+        'zh-Hans': { t: '输出电平', b: '输出端的总增益，作用在效果链之后。范围 −60.0 到 +12.0 dB。', reviewed: 'mt' },
     },
 
     // ── Impossible physics ──────────────────────────────────────────────────
@@ -516,6 +564,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Maintien infini',
               b: 'Retire l’amortissement de la perce pour que la note continue de sonner une fois le souffle arrêté. À 1,00 elle ne décroît presque plus. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '无限延音', b: '移除管体的阻尼，于是气息停止后音符仍继续鸣响。在 1.00 时它几乎不衰减。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.reversedJet': {
         en: { t: 'Reversed Jet',
@@ -523,6 +573,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Jet inversé',
               b: 'Inverse le sens du retard du jet, ce qu’aucune flûte réelle ne peut faire. Cela creuse le son et déplace le point de passage à l’octave. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '反向气束', b: '反转气束延迟的方向，这是任何真实长笛都做不到的。它掏空音色，也移动八度越吹的位置。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
     'tip.subHarmonics': {
         en: { t: 'Sub-Harmonics',
@@ -530,6 +582,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Sous-harmoniques',
               b: 'Ajoute du contenu à l’octave inférieure par réinjection non linéaire dans la perce. En petite dose cela épaissit le grave ; en grande dose cela gronde. Plage 0,00 à 1,00.',
               reviewed: true },
+    
+        'zh-Hans': { t: '次谐波', b: '通过管体中的非线性反馈加入低八度成分。少量能加厚低音区；大量则发出咆哮。范围 0.00 到 1.00。', reviewed: 'mt' },
     },
 
     // ── Instrument strip ────────────────────────────────────────────────────
@@ -547,6 +601,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Trous de jeu',
               b: 'Cet interrupteur n’a pour l’instant aucun effet audible. La diffusion par les trous de jeu n’a jamais été implémentée et son échafaudage a été retiré en v1.16.2 ; le paramètre reste déclaré uniquement pour que les sessions et les automations existantes restent valides. Il affiche Off ou On.',
               reviewed: true },
+    
+        'zh-Hans': { t: '音孔', b: '这个开关目前不会产生任何听得见的变化。音孔散射从未实现，其脚手架已在 v1.16.2 移除；保留这个参数注册，只是为了让既有工程与自动化继续有效。它读作关闭或开启。', reviewed: 'mt' },
     },
     'tip.instrumentPreset': {
         en: { t: 'Instrument Preset',
@@ -554,6 +610,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Préréglage d’instrument',
               b: 'Choisit une des huit configurations de perce et de jet, de Concert Flute à Ocarina. Il réécrit le modèle physique et non la position des potentiomètres : le changement s’entend aussitôt et rien ne bouge sur cette page. Huit choix, numérotés de 0 à 7 dans la ligne d’automation.',
               reviewed: true },
+    
+        'zh-Hans': { t: '乐器预设', b: '从八种管体与气束配置中选一个，从 Concert Flute 到 Ocarina。它改写的是物理模型而不是旋钮位置，所以变化立刻听得到，页面上也没有任何东西移动。八个选项，在自动化通道里编号 0 到 7。', reviewed: 'mt', termNote: 'the glossary root for `instrument preset` is 音色预设, and 音色 is this page\'s rendering of `Tone Color` — a keyed knob caption two sections below in the Resonator group. Shipping 音色预设 here would put a reader\'s recovery of this selector (\'tone-colour preset\') on the wrong control. 乐器预设 takes the root this page already gives the selector\'s own section caption label.instrument (乐器), so the caption and the tooltip title agree' },
     },
 
     // ── Effects: chorus ─────────────────────────────────────────────────────
@@ -576,6 +634,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Contournement du chorus',
               b: 'Insère ou retire le chorus du trajet du signal. Le bouton affiche Marche quand l’effet fonctionne, ce qui correspond au paramètre d’automation Chorus Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
               reviewed: true },
+    
+        'zh-Hans': { t: '合唱旁通', b: '把合唱移入或移出信号路径。效果运行时按钮读作开，也就是自动化参数 Chorus Bypass 停在 Off —— 两者是刻意相反的。关闭或开启。', reviewed: 'mt' },
     },
     'tip.chorusRate': {
         en: { t: 'Chorus Rate',
@@ -583,6 +643,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse du chorus',
               b: 'Vitesse de l’oscillateur du chorus. Les réglages lents élargissent et font dériver ; les rapides font miroiter. Plage 0,10 à 10,00 Hz.',
               reviewed: true },
+    
+        'zh-Hans': { t: '合唱速率', b: '合唱振荡器的速度。慢的设置使声音变宽并漂移；快的设置则闪烁。范围 0.10 到 10.00 Hz。', reviewed: 'mt' },
     },
     'tip.chorusDepth': {
         en: { t: 'Chorus Depth',
@@ -590,6 +652,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Profondeur du chorus',
               b: 'Amplitude du balayage de la ligne à retard par l’oscillateur du chorus. Plage 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '合唱深度', b: '合唱振荡器扫过其延迟线的幅度。范围 0 到 100%。', reviewed: 'mt' },
     },
     'tip.chorusMix': {
         en: { t: 'Chorus Mix',
@@ -597,6 +661,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Mix du chorus',
               b: 'Équilibre entre le signal direct et le signal traité par le chorus. Il est livré à 0 %, donc le chorus reste inaudible tant que ce réglage n’est pas monté. Plage 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '合唱混合', b: '干信号与合唱信号之间的平衡。它出厂在 0%，所以在调高之前合唱是听不见的。范围 0 到 100%。', reviewed: 'mt' },
     },
 
     // ── Effects: delay ──────────────────────────────────────────────────────
@@ -606,6 +672,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Contournement du délai',
               b: 'Insère ou retire le délai du trajet du signal. Le bouton affiche Marche quand l’effet fonctionne, ce qui correspond au paramètre d’automation Delay Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
               reviewed: true },
+    
+        'zh-Hans': { t: '延迟旁通', b: '把延迟移入或移出信号路径。效果运行时按钮读作开，也就是自动化参数 Delay Bypass 停在 Off —— 两者是刻意相反的。关闭或开启。', reviewed: 'mt' },
     },
     'tip.delayTime': {
         en: { t: 'Delay Time',
@@ -613,6 +681,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Durée du délai',
               b: 'Temps entre les répétitions. L’affichage est en millisecondes alors que la ligne d’automation de l’hôte donne le même paramètre en secondes. Plage 1 à 2000 ms.',
               reviewed: true },
+    
+        'zh-Hans': { t: '延迟时间', b: '重复之间的时间。读数以毫秒计，尽管宿主自动化通道把同一个参数报为秒。范围 1 到 2000 ms。', reviewed: 'mt' },
     },
     'tip.delayFeedback': {
         en: { t: 'Delay Feedback',
@@ -620,6 +690,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Réinjection du délai',
               b: 'Proportion de chaque répétition renvoyée dans la ligne. Elle s’arrête avant l’unité pour que le délai ne s’emballe pas. Plage 0 à 95 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '延迟反馈', b: '每次重复有多少被送回延迟线。它止步于单位增益之前，所以延迟不会失控。范围 0 到 95%。', reviewed: 'mt' },
     },
     // The two option words stay English on the page — they are the delayMode
     // AudioParameterChoice options verbatim, so the page and the host lane must
@@ -633,6 +705,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Mode de délai',
               b: 'Normal répète sur les deux canaux ensemble ; PingPong les fait alterner à gauche et à droite par réinjection croisée. Les deux mots restent en anglais parce que la ligne d’automation de l’hôte les nomme ainsi. Normal ou PingPong.',
               reviewed: true },
+    
+        'zh-Hans': { t: '延迟模式', b: 'Normal 让两个声道一起重复；PingPong 通过交叉反馈让它们左右交替。两个选项词都保持英文，因为宿主自动化通道就是这样命名它们的。Normal 或 PingPong。', reviewed: 'mt' },
     },
     'tip.delayMix': {
         en: { t: 'Delay Mix',
@@ -640,6 +714,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Mix du délai',
               b: 'Équilibre entre le signal direct et le signal retardé. Il est livré à 0 %, donc le délai reste inaudible tant que ce réglage n’est pas monté. Plage 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '延迟混合', b: '干信号与延迟信号之间的平衡。它出厂在 0%，所以在调高之前延迟是听不见的。范围 0 到 100%。', reviewed: 'mt' },
     },
 
     // ── Effects: EQ ─────────────────────────────────────────────────────────
@@ -649,6 +725,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Contournement de l’EQ',
               b: 'Insère ou retire l’égaliseur du trajet du signal. Le bouton affiche Marche quand l’effet fonctionne, ce qui correspond au paramètre d’automation EQ Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
               reviewed: true },
+    
+        'zh-Hans': { t: '均衡旁通', b: '把均衡器移入或移出信号路径。效果运行时按钮读作开，也就是自动化参数 EQ Bypass 停在 Off —— 两者是刻意相反的。关闭或开启。', reviewed: 'mt' },
     },
     'tip.eqLowGain': {
         en: { t: 'EQ Low Gain',
@@ -656,6 +734,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Gain des graves',
               b: 'Atténuation ou accentuation en plateau sur la bande grave. Plage −12,0 à +12,0 dB.',
               reviewed: true },
+    
+        'zh-Hans': { t: '均衡低频增益', b: '低频段的搁架式衰减或提升。范围 −12.0 到 +12.0 dB。', reviewed: 'mt' },
     },
     'tip.eqMidGain': {
         en: { t: 'EQ Mid Gain',
@@ -663,6 +743,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Gain des médiums',
               b: 'Atténuation ou accentuation en cloche sur la bande médium, centrée là où est réglée la fréquence des médiums. Plage −12,0 à +12,0 dB.',
               reviewed: true },
+    
+        'zh-Hans': { t: '均衡中频增益', b: '中频段的峰值衰减或提升，中心落在均衡中频频率所设的位置。范围 −12.0 到 +12.0 dB。', reviewed: 'mt' },
     },
     'tip.eqMidFreq': {
         en: { t: 'EQ Mid Freq',
@@ -670,6 +752,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Fréquence des médiums',
               b: 'Fréquence centrale de la bande médium. Sans effet tant que le gain des médiums reste à 0 dB. Plage 200 à 8000 Hz.',
               reviewed: true },
+    
+        'zh-Hans': { t: '均衡中频频率', b: '中频段的中心频率。当均衡中频增益停在 0 dB 时它什么也不改变。范围 200 到 8000 Hz。', reviewed: 'mt' },
     },
     'tip.eqHighGain': {
         en: { t: 'EQ High Gain',
@@ -677,6 +761,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Gain des aigus',
               b: 'Atténuation ou accentuation en plateau sur la bande aiguë. Plage −12,0 à +12,0 dB.',
               reviewed: true },
+    
+        'zh-Hans': { t: '均衡高频增益', b: '高频段的搁架式衰减或提升。范围 −12.0 到 +12.0 dB。', reviewed: 'mt' },
     },
 
     // ── Effects: reverb ─────────────────────────────────────────────────────
@@ -686,6 +772,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Contournement de la réverbération',
               b: 'Insère ou retire la réverbération du trajet du signal. Le bouton affiche Marche quand l’effet fonctionne, ce qui correspond au paramètre d’automation Reverb Bypass placé sur Off — les deux sont inversés à dessein. Off ou On.',
               reviewed: true },
+    
+        'zh-Hans': { t: '混响旁通', b: '把混响移入或移出信号路径。效果运行时按钮读作开，也就是自动化参数 Reverb Bypass 停在 Off —— 两者是刻意相反的。关闭或开启。', reviewed: 'mt' },
     },
     'tip.reverbSize': {
         en: { t: 'Reverb Size',
@@ -693,6 +781,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Taille de la réverbération',
               b: 'Taille de la salle simulée, qui fixe la longueur de la traîne. Plage 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '混响尺寸', b: '模拟房间的大小，它决定尾音持续多久。范围 0 到 100%。', reviewed: 'mt' },
     },
     'tip.reverbDamp': {
         en: { t: 'Reverb Damping',
@@ -700,6 +790,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Amortissement de la réverbération',
               b: 'Vitesse à laquelle les aigus s’éteignent dans la traîne. Beaucoup d’amortissement évoque une salle meublée ; peu, la pierre nue. Plage 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '混响阻尼', b: '尾音内部高频衰亡的快慢。阻尼越多听起来越像有软装；越少则像裸露的石头。范围 0 到 100%。', reviewed: 'mt' },
     },
     'tip.reverbPredelay': {
         en: { t: 'Reverb Pre-delay',
@@ -707,6 +799,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Pré-délai de la réverbération',
               b: 'Écart entre la note directe et les premières réflexions. Un peu suffit pour dégager l’attaque de la traîne. Plage 0 à 200 ms.',
               reviewed: true },
+    
+        'zh-Hans': { t: '混响预延迟', b: '干音与最早反射之间的间隙。少量就能让起音不被尾音盖住。范围 0 到 200 ms。', reviewed: 'mt' },
     },
     'tip.reverbMod': {
         en: { t: 'Reverb Mod',
@@ -714,6 +808,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Modulation de la réverbération',
               b: 'Module les lignes à retard de la réverbération pour que la traîne bouge au lieu de sonner sur une seule hauteur. Plage 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '混响调制', b: '调制混响的延迟线，使尾音流动，而不是停在一个音高上鸣响。范围 0 到 100%。', reviewed: 'mt' },
     },
     'tip.reverbShimmer': {
         en: { t: 'Reverb Shimmer',
@@ -721,6 +817,8 @@ export const I18N = Object.freeze({
         fr: { t: 'Shimmer de la réverbération',
               b: 'Réinjecte dans la réverbération une copie de la traîne transposée à l’octave supérieure, si bien que le son monte en décroissant. Plage 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '混响微光', b: '把尾音的高八度副本送回混响，于是声音在衰减的同时上升。范围 0 到 100%。', reviewed: 'mt' },
     },
     'tip.reverbMix': {
         en: { t: 'Reverb Mix',
@@ -728,33 +826,59 @@ export const I18N = Object.freeze({
         fr: { t: 'Mix de la réverbération',
               b: 'Équilibre entre le signal direct et le signal réverbéré. Il est livré à 0 %, donc la réverbération reste inaudible tant que ce réglage n’est pas monté. Plage 0 à 100 %.',
               reviewed: true },
+    
+        'zh-Hans': { t: '混响混合', b: '干信号与混响信号之间的平衡。它出厂在 0%，所以在调高之前混响是听不见的。范围 0 到 100%。', reviewed: 'mt' },
     },
 
     // ── Chrome ──────────────────────────────────────────────────────────────
     //
     // The gear tip is what tells a user hover-help exists at all, so it must
-    // describe ONLY what this popover contains. O-Wind has no hover-help
-    // on/off toggle, and the panel opens BELOW the button
-    // (.settings-popover is `top: calc(100% + 8px)`), not above it — copying
-    // another plugin's wording would have shipped two false sentences.
+    // describe ONLY what this popover contains — and it must name EVERYTHING
+    // in it. The panel opens BELOW the button (.settings-popover is
+    // `top: calc(100% + 8px)`), not above it; that half is measured and stays.
+    //
+    // WHAT IS NO LONGER TRUE: this comment used to assert that this plugin has
+    // no hover-help switch and that the popover therefore carries the language
+    // selector alone. v1.19.0 added #tips-toggle as a child of
+    // .settings-popover and the body was never revisited, so it under-promised
+    // for two releases. check-i18n's [16] proves the switch is there
+    // independently — it PASSES on the requirement that a plugin with a
+    // language selector carries exactly one bound, keyed hover-help switch.
+    // The body and this comment are corrected together rather than amended.
     'tip.gear': {
         en: { t: 'Settings',
-              b: 'Opens the settings panel just below this button. It holds the interface language, and nothing else.' },
+              b: 'Opens the settings panel just below this button. It holds the interface language and the hover-help switch.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau de réglages juste sous ce bouton. Il ne contient que la langue de l’interface.',
+              b: 'Ouvre le panneau de réglages juste sous ce bouton. Il contient la langue de l’interface et le commutateur d’infobulles.',
               reviewed: true },
+    
+        'zh-Hans': { t: '设置', b: '在这个按钮正下方打开设置面板。它装着界面语言和悬停帮助开关。', reviewed: 'mt' },
     },
-    // The third sentence is a scope statement, not a boast. O-Wind consumes the
-    // tuning panel from the SHARED module by reference (CMakeLists.txt:97-98),
-    // so localizing it is a cross-plugin change and one of this plugin's three
-    // tabs stays English for a French user. Saying so here is cheaper than
-    // letting it be discovered.
+    // The readout clause is a scope statement and it is STILL TRUE: the number
+    // readouts are formatted in the C++ and keep the English format whatever
+    // the page language is.
+    //
+    // WHAT IS NO LONGER TRUE: this comment used to explain that one of this
+    // plugin's three tabs stayed English for a French user, because the shared
+    // tuning panel is consumed by reference (CMakeLists.txt:97-98) and was not
+    // localized. At module v3.1.0 all 37 of that panel's captions are keyed,
+    // this table carries all 37 rows, and check-i18n scans the module file for
+    // this plugin — so the Tuning tab renders in whatever language the page is
+    // set to. The claim shipped FALSE in French from this plugin's own
+    // v1.20.0; the body and this comment are corrected together, not amended.
+    //
+    // The clause that named the selector's options is deleted rather than
+    // extended. A sentence that enumerates the languages needs an edit every
+    // time one lands, in a place nobody looks, and the day it is forgotten it
+    // is a false sentence in a file whose whole job is to be true.
     'tip.langSelect': {
         en: { t: 'Interface language',
-              b: 'Switches every caption and every hover-help sentence between English and French. Number readouts keep their English format, and the Tuning tab stays English in both languages.' },
+              b: 'Switches every caption and every hover-help sentence to the language you choose. Number readouts keep their English format.' },
         fr: { t: 'Langue de l’interface',
-              b: 'Bascule chaque légende et chaque infobulle entre l’anglais et le français. Les valeurs numériques gardent leur format anglais, et l’onglet Accord reste en anglais dans les deux langues.',
+              b: 'Bascule chaque légende et chaque infobulle vers la langue choisie. Les valeurs numériques gardent leur format anglais.',
               reviewed: true },
+    
+        'zh-Hans': { t: '界面语言', b: '把每一条标题和每一句悬停帮助切换到你选择的语言。数字读数保持英文格式。', reviewed: 'mt' },
     },
     // v1.19.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -765,6 +889,8 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+    
+        'zh-Hans': { t: '悬停帮助', b: '打开或关闭这套悬停帮助。关闭之后，只有齿轮和这个开关继续解释自己。', reviewed: 'mt' },
     },
 });
 
@@ -801,15 +927,19 @@ export const LABELS = Object.freeze({
     // "Enreg." is the abbreviation a transport bar uses, and it is what keeps
     // the bar's geometry language-invariant without pinning a width on a button
     // whose neighbour is the elastic one.
-    'label.presetSave': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true } },
+    'label.presetSave': { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true }  , 'zh-Hans': { t: '保存', reviewed: 'mt' }},
 
     'aria.presetPrev': {
         en: { t: 'Previous Preset' },
         fr: { t: 'Préréglage précédent', reviewed: true },
+    
+        'zh-Hans': { t: '上一个预设', reviewed: 'mt' },
     },
     'aria.presetNext': {
         en: { t: 'Next Preset' },
         fr: { t: 'Préréglage suivant', reviewed: true },
+    
+        'zh-Hans': { t: '下一个预设', reviewed: 'mt' },
     },
     // MOVED, NOT AUTHORED. This is the v1.16.3 native title= on
     // #preset-name, verbatim. Contract section 4 deletes a native title rather
@@ -822,84 +952,88 @@ export const LABELS = Object.freeze({
     'aria.presetName': {
         en: { t: 'Click to browse presets' },
         fr: { t: 'Cliquer pour parcourir les préréglages', reviewed: true },
+    
+        'zh-Hans': { t: '点击浏览预设', reviewed: 'mt' },
     },
 
     // ── Tab bar ─────────────────────────────────────────────────────────────
     // `.tab-btn` is `flex: 1` in a 900 px bar, so each is exactly 300 px wide
     // and centred whatever it says. Nothing here can push anything.
-    'label.tab.sound':   { en: { t: 'Sound' },   fr: { t: 'Son',     reviewed: true } },
-    'label.tab.tuning':  { en: { t: 'Tuning' },  fr: { t: 'Accord',  reviewed: true } },
-    'label.tab.effects': { en: { t: 'Effects' }, fr: { t: 'Effets',  reviewed: true } },
+    'label.tab.sound':   { en: { t: 'Sound' },   fr: { t: 'Son',     reviewed: true }  , 'zh-Hans': { t: '声音', reviewed: 'mt' }},
+    'label.tab.tuning':  { en: { t: 'Tuning' },  fr: { t: 'Accord',  reviewed: true }  , 'zh-Hans': { t: '调音', reviewed: 'mt' }},
+    'label.tab.effects': { en: { t: 'Effects' }, fr: { t: 'Effets',  reviewed: true }  , 'zh-Hans': { t: '效果', reviewed: 'mt' }},
 
     // ── Settings popover (v1.17.0) ──────────────────────────────────────────
-    'label.language':  { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } },
+    'label.language':  { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true }  , 'zh-Hans': { t: '语言', reviewed: 'mt' }},
 
     // v1.19.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
-    'aria.settings':   { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }  , 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' }},
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true }  , 'zh-Hans': { t: '开', reviewed: 'mt' }},
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true }  , 'zh-Hans': { t: '关', reviewed: 'mt' }},
+    'aria.settings':   { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true }  , 'zh-Hans': { t: '设置', reviewed: 'mt' }},
     'aria.langSelect': {
         en: { t: 'Interface language' },
         fr: { t: 'Langue de l’interface', reviewed: true },
+    
+        'zh-Hans': { t: '界面语言', reviewed: 'mt' },
     },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true }  , 'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' }},
 
     // ── Instrument strip ────────────────────────────────────────────────────
-    'label.instrument': { en: { t: 'Instrument' }, fr: { t: 'Instrument', reviewed: true, sameAsEn: true } },
+    'label.instrument': { en: { t: 'Instrument' }, fr: { t: 'Instrument', reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '乐器', reviewed: 'mt' }},
     // The flute term is "trous de jeu". At 11 px uppercase that is ~90 px
     // against "Tone Holes"' 75.42, and .toggle-control is a flex item in the
     // instrument strip, so the widening would push the preset selector beside
     // it. .toggle-label is pinned to a box that holds BOTH — see index.html.
-    'label.toneHoles':  { en: { t: 'Tone Holes' }, fr: { t: 'Trous de jeu', reviewed: true } },
-    'label.preset':     { en: { t: 'Preset' },     fr: { t: 'Préréglage',   reviewed: true } },
+    'label.toneHoles':  { en: { t: 'Tone Holes' }, fr: { t: 'Trous de jeu', reviewed: true }  , 'zh-Hans': { t: '音孔', reviewed: 'mt' }},
+    'label.preset':     { en: { t: 'Preset' },     fr: { t: 'Préréglage',   reviewed: true }  , 'zh-Hans': { t: '预设', reviewed: 'mt' }},
 
     // ── Excitation ──────────────────────────────────────────────────────────
-    'label.excitation': { en: { t: 'Excitation' }, fr: { t: 'Excitation', reviewed: true, sameAsEn: true } },
-    'label.breath':     { en: { t: 'Breath' },     fr: { t: 'Souffle',    reviewed: true } },
+    'label.excitation': { en: { t: 'Excitation' }, fr: { t: 'Excitation', reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '激励', reviewed: 'mt' }},
+    'label.breath':     { en: { t: 'Breath' },     fr: { t: 'Souffle',    reviewed: true }  , 'zh-Hans': { t: '气息', reviewed: 'mt' }},
     // Identical in French. sameAsEn is an ASSERTION, not a shrug: it is what
     // stops assertion 4 reading an identical string as an untranslated one.
-    'label.embouchure': { en: { t: 'Embouchure' }, fr: { t: 'Embouchure', reviewed: true, sameAsEn: true } },
-    'label.noise':      { en: { t: 'Noise' },      fr: { t: 'Bruit',      reviewed: true } },
+    'label.embouchure': { en: { t: 'Embouchure' }, fr: { t: 'Embouchure', reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '口型', reviewed: 'mt' }},
+    'label.noise':      { en: { t: 'Noise' },      fr: { t: 'Bruit',      reviewed: true }  , 'zh-Hans': { t: '噪声', reviewed: 'mt' }},
 
     // ── Resonator ───────────────────────────────────────────────────────────
-    'label.resonator': { en: { t: 'Resonator' },  fr: { t: 'Résonateur', reviewed: true } },
-    'label.material':  { en: { t: 'Material' },   fr: { t: 'Matériau',   reviewed: true } },
-    'label.toneColor': { en: { t: 'Tone Color' }, fr: { t: 'Timbre',     reviewed: true } },
+    'label.resonator': { en: { t: 'Resonator' },  fr: { t: 'Résonateur', reviewed: true }  , 'zh-Hans': { t: '共鸣器', reviewed: 'mt' }},
+    'label.material':  { en: { t: 'Material' },   fr: { t: 'Matériau',   reviewed: true }  , 'zh-Hans': { t: '材质', reviewed: 'mt' }},
+    'label.toneColor': { en: { t: 'Tone Color' }, fr: { t: 'Timbre',     reviewed: true }  , 'zh-Hans': { t: '音色', reviewed: 'mt' }},
     // "Colonne d'air" is 13 characters — ~80 px in the 72 px box, an ellipsis.
     // "Colonne" is unambiguous under a knob in the RESONATOR section.
-    'label.airColumn': { en: { t: 'Air Column' }, fr: { t: 'Colonne',    reviewed: true } },
-    'label.jetRefl':   { en: { t: 'Jet Refl.' },  fr: { t: 'Réfl. jet',  reviewed: true } },
+    'label.airColumn': { en: { t: 'Air Column' }, fr: { t: 'Colonne',    reviewed: true }  , 'zh-Hans': { t: '气柱', reviewed: 'mt' }},
+    'label.jetRefl':   { en: { t: 'Jet Refl.' },  fr: { t: 'Réfl. jet',  reviewed: true }  , 'zh-Hans': { t: '气束反射', reviewed: 'mt' }},
         // "bout" is colloquial for a bore's open end and the tip body already says
     // "l'extrémité ouverte de la perce" — the caption and its own body were
     // naming one thing two ways. 59.70 px against the 72.00 px cap.
-    'label.endRefl':   { en: { t: 'End Refl.' },  fr: { t: 'Réfl. extr.', reviewed: true } },
+    'label.endRefl':   { en: { t: 'End Refl.' },  fr: { t: 'Réfl. extr.', reviewed: true }  , 'zh-Hans': { t: '端口反射', reviewed: 'mt' }},
 
     // ── ADSR envelope ───────────────────────────────────────────────────────
     // The caption was SPLIT out of `.section-label` into its own <span>
     // (contract section 5): the div also holds the #adsr-toggle as an element
     // child, and applyLabel() writes textContent, which would have deleted the
     // toggle on the first language sweep.
-    'label.adsrEnvelope': { en: { t: 'ADSR Envelope' }, fr: { t: 'Enveloppe ADSR', reviewed: true } },
-    'label.attack':       { en: { t: 'Attack' },  fr: { t: 'Attaque',  reviewed: true } },
-    'label.decay':        { en: { t: 'Decay' },   fr: { t: 'Déclin',   reviewed: true } },
-    'label.sustain':      { en: { t: 'Sustain' }, fr: { t: 'Maintien', reviewed: true } },
-    'label.release':      { en: { t: 'Release' }, fr: { t: 'Relâch.',  reviewed: true } },
+    'label.adsrEnvelope': { en: { t: 'ADSR Envelope' }, fr: { t: 'Enveloppe ADSR', reviewed: true }  , 'zh-Hans': { t: 'ADSR 包络', reviewed: 'mt' }},
+    'label.attack':       { en: { t: 'Attack' },  fr: { t: 'Attaque',  reviewed: true }  , 'zh-Hans': { t: '起音', reviewed: 'mt' }},
+    'label.decay':        { en: { t: 'Decay' },   fr: { t: 'Déclin',   reviewed: true }  , 'zh-Hans': { t: '衰减', reviewed: 'mt' }},
+    'label.sustain':      { en: { t: 'Sustain' }, fr: { t: 'Maintien', reviewed: true }  , 'zh-Hans': { t: '延音', reviewed: 'mt' }},
+    'label.release':      { en: { t: 'Release' }, fr: { t: 'Relâch.',  reviewed: true }  , 'zh-Hans': { t: '释音', reviewed: 'mt' }},
 
     // ── Expression ──────────────────────────────────────────────────────────
-    'label.expression':  { en: { t: 'Expression' },  fr: { t: 'Expression', reviewed: true, sameAsEn: true } },
-    'label.vibRate':     { en: { t: 'Vib Rate' },    fr: { t: 'Vit. vibr.', reviewed: true } },
-    'label.vibPitch':    { en: { t: 'Vib Pitch' },   fr: { t: 'Haut. vibr.', reviewed: true } },
+    'label.expression':  { en: { t: 'Expression' },  fr: { t: 'Expression', reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '表情', reviewed: 'mt' }},
+    'label.vibRate':     { en: { t: 'Vib Rate' },    fr: { t: 'Vit. vibr.', reviewed: true }  , 'zh-Hans': { t: '颤音速率', reviewed: 'mt' }},
+    'label.vibPitch':    { en: { t: 'Vib Pitch' },   fr: { t: 'Haut. vibr.', reviewed: true }  , 'zh-Hans': { t: '颤音音高', reviewed: 'mt' }},
     // "Trémolo vibr." would be 13 characters in a 72 px box. The knob sits
     // between Vib Pitch and Drift Depth in the EXPRESSION section, so the
     // vibrato is already named by its neighbours.
-    'label.vibTremolo':  { en: { t: 'Vib Tremolo' }, fr: { t: 'Trémolo',    reviewed: true } },
-    'label.driftDepth':  { en: { t: 'Drift Depth' }, fr: { t: 'Prof. dérive', reviewed: true } },
-    'label.driftSpeed':  { en: { t: 'Drift Speed' }, fr: { t: 'Vit. dérive', reviewed: true } },
+    'label.vibTremolo':  { en: { t: 'Vib Tremolo' }, fr: { t: 'Trémolo',    reviewed: true }  , 'zh-Hans': { t: '颤音震音', reviewed: 'mt' }},
+    'label.driftDepth':  { en: { t: 'Drift Depth' }, fr: { t: 'Prof. dérive', reviewed: true }  , 'zh-Hans': { t: '漂移深度', reviewed: 'mt' }},
+    'label.driftSpeed':  { en: { t: 'Drift Speed' }, fr: { t: 'Vit. dérive', reviewed: true }  , 'zh-Hans': { t: '漂移速度', reviewed: 'mt' }},
     // MEANING BEFORE WIDTH (v1.18.1). The parameter is flutterTongue — the wind
     // technique — so the glossary row that applies is `flutter tongue ->
     // Flatterzunge`, not `flutter -> Scintillement`, which names tape
@@ -908,80 +1042,88 @@ export const LABELS = Object.freeze({
     // TRUNCATES to an ellipsis; "Flatt." is the abbreviation French scores
     // print and is what a French wind player reads. The tip title spells it out.
     'label.flutter':     { en: { t: 'Flutter' },     fr: { t: 'Flatt.',     reviewed: true,
-        termNote: 'MEANING, then width. flutterTongue is the wind technique, so the row is `flutter tongue -> Flatterzunge`, not `flutter -> Scintillement` (tape wow-and-flutter — wrong on a flute). Flatterzunge measures 77.73 px against the 72.00 px .knob-label cap and truncates to an ellipsis; Flatt. is the abbreviation French orchestral scores print, and tip.flutterTongue spells Flatterzunge out in full' } },
+        termNote: 'MEANING, then width. flutterTongue is the wind technique, so the row is `flutter tongue -> Flatterzunge`, not `flutter -> Scintillement` (tape wow-and-flutter — wrong on a flute). Flatterzunge measures 77.73 px against the 72.00 px .knob-label cap and truncates to an ellipsis; Flatt. is the abbreviation French orchestral scores print, and tip.flutterTongue spells Flatterzunge out in full' } ,
+        'zh-Hans': { t: '花舌', reviewed: 'mt', termNote: 'on THIS page `Flutter` is FLUTTER-TONGUE, not tape flutter: the caption sits on .knob-control[data-param="flutterTongue"] and its own tooltip title is `Flutter Tongue`. The glossary root 快抖 is the correct rendering of the OTHER sense — the fast half of tape wow-and-flutter, shipped that way on O-Bitrot — and would name a control this plugin does not have. 花舌 is the glossary root for `flutter tongue` and is the term a flutist knows, so the caption and the tooltip title of one knob read as one control' },
+    },
     // The matched half. "Vit. frul." would leave the same technique named two
     // ways on two adjacent captions (55.59 px, 16.41 px of the cap).
     'label.flutRate':    { en: { t: 'Flut Rate' },   fr: { t: 'Vit. flatt.', reviewed: true,
-        termNote: 'the matched half of label.flutter — same meaning exemption (flutterTongue, not tape flutter), same abbreviation. "Vit. frul." would leave one technique named two ways on two adjacent captions. 55.59 px against the 72.00 px .knob-label cap' } },
+        termNote: 'the matched half of label.flutter — same meaning exemption (flutterTongue, not tape flutter), same abbreviation. "Vit. frul." would leave one technique named two ways on two adjacent captions. 55.59 px against the 72.00 px .knob-label cap' } ,
+        'zh-Hans': { t: '花舌速率', reviewed: 'mt', termNote: '`Flut Rate` is the rate of the FLUTTER-TONGUE modulation (.knob-control[data-param="flutterRate"]), so it takes the same root as label.flutter above and for the same reason: 快抖 renders tape flutter, which is not what this knob does' },
+    },
     // A loanword in French jazz vocabulary, spelled identically.
-    'label.growl':       { en: { t: 'Growl' },       fr: { t: 'Growl',      reviewed: true, sameAsEn: true } },
+    'label.growl':       { en: { t: 'Growl' },       fr: { t: 'Growl',      reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '喉音', reviewed: 'mt' }},
 
     // ── Output ──────────────────────────────────────────────────────────────
     // ONE key on TWO elements: the OUTPUT section legend and the outputLevel
     // knob caption. One concept, one string — two entries would be two copies
     // of the same word in one table, drifting apart on the first edit.
-    'label.output':   { en: { t: 'Output' },   fr: { t: 'Sortie',  reviewed: true } },
-    'label.width':    { en: { t: 'Width' },    fr: { t: 'Largeur', reviewed: true } },
-    'label.formant':  { en: { t: 'Formant' },  fr: { t: 'Formant', reviewed: true, sameAsEn: true } },
+    'label.output':   { en: { t: 'Output' },   fr: { t: 'Sortie',  reviewed: true }  , 'zh-Hans': { t: '输出', reviewed: 'mt' }},
+    'label.width':    { en: { t: 'Width' },    fr: { t: 'Largeur', reviewed: true }  , 'zh-Hans': { t: '宽度', reviewed: 'mt' }},
+    'label.formant':  { en: { t: 'Formant' },  fr: { t: 'Formant', reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '共振峰', reviewed: 'mt' }},
 
     // ── Impossible physics ──────────────────────────────────────────────────
     'label.impossiblePhysics': {
         en: { t: 'Impossible Physics' },
         fr: { t: 'Physique impossible', reviewed: true },
+    
+        'zh-Hans': { t: '不可能的物理', reviewed: 'mt' },
     },
     // "Maint." and not "Tenue": this page HAS an ADSR whose Sustain caption is
     // "Maintien", and two French words for one English one inside a 900 x 600
     // frame is the defect. "Maintien inf." is 73.56 px against the 72.00 px cap
     // and truncates; "Maint. inf." is 58.69 px. (O-Bowed keeps Tenue because it
     // has no ADSR at all — the exemption there does not reach here.)
-    'label.infSustain': { en: { t: 'Inf. Sustain' }, fr: { t: 'Maint. inf.', reviewed: true } },
-    'label.revJet':     { en: { t: 'Rev. Jet' },     fr: { t: 'Jet inv.',   reviewed: true } },
-    'label.subHarm':    { en: { t: 'Sub Harm.' },    fr: { t: 'Sous-harm.', reviewed: true } },
+    'label.infSustain': { en: { t: 'Inf. Sustain' }, fr: { t: 'Maint. inf.', reviewed: true }  , 'zh-Hans': { t: '无限延音', reviewed: 'mt' }},
+    'label.revJet':     { en: { t: 'Rev. Jet' },     fr: { t: 'Jet inv.',   reviewed: true }  , 'zh-Hans': { t: '反向气束', reviewed: 'mt' }},
+    'label.subHarm':    { en: { t: 'Sub Harm.' },    fr: { t: 'Sous-harm.', reviewed: true }  , 'zh-Hans': { t: '次谐波', reviewed: 'mt' }},
 
     // ── Effects tab: section titles and bypass faces ────────────────────────
-    'label.fx.chorus': { en: { t: 'Chorus' }, fr: { t: 'Chorus',   reviewed: true, sameAsEn: true } },
-    'label.fx.delay':  { en: { t: 'Delay' },  fr: { t: 'Délai',    reviewed: true } },
-    'label.fx.reverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb.',  reviewed: true } },
+    'label.fx.chorus': { en: { t: 'Chorus' }, fr: { t: 'Chorus',   reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '合唱', reviewed: 'mt' }},
+    'label.fx.delay':  { en: { t: 'Delay' },  fr: { t: 'Délai',    reviewed: true }  , 'zh-Hans': { t: '延迟', reviewed: 'mt' }},
+    'label.fx.reverb': { en: { t: 'Reverb' }, fr: { t: 'Réverb.',  reviewed: true }  , 'zh-Hans': { t: '混响', reviewed: 'mt' }},
     // The three-letter abbreviation French audio uses too. Not "Égaliseur":
     // .fx-title is `margin-right: auto` in a flex row whose knobs follow it,
     // and a 9-character legend would move all four EQ knobs.
-    'label.fx.eq':     { en: { t: 'EQ' },     fr: { t: 'EQ',       reviewed: true, sameAsEn: true } },
+    'label.fx.eq':     { en: { t: 'EQ' },     fr: { t: 'EQ',       reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '均衡', reviewed: 'mt' }},
 
     // The bypass button's two faces. Written through setLabel() from two
     // LITERAL call sites rather than one ternary — contract section 6, and
     // assertion 13 rejects a ternary inside a setLabel argument. "Marche" /
     // "Arrêt" rather than "Activé" / "Désactivé": the button is 9 px in a
     // 2px-8px pad, and this is the vocabulary a piece of hardware uses.
-    'label.fx.on':  { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true } },
-    'label.fx.off': { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: true } },
+    'label.fx.on':  { en: { t: 'On' },  fr: { t: 'Marche', reviewed: true }  , 'zh-Hans': { t: '开', reviewed: 'mt' }},
+    'label.fx.off': { en: { t: 'Off' }, fr: { t: 'Arrêt',  reviewed: true }  , 'zh-Hans': { t: '关', reviewed: 'mt' }},
 
     // ── Effects tab: the sixteen script-written knob captions ───────────────
     // Each is written by ONE literal setLabel() call at its own site. See the
     // header for why a data-driven key would have been invisible to the gates.
-    'label.fx.rate':     { en: { t: 'Rate' },     fr: { t: 'Vitesse',    reviewed: true } },
-    'label.fx.depth':    { en: { t: 'Depth' },    fr: { t: 'Prof.',      reviewed: true } },
-    'label.fx.mix':      { en: { t: 'Mix' },      fr: { t: 'Mix',        reviewed: true, sameAsEn: true } },
-    'label.fx.time':     { en: { t: 'Time' },     fr: { t: 'Durée',      reviewed: true } },
-    'label.fx.feedback': { en: { t: 'Feedback' }, fr: { t: 'Réinj.',     reviewed: true } },
-    'label.fx.mode':     { en: { t: 'Mode' },     fr: { t: 'Mode',       reviewed: true, sameAsEn: true } },
-    'label.fx.low':      { en: { t: 'Low' },      fr: { t: 'Grave',      reviewed: true } },
-    'label.fx.mid':      { en: { t: 'Mid' },      fr: { t: 'Médium',     reviewed: true } },
-    'label.fx.midFreq':  { en: { t: 'Mid Freq' }, fr: { t: 'Fréq. méd.', reviewed: true } },
-    'label.fx.high':     { en: { t: 'High' },     fr: { t: 'Aigu',       reviewed: true } },
-    'label.fx.size':     { en: { t: 'Size' },     fr: { t: 'Taille',     reviewed: true } },
-    'label.fx.damp':     { en: { t: 'Damp' },     fr: { t: 'Amort.',     reviewed: true } },
-    'label.fx.predelay': { en: { t: 'Pre-dly' },  fr: { t: 'Pré-dél.',   reviewed: true } },
-    'label.fx.mod':      { en: { t: 'Mod' },      fr: { t: 'Mod',        reviewed: true, sameAsEn: true } },
+    'label.fx.rate':     { en: { t: 'Rate' },     fr: { t: 'Vitesse',    reviewed: true }  , 'zh-Hans': { t: '速率', reviewed: 'mt' }},
+    'label.fx.depth':    { en: { t: 'Depth' },    fr: { t: 'Prof.',      reviewed: true }  , 'zh-Hans': { t: '深度', reviewed: 'mt' }},
+    'label.fx.mix':      { en: { t: 'Mix' },      fr: { t: 'Mix',        reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '混合', reviewed: 'mt' }},
+    'label.fx.time':     { en: { t: 'Time' },     fr: { t: 'Durée',      reviewed: true }  , 'zh-Hans': { t: '时间', reviewed: 'mt' }},
+    'label.fx.feedback': { en: { t: 'Feedback' }, fr: { t: 'Réinj.',     reviewed: true }  , 'zh-Hans': { t: '反馈', reviewed: 'mt' }},
+    'label.fx.mode':     { en: { t: 'Mode' },     fr: { t: 'Mode',       reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '模式', reviewed: 'mt' }},
+    'label.fx.low':      { en: { t: 'Low' },      fr: { t: 'Grave',      reviewed: true }  , 'zh-Hans': { t: '低', reviewed: 'mt' }},
+    'label.fx.mid':      { en: { t: 'Mid' },      fr: { t: 'Médium',     reviewed: true }  , 'zh-Hans': { t: '中', reviewed: 'mt' }},
+    'label.fx.midFreq':  { en: { t: 'Mid Freq' }, fr: { t: 'Fréq. méd.', reviewed: true }  , 'zh-Hans': { t: '中频频率', reviewed: 'mt' }},
+    'label.fx.high':     { en: { t: 'High' },     fr: { t: 'Aigu',       reviewed: true }  , 'zh-Hans': { t: '高', reviewed: 'mt' }},
+    'label.fx.size':     { en: { t: 'Size' },     fr: { t: 'Taille',     reviewed: true }  , 'zh-Hans': { t: '尺寸', reviewed: 'mt' }},
+    'label.fx.damp':     { en: { t: 'Damp' },     fr: { t: 'Amort.',     reviewed: true }  , 'zh-Hans': { t: '阻尼', reviewed: 'mt' }},
+    'label.fx.predelay': { en: { t: 'Pre-dly' },  fr: { t: 'Pré-dél.',   reviewed: true }  , 'zh-Hans': { t: '预延迟', reviewed: 'mt' }},
+    'label.fx.mod':      { en: { t: 'Mod' },      fr: { t: 'Mod',        reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '调制', reviewed: 'mt' }},
     // "Chatoiement" is 11 characters and the accurate word; the knob caption
     // box is 72 px and this is a reverb parameter every French-language DAW
     // ships as "Shimmer".
-    'label.fx.shimmer':  { en: { t: 'Shimmer' },  fr: { t: 'Shimmer',    reviewed: true, sameAsEn: true } },
+    'label.fx.shimmer':  { en: { t: 'Shimmer' },  fr: { t: 'Shimmer',    reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '微光', reviewed: 'mt' }},
 
     // The accessible name that REPLACES the native title= setupFxKnob() used to
     // write onto all sixteen FX readouts. Moved verbatim, not authored.
     'aria.fxValueEdit': {
         en: { t: 'Double-click to edit' },
         fr: { t: 'Double-cliquer pour modifier', reviewed: true },
+    
+        'zh-Hans': { t: '双击编辑', reviewed: 'mt' },
     },
 
     // ── The tuning panel's load-failure notice ──────────────────────────────
@@ -992,6 +1134,8 @@ export const LABELS = Object.freeze({
     'label.tuningFailed': {
         en: { t: 'Tuning panel failed to load.' },
         fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: true },
+    
+        'zh-Hans': { t: '调音面板载入失败', reviewed: 'mt' },
     },
 
     // ── Tuning panel (modules/tuning/scala-tuning-engine/js/tuning-panel.js) ──
@@ -1008,52 +1152,53 @@ export const LABELS = Object.freeze({
     // NOT keyed, and deliberately: note names, the true-keys A->B readout, the
     // numeric matrix/rotation cells and headers, tuning names, the Hz and stretch
     // value readouts, the `c` unit and the arrow glyphs. Those are data.
-    'label.vizCircle':        { en: { t: 'Circle' }, fr: { t: 'Cercle', reviewed: true } },
-    'label.vizPolar':         { en: { t: 'Polar' }, fr: { t: 'Polaire', reviewed: true } },
-    'label.vizMatrix':        { en: { t: 'Matrix' }, fr: { t: 'Matrice', reviewed: true } },
-    'label.vizTrueKeys':      { en: { t: 'True Keys' }, fr: { t: 'Touches', reviewed: true } },
-    'label.vizRotation':      { en: { t: 'Rotation' }, fr: { t: 'Rotation', reviewed: true, sameAsEn: true } },
-    'label.scaleIntervals':   { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: true } },
-    'label.tkHint':           { en: { t: 'Hold 2+ notes to see intervals' }, fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: true } },
-    'label.rotationMode':     { en: { t: 'Mode' }, fr: { t: 'Mode', reviewed: true, sameAsEn: true } },
+    'label.vizCircle':        { en: { t: 'Circle' }, fr: { t: 'Cercle', reviewed: true }  , 'zh-Hans': { t: '圆周', reviewed: 'bt' }},
+    'label.vizPolar':         { en: { t: 'Polar' }, fr: { t: 'Polaire', reviewed: true }  , 'zh-Hans': { t: '极坐标', reviewed: 'bt' }},
+    'label.vizMatrix':        { en: { t: 'Matrix' }, fr: { t: 'Matrice', reviewed: true }  , 'zh-Hans': { t: '矩阵', reviewed: 'bt' }},
+    'label.vizTrueKeys':      { en: { t: 'True Keys' }, fr: { t: 'Touches', reviewed: true }  , 'zh-Hans': { t: '真实键位', reviewed: 'bt' }},
+    'label.vizRotation':      { en: { t: 'Rotation' }, fr: { t: 'Rotation', reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '旋转', reviewed: 'bt' }},
+    'label.scaleIntervals':   { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: true }  , 'zh-Hans': { t: '音阶音程', reviewed: 'bt' }},
+    'label.tkHint':           { en: { t: 'Hold 2+ notes to see intervals' }, fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: true }  , 'zh-Hans': { t: '按住 2 个以上音符可查看音程', reviewed: 'bt' }},
+    'label.rotationMode':     { en: { t: 'Mode' }, fr: { t: 'Mode', reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '模式', reviewed: 'bt' }},
     // The count arrives in data-i18n-vars from the panel, so no inflection logic
     // lives in the string (contract §6). The fuller 'Intervalles · notes : {n}' is
     // two lines in the 142 px interval column and pushes the whole list down; the
     // one-line 'Intervalles · {n} notes' fits but inflects wrongly at n=1, so the
     // count stays after the colon beside an invariant noun.
-    'label.intervalsCount':   { en: { t: 'Intervals · notes: {n}' }, fr: { t: 'Interv. · notes : {n}', reviewed: true } },
-    'label.tonic':            { en: { t: 'Tonic' }, fr: { t: 'Tonique', reviewed: true } },
-    'label.tuningLibrary':    { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque de gammes', reviewed: true } },
-    'label.catAll':           { en: { t: 'All Categories' }, fr: { t: 'Toutes catégories', reviewed: true } },
-    'label.catHistorical':    { en: { t: 'Historical' }, fr: { t: 'Historiques', reviewed: true } },
-    'label.catJust':          { en: { t: 'Just Intonation' }, fr: { t: 'Intonation juste', reviewed: true } },
-    'label.catEdo':           { en: { t: 'Equal Divisions' }, fr: { t: 'Divisions égales', reviewed: true } },
-    'label.catNonOctave':     { en: { t: 'Non-Octave' }, fr: { t: 'Non octaviantes', reviewed: true } },
-    'label.catWorld':         { en: { t: 'World' }, fr: { t: 'Du monde', reviewed: true } },
-    'label.noteCount':        { en: { t: 'notes: {n}' }, fr: { t: 'notes : {n}', reviewed: true } },
+    'label.intervalsCount':   { en: { t: 'Intervals · notes: {n}' }, fr: { t: 'Interv. · notes : {n}', reviewed: true }  , 'zh-Hans': { t: '音程 · 音符：{n}', reviewed: 'bt' }},
+    'label.tonic':            { en: { t: 'Tonic' }, fr: { t: 'Tonique', reviewed: true }  , 'zh-Hans': { t: '主音', reviewed: 'bt' }},
+    'label.tuningLibrary':    { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque de gammes', reviewed: true }  , 'zh-Hans': { t: '调音库', reviewed: 'bt' }},
+    'label.catAll':           { en: { t: 'All Categories' }, fr: { t: 'Toutes catégories', reviewed: true }  , 'zh-Hans': { t: '全部类别', reviewed: 'bt' }},
+    'label.catHistorical':    { en: { t: 'Historical' }, fr: { t: 'Historiques', reviewed: true }  , 'zh-Hans': { t: '历史音律', reviewed: 'bt' }},
+    'label.catJust':          { en: { t: 'Just Intonation' }, fr: { t: 'Intonation juste', reviewed: true }  , 'zh-Hans': { t: '纯律', reviewed: 'bt' }},
+    'label.catEdo':           { en: { t: 'Equal Divisions' }, fr: { t: 'Divisions égales', reviewed: true }  , 'zh-Hans': { t: '等分', reviewed: 'bt' }},
+    'label.catNonOctave':     { en: { t: 'Non-Octave' }, fr: { t: 'Non octaviantes', reviewed: true }  , 'zh-Hans': { t: '非八度', reviewed: 'bt' }},
+    'label.catWorld':         { en: { t: 'World' }, fr: { t: 'Du monde', reviewed: true }  , 'zh-Hans': { t: '世界音律', reviewed: 'bt' }},
+    'label.noteCount':        { en: { t: 'notes: {n}' }, fr: { t: 'notes : {n}', reviewed: true }  , 'zh-Hans': { t: '音符：{n}', reviewed: 'bt' }},
     // A4 stays A4: it is letter pitch notation, which the C++ TuningEngine and the
     // .scl/.kbm formats also speak. Only REF is a word.
-    'label.a4Ref':            { en: { t: 'A4 REF' }, fr: { t: 'RÉF. A4', reviewed: true } },
-    'label.stretch':          { en: { t: 'Stretch' }, fr: { t: 'Étirement', reviewed: true } },
-    'label.loadScl':          { en: { t: 'Load .SCL' }, fr: { t: 'Ouvrir .SCL', reviewed: true } },
-    'label.loadKbm':          { en: { t: 'Load .KBM' }, fr: { t: 'Ouvrir .KBM', reviewed: true } },
-    'label.saveScl':          { en: { t: 'Save .SCL' }, fr: { t: 'Enreg. .SCL', reviewed: true } },
-    'label.saveKbm':          { en: { t: 'Save .KBM' }, fr: { t: 'Enreg. .KBM', reviewed: true } },
-    'label.exportHtml':       { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: true } },
-    'label.generateScale':    { en: { t: 'Generate Scale' }, fr: { t: 'Générer une gamme', reviewed: true } },
-    'label.genEdo':           { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: true } },
-    'label.genHarmonic':      { en: { t: 'Harmonic Series' }, fr: { t: 'Série harmonique', reviewed: true } },
-    'label.genRank2':         { en: { t: 'Rank-2 Temperament' }, fr: { t: 'Tempérament de rang 2', reviewed: true } },
-    'label.genDivisions':     { en: { t: 'Divisions' }, fr: { t: 'Divisions', reviewed: true, sameAsEn: true } },
-    'label.genPeriod':        { en: { t: 'Period (c)' }, fr: { t: 'Période (c)', reviewed: true } },
-    'label.genStartHarmonic': { en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: true } },
-    'label.genEndHarmonic':   { en: { t: 'End Harmonic' }, fr: { t: 'Harm. de fin', reviewed: true } },
-    'label.genGenerator':     { en: { t: 'Generator (c)' }, fr: { t: 'Génér. (c)', reviewed: true } },
+    'label.a4Ref':            { en: { t: 'A4 REF' }, fr: { t: 'RÉF. A4', reviewed: true }  , 'zh-Hans': { t: 'A4 基准', reviewed: 'bt' }},
+    'label.stretch':          { en: { t: 'Stretch' }, fr: { t: 'Étirement', reviewed: true }  , 'zh-Hans': { t: '延展', reviewed: 'bt' }},
+    'label.loadScl':          { en: { t: 'Load .SCL' }, fr: { t: 'Ouvrir .SCL', reviewed: true }  , 'zh-Hans': { t: '载入 .scl', reviewed: 'bt' }},
+    'label.loadKbm':          { en: { t: 'Load .KBM' }, fr: { t: 'Ouvrir .KBM', reviewed: true }  , 'zh-Hans': { t: '载入 .kbm', reviewed: 'bt' }},
+    'label.saveScl':          { en: { t: 'Save .SCL' }, fr: { t: 'Enreg. .SCL', reviewed: true }  , 'zh-Hans': { t: '保存 .scl', reviewed: 'bt' }},
+    'label.saveKbm':          { en: { t: 'Save .KBM' }, fr: { t: 'Enreg. .KBM', reviewed: true }  , 'zh-Hans': { t: '保存 .kbm', reviewed: 'bt' }},
+    'label.exportHtml':       { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: true }  , 'zh-Hans': { t: '导出 HTML', reviewed: 'bt' }},
+    'label.generateScale':    { en: { t: 'Generate Scale' }, fr: { t: 'Générer une gamme', reviewed: true }  , 'zh-Hans': { t: '生成音阶', reviewed: 'bt' }},
+    'label.genEdo':           { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: true }  , 'zh-Hans': { t: '等分八度 (EDO)', reviewed: 'bt' }},
+    'label.genHarmonic':      { en: { t: 'Harmonic Series' }, fr: { t: 'Série harmonique', reviewed: true }  , 'zh-Hans': { t: '泛音列', reviewed: 'bt' }},
+    'label.genRank2':         { en: { t: 'Rank-2 Temperament' }, fr: { t: 'Tempérament de rang 2', reviewed: true }  , 'zh-Hans': { t: '二阶音律', reviewed: 'bt' }},
+    'label.genDivisions':     { en: { t: 'Divisions' }, fr: { t: 'Divisions', reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '等分数', reviewed: 'bt',
+                     termNote: 'the glossary root for `divisions` is the GENERIC 分割 (cutting a thing apart), and this field is not that. It is the COUNT of equal divisions of the period, and it sits two cells from label.catEdo, whose English "Equal Divisions" takes the glossary root 等分. Shipping 分割 here would put two renderings of one concept in one generator panel. 等分数 is 等分 plus the count morpheme, so the two cells read as one vocabulary' }},
+    'label.genPeriod':        { en: { t: 'Period (c)' }, fr: { t: 'Période (c)', reviewed: true }  , 'zh-Hans': { t: '周期 (C)', reviewed: 'bt' }},
+    'label.genStartHarmonic': { en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: true }  , 'zh-Hans': { t: '起始泛音', reviewed: 'bt' }},
+    'label.genEndHarmonic':   { en: { t: 'End Harmonic' }, fr: { t: 'Harm. de fin', reviewed: true }  , 'zh-Hans': { t: '终止泛音', reviewed: 'bt' }},
+    'label.genGenerator':     { en: { t: 'Generator (c)' }, fr: { t: 'Génér. (c)', reviewed: true }  , 'zh-Hans': { t: '生成元 (C)', reviewed: 'bt' }},
     // The SECOND 'Period (c)': one <label> in the EDO row, one in the Rank-2 row.
     // Each is its own element and so needs its own key.
-    'label.genR2Period':      { en: { t: 'Period (c)' }, fr: { t: 'Période (c)', reviewed: true } },
-    'label.genNotes':         { en: { t: 'Notes' }, fr: { t: 'Notes', reviewed: true, sameAsEn: true } },
-    'label.generate':         { en: { t: 'Generate' }, fr: { t: 'Générer', reviewed: true } },
+    'label.genR2Period':      { en: { t: 'Period (c)' }, fr: { t: 'Période (c)', reviewed: true }  , 'zh-Hans': { t: '周期 (C)', reviewed: 'bt' }},
+    'label.genNotes':         { en: { t: 'Notes' }, fr: { t: 'Notes', reviewed: true, sameAsEn: true }  , 'zh-Hans': { t: '音符', reviewed: 'bt' }},
+    'label.generate':         { en: { t: 'Generate' }, fr: { t: 'Générer', reviewed: true }  , 'zh-Hans': { t: '生成', reviewed: 'bt' }},
 });
 
 // ============================================================================
@@ -1117,6 +1262,7 @@ export const I18N_EXEMPT = [
     // ── Endonyms ────────────────────────────────────────────────────────────
     ['English',  'endonym — a language name is never translated'],
     ['Français', 'endonym — a language name is never translated'],
+    ['简体中文', 'endonym — a language name is never translated. Written in the markup as the numeric-entity form &#31616;&#20307;&#20013;&#25991; and copied from plugins/O-Detune/Source/ui/public/index.html:1039 rather than retyped'],
 
     // ── The shared tuning module ────────────────────────────────────────────
     // O-Wind is the only plugin in batch K4 that consumes the module file BY
