@@ -1,5 +1,127 @@
 # O-Chorus Changelog
 
+## [1.6.3] - 2026-09-06
+
+Six of this page's nine `font-family` declarations named `PingFang SC` and not
+one of them reached it. A generic TERMINATES the font search, and Chromium
+resolves a generic against the document's lang — under `lang="zh-Hans"` the
+generic is already a Chinese face — so a CJK tail written after it is dead code.
+Every geometry pin on this page had therefore been measured against a face the
+stack does not name. PATCH: CSS font ordering and the comments that record its
+measurements — no parameter, range, type or state format changed (task
+quick-260906-uu7).
+
+### Fixed
+
+- **The CJK tail sat after the trailing generic, so O-Chorus's Chinese rendered
+  in Songti SC — a serif — not the PingFang SC its stacks asked for.** All six
+  tailed declarations (`.container`, `.preset-action`, `.settings-label`,
+  `.settings-select`, `.settings-toggle`, `.tooltip`) read
+
+      Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif
+
+  and now read
+
+      Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif
+
+  Every family the page needs is named, so the one surviving generic is a
+  genuine last resort, and it is `serif` because that is this page's Latin
+  design intent. The second generic was dead by construction: the first one
+  ends the search.
+
+  **Evidence, not inference.** `CSS.getPlatformFontsForNode` over CDP, the same
+  probe script run before and after, six selectors × en / fr / zh-Hans. BEFORE:
+  every zh-Hans Han run in `Songti SC / STSongti-SC-Regular`. AFTER: every one
+  in `蘋方-簡 / PingFangSC-Regular`, zero `Songti` in the transcript. `en` and
+  `fr` are byte-identical on both sides — Times New Roman throughout.
+  (`measure-ui.js`'s `ff` field is the DECLARED stack string and can never
+  answer this; it merely echoes the CSS that was edited.) The mechanism was
+  first proved on wave 4a's tracer, quick-260904-qrc.
+
+- **Every geometry pin was re-measured under the face that now renders, and
+  every pin comment rewritten with the number that proves it.** No pin VALUE
+  had to change — all seven pinned selectors held — but a stale comment that
+  happens to still be true is indistinguishable from one nobody checked. What
+  MOVED are measurements, all of them zh-Hans and all of them width-only:
+
+  | measurement | before (Songti SC) | after (PingFang SC) |
+  |---|---|---|
+  | `.settings-select` zh intrinsic width (`width: auto`) | 64.000 px | **65.000 px** |
+  | `简体中文` endonym on the zh arm | 36.000 px | **36.797 px** — now language-invariant |
+  | eight `.knob-label` spans, zh | 19.61 px | **20.00 px** |
+  | one three-character `.knob-label`, zh | 29.41 px | **30.00 px** |
+  | `.settings-label` LANGUAGE caption, zh | 19.20 px | **19.61 px** |
+  | `.settings-label` HOVER-HELP caption, zh | 38.41 px | **39.20 px** |
+  | `voices` tooltip, zh | 384.0 × 51.7 px, 2 body lines | **384.0 × 64.7 px, 3 body lines** |
+  | `#tips-toggle` tooltip, zh | 328.0 px wide | **334.8 px wide** |
+
+  **No HEIGHT changed anywhere.** That is why nothing was displaced: the two
+  faces give the same 13.00 px `line-height: normal` box at 9 px, so every
+  `line-height: 1.1111` held at its 9.984 px pinned box in all three arms, and
+  `check-ui-labels` assertion 7 reports 0 moved elements on fr and on zh-Hans.
+
+- **The `width: 65px` pin on `.settings-select` was expected to break and did
+  the opposite — it CLOSED.** The zh intrinsic width went 64 → 65, so the one
+  1-px mover the pin was written to absorb no longer exists and the control is
+  language-invariant on this host for the first time. The pin stays as insurance
+  for a host that resolves a third face. Its comment's stated cause was already
+  false: it credited the 64 to "PingFang SC", and the run was Songti SC.
+
+- **The `v1.5.0 CJK TAIL` comment block carried four false claims.** Its census
+  read "FIVE of this page's EIGHT" — a live grep finds **six of nine**;
+  `.settings-toggle` arrived with the v1.6.0 settings row and the census was
+  never updated. It spelled the third tail-less rule `#gear-btn` when the
+  declaration is on `.gear-btn`. It closed with "Latin still resolves to
+  Garamond FIRST, so English geometry is unmoved" — Garamond is not a macOS
+  face at all, so Latin had been landing on Times New Roman since the block was
+  written. And it described the resolution set without stating that the order
+  was wrong. All four are corrected, the ordering rule is stated with its
+  attribution, and the block is retitled to the version whose ordering it
+  actually describes.
+
+### Changed
+
+- **Two more inert declarations are now documented as inert rather than
+  silently trusted.** `.settings-select`'s `line-height: 1.2` computes to
+  `normal` in all three arms — Chromium's UA stylesheet overrides line-height on
+  `<select>` — so the v1.5.0 comment's "measured 16.00 px in both languages"
+  described a declaration the engine discards; the 16 px comes from `height` and
+  padding. `.settings-toggle`'s `line-height: 1.2` is a no-op for a different
+  reason: the pinned box is 14.000 px and `normal` is also 14.000 px under both
+  faces, so `height: 16px` is doing the work the comment credited to the ratio.
+  Both declarations are **kept** — removing an inert declaration is a
+  behavioural change on any host whose UA sheet does not override it — and both
+  now carry the measurement that proves they are inert. Likewise
+  `.settings-toggle`'s `min-width: 42px` is documented as a floor that protects
+  nothing on the growth side; the button measures 42.00 × 16.00 in all three
+  arms because no caption gets near it, not because of the floor.
+
+### Known / deferred
+
+- **The three tail-less declarations were NOT reviewed and found clean.** They
+  read `Garamond, 'Times New Roman', serif`, and Times New Roman holds none of
+  the glyphs they render, so the bare generic IS reached and hands each a
+  different fallback — identically in all three languages, so this is the same
+  mechanism, permanently, not a language defect. `#preset-prev` ◀ resolves to
+  **Hiragino Mincho ProN**, `#preset-next` ▶ to **Lucida Grande**, `.gear-btn`
+  ⚙ to **Menlo**. It is already visible: the two nav arrows are a matched pair
+  in the markup and are not one on screen — `#preset-prev` 20.00 × 21.00 px at
+  y=9.5 against `#preset-next` 18.33 × 18.00 px at y=11.0. Out of scope for
+  quick-260906-uu7, which was chartered to the six tailed stacks; a candidate
+  for its own task. `.preset-dropdown-item`'s resolved face is **unmeasured** —
+  the probe reported no platform fonts for it on either run.
+
+### Verification
+
+`node scripts/check-ui-labels.js --plugin O-Chorus` exit **0**, 87 PASS / 0 FAIL,
+`[7][GEOMETRY DIFF]` 0 moved elements on fr and on zh-Hans, coverage 14/14.
+`node plugins/O-Chorus/tests/ui_tip_render_check.js` exit **0**, 345 passed / 0
+FAIL, real zh-Hans pass. `node scripts/measure-ui.js --plugin O-Chorus --mode box
+--report all` exit **0**, four screens, none SKIPPED, counts identical to the
+BEFORE run (`undeclared-font: 3` · `line-height-normal: 2` · `wrap-count: 0` ·
+`svg-font-attr: 0/0`). No gate fixture was changed: `plugins/O-Chorus/tests/` is
+byte-unchanged.
+
 ## [1.6.2] - 2026-09-04
 
 Closes the last four Simplified Chinese rows below the rollout's ship bar, and

@@ -44,7 +44,7 @@ Ouaricon Plugins:
 | O-FreqPulse | 📦 Installed | 1.19.0 | Audio Effect (Spectral Sequencer) | 2026-08-31 |
 | O-SpectralShaper | 📦 Installed | 1.8.0 | Audio Effect (Spectral Transient Shaper) | 2026-09-05 |
 | O-GrainScatter | 📦 Installed | 2.6.1 | Audio Effect (Granular Stutter Engine) | 2026-08-31 |
-| O-Chorus | 📦 Installed | 1.6.2 | Audio Effect (Chorus) | 2026-09-04 |
+| O-Chorus | 📦 Installed | 1.6.3 | Audio Effect (Chorus) | 2026-09-06 |
 | O-Orbit | 📦 Installed | 1.2.2 | Audio Effect (Spatial Orbiter) | 2026-08-31 |
 | O-TextureForge | 📦 Installed | 1.4.0 | Instrument (Concatenative Synth) | 2026-09-05 |
 | O-Texture | 📦 Installed | 0.5.0 | Instrument/Effect (Neural Texture Synth) |  2026-09-04 |
