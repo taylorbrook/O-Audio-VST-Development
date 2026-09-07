@@ -127,6 +127,14 @@ console.log('== O-Contrabass ui_frontend_check ==');
         + (dead.length ? ' — DEAD: ' + dead.join(', ') : ''));
     // v1.8.0 adds the interface-language pair (getUiLanguage / setUiLanguage),
     // the same shape as the v1.7.0 hover-help pair beside it: 34 -> 36.
+    //
+    // READ AND DELIBERATELY LEFT during the Chinese work. The "2 language" in
+    // the message below counts the getUiLanguage/setUiLanguage FUNCTION PAIR on
+    // the native bridge, not the number of languages the page offers. Adding a
+    // language to the copy table adds no native fn, so this figure is invariant
+    // under localization and the sentence stays true. It is named here because
+    // a probe hunting for a two-language assumption lands on it, and the next
+    // reader should not have to re-derive that it is the wrong kind of two.
     check(called.size === 36 && registered.size === 36,
         `bridge surface is exactly 36 fns (2 mockup + 10 preset + 20 tuning + 2 hover-help `
         + `+ 2 language) — got JS=${called.size} C++=${registered.size}`);
@@ -219,25 +227,68 @@ console.log('== O-Contrabass ui_frontend_check ==');
     const i18nPath = path.join(pluginRoot, 'Source', 'ui', 'public', 'js', 'i18n.js');
     check(fs.existsSync(i18nPath), 'js/i18n.js exists (the interface copy table)');
 
-    let I18N = null, LABELS = null, TIP_BINDINGS = null, I18N_EXEMPT = null;
+    let I18N = null, LABELS = null, TIP_BINDINGS = null, I18N_EXEMPT = null, LANGUAGES = null;
     if (fs.existsSync(i18nPath)) {
         try {
             const src = fs.readFileSync(i18nPath, 'utf8')
                 .replace(/(^|\n)(\s*)export\s+(const|let|function|class)\s/g, '$1$2$3 ');
             const sandbox = { console: { warn() {}, error() {}, log() {} } };
             vm.createContext(sandbox);
-            vm.runInContext(`${src}\n;globalThis.__x = { I18N, LABELS, TIP_BINDINGS, I18N_EXEMPT };`,
+            vm.runInContext(`${src}\n;globalThis.__x = { I18N, LABELS, TIP_BINDINGS, I18N_EXEMPT, LANGUAGES };`,
                             sandbox, { timeout: 5000 });
-            ({ I18N, LABELS, TIP_BINDINGS, I18N_EXEMPT } = sandbox.__x);
+            ({ I18N, LABELS, TIP_BINDINGS, I18N_EXEMPT, LANGUAGES } = sandbox.__x);
         } catch (e) {
             check(false, `js/i18n.js evaluates — ${e.message}`);
         }
     }
 
+    // ── the language list is DERIVED, shape-asserted, and never guessed ──
+    //
+    // This gate used to reach for a language by naming it: it read `.en` and
+    // `.fr` off each table entry, and asserted nothing whatever about any
+    // language the table might gain. That shape does not go red when the table
+    // grows — it goes QUIET, and certifies a page whose new column is half
+    // missing. The list now comes from the table's own export, so the gate
+    // covers whatever the page actually offers.
+    //
+    // The sandbox was already open and the table already parsed; only the
+    // identifier was missing from the publish above.
+    //
+    // Two INDEPENDENT guards, because they fail differently. The first says the
+    // export is a usable list at all. The second says it carries something
+    // besides the source language — without it a one-member list satisfies the
+    // shape assertion and every loop below compares the page to itself and
+    // reports green over nothing. Neither falls back to a guessed list: a gate
+    // that invents its own subject is worse than one that stops.
+    const EN = 'en';
+    const langsOk = Array.isArray(LANGUAGES) && LANGUAGES.length > 0 && LANGUAGES[0] === EN;
+    check(langsOk,
+        'LANGUAGES derives from the table as a non-empty array opening with the source '
+        + `language — got ${JSON.stringify(LANGUAGES)}`);
+    if (!langsOk) {
+        console.log('REFUSING to check a guessed language list.');
+        console.log('== 1 CHECK(S) FAILED ==');
+        process.exit(1);
+    }
+    const REST = LANGUAGES.slice(1);
+    check(REST.length >= 1,
+        'the derived list carries at least one language besides the source language — '
+        + `got ${JSON.stringify(LANGUAGES)}`);
+    if (REST.length < 1) {
+        console.log('REFUSING to compare the page to itself.');
+        console.log('== 1 CHECK(S) FAILED ==');
+        process.exit(1);
+    }
+    console.log(`   checking ${LANGUAGES.length} language(s): ${LANGUAGES.join(' -> ')}`);
+
     if (I18N && LABELS && TIP_BINDINGS) {
-        // ── every markup key resolves, in BOTH languages ────────────────
+        // ── every markup key resolves, in EVERY declared language ───────
         // trLabel() looks in LABELS first and falls back to I18N; this mirrors
         // that order rather than assuming a key lives in one table.
+        //
+        // The loop below walks the DERIVED list. It used to name two languages
+        // and stop, which meant a key missing its third rendering shipped an
+        // English caption onto a page whose whole point was not to have one.
         const markupKeys = [];
         for (const m of html.matchAll(/data-i18n(?:-aria|-placeholder|-alt)?="([\w.-]+)"/g))
             markupKeys.push(m[1]);
@@ -248,12 +299,19 @@ console.log('== O-Contrabass ui_frontend_check ==');
         const bad = [];
         for (const k of new Set(markupKeys)) {
             const e = resolve(k);
-            if (!e)                                   bad.push(`${k} (no such key)`);
-            else if (!e.en || !e.en.t)                bad.push(`${k} (en missing)`);
-            else if (!e.fr || !e.fr.t)                bad.push(`${k} (fr MISSING — an English caption on a French page)`);
+            if (!e) { bad.push(`${k} (no such key)`); continue; }
+            for (const lang of LANGUAGES) {
+                if (!e[lang] || !e[lang].t) {
+                    bad.push(lang === EN
+                        ? `${k} (${lang} missing)`
+                        : `${k} (${lang} MISSING — an English caption on a ${lang} page)`);
+                    break;
+                }
+            }
         }
         check(bad.length === 0,
-            `all ${new Set(markupKeys).size} distinct markup keys resolve in LABELS or I18N with both languages`
+            `all ${new Set(markupKeys).size} distinct markup keys resolve in LABELS or I18N in every `
+            + `declared language (${LANGUAGES.join(', ')})`
             + (bad.length ? ' — ' + bad.join(', ') : ''));
 
         // ── every tip anchor is bound ───────────────────────────────────
@@ -267,11 +325,21 @@ console.log('== O-Contrabass ui_frontend_check ==');
             `every TIP_BINDINGS key exists in I18N`
             + (unresolved.length ? ' — ' + unresolved.join(', ') : ''));
 
-        const missingFr = [...bound].filter(k => !I18N[k] || !I18N[k].fr
-            || !I18N[k].fr.t || !I18N[k].fr.b);
-        check(missingFr.length === 0,
-            `every bound tooltip carries a French title AND body`
-            + (missingFr.length ? ' — ' + missingFr.join(', ') : ''));
+        // A tooltip needs BOTH halves in every language the page offers: a
+        // title with no body renders an empty popover, and a body with no title
+        // renders an unlabelled one. Walked over the derived list rather than
+        // over one named language, for the same reason as the loop above.
+        const missingTip = [];
+        for (const k of bound) {
+            for (const lang of LANGUAGES) {
+                const e = I18N[k] && I18N[k][lang];
+                if (!e || !e.t || !e.b) { missingTip.push(`${k} (${lang})`); break; }
+            }
+        }
+        check(missingTip.length === 0,
+            `every bound tooltip carries a title AND body in every declared language `
+            + `(${LANGUAGES.join(', ')})`
+            + (missingTip.length ? ' — ' + missingTip.join(', ') : ''));
 
         // ── the selectors actually address something ────────────────────
         // Five anchors carry neither an id nor a data-param and are addressed
@@ -315,6 +383,13 @@ console.log('== O-Contrabass ui_frontend_check ==');
         // ReferenceError that takes the whole UI down
         // (pattern_module_toplevel_init_tdz — the Stage H trap on MBC and
         // O-Bitrot). Positional, because that is what the bug is.
+        //
+        // CANON-SCOPED, read and deliberately LEFT. The literal below is the
+        // module's own boot-time default, which is the source language BY
+        // CONSTRUCTION and does not vary with what the selector offers.
+        // Deriving it from the language list would assert nothing: this check
+        // is about WHERE the declaration sits relative to the eager bindings,
+        // not about which language it names.
         const canonAt = inlineJs.indexOf("let uiLanguage = 'en';");
         const bindAt  = inlineJs.indexOf('.forEach(bindKnob);');
         const setLabelDefAt = inlineJs.indexOf('function setLabel(');
