@@ -1,0 +1,332 @@
+# O-Strata — UI mockup specification v1
+# Fork of O-Prism v1.24.0 (1200×800 WebView, Ouaricon Naturalist). The Wavetable
+# library/editor is replaced by a 3D-geometry wavetable GENERATOR; everything else
+# in the shell is inherited unchanged. Parameter IDs keep O-Prism's camelCase
+# `osc{A,B}…` convention because the plugin inherits an existing APVTS.
+
+plugin: O-Strata
+version: 1
+fork_of: O-Prism v1.24.0
+design_system: ouaricon-naturalist-001
+test_html: v1-ui-test.html
+
+window:
+  width: 1200
+  height: 800
+  resizable: false          # O-Prism: setSize (1200, 800)
+  chrome:
+    header_bar:  { x: 0, y: 0,   width: 1200, height: 34, background: "#3C2F2F" }
+    tab_bar:     { x: 0, y: 34,  width: 1200, height: 32, background: "#D4C4B0" }
+    tab_content: { x: 0, y: 66,  width: 1200, height: 666, padding: "10px 14px 6px", usable: "1172×650" }
+    footer_bar:  { x: 0, y: 732, width: 1200, height: 68, background: "#3C2F2F" }
+
+styling:
+  colors:
+    paper: "#F5E6D3"
+    paper_deep: "#EBD9C7"
+    tan: "#D4C4B0"
+    walnut: "#8B7355"
+    oak: "#5C4033"
+    ink: "#3C2F2F"
+    sage: "#8BA870"
+    deep_green: "#6B8E4E"
+    vine: "#5a7a6a"          # knob arc + active Osc A/B button (O-Prism)
+    header_accent: "#C9A27B"
+    bake_amber: "#C9822B"    # only while a bake is running / source-missing notice
+    background: "#F5E6D3"
+    foreground: "#3C2F2F"
+    accent: "#8BA870"
+  fonts:
+    primary: "'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif"
+    hud: "'SF Mono', 'Menlo', 'Consolas', monospace"
+  type_scale:
+    section_header: { size: 10, letter_spacing: 2, transform: uppercase }
+    knob_label:     { size: 9,  letter_spacing: 0.8, transform: uppercase }
+    knob_value:     { size: 10 }
+    dropdown_label: { size: 8,  letter_spacing: 1, transform: uppercase }
+    status_small_caps: { size: 9, letter_spacing: 1.2, transform: uppercase }
+  knob_component:
+    name: SVG vine-arc knob (O-Prism .knob-container[data-knob])
+    markup: ".knob > .knob-visual > svg(viewBox 52×52; .knob-track r=22; .knob-vine r=22 dasharray 103.67) + .knob-label + .knob-value"
+    sizes: { standard: 52, small: 44, large: 64 }
+    interactions: [vertical drag, wheel, alt-click reset to default]
+  css_classes_reused_from_oprism:
+    - header-bar / preset-browser / preset-menu / settings-popover / gear-btn
+    - tab-bar / tab / tab-content-area / tab-content
+    - section-header / knob-container / knob / knob-visual / knob-track / knob-vine / knob-label / knob-value
+    - dropdown-group / dropdown-label / param-select / toggle-btn / param-row / inline-sections / inline-section
+    - osc-section / osc-canvas-wrap / osc-canvas / osc-params / wt-drop-overlay
+    - mod-matrix-table / mod-row / mod-col-* ; effect-section / bypass-toggle ; tuning-* ; footer-bar / footer-param
+    - wt-osc-toggle / wt-osc-btn (kept for the Geometry tab's Osc A / Osc B switch)
+  css_classes_new:
+    - osc-view-toggle / osc-view-btn      # ⬡ / ≋ corner toggle
+    - bake-bar                             # 2 px sage progress line
+    - geo-toprow / geo-ctl / geo-ctl-label / seg / seg-btn / geo-import-btn / geo-status / geo-status-dot
+    - geo-main / geo-view-col / geo-view-wrap / geo-view / geo-hud / geo-webgl-unavailable / geo-hint
+    - geo-panel-col / geo-osc-panel / geo-family-panel / geo-knob-row / geo-fam-knobs / geo-divider / geo-dropdown-row
+    - geo-position-row / geo-position-note / geo-notice / botanical-overlay
+
+tabs:
+  order: [synth, mod, tuning, effects, geometry]
+  note: "geometry REPLACES O-Prism's wavetable tab in the same (fifth) slot"
+  geometry: { data_tab: geometry, data_i18n: tab.geometry }
+
+removed_from_oprism:
+  - Wavetable tab
+  - WavetableEditor (wavetable-editor.js / .css, frame strip, harmonic editor, ops bar, save modal)
+  - oscATable / oscBTable "Shape" dropdown (select-oscATable, select-oscBTable)
+  - WavetableSelector user-table import / manage modal (replaced by geometry Import… + drop)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LAYOUT
+# ─────────────────────────────────────────────────────────────────────────────
+layout:
+  synth_tab:
+    description: >
+      Identical to O-Prism except the two oscillator panels. Each panel keeps the
+      160×90 canvas (now a two-mode view) and the same knob order; the single
+      "Shape" dropdown becomes two dropdowns, Source and a family library.
+    oscillator_panel:
+      canvas: { size: "160×90", border: "2px #8B7355", background: "#EBD9C7", classes: [osc-canvas-wrap, osc-canvas] }
+      view_toggle: { position: "canvas top-right, 4px/5px", glyphs: { "3d": "⬡ (U+2B21)", wavetable: "≋ (U+224B)" }, size_px: 10, color: walnut, active_color: sage, default: "3d", per_oscillator: true }
+      bake_bar: { position: "inside canvas bottom edge (left/right 2px, bottom 2px)", height: 2, color: sage, behaviour: "fills 0→100% in 400 ms then fades 350 ms; fired on any bake-param change" }
+      drop_overlay: { text: "Drop OBJ · STL · PNG", data_i18n: label.dropGeometry, class: wt-drop-overlay }
+      controls_in_order:
+        - { dropdown: Source,  param: osc?GeoSource, data_i18n: label.source }
+        - { dropdown: "Mesh | Field | Terrain (label + options follow Source)", param: "osc?Mesh | osc?VolField | osc?Terrain", data_i18n: "label.mesh | label.field | label.terrain" }
+        - { knob: Position, param: osc?Pos, readout: "Frame 128 / 256" }
+        - { knob: Level, param: osc?Level }
+        - { knob: Pan, param: osc?Pan }
+        - { knob: Coarse, param: osc?Coarse }
+        - { knob: Fine, param: osc?Fine }
+        - { knob: Phase, param: osc?Phase }
+        - { knob: Unison, param: osc?Unison }
+        - { knob: Detune, param: osc?Detune }
+        - { knob: Width, param: osc?Width }
+        - { dropdown: Warp, param: osc?WarpType }
+        - { knob: Warp Amt, param: osc?WarpAmt }
+    unchanged_sections: [Sub Oscillator, Noise, Performance, Filter A, Filter Routing, Filter B, Amp Envelope, Filter Envelope, LFO 1-4]
+
+  mod_tab:      { unchanged: true, destinations: "O-Prism's 26 entries — no Geo params (bake params are never mod destinations)" }
+  tuning_tab:   { unchanged: true }
+  effects_tab:  { unchanged: true }
+
+  geometry_tab:
+    id: geometry-tab
+    overflow: hidden            # must NOT scroll; total content height 604 ≤ 650 usable
+    coordinates: "relative to tab-content padding box origin (14, 76) in window space"
+    regions:
+      top_row:
+        box: { x: 0, y: 0, width: 1172, height: 30 }
+        margin_bottom: 12
+        items_left_to_right:
+          - { id: osc_toggle, class: wt-osc-toggle, buttons: ["Osc A", "Osc B"], data_i18n: [label.oscAShort, label.oscBShort], approx_box: { x: 0, y: 3, width: 150, height: 24 } }
+          - { id: source_seg, label: Source, data_i18n_label: label.source, class: seg, buttons: [Mesh, Volume, Terrain], param: osc?GeoSource, mirrors: "Synth-tab Source dropdown", approx_box: { x: 166, y: 3, width: 250, height: 24 } }
+          - { id: frames_seg, label: Frames, data_i18n_label: label.frames, class: seg, buttons: ["64", "128", "256"], param: osc?GeoFrames, approx_box: { x: 432, y: 3, width: 160, height: 24 } }
+          - { id: library_dropdown, label: "Mesh | Field | Terrain", class: param-select, param: "osc?Mesh | osc?VolField | osc?Terrain", approx_box: { x: 610, y: 3, width: 130, height: 24 } }
+          - { id: import_button, text: "Import…", data_i18n: label.import, class: geo-import-btn, style: "walnut outline, transparent fill", approx_box: { x: 756, y: 3, width: 82, height: 24 } }
+          - { id: bake_status, class: geo-status, align: right, text: "Baked · 38 ms · 256 frames", data_i18n: [label.baked, label.baking, label.framesUnit], dot: { idle: sage, baking: "amber, pulsing" }, approx_box: { x: 980, y: 8, width: 192, height: 14 } }
+      view_3d:
+        box: { x: 0, y: 42, width: 700, height: 540 }
+        canvas_id: geoView
+        class: [geo-view-wrap, osc-canvas-wrap, geo-view]
+        border: "2px #8B7355"
+        background: "#EBD9C7"
+        view_toggle: { same_as: synth_tab.oscillator_panel.view_toggle, size_px: 13, position: "8px/10px" }
+        bake_bar: { same_as: synth_tab.oscillator_panel.bake_bar }
+        hud: { position: "bottom-left 12px/11px", font: hud, size: 10, color: walnut, text: "frame 128/256 · φ 0.37", i18n: none }
+        webgl_unavailable_placeholder: { class: geo-webgl-unavailable, data_i18n: label.webglUnavailable, hidden_by_default: true }
+        drop_overlay: { data_i18n: label.dropGeometry }
+        renderer: "Canvas 2D mock (perspective + lookAt, ~40 lines); production = WebGL2 with the same Canvas 2D fallback"
+        scenes:
+          mesh:    "wireframe library mesh (walnut 0.42α) + translucent slicing plane (sage 0.10α fill, oak stroke) at the current frame height + marching-squares contour in sage with a sage scan dot"
+          volume:  "sparse iso-shell point cloud of the field (faint walnut, depth-faded) + torus-knot / Lissajous orbit in ink + sage scan dot"
+          terrain: "32×32 wireframe heightmap in walnut + orbit on the surface in sage; first/last-frame orbits dotted sage (sweep envelope); sage playhead dot"
+          wavetable: "Serum-style stacked frames (16 in the big view, 9 in the small); current frame in oak with O-Prism's gold gradient fill; sage phase dot"
+        interactions:
+          pointer: "pointerdown on canvas, document-level pointermove/pointerup"
+          drag: { mesh: "Slice Tilt Y (dx) / Slice Tilt X (dy)", terrain: "Orbit Centre X (dx) / Y (−dy)", volume: "rotate camera" }
+          wheel: { mesh: "Projection φ (wraps)", volume: "Sweep Range", terrain: "Sweep Range", passive: false }
+          drag_drop: "OBJ/STL → Mesh Imported…, PNG → Terrain Imported…; re-bake"
+        hint_line: { box: { x: 0, y: 590, width: 700, height: 14 }, class: geo-hint, content: "drag · wheel · alt-click hints, family-specific, small caps", data_i18n: [label.hintTilt, label.hintPhi, label.hintOrbitView, label.hintSweep, label.hintCentre, label.hintReset] }
+      family_panel:
+        box: { x: 732, y: 42, width: 440, height: 340 }
+        gap_from_view: 32
+        class: [geo-panel-col, geo-osc-panel, geo-family-panel]
+        visibility: "only the active oscillator's panel and only the active family's sub-panel are visible"
+        header: { class: section-header, text: { mesh: "Mesh — slice sweep", volume: "Volume — orbit through a field", terrain: "Terrain — orbit over a heightmap" }, data_i18n: [label.meshPanel, label.volumePanel, label.terrainPanel] }
+        knob_row:
+          class: geo-knob-row
+          common_first: { knob: Shape Drive, param: osc?GeoDrive, data_i18n: label.shapeDrive }
+          divider: "1 px walnut hairline"
+          family_knobs: { class: geo-fam-knobs, grid: "3 columns (terrain wraps 3 + 3)" }
+        dropdown_row: { class: geo-dropdown-row }
+        position_row:
+          class: geo-position-row
+          knob: { label: Position, param: osc?Pos, readout: "Frame 128 / 256", mirrors: "Synth-tab Position (same param)" }
+          note: { class: geo-position-note, data_i18n: label.positionNote, style: "italic walnut 10px" }
+        notice: { class: geo-notice, data_i18n: label.sourceMissing, text: "Source missing — using library fallback", color: bake_amber, hidden_by_default: true, mock_trigger: "window.mock.sourceMissing(true) or key 'm'" }
+      botanical_overlay:
+        file: img/shell_conchologiaiconi12reev_0090.png
+        class: botanical-overlay
+        position: "absolute in #geometry-tab; right −20px; bottom 2px; height 58% of the tab (~386px)"
+        opacity: 0.3
+        blend: multiply
+        pointer_events: none
+        z_index: "0 — below .geo-toprow (2) and .geo-main (1)"
+        legibility: "captions/readouts in the panel carry a paper text-shadow halo; selects a paper box-shadow; anchored low so the shell's dense stripes fall below the last control row"
+    height_budget: "30 top row + 12 margin + 544 view + 8 + 14 hint = 608 ≤ 650 usable → no scroll"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BAKE SEMANTICS / 3D-VIEW PUSH CONTRACT
+# ─────────────────────────────────────────────────────────────────────────────
+bake:
+  rule: "all 48 Geometry params are bake params: APVTS AudioParameter*, automatable, persisted, excluded from mod destinations"
+  debounce_ms: 150
+  ui_feedback: "bake-bar (2 px sage, 400 ms) on the oscillator's canvas + big view; status readout 'Baking…' amber pulsing → 'Baked · NN ms · N frames'"
+  never_mod_destination: true
+view_push_contract:
+  playhead_event: { rate_hz: 30, transport: "emitEventIfBrowserIsVisible + backend event listener", payload: "{osc, frame, phase} change-gated JSON (< 100 bytes)" }
+  view_table: { shape: "64×64 Float32", transport: "base64 (~21 KB) on table change only", full_table_crosses: false }
+  scene_by_family: { mesh: "mesh vertices/edges (library: procedural in C++, or imported), plane pose, contour polyline", volume: "iso-shell point cloud, orbit polyline, scan point", terrain: "heightmap 32×32, orbit polyline, scan point" }
+  repush_on_preset_apply: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PARAMETERS — Geometry block (24 per oscillator × 2 = 48), all bake params
+# NOTE: parameter-spec-draft.md says "23 per oscillator / 46 / 217 total" but its own
+# ID list (and BRIEF.md's tables) enumerate 24: 12 Float + 12 Choice. The mockup
+# follows the ID list; the full parameter-spec.md should carry 48 / 219.
+# ─────────────────────────────────────────────────────────────────────────────
+geometry_param_template:   # expanded below for A and B
+  - { suffix: GeoSource,     type: combo,  choices: [Mesh, Volume, Terrain], default: Mesh, label: Source, data_i18n: label.source, tabs: [synth, geometry] }
+  - { suffix: GeoFrames,     type: combo,  choices: ["64", "128", "256"], default: "256", label: Frames, data_i18n: label.frames, tabs: [geometry] }
+  - { suffix: GeoDrive,      type: slider, range: [0.0, 1.0], default: 0.0, label: Shape Drive, data_i18n: label.shapeDrive, tabs: [geometry] }
+  - { suffix: Mesh,          type: combo,  choices: [Sphere, Torus, Twisted Star, Crescent, Torus Knot, fBm Blob, Imported…], default: Torus, label: Mesh, data_i18n: label.mesh, tabs: [synth, geometry] }
+  - { suffix: MeshTiltX,     type: slider, range: [-90.0, 90.0], unit: "°", default: 0.0, label: Slice Tilt X, data_i18n: label.sliceTiltX, tabs: [geometry], view_drag: dy }
+  - { suffix: MeshTiltY,     type: slider, range: [-90.0, 90.0], unit: "°", default: 0.0, label: Slice Tilt Y, data_i18n: label.sliceTiltY, tabs: [geometry], view_drag: dx }
+  - { suffix: MeshPhi,       type: slider, range: [0.0, 360.0], unit: "°", default: 0.0, label: Projection φ, data_i18n: label.projectionAngle, tabs: [geometry], view_wheel: true }
+  - { suffix: MeshUnwrap,    type: combo,  choices: [XY Projection, Centroid Distance], default: XY Projection, label: Unwrap Mode, data_i18n: label.unwrapMode, tabs: [geometry] }
+  - { suffix: MeshLoop,      type: combo,  choices: [Largest, Sum], default: Largest, label: Loop Policy, data_i18n: label.loopPolicy, tabs: [geometry] }
+  - { suffix: VolField,      type: combo,  choices: [Torus SDF, Box SDF, Gyroid, Sphere SDF, fBm Noise], default: Torus SDF, label: Field, data_i18n: label.field, tabs: [synth, geometry] }
+  - { suffix: VolOrbit,      type: combo,  choices: ["Torus Knot (2,3)", "Torus Knot (3,5)", "Torus Knot (5,7)", Lissajous Knot], default: "Torus Knot (2,3)", label: Orbit, data_i18n: label.orbit, tabs: [geometry] }
+  - { suffix: VolSweepAxis,  type: combo,  choices: [Orbit Scale, Knot Phase, Z Offset], default: Orbit Scale, label: Sweep Axis, data_i18n: label.sweepAxis, tabs: [geometry] }
+  - { suffix: VolSweepRange, type: slider, range: [0.0, 1.0], default: 0.6, label: Sweep Range, data_i18n: label.sweepRange, tabs: [geometry], view_wheel: true }
+  - { suffix: VolDetail,     type: slider, range: [0.0, 1.0], default: 0.3, label: Field Detail, data_i18n: label.fieldDetail, tabs: [geometry] }
+  - { suffix: Terrain,       type: combo,  choices: [Sine Product, Radial Rings, Imported…], default: Sine Product, label: Terrain, data_i18n: label.terrain, tabs: [synth, geometry] }
+  - { suffix: TerOrbit,      type: combo,  choices: [Ellipse, Epitrochoid 3·5·7, Hypocycloid 3·5·7, Superellipse], default: Ellipse, label: Orbit Shape, data_i18n: label.orbitShape, tabs: [geometry] }
+  - { suffix: TerCX,         type: slider, range: [-1.0, 1.0], default: 0.0, label: Centre X, data_i18n: label.orbitCentreX, tabs: [geometry], view_drag: dx }
+  - { suffix: TerCY,         type: slider, range: [-1.0, 1.0], default: 0.0, label: Centre Y, data_i18n: label.orbitCentreY, tabs: [geometry], view_drag: "-dy" }
+  - { suffix: TerAspect,     type: slider, range: [0.1, 1.0], default: 1.0, label: Aspect, data_i18n: label.orbitAspect, tabs: [geometry] }
+  - { suffix: TerRot,        type: slider, range: [0.0, 360.0], unit: "°", default: 0.0, label: Rotation, data_i18n: label.orbitRotation, tabs: [geometry] }
+  - { suffix: TerSweepAxis,  type: combo,  choices: [Radius, Rotation, Centre X, Centre Y], default: Radius, label: Sweep Axis, data_i18n: label.sweepAxis, tabs: [geometry] }
+  - { suffix: TerSweepRange, type: slider, range: [0.0, 1.0], default: 0.8, label: Sweep Range, data_i18n: label.sweepRange, tabs: [geometry], view_wheel: true }
+  - { suffix: TerBlur,       type: slider, range: [0.0, 1.0], default: 0.2, label: Image Blur, data_i18n: label.imageBlur, tabs: [geometry] }
+  - { suffix: TerEdge,       type: combo,  choices: [Mirror, Window], default: Mirror, label: Edge Mode, data_i18n: label.edgeMode, tabs: [geometry] }
+
+controls:
+  # ── Geometry, Osc A (24) ── every entry: bake: true, mod_destination: false
+  - { id: oscAGeoSource,     type: combo,  choices: [Mesh, Volume, Terrain], default: Mesh, label: Source, bake: true, mod_destination: false, tabs: [synth, geometry] }
+  - { id: oscAGeoFrames,     type: combo,  choices: ["64", "128", "256"], default: "256", label: Frames, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscAGeoDrive,      type: slider, range: [0.0, 1.0], default: 0.0, label: Shape Drive, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscAMesh,          type: combo,  choices: [Sphere, Torus, Twisted Star, Crescent, Torus Knot, fBm Blob, Imported…], default: Torus, label: Mesh, bake: true, mod_destination: false, tabs: [synth, geometry] }
+  - { id: oscAMeshTiltX,     type: slider, range: [-90.0, 90.0], default: 0.0, label: Slice Tilt X, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscAMeshTiltY,     type: slider, range: [-90.0, 90.0], default: 0.0, label: Slice Tilt Y, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscAMeshPhi,       type: slider, range: [0.0, 360.0], default: 0.0, label: Projection φ, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscAMeshUnwrap,    type: combo,  choices: [XY Projection, Centroid Distance], default: XY Projection, label: Unwrap Mode, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscAMeshLoop,      type: combo,  choices: [Largest, Sum], default: Largest, label: Loop Policy, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscAVolField,      type: combo,  choices: [Torus SDF, Box SDF, Gyroid, Sphere SDF, fBm Noise], default: Torus SDF, label: Field, bake: true, mod_destination: false, tabs: [synth, geometry] }
+  - { id: oscAVolOrbit,      type: combo,  choices: ["Torus Knot (2,3)", "Torus Knot (3,5)", "Torus Knot (5,7)", Lissajous Knot], default: "Torus Knot (2,3)", label: Orbit, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscAVolSweepAxis,  type: combo,  choices: [Orbit Scale, Knot Phase, Z Offset], default: Orbit Scale, label: Sweep Axis, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscAVolSweepRange, type: slider, range: [0.0, 1.0], default: 0.6, label: Sweep Range, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscAVolDetail,     type: slider, range: [0.0, 1.0], default: 0.3, label: Field Detail, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscATerrain,       type: combo,  choices: [Sine Product, Radial Rings, Imported…], default: Sine Product, label: Terrain, bake: true, mod_destination: false, tabs: [synth, geometry] }
+  - { id: oscATerOrbit,      type: combo,  choices: [Ellipse, Epitrochoid 3·5·7, Hypocycloid 3·5·7, Superellipse], default: Ellipse, label: Orbit Shape, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscATerCX,         type: slider, range: [-1.0, 1.0], default: 0.0, label: Centre X, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscATerCY,         type: slider, range: [-1.0, 1.0], default: 0.0, label: Centre Y, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscATerAspect,     type: slider, range: [0.1, 1.0], default: 1.0, label: Aspect, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscATerRot,        type: slider, range: [0.0, 360.0], default: 0.0, label: Rotation, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscATerSweepAxis,  type: combo,  choices: [Radius, Rotation, Centre X, Centre Y], default: Radius, label: Sweep Axis, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscATerSweepRange, type: slider, range: [0.0, 1.0], default: 0.8, label: Sweep Range, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscATerBlur,       type: slider, range: [0.0, 1.0], default: 0.2, label: Image Blur, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscATerEdge,       type: combo,  choices: [Mirror, Window], default: Mirror, label: Edge Mode, bake: true, mod_destination: false, tabs: [geometry] }
+  # ── Geometry, Osc B (24) ──
+  - { id: oscBGeoSource,     type: combo,  choices: [Mesh, Volume, Terrain], default: Mesh, label: Source, bake: true, mod_destination: false, tabs: [synth, geometry] }
+  - { id: oscBGeoFrames,     type: combo,  choices: ["64", "128", "256"], default: "256", label: Frames, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBGeoDrive,      type: slider, range: [0.0, 1.0], default: 0.0, label: Shape Drive, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBMesh,          type: combo,  choices: [Sphere, Torus, Twisted Star, Crescent, Torus Knot, fBm Blob, Imported…], default: Torus, label: Mesh, bake: true, mod_destination: false, tabs: [synth, geometry] }
+  - { id: oscBMeshTiltX,     type: slider, range: [-90.0, 90.0], default: 0.0, label: Slice Tilt X, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBMeshTiltY,     type: slider, range: [-90.0, 90.0], default: 0.0, label: Slice Tilt Y, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBMeshPhi,       type: slider, range: [0.0, 360.0], default: 0.0, label: Projection φ, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBMeshUnwrap,    type: combo,  choices: [XY Projection, Centroid Distance], default: XY Projection, label: Unwrap Mode, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBMeshLoop,      type: combo,  choices: [Largest, Sum], default: Largest, label: Loop Policy, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBVolField,      type: combo,  choices: [Torus SDF, Box SDF, Gyroid, Sphere SDF, fBm Noise], default: Torus SDF, label: Field, bake: true, mod_destination: false, tabs: [synth, geometry] }
+  - { id: oscBVolOrbit,      type: combo,  choices: ["Torus Knot (2,3)", "Torus Knot (3,5)", "Torus Knot (5,7)", Lissajous Knot], default: "Torus Knot (2,3)", label: Orbit, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBVolSweepAxis,  type: combo,  choices: [Orbit Scale, Knot Phase, Z Offset], default: Orbit Scale, label: Sweep Axis, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBVolSweepRange, type: slider, range: [0.0, 1.0], default: 0.6, label: Sweep Range, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBVolDetail,     type: slider, range: [0.0, 1.0], default: 0.3, label: Field Detail, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBTerrain,       type: combo,  choices: [Sine Product, Radial Rings, Imported…], default: Sine Product, label: Terrain, bake: true, mod_destination: false, tabs: [synth, geometry] }
+  - { id: oscBTerOrbit,      type: combo,  choices: [Ellipse, Epitrochoid 3·5·7, Hypocycloid 3·5·7, Superellipse], default: Ellipse, label: Orbit Shape, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBTerCX,         type: slider, range: [-1.0, 1.0], default: 0.0, label: Centre X, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBTerCY,         type: slider, range: [-1.0, 1.0], default: 0.0, label: Centre Y, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBTerAspect,     type: slider, range: [0.1, 1.0], default: 1.0, label: Aspect, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBTerRot,        type: slider, range: [0.0, 360.0], default: 0.0, label: Rotation, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBTerSweepAxis,  type: combo,  choices: [Radius, Rotation, Centre X, Centre Y], default: Radius, label: Sweep Axis, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBTerSweepRange, type: slider, range: [0.0, 1.0], default: 0.8, label: Sweep Range, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBTerBlur,       type: slider, range: [0.0, 1.0], default: 0.2, label: Image Blur, bake: true, mod_destination: false, tabs: [geometry] }
+  - { id: oscBTerEdge,       type: combo,  choices: [Mirror, Window], default: Mirror, label: Edge Mode, bake: true, mod_destination: false, tabs: [geometry] }
+
+  # ── Carried-over oscillator params (11 × 2 = 22), unchanged IDs/ranges; Position's meaning = frame index ──
+  - { id: oscAPos,      type: slider, range: [0.0, 1.0], default: 0.0, label: Position, readout: "Frame N / F", tabs: [synth, geometry], mod_destination: true }
+  - { id: oscALevel,    type: slider, range: [0.0, 1.0], default: 0.8, label: Level, tabs: [synth] }
+  - { id: oscAPan,      type: slider, range: [-1.0, 1.0], default: 0.0, label: Pan, tabs: [synth], mod_destination: true }
+  - { id: oscACoarse,   type: slider, range: [-24, 24], default: 0, label: Coarse, unit: st, tabs: [synth] }
+  - { id: oscAFine,     type: slider, range: [-100, 100], default: 0, label: Fine, unit: ct, tabs: [synth] }
+  - { id: oscAPhase,    type: slider, range: [0.0, 1.0], default: 0.0, label: Phase, tabs: [synth] }
+  - { id: oscAUnison,   type: slider, range: [1, 8], default: 1, label: Unison, tabs: [synth] }
+  - { id: oscADetune,   type: slider, range: [0.0, 1.0], default: 0.2, label: Detune, tabs: [synth], mod_destination: true }
+  - { id: oscAWidth,    type: slider, range: [0.0, 1.0], default: 0.5, label: Width, tabs: [synth] }
+  - { id: oscAWarpType, type: combo,  choices: [Off, Sync, Bend, FM, Window], default: Off, label: Warp, tabs: [synth] }
+  - { id: oscAWarpAmt,  type: slider, range: [0.0, 1.0], default: 0.0, label: Warp Amt, tabs: [synth], mod_destination: true }
+  - { id: oscBPos,      type: slider, range: [0.0, 1.0], default: 0.0, label: Position, readout: "Frame N / F", tabs: [synth, geometry], mod_destination: true }
+  - { id: oscBLevel,    type: slider, range: [0.0, 1.0], default: 0.0, label: Level, tabs: [synth] }
+  - { id: oscBPan,      type: slider, range: [-1.0, 1.0], default: 0.0, label: Pan, tabs: [synth], mod_destination: true }
+  - { id: oscBCoarse,   type: slider, range: [-24, 24], default: 0, label: Coarse, unit: st, tabs: [synth] }
+  - { id: oscBFine,     type: slider, range: [-100, 100], default: 0, label: Fine, unit: ct, tabs: [synth] }
+  - { id: oscBPhase,    type: slider, range: [0.0, 1.0], default: 0.0, label: Phase, tabs: [synth] }
+  - { id: oscBUnison,   type: slider, range: [1, 8], default: 1, label: Unison, tabs: [synth] }
+  - { id: oscBDetune,   type: slider, range: [0.0, 1.0], default: 0.2, label: Detune, tabs: [synth], mod_destination: true }
+  - { id: oscBWidth,    type: slider, range: [0.0, 1.0], default: 0.5, label: Width, tabs: [synth] }
+  - { id: oscBWarpType, type: combo,  choices: [Off, Sync, Bend, FM, Window], default: Off, label: Warp, tabs: [synth] }
+  - { id: oscBWarpAmt,  type: slider, range: [0.0, 1.0], default: 0.0, label: Warp Amt, tabs: [synth], mod_destination: true }
+
+inherited_params:
+  inherited_from: "plugins/O-Prism/.planning/params.tsv (v1.24.0)"
+  note: "identical IDs, ranges, defaults and flags; oscATable / oscBTable REMOVED"
+  count: 149
+  sections:
+    sub_noise:   { count: 6,  ids: "subShape subOctave subLevel subRouting noiseType noiseLevel" }
+    envelopes:   { count: 10, ids: "amp{Attack,Decay,Sustain,Release} filt{Attack,Decay,Sustain,Release} filt{A,B}EnvDepth" }
+    filters:     { count: 11, ids: "filt{A,B}{Type,Cutoff,Res,Drive,KeyTrack} filtRouting" }
+    tuning:      { count: 7,  ids: "tuningPreset tonic masterTune octaveStretch pitchBendRange glideMode glideTime" }
+    effects:     { count: 27, ids: "reverb (7), delay (7), chorus (4), distortion (4), EQ (5)" }
+    lfos:        { count: 20, ids: "lfo{1..4}{Rate,Shape,Sync,Division,FreeRun}" }
+    mod_matrix:  { count: 64, ids: "modSlot{0..15}{Src,Dst,Amt,On}" }
+    master:      { count: 4,  ids: "masterVol stereoWidth oscMix velocityCurve" }
+
+parameter_count:
+  geometry_new: 48          # draft said 46 — see NOTE above
+  osc_carried_over: 22
+  inherited_other: 149
+  total: 219                # draft said 217
+
+# ─────────────────────────────────────────────────────────────────────────────
+# i18n — new keys (English only in the mockup); readout nodes never carry data-i18n
+# ─────────────────────────────────────────────────────────────────────────────
+i18n_new_keys:
+  spec: [tab.geometry, label.source, label.mesh, label.field, label.terrain, label.frames, label.shapeDrive, label.sliceTiltX, label.sliceTiltY, label.projectionAngle, label.unwrapMode, label.loopPolicy, label.orbit, label.sweepAxis, label.sweepRange, label.fieldDetail, label.orbitShape, label.orbitCentreX, label.orbitCentreY, label.orbitAspect, label.orbitRotation, label.imageBlur, label.edgeMode, label.import, label.baked, label.baking, label.dropGeometry, label.webglUnavailable, label.sourceMissing, label.view3d, label.viewWavetable]
+  added_by_mockup: [label.srcMesh, label.srcVolume, label.srcTerrain, label.framesUnit, label.meshPanel, label.volumePanel, label.terrainPanel, label.positionNote, label.hintTilt, label.hintPhi, label.hintOrbitView, label.hintSweep, label.hintCentre, label.hintReset, aria.view3d, aria.viewWavetable]
+  note: "label.view3d / label.viewWavetable are carried as aria.* on the glyph buttons (no visible text); the hint keys and panel headers are new visible labels"
+
+non_parameter_state:
+  imported_source: "OBJ/STL/PNG per oscillator, gzip+base64 ≤ 2 MB else path + SHA-256; 'Source missing' notice when unresolvable"
+  view_mode: "⬡/≋ per oscillator — UI state, not a parameter"

@@ -14,6 +14,8 @@ contract_checksums:
   parameter_spec: sha256:801ff201a6adbec0140787d3f66954881a842a0d132c094c9daca7c773ed9c02
   architecture: sha256:9d28809a04318159416c68ec184747112159c6bd9a2a39ad0dd88206e4318b46
   roadmap: sha256:20090d1efcc15b9d7378b5bb696603babc64b9dad1d07060bd58c19585d9ce58
+mockup_latest_version: 1
+ui_design_phase_complete: true
 ---
 
 # O-Strata Status
