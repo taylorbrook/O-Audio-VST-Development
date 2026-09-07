@@ -1,5 +1,67 @@
 # O-Reed Changelog
 
+## v1.6.0 (2026-09-07)
+
+Simplified Chinese (task 260907-ja8, wave 4f). MINOR: a third interface language
+across the whole page — 168 rows, 36 hover-help entries and 96 captions. No
+parameter, range, type or state format changed, and no audio path was touched.
+The stored language is still the ASCII BCP-47 code; a session saved by an older
+build reopens in English.
+
+**Disclosed quality level.** Every Chinese row ships at `reviewed: 'bt'`: an
+INDEPENDENT back-translation — the Chinese was sent to a separate agent that
+never saw the English, with file, web and repository access forbidden, and the
+recovered English was read against the source line by line. `'native'` stays
+open: no native Chinese reader has read this table, and the lint prints that
+worklist on every run.
+
+### Added
+
+- **Simplified Chinese on all 168 rows.** 131 authored here; the 37 shared
+  `scala-tuning-engine` captions were copied byte-for-byte from O-Bassoon, which
+  had already carried them through their own back-translation.
+- **简体中文 in the language selector**, beside English and Français.
+- **A CJK font tail on every stack this page renders**, before the trailing
+  generic. Chromium resolves a bare `serif` against the document's language, so
+  a tail written after the generic is never consulted.
+
+### Fixed
+
+- **The tuning panel no longer renders through the system UI face.** The shared
+  module declares `-apple-system` on `.tuning-panel` and this plugin never
+  overrode it, so 116 nodes — every caption, every interval row, every label in
+  the generator — resolved through a stack naming no Chinese face and ending at
+  a bare `sans-serif`. Two of the module's four consumers already carried the
+  override; all four now agree. Latin readers get the page's own Garamond /
+  Georgia / Times New Roman there instead of the system face.
+- **The panel's thirteen buttons and dropdowns name a face at all.** A
+  `<button>` and a `<select>` inherit no `font-family`, so the panel's rule never
+  reached them and they rendered on a bare Arial.
+- **Chinese line boxes no longer push the page around.** Chinese caption line
+  boxes run about 30% taller than this page's Latin stack at the same font size,
+  which moved 266 elements at the 900 x 600 frame. Twenty-one caption surfaces
+  are now pinned to their measured English line-box RATIO, so all three
+  languages lay out identically and no Latin arm moved.
+- **A tuning-panel width floor that was measured against the old face.** The
+  octave-stretch caption's floor was the French box under the system face; under
+  the page's own face French needs 2px more, and the slider beside it was giving
+  that back.
+- **A hover-help body promised the tuning tab stays English.** It has been false
+  in English and in French since v1.5.0, which localized that tab. Corrected.
+- **A hover-help body claimed the settings panel holds the language selector and
+  nothing more.** It has been false since v1.4.0, which put the hover-help
+  switch in the same panel. Corrected in both languages.
+- **Both bodies enumerated the languages on offer.** A sentence that counts the
+  selector's options is false the day the selector grows one; the selector is
+  its own list. Removed.
+
+### Unchanged and deliberately so
+
+- The fifteen instrument markers on the XY pad, the option words inside the six
+  dropdowns and every numeric readout stay English in all three languages. They
+  are the strings the host's automation lane names, and the language body says
+  so.
+
 ## v1.5.0 (2026-09-06)
 
 The tuning tab is localized — English and French (task 260906-s71). MINOR: the
