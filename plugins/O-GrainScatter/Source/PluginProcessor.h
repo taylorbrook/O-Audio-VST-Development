@@ -106,11 +106,17 @@ public:
     // ------------------------------------------------------------------------
     std::atomic<int> uiLanguage { 0 };
 
-    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+    /** The codec. languageIndex() maps anything it does not recognise to 0, so a
         hand-edited session or an unexpected argument from the page degrades to
-        English rather than being stored unvalidated. */
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+        English rather than being stored unvalidated.
+
+        Three languages since v2.8.0. What crosses this line is a language CODE,
+        which is an ASCII identifier in every language — the Simplified Chinese
+        copy lives in the UI table (Source/ui/public/js/i18n.js) and the one Han
+        string in the markup is written as numeric character references, so no
+        Chinese character exists anywhere under Source/. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
     // Visualization getter (lock-free triple buffer, called from GUI thread)
     const GrainVizSnapshot& getVizSnapshot() { return vizBuffer.read(); }
