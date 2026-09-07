@@ -1,0 +1,37 @@
+Kernel micro-benchmark, N=2097152 samples/rep, best of 5 reps (clang++ -O2)
+
+orbit: ellipse std::sin/cos                             12.35 ns
+orbit: ellipse table sin/cos                            11.62 ns
+orbit: epitrochoid-7 std                                14.03 ns
+orbit: epitrochoid-7 table                              15.57 ns
+orbit: superellipse std (3x pow)                        47.01 ns
+orbit: superellipse table sin + 3x pow                  47.22 ns
+orbit: butterfly std (exp+pow+4 trig)                   28.98 ns
+terrain: sine-product std::sin + fastTanh               27.33 ns
+terrain: sine-product table sin + fastTanh              28.19 ns
+terrain: system-14 std (sqrt,sin,cos) + fastTanh        37.89 ns
+terrain: system-14 table + fastTanh                     37.68 ns
+terrain: 512x512 image bilinear + fastTanh              29.02 ns
+terrain: Chebyshev 16x16 Clenshaw (no tanh)             56.70 ns
+terrain: Chebyshev 16x16 + fastTanh                     65.11 ns
+live: epitrochoid-7 std + sine-product std              29.98 ns
+live: epitrochoid-7 table + sine-product table          28.59 ns
+live: butterfly std + system-14 std (worst)             52.57 ns
+live: epitrochoid-7 table + image bilinear              36.01 ns
+live: ellipse table + Chebyshev 16x16                   55.41 ns
+wavetable: trilinear + per-sample log2 (O-Prism)        14.47 ns
+wavetable: trilinear, log2 hoisted (ideal)              14.46 ns
+oversampler: 2x halfband IIR up+down, per base sample     8.95 ns
+
+(sink=5.50402e+06, finite=1)
+
+Per-partial cost at 48 kHz (% of one core), OS factor applied to the oscillator only:
+config                                                         OS  1 partial   1 voice* 16v x2osc U1 16v x2osc U4
+wavetable trilinear (O-Prism today), 1x                         1     0.069%     0.139%        2.22%        8.89%
+live analytic table-trig (epi7+sineprod), 2x                    2     0.274%     0.549%        8.78%       35.13%
+live analytic std-trig (epi7+sineprod), 2x                      2     0.288%     0.576%        9.21%       36.84%
+live worst (butterfly+system14 std), 2x                         2     0.505%     1.009%       16.15%       64.60%
+live worst (butterfly+system14 std), 4x                         4     1.009%     2.019%       32.30%      129.20%
+live image 512^2 bilinear (epi7 table), 2x                      2     0.346%     0.691%       11.06%       44.25%
+live Chebyshev 16x16 circular orbit, 1x (bandlimited)           1     0.266%     0.532%        8.51%       34.04%
+* 1 voice = 2 oscillators, unison 1. Oversampler filter adds 8.95 ns per base sample per oversampled stream.
