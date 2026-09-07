@@ -51,11 +51,11 @@ Ouaricon Plugins:
 | O-Prism | 📦 Installed | 1.24.0 | Synth (Microtonal Wavetable) |  2026-09-04 |
 | O-Gain | 📦 Installed | 1.4.0 | Audio Effect (Gain Staging Utility) | 2026-09-05 |
 | O-Formant | 📦 Installed | 1.29.0 | Synth (Physical Model Vocal) | 2026-08-31 |
-| O-Bowed | 📦 Installed | 1.6.2 | Synth (Physical Model Bowed String) | 2026-08-31 |
-| O-Reed | 📦 Installed | 1.3.1 | Synth (Physical Modeling Reed Wind) | 2026-08-31 |
-| O-Wind | 📦 Installed | 1.18.2 | Synth (Physical Model Flute) | 2026-08-31 |
-| O-Contrabass | 📦 Installed | 1.8.2 | Synth (Physical Model Bowed Bass) | 2026-08-31 |
-| O-Bassoon | 📦 Installed | 1.4.0 | Synth (Physical Model Bassoon) | 2026-09-05 |
+| O-Bowed | 📦 Installed | 1.8.0 | Synth (Physical Model Bowed String) | 2026-09-06 |
+| O-Reed | 📦 Installed | 1.5.0 | Synth (Physical Modeling Reed Wind) | 2026-09-06 |
+| O-Wind | 📦 Installed | 1.20.0 | Synth (Physical Model Flute) | 2026-09-06 |
+| O-Contrabass | 📦 Installed | 1.9.0 | Synth (Physical Model Bowed Bass) | 2026-09-06 |
+| O-Bassoon | 📦 Installed | 1.5.0 | Synth (Physical Model Bassoon) | 2026-09-06 |
 | O-MicrotonalSampler | 📦 Installed | 1.27.0 | Synth (Microtonal Sampler) | 2026-09-04 |
 | O-simpleFM | 📦 Installed | 1.5.0 | Synth (Pedagogical 2-Op FM) | 2026-09-06 |
 | O-simpleAdditive | 📦 Installed | 1.2.0 | Synth (Pedagogical Additive + Wavetable) | 2026-09-01 |
