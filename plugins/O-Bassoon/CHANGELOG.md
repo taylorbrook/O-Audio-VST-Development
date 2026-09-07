@@ -5,6 +5,66 @@ All notable changes to O-Bassoon will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-09-06
+
+The tuning tab is localized — English, French and Simplified Chinese (task
+260906-s71). MINOR: the shared `scala-tuning-engine` module moves to **v3.1.0**
+and brings 37 new caption keys with it, plus the geometry pins that keeping the
+Chinese arm inside the frame required. No parameter, range, type or state format
+changed, and no audio path was touched.
+
+### Added
+
+- **37 localized captions on the tuning tab**, keyed in the shared module's own
+  markup as `data-i18n` attributes: the five visualisation buttons
+  (`vizCircle` `vizPolar` `vizMatrix` `vizTrueKeys` `vizRotation`), the interval
+  list header and its true-keys hint, the tuning library header and its six
+  category filters, the A4 reference and octave-stretch labels, the four
+  `.scl`/`.kbm` file buttons and the HTML export, the scale generator's header,
+  its three type options and its six input labels, the generator button, the
+  tonic selector, the rotation-table mode header and the library's note count.
+- **Two counted captions ride `data-i18n-vars`** — `label.intervalsCount` and
+  `label.noteCount` — so the language sweep owns the number and no inflection
+  logic lives inside a translated string.
+
+### Fixed
+
+- **The panel re-localizes after every lazy re-render.** It mounts after
+  `initI18n()` has already run and rebuilds sub-trees on interaction, so module
+  v3.1.0 calls `window.__reapplyI18n()` after each of its six `innerHTML`
+  injections. Without it the first render would be localized and every later one
+  English.
+- **The Chinese arm's line boxes are pinned as a RATIO, not a length.**
+  PingFang SC's ascent + descent against the Garamond/Times stack's grew every
+  `line-height: normal` caption in the panel by 3 px, which accumulated to +20 px
+  down the controls column and pushed 13 labels further outside the frame than
+  English. `line-height: 1.11` is set on the eight caption selectors **and named
+  separately on `.viz-btn`, `.tuning-file-btn` and `.generator-btn`**, because
+  the UA `font` shorthand resets `line-height` on form controls and an inherited
+  ratio never reaches a `<button>`.
+- **The panel's 11 buttons gained this plugin's CJK font tail.** `<button>` does
+  not inherit `font-family`, so the UA stylesheet was giving them Arial — which
+  carries no Han — and every Chinese caption on them resolved through an unnamed
+  fallback face. `measure-ui --report undeclared-font` 11 → 0.
+- **`min-width` floors on `.tonic-label` (39.83 px) and `.octave-stretch-label`
+  (51 px)**, each at its widest arm. Both share a flex row with a non-caption
+  (`.tonic-selector` centres its children; `.octave-stretch-row` gives its slider
+  `flex: 1`), so a caption that shrinks in one language moves its neighbour.
+
+### Notes
+
+- The Chinese is **`reviewed: 'bt'`** — verified by an independent blind reverse
+  read, not by a native speaker. This project has no native Chinese reader and
+  `'native'` stays open on every row; `i18n-zh-lint` rule R1 prints that quality
+  level on every run rather than leaving it to memory. The 37 rows were copied
+  byte-for-byte from O-MicrotonalSampler's already-reviewed table and proven
+  identical by comparison, not asserted to be a copy.
+- `check-i18n` now scans the module file itself. It reads every
+  `${CMAKE_SOURCE_DIR}/modules/**.js` this plugin's `CMakeLists.txt` embeds, so
+  the panel's prose and its key references are inside the gate rather than beside
+  it — the gate was observed failing on the unlocalized panel before the
+  localization landed.
+
 ## [1.4.0] - 2026-09-05
 
 Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c).
