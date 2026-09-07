@@ -915,16 +915,18 @@ function initializeSpectrumPlaceholder() {
     // machine, so the bare stack resolved to whatever the UA chose; under a
     // Chinese document language a trailing generic is already a Chinese face,
     // and a tail written after it would never be consulted.
+    //
+    // v1.12.1: a second call below this one painted an internal build-stage
+    // number onto this shipping surface; it is gone as a product decision (wave
+    // 4d D3, CODE_REVIEW IN-09). The y-offset lost its -10 with it — that offset
+    // existed only to make room for the removed line. No textBaseline is set:
+    // this context is the object the live path caches as spectrumCtx, and
+    // baseline is persistent state.
     const canvasLang = document.documentElement.lang || 'en';
     ctx.fillStyle = 'rgba(60, 47, 47, 0.4)';
     ctx.font = "14px Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif";
     ctx.textAlign = 'center';
-    ctx.fillText(tr('canvas.spectrumPlaceholder', canvasLang).t, width / 2, height / 2 - 10);
-    // NOT a localization site. This is a build-stage marker on a user-visible
-    // surface — a product question with no localization budget attached — and
-    // it is left exactly as found. Recorded for the developer in the wave's
-    // deferred-items.md with this file and line.
-    ctx.fillText('(Phase 5.3)', width / 2, height / 2 + 10);
+    ctx.fillText(tr('canvas.spectrumPlaceholder', canvasLang).t, width / 2, height / 2);
 }
 
 // ========== v1.2.0: REAL-TIME SPECTRUM ANALYZER ==========
