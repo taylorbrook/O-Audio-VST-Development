@@ -1,0 +1,29 @@
+Aliasing harness: N=65536, fs=48000, analysis band 0..22 kHz, exact-cycle rendering
+
+case (C6 = 1046.63 Hz)                                OS   nonharm/fund     peak alias        @Hz
+butterfly(0.2) + sine-product(a=b=0.5) + tanh         1x       -18.5 dB       -23.1 dB     20788
+butterfly(0.2) + sine-product(a=b=0.5) + tanh         2x       -60.2 dB       -65.7 dB     19596
+butterfly(0.2) + sine-product(a=b=0.5) + tanh         4x      -105.1 dB      -119.9 dB     20353
+butterfly(0.2) + sine-product(a=b=0.5) + tanh         8x      -116.6 dB      -133.0 dB     19772
+butterfly(0.2) + system-14(a=0.5, aa=24) + tanh       1x        15.6 dB         8.0 dB     19741
+butterfly(0.2) + system-14(a=0.5, aa=24) + tanh       2x        -5.4 dB       -16.6 dB      7036
+butterfly(0.2) + system-14(a=0.5, aa=24) + tanh       4x       -26.0 dB       -37.0 dB     10933
+butterfly(0.2) + system-14(a=0.5, aa=24) + tanh       8x       -64.5 dB       -75.4 dB      3253
+butterfly(0.2) + system-14(a=0.1, aa=9.6) + tanh      1x       -11.5 dB       -20.8 dB     12415
+butterfly(0.2) + system-14(a=0.1, aa=9.6) + tanh      2x       -35.4 dB       -41.2 dB     16456
+butterfly(0.2) + system-14(a=0.1, aa=9.6) + tanh      4x       -70.9 dB       -85.5 dB     19306
+butterfly(0.2) + system-14(a=0.1, aa=9.6) + tanh      8x       -77.2 dB       -95.1 dB     20819
+epitrochoid-7 + sine-product + tanh                   1x         4.1 dB        -0.8 dB     19741
+epitrochoid-7 + sine-product + tanh                   2x       -18.4 dB       -22.1 dB     21689
+epitrochoid-7 + sine-product + tanh                   4x       -66.5 dB       -73.1 dB     15119
+epitrochoid-7 + sine-product + tanh                   8x      -111.6 dB      -120.5 dB      2845
+
+Chebyshev terrain: max harmonic index above -100 dB (rel. strongest harmonic), float render, 1x, no tanh
+case                                                         expect   maxIdx    nonharm/max   peak alias
+16x16 tensor (max n+m=30), circle, 255.6 Hz                      30       30      -110.5 dB    -129.1 dB
+n+m<=16, circle, 255.6 Hz                                        16       16      -116.2 dB    -131.8 dB
+n+m<=16, ellipse 0.8 + offset 0.1, 255.6 Hz                      16       16      -116.9 dB    -132.6 dB
+n+m<=16, epitrochoid-7 orbit, 255.6 Hz (16*8=128 > Nyq)         128       93       -70.8 dB     -73.7 dB
+n+m<=16, epitrochoid-7 orbit, 63.7 Hz (bound 128)               128      105      -108.3 dB    -124.0 dB
+16x16 tensor (max 30) at C6 -> 30*f0 = 31 kHz                    30       22        -7.2 dB     -13.0 dB
+n+m<=22 at C6 -> 22*f0 = 23.0 kHz (truncated)                    22       22      -112.8 dB    -130.6 dB
