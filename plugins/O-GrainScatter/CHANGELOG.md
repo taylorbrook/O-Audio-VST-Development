@@ -1,5 +1,66 @@
 # Changelog
 
+## [2.8.0] - 2026-09-07
+
+Simplified Chinese joins English and French (task 260907-ja8, wave 4f of the
+zh-Hans rollout; O-GrainScatter is the wave's tracer). MINOR: a third language,
+no parameter, range, type or state format changed.
+
+### Added
+
+- **Simplified Chinese across the whole interface** — 131 rows (39 hover-help
+  titles, 39 hover-help bodies, 53 captions), covering every caption, every
+  section heading, every hover-help body and every accessible name the table
+  reaches. `简体中文` joins the language selector, written as numeric character
+  references in the markup and exempted by its decoded form.
+- **DISCLOSED QUALITY LEVEL: `reviewed: 'bt'`, not `'native'`.** Every row was
+  machine-drafted, then read back through a BLIND reverse pass — the Chinese
+  handed to an independent reader with the English withheld and the row ids
+  blinded behind a per-batch salt — and each returned triple was read and either
+  accepted with a written reason or re-authored. **No native Chinese speaker has
+  read this file.** `reviewed: 'native'` stays open and `i18n-zh-lint` prints
+  that disclosure on every run.
+- ONE row was re-authored on the strength of the reverse read: the spatial
+  smoothing body rendered "ambisonic" as a phrase meaning high-fidelity STEREO,
+  and this page already talks about a stereo path elsewhere, so it read as a
+  collision on the page rather than a translation preference. Re-read by a fresh
+  reader on a different model with a fresh salt, which recovered the source.
+- ONE reasoned glossary exemption, on the caption AND its tooltip title:
+  **Dist LPF is DISTANCE low-pass on this page, not distortion.** The shared
+  glossary's root renders the other sense of the abbreviation, and O-GrainScatter
+  is the only site in the corpus that carries the term.
+- **A CJK face is named on every stack the page declares**, before the trailing
+  generic — a bare generic resolves against the document's language, so a tail
+  written after it is never consulted. One declaration named only a family that
+  is not installed, leaving a bare generic as its only survivor; it now names the
+  face it was already resolving to, measured rather than assumed, so the English
+  and French arms do not move.
+- **Line boxes pinned as ratios** on the seven selectors that rendered at
+  `line-height: normal` and grew under Han. Every ratio is derived from this
+  page's own measured English content box, padding and border subtracted first,
+  so it reproduces English exactly: **Han line boxes run roughly 30 % taller than
+  Latin at the same size**, and left unpinned the sum shrank the visualisation
+  area by 12 px and moved 140 elements. Geometry is now identical on all three
+  languages, in both measured states.
+
+### Changed
+
+- **The settings hover-help no longer claims the panel holds the interface
+  language alone.** That became false in v2.7.0, when the hover-help switch was
+  added inside the same popover. The clause is deleted rather than widened to
+  name two controls: a body that inventories a panel needs re-editing in every
+  language every time the panel grows.
+- **The language hover-help no longer names the selector's options.** It was true
+  while the selector held two entries and this release adds a third. The selector
+  lists the languages in their own endonyms, which is the one place the list
+  cannot go stale.
+- The plugin's own render gate now DERIVES its language list from the table
+  rather than naming the languages it sweeps, and refuses to run rather than
+  sweep a guessed list. Its height comparison asserts that another language
+  measures DIFFERENT boxes from English rather than TALLER ones — Chinese
+  measured 0 taller and 32 shorter, so the old direction was wrong for a correct
+  page. 816 assertions before, 1054 now.
+
 ## [2.7.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
