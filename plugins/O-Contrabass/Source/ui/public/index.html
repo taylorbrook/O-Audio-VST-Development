@@ -78,7 +78,14 @@ body {
     overflow: hidden;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
-    font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+    /* The CJK tail goes BEFORE the trailing generic (W1): Chromium resolves a
+       bare `serif` against the document's lang, so under lang="zh-Hans" the
+       generic is ALREADY a Chinese face and a tail written after it is never
+       consulted. Garamond is installed on no build machine here; Georgia and
+       Times New Roman both are, so the Latin half of this stack was already
+       safe and this is a tail-only change — the en and fr arms do not move. */
+    font-family: 'Garamond', 'Georgia', 'Times New Roman',
+                 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 /* ============================ Plugin root ================================= */
@@ -889,6 +896,201 @@ body {
 #tuning-container .tonic-label          { min-width: 42.06px; }
 #tuning-container .octave-stretch-label { min-width: 53.86px; }
 
+/* ── 3. THE LINE-BOX RATIO, and why <button> is listed separately ─────
+   Transferred from O-Bassoon (d848337a) and RE-DERIVED against THIS
+   plugin's own measured English content boxes rather than inherited —
+   Task 1's `.toggle` proved M8's line-box table is leaf-scoped and a
+   <button> need not match it, so the ratio is verified per selector:
+
+     selector                fs   en box  pad+bd  content  lines  per line
+     .interval-list-header   10   22.00   0       22.00    2      11.00
+     .library-header-text    10   11.00   0       11.00    1      11.00
+     .generator-header-text  10   11.00   0       11.00    1      11.00
+     .gen-row label          10   11.00   0       11.00    1      11.00
+     .pitch-circle-label      9   10.00   0       10.00    1      10.00
+     .ref-knob-label          9   10.00   0       10.00    1      10.00
+     .tonic-label             9   10.00   0       10.00    1      10.00
+     .octave-stretch-label    9   10.00   0       10.00    1      10.00
+     .viz-btn        BUTTON   9   24.00   14      10.00    1      10.00
+     .tuning-file-btn BUTTON  9   24.00   14      10.00    1      10.00
+     .generator-btn  BUTTON  10   27.00   16      11.00    1      11.00
+
+   1.11 reproduces every one of them inside check-ui-labels' 0.5px
+   tolerance: 9px -> 9.99 against a measured 10, 10px -> 11.10 against a
+   measured 11. A RATIO, never a length — wave 4e's N4: a length pinned
+   to a measured row height inherits as a computed length and grew one
+   arm 0.77px.
+
+   .interval-list-header is TWO line boxes in English in this 122px
+   column, so the ratio is derived PER LINE (22.00 / 2 = 11.00). A naive
+   box-over-font-size would have read 2.2 and doubled the pin — N10/N11.
+
+   The three button classes are named SEPARATELY because the UA `font`
+   shorthand resets line-height to `normal` on form controls; an
+   inherited ratio never reaches a <button>. Same form-4 mechanism as
+   font-family below.
+
+   R8 fired before this landed: none of the eleven selectors carried a
+   line-height. The three that exist on this page (1, 1.35, 1.2) are on
+   .plugin-name, .tooltip-body and .knob-label. */
+#tuning-container .interval-list-header,
+#tuning-container .library-header-text,
+#tuning-container .generator-header-text,
+#tuning-container .pitch-circle-label,
+#tuning-container .ref-knob-label,
+#tuning-container .tonic-label,
+#tuning-container .octave-stretch-label,
+#tuning-container .gen-row label,
+#tuning-container .viz-btn,
+#tuning-container .tuning-file-btn,
+#tuning-container .generator-btn {
+    line-height: 1.11;
+}
+
+/* ── 4. THE CJK TAIL ON THE PANEL'S FORM CONTROLS ────────────────────
+   FORM 4 of the font-carrier census (wave 4b C2, wave 4e N3). A <button>
+   does NOT inherit font-family — the UA stylesheet gives it one, on this
+   build bare `Arial` — so the .tuning-panel stack above never reaches
+   these, and neither does any CJK face. Measured on the census over 505
+   visible English nodes: 30 nodes resolve bare `Arial`, and once the
+   Chinese column landed 11 of them carried Han and resolved through an
+   unnamed system fallback:
+
+     .viz-btn x5          圆周 极坐标 矩阵 真实键位 旋转
+     .tuning-file-btn x5  载入/保存 .scl/.kbm, 导出 HTML
+     .generator-btn x1    生成
+
+   FIVE selectors, not three. The two <select>s are here for a reason the
+   probe cannot show: measure-ui's `han` flag is computed over a node's
+   OWN text plus data-tip / data-tip-title / aria-label, and a collapsed
+   <select>'s selected-option text is none of those — so the screen reads
+   both as han:false. But the control PAINTS that option through its own
+   font, and #library-filter's six category options and #generator-type's
+   three type options are all Han. The rule covers 13 nodes where the
+   screen can only name 11.
+
+   The remaining 19 bare-Arial controls are the measured NEGATIVE case:
+   twelve .interval-input numerics, #octave-stretch, #gen-divisions,
+   #gen-period and the two arrow glyphs #tonic-down / #tonic-up. None
+   renders Han, and the shared module gives none of them an aria-label or
+   a data-tip, so N3's tip-anchor discriminator answers no for every one.
+
+   Latin faces FIRST so the en and fr arms keep this page's own
+   typeface; the tail before the trailing generic, per W1. */
+#tuning-container .viz-btn,
+#tuning-container .tuning-file-btn,
+#tuning-container .generator-btn,
+#tuning-container .generator-type-select,
+#tuning-container .library-filter-select {
+    font-family: 'Garamond', 'Georgia', 'Times New Roman',
+                 'PingFang SC', 'Microsoft YaHei', serif;
+}
+
+/* ── 5. THE PAGE'S OWN line-height:normal LEAVES ──────────────────────
+   Outside the tuning panel, sixteen keyed leaves resolve line-height to
+   `normal`, so the used line box is the FACE's ascent + descent and
+   PingFang SC's are taller than Garamond/Georgia/Times New Roman's.
+   Every one below MOVED on the zh arm and is pinned at its own measured
+   ENGLISH CONTENT box — padding and border subtracted FIRST, then
+   divided, per size (N10/N11/M8):
+
+     selector                fs    en box  pad+bd  content  ratio
+     #preset-save    BUTTON  12    24.00   10      14.00    1.1666667
+     .tab-btn        BUTTON  11    22.00   10      12.00    1.0909091
+     .settings-label          9    10.00   0       10.00    1.1111111
+     .sublabel                9    10.00   0       10.00    1.1111111
+     #active-strings-value    9    10.00   0       10.00    1.1111111
+     .strip-field-label       9    10.00   0       10.00    1.1111111
+     .stepper-label           8     9.00   0        9.00    1.1250000
+     .finetuner-title         8     9.00   0        9.00    1.1250000
+     .range-caption          10    11.00   0       11.00    1.1000000
+     .panel-label > span[data-i18n]
+                             10    11.00   0       11.00    1.1000000
+     .viz-caption           8.5    10.00   0       10.00    1.1764706
+
+   All but the last reproduce M8's measured English content line boxes
+   exactly. 8.5px is NOT in M8's table — 10.00 / 8.5 = 1.1764706 is
+   measured here and is this page's contribution to it.
+
+   .panel-label > span[data-i18n] matches only the Schelleng heading,
+   whose caption span carries the key directly; the seven numbered panel
+   headings put their key on an inner .panel-title and their outer span
+   is not a leaf. Those seven are evidenced NON-movers (enH == zhH == 11)
+   and are deliberately not pinned.
+
+   R8 fired on every selector before appending: not one carried a
+   line-height, so no French-era pin is un-pinned by these. */
+#preset-save            { line-height: 1.1666667; }
+.tab-btn                { line-height: 1.0909091; }
+.settings-label,
+.panel-label .sublabel,
+#active-strings-value,
+.strip-field-label      { line-height: 1.1111111; }
+.stepper-label,
+.finetuner-title        { line-height: 1.125; }
+.range-caption          { line-height: 1.1; }
+.viz-caption            { line-height: 1.1764706; }
+
+/* ── 6. FOUR CAPTION *ROWS* THAT GREW WITH NO LEAF REPORTING IT ───────
+   Wave 4e's N4, and it is the whole of what was left after block 5.
+   getBoundingClientRect() on an inline element reports its FONT box, not
+   its LINE box, so a row can grow 3px while every leaf inside it reports
+   an identical box. All four below were named by check-ui-labels' [7]
+   diff and by NO leaf-scoped probe:
+
+     selector          fs   en box  pad+bd  lines  content/line  ratio
+     .panel-label      10   16.00   5       1      11.00         1.1000000
+     .panel-label>span  10  11.00   0       1      11.00         1.1000000
+     .strip-label      10   11.00   0       1      11.00         1.1000000
+     .drone-caption     9   22.00   2       2      10.00         1.1111111
+
+   .drone-caption is TWO line boxes in every language — it is two spans
+   either side of a <br> — so the ratio is derived PER LINE (20.00 / 2 =
+   10.00). Taking the box over the font size would have read 2.22 and
+   doubled the pin, which is N10/N11 exactly.
+
+   .panel-label > span is the wrapper the seven numbered headings put
+   around .numeral + .panel-title. Its .panel-title child is an evidenced
+   NON-mover (enH == zhH == 11) and inherits this ratio unchanged at the
+   same font size; the eighth heading, Schelleng's, carries its key on
+   this span directly and is pinned by the same rule. .sublabel is
+   excluded because it is 9px and takes 1.1111111 from block 5.
+
+   R8: none of the four carried a line-height before this. */
+.panel-label,
+.panel-label > span:not(.sublabel),
+.strip-label            { line-height: 1.1; }
+.drone-caption          { line-height: 1.1111111; }
+
+/* ── 7. TWO WIDTH FLOORS ON THE MICROTONAL STRIP ─────────────────────
+   R7/N9: Chinese is SHORTER, so the defect here is a shrink, and a
+   shrink in a flex row drags every sibling to its left. Both captions
+   below measure IDENTICALLY in English and French — .strip-label
+   because its keyed half is ` · Microtonal`, which the French table
+   marks sameAsEn, and the Note Expression caption because the term is
+   the VST3 feature name and was identical in both. Chinese is the first
+   language that moves either of them, and it moved 12 non-label
+   elements 48.6px:
+
+     .sec-microtonal .strip-label     en 132.86  fr 132.86  zh 84.23
+     #note-expression-toggle caption  en  91.89  fr  91.89  zh 38.80
+
+   Floored at the EXACT measured English box, never rounded up, so
+   neither Latin arm moves (N9); a floor and never a fixed width, so a
+   future language that needs a wider caption can still take it.
+
+   R8 — read before appending. This page carries ten min-width
+   declarations and every one is a French-era floor. The nearest is
+   `.strip-field > .strip-field-label { min-width: 98px; }`, whose own
+   comment records that it is child-scoped DELIBERATELY so that the Note
+   Expression caption, "identical in both languages inside
+   .toggle-field", is not widened for nothing. That reasoning was true
+   for French and is false for Chinese. The rule below is added at
+   higher specificity on the id rather than by widening the v1.8.0 pin,
+   so the French floor it protects is left exactly as measured. */
+.sec-microtonal .strip-label                 { min-width: 132.86px; }
+#note-expression-toggle .strip-field-label   { min-width: 91.89px; }
+
 /* Parchment-palette overrides for the shared tuning panel (D3: stay
    in-family — module CSS variables are the supported theming surface). */
 .tuning-panel {
@@ -900,7 +1102,14 @@ body {
     --tuning-input-bg: rgba(255, 255, 255, 0.55);
     --tuning-hover: rgba(126, 154, 98, 0.25);
     --tuning-active: rgba(95, 129, 67, 0.35);
-    font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+    /* This override is what keeps the panel BODY off the shared module's
+       `-apple-system, BlinkMacSystemFont, sans-serif` (tuning-panel.css:66),
+       which names no Han face at all. O-Contrabass and O-Wind override it;
+       O-Reed and O-Bowed do not, and render 116 nodes each through the
+       document-language fallback. Tail only here, for the same reason as the
+       house stack above: this stack's Latin half already resolves to Georgia. */
+    font-family: 'Garamond', 'Georgia', 'Times New Roman',
+                 'PingFang SC', 'Microsoft YaHei', serif;
 }
 </style>
 </head>
@@ -948,7 +1157,7 @@ body {
             <path d="M 316,178 C 372,171 424,181 456,174"/>
             <path d="M 70,184 C 140,179 208,188 268,182"/>
         </g>
-        <text x="230" y="199" text-anchor="middle" font-family="Georgia, serif" font-style="italic"
+        <text x="230" y="199" text-anchor="middle" font-family="Georgia, 'PingFang SC', 'Microsoft YaHei', serif" font-style="italic"
               font-size="10" fill="#4A3226" data-i18n="label.plate">Physeter macrocephalus — Plate VII</text>
     </svg>
 
@@ -999,6 +1208,7 @@ body {
                             aria-label="Interface language" data-tip-always>
                         <option value="en">English</option>
                         <option value="fr">Fran&ccedil;ais</option>
+                        <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                     </select>
                 </label>
 

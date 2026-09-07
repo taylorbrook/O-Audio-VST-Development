@@ -155,11 +155,13 @@ public:
     // ------------------------------------------------------------------------
     std::atomic<int> uiLanguage { 0 };
 
-    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
-        hand-edited session or an unexpected argument from the page degrades to
-        English rather than being stored unvalidated. */
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    /** The codec. languageIndex() maps anything it does not recognise to 0, so
+        a hand-edited session or an unexpected argument from the page degrades
+        to English rather than being stored unvalidated. Pure ASCII on both
+        lines: the code is an identifier, never a caption — every Chinese
+        character on this plugin lives in js/i18n.js and nowhere under Source/. */
+    static juce::String languageCode  (int i)                 { return i == 2 ? "zh-Hans" : i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "zh-Hans" ? 2 : s == "fr" ? 1 : 0; }
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
