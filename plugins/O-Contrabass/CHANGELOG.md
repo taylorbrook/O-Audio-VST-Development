@@ -4,6 +4,64 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.9.0] - 2026-09-06
+
+The tuning tab is localized — English and French (task 260906-s71). MINOR: the
+shared `scala-tuning-engine` module moves to **v3.1.0** and brings 37 new caption
+keys with it. No parameter, range, type or state format changed, and no audio
+path was touched.
+
+### Added
+
+- **37 localized captions on the tuning tab**, keyed in the shared module's own
+  markup as `data-i18n` attributes: the five visualisation buttons
+  (`vizCircle` `vizPolar` `vizMatrix` `vizTrueKeys` `vizRotation`), the interval
+  list header and its true-keys hint, the tuning library header and its six
+  category filters, the A4 reference and octave-stretch labels, the four
+  `.scl`/`.kbm` file buttons and the HTML export, the scale generator's header,
+  its three type options and its six input labels, the generator button, the
+  tonic selector, the rotation-table mode header and the library's note count.
+- **Two counted captions ride `data-i18n-vars`** — `label.intervalsCount` and
+  `label.noteCount` — so the language sweep owns the number and no inflection
+  logic lives inside a translated string.
+
+### Fixed
+
+- **The panel re-localizes after every lazy re-render.** It mounts after
+  `initI18n()` has already run and rebuilds sub-trees on interaction, so module
+  v3.1.0 calls `window.__reapplyI18n()` after each of its six `innerHTML`
+  injections. Without it the first render would be localized and every later one
+  English.
+- **A key collision that would have silently changed a shipping button.** This
+  plugin already owned `label.loadScl` for its own `#scl-load-btn`
+  (*Load .scl…* / *Charger .scl…*). The module's row of the same name, added
+  later in the same object literal, overwrote it — duplicate object key, last one
+  wins — which would have shipped *Ouvrir .SCL* on that button and lost the
+  ellipsis. The plugin-local key is renamed **`label.loadSclFile`**; the shared
+  module vocabulary keeps `label.loadScl`. The caption text is unchanged, so no
+  geometry moved.
+- **A French geometry regression on the tuning tab.** `Intervals · notes: 11`
+  wraps to two lines in the 122 px interval column and the French rendering does
+  not, so 53 elements below the header rose 11 px. Floored with
+  `min-height: 22px` on `.interval-list-header` at its own measured English box —
+  in this plugin's own `#tuning-container`-scoped CSS, never in the shared
+  `modules/tuning/scala-tuning-engine/snippets/tuning-panel.css`, which has five
+  consumers.
+- **`min-width` floors on `.tonic-label` (42.06 px) and `.octave-stretch-label`
+  (53.86 px)**, each at its widest arm, because both share a flex row with a
+  non-caption that absorbs the slack.
+
+### Notes
+
+- The 37 French strings are copied byte-for-byte from an already-reviewed table
+  and ship `reviewed: true`.
+- Simplified Chinese is **not** added here: this plugin declares `en, fr`, and
+  `check-i18n` requires every key in every declared language and no others.
+- `check-i18n` now scans the module JS this plugin's `CMakeLists.txt` embeds.
+  Its `preset-manager.js` reference is still outside that scan by decision —
+  keying that module is an eighteen-consumer rollout and does not belong in a
+  tuning-panel change.
+
 ## [1.8.3] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
