@@ -36,33 +36,77 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* v1.5.0 CJK TAIL. Han resolves through FIVE of this page's eight
-       font-family declarations, and the set was MEASURED (getComputedStyle on
-       every node that holds or can receive a Han codepoint), not reasoned:
-       .container here, .preset-action, .settings-label, .settings-select and
-       .tooltip. Each re-declaration overrides inheritance and had to be treated
-       on its own — this one covers only what inherits from it (.knob-label,
-       .lfo-ring-label, .title, .knob-container).
+    /* CJK TAIL — ORDER (v1.6.3, quick-260906-uu7; the tail itself is v1.5.0).
+
+       THE RULE: a font-family generic TERMINATES the search. It is not a
+       keyword the engine steps over on its way to the next named family —
+       Chromium resolves a generic against the DOCUMENT'S LANG, and under
+       lang="zh-Hans" the generic is ALREADY a Chinese face. So a CJK tail
+       written AFTER a generic is never consulted. Through v1.6.2 all six of
+       these stacks read
+
+           Garamond, 'Times New Roman', serif, 'PingFang SC', ..., sans-serif
+
+       and CSS.getPlatformFontsForNode measured every Han run on this page
+       landing in Songti SC — a serif — while the PingFang SC these stacks name
+       was reached by none of them. The page only looked right because the
+       generic happened to supply a CJK face at all. The mechanism was first
+       proved on wave 4a's tracer (quick-260904-qrc); the BEFORE/AFTER probe
+       pair for THIS page is in quick-260906-uu7.
+
+       Order is now Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft
+       YaHei', serif. Every family the page needs is NAMED, so the one trailing
+       generic is genuinely a last resort, and it is `serif` because that is
+       this page's Latin design intent (Garamond, Times). A SECOND generic is
+       dead code by construction: the first one ends the search — that is the
+       defect, not a redundancy.
+
+       SIX of this page's NINE font-family declarations carry the tail, and the
+       set was MEASURED (getComputedStyle on every node that holds or can
+       receive a Han codepoint), not reasoned: .container here, .preset-action,
+       .settings-label, .settings-select, .settings-toggle and .tooltip. Each
+       re-declaration overrides inheritance and had to be treated on its own —
+       this one covers only what inherits from it (.knob-label, .lfo-ring-label,
+       .title, .knob-container). The v1.5.0 census read "FIVE of eight" and was
+       stale the moment v1.6.0 added .settings-toggle.
 
        THE THREE LEFT UNTOUCHED, each justified by what it RENDERS:
-         .preset-nav (line ~109)          the glyphs U+25C0 / U+25B6. Their names
+         .preset-nav (line ~130)          the glyphs U+25C0 / U+25B6. Their names
                                           live in aria-label, which is never
                                           rendered text; no Han can reach it.
-         .preset-dropdown-item (~204)     preset NAMES, which are the JSON
+         .preset-dropdown-item (~233)     preset NAMES, which are the JSON
                                           filenames on disk (D-02, I18N_EXEMPT
                                           'Default'). Localizing one would orphan
                                           the file, so it is ASCII by contract.
-         #gear-btn (~367)                 the single gear glyph U+2699. Its tip
+         .gear-btn (~404)                 the single gear glyph U+2699. Its tip
                                           paints in #tooltip, not in the button.
+                                          (v1.5.0 spelled this rule #gear-btn;
+                                          the declaration is on the CLASS.)
 
-       Latin still resolves to Garamond FIRST, so English geometry is unmoved —
-       proved by the EN arm of check-ui-labels assertion 7, not asserted here. */
+       UNTOUCHED IS NOT CLEAN. All three read `Garamond, 'Times New Roman',
+       serif`, and Times New Roman carries none of those three glyphs, so all
+       three DO reach the bare generic and each gets a different face — ◀
+       Hiragino Mincho ProN, ▶ Lucida Grande, ⚙ Menlo — identically in en, fr
+       and zh, so it is not a language defect but the same mechanism made
+       permanent. It is already visible: ◀ measures 20.00 x 21.00 px and ▶
+       18.33 x 18.00 px, a matched pair in the markup that is not one on screen.
+       Same defect class as this block; out of scope for uu7 and recorded in its
+       SUMMARY rather than fixed here.
+
+       LATIN DOES NOT RESOLVE TO GARAMOND. Garamond is not a macOS face at all;
+       en and fr both land on Times New Roman, so v1.5.0's closing claim ("Latin
+       still resolves to Garamond FIRST, so English geometry is unmoved") was
+       false when it was written. What IS true, and is what this reorder had to
+       preserve, is that Latin geometry is byte-unchanged across it: every en
+       and fr row in the uu7 before/after capture is identical apart from the
+       animated #lfo-dot, and check-ui-labels assertion 7 reports 0 moved
+       elements on both arms. */
     .container {
       width: 700px;
       height: 125px;
       position: relative;
       background: #F5E6D3;
-      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       overflow: hidden;
     }
 
@@ -182,7 +226,7 @@
       background: none;
       border: 1px solid rgba(74, 59, 42, 0.4);
       border-radius: 2px;
-      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 9px;
       /* v1.5.0 PIN, and assertion 7 named it: at line-height: normal these two
          buttons measured 14.00 px border-box in English and 17.00 px in Chinese
@@ -190,8 +234,17 @@
          so the ratio is 10/9. UNITLESS is what makes it font-independent: a
          length would have to be re-derived for every face, and a GLOBAL
          line-height would move English geometry, which is a regression rather
-         than a fix. */
-      line-height: 1.1111;   /* measured EN line box 10.00 px / 9 px font */
+         than a fix.
+
+         RE-MEASURED at v1.6.3 (quick-260906-uu7) under PingFang SC, because
+         every number above was taken while Han was silently rendering Songti SC
+         — see the CJK TAIL block. The two faces agree at this size: the
+         counterfactual `normal` line box is 10.00 px in en, 10.00 px in fr and
+         13.00 px in zh under BOTH, so the 10/9 ratio and the pinned 9.984 px
+         line box HOLD, unchanged, in all three arms. The buttons' own boxes are
+         62.00 x 13.98 px in en, fr and zh before AND after — the width is
+         pinned above, so the wider PingFang advance has nothing to move. */
+      line-height: 1.1111;   /* re-measured v1.6.3 under PingFang SC: pinned line box 9.984 px in all three arms; at `normal` it would be EN 10.00 / FR 10.00 / ZH 13.00 px at a 9 px font */
       letter-spacing: 0.5px;
       color: #3C2F2F;
       cursor: pointer;
@@ -356,8 +409,19 @@
          carry taller ones. That +3.00 px grew .knob and .knob-container (dh=3.0)
          and pushed .knob-value down (dy=3.0) on all eight knobs. The ratio is
          the measured EN line box over the font size, 10/9, written unitless so
-         it is font-independent and shifts nothing in either language. */
-      line-height: 1.1111;   /* measured EN line box 10.00 px / 9 px font */
+         it is font-independent and shifts nothing in either language.
+
+         RE-MEASURED at v1.6.3 (quick-260906-uu7) under PingFang SC; the
+         numbers above were taken while Han rendered Songti SC. The zh `normal`
+         line box is STILL 13.00 px — the two faces agree at 9 px — so the
+         ratio and the pinned 9.984 px line box hold in all three arms and the
+         pin still closes what it was written to close. What DID move is the Han
+         ADVANCE, which is wider in PingFang: these spans went 19.61 -> 20.00 px
+         in zh (29.41 -> 30.00 on the three-character one). The span is centred,
+         so x shifts -0.19 px and nothing else on the page follows; HEIGHT is
+         unchanged at 9.98 px, which is what keeps .knob-value and
+         .knob-container still. check-ui-labels [7]: 0 moved elements on zh. */
+      line-height: 1.1111;   /* re-measured v1.6.3 under PingFang SC: pinned line box 9.984 px in all three arms; at `normal` it would be EN 10.00 / ZH 13.00 px at a 9 px font */
       letter-spacing: 0.8px;
       color: #4A3B2A;
       text-transform: uppercase;
@@ -441,7 +505,15 @@
        panel's rectangle language-invariant by construction. 170 px holds the
        English row and the French one with room to spare, measured as rendered
        rather than from a font probe: text-transform and letter-spacing are not
-       in getComputedStyle().font. */
+       in getComputedStyle().font.
+
+       RE-MEASURED at v1.6.3 (quick-260906-uu7) after the CJK tail was made
+       live: the panel is 170.00 x 54.00 px in en, fr AND zh, byte-identical
+       before and after the face change — which is what "language-invariant by
+       construction" is supposed to mean, now checked against a second Han face
+       (PingFang SC) rather than only the Songti SC the v1.5.0 numbers were
+       unknowingly taken under. Its two captions did grow inside it (see
+       .settings-label) and the panel did not move. */
     .settings-popover {
       position: absolute;
       bottom: calc(100% + 6px);
@@ -472,7 +544,7 @@
     /* nowrap because the row is space-between: a caption that wrapped would
        grow the row's height and move the control beside it. */
     .settings-label {
-      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 9px;
       /* v1.5.0 PIN. Assertion 7 did NOT name this node and could not: the
          popover is `hidden` at rest, so the gate never measures it. Measured
@@ -481,8 +553,18 @@
          propagate today only because .settings-select is 16 px tall and taller
          than both, which is luck, not design: the row is space-between with a
          nowrap caption, so any growth past 16 px would move the select beside
-         it. Pinned on the same 10/9 ratio as the two nodes the gate did name. */
-      line-height: 1.1111;   /* measured EN line box 10.00 px / 9 px font */
+         it. Pinned on the same 10/9 ratio as the two nodes the gate did name.
+
+         RE-MEASURED at v1.6.3 (quick-260906-uu7) under PingFang SC, the
+         earlier numbers having been taken under Songti SC. The zh `normal` line
+         box is STILL 13.00 px and en/fr are still 10.00 px, so the pin holds at
+         9.984 px in all three arms. The caption's WIDTH grew with PingFang's
+         wider Han advance — LANGUAGE 19.20 -> 19.61 px, HOVER-HELP 38.41 ->
+         39.20 px in zh — and moved nothing: the row is space-between, so a
+         caption growing rightward eats popover slack rather than pushing the
+         control, and the popover is still 170.00 x 54.00 px in all three arms.
+         Height unchanged at 9.98 px. */
+      line-height: 1.1111;   /* re-measured v1.6.3 under PingFang SC: pinned line box 9.984 px in all three arms; at `normal` it would be EN 10.00 / ZH 13.00 px at a 9 px font */
       color: #3C2F2F;
       text-transform: uppercase;
       letter-spacing: 0.6px;
@@ -498,32 +580,55 @@
       color: #3C2F2F;
       /* The endonym option is the one place Han reaches the MARKUP rather than
          i18n.js, so this stack takes the tail even though no [data-i18n] node
-         resolves through it. Its line-height: 1.2 below was already unitless
-         and is already font-independent — measured 16.00 px in both languages,
-         so it needed no new pin. */
-      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+         resolves through it.
+
+         `line-height: 1.2` below is INERT on this engine and is kept only as a
+         defence. Chromium's UA stylesheet overrides line-height on <select>, so
+         the COMPUTED value reads `normal` in all three arms — measured v1.6.3,
+         quick-260906-uu7 — and the control's 16.00 px height comes from
+         `height`/padding, not from this ratio. v1.5.0 credited the ratio with
+         "measured 16.00 px in both languages"; that was never what held the
+         row. It is a second dead declaration on the same rule as the dead font
+         tail, but unlike the tail it is dead SAFELY: a host whose UA sheet does
+         not override <select> would need it, and deleting it buys nothing
+         measurable here. */
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 9px;
       line-height: 1.2;
-      /* v1.5.0 WIDTH PIN, and it is NOT a line-height problem — it is the one
-         assertion-7 mover the pins above could not close. The three endonyms
-         are identical in every language (they are never translated) and measure
-         27.501 / 30.489 / 36.792 px in this stack whatever the page language,
-         so the widest OPTION is language-invariant. The <select> is not: with
-         appearance:auto Chromium derives the control's intrinsic width from the
-         SELECTED option's font run, and when the Chinese endonym is selected
-         that run resolves through PingFang SC and rounds one pixel narrower —
-         measured 65 px in English, 65 px in French, 64 px in Chinese. The row
-         is space-between, so a 1 px narrowing walked the select 1 px right
-         (dx=1.0 dw=-1.0).
+      /* v1.5.0 WIDTH PIN, RE-DERIVED at v1.6.3 (quick-260906-uu7). With
+         appearance:auto Chromium sizes this control from the SELECTED option's
+         font run, so the pin can only be derived from the INTRINSIC width
+         (`width: auto`) — never from a measured row, which just echoes the pin
+         back. It is the one assertion-7 mover the line-height pins could not
+         close.
 
-         Pinned to 65 px, which is the EXISTING English intrinsic width, so
-         English and French geometry are byte-unchanged and only the Chinese
-         pass moves — onto the value the other two already had. 65 px clears the
-         widest endonym (36.792 px) plus this control's own chrome, so nothing
-         clips. Same lever .preset-action already uses on this page, and for the
-         same reason: a control whose caption changes with the language cannot
-         also size itself from that caption. */
-      width: 65px;
+         v1.5.0 got the number right and the CAUSE wrong. It said the Chinese
+         run "resolves through PingFang SC and rounds one pixel narrower";
+         CSS.getPlatformFontsForNode proves that run was Songti SC, because the
+         tail was dead. Intrinsic widths, measured at `width: auto`:
+
+                              en        fr        zh-Hans
+           v1.6.2  Songti SC  65.000    65.000    64.000   <- the 1 px mover
+           v1.6.3  PingFang   65.000    65.000    65.000   <- no mover left
+
+         So 65 px is now the intrinsic width in EVERY arm, and this pin is a
+         no-op on this host rather than the thing closing a mover. It STAYS: it
+         is the same lever .preset-action uses, and it is what keeps the control
+         language-invariant on a host that resolves a third face.
+
+         The three endonyms are language-invariant NOW, which they were not
+         before. Measured in this stack, per page language:
+
+           English 27.516   Français 30.500   简体中文 36.797   — identical in all
+           three arms.
+
+         Under Songti the Chinese endonym was 36.797 px on the en/fr arms but
+         36.000 px on the zh arm — the generic resolved to a different Han face
+         per document lang — so v1.5.0's "identical in every language whatever
+         the page language" was false, and its quoted 27.501 / 30.489 / 36.792
+         matched none of the three. 65 px clears the widest endonym (36.797 px)
+         plus this control's own chrome, so nothing clips. */
+      width: 65px;   /* re-derived v1.6.3: intrinsic is 65.000 px in en, fr AND zh under PingFang SC (zh was 65 px pinned over a 64.000 px intrinsic under Songti) */
       cursor: pointer;
     }
 
@@ -559,7 +664,19 @@
        the 170 px popover already has. MEASURED at 42.00 x 16.00 px in all three
        languages — On / Marche / 开 all fit inside the 42 px floor — so the
        button's own rectangle happens not to move either. check-ui-labels [7]
-       reports 0 non-label elements displaced across en / fr / zh-Hans. */
+       reports 0 non-label elements displaced across en / fr / zh-Hans.
+
+       RE-MEASURED at v1.6.3 (quick-260906-uu7) under PingFang SC; everything
+       above was taken while Han rendered Songti SC. The button is STILL
+       42.00 x 16.00 px in en, fr and zh, and the popover is still
+       170.00 x 54.00 px, so nothing here moved. Two honesty corrections:
+       min-width is a FLOOR and protects against nothing on the growth side —
+       what actually holds the rectangle is that no caption gets near 42 px —
+       and the `line-height: 1.2` below is a NO-OP under both faces: the pinned
+       line box measures 14.000 px and `normal` measures 14.000 px in all three
+       arms, so `height: 16px` is doing the work this block credits to the
+       ratio. Both stay: on a host with different face metrics the ratio is what
+       would keep the row language-invariant. */
     .settings-toggle {
       flex: 0 0 auto;
       min-width: 42px;
@@ -569,7 +686,7 @@
       border: 1px solid rgba(74, 59, 42, 0.4);
       border-radius: 2px;
       color: #3C2F2F;
-      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 9px;
       line-height: 1.2;
       cursor: pointer;
@@ -665,9 +782,24 @@
          would have missed it and every Chinese tooltip would have fallen back
          to a system face. It is in the resolution set because of what it
          RECEIVES, not what it holds at rest. */
-      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
       font-size: 10px;
-      line-height: 1.3;   /* already unitless: .tip-title measured 11.688 px in BOTH languages */
+      /* RE-MEASURED at v1.6.3 (quick-260906-uu7) under PingFang SC — the
+         v1.5.0 number was taken while Han rendered Songti SC, and this surface
+         is the one the 384 px cap and the six-line ceiling above are counted
+         in. .tip-title is 11.69 px in en, fr AND zh under both faces, so
+         "11.688 px in BOTH languages" holds and holds in the third language
+         too; the body line box is still 13.00 px, so the ceiling arithmetic
+         above is unchanged and the pin needs no new value.
+
+         What the face change DID move is the WRAP, because PingFang's Han
+         advance is wider than Songti's: the `voices` tip went 2 -> 3 body lines
+         in zh (384.0 x 51.7 -> 384.0 x 64.7 px) and #tips-toggle's tip widened
+         328.0 -> 334.8 px under the cap. The tallest zh tip is now 64.7 px
+         against a 109 px well — three body lines under the ceiling, and the
+         44.3 px of headroom this comment budgeted is intact.
+         ui_tip_render_check: 345 PASS, 0 FAIL, on the PingFang tree. */
+      line-height: 1.3;   /* already unitless: .tip-title re-measured 11.69 px in ALL THREE languages under PingFang SC */
       color: #3C2F2F;
       opacity: 0;
       visibility: hidden;
