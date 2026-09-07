@@ -27,7 +27,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { width: 100%; height: 100%; overflow: hidden; }
         body {
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             background: linear-gradient(135deg, #F5E6D3 0%, #EBD9C7 40%, #E8D0B8 100%);
             color: #3C2F2F;
             user-select: none;
@@ -231,7 +231,7 @@
             width: 100%;
             background: #E8D5B7;
             border: 1px solid #8B7355;
-            font-family: 'Georgia', 'Times New Roman', serif;
+            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             color: #3C2F2F;
             padding: 4px 6px;
@@ -252,7 +252,23 @@
             border: 2px solid #5C7A3A;
             border-radius: 4px;
             padding: 6px 14px;
-            font-family: 'Garamond', serif;
+            /* v2.8.0 — THE FACE-NAMING HALF, and a grep for a bare generic finds
+               nothing here. This stack named ONE family and that family is not on
+               the build machine, so its only survivor was the trailing generic —
+               and Chromium resolves a bare `serif` against the DOCUMENT's lang, so
+               under Chinese it would have rendered the Latin captions through a
+               Chinese face too.
+
+               `Times` is the face this declaration ALREADY resolves to, measured
+               through CDP getPlatformFontsForNode on the two nodes it reaches
+               rather than inferred from the stack: freeze-toggle and
+               #stutter-gate-btn both come back Times, while every other caption on
+               this page comes back Georgia. Naming Georgia here would have been
+               tidier and would have moved both English captions, so the face that
+               is already rendering is the one that is named. The CJK tail then
+               goes BEFORE the generic, which is where a tail has to sit to be
+               consulted at all. */
+            font-family: 'Garamond', 'Times', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -375,7 +391,7 @@
             border: 1px solid #8B7355;
             border-radius: 50%;
             color: #5C4033;
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             line-height: 1;
             cursor: pointer;
@@ -433,7 +449,7 @@
            declared because it converts the next French edit on this caption
            from a silent push into a loud failure. */
         .settings-label {
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -448,7 +464,7 @@
             border: 1px solid #8B7355;
             border-radius: 2px;
             color: #3C2F2F;
-            font-family: 'Georgia', 'Times New Roman', serif;
+            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
@@ -475,7 +491,7 @@
           border: 1px solid #8B7355;
           border-radius: 2px;
           color: #3C2F2F;
-          font-family: 'Georgia', 'Times New Roman', serif;
+          font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
           font-size: 10px;
           line-height: 1.2;
           flex: 0 0 auto;
@@ -537,7 +553,7 @@
             border: 1px solid #8B7355;
             border-radius: 4px;
             box-shadow: 2px 4px 12px rgba(60,47,47,0.45);
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             font-size: 11px;
             line-height: 1.4;
             opacity: 0;
@@ -556,6 +572,44 @@
             color: #C9A27B;
             margin-bottom: 3px;
         }
+        /* ══ v2.8.0 — LINE-BOX PINS FOR THE CHINESE ARM ═════════════════════
+           Every selector below rendered at `line-height: normal`, which asks the
+           FONT for the line box. A Han glyph's line box is taller than a Latin
+           one at the same font-size, so each of these leaves grew 1-3 px the
+           moment a Chinese caption landed in it — and because .viz-area is
+           `flex: 1 1 auto` it absorbed the sum, shrinking 12 px and dragging 140
+           elements up the page with it. Measured, not predicted: check-ui-labels
+           reported all 140 on the zh arm while the fr arm stayed green.
+
+           EVERY VALUE IS A RATIO DERIVED FROM THIS PAGE'S OWN MEASURED ENGLISH
+           CONTENT BOX, padding and border subtracted FIRST, per line and per
+           size — never a length. A length pinned to a measured row height
+           inherits as a computed length and moves one arm by a fraction of a
+           pixel. Each ratio reproduces the English box exactly, so the English
+           and French arms do not move at all; what it removes is the Chinese
+           arm's freedom to ask the font for a taller box.
+
+               .tagline           10 px, content 11 px      -> 1.1
+               .viz-label          9 px, content 10 px      -> 1.1111111
+               .group-label        9 px, content 10 px      -> 1.1111111
+               .settings-label     9 px, content 10 px      -> 1.1111111
+               .pitch-hint         8 px, content  9 px      -> 1.125
+               .spatial-hint          (11 px box less 2 px padding-top)
+               .toggle            10 px, content 13 px      -> 1.3
+                                     (29 px box less 6+6 padding and 2+2 border)
+
+           Only leaves that MOVED are pinned. The residual `line-height: normal`
+           leaves that measured identical on both arms are left alone and are
+           named with their measured heights in the task summary — a node whose
+           Han is an aria-label rather than rendered text has no line box to
+           grow and no pin can change that. */
+        .header .tagline           { line-height: 1.1; }
+        .viz-panel .viz-label      { line-height: 1.1111111; }
+        .group-label               { line-height: 1.1111111; }
+        .settings-label            { line-height: 1.1111111; }
+        .pitch-hint,
+        .spatial-hint              { line-height: 1.125; }
+        .toggle                    { line-height: 1.3; }
     </style>
 </head>
 <body>
@@ -584,6 +638,7 @@
                         data-i18n-aria="aria.langSelect" aria-label="Interface language">
                     <option value="en">English</option>
                     <option value="fr">Fran&ccedil;ais</option>
+                    <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                 </select>
             </label>
 

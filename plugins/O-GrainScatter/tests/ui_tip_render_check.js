@@ -194,13 +194,35 @@ function outsideViewport(rect, W, H) {
     note(`shipping frame from PluginEditor.cpp setSize(): ${W} x ${H}`);
 
     const table = await loadTable();
-    const { I18N, TIP_BINDINGS } = table;
+    const { I18N, TIP_BINDINGS, LANGUAGES } = table;
     note(`table: ${Object.keys(I18N).length} I18N entries, ${TIP_BINDINGS.length} TIP_BINDINGS rows`);
 
     if (!Array.isArray(TIP_BINDINGS) || TIP_BINDINGS.length === 0) {
         check(false, '[0] TIP_BINDINGS is non-empty — a render gate over zero bindings is vacuous');
         process.exit(1);
     }
+
+    // ── THE LANGUAGE LIST IS DERIVED, AND A DERIVATION THAT FAILS ABORTS ────
+    //
+    // This gate used to name the languages it swept. That is the shape that
+    // reports every assertion green the day the table gains one more, because
+    // the language it does not name is the language it never renders. The list
+    // now comes from the table's own export — it was already sitting in the
+    // module this file imports and was simply never read.
+    //
+    // ABORT rather than guess. A derived list that arrives empty, or that does
+    // not open with the English baseline every restore assertion below depends
+    // on, would sweep nothing and print a clean run over zero work. There is no
+    // fallback literal here on purpose: a fallback is how a broken derivation
+    // survives unnoticed.
+    if (!Array.isArray(LANGUAGES) || LANGUAGES.length === 0 || LANGUAGES[0] !== 'en') {
+        check(false,
+            '[0] LANGUAGES derives from the table as a non-empty array opening with the English '
+            + `code — got ${JSON.stringify(LANGUAGES)}. REFUSING to sweep a guessed list: an `
+            + 'assertion that walks zero languages passes for the wrong reason.');
+        process.exit(1);
+    }
+    check(true, `[0] language list derived from the table — ${LANGUAGES.length}: ${LANGUAGES.join(' ')}`);
 
     // The two chrome anchors live inside a [hidden] popover and do not exist to
     // a pointer until the gear is clicked.
@@ -462,9 +484,22 @@ function outsideViewport(rect, W, H) {
         note('every assertion below this line runs with both gates OPEN, which is the only state '
            + 'in which all 36 parameter tips are pointer-reachable');
 
-        for (const lang of ['en', 'fr', 'en']) {
-            const isReturn = lang === 'en' && page.__seenEn;
-            page.__seenEn = page.__seenEn || lang === 'en';
+        // ── THE WALK, PLUS THE RETURN PASS ─────────────────────────────────
+        //
+        // The sweep is the derived list FOLLOWED BY a re-visit of English, and
+        // that trailing re-visit is a stage in its own right rather than an
+        // artefact of how the list used to be written: it proves the page comes
+        // back byte-equal after every other language has been through it, which
+        // is the half a one-way walk cannot see. Substituting the derived list
+        // alone would delete it silently and the `(return pass)` line below
+        // would simply stop printing.
+        const SWEEP = [...LANGUAGES, LANGUAGES[0]];
+        note(`sweeping ${SWEEP.length} pass(es): ${SWEEP.join(' -> ')} `
+           + `(${LANGUAGES.length} language(s) plus the ${LANGUAGES[0]} return pass)`);
+
+        for (const lang of SWEEP) {
+            const isReturn = lang === LANGUAGES[0] && page.__seenEn;
+            page.__seenEn = page.__seenEn || lang === LANGUAGES[0];
             console.log(`\n-- 2/3/4. language: ${lang}${isReturn ? ' (return pass)' : ''}`);
 
             await page.evaluate((l) => window.__setLanguage(l), lang);
@@ -539,14 +574,33 @@ function outsideViewport(rect, W, H) {
                + `tallest ${maxH.toFixed(1)} px`);
         }
 
-        // ── 5. FRENCH REALLY IS TALLER, and English really came back ────────
+        // ── 5. EVERY OTHER LANGUAGE MEASURES DIFFERENT BOXES, and English
+        //      really came back ───────────────────────────────────────────────
         //
-        // Re-measured here rather than inferred from the loop: the point of
-        // running both languages is that French wraps to more lines against the
-        // 280 px max-width cap, and if it did NOT the two passes would be the
-        // same measurement twice and assertion 4's French half would be
-        // decoration.
-        console.log('\n-- 5. French height vs English');
+        // Re-measured here rather than inferred from the loop. The property this
+        // section exists to prove is stated by its own failure note: if a second
+        // language measured the SAME boxes as English, the two passes would be
+        // one measurement run twice and every per-language clamp and viewport
+        // assertion above it would be decoration.
+        //
+        // ── THE ASSERTION IS DIFFERENCE, NOT GROWTH, AND THAT IS A CHANGE ────
+        //
+        // It used to demand that the second language be TALLER. That was true of
+        // French, which wraps to more lines against the 280 px max-width cap —
+        // and it is FALSE of Simplified Chinese, which says the same thing in
+        // fewer glyphs and measures SHORTER. A growth assertion applied to a
+        // language that legitimately shrinks fails loudly for the wrong reason.
+        //
+        // The alternative considered and rejected was a per-language direction
+        // table — grow for these codes, shrink for those. That is the same
+        // enumeration this file is being repaired for: it needs an edit every
+        // time a language lands, in a place nobody looks, and the day it is
+        // forgotten it asserts the wrong direction rather than nothing. So the
+        // criterion is the one the failure note already names — the boxes DIFFER
+        // — and the direction is reported rather than asserted, so a language
+        // that silently changed direction between releases is still visible in
+        // the log.
+        console.log('\n-- 5. per-language tip height against English');
         async function heightsFor(lang) {
             await page.evaluate((l) => window.__setLanguage(l), lang);
             await page.waitForTimeout(150);
@@ -558,27 +612,46 @@ function outsideViewport(rect, W, H) {
             }
             return h;
         }
-        const hEn = await heightsFor('en');
-        const hFr = await heightsFor('fr');
-        const grew   = anchorsClosed.filter(s => hFr[s] > hEn[s] + 0.5);
-        const shrank = anchorsClosed.filter(s => hFr[s] < hEn[s] - 0.5);
-        const same   = anchorsClosed.filter(s => Math.abs(hFr[s] - hEn[s]) <= 0.5);
-        check(grew.length > 0,
-            `[5] French GROWS at least one tip's height against the 280 px cap — `
-            + `${grew.length} grew, ${same.length} unchanged, ${shrank.length} shrank`,
-            grew.length ? null
-                : 'no tip grew: the fr pass measured the same boxes as en, so its clamp half is decoration');
-        note(`tallest en ${Math.max(...anchorsClosed.map(s => hEn[s])).toFixed(1)} px, `
-           + `tallest fr ${Math.max(...anchorsClosed.map(s => hFr[s])).toFixed(1)} px`);
-        if (verbose)
-            for (const s of grew) note(`  grew: ${s} ${hEn[s].toFixed(0)} -> ${hFr[s].toFixed(0)}`);
+        const BASE = LANGUAGES[0];
+        const others = LANGUAGES.slice(1);
+        if (others.length === 0) {
+            check(false,
+                '[5] the derived list carries at least one language besides '
+                + `${BASE} — got ${JSON.stringify(LANGUAGES)}. A single-language sweep makes this `
+                + 'whole section, and the clamp half of assertion 4, vacuous.');
+            process.exit(1);
+        }
+        const hBase = await heightsFor(BASE);
+        note(`tallest ${BASE} ${Math.max(...anchorsClosed.map(s => hBase[s])).toFixed(1)} px`);
+        for (const lang of others) {
+            const hL = await heightsFor(lang);
+            const grew   = anchorsClosed.filter(s => hL[s] > hBase[s] + 0.5);
+            const shrank = anchorsClosed.filter(s => hL[s] < hBase[s] - 0.5);
+            const same   = anchorsClosed.filter(s => Math.abs(hL[s] - hBase[s]) <= 0.5);
+            check(grew.length + shrank.length > 0,
+                `[5][${lang}] at least one tip's height DIFFERS from ${BASE} against the 280 px cap — `
+                + `${grew.length} grew, ${same.length} unchanged, ${shrank.length} shrank`,
+                grew.length + shrank.length ? null
+                    : `no tip moved: the ${lang} pass measured the same boxes as ${BASE}, so its `
+                      + 'clamp half is decoration');
+            note(`tallest ${lang} ${Math.max(...anchorsClosed.map(s => hL[s])).toFixed(1)} px `
+               + `(${grew.length} taller, ${shrank.length} shorter, ${same.length} unchanged)`);
+            if (verbose) {
+                for (const s of grew)   note(`  grew:   ${s} ${hBase[s].toFixed(0)} -> ${hL[s].toFixed(0)}`);
+                for (const s of shrank) note(`  shrank: ${s} ${hBase[s].toFixed(0)} -> ${hL[s].toFixed(0)}`);
+            }
+        }
 
+        // RESET, not an enumeration. The restore below is English by
+        // construction and the assertion under it proves the table came back
+        // byte-equal after every other language has been through the page —
+        // reading any other language here would assert nothing at all.
         await page.evaluate(() => window.__setLanguage('en'));
         await page.waitForTimeout(150);
         const backEn = await hoverAnchor('.knob[data-param="grain_size"]', '.knob-container');
         check(backEn && backEn.tip.title === I18N['tip.grainSize'].en.t
                      && backEn.tip.body  === I18N['tip.grainSize'].en.b,
-            '[5] English comes back after the French pass — byte-equal again');
+            '[5] English comes back after every other language pass — byte-equal again');
 
         // ── 6. THE NEGATIVE CONTROL ─────────────────────────────────────────
         //
@@ -623,6 +696,13 @@ function outsideViewport(rect, W, H) {
         if (planted) note(`planted tip ${planted.tip.rect.w.toFixed(1)} x `
                         + `${planted.tip.rect.h.toFixed(1)} in a ${W} x ${H} frame`);
 
+        // RESTORE-SCOPED, and deliberately NOT generalized. The line below puts
+        // the page back into English by construction — that is what undoes the
+        // plant — so the English table entry is the only thing the assertion
+        // under it can compare against. Reading the current language here would
+        // compare the restored attribute against a row the restore did not
+        // write, which asserts nothing whatever the list holds.
+        //
         // restore from the TABLE, and prove the restore took
         await page.evaluate(() => window.__setLanguage('en'));
         await page.waitForTimeout(150);
@@ -673,6 +753,9 @@ function outsideViewport(rect, W, H) {
             check(false, '[6b] the clamp probe rendered');
         }
 
+        // RESTORE-SCOPED, same classification as the [6] restore above: the
+        // reset writes English, so the English row is the only correct
+        // comparand. Left as it stands on purpose, not missed.
         await page.evaluate(() => window.__setLanguage('en'));
         await page.waitForTimeout(150);
         const restored2 = await hoverAnchor(MID_SEL, '.knob-container');

@@ -18,7 +18,26 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // ============================================================================
-// i18n.js — O-GrainScatter LABEL + HOVER-HELP table, English + French (v2.6.1)
+// i18n.js — O-GrainScatter LABEL + HOVER-HELP table, English + French +
+// Simplified Chinese (v2.8.0)
+//
+// ── v2.8.0: SIMPLIFIED CHINESE (Stage 4, wave 4f tracer) ───────────────────
+// 131 rows — 39 tip titles, 39 tip bodies, 53 labels. Authored at
+// reviewed:'mt', read back through a blind reverse pass, then promoted to
+// reviewed:'bt'. `reviewed: 'native'` stays open: this project has no native
+// Chinese reader, and lint rule R1 prints that disclosure on every run.
+//
+// ONE termNote EXEMPTION, hit twice because the caption and the tooltip title
+// are separate rows: Dist LPF -> 距离低通, NOT the glossary root 失真低通.
+// "Dist" is DISTANCE on this page — the body reads "Distance LPF sets how
+// much Distance darkens the cloud" — and the glossary root renders the other
+// sense of the abbreviation. O-GrainScatter is the only site in the corpus
+// that carries the term, so the root was settled without one; reported so the
+// glossary row can be corrected rather than worked around again.
+//
+// TWO STALE BODIES were corrected BEFORE a byte of Chinese was authored, and
+// the Chinese was written from the corrected English rather than from the
+// English as found. Both are recorded at their entries.
 //
 // ── v2.6.1: FRENCH QA PASS (Stage N, 2026-08-31) ───────────────────────────
 // Every fr entry read against its en and against scripts/i18n-fr-glossary.js.
@@ -142,7 +161,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // ============================================================================
 // I18N — HOVER-HELP, authored in v2.6.0. `{en:{t,b}, fr:{t,b,reviewed}}`.
@@ -238,6 +257,9 @@ export const I18N = Object.freeze({
                          + 'box — 17.80 px used, 0.20 px of clearance against check-ui-labels '
                          + 'assertion 4, on a page whose Windows metrics are unmeasured. Taille '
                          + 'is 31.33 px on one line and the tip body names the control in full.' },
+        'zh-Hans': { t: '颗粒尺寸',
+                     b: '设定引擎播放的每一个颗粒的长度。短颗粒听起来像织体或嗡鸣；长颗粒保留了足够多的源信号，仍然可以辨认。范围 10 到 500 ms。',
+                     reviewed: 'mt' },
     },
 
     // The exponential mapping is quoted from GrainScheduler.h:49-50, not
@@ -253,6 +275,9 @@ export const I18N = Object.freeze({
                + 'environ dix, 100 % environ cent. Les valeurs élevées épaississent le nuage '
                + 'jusqu’au son continu. Plage de 1 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '密度',
+                     b: '设定同步模式为 Free 时颗粒的生成频率，按指数曲线变化：1% 约为每秒一个颗粒，50% 约为十个，100% 约为一百个。高设定会把颗粒云加厚成连续的音。范围 1 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.scan': {
@@ -267,6 +292,9 @@ export const I18N = Object.freeze({
                + 'plutôt que sur l’entrée la plus récente. C’est la commande à utiliser une '
                + 'fois Geler activé. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '扫描',
+                     b: '扫描位置在插件保留的两秒音频中移动读取点，使颗粒取自更靠后的位置，而不是最新的输入。冻结启用之后，它就是首先该动的那个控制。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.spread': {
@@ -279,6 +307,9 @@ export const I18N = Object.freeze({
                + 'jusqu’à une longueur de grain au maximum. Une faible valeur estompe '
                + 'l’attaque ; une valeur élevée dissout la source en nuage. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '扩散',
+                     b: '把每个颗粒的读取位置在扫描点周围散开，最大设定下的偏移可达一个颗粒长度。少量会让起音变模糊；大量则把源信号抹成一片颗粒云。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.reverse': {
@@ -291,6 +322,9 @@ export const I18N = Object.freeze({
                + 'probabilité et non un commutateur : les réglages intermédiaires mêlent des '
                + 'grains à l’endroit et à l’envers dans le même nuage. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '反向',
+                     b: '设定任意一个颗粒倒着播放的概率。它是一个概率而不是开关，因此中间设定会让正放和倒放的颗粒混在同一片云里。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.feedback': {
@@ -304,6 +338,9 @@ export const I18N = Object.freeze({
                + 'tanh et limité en gain : il réchauffe donc au lieu de s’emballer. Plage de 0 à '
                + '100 %.',
               reviewed: true },
+        'zh-Hans': { t: '反馈',
+                     b: '把颗粒化之后的输出送回它所读取的缓冲区，使颗粒对自身再次颗粒化，形成更长的尾音。该路径经过 tanh 饱和并做了增益限制，因此只会变暖，不会失控。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.dryWet': {
@@ -314,6 +351,9 @@ export const I18N = Object.freeze({
               b: 'Équilibre l’entrée non traitée et la sortie granulée. À 0 % seul le signal sec '
                + 'passe ; à 100 % on n’entend que les grains. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '干湿',
+                     b: '在未处理的输入与颗粒化输出之间做平衡。在 0% 时只有干信号通过；在 100% 时只听到颗粒。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.sizeRnd': {
@@ -326,6 +366,9 @@ export const I18N = Object.freeze({
                + 'la valeur de Taille au réglage maximal. Cela casse la hauteur métallique '
                + 'qu’engendre une longueur de grain constante. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '尺寸随机',
+                     b: '尺寸随机改变每个颗粒的长度，在最大设定下最多可以拉长到其颗粒尺寸的两倍。它可以打散恒定颗粒长度所产生的金属感音高。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.ampRnd': {
@@ -338,6 +381,9 @@ export const I18N = Object.freeze({
                + 'complètement. De faibles valeurs font respirer un nuage mécanique ; de fortes '
                + 'valeurs l’éclaircissent. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '振幅随机',
+                     b: '振幅随机改变每个颗粒的电平，最多可以把它完全衰减掉。少量能让机械的颗粒云呼吸起来；大量则会把它变稀。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.shape': {
@@ -354,6 +400,9 @@ export const I18N = Object.freeze({
                + 'attaque pincée. Six formes : Hann, Triangle, Trapezoid, Tukey, Blackman, '
                + 'Exp Decay.',
               reviewed: true },
+        'zh-Hans': { t: '形状',
+                     b: '颗粒形状选择施加在每个颗粒上的振幅包络，也就决定了颗粒听起来是柔和的还是打击性的。Hann 和 Blackman 最平滑，Trapezoid 保持一段平顶，Exp Decay 则给每个颗粒一个拨奏般的起音。六种形状：Hann、Triangle、Trapezoid、Tukey、Blackman、Exp Decay。',
+                     reviewed: 'mt' },
     },
 
     // ── Pitch & Scale ───────────────────────────────────────────────────────
@@ -370,6 +419,9 @@ export const I18N = Object.freeze({
                + 'Fondamentale. À 0 % la fonction est inactive et les commandes Gamme, '
                + 'Fondamentale et Mode hauteur sont estompées avec elle. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '音高随机',
+                     b: '音高随机设定每个颗粒相对源音高最多可以移调多远，并量化到旁边的音阶和根音上。在 0% 时它处于关闭状态，音阶、根音和音高模式三个控制也随之变暗。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.panRnd': {
@@ -382,6 +434,9 @@ export const I18N = Object.freeze({
                + 'laisser tout le nuage au centre. Ne s’applique qu’au trajet stéréo et reste '
                + 'sans effet lorsque l’Audio spatial est engagé. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '声像随机',
+                     b: '声像随机把每个颗粒散布到立体声像各处，而不是让整片云都居中。它只作用于立体声路径，空间音频启用时会被忽略。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.scale': {
@@ -395,6 +450,9 @@ export const I18N = Object.freeze({
                + 'le réglage Alé. haut. reste à zéro. Cinq gammes : Chromatic, Major, Minor, '
                + 'Pentatonic, Whole Tone.',
               reviewed: true },
+        'zh-Hans': { t: '音阶',
+                     b: '把每一次随机移调都量化到一个音乐音阶上，使散开的颗粒云保持在调内而不是跑调。在音高随机大于零之前它不起作用。五种音阶：Chromatic、Major、Minor、Pentatonic、Whole Tone。',
+                     reviewed: 'mt' },
     },
 
     'tip.rootNote': {
@@ -407,6 +465,9 @@ export const I18N = Object.freeze({
                + 'grains quantifiés tombent dans la tonalité du morceau. Sans effet tant que le '
                + 'réglage Alé. haut. reste à zéro. Douze demi-tons, de C à B.',
               reviewed: true },
+        'zh-Hans': { t: '根音',
+                     b: '设定所选音阶所构建于的主音，使量化后的颗粒落在乐曲的调上。在音高随机大于零之前它不起作用。十二个半音，从 C 到 B。',
+                     reviewed: 'mt' },
     },
 
     'tip.pitchMode': {
@@ -422,6 +483,9 @@ export const I18N = Object.freeze({
                + 'là où Random donne un nuage. Quatre modes : Random, Ladder Up, Ladder Down, '
                + 'Pendulum.',
               reviewed: true },
+        'zh-Hans': { t: '音高模式',
+                     b: '选择相继的颗粒如何取得各自的移调量：完全随机，沿音阶逐级上行或下行，或者在两者之间往复。Ladder 和 Pendulum 给出琶音，Random 给出颗粒云。四种模式：Random、Ladder Up、Ladder Down、Pendulum。',
+                     reviewed: 'mt' },
     },
 
     // ── Beat Sync ───────────────────────────────────────────────────────────
@@ -438,6 +502,9 @@ export const I18N = Object.freeze({
                + 'Porte bég. et tout le groupe Rythme euclidien ne s’appliquent qu’une fois la '
                + 'division choisie. Sept réglages : Free, 1/4, 1/8, 1/16, 1/32, 1/8T, 1/16T.',
               reviewed: true },
+        'zh-Hans': { t: '同步模式',
+                     b: '选择颗粒是按密度速率生成，还是锁定到宿主速度的某个音乐细分上。概率、重复、断续门以及整个欧几里得节奏组，只有在选定一个细分之后才起作用。七种设定：Free、1/4、1/8、1/16、1/32、1/8T、1/16T。',
+                     reviewed: 'mt' },
     },
 
     'tip.probability': {
@@ -450,6 +517,9 @@ export const I18N = Object.freeze({
                + 'grain, ce qui éclaircit un motif régulier en motif irrégulier. À 100 % chaque '
                + 'déclenchement se produit. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '概率',
+                     b: '设定一次预定的触发实际生成颗粒的概率，把规整的节奏图案变得不规则。在 100% 时每一次触发都会发声。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.repeats': {
@@ -463,6 +533,9 @@ export const I18N = Object.freeze({
                + 'bégaiement. Ne s’applique qu’aux modes synchronisés au tempo. '
                + 'Plage de 1 à 16 grains.',
               reviewed: true },
+        'zh-Hans': { t: '重复',
+                     b: '设定单次触发发射多少个颗粒，彼此相隔一个细分，这正是把一次击打变成断续的原因。它只在锁定速度的同步模式下起作用。范围 1 到 16 个颗粒。',
+                     reviewed: 'mt' },
     },
 
     'tip.stutterGate': {
@@ -476,6 +549,9 @@ export const I18N = Object.freeze({
                + 'superposer. Nécessite un Mode synchro verrouillé au tempo et un réglage '
                + 'Répét. supérieur à un. Désactivé ou activé.',
               reviewed: true },
+        'zh-Hans': { t: '断续门',
+                     b: '在一串重复持续期间把干信号静音，使断续取代源信号，而不是叠在它上面。它需要一个锁定速度的同步模式，并且重复次数大于一，才听得到。关或开。',
+                     reviewed: 'mt' },
     },
 
     // ── Freeze ──────────────────────────────────────────────────────────────
@@ -490,6 +566,9 @@ export const I18N = Object.freeze({
                + 'continue de granuler cet instantané pendant que l’audio en direct défile. '
                + 'Utiliser Balayage pour parcourir ce qui a été capturé. Désactivé ou activé.',
               reviewed: true },
+        'zh-Hans': { t: '冻结',
+                     b: '捕获最近两秒的输入并把它保持住，使引擎持续对这份快照做颗粒化，而现场音频在其下方经过。用扫描在已捕获的内容中移动。关或开。',
+                     reviewed: 'mt' },
     },
 
     // ── Euclidean Rhythm ────────────────────────────────────────────────────
@@ -505,6 +584,9 @@ export const I18N = Object.freeze({
                + 'donnent les figures clairsemées et décalées propres à cet algorithme. '
                + 'Plage de 1 à 16 impulsions.',
               reviewed: true },
+        'zh-Hans': { t: '脉冲',
+                     b: '设定欧几里得图案在它的步数上尽可能均匀地分布多少次击打。在很多步中放入少量脉冲，就得到该算法著称的稀疏而错位的节奏型。范围 1 到 16 个脉冲。',
+                     reviewed: 'mt' },
     },
 
     'tip.steps': {
@@ -518,6 +600,9 @@ export const I18N = Object.freeze({
                + 'un multiple du nombre d’impulsions que les motifs deviennent intéressants. '
                + 'Plage de 2 à 16 pas.',
               reviewed: true },
+        'zh-Hans': { t: '步',
+                     b: '以细分为单位设定欧几里得图案的长度，也就是脉冲所分布的那个循环。步数不是脉冲数的整数倍时，才会产生有趣的图案。范围 2 到 16 步。',
+                     reviewed: 'mt' },
     },
 
     'tip.rotation': {
@@ -530,6 +615,9 @@ export const I18N = Object.freeze({
                + 'place sans que les impulsions elles-mêmes changent. C’est le moyen le plus '
                + 'rapide de décaler une figure hors du temps fort. Plage de 0 à 15 pas.',
               reviewed: true },
+        'zh-Hans': { t: '旋转',
+                     b: '就地转动欧几里得图案，改变它的第一个脉冲落在何处，而不改变有哪些脉冲。这是把节奏型移离强拍最快的办法。范围 0 到 15 步。',
+                     reviewed: 'mt' },
     },
 
     // The 50-75 % range is not a coincidence of the readout: swingRatio is
@@ -544,6 +632,9 @@ export const I18N = Object.freeze({
                + 'plutôt qu’en binaire. 50 % est binaire et 75 % repousse le contretemps d’une '
                + 'demi-subdivision complète. Plage de 50 à 75 %.',
               reviewed: true },
+        'zh-Hans': { t: '摇摆',
+                     b: '延迟每一个弱拍细分，使图案带着摇摆而不是平直地落下。50% 是平直的，75% 把弱拍整整推后半个细分。范围 50 到 75%。',
+                     reviewed: 'mt' },
     },
 
     // ── Spatial Audio ───────────────────────────────────────────────────────
@@ -561,6 +652,9 @@ export const I18N = Object.freeze({
                + 'parcours, ce qui donne vie aux quatre dernières commandes de cette rangée. '
                + 'Trois modes : Off, Scatter, Trajectory.',
               reviewed: true },
+        'zh-Hans': { t: '模式',
+                     b: '空间模式选择颗粒如何在三维中被摆放。Scatter 把每个颗粒抛到扩散范围内一个固定的随机点上；Trajectory 则让它们沿一条路径移动，这也正是让本行最后四个控制起作用的设定。三种模式：Off、Scatter、Trajectory。',
+                     reviewed: 'mt' },
     },
 
     'tip.azimuth': {
@@ -573,6 +667,9 @@ export const I18N = Object.freeze({
                + 'centré, mesurée dans le sens horaire autour de l’auditeur. Étal. az. disperse '
                + 'ensuite les grains de part et d’autre. Plage de 0 à 360°.',
               reviewed: true },
+        'zh-Hans': { t: '方位角',
+                     b: '设定颗粒云所居中的水平方向，以听者为中心顺时针度量。方位扩散随后把颗粒散布在它的两侧。范围 0 到 360°。',
+                     reviewed: 'mt' },
     },
 
     'tip.elevation': {
@@ -585,6 +682,9 @@ export const I18N = Object.freeze({
                + 'verticale sous l’auditeur à la verticale au-dessus. Étal. él. disperse '
                + 'ensuite les grains de part et d’autre. Plage de −90 à +90°.',
               reviewed: true },
+        'zh-Hans': { t: '仰角',
+                     b: '设定颗粒云所居中的高度，从听者的正下方直到正上方。仰角扩散随后把颗粒散布在它的两侧。范围 −90 到 +90°。',
+                     reviewed: 'mt' },
     },
 
     'tip.azSpread': {
@@ -598,6 +698,9 @@ export const I18N = Object.freeze({
                + 'met cet étalement et l’étalement vertical à l’échelle ensemble. Plage de 0 à '
                + '360°.',
               reviewed: true },
+        'zh-Hans': { t: '方位扩散',
+                     b: '方位扩散设定颗粒在水平方向上散布的弧有多宽，围绕方位角中心展开。宽度会同时缩放它和垂直方向的扩散。范围 0 到 360°。',
+                     reviewed: 'mt' },
     },
 
     'tip.elSpread': {
@@ -611,6 +714,9 @@ export const I18N = Object.freeze({
                + 'met cet étalement et l’étalement horizontal à l’échelle ensemble. Plage de 0 '
                + 'à 180°.',
               reviewed: true },
+        'zh-Hans': { t: '仰角扩散',
+                     b: '仰角扩散设定颗粒在垂直方向上散布得有多远，围绕仰角中心展开。宽度会同时缩放它和水平方向的扩散。范围 0 到 180°。',
+                     reviewed: 'mt' },
     },
 
     'tip.distance': {
@@ -623,6 +729,9 @@ export const I18N = Object.freeze({
                + 'reculer une texture derrière le mixage plutôt que d’en baisser le niveau ; avec '
                + 'PB dist. relevé, elle s’assombrit aussi en s’éloignant. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '距离',
+                     b: '把颗粒云放得离听者更近或者更远。想把一层织体推到混音之后而不是把它调小时，就用它；距离低通调高之后，它在远去的同时也会变暗。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.width': {
@@ -635,6 +744,9 @@ export const I18N = Object.freeze({
                + 'à 0 % le nuage se referme sur le centre défini par Azimut et Élévation, '
                + 'à 100 % il s’ouvre à l’étalement complet. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '宽度',
+                     b: '空间宽度同时缩放两个扩散弧，在 0% 时把颗粒云收拢到它的方位角和仰角中心上，在 100% 时展开到完整的扩散范围。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.trajectory': {
@@ -647,6 +759,9 @@ export const I18N = Object.freeze({
                + 'réglé sur Trajectory. Orbital tourne autour de l’auditeur, Spiral monte en '
                + 'tournant et Random dérive. Quatre parcours : Static, Orbital, Spiral, Random.',
               reviewed: true },
+        'zh-Hans': { t: '轨迹',
+                     b: '在模式设为 Trajectory 之后，选择颗粒发声期间所走的路径。Orbital 绕着听者环行，Spiral 一边转一边上升，Random 则四处漂移。四条路径：Static、Orbital、Spiral、Random。',
+                     reviewed: 'mt' },
     },
 
     'tip.trajSpeed': {
@@ -659,6 +774,9 @@ export const I18N = Object.freeze({
                + 'grains le long du parcours choisi, de l’immobilité à quatre fois la vitesse de '
                + 'base. À monter avec Doppler pour un passage audible. Plage de 0 à 400 %.',
               reviewed: true },
+        'zh-Hans': { t: '轨迹速度',
+                     b: '轨迹速度缩放颗粒沿所选路径行进的快慢，从静止不动直到基准速率的四倍。把它和多普勒一起调高，就能听到一次飞掠。范围 0 到 400%。',
+                     reviewed: 'mt' },
     },
 
     // 20 kHz down to 5 kHz is the actual coefficient, from
@@ -673,6 +791,10 @@ export const I18N = Object.freeze({
                + 'nuage, en dosant un filtre qui se referme de 20 kHz à 5 kHz à distance '
                + 'maximale. À 0 % un nuage éloigné reste brillant. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '距离低通',
+                     b: '距离低通设定距离把颗粒云变暗的程度，做法是缩放一个从 20 kHz 一直收到最远处 5 kHz 的低通。在 0% 时，远处的颗粒云依然明亮。范围 0 到 100%。',
+                     reviewed: 'mt',
+                     termNote: 'Dist is DISTANCE here, not distortion. The glossary root 失真低通 renders the other sense of the abbreviation and would be flatly wrong on a control whose own body reads "Distance LPF sets how much Distance darkens the cloud" — and it would also stop colliding with label.distance 距离, which is the control it scales. Same reasoning as label.distLpf. Reported so the glossary row can be corrected: O-GrainScatter is the only site in the corpus and the root was derived without one.' },
     },
 
     'tip.doppler': {
@@ -686,6 +808,9 @@ export const I18N = Object.freeze({
                + 'les grains bougent réellement : il faut donc une Trajectoire et un peu de Vit. '
                + 'traj. Plage de 0 à 100 %.',
               reviewed: true },
+        'zh-Hans': { t: '多普勒',
+                     b: '让移动中的颗粒的音高随它的运动而偏移，就像驶过的警笛先升后降。只有颗粒真的在移动时它才发声，因此需要一条轨迹和一些轨迹速度。范围 0 到 100%。',
+                     reviewed: 'mt' },
     },
 
     'tip.smoothing': {
@@ -701,21 +826,43 @@ export const I18N = Object.freeze({
                + 'les longues suppriment le crépitement d’un saut de position. '
                + 'Plage de 1 à 200 ms.',
               reviewed: true },
+        'zh-Hans': { t: '平滑',
+                     b: '空间平滑设定编码器跟随一次位置变化所需要的时间，让高保真立体声的系数滑过去而不是跳过去。短值能跟上快速的轨迹；长值则消除位置跳变所产生的阶跃噪声。范围 1 到 200 ms。',
+                     reviewed: 'mt' },
     },
 
     // ── Chrome ──────────────────────────────────────────────────────────────
     //
     // The gear tip is what tells a user hover-help exists at all, so its body
-    // must describe only what the popover ACTUALLY contains. This page's gear
-    // holds the language selector and nothing else — no hover-help toggle, no
-    // second control — and a tip that promises one would be a tip that lies.
+    // must describe only what the popover ACTUALLY contains.
+    //
+    // ── v2.8.0: THE SETTINGS BODY WAS FALSE, AND SO WAS THIS COMMENT ────────
+    // Both used to assert the popover reaches one control. v2.7.0 put the
+    // hover-help switch inside it — #tips-toggle sits in .settings-popover at
+    // index.html, and check-i18n assertion 16 REQUIRES that switch to exist,
+    // keyed and bound, which is exactly what makes the old claim false. The
+    // clause is DELETED rather than widened to name two controls, because a
+    // body that inventories a panel has to be re-edited in every language every
+    // time the panel grows, and that is the edit that gets forgotten. The
+    // superseded phrasings live in the CHANGELOG and are deliberately not
+    // repeated here, so a repo probe for either stays at zero.
+    //
+    // The language body closed by naming the selector's options. That was true
+    // for exactly as long as the selector held two entries, and this version
+    // adds a third. Deleted for the same reason, and because the selector
+    // already lists the languages in their own endonyms — the one place the
+    // list cannot go stale. Everything else in that body is still true and
+    // stays: the host automation lane and the on-screen values remain English.
 
     'tip.settings': {
         en: { t: 'Settings',
-              b: 'Opens the settings panel. It holds the interface language and nothing else.' },
+              b: 'Opens the settings panel.' },
         fr: { t: 'Réglages',
-              b: 'Ouvre le panneau de réglages. Il ne contient que la langue de l’interface.',
+              b: 'Ouvre le panneau de réglages.',
               reviewed: true },
+        'zh-Hans': { t: '设置',
+              b: '打开设置面板。',
+              reviewed: 'mt' },
     },
 
     // The endonyms are quoted as the selector spells them — a language name is
@@ -723,13 +870,15 @@ export const I18N = Object.freeze({
     'tip.language': {
         en: { t: 'Language',
               b: 'Chooses the language of the interface text and of this hover-help. Parameter '
-               + 'names in the host automation lane and the values on screen stay English. '
-               + 'English or Français.' },
+               + 'names in the host automation lane and the values on screen stay English.' },
         fr: { t: 'Langue',
               b: 'Choisit la langue du texte de l’interface et de ces infobulles. Les '
                + 'noms de paramètres dans la voie d’automatisation de l’hôte et les valeurs '
-               + 'affichées restent en anglais. English ou Français.',
+               + 'affichées restent en anglais.',
               reviewed: true },
+        'zh-Hans': { t: '语言',
+              b: '选择界面文字和这些悬停帮助的语言。宿主自动化通道中的参数名称和屏幕上的数值保持英文。',
+              reviewed: 'mt' },
     },
     // v2.7.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
@@ -740,6 +889,9 @@ export const I18N = Object.freeze({
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls '
                + 'l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+        'zh-Hans': { t: '悬停帮助',
+                     b: '开启或关闭这些悬停帮助。关闭之后，只有齿轮和这个开关仍会解释自己。',
+                     reviewed: 'mt' },
     },
 });
 
@@ -754,7 +906,9 @@ export const LABELS = Object.freeze({
     // ── Header ──────────────────────────────────────────────────────────────
     // The <h1> is the product name and is NOT keyed — see I18N_EXEMPT.
     'label.tagline':       { en: { t: 'Harmonic Stutter Engine' },
-                             fr: { t: 'Moteur de bégaiement harmonique', reviewed: true } },
+                             fr: { t: 'Moteur de bégaiement harmonique', reviewed: true },
+        'zh-Hans': { t: '谐波断续引擎', reviewed: 'mt' },
+    },
 
     // ── Visualisation panel captions ────────────────────────────────────────
     // Both are position:absolute inside their .viz-panel, so neither can push
@@ -762,29 +916,45 @@ export const LABELS = Object.freeze({
     // NOT the product name: "O-GrainScatter" is one token and is exempt, while
     // this is a description of what the panel draws.
     'label.vizGrain':      { en: { t: 'Grain Scatter' },
-                             fr: { t: 'Dispersion de grains', reviewed: true } },   // 84.67 -> 126.45
+                             fr: { t: 'Dispersion de grains', reviewed: true },
+        'zh-Hans': { t: '颗粒散布', reviewed: 'mt' },
+    },   // 84.67 -> 126.45
     'label.vizEuclidean':  { en: { t: 'Euclidean' },
-                             fr: { t: 'Euclidien', reviewed: true } },              // 61.97 -> 59.44  SHRANK
+                             fr: { t: 'Euclidien', reviewed: true },
+        'zh-Hans': { t: '欧几里得', reviewed: 'mt' },
+    },              // 61.97 -> 59.44  SHRANK
 
     // ── Freeze toggle ───────────────────────────────────────────────────────
     // Alone in a full-width, centre-justified .freeze-bar, so its own box is
     // the only thing that changes and it is a [data-i18n] element. No pin.
     'label.freeze':        { en: { t: 'Freeze' },
-                             fr: { t: 'Geler', reviewed: true } },                  // 71.67 -> 66.72 border box  SHRANK
+                             fr: { t: 'Geler', reviewed: true },
+        'zh-Hans': { t: '冻结', reviewed: 'mt' },
+    },                  // 71.67 -> 66.72 border box  SHRANK
 
     // ── Group headings ──────────────────────────────────────────────────────
     // Every .group-label is a full-width block, so its rectangle is
     // language-invariant by construction and none of these can move anything.
     'label.coreEngine':      { en: { t: 'Core Engine' },
-                               fr: { t: 'Moteur principal', reviewed: true } },
+                               fr: { t: 'Moteur principal', reviewed: true },
+        'zh-Hans': { t: '核心引擎', reviewed: 'mt' },
+    },
     'label.pitchScale':      { en: { t: 'Pitch & Scale' },
-                               fr: { t: 'Hauteur et gamme', reviewed: true } },
+                               fr: { t: 'Hauteur et gamme', reviewed: true },
+        'zh-Hans': { t: '音高与音阶', reviewed: 'mt' },
+    },
     'label.beatSync':        { en: { t: 'Beat Sync' },
-                               fr: { t: 'Synchro rythmique', reviewed: true } },
+                               fr: { t: 'Synchro rythmique', reviewed: true },
+        'zh-Hans': { t: '节拍同步', reviewed: 'mt' },
+    },
     'label.euclideanRhythm': { en: { t: 'Euclidean Rhythm' },
-                               fr: { t: 'Rythme euclidien', reviewed: true } },
+                               fr: { t: 'Rythme euclidien', reviewed: true },
+        'zh-Hans': { t: '欧几里得节奏', reviewed: 'mt' },
+    },
     'label.spatialAudio':    { en: { t: 'Spatial Audio' },
-                               fr: { t: 'Audio spatial', reviewed: true } },
+                               fr: { t: 'Audio spatial', reviewed: true },
+        'zh-Hans': { t: '空间音频', reviewed: 'mt' },
+    },
 
     // ── Core Engine ─────────────────────────────────────────────────────────
     // "Taille" rather than the glossary's "Taille de grain" / "Taille grain",
@@ -805,15 +975,25 @@ export const LABELS = Object.freeze({
                                             + 'clearance against check-ui-labels assertion 4, on '
                                             + 'a page whose Windows metrics are unmeasured. '
                                             + 'Taille is 31.33 px on one line and the tip body '
-                                            + 'names the control in full.' } },   // 50.61 -> 31.33  SHRANK
+                                            + 'names the control in full.' },
+        'zh-Hans': { t: '颗粒尺寸', reviewed: 'mt' },
+    },   // 50.61 -> 31.33  SHRANK
     'label.density':       { en: { t: 'Density' },
-                             fr: { t: 'Densité', reviewed: true } },                // 38.34 -> 38.64
+                             fr: { t: 'Densité', reviewed: true },
+        'zh-Hans': { t: '密度', reviewed: 'mt' },
+    },                // 38.34 -> 38.64
     'label.scan':          { en: { t: 'Scan' },
-                             fr: { t: 'Balayage', reviewed: true } },               // 23.14 -> 46.11
+                             fr: { t: 'Balayage', reviewed: true },
+        'zh-Hans': { t: '扫描', reviewed: 'mt' },
+    },               // 23.14 -> 46.11
     'label.spread':        { en: { t: 'Spread' },
-                             fr: { t: 'Étalement', reviewed: true } },              // 34.58 -> 53.83, 8.17 under the 62 px cap
+                             fr: { t: 'Étalement', reviewed: true },
+        'zh-Hans': { t: '扩散', reviewed: 'mt' },
+    },              // 34.58 -> 53.83, 8.17 under the 62 px cap
     'label.reverse':       { en: { t: 'Reverse' },
-                             fr: { t: 'Inversion', reviewed: true } },              // 40.23 -> 49.63, 12.37 under the cap
+                             fr: { t: 'Inversion', reviewed: true },
+        'zh-Hans': { t: '反向', reviewed: 'mt' },
+    },              // 40.23 -> 49.63, 12.37 under the cap
     // v2.6.1: the glossary's listed abbreviation, re-measured on this page.
     // "Réinjection" is 60.27 px in the 62.00 px .knob-container — the v2.6.0
     // pin holds — and "Réinj." is 29.39. The old note offered "Retour" as the
@@ -821,27 +1001,47 @@ export const LABELS = Object.freeze({
     // The tip body opens "La réinjection renvoie…", so the root is one hover
     // away from the caption that abbreviates it.
     'label.feedback':      { en: { t: 'Feedback' },
-                             fr: { t: 'Réinj.', reviewed: true } },                 // 46.53 -> 29.39  SHRANK
+                             fr: { t: 'Réinj.', reviewed: true },
+        'zh-Hans': { t: '反馈', reviewed: 'mt' },
+    },                 // 46.53 -> 29.39  SHRANK
     'label.dryWet':        { en: { t: 'Dry/Wet' },
-                             fr: { t: 'Sec/Effet', reviewed: true } },              // 41.77 -> 48.09
+                             fr: { t: 'Sec/Effet', reviewed: true },
+        'zh-Hans': { t: '干湿', reviewed: 'mt' },
+    },              // 41.77 -> 48.09
     'label.sizeRnd':       { en: { t: 'Size Rnd' },
-                             fr: { t: 'Alé. taille', reviewed: true } },            // 41.33 -> 53.33
+                             fr: { t: 'Alé. taille', reviewed: true },
+        'zh-Hans': { t: '尺寸随机', reviewed: 'mt' },
+    },            // 41.33 -> 53.33
     'label.ampRnd':        { en: { t: 'Amp Rnd' },
-                             fr: { t: 'Alé. ampl.', reviewed: true } },             // 40.84 -> 49.16
+                             fr: { t: 'Alé. ampl.', reviewed: true },
+        'zh-Hans': { t: '振幅随机', reviewed: 'mt' },
+    },             // 40.84 -> 49.16
     'label.shape':         { en: { t: 'Shape' },
-                             fr: { t: 'Forme', reviewed: true } },                  // 28.98 -> 31.52
+                             fr: { t: 'Forme', reviewed: true },
+        'zh-Hans': { t: '形状', reviewed: 'mt' },
+    },                  // 28.98 -> 31.52
 
     // ── Pitch & Scale ───────────────────────────────────────────────────────
     'label.pitchRnd':      { en: { t: 'Pitch Rnd' },
-                             fr: { t: 'Alé. haut.', reviewed: true } },             // 48.78 -> 49.56
+                             fr: { t: 'Alé. haut.', reviewed: true },
+        'zh-Hans': { t: '音高随机', reviewed: 'mt' },
+    },             // 48.78 -> 49.56
     'label.panRnd':        { en: { t: 'Pan Rnd' },
-                             fr: { t: 'Alé. pan', reviewed: true } },               // 39.56 -> 39.89
+                             fr: { t: 'Alé. pan', reviewed: true },
+        'zh-Hans': { t: '声像随机', reviewed: 'mt' },
+    },               // 39.56 -> 39.89
     'label.scale':         { en: { t: 'Scale' },
-                             fr: { t: 'Gamme', reviewed: true } },                  // 27.55 -> 33.73
+                             fr: { t: 'Gamme', reviewed: true },
+        'zh-Hans': { t: '音阶', reviewed: 'mt' },
+    },                  // 27.55 -> 33.73
     'label.rootNote':      { en: { t: 'Root Note' },
-                             fr: { t: 'Fondamentale', reviewed: true } },           // 51.17 -> 73.41, 6.59 under the 80 px cap
+                             fr: { t: 'Fondamentale', reviewed: true },
+        'zh-Hans': { t: '根音', reviewed: 'mt' },
+    },           // 51.17 -> 73.41, 6.59 under the 80 px cap
     'label.pitchMode':     { en: { t: 'Pitch Mode' },
-                             fr: { t: 'Mode hauteur', reviewed: true } },           // 56.13 -> 72.30
+                             fr: { t: 'Mode hauteur', reviewed: true },
+        'zh-Hans': { t: '音高模式', reviewed: 'mt' },
+    },           // 56.13 -> 72.30
     // The hint NAMES a control whose caption this table also owns, so it takes
     // the caption as a {n} token rather than a second copy of the same words.
     // trLabel() resolves a token that is itself a LABELS key, so a reviewer who
@@ -849,42 +1049,60 @@ export const LABELS = Object.freeze({
     // the two to drift. The markup keeps the fully-written English as its
     // render-if-applyI18n-never-runs fallback.
     'label.pitchHint':     { en: { t: 'Increase {n} to activate' },
-                             fr: { t: 'Augmenter {n} pour activer', reviewed: true } },
+                             fr: { t: 'Augmenter {n} pour activer', reviewed: true },
+        'zh-Hans': { t: '提高 {n} 即可启用', reviewed: 'mt' },
+    },
 
     // ── Beat Sync ───────────────────────────────────────────────────────────
     'label.syncMode':      { en: { t: 'Sync Mode' },
-                             fr: { t: 'Mode synchro', reviewed: true } },           // 51.70 -> 71.30
+                             fr: { t: 'Mode synchro', reviewed: true },
+        'zh-Hans': { t: '同步模式', reviewed: 'mt' },
+    },           // 51.70 -> 71.30
     // The TIGHTEST caption on the page: 2.98 px under the 62 px cap. Kept as
     // the whole word because the ENGLISH is the same long word at 58.72 — the
     // French is 0.30 px wider than what already ships, so an abbreviation here
     // would buy nothing English does not already spend. "Probab." (37.94) is
     // the reviewer's lever if a Windows metric ever proves it necessary.
     'label.probability':   { en: { t: 'Probability' },
-                             fr: { t: 'Probabilité', reviewed: true } },            // 58.72 -> 59.02  TIGHTEST
+                             fr: { t: 'Probabilité', reviewed: true },
+        'zh-Hans': { t: '概率', reviewed: 'mt' },
+    },            // 58.72 -> 59.02  TIGHTEST
     // "Répétitions" (59.16) clears the cap by 2.84 px. Unlike PROBABILITÉ there
     // is no English precedent for spending that: "Repeats" is 39.25. The page's
     // own register already abbreviates (Size Rnd, Amp Rnd, Dist LPF, Traj Speed).
     'label.repeats':       { en: { t: 'Repeats' },
-                             fr: { t: 'Répét.', reviewed: true } },                 // 39.25 -> 31.06  SHRANK
+                             fr: { t: 'Répét.', reviewed: true },
+        'zh-Hans': { t: '重复', reviewed: 'mt' },
+    },                 // 39.25 -> 31.06  SHRANK
     // Pinned to 110px in index.html. "Porte bégaiement" (138.58 border box) is
     // 28.58 px past that pin and would have to move the pin, which would move
     // ENGLISH. "Bégaiement" (102.00) fits and is the reviewer's lever; it drops
     // the gate half of the name, which is why it is not the shipped choice.
     'label.stutterGate':   { en: { t: 'Stutter Gate' },
-                             fr: { t: 'Porte bég.', reviewed: true } },             // 109.95 -> 93.08 border box  SHRANK
+                             fr: { t: 'Porte bég.', reviewed: true },
+        'zh-Hans': { t: '断续门', reviewed: 'mt' },
+    },             // 109.95 -> 93.08 border box  SHRANK
 
     // ── Euclidean Rhythm ────────────────────────────────────────────────────
     'label.pulses':        { en: { t: 'Pulses' },
-                             fr: { t: 'Impulsions', reviewed: true } },             // 32.97 -> 55.48, 6.52 under the cap
+                             fr: { t: 'Impulsions', reviewed: true },
+        'zh-Hans': { t: '脉冲', reviewed: 'mt' },
+    },             // 32.97 -> 55.48, 6.52 under the cap
     'label.steps':         { en: { t: 'Steps' },
-                             fr: { t: 'Pas', reviewed: true } },                    // 26.53 -> 16.23  SHRANK
+                             fr: { t: 'Pas', reviewed: true },
+        'zh-Hans': { t: '步', reviewed: 'mt' },
+    },                    // 26.53 -> 16.23  SHRANK
     'label.rotation':      { en: { t: 'Rotation' },
-                             fr: { t: 'Rotation', reviewed: true, sameAsEn: true } },
+                             fr: { t: 'Rotation', reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: '旋转', reviewed: 'mt' },
+    },
     // The musical term is used untranslated in French practice, and there is no
     // French word for it that is not a paraphrase ("balancement" is 66.53 and
     // 4.53 px OVER the cap in its own right).
     'label.swing':         { en: { t: 'Swing' },
-                             fr: { t: 'Swing', reviewed: true, sameAsEn: true } },
+                             fr: { t: 'Swing', reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: '摇摆', reviewed: 'mt' },
+    },
 
     // ── Spatial Audio ───────────────────────────────────────────────────────
     // This is the ZERO-SLACK row: its twelve controls sum to exactly 846.00 px
@@ -893,32 +1111,57 @@ export const LABELS = Object.freeze({
     // not wraps SMOOTHING onto a second row, grows #spatial-group by 87 px and
     // pushes the page past its own 800 px frame.
     'label.mode':          { en: { t: 'Mode' },
-                             fr: { t: 'Mode', reviewed: true, sameAsEn: true } },
+                             fr: { t: 'Mode', reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: '模式', reviewed: 'mt' },
+    },
     'label.azimuth':       { en: { t: 'Azimuth' },
-                             fr: { t: 'Azimut', reviewed: true } },                 // 41.73 -> 34.72  SHRANK
+                             fr: { t: 'Azimut', reviewed: true },
+        'zh-Hans': { t: '方位角', reviewed: 'mt' },
+    },                 // 41.73 -> 34.72  SHRANK
     'label.elevation':     { en: { t: 'Elevation' },
-                             fr: { t: 'Élévation', reviewed: true } },              // 50.64 -> 50.64  IDENTICAL WIDTH
+                             fr: { t: 'Élévation', reviewed: true },
+        'zh-Hans': { t: '仰角', reviewed: 'mt' },
+    },              // 50.64 -> 50.64  IDENTICAL WIDTH
     'label.azSpread':      { en: { t: 'Az Spread' },
-                             fr: { t: 'Étal. az.', reviewed: true } },              // 48.19 -> 41.30  SHRANK
+                             fr: { t: 'Étal. az.', reviewed: true },
+        'zh-Hans': { t: '方位扩散', reviewed: 'mt' },
+    },              // 48.19 -> 41.30  SHRANK
     'label.elSpread':      { en: { t: 'El Spread' },
-                             fr: { t: 'Étal. él.', reviewed: true } },              // 48.06 -> 41.17  SHRANK
+                             fr: { t: 'Étal. él.', reviewed: true },
+        'zh-Hans': { t: '仰角扩散', reviewed: 'mt' },
+    },              // 48.06 -> 41.17  SHRANK
     'label.distance':      { en: { t: 'Distance' },
-                             fr: { t: 'Distance', reviewed: true, sameAsEn: true } },
+                             fr: { t: 'Distance', reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: '距离', reviewed: 'mt' },
+    },
     'label.width':         { en: { t: 'Width' },
-                             fr: { t: 'Largeur', reviewed: true } },                // 30.89 -> 42.00
+                             fr: { t: 'Largeur', reviewed: true },
+        'zh-Hans': { t: '宽度', reviewed: 'mt' },
+    },                // 30.89 -> 42.00
     // KEYED, while the spatial_mode OPTION spelled the same way is EXEMPT.
     // That is the one state assertion 14 demands a scope for, and the exempt
     // entry below carries `option`.
     'label.trajectory':    { en: { t: 'Trajectory' },
-                             fr: { t: 'Trajectoire', reviewed: true } },            // 56.88 -> 60.80
+                             fr: { t: 'Trajectoire', reviewed: true },
+        'zh-Hans': { t: '轨迹', reviewed: 'mt' },
+    },            // 56.88 -> 60.80
     'label.trajSpeed':     { en: { t: 'Traj Speed' },
-                             fr: { t: 'Vit. traj.', reviewed: true } },             // 52.81 -> 44.72  SHRANK
+                             fr: { t: 'Vit. traj.', reviewed: true },
+        'zh-Hans': { t: '轨迹速度', reviewed: 'mt' },
+    },             // 52.81 -> 44.72  SHRANK
     'label.distLpf':       { en: { t: 'Dist LPF' },
-                             fr: { t: 'PB dist.', reviewed: true } },               // 38.98 -> 36.75  SHRANK
+                             fr: { t: 'PB dist.', reviewed: true },
+        'zh-Hans': { t: '距离低通', reviewed: 'mt',
+                     termNote: 'Dist is DISTANCE here, not distortion. The glossary root 失真低通 renders the other sense of the abbreviation; this caption scales the low-pass that Distance drives, so 距离低通 is the reading and 失真低通 would name a control this plugin does not have. Same reasoning as tip.distLpf, and a termNote is ENTRY-scoped so both rows carry it.' },
+    },               // 38.98 -> 36.75  SHRANK
     'label.doppler':       { en: { t: 'Doppler' },
-                             fr: { t: 'Doppler', reviewed: true, sameAsEn: true } },
+                             fr: { t: 'Doppler', reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: '多普勒', reviewed: 'mt' },
+    },
     'label.smoothing':     { en: { t: 'Smoothing' },
-                             fr: { t: 'Lissage', reviewed: true } },                // 54.84 -> 36.83  SHRANK
+                             fr: { t: 'Lissage', reviewed: true },
+        'zh-Hans': { t: '平滑', reviewed: 'mt' },
+    },                // 54.84 -> 36.83  SHRANK
     // "Scatter" and "Trajectory" stay ENGLISH inside the French sentence on
     // purpose: they are the two spatial_mode option strings the user has to
     // find in the dropdown beside it, and those are exempt under D-01 arm 1.
@@ -926,20 +1169,30 @@ export const LABELS = Object.freeze({
     // instruction that cannot be followed.
     'label.spatialHint':   { en: { t: 'Set Mode to Scatter or Trajectory to enable' },
                              fr: { t: 'Régler Mode sur Scatter ou Trajectory pour activer',
-                                   reviewed: true } },                              // 154.25 -> 184.22, in an 846 px block
+                                   reviewed: true },
+        'zh-Hans': { t: '把模式设为 Scatter 或 Trajectory 即可启用', reviewed: 'mt' },
+    },                              // 154.25 -> 184.22, in an 846 px block
 
     // ── Settings popover (new in v2.5.0) ────────────────────────────────────
     'label.language':      { en: { t: 'Language' },
-                             fr: { t: 'Langue', reviewed: true } },
+                             fr: { t: 'Langue', reviewed: true },
+        'zh-Hans': { t: '语言', reviewed: 'mt' },
+    },
 
     // v2.7.0. All four renderings below are settled glossary ROOTS, copied
     // rather than authored: scripts/i18n-fr-glossary.js carries them as the
     // roots for 'hover help', 'on', 'off' and 'toggle hover help'. They take
     // the same review mark this file's other roots carry, and for the same
     // reason — they are not new machine output.
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },
-    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true } },
-    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true },
+        'zh-Hans': { t: '悬停帮助', reviewed: 'mt' },
+    },
+    'ui.on':           { en: { t: 'On' },         fr: { t: 'Marche', reviewed: true },
+        'zh-Hans': { t: '开', reviewed: 'mt' },
+    },
+    'ui.off':          { en: { t: 'Off' },        fr: { t: 'Arrêt',  reviewed: true },
+        'zh-Hans': { t: '关', reviewed: 'mt' },
+    },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
@@ -952,10 +1205,16 @@ export const LABELS = Object.freeze({
     // no title= to move under contract §4, and inventing hover-help prose for
     // the other 46 captions is Stage M.
     'aria.settings':       { en: { t: 'Settings' },
-                             fr: { t: 'Réglages', reviewed: true } },
+                             fr: { t: 'Réglages', reviewed: true },
+        'zh-Hans': { t: '设置', reviewed: 'mt' },
+    },
     'aria.langSelect':     { en: { t: 'Interface language' },
-                             fr: { t: 'Langue de l’interface', reviewed: true } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+                             fr: { t: 'Langue de l’interface', reviewed: true },
+        'zh-Hans': { t: '界面语言', reviewed: 'mt' },
+    },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' }, fr: { t: 'Activer ou désactiver les infobulles', reviewed: true },
+        'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' },
+    },
 });
 
 // ============================================================================
@@ -1040,6 +1299,15 @@ export const I18N_EXEMPT = [
     // The canvas's other four strings — "0s", "2s", "+24st", "-24st" and the
     // Euclidean centre readout "4/8 r2" — are axis units and numbers, exempt
     // under D-03 in their own right as well as being canvas text.
+
+    // ── Endonyms ────────────────────────────────────────────────────────────
+    // The three <option> texts inside #lang-select. index.html writes the
+    // Chinese one as numeric character references, but the HTML parser decodes
+    // them long before the coverage sweep runs, so the exemption has to carry
+    // the DECODED characters.
+    ['English',  'endonym — a language name is never translated'],
+    ['Français', 'endonym — a language name is never translated'],
+    ['简体中文', 'endonym — a language name is never translated'],
 ];
 
 // ============================================================================
