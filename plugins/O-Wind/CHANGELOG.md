@@ -1,5 +1,60 @@
 # O-Wind Changelog
 
+## [1.20.0] - 2026-09-06
+
+The tuning tab is localized — English and French (task 260906-s71). MINOR: the
+shared `scala-tuning-engine` module moves to **v3.1.0** and brings 37 new caption
+keys with it. No parameter, range, type or state format changed, and no audio
+path was touched.
+
+### Added
+
+- **37 localized captions on the tuning tab**, keyed in the shared module's own
+  markup as `data-i18n` attributes: the five visualisation buttons
+  (`vizCircle` `vizPolar` `vizMatrix` `vizTrueKeys` `vizRotation`), the interval
+  list header and its true-keys hint, the tuning library header and its six
+  category filters, the A4 reference and octave-stretch labels, the four
+  `.scl`/`.kbm` file buttons and the HTML export, the scale generator's header,
+  its three type options and its six input labels, the generator button, the
+  tonic selector, the rotation-table mode header and the library's note count.
+- **Two counted captions ride `data-i18n-vars`** — `label.intervalsCount` and
+  `label.noteCount` — so the language sweep owns the number and no inflection
+  logic lives inside a translated string.
+
+### Fixed
+
+- **The panel re-localizes after every lazy re-render.** It mounts after
+  `initI18n()` has already run and rebuilds sub-trees on interaction, so module
+  v3.1.0 calls `window.__reapplyI18n()` after each of its six `innerHTML`
+  injections. Without it the first render would be localized and every later one
+  English.
+- **A French geometry regression on the tuning tab.** `Intervals · notes: 11`
+  wraps to two lines in this plugin's 112 px interval column and the French
+  rendering does not, so 55 elements below the header rose 11 px. Floored with
+  `min-height: 22px` on `.interval-list-header` at its own measured English box —
+  in this plugin's own `#tuning-container`-scoped CSS, never in the shared
+  `modules/tuning/scala-tuning-engine/snippets/tuning-panel.css`, which has five
+  consumers.
+- **`min-width` floors on `.tonic-label` (39.83 px) and `.octave-stretch-label`
+  (51 px)**, each at its widest arm. `label.tonic` was additionally spilling
+  2.8 px outside the measured frame in French before the floor landed.
+
+### Notes
+
+- The 37 French strings are copied byte-for-byte from an already-reviewed table
+  and ship `reviewed: true`.
+- Simplified Chinese is **not** added here: this plugin declares `en, fr`, and
+  `check-i18n` requires every key in every declared language and no others. The
+  `zh-Hans` column arrives with the rest of this plugin's table in the Chinese
+  rollout's wave 4f.
+- **The tuning tab's `I18N_EXEMPT` note is no longer true and has been
+  replaced.** It stated that this plugin's tuning tab is English in both
+  languages and that a French user meets an English page on roughly a third of
+  the navigable surface. The only remaining exemption on that surface is the
+  literal `12-TET Standard` in `#scale-name-display`, which is the tuning name
+  `getTuningName()` reports — it is written into `.scl` files and exported HTML,
+  so it is data, not copy.
+
 ## [1.19.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
