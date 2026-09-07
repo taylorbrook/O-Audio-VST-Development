@@ -463,6 +463,98 @@
             position: relative;
         }
 
+        /* ── THE TUNING TAB'S OWN PINS (v1.5.0, quick task 260906-s71) ───────
+           The shared scala-tuning-engine panel became localized at module
+           v3.1.0. It is mounted LAZILY into #tuning-container, so none of
+           this is measurable without the tuning state in
+           tests/i18n-states.json — which is why it lands in the same change.
+
+           These pins live HERE and NOT in
+           modules/tuning/scala-tuning-engine/snippets/tuning-panel.css
+           because that file has FIVE consumers and a floor written into it
+           silently reshapes the other four (wave 4c's D1 left it as found
+           for exactly this reason).
+
+           ── 1. THE LINE-BOX RATIO, and why <button> is listed explicitly ──
+           Every caption rule in the shared panel resolves line-height to
+           `normal`, so the used line box is the FACE's ascent + descent.
+           PingFang SC's are taller than the Garamond / Times New Roman
+           stack's, so every keyed caption grew 3 px in Chinese. Measured at
+           the shipping 900 x 600 frame, the accumulation moved 123 non-label
+           elements and pushed 13 labels further outside the frame than
+           English did.
+
+           Pinned as a RATIO, never a length — wave 4e's N4: a length pinned
+           to a measured row height inherits as a computed length and grew
+           one arm 0.77 px. 1.11 reproduces the measured ENGLISH line box on
+           both font sizes this panel uses:
+               9px  -> 9.99  against a measured 10
+               10px -> 11.10 against a measured 11
+           Both inside check-ui-labels' 0.5 px tolerance, so the English and
+           French arms do not move.
+
+           .viz-btn / .tuning-file-btn / .generator-btn are named
+           SEPARATELY because the UA `font` shorthand resets line-height to
+           `normal` on form controls — an inherited ratio never reaches a
+           <button>. Same form-4 mechanism as font-family (wave 4b, C2). */
+        #tuning-container .interval-list-header,
+        #tuning-container .library-header-text,
+        #tuning-container .generator-header-text,
+        #tuning-container .pitch-circle-label,
+        #tuning-container .ref-knob-label,
+        #tuning-container .tonic-label,
+        #tuning-container .octave-stretch-label,
+        #tuning-container .gen-row label,
+        #tuning-container .viz-btn,
+        #tuning-container .tuning-file-btn,
+        #tuning-container .generator-btn {
+            line-height: 1.11;
+        }
+
+        /* ── 2. TWO WIDTH FLOORS, on the two captions that share a flex row
+           with something that is not a caption ───────────────────────────
+           .tonic-selector is justify-content: center and .octave-stretch-row
+           gives its slider flex: 1, so a caption whose width changes with
+           the language MOVES or RESIZES its siblings. Measured widths:
+
+             .tonic-label           en 27.34   fr 39.83   zh 18.41
+             .octave-stretch-label  en 40.02   fr 51.00   zh 18.41
+
+           Floored at the WIDEST arm (French in both cases), which equalizes
+           all three languages: the tonic arrows stop sliding 6.3 px in
+           French and 4.5 px the other way in Chinese, and #octave-stretch
+           stops absorbing the difference in its flex slack. */
+        #tuning-container .tonic-label          { min-width: 39.83px; }
+        #tuning-container .octave-stretch-label { min-width: 51px; }
+
+        /* ── 3. THE CJK TAIL ON THE PANEL'S ELEVEN BUTTONS ────────────────
+           FORM 4 of the font-carrier census (wave 4b, C2; wave 4e N3).
+           <button> does NOT inherit font-family — the UA stylesheet gives it
+           one, on this build Arial — so the shared panel's
+           `font-family: 'Garamond', 'Times New Roman', serif` on
+           .tuning-panel never reaches these eleven, and neither does any CJK
+           face. Before this rule `measure-ui --report undeclared-font`
+           reported 11 findings, every one a tuning-panel button rendering
+           Han on `ff=Arial`:
+
+             .viz-btn x5        圆周 极坐标 矩阵 真实键位 旋转
+             .tuning-file-btn x5  载入/保存 .scl/.kbm, 导出 HTML
+             .generator-btn x1    生成
+
+           Arial carries no Han, so each of those captions was resolving
+           through an unnamed system fallback. No grep in this repo can see
+           this class — it exists only in the computed style. The stack is
+           this plugin's own house stack, copied from index.html:75 so the
+           panel's buttons match every other Chinese caption on the page. */
+        #tuning-container .viz-btn,
+        #tuning-container .tuning-file-btn,
+        #tuning-container .generator-btn,
+        #tuning-container .generator-type-select,
+        #tuning-container .library-filter-select {
+            font-family: 'EB Garamond', 'Garamond', 'Georgia', 'Times New Roman',
+                         'PingFang SC', 'Microsoft YaHei', serif;
+        }
+
         #tuning-container .tuning-panel-root {
             position: relative;
             width: 100%;

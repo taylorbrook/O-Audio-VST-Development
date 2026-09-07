@@ -4,7 +4,11 @@
     "click": ".tab-btn[data-tab=\"effects\"]"
   },
   {
-    "name": "settings popover OPEN (reveals label.language and aria.langSelect — .settings-popover carries [hidden] until the gear is pressed, so display is none and every rect inside it is 0x0). LAST, because once open it covers the Effects tab button (see above). It opens over the active Effects tab, so the FX captions are measured a second time here, under it.",
+    "name": "TUNING tab (mounts the shared scala-tuning-engine panel into #tuning-container and reveals its 37 keyed captions — initTuningPanel() injects the panel LAZILY on first activation, so without this state every module caption is absent from the DOM and unmeasurable in every language). AFTER the Effects tab, whose captions are already measured in the state above and survive as display:none, and BEFORE the gear popover for the same covering reason that keeps the popover last.",
+    "click": ".tab-btn[data-tab=\"tuning\"]"
+  },
+  {
+    "name": "settings popover OPEN (reveals label.language and aria.langSelect — .settings-popover carries [hidden] until the gear is pressed, so display is none and every rect inside it is 0x0). LAST, because once open it covers the tab bar (see above). It opens over the active Tuning tab, so the tuning captions are measured a second time here, under it.",
     "click": "#gear-btn"
   }
 ]
