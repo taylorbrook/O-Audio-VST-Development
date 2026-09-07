@@ -61,9 +61,12 @@
          (contract §4 — a native title on an element that has a data-tip renders
          a second, untranslated OS tooltip).
      12  JS-STRING COVERAGE (v2). No prose string is written to textContent /
-         innerText in the controller unless it is exempt; a converted site goes
-         through setLabel and therefore produces no row at all. Composed
-         templates are flagged individually — they need {token} entries.
+         innerText in ANY JS THE PAGE RUNS unless it is exempt; a converted site
+         goes through setLabel and therefore produces no row at all. Composed
+         templates are flagged individually — they need {token} entries. The
+         scanned set is also asserted NON-EMPTY and printed by name, because a
+         directory read that returned nothing would pass 12, 13 and 15 by
+         having nothing to look at.
      13  NO INFLECTION LOGIC inside a localized string (v2). A ternary or a
          conditional plural suffix inside a setLabel argument fails, and a
          setLabel key that is not a plain string literal fails (contract §6).
@@ -93,6 +96,36 @@
          plugins EXAMINED is reported in the summary and zero is a FAILURE, not
          a pass: every one of the forty-three has a language selector, so a run
          that examined none has stopped looking rather than found nothing.
+
+    WHAT 12, 13 AND 15 ACTUALLY SCAN — three sources, all DERIVED, never a
+    transcribed filename list. A list makes every assertion over it pass BY NOT
+    LOOKING the moment a file is added beside it.
+
+      a) the page's inline <script> blocks and its controller module;
+      b) every top-level .js in the plugin's served js/ directory (eleven
+         plugins split the page across sibling modules — O-Octagon has seven,
+         and two raw prose writes in its js/venue.js passed 12 green while two
+         keys referenced only from it reported DEAD);
+      c) the `${CMAKE_SOURCE_DIR}/modules/**.js` the plugin's CMakeLists
+         embeds. A file the page RUNS references keys and writes prose whether
+         the bytes live in the plugin or in modules/, and JUCE serves both from
+         the same /js/ URL. Before (c), `scala-tuning-engine/js/tuning-panel.js`
+         was scanned by NOTHING for its five consumers: 37 unkeyed English
+         captions passed 12 green because the file was never opened. Eight
+         plugins embed module JS this way. A path CMake names that is not on
+         disk FAILS rather than shrinking the set silently.
+
+         (c) IS CURRENTLY SCOPED to tuning-panel.js and that scope is a DEBT.
+         Run unrestricted it turns seven plugins red, four of them on module
+         files with up to eighteen consumers each — a rollout, not a lint fix.
+         See CMAKE_MODULE_JS_SCOPE and its TODO for the four files still
+         unscanned and who embeds them. The scope is a basename regex, not a
+         path allowlist, so a NEW consumer of an in-scope file is picked up
+         automatically.
+
+    A minified bundle is excluded from all three — stripJsComments cannot
+    disambiguate a regex from a division in minified code — and its AUTHORED
+    source is scanned in its place, with a failure if none is findable.
 
     Usage:
         node scripts/check-i18n.js
@@ -857,6 +890,93 @@ function checkPlugin(p) {
             if (/\.(bundle|min)\.js$/.test(f)) { bundlesSkipped.push(rel); continue; }
             pageModules.push({ label: rel, code: fs.readFileSync(full, 'utf8'), inline: false });
         }
+    }
+
+    // ── THE PAGE IS NOT THE PLUGIN DIRECTORY EITHER ──────────────────────
+    //
+    // The directory scan above finds every .js the plugin OWNS. It cannot find
+    // the ones it BORROWS: eight plugins embed shared module JS by path from
+    // their CMakeLists (`${CMAKE_SOURCE_DIR}/modules/.../x.js`), and JUCE
+    // serves those files from the same /js/ URL as the plugin's own. The page
+    // RUNS them. They reference keys and they write prose, exactly like a
+    // sibling module — the only difference is which directory the bytes live
+    // in, and that is not a difference assertions 12, 13 or 15 care about.
+    //
+    // Until this clause, `modules/tuning/scala-tuning-engine/js/tuning-panel.js`
+    // was scanned by NOTHING for its five consumers: 37 unkeyed English
+    // captions passed assertion 12 green because the file was never opened,
+    // and any key referenced only from it would have read as DEAD under 15.
+    // Same shape as the sibling-module hole above, one directory further out.
+    //
+    // DERIVED FROM THE BUILD FILE, never a transcribed list — same rule the
+    // directory scan argues for itself. A hard-coded filename list makes every
+    // assertion over it pass BY NOT LOOKING the moment a plugin embeds a sixth
+    // module file. The build file is the authority on what the page is served.
+    // ── SCOPED, AND THE SCOPE IS A DEBT, NOT A DESIGN ────────────────────
+    //
+    // Firing the CMake follow unrestricted (the code below with this filter set
+    // to /\.js$/) was run repo-wide before a byte of tuning-panel.js was keyed.
+    // It is NOT inert — it turned SEVEN plugins red, which is the positive
+    // control that makes the tuning-panel green below mean anything:
+    //
+    //   O-Bassoon 39, O-Bowed 39, O-Reed 39, O-Wind 39  (tuning-panel.js)
+    //   O-Contrabass 46                    (tuning-panel.js + preset-manager.js)
+    //   O-ReverseDelay 6                   (preset-manager.js)
+    //   O-Marimba 5                        (analog-eq-unit.js, compressor-unit.js)
+    //
+    // The last three are REAL findings, not noise — "Load", "Save", "Previous
+    // preset", "EQ", "COMP", "GR" are rendered English with no key. They are
+    // also not this task's: preset-manager.js alone has eighteen consumers, so
+    // keying it is a rollout, and shipping it inside a tuning-panel change
+    // would put four unrelated plugins' UIs in one commit.
+    //
+    // So the follow is scoped to the file this task actually localizes. The
+    // filter is a REGEX ON THE BASENAME and not a path allowlist, so it cannot
+    // silently drop a consumer that starts embedding the panel from a new
+    // directory — that is the "pass by not looking" shape this file argues
+    // against everywhere else, and the narrowing is deliberately the smallest
+    // version of it that still keeps the control alive.
+    //
+    // TODO(wave 4f+): delete this constant and the filter below once these are
+    // keyed, or key them and delete it in the same change. Four files, all
+    // currently unscanned by 12/13/15 for their consumers:
+    //   modules/persistence/preset-manager/js/preset-manager.js  (O-Contrabass, O-ReverseDelay)
+    //   modules/effects/analog-eq-unit/js/analog-eq-unit.js      (O-Marimba)
+    //   modules/effects/compressor-unit/js/compressor-unit.js    (O-Marimba)
+    //   modules/core/webview-drop-streaming/js/webview-drop-streaming.js (O-MicrotonalSampler)
+    // The last one is already CLEAN under the unrestricted follow — scanning it
+    // costs nothing and is only excluded because this constant is one regex.
+    const CMAKE_MODULE_JS_SCOPE = /(^|\/)tuning-panel\.js$/;
+
+    const cmakeModuleJs = [];
+    if (p.cmake && fs.existsSync(p.cmake)) {
+        // CMake comments run from an unquoted # to end of line; these paths are
+        // always unquoted, so dropping comment-leading lines is enough and a
+        // commented-out reference must not be read as embedded.
+        const cmakeText = fs.readFileSync(p.cmake, 'utf8')
+            .split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+        const seenPaths = new Set();
+        const missing = [];
+        for (const m of cmakeText.matchAll(/\$\{CMAKE_SOURCE_DIR\}\/(modules\/[A-Za-z0-9._\/-]+\.js)/g)) {
+            const rel = m[1];
+            if (seenPaths.has(rel)) continue;      // dedupe by resolved path
+            seenPaths.add(rel);
+            if (!CMAKE_MODULE_JS_SCOPE.test(rel)) continue;   // see the TODO above
+            if (/\.(bundle|min)\.js$/.test(rel)) { bundlesSkipped.push(rel); continue; }
+            const full = path.join(repoRoot, rel);
+            if (!fs.existsSync(full) || !fs.statSync(full).isFile()) { missing.push(rel); continue; }
+            const code = fs.readFileSync(full, 'utf8');
+            // dedupe by CODE too: a plugin that also keeps a local copy in js/
+            // must not have the same bytes scanned twice.
+            if (pageModules.some((pm) => pm.code === code)) continue;
+            cmakeModuleJs.push({ label: rel, code, inline: false });
+        }
+        for (const m of cmakeModuleJs) pageModules.push(m);
+        check(missing.length === 0,
+            `[12] every ${'${CMAKE_SOURCE_DIR}'}/modules/*.js the build embeds exists on disk — a `
+            + `path the gate cannot open is a file the page runs and nothing scans, and silently `
+            + `scanning the smaller set is the blindness this clause exists to remove`
+            + (missing.length ? ` — ${missing.length} missing: ${missing.join(', ')}` : ''));
     }
 
     // A bundled plugin's prose lives in the AUTHORED source, which is not in

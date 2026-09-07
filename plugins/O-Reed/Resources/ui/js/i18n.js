@@ -1045,6 +1045,67 @@ export const LABELS = Object.freeze({
         fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: true },
     },
 
+    // ── Tuning panel (modules/tuning/scala-tuning-engine/js/tuning-panel.js) ──
+    //
+    // 37 rows for the SHARED module the CMakeLists embeds by path. The module
+    // declares these keys in the markup it injects and calls window.__reapplyI18n
+    // after each injection; trLabel() returns the KEY on a miss and applyLabel
+    // writes it to textContent, so without these rows the tuning tab would paint
+    // the literal text `label.vizCircle`. en/fr are COPIES, not an authoring pass:
+    // verbatim from O-MicrotonalSampler's plugin-owned copy, which took them from
+    // O-Bells v4.2.0. check-i18n scans the module file for this plugin as of the
+    // same change, so a missing row fails assertion 15 rather than shipping.
+    //
+    // NOT keyed, and deliberately: note names, the true-keys A->B readout, the
+    // numeric matrix/rotation cells and headers, tuning names, the Hz and stretch
+    // value readouts, the `c` unit and the arrow glyphs. Those are data.
+    'label.vizCircle':        { en: { t: 'Circle' }, fr: { t: 'Cercle', reviewed: true } },
+    'label.vizPolar':         { en: { t: 'Polar' }, fr: { t: 'Polaire', reviewed: true } },
+    'label.vizMatrix':        { en: { t: 'Matrix' }, fr: { t: 'Matrice', reviewed: true } },
+    'label.vizTrueKeys':      { en: { t: 'True Keys' }, fr: { t: 'Touches', reviewed: true } },
+    'label.vizRotation':      { en: { t: 'Rotation' }, fr: { t: 'Rotation', reviewed: true, sameAsEn: true } },
+    'label.scaleIntervals':   { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: true } },
+    'label.tkHint':           { en: { t: 'Hold 2+ notes to see intervals' }, fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: true } },
+    'label.rotationMode':     { en: { t: 'Mode' }, fr: { t: 'Mode', reviewed: true, sameAsEn: true } },
+    // The count arrives in data-i18n-vars from the panel, so no inflection logic
+    // lives in the string (contract §6). The fuller 'Intervalles · notes : {n}' is
+    // two lines in the 142 px interval column and pushes the whole list down; the
+    // one-line 'Intervalles · {n} notes' fits but inflects wrongly at n=1, so the
+    // count stays after the colon beside an invariant noun.
+    'label.intervalsCount':   { en: { t: 'Intervals · notes: {n}' }, fr: { t: 'Interv. · notes : {n}', reviewed: true } },
+    'label.tonic':            { en: { t: 'Tonic' }, fr: { t: 'Tonique', reviewed: true } },
+    'label.tuningLibrary':    { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque de gammes', reviewed: true } },
+    'label.catAll':           { en: { t: 'All Categories' }, fr: { t: 'Toutes catégories', reviewed: true } },
+    'label.catHistorical':    { en: { t: 'Historical' }, fr: { t: 'Historiques', reviewed: true } },
+    'label.catJust':          { en: { t: 'Just Intonation' }, fr: { t: 'Intonation juste', reviewed: true } },
+    'label.catEdo':           { en: { t: 'Equal Divisions' }, fr: { t: 'Divisions égales', reviewed: true } },
+    'label.catNonOctave':     { en: { t: 'Non-Octave' }, fr: { t: 'Non octaviantes', reviewed: true } },
+    'label.catWorld':         { en: { t: 'World' }, fr: { t: 'Du monde', reviewed: true } },
+    'label.noteCount':        { en: { t: 'notes: {n}' }, fr: { t: 'notes : {n}', reviewed: true } },
+    // A4 stays A4: it is letter pitch notation, which the C++ TuningEngine and the
+    // .scl/.kbm formats also speak. Only REF is a word.
+    'label.a4Ref':            { en: { t: 'A4 REF' }, fr: { t: 'RÉF. A4', reviewed: true } },
+    'label.stretch':          { en: { t: 'Stretch' }, fr: { t: 'Étirement', reviewed: true } },
+    'label.loadScl':          { en: { t: 'Load .SCL' }, fr: { t: 'Ouvrir .SCL', reviewed: true } },
+    'label.loadKbm':          { en: { t: 'Load .KBM' }, fr: { t: 'Ouvrir .KBM', reviewed: true } },
+    'label.saveScl':          { en: { t: 'Save .SCL' }, fr: { t: 'Enreg. .SCL', reviewed: true } },
+    'label.saveKbm':          { en: { t: 'Save .KBM' }, fr: { t: 'Enreg. .KBM', reviewed: true } },
+    'label.exportHtml':       { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: true } },
+    'label.generateScale':    { en: { t: 'Generate Scale' }, fr: { t: 'Générer une gamme', reviewed: true } },
+    'label.genEdo':           { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: true } },
+    'label.genHarmonic':      { en: { t: 'Harmonic Series' }, fr: { t: 'Série harmonique', reviewed: true } },
+    'label.genRank2':         { en: { t: 'Rank-2 Temperament' }, fr: { t: 'Tempérament de rang 2', reviewed: true } },
+    'label.genDivisions':     { en: { t: 'Divisions' }, fr: { t: 'Divisions', reviewed: true, sameAsEn: true } },
+    'label.genPeriod':        { en: { t: 'Period (c)' }, fr: { t: 'Période (c)', reviewed: true } },
+    'label.genStartHarmonic': { en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: true } },
+    'label.genEndHarmonic':   { en: { t: 'End Harmonic' }, fr: { t: 'Harm. de fin', reviewed: true } },
+    'label.genGenerator':     { en: { t: 'Generator (c)' }, fr: { t: 'Génér. (c)', reviewed: true } },
+    // The SECOND 'Period (c)': one <label> in the EDO row, one in the Rank-2 row.
+    // Each is its own element and so needs its own key.
+    'label.genR2Period':      { en: { t: 'Period (c)' }, fr: { t: 'Période (c)', reviewed: true } },
+    'label.genNotes':         { en: { t: 'Notes' }, fr: { t: 'Notes', reviewed: true, sameAsEn: true } },
+    'label.generate':         { en: { t: 'Generate' }, fr: { t: 'Générer', reviewed: true } },
+
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
     // hears the language the page is showing.
@@ -1130,8 +1191,18 @@ export const I18N_EXEMPT = [
     ['Français', 'endonym — a language name is never translated'],
 
     // ── The shared tuning module ────────────────────────────────────────────
-    ['Tuning tab captions',
-     'every caption inside the Tuning tab belongs to the SHARED module ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine (js/tuning-panel.js + snippets/tuning-panel.css, referenced by path from CMakeLists.txt rather than copied into this plugin). Localizing it is a cross-plugin change and any local edit here would be reverted by /module-upgrade. A French user therefore still reads the Tuning tab in English. Its "Scala/TUN", "MTS-ESP" and "12-TET" strings are also tuningSystem option strings, so they are exempt twice over'],
+    // CORRECTED at module v3.1.0. The entry that stood here said the Tuning tab
+    // was English in both languages and that localizing it was out of scope for
+    // a per-plugin change. BOTH HALVES ARE NOW FALSE: the module's 37 captions
+    // are keyed, this table carries all 37 rows, and check-i18n scans
+    // modules/tuning/scala-tuning-engine/js/tuning-panel.js for this plugin. A
+    // scope statement that outlives its scope is a false claim in a file whose
+    // whole job is to be true, so it is replaced rather than amended.
+    //
+    // What genuinely remains exempt inside that tab is DATA:
+    ['12-TET Standard',
+     'the tuning name the C++ TuningEngine reports through getTuningName(); it is written into .scl files and the exported HTML, so it is data, not copy — D-02. The static literal in the panel template is the same datum, seeding the node until loadInitialState() overwrites it. Its "12-TET" stem is also a tuningSystem AudioParameterChoice option here, so it is exempt twice over',
+     '#scale-name-display'],
 ];
 
 // ============================================================================

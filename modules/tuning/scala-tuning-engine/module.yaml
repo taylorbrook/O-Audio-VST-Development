@@ -1,8 +1,8 @@
-# scala-tuning-engine module v2.1.0
+# scala-tuning-engine module v3.1.0
 # Complete microtonal tuning system extracted from O-Lyrica
 
 name: scala-tuning-engine
-version: 2.1.0
+version: 3.1.0
 description: |
   Complete microtonal tuning system with:
   - 12-TET, custom scales (Scala .scl/.kbm), and MTS-ESP support
@@ -206,6 +206,18 @@ embedded_tuning_categories:
 used_by: []
 
 changelog:
+  - version: 3.1.0
+    date: 2026-09-06
+    changes:
+      - "js/tuning-panel.js LOCALIZED: 37 data-i18n keys on every caption the panel renders"
+      - "The two counted captions (label.intervalsCount, label.noteCount) carry their number in data-i18n-vars, so no inflection logic lives in a translated string"
+      - "Added refreshPanelI18n() calling window.__reapplyI18n after each of the six innerHTML injections — the panel mounts LAZILY, long after initI18n() has swept the page"
+      - "Static interval-list header now carries the keyed caption; its nested <span id=\"interval-count\"> is dropped (applyLabel writes textContent and would have destroyed it)"
+      - "A CONSUMER MUST CARRY ALL 37 ROWS in every language it declares — a missing key renders the key name"
+      - "Shipped with the 37 rows in all five path-embedding consumers: O-Bassoon (en/fr/zh-Hans), O-Bowed, O-Contrabass, O-Reed, O-Wind (en/fr)"
+      - "NOT keyed, deliberately: note names, the true-keys A->B readout, numeric matrix/rotation cells and headers, tuning names, the Hz/stretch value readouts, the c unit, the arrow glyphs"
+      - "This file was stale at 2.1.0 while registry.yaml carried 3.0.1; brought forward, the rest of the file left as found"
+
   - version: 2.1.0
     date: 2026-02-03
     changes:

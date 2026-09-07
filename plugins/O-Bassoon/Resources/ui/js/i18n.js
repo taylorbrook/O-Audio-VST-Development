@@ -620,6 +620,69 @@ export const LABELS = Object.freeze({
         fr: { t: 'Échec du chargement du panneau d’accord.', reviewed: true },
      'zh-Hans': { t: '调音面板载入失败', reviewed: 'bt' }},
 
+    // ── Tuning panel (modules/tuning/scala-tuning-engine/js/tuning-panel.js) ──
+    //
+    // 37 rows for the SHARED module the CMakeLists embeds by path. The module
+    // declares these keys in the markup it injects and calls window.__reapplyI18n
+    // after each injection; trLabel() returns the KEY on a miss and applyLabel
+    // writes it to textContent, so without these rows the tuning tab would paint
+    // the literal text `label.vizCircle`. en/fr are COPIES, not an authoring pass:
+    // verbatim from O-MicrotonalSampler's plugin-owned copy, which took them from
+    // O-Bells v4.2.0. check-i18n scans the module file for this plugin as of the
+    // same change, so a missing row fails assertion 15 rather than shipping.
+    //
+    // NOT keyed, and deliberately: note names, the true-keys A->B readout, the
+    // numeric matrix/rotation cells and headers, tuning names, the Hz and stretch
+    // value readouts, the `c` unit and the arrow glyphs. Those are data.
+    'label.vizCircle':        { en: { t: 'Circle' }, fr: { t: 'Cercle', reviewed: true } , 'zh-Hans': { t: '圆周', reviewed: 'bt' }},
+    'label.vizPolar':         { en: { t: 'Polar' }, fr: { t: 'Polaire', reviewed: true } , 'zh-Hans': { t: '极坐标', reviewed: 'bt' }},
+    'label.vizMatrix':        { en: { t: 'Matrix' }, fr: { t: 'Matrice', reviewed: true } , 'zh-Hans': { t: '矩阵', reviewed: 'bt' }},
+    'label.vizTrueKeys':      { en: { t: 'True Keys' }, fr: { t: 'Touches', reviewed: true } , 'zh-Hans': { t: '真实键位', reviewed: 'bt' }},
+    'label.vizRotation':      { en: { t: 'Rotation' }, fr: { t: 'Rotation', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '旋转', reviewed: 'bt' }},
+    'label.scaleIntervals':   { en: { t: 'Scale Intervals' }, fr: { t: 'Intervalles de la gamme', reviewed: true } , 'zh-Hans': { t: '音阶音程', reviewed: 'bt' }},
+    'label.tkHint':           { en: { t: 'Hold 2+ notes to see intervals' }, fr: { t: 'Tenir 2 notes ou plus pour voir les intervalles', reviewed: true } , 'zh-Hans': { t: '按住 2 个以上音符可查看音程', reviewed: 'bt' }},
+    'label.rotationMode':     { en: { t: 'Mode' }, fr: { t: 'Mode', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '模式', reviewed: 'bt' }},
+    // The count arrives in data-i18n-vars from the panel, so no inflection logic
+    // lives in the string (contract §6). The fuller 'Intervalles · notes : {n}' is
+    // two lines in the 142 px interval column and pushes the whole list down; the
+    // one-line 'Intervalles · {n} notes' fits but inflects wrongly at n=1, so the
+    // count stays after the colon beside an invariant noun.
+    'label.intervalsCount':   { en: { t: 'Intervals · notes: {n}' }, fr: { t: 'Interv. · notes : {n}', reviewed: true } , 'zh-Hans': { t: '音程 · 音符：{n}', reviewed: 'bt' }},
+    'label.tonic':            { en: { t: 'Tonic' }, fr: { t: 'Tonique', reviewed: true } , 'zh-Hans': { t: '主音', reviewed: 'bt' }},
+    'label.tuningLibrary':    { en: { t: 'Tuning Library' }, fr: { t: 'Bibliothèque de gammes', reviewed: true } , 'zh-Hans': { t: '调音库', reviewed: 'bt' }},
+    'label.catAll':           { en: { t: 'All Categories' }, fr: { t: 'Toutes catégories', reviewed: true } , 'zh-Hans': { t: '全部类别', reviewed: 'bt' }},
+    'label.catHistorical':    { en: { t: 'Historical' }, fr: { t: 'Historiques', reviewed: true } , 'zh-Hans': { t: '历史音律', reviewed: 'bt' }},
+    'label.catJust':          { en: { t: 'Just Intonation' }, fr: { t: 'Intonation juste', reviewed: true } , 'zh-Hans': { t: '纯律', reviewed: 'bt' }},
+    'label.catEdo':           { en: { t: 'Equal Divisions' }, fr: { t: 'Divisions égales', reviewed: true } , 'zh-Hans': { t: '等分', reviewed: 'bt' }},
+    'label.catNonOctave':     { en: { t: 'Non-Octave' }, fr: { t: 'Non octaviantes', reviewed: true } , 'zh-Hans': { t: '非八度', reviewed: 'bt' }},
+    'label.catWorld':         { en: { t: 'World' }, fr: { t: 'Du monde', reviewed: true } , 'zh-Hans': { t: '世界音律', reviewed: 'bt' }},
+    'label.noteCount':        { en: { t: 'notes: {n}' }, fr: { t: 'notes : {n}', reviewed: true } , 'zh-Hans': { t: '音符：{n}', reviewed: 'bt' }},
+    // A4 stays A4: it is letter pitch notation, which the C++ TuningEngine and the
+    // .scl/.kbm formats also speak. Only REF is a word.
+    'label.a4Ref':            { en: { t: 'A4 REF' }, fr: { t: 'RÉF. A4', reviewed: true } , 'zh-Hans': { t: 'A4 基准', reviewed: 'bt' }},
+    'label.stretch':          { en: { t: 'Stretch' }, fr: { t: 'Étirement', reviewed: true } , 'zh-Hans': { t: '延展', reviewed: 'bt' }},
+    'label.loadScl':          { en: { t: 'Load .SCL' }, fr: { t: 'Ouvrir .SCL', reviewed: true } , 'zh-Hans': { t: '载入 .scl', reviewed: 'bt' }},
+    'label.loadKbm':          { en: { t: 'Load .KBM' }, fr: { t: 'Ouvrir .KBM', reviewed: true } , 'zh-Hans': { t: '载入 .kbm', reviewed: 'bt' }},
+    'label.saveScl':          { en: { t: 'Save .SCL' }, fr: { t: 'Enreg. .SCL', reviewed: true } , 'zh-Hans': { t: '保存 .scl', reviewed: 'bt' }},
+    'label.saveKbm':          { en: { t: 'Save .KBM' }, fr: { t: 'Enreg. .KBM', reviewed: true } , 'zh-Hans': { t: '保存 .kbm', reviewed: 'bt' }},
+    'label.exportHtml':       { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: true } , 'zh-Hans': { t: '导出 HTML', reviewed: 'bt' }},
+    'label.generateScale':    { en: { t: 'Generate Scale' }, fr: { t: 'Générer une gamme', reviewed: true } , 'zh-Hans': { t: '生成音阶', reviewed: 'bt' }},
+    'label.genEdo':           { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: true } , 'zh-Hans': { t: '等分八度 (EDO)', reviewed: 'bt' }},
+    'label.genHarmonic':      { en: { t: 'Harmonic Series' }, fr: { t: 'Série harmonique', reviewed: true } , 'zh-Hans': { t: '泛音列', reviewed: 'bt' }},
+    'label.genRank2':         { en: { t: 'Rank-2 Temperament' }, fr: { t: 'Tempérament de rang 2', reviewed: true } , 'zh-Hans': { t: '二阶音律', reviewed: 'bt' }},
+    'label.genDivisions':     { en: { t: 'Divisions' }, fr: { t: 'Divisions', reviewed: true, sameAsEn: true } ,
+        'zh-Hans': { t: '等分数', reviewed: 'bt',
+                     termNote: 'the glossary root for `divisions` is the GENERIC 分割 (cutting a thing apart), and this field is not that. It is the COUNT of equal divisions of the period, and it sits two cells from label.catEdo, whose English "Equal Divisions" takes the glossary root 等分. Shipping 分割 here would put two renderings of one concept in one generator panel. 等分数 is 等分 plus the count morpheme, so the two cells read as one vocabulary' }},
+    'label.genPeriod':        { en: { t: 'Period (c)' }, fr: { t: 'Période (c)', reviewed: true } , 'zh-Hans': { t: '周期 (C)', reviewed: 'bt' }},
+    'label.genStartHarmonic': { en: { t: 'Start Harmonic' }, fr: { t: 'Harmonique de départ', reviewed: true } , 'zh-Hans': { t: '起始泛音', reviewed: 'bt' }},
+    'label.genEndHarmonic':   { en: { t: 'End Harmonic' }, fr: { t: 'Harm. de fin', reviewed: true } , 'zh-Hans': { t: '终止泛音', reviewed: 'bt' }},
+    'label.genGenerator':     { en: { t: 'Generator (c)' }, fr: { t: 'Génér. (c)', reviewed: true } , 'zh-Hans': { t: '生成元 (C)', reviewed: 'bt' }},
+    // The SECOND 'Period (c)': one <label> in the EDO row, one in the Rank-2 row.
+    // Each is its own element and so needs its own key.
+    'label.genR2Period':      { en: { t: 'Period (c)' }, fr: { t: 'Période (c)', reviewed: true } , 'zh-Hans': { t: '周期 (C)', reviewed: 'bt' }},
+    'label.genNotes':         { en: { t: 'Notes' }, fr: { t: 'Notes', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '音符', reviewed: 'bt' }},
+    'label.generate':         { en: { t: 'Generate' }, fr: { t: 'Générer', reviewed: true } , 'zh-Hans': { t: '生成', reviewed: 'bt' }},
+
     // ── Accessible names ────────────────────────────────────────────────────
     // Resolved through the same sweep via data-i18n-aria, so a screen reader
     // hears the language the page is showing.
@@ -691,11 +754,18 @@ export const I18N_EXEMPT = [
     ['Français', 'endonym — a language name is never translated'],
 
     // ── The shared tuning module ────────────────────────────────────────────
-    // Not reachable by the coverage scan (the module is not under this plugin's
-    // UI root) but recorded here so the decision is on the record rather than
-    // being an accident of where the scanner looks.
-    ['Tuning panel captions',
-     'every caption inside the Tuning tab belongs to the SHARED module ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine (js/tuning-panel.js + snippets/tuning-panel.css, referenced by path from CMakeLists.txt rather than copied). Localizing it is a cross-plugin change and any local edit here would be reverted by /module-upgrade. A French user therefore still reads the Tuning tab in English'],
+    // CORRECTED at module v3.1.0. The entry that stood here said the Tuning tab
+    // was English in both languages and that localizing it was out of scope for
+    // a per-plugin change. BOTH HALVES ARE NOW FALSE: the module's 37 captions
+    // are keyed, this table carries all 37 rows, and check-i18n scans
+    // modules/tuning/scala-tuning-engine/js/tuning-panel.js for this plugin. A
+    // scope statement that outlives its scope is a false claim in a file whose
+    // whole job is to be true, so it is replaced rather than amended.
+    //
+    // What genuinely remains exempt inside that tab is DATA:
+    ['12-TET Standard',
+     'the tuning name the C++ TuningEngine reports through getTuningName(); it is written into .scl files and the exported HTML, so it is data, not copy — D-02. The static literal in the panel template is the same datum, seeding the node until loadInitialState() overwrites it',
+     '#scale-name-display'],
 ];
 
 // ============================================================================

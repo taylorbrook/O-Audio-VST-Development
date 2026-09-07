@@ -9,8 +9,8 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.0.3
-last_updated: 2026-08-16
+version: 1.0.4
+last_updated: 2026-09-06
 schema_version: 1.0.0
 
 # Module categories
@@ -272,7 +272,20 @@ modules:
 
   - name: scala-tuning-engine
     path: tuning/scala-tuning-engine
-    version: 3.0.1
+    # 3.1.0 (2026-09-06): js/tuning-panel.js is LOCALIZED — 37 data-i18n keys on
+    # every caption it renders, the two counted captions carrying their number in
+    # data-i18n-vars, and refreshPanelI18n() re-running the consuming page's
+    # applyI18n sweep after each of the six innerHTML injections (the panel mounts
+    # lazily, long after initI18n). Shipped in one change set with the 37 matching
+    # LABELS rows in all five path-embedding consumers — O-Bassoon (en/fr/zh-Hans),
+    # O-Bowed, O-Contrabass, O-Reed, O-Wind (en/fr) — because a consumer rebuilt
+    # against this file without the rows paints the literal key name on its tuning
+    # tab. check-i18n now scans this file for those five (CMAKE_MODULE_JS_SCOPE).
+    # NOTE: used_by below is STALE and nothing should be driven from it — it names
+    # O-Bells / O-Formant / O-IntonationPad, which are FORKS with private copies,
+    # and omits O-Reed, O-Wind and O-MicrotonalSampler. Rebuild it from the CMake
+    # grep before trusting it.
+    version: 3.1.0
     description: |
       Complete microtonal tuning system extracted from O-Lyrica with:
       - 12-TET, custom scales (Scala .scl/.kbm), MTS-ESP support
