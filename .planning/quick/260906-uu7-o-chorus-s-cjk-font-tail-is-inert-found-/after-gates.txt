@@ -1,0 +1,252 @@
+# 260906-uu7 Task 2 — AFTER capture and BEFORE→AFTER delta
+# Repo /Users/taylorbrook/Dev/VST-development, branch main, 2026-09-07
+# Tree: plugins/O-Chorus/Source/ui/public/index.html, six tailed stacks reordered
+#       to  Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif
+# Probe: .planning/quick/260906-uu7-.../cdp-font-probe.js re-run UNCHANGED from Task 1.
+
+
+================================================================================
+1. LIVE font-family CENSUS (authorization for the edits, re-derived at exec time)
+================================================================================
+
+  grep -n "font-family" plugins/O-Chorus/Source/ui/public/index.html
+
+  TAILED (6 of 9) — all six reordered:
+     65  .container
+    185  .preset-action
+    475  .settings-label     (pre-edit line numbers; comments were rewritten after)
+    504  .settings-select
+    572  .settings-toggle
+    668  .tooltip
+
+  TAIL-LESS (3 of 9) — NOT edited, per plan scope:
+    130  .preset-nav
+    233  .preset-dropdown-item
+    404  .gear-btn           (a CLASS; the v1.5.0 comment spelled it #gear-btn)
+
+  Post-edit re-grep: 6 stacks read `font-family: Garamond, 'Times New Roman',
+  'PingFang SC', 'Microsoft YaHei', serif;` and 3 read the unchanged tail-less
+  form. Total 9. Comment census now reads "SIX of this page's NINE" — agrees.
+
+
+================================================================================
+2. RESOLVED HAN FACE — the direct evidence the tail became live
+================================================================================
+
+CSS.getPlatformFontsForNode, six selectors x three arms. `(n)` = glyphCount.
+
+  selector           | BEFORE zh-Hans          | AFTER zh-Hans
+  -------------------|-------------------------|---------------------------------
+  .knob-label        | Songti SC (2)           | 蘋方-簡 / PingFangSC-Regular (2)
+  .preset-action     | Songti SC (2)           | 蘋方-簡 / PingFangSC-Regular (2)
+  .settings-label    | Songti SC (2)           | 蘋方-簡 / PingFangSC-Regular (2)
+  .settings-select   | Songti SC (4)           | 蘋方-簡 / PingFangSC-Regular (4)
+  .settings-toggle   | Songti SC (1)           | 蘋方-簡 / PingFangSC-Regular (1)
+  .tooltip           | TNR (15) + Songti (63)  | 蘋方-簡 (63) + TNR (15)
+  .tip-title         | Songti SC (2)           | 蘋方-簡 / PingFangSC-Regular (2)
+
+  `蘋方-簡` is PingFang SC's localized familyName; the postscript name
+  `PingFangSC-Regular` is what identifies it. `grep -ci songti after-fonts.txt`
+  = 0 — Songti SC appears nowhere in the AFTER transcript.
+
+  en and fr arms: Times New Roman / TimesNewRomanPSMT on every selector, BEFORE
+  and AFTER, byte-identical. Garamond is not a macOS face and never resolved.
+
+  The three tail-less rules are unchanged and still reach the bare generic in
+  every arm: ◀ Hiragino Mincho ProN, ▶ Lucida Grande, ⚙ Menlo. Out of scope.
+
+
+================================================================================
+3. BEFORE → AFTER DELTA, the seven pinned selectors
+================================================================================
+
+Sources: rendered rows (`measure-ui --mode box`) for the visible nodes; the CDP
+probe's `[counterfactual pins]` block for the line-height counterfactuals and the
+select's intrinsic width; the probe's `[tip geometry RENDERED]` block for the
+tooltip, which the rows CANNOT answer (the tip is never hovered by measure-ui).
+
+--- 3a. .knob-label -----------------------------------------------------------
+  pinned line box   9.984 px  ->  9.984 px      all three arms   HELD
+  `normal` line box en 10.00 / fr 10.00 / zh 13.00  ->  IDENTICAL   HELD
+                    (Songti and PingFang give the same 13.00 at 9 px)
+  rendered box      zh  19.61 x 9.98  ->  20.00 x 9.98    MOVED  +0.39 w
+                    zh  29.41 x 9.98  ->  30.00 x 9.98    MOVED  +0.59 w (3 chars)
+                    en  25.70 x 9.98  ->  unchanged
+                    fr  41.61 x 9.98  ->  unchanged
+  x (centred span)  zh  -0.19 px      HEIGHT UNCHANGED, so nothing follows
+  VERDICT: pin value 1.1111 unchanged, comment rewritten with the AFTER numbers.
+
+--- 3b. .preset-action (#preset-load / #preset-save) ---------------------------
+  pinned line box   9.984 px  ->  9.984 px      all three arms   HELD
+  `normal` line box en 10.00 / fr 10.00 / zh 13.00  ->  IDENTICAL   HELD
+  rendered box      62.00 x 13.98 in en, fr AND zh, before AND after  UNCHANGED
+                    (width: 62px is pinned, so the wider advance has no room)
+  VERDICT: pin value 1.1111 unchanged, comment rewritten with the AFTER numbers.
+
+--- 3c. .settings-label -------------------------------------------------------
+  pinned line box   9.984 px  ->  9.984 px      all three arms   HELD
+  `normal` line box en 10.00 / fr 10.00 / zh 13.00  ->  IDENTICAL   HELD
+  rendered box      zh LANGUAGE   19.20 x 9.98 -> 19.61 x 9.98   MOVED +0.41 w
+                    zh HOVER-HELP 38.41 x 9.98 -> 39.20 x 9.98   MOVED +0.79 w
+                    en 54.80 / fr 40.59  ->  unchanged
+  x,y               unchanged — the row is space-between, growth eats slack
+  VERDICT: pin value 1.1111 unchanged, comment rewritten with the AFTER numbers.
+
+--- 3d. .settings-select (#lang-select) ---------------------------------------
+  THE ONE PIN WHOSE DERIVATION CHANGED.
+  intrinsic (`width: auto`)   en      fr      zh-Hans
+    BEFORE (Songti SC)      65.000  65.000  64.000    <- the 1 px assertion-7 mover
+    AFTER  (PingFang SC)    65.000  65.000  65.000    <- no mover left
+  pinned rendered box   65 x 16 all arms, before and after   UNCHANGED
+  computed line-height  `normal` in all arms, before and after (UA sheet
+                        overrides line-height on <select>; the 1.2 is INERT)
+  endonym option widths, measured in this stack:
+    BEFORE   en/fr arms: English 27.516  Français 30.500  简体中文 36.797
+             zh   arm:   English 27.516  Français 30.500  简体中文 36.000
+    AFTER    all arms:   English 27.516  Français 30.500  简体中文 36.797
+             -> genuinely language-invariant for the first time
+  VERDICT: 65 px HOLDS and is now the intrinsic width in EVERY arm, so the pin
+  is a no-op on this host rather than the thing closing a mover. KEPT (it is
+  what makes the control language-invariant on a host that picks a third face).
+  Comment fully re-derived; the false cause ("resolves through PingFang SC")
+  and the three false decimals (27.501/30.489/36.792) are gone.
+
+--- 3e. .settings-toggle (#tips-toggle) ---------------------------------------
+  rendered box      42.00 x 16.00 in en, fr AND zh, before AND after  UNCHANGED
+  pinned line box   14.000 px  ->  14.000 px    all arms   HELD
+  `normal` line box 14.000 px  ->  14.000 px    all arms   (the 1.2 is a NO-OP
+                    under BOTH faces; `height: 16px` does the work)
+  开 fits inside the 42 px floor with room; the floor protects nothing on the
+  growth side, and the comment now says so.
+  VERDICT: min-width 42px and line-height 1.2 both unchanged; comment rewritten
+  with the AFTER numbers and two honesty corrections.
+
+--- 3f. .tooltip / .tip-title -------------------------------------------------
+  Rendered geometry (CDP, tip forced open on the Drive knob):
+    arm      BEFORE tip w x h   lines |  AFTER tip w x h   lines
+    en       384 x 64.69          3   |  384 x 64.69         3    unchanged
+    fr       384 x 64.69          3   |  384 x 64.69         3    unchanged
+    zh-Hans  384 x 51.69          2   |  384 x 51.69         2    unchanged
+  .tip-title  366 x 11.69 in all three arms, BEFORE and AFTER      HELD
+              (the v1.5.0 "11.688 px in BOTH languages" holds, and in the third)
+  body line box  13.00 px before and after -> the six-line ceiling arithmetic
+                 (109 px well, 25.70 px chrome, 83.30 px body budget) is intact
+  WRAP DID MOVE (PingFang's Han advance is wider than Songti's):
+    zh `voices` tip   384.0 x 51.7 (2 lines) -> 384.0 x 64.7 (3 lines)   MOVED
+    zh #tips-toggle   328.0 x 38.7           -> 334.8 x 38.7             MOVED
+    ui_tip_render_check [5] census: zh 7 shrank/4 unchanged -> 6 shrank/5 unchanged
+  Tallest zh tip is now 64.7 px against a 109 px well — three body lines under
+  the ceiling, 44.3 px headroom intact.
+  VERDICT: line-height 1.3 and max-width 384px both unchanged; comment rewritten
+  with the AFTER numbers and the wrap move named.
+
+--- 3g. .settings-popover -----------------------------------------------------
+  rendered box  170.00 x 54.00 in en, fr AND zh, before AND after   UNCHANGED
+  VERDICT: width 170px unchanged. Comment gains a re-measurement note — the
+  "language-invariant by construction" claim is now checked against a SECOND Han
+  face rather than only the Songti SC it was unknowingly taken under.
+
+
+================================================================================
+4. ROW-LEVEL DIFF — every row in the sweep whose geometry changed
+================================================================================
+
+  339 rows / 113 DOM keys / 55 display ids, identical identity before and after.
+  Differing cells: 315 total — ff:291 (the DECLARED stack string, which just
+  echoes the CSS edit and is evidence of nothing), x:11, y:3, w:10.
+
+  Every geometry mover, all three arms:
+
+    en       #lfo-dot            x 362.62->361.99  y 45.57->45.09   (animated)
+    fr       #lfo-dot            x 361.43->361.66  y 44.68->44.85   (animated)
+    zh-Hans  #lfo-dot            x 361.61->361.64  y 44.81->44.83   (animated)
+    zh-Hans  span.knob-label     x 56.69->56.50    w 19.61->20.00
+    zh-Hans  span.knob-label     x 124.69->124.50  w 19.61->20.00
+    zh-Hans  span.knob-label     x 187.80->187.50  w 29.41->30.00
+    zh-Hans  span.knob-label     x 260.69->260.50  w 19.61->20.00
+    zh-Hans  span.knob-label     x 419.69->419.50  w 19.61->20.00
+    zh-Hans  span.knob-label     x 487.69->487.50  w 19.61->20.00
+    zh-Hans  span.knob-label     x 555.69->555.50  w 19.61->20.00
+    zh-Hans  span.knob-label     x 623.69->623.50  w 19.61->20.00
+    zh-Hans  span.settings-label w 19.20->19.61
+    zh-Hans  span.settings-label w 38.41->39.20
+
+  #lfo-dot is the one animated element check-ui-labels [7] excludes and
+  discloses; it moves between any two captures. Every other mover is a zh-Hans
+  Han-carrying LABEL widening under PingFang's wider advance. No HEIGHT changed
+  anywhere, which is why nothing downstream was displaced.
+
+  Han-carrying visible rows: 26. Geometry moved on: 10. Byte-identity check
+  against before-rows.json: DIFFERENT (the reorder is measurable).
+
+
+================================================================================
+5. GATE VERDICTS ON THE FINAL TREE (reorder + all comment rewrites)
+================================================================================
+
+  node scripts/check-ui-labels.js --plugin O-Chorus
+    EXIT 0   == ALL CHECKS PASSED ==   87 PASS, 0 FAIL
+    [7][GEOMETRY DIFF][fr]      no non-label element moved  (1 animated excluded)
+    [7][GEOMETRY DIFF][fr]      the visible element SET is identical
+    [7][GEOMETRY DIFF][zh-Hans] no non-label element moved  (1 animated excluded)
+    [7][GEOMETRY DIFF][zh-Hans] the visible element SET is identical
+    -> 0 MOVERS ON BOTH fr AND zh-Hans. This is the acceptance criterion.
+    Not 77. Not "nothing to measure". Coverage 14/14 [data-i18n] visible.
+
+  node plugins/O-Chorus/tests/ui_tip_render_check.js
+    EXIT 0   == ALL CHECKS PASSED ==  (345 passed)   0 FAIL
+    Real zh-Hans pass; no fixture was re-recorded.
+
+  node scripts/measure-ui.js --plugin O-Chorus --mode box --report all
+    EXIT 0   four screens, NONE SKIPPED, all counts identical to BEFORE:
+      undeclared-font: 3      (#preset-prev / #preset-next / #gear-btn on zh,
+                               flagged for their Han aria-labels — the tail-less
+                               trio, unchanged and out of scope)
+      line-height-normal: 2   (#preset-prev / #preset-next at 14px — informational;
+                               this screen cannot reach 0 on a pinned page)
+      wrap-count: 0           (27 leaves compared, 13 estimated)
+      svg-font-attr: 0 carriers / 0 findings  (N/A: this page has no SVG
+                               font-family presentation attribute)
+
+  node scripts/measure-ui.js --plugin O-Chorus --mode box   (rows)
+    EXIT 0   `languages en, fr, zh-Hans  states default + 1` — the gear IS
+    clicked and the popover IS measured open, same as BEFORE.
+
+  Structural verifies:
+    grep -n font-family | grep -c "serif, 'PingFang SC'"  ->  0   PASS
+    node one-liner (>1 generic OR generic ahead of tail)  ->  0 bad stacks  PASS
+    grep -qi pingfang after-fonts.txt                     ->  match   PASS
+    grep -ci songti   after-fonts.txt                     ->  0       PASS
+    git diff --stat -- <js|modules|DSP|*.cpp>             ->  0 lines PASS
+
+  RULE-D NOTE (Task 1 finding 4.8): the plan's last Task-2 verify is spelled
+  `| wc -l | grep -qx '0'`, which can NEVER match on macOS — BSD wc pads its
+  output. Run as `| wc -l | tr -d ' ' | grep -qx '0'`. Used the working form.
+
+
+================================================================================
+6. PLAN PREDICTIONS THAT TURNED OUT FALSE
+================================================================================
+
+  1. "The 65 px select width pin is the one most likely to break."  FALSE — it
+     is the pin that most CLEARLY held: the zh intrinsic went 64 -> 65 and now
+     matches en/fr exactly. The reorder REMOVED the mover the pin existed for.
+  2. "What moves is the ZH `normal` line box the comment quotes as 13.00 px,
+     which was Songti's metric. Re-quote it."  FALSE — Songti SC and PingFang SC
+     give the SAME 13.00 px `normal` line box at 9 px. Every line-height pin
+     held at its existing value; none needed a new number.
+  3. ".settings-toggle 42 px floor — confirm 开 still fits."  Held; the button is
+     42.00 x 16.00 in all three arms before and after. But the plan framed the
+     floor as protection: it is not, and the real holder is `height: 16px`.
+  4. "the 384 cap ... a face change moves wrap points" — TRUE, and the only
+     plan prediction about movement that fired: `voices` zh went 2 -> 3 body
+     lines. It fired on the tooltip, which the plan ranked below the select.
+  5. Census "six of nine" — CONFIRMED (the plan flagged it as likely wrong).
+  6. `.settings-select`'s `line-height: 1.2` "measured 16.00 px" — INERT; the
+     computed value is `normal` in all arms. Kept, now documented as inert.
+  7. `.settings-toggle`'s `line-height: 1.2` — also a NO-OP: pinned 14.000 ==
+     normal 14.000 under BOTH faces. Not predicted at all.
+
+  Net: the reorder moved TEN rows, all of them zh-Hans Han-carrying labels
+  widening ~2% under PingFang's advance, none of them vertically, and it CLOSED
+  the select's 1 px intrinsic-width divergence. Not one pin VALUE had to change.

@@ -1,0 +1,57 @@
+# CDP CSS.getPlatformFontsForNode — O-Chorus — AFTER
+# frame 700x125  ui=Source/ui/public  languages en, fr, zh-Hans
+# 2026-09-07T05:31:38.195Z
+
+===== lang en =====
+  .knob-label        closed         Times New Roman/TimesNewRomanPSMT(4)   text="Rate"
+  .preset-action     closed         Times New Roman/TimesNewRomanPSMT(4)   text="Load  [aria-label=Load preset from file]"
+  #preset-prev       closed         Hiragino Mincho ProN/HiraMinProN-W3(1)   text="◀  [aria-label=Previous preset]"
+  #preset-next       closed         Lucida Grande/LucidaGrande(1)   text="▶  [aria-label=Next preset]"
+  #preset-load       closed         Times New Roman/TimesNewRomanPSMT(4)   text="Load  [aria-label=Load preset from file]"
+  #gear-btn          closed         Menlo/Menlo-Regular(1)   text="⚙  [aria-label=Settings]"
+  [tip gesture] hovered=true shown=true text="DriveAdds an asymmetric tanh saturation to each delayed voic"
+  .tooltip           tip-open       Times New Roman/TimesNewRomanPSMT(209)   text="DriveAdds an asymmetric tanh saturation to each delayed voic"
+  .tip-title         tip-open       Times New Roman/TimesNewRomanPSMT(5)   text="DriveAdds an asymmetric tanh saturation to each delayed voic"
+  [tip geometry RENDERED] {"show":true,"vis":"visible","tip":{"w":384,"h":64.69,"lh":"13px","fs":"10px"},"title":{"w":366,"h":11.69,"lh":"11.7px","fs":"9px"},"bodyLines":3}
+  .preset-dropdown-item dropdown       NO PLATFORM FONTS REPORTED  text="Default"
+  [gear gesture] settings-popover open=true
+  [counterfactual pins] {".knob-label":{"pinnedLineBox":9.984,"normalLineBox":10,"text":"Rate"},".preset-action":{"pinnedLineBox":9.984,"normalLineBox":10,"text":"Load"},".settings-label":{"pinnedLineBox":9.984,"normalLineBox":10,"text":"Language"},".settings-toggle":{"pinnedLineBox":14,"normalLineBox":14,"text":"On"},".settings-select":{"pinnedWidth":65,"intrinsicWidth":65,"selected":"English","computedLineHeight":"normal","optionWidths":{"English":27.516,"Français":30.5,"简体中文":36.797}}}
+  .settings-label    popover-open   Times New Roman/TimesNewRomanPSMT(8)   text="Language"
+  .settings-select   popover-open   Times New Roman/TimesNewRomanPSMT(7)   text="SELECTED=English"
+  .settings-toggle   popover-open   Times New Roman/TimesNewRomanPSMT(2)   text="On"
+
+===== lang fr =====
+  .knob-label        closed         Times New Roman/TimesNewRomanPSMT(7)   text="Vitesse"
+  .preset-action     closed         Times New Roman/TimesNewRomanPSMT(7)   text="Charger  [aria-label=Charger un préréglage depuis un fichier]"
+  #preset-prev       closed         Hiragino Mincho ProN/HiraMinProN-W3(1)   text="◀  [aria-label=Préréglage précédent]"
+  #preset-next       closed         Lucida Grande/LucidaGrande(1)   text="▶  [aria-label=Préréglage suivant]"
+  #preset-load       closed         Times New Roman/TimesNewRomanPSMT(7)   text="Charger  [aria-label=Charger un préréglage depuis un fichier]"
+  #gear-btn          closed         Menlo/Menlo-Regular(1)   text="⚙  [aria-label=Réglages]"
+  [tip gesture] hovered=true shown=true text="SaturationAjoute une saturation tanh asymétrique à chaque vo"
+  .tooltip           tip-open       Times New Roman/TimesNewRomanPSMT(241)   text="SaturationAjoute une saturation tanh asymétrique à chaque vo"
+  .tip-title         tip-open       Times New Roman/TimesNewRomanPSMT(10)   text="SaturationAjoute une saturation tanh asymétrique à chaque vo"
+  [tip geometry RENDERED] {"show":true,"vis":"visible","tip":{"w":384,"h":64.69,"lh":"13px","fs":"10px"},"title":{"w":366,"h":11.69,"lh":"11.7px","fs":"9px"},"bodyLines":3}
+  .preset-dropdown-item dropdown       NO PLATFORM FONTS REPORTED  text="Default"
+  [gear gesture] settings-popover open=true
+  [counterfactual pins] {".knob-label":{"pinnedLineBox":9.984,"normalLineBox":10,"text":"Vitesse"},".preset-action":{"pinnedLineBox":9.984,"normalLineBox":10,"text":"Charger"},".settings-label":{"pinnedLineBox":9.984,"normalLineBox":10,"text":"Langue"},".settings-toggle":{"pinnedLineBox":14,"normalLineBox":14,"text":"Marche"},".settings-select":{"pinnedWidth":65,"intrinsicWidth":65,"selected":"Français","computedLineHeight":"normal","optionWidths":{"English":27.516,"Français":30.5,"简体中文":36.797}}}
+  .settings-label    popover-open   Times New Roman/TimesNewRomanPSMT(6)   text="Langue"
+  .settings-select   popover-open   Times New Roman/TimesNewRomanPSMT(8)   text="SELECTED=Français"
+  .settings-toggle   popover-open   Times New Roman/TimesNewRomanPSMT(6)   text="Marche"
+
+===== lang zh-Hans =====
+  .knob-label        closed         蘋方-簡/PingFangSC-Regular(2)   text="速率"
+  .preset-action     closed         蘋方-簡/PingFangSC-Regular(2)   text="载入  [aria-label=从文件载入预设]"
+  #preset-prev       closed         Hiragino Mincho ProN/HiraMinProN-W3(1)   text="◀  [aria-label=上一个预设]"
+  #preset-next       closed         Lucida Grande/LucidaGrande(1)   text="▶  [aria-label=下一个预设]"
+  #preset-load       closed         蘋方-簡/PingFangSC-Regular(2)   text="载入  [aria-label=从文件载入预设]"
+  #gear-btn          closed         Menlo/Menlo-Regular(1)   text="⚙  [aria-label=设置]"
+  [tip gesture] hovered=true shown=true text="驱动在各声部相加之前，为每个延迟声部加上非对称的 tanh 饱和——模拟斗链式延迟电路自身产生的柔和削波。低值带来温暖，"
+  .tooltip           tip-open       蘋方-簡/PingFangSC-Regular(63)  Times New Roman/TimesNewRomanPSMT(15)   text="驱动在各声部相加之前，为每个延迟声部加上非对称的 tanh 饱和——模拟斗链式延迟电路自身产生的柔和削波。低值带来温暖，"
+  .tip-title         tip-open       蘋方-簡/PingFangSC-Regular(2)   text="驱动在各声部相加之前，为每个延迟声部加上非对称的 tanh 饱和——模拟斗链式延迟电路自身产生的柔和削波。低值带来温暖，"
+  [tip geometry RENDERED] {"show":true,"vis":"visible","tip":{"w":384,"h":51.69,"lh":"13px","fs":"10px"},"title":{"w":366,"h":11.69,"lh":"11.7px","fs":"9px"},"bodyLines":2}
+  .preset-dropdown-item dropdown       NO PLATFORM FONTS REPORTED  text="Default"
+  [gear gesture] settings-popover open=true
+  [counterfactual pins] {".knob-label":{"pinnedLineBox":9.984,"normalLineBox":13,"text":"速率"},".preset-action":{"pinnedLineBox":9.984,"normalLineBox":13,"text":"载入"},".settings-label":{"pinnedLineBox":9.984,"normalLineBox":13,"text":"语言"},".settings-toggle":{"pinnedLineBox":14,"normalLineBox":14,"text":"开"},".settings-select":{"pinnedWidth":65,"intrinsicWidth":65,"selected":"简体中文","computedLineHeight":"normal","optionWidths":{"English":27.516,"Français":30.5,"简体中文":36.797}}}
+  .settings-label    popover-open   蘋方-簡/PingFangSC-Regular(2)   text="语言"
+  .settings-select   popover-open   蘋方-簡/PingFangSC-Regular(4)   text="SELECTED=简体中文"
+  .settings-toggle   popover-open   蘋方-簡/PingFangSC-Regular(1)   text="开"

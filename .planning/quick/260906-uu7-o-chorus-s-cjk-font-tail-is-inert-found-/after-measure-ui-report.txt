@@ -1,0 +1,14 @@
+identity: 339 nodes / 113 distinct DOM keys / 55 distinct display ids — keyed by DOM path
+undeclared-font: 3 finding(s)
+  faces checked against: PingFang SC, Microsoft YaHei, Songti SC
+    zh-Hans  html/body[1]/div[1]/div[3]/div[2]/button[1]  (#preset-prev)  "◀"  ff=Garamond, "Times New Roman", serif
+    zh-Hans  html/body[1]/div[1]/div[3]/div[2]/button[2]  (#preset-next)  "▶"  ff=Garamond, "Times New Roman", serif
+    zh-Hans  html/body[1]/div[1]/div[5]/button[1]  (#gear-btn)  "⚙"  ff=Garamond, "Times New Roman", serif
+line-height-normal: 2 finding(s)
+  leaf nodes only — a container box does not report a text metric
+    zh-Hans  html/body[1]/div[1]/div[3]/div[2]/button[1]  (#preset-prev)  "◀"  font-size=14px
+    zh-Hans  html/body[1]/div[1]/div[3]/div[2]/button[2]  (#preset-next)  "▶"  font-size=14px
+wrap-count: 0 finding(s)
+  27 text-bearing leaf node(s) compared; 13 of them ESTIMATED at fsn * 1.2 (line-height: normal) rather than measured
+svg-font-attr: 0 attribute carrier(s), 0 finding(s)
+  0 node(s) carry a font-family presentation attribute
