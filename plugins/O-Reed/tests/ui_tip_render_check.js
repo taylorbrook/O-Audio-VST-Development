@@ -249,7 +249,36 @@ const EXPAND_ALL = () =>
     const { I18N, TIP_BINDINGS, LANGUAGES } = loadTable(i18nSrc);
     check(Array.isArray(TIP_BINDINGS) && TIP_BINDINGS.length > 0,
         `TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} anchor(s)`);
-    check(LANGUAGES.join(',') === 'en,fr', `LANGUAGES is en,fr — got ${LANGUAGES.join(',')}`);
+    // ── the language list is DERIVED from the table, never spelled here ─────
+    // What stood here pinned the joined list to one fixed string. That went red
+    // the instant the page gained a language, which made a shipped translation
+    // indistinguishable from a regression at this gate's very first check.
+    // What the gate actually needs is a SHAPE: a non-empty array opening with
+    // the source language the page falls back to. Anything else is a table this
+    // gate cannot reason about, and it refuses rather than guessing — a guessed
+    // list that comes up empty walks nothing and reports every assertion green.
+    const EN = 'en';
+    const shapeOk = Array.isArray(LANGUAGES) && LANGUAGES.length > 0 && LANGUAGES[0] === EN;
+    check(shapeOk,
+        `LANGUAGES derives from the table as a non-empty array opening with the source `
+        + `language — got ${JSON.stringify(LANGUAGES)}`);
+    if (!shapeOk) {
+        console.log('\n  REFUSING to sweep a guessed language list.');
+        process.exit(1);
+    }
+    // A SECOND guard, INDEPENDENT of the one above and placed on the WALK
+    // rather than on the list. A one-member list satisfies the shape check and
+    // then compares the page to itself, passing every byte-equality assertion
+    // below for a reason that has nothing to do with the page being right.
+    const REST = LANGUAGES.slice(1);
+    check(REST.length >= 1,
+        `the derived list carries at least one language besides the source language `
+        + `— got ${JSON.stringify(LANGUAGES)}`);
+    if (REST.length < 1) {
+        console.log('\n  REFUSING to compare the page to itself.');
+        process.exit(1);
+    }
+    console.log(`\n  sweeping ${LANGUAGES.length} language(s): ${LANGUAGES.join(' -> ')}`);
 
     const pw = S.resolvePlaywright();
     if (pw == null) {
@@ -491,27 +520,47 @@ const EXPAND_ALL = () =>
     await page.hover(`${bpSel} .knob-label`, { force: true });
     await page.waitForTimeout(200);
     const afterMove = await readTip();
+    // SOURCE-LANGUAGE-SCOPED, and deliberately NOT generalized over the derived
+    // list: this block runs before any language switch, so the page is in the
+    // source language by construction and the source row is the only correct
+    // comparand. Reading the current language here would assert nothing.
     check(beforeMove.visible && afterMove.visible
           && afterMove.title === beforeMove.title && afterMove.title === I18N['tip.breath'].en.t,
         `[NC-3] the tip survives the SVG -> caption boundary inside .knob-control `
         + `— still "${afterMove.title}"`);
     await park();
 
-    // ── 5. French, then back ────────────────────────────────────────────────
-    // French runs 15-20% longer, wraps to more lines against the max-width cap
-    // and grows the tip's HEIGHT, so a tip that fits in English can overflow the
-    // bottom of the frame in French. That is why the whole sweep repeats rather
-    // than spot-checking one anchor.
-    await page.evaluate((l) => window.__setLanguage(l), 'fr');
-    await page.waitForTimeout(150);
-    const frLang = await page.evaluate(() => document.getElementById('lang-select').value);
-    check(frLang === 'fr', `[5] window.__setLanguage('fr') took — selector reads "${frLang}"`);
-    const tallestFr = await sweep('fr');
-    console.log(`   FR grows the tallest tip ${tallestEn.h.toFixed(1)} -> ${tallestFr.h.toFixed(1)}px`);
+    // ── 5. every language past the source, then back ────────────────────────
+    // A translated body runs longer or shorter than its English original, wraps
+    // to a different number of lines against the max-width cap and changes the
+    // tip's HEIGHT, so a tip that fits in English can overflow the bottom of
+    // the frame in another language. That is why the whole sweep repeats per
+    // language rather than spot-checking one anchor.
+    //
+    // The list is the DERIVED one. Naming the languages in the two call sites
+    // here is what left a third language unswept and uncompared on every plugin
+    // that grew one — the walk stayed green while it silently stopped covering
+    // the page. Both the switch and the selector assertion are driven from the
+    // loop variable so they cannot drift apart from the sweep.
+    for (const lang of REST) {
+        await page.evaluate((l) => window.__setLanguage(l), lang);
+        await page.waitForTimeout(150);
+        const curLang = await page.evaluate(() => document.getElementById('lang-select').value);
+        check(curLang === lang,
+            `[5] window.__setLanguage('${lang}') took — selector reads "${curLang}"`);
+        const tallestOther = await sweep(lang);
+        console.log(`   ${lang.toUpperCase()} takes the tallest tip `
+            + `${tallestEn.h.toFixed(1)} -> ${tallestOther.h.toFixed(1)}px `
+            + `(against the ${EN.toUpperCase()} baseline)`);
+    }
 
-    await page.evaluate((l) => window.__setLanguage(l), 'en');
+    await page.evaluate((l) => window.__setLanguage(l), EN);
     await page.waitForTimeout(150);
     const backSt = await hoverAndRead(`${bpSel} .knob-wrapper`);
+    // RESTORE-SCOPED, and deliberately NOT generalized: the line above restores
+    // the SOURCE language by construction, so the source row is the only value
+    // this can be compared against. Generalizing it over the derived list would
+    // break the restore semantics the assertion exists to prove.
     check(backSt.visible && backSt.title === I18N['tip.breath'].en.t
           && backSt.body === I18N['tip.breath'].en.b,
         `[5] switching back to English restores the English tip byte-for-byte `
@@ -653,6 +702,9 @@ const EXPAND_ALL = () =>
     const restored = await hoverAndRead(`${bpSel} .knob-wrapper`);
     check(fs.readFileSync(servedI18n, 'utf8') === origSrc,
         `[NC-1] the served copy is byte-identical to the pre-plant snapshot again`);
+    // RESTORE-SCOPED, and deliberately NOT generalized: the plant was made in
+    // the source-language body and `load()` reloads the page at its default,
+    // which is the source language. The source row is what the restore restores.
     check(restored.visible && restored.body === I18N['tip.breath'].en.b && inFrame(restored.rect),
         `[NC-1] restored — tip.breath is back inside the frame (${edges(restored.rect)})`);
     fs.rmSync(nc, { recursive: true, force: true });
