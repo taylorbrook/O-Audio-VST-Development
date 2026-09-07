@@ -126,16 +126,23 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
     ));
 
     // v1.30.0: Glissando toggle params (replace old glissandoMode dropdown)
+    // v2.5.1: Both toggles are META parameters. They are mutually exclusive — turning one ON
+    // programmatically writes the other OFF in parameterChanged() below — so each one changes
+    // the value of another parameter. The meta attribute tells the host/AU wrapper that, and
+    // without it auval's parameter-stability sweep fails on Free Glissando:
+    // "a Meta Param Flag is NOT set on a parameter that will change values of other parameters."
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "freeToggle", 1 },
         "Free Glissando",
-        false
+        false,
+        juce::AudioParameterBoolAttributes().withMeta (true)
     ));
 
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "scaleToggle", 1 },
         "Scale-Locked Glissando",
-        false
+        false,
+        juce::AudioParameterBoolAttributes().withMeta (true)
     ));
 
     // v1.30.0: Keyswitch note assignments (MIDI 0-47 = C-1 through B2)
