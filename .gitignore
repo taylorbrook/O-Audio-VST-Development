@@ -275,3 +275,19 @@ scratch-pv/
 
 # Per-session working files (probes, gate output, build logs). Never a deliverable.
 scratchpad/
+
+# =============================================================================
+# GSD Run-Scoped State
+# =============================================================================
+# The agent-dispatch isolation sentinel is run-scoped state, not source:
+# `gsd-tools query dispatch-isolation` rewrites its `written_at` timestamp as an
+# unconditional side effect of resolving isolation, so every session left it
+# dirty in `git status` — noise in a repo whose commit discipline depends on
+# reading `git status --short` accurately immediately before every commit.
+#
+# A directory-wide `.gsd/` rule was considered and DELIBERATELY REJECTED, for
+# the same reason as the plugin `dist` wildcard above: it would silently stop a
+# future file placed there — one that SHOULD be tracked — from ever being seen.
+# Ignore the single path. If GSD later writes more run-scoped siblings there,
+# widening this is a one-line follow-up made on purpose.
+.gsd/dispatch-isolation-sentinel.json
