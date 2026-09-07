@@ -1,5 +1,41 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.12.1 (2026-09-07)
+
+**The spectrum placeholder stops advertising an internal build stage.** PATCH:
+no parameter, range, type, state format or string changed, and nothing rendered
+in English, French or Simplified Chinese is different.
+
+### Fixed
+
+- **The spectrum-analyzer placeholder canvas no longer paints an internal
+  build-stage phase number below its caption.** It was a development-time marker
+  that had been shipping on a user-visible surface. Wave 4d localized the
+  caption above it and deferred this one as **D3** — explicitly a product
+  question with no localization budget attached, so it was left exactly as found
+  and recorded for the developer. This release is that decision being taken. The
+  1.12.0 entry above describes the marker as it stood at that release and is
+  correct history; it is not amended.
+- **This closes IN-09** in `CODE_REVIEW.md` (the v1.6.0 review), which flagged
+  the same string and offered two remedies. The first — drop the dev-phase
+  caption — is the one taken. `initializeSpectrumPlaceholder()` itself is kept;
+  only the second paint call goes.
+
+### Changed
+
+- **The surviving localized caption moved to the canvas centre.** Its y-offset
+  was `height / 2 - 10`; the pair of lines straddled the centre and the offset
+  existed only to make room for the removed line. With one line left it is drawn
+  at `height / 2`. No `textBaseline` is set: this 2D context is the same object
+  the live analyser lazily caches as `spectrumCtx`, and `textBaseline` is
+  persistent context state, so setting it here would arm a trap for the first
+  person to paint text on the live spectrum path.
+- **The verification premise recorded in `js/i18n.js` was amended with the
+  code.** It claimed one string-literal `fillText` call survived one line below
+  the caption; after this change zero survive, so the negative grep it nominates
+  is now absolute. A comment stating a permanent fact about a plugin is wrong the
+  first time the plugin changes — wave 4d's own finding M3.
+
 ## Version 1.12.0 (2026-09-06)
 
 **Simplified Chinese (`zh-Hans`) joins English and French.** Stage 4 wave 4d of

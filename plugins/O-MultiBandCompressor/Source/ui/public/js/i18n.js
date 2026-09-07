@@ -253,9 +253,13 @@ export const I18N = Object.freeze({
     // reliably producible here. The assertion is that app.js no longer calls
     // fillText with a string literal for this caption — a negative grep on the
     // CALL SHAPE, not on the sentence, so a re-worded literal fails it too. The
-    // one fillText literal that survives, one line below the call, is a
-    // build-stage marker: a product question, not a localization one, left
-    // exactly as found and recorded for the developer.
+    // grep is ABSOLUTE as of v1.12.1: no string-literal call of that shape
+    // remains anywhere in app.js at all. The build-stage marker that used to
+    // sit one line below this caption was removed as a product decision —
+    // wave 4d D3, a product question with no localization budget attached.
+    // This sentence moved with the code rather than being left to age: wave 4d
+    // M3 is a comment that stated a permanent fact and was wrong at the very
+    // next release.
     'canvas.spectrumPlaceholder': {
         en: { t: 'Spectrum Analyzer', b: '' },
         fr: { t: 'Analyseur de spectre', b: '', reviewed: true },
