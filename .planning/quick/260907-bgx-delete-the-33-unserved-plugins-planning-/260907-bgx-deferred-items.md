@@ -69,3 +69,10 @@ the record; leaving them is the right call. No action proposed.
 this task — absent at the precondition check, present at the end. It lies outside every
 pathspec used here and belongs to a concurrent session in this shared checkout. Left
 untouched, and named here so it is not mistaken for fallout from the deletions.
+
+
+## RESOLVED 2026-09-07
+
+User chose delete. Same mechanism, 4 path-scoped commits, 2 files each, 8 files / 868 deletions:
+`2f93dca1` O-AnalogSaturation · `aba9a1ed` O-Bitrot · `45b41286` O-Emulator · `376f86ff` O-SimpleReverb.
+Gate re-run before deletion: 8 tracked, read-construct grep empty, all other hits narrative. After: skeleton/inventory globs 0/0, params.tsv 22 disk == 22 tracked, check-i18n byte-identical (exit 0 both).
