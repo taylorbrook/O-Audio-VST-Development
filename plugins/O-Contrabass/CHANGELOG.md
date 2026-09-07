@@ -4,6 +4,74 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.10.0] - 2026-09-07
+
+Simplified Chinese joins English and French (wave 4f, task 260907-ja8). MINOR:
+the interface gains a third language and the copy table gains a column. No
+parameter, range, type or state format changed, and no audio path was touched.
+
+### Added
+
+- **186 Simplified Chinese rows** — every `I18N` title and body (46 entries) and
+  every `LABELS` caption (94), covering the whole page in all three states.
+  The corpus goes 4292 → 4478 rows of 5441.
+- **`简体中文` in the language selector**, copied byte-for-byte from the shipped
+  endonym and exempted from translation the way `English` and `Français` are: a
+  reader looking for their own language looks for its own name.
+- **The 37 shared `scala-tuning-engine` captions gain their Chinese column** in
+  the same change as the language flip. They are byte-for-byte copies of
+  O-Bassoon's, which have already been through a blind reverse read on that
+  plugin — re-authoring them would have created the first divergence on a
+  surface proved byte-identical across all five consumers.
+- **A CJK tail on every font stack the page resolves**, before the trailing
+  generic rather than after it: Chromium resolves a bare `serif` against the
+  document's language, so under `lang="zh-Hans"` the generic is already a
+  Chinese face and anything written after it is never consulted. Four sites —
+  the house stack, the tuning-panel override, a new five-selector rule over the
+  panel's own form controls, and the SVG `font-family` **presentation
+  attribute** on the plate line, where the tail has to go inside the attribute
+  because a CSS rule does not win against one.
+- **A three-way interface-language codec** in `PluginProcessor.h`, pure ASCII on
+  both the encode and the decode line. The choice rides the session as a root
+  XML attribute, never a parameter, so it stays out of automation lanes and out
+  of presets.
+
+### Fixed
+
+- **The language tooltip no longer counts the selector's options.** It said
+  "English and French are available", in both languages, which stops being true
+  the day the selector grows. The clause is gone; the exception list beside it —
+  value readouts, note names and preset names stay English — is true and stays.
+- **`tests/ui_frontend_check.js` now checks every declared language.** It read
+  `.en` and `.fr` off each table entry by name and asserted nothing whatever
+  about a third, so it would have certified a page whose Chinese column was half
+  missing rather than going red. It now derives the list from the table's own
+  export, asserts its shape, refuses rather than guessing, and iterates whatever
+  the page actually offers.
+- **Chinese line boxes and captions no longer move the page.** PingFang SC's
+  ascent and descent are taller than the Garamond/Georgia/Times New Roman
+  stack's, so keyed captions grew roughly 3px each — about 30% of a 10px line
+  box — and Chinese captions are also SHORTER, which drags flex siblings the
+  other way. Twenty-nine line-box ratios and two width floors, every one derived
+  from this page's own measured English box. Geometry is now identical in
+  English, French and Chinese across all three states.
+
+### Quality of the Chinese
+
+`reviewed: 'bt'` on all 186 rows — machine-drafted, then read back by an
+independent blind reverse pass that was given the Chinese alone, with the
+English, the key names and the plugin identity all withheld and the row ids
+salted so the batch could not be cross-referenced. 149 rows were sent in two
+independently-salted chunks to two separate readers, with every caption and its
+own tooltip title deliberately split between them; 90 round-tripped word for
+word and every remaining triple was read and adjudicated on whether a reader
+could confuse it with another control on the same page. No row needed
+re-authoring, so there was no second round. The 37 shared-module rows carry
+O-Bassoon's already-reviewed Chinese unchanged.
+
+**`reviewed: 'native'` remains open.** No native Chinese reader has checked this
+copy, and the level is disclosed rather than implied.
+
 ## [1.9.0] - 2026-09-06
 
 The tuning tab is localized — English and French (task 260906-s71). MINOR: the
