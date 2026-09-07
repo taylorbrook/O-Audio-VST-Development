@@ -1,5 +1,78 @@
 # O-Wind Changelog
 
+## [1.21.0] - 2026-09-07
+
+Simplified Chinese (task 260907-ja8, Stage 4 wave 4f). MINOR: a third interface
+language and its geometry. No parameter, range, type or state format changed,
+and no audio path was touched. The C++ gained one code on each side of a
+two-way ternary and nothing else.
+
+### Added
+
+- **Simplified Chinese across all 214 rows** — 53 hover-help entries (title and
+  body each) and 108 captions, reachable from the gear popover's language
+  selector beside English and Français. The endonym 简体中文 is written in the
+  markup as the numeric-entity form and copied, never retyped.
+- **The 37 shared tuning-panel captions are Chinese too.** They are copied
+  BYTE-FOR-BYTE from O-Bassoon, which shipped them at v1.5.0, rather than
+  re-authored: the same 37 strings serve five plugins and a divergence on that
+  surface would be invisible to every gate in this repository.
+- `PluginProcessor.h`'s language codec is three-way. It still maps anything it
+  does not recognise to English, so a hand-edited session degrades rather than
+  storing an unvalidated value.
+
+### Changed — two hover-help sentences that were FALSE before this release
+
+- **`tip.langSelect` said the Tuning tab stays English.** That has been false in
+  FRENCH since v1.20.0, when the shared panel was localized and this plugin's
+  table gained all 37 French captions. Corrected in English and French. This is
+  a repair of a shipped falsehood, not a Chinese change.
+- **`tip.gear` said the settings panel holds the interface language and nothing
+  else.** False since v1.19.0 put the hover-help switch inside the same popover.
+  Corrected in English and French.
+- Both bodies also named the two languages the selector moved between. That
+  clause is deleted rather than extended in either body: a sentence that counts
+  the languages needs an edit every time one lands, in a place nobody looks. The
+  readout-format clause and the exception lists beside it are true and stay.
+
+### Fixed — geometry, so no arm moves
+
+Chinese renders through PingFang SC, whose line box is taller than the
+Garamond / Georgia / Times New Roman stack's — about +30% on a bare `normal`
+line box at these sizes. Left alone that grew captions 3-4px each and the
+accumulation pushed whole rows down the page; measured before the fix, 174
+non-label elements moved on the Chinese arm.
+
+- Eight line-box ratios and the shared panel's eleven-selector `1.11` block,
+  every one DERIVED from this page's own measured English content box at its own
+  font size, with padding and border subtracted first and read per line. Ratios,
+  never lengths, so the English and French arms are unmoved.
+- One width floor on the instrument strip's caption, at the exact measured
+  English box — without it the instrument selector and the tone-hole toggle slid
+  59.9px left.
+- The CJK tail is named before the trailing generic on every font stack the page
+  declares, plus a rule for the tuning panel's undeclared form controls. A bare
+  `serif` resolves against the document language, so a tail written after it is
+  never consulted.
+
+`check-ui-labels` reports **0 moved on English, French AND Chinese** across all
+three states, and `measure-ui --report undeclared-font` reports **0** against 155
+Han-bearing nodes.
+
+### Quality level — disclosed, not implied
+
+Every Chinese row is at `reviewed: 'bt'`: authored as a machine draft, then read
+back through a BLIND reverse pass — two independently dispatched chunks, a fresh
+salt each, an agent with no file, web or repository access, working from the
+Chinese alone. Every one of the 177 non-module triples was read. One row was
+re-authored: 反向气束 (Reversed Jet) came back from one reader as "reflected
+jet", which is the neighbouring Jet Reflection control, so it is now 反转气束 —
+confirmed by a second round on a different model with a fresh salt.
+
+`reviewed: 'native'` remains OPEN. No native Chinese speaker has read this
+translation. The lint prints that on every run.
+
+
 ## [1.20.0] - 2026-09-06
 
 The tuning tab is localized — English and French (task 260906-s71). MINOR: the
