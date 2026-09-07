@@ -70,7 +70,15 @@
             width: 900px;
             height: 600px;
             overflow: hidden;
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            /* The CJK tail goes BEFORE the trailing generic: Chromium resolves a
+               bare `serif` against the document's lang, so under zh-Hans the
+               generic is already a Chinese face and a tail written after it is
+               never consulted. Georgia and Times New Roman are both installed, so
+               the Latin half of this stack was already safe and takes nothing but
+               the tail — Garamond is installed on none of these machines and has
+               never been the face that renders. */
+            font-family: 'Garamond', 'Georgia', 'Times New Roman',
+                         'PingFang SC', 'Microsoft YaHei', serif;
             background: var(--bg-paper);
             color: var(--brown-text);
         }
@@ -540,6 +548,76 @@
             height: 100%;
         }
 
+        /* ── PAGE-LOCAL LINE-BOX RATIOS (v1.6.0, quick task 260907-ja8) ──────
+           Every selector below resolves line-height to `normal`, so its used
+           line box is the FACE's ascent + descent. PingFang SC's are taller
+           than this page's Garamond / Georgia / Times New Roman stack's, so
+           each of these captions grew 2-6px the moment Chinese landed, and the
+           accumulation moved 266 non-label elements at the shipping 900 x 600
+           frame — one absorbing container, .xy-pad-container, carried a dh of
+           4.0 and everything below it cascaded.
+
+           Pinned as a RATIO, never a length: a length pinned to a measured row
+           height inherits as a computed length and moves one Latin arm by a
+           fraction of a pixel. Every ratio below is derived from THIS page's
+           own measured ENGLISH box with padding and border subtracted FIRST
+           and the line count checked:
+
+             selector                  fs   en box  pad+bd  content   ratio
+             .tab-btn         BUTTON   11    22.00     10    12.00   1.0909091
+             .section-title            11    12.00      0    12.00   1.0909091
+             .xy-pad-label             11    12.00      0    12.00   1.0909091
+             .settings-label           10    11.00      0    11.00   1.1000000
+             .toggle-label             10    11.00      0    11.00   1.1000000
+             .dropdown-label            9    10.00      0    10.00   1.1111111
+             .xy-val-item > span        9    10.00      0    10.00   1.1111111
+             .xy-axis-label             8     9.00      0     9.00   1.1250000
+             .effects-placeholder h2   24    27.00      0    27.00   1.1250000
+             .effects-placeholder p    14    16.00      0    16.00   1.1428571
+
+           .tab-btn is named as a BUTTON for the same reason the tuning panel's
+           three button classes are: the UA `font` shorthand resets line-height
+           on a form control, so an inherited ratio never reaches one.
+
+           Two of these font sizes were not in the suite's measured line-box
+           table before this plugin: 14px -> 1.1428571 and 24px -> 1.1250000,
+           both from the FX placeholder. They are recorded here as this page's
+           contribution to it. */
+        .tab-btn,
+        .section-title,
+        .xy-pad-label {
+            line-height: 1.0909091;
+        }
+
+        .settings-label,
+        .toggle-label {
+            line-height: 1.1;
+        }
+
+        .dropdown-label,
+        .xy-val-item > span {
+            line-height: 1.1111111;
+        }
+
+        /* Both axis captions sit ABSOLUTELY POSITIONED inside a 200x170
+           overflow:hidden pad and grow from their own centre, so neither can
+           move a sibling — the ratio is here so the two arms report the same
+           line box, not because anything depended on it. The Y caption is
+           rotated -90deg and wraps to seven line boxes in English against two
+           in Chinese, so its rect is the rotated bounding box; the ratio is
+           still per LINE and still 9.00/8. */
+        .xy-axis-label {
+            line-height: 1.125;
+        }
+
+        .effects-placeholder h2 {
+            line-height: 1.125;
+        }
+
+        .effects-placeholder p {
+            line-height: 1.1428571;
+        }
+
         /* ── THE TUNING PANEL'S OWN PINS (v1.5.0, quick task 260906-s71) ──────
            The shared scala-tuning-engine panel became localized at module
            v3.1.0. It is mounted LAZILY into #tuning-container, so none of this
@@ -577,7 +655,139 @@
            Floored at the WIDEST arm (French in both cases), which equalizes
            both languages. */
         #tuning-container .tonic-label          { min-width: 41.59px; }
-        #tuning-container .octave-stretch-label { min-width: 51.84px; }
+
+        /* ── 3. THE LINE-BOX RATIO ON THE PANEL'S ELEVEN CAPTION SURFACES ────
+           Every caption rule in the shared panel resolves line-height to
+           `normal`, so the used line box is the FACE's ascent + descent.
+           PingFang SC's are taller than the Garamond / Georgia / Times New
+           Roman stack's, so every keyed caption in this panel grew 3px in
+           Chinese. Measured on this plugin at its own 900 x 600 frame after the
+           face change: 10.00 -> 13.00 at 9px, 11.00 -> 14.00 at 10px,
+           24.00 -> 27.00 on the 9px buttons and 27.00 -> 30.00 on the 10px one.
+
+           Pinned as a RATIO, never a length: a length pinned to a measured row
+           height inherits as a computed length and grows one arm by a fraction
+           of a pixel. 1.11 was verified against THIS page's own measured
+           ENGLISH content boxes, padding and border subtracted first and the
+           LINE COUNT checked, rather than transferred on faith:
+
+             selector                 fs   en box  pad+bd  lines  content/line  1.11xfs
+             .interval-list-header    10   24.00*     0      2       11.00       11.10
+             .library-header-text     10   11.00      0      1       11.00       11.10
+             .generator-header-text   10   11.00      0      1       11.00       11.10
+             .gen-row label           10   11.00      0      1       11.00       11.10
+             .pitch-circle-label       9   10.00      0      1       10.00        9.99
+             .ref-knob-label           9   10.00      0      1       10.00        9.99
+             .tonic-label              9   10.00      0      1       10.00        9.99
+             .octave-stretch-label     9   10.00      0      1       10.00        9.99
+             .viz-btn        BUTTON    9   24.00     14      1       10.00        9.99
+             .tuning-file-btn BUTTON   9   24.00     14      1       10.00        9.99
+             .generator-btn  BUTTON   10   27.00     16      1       11.00       11.10
+
+           * already sitting on the min-height floor above; its natural English
+             box is two line boxes of 11.00 in this 122px column, which is why
+             the ratio is derived PER LINE. A naive box-over-font-size would
+             have read 2.4 and more than doubled the pin.
+
+           Every row is inside check-ui-labels' 0.5px tolerance, so the English
+           and French arms do not move. .viz-btn is 9px on this plugin where it
+           is 10px on O-Wind — the per-selector check is not ceremonial.
+
+           The three button classes are named SEPARATELY because the UA `font`
+           shorthand resets line-height to `normal` on form controls: an
+           inherited ratio never reaches a <button>. Same mechanism as the
+           font-family rule below. */
+        #tuning-container .interval-list-header,
+        #tuning-container .library-header-text,
+        #tuning-container .generator-header-text,
+        #tuning-container .pitch-circle-label,
+        #tuning-container .ref-knob-label,
+        #tuning-container .tonic-label,
+        #tuning-container .octave-stretch-label,
+        #tuning-container .gen-row label,
+        #tuning-container .viz-btn,
+        #tuning-container .tuning-file-btn,
+        #tuning-container .generator-btn {
+            line-height: 1.11;
+        }
+        /* RE-MEASURED at v1.6.0. 51.84px was the French box while the panel body
+           still rendered through the shared module's -apple-system stack. Rule 3
+           below moves those 116 nodes onto this page's own house stack, and under
+           Garamond/Georgia/Times New Roman the same French caption measures
+           53.86px — so the old floor stopped covering the arm it was written for
+           and #octave-stretch gave 2px back in French. Measured on all three arms
+           after the face change: en 51.83, fr 53.86, zh 51.83. Floored at the
+           WIDEST, which is French again. This is R8 in its exact shape: a pin
+           measured against one face is not safety under another. */
+        #tuning-container .octave-stretch-label { min-width: 53.86px; }
+
+        /* ── 3. THE PANEL BODY'S OWN FACE (v1.6.0, quick task 260907-ja8) ────
+           modules/tuning/scala-tuning-engine/snippets/tuning-panel.css:66
+           declares `font-family: -apple-system, BlinkMacSystemFont, sans-serif`
+           on .tuning-panel. Two of the module's four consumers override that
+           and two never did; this plugin was one of the two that never did, so
+           the computed census over its 491 visible English nodes read
+
+               345  Garamond, Georgia, "Times New Roman", serif   the house stack
+               116  -apple-system, "system-ui", sans-serif        THE WHOLE PANEL
+                30  Arial                                         its form controls
+
+           -apple-system resolves to the system UI face, which carries no Han,
+           and the stack terminates at a bare `sans-serif` — so under
+           lang="zh-Hans" every Chinese caption inside that panel resolved
+           through the document-language fallback rather than through a face
+           this page named. No grep can see that: it exists only in the
+           computed style.
+
+           The rule below is the same override O-Wind and O-Contrabass already
+           carry, written with THIS plugin's own house stack so the panel reads
+           as part of this page rather than as a graft, and with the CJK tail
+           before the generic. The shared CSS is left byte-unchanged: it has
+           five consumers and four different measured English boxes.
+
+           IT CHANGES THE LATIN ARM TOO — the panel body moves off the system UI
+           face onto Garamond/Georgia/Times New Roman, which is a real metric
+           change on 116 nodes. check-ui-labels was re-run on the en and fr arms
+           after this landed and the decision was taken on that measurement, not
+           on the intention. */
+        #tuning-container .tuning-panel {
+            font-family: 'Garamond', 'Georgia', 'Times New Roman',
+                         'PingFang SC', 'Microsoft YaHei', serif;
+        }
+
+        /* ── 4. THE PANEL'S FORM CONTROLS — FIVE selectors, not three ────────
+           FORM 4 of the font-carrier census. <button> and <select> do not
+           inherit font-family — the UA stylesheet gives them one, on this build
+           a bare Arial — so rule 3 above does not reach them and both rules are
+           needed. Measured here: 30 controls on `ff=Arial`, of which the eleven
+           that carry Han are
+
+               .viz-btn x5           the visualisation switcher
+               .tuning-file-btn x5   load/save .scl and .kbm, export HTML
+               .generator-btn x1     generate
+
+           and the two <select>s are named as well even though the screen cannot
+           credit them: measure-ui computes its `han` flag over a node's own text
+           plus data-tip / data-tip-title / aria-label, and a collapsed select's
+           selected-option text is none of those. #library-filter's six category
+           options and #generator-type's three type options are all Han and the
+           control PAINTS them through its own font, so the rule covers thirteen
+           nodes where the screen can only name eleven.
+
+           The remaining nineteen are the measured negative case: twelve
+           .interval-input numerics, #octave-stretch, #gen-divisions, #gen-period
+           and the two arrow glyphs. None renders Han, and the shared module
+           gives none of them an aria-label or a data-tip, so none is a tip
+           anchor either. The Latin face is named FIRST so the en and fr metrics
+           do not move. */
+        #tuning-container .viz-btn,
+        #tuning-container .tuning-file-btn,
+        #tuning-container .generator-btn,
+        #tuning-container .generator-type-select,
+        #tuning-container .library-filter-select {
+            font-family: 'Garamond', 'Georgia', 'Times New Roman',
+                         'PingFang SC', 'Microsoft YaHei', serif;
+        }
 
         .tuning-tab-panel {
             flex-direction: column;
@@ -932,6 +1142,7 @@
                             data-i18n-aria="aria.langSelect" aria-label="Interface language">
                         <option value="en">English</option>
                         <option value="fr">Fran&ccedil;ais</option>
+                        <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
                     </select>
                 </label>
 
