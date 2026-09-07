@@ -2,6 +2,39 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.5.1] - 2026-09-06
+
+PATCH: a host-facing parameter attribute only. No parameter, range, default, type
+or state format changed, and no DSP, UI or automation behaviour changed.
+
+### Fixed
+
+- **`auval` now passes.** `auval -v aumu OLyr OuDv` had been ending
+  `AU VALIDATION FAILED: CORRECT THE ERRORS ABOVE.` since v1.30.0, on the
+  parameter-stability sweep:
+
+  ```
+  ParameterID=1275870432, Scope=0, Element=0: Saved Value = 0.337891, Current Value 0.000000
+  ERROR: Parameter values are different since last set - probable cause: a Meta Param Flag is NOT set on a parameter that will change values of other parameters.
+  Cannot perform Parameter Value check across initialization and reset
+  * * FAIL
+  ```
+
+  ParameterID 1275870432 is `freeToggle` ("Free Glissando") — the AU wrapper hashes
+  the JUCE string ID into that number, and auval's own parameter dump names it. It is
+  the *victim*: auval moved `scaleToggle`, and the v1.30.0 mutual exclusion in
+  `parameterChanged()` wrote `freeToggle` back to 0 behind auval's back.
+
+  Both `freeToggle` and `scaleToggle` are now declared as meta parameters, so the host
+  is told that each one changes the other. The mutual-exclusion logic, the reentrancy
+  guard and both defaults are byte-identical to 2.5.0.
+
+- **Corrected the record.** v2.4.0's release notes and `NOTES.md` both described this
+  as a static *warning* that was "pre-existing and benign". The transcript shows a hard
+  `* * FAIL` and a failed verdict — prior releases documented the assertion rather than
+  fixing it, which left the AU gate unable to catch any new parameter-stability
+  regression. `NOTES.md` has been updated.
+
 ## [2.5.0] - 2026-09-06
 
 Simplified Chinese joins English and French across the whole interface (task

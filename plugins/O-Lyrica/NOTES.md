@@ -58,9 +58,14 @@
 - **Tonic behaves differently between mapping paths (IN-17, intentional since v1.13.0).** KBM
   path = modal rotation; default linear path = transposition (anchor shift to 60 + tonic). Tonic
   is clamped 0-11, so scales with more than 12 degrees can only take the first 12 as tonic.
-- **`auval` static "Meta Param Flag" warning is pre-existing and benign.** It is caused by the
-  intentional `freeToggle`/`scaleToggle` mutual exclusion (v1.30.0). All render / MIDI / parameter
-  round-trip tests pass; the AU loads and runs correctly.
+- **`auval` "Meta Param Flag" assertion — RESOLVED in 2.5.1.** It was never a benign warning: from
+  v1.30.0 until 2.5.1 `auval -v aumu OLyr OuDv` ended `AU VALIDATION FAILED` on a hard `* * FAIL`
+  in the parameter-stability sweep (ParameterID 1275870432 = `freeToggle`). Cause: the intentional
+  `freeToggle`/`scaleToggle` mutual exclusion in `parameterChanged()` writes one toggle when the
+  host moves the other, so auval saw a parameter change behind its back. Fix: both toggles are now
+  declared as meta parameters, which is how the AU wrapper tells the host a parameter changes other
+  parameters. Keep that attribute on both if either toggle declaration is ever touched — the mutual
+  exclusion is intentional and stays.
 
 ## Additional Notes
 
@@ -69,6 +74,10 @@
   bank, EQ/reverb/delay/chorus, Scala/KBM microtonal tuning (VST3 Note Expression — O-Lyrica is the
   project's validated NE reference/spike), glissando controller, self-contained WebView UI.
 - **Build:** target name is `OLyrica` (folder is `O-Lyrica`); build `OLyrica_VST3` / `OLyrica_AU`.
-  `build-and-install.sh` currently assumes the folder name for the target and fails for this plugin
-  (`unknown target 'O-Lyrica_VST3'`) — build the `OLyrica_*` targets directly and install manually.
+  `./scripts/build-and-install.sh O-Lyrica` WORKS — the script resolves the CMake target from
+  CMakeLists.txt rather than from the folder name, and logs `CMake target: OLyrica (targets
+  OLyrica_VST3, OLyrica_AU)`. (Verified 2026-09-06 during 2.5.1. This note previously claimed the
+  script failed with `unknown target 'O-Lyrica_VST3'`; that was stale — the script gained target
+  resolution since.) Building the `OLyrica_*` targets directly still works as a fallback, but the
+  script also does the AU cache clear and the dual-variant sweep that CLAUDE.md requires.
 - **AU triple:** `aumu OLyr <mfr>` (dev builds: manufacturer `OuDv`).
