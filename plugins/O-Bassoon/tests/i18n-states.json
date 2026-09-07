@@ -1,5 +1,9 @@
 [
   {
+    "name": "TUNING tab (mounts the shared scala-tuning-engine panel and reveals its 37 keyed captions — the panel is injected LAZILY by initTuningPanel() into #tuning-container on first activation, so until this state exists every one of the module's captions is absent from the DOM and invisible to this gate in every language). BEFORE the about tab: the states are CUMULATIVE and the about click makes #tab-sound display:none, but the tuning panel, once mounted, STAYS in the DOM behind it.",
+    "click": ".tab-btn[data-tab=\"tuning\"]"
+  },
+  {
     "name": "about tab",
     "click": ".tab-btn[data-tab=\"about\"]"
   },

@@ -1,5 +1,9 @@
 [
   {
+    "name": "TUNING tab (mounts the shared scala-tuning-engine panel into #tuning-container and reveals its 37 keyed captions — the panel is injected LAZILY on first activation, so without this state every module caption is absent from the DOM and unmeasurable in every language). FIRST, because the states are CUMULATIVE: the gear popover below renders over the tab bar and its own pointerdown guard keeps it open, so a tuning click placed after it can land on the popover instead of the tab.",
+    "click": ".tab-btn[data-tab=\"tuning\"]"
+  },
+  {
     "name": "settings popover OPEN (the language row, the hover-help row and the unlit Off face)",
     "click": "#gear-btn"
   },

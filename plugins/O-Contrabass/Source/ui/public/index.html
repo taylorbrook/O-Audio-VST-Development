@@ -850,6 +850,45 @@ body {
 /* Give the container-query root real height (its parents size by content). */
 #tuning-container { min-height: 566px; height: 566px; }
 
+/* ── THE TUNING PANEL'S OWN PINS (v1.9.0, quick task 260906-s71) ──────
+   The shared scala-tuning-engine panel became localized at module
+   v3.1.0. It is mounted LAZILY into #tuning-container, so none of this
+   is measurable without the tuning state in tests/i18n-states.json —
+   which is why the two land in the same change.
+
+   These pins live HERE and NOT in
+   modules/tuning/scala-tuning-engine/snippets/tuning-panel.css because
+   that file has FIVE consumers and a floor written into it silently
+   reshapes the other four (wave 4c's D1 left it as found for exactly
+   this reason). Every number below was measured on THIS plugin at ITS
+   shipping frame; the four consumers do not share one.
+
+   ── 1. A HEIGHT FLOOR ON THE INTERVAL-LIST HEADER ────────────────
+   `Intervals · notes: 11` WRAPS TO TWO LINES in this 122px column;
+   the French `Interv. · notes : 11` fits on ONE. The header is
+   therefore 22px in English and 11px in French, and the 11px it
+   gives back pulled the tonic selector and every interval row below it
+   UP by 11px — 53 non-label elements displaced by a caption that got
+   SHORTER, which is the half of the defect class a clip check cannot
+   see. Floored at the measured ENGLISH box. */
+#tuning-container .interval-list-header {
+    min-height: 22px;   /* en 22 (2 lines), fr 11 (1 line) */
+}
+
+/* ── 2. TWO WIDTH FLOORS, on the two captions sharing a flex row with
+   something that is not a caption ─────────────────────────────
+   .tonic-selector is justify-content: center and .octave-stretch-row
+   gives its slider flex: 1, so a caption whose width changes with the
+   language MOVES or RESIZES its siblings. Measured here:
+
+     .tonic-label           en 28.47   fr 42.06
+     .octave-stretch-label  en 41.5   fr 53.86
+
+   Floored at the WIDEST arm (French in both cases), which equalizes
+   both languages. */
+#tuning-container .tonic-label          { min-width: 42.06px; }
+#tuning-container .octave-stretch-label { min-width: 53.86px; }
+
 /* Parchment-palette overrides for the shared tuning panel (D3: stay
    in-family — module CSS variables are the supported theming surface). */
 .tuning-panel {
