@@ -292,7 +292,31 @@ const isAdsrKnob = (sel) => /data-param="adsr(Attack|Decay|Sustain|Release)"/.te
         `[0] TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} anchor(s), expected `
         + `${TIP_COUNT} (50 parameters with a control + #gear-btn + #lang-select + #tips-toggle; the dump has `
         + `56 rows and six parameters have no control on this page)`);
-    check(LANGUAGES.join(',') === 'en,fr', `[0] LANGUAGES is en,fr — got ${LANGUAGES.join(',')}`);
+    // The list this gate sweeps is DERIVED from the table's own export, never
+    // named here. A gate that pins the set of languages goes red on the day a
+    // language lands and tells the reader nothing about the page — and the
+    // literal it pins outlives every place that reads it.
+    //
+    // What IS asserted is the list's SHAPE: a non-empty array whose first
+    // member is the code every restore and every baseline below reads back.
+    // If that does not hold the gate REFUSES rather than sweeping a guessed
+    // list — a derived list that silently goes empty walks zero languages and
+    // reports every assertion below green.
+    const EN = 'en';
+    const langShapeOk = Array.isArray(LANGUAGES) && LANGUAGES.length > 0 && LANGUAGES[0] === EN;
+    check(langShapeOk,
+        `[0] LANGUAGES derives from the table as a non-empty array opening with the `
+        + `English code — got ${JSON.stringify(LANGUAGES)}`);
+    if (!langShapeOk) {
+        console.log('\n  REFUSING to sweep a guessed list. Every assertion below reads the '
+                  + 'derived list, so a bad shape here would report green over nothing.');
+        process.exit(1);
+    }
+    const REST = LANGUAGES.slice(1);
+    check(REST.length >= 1,
+        `[0] the derived list carries at least one language besides ${EN} — got `
+        + `${JSON.stringify(LANGUAGES)}. With none, the pass below compares a page to itself`);
+    console.log(`\n   sweeping ${LANGUAGES.length} language(s): ${LANGUAGES.join(' -> ')}`);
     check(TIP_BINDINGS.filter(([s]) => isEffectsAnchor(s)).length === 21,
         `[0] 21 anchors classify as Effects-tab (got `
         + `${TIP_BINDINGS.filter(([s]) => isEffectsAnchor(s)).length}) — the tab must be driven `
@@ -585,7 +609,7 @@ const isAdsrKnob = (sel) => /data-param="adsr(Attack|Decay|Sustain|Release)"/.te
         return seen;
     };
 
-    await sweep('en');
+    await sweep(EN);
     await showTab('sound');
 
     // ── the surface must not eat its own hover ──────────────────────────────
@@ -705,19 +729,31 @@ const isAdsrKnob = (sel) => /data-param="adsr(Attack|Decay|Sustain|Release)"/.te
         + `that passes the line above`);
     await park();
 
-    // ── 5. French, then back ────────────────────────────────────────────────
-    // French runs 15-20% longer, wraps to more lines against the max-width cap
-    // and grows the tip's HEIGHT, so a tip that fits in English can overflow the
-    // bottom of the frame in French. That is why the whole sweep repeats rather
-    // than spot-checking one anchor.
-    await page.evaluate((l) => window.__setLanguage(l), 'fr');
-    await page.waitForTimeout(150);
-    const frLang = await page.evaluate(() => document.getElementById('lang-select').value);
-    check(frLang === 'fr', `[5] window.__setLanguage('fr') took — selector reads "${frLang}"`);
-    await sweep('fr');
+    // ── 5. every other language, then back ──────────────────────────────────
+    // A second language does not render the same boxes as the first. French
+    // runs 15-20% longer, wraps to more lines against the max-width cap and
+    // grows the tip's HEIGHT, so a tip that fits in English can overflow the
+    // bottom of the frame. Chinese runs SHORTER and moves the same rects the
+    // other way. Either way the whole sweep repeats rather than spot-checking
+    // one anchor, and it repeats for EVERY language the table declares beyond
+    // the English baseline already swept above — the caller drives the switch
+    // and the selector assertion from the loop variable, so a language that
+    // lands in the table is swept without anyone editing this file.
+    //
+    // showTab('sound') is PAGE state, not language state. It is inside the loop
+    // because sweep() leaves the page on the Effects tab: without it the second
+    // and later passes would measure a different tab than the English pass did.
+    for (const lang of REST) {
+        await page.evaluate((l) => window.__setLanguage(l), lang);
+        await page.waitForTimeout(150);
+        const gotLang = await page.evaluate(() => document.getElementById('lang-select').value);
+        check(gotLang === lang,
+            `[5] window.__setLanguage('${lang}') took — selector reads "${gotLang}"`);
+        await sweep(lang);
+        await showTab('sound');
+    }
 
-    await showTab('sound');
-    await page.evaluate((l) => window.__setLanguage(l), 'en');
+    await page.evaluate((l) => window.__setLanguage(l), EN);
     await page.waitForTimeout(150);
     const backSt = await hoverAndRead('.knob-control[data-param="growl"] .knob-wrapper');
     check(backSt.visible && backSt.title === I18N['tip.growl'].en.t
@@ -726,7 +762,7 @@ const isAdsrKnob = (sel) => /data-param="adsr(Attack|Decay|Sustain|Release)"/.te
         + `— "${backSt.title}"`);
     await park();
 
-    console.log(`\n   placement census over ${placement.total} hovers (both languages): `
+    console.log(`\n   placement census over ${placement.total} hovers (every swept language): `
         + `${placement.flippedLeft} placed left of the cursor, ${placement.flippedUp} above it, `
         + `${placement.onRail} landed on an ${MARGIN}px rail; tightest clearances `
         + `bottom ${placement.minBottom.toFixed(1)}px, right ${placement.minRight.toFixed(1)}px`);
