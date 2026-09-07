@@ -1,0 +1,367 @@
+# 260906-uu7 — TASK 1 BEFORE BASELINE (unmodified tree)
+# plugin: O-Chorus   frame 700x125 (setSize in Source/PluginEditor.cpp:240)
+# tree state at capture: git status --short -- plugins/O-Chorus == 0 lines
+# index.html md5: 2c1ed43836f668f87ec005f980cac744
+# captured: 2026-09-07T05:26:44Z
+
+================================================================
+1. LIVE font-family CENSUS  (grep -n "font-family" index.html)
+================================================================
+40:       font-family declarations, and the set was MEASURED (getComputedStyle on
+65:      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+130:      font-family: Garamond, 'Times New Roman', serif;
+185:      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+233:      font-family: Garamond, 'Times New Roman', serif;
+404:      font-family: Garamond, 'Times New Roman', serif;
+475:      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+504:      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+572:      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+668:      font-family: Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+VERDICT: NINE declarations + ONE comment line (line 40). SIX carry the CJK tail,
+THREE do not. The plan's census is CONFIRMED, with one naming correction.
+
+  TAILED (6) — `Garamond, 'Times New Roman', serif, 'PingFang SC', 'Microsoft YaHei', sans-serif`
+     65  .container
+    185  .preset-action
+    475  .settings-label
+    504  .settings-select
+    572  .settings-toggle
+    668  .tooltip
+
+  TAIL-LESS (3) — `Garamond, 'Times New Roman', serif`
+    130  .preset-nav
+    233  .preset-dropdown-item
+    404  .gear-btn      <-- the CSS selector is `.gear-btn` (CLASS), not the
+                            `#gear-btn` the v1.5.0 comment block spells. The ID
+                            exists on the same element and is what
+                            tests/i18n-states.json clicks, but Task 2's comment
+                            rewrite must name the SELECTOR that carries the
+                            declaration.
+
+  Line 40 is the `v1.5.0 CJK TAIL` comment itself. Its census reads "FIVE of
+  this page's EIGHT" and names five selectors — it is wrong on all three counts:
+  the true numbers are SIX of NINE, and `.settings-toggle` (v1.6.0) is the
+  missing member.
+
+================================================================
+2. measure-ui.js ROW CAPTURE
+================================================================
+command: node scripts/measure-ui.js --plugin O-Chorus --mode box --verbose > before-rows.json
+EXIT 0  (NOT 77 — the precondition holds, Playwright resolved)
+measure-ui: O-Chorus  ui=Source/ui/public  frame=700x125
+measure-ui: languages en, fr, zh-Hans  states default + 1
+identity: 339 nodes / 113 distinct DOM keys / 55 distinct display ids — keyed by DOM path
+rows: 339
+
+STATE COUNT CONFIRMED FROM STDERR: 'states default + 1' — tests/i18n-states.json
+clicked #gear-btn, so the settings popover IS measured OPEN, not at rest.
+
+================================================================
+3. THE FOUR SCREENS  (--report all)  — exit 0, NONE SKIPPED
+================================================================
+measure-ui: O-Chorus  ui=Source/ui/public  frame=700x125
+measure-ui: languages en, fr, zh-Hans  states default + 1
+identity: 339 nodes / 113 distinct DOM keys / 55 distinct display ids — keyed by DOM path
+undeclared-font: 3 finding(s)
+  faces checked against: PingFang SC, Microsoft YaHei, Songti SC
+    zh-Hans  html/body[1]/div[1]/div[3]/div[2]/button[1]  (#preset-prev)  "◀"  ff=Garamond, "Times New Roman", serif
+    zh-Hans  html/body[1]/div[1]/div[3]/div[2]/button[2]  (#preset-next)  "▶"  ff=Garamond, "Times New Roman", serif
+    zh-Hans  html/body[1]/div[1]/div[5]/button[1]  (#gear-btn)  "⚙"  ff=Garamond, "Times New Roman", serif
+line-height-normal: 2 finding(s)
+  leaf nodes only — a container box does not report a text metric
+    zh-Hans  html/body[1]/div[1]/div[3]/div[2]/button[1]  (#preset-prev)  "◀"  font-size=14px
+    zh-Hans  html/body[1]/div[1]/div[3]/div[2]/button[2]  (#preset-next)  "▶"  font-size=14px
+wrap-count: 0 finding(s)
+  27 text-bearing leaf node(s) compared; 13 of them ESTIMATED at fsn * 1.2 (line-height: normal) rather than measured
+svg-font-attr: 0 attribute carrier(s), 0 finding(s)
+  0 node(s) carry a font-family presentation attribute
+
+READING:
+  undeclared-font 3 — ALL THREE are the tail-less trio, and all three are on
+    the zh-Hans arm because their aria-label carries Han (the screen scans
+    data-tip / data-tip-title / aria-label as CARRIERS). Their RENDERED text is
+    a symbol glyph, so these three are NOT the tail defect this task fixes.
+    They are also NOT clean — see section 6.
+  line-height-normal 2 — #preset-prev / #preset-next at font-size 14px. This is
+    the screen memory says cannot reach 0 on this page; it is NOT the
+    acceptance criterion for Task 2 (check-ui-labels [7] is).
+  wrap-count 0 — 27 leaf nodes compared, 13 ESTIMATED at fsn*1.2.
+  svg-font-attr 0 carriers / 0 findings — this page has no SVG font-family
+    presentation attribute at all, so the screen's own liveness signal is 0 and
+    it can find nothing here by construction. Read as "not applicable", not as
+    "clean".
+
+================================================================
+4. PER-NODE METRIC TABLE from before-rows.json (all three arms)
+================================================================
+id                  vis    han    w        h       lh          fs     y       text
+-- en ------------------------------------------------------------
+div.container       true   false  700      125     normal      16px   0       ""
+#preset-prev        true   false  20       21      normal      14px   9.5     "◀"
+#preset-next        true   false  18.33    18      normal      14px   11      "▶"
+#preset-load        true   false  62       13.98   9.9999px    9px    13      "Load"
+#preset-save        true   false  62       13.98   9.9999px    9px    13      "Save"
+span.knob-label     true   false  25.7     9.98    9.9999px    9px    78      "Rate"
+span.knob-label     true   false  33       9.98    9.9999px    9px    78      "Depth"
+span.knob-label     true   false  37.31    9.98    9.9999px    9px    78      "Voices"
+span.knob-label     true   false  39.31    9.98    9.9999px    9px    78      "Spread"
+span.knob-label     true   false  34       9.98    9.9999px    9px    78      "Width"
+span.knob-label     true   false  27.05    9.98    9.9999px    9px    78      "Tone"
+span.knob-label     true   false  19.91    9.98    9.9999px    9px    78      "Mix"
+span.knob-label     true   false  31.5     9.98    9.9999px    9px    78      "Drive"
+#gear-btn           true   false  20       20      11px        11px   100     "⚙"
+#settings-popover   true   false  170      54      normal      16px   40      ""
+span.settings-label true   false  54.8     9.98    9.9999px    9px    51      "Language"
+#lang-select        true   false  65       16      normal      9px    48      ""
+span.settings-label true   false  61.75    9.98    9.9999px    9px    73      "Hover help"
+#tips-toggle        true   false  42       16      10.8px      9px    70      "On"
+#tooltip            false  false  18       12      13px        10px   0       ""
+span.tip-title      false  false  366      11.69   11.7px      9px    52.31   "Settings"
+-- fr ------------------------------------------------------------
+div.container       true   false  700      125     normal      16px   0       ""
+#preset-prev        true   false  20       21      normal      14px   9.5     "◀"
+#preset-next        true   false  18.33    18      normal      14px   11      "▶"
+#preset-load        true   false  62       13.98   9.9999px    9px    13      "Charger"
+#preset-save        true   false  62       13.98   9.9999px    9px    13      "Enreg."
+span.knob-label     true   false  41.61    9.98    9.9999px    9px    78      "Vitesse"
+span.knob-label     true   false  28.05    9.98    9.9999px    9px    78      "Prof."
+span.knob-label     true   false  25.7     9.98    9.9999px    9px    78      "Voix"
+span.knob-label     true   false  28.53    9.98    9.9999px    9px    78      "Étal."
+span.knob-label     true   false  48.11    9.98    9.9999px    9px    78      "Largeur"
+span.knob-label     true   false  38.81    9.98    9.9999px    9px    78      "Timbre"
+span.knob-label     true   false  19.91    9.98    9.9999px    9px    78      "Mix"
+span.knob-label     true   false  35.56    9.98    9.9999px    9px    78      "Satur."
+#gear-btn           true   false  20       20      11px        11px   100     "⚙"
+#settings-popover   true   false  170      54      normal      16px   40      ""
+span.settings-label true   false  40.59    9.98    9.9999px    9px    51      "Langue"
+#lang-select        true   false  65       16      normal      9px    48      ""
+span.settings-label true   false  61.02    9.98    9.9999px    9px    73      "Infobulles"
+#tips-toggle        true   false  42       16      10.8px      9px    70      "Marche"
+#tooltip            false  false  18       12      13px        10px   0       ""
+span.tip-title      false  false  366      11.69   11.7px      9px    52.31   "Réglages"
+-- zh-Hans ------------------------------------------------------------
+div.container       true   false  700      125     normal      16px   0       ""
+#preset-prev        true   true   20       21      normal      14px   9.5     "◀"
+#preset-next        true   true   18.33    18      normal      14px   11      "▶"
+#preset-load        true   true   62       13.98   9.9999px    9px    13      "载入"
+#preset-save        true   true   62       13.98   9.9999px    9px    13      "保存"
+span.knob-label     true   true   19.61    9.98    9.9999px    9px    78      "速率"
+span.knob-label     true   true   19.61    9.98    9.9999px    9px    78      "深度"
+span.knob-label     true   true   29.41    9.98    9.9999px    9px    78      "复音数"
+span.knob-label     true   true   19.61    9.98    9.9999px    9px    78      "扩散"
+span.knob-label     true   true   19.61    9.98    9.9999px    9px    78      "宽度"
+span.knob-label     true   true   19.61    9.98    9.9999px    9px    78      "音色"
+span.knob-label     true   true   19.61    9.98    9.9999px    9px    78      "混合"
+span.knob-label     true   true   19.61    9.98    9.9999px    9px    78      "驱动"
+#gear-btn           true   true   20       20      11px        11px   100     "⚙"
+#settings-popover   true   true   170      54      normal      16px   40      ""
+span.settings-label true   true   19.2     9.98    9.9999px    9px    51      "语言"
+#lang-select        true   true   65       16      normal      9px    48      ""
+span.settings-label true   true   38.41    9.98    9.9999px    9px    73      "悬停帮助"
+#tips-toggle        true   true   42       16      10.8px      9px    70      "开"
+#tooltip            false  true   18       12      13px        10px   0       ""
+span.tip-title      false  true   366      11.69   11.7px      9px    52.31   "设置"
+
+THREE THINGS THIS TABLE CANNOT TELL YOU, AND TASK 2 MUST NOT READ IT AS IF IT COULD:
+
+  a) #tooltip and .tip-title read vis=false in EVERY arm. measure-ui.js replays
+     tests/i18n-states.json, which only CLICKS #gear-btn — it never HOVERS, so
+     the tip is never in its .show state when the probe runs. The 18 x 12 box
+     is the empty at-rest plate. The tooltip's real geometry is in section 5
+     ([tip geometry RENDERED]) and in ui_tip_render_check.js, nowhere else.
+
+  b) #lang-select reads w=65 in all three arms BECAUSE `width: 65px` is pinned.
+     The pin's DERIVATION — the select's intrinsic width — is invisible here and
+     is in section 5 ([counterfactual pins]).
+
+  c) The line-height pin comments all quote a number measured AT
+     `line-height: normal` (EN 10.00 / ZH 13.00). The pins override that, so
+     the rows read 9.9999px everywhere. Those counterfactuals are in section 5.
+
+================================================================
+5. CDP RESOLVED-FACE PROBE — the premise test
+================================================================
+probe script (scratchpad, NOT committed, Task 2 re-runs it UNCHANGED):
+  /private/tmp/claude-501/-Users-taylorbrook-Dev-VST-development/c0bfbc05-32a8-4700-8e15-8f1937a76457/scratchpad/cdp-font-probe.js
+command: node <probe> --label BEFORE > before-fonts.txt   EXIT 0
+full transcript: before-fonts.txt (this dir)
+
+*** VERDICT: PREMISE CONFIRMED. ***
+
+Han renders through **Songti SC / STSongti-SC-Regular** on the zh-Hans arm, on
+EVERY one of the six tailed selectors. `PingFang SC` is named in all six stacks
+and is reached by none of them. The tail is inert exactly as the finding says.
+
+Latin renders through **Times New Roman / TimesNewRomanPSMT** in en and fr —
+never Garamond, which is not a macOS face. The v1.5.0 comment's closing claim
+("Latin still resolves to Garamond FIRST") is FALSE and was false when written.
+
+RESOLVED FACE PER SELECTOR PER ARM (familyName/postScriptName(glyphCount)):
+
+  selector           en                       fr                       zh-Hans
+  -----------------  -----------------------  -----------------------  ------------------------
+  .knob-label        Times New Roman (4)      Times New Roman (7)      Songti SC (2)
+  .preset-action     Times New Roman (4)      Times New Roman (7)      Songti SC (2)
+  .settings-label    Times New Roman (8)      Times New Roman (6)      Songti SC (2)
+  .settings-select   Times New Roman (7)      Times New Roman (8)      Songti SC (4)
+  .settings-toggle   Times New Roman (2)      Times New Roman (6)      Songti SC (1)
+  .tooltip           Times New Roman (209)    Times New Roman (241)    Times New Roman (15)
+                                                                       + Songti SC (63)
+  .tip-title         Times New Roman (5)      Times New Roman (10)     Songti SC (2)
+
+The tooltip's zh row is a TWO-FACE run: the Latin inside the Chinese body
+(the literal word "tanh") stays on Times New Roman while the Han goes to
+Songti SC. That mixed run is what the 384 px wrap ceiling is counted in.
+
+RENDERED TOOLTIP GEOMETRY (measure-ui CANNOT produce this — see 4a):
+  arm      tip w x h        line-height  body lines   .tip-title w x h
+  en       384 x 64.69      13px         3            366 x 11.69
+  fr       384 x 64.69      13px         3            366 x 11.69
+  zh-Hans  384 x 51.69      13px         2            366 x 11.69
+  (drive knob tip; all three arms hit the 384 px max-width cap)
+  ui_tip_render_check corroborates: every zh-Hans tip rect is 384.0 x 51.7,
+  except #tips-toggle's at 328.0 x 38.7.
+
+COUNTERFACTUAL PIN MEASUREMENTS — the numbers the pin COMMENTS quote, taken
+with the pin temporarily overridden in-page (reverted immediately; nothing
+written to disk). THESE ARE THE BEFORE NUMBERS TASK 2 MUST COMPARE AGAINST:
+
+  selector          pinned line box     line box at `line-height: normal`
+                    (all arms)          en        fr        zh-Hans
+  ----------------  ------------------  --------  --------  --------
+  .knob-label       9.984 px            10.000    10.000    13.000
+  .preset-action    9.984 px            10.000    10.000    13.000
+  .settings-label   9.984 px            10.000    10.000    13.000
+  .settings-toggle  14.000 px           14.000    14.000    14.000
+
+  -> The comments' "measured EN line box 10.00 px / 9 px font" and the
+     "13.00 px in Chinese at line-height: normal" REPRODUCE EXACTLY. They were
+     measured under SONGTI SC. Task 2 must re-take the ZH column under PingFang
+     SC; the EN/FR columns are Latin-derived and should not move.
+  -> .settings-toggle's `line-height: 1.2` makes NO difference to its content
+     box today: pinned 14.000 == normal 14.000 in all three arms. The comment's
+     "line-height unitless and pinned, so the face centres identically" claim is
+     currently a no-op that the height:16px pin is doing the work for.
+
+  .settings-select WIDTH:
+    pinned width   65.000 px in all three arms (the `width: 65px` pin)
+    INTRINSIC (width:auto)   en 65.000   fr 65.000   zh-Hans 64.000
+  -> The comment's "measured 65 px in English, 65 px in French, 64 px in
+     Chinese" REPRODUCES EXACTLY — but it attributes the 64 to "that run
+     resolves through PingFang SC", and the probe above proves the run is
+     SONGTI SC. The stated cause of this pin is wrong today. After the reorder
+     the run really will be PingFang SC and the 64 may or may not survive: this
+     is the number most at risk and the one Task 2 must re-derive with
+     `width: auto`, NOT from the pinned rows.
+
+  ENDONYM OPTION WIDTHS (measured in a detached span inheriting the select's
+  stack, so document lang applies):
+    arm      English   Français   简体中文
+    en       27.516    30.500     36.797
+    fr       27.516    30.500     36.797
+    zh-Hans  27.516    30.500     36.000
+  -> The comment claims all three are "identical in every language ... whatever
+     the page language" and quotes 27.501 / 30.489 / 36.792. BOTH halves are
+     wrong: the Chinese endonym measures 36.797 on the en/fr arms and 36.000 on
+     the zh arm (NOT language-invariant — the generic resolves to a different
+     Han face per document lang), and none of the three quoted decimals matches
+     today's measurement. PREDICTION for Task 2: after the reorder all three
+     arms name PingFang SC, so the endonym width should become genuinely
+     language-invariant for the first time.
+
+================================================================
+6. THE THREE TAIL-LESS DECLARATIONS — the wave-4a sibling screen
+================================================================
+The plan predicted these are clean because "'Times New Roman' is a macOS face".
+THE PREDICTION IS FALSE. Times New Roman holds none of the three glyphs these
+elements render, so the bare `serif` generic IS reached — and it hands each one
+a different fallback:
+
+  #preset-prev  "◀"  ->  Hiragino Mincho ProN / HiraMinProN-W3   (a JAPANESE serif)
+  #preset-next  "▶"  ->  Lucida Grande / LucidaGrande
+  #gear-btn     "⚙"  ->  Menlo / Menlo-Regular                   (a MONOSPACE face)
+
+Identical in en, fr AND zh-Hans, so this is not a language defect — it is the
+same "the generic is doing the work" mechanism, permanently, in every arm.
+
+IT HAS A VISIBLE CONSEQUENCE ALREADY ON THE PAGE. The two nav arrows are a
+matched pair in the markup and are NOT a matched pair on screen, because they
+resolve to two different faces:
+    #preset-prev  20.00 x 21.00 px, y=9.5
+    #preset-next  18.33 x 18.00 px, y=11.0
+That is a 1.67 px width and 3.00 px height mismatch between ◀ and ▶.
+
+SCOPE: the plan explicitly says "Do not edit the three tail-less declarations",
+so this is RECORDED, NOT FIXED, in 260906-uu7. It is a candidate for its own
+quick task and it is the same class of defect as the one this task fixes.
+
+.preset-dropdown-item could NOT be probed: the dropdown did not render an item
+in the probe's gesture (NO PLATFORM FONTS REPORTED, text "Default"). Its
+resolved face is UNMEASURED — do not record it as clean.
+
+================================================================
+7. GATE VERDICTS ON THE UNMODIFIED TREE (all three expected GREEN)
+================================================================
+  node scripts/measure-ui.js --plugin O-Chorus --mode box --report all
+      EXIT 0   four screens, none SKIPPED
+      undeclared-font 3 | line-height-normal 2 | wrap-count 0 | svg-font-attr 0/0
+
+  node scripts/check-ui-labels.js --plugin O-Chorus
+      EXIT 0   == ALL CHECKS PASSED ==   87 PASS lines, 0 FAIL
+      [7][GEOMETRY DIFF] fr and zh-Hans BOTH pass: 0 non-label elements moved
+      (1 animated element #lfo-dot excluded and disclosed)
+      coverage: 14 of 14 [data-i18n] elements visible in at least one state
+      NOT exit 77, NOT "nothing to measure" — this is a real pass.
+
+  node plugins/O-Chorus/tests/ui_tip_render_check.js
+      EXIT 0   == ALL CHECKS PASSED ==   (345 passed)   0 FAIL
+      real zh-Hans pass; tips 384.0 x 51.7 in zh, inside the 700 x 125 frame.
+
+NO PRE-EXISTING RED. Any red after Task 2's edit is attributable to Task 2.
+
+================================================================
+8. TREE STATE
+================================================================
+git branch --show-current : main
+git status --short -- plugins/O-Chorus : 0 line(s) — plugins/O-Chorus is BYTE-UNCHANGED
+index.html md5 : 2c1ed43836f668f87ec005f980cac744
+CMakeLists VERSION : 1:cmake_minimum_required(VERSION 3.15)
+12:    VERSION 1.6.2
+
+================================================================
+9. RULE-D FINDING — a verify command that does NOT run as spelled
+================================================================
+Task 1 verify #6, as written in the PLAN:
+
+    git status --short -- plugins/O-Chorus | tee /dev/stderr | wc -l | grep -qx '0' && echo "..."
+
+RETURNS EXIT 1 ON A CLEAN TREE — a FALSE RED. macOS/BSD `wc -l` pads its output:
+
+    $ git status --short -- plugins/O-Chorus | wc -l | od -c
+    0000000     <sp><sp><sp><sp><sp><sp><sp>   0  \n
+
+so `grep -qx '0'` can never match. The measured tree state IS clean (0 lines).
+The working form adds `| tr -d ' '`:
+
+    git status --short -- plugins/O-Chorus | wc -l | tr -d ' ' | grep -qx '0'   # EXIT 0
+
+SAME DEFECT IN THE REMAINING TASKS — all of these will read FALSE RED as spelled:
+  Task 2, last verify:  git diff --stat -- ... | wc -l | grep -qx '0'
+  Task 3, verify 4:     grep -rn '1\.6\.2' ... | wc -l | grep -qx '0'
+  Task 3, verify 6:     ... | uniq -d | wc -l | grep -qx '0'
+
+NOT affected: the `grep -c ... | grep -qx '0'` forms. GNU-style `grep -c` emits an
+unpadded count, so Task 2 verify 1 and Task 3 verifies 7 and 8 run as written.
+
+================================================================
+10. MECHANISM CONFIRMED IN SOURCE
+================================================================
+index.html:21    <html lang="en">
+index.html:1226  document.documentElement.lang = uiLanguage;
+
+The document lang IS driven by the language selector, which is the precondition
+for Chromium resolving a bare `serif` against it. The premise's causal chain is
+intact end to end: lang follows the selector -> the generic resolves to a
+Chinese face under zh-Hans -> the search terminates there -> the CJK tail
+written AFTER it is never consulted.
