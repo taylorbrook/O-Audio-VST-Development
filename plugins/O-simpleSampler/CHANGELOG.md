@@ -3,6 +3,115 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.0] — 2026-09-07
+
+Simplified Chinese. The interface now offers English, French and 简体中文, on a
+145-row table. MINOR: new language, no parameter, range, type or state format
+changed, and no English or French rendering moved except the one deletion
+recorded below. Wave 4g of the zh-Hans rollout (task 260907-qda).
+
+**The bump is from 1.4.4, the CMakeLists value — not from the 1.4.3 the registry
+row claimed.** `PLUGINS.md` was one patch behind, left there by the 2026-09-03
+suite-wide French hover-help rename (task 260903-ukp) that also produced the
+1.4.4 entry below. The same row also read `✅ Working` while both `-dev` bundles
+were already installed on disk, dated 2026-09-04 and reporting
+`CFBundleShortVersionString 1.4.4`. Both cells are corrected in one edit at the
+end of the wave; this release is the rebuild-and-reinstall they describe.
+
+### Added
+
+- **145 rows of Simplified Chinese** — 36 tooltip titles, 36 tooltip bodies and
+  73 captions, every one at `reviewed: 'bt'`. **The disclosed quality level is
+  `'bt'`, not `'native'`:** each row was machine-drafted, then read back by an
+  INDEPENDENT blind reverse pass — a different model, in a fresh session, from a
+  working directory outside this repository, with no tools and with the English
+  and the key names withheld — and the resulting en → zh → en′ triple was read
+  against the English source. Two rounds, on two different models, with a fresh
+  salt each time. No native Simplified Chinese reader has seen it. `'native'`
+  stays open as a later upgrade and blocks nothing; lint rule R1 prints the
+  level on every run.
+- **The Chinese endonym in the language selector**, byte-copied from the shipped
+  markup rather than retyped, and exempted from the coverage scan with a reason:
+  a language name is written in its own language.
+- **The CJK tail on both font declarations that reach text** — the house stack
+  and the `--symbol-font` token, both in the external `css/styles.css`. It goes
+  BEFORE the trailing generic: Chromium resolves a bare `serif` against the
+  document's `lang`, so under `zh-Hans` the generic is already a Chinese face
+  and a tail written after it is never consulted. The absent Garamond members
+  are KEPT — they are the Windows and print intent, and Times New Roman, which
+  is installed, already makes the Latin arm safe. `--symbol-font` takes the tail
+  because `.gear-btn` is a tooltip anchor: the test is whether a node anchors a
+  tip whose text can carry Han, never which glyph the node paints.
+
+### Changed
+
+- **`languageCode` / `languageIndex` widened from two-way to three-way**, pure
+  ASCII on both lines. Persistence is unchanged — the runtime form is still an
+  index and the persisted form is still the language CODE, through the same
+  `juce::Identifier`-wrapped key, so a hand-inspected session still says what it
+  means. Anything unrecognised still degrades to English rather than being
+  stored unvalidated.
+- **The language tooltip no longer enumerates the pair of languages**, in the
+  English body and the French body both. It said two languages were available;
+  three are. The exception list after it is KEPT and was re-verified rather than
+  assumed: the markup carries three `<select>` elements, and minus the language
+  selector itself that is two, so *the two drop-down menus* is true today. The
+  Loop Mode and Pitch Mode entries are `AudioParameterChoice` strings — the host
+  automation contract — and stay English under D-01, named in English inside the
+  Chinese bodies as well.
+
+### Fixed — geometry, nine pins, none of them global
+
+Chinese line boxes run about 30% taller than the Latin ones at the same size, so
+a caption that fits in English can push its own row down. Nine pins, every ratio
+derived from THAT element's own English **content** box — rect height less its
+own padding and border, divided by its own font size, with the line count
+verified as exactly one. None of the nine selectors carried a `line-height`
+before this release.
+
+- **Six leaf line boxes**: `.subtitle` and `.settings-label` (1.0909091),
+  `.group-title` (1.25), `.preset-bar-tour .tour-btn` (1.0526316), `.btn-load`
+  (1.047619) and `.source-status` (1.3).
+- **`.group-title`'s rect is 19 px and its content box is 15** — 3 px of bottom
+  padding and a 1 px border are not line box. A ratio taken from the rect would
+  have been 1.5833 and would have moved English on every group heading.
+- **`.btn-load` and `.tour-btn` are the form-control case**: the UA `font`
+  shorthand resets `line-height` on a `<button>`, so their ratios come from
+  their own boxes and not from the leaf table, which would have moved English.
+- **Three ROW ratios** — `.viz-label`, `.keyboard-label` and `#toggle-reverse`
+  each grew while EVERY leaf inside it measured an identical box in all three
+  languages. `getBoundingClientRect()` on an inline element reports its font
+  box, not its line box, so a row can grow with nothing inside it reporting the
+  growth. Before the row pins, the keyboard row's growth pushed `label.play` and
+  `label.kbdHint` 1.8 px past the 980 × 720 frame.
+
+`check-ui-labels` reports **0 non-label elements moved on both non-English
+arms**, across all four states. The French arm was green at every one of the
+three measurements, and the coverage line never moved off 48 visible with 0
+never-visible.
+
+### Reported, not fixed
+
+- **`Source/ui/public/modules/webview-drop-streaming.js` writes English toasts to
+  the Chinese page** — 17 distinct strings across 22 `showToast` call sites
+  (`Drop a .wav/.aif on a cell`, `Scanning folder…`, `No audio files in folder`,
+  …). No gate in this repo opens the file: `check-i18n`'s module scan is keyed on
+  the `js/` directory, and this file is under `modules/`, so its PASS is a claim
+  about the scan and not about the page. The strings are not `[data-i18n]`
+  elements and no state in `tests/i18n-states.json` fires a drop event. They
+  render English on the French page today and have since the module was written,
+  so this release does not cause them. The file is **byte-identical to
+  O-simpleGrain's copy** (sha256 `349a0c28…`, confirmed both ways) and is left
+  byte-identical: keying it is a two-plugin change to an unkeyed toast layer with
+  no calibrated gate, which does not belong in a commit whose subject is a
+  caption table. No partial keying was added — a half-keyed toast layer is worse
+  than an unkeyed one because it looks done.
+- **`tests/render-harness/CMakeLists.txt` hard-codes `JucePlugin_VersionString="0.1.0"`
+  and `JucePlugin_VersionCode=0x000100`.** It is a frozen literal, not a `${VAR}`
+  mirror, so it has never tracked the plugin version and this bump does not
+  desynchronise it any further. Out of scope for a localization release; the same
+  frozen pattern is on O-simpleAdditive and is worth a suite-wide sweep.
+
 ## [1.4.4] — 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
