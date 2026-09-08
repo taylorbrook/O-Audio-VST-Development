@@ -29,7 +29,7 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     color: #3C2F2F;
     user-select: none;
     -webkit-user-select: none;
@@ -244,7 +244,7 @@ body {
     border: 2px solid #8B7355;
     background: #F5E6D3;
     color: #3C2F2F;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 11px;
     border-radius: 2px;
     cursor: pointer;
@@ -373,7 +373,7 @@ body {
    where the budget comes from. */
 .preset-btn {
     padding: 2px 4px;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -409,7 +409,7 @@ body {
 #file-buttons button {
     padding: 2px 8px;
     min-width: 74px;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -453,7 +453,7 @@ body {
     width: 20px;
     height: 20px;
     padding: 0;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 9px;
     line-height: 1;
     color: #3C2F2F;
@@ -472,7 +472,7 @@ body {
     padding: 3px 7px;
     min-width: 58px;
     text-align: center;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -497,7 +497,7 @@ body {
     max-width: 190px;
     min-width: 130px;
     padding: 3px 8px;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 11px;
     font-style: italic;
     color: #3C2F2F;
@@ -601,7 +601,7 @@ body {
     width: 20px;
     height: 20px;
     padding: 0;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 12px;
     line-height: 1;
     color: #5C6E3E;
@@ -664,7 +664,7 @@ body {
     flex: 0 0 92px;
     width: 92px;
     padding: 2px 4px;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 11px;
     background: #FFF8DC;
     border: 1px solid #8B7355;
@@ -688,7 +688,7 @@ body {
     flex: 0 0 46px;
     width: 46px;
     padding: 2px 0;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -723,7 +723,7 @@ body {
     border: 1px solid #8B7355;
     border-radius: 3px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     pointer-events: none;
     opacity: 0;
     transition: opacity 110ms ease-out;
@@ -770,7 +770,7 @@ body {
     width: 92px;
     max-width: 92px;
     padding: 2px 4px;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 10px;
     background: #F5E6D3;
     border: 1px solid #8B7355;
@@ -780,7 +780,7 @@ body {
 #layout-name {
     width: 80px;
     padding: 2px 5px;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 10px;
     background: rgba(255, 248, 220, 0.8);
     border: 1px solid #8B7355;
@@ -794,7 +794,7 @@ body {
 #layout-library button {
     padding: 2px 6px;
     min-width: 53px;
-    font-family: Garamond, 'EB Garamond', serif;
+    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
     font-size: 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -817,3 +817,78 @@ body {
     pointer-events: none;
     z-index: 1000;
 }
+
+/* ── Simplified Chinese line boxes (v1.3.0) ───────────────────────────────
+   A Han line box is about 30% taller than a Latin one at the same size, so
+   every leaf on this page whose line-height resolved to `normal` grew between
+   1px and 3px when Chinese landed, and each growth pushed everything below it.
+   Each ratio below is derived from THAT element's own measured English CONTENT
+   box — rect height less its own padding and border, on one line, divided by
+   its own font-size — never from a shared table:
+
+     .preset-btn-hdr          10px  rect 21  pad 3/3  border 1/1  content 13  -> 1.3
+     .preset-btn              10px  rect 19  pad 2/2  border 1/1  content 13  -> 1.3
+     #file-buttons button     10px  rect 19  pad 2/2  border 1/1  content 13  -> 1.3
+     #layout-library button   10px  rect 19  pad 2/2  border 1/1  content 13  -> 1.3
+     .settings-toggle         10px  rect 19  pad 2/2  border 1/1  content 13  -> 1.3
+     #view-toggle             12px  rect 24  pad 4/4  border 1/1  content 14  -> 1.1666667
+     #downmix-badge            9px  rect 14  pad 1/1  border 1/1  content 10  -> 1.1111111
+     .settings-label          11px  rect 13  pad 0/0  border 0/0  content 13  -> 1.1818182
+     .param-container label   11px  rect 13  pad 0/0  border 0/0  content 13  -> 1.1818182
+     .group-label             14px  rect 17  pad 0/0  border 0/0  content 17  -> 1.2142857
+
+   The five form controls all land on 1.3 because the UA `font` shorthand
+   resets line-height on a form control, so a 10px button has a 13px content
+   box where a 10px leaf would not. The two 11px leaves land on 13 rather than
+   the 12 the suite's leaf table records, because this page's Latin resolves to
+   Times and that table was measured on a Times New Roman stack — which is why
+   each ratio is taken from the element rather than looked up.
+
+   Scoped to the Chinese arm so the English and French arms keep the `normal`
+   they shipped with and cannot move by a sub-pixel. */
+html[lang="zh-Hans"] .preset-btn-hdr        { line-height: 1.3; }
+html[lang="zh-Hans"] .preset-btn            { line-height: 1.3; }
+html[lang="zh-Hans"] #file-buttons button   { line-height: 1.3; }
+html[lang="zh-Hans"] #layout-library button { line-height: 1.3; }
+html[lang="zh-Hans"] .settings-toggle       { line-height: 1.3; }
+html[lang="zh-Hans"] #view-toggle           { line-height: 1.1666667; }
+html[lang="zh-Hans"] #downmix-badge         { line-height: 1.1111111; }
+html[lang="zh-Hans"] .settings-label        { line-height: 1.1818182; }
+html[lang="zh-Hans"] .param-container label { line-height: 1.1818182; }
+html[lang="zh-Hans"] .group-label           { line-height: 1.2142857; }
+
+/* ── The four WORDED format chips, floored and capped to the English row ────
+   The eight chips are a flex row inside a fixed 800px frame, so any width
+   change inside it slides everything after it. Measured, en identical to fr on
+   all eight (the French words happen to match the English boxes exactly):
+
+     chip 0  Stereo 50.78  ->  立体声 42.17   -8.61
+     chip 1  Quad   40.89  ->  四声道 42.17   +1.28
+     chips 2-5  5.1 / 7.1 / 5.1.4 / 7.1.4 — digits, unchanged
+     chip 6  Hex    40.00  ->  六声道 42.17   +2.17
+     chip 7  Oct    40.00  ->  八声道 42.17   +2.17
+                                        row  -2.98
+
+   One shrink and three growths that do not cancel: the row lost 2.98px, which
+   slid the four unkeyed digit chips 7.33px left and the whole layout library
+   1.5px. The four Han chips are therefore pinned to the exact measured English
+   box rather than floored — a floor alone leaves the three growths.
+
+   Latin letter-spacing on a Han run buys nothing and costs 1.5px across three
+   glyphs, so it is trimmed here, and the side padding drops 1px, which leaves
+   32px of content area in the narrowest of the four boxes against a 30.67px
+   Han run. The four unkeyed digit chips are deliberately NOT in this selector
+   list: their text stays Latin under Chinese and trimming their tracking would
+   move them. */
+html[lang="zh-Hans"] .preset-btn[data-preset="0"],
+html[lang="zh-Hans"] .preset-btn[data-preset="1"],
+html[lang="zh-Hans"] .preset-btn[data-preset="6"],
+html[lang="zh-Hans"] .preset-btn[data-preset="7"] {
+    letter-spacing: normal;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+html[lang="zh-Hans"] .preset-btn[data-preset="0"] { width: 50.78px; }
+html[lang="zh-Hans"] .preset-btn[data-preset="1"] { width: 40.89px; }
+html[lang="zh-Hans"] .preset-btn[data-preset="6"],
+html[lang="zh-Hans"] .preset-btn[data-preset="7"] { width: 40px; }

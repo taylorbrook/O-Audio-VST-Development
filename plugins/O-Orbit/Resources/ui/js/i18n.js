@@ -106,7 +106,7 @@
 // none has. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 export const I18N = Object.freeze({
 
@@ -121,19 +121,25 @@ export const I18N = Object.freeze({
         fr: { t: 'Réglages',
               b: "Choisir la langue de l’interface et activer ou désactiver les infobulles. Les deux choix sont conservés avec la session.",
               reviewed: true },
+        'zh-Hans': { t: '设置',
+                     b: '选择界面语言，并开启或关闭悬停帮助。两项选择都随会话一起保存。',
+                     reviewed: 'mt' },
     },
 
-    // Written to say what is TRUE of canon v2, in both languages: the labels DO
+    // Written to say what is TRUE of canon v2, in every declared language: the labels DO
     // change, and the halves that stay English are named rather than left to be
     // discovered — value readouts (D-03) and preset names (D-02, the name IS
     // the JSON filename). Speaker-layout format names are named too: 5.1, 7.1
     // and 7.1.4 are numeric designations and read identically in both.
     'lang-select': {
         en: { t: 'Language',
-              b: 'The language of the labels on this page and of this hover help. English and French are available; value readouts and preset names stay in English.' },
+              b: 'The language of the labels on this page and of this hover help. Value readouts and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: "La langue des libellés de cette page et de ces infobulles. L’anglais et le français sont disponibles ; les valeurs affichées et les noms de préréglages restent en anglais.",
+              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées et les noms de préréglages restent en anglais.",
               reviewed: true },
+        'zh-Hans': { t: '语言',
+                     b: '本页标签与这些悬停帮助所用的语言。数值读数和预设名称保持英文。',
+                     reviewed: 'mt' },
     },
 
     // ── Header preset band ──────────────────────────────────────────────────
@@ -143,6 +149,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Préréglage précédent',
               b: 'Reculer dans la liste des préréglages.',
               reviewed: true },
+        'zh-Hans': { t: '上一个预设',
+                     b: '在预设列表中后退一项。',
+                     reviewed: 'mt' },
     },
     'preset-next': {
         en: { t: 'Next preset',
@@ -150,6 +159,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Préréglage suivant',
               b: 'Avancer dans la liste des préréglages.',
               reviewed: true },
+        'zh-Hans': { t: '下一个预设',
+                     b: '在预设列表中前进一项。',
+                     reviewed: 'mt' },
     },
     'preset-select': {
         en: { t: 'Preset',
@@ -157,6 +169,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Préréglage',
               b: "Le préréglage actuellement chargé — cliquer pour parcourir par catégorie. Les 12 préréglages d’usine sont en lecture seule ; enregistrer sous le même nom écrit plutôt une copie utilisateur.",
               reviewed: true },
+        'zh-Hans': { t: '预设',
+                     b: '当前载入的预设，点击可按类别浏览。12 个出厂预设为只读；以同名保存时会改为写入一份用户副本。',
+                     reviewed: 'mt' },
     },
     'preset-save': {
         en: { t: 'Save',
@@ -164,6 +179,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Enregistrer',
               b: 'Enregistrer les réglages actuels comme préréglage utilisateur.',
               reviewed: true },
+        'zh-Hans': { t: '保存',
+                     b: '将当前设置保存为用户预设。',
+                     reviewed: 'mt' },
     },
     'preset-load': {
         en: { t: 'Load',
@@ -171,6 +189,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Ouvrir',
               b: 'Charger un préréglage depuis un fichier.',
               reviewed: true },
+        'zh-Hans': { t: '载入',
+                     b: '从文件载入预设。',
+                     reviewed: 'mt' },
     },
     'preset-delete': {
         en: { t: 'Delete',
@@ -178,6 +199,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Supprimer',
               b: 'Supprimer le préréglage utilisateur actuel. Cliquer une fois pour armer, une seconde fois pour confirmer.',
               reviewed: true },
+        'zh-Hans': { t: '删除',
+                     b: '删除当前的用户预设。点击一次进入待确认状态，再点击一次确认。',
+                     reviewed: 'mt' },
     },
 
     // ── Header right ────────────────────────────────────────────────────────
@@ -187,6 +211,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Infobulles',
               b: 'Afficher une courte description lorsque le pointeur se pose sur un contrôle. Le réglage est conservé avec la session.',
               reviewed: true },
+        'zh-Hans': { t: '悬停帮助',
+                     b: '当指针停在控件上时显示简短说明。该设置随会话一起保存。',
+                     reviewed: 'mt' },
     },
     'view-toggle': {
         en: { t: 'View',
@@ -194,6 +221,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Vue',
               b: "Basculer entre le visualiseur de mouvement et l’éditeur de disposition des enceintes.",
               reviewed: true },
+        'zh-Hans': { t: '视图',
+                     b: '在运动可视化视图与扬声器布局编辑器之间切换。',
+                     reviewed: 'mt' },
     },
 
     // ── Speaker-editor toolbar: the named layout library ────────────────────
@@ -203,6 +233,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Dispositions enregistrées',
               b: 'Charger une disposition d’enceintes personnalisée nommée depuis votre bibliothèque.',
               reviewed: true },
+        'zh-Hans': { t: '已保存的布局',
+                     b: '从库中载入一个已命名的自定义扬声器布局。',
+                     reviewed: 'mt' },
     },
     'layout-name': {
         en: { t: 'Layout name',
@@ -210,6 +243,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Nom de la disposition',
               b: 'Nom sous lequel enregistrer la disposition d’enceintes actuelle dans votre bibliothèque.',
               reviewed: true },
+        'zh-Hans': { t: '布局名称',
+                     b: '将当前扬声器摆位保存到库中时使用的名称。',
+                     reviewed: 'mt' },
     },
     'layout-save-btn': {
         en: { t: 'Save layout',
@@ -217,6 +253,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Enregistrer la disposition',
               b: "Enregistrer la disposition d’enceintes actuelle sous le nom saisi à gauche.",
               reviewed: true },
+        'zh-Hans': { t: '保存布局',
+                     b: '以左侧输入的名称保存当前扬声器摆位。',
+                     reviewed: 'mt' },
     },
     'layout-delete-btn': {
         en: { t: 'Delete layout',
@@ -224,6 +263,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Supprimer la disposition',
               b: 'Supprimer la disposition enregistrée sélectionnée. Cliquer une fois pour armer, une seconde fois pour confirmer.',
               reviewed: true },
+        'zh-Hans': { t: '删除布局',
+                     b: '删除选中的已保存布局。点击一次进入待确认状态，再点击一次确认。',
+                     reviewed: 'mt' },
     },
     'export-btn': {
         en: { t: 'Export',
@@ -231,6 +273,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Exporter',
               b: "Exporter la disposition d’enceintes actuelle vers un fichier JSON à partager.",
               reviewed: true },
+        'zh-Hans': { t: '导出',
+                     b: '将当前扬声器布局导出为 JSON 文件以便分享。',
+                     reviewed: 'mt' },
     },
     'import-btn': {
         en: { t: 'Import',
@@ -238,6 +283,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Importer',
               b: "Importer une disposition d’enceintes depuis un fichier JSON.",
               reviewed: true },
+        'zh-Hans': { t: '导入',
+                     b: '从 JSON 文件导入扬声器布局。',
+                     reviewed: 'mt' },
     },
 
     // ── Motion ──────────────────────────────────────────────────────────────
@@ -254,6 +302,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Trajectoire',
               b: 'Trajectoire du mouvement : Orbite décrit un cercle, Pendule oscille, Linéaire balaie puis revient d’un coup, Dérive vagabonde de façon organique, Va-et-vient balaie dans les deux sens sans le retour brusque.',
               reviewed: true },
+        'zh-Hans': { t: '路径',
+                     b: '运动的轨迹：环绕绕圈运行，钟摆来回摆动，线性扫过后瞬间跳回，漂移自然游走，乒乓来回扫动但没有跳回。',
+                     reviewed: 'mt' },
     },
     'speed': {
         en: { t: 'Speed',
@@ -261,6 +312,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse',
               b: 'Vitesse du mouvement en cycles par seconde. Ignorée tant que Sync tempo est réglée sur une division.',
               reviewed: true },
+        'zh-Hans': { t: '速度',
+                     b: '运动速率，单位为每秒周期数。当节拍同步设为某个划分时忽略此项。',
+                     reviewed: 'mt' },
     },
     'width': {
         en: { t: 'Width',
@@ -268,6 +322,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Largeur',
               b: 'Étendue angulaire du mouvement en degrés — 360 fait un cercle complet autour de l’auditeur.',
               reviewed: true },
+        'zh-Hans': { t: '宽度',
+                     b: '运动的角度跨度，单位为度；360 表示绕听者一整圈。',
+                     reviewed: 'mt' },
     },
     'depth': {
         en: { t: 'Depth',
@@ -275,6 +332,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Profondeur',
               b: 'Mouvement de rapprochement et d’éloignement. À 0 %, la source reste au rayon défini par Distance ; au-delà, elle avance et recule à chaque cycle.',
               reviewed: true },
+        'zh-Hans': { t: '深度',
+                     b: '远近方向的运动。为 0% 时，声源停在距离所设的半径上；数值越高，它每个周期靠近再远离您的幅度就越大。',
+                     reviewed: 'mt' },
     },
     'tilt': {
         en: { t: 'Tilt',
@@ -282,6 +342,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Inclinaison',
               b: 'Élévation fixe de la trajectoire en degrés, utilisée tant que le mouvement Élévation est désactivé.',
               reviewed: true },
+        'zh-Hans': { t: '倾斜',
+                     b: '轨迹的固定仰角，单位为度，在仰角运动关闭时使用。',
+                     reviewed: 'mt' },
     },
     'phase': {
         en: { t: 'Phase',
@@ -289,6 +352,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Phase',
               b: 'Décalage dans le cycle du mouvement en degrés — déplace le point de départ de la source.',
               reviewed: true },
+        'zh-Hans': { t: '相位',
+                     b: '在运动周期中的偏移量，单位为度，用于改变声源的起始位置。',
+                     reviewed: 'mt' },
     },
     'elevation_enable': {
         en: { t: 'Elevation',
@@ -296,6 +362,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Élévation',
               b: 'Ajoute un mouvement vertical — la source monte et descend avec le cycle au lieu de rester à l’angle défini par Inclinaison.',
               reviewed: true },
+        'zh-Hans': { t: '仰角',
+                     b: '加入垂直方向的运动：声源随周期上下起伏，而不是停在倾斜所设的角度上。',
+                     reviewed: 'mt' },
     },
     'elevation_range': {
         en: { t: 'Elev Range',
@@ -303,6 +372,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Plage d’élévation',
               b: 'Amplitude du balayage vertical lorsque le mouvement Élévation est actif, en degrés.',
               reviewed: true },
+        'zh-Hans': { t: '仰角范围',
+                     b: '仰角运动开启时垂直摆动的幅度，单位为度。',
+                     reviewed: 'mt' },
     },
     'tempo_sync': {
         en: { t: 'Tempo Sync',
@@ -310,6 +382,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Synchro tempo',
               b: 'Verrouille la vitesse du mouvement sur le tempo de l’hôte à la division choisie : 1/4 donne un cycle par temps, 1 mesure un cycle tous les quatre temps (4/4 supposé). Pendant la lecture, la phase du mouvement se cale sur la position rythmique, ce qui rend les exports déterministes.',
               reviewed: true },
+        'zh-Hans': { t: '节拍同步',
+                     b: '按所选划分把运动速率锁定到宿主速度：1/4 为每拍一个周期，1 小节为每四拍一个周期（按 4/4 计）。走带播放时，运动相位会锁定到节拍位置，因此导出结果是确定的。',
+                     reviewed: 'mt' },
     },
 
     // ── Spatial ─────────────────────────────────────────────────────────────
@@ -319,6 +394,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Disposition des enceintes',
               b: 'Disposition d’enceintes visée. Si la piste compte moins de canaux, un mixage réducteur à énergie constante s’active automatiquement (la pastille ci-dessous l’indique).',
               reviewed: true },
+        'zh-Hans': { t: '扬声器布局',
+                     b: '目标扬声器摆位。当音轨的声道数较少时，会自动启用保持能量的缩混（下方的标记会在其生效时显示）。',
+                     reviewed: 'mt' },
     },
     'downmix-badge': {
         en: { t: 'Downmix',
@@ -329,6 +407,9 @@ export const I18N = Object.freeze({
               termNote: 'a downmix is a CHANNEL fold-down, not the dry/wet Mix control four cells away; '
                       + '"mixage réducteur" is the term French DAWs print for it, and the glossary forbids '
                       + '"mixage" precisely because it means the mixing process — which is what this badge names' },
+        'zh-Hans': { t: '缩混',
+                     b: '当布局的声道数多于音轨输出时显示，表示保持能量的折叠缩混正在生效。',
+                     reviewed: 'mt' },
     },
     'distance': {
         en: { t: 'Distance',
@@ -336,6 +417,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Distance',
               b: 'Distance de base de la source en mètres — plus loin, plus faible et plus sombre.',
               reviewed: true },
+        'zh-Hans': { t: '距离',
+                     b: '声源的基准距离，单位为米；越远越轻，也越暗。',
+                     reviewed: 'mt' },
     },
     'air_absorption': {
         en: { t: 'Air Absorption',
@@ -343,6 +427,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Absorption de l’air',
               b: 'Perte des aigus avec la distance — plus d’absorption assombrit les sources lointaines.',
               reviewed: true },
+        'zh-Hans': { t: '空气吸收',
+                     b: '随距离产生的高频损失；吸收越多，远处的声源就越暗。',
+                     reviewed: 'mt' },
     },
     'attenuation_curve': {
         en: { t: 'Atten Curve',
@@ -350,6 +437,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Courbe d’atténuation',
               b: 'Manière dont le niveau décroît avec la distance : Linéaire, Inverse (1/d) ou Inverse carrée (1/d²).',
               reviewed: true },
+        'zh-Hans': { t: '衰减曲线',
+                     b: '电平随距离下降的方式：线性、反比（1/d）或反比平方（1/d²）。',
+                     reviewed: 'mt' },
     },
     'center_diverge': {
         en: { t: 'Center Diverge',
@@ -357,6 +447,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Divergence centrale',
               b: 'Répartit l’énergie sur davantage d’enceintes à mesure qu’elle augmente — à 0 %, l’image ponctuelle est la plus précise.',
               reviewed: true },
+        'zh-Hans': { t: '中置发散',
+                     b: '数值越高，能量分散到越多的扬声器上；为 0% 时点声源的定位最锐利。',
+                     reviewed: 'mt' },
     },
 
     // ── Source / Mix ────────────────────────────────────────────────────────
@@ -366,6 +459,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Mode source',
               b: 'Mono additionne l’entrée en une seule source mobile ; Séparé G+D déplace les canaux gauche et droit comme deux sources distinctes.',
               reviewed: true },
+        'zh-Hans': { t: '源模式',
+                     b: '单声道把输入相加为一个移动的声源；L+R 分离则把左右声道作为两个独立的声源移动。',
+                     reviewed: 'mt' },
     },
     'lr_offset': {
         en: { t: 'L/R Offset',
@@ -373,6 +469,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Décalage G/D',
               b: 'Angle entre les sources gauche et droite en mode Séparé G+D — 180° les maintient opposées.',
               reviewed: true },
+        'zh-Hans': { t: 'L/R 偏移',
+                     b: 'L+R 分离模式下左右两个声源之间的夹角；180° 使二者始终相对。',
+                     reviewed: 'mt' },
     },
     'mix': {
         en: { t: 'Mix',
@@ -380,6 +479,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Mix',
               b: 'Équilibre son direct / son traité. Le son traité est le signal spatialisé sur toutes les sorties ; le son direct reste sur ses canaux d’entrée d’origine.',
               reviewed: true },
+        'zh-Hans': { t: '混合',
+                     b: '干湿平衡。湿声是所有输出上的空间化信号；干声则留在其原有的输入声道上。',
+                     reviewed: 'mt' },
     },
 });
 
@@ -408,9 +510,12 @@ export const LABELS = Object.freeze({
     // buttons sit in a 34px header band beside a 130-190px preset readout, two
     // 20px nav circles and the gear, at 10px uppercase. The abbreviations are
     // the same ones O-ReverseDelay settled on in Stage H.
-    'label.save':    { en: { t: 'Save' },   fr: { t: 'Enreg.',  reviewed: true } },
-    'label.load':    { en: { t: 'Load' },   fr: { t: 'Ouvrir',  reviewed: true } },
-    'label.delete':  { en: { t: 'Del' },    fr: { t: 'Suppr.',  reviewed: true } },
+    'label.save':    { en: { t: 'Save' },   fr: { t: 'Enreg.',  reviewed: true },
+                       'zh-Hans': { t: '保存', reviewed: 'mt' } },
+    'label.load':    { en: { t: 'Load' },   fr: { t: 'Ouvrir',  reviewed: true },
+                       'zh-Hans': { t: '载入', reviewed: 'mt' } },
+    'label.delete':  { en: { t: 'Del' },    fr: { t: 'Suppr.',  reviewed: true },
+                       'zh-Hans': { t: '删除', reviewed: 'mt' } },
 
     // The armed face of BOTH two-click delete buttons — the preset one in the
     // header and the layout one in the editor toolbar. It goes through
@@ -421,16 +526,19 @@ export const LABELS = Object.freeze({
     // asks for — and the wrong one the moment the page had two languages: an
     // attribute holds ONE string, so a language switch while a button was armed
     // would have restored the ENGLISH armed face.
-    'ui.confirm':    { en: { t: 'Sure?' },  fr: { t: 'Sûr ?',   reviewed: true } },
+    'ui.confirm':    { en: { t: 'Sure?' },  fr: { t: 'Sûr ?',   reviewed: true },
+                       'zh-Hans': { t: '确定？', reviewed: 'mt' } },
 
     // ── The view toggle, both faces ─────────────────────────────────────────
     // Written from script on every click, so both faces are keys. Two separate
     // setLabel() calls in the two arms of the if/else, never one call with a
     // ternary in its argument: check-i18n assertion 13 rejects that shape.
     'label.viewMotion': { en: { t: 'Motion View' },
-                          fr: { t: 'Vue mouvement', reviewed: true } },
+                          fr: { t: 'Vue mouvement', reviewed: true },
+                          'zh-Hans': { t: '运动视图', reviewed: 'mt' } },
     'label.viewEditor': { en: { t: 'Speaker Editor' },
-                          fr: { t: 'Éditeur d’enceintes', reviewed: true } },
+                          fr: { t: 'Éditeur d’enceintes', reviewed: true },
+                          'zh-Hans': { t: '扬声器编辑器', reviewed: 'mt' } },
 
     // ── The elevation toggle, both faces ────────────────────────────────────
     // ONE key pair, TWO controls: the 50px elevation pill (.toggle-label) and
@@ -468,28 +576,37 @@ export const LABELS = Object.freeze({
                        fr: { t: 'Oui', reviewed: true,
                              termNote: 'MARCHE measures 53.06px and ACTIVÉ 46.33px in the elevation pill\'s '
                                      + '46.00px content box, and MARCHE 45.80px in the settings toggle\'s 44.00px '
-                                     + 'box — no glossary form fits either site, so the pair stays as drafted' } },
+                                     + 'box — no glossary form fits either site, so the pair stays as drafted' },
+                       'zh-Hans': { t: '开启', reviewed: 'mt' } },
     'ui.off':        { en: { t: 'Off' },
                        fr: { t: 'Non', reviewed: true,
                              termNote: 'ARRÊT does fit (41.06px of 46.00, 35.28px of 44.00) but its partner does '
                                      + 'not, and ARRÊT opposite OUI is a mismatched pair on one toggle — held '
-                                     + 'with ui.on; the pill is 11px by decision since v1.2.2 (dead 9px rule removed)' } },
+                                     + 'with ui.on; the pill is 11px by decision since v1.2.2 (dead 9px rule removed)' },
+                       'zh-Hans': { t: '关闭', reviewed: 'mt' } },
 
     // ── Editor toolbar: the eight layout preset buttons ─────────────────────
     // 5.1, 7.1, 5.1.4 and 7.1.4 are absent: a channel-count designation is
     // digits and dots, it is identical in both languages, and the coverage scan
     // classifies it as a non-label for exactly that reason. Only the four
     // WORDED buttons need keys.
-    'label.fmtStereo': { en: { t: 'Stereo' }, fr: { t: 'Stéréo', reviewed: true } },
-    'label.fmtQuad':   { en: { t: 'Quad' },   fr: { t: 'Quad',   reviewed: true, sameAsEn: true } },
-    'label.fmtHex':    { en: { t: 'Hex' },    fr: { t: 'Hexa',   reviewed: true } },
-    'label.fmtOct':    { en: { t: 'Oct' },    fr: { t: 'Octo',   reviewed: true } },
+    'label.fmtStereo': { en: { t: 'Stereo' }, fr: { t: 'Stéréo', reviewed: true },
+                         'zh-Hans': { t: '立体声', reviewed: 'mt' } },
+    'label.fmtQuad':   { en: { t: 'Quad' },   fr: { t: 'Quad',   reviewed: true, sameAsEn: true },
+                         'zh-Hans': { t: '四声道', reviewed: 'mt' } },
+    'label.fmtHex':    { en: { t: 'Hex' },    fr: { t: 'Hexa',   reviewed: true },
+                         'zh-Hans': { t: '六声道', reviewed: 'mt' } },
+    'label.fmtOct':    { en: { t: 'Oct' },    fr: { t: 'Octo',   reviewed: true },
+                         'zh-Hans': { t: '八声道', reviewed: 'mt' } },
 
     // ── Editor toolbar: the layout library and file buttons ─────────────────
     'label.layoutsPlaceholder': { en: { t: 'Layouts…' },
-                                  fr: { t: 'Dispositions…', reviewed: true } },
-    'label.export':  { en: { t: 'Export' }, fr: { t: 'Exporter', reviewed: true } },
-    'label.import':  { en: { t: 'Import' }, fr: { t: 'Importer', reviewed: true } },
+                                  fr: { t: 'Dispositions…', reviewed: true },
+                                  'zh-Hans': { t: '布局…', reviewed: 'mt' } },
+    'label.export':  { en: { t: 'Export' }, fr: { t: 'Exporter', reviewed: true },
+                       'zh-Hans': { t: '导出', reviewed: 'mt' } },
+    'label.import':  { en: { t: 'Import' }, fr: { t: 'Importer', reviewed: true },
+                       'zh-Hans': { t: '导入', reviewed: 'mt' } },
 
     // ── Group headings ──────────────────────────────────────────────────────
     // "Source / Mix", not the v1.2.0 draft's "Source / Mixage": the suite
@@ -498,11 +615,14 @@ export const LABELS = Object.freeze({
     // heading then equals its English, so it carries sameAsEn: true, which is
     // the declaration that a reader looked and agreed the word is French too.
     'label.groupMotion':   { en: { t: 'Motion' },
-                             fr: { t: 'Mouvement', reviewed: true } },
+                             fr: { t: 'Mouvement', reviewed: true },
+                             'zh-Hans': { t: '运动', reviewed: 'mt' } },
     'label.groupSpatial':  { en: { t: 'Spatial' },
-                             fr: { t: 'Spatial', reviewed: true, sameAsEn: true } },
+                             fr: { t: 'Spatial', reviewed: true, sameAsEn: true },
+                             'zh-Hans': { t: '空间', reviewed: 'mt' } },
     'label.groupSourceMix': { en: { t: 'Source / Mix' },
-                              fr: { t: 'Source / Mix', reviewed: true, sameAsEn: true } },
+                              fr: { t: 'Source / Mix', reviewed: true, sameAsEn: true },
+                              'zh-Hans': { t: '源 / 混合', reviewed: 'mt' } },
 
     // ── Motion parameter captions ───────────────────────────────────────────
     // Eight of these are identical to their tooltip TITLE in both languages and
@@ -511,14 +631,22 @@ export const LABELS = Object.freeze({
     // ALREADY diverge here (Elev Range / Plage élév., Atten Curve / Courbe
     // attén.) prove the divergence is not hypothetical on this page — the
     // captions live in 90px grid cells and the titles live in a 230px tip.
-    'label.path':      { en: { t: 'Path' },       fr: { t: 'Trajectoire', reviewed: true } },
-    'label.speed':     { en: { t: 'Speed' },      fr: { t: 'Vitesse',     reviewed: true } },
-    'label.width':     { en: { t: 'Width' },      fr: { t: 'Largeur',     reviewed: true } },
-    'label.depth':     { en: { t: 'Depth' },      fr: { t: 'Profondeur',  reviewed: true } },
-    'label.tilt':      { en: { t: 'Tilt' },       fr: { t: 'Inclinaison', reviewed: true } },
-    'label.phase':     { en: { t: 'Phase' },      fr: { t: 'Phase', reviewed: true, sameAsEn: true } },
-    'label.elevation': { en: { t: 'Elevation' },  fr: { t: 'Élévation',   reviewed: true } },
-    'label.elevRange': { en: { t: 'Elev Range' }, fr: { t: 'Plage élév.', reviewed: true } },
+    'label.path':      { en: { t: 'Path' },       fr: { t: 'Trajectoire', reviewed: true },
+                         'zh-Hans': { t: '路径', reviewed: 'mt' } },
+    'label.speed':     { en: { t: 'Speed' },      fr: { t: 'Vitesse',     reviewed: true },
+                         'zh-Hans': { t: '速度', reviewed: 'mt' } },
+    'label.width':     { en: { t: 'Width' },      fr: { t: 'Largeur',     reviewed: true },
+                         'zh-Hans': { t: '宽度', reviewed: 'mt' } },
+    'label.depth':     { en: { t: 'Depth' },      fr: { t: 'Profondeur',  reviewed: true },
+                         'zh-Hans': { t: '深度', reviewed: 'mt' } },
+    'label.tilt':      { en: { t: 'Tilt' },       fr: { t: 'Inclinaison', reviewed: true },
+                         'zh-Hans': { t: '倾斜', reviewed: 'mt' } },
+    'label.phase':     { en: { t: 'Phase' },      fr: { t: 'Phase', reviewed: true, sameAsEn: true },
+                         'zh-Hans': { t: '相位', reviewed: 'mt' } },
+    'label.elevation': { en: { t: 'Elevation' },  fr: { t: 'Élévation',   reviewed: true },
+                         'zh-Hans': { t: '仰角', reviewed: 'mt' } },
+    'label.elevRange': { en: { t: 'Elev Range' }, fr: { t: 'Plage élév.', reviewed: true },
+                         'zh-Hans': { t: '仰角范围', reviewed: 'mt' } },
     // SIZED, and this is the one French string on this page that was.
     // "Synchro tempo" measures 105.4px in this cell's own font and the Motion
     // group's grid track is 100.3px (repeat(auto-fit, minmax(90px, 1fr)) over
@@ -526,18 +654,24 @@ export const LABELS = Object.freeze({
     // and pushed the #tempo_sync select down 13px. "Sync tempo" measures 79.2 —
     // 21px of margin — and "Sync" is what French DAW interfaces call this. The
     // full phrase survives as the tooltip TITLE, which renders in a 230px box.
-    'label.tempoSync': { en: { t: 'Tempo Sync' }, fr: { t: 'Sync tempo', reviewed: true } },
+    'label.tempoSync': { en: { t: 'Tempo Sync' }, fr: { t: 'Sync tempo', reviewed: true },
+                         'zh-Hans': { t: '节拍同步', reviewed: 'mt' } },
 
     // ── Path dropdown options ───────────────────────────────────────────────
-    'label.pathOrbit':    { en: { t: 'Orbit' },     fr: { t: 'Orbite',      reviewed: true } },
-    'label.pathPendulum': { en: { t: 'Pendulum' },  fr: { t: 'Pendule',     reviewed: true } },
-    'label.pathDrift':    { en: { t: 'Drift' },     fr: { t: 'Dérive',      reviewed: true } },
-    'label.pathPingPong': { en: { t: 'Ping-Pong' }, fr: { t: 'Va-et-vient', reviewed: true } },
+    'label.pathOrbit':    { en: { t: 'Orbit' },     fr: { t: 'Orbite',      reviewed: true },
+                            'zh-Hans': { t: '环绕', reviewed: 'mt' } },
+    'label.pathPendulum': { en: { t: 'Pendulum' },  fr: { t: 'Pendule',     reviewed: true },
+                            'zh-Hans': { t: '钟摆', reviewed: 'mt' } },
+    'label.pathDrift':    { en: { t: 'Drift' },     fr: { t: 'Dérive',      reviewed: true },
+                            'zh-Hans': { t: '漂移', reviewed: 'mt' } },
+    'label.pathPingPong': { en: { t: 'Ping-Pong' }, fr: { t: 'Va-et-vient', reviewed: true },
+                            'zh-Hans': { t: '乒乓', reviewed: 'mt' } },
 
     // Shared by the Path dropdown and the Atten Curve dropdown. Identical in
     // BOTH languages at both sites, which is the only condition under which the
     // reuse rule allows one key to serve two controls.
-    'label.linear':       { en: { t: 'Linear' },    fr: { t: 'Linéaire',    reviewed: true } },
+    'label.linear':       { en: { t: 'Linear' },    fr: { t: 'Linéaire',    reviewed: true },
+                            'zh-Hans': { t: '线性', reviewed: 'mt' } },
 
     // ── Tempo Sync dropdown: the four WORDED options ────────────────────────
     // The eleven note-value options (1/16T … 1/2D) are digits, slashes and the
@@ -550,10 +684,14 @@ export const LABELS = Object.freeze({
     // to spare, against the v1.2.0 draft's clipped "Désact." 32.69px. The
     // feature sense, not "Aucune": the English is Off, and Off here means the
     // sync is not running, not that a division is unselected.
-    'label.syncOff':   { en: { t: 'Off' },     fr: { t: 'Désactivé',  reviewed: true } },
-    'label.bar1':      { en: { t: '1 Bar' },   fr: { t: '1 mesure',   reviewed: true } },
-    'label.bars2':     { en: { t: '2 Bars' },  fr: { t: '2 mesures',  reviewed: true } },
-    'label.bars4':     { en: { t: '4 Bars' },  fr: { t: '4 mesures',  reviewed: true } },
+    'label.syncOff':   { en: { t: 'Off' },     fr: { t: 'Désactivé',  reviewed: true },
+                         'zh-Hans': { t: '关闭', reviewed: 'mt' } },
+    'label.bar1':      { en: { t: '1 Bar' },   fr: { t: '1 mesure',   reviewed: true },
+                         'zh-Hans': { t: '1 小节', reviewed: 'mt' } },
+    'label.bars2':     { en: { t: '2 Bars' },  fr: { t: '2 mesures',  reviewed: true },
+                         'zh-Hans': { t: '2 小节', reviewed: 'mt' } },
+    'label.bars4':     { en: { t: '4 Bars' },  fr: { t: '4 mesures',  reviewed: true },
+                         'zh-Hans': { t: '4 小节', reviewed: 'mt' } },
 
     // ── Spatial parameter captions ──────────────────────────────────────────
     // "Enceintes", not "Disposition des enceintes": this caption sits in a
@@ -561,9 +699,11 @@ export const LABELS = Object.freeze({
     // Layout" already wraps to two lines there. The full phrase is what the
     // TOOLTIP title says.
     'label.speakerLayout': { en: { t: 'Speaker Layout' },
-                             fr: { t: 'Enceintes', reviewed: true } },
+                             fr: { t: 'Enceintes', reviewed: true },
+                             'zh-Hans': { t: '扬声器布局', reviewed: 'mt' } },
     'label.distance':      { en: { t: 'Distance' },
-                             fr: { t: 'Distance', reviewed: true, sameAsEn: true } },
+                             fr: { t: 'Distance', reviewed: true, sameAsEn: true },
+                             'zh-Hans': { t: '距离', reviewed: 'mt' } },
     // "Absorption air" is the glossary's short form and it is FREE here: at
     // 11px uppercase it measures 104.17px, the same 104.17px as the English
     // "Air Absorption" it replaces, letter for letter. The v1.2.0 draft's bare
@@ -571,38 +711,50 @@ export const LABELS = Object.freeze({
     // absorbing. The full "Absorption de l'air" is 135.88px and does not fit;
     // it is what the TOOLTIP title says.
     'label.airAbsorption': { en: { t: 'Air Absorption' },
-                             fr: { t: 'Absorption air', reviewed: true } },
+                             fr: { t: 'Absorption air', reviewed: true },
+                             'zh-Hans': { t: '空气吸收', reviewed: 'mt' } },
     'label.attenCurve':    { en: { t: 'Atten Curve' },
-                             fr: { t: 'Courbe attén.', reviewed: true } },
+                             fr: { t: 'Courbe attén.', reviewed: true },
+                             'zh-Hans': { t: '衰减曲线', reviewed: 'mt' } },
     'label.centerDiverge': { en: { t: 'Center Diverge' },
-                             fr: { t: 'Divergence', reviewed: true } },
+                             fr: { t: 'Divergence', reviewed: true },
+                             'zh-Hans': { t: '中置发散', reviewed: 'mt' } },
 
     // ── Speaker Layout dropdown: the four WORDED options ────────────────────
     // Stereo and Quad reuse the toolbar buttons' keys — same string, same two
     // languages, same meaning. Hexaphonic and Octaphonic are the full words the
     // toolbar abbreviates and need their own.
     'label.hexaphonic':    { en: { t: 'Hexaphonic' },
-                             fr: { t: 'Hexaphonique', reviewed: true } },
+                             fr: { t: 'Hexaphonique', reviewed: true },
+                             'zh-Hans': { t: '六声道', reviewed: 'mt' } },
     'label.octaphonic':    { en: { t: 'Octaphonic' },
-                             fr: { t: 'Octophonique', reviewed: true } },
+                             fr: { t: 'Octophonique', reviewed: true },
+                             'zh-Hans': { t: '八声道', reviewed: 'mt' } },
 
     // ── Atten Curve dropdown options ────────────────────────────────────────
     'label.inverse':       { en: { t: 'Inverse' },
-                             fr: { t: 'Inverse', reviewed: true, sameAsEn: true } },
+                             fr: { t: 'Inverse', reviewed: true, sameAsEn: true },
+                             'zh-Hans': { t: '反比', reviewed: 'mt' } },
     'label.inverseSquare': { en: { t: 'Inverse Square' },
-                             fr: { t: 'Inverse carrée', reviewed: true } },
+                             fr: { t: 'Inverse carrée', reviewed: true },
+                             'zh-Hans': { t: '反比平方', reviewed: 'mt' } },
 
     // ── Source / Mix ────────────────────────────────────────────────────────
     'label.sourceMode': { en: { t: 'Source Mode' },
-                          fr: { t: 'Mode source', reviewed: true } },
+                          fr: { t: 'Mode source', reviewed: true },
+                          'zh-Hans': { t: '源模式', reviewed: 'mt' } },
     'label.mono':       { en: { t: 'Mono' },
-                          fr: { t: 'Mono', reviewed: true, sameAsEn: true } },
+                          fr: { t: 'Mono', reviewed: true, sameAsEn: true },
+                          'zh-Hans': { t: '单声道', reviewed: 'mt' } },
     'label.lrSplit':    { en: { t: 'L+R Split' },
-                          fr: { t: 'Séparé G+D', reviewed: true } },
+                          fr: { t: 'Séparé G+D', reviewed: true },
+                          'zh-Hans': { t: 'L+R 分离', reviewed: 'mt' } },
     'label.lrOffset':   { en: { t: 'L/R Offset' },
-                          fr: { t: 'Décalage G/D', reviewed: true } },
+                          fr: { t: 'Décalage G/D', reviewed: true },
+                          'zh-Hans': { t: 'L/R 偏移', reviewed: 'mt' } },
     'label.mix':        { en: { t: 'Mix' },
-                          fr: { t: 'Mix', reviewed: true, sameAsEn: true } },
+                          fr: { t: 'Mix', reviewed: true, sameAsEn: true },
+                          'zh-Hans': { t: '混合', reviewed: 'mt' } },
 
     // ── The downmix badge ───────────────────────────────────────────────────
     // A COMPOSED entry, and the only one on this page. The two numbers are
@@ -613,7 +765,8 @@ export const LABELS = Object.freeze({
     // ride on the element as data-i18n-vars and the language sweep re-renders
     // the badge with the SAME counts rather than a stale English face.
     'ui.downmix':       { en: { t: '{from}ch → {to}ch' },
-                          fr: { t: '{from} can. → {to} can.', reviewed: true } },
+                          fr: { t: '{from} can. → {to} can.', reviewed: true },
+                          'zh-Hans': { t: '{from} 声道 → {to} 声道', reviewed: 'mt' } },
 
     // ── Accessible names ────────────────────────────────────────────────────
     // #preset-prev and #preset-next do NOT appear here: their accessible name
@@ -622,20 +775,26 @@ export const LABELS = Object.freeze({
     // it. The four below differ from their control's tip title, or belong to a
     // control that has no tip.
     'aria.browsePresets': { en: { t: 'Browse presets' },
-                            fr: { t: 'Parcourir les préréglages', reviewed: true } },
+                            fr: { t: 'Parcourir les préréglages', reviewed: true },
+                            'zh-Hans': { t: '浏览预设', reviewed: 'mt' } },
     'aria.presets':       { en: { t: 'Presets' },
-                            fr: { t: 'Préréglages', reviewed: true } },
+                            fr: { t: 'Préréglages', reviewed: true },
+                            'zh-Hans': { t: '预设', reviewed: 'mt' } },
     'aria.helpToggle':    { en: { t: 'Toggle hover help' },
-                            fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+                            fr: { t: 'Activer ou désactiver les infobulles', reviewed: true },
+                            'zh-Hans': { t: '开关悬停帮助', reviewed: 'mt' } },
     'aria.settings':      { en: { t: 'Settings' },
-                            fr: { t: 'Réglages', reviewed: true } },
+                            fr: { t: 'Réglages', reviewed: true },
+                            'zh-Hans': { t: '设置', reviewed: 'mt' } },
     'aria.langSelect':    { en: { t: 'Interface language' },
-                            fr: { t: 'Langue de l’interface', reviewed: true } },
+                            fr: { t: 'Langue de l’interface', reviewed: true },
+                            'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
 
     // The layout-name field's placeholder. Lower-case in both, matching the
     // authored English — a placeholder on this page is a hint, not a caption.
     'placeholder.layoutName': { en: { t: 'name…' },
-                                fr: { t: 'nom…', reviewed: true } },
+                                fr: { t: 'nom…', reviewed: true },
+                                'zh-Hans': { t: '名称…', reviewed: 'mt' } },
 });
 
 // ============================================================================
@@ -666,6 +825,7 @@ export const I18N_EXEMPT = [
     // "Français", not "French".
     ['English',  'endonym — a language name is never translated'],
     ['Français', 'endonym — a language name is never translated'],
+    ['简体中文', 'endonym — a language name is never translated'],
 ];
 
 // ============================================================================
