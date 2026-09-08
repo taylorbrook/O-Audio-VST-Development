@@ -898,7 +898,11 @@ head(15, 'the stub\'s 28 ranges + defaults match createParameterLayout() PARSED 
     // The two neutral-default traps, named so a failure says WHICH.
     for (let i = 1; i <= 8; ++i)
         check(layout.get(`w${i}`)?.def === 1, `w${i} defaults to 1.0, NOT its range minimum`);
-    check(layout.get('blur')?.def === 0.03, 'blur defaults to 0.03, a non-endpoint');
+    // v1.13.0: 0.03 -> 0.09, moved with the square blur law so the shipped radius stayed put.
+    // The VALUE is pinned, not merely the "non-endpoint" property, because a default that drifted
+    // to some other interior value would still be a regression the stub has to follow — which is
+    // exactly what section 15 above caught when only the C++ side moved.
+    check(layout.get('blur')?.def === 0.09, 'blur defaults to 0.09, a non-endpoint');
     check(layout.get('airAmount')?.def === 0.35, 'airAmount defaults to 0.35, a non-endpoint');
 }
 

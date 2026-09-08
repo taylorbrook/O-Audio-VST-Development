@@ -30,12 +30,21 @@ namespace oo::dbap
 //==============================================================================
 float blurToRadius (float blur, float rigScale) noexcept
 {
-    const float r = blur * kBlurScale * rigScale;
+    // SQUARE law (v1.13.0) — blur·blur, never a pow(): probe AE asserts the exact std::pow count
+    // and this function runs inside the control-rate budget it measures.
+    const float r = blur * blur * kBlurScale * rigScale;
 
     // Two independent ceilings, both deliberate: the exposed 0-1 range IS the musical cap
-    // (blur = 1 → half the RMS rig radius), and kMaxBlurMetres is an absolute backstop so a
+    // (blur = 1 → six RMS rig radii, a full wash), and kMaxBlurMetres is an absolute backstop so a
     // mistyped 1000 m coordinate cannot produce an r_s that swamps the array (§3.3.2).
     return r < kMaxBlurMetres ? r : kMaxBlurMetres;
+}
+
+float blurFractionLinearToSquare (float oldFraction) noexcept
+{
+    const float clamped = oldFraction < 0.0f ? 0.0f : (oldFraction > 1.0f ? 1.0f : oldFraction);
+
+    return 0.5f * std::sqrt (clamped);
 }
 
 float rolloffToAlpha (float rolloff) noexcept

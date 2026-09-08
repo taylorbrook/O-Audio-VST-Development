@@ -25,7 +25,7 @@ The original DBAP paper's equations 3-6 and 9-10 are WRONG
 edition:
 
     a      = rolloff / (20 * log10(2))
-    r_s    = min(blur * 1.5 * rigScale, 24.0)                 [metres]  (v1.3.0 scale)
+    r_s    = min(blur^2 * 6.0 * rigScale, 200.0)              [metres]  (v1.13.0 square law)
     d_i    = max(sqrt(dx^2 + dy^2 + dz^2 + r_s^2), 0.05)      [metres, 3D — the z term is real]
     u_i    = w_i * d_i^(-a)
     S      = sum(u_i^2)
@@ -67,8 +67,8 @@ NUM_SPEAKERS = 8
 # §3.3.1 constants, restated here rather than parsed out of the C++ — a reference that reads its
 # constants from the thing it checks is not a reference.
 MIN_DISTANCE = 0.05
-MAX_BLUR_METRES = 24.0   # v1.3.0 audibility rescale (was 8.0)
-BLUR_SCALE = 1.5         # v1.3.0 audibility rescale (was 0.5)
+MAX_BLUR_METRES = 200.0  # v1.13.0 square-law rescale (was 24.0; 8.0 before v1.3.0)
+BLUR_SCALE = 6.0         # v1.13.0 square-law rescale (was 1.5; 0.5 before v1.3.0)
 DENOM_EPSILON = 1e-20
 
 # ARCHITECTURE §OQ4's default venue. The fixture is SELF-CONTAINED (CONTEXT-2.2 D3): it carries
@@ -139,7 +139,7 @@ def rig_scale(speakers):
 def solve_reference(speakers, weights, src, rolloff, blur, scale):
     """Equations 9-10, 2011-04-14 revision. Returns the 8 gains."""
     a = rolloff / (20.0 * math.log10(2.0))
-    r_s = min(blur * BLUR_SCALE * scale, MAX_BLUR_METRES)
+    r_s = min(blur * blur * BLUR_SCALE * scale, MAX_BLUR_METRES)   # SQUARE law since v1.13.0
     rs_sq = r_s * r_s
 
     # d_i^(-a) via exp(-a*log d) — NOT pow(), and NOT the implementation's t/t*t reuse.

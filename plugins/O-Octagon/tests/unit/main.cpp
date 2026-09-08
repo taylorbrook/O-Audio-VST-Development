@@ -1713,12 +1713,13 @@ int main()
             invariant = invariant && near (scaled, 2.0f * base, 1.0e-4f);
         }
 
-        // The §3.3.2 table at the v1.3.0 scale (kBlurScale 1.5 — the audibility rescale; the
-        // pre-1.3 values were exactly a third of these).
+        // The §3.3.2 table at the v1.13.0 SQUARE law (kBlurScale 6): r_s = blur² · 6 · rigScale on
+        // the default rig (rigScale 7.932). The v1.3.0 linear endpoint (11.90 m) now sits at
+        // half knob; blur 1 is four times that. A linear law would put 0.10 at 4.76 m.
         const bool table = near (oo::dbap::blurToRadius (0.0f,  rigScale), 0.0f,   1.0e-6f)
-                        && near (oo::dbap::blurToRadius (0.10f, rigScale), 1.19f,  0.01f)
-                        && near (oo::dbap::blurToRadius (0.50f, rigScale), 5.95f,  0.01f)
-                        && near (oo::dbap::blurToRadius (1.0f,  rigScale), 11.90f, 0.01f);
+                        && near (oo::dbap::blurToRadius (0.10f, rigScale), 0.476f, 0.005f)
+                        && near (oo::dbap::blurToRadius (0.50f, rigScale), 11.90f, 0.01f)
+                        && near (oo::dbap::blurToRadius (1.0f,  rigScale), 47.59f, 0.01f);
 
         // The absolute backstop: a mistyped 1000 m coordinate must not produce an r_s that swamps
         // the array.
@@ -1729,9 +1730,9 @@ int main()
 
         check ("AG blur-to-radius", ok,
                juce::String ("blur 0.50 -> ") + juce::String (oo::dbap::blurToRadius (0.50f, rigScale), 4)
-                   + " m (v1.3.0 scale says 5.95), "
+                   + " m (v1.13.0 square law says 11.90), "
                    + (invariant ? "scaling invariant holds" : "INVARIANT VIOLATED")
-                   + ", " + (capped ? "24 m cap enforced" : "CAP NOT ENFORCED"));
+                   + ", " + (capped ? "200 m cap enforced" : "CAP NOT ENFORCED"));
     }
 
     //==========================================================================
@@ -1841,20 +1842,26 @@ int main()
         bool         ok = true;
         juce::String detail;
 
-        // 1. §3.5.2's four-row table at 48 kHz. The arithmetic is exact; 1 Hz is ample.
+        // v1.13.0 — the curve is scaled by rigScale (dRef = 0.2 · rigScale). A 10 m rig makes
+        // dRef exactly 2 m, so every row below is one exp2 of a round exponent.
+        constexpr float kProbeRig = 10.0f;
+
+        // 1. The four-row table at 48 kHz. The arithmetic is exact; 1 Hz is ample.
+        //    (0.35, 5 m) → 2^-0.875; (0.35, 15 m) → 2^-2.625; (1, 5 m) → 2^-2.5; (1, 10 m) → 2^-5.
         {
             struct Row { float air; float d; float fc; };
 
             const std::array<Row, 4> table
-                { { { 0.35f,  5.0f, 13348.4f },
-                    { 0.35f, 15.0f,  5946.0f },
-                    { 1.00f,  5.0f,  6299.6f },
-                    { 1.00f, 15.0f,   625.0f } } };
+                { { { 0.35f,  5.0f, 10905.1f },
+                    { 0.35f, 15.0f,  3242.1f },
+                    { 1.00f,  5.0f,  3535.5f },
+                    { 1.00f, 10.0f,   625.0f } } };
 
             bool tableOk = true;
 
             for (const auto& r : table)
-                tableOk = tableOk && near (oo::hullproc::airCutoffHz (r.air, r.d, 48000.0), r.fc, 1.0f);
+                tableOk = tableOk && near (oo::hullproc::airCutoffHz (r.air, r.d, kProbeRig, 48000.0),
+                                           r.fc, 1.0f);
 
             ok = ok && tableOk;
             detail << "§3.5.2 table @48k " << (tableOk ? "exact to 1 Hz" : "MISMATCH") << "; ";
@@ -1873,7 +1880,8 @@ int main()
 
             for (const auto& r : rates)
                 ceilingOk = ceilingOk
-                         && near (oo::hullproc::airCutoffHz (0.35f, 0.0f, r.fs), r.ceiling, 0.01f);
+                         && near (oo::hullproc::airCutoffHz (0.35f, 0.0f, kProbeRig, r.fs),
+                                  r.ceiling, 0.01f);
 
             ok = ok && ceilingOk;
             detail << "ceilings " << (ceilingOk ? "9922.5/14400/19845/20000" : "WRONG") << "; ";
@@ -1896,7 +1904,7 @@ int main()
                     {
                         const float air = 0.05f * static_cast<float> (ai);
                         const float d   = 1.0f  * static_cast<float> (di);
-                        const float fc  = oo::hullproc::airCutoffHz (air, d, fs);
+                        const float fc  = oo::hullproc::airCutoffHz (air, d, kProbeRig, fs);
 
                         belowNyquist = belowNyquist && fc < nyquist && fc > 0.0f
                                     && std::isfinite (fc);
@@ -1904,7 +1912,8 @@ int main()
                         // The floor takes the ceiling as its own upper bound, so the clamp cannot
                         // invert: no returned value may exceed the d_hull = 0 ceiling at that rate.
                         floorNeverInverts = floorNeverInverts
-                                         && fc <= oo::hullproc::airCutoffHz (0.0f, 0.0f, fs) + 1.0e-3f;
+                                         && fc <= oo::hullproc::airCutoffHz (0.0f, 0.0f, kProbeRig, fs)
+                                                  + 1.0e-3f;
                     }
             }
 
@@ -1913,21 +1922,51 @@ int main()
                    << "/" << (floorNeverInverts ? "clamp never inverts" : "CLAMP INVERTED") << "; ";
         }
 
-        // 4. The floor binds only at extremes — at airAmount = 1.0 it is reached at d_hull ≈
-        //    15.97 m, off the far edge of any realistic hall. Asserted from BOTH sides so a floor
-        //    that had swallowed the whole curve would fail.
+        // 4. The floor binds only at extremes — at airAmount = 1.0 it is reached at d_air ≈
+        //    1.06 rig radii (10.64 m on the 10 m probe rig), i.e. the far corners of the
+        //    reachable plane. Asserted from BOTH sides so a floor that had swallowed the whole
+        //    curve would fail.
         {
-            const float justInside  = oo::hullproc::airCutoffHz (1.0f, 15.0f, 48000.0);
-            const float wellBeyond  = oo::hullproc::airCutoffHz (1.0f, 25.0f, 48000.0);
+            const float justInside  = oo::hullproc::airCutoffHz (1.0f, 10.0f, kProbeRig, 48000.0);
+            const float wellBeyond  = oo::hullproc::airCutoffHz (1.0f, 15.0f, kProbeRig, 48000.0);
 
             const bool floorHolds = wellBeyond > oo::hullproc::kAirFloorHz - 1.0e-3f
                                  && wellBeyond < oo::hullproc::kAirFloorHz + 1.0e-3f
                                  && justInside > oo::hullproc::kAirFloorHz;
 
             ok = ok && floorHolds;
-            detail << "floor: " << juce::String (justInside, 1) << " Hz @15 m -> "
-                   << juce::String (wellBeyond, 1) << " Hz @25 m"
-                   << (floorHolds ? "" : " — FLOOR WRONG");
+            detail << "floor: " << juce::String (justInside, 1) << " Hz @10 m -> "
+                   << juce::String (wellBeyond, 1) << " Hz @15 m"
+                   << (floorHolds ? "" : " — FLOOR WRONG") << "; ";
+        }
+
+        // 5. v1.13.0 — the driving distance and the two invariants the new law adds.
+        //    (a) DSP-08: the curve is rig-relative — doubling the rig AND the distance leaves fc
+        //        unchanged. (b) The near field: airDistanceMetres() is EXACTLY 0.0f at the centroid
+        //        and anywhere inside 0.1 rigScale, and is (d − 0.1·rigScale) beyond it. (c) A
+        //        degenerate rig returns the ceiling, finite, rather than 0/0.
+        {
+            const float fA = oo::hullproc::airCutoffHz (0.6f, 4.0f, 10.0f, 48000.0);
+            const float fB = oo::hullproc::airCutoffHz (0.6f, 8.0f, 20.0f, 48000.0);
+            const bool rigRelative = near (fA, fB, 1.0e-2f);
+
+            const float atCentroid = oo::hullproc::airDistanceMetres (6.5f, 12.0f, 6.5f, 12.0f, 10.0f);
+            const float inNear     = oo::hullproc::airDistanceMetres (6.5f + 0.9f, 12.0f, 6.5f, 12.0f, 10.0f);
+            const float beyond     = oo::hullproc::airDistanceMetres (6.5f, 12.0f + 4.0f, 6.5f, 12.0f, 10.0f);
+            const bool nearField   = bitExact (atCentroid, 0.0f) && bitExact (inNear, 0.0f)
+                                  && near (beyond, 3.0f, 1.0e-5f);
+
+            const float degenerate = oo::hullproc::airCutoffHz (1.0f, 3.0f, 0.0f, 48000.0);
+            const bool degenerateOk = std::isfinite (degenerate)
+                                   && near (degenerate, oo::hullproc::kAirCeilingHz, 0.01f);
+
+            ok = ok && rigRelative && nearField && degenerateOk;
+            detail << "rig-relative " << juce::String (fA, 1) << "/" << juce::String (fB, 1)
+                   << (rigRelative ? "" : " — NOT RIG-RELATIVE")
+                   << "; near field 0/0/" << juce::String (beyond, 3)
+                   << (nearField ? "" : " — NEAR FIELD WRONG")
+                   << "; degenerate rig -> " << juce::String (degenerate, 0)
+                   << (degenerateOk ? " Hz" : " — NOT THE CEILING");
         }
 
         check ("AU air-cutoff-curve-and-nyquist", ok, detail);
@@ -2081,10 +2120,24 @@ int main()
 
         const bool invariant = half <= kInvarianceTol && twice <= kInvarianceTol;
 
-        // 2. POSITIVE CONTROL — at blur = 1, λ = 2.1 the wanted r_s is 8.328 m and kMaxBlurMetres
-        //    clamps it to 8.0, so the invariance MUST break. A probe that cannot see the clamp
-        //    cannot claim the invariance is a property of the code rather than of the numbers.
-        const float clamped = worstDelta (2.1f, 1.0f);
+        // 2. POSITIVE CONTROL — at blur = 1, λ = 8 the wanted r_s is 6 · 8 · 7.932 = 380.7 m and
+        //    kMaxBlurMetres clamps it to 200, so the invariance MUST break. A probe that cannot
+        //    see the clamp cannot claim the invariance is a property of the code rather than of
+        //    the numbers.
+        //
+        //    λ WAS 2.1 THROUGH v1.12.0, against the 24 m cap (r_s 24.99 → 24). v1.13.0 raised the
+        //    cap to 200 m for the square law, and at λ = 2.1 the wanted r_s is now 99.9 m — under
+        //    the cap, so the control silently stopped firing and printed
+        //    "CLAMP INVISIBLE, THIS PROBE CANNOT FAIL". The λ moves with the cap; it is not a
+        //    tolerance to be widened.
+        //
+        //    AND IT IS λ = 8, NOT THE FIRST λ THAT CLAMPS. The clamp begins to bite at λ = 4.204,
+        //    but a barely-clamped r_s barely moves the gains: at λ = 4.5 the break is Δ 0.000691,
+        //    which sits UNDER this control's own 1e-3 threshold. Choosing the smallest λ that
+        //    technically clamps would have left the control failing for a second reason. λ = 8
+        //    gives Δ 0.0109 — an 11x margin — and the margin was MEASURED across λ ∈ {4.5, 6, 8,
+        //    12, 20, 40} rather than guessed.
+        const float clamped = worstDelta (8.0f, 1.0f);
         const bool  controlFires = clamped > 1.0e-3f;
 
         // 3. DSP-08/4 — blur is ADDITIONAL to the physical floor from flown speaker height. At
@@ -2113,13 +2166,98 @@ int main()
         awDetail << "blur 0.25: λ=0.5 Δ" << juce::String (half, 9)
                  << ", λ=2.0 Δ" << juce::String (twice, 9)
                  << (invariant ? " (invariant)" : " — INVARIANCE VIOLATED")
-                 << "; positive control blur=1 λ=2.1 Δ" << juce::String (clamped, 6)
+                 << "; positive control blur=1 λ=8 Δ" << juce::String (clamped, 6)
                  << (controlFires ? " (clamp visible, so the probe CAN fail)"
                                   : " — CLAMP INVISIBLE, THIS PROBE CANNOT FAIL")
                  << "; blur=0 at a speaker's floor point "
                  << (floorFinite ? "finite, Σv²=1" : "DEGENERATE");
 
         check ("AW blur-invariance-under-room-scale", ok, awDetail);
+    }
+
+    //==========================================================================
+    // AY — v1.13.0's PRESET BLUR MIGRATION, pinned from BOTH sides.
+    //
+    // The transform that stands between every preset a user has already saved and a silently wrong
+    // recall. It lives in dbap:: rather than in the editor precisely so it can be probed here:
+    // PluginEditor is a WebView editor the render harness cannot construct
+    // (pattern_render_harness_breaks_on_webview_editor), so left where it was written this was the
+    // least testable code in the release.
+    //
+    // ── THE CLAIM IS ABOUT RADIUS, NOT ABOUT THE FRACTION ────────────────────────────────────
+    // A preset stores a 0-1 fraction; what its author chose was a RADIUS in metres. So the
+    // assertion is that the migrated fraction reproduces the radius the OLD law gave, and it is
+    // written that way — through blurToRadius(), the live function — rather than as
+    // "0.5*sqrt(0.55) == 0.371", which would restate the implementation and pass however wrong
+    // the law was.
+    //
+    // kV130BlurScale IS A HISTORICAL CONSTANT AND MIRRORS NOTHING LIVE. 1.5 was kBlurScale from
+    // v1.3.0 to v1.12.0; it can never change again, because the versions that wrote those presets
+    // are shipped. Mirroring a live constant is the trap
+    // (pattern_test_fixture_mirrors_drift_silently); pinning a frozen one is the point.
+    {
+        const oo::VenueModel v;
+        const float rigScale = v.rigScale();
+
+        constexpr float kV130BlurScale = 1.5f;
+
+        // The factory blur column as it stood at v1.12.0, plus both endpoints and two interior
+        // values no preset happens to use.
+        const std::array<float, 9> oldFractions
+            { { 0.0f, 0.03f, 0.06f, 0.12f, 0.18f, 0.27f, 0.4f, 0.55f, 1.0f } };
+
+        bool  radiusHolds = true;
+        bool  controlFires = true;
+        float worstErr = 0.0f;
+        float worstUnmigrated = 0.0f;
+
+        for (float oldFraction : oldFractions)
+        {
+            const float authored = oldFraction * kV130BlurScale * rigScale;
+            const float migrated = oo::dbap::blurToRadius (
+                                       oo::dbap::blurFractionLinearToSquare (oldFraction), rigScale);
+
+            // 1e-4 m is a float-precision allowance on a metre quantity, not a fitted tolerance:
+            // the identity 1.5·b = 6·(½√b)² is exact in real arithmetic.
+            const float err = std::abs (migrated - authored);
+
+            worstErr    = std::max (worstErr, err);
+            radiusHolds = radiusHolds && err <= 1.0e-4f;
+
+            // NON-VACUITY — a migration that did nothing would still pass the line above if the
+            // two laws happened to agree. They must NOT: feeding the UN-migrated fraction to the
+            // new law has to be materially wrong.
+            //
+            // 0.0f IS EXCLUDED, and deliberately. Fraction 0 is r_s = 0 under BOTH laws — a fixed
+            // point that legitimately never drifts — so demanding a difference there would assert
+            // something false (pattern_preset_migration_per_param_version_gate).
+            if (oldFraction > 0.0f)
+            {
+                const float unmigrated = oo::dbap::blurToRadius (oldFraction, rigScale);
+                const float gap        = std::abs (unmigrated - authored);
+
+                worstUnmigrated = std::max (worstUnmigrated, gap);
+                controlFires    = controlFires && gap > 0.05f;
+            }
+        }
+
+        // The clamp, both ways: a corrupt fraction cannot produce a NaN radius or exceed the range.
+        const bool clamped = oo::dbap::blurFractionLinearToSquare (-1.0f) == 0.0f
+                          && oo::dbap::blurFractionLinearToSquare (5.0f)  == 0.5f
+                          && std::isfinite (oo::dbap::blurFractionLinearToSquare (0.0f));
+
+        const bool ok = radiusHolds && controlFires && clamped;
+
+        juce::String ayDetail;
+
+        ayDetail << "9 fractions: worst radius error " << juce::String (worstErr, 7)
+                 << " m" << (radiusHolds ? " (authored radius held)" : " — RADIUS NOT PRESERVED")
+                 << "; un-migrated control worst gap " << juce::String (worstUnmigrated, 3) << " m"
+                 << (controlFires ? " (so the migration is doing work)"
+                                  : " — THE TWO LAWS AGREE, THIS PROBE IS VACUOUS")
+                 << "; out-of-range input " << (clamped ? "clamped to 0 / 0.5" : "NOT CLAMPED");
+
+        check ("AY preset-blur-migration-holds-the-radius", ok, ayDetail);
     }
 
     //==========================================================================

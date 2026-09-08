@@ -152,7 +152,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout OOctagonProcessor::createPar
         // a true wash; 0.03 keeps the shipped default radius at ~0.36 m (was 0.40 m) — audibly the
         // same starting point. Concert Default (PresetPolicy.h) moves with it: that preset must
         // stay exactly the shipped defaults.
-        makeFloat (kHintV1_0, "blur",    "Blur",    linearRange (0.0f, 1.0f), 0.03f)));
+        // v1.13.0: default 0.03 → 0.09. The law went SQUARE with kBlurScale 6 (DbapSolver.h);
+        // 0.09 keeps the shipped default radius at ~0.39 m (was 0.36 m) — again audibly the same
+        // starting point (0.03 dB of spread either way). Presets < 1.13 migrate blur → ½√blur.
+        makeFloat (kHintV1_0, "blur",    "Blur",    linearRange (0.0f, 1.0f), 0.09f)));
 
     // ── Weights ─────────────────────────────────────────────────────────────────
     // No label, deliberately: these are DBAP weights, not percentages of anything. Inventing

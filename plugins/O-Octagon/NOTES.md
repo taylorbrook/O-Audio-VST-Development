@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.11.1 (dev build installed; not released)
+- **Version:** 1.13.0 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -244,6 +244,28 @@
   8-channel interface. Persisted preference (`stereoBinaural`, default ON) behind the existing
   Headphones button; the eight meters read the pre-fold lanes. 8-channel rendering bit-identical
   (probe DP clause d). Render-harness 75/75 (new DP; AT and DM now pin the preference OFF).
+
+- **2026-09-08 (v1.13.0 — `/improve`, Blur and Air made audible):** both controls were reported as
+  having no appreciable effect, and both causes were GEOMETRIC. **Blur:** the radius enters the
+  distance in quadrature, so any `r_s` under the rig's own ~3.5 m speaker-to-ear vertical offset is
+  arithmetically invisible, and the v1.3.0 linear law topped out at 11.90 m — still 3.03 dB of
+  channel spread at rolloff 4. Now `r_s = blur² · 6 · rigScale` (cap 24 → 200 m): the v1.3.0
+  endpoint sits at half knob, blur = 1 reaches 47.59 m and 0.34 dB, and squaring puts the octaves of
+  `r_s` at even knob intervals. Default 0.03 → 0.09 (same 0.39 m radius), factory blur column
+  re-mapped `½√blur`, user presets migrated through their OWN `< 1.13` gate.
+  **Air:** the cutoff was driven by distance OUTSIDE the hull, and only 5.8 % of the puck's
+  reachable plane is outside the octagon, reaching 2.14 m at most — so the filter sat pinned near
+  20 kHz everywhere the puck lives and no `airAmount` could have rescued it. It is now driven by
+  planar distance from the rig CENTROID less a near field, both fractions of `rigScale`; on the
+  default rig `airAmount` = 1 now runs 20 kHz at centre to the 500 Hz floor at the far corners.
+  `d_hull` still drives the gain trim. Every bit-transparency guarantee survives with its boundary
+  moved from the hull to the near field, default patch included. The preset re-map moved out of the
+  editor's migration lambda into `oo::dbap::blurFractionLinearToSquare()` so it could be probed at
+  all — new probe AY holds the authored radius to 5e-7 m with a 35.69 m non-vacuity margin.
+  59/59 unit, 75/75 render, 43/43 frontend, 34/34 layout, all i18n gates, auval PASS. Probe AW's positive control had gone vacuous under the
+  new 200 m cap (λ 2.1 → 8, Δ 0.0109); the CU and DC cross-version digests were RE-ANCHORED by
+  narrowing each scenario to blur 0 / air 0 and re-deriving both constants from the pristine
+  v1.12.0 tree, never re-recorded from the new build.
 
 **Still open from the v1.8.0 CODE_REVIEW after the v1.10.1 sweep:** design calls IN-03, 04, 11,
 13, 14, 20, 22 and the fail-first test work IN-23 … IN-30 (DF's `motionSolves > 0` liveness gate,

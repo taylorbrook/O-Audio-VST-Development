@@ -688,12 +688,12 @@ export const I18N = Object.freeze({
     },
     'airAmount': {
         en: { t: 'Air',
-              b: 'Distance air filter — high frequencies fall away as the source sits farther from the array, with the cutoff derived from the venue geometry.' },
+              b: 'Distance air filter — high frequencies fall away as the source moves out from the centre of the array, with the cutoff derived from the venue geometry.' },
         fr: { t: 'Air',
-              b: 'Filtre d’air lié à la distance — les aigus s’estompent à mesure que la source s’éloigne du dispositif, la fréquence de coupure étant déduite de la géométrie du lieu.',
-              reviewed: true },
+              b: 'Filtre d’air lié à la distance — les aigus s’estompent à mesure que la source s’éloigne du centre du dispositif, la fréquence de coupure étant déduite de la géométrie du lieu.',
+              reviewed: false },
         'zh-Hans': { t: '空气',
-              b: '与距离相关的空气滤波，声源离阵列越远，高频衰减越多，截止频率由场地几何推导得出。',
+              b: '与距离相关的空气滤波，声源离阵列中心越远，高频衰减越多，截止频率由场地几何推导得出。',
               reviewed: 'bt' },
     },
 

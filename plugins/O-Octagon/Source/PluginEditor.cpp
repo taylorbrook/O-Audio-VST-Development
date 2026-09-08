@@ -1568,8 +1568,10 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
             const int  major  = tokens.size() > 0 ? tokens[0].getIntValue() : 0;
             const int  minor  = tokens.size() > 1 ? tokens[1].getIntValue() : 0;
 
-            if (major > 1 || (major == 1 && minor >= 3))
-                return;
+            const auto before = [major, minor] (int gateMinor)
+            {
+                return ! (major > 1 || (major == 1 && minor >= gateMinor));
+            };
 
             const auto rescale = [&parameters] (const char* id, float factor)
             {
@@ -1581,9 +1583,30 @@ OctagonEditor::OctagonEditor (OOctagonProcessor& p)
                                       static_cast<float> (parameters.getProperty (key)) * factor));
             };
 
-            rescale ("rolloff", 1.0f / 3.0f);
-            rescale ("width",   1.0f / 2.0f);
-            rescale ("blur",    1.0f / 3.0f);
+            // ── < 1.3: the three v1.3.0 range moves ──────────────────────────────────────
+            if (before (3))
+            {
+                rescale ("rolloff", 1.0f / 3.0f);
+                rescale ("width",   1.0f / 2.0f);
+                rescale ("blur",    1.0f / 3.0f);
+            }
+
+            // ── < 1.13: blur's law went SQUARE with kBlurScale 1.5 → 6 (v1.13.0) ─────────
+            //
+            // ITS OWN GATE, not a widening of the v1.3 one
+            // (pattern_preset_migration_per_param_version_gate): every preset stamped 1.3
+            // through 1.12 carries a fraction against the LINEAR law. Same authored radius ⇒
+            //   1.5 · b_old = 6 · b_new²  ⇒  b_new = ½ √b_old   (rigScale cancels).
+            // A pre-1.3 preset passes through both arms in order: ÷3 first, then the root.
+            if (before (13))
+            {
+                const juce::Identifier key { "blur" };
+
+                if (parameters.hasProperty (key))
+                    parameters.setProperty (key,
+                        oo::dbap::blurFractionLinearToSquare (
+                            static_cast<float> (parameters.getProperty (key))));
+            }
         });
 
     // ── THE SIX FACTORY PRESETS (Phase 4.1, P92) ───────────────────────────────────────────

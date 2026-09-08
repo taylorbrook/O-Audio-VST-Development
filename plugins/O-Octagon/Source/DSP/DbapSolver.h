@@ -209,8 +209,8 @@ namespace dbap
 
     inline constexpr float kInvTwentyLog10Two = 1.0f / 6.020599913f;  ///< 1 / (20·log10 2)
     inline constexpr float kMinDistance       = 0.05f;                ///< metres, hard d_i floor
-    inline constexpr float kMaxBlurMetres     = 24.0f;                ///< absolute r_s ceiling
-    inline constexpr float kBlurScale         = 1.5f;                 ///< blur=1 → r_s = 1.5·rigScale
+    inline constexpr float kMaxBlurMetres     = 200.0f;               ///< absolute r_s ceiling
+    inline constexpr float kBlurScale         = 6.0f;                 ///< blur=1 → r_s = 6·rigScale
     inline constexpr float kDenomEpsilon      = 1e-20f;               ///< all-zero-weight detector
 
     // v1.3.0 re-scale: kBlurScale 0.5 → 1.5 (and the backstop 8 → 24 m so it stays above
@@ -219,6 +219,19 @@ namespace dbap
     // full sweep moved the channel spread by only ~2 dB. At 1.5, blur = 1 reaches ~1.5× the RMS
     // rig radius and the field genuinely washes out (~3 dB spread). Presets saved under < 1.3.0
     // are re-mapped ÷3 by the editor's migration hook so their authored radii are preserved.
+    //
+    // v1.13.0 re-scale: the law is now SQUARE — r_s = blur² · kBlurScale · rigScale — with
+    // kBlurScale 1.5 → 6.0 (backstop 24 → 200 m). MEASURED on the default rig with the puck
+    // beside a speaker: the spread the ear hears halves for every DOUBLING of r_s beyond the
+    // ~3.5 m vertical offset every distance already carries, and r_s below that offset is
+    // inaudible (it adds in quadrature). The v1.3.0 linear law therefore spent the bottom
+    // third of the knob doing nothing and topped out at 11.9 m — still 3.0 dB of spread at
+    // rolloff 4 and 9.1 dB at rolloff 12, which is what "no appreciable effect" reported.
+    // Square law, 6·rigScale: the v1.3.0 endpoint now sits at half knob, 1 → 47.6 m and
+    // 0.33 dB / 1.0 dB of spread — a true wash — and the octaves of r_s land at roughly even
+    // knob intervals (0.27, 0.38, 0.54, 0.76, 1.0). Presets saved under < 1.13.0 are re-mapped
+    // blur → ½√blur by the editor's second migration gate, which preserves every authored
+    // radius exactly (rigScale cancels).
 
     static_assert (kMinDistance > 0.0f,
                    "d_i floor must be strictly positive: DBAP divides by d_i^a");
@@ -246,7 +259,7 @@ namespace dbap
     //==========================================================================
     /** §3.3.2 — blur → spatial-blur radius in metres.
 
-        `r_s = min (blur · kBlurScale · rigScale, kMaxBlurMetres)`
+        `r_s = min (blur² · kBlurScale · rigScale, kMaxBlurMetres)`   (square law since v1.13.0)
 
         `rigScale` is the RMS speaker radius from the centroid, which is the paper's §3.1
         "covariance of speaker distances from rig centre" made dimensional. Scaling by it is what
@@ -254,6 +267,25 @@ namespace dbap
         what probe AG asserts (pattern_test_fixture_mirrors_drift_silently).
     */
     float blurToRadius (float blur, float rigScale) noexcept;
+
+    /** v1.13.0 — the preset re-map from the v1.3.0 LINEAR law to the square one.
+
+        A preset stores blur as a normalised 0-1 fraction, and what the author actually chose was a
+        RADIUS. Holding that radius across the law change:
+
+            1.5 · b_old · rigScale  =  6 · b_new² · rigScale   ⇒   b_new = ½ √b_old
+
+        `rigScale` cancels, so the re-map is exact on every rig — which is the property that makes a
+        migrated preset mean the same thing in a club and a hall, exactly as the un-migrated one did.
+
+        ── WHY THIS IS A FUNCTION AND NOT THREE LINES IN THE EDITOR (P-review) ───────────────────
+        It was three lines in PluginEditor.cpp, and the editor is a WebView editor the render
+        harness cannot construct (pattern_render_harness_breaks_on_webview_editor). That made the
+        one transform standing between every existing user preset and a silently wrong recall the
+        least testable code in the release. Here it joins the fast unit target and probe AY pins it
+        from both sides (pattern_preset_migration_per_param_version_gate).
+    */
+    float blurFractionLinearToSquare (float oldFraction) noexcept;
 
     /** §3.3.1 / eq 4 — rolloff in dB per distance doubling → the DBAP exponent `a`. */
     float rolloffToAlpha (float rolloff) noexcept;
