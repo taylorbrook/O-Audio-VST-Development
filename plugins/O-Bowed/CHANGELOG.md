@@ -2,6 +2,73 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.9.0] - 2026-09-07
+
+Simplified Chinese, at the same bar as English and French (wave 4f of the
+zh-Hans rollout, task 260907-ja8). MINOR: 161 new table rows and a third member
+of the interface-language selector. **No parameter, range, type, state format
+or audio path was touched** — which is also why O-Bowed's long-standing
+`Bow Position` auval WARNING (`retrievedValue = 1.000000 … Parameter did not
+retain maximum value when set`, an artefact of a 0.02–0.30 declared range read
+back through the AU's normalized 0–1 boundary) predates this release and is not
+attributable to it.
+
+### Added
+
+- **Simplified Chinese on all 161 rows** — 48 tooltip titles, 31 tooltip
+  bodies, 45 on-page captions and accessible names, and the 37 captions of the
+  shared `scala-tuning-engine` tuning overlay. `简体中文` joins English and
+  Français in the settings selector, and the choice is saved with the plugin
+  exactly as the other two are.
+- **A CJK font stack on every surface that can render a Han glyph.** The page's
+  own stack gains `'PingFang SC', 'Microsoft YaHei'` before its trailing
+  generic; the tuning overlay — 116 nodes that had been rendering through the
+  shared module's `-apple-system` stack, which names no Chinese face — gains
+  its own `#tuning-container .tuning-panel` rule; and the overlay's eleven
+  buttons and two dropdowns, which as form controls inherit no font at all,
+  gain a five-selector rule of their own.
+
+### Quality level, stated plainly
+
+Every Chinese row ships at `reviewed: 'bt'`: an **independent back-translation**
+— the Chinese was sent to a separate agent that never saw the English, its
+English return was read against the English source, and every drift was
+adjudicated on whether a reader could confuse the string with another control
+on the same page. One row was re-authored on that test and re-read by a second,
+different model. `reviewed: 'native'` — a native Chinese speaker's reading —
+remains open on all 161 rows and is a blocker for nothing.
+
+The 37 shared-module captions are byte-identical copies of O-Bassoon's, which
+had already been through the same pass; they are not re-authored here, so that
+one surface reads the same on all five plugins that embed the module.
+
+### Changed
+
+- **Three hover-help clauses that were false before a byte of Chinese.**
+  `tip.language` said the Tuning page stays English — true through v1.7.0,
+  false since v1.8.0 localized all 37 of its captions, and shipped that way in
+  French as well as English. The same body listed the selector's options as a
+  fixed pair. `tip.settings` said the settings panel holds the interface
+  language and nothing further — false since v1.7.0 put the hover-help switch
+  inside it. All corrected in both languages, with the source comments that
+  asserted them.
+- **Geometry pinned for a third language.** Chinese line boxes run about 3px
+  taller than the Latin ones at these sizes, so seventeen captions gained a
+  `line-height` RATIO derived from this plugin's own measured English content
+  box, per line and per size. The three width and height floors s71 landed on
+  the tuning overlay were re-measured — all three moved when the overlay left
+  the system UI face — and now read `.tonic-label` 42.06px,
+  `.octave-stretch-label` 53.86px and `.interval-list-header` 22px.
+  `check-ui-labels` reports no non-label element moving on the French **or**
+  Chinese arm, in any of the four measured states.
+
+### Fixed
+
+- `tests/ui_tip_render_check.js` asserted a two-member language list and swept
+  exactly two languages by name. It now derives the list from the table's own
+  export, refuses rather than guessing if that list is empty or names only the
+  source language, and sweeps and byte-compares **every** non-English language.
+
 ## [1.8.0] - 2026-09-06
 
 The tuning overlay is localized — English and French (task 260906-s71). MINOR:
