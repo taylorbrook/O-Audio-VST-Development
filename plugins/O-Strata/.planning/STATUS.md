@@ -1,15 +1,16 @@
 ---
 plugin: O-Strata
-stage: 1
-stage_name: foundation
-phase: verify
-status: stage_1_complete
-last_updated: 2026-09-07
+stage: 2
+stage_name: dsp
+phase: discuss
+phase_current: "2.1"
+status: stage_2_discuss_complete
+last_updated: 2026-09-08
 workflow_mode: manual
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-discuss O-Strata 2-dsp
+next_action: /plugin-research O-Strata 2-dsp
 next_stage: 2
 ready_for_implementation: true
 contract_checksums:
@@ -31,9 +32,10 @@ ui_scaffolding_phase_complete: true
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — COMPLETE (discuss ✓, research ✓, plan ✓, execute ✓, verify ✓); Stage 2 (DSP) next
-Status: Stage 1 VERIFIED (2026-09-07) — every SUMMARY claim re-measured (build, param-dump 219 == params.tsv, pluginval strictness 10 SUCCESS ×2, auval SUCCEEDED, all five UI gates green) plus a headless smoke harness (`stages/1-foundation/smoke/`, 27/27: sine sounds on A and B with negative controls, `.scl` loads, 219-param + tuning + uiLanguage round-trip into a fresh processor, empty `<geometryImports/>` written). COMPAT-01 complete. Three Standalone/WKWebView visual items left as non-blocking human checks in VERIFICATION.md.
-Progress: [##########..........] 50%
+Stage: 2 of 4 (DSP) — discuss ✓ (2026-09-08); research next. Five ROADMAP phases 2.1–2.5, run as per-phase plan → execute → verify loops (Stage 2 CONTEXT D1); `phase_current` tracks which.
+Status: Stage 2 discuss complete — `stages/2-dsp/CONTEXT.md`: D1 per-phase loops, D2 Terrain list → 6 entries in 2.4 (spec v1.1), D3 scheduler drag throttle (ARCHITECTURE Core 8 amendment), D4 harnesses as CMake targets, D5 golden/fixtures generated not committed, D6 audition via Logic AU Controls view. Ten research items listed.
+Previous: Stage 1 VERIFIED (2026-09-07) — every SUMMARY claim re-measured (build, param-dump 219 == params.tsv, pluginval strictness 10 SUCCESS ×2, auval SUCCEEDED, all five UI gates green) plus a headless smoke harness (`stages/1-foundation/smoke/`, 27/27: sine sounds on A and B with negative controls, `.scl` loads, 219-param + tuning + uiLanguage round-trip into a fresh processor, empty `<geometryImports/>` written). COMPAT-01 complete. Three Standalone/WKWebView visual items left as non-blocking human checks in VERIFICATION.md.
+Progress: [###########.........] 55%
 
 ## Phase Progress
 
@@ -45,6 +47,15 @@ Progress: [##########..........] 50%
 | plan | ✓ | 2026-09-07 | |
 | execute | ✓ | 2026-09-07 | |
 | verify | ✓ | 2026-09-07 | |
+
+### Stage 2: DSP (phases 2.1 pipeline · 2.2 slicer · 2.3 volume · 2.4 terrain · 2.5 gates)
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-09-08 | |
+| research | | | |
+| plan (2.1) | | | |
+| execute (2.1) | | | |
+| verify (2.1) | | | |
 
 ## Completed So Far
 
@@ -63,14 +74,14 @@ Progress: [##########..........] 50%
 
 1. ~~Create the UI mockup and the full `parameter-spec.md`~~ **Done (2026-09-07):** mockup v1 finalized (`mockups/v1-ui.yaml`, `v1-ui-test.html`), implementation scaffolding generated (`mockups/v1-ui.html`, `v1-PluginEditor-TEMPLATE.h/.cpp`, `v1-CMakeLists-SNIPPET.txt`, `v1-integration-checklist.md`) and `parameter-spec.md` locked at v1 — **219 params (171 inherited + 48 Geometry)**; the draft's 217/46 was an undercount, reconciled in the spec's "Draft reconciliation" note. Terrain choice list is the mockup's 3 entries (ARCHITECTURE lists 6) — see the same note.
 2. ~~Stage 1: Foundation~~ **Done (2026-09-07):** verified — `stages/1-foundation/VERIFICATION.md` (COMPAT-01 complete; headless smoke 27/27; human visual checks listed, non-blocking).
-3. **NEXT — Stage 2: DSP, Phase 2.1** (`GeometryBakeScheduler` + mesh slicer) → `/plugin-discuss O-Strata 2-dsp`. Carry-forward in VERIFICATION.md "Carry-forward for Stage 2".
-4. Review `research/ARCHITECTURE.md` (Decisions 1–7) and `ROADMAP.md` before Stage 1.
+3. ~~Stage 2 discuss~~ **Done (2026-09-08):** `stages/2-dsp/CONTEXT.md` (D1–D6, amended test criteria, 10 research items).
+4. **NEXT — Stage 2 research** → `/plugin-research O-Strata 2-dsp` (whole stage: ThreadPool API, generateMipmaps reentrancy/cost, juce::dsp::FFT xcorr layout, golden regeneration, render-harness macros, allocator hook, BakeKey inputs, PNG decode, spectral helpers, 1 M-tri fixture). Then per-phase `/plugin-plan O-Strata 2-dsp` starting at 2.1.
 
 ## Context to Preserve
 
 - Architecture: `plugins/O-Strata/.planning/research/ARCHITECTURE.md` (11 sections; requirement map in Notes)
 - Plan: `plugins/O-Strata/.planning/ROADMAP.md` (complexity 5.0 capped, raw 23.0; staged)
-- Discuss findings: `plugins/O-Strata/.planning/stages/0-ideation/CONTEXT.md`, `stages/1-foundation/CONTEXT.md` (Stage 1 decisions D1–D6)
+- Discuss findings: `plugins/O-Strata/.planning/stages/0-ideation/CONTEXT.md`, `stages/1-foundation/CONTEXT.md` (Stage 1 D1–D6), `stages/2-dsp/CONTEXT.md` (Stage 2 D1–D6: per-phase loops, Terrain list 6, drag throttle amendment, harness targets, generated goldens)
 - Research findings: `stages/1-foundation/RESEARCH.md` (§2 open items, §3 48 declarations, §4 removal trace, §5 rename procedure, §9 task order, §10 contradictions, Assumptions A1–A6)
 - Plan: `stages/1-foundation/PLAN.md` (16 tasks, 5 waves, 12 flags → decisions table, 24 family-prefixed host names, interval convention 0.001/0.01/0.1, success criteria)
 - Fork base facts verified in O-Prism source: `WavetableData.h` (2048 + 1 guard, ≤ 256 frames, 10 levels), `WavetableGenerator.cpp:129` `generateMipmaps`, `WavetableImporter.cpp:189-205` global-peak normalisation, `PluginProcessor.cpp:946-1000` retire/reaper/assign, `PrismParamIds.h` `oscIds`/`allSliderIds` (126 → 170), `PluginEditor.cpp` `getActiveOscFrame` + `timerCallback` (`evaluateJavascript` to be replaced), `CMakeLists.txt` (`O-Prism_UIResources`, `VERSION 1.24.0`)
@@ -82,6 +93,7 @@ Progress: [##########..........] 50%
 - plugins/O-Strata/Source/** (fork), CMakeLists.txt, tests/**, CHANGELOG.md, .planning/params.tsv
 - plugins/O-Strata/.planning/stages/1-foundation/SUMMARY.md
 - plugins/O-Strata/.planning/stages/1-foundation/VERIFICATION.md (+ smoke/ harness source and log)
+- plugins/O-Strata/.planning/stages/2-dsp/CONTEXT.md
 - plugins/O-Strata/.planning/research/ARCHITECTURE.md
 - plugins/O-Strata/.planning/ROADMAP.md
 - plugins/O-Strata/.planning/stages/0-ideation/CONTEXT.md
