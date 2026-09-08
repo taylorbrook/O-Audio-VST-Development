@@ -2,15 +2,15 @@
 plugin: O-Strata
 stage: 1
 stage_name: foundation
-phase: execute
-status: stage_1_execute_complete
+phase: verify
+status: stage_1_complete
 last_updated: 2026-09-07
 workflow_mode: manual
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-verify O-Strata 1-foundation
-next_stage: 1
+next_action: /plugin-discuss O-Strata 2-dsp
+next_stage: 2
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:017962972096be6494d98cb27de5042dbf2842c3c13b532eadc8c396261dba4e
@@ -31,9 +31,9 @@ ui_scaffolding_phase_complete: true
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — discuss ✓, research ✓, plan ✓, execute ✓, verify next
-Status: Stage 1 EXECUTED — `plugins/O-Strata/` forked from O-Prism v1.24.0 (`OuSt`, VERSION 1.0.0, full Prism→Strata rename), wavetable library removed, 48 geometry params added (219 total, param-dump diff −2 +48), `juce_cryptography` linked; builds VST3/AU/Standalone, installed, pluginval strictness 10 SUCCESS on both, auval SUCCEEDED (COMPAT-01); check-i18n / fr / zh / check-ui-labels (20 states) / boot-all-uis (0 dead, 0 late) / tip check (106) all green; SUMMARY.md written. Manual smoke (notes sound, .scl loads, state round-trip) deferred to verify.
-Progress: [########............] 40%
+Stage: 1 of 4 (Foundation) — COMPLETE (discuss ✓, research ✓, plan ✓, execute ✓, verify ✓); Stage 2 (DSP) next
+Status: Stage 1 VERIFIED (2026-09-07) — every SUMMARY claim re-measured (build, param-dump 219 == params.tsv, pluginval strictness 10 SUCCESS ×2, auval SUCCEEDED, all five UI gates green) plus a headless smoke harness (`stages/1-foundation/smoke/`, 27/27: sine sounds on A and B with negative controls, `.scl` loads, 219-param + tuning + uiLanguage round-trip into a fresh processor, empty `<geometryImports/>` written). COMPAT-01 complete. Three Standalone/WKWebView visual items left as non-blocking human checks in VERIFICATION.md.
+Progress: [##########..........] 50%
 
 ## Phase Progress
 
@@ -44,7 +44,7 @@ Progress: [########............] 40%
 | research | ✓ | 2026-09-07 | |
 | plan | ✓ | 2026-09-07 | |
 | execute | ✓ | 2026-09-07 | |
-| verify | → | | |
+| verify | ✓ | 2026-09-07 | |
 
 ## Completed So Far
 
@@ -62,8 +62,9 @@ Progress: [########............] 40%
 ## Next Steps
 
 1. ~~Create the UI mockup and the full `parameter-spec.md`~~ **Done (2026-09-07):** mockup v1 finalized (`mockups/v1-ui.yaml`, `v1-ui-test.html`), implementation scaffolding generated (`mockups/v1-ui.html`, `v1-PluginEditor-TEMPLATE.h/.cpp`, `v1-CMakeLists-SNIPPET.txt`, `v1-integration-checklist.md`) and `parameter-spec.md` locked at v1 — **219 params (171 inherited + 48 Geometry)**; the draft's 217/46 was an undercount, reconciled in the spec's "Draft reconciliation" note. Terrain choice list is the mockup's 3 entries (ARCHITECTURE lists 6) — see the same note.
-2. **IN PROGRESS — Stage 1: Foundation** (discuss ✓ research ✓ plan ✓ execute ✓ → `/plugin-verify O-Strata 1-foundation`; results in `stages/1-foundation/SUMMARY.md`). Verify must cover the manual Standalone smoke SUMMARY lists (held note on A and B, `.scl` load, state round-trip with empty `geometryImports`, no console errors / 404s in WKWebView).
-3. Review `research/ARCHITECTURE.md` (Decisions 1–7) and `ROADMAP.md` before Stage 1.
+2. ~~Stage 1: Foundation~~ **Done (2026-09-07):** verified — `stages/1-foundation/VERIFICATION.md` (COMPAT-01 complete; headless smoke 27/27; human visual checks listed, non-blocking).
+3. **NEXT — Stage 2: DSP, Phase 2.1** (`GeometryBakeScheduler` + mesh slicer) → `/plugin-discuss O-Strata 2-dsp`. Carry-forward in VERIFICATION.md "Carry-forward for Stage 2".
+4. Review `research/ARCHITECTURE.md` (Decisions 1–7) and `ROADMAP.md` before Stage 1.
 
 ## Context to Preserve
 
@@ -80,6 +81,7 @@ Progress: [########............] 40%
 ## Files Created
 - plugins/O-Strata/Source/** (fork), CMakeLists.txt, tests/**, CHANGELOG.md, .planning/params.tsv
 - plugins/O-Strata/.planning/stages/1-foundation/SUMMARY.md
+- plugins/O-Strata/.planning/stages/1-foundation/VERIFICATION.md (+ smoke/ harness source and log)
 - plugins/O-Strata/.planning/research/ARCHITECTURE.md
 - plugins/O-Strata/.planning/ROADMAP.md
 - plugins/O-Strata/.planning/stages/0-ideation/CONTEXT.md

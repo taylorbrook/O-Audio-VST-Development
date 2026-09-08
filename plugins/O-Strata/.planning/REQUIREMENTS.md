@@ -66,7 +66,7 @@ lastUpdated: 2026-09-07
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) at strictness 10, and auval | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) at strictness 10, and auval | must | complete | stage-1 |
 | COMPAT-02 | Windows VST3 build via CI (WebView2, static linking) | must | pending | stage-4 |
 
 ### Quality (QUAL)
@@ -176,7 +176,7 @@ lastUpdated: 2026-09-07
 ### COMPAT-01 / COMPAT-02: Validation
 
 **Acceptance Criteria:**
-- [ ] pluginval strictness 10 VST3 + AU pass; auval pass
+- [x] pluginval strictness 10 VST3 + AU pass; auval pass — Stage 1 verify 2026-09-07 (`stages/1-foundation/VERIFICATION.md`)
 - [ ] CI Windows build green; WebView2 static linking and `withUserDataFolder()` in place
 
 ### QUAL-01 / QUAL-02: Artifacts
