@@ -43,7 +43,7 @@ Ouaricon Plugins:
 | O-Freeze | 📦 Installed | 2.5.0 | Audio Effect (Granular Freeze) |  2026-09-04 |
 | O-FreqPulse | 📦 Installed | 1.19.0 | Audio Effect (Spectral Sequencer) | 2026-08-31 |
 | O-SpectralShaper | 📦 Installed | 1.8.0 | Audio Effect (Spectral Transient Shaper) | 2026-09-05 |
-| O-GrainScatter | 📦 Installed | 2.6.1 | Audio Effect (Granular Stutter Engine) | 2026-08-31 |
+| O-GrainScatter | 📦 Installed | 2.8.0 | Audio Effect (Granular Stutter Engine) | 2026-09-07 |
 | O-Chorus | 📦 Installed | 1.6.3 | Audio Effect (Chorus) | 2026-09-06 |
 | O-Orbit | 📦 Installed | 1.2.2 | Audio Effect (Spatial Orbiter) | 2026-08-31 |
 | O-TextureForge | 📦 Installed | 1.4.0 | Instrument (Concatenative Synth) | 2026-09-05 |
@@ -52,10 +52,10 @@ Ouaricon Plugins:
 | O-Strata | 🚧 Stage 0 | - | Synth (3D-Geometry Microtonal Wavetable) | 2026-09-07 |
 | O-Gain | 📦 Installed | 1.4.0 | Audio Effect (Gain Staging Utility) | 2026-09-05 |
 | O-Formant | 📦 Installed | 1.29.0 | Synth (Physical Model Vocal) | 2026-08-31 |
-| O-Bowed | 📦 Installed | 1.8.0 | Synth (Physical Model Bowed String) | 2026-09-06 |
-| O-Reed | 📦 Installed | 1.5.0 | Synth (Physical Modeling Reed Wind) | 2026-09-06 |
-| O-Wind | 📦 Installed | 1.20.0 | Synth (Physical Model Flute) | 2026-09-06 |
-| O-Contrabass | 📦 Installed | 1.9.0 | Synth (Physical Model Bowed Bass) | 2026-09-06 |
+| O-Bowed | 📦 Installed | 1.9.0 | Synth (Physical Model Bowed String) | 2026-09-07 |
+| O-Reed | 📦 Installed | 1.6.0 | Synth (Physical Modeling Reed Wind) | 2026-09-07 |
+| O-Wind | 📦 Installed | 1.21.0 | Synth (Physical Model Flute) | 2026-09-07 |
+| O-Contrabass | 📦 Installed | 1.10.0 | Synth (Physical Model Bowed Bass) | 2026-09-07 |
 | O-Bassoon | 📦 Installed | 1.5.0 | Synth (Physical Model Bassoon) | 2026-09-06 |
 | O-MicrotonalSampler | 📦 Installed | 1.27.0 | Synth (Microtonal Sampler) | 2026-09-04 |
 | O-simpleFM | 📦 Installed | 1.5.0 | Synth (Pedagogical 2-Op FM) | 2026-09-06 |
