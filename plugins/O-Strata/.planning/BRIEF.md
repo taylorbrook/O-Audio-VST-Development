@@ -3,150 +3,138 @@
 ## Overview
 
 **Type:** Synth
-**Core Concept:** A microtonal wavetable synthesizer whose wavetables are generated from 3D geometry — sliced meshes, orbits through signed-distance and noise volumes, and image terrains — baked alias-free into an O-Prism-class mipmap engine, with a live 3D view of the geometry being scanned.
-**Status:** 💡 Ideated
-**Created:** 2026-09-07
+**Core Concept:** A microtonal wave-terrain synthesizer: each oscillator is a closed orbit scanning a 2D terrain at the note frequency, live, per sample — with orbit size, centre, rotation and shape, terrain frequency and trajectory feedback all modulatable at audio rate, per-oscillator oversampling, a provably bandlimited Chebyshev terrain mode that needs no oversampling, PNG terrains, and a 3D view of the orbit crawling over the surface.
+**Status:** 💡 Ideated (re-planned 2026-09-08; supersedes the baked-geometry design in `superseded-baked-v1/`)
+**Created:** 2026-09-07 · **Re-planned:** 2026-09-08
 
 ## Vision
 
-O-Strata is O-Prism's voice, filters, modulation, effects and tuning engine with the wavetable *library* replaced by a wavetable *generator*. Instead of picking a table from a list, the player picks a shape — a torus, a twisted star, a crescent, an imported OBJ, a gyroid volume, a greyscale PNG — and a way of moving through it. A plane sweeps through the mesh bottom to top; a knot orbits inside the volume; an orbit grows across the terrain. Every step of that motion becomes one frame of a 256-frame wavetable, and the Position knob morphs through the geometry the way Serum's Position knob morphs through a table.
+O-Strata is O-Prism's voice, filters, modulation, effects and tuning engine with the wavetable oscillator replaced by a **live wave-terrain oscillator**. Mitsuhashi's 1982 idea: `y = f(x(θ), y(θ))` — a point runs around a closed orbit once per cycle and the height of the terrain under it is the waveform. What makes it sound different from a wavetable is that nothing is baked: the orbit's size, centre, rotation and shape, and the terrain's spatial frequency, can move **every sample**, driven by the mod matrix, and the previous output can push the next orbit point (trajectory feedback). Size sweeps are brightness ramps; centre offsets add even harmonics; rotation gives phase-distortion and PWM-like motion; feedback turns a static terrain into something that chatters and folds. That is the part of terrain synthesis Aaron Anderson's *Terrain* made people want, and the part a baked table cannot do.
 
-The sound-design proposition is that shape is a better mental model than spectrum. "Rotate the slicing plane 20 degrees" and "make the orbit fatter" are things a player can see and predict; the resulting harmonic changes are continuous, physically motivated and often surprising. Mesh contours give mild, string-like spectra (roughly −12 dB/oct from polygon corners), noise volumes give broadband grit, SDF fields shaped through tanh sit between — so the three source families cover the timbral range a wavetable synth needs.
+Where O-Strata goes past *Terrain*: (1) **a bandlimited mode** — terrains expressed in the Chebyshev basis with a circular, elliptical or epitrochoid orbit produce a trigonometric polynomial with a *known* maximum harmonic, so per-pitch coefficient truncation is an exact, zero-oversampling mipmap (verified in `research/wavetable-synthesis-3d-geometry.md` §7.2: −116 dB non-harmonic floor at 1×); (2) **pitch-tracked terrain frequency**, so a patch keeps its harmonic count across the keyboard instead of aliasing at the top; (3) **per-oscillator 2×/4× oversampling** rather than whole-synth oversampling, so the O-Prism filter/LFO/mod-matrix voice loop is not doubled; (4) a **real microtonal engine** (scala-tuning-engine v3.0.1: 24+ factory tunings, Scala/KBM, EDO / harmonic / rank-2 generators); (5) PNG terrains with pre-blur and Mitsuhashi edge handling, projected onto the Chebyshev basis for the bandlimited mode. Nobody ships (1), (2) or (4) with terrain synthesis (§5 landscape, September 2026).
 
-Three things nobody else ships, per the September 2026 landscape survey: mesh slicing, SDF-volume orbits, and terrain synthesis paired with a real microtonal engine. Aaron Anderson's *Terrain* (free, GPL) owns live analytic wave-terrain; Conductive Labs and Carbon Electra 2 own PNG terrains; *Terrain*'s open issue #5 asks for 3D model loading with no implementation. O-Strata answers that request and inherits the 24+ factory tunings, Scala/KBM import and EDO/rank-2 generators that O-Prism already has.
-
-Everything in v1.0 is **baked**. The generators run on a background thread, publish a finished `WavetableData` through the atomic swap and reaper O-Prism already owns, and the audio thread runs the unchanged O-Prism oscillator. That means exact FFT-truncation anti-aliasing, no oversampling, no new audio-thread code paths, and presets that store generator parameters rather than tables. The live wave-terrain oscillator — per-oscillator 2× oversampling, pitch-scaled terrain spatial frequency, and the verified Chebyshev "bandlimited terrain" mode that needs no oversampling at all — is the planned v1.1 improvement, with its own CPU gate.
+**What changed on 2026-09-08.** The first design baked geometry (sliced meshes, SDF orbits, terrain sweeps) into 256-frame wavetables on a background thread. A listening pass on the prototype tables found them pleasant but static — mesh sweeps are spectrally near-constant, centred orbits over symmetric fields play the wrong pitch, and the result is "O-Prism with a procedural table generator". Those tables now ship as an O-Prism factory bank. O-Strata keeps the name, the fork and the 3D view, and becomes the instrument with sonic identity: the live oscillator, which the research had deferred to v1.1. Mesh slicing and volume orbits are v1.1 candidates as a secondary *Baked* source type.
 
 ## Parameters
 
-O-Strata inherits O-Prism v1.24.0's parameter set unchanged for the **Envelope, Filter, LFO/Mod Matrix, Tuning, Effects and Global** sections (see `plugins/O-Prism/.planning/BRIEF.md`). Only the oscillator section changes: `oscATable` / `oscBTable` are replaced by a per-oscillator **Geometry** block. All other Osc A/B parameters (Position, Level, Pan, Coarse, Fine, Phase, Unison, Detune, Width, warps, FM) carry over; **Position** becomes the frame index through the geometry sweep.
+O-Strata inherits O-Prism v1.24.0's parameter set unchanged for the **Sub / Noise, Envelope, Filter, LFO / Mod Matrix, Tuning, Effects and Global** sections (see `plugins/O-Prism/.planning/BRIEF.md`). In the oscillator section, `oscATable` / `oscBTable` are removed and the 48 geometry parameters of the superseded design are replaced by a per-oscillator **Terrain** block and **Orbit** block. All other Osc A/B parameters carry over: Level, Pan, Coarse, Fine, Phase, Unison, Detune, Width, Warp Type, Warp Amount, and **Position, which is relabelled Orbit Size** (same ID `osc?Pos`, same 0–1 range, new default 0.5, maps to orbit radius 0.05–1.0; it stays a mod-matrix destination, so every existing "Position under an LFO" idiom becomes "orbit size under an LFO").
 
-Every parameter below exists for both Osc A (`oscA…`) and Osc B (`oscB…`). Parameters marked **(bake)** trigger a debounced background re-bake when changed; they are persisted in state and presets and are exposed to automation, but automating them causes re-bakes, not per-sample modulation.
+Every parameter below exists for Osc A (`oscA…`) and Osc B (`oscB…`). Parameters marked **(mod)** are appended to the mod-matrix destination list and are smoothed per sample; the others are block-rate. Draft IDs, ranges and defaults are in `parameter-spec-draft.md` (34 new = 17 × 2; total 205 APVTS parameters).
 
-### Geometry — common
-
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| Source Type (bake) | Mesh / Volume / Terrain | Mesh | Which generator family feeds this oscillator |
-| Frame Count (bake) | 64 / 128 / 256 | 256 | Frames in the baked table; fewer = faster bake, coarser morph |
-| Shape Drive (bake) | 0.0–1.0 | 0.0 | Post-unwrap tanh drive before normalisation; adds harmonics to mild mesh contours |
-
-### Geometry — Mesh (slice sweep)
+### Terrain (what is scanned)
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
-| Mesh (bake) | Library index or Imported | Torus | Built-in library (sphere, torus, twisted 5-star, crescent, torus knot, fBm blob, …) or a user OBJ/STL |
-| Slice Tilt X (bake) | −90–+90° | 0 | Rotation of the slicing plane about X; second morph axis |
-| Slice Tilt Y (bake) | −90–+90° | 0 | Rotation of the slicing plane about Y |
-| Projection Angle φ (bake) | 0–360° | 0 | Emits cos φ·x(s) + sin φ·y(s) of the contour; a free timbre axis (0° and 90° are the two Lissajous shadows) |
-| Unwrap Mode (bake) | XY Projection / Centroid Distance | XY Projection | Centroid distance d(s) is brighter but sits behind a flatness floor (near-circular slices fall back to XY) |
-| Loop Policy (bake) | Largest / Sum | Largest | Multi-loop slices (torus): keep the largest-area loop with hysteresis, or sum all loops |
+| Terrain | Sine Product / Radial Rings / Saddle / Ridged Cosines / Mitsuhashi / Cosine Wells / Imported… | Sine Product | Analytic terrains (clean-room formulas) or the imported PNG |
+| Terrain Freq (mod) | 0.25–8.0 (log) | 1.0 | Spatial frequency multiplier — the main brightness / harmonic-count control; pitch-tracked (below) |
+| Terrain Mod X (mod) | 0.0–1.0 | 0.5 | Terrain-specific shape input (ring spacing, saddle skew, well depth …), documented per terrain |
+| Terrain Mod Y (mod) | 0.0–1.0 | 0.5 | Second terrain-specific shape input |
+| Pitch Track | 0.0–1.0 | 1.0 | How much Terrain Freq scales down with note pitch: 1.0 keeps the harmonic count constant across the keyboard (the "terrain mip"), 0.0 keeps the spatial frequency fixed |
+| Saturation (mod) | 0.0–1.0 | 0.0 | tanh drive on the scanned value before the oscillator output; identity at 0 |
+| Image Blur | 0.0–1.0 | 0.2 | Gaussian pre-blur on PNG terrains (pixel detail is broadband); inert for analytic terrains |
+| Edge Mode | Mirror / Window | Mirror | Mitsuhashi edge handling for PNG terrains; inert for analytic terrains |
 
-### Geometry — Volume (orbit through a field)
-
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| Field (bake) | Torus SDF / Box SDF / Gyroid / Sphere SDF / fBm Noise | Torus SDF | The scalar field f(x,y,z) sampled by the orbit |
-| Orbit (bake) | Torus Knot (2,3) / (3,5) / (5,7) / Lissajous Knot | Torus Knot (2,3) | Closed 3D curve traced once per cycle |
-| Sweep Axis (bake) | Orbit Scale / Knot Phase / Z Offset | Orbit Scale | Which orbit property advances frame-to-frame |
-| Sweep Range (bake) | 0.0–1.0 | 0.6 | How far the sweep axis travels across the 256 frames |
-| Field Detail (bake) | 0.0–1.0 | 0.3 | Spatial frequency of the field (noise octaves / SDF repeat); higher = more partials |
-
-### Geometry — Terrain (orbit sweep over a heightmap)
+### Orbit (how it is scanned)
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
-| Terrain (bake) | Library index or Imported PNG | Sine Product | Built-in analytic terrains (sine product, radial rings, clean-room re-derivations) or a greyscale PNG |
-| Orbit Shape (bake) | Ellipse / Epitrochoid 3·5·7 / Hypocycloid 3·5·7 / Superellipse | Ellipse | Closed 2D curve scanned once per cycle |
-| Orbit Centre X / Y (bake) | −1.0–1.0 | 0.0 / 0.0 | Centre offset → asymmetry / even harmonics; also driven by dragging the 3D view |
-| Orbit Aspect (bake) | 0.1–1.0 | 1.0 | Ellipse minor/major ratio |
-| Orbit Rotation (bake) | 0–360° | 0 | Phase relationship between X and Y → PWM / phase-distortion-like effects |
-| Sweep Axis (bake) | Radius / Rotation / Centre X / Centre Y | Radius | Which orbit property advances frame-to-frame (radius = brightness ramp) |
-| Sweep Range (bake) | 0.0–1.0 | 0.8 | Travel of the sweep axis across the frames; orbit is clamped inside [−1,1]² |
-| Image Blur (bake) | 0.0–1.0 | 0.2 | Gaussian pre-blur on PNG terrains (pixel detail is broadband) |
-| Edge Mode (bake) | Mirror / Window | Mirror | Mitsuhashi edge handling for PNG terrains |
+| Orbit | Ellipse / Superellipse / Limaçon / Epitrochoid 3 / 5 / 7 / Hypocycloid 3 / 5 / 7 / Butterfly / Squarcle | Ellipse | Closed curve traced once per cycle; θ is the oscillator phase accumulator, so Sync / Bend / Window warps, unison and FM apply to it unchanged |
+| Orbit Size (mod) | 0.0–1.0 | 0.5 | = `osc?Pos`, relabelled; radius 0.05–1.0. Larger orbit crosses more terrain features → brighter |
+| Orbit Aspect (mod) | 0.1–1.0 | 0.7 | Minor/major ratio |
+| Orbit Rotation (mod) | 0–360° | 0 | Phase relationship between X and Y → PWM / phase-distortion-like effects |
+| Orbit Centre X (mod) | −1.0–1.0 | 0.13 | Centre offset → asymmetry, even harmonics; dragged in the 3D view |
+| Orbit Centre Y (mod) | −1.0–1.0 | 0.21 | As above |
+| Orbit Mod (mod) | 0.0–1.0 | 0.5 | Shape parameter of the chosen orbit: superellipse exponent, limaçon loop size, epitrochoid inner ratio, squarcle corner sharpness; inert for Ellipse |
+| Feedback (mod) | 0.0–1.0 | 0.0 | Trajectory feedback: the previous output displaces the next orbit point; bounded and damped so no setting runs away |
+| Feedback Damp | 0.0–1.0 | 0.5 | One-pole smoothing on the feedback displacement (spatial compression) — the stability / character control |
+
+### Quality
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| Quality | Bandlimited / 2× / 4× | 2× | Bandlimited = Chebyshev terrain with per-pitch truncation at 1× (exact for Ellipse / Epitrochoid / Hypocycloid orbits, approximate for the others); 2× / 4× = per-oscillator halfband oversampling of the analytic terrain |
+
+**Symmetry rule (from the 2026-09-08 check):** a centred orbit over an even terrain repeats itself every half-turn and plays an octave up (a knot through a symmetric field plays a twelfth up). Defaults are therefore off-centre and non-circular, and every factory preset and library default must pass a harness gate: harmonic 1 is the strongest partial or within 6 dB of it.
 
 ### Non-parameter state
 
-- Imported OBJ/STL/PNG sources are persisted in plugin state (gzip + base64) up to a size cap; above the cap the state stores path + SHA-256 and the UI shows a "source missing, using library fallback" notice on load. Exact cap is a Stage 0 decision.
-- The baked tables themselves are never stored; they are regenerated from parameters on load, on a background thread, with the previous table (or silence on first load) playing until the swap.
+- The imported PNG is persisted in plugin state and presets (raw PNG bytes, base64, ≤ 2 MB; above the cap: path + SHA-256 + name), with a "source missing — using library fallback" notice on load when the file is gone.
+- In Bandlimited mode the Chebyshev coefficient set for the current terrain parameters is computed off the audio thread and swapped atomically (the same publish/reaper mechanism O-Prism uses for tables); it is regenerated from parameters, never stored.
 
 ## UI Concept
 
-**Mockup:** `.planning/mockups/v1-ui.yaml` + `v1-ui-test.html` (finalized 2026-09-07, source of truth for the UI sections below).
+**Mockup:** to be created (v2). `superseded-baked-v1/mockups/v1-*` is the previous design and is not a source of truth; its shell, palette and the ⬡/≋ canvas toggle idea carry over.
 
-**Layout:** O-Prism's 1200 × 800 shell unchanged — header bar with preset browser, five-tab bar, footer with Master / Osc Mix. The **Wavetable** tab (editor + library) is deleted and its slot becomes a **Geometry** tab. Tabs: Synth · Mod · Tuning · Effects · Geometry.
+**Layout:** O-Prism's 1200 × 800 shell unchanged — header bar with preset browser, five-tab bar, footer with Master / Osc Mix. Tabs: **Synth · Mod · Tuning · Effects · Terrain** (the old Wavetable tab slot).
 
-**Synth tab:** identical to O-Prism except the two oscillator panels. The Shape dropdown is replaced by **Source** (Mesh / Volume / Terrain) plus a family library dropdown (Mesh▾ / Field▾ / Terrain▾) that follows Source. The 160 × 90 oscillator canvas becomes a two-mode view — 3D geometry (default) or the Serum-style stacked-frame wavetable — switched by a ⬡/≋ glyph toggle in the canvas corner (per-oscillator UI state, not a parameter). A 2 px sage bake bar under the canvas runs while a re-bake is in flight. Carried-over knobs keep O-Prism's order (Position, Level, Pan, Coarse, Fine, Phase, Unison, Detune, Width, Warp, Warp Amt); Position reads "Frame N / 256". The drop overlay reads "Drop OBJ · STL · PNG".
+**Synth tab:** identical to O-Prism except the two oscillator panels: the Shape dropdown becomes **Terrain▾** and a second dropdown **Orbit▾**; the 160 × 90 canvas shows the terrain wireframe with the orbit and a live scan point (3D) or the last cycle's waveform (≋), switched by the ⬡/≋ glyph. Knob order: Size (was Position), Level, Pan, Coarse, Fine, Phase, Unison, Detune, Width, Warp, Warp Amt. The drop overlay reads "Drop PNG".
 
-**Geometry tab:** the showpiece. Top row: Osc A / Osc B toggle · Source segmented control · Frames (64 / 128 / 256) · library dropdown · **Import…** button · right-aligned bake readout ("Baked · 38 ms · 256 frames", amber while baking). Left: a 700 × 540 3D view with the same ⬡/≋ toggle, drop overlay, bake bar, monospace HUD ("frame 128/256 · φ 0.37") and a one-line interaction hint beneath. Right (~440 px): the active family's control panel only — Shape Drive first, hairline, then the family knobs and dropdowns (Mesh: Slice Tilt X/Y, Projection φ, Unwrap Mode, Loop Policy · Volume: Orbit, Sweep Axis, Sweep Range, Field Detail · Terrain: Centre X/Y, Aspect, Rotation, Sweep Range, Image Blur in a 3 + 3 grid, Orbit Shape, Sweep Axis, Edge Mode) — followed by a mirrored Position knob with an italic note that every geometry control re-bakes and none is a modulation destination, and a hidden amber "Source missing — using library fallback" notice. The nautilus botanical (`img/shell_conchologiaiconi12reev_0090.png`) sits low-right behind the panel at 0.3 opacity, Geometry tab only.
+**Terrain tab:** the showpiece. Top row: Osc A / Osc B toggle · Terrain▾ · Orbit▾ · Quality segmented control · **Import…** · right-aligned readout ("2× · 12 partials at C4"). Left: a 700 × 540 3D view — displaced 64 × 64 wireframe terrain, the orbit drawn on the surface, the scan point, and with Feedback > 0 the actual displaced trajectory trail so the player sees what feedback does. Monospace HUD ("θ 0.37 · r 0.61 · c (0.13, 0.21)"). Right (~440 px): **Terrain** group (Freq, Mod X, Mod Y, Pitch Track, Saturation; Image Blur and Edge Mode greyed unless Imported), hairline, **Orbit** group (Size mirrored, Aspect, Rotation, Centre X/Y, Orbit Mod, Feedback, Feedback Damp), and the hidden amber "Source missing" notice. The nautilus botanical (`mockups/img/shell_conchologiaiconi12reev_0090.png`) sits low-right behind the panel at 0.3 opacity, Terrain tab only.
 
-**3D view content per family:** Mesh — wireframe mesh, translucent slicing plane at the current frame height, extracted contour in sage. Volume — sparse iso-shell point cloud, orbit curve in ink, current scan point in sage. Terrain — 32 × 32 wireframe heightmap with the orbit drawn on the surface. Playhead (frame index + phase) pushed at 30 Hz.
-
-**Interaction:** drag on the view edits Slice Tilt X/Y (Mesh), Orbit Centre X/Y (Terrain) or rotates the camera (Volume); wheel edits Projection φ (Mesh) or Sweep Range (Volume/Terrain); alt-click resets a knob. Document-level move/up pattern, `wheel {passive:false}`. Drag-and-drop OBJ/STL/PNG onto either view (macOS `webkitGetAsEntry` pattern) plus the Import button.
+**Interaction:** drag on the view moves Orbit Centre X/Y; wheel edits Orbit Size; alt-drag rotates the orbit; alt-click resets a knob. Document-level move/up pattern, `wheel {passive:false}`, drag-start/drag-end through the slider relay so hosts record one undo step. Drag-and-drop PNG onto either view (macOS `webkitGetAsEntry` pattern) plus the Import button.
 
 **Visual Style:** Ouaricon Naturalist brand (ouaricon-naturalist-001), O-Prism's palette, Garamond stack and SVG vine-arc knobs; O-Prism CSS class names reused so Stage 3 can diff against the fork base.
 
 **Key Elements:**
-- 3D view: hand-rolled WebGL2 with a Canvas 2D fallback in the same file, no library (prototype: `research/wavetable-synthesis-3d-geometry-prototypes/webgl-3d/terrain-proto.html`, 5.5 KB gzipped). The mockup draws the scenes in Canvas 2D.
-- Bake progress bar + status readout per oscillator (O-TextureForge precedent); the view redraws only when a push dirtied state.
-- "WebGL unavailable" placeholder as a localised `data-i18n` node (en / fr / zh-Hans); all new labels carry `data-i18n` keys listed in `v1-ui.yaml` (`i18n_new_keys`).
-- Geometry block is 24 parameters per oscillator (3 common + 6 Mesh + 5 Volume + 10 Terrain) = 48, total 219 APVTS parameters (the draft's "23 / 46 / 217" undercounted).
+- 3D view: hand-rolled WebGL2 with a Canvas 2D fallback in the same file, no library (prototype: `research/wavetable-synthesis-3d-geometry-prototypes/webgl-3d/terrain-proto.html`, 5.5 KB gzipped, already draws exactly this scene).
+- Playhead at 30 Hz via `emitEventIfBrowserIsVisible` (change-gated `{osc, theta, x, y}`), never `evaluateJavascript`; re-push after every preset apply.
+- "WebGL unavailable" placeholder as a localised `data-i18n` node (en / fr / zh-Hans); all new labels carry `data-i18n` keys.
 
 ## Use Cases
 
-- **Evolving pads from a shape.** Load the twisted-star mesh, set Position under a slow LFO, tilt the slicing plane with the mod wheel: the pad morphs through cross-sections the player can watch.
-- **Microtonal wavetable lead.** Bohlen-Pierce or 31-EDO from the tuning tab, a torus-knot orbit through a gyroid volume for a metallic, formant-like spectrum that stays alias-free at the top of the keyboard.
-- **Bring your own geometry.** Drop an OBJ exported from Blender or a greyscale texture PNG; the plugin slices or scans it into a playable table in under a second and stores it in the preset.
-- **Sound-design exploration.** Sweep Projection Angle φ and Shape Drive on a mesh contour to find timbres between the two Lissajous shadows, then freeze the result as a factory-style wavetable.
-- **Film / game texture beds.** fBm noise volumes with small Sweep Range give dense, slowly varying noise tables for drones, run through the O-Prism FX rack.
+- **Breathing pad.** Sine Product, Ellipse, Size under a slow LFO and Centre X under a second LFO at a different rate: brightness and even-harmonic content drift independently, and the player watches the ellipse breathe across the surface.
+- **Feedback lead.** Ridged Cosines, Epitrochoid 5, Feedback at 0.4 with Damp at 0.3 and the mod wheel on Terrain Freq: the trajectory trail folds on itself and the tone chatters — the sound that no baked table makes.
+- **Microtonal bandlimited bell.** Bohlen-Pierce from the tuning tab, Cosine Wells in Bandlimited mode, Hypocycloid 3: formant-like resonance at the third harmonic, alias-free to the top of the keyboard at 1×.
+- **Bring your own terrain.** Drop a greyscale texture PNG; blur 0.2, Mirror edges; drag the orbit around the image to find its sweet spots; the preset stores the image.
+- **Phase-distortion organ.** Saddle, Squarcle, Orbit Rotation swept by an envelope: PWM-like motion from a static terrain, run through the O-Prism FX rack.
 
 ## Inspirations
 
-- **Aaron Anderson — *Terrain*** (JUCE, GPL-3.0, 2024): live analytic wave terrain, ~20 orbit curves, trajectory feedback. Formulas re-derived clean-room; no code copied (O-Strata is AGPL-3.0, Terrain is GPL-3.0).
-- **Conductive Labs *Terrain Synth*** (hardware, 2025) and the ADC25 talk "Implementing Wave Terrain Synthesis": PNG/RGB-channel terrains, clean single-cycle pitch.
-- **Xfer Serum**: Position-morph workflow, stacked-frame 3D table view.
-- **Scanned synthesis** (Verplank / Mathews / Shaw; Csound `scanu/scans`; Wablet): the idea that a geometry can animate itself — deferred, see Out of Scope.
-- **3D-printing slicers** (Minetto et al. 2017): plane-mesh contour extraction as a solved problem.
-- **DAFx 2026 "Arbitrary Polygon Oscillator"** (Argentieri & Scagliola): independent prior art for constant-arc-length traversal of a plane through a polyhedron.
-- **O-Prism** (v1.24.0): the engine, UI shell, tuning engine and preset system O-Strata forks from.
+- **Aaron Anderson — *Terrain*** (JUCE, GPL-3.0, 2024): live analytic wave terrain, ~20 orbit curves, trajectory feedback with spatial compression, whole-synth 2–16× oversampling, OpenGL view. The reference for what "alive" means here. Formulas re-derived clean-room; no code copied (O-Strata is AGPL-3.0, Terrain is GPL-3.0).
+- **Mitsuhashi (1982), Borgonovo & Haus, Mills & de Souza (1999), Stuart James (2005)**: the wave-terrain literature — orbits, windowing/edge constraints, stereo via displaced orbit pairs.
+- **Conductive Labs *Terrain Synth*** (hardware, 2025) and Steven Barile's ADC25 talk: PNG terrains, sync and phase distortion framed as path–terrain relationships.
+- **O-Prism** (v1.24.0): the engine, UI shell, tuning engine and preset system O-Strata forks from — and, since 2026-09-08, the home of the baked geometry tables.
 
 ## Technical Notes
 
-Full research: `research/wavetable-synthesis-3d-geometry.md` (Level 2 + Level 3, 2026-09-07). Prototypes and raw benchmark outputs: `research/wavetable-synthesis-3d-geometry-prototypes/` (Python slicer, C++ terrain-oscillator benchmark, WebGL2 HTML prototype).
+Full research: `research/wavetable-synthesis-3d-geometry.md` §1 (paradigm), §7.2 (live-oscillator benchmark on Apple M4 Max, aliasing measurements, Chebyshev bound, architecture must-haves 1–7), §7.3 (WebView 3D view). Benchmark source: `research/wavetable-synthesis-3d-geometry-prototypes/terrain-bench/`. Listening evidence for the re-plan: `.planning/evidence/`.
 
-**Fork base.** O-Prism v1.24.0: `WavetableData` (2048 samples + guard, ≤256 frames, 10 mipmap levels), `WavetableGenerator::generateMipmaps()` (FFT truncation per level), atomic `WavetableData*` publish with generation-counted retired-table reaper, scala-tuning-engine v3.0.1, preset-manager v1.0.6, en/fr/zh-Hans i18n.
+**Fork base.** `plugins/O-Strata/Source/` already exists: O-Prism v1.24.0 fully renamed to `Strata`, wavetable library and editor removed, `JUCE_WEB_BROWSER`-guarded editor, `juce_cryptography` linked, pluginval/auval verified (`stages/1-foundation/`). The 48 baked-geometry parameters it carries are replaced in the Stage 1 re-parameterise pass. `WavetableOscillator` / `WavetableData` / mipmaps become dead code once the terrain oscillator lands — Stage 0 decides whether they are deleted or kept dormant for the v1.1 Baked source.
 
-**Mesh slicer (verified in Python, 128 slices × 2048 samples on sphere/torus/star/fBm-sphere/crescent):**
-- Arc-length resampling (uniform s, cumulative chord length) emitting cos φ·x(s) + sin φ·y(s). Radial r(θ) unwrap is rejected (fails on non-star-shaped loops). Centroid distance d(s) needs a flatness floor (~0.02 ptp/r_mean) or circular slices normalise facet noise to 0 dBFS.
-- Multi-loop: largest-area loop with centroid-hysteresis tracking (adjacent-frame RMS 0.017 mean / 0.034 max), sum as an option, never concatenate (0.287 / 0.607).
-- Frame alignment: FFT cross-correlation with polarity test, chained frame-to-frame. Fixed-ray alignment fails on geometry that twists about the slice axis. Cost: one 2048-point FFT pair per frame.
-- Normalisation: per-frame DC removal, global peak across all frames (matches `WavetableImporter.cpp:189-205`). Never per-frame peak.
-- C++ carry-overs: nudge vertices with |z−h| < ε off the plane; key intersections by sorted vertex-pair edge id (each key appears in exactly two segments on a closed manifold → chaining is an adjacency walk); orient loops CCW by signed area; area-weighted polygon centroid.
-- Cost estimate: 10–30 ms for a 256-frame bake at 40 k triangles in C++, ~1 s at 1 M triangles. Volume bake 0.1–0.7 ms/frame.
+**Live oscillator (must-haves from §7.2, all mandatory):**
+1. Interface parity with `WavetableOscillator` (`prepare / setFrequency / setPosition / setUnison / setWarp* / setFMInput / getNextSampleStereo`) with θ as the phase accumulator, so Sync, Bend, FM and Window warps, unison and the voice code apply unchanged; `setPosition` drives orbit size.
+2. **Per-oscillator** 2× oversampling (halfband polyphase IIR up/down, ~9 ns per base sample), parameters held over the sub-samples; 4× "HQ". Not whole-synth oversampling: O-Prism's voice loop carries filters, LFOs and the mod matrix, and doubling it costs +10–15 % of a core and re-prepares every filter.
+3. Pitch-tracked terrain spatial frequency ("terrain mip"): measured, an unbounded spatial-frequency parameter aliases at +16 dB at 1× and is not fixable by oversampling alone.
+4. **Bandlimited (Chebyshev) mode**: terrain `f = Σ c_nm T_n(x) T_m(y)`, total degree ≤ 16 → with trig-polynomial orbits of degree K the maximum harmonic is (n+m)·K, so coefficients are truncated per pitch exactly like a mipmap level (−116 dB floor at 1×, verified). Coefficient sets are computed off the audio thread per (terrain, Freq, Mod X, Mod Y) and swapped atomically; in this mode the terrain parameters are block-rate at the swap cadence while orbit parameters stay audio-rate. PNG terrains are projected onto the basis offline at import ("bandlimited image"). Superellipse / Butterfly / Squarcle orbits are not trig polynomials — bandlimited mode is approximate for them and the UI says so.
+5. No `pow` and no `std::function` in the per-sample path: `switch` on the terrain / orbit enums, `FastMathApproximations::tanh`, `juce::SmoothedValue` per modulated parameter; no per-block buffers that allocate on a quality change.
+6. Unison cap 4 for the live oscillator (35 % of a core at unison 4, 2×, 16 voices × 2 osc).
+7. Image terrain published through `std::atomic<const TerrainImage*>` with the existing generation-counted reaper; decode and pre-blur on a background thread; orbit clamped to [−1, 1]² and `isfinite`-guarded before the bilinear read.
 
-**Volume and terrain generators.** SDF fields (torus, box, sphere, gyroid) and fBm noise; tanh-shaped before unwrap. Terrain orbit sweep reproduces most of what *Terrain* does at control rate, alias-free. PNG terrains: decode via `juce::ImageFileFormat` on the message thread, pre-blur, mirror or window edges (Mitsuhashi continuity constraints), keep the orbit strictly inside [−1, 1]².
+**Feedback.** `p[n] = orbit(θ[n]) + fb · d[n]`, `d[n] = damp · d[n−1] + (1 − damp) · y[n−1] · û`, with `û` a fixed direction rotated with the orbit, `d` clamped to ±0.5 and the sampled point clamped to [−1,1]². Stability is a harness gate (no NaN, no runaway, bounded output at every Feedback × Damp × terrain × orbit grid point).
 
-**Threading.** Bake on a background thread, debounced (~150 ms) after the last bake-parameter change; publish via the existing atomic swap; retire the old table on the message thread. Two memory patterns apply: *source-swap needs a lock if prepareToPlay publishes*, *retired-map reaper must not free on the audio thread*. OBJ/STL/PNG parsing is never touched from `processBlock`.
+**CPU budget (Apple M4 Max, clang −O2, §7.2):** 16 voices × 2 osc, unison 1 — wavetable today 2.2 %; live analytic 2× 8.8 %; live PNG 512² 2× 11 %; worst orbit + terrain 2× 16 %; Chebyshev 16 × 16 at 1× 8.5 %. Gate: ≤ 12 % at the default patch.
 
-**3D view.** Hand-rolled WebGL2, R32F heightmap texture, `texSubImage2D` on table update; Canvas 2D fallback mandatory (WebView2 `getContext('webgl2')` can return null; WKWebView `flat` interpolation crashes the shader compiler — avoid it; handle `webglcontextlost` / `webglcontextrestored`). 30 Hz push via `emitEventIfBrowserIsVisible` + backend event listener, not `evaluateJavascript` (JUCE issue #1415). Playhead event is a sub-100-byte change-gated JSON; the 64×64 view table crosses as base64 Float32 (~21 KB) on change; the full 256×2048 table never crosses as text. Re-push after every preset apply (one-shot push goes stale on preset load). Measured in Chromium: 0.12 ms/frame WebGL2, 0.25 ms Canvas 2D; WKWebView/WebView2 numbers are unverified and are a Stage 3 gate.
+**Aliasing (§7.2, C6):** butterfly + sine product −18.5 dB at 1×, **−60 dB at 2×**, −105 dB at 4×; epitrochoid-7 + sine product −18 dB at 2×, −66 dB at 4×. Gate: every library terrain × orbit default ≤ −60 dB non-harmonic at C6 at 2× (with pitch tracking on), ≤ −90 dB in Bandlimited mode with a trig-polynomial orbit.
 
-**Roadmap mapping.** Research §7.4 stages ≠ plugin-workflow stages: research Stage 1 (baked generators) is workflow Stage 2 (DSP); research Stage 3 (3D view) is workflow Stage 3 (GUI); research Stage 2 (live terrain oscillator) is the v1.1 improvement.
+**3D view.** As the superseded design: hand-rolled WebGL2 + Canvas 2D fallback in one file, R32F heightmap texture, `webglcontextlost / restored`, no GLSL `flat`; PERF-03 measured in WKWebView and WebView2 at DPR 2, ≤ 2 ms mean.
 
-**Licence.** AGPL-3.0-or-later, as O-Prism. Terrain (GPL-3.0) formulas re-derived from the mathematics with attribution; no source copied.
+**Licence.** AGPL-3.0-or-later, as O-Prism. *Terrain* (GPL-3.0) formulas re-derived from the mathematics with attribution; no source copied.
 
 ## Out of Scope (v1.0)
 
 | Feature | Reason | Target |
 |---------|--------|--------|
-| Live wave-terrain oscillator (per-osc 2× oversampling, HQ 4×, pitch-scaled terrain spatial frequency, Chebyshev bandlimited mode at 1×, live PNG terrain via atomic swap, unison cap 4, trajectory feedback) | New audio-thread code path with its own CPU budget (8.8–16% core at 16 voices × 2 osc, unison 1); the research roadmap orders it after baking | v1.1 |
-| Scanned synthesis (mass-spring mesh evolving at 0–15 Hz, scanned into frames at block rate) | Stability (clamp + leak) and a new block-rate simulation; fits the bake pipeline once that exists | v1.2+ |
-| ADAA for terrains | Mathematically unsound for arbitrary composite f(x(θ), y(θ)); open research item, not a plan | none |
-| RGB-channel terrain morphing (three terrains from one PNG) | Conductive Labs feature; easy extension of the terrain generator once PNG import is stable | v1.1 |
-| In-plugin mesh editing / sculpting | Out of the instrument's remit; import from Blender instead | none |
-| three.js / lit mesh rendering | No bundler in O-Prism; three.js is ESM-only (79 KB gz); revisit only if lit OBJ display is demanded | v1.x |
+| Baked geometry sources (mesh slicing, SDF / fBm volume orbits, terrain orbit sweeps → wavetable) | Listening pass 2026-09-08: pleasant but static; ships as an O-Prism factory bank instead. The full design is preserved in `superseded-baked-v1/` for a "Baked" source type | v1.1 |
+| Wavetable oscillator mode in O-Strata | O-Prism is the wavetable synth; O-Strata is terrain-only by design | none |
+| RGB-channel terrain morphing (three terrains from one PNG) | Extension once PNG import is stable | v1.1 |
+| Stereo via displaced orbit pairs (Mills & de Souza) | Unison Width covers the basic case; true dual-orbit stereo is a per-voice CPU doubling | v1.x |
+| Scanned synthesis (mass-spring mesh) | Stability + block-rate simulation | v1.2+ |
+| ADAA for terrains | Mathematically unsound for arbitrary composite paths | none |
+| three.js / lit rendering | No bundler; ESM-only | v1.x |
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/start O-Strata` → option 3)
-- [ ] Start implementation (`/implement O-Strata`)
+- [ ] (Recommended, 1 hour) Play Aaron Anderson's *Terrain* to confirm audio-rate orbit modulation and feedback are the sound wanted — the same listening test the baked tables just failed
+- [ ] `/plan O-Strata` → new ARCHITECTURE.md + ROADMAP.md from this brief and `parameter-spec-draft.md`
+- [ ] UI mockup v2 (`design UI for O-Strata`), lock `parameter-spec.md` v2
+- [ ] Stage 1 re-parameterise pass on the existing fork (`/plugin-discuss O-Strata 1-foundation`)
