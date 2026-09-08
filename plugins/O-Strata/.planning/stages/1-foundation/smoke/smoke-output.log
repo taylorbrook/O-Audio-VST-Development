@@ -1,0 +1,32 @@
+scl: /Users/taylorbrook/Dev/VST-development/test-tunings/just-major.scl (exists=1)
+rms  A=0.1800  A(muted)=0.0000  B=0.1800  B(muted)=0.0000
+PASS  [1] held note sounds with oscMix=0 (Osc A)
+PASS  [1] held note sounds with oscMix=1 (Osc B)
+PASS  [1] negative control: muting Osc A level kills the A-only note
+PASS  [1] negative control: muting Osc B level kills the B-only note
+PASS  [1] no NaN/Inf in rendered output
+PASS  [2] createPluginFilter() yields OStrataAudioProcessor
+scala: before 64/60=1.259921  after 62/60=1.250000 64/60=1.500000 67/60=2.000000  (f60=261.626 Hz; one key per scale degree)
+PASS  [2] TuningEngine::loadScalaFile(just-major.scl) returns true
+PASS  [2] note 62 / note 60 = 5/4 (degree 2) after load
+PASS  [2] note 64 / note 60 = 3/2 (degree 4) after load
+PASS  [2] note 67 / note 60 = 2/1 (degree 7) after load
+PASS  [3] scala loaded into P1 before save
+PASS  [3] getStateInformation produced data
+PASS  [3] state XML parses
+PASS  [3] <geometryImports> child present
+PASS  [3] <geometryImports/> is empty
+PASS  [3] <tuningEngine> child present
+PASS  [3] uiLanguage="fr" stored as a string
+state: 9883 bytes, 219 PARAM nodes, root=OStrataParameters
+PASS  [3] XML carries 219 PARAM nodes
+PASS  [3] both instances expose 219 parameters
+round-trip: 0 mismatches; 190 of 219 saved values differ from default
+PASS  [3] all 219 parameter values restored into a fresh processor
+PASS  [3] the test actually moved the parameters (>150 of the 214 randomised differ from default; not a vacuous pass)
+PASS  [3] uiLanguage restored (fr)
+tuning: P1 64/60=1.500000  P2 64/60=1.500000
+PASS  [3] tuning (just-major) restored: notes 48..84 identical in P1 and P2
+PASS  [3] restored tuning is the Scala scale (64/60 = 3/2), not 12-EDO
+
+ALL SMOKE CHECKS PASSED — 0 failure(s)
