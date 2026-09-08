@@ -170,11 +170,12 @@ public:
     // The editor PULLS it once at page init; nothing pushes.
     std::atomic<int> uiLanguage { 0 };
 
-    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
-        hand-edited session or an unexpected argument from the page degrades to
-        English rather than being stored unvalidated. */
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    /** The codec. languageIndex() maps anything it does not recognise to 0,
+        so a hand-edited session or an unexpected argument from the page degrades
+        to English rather than being stored unvalidated. Three languages since
+        v1.5.0; the codes are ASCII and no Chinese character enters the C++. */
+    static juce::String languageCode  (int i)                 { return i == 2 ? "zh-Hans" : (i == 1 ? "fr" : "en"); }
+    static int          languageIndex (const juce::String& s) { return s == "zh-Hans" ? 2 : (s == "fr" ? 1 : 0); }
 
     //==========================================================================
     // Stage-3 visualization accessors. The editor reads these on its

@@ -227,7 +227,7 @@ OSimpleGrainAudioProcessorEditor::OSimpleGrainAudioProcessorEditor (OSimpleGrain
                                      processorRef.uiLanguage.load (std::memory_order_acquire))));
         })
         .withNativeFunction ("setUiLanguage", [this] (const juce::Array<juce::var>& args, auto complete) {
-            // languageIndex() maps anything that is not "fr" to 0, so an
+            // languageIndex() maps anything unrecognised to 0, so an
             // unexpected argument from the page degrades to English rather than
             // being stored unvalidated.
             if (args.size() > 0)
