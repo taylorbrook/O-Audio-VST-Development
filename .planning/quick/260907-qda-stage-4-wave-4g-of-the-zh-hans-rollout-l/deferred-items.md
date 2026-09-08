@@ -93,6 +93,11 @@ general lesson, applied — and on all six the count was **one or two**.
 | `'sub'` → `['低音','超低频']` | both are low-frequency **BAND** words | this plugin's is a **sub-oscillator** mix level; it back-translated as "Bass". Needs either a second accepted member for the oscillator sense or a scope note saying the root is band-only | 3 sites, 2 band + **1 oscillator** |
 | `'taper'` → `渐变` | reads as **"Gradient"** to a caption-only reader | **ACCEPTED, not forked** — the shipped corpus root, and no second gradient-like control exists on O-simpleGrain's page to collide with. **Recorded because any plugin pairing a Taper caption with a gradient control would have a real collision** | corpus root |
 
+**RESOLVED 260908-a8w — row 4, `'load your own'`.** The glossary root now carries the head noun
+(`载入自己的素材`), which is byte-for-byte what O-simpleGrain and O-simpleSampler already shipped, so
+no plugin file changed and no rendering moved. The other five rows of the table are unchanged and
+still open.
+
 **A shared-script edit is outside a per-plugin task's path scope**, which is why all six are carried
 rather than made. **This is the same shape as 4f D1 and it is now six items deep — the pattern is
 that a root derived from ONE plugin's caption+title pair looks measured (2 occurrences) and had no
@@ -237,6 +242,15 @@ not distortion. **Still the oldest open corpus-level item.** Not this wave's plu
 
 **But its general lesson was applied on all six of this wave's plugins and it paid: G4 above is six
 more roots of the same shape.**
+
+**RESOLVED 260908-a8w.** `scripts/i18n-zh-glossary.js` now reads the **distance** sense on this root.
+O-GrainScatter's two rows (`tip.distLpf`, `label.distLpf`) already shipped that rendering, so no
+plugin file was touched and nothing users see moved. The corpus was **re-proved, not merely re-run**:
+every baseline number reproduced exactly — `0 findings across 44 plugin(s)`, 4329 entries checked,
+`0 / 44` plugins with findings, 74 termNote exemptions, `Z6 coverage: 3 of 552`, self-test 10/10 with
+no `BROKEN` line, `check-i18n` `ALL CHECKS PASS — 44 localized plugin(s)`, `i18n-fr-lint` exit 0.
+The unchanged 0 is what proves the root change was corpus-safe; the unchanged 74 and 552 are what
+prove no plugin file and no glossary key moved.
 
 ### I2. 4f D2 — O-Reed's 20 missing and 7 dead native-function registrations
 
@@ -383,10 +397,11 @@ quality, coverage and hygiene, and it is short enough to list completely:
 1. **G6 / F2 — the thirteen two-language gate files.** Not eight. Every one belongs to an
    already-three-language plugin, none has ever been audited, and this is the **entire remaining N12
    surface**. Start by deciding for each whether its language list is derived or hard-coded.
-2. **I1 / 4f D1 — the wrong glossary root `'dist lpf'`.** `['失真低通']` → `['距离低通']`. One line,
+2. **RESOLVED 260908-a8w — done, in its own commit.** **I1 / 4f D1 — the wrong glossary root `'dist lpf'`.** `['失真低通']` → `['距离低通']`. One line,
    the oldest open item, and outside every per-plugin task's path scope — which is why five waves have
    not made it. **It needs its own commit.**
-3. **G4 — five more single-sited roots**, plus the `'taper'` warning. Same shape as D1: derived from
+3. **G4 — four more single-sited roots**, plus the `'taper'` warning. **RESOLVED 260908-a8w closed
+   one of the five, `'load your own'`**, alongside D1 in the same commit. Same shape as D1: derived from
    one plugin's caption with nothing to check against. **A glossary-level pass over every root with a
    corpus site count of 1 would close D1 and G4 together and is the highest-value remaining
    localization work.**
@@ -413,3 +428,13 @@ quality, coverage and hygiene, and it is short enough to list completely:
 12. **S1 / S2 — never look a line-box ratio up and never read a `system_profiler` zero as absence.**
     Both were proved this wave, both in the direction that causes a regression rather than a
     false alarm.
+13. **Four `termNote` exemptions are now obsolete — but NOT inert.** Closing D1 and G4 row 4 in
+    260908-a8w left four entry-scoped `termNote` fields explaining a divergence from a root that no
+    longer diverges: O-GrainScatter's `tip.distLpf` and `label.distLpf`, and the `loadSource` rows in
+    O-simpleGrain and O-simpleSampler. O-GrainScatter's file **header block also narrates the
+    exemption**. They are harmless to every gate — a `termNote` is INFO, never a finding — but a
+    `termNote` exempts its entry from **both Z5 and F1**, so those four rows now sit outside term
+    coverage they would pass on merit. Plugin files were held out of scope in 260908-a8w on purpose:
+    retiring the notes means rewriting three authored header blocks for **zero rendering change**, so
+    this belongs to the glossary-level pass item 3 already calls for. **One grep finds all four
+    rows:** `grep -rnE '距离低通|载入自己的素材' plugins/`.
