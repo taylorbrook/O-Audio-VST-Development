@@ -4,14 +4,14 @@
 **Complexity Score:** 5.0 (Very High, Capped — raw 23.0)
 **Strategy:** Phase-based implementation (staged DSP and GUI)
 
-**Contracts:** `BRIEF.md`, `REQUIREMENTS.md` (27 IDs), `parameter-spec-draft.md` (217 params), `research/ARCHITECTURE.md`. Every phase below names the requirement IDs it verifies; the traceability table in REQUIREMENTS.md (stage-1: COMPAT-01; stage-2: FUNC-01..05, 09, 10, 12, DSP-*, PERF-01/02, QUAL-01/02; stage-3: FUNC-06/07, UI-*, PERF-03; stage-4: FUNC-08, FUNC-11, COMPAT-02, QUAL-03/04) is honoured phase by phase.
+**Contracts:** `BRIEF.md`, `REQUIREMENTS.md` (27 IDs), `parameter-spec.md` (219 params — the draft's 217 was an undercount, see the spec's "Draft reconciliation" note), `research/ARCHITECTURE.md`. Every phase below names the requirement IDs it verifies; the traceability table in REQUIREMENTS.md (stage-1: COMPAT-01; stage-2: FUNC-01..05, 09, 10, 12, DSP-*, PERF-01/02, QUAL-01/02; stage-3: FUNC-06/07, UI-*, PERF-03; stage-4: FUNC-08, FUNC-11, COMPAT-02, QUAL-03/04) is honoured phase by phase.
 
 ---
 
 ## Complexity Factors
 
-- **Parameters:** 217 parameters (217/5 = 43.4, capped at 2.0) = **2.0**
-  - 171 inherited from O-Prism v1.24.0 + 46 new Geometry parameters (23 × Osc A/B)
+- **Parameters:** 219 parameters (219/5 = 43.8, capped at 2.0) = **2.0**
+  - 171 inherited from O-Prism v1.24.0 + 48 new Geometry parameters (24 × Osc A/B)
 - **Algorithms:** 16 DSP components = **16**
   - New (7): MeshSlicer, VolumeOrbitSampler, TerrainOrbitSampler, FrameAligner + FrameNormaliser, GeometryBakeScheduler, GeometryImporter (OBJ / STL / PNG parsers + welder + blur), BuiltInGeometry (procedural meshes + analytic terrains)
   - Inherited unchanged (9): WavetableOscillator + mipmap engine, SubOscillator, NoiseGenerator, SVFFilter ×2, ADSREnvelope ×2, UnisonEngine, EffectsChain (5 FX), LFO ×4 + ModulationMatrix, TuningEngine (scala-tuning-engine v3.0.1)
@@ -42,13 +42,13 @@
 
 ## Stage 1: Foundation
 
-**Goal:** A buildable, validating O-Strata that is O-Prism v1.24.0 minus the wavetable library plus 46 inert geometry parameters. No generator code yet; the oscillators play the sine placeholder.
+**Goal:** A buildable, validating O-Strata that is O-Prism v1.24.0 minus the wavetable library plus 48 inert geometry parameters. No generator code yet; the oscillators play the sine placeholder.
 
 **Tasks:**
 - Fork `plugins/O-Prism/` → `plugins/O-Strata/` (Source, ui, CMakeLists, CHANGELOG stub, NOTES). `juce_add_plugin(O-Strata … PLUGIN_CODE OuSt PRODUCT_NAME "O-Strata${OUARICON_DEV_SUFFIX}" VERSION 1.0.0 …)` — `VERSION`, never `PLUGIN_VERSION` (memory: `critical_plugin_version_keyword_ignored_by_juce`). `OuSt` verified unused across `plugins/*/CMakeLists.txt`.
-- Rename classes / namespaces (`OPrismAudioProcessor` → `OStrataAudioProcessor`, binary-data target `O-Strata_UIResources`, `PrismParamIds` may keep its name or become `StrataParamIds` — one decision, applied everywhere).
+- Rename classes / namespaces (`OPrismAudioProcessor` → `OStrataAudioProcessor`, binary-data target `O-Strata_UIResources`, `PrismParamIds.h` becomes `StrataParamIds.h` — Stage 1 CONTEXT D1, applied everywhere).
 - Remove the library code paths (ARCHITECTURE Decision 5): `WavetableFactory`, `UserWavetableManager`, `WavetableImporter`, `WavetableEditor`, `wavetable-editor.js/.css`, `oscATable` / `oscBTable`, the 14 native functions, their i18n rows (en/fr/zh-Hans), the user-wavetable ValueTree child, the `pOscATable/pOscBTable` caches, `resolveActiveTable` → `oscTablePtr[osc]`. Keep `WavetableGenerator`; initial table = `generateProceduralTable(Sine)`.
-- Add the 46 geometry parameters to `createParameterLayout()` (draft IDs, ranges, defaults from `parameter-spec.md`), update `oscIds()` suffix list (drop `Table`, add 23), so `allSliderIds()` = 170 and relays are generated. Choice lists append-only with trailing `Imported`. Bake params are **not** added to `modSlot?Dst`.
+- Add the 48 geometry parameters to `createParameterLayout()` (IDs, ranges, defaults from `parameter-spec.md`), update `oscIds()` suffix list (drop `Table`, add 24), so `allSliderIds()` = 188 (141 − 2 + 48 + `delayDivision`, CONTEXT D4) and relays are generated. Choice lists append-only with trailing `Imported`. Bake params are **not** added to `modSlot?Dst`.
 - Link `juce::juce_cryptography` (SHA-256). Guard `createEditor()` with `#if JUCE_WEB_BROWSER … #else GenericAudioProcessorEditor` (memory: `pattern_render_harness_breaks_on_webview_editor`) so Stage 2 harnesses build headless.
 - Add `GeometryBakeScheduler` **skeleton** (timer, BakeKey hashing, ThreadPool, publish/retire wiring) that bakes the sine placeholder — proves the thread contract before any geometry exists. (Optional here; mandatory in 2.1.)
 - Stub `geometryImports` state child (empty) in `getStateInformation` / `setStateInformation`.
@@ -59,13 +59,13 @@
 - [ ] VST3 + AU + Standalone build clean on macOS (ninja `O-Strata_VST3 O-Strata_AU`); `./scripts/build-and-install.sh O-Strata` installs with the AU-cache sweep
 - [ ] `auval -a | grep -i strata` lists the AU; `auval` passes
 - [ ] pluginval strictness 10 passes VST3 and AU (COMPAT-01)
-- [ ] Host automation list shows 217 parameters; `oscATable`/`oscBTable` absent; `grep -rn "WavetableFactory\|UserWavetableManager\|oscATable" Source/` returns nothing
-- [ ] Param-dump target (`OUARICON_BUILD_TESTS=ON`) prints 217 IDs matching `parameter-spec.md`
+- [ ] Host automation list shows 219 parameters; `oscATable`/`oscBTable` absent; `grep -rn "WavetableFactory\|UserWavetableManager\|oscATable" Source/` returns nothing
+- [ ] Param-dump target (`OUARICON_BUILD_TESTS=ON`) prints 219 IDs matching `parameter-spec.md`
 - [ ] Notes play the sine placeholder through the unchanged voice/FX path; tuning tab loads a Scala file (smoke for FUNC-09/10, formally verified in 2.1)
-- [ ] State save/reload round-trips all 217 parameters + tuning + uiLanguage
+- [ ] State save/reload round-trips all 219 parameters + tuning + uiLanguage
 
 **Requirements verified:** COMPAT-01
-**Commit:** `feat(O-Strata): Stage 1 foundation — fork of O-Prism v1.24.0, 46 geometry params, library removed`
+**Commit:** `feat(O-Strata): Stage 1 foundation — fork of O-Prism v1.24.0, 48 geometry params, wavetable library removed`
 
 ---
 
@@ -95,7 +95,7 @@ All Stage 2 gates run in **offline harnesses** (`pattern_offline_dsp_render_harn
 - [ ] Alignment on: adjacent-frame RMS ≤ 0.05; harness `alignmentEnabled=false` measurably raises it (DSP-04 mechanism proven before meshes)
 - [ ] Shape Drive 0 is bit-identical to bypass; drive 1 raises partial count (DSP-07)
 - [ ] `oscTablePtr` written only on the message thread (assert never fires under pluginval strictness 10) (PERF-01)
-- [ ] Parameter IDs for envelope, filter, LFO, mod matrix, FX, tuning and global sections match O-Prism v1.24.0 (`params.tsv` diff = the two removed + 46 added) (FUNC-09)
+- [ ] Parameter IDs for envelope, filter, LFO, mod matrix, FX, tuning and global sections match O-Prism v1.24.0 (`params.tsv` diff = the two removed + 48 added) (FUNC-09)
 - [ ] Tuning tab loads a Scala file and a 31-EDO generator; rendered pitch equals O-Prism's on the same tuning (FUNC-10)
 
 **Requirements verified:** FUNC-01, FUNC-09, FUNC-10, FUNC-12, DSP-01 (pipeline path), DSP-04, DSP-05, DSP-07, PERF-01, PERF-02 (scheduling half)
@@ -202,7 +202,7 @@ Prerequisite: the finalized mockup (`mockups/v*-ui.yaml` → `index.html`) from 
 **Goal:** Each oscillator panel shows the Geometry block, one family at a time, bound through the generated relays; the Serum-style stacked-frame view keeps working on the published table; a bake progress indicator per oscillator.
 
 **Tasks:**
-- Copy mockup HTML; per-family control groups shown/hidden by `osc?GeoSource` (all 46 relays exist; hidden ones stay bound). Blur/Edge greyed when Terrain ≠ Imported; φ greyed in Centroid Distance mode.
+- Copy mockup HTML; per-family control groups shown/hidden by `osc?GeoSource` (all 48 relays exist; hidden ones stay bound). Blur/Edge greyed when Terrain ≠ Imported; φ greyed in Centroid Distance mode.
 - Choice dropdowns for the 10 choice params per osc via the existing choice-relay pattern; library names and family names as `data-i18n` labels.
 - `bakeProgress` event (10 Hz while baking) → progress ring/bar (O-TextureForge precedent); `bakeGeneration` change → stacked-frame view refetch via `getActiveOscFrame`.
 - Convert O-Prism's held-notes `evaluateJavascript` push to an `emitEventIfBrowserIsVisible` event (Decision 7).
@@ -319,7 +319,7 @@ Prerequisite: the finalized mockup (`mockups/v*-ui.yaml` → `index.html`) from 
 
 ```
 Stage 1: Foundation
-  |-- Fork O-Prism v1.24.0, PLUGIN_CODE OuSt, remove wavetable library, +46 geometry params
+  |-- Fork O-Prism v1.24.0, PLUGIN_CODE OuSt, remove wavetable library, +48 geometry params
   |-- juce_cryptography, JUCE_WEB_BROWSER-guarded createEditor, pluginval/auval (COMPAT-01)
   |
 Stage 2: DSP (5 phases)

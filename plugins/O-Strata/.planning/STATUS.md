@@ -2,21 +2,21 @@
 plugin: O-Strata
 stage: 1
 stage_name: foundation
-phase: plan
-status: stage_1_plan_complete
+phase: execute
+status: stage_1_execute_complete
 last_updated: 2026-09-07
 workflow_mode: manual
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-execute O-Strata 1-foundation
+next_action: /plugin-verify O-Strata 1-foundation
 next_stage: 1
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:017962972096be6494d98cb27de5042dbf2842c3c13b532eadc8c396261dba4e
   parameter_spec: sha256:578a0d050374c14ba1692f232382af78037da637a6832a27b51cc2b0821f181a
-  architecture: sha256:9d28809a04318159416c68ec184747112159c6bd9a2a39ad0dd88206e4318b46
-  roadmap: sha256:20090d1efcc15b9d7378b5bb696603babc64b9dad1d07060bd58c19585d9ce58
+  architecture: sha256:87f3d06e23d9e862a48f44c4f55032182416e17602ae296fa6bc6a676c4e063f
+  roadmap: sha256:1e8a23be0e650dc092692308cd084dd97a0652725f51c0b546d608d480daeabe
 mockup_latest_version: 1
 ui_design_phase_complete: true
 mockup_finalized: true
@@ -31,9 +31,9 @@ ui_scaffolding_phase_complete: true
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — discuss ✓, research ✓, plan ✓, execute next
-Status: Stage 1 PLAN.md written — 16 tasks in 5 waves (fork → rename → removal set → C++/params → CMake/UI/i18n/fixtures → build/dump/validate/gates → docs → commit); all 12 RESEARCH §10 flags closed as plan decisions (verify-only createEditor guard, oscTablePtr rename-and-simplify, modal-CSS migration, getActiveOscInfo rewrite, CharPointer_UTF8 spec strings, family-prefixed host names, i18n-states evals rewritten, two-line provenance notes)
-Progress: [######..............] 30%
+Stage: 1 of 4 (Foundation) — discuss ✓, research ✓, plan ✓, execute ✓, verify next
+Status: Stage 1 EXECUTED — `plugins/O-Strata/` forked from O-Prism v1.24.0 (`OuSt`, VERSION 1.0.0, full Prism→Strata rename), wavetable library removed, 48 geometry params added (219 total, param-dump diff −2 +48), `juce_cryptography` linked; builds VST3/AU/Standalone, installed, pluginval strictness 10 SUCCESS on both, auval SUCCEEDED (COMPAT-01); check-i18n / fr / zh / check-ui-labels (20 states) / boot-all-uis (0 dead, 0 late) / tip check (106) all green; SUMMARY.md written. Manual smoke (notes sound, .scl loads, state round-trip) deferred to verify.
+Progress: [########............] 40%
 
 ## Phase Progress
 
@@ -43,8 +43,8 @@ Progress: [######..............] 30%
 | discuss | ✓ | 2026-09-07 | |
 | research | ✓ | 2026-09-07 | |
 | plan | ✓ | 2026-09-07 | |
-| execute | → | | |
-| verify | | | |
+| execute | ✓ | 2026-09-07 | |
+| verify | → | | |
 
 ## Completed So Far
 
@@ -62,7 +62,7 @@ Progress: [######..............] 30%
 ## Next Steps
 
 1. ~~Create the UI mockup and the full `parameter-spec.md`~~ **Done (2026-09-07):** mockup v1 finalized (`mockups/v1-ui.yaml`, `v1-ui-test.html`), implementation scaffolding generated (`mockups/v1-ui.html`, `v1-PluginEditor-TEMPLATE.h/.cpp`, `v1-CMakeLists-SNIPPET.txt`, `v1-integration-checklist.md`) and `parameter-spec.md` locked at v1 — **219 params (171 inherited + 48 Geometry)**; the draft's 217/46 was an undercount, reconciled in the spec's "Draft reconciliation" note. Terrain choice list is the mockup's 3 entries (ARCHITECTURE lists 6) — see the same note.
-2. **IN PROGRESS — Stage 1: Foundation** (discuss ✓ research ✓ plan ✓ → `/plugin-execute O-Strata 1-foundation`; decisions in `stages/1-foundation/CONTEXT.md`, findings in `stages/1-foundation/RESEARCH.md`, 16 tasks + resolved flags in `stages/1-foundation/PLAN.md`) — fork O-Prism v1.24.0 into `plugins/O-Strata/` (PLUGIN_CODE `OuSt`, VERSION 1.0.0), remove `oscATable/oscBTable` + library code, add the 48 geometry params from `parameter-spec.md`, link `juce_cryptography`, `JUCE_WEB_BROWSER`-guard `createEditor`, pluginval/auval (COMPAT-01). C++/CMake deltas are pre-written in `mockups/v1-*`.
+2. **IN PROGRESS — Stage 1: Foundation** (discuss ✓ research ✓ plan ✓ execute ✓ → `/plugin-verify O-Strata 1-foundation`; results in `stages/1-foundation/SUMMARY.md`). Verify must cover the manual Standalone smoke SUMMARY lists (held note on A and B, `.scl` load, state round-trip with empty `geometryImports`, no console errors / 404s in WKWebView).
 3. Review `research/ARCHITECTURE.md` (Decisions 1–7) and `ROADMAP.md` before Stage 1.
 
 ## Context to Preserve
@@ -78,6 +78,8 @@ Progress: [######..............] 30%
 - Out of scope v1.0: live terrain oscillator (research §7.2) → v1.1
 
 ## Files Created
+- plugins/O-Strata/Source/** (fork), CMakeLists.txt, tests/**, CHANGELOG.md, .planning/params.tsv
+- plugins/O-Strata/.planning/stages/1-foundation/SUMMARY.md
 - plugins/O-Strata/.planning/research/ARCHITECTURE.md
 - plugins/O-Strata/.planning/ROADMAP.md
 - plugins/O-Strata/.planning/stages/0-ideation/CONTEXT.md
