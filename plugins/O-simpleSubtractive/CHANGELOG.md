@@ -3,6 +3,98 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.0] — 2026-09-07
+
+Simplified Chinese. The interface now offers three languages; MINOR because a
+language is added and nothing existing changes behaviour, range or state format.
+Bumped from the CMakeLists value 1.4.1 — the registry row read 1.4.0 and was one
+patch stale, having missed the 2026-09-03 suite-wide French hover-help rename.
+
+### Added
+
+- **A `zh-Hans` arm on all 133 rows** — 36 tooltip titles, their 36 bodies and
+  61 captions. The Chinese endonym joins the language selector, `LANGUAGES` and
+  `I18N_EXEMPT`; the C++ `languageCode` / `languageIndex` codec is widened to
+  three-way and stays pure ASCII, because the page owns the copy and the
+  processor owns only the BCP-47 identifier the page and the session agree on.
+- **The CJK tail on both declared font stacks**, before the trailing generic:
+  Chromium resolves a bare `serif` against the document's `lang`, so under
+  `zh-Hans` the generic is already a Chinese face and a tail written after it is
+  never consulted. The house stack's Latin was already safe — Times New Roman is
+  its fourth member and is installed — so this is the tail half only. The symbol
+  token took the tail as well, on a decision about what its consumer ANCHORS
+  rather than about the glyph it paints: the gear button is the first row of
+  `TIP_BINDINGS`, and a tip anchor carries Han in `data-tip` regardless of the
+  character it renders.
+
+### Changed
+
+- **The language-selector body no longer enumerates the languages on offer**, in
+  English and in French both. A body that names a fixed set is a claim the
+  selector itself falsifies the moment a language is added, which is what this
+  release does. The exception list stays and its count was re-verified against
+  the markup before it was kept: five select elements minus the language
+  selector itself is four, so *the four drop-down menus* is still true.
+
+### Quality — the disclosed level, and it is not "native"
+
+All 133 rows ship at `reviewed: 'bt'`: machine-drafted against
+`scripts/i18n-zh-glossary.js`, then read back by a BLIND reverse pass —
+two independent models with no repository access, no sight of the English, and
+blinded row ids — with every returned triple read. **No native Simplified
+Chinese speaker has read this copy.** `scripts/i18n-zh-lint.js` prints the level
+on every run and `reviewed: 'native'` stays open.
+
+One row was re-authored on the strength of that read. The `Sub` caption drafted
+to the glossary root for the low-frequency BAND word and came back as *"Bass"* —
+a caption naming a different thing from its own tooltip title, which reads
+*Sub Oscillator*. It now renders the sub-oscillator term, with an entry-scoped
+`termNote` recording why the root was left and what its other two corpus sites
+control. A second round on a third model, with a fresh salt, corrected nothing
+further.
+
+### Geometry — pinned under `html[lang="zh-Hans"]`, and scoped for a reason
+
+A Han line box is about 30% taller than a Latin one at the same size, and
+`line-height: normal` inherits that growth into every container: with the table
+landed and no pins, **162 non-label elements moved** between English and Chinese.
+Ten line-box ratios brought that to 43 and a reserved flex line brought it to
+**0**, green across all four walked states with the French arm untouched at every
+measurement.
+
+Every pin is scoped to the Chinese arm rather than applied globally, which is
+specific to this plugin: `div.routing-label` carries a **pre-existing French
+wrap** — *Signal Path* is one line and *Chaîne du signal* is two, by design and
+recorded in the stylesheet — so a global `line-height` would have changed the
+French box on a node the French deliberately lets wrap. That baseline was
+measured on this tree before a byte of Chinese, it reads 1 rather than 0, and it
+is unchanged here; the Chinese arm of the same node was measured rather than
+inherited and takes one line at the English height.
+
+Every ratio is derived from that element's own English CONTENT box — rect height
+less its own padding and border, divided per line by its own font-size — never
+from a table of nominal ratios. The lesson-preset buttons are the form-control
+case: a nominal ratio for their size would have been 1.1666667 against a measured
+1.047619, because the UA `font` shorthand resets `line-height` on a button. The
+group headings are the padding case: a 19px rect over a 15px content box, because
+the rect carries 3px of bottom padding and a 1px dotted border.
+
+Two effects needed something other than a ratio:
+
+- **A reserved flex line.** The resting tour caption is clamped to its 46% cap in
+  English and French, so the caption cannot share a flex line with the label and
+  the eight buttons and takes a second one. The Chinese caption is far shorter
+  than the cap, so all three fitted on one line: the section lost a whole flex
+  line and the button group collapsed 258.3px around its shorter faces, taking
+  the entire keyboard panel up with it. Floored at the cap, in the cap's own
+  unit, so the two meet exactly at any frame.
+- **The one place Chinese comes out wider.** The routing readout's abbreviated
+  resonance caption measures 21.00px in English and in French; Han is full-width,
+  one em per glyph, and Chinese has no abbreviations, so the faithful rendering
+  measured 27.53px and dragged both readout spans leftward. Trimmed to a MEASURED
+  value — two full-width glyphs with the Latin letter-spacing removed land on
+  21.00px exactly, the English box to the pixel.
+
 ## [1.4.1] — 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
