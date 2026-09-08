@@ -209,7 +209,7 @@ const TERMS = {
     'load…':                      ['载入…'],
     'load preset':                ['载入预设'],
     'load preset from file':      ['从文件载入预设'],
-    'load your own':              ['载入自己的'],
+    'load your own':              ['载入自己的素材'],   // Needs a head noun: the bare possessive is grammatically incomplete in Chinese. Settled by the only two corpus sites, O-simpleGrain and O-simpleSampler (loadSource), which both already ship this seven-character form. Corrected 260908-a8w.
     'load failed':                ['载入失败'],
     'delete':                     ['删除'],
     'del':                        ['删除'],
@@ -430,7 +430,7 @@ const TERMS = {
     'rolloff':                    ['滚降'],
     'damp':                       ['阻尼'],
     'damping':                    ['阻尼'],
-    'dist lpf':                   ['失真低通'],
+    'dist lpf':                   ['距离低通'],   // DISTANCE low-pass, not the distortion reading of the abbreviation. Settled by the only corpus site, O-GrainScatter, whose own tooltip body reads "Distance LPF sets how much Distance darkens the cloud". Corrected 260908-a8w.
     'formant':                    ['共振峰'],
     'brightness':                 ['明亮度'],
     'acoustic brightness':        ['声学明亮度'],
