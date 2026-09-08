@@ -1470,6 +1470,12 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
                         <option>Church Bell</option><option>Organ Sweep</option>
                         <option>Wind</option><option>Filtered Noise</option>
                     </optgroup>
+                    <optgroup label="Geometry">
+                        <option>Star Tilt</option><option>Star Points</option>
+                        <option>Blob Orbit</option><option>Knot Torus</option>
+                        <option>Knot Box</option><option>Gyroid Orbit</option>
+                        <option>Noise Knot</option><option>Terrain Rings</option>
+                    </optgroup>
                 </select>
             </div>
             <div class="knob-container" data-knob="oscAPos" data-label="Position" data-initial="0%" data-i18n="label.position"></div>
@@ -1523,6 +1529,12 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
                         <option>Breath</option><option>Plucked String</option>
                         <option>Church Bell</option><option>Organ Sweep</option>
                         <option>Wind</option><option>Filtered Noise</option>
+                    </optgroup>
+                    <optgroup label="Geometry">
+                        <option>Star Tilt</option><option>Star Points</option>
+                        <option>Blob Orbit</option><option>Knot Torus</option>
+                        <option>Knot Box</option><option>Gyroid Orbit</option>
+                        <option>Noise Knot</option><option>Terrain Rings</option>
                     </optgroup>
                 </select>
             </div>
@@ -3688,7 +3700,7 @@ class WavetableSelector {
         this.oscIndex = oscIndex;
         this.canvasWrap = document.getElementById(canvasWrapId);
         this.display = display;
-        this.factoryCount = 28;
+        this.factoryCount = 36;   // WavetableFactory::kNumFactoryTables — 28 procedural + 8 Geometry (v1.25.0)
         this.userTableNames = [];
         this.isUserActive = false;
         this.currentUserName = '';

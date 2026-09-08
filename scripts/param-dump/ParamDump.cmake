@@ -56,16 +56,29 @@ function(_ouaricon_pd_fourcc out_var code)
     set(${out_var} "0x${_hex}" PARENT_SCOPE)
 endfunction()
 
-function(ouaricon_add_param_dump plugin_target plugin_source_dir)
+# ouaricon_add_processor_console(<PluginTarget> <PluginSourceDir> <main.cpp> <suffix>)
+#
+# The generic builder behind ouaricon_add_param_dump: a console target
+# `<folder-name>-<suffix>` that compiles the plugin's own processor TUs (never
+# the editor) with the plugin's DERIVED identity macros, and `<main.cpp>` as
+# the driver. O-Prism's geometry-check (v1.25.0) is the second driver; any
+# further processor-level gate should come through here rather than copy
+# the derivation.
+function(ouaricon_add_processor_console plugin_target plugin_source_dir main_cpp suffix)
 
     if(NOT TARGET ${plugin_target})
         message(FATAL_ERROR
-            "ouaricon_add_param_dump: '${plugin_target}' is not a target. Call this AFTER "
+            "ouaricon_add_processor_console: '${plugin_target}' is not a target. Call this AFTER "
             "juce_add_plugin() and juce_generate_juce_header().")
     endif()
 
+    if(NOT EXISTS "${main_cpp}")
+        message(FATAL_ERROR
+            "ouaricon_add_processor_console: driver '${main_cpp}' does not exist.")
+    endif()
+
     get_filename_component(_pd_folder "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
-    set(_pd_target "${_pd_folder}-param-dump")
+    set(_pd_target "${_pd_folder}-${suffix}")
 
     if(TARGET ${_pd_target})
         return()
@@ -168,7 +181,7 @@ function(ouaricon_add_param_dump plugin_target plugin_source_dir)
     )
 
     target_sources(${_pd_target} PRIVATE
-        ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/main.cpp
+        ${main_cpp}
         ${_pd_sources}
     )
 
@@ -239,6 +252,7 @@ function(ouaricon_add_param_dump plugin_target plugin_source_dir)
             juce::juce_audio_processors
             juce::juce_audio_utils
             juce::juce_core
+            juce::juce_cryptography
             juce::juce_data_structures
             juce::juce_dsp
             juce::juce_events
@@ -254,4 +268,9 @@ function(ouaricon_add_param_dump plugin_target plugin_source_dir)
         "${_pd_target}: version ${_pd_version} (${_pd_version_code}), code ${_pd_plugin_code} "
         "(${_pd_plugin_code_hex}) — all derived from target '${plugin_target}'")
 
+endfunction()
+
+function(ouaricon_add_param_dump plugin_target plugin_source_dir)
+    ouaricon_add_processor_console(${plugin_target} ${plugin_source_dir}
+        ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/main.cpp param-dump)
 endfunction()

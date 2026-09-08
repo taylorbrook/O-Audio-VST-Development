@@ -313,18 +313,18 @@ export const I18N = Object.freeze({
 
     'tip.oscATable': {
         en: { t: 'Osc A Wavetable',
-              b: 'Chooses the wavetable oscillator A reads. The 28 factory tables are grouped '
-               + 'Analog, Digital, Formant, Spectral and Organic; dropping a WAV file on the '
-               + 'display above loads your own instead. Range: 28 factory tables plus any you import.' },
+              b: 'Chooses the wavetable oscillator A reads. The 36 factory tables are grouped '
+               + 'Analog, Digital, Formant, Spectral, Organic and Geometry; dropping a WAV file on the '
+               + 'display above loads your own instead. Range: 36 factory tables plus any you import.' },
         fr: { t: 'Table d’onde osc A',
-              b: 'Choisit la table d’onde lue par l’oscillateur A. Les 28 tables d’usine sont '
-               + 'regroupées en Analog, Digital, Formant, Spectral et Organic ; déposer un fichier '
-               + 'WAV sur l’affichage ci-dessus charge la vôtre à la place. Plage : 28 tables '
+              b: 'Choisit la table d’onde lue par l’oscillateur A. Les 36 tables d’usine sont '
+               + 'regroupées en Analog, Digital, Formant, Spectral, Organic et Geometry ; déposer un fichier '
+               + 'WAV sur l’affichage ci-dessus charge la vôtre à la place. Plage : 36 tables '
                + 'd’usine, plus celles que vous importez.',
               reviewed: true },
     'zh-Hans': { t: '振荡器 A 波表',
-          b: '选择振荡器 A 读取的波表。28 个出厂波表分为 Analog、Digital、Formant、Spectral 与 Organic 五组；把 WAV 文件拖到上方显示区则会载入你自己的波表。'
-           + '范围：28 个出厂波表，加上你导入的任意波表。',
+          b: '选择振荡器 A 读取的波表。36 个出厂波表分为 Analog、Digital、Formant、Spectral、Organic 与 Geometry 六组；把 WAV 文件拖到上方显示区则会载入你自己的波表。'
+           + '范围：36 个出厂波表，加上你导入的任意波表。',
           reviewed: 'bt' },
     },
     'tip.oscAPos': {
@@ -491,16 +491,16 @@ export const I18N = Object.freeze({
 
     'tip.oscBTable': {
         en: { t: 'Osc B Wavetable',
-              b: 'Chooses the wavetable oscillator B reads, from the same 28 factory tables as '
+              b: 'Chooses the wavetable oscillator B reads, from the same 36 factory tables as '
                + 'oscillator A. Oscillator B starts at Level 0, so raise its Level before expecting '
-               + 'to hear this. Range: 28 factory tables plus any you import.' },
+               + 'to hear this. Range: 36 factory tables plus any you import.' },
         fr: { t: 'Table d’onde osc B',
-              b: 'Choisit la table d’onde lue par l’oscillateur B, parmi les mêmes 28 tables d’usine '
+              b: 'Choisit la table d’onde lue par l’oscillateur B, parmi les mêmes 36 tables d’usine '
                + 'que l’oscillateur A. L’oscillateur B démarre à un niveau de 0 : montez son Niv. '
-               + 'avant d’espérer l’entendre. Plage : 28 tables d’usine, plus celles que vous importez.',
+               + 'avant d’espérer l’entendre. Plage : 36 tables d’usine, plus celles que vous importez.',
               reviewed: true },
     'zh-Hans': { t: '振荡器 B 波表',
-          b: '选择振荡器 B 读取的波表，出厂波表与振荡器 A 的 28 个相同。振荡器 B 的电平初始为 0，所以要先提高它的电平才听得到。范围：28 个出厂波表，加上你导入的任意波表。',
+          b: '选择振荡器 B 读取的波表，出厂波表与振荡器 A 的 36 个相同。振荡器 B 的电平初始为 0，所以要先提高它的电平才听得到。范围：36 个出厂波表，加上你导入的任意波表。',
           reviewed: 'bt' },
     },
     'tip.oscBPos': {
@@ -2478,13 +2478,15 @@ export const I18N_EXEMPT = [
         + ' — D-01 arm 1: the page and the host automation lane must agree',
         '.param-select']),
 
-    // ── The wavetable catalogue: 28 option texts + their optgroup labels ────
-    // Not arm 1 — `oscATable` is an AudioParameterInt (0..27, host text "0".."27"),
+    // ── The wavetable catalogue: 36 option texts + their optgroup labels ────
+    // Not arm 1 — `oscATable` is an AudioParameterInt (0..35, host text "0".."35"),
     // so there is no choice option to match. They are exempt for two other
     // reasons, and either alone would be enough:
     //   1. They are a hand-mirrored copy of WavetableFactory::getTableInfoList()
-    //      (WavetableFactory.cpp:93-130), a C++-owned catalogue of factory
-    //      content NAMES. The optgroup labels mirror its category column.
+    //      (WavetableFactory.cpp, `getTableInfoList`; the Geometry eight come
+    //      from GeometryTablesData.h `kTables`), a C++-owned catalogue of
+    //      factory content NAMES. The optgroup labels mirror its category
+    //      column.
     //   2. Four of them — Saw, Square, Triangle, Sine — are byte-identical to
     //      subShape and lfoNShape options that ARE arm 1. Translating the osc
     //      list would make the same word French in one dropdown on the page and
@@ -2496,11 +2498,14 @@ export const I18N_EXEMPT = [
         'Harmonic Series', 'Spectral Tilt', 'Odd Harmonics', 'Harmonic Stretch',
         'Comb Sweep', 'Prism Spectrum',
         'Breath', 'Plucked String', 'Church Bell', 'Organ Sweep', 'Wind', 'Filtered Noise',
+        'Star Tilt', 'Star Points', 'Blob Orbit', 'Knot Torus',
+        'Knot Box', 'Gyroid Orbit', 'Noise Knot', 'Terrain Rings',
     ].map((t) => [t,
         'a factory wavetable NAME, mirrored from WavetableFactory::getTableInfoList() '
-        + '(WavetableFactory.cpp:93-130). Its parameter is an AudioParameterInt, so '
-        + 'arm 1 does not reach it; it is exempt as C++-owned content, and four of the '
-        + '28 are byte-identical to arm-1 subShape/lfoNShape options on the same page',
+        + '(WavetableFactory.cpp, `getTableInfoList` + GeometryTablesData.h `kTables`). '
+        + 'Its parameter is an AudioParameterInt, so arm 1 does not reach it; it is '
+        + 'exempt as C++-owned content, and four of the 36 are byte-identical to '
+        + 'arm-1 subShape/lfoNShape options on the same page',
         '.param-select']),
 
     // ── The 37 modulation matrix names ─────────────────────────────────────

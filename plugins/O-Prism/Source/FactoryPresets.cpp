@@ -110,7 +110,10 @@ enum : int {
     WT_HarmonicSeries=16, WT_SpectralTilt=17, WT_OddHarmonics=18,
     WT_HarmonicStretch=19, WT_CombSweep=20, WT_PrismSpectrum=21,
     WT_Breath=22, WT_PluckedString=23, WT_ChurchBell=24, WT_OrganSweep=25,
-    WT_Wind=26, WT_FilteredNoise=27
+    WT_Wind=26, WT_FilteredNoise=27,
+    // Geometry bank (v1.25.0, GeometryTablesData.h kTables order)
+    WT_StarTilt=28, WT_StarPoints=29, WT_BlobOrbit=30, WT_KnotTorus=31,
+    WT_KnotBox=32, WT_GyroidOrbit=33, WT_NoiseKnot=34, WT_TerrainRings=35
 };
 
 // ─── Neutral default for every non-excluded param ─────────────────────

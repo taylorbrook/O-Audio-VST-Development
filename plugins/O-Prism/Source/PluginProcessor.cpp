@@ -70,6 +70,17 @@ namespace
 // Parameter Helper Functions
 // ═══════════════════════════════════════════════════════════════════
 
+/** "major.minor.patch" -> (major << 16) | (minor << 8) | patch; anything
+    unparseable (empty, "1.0.0" from the pre-1.25.0 preset writer) sorts as
+    older than every real release. Same packing as JucePlugin_VersionCode. */
+static int versionCode (const juce::String& version)
+{
+    auto parts = juce::StringArray::fromTokens (version, ".", "");
+    if (parts.size() < 3)
+        return 0;
+    return (parts[0].getIntValue() << 16) | (parts[1].getIntValue() << 8) | parts[2].getIntValue();
+}
+
 static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscParameters (const juce::String& prefix)
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
@@ -510,6 +521,31 @@ OPrismAudioProcessor::OPrismAudioProcessor()
         "pitchBendRange", "glideMode", "glideTime"
     };
 
+    // v1.25.0: oscATable/oscBTable widened 0-27 -> 0-35 (Geometry bank).
+    // Presets store NORMALISED values, so a table index saved under an
+    // earlier version re-decodes against the new range and silently repoints
+    // to another table (critical_apvts_denormalised_vs_preset_normalised:
+    // widening shifts PRESETS, not sessions — APVTS state holds the
+    // denormalised index, so DAW sessions need nothing). Presets written
+    // before 1.25.0 carry "1.0.0" (the old constant) or no version at all.
+    presetManager.setMigrationCallback ([] (juce::DynamicObject& params, const juce::String& presetVersion)
+    {
+        constexpr int kVersionWithGeometryBank = (1 << 16) | (25 << 8) | 0;
+        if (versionCode (presetVersion) >= kVersionWithGeometryBank)
+            return;
+
+        constexpr int oldMax = 27;                                       // 28 tables before 1.25.0
+        constexpr int newMax = WavetableFactory::kNumFactoryTables - 1;  // 35
+        for (const char* id : { "oscATable", "oscBTable" })
+        {
+            if (! params.hasProperty (id))
+                continue;
+            const float stored = static_cast<float> (params.getProperty (id));
+            const int index = juce::jlimit (0, oldMax, juce::roundToInt (stored * oldMax));
+            params.setProperty (id, static_cast<float> (index) / static_cast<float> (newMax));
+        }
+    });
+
     // Initialize factory presets on first run, and regenerate whenever the
     // plugin version changes — otherwise on-disk factory JSON stays pinned to
     // the first-installed version's parameter set forever (WR-08)
@@ -518,7 +554,7 @@ OPrismAudioProcessor::OPrismAudioProcessor()
         || presetManager.getFactoryPresetsVersion() != factoryVersion)
         presetManager.initializeFactoryPresets (FactoryPresets::build (parameters), factoryVersion);
 
-    // Generate factory wavetable library (28 tables)
+    // Generate factory wavetable library (36 tables: 28 procedural + 8 embedded Geometry)
     auto factoryLib = WavetableFactory::createFactoryLibrary();
     tableInfoList = WavetableFactory::getTableInfoList();
     for (auto& entry : factoryLib)

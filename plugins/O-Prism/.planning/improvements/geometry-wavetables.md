@@ -6,6 +6,8 @@
 **Version Impact:** MINOR (v1.25.0) — a factory table bank is added; `oscATable` / `oscBTable` widen from 0–27 to 0–35; no DSP change, no new parameter
 **Invoke:** `/improve O-Prism` → pick this brief (or `/improve-milestone O-Prism` if the migration-hook port grows)
 
+**Status (2026-09-08): IMPLEMENTED as v1.25.0.** Deviations from the candidate table below, all forced by the gates in §1 and recorded in the CHANGELOG "Notes from the bake": every orbit rides a (1,q) torus-knot path, not (2,3), because p = 2 folds the period and fails gate (a) at every offset; *Star Hollow* (centroid distance, h5 dominant by construction) and *Blob* (XY slices of a blob are near-circles, no travel) were replaced by *Star Points* and *Blob Orbit*; *Terrain Rings* uses the sine-sum field rather than the product, whose h2 wins past r ≈ 0.5. No Geometry factory preset was authored (the optional ≤ 3). Final bank: Star Tilt, Star Points, Blob Orbit, Knot Torus, Knot Box, Gyroid Orbit, Noise Knot, Terrain Rings.
+
 **Origin:** the O-Strata critique and listening pass of 2026-09-08 (`plugins/O-Strata/.planning/evidence/critique-check-2026-09-08.md`, WAVs in `critique-wavs/`). Verdict: the geometry-baked tables sound good but do not justify a separate plugin. They become an O-Prism factory category; O-Strata is re-planned around the live terrain oscillator.
 
 ---

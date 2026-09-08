@@ -24,13 +24,15 @@
     O-Prism - Microtonal Wavetable Synthesizer
     Ouaricon Audio
 
-    Procedural generation algorithms for 28 factory wavetables.
+    Procedural generation algorithms for 28 factory wavetables, plus the
+    loader for the 8 embedded Geometry tables (indices 28-35).
 
   ==============================================================================
 */
 
 #include "WavetableFactory.h"
 #include "MathConstants.h"
+#include "GeometryTablesData.h"
 #include <cmath>
 #include <random>
 #include <algorithm>
@@ -84,7 +86,39 @@ namespace
         WavetableGenerator::generateMipmaps (*table);
         return table;
     }
+
+    // Geometry bank: frames baked offline (scripts/geometry-wavetables/),
+    // already DC-free, cross-correlation aligned and GLOBALLY peak-normalised
+    // (max |int16| == 32767 over the whole table). Copy level 0 verbatim and
+    // generate mipmaps — never through buildTable/normalizeFrame, which
+    // normalise PER FRAME and would undo the global-peak conditioning (the
+    // O-Strata DSP-05 lesson: per-frame peak blows quiet frames up to full
+    // scale and breaks the morph).
+    std::unique_ptr<WavetableData> loadEmbeddedTable (const GeometryTables::Table& src)
+    {
+        static_assert (GeometryTables::kFrameSize == WavetableData::kTableSize,
+                       "GeometryTablesData.h was baked for a different frame size");
+
+        auto table = std::make_unique<WavetableData>();
+        table->allocate (src.numFrames);
+        constexpr float scale = 1.0f / 32767.0f;
+
+        for (int f = 0; f < src.numFrames; ++f)
+        {
+            float* buf = table->getFrameData (0, f);
+            const int16_t* in = src.data + static_cast<size_t> (f) * static_cast<size_t> (GeometryTables::kFrameSize);
+            for (int i = 0; i < WavetableData::kTableSize; ++i)
+                buf[i] = static_cast<float> (in[i]) * scale;
+        }
+
+        WavetableGenerator::generateMipmaps (*table);
+        return table;
+    }
 }
+
+static_assert (WavetableFactory::kNumFactoryTables
+                   == WavetableFactory::kFirstGeometryTable + GeometryTables::kNumTables,
+               "kNumFactoryTables must be 28 procedural + the baked Geometry bank");
 
 // ═══════════════════════════════════════════════════════════════════
 // Table Info (metadata only)
@@ -92,7 +126,7 @@ namespace
 
 std::vector<TableInfo> WavetableFactory::getTableInfoList()
 {
-    return {
+    std::vector<TableInfo> list = {
         // Analog (0-6)
         { "Saw",              "Analog",   1  },
         { "Square",           "Analog",   1  },
@@ -127,6 +161,14 @@ std::vector<TableInfo> WavetableFactory::getTableInfoList()
         { "Wind",             "Organic",  16 },
         { "Filtered Noise",   "Organic",  32 },
     };
+
+    // Geometry (28-35): names and frame counts come from the baked header —
+    // one source of truth, nothing to hand-mirror here. The UI dropdowns
+    // (index.html) and the i18n exemption list still mirror these by hand.
+    for (const auto& t : GeometryTables::kTables)
+        list.push_back ({ t.name, "Geometry", t.numFrames });
+
+    return list;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -177,6 +219,11 @@ std::vector<FactoryEntry> WavetableFactory::createFactoryLibrary()
     lib.push_back ({ generateOrganSweep (16),     infoList[25] });
     lib.push_back ({ generateWind (16),           infoList[26] });
     lib.push_back ({ generateFilteredNoise (32),  infoList[27] });
+
+    // Geometry (28-35): embedded, baked offline
+    for (int i = 0; i < GeometryTables::kNumTables; ++i)
+        lib.push_back ({ loadEmbeddedTable (GeometryTables::kTables[i]),
+                         infoList[static_cast<size_t> (kFirstGeometryTable + i)] });
 
     return lib;
 }
