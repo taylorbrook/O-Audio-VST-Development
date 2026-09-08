@@ -6,12 +6,12 @@ last_updated: 2026-09-07
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: create_ui_mockup_then_invoke_foundation_shell_agent
+next_action: proceed_to_stage_1
 next_stage: 1
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:017962972096be6494d98cb27de5042dbf2842c3c13b532eadc8c396261dba4e
-  parameter_spec: sha256:801ff201a6adbec0140787d3f66954881a842a0d132c094c9daca7c773ed9c02
+  parameter_spec: sha256:578a0d050374c14ba1692f232382af78037da637a6832a27b51cc2b0821f181a
   architecture: sha256:9d28809a04318159416c68ec184747112159c6bd9a2a39ad0dd88206e4318b46
   roadmap: sha256:20090d1efcc15b9d7378b5bb696603babc64b9dad1d07060bd58c19585d9ce58
 mockup_latest_version: 1
@@ -21,6 +21,7 @@ finalized_version: 1
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-09-08T01:59:53Z"
+ui_scaffolding_phase_complete: true
 ---
 
 # O-Strata Status
@@ -46,8 +47,8 @@ Progress: [##..................] 10%
 
 ## Next Steps
 
-1. **Create the UI mockup and the full `parameter-spec.md`** (`/start O-Strata` → option 3). Stage 1 foundation-shell must not run on the draft spec: the mockup finalises geometry control names/order and is the source of truth for any conflict with the draft IDs.
-2. Stage 1: Foundation — fork O-Prism v1.24.0 into `plugins/O-Strata/` (PLUGIN_CODE `OuSt`, VERSION 1.0.0), remove `oscATable/oscBTable` + library code, add 46 geometry params, link `juce_cryptography`, `JUCE_WEB_BROWSER`-guard `createEditor`, pluginval/auval (COMPAT-01) — run `/implement O-Strata` after the mockup. The 0-ideation → 1-foundation gate needs `--force`.
+1. ~~Create the UI mockup and the full `parameter-spec.md`~~ **Done (2026-09-07):** mockup v1 finalized (`mockups/v1-ui.yaml`, `v1-ui-test.html`), implementation scaffolding generated (`mockups/v1-ui.html`, `v1-PluginEditor-TEMPLATE.h/.cpp`, `v1-CMakeLists-SNIPPET.txt`, `v1-integration-checklist.md`) and `parameter-spec.md` locked at v1 — **219 params (171 inherited + 48 Geometry)**; the draft's 217/46 was an undercount, reconciled in the spec's "Draft reconciliation" note. Terrain choice list is the mockup's 3 entries (ARCHITECTURE lists 6) — see the same note.
+2. **NEXT — Stage 1: Foundation** (`/implement O-Strata`; the 0-ideation → 1-foundation gate needs `--force`) — fork O-Prism v1.24.0 into `plugins/O-Strata/` (PLUGIN_CODE `OuSt`, VERSION 1.0.0), remove `oscATable/oscBTable` + library code, add the 48 geometry params from `parameter-spec.md`, link `juce_cryptography`, `JUCE_WEB_BROWSER`-guard `createEditor`, pluginval/auval (COMPAT-01). C++/CMake deltas are pre-written in `mockups/v1-*`.
 3. Review `research/ARCHITECTURE.md` (Decisions 1–7) and `ROADMAP.md` before Stage 1.
 
 ## Context to Preserve
