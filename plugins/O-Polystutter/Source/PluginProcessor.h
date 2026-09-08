@@ -79,8 +79,8 @@ public:
     int  getUiLanguageIndex() const           { return uiLanguage.load(std::memory_order_acquire); }
     void setUiLanguageIndex(int i)            { uiLanguage.store(i, std::memory_order_release); }
 
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    static juce::String languageCode  (int i)                 { return i == 2 ? "zh-Hans" : i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "zh-Hans" ? 2 : s == "fr" ? 1 : 0; }
 
     // Public access to APVTS for UI binding
     juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
@@ -102,8 +102,8 @@ public:
     std::atomic<bool> lane3Active { false };
     std::atomic<bool> lane4Active { false };
 
-    // v1.14.0: UI language index (0 = en, 1 = fr), saved with plugin state as
-    // the language CODE string. See the codec above.
+    // v1.14.0: UI language index (0 = en, 1 = fr, 2 = zh-Hans), saved with plugin
+    // state as the language CODE string. See the codec above.
     std::atomic<int> uiLanguage { 0 };
 
 private:
