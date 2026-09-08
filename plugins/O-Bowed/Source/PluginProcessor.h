@@ -103,11 +103,14 @@ public:
     // ------------------------------------------------------------------------
     std::atomic<int> uiLanguage { 0 };
 
-    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+    /** The codec. languageIndex() maps anything it does not recognise to 0, so a
         hand-edited session or an unexpected argument from the page degrades to
-        English rather than being stored unvalidated. */
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+        English rather than being stored unvalidated. Three languages since
+        v1.9.0; the indices are the order of LANGUAGES in Resources/ui/js/i18n.js
+        and the two must be widened together. Pure ASCII on both lines — the
+        Chinese lives in the page's table and never in this file. */
+    static juce::String languageCode  (int i)                 { return i == 2 ? "zh-Hans" : (i == 1 ? "fr" : "en"); }
+    static int          languageIndex (const juce::String& s) { return s == "zh-Hans" ? 2 : (s == "fr" ? 1 : 0); }
 
     // Check if any synthesiser voice is active (for visualization)
     bool isAnyVoiceActive() const

@@ -224,7 +224,44 @@ const READ_TIP = `() => {
     check(Array.isArray(TIP_BINDINGS) && TIP_BINDINGS.length === 31,
         `TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} anchor(s), expected 31 `
         + `(${KNOB_COUNT} parameters with a control + #gear-btn + #lang-select + #tips-toggle)`);
-    check(LANGUAGES.join(',') === 'en,fr', `LANGUAGES is en,fr — got ${LANGUAGES.join(',')}`);
+    // ── the language list, DERIVED ──────────────────────────────────────────
+    // This gate used to pin the joined list to a literal. That assertion goes
+    // red on the first day the plugin gains a language, which is the one day a
+    // gate most needs to be green for the right reason, and its message names
+    // a list rather than a defect. The list is read from the table's own export
+    // instead, and two INDEPENDENT guards refuse rather than guess:
+    //
+    //   * the SHAPE guard — the export must be a non-empty array whose first
+    //     member is the source language, because the sweeps below use member
+    //     zero as the baseline every other member is compared against;
+    //   * the WALK guard — there must be at least one member BESIDES the
+    //     source. A single-member list satisfies the shape and then compares
+    //     the page to itself, passing every byte-equality assertion for a
+    //     reason that has nothing to do with the page being correct. That is
+    //     the failure a derived list introduces and the shape guard cannot see.
+    //
+    // Neither guard carries a fallback roster. A gate that invents a list when
+    // the table declines to give it one is asserting about a page nobody ships.
+    const SRC_LANG = 'en';
+    const langsOk = Array.isArray(LANGUAGES) && LANGUAGES.length > 0
+                    && LANGUAGES[0] === SRC_LANG;
+    check(langsOk,
+        `LANGUAGES derives from the table as a non-empty array opening with the source `
+        + `language — got ${JSON.stringify(LANGUAGES)}`);
+    if (!langsOk) {
+        console.log('\n  REFUSING to sweep a guessed language list.');
+        process.exit(1);
+    }
+    const REST = LANGUAGES.slice(1);
+    const restOk = REST.length > 0;
+    check(restOk,
+        `the derived list carries at least one language besides the source language `
+        + `— got ${JSON.stringify(LANGUAGES)}`);
+    if (!restOk) {
+        console.log('\n  REFUSING to compare the page to itself.');
+        process.exit(1);
+    }
+    console.log(`\n  sweeping ${LANGUAGES.length} language(s): ${LANGUAGES.join(' -> ')}`);
 
     const pw = S.resolvePlaywright();
     if (pw == null) {
@@ -440,7 +477,7 @@ const READ_TIP = `() => {
         return seen;
     };
 
-    await sweep('en');
+    await sweep(SRC_LANG);
 
     // ── the surface must not eat its own hover ──────────────────────────────
     // pointer-events: none is declared in the rule and asserted statically
@@ -472,6 +509,10 @@ const READ_TIP = `() => {
     await page.hover(`${bsSel} .knob-label`, { force: true });
     await page.waitForTimeout(200);
     const afterMove = await readTip();
+    // SOURCE-LANGUAGE-SCOPED, form 6 — deliberately NOT generalized. This block
+    // runs before the page has been switched at all, so the source language is
+    // what is on screen by construction. Reading a member of the derived list
+    // here would compare the page against copy it is not showing.
     check(beforeMove.visible && afterMove.visible
           && afterMove.title === beforeMove.title && afterMove.title === I18N['tip.bowSpeed'].en.t,
         `[NC-3] the tip survives the .knob-wrapper -> .knob-label boundary inside `
@@ -498,28 +539,42 @@ const READ_TIP = `() => {
         + (midDrag.visible ? `(got "${midDrag.title}")` : '(surface stayed hidden)'));
     // And the guard must RELEASE: a hover after mouseup opens normally again.
     const afterDrag = await hoverAndRead(bpSel);
+    // SOURCE-LANGUAGE-SCOPED, form 6, same reasoning as NC-3 above: the page has
+    // not been switched yet on this pass.
     check(afterDrag.visible && afterDrag.title === I18N['tip.bowPressure'].en.t,
         `[NC-4] the guard releases on mouseup — hovering the same cell now opens `
         + `"${afterDrag.title}". Without this half the guard could be a permanent off switch`);
     await park();
 
-    // ── 5. French, then back ────────────────────────────────────────────────
+    // ── 5. every non-source language, then back ─────────────────────────────
     // French runs 15-20% longer, wraps to more lines against the max-width cap
     // and grows the tip's HEIGHT, so a tip that fits in English can overflow the
-    // bottom of the frame in French. That is why the whole sweep repeats rather
-    // than spot-checking one anchor.
-    await page.evaluate((l) => window.__setLanguage(l), 'fr');
-    await page.waitForTimeout(150);
-    const frLang = await page.evaluate(() => document.getElementById('lang-select').value);
-    check(frLang === 'fr', `[5] window.__setLanguage('fr') took — selector reads "${frLang}"`);
-    await sweep('fr');
+    // bottom of the frame. Chinese runs shorter per glyph but taller per line.
+    // Either way the failure is a HEIGHT the English pass cannot show, which is
+    // why the whole sweep repeats per language rather than spot-checking one
+    // anchor — and why the pass is driven from the derived list rather than
+    // from a caller that names its languages one at a time. sweep(lang) was
+    // already language-agnostic inside; only its callers were not.
+    for (const lang of REST) {
+        await page.evaluate((l) => window.__setLanguage(l), lang);
+        await page.waitForTimeout(150);
+        const shown = await page.evaluate(() => document.getElementById('lang-select').value);
+        check(shown === lang,
+            `[5] window.__setLanguage('${lang}') took — selector reads "${shown}"`);
+        await sweep(lang);
+    }
 
-    await page.evaluate((l) => window.__setLanguage(l), 'en');
+    // RESTORE-SCOPED, form 6 — and deliberately NOT generalized. The line above
+    // writes the SOURCE language by construction, so reading I18N[...].en here
+    // is what proves the restore took. Reading the loop's last language instead
+    // would assert nothing: it would compare the page to whatever it already
+    // showed. (Sites of this class below carry the same note.)
+    await page.evaluate((l) => window.__setLanguage(l), SRC_LANG);
     await page.waitForTimeout(150);
     const backSt = await hoverAndRead('.knob-control[data-param="brightness"] .knob-wrapper');
     check(backSt.visible && backSt.title === I18N['tip.brightness'].en.t
           && backSt.body === I18N['tip.brightness'].en.b,
-        `[5] switching back to English restores the English tip byte-for-byte `
+        `[5] switching back to the source language restores the English tip byte-for-byte `
         + `— "${backSt.title}"`);
     await park();
 
@@ -662,6 +717,10 @@ const READ_TIP = `() => {
     const restored = await hoverAndRead(`${bsSel} .knob-wrapper`);
     check(fs.readFileSync(servedI18n, 'utf8') === origSrc,
         `[NC-1] the served copy is byte-identical to the pre-plant snapshot again`);
+    // RESTORE-SCOPED, form 6 — deliberately NOT generalized. The finally block
+    // above copied the pre-plant snapshot back over the served table and the
+    // page was reloaded, so the served copy is the source-language one by
+    // construction and reading it back is what proves the restore took.
     check(restored.visible && restored.body === I18N['tip.bowSpeed'].en.b && inFrame(restored.rect),
         `[NC-1] restored — tip.bowSpeed is back inside the frame (${edges(restored.rect)})`);
     fs.rmSync(nc, { recursive: true, force: true });
