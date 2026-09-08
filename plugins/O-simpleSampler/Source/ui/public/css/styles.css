@@ -62,7 +62,7 @@
   --text-emboss: rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
   /* Symbol-glyph fallback — Garamond lacks ❦ / ♪ on Windows; these fonts carry them. */
-  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', serif;
+  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -77,7 +77,7 @@ html, body {
 }
 
 body {
-  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   color: var(--brown-text);
   background:
     radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
@@ -162,6 +162,9 @@ body {
   color: var(--brown-border);
   margin-top: 2px;
   white-space: nowrap;
+  /* zh: the English content line box is 12px at 11px — pinned so Han does not
+     take the taller `normal` box and push the whole header down. */
+  line-height: 1.0909091;
 }
 .fleuron-row { font-size: 22px; color: var(--fleuron-color); }
 
@@ -172,6 +175,9 @@ body {
   letter-spacing: 1px;
   color: var(--brown-border);
   margin-bottom: 4px;
+  /* zh: a ROW pin. The row grew 11 -> 14 while both inline spans inside it
+     measured an identical box in all three languages. */
+  line-height: 1.1;
 }
 .viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-mid); opacity: 0.85; }
 .canvas-wrap {
@@ -214,6 +220,10 @@ body {
   margin-bottom: 6px;
   border-bottom: 1px dotted rgba(139, 115, 85, 0.4);
   padding-bottom: 3px;
+  /* zh: the RECT is 19 but the content box is 15 — 3px of bottom padding and a
+     1px border are not line box. A ratio taken from the rect would be 1.5833
+     and would move English on every group heading on the page. */
+  line-height: 1.25;
 }
 .knob-row {
   display: flex;
@@ -407,6 +417,10 @@ body {
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--brown-border);
+  /* zh: the same ROW pin as .viz-label — the row grew 11 -> 14 with both inline
+     spans reporting an identical box, and the growth pushed label.play and
+     label.kbdHint 1.8px past the 980 x 720 frame. */
+  line-height: 1.1;
 }
 .kbd-hint {
   text-transform: none;
@@ -611,6 +625,8 @@ body {
   font-size: 11px;
   letter-spacing: 0.5px;
   color: var(--brown-text);
+  /* zh: English content line box 12px at 11px. */
+  line-height: 1.0909091;
 }
 /* The .combo, at panel scale, with its width PINNED. Left to shrink-to-fit it
    would step with the endonym the user picked, moving the caption beside it. */
@@ -688,7 +704,7 @@ body {
   justify-content: flex-end;
   min-width: 478px;
 }
-.preset-bar-tour .tour-btn { font-size: 9.5px; padding: 4px 8px; white-space: nowrap; }
+.preset-bar-tour .tour-btn { font-size: 9.5px; padding: 4px 8px; white-space: nowrap; line-height: 1.0526316; }
 
 /* ── Headline waveform editor (canvas reserved for 3.2) ───────────────────── */
 .wave-editor {
@@ -766,7 +782,7 @@ body {
    (The two v1.4.0 figures above are not reproducible now that this rule
    exists: with the pin in force every short caption returns 87.00, and an
    inline min-width: 0 does not release it. They are recorded as authored.) */
-#toggle-reverse { min-width: 87px; }
+#toggle-reverse { min-width: 87px; line-height: 1.1; }
 select.combo.combo-sm { min-width: 104px; font-size: 10.5px; padding: 4px 8px; }
 
 /* Repitch-vs-Stretch readout (UI-02) — bound to the pitchMode combo.
@@ -821,6 +837,9 @@ select.combo.combo-sm { min-width: 104px; font-size: 10.5px; padding: 4px 8px; }
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
+  /* zh: a BUTTON — the UA font shorthand resets line-height, so this ratio is
+     derived from its own 11px content box at 10.5px, never from the leaf table. */
+  line-height: 1.047619;
 }
 .btn-load:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
 .source-drop-zone {
@@ -850,6 +869,7 @@ select.combo.combo-sm { min-width: 104px; font-size: 10.5px; padding: 4px 8px; }
   color: var(--green-mid);
   min-height: 13px;
   opacity: 0.9;
+  line-height: 1.3;
 }
 .source-status.truncated { color: #b8863a; }
 
