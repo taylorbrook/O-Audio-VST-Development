@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<!--
+  O-Strata — production WebView UI, v1 (generated from mockups/v1-ui-test.html
+  by ui-finalization-agent, 2026-09-07). Copied to Source/ui/public/index.html
+  in Stage 3. Shell = O-Prism v1.24.0 index.html; the Wavetable tab is replaced
+  by the Geometry tab; the oscillator "Shape" dropdown becomes Source + library.
+  Requires the JUCE backend (js/juce/index.js, js/i18n.js) — not a browser page.
+  Ouaricon Naturalist design system (ouaricon-naturalist-001).
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O-Strata</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   OUARICON NATURALIST DESIGN SYSTEM — O-STRATA (forked from O-PRISM)
+   ═══════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    height: 100%; width: 100%;
+    overflow: hidden;
+    background: #F5E6D3;
+    color: #3C2F2F;
+    font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 11px;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ─── HEADER BAR ─── */
+.header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 16px;
+    background: #3C2F2F;
+    color: #F5E6D3;
+    flex-shrink: 0;
+    height: 34px;
+    position: relative;
+    z-index: 50;
+}
+.header-bar h1 {
+    font-size: 14px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    font-weight: normal;
+    color: #C9A27B;
+}
+.header-bar .subtitle {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: #8B7355;
+    font-style: italic;
+    flex-shrink: 0;
+    min-width: 202.78px;
+}
+
+/* ─── SETTINGS POPOVER ─── */
+.settings-wrap { position: relative; flex-shrink: 0; margin-left: 12px; display: flex; align-items: center; }
+.gear-btn {
+    background: transparent; border: 1px solid #8B7355; color: #C9A27B;
+    width: 22px; height: 22px; cursor: pointer; font-size: 13px; line-height: 1;
+    padding: 0; border-radius: 2px; font-family: 'Garamond', 'Georgia', serif;
+    transition: background 0.15s, color 0.15s;
+}
+.gear-btn:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+.settings-popover {
+    display: none; position: absolute; top: 26px; right: 0; z-index: 9998; width: 168px;
+    background: #3C2F2F; border: 1px solid #8B7355; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+    padding: 8px 10px; border-radius: 2px; flex-direction: column; align-items: stretch; gap: 6px; white-space: nowrap;
+}
+.settings-popover.visible { display: flex; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.settings-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.2px; color: #8B7355; }
+.settings-select {
+    background: #2A2020; border: 1px solid #8B7355; color: #F5E6D3;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 10px; padding: 2px 4px; border-radius: 2px; cursor: pointer;
+}
+.settings-select:focus { outline: 1px solid #C9A27B; }
+.settings-toggle {
+  background: #2A2020; border: 1px solid #8B7355; color: #F5E6D3;
+  font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+  font-size: 10px; padding: 2px 4px; border-radius: 2px; flex: 0 0 auto; min-width: 42px;
+  text-align: center; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.settings-toggle[aria-pressed="true"] { background: #C9A27B; border-color: #C9A27B; color: #2A2020; }
+
+/* ─── PRESET BROWSER (persistent in header) ─── */
+.preset-browser { display: flex; align-items: center; gap: 4px; flex: 1; max-width: 440px; margin: 0 20px; justify-content: center; }
+.preset-nav {
+    background: transparent; border: 1px solid #8B7355; color: #C9A27B;
+    width: 22px; height: 22px; cursor: pointer; font-size: 15px; line-height: 1; padding: 0;
+    border-radius: 2px; font-family: 'Garamond', 'Georgia', serif; transition: background 0.15s, color 0.15s;
+}
+.preset-nav:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+.preset-display {
+    flex: 1; max-width: 320px; text-align: center; padding: 4px 10px;
+    background: #2A2020; border: 1px solid #8B7355; border-radius: 2px; cursor: pointer;
+    font-size: 10px; line-height: 1.2; color: #F5E6D3; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; font-family: 'Garamond', 'Georgia', serif; transition: background 0.15s;
+}
+.preset-display:hover { background: #332828; }
+.preset-category { color: #8B7355; letter-spacing: 1.2px; text-transform: uppercase; font-size: 9px; margin-right: 6px; }
+.preset-category:empty { margin-right: 0; }
+.preset-name { color: #F5E6D3; font-style: italic; }
+.preset-save {
+    background: transparent; border: 1px solid #8B7355; color: #C9A27B;
+    width: 22px; height: 22px; cursor: pointer; font-size: 12px; padding: 0; border-radius: 2px;
+    transition: background 0.15s, color 0.15s;
+}
+.preset-save:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+
+/* ─── PRESET MENU ─── */
+.preset-menu {
+    display: none; position: absolute; top: 34px; left: 50%; transform: translateX(-50%);
+    background: #3C2F2F; border: 1px solid #8B7355; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+    z-index: 9999; max-height: 520px; overflow-y: auto; width: 540px; font-family: 'Garamond', 'Georgia', serif;
+}
+.preset-menu.visible { display: block; }
+.preset-menu-category {
+    background: #2A2020; color: #C9A27B; padding: 7px 14px; letter-spacing: 2.5px; text-transform: uppercase;
+    font-size: 10px; border-top: 1px solid #1A1010; border-bottom: 1px solid #1A1010; font-weight: bold;
+}
+.preset-menu > .preset-menu-category:first-child { border-top: none; }
+.preset-menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; padding: 3px; background: #1A1010; }
+.preset-menu-item {
+    padding: 6px 10px; background: #3C2F2F; color: #F5E6D3; font-size: 11px; cursor: pointer; font-style: italic;
+    transition: background 0.1s, color 0.1s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.preset-menu-item:hover { background: #5C4033; color: #FFF; }
+.preset-menu-item.active { background: #8B7355; color: #FFF; font-weight: bold; }
+
+/* ─── TAB BAR ─── */
+.tab-bar { display: flex; background: #D4C4B0; border-bottom: 2px solid #8B7355; flex-shrink: 0; }
+.tab {
+    flex: 1; text-align: center; padding: 8px 10px; cursor: pointer; text-transform: uppercase;
+    letter-spacing: 1.5px; font-size: 12px; line-height: 1.1667;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    color: #5C4033; border-right: 1px solid #8B7355; transition: background 0.2s, color 0.2s;
+}
+.tab:last-child { border-right: none; }
+.tab:hover { background: #E8D5B7; }
+.tab.active { background: #F5E6D3; color: #3C2F2F; border-bottom: 2px solid #F5E6D3; margin-bottom: -2px; font-weight: bold; }
+
+/* ─── TAB CONTENT ─── */
+.tab-content-area { flex: 1; position: relative; overflow: hidden; }
+.tab-content { display: none; position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding: 10px 14px 6px; }
+.tab-content.active { display: block; }
+
+/* ─── MOD MATRIX ─── */
+.mod-matrix-info { font-style: italic; color: #8B7355; margin-bottom: 8px; font-size: 11px; }
+.mod-matrix-table { border: 1px solid #8B7355; border-radius: 4px; overflow: hidden; }
+.mod-matrix-header {
+    display: flex; align-items: center; background: #3C2F2F; color: #C9A27B; padding: 6px 8px;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+}
+.mod-col-on   { width: 36px; text-align: center; }
+.mod-col-slot { width: 28px; text-align: center; }
+.mod-col-src  { flex: 1; }
+.mod-col-dst  { flex: 1; }
+.mod-col-amt  { width: 120px; text-align: center; }
+.mod-col-val  { width: 50px; text-align: right; }
+.mod-row { display: flex; align-items: center; padding: 4px 8px; border-bottom: 1px solid #D4C4B0; background: #F5E6D3; transition: background 0.15s; }
+.mod-row:nth-child(even) { background: #EDD8C0; }
+.mod-row:hover { background: #E8D5B7; }
+.mod-row.disabled { opacity: 0.45; }
+.mod-row .mod-col-on input[type="checkbox"] { width: 14px; height: 14px; accent-color: #C9A27B; cursor: pointer; }
+.mod-row .mod-col-slot { font-weight: bold; color: #8B7355; font-size: 10px; }
+.mod-row select {
+    width: 100%; padding: 3px 4px; border: 1px solid #B8A08C; border-radius: 3px; background: #FAF0E3;
+    color: #3C2F2F; font-family: inherit; font-size: 11px; cursor: pointer;
+}
+.mod-row select:focus { outline: 1px solid #C9A27B; }
+.mod-row .mod-amt-slider { width: 100%; height: 6px; accent-color: #C9A27B; cursor: pointer; }
+.mod-row .mod-col-val { font-size: 10px; color: #5C4033; font-variant-numeric: tabular-nums; }
+
+/* ─── FOOTER BAR (MASTER STRIP) ─── */
+.footer-bar {
+    display: flex; align-items: center; justify-content: center; gap: 28px; padding: 6px 20px;
+    background: #3C2F2F; border-top: 2px solid #8B7355; flex-shrink: 0; height: 68px;
+}
+.footer-param { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.footer-label { font-size: 8px; text-transform: uppercase; letter-spacing: 1.2px; color: #8B7355; }
+.footer-value { font-size: 10px; color: #C9A27B; }
+
+/* ─── SECTION HEADERS ─── */
+.section-header {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #8B7355;
+    border-bottom: 1px solid rgba(139,115,85,0.4); padding-bottom: 4px; margin-bottom: 8px; margin-top: 10px;
+    line-height: 1.1;
+}
+.section-header:first-child { margin-top: 0; }
+
+/* ─── SVG VINE-ARC KNOBS ─── */
+.knob-container { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; margin: 2px 2px; }
+.knob { display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.knob-visual { width: 52px; height: 52px; position: relative; }
+.knob-visual.large { width: 64px; height: 64px; }
+.knob-visual.small { width: 44px; height: 44px; }
+.knob-visual svg { width: 100%; height: 100%; transform: rotate(-135deg); }
+.knob-track { fill: none; stroke: rgba(139, 115, 85, 0.3); stroke-width: 2; }
+.knob-vine { fill: none; stroke: #5a7a6a; stroke-width: 3; stroke-linecap: round; }
+.knob-container[data-knob="delayFeedback"],
+.knob-container[data-knob="delayFeedback"] .knob { min-width: 54.25px; }
+.knob-container[data-knob="oscAWarpAmt"],
+.knob-container[data-knob="oscAWarpAmt"] .knob,
+.knob-container[data-knob="oscBWarpAmt"],
+.knob-container[data-knob="oscBWarpAmt"] .knob   { min-width: 55.16px; }
+.knob-label { font-size: 9px; letter-spacing: 0.8px; color: #8b7355; text-transform: uppercase; margin-top: 4px; text-align: center; line-height: 1.1111; }
+.knob-value { font-size: 10px; color: #a08870; margin-top: 1px; min-width: 50px; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* ─── DROPDOWN ─── */
+.dropdown-group { display: inline-flex; flex-direction: column; align-items: center; margin: 2px 4px; }
+#lbl-filt-routing { display: inline-block; width: 82.08px; }
+.dropdown-label { font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #5C4033; margin-bottom: 3px; line-height: 1.125; }
+.param-select {
+    background: #EBD9C7; border: 1px solid #8B7355; color: #3C2F2F;
+    font-family: 'Garamond', 'Georgia', serif; font-size: 10px; padding: 3px 6px; border-radius: 3px;
+    cursor: pointer; min-width: 60px;
+}
+.param-select:focus { outline: 1px solid #C9A27B; }
+
+/* ─── DRAG-DROP OVERLAY ─── */
+.osc-canvas-wrap { position: relative; }
+.wt-drop-overlay {
+    display: none; position: absolute; inset: 0; background: rgba(139, 105, 20, 0.3);
+    border: 2px dashed #8B6914; border-radius: 4px; z-index: 10; pointer-events: none;
+    align-items: center; justify-content: center; text-align: center; padding: 0 8px;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 12px; color: #5C4033; font-weight: bold;
+}
+.osc-canvas-wrap.drag-over .wt-drop-overlay { display: flex; }
+
+/* ─── TOGGLE BUTTON ─── */
+.toggle-btn {
+    background: #EBD9C7; border: 1px solid #8B7355; color: #5C4033;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 10px; line-height: 1.1; padding: 4px 10px; border-radius: 3px; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 1px;
+}
+.toggle-btn.active { background: #6B8E4E; color: #F5E6D3; border-color: #4A6B35; }
+
+/* ─── PARAM ROW / SECTIONS ─── */
+.param-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0; }
+.section { margin-bottom: 6px; }
+.osc-section { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+.osc-canvas-wrap { flex-shrink: 0; }
+.osc-canvas { width: 160px; height: 90px; border: 2px solid #8B7355; border-radius: 3px; background: #EBD9C7; display: block; }
+.osc-params { flex: 1; display: flex; flex-wrap: wrap; align-items: flex-start; }
+.inline-sections { display: flex; gap: 16px; flex-wrap: wrap; }
+.inline-section { flex: 1; min-width: 140px; }
+
+/* ─── EFFECT SECTIONS ─── */
+.effect-section { margin-bottom: 12px; }
+.effect-section .section-header { display: flex; align-items: center; gap: 8px; }
+.effect-section.bypassed .param-row { opacity: 0.35; pointer-events: none; }
+.bypass-toggle {
+    font-size: 8px; padding: 1px 6px; border: 1px solid #8B7355; border-radius: 2px; background: #6B8E4E;
+    color: #F5E6D3; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; line-height: 1.2;
+}
+.bypass-toggle.off { background: #B0A090; color: #5C4033; }
+
+/* ─── TUNING TAB ─── */
+.tuning-viz-container { position: absolute; left: 14px; top: 10px; bottom: 10px; width: fit-content; display: flex; flex-direction: row; align-items: flex-start; gap: 12px; }
+.interval-list { width: 130px; max-height: 100%; background: rgba(235, 217, 199, 0.6); border: 1px solid #8B7355; border-radius: 4px; overflow-y: auto; padding: 6px 8px; order: -1; }
+.interval-list-header { font-size: 9px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(139, 115, 85, 0.4); padding-bottom: 4px; margin-bottom: 4px; text-align: center; }
+.tonic-selector { display: flex; justify-content: space-between; align-items: center; padding: 2px 4px; margin-bottom: 3px; background: rgba(139, 168, 112, 0.2); border: 1px solid #8B7355; border-radius: 3px; }
+.tonic-label { display: inline-block; width: 27.8px; font-size: 8px; color: #5C4033; text-transform: uppercase; }
+.tonic-value { font-size: 10px; font-weight: bold; color: #3C2F2F; min-width: 22px; text-align: center; }
+.tonic-arrow { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #5C4033; background: rgba(212, 196, 176, 0.6); border: 1px solid rgba(139, 115, 85, 0.5); border-radius: 2px; cursor: pointer; }
+.interval-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 4px; border-radius: 2px; margin-bottom: 2px; }
+.interval-row:hover { background: rgba(139, 168, 112, 0.15); }
+.note-name { color: #5C4033; font-weight: 500; font-size: 9px; min-width: 20px; }
+.interval-input { width: 55px; background: rgba(245, 230, 211, 0.8); border: 1px solid rgba(139, 115, 85, 0.4); border-radius: 2px; font-family: monospace; font-size: 9px; color: #3C2F2F; text-align: right; padding: 1px 4px; outline: none; user-select: text; }
+.deviation { font-family: monospace; font-size: 8px; opacity: 0.8; min-width: 34px; text-align: right; }
+.deviation.pure { color: #4CAF50; }
+.deviation.sharp { color: #FF9800; }
+.deviation.flat { color: #2196F3; }
+.viz-mode-toggle { position: absolute; left: 150px; right: 230px; top: 8px; display: flex; justify-content: center; gap: 6px; z-index: 20; }
+.viz-btn { padding: 5px 12px; font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 10px; line-height: 1.1; text-transform: uppercase; letter-spacing: 0.5px; color: #5C4033; background: rgba(212, 196, 176, 0.7); border: 1px solid #8B7355; border-radius: 3px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+.viz-btn:hover { background: rgba(139, 168, 112, 0.3); }
+.viz-btn.active { background: rgba(139, 168, 112, 0.5); color: #3C2F2F; border-color: #3C5C1A; font-weight: 500; }
+.viz-container { position: absolute; left: 150px; right: 230px; top: 36px; bottom: 10px; display: flex; align-items: center; justify-content: center; }
+.viz-view { display: none; width: 100%; height: 100%; }
+.viz-view.active { display: flex; align-items: center; justify-content: center; }
+.pitch-circle { position: relative; width: 400px; height: 400px; max-width: 100%; max-height: 100%; }
+.pitch-circle svg { width: 100%; height: 100%; }
+.pitch-circle-label { position: absolute; bottom: -20px; width: 100%; text-align: center; font-size: 10px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; }
+#polar-canvas { width: 400px; height: 400px; max-width: 100%; max-height: 100%; }
+.matrix-view { width: 100%; height: 100%; overflow: auto; padding: 8px; }
+.matrix-table { border-collapse: collapse; font-size: 10px; width: 100%; }
+.matrix-table th, .matrix-table td { padding: 4px 6px; border: 1px solid rgba(139, 115, 85, 0.3); text-align: center; min-width: 30px; }
+.matrix-table th { background: rgba(139, 115, 85, 0.25); font-weight: 600; color: #3C2F2F; }
+.matrix-cell { font-family: monospace; font-size: 9px; }
+.truekeys-view.active { flex-direction: column; padding: 12px; }
+.tk-hint { font-size: 13px; color: #5C4033; opacity: 0.7; text-align: center; }
+.rotation-view { width: 100%; height: 100%; overflow: auto; padding: 6px; }
+.rotation-table { border-collapse: collapse; font-size: 9px; width: 100%; }
+.rotation-table th, .rotation-table td { padding: 3px 5px; border: 1px solid rgba(139, 115, 85, 0.25); text-align: center; min-width: 26px; }
+.rotation-table th { background: rgba(139, 115, 85, 0.2); font-weight: 500; color: #3C2F2F; line-height: 1; white-space: nowrap; }
+.mode-name { background: rgba(139, 115, 85, 0.3) !important; font-weight: bold; font-size: 10px; }
+.int-cell { font-family: monospace; font-size: 9px; }
+.int-cell.small { background: rgba(33, 150, 243, 0.35); }
+.int-cell.medium { background: rgba(76, 175, 80, 0.35); }
+.int-cell.large { background: rgba(255, 152, 0, 0.35); }
+.tuning-controls-panel { position: absolute; right: 14px; top: 10px; width: 210px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100% - 20px); overflow-y: auto; }
+.tuning-ref-section { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.scale-name-display { padding: 6px 10px; background: rgba(245, 230, 211, 0.8); border: 1px solid #8B7355; border-radius: 3px; font-size: 10px; color: #3C2F2F; text-align: center; min-height: 24px; width: 100%; }
+.octave-stretch-section { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.octave-stretch-row { display: flex; align-items: center; gap: 8px; }
+.octave-stretch-label { font-size: 8px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; min-width: 40px; }
+.octave-stretch-slider { flex: 1; min-width: 0; height: 6px; -webkit-appearance: none; appearance: none; background: rgba(139, 115, 85, 0.3); border-radius: 3px; outline: none; }
+.octave-stretch-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; background: radial-gradient(circle at 35% 35%, rgba(255, 248, 220, 0.9) 0%, rgba(212, 196, 176, 0.8) 70%, rgba(139, 115, 85, 0.6) 100%); border: 1px solid #8B7355; border-radius: 50%; cursor: pointer; }
+.octave-stretch-value { font-size: 9px; font-family: monospace; color: #3C2F2F; min-width: 32px; text-align: right; }
+.tuning-file-section { display: flex; flex-direction: column; gap: 4px; }
+.tuning-file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.tuning-file-btn { padding: 6px 8px; font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 9px; line-height: 1.1111; text-transform: uppercase; letter-spacing: 0.3px; color: #5C4033; background: rgba(212, 196, 176, 0.7); border: 1px solid #8B7355; border-radius: 2px; cursor: pointer; transition: background 0.15s; }
+.tuning-file-btn:hover { background: rgba(139, 168, 112, 0.3); }
+.tuning-export-btn { grid-column: span 2; background: rgba(139, 115, 85, 0.15); border-color: #6b5a42; color: #5c4033; }
+.library-section { border-top: 1px solid rgba(139, 115, 85, 0.3); padding-top: 8px; }
+.library-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0; }
+.library-header-text { font-size: 9px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; }
+.library-toggle { font-size: 10px; color: #8B7355; transition: transform 0.2s; }
+.library-toggle.expanded { transform: rotate(180deg); }
+.library-content { display: none; padding-top: 8px; }
+.library-content.expanded { display: block; }
+.library-filter { margin-bottom: 8px; }
+.library-filter-select { width: 100%; padding: 5px 6px; font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 10px; color: #3C2F2F; background: rgba(245, 230, 211, 0.9); border: 1px solid #8B7355; border-radius: 3px; cursor: pointer; outline: none; }
+.library-list { max-height: 150px; overflow-y: auto; border: 1px solid rgba(139, 115, 85, 0.3); border-radius: 3px; background: rgba(245, 230, 211, 0.5); }
+.library-item { padding: 6px 8px; cursor: pointer; border-bottom: 1px solid rgba(139, 115, 85, 0.15); transition: background 0.15s; }
+.library-item:last-child { border-bottom: none; }
+.library-item:hover { background: rgba(139, 168, 112, 0.2); }
+.library-item.selected { background: rgba(139, 168, 112, 0.35); }
+.library-item-name { font-size: 10px; color: #3C2F2F; font-weight: 500; }
+.library-item-info { font-size: 8px; color: #8B7355; margin-top: 2px; line-height: 1.125; }
+.library-list::-webkit-scrollbar { width: 6px; }
+.library-list::-webkit-scrollbar-thumb { background: rgba(139, 115, 85, 0.4); border-radius: 3px; }
+.generator-section { margin-top: 8px; border-top: 1px solid rgba(139, 115, 85, 0.3); padding-top: 8px; }
+.generator-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0; }
+.generator-header-text { font-size: 9px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; }
+.generator-toggle { font-size: 10px; color: #8B7355; transition: transform 0.2s; }
+.generator-toggle.expanded { transform: rotate(180deg); }
+.generator-content { display: none; padding-top: 8px; }
+.generator-content.expanded { display: block; }
+.generator-type-row { margin-bottom: 8px; }
+.generator-type-select { width: 100%; padding: 5px 6px; font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 10px; color: #3C2F2F; background: rgba(245, 230, 211, 0.9); border: 1px solid #8B7355; border-radius: 3px; cursor: pointer; outline: none; }
+.generator-inputs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.gen-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.gen-row label { font-size: 9px; color: #5C4033; flex-shrink: 0; }
+.gen-row input[type="number"] { width: 70px; padding: 4px 6px; font-family: 'Garamond', 'Georgia', serif; font-size: 10px; color: #3C2F2F; background: rgba(255, 248, 220, 0.9); border: 1px solid #8B7355; border-radius: 3px; text-align: right; user-select: text; }
+.generator-btn { width: 100%; padding: 8px; font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #3C2F2F; background: linear-gradient(to bottom, rgba(139, 168, 112, 0.6), rgba(107, 142, 78, 0.7)); border: 1px solid #6B8E4E; border-radius: 4px; cursor: pointer; }
+
+/* ─── SCROLLBAR ─── */
+.tab-content::-webkit-scrollbar { width: 6px; }
+.tab-content::-webkit-scrollbar-track { background: transparent; }
+.tab-content::-webkit-scrollbar-thumb { background: rgba(139,115,85,0.4); border-radius: 3px; }
+
+/* ─── OSC A/B TOGGLE (from wavetable-editor.css, kept for the Geometry tab) ─── */
+.wt-osc-toggle { display: flex; gap: 4px; align-self: flex-start; }
+.wt-osc-btn {
+    padding: 4px 16px; border: 1px solid #8B7355; background: #D4C4B0; color: #5C4033; cursor: pointer;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 12px; line-height: 1.1667; letter-spacing: 1px; text-transform: uppercase; transition: background 0.2s, color 0.2s;
+}
+.wt-osc-btn:hover { background: #E8D5B7; }
+.wt-osc-btn.active { background: #5a7a6a; color: #F5E6D3; border-color: #5a7a6a; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   O-STRATA ADDITIONS — two-mode osc view, bake bar, Geometry tab
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Corner toggle: ⬡ = 3D geometry, ≋ = stacked-frame wavetable. */
+.osc-view-toggle { position: absolute; top: 4px; right: 5px; display: flex; gap: 2px; z-index: 5; }
+.osc-view-btn {
+    width: 15px; height: 15px; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; line-height: 1; color: #8B7355; cursor: pointer; border-radius: 2px; opacity: 0.7;
+    transition: color 0.15s, opacity 0.15s;
+}
+.osc-view-btn:hover { opacity: 1; background: rgba(139, 115, 85, 0.12); }
+.osc-view-btn.active { color: #8BA870; opacity: 1; }
+.geo-view-wrap .osc-view-toggle { top: 8px; right: 10px; gap: 4px; }
+.geo-view-wrap .osc-view-btn { width: 20px; height: 20px; font-size: 13px; }
+
+/* Bake progress bar: 2 px sage, fills over ~400 ms then fades. Sits just inside
+   the canvas border so the wrap keeps the canvas's exact footprint. */
+.bake-bar { position: absolute; left: 2px; right: 2px; bottom: 2px; height: 2px; overflow: hidden; pointer-events: none; z-index: 4; }
+.bake-bar::after { content: ''; display: block; height: 100%; width: 0; background: #8BA870; opacity: 0; }
+.bake-bar.baking::after { animation: bakeFill 0.4s linear forwards, bakeFade 0.35s ease-out 0.4s forwards; }
+@keyframes bakeFill { from { width: 0; opacity: 1; } to { width: 100%; opacity: 1; } }
+@keyframes bakeFade { from { opacity: 1; } to { opacity: 0; } }
+@keyframes statusPulse { from { opacity: 1; transform: scale(1); } to { opacity: 0.45; transform: scale(0.8); } }
+
+/* ─── GEOMETRY TAB ─── */
+#geometry-tab { overflow: hidden; }
+.geo-toprow { display: flex; align-items: center; gap: 16px; height: 30px; margin-bottom: 12px; position: relative; z-index: 2; }
+.geo-ctl { display: flex; align-items: center; gap: 7px; }
+.geo-ctl-label { font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #5C4033; line-height: 1.125; }
+.seg { display: inline-flex; border: 1px solid #8B7355; border-radius: 3px; overflow: hidden; background: #EBD9C7; }
+.seg-btn {
+    padding: 0 11px; height: 24px; line-height: 24px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: #5C4033; cursor: pointer; border-right: 1px solid #8B7355; font-variant-numeric: tabular-nums;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; transition: background 0.15s, color 0.15s;
+}
+.seg-btn:last-child { border-right: none; }
+.seg-btn:hover { background: #E8D5B7; }
+.seg-btn.active { background: #5a7a6a; color: #F5E6D3; }
+.geo-toprow .param-select { height: 24px; }
+.geo-import-btn {
+    background: transparent; border: 1px solid #8B7355; color: #5C4033; height: 24px; padding: 0 12px;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 10px;
+    letter-spacing: 1px; text-transform: uppercase; border-radius: 3px; cursor: pointer; transition: background 0.15s;
+}
+.geo-import-btn:hover { background: rgba(139, 168, 112, 0.2); }
+.geo-status {
+    margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 9px; letter-spacing: 1.2px;
+    text-transform: uppercase; color: #8B7355; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.geo-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #8BA870; box-shadow: 0 0 0 2px rgba(139, 168, 112, 0.22); flex-shrink: 0; }
+.geo-status.baking .geo-status-dot { background: #C9822B; box-shadow: 0 0 0 2px rgba(201, 130, 43, 0.25); animation: statusPulse 0.55s ease-in-out infinite alternate; }
+.geo-status .sep { color: rgba(139, 115, 85, 0.5); }
+
+.geo-main { display: flex; gap: 32px; align-items: flex-start; position: relative; z-index: 1; }
+.geo-view-col { width: 700px; flex-shrink: 0; }
+.geo-view-wrap { position: relative; width: 700px; height: 540px; }
+.geo-view { width: 700px; height: 540px; border: 2px solid #8B7355; border-radius: 3px; background: #EBD9C7; display: block; cursor: grab; }
+.geo-view-wrap.dragging .geo-view { cursor: grabbing; }
+.geo-hud {
+    position: absolute; left: 12px; bottom: 11px; font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+    font-size: 10px; color: #8B7355; letter-spacing: 0.2px; pointer-events: none; z-index: 3;
+}
+.inert { opacity: 0.45; pointer-events: none; }
+.geo-webgl-unavailable { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; font-style: italic; color: #8B7355; font-size: 12px; pointer-events: none; }
+.geo-hint { margin-top: 8px; display: flex; gap: 22px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #8B7355; line-height: 1.1111; }
+.geo-hint span b { font-weight: normal; color: #5C4033; }
+.geo-hint span i { font-style: normal; color: #8BA870; margin-right: 5px; }
+.nt { text-transform: none; }
+
+.geo-panel-col { flex: 1; min-width: 0; position: relative; z-index: 1; }
+.geo-osc-panel { display: none; } .geo-osc-panel.active { display: block; }
+.geo-family-panel { display: none; } .geo-family-panel.active { display: block; }
+.geo-knob-row { display: flex; flex-wrap: wrap; align-items: flex-start; }
+.geo-fam-knobs { display: grid; grid-template-columns: repeat(3, max-content); align-items: start; }
+.geo-divider { width: 1px; align-self: stretch; background: rgba(139, 115, 85, 0.35); margin: 6px 12px 16px 8px; }
+.geo-dropdown-row { display: flex; flex-wrap: wrap; align-items: flex-start; margin-top: 4px; }
+.geo-position-row { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(139, 115, 85, 0.3); display: flex; align-items: flex-start; gap: 18px; }
+.geo-position-note { padding-top: 12px; font-size: 10px; font-style: italic; color: #8B7355; line-height: 1.45; max-width: 300px; }
+.geo-notice { display: none; margin-top: 10px; font-size: 9px; letter-spacing: 0.6px; color: #B8742A; font-style: italic; align-items: center; gap: 7px; }
+.geo-notice.visible { display: flex; }
+.geo-notice::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #C9822B; flex-shrink: 0; }
+
+/* Panel captions get a paper halo so the botanical overlay never eats a readout. */
+.geo-panel-col .knob-label, .geo-panel-col .knob-value, .geo-panel-col .dropdown-label, .geo-panel-col .section-header {
+    text-shadow: 0 0 4px #F5E6D3, 0 0 2px #F5E6D3, 0 0 1px #F5E6D3;
+}
+.geo-panel-col .param-select { box-shadow: 0 0 0 3px rgba(245, 230, 211, 0.85); }
+
+.botanical-overlay {
+    position: absolute; right: -20px; bottom: 2px; height: 58%;
+    opacity: 0.3; pointer-events: none; z-index: 0; mix-blend-mode: multiply;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ HEADER ═══════ -->
+<div class="header-bar">
+    <h1>O-STRATA</h1>
+
+    <div class="preset-browser">
+        <button class="preset-nav" id="btn-preset-prev" data-i18n-aria="aria.presetPrev">‹</button>
+        <div class="preset-display" id="preset-display" data-i18n-aria="aria.presetBrowse">
+            <span class="preset-category" id="preset-current-category">Pads</span>
+            <span class="preset-name" id="preset-current-name">Torus Bloom</span>
+        </div>
+        <button class="preset-nav" id="btn-preset-next" data-i18n-aria="aria.presetNext">›</button>
+        <button class="preset-save" id="btn-preset-save" data-i18n-aria="aria.presetSave">★</button>
+    </div>
+
+    <span class="subtitle" data-i18n="label.subtitle">Geometric Microtonal Wavetable Synthesizer</span>
+
+    <div class="settings-wrap">
+        <button class="gear-btn" id="gear-btn" data-i18n-aria="aria.settings" data-tip-always>&#9881;</button>
+        <div class="settings-popover" id="settings-popover">
+            <div class="settings-row">
+                <span class="settings-label" data-i18n="label.language">Language</span>
+                <select id="lang-select" class="settings-select">
+                    <option value="en">English</option>
+                    <option value="fr">Français</option>
+                    <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
+                </select>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label" data-i18n="label.hoverHelp">Hover help</span>
+              <button type="button" class="settings-toggle" id="tips-toggle" aria-pressed="true" data-i18n-aria="aria.helpToggle" aria-label="Toggle hover help" data-i18n="ui.on" data-tip-always>On</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="preset-menu" id="preset-menu"></div>
+
+<!-- ═══════ TAB BAR ═══════ -->
+<div class="tab-bar">
+    <div class="tab active" data-tab="synth" data-i18n="tab.synth">Synth</div>
+    <div class="tab" data-tab="mod" data-i18n="tab.mod">Mod</div>
+    <div class="tab" data-tab="tuning" data-i18n="tab.tuning">Tuning</div>
+    <div class="tab" data-tab="effects" data-i18n="tab.effects">Effects</div>
+    <div class="tab" data-tab="geometry" data-i18n="tab.geometry">Geometry</div>
+</div>
+
+<div class="tab-content-area">
+
+<!-- ─── SYNTH TAB ─── -->
+<div id="synth-tab" class="tab-content active">
+
+    <!-- Oscillator A -->
+    <div class="section-header" data-i18n="label.oscA">Oscillator A</div>
+    <div class="osc-section">
+        <div class="osc-canvas-wrap" id="canvasWrapA" data-osc="A">
+            <canvas id="canvasOscA" class="osc-canvas" width="320" height="180"></canvas>
+            <div class="osc-view-toggle">
+                <span class="osc-view-btn active" data-view="3d" data-i18n-aria="aria.view3d" title="3D geometry">&#x2B21;</span>
+                <span class="osc-view-btn" data-view="wt" data-i18n-aria="aria.viewWavetable" title="Wavetable">&#x224B;</span>
+            </div>
+            <div class="bake-bar" id="bakeBarA"></div>
+            <div class="wt-drop-overlay" data-i18n="label.dropGeometry">Drop OBJ · STL · PNG</div>
+        </div>
+        <div class="osc-params">
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.source">Source</span>
+                <select id="select-oscAGeoSource" class="param-select geo-source-select" data-osc="A">
+                    <option>Mesh</option><option>Volume</option><option>Terrain</option>
+                </select>
+            </div>
+            <div class="dropdown-group">
+                <span class="dropdown-label geo-lib-label" id="lbl-oscALib" data-i18n="label.mesh">Mesh</span>
+                <select id="select-oscALib" class="param-select geo-lib-select" data-osc="A"></select>
+            </div>
+            <div class="knob-container" data-knob="oscAPos" data-label="Position" data-initial="Frame 1 / 256" data-i18n="label.position"></div>
+            <div class="knob-container" data-knob="oscALevel" data-label="Level" data-initial="80%" data-i18n="label.level"></div>
+            <div class="knob-container" data-knob="oscAPan" data-label="Pan" data-initial="C" data-i18n="label.pan"></div>
+            <div class="knob-container" data-knob="oscACoarse" data-label="Coarse" data-initial="0 st" data-i18n="label.coarse"></div>
+            <div class="knob-container" data-knob="oscAFine" data-label="Fine" data-initial="0 ct" data-i18n="label.fine"></div>
+            <div class="knob-container" data-knob="oscAPhase" data-label="Phase" data-initial="0%" data-i18n="label.phase"></div>
+            <div class="knob-container" data-knob="oscAUnison" data-label="Unison" data-initial="1" data-i18n="label.unison"></div>
+            <div class="knob-container" data-knob="oscADetune" data-label="Detune" data-initial="20%" data-i18n="label.detune"></div>
+            <div class="knob-container" data-knob="oscAWidth" data-label="Width" data-initial="50%" data-i18n="label.width"></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.warp">Warp</span>
+                <select id="select-oscAWarpType" class="param-select">
+                    <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="oscAWarpAmt" data-label="Warp Amt" data-initial="0%" data-i18n="label.warpAmt"></div>
+        </div>
+    </div>
+
+    <!-- Oscillator B -->
+    <div class="section-header" data-i18n="label.oscB">Oscillator B</div>
+    <div class="osc-section">
+        <div class="osc-canvas-wrap" id="canvasWrapB" data-osc="B">
+            <canvas id="canvasOscB" class="osc-canvas" width="320" height="180"></canvas>
+            <div class="osc-view-toggle">
+                <span class="osc-view-btn active" data-view="3d" data-i18n-aria="aria.view3d" title="3D geometry">&#x2B21;</span>
+                <span class="osc-view-btn" data-view="wt" data-i18n-aria="aria.viewWavetable" title="Wavetable">&#x224B;</span>
+            </div>
+            <div class="bake-bar" id="bakeBarB"></div>
+            <div class="wt-drop-overlay" data-i18n="label.dropGeometry">Drop OBJ · STL · PNG</div>
+        </div>
+        <div class="osc-params">
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.source">Source</span>
+                <select id="select-oscBGeoSource" class="param-select geo-source-select" data-osc="B">
+                    <option>Mesh</option><option>Volume</option><option>Terrain</option>
+                </select>
+            </div>
+            <div class="dropdown-group">
+                <span class="dropdown-label geo-lib-label" id="lbl-oscBLib" data-i18n="label.mesh">Mesh</span>
+                <select id="select-oscBLib" class="param-select geo-lib-select" data-osc="B"></select>
+            </div>
+            <div class="knob-container" data-knob="oscBPos" data-label="Position" data-initial="Frame 1 / 256" data-i18n="label.position"></div>
+            <div class="knob-container" data-knob="oscBLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
+            <div class="knob-container" data-knob="oscBPan" data-label="Pan" data-initial="C" data-i18n="label.pan"></div>
+            <div class="knob-container" data-knob="oscBCoarse" data-label="Coarse" data-initial="0 st" data-i18n="label.coarse"></div>
+            <div class="knob-container" data-knob="oscBFine" data-label="Fine" data-initial="0 ct" data-i18n="label.fine"></div>
+            <div class="knob-container" data-knob="oscBPhase" data-label="Phase" data-initial="0%" data-i18n="label.phase"></div>
+            <div class="knob-container" data-knob="oscBUnison" data-label="Unison" data-initial="1" data-i18n="label.unison"></div>
+            <div class="knob-container" data-knob="oscBDetune" data-label="Detune" data-initial="20%" data-i18n="label.detune"></div>
+            <div class="knob-container" data-knob="oscBWidth" data-label="Width" data-initial="50%" data-i18n="label.width"></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.warp">Warp</span>
+                <select id="select-oscBWarpType" class="param-select">
+                    <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="oscBWarpAmt" data-label="Warp Amt" data-initial="0%" data-i18n="label.warpAmt"></div>
+        </div>
+    </div>
+
+    <!-- Sub + Noise + Performance -->
+    <div class="inline-sections">
+        <div class="inline-section">
+            <div class="section-header" data-i18n="label.subOsc">Sub Oscillator</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                    <select id="select-subShape" class="param-select"><option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option></select>
+                </div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.octave">Octave</span>
+                    <select id="select-subOctave" class="param-select"><option>-1 Oct</option><option>-2 Oct</option><option>-3 Oct</option><option>-4 Oct</option></select>
+                </div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.routing">Routing</span>
+                    <select id="select-subRouting" class="param-select"><option>Post-Filter</option><option>Pre-Filter</option></select>
+                </div>
+                <div class="knob-container" data-knob="subLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div class="section-header" data-i18n="label.noise">Noise</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.type">Type</span>
+                    <select id="select-noiseType" class="param-select"><option>White</option><option>Pink</option><option>Brown</option><option>Digital</option><option>Vinyl</option><option>Wind</option></select>
+                </div>
+                <div class="knob-container" data-knob="noiseLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div class="section-header" data-i18n="label.performance">Performance</div>
+            <div class="param-row">
+                <div class="knob-container" data-knob="pitchBendRange" data-label="PB Range" data-initial="2 st" data-i18n="label.pbRange"></div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.glideMode">Glide Mode</span>
+                    <select id="select-glideMode" class="param-select"><option>Off</option><option>Legato</option><option>Always</option></select>
+                </div>
+                <div class="knob-container" data-knob="glideTime" data-label="Glide" data-initial="100ms" data-i18n="label.glide"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="inline-sections">
+        <div class="inline-section">
+            <div class="section-header" data-i18n="label.filterA">Filter A</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.type">Type</span>
+                    <select id="select-filtAType" class="param-select"><option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option></select>
+                </div>
+                <div class="knob-container" data-knob="filtACutoff" data-label="Cutoff" data-initial="20kHz" data-i18n="label.cutoff"></div>
+                <div class="knob-container" data-knob="filtARes" data-label="Reso" data-initial="0%" data-i18n="label.reso"></div>
+                <div class="knob-container" data-knob="filtADrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+                <div class="knob-container" data-knob="filtAKeyTrack" data-label="Key Trk" data-initial="0%" data-i18n="label.keyTrk"></div>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; padding-top:20px;">
+            <div class="dropdown-group">
+                <span class="dropdown-label" id="lbl-filt-routing" data-i18n="label.filterRouting">Filter Routing</span>
+                <select id="select-filtRouting" class="param-select"><option>Serial</option><option>Parallel</option></select>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div class="section-header" data-i18n="label.filterB">Filter B</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.type">Type</span>
+                    <select id="select-filtBType" class="param-select"><option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option></select>
+                </div>
+                <div class="knob-container" data-knob="filtBCutoff" data-label="Cutoff" data-initial="20kHz" data-i18n="label.cutoff"></div>
+                <div class="knob-container" data-knob="filtBRes" data-label="Reso" data-initial="0%" data-i18n="label.reso"></div>
+                <div class="knob-container" data-knob="filtBDrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+                <div class="knob-container" data-knob="filtBKeyTrack" data-label="Key Trk" data-initial="0%" data-i18n="label.keyTrk"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Envelopes -->
+    <div class="inline-sections">
+        <div class="inline-section">
+            <div class="section-header" data-i18n="label.ampEnv">Amp Envelope</div>
+            <div class="param-row">
+                <div class="knob-container" data-knob="ampAttack" data-label="Attack" data-initial="10ms" data-i18n="label.attack"></div>
+                <div class="knob-container" data-knob="ampDecay" data-label="Decay" data-initial="300ms" data-i18n="label.decay"></div>
+                <div class="knob-container" data-knob="ampSustain" data-label="Sustain" data-initial="70%" data-i18n="label.sustain"></div>
+                <div class="knob-container" data-knob="ampRelease" data-label="Release" data-initial="500ms" data-i18n="label.release"></div>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div class="section-header" data-i18n="label.filtEnv">Filter Envelope</div>
+            <div class="param-row">
+                <div class="knob-container" data-knob="filtAttack" data-label="Attack" data-initial="10ms" data-i18n="label.attack"></div>
+                <div class="knob-container" data-knob="filtDecay" data-label="Decay" data-initial="500ms" data-i18n="label.decay"></div>
+                <div class="knob-container" data-knob="filtSustain" data-label="Sustain" data-initial="50%" data-i18n="label.sustain"></div>
+                <div class="knob-container" data-knob="filtRelease" data-label="Release" data-initial="500ms" data-i18n="label.release"></div>
+                <div class="knob-container" data-knob="filtAEnvDepth" data-label="Dep A" data-initial="0%" data-i18n="label.depA"></div>
+                <div class="knob-container" data-knob="filtBEnvDepth" data-label="Dep B" data-initial="0%" data-i18n="label.depB"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LFOs -->
+    <div class="inline-sections" id="lfo-sections"></div>
+
+</div><!-- /synth-tab -->
+
+<!-- ─── MOD MATRIX TAB ─── -->
+<div id="mod-tab" class="tab-content">
+    <div class="section-header" data-i18n="label.modMatrix">Modulation Matrix</div>
+    <div class="mod-matrix-info" data-i18n="label.modMatrixInfo">Route any source to any destination. 16 slots available.</div>
+    <div class="mod-matrix-table">
+        <div class="mod-matrix-header">
+            <span class="mod-col-on" data-i18n="label.colOn">On</span>
+            <span class="mod-col-slot">#</span>
+            <span class="mod-col-src" data-i18n="label.colSource">Source</span>
+            <span class="mod-col-dst" data-i18n="label.colDest">Destination</span>
+            <span class="mod-col-amt" data-i18n="label.colAmount">Amount</span>
+            <span class="mod-col-val"></span>
+        </div>
+        <div id="mod-matrix-rows"></div>
+    </div>
+</div><!-- /mod-tab -->
+
+<!-- ─── TUNING TAB ─── -->
+<div id="tuning-tab" class="tab-content">
+    <div class="tuning-viz-container">
+        <div class="interval-list" id="interval-list">
+            <div class="interval-list-header" data-i18n="label.intervalCount" data-i18n-vars='{"n":12}'>Intervals (12)</div>
+            <div class="tonic-selector">
+                <span class="tonic-label" data-i18n="label.tonic">Tonic</span>
+                <span class="tonic-arrow">&#x25C0;</span><span class="tonic-value">C</span><span class="tonic-arrow">&#x25B6;</span>
+            </div>
+            <div id="interval-rows"></div>
+        </div>
+    </div>
+
+    <div class="viz-mode-toggle">
+        <button class="viz-btn active" data-mode="circle" data-i18n="label.vizCircle">Circle</button>
+        <button class="viz-btn" data-mode="polar" data-i18n="label.vizPolar">Polar</button>
+        <button class="viz-btn" data-mode="matrix" data-i18n="label.vizMatrix">Matrix</button>
+        <button class="viz-btn" data-mode="truekeys" data-i18n="label.vizTrueKeys">True Keys</button>
+        <button class="viz-btn" data-mode="rotation" data-i18n="label.vizRotation">Rotation</button>
+    </div>
+
+    <div class="viz-container" id="viz-container">
+        <div class="viz-view active" id="circle-view">
+            <div class="pitch-circle">
+                <svg viewBox="0 0 188 188" id="pitch-circle-svg">
+                    <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                    <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                    <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
+                    <g id="interval-lines"></g>
+                    <g id="degree-labels" font-size="9" fill="#5C4033"></g>
+                </svg>
+                <div class="pitch-circle-label" data-i18n="label.scaleIntervals">Scale Intervals</div>
+            </div>
+        </div>
+        <div class="viz-view" id="polar-view"><canvas id="polar-canvas" width="400" height="400"></canvas></div>
+        <div class="viz-view matrix-view" id="matrix-view"></div>
+        <div class="viz-view truekeys-view" id="truekeys-view"><div class="tk-hint" data-i18n="label.tkHint">Hold 2+ notes to see intervals</div></div>
+        <div class="viz-view rotation-view" id="rotation-view"></div>
+    </div>
+
+    <div class="tuning-controls-panel">
+        <div class="library-section" id="library-section">
+            <div class="library-header" id="library-header">
+                <span class="library-header-text" data-i18n="label.tuningLibrary">Tuning Library</span>
+                <span class="library-toggle expanded" id="library-toggle">&#x25BC;</span>
+            </div>
+            <div class="library-content expanded" id="library-content">
+                <div class="library-filter">
+                    <select id="library-filter" class="library-filter-select">
+                        <option value="all" data-i18n="label.catAll">All Categories</option>
+                        <option value="Historical" data-i18n="label.catHistorical">Historical</option>
+                        <option value="Just Intonation" data-i18n="label.catJust">Just Intonation</option>
+                        <option value="Equal Divisions" data-i18n="label.catEqual">Equal Divisions</option>
+                        <option value="Non-Octave" data-i18n="label.catNonOctave">Non-Octave</option>
+                        <option value="World" data-i18n="label.catWorld">World</option>
+                    </select>
+                </div>
+                <div class="library-list" id="library-list"></div>
+            </div>
+        </div>
+
+        <div class="tuning-ref-section">
+            <div class="knob" id="knob-refPitch">
+                <div class="knob-visual large">
+                    <svg viewBox="0 0 64 64">
+                        <circle class="knob-track" cx="32" cy="32" r="27"/>
+                        <circle class="knob-vine" id="vine-refPitch" cx="32" cy="32" r="27" stroke-dasharray="127.24" stroke-dashoffset="127.24"/>
+                    </svg>
+                </div>
+                <span class="knob-label" data-i18n="label.a4Ref">A4 Ref</span>
+                <span class="knob-value" id="val-refPitch">440.0 Hz</span>
+            </div>
+        </div>
+
+        <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
+
+        <div class="octave-stretch-section">
+            <div class="octave-stretch-row">
+                <span class="octave-stretch-label" data-i18n="label.stretch">Stretch</span>
+                <input type="range" id="octave-stretch" class="octave-stretch-slider" min="0.95" max="1.25" step="0.01" value="1.0">
+                <span class="octave-stretch-value" id="octave-stretch-value">1.00</span>
+            </div>
+        </div>
+
+        <div class="tuning-file-section">
+            <div class="tuning-file-buttons">
+                <button class="tuning-file-btn" data-i18n="label.loadScl">Load .SCL</button>
+                <button class="tuning-file-btn" data-i18n="label.loadKbm">Load .KBM</button>
+                <button class="tuning-file-btn" data-i18n="label.saveScl">Save .SCL</button>
+                <button class="tuning-file-btn" data-i18n="label.saveKbm">Save .KBM</button>
+                <button class="tuning-file-btn tuning-export-btn" data-i18n="label.exportHtml">Export HTML</button>
+            </div>
+        </div>
+
+        <div class="generator-section" id="generator-section">
+            <div class="generator-header" id="generator-header">
+                <span class="generator-header-text" data-i18n="label.generateScale">Generate Scale</span>
+                <span class="generator-toggle" id="generator-toggle">&#x25BC;</span>
+            </div>
+            <div class="generator-content" id="generator-content">
+                <div class="generator-type-row">
+                    <select id="generator-type" class="generator-type-select">
+                        <option value="edo" data-i18n="label.genEdo">EDO (Equal Division)</option>
+                        <option value="harmonic" data-i18n="label.genHarmonic">Harmonic Series</option>
+                        <option value="rank2" data-i18n="label.genRank2">Rank-2 Temperament</option>
+                    </select>
+                </div>
+                <div class="generator-inputs">
+                    <div class="gen-row"><label data-i18n="label.genDivisions">Divisions</label><input type="number" value="19" min="5" max="53"></div>
+                    <div class="gen-row"><label data-i18n="label.genPeriod">Period (cents)</label><input type="number" value="1200" min="100" max="2400" step="1"></div>
+                </div>
+                <button class="generator-btn" data-i18n="label.generate">Generate</button>
+            </div>
+        </div>
+    </div>
+</div><!-- /tuning-tab -->
+
+<!-- ─── EFFECTS TAB ─── -->
+<div id="effects-tab" class="tab-content">
+    <div class="effect-section" id="section-delay">
+        <div class="section-header"><span data-i18n="label.delay">Delay</span><button id="toggle-delayBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="delayTime" data-label="Time" data-initial="375ms" data-i18n="label.time"></div>
+            <div class="knob-container" data-knob="delayFeedback" data-label="Feedback" data-initial="30%" data-i18n="label.feedback"></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.mode">Mode</span>
+                <select id="select-delayMode" class="param-select"><option>Normal</option><option>PingPong</option></select>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;margin:2px 6px;">
+                <span class="dropdown-label" data-i18n="label.sync">Sync</span>
+                <button id="toggle-delaySync" class="toggle-btn" style="margin-top:3px;" data-i18n="ui.off">Off</button>
+            </div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.division">Division</span>
+                <select id="select-delayDivision" class="param-select">
+                    <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                    <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                    <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="delayMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+        </div>
+    </div>
+    <div class="effect-section" id="section-chorus">
+        <div class="section-header"><span data-i18n="label.chorus">Chorus</span><button id="toggle-chorusBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="chorusRate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="knob-container" data-knob="chorusDepth" data-label="Depth" data-initial="50%" data-i18n="label.depth"></div>
+            <div class="knob-container" data-knob="chorusMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+        </div>
+    </div>
+    <div class="effect-section" id="section-dist">
+        <div class="section-header"><span data-i18n="label.distortion">Distortion</span><button id="toggle-distBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.type">Type</span>
+                <select id="select-distType" class="param-select"><option>SoftClip</option><option>HardClip</option><option>Tube</option><option>Fold</option></select>
+            </div>
+            <div class="knob-container" data-knob="distDrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+            <div class="knob-container" data-knob="distMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+        </div>
+    </div>
+    <div class="effect-section" id="section-reverb">
+        <div class="section-header"><span data-i18n="label.reverb">Reverb</span><button id="toggle-reverbBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="reverbSize" data-label="Size" data-initial="50%" data-i18n="label.size"></div>
+            <div class="knob-container" data-knob="reverbDamp" data-label="Damp" data-initial="50%" data-i18n="label.damp"></div>
+            <div class="knob-container" data-knob="reverbPredelay" data-label="Pre-Dly" data-initial="20ms" data-i18n="label.preDly"></div>
+            <div class="knob-container" data-knob="reverbMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+            <div class="knob-container" data-knob="reverbModDepth" data-label="Mod" data-initial="30%" data-i18n="label.modAmt"></div>
+            <div class="knob-container" data-knob="reverbModRate" data-label="Rate" data-initial="1.0Hz" data-i18n="label.rate"></div>
+        </div>
+    </div>
+    <div class="effect-section" id="section-eq">
+        <div class="section-header"><span data-i18n="label.eq3">3-Band EQ</span><button id="toggle-eqBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="eqLowGain" data-label="Low" data-initial="0 dB" data-i18n="label.low"></div>
+            <div class="knob-container" data-knob="eqMidGain" data-label="Mid" data-initial="0 dB" data-i18n="label.mid"></div>
+            <div class="knob-container" data-knob="eqMidFreq" data-label="Mid Freq" data-initial="1.0kHz" data-i18n="label.midFreq"></div>
+            <div class="knob-container" data-knob="eqHighGain" data-label="High" data-initial="0 dB" data-i18n="label.high"></div>
+        </div>
+    </div>
+</div><!-- /effects-tab -->
+
+<!-- ─── GEOMETRY TAB (replaces O-Prism's Wavetable tab) ─── -->
+<div id="geometry-tab" class="tab-content">
+    <img class="botanical-overlay" src="img/shell_conchologiaiconi12reev_0090.png" alt="" aria-hidden="true">
+
+    <div class="geo-toprow">
+        <div class="wt-osc-toggle">
+            <button class="wt-osc-btn active" data-osc="A" data-i18n="label.oscAShort">Osc A</button>
+            <button class="wt-osc-btn" data-osc="B" data-i18n="label.oscBShort">Osc B</button>
+        </div>
+        <div class="geo-ctl">
+            <span class="geo-ctl-label" data-i18n="label.source">Source</span>
+            <div class="seg" id="geo-source-seg">
+                <span class="seg-btn active" data-idx="0" data-i18n="label.srcMesh">Mesh</span>
+                <span class="seg-btn" data-idx="1" data-i18n="label.srcVolume">Volume</span>
+                <span class="seg-btn" data-idx="2" data-i18n="label.srcTerrain">Terrain</span>
+            </div>
+        </div>
+        <div class="geo-ctl">
+            <span class="geo-ctl-label" data-i18n="label.frames">Frames</span>
+            <div class="seg" id="geo-frames-seg">
+                <span class="seg-btn" data-idx="0">64</span>
+                <span class="seg-btn" data-idx="1">128</span>
+                <span class="seg-btn active" data-idx="2">256</span>
+            </div>
+        </div>
+        <div class="geo-ctl">
+            <span class="geo-ctl-label geo-lib-label" id="lbl-geoLib" data-i18n="label.mesh">Mesh</span>
+            <select id="select-geoLib" class="param-select geo-lib-select" data-osc="active"></select>
+        </div>
+        <button class="geo-import-btn" id="geo-import-btn" data-i18n="label.import">Import…</button>
+        <div class="geo-status" id="geo-status">
+            <span class="geo-status-dot"></span>
+            <span id="geo-status-word" data-i18n="label.baked">Baked</span>
+            <span class="sep">·</span><span id="geo-status-ms">38 ms</span>
+            <span class="sep">·</span><span><span id="geo-status-frames">256</span> <span data-i18n="label.framesUnit">frames</span></span>
+        </div>
+    </div>
+
+    <div class="geo-main">
+        <div class="geo-view-col">
+            <div class="geo-view-wrap osc-canvas-wrap" id="geoViewWrap">
+                <canvas id="geoView" class="geo-view" width="1400" height="1080"></canvas>
+                <div class="osc-view-toggle">
+                    <span class="osc-view-btn active" data-view="3d" data-i18n-aria="aria.view3d" title="3D geometry">&#x2B21;</span>
+                    <span class="osc-view-btn" data-view="wt" data-i18n-aria="aria.viewWavetable" title="Wavetable">&#x224B;</span>
+                </div>
+                <div class="geo-hud" id="geo-hud">frame 1/256 · φ 0.00</div>
+                <div class="geo-webgl-unavailable" data-i18n="label.webglUnavailable">3D view unavailable — showing Canvas fallback</div>
+                <div class="bake-bar" id="bakeBarGeo"></div>
+                <div class="wt-drop-overlay" data-i18n="label.dropGeometry">Drop OBJ · STL · PNG</div>
+            </div>
+            <div class="geo-hint" id="geo-hint">
+                <span data-fam="mesh"><i>drag</i><b data-i18n="label.hintTilt">tilt slice</b></span>
+                <span data-fam="mesh"><i>wheel</i><b data-i18n="label.hintPhi">projection <span class="nt">φ</span></b></span>
+                <span data-fam="volume" hidden><i>drag</i><b data-i18n="label.hintOrbitView">rotate view</b></span>
+                <span data-fam="volume" hidden><i>wheel</i><b data-i18n="label.hintSweep">sweep range</b></span>
+                <span data-fam="terrain" hidden><i>drag</i><b data-i18n="label.hintCentre">orbit centre</b></span>
+                <span data-fam="terrain" hidden><i>wheel</i><b data-i18n="label.hintSweep">sweep range</b></span>
+                <span><i>alt-click</i><b data-i18n="label.hintReset">reset knob</b></span>
+            </div>
+        </div>
+        <div class="geo-panel-col" id="geo-panel-col"></div>
+    </div>
+</div><!-- /geometry-tab -->
+
+</div><!-- /tab-content-area -->
+
+<!-- ═══════ FOOTER (MASTER STRIP) ═══════ -->
+<div class="footer-bar">
+    <div class="footer-param">
+        <div class="knob" id="knob-masterVol"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-masterVol" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
+        <span class="footer-label" data-i18n="label.master">Master</span>
+        <span class="footer-value" id="val-masterVol">80%</span>
+    </div>
+    <div class="footer-param">
+        <div class="knob" id="knob-oscMix"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-oscMix" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
+        <span class="footer-label" data-i18n="label.oscMix">Osc Mix</span>
+        <span class="footer-value" id="val-oscMix">50%</span>
+    </div>
+</div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════════════
+// O-Strata production UI script — v1 (generated from v1-ui-test.html)
+//
+// HOW TO READ THIS FILE (Stage 3 gui-agent):
+//   O-Strata's real Source/ui/public/index.html is O-Prism v1.24.0's index.html
+//   with (a) the markup diff above (oscillator panels + Geometry tab replacing
+//   the Wavetable tab) and (b) the blocks in this script that are marked NEW.
+//   Blocks marked "INHERITED FROM O-PRISM" are transplanted VERBATIM from
+//   plugins/O-Prism/Source/ui/public/index.html (line refs are v1.24.0) — they
+//   are not reproduced here because they are byte-compared by check-i18n
+//   (canon v2) or are hundreds of lines of unchanged behaviour. Blocks marked
+//   REMOVED name what must NOT come across from O-Prism.
+//
+//   Everything the mockup did with a mock backend is wired here through the
+//   real `Juce` ES-module namespace (never window.__JUCE__ for state — see
+//   memory critical_juce_webview_namespace_vs_postmessage). Backend → page
+//   pushes arrive on window.__JUCE__.backend.addEventListener (that IS the
+//   right object for events). No evaluateJavascript anywhere (JUCE #1415).
+// ═══════════════════════════════════════════════════════════════════
+import * as Juce from './js/juce/index.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+
+// ─── INHERITED FROM O-PRISM (verbatim; index.html 2094–2260): i18n canon v2 ───
+//   let uiLanguage / trLabel / applyLabel / applyI18nAttributes / setLabel /
+//   applyI18n / window.__setLanguage / window.__setLabel / window.__reapplyI18n /
+//   initI18n (+ the language <select> wiring). MUST stay at the top of the
+//   module (pattern_module_toplevel_init_tdz) and initI18n() MUST be the last
+//   call in this file. Do not edit inside the canon region.
+// NEW i18n keys this page introduces (all must exist in js/i18n.js en/fr/zh-Hans):
+//   see v1-ui.yaml `i18n_new_keys.spec` + `i18n_new_keys.added_by_mockup`.
+//   `label.webglUnavailable` is the localised Canvas-fallback placeholder (UI-02).
+
+// ─── REMOVED FROM O-PRISM ───
+//   window.JuceGetNativeFunction (only wavetable-editor.js used it);
+//   every WavetableSelector / WavetableEditor / user-table import block
+//   (index.html sections "WAVETABLE TAB", "USER WAVETABLES", "SHAPE dropdowns"
+//   select-oscATable / select-oscBTable) and the 14 native fns they called:
+//   getUserWavetableList importUserWavetable importUserWavetableData
+//   selectUserWavetable clearUserWavetableOverride deleteUserWavetable
+//   startWavetableEditor stopWavetableEditor getEditorFrameWaveform
+//   getFrameHarmonics setFrameHarmonics applyFrameOperation saveEditedWavetable
+//   getAllEditorFrameWaveforms.
+
+// Native-application feel (inherited behaviour, restated because the mock
+// page carried it in a non-module script).
+document.addEventListener('contextmenu', (e) => { e.preventDefault(); return false; });
+document.addEventListener('dragstart', (e) => { if (e.target.tagName !== 'INPUT') e.preventDefault(); });
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — PARAMETER TABLE
+// Normalised defaults (Alt/Option-click reset target — NOT the scaled default,
+// see O-Prism bindKnob comment) and choice lists (used by the scene renderer
+// and the dropdown builders). Must agree with parameter-spec.md; the APVTS is
+// the source of truth at runtime — nothing here is sent to the backend.
+// ═══════════════════════════════════════════════════════════════════
+const PARAM_DEFS = {};          // id -> { def, choices?, bake?, osc? }
+function defParam(id, def, opts = {}) { PARAM_DEFS[id] = Object.assign({ def }, opts); }
+function defChoice(id, choices, defIdx, opts = {}) {
+    defParam(id, choices.length > 1 ? defIdx / (choices.length - 1) : 0, Object.assign({ choices }, opts));
+}
+const SRC_NAMES  = ['Mesh', 'Volume', 'Terrain'];
+const FRAME_OPTS = ['64', '128', '256'];
+const LIB = {
+    mesh:    { key: 'label.mesh',    param: 'Mesh',     options: ['Sphere', 'Torus', 'Twisted Star', 'Crescent', 'Torus Knot', 'fBm Blob', 'Imported…'], def: 1 },
+    volume:  { key: 'label.field',   param: 'VolField', options: ['Torus SDF', 'Box SDF', 'Gyroid', 'Sphere SDF', 'fBm Noise'], def: 0 },
+    terrain: { key: 'label.terrain', param: 'Terrain',  options: ['Sine Product', 'Radial Rings', 'Imported…'], def: 0 },
+};
+const FAMILIES = ['mesh', 'volume', 'terrain'];
+
+['A', 'B'].forEach(o => {
+    const p = 'osc' + o;
+    // Carried over from O-Prism (Table removed) — norm defaults per params.tsv
+    defParam(p + 'Pos', 0.0);  defParam(p + 'Level', o === 'A' ? 0.8 : 0.0); defParam(p + 'Pan', 0.5);
+    defParam(p + 'Coarse', 0.5); defParam(p + 'Fine', 0.5); defParam(p + 'Phase', 0.0);
+    defParam(p + 'Unison', 0.0); defParam(p + 'Detune', 0.2); defParam(p + 'Width', 0.5);
+    defChoice(p + 'WarpType', ['Off', 'Sync', 'Bend', 'FM', 'Window'], 0); defParam(p + 'WarpAmt', 0.0);
+    // Geometry — common (bake)
+    defChoice(p + 'GeoSource', SRC_NAMES, 0, { bake: true, osc: o });
+    defChoice(p + 'GeoFrames', FRAME_OPTS, 2, { bake: true, osc: o });
+    defParam(p + 'GeoDrive', 0.0, { bake: true, osc: o });
+    // Mesh
+    defChoice(p + 'Mesh', LIB.mesh.options, LIB.mesh.def, { bake: true, osc: o });
+    defParam(p + 'MeshTiltX', 0.5, { bake: true, osc: o }); defParam(p + 'MeshTiltY', 0.5, { bake: true, osc: o });
+    defParam(p + 'MeshPhi', 0.0, { bake: true, osc: o });
+    defChoice(p + 'MeshUnwrap', ['XY Projection', 'Centroid Distance'], 0, { bake: true, osc: o });
+    defChoice(p + 'MeshLoop', ['Largest', 'Sum'], 0, { bake: true, osc: o });
+    // Volume
+    defChoice(p + 'VolField', LIB.volume.options, LIB.volume.def, { bake: true, osc: o });
+    defChoice(p + 'VolOrbit', ['Torus Knot (2,3)', 'Torus Knot (3,5)', 'Torus Knot (5,7)', 'Lissajous Knot'], 0, { bake: true, osc: o });
+    defChoice(p + 'VolSweepAxis', ['Orbit Scale', 'Knot Phase', 'Z Offset'], 0, { bake: true, osc: o });
+    defParam(p + 'VolSweepRange', 0.6, { bake: true, osc: o }); defParam(p + 'VolDetail', 0.3, { bake: true, osc: o });
+    // Terrain
+    defChoice(p + 'Terrain', LIB.terrain.options, LIB.terrain.def, { bake: true, osc: o });
+    defChoice(p + 'TerOrbit', ['Ellipse', 'Epitrochoid 3·5·7', 'Hypocycloid 3·5·7', 'Superellipse'], 0, { bake: true, osc: o });
+    defParam(p + 'TerCX', 0.5, { bake: true, osc: o }); defParam(p + 'TerCY', 0.5, { bake: true, osc: o });
+    defParam(p + 'TerAspect', 1.0, { bake: true, osc: o }); defParam(p + 'TerRot', 0.0, { bake: true, osc: o });
+    defChoice(p + 'TerSweepAxis', ['Radius', 'Rotation', 'Centre X', 'Centre Y'], 0, { bake: true, osc: o });
+    defParam(p + 'TerSweepRange', 0.8, { bake: true, osc: o }); defParam(p + 'TerBlur', 0.2, { bake: true, osc: o });
+    defChoice(p + 'TerEdge', ['Mirror', 'Window'], 0, { bake: true, osc: o });
+});
+// INHERITED FROM O-PRISM: the defaultNorm table for every other section
+// (sub/noise, envelopes, filters, tuning, FX, LFOs, master) lives in
+// O-Prism's bindKnob call sites (index.html ~3100–3280) — keep those calls.
+
+// ─── FORMAT HELPERS (INHERITED: pct, pctSigned, panFmt, coarseFmt, fineFmt,
+//     unisonFmt, envTimeFmt, hzFmt, cutoffFmt, dbFmt … from O-Prism) ───
+const pct = (n) => (n * 100).toFixed(0) + '%';
+// NEW formatters for the Geometry block
+const degSigned = (n) => { const v = Math.round(n * 180 - 90); return (v > 0 ? '+' : '') + v + '°'; };
+const deg360    = (n) => Math.round(n * 360) + '°';
+const signed2   = (n) => { const v = n * 2 - 1; return (v > 0 ? '+' : '') + v.toFixed(2); };
+const aspectFmt = (n) => (0.1 + 0.9 * n).toFixed(2);
+// Position now reads as a frame index; the frame count is the oscillator's GeoFrames choice.
+const framesOf   = (osc) => parseInt(FRAME_OPTS[Math.round(Juce.getSliderState('osc' + osc + 'GeoFrames').getNormalisedValue() * 2)], 10);
+const frameFmt   = (osc) => (n) => { const N = framesOf(osc); return 'Frame ' + (1 + Math.round(n * (N - 1))) + ' / ' + N; };
+const frameIndex = (osc) => { const N = framesOf(osc); return 1 + Math.round(Juce.getSliderState('osc' + osc + 'Pos').getNormalisedValue() * (N - 1)); };
+const GEO_FORMATS = { oscAPos: frameFmt('A'), oscBPos: frameFmt('B') };
+['A', 'B'].forEach(o => {
+    const p = 'osc' + o;
+    Object.assign(GEO_FORMATS, {
+        [p + 'GeoDrive']: pct, [p + 'MeshTiltX']: degSigned, [p + 'MeshTiltY']: degSigned, [p + 'MeshPhi']: deg360,
+        [p + 'VolSweepRange']: pct, [p + 'VolDetail']: pct,
+        [p + 'TerCX']: signed2, [p + 'TerCY']: signed2, [p + 'TerAspect']: aspectFmt, [p + 'TerRot']: deg360,
+        [p + 'TerSweepRange']: pct, [p + 'TerBlur']: pct,
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — GEOMETRY PANEL MARKUP (one per oscillator; only the active one shows)
+// Built before expandKnobMarkup() so the knobs inside get the SVG scaffold.
+// ═══════════════════════════════════════════════════════════════════
+function knobHtml(id, label, initial, key) {
+    return '<div class="knob-container" data-knob="' + id + '" data-label="' + label + '" data-initial="' + initial + '" data-i18n="' + key + '"></div>';
+}
+function dropdownHtml(id, label, key, options) {
+    return '<div class="dropdown-group"><span class="dropdown-label" data-i18n="' + key + '">' + label + '</span>' +
+        '<select id="select-' + id + '" class="param-select" data-param="' + id + '">' + options.map(o => '<option>' + o + '</option>').join('') + '</select></div>';
+}
+(function buildGeoPanels() {
+    const host = document.getElementById('geo-panel-col');
+    let html = '';
+    ['A', 'B'].forEach(o => {
+        const p = 'osc' + o;
+        const d = (suffix) => PARAM_DEFS[p + suffix].choices;
+        html += '<div class="geo-osc-panel' + (o === 'A' ? ' active' : '') + '" data-osc="' + o + '">';
+        html += '<div class="geo-family-panel active" data-fam="mesh">' +
+            '<div class="section-header" data-i18n="label.meshPanel">Mesh — slice sweep</div>' +
+            '<div class="geo-knob-row">' + knobHtml(p + 'GeoDrive', 'Shape Drive', '0%', 'label.shapeDrive') + '<div class="geo-divider"></div><div class="geo-fam-knobs">' +
+            knobHtml(p + 'MeshTiltX', 'Slice Tilt X', '0°', 'label.sliceTiltX') + knobHtml(p + 'MeshTiltY', 'Slice Tilt Y', '0°', 'label.sliceTiltY') +
+            knobHtml(p + 'MeshPhi', 'Projection <span class=\'nt\'>φ</span>', '0°', 'label.projectionAngle') + '</div></div>' +
+            '<div class="geo-dropdown-row">' + dropdownHtml(p + 'MeshUnwrap', 'Unwrap Mode', 'label.unwrapMode', d('MeshUnwrap')) +
+            dropdownHtml(p + 'MeshLoop', 'Loop Policy', 'label.loopPolicy', d('MeshLoop')) + '</div></div>';
+        html += '<div class="geo-family-panel" data-fam="volume">' +
+            '<div class="section-header" data-i18n="label.volumePanel">Volume — orbit through a field</div>' +
+            '<div class="geo-knob-row">' + knobHtml(p + 'GeoDrive', 'Shape Drive', '0%', 'label.shapeDrive') + '<div class="geo-divider"></div><div class="geo-fam-knobs">' +
+            knobHtml(p + 'VolSweepRange', 'Sweep Range', '60%', 'label.sweepRange') + knobHtml(p + 'VolDetail', 'Field Detail', '30%', 'label.fieldDetail') + '</div></div>' +
+            '<div class="geo-dropdown-row">' + dropdownHtml(p + 'VolOrbit', 'Orbit', 'label.orbit', d('VolOrbit')) +
+            dropdownHtml(p + 'VolSweepAxis', 'Sweep Axis', 'label.sweepAxis', d('VolSweepAxis')) + '</div></div>';
+        html += '<div class="geo-family-panel" data-fam="terrain">' +
+            '<div class="section-header" data-i18n="label.terrainPanel">Terrain — orbit over a heightmap</div>' +
+            '<div class="geo-knob-row">' + knobHtml(p + 'GeoDrive', 'Shape Drive', '0%', 'label.shapeDrive') + '<div class="geo-divider"></div><div class="geo-fam-knobs">' +
+            knobHtml(p + 'TerCX', 'Centre X', '0.00', 'label.orbitCentreX') + knobHtml(p + 'TerCY', 'Centre Y', '0.00', 'label.orbitCentreY') +
+            knobHtml(p + 'TerAspect', 'Aspect', '1.00', 'label.orbitAspect') + knobHtml(p + 'TerRot', 'Rotation', '0°', 'label.orbitRotation') +
+            knobHtml(p + 'TerSweepRange', 'Sweep Range', '80%', 'label.sweepRange') + knobHtml(p + 'TerBlur', 'Image Blur', '20%', 'label.imageBlur') + '</div></div>' +
+            '<div class="geo-dropdown-row">' + dropdownHtml(p + 'TerOrbit', 'Orbit Shape', 'label.orbitShape', d('TerOrbit')) +
+            dropdownHtml(p + 'TerSweepAxis', 'Sweep Axis', 'label.sweepAxis', d('TerSweepAxis')) +
+            dropdownHtml(p + 'TerEdge', 'Edge Mode', 'label.edgeMode', d('TerEdge')) + '</div></div>';
+        html += '<div class="geo-position-row">' + knobHtml(p + 'Pos', 'Position', 'Frame 1 / 256', 'label.position') +
+            '<div class="geo-position-note" data-i18n="label.positionNote">Position morphs through the baked frames. Every control above re-bakes the table in the background; none of them is a modulation destination.</div></div>' +
+            '<div class="geo-notice" id="geo-notice-' + o + '" data-i18n="label.sourceMissing">Source missing — using library fallback</div>';
+        html += '</div>';
+    });
+    host.innerHTML = html;
+})();
+
+// ─── LFO SECTIONS (generated into #lfo-sections; identical to O-Prism's four blocks) ───
+// Kept in-page because the mockup markup hosts the LFO blocks here; O-Prism's
+// static markup is an equally valid transplant. Keys: label.lfo1..4, ui.free, ui.retrig.
+(function buildLfos() {
+    const host = document.getElementById('lfo-sections');
+    let html = '';
+    for (let i = 1; i <= 4; i++) {
+        html += '<div class="inline-section" id="lfo' + i + '-section">' +
+            '<div class="section-header"><span data-i18n="label.lfo' + i + '">LFO ' + i + '</span> ' +
+            '<button id="toggle-lfo' + i + 'Sync" class="toggle-btn" data-i18n="ui.free">Free</button> ' +
+            '<button id="toggle-lfo' + i + 'FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>' +
+            '<div class="param-row">' +
+            '<div class="knob-container" data-knob="lfo' + i + 'Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>' +
+            '<div class="dropdown-group"><span class="dropdown-label" data-i18n="label.shape">Shape</span>' +
+            '<select id="select-lfo' + i + 'Shape" class="param-select"><option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option></select></div>' +
+            '</div></div>';
+    }
+    host.innerHTML = html;
+})();
+// INHERITED FROM O-PRISM: tuning-library rows carry data-i18n="label.libNotes" /
+// "label.libPeriod" (rendered by the TuningPanel module) — unchanged keys.
+// ─── INHERITED FROM O-PRISM: expandKnobMarkup() — with ONE change (NEW):
+//     mirrored knobs (osc?Pos and osc?GeoDrive appear more than once) get a
+//     suffixed element id (`<id>-m2`, `-m3`) via data-uid so getElementById is
+//     unambiguous; the data-knob param id is what binds. Shown here in full
+//     because that change is load-bearing for the Geometry tab.
+(function expandKnobMarkup() {
+    const seen = {};
+    document.querySelectorAll('div.knob-container[data-knob]').forEach(el => {
+        const paramId = el.dataset.knob;
+        const label = el.dataset.label || '';
+        const initial = el.dataset.initial || '';
+        const key = el.dataset.i18n || '';
+        el.removeAttribute('data-i18n');
+        seen[paramId] = (seen[paramId] || 0) + 1;
+        const uid = seen[paramId] > 1 ? paramId + '-m' + seen[paramId] : paramId;
+        el.dataset.uid = uid;
+        el.innerHTML =
+            '<div class="knob" id="knob-' + uid + '">' +
+                '<div class="knob-visual">' +
+                    '<svg viewBox="0 0 52 52">' +
+                        '<circle class="knob-track" cx="26" cy="26" r="22"/>' +
+                        '<circle class="knob-vine" id="vine-' + uid + '" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/>' +
+                    '</svg>' +
+                '</div>' +
+                '<span class="knob-label">' + label + '</span>' +
+                '<span class="knob-value" id="val-' + uid + '">' + initial + '</span>' +
+            '</div>';
+        if (key) el.querySelector('.knob-label').dataset.i18n = key;
+    });
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// KNOB / DROPDOWN / TOGGLE BINDING
+// INHERITED FROM O-PRISM: bindKnob(paramId, formatFn, defaultNorm, size)
+//   (index.html 2892–2975, with the animationState loop, attachValueEntry
+//   double-click entry, capture-phase Alt-click reset, wheel {passive:false}).
+// NEW: bindKnobByUid — same body as bindKnob but resolves the element by
+//   data-uid so mirrored knobs bind to the SAME Juce.getSliderState(paramId).
+//   Every geometry knob is bound through this; the JUCE side needs no change
+//   because both mirrors share one WebSliderRelay.
+// ═══════════════════════════════════════════════════════════════════
+function bindKnobByUid(el, formatFn) {
+    const paramId = el.dataset.knob, uid = el.dataset.uid;
+    const knobEl = document.getElementById('knob-' + uid), vine = document.getElementById('vine-' + uid), valueEl = document.getElementById('val-' + uid);
+    if (!knobEl || !vine) return;
+    const arc = 103.67;
+    const state = Juce.getSliderState(paramId);
+    const defaultNorm = (PARAM_DEFS[paramId] || { def: 0 }).def;
+    const render = () => {
+        const n = state.getNormalisedValue();
+        vine.style.strokeDashoffset = arc - n * arc;
+        if (valueEl && formatFn && valueEl.dataset.editing !== '1') valueEl.textContent = formatFn(n);
+    };
+    render();
+    state.valueChangedEvent.addListener(render);
+    const dragTarget = knobEl.querySelector('.knob-visual') || knobEl;
+    let isDragging = false;
+    knobEl.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault(); e.stopPropagation();
+        state.sliderDragStarted(); state.setNormalisedValue(defaultNorm); state.sliderDragEnded();
+    }, true);
+    dragTarget.addEventListener('mousedown', (e) => { isDragging = true; state.sliderDragStarted(); e.preventDefault(); });
+    document.addEventListener('mouseup', () => { if (isDragging) { isDragging = false; state.sliderDragEnded(); } });
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        let sensitivity = 0.005;
+        const p = state.properties;
+        if (p && p.interval > 0) { const steps = Math.round((p.end - p.start) / p.interval); if (steps > 0 && steps <= 16) sensitivity = 1.0 / (steps * 8); }
+        state.setNormalisedValue(Math.max(0, Math.min(1, state.getNormalisedValue() - e.movementY * sensitivity)));
+    });
+    knobEl.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        state.setNormalisedValue(Math.max(0, Math.min(1, state.getNormalisedValue() + (e.deltaY < 0 ? 0.02 : -0.02))));
+    }, { passive: false });
+}
+// INHERITED FROM O-PRISM: bindDropdown(selectEl, paramId, numChoices) — choice
+// params ride WebSliderRelay (selectedIndex / (n − 1)), exactly as WarpType does.
+function bindDropdown(selectEl, paramId, numChoices) {
+    if (!selectEl) return;
+    const state = Juce.getSliderState(paramId);
+    const n = numChoices || selectEl.options.length;
+    selectEl.addEventListener('change', () => { state.sliderDragStarted(); state.setNormalisedValue(selectEl.selectedIndex / Math.max(1, n - 1)); state.sliderDragEnded(); });
+    const sync = () => { selectEl.selectedIndex = Math.round(state.getNormalisedValue() * (n - 1)); };
+    state.valueChangedEvent.addListener(sync); sync();
+}
+// INHERITED FROM O-PRISM: LFO Sync/FreeRun toggles (Juce.getToggleState,
+// index.html 3285–3335), delaySync toggle, the five FX bypass toggles
+// (Juce.getToggleState('reverbBypass') …), mod-matrix rows (getModSourceNames /
+// getModDestNames native fns, 16 × Src/Dst/Amt slider states + On toggle state),
+// tuning tab (TuningPanel + all Scala/KBM/EDO native fns), preset browser,
+// settings popover, tooltips, held-notes bar — all unchanged.
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — GEOMETRY VIEW: Canvas 2D renderer (production FALLBACK, UI-02)
+// Verbatim the mockup's scene code. In production the scene DATA comes from
+// the backend `geometryState` push (decimated mesh via the resource provider,
+// contour/orbit polylines and the 64×64 view table as base64 Float32); the
+// parametric stand-ins below are used until the first push arrives and as the
+// Canvas fallback's own geometry when a mesh .bin is not yet fetched.
+// ═══════════════════════════════════════════════════════════════════
+const V = {
+    sub: (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]],
+    dot: (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2],
+    cross: (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]],
+    norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0]/l, a[1]/l, a[2]/l]; },
+    scale: (a, s) => [a[0]*s, a[1]*s, a[2]*s],
+    add: (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]],
+};
+function makeCamera(az, el, dist, w, h, focalK) {
+    const ce = Math.cos(el), se = Math.sin(el);
+    const eye = [dist * ce * Math.sin(az), dist * se, dist * ce * Math.cos(az)];
+    const f = V.norm(V.scale(eye, -1));
+    const r = V.norm(V.cross(f, [0, 1, 0]));
+    const u = V.cross(r, f);
+    const focal = Math.min(w, h) * (focalK || 1.55);
+    return { eye, project(p) { const d = V.sub(p, eye); const z = V.dot(d, f), s = focal / z; return [w / 2 + V.dot(d, r) * s, h / 2 - V.dot(d, u) * s, z]; } };
+}
+function rotX(p, a) { const c = Math.cos(a), s = Math.sin(a); return [p[0], p[1]*c - p[2]*s, p[1]*s + p[2]*c]; }
+function rotY(p, a) { const c = Math.cos(a), s = Math.sin(a); return [p[0]*c + p[2]*s, p[1], -p[0]*s + p[2]*c]; }
+function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+function meshGrid(kind, nu, nv) {
+    const g = [];
+    for (let i = 0; i <= nu; i++) { const row = []; for (let j = 0; j <= nv; j++) row.push(kind(i / nu, j / nv)); g.push(row); }
+    return { g, nu, nv };
+}
+const MESHES = {
+    'Sphere': () => meshGrid((u, v) => { const th = u * 2 * Math.PI, ph = v * Math.PI; return [0.95*Math.sin(ph)*Math.cos(th), 0.95*Math.cos(ph), 0.95*Math.sin(ph)*Math.sin(th)]; }, 28, 14),
+    'Torus': () => meshGrid((u, v) => { const th = u * 2 * Math.PI, ph = v * 2 * Math.PI, R = 0.72, r = 0.3; return [(R + r*Math.cos(ph))*Math.cos(th), r*Math.sin(ph), (R + r*Math.cos(ph))*Math.sin(th)]; }, 40, 16),
+    'Twisted Star': () => meshGrid((u, v) => { const y = v * 1.8 - 0.9, th = u * 2 * Math.PI + y * 1.3, r = 0.55 + 0.3 * Math.cos(5 * (u * 2 * Math.PI)); return [r*Math.cos(th), y, r*Math.sin(th)]; }, 60, 18),
+    'Crescent': () => meshGrid((u, v) => { const th = 0.25*Math.PI + u * 1.5 * Math.PI, ph = v * 2 * Math.PI, R = 0.72, r = 0.1 + 0.26 * Math.sin(u * Math.PI); return [(R + r*Math.cos(ph))*Math.cos(th), r*Math.sin(ph), (R + r*Math.cos(ph))*Math.sin(th)]; }, 44, 14),
+    'Torus Knot': () => meshGrid((u, v) => { const t = u * 2 * Math.PI, ph = v * 2 * Math.PI, p = 2, q = 3; const rr = 0.55 + 0.22 * Math.cos(q * t); const c = [rr*Math.cos(p*t), 0.22*Math.sin(q*t), rr*Math.sin(p*t)]; const dt = 0.01, t2 = t + dt, rr2 = 0.55 + 0.22*Math.cos(q*t2); const c2 = [rr2*Math.cos(p*t2), 0.22*Math.sin(q*t2), rr2*Math.sin(p*t2)]; const T = V.norm(V.sub(c2, c)); const N = V.norm(V.cross(T, [0,1,0])); const B = V.cross(T, N); const r = 0.11; return V.add(c, V.add(V.scale(N, r*Math.cos(ph)), V.scale(B, r*Math.sin(ph)))); }, 120, 10),
+    'fBm Blob': () => meshGrid((u, v) => { const th = u * 2 * Math.PI, ph = v * Math.PI; const r = 0.8 + 0.13 * (Math.sin(3*th)*Math.cos(2*ph) + 0.6*Math.sin(5*ph + th) + 0.4*Math.cos(7*th - 2*ph)); return [r*Math.sin(ph)*Math.cos(th), r*Math.cos(ph), r*Math.sin(ph)*Math.sin(th)]; }, 36, 18),
+};
+MESHES['Imported…'] = MESHES['Twisted Star'];   // replaced by the fetched geo/mesh-<osc>-<gen>.bin once pushed
+const meshCache = {};
+function getMesh(name) { return meshCache[name] || (meshCache[name] = (MESHES[name] || MESHES.Torus)()); }
+function meshContour(mesh, n, d) {
+    const { g, nu, nv } = mesh, segs = [];
+    const s = g.map(row => row.map(p => V.dot(n, p) - d));
+    const lerp = (a, b, sa, sb) => { const t = sa / (sa - sb); return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; };
+    for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
+        const P = [g[i][j], g[i+1][j], g[i+1][j+1], g[i][j+1]], S = [s[i][j], s[i+1][j], s[i+1][j+1], s[i][j+1]], pts = [];
+        for (let k = 0; k < 4; k++) { const a = k, b = (k + 1) % 4; if ((S[a] < 0) !== (S[b] < 0)) pts.push(lerp(P[a], P[b], S[a], S[b])); }
+        if (pts.length >= 2) segs.push([pts[0], pts[1]]);
+        if (pts.length === 4) segs.push([pts[2], pts[3]]);
+    }
+    return segs;
+}
+const cloudCache = {};
+function fieldCloud(name) {
+    if (cloudCache[name]) return cloudCache[name];
+    const r = rng(name.length * 7919 + 13), pts = [];
+    const N = 1400;
+    if (name === 'Torus SDF') for (let i = 0; i < N; i++) { const th = r()*2*Math.PI, ph = r()*2*Math.PI, R = 0.68, rr = 0.3; pts.push([(R+rr*Math.cos(ph))*Math.cos(th), rr*Math.sin(ph), (R+rr*Math.cos(ph))*Math.sin(th)]); }
+    else if (name === 'Sphere SDF') for (let i = 0; i < N; i++) { const z = r()*2-1, th = r()*2*Math.PI, q = Math.sqrt(1-z*z); pts.push([0.85*q*Math.cos(th), 0.85*z, 0.85*q*Math.sin(th)]); }
+    else if (name === 'Box SDF') for (let i = 0; i < N; i++) { const f = Math.floor(r()*6), a = r()*1.5-0.75, b = r()*1.5-0.75, c = f % 2 ? 0.75 : -0.75; pts.push(f < 2 ? [c, a, b] : f < 4 ? [a, c, b] : [a, b, c]); }
+    else if (name === 'Gyroid') { let tries = 0; while (pts.length < N && tries++ < 60000) { const x = r()*2-1, y = r()*2-1, z = r()*2-1, k = 4.2; const gv = Math.sin(k*x)*Math.cos(k*y) + Math.sin(k*y)*Math.cos(k*z) + Math.sin(k*z)*Math.cos(k*x); if (Math.abs(gv) < 0.07 && x*x+y*y+z*z < 1.05) pts.push([x*0.95, y*0.95, z*0.95]); } }
+    else for (let i = 0; i < N; i++) { const th = r()*2*Math.PI, ph = Math.acos(r()*2-1); const rad = 0.55 + 0.3*(Math.sin(3*th)*Math.sin(2*ph) + 0.5*Math.cos(5*ph)) + (r()-0.5)*0.12; pts.push([rad*Math.sin(ph)*Math.cos(th), rad*Math.cos(ph), rad*Math.sin(ph)*Math.sin(th)]); }
+    return (cloudCache[name] = pts);
+}
+function orbitPoint(orbitName, t, scale, phaseOff, zOff) {
+    const tt = t * 2 * Math.PI + phaseOff;
+    let p;
+    if (orbitName.startsWith('Torus Knot')) {
+        const [pp, qq] = orbitName.includes('(3,5)') ? [3, 5] : orbitName.includes('(5,7)') ? [5, 7] : [2, 3];
+        const rr = 0.68 + 0.3 * Math.cos(qq * tt);
+        p = [rr * Math.cos(pp * tt), 0.3 * Math.sin(qq * tt), rr * Math.sin(pp * tt)];
+    } else p = [0.85*Math.cos(3*tt + 0.7), 0.85*Math.cos(2*tt + 0.2), 0.85*Math.cos(5*tt + 1.1)];
+    return [p[0]*scale, p[1]*scale + zOff, p[2]*scale];
+}
+function terrainHeight(name, x, y) {
+    if (name === 'Radial Rings') return 0.32 * Math.sin(3 * Math.PI * Math.hypot(x, y));
+    if (name === 'Imported…') return 0.3 * (Math.sin(2.3*Math.PI*x + 1.1*Math.sin(3*y)) * Math.cos(1.7*Math.PI*y) + 0.3*Math.sin(6*x*y));
+    return 0.36 * Math.sin(1.5 * Math.PI * x) * Math.sin(1.5 * Math.PI * y);
+}
+function terrainOrbit(shape, t, cx, cy, rad, aspect, rot) {
+    const a = t * 2 * Math.PI; let x, y;
+    if (shape.startsWith('Epi')) { const R = 3, r = 1, d = 1.6, k = (R + r) / r; x = (R + r)*Math.cos(a) - d*Math.cos(k*a); y = (R + r)*Math.sin(a) - d*Math.sin(k*a); x /= 5.6; y /= 5.6; }
+    else if (shape.startsWith('Hypo')) { const R = 5, r = 1, k = (R - r) / r; x = (R - r)*Math.cos(a) + r*Math.cos(k*a); y = (R - r)*Math.sin(a) - r*Math.sin(k*a); x /= 5; y /= 5; }
+    else if (shape.startsWith('Super')) { const n = 4, sg = (v) => Math.sign(v) * Math.pow(Math.abs(v), 2 / n); x = sg(Math.cos(a)); y = sg(Math.sin(a)); }
+    else { x = Math.cos(a); y = Math.sin(a); }
+    y *= aspect;
+    const c = Math.cos(rot), s = Math.sin(rot);
+    const rx = x * c - y * s, ry = x * s + y * c;
+    return [Math.max(-1, Math.min(1, cx + rx * rad)), Math.max(-1, Math.min(1, cy + ry * rad))];
+}
+const G = (osc, suffix) => Juce.getSliderState('osc' + osc + suffix).getNormalisedValue();
+const choiceOf = (osc, suffix) => { const d = PARAM_DEFS['osc' + osc + suffix]; return d.choices[Math.round(G(osc, suffix) * (d.choices.length - 1))]; };
+const familyOf = (osc) => FAMILIES[Math.round(G(osc, 'GeoSource') * 2)];
+
+// Pushed state per oscillator (filled by the backend events below).
+const PUSHED = {
+    A: { view: null, viewW: 64, contour: null, orbit: null, meshUrl: null, mesh: null, generation: -1, frame: 0, phase: 0, baking: false, progress: 0, ms: 0, sourceMissing: false },
+    B: { view: null, viewW: 64, contour: null, orbit: null, meshUrl: null, mesh: null, generation: -1, frame: 0, phase: 0, baking: false, progress: 0, ms: 0, sourceMissing: false },
+};
+function b64ToF32(b64) { const bin = atob(b64), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); return new Float32Array(bytes.buffer); }
+
+// Stacked-frame (≋) view: rows of the pushed 64×64 view table, or the
+// parametric stand-in until the first push.
+function frameSamples(osc, fr, n) {
+    const P = PUSHED[osc];
+    if (P.view) { const W = P.viewW, row = Math.round(fr * (W - 1)), out = new Array(n); for (let i = 0; i < n; i++) out[i] = P.view[row * W + Math.floor(i / n * W)]; return out; }
+    const fam = familyOf(osc), drive = G(osc, 'GeoDrive'), out = new Array(n);
+    for (let i = 0; i < n; i++) {
+        const t = i / n; let v = 0;
+        if (fam === 'mesh') { const phi = G(osc, 'MeshPhi') * 2 * Math.PI, tilt = (G(osc, 'MeshTiltX') - 0.5) * 2; for (let h = 1; h <= 9; h++) { const a = Math.pow(h, -1.6) * (h % 2 ? 1 : 0.25 + 0.75 * fr); v += a * Math.sin(2*Math.PI*h*t + phi * h * 0.5); } v += 0.35 * tilt * Math.sin(4*Math.PI*t); }
+        else if (fam === 'volume') { const range = G(osc, 'VolSweepRange'), det = G(osc, 'VolDetail'); v = Math.tanh(2.2 * (0.75*Math.cos(4*Math.PI*t + 3*fr*range) + 0.5*Math.cos(6*Math.PI*t) + det*0.8*Math.sin(10*Math.PI*t + fr))); }
+        else { const name = choiceOf(osc, 'Terrain'), shape = choiceOf(osc, 'TerOrbit'); const cx = G(osc, 'TerCX')*2-1, cy = G(osc, 'TerCY')*2-1, rad = 0.15 + 0.8 * G(osc, 'TerSweepRange') * fr; const [x, y] = terrainOrbit(shape, t, cx, cy, rad, 0.1 + 0.9*G(osc, 'TerAspect'), G(osc, 'TerRot')*2*Math.PI); v = terrainHeight(name, x, y) * 3; }
+        out[i] = v;
+    }
+    let peak = 1e-6; out.forEach(s => peak = Math.max(peak, Math.abs(s)));
+    const k = 1 + 5 * drive, dn = Math.tanh(k);
+    for (let i = 0; i < n; i++) out[i] = Math.tanh(k * out[i] / peak) / dn;
+    return out;
+}
+
+class GeoView {
+    constructor(canvasId, osc, big) {
+        this.canvas = document.getElementById(canvasId);
+        this.osc = osc; this.big = big;
+        this.mode = '3d';
+        this.cam = { az: 0.62, el: 0.42, dist: 4.3 };
+        this.gl = null;
+        // ─────────────────────────────────────────────────────────────
+        // TODO Stage 3.2: WebGL2 path
+        //   Port research/wavetable-synthesis-3d-geometry-prototypes/webgl-3d/terrain-proto.html
+        //   into js/geometry-view.js (R32F 64×64 heightmap texture, texSubImage2D on
+        //   `geometryState`, wireframe mesh from geo/mesh-<osc>-<gen>.bin, orbit/contour
+        //   line VBOs; NO `flat` interpolation — WKWebView shader compiler crash).
+        //     this.gl = this.canvas.getContext('webgl2', { antialias: true, alpha: false });
+        //     if (this.gl) { this.canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); this.gl = null; showFallback(this, true); });
+        //                    this.canvas.addEventListener('webglcontextrestored', () => { this.gl = this.canvas.getContext('webgl2'); rebuildBuffers(this); forceRelayout(); showFallback(this, false); }); }
+        //   getContext('webgl2') === null (WebView2 can legitimately return null) → stay on
+        //   the Canvas 2D path below and show `.geo-webgl-unavailable` (UI-02).
+        //   PERF-03 gate: performance.now() around draw(), mean/max over 300 frames, reported
+        //   via the `reportDrawStats` debug native fn; ≤ 2 ms mean at DPR 2 in WKWebView AND
+        //   WebView2, else Canvas 2D becomes the default renderer.
+        // ─────────────────────────────────────────────────────────────
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+    }
+    resize() {
+        const dpr = window.devicePixelRatio || 1, w = this.canvas.clientWidth, h = this.canvas.clientHeight;
+        if (this.canvas.width !== w * dpr || this.canvas.height !== h * dpr) { this.canvas.width = w * dpr; this.canvas.height = h * dpr; }
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0); this.w = w; this.h = h;
+    }
+    draw(phase) {
+        this.resize();
+        const { ctx, w, h } = this;
+        ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#EBD9C7'; ctx.fillRect(0, 0, w, h);
+        if (this.mode === 'wt') this.drawStacked(phase); else this.draw3d(phase);
+    }
+    draw3d(phase) {
+        const osc = this.osc, fam = familyOf(osc), { ctx, w, h } = this, P = PUSHED[osc];
+        const cam = makeCamera(this.cam.az, this.cam.el, this.cam.dist, w, h, this.big ? 1.85 : 2.0);
+        const pos = G(osc, 'Pos');
+        const lw = this.big ? 1 : 0.6;
+        const line = (a, b) => { const pa = cam.project(a), pb = cam.project(b); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); };
+        if (fam === 'mesh') {
+            const mesh = P.mesh || getMesh(choiceOf(osc, 'Mesh'));
+            const tx = (G(osc, 'MeshTiltX') - 0.5) * Math.PI, ty = (G(osc, 'MeshTiltY') - 0.5) * Math.PI;
+            const n = V.norm(rotY(rotX([0, 1, 0], tx), ty));
+            let lo = 1e9, hi = -1e9; mesh.g.forEach(row => row.forEach(p => { const s = V.dot(n, p); lo = Math.min(lo, s); hi = Math.max(hi, s); }));
+            const d = lo + 0.04 + (hi - lo - 0.08) * pos;
+            ctx.beginPath();
+            for (let i = 0; i <= mesh.nu; i++) for (let j = 0; j <= mesh.nv; j++) {
+                if (i < mesh.nu) line(mesh.g[i][j], mesh.g[i+1][j]);
+                if (j < mesh.nv && (i % 2 === 0 || !this.big)) line(mesh.g[i][j], mesh.g[i][j+1]);
+            }
+            ctx.strokeStyle = 'rgba(139, 115, 85, 0.42)'; ctx.lineWidth = lw; ctx.stroke();
+            const c = V.scale(n, d), u = V.norm(V.cross(n, Math.abs(n[0]) < 0.9 ? [1, 0, 0] : [0, 0, 1])), v = V.cross(n, u), e = 1.15;
+            const corners = [V.add(c, V.add(V.scale(u, e), V.scale(v, e))), V.add(c, V.add(V.scale(u, -e), V.scale(v, e))), V.add(c, V.add(V.scale(u, -e), V.scale(v, -e))), V.add(c, V.add(V.scale(u, e), V.scale(v, -e)))].map(p => cam.project(p));
+            ctx.beginPath(); corners.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
+            ctx.fillStyle = 'rgba(139, 168, 112, 0.10)'; ctx.fill(); ctx.strokeStyle = 'rgba(92, 64, 51, 0.55)'; ctx.lineWidth = lw; ctx.stroke();
+            // contour: pushed polyline if present, else marching squares over the stand-in
+            let segs;
+            if (P.contour && P.contour.length >= 6) { segs = []; const c3 = P.contour; for (let i = 0; i + 5 < c3.length; i += 3) segs.push([[c3[i], c3[i+1], c3[i+2]], [c3[i+3], c3[i+4], c3[i+5]]]); }
+            else segs = meshContour(mesh, n, d);
+            ctx.beginPath(); segs.forEach(s => line(s[0], s[1]));
+            ctx.strokeStyle = 'rgba(139, 168, 112, 0.35)'; ctx.lineWidth = this.big ? 6 : 3; ctx.lineCap = 'round'; ctx.stroke();
+            ctx.strokeStyle = '#6B8E4E'; ctx.lineWidth = this.big ? 2 : 1.2; ctx.stroke();
+            if (segs.length) { const s = segs[Math.floor(phase * segs.length) % segs.length]; const p = cam.project(s[0]); this.dot(p, this.big ? 4 : 2.2); }
+        } else if (fam === 'volume') {
+            const cloud = fieldCloud(choiceOf(osc, 'VolField')), orbit = choiceOf(osc, 'VolOrbit'), axis = choiceOf(osc, 'VolSweepAxis'), range = G(osc, 'VolSweepRange');
+            let scale = 0.7, ph = 0, z = 0;
+            if (axis === 'Orbit Scale') scale = 0.35 + 0.65 * (0.4 + 0.6 * range * pos); else if (axis === 'Knot Phase') ph = 2 * Math.PI * range * pos; else z = (pos - 0.5) * 1.4 * range;
+            const step = this.big ? 1 : 3;
+            for (let i = 0; i < cloud.length; i += step) { const p = cam.project(cloud[i]); const a = 0.16 + 0.22 * Math.max(0, Math.min(1, (5.4 - p[2]) / 2.2)); ctx.fillStyle = 'rgba(139, 115, 85,' + a.toFixed(3) + ')'; ctx.fillRect(p[0] - lw, p[1] - lw, lw * 2, lw * 2); }
+            ctx.beginPath();
+            for (let i = 0; i <= 400; i++) { const p = cam.project(orbitPoint(orbit, i / 400, scale, ph, z)); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
+            ctx.strokeStyle = 'rgba(60, 47, 47, 0.85)'; ctx.lineWidth = this.big ? 1.3 : 0.8; ctx.stroke();
+            const sp = cam.project(orbitPoint(orbit, phase, scale, ph, z)); this.dot(sp, this.big ? 4.5 : 2.2);
+        } else {
+            const name = choiceOf(osc, 'Terrain'), shape = choiceOf(osc, 'TerOrbit');
+            const N = 32;
+            const hAt = P.view && P.viewW ? ((x, y) => { const W = P.viewW, ix = Math.round((x + 1) / 2 * (W - 1)), iy = Math.round((y + 1) / 2 * (W - 1)); return 0.36 * P.view[iy * W + ix]; }) : ((x, y) => terrainHeight(name, x, y));
+            ctx.beginPath();
+            for (let i = 0; i <= N; i++) for (let j = 0; j < N; j++) {
+                const x0 = i / N * 2 - 1, y0 = j / N * 2 - 1, y1 = (j + 1) / N * 2 - 1;
+                line([x0, hAt(x0, y0), y0], [x0, hAt(x0, y1), y1]);
+                line([y0, hAt(y0, x0), x0], [y1, hAt(y1, x0), x0]);
+            }
+            ctx.strokeStyle = 'rgba(139, 115, 85, 0.45)'; ctx.lineWidth = lw; ctx.stroke();
+            const cx = G(osc, 'TerCX')*2-1, cy = G(osc, 'TerCY')*2-1, asp = 0.1 + 0.9*G(osc, 'TerAspect'), rot = G(osc, 'TerRot')*2*Math.PI, range = G(osc, 'TerSweepRange');
+            const radAt = (fr) => 0.15 + 0.8 * range * fr;
+            const orbitPath = (fr) => { ctx.beginPath(); for (let i = 0; i <= 160; i++) { const [x, y] = terrainOrbit(shape, i / 160, cx, cy, radAt(fr), asp, rot); const p = cam.project([x, hAt(x, y) + 0.015, y]); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); } };
+            ctx.setLineDash([2, 4]); ctx.strokeStyle = 'rgba(139, 168, 112, 0.5)'; ctx.lineWidth = lw;
+            orbitPath(0); ctx.stroke(); orbitPath(1); ctx.stroke(); ctx.setLineDash([]);
+            orbitPath(pos); ctx.strokeStyle = '#6B8E4E'; ctx.lineWidth = this.big ? 1.8 : 1.1; ctx.stroke();
+            const [sx, sy] = terrainOrbit(shape, phase, cx, cy, radAt(pos), asp, rot);
+            this.dot(cam.project([sx, hAt(sx, sy) + 0.02, sy]), this.big ? 4.5 : 2.2);
+        }
+    }
+    dot(p, r) { const { ctx } = this; ctx.beginPath(); ctx.arc(p[0], p[1], r * 2.2, 0, 7); ctx.fillStyle = 'rgba(139, 168, 112, 0.25)'; ctx.fill(); ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 7); ctx.fillStyle = '#6B8E4E'; ctx.fill(); }
+    drawStacked(phase) {
+        const { ctx, w, h, osc } = this, N = this.big ? 16 : 9, S = this.big ? 128 : 48;
+        const pos = G(osc, 'Pos'), cur = Math.round(pos * (N - 1));
+        for (let k = N - 1; k >= 0; k--) {
+            const fr = k / (N - 1);
+            const ox = w * (0.07 + 0.22 * fr), oy = h * (0.74 - 0.46 * fr), ww = w * 0.64, amp = h * (this.big ? 0.13 : 0.15) * (1 - 0.25 * fr);
+            const s = frameSamples(osc, fr, S);
+            ctx.beginPath();
+            for (let i = 0; i <= S; i++) { const x = ox + ww * i / S, y = oy - s[i % S] * amp; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+            if (k === cur) {
+                ctx.save(); ctx.lineTo(ox + ww, oy); ctx.lineTo(ox, oy); ctx.closePath();
+                const grad = ctx.createLinearGradient(0, oy - amp, 0, oy); grad.addColorStop(0, 'rgba(139, 105, 20, 0.25)'); grad.addColorStop(1, 'rgba(139, 105, 20, 0.0)');
+                ctx.fillStyle = grad; ctx.fill(); ctx.restore();
+                ctx.beginPath(); for (let i = 0; i <= S; i++) { const x = ox + ww * i / S, y = oy - s[i % S] * amp; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+                ctx.strokeStyle = '#5C4033'; ctx.lineWidth = this.big ? 1.8 : 1.3; ctx.stroke();
+                const px = ox + ww * phase, py = oy - s[Math.floor(phase * S) % S] * amp; this.dot([px, py], this.big ? 3.5 : 2);
+            } else { ctx.strokeStyle = 'rgba(139, 115, 85, ' + (0.22 + 0.2 * (1 - fr)).toFixed(2) + ')'; ctx.lineWidth = this.big ? 0.9 : 0.6; ctx.stroke(); }
+        }
+    }
+}
+
+// ─── Instances + redraw loop: draws ONLY when a push (or a local param change) dirtied state ───
+const views = { A: new GeoView('canvasOscA', 'A', false), B: new GeoView('canvasOscB', 'B', false), big: new GeoView('geoView', 'A', true) };
+const GEO = { activeOsc: 'A', dirty: { A: true, B: true }, activeTab: 'synth', drawStats: { n: 0, sum: 0, max: 0 } };
+function markDirty(osc) { if (osc) GEO.dirty[osc] = true; else GEO.dirty.A = GEO.dirty.B = true; }
+function tick() {
+    const t0 = performance.now();
+    if (GEO.activeTab === 'synth') {
+        if (GEO.dirty.A) { views.A.draw(PUSHED.A.phase); GEO.dirty.A = false; }
+        if (GEO.dirty.B) { views.B.draw(PUSHED.B.phase); GEO.dirty.B = false; }
+    } else if (GEO.activeTab === 'geometry') {
+        const o = GEO.activeOsc;
+        if (GEO.dirty[o]) {
+            views.big.osc = o; views.big.draw(PUSHED[o].phase); GEO.dirty[o] = false;
+            // HUD is a READOUT node — never localised (pattern_readout_node_is_never_localized_third_arm)
+            document.getElementById('geo-hud').textContent = 'frame ' + (PUSHED[o].frame + 1) + '/' + framesOf(o) + ' · φ ' + PUSHED[o].phase.toFixed(2);
+        }
+    }
+    const dt = performance.now() - t0;
+    if (dt > 0) { const s = GEO.drawStats; s.n++; s.sum += dt; s.max = Math.max(s.max, dt); if (s.n >= 300) { window.__geoDrawStats = { mean: s.sum / s.n, max: s.max }; s.n = 0; s.sum = 0; s.max = 0; } }
+    requestAnimationFrame(tick);
+}
+
+// ─── View mode toggles (per-oscillator UI state; NOT a parameter) ───
+const viewMode = { A: '3d', B: '3d' };
+let setViewModeNative = null;
+function paintViewToggles() {
+    document.querySelectorAll('.osc-canvas-wrap').forEach(wrap => {
+        const osc = wrap.dataset.osc || GEO.activeOsc;
+        wrap.querySelectorAll('.osc-view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === viewMode[osc]));
+    });
+    views.A.mode = viewMode.A; views.B.mode = viewMode.B; views.big.mode = viewMode[GEO.activeOsc];
+    markDirty();
+}
+document.querySelectorAll('.osc-view-toggle .osc-view-btn').forEach(btn => btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const wrap = btn.closest('.osc-canvas-wrap'), osc = wrap.dataset.osc || GEO.activeOsc;
+    viewMode[osc] = btn.dataset.view;
+    if (setViewModeNative) setViewModeNative(osc, viewMode[osc]).catch(() => {});   // lets the editor push the stacked-frame table only when it is shown
+    paintViewToggles();
+}));
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — BACKEND → PAGE PUSH (window.__JUCE__.backend.addEventListener)
+// All four events are emitted with emitEventIfBrowserIsVisible: dropped while
+// hidden (no queue growth); the editor re-pushes geometryState after every
+// preset apply / setStateInformation (UI-05).
+// ═══════════════════════════════════════════════════════════════════
+const backend = window.__JUCE__ && window.__JUCE__.backend;
+function bakeBarPulse(osc) {
+    const bars = [document.getElementById('bakeBar' + osc)];
+    if (GEO.activeOsc === osc) bars.push(document.getElementById('bakeBarGeo'));
+    bars.forEach(bar => { if (!bar) return; bar.classList.remove('baking'); void bar.offsetWidth; bar.classList.add('baking'); });
+}
+function setStatus(osc) {
+    if (osc !== GEO.activeOsc) return;
+    const P = PUSHED[osc], el = document.getElementById('geo-status');
+    el.classList.toggle('baking', P.baking);
+    const word = document.getElementById('geo-status-word');
+    // Status word is a LABEL (localised via setLabel); ms + frames are READOUTS.
+    if (window.__setLabel) window.__setLabel(word, P.baking ? 'label.baking' : 'label.baked');
+    document.getElementById('geo-status-ms').textContent = P.baking ? '— ms' : P.ms + ' ms';
+    document.getElementById('geo-status-frames').textContent = framesOf(osc);
+    document.getElementById('geo-notice-' + osc).classList.toggle('visible', !!P.sourceMissing);
+}
+if (backend) {
+    // {osc:'A'|'B', generation, family, frames, bakeMs, sourceMissing, warnings,
+    //  view: base64 Float32 (64×64), viewW, contour: base64 Float32 xyz triples,
+    //  orbit: base64 Float32, meshUrl: 'geo/mesh-A-<gen>.bin' | null}
+    backend.addEventListener('geometryState', (ev) => {
+        const P = PUSHED[ev.osc]; if (!P) return;
+        P.generation = ev.generation; P.ms = ev.bakeMs || 0; P.sourceMissing = !!ev.sourceMissing; P.baking = false; P.progress = 1;
+        if (ev.view) { P.view = b64ToF32(ev.view); P.viewW = ev.viewW || 64; }
+        P.contour = ev.contour ? b64ToF32(ev.contour) : null;
+        P.orbit = ev.orbit ? b64ToF32(ev.orbit) : null;
+        if (ev.meshUrl && ev.meshUrl !== P.meshUrl) {
+            P.meshUrl = ev.meshUrl;
+            // generation in the path defeats WKWebView caching; scheme via getBackendResourceAddress
+            fetch(Juce.getBackendResourceAddress(ev.meshUrl)).then(r => r.arrayBuffer()).then(buf => {
+                // .bin layout: uint32 nu, uint32 nv, then (nu+1)*(nv+1) xyz float32 — grid form so meshContour() works unchanged
+                const u32 = new Uint32Array(buf, 0, 2), f = new Float32Array(buf, 8);
+                const nu = u32[0], nv = u32[1], g = [];
+                for (let i = 0; i <= nu; i++) { const row = []; for (let j = 0; j <= nv; j++) { const k = (i * (nv + 1) + j) * 3; row.push([f[k], f[k+1], f[k+2]]); } g.push(row); }
+                P.mesh = { g, nu, nv }; markDirty(ev.osc);
+            }).catch(() => { P.mesh = null; });
+        } else if (!ev.meshUrl) P.mesh = null;
+        setStatus(ev.osc); markDirty(ev.osc);
+    });
+    // {osc, progress: 0..1, baking: bool} at 10 Hz while a bake is in flight (UI-04)
+    backend.addEventListener('bakeProgress', (ev) => {
+        const P = PUSHED[ev.osc]; if (!P) return;
+        const wasBaking = P.baking; P.baking = !!ev.baking; P.progress = ev.progress || 0;
+        if (P.baking && !wasBaking) bakeBarPulse(ev.osc);
+        setStatus(ev.osc);
+    });
+    // {osc, frame, phase} change-gated at 30 Hz (< 100 bytes) — UI-01
+    backend.addEventListener('geoPlayhead', (ev) => {
+        const P = PUSHED[ev.osc]; if (!P) return;
+        P.frame = ev.frame | 0; P.phase = +ev.phase || 0; markDirty(ev.osc);
+    });
+    // Replaces O-Prism's evaluateJavascript("window.updateHeldNotes(...)") — same
+    // consumer, now an event (ARCHITECTURE Decision 7). {notes:[...], freqs:[...]}
+    backend.addEventListener('heldNotes', (ev) => { if (window.updateHeldNotes) window.updateHeldNotes(ev.notes || [], ev.freqs || []); });
+}
+
+// Local param changes dirty the view immediately (the backend push confirms later).
+function watchGeometryParams() {
+    ['A', 'B'].forEach(osc => {
+        const p = 'osc' + osc;
+        Object.keys(PARAM_DEFS).filter(id => id.startsWith(p)).forEach(id => {
+            Juce.getSliderState(id).valueChangedEvent.addListener(() => {
+                markDirty(osc);
+                if (id === p + 'GeoFrames') { document.querySelectorAll('#geo-frames-seg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.idx == Math.round(G(osc, 'GeoFrames') * 2))); setStatus(osc); }
+                if (id === p + 'GeoSource') syncFamily(osc);
+                FAMILIES.forEach(fam => { if (id === p + LIB[fam].param) syncFamily(osc); });
+            });
+        });
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — BIG-VIEW INTERACTION (UI-03): drag/wheel → APVTS through the relays,
+// with sliderDragStarted/Ended so the host records ONE undo step per gesture.
+// Pointer capture does not work in the JUCE WebView → document-level move/up.
+// ═══════════════════════════════════════════════════════════════════
+(function bigViewInteractions() {
+    const wrap = document.getElementById('geoViewWrap'), canvas = document.getElementById('geoView');
+    let drag = null;
+    const S = (id) => Juce.getSliderState(id);
+    canvas.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.osc-view-toggle')) return;
+        const osc = GEO.activeOsc, fam = familyOf(osc), p = 'osc' + osc;
+        drag = { x: e.clientX, y: e.clientY, fam, osc, az: views.big.cam.az, el: views.big.cam.el,
+                 ids: fam === 'mesh' ? [p + 'MeshTiltY', p + 'MeshTiltX'] : fam === 'terrain' ? [p + 'TerCX', p + 'TerCY'] : [],
+                 a: fam === 'mesh' ? G(osc, 'MeshTiltY') : fam === 'terrain' ? G(osc, 'TerCX') : 0,
+                 b: fam === 'mesh' ? G(osc, 'MeshTiltX') : fam === 'terrain' ? G(osc, 'TerCY') : 0 };
+        drag.ids.forEach(id => S(id).sliderDragStarted());
+        wrap.classList.add('dragging'); e.preventDefault();
+    });
+    document.addEventListener('pointermove', (e) => {
+        if (!drag) return;
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        const clamp = (v) => Math.max(0, Math.min(1, v));
+        if (drag.fam === 'mesh') { S(drag.ids[0]).setNormalisedValue(clamp(drag.a + dx / 360)); S(drag.ids[1]).setNormalisedValue(clamp(drag.b + dy / 360)); }
+        else if (drag.fam === 'terrain') { S(drag.ids[0]).setNormalisedValue(clamp(drag.a + dx / 420)); S(drag.ids[1]).setNormalisedValue(clamp(drag.b - dy / 420)); }
+        else { views.big.cam.az = drag.az - dx * 0.008; views.big.cam.el = Math.max(-1.2, Math.min(1.2, drag.el + dy * 0.008)); markDirty(drag.osc); }
+    });
+    document.addEventListener('pointerup', () => { if (drag) { drag.ids.forEach(id => S(id).sliderDragEnded()); drag = null; wrap.classList.remove('dragging'); } });
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const osc = GEO.activeOsc, fam = familyOf(osc), step = e.deltaY < 0 ? 0.01 : -0.01, p = 'osc' + osc;
+        const id = fam === 'mesh' ? p + 'MeshPhi' : fam === 'volume' ? p + 'VolSweepRange' : p + 'TerSweepRange';
+        const st = S(id), n = st.getNormalisedValue();
+        st.setNormalisedValue(fam === 'mesh' ? ((n + step) % 1 + 1) % 1 : Math.max(0, Math.min(1, n + step)));
+    }, { passive: false });
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — IMPORT (FUNC-06/07): chooser button → `importGeometry(osc)` native fn
+// (FileChooser::launchAsync with SafePointer on the C++ side); drag-and-drop →
+// webkitGetAsEntry content streaming in ≤ 4 MB base64 chunks (WKWebView strips
+// file paths — memory critical_webview_drag_drop_macos), then
+// `importGeometryCommit(osc, name)`. The C++ side parses in the bake job and
+// pushes `geometryState` (or an import notice) when done; the page never
+// assumes success — `Imported…` is selected by the backend on success.
+// ═══════════════════════════════════════════════════════════════════
+let importGeometryNative = null, importChunkNative = null, importCommitNative = null;
+const CHUNK = 3 * 1024 * 1024;   // 3 MB of bytes → 4 MB base64
+async function readEntryAsBase64Chunks(fileEntry, onChunk) {
+    const file = await new Promise((r, j) => fileEntry.file(r, j));
+    const buf = await file.arrayBuffer(), bytes = new Uint8Array(buf);
+    for (let off = 0; off < bytes.length; off += CHUNK) {
+        const part = bytes.subarray(off, Math.min(bytes.length, off + CHUNK));
+        let bin = ''; for (let i = 0; i < part.length; i += 0x8000) bin += String.fromCharCode.apply(null, part.subarray(i, i + 0x8000));
+        await onChunk(btoa(bin));
+    }
+    return bytes.length;
+}
+async function importDropped(osc, item) {
+    if (!importChunkNative || !importCommitNative) return;
+    const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+    if (!entry || !entry.isFile) return;
+    if (!/\.(obj|stl|png)$/i.test(entry.name)) return;
+    const total = await readEntryAsBase64Chunks(entry, (b64) => importChunkNative(osc, entry.name, b64));
+    await importCommitNative(osc, entry.name, total);
+}
+document.querySelectorAll('.osc-canvas-wrap').forEach(wr => {
+    ['dragenter', 'dragover'].forEach(ev => wr.addEventListener(ev, (e) => { e.preventDefault(); wr.classList.add('drag-over'); }));
+    wr.addEventListener('dragleave', () => wr.classList.remove('drag-over'));
+    wr.addEventListener('drop', (e) => {
+        e.preventDefault(); wr.classList.remove('drag-over');
+        const osc = wr.dataset.osc || GEO.activeOsc, items = e.dataTransfer && e.dataTransfer.items;
+        if (items && items.length) importDropped(osc, items[0]).catch(err => console.warn('import failed', err));
+    });
+});
+document.getElementById('geo-import-btn').addEventListener('click', () => { if (importGeometryNative) importGeometryNative(GEO.activeOsc).catch(() => {}); });
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — SOURCE / LIBRARY DROPDOWN SYNC (Synth tab ⇄ Geometry tab, same params)
+// ═══════════════════════════════════════════════════════════════════
+function fillLibSelect(sel, fam, osc) {
+    const lib = LIB[fam];
+    sel.innerHTML = lib.options.map(o => '<option>' + o + '</option>').join('');
+    sel.selectedIndex = Math.round(G(osc, lib.param) * (lib.options.length - 1));
+    sel.dataset.param = 'osc' + osc + lib.param;
+}
+function syncFamily(osc) {
+    const fam = familyOf(osc);
+    const src = document.getElementById('select-osc' + osc + 'GeoSource'); src.selectedIndex = FAMILIES.indexOf(fam);
+    const lbl = document.getElementById('lbl-osc' + osc + 'Lib');
+    if (window.__setLabel) window.__setLabel(lbl, LIB[fam].key); else lbl.textContent = fam === 'mesh' ? 'Mesh' : fam === 'volume' ? 'Field' : 'Terrain';
+    fillLibSelect(document.getElementById('select-osc' + osc + 'Lib'), fam, osc);
+    if (osc === GEO.activeOsc) {
+        document.querySelectorAll('#geo-source-seg .seg-btn').forEach(b => b.classList.toggle('active', FAMILIES[b.dataset.idx] === fam));
+        document.querySelectorAll('#geo-frames-seg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.idx == Math.round(G(osc, 'GeoFrames') * 2)));
+        const gl = document.getElementById('lbl-geoLib');
+        if (window.__setLabel) window.__setLabel(gl, LIB[fam].key); else gl.textContent = lbl.textContent;
+        fillLibSelect(document.getElementById('select-geoLib'), fam, osc);
+        document.querySelectorAll('.geo-osc-panel').forEach(p => p.classList.toggle('active', p.dataset.osc === osc));
+        document.querySelectorAll('.geo-osc-panel[data-osc="' + osc + '"] .geo-family-panel').forEach(p => p.classList.toggle('active', p.dataset.fam === fam));
+        document.querySelectorAll('#geo-hint span[data-fam]').forEach(s => s.hidden = s.dataset.fam !== fam);
+        // Blur/Edge only apply to PNG terrains; φ is inert in Centroid Distance mode (ROADMAP 3.1)
+        const imported = choiceOf(osc, 'Terrain') === 'Imported…', centroid = choiceOf(osc, 'MeshUnwrap') === 'Centroid Distance', p = 'osc' + osc;
+        [p + 'TerBlur'].forEach(id => document.querySelectorAll('[data-knob="' + id + '"]').forEach(el => el.classList.toggle('inert', !imported)));
+        const edgeSel = document.getElementById('select-' + p + 'TerEdge'); if (edgeSel) edgeSel.closest('.dropdown-group').classList.toggle('inert', !imported);
+        document.querySelectorAll('[data-knob="' + p + 'MeshPhi"]').forEach(el => el.classList.toggle('inert', centroid));
+        setStatus(osc);
+        paintViewToggles();
+    }
+    markDirty(osc);
+}
+const gesture = (id, norm) => { const st = Juce.getSliderState(id); st.sliderDragStarted(); st.setNormalisedValue(norm); st.sliderDragEnded(); };
+document.querySelectorAll('.geo-source-select').forEach(sel => sel.addEventListener('change', () => gesture('osc' + sel.dataset.osc + 'GeoSource', sel.selectedIndex / 2)));
+document.querySelectorAll('.geo-lib-select').forEach(sel => sel.addEventListener('change', () => gesture(sel.dataset.param, sel.selectedIndex / Math.max(1, sel.options.length - 1))));
+document.querySelectorAll('#geo-source-seg .seg-btn').forEach(b => b.addEventListener('click', () => gesture('osc' + GEO.activeOsc + 'GeoSource', b.dataset.idx / 2)));
+document.querySelectorAll('#geo-frames-seg .seg-btn').forEach(b => b.addEventListener('click', () => gesture('osc' + GEO.activeOsc + 'GeoFrames', b.dataset.idx / 2)));
+document.querySelectorAll('.wt-osc-btn').forEach(b => b.addEventListener('click', () => {
+    GEO.activeOsc = b.dataset.osc;
+    document.querySelectorAll('.wt-osc-btn').forEach(x => x.classList.toggle('active', x === b));
+    syncFamily(GEO.activeOsc);
+}));
+
+// ─── TABS: INHERITED FROM O-PRISM switchTab(), plus (NEW) the geometry hook ───
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === name + '-tab'));
+    GEO.activeTab = name;
+    if (name === 'geometry') { syncFamily(GEO.activeOsc); }
+    markDirty();
+}
+window.switchTab = switchTab;   // the tab bar uses onclick="switchTab(...)" as in O-Prism
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT — order matters (see the i18n note at the top)
+// ═══════════════════════════════════════════════════════════════════
+// INHERITED FROM O-PRISM: every bindKnob(...) call for the non-geometry sections,
+// bindDropdown for every inherited select, LFO/delaySync/bypass toggles,
+// mod-matrix rows, tuning panel, preset browser, settings, tooltips.
+// NEW: geometry knobs/dropdowns bind generically off the markup.
+document.querySelectorAll('div.knob-container[data-knob]').forEach(el => {
+    const id = el.dataset.knob;
+    if (id.startsWith('oscA') || id.startsWith('oscB')) bindKnobByUid(el, GEO_FORMATS[id] || pct);
+    // (non-osc knobs: O-Prism's bindKnob(paramId, formatFn, defaultNorm, size) calls)
+});
+document.querySelectorAll('select.param-select[id^="select-osc"]').forEach(sel => {
+    if (sel.classList.contains('geo-source-select') || sel.classList.contains('geo-lib-select')) return;
+    bindDropdown(sel, sel.dataset.param || sel.id.replace('select-', ''));
+});
+try {
+    importGeometryNative = Juce.getNativeFunction('importGeometry');
+    importChunkNative    = Juce.getNativeFunction('importGeometryChunk');
+    importCommitNative   = Juce.getNativeFunction('importGeometryCommit');
+    setViewModeNative    = Juce.getNativeFunction('setViewMode');
+} catch (e) { console.warn('geometry native functions unavailable:', e); }
+watchGeometryParams();
+syncFamily('A'); syncFamily('B');
+paintViewToggles();
+window.addEventListener('resize', () => { Object.values(views).forEach(v => v.resize()); markDirty(); });
+requestAnimationFrame(tick);
+// INHERITED FROM O-PRISM: initI18n() — MUST be the last call in the module.
+</script>
+</body>
+</html>
