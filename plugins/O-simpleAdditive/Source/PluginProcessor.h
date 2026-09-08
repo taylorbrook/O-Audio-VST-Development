@@ -175,11 +175,15 @@ public:
     // The editor PULLS it once at page init; nothing pushes.
     std::atomic<int> uiLanguage { 0 };
 
-    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
-        hand-edited session or an unexpected argument from the page degrades to
-        English rather than being stored unvalidated. */
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+    /** The codec. languageIndex() maps anything that is neither "fr" nor
+        "zh-Hans" to 0, so a hand-edited session or an unexpected argument from
+        the page degrades to English rather than being stored unvalidated. The
+        stored value is the ASCII BCP-47 code and nothing else: no display name
+        and no Chinese character reaches this header, which is what keeps the
+        C++ side of the language round trip free of anything a text editor, a
+        compiler or a session file could mangle. */
+    static juce::String languageCode  (int i)                 { return i == 2 ? "zh-Hans" : i == 1 ? "fr" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "zh-Hans" ? 2 : s == "fr" ? 1 : 0; }
 
     //==========================================================================
     // Lesson preset tour (Stage 3): apply a full APVTS snapshot by name. Sets every
