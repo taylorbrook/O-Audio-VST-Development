@@ -11,7 +11,7 @@
 **Research inputs (Level 3, verified with prototypes, consumed not re-derived):**
 - `research/wavetable-synthesis-3d-geometry.md` §3 (baked paradigm), §4 (UI), §5 (competitive landscape), §7.1 (mesh slicer findings), §7.3 (3D view in WebView), §7.4 (roadmap). §7.2 (live terrain oscillator) is v1.1 scope and appears only under Notes.
 - `research/wavetable-synthesis-3d-geometry-prototypes/` — `mesh-slice/mesh_slice_wavetable.py` (Python slicer, golden generator), `terrain-bench/` (C++ kernel benchmark), `webgl-3d/terrain-proto.html` (WebGL2 + Canvas 2D view).
-- `plugins/O-Strata/.planning/BRIEF.md`, `REQUIREMENTS.md` (27 requirements), `parameter-spec-draft.md` (217 parameters).
+- `plugins/O-Strata/.planning/BRIEF.md`, `REQUIREMENTS.md` (27 requirements), `parameter-spec.md` (219 parameters; the draft's 217 was an undercount — see the spec's "Draft reconciliation" note).
 
 **Requirement coverage:** every requirement ID in REQUIREMENTS.md is cited in the section that specifies it; the map is in the Notes section at the end.
 
@@ -88,7 +88,7 @@ Components 1–8 are new. Component 9 lists what is inherited unchanged. Compone
 ### 8. GeometryBakeScheduler (debounce, background bake, publish, retire)
 - **JUCE Class:** `juce::Timer` (juce_events, message thread, 20 Hz), `juce::ThreadPool` + `juce::ThreadPoolJob` (juce_core, 2 threads named "O-Strata Bake"), `juce::MessageManager::callAsync` (juce_events), existing `std::atomic<const WavetableData*>` publish + `retireTable()` reaper from O-Prism `PluginProcessor.cpp`
 - **Purpose:** Turn bake-parameter changes into at most one background bake per oscillator, publish the result to the audio thread without locks, and free the old table safely (PERF-01, PERF-02, FUNC-01).
-- **Parameters Affected:** all 46 geometry parameters (read), plus the import blob revision
+- **Parameters Affected:** all 48 geometry parameters (read), plus the import blob revision
 - **Configuration:**
   - No APVTS listener. The message-thread timer snapshots the 23 bake parameters + import revision per oscillator into a `BakeKey` (hashed) every 50 ms; a key change resets that oscillator's debounce clock; a key that has been stable for ≥ 150 ms and differs from `lastBakedKey` submits a `BakeJob`. Audio-rate automation of bake parameters therefore costs the audio thread nothing beyond the host's own parameter writes (PERF-01 acceptance).
   - One in-flight job per oscillator; a newer key calls `signalJobShouldExit()` on the old job (which checks `shouldExit()` once per frame) and the superseded result is discarded on publish by key mismatch.
@@ -150,7 +150,7 @@ AUDIO CHAIN (unchanged from O-Prism; per block)
 
 **Routing notes:**
 - `osc?Pos` (Position) is unchanged in the audio chain: it indexes frames of whichever table is published. Its *meaning* is now "where in the sweep", and it remains a mod-matrix destination.
-- Only the generator selected by `osc?GeoSource` runs; the other two families' parameters exist in the APVTS (static layout, 217 parameters) but are ignored by the BakeKey of the inactive families — a Terrain knob does not re-bake a Mesh oscillator.
+- Only the generator selected by `osc?GeoSource` runs; the other two families' parameters exist in the APVTS (static layout, 219 parameters) but are ignored by the BakeKey of the inactive families — a Terrain knob does not re-bake a Mesh oscillator.
 - No feedback loops in the bake chain. The audio chain's FX feedback (delay) is inherited.
 - No audio-thread code path is added (DSP-01, PERF-01). The oscillator read path is byte-identical to O-Prism.
 
@@ -199,7 +199,7 @@ Inherited unchanged from O-Prism ARCHITECTURE.md "System Architecture → MIDI R
 ### State Persistence
 
 **What state is saved:**
-- APVTS parameters: all 217, automatically (the 46 geometry parameters are `AudioParameter*` — Architecture Decision 2).
+- APVTS parameters: all 219, automatically (the 48 geometry parameters are `AudioParameter*` — Architecture Decision 2).
 - Custom state (ValueTree children of the APVTS state, as O-Prism does for `tuningEngine` and `uiLanguage`):
   - `geometryImports` → one child per oscillator `<oscAImport kind="obj|stl|png" name="dragon.obj" sha256="…" bytes="1234567" embedded="1" data="<base64(gzip)>"/>` or `embedded="0" path="/abs/path"`.
   - Existing: `tuningEngine`, `uiLanguage`.
@@ -251,7 +251,7 @@ Inherited unchanged from O-Prism ARCHITECTURE.md "System Architecture → MIDI R
 
 **Removed (2):** `oscATable`, `oscBTable`. Replaced by the Geometry block below plus the non-parameter import blob; the factory library, user-wavetable manager and wavetable editor that consumed them are deleted (Architecture Decision 5).
 
-**New (46 = 23 × {A, B}).** All are bake parameters: automatable APVTS parameters, persisted in state and presets, **excluded from the mod-matrix destination list** (`modSlot?Dst` keeps O-Prism's 26 entries) and read only by the GeometryBakeScheduler on the message thread. Float parameters use linear skew unless noted. `?` = `A` or `B`.
+**New (48 = 24 × {A, B}).** All are bake parameters: automatable APVTS parameters, persisted in state and presets, **excluded from the mod-matrix destination list** (`modSlot?Dst` keeps O-Prism's 26 entries) and read only by the GeometryBakeScheduler on the message thread. Float parameters use linear skew unless noted. `?` = `A` or `B`.
 
 | Parameter ID | Type | Range | Default | DSP Component | Usage |
 |--------------|------|-------|---------|---------------|-------|
@@ -280,7 +280,7 @@ Inherited unchanged from O-Prism ARCHITECTURE.md "System Architecture → MIDI R
 | `osc?TerBlur` | Float | 0.0–1.0 | 0.2 | TerrainOrbitSampler | Gaussian σ = blur·W/32 px on PNG terrains only |
 | `osc?TerEdge` | Choice | Mirror / Window | Mirror | TerrainOrbitSampler | PNG edge handling |
 
-**ID plumbing (Stage 1):** `PrismParamIds::oscIds(prefix)` drops `"Table"` and gains the 23 suffixes above, so `allSliderIds()` grows from 126 to 170 and the editor's generic relay loop creates a `WebSliderRelay` + attachment for every geometry parameter with no per-parameter code. Choice parameters bind through the same slider relays as O-Prism's existing choice params (`WarpType`, `Type`, …).
+**ID plumbing (Stage 1):** `StrataParamIds::oscIds(prefix)` drops `"Table"` and gains the 24 suffixes above, so `allSliderIds()` grows from 141 to 188 (incl. `delayDivision`, Stage 1 CONTEXT D4) and the editor's generic relay loop creates a `WebSliderRelay` + attachment for every geometry parameter with no per-parameter code. Choice parameters bind through the same slider relays as O-Prism's existing choice params (`WarpType`, `Type`, …).
 
 **Non-parameter state:** `geometryImports` (see State Persistence). `importRevision` (atomic int, not persisted) and `bakeGeneration[2]` (atomic int) are runtime signals for the scheduler and the editor.
 
@@ -508,12 +508,12 @@ Inherited unchanged from O-Prism ARCHITECTURE.md "System Architecture → MIDI R
 
 **Mitigation strategy:** the 2 MB cap is chosen so that everything that bakes fast also embeds (Architecture Decision 1); most users never hit the path branch.
 
-### Static APVTS layout with 46 always-present parameters
+### Static APVTS layout with 48 always-present parameters
 
 **Complexity:** LOW
 **Risk Level:** LOW
 
-**Risk factors:** hosts show 46 automation lanes per oscillator family regardless of Source Type; users may automate an inert family's knob and hear nothing.
+**Risk factors:** hosts show 48 automation lanes across the oscillator families regardless of Source Type; users may automate an inert family's knob and hear nothing.
 
 **Alternative approaches:** dynamic parameter layout (impossible: APVTS layout is static; hosts cache parameter lists).
 
@@ -558,10 +558,10 @@ Inherited unchanged from O-Prism ARCHITECTURE.md "System Architecture → MIDI R
 
 ### Decision 2: Bake parameters are APVTS `AudioParameter*` (not ValueTree state)
 
-**Decision:** All 46 geometry parameters are `AudioParameterFloat` / `AudioParameterChoice` in the static APVTS layout, automatable, persisted by APVTS, excluded from mod-matrix destinations, and consumed only by the message-thread scheduler.
+**Decision:** All 48 geometry parameters are `AudioParameterFloat` / `AudioParameterChoice` in the static APVTS layout, automatable, persisted by APVTS, excluded from mod-matrix destinations, and consumed only by the message-thread scheduler.
 
 **Rationale:**
-- **Free plumbing:** relays and attachments are generated from `PrismParamIds::allSliderIds()`; preset-manager v1.0.6 persists APVTS automatically; host automation, undo and "touch" behaviour come for free; the 3D-view drag uses the standard `getSliderState` protocol. A ValueTree design would need ~46 bespoke native functions, custom persistence and no host automation.
+- **Free plumbing:** relays and attachments are generated from `StrataParamIds::allSliderIds()`; preset-manager v1.0.6 persists APVTS automatically; host automation, undo and "touch" behaviour come for free; the 3D-view drag uses the standard `getSliderState` protocol. A ValueTree design would need ~48 bespoke native functions, custom persistence and no host automation.
 - **Re-bake storms are a scheduler problem, not a parameter-type problem:** the 150 ms debounce + single in-flight job + cancellation make audio-rate automation cost one bake per quiet period. No APVTS listener exists, so parameter writes from the audio thread (host automation) never run bake code.
 - **The BRIEF and REQUIREMENTS assume it** (FUNC-01 acceptance "within one debounce interval", PERF-01 "bake-parameter automation at audio rate never stalls").
 
@@ -570,9 +570,9 @@ Inherited unchanged from O-Prism ARCHITECTURE.md "System Architecture → MIDI R
 2. APVTS parameters flagged non-automatable (`withAutomatable(false)`): rejected — the "mod wheel tilts the plane" use case needs host-side CC mapping to an automatable parameter; hosts hide non-automatable parameters from MIDI-learn.
 3. Mod-matrix destinations for bake parameters: rejected — a per-sample modulation of a bake key would be either ignored or a re-bake storm; the destination list stays O-Prism's 26 entries.
 
-**Tradeoffs accepted:** 46 always-visible automation lanes (mitigated by family-prefixed names); a continuous automation ramp on a bake parameter audibly "steps" once per quiet period rather than morphing — documented behaviour, and Position is the morph control.
+**Tradeoffs accepted:** 48 always-visible automation lanes (mitigated by family-prefixed names); a continuous automation ramp on a bake parameter audibly "steps" once per quiet period rather than morphing — documented behaviour, and Position is the morph control.
 
-**When to revisit:** if hosts complain about 217 parameters (none do at O-Prism's 173); if v1.1's live terrain oscillator wants audio-rate orbit parameters — those will be *new* parameters, not these.
+**When to revisit:** if hosts complain about 219 parameters (none do at O-Prism's 173); if v1.1's live terrain oscillator wants audio-rate orbit parameters — those will be *new* parameters, not these.
 
 ### Decision 3: Baked pipeline only, zero new audio-thread code
 
@@ -697,7 +697,7 @@ Verified against the local JUCE 8.0.14 modules (`/Users/taylorbrook/JUCE/modules
 - `research/wavetable-synthesis-3d-geometry-prototypes/terrain-bench/` — kernel costs (v1.1 reference only) and the aliasing measurements that motivated baking.
 - `research/wavetable-synthesis-3d-geometry-prototypes/webgl-3d/terrain-proto.html` — the view to port.
 - Memory patterns applied: `pattern_texture_forge_swap_needs_lock_if_prepare_publishes`, `pattern_retired_map_reaper_rt_free`, `critical_webview_drag_drop_macos` (webkitGetAsEntry), `pattern_webview_launchasync_safepointer_no_complete`, `pattern_webview_one_shot_state_push_stale_on_preset_load`, `critical_webview_completion_gated_on_isvisible`, `critical_binary_data_strips_hyphens`, `critical_dual_binary_data_namespace_collision`, `critical_valuetree_xml_roundtrip_loses_type`, `pattern_offline_dsp_render_harness`, `pattern_render_harness_breaks_on_webview_editor`, `critical_plugin_version_keyword_ignored_by_juce` (use `VERSION`, never `PLUGIN_VERSION`), `project_preset_manager_v102_rollout` (choice-param migration hook).
-- O-Prism source verified for the fork facts: `Source/dsp/WavetableData.h` (2048 + 1 guard, ≤ 256 frames, 10 levels, flat `[level][frame][sample]`), `WavetableGenerator.cpp:129` (`generateMipmaps`), `WavetableImporter.cpp:189-205` (global-peak normalisation), `PluginProcessor.cpp:946-1000` (`retireTable`, `timerCallback` reaper, `updateWavetableAssignments`, `resolveActiveTable`), `PluginProcessor.cpp:1182-1250` (state), `PrismParamIds.h` (`oscIds`, `allSliderIds` = 126), `PluginEditor.cpp:616-668, 1097-1116` (`getActiveOscInfo/Frame`, `timerCallback` with `evaluateJavascript`), `CMakeLists.txt` (modules, `O-Prism_UIResources`, `VERSION 1.24.0`, `OUARICON_BUILD_TESTS` param-dump target).
+- O-Prism source verified for the fork facts: `Source/dsp/WavetableData.h` (2048 + 1 guard, ≤ 256 frames, 10 levels, flat `[level][frame][sample]`), `WavetableGenerator.cpp:129` (`generateMipmaps`), `WavetableImporter.cpp:189-205` (global-peak normalisation), `PluginProcessor.cpp:946-1000` (`retireTable`, `timerCallback` reaper, `updateWavetableAssignments`, `resolveActiveTable`), `PluginProcessor.cpp:1182-1250` (state), `PrismParamIds.h` (`oscIds`, `allSliderIds` = 141 — the file's `// 126` comment was stale), `PluginEditor.cpp:616-668, 1097-1116` (`getActiveOscInfo/Frame`, `timerCallback` with `evaluateJavascript`), `CMakeLists.txt` (modules, `O-Prism_UIResources`, `VERSION 1.24.0`, `OUARICON_BUILD_TESTS` param-dump target).
 
 ---
 
