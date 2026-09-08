@@ -3,6 +3,139 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.0] — 2026-09-07
+
+Simplified Chinese. The interface now offers English, French and 简体中文, on a
+153-row table. MINOR: new language, no parameter, range, type or state format
+changed, and no English or French rendering moved except the one deletion
+recorded below. Wave 4g of the zh-Hans rollout (task 260907-qda).
+
+### Added
+
+- **153 rows of Simplified Chinese** — 38 tooltip titles, 38 tooltip bodies and
+  77 captions, every one at `reviewed: 'bt'`. **The disclosed quality level is
+  `'bt'`, not `'native'`:** each row was machine-drafted, then read back by an
+  INDEPENDENT blind reverse pass — a different model, in a fresh session, from a
+  working directory outside this repository, with no tools and with the English
+  and the key names withheld — and the resulting en → zh → en′ triple was read
+  against the English source. No native Simplified Chinese reader has seen it.
+  `'native'` stays open as a later upgrade and blocks nothing; lint rule R1
+  prints the level on every run.
+- **The Chinese endonym in the language selector**, byte-copied from the
+  shipped markup rather than retyped, and exempted from the coverage scan with
+  a reason: a language name is written in its own language.
+- **The CJK tail on both font declarations that reach text** — the house stack
+  and the `--symbol-font` token, in `css/styles.css`. It goes BEFORE the
+  trailing generic: Chromium resolves a bare `serif` against the document's
+  `lang`, so under `zh-Hans` the generic is already a Chinese face and a tail
+  written after it is never consulted. The absent Garamond members are KEPT —
+  they are the Windows and print intent, and Times New Roman, which is
+  installed, already makes the Latin arm safe. `--symbol-font` takes the tail
+  because `.gear-btn` is a tooltip anchor: the test is whether a node anchors a
+  tip whose text can carry Han, never which glyph the node paints.
+
+### Changed
+
+- **`languageCode` / `languageIndex` widened from two-way to three-way**, pure
+  ASCII on both lines. Persistence is unchanged — the code still round-trips
+  through the same ValueTree property, and anything unrecognised still degrades
+  to English rather than being stored unvalidated. **No Chinese character
+  exists anywhere under `Source/`**, proved by a comment-stripped negative grep
+  fired beside a positive control on the same run.
+- **The language tooltip no longer enumerates the languages on offer.** Its body
+  named a fixed pair, which was true for exactly as long as the selector held
+  two entries and became false the moment this version added a third. The
+  selector already lists them in their own endonyms — the one place the list
+  cannot go stale — so the clause is deleted in English AND French rather than
+  extended. **The exception list stays and its numeric claim was re-verified at
+  this version:** `index.html` carries 3 `<select>` elements, and subtracting
+  the language selector itself leaves 2, so "the two drop-down menus" is still
+  true. The superseded phrasings are recorded here and deliberately not
+  respelled in any source comment, so a repo grep for either stays at zero. For
+  the record, the deleted English clause read *English and French are
+  available*, and the French *L'anglais et le français sont disponibles*.
+- **The `OSIMPLEGRAIN_VERSION_CODE` hex mirror moved with the version**,
+  `0x010403` → `0x010500`. It is compiled into
+  `tests/render-harness/CMakeLists.txt` as `JucePlugin_VersionCode` and no gate
+  in this repo reads it, so a bump that edited only the string would ship a
+  harness built against a stale code and nothing would catch it. The new value
+  was DERIVED from the `0x00MMmmpp` encoding rather than transcribed, and the
+  old one was verified to actually mirror 1.4.3 before it was moved.
+- **The Grains readout key is qualified as a count** — the bare glossary root is
+  also this page's Grain group heading, so the unqualified form would paint the
+  same two characters twice for two different things. It is trimmed to three
+  characters rather than four because the four-character form measured 42.84 px
+  against the English key's 41.38 px and pushed the Overlap item and the CPU bar
+  1.5 px right; a width floor at the exact measured English box now holds the
+  strip still, the way the Overlap key's French-era floor already does.
+- **Scatter is qualified as the timing one.** The three Spray knobs beside it
+  carry the same glossary root as their tail morpheme and the bare root is the
+  group heading directly above them, so the unqualified caption would read as a
+  fourth spray. Two independent blind readers, on different models and different
+  salts, returned it as *Time Spread* and *Time Scatter* — distinct from
+  *Position Spread* on the same page, which is what the qualification was for.
+- **The Granular Fire lesson names the flame, not the verb.** The corpus
+  glossary root for that English reads Fire as *to trigger*; this preset is the
+  worked example on the crackling-fire recording, and the root had exactly one
+  site — this page — and is shipped nowhere, so it was derived from a single
+  caption with no second site to check it against. Corrected per entry with a
+  reasoned note and flagged for the glossary rather than forked silently. Both
+  blind readers returned the flame.
+
+### Geometry
+
+- **Nine line-box pins and three floors.** A Han line box under
+  `line-height: normal` is roughly 30% taller than the Latin one at the same
+  font-size, so every node that inherited `normal` grew and pushed its
+  neighbours down: 152 non-label elements moved on the Chinese arm before the
+  pins. Each ratio is derived from THAT element's own English CONTENT box — rect
+  height less its own padding and border, divided by its own font-size, line
+  count verified as exactly one — never from a shared table, because `#btnLoad`
+  and the tour buttons are form controls whose UA `font` shorthand resets
+  `line-height`, and `.group-title` carries a bottom padding and a border its
+  rect includes. Every ratio equals what English already computed, so **no Latin
+  arm moved at any point**.
+- **A reserved second caption line on three of the four visualization cells.**
+  Chinese is shorter, so each of those hints fits on one line where the English
+  takes two; the label row lost a line and the canvas below it grew 8 px into
+  the space. A floor at the exact measured English box restores the wrap. The
+  Output Scope cell is deliberately excluded — its English pair is one line by
+  design, and a floor there would have moved the Latin arms.
+- **Result: 0 non-label elements moved on the Chinese arm and on the French
+  arm, across all four interaction states**, at the 900 × 760 shipping frame.
+  Two `line-height: normal` residuals remain and both are named with their
+  measurement: `p.subtitle` and `#help-toggle` each measure identical heights
+  in English and Chinese, so neither can move and neither can be pinned to any
+  effect.
+
+### Verified
+
+- `check-i18n` exit 0 — three languages, 38 I18N + 77 LABELS unchanged, 38 tips
+  bound. `i18n-zh-lint` 0 findings on 115 entries, self-test 10/10.
+  `check-ui-labels` all checks passed. `boot-all-uis --strict-tips` clean, 0
+  dead and 0 late bindings. The French arm was green at every measurement and no
+  French rendering changed.
+- The French figure written into `tests/i18n-states.json` for the Pitched Buzz
+  caption is a pre-1.4.2 measurement and was **re-measured rather than
+  inherited**: the caption's natural nowrap width today is 813.31 px in the
+  846 px box, one line, against the 997.22 px the fixture's own state name
+  records. English is 606.84 px and Chinese 656.08 px.
+
+### Known, reported and deliberately not fixed
+
+`Source/ui/public/modules/webview-drop-streaming.js` carries **17 distinct
+English strings across 22 `showToast` call sites** and they render English on
+the Chinese page — and on the French page today, so this is not a regression
+this release introduces. **No gate in this repo can see them:** `check-i18n`'s
+module clause scans `js/app.js` only, the discriminator being the directory, so
+its PASS is a claim about the scan and not about the page; the strings are not
+`[data-i18n]` elements; and no interaction state fires a drop event. The file is
+byte-identical to O-simpleSampler's copy, so keying it is a two-plugin change to
+an unkeyed toast layer with no calibrated gate, inside a release whose subject
+is a caption table. Reported here and carried forward. A half-keyed toast layer
+would be worse than an unkeyed one, because it would look done.
+
+
 ## [1.4.3] — 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
