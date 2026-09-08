@@ -63,7 +63,8 @@
   --text-emboss: rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
   /* Symbol-glyph fallback — Garamond lacks ❦ / ♪ on Windows; these fonts carry them. */
-  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', serif;
+  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS',
+                 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -78,7 +79,8 @@ html, body {
 }
 
 body {
-  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman',
+               'PingFang SC', 'Microsoft YaHei', serif;
   color: var(--brown-text);
   background:
     radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
@@ -722,6 +724,81 @@ body {
 }
 
 /* ── Keyboard focus visibility (accessibility) ───────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════
+   zh-Hans GEOMETRY PINS (v1.3.0)
+
+   Han faces carry taller metrics than Times New Roman, so every element that
+   inherited the UA's `line-height: normal` grew 2-4 px the moment its caption
+   became Chinese. The header and the group headers are in normal flow, so that
+   growth pushed everything below them: check-ui-labels reported 210 moved on
+   the zh arm across both states, against a clean fr arm. The fr and en arms
+   were clean before this block and are clean after it, which is the only
+   reason it is allowed to exist.
+
+   EVERY RATIO BELOW IS MEASURED, NOT CHOSEN. It is the element's own ENGLISH
+   line box divided by its own font-size, where the line box comes from the BOX
+   — rect height minus padding minus border — and never from a text ink rect.
+   Written UNITLESS so it is font-independent, and scoped per family so nothing
+   else inherits it. Each group is one line at one size; every one of these
+   eight measured a LINE COUNT of exactly 1 in English.
+
+   NO GLOBAL line-height. A global rule would move English, which is the
+   regression these gates exist to catch, not a fix. None of the eight
+   selectors carried a line-height declaration before this block — checked
+   per selector, because a new pin at higher specificity silently un-pins an
+   existing one and moves the arm it was defending.
+
+   A CLASS AT A DIFFERENT SIZE NEEDS ITS OWN PIN, which is why .tour-btn sits
+   apart from .tour-label despite being half a pixel of font-size away: its box
+   is a FORM CONTROL, whose UA `font` shorthand resets line-height, so its
+   ratio is derived from its own 11 px content box (21 px rect less 4+4 padding
+   and 1+1 border) and never from the leaf table.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* EN line box 12 px at font-size 11 px */
+.subtitle,
+.settings-label,
+.viz-hint,
+.tour-caption                   { line-height: 1.0909; }
+
+/* EN line box 15 px at font-size 12 px */
+.drawbar-title,
+.group-title                    { line-height: 1.2500; }
+
+/* EN line box 11 px at font-size 10 px.
+   .keyboard-label is a ROW, not a leaf: both spans inside it measured
+   enH == zhH while the row itself grew 3 px. The ratio is the row's own
+   English line box, and the two unpinned spans inherit it. */
+.tour-label,
+.keyboard-label                 { line-height: 1.1000; }
+
+/* EN line box 12 px at font-size 10 px — the other caption ROW, same shape.
+   Its .viz-hint child keeps the 1.0909 pin above: that selector is more
+   specific than inheritance, so the 11 px child and the 10 px one both land
+   on a 12 px box and the row stops moving. */
+.viz-label                      { line-height: 1.2000; }
+
+/* EN line box 11 px at font-size 10.5 px — a form control, measured from its
+   own content box (the UA font shorthand resets line-height on <button>) */
+.tour-btn                       { line-height: 1.0476; }
+
+/* ── zh-Hans WIDTH FLOOR ────────────────────────────────────────────────────
+   Chinese is shorter, so the failure shape here is a SHRINK, never a clip.
+   .tour-caption is the third item in the .preset-tour flex row, after the
+   99 px .tour-label pin and the six-button group. In English it is 311.52 px
+   and in French 395.83 px, and at either width the row cannot hold all three
+   items, so the caption wraps to flex line 2 — which is the shipped layout,
+   right-aligned under the buttons. The Chinese caption is 244.34 px, which
+   fits beside the buttons on line 1: the section lost a whole flex line
+   (53.97 -> 29.98 px) and the button group collapsed with it (679 -> 422.66).
+
+   The floor is the EXACT measured English box, not a rounded figure and not a
+   fixed width. At 311.52 px the English arm is unchanged to the pixel, the
+   French arm is wider than the floor and never sees it, and the Chinese
+   hypothetical main size is large enough that the row breaks where it always
+   did. max-width: 54% above still caps the other direction. */
+.tour-caption                   { min-width: 311.52px; }
+
 .knob:focus-visible,
 .drawbar:focus-visible,
 .tour-btn:focus-visible {

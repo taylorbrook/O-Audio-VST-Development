@@ -148,7 +148,7 @@
 // speaker has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 export const I18N = Object.freeze({
 
@@ -163,19 +163,37 @@ export const I18N = Object.freeze({
         fr: { t: 'Réglages',
               b: "Choisissez la langue de l’interface et activez ou désactivez ces infobulles. La langue est conservée avec la session ; le réglage des infobulles est conservé sur cet ordinateur.",
               reviewed: true },
+        'zh-Hans': { t: '设置',
+                     b: '选择界面语言，并关闭或开启这些悬停帮助。语言随会话一起保存；帮助开关保存在本机上。',
+                     reviewed: 'mt' },
     },
 
-    // Written to say what is TRUE of canon v2, in both languages: the labels DO
+    // Written to say what is TRUE of canon v2, in every language: the labels DO
     // change, and the halves that stay English are named rather than left to be
     // discovered — value readouts (D-03) and the Frame B / Bit Depth menu
     // entries, which come from the C++ parameter and are the host automation
     // contract (D-01).
+    //
+    // v1.3.0: the body no longer ENUMERATES the languages on offer. It named a
+    // fixed pair, which was true for exactly as long as the selector held two
+    // entries and became false the moment this version added a third. The
+    // selector already lists them in their own endonyms — the one place the
+    // list cannot go stale — so the enumeration is deleted rather than
+    // extended. The exception list STAYS, and its numeric claim was re-verified
+    // against the markup at this version: index.html carries 3 <select>
+    // elements, and subtracting the language selector itself leaves 2. That
+    // half is the one a reader cannot discover by looking. The superseded
+    // phrasings are in the CHANGELOG and deliberately not repeated here, so a
+    // repo grep for either stays at zero.
     'lang-select': {
         en: { t: 'Language',
-              b: 'The language of the labels on this page and of this hover help. English and French are available; value readouts and the two drop-down menus stay in English.' },
+              b: 'The language of the labels on this page and of this hover help. Value readouts and the two drop-down menus stay in English.' },
         fr: { t: 'Langue',
-              b: "La langue des libellés de cette page et de ces infobulles. L’anglais et le français sont disponibles ; les valeurs affichées et les deux menus déroulants restent en anglais.",
+              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées et les deux menus déroulants restent en anglais.",
               reviewed: true },
+        'zh-Hans': { t: '语言',
+                     b: '本页标签与这些悬停帮助所用的语言。数值读数和两个下拉菜单保持英文。',
+                     reviewed: 'mt' },
     },
     'help-toggle': {
         en: { t: 'Hover help',
@@ -183,6 +201,9 @@ export const I18N = Object.freeze({
         fr: { t: "Infobulles",
               b: "Active ou désactive ces infobulles. Le réglage est conservé sur cet ordinateur et non dans la session : il vous suit d’un projet à l’autre.",
               reviewed: true },
+        'zh-Hans': { t: '悬停帮助',
+                     b: '关闭或重新开启这些悬停说明。该开关保存在本机上而非会话中，因此会随您从一个项目带到下一个项目。',
+                     reviewed: 'mt' },
     },
 
     // ── The drawbar bay ─────────────────────────────────────────────────────
@@ -192,6 +213,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Tirettes harmoniques',
               b: "Chaque tirette règle le niveau d’un harmonique — ensemble, elles SONT le spectre additif. Le laiton montre ce que vous réglez ; la lueur verte montre ce qui sonne réellement (après morphage et décroissance spectrale).",
               reviewed: true },
+        'zh-Hans': { t: '谐音拉杆',
+                     b: '每根拉杆设定一个泛音的电平 — 它们合起来就是加法频谱。黄铜色显示您设定的值；绿色辉光显示实际发声的内容（经过变形与频谱衰减之后）。',
+                     reviewed: 'mt' },
     },
 
     // ── Morph · Wavetable ───────────────────────────────────────────────────
@@ -201,6 +225,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Source de la trame B',
               b: "Le spectre cible vers lequel le balayage morphe (Sine, Saw, Square ou Odd). Balayage à 0 % = vos tirettes ; à 100 % = cette forme.",
               reviewed: true },
+        'zh-Hans': { t: '帧 B 源',
+                     b: '扫描所变形趋向的目标频谱（Sine、Saw、Square 或 Odd）。扫描为 0% 时 = 您的拉杆；100% = 此波形。',
+                     reviewed: 'mt' },
     },
     scanPosition: {
         en: { t: 'Scan',
@@ -208,6 +235,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Balayage',
               b: "Morphe le spectre depuis vos tirettes (0 %) vers la trame B (100 %). Regardez la forme d’onde changer pendant le balayage.",
               reviewed: true },
+        'zh-Hans': { t: '扫描',
+                     b: '把频谱从您的拉杆（0%）变形到帧 B（100%）。扫描时可观察波形改变形状。',
+                     reviewed: 'mt' },
     },
     scanLfoRate: {
         en: { t: 'Scan LFO Rate',
@@ -215,6 +245,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Vitesse du LFO de balayage',
               b: 'Vitesse du LFO sinusoïdal qui fait varier automatiquement le balayage. Un seul LFO global — toutes les notes tenues morphent ensemble, en phase.',
               reviewed: true },
+        'zh-Hans': { t: '扫描 LFO 速率',
+                     b: '自动扫掠扫描位置的正弦 LFO 的速度。只有一个全局 LFO — 所有按住的音符同相一起变形。',
+                     reviewed: 'mt' },
     },
     scanLfoDepth: {
         en: { t: 'Scan LFO Depth',
@@ -222,6 +255,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Profondeur du LFO de balayage',
               b: "De combien le LFO fait varier le balayage autour de la position réglée. 0 % = aucun morphage automatique.",
               reviewed: true },
+        'zh-Hans': { t: '扫描 LFO 深度',
+                     b: 'LFO 围绕设定位置扫掠扫描的幅度。0% = 无自动变形。',
+                     reviewed: 'mt' },
     },
     scanEnvAmount: {
         en: { t: 'Env → Scan',
@@ -229,6 +265,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Env → Balayage',
               b: "De combien l’enveloppe de modulation pousse le balayage sur chaque note (bipolaire −/+). Fait évoluer le timbre après la frappe.",
               reviewed: true },
+        'zh-Hans': { t: '包络 → 扫描',
+                     b: '调制包络在每个音符上推动扫描的强度（双极性 −/+）。使音色在按下琴键之后继续演变。',
+                     reviewed: 'mt' },
     },
 
     // ── Spectral shaping ────────────────────────────────────────────────────
@@ -238,6 +277,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Décroissance spectrale',
               b: "Sur chaque note, fait décroître les partiels aigus plus vite que les graves — le timbre s’assombrit en résonnant, comme une corde pincée. 0 % = équilibre stable.",
               reviewed: true },
+        'zh-Hans': { t: '频谱衰减',
+                     b: '在每个音符上，让较高的分音比较低的分音衰减得更快 — 音色在延续中逐渐变暗，如同拨弦。0% = 平衡稳定。',
+                     reviewed: 'mt' },
     },
     bitDepth: {
         en: { t: 'Bit Depth',
@@ -245,6 +287,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Résolution',
               b: "Quantifie la sortie sur N bits de résolution d’amplitude, pour un grain numérique d’époque. « Off » = propre ; moins de bits = plus de grain.",
               reviewed: true },
+        'zh-Hans': { t: '位深',
+                     b: '把输出量化到 N 位的振幅分辨率，制造早期数字的颗粒感。Off = 干净；位数越少 = 越粗糙。',
+                     reviewed: 'mt' },
     },
     velToDecay: {
         en: { t: 'Velocity → Decay',
@@ -252,6 +297,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Vélocité → Décroissance',
               b: "Laisse la force de jeu s’ajouter à la décroissance spectrale. (La vélocité règle toujours le volume ; ceci ajoute une réponse de timbre — plus fort = décroissance plus sombre.)",
               reviewed: true },
+        'zh-Hans': { t: '力度 → 衰减',
+                     b: '让您的演奏力度叠加到频谱衰减上。（力度始终决定响度；此项另外加入音色响应 — 弹得越用力 = 衰减越暗。）',
+                     reviewed: 'mt' },
     },
 
     // ── Amplitude envelope ──────────────────────────────────────────────────
@@ -259,16 +307,25 @@ export const I18N = Object.freeze({
         en: { t: 'Amp Attack',  b: 'Time for loudness to rise after note-on.' },
         fr: { t: 'Attaque d’amplitude', b: "Temps de montée du volume après l’enfoncement de la touche.",
               reviewed: true },
+        'zh-Hans': { t: '振幅起音',
+                     b: '音符触发后响度上升所需的时间。',
+                     reviewed: 'mt' },
     },
     ampDecay: {
         en: { t: 'Amp Decay',  b: 'Time for loudness to fall from peak to the sustain level.' },
         fr: { t: 'Déclin d’amplitude', b: 'Temps de chute du volume, du sommet vers le niveau de maintien.',
               reviewed: true },
+        'zh-Hans': { t: '振幅衰减',
+                     b: '响度从峰值降到延音电平所需的时间。',
+                     reviewed: 'mt' },
     },
     ampSustain: {
         en: { t: 'Amp Sustain',  b: 'Held loudness while the key stays down.' },
         fr: { t: 'Maintien d’amplitude', b: 'Volume tenu tant que la touche reste enfoncée.',
               reviewed: true },
+        'zh-Hans': { t: '振幅延音',
+                     b: '按键保持按下时维持的响度。',
+                     reviewed: 'mt' },
     },
     ampRelease: {
         en: { t: 'Amp Release',
@@ -276,6 +333,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Relâchement d’amplitude',
               b: 'Temps de disparition du volume après le relâchement de la touche — et donc durée de résonance de la voix.',
               reviewed: true },
+        'zh-Hans': { t: '振幅释音',
+                     b: '松开按键后响度消失所需的时间 — 也就是该声部的余音长度。',
+                     reviewed: 'mt' },
     },
 
     // ── Modulation envelope ─────────────────────────────────────────────────
@@ -285,21 +345,33 @@ export const I18N = Object.freeze({
         fr: { t: 'Attaque mod.',
               b: "Attaque de l’enveloppe de modulation, qui pilote le balayage via Env → Balayage.",
               reviewed: true },
+        'zh-Hans': { t: '调制起音',
+                     b: '调制包络的起音，它通过包络 → 扫描来驱动扫描。',
+                     reviewed: 'mt' },
     },
     modDecay: {
         en: { t: 'Mod Decay',  b: 'Decay of the modulation envelope toward its sustain level.' },
         fr: { t: 'Déclin mod.', b: "Déclin de l’enveloppe de modulation vers son niveau de maintien.",
               reviewed: true },
+        'zh-Hans': { t: '调制衰减',
+                     b: '调制包络向其延音电平下降的衰减。',
+                     reviewed: 'mt' },
     },
     modSustain: {
         en: { t: 'Mod Sustain',  b: 'Held level of the modulation envelope while the key is down.' },
         fr: { t: 'Maintien mod.', b: "Niveau tenu de l’enveloppe de modulation tant que la touche est enfoncée.",
               reviewed: true },
+        'zh-Hans': { t: '调制延音',
+                     b: '按键按下时调制包络维持的电平。',
+                     reviewed: 'mt' },
     },
     modRelease: {
         en: { t: 'Mod Release',  b: 'Release of the modulation envelope after key-up.' },
         fr: { t: 'Relâchement mod.', b: "Relâchement de l’enveloppe de modulation après le relâchement de la touche.",
               reviewed: true },
+        'zh-Hans': { t: '调制释音',
+                     b: '松开按键后调制包络的释音。',
+                     reviewed: 'mt' },
     },
 
     // ── Output ──────────────────────────────────────────────────────────────
@@ -307,6 +379,9 @@ export const I18N = Object.freeze({
         en: { t: 'Output Level',  b: 'Master output trim in decibels.' },
         fr: { t: 'Niveau de sortie', b: 'Réglage général de la sortie, en décibels.',
               reviewed: true },
+        'zh-Hans': { t: '输出电平',
+                     b: '总输出微调，以分贝为单位。',
+                     reviewed: 'mt' },
     },
 
     // ── Lesson-preset tooltips ──────────────────────────────────────────────
@@ -321,6 +396,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Sinus pur',
               b: "seulement la fondamentale (H1). Une tirette, un sinus : l’atome de la synthèse additive.",
               reviewed: true },
+        'zh-Hans': { t: '纯正弦',
+                     b: '只有基频（H1）。一根拉杆，一个正弦：加法合成的原子。',
+                     reviewed: 'mt' },
     },
     lessonSaw: {
         en: { t: 'Sawtooth',
@@ -328,6 +406,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Dent de scie',
               b: 'tous les harmoniques à 1/k. Tous les partiels décroissant en 1/k → une rampe brillante et bourdonnante.',
               reviewed: true },
+        'zh-Hans': { t: '锯齿波',
+                     b: '每个谐音都按 1/k。所有泛音按 1/k 递减 → 一段明亮而嗡鸣的斜坡。',
+                     reviewed: 'mt' },
     },
     lessonSquare: {
         en: { t: 'Square',
@@ -335,6 +416,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Carrée',
               b: 'harmoniques impairs seulement, à 1/k. Retirer les partiels pairs donne le timbre creux et anché.',
               reviewed: true },
+        'zh-Hans': { t: '方波',
+                     b: '只有奇数谐音，按 1/k 递减。去掉偶数分音便得到空洞的簧片音色。',
+                     reviewed: 'mt' },
     },
     lessonOrgan: {
         en: { t: 'Organ',
@@ -342,6 +426,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Orgue',
               b: "un registre de tirettes à la Hammond : quelques harmoniques graves, attaque immédiate, maintien plein.",
               reviewed: true },
+        'zh-Hans': { t: '管风琴',
+                     b: 'Hammond 风格的拉杆音栓配置：少数低次谐音，瞬时起音，完全延音。',
+                     reviewed: 'mt' },
     },
     lessonMorph: {
         en: { t: 'Morph Pad',
@@ -349,6 +436,10 @@ export const I18N = Object.freeze({
         fr: { t: 'Nappe morphée',
               b: 'le LFO de balayage morphe lentement vos tirettes vers une carrée ; de longues enveloppes la font respirer.',
               reviewed: true },
+        'zh-Hans': { t: '变形音垫',
+                     b: '扫描 LFO 缓慢地把您的拉杆变形为方波；长包络让它呼吸。',
+                     termNote: 'glossary root for \'Morph Pad\' is 变形面板, which reads as a morph PANEL — a user-interface surface. The English names a synth PAD, a sustained ambient patch, and the Chinese audio term for that is 音垫. The root has exactly ONE corpus site (this plugin\'s lessonMorph / label.lessonMorph / label.captionMorph) and 变形面板 is shipped nowhere, so it was derived from this caption alone and has never had a second site to check it against (N4). Corrected here at the one place it exists; the root itself is flagged for the glossary rather than forked silently.',
+                     reviewed: 'mt' },
     },
     lessonLofi: {
         en: { t: 'Lo-Fi Bells',
@@ -356,6 +447,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Cloches lo-fi',
               b: 'un spectre de cloche étalé + une pente de décroissance spectrale + une quantification 8 bits pour le grain numérique.',
               reviewed: true },
+        'zh-Hans': { t: '低保真钟声',
+                     b: '展开的钟形频谱 + 频谱衰减倾斜 + 8 位量化，制造数字颗粒感。',
+                     reviewed: 'mt' },
     },
 
     // ── The sixteen partials ────────────────────────────────────────────────
@@ -377,6 +471,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 1 · Fondamentale',
               b: "La fondamentale — la hauteur que vous entendez. Seule, c’est un sinus pur ; c’est le premier harmonique de la série.",
               reviewed: true },
+        'zh-Hans': { t: '分音 1 · 基频',
+                     b: '基频 — 您听到的那个音高。单独听是纯正弦；它是泛音列的第 1 个谐音。',
+                     reviewed: 'mt' },
     },
     partial2: {
         en: { t: 'Partial 2 · even harmonic',
@@ -384,6 +481,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 2 · harmonique pair',
               b: "L’harmonique de rang 2 — 2× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
               reviewed: true },
+        'zh-Hans': { t: '分音 2 · 偶数谐音',
+                     b: '第 2 个谐音 — 基频的 2 倍频率。偶数谐音强化近八度的色彩，增添厚度与温暖。',
+                     reviewed: 'mt' },
     },
     partial3: {
         en: { t: 'Partial 3 · odd harmonic',
@@ -391,6 +491,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 3 · harmonique impair',
               b: "L’harmonique de rang 3 — 3× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
               reviewed: true },
+        'zh-Hans': { t: '分音 3 · 奇数谐音',
+                     b: '第 3 个谐音 — 基频的 3 倍频率。奇数谐音带来空洞的簧片色彩 — 方波正是仅由它们构成的。',
+                     reviewed: 'mt' },
     },
     partial4: {
         en: { t: 'Partial 4 · even harmonic',
@@ -398,6 +501,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 4 · harmonique pair',
               b: "L’harmonique de rang 4 — 4× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
               reviewed: true },
+        'zh-Hans': { t: '分音 4 · 偶数谐音',
+                     b: '第 4 个谐音 — 基频的 4 倍频率。偶数谐音强化近八度的色彩，增添厚度与温暖。',
+                     reviewed: 'mt' },
     },
     partial5: {
         en: { t: 'Partial 5 · odd harmonic',
@@ -405,6 +511,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 5 · harmonique impair',
               b: "L’harmonique de rang 5 — 5× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
               reviewed: true },
+        'zh-Hans': { t: '分音 5 · 奇数谐音',
+                     b: '第 5 个谐音 — 基频的 5 倍频率。奇数谐音带来空洞的簧片色彩 — 方波正是仅由它们构成的。',
+                     reviewed: 'mt' },
     },
     partial6: {
         en: { t: 'Partial 6 · even harmonic',
@@ -412,6 +521,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 6 · harmonique pair',
               b: "L’harmonique de rang 6 — 6× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
               reviewed: true },
+        'zh-Hans': { t: '分音 6 · 偶数谐音',
+                     b: '第 6 个谐音 — 基频的 6 倍频率。偶数谐音强化近八度的色彩，增添厚度与温暖。',
+                     reviewed: 'mt' },
     },
     partial7: {
         en: { t: 'Partial 7 · odd harmonic',
@@ -419,6 +531,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 7 · harmonique impair',
               b: "L’harmonique de rang 7 — 7× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
               reviewed: true },
+        'zh-Hans': { t: '分音 7 · 奇数谐音',
+                     b: '第 7 个谐音 — 基频的 7 倍频率。奇数谐音带来空洞的簧片色彩 — 方波正是仅由它们构成的。',
+                     reviewed: 'mt' },
     },
     partial8: {
         en: { t: 'Partial 8 · even harmonic',
@@ -426,6 +541,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 8 · harmonique pair',
               b: "L’harmonique de rang 8 — 8× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
               reviewed: true },
+        'zh-Hans': { t: '分音 8 · 偶数谐音',
+                     b: '第 8 个谐音 — 基频的 8 倍频率。偶数谐音强化近八度的色彩，增添厚度与温暖。',
+                     reviewed: 'mt' },
     },
     partial9: {
         en: { t: 'Partial 9 · odd harmonic',
@@ -433,6 +551,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 9 · harmonique impair',
               b: "L’harmonique de rang 9 — 9× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
               reviewed: true },
+        'zh-Hans': { t: '分音 9 · 奇数谐音',
+                     b: '第 9 个谐音 — 基频的 9 倍频率。奇数谐音带来空洞的簧片色彩 — 方波正是仅由它们构成的。',
+                     reviewed: 'mt' },
     },
     partial10: {
         en: { t: 'Partial 10 · even harmonic',
@@ -440,6 +561,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 10 · harmonique pair',
               b: "L’harmonique de rang 10 — 10× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
               reviewed: true },
+        'zh-Hans': { t: '分音 10 · 偶数谐音',
+                     b: '第 10 个谐音 — 基频的 10 倍频率。偶数谐音强化近八度的色彩，增添厚度与温暖。',
+                     reviewed: 'mt' },
     },
     partial11: {
         en: { t: 'Partial 11 · odd harmonic',
@@ -447,6 +571,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 11 · harmonique impair',
               b: "L’harmonique de rang 11 — 11× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
               reviewed: true },
+        'zh-Hans': { t: '分音 11 · 奇数谐音',
+                     b: '第 11 个谐音 — 基频的 11 倍频率。奇数谐音带来空洞的簧片色彩 — 方波正是仅由它们构成的。',
+                     reviewed: 'mt' },
     },
     partial12: {
         en: { t: 'Partial 12 · even harmonic',
@@ -454,6 +581,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 12 · harmonique pair',
               b: "L’harmonique de rang 12 — 12× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
               reviewed: true },
+        'zh-Hans': { t: '分音 12 · 偶数谐音',
+                     b: '第 12 个谐音 — 基频的 12 倍频率。偶数谐音强化近八度的色彩，增添厚度与温暖。',
+                     reviewed: 'mt' },
     },
     partial13: {
         en: { t: 'Partial 13 · odd harmonic',
@@ -461,6 +591,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 13 · harmonique impair',
               b: "L’harmonique de rang 13 — 13× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
               reviewed: true },
+        'zh-Hans': { t: '分音 13 · 奇数谐音',
+                     b: '第 13 个谐音 — 基频的 13 倍频率。奇数谐音带来空洞的簧片色彩 — 方波正是仅由它们构成的。',
+                     reviewed: 'mt' },
     },
     partial14: {
         en: { t: 'Partial 14 · even harmonic',
@@ -468,6 +601,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 14 · harmonique pair',
               b: "L’harmonique de rang 14 — 14× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
               reviewed: true },
+        'zh-Hans': { t: '分音 14 · 偶数谐音',
+                     b: '第 14 个谐音 — 基频的 14 倍频率。偶数谐音强化近八度的色彩，增添厚度与温暖。',
+                     reviewed: 'mt' },
     },
     partial15: {
         en: { t: 'Partial 15 · odd harmonic',
@@ -475,6 +611,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 15 · harmonique impair',
               b: "L’harmonique de rang 15 — 15× la fréquence fondamentale. Les harmoniques impairs donnent une couleur creuse et anchée — une onde carrée n’est faite que de ceux-là.",
               reviewed: true },
+        'zh-Hans': { t: '分音 15 · 奇数谐音',
+                     b: '第 15 个谐音 — 基频的 15 倍频率。奇数谐音带来空洞的簧片色彩 — 方波正是仅由它们构成的。',
+                     reviewed: 'mt' },
     },
     partial16: {
         en: { t: 'Partial 16 · even harmonic',
@@ -482,6 +621,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Partiel 16 · harmonique pair',
               b: "L’harmonique de rang 16 — 16× la fréquence fondamentale. Les harmoniques pairs renforcent la couleur d’octave et ajoutent du corps et de la chaleur.",
               reviewed: true },
+        'zh-Hans': { t: '分音 16 · 偶数谐音',
+                     b: '第 16 个谐音 — 基频的 16 倍频率。偶数谐音强化近八度的色彩，增添厚度与温暖。',
+                     reviewed: 'mt' },
     },
 });
 
@@ -512,17 +654,23 @@ export const LABELS = Object.freeze({
         en: { t: 'Additive · Wavetable-Scan Synthesizer · A Field Guide' },
         fr: { t: 'Synthétiseur additif · balayage de table d’ondes · un guide de terrain',
               reviewed: true },
+        'zh-Hans': { t: '加法合成 · 波表扫描合成器 · 实地指南',
+                     reviewed: 'mt' },
     },
 
     // ── Drawbar bay ─────────────────────────────────────────────────────────
     'label.drawbarTitle': {
         en: { t: 'Harmonic Drawbars' },
         fr: { t: 'Tirettes harmoniques', reviewed: true },
+        'zh-Hans': { t: '谐音拉杆',
+                     reviewed: 'mt' },
     },
     'label.drawbarHint': {
         en: { t: "each bar is one overtone · the row reads as the live spectrum (glow = what's sounding)" },
         fr: { t: 'chaque tirette est un harmonique · la rangée se lit comme le spectre en direct (la lueur = ce qui sonne)',
               reviewed: true },
+        'zh-Hans': { t: '每根拉杆是一个泛音 · 整排可读作实时频谱（辉光 = 正在发声的内容）',
+                     reviewed: 'mt' },
     },
 
     // ── Oscilloscope ────────────────────────────────────────────────────────
@@ -532,32 +680,46 @@ export const LABELS = Object.freeze({
     'label.waveform': {
         en: { t: 'Waveform ·' },
         fr: { t: 'Forme d’onde ·', reviewed: true },
+        'zh-Hans': { t: '波形 ·',
+                     reviewed: 'mt' },
     },
     'label.waveformHint': {
         en: { t: 'the summed single-cycle shape (morphs as you scan)' },
         fr: { t: 'la forme sommée d’un seul cycle (elle morphe pendant le balayage)', reviewed: true },
+        'zh-Hans': { t: '单周期波形的总和（随扫描而变形）',
+                     reviewed: 'mt' },
     },
 
     // ── Group headings ──────────────────────────────────────────────────────
     'label.groupMorph': {
         en: { t: 'Morph · Wavetable' },
         fr: { t: 'Morphage · table d’ondes', reviewed: true },
+        'zh-Hans': { t: '变形 · 波表',
+                     reviewed: 'mt' },
     },
     'label.groupSpectral': {
         en: { t: 'Spectral Shaping' },
         fr: { t: 'Façonnage spectral', reviewed: true },
+        'zh-Hans': { t: '频谱塑形',
+                     reviewed: 'mt' },
     },
     'label.groupAmpEnv': {
         en: { t: 'Amplitude Envelope' },
         fr: { t: 'Enveloppe d’amplitude', reviewed: true },
+        'zh-Hans': { t: '振幅包络',
+                     reviewed: 'mt' },
     },
     'label.groupModEnv': {
         en: { t: 'Modulation Envelope · → Scan' },
         fr: { t: 'Enveloppe de modulation · → Balayage', reviewed: true },
+        'zh-Hans': { t: '调制包络 · → 扫描',
+                     reviewed: 'mt' },
     },
     'label.groupOutput': {
         en: { t: 'Output' },
         fr: { t: 'Sortie', reviewed: true },
+        'zh-Hans': { t: '输出',
+                     reviewed: 'mt' },
     },
 
     // ── Knob and combo captions ─────────────────────────────────────────────
@@ -577,29 +739,45 @@ export const LABELS = Object.freeze({
     // overhangs 13px a side — and the glossary accepts the abbreviation.
     'label.frameB': {
         en: { t: 'Frame B' },  fr: { t: 'Trame B', reviewed: true },
+        'zh-Hans': { t: '帧 B',
+                     reviewed: 'mt' },
     },
     'label.scan': {
         en: { t: 'Scan' },     fr: { t: 'Balayage', reviewed: true },
+        'zh-Hans': { t: '扫描',
+                     reviewed: 'mt' },
     },
     'label.lfoRate': {
         en: { t: 'LFO Rate' }, fr: { t: 'Vitesse du LFO', reviewed: true },
+        'zh-Hans': { t: 'LFO 速率',
+                     reviewed: 'mt' },
     },
     'label.lfoDepth': {
         en: { t: 'LFO Depth' }, fr: { t: 'Profondeur du LFO', reviewed: true },
+        'zh-Hans': { t: 'LFO 深度',
+                     reviewed: 'mt' },
     },
     // The arrow is a glyph, not copy, and it is kept on both sides so the two
     // strings have the same shape.
     'label.envScan': {
         en: { t: 'Env→Scan' }, fr: { t: 'Env→Balay.', reviewed: true },
+        'zh-Hans': { t: '包络→扫描',
+                     reviewed: 'mt' },
     },
     'label.spectralDecay': {
         en: { t: 'Spectral Decay' }, fr: { t: 'Décroiss. spectrale', reviewed: true },
+        'zh-Hans': { t: '频谱衰减',
+                     reviewed: 'mt' },
     },
     'label.bitDepth': {
         en: { t: 'Bit Depth' }, fr: { t: 'Résolution', reviewed: true },
+        'zh-Hans': { t: '位深',
+                     reviewed: 'mt' },
     },
     'label.velDecay': {
         en: { t: 'Vel→Decay' }, fr: { t: 'Vél→Décroiss.', reviewed: true },
+        'zh-Hans': { t: '力度→衰减',
+                     reviewed: 'mt' },
     },
     // The four ADSR captions are used TWICE each — once in the amplitude
     // envelope group and once in the modulation envelope group. One key, two
@@ -607,18 +785,28 @@ export const LABELS = Object.freeze({
     // and two keys holding the same word would be two places for it to drift.
     'label.attack': {
         en: { t: 'Attack' },  fr: { t: 'Attaque', reviewed: true },
+        'zh-Hans': { t: '起音',
+                     reviewed: 'mt' },
     },
     'label.decay': {
         en: { t: 'Decay' },   fr: { t: 'Déclin', reviewed: true },
+        'zh-Hans': { t: '衰减',
+                     reviewed: 'mt' },
     },
     'label.sustain': {
         en: { t: 'Sustain' }, fr: { t: 'Maintien', reviewed: true },
+        'zh-Hans': { t: '延音',
+                     reviewed: 'mt' },
     },
     'label.release': {
         en: { t: 'Release' }, fr: { t: 'Relâchement', reviewed: true },
+        'zh-Hans': { t: '释音',
+                     reviewed: 'mt' },
     },
     'label.level': {
         en: { t: 'Level' },   fr: { t: 'Niveau', reviewed: true },
+        'zh-Hans': { t: '电平',
+                     reviewed: 'mt' },
     },
 
     // ── Lesson preset tour ──────────────────────────────────────────────────
@@ -639,6 +827,8 @@ export const LABELS = Object.freeze({
     'label.tourLabel': {
         en: { t: 'Lesson Presets' },
         fr: { t: 'Leçons', reviewed: true },
+        'zh-Hans': { t: '教学预设',
+                     reviewed: 'mt' },
     },
 
     // The six button captions. These are NOT exempt under D-02: D-02 protects a
@@ -646,12 +836,31 @@ export const LABELS = Object.freeze({
     // snapshots applied by name through applyFactoryPreset. The English name
     // travels in the button's own data-preset attribute, which is never
     // localized, so the caption is free to be a caption.
-    'label.lessonSine':   { en: { t: 'Pure Sine' },   fr: { t: 'Sinus pur', reviewed: true } },
-    'label.lessonSaw':    { en: { t: 'Sawtooth' },    fr: { t: 'Dent de scie', reviewed: true } },
-    'label.lessonSquare': { en: { t: 'Square' },      fr: { t: 'Carrée', reviewed: true } },
-    'label.lessonOrgan':  { en: { t: 'Organ' },       fr: { t: 'Orgue', reviewed: true } },
-    'label.lessonMorph':  { en: { t: 'Morph Pad' },   fr: { t: 'Nappe morphée', reviewed: true } },
-    'label.lessonLofi':   { en: { t: 'Lo-Fi Bells' }, fr: { t: 'Cloches lo-fi', reviewed: true } },
+    'label.lessonSine':   { en: { t: 'Pure Sine' },   fr: { t: 'Sinus pur', reviewed: true },
+        'zh-Hans': { t: '纯正弦',
+                     reviewed: 'mt' },
+    },
+    'label.lessonSaw':    { en: { t: 'Sawtooth' },    fr: { t: 'Dent de scie', reviewed: true },
+        'zh-Hans': { t: '锯齿波',
+                     reviewed: 'mt' },
+    },
+    'label.lessonSquare': { en: { t: 'Square' },      fr: { t: 'Carrée', reviewed: true },
+        'zh-Hans': { t: '方波',
+                     reviewed: 'mt' },
+    },
+    'label.lessonOrgan':  { en: { t: 'Organ' },       fr: { t: 'Orgue', reviewed: true },
+        'zh-Hans': { t: '管风琴',
+                     reviewed: 'mt' },
+    },
+    'label.lessonMorph':  { en: { t: 'Morph Pad' },   fr: { t: 'Nappe morphée', reviewed: true },
+        'zh-Hans': { t: '变形音垫',
+                     termNote: 'same divergence as the lessonMorph tooltip title, and it needs its own note because a termNote is ENTRY-scoped (N4): the glossary root 变形面板 for \'Morph Pad\' reads as a morph PANEL, and this is a synth PAD (音垫). One corpus site, this plugin.',
+                     reviewed: 'mt' },
+    },
+    'label.lessonLofi':   { en: { t: 'Lo-Fi Bells' }, fr: { t: 'Cloches lo-fi', reviewed: true },
+        'zh-Hans': { t: '低保真钟声',
+                     reviewed: 'mt' },
+    },
 
     // The tour caption, written from script through setLabel() on every lesson
     // click — so the element becomes a [data-i18n] element and the language
@@ -662,42 +871,59 @@ export const LABELS = Object.freeze({
         en: { t: 'Hover any control for an explanation · pick a lesson to hear a concept.' },
         fr: { t: 'Survolez un réglage pour une explication · choisissez une leçon pour entendre une notion.',
               reviewed: true },
+        'zh-Hans': { t: '悬停任意控件查看说明 · 选择一课来听一个概念。',
+                     reviewed: 'mt' },
     },
     'label.captionSine': {
         en: { t: 'Pure Sine — only the fundamental (H1). One drawbar, one sine: the atom of additive synthesis.' },
         fr: { t: "Sinus pur — seulement la fondamentale (H1). Une tirette, un sinus : l’atome de la synthèse additive.",
               reviewed: true },
+        'zh-Hans': { t: '纯正弦 — 只有基频（H1）。一根拉杆，一个正弦：加法合成的原子。',
+                     reviewed: 'mt' },
     },
     'label.captionSaw': {
         en: { t: 'Sawtooth — every harmonic at 1/k. All overtones falling by 1/k → a bright, buzzy ramp.' },
         fr: { t: 'Dent de scie — tous les harmoniques à 1/k. Tous les partiels décroissant en 1/k → une rampe brillante et bourdonnante.',
               reviewed: true },
+        'zh-Hans': { t: '锯齿波 — 每个谐音都按 1/k。所有泛音按 1/k 递减 → 一段明亮而嗡鸣的斜坡。',
+                     reviewed: 'mt' },
     },
     'label.captionSquare': {
         en: { t: 'Square — odd harmonics only, at 1/k. Dropping the even partials gives the hollow, reedy tone.' },
         fr: { t: 'Carrée — harmoniques impairs seulement, à 1/k. Retirer les partiels pairs donne le timbre creux et anché.',
               reviewed: true },
+        'zh-Hans': { t: '方波 — 只有奇数谐音，按 1/k 递减。去掉偶数分音便得到空洞的簧片音色。',
+                     reviewed: 'mt' },
     },
     'label.captionOrgan': {
         en: { t: 'Organ — a Hammond-style drawbar registration: a few low harmonics, instant attack, full sustain.' },
         fr: { t: 'Orgue — un registre de tirettes à la Hammond : quelques harmoniques graves, attaque immédiate, maintien plein.',
               reviewed: true },
+        'zh-Hans': { t: '管风琴 — Hammond 风格的拉杆音栓配置：少数低次谐音，瞬时起音，完全延音。',
+                     reviewed: 'mt' },
     },
     'label.captionMorph': {
         en: { t: 'Morph Pad — the scan LFO slowly morphs your drawbars toward a square; long envelopes make it breathe.' },
         fr: { t: 'Nappe morphée — le LFO de balayage morphe lentement vos tirettes vers une carrée ; de longues enveloppes la font respirer.',
               reviewed: true },
+        'zh-Hans': { t: '变形音垫 — 扫描 LFO 缓慢地把您的拉杆变形为方波；长包络让它呼吸。',
+                     termNote: 'the third and last entry carrying \'Morph Pad\' on this page, and the third note, because a termNote is ENTRY-scoped (N4). Same reason: the glossary root 变形面板 reads as a morph PANEL, the English names a synth PAD (音垫), and the root has exactly one corpus site — this plugin.',
+                     reviewed: 'mt' },
     },
     'label.captionLofi': {
         en: { t: 'Lo-Fi Bells — a spread bell spectrum + spectral-decay tilt + 8-bit quantization for digital grit.' },
         fr: { t: 'Cloches lo-fi — un spectre de cloche étalé + une pente de décroissance spectrale + une quantification 8 bits pour le grain numérique.',
               reviewed: true },
+        'zh-Hans': { t: '低保真钟声 — 展开的钟形频谱 + 频谱衰减倾斜 + 8 位量化，制造数字颗粒感。',
+                     reviewed: 'mt' },
     },
 
     // ── On-screen keyboard ──────────────────────────────────────────────────
     'label.play': {
         en: { t: 'Play ·' },
         fr: { t: 'Jouer ·', reviewed: true },
+        'zh-Hans': { t: '播放 ·',
+                     reviewed: 'mt' },
     },
     // The letter run is the QWERTY key map, not prose: it names physical keys
     // and stays exactly as it is in both languages. Only the sentence around it
@@ -711,6 +937,8 @@ export const LABELS = Object.freeze({
         en: { t: 'click the keys or use your computer keyboard (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)' },
         fr: { t: 'cliquez sur les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)',
               reviewed: true },
+        'zh-Hans': { t: '点击琴键或使用电脑键盘 (A S D F G H J K · W E T Y U)',
+                     reviewed: 'mt' },
     },
 
     // ── Accessible names ────────────────────────────────────────────────────
@@ -719,22 +947,34 @@ export const LABELS = Object.freeze({
     // fallback, which is the one place on this page reuse is deliberate.
     'aria.settings': {
         en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true },
+        'zh-Hans': { t: '设置',
+                     reviewed: 'mt' },
     },
     'aria.langSelect': {
         en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true },
+        'zh-Hans': { t: '界面语言',
+                     reviewed: 'mt' },
     },
     'aria.helpToggle': {
         en: { t: 'Toggle hover help' }, fr: { t: "Activer ou désactiver les infobulles", reviewed: true },
+        'zh-Hans': { t: '开关悬停帮助',
+                     reviewed: 'mt' },
     },
     // The switch's two faces, written through setLabel from applyTipsEnabled.
     'ui.on': {
         en: { t: 'On' }, fr: { t: 'Activée', reviewed: true },
+        'zh-Hans': { t: '开',
+                     reviewed: 'mt' },
     },
     'ui.off': {
         en: { t: 'Off' }, fr: { t: 'Désactivée', reviewed: true },
+        'zh-Hans': { t: '关',
+                     reviewed: 'mt' },
     },
     'aria.keyboard': {
         en: { t: 'On-screen keyboard' }, fr: { t: 'Clavier à l’écran', reviewed: true },
+        'zh-Hans': { t: '屏幕键盘',
+                     reviewed: 'mt' },
     },
 });
 
@@ -760,6 +1000,7 @@ export const I18N_EXEMPT = [
     // "Français", not "French".
     ['English',  'endonym — a language name is never translated'],
     ['Français', 'endonym — a language name is never translated'],
+    ['简体中文', 'endonym — a language name is never translated'],
 
     // The Frame B and Bit Depth menu entries are built at runtime from the
     // AudioParameterChoice's own choice strings. Those are the host automation
