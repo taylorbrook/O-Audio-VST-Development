@@ -330,3 +330,8 @@ i18n_new_keys:
 non_parameter_state:
   imported_source: "OBJ/STL/PNG per oscillator, gzip+base64 ≤ 2 MB else path + SHA-256; 'Source missing' notice when unresolvable"
   view_mode: "⬡/≋ per oscillator — UI state, not a parameter"
+
+# Finalization metadata
+finalized: true
+finalized_at: 2026-09-08T01:59:53Z
+finalized_by_phase: 5.5

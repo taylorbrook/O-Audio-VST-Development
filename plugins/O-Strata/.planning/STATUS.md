@@ -10,12 +10,17 @@ next_action: create_ui_mockup_then_invoke_foundation_shell_agent
 next_stage: 1
 ready_for_implementation: true
 contract_checksums:
-  brief: sha256:028d9f47ee52ba1c4b3ebb7f81bb603c39d7a4a90d7c6b892e64e20feff00876
+  brief: sha256:017962972096be6494d98cb27de5042dbf2842c3c13b532eadc8c396261dba4e
   parameter_spec: sha256:801ff201a6adbec0140787d3f66954881a842a0d132c094c9daca7c773ed9c02
   architecture: sha256:9d28809a04318159416c68ec184747112159c6bd9a2a39ad0dd88206e4318b46
   roadmap: sha256:20090d1efcc15b9d7378b5bb696603babc64b9dad1d07060bd58c19585d9ce58
 mockup_latest_version: 1
 ui_design_phase_complete: true
+mockup_finalized: true
+finalized_version: 1
+brief_updated_from_mockup: true
+mockup_version_synced: 1
+brief_update_timestamp: "2026-09-08T01:59:53Z"
 ---
 
 # O-Strata Status
