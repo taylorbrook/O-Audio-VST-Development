@@ -1,5 +1,67 @@
 # Changelog — O-Orbit
 
+## [1.3.0] - 2026-09-07
+
+Simplified Chinese joins English and French. MINOR: 125 new interface strings,
+one whole-page font-stack repair and thirteen Chinese-scoped geometry rules —
+no parameter, range, type or state format changed, and no English or French
+rendering moved.
+
+### Added
+
+- **Simplified Chinese (`zh-Hans`) across the whole interface** — 125 rows over
+  34 tooltip entries and 57 captions, plus the `简体中文` endonym in the language
+  selector and its `I18N_EXEMPT` entry. The `languageCode` / `languageIndex`
+  codec in `PluginProcessor.h` is three-way and stays pure ASCII; persistence is
+  unchanged (the ValueTree `uiLanguage` property).
+- **Disclosed quality level: `reviewed: 'bt'`** — machine-drafted, then read
+  BACK from Chinese into English by a separate agent with no access to this
+  repository and no sight of the original English, in two concept-split batches
+  with a fresh blinding salt each, and every one of the 125 triples read. It is
+  NOT `'native'`: no native Simplified Chinese speaker has read these strings,
+  and `scripts/i18n-zh-lint.js` prints that on every run.
+
+### Changed
+
+- **The single house font stack now names an installed serif face.** All
+  fourteen declaration sites read `Garamond, 'EB Garamond', serif` with no
+  `font-family: inherit` anywhere, and neither Garamond family is present on the
+  build machine — so the only surviving member was the bare generic, which
+  Chromium resolves against the document language. Probed through the DevTools
+  protocol, the ASCII wordmark resolved to Times on the English and French arms
+  and to a Chinese face on the Chinese arm, at a different width. The stack now
+  reads `Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC',
+  'Microsoft YaHei', serif`: an installed Latin face first so neither Latin arm
+  can move, the CJK tail before the generic, and the two Garamond members kept
+  ahead of everything as the Windows and print intent. Re-probed after the
+  change, all three arms resolve the same face at the same width, and every
+  Han-bearing node resolves through PingFang SC.
+- **Ten Chinese-scoped line-box ratios.** A Han line box runs about 30% taller
+  than a Latin one at the same size, so every leaf whose `line-height` resolved
+  to `normal` grew 1px to 3px. Each ratio is derived from that element's own
+  measured English content box rather than from a shared table, and all ten sit
+  under `html[lang="zh-Hans"]` so the English and French arms keep the `normal`
+  they shipped with.
+- **The four worded speaker-format chips are pinned to the English row.** Their
+  Chinese renderings are all three glyphs where the English ranges from three to
+  six characters, so one chip shrank 8.61px and three grew — a net 2.98px that
+  slid the four unkeyed numeric chips 7.33px left. Latin letter-spacing is
+  trimmed on those four under Chinese, where it buys nothing.
+- **The language tooltip no longer enumerates the available languages.** It said
+  which two there were; there are three, and a body that counts them is wrong
+  again at the next one. The exception list is unchanged and re-verified — value
+  readouts and preset names still stay in English, the second of those being the
+  `#preset-name` node the markup has always declared off-limits to the sweep.
+
+### Notes
+
+- `Resources/ui/js/modules/preset-manager.js` is unchanged. It carries seven
+  English strings; five live in a `createPresetBar()` block this page never
+  calls, and the two that do reach the page write the preset NAME, which is the
+  preset's filename and is exempt by design. No gate in this repo opens the file
+  — reported here rather than fixed inside a copy-only release.
+- `plugins/O-Orbit/libs/SAF` is untouched at `b6fe1882` (v1.3.4).
+
 ## [1.2.3] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
