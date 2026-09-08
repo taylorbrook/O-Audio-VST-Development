@@ -1198,7 +1198,7 @@ void OSimpleGrainAudioProcessor::setStateInformation (const void* data, int size
     // v1.3.0. A pre-1.3.0 session has no property, getProperty returns a VOID
     // var, and the default (English) stands. isVoid() is the only correct gate —
     // the value comes back as a STRING var, so a type predicate like isInt()
-    // would never fire. languageIndex() clamps anything that is not "fr" to 0,
+    // would never fire. languageIndex() clamps anything unrecognised to 0,
     // so a hand-edited value degrades to English rather than to a bad index.
     // Read from the INCOMING tree, before replaceState below: apvts.state is
     // still the old tree at this point.

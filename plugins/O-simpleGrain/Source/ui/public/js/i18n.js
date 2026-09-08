@@ -18,7 +18,37 @@
    along with this program.  If not, see https://www.gnu.org/licenses/ .
 */
 // ============================================================================
-// i18n.js — O-simpleGrain interface copy, English + French (v1.4.2)
+// i18n.js — O-simpleGrain interface copy, English, French and Simplified
+// Chinese (v1.5.0)
+//
+// ── v1.5.0: SIMPLIFIED CHINESE (wave 4g, 2026-09-07) ──────────────────────
+// 153 rows. Every zh row is machine-drafted and then read back through an
+// independent blind reverse pass by a different model that never saw the
+// English; the disclosed quality level is carried per entry in reviewed:.
+// No native Simplified Chinese reader has seen it, so 'native' stays open and
+// blocks nothing.
+//
+// THE LANGUAGE BODY NO LONGER ENUMERATES WHAT IS ON OFFER. lang-select's body
+// named a fixed pair, which was true for exactly as long as the selector held
+// two entries and became false the moment this version added a third. The
+// selector lists them in their own endonyms — the one place the list cannot go
+// stale — so the clause is deleted rather than extended, in en and in fr both.
+// The exception list STAYS and its numeric claim was re-verified at this
+// version: index.html carries 3 select elements, and subtracting the language
+// selector itself leaves 2. That half is the one a reader cannot discover by
+// looking. The superseded phrasings are in the CHANGELOG and deliberately not
+// repeated here, so a repo grep for either stays at zero.
+//
+// THREE ENTRIES CARRY A termNote — a reasoned, entry-scoped glossary
+// exemption, never a silent fork. Scatter is qualified as the TIMING one
+// because the three Spray knobs beside it already carry the bare glossary root
+// as their tail morpheme and the bare root is also the group heading above
+// them; the Granular Fire lesson names the flame in its own crackling-fire
+// recording rather than the verb the root reads; and the Load button's root is
+// a dangling modifier that needs the head noun this page loads. The Grains
+// readout key is qualified as a COUNT for the same collision reason and
+// trimmed to three characters because the four-character form measured wider
+// than the English key and pushed the strip beside it.
 //
 // ── v1.4.2: ENGLISH / TEST-DATA DEFECTS (Stage O, 2026-08-31) ─────────────
 // Stage N read the French against the code and found these; Stage O fixes them.
@@ -201,7 +231,7 @@
 // has read it. node scripts/check-i18n.js prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 export const I18N = Object.freeze({
 
@@ -215,13 +245,19 @@ export const I18N = Object.freeze({
         fr: { t: "Réglages",
               b: "Choisir la langue de l’interface et l’affichage des infobulles. La langue est conservée avec la session\u00a0; l’état des infobulles est conservé sur cet ordinateur.",
               reviewed: true },
+        'zh-Hans': { t: "设置",
+                     b: "选择界面语言，以及是否显示这些悬停帮助。语言随会话一起保存；悬停帮助开关保存在本机上。",
+                     reviewed: 'mt' },
     },
     'lang-select': {
         en: { t: "Language",
-              b: "The language of the labels on this page and of this hover help. English and French are available; value readouts and the two drop-down menus stay in English." },
+              b: "The language of the labels on this page and of this hover help. Value readouts and the two drop-down menus stay in English." },
         fr: { t: "Langue",
-              b: "La langue des libellés de cette page et de ces infobulles. L’anglais et le français sont disponibles\u00a0; les valeurs affichées et les deux menus déroulants restent en anglais.",
+              b: "La langue des libellés de cette page et de ces infobulles. Les valeurs affichées et les deux menus déroulants restent en anglais.",
               reviewed: true },
+        'zh-Hans': { t: "语言",
+                     b: "本页标签与这些悬停帮助所用的语言。数值读数和两个下拉菜单保持英文。",
+                     reviewed: 'mt' },
     },
     'help-toggle': {
         en: { t: "Hover help",
@@ -229,6 +265,9 @@ export const I18N = Object.freeze({
         fr: { t: "Infobulles",
               b: "Active ou désactive ces infobulles. Le réglage est conservé sur cet ordinateur et non dans la session\u00a0: il vous suit d’un projet à l’autre.",
               reviewed: true },
+        'zh-Hans': { t: "悬停帮助",
+                     b: "关闭或重新开启这些悬停说明。该开关保存在本机上而非会话中，因此会随您从一个项目带到下一个项目。",
+                     reviewed: 'mt' },
     },
 
     // ── Source ──────────────────────────────────────────────────────────────
@@ -238,6 +277,9 @@ export const I18N = Object.freeze({
         fr: { t: "Échantillon source",
               b: "Le son court que le synthé découpe en grains. La synthèse granulaire ne fabrique jamais un timbre de zéro — elle saupoudre de minuscules tranches de cet enregistrement. Choisissez feu, voix, eau ou piano\u00a0; ou déposez le vôtre ci-dessous.",
               reviewed: true },
+        'zh-Hans': { t: "源样本",
+                     b: "合成器切成颗粒的那段短声音。颗粒合成从不凭空造出音色，它只是把这段录音的微小切片撒出来。选择 Fire、Voice、Water 或 Piano；也可以在下方拖入您自己的素材。",
+                     reviewed: 'mt' },
     },
     loadSource: {
         en: { t: "Load your own",
@@ -245,6 +287,10 @@ export const I18N = Object.freeze({
         fr: { t: "Charger le vôtre",
               b: "Ouvre un sélecteur de fichier pour granuler n’importe quel .wav / .aif court (limité à 10\u00a0s). Les mêmes commandes de grain agissent alors sur votre son — le moteur se moque de la source.",
               reviewed: true },
+        'zh-Hans': { t: "载入自己的素材",
+                     b: "打开文件选择器，对任意一段简短的 .wav / .aif 做颗粒化（上限 10 秒）。之后同一组颗粒控件就作用在您的声音上，引擎并不在意源是什么。",
+                     termNote: "the glossary root for this English is a dangling modifier with no head noun; the head noun the page needs is the loaded material",
+                     reviewed: 'mt' },
     },
     dropZone: {
         en: { t: "Drop a source",
@@ -252,6 +298,9 @@ export const I18N = Object.freeze({
         fr: { t: "Déposer une source",
               b: "Glissez un .wav / .aif ici pour granuler votre propre son. Les fichiers de plus de 10\u00a0s sont rognés (un avis s’affiche). Essayez un mot parlé ou un enregistrement de terrain — le granulaire fait des textures avec tout.",
               reviewed: true },
+        'zh-Hans': { t: "拖入一个源",
+                     b: "把 .wav / .aif 拖到这里，对您自己的声音做颗粒化。超过 10 秒的文件会被截断（会有提示）。试试一个口语词或一段实地录音，颗粒合成能把任何东西变成纹理。",
+                     reviewed: 'mt' },
     },
 
     // ── Grain ───────────────────────────────────────────────────────────────
@@ -261,6 +310,9 @@ export const I18N = Object.freeze({
         fr: { t: "Taille de grain",
               b: "Durée de chaque tranche, 2–500\u00a0ms. C’est l’axe bourdonnement\u00a0↔\u00a0fragments\u00a0: les grains très courts (quelques\u00a0ms) perdent la source et deviennent un timbre\u00a0; les grains longs (>60\u00a0ms) gardent des morceaux reconnaissables. Avec la densité, cela fixe la profondeur du recouvrement des grains (recouvrement = taille\u00a0×\u00a0densité).",
               reviewed: true },
+        'zh-Hans': { t: "颗粒尺寸",
+                     b: "每个切片的时长，2–500 ms。这是嗡鸣 ↔ 碎片这条轴：极短的颗粒（几毫秒）会失去源而变成音色；长颗粒（超过 60 ms）保留可辨认的片段。它和密度一起决定颗粒重叠的深度（重叠 = 尺寸 × 密度）。",
+                     reviewed: 'mt' },
     },
     density: {
         en: { t: "Density",
@@ -268,6 +320,9 @@ export const I18N = Object.freeze({
         fr: { t: "Densité",
               b: "Grains déclenchés par seconde, 1–200. Clairsemé = vous entendez des grains séparés\u00a0; dense = ils fusionnent en un nuage continu. La sommation par recouvrement ne sonne lisse que si beaucoup de grains se recouvrent\u00a0: densité et taille travaillent ensemble (surveillez l’affichage Recouvrement).",
               reviewed: true },
+        'zh-Hans': { t: "密度",
+                     b: "每秒触发的颗粒数，1–200。稀疏时您听到彼此分开的颗粒；密集时它们融成连续的云团。只有当大量颗粒相互重叠时，重叠相加才会听起来平滑，所以密度和尺寸要一起调（留意重叠读数）。",
+                     reviewed: 'mt' },
     },
     position: {
         en: { t: "Position",
@@ -275,6 +330,9 @@ export const I18N = Object.freeze({
         fr: { t: "Position",
               b: "L’endroit de la source où repose la tête de lecture, 0–100\u00a0%. C’est le point où les grains sont découpés — balayez-le pour parcourir l’enregistrement. Va de pair avec Balayage (qui déplace la tête) et Gel (qui la fige).",
               reviewed: true },
+        'zh-Hans': { t: "位置",
+                     b: "读取头停在源中的哪个位置，0–100%。颗粒就是从这一点切下来的，扫过它可以在录音里搜索。它与扫描（移动读取头）和冻结（钉住读取头）配合使用。",
+                     reviewed: 'mt' },
     },
     scan: {
         en: { t: "Scan / Time-Stretch",
@@ -282,6 +340,9 @@ export const I18N = Object.freeze({
         fr: { t: "Balayage / étirement temporel",
               b: "Vitesse de déplacement de la tête de lecture, −200…+200\u00a0%. À 0\u00a0% elle reste sur un instant\u00a0; sous 100\u00a0% la source est étirée dans le temps sans changer de hauteur\u00a0; en négatif le balayage se fait à l’envers. C’est l’étirement temporel granulaire.",
               reviewed: true },
+        'zh-Hans': { t: "扫描 / 时间延展",
+                     b: "读取头行进的速度，−200…+200%。0% 时它停在一个瞬间；低于 100% 会在不改变音高的前提下把源在时间上拉长；负值则倒着扫描。这就是颗粒式的时间延展。",
+                     reviewed: 'mt' },
     },
     freeze: {
         en: { t: "Freeze",
@@ -289,6 +350,9 @@ export const I18N = Object.freeze({
         fr: { t: "Gel",
               b: "Fige la tête de lecture sur l’instant courant et le tient indéfiniment — le flux de grains continue mais n’avance plus dans la source. Ajoutez de la Dispersion hauteur pour une nappe gelée scintillante. Le gel s’enclenche en fondu, donc sans clic.",
               reviewed: true },
+        'zh-Hans': { t: "冻结",
+                     b: "把读取头钉在当前瞬间并无限延续下去，颗粒流继续涌出，却不再在源中前进。加上音高散布可得到闪烁的冻结铺垫。钉住的过程是淡入的，所以不会有咔哒声。",
+                     reviewed: 'mt' },
     },
 
     // ── Window ──────────────────────────────────────────────────────────────
@@ -298,6 +362,9 @@ export const I18N = Object.freeze({
         fr: { t: "Forme de fenêtre",
               b: "L’enveloppe de fondu appliquée à chaque grain. Hann/Gauss entrent et sortent en douceur, si bien que les grains superposés se fondent proprement. Rectangular est plate avec seulement 1\u00a0ms de garde à chaque bord — dure et bourdonnante, l’extrémité rugueuse de la leçon. Tukey se situe entre les deux\u00a0: un sommet plat avec un fondu en forme de Hann dont la longueur est réglée par Fondu.",
               reviewed: true },
+        'zh-Hans': { t: "窗口形状",
+                     b: "施加在每个颗粒上的淡化包络。Hann/Gauss 平滑地淡入淡出，让重叠的颗粒干净地交叉淡化。Rectangular 是平顶的，两端各只有 1 ms 的保护，边缘生硬、带嗡鸣，是这堂课粗糙的一端。Tukey 介于两者之间：平坦的顶部加上 Hann 形状的淡化，长度由渐变决定。",
+                     reviewed: 'mt' },
     },
     windowTaper: {
         en: { t: "Taper",
@@ -305,6 +372,9 @@ export const I18N = Object.freeze({
         fr: { t: "Fondu",
               b: "Tukey uniquement\u00a0: la part de chaque grain passée en fondu, 0–100\u00a0%, répartie entre les deux bords. 0\u00a0% est la fenêtre rectangulaire plate (avec garde)\u00a0; 100\u00a0% est un Hann complet. Entre les deux, on garde un milieu plat et fort et on achète juste assez de fondu pour que les bords cessent de claquer.",
               reviewed: true },
+        'zh-Hans': { t: "渐变",
+                     b: "仅对 Tukey 有效：每个颗粒中用于淡化的比例，0–100%，分摊到两端。0% 是平坦的矩形窗（带保护淡化）；100% 是完整的 Hann。介于两者之间时，中段保持平坦而响亮，只买下刚好够用的淡化来阻止边缘发出咔哒声。",
+                     reviewed: 'mt' },
     },
 
     // ── Spray and scatter ───────────────────────────────────────────────────
@@ -314,6 +384,9 @@ export const I18N = Object.freeze({
         fr: { t: "Dispersion hauteur",
               b: "Transposition aléatoire grain par grain, 0–12\u00a0demi-tons. Chaque grain est décalé au hasard vers le haut ou le bas, si bien qu’une texture gelée ou statique se met à scintiller et à s’épaissir au lieu de rester sur une hauteur morte.",
               reviewed: true },
+        'zh-Hans': { t: "音高散布",
+                     b: "逐颗粒的随机移调，0–12 半音。每个颗粒都被随机地上下推移，于是冻结或静止的纹理开始闪烁并变厚，而不是停在一个死气沉沉的音高上。",
+                     reviewed: 'mt' },
     },
     positionSpray: {
         en: { t: "Position Spray",
@@ -321,6 +394,9 @@ export const I18N = Object.freeze({
         fr: { t: "Dispersion position",
               b: "Position de lecture aléatoire grain par grain, 0–100\u00a0%. Disperse l’endroit d’où chaque grain est découpé autour du point Position — transforme une lecture serrée en un lavis puisé dans toute une région de la source (visible en bande verte sur la forme d’onde).",
               reviewed: true },
+        'zh-Hans': { t: "位置散布",
+                     b: "逐颗粒的随机读取位置，0–100%。它把每个颗粒的切取点在位置点周围散开，把一次紧凑的读取变成从源的一整片区域中汲取的晕染（在波形上显示为绿色带）。",
+                     reviewed: 'mt' },
     },
     scatter: {
         en: { t: "Scatter",
@@ -328,6 +404,10 @@ export const I18N = Object.freeze({
         fr: { t: "Dispersion",
               b: "Rend aléatoire le moment de déclenchement des grains, 0–100\u00a0%. C’est l’axe synchrone\u00a0↔\u00a0asynchrone\u00a0: à 0\u00a0% les grains suivent une horloge parfaite (un peigne harmonique, des bandes latérales discrètes)\u00a0; une forte dispersion dissout le peigne en bruit large bande. Regardez le spectre.",
               reviewed: true },
+        'zh-Hans': { t: "时间散布",
+                     b: "让颗粒的触发时刻随机化，0–100%。这是同步 ↔ 异步这条轴：0% 时颗粒按完美的时钟触发（一个有音高的梳状谱，边带是离散的）；散布加大则把梳状谱溶解成宽带噪声。请看频谱。",
+                     termNote: "this control randomises grain TIMING; the page's three Spray knobs already carry the bare glossary root as their tail morpheme, so the unqualified root would read as a fourth spray and would also be identical to the group heading above it",
+                     reviewed: 'mt' },
     },
     grainPitch: {
         en: { t: "Grain Pitch",
@@ -335,6 +415,9 @@ export const I18N = Object.freeze({
         fr: { t: "Hauteur du grain",
               b: "Transposition globale de tous les grains, −24…+24\u00a0demi-tons. S’ajoute au suivi de clavier MIDI et à la dispersion de hauteur — montez tout le nuage d’une octave sans toucher au clavier.",
               reviewed: true },
+        'zh-Hans': { t: "颗粒音高",
+                     b: "对所有颗粒的整体移调，−24…+24 半音。它叠加在 MIDI 键位跟踪和音高散布之上，不碰键盘就能把整片云团升高一个八度。",
+                     reviewed: 'mt' },
     },
     panSpray: {
         en: { t: "Pan Spray",
@@ -342,6 +425,9 @@ export const I18N = Object.freeze({
         fr: { t: "Dispersion stéréo",
               b: "Étalement stéréo grain par grain, 0–100\u00a0%. À 0 chaque grain est centré\u00a0; augmentez et les grains se dispersent à gauche et à droite (à puissance constante), élargissant une source mono en un nuage stéréo enveloppant.",
               reviewed: true },
+        'zh-Hans': { t: "声像散布",
+                     b: "逐颗粒的立体声展开，0–100%。为 0 时每个颗粒都居中；调高后颗粒会向左右散开（等功率），把单声道的源拓宽成一片沉浸式的立体声云团。",
+                     reviewed: 'mt' },
     },
     velToDensity: {
         en: { t: "Velocity → Density",
@@ -349,6 +435,9 @@ export const I18N = Object.freeze({
         fr: { t: "Vélocité → densité",
               b: "À quel point votre vélocité de jeu pilote la densité, 0–100\u00a0%. À 0 la densité est fixe\u00a0; augmentez et les touches jouées fort engendrent des nuages plus épais (le volume suit déjà la vélocité par l’enveloppe d’amplitude — ceci ajoute l’épaisseur par-dessus).",
               reviewed: true },
+        'zh-Hans': { t: "力度 → 密度",
+                     b: "您的演奏力度对密度的驱动程度，0–100%。为 0 时密度固定；调高后按得越重就生成越厚的云团（响度已经通过振幅包络跟随力度，这里是在此之上再加厚度）。",
+                     reviewed: 'mt' },
     },
 
     // ── Amplitude envelope ──────────────────────────────────────────────────
@@ -358,6 +447,9 @@ export const I18N = Object.freeze({
         fr: { t: "ADSR activé / désactivé",
               b: "Active ou désactive l’enveloppe d’amplitude de chaque voix. Désactivée, elle contourne attaque/déclin/maintien/relâchement — chaque note joue à niveau constant tant qu’elle est tenue puis, au relâchement, cesse simplement de lancer de nouveaux grains, si bien que le nuage s’éteint sur la durée d’un grain à travers les enveloppes de fenêtre (sans clic). Activez-la pour des montées et des nappes façonnées\u00a0; désactivez-la pour une porte brute et immédiate.",
               reviewed: true },
+        'zh-Hans': { t: "ADSR 开 / 关",
+                     b: "开启或关闭每个发声的振幅包络。关闭时会绕过起音、衰减、延音和释音，每个音符在按住期间以恒定电平发声，松开时只是停止发射新的颗粒，于是云团在一个颗粒的时长内经由窗口包络淡出（不会有咔哒声）。要塑形的渐强和铺垫就开启它；要生硬、即时的门就关闭它。",
+                     reviewed: 'mt' },
     },
     ampAttack: {
         en: { t: "Amp Attack",
@@ -365,6 +457,9 @@ export const I18N = Object.freeze({
         fr: { t: "Attaque d’amplitude",
               b: "Rapidité d’entrée en fondu d’une note, 0–5\u00a0s. C’est l’enveloppe de la voix entière sur tout le flux de grains — courte pour du percussif, longue pour une montée de nappe. (Chaque grain a sa propre petite enveloppe de fenêtre\u00a0; celle-ci est la grande.)",
               reviewed: true },
+        'zh-Hans': { t: "振幅起音",
+                     b: "一个音符淡入的快慢，0–5 秒。这是覆盖整条颗粒流的、属于每个发声的包络，短则有打击感，长则是铺垫式的渐强。（每个颗粒都有自己微小的窗口包络；这一条是更大的那个。）",
+                     reviewed: 'mt' },
     },
     ampDecay: {
         en: { t: "Amp Decay",
@@ -372,6 +467,9 @@ export const I18N = Object.freeze({
         fr: { t: "Déclin d’amplitude",
               b: "Manière dont la note redescend de son pic d’attaque vers le niveau de maintien, 0–5\u00a0s. Avec le maintien, elle façonne le corps d’une note tenue.",
               reviewed: true },
+        'zh-Hans': { t: "振幅衰减",
+                     b: "音符从起音峰值回落到延音电平的方式，0–5 秒。它与延音一起塑造持续音符的主体。",
+                     reviewed: 'mt' },
     },
     ampSustain: {
         en: { t: "Amp Sustain",
@@ -379,6 +477,9 @@ export const I18N = Object.freeze({
         fr: { t: "Maintien d’amplitude",
               b: "Le niveau auquel une note tenue se stabilise après l’attaque et le déclin, 0–100\u00a0%. À 100\u00a0% le volume reste plein tant que la touche est enfoncée\u00a0; abaissez-le pour des notes qui s’épanouissent puis se retirent.",
               reviewed: true },
+        'zh-Hans': { t: "振幅延音",
+                     b: "经过起音和衰减之后，持续音符稳定下来的电平，0–100%。100% 会在按键按下期间保持满音量；调低则得到先绽放再退去的音符。",
+                     reviewed: 'mt' },
     },
     ampRelease: {
         en: { t: "Amp Release",
@@ -386,6 +487,9 @@ export const I18N = Object.freeze({
         fr: { t: "Relâchement d’amplitude",
               b: "Durée d’extinction de la note après le relâchement de la touche, 0–5\u00a0s. Un long relâchement laisse les nuages résonner et se superposer à la note suivante — les nappes granulaires adorent un relâchement généreux.",
               reviewed: true },
+        'zh-Hans': { t: "振幅释音",
+                     b: "松开按键后音符淡出的时长，0–5 秒。长释音让云团继续鸣响并叠进下一个音符，颗粒铺垫很喜欢慷慨的释音。",
+                     reviewed: 'mt' },
     },
 
     // ── Output ──────────────────────────────────────────────────────────────
@@ -395,6 +499,9 @@ export const I18N = Object.freeze({
         fr: { t: "Niveau de sortie",
               b: "Réglage du volume général, −∞…0\u00a0dB. Des nuages denses et superposés peuvent accumuler de l’énergie\u00a0: baissez ici si un patch épais sature. (La normalisation de marge en amont en dompte déjà le pire.)",
               reviewed: true },
+        'zh-Hans': { t: "输出电平",
+                     b: "总音量微调，−∞…0 dB。密集重叠的云团会堆积能量，所以厚重的音色出现过载时就在这里衰减。（上游的余量归一化已经压住了最糟的部分。）",
+                     reviewed: 'mt' },
     },
 
     // ── Visualizations ──────────────────────────────────────────────────────
@@ -404,6 +511,9 @@ export const I18N = Object.freeze({
         fr: { t: "Nuage de grains",
               b: "Chaque grain engendré dépose un point sépia — horizontalement l’endroit de la source où il a été lu, verticalement sa hauteur, la taille du point sa durée. Augmentez la densité et le nuage s’épaissit\u00a0; augmentez les dispersions et il s’étale.",
               reviewed: true },
+        'zh-Hans': { t: "颗粒云团",
+                     b: "每个生成的颗粒都落下一个棕褐色的点，横向是它在源中被读取的位置，纵向是它的音高，点的大小是颗粒时长。调高密度云团就变厚；调高各类散布它就铺开。",
+                     reviewed: 'mt' },
     },
     vizWave: {
         en: { t: "Source Waveform",
@@ -411,6 +521,9 @@ export const I18N = Object.freeze({
         fr: { t: "Forme d’onde de la source",
               b: "La source chargée tracée en forme d’onde. La ligne brune est la tête de lecture en direct (Position + Balayage), la bande verte est la plage de dispersion de position dans laquelle les grains sont puisés, et un flocon fige la tête quand Gel est actif.",
               reviewed: true },
+        'zh-Hans': { t: "源波形",
+                     b: "载入的源以波形绘出。棕色线是实时读取头（位置 + 扫描），绿色带是颗粒取自的位置散布范围，冻结开启时会有一片雪花把读取头钉住。",
+                     reviewed: 'mt' },
     },
     vizScope: {
         en: { t: "Output Scope",
@@ -418,6 +531,9 @@ export const I18N = Object.freeze({
         fr: { t: "Oscilloscope de sortie",
               b: "L’audio réellement produit, tracé en forme d’onde. Utile pour repérer les bords durs d’une fenêtre rectangulaire (les clics) face aux fondus doux de Hann.",
               reviewed: true },
+        'zh-Hans': { t: "输出示波",
+                     b: "实际输出的音频，以波形绘出。用它可以看清矩形窗生硬的边缘（那些咔哒声）与 Hann 平滑交叉淡化之间的差别。",
+                     reviewed: 'mt' },
     },
     vizSpectrum: {
         en: { t: "Spectrum",
@@ -425,6 +541,9 @@ export const I18N = Object.freeze({
         fr: { t: "Spectre",
               b: "Le contenu fréquentiel de la sortie. À Dispersion\u00a00 vous verrez des pics discrets (le peigne de grains synchrone — un son harmonique)\u00a0; montez la Dispersion et les pics s’étalent en un plancher de bruit continu. La leçon synchrone\u00a0→\u00a0asynchrone, rendue visible.",
               reviewed: true },
+        'zh-Hans': { t: "频谱",
+                     b: "输出的频率内容。散布为 0 时您会看到离散的尖峰（同步的颗粒梳状谱，一个有音高的声音）；把散布调高，尖峰就抹成连续的噪声底。同步 → 异步这堂课，就此被看见。",
+                     reviewed: 'mt' },
     },
     readout: {
         en: { t: "Grain Readout",
@@ -432,6 +551,9 @@ export const I18N = Object.freeze({
         fr: { t: "Affichage des grains",
               b: "Compteur de coût en direct. Grains = grains actifs sur la limite globale de 192. Recouvrement = taille de grain × densité (combien de grains sonnent en même temps — au-delà d’environ 2× ils fusionnent). La barre CPU suit la charge de grains\u00a0: densité × taille × polyphonie, voilà ce qui rend le granulaire coûteux.",
               reviewed: true },
+        'zh-Hans': { t: "颗粒读数",
+                     b: "实时的开销表。颗粒数量 = 活动颗粒占全局上限 192 的多少。重叠 = 颗粒尺寸 × 密度（同时发声的颗粒有多少，超过约 2 倍就会融合）。CPU 条跟踪颗粒负载：密度 × 尺寸 × 复音数，这才是颗粒合成昂贵的原因。",
+                     reviewed: 'mt' },
     },
 
     // ── Concept presets (the 8-stop tour) ───────────────────────────────────
@@ -441,6 +563,9 @@ export const I18N = Object.freeze({
         fr: { t: "Grain unique",
               b: "Un seul grain long déclenché lentement — densité au plancher pour que les grains restent séparés. Écoutez une tranche seule\u00a0: l’atome de la synthèse granulaire.",
               reviewed: true },
+        'zh-Hans': { t: "单颗粒",
+                     b: "一个长颗粒被缓慢触发，密度压到底，让颗粒彼此分开。单独听一个切片：颗粒合成的原子。",
+                     reviewed: 'mt' },
     },
     lessonPitchedBuzz: {
         en: { t: "Pitched Buzz",
@@ -448,6 +573,9 @@ export const I18N = Object.freeze({
         fr: { t: "Bourdon harmonique",
               b: "De minuscules grains déclenchés vite et parfaitement en phase. La cadence des grains devient elle-même une hauteur audible (un peigne) — le granulaire peut faire du timbre, pas seulement de la texture.",
               reviewed: true },
+        'zh-Hans': { t: "有音高嗡鸣",
+                     b: "微小的颗粒被快速且完全同步地触发。颗粒的速率本身变成可听的音高（一个梳状谱），颗粒合成能做出音色，而不只是纹理。",
+                     reviewed: 'mt' },
     },
     lessonFragments: {
         en: { t: "Fragments",
@@ -455,6 +583,9 @@ export const I18N = Object.freeze({
         fr: { t: "Fragments",
               b: "Grains moyens, clairsemés. Vous reconnaissez encore des morceaux de la source — le terrain intermédiaire entre un grain isolé et un nuage lisse.",
               reviewed: true },
+        'zh-Hans': { t: "碎片",
+                     b: "中等尺寸的颗粒，稀疏。您仍能认出源的片段，介于单个颗粒与平滑云团之间的中间地带。",
+                     reviewed: 'mt' },
     },
     lessonSmoothCloud: {
         en: { t: "Smooth Cloud",
@@ -462,6 +593,9 @@ export const I18N = Object.freeze({
         fr: { t: "Nuage lisse",
               b: "De nombreux grains Hann superposés fusionnent en une texture continue et vitreuse. La sommation par recouvrement à l’œuvre\u00a0: taille × densité bien au-dessus de 1.",
               reviewed: true },
+        'zh-Hans': { t: "平滑云团",
+                     b: "大量重叠的 Hann 颗粒融成一片连续而有玻璃质感的纹理。重叠相加在发挥作用：尺寸 × 密度远大于 1。",
+                     reviewed: 'mt' },
     },
     lessonFrozenPad: {
         en: { t: "Frozen Pad",
@@ -469,6 +603,9 @@ export const I18N = Object.freeze({
         fr: { t: "Nappe gelée",
               b: "Gel fige la tête de lecture\u00a0; la dispersion de hauteur fait scintiller l’instant gelé en une nappe soutenue et évolutive qui n’avance jamais dans la source.",
               reviewed: true },
+        'zh-Hans': { t: "冻结铺垫",
+                     b: "冻结把读取头钉住；音高散布让这个冻结的瞬间闪烁成一片持续演化、却从不在源中前进的铺垫。",
+                     reviewed: 'mt' },
     },
     lessonAsyncCloud: {
         en: { t: "Asynchronous Cloud",
@@ -476,6 +613,9 @@ export const I18N = Object.freeze({
         fr: { t: "Nuage asynchrone",
               b: "Une forte dispersion rend aléatoire le déclenchement des grains — le peigne harmonique se dissout et le spectre s’étale en bruit large bande. L’extrémité asynchrone de l’axe.",
               reviewed: true },
+        'zh-Hans': { t: "异步云团",
+                     b: "强烈的时间散布让颗粒的触发时刻随机化，有音高的梳状谱溶解，频谱抹成宽带噪声。这是这条轴异步的一端。",
+                     reviewed: 'mt' },
     },
     lessonGranularFire: {
         en: { t: "Granular Fire",
@@ -483,6 +623,10 @@ export const I18N = Object.freeze({
         fr: { t: "Feu granulaire",
               b: "L’exemple travaillé sur l’enregistrement de feu crépitant\u00a0: un réglage vif de grain et de dispersion qui transforme un enregistrement de terrain en un lit granulaire mouvant.",
               reviewed: true },
+        'zh-Hans': { t: "颗粒之火",
+                     b: "以噼啪作响的火焰录音做的示范：一组灵动的颗粒与散布设置，把一段实地录音变成流动的颗粒声床。",
+                     termNote: "the glossary root reads Fire as the verb (to trigger); on this page it is the flame in the crackling-fire recording the preset is built on",
+                     reviewed: 'mt' },
     },
     lessonRectClick: {
         en: { t: "Rect Click",
@@ -490,6 +634,9 @@ export const I18N = Object.freeze({
         fr: { t: "Clic rectangulaire",
               b: "L’extrémité rugueuse de la leçon\u00a0: une fenêtre rectangulaire est plate avec seulement 1\u00a0ms de garde à chaque bord, donc chaque grain démarre et s’arrête brutalement. Des grains clairsemés laissent chaque bord dur isolé — comparez avec Hann pour entendre pourquoi les fenêtres comptent.",
               reviewed: true },
+        'zh-Hans': { t: "矩形击声",
+                     b: "这堂课粗糙的一端：矩形窗是平顶的，两端各只有 1 ms 的保护，所以每个颗粒都突兀地开始和结束。稀疏的颗粒让每一个生硬的边缘独自呈现，和 Hann 比一比，就能听出窗口为什么重要。",
+                     reviewed: 'mt' },
     },
 });
 
@@ -518,46 +665,59 @@ export const LABELS = Object.freeze({
     'label.subtitle': {
         en: { t: "Granular Synthesizer · A Field Guide" },
         fr: { t: "Synthétiseur granulaire · un guide de terrain", reviewed: true },
+        'zh-Hans': { t: "颗粒合成器 · 实地指南", reviewed: 'mt' },
     },
     'aria.presetTour': {
         en: { t: "Concept presets" },
         fr: { t: "Préréglages pédagogiques", reviewed: true },
+        'zh-Hans': { t: "概念预设", reviewed: 'mt' },
     },
     'label.tourSingleGrain': {
         en: { t: "Single Grain" },
         fr: { t: "Grain unique", reviewed: true },
+        'zh-Hans': { t: "单颗粒", reviewed: 'mt' },
     },
     'label.tourPitchedBuzz': {
         en: { t: "Pitched Buzz" },
         fr: { t: "Bourdon harmonique", reviewed: true },
+        'zh-Hans': { t: "有音高嗡鸣", reviewed: 'mt' },
     },
     'label.tourFragments': {
         en: { t: "Fragments" },
         fr: { t: "Fragments", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: "碎片", reviewed: 'mt' },
     },
     'label.tourSmoothCloud': {
         en: { t: "Smooth Cloud" },
         fr: { t: "Nuage lisse", reviewed: true },
+        'zh-Hans': { t: "平滑云团", reviewed: 'mt' },
     },
     'label.tourFrozenPad': {
         en: { t: "Frozen Pad" },
         fr: { t: "Nappe gelée", reviewed: true },
+        'zh-Hans': { t: "冻结铺垫", reviewed: 'mt' },
     },
     'label.tourAsyncCloud': {
         en: { t: "Async Cloud" },
         fr: { t: "Nuage async", reviewed: true },
+        'zh-Hans': { t: "异步云团", reviewed: 'mt' },
     },
     'label.tourGranularFire': {
         en: { t: "Granular Fire" },
         fr: { t: "Feu granulaire", reviewed: true },
+        'zh-Hans': { t: "颗粒之火",
+                     termNote: "the glossary root reads Fire as the verb (to trigger); on this page it is the flame in the crackling-fire recording the preset is built on",
+                     reviewed: 'mt' },
     },
     'label.tourRectClick': {
         en: { t: "Rect Click" },
         fr: { t: "Clic rectangulaire", reviewed: true },
+        'zh-Hans': { t: "矩形击声", reviewed: 'mt' },
     },
     'label.tourCaption': {
         en: { t: "Hover any control for an explanation · pick a concept preset to hear it isolated." },
         fr: { t: "Survolez n’importe quelle commande pour une explication · choisissez un préréglage pédagogique pour l’entendre isolé.", reviewed: true },
+        'zh-Hans': { t: "悬停任意控件查看说明 · 选择一个概念预设来单独试听", reviewed: 'mt' },
     },
 
     // ── Settings popover — the accessible names and the toggle face.
@@ -566,18 +726,22 @@ export const LABELS = Object.freeze({
     'aria.langSelect': {
         en: { t: "Interface language" },
         fr: { t: "Langue de l’interface", reviewed: true },
+        'zh-Hans': { t: "界面语言", reviewed: 'mt' },
     },
     'aria.helpToggle': {
         en: { t: "Toggle hover help" },
         fr: { t: "Activer ou désactiver les infobulles", reviewed: true },
+        'zh-Hans': { t: "开关悬停帮助", reviewed: 'mt' },
     },
     'ui.on': {
         en: { t: "On" },
         fr: { t: "Activée", reviewed: true },
+        'zh-Hans': { t: "开启", reviewed: 'mt' },
     },
     'ui.off': {
         en: { t: "Off" },
         fr: { t: "Désactivée", reviewed: true },
+        'zh-Hans': { t: "关闭", reviewed: 'mt' },
     },
 
     // ── Visualization captions. Each viz-label is a caption span PLUS a hint span:
@@ -597,224 +761,282 @@ export const LABELS = Object.freeze({
     'label.vizCloud': {
         en: { t: "Grain Cloud ·" },
         fr: { t: "Nuage de grains ·", reviewed: true },
+        'zh-Hans': { t: "颗粒云团 ·", reviewed: 'mt' },
     },
     'label.vizCloudHint': {
         en: { t: "each grain scatters as a dot (read-position × pitch)" },
         fr: { t: "chaque grain se dépose en point (position de lecture × hauteur)", reviewed: true },
+        'zh-Hans': { t: "每个颗粒散落成一个点（读取位置 × 音高）", reviewed: 'mt' },
     },
     'label.vizWave': {
         en: { t: "Source Waveform ·" },
         fr: { t: "Forme d’onde source ·", reviewed: true },
+        'zh-Hans': { t: "源波形 ·", reviewed: 'mt' },
     },
     'label.vizWaveHint': {
         en: { t: "playhead, freeze pin & spray range" },
         fr: { t: "tête de lecture, épingle de gel et plage de dispersion", reviewed: true },
+        'zh-Hans': { t: "读取头、冻结钉与散布范围", reviewed: 'mt' },
     },
     'label.windowInset': {
         en: { t: "Envelope" },
         fr: { t: "Enveloppe", reviewed: true },
+        'zh-Hans': { t: "包络", reviewed: 'mt' },
     },
     'label.vizScope': {
         en: { t: "Output Scope ·" },
         fr: { t: "Oscilloscope ·", reviewed: true },
+        'zh-Hans': { t: "输出示波 ·", reviewed: 'mt' },
     },
     'label.vizScopeHint': {
         en: { t: "the post-gain waveform" },
         fr: { t: "l’onde après le gain", reviewed: true },
+        'zh-Hans': { t: "增益之后的波形", reviewed: 'mt' },
     },
     'label.vizSpectrum': {
         en: { t: "Spectrum ·" },
         fr: { t: "Spectre ·", reviewed: true },
+        'zh-Hans': { t: "频谱 ·", reviewed: 'mt' },
     },
     'label.vizSpectrumHint': {
         en: { t: "discrete sidebands at scatter 0 → noise as scatter rises" },
         fr: { t: "bandes latérales discrètes à dispersion 0 → bruit quand il monte", reviewed: true },
+        'zh-Hans': { t: "散布为 0 时是离散边带 → 散布升高则化为噪声", reviewed: 'mt' },
     },
     'label.readoutGrains': {
         en: { t: "Grains" },
         fr: { t: "Grains", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: "颗粒数",
+                     termNote: "a COUNT readout, and the bare glossary root is already the Grain group heading on this same page. The corpus ships the four-character form on O-ReverseDelay; this strip trims it to three, because the four-character form measures 42.84 px against the English key's 41.38 px and pushed the Overlap and CPU items 1.5 px right",
+                     reviewed: 'mt' },
     },
     'label.readoutOverlap': {
         en: { t: "Overlap" },
         fr: { t: "Recouvrement", reviewed: true },
+        'zh-Hans': { t: "重叠", reviewed: 'mt' },
     },
     'label.readoutCpu': {
         en: { t: "CPU" },
         fr: { t: "CPU", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: "CPU", reviewed: 'mt' },
     },
 
     // ── Side rail ───────────────────────────────────────────────────────────
     'label.groupSource': {
         en: { t: "Source" },
         fr: { t: "Source", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: "源", reviewed: 'mt' },
     },
     'label.btnLoad': {
         en: { t: "Load…" },
         fr: { t: "Charger…", reviewed: true },
+        'zh-Hans': { t: "载入…", reviewed: 'mt' },
     },
     'label.dropZone': {
         en: { t: "Drag a .wav / .aif here to granulate your own sound" },
         fr: { t: "Glissez un .wav / .aif ici pour granuler votre propre son", reviewed: true },
+        'zh-Hans': { t: "把 .wav / .aif 拖到这里，对您自己的声音做颗粒化", reviewed: 'mt' },
     },
     'label.groupGrain': {
         en: { t: "Grain" },
         fr: { t: "Grain", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: "颗粒", reviewed: 'mt' },
     },
     'label.knobSize': {
         en: { t: "Size" },
         fr: { t: "Taille", reviewed: true },
+        'zh-Hans': { t: "尺寸", reviewed: 'mt' },
     },
     'label.knobDensity': {
         en: { t: "Density" },
         fr: { t: "Densité", reviewed: true },
+        'zh-Hans': { t: "密度", reviewed: 'mt' },
     },
     'label.knobPosition': {
         en: { t: "Position" },
         fr: { t: "Position", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: "位置", reviewed: 'mt' },
     },
     'label.knobScan': {
         en: { t: "Scan" },
         fr: { t: "Balayage", reviewed: true },
+        'zh-Hans': { t: "扫描", reviewed: 'mt' },
     },
     'label.toggleFreeze': {
         en: { t: "Freeze" },
         fr: { t: "Gel", reviewed: true },
+        'zh-Hans': { t: "冻结", reviewed: 'mt' },
     },
     'label.groupWindow': {
         en: { t: "Window" },
         fr: { t: "Fenêtre", reviewed: true },
+        'zh-Hans': { t: "窗口", reviewed: 'mt' },
     },
     'label.knobShape': {
         en: { t: "Shape" },
         fr: { t: "Forme", reviewed: true },
+        'zh-Hans': { t: "形状", reviewed: 'mt' },
     },
     'label.knobTaper': {
         en: { t: "Taper" },
         fr: { t: "Fondu", reviewed: true },
+        'zh-Hans': { t: "渐变", reviewed: 'mt' },
     },
     'label.groupSpray': {
         en: { t: "Spray & Scatter" },
         fr: { t: "Dispersions", reviewed: true },
+        'zh-Hans': { t: "散布", reviewed: 'mt' },
     },
     'label.knobPitchSpray': {
         en: { t: "Pitch Spray" },
         fr: { t: "Dispersion hauteur", reviewed: true },
+        'zh-Hans': { t: "音高散布", reviewed: 'mt' },
     },
     'label.knobPosSpray': {
         en: { t: "Pos Spray" },
         fr: { t: "Dispersion position", reviewed: true },
+        'zh-Hans': { t: "位置散布", reviewed: 'mt' },
     },
     'label.knobScatter': {
         en: { t: "Scatter" },
         fr: { t: "Dispersion", reviewed: true },
+        'zh-Hans': { t: "时间散布",
+                     termNote: "this control randomises grain TIMING; the three Spray knobs beside it already carry the bare glossary root as their tail morpheme, and the bare root is the group heading directly above",
+                     reviewed: 'mt' },
     },
     'label.knobGrainPitch': {
         en: { t: "Grain Pitch" },
         fr: { t: "Hauteur du grain", reviewed: true },
+        'zh-Hans': { t: "颗粒音高", reviewed: 'mt' },
     },
     'label.knobPanSpray': {
         en: { t: "Pan Spray" },
         fr: { t: "Dispersion stéréo", reviewed: true },
+        'zh-Hans': { t: "声像散布", reviewed: 'mt' },
     },
     'label.knobVelDensity': {
         en: { t: "Vel→Density" },
         fr: { t: "Vél.→Densité", reviewed: true },
+        'zh-Hans': { t: "力度→密度", reviewed: 'mt' },
     },
     'label.groupEnv': {
         en: { t: "Amplitude Envelope" },
         fr: { t: "Enveloppe d’amplitude", reviewed: true },
+        'zh-Hans': { t: "振幅包络", reviewed: 'mt' },
     },
     'label.toggleAdsr': {
         en: { t: "ADSR" },
         fr: { t: "ADSR", sameAsEn: true, reviewed: true },
+        'zh-Hans': { t: "ADSR", reviewed: 'mt' },
     },
     'label.knobAttack': {
         en: { t: "Attack" },
         fr: { t: "Attaque", reviewed: true },
+        'zh-Hans': { t: "起音", reviewed: 'mt' },
     },
     'label.knobDecay': {
         en: { t: "Decay" },
         fr: { t: "Déclin", reviewed: true },
+        'zh-Hans': { t: "衰减", reviewed: 'mt' },
     },
     'label.knobSustain': {
         en: { t: "Sustain" },
         fr: { t: "Maintien", reviewed: true },
+        'zh-Hans': { t: "延音", reviewed: 'mt' },
     },
     'label.knobRelease': {
         en: { t: "Release" },
         fr: { t: "Relâchement", reviewed: true },
+        'zh-Hans': { t: "释音", reviewed: 'mt' },
     },
     'label.groupOutput': {
         en: { t: "Output" },
         fr: { t: "Sortie", reviewed: true },
+        'zh-Hans': { t: "输出", reviewed: 'mt' },
     },
     'label.knobLevel': {
         en: { t: "Level" },
         fr: { t: "Niveau", reviewed: true },
+        'zh-Hans': { t: "电平", reviewed: 'mt' },
     },
 
     // ── On-screen keyboard ──────────────────────────────────────────────────
     'label.keyboard': {
         en: { t: "Play ·" },
         fr: { t: "Jouer ·", reviewed: true },
+        'zh-Hans': { t: "播放 ·", reviewed: 'mt' },
     },
     'label.keyboardHint': {
         en: { t: "click the keys or use your computer keyboard (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)" },
         fr: { t: "cliquez les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)", reviewed: true },
+        'zh-Hans': { t: "点击琴键或使用电脑键盘 (A S D F G H J K · W E T Y U)", reviewed: 'mt' },
     },
     'aria.keyboard': {
         en: { t: "On-screen keyboard" },
         fr: { t: "Clavier à l’écran", reviewed: true },
+        'zh-Hans': { t: "屏幕键盘", reviewed: 'mt' },
     },
 
     // ── Drop / load status, written from script through setLabel() ──────────
     'toast.loading': {
         en: { t: "Loading {name}…" },
         fr: { t: "Chargement de {name}…", reviewed: true },
+        'zh-Hans': { t: "正在载入 {name}…", reviewed: 'mt' },
     },
     'toast.dropStartFailed': {
         en: { t: "Drop session start failed" },
         fr: { t: "Échec du démarrage du dépôt", reviewed: true },
+        'zh-Hans': { t: "拖放会话启动失败", reviewed: 'mt' },
     },
     'toast.transferFailed': {
         en: { t: "File transfer failed" },
         fr: { t: "Échec du transfert du fichier", reviewed: true },
+        'zh-Hans': { t: "文件传输失败", reviewed: 'mt' },
     },
     'toast.commitFailed': {
         en: { t: "File load failed at commit" },
         fr: { t: "Échec du chargement du fichier à la validation", reviewed: true },
+        'zh-Hans': { t: "提交时文件载入失败", reviewed: 'mt' },
     },
     'toast.dropFailed': {
         en: { t: "Drop failed: {error}" },
         fr: { t: "Échec du dépôt\u00a0: {error}", reviewed: true },
+        'zh-Hans': { t: "拖放失败：{error}", reviewed: 'mt' },
     },
     'toast.dropFolder': {
         en: { t: "Drop a single audio file, not a folder" },
         fr: { t: "Déposez un seul fichier audio, pas un dossier", reviewed: true },
+        'zh-Hans': { t: "请拖入单个音频文件，而不是文件夹", reviewed: 'mt' },
     },
     'toast.dropFileType': {
         en: { t: "Drop a .wav / .aif / .aiff file" },
         fr: { t: "Déposez un fichier .wav / .aif / .aiff", reviewed: true },
+        'zh-Hans': { t: "请拖入 .wav / .aif / .aiff 文件", reviewed: 'mt' },
     },
     'toast.loadFailed': {
         en: { t: "Load failed" },
         fr: { t: "Échec du chargement", reviewed: true },
+        'zh-Hans': { t: "载入失败", reviewed: 'mt' },
     },
     'label.sourceTruncated': {
         en: { t: "{name} — truncated to 10 s" },
         fr: { t: "{name} — rogné à 10\u00a0s", reviewed: true },
+        'zh-Hans': { t: "{name} — 已截断到 10 秒", reviewed: 'mt' },
     },
     'label.sourceLoaded': {
         en: { t: "{name} loaded" },
         fr: { t: "{name} chargé", reviewed: true },
+        'zh-Hans': { t: "已载入 {name}", reviewed: 'mt' },
     },
     'label.sourceTruncatedGeneric': {
         en: { t: "Source — truncated to 10 s" },
         fr: { t: "Source — rognée à 10\u00a0s", reviewed: true },
+        'zh-Hans': { t: "源 — 已截断到 10 秒", reviewed: 'mt' },
     },
     'label.sourceLoadedGeneric': {
         en: { t: "Source loaded" },
         fr: { t: "Source chargée", reviewed: true },
+        'zh-Hans': { t: "已载入源", reviewed: 'mt' },
     },
 
     // ── Lesson captions. Chosen by a click, so never the resting string — written
@@ -822,34 +1044,44 @@ export const LABELS = Object.freeze({
     'label.captionSingleGrain': {
         en: { t: "Single Grain — one long grain fired slowly. Density at the floor keeps grains separated: hear a single slice on its own, the atom of granular synthesis." },
         fr: { t: "Grain unique — un seul grain long déclenché lentement. La densité au plancher garde les grains séparés\u00a0: écoutez une tranche seule, l’atome de la synthèse granulaire.", reviewed: true },
+        'zh-Hans': { t: "单颗粒 — 一个长颗粒被缓慢触发。密度压到底让颗粒彼此分开：单独听一个切片，颗粒合成的原子。", reviewed: 'mt' },
     },
     'label.captionPitchedBuzz': {
         en: { t: "Pitched Buzz — tiny grains fired fast and in sync. Their rate becomes an audible pitch (a comb): granular can make tone, not just texture." },
         fr: { t: "Bourdon harmonique — grains minuscules, déclenchés vite et en phase. Leur cadence devient une hauteur audible (un peigne)\u00a0: le granulaire peut faire du timbre, pas que de la texture.", reviewed: true },
+        'zh-Hans': { t: "有音高嗡鸣 — 微小的颗粒被快速且同步地触发。它们的速率变成可听的音高（一个梳状谱）：颗粒合成能做出音色，而不只是纹理。", reviewed: 'mt' },
     },
     'label.captionFragments': {
         en: { t: "Fragments — medium grains, sparse. You still recognise chunks of the source: the middle ground between one grain and a smooth cloud." },
         fr: { t: "Fragments — grains moyens, clairsemés. Vous reconnaissez encore des morceaux de la source\u00a0: le terrain intermédiaire entre un grain isolé et un nuage lisse.", reviewed: true },
+        'zh-Hans': { t: "碎片 — 中等尺寸的颗粒，稀疏。您仍能认出源的片段：介于单个颗粒与平滑云团之间的中间地带。", reviewed: 'mt' },
     },
     'label.captionSmoothCloud': {
         en: { t: "Smooth Cloud — many overlapping Hann grains fuse into one continuous, glassy texture. Overlap-add at work: size × density well above 1." },
         fr: { t: "Nuage lisse — de nombreux grains Hann superposés fusionnent en une texture continue et vitreuse. La sommation par recouvrement à l’œuvre\u00a0: taille × densité bien au-dessus de 1.", reviewed: true },
+        'zh-Hans': { t: "平滑云团 — 大量重叠的 Hann 颗粒融成一片连续而有玻璃质感的纹理。重叠相加在发挥作用：尺寸 × 密度远大于 1。", reviewed: 'mt' },
     },
     'label.captionFrozenPad': {
         en: { t: "Frozen Pad — Freeze pins the read head; Pitch Spray shimmers the frozen instant into a sustained, evolving pad that never moves through the source." },
         fr: { t: "Nappe gelée — Gel fige la tête de lecture\u00a0; la dispersion de hauteur fait scintiller l’instant gelé en une nappe soutenue et évolutive qui n’avance jamais dans la source.", reviewed: true },
+        'zh-Hans': { t: "冻结铺垫 — 冻结把读取头钉住；音高散布让这个冻结的瞬间闪烁成一片持续演化、却从不在源中前进的铺垫。", reviewed: 'mt' },
     },
     'label.captionAsyncCloud': {
         en: { t: "Asynchronous Cloud — high Scatter randomises grain timing. The pitched comb dissolves and the spectrum smears into broadband noise: the async end of the axis." },
         fr: { t: "Nuage asynchrone — une forte dispersion déclenche les grains au hasard. Le peigne harmonique se dissout et le spectre s’étale en bruit large bande\u00a0: l’extrémité asynchrone de l’axe.", reviewed: true },
+        'zh-Hans': { t: "异步云团 — 强烈的时间散布让颗粒的触发时刻随机化。有音高的梳状谱溶解，频谱抹成宽带噪声：这条轴异步的一端。", reviewed: 'mt' },
     },
     'label.captionGranularFire': {
         en: { t: "Granular Fire — the worked example on the crackling-fire recording. A lively grain/spray set turns a field recording into a moving granular bed." },
         fr: { t: "Feu granulaire — l’exemple travaillé sur l’enregistrement de feu crépitant. Un réglage vif de grain et de dispersion transforme un enregistrement de terrain en un lit granulaire mouvant.", reviewed: true },
+        'zh-Hans': { t: "颗粒之火 — 以噼啪作响的火焰录音做的示范。一组灵动的颗粒与散布设置，把一段实地录音变成流动的颗粒声床。",
+                     termNote: "the glossary root reads Fire as the verb (to trigger); on this page it is the flame in the crackling-fire recording",
+                     reviewed: 'mt' },
     },
     'label.captionRectClick': {
         en: { t: "Rect Click — the rough end of the lesson: a rectangular window is flat with only a 1\u00a0ms guard at each edge, so every grain starts and stops abruptly. Sparse grains let each hard edge stand alone. Compare with Hann to hear why windows matter." },
         fr: { t: "Clic rectangulaire — l’extrémité rugueuse de la leçon\u00a0: une fenêtre rectangulaire est plate avec seulement 1\u00a0ms de garde à chaque bord, donc chaque grain démarre et s’arrête brutalement. Des grains clairsemés laissent chaque bord dur isolé. Comparez avec Hann pour entendre pourquoi les fenêtres comptent.", reviewed: true },
+        'zh-Hans': { t: "矩形击声 — 这堂课粗糙的一端：矩形窗是平顶的，两端各只有 1 ms 的保护，所以每个颗粒都突兀地开始和结束。稀疏的颗粒让每一个生硬的边缘独自呈现。和 Hann 比一比，就能听出窗口为什么重要。", reviewed: 'mt' },
     },
 });
 
@@ -890,6 +1122,7 @@ export const I18N_EXEMPT = [
     // "Français", not "French".
     ['English',  'endonym — a language name is never translated'],
     ['Français', 'endonym — a language name is never translated'],
+    ["简体中文", 'endonym — a language name is never translated'],
 ];
 
 // ============================================================================
