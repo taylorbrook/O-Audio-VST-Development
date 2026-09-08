@@ -1,0 +1,233 @@
+{
+  "generator": "scripts/geometry-wavetables/bake_geometry_tables.py",
+  "prototype": "research/wavetable-synthesis-3d-geometry-prototypes/mesh-slice/mesh_slice_wavetable.py",
+  "frame_size": 2048,
+  "first_factory_index": 28,
+  "tables": [
+    {
+      "index": 28,
+      "name": "Star Tilt",
+      "ident": "StarTilt",
+      "frames": 32,
+      "sha256_int16_le": "48152e449f362370bbbedb23211a189b19b4da64a47b96b19db37a0770a53dc1",
+      "metrics": {
+        "frames": 32,
+        "h1_within_6dB_pct": 100.0,
+        "h1_rel_dB_median": 0.0,
+        "h1_rel_dB_min": 0.0,
+        "end_to_end_rms": 0.4700050455064472,
+        "end_to_end_corr": 0.424557447491894,
+        "centroid_first": 1.317730310450181,
+        "centroid_last": 1.5351679972180523,
+        "centroid_ratio": 1.165009247372922,
+        "partials_first_mid_last": [
+          11,
+          14,
+          16
+        ],
+        "adjacent_rms_max": 0.0315147644316334,
+        "adjacent_rms_mean": 0.023135486802109726,
+        "frame_peak_min_dB": -2.4699289194912675,
+        "finite": true,
+        "peak": 1.0
+      }
+    },
+    {
+      "index": 29,
+      "name": "Star Points",
+      "ident": "StarPoints",
+      "frames": 32,
+      "sha256_int16_le": "6fffbecd1a56c739f8af8e03678630b9586c99b0e63f02eea406455a6465645f",
+      "metrics": {
+        "frames": 32,
+        "h1_within_6dB_pct": 100.0,
+        "h1_rel_dB_median": 0.0,
+        "h1_rel_dB_min": 0.0,
+        "end_to_end_rms": 0.33421772333032856,
+        "end_to_end_corr": 0.7111315710669281,
+        "centroid_first": 1.5033119419844543,
+        "centroid_last": 2.6828937574835017,
+        "centroid_ratio": 1.7846553882502487,
+        "partials_first_mid_last": [
+          16,
+          14,
+          23
+        ],
+        "adjacent_rms_max": 0.01831657132900902,
+        "adjacent_rms_mean": 0.013688700347147215,
+        "frame_peak_min_dB": -3.169487408709479,
+        "finite": true,
+        "peak": 1.0
+      }
+    },
+    {
+      "index": 30,
+      "name": "Blob Orbit",
+      "ident": "BlobOrbit",
+      "frames": 32,
+      "sha256_int16_le": "e71d37f9901143278b09cf78c7b3a3cd761a1896c143e3d9acc5e6ca4198c374",
+      "metrics": {
+        "frames": 32,
+        "h1_within_6dB_pct": 100.0,
+        "h1_rel_dB_median": 0.0,
+        "h1_rel_dB_min": -1.1196123810485707,
+        "end_to_end_rms": 0.46169327915580133,
+        "end_to_end_corr": 0.6475083957025427,
+        "centroid_first": 1.2506132169846478,
+        "centroid_last": 2.4576393944914723,
+        "centroid_ratio": 1.965147466150313,
+        "partials_first_mid_last": [
+          11,
+          23,
+          32
+        ],
+        "adjacent_rms_max": 0.03025111763580186,
+        "adjacent_rms_mean": 0.02340170110228524,
+        "frame_peak_min_dB": -2.027325347797947,
+        "finite": true,
+        "peak": 1.0
+      }
+    },
+    {
+      "index": 31,
+      "name": "Knot Torus",
+      "ident": "KnotTorus",
+      "frames": 32,
+      "sha256_int16_le": "0031428c6f17f61b58fb34bb7971059cb8a1533439534dcf3b14d4f299d35efb",
+      "metrics": {
+        "frames": 32,
+        "h1_within_6dB_pct": 100.0,
+        "h1_rel_dB_median": -1.2805841971775016,
+        "h1_rel_dB_min": -4.490645647236874,
+        "end_to_end_rms": 0.5949269482847025,
+        "end_to_end_corr": -0.11539983258467339,
+        "centroid_first": 1.671923739843253,
+        "centroid_last": 2.3367062661449443,
+        "centroid_ratio": 1.3976153400178506,
+        "partials_first_mid_last": [
+          7,
+          8,
+          9
+        ],
+        "adjacent_rms_max": 0.036094718120981924,
+        "adjacent_rms_mean": 0.02796180429234468,
+        "frame_peak_min_dB": -3.6834277893094596,
+        "finite": true,
+        "peak": 1.0
+      }
+    },
+    {
+      "index": 32,
+      "name": "Knot Box",
+      "ident": "KnotBox",
+      "frames": 32,
+      "sha256_int16_le": "0d90218e471147e4ab22156452e3a1d9677c3837ca9e1701effa17a9d8737aac",
+      "metrics": {
+        "frames": 32,
+        "h1_within_6dB_pct": 100.0,
+        "h1_rel_dB_median": 0.0,
+        "h1_rel_dB_min": -0.9075355010514881,
+        "end_to_end_rms": 0.2728222625653015,
+        "end_to_end_corr": 0.5974576794854563,
+        "centroid_first": 2.0672872193683767,
+        "centroid_last": 5.59353659356396,
+        "centroid_ratio": 2.7057375197593334,
+        "partials_first_mid_last": [
+          18,
+          30,
+          47
+        ],
+        "adjacent_rms_max": 0.017729769668096192,
+        "adjacent_rms_mean": 0.013174687969818221,
+        "frame_peak_min_dB": -2.087456473615509,
+        "finite": true,
+        "peak": 1.0
+      }
+    },
+    {
+      "index": 33,
+      "name": "Gyroid Orbit",
+      "ident": "GyroidOrbit",
+      "frames": 32,
+      "sha256_int16_le": "05ffddbd110eb58c1000d4704c0bd68b051724ee401bd5e7551afd4a8c34c955",
+      "metrics": {
+        "frames": 32,
+        "h1_within_6dB_pct": 100.0,
+        "h1_rel_dB_median": 0.0,
+        "h1_rel_dB_min": -2.4440019920431886,
+        "end_to_end_rms": 0.7151913598504258,
+        "end_to_end_corr": 0.37936906012804383,
+        "centroid_first": 2.271905084206148,
+        "centroid_last": 6.438855533144602,
+        "centroid_ratio": 2.8341217148138362,
+        "partials_first_mid_last": [
+          26,
+          44,
+          59
+        ],
+        "adjacent_rms_max": 0.04304911122601197,
+        "adjacent_rms_mean": 0.03646312853973392,
+        "frame_peak_min_dB": -2.3572326627882014,
+        "finite": true,
+        "peak": 1.0
+      }
+    },
+    {
+      "index": 34,
+      "name": "Noise Knot",
+      "ident": "NoiseKnot",
+      "frames": 32,
+      "sha256_int16_le": "01aad1b870eda0b1a414f8258016e97cfcdc537dc6d537ea5ee2acef4f6b0465",
+      "metrics": {
+        "frames": 32,
+        "h1_within_6dB_pct": 100.0,
+        "h1_rel_dB_median": -0.11961476797689041,
+        "h1_rel_dB_min": -1.0172753217083885,
+        "end_to_end_rms": 0.4024587998884986,
+        "end_to_end_corr": 0.6381531868681899,
+        "centroid_first": 2.4328303242284135,
+        "centroid_last": 4.62494022930793,
+        "centroid_ratio": 1.9010533464863633,
+        "partials_first_mid_last": [
+          30,
+          55,
+          66
+        ],
+        "adjacent_rms_max": 0.03648699050687605,
+        "adjacent_rms_mean": 0.03176712961097704,
+        "frame_peak_min_dB": -0.5261645961888182,
+        "finite": true,
+        "peak": 1.0
+      }
+    },
+    {
+      "index": 35,
+      "name": "Terrain Rings",
+      "ident": "TerrainRings",
+      "frames": 32,
+      "sha256_int16_le": "8c389b18efdef48bd1ce342c2fcf31e70d97312562d5fe1d331bc4d33c2187a0",
+      "metrics": {
+        "frames": 32,
+        "h1_within_6dB_pct": 100.0,
+        "h1_rel_dB_median": 0.0,
+        "h1_rel_dB_min": -5.857032950425651,
+        "end_to_end_rms": 0.5274578344165939,
+        "end_to_end_corr": 0.184575340961079,
+        "centroid_first": 1.029712373722265,
+        "centroid_last": 3.0842505640070277,
+        "centroid_ratio": 2.9952544445570726,
+        "partials_first_mid_last": [
+          3,
+          5,
+          7
+        ],
+        "adjacent_rms_max": 0.04469954438485905,
+        "adjacent_rms_mean": 0.02714848042602074,
+        "frame_peak_min_dB": -5.162843655588847,
+        "finite": true,
+        "peak": 1.0
+      }
+    }
+  ],
+  "header_sha256": "7363eacfe49af8dafbdeee2f7ece8fc179913d03a6a49c09f7141f6d322fb2a3"
+}

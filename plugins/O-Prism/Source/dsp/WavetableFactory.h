@@ -24,7 +24,9 @@
     O-Prism - Microtonal Wavetable Synthesizer
     Ouaricon Audio
 
-    Factory library: 28 procedural wavetables across 5 categories.
+    Factory library: 36 wavetables across 6 categories — 28 procedural
+    (Analog, Digital, Formant, Spectral, Organic) and 8 embedded Geometry
+    tables baked offline (GeometryTablesData.h, scripts/geometry-wavetables/).
 
   ==============================================================================
 */
@@ -52,11 +54,14 @@ struct FactoryEntry
 class WavetableFactory
 {
 public:
-    /** Create the complete factory library (28 tables). */
+    /** Create the complete factory library (36 tables). */
     static std::vector<FactoryEntry> createFactoryLibrary();
 
     /** Table count (compile-time constant). */
-    static constexpr int kNumFactoryTables = 28;
+    static constexpr int kNumFactoryTables = 36;
+
+    /** First index of the embedded Geometry bank (28..35). */
+    static constexpr int kFirstGeometryTable = 28;
 
     /** Get metadata for all tables (no audio data). */
     static std::vector<TableInfo> getTableInfoList();

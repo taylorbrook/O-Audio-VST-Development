@@ -9,7 +9,7 @@ juce_add_plugin(O-Prism
     PLUGIN_CODE OuPr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Prism${OUARICON_DEV_SUFFIX}"
-    VERSION 1.24.0
+    VERSION 1.25.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -116,4 +116,19 @@ if(OUARICON_BUILD_TESTS)
     # them.
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(O-Prism ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+
+    # v1.25.0 — Geometry bank smoke + preset-migration gate. Constructs the
+    # REAL processor (same derived-identity console as param-dump), then:
+    # 36 factory tables with 28-35 in "Geometry"; each embedded table finite,
+    # DC-free, global peak 1.0, level-0 int16 re-encoding SHA-256 == the
+    # baker's manifest.json (proves the embed round-trip); a C4 note on each
+    # table renders finite, non-silent, at 261.63 Hz ± 1 cent with harmonic 1
+    # within 6 dB of the strongest partial; a preset saved under the 0-27
+    # range (version "1.0.0" or absent) re-decodes to the SAME table name
+    # through the migration hook; every factory preset loads with the table
+    # they were authored with.
+    #     ninja O-Prism-geometry-check && ./build/plugins/O-Prism/O-Prism-geometry-check_artefacts/O-Prism-geometry-check scripts/geometry-wavetables/manifest.json
+    # Exit code = number of failed checks.
+    ouaricon_add_processor_console(O-Prism ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/geometry_check.cpp geometry-check)
 endif()

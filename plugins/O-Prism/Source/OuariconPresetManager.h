@@ -54,6 +54,16 @@ public:
     using CustomSaveCallback = std::function<juce::var()>;
     using CustomLoadCallback = std::function<void(const juce::var&)>;
 
+    /** Optional preset-migration hook (ported from preset-manager v1.0.6 for
+        O-Prism 1.25.0). Called by applyPresetJson() with the preset's
+        "parameters" object and the "version" string it was saved under,
+        BEFORE the reset-to-defaults pass and before any value is applied.
+        Mutate values in place to migrate old NORMALISED encodings — an
+        AudioParameterInt whose range widened re-decodes the stored 0..1
+        fraction against the new range. Never called when unset. */
+    using MigrationCallback = std::function<void(juce::DynamicObject& parameters,
+                                                 const juce::String& presetVersion)>;
+
     OuariconPresetManager(juce::AudioProcessorValueTreeState& apvts,
                           const juce::String& pluginName);
 
@@ -64,6 +74,12 @@ public:
     {
         customSave = std::move(saveCallback);
         customLoad = std::move(loadCallback);
+    }
+
+    /** Set the optional preset-migration hook (see MigrationCallback). */
+    void setMigrationCallback(MigrationCallback migrationCallback)
+    {
+        migrate = std::move(migrationCallback);
     }
 
     // Preset operations
@@ -125,6 +141,7 @@ private:
 
     CustomSaveCallback customSave;
     CustomLoadCallback customLoad;
+    MigrationCallback  migrate;
 
     juce::var createPresetJson() const;
     bool applyPresetJson(const juce::var& presetData);
@@ -226,7 +243,9 @@ inline juce::var OuariconPresetManager::createPresetJson() const
     if (customSave)
         preset->setProperty("customState", customSave());
 
-    preset->setProperty("version", "1.0.0");
+    // The plugin version, not a constant: the migration hook keys on it.
+    // Every preset written before 1.25.0 says "1.0.0" here.
+    preset->setProperty("version", JucePlugin_VersionString);
     preset->setProperty("plugin", pluginName);
 
     return juce::var(preset);
@@ -246,6 +265,13 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
         auto paramsVar = preset->getProperty("parameters");
         if (auto* paramsObj = paramsVar.getDynamicObject())
         {
+            // Give the plugin a chance to migrate stale normalised encodings
+            // before anything is applied. Presets saved before 1.25.0 carry
+            // the constant "1.0.0" this file used to write; the hook treats
+            // anything below the current format as legacy.
+            if (migrate)
+                migrate(*paramsObj, preset->getProperty("version").toString());
+
             // Reset all non-excluded parameters to defaults BEFORE applying —
             // partial presets (hand-authored defs, saves from older versions
             // with fewer params) must not silently inherit the previous
@@ -586,7 +612,7 @@ inline void OuariconPresetManager::initializeFactoryPresets(
         if (!preset.customState.isVoid())
             presetObj->setProperty("customState", preset.customState);
 
-        presetObj->setProperty("version", "1.0.0");
+        presetObj->setProperty("version", JucePlugin_VersionString);
         presetObj->setProperty("plugin", pluginName);
         presetObj->setProperty("category", preset.category);
         presetObj->setProperty("factory", true);

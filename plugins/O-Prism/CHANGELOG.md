@@ -1,5 +1,86 @@
 # O-Prism Changelog
 
+## v1.25.0 (2026-09-08)
+
+**Geometry wavetable bank.** Eight factory wavetables baked offline from the
+3D-geometry research prototype — sliced meshes and orbits through signed
+distance fields — appended as a sixth category at indices 28–35. MINOR: factory
+content is added and the two table parameters widen; no DSP path, parameter ID
+or state format changes. The O-Strata critique of 2026-09-08 decided these tables
+belong here rather than in a separate plugin.
+
+### Added
+
+- **Eight "Geometry" tables, 32 frames each** (`Source/dsp/GeometryTablesData.h`,
+  generated): Star Tilt (twisted five-point star, XY projection, tilt and slice
+  height swept together), Star Points (sharper star, Y projection, tilt about Y),
+  Blob Orbit (orbit through the distance field of an fBm-displaced sphere),
+  Knot Torus, Knot Box, Gyroid Orbit, Noise Knot (orbits through torus, box,
+  gyroid and fBm fields), Terrain Rings (growing ellipse over a sine-sum
+  terrain). Embedded as plain `constexpr int16_t` arrays — no
+  `juce_add_binary_data`, so no hyphen stripping and no namespace collision.
+- **Baker with gates** (`scripts/geometry-wavetables/bake_geometry_tables.py`):
+  imports the committed research prototype rather than copying its maths; adds
+  the box and gyroid fields, mesh tilt, orbit offset and the off-centre terrain
+  ellipse. Conditioning mirrors the importer and the O-Strata DSP-04/05 contract:
+  per-frame DC removal, frame 0 anchored to its steepest rising zero crossing,
+  chained FFT cross-correlation alignment with polarity test, then ONE global peak
+  across all frames — never per frame. Four gates, exit non-zero on any failure:
+  harmonic 1 strongest or within 6 dB in ≥ 95 % of frames; end-to-end travel RMS
+  ≥ 0.3 or centroid ratio ≥ 2; adjacent-frame RMS ≤ 0.05; finite with int16 peak
+  exactly 32767. `manifest.json` records a SHA-256 per table; `--verify` re-bakes
+  and proves the committed header byte-identical.
+- **Geometry-check harness** (`tests/geometry_check.cpp`, target
+  `O-Prism-geometry-check` under `OUARICON_BUILD_TESTS`): drives the real
+  processor and checks the catalogue, the embed round-trip against the manifest
+  SHA-256, a rendered C4 on every Geometry table at 261.63 Hz ± 1 cent with
+  harmonic 1 within 6 dB, the preset migration below (with a negative control),
+  and that every factory preset loads with its authored tables. 0 failures.
+  `scripts/param-dump/ParamDump.cmake` gained `ouaricon_add_processor_console()`
+  so this second driver reuses the derived-identity console rather than copying it.
+- **Preset migration hook** ported into the vendored `OuariconPresetManager.h`
+  from preset-manager v1.0.6 — `setMigrationCallback()`, invoked before the
+  reset/apply passes. Preset JSON now stamps the real plugin version instead of
+  the constant `"1.0.0"` it wrote before.
+
+### Changed
+
+- **`oscATable` / `oscBTable` range 0–27 → 0–35.** Presets store the NORMALISED
+  value, so a table saved under 1.24.0 or earlier would otherwise re-decode to a
+  different table (Vowel Morph at 12/27 lands on index 16). The migration hook
+  re-encodes both parameters for any preset whose version is below 1.25.0 —
+  which includes every preset written before this release, since they all say
+  `"1.0.0"` or carry no version. DAW sessions are unaffected: APVTS state holds
+  the denormalised index. **Not migratable:** a VST3/AU automation lane on the
+  table parameter recorded before 1.25.0 now points 27/35 of the way along the
+  new range; re-record it.
+- **Factory presets regenerate** at the version bump (existing sentinel) and are
+  written from `WT_` indices, so all 192 land on their authored tables — verified
+  for every preset by the harness, not spot-checked.
+- **Both oscillator dropdowns** gain a "Geometry" group in index order;
+  `WavetableSelector.factoryCount` 28 → 36. The hover-help for both table
+  parameters now says 36 tables in six groups, in all three languages; the i18n
+  exemption list of C++-owned table names carries the eight new names.
+- `getTableInfoList()` builds the Geometry rows from the baked header's table
+  of names, so the C++ side has one source of truth; the HTML dropdowns and the
+  i18n exemption list remain hand mirrors, extended in the same commit.
+
+### Notes from the bake
+
+- The research default — a (2,3) torus-knot orbit — fails the pitch gate at
+  every offset tried: p = 2 folds the period, so harmonics 2 and 3 carry the
+  energy and the table plays a fifth or a twelfth up. Every orbit table rides a
+  (1,q) path with an asymmetric offset instead; that is what puts harmonic 1 on
+  top. Centred orbits and centred terrain ellipses play an octave up.
+- "Star Hollow" (centroid-distance readout, h5 dominant by construction) and
+  "Blob" (XY slices of a blob are near-circles, so every frame is a sine) could
+  not pass the gates as briefed and were replaced by Star Points and Blob Orbit.
+- Gate results per table (h1 within 6 dB / end-to-end RMS / adjacent max):
+  Star Tilt 100 % / 0.47 / 0.032 · Star Points 100 % / 0.33 / 0.018 ·
+  Blob Orbit 100 % / 0.46 / 0.030 · Knot Torus 100 % / 0.60 / 0.036 ·
+  Knot Box 100 % / 0.27 (centroid ×2.7) / 0.018 · Gyroid Orbit 100 % / 0.72 / 0.043 ·
+  Noise Knot 100 % / 0.40 / 0.036 · Terrain Rings 100 % / 0.53 / 0.045.
+
 ## v1.24.0 (2026-09-04)
 
 **Simplified Chinese.** Every caption, section heading, tab, hover-help body and

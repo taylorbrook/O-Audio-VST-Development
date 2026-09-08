@@ -2,7 +2,7 @@
 # params	173
 # note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
 #id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
-oscATable	Osc A Wavetable		28	0	27	0.000000	0	automatable
+oscATable	Osc A Wavetable		36	0	35	0.000000	0	automatable
 oscAPos	Osc A Position		2147483647	0.000	1.000	0.000000	0.000	automatable
 oscALevel	Osc A Level		2147483647	0.000	1.000	0.800000	0.800	automatable
 oscAPan	Osc A Pan		2147483647	-1.00	1.00	0.500000	-0.00	automatable
@@ -14,7 +14,7 @@ oscADetune	Osc A Detune		2147483647	0.000	1.000	0.200000	0.200	automatable
 oscAWidth	Osc A Width		2147483647	0.000	1.000	0.500000	0.500	automatable
 oscAWarpType	Osc A Warp Type		5	Off	Window	0.000000	Off	automatable,discrete
 oscAWarpAmt	Osc A Warp Amount		2147483647	0.000	1.000	0.000000	0.000	automatable
-oscBTable	Osc B Wavetable		28	0	27	0.000000	0	automatable
+oscBTable	Osc B Wavetable		36	0	35	0.000000	0	automatable
 oscBPos	Osc B Position		2147483647	0.000	1.000	0.000000	0.000	automatable
 oscBLevel	Osc B Level		2147483647	0.000	1.000	0.000000	0.000	automatable
 oscBPan	Osc B Pan		2147483647	-1.00	1.00	0.500000	-0.00	automatable

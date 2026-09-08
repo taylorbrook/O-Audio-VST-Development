@@ -234,7 +234,7 @@ private:
     ScaleGenerator scaleGenerator;
     TuningExporter tuningExporter;
 
-    // Factory wavetable library (28 tables across 5 categories)
+    // Factory wavetable library (36 tables across 6 categories)
     std::vector<std::unique_ptr<WavetableData>> factoryTables;
     std::vector<TableInfo> tableInfoList;
     int lastTuningPreset = -1;
