@@ -504,26 +504,40 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
         vR[i] *= trimR;
     }
 
+    // v1.13.0 — the air filter is driven by the sub-point's distance from the LISTENER (the rig
+    // centroid, less the near field), NOT by d_hull. d_hull still drives the trim above. The
+    // UNPROJECTED sub-point is used so the distance keeps growing beyond the hull rather than
+    // freezing at the boundary. See HullProcessor.h for the measurement that forced this.
+    const float dAirL = hullproc::airDistanceMetres (subPoints.left.x,  subPoints.left.y,
+                                                     snapshot.centroid.x, snapshot.centroid.y,
+                                                     snapshot.rigScale);
+    const float dAirR = hullproc::airDistanceMetres (subPoints.right.x, subPoints.right.y,
+                                                     snapshot.centroid.x, snapshot.centroid.y,
+                                                     snapshot.rigScale);
+
     // The cutoff is set UNCONDITIONALLY, even on a filter that is about to be skipped. Setting it
     // is free at control rate, it keeps the counter identity airCutoffUpdates == solveRuns * 2
     // exact (P32), and it means a filter re-entering the active state already carries the right
     // coefficient rather than one control block of a stale one.
-    airL.setCutoffFrequency (hullproc::airCutoffHz (p[params::airAmount], dHullL, sampleRate));
-    airR.setCutoffFrequency (hullproc::airCutoffHz (p[params::airAmount], dHullR, sampleRate));
+    airL.setCutoffFrequency (hullproc::airCutoffHz (p[params::airAmount], dAirL,
+                                                    snapshot.rigScale, sampleRate));
+    airR.setCutoffFrequency (hullproc::airCutoffHz (p[params::airAmount], dAirR,
+                                                    snapshot.rigScale, sampleRate));
 
     instr::countAirCutoffUpdate();
     instr::countAirCutoffUpdate();
 
     // ── The D2 amendment: the skip condition is the PRODUCT being zero ────────────────────────
     //
-    // airAmount == 0 defeats the filter everywhere (DSP-07/5); d_hull == 0 defeats it inside the
-    // hull at ANY airAmount (DSP-07/6), which is what makes the shipping default patch
-    // bit-transparent. Both halves are the same test.
+    // airAmount == 0 defeats the filter everywhere (DSP-07/5); d_air == 0 defeats it inside the
+    // near field at ANY airAmount (DSP-07/6, boundary moved from the hull to the near field in
+    // v1.13.0), which is what keeps the shipping default patch bit-transparent. Both halves are
+    // the same test.
     const bool wasActiveL = airActiveL;
     const bool wasActiveR = airActiveR;
 
-    airActiveL = p[params::airAmount] > 0.0f && dHullL > 0.0f;
-    airActiveR = p[params::airAmount] > 0.0f && dHullR > 0.0f;
+    airActiveL = p[params::airAmount] > 0.0f && dAirL > 0.0f;
+    airActiveR = p[params::airAmount] > 0.0f && dAirR > 0.0f;
 
     // P27 / H1 — the false->true edge arms a re-seed, and the seed makes the entry BIT-EXACT.
     // processSample computes v = G*(x - s), so seeding s = x gives v = 0.0f exactly and y = x on
@@ -539,8 +553,8 @@ void GainStage::updateControl (const VenueSnapshot& snapshot, const ParamSnapsho
     // block for as long as the control stays down, which is observationally the same here but is
     // not what the criterion says, and it invites the collapse below.
     //
-    // AND NOT ON EVERY d_hull == 0 BLOCK — the distinction is the single most likely thing to be
-    // "simplified" away later. A puck oscillating across the hull edge crosses d_hull == 0
+    // AND NOT ON EVERY d_air == 0 BLOCK — the distinction is the single most likely thing to be
+    // "simplified" away later. A puck oscillating across the near-field edge crosses d_air == 0
     // repeatedly; re-zeroing there would be the self-inflicted damage D2 rejected, and it would
     // also destroy the bit-exact entry above, because a filter that was just zeroed has s = 0
     // rather than s = x. Turning the CONTROL off is a different act: the user has defeated the

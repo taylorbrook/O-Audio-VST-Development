@@ -853,6 +853,18 @@ float dHullAtNorm (const OOctagonProcessor& proc, float nx, float ny)
     return proc.getHull().project ({ m.x, m.y }).distance;
 }
 
+/** d_air in metres for a normalised puck position — the quantity updateControl feeds the air cutoff
+    since v1.13.0: planar distance from the rig centroid, less the near field. Uses the plugin's own
+    airDistanceMetres deliberately, for the same reason dHullAtNorm uses the plugin's own hull: the
+    bound a FILTER probe asserts against must be the one the filter actually saw. */
+float dAirAtNorm (const OOctagonProcessor& proc, float nx, float ny)
+{
+    const auto& v = proc.getVenue();
+    const auto  m = v.normToMetres (nx, ny);
+
+    return oo::hullproc::airDistanceMetres (m.x, m.y, v.centroid().x, v.centroid().y, v.rigScale());
+}
+
 /** Walks from an inside point toward an outside one and returns the normalised position whose
     d_hull first reaches `targetMetres`. Keeps hull-crossing probes near the boundary, which is
     both the musically realistic gesture and the case the |H − 1| bound is derived for. */
@@ -2738,7 +2750,12 @@ int main()
                                 : std::pair<float, float> { inNx, inNy };
 
         const float dHullOut = dHullAtNorm (scout, outN.first, outN.second);
-        const float fcOut    = oo::hullproc::airCutoffHz (0.35f, dHullOut, kSampleRate);
+
+        // v1.13.0: the cutoff the filter runs at OUTSIDE is set by the listener distance, not
+        // d_hull. The crossing itself is unchanged — the centroid is inside the near field (d_air
+        // exactly 0, filter skipped) and the outside point is well beyond it.
+        const float dAirOut  = dAirAtNorm (scout, outN.first, outN.second);
+        const float fcOut    = oo::hullproc::airCutoffHz (0.35f, dAirOut, sv.rigScale(), kSampleRate);
 
         if (! found || dHullOut <= 0.0f)
         {
@@ -2881,8 +2898,8 @@ int main()
                        << (exitBounded ? "; " : " — DOES NOT MATCH |H−1|; ");
             }
 
-            detail << "d_hull " << juce::String (dHullOut, 3) << " m, fc "
-                   << juce::String (fcOut, 0) << " Hz";
+            detail << "d_hull " << juce::String (dHullOut, 3) << " m, d_air "
+                   << juce::String (dAirOut, 3) << " m, fc " << juce::String (fcOut, 0) << " Hz";
 
             // Q9 — sub-points STRADDLING the boundary are NOT probed empirically, and that is a
             // decision rather than an omission. Each feed enters at 0.5 (§3.4.3's level
@@ -2932,13 +2949,18 @@ int main()
 
         float onx = 0.0f, ony = 0.0f;
         const bool found = findOutside (scout, onx, ony);
-        const float dHull = found ? dHullAtNorm (scout, onx, ony) : 0.0f;
 
-        if (! found || dHull <= 0.0f)
+        // v1.13.0: the bound is derived from the LISTENER distance the filter is driven by. The
+        // outside position is kept (it is the farthest point from the centroid the puck reaches),
+        // and the guard is on d_air — the quantity that would make airAmount inert.
+        const float dAir     = found ? dAirAtNorm (scout, onx, ony) : 0.0f;
+        const float rigScale = scout.getVenue().rigScale();
+
+        if (! found || dAir <= 0.0f)
         {
             check ("BC air-sweep-differential", false,
-                   "NO OUTSIDE POSITION FOUND — airAmount would do nothing and the probe would be "
-                   "vacuous");
+                   "NO POSITION BEYOND THE NEAR FIELD FOUND — airAmount would do nothing and the "
+                   "probe would be vacuous");
         }
         else
         {
@@ -2968,7 +2990,8 @@ int main()
 
                 for (int n = 0; n < total; n += grid)
                 {
-                    const double G = tptG (oo::hullproc::airCutoffHz (airAt (n), dHull, kSampleRate),
+                    const double G = tptG (oo::hullproc::airCutoffHz (airAt (n), dAir, rigScale,
+                                                                       kSampleRate),
                                            kSampleRate);
 
                     if (previous >= 0.0)
@@ -3109,9 +3132,10 @@ int main()
         }
         else
         {
-            // 1. DSP-07/6 — INSIDE the hull, bit-identical at ANY airAmount. This is the D2
-            //    amendment's whole point: the SHIPPING DEFAULT PATCH (hullAtten 1.0, airAmount
-            //    0.35, puck centred) is bit-transparent.
+            // 1. DSP-07/6 — INSIDE THE NEAR FIELD (v1.13.0: was "inside the hull"; the puck here
+            //    sits ON the centroid, d_air exactly 0), bit-identical at ANY airAmount. This is
+            //    the D2 amendment's whole point: the SHIPPING DEFAULT PATCH (hullAtten 1.0,
+            //    airAmount 0.35, puck centred) is bit-transparent.
             {
                 juce::AudioBuffer<float> r0 (8, total), r35 (8, total), r100 (8, total);
 
@@ -3126,12 +3150,12 @@ int main()
                 detail << "inside: air 0/0.35/1.0 "
                        << (identical ? "bit-identical" : firstDifference (r0, r35))
                        << ", filtered samples " << juce::String ((int) c35)
-                       << (counted ? "" : " — FILTER RAN INSIDE THE HULL") << "; ";
+                       << (counted ? "" : " — FILTER RAN INSIDE THE NEAR FIELD") << "; ";
             }
 
-            // 2. DSP-07/5 — OUTSIDE the hull at airAmount = 0, the branch is never taken; and the
-            //    NON-VACUITY control: at 0.35 it is taken on every sample of both sub-points, and
-            //    the render CHANGES.
+            // 2. DSP-07/5 — OUTSIDE the hull (far beyond the near field) at airAmount = 0, the
+            //    branch is never taken; and the NON-VACUITY control: at 0.35 it is taken on every
+            //    sample of both sub-points, and the render CHANGES.
             {
                 juce::AudioBuffer<float> off (8, total), on (8, total);
 
@@ -5380,7 +5404,7 @@ int main()
 
             const bool sixApplied = near (readEng ("width"),      4.5f,  1.0e-3f)
                                  && near (readEng ("rolloff"),    3.0f,  1.0e-3f)
-                                 && near (readEng ("blur"),       0.18f, 1.0e-3f)   // v1.3.0 rescale (was 0.55)
+                                 && near (readEng ("blur"),       0.21f, 1.0e-3f)   // v1.13.0 square-law remap (0.55 → 0.18 → 0.21)
                                  && near (readEng ("hullAtten"),  0.4f,  1.0e-3f)
                                  && near (readEng ("airAmount"),  0.85f, 1.0e-3f)
                                  && near (readEng ("outputGain"), -3.0f, 1.0e-2f);
@@ -5827,15 +5851,37 @@ int main()
         constexpr int total = 4096 * 4;
 
         // v1.4.0 CAPTURE, 2026-08-26, from commit 0c7154f2 (the v1.4.0 release build), rendered
-        // by this exact scenario before a line of v1.5.0's DSP existed.
-        constexpr std::uint64_t kV140Digest = 0xe25f022c8ce71dc9ull;
+        // by the ORIGINAL scenario (air 0.60, a blur 0.22 event) before a line of v1.5.0's DSP
+        // existed: 0xe25f022c8ce71dc9. That render held bit-identical through v1.12.0.
+        //
+        // RE-ANCHORED 2026-09-08 FOR v1.13.0, which changes both laws that scenario exercised on
+        // purpose (blur's square law, air driven by listener distance). Per the rule above the
+        // scenario was NARROWED to the region v1.13.0 claims is untouched — blur 0 (r_s = 0 under
+        // both laws) and airAmount 0 (filter skipped under both), the blur event replaced by a
+        // srcY event, both set BEFORE prepareToPlay so the prepare-time solve is inside the
+        // region too — and the constant re-derived by building THIS EXACT probe against the
+        // pristine v1.12.0 tree (backups/O-Octagon/v1.12.0, 73/75 green, only these two digests
+        // red because they still held the un-narrowed constants) and transcribing the number it
+        // printed. Not re-recorded from the v1.13.0 build. The decorrelator's conditions are
+        // unchanged: off-centre, wide.
+        constexpr std::uint64_t kV140Digest = 0x8ae2ed8c37b3be56ull;
 
         const std::vector<Event> events
             { { 4096 * 1, "srcX",    0.72f },
-              { 4096 * 2, "blur",    0.22f },
+              { 4096 * 2, "srcY",    0.58f },
               { 4096 * 3, "rolloff", 5.0f } };
 
         OOctagonProcessor proc;
+
+        // v1.13.0 — blur and air are set BEFORE negotiate(), because negotiate() calls
+        // prepareToPlay() and prepare()'s own solve runs at whatever they are set to THEN.
+        // v1.13.0 moves the blur DEFAULT (0.03 → 0.09, the same radius to within 0.03 dB under
+        // the new square law, but not the same float), so a prepare-time solve at the default
+        // sits OUTSIDE the region this anchor claims is untouched, and the first 5 ms would ramp
+        // from a different starting vector. Setting them first puts the whole render, prepare
+        // included, at r_s = 0 and a defeated filter under BOTH laws.
+        setParam (proc, "blur",      0.0f);
+        setParam (proc, "airAmount", 0.0f);
 
         negotiate (proc, mono, set71);
         applyRotatedLabels (proc);
@@ -5849,7 +5895,6 @@ int main()
         setParam (proc, "srcY",      0.66f);
         setParam (proc, "srcZ",      1.40f);
         setParam (proc, "width",     6.0f);
-        setParam (proc, "airAmount", 0.60f);
         setParam (proc, "hullAtten", 1.60f);
         setWeights (proc, { 1.0f, 0.85f, 0.6f, 1.0f, 0.4f, 0.9f, 1.0f, 0.75f });
 
@@ -5870,9 +5915,10 @@ int main()
         const bool ok = digest == kV140Digest && decorrRan == 0 && live;
 
         juce::String detail;
-        detail << "width 6 m off-centre, air 0.60, 4 x 4096 samples x 8 lanes: digest 0x"
+        detail << "width 6 m off-centre, air 0, blur 0, 4 x 4096 samples x 8 lanes: digest 0x"
                << juce::String::toHexString (static_cast<juce::int64> (digest))
-               << " vs v1.4.0 0x" << juce::String::toHexString (static_cast<juce::int64> (kV140Digest))
+               << " vs v1.12.0-anchored 0x"
+               << juce::String::toHexString (static_cast<juce::int64> (kV140Digest))
                << "; decorrSamples " << juce::String (decorrRan) << " (expect 0)"
                << (live ? "" : " — SIGNAL IS SILENT, probe vacuous");
 
@@ -6393,8 +6439,14 @@ int main()
 
         // v1.7.0 CAPTURE, 2026-08-27, from commit 2e03020e (working tree == v1.7.0-O-Octagon for
         // plugins/O-Octagon/Source, verified by `git diff --stat v1.7.0-O-Octagon -- Source` being
-        // empty), rendered by this exact scenario before a line of v1.8.0's DSP existed.
-        constexpr std::uint64_t kV170Digest = 0xb8c5a2d0c7518204ull;
+        // empty), rendered by the ORIGINAL scenario (air 0.60, a blur 0.22 event) before a line of
+        // v1.8.0's DSP existed: 0xb8c5a2d0c7518204. Held bit-identical through v1.12.0.
+        //
+        // RE-ANCHORED 2026-09-08 FOR v1.13.0, exactly as CU was: scenario narrowed to blur 0 and
+        // airAmount 0 set ahead of prepareToPlay (the blur event became a srcY event), constant
+        // re-derived from the pristine v1.12.0 tree. The motion-off conditions are unchanged:
+        // off-centre, raised, wide, ragged.
+        constexpr std::uint64_t kV170Digest = 0xdef4e5ef94849f76ull;
 
         // NOT CU's event list. CU's scenario at ragged sizes digests to CU's own constant (QUAL-03
         // makes the chop invisible), which would make this probe a second copy of one number. The
@@ -6403,11 +6455,21 @@ int main()
         // pair Task 4 routes an effective Z through.
         const std::vector<Event> events
             { { 4096 * 1,        "srcX",    0.72f },
-              { 4096 * 2,        "blur",    0.22f },
+              { 4096 * 2,        "srcY",    0.58f },
               { 4096 * 2 + 1000, "srcZ",    3.00f },
               { 4096 * 3,        "rolloff", 5.0f } };
 
         OOctagonProcessor proc;
+
+        // v1.13.0 — blur and air are set BEFORE negotiate(), because negotiate() calls
+        // prepareToPlay() and prepare()'s own solve runs at whatever they are set to THEN.
+        // v1.13.0 moves the blur DEFAULT (0.03 → 0.09, the same radius to within 0.03 dB under
+        // the new square law, but not the same float), so a prepare-time solve at the default
+        // sits OUTSIDE the region this anchor claims is untouched, and the first 5 ms would ramp
+        // from a different starting vector. Setting them first puts the whole render, prepare
+        // included, at r_s = 0 and a defeated filter under BOTH laws.
+        setParam (proc, "blur",      0.0f);
+        setParam (proc, "airAmount", 0.0f);
 
         negotiate (proc, mono, set71);
         applyRotatedLabels (proc);
@@ -6419,7 +6481,6 @@ int main()
         setParam (proc, "srcY",      0.66f);
         setParam (proc, "srcZ",      1.40f);
         setParam (proc, "width",     6.0f);
-        setParam (proc, "airAmount", 0.60f);
         setParam (proc, "hullAtten", 1.60f);
         setWeights (proc, { 1.0f, 0.85f, 0.6f, 1.0f, 0.4f, 0.9f, 1.0f, 0.75f });
 
@@ -6438,10 +6499,11 @@ int main()
         const bool ok = digest == kV170Digest && motionRan == 0 && live;
 
         juce::String detail;
-        detail << "width 6 m off-centre, srcZ 1.4, air 0.60, ragged sizes, 4 x 4096 samples x 8 "
-                  "lanes: digest 0x"
+        detail << "width 6 m off-centre, srcZ 1.4, air 0, blur 0, ragged sizes, 4 x 4096 samples "
+                  "x 8 lanes: digest 0x"
                << juce::String::toHexString (static_cast<juce::int64> (digest))
-               << " vs v1.7.0 0x" << juce::String::toHexString (static_cast<juce::int64> (kV170Digest))
+               << " vs v1.12.0-anchored 0x"
+               << juce::String::toHexString (static_cast<juce::int64> (kV170Digest))
                << "; motionSolves " << juce::String (motionRan) << " (expect 0)"
                << (live ? "" : " — SIGNAL IS SILENT, probe vacuous");
 

@@ -101,9 +101,11 @@ function listenerList() {
 //   * w1..w8 default to 1.0, NOT the range minimum. A stub defaulting them to
 //     0.0 renders EIGHT SILENT SPEAKERS — a state the plugin never ships in —
 //     and every single UI-02 criterion still passes over the top of it.
-//   * blur defaults to 0.03 and airAmount to 0.35, neither of which is an
+//   * blur defaults to 0.09 and airAmount to 0.35, neither of which is an
 //     endpoint. This is the same trap that caught grainTilt, grainCount,
-//     tukeyTaper and driftRate in the precedent, four separate times.
+//     tukeyTaper and driftRate in the precedent, four separate times — and it
+//     caught blur here at v1.13.0, when the C++ default moved 0.03 -> 0.09 for
+//     the square blur law and this table still said 0.03.
 const RANGES = {
   srcX:       { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.5 },
   srcY:       { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.5 },
@@ -112,7 +114,7 @@ const RANGES = {
   decorr:     { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.0 },
 
   rolloff:    { start: 3,   end: 12, skew: 1, interval: 0,     def: 4.0 },
-  blur:       { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.03 },
+  blur:       { start: 0,   end: 1,  skew: 1, interval: 0,     def: 0.09 },
 
   w1:         { start: 0,   end: 1,  skew: 1, interval: 0,     def: 1.0 },
   w2:         { start: 0,   end: 1,  skew: 1, interval: 0,     def: 1.0 },

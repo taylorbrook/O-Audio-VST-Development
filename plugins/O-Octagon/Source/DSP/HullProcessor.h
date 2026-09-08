@@ -58,13 +58,35 @@ namespace hullproc
     /// §3.5.1. The trim cannot attenuate past this, however far outside the hull the source goes.
     inline constexpr float kTrimFloorDb = -24.0f;
 
-    /// §3.5.2 dRef — the distance over which airAmount = 1 drops the cutoff by one octave.
-    inline constexpr float kAirRefMetres = 3.0f;
+    /** v1.13.0 — dRef as a FRACTION OF rigScale: the distance over which airAmount = 1 drops the
+        cutoff by one octave is 0.2 RMS rig radii (1.59 m on the default rig).
 
-    /// §3.5.2. The cutoff at d_hull = 0, and the anchor the whole musical curve hangs from.
+        ── WHY THE DRIVING DISTANCE MOVED OFF THE HULL (the v1.12.0 "Air does nothing" report) ──
+        Through v1.12.0 the cutoff was `20000 · 2^(−airAmount · d_hull / 3 m)`, d_hull being the
+        distance OUTSIDE the convex hull. MEASURED on the default rig: the puck's whole reachable
+        plane is the speaker bounding box, only 5.8 % of which lies outside the octagon (two
+        triangles at the rear corners), and the farthest reachable point is 2.14 m out — so the
+        cutoff never fell below 16.8 kHz at the default and 12.2 kHz at airAmount = 1, and was
+        pinned at 20 kHz everywhere the puck normally lives. The control was inert by geometry.
+
+        Since v1.13.0 the distance is the sub-point's PLANAR DISTANCE FROM THE RIG CENTROID — the
+        listener — less a near field (kAirNearFraction), and it continues growing beyond the hull.
+        On the default rig at airAmount = 1: 11.8 kHz at 2 m, 4.9 kHz at 4 m, 885 Hz at the rig
+        radius, the 500 Hz floor at the far corners; at the 0.35 default 6.7 kHz at the rig radius.
+        Scaled with the rig (DSP-08's invariant, as blur is) rather than in metres.
+    */
+    inline constexpr float kAirRefFraction = 0.2f;
+
+    /** v1.13.0 — the near field, as a fraction of rigScale (0.79 m on the default rig). Inside it
+        the filter is SKIPPED exactly as it was inside the hull before, which is what keeps the
+        shipping default patch — puck at the bounding-box centre, 0.46 m from the centroid on the
+        default rig — bit-transparent (DSP-07/6 preserved, with the boundary moved). */
+    inline constexpr float kAirNearFraction = 0.1f;
+
+    /// §3.5.2. The cutoff at d_air = 0, and the anchor the whole musical curve hangs from.
     inline constexpr float kAirCeilingHz = 20000.0f;
 
-    /// §3.5.2. The cutoff floor, reached at airAmount = 1.0 around d_hull = 15.97 m.
+    /// §3.5.2. The cutoff floor, reached at airAmount = 1.0 at d_air ≈ 1.06 rig radii.
     inline constexpr float kAirFloorHz = 500.0f;
 
     /** RESEARCH-2.3 H4. The ceiling is additionally capped at this fraction of the sample rate.
@@ -84,8 +106,11 @@ namespace hullproc
                    "the floor must sit below the ceiling or the clamp in airCutoffHz() inverts");
     static_assert (kTrimFloorDb < 0.0f,
                    "the hull trim ATTENUATES; a non-negative floor would let it boost");
-    static_assert (kAirRefMetres > 0.0f,
+    static_assert (kAirRefFraction > 0.0f,
                    "dRef divides the exponent: at 0 the curve is a step and at negative it inverts");
+    static_assert (kAirNearFraction >= 0.0f,
+                   "a negative near field would filter AT the centroid and break the default "
+                   "patch's bit-transparency");
 
     //==========================================================================
     /** §3.5.1 — the outside-hull gain trim.
@@ -118,13 +143,32 @@ namespace hullproc
     }
 
     //==========================================================================
+    /** v1.13.0 — the distance that drives the air filter: planar distance of a sub-point from
+        the rig centroid, less the near field, floored at 0. EXACTLY 0.0f inside the near field,
+        which is the skip condition GainStage tests (`airAmount > 0 && dAir > 0`).
+
+        Planar, like the hull, so srcZ neither darkens nor brightens the source — height has its
+        own cue (the z-cue). A degenerate rig (rigScale 0) has a zero-radius near field and the
+        raw centroid distance; airCutoffHz() then returns the ceiling, so the pair is harmless.
+    */
+    inline float airDistanceMetres (float px, float py, float cx, float cy, float rigScale) noexcept
+    {
+        const float dx = px - cx;
+        const float dy = py - cy;
+        const float d  = std::sqrt (dx * dx + dy * dy) - kAirNearFraction * rigScale;
+
+        return d > 0.0f ? d : 0.0f;
+    }
+
     /** §3.5.2 — the air-absorption cutoff, with H4's Nyquist-safe bounds.
 
-        `fc = clamp (20000 * 2^(-airAmount * dHull / 3), floor, ceiling)`
+        `fc = clamp (20000 * 2^(-airAmount * dAir / (kAirRefFraction · rigScale)), floor, ceiling)`
+        (v1.13.0: dAir from airDistanceMetres() and dRef scaled with the rig — was d_hull / 3 m)
 
         The NUMERATOR stays the literal kAirCeilingHz at every sample rate: the musical curve is
-        anchored at 20 kHz and §3.5.2's four-row table re-derives exactly from it (13 348 / 5 946 /
-        6 300 / 625 Hz at {0.35, 1.0} x {5, 15} m). Only the CLAMP is rate-aware — at 44.1 kHz the
+        anchored at 20 kHz and probe AU's four-row table re-derives exactly from it (10 905 /
+        3 242 / 3 536 / 625 Hz at {0.35, 1.0} x {5, 15 | 10} m on a 10 m rig). Only the CLAMP is
+        rate-aware — at 44.1 kHz the
         ceiling clips 20 000 to 19 845 Hz, a 0.07 dB change at 10 kHz, and it makes the plugin
         correct everywhere rather than correct above 40 kHz.
 
@@ -136,7 +180,7 @@ namespace hullproc
         does NOT route through dbap::countedPow — probe AE asserts powCalls == 16 EXACTLY and that
         assertion is load-bearing for §3.3.5's budget (P32).
     */
-    inline float airCutoffHz (float airAmount, float dHull, double sampleRate) noexcept
+    inline float airCutoffHz (float airAmount, float dAir, float rigScale, double sampleRate) noexcept
     {
         // Named ...Hz rather than `ceiling`/`floor`: a local `floor` shadows std::floor, and this
         // repo builds with juce_recommended_warning_flags and a hard zero-warning gate
@@ -145,7 +189,14 @@ namespace hullproc
                                             kNyquistMargin * static_cast<float> (sampleRate));
         const float floorHz   = juce::jmin (kAirFloorHz, ceilingHz);
 
-        const float fc = kAirCeilingHz * std::exp2 (-(airAmount * dHull) / kAirRefMetres);
+        // A degenerate rig has no scale to hang the curve from: return the ceiling rather than
+        // divide by zero (0/0 → NaN would sail through jlimit and into setCutoffFrequency).
+        const float dRef = kAirRefFraction * rigScale;
+
+        if (! (dRef > 0.0f))
+            return ceilingHz;
+
+        const float fc = kAirCeilingHz * std::exp2 (-(airAmount * dAir) / dRef);
 
         return juce::jlimit (floorHz, ceilingHz, fc);
     }

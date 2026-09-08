@@ -447,8 +447,8 @@ private:
     // TWO MONO INSTANCES, AND THAT IS MANDATORY RATHER THAN STYLISTIC (RESEARCH-2.3 H6). `G` is a
     // PER-FILTER member of FirstOrderTPTFilter, not per-channel: one instance prepared with
     // numChannels = 2 would carry two independent STATES but ONE SHARED CUTOFF. The two sub-points
-    // have different d_hull whenever width > 0 and the source straddles the hull, so a single
-    // 2-channel instance is silently wrong in exactly that configuration.
+    // sit at different distances from the centroid whenever width > 0, so a single 2-channel
+    // instance is silently wrong in exactly that configuration.
     //
     // PER SUB-POINT, NOT PER SPEAKER: the filter sits on the source feed BEFORE the gain matrix.
     // Per-speaker would be 4x the cost and would not be what §3.5.2 describes.
@@ -458,9 +458,9 @@ private:
     /// than re-derived (H4 / P28). Set in prepare(), before step 3's updateControl().
     double sampleRate { 0.0 };
 
-    /// `airAmount > 0 && d_hull > 0` for that sub-point, evaluated at the control boundary. The D2
-    /// amendment: the skip condition is the PRODUCT being zero, so a source inside the hull is
-    /// bit-transparent at any airAmount.
+    /// `airAmount > 0 && d_air > 0` for that sub-point, evaluated at the control boundary. The D2
+    /// amendment: the skip condition is the PRODUCT being zero, so a source inside the near field
+    /// (v1.13.0 — was: inside the hull) is bit-transparent at any airAmount.
     bool airActiveL { false }, airActiveR { false };
 
     /** Set on the airActive false->true edge; consumed at the top of the next REAL renderChunk,

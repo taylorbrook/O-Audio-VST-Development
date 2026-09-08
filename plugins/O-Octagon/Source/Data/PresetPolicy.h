@@ -164,23 +164,27 @@ factoryDefs (const juce::AudioProcessorValueTreeState& apvts)
     // these rows were AUTHORED as radii, not knob positions — the sound each preset ships is the
     // point, so the radius is what survives the rescale. Width and rolloff columns stay put: they
     // are engineering values and the live-range conversion below moves them onto the widened
-    // ranges untouched. Concert Default's blur must remain EXACTLY the shipped default (0.03).
+    // ranges untouched. Concert Default's blur must remain EXACTLY the shipped default.
+    //
+    // v1.13.0 — blur column re-mapped blur → ½√blur (rounded to 2 dp) for the square law with
+    // kBlurScale 6: the same radii again (0.36 → 0.39, 0.71 → 0.69, 1.43 → 1.38, 2.14 → 2.10,
+    // 3.21 → 3.22 m — every one under 0.1 dB of spread). Concert Default = the shipped 0.09.
     static constexpr Row rows[] = {
         //  name              width  rolloff  blur  hullAtten  air   outGain
         { "Dry Point",         0.0f,   6.0f,  0.00f,    2.2f, 0.00f,   0.0f },
-        { "Concert Default",   0.0f,   4.0f,  0.03f,    1.0f, 0.35f,   0.0f },
-        { "Chamber",           1.5f,   4.5f,  0.06f,    1.4f, 0.25f,   0.0f },
-        { "Wide Hall",         3.0f,   3.5f,  0.12f,    0.7f, 0.55f,  -1.5f },
-        { "Distant Field",     4.5f,   3.0f,  0.18f,    0.4f, 0.85f,  -3.0f },
-        { "Enveloping",        6.0f,   3.0f,  0.27f,    0.0f, 0.45f,  -2.0f },
+        { "Concert Default",   0.0f,   4.0f,  0.09f,    1.0f, 0.35f,   0.0f },
+        { "Chamber",           1.5f,   4.5f,  0.12f,    1.4f, 0.25f,   0.0f },
+        { "Wide Hall",         3.0f,   3.5f,  0.17f,    0.7f, 0.55f,  -1.5f },
+        { "Distant Field",     4.5f,   3.0f,  0.21f,    0.4f, 0.85f,  -3.0f },
+        { "Enveloping",        6.0f,   3.0f,  0.26f,    0.0f, 0.45f,  -2.0f },
 
         // v1.8.0 — TWO ROWS THAT MOVE. Room character from Wide Hall / Chamber respectively, so
         // the motion is what distinguishes them.
         //   Slow Orbit: Orbit (0), synced to 4 Bars (14), 8 m across, ratio 0.8, 1 m of height.
         //   Wander:     Drift (3), Free (0) at 0.05 Hz, 6 m, seed 7.
         //                                                            on  path sync rate  size ratio ang  hgt  phase seed
-        { "Slow Orbit",        3.0f,   3.5f,  0.12f,    0.7f, 0.55f,  -1.5f, { 1.0f, 0.0f, 14.0f, 0.1f,  8.0f, 0.8f, 0.0f, 1.0f, 0.0f, 1.0f } },
-        { "Wander",            1.5f,   4.5f,  0.06f,    1.4f, 0.25f,   0.0f, { 1.0f, 3.0f,  0.0f, 0.05f, 6.0f, 1.0f, 0.0f, 0.0f, 0.0f, 7.0f } },
+        { "Slow Orbit",        3.0f,   3.5f,  0.17f,    0.7f, 0.55f,  -1.5f, { 1.0f, 0.0f, 14.0f, 0.1f,  8.0f, 0.8f, 0.0f, 1.0f, 0.0f, 1.0f } },
+        { "Wander",            1.5f,   4.5f,  0.12f,    1.4f, 0.25f,   0.0f, { 1.0f, 3.0f,  0.0f, 0.05f, 6.0f, 1.0f, 0.0f, 0.0f, 0.0f, 7.0f } },
     };
 
     // The single conversion. Reads the LIVE range, so a range change moves the presets with it

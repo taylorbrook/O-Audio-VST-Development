@@ -1,5 +1,179 @@
 # O-Octagon Changelog
 
+## v1.13.0 (2026-09-08)
+
+Blur and Air made audible. MINOR: both controls were reported as having no
+appreciable effect, and in both cases the cause was GEOMETRIC rather than a
+matter of taste — each was measured, and each law was replaced. No parameter ID,
+range, type or state format changed, so sessions are untouched; user presets
+carry a second migration gate and factory presets keep their authored sound.
+
+### Changed — Blur: a SQUARE law, `kBlurScale` 1.5 -> 6.0
+
+**Root cause (measured on the default rig, not guessed).** Every source-to-speaker
+distance already carries a constant ~3.5 m vertical offset (speakers hang at
+4.50-5.40 m, the source rides the 1.10-3.20 m ear plane), and the blur radius
+enters as `sqrt(dx^2 + dy^2 + dz^2 + r_s^2)` — IN QUADRATURE. An `r_s` below that
+offset is therefore arithmetically invisible, and above it the channel spread
+halves for every DOUBLING of `r_s`. The v1.3.0 linear law spent the bottom third
+of the knob under the offset doing nothing, and topped out at `r_s` = 11.90 m —
+still 3.03 dB of max-to-min channel spread at rolloff 4 and 9.08 dB at rolloff 12.
+The knob ran out before the wash did.
+
+`r_s = blur^2 * 6 * rigScale` (`kMaxBlurMetres` 24 -> 200 m, an absolute backstop
+that a mistyped coordinate still cannot get past). Squaring is what puts the
+octaves of `r_s` at roughly even knob intervals — the audible steps land at 0.27,
+0.38, 0.54, 0.76, 1.00 — and 6x reaches a genuine wash at the top. Measured
+max-to-min channel spread, puck beside speaker 1:
+
+| blur | old r_s | old spread @R4 / @R12 | new r_s | new spread @R4 / @R12 |
+|------|---------|----------------------|---------|----------------------|
+| 0.00 |  0.00 m |  9.31 / 27.92 dB     |  0.00 m |  9.31 / 27.92 dB     |
+| 0.30 |  3.57 m |  7.31 / 21.94 dB     |  4.28 m |  6.77 / 20.31 dB     |
+| 0.50 |  5.95 m |  5.63 / 16.89 dB     | 11.90 m |  3.03 /  9.08 dB     |
+| 0.70 |  8.33 m |  4.34 / 13.03 dB     | 23.32 m |  1.19 /  3.58 dB     |
+| 1.00 | 11.90 m |  3.03 /  9.08 dB     | 47.59 m |  0.34 /  1.02 dB     |
+
+The v1.3.0 endpoint now sits at HALF knob. `blur` stays room-size independent —
+it is still `rigScale`-relative, and probe AW still asserts the scaling invariant
+rather than the constant.
+
+- **Default 0.03 -> 0.09**, which holds the shipped radius at 0.39 m (was 0.36 m):
+  0.03 dB of spread apart, audibly the same starting point.
+- **Factory presets re-mapped `blur -> 1/2 * sqrt(blur)`** (2 dp). Every one keeps
+  its authored radius: 0.36 -> 0.39, 0.71 -> 0.69, 1.43 -> 1.38, 2.14 -> 2.10,
+  3.21 -> 3.22 m, all under 0.1 dB of spread. Concert Default remains EXACTLY the
+  shipped defaults.
+- **User presets migrate through a SECOND, INDEPENDENT gate** (`< 1.13`), not a
+  widened v1.3 one. Same authored radius means `1.5*b_old = 6*b_new^2`, i.e.
+  `b_new = 1/2 * sqrt(b_old)`, and `rigScale` cancels. A pre-1.3 preset passes
+  through both arms in order, `/3` then the root. Reusing the v1.3 gate would have
+  silently left every preset stamped 1.3 through 1.12 — the bulk of any real
+  library — holding a fraction against the linear law.
+
+### Changed — Air: driven by LISTENER DISTANCE, not by distance outside the hull
+
+**Root cause (measured, and it is not a tuning problem).** Through v1.12.0 the
+cutoff was `20000 * 2^(-airAmount * d_hull / 3 m)`, where `d_hull` is the distance
+OUTSIDE the convex hull of the speakers. On the default rig the puck's whole
+reachable plane is the speaker bounding box, and only **5.8 %** of it lies outside
+the octagon — two thin triangles at the rear corners. The farthest reachable point
+is **2.14 m** out. So across the entire plane the cutoff never fell below 16.8 kHz
+at the 0.35 default and 12.2 kHz at `airAmount` = 1, and sat pinned at 20 kHz
+everywhere the puck normally lives. The control was inert BY GEOMETRY: no value of
+`airAmount` could have rescued it.
+
+The driving distance is now the sub-point's PLANAR DISTANCE FROM THE RIG CENTROID
+— the listener — less a near field, and it keeps growing where `d_hull` froze at
+the boundary. `dRef` and the near field are both fractions of `rigScale`
+(`kAirRefFraction` 0.2, `kAirNearFraction` 0.1), so the curve is rig-relative in
+the same sense `blur` is, rather than pinned to a metre count that means different
+things in a club and a hall. `d_hull` still drives the outside-hull gain trim,
+which is unchanged. Measured cutoff on the default rig (`rigScale` 7.93 m, near
+field 0.79 m, dRef 1.59 m):
+
+| puck                | dist. from centroid | old @0.35 / @1.0 | new @0.35 / @1.0 |
+|---------------------|--------------------|------------------|------------------|
+| centre (default)    | 0.46 m             | 20000 / 20000 Hz | 20000 / 20000 Hz |
+| mid-left            | 3.63 m             | 20000 / 20000 Hz | 12961 /  5791 Hz |
+| front-centre        | 7.96 m             | 20000 / 20000 Hz |  6681 /   872 Hz |
+| front-left          | 9.01 m             | 20000 / 20000 Hz |  5692 /   552 Hz |
+| rear-right corner   | 9.25 m             | 20000 / 20000 Hz |  5489 /   500 Hz |
+
+The distance is PLANAR, so `srcZ` neither darkens nor brightens the source —
+height keeps its own cue, the v1.3.0 proximity trim. `airCutoffHz()` gained a
+`rigScale` argument and returns the ceiling on a degenerate rig rather than
+dividing by zero: `0/0` would have produced a NaN that sails through `jlimit`
+straight into `setCutoffFrequency`.
+
+**Every bit-transparency guarantee is preserved with its boundary moved.** The
+skip condition was `airAmount > 0 && d_hull > 0`; it is now
+`airAmount > 0 && d_air > 0`, and `airDistanceMetres()` returns EXACTLY `0.0f`
+inside the near field. The shipping default patch — puck at the bounding-box
+centre, 0.46 m from the centroid, inside the 0.79 m near field — is still
+bit-transparent at any `airAmount`, which probe BD asserts by buffer compare and
+by a filtered-sample count of zero. The P27 entry re-seed, the `airAmount`-edge
+reset and the NaN recovery are untouched.
+
+### Changed — tooltip
+
+- **The `Air` hover-help said "farther from the array"; it now says "moves out
+  from the centre of the array"**, in `en`, `fr` and `zh-Hans`. The old wording
+  described the hull behaviour and would have led a user to expect the far corners
+  of the rig to darken, which through v1.12.0 they did not. The French is a
+  two-word edit (`du dispositif` -> `du centre du dispositif`) and is flagged
+  `reviewed: false` — it has not been read by a French reader since the edit. The
+  Chinese inserts one term (`中心`) and was back-translated: "the farther the
+  source is from the centre of the array, the more high frequencies are
+  attenuated" — so it keeps `reviewed: 'bt'`.
+
+### Added — the preset migration became testable, and is now tested
+
+`blur`'s preset re-map was written as three lines inside `PluginEditor.cpp`'s
+migration lambda, which made the one transform standing between every already-saved
+user preset and a silently wrong recall the LEAST testable code in the release:
+`PluginEditor` is a WebView editor the render harness cannot construct
+(`pattern_render_harness_breaks_on_webview_editor`). It moved to
+`oo::dbap::blurFractionLinearToSquare()` beside the constant whose change caused
+it, where it joins the fast unit target.
+
+**New probe AY pins it from both sides.** The claim is about RADIUS, not about the
+fraction, so it is asserted through the live `blurToRadius()` — nine old fractions
+(the whole v1.12.0 factory column plus both endpoints and two interior values),
+worst radius error **5e-7 m**. The non-vacuity half feeds the UN-migrated fraction
+to the new law and requires it to be materially wrong: worst gap **35.69 m**, so a
+migration that quietly did nothing cannot pass. Fraction 0 is excluded from that
+half and named as excluded — `r_s` = 0 under both laws is a fixed point that
+legitimately never drifts. The clamp is asserted in both directions.
+
+### Testing
+
+59/59 unit probes, 75/75 render probes, 43/43 frontend sections, 34/34 layout
+sections, `check-ui-labels` all three languages, `check-i18n`, the French and
+Chinese lint gates, and `gen_dbap_reference.py --check` all pass. `auval` PASSES on
+the installed AU. Five test-side changes were REQUIRED by the two laws, and each is
+a mirror this release moved rather than a tolerance widened:
+
+- **Probe AG's radius table** re-derived for the square law (0.10 -> 0.476 m,
+  0.50 -> 11.90 m, 1.00 -> 47.59 m).
+- **Probe AU** rewritten against a 10 m probe rig, which makes `dRef` exactly 2 m
+  and every row one `exp2` of a round exponent (10905 / 3242 / 3536 / 625 Hz), plus
+  a new clause 5 asserting the three properties the new law adds: rig-relative
+  scaling, an exactly-zero near field, and a finite ceiling on a degenerate rig.
+- **Probe AW's positive control moved from λ = 2.1 to λ = 8.** The old λ tested the
+  24 m cap; under a 200 m cap it stopped clamping and the probe printed
+  "CLAMP INVISIBLE, THIS PROBE CANNOT FAIL" — a control that had gone vacuous. λ = 8
+  is not the first λ that clamps (that is 4.204): at λ = 4.5 the break is Δ 0.000691,
+  UNDER the control's own 1e-3 threshold. λ = 8 gives Δ 0.0109, an 11x margin,
+  measured across λ ∈ {4.5, 6, 8, 12, 20, 40}.
+- **The Python oracle** (`gen_dbap_reference.py`) re-anchored to the square law and
+  the 102-case fixture regenerated — a spec change with the diff read, not a silent
+  re-record. `--check` re-run after.
+- **Two mirrored copies of the blur default**, both caught by the frontend gate
+  rather than by inspection: `tests/ui-stub/juce-stub.js` and section 15's own
+  pinned expectation.
+
+**The two cross-version digest anchors were RE-ANCHORED, not re-recorded.** Probes
+CU (`decorr` = 0 renders what v1.4.0 rendered) and DC (`motionOn` = 0 renders what
+v1.7.0 rendered) both exercised `blur` and `airAmount` deliberately, so v1.13.0
+changes their renders for the intended reason. Re-recording from the v1.13.0 build
+would have turned the two probes that watch for silent drift into probes that
+ratify it. Instead each scenario was NARROWED to the region this release claims is
+untouched — `blur` 0 (`r_s` = 0 under both laws) and `airAmount` 0 (filter defeated
+under both), the `blur` automation event replaced by a `srcY` event so the dirty
+check still fires mid-render — and both constants were re-derived by building the
+narrowed probes against the pristine v1.12.0 tree (`backups/O-Octagon/v1.12.0`,
+73/75 green, red only on the two digests still holding un-narrowed constants) and
+transcribing what they printed. The decorrelator and motion conditions are
+unchanged: off-centre, wide, raised, ragged block sizes.
+
+Both `setParam` calls had to move AHEAD of `negotiate()`, because `negotiate()`
+calls `prepareToPlay()` and prepare's own solve runs at whatever the parameters
+read THEN — which is the DEFAULT, and the blur default moved. A prepare-time solve
+at the default sits outside the untouched region, and the first 5 ms of the render
+ramps from a different starting vector. That is the whole reason the first
+re-anchor attempt produced a digest that still did not match.
+
 ## v1.12.0 (2026-09-04)
 
 Simplified Chinese. MINOR: a third language on the hover-help and label tables,
