@@ -158,7 +158,7 @@
 // has read it. `node scripts/check-i18n.js` prints the worklist.
 // ============================================================================
 
-export const LANGUAGES = ['en', 'fr'];
+export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 
 // key -> { en: {t, b}, fr: {t, b, reviewed} }
 //   t = tooltip title (the small-caps line), b = tooltip body.
@@ -181,13 +181,19 @@ export const I18N = Object.freeze({
         fr: { t: 'Réglages',
               b: 'Choisir la langue de cette interface et l’affichage des infobulles. Les deux choix sont conservés avec la session.',
               reviewed: true },
+        'zh-Hans': { t: '设置',
+                     b: '选择本界面的语言，以及是否显示悬停帮助。两项选择都会随会话一起保存。',
+                     reviewed: 'mt' },
     },
     'lang-select': {
         en: { t: 'Language',
-              b: 'The language of this hover help and of the labels on the page. English and French are available; value readouts, note divisions and preset names stay in English.' },
+              b: 'The language of this hover help and of the labels on the page. Value readouts, note divisions and preset names stay in English.' },
         fr: { t: 'Langue',
-              b: 'La langue de ces infobulles et des libellés de la page. L’anglais et le français sont disponibles ; les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais.',
+              b: 'La langue de ces infobulles et des libellés de la page. Les valeurs affichées, les divisions rythmiques et les noms de préréglages restent en anglais.',
               reviewed: true },
+        'zh-Hans': { t: '语言',
+                     b: '这些悬停帮助和页面标签所用的语言。数值读数、节奏划分和预设名称保持英文。',
+                     reviewed: 'mt' },
     },
     'tips-toggle': {
         en: { t: 'Hover Help',
@@ -195,6 +201,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Infobulles',
               b: 'Active ou désactive ces infobulles. Une fois désactivées, seuls l’engrenage et ce commutateur continuent de s’expliquer.',
               reviewed: true },
+        'zh-Hans': { t: '悬停帮助',
+                     b: '开启或关闭这些悬停帮助。关闭之后，只有齿轮按钮和这个开关仍会说明自己。',
+                     reviewed: 'mt' },
     },
 
     // ── Preset bar ──────────────────────────────────────────────────────────
@@ -204,6 +213,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Précédent',
               b: 'Aller au préréglage précédent dans la liste.',
               reviewed: true },
+        'zh-Hans': { t: '上一个',
+                     b: '切换到列表中的上一个预设。',
+                     reviewed: 'mt' },
     },
     'preset-dropdown': {
         en: { t: 'Preset',
@@ -211,6 +223,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Préréglage',
               b: 'Cliquer pour parcourir et choisir un préréglage. Les préréglages d’usine sont protégés ; ceux de l’utilisateur peuvent être supprimés.',
               reviewed: true },
+        'zh-Hans': { t: '预设',
+                     b: '点击可浏览并选择预设。出厂预设受保护；用户预设可以删除。',
+                     reviewed: 'mt' },
     },
     'preset-next': {
         en: { t: 'Next',
@@ -218,6 +233,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Suivant',
               b: 'Aller au préréglage suivant dans la liste.',
               reviewed: true },
+        'zh-Hans': { t: '下一个',
+                     b: '切换到列表中的下一个预设。',
+                     reviewed: 'mt' },
     },
     'preset-save': {
         en: { t: 'Save',
@@ -225,6 +243,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Enregistrer',
               b: 'Enregistrer les réglages actuels comme nouveau préréglage utilisateur.',
               reviewed: true },
+        'zh-Hans': { t: '保存',
+                     b: '把当前设置保存为新的用户预设。',
+                     reviewed: 'mt' },
     },
     'preset-load': {
         en: { t: 'Load',
@@ -232,6 +253,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Ouvrir',
               b: 'Importer un préréglage depuis un fichier externe.',
               reviewed: true },
+        'zh-Hans': { t: '载入',
+                     b: '从外部文件导入预设。',
+                     reviewed: 'mt' },
     },
 
     // ── The four stutter lanes ──────────────────────────────────────────────
@@ -244,6 +268,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Piste de bégaiement',
               b: 'Activer ou désactiver cette piste de bégaiement. Désactivée, elle ne traite aucun signal.',
               reviewed: true },
+        'zh-Hans': { t: '断续轨',
+                     b: '启用或停用这条断续轨。停用后，本轨不处理任何音频。',
+                     reviewed: 'mt' },
     },
     // THE SECOND HAND-SPLIT, for the same reason.
     'progress': {
@@ -252,6 +279,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Progression de la répétition',
               b: 'Indique la position de lecture dans le cycle de répétition en cours.',
               reviewed: true },
+        'zh-Hans': { t: '重复进度',
+                     b: '显示当前重复周期内的播放位置。',
+                     reviewed: 'mt' },
     },
     'subdiv': {
         en: { t: 'Subdivision',
@@ -259,6 +289,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Subdivision',
               b: 'Fixe la durée rythmique de chaque tranche de bégaiement, synchronisée au tempo de l’hôte.',
               reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: '节奏划分',
+                     b: '设定每一片断续切片的节奏长度，与宿主速度同步。',
+                     reviewed: 'mt' },
     },
     'repeats': {
         en: { t: 'Repeats',
@@ -266,6 +299,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Répétitions',
               b: 'Nombre de lectures de la tranche audio capturée (1-16).',
               reviewed: true },
+        'zh-Hans': { t: '重复',
+                     b: '捕获的音频切片播放的次数（1 到 16）。',
+                     reviewed: 'mt' },
     },
     'decay': {
         en: { t: 'Decay',
@@ -273,6 +309,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Déclin',
               b: 'Baisse de volume appliquée à chaque répétition successive. Des valeurs basses créent des échos qui s’effacent.',
               reviewed: true },
+        'zh-Hans': { t: '衰减',
+                     b: '施加在每一次后续重复上的音量衰减。数值越低，回声消失得越快。',
+                     reviewed: 'mt' },
     },
     'filter': {
         en: { t: 'Filter',
@@ -280,6 +319,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Filtre',
               b: 'Applique aux répétitions un filtrage passe-bas (valeur négative) ou passe-haut (valeur positive).',
               reviewed: true },
+        'zh-Hans': { t: '滤波器',
+                     b: '对重复施加低通（负值）或高通（正值）滤波。',
+                     reviewed: 'mt' },
     },
     'probability': {
         en: { t: 'Probability',
@@ -287,6 +329,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Probabilité',
               b: 'Chance que cette piste se déclenche à chaque temps. 100 % = toujours, 50 % = une fois sur deux.',
               reviewed: true },
+        'zh-Hans': { t: '概率',
+                     b: '本轨在每一拍上触发的机会。100% 为总是触发，50% 为一半的时候触发。',
+                     reviewed: 'mt' },
     },
     'volume': {
         en: { t: 'Volume',
@@ -294,6 +339,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Volume',
               b: 'Niveau de sortie des bégaiements de cette piste dans le mixage.',
               reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: '音量',
+                     b: '本轨的断续在混音中的输出电平。',
+                     reviewed: 'mt' },
     },
     'pan': {
         en: { t: 'Pan',
@@ -301,6 +349,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Panoramique',
               b: 'Position stéréo des bégaiements. −100 = tout à gauche, +100 = tout à droite.',
               reviewed: true },
+        'zh-Hans': { t: '声像',
+                     b: '断续的立体声位置。−100 为全左，+100 为全右。',
+                     reviewed: 'mt' },
     },
     'swing': {
         en: { t: 'Swing',
@@ -308,6 +359,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Swing',
               b: 'Décale le rythme des répétitions. Des valeurs élevées accentuent le groove.',
               reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: '摇摆',
+                     b: '为重复的时值加入摇摆律动。数值越高，律动感越强。',
+                     reviewed: 'mt' },
     },
     'pitch': {
         en: { t: 'Pitch',
@@ -315,6 +369,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Hauteur',
               b: 'Transposer les bégaiements vers le haut ou vers le bas, en demi-tons (−12 à +12).',
               reviewed: true },
+        'zh-Hans': { t: '音高',
+                     b: '把断续按半音向上或向下移调（−12 到 +12）。',
+                     reviewed: 'mt' },
     },
     'pitch-rand': {
         en: { t: 'Random',
@@ -322,6 +379,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Aléatoire',
               b: 'Activer une variation de hauteur aléatoire à chaque répétition, dans la plage MIN/MAX.',
               reviewed: true },
+        'zh-Hans': { t: '随机',
+                     b: '启用后，每一次重复的音高都会在最小与最大之间随机变化。',
+                     reviewed: 'mt' },
     },
     'pitch-rand-min': {
         en: { t: 'Min',
@@ -329,6 +389,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Min',
               b: 'Écart de hauteur minimal pour le tirage aléatoire (ajouté à la hauteur de base).',
               reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: '最小',
+                     b: '随机化的最小音高偏移量（叠加在基础音高上）。',
+                     reviewed: 'mt' },
     },
     'pitch-rand-max': {
         en: { t: 'Max',
@@ -336,6 +399,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Max',
               b: 'Écart de hauteur maximal pour le tirage aléatoire (ajouté à la hauteur de base).',
               reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: '最大',
+                     b: '随机化的最大音高偏移量（叠加在基础音高上）。',
+                     reviewed: 'mt' },
     },
     'pitch-quantize': {
         en: { t: 'Semitone',
@@ -343,6 +409,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Demi-ton',
               b: 'Activé, le tirage de hauteur se cale sur des demi-tons entiers. Désactivé, il autorise des intervalles microtonaux.',
               reviewed: true },
+        'zh-Hans': { t: '半音',
+                     b: '开启时，随机音高对齐到整半音。关闭时，允许微分音程。',
+                     reviewed: 'mt' },
     },
     'pingpong': {
         en: { t: 'Ping-Pong',
@@ -350,6 +419,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Ping-pong',
               b: 'Alterne le sens de lecture entre avant et arrière à chaque répétition.',
               reviewed: true },
+        'zh-Hans': { t: '乒乓',
+                     b: '每一次重复交替一次播放方向，在正放与倒放之间轮换。',
+                     reviewed: 'mt' },
     },
     'reverse': {
         en: { t: 'Reverse',
@@ -357,6 +429,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Inversion',
               b: 'Lit toutes les répétitions à l’envers.',
               reviewed: true },
+        'zh-Hans': { t: '反向',
+                     b: '把所有重复都倒着播放。',
+                     reviewed: 'mt' },
     },
     'manual': {
         en: { t: 'Manual',
@@ -364,6 +439,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Manuel',
               b: 'Ignore la synchronisation au temps. À utiliser avec le bouton DÉCL pour des bégaiements ponctuels.',
               reviewed: true },
+        'zh-Hans': { t: '手动',
+                     b: '忽略按拍同步的时值。与触发按钮配合使用，可做单次断续。',
+                     reviewed: 'mt' },
     },
 
     // ── The pattern sequencer ───────────────────────────────────────────────
@@ -373,6 +451,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Séquenceur',
               b: 'Activé, le motif de 16 pas décide quand chaque piste peut se déclencher. Désactivé, les pistes se déclenchent à chaque temps.',
               reviewed: true },
+        'zh-Hans': { t: '音序器',
+                     b: '开启时，16 步的模式决定每条轨可以在什么时候触发。关闭时，各轨在每一拍上触发。',
+                     reviewed: 'mt' },
     },
     'sequencer': {
         en: { t: 'Pattern Sequencer',
@@ -380,6 +461,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Séquenceur de motif',
               b: 'Cliquer sur les pas pour les activer (vert) ou les désactiver (atténué). Chaque ligne pilote une piste. Les pas actifs autorisent un déclenchement sur ce temps.',
               reviewed: true },
+        'zh-Hans': { t: '模式音序器',
+                     b: '点击步位可以启用（绿色）或停用（暗色）。每一行控制一条轨。启用的步位允许在该拍上触发断续。',
+                     reviewed: 'mt' },
     },
     'euclidean': {
         en: { t: 'Euclidean',
@@ -387,6 +471,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Euclidien',
               b: 'Remplace le motif de pas manuel par un rythme euclidien généré automatiquement.',
               reviewed: true },
+        'zh-Hans': { t: '欧几里得',
+                     b: '用自动生成的欧几里得节奏取代手动的步进模式。',
+                     reviewed: 'mt' },
     },
     'euc-pulses': {
         en: { t: 'Pulses',
@@ -394,6 +481,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Impulsions',
               b: 'Nombre de frappes actives (1-16).',
               reviewed: true },
+        'zh-Hans': { t: '脉冲',
+                     b: '有效击点的数量（1 到 16）。',
+                     reviewed: 'mt' },
     },
     'euc-steps': {
         en: { t: 'Steps',
@@ -401,6 +491,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Pas',
               b: 'Nombre total de pas dans le motif (2-16).',
               reviewed: true },
+        'zh-Hans': { t: '步',
+                     b: '模式中的总步数（2 到 16）。',
+                     reviewed: 'mt' },
     },
 
     // ── Tape degradation, dry/wet and the trigger toggles ───────────────────
@@ -410,6 +503,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Contournement',
               b: 'Ignorer tout le traitement de dégradation de bande pour comparer avec le signal propre.',
               reviewed: true },
+        'zh-Hans': { t: '旁通',
+                     b: '跳过全部磁带劣化处理，以便与干净信号作对比。',
+                     reviewed: 'mt' },
     },
     'saturation': {
         en: { t: 'Saturation',
@@ -417,6 +513,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Saturation',
               b: 'Ajoute une distorsion harmonique chaude, à la manière d’une bande. Plus la valeur est haute, plus le grain est rugueux.',
               reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: '饱和',
+                     b: '加入温暖的磁带式谐波失真。数值越高，颗粒感越粗。',
+                     reviewed: 'mt' },
     },
     'wow': {
         en: { t: 'Wow',
@@ -424,6 +523,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Pleurage',
               b: 'Modulation lente de la hauteur qui imite les variations de vitesse d’une bande. Donne un caractère ondulant et lo-fi.',
               reviewed: true },
+        'zh-Hans': { t: '慢抖',
+                     b: '缓慢的音高调制，模仿磁带速度的起伏。带来摇曳的低保真质感。',
+                     reviewed: 'mt' },
     },
     'flutter': {
         en: { t: 'Flutter',
@@ -431,6 +533,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Scintillement',
               b: 'Modulation rapide de la hauteur, pour un tremblement de bande. Ajoute de l’instabilité et du caractère.',
               reviewed: true },
+        'zh-Hans': { t: '快抖',
+                     b: '快速的音高调制，做出磁带式的颤动。增加不稳定感与个性。',
+                     reviewed: 'mt' },
     },
     'hiss': {
         en: { t: 'Hiss',
@@ -438,6 +543,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Souffle',
               b: 'Ajoute un léger bruit de bande pour un caractère vintage. À garder discret pour rester réaliste.',
               reviewed: true },
+        'zh-Hans': { t: '嘶声',
+                     b: '加入轻微的磁带噪声，营造复古质感。保持低量才显得真实。',
+                     reviewed: 'mt' },
     },
     'rolloff': {
         en: { t: 'Rolloff',
@@ -446,6 +554,9 @@ export const I18N = Object.freeze({
               b: 'Atténuation des aigus imitant l’usure des têtes de lecture. Plus la valeur est haute, plus le son est sombre et étouffé.',
               reviewed: true,
               termNote: 'the control is a LOWPASS CUTOFF, not a slope: TapeDegrader.cpp:347 sweeps the corner 20 kHz → 2 kHz at a FIXED 12 dB/oct Butterworth, so the glossary root Pente (a dB/octave slope) would describe something this knob cannot move' },
+        'zh-Hans': { t: '滚降',
+                     b: '模仿磁头磨损的高频衰减。数值越高，声音越暗、越闷。',
+                     reviewed: 'mt' },
     },
     'dropout': {
         en: { t: 'Dropout',
@@ -453,6 +564,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Chutes de signal',
               b: 'Coupures brèves et aléatoires du signal, comme sur une bande usée. À doser avec parcimonie pour rester subtil.',
               reviewed: true },
+        'zh-Hans': { t: '信号跌落',
+                     b: '随机的瞬时信号中断，模拟磨损的磁带。少量使用才能保持细腻。',
+                     reviewed: 'mt' },
     },
     'dry': {
         en: { t: 'Dry',
@@ -460,6 +574,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Signal direct',
               b: 'Niveau du signal d’origine, non traité. Régler sur 0 % pour n’entendre que les bégaiements.',
               reviewed: true },
+        'zh-Hans': { t: '干',
+                     b: '未经处理的原始信号的电平。设为 0% 时只听到断续。',
+                     reviewed: 'mt' },
     },
     'wet': {
         en: { t: 'Wet',
@@ -467,6 +584,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Signal traité',
               b: 'Niveau de l’effet de bégaiement. Règle le volume des répétitions dans le mixage.',
               reviewed: true },
+        'zh-Hans': { t: '湿',
+                     b: '断续效果的电平。控制重复在混音中的响度。',
+                     reviewed: 'mt' },
     },
     'midi': {
         en: { t: 'MIDI',
@@ -474,6 +594,10 @@ export const I18N = Object.freeze({
         fr: { t: 'MIDI',
               b: 'Activer le déclenchement par notes MIDI. C3, C#3, D3 et D#3 (notes 60 à 63) déclenchent les pistes 1 à 4 ; G3 (note 67) déclenche toutes les pistes actives. Toute autre note est ignorée.',
               reviewed: true, sameAsEn: true },
+        'zh-Hans': { t: 'MIDI',
+                     b: '启用 MIDI 音符触发。C3、C#3、D3 和 D#3（音符 60 到 63）分别触发第 1 到第 4 轨；G3（音符 67）触发所有已启用的轨。其他音符一律忽略。',
+                     sameAsEn: true,
+                     reviewed: 'mt' },
     },
     'trig': {
         en: { t: 'Trigger',
@@ -481,6 +605,9 @@ export const I18N = Object.freeze({
         fr: { t: 'Déclenchement',
               b: 'Déclencher manuellement et immédiatement toutes les pistes actives. À utiliser avec le mode MAN pour des effets ponctuels.',
               reviewed: true },
+        'zh-Hans': { t: '触发',
+                     b: '立即手动触发所有已启用的轨。与手动模式配合，可做单次效果。',
+                     reviewed: 'mt' },
     },
 
     // ── A sentence shape with NO tooltip and NO element (carried item 10) ────
@@ -500,6 +627,9 @@ export const I18N = Object.freeze({
     'msg-delete-preset': {
         en: { t: 'Delete preset {name}?', b: '' },
         fr: { t: 'Supprimer le préréglage {name} ?', b: '', reviewed: true },
+        'zh-Hans': { t: '删除预设 {name}？',
+                     b: '',
+                     reviewed: 'mt' },
     },
 });
 
@@ -547,24 +677,24 @@ export const LABELS = Object.freeze({
     // ── Preset bar ──────────────────────────────────────────────────────────
     // .preset-action-btn is text-transform: uppercase, so these render SAVE and
     // LOAD; the authored case is v1.13.0's and is left alone.
-    'label.save':      { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true } },
-    'label.load':      { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: true } },
+    'label.save':      { en: { t: 'Save' }, fr: { t: 'Enreg.', reviewed: true }, 'zh-Hans': { t: '保存', reviewed: 'mt' } },
+    'label.load':      { en: { t: 'Load' }, fr: { t: 'Ouvrir', reviewed: true }, 'zh-Hans': { t: '载入', reviewed: 'mt' } },
     // Written by setLabel() from buildPresetDropdown(), which through v1.13.0
     // built each row with innerHTML and a markup fragment. It is createElement +
     // setLabel now: assertion 12 reports a raw prose write inside a template
     // string, and no I18N_EXEMPT entry could cover it, because an exemption
     // lives in this file where assertion 9 forbids the opening angle bracket.
-    'label.factory':   { en: { t: 'Factory' }, fr: { t: 'Usine', reviewed: true } },
+    'label.factory':   { en: { t: 'Factory' }, fr: { t: 'Usine', reviewed: true }, 'zh-Hans': { t: '出厂', reviewed: 'mt' } },
 
     // ── The settings popover ────────────────────────────────────────────────
-    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: true } },
-    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true } },  // 49.61
+    'label.language':  { en: { t: 'Language' },   fr: { t: 'Langue', reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'mt' } },
+    'label.hoverHelp': { en: { t: 'Hover help' }, fr: { t: 'Infobulles', reviewed: true }, 'zh-Hans': { t: '悬停帮助', reviewed: 'mt' } },  // 49.61
     // The two faces of the hover-help switch. KEYS through setLabel(), not
     // literals: a literal holds one string, so switching to French mid-session
     // would restore an English "On". Written from an if/else with two literal
     // keys, never a ternary inside the call — check-i18n assertion 13.
-    'ui.on':           { en: { t: 'On' },  fr: { t: 'Activé',    reviewed: true } },   // button 47.33
-    'ui.off':          { en: { t: 'Off' }, fr: { t: 'Désactivé', reviewed: true } },   // button 61.38
+    'ui.on':           { en: { t: 'On' },  fr: { t: 'Activé',    reviewed: true }, 'zh-Hans': { t: '开启', reviewed: 'mt' } },   // button 47.33
+    'ui.off':          { en: { t: 'Off' }, fr: { t: 'Désactivé', reviewed: true }, 'zh-Hans': { t: '关闭', reviewed: 'mt' } },   // button 61.38
 
     // ── The four lane headers ───────────────────────────────────────────────
     // ONE key with a {n} token, not four keys differing by a digit. The number
@@ -572,59 +702,65 @@ export const LABELS = Object.freeze({
     // and a digit can never be translated. trLabel()'s var resolver looks the
     // VALUE up as a key first and falls through to the literal, which is what
     // makes "1" arrive as "1".
-    'label.lane':      { en: { t: 'LANE {n}' }, fr: { t: 'PISTE {n}', reviewed: true } },
+    'label.lane':      { en: { t: 'LANE {n}' }, fr: { t: 'PISTE {n}', reviewed: true }, 'zh-Hans': { t: '轨道 {n}', reviewed: 'mt' } },
 
     // ── Lane knob captions — 42 px columns, 9 px uppercase ──────────────────
     // Rendered widths in parentheses; the column is 42 px wide, pinned by the
     // 42 px knob and the min-width: 42px value readout under it.
-    'label.subdiv':    { en: { t: 'SUBDIV' }, fr: { t: 'SUBDIV', reviewed: true, sameAsEn: true } },  // 38.3
-    'label.reps':      { en: { t: 'REPS' },   fr: { t: 'RÉPÉT',  reviewed: true } },                  // 31.5
-    'label.decay':     { en: { t: 'DECAY' },  fr: { t: 'DÉCLIN', reviewed: true } },                  // 37.8
-    'label.filtr':     { en: { t: 'FILTR' },  fr: { t: 'FILTRE', reviewed: true } },                  // 34.5
-    'label.prob':      { en: { t: 'PROB' },   fr: { t: 'PROBA',  reviewed: true } },                  // 34.0
-    'label.vol':       { en: { t: 'VOL' },    fr: { t: 'VOL',    reviewed: true, sameAsEn: true } },
-    'label.pan':       { en: { t: 'PAN' },    fr: { t: 'PAN',    reviewed: true, sameAsEn: true } },
-    'label.swing':     { en: { t: 'SWING' },  fr: { t: 'SWING',  reviewed: true, sameAsEn: true } },
+    'label.subdiv':    { en: { t: 'SUBDIV' }, fr: { t: 'SUBDIV', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '划分', reviewed: 'mt' } },  // 38.3
+    'label.reps':      { en: { t: 'REPS' },   fr: { t: 'RÉPÉT',  reviewed: true }, 'zh-Hans': { t: '重复', reviewed: 'mt' } },                  // 31.5
+    'label.decay':     { en: { t: 'DECAY' },  fr: { t: 'DÉCLIN', reviewed: true }, 'zh-Hans': { t: '衰减', reviewed: 'mt' } },                  // 37.8
+    'label.filtr':     { en: { t: 'FILTR' },  fr: { t: 'FILTRE', reviewed: true }, 'zh-Hans': { t: '滤波', reviewed: 'mt' } },                  // 34.5
+    'label.prob':      { en: { t: 'PROB' },   fr: { t: 'PROBA',  reviewed: true }, 'zh-Hans': { t: '概率', reviewed: 'mt' } },                  // 34.0
+    'label.vol':       { en: { t: 'VOL' },    fr: { t: 'VOL',    reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '音量', reviewed: 'mt' } },
+    'label.pan':       { en: { t: 'PAN' },    fr: { t: 'PAN',    reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '声像', reviewed: 'mt' } },
+    'label.swing':     { en: { t: 'SWING' },  fr: { t: 'SWING',  reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '摇摆', reviewed: 'mt' } },
     // HAUT., not HAUTEUR: the full word measures 48.6 px in a 42 px column.
-    'label.pitch':     { en: { t: 'PITCH' },  fr: { t: 'HAUT.',  reviewed: true } },                  // 30.6
+    'label.pitch':     { en: { t: 'PITCH' },  fr: { t: 'HAUT.',  reviewed: true }, 'zh-Hans': { t: '音高', reviewed: 'mt' } },                  // 30.6
     // The mini-knob column is 40 px, set by .mini-knob; both fit at 7 px.
-    'label.min':       { en: { t: 'MIN' },    fr: { t: 'MIN',    reviewed: true, sameAsEn: true } },
-    'label.max':       { en: { t: 'MAX' },    fr: { t: 'MAX',    reviewed: true, sameAsEn: true } },
+    'label.min':       { en: { t: 'MIN' },    fr: { t: 'MIN',    reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '最小', reviewed: 'mt' } },
+    'label.max':       { en: { t: 'MAX' },    fr: { t: 'MAX',    reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '最大', reviewed: 'mt' } },
 
     // ── Lane toggle chips — 40 px and 32 px, 8 px type ──────────────────────
-    'label.rnd':       { en: { t: 'RND' },  fr: { t: 'ALÉA', reviewed: true } },   // 23.3 in a 32 px chip
-    'label.st':        { en: { t: 'ST' },   fr: { t: 'DT',   reviewed: true } },   // demi-ton
-    'label.ping':      { en: { t: 'PING' }, fr: { t: 'PING', reviewed: true, sameAsEn: true } },
-    'label.rev':       { en: { t: 'REV' },  fr: { t: 'INV',  reviewed: true } },
-    'label.man':       { en: { t: 'MAN' },  fr: { t: 'MAN',  reviewed: true, sameAsEn: true } },
+    'label.rnd':       { en: { t: 'RND' },  fr: { t: 'ALÉA', reviewed: true }, 'zh-Hans': { t: '随机', reviewed: 'mt' } },   // 23.3 in a 32 px chip
+    'label.st':        { en: { t: 'ST' },   fr: { t: 'DT',   reviewed: true }, 'zh-Hans': { t: '半音', reviewed: 'mt' } },   // demi-ton
+    'label.ping':      { en: { t: 'PING' }, fr: { t: 'PING', reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '乒乓', reviewed: 'mt', termNote: 'PING here abbreviates the PING-PONG toggle on the same control (TIP_BINDINGS binds #laneN_pingpong to the title Ping-Pong), so the rendering is the Ping-Pong root. The glossary root for the bare key Ping is an EXCITATION impulse and its only corpus site is O-Octagon label.group.ping, a loudspeaker measurement ping — a different thing from a stereo bounce' } },
+    'label.rev':       { en: { t: 'REV' },  fr: { t: 'INV',  reviewed: true }, 'zh-Hans': { t: '反向', reviewed: 'mt' } },
+    'label.man':       { en: { t: 'MAN' },  fr: { t: 'MAN',  reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '手动', reviewed: 'mt' } },
 
     // ── Sequencer ───────────────────────────────────────────────────────────
-    'label.euc':       { en: { t: 'EUC' },    fr: { t: 'EUC',   reviewed: true, sameAsEn: true } },
+    'label.euc':       { en: { t: 'EUC' },    fr: { t: 'EUC',   reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '欧几里得', reviewed: 'mt' } },
     // 36 px column headers. IMPUL, not IMPULSIONS and not IMPULS: the six-letter
     // form measures 34.1 px against a 36 px box and leaves 1.9 px, which is
     // inside the Windows/WebView2 font-metric margin this repo cannot measure.
-    'label.pulses':    { en: { t: 'PULSES' }, fr: { t: 'IMPUL', reviewed: true } },  // 29.2
-    'label.steps':     { en: { t: 'STEPS' },  fr: { t: 'PAS',   reviewed: true } },  // 16.0
-    'label.seq':       { en: { t: 'SEQ' },    fr: { t: 'SÉQ',   reviewed: true } },
+    'label.pulses':    { en: { t: 'PULSES' }, fr: { t: 'IMPUL', reviewed: true }, 'zh-Hans': { t: '脉冲', reviewed: 'mt' } },  // 29.2
+    'label.steps':     { en: { t: 'STEPS' },  fr: { t: 'PAS',   reviewed: true }, 'zh-Hans': { t: '步', reviewed: 'mt' } },  // 16.0
+    'label.seq':       { en: { t: 'SEQ' },    fr: { t: 'SÉQ',   reviewed: true }, 'zh-Hans': { t: '音序', reviewed: 'mt' } },
 
     // ── Tape section — the 75 px .tape-knob-container columns ───────────────
     'label.tapeDegradation': { en: { t: 'TAPE DEGRADATION' },
-                               fr: { t: 'DÉGRADATION BANDE', reviewed: true } },     // 145.0, ends 10 px clear of BYPASS
-    'label.bypass':    { en: { t: 'BYPASS' },  fr: { t: 'CONTOUR', reviewed: true } },  // 53.8 in a 60 px chip
-    'label.sat':       { en: { t: 'SAT' },     fr: { t: 'SAT',     reviewed: true, sameAsEn: true } },
+                               fr: { t: 'DÉGRADATION BANDE', reviewed: true },
+                               'zh-Hans': { t: '磁带劣化',
+                     reviewed: 'mt' },
+                           },     // 145.0, ends 10 px clear of BYPASS
+    'label.bypass':    { en: { t: 'BYPASS' },  fr: { t: 'CONTOUR', reviewed: true }, 'zh-Hans': { t: '旁通', reviewed: 'mt' } },  // 53.8 in a 60 px chip
+    'label.sat':       { en: { t: 'SAT' },     fr: { t: 'SAT',     reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '饱和', reviewed: 'mt' } },
     // Pleurage and scintillement are the French audio terms for wow and flutter;
     // neither is a transliteration of the English.
-    'label.wow':       { en: { t: 'WOW' },     fr: { t: 'PLEUR',   reviewed: true } },  // 32.5
-    'label.flutter':   { en: { t: 'FLUTTER' }, fr: { t: 'SCINT.',  reviewed: true } },  // 32.4
-    'label.hiss':      { en: { t: 'HISS' },    fr: { t: 'SOUFFLE', reviewed: true } },  // 44.6
+    'label.wow':       { en: { t: 'WOW' },     fr: { t: 'PLEUR',   reviewed: true }, 'zh-Hans': { t: '慢抖', reviewed: 'mt' } },  // 32.5
+    'label.flutter':   { en: { t: 'FLUTTER' }, fr: { t: 'SCINT.',  reviewed: true }, 'zh-Hans': { t: '快抖', reviewed: 'mt' } },  // 32.4
+    'label.hiss':      { en: { t: 'HISS' },    fr: { t: 'SOUFFLE', reviewed: true }, 'zh-Hans': { t: '嘶声', reviewed: 'mt' } },  // 44.6
     'label.rolloff':   { en: { t: 'ROLLOFF' },
                          fr: { t: 'COUPURE', reviewed: true,
-                               termNote: 'the control is a LOWPASS CUTOFF, not a slope: TapeDegrader.cpp:347 sweeps the corner 20 kHz → 2 kHz at a FIXED 12 dB/oct Butterworth, so the glossary root Pente (a dB/octave slope) would describe something this knob cannot move' } },                            // 47.6
-    'label.dropout':   { en: { t: 'DROPOUT' }, fr: { t: 'CHUTES',  reviewed: true } },  // 39.8
-    'label.dry':       { en: { t: 'DRY' },     fr: { t: 'DIRECT',  reviewed: true } },  // 37.3
-    'label.wet':       { en: { t: 'WET' },     fr: { t: 'TRAITÉ',  reviewed: true } },  // 36.8
-    'label.midi':      { en: { t: 'MIDI' },    fr: { t: 'MIDI',    reviewed: true, sameAsEn: true } },
-    'label.trig':      { en: { t: 'TRIG' },    fr: { t: 'DÉCL',    reviewed: true } },  // 29.3 in a 60 px chip
+                               termNote: 'the control is a LOWPASS CUTOFF, not a slope: TapeDegrader.cpp:347 sweeps the corner 20 kHz → 2 kHz at a FIXED 12 dB/oct Butterworth, so the glossary root Pente (a dB/octave slope) would describe something this knob cannot move' },
+                         'zh-Hans': { t: '滚降',
+                     reviewed: 'mt' },
+                     },                            // 47.6
+    'label.dropout':   { en: { t: 'DROPOUT' }, fr: { t: 'CHUTES',  reviewed: true }, 'zh-Hans': { t: '信号跌落', reviewed: 'mt' } },  // 39.8
+    'label.dry':       { en: { t: 'DRY' },     fr: { t: 'DIRECT',  reviewed: true }, 'zh-Hans': { t: '干', reviewed: 'mt' } },  // 37.3
+    'label.wet':       { en: { t: 'WET' },     fr: { t: 'TRAITÉ',  reviewed: true }, 'zh-Hans': { t: '湿', reviewed: 'mt' } },  // 36.8
+    'label.midi':      { en: { t: 'MIDI' },    fr: { t: 'MIDI',    reviewed: true, sameAsEn: true }, 'zh-Hans': { t: 'MIDI', sameAsEn: true, reviewed: 'mt' } },
+    'label.trig':      { en: { t: 'TRIG' },    fr: { t: 'DÉCL',    reviewed: true }, 'zh-Hans': { t: '触发', reviewed: 'mt' } },  // 29.3 in a 60 px chip
 
     // ── Accessible names ────────────────────────────────────────────────────
     // An aria-label is user-visible text by any definition that matters — it is
@@ -637,21 +773,27 @@ export const LABELS = Object.freeze({
     // has a data-tip it renders a second, untranslated OS tooltip competing with
     // the measure-then-pin renderer, and check-i18n assertion 11 now fails on
     // any that survive.
-    'aria.presetPrev': { en: { t: 'Previous preset' },  fr: { t: 'Préréglage précédent', reviewed: true } },
-    'aria.presetNext': { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: true } },
-    'aria.presetSave': { en: { t: 'Save preset' },      fr: { t: 'Enregistrer le préréglage', reviewed: true } },
+    'aria.presetPrev': { en: { t: 'Previous preset' },  fr: { t: 'Préréglage précédent', reviewed: true }, 'zh-Hans': { t: '上一个预设', reviewed: 'mt' } },
+    'aria.presetNext': { en: { t: 'Next preset' },      fr: { t: 'Préréglage suivant',   reviewed: true }, 'zh-Hans': { t: '下一个预设', reviewed: 'mt' } },
+    'aria.presetSave': { en: { t: 'Save preset' },      fr: { t: 'Enregistrer le préréglage', reviewed: true }, 'zh-Hans': { t: '保存预设', reviewed: 'mt' } },
     'aria.presetLoad': { en: { t: 'Load preset from file' },
-                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true } },
-    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true } },
+                         fr: { t: 'Ouvrir un préréglage depuis un fichier', reviewed: true },
+                         'zh-Hans': { t: '从文件载入预设',
+                     reviewed: 'mt' },
+                     },
+    'aria.langSelect': { en: { t: 'Interface language' }, fr: { t: 'Langue de l’interface', reviewed: true }, 'zh-Hans': { t: '界面语言', reviewed: 'mt' } },
     'aria.helpToggle': { en: { t: 'Toggle hover help' },
-                         fr: { t: 'Activer ou désactiver les infobulles', reviewed: true } },
+                         fr: { t: 'Activer ou désactiver les infobulles', reviewed: true },
+                         'zh-Hans': { t: '开关悬停帮助',
+                     reviewed: 'mt' },
+                     },
     // Bound by assigning dataset.i18nAria with a plain string literal in
     // buildPresetDropdown, which check-i18n assertion 15 counts as a reference
     // for exactly this case: an element the controller creates cannot carry the
     // attribute in the markup, and setLabel() writes textContent and so cannot
     // key an ATTRIBUTE.
-    'aria.deletePreset': { en: { t: 'Delete preset' }, fr: { t: 'Supprimer le préréglage', reviewed: true } },
-    'aria.settings':   { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true } },
+    'aria.deletePreset': { en: { t: 'Delete preset' }, fr: { t: 'Supprimer le préréglage', reviewed: true }, 'zh-Hans': { t: '删除预设', reviewed: 'mt' } },
+    'aria.settings':   { en: { t: 'Settings' }, fr: { t: 'Réglages', reviewed: true }, 'zh-Hans': { t: '设置', reviewed: 'mt' } },
 });
 
 // ============================================================================
@@ -664,6 +806,9 @@ export const LABELS = Object.freeze({
 // ============================================================================
 
 export const I18N_EXEMPT = [
+    ['简体中文',
+     'endonym — a language name is never translated. index.html writes it as the numeric references, but the coverage parser decodes them before the sweep runs, so the exemption has to carry the decoded text'],
+
     ['O-Polystutter',
      'the product name in .plugin-title — a product name is never translated, and this one is also the plugin\'s registered PRODUCT_NAME in CMakeLists.txt'],
 
