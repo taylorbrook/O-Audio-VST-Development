@@ -73,14 +73,25 @@ Every parameter below exists for both Osc A (`oscA…`) and Osc B (`oscB…`). P
 
 ## UI Concept
 
-**Layout:** O-Prism's 1200 × 800 layout and section structure. Each oscillator panel's wavetable display becomes a two-mode view: the existing Serum-style stacked-frame wavetable view (reusing `WavetableDisplay`) and a **3D geometry view** showing what is being scanned — the mesh with the slicing plane and the extracted contour highlighted; the volume as a low-res point cloud with the orbit and current scan point; the terrain as a displaced wireframe heightmap with the orbit drawn on it. A playhead (frame index + phase) is pushed at 30 Hz.
-**Visual Style:** Ouaricon Naturalist brand (ouaricon-naturalist-001), as O-Prism.
+**Mockup:** `.planning/mockups/v1-ui.yaml` + `v1-ui-test.html` (finalized 2026-09-07, source of truth for the UI sections below).
+
+**Layout:** O-Prism's 1200 × 800 shell unchanged — header bar with preset browser, five-tab bar, footer with Master / Osc Mix. The **Wavetable** tab (editor + library) is deleted and its slot becomes a **Geometry** tab. Tabs: Synth · Mod · Tuning · Effects · Geometry.
+
+**Synth tab:** identical to O-Prism except the two oscillator panels. The Shape dropdown is replaced by **Source** (Mesh / Volume / Terrain) plus a family library dropdown (Mesh▾ / Field▾ / Terrain▾) that follows Source. The 160 × 90 oscillator canvas becomes a two-mode view — 3D geometry (default) or the Serum-style stacked-frame wavetable — switched by a ⬡/≋ glyph toggle in the canvas corner (per-oscillator UI state, not a parameter). A 2 px sage bake bar under the canvas runs while a re-bake is in flight. Carried-over knobs keep O-Prism's order (Position, Level, Pan, Coarse, Fine, Phase, Unison, Detune, Width, Warp, Warp Amt); Position reads "Frame N / 256". The drop overlay reads "Drop OBJ · STL · PNG".
+
+**Geometry tab:** the showpiece. Top row: Osc A / Osc B toggle · Source segmented control · Frames (64 / 128 / 256) · library dropdown · **Import…** button · right-aligned bake readout ("Baked · 38 ms · 256 frames", amber while baking). Left: a 700 × 540 3D view with the same ⬡/≋ toggle, drop overlay, bake bar, monospace HUD ("frame 128/256 · φ 0.37") and a one-line interaction hint beneath. Right (~440 px): the active family's control panel only — Shape Drive first, hairline, then the family knobs and dropdowns (Mesh: Slice Tilt X/Y, Projection φ, Unwrap Mode, Loop Policy · Volume: Orbit, Sweep Axis, Sweep Range, Field Detail · Terrain: Centre X/Y, Aspect, Rotation, Sweep Range, Image Blur in a 3 + 3 grid, Orbit Shape, Sweep Axis, Edge Mode) — followed by a mirrored Position knob with an italic note that every geometry control re-bakes and none is a modulation destination, and a hidden amber "Source missing — using library fallback" notice. The nautilus botanical (`img/shell_conchologiaiconi12reev_0090.png`) sits low-right behind the panel at 0.3 opacity, Geometry tab only.
+
+**3D view content per family:** Mesh — wireframe mesh, translucent slicing plane at the current frame height, extracted contour in sage. Volume — sparse iso-shell point cloud, orbit curve in ink, current scan point in sage. Terrain — 32 × 32 wireframe heightmap with the orbit drawn on the surface. Playhead (frame index + phase) pushed at 30 Hz.
+
+**Interaction:** drag on the view edits Slice Tilt X/Y (Mesh), Orbit Centre X/Y (Terrain) or rotates the camera (Volume); wheel edits Projection φ (Mesh) or Sweep Range (Volume/Terrain); alt-click resets a knob. Document-level move/up pattern, `wheel {passive:false}`. Drag-and-drop OBJ/STL/PNG onto either view (macOS `webkitGetAsEntry` pattern) plus the Import button.
+
+**Visual Style:** Ouaricon Naturalist brand (ouaricon-naturalist-001), O-Prism's palette, Garamond stack and SVG vine-arc knobs; O-Prism CSS class names reused so Stage 3 can diff against the fork base.
+
 **Key Elements:**
-- 3D view: hand-rolled WebGL2 with a Canvas 2D fallback in the same file, no library (prototype: `research/wavetable-synthesis-3d-geometry-prototypes/webgl-3d/terrain-proto.html`, 5.5 KB gzipped).
-- Drag on the terrain/mesh view moves orbit centre or slice tilt; scroll wheel changes sweep range. Document-level move/up pattern, `wheel {passive:false}`.
-- Drag-and-drop OBJ/STL/PNG onto the oscillator panel (macOS `webkitGetAsEntry` pattern) plus a file-chooser button.
-- Bake progress indicator per oscillator (O-TextureForge precedent); the view redraws only when a push dirtied state.
-- "WebGL unavailable" placeholder as a localised `data-i18n` node (en / fr / zh-Hans).
+- 3D view: hand-rolled WebGL2 with a Canvas 2D fallback in the same file, no library (prototype: `research/wavetable-synthesis-3d-geometry-prototypes/webgl-3d/terrain-proto.html`, 5.5 KB gzipped). The mockup draws the scenes in Canvas 2D.
+- Bake progress bar + status readout per oscillator (O-TextureForge precedent); the view redraws only when a push dirtied state.
+- "WebGL unavailable" placeholder as a localised `data-i18n` node (en / fr / zh-Hans); all new labels carry `data-i18n` keys listed in `v1-ui.yaml` (`i18n_new_keys`).
+- Geometry block is 24 parameters per oscillator (3 common + 6 Mesh + 5 Volume + 10 Terrain) = 48, total 219 APVTS parameters (the draft's "23 / 46 / 217" undercounted).
 
 ## Use Cases
 
