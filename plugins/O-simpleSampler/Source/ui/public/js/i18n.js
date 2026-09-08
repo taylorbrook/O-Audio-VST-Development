@@ -186,7 +186,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "设置",
                      b: "选择界面语言，以及是否显示悬停帮助。两项选择都随会话一起保存。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // Written to say what is TRUE of canon v2, in both languages: the labels DO
@@ -202,7 +202,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "语言",
                      b: "本页标签与这些悬停帮助所用的语言。数值读数和两个下拉菜单保持英文。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     'help-toggle': {
@@ -213,7 +213,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "悬停帮助",
                      b: "关闭或重新开启这些说明。该选择随会话一起保存，因此重新打开的项目会保持您离开时的样子。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Source ──────────────────────────────────────────────────────────────
@@ -226,7 +226,7 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: "载入自己的素材",
                      b: "插件从内置录音开始——本面板上其余的一切都在塑造那个声音。按此打开文件选择器，改为采样任意 .wav / .aif / .flac 文件。超过 30 秒的文件会被截断（会有提示）。之后同一组控件就演奏您的声音。",
                      termNote: "the glossary root for this English is a dangling modifier with no head noun; the head noun the page needs is the loaded material. Same rendering and same reason as O-simpleGrain, which carries the identical English",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     dropZone: {
         en: { t: 'Drop a sound here',
@@ -236,7 +236,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "把声音拖到这里",
                      b: "直接把音频文件从桌面拖到这个面板上即可采样。试试一个口语词、一记鼓击或一段实地录音——采样器能在整个键盘上演奏任何声音。这个拖放区和“载入…”按钮是更换源的两种方式。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Region ──────────────────────────────────────────────────────────────
@@ -248,7 +248,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "开始",
                      b: "源中开始播放的位置。把它收进来可以跳过静音或柔软的起始边缘，让按键正好落在声音上。也可以拖动波形上的金色标记。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     end: {
         en: { t: 'End',
@@ -258,7 +258,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "结束",
                      b: "播放停止的位置。把它收进来可以去掉嘈杂的尾巴或末尾的空白。开始和结束一起把录音中有用的部分单独框出来。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     loopStart: {
         en: { t: 'Loop Start',
@@ -268,7 +268,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "循环起点",
                      b: "重复段的前沿，在裁剪后的区域内测量。只有循环模式开启时才起作用——它决定每次重复从哪里开始。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     loopEnd: {
         en: { t: 'Loop End',
@@ -278,7 +278,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "循环终点",
                      b: "重复段的后沿。按住琴键时，声音会一直在循环起点 → 循环终点之间往复，因此很短的采样也能无限延续。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     loopCrossfade: {
         en: { t: 'Loop Crossfade',
@@ -288,7 +288,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "循环交叉渐变",
                      b: "把循环的末端混回它的起点，让接缝不会咔嗒作响。0 ms 是硬拼接；更长的渐变会把粗糙的循环抹平成无缝的持续音。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     // Off / Forward / Ping-Pong are the AudioParameterChoice entries and stay
     // English under D-01 — they are the host automation contract. Naming them
@@ -302,7 +302,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "循环模式",
                      b: "Off 播放一次即停止。Forward 从循环起点向终点重复。Ping-Pong 先正向再反向——对按住的铺垫和纹理更平滑。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     reverse: {
         en: { t: 'Reverse',
@@ -312,7 +312,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "反向",
                      b: "把采样倒过来播放。配合缓慢的起音可以做出上升的渐强，也可用于呼啸声和那种独特的“吸入”式尾音。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Pitch ───────────────────────────────────────────────────────────────
@@ -324,7 +324,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "根音调",
                      b: "采样以原始录制音高播放的那个琴键。它上方的音更高，下方的音更低——正是这一点把一段录音变成一件完整的乐器。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     pitchMode: {
         en: { t: 'Pitch Mode',
@@ -334,7 +334,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "音高模式",
                      b: "移动音高的两种方式。Repitch 通过改变速度来改变音高（像加快唱片——越高越快）。Stretch 保持时长不变，单独移动音高。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     tune: {
         en: { t: 'Tune',
@@ -344,7 +344,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "调音",
                      b: "以整半音为单位的粗略音高，±24。用它把整段采样移到乐曲的调上，无需重新载入任何东西。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     fine: {
         en: { t: 'Fine',
@@ -355,7 +355,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "微调",
                      b: "以音分（半音的百分之一）为单位的细微音高修正。把采样精确对准，或稍微失谐一点以加厚叠加的声音。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Vintage ─────────────────────────────────────────────────────────────
@@ -367,7 +367,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "复古",
                      b: "老式采样器的颗粒感：降低采样率和位深以丢弃分辨率。为 0 时干净；调高可获得酥脆的低保真 SP-1200 味道。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Filter ──────────────────────────────────────────────────────────────
@@ -379,7 +379,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "滤波器截止",
                      b: "亮度控制。全开时一切通过；调低会滚降高频，让声音变暗。上方的曲线准确显示了什么通过了。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     filterResonance: {
         en: { t: 'Filter Resonance',
@@ -389,7 +389,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "滤波器共振",
                      b: "提升截止点附近的频率，加入一个人声般的啸叫峰。推高它，在移动截止时得到更锐利、更像合成器的扫频。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Amplitude envelope ──────────────────────────────────────────────────
@@ -401,7 +401,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "起音",
                      b: "按下琴键后音符淡入所需的时间。短则是锐利的敲击，长则是缓缓进入的渐强。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     ampDecay: {
         en: { t: 'Decay',
@@ -411,7 +411,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "衰减",
                      b: "在起音峰值之后，电平回落到延音电平的速度。它塑造的是音符持续部分之前那记初始的“撞击”。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     ampSustain: {
         en: { t: 'Sustain',
@@ -421,7 +421,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "延音",
                      b: "按住琴键期间音符保持的电平。100% 保持满音量；调低可让声音在起音之后回落下来。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     ampRelease: {
         en: { t: 'Release',
@@ -431,7 +431,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "释音",
                      b: "松开琴键后音符淡出所需的时间。短则是戛然而止，长则是余音袅袅的拖尾。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     velToAmp: {
         en: { t: 'Velocity → Amp',
@@ -441,7 +441,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "力度→振幅",
                      b: "您弹奏的力量（力度）改变响度的程度。为 0 时每个音符都一样；调高则轻弹与重击的表现力差别大得多。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Output ──────────────────────────────────────────────────────────────
@@ -453,7 +453,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "输出电平",
                      b: "插件的主音量，以分贝为单位。用它与其他音轨取得平衡；范围的最低端（−inf）是静音。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Viz cells ───────────────────────────────────────────────────────────
@@ -465,7 +465,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "波形编辑器",
                      b: "已载入声音随时间变化的图像。拖动金色和红色边缘来裁剪区域，拖动绿色手柄来设置循环，并观察白色播放头追踪采样正在被读取的位置。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     vizFilter: {
         en: { t: 'Filter Response',
@@ -475,7 +475,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "滤波器响应",
                      b: "滤波器实际的频率形状。它显示什么通过了——在截止点之后跌落，共振调高时带一个峰。这条曲线就是您听到的东西。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     vizAmp: {
         en: { t: 'Envelope Display',
@@ -485,7 +485,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "包络显示",
                      b: "由四个旋钮画出的起音—衰减—延音—释音音量形状。移动的圆点显示按住的音符此刻位于这条曲线的什么位置。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     vizScope: {
         en: { t: 'Output Scope',
@@ -495,7 +495,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "输出示波",
                      b: "离开插件的声音的实时示波器。演奏时以及转动滤波器、复古和包络控件时，观察波形如何反应。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Concept presets ─────────────────────────────────────────────────────
@@ -512,7 +512,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "原始单次",
                      b: "按下一个键，完整听一遍采样，不循环。采样器最简单的事，也是入门的起点。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     lessonTunedKeyboard: {
         en: { t: 'Tuned Across the Keyboard',
@@ -522,7 +522,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "跨键盘调音",
                      b: "一段录音如何变成可演奏的乐器：设定根音调，每个琴键都以自己的音高演奏这段采样。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     lessonLoopedPad: {
         en: { t: 'Looped Pad',
@@ -532,7 +532,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "循环铺垫",
                      b: "带交叉渐变的循环把一段短声音变成可以一直按住的无尽声音——接缝处没有咔嗒声。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     lessonReversedSwell: {
         en: { t: 'Reversed Swell',
@@ -542,7 +542,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "反向渐强",
                      b: "反向加上缓慢的起音，做出一个倒着升起、涌向重拍的渐强——经典的前奏与过渡效果。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     lessonRepitchStretch: {
         en: { t: 'Repitch vs Stretch',
@@ -552,7 +552,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "Repitch 对比 Stretch",
                      b: "招牌 A/B 对比。在两种模式下弹同一个音：Repitch 让速度随音高一起变（磁带式）；Stretch 保持时长不变，单独移动音高。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     lessonSp1200: {
         en: { t: 'SP-1200 Crunch',
@@ -562,7 +562,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "SP-1200 酥脆感",
                      b: "推高复古，听听老采样器的低采样率和低位深如何加入嘻哈里备受喜爱的沙砾般低保真味道。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     lessonFilteredEnv: {
         en: { t: 'Filtered & Enveloped',
@@ -572,7 +572,7 @@ export const I18N = Object.freeze({
               reviewed: true },
         'zh-Hans': { t: "滤波与包络",
                      b: "低通滤波器和振幅包络一起——两件主要的塑形工具——把粗糙的采样雕琢成一个完成的、有音乐性的音符。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 });
 
@@ -602,16 +602,16 @@ export const LABELS = Object.freeze({
         en: { t: 'Keyboard Sampler · A Field Guide' },
         fr: { t: 'Échantillonneur de clavier · un guide de terrain', reviewed: true },
         'zh-Hans': { t: "键盘采样器 · 实地指南",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Settings popover ────────────────────────────────────────────────────
     // The two row captions read their key out of I18N ('lang-select',
     // 'help-toggle') because each row's caption IS its tooltip title. The
     // faces and the accessible names are label-only and live here.
-    'aria.settings':   { en: { t: 'Settings' },            fr: { t: 'Réglages', reviewed: true }, 'zh-Hans': { t: "设置", reviewed: 'mt' } },
-    'aria.langSelect': { en: { t: 'Interface language' },  fr: { t: "Langue de l’interface", reviewed: true }, 'zh-Hans': { t: "界面语言", reviewed: 'mt' } },
-    'aria.helpToggle': { en: { t: 'Toggle hover help' },   fr: { t: "Activer ou désactiver les infobulles", reviewed: true }, 'zh-Hans': { t: "开关悬停帮助", reviewed: 'mt' } },
+    'aria.settings':   { en: { t: 'Settings' },            fr: { t: 'Réglages', reviewed: true }, 'zh-Hans': { t: "设置", reviewed: 'bt' } },
+    'aria.langSelect': { en: { t: 'Interface language' },  fr: { t: "Langue de l’interface", reviewed: true }, 'zh-Hans': { t: "界面语言", reviewed: 'bt' } },
+    'aria.helpToggle': { en: { t: 'Toggle hover help' },   fr: { t: "Activer ou désactiver les infobulles", reviewed: true }, 'zh-Hans': { t: "开关悬停帮助", reviewed: 'bt' } },
     // "Activées"/"Désactivées", the glossary's pair for a FEATURE, agreeing
     // with the noun naming the hover-help surface — "les infobulles", feminine
     // PLURAL as of v1.4.4. THE AGREEMENT IS THE WHOLE REASON THESE TWO STRINGS
@@ -627,23 +627,23 @@ export const LABELS = Object.freeze({
     // returns elW 96.00, so it never resizes between its own faces — and
     // "Désactivée" measures 62.77 px inside it. The width defence was
     // backwards; Oui/Non are answers, not states.
-    'ui.on':           { en: { t: 'On' },                  fr: { t: 'Activées', reviewed: true }, 'zh-Hans': { t: "开启", reviewed: 'mt' } },
-    'ui.off':          { en: { t: 'Off' },                 fr: { t: 'Désactivées', reviewed: true }, 'zh-Hans': { t: "关闭", reviewed: 'mt' } },
+    'ui.on':           { en: { t: 'On' },                  fr: { t: 'Activées', reviewed: true }, 'zh-Hans': { t: "开启", reviewed: 'bt' } },
+    'ui.off':          { en: { t: 'Off' },                 fr: { t: 'Désactivées', reviewed: true }, 'zh-Hans': { t: "关闭", reviewed: 'bt' } },
 
     // ── Concept-preset tour ─────────────────────────────────────────────────
     // The BUTTON faces are abbreviations of the C++ preset names, which is why
     // they are not the lesson titles in I18N. "Repitch/Stretch" and "SP-1200"
     // are the two that carry no translatable words at all.
-    'aria.presetTour':            { en: { t: 'Concept presets' },  fr: { t: 'Préréglages pédagogiques', reviewed: true }, 'zh-Hans': { t: "概念预设", reviewed: 'mt' } },
-    'label.presetRawOneShot':     { en: { t: 'Raw One-Shot' },     fr: { t: 'One-shot brut', reviewed: true }, 'zh-Hans': { t: "原始单次", reviewed: 'mt' } },
-    'label.presetTuned':          { en: { t: 'Tuned' },            fr: { t: 'Accordé', reviewed: true }, 'zh-Hans': { t: "已调音", termNote: "the bare root 调音 is the Tune KNOB's caption on this same page (label.tune); this button face is the past participle naming the lesson's state, so it takes the perfective marker to stay distinct from the control", reviewed: 'mt' } },
-    'label.presetLoopedPad':      { en: { t: 'Looped Pad' },       fr: { t: 'Nappe', reviewed: true }, 'zh-Hans': { t: "循环铺垫", reviewed: 'mt' } },
-    'label.presetReversed':       { en: { t: 'Reversed' },         fr: { t: 'Inversé', reviewed: true }, 'zh-Hans': { t: "已反向", termNote: "the bare root 反向 is the Reverse TOGGLE's caption on this same page (label.reverse); this button face names the lesson's state, so it takes the perfective marker to stay distinct from the control", reviewed: 'mt' } },
+    'aria.presetTour':            { en: { t: 'Concept presets' },  fr: { t: 'Préréglages pédagogiques', reviewed: true }, 'zh-Hans': { t: "概念预设", reviewed: 'bt' } },
+    'label.presetRawOneShot':     { en: { t: 'Raw One-Shot' },     fr: { t: 'One-shot brut', reviewed: true }, 'zh-Hans': { t: "原始单次", reviewed: 'bt' } },
+    'label.presetTuned':          { en: { t: 'Tuned' },            fr: { t: 'Accordé', reviewed: true }, 'zh-Hans': { t: "已调音", termNote: "the bare root 调音 is the Tune KNOB's caption on this same page (label.tune); this button face is the past participle naming the lesson's state, so it takes the perfective marker to stay distinct from the control", reviewed: 'bt' } },
+    'label.presetLoopedPad':      { en: { t: 'Looped Pad' },       fr: { t: 'Nappe', reviewed: true }, 'zh-Hans': { t: "循环铺垫", reviewed: 'bt' } },
+    'label.presetReversed':       { en: { t: 'Reversed' },         fr: { t: 'Inversé', reviewed: true }, 'zh-Hans': { t: "已反向", termNote: "the bare root 反向 is the Reverse TOGGLE's caption on this same page (label.reverse); this button face names the lesson's state, so it takes the perfective marker to stay distinct from the control", reviewed: 'bt' } },
     'label.presetRepitchStretch': { en: { t: 'Repitch/Stretch' },
-                                    fr: { t: 'Repitch/Stretch', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: "Repitch/Stretch", sameAsEn: true, termNote: "the two pitchMode AudioParameterChoice strings, the host automation contract — English under D-01, exactly as the French keeps them", reviewed: 'mt' } },
+                                    fr: { t: 'Repitch/Stretch', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: "Repitch/Stretch", sameAsEn: true, termNote: "the two pitchMode AudioParameterChoice strings, the host automation contract — English under D-01, exactly as the French keeps them", reviewed: 'bt' } },
     'label.presetSp1200':         { en: { t: 'SP-1200' },
-                                    fr: { t: 'SP-1200', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: "SP-1200", sameAsEn: true, termNote: "a machine model name, not copy — never translated, exactly as the French keeps it", reviewed: 'mt' } },
-    'label.presetFiltered':       { en: { t: 'Filtered' },         fr: { t: 'Filtré', reviewed: true }, 'zh-Hans': { t: "已滤波", termNote: "the bare root 滤波器 is the Filter GROUP heading on this same page (label.groupFilter); this button face names the lesson's state, so it takes the perfective marker to stay distinct from the group", reviewed: 'mt' } },
+                                    fr: { t: 'SP-1200', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: "SP-1200", sameAsEn: true, termNote: "a machine model name, not copy — never translated, exactly as the French keeps it", reviewed: 'bt' } },
+    'label.presetFiltered':       { en: { t: 'Filtered' },         fr: { t: 'Filtré', reviewed: true }, 'zh-Hans': { t: "已滤波", termNote: "the bare root 滤波器 is the Filter GROUP heading on this same page (label.groupFilter); this button face names the lesson's state, so it takes the perfective marker to stay distinct from the group", reviewed: 'bt' } },
 
     // The resting caption plus one per lesson. applyPreset() writes them with
     // setLabel() through a dispatch of one-line writers, each naming a literal
@@ -654,56 +654,56 @@ export const LABELS = Object.freeze({
         fr: { t: "Survolez n’importe quelle commande pour une explication · choisissez un préréglage pédagogique pour l’entendre isolé.",
               reviewed: true },
         'zh-Hans': { t: "悬停任意控件查看说明 · 选择一个概念预设来单独试听",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'label.captionRawOneShot': {
         en: { t: 'Raw One-Shot — press a key and hear the whole sample once, no loop. The simplest thing a sampler does, and the place to start.' },
         fr: { t: "One-shot brut — appuyez sur une touche et entendez tout l’échantillon une fois, sans boucle. La chose la plus simple qu’un échantillonneur fasse, et le point de départ.",
               reviewed: true },
         'zh-Hans': { t: "原始单次——按下一个键，完整听一遍采样，不循环。采样器最简单的事，也是入门的起点。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'label.captionTuned': {
         en: { t: 'Tuned Across the Keyboard — one recording becomes a playable instrument. Set the Root Key and every key plays the sample at its own pitch.' },
         fr: { t: "Accordé sur tout le clavier — un enregistrement devient un instrument jouable. Réglez la Note de référence et chaque touche joue l’échantillon à sa propre hauteur.",
               reviewed: true },
         'zh-Hans': { t: "跨键盘调音——一段录音变成可演奏的乐器。设定根音调，每个琴键都以自己的音高演奏这段采样。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'label.captionLoopedPad': {
         en: { t: 'Looped Pad — a loop with a crossfade turns a short sound into an endless one you can hold, with no click at the seam.' },
         fr: { t: "Nappe bouclée — une boucle avec fondu enchaîné transforme un son court en un son sans fin que vous pouvez tenir, sans clic à la jointure.",
               reviewed: true },
         'zh-Hans': { t: "循环铺垫——带交叉渐变的循环把一段短声音变成可以一直按住的无尽声音，接缝处没有咔嗒声。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'label.captionReversed': {
         en: { t: 'Reversed Swell — Reverse plus a slow attack makes a backwards swell that rises into the downbeat. A classic intro / transition.' },
         fr: { t: "Montée inversée — l’inversion et une attaque lente donnent une montée à l’envers qui débouche sur le premier temps. Une intro / transition classique.",
               reviewed: true },
         'zh-Hans': { t: "反向渐强——反向加上缓慢的起音，做出一个倒着升起、涌向重拍的渐强。经典的前奏与过渡。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'label.captionRepitchStretch': {
         en: { t: 'Repitch vs Stretch — the headline A/B. Repitch changes speed with pitch (tape-style); Stretch keeps the timing and moves pitch independently.' },
         fr: { t: 'Repitch contre Stretch — le A/B central. Repitch change la vitesse avec la hauteur (façon bande)\u00a0; Stretch conserve la durée et déplace la hauteur indépendamment.',
               reviewed: true },
         'zh-Hans': { t: "Repitch 对比 Stretch——招牌 A/B 对比。Repitch 让速度随音高一起变（磁带式）；Stretch 保持时长不变，独立移动音高。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'label.captionSp1200': {
         en: { t: 'SP-1200 Crunch — Vintage drops the sample rate and bit depth to add the gritty, lo-fi character of classic hip-hop samplers.' },
         fr: { t: "Croustillant SP-1200 — le Vintage abaisse la fréquence d’échantillonnage et la résolution pour ajouter le grain lo-fi des échantillonneurs hip-hop classiques.",
               reviewed: true },
         'zh-Hans': { t: "SP-1200 酥脆感——复古降低采样率和位深，加入经典嘻哈采样器那种沙砾般的低保真特质。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'label.captionFiltered': {
         en: { t: 'Filtered & Enveloped — the low-pass filter and the amp envelope together sculpt a raw sample into a finished, musical note.' },
         fr: { t: "Filtré et mis en enveloppe — le filtre passe-bas et l’enveloppe d’amplitude sculptent ensemble un échantillon brut en une note musicale finie.",
               reviewed: true },
         'zh-Hans': { t: "滤波与包络——低通滤波器和振幅包络一起把粗糙的采样雕琢成一个完成的、有音乐性的音符。",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Waveform editor ─────────────────────────────────────────────────────
@@ -714,41 +714,41 @@ export const LABELS = Object.freeze({
         en: { t: 'Waveform Editor ·' },
         fr: { t: "Éditeur de forme d’onde ·", reviewed: true },
         'zh-Hans': { t: "波形编辑器 ·",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'label.waveformHint': {
         en: { t: 'drag start/end & loop handles; the playhead tracks the live read position' },
         fr: { t: 'faites glisser les poignées de début/fin et de boucle\u00a0; la tête de lecture suit la position lue en direct',
               reviewed: true },
         'zh-Hans': { t: "拖动开始、结束与循环手柄；播放头追踪实时读取位置",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Rack group titles ───────────────────────────────────────────────────
-    'label.groupSource':  { en: { t: 'Source' },  fr: { t: 'Source', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: "源", reviewed: 'mt' } },
-    'label.groupRegion':  { en: { t: 'Region' },  fr: { t: 'Région', reviewed: true }, 'zh-Hans': { t: "区域", reviewed: 'mt' } },
-    'label.groupPitch':   { en: { t: 'Pitch' },   fr: { t: 'Hauteur', reviewed: true }, 'zh-Hans': { t: "音高", reviewed: 'mt' } },
-    'label.groupVintage': { en: { t: 'Vintage' }, fr: { t: 'Vintage', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: "复古", reviewed: 'mt' } },
-    'label.groupFilter':  { en: { t: 'Filter' },  fr: { t: 'Filtre', reviewed: true }, 'zh-Hans': { t: "滤波器", reviewed: 'mt' } },
-    'label.groupAmp':     { en: { t: 'Amplitude Envelope' }, fr: { t: "Enveloppe d’amplitude", reviewed: true }, 'zh-Hans': { t: "振幅包络", reviewed: 'mt' } },
-    'label.groupOutput':  { en: { t: 'Output' },  fr: { t: 'Sortie', reviewed: true }, 'zh-Hans': { t: "输出", reviewed: 'mt' } },
+    'label.groupSource':  { en: { t: 'Source' },  fr: { t: 'Source', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: "源", reviewed: 'bt' } },
+    'label.groupRegion':  { en: { t: 'Region' },  fr: { t: 'Région', reviewed: true }, 'zh-Hans': { t: "区域", reviewed: 'bt' } },
+    'label.groupPitch':   { en: { t: 'Pitch' },   fr: { t: 'Hauteur', reviewed: true }, 'zh-Hans': { t: "音高", reviewed: 'bt' } },
+    'label.groupVintage': { en: { t: 'Vintage' }, fr: { t: 'Vintage', sameAsEn: true, reviewed: true }, 'zh-Hans': { t: "复古", reviewed: 'bt' } },
+    'label.groupFilter':  { en: { t: 'Filter' },  fr: { t: 'Filtre', reviewed: true }, 'zh-Hans': { t: "滤波器", reviewed: 'bt' } },
+    'label.groupAmp':     { en: { t: 'Amplitude Envelope' }, fr: { t: "Enveloppe d’amplitude", reviewed: true }, 'zh-Hans': { t: "振幅包络", reviewed: 'bt' } },
+    'label.groupOutput':  { en: { t: 'Output' },  fr: { t: 'Sortie', reviewed: true }, 'zh-Hans': { t: "输出", reviewed: 'bt' } },
 
     // ── Source group ────────────────────────────────────────────────────────
-    'label.btnLoad':  { en: { t: 'Load…' }, fr: { t: 'Charger…', reviewed: true }, 'zh-Hans': { t: "载入…", reviewed: 'mt' } },
+    'label.btnLoad':  { en: { t: 'Load…' }, fr: { t: 'Charger…', reviewed: true }, 'zh-Hans': { t: "载入…", reviewed: 'bt' } },
     'label.dropZone': {
         en: { t: 'Drop a .wav/.aif here to sample your own sound' },
         fr: { t: 'Déposez ici un .wav/.aif pour échantillonner votre propre son', reviewed: true },
         'zh-Hans': { t: "把 .wav/.aif 拖到这里，采样您自己的声音",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     // The status line under the drop zone. {name} is a filename or the
     // localized generic below — never a re-typed word.
     'label.sourceBuiltIn':   { en: { t: '{name} — built-in source' },
-                               fr: { t: '{name} — source intégrée', reviewed: true }, 'zh-Hans': { t: "{name} — 内置源", reviewed: 'mt' } },
+                               fr: { t: '{name} — source intégrée', reviewed: true }, 'zh-Hans': { t: "{name} — 内置源", reviewed: 'bt' } },
     'label.sourceLoaded':    { en: { t: '{name} loaded' },
-                               fr: { t: '{name} chargé', reviewed: true }, 'zh-Hans': { t: "已载入 {name}", reviewed: 'mt' } },
+                               fr: { t: '{name} chargé', reviewed: true }, 'zh-Hans': { t: "已载入 {name}", reviewed: 'bt' } },
     'label.sourceTruncated': { en: { t: '{name} — truncated to 30 s' },
-                               fr: { t: '{name} — rogné à 30\u00a0s', reviewed: true }, 'zh-Hans': { t: "{name} — 已截断至 30 秒", reviewed: 'mt' } },
+                               fr: { t: '{name} — rogné à 30\u00a0s', reviewed: true }, 'zh-Hans': { t: "{name} — 已截断至 30 秒", reviewed: 'bt' } },
     // The picker path has no filename to show — the C++ FileChooser is async and
     // the page never learns what was chosen — so it gets its own two entries
     // rather than a {name} token fed a localized generic word. Passing the word
@@ -757,32 +757,32 @@ export const LABELS = Object.freeze({
     // a data-i18n attribute; a key named only inside a vars object is a dead key
     // as far as the gate can tell, and it is right to say so.
     'label.sourceLoadedGeneric':    { en: { t: 'Source loaded' },
-                                      fr: { t: 'Source chargée', reviewed: true }, 'zh-Hans': { t: "已载入源", reviewed: 'mt' } },
+                                      fr: { t: 'Source chargée', reviewed: true }, 'zh-Hans': { t: "已载入源", reviewed: 'bt' } },
     'label.sourceTruncatedGeneric': { en: { t: 'Source — truncated to 30 s' },
-                                      fr: { t: 'Source — rognée à 30\u00a0s', reviewed: true }, 'zh-Hans': { t: "源 — 已截断至 30 秒", reviewed: 'mt' } },
+                                      fr: { t: 'Source — rognée à 30\u00a0s', reviewed: true }, 'zh-Hans': { t: "源 — 已截断至 30 秒", reviewed: 'bt' } },
 
     // ── Region knobs ────────────────────────────────────────────────────────
     // A knob caption is NOT the tooltip title: "Loop XF" against "Loop
     // Crossfade", "Amount" against "Vintage", "Level" against "Output Level".
     // The captions live in a 54px cell and the French is authored to fit two
     // lines at that width rather than to match the tip title word for word.
-    'label.start':     { en: { t: 'Start' },      fr: { t: 'Début', reviewed: true }, 'zh-Hans': { t: "开始", reviewed: 'mt' } },
-    'label.end':       { en: { t: 'End' },        fr: { t: 'Fin', reviewed: true }, 'zh-Hans': { t: "结束", reviewed: 'mt' } },
-    'label.loopStart': { en: { t: 'Loop Start' }, fr: { t: 'Début de boucle', reviewed: true }, 'zh-Hans': { t: "循环起点", reviewed: 'mt' } },
-    'label.loopEnd':   { en: { t: 'Loop End' },   fr: { t: 'Fin de boucle', reviewed: true }, 'zh-Hans': { t: "循环终点", reviewed: 'mt' } },
-    'label.loopXf':    { en: { t: 'Loop XF' },    fr: { t: 'Fondu de boucle', reviewed: true }, 'zh-Hans': { t: "循环渐变", termNote: "the caption abbreviates Loop Crossfade exactly as the English XF and the French Fondu de boucle do; the tooltip title carries the full 循环交叉渐变", reviewed: 'mt' } },
-    'label.loopMode':  { en: { t: 'Loop Mode' },  fr: { t: 'Mode de boucle', reviewed: true }, 'zh-Hans': { t: "循环模式", reviewed: 'mt' } },
-    'label.reverse':   { en: { t: 'Reverse' },    fr: { t: 'Invers', reviewed: true }, 'zh-Hans': { t: "反向", reviewed: 'mt' } },
-    'aria.loopMode':   { en: { t: 'Loop mode' },  fr: { t: 'Mode de boucle', reviewed: true }, 'zh-Hans': { t: "循环模式", reviewed: 'mt' } },
+    'label.start':     { en: { t: 'Start' },      fr: { t: 'Début', reviewed: true }, 'zh-Hans': { t: "开始", reviewed: 'bt' } },
+    'label.end':       { en: { t: 'End' },        fr: { t: 'Fin', reviewed: true }, 'zh-Hans': { t: "结束", reviewed: 'bt' } },
+    'label.loopStart': { en: { t: 'Loop Start' }, fr: { t: 'Début de boucle', reviewed: true }, 'zh-Hans': { t: "循环起点", reviewed: 'bt' } },
+    'label.loopEnd':   { en: { t: 'Loop End' },   fr: { t: 'Fin de boucle', reviewed: true }, 'zh-Hans': { t: "循环终点", reviewed: 'bt' } },
+    'label.loopXf':    { en: { t: 'Loop XF' },    fr: { t: 'Fondu de boucle', reviewed: true }, 'zh-Hans': { t: "循环渐变", termNote: "the caption abbreviates Loop Crossfade exactly as the English XF and the French Fondu de boucle do; the tooltip title carries the full 循环交叉渐变", reviewed: 'bt' } },
+    'label.loopMode':  { en: { t: 'Loop Mode' },  fr: { t: 'Mode de boucle', reviewed: true }, 'zh-Hans': { t: "循环模式", reviewed: 'bt' } },
+    'label.reverse':   { en: { t: 'Reverse' },    fr: { t: 'Invers', reviewed: true }, 'zh-Hans': { t: "反向", reviewed: 'bt' } },
+    'aria.loopMode':   { en: { t: 'Loop mode' },  fr: { t: 'Mode de boucle', reviewed: true }, 'zh-Hans': { t: "循环模式", reviewed: 'bt' } },
 
     // ── Pitch group ─────────────────────────────────────────────────────────
-    'label.rootKey':   { en: { t: 'Root Key' },   fr: { t: 'Note de réf', reviewed: true }, 'zh-Hans': { t: "根音调", reviewed: 'mt' } },
-    'label.tune':      { en: { t: 'Tune' },       fr: { t: 'Accord', reviewed: true }, 'zh-Hans': { t: "调音", reviewed: 'mt' } },
+    'label.rootKey':   { en: { t: 'Root Key' },   fr: { t: 'Note de réf', reviewed: true }, 'zh-Hans': { t: "根音调", reviewed: 'bt' } },
+    'label.tune':      { en: { t: 'Tune' },       fr: { t: 'Accord', reviewed: true }, 'zh-Hans': { t: "调音", reviewed: 'bt' } },
     'label.fine':      { en: { t: 'Fine' },       fr: { t: 'Affinage',
                                                     termNote: 'glossary "fine" -> Fin, not applied: label.end is already Fin on this page, and two knob captions reading FIN would name two different controls the same thing',
-                                                    reviewed: true }, 'zh-Hans': { t: "微调", reviewed: 'mt' } },
-    'label.pitchMode': { en: { t: 'Pitch Mode' }, fr: { t: 'Mode de hauteur', reviewed: true }, 'zh-Hans': { t: "音高模式", reviewed: 'mt' } },
-    'aria.pitchMode':  { en: { t: 'Pitch mode' }, fr: { t: 'Mode de hauteur', reviewed: true }, 'zh-Hans': { t: "音高模式", reviewed: 'mt' } },
+                                                    reviewed: true }, 'zh-Hans': { t: "微调", reviewed: 'bt' } },
+    'label.pitchMode': { en: { t: 'Pitch Mode' }, fr: { t: 'Mode de hauteur', reviewed: true }, 'zh-Hans': { t: "音高模式", reviewed: 'bt' } },
+    'aria.pitchMode':  { en: { t: 'Pitch mode' }, fr: { t: 'Mode de hauteur', reviewed: true }, 'zh-Hans': { t: "音高模式", reviewed: 'bt' } },
     // The Repitch-vs-Stretch readout beside the combo. Repitch and Stretch are
     // the AudioParameterChoice entries and stay English under D-01; only the
     // clause after the em-dash is copy.
@@ -790,60 +790,60 @@ export const LABELS = Object.freeze({
         en: { t: 'Repitch — pitch & time linked' },
         fr: { t: 'Repitch — hauteur et durée liées', reviewed: true },
         'zh-Hans': { t: "Repitch — 音高与时间联动",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
     'label.pitchStretch': {
         en: { t: 'Stretch — time held, pitch independent' },
         fr: { t: 'Stretch — durée conservée, hauteur indépendante', reviewed: true },
         'zh-Hans': { t: "Stretch — 时长保持，音高独立",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
 
     // ── Vintage / Filter / Amp / Output knobs ───────────────────────────────
-    'label.amount':    { en: { t: 'Amount' },     fr: { t: 'Quantité', reviewed: true }, 'zh-Hans': { t: "量", reviewed: 'mt' } },
-    'label.cutoff':    { en: { t: 'Cutoff' },     fr: { t: 'Coupure', reviewed: true }, 'zh-Hans': { t: "截止", reviewed: 'mt' } },
-    'label.resonance': { en: { t: 'Resonance' },  fr: { t: 'Résonance', reviewed: true }, 'zh-Hans': { t: "共振", reviewed: 'mt' } },
-    'label.attack':    { en: { t: 'Attack' },     fr: { t: 'Attaque', reviewed: true }, 'zh-Hans': { t: "起音", reviewed: 'mt' } },
-    'label.decay':     { en: { t: 'Decay' },      fr: { t: 'Déclin', reviewed: true }, 'zh-Hans': { t: "衰减", reviewed: 'mt' } },
-    'label.sustain':   { en: { t: 'Sustain' },    fr: { t: 'Maintien', reviewed: true }, 'zh-Hans': { t: "延音", reviewed: 'mt' } },
-    'label.release':   { en: { t: 'Release' },    fr: { t: 'Relâch', reviewed: true }, 'zh-Hans': { t: "释音", reviewed: 'mt' } },
-    'label.velToAmp':  { en: { t: 'Vel→Amp' },    fr: { t: 'Vél→Ampli', reviewed: true }, 'zh-Hans': { t: "力度→振幅", reviewed: 'mt' } },
-    'label.level':     { en: { t: 'Level' },      fr: { t: 'Niveau', reviewed: true }, 'zh-Hans': { t: "电平", reviewed: 'mt' } },
+    'label.amount':    { en: { t: 'Amount' },     fr: { t: 'Quantité', reviewed: true }, 'zh-Hans': { t: "量", reviewed: 'bt' } },
+    'label.cutoff':    { en: { t: 'Cutoff' },     fr: { t: 'Coupure', reviewed: true }, 'zh-Hans': { t: "截止", reviewed: 'bt' } },
+    'label.resonance': { en: { t: 'Resonance' },  fr: { t: 'Résonance', reviewed: true }, 'zh-Hans': { t: "共振", reviewed: 'bt' } },
+    'label.attack':    { en: { t: 'Attack' },     fr: { t: 'Attaque', reviewed: true }, 'zh-Hans': { t: "起音", reviewed: 'bt' } },
+    'label.decay':     { en: { t: 'Decay' },      fr: { t: 'Déclin', reviewed: true }, 'zh-Hans': { t: "衰减", reviewed: 'bt' } },
+    'label.sustain':   { en: { t: 'Sustain' },    fr: { t: 'Maintien', reviewed: true }, 'zh-Hans': { t: "延音", reviewed: 'bt' } },
+    'label.release':   { en: { t: 'Release' },    fr: { t: 'Relâch', reviewed: true }, 'zh-Hans': { t: "释音", reviewed: 'bt' } },
+    'label.velToAmp':  { en: { t: 'Vel→Amp' },    fr: { t: 'Vél→Ampli', reviewed: true }, 'zh-Hans': { t: "力度→振幅", reviewed: 'bt' } },
+    'label.level':     { en: { t: 'Level' },      fr: { t: 'Niveau', reviewed: true }, 'zh-Hans': { t: "电平", reviewed: 'bt' } },
 
     // ── On-screen keyboard ──────────────────────────────────────────────────
     // The QWERTY row keeps its hair spaces as \u200a escapes. The letters name
     // PHYSICAL keys on the computer keyboard and are the same in both
     // languages — a French reader on an AZERTY board reads them as positions.
-    'label.play':     { en: { t: 'Play ·' }, fr: { t: 'Jouer ·', reviewed: true }, 'zh-Hans': { t: "播放 ·", reviewed: 'mt' } },
+    'label.play':     { en: { t: 'Play ·' }, fr: { t: 'Jouer ·', reviewed: true }, 'zh-Hans': { t: "播放 ·", reviewed: 'bt' } },
     'label.kbdHint': {
         en: { t: 'click the keys or use your computer keyboard (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)' },
         fr: { t: "cliquez sur les touches ou utilisez le clavier de l’ordinateur (A\u200aS\u200aD\u200aF\u200aG\u200aH\u200aJ\u200aK · W\u200aE\u200aT\u200aY\u200aU)",
               reviewed: true },
         'zh-Hans': { t: "点击琴键或使用电脑键盘 (A S D F G H J K · W E T Y U)",
-                     reviewed: 'mt' },
+                     reviewed: 'bt' },
     },
-    'aria.keyboard': { en: { t: 'On-screen keyboard' }, fr: { t: "Clavier à l’écran", reviewed: true }, 'zh-Hans': { t: "屏幕键盘", reviewed: 'mt' } },
+    'aria.keyboard': { en: { t: 'On-screen keyboard' }, fr: { t: "Clavier à l’écran", reviewed: true }, 'zh-Hans': { t: "屏幕键盘", reviewed: 'bt' } },
 
     // ── Toasts (drop / load feedback) ───────────────────────────────────────
     // Written by setLabel() onto #toast, so the element becomes a [data-i18n]
     // element and the language sweep owns it. A raw string here would be
     // stranded in the language the drop happened in.
     'toast.loading':         { en: { t: 'Loading {name}…' },
-                               fr: { t: 'Chargement de {name}…', reviewed: true }, 'zh-Hans': { t: "正在载入 {name}…", reviewed: 'mt' } },
+                               fr: { t: 'Chargement de {name}…', reviewed: true }, 'zh-Hans': { t: "正在载入 {name}…", reviewed: 'bt' } },
     'toast.dropStartFailed': { en: { t: 'Drop session start failed' },
-                               fr: { t: 'Échec du démarrage du dépôt', reviewed: true }, 'zh-Hans': { t: "拖放会话启动失败", reviewed: 'mt' } },
+                               fr: { t: 'Échec du démarrage du dépôt', reviewed: true }, 'zh-Hans': { t: "拖放会话启动失败", reviewed: 'bt' } },
     'toast.transferFailed':  { en: { t: 'File transfer failed' },
-                               fr: { t: 'Échec du transfert du fichier', reviewed: true }, 'zh-Hans': { t: "文件传输失败", reviewed: 'mt' } },
+                               fr: { t: 'Échec du transfert du fichier', reviewed: true }, 'zh-Hans': { t: "文件传输失败", reviewed: 'bt' } },
     'toast.commitFailed':    { en: { t: 'File load failed at commit' },
-                               fr: { t: 'Échec du chargement du fichier à la validation', reviewed: true }, 'zh-Hans': { t: "提交时文件载入失败", reviewed: 'mt' } },
+                               fr: { t: 'Échec du chargement du fichier à la validation', reviewed: true }, 'zh-Hans': { t: "提交时文件载入失败", reviewed: 'bt' } },
     'toast.dropFailed':      { en: { t: 'Drop failed: {error}' },
-                               fr: { t: 'Échec du dépôt\u00a0: {error}', reviewed: true }, 'zh-Hans': { t: "拖放失败：{error}", reviewed: 'mt' } },
+                               fr: { t: 'Échec du dépôt\u00a0: {error}', reviewed: true }, 'zh-Hans': { t: "拖放失败：{error}", reviewed: 'bt' } },
     'toast.dropFolder':      { en: { t: 'Drop a single audio file, not a folder' },
-                               fr: { t: 'Déposez un seul fichier audio, pas un dossier', reviewed: true }, 'zh-Hans': { t: "请拖入单个音频文件，而不是文件夹", reviewed: 'mt' } },
+                               fr: { t: 'Déposez un seul fichier audio, pas un dossier', reviewed: true }, 'zh-Hans': { t: "请拖入单个音频文件，而不是文件夹", reviewed: 'bt' } },
     'toast.dropFileType':    { en: { t: 'Drop a .wav / .aif / .flac file' },
-                               fr: { t: 'Déposez un fichier .wav / .aif / .flac', reviewed: true }, 'zh-Hans': { t: "请拖入 .wav / .aif / .flac 文件", reviewed: 'mt' } },
+                               fr: { t: 'Déposez un fichier .wav / .aif / .flac', reviewed: true }, 'zh-Hans': { t: "请拖入 .wav / .aif / .flac 文件", reviewed: 'bt' } },
     'toast.loadFailed':      { en: { t: 'Load failed' },
-                               fr: { t: 'Échec du chargement', reviewed: true }, 'zh-Hans': { t: "载入失败", reviewed: 'mt' } },
+                               fr: { t: 'Échec du chargement', reviewed: true }, 'zh-Hans': { t: "载入失败", reviewed: 'bt' } },
 });
 
 // ============================================================================
