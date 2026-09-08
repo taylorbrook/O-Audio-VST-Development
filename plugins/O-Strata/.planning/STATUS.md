@@ -1,101 +1,75 @@
 ---
 plugin: O-Strata
-stage: 2
-stage_name: dsp
-phase: discuss
-phase_current: "2.1"
-status: stage_2_discuss_complete
+stage: 0
+stage_name: ideation
+phase: replan
+status: replanned_live_terrain_awaiting_stage_0
 last_updated: 2026-09-08
 workflow_mode: manual
-complexity_score: 5.0
+complexity_score: null
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-research O-Strata 2-dsp
-next_stage: 2
-ready_for_implementation: true
-contract_checksums:
-  brief: sha256:017962972096be6494d98cb27de5042dbf2842c3c13b532eadc8c396261dba4e
-  parameter_spec: sha256:578a0d050374c14ba1692f232382af78037da637a6832a27b51cc2b0821f181a
-  architecture: sha256:87f3d06e23d9e862a48f44c4f55032182416e17602ae296fa6bc6a676c4e063f
-  roadmap: sha256:1e8a23be0e650dc092692308cd084dd97a0652725f51c0b546d608d480daeabe
-mockup_latest_version: 1
-ui_design_phase_complete: true
-mockup_finalized: true
-finalized_version: 1
-brief_updated_from_mockup: true
-mockup_version_synced: 1
-brief_update_timestamp: "2026-09-08T01:59:53Z"
-ui_scaffolding_phase_complete: true
+next_action: /plan O-Strata
+next_stage: 0
+ready_for_implementation: false
+contract_checksums: {}
+mockup_latest_version: 0
+ui_design_phase_complete: false
+mockup_finalized: false
+brief_updated_from_mockup: false
+ui_scaffolding_phase_complete: false
+fork_exists: true
+fork_verified: "stages/1-foundation/VERIFICATION.md (baked parameter set, 2026-09-07)"
+superseded_design: superseded-baked-v1/
 ---
 
 # O-Strata Status
 
 ## Current Position
 
-Stage: 2 of 4 (DSP) — discuss ✓ (2026-09-08); research next. Five ROADMAP phases 2.1–2.5, run as per-phase plan → execute → verify loops (Stage 2 CONTEXT D1); `phase_current` tracks which.
-Status: Stage 2 discuss complete — `stages/2-dsp/CONTEXT.md`: D1 per-phase loops, D2 Terrain list → 6 entries in 2.4 (spec v1.1), D3 scheduler drag throttle (ARCHITECTURE Core 8 amendment), D4 harnesses as CMake targets, D5 golden/fixtures generated not committed, D6 audition via Logic AU Controls view. Ten research items listed.
-Previous: Stage 1 VERIFIED (2026-09-07) — every SUMMARY claim re-measured (build, param-dump 219 == params.tsv, pluginval strictness 10 SUCCESS ×2, auval SUCCEEDED, all five UI gates green) plus a headless smoke harness (`stages/1-foundation/smoke/`, 27/27: sine sounds on A and B with negative controls, `.scl` loads, 219-param + tuning + uiLanguage round-trip into a fresh processor, empty `<geometryImports/>` written). COMPAT-01 complete. Three Standalone/WKWebView visual items left as non-blocking human checks in VERIFICATION.md.
-Progress: [###########.........] 55%
+Stage: 0 — **re-planned 2026-09-08** around the live wave-terrain oscillator (research §7.2); the baked-geometry design is superseded (`superseded-baked-v1/README.md`) and its tables ship as an O-Prism factory bank (`plugins/O-Prism/.planning/improvements/geometry-wavetables.md`).
+Status: BRIEF.md, REQUIREMENTS.md (v2.0.0, 28 IDs) and parameter-spec-draft.md (v2: 171 inherited + 34 new = 205; 46 mod destinations) rewritten. Stage 0 (ARCHITECTURE + ROADMAP) not yet run for the new design.
+Progress: [####................] 20% (fork + rename + strip verified; parameters and DSP to redo)
+
+## Why (evidence)
+
+- `evidence/critique-check-2026-09-08.md` — measured on the prototype: centred orbits over symmetric fields play an octave / a twelfth up; mesh sweeps are spectrally static; fBm is the only rich baked source.
+- `evidence/replan-proposal-2026-09-08.md` — the sequence below and what carries over.
+- Listening (Taylor, 2026-09-08): the baked tables sound nice but do not warrant a new plugin.
+
+## What carries over from the built fork (`Source/`, verified 2026-09-07)
+
+Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guarded editor, `juce_cryptography` linked, UI gate fixtures, headless smoke harness pattern (`stages/1-foundation/smoke/`), CHANGELOG/NOTES/PLUGINS.md plumbing. **The 48 baked-geometry parameters in `Source/` are stale** and are replaced in the Stage 1 re-parameterise pass; `params.tsv` (219 rows) describes the *current binary*, not the target.
 
 ## Phase Progress
 
-### Stage 1: Foundation
-| Phase | Status | Date | Skipped |
-|-------|--------|------|---------|
-| discuss | ✓ | 2026-09-07 | |
-| research | ✓ | 2026-09-07 | |
-| plan | ✓ | 2026-09-07 | |
-| execute | ✓ | 2026-09-07 | |
-| verify | ✓ | 2026-09-07 | |
+### Stage 0: Research & Planning (live terrain design)
+| Phase | Status | Date | Notes |
+|-------|--------|------|-------|
+| re-plan brief | ✓ | 2026-09-08 | BRIEF / REQUIREMENTS v2 / parameter-spec-draft v2 |
+| research + plan (`/plan`) | | | ARCHITECTURE.md + ROADMAP.md |
+| mockup v2 | | | `design UI for O-Strata`; lock parameter-spec.md v2 |
 
-### Stage 2: DSP (phases 2.1 pipeline · 2.2 slicer · 2.3 volume · 2.4 terrain · 2.5 gates)
-| Phase | Status | Date | Skipped |
-|-------|--------|------|---------|
-| discuss | ✓ | 2026-09-08 | |
-| research | | | |
-| plan (2.1) | | | |
-| execute (2.1) | | | |
-| verify (2.1) | | | |
-
-## Completed So Far
-
-**Ideation:** ✓ Complete (2026-09-07)
-- BRIEF.md, REQUIREMENTS.md (27 IDs), parameter-spec-draft.md (217 params: 171 inherited from O-Prism v1.24.0 + 46 Geometry)
-
-**Stage 0:** ✓ Complete (2026-09-07) — Research & Planning complete - ARCHITECTURE.md and ROADMAP.md documented (Complexity 5.0, raw 23.0)
-- Plugin type: Synth (3D-geometry wavetable generator on the O-Prism v1.24.0 engine, baked-only v1.0)
-- Research consumed at Level 3 (`research/wavetable-synthesis-3d-geometry.md` §3/§4/§5/§7.1/§7.3/§7.4 + prototypes); no re-research of the geometry maths or landscape
-- JUCE modules identified: O-Prism's 13 + `juce_cryptography` (SHA-256); new APIs verified in local JUCE 8.0.14 headers (ThreadPool, callAsync, ImageFileFormat/PNGImageFormat, GZIP streams, Base64, SHA256, MemoryInputStream, emitEventIfBrowserIsVisible, FileChooser::launchAsync); OBJ/STL parsers, slicer, fields and terrains are custom (no JUCE class)
-- Open items resolved: (1) import embed cap = 2 MB per source after compression, path + SHA-256 above; (2) bake parameters = APVTS `AudioParameter*`, excluded from mod-matrix destinations, consumed by a message-thread scheduler with no APVTS listener; (3) PERF-03 WKWebView/WebView2 gate defined as a Stage 3.2 measurement with Canvas 2D fallback
-- Further decisions: procedural C++ built-in libraries (no OBJ binary data), wavetable-library code paths deleted (sine placeholder kept), parsing in the bake job off the audio thread, event push instead of `evaluateJavascript`
-- Strategy: Staged implementation — Stage 1 (1), Stage 2 (5 phases), Stage 3 (3 phases), Stage 4 (2 phases); every phase cites the requirement IDs it verifies
+### Stage 1: Foundation — first pass ✓ (baked params, 2026-09-07); **second pass pending** (re-parameterise: 205 params, 46 mod destinations, COMPAT-01 re-verify)
 
 ## Next Steps
 
-1. ~~Create the UI mockup and the full `parameter-spec.md`~~ **Done (2026-09-07):** mockup v1 finalized (`mockups/v1-ui.yaml`, `v1-ui-test.html`), implementation scaffolding generated (`mockups/v1-ui.html`, `v1-PluginEditor-TEMPLATE.h/.cpp`, `v1-CMakeLists-SNIPPET.txt`, `v1-integration-checklist.md`) and `parameter-spec.md` locked at v1 — **219 params (171 inherited + 48 Geometry)**; the draft's 217/46 was an undercount, reconciled in the spec's "Draft reconciliation" note. Terrain choice list is the mockup's 3 entries (ARCHITECTURE lists 6) — see the same note.
-2. ~~Stage 1: Foundation~~ **Done (2026-09-07):** verified — `stages/1-foundation/VERIFICATION.md` (COMPAT-01 complete; headless smoke 27/27; human visual checks listed, non-blocking).
-3. ~~Stage 2 discuss~~ **Done (2026-09-08):** `stages/2-dsp/CONTEXT.md` (D1–D6, amended test criteria, 10 research items).
-4. **NEXT — Stage 2 research** → `/plugin-research O-Strata 2-dsp` (whole stage: ThreadPool API, generateMipmaps reentrancy/cost, juce::dsp::FFT xcorr layout, golden regeneration, render-harness macros, allocator hook, BakeKey inputs, PNG decode, spectral helpers, 1 M-tri fixture). Then per-phase `/plugin-plan O-Strata 2-dsp` starting at 2.1.
+1. (Recommended) Play Aaron Anderson's *Terrain* for an hour — confirm the live sound is the one wanted before planning it.
+2. `/plan O-Strata` — Stage 0 for the live design. Research items the old plan never needed: feedback stability + damping, pitch-tracked spatial frequency vs Chebyshev per-pitch truncation, PNG → Chebyshev projection, per-osc halfband decimator + latency, `WavetableOscillator` interface parity, mod-destination append, Bandlimited-mode coefficient swap cadence, Quality default.
+3. UI mockup v2 → `parameter-spec.md` v2 (locked).
+4. Stage 1 second pass: set `stage: 1`, `phase: discuss` here and run `/plugin-discuss O-Strata 1-foundation`.
+5. Stage 2: live oscillator DSP with the aliasing / CPU / symmetry harness gates.
 
 ## Context to Preserve
 
-- Architecture: `plugins/O-Strata/.planning/research/ARCHITECTURE.md` (11 sections; requirement map in Notes)
-- Plan: `plugins/O-Strata/.planning/ROADMAP.md` (complexity 5.0 capped, raw 23.0; staged)
-- Discuss findings: `plugins/O-Strata/.planning/stages/0-ideation/CONTEXT.md`, `stages/1-foundation/CONTEXT.md` (Stage 1 D1–D6), `stages/2-dsp/CONTEXT.md` (Stage 2 D1–D6: per-phase loops, Terrain list 6, drag throttle amendment, harness targets, generated goldens)
-- Research findings: `stages/1-foundation/RESEARCH.md` (§2 open items, §3 48 declarations, §4 removal trace, §5 rename procedure, §9 task order, §10 contradictions, Assumptions A1–A6)
-- Plan: `stages/1-foundation/PLAN.md` (16 tasks, 5 waves, 12 flags → decisions table, 24 family-prefixed host names, interval convention 0.001/0.01/0.1, success criteria)
-- Fork base facts verified in O-Prism source: `WavetableData.h` (2048 + 1 guard, ≤ 256 frames, 10 levels), `WavetableGenerator.cpp:129` `generateMipmaps`, `WavetableImporter.cpp:189-205` global-peak normalisation, `PluginProcessor.cpp:946-1000` retire/reaper/assign, `PrismParamIds.h` `oscIds`/`allSliderIds` (126 → 170), `PluginEditor.cpp` `getActiveOscFrame` + `timerCallback` (`evaluateJavascript` to be replaced), `CMakeLists.txt` (`O-Prism_UIResources`, `VERSION 1.24.0`)
-- Wording notes for REQUIREMENTS.md (not edited): FUNC-05 "binary data" = compiled-in procedural; FUNC-06 "message thread" = off-audio-thread in the bake job; PERF-02 100 ms = generator + conditioning, mipmaps reported separately
-- Golden: `research/wavetable-synthesis-3d-geometry-prototypes/mesh-slice/mesh_slice_wavetable.py` → `twisted_star_d_128` (Centroid Distance, Largest, 128 frames; WAV not committed — regenerate in Stage 2.2)
-- Out of scope v1.0: live terrain oscillator (research §7.2) → v1.1
+- Research: `research/wavetable-synthesis-3d-geometry.md` §1, §7.2, §7.3; benchmark `research/wavetable-synthesis-3d-geometry-prototypes/terrain-bench/`; view prototype `webgl-3d/terrain-proto.html`
+- Superseded design (for the v1.1 Baked source type): `superseded-baked-v1/` (ARCHITECTURE, ROADMAP, spec v1, mockup v1, Stage 0 + Stage 2 CONTEXT)
+- Fork history: `stages/1-foundation/` (CONTEXT D1–D6, RESEARCH, PLAN, SUMMARY, VERIFICATION, smoke harness)
+- Symmetry rule and harness gate: REQUIREMENTS DSP-06
+- Out of scope v1.0: baked sources (v1.1), wavetable mode (never), RGB terrains (v1.1), dual-orbit stereo (v1.x)
 
-## Files Created
-- plugins/O-Strata/Source/** (fork), CMakeLists.txt, tests/**, CHANGELOG.md, .planning/params.tsv
-- plugins/O-Strata/.planning/stages/1-foundation/SUMMARY.md
-- plugins/O-Strata/.planning/stages/1-foundation/VERIFICATION.md (+ smoke/ harness source and log)
-- plugins/O-Strata/.planning/stages/2-dsp/CONTEXT.md
-- plugins/O-Strata/.planning/research/ARCHITECTURE.md
-- plugins/O-Strata/.planning/ROADMAP.md
-- plugins/O-Strata/.planning/stages/0-ideation/CONTEXT.md
-- plugins/O-Strata/.planning/STATUS.md (updated)
+## Files
+- plugins/O-Strata/Source/** (fork, baked parameter set — to be re-parameterised), CMakeLists.txt, tests/**, CHANGELOG.md, .planning/params.tsv (current binary)
+- plugins/O-Strata/.planning/{BRIEF.md, REQUIREMENTS.md, parameter-spec-draft.md} (v2, 2026-09-08)
+- plugins/O-Strata/.planning/superseded-baked-v1/** ; .planning/evidence/*.md (WAVs gitignored)
 - PLUGINS.md (row → 🚧 Stage 0)
