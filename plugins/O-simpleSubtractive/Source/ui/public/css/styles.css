@@ -61,7 +61,7 @@
   --text-emboss: rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
   /* Symbol-glyph fallback — Garamond lacks ❦ / ♪ on Windows; these fonts carry them. */
-  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', serif;
+  --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -76,7 +76,7 @@ html, body {
 }
 
 body {
-  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', serif;
+  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   color: var(--brown-text);
   background:
     radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
@@ -741,3 +741,84 @@ select.combo:focus-visible {
   outline: 2px solid var(--green-mid);
   outline-offset: 2px;
 }
+
+/* ══ SIMPLIFIED CHINESE GEOMETRY (v1.5.0) ═══════════════════════════════════
+   Every declaration below is SCOPED to html[lang="zh-Hans"], the shipped
+   selector form (precedent: plugins/O-Prism/Source/ui/public/index.html:1298).
+   Scoping rather than pinning globally is deliberate here: this page carries a
+   PRE-EXISTING French wrap on div.routing-label — "SIGNAL PATH" is one line in
+   English and "CHAÎNE DU SIGNAL" is two, by design, recorded above the
+   .routing-label rule — so a global line-height would change the French box on
+   a node the French deliberately lets wrap. Under this scope neither Latin arm
+   can move at all.
+
+   Every ratio is derived from that element's OWN English CONTENT box — its
+   rect height less its own padding and border, divided per line by its own
+   font-size — and never from a table of nominal ratios. .tour-btn is the form
+   control case: a nominal 10.5px leaf ratio would be 1.1666667 against its
+   measured 1.047619, because the UA font shorthand resets line-height on a
+   button. .group-title is the padding case: its rect is 19px and its content
+   box is 15px, because the rect carries 3px of bottom padding and a 1px dotted
+   border; a ratio taken from the rect would be 1.5833.
+
+   Chinese is SHORTER than English on nearly every row of this page, so the
+   line-box growth below is the whole geometry problem: a Han line box is about
+   30% taller than a Latin one at the same size, and `line-height: normal`
+   inherits that growth into every container. */
+
+/* ── Leaf line boxes, pinned to the measured English content box ──────────── */
+html[lang="zh-Hans"] .subtitle        { line-height: 1.0909091; }  /* 11px, en content 12 */
+html[lang="zh-Hans"] .settings-label  { line-height: 1.0909091; }  /* 11px, en content 12 */
+html[lang="zh-Hans"] .tour-caption    { line-height: 1.0909091; }  /* 11px, en 24 over TWO lines = 12 per line */
+html[lang="zh-Hans"] .tour-btn        { line-height: 1.0476190; }  /* 10.5px button: en rect 23 less 5+5 padding less 1+1 border = 11 */
+html[lang="zh-Hans"] .routing-label   { line-height: 1.1; }        /* 10px, en content 11 */
+html[lang="zh-Hans"] .tour-label      { line-height: 1.1; }        /* 10px, en content 11 */
+html[lang="zh-Hans"] .group-title     { line-height: 1.25; }       /* 12px: en rect 19 less 3 padding less 1 border = 15 */
+
+/* ── Caption ROWS. Each grew while every inline child inside it reported an
+      identical box: getBoundingClientRect on an inline element returns its FONT
+      box, not its line box, so a row can grow with no leaf able to report it.
+      Pinned as a unitless RATIO so the children recompute rather than inherit a
+      length. ─────────────────────────────────────────────────────────────── */
+html[lang="zh-Hans"] .viz-label       { line-height: 1.1; }         /* 10px, en content 11 */
+html[lang="zh-Hans"] .keyboard-label  { line-height: 1.1; }         /* 10px, en content 11 */
+html[lang="zh-Hans"] .routing-readout { line-height: 1.2307692; }   /* 13px, en content 16 */
+
+/* ── The one place Chinese comes out WIDER than English on this page ──────
+      .routing-readout-col is margin-left:auto, so its width is content-sized
+      and growing it drags its own left edge and both readout spans leftward.
+      "Res" measures 21.00px in English and "Rés" the same in French; 共振 at
+      13px measures 27.53px — Han is full-width, one em per glyph, and no
+      shorter faithful rendering of the term exists (Chinese has no
+      abbreviations, which is why the caption and this readout collapse onto
+      one word here). The trim is MEASURED, not chosen: two full-width glyphs at
+      10.5px with the Latin letter-spacing removed is 21.00px exactly — the
+      English box, to the pixel. 10.5px is a size this page already uses on
+      .tour-btn, and the neighbouring .routing-meta is 10px, so the readout
+      strip stays typographically of a piece. ──────────────────────────────── */
+html[lang="zh-Hans"] .routing-readout [data-i18n="label.res"] {
+  font-size: 10.5px;
+  letter-spacing: 0;
+}
+
+/* ── The reserved flex line — the largest single cascade on this page ──────
+      .preset-tour is flex-wrap: wrap and holds three items: the 99px pinned
+      .tour-label, .tour-buttons (flex 1 1 auto) and .tour-caption
+      (margin-left: auto, max-width: 46%). In English and French the resting
+      caption's natural width EXCEEDS the 46% cap, so it is clamped to 505.08px
+      — 46% of the 1098px content line, to the pixel — and the three items no
+      longer fit on one flex line: the caption takes line 2 and .tour-buttons
+      expands into the whole of line 1.
+
+      The Chinese resting caption is far shorter than the cap, so all three fit
+      on ONE line: the section loses a whole flex line (-26.0px) and
+      .tour-buttons collapses 258.3px around its shorter button faces. Twenty
+      keyboard keys and the entire keyboard panel move up with it.
+
+      The floor is the cap, in the cap's own unit, so the two meet exactly at
+      any frame rather than at a pixel measured at one. Neither Latin arm can
+      see it (both are already clamped there), and the state whose caption IS
+      long in Chinese — the lesson-preset click — is clamped too, so the floor
+      is a no-op there as well. NOT a fixed width: that would cap a language
+      needing a wider sentence. ─────────────────────────────────────────────── */
+html[lang="zh-Hans"] .tour-caption { min-width: 46%; }
