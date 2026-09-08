@@ -3,6 +3,167 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.0] — 2026-09-07
+
+Simplified Chinese joins English and French. MINOR: 131 rows of new copy, a
+third `LANGUAGES` member, a third `<option>` in the selector, a three-way
+language codec in the C++, a CJK font tail and eleven geometry pins. No
+parameter, range, type or state format changed, and no English or French
+rendering moved.
+
+This plugin is the TRACER for wave 4g, the seventh and last volume wave of the
+rollout, and it was chosen for that because every structural question the other
+five inherit is cheapest to answer here: 131 rows is the wave's smallest table,
+two states its thinnest walk, `40 of 40` visible with zero never-visible the
+only exact coverage fraction in the wave with no artefact to discount, and a
+quoted `CMakeLists` literal the plainest of the wave's three version shapes.
+
+**The version this bumps FROM is 1.2.1, not the 1.2.0 the registry says.** The
+`PLUGINS.md` row is one patch stale — it never followed the 2026-09-03
+suite-wide French hover-help rename that shipped 1.2.1. Every row in this wave
+is stale in exactly that way and all six come from that one commit. The
+registry is corrected at the end of the batch; the source of truth is and
+remains `CMakeLists.txt`.
+
+### Added
+
+- **Simplified Chinese (`zh-Hans`) across all 131 rows** — 43 tooltip titles,
+  43 tooltip bodies and 45 captions — at `reviewed: 'bt'`.
+- **The endonym in the language selector**, as the HTML entities the suite
+  writes it with, copied byte-for-byte from the shipped precedent rather than
+  retyped, and exempted with a reason like the other two.
+- **A three-way `languageCode` / `languageIndex` codec** in
+  `Source/PluginProcessor.h`. Pure ASCII on both lines: the persisted value is
+  the BCP-47 code and nothing else, so no Chinese character reaches the header
+  and nothing a text editor, a compiler or a session file could mangle is
+  stored. Anything that is neither the French nor the Chinese code still
+  degrades to English rather than being stored unvalidated.
+
+### Changed
+
+- **The language tooltip no longer ENUMERATES the languages on offer.** Through
+  1.2.1 its English body ended *"English and French are available; value
+  readouts and the two drop-down menus stay in English"*, and the French body
+  said the same. That clause was true for exactly as long as the selector held
+  two entries and became false the moment this version added a third. It is
+  deleted rather than extended: the selector already lists the languages in
+  their own endonyms, which is the one place the list cannot go stale. **The
+  exception list stays, and its numeric claim was re-verified before it was
+  kept** — `index.html` carries three `<select>` elements and subtracting the
+  language selector leaves two, so *"the two drop-down menus"* is true today.
+  The superseded phrasings are recorded here and deliberately not repeated in
+  any source comment, so a repo grep for either stays at zero.
+- **The CJK font tail on both declared stacks**, before the trailing generic —
+  Chromium resolves a bare `serif` against the document's `lang`, so under
+  `zh-Hans` the generic is already a Chinese face and a tail written after it is
+  never consulted. The absent Garamond members are KEPT: they are the
+  Windows/print intent and this machine is not the one the suite builds for.
+  `--symbol-font` takes the tail too, and that is measured rather than assumed:
+  its only consumer is the gear button, the gear button is the first tip anchor
+  in the table, and a tip anchor carries Han in `data-tip` regardless of the
+  glyph it paints.
+- **Eleven geometry pins under a new `zh-Hans GEOMETRY PINS` block** in
+  `css/styles.css`. Han faces carry taller metrics than Times New Roman, so
+  every element inheriting the UA's `line-height: normal` grew 2-4 px the moment
+  its caption became Chinese, and the header and group headers are in normal
+  flow, so that growth pushed the page down. Eight leaf ratios, two row ratios
+  and one width floor. **Every ratio is measured, not chosen**: the element's
+  own English line box — rect height less padding less border — divided by its
+  own font-size, unitless, grouped per measured box. The lesson buttons sit
+  apart from the lesson label at half a pixel of font-size because a `<button>`
+  is a form control whose UA `font` shorthand resets `line-height`, so its ratio
+  comes from its own content box and not from the leaf table. **There is no
+  global `line-height`**: a global rule would move English, which is the
+  regression these gates exist to catch rather than a fix.
+- **A width floor on the tour caption at 311.52 px**, its exact measured English
+  box. Chinese is shorter, so the failure shape on this page is a SHRINK: the
+  Chinese caption is 244.34 px, short enough to fit on the flex row's first line
+  beside the six lesson buttons, which collapsed the section from two flex lines
+  to one and took the button group from 679 px to 422.66 px with it. The floor
+  restores the wrap. Not a fixed width — French is 395.83 px and must stay wider
+  than the floor.
+
+### Disclosed quality level
+
+The Chinese ships at **`reviewed: 'bt'`** — back-translated, not natively
+reviewed. This project has no native Simplified Chinese reader, so the French
+lane, where `reviewed: true` means the developer read it, is closed. The
+substitute is a blind reverse pass: every one of the 131 rows was emitted with
+the English source and the key names WITHHELD and the row ids BLINDED behind a
+per-batch salt, dispatched to a separate model in a fresh session with no tools
+from a working directory outside this repository, and the returned English was
+read against the original in every row.
+
+`reviewed: 'native'` stays open and is not a blocker.
+
+The batch was split into two chunks **on the concept, not on size**: every
+caption went to one reader and its own tooltip title to the other, so a
+divergence between the two halves of one control is visible to a reader rather
+than to nobody. **That split paid for itself on this page.** The Chinese for
+*Harmonic Drawbars* came back as *"Harmonic drawbar"* from the chunk that held
+the tooltip titles and as *"Harmonic sliders"* from the chunk that held the
+captions — one string, two independent readings, and only the split could
+produce both. The pair is what shows the word is right and that the second
+reader simply had no organ context around it.
+
+**Two rows were re-authored and a second round confirmed both**, against a
+fresh reader on a third model with a fresh salt. The discriminator is collision
+on the page, never drift distance:
+
+- the oscilloscope hint came back as *"Sum of single-cycle waveformS"*, plural,
+  while the caption on its own row reads *Waveform*, singular, and the scope
+  draws one trace. Re-authored so the summing is the operation and the waveform
+  is the result — the direction the English states it in. It now returns as
+  *"post-summation single-period waveform"*.
+- the **Organ** lesson came back as *"Pipe organ"* while that entry's own body
+  says a Hammond-style drawbar registration. A Hammond is an electric organ; a
+  pipe organ is not a Hammond and has no drawbars at all — a title and its own
+  body naming two different instruments, on one control. The glossary root is
+  the pipe-organ word, and the corpus site count for it was checked before
+  anything was written: *Organ* is a caption on exactly ONE plugin — this one,
+  in three entries — and that root is shipped nowhere else, so it was derived
+  from this caption alone and never had a second site to check it against.
+  O-Bells independently confirms what the root means: its own copy uses that
+  word to name the PIPES of one. Corrected to the electric-organ word at the
+  three places it exists, each with its own entry-scoped note, and the root is
+  flagged for the glossary rather than forked silently. It now returns as
+  *"electronic organ"* on all three.
+
+Round two corrected nothing further, so there is no round three.
+
+**Six glossary exemptions in total, all reasoned and all entry-scoped**, three
+for **Organ** above and three for **Morph Pad**, whose root renders as a morph
+PANEL — a user-interface surface — where the English names a synth PAD. That
+root has the same single-site provenance and the same disposition.
+
+**Expect Chinese line boxes about 30% taller than Latin at the same font-size.**
+That is what the pin block above exists for, and it is why a Chinese caption
+that measures narrower can still move a page.
+
+### Verified
+
+- `check-i18n` exit 0: `LANGUAGES` lists three, the key counts are unchanged at
+  43 + 45, and all 43 tips stay bound.
+- `i18n-zh-lint` 0 findings, `--self-test` 10/10, 0 entries below the ship bar.
+- `i18n-fr-lint` 0 findings — no French rendering changed.
+- `check-ui-labels` exit 0, `ALL CHECKS PASSED`: **no non-label element moved on
+  either non-English arm**, across both states, and coverage is unchanged at
+  `40 of 40` visible with zero never-visible.
+- `measure-ui`: `undeclared-font` 0 against a NON-EMPTY input of 111 visible
+  Han-bearing nodes — a measurement rather than the vacuum the same screen
+  reported before the table landed. `wrap-count` 0 against a baseline of 0.
+  One `line-height: normal` residual survives and is named with its
+  measurement: the hover-help switch, font-size 10 px, English and Chinese
+  heights both 24 px. It is a fixed-height form control and cannot move.
+- The state-effect assertion fired on **both** click states: the hit test at
+  each target's centre returns the button itself, and each state measurably
+  took effect — the popover raised the visible label count from 37 to 40, and
+  the switch's face went from its on-word to its off-word.
+- Zero Chinese characters anywhere under `Source/`, proved on a comment-stripped
+  copy with a positive control fired on the same run.
+- `boot-all-uis --strict-tips`: clean, 0 dead bindings and 0 late.
+
+
 ## [1.2.1] — 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
