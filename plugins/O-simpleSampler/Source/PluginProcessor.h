@@ -173,11 +173,12 @@ public:
     int  getUiLanguage() const noexcept { return uiLanguage.load (std::memory_order_relaxed); }
     void setUiLanguage (int i) noexcept { uiLanguage.store (i, std::memory_order_relaxed); }
 
-    /** The codec. languageIndex() maps anything that is not "fr" to 0, so a
+    /** The codec. languageIndex() maps anything it does not recognise to 0, so a
         hand-edited session or an unexpected argument from the page degrades to
-        English rather than being stored unvalidated. */
-    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : "en"; }
-    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : 0; }
+        English rather than being stored unvalidated. Pure ASCII on both lines:
+        the language CODE is stored, never the endonym. */
+    static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
+    static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
     //==========================================================================
     // Source loading (Stage 3.1 / FUNC-03). The drag-drop streaming handlers are
