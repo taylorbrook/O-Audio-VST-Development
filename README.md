@@ -75,6 +75,10 @@ Minimal, readable implementations of the classic synthesis methods, intended to 
 
 Per-plugin versions, release state, and history live in the **[plugin registry](PLUGINS.md)**.
 
+## Languages
+
+Every plugin's interface — labels, tooltips, and preset names — is available in English, French, and Simplified Chinese. Pick the language from the settings (gear) popover in any plugin window; it defaults to English and is saved with the plugin state, so it follows the session.
+
 ## Support
 
 Everything here is free — no paid tier, no license to buy. If a plugin has earned a place in your work, a contribution at [oaudio.io/support](https://oaudio.io/support) helps keep new ones coming.
