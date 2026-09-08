@@ -1,5 +1,85 @@
 # O-Prism Changelog
 
+## v1.26.0 (2026-09-08)
+
+**UI restructure: cards, tab grids, custom selects.** The Synth, Effects and
+Wavetable tabs are rebuilt on a 12-column card grid inside the existing
+cream/serif/sage system; the Tuning tab moves from four absolutely positioned
+children to a 3-column grid. MINOR: markup and CSS only. Every element id,
+`data-knob`, `data-i18n` key, JS binding and the en/fr/zh-Hans tables are
+byte-identical to v1.25.0 (asserted by the splice script as a multiset diff);
+no parameter, DSP or state-format change.
+
+### Changed
+
+- **Synth tab fits the 1200x800 frame with no scroll.** v1.25.0 stacked nine
+  sections to ~700 px in a 650 px content area and clipped the LFO row below
+  the fold. Now five card rows: Osc A / Osc B full width; Sub Osc | Noise |
+  Performance; Filters (A | routing | B in one card) | Amp Env; Filter Env |
+  LFO 1-4. Measured `scrollHeight === clientHeight` in en, fr and zh-Hans,
+  default and all-LFOs-synced. The budget is held by `.card` padding
+  (5/10/5), a 4 px title margin and `.card .knob-container { margin: 0 2px }`;
+  the CSS comment records the arithmetic.
+- **Primary knob size.** `.knob-container.primary` renders the knob a card is
+  about at 64 px (Osc Position/Level, Cutoff, every effect Mix) against the
+  52 px default. SVG is viewBox-scaled so the vine dasharray is unchanged.
+- **Effects tab: five cards in DSP chain order** — Distortion | Chorus |
+  Delay on the first row, Reverb | 3-Band EQ on the second, the order
+  `processBlock` runs them (it listed Delay first before). 60 px knobs, 72 px
+  Mix, pedal-sized padding. The bypass button is a pill with a lit dot at the
+  right end of the title row; a bypassed card dims as a whole and its border
+  goes dashed. `bindBypassToggle()` is unchanged — it still toggles
+  `bypassed` on the section and `off` on the button.
+- **Wavetable tab: three rows.** Osc A/B is a column beside the frame strip;
+  the strip is now only as wide as its frames (`drawFrameStrip()` sizes the
+  canvas to `numFrames * 54` instead of stretching to the row, and the
+  container caps at 60% and scrolls for 32-frame Geometry tables); the
+  waveform preview moved up from a 180x470 column beside the harmonic editor
+  to the wide 80 px box the rest of that row offers. The harmonic editor is a
+  card whose title row is the Harmonics bin toolbar and owns the full width.
+  The ops bar groups Normalize/Normalize Global and Fade/Reverse/Reverse
+  Order/Smooth into trays, Save is pushed right in sage, undo/redo last.
+  The v1.21.0 per-button width pins are untouched and still hold.
+- **Tuning tab: CSS grid** `130px | 1fr | 210px`, two rows (mode toggle,
+  viz). `.viz-container` is `position: relative` so the held-notes bar keeps
+  its containing block. Retires `BUG-tuning-tab-cutoff.md` (v0.10.0), which
+  recorded the all-absolute layout collapsing in the plugin WebView and
+  suggested this grid as the fix; the file is removed.
+- **Custom-styled selects.** All 29 `<select>` elements drop the UA widget
+  (`appearance: none`) for the page's own chevron, an input-well fill and a
+  hover border. The element stays a `<select>`: option lists, ids and the
+  comboBox attachments are untouched. The settings popover gets a tan
+  chevron on its dark plate.
+- `select-glideMode` is 64 px wide (was 60): the "Glide Mode" caption is
+  61.48 px and "Mode porta" 63.28, so once the UA arrow went the
+  shrink-wrapping group took the caption's width and the Glide knob moved
+  1.8 px in French. A caption pin at the English box wrapped the French onto
+  two lines instead; sizing the select past every caption pins nothing.
+- LFO card title row has 8 px bottom margin (cards default to 4): the rate
+  knob's SVG is rotated -135° and its bounding box reaches 10.77 px above the
+  knob, so the wider French "Libre" button intersected it (check-ui-labels
+  [8b]). Effect card title rows get 12 px for the same reason under the 72 px
+  Mix knob.
+
+### Removed
+
+- `.inline-sections`, `.inline-section`, `.section` rules and the
+  `.wt-op-separator` elements — superseded by cards and trays.
+- `plugins/O-Prism/BUG-tuning-tab-cutoff.md` — see Tuning above.
+
+### Verification
+
+- `check-ui-labels --plugin O-Prism`: ALL CHECKS PASSED, 23 states + default,
+  en/fr/zh-Hans, at the parsed 1200x800 frame. Two rounds of real findings
+  fixed on the way (the Glide Mode caption and the LFO header clearance
+  above); the third run is clean.
+- `check-i18n --plugin O-Prism`: ALL CHECKS PASS (canon block untouched).
+- Headless render of all five tabs plus synced-LFO, all-bypassed and
+  held-notes states in three languages: no tab overflows its content area,
+  no page errors.
+- Release build via `scripts/build-and-install.sh O-Prism` (VST3 + AU),
+  AU cache cleared, installed. See NOTES.md for the DAW check.
+
 ## v1.25.0 (2026-09-08)
 
 **Geometry wavetable bank.** Eight factory wavetables baked offline from the
