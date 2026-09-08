@@ -139,7 +139,10 @@ const WavetableEditor = (() => {
         if (!canvas) return;
 
         const totalW = numFrames * (FRAME_W + FRAME_PAD) + FRAME_PAD;
-        canvas.style.width = Math.max(totalW, canvas.parentElement.clientWidth) + 'px';
+        // v1.26.0: exactly the frames' width. The container is fit-content
+        // (flex: 0 1 auto, max-width 60%) so it wraps the strip rather than
+        // the strip stretching to a row it never filled.
+        canvas.style.width = totalW + 'px';
 
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.getBoundingClientRect();

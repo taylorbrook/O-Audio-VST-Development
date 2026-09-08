@@ -634,6 +634,13 @@ body {
    group sits between the two `flex: 1` filter sections — a 6.8 px change here
    redistributes 3.4 px to each of them. */
 #lbl-filt-routing { display: inline-block; width: 82.08px; }
+/* NOT a caption pin (v1.26.0): the SELECT is sized past its caption instead.
+   "Glide Mode" is 61.48 px, "Mode porta" 63.28, and the custom-chevron
+   select is 60, so the shrink-wrapping group took the caption's width and
+   the Glide knob after it moved 1.8 px in French. A pin at the English box
+   wraps the French onto two lines instead. 64 px on the select clears every
+   caption, so the group is language-invariant with nothing pinned. */
+#select-glideMode { width: 64px; }
 .dropdown-label {
     font-size: 8px;
     text-transform: uppercase;
@@ -786,11 +793,6 @@ body {
     gap: 0;
 }
 
-/* ─── SECTION CONTAINER ─── */
-.section {
-    margin-bottom: 6px;
-}
-
 /* ─── OSC SECTION LAYOUT ─── */
 .osc-section {
     display: flex;
@@ -816,33 +818,144 @@ body {
     align-items: flex-start;
 }
 
-/* ─── SUB ROW (inline sections) ─── */
-.inline-sections {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
+/* ─── CARDS + TAB GRIDS (v1.26.0) ───
+   The Synth and Effects tabs are 12-column card grids; the Wavetable tab's
+   harmonic editor and the Tuning tab's three columns use the same card. A card
+   is the containment the hairline section rule never gave: one fill, one
+   border, one title row. Column spans are named on the cards themselves so the
+   layout reads from the markup.
+
+   HEIGHT BUDGET, Synth tab, measured at the shipped 1200x800 frame: the tab
+   content area is 800 - 34 header - 32 tab bar - 68 footer = 666 px, less the
+   tab's own 16 px vertical padding = 650. The five card rows plus four 8 px
+   gaps sum to ~640 px, so the tab no longer scrolls. Card padding and the
+   title row's margin are what hold that: widen either and the LFO row falls
+   below the fold again, which is the v1.25.0 defect this version retires. */
+.card {
+    background: #EFDFCB;
+    border: 1px solid rgba(139, 115, 85, 0.45);
+    border-radius: 4px;
+    padding: 5px 10px 5px;
+    min-width: 0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 2px rgba(60, 47, 47, 0.06);
 }
-.inline-section {
-    flex: 1;
-    min-width: 140px;
+/* Inside a card the knob column needs no vertical margin: the card's own
+   padding is the breathing room. 4 px per row, five rows, is the difference
+   between the Synth tab fitting the frame and not. */
+.card .knob-container { margin: 0 2px; }
+.osc-params { gap: 0 6px; }
+.card > .section-header,
+.card .filter-block > .section-header {
+    margin-top: 0;
+    margin-bottom: 4px;
+    border-bottom-color: rgba(139, 115, 85, 0.3);
+}
+.span-2 { grid-column: span 2; }
+.span-3 { grid-column: span 3; }
+.span-4 { grid-column: span 4; }
+.span-5 { grid-column: span 5; }
+.span-6 { grid-column: span 6; }
+.span-7 { grid-column: span 7; }
+.span-8 { grid-column: span 8; }
+
+#synth-tab.active,
+#effects-tab.active {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-auto-rows: min-content;
+    align-content: start;
+    gap: 8px;
+}
+.osc-card { grid-column: 1 / -1; }
+
+/* The parameter a card is about: 64 px against the 52 px default. The SVG is
+   viewBox-scaled so the vine's dasharray needs no second value. */
+.knob-container.primary .knob-visual { width: 64px; height: 64px; }
+
+/* Filters card: A | routing | B in one card, so the routing select sits
+   between the two filters it routes rather than floating between sections. */
+.filters-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    column-gap: 10px;
+    align-items: start;
+}
+.filter-block { min-width: 0; }
+.filter-routing {
+    display: flex;
+    align-items: flex-start;
+    padding-top: 24px;
+    border-left: 1px solid rgba(139, 115, 85, 0.25);
+    border-right: 1px solid rgba(139, 115, 85, 0.25);
 }
 
-/* ─── EFFECT SECTIONS ─── */
-.effect-section { margin-bottom: 12px; }
+/* LFO card: rate knob on the left, the division and shape selects stacked on
+   the right. bindLfoSync() hides the rate wrap and shows the division wrap in
+   sync mode; either way the visible controls fill the same 2-column grid. */
+.lfo-card .param-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 4px;
+    align-items: start;
+}
+.lfo-card .param-row > .knob-container { grid-row: 1 / 3; }
+.lfo-card .dropdown-group { align-items: stretch; margin: 2px 0; }
+.lfo-card .dropdown-group .param-select { width: 100%; min-width: 0; }
+/* margin-bottom 8, not the card's 4: the rate knob's SVG is rotated -135deg
+   and its bounding box reaches 10.77 px above the knob, so a 9 px clearance
+   let the wider French "Libre" button intersect it (check-ui-labels [8b]).
+   13 px of padding+border+margin clears it by 2.2. */
+.lfo-card .section-header { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+.lfo-card .section-header > span { flex: 1; }
+.lfo-card .toggle-btn { padding: 2px 6px; font-size: 9px; letter-spacing: 0.5px; }
+
+/* Delay sync: a toggle standing where a select would, so it shares the
+   dropdown-group's caption style and rhythm. */
+.toggle-group {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 2px 4px;
+}
+.toggle-group .toggle-btn { margin-top: 3px; }
+
+/* ─── EFFECT CARDS ───
+   Two rows on a tab that has the whole 650 px, so the effects get the
+   presence the Synth tab cannot afford: 60 px knobs, a 72 px Mix, and
+   pedal-sized padding. */
+#effects-tab.active { gap: 10px; }
+.effect-section.card { padding: 12px 18px 14px; }
+.effect-section .knob-visual { width: 60px; height: 60px; }
+.effect-section .knob-container.primary .knob-visual { width: 72px; height: 72px; }
+.effect-section .param-row { gap: 4px 8px; }
+.effect-section .section-header { margin-bottom: 12px; }   /* clears the 72 px Mix knob's rotated SVG box under the bypass pill */
 .effect-section .section-header {
     display: flex;
     align-items: center;
     gap: 8px;
 }
+.effect-section.bypassed {
+    border-style: dashed;
+    background: rgba(239, 223, 203, 0.45);
+}
 .effect-section.bypassed .param-row {
     opacity: 0.35;
     pointer-events: none;
 }
+/* The bypass switch: a pill with a lit dot at the right end of the title row.
+   ON is the leaf green the LFO Free/Retrig toggles already use, OFF is the tab
+   bar's tan, so a bypassed effect reads as unlit rather than as a second
+   colour. The dot is a pseudo-element: it carries no text, so the label gate
+   still measures the caption alone. */
 .bypass-toggle {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 8px;
-    padding: 1px 6px;
-    border: 1px solid #8B7355;
-    border-radius: 2px;
+    padding: 2px 8px 2px 6px;
+    border: 1px solid #4A6B35;
+    border-radius: 9px;
     background: #6B8E4E;
     color: #F5E6D3;
     cursor: pointer;
@@ -850,24 +963,47 @@ body {
     letter-spacing: 1px;
     font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
     line-height: 1.2;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.bypass-toggle::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #D6EBC8;
+    box-shadow: 0 0 4px rgba(214, 235, 200, 0.9);
+    flex-shrink: 0;
 }
 .bypass-toggle.off {
-    background: #B0A090;
+    background: #D4C4B0;
     color: #5C4033;
+    border-color: #8B7355;
+}
+.bypass-toggle.off::before {
+    background: #8B7355;
+    box-shadow: none;
 }
 
-/* ─── TUNING TAB ─── */
-#tuning-tab {
-    /* position: absolute + inset: 0 inherited from .tab-content */
+/* ─── TUNING TAB ───
+   v1.26.0: a 3-column grid instead of four absolutely positioned children.
+   BUG-tuning-tab-cutoff.md (v0.10.0) recorded the all-absolute layout
+   collapsing in the plugin WebView while rendering in a browser; its own
+   suggested fix was this grid. The tab is `position: absolute; inset: 0` from
+   .tab-content, so the grid has a definite height in every engine and the
+   interval list and controls panel can scroll inside their own column. */
+#tuning-tab.active {
+    display: grid;
+    grid-template-columns: 130px minmax(0, 1fr) 210px;
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 6px;
 }
 
-/* Left side: Interval list */
+/* Left column: interval list */
 .tuning-viz-container {
-    position: absolute;
-    left: 14px;
-    top: 10px;
-    bottom: 10px;
-    width: fit-content;
+    grid-column: 1;
+    grid-row: 1 / 3;
+    min-height: 0;
     display: flex;
     flex-direction: row;
     align-items: flex-start;
@@ -940,9 +1076,8 @@ body {
 
 /* Viz mode toggle */
 .viz-mode-toggle {
-    position: absolute;
-    left: 150px; right: 230px;
-    top: 8px;
+    grid-column: 2;
+    grid-row: 1;
     display: flex; justify-content: center; gap: 6px; z-index: 20;
 }
 .viz-btn {
@@ -956,11 +1091,13 @@ body {
 .viz-btn:hover { background: rgba(139, 168, 112, 0.3); }
 .viz-btn.active { background: rgba(139, 168, 112, 0.5); color: #3C2F2F; border-color: #3C5C1A; font-weight: 500; }
 
-/* Visualization container */
+/* Visualization container. position: relative is what the held-notes bar's
+   `position: absolute; bottom: 0` hangs from. */
 .viz-container {
-    position: absolute;
-    left: 150px; right: 230px;
-    top: 36px; bottom: 10px;
+    grid-column: 2;
+    grid-row: 2;
+    position: relative;
+    min-height: 0;
     display: flex; align-items: center; justify-content: center;
 }
 .viz-view { display: none; width: 100%; height: 100%; }
@@ -1021,11 +1158,11 @@ body {
 
 /* Right side: Controls panel */
 .tuning-controls-panel {
-    position: absolute;
-    right: 14px; top: 10px;
-    width: 210px;
+    grid-column: 3;
+    grid-row: 1 / 3;
+    min-height: 0;
     display: flex; flex-direction: column; gap: 14px;
-    max-height: calc(100% - 20px);
+    max-height: 100%;
     overflow-y: auto;
 }
 
@@ -1140,6 +1277,34 @@ body {
 }
 .generator-btn:hover { background: linear-gradient(to bottom, rgba(139, 168, 112, 0.8), rgba(107, 142, 78, 0.9)); }
 .generator-btn:active { transform: scale(0.97); }
+
+/* ─── SELECTS (v1.26.0) ───
+   Every <select> on the page drops the UA widget for the page's own chevron.
+   The element stays a <select>: the option list is still native, the ids and
+   the JUCE comboBox attachments are untouched. Two chevrons because the
+   settings popover is the dark plate and everything else is cream. */
+select.param-select,
+.mod-row select,
+.library-filter-select,
+.generator-type-select,
+.settings-select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%238B7355'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    background-size: 8px 5px;
+    padding-right: 20px;
+}
+.settings-select {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%23C9A27B'/></svg>");
+}
+select.param-select {
+    background-color: #F8ECDC;
+    border-color: #B8A08C;
+}
+select.param-select:hover { border-color: #8B7355; }
+.mod-row select { padding-right: 20px; }
 
 /* ─── SCROLLBAR ─── */
 .tab-content::-webkit-scrollbar { width: 6px; }
@@ -1437,17 +1602,23 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
 <!-- ─── SYNTH TAB ─── -->
 <div id="synth-tab" class="tab-content active">
 
+    <!-- v1.26.0: the tab is a 12-column card grid sized to the 1200x800 frame.
+         Every id, data-knob and data-i18n key below is byte-identical to v1.25.0;
+         only the containers changed. `primary` on a knob-container is the 64 px
+         size class for the parameter a card is about. -->
+
     <!-- Oscillator A -->
-    <div class="section-header" data-i18n="label.oscA">Oscillator A</div>
-    <div class="osc-section">
-        <div class="osc-canvas-wrap" id="canvasWrapA">
-            <canvas id="canvasOscA" class="osc-canvas" width="320" height="180"></canvas>
-            <div class="wt-drop-overlay" data-i18n="label.dropWav">Drop WAV</div>
-        </div>
-        <div class="osc-params">
-            <div class="dropdown-group">
-                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
-                <select id="select-oscATable" class="param-select">
+    <div class="card osc-card" id="card-oscA">
+        <div class="section-header" data-i18n="label.oscA">Oscillator A</div>
+        <div class="osc-section">
+            <div class="osc-canvas-wrap" id="canvasWrapA">
+                <canvas id="canvasOscA" class="osc-canvas" width="320" height="180"></canvas>
+                <div class="wt-drop-overlay" data-i18n="label.dropWav">Drop WAV</div>
+            </div>
+            <div class="osc-params">
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                    <select id="select-oscATable" class="param-select">
                     <optgroup label="Analog">
                         <option>Saw</option><option>Square</option><option>Triangle</option><option>Sine</option>
                         <option>PWM Sweep</option><option>Supersaw</option><option>Sync Sweep</option>
@@ -1477,37 +1648,39 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
                         <option>Noise Knot</option><option>Terrain Rings</option>
                     </optgroup>
                 </select>
+                </div>
+                <div class="knob-container primary" data-knob="oscAPos" data-label="Position" data-initial="0%" data-i18n="label.position"></div>
+                <div class="knob-container primary" data-knob="oscALevel" data-label="Level" data-initial="80%" data-i18n="label.level"></div>
+                <div class="knob-container" data-knob="oscAPan" data-label="Pan" data-initial="C" data-i18n="label.pan"></div>
+                <div class="knob-container" data-knob="oscACoarse" data-label="Coarse" data-initial="0 st" data-i18n="label.coarse"></div>
+                <div class="knob-container" data-knob="oscAFine" data-label="Fine" data-initial="0 ct" data-i18n="label.fine"></div>
+                <div class="knob-container" data-knob="oscAPhase" data-label="Phase" data-initial="0%" data-i18n="label.phase"></div>
+                <div class="knob-container" data-knob="oscAUnison" data-label="Unison" data-initial="1" data-i18n="label.unison"></div>
+                <div class="knob-container" data-knob="oscADetune" data-label="Detune" data-initial="20%" data-i18n="label.detune"></div>
+                <div class="knob-container" data-knob="oscAWidth" data-label="Width" data-initial="50%" data-i18n="label.width"></div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.warp">Warp</span>
+                    <select id="select-oscAWarpType" class="param-select">
+                        <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
+                    </select>
+                </div>
+                <div class="knob-container" data-knob="oscAWarpAmt" data-label="Warp Amt" data-initial="0%" data-i18n="label.warpAmt"></div>
             </div>
-            <div class="knob-container" data-knob="oscAPos" data-label="Position" data-initial="0%" data-i18n="label.position"></div>
-            <div class="knob-container" data-knob="oscALevel" data-label="Level" data-initial="80%" data-i18n="label.level"></div>
-            <div class="knob-container" data-knob="oscAPan" data-label="Pan" data-initial="C" data-i18n="label.pan"></div>
-            <div class="knob-container" data-knob="oscACoarse" data-label="Coarse" data-initial="0 st" data-i18n="label.coarse"></div>
-            <div class="knob-container" data-knob="oscAFine" data-label="Fine" data-initial="0 ct" data-i18n="label.fine"></div>
-            <div class="knob-container" data-knob="oscAPhase" data-label="Phase" data-initial="0%" data-i18n="label.phase"></div>
-            <div class="knob-container" data-knob="oscAUnison" data-label="Unison" data-initial="1" data-i18n="label.unison"></div>
-            <div class="knob-container" data-knob="oscADetune" data-label="Detune" data-initial="20%" data-i18n="label.detune"></div>
-            <div class="knob-container" data-knob="oscAWidth" data-label="Width" data-initial="50%" data-i18n="label.width"></div>
-            <div class="dropdown-group">
-                <span class="dropdown-label" data-i18n="label.warp">Warp</span>
-                <select id="select-oscAWarpType" class="param-select">
-                    <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
-                </select>
-            </div>
-            <div class="knob-container" data-knob="oscAWarpAmt" data-label="Warp Amt" data-initial="0%" data-i18n="label.warpAmt"></div>
         </div>
     </div>
 
     <!-- Oscillator B -->
-    <div class="section-header" data-i18n="label.oscB">Oscillator B</div>
-    <div class="osc-section">
-        <div class="osc-canvas-wrap" id="canvasWrapB">
-            <canvas id="canvasOscB" class="osc-canvas" width="320" height="180"></canvas>
-            <div class="wt-drop-overlay" data-i18n="label.dropWav">Drop WAV</div>
-        </div>
-        <div class="osc-params">
-            <div class="dropdown-group">
-                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
-                <select id="select-oscBTable" class="param-select">
+    <div class="card osc-card" id="card-oscB">
+        <div class="section-header" data-i18n="label.oscB">Oscillator B</div>
+        <div class="osc-section">
+            <div class="osc-canvas-wrap" id="canvasWrapB">
+                <canvas id="canvasOscB" class="osc-canvas" width="320" height="180"></canvas>
+                <div class="wt-drop-overlay" data-i18n="label.dropWav">Drop WAV</div>
+            </div>
+            <div class="osc-params">
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                    <select id="select-oscBTable" class="param-select">
                     <optgroup label="Analog">
                         <option>Saw</option><option>Square</option><option>Triangle</option><option>Sine</option>
                         <option>PWM Sweep</option><option>Supersaw</option><option>Sync Sweep</option>
@@ -1537,229 +1710,223 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
                         <option>Noise Knot</option><option>Terrain Rings</option>
                     </optgroup>
                 </select>
+                </div>
+                <div class="knob-container primary" data-knob="oscBPos" data-label="Position" data-initial="0%" data-i18n="label.position"></div>
+                <div class="knob-container primary" data-knob="oscBLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
+                <div class="knob-container" data-knob="oscBPan" data-label="Pan" data-initial="C" data-i18n="label.pan"></div>
+                <div class="knob-container" data-knob="oscBCoarse" data-label="Coarse" data-initial="0 st" data-i18n="label.coarse"></div>
+                <div class="knob-container" data-knob="oscBFine" data-label="Fine" data-initial="0 ct" data-i18n="label.fine"></div>
+                <div class="knob-container" data-knob="oscBPhase" data-label="Phase" data-initial="0%" data-i18n="label.phase"></div>
+                <div class="knob-container" data-knob="oscBUnison" data-label="Unison" data-initial="1" data-i18n="label.unison"></div>
+                <div class="knob-container" data-knob="oscBDetune" data-label="Detune" data-initial="20%" data-i18n="label.detune"></div>
+                <div class="knob-container" data-knob="oscBWidth" data-label="Width" data-initial="50%" data-i18n="label.width"></div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.warp">Warp</span>
+                    <select id="select-oscBWarpType" class="param-select">
+                        <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
+                    </select>
+                </div>
+                <div class="knob-container" data-knob="oscBWarpAmt" data-label="Warp Amt" data-initial="0%" data-i18n="label.warpAmt"></div>
             </div>
-            <div class="knob-container" data-knob="oscBPos" data-label="Position" data-initial="0%" data-i18n="label.position"></div>
-            <div class="knob-container" data-knob="oscBLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
-            <div class="knob-container" data-knob="oscBPan" data-label="Pan" data-initial="C" data-i18n="label.pan"></div>
-            <div class="knob-container" data-knob="oscBCoarse" data-label="Coarse" data-initial="0 st" data-i18n="label.coarse"></div>
-            <div class="knob-container" data-knob="oscBFine" data-label="Fine" data-initial="0 ct" data-i18n="label.fine"></div>
-            <div class="knob-container" data-knob="oscBPhase" data-label="Phase" data-initial="0%" data-i18n="label.phase"></div>
-            <div class="knob-container" data-knob="oscBUnison" data-label="Unison" data-initial="1" data-i18n="label.unison"></div>
-            <div class="knob-container" data-knob="oscBDetune" data-label="Detune" data-initial="20%" data-i18n="label.detune"></div>
-            <div class="knob-container" data-knob="oscBWidth" data-label="Width" data-initial="50%" data-i18n="label.width"></div>
+        </div>
+    </div>
+
+    <!-- Sub Oscillator | Noise | Performance -->
+    <div class="card span-5" id="card-sub">
+        <div class="section-header" data-i18n="label.subOsc">Sub Oscillator</div>
+        <div class="param-row">
             <div class="dropdown-group">
-                <span class="dropdown-label" data-i18n="label.warp">Warp</span>
-                <select id="select-oscBWarpType" class="param-select">
-                    <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                <select id="select-subShape" class="param-select">
+                    <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option>
                 </select>
             </div>
-            <div class="knob-container" data-knob="oscBWarpAmt" data-label="Warp Amt" data-initial="0%" data-i18n="label.warpAmt"></div>
-        </div>
-    </div>
-
-    <!-- Sub + Noise -->
-    <div class="inline-sections">
-        <div class="inline-section">
-            <div class="section-header" data-i18n="label.subOsc">Sub Oscillator</div>
-            <div class="param-row">
-                <div class="dropdown-group">
-                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
-                    <select id="select-subShape" class="param-select">
-                        <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option>
-                    </select>
-                </div>
-                <div class="dropdown-group">
-                    <span class="dropdown-label" data-i18n="label.octave">Octave</span>
-                    <select id="select-subOctave" class="param-select">
-                        <option>-1 Oct</option><option>-2 Oct</option><option>-3 Oct</option><option>-4 Oct</option>
-                    </select>
-                </div>
-                <div class="dropdown-group">
-                    <span class="dropdown-label" data-i18n="label.routing">Routing</span>
-                    <select id="select-subRouting" class="param-select">
-                        <option>Post-Filter</option><option>Pre-Filter</option>
-                    </select>
-                </div>
-                <div class="knob-container" data-knob="subLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
-            </div>
-        </div>
-        <div class="inline-section">
-            <div class="section-header" data-i18n="label.noise">Noise</div>
-            <div class="param-row">
-                <div class="dropdown-group">
-                    <span class="dropdown-label" data-i18n="label.type">Type</span>
-                    <select id="select-noiseType" class="param-select">
-                        <option>White</option><option>Pink</option><option>Brown</option><option>Digital</option><option>Vinyl</option><option>Wind</option>
-                    </select>
-                </div>
-                <div class="knob-container" data-knob="noiseLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
-            </div>
-        </div>
-        <div class="inline-section">
-            <div class="section-header" data-i18n="label.performance">Performance</div>
-            <div class="param-row">
-                <div class="knob-container" data-knob="pitchBendRange" data-label="PB Range" data-initial="2 st" data-i18n="label.pbRange"></div>
-                <div class="dropdown-group">
-                    <span class="dropdown-label" data-i18n="label.glideMode">Glide Mode</span>
-                    <select id="select-glideMode" class="param-select">
-                        <option>Off</option><option>Legato</option><option>Always</option>
-                    </select>
-                </div>
-                <div class="knob-container" data-knob="glideTime" data-label="Glide" data-initial="100ms" data-i18n="label.glide"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="inline-sections">
-        <div class="inline-section">
-            <div class="section-header" data-i18n="label.filterA">Filter A</div>
-            <div class="param-row">
-                <div class="dropdown-group">
-                    <span class="dropdown-label" data-i18n="label.type">Type</span>
-                    <select id="select-filtAType" class="param-select">
-                        <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
-                    </select>
-                </div>
-                <div class="knob-container" data-knob="filtACutoff" data-label="Cutoff" data-initial="20kHz" data-i18n="label.cutoff"></div>
-                <div class="knob-container" data-knob="filtARes" data-label="Reso" data-initial="0%" data-i18n="label.reso"></div>
-                <div class="knob-container" data-knob="filtADrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
-                <div class="knob-container" data-knob="filtAKeyTrack" data-label="Key Trk" data-initial="0%" data-i18n="label.keyTrk"></div>
-            </div>
-        </div>
-        <div style="display:flex; align-items:center; padding-top:20px;">
             <div class="dropdown-group">
-                <span class="dropdown-label" id="lbl-filt-routing" data-i18n="label.filterRouting">Filter Routing</span>
-                <select id="select-filtRouting" class="param-select">
-                    <option>Serial</option><option>Parallel</option>
+                <span class="dropdown-label" data-i18n="label.octave">Octave</span>
+                <select id="select-subOctave" class="param-select">
+                    <option>-1 Oct</option><option>-2 Oct</option><option>-3 Oct</option><option>-4 Oct</option>
+                </select>
+            </div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.routing">Routing</span>
+                <select id="select-subRouting" class="param-select">
+                    <option>Post-Filter</option><option>Pre-Filter</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="subLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
+        </div>
+    </div>
+    <div class="card span-3" id="card-noise">
+        <div class="section-header" data-i18n="label.noise">Noise</div>
+        <div class="param-row">
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.type">Type</span>
+                <select id="select-noiseType" class="param-select">
+                    <option>White</option><option>Pink</option><option>Brown</option><option>Digital</option><option>Vinyl</option><option>Wind</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="noiseLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
+        </div>
+    </div>
+    <div class="card span-4" id="card-performance">
+        <div class="section-header" data-i18n="label.performance">Performance</div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="pitchBendRange" data-label="PB Range" data-initial="2 st" data-i18n="label.pbRange"></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" id="lbl-glide-mode" data-i18n="label.glideMode">Glide Mode</span>
+                <select id="select-glideMode" class="param-select">
+                    <option>Off</option><option>Legato</option><option>Always</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="glideTime" data-label="Glide" data-initial="100ms" data-i18n="label.glide"></div>
+        </div>
+    </div>
+
+    <!-- Filters | Amp Envelope -->
+    <div class="card span-8 filters-card" id="card-filters">
+        <div class="filters-grid">
+            <div class="filter-block">
+                <div class="section-header" data-i18n="label.filterA">Filter A</div>
+                <div class="param-row">
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.type">Type</span>
+                        <select id="select-filtAType" class="param-select">
+                            <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
+                        </select>
+                    </div>
+                    <div class="knob-container primary" data-knob="filtACutoff" data-label="Cutoff" data-initial="20kHz" data-i18n="label.cutoff"></div>
+                    <div class="knob-container" data-knob="filtARes" data-label="Reso" data-initial="0%" data-i18n="label.reso"></div>
+                    <div class="knob-container" data-knob="filtADrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+                    <div class="knob-container" data-knob="filtAKeyTrack" data-label="Key Trk" data-initial="0%" data-i18n="label.keyTrk"></div>
+                </div>
+            </div>
+            <div class="filter-routing">
+                <div class="dropdown-group">
+                    <span class="dropdown-label" id="lbl-filt-routing" data-i18n="label.filterRouting">Filter Routing</span>
+                    <select id="select-filtRouting" class="param-select">
+                        <option>Serial</option><option>Parallel</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filter-block">
+                <div class="section-header" data-i18n="label.filterB">Filter B</div>
+                <div class="param-row">
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.type">Type</span>
+                        <select id="select-filtBType" class="param-select">
+                            <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
+                        </select>
+                    </div>
+                    <div class="knob-container primary" data-knob="filtBCutoff" data-label="Cutoff" data-initial="20kHz" data-i18n="label.cutoff"></div>
+                    <div class="knob-container" data-knob="filtBRes" data-label="Reso" data-initial="0%" data-i18n="label.reso"></div>
+                    <div class="knob-container" data-knob="filtBDrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+                    <div class="knob-container" data-knob="filtBKeyTrack" data-label="Key Trk" data-initial="0%" data-i18n="label.keyTrk"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card span-4" id="card-ampenv">
+        <div class="section-header" data-i18n="label.ampEnv">Amp Envelope</div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="ampAttack" data-label="Attack" data-initial="10ms" data-i18n="label.attack"></div>
+            <div class="knob-container" data-knob="ampDecay" data-label="Decay" data-initial="300ms" data-i18n="label.decay"></div>
+            <div class="knob-container" data-knob="ampSustain" data-label="Sustain" data-initial="70%" data-i18n="label.sustain"></div>
+            <div class="knob-container" data-knob="ampRelease" data-label="Release" data-initial="500ms" data-i18n="label.release"></div>
+        </div>
+    </div>
+
+    <!-- Filter Envelope | LFO 1-4 (routing via the Mod tab) -->
+    <div class="card span-4" id="card-filtenv">
+        <div class="section-header" data-i18n="label.filtEnv">Filter Envelope</div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="filtAttack" data-label="Attack" data-initial="10ms" data-i18n="label.attack"></div>
+            <div class="knob-container" data-knob="filtDecay" data-label="Decay" data-initial="500ms" data-i18n="label.decay"></div>
+            <div class="knob-container" data-knob="filtSustain" data-label="Sustain" data-initial="50%" data-i18n="label.sustain"></div>
+            <div class="knob-container" data-knob="filtRelease" data-label="Release" data-initial="500ms" data-i18n="label.release"></div>
+            <div class="knob-container" data-knob="filtAEnvDepth" data-label="Dep A" data-initial="0%" data-i18n="label.depA"></div>
+            <div class="knob-container" data-knob="filtBEnvDepth" data-label="Dep B" data-initial="0%" data-i18n="label.depB"></div>
+        </div>
+    </div>
+    <div class="card span-2 lfo-card" id="lfo1-section">
+        <div class="section-header"><span data-i18n="label.lfo1">LFO 1</span> <button id="toggle-lfo1Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo1FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
+        <div class="param-row">
+            <div class="knob-container" id="lfo1-rate-wrap" data-knob="lfo1Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="dropdown-group" id="lfo1-div-wrap" style="display:none">
+                <span class="dropdown-label" data-i18n="label.division">Division</span>
+                <select id="select-lfo1Division" class="param-select">
+                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                    </select>
+            </div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                <select id="select-lfo1Shape" class="param-select">
+                    <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
                 </select>
             </div>
         </div>
-        <div class="inline-section">
-            <div class="section-header" data-i18n="label.filterB">Filter B</div>
-            <div class="param-row">
-                <div class="dropdown-group">
-                    <span class="dropdown-label" data-i18n="label.type">Type</span>
-                    <select id="select-filtBType" class="param-select">
-                        <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
+    </div>
+    <div class="card span-2 lfo-card" id="lfo2-section">
+        <div class="section-header"><span data-i18n="label.lfo2">LFO 2</span> <button id="toggle-lfo2Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo2FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
+        <div class="param-row">
+            <div class="knob-container" id="lfo2-rate-wrap" data-knob="lfo2Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="dropdown-group" id="lfo2-div-wrap" style="display:none">
+                <span class="dropdown-label" data-i18n="label.division">Division</span>
+                <select id="select-lfo2Division" class="param-select">
+                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
                     </select>
-                </div>
-                <div class="knob-container" data-knob="filtBCutoff" data-label="Cutoff" data-initial="20kHz" data-i18n="label.cutoff"></div>
-                <div class="knob-container" data-knob="filtBRes" data-label="Reso" data-initial="0%" data-i18n="label.reso"></div>
-                <div class="knob-container" data-knob="filtBDrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
-                <div class="knob-container" data-knob="filtBKeyTrack" data-label="Key Trk" data-initial="0%" data-i18n="label.keyTrk"></div>
+            </div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                <select id="select-lfo2Shape" class="param-select">
+                    <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
+                </select>
             </div>
         </div>
     </div>
-
-    <!-- Envelopes -->
-    <div class="inline-sections">
-        <div class="inline-section">
-            <div class="section-header" data-i18n="label.ampEnv">Amp Envelope</div>
-            <div class="param-row">
-                <div class="knob-container" data-knob="ampAttack" data-label="Attack" data-initial="10ms" data-i18n="label.attack"></div>
-                <div class="knob-container" data-knob="ampDecay" data-label="Decay" data-initial="300ms" data-i18n="label.decay"></div>
-                <div class="knob-container" data-knob="ampSustain" data-label="Sustain" data-initial="70%" data-i18n="label.sustain"></div>
-                <div class="knob-container" data-knob="ampRelease" data-label="Release" data-initial="500ms" data-i18n="label.release"></div>
+    <div class="card span-2 lfo-card" id="lfo3-section">
+        <div class="section-header"><span data-i18n="label.lfo3">LFO 3</span> <button id="toggle-lfo3Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo3FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
+        <div class="param-row">
+            <div class="knob-container" id="lfo3-rate-wrap" data-knob="lfo3Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="dropdown-group" id="lfo3-div-wrap" style="display:none">
+                <span class="dropdown-label" data-i18n="label.division">Division</span>
+                <select id="select-lfo3Division" class="param-select">
+                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                    </select>
             </div>
-        </div>
-        <div class="inline-section">
-            <div class="section-header" data-i18n="label.filtEnv">Filter Envelope</div>
-            <div class="param-row">
-                <div class="knob-container" data-knob="filtAttack" data-label="Attack" data-initial="10ms" data-i18n="label.attack"></div>
-                <div class="knob-container" data-knob="filtDecay" data-label="Decay" data-initial="500ms" data-i18n="label.decay"></div>
-                <div class="knob-container" data-knob="filtSustain" data-label="Sustain" data-initial="50%" data-i18n="label.sustain"></div>
-                <div class="knob-container" data-knob="filtRelease" data-label="Release" data-initial="500ms" data-i18n="label.release"></div>
-                <div class="knob-container" data-knob="filtAEnvDepth" data-label="Dep A" data-initial="0%" data-i18n="label.depA"></div>
-                <div class="knob-container" data-knob="filtBEnvDepth" data-label="Dep B" data-initial="0%" data-i18n="label.depB"></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                <select id="select-lfo3Shape" class="param-select">
+                    <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
+                </select>
             </div>
         </div>
     </div>
-
-    <!-- LFOs (rate/sync + shape — routing via Mod Matrix tab) -->
-    <div class="inline-sections">
-        <div class="inline-section" id="lfo1-section">
-            <div class="section-header"><span data-i18n="label.lfo1">LFO 1</span> <button id="toggle-lfo1Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo1FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
-            <div class="param-row">
-                <div class="knob-container" id="lfo1-rate-wrap" data-knob="lfo1Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
-                <div class="dropdown-group" id="lfo1-div-wrap" style="display:none">
-                    <span class="dropdown-label" data-i18n="label.division">Division</span>
-                    <select id="select-lfo1Division" class="param-select">
+    <div class="card span-2 lfo-card" id="lfo4-section">
+        <div class="section-header"><span data-i18n="label.lfo4">LFO 4</span> <button id="toggle-lfo4Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo4FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
+        <div class="param-row">
+            <div class="knob-container" id="lfo4-rate-wrap" data-knob="lfo4Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="dropdown-group" id="lfo4-div-wrap" style="display:none">
+                <span class="dropdown-label" data-i18n="label.division">Division</span>
+                <select id="select-lfo4Division" class="param-select">
                         <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
                         <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
                         <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
                     </select>
-                </div>
-                <div class="dropdown-group">
-                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
-                    <select id="select-lfo1Shape" class="param-select">
-                        <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
-                    </select>
-                </div>
             </div>
-        </div>
-        <div class="inline-section" id="lfo2-section">
-            <div class="section-header"><span data-i18n="label.lfo2">LFO 2</span> <button id="toggle-lfo2Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo2FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
-            <div class="param-row">
-                <div class="knob-container" id="lfo2-rate-wrap" data-knob="lfo2Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
-                <div class="dropdown-group" id="lfo2-div-wrap" style="display:none">
-                    <span class="dropdown-label" data-i18n="label.division">Division</span>
-                    <select id="select-lfo2Division" class="param-select">
-                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
-                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
-                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
-                    </select>
-                </div>
-                <div class="dropdown-group">
-                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
-                    <select id="select-lfo2Shape" class="param-select">
-                        <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div class="inline-section" id="lfo3-section">
-            <div class="section-header"><span data-i18n="label.lfo3">LFO 3</span> <button id="toggle-lfo3Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo3FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
-            <div class="param-row">
-                <div class="knob-container" id="lfo3-rate-wrap" data-knob="lfo3Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
-                <div class="dropdown-group" id="lfo3-div-wrap" style="display:none">
-                    <span class="dropdown-label" data-i18n="label.division">Division</span>
-                    <select id="select-lfo3Division" class="param-select">
-                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
-                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
-                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
-                    </select>
-                </div>
-                <div class="dropdown-group">
-                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
-                    <select id="select-lfo3Shape" class="param-select">
-                        <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div class="inline-section" id="lfo4-section">
-            <div class="section-header"><span data-i18n="label.lfo4">LFO 4</span> <button id="toggle-lfo4Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo4FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
-            <div class="param-row">
-                <div class="knob-container" id="lfo4-rate-wrap" data-knob="lfo4Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
-                <div class="dropdown-group" id="lfo4-div-wrap" style="display:none">
-                    <span class="dropdown-label" data-i18n="label.division">Division</span>
-                    <select id="select-lfo4Division" class="param-select">
-                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
-                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
-                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
-                    </select>
-                </div>
-                <div class="dropdown-group">
-                    <span class="dropdown-label" data-i18n="label.shape">Shape</span>
-                    <select id="select-lfo4Shape" class="param-select">
-                        <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
-                    </select>
-                </div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                <select id="select-lfo4Shape" class="param-select">
+                    <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
+                </select>
             </div>
         </div>
     </div>
-
 
 </div><!-- /synth-tab -->
 
@@ -1919,8 +2086,39 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
 <!-- ─── EFFECTS TAB ─── -->
 <div id="effects-tab" class="tab-content">
 
+    <!-- v1.26.0: five cards on a 12-column grid, in the order the DSP runs
+         them (PluginProcessor::processBlock: distortion -> chorus -> delay ->
+         reverb -> EQ). Each card's id, bypass button id and knob ids are
+         unchanged from v1.25.0; bindBypassToggle() still dims the card by
+         toggling `bypassed` on the section. -->
+
+    <!-- Distortion -->
+    <div class="effect-section card span-3" id="section-dist">
+        <div class="section-header"><span data-i18n="label.distortion">Distortion</span><button id="toggle-distBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.type">Type</span>
+                <select id="select-distType" class="param-select">
+                    <option>SoftClip</option><option>HardClip</option><option>Tube</option><option>Fold</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="distDrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+            <div class="knob-container primary" data-knob="distMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+        </div>
+    </div>
+
+    <!-- Chorus -->
+    <div class="effect-section card span-3" id="section-chorus">
+        <div class="section-header"><span data-i18n="label.chorus">Chorus</span><button id="toggle-chorusBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="chorusRate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="knob-container" data-knob="chorusDepth" data-label="Depth" data-initial="50%" data-i18n="label.depth"></div>
+            <div class="knob-container primary" data-knob="chorusMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+        </div>
+    </div>
+
     <!-- Delay -->
-    <div class="effect-section" id="section-delay">
+    <div class="effect-section card span-6" id="section-delay">
         <div class="section-header"><span data-i18n="label.delay">Delay</span><button id="toggle-delayBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
         <div class="param-row">
             <div class="knob-container" data-knob="delayTime" data-label="Time" data-initial="375ms" data-i18n="label.time"></div>
@@ -1931,9 +2129,9 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
                     <option>Normal</option><option>PingPong</option>
                 </select>
             </div>
-            <div style="display:flex;flex-direction:column;align-items:center;margin:2px 6px;">
+            <div class="toggle-group">
                 <span class="dropdown-label" data-i18n="label.sync">Sync</span>
-                <button id="toggle-delaySync" class="toggle-btn" style="margin-top:3px;">Off</button>
+                <button id="toggle-delaySync" class="toggle-btn">Off</button>
             </div>
             <div class="dropdown-group">
                 <span class="dropdown-label" data-i18n="label.division">Division</span>
@@ -1943,50 +2141,25 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
                     <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
                 </select>
             </div>
-            <div class="knob-container" data-knob="delayMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
-        </div>
-    </div>
-
-    <!-- Chorus -->
-    <div class="effect-section" id="section-chorus">
-        <div class="section-header"><span data-i18n="label.chorus">Chorus</span><button id="toggle-chorusBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
-        <div class="param-row">
-            <div class="knob-container" data-knob="chorusRate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
-            <div class="knob-container" data-knob="chorusDepth" data-label="Depth" data-initial="50%" data-i18n="label.depth"></div>
-            <div class="knob-container" data-knob="chorusMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
-        </div>
-    </div>
-
-    <!-- Distortion -->
-    <div class="effect-section" id="section-dist">
-        <div class="section-header"><span data-i18n="label.distortion">Distortion</span><button id="toggle-distBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
-        <div class="param-row">
-            <div class="dropdown-group">
-                <span class="dropdown-label" data-i18n="label.type">Type</span>
-                <select id="select-distType" class="param-select">
-                    <option>SoftClip</option><option>HardClip</option><option>Tube</option><option>Fold</option>
-                </select>
-            </div>
-            <div class="knob-container" data-knob="distDrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
-            <div class="knob-container" data-knob="distMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+            <div class="knob-container primary" data-knob="delayMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
         </div>
     </div>
 
     <!-- Reverb -->
-    <div class="effect-section" id="section-reverb">
+    <div class="effect-section card span-7" id="section-reverb">
         <div class="section-header"><span data-i18n="label.reverb">Reverb</span><button id="toggle-reverbBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
         <div class="param-row">
             <div class="knob-container" data-knob="reverbSize" data-label="Size" data-initial="50%" data-i18n="label.size"></div>
             <div class="knob-container" data-knob="reverbDamp" data-label="Damp" data-initial="50%" data-i18n="label.damp"></div>
             <div class="knob-container" data-knob="reverbPredelay" data-label="Pre-Dly" data-initial="20ms" data-i18n="label.preDly"></div>
-            <div class="knob-container" data-knob="reverbMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
             <div class="knob-container" data-knob="reverbModDepth" data-label="Mod" data-initial="30%" data-i18n="label.modAmt"></div>
             <div class="knob-container" data-knob="reverbModRate" data-label="Rate" data-initial="1.0Hz" data-i18n="label.rate"></div>
+            <div class="knob-container primary" data-knob="reverbMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
         </div>
     </div>
 
     <!-- EQ -->
-    <div class="effect-section" id="section-eq">
+    <div class="effect-section card span-5" id="section-eq">
         <div class="section-header"><span data-i18n="label.eq3">3-Band EQ</span><button id="toggle-eqBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
         <div class="param-row">
             <div class="knob-container" data-knob="eqLowGain" data-label="Low" data-initial="0 dB" data-i18n="label.low"></div>
@@ -2001,19 +2174,35 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
 <!-- ─── WAVETABLE EDITOR TAB ─── -->
 <div id="wavetable-tab" class="tab-content">
 
-    <!-- Osc A/B Toggle -->
-    <div class="wt-osc-toggle">
-        <button class="wt-osc-btn active" data-osc="0" data-i18n="label.oscAShort">Osc A</button>
-        <button class="wt-osc-btn" data-osc="1" data-i18n="label.oscBShort">Osc B</button>
-    </div>
+    <!-- v1.26.0: three rows. The Osc A/B selector stands as a column beside
+         the frame strip, which is now only as wide as its frames; the waveform
+         preview moved up from a 180x470 column beside the harmonic editor to
+         the wide, short box a single cycle actually wants, filling the rest of
+         that row. The harmonic editor then owns the full width. Every id is
+         unchanged; wavetable-editor.js looks its canvases up by id and sizes
+         them from getBoundingClientRect() at draw time. -->
 
-    <!-- Frame Strip -->
-    <div class="wt-frame-strip-container">
-        <canvas id="wt-frame-strip" class="wt-frame-strip-canvas"></canvas>
+    <div class="wt-top-row">
+        <!-- Osc A/B Toggle -->
+        <div class="wt-osc-toggle">
+            <button class="wt-osc-btn active" data-osc="0" data-i18n="label.oscAShort">Osc A</button>
+            <button class="wt-osc-btn" data-osc="1" data-i18n="label.oscBShort">Osc B</button>
+        </div>
+
+        <!-- Frame Strip -->
+        <div class="wt-frame-strip-container">
+            <canvas id="wt-frame-strip" class="wt-frame-strip-canvas"></canvas>
+        </div>
+
+        <!-- Waveform preview of the active frame -->
+        <div class="wt-waveform-preview-wrap">
+            <span class="wt-waveform-preview-label" data-i18n="label.waveform">Waveform</span>
+            <canvas id="wt-waveform-preview" class="wt-waveform-canvas"></canvas>
+        </div>
     </div>
 
     <!-- Harmonic Editor -->
-    <div class="wt-harmonic-area">
+    <div class="wt-harmonic-area card">
         <div class="wt-harmonic-toolbar">
             <span class="wt-label" data-i18n="label.harmonics">Harmonics</span>
             <button class="wt-bin-btn" data-bins="32">32</button>
@@ -2025,27 +2214,26 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
             <div class="wt-harmonic-canvas-wrap">
                 <canvas id="wt-harmonic-canvas" class="wt-harmonic-canvas"></canvas>
             </div>
-            <div class="wt-waveform-preview-wrap">
-                <span class="wt-waveform-preview-label" data-i18n="label.waveform">Waveform</span>
-                <canvas id="wt-waveform-preview" class="wt-waveform-canvas"></canvas>
-            </div>
         </div>
     </div>
 
-    <!-- Operations Bar -->
+    <!-- Operations Bar: level | shape | save | history -->
     <div class="wt-ops-bar">
-        <button class="wt-op-btn" id="wt-op-normalize" data-i18n="label.normalize">Normalize</button>
-        <button class="wt-op-btn" id="wt-op-normalizeGlobal" data-i18n="label.normalizeGlobal">Normalize Global</button>
-        <div class="wt-op-separator"></div>
-        <button class="wt-op-btn" id="wt-op-fade" data-i18n="label.fadeEdges">Fade Edges</button>
-        <button class="wt-op-btn" id="wt-op-reverse" data-i18n="label.reverse">Reverse</button>
-        <button class="wt-op-btn" id="wt-op-reverseOrder" data-i18n="label.reverseOrder">Reverse Order</button>
-        <button class="wt-op-btn" id="wt-op-smooth" data-i18n="label.smooth">Smooth</button>
-        <div class="wt-op-separator"></div>
-        <button class="wt-op-btn" id="wt-op-save" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;" data-i18n="label.saveShort">Save</button>
-        <div class="wt-op-separator"></div>
-        <button class="wt-undo-btn" id="wt-undo-btn" disabled data-i18n-aria="aria.undo">&#x21A9;</button>
-        <button class="wt-undo-btn" id="wt-redo-btn" disabled data-i18n-aria="aria.redo">&#x21AA;</button>
+        <div class="wt-op-group">
+            <button class="wt-op-btn" id="wt-op-normalize" data-i18n="label.normalize">Normalize</button>
+            <button class="wt-op-btn" id="wt-op-normalizeGlobal" data-i18n="label.normalizeGlobal">Normalize Global</button>
+        </div>
+        <div class="wt-op-group">
+            <button class="wt-op-btn" id="wt-op-fade" data-i18n="label.fadeEdges">Fade Edges</button>
+            <button class="wt-op-btn" id="wt-op-reverse" data-i18n="label.reverse">Reverse</button>
+            <button class="wt-op-btn" id="wt-op-reverseOrder" data-i18n="label.reverseOrder">Reverse Order</button>
+            <button class="wt-op-btn" id="wt-op-smooth" data-i18n="label.smooth">Smooth</button>
+        </div>
+        <button class="wt-op-btn wt-op-primary" id="wt-op-save" data-i18n="label.saveShort">Save</button>
+        <div class="wt-op-group wt-undo-group">
+            <button class="wt-undo-btn" id="wt-undo-btn" disabled data-i18n-aria="aria.undo">&#x21A9;</button>
+            <button class="wt-undo-btn" id="wt-redo-btn" disabled data-i18n-aria="aria.redo">&#x21AA;</button>
+        </div>
     </div>
 
 </div><!-- /wavetable-tab -->

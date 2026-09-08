@@ -33,13 +33,24 @@
     height: 100%;
 }
 
-/* ─── Osc Toggle ─── */
+/* ─── Top row (v1.26.0): osc selector | frame strip | waveform preview ─── */
+.wt-top-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    flex-shrink: 0;
+    height: 82px;
+}
+
+/* ─── Osc Toggle: a column beside the strip, the strip's own height ─── */
 .wt-osc-toggle {
     display: flex;
+    flex-direction: column;
     gap: 4px;
-    align-self: flex-start;
+    flex-shrink: 0;
 }
 .wt-osc-btn {
+    flex: 1;
     padding: 4px 16px;
     border: 1px solid #8B7355;
     background: #D4C4B0;
@@ -58,12 +69,16 @@
     border-color: #5a7a6a;
 }
 
-/* ─── Frame Strip ─── */
+/* ─── Frame Strip: as wide as its frames, scrolls past 60% of the row ───
+   drawFrameStrip() sizes the canvas to numFrames * 54 px; the container no
+   longer stretches to the row, so an 8-frame table is a 436 px strip and a
+   32-frame Geometry table scrolls inside its 60% cap. */
 .wt-frame-strip-container {
+    flex: 0 1 auto;
+    max-width: 60%;
     overflow-x: auto;
     overflow-y: hidden;
-    flex-shrink: 0;
-    height: 80px;
+    height: 82px;
     border: 1px solid #8B7355;
     background: #3C2F2F;
     border-radius: 3px;
@@ -73,19 +88,21 @@
     height: 80px;
 }
 
-/* ─── Harmonic Editor Area ─── */
+/* ─── Harmonic Editor Area: a card whose title row is the bins toolbar ─── */
 .wt-harmonic-area {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 150px;
-    gap: 4px;
+    gap: 6px;
 }
 
 .wt-harmonic-toolbar {
     display: flex;
     align-items: center;
     gap: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(139, 115, 85, 0.3);
 }
 .wt-harmonic-toolbar .wt-label {
     /* GEOMETRY PIN (v1.21.0), English box (77.41 px). The toolbar is a flex row
@@ -138,6 +155,7 @@
     display: flex;
     gap: 8px;
     min-height: 0;
+    padding-bottom: 2px;
 }
 
 .wt-harmonic-canvas-wrap {
@@ -155,8 +173,8 @@
 }
 
 .wt-waveform-preview-wrap {
-    width: 180px;
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 120px;
     border: 1px solid #8B7355;
     background: #3C2F2F;
     border-radius: 3px;
@@ -177,14 +195,34 @@
     display: block;
 }
 
-/* ─── Operations Bar ─── */
+/* ─── Operations Bar: trays for the level and shape groups, Save pushed
+   right, undo/redo last. The per-button width pins above still hold: a tray
+   is padding around pinned boxes, so the row's geometry stays language-
+   invariant the same way the flat row did. ─── */
 .wt-ops-bar {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     align-items: center;
     flex-shrink: 0;
     flex-wrap: wrap;
 }
+.wt-op-group {
+    display: inline-flex;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid rgba(139, 115, 85, 0.35);
+    border-radius: 4px;
+    background: rgba(212, 196, 176, 0.35);
+}
+.wt-op-primary,
+.wt-op-btn.wt-op-primary {
+    margin-left: auto;
+    background: #5a7a6a;
+    color: #F5E6D3;
+    border-color: #5a7a6a;
+}
+.wt-op-btn.wt-op-primary:hover { background: #4a6a5a; }
+.wt-undo-group { padding: 2px; }
 
 .wt-op-btn {
     padding: 4px 12px;
