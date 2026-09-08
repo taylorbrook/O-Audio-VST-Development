@@ -2,6 +2,114 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.15.0] — 2026-09-07
+
+Simplified Chinese. The interface now offers three languages; MINOR because a
+language is added and nothing existing changes behaviour, range or state format.
+Bumped from the CMakeLists value **1.14.3** — the `PLUGINS.md` row read 1.14.2
+and was one patch stale, having missed the 2026-09-03 suite-wide French
+hover-help rename.
+
+### Added
+
+- **A `zh-Hans` arm on all 133 rows** — 43 tooltip titles, 42 of their bodies
+  and 48 on-page captions. Forty-two, not forty-three: `msg-delete-preset`
+  carries a title and an EMPTY body, because it is the argument to `confirm()`
+  rather than a tooltip or an element, and that is the only shape satisfying
+  `check-i18n` assertions 13 and 15 at once. Its Chinese mirrors that shape; a
+  body there would have added a row the emitter never asked for. The Chinese
+  endonym joins the language selector, `LANGUAGES` and `I18N_EXEMPT`; the C++
+  `languageCode` / `languageIndex` codec is widened to three-way and stays pure
+  ASCII, because the page owns the copy and the processor owns only the BCP-47
+  identifier the page and the session agree on.
+- **The CJK tail on both declared font stacks**, before the trailing generic:
+  Chromium resolves a bare `serif` against the document's `lang`, so under
+  `zh-Hans` the generic is already a Chinese face and a tail written after it is
+  never consulted. Both stacks were already Latin-safe through an installed
+  family listed second — Times New Roman on one, Georgia on the other — so this
+  is the tail half only, and the absent Garamond member is kept as the Windows
+  and print intent. All twelve declaration sites are inline in `index.html`;
+  this plugin has no stylesheet file at all.
+- **A font stack on `.preset-nav-btn`, which declared none.** A `<button>` does
+  not inherit `font-family`, so the preset arrows resolved through a bare UA
+  Arial and their Chinese accessible names had no CJK face the page named.
+  Arial stays FIRST — it is what already rendered — so neither Latin arm moves.
+
+### Changed
+
+- **The language-selector body no longer enumerates the languages on offer**, in
+  English and in French both. A body that names a fixed set is a claim the
+  selector itself falsifies the moment a language is added, which is what this
+  release does. The exception list stays, and because it names CLASSES rather
+  than a count, both classes were verified rather than preserved on trust: the
+  note divisions are the six fraction tokens of the four subdivision
+  `AudioParameterChoice` declarations, which carry no word to translate in any
+  language, and the preset name is written by `modules/preset-manager.js` into
+  `#preset-name-text`, which is not a keyed element and whose placeholder is
+  already an `I18N_EXEMPT` entry with a stated reason.
+
+### Quality — the disclosed level, and it is not "native"
+
+All 133 rows ship at `reviewed: 'bt'`: machine-drafted against
+`scripts/i18n-zh-glossary.js`, then read back by a BLIND reverse pass — a
+separate model with no repository access, no sight of the English and blinded
+row ids — with every one of the 133 returned triples read. **No native
+Simplified Chinese speaker has read this copy.** `scripts/i18n-zh-lint.js`
+prints the level on every run and `reviewed: 'native'` stays open.
+
+The read was split into two batches on the CONCEPT rather than on size — the
+hover-help surface in one and the on-page captions in the other — so a caption
+and its own tooltip title went to different readers with no shared blinded id
+between them. That split is what settled the lane word: the caption reader, with
+nothing but captions around it, and the tooltip reader, with a body for context,
+independently rendered it as *track*, which is what Chinese calls a parallel
+processing strip and what both the caption and its own title now agree on.
+
+**No row was re-authored.** Every drift the read surfaced is a property of the
+language rather than a fault in the copy: Chinese has no plural inflection, so
+*Repeats*, *Steps* and *Pulses* come back singular; and every caption is an
+abbreviation of its own tooltip title in Chinese exactly as it is in English.
+None of them names a different control from the one it labels, which is the
+discriminator. A round that corrects nothing needs no second round.
+
+One caption carries an entry-scoped `termNote`. `PING` on this page abbreviates
+the PING-PONG toggle — `TIP_BINDINGS` binds the same control to the title
+*Ping-Pong* — so it renders the ping-pong root. The glossary root for the bare
+key *Ping* is an EXCITATION impulse, and its only corpus site is O-Octagon's
+loudspeaker measurement ping: a different thing from a stereo bounce, and a root
+that had no second site to check itself against. The blind reader, given the two
+characters and no context at all, read them back as *Ping Pong*.
+
+### Geometry — pinned under `html[lang="zh-Hans"]`, and every ratio measured
+
+A Han line box is about 30% taller than a Latin one at the same size, and
+`line-height: normal` inherits that growth into every container: with the table
+landed and no pins, **90 to 100 non-label elements moved** between English and
+Chinese, depending on the state. Four line-box ratios brought that to **0**,
+green across all three walked states with the French arm untouched at both
+measurements.
+
+Every ratio is derived from that element's own English CONTENT box — rect height
+less its own padding and border, divided per line by its own font-size — never
+from a table of nominal ratios. The factory badge is the padding case: an 11px
+rect over a 9px content box, because it carries 1px of vertical padding, and a
+ratio read off the rect would have been 1.375 against the measured 1.125.
+
+The pins are scoped to the Chinese arm rather than applied globally. It costs
+nothing, it makes the two Latin arms green by construction, and it holds the
+`wrap-count` estimated denominator still at 154 of 164 so no divisor moves
+underneath a later measurement.
+
+The two growth sites were both rows rather than pages. The Euclidean column
+headers grew 2px and carried every step button, lane label and Euclidean control
+below them down with it; the preset dropdown grew 5px, 1px per row, from the
+`Factory` badge inside each. Nothing needed a floor: the one place a Chinese
+shrink could have moved something is the hover-help switch, and the French-era
+`min-width: 42px` on it already absorbs the difference. That was measured rather
+than assumed — with the floor removed entirely, the natural boxes are 31.45px in
+English, 47.33px in French and 40.48px in Chinese, so the floor lifts English and
+Chinese onto the same 42px and never caps the French.
+
 ## [1.14.3] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
