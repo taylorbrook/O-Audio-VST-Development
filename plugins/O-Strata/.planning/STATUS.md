@@ -2,14 +2,14 @@
 plugin: O-Strata
 stage: 1
 stage_name: foundation
-phase: discuss
-status: stage_1_discuss_complete
+phase: research
+status: stage_1_research_complete
 last_updated: 2026-09-07
 workflow_mode: manual
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: /plugin-research O-Strata
+next_action: /plugin-plan O-Strata
 next_stage: 1
 ready_for_implementation: true
 contract_checksums:
@@ -31,9 +31,9 @@ ui_scaffolding_phase_complete: true
 
 ## Current Position
 
-Stage: 1 of 4 (Foundation) — discuss ✓, research next
-Status: Stage 1 CONTEXT.md written (D1 full rename / O-Prism untouched, D2 bake skeleton deferred to 2.1, D3 UI strip only, D4 delayDivision relay fix → 188, D5 counts 48/219 propagate to ROADMAP/ARCHITECTURE)
-Progress: [###.................] 15%
+Stage: 1 of 4 (Foundation) — discuss ✓, research ✓, plan next
+Status: Stage 1 RESEARCH.md written — 5 open items resolved with file:line evidence; 12 contradictions flagged (§10) for the plan: createEditor guard already present, `oscTablePtr` does not exist (rename-and-simplify of `userTablePtrA/B`), preset-save modal CSS lives in `wavetable-editor.css` (migrate before delete), `getActiveOscInfo` must be rewritten, non-ASCII spec strings need `CharPointer_UTF8`, duplicate host display names, 2 extra `i18n-states.json` rewrites
+Progress: [####................] 20%
 
 ## Phase Progress
 
@@ -41,8 +41,8 @@ Progress: [###.................] 15%
 | Phase | Status | Date | Skipped |
 |-------|--------|------|---------|
 | discuss | ✓ | 2026-09-07 | |
-| research | → | | |
-| plan | | | |
+| research | ✓ | 2026-09-07 | |
+| plan | → | | |
 | execute | | | |
 | verify | | | |
 
@@ -62,7 +62,7 @@ Progress: [###.................] 15%
 ## Next Steps
 
 1. ~~Create the UI mockup and the full `parameter-spec.md`~~ **Done (2026-09-07):** mockup v1 finalized (`mockups/v1-ui.yaml`, `v1-ui-test.html`), implementation scaffolding generated (`mockups/v1-ui.html`, `v1-PluginEditor-TEMPLATE.h/.cpp`, `v1-CMakeLists-SNIPPET.txt`, `v1-integration-checklist.md`) and `parameter-spec.md` locked at v1 — **219 params (171 inherited + 48 Geometry)**; the draft's 217/46 was an undercount, reconciled in the spec's "Draft reconciliation" note. Terrain choice list is the mockup's 3 entries (ARCHITECTURE lists 6) — see the same note.
-2. **IN PROGRESS — Stage 1: Foundation** (discuss ✓ → `/plugin-research O-Strata`; decisions in `stages/1-foundation/CONTEXT.md`) — fork O-Prism v1.24.0 into `plugins/O-Strata/` (PLUGIN_CODE `OuSt`, VERSION 1.0.0), remove `oscATable/oscBTable` + library code, add the 48 geometry params from `parameter-spec.md`, link `juce_cryptography`, `JUCE_WEB_BROWSER`-guard `createEditor`, pluginval/auval (COMPAT-01). C++/CMake deltas are pre-written in `mockups/v1-*`.
+2. **IN PROGRESS — Stage 1: Foundation** (discuss ✓ research ✓ → `/plugin-plan O-Strata`; decisions in `stages/1-foundation/CONTEXT.md`, findings + 16-step ordering in `stages/1-foundation/RESEARCH.md` §9) — fork O-Prism v1.24.0 into `plugins/O-Strata/` (PLUGIN_CODE `OuSt`, VERSION 1.0.0), remove `oscATable/oscBTable` + library code, add the 48 geometry params from `parameter-spec.md`, link `juce_cryptography`, `JUCE_WEB_BROWSER`-guard `createEditor`, pluginval/auval (COMPAT-01). C++/CMake deltas are pre-written in `mockups/v1-*`.
 3. Review `research/ARCHITECTURE.md` (Decisions 1–7) and `ROADMAP.md` before Stage 1.
 
 ## Context to Preserve
@@ -70,6 +70,7 @@ Progress: [###.................] 15%
 - Architecture: `plugins/O-Strata/.planning/research/ARCHITECTURE.md` (11 sections; requirement map in Notes)
 - Plan: `plugins/O-Strata/.planning/ROADMAP.md` (complexity 5.0 capped, raw 23.0; staged)
 - Discuss findings: `plugins/O-Strata/.planning/stages/0-ideation/CONTEXT.md`, `stages/1-foundation/CONTEXT.md` (Stage 1 decisions D1–D6)
+- Research findings: `stages/1-foundation/RESEARCH.md` (§2 open items, §3 48 declarations, §4 removal trace, §5 rename procedure, §9 task order, §10 contradictions, Assumptions A1–A6)
 - Fork base facts verified in O-Prism source: `WavetableData.h` (2048 + 1 guard, ≤ 256 frames, 10 levels), `WavetableGenerator.cpp:129` `generateMipmaps`, `WavetableImporter.cpp:189-205` global-peak normalisation, `PluginProcessor.cpp:946-1000` retire/reaper/assign, `PrismParamIds.h` `oscIds`/`allSliderIds` (126 → 170), `PluginEditor.cpp` `getActiveOscFrame` + `timerCallback` (`evaluateJavascript` to be replaced), `CMakeLists.txt` (`O-Prism_UIResources`, `VERSION 1.24.0`)
 - Wording notes for REQUIREMENTS.md (not edited): FUNC-05 "binary data" = compiled-in procedural; FUNC-06 "message thread" = off-audio-thread in the bake job; PERF-02 100 ms = generator + conditioning, mipmaps reported separately
 - Golden: `research/wavetable-synthesis-3d-geometry-prototypes/mesh-slice/mesh_slice_wavetable.py` → `twisted_star_d_128` (Centroid Distance, Largest, 128 frames; WAV not committed — regenerate in Stage 2.2)
