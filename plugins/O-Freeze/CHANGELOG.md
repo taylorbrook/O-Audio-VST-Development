@@ -10,6 +10,56 @@ parameter, range, type or state format changed.
 
 Wave 4a of the suite-wide zh-Hans rollout.
 
+### Ships in this release
+
+**This is the first release since v2.0.1 (tagged 2026-08-02), and the download
+contains versions 2.1.0 through 2.5.0.** The six versions between them are not
+described below; each has its own section further down this file.
+
+- **v2.1.0 — the page speaks French.** Fifteen `[data-i18n]` label elements and
+  three keyed `aria-label` attributes resolving through a new `i18n.js`, with a
+  settings popover in the header's top-right carrying the language selector. The
+  choice persists with the session as a non-parameter `uiLanguage` property on
+  the APVTS state tree — deliberately not automatable, so a preset cannot change
+  which language somebody reads their plugin in. Six knobs share a 530 px
+  `space-around` row floored at 60 px, so every French caption was chosen against
+  a measured budget.
+- **v2.2.0 — hover-help, in both languages.** Fourteen tooltips — one per
+  parameter, plus the gear and the language selector — and the cursor-following
+  renderer to paint them, which this page did not previously have. It flips to
+  the other side of the cursor and clamps on all four edges, and builds its
+  content with `createElement` + `textContent`, never `innerHTML`. Also a focus
+  latch so a mouse click does not park a tip on screen, and
+  `tests/ui_tip_render_check.js` — 311 assertions — because no existing gate in
+  this repo could see a rendered tooltip.
+- **v2.2.1 — French copy revised** against the suite glossary, which went from 38
+  lint findings to 0: *DOSAGE → Mix*, *ÉCART → Désacc.*, *INVERSE → Invers.*,
+  *LFO DÉRIVE → LFO de dérive*, eleven captions dropping shouted all-caps that is
+  invisible on screen but audible to assistive technology, and French typography
+  through eleven tooltip bodies. Two bodies also stopped saying something false —
+  Detune thickens the freeze into an *effet de chorus*, not an *effet de chœur*
+  (a chorus is the effect; a chœur is a choir).
+- **v2.3.0 — the Detune knob is now true cents, and this changes the sound of an
+  existing session at the same knob value.** The knob is labelled in cents and
+  its tooltip promises "0 to 50 cents", but the map was linear —
+  `1 + r·(cents/1200)` — where a cent is `2^(1/1200)`. Knob 50 therefore spread
+  grains across +70.67 / −73.68 ct rather than ±50. A second defect surfaced in
+  that measurement: a `float` read accumulator quantised every grain's pitch to
+  multiples of 3.38 ct at a 1000 ms grain while the knob offers 0.1 ct;
+  `Grain::fractionalPosition` is now `double`. **To keep the old spread width,
+  turn Detune up by about 1.4×.** No parameter ID, range, default, preset format
+  or state key changed — sessions load and the readout shows what it did.
+- **v2.4.0 — a switch for the hover help.** A second row in the settings popover;
+  the tooltip layer could not previously be turned off. Default ON, so an
+  existing user's plugin behaves exactly as it did. `data-tip-always` sits on the
+  gear and on the switch itself and on nothing else — those two controls are the
+  ones that reach and restore the help layer, so they keep explaining themselves
+  while it is off.
+- **v2.4.1 — the French caption for that surface became `Infobulles`**, the noun
+  French DAW and OS interfaces use, with every sentence re-agreed from feminine
+  singular to feminine plural rather than substituted — including the bare
+  back-references that carried no occurrence of the old phrase at all.
+
 ### Added
 
 - **`zh-Hans` on all 36 entries.** 33 of the 36 name strings take their rendering from `scripts/i18n-zh-glossary.js`. Lint rule Z5 enforces the
