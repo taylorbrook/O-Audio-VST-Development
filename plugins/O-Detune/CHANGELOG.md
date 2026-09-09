@@ -7,6 +7,21 @@ O-Detune is the wave's tracer). MINOR: a third language, a repaired render gate
 and nine geometry pins. No parameter, range, type or state format changed, and
 no audio path was touched.
 
+**This download ships six versions.** The last published release was 1.5.4
+(2026-08-02); 1.6.0 through 1.9.0 were never tagged and are released together
+here. In order:
+
+- **1.6.0** — the whole page speaks French, not just a tooltip: 22 keyed
+  elements and 8 keyed accessible names on the repo's canonical i18n runtime.
+- **1.7.0** — hover-help on every control the page has: 18 tooltips (16
+  parameters plus the gear and the language selector), English and French.
+- **1.7.1** — 26 French entries revised against the suite glossary and lint.
+- **1.8.0** — a hover-help switch in the settings popover, gating the tooltip
+  renderer and persisted under `odet.tipsEnabled`.
+- **1.8.1** — the French rendering of that surface became `Infobulles`, with
+  every dependent sentence re-agreed to feminine plural.
+- **1.9.0** — Simplified Chinese, detailed below.
+
 ### Added
 
 - **`zh-Hans` on every one of the 71 emitter rows** — 19 `I18N` entries (title
