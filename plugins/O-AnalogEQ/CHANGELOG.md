@@ -2,6 +2,24 @@
 
 ## [1.5.0] - 2026-09-05
 
+> **This release ships versions 1.2.0 through 1.5.0.** The last tagged release
+> was v1.1.11 (2026-08-02); the six versions below were authored since and are
+> all contained in these binaries. In order:
+>
+> - **1.2.0** — the page speaks French. A settings popover, seventeen i18n keys,
+>   `getUiLanguage` / `setUiLanguage` with session persistence.
+> - **1.3.0** — hover-help, in both languages. Thirteen tooltip entries covering
+>   fifteen of the sixteen parameters, plus a tooltip renderer and its CSS.
+> - **1.3.1** — French copy revised against the suite glossary; its lint went
+>   from 20 findings to 0. The preset button reads **ENREG.**, not SAUVER.
+> - **1.4.0** — a hover-help switch in the settings popover, persisted under
+>   `oaeq.tipsEnabled`. Default ON, so an existing user's plugin is unchanged.
+> - **1.4.1** — the French hover-help caption becomes **`Infobulles`**, with
+>   every dependent sentence re-agreed to feminine plural.
+> - **1.5.0** — Simplified Chinese, described below.
+>
+> Full detail for each is in `CHANGELOG.md`.
+
 **Simplified Chinese.** Every caption, hover-help body and accessible name now
 renders in `zh-Hans` alongside English and French — 35 entries, 49 emitter rows.
 MINOR: a language is added and two English hover-help bodies are corrected; no
