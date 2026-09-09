@@ -25,6 +25,14 @@ is stale in exactly that way and all six come from that one commit. The
 registry is corrected at the end of the batch; the source of truth is and
 remains `CMakeLists.txt`.
 
+**This download ships two versions.** The last published tag was
+`O-simpleAdditive-v1.2.0`; the binaries here carry **1.2.1 and 1.3.0** both.
+1.2.1 (2026-09-03) is the suite-wide French hover-help rename — the caption
+became `Infobulles`, every sentence was re-agreed from feminine singular to
+feminine plural, and the bare back-references that carried no occurrence of the
+old phrase were rewritten rather than regexed. Its own section is below, and the
+release-notes extractor does not reach it.
+
 ### Added
 
 - **Simplified Chinese (`zh-Hans`) across all 131 rows** — 43 tooltip titles,
