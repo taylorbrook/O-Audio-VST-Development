@@ -10,6 +10,14 @@ Simplified Chinese. The interface now offers English, French and 简体中文, o
 changed, and no English or French rendering moved except the one deletion
 recorded below. Wave 4g of the zh-Hans rollout (task 260907-qda).
 
+**This download ships two versions.** The previous tag was
+`O-simpleSampler-v1.4.3` (2026-08-31), so these binaries carry 1.4.4 as well as
+1.5.0. 1.4.4 is the suite-wide French hover-help rename — the caption became
+`Infobulles` and every sentence was re-agreed to the feminine plural, including
+the two switch faces `Activées` / `Désactivées` (task 260903-ukp). Its full
+section is below; the release body above it is generated from the 1.5.0 heading
+alone.
+
 **The bump is from 1.4.4, the CMakeLists value — not from the 1.4.3 the registry
 row claimed.** `PLUGINS.md` was one patch behind, left there by the 2026-09-03
 suite-wide French hover-help rename (task 260903-ukp) that also produced the
