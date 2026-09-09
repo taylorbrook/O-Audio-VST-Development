@@ -12,6 +12,27 @@ on-page labels. MINOR: a language is added; no parameter, range, type or state
 format changed, and the English and French pages are byte-identical in geometry
 to 1.11.1.
 
+### This download ships six versions — 1.9.0 through 1.12.0
+
+`O-ReverseDelay-v1.8.1` was the last tagged release, so the binaries here carry
+everything merged since. Full detail for each is below this section; in brief:
+
+| Version | Date | What it brought |
+|---|---|---|
+| **1.12.0** | 2026-09-06 | Simplified Chinese (`zh-Hans`) across all 106 emitter rows — 32 hover-help entries and 42 on-page labels; two stale UI gates repaired |
+| **1.11.1** | 2026-09-03 | The French hover-help caption became `Infobulles`, every sentence re-agreed to feminine plural |
+| **1.11.0** | 2026-09-03 | A hover-help switch in the settings popover — the tooltip layer can be turned off; default ON |
+| **1.10.1** | 2026-08-31 | 24 French entries revised against the suite glossary and lint; `<html lang>` now follows the language selector |
+| **1.10.0** | 2026-08-27 | The whole PAGE speaks French, not only the hover help — 35 label keys, canon v2 |
+| **1.9.0** | 2026-08-26 | English/French hover help; all 29 tooltips moved out of the markup into `js/i18n.js` |
+
+**No parameter, range, preset or DSP change in any of the six.** Every knob,
+every default and every factory preset is bitwise what v1.8.1 shipped — the
+`Source/` diff since that tag is additions only, and the one processor change is
+a non-parameter `uiLanguage` property riding the APVTS state tree, which the
+JSON preset path never touches. Layout changed in 1.10.0, 1.11.0 and 1.12.0
+(measured tables below), applying identically in every language.
+
 ### Added
 
 - **`zh-Hans` on every `I18N` and `LABELS` key**, and the Simplified Chinese
