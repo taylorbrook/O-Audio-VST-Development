@@ -10,6 +10,15 @@ Simplified Chinese. The interface now offers English, French and 简体中文, o
 changed, and no English or French rendering moved except the one deletion
 recorded below. Wave 4g of the zh-Hans rollout (task 260907-qda).
 
+**This download ships two versions — 1.4.3 and 1.5.0.** The last tagged release
+was v1.4.2, so 1.4.3 rides along in the same binaries: the French caption for
+the hover-help surface became `Infobulles`, the noun French DAW and OS
+interfaces use for the surface itself, and every sentence around it was
+re-agreed from feminine singular to feminine plural rather than substituted —
+including the bare back-references a regex pass would have left pointing at an
+antecedent that no longer exists. The `OSIMPLEGRAIN_VERSION_CODE` hex mirror
+moved with it. Full detail in the [1.4.3] section below.
+
 ### Added
 
 - **153 rows of Simplified Chinese** — 38 tooltip titles, 38 tooltip bodies and
