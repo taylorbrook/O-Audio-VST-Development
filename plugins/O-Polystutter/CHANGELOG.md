@@ -10,6 +10,36 @@ Bumped from the CMakeLists value **1.14.3** — the `PLUGINS.md` row read 1.14.2
 and was one patch stale, having missed the 2026-09-03 suite-wide French
 hover-help rename.
 
+**This release ships versions 1.14.0 through 1.15.0.** The last published tag
+was `O-Polystutter-v1.13.0` (2026-08-14), so the binaries below carry four
+versions this section does not describe. In order:
+
+- **1.14.0** (2026-08-28) — **the page speaks French**, not only the hover help:
+  105 tooltip anchors from 43 keys plus 48 label keys across 97 keyed elements,
+  behind a language selector in a new gear popover that also holds the
+  hover-help switch. The UI language persists with the session as a plain
+  `uiLanguage` property on the APVTS state tree — deliberately not an
+  `AudioParameterChoice`, so it never reaches a DAW automation lane and no
+  preset can change which language somebody reads their interface in. In the
+  same version, **v1.13.0's tooltip positioner is deleted** — it measured
+  nothing, carrying hardcoded 60/220 tip dimensions and two viewport literals
+  against a 690-tall frame — and replaced by the measure-then-pin renderer
+  shipping across the suite. The controller left the markup for
+  `Source/ui/public/js/app.js`. One English geometry change: the preset bar
+  widens 325.3 → 358px and its five children shift 32.66px left, once.
+- **1.14.1** (2026-08-31) — 15 French entries revised against the suite glossary
+  and its lint; `<html lang>` follows the language selector.
+- **1.14.2** (2026-08-31) — **MIDI tooltip corrected against the code.** It said
+  notes C1–B1 trigger lanes 1–4; `TriggerRouter.cpp` routes notes 60–63 to the
+  four lanes and note 67 to all enabled lanes, and ignored C1–B1 entirely. The
+  routing is unchanged — the tooltip now follows it.
+- **1.14.3** (2026-09-03) — the French hover-help caption became `Infobulles`
+  suite-wide, with every sentence re-agreed to feminine plural rather than
+  substituted.
+
+Sessions saved before v1.14.0 have no `uiLanguage` attribute and open in
+English. No parameter, range, type or state format changed across the range.
+
 ### Added
 
 - **A `zh-Hans` arm on all 133 rows** — 43 tooltip titles, 42 of their bodies
