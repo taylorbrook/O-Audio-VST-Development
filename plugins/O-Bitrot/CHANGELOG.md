@@ -93,6 +93,24 @@ identically in every language.
   anything that is not `fr` to 0" — in `PluginProcessor.h`, `PluginEditor.cpp`
   and `PluginProcessor.cpp`.
 
+- **O-Bitrot now COMPILES on Windows** — the first time it ever has. `g711::`
+  `linearToMuLaw` in `Source/dsp/CodecStage.h` declared `int mask;` with no
+  initialiser. C++17 [dcl.constexpr]/3 forbids a `constexpr` function body from
+  containing a variable definition "for which no initialization is performed",
+  so MSVC rejected the function outright with **C3615** — *constexpr function
+  cannot result in a constant expression*. clang relaxed the rule ahead of its
+  C++20 removal (P1331) and had compiled it silently since v1.7.0, which is why
+  every macOS build passed and the defect stayed latent until O-Bitrot first
+  reached a Windows runner.
+
+  `mask` is now initialised to `0xFF` and the `else` arm that set it dropped —
+  `0xFF` was already the non-negative case. **The encoder is bit-identical:**
+  swept against the previous implementation over all 65536 `int16` inputs,
+  0 differences, and both documented landmarks hold (`0` → `0xFF` so digital
+  silence stays silent; full scale → `0x80`). Three `static_assert`s on those
+  landmarks now pin the function as genuinely constant-evaluable, so this
+  cannot regress unnoticed on either compiler.
+
 ### Changed — the CJK font tail, on ONE token
 
 The tail is `, 'PingFang SC', 'Microsoft YaHei', sans-serif`. **All 13**
