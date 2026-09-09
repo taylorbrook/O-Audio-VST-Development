@@ -10,6 +10,13 @@ language is added and nothing existing changes behaviour, range or state format.
 Bumped from the CMakeLists value 1.4.1 — the registry row read 1.4.0 and was one
 patch stale, having missed the 2026-09-03 suite-wide French hover-help rename.
 
+**This download ships two versions.** The last published tag was
+`O-simpleSubtractive-v1.4.0`; the binaries here carry **1.4.1 and 1.5.0** both.
+1.4.1 (2026-09-03) is the suite-wide French hover-help rename — the caption
+became `Infobulles`, every sentence was re-agreed from feminine singular to
+feminine plural, and the switch faces followed as `Activées` / `Désactivées`.
+Its own section is below, and the release-notes extractor does not reach it.
+
 ### Added
 
 - **A `zh-Hans` arm on all 133 rows** — 36 tooltip titles, their 36 bodies and
