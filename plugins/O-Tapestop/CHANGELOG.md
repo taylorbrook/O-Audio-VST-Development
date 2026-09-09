@@ -4,6 +4,25 @@ All notable changes to O-Tapestop are documented here.
 
 ## [1.7.0] - 2026-09-06
 
+**This release ships six versions.** O-Tapestop last reached a public download
+at v1.4.0; 1.5.0 through 1.7.0 were developed without a tag, so the binaries
+below contain all of them. Across the span:
+
+- **1.5.0** — hover help on 33 controls moves out of the markup into a copy
+  table and gains French; the tooltip clamp gate sweeps both languages.
+- **1.6.0** — the page itself speaks French, not only its hover help. At
+  860 × 580, the suite's tightest frame, O-Tapestop is the pattern-bearer.
+- **1.6.1** — 21 French entries revised against the suite glossary and lint
+  (20 findings → 0): terminology, no-break-space typography, agreement.
+- **1.6.2** — defects found by reading the French against the code: the three
+  division selects' accessible names, and localised preset-theme headings.
+- **1.6.3** — the French caption becomes `Infobulles`, with every sentence
+  re-agreed from feminine singular to feminine plural.
+- **1.7.0** — Simplified Chinese joins English and French, detailed below.
+
+No parameter, range, type, DSP path or state format changed anywhere in the
+span. Presets and saved sessions from v1.4.0 load unchanged.
+
 Simplified Chinese joins English and French (task 260906-h8y, wave 4e; O-Tapestop
 is the wave's tracer). MINOR: a third language, a repaired test gate, nine
 line-height pins and one font-stack tail — no parameter, range, type, DSP path
