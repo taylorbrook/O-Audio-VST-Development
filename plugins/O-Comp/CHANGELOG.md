@@ -10,6 +10,38 @@ parameter, range, type or state format changed.
 
 Wave 4a of the suite-wide zh-Hans rollout.
 
+### Ships in this release
+
+**This is the first release since v1.5.0 (2026-07-01), and the download contains
+versions 1.6.0 through 1.9.0.** The five versions between them are not described
+below; each has its own section further down this file.
+
+- **v1.6.0 — the page speaks French.** 22 label strings, 7 accessible names and
+  the 3 canvas-painted captions, selectable from a gear popover at the top of the
+  frame; the choice persists with the session as a non-parameter `uiLanguage`
+  property on the state tree, deliberately not an automatable parameter. Also
+  corrected a v1.5.0 layout defect: `.preset-action-btn` inherited the UA default
+  padding, leaving an 18px content box inside a 32px button while the English
+  caption "Load" renders 18.5px.
+- **v1.7.0 — hover-help, in both languages.** Nine tooltips — one for each of the
+  seven parameters plus the settings gear and the language selector — and the
+  cursor-following renderer to show them, which the page did not previously have.
+  The hover area is the whole knob-plus-caption-plus-readout column, not the 52px
+  vine face.
+- **v1.7.1 — French copy revised** against the suite glossary: SAUVER → ENREG.,
+  RELÂCHE → RELÂCH., GENOU → COUDE, Paramètres → Réglages, plus typographic
+  apostrophes, no-break spaces and true minus signs throughout. `<html lang>` now
+  follows the selector, so assistive technology reads the page in the language it
+  is displayed in.
+- **v1.8.0 — a switch for the hover help.** A second row in the settings popover;
+  the tooltip layer could not previously be turned off. Default ON, so an existing
+  user's plugin behaves exactly as it did.
+- **v1.8.1 — the French caption for that surface became `Infobulles`**, the noun
+  French DAW and OS interfaces use, with every sentence re-agreed from feminine
+  singular to feminine plural.
+
+Everything below describes v1.9.0 only.
+
 ### Added
 
 - **`zh-Hans` on all 39 entries.** 36 of the 39 name strings take their rendering from `scripts/i18n-zh-glossary.js`. Lint rule Z5 enforces the
