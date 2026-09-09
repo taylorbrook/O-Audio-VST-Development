@@ -7,6 +7,45 @@ MINOR: a third language, a canvas caption that had never been localized in any
 language, one font-token edit and six geometry pins. No parameter, range, type or
 state format changed, and no audio path was touched.
 
+### Ships in this release
+
+**This is the first release since v1.6.2 (2026-08-20), and the download contains
+versions 1.7.0 through 1.8.0.** The four versions between them are not described
+below; each has its own section further down this file.
+
+- **v1.7.0 — the interface speaks French.** A settings gear in the header opens a
+  popover holding a language selector and the hover-help switch; 45 strings — 24
+  tooltip entries and 21 label entries — live in `Resources/ui/js/i18n.js`. The
+  choice persists with the session as a non-parameter `uiLanguage` attribute on
+  the state tree, deliberately not an `AudioParameterChoice`: it must not appear
+  in a DAW automation lane, and a preset must not change which language somebody
+  reads their interface in. The old tooltip positioner was replaced outright by
+  the repo's measure-then-pin runtime — it clamped against `#app`, whose 12px
+  padding held every tip 12px further from each edge than it needed to be. Also
+  fixed a header version string that read `v1.6.1` on a 1.6.2 build.
+- **v1.7.1 — French copy revised** against the suite glossary and lint: 21
+  entries, 13 terminology, 5 typography, 3 meaning; the lint went 24 findings to
+  0. The most visible: Tenue → **Maintien** on the Sustain caption, Aide →
+  **Aide au survol**, Oui/Non → **Activée/Désactivée** on the hover-help switch,
+  decimal commas and no-break spaces throughout. Three tooltips that named a
+  control by its English caption now name what the page actually shows.
+  `<html lang>` follows the selector, so assistive technology reads the page in
+  the language it is displayed in.
+- **v1.7.2 — the hover-help switch stopped resizing.** Its `min-width: 40px`
+  covered the English faces but not the French ones, so the button resized
+  between its own two French faces on every toggle — `Désactivée` 61.88px,
+  `Activée` 49.09px, its left edge jumping 12.78px inside the row. Pinned to
+  **64px**, measured on the live node at the shipping 700×500 frame.
+- **v1.7.3 — the French caption became `Infobulles`**, the noun French DAW and
+  OS interfaces use for the surface itself, with every sentence re-agreed from
+  feminine singular to feminine plural — including bare back-references that
+  carried no occurrence of the old phrase and that a regex pass would have left
+  pointing at an antecedent that no longer exists. The switch faces followed to
+  `Activées` / `Désactivées`, which outgrew the 64px pin, so it was re-measured
+  to **66px**.
+
+Everything below describes v1.8.0 only.
+
 ### Added
 
 - **`zh-Hans` on every one of the 72 emitter rows** — 25 `I18N` entries and 23
