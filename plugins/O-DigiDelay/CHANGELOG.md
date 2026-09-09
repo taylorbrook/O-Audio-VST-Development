@@ -12,6 +12,42 @@ renders in `zh-Hans` alongside English and French — 36 entries, 46 emitter row
 MINOR: a language is added and two English hover-help bodies are corrected; no
 parameter, range, type or state format changed, and no DSP was touched.
 
+### Ships in this release
+
+**This is the first release since v1.2.12 (2026-08-02), and the download contains
+versions 1.3.0 through 1.6.0.** The five versions between them are not described
+below; each has its own section further down this file.
+
+- **v1.3.0 — the page speaks French.** Every visible caption keyed and given an
+  English and a French string — the six knob captions, the sync caption and both
+  of its faces, the output-meter caption, the two preset buttons and the preset
+  dropdown's written strings — selectable from a gear popover in the bottom-left
+  corner; the choice persists with the session as a non-parameter `uiLanguage`
+  property on the APVTS state tree, deliberately not an automatable parameter.
+  Also corrected a defect present since v1.0.0: `.led-meter-label` was 18px wide
+  while the English word "OUT" renders 20.91px, painting 2.91px outside its own
+  content box.
+- **v1.4.0 — hover-help, in both languages.** Nine tooltips — the SYNC toggle,
+  all six knobs, the settings gear and the language selector — and the
+  cursor-following renderer to paint them, which this page did not previously
+  have. `.tooltip` is capped at 300px rather than the suite's usual 250px: this
+  frame is 700 x 196, short rather than narrow, so the wider cap converts longer
+  French into width instead of the height 196px cannot spare.
+- **v1.4.1 — French copy revised** against the suite glossary, which went from 40
+  lint findings to 0: SPREAD reads ÉTAL., WET reads TRAITÉ, TIME reads DURÉE and
+  the preset Save button reads ENREG, plus typographic apostrophes, no-break
+  spaces and a LOAD button whose French accessible name finally contains its own
+  caption (WCAG 2.5.3). `<html lang>` now follows the selector, so assistive
+  technology reads the page in the language it is displayed in.
+- **v1.5.0 — a switch for the hover help.** A second row in the settings popover;
+  the tooltip layer could not previously be turned off. Default ON, so an
+  existing user's plugin behaves exactly as it did.
+- **v1.5.1 — the French caption for that surface became `Infobulles`**, the noun
+  French DAW and OS interfaces use, with every sentence re-agreed from feminine
+  singular to feminine plural.
+
+Everything below describes v1.6.0 only.
+
 ### Added
 
 - **`zh-Hans` on all 36 entries.** `LANGUAGES` reads three, the selector carries
