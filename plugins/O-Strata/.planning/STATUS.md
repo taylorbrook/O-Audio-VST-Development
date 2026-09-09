@@ -4,7 +4,7 @@ stage: 0
 stage_name: ideation
 phase: mockup_v2
 status: stage_0_complete_awaiting_mockup_v2
-last_updated: 2026-09-08
+last_updated: 2026-09-09
 workflow_mode: manual
 complexity_score: 5.0
 complexity_raw: 25.0
@@ -18,7 +18,7 @@ contract_checksums:
   parameter_spec_draft: sha256:cc3631cba8a098103cc88f2b0bd87cffa6fdf1f93ea8f7ea39b7e55cb1f0cc7d
   architecture: sha256:165ba8e24b43a78e7ea5c5a8e690ca4b056e2f275a73660e5676b5551a2af211
   roadmap: sha256:9d77da57b61937b532148a1df2376e314ed5ce3f373293a6e813211cba343aa9
-mockup_latest_version: 0
+mockup_latest_version: 2
 ui_design_phase_complete: false
 mockup_finalized: false
 brief_updated_from_mockup: false
@@ -53,7 +53,7 @@ Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guard
 |-------|--------|------|-------|
 | re-plan brief | ✓ | 2026-09-08 | BRIEF / REQUIREMENTS v2 / parameter-spec-draft v2 |
 | research + plan (`/plan`) | ✓ | 2026-09-08 | `research/ARCHITECTURE.md` v2 (Core 1–11, Algorithms, Decisions D1–D12, harness H1–H11), `ROADMAP.md` v2 (complexity 5.0), `stages/0-ideation/CONTEXT.md` |
-| mockup v2 | | | `design UI for O-Strata`; lock parameter-spec.md v2 → `ready_for_implementation: true` |
+| mockup v2 | ✓ | 2026-09-09 | design iteration v2 generated — `mockups/v2-ui.yaml` + `v2-ui-test.html`, forked from O-Prism **v1.26.0** (card grid). Terrain tab (700×540 3D view + Terrain/Orbit cards), Synth osc cards with Terrain▾/Orbit▾ and Orbit Size, 46 mod destinations, 30 new i18n keys. Headless-verified at 1200×800: no tab scrolls, no overlaps, no console errors. **Not finalised** — awaiting review |
 
 ### Stage 1: Foundation — first pass ✓ (baked params, 2026-09-07); **second pass pending** (re-parameterise: 205 params, 46 mod destinations, COMPAT-01 re-verify — ROADMAP "Stage 1: Foundation — second pass")
 

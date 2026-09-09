@@ -1,0 +1,638 @@
+# O-Strata — UI mockup specification v2 (live wave-terrain oscillator)
+#
+# Fork of O-Prism **v1.26.0** (commit 4f12ef57 / release 018ca3ef): the card-grid
+# restructure, the 12-column Synth and Effects grids, the 3-column Tuning grid and
+# the custom appearance:none selects. NOT the v1.24.0 fork base still sitting in
+# plugins/O-Strata/Source/ui/public/index.html — Stage 3 re-forks from v1.26.0 so
+# the card system, the 650 px Synth budget and the select styling come across.
+#
+# v1 (plugins/O-Strata/.planning/superseded-baked-v1/mockups/) designed a BAKED
+# geometry generator and is not a source of truth. What carries over from it: the
+# shell, the palette, the ⬡/≋ canvas toggle, the botanical overlay and the
+# "3D view + right-hand parameter column" shape of the fifth tab. Everything
+# inside that tab is new.
+
+plugin: O-Strata
+version: 2
+fork_of: O-Prism v1.26.0
+supersedes: superseded-baked-v1/mockups/v1-ui.yaml
+design_system: ouaricon-naturalist-001
+test_html: v2-ui-test.html
+created: 2026-09-09
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WINDOW / CHROME — inherited from O-Prism v1.26.0, unchanged
+# ─────────────────────────────────────────────────────────────────────────────
+window:
+  width: 1200
+  height: 800
+  resizable: false            # O-Prism: setSize (1200, 800)
+  chrome:
+    header_bar:  { x: 0, y: 0,   width: 1200, height: 34,  background: "#3C2F2F", contents: "title · preset browser (‹ · display · › · ★) · subtitle · gear/settings popover" }
+    tab_bar:     { x: 0, y: 34,  width: 1200, height: 32,  background: "#D4C4B0", border_bottom: "2px #8B7355" }
+    tab_content: { x: 0, y: 66,  width: 1200, height: 666, padding: "10px 14px 6px", usable: "1172×650" }
+    footer_bar:  { x: 0, y: 732, width: 1200, height: 68,  background: "#3C2F2F", contents: "Master · Osc Mix (44 px small knobs)" }
+  height_arithmetic: "800 − 34 header − 32 tab bar − 68 footer = 666 content area; − 16 px tab padding = 650 usable. Width 1200 − 28 px tab padding = 1172 usable."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STYLING — Ouaricon Naturalist, byte-identical values to O-Prism v1.26.0
+# ─────────────────────────────────────────────────────────────────────────────
+styling:
+  colors:
+    paper: "#F5E6D3"          # body / active tab
+    card: "#EFDFCB"           # .card fill (v1.26.0)
+    paper_deep: "#EBD9C7"     # canvas + select well ground
+    select_well: "#F8ECDC"    # select.param-select background (v1.26.0)
+    tan: "#D4C4B0"            # tab bar, inactive toggle
+    walnut: "#8B7355"         # borders, captions, HUD
+    oak: "#5C4033"            # secondary ink
+    ink: "#3C2F2F"            # primary ink, header/footer plate
+    sage: "#8BA870"           # orbit line
+    deep_green: "#6B8E4E"     # scan point, active toggle-btn
+    vine: "#5a7a6a"           # knob arc + active .wt-osc-btn
+    header_accent: "#C9A27B"
+    amber: "#C9822B"          # RESERVED: source-missing notice + feedback trail only
+    background: "#F5E6D3"
+    foreground: "#3C2F2F"
+    accent: "#8BA870"
+  fonts:
+    primary: "'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif"
+    hud: "'SF Mono', 'Menlo', 'Consolas', monospace"
+  type_scale:
+    tab:               { size: 12, letter_spacing: 1.5, transform: uppercase }
+    section_header:    { size: 10, letter_spacing: 2,   transform: uppercase }
+    knob_label:        { size: 9,  letter_spacing: 0.8, transform: uppercase }
+    knob_value:        { size: 10 }
+    dropdown_label:    { size: 8,  letter_spacing: 1,   transform: uppercase }
+    status_small_caps: { size: 9,  letter_spacing: 1.2, transform: uppercase }
+    hud:               { size: 10, family: hud }
+  knob_component:
+    name: SVG vine-arc knob (O-Prism .knob-container[data-knob])
+    markup: ".knob > .knob-visual > svg(viewBox 52×52; .knob-track r=22 stroke rgba(139,115,85,.3) w2; .knob-vine r=22 stroke #5a7a6a w3 dasharray 103.67) + .knob-label + .knob-value"
+    svg_rotation: "-135deg on the <svg>, so a 270° sweep starts bottom-left"
+    sizes: { standard: 52, small: 44, primary: 64, terrain_panel: 64, terrain_panel_primary: 72 }
+    interactions: [vertical drag, wheel ±0.02, alt-click reset to default, dblclick value entry]
+  css_classes_reused_from_oprism:
+    - header-bar / preset-browser / preset-display / preset-nav / preset-save / preset-menu / settings-wrap / settings-popover / gear-btn / settings-row / settings-label / settings-select
+    - tab-bar / tab / tab-content-area / tab-content
+    - card / span-2 / span-3 / span-4 / span-5 / span-6 / span-7 / span-8 / osc-card
+    - section-header / param-row
+    - knob-container / knob-container.primary / knob / knob-visual / knob-track / knob-vine / knob-label / knob-value
+    - dropdown-group / dropdown-label / param-select / toggle-btn / toggle-group
+    - osc-section / osc-canvas-wrap / osc-canvas / osc-params / wt-drop-overlay
+    - mod-matrix-table / mod-matrix-header / mod-row / mod-col-on / mod-col-slot / mod-col-src / mod-col-dst / mod-col-amt / mod-col-val / mod-amt-slider
+    - filters-grid / filter-block / filter-routing / lfo-card
+    - effect-section / bypass-toggle
+    - tuning-viz-container / interval-list / tonic-selector / viz-mode-toggle / viz-btn / viz-container / pitch-circle / tuning-controls-panel / tuning-ref-section / scale-name-display / octave-stretch-* / tuning-file-*
+    - footer-bar / footer-param / footer-label / footer-value
+    - wt-osc-toggle / wt-osc-btn  # v1.26.0 column style, reused HORIZONTAL on the Terrain tab
+  css_classes_new:                # every new class is prefixed terrain- except the shared canvas toggle
+    - osc-view-toggle / osc-view-btn      # ⬡ / ≋ corner toggle, shared by the two Synth canvases and the big view
+    - terrain-toprow / terrain-ctl / terrain-ctl-label
+    - terrain-seg / terrain-seg-btn
+    - terrain-import-btn / terrain-readout / terrain-readout-approx
+    - terrain-main / terrain-view-col / terrain-view-wrap / terrain-view / terrain-hud / terrain-webgl-unavailable / terrain-hint
+    - terrain-panel-col / terrain-panel-card / terrain-krow / terrain-krow-sub / terrain-notice
+    - terrain-botanical
+    - is-inert                            # greyed/disabled control state (opacity .34 + pointer-events none); the control keeps its column, so nothing moves when the condition flips
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TABS
+# ─────────────────────────────────────────────────────────────────────────────
+tabs:
+  order: [synth, mod, tuning, effects, terrain]
+  note: "terrain takes O-Prism's fifth (Wavetable) slot"
+  synth:   { data_tab: synth,   data_i18n: tab.synth }
+  mod:     { data_tab: mod,     data_i18n: tab.mod }
+  tuning:  { data_tab: tuning,  data_i18n: tab.tuning }
+  effects: { data_tab: effects, data_i18n: tab.effects }
+  terrain: { data_tab: terrain, data_i18n: tab.terrain }
+
+removed_from_oprism:
+  - Wavetable tab (id wavetable-tab) and every .wt-* editor element inside it
+  - wavetable-editor.js / css/wavetable-editor.css (except the .wt-osc-toggle / .wt-osc-btn rules, which move into index.html for the Terrain tab)
+  - frame strip, harmonic editor, ops bar, wavetable save modal, wt-modal manager
+  - The Shape dropdown select-oscATable / select-oscBTable and its 36-table optgroup list (oscATable / oscBTable parameters removed)
+  - label.dropWav "Drop WAV" overlay text → label.dropPng "Drop PNG"
+  - tab.wavetable, label.harmonics, label.normalize*, label.fadeEdges, label.reverse*, label.smooth, label.saveWavetable, label.userWavetables, label.noUserWavetables, label.importWav, label.manage, label.waveform (i18n keys retired with the tab)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LAYOUT
+# ─────────────────────────────────────────────────────────────────────────────
+layout:
+
+  # ── SYNTH TAB ──────────────────────────────────────────────────────────────
+  synth_tab:
+    id: synth-tab
+    grid: "display:grid; grid-template-columns: repeat(12, minmax(0,1fr)); grid-auto-rows: min-content; gap: 8px"
+    height_budget: >
+      O-Prism v1.26.0's arithmetic, unchanged: five card rows plus four 8 px gaps
+      sum to ~640 px inside the 650 px usable area. The budget is held by .card
+      padding (5/10/5), a 4 px title margin and `.card .knob-container { margin: 0 2px }`.
+      The two extra oscillator dropdowns add WIDTH, not height — a .dropdown-group
+      is 34 px tall (9 caption + 3 + 22 select) against a knob column's ~78 px —
+      so the row height is unchanged and the tab still does not scroll.
+    rows:
+      - { row: 1, cards: [ { id: card-oscA, class: "card osc-card", span: 12 } ] }
+      - { row: 2, cards: [ { id: card-oscB, class: "card osc-card", span: 12 } ] }
+      - { row: 3, cards: [ { id: card-sub, span: 5 }, { id: card-noise, span: 3 }, { id: card-performance, span: 4 } ] }
+      - { row: 4, cards: [ { id: card-filters, span: 8, class: "card span-8 filters-card" }, { id: card-ampenv, span: 4 } ] }
+      - { row: 5, cards: [ { id: card-filtenv, span: 4 }, { id: lfo1-section, span: 2 }, { id: lfo2-section, span: 2 }, { id: lfo3-section, span: 2 }, { id: lfo4-section, span: 2 } ] }
+    unchanged_cards: [card-sub, card-noise, card-performance, card-filters, card-ampenv, card-filtenv, lfo1-section, lfo2-section, lfo3-section, lfo4-section]
+
+    oscillator_card:            # the ONLY change on this tab; identical for A and B
+      structure: ".card.osc-card > .section-header + .osc-section > (.osc-canvas-wrap + .osc-params)"
+      width_arithmetic: "card inner 1172 − 20 padding − 2 border = 1150; − 160 canvas − 10 gap = 980 px for .osc-params. Measured content ≈ 900 px, so the knob row does not wrap."
+      canvas:
+        css_size: "160×90"
+        backing: "320×180"
+        border: "2px solid #8B7355"
+        background: "#EBD9C7"
+        classes: [osc-canvas-wrap, osc-canvas]
+        ids: [canvasOscA, canvasOscB]
+        modes:
+          "3d": "terrain wireframe (26×26 in the mini canvas, 64×64 in the big view) + orbit on the surface (sage) + live scan point (deep green)"
+          waveform: >
+            The last cycle's y(θ) as a single oak polyline. DECIMATED FROM A 4×
+            RUN AND DC-BLOCKED, not sampled at display resolution: the raw scan
+            of a knot orbit over a ridged terrain renders its own aliasing as
+            vertical hash, which is an honest picture of an undersampled read and
+            the wrong picture of a 2× voice whose halfband decimator has already
+            removed it. The DC blocker is the one on the plugin's own output.
+      view_toggle:
+        class: [osc-view-toggle, osc-view-btn]
+        position: "absolute, canvas top-right, 4px/4px inside the 2 px border"
+        glyphs: { "3d": "⬡ U+2B21", waveform: "≋ U+224B" }
+        size_px: 10
+        colors: { rest: walnut, active: deep_green }
+        default: "3d"
+        per_oscillator: true
+        a11y: "data-i18n-aria on each button (aria.view3d / aria.viewWaveform); the glyph carries no text, so the label gate never measures it"
+      drop_overlay: { class: wt-drop-overlay, text: "Drop PNG", data_i18n: label.dropPng }
+      controls_in_order:
+        - { dropdown: Terrain,  id: "select-osc{A,B}Terrain", param: "osc{A,B}Terrain", data_i18n: label.terrain, width_px: 118, note: "was the Shape dropdown" }
+        - { dropdown: Orbit,    id: "select-osc{A,B}Orbit",   param: "osc{A,B}Orbit",   data_i18n: label.orbit,   width_px: 106, note: "NEW — second dropdown" }
+        - { knob: Orbit Size, param: "osc{A,B}Pos", class: "knob-container primary", data_i18n: label.orbitSize, readout: "50%", note: "was Position (label.position); same ID, new default 0.5" }
+        - { knob: Level,    param: "osc{A,B}Level",    class: "knob-container primary", data_i18n: label.level }
+        - { knob: Pan,      param: "osc{A,B}Pan",      data_i18n: label.pan }
+        - { knob: Coarse,   param: "osc{A,B}Coarse",   data_i18n: label.coarse }
+        - { knob: Fine,     param: "osc{A,B}Fine",     data_i18n: label.fine }
+        - { knob: Phase,    param: "osc{A,B}Phase",    data_i18n: label.phase }
+        - { knob: Unison,   param: "osc{A,B}Unison",   data_i18n: label.unison, readout: "1", note: "max 4 (was 8) — live-oscillator CPU cap" }
+        - { knob: Detune,   param: "osc{A,B}Detune",   data_i18n: label.detune }
+        - { knob: Width,    param: "osc{A,B}Width",    data_i18n: label.width }
+        - { dropdown: Warp, id: "select-osc{A,B}WarpType", param: "osc{A,B}WarpType", data_i18n: label.warp }
+        - { knob: Warp Amt, param: "osc{A,B}WarpAmt",  data_i18n: label.warpAmt }
+      wrap_fallback: >
+        If a translation pushes .osc-params past 980 px the two dropdowns may stack
+        vertically inside ONE .dropdown-group column (flex-direction: column, gap 4).
+        Not needed in English: measured 900 px at the shipped frame.
+
+  # ── MOD TAB ────────────────────────────────────────────────────────────────
+  mod_tab:
+    id: mod-tab
+    unchanged_from_oprism: "markup, .mod-matrix-table, 16 rows, source list, amount slider, ±N% readout"
+    destinations:
+      count: 46
+      inherited: 26
+      relabelled: ["OscA Pos → OscA Orbit Size", "OscB Pos → OscB Orbit Size"]
+      order: "O-Prism's 26 first (indices unchanged), then the 20 new ones append-only: all 10 of Osc A, then all 10 of Osc B"
+      list_inherited_26: [None, OscA Orbit Size, OscB Orbit Size, FiltA Cut, FiltB Cut, FiltA Res, FiltB Res, Osc Mix, Sub Level, Noise Level, LFO1 Rate, LFO2 Rate, LFO3 Rate, LFO4 Rate, OscA Detune, OscB Detune, OscA Pan, OscB Pan, Reverb Mix, Delay Mix, Chorus Mix, Dist Mix, Master Vol, Pitch, OscA Warp, OscB Warp]
+      list_new_20: [OscA Orbit Aspect, OscA Orbit Rot, OscA Orbit CX, OscA Orbit CY, OscA Orbit Mod, OscA Terrain Freq, OscA Terrain Mod X, OscA Terrain Mod Y, OscA Feedback, OscA Saturation, OscB Orbit Aspect, OscB Orbit Rot, OscB Orbit CX, OscB Orbit CY, OscB Orbit Mod, OscB Terrain Freq, OscB Terrain Mod X, OscB Terrain Mod Y, OscB Feedback, OscB Saturation]
+      source: "the authoritative list is getModDestNames() from C++ (WR-20); the JS fallback array in index.html mirrors it"
+
+  # ── TUNING TAB ─────────────────────────────────────────────────────────────
+  tuning_tab:
+    id: tuning-tab
+    unchanged_from_oprism: true
+    grid: "130px | minmax(0,1fr) | 210px  ×  auto | minmax(0,1fr)"
+    regions: [interval-list (col 1), viz-mode-toggle (col 2 row 1), viz-container (col 2 row 2), tuning-controls-panel (col 3)]
+    engine: "scala-tuning-engine v3.0.1"
+    mockup_fidelity: "test HTML renders the real 3-column grid with a live 12-TET interval list, a generated pitch-circle SVG, the A4 Ref knob, scale name, octave stretch and the file buttons; the library/generator accordions are collapsed placeholders"
+
+  # ── EFFECTS TAB ────────────────────────────────────────────────────────────
+  effects_tab:
+    id: effects-tab
+    unchanged_from_oprism: true
+    grid: "12 columns, gap 10; five cards in processBlock order"
+    cards:
+      - { id: section-dist,   span: 3, title: Distortion }
+      - { id: section-chorus, span: 3, title: Chorus }
+      - { id: section-delay,  span: 6, title: Delay }
+      - { id: section-reverb, span: 7, title: Reverb }
+      - { id: section-eq,     span: 5, title: 3-Band EQ }
+    bypass: ".bypass-toggle pill with a lit dot; .effect-section.bypassed dims and goes dashed"
+    knob_sizes: { standard: 60, primary_mix: 72 }
+
+  # ── TERRAIN TAB (the showpiece) ────────────────────────────────────────────
+  terrain_tab:
+    id: terrain-tab
+    overflow: hidden           # must NOT scroll
+    coordinates: "relative to the tab-content padding-box origin (14, 76) in window space"
+    display: "flex column; gap 0 (explicit margins below)"
+    regions:
+
+      top_row:
+        class: terrain-toprow
+        box: { x: 0, y: 0, width: 1172, height: 30 }
+        margin_bottom: 12
+        note: >
+          Captions sit INLINE to the left of their control (.terrain-ctl-label), not
+          stacked above it as .dropdown-group does. A stacked caption is 34 px tall
+          and would not fit a 30 px toolbar; inline also reads as a toolbar rather
+          than as a row of orphaned Synth-tab widgets.
+        items_left_to_right:
+          - { id: terrain-osc-toggle, class: wt-osc-toggle, modifier: "flex-direction: row (the v1.26.0 rule is a column)", buttons: ["Osc A", "Osc B"], data_i18n: [label.oscAShort, label.oscBShort], box: { x: 0, y: 3, width: 150, height: 24 } }
+          - { id: terrain-terrain-ctl, label: Terrain, data_i18n_label: label.terrain, select_id: select-terTerrain, class: [terrain-ctl, param-select], mirrors: "the active oscillator's Synth-tab Terrain dropdown (same param)", box: { x: 166, y: 3, width: 190, height: 24 } }
+          - { id: terrain-orbit-ctl,   label: Orbit,   data_i18n_label: label.orbit,   select_id: select-terOrbit,   class: [terrain-ctl, param-select], mirrors: "the active oscillator's Synth-tab Orbit dropdown (same param)", box: { x: 372, y: 3, width: 172, height: 24 } }
+          - { id: terrain-quality-seg, label: Quality, data_i18n_label: label.quality, class: [terrain-ctl, terrain-seg], buttons: ["Bandlimited", "2×", "4×"], data_i18n: [label.bandlimited, null, null], param: "osc?Quality", default: "2×", note: "'2×' and '4×' are numerals, never localised", box: { x: 560, y: 3, width: 202, height: 24 } }
+          - { id: btn-terImport, class: terrain-import-btn, text: "Import…", data_i18n: label.import, style: "transparent fill, 1px walnut outline, 9px uppercase ls 1px; hover fills rgba(139,115,85,.14)", box: { x: 778, y: 3, width: 84, height: 24 } }
+          - { id: terrain-readout, class: terrain-readout, align: right, font: status_small_caps, color: walnut, box: { x: 902, y: 8, width: 270, height: 14 } }
+        partial_estimate: "n = round(12 · F · K · (0.52 + 0.96 · size)), clamped 1…160, where K is the orbit's trigonometric-polynomial degree [Ellipse 1, Superellipse 1, Limaçon 2, Epitrochoid 3/5/7 → 4/6/8, Hypocycloid 3/5/7 → 2/4/6, Butterfly 4, Squarcle 1]. Calibrated so the default patch reads the brief's 12."
+        readout_states:
+          normal:        { example: "2× · 12 partials at C4", keys: [label.readoutPartials] }
+          approx:        { example: "Bandlimited · 9 partials at C4 · approx.", when: "Quality = Bandlimited AND the orbit is not a trigonometric polynomial (Superellipse / Limaçon / Butterfly / Squarcle)", keys: [label.readoutPartials, label.approx], note: "the approx. clause renders in amber-free walnut italic (.terrain-readout-approx)" }
+          image_project: { example: "image projected at F = 1 · fit 87 %", when: "Quality = Bandlimited AND Terrain = Imported…", keys: [label.imageProjected] }
+        i18n_rule: "numbers, ×, %, note names and F values are never localised; only the words around them carry keys"
+
+      view_3d:
+        class: [terrain-view-wrap, osc-canvas-wrap]
+        canvas_id: terrainView
+        canvas_class: terrain-view
+        box: { x: 0, y: 42, width: 704, height: 544, note: "border-box; 2 px border each side → 700×540 of canvas" }
+        backing: "700×540 × devicePixelRatio"
+        border: "2px solid #8B7355"
+        border_radius: 3
+        background: "#EBD9C7"
+        renderer:
+          mockup: "Canvas 2D — perspective() + lookAt() + mmul() borrowed from research/wavetable-synthesis-3d-geometry-prototypes/webgl-3d/terrain-proto.html; the wireframe is cached to an offscreen canvas keyed on (terrain, F, Mod X, Mod Y, size, dpr) and only the orbit / trail / scan layer redraws per frame"
+          camera: >
+            SOLVED, not picked. perspective() scales clip-x by f/aspect, so one
+            hand-tuned distance frames the domain differently in the 160×90 Synth
+            canvas (aspect 1.78) and the 700×540 Terrain view (1.30) — tuned on
+            the first, the surface ran off all four edges of the second. The
+            distance is stepped up until the eight corners of
+            [-1,1] × [-0.28,0.28] × [-1,1] fit inside 97 % of NDC, which frames
+            the same scene identically in both and survives any resize.
+            yaw -0.62, pitch 0.52, fov 0.82, height scale 0.45.
+          ground: "the [-1,1]² footprint is filled at rgba(139,115,85,0.055) under a dashed edge — without the wash the wireframe reads as a sheet floating in an empty box, and the dashes name the domain Centre X / Y are clamped to"
+          production: "hand-rolled WebGL2 (R32F heightmap texture, no GLSL flat) with the SAME Canvas 2D path as the fallback, one file, no library"
+        scene:
+          terrain:    { grid: "64×64 displaced wireframe, drawn every 2nd row/col, back-to-front with a distance alpha ramp 0.64 → 0.30", width: 1, height_scale: 0.45 }
+          orbit:      { colour: sage, width: 2, points: 256, note: "drawn ON the surface — each point's height is sampled from the terrain" }
+          scan_point: { colour: deep_green, radius: 5, note: "one lap per 2 s in the mockup; 30 Hz {osc,theta,x,y} push in production" }
+          trail:      { colour: amber, width: 1.2, alpha: 0.75, visible_when: "Feedback > 0", content: "the DISPLACED trajectory over the last ~1.5 laps — what feedback actually does to the path" }
+        view_toggle: { same_as: synth_tab.oscillator_card.view_toggle, size_px: 13, position: "8px/8px" }
+        hud:
+          class: terrain-hud
+          position: "absolute, bottom-left, 10px/10px"
+          font: hud
+          size: 10
+          colour: walnut
+          text: "θ 0.37 · r 0.61 · c (0.13, 0.21)"
+          i18n: none            # a readout node is never localised
+        webgl_unavailable_placeholder: { class: terrain-webgl-unavailable, data_i18n: label.webglUnavailable, text: "WebGL unavailable — 2D fallback", hidden_by_default: true, mock_trigger: "window.mock.webglUnavailable(true)" }
+        drop_overlay: { class: wt-drop-overlay, text: "Drop PNG", data_i18n: label.dropPng }
+
+      hint_line:
+        class: terrain-hint
+        box: { x: 0, y: 594, width: 704, height: 14, margin_top: 8 }
+        text: "Drag: centre · Wheel: size · ⌥ drag: rotation"
+        data_i18n: label.hintView
+        style: "9px uppercase, letter-spacing 1.2px, walnut at 0.85α"
+
+      panel_column:
+        class: terrain-panel-col
+        box: { x: 732, y: 42, width: 440, height: 566 }
+        gap_from_view: 28
+        cards:
+          - id: card-terrainParams
+            class: "card terrain-panel-card"
+            box: { x: 732, y: 42, width: 440, height: 239 }
+            header: { class: section-header, text: Terrain, data_i18n: label.terrain }
+            rows:
+              - class: terrain-krow
+                knobs:
+                  - { label: Freq,        param: "osc?TerFreq",  class: "knob-container primary", size: 72, data_i18n: label.terrainFreq, readout: "1.00×", note: "log 0.25–8.0; readout clamps at 2.00× in Bandlimited mode" }
+                  - { label: Mod X,       param: "osc?TerModX",  size: 64, data_i18n: label.terrainModX, readout: "50%", tooltip: "terrain-specific: ring spacing / saddle skew / well depth" }
+                  - { label: Mod Y,       param: "osc?TerModY",  size: 64, data_i18n: label.terrainModY, readout: "50%", tooltip: "second terrain-specific shape input" }
+                  - { label: Pitch Track, param: "osc?TerTrack", size: 64, data_i18n: label.pitchTrack, readout: "100%", inert_when: "Quality = Bandlimited" }
+                  - { label: Saturation,  param: "osc?TerSat",   size: 64, data_i18n: label.saturation, readout: "0%" }
+              - class: terrain-krow terrain-krow-sub
+                divider: "1 px walnut hairline above, 0.25α"
+                inert_when: "Terrain ≠ Imported…"
+                items:
+                  - { knob: Image Blur, param: "osc?TerBlur", size: 56, data_i18n: label.imageBlur, readout: "20%" }
+                  - { dropdown: Edge Mode, id: select-terEdge, param: "osc?TerEdge", choices: [Mirror, Window], data_i18n: label.edgeMode }
+          - id: card-orbitParams
+            class: "card terrain-panel-card"
+            box: { x: 732, y: 293, width: 440, height: 239 }
+            margin_top: 12
+            header: { class: section-header, text: Orbit, data_i18n: label.orbit }
+            rows:
+              - class: terrain-krow
+                knobs:
+                  - { label: Size,     param: "osc?Pos",       class: "knob-container primary", size: 72, data_i18n: label.orbitSize, readout: "50%", note: "MIRRORS the Synth-tab Orbit Size knob — same parameter, both move together" }
+                  - { label: Aspect,   param: "osc?OrbAspect", size: 64, data_i18n: label.orbitAspect, readout: "0.70" }
+                  - { label: Rotation, param: "osc?OrbRot",    size: 64, data_i18n: label.orbitRotation, readout: "0°" }
+                  - { label: Centre X, param: "osc?OrbCX",     size: 64, data_i18n: label.orbitCentreX, readout: "0.13", view_drag: dx }
+                  - { label: Centre Y, param: "osc?OrbCY",     size: 64, data_i18n: label.orbitCentreY, readout: "0.21", view_drag: "-dy" }
+              - class: terrain-krow terrain-krow-sub
+                divider: "1 px walnut hairline above, 0.25α"
+                knobs:
+                  - { label: Orbit Mod, param: "osc?OrbMod",      size: 56, data_i18n: label.orbitMod, readout: "0.50", inert_when: "Orbit = Ellipse", tooltip: "orbit-specific: superellipse exponent / limaçon loop / epitrochoid inner ratio / squarcle corner" }
+                  - { label: Feedback,  param: "osc?OrbFeedback", size: 56, data_i18n: label.feedback, readout: "0%" }
+                  - { label: Fb Damp,   param: "osc?OrbFbDamp",   size: 56, data_i18n: label.feedbackDamp, readout: "50%" }
+          - id: terrain-notice
+            class: terrain-notice
+            box: { x: 732, y: 542, width: 440, height: 22, margin_top: 10 }
+            text: "Source missing — using library fallback"
+            data_i18n: label.sourceMissing
+            colour: amber
+            style: "10px italic, 1px amber border at 0.5α, rgba(201,130,43,.10) fill, 3px radius"
+            hidden_by_default: true
+            mock_trigger: "window.mock.sourceMissing(true) or press 'm'"
+
+      botanical_overlay:
+        class: terrain-botanical
+        file: img/shell_conchologiaiconi12reev_0090.png
+        intrinsic: "586×733"
+        technique: >
+          A CSS background on a CLIPPED box, not an <img> with negative offsets.
+          The plate carries ~22 % of white margin above and below the shell, so
+          the drawing has to be pushed up out of its own box to put the striped
+          body in the gutter under the Orbit card. A negative `bottom` does that
+          visually AND grows #terrain-tab's scrollHeight past its clientHeight —
+          which is exactly the number a layout gate reads. The box stays at 0,0;
+          the image moves inside it; the box clips.
+        box: "position: absolute; right: 0; bottom: 0; width: 520px; height: 215px"
+        background: "background-size: 520px auto (→ 520×650); background-position: right -282px, which windows plate y 282…497 — the striped body"
+        opacity: 0.3
+        blend: multiply
+        pointer_events: none
+        z_index: 0                     # .terrain-toprow is 2 and .terrain-main is 1
+        scope: "Terrain tab only — it lives inside #terrain-tab, so no other tab can see it"
+        legibility: "the two panel cards are opaque #EFDFCB, so the shell reads only below the Orbit card and the notice; nothing it sits behind is text"
+
+    height_budget: "30 top row + 12 margin + 544 view wrap (540 canvas + 2×2 border) + 8 gap + 14 hint = 608 ≤ 650 usable → no scroll (measured: #terrain-tab scrollHeight === clientHeight === 666)"
+    width_budget:  "704 view wrap + 28 gap + 440 panel = 1172 = usable width exactly (measured: scrollWidth === clientWidth === 1200)"
+    panel_budget:  "239 Terrain card + 12 + 239 Orbit card + 10 + 22 notice = 522 ≤ 566 available (tab-local y 42 → 608); the remaining 44 px plus the band under the hint line is where the botanical reads"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONDITIONAL / INERT STATES  (class .is-inert = opacity .38 + pointer-events none)
+# ─────────────────────────────────────────────────────────────────────────────
+inert_rules:
+  - { control: "osc?TerBlur, osc?TerEdge", inert_when: "osc?Terrain ≠ Imported…", reason: "pre-blur and Mitsuhashi edge handling only exist for a PNG terrain" }
+  - { control: "osc?OrbMod",               inert_when: "osc?Orbit = Ellipse",     reason: "an ellipse has no shape parameter" }
+  - { control: "osc?TerTrack",             inert_when: "osc?Quality = Bandlimited", reason: "in Bandlimited mode the coefficient truncation IS the mip; pitch tracking has nothing to do" }
+readout_clamps:
+  - { control: "osc?TerFreq", clamp: "displayed value clamps at 2.00× when Quality = Bandlimited", reason: "ARCHITECTURE D3: degree-16 triangle bounds F ≤ 2" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PARAMETERS
+#   34 new (17 × A/B) + osc?Pos relabelled + osc?Unison range change.
+#   Totals: 171 inherited + 34 new = 205 APVTS parameters; 46 mod destinations.
+#   Suffixes are the parameter-spec-draft v2 drafts; Stage 1 confirms them.
+# ─────────────────────────────────────────────────────────────────────────────
+parameters:
+
+  # ── Terrain block, Osc A ──
+  - { id: oscATerrain,     type: combo,  choices: [Sine Product, Radial Rings, Saddle, Ridged Cosines, Mitsuhashi, Cosine Wells, "Imported…"], default: Sine Product, label: Terrain,      data_i18n: label.terrain,      tabs: [synth, terrain], mod_destination: false }
+  - { id: oscATerFreq,     type: slider, range: [0.25, 8.0], skew: log, default: 1.0, unit: "×", label: Freq,        data_i18n: label.terrainFreq,  tabs: [terrain], mod_destination: true }
+  - { id: oscATerModX,     type: slider, range: [0.0, 1.0], default: 0.5, label: Mod X,       data_i18n: label.terrainModX,  tabs: [terrain], mod_destination: true }
+  - { id: oscATerModY,     type: slider, range: [0.0, 1.0], default: 0.5, label: Mod Y,       data_i18n: label.terrainModY,  tabs: [terrain], mod_destination: true }
+  - { id: oscATerTrack,    type: slider, range: [0.0, 1.0], default: 1.0, label: Pitch Track, data_i18n: label.pitchTrack,   tabs: [terrain], mod_destination: false }
+  - { id: oscATerSat,      type: slider, range: [0.0, 1.0], default: 0.0, label: Saturation,  data_i18n: label.saturation,   tabs: [terrain], mod_destination: true }
+  - { id: oscATerBlur,     type: slider, range: [0.0, 1.0], default: 0.2, label: Image Blur,  data_i18n: label.imageBlur,    tabs: [terrain], mod_destination: false }
+  - { id: oscATerEdge,     type: combo,  choices: [Mirror, Window], default: Mirror, label: Edge Mode, data_i18n: label.edgeMode, tabs: [terrain], mod_destination: false }
+  # ── Orbit block, Osc A ──
+  - { id: oscAOrbit,       type: combo,  choices: [Ellipse, Superellipse, Limaçon, Epitrochoid 3, Epitrochoid 5, Epitrochoid 7, Hypocycloid 3, Hypocycloid 5, Hypocycloid 7, Butterfly, Squarcle], default: Ellipse, label: Orbit, data_i18n: label.orbit, tabs: [synth, terrain], mod_destination: false }
+  - { id: oscAOrbAspect,   type: slider, range: [0.1, 1.0],    default: 0.70, label: Aspect,    data_i18n: label.orbitAspect,   tabs: [terrain], mod_destination: true }
+  - { id: oscAOrbRot,      type: slider, range: [0.0, 360.0],  default: 0.0, unit: "°", label: Rotation, data_i18n: label.orbitRotation, tabs: [terrain], mod_destination: true, view_alt_drag: dx }
+  - { id: oscAOrbCX,       type: slider, range: [-1.0, 1.0],   default: 0.13, label: Centre X,  data_i18n: label.orbitCentreX,  tabs: [terrain], mod_destination: true, view_drag: dx }
+  - { id: oscAOrbCY,       type: slider, range: [-1.0, 1.0],   default: 0.21, label: Centre Y,  data_i18n: label.orbitCentreY,  tabs: [terrain], mod_destination: true, view_drag: "-dy" }
+  - { id: oscAOrbMod,      type: slider, range: [0.0, 1.0],    default: 0.50, label: Orbit Mod, data_i18n: label.orbitMod,      tabs: [terrain], mod_destination: true }
+  - { id: oscAOrbFeedback, type: slider, range: [0.0, 1.0],    default: 0.0, label: Feedback,  data_i18n: label.feedback,      tabs: [terrain], mod_destination: true }
+  - { id: oscAOrbFbDamp,   type: slider, range: [0.0, 1.0],    default: 0.5, label: Fb Damp,   data_i18n: label.feedbackDamp,  tabs: [terrain], mod_destination: false }
+  # ── Quality, Osc A ──
+  - { id: oscAQuality,     type: combo,  choices: [Bandlimited, "2×", "4×"], default: "2×", label: Quality, data_i18n: label.quality, tabs: [terrain], mod_destination: false }
+
+  # ── Terrain block, Osc B ──
+  - { id: oscBTerrain,     type: combo,  choices: [Sine Product, Radial Rings, Saddle, Ridged Cosines, Mitsuhashi, Cosine Wells, "Imported…"], default: Sine Product, label: Terrain, data_i18n: label.terrain, tabs: [synth, terrain], mod_destination: false }
+  - { id: oscBTerFreq,     type: slider, range: [0.25, 8.0], skew: log, default: 1.0, unit: "×", label: Freq, data_i18n: label.terrainFreq, tabs: [terrain], mod_destination: true }
+  - { id: oscBTerModX,     type: slider, range: [0.0, 1.0], default: 0.5, label: Mod X,       data_i18n: label.terrainModX,  tabs: [terrain], mod_destination: true }
+  - { id: oscBTerModY,     type: slider, range: [0.0, 1.0], default: 0.5, label: Mod Y,       data_i18n: label.terrainModY,  tabs: [terrain], mod_destination: true }
+  - { id: oscBTerTrack,    type: slider, range: [0.0, 1.0], default: 1.0, label: Pitch Track, data_i18n: label.pitchTrack,   tabs: [terrain], mod_destination: false }
+  - { id: oscBTerSat,      type: slider, range: [0.0, 1.0], default: 0.0, label: Saturation,  data_i18n: label.saturation,   tabs: [terrain], mod_destination: true }
+  - { id: oscBTerBlur,     type: slider, range: [0.0, 1.0], default: 0.2, label: Image Blur,  data_i18n: label.imageBlur,    tabs: [terrain], mod_destination: false }
+  - { id: oscBTerEdge,     type: combo,  choices: [Mirror, Window], default: Mirror, label: Edge Mode, data_i18n: label.edgeMode, tabs: [terrain], mod_destination: false }
+  # ── Orbit block, Osc B ──
+  - { id: oscBOrbit,       type: combo,  choices: [Ellipse, Superellipse, Limaçon, Epitrochoid 3, Epitrochoid 5, Epitrochoid 7, Hypocycloid 3, Hypocycloid 5, Hypocycloid 7, Butterfly, Squarcle], default: Ellipse, label: Orbit, data_i18n: label.orbit, tabs: [synth, terrain], mod_destination: false }
+  - { id: oscBOrbAspect,   type: slider, range: [0.1, 1.0],    default: 0.70, label: Aspect,    data_i18n: label.orbitAspect,   tabs: [terrain], mod_destination: true }
+  - { id: oscBOrbRot,      type: slider, range: [0.0, 360.0],  default: 0.0, unit: "°", label: Rotation, data_i18n: label.orbitRotation, tabs: [terrain], mod_destination: true, view_alt_drag: dx }
+  - { id: oscBOrbCX,       type: slider, range: [-1.0, 1.0],   default: 0.13, label: Centre X,  data_i18n: label.orbitCentreX,  tabs: [terrain], mod_destination: true, view_drag: dx }
+  - { id: oscBOrbCY,       type: slider, range: [-1.0, 1.0],   default: 0.21, label: Centre Y,  data_i18n: label.orbitCentreY,  tabs: [terrain], mod_destination: true, view_drag: "-dy" }
+  - { id: oscBOrbMod,      type: slider, range: [0.0, 1.0],    default: 0.50, label: Orbit Mod, data_i18n: label.orbitMod,      tabs: [terrain], mod_destination: true }
+  - { id: oscBOrbFeedback, type: slider, range: [0.0, 1.0],    default: 0.0, label: Feedback,  data_i18n: label.feedback,      tabs: [terrain], mod_destination: true }
+  - { id: oscBOrbFbDamp,   type: slider, range: [0.0, 1.0],    default: 0.5, label: Fb Damp,   data_i18n: label.feedbackDamp,  tabs: [terrain], mod_destination: false }
+  # ── Quality, Osc B ──
+  - { id: oscBQuality,     type: combo,  choices: [Bandlimited, "2×", "4×"], default: "2×", label: Quality, data_i18n: label.quality, tabs: [terrain], mod_destination: false }
+
+  # ── Carried-over oscillator params (11 × 2 = 22) — IDs unchanged ──
+  - { id: oscAPos,      type: slider, range: [0.0, 1.0], default: 0.5, label: Orbit Size, data_i18n: label.orbitSize, tabs: [synth, terrain], mod_destination: true, changed: "label was Position (label.position); default was 0.0; maps to orbit radius 0.05–1.0" }
+  - { id: oscALevel,    type: slider, range: [0.0, 1.0], default: 0.8, label: Level,  data_i18n: label.level,  tabs: [synth], mod_destination: false }
+  - { id: oscAPan,      type: slider, range: [-1.0, 1.0], default: 0.0, label: Pan,   data_i18n: label.pan,    tabs: [synth], mod_destination: true }
+  - { id: oscACoarse,   type: slider, range: [-24, 24], default: 0, unit: st, label: Coarse, data_i18n: label.coarse, tabs: [synth], mod_destination: false }
+  - { id: oscAFine,     type: slider, range: [-100, 100], default: 0, unit: ct, label: Fine, data_i18n: label.fine, tabs: [synth], mod_destination: false }
+  - { id: oscAPhase,    type: slider, range: [0.0, 1.0], default: 0.0, label: Phase,  data_i18n: label.phase,  tabs: [synth], mod_destination: false }
+  - { id: oscAUnison,   type: slider, range: [1, 4], default: 1, label: Unison, data_i18n: label.unison, tabs: [synth], mod_destination: false, changed: "max 4 (was 8) — live-oscillator CPU cap, BRIEF must-have 6" }
+  - { id: oscADetune,   type: slider, range: [0.0, 1.0], default: 0.2, label: Detune, data_i18n: label.detune, tabs: [synth], mod_destination: true }
+  - { id: oscAWidth,    type: slider, range: [0.0, 1.0], default: 0.5, label: Width,  data_i18n: label.width,  tabs: [synth], mod_destination: false }
+  - { id: oscAWarpType, type: combo,  choices: [Off, Sync, Bend, FM, Window], default: Off, label: Warp, data_i18n: label.warp, tabs: [synth], mod_destination: false }
+  - { id: oscAWarpAmt,  type: slider, range: [0.0, 1.0], default: 0.0, label: Warp Amt, data_i18n: label.warpAmt, tabs: [synth], mod_destination: true }
+  - { id: oscBPos,      type: slider, range: [0.0, 1.0], default: 0.5, label: Orbit Size, data_i18n: label.orbitSize, tabs: [synth, terrain], mod_destination: true, changed: "as oscAPos" }
+  - { id: oscBLevel,    type: slider, range: [0.0, 1.0], default: 0.0, label: Level,  data_i18n: label.level,  tabs: [synth], mod_destination: false }
+  - { id: oscBPan,      type: slider, range: [-1.0, 1.0], default: 0.0, label: Pan,   data_i18n: label.pan,    tabs: [synth], mod_destination: true }
+  - { id: oscBCoarse,   type: slider, range: [-24, 24], default: 0, unit: st, label: Coarse, data_i18n: label.coarse, tabs: [synth], mod_destination: false }
+  - { id: oscBFine,     type: slider, range: [-100, 100], default: 0, unit: ct, label: Fine, data_i18n: label.fine, tabs: [synth], mod_destination: false }
+  - { id: oscBPhase,    type: slider, range: [0.0, 1.0], default: 0.0, label: Phase,  data_i18n: label.phase,  tabs: [synth], mod_destination: false }
+  - { id: oscBUnison,   type: slider, range: [1, 4], default: 1, label: Unison, data_i18n: label.unison, tabs: [synth], mod_destination: false, changed: "max 4 (was 8)" }
+  - { id: oscBDetune,   type: slider, range: [0.0, 1.0], default: 0.2, label: Detune, data_i18n: label.detune, tabs: [synth], mod_destination: true }
+  - { id: oscBWidth,    type: slider, range: [0.0, 1.0], default: 0.5, label: Width,  data_i18n: label.width,  tabs: [synth], mod_destination: false }
+  - { id: oscBWarpType, type: combo,  choices: [Off, Sync, Bend, FM, Window], default: Off, label: Warp, data_i18n: label.warp, tabs: [synth], mod_destination: false }
+  - { id: oscBWarpAmt,  type: slider, range: [0.0, 1.0], default: 0.0, label: Warp Amt, data_i18n: label.warpAmt, tabs: [synth], mod_destination: true }
+
+inherited_params:
+  inherited_from: "plugins/O-Prism/.planning/params.tsv (v1.24.0 registry, unchanged through v1.26.0 — that release was markup/CSS only)"
+  note: "identical IDs, ranges, defaults and flags; oscATable / oscBTable REMOVED"
+  count: 171
+  sections:
+    osc_a_b_minus_table: { count: 22, ids: "osc{A,B}{Pos,Level,Pan,Coarse,Fine,Phase,Unison,Detune,Width,WarpType,WarpAmt}" }
+    sub_noise:   { count: 6,  ids: "subShape subOctave subLevel subRouting noiseType noiseLevel" }
+    envelopes:   { count: 10, ids: "amp{Attack,Decay,Sustain,Release} filt{Attack,Decay,Sustain,Release} filt{A,B}EnvDepth" }
+    filters:     { count: 11, ids: "filt{A,B}{Type,Cutoff,Res,Drive,KeyTrack} filtRouting" }
+    tuning:      { count: 7,  ids: "tuningPreset tonic masterTune octaveStretch pitchBendRange glideMode glideTime" }
+    effects:     { count: 27, ids: "reverb (7), delay (7), chorus (4), distortion (4), EQ (5)" }
+    lfos:        { count: 20, ids: "lfo{1..4}{Rate,Shape,Sync,Division,FreeRun}" }
+    mod_matrix:  { count: 64, ids: "modSlot{0..15}{Src,Dst,Amt,On}" }
+    master:      { count: 4,  ids: "masterVol stereoWidth oscMix velocityCurve" }
+
+parameter_count:
+  new_terrain_orbit_quality: 34   # 17 × 2
+  inherited: 171
+  total: 205
+  mod_destinations: 46            # 26 inherited (2 relabelled) + 20 new
+
+# ─────────────────────────────────────────────────────────────────────────────
+# i18n — new keys, English strings. Readouts and the HUD are NEVER localised.
+# ─────────────────────────────────────────────────────────────────────────────
+i18n:
+  key_convention: "label.* for visible captions, tab.* for tab titles, ui.* for two-state button faces, aria.* for icon-only controls — matches plugins/O-Prism/Source/ui/public/js/i18n.js"
+  languages: [en, fr, zh-Hans]
+  mockup_scope: "English only; fr and zh-Hans are written at Stage 3 with the glossary + lint gate"
+  new_keys:
+    tab.terrain:          "Terrain"
+    label.terrain:        "Terrain"
+    label.orbit:          "Orbit"
+    label.orbitSize:      "Orbit Size"
+    label.terrainFreq:    "Freq"
+    label.terrainModX:    "Mod X"
+    label.terrainModY:    "Mod Y"
+    label.pitchTrack:     "Pitch Track"
+    label.saturation:     "Saturation"
+    label.imageBlur:      "Image Blur"
+    label.edgeMode:       "Edge Mode"
+    label.orbitAspect:    "Aspect"
+    label.orbitRotation:  "Rotation"
+    label.orbitCentreX:   "Centre X"
+    label.orbitCentreY:   "Centre Y"
+    label.orbitMod:       "Orbit Mod"
+    label.feedback:       "Feedback"          # NOTE: key already exists (delay Feedback knob) and is REUSED, not redefined
+    label.feedbackDamp:   "Fb Damp"
+    label.quality:        "Quality"
+    label.bandlimited:    "Bandlimited"
+    label.import:         "Import…"
+    label.dropPng:        "Drop PNG"
+    label.webglUnavailable: "WebGL unavailable — 2D fallback"
+    label.sourceMissing:  "Source missing — using library fallback"
+    # The two glyph buttons carry NO text, so these ship as aria.view3d /
+    # aria.viewWaveform on data-i18n-aria and the label gate never measures them.
+    label.view3d:         "3D view"
+    label.viewWaveform:   "Waveform view"
+    label.hintView:       "Drag: centre · Wheel: size · ⌥ drag: rotation"
+    label.readoutPartials: "{n} partials at {note}"
+    label.approx:         "approx."
+    label.imageProjected: "image projected at F = {f} · fit {pct} %"
+  reused_existing_keys: [tab.synth, tab.mod, tab.tuning, tab.effects, label.oscA, label.oscB, label.oscAShort, label.oscBShort, label.level, label.pan, label.coarse, label.fine, label.phase, label.unison, label.detune, label.width, label.warp, label.warpAmt, label.feedback, label.type, label.shape, label.mode, ui.on, ui.off]
+  mod_destination_strings:
+    status: "OPEN — STATUS.md open question 5. In O-Prism these come from getModDestNames() in C++ and are NOT localised; O-Strata inherits that. Listed here so Stage 1 has the exact English."
+    relabelled_2: ["OscA Orbit Size", "OscB Orbit Size"]
+    new_20: ["OscA Orbit Aspect", "OscA Orbit Rot", "OscA Orbit CX", "OscA Orbit CY", "OscA Orbit Mod", "OscA Terrain Freq", "OscA Terrain Mod X", "OscA Terrain Mod Y", "OscA Feedback", "OscA Saturation", "OscB Orbit Aspect", "OscB Orbit Rot", "OscB Orbit CX", "OscB Orbit CY", "OscB Orbit Mod", "OscB Terrain Freq", "OscB Terrain Mod X", "OscB Terrain Mod Y", "OscB Feedback", "OscB Saturation"]
+  never_localised: ["every .knob-value readout", ".terrain-hud", ".terrain-readout numerals (2×, 4×, 12, C4, F = 1, 87 %)", "the ⬡ and ≋ glyphs", "orbit and terrain choice names (they are proper mathematical names)"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NON-PARAMETER STATE
+# ─────────────────────────────────────────────────────────────────────────────
+state:
+  imported_png:
+    id: "terrainImports/osc{A,B}Import"
+    format: 'kind="png" name sha256 bytes embedded="1" data="<base64>"  |  embedded="0" path sha256'
+    cap: "2 MB per oscillator; above the cap store path + SHA-256 + name"
+    missing: "fall back to the library terrain (Sine Product) and show .terrain-notice"
+    note: "properties round-trip as STRINGS (memory critical_valuetree_xml_roundtrip_loses_type)"
+  view_mode:
+    id: "osc{A,B} view mode ⬡ / ≋"
+    scope: "UI state, not a parameter; not persisted in presets"
+    default: "3d"
+  terrain_tab_active_osc:
+    scope: "UI state; the Terrain tab's Osc A/B toggle, the two dropdowns and both panel cards follow it"
+    default: A
+  chebyshev_coefficients:
+    scope: "runtime only — regenerated off the audio thread per (terrain, Freq, Mod X, Mod Y); never persisted"
+  ui_language / tuning_engine: "inherited from O-Prism, unchanged"
+
+view_push_contract:
+  playhead_event:
+    rate_hz: 30
+    transport: "emitEventIfBrowserIsVisible + backend.addEventListener('terrainState', …) — NEVER evaluateJavascript"
+    payload: "{osc, theta, x, y} change-gated JSON, < 100 bytes"
+    note: "completions are DROPPED while the WebView is hidden (memory critical_webview_completion_gated_on_isvisible), hence emitEventIfBrowserIsVisible"
+  heightmap:
+    shape: "64×64 Float32"
+    transport: "base64 on terrain-parameter change only; R32F texture in the WebGL2 path"
+  repush_on_preset_apply: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INTERACTIONS
+# ─────────────────────────────────────────────────────────────────────────────
+interactions:
+  knob:
+    drag:      { axis: vertical, sensitivity: "0.005 per px; 1/(steps·8) for a stepped range", wrapper: "sliderDragStarted / sliderDragEnded so the host records ONE undo step" }
+    wheel:     { delta: "±0.02", listener: "{ passive: false }" }
+    alt_click: { action: "reset to default", binding: "CAPTURE phase, so it pre-empts the drag handler" }
+    dblclick:  { action: "inline value entry over the readout span" }
+  view_3d:
+    drag:      { targets: ["osc?OrbCX", "osc?OrbCY"], mapping: "screen point → the y = 0 plane by inverting the 3×3 homography taken from the view-projection matrix (columns x, z, w); the point follows the cursor exactly", pattern: "pointerdown on the canvas, document-level mousemove/mouseup" }
+    wheel:     { target: "osc?Pos (Orbit Size)", delta: "−deltaY × 0.0012", listener: "{ passive: false }" }
+    alt_drag:  { target: "osc?OrbRot", mapping: "dx × 0.5 °/px, wraps at 360" }
+    drop:      { accepts: "PNG", targets: ["the big view", "either Synth-tab canvas"], sets: "osc?Terrain = Imported…", macos: "webkitGetAsEntry (memory critical_webview_drag_drop_macos)" }
+    hover:     { effect: "the HUD brightens from 0.7α to 1.0α; nothing moves" }
+  view_toggle: { action: "⬡ ⇄ ≋ per oscillator; UI state only, no parameter written" }
+  osc_toggle:  { action: "Terrain tab Osc A ⇄ Osc B; repoints both dropdowns, the Quality segment and both panel cards" }
+  segmented:   { action: "Quality Bandlimited / 2× / 4× writes osc?Quality; greys Pitch Track and clamps the Freq readout in Bandlimited" }
+  import_btn:  { action: "opens a native FileChooser (launchAsync + SafePointer — memory pattern_webview_launchasync_safepointer_no_complete)" }
+  mock_only:
+    - "window.mock.sourceMissing(true|false) — or press 'm' — shows/hides the amber notice"
+    - "window.mock.webglUnavailable(true|false) — or press 'w' — shows/hides the placeholder"
+    - "console logs every parameter write as [param] { id, value }"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VALIDATION (recorded from the headless run of v2-ui-test.html at 1200×800)
+# ─────────────────────────────────────────────────────────────────────────────
+validation:
+  run: "headless Chromium (Playwright 1.62 / chromium 1234) at 1200×800, devicePixelRatio 2, file:// load"
+  webview_constraints:
+    no_viewport_units: true          # vh / vw / dvh / svh absent, including in comments
+    html_body_height_100pct: true
+    user_select_none: true
+    context_menu_disabled: true
+    wheel_listeners_passive_false: true
+    external_resources: "one — img/shell_conchologiaiconi12reev_0090.png, relative. No fonts, no CDN, no modules."
+  layout:
+    method: "scrollHeight vs clientHeight per tab, a bounding-box overlap sweep of the Terrain tab's four content regions, and a wrap check on .osc-params measured with the Synth tab VISIBLE (a display:none subtree measures every rect as zero and the check goes vacuous)"
+    measured_all_tabs: "scrollHeight 666 === clientHeight 666 and scrollWidth 1200 === clientWidth 1200, on all five tabs, in the default state and after the Bandlimited / Imported… / source-missing state walk"
+    overlaps: none
+    console_errors: none
+  measured_boxes:                    # page coordinates, Terrain tab
+    terrain_toprow:     { x: 14,  y: 76,  w: 1172, h: 30 }
+    terrain_view_wrap:  { x: 14,  y: 118, w: 704,  h: 544 }
+    terrain_hint:       { x: 14,  y: 670, w: 704,  h: 14 }
+    card_terrainParams: { x: 746, y: 118, w: 440,  h: 239 }
+    card_orbitParams:   { x: 746, y: 369, w: 440,  h: 239 }
+    terrain_notice:     { bottom: 638.9 }
+    terrain_panel_col:  { x: 746, y: 118, w: 440,  h: 566 }
+  measured_osc_params: "980 px available, 900 px used (rightmost child at 1130 against a 1175 right edge), ONE row — the two extra dropdowns do not wrap the knob row in English"
+  behaviour_checked:
+    view_drag:  "Centre X 0.13 → 0.52 (the point follows the cursor)"
+    view_wheel: "Orbit Size 50 % → 64 %"
+    bandlimited: "Pitch Track goes inert, Freq readout clamps at 2.00×, readout reads 'Bandlimited · N partials at C4'"
+    approx_clause: "'Bandlimited · N partials at C4 · approx.' with Superellipse"
+    imported: "'image projected at F = 1 · fit 87 %'; Image Blur + Edge Mode become live"
+    osc_switch: "Osc B shows its own Quality and Freq — the panel proxies repoint, they do not copy"
+  height_arithmetic:
+    synth: "≈640 ≤ 650 (O-Prism v1.26.0's budget, unchanged)"
+    terrain: "608 ≤ 650"
+  width_arithmetic:
+    terrain: "704 + 28 + 440 = 1172"
+    osc_params: "900 ≤ 980 (single row, no wrap)"
+  fixes_found_by_the_gate:
+    - "#terrain-tab scrollHeight ran 6 px over clientHeight: the botanical's negative bottom/right bleed. Replaced with a clipped background box (see botanical_overlay.technique)."
+    - ".wt-osc-btn wrapped 'Osc A' onto two lines in the Terrain toolbar: the v1.26.0 column rule is `flex: 1`, which compresses in a shrinking row. `flex: 0 0 auto` + white-space: nowrap in the row context."
+    - "The Tuning tab's octave-stretch readout overflowed its 210 px column by 7 px: `input[type=range]` carries a UA intrinsic min-width (~129 px) that `flex: 1` will not shrink below. `min-width: 0` on .octave-stretch-slider. THIS IS AN INHERITED O-PRISM RULE and the same fix applies there."
+    - "One camera distance framed the 160×90 canvas and the 700×540 view differently; the distance is now solved per aspect (see view_3d.renderer.camera)."
+    - "The ≋ view rendered its own aliasing as vertical hash; it is now decimated from a 4× run and DC-blocked."
+
+open_questions:
+  - "Quality default: the mockup ships 2× per the Stage 0 decision. A Bandlimited default would showcase the differentiator but is approximate for 4 of the 11 orbits."
+  - "Mod-destination host strings: localised or native-only (STATUS open question 5). The mockup assumes native-only, as O-Prism."
+  - "If the Terrain tab ever needs a sixth control in the top row, the readout is the first thing to shorten (drop 'at C4')."
