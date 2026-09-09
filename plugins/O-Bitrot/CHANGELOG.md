@@ -12,6 +12,24 @@ changed (task quick-260904-g5l, Stage 3 ZH3-02 / ZH3-05 / ZH3-09).
 `check-ui-labels` has reported on this plugin since v1.15.0.** The gate goes
 from **exit 2 with 2 FAIL** to **exit 0 with 0 FAIL**.
 
+### This download ships five versions — 1.14.0 through 1.16.0
+
+`O-Bitrot-v1.13.0` was the last tagged release, so the binaries here carry
+everything merged since. Full detail for each is below this section; in brief:
+
+| Version | Date | What it brought |
+|---|---|---|
+| **1.16.0** | 2026-09-04 | Simplified Chinese (`zh-Hans`) across all 117 hover-help and label entries; the standing 2-FAIL French geometry baseline closed |
+| **1.15.2** | 2026-09-03 | The French hover-help caption became `Infobulles`, with every sentence re-agreed to feminine plural |
+| **1.15.1** | 2026-08-31 | 49 French entries revised against the suite glossary and lint; `<html lang>` now follows the language selector |
+| **1.15.0** | 2026-08-27 | The whole PAGE speaks French, not only the hover help — 65 label keys, canon v2 |
+| **1.14.0** | 2026-08-26 | English/French hover help; all 53 tooltips moved out of the markup into `js/i18n.js` |
+
+**No parameter, preset, state or DSP change in any of the five.** Every knob,
+every range, every default and all 28 factory presets are bitwise what v1.13.0
+shipped. Layout changed in 1.15.0 and 1.16.0 (measured tables below), applying
+identically in every language.
+
 ### Added
 
 - **`LANGUAGES` is `['en', 'fr', 'zh-Hans']`**, and all **117** entries — 55
