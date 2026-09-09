@@ -165,11 +165,14 @@ constexpr int muSegment (int val) noexcept
 
 constexpr unsigned char linearToMuLaw (int pcm16) noexcept
 {
-    int v = pcm16 >> 2;                                 // 16-bit -> 14-bit
-    int mask;
+    int v    = pcm16 >> 2;                              // 16-bit -> 14-bit
+    int mask = 0xFF;                                    // MUST be initialised here:
+                                                        // C++17 [dcl.constexpr]/3 bans
+                                                        // an uninitialised local in a
+                                                        // constexpr body. MSVC enforces
+                                                        // it (C3615); clang does not.
 
-    if (v < 0) { v = -v; mask = 0x7F; }
-    else       {         mask = 0xFF; }
+    if (v < 0) { v = -v; mask = 0x7F; }                 // 0xFF default covers v >= 0
 
     if (v > 8159)                                       // CLIP
         v = 8159;
@@ -183,6 +186,15 @@ constexpr unsigned char linearToMuLaw (int pcm16) noexcept
 
     return (unsigned char) (((seg << 4) | ((v >> (seg + 1)) & 0x0F)) ^ mask);
 }
+
+// These pin the two landmarks stated in the header block above, and they pin
+// them AT COMPILE TIME -- which is the point. An uninitialised local made this
+// function non-constant-evaluable under C++17 and MSVC rejected it (C3615)
+// while clang accepted it silently, so the defect was invisible on macOS for
+// nine versions. A static_assert fails on BOTH compilers.
+static_assert (linearToMuLaw (0)      == 0xFF, "digital silence must stay silent");
+static_assert (linearToMuLaw (32767)  == 0x80, "full scale + encodes to 0x80");
+static_assert (linearToMuLaw (-32768) == 0x00, "full scale - encodes to 0x00");
 
 constexpr std::array<float, 256> makeMuDecodeTable() noexcept
 {
