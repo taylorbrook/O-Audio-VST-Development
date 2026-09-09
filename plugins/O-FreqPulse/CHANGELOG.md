@@ -10,6 +10,29 @@ labels. MINOR: a language is added; no parameter, range, type or state format
 changed, and the English and French pages are byte-identical in geometry to
 1.18.3.
 
+**This download ships six versions.** The last published tag was
+`O-FreqPulse-v1.16.5`; the binaries here carry **1.17.0, 1.18.0, 1.18.1, 1.18.2,
+1.18.3 and 1.19.0**. The release-notes extractor copies only the tagged
+version's section, so the five below it are named here:
+
+- **1.17.0** (2026-08-13) — tooltip geometry. The surface is measured at a
+  neutral origin before placement, so an edge tooltip no longer measures its own
+  squeezed box: `expand-0` went from 66 × 154 px to 220 × 42. 46 of 53 tooltips
+  had been rendering on top of the control they describe; 0 do now.
+- **1.18.0** (2026-08-28) — the PAGE speaks French, not just the hover help. A
+  language selector in a new gear popover, 67 entries, and this plugin's second
+  tooltip renderer deleted rather than disabled. 13 non-label elements moved
+  under French before the layout fixes; zero after.
+- **1.18.1** (2026-08-31) — the French copy revised against the suite glossary
+  and lint: 19 entries changed, lint 21 findings → 0, and 15 no-break spaces
+  added without one tooltip box changing size or position.
+- **1.18.2** (2026-08-31) — the hover-help toggle no longer resized 11.45 px
+  between its own two French faces (`Arrêt` / `Marche`); `min-width` pinned to
+  the measured wider face at 57 px.
+- **1.18.3** (2026-09-03) — the French hover-help caption became `Infobulles`
+  suite-wide, with every sentence re-agreed from feminine singular to feminine
+  plural and the bare back-references rewritten rather than regexed.
+
 ### Added
 
 - **`zh-Hans` on every `I18N` and `LABELS` key**, and the Simplified Chinese
