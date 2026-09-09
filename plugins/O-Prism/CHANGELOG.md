@@ -1,6 +1,6 @@
 # O-Prism Changelog
 
-## v1.26.0 (2026-09-08)
+## [1.26.0] - 2026-09-08
 
 **UI restructure: cards, tab grids, custom selects.** The Synth, Effects and
 Wavetable tabs are rebuilt on a 12-column card grid inside the existing
@@ -80,7 +80,7 @@ no parameter, DSP or state-format change.
 - Release build via `scripts/build-and-install.sh O-Prism` (VST3 + AU),
   AU cache cleared, installed. See NOTES.md for the DAW check.
 
-## v1.25.0 (2026-09-08)
+## [1.25.0] - 2026-09-08
 
 **Geometry wavetable bank.** Eight factory wavetables baked offline from the
 3D-geometry research prototype — sliced meshes and orbits through signed
@@ -161,7 +161,7 @@ belong here rather than in a separate plugin.
   Knot Box 100 % / 0.27 (centroid ×2.7) / 0.018 · Gyroid Orbit 100 % / 0.72 / 0.043 ·
   Noise Knot 100 % / 0.40 / 0.036 · Terrain Rings 100 % / 0.53 / 0.045.
 
-## v1.24.0 (2026-09-04)
+## [1.24.0] - 2026-09-04
 
 **Simplified Chinese.** Every caption, section heading, tab, hover-help body and
 accessible name renders in 简体中文 alongside English and French. MINOR: a
@@ -262,7 +262,7 @@ is no page collision here and no native reader to adjudicate it, so overriding a
 settled glossary root on one executor's judgement is exactly what the glossary
 exists to prevent.
 
-## v1.23.1 (2026-09-03)
+## [1.23.1] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
 260903-ukp; O-Gain 1.3.3 was the tracer). PATCH: French strings and source
@@ -310,7 +310,7 @@ comments only — no parameter, range, type or state format changed.
   place.
 
 
-## v1.23.0 (2026-09-03)
+## [1.23.0] - 2026-09-03
 
 A switch for the hover help, and the settings popover becomes two rows to hold it.
 
@@ -371,7 +371,7 @@ A switch for the hover help, and the settings popover becomes two rows to hold i
 - **Default is ON.** v1.22.1 showed hover help unconditionally, so ON is the
   setting that leaves an existing user's plugin behaving exactly as it did.
 
-## v1.22.1 (2026-08-31)
+## [1.22.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.
 
@@ -385,7 +385,7 @@ French copy revised. Stage N of the repo-wide i18n rollout.
 - **`Écart` keeps `Span`** under a `termNote`: the glossary's own carve-out is "Écart total stays for span", this page spends `Désacc.` on detune and `Larg.` on spread, and the sibling caption is `Écart total`.
 - **`tip.language` keeps one decimal point and one missing number–unit space.** It QUOTES the readouts `375ms` and `1.2kHz`, in a sentence whose whole point is that a readout does not follow French convention (D-03 exempts the readout node). The lint reads them as T2 and T7; a typography code is not `termNote`-able.
 
-## v1.22.0 (2026-08-31)
+## [1.22.0] - 2026-08-31
 
 ### Added
 - **Hover-help, in both languages.** 107 tooltips — 105 parameter tips and 2 chrome tips — each with a title and a two-or-three-sentence body ending in the control's range and unit. Every French string is machine-drafted and flagged `reviewed: false`; no native speaker has read any of it. The page's 262 unreviewed entries are now the largest single block in the repo's native-speaker worklist.
@@ -406,7 +406,7 @@ French copy revised. Stage N of the repo-wide i18n rollout.
 ### Fixed
 - Nothing. No pre-existing defect was exposed by authoring this copy, which makes O-Prism the exception in a stage that has now found five.
 
-## v1.21.0 (2026-08-30)
+## [1.21.0] - 2026-08-30
 
 ### Added
 - **The page speaks French.** A gear in the header opens a settings popover with a language selector; the choice rides the APVTS state tree as a non-parameter property, so it is remembered with the session and never appears in a DAW automation lane. 155 label keys, every French string machine-drafted and flagged `reviewed: false` — no native speaker has read any of it yet. Canon v2 (`scripts/i18n-canon.js`), the same runtime block all 43 plugins now carry.
@@ -441,7 +441,7 @@ French copy revised. Stage N of the repo-wide i18n rollout.
 - `./scripts/build-and-install.sh O-Prism` — VST3 + AU, `auval -v aumu OuPr OuDv` PASSES. The binary carries the embedded table (a French string only `i18n.js` holds is present) and both language native functions.
 - Not verified: no human has seen the French UI, no DAW session was saved and reopened, and every French string is a machine draft.
 
-## v1.20.0 (2026-08-20)
+## [1.20.0] - 2026-08-20
 
 ### Added
 - **Double-click any control to type a value.** Double-clicking a knob, a mod-matrix amount slider, or the A4 Ref knob now opens an inline entry field on the value readout, pre-filled with the current reading and text-selected. Enter (or clicking away) commits, Esc cancels. Covers all 84 controls: 67 `bindKnob()` knobs, 16 mod-matrix amount sliders, and the bespoke A4 Ref knob.
@@ -483,7 +483,7 @@ French copy revised. Stage N of the repo-wide i18n rollout.
 - 354-check format→parse→normalise round-trip harness across all 21 formatters at 12 points each, run against code extracted from the live `index.html` rather than a retyped copy. All pass. Four negative controls (dropping the `/100` in `parsePercent`, removing the `scaledToNorm` clamp, testing `/s/` before `/ms/`, routing predelay through `parseSeconds`) each fail the harness, confirming it discriminates.
 - 27 browser-driven DOM interaction checks against a faithful `SliderState` mock: entry opens pre-filled and selected, zero layout shift, input survives a `valueChanged` mid-edit, Esc cancels without writing, Enter commits wrapped in drag start/end, unedited Enter and garbage both write nothing, out-of-range clamps without `NaN`, Alt-click resets without starting a drag, plain mousedown still drags, and a second double-click while open is a no-op.
 
-## v1.19.3 (2026-08-02)
+## [1.19.3] - 2026-08-02
 
 ### Fixed
 - **Windows CI build failure (v1.19.2 tag never released).** Same latent MSVC break as O-Lyrica v2.3.3 / O-IntonationPad v2.8.3: MSVC rejects `SafePointer(this)` init-captures in nested lambdas (C2440/C2119 cascade). Hoisted the SafePointer to a local and captured by value in all six FileChooser `launchAsync` callbacks in `PluginEditor.cpp`. No behavior change.
@@ -491,7 +491,7 @@ French copy revised. Stage N of the repo-wide i18n rollout.
 ### Technical Notes
 - v1.19.2 binaries were never published — the Windows job failed at compile, so `create-release` never ran. This release ships the v1.19.2 content (license headers) plus the MSVC fix.
 
-## v1.19.2 (2026-08-02)
+## [1.19.2] - 2026-08-02
 
 ### Changed
 - Added AGPL-3.0 license notice headers to all Ouaricon-authored source files (repo relicensed to AGPL-3.0). No functional change.
@@ -500,7 +500,7 @@ French copy revised. Stage N of the repo-wide i18n rollout.
 - First tagged release since v1.18.1 — these binaries are the first to ship the full v1.18.2–v1.19.1 code-review remediation (47 findings, see entries below) and the dead licensing-integration removal.
 - Version bump rationale: PATCH — license headers only; no parameter, preset, or state-format changes.
 
-## v1.19.1 (2026-07-02)
+## [1.19.1] - 2026-07-02
 
 Code-review batch 3 (final) — the 17 Info findings from `.planning/CODE-REVIEW.md` (2026-07-02 deep review). Re-verified against the post-v1.19.0 tree first: IN-08 (Zarlino/JI "byte-identical") turned out to be a reviewer error — the arrays already differ at degree 10 (9/5 vs 16/9 minor seventh), no change made.
 
@@ -534,7 +534,7 @@ Code-review batch 3 (final) — the 17 Info findings from `.planning/CODE-REVIEW
 - **Behavior note:** hosts now see latency change when toggling distortion bypass; delay-time automation sounds like tape pitch-glide instead of zipper.
 - **Files changed:** `Source/PluginProcessor.{h,cpp}`, `Source/PluginEditor.cpp`, `Source/PrismVoice.cpp`, `Source/TuningEngine.cpp`, `Source/ScaleGenerator.cpp`, `Source/TuningExporter.cpp`, `Source/NoteDivisions.h` (new), `Source/dsp/{WavetableOscillator.{h,cpp},DelayProcessor.{h,cpp},WavetableEditor.cpp}`, `Source/ui/public/index.html`, `CMakeLists.txt`.
 
-## v1.19.0 (2026-07-02)
+## [1.19.0] - 2026-07-02
 
 Code-review batch 2 — all remaining Critical and Warning findings from `.planning/CODE-REVIEW.md` (2026-07-02 deep review). 25 findings: CR-04..CR-07, CR-10, WR-01..WR-20.
 
@@ -579,7 +579,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - **Files changed:** `Source/PluginProcessor.{h,cpp}`, `Source/PluginEditor.cpp`, `Source/TuningEngine.{h,cpp}`, `Source/TuningExporter.cpp`, `Source/OuariconPresetManager.h`, `Source/PrismVoice.{h,cpp}`, `Source/dsp/{EQProcessor,SVFFilter,DelayProcessor,ReverbProcessor,GlideProcessor,UserWavetableManager,WavetableEditor,WavetableImporter}.{h,cpp}`, `Source/ui/public/index.html`, `Source/ui/public/js/wavetable-editor.js`, `CMakeLists.txt`.
 - **Deferred:** the 17 Info findings (IN-01 partially done via pointer caching) remain in `.planning/CODE-REVIEW.md` for a later cleanup pass.
 
-## v1.18.2 (2026-07-02)
+## [1.18.2] - 2026-07-02
 
 ### Fixed
 - **CR-01: Out-of-bounds wavetable read at high pitch (host crash).** `phaseIncrement` had no upper bound and the render wrap subtracted 1.0 exactly once, so any frequency above the sample rate (e.g. MIDI 127 + `oscACoarse +24` at 44.1 kHz) grew the phase accumulator without bound and `readSample()` walked off the end of the wavetable buffer. Fixed with floor-based wrapping in all four advance paths (sync + non-sync, mono + stereo), a wrap after the hard-sync re-seed (which could land ≥ 1.0 at `syncRatio` up to 4), a defensive wrap + non-finite guard at the top of `readSample()`, and a Nyquist clamp in `setFrequency()`.
@@ -595,7 +595,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - **New mechanism:** `OPrismAudioProcessor` now inherits `juce::Timer`; `processBlock` publishes a `blockGeneration` counter; retired tables freed only after two generations pass. If the host stops calling `processBlock`, retired tables are held (never freed unsafely).
 - **API changes (internal):** `UserWavetableManager::deleteWavetable` → `removeWavetable` (returns the removed table for retirement); `saveAsUserWavetable` gains a `replacedOut` out-param; new processor entry points `deleteUserWavetable()` / `saveEditedWavetable()` used by the WebView native fns.
 
-## v1.18.1 (2026-05-06)
+## [1.18.1] - 2026-05-06
 
 ### Added
 - **Ouaricon licensing overlay (compile-flag gated, OFF by default in shipped builds).** Wires `OuariconLicense` + `OuariconLicenseOverlay` into the editor; license manager owned by the processor (persists across editor open/close). When licensing is enabled at build time, the overlay hides the WebView until the plugin is activated. Released builds ship with `OUARICON_LICENSING=OFF` — **no user-facing change vs v1.18.0**.
@@ -605,7 +605,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - **Files changed:** `CMakeLists.txt` (licensing block + cryptography link), `Source/PluginEditor.{cpp,h}`, `Source/PluginProcessor.{cpp,h}`.
 - **No DSP, UI, parameter, or preset changes.**
 
-## v1.18.0 (2026-05-06)
+## [1.18.0] - 2026-05-06
 
 ### Added
 - **Factory preset library doubled — 96 → 192 presets.** All 96 new presets are hand-authored, each a deliberate parameter snapshot exploring an idea distinct from the existing library. New per-category counts:
@@ -637,7 +637,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - **No DSP, UI, or parameter changes.** Only preset content was added.
 - **Build:** Clean Release build (macOS VST3 + AU). No new warnings.
 
-## v1.17.4 (2026-05-06)
+## [1.17.4] - 2026-05-06
 
 ### Fixed
 - **AU registry stuck on v1.17.0 in Logic Pro:** A stale non-suffixed `O-Prism.component` (dev build, v1.17.0, installed Apr 26) was shadowing the current `O-Prism-dev.component` (v1.17.3) in `~/Library/Audio/Plug-Ins/Components/`. Both bundles registered with the same AU triple `aumu OuPr OuDv`, so Logic's plugin scanner pinned the slot to whichever was installed first — the older v1.17.0. Symptom: Logic showed v1.17.0 in the plugin registry; "O-Prism-dev" never appeared as a separate entry. Same shadowing on VST3 (`O-Prism.vst3` v1.17.0 vs `O-Prism-dev.vst3` v1.17.3).
@@ -660,7 +660,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - **Manual cleanup template** in root `CLAUDE.md` updated to mirror the dual-removal pattern (sweeps both `<Name>.component` and `<Name>-dev.component` before install), so manual installs follow the same hardened path as the script.
 - **Generalizable to all plugins:** any plugin built locally before the `OUARICON_DEV_SUFFIX` system landed may have an orphan non-suffixed bundle in `~/Library/Audio/Plug-Ins/{VST3,Components}/`. Running `./scripts/build-and-install.sh <PluginName>` once will sweep them as a side effect.
 
-## v1.17.3 (2026-05-06)
+## [1.17.3] - 2026-05-06
 
 ### Changed
 - Phase 3 sweep — 5 MEDIUM/LOW simplification candidates from `plugins/O-Prism/.planning/SIMPLIFICATION-AUDIT.md` applied:
@@ -688,7 +688,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Phase 3 of the `/simplify` workflow audit (see `plugins/O-Prism/.planning/SIMPLIFICATION-AUDIT.md`). Phase 1 (HIGH-01..03) shipped in v1.17.1; Phase 2 (HIGH-04..07) shipped in v1.17.2. The audit's MEDIUM-03 (per-FX param atomic caching) was already resolved as a side effect of HIGH-05 in Phase 2. No-op MEDIUM-05 / MEDIUM-06 / LOW-03 entries are explicit "keep" notes from the audit.
 - Version bump rationale: PATCH (1.17.2 → 1.17.3) — internal refactor + 1 visible fix (period emission for non-octave tunings); no parameter, preset, or feature changes.
 
-## v1.17.2 (2026-05-06)
+## [1.17.2] - 2026-05-06
 
 ### Changed
 - **HIGH-04:** Replaced 64 inline SVG knob HTML scaffolds in `Source/ui/public/index.html` with `data-knob` placeholders + a single `expandKnobMarkup()` JS pass at script start. ~30 KB reduction in the index.html binary blob and ~15× DOM verbosity reduction. The large refPitch knob (l1351) and the 2 small footer knobs use bespoke markup and remain untouched. The `vine-<paramId>` and `val-<paramId>` IDs emitted by the expander match the originals exactly so existing `bindKnob` and `valueChangedEvent` handlers continue to work unchanged.
@@ -708,7 +708,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Phase 2 of the `/simplify` workflow audit (see `plugins/O-Prism/.planning/SIMPLIFICATION-AUDIT.md`). Phase 3 (MEDIUM-01..07 + LOW-01..05) remains; run `/simplify-phase3 O-Prism` for the deferred low-risk sweep.
 - Version bump rationale: PATCH (1.17.1 → 1.17.2) — internal refactor only, no parameter, preset, or feature changes.
 
-## v1.17.1 (2026-05-05)
+## [1.17.1] - 2026-05-05
 
 ### Changed
 - **HIGH-01:** Removed three completely-unused WebView resource files (`Source/ui/public/js/tuning-panel.js`, `Source/ui/public/css/tuning-panel.css`, `Source/ui/public/modules/preset-manager.js` — ~1918 LOC) plus their `juce_add_binary_data` SOURCES entries in `CMakeLists.txt` and their `getResource` URL handlers in `PluginEditor.cpp`. The runtime tuning UI is implemented inline in `index.html`; the bundled files were never `<link>`-ed or `<script>`-ed by any HTML or imported by any JS module. Removes ~30 KB from the plugin binary and eliminates a recurring footgun where editors of `tuning-panel.js` would silently modify dead code.
@@ -726,7 +726,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Phase 1 of `/simplify` workflow audit (see `plugins/O-Prism/.planning/SIMPLIFICATION-AUDIT.md`). Phase 2 (HIGH-04..07, MEDIUM-risk) and Phase 3 (MEDIUM/LOW) candidates remain; run `/simplify-phase2 O-Prism` and `/simplify-phase3 O-Prism` for the deferred sweeps.
 - Version bump rationale: PATCH (1.17.0 → 1.17.1) — internal refactor + dead-code purge, no parameter or feature changes.
 
-## v1.17.0 (2026-04-26)
+## [1.17.0] - 2026-04-26
 
 ### Added
 - **adds VST3 Note Expression microtonal support for Dorico** (per O-Lyrica 2.3.0 reference shape). O-Prism now responds to Dorico's per-note tuning messages (`kTuningTypeID` Note Expression events), enabling correct microtonal playback of quarter-tones, third-tones, and arbitrary tuning deltas authored in Dorico's tonality system. End users must set Microtonality to "VST3 Note Expression" on the assigned Dorico expression map.
@@ -737,7 +737,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - **Files modified:** `Source/PluginProcessor.{h,cpp}`, `Source/PrismVoice.{h,cpp}`, `CMakeLists.txt`.
 - **Version bump rationale:** MINOR (1.16.1 → 1.17.0) — new user-visible feature, backward compatible, no preset impact.
 
-## v1.16.0 (2026-04-11)
+## [1.16.0] - 2026-04-11
 
 ### Added
 - **Factory preset library: 96 presets across 10 categories** (`OuariconPresetManager.h`, `FactoryPresets.h/cpp`, `PluginProcessor.h/cpp`, `PluginEditor.cpp`, `index.html`). Full preset system with persistent in-plugin browser. Categories: Pads (18), Drone (12), Lead (12), Bass (10), Pluck (10), Harmonic (10), Keys (8), Sequence (8), FX (5), Percussion (3). Presets stored as JSON under `~/Library/O-Prism/Presets/Factory/{Category}/` on first run; user presets go in `User/`. Preset browser lives in the header bar (centered between the title and subtitle) so it's accessible from every tab — click the preset display to open a 2-column categorized picker; prev/next arrows step through the flat list; ★ saves a user preset.
@@ -752,7 +752,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Header-bar UI: `position: absolute` preset menu floats over tab content at `top: 34px` with a fixed 540px width — survives tab switches without re-rendering. Uses the same `Juce.getNativeFunction` plumbing as the tuning panel.
 - Category taxonomy and preset count sourced from cross-synth research (Serum, Vital, Pigments, Surge XT, Ableton Wavetable). 96 sits in the boutique-synth sweet spot — more than Vital's free tier (~75) and Ableton Wavetable (~130), less than Serum/Pigments (~500+).
 
-## v1.15.0 (2026-04-11)
+## [1.15.0] - 2026-04-11
 
 ### Changed
 - **Independent per-filter envelope depth** (`PluginProcessor.cpp`, `PrismVoice.cpp/h`, `PrismParamIds.h`, `index.html`). Split the shared `filtEnvDepth` parameter into two independent parameters, `filtAEnvDepth` and `filtBEnvDepth`, so Filter A and Filter B can be modulated by the filter envelope with their own depth/polarity. Both parameters keep the original range (-1..1, default 0). UI replaces the single "Depth" knob in the Filter Envelope section with two knobs labelled "Dep A" and "Dep B".
@@ -764,7 +764,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Breaking for existing sessions: the `filtEnvDepth` parameter ID has been removed. Sessions/presets that stored a non-zero value will reset both new params to their default 0 on load (APVTS silently ignores the unknown key). To preserve the old patch, set `filtAEnvDepth` and `filtBEnvDepth` to the previous depth value.
 - `allSliderIds` in `PrismParamIds.h` now lists 6 filter-envelope params instead of 5 (auto-attach stays correct — no editor code changes needed).
 
-## v1.14.0 (2026-04-11)
+## [1.14.0] - 2026-04-11
 
 ### Added
 - **Per-LFO free-running mode** (`PluginProcessor.cpp`, `PrismVoice.cpp`, `index.html`). New `lfo1FreeRun`..`lfo4FreeRun` bool parameters (default `false`). When enabled, an LFO's phase continues across note boundaries instead of resetting on note-on. Each LFO gains a "Retrig / Free Run" toggle button in its section header (adjacent to the existing Free/Sync rate-mode toggle).
@@ -777,7 +777,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Tempo-sync compatible: the global phase advance uses the same `kDivBeats` table and `Sync`/`Division` params as `PrismVoice::renderNextBlock`, so switching between Free/Sync rate modes while Free Run is active doesn't break phase continuity.
 - UI labels deliberately chosen to avoid collision with the pre-existing "Free"/"Sync" rate-mode toggle: "Retrig" (default, phase resets on note-on) vs "Free Run" (active, phase continues).
 
-## v1.13.5 (2026-04-11)
+## [1.13.5] - 2026-04-11
 
 ### Changed
 - **Code quality: extracted custom tuning preset index magic number** (`PrismParamIds.h`, `PluginEditor.cpp`). Introduced `PrismParamIds::kCustomTuningPresetIndex = 10` to replace the hardcoded `10.0f` literal used in 5 `setValueNotifyingHost` call sites that sync APVTS to the Custom tuning slot (setCustomTuning, setSingleInterval, loadScalaFile, applyTuningByName, applyGeneratedScale). The constant documents its coupling to the `tuningPreset` choice StringArray in `PluginProcessor::createParameterLayout()`, reducing the risk of silent drift if preset ordering ever changes.
@@ -788,7 +788,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Zero behavior change. `static_cast<float>(10)` is bit-identical to `10.0f`.
 - Note: user request specified "3 locations" but code inspection found 5 — all 5 were updated for consistency.
 
-## v1.13.4 (2026-04-11)
+## [1.13.4] - 2026-04-11
 
 ### Changed
 - **DSP perf: hoisted key tracking `std::pow` out of sample loop** (`PrismVoice.cpp`). Filter A and B key-tracking were calling `std::pow(2.0, (filtKeyTrack * (currentMidiNote - 60)) / 12.0)` on every sample, even though `currentMidiNote`, `filtAKeyTrack`, and `filtBKeyTrack` are all constant within a render block. Replaced with two block-scoped `const double` multipliers (`keytrackMultiplierA`/`keytrackMultiplierB`) computed once before the sample loop, then applied per-sample as simple multiplications. Gated on `> 0.001f` (skips `pow` entirely when key tracking is disabled, resolving to multiply-by-1.0).
@@ -799,7 +799,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Zero audible change — algebraic identity. Output is bit-identical to v1.13.3 (multiplication is commutative/associative for the same operand).
 - Parallels the same-block hoisting pattern used for `filtEnvVal * filtEnvDepth` cutoff modulation, which remains per-sample (correctly — filter envelope is sample-varying).
 
-## v1.13.3 (2026-04-10)
+## [1.13.3] - 2026-04-10
 
 ### Fixed
 - **WebView event listener leaks**: Document- and window-level listeners were being attached without cleanup paths, so they persisted for the lifetime of the page and could accumulate if their host scopes ever re-ran.
@@ -813,7 +813,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - No parameter changes, no DSP changes — behavior is byte-identical. Element-scoped listeners (on knob/canvas nodes inside the container) are left untouched since they die with their DOM nodes when the container is cleared.
 - Note: `tuning-panel.js` is not currently imported by `index.html` (the live tuning UI is inlined), but was fixed preemptively so the pattern is correct if the module is wired in later.
 
-## v1.13.2 (2026-04-10)
+## [1.13.2] - 2026-04-10
 
 ### Fixed
 - **Reference pitch (A4) knob sync**: The tuning panel's reference pitch knob was desynced from the backend master tune parameter in two ways:
@@ -827,7 +827,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Root cause: Drag-baseline closure captured once at `setupRefPitchKnob()` time and UI init didn't query backend state
 - No parameter changes — full backward compatibility
 
-## v1.13.1 (2026-04-10)
+## [1.13.1] - 2026-04-10
 
 ### Fixed
 - **Parallel filter routing +6dB gain inflation**: Parallel mode (Filter A + B) summed both filters at unity, producing ~2x the level of serial mode (A → B). Added 0.5x scaling to the parallel sum so both routing modes output at matched levels.
@@ -840,7 +840,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Root cause: Uncompensated additive sum in parallel filter path (`PrismVoice.cpp:601-602`)
 - No parameter changes — full backward compatibility
 
-## v1.13.0 (2026-04-09)
+## [1.13.0] - 2026-04-09
 
 ### Changed
 - **Reorder FX chain**: Moved reverb from last to second-last position in the effects chain. New order: Distortion → Chorus → Delay → Reverb → EQ. EQ is now the final stage for post-reverb tonal shaping.
@@ -851,7 +851,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - No parameter changes — full backward compatibility
 - Presets load identically; only processing order changed
 
-## v1.12.1 (2026-04-09)
+## [1.12.1] - 2026-04-09
 
 ### Fixed
 - **Reverb buzzing**: `tankFeedbackA`/`tankFeedbackB` were local variables in `process()`, reset to zero every buffer call. The Dattorro figure-8 cross-feedback was broken at buffer boundaries (~86 Hz discontinuity at 512-sample buffers). Moved to member variables for correct inter-buffer persistence.
@@ -864,7 +864,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Root cause: v1.12.0 Dattorro implementation had local feedback state and incomplete output tap network
 - No parameter changes — full backward compatibility
 
-## v1.12.0 (2026-04-08)
+## [1.12.0] - 2026-04-08
 
 ### Changed
 - **Dattorro plate reverb**: Replaced stock `juce::dsp::Reverb` (Freeverb/Schroeder-Moorer) with a full Dattorro plate reverb implementation. Figure-8 tank topology with 4-stage input diffusion, cross-fed parallel decay paths, one-pole damping filters, and multi-tap stereo output. All delay lengths scaled from the original 29761 Hz reference rate.
@@ -880,7 +880,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Size maps to tank decay coefficient (0.0-0.98), Damp maps to one-pole LPF coefficient
 - No breaking parameter changes — existing presets load without issue
 
-## v1.11.0 (2026-03-09)
+## [1.11.0] - 2026-03-09
 
 ### Added
 - **Oscillator warp modes**: 4 post-wavetable-lookup warp algorithms applied per-unison-voice for maximum richness:
@@ -898,7 +898,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Bend exponent range: 1.0-4.0
 - No breaking parameter changes — full backward compatibility with existing presets
 
-## v1.10.0 (2026-03-08)
+## [1.10.0] - 2026-03-08
 
 ### Added
 - **Wavetable Editor** (5th tab): Per-frame harmonic bar editing with real-time iFFT preview. Canvas-based frame strip with click/shift+click/ctrl+click multi-selection. Osc A/B toggle to edit either oscillator's table. Configurable bin count (32/64/128/256). Frame operations: Normalize (per-frame/global), Fade Edges, Reverse Audio, Reverse Order, Smooth (6dB/oct spectral rolloff). Save edited tables as new user wavetables. Undo/redo support (Ctrl+Z / Ctrl+Shift+Z, max 50 entries). DPR-aware canvas rendering for Retina displays.
@@ -912,7 +912,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - No new APVTS parameters — editor uses native functions for all state
 - Full backward compatibility — no preset or parameter changes
 
-## v1.9.0 (2026-03-08)
+## [1.9.0] - 2026-03-08
 
 ### Added
 - **Custom wavetable import from .wav files**: FFT-based analysis slices audio into 2048-sample frames (up to 256 frames), builds band-limited mipmap hierarchy, and registers as a selectable user wavetable. Follows Serum's FFT 2048 import standard — short files produce fewer frames, long files truncate at 256 frames. Supports WAV, AIFF, FLAC via JUCE AudioFormatManager.
@@ -922,107 +922,107 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - **User wavetable state persistence**: Active user table selections saved/restored in plugin state via `getStateInformation`/`setStateInformation` (backward compatible — old presets load without user tables).
 - **New C++ classes**: `WavetableImporter` (FFT import pipeline), `UserWavetableManager` (persistent storage + registry). Non-APVTS override architecture preserves factory parameter range (0-27) for full backward compatibility.
 
-## v1.8.1 (2026-03-06)
+## [1.8.1] - 2026-03-06
 
 ### Fixed
 - **Broken oscillator & tuning visualizations**: `bindLfoSync()` used the old JUCE API `syncState.addListener({handleToggleStateChange})` instead of JUCE 8's `syncState.valueChangedEvent.addListener()`. The `TypeError` halted the ES module, preventing all subsequent code (WavetableDisplay, tuning system) from initializing. Introduced in v1.4.0 when tempo-synced LFO rates were added. Also fixes LFO sync toggle not reflecting state changes from DAW automation.
 
-## v1.8.0 (2026-03-05)
+## [1.8.0] - 2026-03-05
 
 ### Added
 - **Master stereo width control**: New `stereoWidth` parameter (0.0–2.0, default 1.0) applies mid-side processing after the effects chain and before master volume. 0.0 = mono, 1.0 = normal stereo, 2.0 = extra wide. Formula: `mid = (L+R)*0.5, side = (L-R)*0.5, L = mid + side*width, R = mid - side*width`. Uses per-sample smoothing to prevent zipper noise. Mono buffer fallback for single-channel hosts.
 
-## v1.7.0 (2026-03-05)
+## [1.7.0] - 2026-03-05
 
 ### Changed
 - **3-voice ensemble chorus**: Replaced `juce::dsp::Chorus` (single-voice) with custom `EnsembleChorus` engine. Three independent delay lines with staggered center delays (5ms, 7ms, 9ms), each modulated by sine LFOs at slightly different rates (1.0x, 0.93x, 1.07x) with 120-degree phase offsets. Equal-power stereo panning spreads voices across the stereo field (L/C/R at -0.6/0.0/+0.6). Max LFO modulation depth of 2ms. Wet gain normalized by 1/sqrt(3) for consistent output level. Same `chorusRate`, `chorusDepth`, `chorusMix` parameters — no preset breakage.
 
-## v1.6.0 (2026-03-05)
+## [1.6.0] - 2026-03-05
 
 ### Added
 - **Velocity curve parameter**: New `velocityCurve` choice parameter with 4 modes — Linear (default, unchanged behavior), Soft (sqrt curve, more dynamic range at low velocities), Hard (squared curve, requires harder hits), and Fixed (always full velocity regardless of key strike). Curve transformation applied in `startNote()` so `noteVelocity` is already curved before use in `renderNextBlock()`. Fully DAW-automatable.
 
-## v1.5.0 (2026-03-05)
+## [1.5.0] - 2026-03-05
 
 ### Changed
 - **Stereo noise generator**: `NoiseGenerator` now produces independent noise per channel via `getNextSampleStereo()`. White and Digital types use separate PRNG instances (randomL/randomR). Pink noise has independent Paul Kellet filter states per channel (b0L/b1L/b2L, b0R/b1R/b2R). Brown noise has independent integrator states. Vinyl has independent bandpass filters and crackle events per channel. Wind shares the LFO (coherent spectral sweep) but uses independent brown noise sources and lowpass filter states per channel. Previously a single mono sample was added identically to both L and R — now decorrelated noise provides true stereo width.
 
-## v1.4.0 (2026-03-05)
+## [1.4.0] - 2026-03-05
 
 ### Added
 - **Tempo-synced LFO rates**: Each of the 4 LFOs now has a Sync toggle and note Division selector. When Sync is enabled, LFO rate is calculated from host BPM instead of the free-running Hz knob. 18 note divisions available: straight (1/1 through 1/32), dotted (1/1D through 1/32D), and triplet (1/1T through 1/32T). BPM is read from the DAW transport via `getPlayHead()->getPosition()->getBpm()`. 8 new APVTS parameters: `lfo1Sync`, `lfo1Division`, `lfo2Sync`, `lfo2Division`, `lfo3Sync`, `lfo3Division`, `lfo4Sync`, `lfo4Division`. UI shows Free/Sync toggle per LFO — when synced, the rate knob hides and division dropdown appears.
 
-## v1.3.0 (2026-03-05)
+## [1.3.0] - 2026-03-05
 
 ### Added
 - **Pitch modulation destination**: Added "Pitch" as the 23rd mod destination in the modulation matrix. Routes any source (LFO, envelope, velocity, mod wheel, etc.) to pitch for vibrato, pitch envelopes, and velocity-to-pitch effects. Applied as a semitone offset (±12 semitones at full modulation) multiplied into oscillator and sub-oscillator frequency calculations.
 
-## v1.2.2 (2026-03-05)
+## [1.2.2] - 2026-03-05
 
 ### Changed
 - **Cached PrismVoice APVTS pointers**: Cache all 50 `std::atomic<float>*` parameter pointers once in `setAPVTS()` instead of performing string-based hash map lookups via `getRawParameterValue()` every audio block. `renderNextBlock()` (44 reads) and `startNote()` (24 reads) now do direct atomic loads. At 8 voices, eliminates ~352 hash map lookups per block.
 
-## v1.2.1 (2026-03-05)
+## [1.2.1] - 2026-03-05
 
 ### Fixed
 - **Report correct latency from distortion oversampling**: `DistortionProcessor` uses 2x oversampling which introduces latency, but `prepareToPlay()` called `setLatencySamples(0)`. Now reads `oversampling.getLatencyInSamples()` after preparing the distortion processor and reports it to the host so DAWs can apply proper delay compensation.
 
-## v1.2.0 (2026-03-05)
+## [1.2.0] - 2026-03-05
 
 ### Changed
 - **Cached ModulationMatrix APVTS pointers**: Cache all 64 `std::atomic<float>*` parameter pointers once in `setAPVTS()` instead of constructing 16 prefix strings and performing 64 hash map lookups every `processBlock` call. `updateFromAPVTS()` now does 64 direct atomic loads with zero string allocation or map traversal.
 
-## v1.1.9 (2026-03-04)
+## [1.1.9] - 2026-03-04
 
 ### Changed
 - **Per-block oscillator tuning reads**: Moved `oscACoarse`, `oscAFine`, `oscBCoarse`, `oscBFine` APVTS reads from per-sample to per-block in `PrismVoice::renderNextBlock`. Precompute pitch ratios (`std::pow`) once per block instead of every sample — eliminates 4 atomic loads and 2 `std::pow` calls per sample per voice.
 
-## v1.1.8 (2026-03-04)
+## [1.1.8] - 2026-03-04
 
 ### Changed
 - **SVFFilter coefficient caching**: Added dirty-flag to `SVFFilter` so `updateCoefficients()` (which computes `std::tan()`) only runs when cutoff or resonance actually change. Previously `setCutoff()` and `setResonance()` each triggered a full recompute — 8 `std::tan()` calls per sample per voice. Now deferred to `processSample()` with value-change detection: 2x reduction when modulated, zero cost when static.
 
-## v1.1.7 (2026-03-04)
+## [1.1.7] - 2026-03-04
 
 ### Removed
 - **Deprecated compatibility stubs**: Removed `connectMTSClient()` (always returned false with a DBG message) and dual-arg `loadScalaFile(File&, File&)` (ignored second argument, delegated to single-arg overload). Neither had any callers.
 
-## v1.1.6 (2026-03-04)
+## [1.1.6] - 2026-03-04
 
 ### Changed
 - **JSON array helpers**: Extracted `toJsonArray` (template with lambda) and `toJsonFloatArray` (strided raw pointer) helpers in PluginEditor.cpp — replaced 11 instances of manual `"[" + for-loop + "]"` JSON string building across `addNativeFunctions()` and `timerCallback()`
 
-## v1.1.5 (2026-03-04)
+## [1.1.5] - 2026-03-04
 
 ### Changed
 - **Shared math constants**: Consolidated `kPi`, `kTwoPi`, `kHalfPi` definitions from 8 source files into a single `dsp/MathConstants.h` header. Removed 10 duplicate `static constexpr` locals across WavetableOscillator, SubOscillator, NoiseGenerator, DistortionProcessor, PrismVoice, SVFFilter, WavetableFactory, and WavetableGenerator.
 
-## v1.1.4 (2026-03-04)
+## [1.1.4] - 2026-03-04
 
 ### Removed
 - **Dead parameter**: Removed unused `polyphony` APVTS parameter — was defined in `createGlobalParameters()` and bound in UI footer but never read by processBlock or voice management. Synth always uses 16 voices. Removed from PluginProcessor.cpp, PrismParamIds.h, and WebView UI footer.
 
-## v1.1.3 (2026-03-04)
+## [1.1.3] - 2026-03-04
 
 ### Removed
 - **Dead code**: Removed unused `prevPhase` variable in LFO.cpp — was assigned from `phase` but never read
 
-## v1.1.2 (2026-03-04)
+## [1.1.2] - 2026-03-04
 
 ### Removed
 - **Dead code**: Removed unused `activeNotesMutex` from PluginProcessor — note tracking already uses lock-free `std::atomic<bool>` array, the mutex was declared but never locked anywhere
 
-## v1.1.1 (2026-03-04)
+## [1.1.1] - 2026-03-04
 
 ### Changed
 - **Knob visual overhaul**: Replaced all 63 knobs from CSS conic-gradient rotary style to SVG vine-arc style (matching O-Detune). Green vine stroke (#5a7a6a) animates around a tan track with smooth requestAnimationFrame interpolation. Three sizes: standard (52px), small (44px, footer), large (64px, A4 ref pitch). Added mouse wheel support and double-click reset to all knobs.
 
-## v1.0.1 (2026-03-03)
+## [1.0.1] - 2026-03-03
 
 ### Fixed
 - **Sticky unison knobs**: Osc A/B Unison knobs required ~25px of drag to change by one step, making them feel stuck. Added adaptive drag sensitivity — discrete parameters (≤16 steps) now require ~8px per step instead. Continuous knobs are unaffected.
 
-## v1.0.0 (2026-02-23)
+## [1.0.0] - 2026-02-23
 
 ### Breaking Changes
 - Removed `lfo1Depth`, `lfo2Depth`, `lfo1Dest`, `lfo2Dest` APVTS parameters (replaced by modulation matrix)
@@ -1050,7 +1050,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Additive modulation for position/level/pan destinations, clamped to valid ranges
 - Processor stores ModWheel/Aftertouch as `std::atomic<float>`, read by voices each sample
 
-## v0.12.0 (2026-02-24)
+## [0.12.0] - 2026-02-24
 
 ### Added
 - **LFO system** with 2 independent per-voice LFOs for smooth per-sample modulation
@@ -1068,7 +1068,7 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - LFOs reset phase on note-on for consistent attack character
 - S&H shape triggers new random value on phase wrap
 
-## v0.11.0 (2026-02-23)
+## [0.11.0] - 2026-02-23
 
 ### Added
 - Expanded factory wavetable library from 4 single-frame tables to 28 multi-frame wavetables across 5 categories
@@ -1086,12 +1086,12 @@ Code-review batch 2 — all remaining Critical and Warning findings from `.plann
 - Position knob now sweeps through multiple frames per table for musically useful morphing
 - Original 4 tables (Saw, Square, Triangle, Sine) preserved at indices 0-3 for preset compatibility
 
-## v0.9.2 (2026-02-18)
+## [0.9.2] - 2026-02-18
 
 ### Fixed
 - **Stereo filter distortion**: Mono filter + stereo balance reconstruction caused full-wave rectification on left channel and 3x amplification on right channel during negative signal excursions. All waveforms were severely distorted (sine sounded like square). Replaced with true stereo filter processing using independent L/R filter instances.
 - **Wavetable selection mapping**: oscATable/oscBTable parameter range was [0, 15] but only 4 factory tables exist. UI dropdown normalized values mapped incorrectly — selecting Square or Triangle both loaded the Sine table. Fixed parameter range to [0, 3] matching the 4 factory waveforms.
 
-## v0.9.1 (2026-02-18)
+## [0.9.1] - 2026-02-18
 
 - Initial release with tuning panel v2.0.0
