@@ -11,6 +11,33 @@ stack does not name. PATCH: CSS font ordering and the comments that record its
 measurements — no parameter, range, type or state format changed (task
 quick-260906-uu7).
 
+### This release ships versions 1.3.0 through 1.6.3
+
+The last published build was **v1.2.3** (2026-06-30). This download carries
+eight versions of work. The sections below detail 1.6.3 only, so the span is
+summarised here.
+
+- **1.3.0** — *The page speaks French.* Every visible caption keyed with an
+  English and a French string, a settings gear opening a language popover, and
+  the choice persisted with the session as a non-parameter property on the
+  APVTS state tree.
+- **1.4.0** — *Hover-help, in English and French.* Ten tooltips — the eight
+  parameters, the settings gear, the language selector — plus the renderer that
+  makes them visible.
+- **1.4.1** — *French copy revised against the suite glossary.* 19 entries, 43
+  lint findings to 0. The visible moves: DOSAGE → MIX, ÉCART → ÉTAL.,
+  SAUVER → ENREG.
+- **1.5.0** — *Simplified Chinese.* A third language: all 28 entries plus the
+  简体中文 endonym in the selector. O-Chorus was the pilot for the suite-wide
+  zh-Hans rollout.
+- **1.6.0** — *A switch for the hover help.* `#tips-toggle` in the settings
+  popover, persisted under `ochor.tipsEnabled`.
+- **1.6.1** — *The French hover-help caption became `Infobulles`*, with every
+  sentence re-agreed from feminine singular to feminine plural.
+- **1.6.2** — *The language tooltip stopped enumerating the selector's options*
+  — a sentence that had been false in two languages since 1.5.0.
+- **1.6.3** — *Han renders in PingFang SC.* Detailed below.
+
 ### Fixed
 
 - **The CJK tail sat after the trailing generic, so O-Chorus's Chinese rendered
