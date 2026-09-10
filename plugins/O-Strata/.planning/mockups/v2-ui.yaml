@@ -251,7 +251,7 @@ layout:
         partial_estimate: "n = round(12 · F · K · (0.52 + 0.96 · size)), clamped 1…160, where K is the orbit's trigonometric-polynomial degree [Ellipse 1, Superellipse 1, Limaçon 2, Epitrochoid 3/5/7 → 4/6/8, Hypocycloid 3/5/7 → 2/4/6, Butterfly 4, Squarcle 1]. Calibrated so the default patch reads the brief's 12."
         readout_states:
           normal:        { example: "2× · 12 partials at C4", keys: [label.readoutPartials] }
-          approx:        { example: "Bandlimited · 9 partials at C4 · approx.", when: "Quality = Bandlimited AND the orbit is not a trigonometric polynomial (Superellipse / Limaçon / Butterfly / Squarcle)", keys: [label.readoutPartials, label.approx], note: "the approx. clause renders in amber-free walnut italic (.terrain-readout-approx)" }
+          approx:        { example: "Bandlimited · 9 partials at C4 · approx.", when: "Quality = Bandlimited AND the orbit is not a trigonometric polynomial (Superellipse / Butterfly / Squarcle — Limaçon is degree 2 and exact)", keys: [label.readoutPartials, label.approx], note: "the approx. clause renders in amber-free walnut italic (.terrain-readout-approx)" }
           image_project: { example: "image projected at F = 1 · fit 87 %", when: "Quality = Bandlimited AND Terrain = Imported…", keys: [label.imageProjected] }
         i18n_rule: "numbers, ×, %, note names and F values are never localised; only the words around them carry keys"
 
@@ -636,3 +636,8 @@ open_questions:
   - "Quality default: the mockup ships 2× per the Stage 0 decision. A Bandlimited default would showcase the differentiator but is approximate for 4 of the 11 orbits."
   - "Mod-destination host strings: localised or native-only (STATUS open question 5). The mockup assumes native-only, as O-Prism."
   - "If the Terrain tab ever needs a sixth control in the top row, the readout is the first thing to shorten (drop 'at C4')."
+
+# Finalization metadata
+finalized: true
+finalized_at: 2026-09-10T15:15:37Z
+finalized_by_phase: 5.5
