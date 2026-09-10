@@ -1,0 +1,2981 @@
+<!DOCTYPE html>
+<!--
+  O-Strata — production UI (mockup v2 finalised 2026-09-10, live wave-terrain oscillator).
+
+  Fork of O-Prism v1.26.0 (index.html @ 4f12ef57): the card grid, the 12-column
+  Synth/Effects tabs, the 3-column Tuning tab and the custom appearance:none
+  selects are O-Prism's verbatim so Stage 3 can diff this against the fork base.
+  Class names are O-Prism's wherever O-Prism has one; everything new is
+  prefixed `terrain-` (plus the shared `osc-view-toggle`).
+
+  Markup and CSS are BYTE-IDENTICAL to mockups/v2-ui-test.html (every id,
+  data-knob, data-i18n key and class). Only the <script> differs: the mock JUCE
+  backend, the `m` / `w` keys, window.mock.* and the console parameter log are
+  gone; the JUCE 8 bridge (js/juce/index.js) is wired the way O-Prism does it.
+
+  WebView constraints held here:
+    - NO viewport units at all: vh, vw, dvh and svh are banned outright
+      (they are what produce the blank-screen-on-load class in a WebView)
+    - html, body { height: 100% } is the foundation percentage units need
+    - user-select: none, context menu disabled — native application feel
+    - wheel listeners { passive: false }; 30 Hz state arrives by pushed event
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O-Strata</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   OUARICON NATURALIST DESIGN SYSTEM — O-STRATA
+   Inherited verbatim from O-Prism v1.26.0 unless a comment says otherwise.
+   ═══════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    height: 100%; width: 100%;
+    overflow: hidden;
+    background: #F5E6D3;
+    color: #3C2F2F;
+    font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 11px;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+}
+
+body { display: flex; flex-direction: column; }
+
+/* ─── HEADER BAR ─── */
+.header-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 16px; background: #3C2F2F; color: #F5E6D3;
+    flex-shrink: 0; height: 34px;
+}
+.header-bar h1 {
+    font-size: 14px; letter-spacing: 4px; text-transform: uppercase;
+    font-weight: normal; color: #C9A27B;
+}
+.header-bar .subtitle {
+    font-size: 10px; letter-spacing: 1.5px; color: #8B7355;
+    font-style: italic; flex-shrink: 0; min-width: 202.78px;
+}
+
+/* ─── SETTINGS POPOVER ─── */
+.settings-wrap { position: relative; flex-shrink: 0; margin-left: 12px; display: flex; align-items: center; }
+.gear-btn {
+    background: transparent; border: 1px solid #8B7355; color: #C9A27B;
+    width: 22px; height: 22px; cursor: pointer; font-size: 13px; line-height: 1;
+    padding: 0; border-radius: 2px; font-family: 'Garamond', 'Georgia', serif;
+    transition: background 0.15s, color 0.15s;
+}
+.gear-btn:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+.settings-popover {
+    display: none; position: absolute; top: 26px; right: 0; z-index: 9998;
+    width: 168px; background: #3C2F2F; border: 1px solid #8B7355;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); padding: 8px 10px; border-radius: 2px;
+    flex-direction: column; align-items: stretch; gap: 6px; white-space: nowrap;
+}
+.settings-popover.visible { display: flex; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.settings-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.2px; color: #8B7355; }
+.settings-select, .settings-toggle {
+    background: #2A2020; border: 1px solid #8B7355; color: #F5E6D3;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 10px; padding: 2px 4px; border-radius: 2px; cursor: pointer;
+}
+.settings-toggle { flex: 0 0 auto; min-width: 42px; text-align: center; transition: background .15s, color .15s; }
+.settings-toggle[aria-pressed="true"] { background: #C9A27B; border-color: #C9A27B; color: #2A2020; }
+
+/* ─── PRESET BROWSER ─── */
+.preset-browser { display: flex; align-items: center; gap: 4px; flex: 1; max-width: 440px; margin: 0 20px; justify-content: center; }
+.preset-nav, .preset-save {
+    background: transparent; border: 1px solid #8B7355; color: #C9A27B;
+    width: 22px; height: 22px; cursor: pointer; line-height: 1; padding: 0;
+    border-radius: 2px; font-family: 'Garamond', 'Georgia', serif;
+    transition: background 0.15s, color 0.15s;
+}
+.preset-nav { font-size: 15px; }
+.preset-save { font-size: 12px; }
+.preset-nav:hover, .preset-save:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+.preset-display {
+    flex: 1; max-width: 320px; text-align: center; padding: 4px 10px;
+    background: #2A2020; border: 1px solid #8B7355; border-radius: 2px; cursor: pointer;
+    font-size: 10px; line-height: 1.2; color: #F5E6D3; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; font-family: 'Garamond', 'Georgia', serif;
+    transition: background 0.15s;
+}
+.preset-display:hover { background: #332828; }
+.preset-category { color: #8B7355; letter-spacing: 1.2px; text-transform: uppercase; font-size: 9px; margin-right: 6px; }
+.preset-category:empty { margin-right: 0; }
+.preset-name { color: #F5E6D3; font-style: italic; }
+
+.preset-menu {
+    display: none; position: absolute; top: 34px; left: 50%; transform: translateX(-50%);
+    background: #3C2F2F; border: 1px solid #8B7355; box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+    z-index: 9999; max-height: 520px; overflow-y: auto; width: 540px;
+    font-family: 'Garamond', 'Georgia', serif;
+}
+.preset-menu.visible { display: block; }
+.preset-menu-category {
+    background: #2A2020; color: #C9A27B; padding: 7px 14px; letter-spacing: 2.5px;
+    text-transform: uppercase; font-size: 10px; border-top: 1px solid #1A1010;
+    border-bottom: 1px solid #1A1010; font-weight: bold;
+}
+.preset-menu > .preset-menu-category:first-child { border-top: none; }
+.preset-menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; padding: 3px; background: #1A1010; }
+.preset-menu-item {
+    padding: 6px 10px; background: #3C2F2F; color: #F5E6D3; font-size: 11px;
+    cursor: pointer; font-style: italic; transition: background .1s, color .1s;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.preset-menu-item:hover { background: #5C4033; color: #FFF; }
+.preset-menu-item.active { background: #8B7355; color: #FFF; font-weight: bold; }
+
+/* ─── TAB BAR ─── */
+.tab-bar { display: flex; background: #D4C4B0; border-bottom: 2px solid #8B7355; flex-shrink: 0; }
+.tab {
+    flex: 1; text-align: center; padding: 8px 10px; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 1.5px; font-size: 12px; line-height: 1.1667;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    color: #5C4033; border-right: 1px solid #8B7355; transition: background .2s, color .2s;
+}
+.tab:last-child { border-right: none; }
+.tab:hover { background: #E8D5B7; }
+.tab.active { background: #F5E6D3; color: #3C2F2F; border-bottom: 2px solid #F5E6D3; margin-bottom: -2px; font-weight: bold; }
+
+/* ─── TAB CONTENT ─── */
+.tab-content-area { flex: 1; position: relative; overflow: hidden; }
+.tab-content { display: none; position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding: 10px 14px 6px; }
+.tab-content.active { display: block; }
+.tab-content::-webkit-scrollbar { width: 6px; }
+.tab-content::-webkit-scrollbar-track { background: transparent; }
+.tab-content::-webkit-scrollbar-thumb { background: rgba(139,115,85,0.4); border-radius: 3px; }
+
+/* ─── SECTION HEADERS ─── */
+.section-header {
+    font-size: 10px; line-height: 1.1; text-transform: uppercase; letter-spacing: 2px;
+    color: #8B7355; border-bottom: 1px solid rgba(139,115,85,0.4);
+    padding-bottom: 4px; margin-bottom: 8px; margin-top: 10px;
+}
+.section-header:first-child { margin-top: 0; }
+
+/* ─── SVG VINE-ARC KNOBS ─── */
+.knob-container { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; margin: 2px 2px; }
+.knob { display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.knob-visual { width: 52px; height: 52px; position: relative; }
+.knob-visual.large { width: 64px; height: 64px; }
+.knob-visual.small { width: 44px; height: 44px; }
+.knob-visual svg { width: 100%; height: 100%; transform: rotate(-135deg); }
+.knob-track { fill: none; stroke: rgba(139, 115, 85, 0.3); stroke-width: 2; }
+.knob-vine { fill: none; stroke: #5a7a6a; stroke-width: 3; stroke-linecap: round; }
+/* O-Prism's geometry pins on the two captions whose ENGLISH is wider than the
+   52 px knob column. Carried over verbatim; `oscAPos` is no longer one of them
+   because "Orbit Size" is wider than "Position" and now sets its own column. */
+.knob-container[data-knob="delayFeedback"],
+.knob-container[data-knob="delayFeedback"] .knob { min-width: 54.25px; }
+.knob-container[data-knob="oscAWarpAmt"],
+.knob-container[data-knob="oscAWarpAmt"] .knob,
+.knob-container[data-knob="oscBWarpAmt"],
+.knob-container[data-knob="oscBWarpAmt"] .knob { min-width: 55.16px; }
+.knob-label {
+    font-size: 9px; line-height: 1.1111; letter-spacing: 0.8px; color: #8b7355;
+    text-transform: uppercase; margin-top: 4px; text-align: center;
+}
+.knob-value { font-size: 10px; color: #a08870; margin-top: 1px; min-width: 50px; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* ─── DROPDOWN ─── */
+.dropdown-group { display: inline-flex; flex-direction: column; align-items: center; margin: 2px 4px; }
+#lbl-filt-routing { display: inline-block; width: 82.08px; }
+#select-glideMode { width: 64px; }
+.dropdown-label { font-size: 8px; line-height: 1.125; text-transform: uppercase; letter-spacing: 1px; color: #5C4033; margin-bottom: 3px; }
+.param-select {
+    background: #EBD9C7; border: 1px solid #8B7355; color: #3C2F2F;
+    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    padding: 3px 6px; border-radius: 3px; cursor: pointer; min-width: 60px;
+}
+.param-select:focus { outline: 1px solid #C9A27B; }
+
+/* ─── OSC CANVAS + DRAG-DROP ─── */
+.osc-canvas-wrap { position: relative; flex-shrink: 0; }
+.wt-drop-overlay {
+    display: none; position: absolute; inset: 0;
+    background: rgba(139, 105, 20, 0.3); border: 2px dashed #8B6914; border-radius: 4px;
+    z-index: 10; pointer-events: none; align-items: center; justify-content: center;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 12px; color: #5C4033; font-weight: bold;
+}
+.osc-canvas-wrap.drag-over .wt-drop-overlay { display: flex; }
+
+/* ─── TOGGLE BUTTON ─── */
+.toggle-btn {
+    background: #EBD9C7; border: 1px solid #8B7355; color: #5C4033;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 10px; line-height: 1.1; padding: 4px 10px; border-radius: 3px;
+    cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+}
+.toggle-btn.active { background: #6B8E4E; color: #F5E6D3; border-color: #4A6B35; }
+
+/* ─── PARAM ROW / OSC SECTION ─── */
+.param-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0; }
+.osc-section { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+.osc-canvas { width: 160px; height: 90px; border: 2px solid #8B7355; border-radius: 3px; background: #EBD9C7; display: block; }
+.osc-params { flex: 1; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 6px; }
+
+/* ─── CARDS + TAB GRIDS (O-Prism v1.26.0) ───
+   HEIGHT BUDGET, Synth tab, at the shipped 1200x800 frame: the tab content area
+   is 800 - 34 header - 32 tab bar - 68 footer = 666 px, less the tab's own 16 px
+   vertical padding = 650. The five card rows plus four 8 px gaps sum to ~640 px.
+   O-Strata's oscillator card gains a SECOND dropdown, which is 34 px tall
+   against a knob column's ~78 — width, not height — so the budget is untouched. */
+.card {
+    background: #EFDFCB; border: 1px solid rgba(139, 115, 85, 0.45); border-radius: 4px;
+    padding: 5px 10px 5px; min-width: 0;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(60,47,47,0.06);
+}
+.card .knob-container { margin: 0 2px; }
+.card > .section-header,
+.card .filter-block > .section-header { margin-top: 0; margin-bottom: 4px; border-bottom-color: rgba(139,115,85,0.3); }
+.span-2 { grid-column: span 2; }
+.span-3 { grid-column: span 3; }
+.span-4 { grid-column: span 4; }
+.span-5 { grid-column: span 5; }
+.span-6 { grid-column: span 6; }
+.span-7 { grid-column: span 7; }
+.span-8 { grid-column: span 8; }
+#synth-tab.active,
+#effects-tab.active {
+    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-auto-rows: min-content; align-content: start; gap: 8px;
+}
+.osc-card { grid-column: 1 / -1; }
+.knob-container.primary .knob-visual { width: 64px; height: 64px; }
+
+/* Filters card: A | routing | B in one card. */
+.filters-grid { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); column-gap: 10px; align-items: start; }
+.filter-block { min-width: 0; }
+.filter-routing { display: flex; align-items: flex-start; padding-top: 24px; border-left: 1px solid rgba(139,115,85,0.25); border-right: 1px solid rgba(139,115,85,0.25); }
+
+/* LFO card */
+.lfo-card .param-row { display: grid; grid-template-columns: auto minmax(0,1fr); column-gap: 4px; align-items: start; }
+.lfo-card .param-row > .knob-container { grid-row: 1 / 3; }
+.lfo-card .dropdown-group { align-items: stretch; margin: 2px 0; }
+.lfo-card .dropdown-group .param-select { width: 100%; min-width: 0; }
+.lfo-card .section-header { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+.lfo-card .section-header > span { flex: 1; }
+.lfo-card .toggle-btn { padding: 2px 6px; font-size: 9px; letter-spacing: 0.5px; }
+.toggle-group { display: inline-flex; flex-direction: column; align-items: center; margin: 2px 4px; }
+.toggle-group .toggle-btn { margin-top: 3px; }
+
+/* ─── EFFECT CARDS ─── */
+#effects-tab.active { gap: 10px; }
+.effect-section.card { padding: 12px 18px 14px; }
+.effect-section .knob-visual { width: 60px; height: 60px; }
+.effect-section .knob-container.primary .knob-visual { width: 72px; height: 72px; }
+.effect-section .param-row { gap: 4px 8px; }
+.effect-section .section-header { margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.effect-section.bypassed { border-style: dashed; background: rgba(239,223,203,0.45); }
+.effect-section.bypassed .param-row { opacity: 0.35; pointer-events: none; }
+.bypass-toggle {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+    font-size: 8px; padding: 2px 8px 2px 6px; border: 1px solid #4A6B35; border-radius: 9px;
+    background: #6B8E4E; color: #F5E6D3; cursor: pointer; text-transform: uppercase;
+    letter-spacing: 1px; font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    line-height: 1.2; transition: background .15s, color .15s, border-color .15s;
+}
+.bypass-toggle::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%; background: #D6EBC8;
+    box-shadow: 0 0 4px rgba(214,235,200,0.9); flex-shrink: 0;
+}
+.bypass-toggle.off { background: #D4C4B0; color: #5C4033; border-color: #8B7355; }
+.bypass-toggle.off::before { background: #8B7355; box-shadow: none; }
+
+/* ─── MOD MATRIX ─── */
+.mod-matrix-info { font-style: italic; color: #8B7355; margin-bottom: 8px; font-size: 11px; line-height: 1.0909; }
+.mod-matrix-table { border: 1px solid #8B7355; border-radius: 4px; overflow: hidden; }
+.mod-matrix-header {
+    display: flex; align-items: center; background: #3C2F2F; color: #C9A27B;
+    padding: 6px 8px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; line-height: 1.1;
+}
+.mod-col-on { width: 36px; text-align: center; }
+.mod-col-slot { width: 28px; text-align: center; }
+.mod-col-src { flex: 1; }
+.mod-col-dst { flex: 1.35; }
+.mod-col-amt { width: 120px; text-align: center; }
+.mod-col-val { width: 50px; text-align: right; }
+.mod-row { display: flex; align-items: center; padding: 4px 8px; border-bottom: 1px solid #D4C4B0; background: #F5E6D3; transition: background .15s; }
+.mod-row:nth-child(even) { background: #EDD8C0; }
+.mod-row:hover { background: #E8D5B7; }
+.mod-row.disabled { opacity: 0.45; }
+.mod-row .mod-col-on input[type="checkbox"] { width: 14px; height: 14px; accent-color: #C9A27B; cursor: pointer; }
+.mod-row .mod-col-slot { font-weight: bold; color: #8B7355; font-size: 10px; }
+.mod-row select {
+    width: 100%; padding: 3px 4px; border: 1px solid #B8A08C; border-radius: 3px;
+    background: #FAF0E3; color: #3C2F2F; font-family: inherit; font-size: 11px; cursor: pointer;
+}
+.mod-row select:focus { outline: 1px solid #C9A27B; }
+.mod-row .mod-amt-slider { width: 100%; height: 6px; accent-color: #C9A27B; cursor: pointer; }
+.mod-row .mod-col-val { font-size: 10px; color: #5C4033; font-variant-numeric: tabular-nums; }
+
+/* ─── TUNING TAB (O-Prism v1.26.0 3-column grid) ─── */
+#tuning-tab.active {
+    display: grid; grid-template-columns: 130px minmax(0,1fr) 210px;
+    grid-template-rows: auto minmax(0,1fr); column-gap: 12px; row-gap: 6px;
+}
+.tuning-viz-container { grid-column: 1; grid-row: 1 / 3; min-height: 0; display: flex; align-items: flex-start; gap: 12px; }
+.interval-list {
+    width: 130px; max-height: 100%; background: rgba(235,217,199,0.6);
+    border: 1px solid #8B7355; border-radius: 4px; overflow-y: auto; padding: 6px 8px; order: -1;
+}
+.interval-list-header {
+    font-size: 9px; line-height: 1.1111; color: #5C4033; text-transform: uppercase; letter-spacing: .5px;
+    border-bottom: 1px solid rgba(139,115,85,0.4); padding-bottom: 4px; margin-bottom: 4px; text-align: center;
+}
+.tonic-selector {
+    display: flex; justify-content: space-between; align-items: center; padding: 2px 4px;
+    margin-bottom: 3px; background: rgba(139,168,112,0.2); border: 1px solid #8B7355; border-radius: 3px;
+}
+.tonic-label { display: inline-block; width: 27.8px; font-size: 8px; line-height: 1.125; color: #5C4033; text-transform: uppercase; }
+.tonic-value { font-size: 10px; font-weight: bold; color: #3C2F2F; min-width: 22px; text-align: center; }
+.tonic-arrow {
+    width: 14px; height: 14px; display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: #5C4033; background: rgba(212,196,176,0.6);
+    border: 1px solid rgba(139,115,85,0.5); border-radius: 2px; cursor: pointer; transition: background .15s;
+}
+.tonic-arrow:hover { background: rgba(139,168,112,0.3); }
+.interval-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 4px; border-radius: 2px; margin-bottom: 2px; }
+.interval-row:hover { background: rgba(139,168,112,0.15); }
+.note-name { color: #5C4033; font-weight: 500; font-size: 9px; min-width: 20px; }
+.interval-input {
+    width: 55px; background: rgba(245,230,211,0.8); border: 1px solid rgba(139,115,85,0.4);
+    border-radius: 2px; font-family: monospace; font-size: 9px; color: #3C2F2F;
+    text-align: right; padding: 1px 4px; outline: none;
+}
+.interval-input:focus { background: #FFF; border-color: #6B8E4E; }
+.deviation { font-family: monospace; font-size: 8px; opacity: .8; min-width: 34px; text-align: right; }
+.deviation.pure { color: #4CAF50; }
+.viz-mode-toggle { grid-column: 2; grid-row: 1; display: flex; justify-content: center; gap: 6px; z-index: 20; }
+.viz-btn {
+    padding: 5px 12px; font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 10px; line-height: 1.1; text-transform: uppercase; letter-spacing: .5px;
+    color: #5C4033; background: rgba(212,196,176,0.7); border: 1px solid #8B7355;
+    border-radius: 3px; cursor: pointer; transition: background .15s, color .15s;
+}
+.viz-btn:hover { background: rgba(139,168,112,0.3); }
+.viz-btn.active { background: rgba(139,168,112,0.5); color: #3C2F2F; border-color: #3C5C1A; font-weight: 500; }
+.viz-container { grid-column: 2; grid-row: 2; position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.viz-view { display: none; width: 100%; height: 100%; }
+.viz-view.active { display: flex; align-items: center; justify-content: center; }
+.pitch-circle { position: relative; width: 400px; height: 400px; max-width: 100%; max-height: 100%; }
+.pitch-circle svg { width: 100%; height: 100%; }
+.pitch-circle-label {
+    position: absolute; bottom: -20px; width: 100%; text-align: center;
+    font-size: 10px; line-height: 1.1; color: #5C4033; text-transform: uppercase; letter-spacing: .5px;
+}
+.tuning-controls-panel { grid-column: 3; grid-row: 1 / 3; min-height: 0; display: flex; flex-direction: column; gap: 14px; max-height: 100%; overflow-y: auto; }
+.tuning-ref-section { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.scale-name-display {
+    padding: 6px 10px; background: rgba(245,230,211,0.8); border: 1px solid #8B7355;
+    border-radius: 3px; font-size: 10px; color: #3C2F2F; text-align: center; min-height: 24px; width: 100%;
+}
+.octave-stretch-section { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.octave-stretch-row { display: flex; align-items: center; gap: 8px; }
+.octave-stretch-label { font-size: 8px; line-height: 1.125; color: #5C4033; text-transform: uppercase; letter-spacing: .5px; min-width: 40px; }
+/* min-width: 0 is load-bearing. An <input type=range> carries a UA intrinsic
+   min-width (~129 px in Chromium) and `flex: 1` will not shrink a flex item
+   below it, so label + slider + readout summed to 217 px in a 210 px column and
+   pushed the "1.00" readout 7 px past the panel's right edge. */
+.octave-stretch-slider { flex: 1; min-width: 0; height: 6px; -webkit-appearance: none; appearance: none; background: rgba(139,115,85,0.3); border-radius: 3px; outline: none; }
+.octave-stretch-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
+    background: radial-gradient(circle at 35% 35%, rgba(255,248,220,.9) 0%, rgba(212,196,176,.8) 70%, rgba(139,115,85,.6) 100%);
+    border: 1px solid #8B7355; border-radius: 50%; cursor: pointer;
+}
+.octave-stretch-value { font-size: 9px; font-family: monospace; color: #3C2F2F; min-width: 32px; text-align: right; }
+.tuning-file-section { display: flex; flex-direction: column; gap: 4px; }
+.tuning-file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.tuning-file-btn {
+    padding: 6px 8px; font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 9px; line-height: 1.1111; text-transform: uppercase; letter-spacing: .3px;
+    color: #5C4033; background: rgba(212,196,176,0.7); border: 1px solid #8B7355;
+    border-radius: 2px; cursor: pointer; transition: background .15s;
+}
+.tuning-file-btn:hover { background: rgba(139,168,112,0.3); }
+.tuning-export-btn { grid-column: span 2; background: rgba(139,115,85,0.15); border-color: #6b5a42; }
+.library-section { border-top: 1px solid rgba(139,115,85,0.3); padding-top: 8px; }
+.library-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0; }
+.library-header-text { font-size: 9px; line-height: 1.1111; color: #5C4033; text-transform: uppercase; letter-spacing: .5px; }
+.library-toggle { font-size: 10px; color: #8B7355; transition: transform .2s; }
+
+/* ─── FOOTER BAR ─── */
+.footer-bar {
+    display: flex; align-items: center; justify-content: center; gap: 28px;
+    padding: 6px 20px; background: #3C2F2F; border-top: 2px solid #8B7355;
+    flex-shrink: 0; height: 68px;
+}
+.footer-param { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.footer-label { font-size: 8px; line-height: 1.125; text-transform: uppercase; letter-spacing: 1.2px; color: #8B7355; }
+.footer-value { font-size: 10px; color: #C9A27B; font-variant-numeric: tabular-nums; }
+
+/* ─── SELECTS (O-Prism v1.26.0): the page's own chevron, never the UA widget ─── */
+select.param-select,
+.mod-row select,
+.library-filter-select,
+.settings-select {
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%238B7355'/></svg>");
+    background-repeat: no-repeat; background-position: right 6px center;
+    background-size: 8px 5px; padding-right: 20px;
+}
+.settings-select {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%23C9A27B'/></svg>");
+}
+select.param-select { background-color: #F8ECDC; border-color: #B8A08C; }
+select.param-select:hover { border-color: #8B7355; }
+.mod-row select { padding-right: 20px; }
+
+/* ─── OSC A / B TOGGLE (moved out of css/wavetable-editor.css, v1.26.0) ───
+   O-Prism renders this as a COLUMN beside the frame strip. The Terrain tab has
+   no strip, so `.terrain-toprow` flips it to a row; the button style is
+   untouched so Stage 3's diff is one flex-direction. */
+.wt-osc-toggle { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+.wt-osc-btn {
+    flex: 1; padding: 4px 16px; white-space: nowrap; border: 1px solid #8B7355; background: #D4C4B0; color: #5C4033;
+    cursor: pointer; font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 12px; line-height: 1.1667; letter-spacing: 1px; text-transform: uppercase;
+    transition: background .2s, color .2s;
+}
+.wt-osc-btn:hover { background: #E8D5B7; }
+.wt-osc-btn.active { background: #5a7a6a; color: #F5E6D3; border-color: #5a7a6a; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   NEW — O-STRATA
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── ⬡ / ≋ CANVAS VIEW TOGGLE ───
+   Shared by the two Synth-tab canvases and the big Terrain view. Two glyph
+   buttons in the canvas's top-right corner, inside the 2 px border. They carry
+   no text — the accessible name is an aria-label — so the label geometry gate
+   never measures them and a translation cannot move the canvas. */
+.osc-view-toggle {
+    position: absolute; top: 4px; right: 4px; z-index: 6;
+    display: flex; gap: 2px;
+    background: rgba(245, 230, 211, 0.72);
+    border: 1px solid rgba(139, 115, 85, 0.45);
+    border-radius: 3px; padding: 1px;
+}
+.osc-view-btn {
+    width: 15px; height: 15px; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; line-height: 1; color: #8B7355; background: transparent;
+    border: none; border-radius: 2px; cursor: pointer; padding: 0;
+    font-family: 'Garamond', 'Georgia', serif; transition: background .15s, color .15s;
+}
+.osc-view-btn:hover { color: #5C4033; background: rgba(139, 115, 85, 0.14); }
+.osc-view-btn.active { background: #6B8E4E; color: #F5E6D3; }
+.terrain-view-wrap .osc-view-toggle { top: 8px; right: 8px; }
+.terrain-view-wrap .osc-view-btn { width: 19px; height: 19px; font-size: 13px; }
+
+/* Greyed-but-present. An inert control still occupies its column, so nothing
+   below it moves when Terrain changes to Imported… and back. */
+.is-inert { opacity: 0.34; pointer-events: none; }
+
+/* ─── TERRAIN TAB ─────────────────────────────────────────────────────────
+   HEIGHT ARITHMETIC, at the shipped 1200x800 frame:
+     30 top row + 12 margin + 544 view wrap (540 content + 2x2 border)
+        + 8 gap + 14 hint = 608 <= 650 usable.
+   WIDTH: 704 view wrap + 28 gap + 440 panel column = 1172 = usable width. */
+#terrain-tab { overflow: hidden; }
+#terrain-tab.active { display: block; }
+
+.terrain-toprow {
+    position: relative; z-index: 2;
+    height: 30px; display: flex; align-items: center; gap: 14px;
+}
+.terrain-toprow .wt-osc-toggle { flex-direction: row; }
+/* flex: 0 0 auto, not the column rule's flex: 1 — in a shrinking toolbar row
+   `flex: 1` let the buttons compress until "Osc A" wrapped onto two lines. */
+.terrain-toprow .wt-osc-btn { flex: 0 0 auto; padding: 4px 14px; font-size: 11px; }
+
+.terrain-ctl { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+/* Inline, not stacked: .dropdown-group's caption-over-control is 34 px tall and
+   would not fit a 30 px toolbar, and a toolbar caption reads better beside its
+   control than floating above it. */
+.terrain-ctl-label {
+    font-size: 9px; line-height: 1.1111; text-transform: uppercase;
+    letter-spacing: 1.4px; color: #8B7355; white-space: nowrap;
+}
+#select-terTerrain { width: 132px; }
+#select-terOrbit { width: 124px; }
+
+.terrain-seg { display: inline-flex; border: 1px solid #8B7355; border-radius: 3px; overflow: hidden; }
+.terrain-seg-btn {
+    padding: 4px 10px; border: none; border-right: 1px solid rgba(139,115,85,0.55);
+    background: #EBD9C7; color: #5C4033; cursor: pointer;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 9px; line-height: 1.1111; text-transform: uppercase; letter-spacing: 1px;
+    transition: background .15s, color .15s;
+}
+.terrain-seg-btn:last-child { border-right: none; }
+.terrain-seg-btn:hover { background: #E8D5B7; }
+.terrain-seg-btn.active { background: #5a7a6a; color: #F5E6D3; }
+
+.terrain-import-btn {
+    background: transparent; border: 1px solid #8B7355; color: #5C4033;
+    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-size: 9px; line-height: 1.1111; letter-spacing: 1px; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 3px; cursor: pointer; flex-shrink: 0;
+    transition: background .15s, color .15s;
+}
+.terrain-import-btn:hover { background: rgba(139, 115, 85, 0.14); color: #3C2F2F; }
+
+.terrain-readout {
+    margin-left: auto; text-align: right; white-space: nowrap;
+    font-size: 9px; line-height: 1.1111; letter-spacing: 1.2px; text-transform: uppercase;
+    color: #8B7355; font-variant-numeric: tabular-nums;
+}
+.terrain-readout-approx { font-style: italic; letter-spacing: .6px; text-transform: none; opacity: .8; }
+
+.terrain-main { position: relative; z-index: 1; display: flex; gap: 28px; margin-top: 12px; }
+.terrain-view-col { flex: 0 0 704px; width: 704px; }
+
+.terrain-view-wrap {
+    position: relative; width: 704px; height: 544px;
+    border: 2px solid #8B7355; border-radius: 3px; background: #EBD9C7;
+    overflow: hidden; cursor: crosshair;
+}
+.terrain-view { display: block; width: 100%; height: 100%; }
+.terrain-hud {
+    position: absolute; left: 10px; bottom: 9px; z-index: 5; pointer-events: none;
+    font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+    font-size: 10px; letter-spacing: .3px; color: #8B7355; opacity: .72;
+    transition: opacity .15s;
+}
+.terrain-view-wrap:hover .terrain-hud { opacity: 1; }
+.terrain-webgl-unavailable {
+    display: none; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    z-index: 7; padding: 7px 14px; background: rgba(245, 230, 211, 0.94);
+    border: 1px solid #8B7355; border-radius: 3px;
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #5C4033;
+}
+.terrain-webgl-unavailable.visible { display: block; }
+.terrain-hint {
+    margin-top: 8px; height: 14px;
+    font-size: 9px; line-height: 1.1111; letter-spacing: 1.2px; text-transform: uppercase;
+    color: rgba(139, 115, 85, 0.85);
+}
+
+.terrain-panel-col { flex: 0 0 440px; width: 440px; display: flex; flex-direction: column; }
+.terrain-panel-card { padding: 8px 14px 10px; }
+.terrain-panel-card + .terrain-panel-card { margin-top: 12px; }
+.terrain-panel-card > .section-header { margin-bottom: 6px; }
+/* Five equal columns, so the sub-row's knobs sit exactly under the first three
+   of the row above instead of drifting to their own rhythm. */
+.terrain-krow { display: grid; grid-template-columns: repeat(5, 1fr); align-items: start; justify-items: center; }
+.terrain-krow-sub { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(139, 115, 85, 0.25); }
+.terrain-krow .knob-visual { width: 64px; height: 64px; }
+.terrain-krow .knob-container.primary .knob-visual { width: 72px; height: 72px; }
+/* The sub-row is the conditional half of each card — smaller, so the primary
+   row keeps the eye and the column keeps a gutter for the botanical. */
+.terrain-krow-sub .knob-visual { width: 56px; height: 56px; }
+.terrain-krow .knob-container { margin: 0; }
+.terrain-krow .dropdown-group { grid-column: span 2; align-self: center; margin-top: 6px; }
+.terrain-krow .dropdown-group .param-select { width: 118px; }
+
+.terrain-notice {
+    display: none; margin-top: 10px; padding: 4px 10px;
+    border: 1px solid rgba(201, 130, 43, 0.55); border-radius: 3px;
+    background: rgba(201, 130, 43, 0.10); color: #C9822B;
+    font-size: 10px; font-style: italic; letter-spacing: .3px;
+}
+.terrain-notice.visible { display: block; }
+
+/* The nautilus sits BEHIND the panel column, low and right, on the Terrain tab
+   only — it is a child of #terrain-tab, so no other tab can reach it.
+
+   A BACKGROUND ON A CLIPPED BOX, not an <img> with negative offsets. The plate
+   has ~22 % of white margin above and below the shell, so the drawing has to be
+   pushed up out of its own box to put the striped body in the gutter under the
+   Orbit card. A negative `bottom` would do that visually — and would also grow
+   #terrain-tab's scrollHeight past its clientHeight, which is exactly the
+   measurement a layout gate reads. The box stays at 0,0; the IMAGE moves inside
+   it, and the box clips. */
+.terrain-botanical {
+    position: absolute; right: 0; bottom: 0;
+    width: 520px; height: 215px;
+    background-image: url('img/shell_conchologiaiconi12reev_0090.png');
+    background-repeat: no-repeat;
+    background-size: 520px auto;       /* 586x733 plate -> 520x650 */
+    background-position: right -282px; /* shows plate y 282..497: the striped body */
+    opacity: 0.3; mix-blend-mode: multiply; pointer-events: none; z-index: 0;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="header-bar">
+    <h1>O-STRATA</h1>
+
+    <div class="preset-browser">
+        <button class="preset-nav" id="btn-preset-prev" data-i18n-aria="aria.presetPrev">‹</button>
+        <div class="preset-display" id="preset-display" data-i18n-aria="aria.presetBrowse">
+            <span class="preset-category" id="preset-current-category">Pads</span>
+            <span class="preset-name" id="preset-current-name">Breathing Ellipse</span>
+        </div>
+        <button class="preset-nav" id="btn-preset-next" data-i18n-aria="aria.presetNext">›</button>
+        <button class="preset-save" id="btn-preset-save" data-i18n-aria="aria.presetSave">★</button>
+    </div>
+
+    <span class="subtitle" data-i18n="label.subtitle">Microtonal Wave-Terrain Synthesizer</span>
+
+    <div class="settings-wrap">
+        <button class="gear-btn" id="gear-btn" data-i18n-aria="aria.settings">&#9881;</button>
+        <div class="settings-popover" id="settings-popover">
+            <div class="settings-row">
+                <span class="settings-label" data-i18n="label.language">Language</span>
+                <select id="lang-select" class="settings-select">
+                    <option value="en">English</option>
+                    <option value="fr">Fran&ccedil;ais</option>
+                    <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
+                </select>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label" data-i18n="label.hoverHelp">Hover help</span>
+                <button type="button" class="settings-toggle" id="tips-toggle" aria-pressed="true"
+                        aria-label="Toggle hover help" data-i18n="ui.on">On</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="preset-menu" id="preset-menu"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB BAR — Terrain takes O-Prism's fifth (Wavetable) slot
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-bar">
+    <div class="tab active" data-tab="synth" data-i18n="tab.synth" onclick="switchTab('synth')">Synth</div>
+    <div class="tab" data-tab="mod" data-i18n="tab.mod" onclick="switchTab('mod')">Mod</div>
+    <div class="tab" data-tab="tuning" data-i18n="tab.tuning" onclick="switchTab('tuning')">Tuning</div>
+    <div class="tab" data-tab="effects" data-i18n="tab.effects" onclick="switchTab('effects')">Effects</div>
+    <div class="tab" data-tab="terrain" data-i18n="tab.terrain" onclick="switchTab('terrain')">Terrain</div>
+</div>
+
+<div class="tab-content-area">
+
+<!-- ─── SYNTH TAB ─── O-Prism v1.26.0's five card rows; only the two
+     oscillator cards differ (Terrain▾ + Orbit▾, Orbit Size, terrain canvas). -->
+<div id="synth-tab" class="tab-content active">
+
+    <!-- Oscillator A -->
+    <div class="card osc-card" id="card-oscA">
+        <div class="section-header" data-i18n="label.oscA">Oscillator A</div>
+        <div class="osc-section">
+            <div class="osc-canvas-wrap" id="canvasWrapA" data-osc="A">
+                <canvas id="canvasOscA" class="osc-canvas" width="320" height="180"></canvas>
+                <div class="osc-view-toggle" data-osc="A">
+                    <button class="osc-view-btn active" data-view="3d" data-i18n-aria="aria.view3d" aria-label="3D view">&#11041;</button>
+                    <button class="osc-view-btn" data-view="wave" data-i18n-aria="aria.viewWaveform" aria-label="Waveform view">&#8779;</button>
+                </div>
+                <div class="wt-drop-overlay" data-i18n="label.dropPng">Drop PNG</div>
+            </div>
+            <div class="osc-params">
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.terrain">Terrain</span>
+                    <select id="select-oscATerrain" class="param-select" data-param="oscATerrain"></select>
+                </div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.orbit">Orbit</span>
+                    <select id="select-oscAOrbit" class="param-select" data-param="oscAOrbit"></select>
+                </div>
+                <div class="knob-container primary" data-knob="oscAPos" data-label="Orbit Size" data-initial="50%" data-i18n="label.orbitSize"></div>
+                <div class="knob-container primary" data-knob="oscALevel" data-label="Level" data-initial="80%" data-i18n="label.level"></div>
+                <div class="knob-container" data-knob="oscAPan" data-label="Pan" data-initial="C" data-i18n="label.pan"></div>
+                <div class="knob-container" data-knob="oscACoarse" data-label="Coarse" data-initial="0 st" data-i18n="label.coarse"></div>
+                <div class="knob-container" data-knob="oscAFine" data-label="Fine" data-initial="0 ct" data-i18n="label.fine"></div>
+                <div class="knob-container" data-knob="oscAPhase" data-label="Phase" data-initial="0%" data-i18n="label.phase"></div>
+                <div class="knob-container" data-knob="oscAUnison" data-label="Unison" data-initial="1" data-i18n="label.unison"></div>
+                <div class="knob-container" data-knob="oscADetune" data-label="Detune" data-initial="20%" data-i18n="label.detune"></div>
+                <div class="knob-container" data-knob="oscAWidth" data-label="Width" data-initial="50%" data-i18n="label.width"></div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.warp">Warp</span>
+                    <select id="select-oscAWarpType" class="param-select" data-param="oscAWarpType">
+                        <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
+                    </select>
+                </div>
+                <div class="knob-container" data-knob="oscAWarpAmt" data-label="Warp Amt" data-initial="0%" data-i18n="label.warpAmt"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Oscillator B -->
+    <div class="card osc-card" id="card-oscB">
+        <div class="section-header" data-i18n="label.oscB">Oscillator B</div>
+        <div class="osc-section">
+            <div class="osc-canvas-wrap" id="canvasWrapB" data-osc="B">
+                <canvas id="canvasOscB" class="osc-canvas" width="320" height="180"></canvas>
+                <div class="osc-view-toggle" data-osc="B">
+                    <button class="osc-view-btn active" data-view="3d" data-i18n-aria="aria.view3d" aria-label="3D view">&#11041;</button>
+                    <button class="osc-view-btn" data-view="wave" data-i18n-aria="aria.viewWaveform" aria-label="Waveform view">&#8779;</button>
+                </div>
+                <div class="wt-drop-overlay" data-i18n="label.dropPng">Drop PNG</div>
+            </div>
+            <div class="osc-params">
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.terrain">Terrain</span>
+                    <select id="select-oscBTerrain" class="param-select" data-param="oscBTerrain"></select>
+                </div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.orbit">Orbit</span>
+                    <select id="select-oscBOrbit" class="param-select" data-param="oscBOrbit"></select>
+                </div>
+                <div class="knob-container primary" data-knob="oscBPos" data-label="Orbit Size" data-initial="50%" data-i18n="label.orbitSize"></div>
+                <div class="knob-container primary" data-knob="oscBLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
+                <div class="knob-container" data-knob="oscBPan" data-label="Pan" data-initial="C" data-i18n="label.pan"></div>
+                <div class="knob-container" data-knob="oscBCoarse" data-label="Coarse" data-initial="0 st" data-i18n="label.coarse"></div>
+                <div class="knob-container" data-knob="oscBFine" data-label="Fine" data-initial="0 ct" data-i18n="label.fine"></div>
+                <div class="knob-container" data-knob="oscBPhase" data-label="Phase" data-initial="0%" data-i18n="label.phase"></div>
+                <div class="knob-container" data-knob="oscBUnison" data-label="Unison" data-initial="1" data-i18n="label.unison"></div>
+                <div class="knob-container" data-knob="oscBDetune" data-label="Detune" data-initial="20%" data-i18n="label.detune"></div>
+                <div class="knob-container" data-knob="oscBWidth" data-label="Width" data-initial="50%" data-i18n="label.width"></div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label" data-i18n="label.warp">Warp</span>
+                    <select id="select-oscBWarpType" class="param-select" data-param="oscBWarpType">
+                        <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
+                    </select>
+                </div>
+                <div class="knob-container" data-knob="oscBWarpAmt" data-label="Warp Amt" data-initial="0%" data-i18n="label.warpAmt"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sub Oscillator | Noise | Performance -->
+    <div class="card span-5" id="card-sub">
+        <div class="section-header" data-i18n="label.subOsc">Sub Oscillator</div>
+        <div class="param-row">
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                <select id="select-subShape" class="param-select" data-param="subShape">
+                    <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option>
+                </select>
+            </div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.octave">Octave</span>
+                <select id="select-subOctave" class="param-select" data-param="subOctave">
+                    <option>-1 Oct</option><option>-2 Oct</option><option>-3 Oct</option><option>-4 Oct</option>
+                </select>
+            </div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.routing">Routing</span>
+                <select id="select-subRouting" class="param-select" data-param="subRouting">
+                    <option>Post-Filter</option><option>Pre-Filter</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="subLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
+        </div>
+    </div>
+    <div class="card span-3" id="card-noise">
+        <div class="section-header" data-i18n="label.noise">Noise</div>
+        <div class="param-row">
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.type">Type</span>
+                <select id="select-noiseType" class="param-select" data-param="noiseType">
+                    <option>White</option><option>Pink</option><option>Brown</option><option>Digital</option><option>Vinyl</option><option>Wind</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="noiseLevel" data-label="Level" data-initial="0%" data-i18n="label.level"></div>
+        </div>
+    </div>
+    <div class="card span-4" id="card-performance">
+        <div class="section-header" data-i18n="label.performance">Performance</div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="pitchBendRange" data-label="PB Range" data-initial="2 st" data-i18n="label.pbRange"></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" id="lbl-glide-mode" data-i18n="label.glideMode">Glide Mode</span>
+                <select id="select-glideMode" class="param-select" data-param="glideMode">
+                    <option>Off</option><option>Legato</option><option>Always</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="glideTime" data-label="Glide" data-initial="100ms" data-i18n="label.glide"></div>
+        </div>
+    </div>
+
+    <!-- Filters | Amp Envelope -->
+    <div class="card span-8 filters-card" id="card-filters">
+        <div class="filters-grid">
+            <div class="filter-block">
+                <div class="section-header" data-i18n="label.filterA">Filter A</div>
+                <div class="param-row">
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.type">Type</span>
+                        <select id="select-filtAType" class="param-select" data-param="filtAType">
+                            <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
+                        </select>
+                    </div>
+                    <div class="knob-container primary" data-knob="filtACutoff" data-label="Cutoff" data-initial="20kHz" data-i18n="label.cutoff"></div>
+                    <div class="knob-container" data-knob="filtARes" data-label="Reso" data-initial="0%" data-i18n="label.reso"></div>
+                    <div class="knob-container" data-knob="filtADrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+                    <div class="knob-container" data-knob="filtAKeyTrack" data-label="Key Trk" data-initial="0%" data-i18n="label.keyTrk"></div>
+                </div>
+            </div>
+            <div class="filter-routing">
+                <div class="dropdown-group">
+                    <span class="dropdown-label" id="lbl-filt-routing" data-i18n="label.filterRouting">Filter Routing</span>
+                    <select id="select-filtRouting" class="param-select" data-param="filtRouting">
+                        <option>Serial</option><option>Parallel</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filter-block">
+                <div class="section-header" data-i18n="label.filterB">Filter B</div>
+                <div class="param-row">
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.type">Type</span>
+                        <select id="select-filtBType" class="param-select" data-param="filtBType">
+                            <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
+                        </select>
+                    </div>
+                    <div class="knob-container primary" data-knob="filtBCutoff" data-label="Cutoff" data-initial="20kHz" data-i18n="label.cutoff"></div>
+                    <div class="knob-container" data-knob="filtBRes" data-label="Reso" data-initial="0%" data-i18n="label.reso"></div>
+                    <div class="knob-container" data-knob="filtBDrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+                    <div class="knob-container" data-knob="filtBKeyTrack" data-label="Key Trk" data-initial="0%" data-i18n="label.keyTrk"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card span-4" id="card-ampenv">
+        <div class="section-header" data-i18n="label.ampEnv">Amp Envelope</div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="ampAttack" data-label="Attack" data-initial="10ms" data-i18n="label.attack"></div>
+            <div class="knob-container" data-knob="ampDecay" data-label="Decay" data-initial="300ms" data-i18n="label.decay"></div>
+            <div class="knob-container" data-knob="ampSustain" data-label="Sustain" data-initial="70%" data-i18n="label.sustain"></div>
+            <div class="knob-container" data-knob="ampRelease" data-label="Release" data-initial="500ms" data-i18n="label.release"></div>
+        </div>
+    </div>
+
+    <!-- Filter Envelope | LFO 1-4 -->
+    <div class="card span-4" id="card-filtenv">
+        <div class="section-header" data-i18n="label.filtEnv">Filter Envelope</div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="filtAttack" data-label="Attack" data-initial="10ms" data-i18n="label.attack"></div>
+            <div class="knob-container" data-knob="filtDecay" data-label="Decay" data-initial="500ms" data-i18n="label.decay"></div>
+            <div class="knob-container" data-knob="filtSustain" data-label="Sustain" data-initial="50%" data-i18n="label.sustain"></div>
+            <div class="knob-container" data-knob="filtRelease" data-label="Release" data-initial="500ms" data-i18n="label.release"></div>
+            <div class="knob-container" data-knob="filtAEnvDepth" data-label="Dep A" data-initial="0%" data-i18n="label.depA"></div>
+            <div class="knob-container" data-knob="filtBEnvDepth" data-label="Dep B" data-initial="0%" data-i18n="label.depB"></div>
+        </div>
+    </div>
+    <div class="card span-2 lfo-card" id="lfo1-section">
+        <div class="section-header"><span data-i18n="label.lfo1">LFO 1</span> <button id="toggle-lfo1Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo1FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
+        <div class="param-row">
+            <div class="knob-container" id="lfo1-rate-wrap" data-knob="lfo1Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                <select id="select-lfo1Shape" class="param-select" data-param="lfo1Shape">
+                    <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="card span-2 lfo-card" id="lfo2-section">
+        <div class="section-header"><span data-i18n="label.lfo2">LFO 2</span> <button id="toggle-lfo2Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo2FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
+        <div class="param-row">
+            <div class="knob-container" id="lfo2-rate-wrap" data-knob="lfo2Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                <select id="select-lfo2Shape" class="param-select" data-param="lfo2Shape">
+                    <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="card span-2 lfo-card" id="lfo3-section">
+        <div class="section-header"><span data-i18n="label.lfo3">LFO 3</span> <button id="toggle-lfo3Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo3FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
+        <div class="param-row">
+            <div class="knob-container" id="lfo3-rate-wrap" data-knob="lfo3Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                <select id="select-lfo3Shape" class="param-select" data-param="lfo3Shape">
+                    <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="card span-2 lfo-card" id="lfo4-section">
+        <div class="section-header"><span data-i18n="label.lfo4">LFO 4</span> <button id="toggle-lfo4Sync" class="toggle-btn" data-i18n="ui.free">Free</button> <button id="toggle-lfo4FreeRun" class="toggle-btn" data-i18n="ui.retrig">Retrig</button></div>
+        <div class="param-row">
+            <div class="knob-container" id="lfo4-rate-wrap" data-knob="lfo4Rate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.shape">Shape</span>
+                <select id="select-lfo4Shape" class="param-select" data-param="lfo4Shape">
+                    <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /synth-tab -->
+
+<!-- ─── MOD MATRIX TAB ─── unchanged from O-Prism except the 46-entry
+     destination list (26 inherited, 2 of them relabelled, 20 appended). -->
+<div id="mod-tab" class="tab-content">
+    <div class="section-header" data-i18n="label.modMatrix">Modulation Matrix</div>
+    <div class="mod-matrix-info" data-i18n="label.modMatrixInfo">Route any source to any destination. 16 slots available, 46 destinations.</div>
+    <div class="mod-matrix-table">
+        <div class="mod-matrix-header">
+            <span class="mod-col-on" data-i18n="label.colOn">On</span>
+            <span class="mod-col-slot">#</span>
+            <span class="mod-col-src" data-i18n="label.colSource">Source</span>
+            <span class="mod-col-dst" data-i18n="label.colDest">Destination</span>
+            <span class="mod-col-amt" data-i18n="label.colAmount">Amount</span>
+            <span class="mod-col-val"></span>
+        </div>
+        <div id="mod-matrix-rows"></div>
+    </div>
+</div><!-- /mod-tab -->
+
+<!-- ─── TUNING TAB ─── unchanged from O-Prism v1.26.0 (scala-tuning-engine
+     v3.0.1). Simplified in the mockup: the real 3-column grid, a live 12-TET
+     interval list, a generated pitch circle and the working controls panel;
+     the library and generator accordions are collapsed. -->
+<div id="tuning-tab" class="tab-content">
+    <div class="tuning-viz-container">
+        <div class="interval-list" id="interval-list">
+            <div class="interval-list-header" data-i18n="label.intervalCount">Intervals (12)</div>
+            <div class="tonic-selector">
+                <span class="tonic-arrow" id="tonic-down">&#9664;</span>
+                <span class="tonic-label" data-i18n="label.tonic">Tonic</span>
+                <span class="tonic-value" id="tonic-value">C</span>
+                <span class="tonic-arrow" id="tonic-up">&#9654;</span>
+            </div>
+            <div id="interval-rows"></div>
+        </div>
+    </div>
+
+    <div class="viz-mode-toggle">
+        <button class="viz-btn active" data-mode="circle" data-i18n="label.vizCircle">Circle</button>
+        <button class="viz-btn" data-mode="polar" data-i18n="label.vizPolar">Polar</button>
+        <button class="viz-btn" data-mode="matrix" data-i18n="label.vizMatrix">Matrix</button>
+        <button class="viz-btn" data-mode="truekeys" data-i18n="label.vizTrueKeys">True Keys</button>
+        <button class="viz-btn" data-mode="rotation" data-i18n="label.vizRotation">Rotation</button>
+    </div>
+
+    <div class="viz-container" id="viz-container">
+        <div class="viz-view active" id="circle-view">
+            <div class="pitch-circle">
+                <svg viewBox="0 0 188 188" id="pitch-circle-svg">
+                    <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                    <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                    <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
+                    <g id="interval-lines"></g>
+                    <g id="degree-labels" font-size="9" fill="#5C4033"></g>
+                </svg>
+                <div class="pitch-circle-label" data-i18n="label.scaleIntervals">Scale Intervals</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tuning-controls-panel">
+        <div class="library-section">
+            <div class="library-header">
+                <span class="library-header-text" data-i18n="label.tuningLibrary">Tuning Library</span>
+                <span class="library-toggle">&#x25BC;</span>
+            </div>
+        </div>
+        <div class="tuning-ref-section">
+            <div class="knob" id="knob-refPitch">
+                <div class="knob-visual large">
+                    <svg viewBox="0 0 64 64">
+                        <circle class="knob-track" cx="32" cy="32" r="27"/>
+                        <circle class="knob-vine" id="vine-refPitch" cx="32" cy="32" r="27" stroke-dasharray="127.24" stroke-dashoffset="63.62"/>
+                    </svg>
+                </div>
+                <span class="knob-label" data-i18n="label.a4Ref">A4 Ref</span>
+                <span class="knob-value" id="val-refPitch">440.0 Hz</span>
+            </div>
+        </div>
+        <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
+        <div class="octave-stretch-section">
+            <div class="octave-stretch-row">
+                <span class="octave-stretch-label" data-i18n="label.stretch">Stretch</span>
+                <input type="range" id="octave-stretch" class="octave-stretch-slider" min="0.95" max="1.25" step="0.01" value="1.0">
+                <span class="octave-stretch-value" id="octave-stretch-value">1.00</span>
+            </div>
+        </div>
+        <div class="tuning-file-section">
+            <div class="tuning-file-buttons">
+                <button class="tuning-file-btn" data-i18n="label.loadScl">Load .SCL</button>
+                <button class="tuning-file-btn" data-i18n="label.loadKbm">Load .KBM</button>
+                <button class="tuning-file-btn" data-i18n="label.saveScl">Save .SCL</button>
+                <button class="tuning-file-btn" data-i18n="label.saveKbm">Save .KBM</button>
+                <button class="tuning-file-btn tuning-export-btn" data-i18n="label.exportHtml">Export HTML</button>
+            </div>
+        </div>
+    </div>
+</div><!-- /tuning-tab -->
+
+<!-- ─── EFFECTS TAB ─── unchanged from O-Prism v1.26.0: five cards in the
+     order processBlock runs them, pill bypass at the right of each title. -->
+<div id="effects-tab" class="tab-content">
+
+    <div class="effect-section card span-3" id="section-dist">
+        <div class="section-header"><span data-i18n="label.distortion">Distortion</span><button id="toggle-distBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.type">Type</span>
+                <select id="select-distType" class="param-select" data-param="distType">
+                    <option>SoftClip</option><option>HardClip</option><option>Tube</option><option>Fold</option>
+                </select>
+            </div>
+            <div class="knob-container" data-knob="distDrive" data-label="Drive" data-initial="0%" data-i18n="label.drive"></div>
+            <div class="knob-container primary" data-knob="distMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+        </div>
+    </div>
+
+    <div class="effect-section card span-3" id="section-chorus">
+        <div class="section-header"><span data-i18n="label.chorus">Chorus</span><button id="toggle-chorusBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="chorusRate" data-label="Rate" data-initial="1.0 Hz" data-i18n="label.rate"></div>
+            <div class="knob-container" data-knob="chorusDepth" data-label="Depth" data-initial="50%" data-i18n="label.depth"></div>
+            <div class="knob-container primary" data-knob="chorusMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+        </div>
+    </div>
+
+    <div class="effect-section card span-6" id="section-delay">
+        <div class="section-header"><span data-i18n="label.delay">Delay</span><button id="toggle-delayBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="delayTime" data-label="Time" data-initial="375ms" data-i18n="label.time"></div>
+            <div class="knob-container" data-knob="delayFeedback" data-label="Feedback" data-initial="30%" data-i18n="label.feedback"></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.mode">Mode</span>
+                <select id="select-delayMode" class="param-select" data-param="delayMode">
+                    <option>Normal</option><option>PingPong</option>
+                </select>
+            </div>
+            <div class="toggle-group">
+                <span class="dropdown-label" data-i18n="label.sync">Sync</span>
+                <button id="toggle-delaySync" class="toggle-btn" data-i18n="ui.off">Off</button>
+            </div>
+            <div class="dropdown-group">
+                <span class="dropdown-label" data-i18n="label.division">Division</span>
+                <select id="select-delayDivision" class="param-select" data-param="delayDivision">
+                    <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                    <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                    <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                </select>
+            </div>
+            <div class="knob-container primary" data-knob="delayMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+        </div>
+    </div>
+
+    <div class="effect-section card span-7" id="section-reverb">
+        <div class="section-header"><span data-i18n="label.reverb">Reverb</span><button id="toggle-reverbBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="reverbSize" data-label="Size" data-initial="50%" data-i18n="label.size"></div>
+            <div class="knob-container" data-knob="reverbDamp" data-label="Damp" data-initial="50%" data-i18n="label.damp"></div>
+            <div class="knob-container" data-knob="reverbPredelay" data-label="Pre-Dly" data-initial="20ms" data-i18n="label.preDly"></div>
+            <div class="knob-container" data-knob="reverbModDepth" data-label="Mod" data-initial="30%" data-i18n="label.modAmt"></div>
+            <div class="knob-container" data-knob="reverbModRate" data-label="Rate" data-initial="1.0Hz" data-i18n="label.rate"></div>
+            <div class="knob-container primary" data-knob="reverbMix" data-label="Mix" data-initial="0%" data-i18n="label.mix"></div>
+        </div>
+    </div>
+
+    <div class="effect-section card span-5" id="section-eq">
+        <div class="section-header"><span data-i18n="label.eq3">3-Band EQ</span><button id="toggle-eqBypass" class="bypass-toggle" data-i18n="ui.bypassOn">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container" data-knob="eqLowGain" data-label="Low" data-initial="0 dB" data-i18n="label.low"></div>
+            <div class="knob-container" data-knob="eqMidGain" data-label="Mid" data-initial="0 dB" data-i18n="label.mid"></div>
+            <div class="knob-container" data-knob="eqMidFreq" data-label="Mid Freq" data-initial="1.0kHz" data-i18n="label.midFreq"></div>
+            <div class="knob-container" data-knob="eqHighGain" data-label="High" data-initial="0 dB" data-i18n="label.high"></div>
+        </div>
+    </div>
+
+</div><!-- /effects-tab -->
+
+<!-- ─── TERRAIN TAB ───
+     30 top row + 12 margin + 544 view wrap + 8 + 14 hint = 608 <= 650 usable.
+     704 view wrap + 28 gap + 440 panel column = 1172 usable width. -->
+<div id="terrain-tab" class="tab-content">
+
+    <div class="terrain-botanical" aria-hidden="true"></div>
+
+    <div class="terrain-toprow">
+        <div class="wt-osc-toggle" id="terrain-osc-toggle">
+            <button class="wt-osc-btn active" data-osc="A" data-i18n="label.oscAShort">Osc A</button>
+            <button class="wt-osc-btn" data-osc="B" data-i18n="label.oscBShort">Osc B</button>
+        </div>
+
+        <div class="terrain-ctl">
+            <span class="terrain-ctl-label" data-i18n="label.terrain">Terrain</span>
+            <select id="select-terTerrain" class="param-select" data-param="terTerrain"></select>
+        </div>
+
+        <div class="terrain-ctl">
+            <span class="terrain-ctl-label" data-i18n="label.orbit">Orbit</span>
+            <select id="select-terOrbit" class="param-select" data-param="terOrbit"></select>
+        </div>
+
+        <div class="terrain-ctl">
+            <span class="terrain-ctl-label" data-i18n="label.quality">Quality</span>
+            <div class="terrain-seg" id="seg-terQuality">
+                <button class="terrain-seg-btn" data-idx="0" data-i18n="label.bandlimited">Bandlimited</button>
+                <button class="terrain-seg-btn active" data-idx="1">2&#215;</button>
+                <button class="terrain-seg-btn" data-idx="2">4&#215;</button>
+            </div>
+        </div>
+
+        <button class="terrain-import-btn" id="btn-terImport" data-i18n="label.import">Import&#8230;</button>
+
+        <span class="terrain-readout" id="terrain-readout"></span>
+    </div>
+
+    <div class="terrain-main">
+        <div class="terrain-view-col">
+            <div class="terrain-view-wrap osc-canvas-wrap" id="terrain-view-wrap" data-osc="A">
+                <canvas id="terrainView" class="terrain-view"></canvas>
+                <div class="osc-view-toggle" data-osc="big">
+                    <button class="osc-view-btn active" data-view="3d" data-i18n-aria="aria.view3d" aria-label="3D view">&#11041;</button>
+                    <button class="osc-view-btn" data-view="wave" data-i18n-aria="aria.viewWaveform" aria-label="Waveform view">&#8779;</button>
+                </div>
+                <div class="terrain-hud" id="terrain-hud">&#952; 0.00 &middot; r 0.50 &middot; c (0.13, 0.21)</div>
+                <div class="terrain-webgl-unavailable" id="terrain-webgl-unavailable" data-i18n="label.webglUnavailable">WebGL unavailable &mdash; 2D fallback</div>
+                <div class="wt-drop-overlay" data-i18n="label.dropPng">Drop PNG</div>
+            </div>
+            <div class="terrain-hint" data-i18n="label.hintView">Drag: centre &middot; Wheel: size &middot; &#8997; drag: rotation</div>
+        </div>
+
+        <div class="terrain-panel-col">
+            <div class="card terrain-panel-card" id="card-terrainParams">
+                <div class="section-header" data-i18n="label.terrain">Terrain</div>
+                <div class="terrain-krow">
+                    <div class="knob-container primary" data-knob="terFreq" data-label="Freq" data-initial="1.00&#215;" data-i18n="label.terrainFreq" title="Spatial frequency multiplier — the main brightness / harmonic-count control"></div>
+                    <div class="knob-container" data-knob="terModX" data-label="Mod X" data-initial="50%" data-i18n="label.terrainModX" title="Terrain-specific shape input: ring spacing, saddle skew, well depth"></div>
+                    <div class="knob-container" data-knob="terModY" data-label="Mod Y" data-initial="50%" data-i18n="label.terrainModY" title="Second terrain-specific shape input"></div>
+                    <div class="knob-container" data-knob="terTrack" data-label="Pitch Track" data-initial="100%" data-i18n="label.pitchTrack" title="How much Terrain Freq scales down with note pitch — 100% keeps the harmonic count constant across the keyboard"></div>
+                    <div class="knob-container" data-knob="terSat" data-label="Saturation" data-initial="0%" data-i18n="label.saturation" title="tanh drive on the scanned value; identity at 0"></div>
+                </div>
+                <div class="terrain-krow terrain-krow-sub" id="terrain-image-row">
+                    <div class="knob-container" data-knob="terBlur" data-label="Image Blur" data-initial="20%" data-i18n="label.imageBlur" title="Gaussian pre-blur on PNG terrains"></div>
+                    <div class="dropdown-group">
+                        <span class="dropdown-label" data-i18n="label.edgeMode">Edge Mode</span>
+                        <select id="select-terEdge" class="param-select" data-param="terEdge">
+                            <option>Mirror</option><option>Window</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card terrain-panel-card" id="card-orbitParams">
+                <div class="section-header" data-i18n="label.orbit">Orbit</div>
+                <div class="terrain-krow">
+                    <div class="knob-container primary" data-knob="terSize" data-label="Size" data-initial="50%" data-i18n="label.orbitSize" title="Orbit radius 0.05–1.0 — the same parameter as the Synth tab's Orbit Size"></div>
+                    <div class="knob-container" data-knob="terAspect" data-label="Aspect" data-initial="0.70" data-i18n="label.orbitAspect" title="Minor/major ratio"></div>
+                    <div class="knob-container" data-knob="terRot" data-label="Rotation" data-initial="0&#176;" data-i18n="label.orbitRotation" title="X/Y phase relationship — PWM and phase-distortion-like motion"></div>
+                    <div class="knob-container" data-knob="terCX" data-label="Centre X" data-initial="0.13" data-i18n="label.orbitCentreX" title="Centre offset — asymmetry and even harmonics; draggable in the view"></div>
+                    <div class="knob-container" data-knob="terCY" data-label="Centre Y" data-initial="0.21" data-i18n="label.orbitCentreY" title="Centre offset — asymmetry and even harmonics; draggable in the view"></div>
+                </div>
+                <div class="terrain-krow terrain-krow-sub">
+                    <div class="knob-container" data-knob="terOrbMod" data-label="Orbit Mod" data-initial="0.50" data-i18n="label.orbitMod" title="Shape parameter of the chosen orbit: superellipse exponent, limaçon loop, epitrochoid inner ratio, squarcle corner"></div>
+                    <div class="knob-container" data-knob="terFb" data-label="Feedback" data-initial="0%" data-i18n="label.feedback" title="Trajectory feedback: the previous output displaces the next orbit point"></div>
+                    <div class="knob-container" data-knob="terFbDamp" data-label="Fb Damp" data-initial="50%" data-i18n="label.feedbackDamp" title="One-pole smoothing of the feedback displacement — the stability / character control"></div>
+                </div>
+            </div>
+
+            <div class="terrain-notice" id="terrain-notice" data-i18n="label.sourceMissing">Source missing &mdash; using library fallback</div>
+        </div>
+    </div>
+
+</div><!-- /terrain-tab -->
+
+</div><!-- /tab-content-area -->
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     FOOTER (MASTER STRIP)
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="footer-bar">
+    <div class="footer-param">
+        <div class="knob" id="knob-masterVol"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-masterVol" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
+        <span class="footer-label" data-i18n="label.master">Master</span>
+        <span class="footer-value" id="val-masterVol">80%</span>
+    </div>
+    <div class="footer-param">
+        <div class="knob" id="knob-oscMix"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-oscMix" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
+        <span class="footer-label" data-i18n="label.oscMix">Osc Mix</span>
+        <span class="footer-value" id="val-oscMix">50%</span>
+    </div>
+</div>
+<!-- ═══════════════════════════════════════════════════════════════════
+     JAVASCRIPT — production module (JUCE 8 WebView bridge)
+     Stage 3 splices this over plugins/O-Strata/Source/ui/public/index.html
+     (re-forked from O-Prism v1.26.0). Regions marked INHERITED FROM O-PRISM
+     are taken from that file verbatim; regions marked NEW are O-Strata's.
+     ═══════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import * as Juce from './js/juce/index.js';
+import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+
+// ═══════════════════════════════════════════════════════════════════
+// i18n — canon v2, verbatim from scripts/i18n-canon.js   (INHERITED FROM O-PRISM)
+// ═══════════════════════════════════════════════════════════════════
+//
+// PLACED AT THE TOP, and that is load-bearing rather than conventional. This
+// module is one long run of top-level IIFEs, the first of which
+// (expandKnobMarkup, below) runs during module evaluation. Anything here that
+// reached a `let` declared further down would be a TDZ ReferenceError that
+// kills every later initializer on the page silently
+// (pattern_module_toplevel_init_tdz). Declaring the block first and CALLING
+// initI18n() last is the only ordering that is safe in both directions.
+//
+// check-i18n assertion 6 byte-compares the region from `let uiLanguage` to the
+// close of initI18n() against scripts/i18n-canon.js after comment stripping and
+// whitespace normalisation. Do not edit inside it; helpers go outside.
+let uiLanguage = 'en';
+let getUiLanguageNative = null;
+let setUiLanguageNative = null;
+
+// LABELS first, I18N as the fallback: a control whose tooltip title already IS
+// its label carries one key, not two copies of the same string.
+function trLabel(key, lang, vars) {
+    const entry = (typeof LABELS === 'object' && LABELS && LABELS[key]) || I18N[key];
+    if (!entry) { console.warn(`i18n: missing label key ${key}`); return key; }
+    const s = entry[lang] || entry.en;
+    const resolve = (v) => {
+        const nested = (typeof LABELS === 'object' && LABELS && LABELS[v]) || I18N[v];
+        return nested ? String((nested[lang] || nested.en).t) : String(v);
+    };
+    return vars
+        ? String(s.t).replace(/\{(\w+)\}/g, (m, n) => (n in vars ? resolve(vars[n]) : m))
+        : String(s.t);
+}
+
+function applyLabel(el) {
+    const key = el.dataset.i18n;
+    if (!key) return;
+    let vars = null;
+    try { vars = el.dataset.i18nVars ? JSON.parse(el.dataset.i18nVars) : null; }
+    catch (e) { console.warn(`i18n: bad vars on ${key}`); }
+    const s = trLabel(key, uiLanguage, vars);
+    el.dataset.label = s;
+    el.textContent   = s;
+}
+
+function applyI18nAttributes(el) {
+    const pairs = [['i18nAria', 'aria-label'], ['i18nPlaceholder', 'placeholder'], ['i18nAlt', 'alt']];
+    for (const [prop, attr] of pairs) {
+        const key = el.dataset[prop];
+        if (key) el.setAttribute(attr, trLabel(key, uiLanguage, null));
+    }
+}
+
+function setLabel(el, key, vars) {
+    if (!el) return;
+    el.dataset.i18n = key;
+    if (vars) el.dataset.i18nVars = JSON.stringify(vars); else delete el.dataset.i18nVars;
+    applyLabel(el);
+}
+
+function applyI18n(lang) {
+    uiLanguage = LANGUAGES.includes(lang) ? lang : 'en';
+    // <html lang> follows the selector: screen readers pick the French voice,
+    // and CSS hyphens:auto / quotes resolve in the page's actual language.
+    document.documentElement.lang = uiLanguage;
+    for (const [selector, key, wrapper, vars] of TIP_BINDINGS) {
+        const el = document.querySelector(selector);
+        if (!el) { console.warn(`i18n: tip target not found: ${selector}`); continue; }
+        const target = wrapper ? (el.closest(wrapper) || el) : el;
+        const s = tr(key, uiLanguage, vars);
+        target.setAttribute('data-tip-title', s.t);
+        target.setAttribute('data-tip', s.b);
+    }
+    for (const el of document.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of document.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+    const sel = document.getElementById('lang-select');
+    if (sel && sel.value !== uiLanguage) sel.value = uiLanguage;
+}
+
+// Exposed so a clamp gate can drive the language without teaching the ui-stub a
+// promise contract: page.evaluate((l) => window.__setLanguage(l), 'fr').
+window.__setLanguage = applyI18n;
+// Exposed for the same reason, and so a sibling module can write a localized
+// label without app.js having to export anything — O-Bitrot's controller is an
+// inline <script type="module">, where an export declaration has nowhere to go.
+window.__setLabel = setLabel;
+window.__reapplyI18n = () => applyI18n(uiLanguage);
+
+function initI18n() {
+    try {
+        getUiLanguageNative = Juce.getNativeFunction('getUiLanguage');
+        setUiLanguageNative = Juce.getNativeFunction('setUiLanguage');
+    } catch (e) {
+        console.warn('Language preference not available, session-only:', e);
+    }
+
+    // Paint the default SYNCHRONOUSLY first. Never blank, never a flash.
+    try { applyI18n('en'); } catch (e) { console.error('i18n init failed:', e); }
+
+    if (getUiLanguageNative) {
+        getUiLanguageNative()
+            .then((code) => applyI18n(code))
+            .catch((e) => console.warn('Could not read language preference:', e));
+    }
+
+    const sel = document.getElementById('lang-select');
+    if (sel) sel.addEventListener('change', (e) => {
+        applyI18n(e.target.value);
+        if (setUiLanguageNative) setUiLanguageNative(uiLanguage).catch(() => {});
+    });
+}
+
+// ── outside the canon region ────────────────────────────────────────────────
+function localizeSubtree(root) {
+    if (!root) return;
+    for (const el of root.querySelectorAll('[data-i18n]')) applyLabel(el);
+    for (const el of root.querySelectorAll('[data-i18n-aria],[data-i18n-placeholder],[data-i18n-alt]'))
+        applyI18nAttributes(el);
+}
+window.__localizeSubtree = localizeSubtree;
+
+// ═══════════════════════════════════════════════════════════════════
+// HOVER HELP + TIPS TOGGLE   (INHERITED FROM O-PRISM — Stage 3 copies
+// initializeTipsToggle() and setupTooltips() from O-Prism v1.26.0
+// index.html verbatim, plus the `.tooltip` CSS and the trailing
+// <div class="tooltip" id="tooltip"> node. The two stubs below keep this
+// file self-consistent until then; the Terrain-tab `title=""` attributes
+// on the knob containers become TIP_BINDINGS rows in js/i18n.js.)
+// ═══════════════════════════════════════════════════════════════════
+function initializeTipsToggle() {
+    const btn = document.getElementById('tips-toggle');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const on = btn.getAttribute('aria-pressed') !== 'true';
+        btn.setAttribute('aria-pressed', String(on));
+        if (on) setLabel(btn, 'ui.on'); else setLabel(btn, 'ui.off');
+        document.body.classList.toggle('tips-off', !on);
+    });
+}
+function setupTooltips() { /* O-Prism v1.26.0 setupTooltips() goes here verbatim */ }
+
+// Native-application feel. Production requirements, not scaffolding.
+document.addEventListener('contextmenu', (e) => { e.preventDefault(); return false; });
+document.addEventListener('dragstart', (e) => { if (e.target.tagName !== 'INPUT') e.preventDefault(); });
+
+// ═══════════════════════════════════════════════════════════════════
+// KNOB MARKUP EXPANSION   (INHERITED FROM O-PRISM expandKnobMarkup(),
+// including the data-i18n MOVE onto the generated caption — a container
+// that keeps the key gets its whole knob deleted on the first language
+// switch.)
+// ═══════════════════════════════════════════════════════════════════
+(function expandKnobMarkup() {
+    document.querySelectorAll('div.knob-container[data-knob]').forEach(el => {
+        const paramId = el.dataset.knob;
+        const label   = el.dataset.label || '';
+        const initial = el.dataset.initial || '';
+        const key     = el.dataset.i18n || '';
+        el.removeAttribute('data-i18n');
+        el.innerHTML =
+            '<div class="knob" id="knob-' + paramId + '">' +
+                '<div class="knob-visual">' +
+                    '<svg viewBox="0 0 52 52">' +
+                        '<circle class="knob-track" cx="26" cy="26" r="22"/>' +
+                        '<circle class="knob-vine" id="vine-' + paramId + '" cx="26" cy="26" r="22" ' +
+                                'stroke-dasharray="103.67" stroke-dashoffset="103.67"/>' +
+                    '</svg>' +
+                '</div>' +
+                '<span class="knob-label">' + label + '</span>' +
+                '<span class="knob-value" id="val-' + paramId + '">' + initial + '</span>' +
+            '</div>';
+        if (key) el.querySelector('.knob-label').dataset.i18n = key;
+    });
+    const stranded = document.querySelectorAll('.knob-container[data-i18n]').length;
+    if (stranded !== 0) console.error('[i18n] ' + stranded + ' knob container(s) kept data-i18n');
+})();
+
+// ─── TAB SWITCHING ───
+window.switchTab = function (name) {
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(name + '-tab').classList.add('active');
+    document.querySelector('[data-tab="' + name + '"]').classList.add('active');
+    if (name === 'terrain') { sceneBig.fit(); requestDraw(); }
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// PRESET BROWSER   (INHERITED FROM O-PRISM initPresetBrowser(); the save
+// modal is created here in JS because the mockup markup does not carry
+// O-Prism's #preset-save-modal-overlay — Stage 3 may swap in the markup +
+// CSS from O-Prism instead. window.prompt() is a no-op under WKWebView.)
+// ═══════════════════════════════════════════════════════════════════
+(function initPresetBrowser() {
+    const getList = Juce.getNativeFunction('getPresetListWithCategories');
+    const getCurrent = Juce.getNativeFunction('getCurrentPreset');
+    const loadFromCat = Juce.getNativeFunction('loadPresetFromCategory');
+    const loadByName = Juce.getNativeFunction('loadPresetByName');
+    const nextFn = Juce.getNativeFunction('selectNextPreset');
+    const prevFn = Juce.getNativeFunction('selectPreviousPreset');
+    const savePresetFn = Juce.getNativeFunction('savePreset');
+    const isFactoryFn = Juce.getNativeFunction('isFactoryPreset');
+
+    const CATEGORY_ORDER = ['Pads', 'Drone', 'Lead', 'Bass', 'Pluck', 'Harmonic', 'Keys', 'Sequence', 'FX', 'Percussion', 'User'];
+
+    let categorized = {};
+    let currentName = '';
+    let currentCategory = '';
+
+    const displayEl = document.getElementById('preset-display');
+    const catEl = document.getElementById('preset-current-category');
+    const nameEl = document.getElementById('preset-current-name');
+    const menuEl = document.getElementById('preset-menu');
+    const prevBtn = document.getElementById('btn-preset-prev');
+    const nextBtn = document.getElementById('btn-preset-next');
+    const saveBtn = document.getElementById('btn-preset-save');
+
+    async function refreshList() {
+        try { categorized = JSON.parse((await getList()) || '{}'); }
+        catch (e) { console.error('[Presets] refreshList failed:', e); categorized = {}; }
+    }
+    function findCategoryFor(name) {
+        for (const [cat, names] of Object.entries(categorized)) if (names.includes(name)) return cat;
+        return '';
+    }
+    async function refreshCurrent() {
+        try {
+            currentName = (await getCurrent()) || '';
+            currentCategory = findCategoryFor(currentName);
+            catEl.textContent = currentCategory;
+            nameEl.textContent = currentName || '— Init —';
+            menuEl.querySelectorAll('.preset-menu-item').forEach(el => el.classList.toggle('active', el.dataset.name === currentName));
+            requestAnimationFrame(() => { if (window.__refreshAllControls) window.__refreshAllControls(); });
+        } catch (e) { console.error('[Presets] refreshCurrent failed:', e); }
+    }
+    function sortedCategories() {
+        return Object.keys(categorized).sort((a, b) => {
+            const ia = CATEGORY_ORDER.indexOf(a), ib = CATEGORY_ORDER.indexOf(b);
+            return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+        });
+    }
+    function buildMenu() {
+        menuEl.innerHTML = '';
+        for (const cat of sortedCategories()) {
+            const header = document.createElement('div');
+            header.className = 'preset-menu-category';
+            header.textContent = cat;
+            menuEl.appendChild(header);
+            const grid = document.createElement('div');
+            grid.className = 'preset-menu-grid';
+            for (const name of categorized[cat]) {
+                const item = document.createElement('div');
+                item.className = 'preset-menu-item';
+                if (name === currentName) item.classList.add('active');
+                item.textContent = name;
+                item.dataset.name = name;
+                item.dataset.category = cat;
+                item.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    try {
+                        if (cat === 'User') await loadByName(name); else await loadFromCat(cat, name);
+                        currentName = name; currentCategory = cat;
+                        catEl.textContent = cat; nameEl.textContent = name;
+                        hideMenu();
+                        requestAnimationFrame(() => { if (window.__refreshAllControls) window.__refreshAllControls(); });
+                    } catch (err) { console.error('[Presets] load failed:', err); }
+                });
+                grid.appendChild(item);
+            }
+            menuEl.appendChild(grid);
+        }
+    }
+    function showMenu() { buildMenu(); menuEl.classList.add('visible'); }
+    function hideMenu() { menuEl.classList.remove('visible'); }
+
+    displayEl.addEventListener('click', (e) => { e.stopPropagation(); menuEl.classList.contains('visible') ? hideMenu() : showMenu(); });
+    document.addEventListener('click', (e) => { if (!menuEl.contains(e.target) && e.target !== displayEl) hideMenu(); });
+    nextBtn.addEventListener('click', async (e) => { e.stopPropagation(); try { await nextFn(); await refreshCurrent(); } catch (err) { console.error('[Presets] next failed:', err); } });
+    prevBtn.addEventListener('click', async (e) => { e.stopPropagation(); try { await prevFn(); await refreshCurrent(); } catch (err) { console.error('[Presets] prev failed:', err); } });
+
+    // In-DOM save modal (CR-10 in O-Prism). Built once, lazily.
+    let saveOverlay = null, saveInput = null;
+    function ensureSaveModal() {
+        if (saveOverlay) return;
+        saveOverlay = document.createElement('div');
+        saveOverlay.id = 'preset-save-modal-overlay';
+        saveOverlay.className = 'preset-save-modal-overlay';
+        saveOverlay.innerHTML =
+            '<div class="preset-save-modal">' +
+              '<div class="preset-save-title" data-i18n="label.savePreset">Save Preset</div>' +
+              '<input type="text" id="preset-save-name-input" class="preset-save-input" spellcheck="false" autocomplete="off">' +
+              '<div class="preset-save-buttons">' +
+                '<button type="button" id="preset-save-cancel" class="tuning-file-btn" data-i18n="label.cancel">Cancel</button>' +
+                '<button type="button" id="preset-save-confirm" class="tuning-file-btn tuning-export-btn" data-i18n="label.save">Save</button>' +
+              '</div>' +
+            '</div>';
+        document.body.appendChild(saveOverlay);
+        localizeSubtree(saveOverlay);
+        saveInput = saveOverlay.querySelector('#preset-save-name-input');
+        const close = () => saveOverlay.classList.remove('active');
+        const confirm = async () => {
+            const name = saveInput.value.trim();
+            if (!name) return;
+            close();
+            try { await savePresetFn(name); await refreshList(); await refreshCurrent(); }
+            catch (err) { console.error('[Presets] save failed:', err); }
+        };
+        saveOverlay.querySelector('#preset-save-confirm').addEventListener('click', (e) => { e.stopPropagation(); confirm(); });
+        saveOverlay.querySelector('#preset-save-cancel').addEventListener('click', (e) => { e.stopPropagation(); close(); });
+        saveInput.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') confirm(); else if (e.key === 'Escape') close(); });
+        saveOverlay.addEventListener('click', (e) => { if (e.target === saveOverlay) close(); });
+    }
+    saveBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        let defaultName = 'My Preset';
+        try { if (currentName && !(await isFactoryFn(currentName))) defaultName = currentName; } catch (err) {}
+        ensureSaveModal();
+        saveInput.value = defaultName;
+        saveOverlay.classList.add('active');
+        saveInput.focus(); saveInput.select();
+    });
+
+    (async () => { await refreshList(); await refreshCurrent(); })();
+})();
+
+// ─── SETTINGS POPOVER ───
+(function initSettingsPopover() {
+    const gear = document.getElementById('gear-btn'), pop = document.getElementById('settings-popover');
+    gear.addEventListener('click', (e) => { e.stopPropagation(); pop.classList.toggle('visible'); });
+    document.addEventListener('click', (e) => { if (!pop.contains(e.target) && e.target !== gear) pop.classList.remove('visible'); });
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// SVG VINE KNOB INFRASTRUCTURE   (INHERITED FROM O-PRISM)
+// ═══════════════════════════════════════════════════════════════════
+const KNOB_SIZES = { standard: { arcLength: 103.67 }, small: { arcLength: 84.82 }, large: { arcLength: 127.24 } };
+const animationState = { targets: {}, frameId: null, isRunning: false, smoothingFactor: 0.15 };
+const animationLoop = () => {
+    let needsUpdate = false;
+    Object.entries(animationState.targets).forEach(([id, s]) => {
+        const delta = s.target - s.current;
+        if (Math.abs(delta) > 0.0001) {
+            s.current += delta * animationState.smoothingFactor;
+            needsUpdate = true;
+            s.vine.style.strokeDashoffset = s.arcLength - (s.current * s.arcLength);
+        }
+    });
+    if (needsUpdate) animationState.frameId = requestAnimationFrame(animationLoop);
+    else { animationState.isRunning = false; animationState.frameId = null; }
+};
+const startAnimationLoop = () => {
+    if (!animationState.isRunning) { animationState.isRunning = true; animationState.frameId = requestAnimationFrame(animationLoop); }
+};
+
+// ─── DOUBLE-CLICK VALUE ENTRY (INHERITED FROM O-PRISM) ───
+function scaledToNorm(v, props) {
+    const start = props.start, end = props.end;
+    const skew = props.skew > 0 ? props.skew : 1;
+    if (!(end > start)) return 0;
+    const t = Math.min(1, Math.max(0, (v - start) / (end - start)));
+    return skew === 1 ? t : Math.pow(t, skew);
+}
+function attachValueEntry(valueEl, state, formatFn) {
+    if (!valueEl || !state) return;
+    if (typeof formatFn !== 'function' || typeof formatFn.parse !== 'function') return;
+    if (valueEl.dataset.editing === '1') return;
+    const currentText = valueEl.textContent;
+    const prevPosition = valueEl.style.position;
+    const prevColor = valueEl.style.color;
+    const inkColor = getComputedStyle(valueEl).color;
+    const input = document.createElement('input');
+    input.type = 'text'; input.className = 'knob-value-input';
+    input.value = currentText; input.spellcheck = false; input.autocomplete = 'off';
+    input.style.color = inkColor;
+    valueEl.dataset.editing = '1';
+    valueEl.style.position = 'relative';
+    valueEl.style.color = 'transparent';
+    valueEl.appendChild(input);
+    input.focus(); input.select();
+    let closed = false;
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        delete valueEl.dataset.editing;
+        input.remove();
+        valueEl.style.position = prevPosition;
+        valueEl.style.color = prevColor;
+        valueEl.textContent = formatFn(state.getNormalisedValue());
+    };
+    const commit = () => {
+        if (closed) return;
+        if (input.value === currentText) { close(); return; }
+        const scaled = formatFn.parse(input.value, currentText);
+        if (scaled !== null && isFinite(scaled)) {
+            state.sliderDragStarted();
+            state.setNormalisedValue(scaledToNorm(scaled, state.properties || {}));
+            state.sliderDragEnded();
+        }
+        close();
+    };
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    input.addEventListener('blur', commit);
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.addEventListener('wheel', (e) => e.stopPropagation());
+}
+
+// defaultNorm is the Alt/Option-click reset target and is NORMALISED [0,1].
+// `stateOverride` is NEW for O-Strata: the Terrain-tab panel binds its knobs
+// to PROXY states (below) instead of a relay of its own name.
+function bindKnob(paramId, formatFn, defaultNorm, size, stateOverride) {
+    const knobEl = document.getElementById('knob-' + paramId);
+    const vine = document.getElementById('vine-' + paramId);
+    const valueEl = document.getElementById('val-' + paramId);
+    if (!knobEl || !vine) return;
+
+    const sizeConfig = size === 'small' ? KNOB_SIZES.small : size === 'large' ? KNOB_SIZES.large : KNOB_SIZES.standard;
+    const state = stateOverride || Juce.getSliderState(paramId);
+
+    const initNorm = state.getNormalisedValue();
+    animationState.targets[paramId] = { current: initNorm, target: initNorm, vine: vine, arcLength: sizeConfig.arcLength };
+    vine.style.strokeDashoffset = sizeConfig.arcLength - (initNorm * sizeConfig.arcLength);
+    if (valueEl && formatFn) valueEl.textContent = formatFn(initNorm);
+
+    state.valueChangedEvent.addListener(() => {
+        const norm = state.getNormalisedValue();
+        animationState.targets[paramId].target = norm;
+        startAnimationLoop();
+        if (valueEl && formatFn && valueEl.dataset.editing !== '1') valueEl.textContent = formatFn(norm);
+    });
+
+    let isDragging = false;
+    const knobVisual = knobEl.querySelector('.knob-visual');
+    const dragTarget = knobVisual || knobEl;
+
+    // Alt/Option-click resets to default — CAPTURE phase so it pre-empts the drag.
+    knobEl.addEventListener('mousedown', (e) => {
+        if (!e.altKey) return;
+        e.preventDefault(); e.stopPropagation();
+        state.sliderDragStarted();
+        state.setNormalisedValue(typeof defaultNorm === 'function' ? defaultNorm() : defaultNorm);
+        state.sliderDragEnded();
+    }, true);
+
+    dragTarget.addEventListener('mousedown', (e) => { isDragging = true; state.sliderDragStarted(); e.preventDefault(); });
+    document.addEventListener('mouseup', () => { if (isDragging) { isDragging = false; state.sliderDragEnded(); } });
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        let sensitivity = 0.005;
+        const p = state.properties;
+        if (p && p.interval > 0) {
+            const steps = Math.round((p.end - p.start) / p.interval);
+            if (steps > 0 && steps <= 16) sensitivity = 1.0 / (steps * 8);
+        }
+        state.setNormalisedValue(Math.max(0, Math.min(1, state.getNormalisedValue() - e.movementY * sensitivity)));
+    });
+    knobEl.addEventListener('dblclick', (e) => { if (e.altKey) return; attachValueEntry(valueEl, state, formatFn); });
+    knobEl.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.02 : -0.02;
+        state.setNormalisedValue(Math.max(0, Math.min(1, state.getNormalisedValue() + delta)));
+    }, { passive: false });
+}
+
+// Inherited choice params ride SLIDER relays, exactly as O-Prism binds them.
+function bindDropdown(selectEl, paramId, numChoices) {
+    if (!selectEl) return;
+    const state = Juce.getSliderState(paramId);
+    selectEl.addEventListener('change', () => {
+        state.sliderDragStarted();
+        state.setNormalisedValue(selectEl.selectedIndex / Math.max(1, numChoices - 1));
+        state.sliderDragEnded();
+    });
+    state.valueChangedEvent.addListener(() => { selectEl.selectedIndex = Math.round(state.getNormalisedValue() * (numChoices - 1)); });
+    selectEl.selectedIndex = Math.round(state.getNormalisedValue() * (numChoices - 1));
+}
+
+// NEW — the four new choice params per oscillator (Terrain, Orbit, TerEdge,
+// Quality) ride COMBOBOX relays: the <option> list comes from C++
+// (state.properties.choices, pushed on propertiesChanged), so the JS list
+// below is only the pre-push fallback and can never disagree with the
+// AudioParameterChoice. `stateOverride` = a ComboProxy for the Terrain tab.
+function bindCombo(selectEl, paramId, fallbackChoices, stateOverride) {
+    if (!selectEl) return;
+    const state = stateOverride || Juce.getComboBoxState(paramId);
+    function populate() {
+        const choices = (state.properties && state.properties.choices && state.properties.choices.length)
+            ? state.properties.choices : fallbackChoices;
+        if (selectEl.options.length === choices.length &&
+            Array.from(selectEl.options).every((o, i) => o.textContent === choices[i])) return;
+        selectEl.innerHTML = '';
+        choices.forEach(c => { const o = document.createElement('option'); o.textContent = c; selectEl.appendChild(o); });
+    }
+    function sync() { populate(); selectEl.selectedIndex = state.getChoiceIndex(); }
+    selectEl.addEventListener('change', () => state.setChoiceIndex(selectEl.selectedIndex));
+    state.valueChangedEvent.addListener(sync);
+    if (state.propertiesChangedEvent) state.propertiesChangedEvent.addListener(sync);
+    sync();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FORMAT HELPERS   (INHERITED FROM O-PRISM, plus the NEW terrain/orbit set.
+// Readouts are NEVER localised.)
+// ═══════════════════════════════════════════════════════════════════
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+const pct = (n) => (n * 100).toFixed(0) + '%';
+const pctSigned = (n) => { const v = (n * 200 - 100).toFixed(0); return (v > 0 ? '+' : '') + v + '%'; };
+const panFmt = (n) => { const v = Math.round(n * 200 - 100); if (v === 0) return 'C'; return v < 0 ? Math.abs(v) + 'L' : v + 'R'; };
+function skewMap(norm, start, end, skew) { return start + (end - start) * Math.pow(norm, 1.0 / skew); }
+const envTimeFmtA = (n) => { const v = skewMap(n, 0.001, 10.0, 0.35); return v >= 1 ? v.toFixed(1) + 's' : (v * 1000).toFixed(0) + 'ms'; };
+const envTimeFmtR = (n) => { const v = skewMap(n, 0.001, 20.0, 0.3);  return v >= 1 ? v.toFixed(1) + 's' : (v * 1000).toFixed(0) + 'ms'; };
+const cutoffFmt   = (n) => { const v = skewMap(n, 20, 20000, 0.25);  return v >= 1000 ? (v / 1000).toFixed(1) + 'kHz' : v.toFixed(0) + 'Hz'; };
+const midFreqFmt  = (n) => { const v = skewMap(n, 200, 8000, 0.35);  return v >= 1000 ? (v / 1000).toFixed(1) + 'kHz' : v.toFixed(0) + 'Hz'; };
+const delayTimeFmt = (n) => { const v = skewMap(n, 0.001, 2.0, 0.35); return v >= 1 ? v.toFixed(2) + 's' : (v * 1000).toFixed(0) + 'ms'; };
+const chorusRateFmt = (n) => skewMap(n, 0.1, 10.0, 0.4).toFixed(1) + ' Hz';
+const predelayFmt = (n) => skewMap(n, 0, 200, 0.5).toFixed(0) + 'ms';
+const dbFmt = (n) => { const v = -12 + n * 24; return (v > 0 ? '+' : '') + v.toFixed(1) + ' dB'; };
+const coarseFmt = (n) => { const v = Math.round(n * 48 - 24); return (v > 0 ? '+' : '') + v + ' st'; };
+const fineFmt = (n) => { const v = (n * 200 - 100).toFixed(0); return (v > 0 ? '+' : '') + v + ' ct'; };
+const unisonFmt = (n) => Math.round(n * 3 + 1).toString();          // 1..4 — live-oscillator cap (was n*7+1)
+const masterTuneFmt = (n) => (420 + n * 40).toFixed(1) + ' Hz';
+const octStretchFmt = (n) => (0.95 + n * 0.3).toFixed(3);
+const pbRangeFmt = (n) => Math.round(n * 47 + 1) + ' st';
+const glideTimeFmt = (n) => { const v = skewMap(n, 0.001, 5.0, 0.35); return v >= 1 ? v.toFixed(1) + 's' : (v * 1000).toFixed(0) + 'ms'; };
+const feedbackFmt = (n) => (n * 95).toFixed(0) + '%';
+const lfoRateFmt = (n) => { const v = skewMap(n, 0.01, 20.0, 0.35); return v >= 10 ? v.toFixed(0) + ' Hz' : v.toFixed(1) + ' Hz'; };
+const reverbModRateFmt = (n) => skewMap(n, 0.1, 5.0, 0.5).toFixed(1) + ' Hz';
+
+// NEW — terrain / orbit readouts (v2-ui.yaml parameters:)
+const unit01    = (n) => n.toFixed(2);                                   // OrbMod 0.00–1.00
+const bipolar   = (n) => { const v = n * 2 - 1; return Math.abs(v) < 0.005 ? '0.00' : v.toFixed(2); };   // OrbCX / OrbCY −1..1
+const aspectFmt = (n) => (0.1 + n * 0.9).toFixed(2);                     // OrbAspect 0.10–1.00
+const degFmt    = (n) => Math.round(n * 360) + '°';                      // OrbRot 0–360°
+// Terrain Freq is a LOG range 0.25–8.0× (value = 0.25 · 32^norm; 1.00× at norm
+// 0.4). Bandlimited clamps the DISPLAYED value at 2.00× because the degree-16
+// triangle bounds F there (ARCHITECTURE D3).
+const freqValue = (n) => 0.25 * Math.pow(32, n);
+const freqFmt   = (n) => { let v = freqValue(n); if (qualityIndex(ACTIVE_OSC) === 0) v = Math.min(v, 2.0); return v.toFixed(2) + '×'; };
+
+// ─── VALUE-ENTRY PARSERS (INHERITED FROM O-PRISM + NEW) ───
+const numOf = (t) => { const m = String(t).match(/-?\d*\.?\d+/); if (!m) return null; const v = parseFloat(m[0]); return isFinite(v) ? v : null; };
+const parseDirect = (t) => numOf(t);
+const parsePercent = (t) => { const v = numOf(t); return v === null ? null : v / 100; };
+const parseFreq = (t) => { const v = numOf(t); if (v === null) return null; return /k/i.test(String(t)) ? v * 1000 : v; };
+const parseSeconds = (t, currentText) => {
+    const v = numOf(t); if (v === null) return null;
+    const s = String(t);
+    if (/ms/i.test(s)) return v / 1000;
+    if (/s/i.test(s)) return v;
+    return /ms/i.test(String(currentText || '')) ? v / 1000 : v;
+};
+pct.parse = parsePercent; pctSigned.parse = parsePercent; feedbackFmt.parse = parsePercent;
+panFmt.parse = (t) => { const s = String(t); const v = numOf(s); if (v === null) return /c/i.test(s) ? 0 : null; if (/l/i.test(s)) return -Math.abs(v) / 100; if (/r/i.test(s)) return Math.abs(v) / 100; return v / 100; };
+cutoffFmt.parse = parseFreq; midFreqFmt.parse = parseFreq;
+envTimeFmtA.parse = parseSeconds; envTimeFmtR.parse = parseSeconds; delayTimeFmt.parse = parseSeconds; glideTimeFmt.parse = parseSeconds;
+predelayFmt.parse = parseDirect; dbFmt.parse = parseDirect; coarseFmt.parse = parseDirect; fineFmt.parse = parseDirect;
+unisonFmt.parse = parseDirect; pbRangeFmt.parse = parseDirect; masterTuneFmt.parse = parseDirect; octStretchFmt.parse = parseDirect;
+chorusRateFmt.parse = parseDirect; lfoRateFmt.parse = parseDirect; reverbModRateFmt.parse = parseDirect;
+unit01.parse = parseDirect; bipolar.parse = parseDirect; aspectFmt.parse = parseDirect; degFmt.parse = parseDirect;
+freqFmt.parse = parseDirect;   // scaled value in × — scaledToNorm() reads the log range from state.properties
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — CHOICE LISTS (pre-push fallbacks; C++ AudioParameterChoice is authoritative)
+// ═══════════════════════════════════════════════════════════════════
+const TERRAINS = ['Sine Product', 'Radial Rings', 'Saddle', 'Ridged Cosines', 'Mitsuhashi', 'Cosine Wells', 'Imported…'];
+const ORBITS   = ['Ellipse', 'Superellipse', 'Limaçon', 'Epitrochoid 3', 'Epitrochoid 5', 'Epitrochoid 7',
+                  'Hypocycloid 3', 'Hypocycloid 5', 'Hypocycloid 7', 'Butterfly', 'Squarcle'];
+const QUALITY  = ['Bandlimited', '2×', '4×'];
+const EDGES    = ['Mirror', 'Window'];
+const NON_POLY_ORBITS = [1, 9, 10];         // Superellipse, Butterfly, Squarcle — Bandlimited is approximate
+const IMPORTED_INDEX = TERRAINS.length - 1;  // Imported… is always LAST
+const ORBIT_DEGREE = [1, 1, 2, 4, 6, 8, 2, 4, 6, 4, 1];   // trig-polynomial degree K per orbit
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — TERRAIN-TAB PROXIES. One panel, whichever oscillator is active
+// (v2-ui.yaml interactions.osc_toggle). The panel's data-knob ids (terFreq,
+// terSize …) are NOT relays; each proxy forwards to osc{A|B}<suffix> and
+// re-fires its listeners when the active oscillator's relay moves or when the
+// toggle repoints it.
+// ═══════════════════════════════════════════════════════════════════
+let ACTIVE_OSC = 'A';
+const proxies = [];
+class SliderProxy {
+    constructor(suffix) {
+        this.suffix = suffix; this.listeners = [];
+        this.valueChangedEvent = { addListener: (fn) => this.listeners.push(fn) };
+        for (const o of ['A', 'B'])
+            Juce.getSliderState('osc' + o + suffix).valueChangedEvent.addListener(() => { if (o === ACTIVE_OSC) this.notify(); });
+        proxies.push(this);
+    }
+    get target() { return Juce.getSliderState('osc' + ACTIVE_OSC + this.suffix); }
+    get properties() { return this.target.properties; }
+    getNormalisedValue() { return this.target.getNormalisedValue(); }
+    setNormalisedValue(v) { this.target.setNormalisedValue(v); }
+    getScaledValue() { return this.target.getScaledValue(); }
+    sliderDragStarted() { this.target.sliderDragStarted(); }
+    sliderDragEnded() { this.target.sliderDragEnded(); }
+    notify() { this.listeners.forEach(fn => fn()); }
+}
+class ComboProxy {
+    constructor(suffix) {
+        this.suffix = suffix; this.listeners = []; this.propListeners = [];
+        this.valueChangedEvent = { addListener: (fn) => this.listeners.push(fn) };
+        this.propertiesChangedEvent = { addListener: (fn) => this.propListeners.push(fn) };
+        for (const o of ['A', 'B']) {
+            const st = Juce.getComboBoxState('osc' + o + suffix);
+            st.valueChangedEvent.addListener(() => { if (o === ACTIVE_OSC) this.notify(); });
+            st.propertiesChangedEvent.addListener(() => { if (o === ACTIVE_OSC) this.propListeners.forEach(fn => fn()); });
+        }
+        proxies.push(this);
+    }
+    get target() { return Juce.getComboBoxState('osc' + ACTIVE_OSC + this.suffix); }
+    get properties() { return this.target.properties; }
+    getChoiceIndex() { return this.target.getChoiceIndex(); }
+    setChoiceIndex(i) { this.target.setChoiceIndex(i); }
+    notify() { this.listeners.forEach(fn => fn()); }
+}
+const PROXY = {
+    terFreq: new SliderProxy('TerFreq'),   terModX: new SliderProxy('TerModX'), terModY: new SliderProxy('TerModY'),
+    terTrack: new SliderProxy('TerTrack'), terSat: new SliderProxy('TerSat'),   terBlur: new SliderProxy('TerBlur'),
+    terSize: new SliderProxy('Pos'),       terAspect: new SliderProxy('OrbAspect'), terRot: new SliderProxy('OrbRot'),
+    terCX: new SliderProxy('OrbCX'),       terCY: new SliderProxy('OrbCY'),     terOrbMod: new SliderProxy('OrbMod'),
+    terFb: new SliderProxy('OrbFeedback'), terFbDamp: new SliderProxy('OrbFbDamp'),
+    terTerrain: new ComboProxy('Terrain'), terOrbit: new ComboProxy('Orbit'),
+    terEdge: new ComboProxy('TerEdge'),    terQuality: new ComboProxy('Quality')
+};
+function notifyAllProxies() { proxies.forEach(p => p.notify()); }
+
+const choiceIndex = (osc, suffix) => Juce.getComboBoxState('osc' + osc + suffix).getChoiceIndex();
+const qualityIndex = (osc) => choiceIndex(osc, 'Quality');
+
+// ═══════════════════════════════════════════════════════════════════
+// BIND SLIDER PARAMS   (INHERITED FROM O-PRISM — defaults are NORMALISED;
+// oscAPos / oscBPos now reset to 0.5 = Orbit Size 50 %)
+// ═══════════════════════════════════════════════════════════════════
+for (const o of ['A', 'B']) {
+    const p = 'osc' + o;
+    bindCombo(document.getElementById('select-' + p + 'Terrain'), p + 'Terrain', TERRAINS);
+    bindCombo(document.getElementById('select-' + p + 'Orbit'),   p + 'Orbit',   ORBITS);
+    bindKnob(p + 'Pos',     pct,       0.5);
+    bindKnob(p + 'Level',   pct,       o === 'A' ? 0.8 : 0.0);
+    bindKnob(p + 'Pan',     panFmt,    0.5);
+    bindKnob(p + 'Coarse',  coarseFmt, 0.5);
+    bindKnob(p + 'Fine',    fineFmt,   0.5);
+    bindKnob(p + 'Phase',   pct,       0.0);
+    bindKnob(p + 'Unison',  unisonFmt, 0.0);
+    bindKnob(p + 'Detune',  pct,       0.2);
+    bindKnob(p + 'Width',   pct,       0.5);
+    bindKnob(p + 'WarpAmt', pct,       0.0);
+    bindDropdown(document.getElementById('select-' + p + 'WarpType'), p + 'WarpType', 5);
+}
+
+// Sub + Noise
+bindDropdown(document.getElementById('select-subShape'), 'subShape', 4);
+bindDropdown(document.getElementById('select-subOctave'), 'subOctave', 4);
+bindDropdown(document.getElementById('select-subRouting'), 'subRouting', 2);
+bindKnob('subLevel',   pct, 0.0);
+bindDropdown(document.getElementById('select-noiseType'), 'noiseType', 6);
+bindKnob('noiseLevel', pct, 0.0);
+
+// Performance
+bindKnob('pitchBendRange', pbRangeFmt, 0.0213);
+bindDropdown(document.getElementById('select-glideMode'), 'glideMode', 3);
+bindKnob('glideTime', glideTimeFmt, 0.2534);
+
+// Envelopes
+bindKnob('ampAttack',  envTimeFmtA, 0.0859);
+bindKnob('ampDecay',   envTimeFmtA, 0.2928);
+bindKnob('ampSustain', pct,         0.7);
+bindKnob('ampRelease', envTimeFmtR, 0.3305);
+bindKnob('filtAttack',    envTimeFmtA, 0.0859);
+bindKnob('filtDecay',     envTimeFmtA, 0.3502);
+bindKnob('filtSustain',   pct,         0.5);
+bindKnob('filtRelease',   envTimeFmtR, 0.3305);
+bindKnob('filtAEnvDepth', pctSigned,   0.5);
+bindKnob('filtBEnvDepth', pctSigned,   0.5);
+
+// Filters
+for (const f of ['filtA', 'filtB']) {
+    bindDropdown(document.getElementById('select-' + f + 'Type'), f + 'Type', 7);
+    bindKnob(f + 'Cutoff',   cutoffFmt, 1.0);
+    bindKnob(f + 'Res',      pct,       0.0);
+    bindKnob(f + 'Drive',    pct,       0.0);
+    bindKnob(f + 'KeyTrack', pct,       0.0);
+}
+bindDropdown(document.getElementById('select-filtRouting'), 'filtRouting', 2);
+
+// Effects
+bindKnob('reverbSize',     pct,              0.5);
+bindKnob('reverbDamp',     pct,              0.5);
+bindKnob('reverbPredelay', predelayFmt,      0.3162);
+bindKnob('reverbMix',      pct,              0.0);
+bindKnob('reverbModDepth', pct,              0.3);
+bindKnob('reverbModRate',  reverbModRateFmt, 0.43);
+bindKnob('delayTime',      delayTimeFmt,     0.5562);
+bindKnob('delayFeedback',  feedbackFmt,      0.316);
+bindDropdown(document.getElementById('select-delayMode'), 'delayMode', 2);
+bindDropdown(document.getElementById('select-delayDivision'), 'delayDivision', 18);
+bindKnob('delayMix',       pct,              0.0);
+bindKnob('chorusRate',     chorusRateFmt,    0.3832);
+bindKnob('chorusDepth',    pct,              0.5);
+bindKnob('chorusMix',      pct,              0.0);
+bindDropdown(document.getElementById('select-distType'), 'distType', 4);
+bindKnob('distDrive', pct, 0.0);
+bindKnob('distMix',   pct, 0.0);
+bindKnob('eqLowGain',  dbFmt,      0.5);
+bindKnob('eqMidGain',  dbFmt,      0.5);
+bindKnob('eqMidFreq',  midFreqFmt, 0.4507);
+bindKnob('eqHighGain', dbFmt,      0.5);
+
+// Global (footer)
+bindKnob('masterVol', pct, 0.8, 'small');
+bindKnob('oscMix',    pct, 0.5, 'small');
+
+// A4 Ref knob (Tuning tab) — the mockup's id is refPitch; the parameter is masterTune.
+bindKnob('refPitch', masterTuneFmt, 0.5, 'large', Juce.getSliderState('masterTune'));
+
+// ─── LFO Sync / FreeRun (INHERITED FROM O-PRISM — the v1.26.0 card has no
+//     Division dropdown wrapper in this mockup, so divWrap may be null) ───
+function bindLfoSync(lfoNum) {
+    const syncBtn = document.getElementById('toggle-lfo' + lfoNum + 'Sync');
+    const rateWrap = document.getElementById('lfo' + lfoNum + '-rate-wrap');
+    const divWrap = document.getElementById('lfo' + lfoNum + '-div-wrap');
+    const syncState = Juce.getToggleState('lfo' + lfoNum + 'Sync');
+    function updateSyncUI(isSync) {
+        if (isSync) {
+            setLabel(syncBtn, 'ui.sync');
+            syncBtn.classList.add('active');
+            if (rateWrap) rateWrap.style.display = 'none';
+            if (divWrap) divWrap.style.display = '';
+        } else {
+            setLabel(syncBtn, 'ui.free');
+            syncBtn.classList.remove('active');
+            if (rateWrap) rateWrap.style.display = '';
+            if (divWrap) divWrap.style.display = 'none';
+        }
+    }
+    syncBtn.addEventListener('click', () => syncState.setValue(!syncState.getValue()));
+    syncState.valueChangedEvent.addListener(() => updateSyncUI(syncState.getValue()));
+    updateSyncUI(syncState.getValue());
+}
+function bindLfoFreeRun(lfoNum) {
+    const btn = document.getElementById('toggle-lfo' + lfoNum + 'FreeRun');
+    const state = Juce.getToggleState('lfo' + lfoNum + 'FreeRun');
+    function updateUI(isFree) {
+        if (isFree) { setLabel(btn, 'ui.freeRun'); btn.classList.add('active'); }
+        else        { setLabel(btn, 'ui.retrig');  btn.classList.remove('active'); }
+    }
+    btn.addEventListener('click', () => state.setValue(!state.getValue()));
+    state.valueChangedEvent.addListener(() => updateUI(state.getValue()));
+    updateUI(state.getValue());
+}
+for (let i = 1; i <= 4; i++) {
+    bindKnob('lfo' + i + 'Rate', lfoRateFmt, 0.349);
+    bindDropdown(document.getElementById('select-lfo' + i + 'Shape'), 'lfo' + i + 'Shape', 5);
+    bindDropdown(document.getElementById('select-lfo' + i + 'Division'), 'lfo' + i + 'Division', 18);
+    bindLfoSync(i);
+    bindLfoFreeRun(i);
+}
+
+// ─── DELAY SYNC TOGGLE (INHERITED FROM O-PRISM; the On/Off face is I18N_EXEMPT) ───
+(function () {
+    const syncBtn = document.getElementById('toggle-delaySync');
+    if (!syncBtn) return;
+    const toggle = Juce.getToggleState('delaySync');
+    function updateSyncDisplay() {
+        const isOn = toggle.getValue();
+        syncBtn.textContent = isOn ? 'On' : 'Off';
+        syncBtn.classList.toggle('active', isOn);
+    }
+    syncBtn.addEventListener('click', () => toggle.setValue(!toggle.getValue()));
+    toggle.valueChangedEvent.addListener(updateSyncDisplay);
+    updateSyncDisplay();
+})();
+
+// ─── BYPASS TOGGLES (INHERITED FROM O-PRISM) ───
+function bindBypassToggle(paramId, buttonId, sectionId) {
+    const btn = document.getElementById(buttonId);
+    const section = document.getElementById(sectionId);
+    if (!btn) return;
+    const toggle = Juce.getToggleState(paramId);
+    function update() {
+        const isBypassed = toggle.getValue();
+        if (isBypassed) setLabel(btn, 'ui.bypassOff'); else setLabel(btn, 'ui.bypassOn');
+        btn.classList.toggle('off', isBypassed);
+        if (section) section.classList.toggle('bypassed', isBypassed);
+    }
+    btn.addEventListener('click', () => toggle.setValue(!toggle.getValue()));
+    toggle.valueChangedEvent.addListener(update);
+    update();
+}
+bindBypassToggle('reverbBypass', 'toggle-reverbBypass', 'section-reverb');
+bindBypassToggle('delayBypass',  'toggle-delayBypass',  'section-delay');
+bindBypassToggle('chorusBypass', 'toggle-chorusBypass', 'section-chorus');
+bindBypassToggle('distBypass',   'toggle-distBypass',   'section-dist');
+bindBypassToggle('eqBypass',     'toggle-eqBypass',     'section-eq');
+
+// ═══════════════════════════════════════════════════════════════════
+// MOD MATRIX UI   (INHERITED FROM O-PRISM — only the fallback list changed:
+// 46 destinations, indices 1/2 relabelled Orbit Size, 20 appended A then B.
+// getModDestNames() from C++ is authoritative, WR-20.)
+// ═══════════════════════════════════════════════════════════════════
+(async function () {
+    const NUM_SLOTS = 16;
+    let sourceNames = ['None', 'LFO1', 'LFO2', 'LFO3', 'LFO4', 'AmpEnv', 'FilterEnv', 'Velocity', 'NoteNum', 'ModWheel', 'Aftertouch'];
+    let destNames = ['None', 'OscA Orbit Size', 'OscB Orbit Size', 'FiltA Cut', 'FiltB Cut', 'FiltA Res', 'FiltB Res',
+        'Osc Mix', 'Sub Level', 'Noise Level', 'LFO1 Rate', 'LFO2 Rate', 'LFO3 Rate', 'LFO4 Rate',
+        'OscA Detune', 'OscB Detune', 'OscA Pan', 'OscB Pan', 'Reverb Mix', 'Delay Mix', 'Chorus Mix', 'Dist Mix',
+        'Master Vol', 'Pitch', 'OscA Warp', 'OscB Warp']
+        .concat(['A', 'B'].reduce((acc, o) => acc.concat([
+            'Osc' + o + ' Orbit Aspect', 'Osc' + o + ' Orbit Rot', 'Osc' + o + ' Orbit CX', 'Osc' + o + ' Orbit CY',
+            'Osc' + o + ' Orbit Mod', 'Osc' + o + ' Terrain Freq', 'Osc' + o + ' Terrain Mod X',
+            'Osc' + o + ' Terrain Mod Y', 'Osc' + o + ' Feedback', 'Osc' + o + ' Saturation']), []));
+
+    try {
+        const src = JSON.parse(await Juce.getNativeFunction('getModSourceNames')());
+        const dst = JSON.parse(await Juce.getNativeFunction('getModDestNames')());
+        if (Array.isArray(src) && src.length) sourceNames = src;
+        if (Array.isArray(dst) && dst.length) destNames = dst;
+    } catch (e) { console.warn('[ModMatrix] native name fetch failed, using fallback lists:', e); }
+
+    const container = document.getElementById('mod-matrix-rows');
+    if (!container) return;
+
+    for (let i = 0; i < NUM_SLOTS; i++) {
+        const prefix = 'modSlot' + i;
+        const srcState = Juce.getSliderState(prefix + 'Src');
+        const dstState = Juce.getSliderState(prefix + 'Dst');
+        const amtState = Juce.getSliderState(prefix + 'Amt');
+        const onState  = Juce.getToggleState(prefix + 'On');
+
+        const row = document.createElement('div');
+        row.className = 'mod-row'; row.id = 'mod-row-' + i;
+        const onCol = document.createElement('span'); onCol.className = 'mod-col-on';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = onState.getValue(); onCol.appendChild(cb);
+        const slotCol = document.createElement('span'); slotCol.className = 'mod-col-slot'; slotCol.textContent = (i + 1).toString();
+        const srcCol = document.createElement('span'); srcCol.className = 'mod-col-src';
+        const srcSel = document.createElement('select');
+        sourceNames.forEach((name, idx) => { const opt = document.createElement('option'); opt.value = idx; opt.textContent = name; srcSel.appendChild(opt); });
+        srcSel.selectedIndex = Math.round(srcState.getNormalisedValue() * (sourceNames.length - 1));
+        srcCol.appendChild(srcSel);
+        const dstCol = document.createElement('span'); dstCol.className = 'mod-col-dst';
+        const dstSel = document.createElement('select');
+        destNames.forEach((name, idx) => { const opt = document.createElement('option'); opt.value = idx; opt.textContent = name; dstSel.appendChild(opt); });
+        dstSel.selectedIndex = Math.round(dstState.getNormalisedValue() * (destNames.length - 1));
+        dstCol.appendChild(dstSel);
+        const amtCol = document.createElement('span'); amtCol.className = 'mod-col-amt';
+        const slider = document.createElement('input');
+        slider.type = 'range'; slider.className = 'mod-amt-slider'; slider.min = 0; slider.max = 1000; slider.step = 1;
+        slider.value = Math.round(amtState.getNormalisedValue() * 1000);
+        amtCol.appendChild(slider);
+        const valCol = document.createElement('span'); valCol.className = 'mod-col-val';
+        valCol.textContent = pctSigned(amtState.getNormalisedValue());
+        row.append(onCol, slotCol, srcCol, dstCol, amtCol, valCol);
+        container.appendChild(row);
+
+        function updateRowState() { row.classList.toggle('disabled', !cb.checked); }
+        updateRowState();
+        cb.addEventListener('change', () => { onState.setValue(cb.checked); updateRowState(); });
+        onState.valueChangedEvent.addListener(() => { cb.checked = onState.getValue(); updateRowState(); });
+        srcSel.addEventListener('change', () => { srcState.sliderDragStarted(); srcState.setNormalisedValue(srcSel.selectedIndex / Math.max(1, sourceNames.length - 1)); srcState.sliderDragEnded(); });
+        srcState.valueChangedEvent.addListener(() => { srcSel.selectedIndex = Math.round(srcState.getNormalisedValue() * (sourceNames.length - 1)); });
+        dstSel.addEventListener('change', () => { dstState.sliderDragStarted(); dstState.setNormalisedValue(dstSel.selectedIndex / Math.max(1, destNames.length - 1)); dstState.sliderDragEnded(); });
+        dstState.valueChangedEvent.addListener(() => { dstSel.selectedIndex = Math.round(dstState.getNormalisedValue() * (destNames.length - 1)); });
+        slider.addEventListener('input', () => amtState.setNormalisedValue(parseInt(slider.value) / 1000));
+        slider.addEventListener('mousedown', () => amtState.sliderDragStarted());
+        slider.addEventListener('mouseup', () => amtState.sliderDragEnded());
+        amtState.valueChangedEvent.addListener(() => {
+            const n = amtState.getNormalisedValue();
+            slider.value = Math.round(n * 1000);
+            if (valCol.dataset.editing !== '1') valCol.textContent = pctSigned(n);
+        });
+        slider.addEventListener('dblclick', (e) => { if (e.altKey) return; attachValueEntry(valCol, amtState, pctSigned); });
+        valCol.addEventListener('dblclick', () => attachValueEntry(valCol, amtState, pctSigned));
+        amtCol.addEventListener('mousedown', (e) => {
+            if (!e.altKey) return;
+            e.preventDefault(); e.stopPropagation();
+            amtState.sliderDragStarted(); amtState.setNormalisedValue(0.5); amtState.sliderDragEnded();
+        }, true);
+    }
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// TUNING TAB   (INHERITED FROM O-PRISM — Stage 3 REPLACES this block with
+// O-Prism v1.26.0's full tuning IIFE: library accordion, generators,
+// circle / polar / matrix / TrueKeys / rotation views, TrueKeys bar. The
+// mockup carries the simplified markup, so this is the minimal live binding
+// for it: interval list ⇄ setSingleInterval, tonic ⇄ setTonicNote, stretch
+// ⇄ octaveStretch relay, the five file buttons ⇄ their native fns.)
+// ═══════════════════════════════════════════════════════════════════
+(function initTuning() {
+    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const TAU = Math.PI * 2;
+    const rows = document.getElementById('interval-rows');
+    const header = document.querySelector('#interval-list .interval-list-header');
+    const tonicValue = document.getElementById('tonic-value');
+    const lines = document.getElementById('interval-lines');
+    const labels = document.getElementById('degree-labels');
+    const scaleName = document.getElementById('scale-name-display');
+    const native = (n) => Juce.getNativeFunction(n);
+    let intervals = [];
+    let tonic = 0;
+
+    function drawCircle() {
+        lines.innerHTML = ''; labels.innerHTML = '';
+        const n = intervals.length;
+        intervals.forEach((cents, i) => {
+            const period = intervals[n - 1] || 1200;
+            const a = -Math.PI / 2 + ((i === 0 ? 0 : intervals[i - 1]) / period) * TAU;
+            const x1 = 94 + Math.cos(a) * 12, y1 = 94 + Math.sin(a) * 12;
+            const x2 = 94 + Math.cos(a) * 73, y2 = 94 + Math.sin(a) * 73;
+            lines.insertAdjacentHTML('beforeend',
+                '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
+                '" stroke="' + (i === 0 ? '#6B8E4E' : '#8BA870') + '" stroke-width="' + (i === 0 ? 1.8 : 1) + '"/>' +
+                '<circle cx="' + x2.toFixed(1) + '" cy="' + y2.toFixed(1) + '" r="2.6" fill="' + (i === 0 ? '#6B8E4E' : '#8B7355') + '"/>');
+            const lx = 94 + Math.cos(a) * 82, ly = 94 + Math.sin(a) * 82 + 3;
+            labels.insertAdjacentHTML('beforeend', '<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="middle">' + (i + 1) + '</text>');
+        });
+    }
+    function buildRows() {
+        rows.innerHTML = '';
+        intervals.forEach((cents, i) => {
+            const r = document.createElement('div');
+            r.className = 'interval-row';
+            const eq = i * 100;
+            const dev = cents - eq;
+            r.innerHTML = '<span class="note-name">' + (i + 1) + '</span>' +
+                          '<input class="interval-input" value="' + cents.toFixed(1) + '">' +
+                          '<span class="deviation' + (Math.abs(dev) < 0.05 ? ' pure' : '') + '">' + (dev >= 0 ? '+' : '') + dev.toFixed(1) + '</span>';
+            const input = r.querySelector('input');
+            const commit = async () => {
+                const v = parseFloat(input.value);
+                if (!isFinite(v)) { input.value = cents.toFixed(1); return; }
+                try { await native('setSingleInterval')(i, v); await refresh(); }
+                catch (e) { console.error('[Tuning] set interval failed:', e); }
+            };
+            input.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') input.blur(); });
+            input.addEventListener('blur', commit);
+            rows.appendChild(r);
+        });
+        setLabel(header, 'label.intervalCount', { n: intervals.length });
+    }
+    async function refresh() {
+        try {
+            intervals = JSON.parse(await native('getTuningIntervals')()) || [];
+            tonic = (await native('getTonicNote')()) | 0;
+            scaleName.textContent = (await native('getTuningName')()) || '';
+            tonicValue.textContent = NOTE_NAMES[((tonic % 12) + 12) % 12];
+            buildRows(); drawCircle();
+        } catch (e) { console.warn('[Tuning] refresh failed:', e); }
+    }
+    document.getElementById('tonic-down').addEventListener('click', async () => { await native('setTonicNote')((tonic + 11) % 12); await refresh(); });
+    document.getElementById('tonic-up').addEventListener('click',   async () => { await native('setTonicNote')((tonic + 1) % 12);  await refresh(); });
+
+    // Octave stretch: the range input drives the octaveStretch SLIDER relay.
+    const stretch = document.getElementById('octave-stretch');
+    const stretchVal = document.getElementById('octave-stretch-value');
+    const stretchState = Juce.getSliderState('octaveStretch');
+    const paintStretch = () => { const n = stretchState.getNormalisedValue(); stretch.value = (0.95 + n * 0.3).toFixed(2); stretchVal.textContent = (0.95 + n * 0.3).toFixed(2); };
+    stretch.addEventListener('mousedown', () => stretchState.sliderDragStarted());
+    stretch.addEventListener('mouseup',   () => stretchState.sliderDragEnded());
+    stretch.addEventListener('input', () => { stretchState.setNormalisedValue(clamp((+stretch.value - 0.95) / 0.3, 0, 1)); stretchVal.textContent = (+stretch.value).toFixed(2); });
+    stretchState.valueChangedEvent.addListener(paintStretch);
+    paintStretch();
+
+    const fileBtns = document.querySelectorAll('.tuning-file-btn');
+    const fileFns = ['loadScalaFile', 'loadKBMFile', 'saveScalaFile', 'saveKBMFile', 'exportTuningHTML'];
+    fileBtns.forEach((b, i) => b.addEventListener('click', async () => {
+        try { await native(fileFns[i])(); if (i < 2) await refresh(); }
+        catch (e) { console.error('[Tuning] ' + fileFns[i] + ' failed:', e); }
+    }));
+
+    document.querySelectorAll('.viz-btn').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('.viz-btn').forEach(x => x.classList.toggle('active', x === b));
+    }));
+
+    // tuningPreset / tonic relays: a host-side change re-reads the engine.
+    let pending = null;
+    const schedule = () => { if (pending) return; pending = setTimeout(() => { pending = null; refresh(); }, 60); };
+    Juce.getSliderState('tuningPreset').valueChangedEvent.addListener(schedule);
+    Juce.getSliderState('tonic').valueChangedEvent.addListener(schedule);
+
+    // Held notes arrive as a PUSHED EVENT (no evaluateJavascript). O-Prism's
+    // full tuning IIFE consumes window.updateHeldNotes(notes, freqs).
+    window.__JUCE__.backend.addEventListener('heldNotes', (payload) => {
+        const p = typeof payload === 'string' ? JSON.parse(payload) : payload;
+        if (window.updateHeldNotes) window.updateHeldNotes(p.notes || [], p.freqs || []);
+    });
+
+    window.refreshTuningState = refresh;
+    // The preset bar calls this after every load (WR-19).
+    window.__refreshAllControls = function () {
+        refresh().catch(() => {});
+        try { Juce.getNativeFunction('requestTerrainRepush')(); } catch (e) {}
+    };
+    setTimeout(refresh, 300);
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — TERRAIN + ORBIT MATHEMATICS (JS mirror of dsp/Terrains.h and
+// dsp/Orbits.h, used to DRAW: the wireframe until the first heightmap push,
+// and the orbit / trail / waveform always). πF convention, domain [-1,1]².
+// ═══════════════════════════════════════════════════════════════════
+const TAU = Math.PI * 2;
+function terrainH(kind, x, y, F, mx, my) {
+    const P = Math.PI * F;
+    let h;
+    switch (kind) {
+        case 0: h = Math.sin(P * x + (mx - 0.5) * 2.2) * Math.sin(P * y + (my - 0.5) * 2.2); break;                       // Sine Product
+        case 1: { const r = Math.hypot(x, y); h = Math.cos(P * (0.6 + mx * 2.6) * r) * Math.exp(-r * r * (0.15 + my * 1.6)); break; }   // Radial Rings
+        case 2: h = Math.tanh(1.7 * ((0.3 + mx * 1.5) * x * x - (0.3 + my * 1.5) * y * y) * F); break;                      // Saddle
+        case 3: { const u = 1 - Math.abs(Math.cos(P * x * (0.5 + mx * 1.5))), v = 1 - Math.abs(Math.cos(P * y)); h = (u * u + v * v) * (0.6 + my * 0.8) - 1; break; }   // Ridged Cosines
+        case 4: { const w = (1 - x * x) * (1 - y * y); h = w * Math.sin(P * (x + y) + (mx - 0.5) * 3.2) * Math.cos(P * (x - y) * (0.4 + my * 1.8)) * 1.6; break; }   // Mitsuhashi
+        case 5: { const well = Math.exp(-(x * x + y * y) * (0.8 + my * 4.5)); h = Math.cos(P * x) * Math.cos(P * y) * (1 - (0.35 + mx * 1.1) * well) - (0.35 + mx * 1.1) * well * 0.7; break; }   // Cosine Wells
+        default: {                                                                                                       // Imported… (until the PNG heightmap arrives)
+            let s = 0, amp = 1, f = 0.30 * F;
+            for (let o = 0; o < 3; o++) { s += amp * Math.sin(Math.PI * f * (x * (1 + 0.27 * o) + 0.8 * Math.sin(Math.PI * f * y + o * 1.7))); amp *= 0.5; f *= 1.9; }
+            h = Math.tanh(s * (0.6 + mx)) * (0.45 + my * 0.85);
+        }
+    }
+    return clamp(h, -1, 1);
+}
+function orbitXY(kind, th, m) {
+    const c = Math.cos(th), s = Math.sin(th);
+    switch (kind) {
+        case 0: return [c, s];
+        case 1: { const p = 2 / (2 + m * 7); return [Math.sign(c) * Math.pow(Math.abs(c), p), Math.sign(s) * Math.pow(Math.abs(s), p)]; }
+        case 2: { const k = m * 1.5, r = (1 + k * c) / (1 + k); return [r * c, r * s]; }
+        case 3: case 4: case 5: { const K = [3, 5, 7][kind - 3], Aa = K + 1, d = (0.15 + m * 0.9) * Aa * 0.3, N = Aa + d; return [(Aa * c - d * Math.cos(Aa * th)) / N, (Aa * s - d * Math.sin(Aa * th)) / N]; }
+        case 6: case 7: case 8: { const K = [3, 5, 7][kind - 6], Aa = K - 1, d = (0.15 + m * 0.9) * Aa * 0.4, N = Aa + d; return [(Aa * c + d * Math.cos(Aa * th)) / N, (Aa * s - d * Math.sin(Aa * th)) / N]; }
+        case 9: { const r = (Math.exp(Math.cos(th)) - (1.2 + m * 1.6) * Math.cos(4 * th) + Math.pow(Math.sin((2 * th - Math.PI) / 24), 5)) / 4.2; return [r * s, r * c]; }
+        default: { const mx = Math.max(Math.abs(c), Math.abs(s)) || 1; return [c * (1 - m) + (c / mx) * m, s * (1 - m) + (s / mx) * m]; }
+    }
+}
+
+// Snapshot of everything the view needs for one oscillator (read from the relays).
+function snapshot(osc) {
+    const g = (suffix) => Juce.getSliderState('osc' + osc + suffix).getNormalisedValue();
+    const q = qualityIndex(osc);
+    let F = freqValue(g('TerFreq'));
+    if (q === 0) F = Math.min(F, 2.0);
+    return {
+        osc: osc, terrain: choiceIndex(osc, 'Terrain'), orbit: choiceIndex(osc, 'Orbit'), quality: q,
+        F: F, mx: g('TerModX'), my: g('TerModY'), sat: g('TerSat'), track: g('TerTrack'), blur: g('TerBlur'),
+        size: g('Pos'), aspect: 0.1 + g('OrbAspect') * 0.9, rot: g('OrbRot') * TAU,
+        cx: g('OrbCX') * 2 - 1, cy: g('OrbCY') * 2 - 1, m: g('OrbMod'), fb: g('OrbFeedback'), damp: g('OrbFbDamp')
+    };
+}
+function orbitPoint(p, th) {
+    const uv = orbitXY(p.orbit, th, p.m);
+    const r = 0.05 + 0.95 * p.size;
+    const x = uv[0] * r, y = uv[1] * r * p.aspect;
+    const ca = Math.cos(p.rot), sa = Math.sin(p.rot);
+    return [clamp(x * ca - y * sa + p.cx, -1, 1), clamp(x * sa + y * ca + p.cy, -1, 1)];
+}
+
+// ─── HEIGHTMAPS: pushed from C++ (authoritative — PNG, Chebyshev-truncated
+//     Bandlimited, pitch tracking) or computed locally until the first push. ───
+const HM_N = 64;
+const pushedHeightmap = { A: null, B: null };          // { gen, data: Float32Array(64*64) }
+const localHeightmap  = { A: { key: '', data: new Float32Array(HM_N * HM_N) }, B: { key: '', data: new Float32Array(HM_N * HM_N) } };
+let hmGeneration = 0;
+function heightmapFor(p) {
+    const pushed = pushedHeightmap[p.osc];
+    if (pushed) return pushed;
+    const loc = localHeightmap[p.osc];
+    const key = [p.terrain, p.F.toFixed(4), p.mx.toFixed(3), p.my.toFixed(3)].join('|');
+    if (loc.key !== key) {
+        loc.key = key; loc.gen = ++hmGeneration;
+        for (let j = 0; j < HM_N; j++) for (let i = 0; i < HM_N; i++)
+            loc.data[j * HM_N + i] = terrainH(p.terrain, i / (HM_N - 1) * 2 - 1, j / (HM_N - 1) * 2 - 1, p.F, p.mx, p.my);
+    }
+    return loc;
+}
+function sampleH(hm, x, y) {           // bilinear, x/y in [-1,1]
+    const fx = (clamp(x, -1, 1) + 1) * 0.5 * (HM_N - 1), fy = (clamp(y, -1, 1) + 1) * 0.5 * (HM_N - 1);
+    const i0 = Math.floor(fx), j0 = Math.floor(fy), i1 = Math.min(i0 + 1, HM_N - 1), j1 = Math.min(j0 + 1, HM_N - 1);
+    const tx = fx - i0, ty = fy - j0, d = hm.data;
+    const a = d[j0 * HM_N + i0] * (1 - tx) + d[j0 * HM_N + i1] * tx;
+    const b = d[j1 * HM_N + i0] * (1 - tx) + d[j1 * HM_N + i1] * tx;
+    return a * (1 - ty) + b * ty;
+}
+function surfaceH(hm, p, x, y) {
+    let h = sampleH(hm, x, y);
+    if (p.sat > 0) { const k = 1 + p.sat * 7; h = Math.tanh(k * h) / Math.tanh(k); }
+    return h;
+}
+// p[n] = orbit(θ) + fb·d·û ,  d[n] = damp·d[n-1] + (1-damp)·y[n-1] ,  |d| ≤ 0.5.
+function trajectory(hm, p, N) {
+    const ux = Math.cos(p.rot), uy = Math.sin(p.rot);
+    let d = 0, pts = null;
+    for (let lap = 0; lap < 2; lap++) {
+        pts = new Float64Array(N * 3);
+        for (let i = 0; i < N; i++) {
+            const o = orbitPoint(p, i / N * TAU);
+            const dd = clamp(d, -0.5, 0.5) * p.fb;
+            const x = clamp(o[0] + dd * ux, -1, 1), y = clamp(o[1] + dd * uy, -1, 1);
+            const h = surfaceH(hm, p, x, y);
+            d = p.damp * d + (1 - p.damp) * h;
+            pts[i * 3] = x; pts[i * 3 + 1] = y; pts[i * 3 + 2] = h;
+        }
+    }
+    return pts;
+}
+function cycleWave(hm, p, N) {          // decimated from a 4× run and DC-blocked (see v2-ui.yaml canvas.modes.waveform)
+    const OS = 4, t = trajectory(hm, p, N * OS), y = new Float64Array(N);
+    let sum = 0;
+    for (let i = 0; i < N; i++) { let a = 0; for (let k = 0; k < OS; k++) a += t[(i * OS + k) * 3 + 2]; y[i] = a / OS; sum += y[i]; }
+    const dc = sum / N; let peak = 1e-6;
+    for (let i = 0; i < N; i++) { y[i] -= dc; peak = Math.max(peak, Math.abs(y[i])); }
+    return { y: y, peak: peak };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — CAMERA (solved per aspect, not picked: see v2-ui.yaml view_3d.renderer.camera)
+// ═══════════════════════════════════════════════════════════════════
+function perspective(fovy, aspect, near, far) {
+    const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
+    return new Float32Array([f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0]);
+}
+function lookAt(eye, c, up) {
+    let zx = eye[0] - c[0], zy = eye[1] - c[1], zz = eye[2] - c[2];
+    let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
+    let xx = up[1] * zz - up[2] * zy, xy = up[2] * zx - up[0] * zz, xz = up[0] * zy - up[1] * zx;
+    l = Math.hypot(xx, xy, xz); xx /= l; xy /= l; xz /= l;
+    const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+    return new Float32Array([xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0,
+        -(xx * eye[0] + xy * eye[1] + xz * eye[2]), -(yx * eye[0] + yy * eye[1] + yz * eye[2]), -(zx * eye[0] + zy * eye[1] + zz * eye[2]), 1]);
+}
+function mmul(a, b) {
+    const o = new Float32Array(16);
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; }
+    return o;
+}
+const CAM = { yaw: -0.62, pitch: 0.52, fov: 0.82 };
+const HSCALE = 0.45;
+function viewProjAt(aspect, dist) {
+    const e = [dist * Math.cos(CAM.pitch) * Math.sin(CAM.yaw), dist * Math.sin(CAM.pitch), dist * Math.cos(CAM.pitch) * Math.cos(CAM.yaw)];
+    return { vp: mmul(perspective(CAM.fov, aspect, 0.1, 40), lookAt(e, [0, 0, 0], [0, 1, 0])), eye: e };
+}
+const FIT_CORNERS = [];
+for (const x of [-1, 1]) for (const z of [-1, 1]) for (const h of [-0.28, 0.28]) FIT_CORNERS.push([x, h, z]);
+function viewProj(aspect) {
+    let dist = 2.10;
+    for (let it = 0; it < 60; it++) {
+        const M = viewProjAt(aspect, dist);
+        let worst = 0;
+        for (let i = 0; i < FIT_CORNERS.length; i++) {
+            const c = FIT_CORNERS[i], m = M.vp;
+            const w = m[3] * c[0] + m[7] * c[1] + m[11] * c[2] + m[15];
+            worst = Math.max(worst, Math.abs((m[0] * c[0] + m[4] * c[1] + m[8] * c[2] + m[12]) / w), Math.abs((m[1] * c[0] + m[5] * c[1] + m[9] * c[2] + m[13]) / w));
+        }
+        if (worst <= 0.97) return M;
+        dist *= 1.025;
+    }
+    return viewProjAt(aspect, dist);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — RENDERERS. makeScene() returns the same interface from either path:
+//   Canvas 2D  — the two 160×90 Synth canvases, and the big view's fallback
+//   WebGL2     — the big view (R32F heightmap texture, ribbon lines, no GLSL `flat`)
+// The wireframe is the expensive static layer; both paths cache it and only
+// redraw the orbit / trail / scan layer per frame.
+// ═══════════════════════════════════════════════════════════════════
+function makeScene2D(canvas, grid, step) {
+    const wire = document.createElement('canvas');
+    let key = '', W = 0, H = 0, dpr = 1, M = null;
+    function fit() {
+        const r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+        const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+        if (w !== W || h !== H || d !== dpr) {
+            W = w; H = h; dpr = d;
+            canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+            wire.width = canvas.width; wire.height = canvas.height;
+            M = viewProj(W / H); key = '';
+        }
+        if (!M) M = viewProj(W / H);
+    }
+    function proj(x, h, z) {
+        const m = M.vp, w = m[3] * x + m[7] * h + m[11] * z + m[15];
+        return [((m[0] * x + m[4] * h + m[8] * z + m[12]) / w * 0.5 + 0.5) * W, (0.5 - (m[1] * x + m[5] * h + m[9] * z + m[13]) / w * 0.5) * H];
+    }
+    function unproject(px, py) {
+        const m = M.vp, nx = px / W * 2 - 1, ny = 1 - py / H * 2;
+        const a1 = m[0] - nx * m[3], b1 = m[8] - nx * m[11], c1 = m[12] - nx * m[15];
+        const a2 = m[1] - ny * m[3], b2 = m[9] - ny * m[11], c2 = m[13] - ny * m[15];
+        const det = a1 * b2 - a2 * b1;
+        if (Math.abs(det) < 1e-9) return null;
+        return [(-c1 * b2 + c2 * b1) / det, (-a1 * c2 + a2 * c1) / det];
+    }
+    function buildWire(hm, p) {
+        const k = [hm.gen, W, H, dpr].join('|');
+        if (k === key) return;
+        key = k;
+        const c = wire.getContext('2d');
+        c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+        const N = grid, S = step;
+        c.beginPath();
+        [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach((q, i) => { const s = proj(q[0], 0, q[1]); i ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]); });
+        c.closePath();
+        c.fillStyle = 'rgba(139,115,85,0.055)'; c.fill();
+        c.strokeStyle = 'rgba(139,115,85,0.32)'; c.lineWidth = 1; c.setLineDash([3, 3]); c.stroke(); c.setLineDash([]);
+        const eye = M.eye, lines = [];
+        for (let j = 0; j < N; j += S) lines.push({ row: true, k: j, d: Math.hypot(eye[0], eye[2] - (j / (N - 1) * 2 - 1)) });
+        for (let i = 0; i < N; i += S) lines.push({ row: false, k: i, d: Math.hypot(eye[0] - (i / (N - 1) * 2 - 1), eye[2]) });
+        lines.sort((a, b) => b.d - a.d);
+        const dmin = Math.min.apply(null, lines.map(l => l.d)), dmax = Math.max.apply(null, lines.map(l => l.d));
+        c.lineWidth = 1;
+        lines.forEach(l => {
+            const t = dmax > dmin ? (l.d - dmin) / (dmax - dmin) : 0;
+            c.strokeStyle = 'rgba(139,115,85,' + (0.64 - 0.34 * t).toFixed(3) + ')';
+            c.beginPath();
+            for (let n = 0; n < N; n++) {
+                const i = l.row ? n : l.k, j = l.row ? l.k : n;
+                const s = proj(i / (N - 1) * 2 - 1, sampleH(hm, i / (N - 1) * 2 - 1, j / (N - 1) * 2 - 1) * HSCALE, j / (N - 1) * 2 - 1);
+                n ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]);
+            }
+            c.stroke();
+        });
+    }
+    function draw3d(hm, p, phase, big) {
+        fit(); buildWire(hm, p);
+        const c = canvas.getContext('2d');
+        c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H); c.drawImage(wire, 0, 0, W, H);
+        const N = big ? 320 : 160;
+        if (p.fb > 0.001) {
+            const t = trajectory(hm, p, N);
+            c.strokeStyle = 'rgba(201,130,43,0.75)'; c.lineWidth = big ? 1.4 : 1; c.beginPath();
+            for (let i = 0; i <= N; i++) { const k = (i % N) * 3; const s = proj(t[k], t[k + 2] * HSCALE + 0.008, t[k + 1]); i ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]); }
+            c.stroke();
+        }
+        const pts = new Float64Array((N + 1) * 2);
+        c.strokeStyle = '#8BA870'; c.lineWidth = big ? 2 : 1.5; c.lineJoin = 'round'; c.beginPath();
+        for (let i = 0; i <= N; i++) {
+            const o = orbitPoint(p, (i % N) / N * TAU);
+            const s = proj(o[0], surfaceH(hm, p, o[0], o[1]) * HSCALE + 0.012, o[1]);
+            pts[i * 2] = s[0]; pts[i * 2 + 1] = s[1];
+            i ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]);
+        }
+        c.stroke();
+        const k = Math.round(phase * N) % N, sx = pts[k * 2], sy = pts[k * 2 + 1], rr = big ? 5 : 3;
+        c.fillStyle = 'rgba(107,142,78,0.22)'; c.beginPath(); c.arc(sx, sy, rr * 2.4, 0, TAU); c.fill();
+        c.fillStyle = '#6B8E4E'; c.beginPath(); c.arc(sx, sy, rr, 0, TAU); c.fill();
+    }
+    function drawWave(hm, p, phase, big) {
+        fit();
+        const c = canvas.getContext('2d');
+        c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+        const N = big ? 720 : 200, w = cycleWave(hm, p, N), pad = big ? 40 : 9, mid = H / 2;
+        const amp = (H / 2 - pad) / Math.max(1, w.peak), X = (i) => pad + (W - pad * 2) * (i / N);
+        c.strokeStyle = 'rgba(139,115,85,0.26)'; c.lineWidth = 1; c.beginPath(); c.moveTo(pad, mid); c.lineTo(W - pad, mid); c.stroke();
+        if (big) { c.strokeStyle = 'rgba(139,115,85,0.16)'; c.setLineDash([2, 4]); [0.25, 0.5, 0.75].forEach(f => { c.beginPath(); c.moveTo(X(N * f), pad); c.lineTo(X(N * f), H - pad); c.stroke(); }); c.setLineDash([]); }
+        c.strokeStyle = '#5C4033'; c.lineWidth = big ? 1.8 : 1.4; c.lineJoin = 'round'; c.lineCap = 'round'; c.beginPath();
+        for (let i = 0; i <= N; i++) { const y = mid - w.y[i % N] * amp; i ? c.lineTo(X(i), y) : c.moveTo(X(i), y); }
+        c.stroke();
+        const pi = Math.round(phase * N) % N;
+        c.fillStyle = '#6B8E4E'; c.beginPath(); c.arc(X(pi), mid - w.y[pi] * amp, big ? 5 : 3, 0, TAU); c.fill();
+    }
+    return {
+        render: (hm, p, phase, mode, big) => (mode === 'wave' ? drawWave(hm, p, phase, big) : draw3d(hm, p, phase, big)),
+        unproject: unproject, fit: fit, size: () => [W, H], kind: '2d'
+    };
+}
+
+// WebGL2 path. Returns null when a context cannot be created (caller falls back).
+function makeSceneGL(canvas, grid, step) {
+    const gl = canvas.getContext('webgl2', { antialias: true, alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: false });
+    if (!gl) return null;
+    let W = 0, H = 0, dpr = 1, M = null, lost = false, wireGen = -1;
+    let R = null;                                    // GL resources (rebuilt after a context restore)
+
+    const VS_WIRE = `#version 300 es
+        precision highp float; precision highp sampler2D;
+        in vec2 a_ij;
+        uniform mat4 u_vp; uniform sampler2D u_hm; uniform float u_n; uniform float u_hscale; uniform vec3 u_eye; uniform vec2 u_dist;
+        out float v_alpha;
+        void main() {
+            float x = a_ij.x / (u_n - 1.0) * 2.0 - 1.0;
+            float z = a_ij.y / (u_n - 1.0) * 2.0 - 1.0;
+            float h = texelFetch(u_hm, ivec2(a_ij), 0).r * u_hscale;
+            float d = distance(u_eye.xz, vec2(x, z));
+            float t = clamp((d - u_dist.x) / max(1e-4, u_dist.y - u_dist.x), 0.0, 1.0);
+            v_alpha = 0.64 - 0.34 * t;
+            gl_Position = u_vp * vec4(x, h, z, 1.0);
+        }`;
+    const FS_WIRE = `#version 300 es
+        precision mediump float;
+        in float v_alpha; uniform vec4 u_color; out vec4 o;
+        void main() { o = vec4(u_color.rgb * v_alpha * u_color.a, v_alpha * u_color.a); }`;
+    // Screen-space ribbon: each polyline vertex is emitted twice (a_side ±1) with
+    // its neighbours, and extruded along the screen normal by u_width pixels.
+    const VS_RIB = `#version 300 es
+        precision highp float;
+        in vec3 a_pos; in vec3 a_prev; in vec3 a_next; in float a_side;
+        uniform mat4 u_vp; uniform vec2 u_vpx; uniform float u_width;
+        void main() {
+            vec4 c = u_vp * vec4(a_pos, 1.0), p = u_vp * vec4(a_prev, 1.0), n = u_vp * vec4(a_next, 1.0);
+            vec2 cs = c.xy / c.w * u_vpx, ps = p.xy / p.w * u_vpx, ns = n.xy / n.w * u_vpx;
+            vec2 d1 = cs - ps, d2 = ns - cs;
+            vec2 dir = normalize((length(d1) > 1e-4 ? normalize(d1) : vec2(0)) + (length(d2) > 1e-4 ? normalize(d2) : vec2(0)) + vec2(1e-6));
+            vec2 nrm = vec2(-dir.y, dir.x);
+            vec2 off = nrm * a_side * u_width * 0.5 / u_vpx * c.w;
+            gl_Position = vec4(c.xy + off, c.z, c.w);
+        }`;
+    const FS_FLAT = `#version 300 es
+        precision mediump float; uniform vec4 u_color; out vec4 o;
+        void main() { o = vec4(u_color.rgb * u_color.a, u_color.a); }`;
+    const VS_PT = `#version 300 es
+        precision highp float; in vec3 a_pos; uniform mat4 u_vp; uniform float u_size;
+        void main() { gl_Position = u_vp * vec4(a_pos, 1.0); gl_PointSize = u_size; }`;
+    const FS_PT = `#version 300 es
+        precision mediump float; uniform vec4 u_color; out vec4 o;
+        void main() { if (length(gl_PointCoord - 0.5) > 0.5) discard; o = vec4(u_color.rgb * u_color.a, u_color.a); }`;
+
+    function compile(vs, fs) {
+        const mk = (t, s) => { const sh = gl.createShader(t); gl.shaderSource(sh, s); gl.compileShader(sh); if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); return sh; };
+        const pr = gl.createProgram(); gl.attachShader(pr, mk(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, mk(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr);
+        if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+        const u = {}; const n = gl.getProgramParameter(pr, gl.ACTIVE_UNIFORMS);
+        for (let i = 0; i < n; i++) { const info = gl.getActiveUniform(pr, i); u[info.name] = gl.getUniformLocation(pr, info.name); }
+        return { pr: pr, u: u };
+    }
+    function initResources() {
+        const N = grid, S = step;
+        const ij = new Float32Array(N * N * 2);
+        for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { ij[(j * N + i) * 2] = i; ij[(j * N + i) * 2 + 1] = j; }
+        const idx = [];
+        for (let j = 0; j < N; j += S) for (let i = 0; i < N - 1; i++) idx.push(j * N + i, j * N + i + 1);
+        for (let i = 0; i < N; i += S) for (let j = 0; j < N - 1; j++) idx.push(j * N + i, (j + 1) * N + i);
+        const wire = compile(VS_WIRE, FS_WIRE), rib = compile(VS_RIB, FS_FLAT), pt = compile(VS_PT, FS_PT);
+        const vaoWire = gl.createVertexArray(); gl.bindVertexArray(vaoWire);
+        const bIJ = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bIJ); gl.bufferData(gl.ARRAY_BUFFER, ij, gl.STATIC_DRAW);
+        const aIJ = gl.getAttribLocation(wire.pr, 'a_ij'); gl.enableVertexAttribArray(aIJ); gl.vertexAttribPointer(aIJ, 2, gl.FLOAT, false, 0, 0);
+        const bIdx = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bIdx); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(idx), gl.STATIC_DRAW);
+        gl.bindVertexArray(null);
+        const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, HM_N, HM_N, 0, gl.RED, gl.FLOAT, null);
+        // Ribbon VAO: interleaved [pos(3) prev(3) next(3) side(1)] = 10 floats.
+        const vaoRib = gl.createVertexArray(); gl.bindVertexArray(vaoRib);
+        const bRib = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bRib);
+        const st = 40;
+        [['a_pos', 3, 0], ['a_prev', 3, 12], ['a_next', 3, 24], ['a_side', 1, 36]].forEach(([n, sz, off]) => {
+            const loc = gl.getAttribLocation(rib.pr, n); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, sz, gl.FLOAT, false, st, off);
+        });
+        gl.bindVertexArray(null);
+        const vaoPt = gl.createVertexArray(); gl.bindVertexArray(vaoPt);
+        const bPt = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bPt);
+        const aP = gl.getAttribLocation(pt.pr, 'a_pos'); gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 3, gl.FLOAT, false, 0, 0);
+        gl.bindVertexArray(null);
+        // Ground: two triangles at y = 0, drawn through the point shader's sibling (flat colour).
+        const gnd = compile(`#version 300 es
+            precision highp float; in vec3 a_pos; uniform mat4 u_vp; void main() { gl_Position = u_vp * vec4(a_pos, 1.0); }`, FS_FLAT);
+        const vaoGnd = gl.createVertexArray(); gl.bindVertexArray(vaoGnd);
+        const bGnd = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bGnd);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, -1, 1, 0, 1, -1, 0, 1]), gl.STATIC_DRAW);
+        const aG = gl.getAttribLocation(gnd.pr, 'a_pos'); gl.enableVertexAttribArray(aG); gl.vertexAttribPointer(aG, 3, gl.FLOAT, false, 0, 0);
+        gl.bindVertexArray(null);
+        R = { wire, rib, pt, gnd, vaoWire, vaoRib, vaoPt, vaoGnd, bRib, bPt, tex, nIdx: idx.length };
+        wireGen = -1;
+        gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.DEPTH_TEST);
+    }
+    canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); lost = true; R = null; }, false);
+    canvas.addEventListener('webglcontextrestored', () => { lost = false; try { initResources(); } catch (e) { console.error('[terrain] GL restore failed:', e); } requestDraw(); }, false);
+    try { initResources(); } catch (e) { console.error('[terrain] GL init failed:', e); return null; }
+
+    function fit() {
+        const r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+        const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+        if (w !== W || h !== H || d !== dpr) {
+            W = w; H = h; dpr = d;
+            canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+            M = viewProj(W / H);
+        }
+        if (!M) M = viewProj(W / H);
+    }
+    function unproject(px, py) {
+        const m = M.vp, nx = px / W * 2 - 1, ny = 1 - py / H * 2;
+        const a1 = m[0] - nx * m[3], b1 = m[8] - nx * m[11], c1 = m[12] - nx * m[15];
+        const a2 = m[1] - ny * m[3], b2 = m[9] - ny * m[11], c2 = m[13] - ny * m[15];
+        const det = a1 * b2 - a2 * b1;
+        if (Math.abs(det) < 1e-9) return null;
+        return [(-c1 * b2 + c2 * b1) / det, (-a1 * c2 + a2 * c1) / det];
+    }
+    const IDENT = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+    const col = (r, g, b, a) => [r / 255, g / 255, b / 255, a];
+    function ribbon(vp, pts, closed, widthPx, color) {          // pts: flat [x,y,z,...] world (or NDC when vp = IDENT)
+        const n = pts.length / 3; if (n < 2) return;
+        const out = new Float32Array(n * 2 * 10);
+        for (let i = 0; i < n; i++) {
+            const ip = closed ? (i - 1 + n) % n : Math.max(0, i - 1), inx = closed ? (i + 1) % n : Math.min(n - 1, i + 1);
+            for (let s = 0; s < 2; s++) {
+                const o = (i * 2 + s) * 10;
+                out[o] = pts[i * 3]; out[o + 1] = pts[i * 3 + 1]; out[o + 2] = pts[i * 3 + 2];
+                out[o + 3] = pts[ip * 3]; out[o + 4] = pts[ip * 3 + 1]; out[o + 5] = pts[ip * 3 + 2];
+                out[o + 6] = pts[inx * 3]; out[o + 7] = pts[inx * 3 + 1]; out[o + 8] = pts[inx * 3 + 2];
+                out[o + 9] = s ? 1 : -1;
+            }
+        }
+        gl.useProgram(R.rib.pr); gl.bindVertexArray(R.vaoRib);
+        gl.bindBuffer(gl.ARRAY_BUFFER, R.bRib); gl.bufferData(gl.ARRAY_BUFFER, out, gl.DYNAMIC_DRAW);
+        gl.uniformMatrix4fv(R.rib.u.u_vp, false, vp); gl.uniform2f(R.rib.u.u_vpx, canvas.width / 2, canvas.height / 2);
+        gl.uniform1f(R.rib.u.u_width, widthPx * dpr); gl.uniform4fv(R.rib.u.u_color, color);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, n * 2);
+        gl.bindVertexArray(null);
+    }
+    function point(vp, x, y, z, sizePx, color) {
+        gl.useProgram(R.pt.pr); gl.bindVertexArray(R.vaoPt);
+        gl.bindBuffer(gl.ARRAY_BUFFER, R.bPt); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([x, y, z]), gl.DYNAMIC_DRAW);
+        gl.uniformMatrix4fv(R.pt.u.u_vp, false, vp); gl.uniform1f(R.pt.u.u_size, sizePx * dpr); gl.uniform4fv(R.pt.u.u_color, color);
+        gl.drawArrays(gl.POINTS, 0, 1);
+        gl.bindVertexArray(null);
+    }
+    function uploadHeightmap(hm) {
+        if (hm.gen === wireGen) return;
+        wireGen = hm.gen;
+        gl.bindTexture(gl.TEXTURE_2D, R.tex);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, HM_N, HM_N, gl.RED, gl.FLOAT, hm.data);
+    }
+    function begin() {
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    function draw3d(hm, p, phase, big) {
+        fit(); if (lost || !R) return;
+        begin(); uploadHeightmap(hm);
+        const vp = M.vp, eye = M.eye;
+        // ground wash + dashed edge
+        gl.useProgram(R.gnd.pr); gl.bindVertexArray(R.vaoGnd);
+        gl.uniformMatrix4fv(R.gnd.u.u_vp, false, vp); gl.uniform4fv(R.gnd.u.u_color, col(139, 115, 85, 0.055));
+        gl.drawArrays(gl.TRIANGLES, 0, 6); gl.bindVertexArray(null);
+        const edge = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+        for (let e = 0; e < 4; e++) {
+            const a = edge[e], b = edge[(e + 1) % 4], D = 44;
+            for (let s = 0; s < D; s += 2) {
+                const t0 = s / D, t1 = (s + 1) / D;
+                ribbon(vp, [a[0] + (b[0] - a[0]) * t0, 0, a[1] + (b[1] - a[1]) * t0, a[0] + (b[0] - a[0]) * t1, 0, a[1] + (b[1] - a[1]) * t1], false, 1, col(139, 115, 85, 0.32));
+            }
+        }
+        // wireframe from the R32F heightmap (vertex texture fetch; alpha ramps with distance from the eye)
+        let dmin = Infinity, dmax = 0;
+        for (const x of [-1, 1]) for (const z of [-1, 1]) { const d = Math.hypot(eye[0] - x, eye[2] - z); dmin = Math.min(dmin, d); dmax = Math.max(dmax, d); }
+        gl.useProgram(R.wire.pr); gl.bindVertexArray(R.vaoWire);
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.tex); gl.uniform1i(R.wire.u.u_hm, 0);
+        gl.uniformMatrix4fv(R.wire.u.u_vp, false, vp); gl.uniform1f(R.wire.u.u_n, grid); gl.uniform1f(R.wire.u.u_hscale, HSCALE);
+        gl.uniform3fv(R.wire.u.u_eye, eye); gl.uniform2f(R.wire.u.u_dist, dmin, dmax); gl.uniform4fv(R.wire.u.u_color, col(139, 115, 85, 1));
+        gl.drawElements(gl.LINES, R.nIdx, gl.UNSIGNED_INT, 0); gl.bindVertexArray(null);
+        const N = big ? 320 : 160;
+        if (p.fb > 0.001) {
+            const t = trajectory(hm, p, N), pts = new Float32Array(N * 3);
+            for (let i = 0; i < N; i++) { pts[i * 3] = t[i * 3]; pts[i * 3 + 1] = t[i * 3 + 2] * HSCALE + 0.008; pts[i * 3 + 2] = t[i * 3 + 1]; }
+            ribbon(vp, pts, true, big ? 1.4 : 1, col(201, 130, 43, 0.75));
+        }
+        const orb = new Float32Array(N * 3);
+        for (let i = 0; i < N; i++) { const o = orbitPoint(p, i / N * TAU); orb[i * 3] = o[0]; orb[i * 3 + 1] = surfaceH(hm, p, o[0], o[1]) * HSCALE + 0.012; orb[i * 3 + 2] = o[1]; }
+        ribbon(vp, orb, true, big ? 2 : 1.5, col(139, 168, 112, 1));
+        const k = Math.round(phase * N) % N, rr = big ? 5 : 3;
+        point(vp, orb[k * 3], orb[k * 3 + 1], orb[k * 3 + 2], rr * 4.8, col(107, 142, 78, 0.22));
+        point(vp, orb[k * 3], orb[k * 3 + 1], orb[k * 3 + 2], rr * 2,   col(107, 142, 78, 1));
+    }
+    function drawWave(hm, p, phase, big) {
+        fit(); if (lost || !R) return;
+        begin();
+        const N = big ? 720 : 200, w = cycleWave(hm, p, N), pad = big ? 40 : 9;
+        const amp = (H / 2 - pad) / Math.max(1, w.peak);
+        const X = (i) => (pad + (W - pad * 2) * (i / N)) / W * 2 - 1, Y = (v) => -(v * amp) / (H / 2);
+        ribbon(IDENT, [X(0), 0, 0, X(N), 0, 0], false, 1, col(139, 115, 85, 0.26));
+        if (big) [0.25, 0.5, 0.75].forEach(f => { for (let s = 0; s < H - pad * 2; s += 6) { const y0 = 1 - (pad + s) / H * 2, y1 = 1 - (pad + s + 2) / H * 2; ribbon(IDENT, [X(N * f), y0, 0, X(N * f), y1, 0], false, 1, col(139, 115, 85, 0.16)); } });
+        const pts = new Float32Array((N + 1) * 3);
+        for (let i = 0; i <= N; i++) { pts[i * 3] = X(i); pts[i * 3 + 1] = Y(w.y[i % N]); pts[i * 3 + 2] = 0; }
+        ribbon(IDENT, pts, false, big ? 1.8 : 1.4, col(92, 64, 51, 1));
+        const pi = Math.round(phase * N) % N;
+        point(IDENT, X(pi), Y(w.y[pi]), 0, (big ? 5 : 3) * 2, col(107, 142, 78, 1));
+    }
+    return {
+        render: (hm, p, phase, mode, big) => (mode === 'wave' ? drawWave(hm, p, phase, big) : draw3d(hm, p, phase, big)),
+        unproject: unproject, fit: fit, size: () => [W, H], kind: 'webgl2'
+    };
+}
+function makeScene(canvas, grid, step, preferGL) {
+    if (preferGL) {
+        const gls = makeSceneGL(canvas, grid, step);
+        if (gls) return gls;
+        const badge = document.getElementById('terrain-webgl-unavailable');
+        if (badge) { badge.classList.add('visible'); setTimeout(() => badge.classList.remove('visible'), 6000); }
+    }
+    return makeScene2D(canvas, grid, step);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — SCENES + ANIMATION. The phase does NOT run on a clock: it arrives as
+// a change-gated {osc, theta, x, y} push at 30 Hz through
+// emitEventIfBrowserIsVisible → backend.addEventListener — never
+// evaluateJavascript. Frames are only drawn while something changed.
+// ═══════════════════════════════════════════════════════════════════
+const VIEWMODE = { A: '3d', B: '3d', big: '3d' };           // UI state, never a parameter
+const PLAYHEAD = { A: { theta: 0, x: 0, y: 0 }, B: { theta: 0, x: 0, y: 0 } };
+const sceneA   = makeScene(document.getElementById('canvasOscA'), 26, 1, false);
+const sceneB   = makeScene(document.getElementById('canvasOscB'), 26, 1, false);
+const sceneBig = makeScene(document.getElementById('terrainView'), 64, 2, true);
+let dirty = true, rafPending = false;
+function requestDraw() { dirty = true; if (!rafPending) { rafPending = true; requestAnimationFrame(frame); } }
+
+function frame() {
+    rafPending = false;
+    if (!dirty) return;
+    dirty = false;
+    const pa = snapshot('A'), pb = snapshot('B');
+    const ha = heightmapFor(pa), hb = heightmapFor(pb);
+    if (document.getElementById('synth-tab').classList.contains('active')) {
+        sceneA.render(ha, pa, PLAYHEAD.A.theta, VIEWMODE.A, false);
+        sceneB.render(hb, pb, PLAYHEAD.B.theta, VIEWMODE.B, false);
+    }
+    if (document.getElementById('terrain-tab').classList.contains('active')) {
+        const p = ACTIVE_OSC === 'A' ? pa : pb, hm = ACTIVE_OSC === 'A' ? ha : hb, ph = PLAYHEAD[ACTIVE_OSC];
+        sceneBig.render(hm, p, ph.theta, VIEWMODE.big, true);
+        document.getElementById('terrain-hud').textContent =
+            'θ ' + ph.theta.toFixed(2) + ' · r ' + (0.05 + 0.95 * p.size).toFixed(2) + ' · c (' + p.cx.toFixed(2) + ', ' + p.cy.toFixed(2) + ')';
+    }
+}
+
+// ─── Pushed events from C++ (view_push_contract) ───
+const backend = window.__JUCE__ && window.__JUCE__.backend;
+if (backend) {
+    // {osc:'A'|'B', theta, x, y} — 30 Hz, change-gated per oscillator.
+    backend.addEventListener('terrainState', (payload) => {
+        const s = typeof payload === 'string' ? JSON.parse(payload) : payload;
+        if (!s || !(s.osc in PLAYHEAD)) return;
+        PLAYHEAD[s.osc] = { theta: +s.theta || 0, x: +s.x || 0, y: +s.y || 0 };
+        requestDraw();
+    });
+    // {osc, n:64, data:<base64 Float32 little-endian>} — on terrain-parameter change, ≤ 10 Hz.
+    backend.addEventListener('terrainHeightmap', (payload) => {
+        const s = typeof payload === 'string' ? JSON.parse(payload) : payload;
+        if (!s || !(s.osc in pushedHeightmap) || !s.data) return;
+        try {
+            const bin = atob(s.data), buf = new ArrayBuffer(bin.length), u8 = new Uint8Array(buf);
+            for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+            const f32 = new Float32Array(buf);
+            if (f32.length !== HM_N * HM_N) { console.warn('[terrain] heightmap size', f32.length); return; }
+            pushedHeightmap[s.osc] = { gen: ++hmGeneration, data: f32 };
+            requestDraw();
+        } catch (e) { console.warn('[terrain] heightmap decode failed:', e); }
+    });
+    // {osc, sourceMissing, fit, partials, approx} — readout facts only C++ knows.
+    backend.addEventListener('terrainStatus', (payload) => {
+        const s = typeof payload === 'string' ? JSON.parse(payload) : payload;
+        if (!s || !(s.osc in STATUS)) return;
+        STATUS[s.osc] = Object.assign(STATUS[s.osc], s);
+        refreshInert();
+    });
+}
+const STATUS = { A: { sourceMissing: false, fit: null, partials: null }, B: { sourceMissing: false, fit: null, partials: null } };
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — READOUT: "2× · 12 partials at C4" / "… · approx." / "image projected …"
+// n = round(12 · F · K · (0.52 + 0.96 · size)), clamped 1…160 (v2-ui.yaml
+// partial_estimate); a pushed terrainStatus.partials overrides the estimate.
+// Numbers, ×, %, note names and F are never localised — only the words are.
+// ═══════════════════════════════════════════════════════════════════
+function updateReadout() {
+    const p = snapshot(ACTIVE_OSC), st = STATUS[ACTIVE_OSC];
+    const el = document.getElementById('terrain-readout');
+    el.innerHTML = '';
+    if (p.quality === 0 && p.terrain === IMPORTED_INDEX) {
+        const fit = st.fit != null ? st.fit : clamp(Math.round(95 - 40 * p.blur), 40, 99);
+        const span = document.createElement('span');
+        setLabel(span, 'label.imageProjected', { f: String(+p.F.toFixed(2)), pct: String(fit) });
+        el.appendChild(span);
+        return;
+    }
+    const K = ORBIT_DEGREE[p.orbit] || 1;
+    const n = st.partials != null ? st.partials : clamp(Math.round(12 * p.F * K * (0.52 + 0.96 * p.size)), 1, 160);
+    el.appendChild(document.createTextNode(QUALITY[p.quality] + ' · '));
+    const span = document.createElement('span');
+    setLabel(span, 'label.readoutPartials', { n: String(n), note: 'C4' });
+    el.appendChild(span);
+    if (p.quality === 0 && NON_POLY_ORBITS.indexOf(p.orbit) >= 0) {
+        el.appendChild(document.createTextNode(' · '));
+        const s = document.createElement('span');
+        s.className = 'terrain-readout-approx';
+        setLabel(s, 'label.approx');
+        el.appendChild(s);
+    }
+}
+
+// ─── Conditional states (v2-ui.yaml inert_rules + readout_clamps) ───
+function refreshInert() {
+    const p = snapshot(ACTIVE_OSC);
+    document.getElementById('terrain-image-row').classList.toggle('is-inert', p.terrain !== IMPORTED_INDEX);
+    document.querySelector('[data-knob="terOrbMod"]').classList.toggle('is-inert', p.orbit === 0);
+    document.querySelector('[data-knob="terTrack"]').classList.toggle('is-inert', p.quality === 0);
+    document.querySelectorAll('#seg-terQuality .terrain-seg-btn').forEach(b => b.classList.toggle('active', +b.dataset.idx === p.quality));
+    document.querySelectorAll('#terrain-osc-toggle .wt-osc-btn').forEach(b => b.classList.toggle('active', b.dataset.osc === ACTIVE_OSC));
+    document.getElementById('terrain-view-wrap').dataset.osc = ACTIVE_OSC;
+    document.getElementById('terrain-notice').classList.toggle('visible', !!STATUS[ACTIVE_OSC].sourceMissing);
+    const v = document.getElementById('val-terFreq');
+    if (v && v.dataset.editing !== '1') v.textContent = freqFmt(PROXY.terFreq.getNormalisedValue());
+    updateReadout();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — TERRAIN TAB BINDINGS (all through the proxies)
+// ═══════════════════════════════════════════════════════════════════
+bindCombo(document.getElementById('select-terTerrain'), null, TERRAINS, PROXY.terTerrain);
+bindCombo(document.getElementById('select-terOrbit'),   null, ORBITS,   PROXY.terOrbit);
+bindCombo(document.getElementById('select-terEdge'),    null, EDGES,    PROXY.terEdge);
+bindKnob('terFreq',   freqFmt,   0.4,    null, PROXY.terFreq);     // 1.00× on the log range
+bindKnob('terModX',   pct,       0.5,    null, PROXY.terModX);
+bindKnob('terModY',   pct,       0.5,    null, PROXY.terModY);
+bindKnob('terTrack',  pct,       1.0,    null, PROXY.terTrack);
+bindKnob('terSat',    pct,       0.0,    null, PROXY.terSat);
+bindKnob('terBlur',   pct,       0.2,    null, PROXY.terBlur);
+bindKnob('terSize',   pct,       0.5,    null, PROXY.terSize);
+bindKnob('terAspect', aspectFmt, 0.6667, null, PROXY.terAspect);   // 0.70 on 0.1–1.0
+bindKnob('terRot',    degFmt,    0.0,    null, PROXY.terRot);
+bindKnob('terCX',     bipolar,   0.565,  null, PROXY.terCX);       // +0.13
+bindKnob('terCY',     bipolar,   0.605,  null, PROXY.terCY);       // +0.21
+bindKnob('terOrbMod', unit01,    0.5,    null, PROXY.terOrbMod);
+bindKnob('terFb',     pct,       0.0,    null, PROXY.terFb);
+bindKnob('terFbDamp', pct,       0.5,    null, PROXY.terFbDamp);
+
+// Osc A / Osc B: repoints every proxy; nothing is copied.
+document.querySelectorAll('#terrain-osc-toggle .wt-osc-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        if (ACTIVE_OSC === btn.dataset.osc) return;
+        ACTIVE_OSC = btn.dataset.osc;
+        notifyAllProxies(); refreshInert(); requestDraw();
+    });
+});
+
+// Quality segmented control → osc?Quality comboBox relay.
+document.querySelectorAll('#seg-terQuality .terrain-seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => PROXY.terQuality.setChoiceIndex(+btn.dataset.idx));
+});
+
+// Import… → native FileChooser (launchAsync + SafePointer on the C++ side).
+// C++ sets osc?Terrain = Imported… itself once the PNG has decoded, so a
+// cancelled chooser leaves the parameter alone.
+document.getElementById('btn-terImport').addEventListener('click', () => {
+    try { Juce.getNativeFunction('chooseTerrainImage')(ACTIVE_OSC).catch(e => console.warn('[terrain] import:', e)); }
+    catch (e) { console.warn('[terrain] chooseTerrainImage unavailable:', e); }
+});
+
+// ⬡ / ≋ per canvas. UI state only.
+document.querySelectorAll('.osc-view-toggle').forEach(group => {
+    const which = group.dataset.osc;
+    group.querySelectorAll('.osc-view-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            VIEWMODE[which] = btn.dataset.view;
+            group.querySelectorAll('.osc-view-btn').forEach(b => b.classList.toggle('active', b === btn));
+            requestDraw();
+        });
+    });
+});
+
+// Anything that moves a terrain / orbit relay redraws; the discrete ones also
+// re-evaluate the inert rules.
+for (const o of ['A', 'B']) {
+    for (const s of ['TerFreq', 'TerModX', 'TerModY', 'TerTrack', 'TerSat', 'TerBlur', 'Pos', 'OrbAspect', 'OrbRot', 'OrbCX', 'OrbCY', 'OrbMod', 'OrbFeedback', 'OrbFbDamp'])
+        Juce.getSliderState('osc' + o + s).valueChangedEvent.addListener(() => { requestDraw(); if (o === ACTIVE_OSC && (s === 'Pos' || s === 'TerFreq' || s === 'TerBlur')) refreshInert(); });
+    for (const s of ['Terrain', 'Orbit', 'Quality', 'TerEdge'])
+        Juce.getComboBoxState('osc' + o + s).valueChangedEvent.addListener(() => { requestDraw(); if (o === ACTIVE_OSC) refreshInert(); });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW — 3D VIEW INTERACTION: drag → Centre X/Y (the point lands under the
+// cursor), wheel → Orbit Size, ⌥ drag → Rotation. One sliderDragStarted /
+// Ended pair per gesture so the host records ONE undo step.
+// ═══════════════════════════════════════════════════════════════════
+(function bindView() {
+    const wrap = document.getElementById('terrain-view-wrap');
+    const canvas = document.getElementById('terrainView');
+    let drag = null;
+    canvas.addEventListener('mousedown', (e) => {
+        const r = canvas.getBoundingClientRect();
+        if (e.altKey) {
+            drag = { rot: true, x: e.clientX, base: PROXY.terRot.getNormalisedValue() };
+            PROXY.terRot.sliderDragStarted();
+        } else {
+            drag = { rot: false };
+            PROXY.terCX.sliderDragStarted(); PROXY.terCY.sliderDragStarted();
+            moveCentre(e, r);
+        }
+        e.preventDefault();
+    });
+    function moveCentre(e, r) {
+        const hit = sceneBig.unproject(e.clientX - r.left, e.clientY - r.top);
+        if (!hit) return;
+        PROXY.terCX.setNormalisedValue((clamp(hit[0], -1, 1) + 1) / 2);
+        PROXY.terCY.setNormalisedValue((clamp(hit[1], -1, 1) + 1) / 2);
+    }
+    document.addEventListener('mousemove', (e) => {
+        if (!drag) return;
+        if (drag.rot) { let v = drag.base + (e.clientX - drag.x) * 0.5 / 360; v = ((v % 1) + 1) % 1; PROXY.terRot.setNormalisedValue(v); }
+        else moveCentre(e, canvas.getBoundingClientRect());
+    });
+    document.addEventListener('mouseup', () => {
+        if (!drag) return;
+        if (drag.rot) PROXY.terRot.sliderDragEnded(); else { PROXY.terCX.sliderDragEnded(); PROXY.terCY.sliderDragEnded(); }
+        drag = null;
+    });
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        PROXY.terSize.setNormalisedValue(clamp(PROXY.terSize.getNormalisedValue() - e.deltaY * 0.0012, 0, 1));
+    }, { passive: false });
+
+    // PNG drop — here and on both Synth-tab canvases. WKWebView strips file
+    // paths from the DataTransfer, so the BYTES are streamed: webkitGetAsEntry
+    // → File → base64 → importTerrainImageData(osc, name, base64)
+    // (memory critical_webview_drag_drop_macos).
+    function readEntryFile(item) {
+        return new Promise((resolve, reject) => {
+            const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+            if (entry && entry.isFile) entry.file(resolve, reject);
+            else { const f = item.getAsFile && item.getAsFile(); f ? resolve(f) : reject(new Error('not a file')); }
+        });
+    }
+    async function importDropped(osc, dt) {
+        const item = dt.items && dt.items[0];
+        if (!item) return;
+        try {
+            const file = await readEntryFile(item);
+            if (!/\.png$/i.test(file.name)) { console.warn('[terrain] drop ignored (not PNG):', file.name); return; }
+            const buf = await file.arrayBuffer();
+            let bin = ''; const u8 = new Uint8Array(buf);
+            for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+            await Juce.getNativeFunction('importTerrainImageData')(osc, file.name, btoa(bin));
+        } catch (e) { console.error('[terrain] drop import failed:', e); }
+    }
+    [wrap, document.getElementById('canvasWrapA'), document.getElementById('canvasWrapB')].forEach(el => {
+        el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('drag-over'); });
+        el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+        el.addEventListener('drop', (e) => {
+            e.preventDefault(); el.classList.remove('drag-over');
+            const osc = el.dataset.osc === 'A' || el.dataset.osc === 'B' ? el.dataset.osc : ACTIVE_OSC;
+            importDropped(osc, e.dataTransfer);
+        });
+    });
+})();
+
+// ─── GO ───
+refreshInert();
+sceneBig.fit();
+requestDraw();
+window.addEventListener('resize', () => { sceneA.fit(); sceneB.fit(); sceneBig.fit(); requestDraw(); });
+try { Juce.getNativeFunction('requestTerrainRepush')(); } catch (e) {}
+
+// ═══════════════════════════════════════════════════════════════════
+// i18n — CALLED LAST (INHERITED FROM O-PRISM). Every [data-i18n] element
+// exists by now: knobs expanded, panels built. The mod-matrix and tuning
+// injectors localize their own subtrees when they finish.
+// ═══════════════════════════════════════════════════════════════════
+try { initI18n(); setupTooltips(); initializeTipsToggle(); } catch (e) { console.error('[i18n] init failed:', e); }
+</script>
+</body>
+</html>
