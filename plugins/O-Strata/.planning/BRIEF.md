@@ -63,15 +63,27 @@ Every parameter below exists for Osc A (`oscA…`) and Osc B (`oscB…`). Parame
 
 ## UI Concept
 
-**Mockup:** to be created (v2). `superseded-baked-v1/mockups/v1-*` is the previous design and is not a source of truth; its shell, palette and the ⬡/≋ canvas toggle idea carry over.
+**Mockup:** `mockups/v2-ui.yaml` + `mockups/v2-ui-test.html` — finalised 2026-09-10, fork of **O-Prism v1.26.0** (the 12-column card-grid shell with custom-chevron selects and 64 px primary knobs, released 2026-09-09). `superseded-baked-v1/mockups/v1-*` is the previous design and is not a source of truth; its palette and the ⬡/≋ canvas toggle idea carried over.
 
-**Layout:** O-Prism's 1200 × 800 shell unchanged — header bar with preset browser, five-tab bar, footer with Master / Osc Mix. Tabs: **Synth · Mod · Tuning · Effects · Terrain** (the old Wavetable tab slot).
+**Layout:** O-Prism v1.26.0's 1200 × 800 shell unchanged — header bar with preset browser, five-tab bar, 12-column `.card` grid inside each tab, footer with Master / Osc Mix. Tabs: **Synth · Mod · Tuning · Effects · Terrain** (the old Wavetable tab slot).
 
 **Synth tab:** identical to O-Prism except the two oscillator panels: the Shape dropdown becomes **Terrain▾** and a second dropdown **Orbit▾**; the 160 × 90 canvas shows the terrain wireframe with the orbit and a live scan point (3D) or the last cycle's waveform (≋), switched by the ⬡/≋ glyph. Knob order: Size (was Position), Level, Pan, Coarse, Fine, Phase, Unison, Detune, Width, Warp, Warp Amt. The drop overlay reads "Drop PNG".
 
 **Terrain tab:** the showpiece. Top row: Osc A / Osc B toggle · Terrain▾ · Orbit▾ · Quality segmented control · **Import…** · right-aligned readout ("2× · 12 partials at C4"). Left: a 700 × 540 3D view — displaced 64 × 64 wireframe terrain, the orbit drawn on the surface, the scan point, and with Feedback > 0 the actual displaced trajectory trail so the player sees what feedback does. Monospace HUD ("θ 0.37 · r 0.61 · c (0.13, 0.21)"). Right (~440 px): **Terrain** group (Freq, Mod X, Mod Y, Pitch Track, Saturation; Image Blur and Edge Mode greyed unless Imported), hairline, **Orbit** group (Size mirrored, Aspect, Rotation, Centre X/Y, Orbit Mod, Feedback, Feedback Damp), and the hidden amber "Source missing" notice. The nautilus botanical (`mockups/img/shell_conchologiaiconi12reev_0090.png`) sits low-right behind the panel at 0.3 opacity, Terrain tab only.
 
-**Interaction:** drag on the view moves Orbit Centre X/Y; wheel edits Orbit Size; alt-drag rotates the orbit; alt-click resets a knob. Document-level move/up pattern, `wheel {passive:false}`, drag-start/drag-end through the slider relay so hosts record one undo step. Drag-and-drop PNG onto either view (macOS `webkitGetAsEntry` pattern) plus the Import button.
+**Interaction:** drag on the view moves Orbit Centre X/Y (screen point inverted onto the y = 0 plane so the point follows the cursor exactly); wheel edits Orbit Size; alt-drag rotates the orbit; alt-click resets a knob; double-click opens inline value entry. Document-level move/up pattern, `wheel {passive:false}`, drag-start/drag-end through the slider relay so hosts record one undo step. Drag-and-drop PNG onto either view (macOS `webkitGetAsEntry` pattern) plus the Import button.
+
+**Mockup v2 decisions (synced from the finalised mockup, 2026-09-10):**
+- Terrain-tab top-row captions sit inline to the left of their control; a stacked `.dropdown-group` is 34 px and does not fit the 30 px toolbar.
+- The Terrain-tab panel is **one** set of controls bound through proxy state to `osc{A|B}<suffix>`; the Osc A / Osc B toggle repoints the two dropdowns, the Quality segment and both cards. Stage 3 builds it that way, never as two copies of 18 ids.
+- Readout forms: "2× · 12 partials at C4"; in Bandlimited mode with Superellipse / Butterfly / Squarcle (not trig polynomials; Limaçon is degree 2 and exact) "… · approx."; with an imported PNG in Bandlimited mode "image projected at F = 1 · fit 87 %". The partial estimate `n = round(12·F·K·(0.52 + 0.96·size))` and the per-orbit degree table K are recorded in the YAML so Stage 3 does not re-derive them.
+- The 3D view fills the `[−1, 1]²` footprint with a faint wash under a dashed edge so the wireframe does not float in an empty box and the domain Centre X / Y are clamped to is visible. The camera distance is solved per aspect ratio so the 160 × 90 canvas and the 700 × 540 view frame the surface the same way.
+- The ≋ waveform view is decimated from a 4× run and DC-blocked so it shows what a 2× voice sounds like, not the mock's own aliasing.
+- Botanical: a CSS background on a clipped 520 × 215 box (multiply, 0.3 α, `pointer-events: none`), never an `<img>` with negative offsets — the offset grows `scrollHeight` past `clientHeight`, which is the number the layout gate reads.
+- Panel rows are a 5-column grid so the conditional sub-row (Image Blur / Edge Mode; Orbit Mod / Feedback / Damp) aligns under the knobs above it; sub-row knobs are 56 px against 64 / 72.
+- Budgets (measured headless at 1200 × 800): Terrain tab 30 + 12 + 544 + 8 + 14 = 608 ≤ 650 tall, 704 + 28 + 440 = 1172 wide; Synth osc-params row 900 ≤ 980, no wrap. Every tab `scrollHeight === clientHeight`.
+- **Inherited O-Prism v1.26.0 defect** the mockup gate found and O-Strata's fork must carry the fix for: the Tuning tab's `.octave-stretch-slider` is `flex: 1` with no `min-width: 0`, so the range input's UA intrinsic width pushes the readout 7 px past its 210 px column (measured; the one-line fix drops it to 0).
+- Open: Quality default stays 2× (Stage 0 decision); a Bandlimited default would showcase the differentiator but is approximate for 3 of the 11 orbits.
 
 **Visual Style:** Ouaricon Naturalist brand (ouaricon-naturalist-001), O-Prism's palette, Garamond stack and SVG vine-arc knobs; O-Prism CSS class names reused so Stage 3 can diff against the fork base.
 

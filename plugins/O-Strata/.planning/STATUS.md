@@ -3,8 +3,8 @@ plugin: O-Strata
 stage: 0
 stage_name: ideation
 phase: mockup_v2
-status: stage_0_complete_awaiting_mockup_v2
-last_updated: 2026-09-09
+status: stage_0_mockup_v2_finalized_awaiting_scaffolding
+last_updated: 2026-09-10
 workflow_mode: manual
 complexity_score: 5.0
 complexity_raw: 25.0
@@ -14,14 +14,17 @@ next_action: "design UI for O-Strata (ui-mockup skill) → lock parameter-spec.m
 next_stage: 1
 ready_for_implementation: false
 contract_checksums:
-  brief: sha256:34b2c5bcaf3d86da18a172bbb73d870c369054717b929e5181f3320c70a897ca
+  brief: sha256:955f20b31a5f99a45b97a989e5c7d1333b8d23b359dd1f8b66ec90af189c4671
   parameter_spec_draft: sha256:cc3631cba8a098103cc88f2b0bd87cffa6fdf1f93ea8f7ea39b7e55cb1f0cc7d
   architecture: sha256:165ba8e24b43a78e7ea5c5a8e690ca4b056e2f275a73660e5676b5551a2af211
   roadmap: sha256:9d77da57b61937b532148a1df2376e314ed5ce3f373293a6e813211cba343aa9
 mockup_latest_version: 2
-ui_design_phase_complete: false
-mockup_finalized: false
-brief_updated_from_mockup: false
+ui_design_phase_complete: true
+mockup_finalized: true
+finalized_version: 2
+brief_updated_from_mockup: true
+mockup_version_synced: 2
+brief_update_timestamp: "2026-09-10T15:15:37Z"
 ui_scaffolding_phase_complete: false
 fork_exists: true
 fork_verified: "stages/1-foundation/VERIFICATION.md (baked parameter set, 2026-09-07)"
@@ -53,7 +56,7 @@ Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guard
 |-------|--------|------|-------|
 | re-plan brief | ✓ | 2026-09-08 | BRIEF / REQUIREMENTS v2 / parameter-spec-draft v2 |
 | research + plan (`/plan`) | ✓ | 2026-09-08 | `research/ARCHITECTURE.md` v2 (Core 1–11, Algorithms, Decisions D1–D12, harness H1–H11), `ROADMAP.md` v2 (complexity 5.0), `stages/0-ideation/CONTEXT.md` |
-| mockup v2 | ✓ | 2026-09-09 | design iteration v2 generated — `mockups/v2-ui.yaml` + `v2-ui-test.html`, forked from O-Prism **v1.26.0** (card grid). Terrain tab (700×540 3D view + Terrain/Orbit cards), Synth osc cards with Terrain▾/Orbit▾ and Orbit Size, 46 mod destinations, 30 new i18n keys. Headless-verified at 1200×800: no tab scrolls, no overlaps, no console errors. **Not finalised** — awaiting review |
+| mockup v2 | ✓ finalised | 2026-09-10 | `mockups/v2-ui.yaml` + `v2-ui-test.html` on the O-Prism v1.26.0 card shell; brief §UI Concept synced; brief checksum re-anchored (only §UI Concept changed) |
 
 ### Stage 1: Foundation — first pass ✓ (baked params, 2026-09-07); **second pass pending** (re-parameterise: 205 params, 46 mod destinations, COMPAT-01 re-verify — ROADMAP "Stage 1: Foundation — second pass")
 
