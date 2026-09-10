@@ -2,15 +2,15 @@
 plugin: O-Strata
 stage: 1
 stage_name: foundation
-phase: discuss
-status: stage_1_second_pass_discuss_complete
+phase: research
+status: stage_1_second_pass_research_complete
 last_updated: 2026-09-10
 workflow_mode: manual
 complexity_score: 5.0
 complexity_raw: 25.0
 staged_implementation: true
 orchestration_mode: true
-next_action: "/plugin-research O-Strata 1-foundation (second pass — CONTEXT.md D1–D4, 7 research items)"
+next_action: "/plugin-plan O-Strata 1-foundation (second pass — RESEARCH.md §2.1–2.7, four CONTEXT corrections in §1)"
 next_stage: 1
 ready_for_implementation: true
 contract_checksums:
@@ -37,9 +37,9 @@ stage_0_status: ui_design_complete
 
 ## Current Position
 
-Stage: 1 — **Foundation, second pass (re-parameterise the verified fork) — discuss ✓ (2026-09-10)**. Stage 0 v2 is complete (ARCHITECTURE / ROADMAP v2, mockup v2 finalised + scaffolded, `parameter-spec.md` v2 locked); the baked-geometry design is superseded (`superseded-baked-v1/README.md`) and its tables ship as an O-Prism factory bank.
-Status: `stages/1-foundation/CONTEXT.md` (second pass) written — D1 relays only / page untouched, D2 factory bank reset to a single `Init` (no O-Prism presets), D3 voice untouched, D4 diff criterion = −2 +34 + 20 in-place rows. First-pass artifacts moved to `stages/1-foundation/first-pass-baked/`; `smoke/` shared.
-Progress: [#######.............] 37% (fork + rename + strip verified; architecture + plan done; mockup v2 + spec locked; Stage 1 second pass: discuss ✓ → research)
+Stage: 1 — **Foundation, second pass (re-parameterise the verified fork) — discuss ✓ research ✓ (2026-09-10)**. Stage 0 v2 is complete (ARCHITECTURE / ROADMAP v2, mockup v2 finalised + scaffolded, `parameter-spec.md` v2 locked); the baked-geometry design is superseded (`superseded-baked-v1/README.md`) and its tables ship as an O-Prism factory bank.
+Status: `stages/1-foundation/RESEARCH.md` (second pass) written — seven CONTEXT items resolved; four corrections carried to the plan: preset folder is `~/Library/O-Strata/Presets/` (initializer never deletes; 192 stale JSON on disk, fork bank is 192 not ≈ 20), the fork's preset manager has NO v1.0.6 migration hook, `ValueRemapFunction` is `(start, end, v)` and continuous-range text prints 7 decimals, O-Prism `params.tsv` is the v1.25.0 registry (diff against `a774d6d4^`). CONTEXT: D1 relays only / page untouched, D2 `Init` only, D3 voice untouched, D4 −2 +34 + 20 in-place.
+Progress: [########............] 40% (fork + rename + strip verified; architecture + plan done; mockup v2 + spec locked; Stage 1 second pass: discuss ✓ research ✓ → plan)
 
 ## Why (evidence)
 
@@ -64,7 +64,7 @@ Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guard
 | Phase | Status | Date | Notes |
 |-------|--------|------|-------|
 | discuss | ✓ | 2026-09-10 | `stages/1-foundation/CONTEXT.md` — D1 relays only, page untouched (UI criteria → Phase 3.1); D2 factory bank = `Init` only, O-Prism presets dropped, stale on-disk bank must be removed (version stays 1.0.0); D3 `StrataVoice` untouched; D4 params.tsv diff = −2 +34 + 20 in-place rows |
-| research | ○ | | 7 items in CONTEXT "Open for the research phase" |
+| research | ✓ | 2026-09-10 | `stages/1-foundation/RESEARCH.md` — 7 items resolved (§2.1–2.7); corrections: `~/Library/O-Strata/Presets` path + 192-preset stale bank, no migration hook in fork, 3-arg remap lambdas + 7-decimal text, `params.tsv` baseline = `a774d6d4^`; smoke checks [4] D3 route (with positive control) and [5] on-disk `Init` specified |
 | plan | ○ | | |
 | execute | ○ | | |
 | verify | ○ | | COMPAT-01 |
@@ -83,7 +83,7 @@ Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guard
 
 1. (Recommended, 1 hour) Play Aaron Anderson's *Terrain* — the feedback damp law (D1) and the Bandlimited limits (D3) are the decisions a listening result could change before Stage 2.
 2. ~~**UI mockup v2:** `design UI for O-Strata` (ui-mockup skill) from BRIEF §UI Concept and ARCHITECTURE "Parameter Mapping" → finalise → `parameter-spec.md` v2 locked; then set `mockup_finalized: true`, `ready_for_implementation: true` here.~~ **Done 2026-09-10** — mockup v2 finalised and scaffolded; `parameter-spec.md` v2 locked (sha256 in `contract_checksums`); `ready_for_implementation: true`.
-3. ~~Stage 1 second pass: `/plugin-discuss O-Strata 1-foundation`~~ **discuss done 2026-09-10** → `/plugin-research O-Strata 1-foundation`, then plan → execute → verify (ROADMAP "Stage 1: Foundation — second pass").
+3. ~~Stage 1 second pass: `/plugin-discuss O-Strata 1-foundation`~~ **discuss + research done 2026-09-10** → `/plugin-plan O-Strata 1-foundation`, then execute → verify (ROADMAP "Stage 1: Foundation — second pass").
 4. Stage 2: live oscillator DSP, Phases 2.1–2.5 with harness gates H1–H11 (Phase 2.3 is the CPU / aliasing decision point).
 5. Answer the four open questions in `stages/0-ideation/CONTEXT.md` (PERF-02 wording, *Terrain* listening, F-lattice v1.0/v1.1, mod-destination host strings).
 
@@ -92,7 +92,7 @@ Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guard
 - Research: `research/wavetable-synthesis-3d-geometry.md` §1, §7.2, §7.3; benchmark `research/wavetable-synthesis-3d-geometry-prototypes/terrain-bench/`; view prototype `webgl-3d/terrain-proto.html`
 - Contracts (v2): `research/ARCHITECTURE.md`, `ROADMAP.md`, `REQUIREMENTS.md`, `BRIEF.md`, **`parameter-spec.md` (locked 2026-09-10)**, `parameter-spec-draft.md` (superseded by the lock); UI: `mockups/v2-ui.yaml`, `v2-ui.html`, `v2-integration-checklist.md`
 - Superseded design (for the v1.1 Baked source type): `superseded-baked-v1/` (ARCHITECTURE, ROADMAP, spec v1, mockup v1, Stage 0 + Stage 2 CONTEXT) — its Core 5 / Core 8 / State Persistence / 3D view sections are cited by the v2 ARCHITECTURE
-- Fork history: `stages/1-foundation/first-pass-baked/` (CONTEXT D1–D6, RESEARCH, PLAN, SUMMARY, VERIFICATION); `stages/1-foundation/smoke/` (shared harness); second pass: `stages/1-foundation/CONTEXT.md`
+- Fork history: `stages/1-foundation/first-pass-baked/` (CONTEXT D1–D6, RESEARCH, PLAN, SUMMARY, VERIFICATION); `stages/1-foundation/smoke/` (shared harness); second pass: `stages/1-foundation/CONTEXT.md`, `RESEARCH.md`
 - Symmetry rule and harness gate: REQUIREMENTS DSP-06, ARCHITECTURE "Symmetry rule", harness H2
 - Out of scope v1.0: baked sources (v1.1), wavetable mode (never), RGB terrains (v1.1), dual-orbit stereo (v1.x), Bandlimited F-lattice (v1.1)
 
