@@ -1,5 +1,5 @@
 scl: /Users/taylorbrook/Dev/VST-development/test-tunings/just-major.scl (exists=1)
-rms  A=0.1800  A(muted)=0.0000  B=0.1800  B(muted)=0.0000
+rms  A=0.1799  A(muted)=0.0000  B=0.1798  B(muted)=0.0000
 PASS  [1] held note sounds with oscMix=0 (Osc A)
 PASS  [1] held note sounds with oscMix=1 (Osc B)
 PASS  [1] negative control: muting Osc A level kills the A-only note
@@ -14,19 +14,63 @@ PASS  [2] note 67 / note 60 = 2/1 (degree 7) after load
 PASS  [3] scala loaded into P1 before save
 PASS  [3] getStateInformation produced data
 PASS  [3] state XML parses
-PASS  [3] <geometryImports> child present
-PASS  [3] <geometryImports/> is empty
+PASS  [3] <terrainImports> child present
+PASS  [3] <terrainImports/> is empty
 PASS  [3] <tuningEngine> child present
 PASS  [3] uiLanguage="fr" stored as a string
-state: 9883 bytes, 219 PARAM nodes, root=OStrataParameters
-PASS  [3] XML carries 219 PARAM nodes
-PASS  [3] both instances expose 219 parameters
-round-trip: 0 mismatches; 190 of 219 saved values differ from default
-PASS  [3] all 219 parameter values restored into a fresh processor
-PASS  [3] the test actually moved the parameters (>150 of the 214 randomised differ from default; not a vacuous pass)
+state: 9348 bytes, 205 PARAM nodes, root=OStrataParameters
+PASS  [3] XML carries 205 PARAM nodes (== live getParameters().size())
+PASS  [3] both instances expose 205 parameters (literal == live count)
+round-trip: 0 mismatches; 182 of 205 saved values differ from default
+PASS  [3] all 205 parameter values restored into a fresh processor
+PASS  [3] the test actually moved the parameters (>150 of the 200 randomised = 205 - 5 tuning IDs differ from default; not a vacuous pass)
 PASS  [3] uiLanguage restored (fr)
 tuning: P1 64/60=1.500000  P2 64/60=1.500000
 PASS  [3] tuning (just-major) restored: notes 48..84 identical in P1 and P2
 PASS  [3] restored tuning is the Scala scale (64/60 = 3/2), not 12-EDO
+PASS  [4] getModDestNames().size() == 46 == ModDest::NumDests
+PASS  [4] destinations 1/2 relabelled OscA/OscB Orbit Size
+PASS  [4] destination 26 == OscA Orbit Aspect (first appended)
+PASS  [4] destination 31 == OscA Terrain Freq
+PASS  [4] destination 45 == OscB Saturation (last)
+PASS  [4] modSlot0Dst exposes the same 46 choices
+PASS  [4] placeholder render is deterministic (two unrouted renders identical)
+PASS  [4] modSlot0Dst index == 31 after setNorm
+route: LFO1->OscA Terrain Freq max|d|=0.000e+00   LFO1->Pitch max|d|=7.126e-01  (40960 samples)
+PASS  [4] LFO1 -> OscA Terrain Freq (index 31) leaves the placeholder render sample-identical (D3)
+PASS  [4] positive control: LFO1 -> Pitch (index 23) changes the render (route check is not vacuous)
+bank: /Users/taylorbrook/Library/O-Strata/Presets  json=1  files=2
+  Factory/Init/Init.json
+  Factory/.factory-version
+PASS  [5] ~/Library/O-Strata/Presets/Factory exists after construction
+PASS  [5] exactly one factory JSON: Init/Init.json
+PASS  [5] no User presets on disk
+PASS  [5] .factory-version == 1.0.0
+PASS  [5] the Presets tree holds exactly two files (.factory-version + Init.json)
+Init.json: 198 parameter keys (live 205 - 7 = 198)  category=Init
+PASS  [5] Init.json parameters has 198 keys (== live count - 7 excluded)
+PASS  [5] none of the 7 excluded tuning IDs is in Init.json
+PASS  [5] Init oscAPos == 0.5 (Orbit Size default)
+PASS  [5] Init oscAUnison == 0.0 (1 of 1..4)
+PASS  [5] Init oscAQuality == 0.5 (index 1 of 3 = 2x)
+PASS  [5] Init oscATerFreq ~= 0.4 (exact-log norm of 1.0)
+PASS  [5] category Init, plugin O-Strata, factory true, version 1.0.0, file name Init (the name is the file name)
+PASS  [6] oscATerrain: 7 choices, Imported... last
+PASS  [6] oscATerEdge: exactly Mirror / Window
+PASS  [6] oscAOrbit: 11 choices incl. Limacon at [2]
+PASS  [6] oscAQuality: Bandlimited / 2x / 4x, default index 1
+PASS  [6] Osc B combo parameter exists
+PASS  [6] Osc B combo parameter exists
+PASS  [6] Osc B combo parameter exists
+PASS  [6] Osc B combo parameter exists
+terFreq: start=0.2500 end=8.0000 default=0.400000 numSteps=2147483647  from0to1(0.4)=1.000000
+PASS  [6] oscATerFreq range 0.25 .. 8.0
+PASS  [6] oscATerFreq getDefaultValue() == 0.400000 (norm of 1.0)
+PASS  [6] oscATerFreq getNumSteps() continuous (0x7fffffff)
+PASS  [6] exact-log: norm 0/0.4/1 -> 0.25/1.0/8.0
+PASS  [6] oscAPos default 0.5, host name Osc A Orbit Size
+PASS  [6] oscAUnison max 4
+PASS  [6] allSliderIds() == 166, allComboIds() == 8
+PASS  [6] every slider + combo relay ID (166 + 8) resolves to a parameter
 
 ALL SMOKE CHECKS PASSED — 0 failure(s)

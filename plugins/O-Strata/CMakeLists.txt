@@ -106,10 +106,11 @@ target_compile_definitions(O-Strata
 option(OUARICON_BUILD_TESTS "Build O-Strata test targets" OFF)
 
 if(OUARICON_BUILD_TESTS)
-    # Runtime parameter inventory. Most of O-Strata's 219 parameter IDs are
+    # Runtime parameter inventory. Most of O-Strata's 205 parameter IDs are
     # string-concatenated (createOscParameters / mod-matrix loops) and appear
     # nowhere in the source as literals — the runtime walk is the only way to
-    # enumerate them. Expect 219 rows; diff vs O-Prism's params.tsv = -2 +48.
+    # enumerate them. Expect 205 rows; diff vs O-Prism v1.24.0's params.tsv = -2 +34
+    # (+ 20 rows changed in place: osc?Pos, osc?Unison, 16 x modSlot?Dst).
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(O-Strata ${CMAKE_CURRENT_SOURCE_DIR}/Source)
 endif()

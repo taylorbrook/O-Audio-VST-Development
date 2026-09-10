@@ -21,7 +21,7 @@
   ==============================================================================
 
     PluginProcessor.h
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     Forked from O-Prism v1.24.0 (2026-09-07); see CHANGELOG.md.
     Ouaricon Audio
     Developer: Taylor Brook

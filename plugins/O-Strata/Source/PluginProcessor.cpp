@@ -21,7 +21,7 @@
   ==============================================================================
 
     PluginProcessor.cpp
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -78,8 +78,8 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscParamet
     float levelDefault = (prefix == "oscA") ? 0.8f : 0.0f;
 
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { prefix + "Pos", 1 }, label + " Position",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
+        juce::ParameterID { prefix + "Pos", 1 }, label + " Orbit Size",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { prefix + "Level", 1 }, label + " Level",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), levelDefault));
@@ -95,7 +95,7 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscParamet
         juce::ParameterID { prefix + "Phase", 1 }, label + " Phase",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { prefix + "Unison", 1 }, label + " Unison", 1, 8, 1));
+        juce::ParameterID { prefix + "Unison", 1 }, label + " Unison", 1, 4, 1));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { prefix + "Detune", 1 }, label + " Detune",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.2f));
@@ -109,16 +109,14 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscParamet
         juce::ParameterID { prefix + "WarpAmt", 1 }, label + " Warp Amount",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
 
-    // ─── Geometry (Stage 1: inert bake parameters, parameter-spec.md v1) ───
-    // Plain APVTS parameters read by Phase 2.1's message-thread bake scheduler
-    // at bake time; deliberately NOT mod-matrix destinations and NOT cached as
-    // raw-value pointers. Host names are family-prefixed so the 24 lanes per
-    // oscillator read unambiguously (spec locks IDs/ranges/defaults/choices,
-    // not the host name). Non-ASCII choice strings (U+2026, U+00B7) are built
-    // through CharPointer_UTF8 with hex escapes so the source stays ASCII.
-    const juce::String imported  (juce::CharPointer_UTF8 ("Imported\xE2\x80\xA6"));
-    const juce::String epitroch  (juce::CharPointer_UTF8 ("Epitrochoid 3\xC2\xB7" "5\xC2\xB7" "7"));
-    const juce::String hypocycl  (juce::CharPointer_UTF8 ("Hypocycloid 3\xC2\xB7" "5\xC2\xB7" "7"));
+    // ─── Terrain / Orbit / Quality (parameter-spec.md v2 rows 12–28; live oscillator lands in Phase 2.1) ───
+    // Plain APVTS parameters; the voice does not read them yet (Stage 1 CONTEXT D3).
+    // Non-ASCII glyphs (U+2026 …, U+00E7 ç, U+00D7 ×) via CharPointer_UTF8 hex escapes — the source stays ASCII
+    // (memory critical_juce_string_char_ctor_is_ascii_only).
+    const juce::String imported (juce::CharPointer_UTF8 ("Imported\xE2\x80\xA6"));
+    const juce::String limacon  (juce::CharPointer_UTF8 ("Lima\xC3\xA7on"));
+    const juce::String twoX     (juce::CharPointer_UTF8 ("2\xC3\x97"));
+    const juce::String fourX    (juce::CharPointer_UTF8 ("4\xC3\x97"));
 
     auto choice = [&] (const char* suffix, const char* name, juce::StringArray choices, int def)
     {
@@ -133,36 +131,36 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscParamet
             juce::NormalisableRange<float> (lo, hi, step), def));
     };
 
-    // Source family
-    choice ("GeoSource",     " Source",              { "Mesh", "Volume", "Terrain" }, 0);
-    choice ("GeoFrames",     " Frames",              { "64", "128", "256" }, 2);
-    knob   ("GeoDrive",      " Shape Drive",         0.0f, 1.0f, 0.001f, 0.0f);
-    // Mesh family
-    choice ("Mesh",          " Mesh",                { "Sphere", "Torus", "Twisted Star", "Crescent",
-                                                       "Torus Knot", "fBm Blob", imported }, 1);
-    knob   ("MeshTiltX",     " Mesh Tilt X",         -90.0f, 90.0f, 0.1f, 0.0f);
-    knob   ("MeshTiltY",     " Mesh Tilt Y",         -90.0f, 90.0f, 0.1f, 0.0f);
-    knob   ("MeshPhi",       " Mesh Projection Phi", 0.0f, 360.0f, 0.1f, 0.0f);
-    choice ("MeshUnwrap",    " Mesh Unwrap Mode",    { "XY Projection", "Centroid Distance" }, 0);
-    choice ("MeshLoop",      " Mesh Loop Policy",    { "Largest", "Sum" }, 0);
-    // Volume family
-    choice ("VolField",      " Vol Field",           { "Torus SDF", "Box SDF", "Gyroid", "Sphere SDF", "fBm Noise" }, 0);
-    choice ("VolOrbit",      " Vol Orbit",           { "Torus Knot (2,3)", "Torus Knot (3,5)",
-                                                       "Torus Knot (5,7)", "Lissajous Knot" }, 0);
-    choice ("VolSweepAxis",  " Vol Sweep Axis",      { "Orbit Scale", "Knot Phase", "Z Offset" }, 0);
-    knob   ("VolSweepRange", " Vol Sweep Range",     0.0f, 1.0f, 0.001f, 0.6f);
-    knob   ("VolDetail",     " Vol Field Detail",    0.0f, 1.0f, 0.001f, 0.3f);
-    // Terrain family
-    choice ("Terrain",       " Terrain",             { "Sine Product", "Radial Rings", imported }, 0);
-    choice ("TerOrbit",      " Ter Orbit Shape",     { "Ellipse", epitroch, hypocycl, "Superellipse" }, 0);
-    knob   ("TerCX",         " Ter Centre X",        -1.0f, 1.0f, 0.01f, 0.0f);
-    knob   ("TerCY",         " Ter Centre Y",        -1.0f, 1.0f, 0.01f, 0.0f);
-    knob   ("TerAspect",     " Ter Aspect",          0.1f, 1.0f, 0.001f, 1.0f);
-    knob   ("TerRot",        " Ter Rotation",        0.0f, 360.0f, 0.1f, 0.0f);
-    choice ("TerSweepAxis",  " Ter Sweep Axis",      { "Radius", "Rotation", "Centre X", "Centre Y" }, 0);
-    knob   ("TerSweepRange", " Ter Sweep Range",     0.0f, 1.0f, 0.001f, 0.8f);
-    knob   ("TerBlur",       " Ter Image Blur",      0.0f, 1.0f, 0.001f, 0.2f);
-    choice ("TerEdge",       " Ter Edge Mode",       { "Mirror", "Window" }, 0);
+    // Exact-log range 0.25–8.0 (norm 0.4 = 1.0×). Three-argument ValueRemapFunction, capture-free;
+    // interval 0 → getNumSteps() continuous, default text 7 decimals (RESEARCH 2.4).
+    const juce::NormalisableRange<float> terFreqRange (0.25f, 8.0f,
+        [] (float s, float e, float n) { return s * std::pow (e / s, n); },
+        [] (float s, float e, float v) { return std::log (v / s) / std::log (e / s); });
+
+    choice ("Terrain",     " Terrain",        { "Sine Product", "Radial Rings", "Saddle", "Ridged Cosines",
+                                                "Mitsuhashi", "Cosine Wells", imported }, 0);          // 7, Imported… last
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { prefix + "TerFreq", 1 }, label + " Terrain Freq", terFreqRange, 1.0f));
+    knob   ("TerModX",     " Terrain Mod X",  0.0f, 1.0f, 0.001f, 0.5f);
+    knob   ("TerModY",     " Terrain Mod Y",  0.0f, 1.0f, 0.001f, 0.5f);
+    knob   ("TerTrack",    " Pitch Track",    0.0f, 1.0f, 0.001f, 1.0f);
+    knob   ("TerSat",      " Saturation",     0.0f, 1.0f, 0.001f, 0.0f);
+    knob   ("TerBlur",     " Terrain Blur",   0.0f, 1.0f, 0.001f, 0.2f);
+    choice ("TerEdge",     " Terrain Edge",   { "Mirror", "Window" }, 0);                              // exactly 2 — never trim
+    choice ("Orbit",       " Orbit",          { "Ellipse", "Superellipse", limacon,
+                                                "Epitrochoid 3", "Epitrochoid 5", "Epitrochoid 7",
+                                                "Hypocycloid 3", "Hypocycloid 5", "Hypocycloid 7",
+                                                "Butterfly", "Squarcle" }, 0);                          // 11
+    knob   ("OrbAspect",   " Orbit Aspect",   0.1f, 1.0f, 0.001f, 0.7f);
+    knob   ("OrbRot",      " Orbit Rotation", 0.0f, 360.0f, 0.1f, 0.0f);
+    knob   ("OrbCX",       " Orbit Centre X", -1.0f, 1.0f, 0.001f, 0.13f);
+    knob   ("OrbCY",       " Orbit Centre Y", -1.0f, 1.0f, 0.001f, 0.21f);
+    knob   ("OrbMod",      " Orbit Mod",      0.0f, 1.0f, 0.001f, 0.5f);
+    knob   ("OrbFeedback", " Feedback",       0.0f, 1.0f, 0.001f, 0.0f);
+    knob   ("OrbFbDamp",   " Feedback Damp",  0.0f, 1.0f, 0.001f, 0.5f);
+    choice ("Quality",     " Quality",        { "Bandlimited", twoX, fourX }, 1);                       // default 2×
+
+    jassert (params.size() == 28);   // spec v2 rows 1–28 — StrataParamIds::oscIds (24) + oscComboIds (4) must agree
 
     return params;
 }
@@ -525,8 +523,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout OStrataAudioProcessor::creat
             allParams.push_back (std::move (p));
     };
 
-    addSection (createOscParameters ("oscA"));     // 10
-    addSection (createOscParameters ("oscB"));     // 10
+    addSection (createOscParameters ("oscA"));     // 28
+    addSection (createOscParameters ("oscB"));     // 28
     addSection (createSubNoiseParameters());       //  5
     addSection (createAmpEnvelopeParameters());    //  4
     addSection (createFilterEnvelopeParameters()); //  5
@@ -1075,10 +1073,10 @@ void OStrataAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     state.setProperty ("uiLanguage",
                        languageCode (uiLanguage.load (std::memory_order_acquire)), nullptr);
 
-    // Stage 1: reserve the child Phase 4.1 fills (ARCHITECTURE "State Persistence"); written
+    // Stage 1: reserve the terrainImports child Phase 4.1 fills (ARCHITECTURE "State Persistence"); written
     // empty so the round-trip test can assert its presence and a 4.1 reader never sees a
     // missing node.
-    state.getOrCreateChildWithName ("geometryImports", nullptr);
+    state.getOrCreateChildWithName ("terrainImports", nullptr);
 
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
     copyXmlToBinary (*xml, destData);
@@ -1124,9 +1122,9 @@ void OStrataAudioProcessor::setStateInformation (const void* data, int sizeInByt
         if (tuningState.isValid())
             tuningEngine.restoreStateFrom (tuningState);
 
-        // Stage 1: nothing to restore yet — an absent or empty geometryImports child is
+        // Stage 1: nothing to restore yet — an absent or empty terrainImports child is
         // the pre-4.1 state.
-        juce::ignoreUnused (state.getChildWithName ("geometryImports"));
+        juce::ignoreUnused (state.getChildWithName ("terrainImports"));
     }
 }
 

@@ -53,14 +53,29 @@ namespace StrataParamIds
         for (const auto* s : { "Pos", "Level", "Pan", "Coarse",
                                 "Fine", "Phase", "Unison", "Detune", "Width",
                                 "WarpType", "WarpAmt",
-                                // Geometry (parameter-spec.md v1 order, 24)
-                                "GeoSource", "GeoFrames", "GeoDrive",
-                                "Mesh", "MeshTiltX", "MeshTiltY", "MeshPhi", "MeshUnwrap", "MeshLoop",
-                                "VolField", "VolOrbit", "VolSweepAxis", "VolSweepRange", "VolDetail",
-                                "Terrain", "TerOrbit", "TerCX", "TerCY", "TerAspect", "TerRot",
-                                "TerSweepAxis", "TerSweepRange", "TerBlur", "TerEdge" })
+                                // Terrain / Orbit floats (parameter-spec.md v2 rows 13–18, 21–27)
+                                "TerFreq", "TerModX", "TerModY", "TerTrack", "TerSat", "TerBlur",
+                                "OrbAspect", "OrbRot", "OrbCX", "OrbCY", "OrbMod",
+                                "OrbFeedback", "OrbFbDamp" })
             ids.add (prefix + s);
-        return ids;
+        return ids;                                                        // 24
+    }
+
+    // ─── Oscillator COMBOBOX IDs — the 4 Choice params per oscillator (spec rows 12, 19, 20, 28) ───
+    inline juce::StringArray oscComboIds (const juce::String& prefix)
+    {
+        juce::StringArray ids;
+        for (const auto* s : { "Terrain", "TerEdge", "Orbit", "Quality" })
+            ids.add (prefix + s);
+        return ids;                                                        // 4
+    }
+
+    inline juce::StringArray allComboIds()
+    {
+        juce::StringArray all;
+        all.addArray (oscComboIds ("oscA"));                                // 4
+        all.addArray (oscComboIds ("oscB"));                                // 4
+        return all;                                                         // 8
     }
 
     // ─── Filter IDs (prefix + shared suffixes) ───
@@ -111,8 +126,8 @@ namespace StrataParamIds
     inline juce::StringArray allSliderIds()
     {
         juce::StringArray all;
-        all.addArray (oscIds ("oscA"));                                           // 35
-        all.addArray (oscIds ("oscB"));                                           // 35
+        all.addArray (oscIds ("oscA"));                                           // 24
+        all.addArray (oscIds ("oscB"));                                           // 24
         all.addArray ({ "subShape", "subOctave", "subLevel",
                         "noiseType", "noiseLevel", "subRouting" });               //  6
         all.addArray ({ "ampAttack", "ampDecay", "ampSustain", "ampRelease" });   //  4
@@ -137,7 +152,7 @@ namespace StrataParamIds
                         "lfo4Rate", "lfo4Shape", "lfo4Division" });            // 12
         all.addArray (modMatrixSliderIds());                                     // 48
         all.addArray ({ "masterVol", "oscMix", "velocityCurve" });                 //  3
-        return all;                                                              // 188
+        return all;                                                              // 166
     }
 
 } // namespace StrataParamIds

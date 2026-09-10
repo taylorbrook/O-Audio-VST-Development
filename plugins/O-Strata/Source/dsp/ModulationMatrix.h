@@ -79,8 +79,16 @@ enum class ModDest
     Pitch,
     OscAWarpAmt,
     OscBWarpAmt,
+    // Stage 1 second pass (parameter-spec.md v2 §Mod-matrix destinations): indices 26–45,
+    // all A then all B. Accumulated by the matrix, read by the voice from Phase 2.1.
+    OscAOrbAspect, OscAOrbRot, OscAOrbCX, OscAOrbCY, OscAOrbMod,
+    OscATerFreq, OscATerModX, OscATerModY, OscAOrbFeedback, OscATerSat,
+    OscBOrbAspect, OscBOrbRot, OscBOrbCX, OscBOrbCY, OscBOrbMod,
+    OscBTerFreq, OscBTerModX, OscBTerModY, OscBOrbFeedback, OscBTerSat,
     NumDests
 };
+
+static_assert (static_cast<int> (ModDest::NumDests) == 46, "getModDestNames() must list 46 entries");
 
 // String arrays for APVTS Choice parameters
 inline juce::StringArray getModSourceNames()
@@ -91,13 +99,17 @@ inline juce::StringArray getModSourceNames()
 
 inline juce::StringArray getModDestNames()
 {
-    return { "None", "OscA Pos", "OscB Pos", "FiltA Cut", "FiltB Cut",
+    return { "None", "OscA Orbit Size", "OscB Orbit Size", "FiltA Cut", "FiltB Cut",
              "FiltA Res", "FiltB Res", "Osc Mix", "Sub Level", "Noise Level",
              "LFO1 Rate", "LFO2 Rate", "LFO3 Rate", "LFO4 Rate",
              "OscA Detune", "OscB Detune",
              "OscA Pan", "OscB Pan", "Reverb Mix", "Delay Mix",
              "Chorus Mix", "Dist Mix", "Master Vol", "Pitch",
-             "OscA Warp", "OscB Warp" };
+             "OscA Warp", "OscB Warp",
+             "OscA Orbit Aspect", "OscA Orbit Rot", "OscA Orbit CX", "OscA Orbit CY", "OscA Orbit Mod",
+             "OscA Terrain Freq", "OscA Terrain Mod X", "OscA Terrain Mod Y", "OscA Feedback", "OscA Saturation",
+             "OscB Orbit Aspect", "OscB Orbit Rot", "OscB Orbit CX", "OscB Orbit CY", "OscB Orbit Mod",
+             "OscB Terrain Freq", "OscB Terrain Mod X", "OscB Terrain Mod Y", "OscB Feedback", "OscB Saturation" };
 }
 
 // ═══════════════════════════════════════════════════════════════════

@@ -1,77 +1,63 @@
 # plugin	O-Strata
-# params	219
+# params	205
 # note	defaultNorm is NORMALISED 0..1; numSteps 2147483647 means continuous
 #id	name	label	numSteps	textAtMin	textAtMax	defaultNorm	defaultText	flags
-oscAPos	Osc A Position		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscAPos	Osc A Orbit Size		2147483647	0.000	1.000	0.500000	0.500	automatable
 oscALevel	Osc A Level		2147483647	0.000	1.000	0.800000	0.800	automatable
 oscAPan	Osc A Pan		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 oscACoarse	Osc A Coarse		49	-24	24	0.500000	0	automatable
 oscAFine	Osc A Fine		2147483647	-100.0	100.0	0.500000	0.0	automatable
 oscAPhase	Osc A Phase		2147483647	0.000	1.000	0.000000	0.000	automatable
-oscAUnison	Osc A Unison		8	1	8	0.000000	1	automatable
+oscAUnison	Osc A Unison		4	1	4	0.000000	1	automatable
 oscADetune	Osc A Detune		2147483647	0.000	1.000	0.200000	0.200	automatable
 oscAWidth	Osc A Width		2147483647	0.000	1.000	0.500000	0.500	automatable
 oscAWarpType	Osc A Warp Type		5	Off	Window	0.000000	Off	automatable,discrete
 oscAWarpAmt	Osc A Warp Amount		2147483647	0.000	1.000	0.000000	0.000	automatable
-oscAGeoSource	Osc A Source		3	Mesh	Terrain	0.000000	Mesh	automatable,discrete
-oscAGeoFrames	Osc A Frames		3	64	256	1.000000	256	automatable,discrete
-oscAGeoDrive	Osc A Shape Drive		2147483647	0.000	1.000	0.000000	0.000	automatable
-oscAMesh	Osc A Mesh		7	Sphere	Imported…	0.166667	Torus	automatable,discrete
-oscAMeshTiltX	Osc A Mesh Tilt X		2147483647	-90.0	90.0	0.500000	0.0	automatable
-oscAMeshTiltY	Osc A Mesh Tilt Y		2147483647	-90.0	90.0	0.500000	0.0	automatable
-oscAMeshPhi	Osc A Mesh Projection Phi		2147483647	0.0	360.0	0.000000	0.0	automatable
-oscAMeshUnwrap	Osc A Mesh Unwrap Mode		2	XY Projection	Centroid Distance	0.000000	XY Projection	automatable,discrete
-oscAMeshLoop	Osc A Mesh Loop Policy		2	Largest	Sum	0.000000	Largest	automatable,discrete
-oscAVolField	Osc A Vol Field		5	Torus SDF	fBm Noise	0.000000	Torus SDF	automatable,discrete
-oscAVolOrbit	Osc A Vol Orbit		4	Torus Knot (2,3)	Lissajous Knot	0.000000	Torus Knot (2,3)	automatable,discrete
-oscAVolSweepAxis	Osc A Vol Sweep Axis		3	Orbit Scale	Z Offset	0.000000	Orbit Scale	automatable,discrete
-oscAVolSweepRange	Osc A Vol Sweep Range		2147483647	0.000	1.000	0.600000	0.600	automatable
-oscAVolDetail	Osc A Vol Field Detail		2147483647	0.000	1.000	0.300000	0.300	automatable
-oscATerrain	Osc A Terrain		3	Sine Product	Imported…	0.000000	Sine Product	automatable,discrete
-oscATerOrbit	Osc A Ter Orbit Shape		4	Ellipse	Superellipse	0.000000	Ellipse	automatable,discrete
-oscATerCX	Osc A Ter Centre X		2147483647	-1.00	1.00	0.500000	-0.00	automatable
-oscATerCY	Osc A Ter Centre Y		2147483647	-1.00	1.00	0.500000	-0.00	automatable
-oscATerAspect	Osc A Ter Aspect		2147483647	0.100	1.000	1.000000	1.000	automatable
-oscATerRot	Osc A Ter Rotation		2147483647	0.0	360.0	0.000000	0.0	automatable
-oscATerSweepAxis	Osc A Ter Sweep Axis		4	Radius	Centre Y	0.000000	Radius	automatable,discrete
-oscATerSweepRange	Osc A Ter Sweep Range		2147483647	0.000	1.000	0.800000	0.800	automatable
-oscATerBlur	Osc A Ter Image Blur		2147483647	0.000	1.000	0.200000	0.200	automatable
-oscATerEdge	Osc A Ter Edge Mode		2	Mirror	Window	0.000000	Mirror	automatable,discrete
-oscBPos	Osc B Position		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscATerrain	Osc A Terrain		7	Sine Product	Imported…	0.000000	Sine Product	automatable,discrete
+oscATerFreq	Osc A Terrain Freq		2147483647	0.2500000	8.0000000	0.400000	1.0000000	automatable
+oscATerModX	Osc A Terrain Mod X		2147483647	0.000	1.000	0.500000	0.500	automatable
+oscATerModY	Osc A Terrain Mod Y		2147483647	0.000	1.000	0.500000	0.500	automatable
+oscATerTrack	Osc A Pitch Track		2147483647	0.000	1.000	1.000000	1.000	automatable
+oscATerSat	Osc A Saturation		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscATerBlur	Osc A Terrain Blur		2147483647	0.000	1.000	0.200000	0.200	automatable
+oscATerEdge	Osc A Terrain Edge		2	Mirror	Window	0.000000	Mirror	automatable,discrete
+oscAOrbit	Osc A Orbit		11	Ellipse	Squarcle	0.000000	Ellipse	automatable,discrete
+oscAOrbAspect	Osc A Orbit Aspect		2147483647	0.100	1.000	0.666667	0.700	automatable
+oscAOrbRot	Osc A Orbit Rotation		2147483647	0.0	360.0	0.000000	0.0	automatable
+oscAOrbCX	Osc A Orbit Centre X		2147483647	-1.000	1.000	0.565000	0.130	automatable
+oscAOrbCY	Osc A Orbit Centre Y		2147483647	-1.000	1.000	0.605000	0.210	automatable
+oscAOrbMod	Osc A Orbit Mod		2147483647	0.000	1.000	0.500000	0.500	automatable
+oscAOrbFeedback	Osc A Feedback		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscAOrbFbDamp	Osc A Feedback Damp		2147483647	0.000	1.000	0.500000	0.500	automatable
+oscAQuality	Osc A Quality		3	Bandlimited	4×	0.500000	2×	automatable,discrete
+oscBPos	Osc B Orbit Size		2147483647	0.000	1.000	0.500000	0.500	automatable
 oscBLevel	Osc B Level		2147483647	0.000	1.000	0.000000	0.000	automatable
 oscBPan	Osc B Pan		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 oscBCoarse	Osc B Coarse		49	-24	24	0.500000	0	automatable
 oscBFine	Osc B Fine		2147483647	-100.0	100.0	0.500000	0.0	automatable
 oscBPhase	Osc B Phase		2147483647	0.000	1.000	0.000000	0.000	automatable
-oscBUnison	Osc B Unison		8	1	8	0.000000	1	automatable
+oscBUnison	Osc B Unison		4	1	4	0.000000	1	automatable
 oscBDetune	Osc B Detune		2147483647	0.000	1.000	0.200000	0.200	automatable
 oscBWidth	Osc B Width		2147483647	0.000	1.000	0.500000	0.500	automatable
 oscBWarpType	Osc B Warp Type		5	Off	Window	0.000000	Off	automatable,discrete
 oscBWarpAmt	Osc B Warp Amount		2147483647	0.000	1.000	0.000000	0.000	automatable
-oscBGeoSource	Osc B Source		3	Mesh	Terrain	0.000000	Mesh	automatable,discrete
-oscBGeoFrames	Osc B Frames		3	64	256	1.000000	256	automatable,discrete
-oscBGeoDrive	Osc B Shape Drive		2147483647	0.000	1.000	0.000000	0.000	automatable
-oscBMesh	Osc B Mesh		7	Sphere	Imported…	0.166667	Torus	automatable,discrete
-oscBMeshTiltX	Osc B Mesh Tilt X		2147483647	-90.0	90.0	0.500000	0.0	automatable
-oscBMeshTiltY	Osc B Mesh Tilt Y		2147483647	-90.0	90.0	0.500000	0.0	automatable
-oscBMeshPhi	Osc B Mesh Projection Phi		2147483647	0.0	360.0	0.000000	0.0	automatable
-oscBMeshUnwrap	Osc B Mesh Unwrap Mode		2	XY Projection	Centroid Distance	0.000000	XY Projection	automatable,discrete
-oscBMeshLoop	Osc B Mesh Loop Policy		2	Largest	Sum	0.000000	Largest	automatable,discrete
-oscBVolField	Osc B Vol Field		5	Torus SDF	fBm Noise	0.000000	Torus SDF	automatable,discrete
-oscBVolOrbit	Osc B Vol Orbit		4	Torus Knot (2,3)	Lissajous Knot	0.000000	Torus Knot (2,3)	automatable,discrete
-oscBVolSweepAxis	Osc B Vol Sweep Axis		3	Orbit Scale	Z Offset	0.000000	Orbit Scale	automatable,discrete
-oscBVolSweepRange	Osc B Vol Sweep Range		2147483647	0.000	1.000	0.600000	0.600	automatable
-oscBVolDetail	Osc B Vol Field Detail		2147483647	0.000	1.000	0.300000	0.300	automatable
-oscBTerrain	Osc B Terrain		3	Sine Product	Imported…	0.000000	Sine Product	automatable,discrete
-oscBTerOrbit	Osc B Ter Orbit Shape		4	Ellipse	Superellipse	0.000000	Ellipse	automatable,discrete
-oscBTerCX	Osc B Ter Centre X		2147483647	-1.00	1.00	0.500000	-0.00	automatable
-oscBTerCY	Osc B Ter Centre Y		2147483647	-1.00	1.00	0.500000	-0.00	automatable
-oscBTerAspect	Osc B Ter Aspect		2147483647	0.100	1.000	1.000000	1.000	automatable
-oscBTerRot	Osc B Ter Rotation		2147483647	0.0	360.0	0.000000	0.0	automatable
-oscBTerSweepAxis	Osc B Ter Sweep Axis		4	Radius	Centre Y	0.000000	Radius	automatable,discrete
-oscBTerSweepRange	Osc B Ter Sweep Range		2147483647	0.000	1.000	0.800000	0.800	automatable
-oscBTerBlur	Osc B Ter Image Blur		2147483647	0.000	1.000	0.200000	0.200	automatable
-oscBTerEdge	Osc B Ter Edge Mode		2	Mirror	Window	0.000000	Mirror	automatable,discrete
+oscBTerrain	Osc B Terrain		7	Sine Product	Imported…	0.000000	Sine Product	automatable,discrete
+oscBTerFreq	Osc B Terrain Freq		2147483647	0.2500000	8.0000000	0.400000	1.0000000	automatable
+oscBTerModX	Osc B Terrain Mod X		2147483647	0.000	1.000	0.500000	0.500	automatable
+oscBTerModY	Osc B Terrain Mod Y		2147483647	0.000	1.000	0.500000	0.500	automatable
+oscBTerTrack	Osc B Pitch Track		2147483647	0.000	1.000	1.000000	1.000	automatable
+oscBTerSat	Osc B Saturation		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscBTerBlur	Osc B Terrain Blur		2147483647	0.000	1.000	0.200000	0.200	automatable
+oscBTerEdge	Osc B Terrain Edge		2	Mirror	Window	0.000000	Mirror	automatable,discrete
+oscBOrbit	Osc B Orbit		11	Ellipse	Squarcle	0.000000	Ellipse	automatable,discrete
+oscBOrbAspect	Osc B Orbit Aspect		2147483647	0.100	1.000	0.666667	0.700	automatable
+oscBOrbRot	Osc B Orbit Rotation		2147483647	0.0	360.0	0.000000	0.0	automatable
+oscBOrbCX	Osc B Orbit Centre X		2147483647	-1.000	1.000	0.565000	0.130	automatable
+oscBOrbCY	Osc B Orbit Centre Y		2147483647	-1.000	1.000	0.605000	0.210	automatable
+oscBOrbMod	Osc B Orbit Mod		2147483647	0.000	1.000	0.500000	0.500	automatable
+oscBOrbFeedback	Osc B Feedback		2147483647	0.000	1.000	0.000000	0.000	automatable
+oscBOrbFbDamp	Osc B Feedback Damp		2147483647	0.000	1.000	0.500000	0.500	automatable
+oscBQuality	Osc B Quality		3	Bandlimited	4×	0.500000	2×	automatable,discrete
 subShape	Sub Shape		4	Sine	Square	0.000000	Sine	automatable,discrete
 subOctave	Sub Octave		4	-1 Oct	-4 Oct	0.000000	-1 Oct	automatable,discrete
 subLevel	Sub Level		2147483647	0.000	1.000	0.000000	0.000	automatable
@@ -154,67 +140,67 @@ lfo4Sync	LFO 4 Sync		2	Off	On	0.000000	Off	automatable,discrete,boolean
 lfo4Division	LFO 4 Division		18	1/1	1/32T	0.117647	1/4	automatable,discrete
 lfo4FreeRun	LFO 4 Free Run		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot0Src	Mod 1 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot0Dst	Mod 1 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot0Dst	Mod 1 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot0Amt	Mod 1 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot0On	Mod 1 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot1Src	Mod 2 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot1Dst	Mod 2 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot1Dst	Mod 2 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot1Amt	Mod 2 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot1On	Mod 2 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot2Src	Mod 3 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot2Dst	Mod 3 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot2Dst	Mod 3 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot2Amt	Mod 3 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot2On	Mod 3 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot3Src	Mod 4 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot3Dst	Mod 4 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot3Dst	Mod 4 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot3Amt	Mod 4 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot3On	Mod 4 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot4Src	Mod 5 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot4Dst	Mod 5 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot4Dst	Mod 5 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot4Amt	Mod 5 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot4On	Mod 5 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot5Src	Mod 6 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot5Dst	Mod 6 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot5Dst	Mod 6 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot5Amt	Mod 6 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot5On	Mod 6 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot6Src	Mod 7 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot6Dst	Mod 7 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot6Dst	Mod 7 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot6Amt	Mod 7 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot6On	Mod 7 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot7Src	Mod 8 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot7Dst	Mod 8 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot7Dst	Mod 8 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot7Amt	Mod 8 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot7On	Mod 8 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot8Src	Mod 9 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot8Dst	Mod 9 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot8Dst	Mod 9 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot8Amt	Mod 9 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot8On	Mod 9 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot9Src	Mod 10 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot9Dst	Mod 10 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot9Dst	Mod 10 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot9Amt	Mod 10 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot9On	Mod 10 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot10Src	Mod 11 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot10Dst	Mod 11 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot10Dst	Mod 11 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot10Amt	Mod 11 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot10On	Mod 11 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot11Src	Mod 12 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot11Dst	Mod 12 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot11Dst	Mod 12 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot11Amt	Mod 12 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot11On	Mod 12 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot12Src	Mod 13 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot12Dst	Mod 13 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot12Dst	Mod 13 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot12Amt	Mod 13 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot12On	Mod 13 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot13Src	Mod 14 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot13Dst	Mod 14 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot13Dst	Mod 14 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot13Amt	Mod 14 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot13On	Mod 14 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot14Src	Mod 15 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot14Dst	Mod 15 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot14Dst	Mod 15 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot14Amt	Mod 15 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot14On	Mod 15 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 modSlot15Src	Mod 16 Source		11	None	Aftertouch	0.000000	None	automatable,discrete
-modSlot15Dst	Mod 16 Dest		26	None	OscB Warp	0.000000	None	automatable,discrete
+modSlot15Dst	Mod 16 Dest		46	None	OscB Saturation	0.000000	None	automatable,discrete
 modSlot15Amt	Mod 16 Amount		2147483647	-1.00	1.00	0.500000	-0.00	automatable
 modSlot15On	Mod 16 Enabled		2	Off	On	0.000000	Off	automatable,discrete,boolean
 masterVol	Master Volume		2147483647	0.000	1.000	0.800000	0.800	automatable
