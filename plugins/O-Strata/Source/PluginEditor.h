@@ -21,7 +21,7 @@
   ==============================================================================
 
     PluginEditor.h
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -55,6 +55,7 @@ private:
 
     // 1. RELAYS (destroyed last)
     std::vector<std::unique_ptr<juce::WebSliderRelay>> sliderRelays;
+    std::vector<std::unique_ptr<juce::WebComboBoxRelay>> comboRelays;   // 8
     std::unique_ptr<juce::WebToggleButtonRelay> delaySyncRelay;
     std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> lfoSyncRelays;
     std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> lfoFreeRunRelays;
@@ -66,6 +67,7 @@ private:
 
     // 3. ATTACHMENTS (destroyed first — WebView still alive)
     std::vector<std::unique_ptr<juce::WebSliderParameterAttachment>> sliderAttachments;
+    std::vector<std::unique_ptr<juce::WebComboBoxParameterAttachment>> comboAttachments;   // 8
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> delaySyncAttachment;
     std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>> lfoSyncAttachments;
     std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>> lfoFreeRunAttachments;

@@ -999,12 +999,12 @@ const HIDDEN_WHEN_SYNC = new Set([
         check(nativeTitles === 0,
             `[8] zero native title= attributes across all four tabs — got ${nativeTitles}`);
 
-        // The count this whole dispatch turns on: 103 of O-Strata's 219 parameters
+        // The count this whole dispatch turns on: 103 of O-Strata's 205 parameters
         // have a control whose anchor exists when applyI18n() runs, and all 103
-        // are bound. The other 116 have no bound anchor — 64 async mod-matrix rows,
+        // are bound. The other 102 have no bound anchor — 64 async mod-matrix rows,
         // `tonic` (async), three with no control at all (`tuningPreset`,
-        // `stereoWidth`, `velocityCurve`), and the 48 geometry parameters, which
-        // have no control until Phase 3.1 (Stage 1 fork: the two Shape
+        // `stereoWidth`, `velocityCurve`), and the 34 terrain / orbit parameters,
+        // which have no control until Phase 3.1 (Stage 1 fork: the two Shape
         // dropdowns left with the wavetable library, 105 → 103).
         // v1.23.0: THREE chrome tips — #tips-toggle joined #gear-btn and
         // #lang-select when the settings popover grew a hover-help switch.

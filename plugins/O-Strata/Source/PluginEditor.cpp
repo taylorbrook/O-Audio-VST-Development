@@ -21,7 +21,7 @@
   ==============================================================================
 
     PluginEditor.cpp
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -631,6 +631,7 @@ OStrataAudioProcessorEditor::OStrataAudioProcessorEditor (OStrataAudioProcessor&
 
     // Get parameter ID lists from shared definitions (StrataParamIds.h)
     auto sliderIds    = StrataParamIds::allSliderIds();
+    auto comboIds     = StrataParamIds::allComboIds();
     auto bypassIds    = StrataParamIds::bypassToggleIds();
     auto modToggleIds = StrataParamIds::modSlotToggleIds();
 
@@ -646,6 +647,11 @@ OStrataAudioProcessorEditor::OStrataAudioProcessorEditor (OStrataAudioProcessor&
     // Slider relays
     for (const auto& id : sliderIds)
         sliderRelays.push_back (std::make_unique<juce::WebSliderRelay> (id));
+
+    // Combo relays — the 4 Choice params per oscillator (Terrain, TerEdge, Orbit, Quality).
+    // Relays only in Stage 1 (CONTEXT D1); the page binds them in Phase 3.1.
+    for (const auto& id : comboIds)
+        comboRelays.push_back (std::make_unique<juce::WebComboBoxRelay> (id));
 
     // 1 toggle relay (delaySync)
     delaySyncRelay = std::make_unique<juce::WebToggleButtonRelay> ("delaySync");
@@ -673,6 +679,10 @@ OStrataAudioProcessorEditor::OStrataAudioProcessorEditor (OStrataAudioProcessor&
 
     // Add all slider relays to options
     for (const auto& relay : sliderRelays)
+        options = options.withOptionsFrom (*relay);
+
+    // Add combo relays
+    for (const auto& relay : comboRelays)
         options = options.withOptionsFrom (*relay);
 
     // Add toggle relay
@@ -720,8 +730,21 @@ OStrataAudioProcessorEditor::OStrataAudioProcessorEditor (OStrataAudioProcessor&
         }
     }
     // Every slider relay must be backed by a parameter (StrataParamIds::allSliderIds()
-    // and createParameterLayout() must agree — 188 in Stage 1).
+    // and createParameterLayout() must agree — 166 after the Stage 1 second pass).
     jassert (sliderAttachments.size() == sliderRelays.size());
+
+    // Combo attachments
+    for (int i = 0; i < comboIds.size(); ++i)
+    {
+        auto* param = processorRef.getAPVTS().getParameter (comboIds[i]);
+        if (param != nullptr)
+        {
+            comboAttachments.push_back (
+                std::make_unique<juce::WebComboBoxParameterAttachment> (
+                    *param, *comboRelays[static_cast<size_t> (i)], nullptr));
+        }
+    }
+    jassert (comboAttachments.size() == comboRelays.size());   // 8
 
     // 1 toggle attachment (delaySync)
     auto* delaySyncParam = processorRef.getAPVTS().getParameter ("delaySync");

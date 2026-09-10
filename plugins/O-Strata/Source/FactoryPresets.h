@@ -21,7 +21,7 @@
   ==============================================================================
 
     FactoryPresets.h
-    O-Strata - Factory preset library (96 presets across 9 categories)
+    O-Strata - Factory preset library (Stage 1: `Init` only; real bank in Phase 4.1)
 
   ==============================================================================
 */
@@ -33,10 +33,10 @@
 
 namespace FactoryPresets
 {
-    /** Build the full factory preset vector.
-        Values in each preset are stored as normalized [0,1] after conversion
-        from raw parameter ranges via APVTS param ranges.
-        Tuning parameters are never included (they're excluded in PresetManager). */
+    /** Build the factory preset vector (Stage 1: a single self-describing `Init`
+        at every parameter's getDefaultValue()).
+        Values are normalised [0,1]; tuning parameters are excluded by the
+        PresetManager at write time. */
     std::vector<OuariconPresetManager::FactoryPresetDef>
         build (juce::AudioProcessorValueTreeState& apvts);
 }
