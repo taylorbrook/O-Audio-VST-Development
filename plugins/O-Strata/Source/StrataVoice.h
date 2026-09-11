@@ -21,7 +21,7 @@
   ==============================================================================
 
     StrataVoice.h
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     Ouaricon Audio
 
   ==============================================================================
@@ -29,7 +29,7 @@
 
 #pragma once
 #include <JuceHeader.h>
-#include "dsp/WavetableOscillator.h"
+#include "dsp/TerrainOscillator.h"
 #include "dsp/SubOscillator.h"
 #include "dsp/NoiseGenerator.h"
 #include "dsp/GlideProcessor.h"
@@ -41,7 +41,6 @@
 class TuningEngine;
 class StrataSound;
 class OStrataAudioProcessor;
-struct WavetableData;
 
 class StrataVoice : public juce::SynthesiserVoice
 {
@@ -70,8 +69,19 @@ public:
     void pitchWheelMoved (int newPitchWheelValue) override;
     void controllerMoved (int controllerNumber, int newControllerValue) override;
 
-    void setWavetableA (const WavetableData* table);
-    void setWavetableB (const WavetableData* table);
+    /** Index in the processor's voice pool — folded into the harness phase seed (plan Decision 8). */
+    void setVoiceIndex (int i) { voiceIndex = i; }
+
+    /** Core 10 rings (one per oscillator). Every voice points at them; only the
+        display voice (currentMidiNote == processor->getLastPlayedNote()) writes. */
+    void setCaptureTargets (CycleCapture* a, CycleCapture* b) { captureA = a; captureB = b; }
+
+    // Row order of the 24 smoothed base values (plan Decision 6; reused by the
+    // Phase 2.3 processor ramp rows): 0 Pos, 1 OrbAspect, 2 OrbRot, 3 OrbCX,
+    // 4 OrbCY, 5 OrbMod, 6 TerFreq (log2), 7 TerModX, 8 TerModY, 9 OrbFeedback,
+    // 10 TerSat for osc A; 11–21 the same for osc B; 22 ModWheel; 23 Aftertouch.
+    static constexpr int kNumRamps = 24;
+    static constexpr int kRampsPerOsc = 11;
 
 private:
     juce::AudioProcessorValueTreeState* parameters = nullptr;
@@ -101,6 +111,24 @@ private:
     // Osc A warp
     std::atomic<float>* pOscAWarpType = nullptr;
     std::atomic<float>* pOscAWarpAmt = nullptr;
+    // Osc A terrain / orbit (parameter-spec.md v2 rows 12–28; all 17 cached, Round A reads 15)
+    std::atomic<float>* pOscATerrain = nullptr;
+    std::atomic<float>* pOscATerFreq = nullptr;
+    std::atomic<float>* pOscATerModX = nullptr;
+    std::atomic<float>* pOscATerModY = nullptr;
+    std::atomic<float>* pOscATerTrack = nullptr;
+    std::atomic<float>* pOscATerSat = nullptr;
+    std::atomic<float>* pOscATerBlur = nullptr;
+    std::atomic<float>* pOscATerEdge = nullptr;
+    std::atomic<float>* pOscAOrbit = nullptr;
+    std::atomic<float>* pOscAOrbAspect = nullptr;
+    std::atomic<float>* pOscAOrbRot = nullptr;
+    std::atomic<float>* pOscAOrbCX = nullptr;
+    std::atomic<float>* pOscAOrbCY = nullptr;
+    std::atomic<float>* pOscAOrbMod = nullptr;
+    std::atomic<float>* pOscAOrbFeedback = nullptr;
+    std::atomic<float>* pOscAOrbFbDamp = nullptr;
+    std::atomic<float>* pOscAQuality = nullptr;
     // Osc B
     std::atomic<float>* pOscBCoarse = nullptr;
     std::atomic<float>* pOscBFine = nullptr;
@@ -114,6 +142,24 @@ private:
     // Osc B warp
     std::atomic<float>* pOscBWarpType = nullptr;
     std::atomic<float>* pOscBWarpAmt = nullptr;
+    // Osc B terrain / orbit
+    std::atomic<float>* pOscBTerrain = nullptr;
+    std::atomic<float>* pOscBTerFreq = nullptr;
+    std::atomic<float>* pOscBTerModX = nullptr;
+    std::atomic<float>* pOscBTerModY = nullptr;
+    std::atomic<float>* pOscBTerTrack = nullptr;
+    std::atomic<float>* pOscBTerSat = nullptr;
+    std::atomic<float>* pOscBTerBlur = nullptr;
+    std::atomic<float>* pOscBTerEdge = nullptr;
+    std::atomic<float>* pOscBOrbit = nullptr;
+    std::atomic<float>* pOscBOrbAspect = nullptr;
+    std::atomic<float>* pOscBOrbRot = nullptr;
+    std::atomic<float>* pOscBOrbCX = nullptr;
+    std::atomic<float>* pOscBOrbCY = nullptr;
+    std::atomic<float>* pOscBOrbMod = nullptr;
+    std::atomic<float>* pOscBOrbFeedback = nullptr;
+    std::atomic<float>* pOscBOrbFbDamp = nullptr;
+    std::atomic<float>* pOscBQuality = nullptr;
     // Osc mix
     std::atomic<float>* pOscMix = nullptr;
     // Sub & Noise
@@ -177,9 +223,23 @@ private:
     int currentMidiNote = -1;
     double voiceSampleRate = 44100.0;
 
-    // Oscillators
-    WavetableOscillator oscA;
-    WavetableOscillator oscB;
+    // Oscillators (live wave-terrain, Phase 2.1)
+    TerrainOscillator oscA;
+    TerrainOscillator oscB;
+    int voiceIndex = 0;
+    CycleCapture* captureA = nullptr;
+    CycleCapture* captureB = nullptr;
+
+    // Core 9 smoothing (QUAL-02): one 5 ms ramp per modulated base value (22) +
+    // ModWheel / Aftertouch (2). setTargetValue once per block, getNextValue per
+    // sample, setCurrentAndTargetValue at note-on when the voice was idle
+    // (an idle voice never advances its ramps — RESEARCH §2.4).
+    std::array<juce::SmoothedValue<float>, kNumRamps> ramps;
+
+    /** Base value for ramp row r (rows 6 / 17 in log2). */
+    float rampTarget (int row) const;
+    /** Per-sample oscillator feed: ramp rows + mod offsets → the nine per-sample setters. */
+    void feedOscillator (TerrainOscillator& osc, int rowBase, int destBase, const float* rowValues);
     double lastOscAOut = 0.0;
     double lastOscBOut = 0.0;
 

@@ -1,0 +1,7 @@
+# Harness run products — regenerable; goldens are tracked as .sha256 ONLY
+# (pattern_golden_tracked_as_checksum_only). Match artifacts, not directories.
+exports/
+render-harness/golden/*.wav
+render-harness/golden/*.json
+!render-harness/golden/*.sha256
+*.png

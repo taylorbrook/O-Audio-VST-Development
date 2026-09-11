@@ -21,7 +21,7 @@
   ==============================================================================
 
     ModulationMatrix.cpp
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     16-slot modulation routing matrix with per-sample evaluation
 
   ==============================================================================
@@ -97,4 +97,13 @@ float ModulationMatrix::getModOffset (ModDest dest) const
 void ModulationMatrix::clearOffsets()
 {
     destOffsets.fill (0.0f);
+}
+
+bool ModulationMatrix::isDestinationRouted (ModDest dest) const
+{
+    const int d = static_cast<int> (dest);
+    for (const auto& slot : slots)
+        if (slot.enabled && slot.source != 0 && slot.dest == d && slot.amount != 0.0f)
+            return true;
+    return false;
 }

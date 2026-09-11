@@ -21,7 +21,7 @@
   ==============================================================================
 
     StrataVoice.cpp
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     Ouaricon Audio
 
   ==============================================================================
@@ -59,6 +59,23 @@ void StrataVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pOscAPan       = apvts->getRawParameterValue ("oscAPan");
     pOscAWarpType  = apvts->getRawParameterValue ("oscAWarpType");
     pOscAWarpAmt   = apvts->getRawParameterValue ("oscAWarpAmt");
+    pOscATerrain     = apvts->getRawParameterValue ("oscATerrain");
+    pOscATerFreq     = apvts->getRawParameterValue ("oscATerFreq");
+    pOscATerModX     = apvts->getRawParameterValue ("oscATerModX");
+    pOscATerModY     = apvts->getRawParameterValue ("oscATerModY");
+    pOscATerTrack    = apvts->getRawParameterValue ("oscATerTrack");
+    pOscATerSat      = apvts->getRawParameterValue ("oscATerSat");
+    pOscATerBlur     = apvts->getRawParameterValue ("oscATerBlur");
+    pOscATerEdge     = apvts->getRawParameterValue ("oscATerEdge");
+    pOscAOrbit       = apvts->getRawParameterValue ("oscAOrbit");
+    pOscAOrbAspect   = apvts->getRawParameterValue ("oscAOrbAspect");
+    pOscAOrbRot      = apvts->getRawParameterValue ("oscAOrbRot");
+    pOscAOrbCX       = apvts->getRawParameterValue ("oscAOrbCX");
+    pOscAOrbCY       = apvts->getRawParameterValue ("oscAOrbCY");
+    pOscAOrbMod      = apvts->getRawParameterValue ("oscAOrbMod");
+    pOscAOrbFeedback = apvts->getRawParameterValue ("oscAOrbFeedback");
+    pOscAOrbFbDamp   = apvts->getRawParameterValue ("oscAOrbFbDamp");
+    pOscAQuality     = apvts->getRawParameterValue ("oscAQuality");
 
     pOscBCoarse    = apvts->getRawParameterValue ("oscBCoarse");
     pOscBFine      = apvts->getRawParameterValue ("oscBFine");
@@ -71,6 +88,23 @@ void StrataVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pOscBPan       = apvts->getRawParameterValue ("oscBPan");
     pOscBWarpType  = apvts->getRawParameterValue ("oscBWarpType");
     pOscBWarpAmt   = apvts->getRawParameterValue ("oscBWarpAmt");
+    pOscBTerrain     = apvts->getRawParameterValue ("oscBTerrain");
+    pOscBTerFreq     = apvts->getRawParameterValue ("oscBTerFreq");
+    pOscBTerModX     = apvts->getRawParameterValue ("oscBTerModX");
+    pOscBTerModY     = apvts->getRawParameterValue ("oscBTerModY");
+    pOscBTerTrack    = apvts->getRawParameterValue ("oscBTerTrack");
+    pOscBTerSat      = apvts->getRawParameterValue ("oscBTerSat");
+    pOscBTerBlur     = apvts->getRawParameterValue ("oscBTerBlur");
+    pOscBTerEdge     = apvts->getRawParameterValue ("oscBTerEdge");
+    pOscBOrbit       = apvts->getRawParameterValue ("oscBOrbit");
+    pOscBOrbAspect   = apvts->getRawParameterValue ("oscBOrbAspect");
+    pOscBOrbRot      = apvts->getRawParameterValue ("oscBOrbRot");
+    pOscBOrbCX       = apvts->getRawParameterValue ("oscBOrbCX");
+    pOscBOrbCY       = apvts->getRawParameterValue ("oscBOrbCY");
+    pOscBOrbMod      = apvts->getRawParameterValue ("oscBOrbMod");
+    pOscBOrbFeedback = apvts->getRawParameterValue ("oscBOrbFeedback");
+    pOscBOrbFbDamp   = apvts->getRawParameterValue ("oscBOrbFbDamp");
+    pOscBQuality     = apvts->getRawParameterValue ("oscBQuality");
 
     pOscMix        = apvts->getRawParameterValue ("oscMix");
 
@@ -146,6 +180,11 @@ void StrataVoice::prepare (double sampleRate, int /*samplesPerBlock*/)
     voiceSampleRate = sampleRate;
     oscA.prepare (sampleRate);
     oscB.prepare (sampleRate);
+    // 5 ms base-value ramps (Core 9). harnessRampSeconds is the H5 negative
+    // control (0 s ⇒ stepped) — a harness atomic, default 0.005, never a parameter.
+    const double rampSeconds = (processor != nullptr) ? static_cast<double> (processor->harnessRampSeconds.load()) : 0.005;
+    for (auto& r : ramps)
+        r.reset (sampleRate, rampSeconds);
     subOsc.prepare (sampleRate);
     noiseGen.prepare (sampleRate);
     glide.prepare (sampleRate);
@@ -166,20 +205,67 @@ bool StrataVoice::canPlaySound (juce::SynthesiserSound* sound)
     return dynamic_cast<StrataSound*> (sound) != nullptr;
 }
 
-void StrataVoice::setWavetableA (const WavetableData* table)
+float StrataVoice::rampTarget (int row) const
 {
-    oscA.setWavetable (table);
+    switch (row)
+    {
+        case 0:  return pOscAPos->load();
+        case 1:  return pOscAOrbAspect->load();
+        case 2:  return pOscAOrbRot->load();
+        case 3:  return pOscAOrbCX->load();
+        case 4:  return pOscAOrbCY->load();
+        case 5:  return pOscAOrbMod->load();
+        case 6:  return std::log2 (pOscATerFreq->load());   // exact-log range: ramp in log2 (Stage 2 CONTEXT constraint)
+        case 7:  return pOscATerModX->load();
+        case 8:  return pOscATerModY->load();
+        case 9:  return pOscAOrbFeedback->load();
+        case 10: return pOscATerSat->load();
+        case 11: return pOscBPos->load();
+        case 12: return pOscBOrbAspect->load();
+        case 13: return pOscBOrbRot->load();
+        case 14: return pOscBOrbCX->load();
+        case 15: return pOscBOrbCY->load();
+        case 16: return pOscBOrbMod->load();
+        case 17: return std::log2 (pOscBTerFreq->load());
+        case 18: return pOscBTerModX->load();
+        case 19: return pOscBTerModY->load();
+        case 20: return pOscBOrbFeedback->load();
+        case 21: return pOscBTerSat->load();
+        case 22: return (processor != nullptr) ? processor->getModWheelValue() : 0.0f;
+        case 23: return (processor != nullptr) ? processor->getAftertouchValue() : 0.0f;
+        default: return 0.0f;
+    }
 }
 
-void StrataVoice::setWavetableB (const WavetableData* table)
+void StrataVoice::feedOscillator (TerrainOscillator& osc, int rowBase, int destBase, const float* v)
 {
-    oscB.setWavetable (table);
+    // Offset → parameter mapping (ARCH Core 9): additive + clamp to the range,
+    // Aspect offset × 0.9, Rotation offset × 180°, Terrain Freq log-domain ±2 oct.
+    auto off = [&] (int i) { return modMatrix.getModOffset (static_cast<ModDest> (destBase + i)); };
+    const float* b = v + rowBase;
+    osc.setPosition   (juce::jlimit (0.0f, 1.0f, b[0] + (rowBase == 0 ? modMatrix.getModOffset (ModDest::OscAPos)
+                                                                        : modMatrix.getModOffset (ModDest::OscBPos))));
+    osc.setAspect     (juce::jlimit (0.1f, 1.0f, b[1] + 0.9f * off (0)));
+    osc.setRotation   ((b[2] + 180.0f * off (1)) * 0.017453292519943295f);     // periodic, no clamp
+    osc.setCentre     (juce::jlimit (-1.0f, 1.0f, b[3] + off (2)),
+                       juce::jlimit (-1.0f, 1.0f, b[4] + off (3)));
+    osc.setOrbitMod   (juce::jlimit (0.0f, 1.0f, b[5] + off (4)));
+    osc.setTerrainFreq (juce::jlimit (0.25f, 8.0f, std::exp2f (b[6] + 2.0f * off (5))));   // one exp2 per oscillator per sample (plan Decision 12)
+    osc.setTerrainMod (juce::jlimit (0.0f, 1.0f, b[7] + off (6)),
+                       juce::jlimit (0.0f, 1.0f, b[8] + off (7)));
+    osc.setFeedback   (juce::jlimit (0.0f, 1.0f, b[9] + off (8)));
+    osc.setSaturation (juce::jlimit (0.0f, 1.0f, b[10] + off (9)));
 }
 
 void StrataVoice::startNote (int midiNoteNumber, float velocity,
                             juce::SynthesiserSound*, int /*currentPitchWheelPosition*/)
 {
     bool wasActive = getCurrentlyPlayingNote() >= 0;
+    // juce::Synthesiser::startVoice assigns currentlyPlayingNote BEFORE calling
+    // startNote, so `wasActive` above is always true (inherited O-Prism quirk, left
+    // as is). The ramp snap below needs a real idle signal: the amp envelope is
+    // idle only when this voice was not sounding (a stolen voice's ramps are current).
+    const bool rampsIdle = ! ampEnvelope.isActive();
     currentMidiNote = midiNoteNumber;
 
     // Apply velocity curve transformation
@@ -245,7 +331,25 @@ void StrataVoice::startNote (int midiNoteNumber, float velocity,
     glide.setTarget (currentFrequency, glideIn);
 
     if (processor != nullptr)
+    {
         processor->setLastPlayedFrequency (currentFrequency);
+        processor->setLastPlayedNote (midiNoteNumber);
+    }
+
+    // Harness phase seed (plan Decision 8): 0 = production address hash; otherwise
+    // per-voice / per-oscillator distinct, deterministic partial phases.
+    const uint32_t harnessSeed = (processor != nullptr) ? processor->getHarnessPhaseSeed() : 0u;
+    auto seedFor = [&] (int oscIndex) -> uint32_t
+    {
+        return harnessSeed == 0u ? 0u
+             : (harnessSeed ^ (static_cast<uint32_t> (voiceIndex) * 0x9E3779B9u) ^ (static_cast<uint32_t> (oscIndex) << 16));
+    };
+
+    // Ramps: an idle voice never advanced its ramps, so snap them to the current
+    // base values (RESEARCH §2.4 note-on reset) rather than gliding a stale value.
+    if (rampsIdle)
+        for (int i = 0; i < kNumRamps; ++i)
+            ramps[static_cast<size_t> (i)].setCurrentAndTargetValue (rampTarget (i));
 
     // Osc A: apply coarse/fine tuning
     int coarseA = static_cast<int> (pOscACoarse->load());
@@ -267,7 +371,7 @@ void StrataVoice::startNote (int midiNoteNumber, float velocity,
         if (phaseA > 0.0001f)
             oscA.resetWithPhase (static_cast<double> (phaseA));
         else
-            oscA.resetWithRandomPhases();
+            oscA.resetWithRandomPhases (seedFor (0));
     }
 
     // Osc B: apply coarse/fine tuning
@@ -288,7 +392,7 @@ void StrataVoice::startNote (int midiNoteNumber, float velocity,
         if (phaseB > 0.0001f)
             oscB.resetWithPhase (static_cast<double> (phaseB));
         else
-            oscB.resetWithRandomPhases();
+            oscB.resetWithRandomPhases (seedFor (1));
     }
 
     // Sub oscillator
@@ -366,13 +470,53 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         return;
 
     // ─── Read per-block parameters (via cached pointers) ──────────
-    float oscAPos = pOscAPos->load();
     float oscALevel = pOscALevel->load();
     float oscAPan = pOscAPan->load();
-    float oscBPos = pOscBPos->load();
     float oscBLevel = pOscBLevel->load();
     float oscBPan = pOscBPan->load();
     float oscMix = pOscMix->load();
+
+    // Terrain / orbit block-rate feed (Core 9 → Core 1). The choice index is
+    // mapped through jlimit so HarnessIdentityX (100) is unreachable from the
+    // parameter; a harness override (−1 = none) replaces it for H1.
+    {
+        const int ovA = (processor != nullptr) ? processor->harnessTerrainOverride[0].load() : -1;
+        const int ovB = (processor != nullptr) ? processor->harnessTerrainOverride[1].load() : -1;
+        oscA.setTerrain (ovA >= 0 ? static_cast<TerrainKind> (ovA)
+                                  : static_cast<TerrainKind> (juce::jlimit (0, 6, static_cast<int> (pOscATerrain->load()))));
+        oscB.setTerrain (ovB >= 0 ? static_cast<TerrainKind> (ovB)
+                                  : static_cast<TerrainKind> (juce::jlimit (0, 6, static_cast<int> (pOscBTerrain->load()))));
+        oscA.setOrbit (static_cast<OrbitKind> (juce::jlimit (0, 10, static_cast<int> (pOscAOrbit->load()))));
+        oscB.setOrbit (static_cast<OrbitKind> (juce::jlimit (0, 10, static_cast<int> (pOscBOrbit->load()))));
+        oscA.setQuality (static_cast<Quality> (juce::jlimit (0, 2, static_cast<int> (pOscAQuality->load()))));
+        oscB.setQuality (static_cast<Quality> (juce::jlimit (0, 2, static_cast<int> (pOscBQuality->load()))));
+        oscA.setPitchTrack (pOscATerTrack->load());
+        oscB.setPitchTrack (pOscBTerTrack->load());
+        oscA.setFeedbackDamp (pOscAOrbFbDamp->load());
+        oscB.setFeedbackDamp (pOscBOrbFbDamp->load());
+        oscA.setEdgeMode (static_cast<EdgeMode> (juce::jlimit (0, 1, static_cast<int> (pOscATerEdge->load()))));
+        oscB.setEdgeMode (static_cast<EdgeMode> (juce::jlimit (0, 1, static_cast<int> (pOscBTerEdge->load()))));
+
+        if (processor != nullptr)
+        {
+            const bool bypass = processor->harnessTerrainKernelBypass.load();
+            const bool fbOn   = processor->harnessFeedbackPathEnabled.load();
+            const bool single = processor->harnessSingleSampleFeedback.load();
+            const bool satOff = processor->harnessSaturationBypass.load();
+            for (auto* o : { &oscA, &oscB })
+            {
+                o->setKernelBypass (bypass);
+                o->setFeedbackPathEnabled (fbOn);
+                o->setSingleSampleFeedback (single);
+                o->setSaturationBypass (satOff);
+            }
+            // Core 10: only the display voice writes the rings
+            const bool display = currentMidiNote == processor->getLastPlayedNote();
+            oscA.setCaptureTarget (display ? captureA : nullptr);
+            oscB.setCaptureTarget (display ? captureB : nullptr);
+        }
+    }
+    const bool preFilterTap = (processor != nullptr) && processor->harnessPreFilterTap.load();
 
     // Warp parameters
     int warpTypeA = static_cast<int> (pOscAWarpType->load());
@@ -394,6 +538,11 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float fineB = pOscBFine->load();
     double pitchRatioA = std::pow (2.0, (coarseA + fineA / 100.0) / 12.0);
     double pitchRatioB = std::pow (2.0, (coarseB + fineB / 100.0) / 12.0);
+
+    // Pitch-tracked terrain frequency uses the glide TARGET (ARCH Algorithm
+    // "Pitch tracking"), not the per-sample glided value.
+    oscA.updateBlockRate (glide.getTargetFrequency() * pitchRatioA);
+    oscB.updateBlockRate (glide.getTargetFrequency() * pitchRatioB);
 
     // Filter parameters
     int filtAType = static_cast<int> (pFiltAType->load());
@@ -479,9 +628,11 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                                       + modMatrix.getModOffset (ModDest::OscBDetune)),
                     pOscBWidth->load());
 
-    // Global mod sources from processor
-    float modWheelVal = (processor != nullptr) ? processor->getModWheelValue() : 0.0f;
-    float aftertouchVal = (processor != nullptr) ? processor->getAftertouchValue() : 0.0f;
+    // Smoothed base values (Core 9): one target per block, one getNextValue per
+    // sample. ModWheel / Aftertouch ride rows 22 / 23 (CC-step-safe sources).
+    for (int i = 0; i < kNumRamps; ++i)
+        ramps[static_cast<size_t> (i)].setTargetValue (rampTarget (i));
+    float rampValues[kNumRamps];
 
     // Configure filters (L and R share same settings)
     filterAL.setType (filtAType);
@@ -533,6 +684,10 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         oscA.setFrequency (glidedFreq * pitchRatioA * pitchModRatio);
         oscB.setFrequency (glidedFreq * pitchRatioB * pitchModRatio);
 
+        // Advance the 24 base-value ramps (5 ms, time-based)
+        for (int i = 0; i < kNumRamps; ++i)
+            rampValues[i] = ramps[static_cast<size_t> (i)].getNextValue();
+
         // ─── Per-sample modulation sources ───────────────────────
         float lfo1Val = lfo1.getNextSample();  // [-1, 1]
         float lfo2Val = lfo2.getNextSample();  // [-1, 1]
@@ -548,8 +703,8 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         modMatrix.setSourceValue (ModSource::FilterEnv, static_cast<float> (filtEnvVal));
         modMatrix.setSourceValue (ModSource::Velocity, noteVelocity);
         modMatrix.setSourceValue (ModSource::NoteNum, currentMidiNote / 127.0f);
-        modMatrix.setSourceValue (ModSource::ModWheel, modWheelVal);
-        modMatrix.setSourceValue (ModSource::Aftertouch, aftertouchVal);
+        modMatrix.setSourceValue (ModSource::ModWheel, rampValues[22]);
+        modMatrix.setSourceValue (ModSource::Aftertouch, rampValues[23]);
 
         // Evaluate all active routes
         modMatrix.evaluate();
@@ -569,13 +724,10 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
         // ─── Apply modulation offsets to parameters ──────────────
 
-        // Osc positions (additive, clamped 0-1)
-        float modulatedPosA = juce::jlimit (0.0f, 1.0f,
-            oscAPos + modMatrix.getModOffset (ModDest::OscAPos));
-        float modulatedPosB = juce::jlimit (0.0f, 1.0f,
-            oscBPos + modMatrix.getModOffset (ModDest::OscBPos));
-        oscA.setPosition (modulatedPosA);
-        oscB.setPosition (modulatedPosB);
+        // Orbit Size + the 10 new destinations per oscillator (FUNC-05): smoothed
+        // base + raw offset → the per-sample setters (ARCH Core 9 mapping)
+        feedOscillator (oscA, 0,             static_cast<int> (ModDest::OscAOrbAspect), rampValues);
+        feedOscillator (oscB, kRampsPerOsc,  static_cast<int> (ModDest::OscBOrbAspect), rampValues);
 
         // Warp amounts with modulation (additive, clamped 0-1)
         float modWarpA = juce::jlimit (0.0f, 1.0f,
@@ -624,6 +776,17 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
         double mixedL = oscAL * (1.0 - modOscMix) + oscBL * modOscMix;
         double mixedR = oscAR * (1.0 - modOscMix) + oscBR * modOscMix;
+
+        // Harness-only pre-filter oscillator tap (plan Decision 3): the summed
+        // oscillators after level / pan / mix (and after each oscillator's DC
+        // blocker), before sub / noise / filters. Production never sets it.
+        if (preFilterTap)
+        {
+            leftChannel[sample] += static_cast<float> (mixedL * envVal);
+            if (rightChannel != nullptr)
+                rightChannel[sample] += static_cast<float> (mixedR * envVal);
+            continue;
+        }
 
         // Noise with modulation (true stereo — independent noise per channel)
         float modNoiseLevel = juce::jlimit (0.0f, 1.0f,

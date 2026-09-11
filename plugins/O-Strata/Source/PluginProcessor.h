@@ -37,8 +37,7 @@
 #include "TuningExporter.h"
 #include "StrataSound.h"
 #include "StrataVoice.h"
-#include "dsp/WavetableData.h"
-#include "dsp/WavetableGenerator.h"
+#include "dsp/TerrainOscillator.h"
 #include "dsp/DistortionProcessor.h"
 #include "dsp/DelayProcessor.h"
 #include "dsp/ReverbProcessor.h"
@@ -113,9 +112,27 @@ public:
     ScaleGenerator* getScaleGenerator() { return &scaleGenerator; }
     TuningExporter* getTuningExporter() { return &tuningExporter; }
 
-    /** Table currently published for an oscillator (0=A, 1=B). Stage 1: the sine
-        placeholder; Phase 2.1's GeometryBakeScheduler publishes baked tables here. */
-    const WavetableData* getActiveOscTable (int oscIndex) const;
+    // ─── Harness-only switches (ARCH "Harness design"); never a parameter, never persisted. ───
+    // Read by the voices at block start (relaxed loads). The offline render harness
+    // (tests/render-harness) is the only writer; production leaves every default.
+    std::atomic<uint32_t> harnessPhaseSeed { 0 };          // 0 = production address-hash phases (plan Decision 8)
+    std::atomic<bool>  harnessFeedbackPathEnabled { true };  // H3 negative control
+    std::atomic<bool>  harnessTerrainKernelBypass { false }; // H7 baseline (scan returns 0)
+    std::atomic<bool>  harnessSingleSampleFeedback { false };// Nyquist-hunting control
+    std::atomic<bool>  harnessPreFilterTap { false };        // H1 / H6 signal tap (plan Decision 3)
+    std::atomic<bool>  harnessSaturationBypass { false };    // DSP-07 memcmp control
+    std::atomic<float> harnessRampSeconds { 0.005f };        // H5 negative control (0 s ⇒ stepped)
+    std::atomic<int>   harnessTerrainOverride[2] { -1, -1 }; // TerrainKind forced per oscillator (−1 = parameter)
+
+    void setHarnessPhaseSeed (uint32_t s) { harnessPhaseSeed.store (s, std::memory_order_relaxed); }
+    uint32_t getHarnessPhaseSeed() const { return harnessPhaseSeed.load (std::memory_order_relaxed); }
+
+    /** Core 10 rings (0 = A, 1 = B); written by the display voice, read by Stage 3. */
+    const CycleCapture& getCycleCapture (int oscIndex) const { return cycleCapture[juce::jlimit (0, 1, oscIndex)]; }
+
+    /** MIDI note of the most recently started voice — selects the Core 10 display voice. */
+    int getLastPlayedNote() const { return lastPlayedNote.load (std::memory_order_relaxed); }
+    void setLastPlayedNote (int n) { lastPlayedNote.store (n, std::memory_order_relaxed); }
 
     /** Get current mod wheel value (0..1) for modulation matrix */
     float getModWheelValue() const { return modWheelValue.load (std::memory_order_relaxed); }
@@ -172,11 +189,7 @@ private:
     ScaleGenerator scaleGenerator;
     TuningExporter tuningExporter;
 
-    // Placeholder table (Stage 1): both oscillators read this until Phase 2.1's
-    // GeometryBakeScheduler publishes baked tables into oscTablePtr[].
-    std::unique_ptr<WavetableData> placeholderTable;                       // owned for the processor lifetime
-    std::atomic<const WavetableData*> oscTablePtr[2] { nullptr, nullptr }; // published table per oscillator (message thread writes, audio thread reads)
-    const WavetableData* lastAssignedTable[2] { nullptr, nullptr };        // audio thread only
+    CycleCapture cycleCapture[2];
     int lastTuningPreset = -1;
     int lastTonic = -1;
 
@@ -263,6 +276,7 @@ private:
 
     // Last started note frequency for glide "Always" seeding (WR-06)
     std::atomic<double> lastPlayedFrequency { 0.0 };
+    std::atomic<int> lastPlayedNote { -1 };
 
     // Master volume and stereo width (smoothed)
     juce::SmoothedValue<float> masterVolSmoothed { 0.8f };
@@ -283,23 +297,29 @@ private:
     std::array<double, 4> globalLfoPhase {};
     void advanceGlobalLfoPhases (int numSamples, double sampleRate);
 
-    void updateWavetableAssignments();
+    /** Round B: publishes chebPtr[] / imagePtr[] into the voices (the renamed
+        wavetable-assignment step). Round A: empty body, called every block. */
+    void updateOscillatorAssignments();
 
-    // ─── Retired-table reaper ───
-    // A WavetableData the audio thread may still be reading is never freed
-    // in place: it is parked here (message thread only) stamped with the
-    // current block generation, and freed by the timer only after the
-    // generation has advanced ≥ 2 — guaranteeing a full processBlock has
-    // started and finished since the pointers were unpublished, so no voice
-    // still references it. Same class of fix as O-MicrotonalSampler v1.23.2.
+    // ─── Retired-object reaper (ARCH Decision 6: type-erased) ───
+    // An object the audio thread may still be reading (Round B: a ChebyshevSet
+    // or a TerrainImage) is never freed in place: it is parked here (message
+    // thread only) stamped with the current block generation, and freed by the
+    // timer only after the generation has advanced ≥ 2 — guaranteeing a full
+    // processBlock has started and finished since the pointer was unpublished,
+    // so no voice still references it. Same class of fix as O-MicrotonalSampler v1.23.2.
     std::atomic<uint64_t> blockGeneration { 0 };
-    struct RetiredTable
+    struct Retirable
     {
-        std::unique_ptr<WavetableData> table;
+        virtual ~Retirable() = default;
+    };
+    struct Retired
+    {
+        std::unique_ptr<Retirable> object;
         uint64_t retiredAt = 0;
     };
-    std::vector<RetiredTable> retiredTables;   // message thread only
-    void retireTable (std::unique_ptr<WavetableData> table);
+    std::vector<Retired> retired;   // message thread only
+    void retire (std::unique_ptr<Retirable> object);   // message thread
     void timerCallback() override;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

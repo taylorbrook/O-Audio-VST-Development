@@ -21,7 +21,7 @@
   ==============================================================================
 
     LFO.cpp
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     Generic, reusable LFO class for per-voice modulation
 
   ==============================================================================

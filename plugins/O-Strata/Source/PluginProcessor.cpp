@@ -38,7 +38,7 @@
 #include "FactoryPresets.h"
 #include "NoteDivisions.h"
 #include "dsp/ModulationMatrix.h"
-#include "dsp/WavetableOscillator.h"
+#include "dsp/TerrainOscillator.h"
 
 // ═══════════════════════════════════════════════════════════════════
 // FX bypass-and-process helper (used by processBlock)
@@ -109,8 +109,9 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscParamet
         juce::ParameterID { prefix + "WarpAmt", 1 }, label + " Warp Amount",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
 
-    // ─── Terrain / Orbit / Quality (parameter-spec.md v2 rows 12–28; live oscillator lands in Phase 2.1) ───
-    // Plain APVTS parameters; the voice does not read them yet (Stage 1 CONTEXT D3).
+    // ─── Terrain / Orbit / Quality (parameter-spec.md v2 rows 12–28) ───
+    // Read every block by StrataVoice (Phase 2.1): the Choice indices map straight onto
+    // TerrainKind / OrbitKind / Quality / EdgeMode — the static_asserts below pin the order.
     // Non-ASCII glyphs (U+2026 …, U+00E7 ç, U+00D7 ×) via CharPointer_UTF8 hex escapes — the source stays ASCII
     // (memory critical_juce_string_char_ctor_is_ascii_only).
     const juce::String imported (juce::CharPointer_UTF8 ("Imported\xE2\x80\xA6"));
@@ -137,6 +138,11 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscParamet
         [] (float s, float e, float n) { return s * std::pow (e / s, n); },
         [] (float s, float e, float v) { return std::log (v / s) / std::log (e / s); });
 
+    static_assert (static_cast<int> (TerrainKind::CosineWells) == 5 && static_cast<int> (TerrainKind::Imported) == 6,
+                   "osc?Terrain choice order");
+    static_assert (static_cast<int> (OrbitKind::Squarcle) == 10, "osc?Orbit choice order");
+    static_assert (static_cast<int> (Quality::X4) == 2 && static_cast<int> (EdgeMode::Window) == 1,
+                   "osc?Quality / osc?TerEdge choice order");
     choice ("Terrain",     " Terrain",        { "Sine Product", "Radial Rings", "Saddle", "Ridged Cosines",
                                                 "Mitsuhashi", "Cosine Wells", imported }, 0);          // 7, Imported… last
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
@@ -569,13 +575,6 @@ OStrataAudioProcessor::OStrataAudioProcessor()
         || presetManager.getFactoryPresetsVersion() != factoryVersion)
         presetManager.initializeFactoryPresets (FactoryPresets::build (parameters), factoryVersion);
 
-    // Stage 1 placeholder: one sine frame (10 mipmap levels, guard samples set).
-    // Phase 2.1's GeometryBakeScheduler replaces oscTablePtr[] with baked tables
-    // and retires the previous ones through retireTable().
-    placeholderTable = WavetableGenerator::generateProceduralTable (WaveShape::Sine);
-    oscTablePtr[0].store (placeholderTable.get(), std::memory_order_release);
-    oscTablePtr[1].store (placeholderTable.get(), std::memory_order_release);
-
     // Create 16 voices
     for (int i = 0; i < 16; ++i)
     {
@@ -584,13 +583,12 @@ OStrataAudioProcessor::OStrataAudioProcessor()
         voice->setTuningEngine (&tuningEngine);
         voice->setProcessor (this);
         voice->setPendingTuningSource (&vst3Extensions.getPendingTable()); // Phase 24: NE
-        voice->setWavetableA (placeholderTable.get());
-        voice->setWavetableB (placeholderTable.get());
+        voice->setVoiceIndex (i);
+        voice->setCaptureTargets (&cycleCapture[0], &cycleCapture[1]);   // Core 10 rings (display voice writes)
         synthesiser.addVoice (voice);
     }
 
     synthesiser.addSound (new StrataSound());
-    lastAssignedTable[0] = lastAssignedTable[1] = placeholderTable.get();
 
     // Cache APVTS atomic pointers for the FX configure step (read every block).
     pDistBypass     = parameters.getRawParameterValue ("distBypass");
@@ -643,7 +641,7 @@ OStrataAudioProcessor::OStrataAudioProcessor()
     // Processor-level mod matrix for global FX destinations (WR-02)
     fxModMatrix.setAPVTS (&parameters);
 
-    // Reaper for retired wavetables (see retireTable / timerCallback)
+    // Reaper for retired objects (see retire / timerCallback) + latency follow-up
     startTimer (500);
 }
 
@@ -780,8 +778,8 @@ void OStrataAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
             triggerAsyncUpdate();
     }
 
-    // Update wavetable assignments if table selection changed
-    updateWavetableAssignments();
+    // Round B publishes chebPtr[] / imagePtr[] into the voices here (empty in Round A)
+    updateOscillatorAssignments();
 
     // Track active MIDI notes and extract CC data for mod matrix
     for (const auto metadata : midiMessages)
@@ -964,7 +962,7 @@ void OStrataAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         }
     }
 
-    // Publish "this block is done reading wavetables" for the retired-table reaper
+    // Publish "this block is done reading published pointers" for the retired-object reaper
     blockGeneration.fetch_add (1, std::memory_order_release);
 }
 
@@ -989,14 +987,15 @@ void OStrataAudioProcessor::handleAsyncUpdate()
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Retired-table reaper
+// Retired-object reaper (type-erased, ARCH Decision 6)
 // ═══════════════════════════════════════════════════════════════════
 
-void OStrataAudioProcessor::retireTable (std::unique_ptr<WavetableData> table)
+void OStrataAudioProcessor::retire (std::unique_ptr<Retirable> object)
 {
-    if (table != nullptr)
-        retiredTables.push_back ({ std::move (table),
-                                   blockGeneration.load (std::memory_order_acquire) });
+    JUCE_ASSERT_MESSAGE_THREAD
+    if (object != nullptr)
+        retired.push_back ({ std::move (object),
+                             blockGeneration.load (std::memory_order_acquire) });
 }
 
 void OStrataAudioProcessor::timerCallback()
@@ -1008,50 +1007,26 @@ void OStrataAudioProcessor::timerCallback()
     if (wantedLatency != getLatencySamples())
         setLatencySamples (wantedLatency);
 
-    if (retiredTables.empty())
+    if (retired.empty())
         return;
 
-    // A table is safe to free once two generations have passed since
+    // An object is safe to free once two generations have passed since
     // retirement: at least one full processBlock has then started AFTER the
-    // new pointers were published (its updateWavetableAssignments repointed
+    // new pointers were published (its updateOscillatorAssignments repointed
     // every voice) and completed. If the host stops calling processBlock the
-    // generation freezes and tables are simply held — never freed unsafely.
+    // generation freezes and objects are simply held — never freed unsafely.
     const auto gen = blockGeneration.load (std::memory_order_acquire);
-    retiredTables.erase (
-        std::remove_if (retiredTables.begin(), retiredTables.end(),
-                        [gen] (const RetiredTable& r) { return gen >= r.retiredAt + 2; }),
-        retiredTables.end());
+    retired.erase (
+        std::remove_if (retired.begin(), retired.end(),
+                        [gen] (const Retired& r) { return gen >= r.retiredAt + 2; }),
+        retired.end());
 }
 
-void OStrataAudioProcessor::updateWavetableAssignments()
+void OStrataAudioProcessor::updateOscillatorAssignments()
 {
-    const WavetableData* targetA = oscTablePtr[0].load (std::memory_order_acquire);
-    const WavetableData* targetB = oscTablePtr[1].load (std::memory_order_acquire);
-
-    if (targetA != lastAssignedTable[0] || targetB != lastAssignedTable[1])
-    {
-        for (int i = 0; i < synthesiser.getNumVoices(); ++i)
-        {
-            if (auto* voice = dynamic_cast<StrataVoice*> (synthesiser.getVoice (i)))
-            {
-                if (targetA != lastAssignedTable[0])
-                    voice->setWavetableA (targetA);
-                if (targetB != lastAssignedTable[1])
-                    voice->setWavetableB (targetB);
-            }
-        }
-        lastAssignedTable[0] = targetA;
-        lastAssignedTable[1] = targetB;
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Published oscillator tables
-// ═══════════════════════════════════════════════════════════════════
-
-const WavetableData* OStrataAudioProcessor::getActiveOscTable (int oscIndex) const
-{
-    return oscTablePtr[juce::jlimit (0, 1, oscIndex)].load (std::memory_order_acquire);
+    // Round B: publishes chebPtr[] / imagePtr[] into the voices (load-acquire per
+    // block, as the wavetable-assignment step did for the tables). Nothing to publish
+    // in Round A — the analytic paths need no shared object.
 }
 
 // ═══════════════════════════════════════════════════════════════════

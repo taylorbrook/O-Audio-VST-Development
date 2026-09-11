@@ -21,7 +21,7 @@
   ==============================================================================
 
     ReverbProcessor.h
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     Ouaricon Audio
 
     Dattorro plate reverb — figure-8 tank topology with modulated delays,

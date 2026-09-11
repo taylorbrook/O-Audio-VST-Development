@@ -28,8 +28,7 @@ target_sources(O-Strata
         Source/ScaleGenerator.cpp
         Source/EmbeddedTunings.cpp
         Source/TuningExporter.cpp
-        Source/dsp/WavetableGenerator.cpp
-        Source/dsp/WavetableOscillator.cpp
+        Source/dsp/TerrainOscillator.cpp
         Source/dsp/SubOscillator.cpp
         Source/dsp/NoiseGenerator.cpp
         Source/dsp/SVFFilter.cpp
@@ -113,4 +112,21 @@ if(OUARICON_BUILD_TESTS)
     # (+ 20 rows changed in place: osc?Pos, osc?Unison, 16 x modSlot?Dst).
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(O-Strata ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+
+    # Stage 2 offline render harness — same derived-identity console as
+    # param-dump (JUCE_WEB_BROWSER=0, no editor TU, no UIResources).
+    # Gates H1–H9 + tuning + smoke; see tests/render-harness/README.md.
+    ouaricon_add_processor_console(O-Strata ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/render-harness/main.cpp render-test)
+
+    # Fixtures resolve from the source tree, never from cwd (Stage 1 trap).
+    target_compile_definitions(O-Strata-render-test PRIVATE
+        STRATA_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/render-harness/fixtures"
+        STRATA_EXPORTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/exports")
+
+    option(STRATA_HARNESS_ASAN "AddressSanitizer on O-Strata-render-test only (Round B)" OFF)
+    if(STRATA_HARNESS_ASAN)
+        target_compile_options(O-Strata-render-test PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+        target_link_options(O-Strata-render-test PRIVATE -fsanitize=address)
+    endif()
 endif()

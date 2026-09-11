@@ -1,0 +1,3 @@
+# Stage 1 smoke binary + object (regenerable via build.sh; retired by O-Strata-render-test --smoke)
+strata-smoke
+main.o

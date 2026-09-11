@@ -21,7 +21,7 @@
   ==============================================================================
 
     SVFFilter.cpp
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     Ouaricon Audio
 
   ==============================================================================
