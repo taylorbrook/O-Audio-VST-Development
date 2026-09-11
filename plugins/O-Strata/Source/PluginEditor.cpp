@@ -137,21 +137,6 @@ static juce::String toJsonArray (const Container& items, Fn elementToString)
     return json;
 }
 
-static juce::String toJsonFloatArray (const float* data, int count, int stride, int decimals)
-{
-    juce::String json = "[";
-    for (int i = 0; i < count; i += stride)
-    {
-        if (i > 0) json += ",";
-        // IN-16: juce::String would emit "nan"/"inf" — invalid JSON that makes
-        // JS JSON.parse throw and silently freezes the waveform display
-        const float v = std::isfinite (data[i]) ? data[i] : 0.0f;
-        json += juce::String (v, decimals);
-    }
-    json += "]";
-    return json;
-}
-
 // Forces the "tuningPreset" choice param to the Custom slot for persistence.
 // Called from every native fn that mutates the active tuning out-of-band.
 static void syncTuningPresetToCustom (juce::AudioProcessorValueTreeState& apvts)
@@ -487,39 +472,20 @@ OStrataAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Opti
                 });
         });
 
-    // ─── Oscillator table info (Stage 1: the sine placeholder; Phase 2.1 reports the
-    //     baked table). Kept JSON shape so the Stage 3 ≋ view can consume it. ───
+    // ─── Table-era native functions, stubbed (Phase 2.1; the tables are gone).
+    //     The page is untouched until Phase 3.1 (Stage 1 D1): getActiveOscFrame is
+    //     awaited at page load by the page's waveform display class, so it must still
+    //     answer — "[]" parses to an empty array and draw() returns early; nothing
+    //     throws (memory pattern_webview_native_fn_bridge_gap). getActiveOscInfo
+    //     has no page caller. Phase 3.1 removes this stub (both registrations). ───
     options = options.withNativeFunction ("getActiveOscInfo",
-        [this] (const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 1)
-            {
-                int oscIndex = static_cast<int> (args[0]);
-                auto* table = processorRef.getActiveOscTable (oscIndex);
-                complete ("{\"isUser\":false,\"factoryIndex\":0,\"name\":\"Sine\",\"numFrames\":"
-                        + juce::String (table ? table->numFrames : 0) + "}");
-                return;
-            }
-            complete (juce::var());
+        [] (const juce::Array<juce::var>&, auto complete) {
+            complete ("{}");   // Phase 3.1 removes this stub
         });
 
-    // Get frame data from the currently active table for an oscillator
     options = options.withNativeFunction ("getActiveOscFrame",
-        [this] (const juce::Array<juce::var>& args, auto complete) {
-            if (args.size() >= 2)
-            {
-                int oscIndex = static_cast<int> (args[0]);
-                float normalizedPos = static_cast<float> (args[1]);
-                auto* table = processorRef.getActiveOscTable (oscIndex);
-                if (table != nullptr && table->numFrames > 0)
-                {
-                    int frameIndex = juce::jlimit (0, table->numFrames - 1,
-                        static_cast<int> (normalizedPos * (table->numFrames - 1)));
-                    const float* frameData = table->getFrameData (0, frameIndex);
-                    complete (toJsonFloatArray (frameData, WavetableData::kTableSize, 8, 4));
-                    return;
-                }
-            }
-            complete (juce::var());
+        [] (const juce::Array<juce::var>&, auto complete) {
+            complete ("[]");   // Phase 3.1 removes this stub
         });
 
     // Mod matrix source/dest name lists for UI dropdowns

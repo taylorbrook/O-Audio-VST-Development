@@ -21,7 +21,7 @@
   ==============================================================================
 
     GlideProcessor.h
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     Ouaricon Audio (Header-only)
 
   ==============================================================================
@@ -84,6 +84,9 @@ public:
     }
 
     double getCurrentFrequency() const { return currentFreq; }
+
+    /** The glide target (the note's tuned frequency) — feeds pitch tracking at block rate. */
+    double getTargetFrequency() const { return targetFreq; }
 
 private:
     void updateCoefficient()

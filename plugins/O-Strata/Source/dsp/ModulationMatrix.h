@@ -21,7 +21,7 @@
   ==============================================================================
 
     ModulationMatrix.h
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     16-slot modulation routing matrix with per-sample evaluation
 
   ==============================================================================
@@ -142,6 +142,11 @@ public:
 
     /** Reset all destination offsets to zero */
     void clearOffsets();
+
+    /** True if any enabled slot with a non-zero amount targets `dest` — evaluated from
+        the cached slot state updateFromAPVTS() built (block-rate; no APVTS reads, no
+        allocation). Gates the fb = 0 block skip (plan Decision 17). */
+    bool isDestinationRouted (ModDest dest) const;
 
 private:
     struct SlotState

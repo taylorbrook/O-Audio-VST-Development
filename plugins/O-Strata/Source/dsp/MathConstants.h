@@ -21,7 +21,7 @@
   ==============================================================================
 
     MathConstants.h
-    O-Strata - Microtonal Wavetable Synthesizer
+    O-Strata - Microtonal Wave-Terrain Synthesizer
     Ouaricon Audio
 
     Shared math constants used across DSP modules.
