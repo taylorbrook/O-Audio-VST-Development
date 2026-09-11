@@ -128,6 +128,7 @@ public:
     void setFeedbackPathEnabled (bool b)   { feedbackPathEnabled = b; }
     void setSingleSampleFeedback (bool b)  { singleSampleFeedback = b; }
     void setSaturationBypass (bool b)      { saturationBypass = b; }
+    void setDcBlockerBypass (bool b)       { dcBlockerBypass = b; }
 
     /** Core 10 ring; nullptr = not the display voice. */
     void setCaptureTarget (CycleCapture* c) { capture = c; }
@@ -174,6 +175,9 @@ private:
     EdgeMode edgeMode = EdgeMode::Mirror;
     float pitchTrack = 1.0f;
     float feedbackDamp = 0.5f;
+    float rTrack = 1.0f;      // min (1, C4 / f_note)^track — block-rate (ARCH Algorithm "Pitch tracking")
+    float aEff = 0.978f;      // damp coefficient a^(48000 / (fs · OS)) — block-rate (ARCH Core 4)
+    int   oversampling = 1;   // OS ∈ {1, 2, 4}; Phase 2.3 drives it from Quality
     OrbitScratch scratch;
     float lastNormalisedOrbitMod = -10.0f;
     OrbitKind lastNormalisedOrbit = OrbitKind::Ellipse;
@@ -196,6 +200,7 @@ private:
     bool feedbackPathEnabled = true;
     bool singleSampleFeedback = false;
     bool saturationBypass = false;
+    bool dcBlockerBypass = false;
 
     CycleCapture* capture = nullptr;
 };
