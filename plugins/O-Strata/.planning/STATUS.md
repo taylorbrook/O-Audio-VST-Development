@@ -1,16 +1,17 @@
 ---
 plugin: O-Strata
-stage: 1
-stage_name: foundation
-phase: verify
-status: stage_1_complete
+stage: 2
+stage_name: dsp
+phase: discuss
+status: stage_2_discuss_complete
+round: A
 last_updated: 2026-09-10
 workflow_mode: manual
 complexity_score: 5.0
 complexity_raw: 25.0
 staged_implementation: true
 orchestration_mode: true
-next_action: "/plugin-discuss O-Strata 2-dsp (Stage 2 Phase 2.1 — TerrainOscillator replaces the sine placeholder)"
+next_action: "/plugin-research O-Strata 2-dsp (one RESEARCH.md for Round A 2.1–2.3 and Round B 2.4–2.5; CONTEXT items 1–12)"
 next_stage: 2
 ready_for_implementation: true
 contract_checksums:
@@ -37,9 +38,9 @@ stage_0_status: ui_design_complete
 
 ## Current Position
 
-Stage: 1 — **Foundation, second pass (re-parameterise the verified fork) — COMPLETE: discuss ✓ research ✓ plan ✓ execute ✓ verify ✓ (2026-09-10)**. Stage 0 v2 is complete (ARCHITECTURE / ROADMAP v2, mockup v2 finalised + scaffolded, `parameter-spec.md` v2 locked); the baked-geometry design is superseded (`superseded-baked-v1/README.md`) and its tables ship as an O-Prism factory bank.
+Stage: 2 — **DSP (live wave-terrain oscillator) — discuss ✓ (2026-09-10); Round A = Phases 2.1–2.3, Round B = Phases 2.4–2.5.** Stage 1 second pass complete (discuss ✓ research ✓ plan ✓ execute ✓ verify ✓, 2026-09-10). Stage 0 v2 is complete (ARCHITECTURE / ROADMAP v2, mockup v2 finalised + scaffolded, `parameter-spec.md` v2 locked); the baked-geometry design is superseded (`superseded-baked-v1/README.md`) and its tables ship as an O-Prism factory bank.
 Status: `stages/1-foundation/VERIFICATION.md` (second pass) — **✅ VERIFIED**, COMPAT-01 complete; every SUMMARY figure re-measured (param-dump byte-identical, ID diff −2 +34 +20 / 151 identical, pluginval ×2 SUCCESS, auval SUCCEEDED, smoke 62/0, all UI gates at baseline). Harness note: `strata-smoke` must run from the repo root (fixture path is cwd-relative). The binary exposes **205** parameters (params.tsv diff vs O-Prism v1.24.0: −2 `osc?Table`, +34, 20 rows changed in place), 46 mod destinations, `terrainImports` state child, 8 combo relays, factory bank = `Init` only (stale 192-preset bank removed from `~/Library/O-Strata/Presets`); pluginval strictness 10 SUCCESS VST3 + AU, auval SUCCEEDED (COMPAT-01); smoke harness 62/62 (checks [1]–[6], incl. the D3 route check with `Pitch` positive control); UI gates equal the first-pass baseline (page byte-identical). Harness finding: the placeholder's random start phase is seeded from the oscillator address, so sample-identical comparisons need `osc?Phase > 0` (pinned in the harness).
-Progress: [###########.........] 55% (fork + rename + strip verified; architecture + plan done; mockup v2 + spec locked; Stage 1 second pass verified → Stage 2 DSP)
+Progress: [############........] 58% (fork + rename + strip verified; architecture + plan done; mockup v2 + spec locked; Stage 1 second pass verified; Stage 2 discuss done → research)
 
 ## Why (evidence)
 
@@ -69,6 +70,16 @@ Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guard
 | execute | ✓ | 2026-09-10 | `stages/1-foundation/SUMMARY.md` — Tasks 1–14 of PLAN.md; 205 params / 46 dests / `terrainImports` / 8 combo relays / `Init` bank; pluginval ×2 + auval green; smoke 62/62; UI gates at baseline; commit `feat(O-Strata): Stage 1 second pass …` |
 | verify | ✓ | 2026-09-10 | `stages/1-foundation/VERIFICATION.md` — ✅ VERIFIED; COMPAT-01 → complete in REQUIREMENTS.md; FUNC-09 / FUNC-05 / FUNC-10 Stage 1 evidence recorded, formal verification stays Stage 2; issue: smoke harness cwd-sensitive (carry to the Stage 2 render harness) |
 
+### Stage 2: DSP — two rounds (CONTEXT D1); Round A = 2.1 core + 2.2 feedback/tracking + 2.3 oversampling (H6/H7 decision point), Round B = 2.4 Bandlimited + 2.5 PNG path
+| Phase | Status | Date | Notes |
+|-------|--------|------|-------|
+| discuss | ✓ | 2026-09-10 | `stages/2-dsp/CONTEXT.md` — D1 two rounds split at 2.3 (Round A artifacts move to `round-a/` after verify); D2 PERF-02 amended to oscillator delta ≤ 12 % (REQUIREMENTS.md edited); D3 no *Terrain* listening, ARCH Decisions 1 / 3 stand; D4 F-lattice v1.1. Findings: smoke check [4] inverts in 2.1 (fold smoke into `render-harness --smoke`), bench prototype at repo-root `research/…/terrain-bench/`, harness must exclude the editor TU (not O-Bowed's CMake), M4 Max = §7.2 machine. 12 research items |
+| research | ○ | | one RESEARCH.md for both rounds |
+| plan (Round A) | ○ | | Phases 2.1–2.3 |
+| execute (Round A) | ○ | | |
+| verify (Round A) | ○ | | H1–H9; H6 / H7 fallback outcome recorded → input to Round B |
+| plan / execute / verify (Round B) | ○ | | Phases 2.4–2.5; H1–H11 `--all` ≤ 3 min |
+
 ## Stage 0 decisions (summary — full table in `stages/0-ideation/CONTEXT.md`)
 
 - Terrain formulas use the **πF convention**; defaults c = (0.13, 0.21), aspect 0.7, r = 0.5, F = 1 measured h1 = 0 dB (symmetry gate passes); the gate is not monotone in F, so every factory preset is gated individually.
@@ -81,11 +92,11 @@ Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guard
 
 ## Next Steps
 
-1. (Recommended, 1 hour) Play Aaron Anderson's *Terrain* — the feedback damp law (D1) and the Bandlimited limits (D3) are the decisions a listening result could change before Stage 2.
+1. ~~Play Aaron Anderson's *Terrain* before Stage 2~~ **skipped by decision (Stage 2 CONTEXT D3)** — the Phase 2.3 WAV grid and the Stage 4 QUAL-04 listening pass are the listening material; the raw-feedback blend stays an internal fallback.
 2. ~~**UI mockup v2:** `design UI for O-Strata` (ui-mockup skill) from BRIEF §UI Concept and ARCHITECTURE "Parameter Mapping" → finalise → `parameter-spec.md` v2 locked; then set `mockup_finalized: true`, `ready_for_implementation: true` here.~~ **Done 2026-09-10** — mockup v2 finalised and scaffolded; `parameter-spec.md` v2 locked (sha256 in `contract_checksums`); `ready_for_implementation: true`.
 3. ~~Stage 1 second pass: `/plugin-discuss O-Strata 1-foundation`~~ **verified 2026-09-10** (`stages/1-foundation/VERIFICATION.md`).
-4. **Next:** `/plugin-discuss O-Strata 2-dsp` — Stage 2: live oscillator DSP, Phases 2.1–2.5 with harness gates H1–H11 (Phase 2.3 is the CPU / aliasing decision point). Carry-forward list in VERIFICATION.md §Stage Verdict (ModDest 26–45 wiring, seedable phase, exact-log TerFreq modulation domain, harness cwd fix).
-5. Answer the four open questions in `stages/0-ideation/CONTEXT.md` (PERF-02 wording, *Terrain* listening, F-lattice v1.0/v1.1, mod-destination host strings).
+4. ~~`/plugin-discuss O-Strata 2-dsp`~~ **done 2026-09-10** (`stages/2-dsp/CONTEXT.md`). **Next:** `/plugin-research O-Strata 2-dsp` — one RESEARCH.md for Round A (2.1–2.3) and Round B (2.4–2.5), CONTEXT items 1–12 (harness CMake shape, `FilterDesign` polyphase structure, fast-maths bounds, shared-ramp design, allocation counter, exact-cycle f0, native-fn stubs, phase seeding, `kMaxUnison` fan-out, Round B pre-research, H2 preset loop, `.gitignore` scope).
+5. ~~Answer the four open questions in `stages/0-ideation/CONTEXT.md`~~ **all closed 2026-09-10**: PERF-02 → oscillator delta (REQUIREMENTS amended); *Terrain* listening skipped (Decisions 1 / 3 stand); F-lattice v1.1; host strings closed by the mockup v2 lock.
 
 ## Context to Preserve
 
@@ -99,6 +110,6 @@ Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guard
 ## Files
 - plugins/O-Strata/Source/** (fork, spec v2 parameter set — 205 params, sine placeholder oscillator), CMakeLists.txt, tests/**, CHANGELOG.md, .planning/params.tsv (205 rows, current binary)
 - plugins/O-Strata/.planning/{BRIEF.md, REQUIREMENTS.md, parameter-spec-draft.md} (v2, 2026-09-08); parameter-spec.md (v2 locked, 2026-09-10); mockups/{v2-ui.yaml, v2-ui-test.html, v2-ui.html, v2-PluginEditor-TEMPLATE.h, v2-PluginEditor-TEMPLATE.cpp, v2-CMakeLists-SNIPPET.txt, v2-integration-checklist.md, img/}
-- plugins/O-Strata/.planning/research/ARCHITECTURE.md, ROADMAP.md, stages/0-ideation/CONTEXT.md (v2, 2026-09-08)
+- plugins/O-Strata/.planning/research/ARCHITECTURE.md, ROADMAP.md, stages/0-ideation/CONTEXT.md (v2, 2026-09-08); stages/2-dsp/CONTEXT.md (2026-09-10)
 - plugins/O-Strata/.planning/superseded-baked-v1/** ; .planning/evidence/*.md (WAVs gitignored)
 - PLUGINS.md (row 🚧 Stage 1, 2026-09-10)

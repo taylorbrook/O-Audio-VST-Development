@@ -4,7 +4,7 @@
 version: 2.0.0
 plugin: O-Strata
 created: 2026-09-07
-lastUpdated: 2026-09-10
+lastUpdated: 2026-09-10 (PERF-02 amended to oscillator delta — Stage 2 discuss D2)
 supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 ---
 
@@ -58,7 +58,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | PERF-01 | Real-time safe audio processing (no allocations, locks, file I/O or coefficient projection in processBlock) | must | pending | stage-2 |
-| PERF-02 | CPU: 16 voices × 2 oscillators, unison 1, Quality 2×, default patch ≤ 12 % of one Apple M-series core; unison capped at 4 for the live oscillator | must | pending | stage-2 |
+| PERF-02 | CPU: **oscillator delta** ≤ 12 % of one Apple M-series core — 16 voices × 2 oscillators, unison 1, Quality 2×, default patch, measured as (full render) − (same render with the harness-only terrain-kernel bypass); whole-plugin total reported, not gated; unison capped at 4 for the live oscillator (amended 2026-09-10, Stage 2 discuss D2) | must | pending | stage-2 |
 | PERF-03 | 3D view costs ≤ 2 ms per frame in WKWebView and WebView2 at DPR 2 | should | pending | stage-3 |
 
 ### Compatibility (COMPAT)
@@ -121,7 +121,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 ### DSP-05 / PERF-01 / PERF-02: Real-time
 
 - [ ] pluginval strictness 10 passes; zero allocations in processBlock under a debug allocator across all Quality settings
-- [ ] CPU harness: 16 voices × 2 osc, unison 1, 2×, default patch, 48 kHz → ≤ 12 % of one core (renders 10 s, measures wall time ÷ audio time)
+- [ ] CPU harness (H7): 16 voices × 2 osc, unison 1, 2×, default patch, 48 kHz, 10 s, Release, best of 3 → oscillator delta = (wall ÷ audio) − (wall ÷ audio with `terrainKernelBypass`) ≤ 12 %; total, baseline and delta printed; unison 4 / 4× / Bandlimited deltas reported
 
 ### DSP-06: Symmetry gate
 
@@ -159,6 +159,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 | Feature | Reason | Future Version |
 |---------|--------|----------------|
 | Baked geometry sources (mesh slicing, volume orbits, terrain sweeps → wavetable) | Ships as an O-Prism factory bank; full design preserved in `superseded-baked-v1/` | v1.1 |
+| Bandlimited F-lattice (13 coefficient sets over Terrain Freq, per-voice block-rate lerp) | Keeps Phase 2.4 bounded; single set per oscillator, Terrain Freq clamped ≤ 2 in this mode (Stage 2 discuss D4) | v1.1 |
 | Wavetable oscillator mode | O-Prism's job | none |
 | RGB-channel terrain morphing | Extension of PNG import | v1.1 |
 | Dual displaced-orbit stereo | Per-voice CPU doubling | v1.x |
