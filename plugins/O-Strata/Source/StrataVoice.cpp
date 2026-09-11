@@ -180,11 +180,6 @@ void StrataVoice::prepare (double sampleRate, int /*samplesPerBlock*/)
     voiceSampleRate = sampleRate;
     oscA.prepare (sampleRate);
     oscB.prepare (sampleRate);
-    // 5 ms base-value ramps (Core 9). harnessRampSeconds is the H5 negative
-    // control (0 s ⇒ stepped) — a harness atomic, default 0.005, never a parameter.
-    const double rampSeconds = (processor != nullptr) ? static_cast<double> (processor->harnessRampSeconds.load()) : 0.005;
-    for (auto& r : ramps)
-        r.reset (sampleRate, rampSeconds);
     subOsc.prepare (sampleRate);
     noiseGen.prepare (sampleRate);
     glide.prepare (sampleRate);
@@ -203,38 +198,6 @@ void StrataVoice::prepare (double sampleRate, int /*samplesPerBlock*/)
 bool StrataVoice::canPlaySound (juce::SynthesiserSound* sound)
 {
     return dynamic_cast<StrataSound*> (sound) != nullptr;
-}
-
-float StrataVoice::rampTarget (int row) const
-{
-    switch (row)
-    {
-        case 0:  return pOscAPos->load();
-        case 1:  return pOscAOrbAspect->load();
-        case 2:  return pOscAOrbRot->load();
-        case 3:  return pOscAOrbCX->load();
-        case 4:  return pOscAOrbCY->load();
-        case 5:  return pOscAOrbMod->load();
-        case 6:  return std::log2 (pOscATerFreq->load());   // exact-log range: ramp in log2 (Stage 2 CONTEXT constraint)
-        case 7:  return pOscATerModX->load();
-        case 8:  return pOscATerModY->load();
-        case 9:  return pOscAOrbFeedback->load();
-        case 10: return pOscATerSat->load();
-        case 11: return pOscBPos->load();
-        case 12: return pOscBOrbAspect->load();
-        case 13: return pOscBOrbRot->load();
-        case 14: return pOscBOrbCX->load();
-        case 15: return pOscBOrbCY->load();
-        case 16: return pOscBOrbMod->load();
-        case 17: return std::log2 (pOscBTerFreq->load());
-        case 18: return pOscBTerModX->load();
-        case 19: return pOscBTerModY->load();
-        case 20: return pOscBOrbFeedback->load();
-        case 21: return pOscBTerSat->load();
-        case 22: return (processor != nullptr) ? processor->getModWheelValue() : 0.0f;
-        case 23: return (processor != nullptr) ? processor->getAftertouchValue() : 0.0f;
-        default: return 0.0f;
-    }
 }
 
 void StrataVoice::feedOscillator (TerrainOscillator& osc, int rowBase, int destBase, const float* v)
@@ -260,12 +223,10 @@ void StrataVoice::feedOscillator (TerrainOscillator& osc, int rowBase, int destB
 void StrataVoice::startNote (int midiNoteNumber, float velocity,
                             juce::SynthesiserSound*, int /*currentPitchWheelPosition*/)
 {
+    // Note: juce::Synthesiser::startVoice assigns currentlyPlayingNote BEFORE calling
+    // startNote, so `wasActive` is always true here (inherited O-Prism quirk, left as is;
+    // recorded in the Stage 2 Round A SUMMARY).
     bool wasActive = getCurrentlyPlayingNote() >= 0;
-    // juce::Synthesiser::startVoice assigns currentlyPlayingNote BEFORE calling
-    // startNote, so `wasActive` above is always true (inherited O-Prism quirk, left
-    // as is). The ramp snap below needs a real idle signal: the amp envelope is
-    // idle only when this voice was not sounding (a stolen voice's ramps are current).
-    const bool rampsIdle = ! ampEnvelope.isActive();
     currentMidiNote = midiNoteNumber;
 
     // Apply velocity curve transformation
@@ -344,12 +305,6 @@ void StrataVoice::startNote (int midiNoteNumber, float velocity,
         return harnessSeed == 0u ? 0u
              : (harnessSeed ^ (static_cast<uint32_t> (voiceIndex) * 0x9E3779B9u) ^ (static_cast<uint32_t> (oscIndex) << 16));
     };
-
-    // Ramps: an idle voice never advanced its ramps, so snap them to the current
-    // base values (RESEARCH §2.4 note-on reset) rather than gliding a stale value.
-    if (rampsIdle)
-        for (int i = 0; i < kNumRamps; ++i)
-            ramps[static_cast<size_t> (i)].setCurrentAndTargetValue (rampTarget (i));
 
     // Osc A: apply coarse/fine tuning
     int coarseA = static_cast<int> (pOscACoarse->load());
@@ -630,11 +585,34 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                                       + modMatrix.getModOffset (ModDest::OscBDetune)),
                     pOscBWidth->load());
 
-    // Smoothed base values (Core 9): one target per block, one getNextValue per
-    // sample. ModWheel / Aftertouch ride rows 22 / 23 (CC-step-safe sources).
-    for (int i = 0; i < kNumRamps; ++i)
-        ramps[static_cast<size_t> (i)].setTargetValue (rampTarget (i));
+    // Smoothed base values (Core 9): the processor's shared ramp rows, read by
+    // absolute sample index. ModWheel / Aftertouch ride rows 22 / 23.
+    const float* rampRow[kNumRamps];
+    int rampLast = 0;
+    if (processor != nullptr)
+    {
+        for (int i = 0; i < kNumRamps; ++i)
+            rampRow[i] = processor->getRampRow (i);
+        rampLast = juce::jmax (0, processor->getRampCapacity() - 1);
+    }
+    else
+    {
+        static const float kZeroRow[1] = { 0.0f };
+        for (int i = 0; i < kNumRamps; ++i) rampRow[i] = kZeroRow;
+    }
     float rampValues[kNumRamps];
+
+    // fb = 0 block skip (plan Decision 17): the displacement arithmetic runs only
+    // when the block's Feedback row is non-zero somewhere or a slot targets it.
+    {
+        auto rowMax = [&] (int row) {
+            float m = 0.0f;
+            for (int s = startSample; s < startSample + numSamples; ++s) m = juce::jmax (m, rampRow[row][juce::jmin (s, rampLast)]);
+            return m;
+        };
+        oscA.setFeedbackActive (rowMax (9)  > 0.0f || modMatrix.isDestinationRouted (ModDest::OscAOrbFeedback));
+        oscB.setFeedbackActive (rowMax (20) > 0.0f || modMatrix.isDestinationRouted (ModDest::OscBOrbFeedback));
+    }
 
     // Configure filters (L and R share same settings)
     filterAL.setType (filtAType);
@@ -686,9 +664,12 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         oscA.setFrequency (glidedFreq * pitchRatioA * pitchModRatio);
         oscB.setFrequency (glidedFreq * pitchRatioB * pitchModRatio);
 
-        // Advance the 24 base-value ramps (5 ms, time-based)
-        for (int i = 0; i < kNumRamps; ++i)
-            rampValues[i] = ramps[static_cast<size_t> (i)].getNextValue();
+        // Base values for this absolute sample from the shared ramp rows
+        {
+            const int idx = juce::jmin (sample, rampLast);
+            for (int i = 0; i < kNumRamps; ++i)
+                rampValues[i] = rampRow[i][idx];
+        }
 
         // ─── Per-sample modulation sources ───────────────────────
         float lfo1Val = lfo1.getNextSample();  // [-1, 1]

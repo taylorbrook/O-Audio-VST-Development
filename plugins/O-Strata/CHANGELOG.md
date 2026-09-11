@@ -7,6 +7,40 @@
 `O-Strata`, APVTS state identifier `OStrataParameters`, its own preset folder.
 O-Prism is untouched and the two plugins coexist in a host.
 
+Stage 2, Round A — live wave-terrain oscillator (Phases 2.1–2.3, 2026-09-11):
+- `TerrainOscillator` replaces the wavetable oscillator in place: a closed orbit
+  at the note frequency scans an analytic terrain per sample; θ is the phase
+  accumulator, so Sync / Bend / Window / FM, unison (capped at 4), Phase, Coarse
+  / Fine apply unchanged. Libraries: 11 orbits (`dsp/Orbits.h`, normalised to
+  max radius 1 per block; Superellipse from a 33 × 129 LUT) and 6 terrains
+  (`dsp/Terrains.h`, πF convention — Cosine Wells too, see below).
+- Orbit Size and the 10 new per-oscillator mod destinations are read per sample
+  through 5 ms base-value ramps shared across voices (24 processor ramp rows,
+  read by absolute sample index); Terrain Freq ramps and modulates in log2.
+- Pitch-tracked terrain frequency F_eff = F · min(1, C4 / f_note)^Track from the
+  glide target (block-rate); trajectory feedback per partial (two-sample average
+  + leaky integrator, damp law a = 1 − 2^(−1 − 9·Damp) rate/OS-corrected, ±0.5
+  clamp, NaN scrub, displacement along the orbit's rotation vector); 5 Hz DC
+  blocker per oscillator; Saturation tanh(g·y)/tanh(g), g = 1 + 4·Sat, exact
+  identity at 0.
+- Per-oscillator, per-partial 2× / 4× oversampling with hand-rolled polyphase-IIR
+  halfband decimators (JUCE `FilterDesign` coefficients: 0.06 / −70 dB and
+  0.15 / −60 dB), a 64-sample equal-gain crossfade on a Quality change mid-note,
+  no allocation on any change. In Round A `Bandlimited` runs the analytic path
+  at 1× (the Chebyshev mode lands in Round B).
+- **Latency: +1 sample constant** (the decimators' 1.26 / 1.74 samples at 2× / 4×),
+  added to the distortion oversampler's report in every Quality combination.
+- Wavetable path deleted (`WavetableOscillator`, `WavetableData`,
+  `WavetableGenerator`, `oscTablePtr` / placeholder / `getActiveOscTable`); the
+  reaper is type-erased (`Retirable`); `getActiveOscFrame` / `getActiveOscInfo`
+  answer `[]` / `{}` until Phase 3.1 removes them.
+- Offline render harness `O-Strata-render-test` (`tests/render-harness/`,
+  `OUARICON_BUILD_TESTS=ON`): gates H1–H9, tuning, smoke, centroids,
+  saturation, decimator, crossfade, latency, `--gate export`.
+- Deviation: Cosine Wells uses cos(πF·x)·cos(πF·(½+mx)·y) — the architecture's
+  2πF form contradicts the stated πF convention and fails the symmetry gate on
+  10 of 11 orbits at the locked defaults.
+
 Stage 1 (this entry):
 - Removed the wavetable library: `WavetableFactory`, `UserWavetableManager`,
   `WavetableImporter`, `WavetableEditor`, the `oscATable`/`oscBTable`

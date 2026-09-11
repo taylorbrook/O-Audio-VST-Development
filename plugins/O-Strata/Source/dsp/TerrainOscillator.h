@@ -42,6 +42,7 @@
 #include <JuceHeader.h>
 #include "Orbits.h"
 #include "Terrains.h"
+#include "HalfbandDecimator.h"
 #include <array>
 #include <atomic>
 #include <cmath>
@@ -125,6 +126,10 @@ public:
     // Harness-only switches (ARCH "Harness design"); copied from the processor
     // atomics by the voice at block start. Never parameters.
     void setKernelBypass (bool b)          { kernelBypass = b; }
+    /** Phase 2.3 saving (plan Decision 17): false ⇒ the displacement arithmetic is
+        skipped for the block (state held); the voice sets it from the block's Feedback
+        row + isDestinationRouted. */
+    void setFeedbackActive (bool b)        { feedbackActive = b; }
     void setFeedbackPathEnabled (bool b)   { feedbackPathEnabled = b; }
     void setSingleSampleFeedback (bool b)  { singleSampleFeedback = b; }
     void setSaturationBypass (bool b)      { saturationBypass = b; }
@@ -144,9 +149,20 @@ public:
     void setFeedback (float fb)           { feedback = fb; }
     void setSaturation (float s)          { saturation = s; }
 
+    /** Designed halfband latencies (base samples) — SUMMARY / --print-only. */
+    static double decimatorLatency2() { return HalfbandCoeffs::get().latency2; }
+    static double decimatorLatency4() { return HalfbandCoeffs::get().latency4; }
+
 private:
-    float scan (double phase, int partial) noexcept;
+    float scan (double phase, int partial, bool shadow) noexcept;
+    float saturate (float y) const noexcept;
     double applyWarp (double phase) const noexcept;
+    /** One sub-sample of partial i: the inherited Sync / Window or Bend / FM branch
+        with phase advance `inc` (= phaseIncrement / OS). `shadow` = crossfade's old
+        path: local phase copies, no state writes. */
+    float subSample (int i, double& phase, double& master, double inc, bool isSyncMode, bool shadow) noexcept;
+    float decimate (int i, int set, int os, const float* sub) noexcept;
+    static int osFor (Quality q) noexcept { return q == Quality::X4 ? 4 : q == Quality::X2 ? 2 : 1; }
 
     double currentSampleRate = 44100.0;
     double frequency = 440.0;
@@ -188,8 +204,19 @@ private:
     float terrainFreq = 1.0f, terrainModX = 0.5f, terrainModY = 0.5f, feedback = 0.0f, saturation = 0.0f;
     float lastRotation = 1.0e9f, sinRot = 0.0f, cosRot = 1.0f;
 
-    // Trajectory feedback per partial (Core 4; Phase 2.2 uses them, zeroed in reset*)
+    // Trajectory feedback per partial (Core 4; zeroed in reset*)
     float fbD[kMaxUnison] = {}, fbY1[kMaxUnison] = {}, fbY2[kMaxUnison] = {};
+    bool feedbackActive = true;
+
+    // Per-partial decimators, two sets so a Quality switch can run the old path as a
+    // shadow while the new one fades in (ARCH Core 5, plan Decision 18)
+    HalfbandStage2 hb2[2][kMaxUnison];
+    HalfbandStage4 hb4[2][kMaxUnison];
+    const HalfbandCoeffs* hbCoeffs = nullptr;
+    int currentSet = 0;
+    Quality oldQuality = Quality::X2;
+    int xfadeRemaining = 0;          // base samples left in the 64-sample equal-gain crossfade
+    bool fresh = true;               // no sample rendered since the last reset → Quality switches instantly
 
     // DC blocker (per oscillator, L and R): y = x − x1 + R · y1, R = 1 − 2π·5/fs
     double dcR = 1.0;

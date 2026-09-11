@@ -61,6 +61,12 @@ void TerrainOscillator::prepare (double sampleRate)
     // prepare-time only (not RT): the shared Superellipse LUT is built here under call_once.
     currentSampleRate = sampleRate;
     superLUT = SuperellipseLUT::get();
+    hbCoeffs = &HalfbandCoeffs::get();   // designed once per process (allocates; prepare only)
+    for (int s = 0; s < 2; ++s)
+        for (int i = 0; i < kMaxUnison; ++i) { hb2[s][i].reset(); hb4[s][i].reset(); }
+    xfadeRemaining = 0;
+    fresh = true;
+    oversampling = osFor (quality);
     dcR = 1.0 - kTwoPi * 5.0 / sampleRate;
     dcX1L = dcY1L = dcX1R = dcY1R = 0.0;
     lastNormalisedOrbitMod = -10.0f;
@@ -83,7 +89,27 @@ void TerrainOscillator::setPosition (float pos)
 
 void TerrainOscillator::setQuality (Quality q)
 {
-    quality = q;   // Round A Phase 2.1: every path runs at 1×; Phase 2.3 adds the OS loop + crossfade
+    if (q == quality)
+        return;
+
+    if (fresh || xfadeRemaining > 0)
+    {
+        // Inactive (or already fading): switch instantly, no crossfade (plan Decision 18)
+        quality = q;
+        oversampling = osFor (q);
+        xfadeRemaining = 0;
+        for (int i = 0; i < kMaxUnison; ++i) { hb2[currentSet][i].reset(); hb4[currentSet][i].reset(); }
+        return;
+    }
+
+    // Mid-note: the old path keeps its decimator set as the shadow, the new path
+    // starts from reset states and both run for 64 base samples (equal-gain linear).
+    oldQuality = quality;
+    quality = q;
+    oversampling = osFor (q);
+    currentSet ^= 1;
+    for (int i = 0; i < kMaxUnison; ++i) { hb2[currentSet][i].reset(); hb4[currentSet][i].reset(); }
+    xfadeRemaining = 64;
 }
 
 void TerrainOscillator::reset()
@@ -93,8 +119,11 @@ void TerrainOscillator::reset()
         phaseAccumulators[i] = 0.0;
         masterPhases[i] = 0.0;
         fbD[i] = fbY1[i] = fbY2[i] = 0.0f;
+        hb2[currentSet][i].reset(); hb4[currentSet][i].reset();
     }
     dcX1L = dcY1L = dcX1R = dcY1R = 0.0;
+    xfadeRemaining = 0;
+    fresh = true;
 }
 
 void TerrainOscillator::resetWithPhase (double phase)
@@ -104,8 +133,11 @@ void TerrainOscillator::resetWithPhase (double phase)
         phaseAccumulators[i] = phase;
         masterPhases[i] = phase;
         fbD[i] = fbY1[i] = fbY2[i] = 0.0f;
+        hb2[currentSet][i].reset(); hb4[currentSet][i].reset();
     }
     dcX1L = dcY1L = dcX1R = dcY1R = 0.0;
+    xfadeRemaining = 0;
+    fresh = true;
 }
 
 void TerrainOscillator::resetWithRandomPhases (uint32_t seed)
@@ -121,8 +153,11 @@ void TerrainOscillator::resetWithRandomPhases (uint32_t seed)
         phaseAccumulators[i] = static_cast<double> (seed) / 4294967296.0;
         masterPhases[i] = phaseAccumulators[i];
         fbD[i] = fbY1[i] = fbY2[i] = 0.0f;
+        hb2[currentSet][i].reset(); hb4[currentSet][i].reset();
     }
     dcX1L = dcY1L = dcX1R = dcY1R = 0.0;
+    xfadeRemaining = 0;
+    fresh = true;
 }
 
 void TerrainOscillator::setUnison (int count, float detune, float width)
@@ -155,8 +190,8 @@ void TerrainOscillator::setUnison (int count, float detune, float width)
     {
         double normalizedPos = (i - centerIndex) / normFactor;
 
-        // Detune: max 50 cents spread — block-rate (DSP-05 exemption: setUnison cache, plan Decision 10)
-        unisonDetuneFactors[i] = std::pow (2.0, normalizedPos * detune * 50.0 / 1200.0);
+        // Detune: max 50 cents spread
+        unisonDetuneFactors[i] = std::pow (2.0, normalizedPos * detune * 50.0 / 1200.0);   // block-rate (DSP-05 exemption: setUnison cache, plan Decision 10)
 
         // Pan: equal-power pan law
         double panNorm = (normalizedPos * width + 1.0) * 0.5; // Map to [0,1]
@@ -219,7 +254,7 @@ double TerrainOscillator::applyWarp (double phase) const noexcept
             // inherited per-sample pow from the O-Prism applyWarp (Bend warp only;
             // not in the terrain budget, unchanged since O-Prism).
             double exponent = 1.0 + static_cast<double> (warpAmount) * 3.0;
-            return std::pow (phase, exponent);
+            return std::pow (phase, exponent);   // inherited O-Prism Bend warp, per-sample (documented DSP-05 exemption: Round A SUMMARY)
         }
         case WarpType::FM:
         {
@@ -233,7 +268,7 @@ double TerrainOscillator::applyWarp (double phase) const noexcept
     }
 }
 
-float TerrainOscillator::scan (double phase, int partial) noexcept
+float TerrainOscillator::scan (double phase, int partial, bool shadow) noexcept
 {
     if (kernelBypass)
         return 0.0f;   // H7 baseline: everything but the terrain kernel runs
@@ -258,13 +293,13 @@ float TerrainOscillator::scan (double phase, int partial) noexcept
     // anti-hunting zero at Nyquist; d clamped ± 0.5 and NaN-scrubbed. With fb = 0 the
     // add is 0·finite = 0 and px + 0 == px bit-exactly (H3 memcmp row). The harness
     // switches select the single-sample form (Nyquist control) or skip the path.
-    if (feedbackPathEnabled)
+    if (feedbackPathEnabled && feedbackActive)
     {
         const float avg = singleSampleFeedback ? fbY1[partial] : 0.5f * (fbY1[partial] + fbY2[partial]);
         float d = aEff * fbD[partial] + (1.0f - aEff) * avg;
         if (! std::isfinite (d)) d = 0.0f;
         d = juce::jlimit (-0.5f, 0.5f, d);
-        fbD[partial] = d;
+        if (! shadow) fbD[partial] = d;
         const float disp = feedback * d;
         px += disp * cosRot;
         py += disp * sinRot;
@@ -274,6 +309,9 @@ float TerrainOscillator::scan (double phase, int partial) noexcept
     py = juce::jlimit (-1.0f, 1.0f, py);
 
     float y = terrain (terrainKind, px, py, terrainFreq * rTrack, terrainModX, terrainModY);   // clamped inside
+
+    if (shadow)
+        return y;   // crossfade's old path: no feedback / capture writes (saturation below is stateless)
 
     // The feedback tap reads the pre-saturation, pre-blocker scan value (Core 1)
     fbY2[partial] = fbY1[partial];
@@ -288,6 +326,11 @@ float TerrainOscillator::scan (double phase, int partial) noexcept
         capture->writeIndex.store (w + 1, std::memory_order_release);
     }
 
+    return saturate (y);
+}
+
+float TerrainOscillator::saturate (float y) const noexcept
+{
     // Saturation (DSP-07): skipped exactly at 0 so identity is bit-exact
     // (plan Decision 13). y' = tanh (g·y) / tanh (g), g = 1 + 4·sat; Padé tanh on
     // a ±3-clamped argument (RESEARCH §2.3).
@@ -298,8 +341,61 @@ float TerrainOscillator::scan (double phase, int partial) noexcept
         const float den = juce::dsp::FastMathApproximations::tanh (juce::jmin (3.0f, g));
         y = juce::jlimit (-1.0f, 1.0f, num / den);
     }
-
     return y;
+}
+
+float TerrainOscillator::subSample (int i, double& phase, double& master, double inc, bool isSyncMode, bool shadow) noexcept
+{
+    // The inherited Sync / Window and Bend / FM branches, one sub-sample (inc = phaseIncrement / OS)
+    const double readPhase = phase;
+    float sample;
+
+    if (isSyncMode)
+    {
+        sample = scan (readPhase, i, shadow);
+
+        if (warpType == WarpType::Window)
+            sample *= static_cast<float> (std::sin (kPi * master));
+
+        const double masterInc = inc * unisonDetuneFactors[i];
+        master += masterInc;
+
+        const double syncRatio = 1.0 + static_cast<double> (warpAmount) * 3.0;
+        phase += masterInc * syncRatio;
+
+        if (phase >= 1.0)
+            phase -= std::floor (phase);
+
+        if (master >= 1.0)
+        {
+            master -= std::floor (master);
+            // Re-seed can land ≥ 1.0 (syncRatio up to 4) — wrap it too
+            phase = master * syncRatio;
+            phase -= std::floor (phase);
+        }
+    }
+    else
+    {
+        const double warped = applyWarp (readPhase);
+        sample = scan (warped, i, shadow);
+
+        phase += inc * unisonDetuneFactors[i];
+        if (phase >= 1.0)
+            phase -= std::floor (phase);
+    }
+
+    return sample;
+}
+
+float TerrainOscillator::decimate (int i, int set, int os, const float* sub) noexcept
+{
+    if (os == 1)
+        return sub[0];
+    if (os == 2)
+        return hb2[set][i].down (sub[0], sub[1], *hbCoeffs);
+    const float a = hb4[set][i].down (sub[0], sub[1], *hbCoeffs);
+    const float b = hb4[set][i].down (sub[2], sub[3], *hbCoeffs);
+    return hb2[set][i].down (a, b, *hbCoeffs);
 }
 
 void TerrainOscillator::getNextSampleStereo (double& outL, double& outR)
@@ -315,52 +411,64 @@ void TerrainOscillator::getNextSampleStereo (double& outL, double& outR)
         lastRotation = rotation;
     }
 
-    bool isSyncMode = (warpType == WarpType::Sync || warpType == WarpType::Window)
-                      && warpAmount > 0.001f;
+    const bool isSyncMode = (warpType == WarpType::Sync || warpType == WarpType::Window)
+                            && warpAmount > 0.001f;
+    fresh = false;
+
+    // Oversampling loop (ARCH Core 1 / 5): per partial, OS sub-samples with phase
+    // increment phaseIncrement / OS, every setter value held over the sub-samples,
+    // feedback per sub-sample, then one halfband-decimated base sample. With
+    // kernelBypass (H7 baseline) the scan returns 0 and the decimator is skipped.
+    const int os = oversampling;
+    const double inc = phaseIncrement / os;
 
     for (int i = 0; i < unisonCount; ++i)
     {
-        double readPhase = phaseAccumulators[i];
+        float sample;
 
-        if (isSyncMode)
+        if (kernelBypass)
         {
-            double sample = scan (readPhase, i) * unisonGain;
-
-            if (warpType == WarpType::Window)
-                sample *= std::sin (kPi * masterPhases[i]);
-
-            outL += sample * unisonPanL[i];
-            outR += sample * unisonPanR[i];
-
-            double masterInc = phaseIncrement * unisonDetuneFactors[i];
-            masterPhases[i] += masterInc;
-
-            double syncRatio = 1.0 + static_cast<double> (warpAmount) * 3.0;
-            phaseAccumulators[i] += masterInc * syncRatio;
-
-            if (phaseAccumulators[i] >= 1.0)
-                phaseAccumulators[i] -= std::floor (phaseAccumulators[i]);
-
-            if (masterPhases[i] >= 1.0)
-            {
-                masterPhases[i] -= std::floor (masterPhases[i]);
-                // Re-seed can land ≥ 1.0 (syncRatio up to 4) — wrap it too
-                phaseAccumulators[i] = masterPhases[i] * syncRatio;
-                phaseAccumulators[i] -= std::floor (phaseAccumulators[i]);
-            }
+            for (int k = 0; k < os; ++k)
+                subSample (i, phaseAccumulators[i], masterPhases[i], inc, isSyncMode, false);
+            sample = 0.0f;
         }
         else
         {
-            double warped = applyWarp (readPhase);
-            double sample = scan (warped, i) * unisonGain;
-            outL += sample * unisonPanL[i];
-            outR += sample * unisonPanR[i];
+            float sub[4];
 
-            phaseAccumulators[i] += phaseIncrement * unisonDetuneFactors[i];
-            if (phaseAccumulators[i] >= 1.0)
-                phaseAccumulators[i] -= std::floor (phaseAccumulators[i]);
+            if (xfadeRemaining > 0)
+            {
+                // Old path as a shadow from the same θ (local phase copies, no state writes)
+                const int oldOs = osFor (oldQuality);
+                const double oldInc = phaseIncrement / oldOs;
+                double p = phaseAccumulators[i], m = masterPhases[i];
+                float oldSub[4];
+                for (int k = 0; k < oldOs; ++k)
+                    oldSub[k] = subSample (i, p, m, oldInc, isSyncMode, true);
+                const float oldY = decimate (i, currentSet ^ 1, oldOs, oldSub);
+
+                for (int k = 0; k < os; ++k)
+                    sub[k] = subSample (i, phaseAccumulators[i], masterPhases[i], inc, isSyncMode, false);
+                const float newY = decimate (i, currentSet, os, sub);
+
+                const float t = 1.0f - static_cast<float> (xfadeRemaining) / 64.0f;   // 0 → 1 over the fade
+                sample = oldY + t * (newY - oldY);
+            }
+            else
+            {
+                for (int k = 0; k < os; ++k)
+                    sub[k] = subSample (i, phaseAccumulators[i], masterPhases[i], inc, isSyncMode, false);
+                sample = decimate (i, currentSet, os, sub);
+            }
         }
+
+        const double s = static_cast<double> (sample) * unisonGain;
+        outL += s * unisonPanL[i];
+        outR += s * unisonPanR[i];
     }
+
+    if (xfadeRemaining > 0)
+        --xfadeRemaining;
 
     // Output conditioning (Core 1): 5 Hz one-pole DC blocker per channel
     if (dcBlockerBypass)
