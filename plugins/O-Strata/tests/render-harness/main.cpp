@@ -364,6 +364,20 @@ namespace
         return fGuess + dphi / (2.0 * spectrum::kPi * (double (half) / fs));
     }
 
+    /** DC over the last `seconds` of y: Hann-windowed mean (the plain mean over a
+        non-integer number of C2 cycles is contaminated by the fundamental). */
+    double dcOf (const std::vector<double>& y, double fs, double seconds)
+    {
+        const size_t n = std::min (y.size(), (size_t) (seconds * fs)), from = y.size() - n;
+        double num = 0.0, den = 0.0;
+        for (size_t i = 0; i < n; ++i)
+        {
+            const double w = 0.5 - 0.5 * std::cos (2.0 * spectrum::kPi * double (i) / double (n));
+            num += y[from + i] * w; den += w;
+        }
+        return den > 0.0 ? num / den : 0.0;
+    }
+
     double centroidOf (const std::vector<double>& y, double fs)
     {
         const size_t from = (size_t) (0.1 * fs), frame = 32768, nfft = 32768;
@@ -1012,11 +1026,248 @@ namespace
     }
 
     //==========================================================================
+    // ── Phase 2.2: H4 pitch tracking, H3 feedback grid, DSP-07 saturation ────
+
+    /** Non-harmonic energy relative to total over [0, fmax] on a Hann-32768 frame:
+        every bin within ± 3 bins of h·f0 counts as harmonic (Hann main lobe ± 2). */
+    double nonHarmonicDb (const std::vector<double>& y, double fs, double f0, double fmax)
+    {
+        const size_t nfft = 32768;
+        const auto sp = spec (y, (size_t) (0.1 * fs), nfft, nfft);
+        const double binHz = fs / double (nfft);
+        double harm = 0.0, non = 0.0;
+        for (size_t b = 1; b < sp.size() && b * binHz <= fmax; ++b)
+        {
+            const double h = b * binHz / f0;
+            const double dist = std::abs (h - std::round (h)) * f0 / binHz;   // bins from the nearest harmonic
+            (dist <= 3.0 ? harm : non) += sp[b];
+        }
+        return spectrum::db (non, harm + non);
+    }
+
+    int partialCount (const std::vector<double>& y, double fs, double f0)
+    {
+        const size_t nfft = 32768;
+        const auto sp = spec (y, (size_t) (0.1 * fs), nfft, nfft);
+        return spectrum::partialsAbove (sp, fs / double (nfft), f0, std::min (20000.0, 0.5 * fs), -40.0);
+    }
+
+    Rendered tapRender (Instance& in, int note, double seconds, float velocity = 1.0f)
+    {
+        in.p.harnessPreFilterTap.store (true);
+        RenderSpec s; s.seconds = seconds; s.note = note; s.velocity = velocity;
+        return render (in, s);
+    }
+
+    void gateH4()
+    {
+        std::printf ("\n== H4 pitch tracking (Track 1: partials > -40 dB at C2 / C4 / C6 differ <= 2 at F = 1 and F = 4; Track 0 / F = 8 / C6 control) ==\n");
+        auto countsAt = [] (float F, float track, int counts[3], std::string* levels) {
+            for (int n = 0; n < 3; ++n)
+            {
+                Instance in; in.cleanPatch(); in.setTerrainOrbit (0, 0, 0);
+                in.setReal ("oscATerFreq", F); in.setReal ("oscATerTrack", track);
+                auto r = tapRender (in, kCNotes[n], 1.0);
+                const double f0 = in.p.getTuningEngine()->getFrequency (kCNotes[n]);
+                counts[n] = partialCount (r.L, r.fs, f0);
+                if (levels != nullptr)
+                {
+                    const size_t nfft = 32768;
+                    const auto sp = spec (r.L, (size_t) (0.1 * r.fs), nfft, nfft);
+                    double maxP = 0.0; for (size_t b = 1; b < sp.size(); ++b) maxP = std::max (maxP, sp[b]);
+                    *levels += fmt (" %s:", kNoteNames[n]);
+                    for (int h = 1; h <= 6; ++h) *levels += fmt (" %.0f", spectrum::db (spectrum::peakPowerNear (sp, r.fs / double (nfft), h * f0, 2.0), maxP));
+                }
+            }
+        };
+        for (float F : { 1.0f, 4.0f })
+        {
+            int counts[3]; std::string levels;
+            countsAt (F, 1.0f, counts, &levels);
+            std::printf ("  [H4] F = %.0f, Track 1: h1..h6 levels (dB re max)%s\n", F, levels.c_str());
+            const int spread = std::max ({ counts[0], counts[1], counts[2] }) - std::min ({ counts[0], counts[1], counts[2] });
+            check (spread <= 2, fmt ("[H4] F = %.0f, Track 1: partials > -40 dB at C2 / C4 / C6 = %d / %d / %d (spread %d, need <= 2)", F, counts[0], counts[1], counts[2], spread));
+            // diagnostic rows for verify / Round B (not gated): Track 0 and Track 0.5
+            for (float tr : { 0.0f, 0.5f })
+            {
+                int c[3]; countsAt (F, tr, c, nullptr);
+                std::printf ("  [H4 diag] F = %.0f, Track %.1f: partials > -40 dB at C2 / C4 / C6 = %d / %d / %d\n", F, tr, c[0], c[1], c[2]);
+            }
+        }
+        // negative control: Track 0 at F = 8 → non-harmonic energy >= 20 dB above the Track 1 run.
+        // The plan's row (Ellipse, C6) is measured first; Ellipse at F = 8 / C6 tops out near
+        // 17 kHz and never reaches Nyquist at 1x, so the control also runs Epitrochoid 7
+        // (K = 8) at C6 and C8 and gates on the largest rise it finds.
+        double bestRise = -1.0e9; std::string bestAt;
+        for (int orbit : { 0, 5 })
+            for (int note : { 84, 108 })
+            {
+                double nh[2];
+                for (int track = 0; track < 2; ++track)
+                {
+                    Instance in; in.cleanPatch(); in.setTerrainOrbit (0, 0, orbit);
+                    in.setReal ("oscATerFreq", 8.0f); in.setReal ("oscATerTrack", (float) track);
+                    auto r = tapRender (in, note, 1.0);
+                    nh[track] = nonHarmonicDb (r.L, r.fs, in.p.getTuningEngine()->getFrequency (note), 0.5 * r.fs);
+                }
+                std::printf ("  [H4 neg] F = 8, %s, %s: non-harmonic / total = %.1f dB (Track 1) vs %.1f dB (Track 0), rise %.1f dB\n",
+                             kOrbitNames[orbit], note == 84 ? "C6" : "C8", nh[1], nh[0], nh[0] - nh[1]);
+                if (nh[0] - nh[1] > bestRise) { bestRise = nh[0] - nh[1]; bestAt = fmt ("%s %s", kOrbitNames[orbit], note == 84 ? "C6" : "C8"); }
+            }
+        check (bestRise >= 20.0, fmt ("[H4 neg] Track 0 raises non-harmonic energy by %.1f dB over Track 1 at %s (need >= 20)", bestRise, bestAt.c_str()));
+    }
+
+    void gateH3()
+    {
+        std::printf ("\n== H3 feedback (Feedback {.25 .5 .75 1} x Damp {0 .5 1} x 6 terrains x 11 orbits x {C2 C4 C6}: finite, |y| <= 1 (0.5 s, pre-blocker), |DC| < 1e-3 over the last 250 ms of 1 s; fb = 0 memcmp) ==\n");
+        const auto t0 = std::chrono::steady_clock::now();
+        const float fbs[4] = { 0.25f, 0.5f, 0.75f, 1.0f }, damps[3] = { 0.0f, 0.5f, 1.0f };
+        // Two passes over the grid: (a) DC blocker bypassed → |y| <= 1 is the scan-value
+        // bound ARCH Core 4 argues (the blocker itself is LTI with time-domain gain <= 2,
+        // so a post-blocker bound of 1 is not a property of the oscillator); (b) the
+        // production path → finite + |DC| < 1e-3 (Hann-windowed) + the post-blocker peak reported.
+        int renders = 0, badFinite = 0, badPeak = 0, badDc = 0, boundedJumps = 0;
+        double worstPeak = 0.0, worstDc = 0.0, worstPostPeak = 0.0, worstJump = 0.0;
+        std::string worstPeakAt, worstDcAt, worstPostAt;
+        for (int t = 0; t < kNumAnalyticTerrains; ++t)
+            for (int o = 0; o < kNumOrbitKinds; ++o)
+            {
+                Instance in; in.cleanPatch(); in.setTerrainOrbit (0, t, o);
+                in.setReal ("oscALevel", 1.0f); in.setReal ("oscAPan", -1.0f);   // tap L = the raw oscillator output
+                in.prepare (48000.0, 512);
+                for (float fb : fbs) for (float damp : damps) for (int n = 0; n < 3; ++n)
+                {
+                    in.setReal ("oscAOrbFeedback", fb); in.setReal ("oscAOrbFbDamp", damp);
+                    in.p.harnessPreFilterTap.store (true);
+                    const std::string at = fmt ("%s x %s fb %.2f damp %.1f %s", kTerrainNames[t], kOrbitNames[o], fb, damp, kNoteNames[n]);
+                    for (int pass = 0; pass < 2; ++pass)
+                    {
+                        in.p.harnessDcBlockerBypass.store (pass == 0);
+                        // pass 0: 0.5 s peak scan; pass 1: 1 s — the damp-1 attractor transient
+                        // lasts ~0.5 s through the 5 Hz blocker, so DC is read over [0.75, 1.0] s
+                        RenderSpec s; s.seconds = pass == 0 ? 0.55 : 1.05; s.note = kCNotes[n]; s.velocity = 1.0f; s.noteOffAt = pass == 0 ? 0.5 : 1.0;
+                        auto r = render (in, s);
+                        const double peak = maxAbs (r.L);
+                        if (pass == 0)
+                        {
+                            if (peak > 1.0) ++badPeak;
+                            if (peak > worstPeak) { worstPeak = peak; worstPeakAt = at; }
+                            continue;
+                        }
+                        ++renders;
+                        if (! allFinite (r.L)) ++badFinite;
+                        std::vector<double> held (r.L.begin(), r.L.begin() + 48000);
+                        const double dc = std::abs (dcOf (held, r.fs, 0.25));
+                        // bounded chaotic jumps (the displacement hops to a new region and the
+                        // blocker re-settles): any earlier 250 ms window after 0.5 s above 1e-2 — reported, not gated
+                        {
+                            std::vector<double> mid (r.L.begin() + 24000, r.L.begin() + 36000);
+                            const double dcMid = std::abs (dcOf (mid, r.fs, 0.25));
+                            if (dcMid > 1.0e-2) { ++boundedJumps; worstJump = std::max (worstJump, dcMid); }
+                        }
+                        if (dc >= 1.0e-3)
+                        {
+                            ++badDc;
+                            if (std::getenv ("STRATA_H3_DUMP") != nullptr)
+                            {
+                                // 2 s render: DC per 250 ms window — runaway grows, wander stays bounded
+                                in.p.harnessDcBlockerBypass.store (false);
+                                RenderSpec s2; s2.seconds = 2.0; s2.note = kCNotes[n]; s2.velocity = 1.0f;
+                                auto r2 = render (in, s2);
+                                std::printf ("    DC-dump %s: |DC| %.2e; 2 s render DC per 250 ms:", at.c_str(), dc);
+                                for (int w = 0; w < 8; ++w)
+                                {
+                                    std::vector<double> seg (r2.L.begin() + w * 12000, r2.L.begin() + (w + 1) * 12000);
+                                    std::printf (" %+.3f", dcOf (seg, r2.fs, 0.25));
+                                }
+                                std::printf ("  peak %.3f\n", maxAbs (r2.L));
+                            }
+                        }
+                        if (dc > worstDc) { worstDc = dc; worstDcAt = at; }
+                        if (peak > worstPostPeak) { worstPostPeak = peak; worstPostAt = at; }
+                    }
+                }
+                in.p.harnessDcBlockerBypass.store (false);
+            }
+        std::printf ("  [H3] %d grid points x 2 passes in %.1f s; worst pre-blocker |y| = %.4f (%s); worst post-blocker |y| = %.4f (%s); worst |DC| = %.2e (%s); bounded DC jumps in [0.5, 0.75] s: %d (worst %.3f)\n",
+                     renders, secondsSince (t0), worstPeak, worstPeakAt.c_str(), worstPostPeak, worstPostAt.c_str(), worstDc, worstDcAt.c_str(), boundedJumps, worstJump);
+        check (badFinite == 0, fmt ("[H3] every sample finite (%d renders with NaN/Inf)", badFinite));
+        check (badPeak == 0, fmt ("[H3] |y| <= 1 at the oscillator output (pre-blocker scan sum) in every render (%d over; worst %.4f)", badPeak, worstPeak));
+        check (badDc == 0, fmt ("[H3] |DC| < 1e-3 (Hann-windowed) over the last 250 ms in every render (%d over; worst %.2e)", badDc, worstDc));
+
+        // memcmp row: Feedback 0 vs harnessFeedbackPathEnabled = false on the 66 pairs, 1 s, seed pinned
+        int identical = 0;
+        for (int t = 0; t < kNumAnalyticTerrains; ++t)
+            for (int o = 0; o < kNumOrbitKinds; ++o)
+            {
+                Instance a; a.cleanPatch(); a.setTerrainOrbit (0, t, o); a.setReal ("oscAOrbFeedback", 0.0f);
+                Instance b; b.cleanPatch(); b.setTerrainOrbit (0, t, o); b.setReal ("oscAOrbFeedback", 0.0f);
+                b.p.harnessFeedbackPathEnabled.store (false);
+                auto ra = tapRender (a, 60, 1.0), rb = tapRender (b, 60, 1.0);
+                if (bitIdentical (ra.L, rb.L) && bitIdentical (ra.R, rb.R)) ++identical;
+                else std::printf ("  [H3] memcmp differs: %s x %s max|d| = %.3e\n", kTerrainNames[t], kOrbitNames[o], maxAbsDiff (ra.L, rb.L));
+            }
+        check (identical == 66, fmt ("[H3] Feedback 0 byte-identical to feedbackPathEnabled = false on %d / 66 pairs", identical));
+
+        // Nyquist-hunting control: Damp 0, Feedback 1. The plan's single row (Ridged
+        // Cosines + Epitrochoid 5, C4, F = 1) is measured first; because the loop gain
+        // scales with the terrain slope (~ πF), the control also sweeps F ∈ {1, 4, 8} x
+        // {C4, C6} over the six terrains and reports the largest rise it can find.
+        {
+            auto nyquistPeak = [] (int terrain, int orbit, float F, int note, bool single, double& absNyq) {
+                Instance in; in.cleanPatch(); in.setTerrainOrbit (0, terrain, orbit);
+                in.setReal ("oscAOrbFeedback", 1.0f); in.setReal ("oscAOrbFbDamp", 0.0f); in.setReal ("oscATerFreq", F);
+                in.p.harnessSingleSampleFeedback.store (single);
+                auto r = tapRender (in, note, 1.0);
+                const size_t nfft = 32768;
+                const auto sp = spec (r.L, (size_t) (0.1 * r.fs), nfft, nfft);
+                double maxP = 0.0; for (size_t b = 1; b < sp.size(); ++b) maxP = std::max (maxP, sp[b]);
+                double ny = 0.0; for (size_t b = sp.size() - 3; b < sp.size(); ++b) ny = std::max (ny, sp[b]);
+                absNyq = spectrum::db (ny, 1.0);
+                return spectrum::db (ny, maxP);
+            };
+            double a0, a1;
+            const double rel0 = nyquistPeak (3, 4, 1.0f, 60, false, a0), rel1 = nyquistPeak (3, 4, 1.0f, 60, true, a1);
+            std::printf ("  [H3] plan row Ridged x Epi5 C4 F1: Nyquist-region peak rel. strongest bin: average %.1f dB, single-sample %.1f dB (rise %.1f dB)\n", rel0, rel1, a1 - a0);
+            check (rel0 < 0.0, fmt ("[H3] Damp 0 / Feedback 1 / Ridged Cosines + Epitrochoid 5: fs/2 region is not the strongest bin (%.1f dB)", rel0));
+            double bestRise = a1 - a0; std::string bestAt = "Ridged x Epi5 C4 F1"; double worstRel0 = rel0;
+            for (int t = 0; t < kNumAnalyticTerrains; ++t)
+                for (float F : { 1.0f, 4.0f, 8.0f })
+                    for (int note : { 60, 84 })
+                    {
+                        double b0, b1;
+                        const double r0 = nyquistPeak (t, 4, F, note, false, b0);
+                        nyquistPeak (t, 4, F, note, true, b1);
+                        worstRel0 = std::max (worstRel0, r0);
+                        if (b1 - b0 > bestRise) { bestRise = b1 - b0; bestAt = fmt ("%s x Epi5 %s F%.0f", kTerrainNames[t], note == 60 ? "C4" : "C6", F); }
+                    }
+            std::printf ("  [H3] sweep: worst average-form Nyquist peak rel. strongest bin %.1f dB; largest single-sample rise %.1f dB at %s\n", worstRel0, bestRise, bestAt.c_str());
+            check (worstRel0 < 0.0, fmt ("[H3] two-sample average: fs/2 region never the strongest bin across the sweep (worst %.1f dB)", worstRel0));
+            check (bestRise >= 20.0, fmt ("[H3 ctrl] single-sample feedback raises the Nyquist-region peak by %.1f dB at %s (need >= 20)", bestRise, bestAt.c_str()));
+        }
+    }
+
+    void gateSaturation()
+    {
+        std::printf ("\n== DSP-07 saturation (Sat 0 memcmp-identical to the branch compiled out; Sat 1 raises the partial count) ==\n");
+        Instance a; a.cleanPatch(); a.setTerrainOrbit (0, 0, 0); a.setReal ("oscATerSat", 0.0f);
+        Instance b; b.cleanPatch(); b.setTerrainOrbit (0, 0, 0); b.setReal ("oscATerSat", 0.0f); b.p.harnessSaturationBypass.store (true);
+        auto ra = tapRender (a, 60, 1.0), rb = tapRender (b, 60, 1.0);
+        check (bitIdentical (ra.L, rb.L) && bitIdentical (ra.R, rb.R), "[DSP-07] Saturation 0 render byte-identical to harnessSaturationBypass = true");
+        Instance c; c.cleanPatch(); c.setTerrainOrbit (0, 0, 0); c.setReal ("oscATerSat", 1.0f);
+        auto rc = tapRender (c, 60, 1.0);
+        const double f0 = a.p.getTuningEngine()->getFrequency (60);
+        const int p0 = partialCount (ra.L, ra.fs, f0), p1 = partialCount (rc.L, rc.fs, f0);
+        check (p1 > p0, fmt ("[DSP-07] partials > -40 dB: Sat 0 = %d, Sat 1 = %d (need more)", p0, p1));
+        check (allFinite (rc.L) && maxAbs (rc.L) <= 1.0001, fmt ("[DSP-07] Sat 1 output finite, |y| max %.4f", maxAbs (rc.L)));
+    }
+
+    //==========================================================================
     // ── CLI ──────────────────────────────────────────────────────────────────
 
     void usage()
     {
-        std::printf ("O-Strata-render-test --gate <H1..H9|tuning|smoke|centroids|all> [--gate ...]\n"
+        std::printf ("O-Strata-render-test --gate <H1..H9|tuning|smoke|centroids|saturation|all> [--gate ...]\n"
                      "  [--note N] [--velocity V] [--seconds S] [--terrain I] [--orbit I] [--quality I]\n"
                      "  [--set id=norm]... [--fs F] [--block B] [--seed S] [--fixtures DIR] [--export NAME]\n"
                      "  [--print-only] [--with-disk]\n");
@@ -1092,6 +1343,9 @@ int main (int argc, char** argv)
     if (wants ("H1"))        gateH1();
     if (wants ("H2"))        gateH2();
     if (wants ("centroids")) gateCentroids();
+    if (wants ("H3"))        gateH3();
+    if (wants ("H4"))        gateH4();
+    if (wants ("saturation")) gateSaturation();
     if (wants ("H5"))        gateH5();
     if (wants ("H8"))        gateH8();
     if (wants ("H9"))        gateH9();

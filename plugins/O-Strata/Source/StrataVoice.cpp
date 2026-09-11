@@ -503,12 +503,14 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             const bool fbOn   = processor->harnessFeedbackPathEnabled.load();
             const bool single = processor->harnessSingleSampleFeedback.load();
             const bool satOff = processor->harnessSaturationBypass.load();
+            const bool dcOff  = processor->harnessDcBlockerBypass.load();
             for (auto* o : { &oscA, &oscB })
             {
                 o->setKernelBypass (bypass);
                 o->setFeedbackPathEnabled (fbOn);
                 o->setSingleSampleFeedback (single);
                 o->setSaturationBypass (satOff);
+                o->setDcBlockerBypass (dcOff);
             }
             // Core 10: only the display voice writes the rings
             const bool display = currentMidiNote == processor->getLastPlayedNote();

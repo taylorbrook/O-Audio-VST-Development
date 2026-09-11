@@ -170,7 +170,7 @@ void TerrainOscillator::setUnison (int count, float detune, float width)
 // Block-rate feed
 // ═══════════════════════════════════════════════════════════════════
 
-void TerrainOscillator::updateBlockRate (double /*noteHz*/)
+void TerrainOscillator::updateBlockRate (double noteHz)
 {
     // Squarcle 1 / tanh k (block-rate; std::tanh allowed here only)
     if (orbitKind == OrbitKind::Squarcle)
@@ -193,7 +193,16 @@ void TerrainOscillator::updateBlockRate (double /*noteHz*/)
         lastNormalisedOrbitMod = orbitMod;
     }
 
-    // Phase 2.2 adds rTrack (pitch tracking) and aEff (feedback damp) here.
+    // Pitch tracking (DSP-01): F_eff = F_mod · r_track, r_track = min (1, C4 / f_note)^track,
+    // from the glide TARGET the voice passes in. Block-rate pow (DSP-05 exemption: updateBlockRate).
+    // Round A applies it in every Quality (Bandlimited = analytic fallback); Round B makes it inert there.
+    const double ratio = noteHz > 0.0 ? juce::jmin (1.0, 261.6256 / noteHz) : 1.0;
+    rTrack = static_cast<float> (std::pow (ratio, static_cast<double> (pitchTrack)));   // block-rate (DSP-05 exemption: updateBlockRate)
+
+    // Feedback damp law (ARCH Core 4, Decision 1): a = 1 − 2^(−1 − 9·damp) at 48 kHz / 1×,
+    // rate- and OS-corrected so the displacement time constant is invariant.
+    const double a = 1.0 - std::exp2 (-1.0 - 9.0 * static_cast<double> (feedbackDamp));   // block-rate (DSP-05 exemption: updateBlockRate)
+    aEff = static_cast<float> (std::pow (a, 48000.0 / (currentSampleRate * oversampling)));   // block-rate (DSP-05 exemption: updateBlockRate)
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -244,13 +253,31 @@ float TerrainOscillator::scan (double phase, int partial) noexcept
     float px = (bx * cosRot - by * sinRot) * r + centreX;
     float py = (bx * sinRot + by * cosRot) * r + centreY;
 
-    // Trajectory feedback displacement lands in Phase 2.2 (fbD / fbY1 / fbY2).
-    juce::ignoreUnused (partial);
+    // Trajectory feedback (ARCH Core 4, Decision 1): p += fb · d · û, û = the orbit's
+    // rotation vector; d = a·d + (1 − a)·½ (y1 + y2) — the two-sample average is the
+    // anti-hunting zero at Nyquist; d clamped ± 0.5 and NaN-scrubbed. With fb = 0 the
+    // add is 0·finite = 0 and px + 0 == px bit-exactly (H3 memcmp row). The harness
+    // switches select the single-sample form (Nyquist control) or skip the path.
+    if (feedbackPathEnabled)
+    {
+        const float avg = singleSampleFeedback ? fbY1[partial] : 0.5f * (fbY1[partial] + fbY2[partial]);
+        float d = aEff * fbD[partial] + (1.0f - aEff) * avg;
+        if (! std::isfinite (d)) d = 0.0f;
+        d = juce::jlimit (-0.5f, 0.5f, d);
+        fbD[partial] = d;
+        const float disp = feedback * d;
+        px += disp * cosRot;
+        py += disp * sinRot;
+    }
 
     px = juce::jlimit (-1.0f, 1.0f, px);
     py = juce::jlimit (-1.0f, 1.0f, py);
 
-    float y = terrain (terrainKind, px, py, terrainFreq, terrainModX, terrainModY);   // clamped inside
+    float y = terrain (terrainKind, px, py, terrainFreq * rTrack, terrainModX, terrainModY);   // clamped inside
+
+    // The feedback tap reads the pre-saturation, pre-blocker scan value (Core 1)
+    fbY2[partial] = fbY1[partial];
+    fbY1[partial] = y;
 
     // Core 10: the display voice's partial 0 writes (θ, p.x, p.y, y) per base sample
     if (capture != nullptr && partial == 0)
@@ -336,6 +363,8 @@ void TerrainOscillator::getNextSampleStereo (double& outL, double& outR)
     }
 
     // Output conditioning (Core 1): 5 Hz one-pole DC blocker per channel
+    if (dcBlockerBypass)
+        return;   // harness-only: expose the raw scan sum (H3 boundedness row)
     const double bL = outL - dcX1L + dcR * dcY1L;
     dcX1L = outL; dcY1L = bL; outL = bL;
     const double bR = outR - dcX1R + dcR * dcY1R;

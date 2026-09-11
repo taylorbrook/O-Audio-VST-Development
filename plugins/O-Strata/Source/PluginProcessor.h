@@ -121,6 +121,7 @@ public:
     std::atomic<bool>  harnessSingleSampleFeedback { false };// Nyquist-hunting control
     std::atomic<bool>  harnessPreFilterTap { false };        // H1 / H6 signal tap (plan Decision 3)
     std::atomic<bool>  harnessSaturationBypass { false };    // DSP-07 memcmp control
+    std::atomic<bool>  harnessDcBlockerBypass { false };     // H3 |y| <= 1 row reads the pre-blocker scan bound
     std::atomic<float> harnessRampSeconds { 0.005f };        // H5 negative control (0 s ⇒ stepped)
     std::atomic<int>   harnessTerrainOverride[2] { -1, -1 }; // TerrainKind forced per oscillator (−1 = parameter)
 
