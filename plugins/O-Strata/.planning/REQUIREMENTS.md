@@ -4,7 +4,7 @@
 version: 2.0.0
 plugin: O-Strata
 created: 2026-09-07
-lastUpdated: 2026-09-08
+lastUpdated: 2026-09-10
 supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 ---
 
@@ -65,7 +65,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) at strictness 10, and auval — re-verified after the re-parameterise pass (the baked fork passed on 2026-09-07) | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) at strictness 10, and auval — re-verified after the re-parameterise pass (the baked fork passed on 2026-09-07) | must | complete | stage-1 |
 | COMPAT-02 | Windows VST3 build via CI (WebView2, static linking) | must | pending | stage-4 |
 
 ### Quality (QUAL)
@@ -140,7 +140,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 
 ### COMPAT-01 / COMPAT-02: Validation
 
-- [ ] pluginval strictness 10 VST3 + AU pass; auval pass — after the re-parameterise pass
+- [x] pluginval strictness 10 VST3 + AU pass; auval pass — after the re-parameterise pass (2026-09-10, `stages/1-foundation/VERIFICATION.md`)
 - [ ] CI Windows build green; WebView2 static linking and `withUserDataFolder()` in place
 
 ---
