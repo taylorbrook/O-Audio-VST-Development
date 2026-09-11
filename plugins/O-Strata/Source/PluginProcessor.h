@@ -131,6 +131,18 @@ public:
     /** Core 10 rings (0 = A, 1 = B); written by the display voice, read by Stage 3. */
     const CycleCapture& getCycleCapture (int oscIndex) const { return cycleCapture[juce::jlimit (0, 1, oscIndex)]; }
 
+    // ─── Shared base-value ramp rows (plan Decision 5; RESEARCH §2.4) ───
+    // 24 SmoothedValues (22 modulated base params + ModWheel + Aftertouch) filled
+    // once per processBlock into rampBuffers (24 rows × samplesPerBlock) BEFORE the
+    // voices render; voices index a row with the loop's ABSOLUTE sample position, so
+    // juce::Synthesiser's sub-block split at MIDI events costs nothing. Row order =
+    // StrataVoice's (0 Pos … 10 TerSat for A, 11–21 for B, 22 ModWheel, 23 Aftertouch);
+    // rows 6 / 17 hold log2 (Terrain Freq). A host that exceeds samplesPerBlock reads
+    // the last ramp sample (index clamped; never setSize on the audio thread).
+    static constexpr int kNumRampRows = 24;
+    const float* getRampRow (int row) const { return rampBuffers.getReadPointer (juce::jlimit (0, kNumRampRows - 1, row)); }
+    int getRampCapacity() const { return rampCapacity; }
+
     /** MIDI note of the most recently started voice — selects the Core 10 display voice. */
     int getLastPlayedNote() const { return lastPlayedNote.load (std::memory_order_relaxed); }
     void setLastPlayedNote (int n) { lastPlayedNote.store (n, std::memory_order_relaxed); }
@@ -191,6 +203,13 @@ private:
     TuningExporter tuningExporter;
 
     CycleCapture cycleCapture[2];
+
+    std::array<juce::SmoothedValue<float>, kNumRampRows> baseRamps;
+    juce::AudioBuffer<float> rampBuffers;
+    int rampCapacity = 0;
+    std::atomic<float>* pRampParam[kNumRampRows - 2] = {};   // the 22 base parameters in row order
+    void fillRampRows (int numSamples);
+
     int lastTuningPreset = -1;
     int lastTonic = -1;
 

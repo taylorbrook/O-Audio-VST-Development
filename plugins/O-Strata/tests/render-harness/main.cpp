@@ -17,6 +17,7 @@
 #include "ScaleGenerator.h"
 #include "dsp/ModulationMatrix.h"
 #include "dsp/TerrainOscillator.h"
+#include "dsp/HalfbandDecimator.h"
 #include "reference/theta_reference.h"
 #include "reference/spectrum.h"
 
@@ -1209,14 +1210,19 @@ namespace
             }
         check (identical == 66, fmt ("[H3] Feedback 0 byte-identical to feedbackPathEnabled = false on %d / 66 pairs", identical));
 
-        // Nyquist-hunting control: Damp 0, Feedback 1. The plan's single row (Ridged
-        // Cosines + Epitrochoid 5, C4, F = 1) is measured first; because the loop gain
-        // scales with the terrain slope (~ πF), the control also sweeps F ∈ {1, 4, 8} x
-        // {C4, C6} over the six terrains and reports the largest rise it can find.
+        // Nyquist-hunting control: Damp 0, Feedback 1, at 1x (Quality Bandlimited = the
+        // analytic 1x path in Round A): the hunting mode of a per-sub-sample loop sits at
+        // the OVERSAMPLED Nyquist, which the halfband decimator removes at 2x / 4x, so the
+        // two-sample average can only be observed doing its job at 1x (the 2x figure is
+        // printed for the record). The plan's single row (Ridged Cosines + Epitrochoid 5,
+        // C4, F = 1) is measured first; because the loop gain scales with the terrain
+        // slope (~ πF), the control also sweeps F ∈ {1, 4, 8} x {C4, C6} over the six
+        // terrains and reports the largest rise it can find.
         {
-            auto nyquistPeak = [] (int terrain, int orbit, float F, int note, bool single, double& absNyq) {
+            auto nyquistPeak = [] (int terrain, int orbit, float F, int note, bool single, double& absNyq, int quality = 0) {
                 Instance in; in.cleanPatch(); in.setTerrainOrbit (0, terrain, orbit);
                 in.setReal ("oscAOrbFeedback", 1.0f); in.setReal ("oscAOrbFbDamp", 0.0f); in.setReal ("oscATerFreq", F);
+                in.setChoice ("oscAQuality", quality);
                 in.p.harnessSingleSampleFeedback.store (single);
                 auto r = tapRender (in, note, 1.0);
                 const size_t nfft = 32768;
@@ -1241,7 +1247,12 @@ namespace
                         worstRel0 = std::max (worstRel0, r0);
                         if (b1 - b0 > bestRise) { bestRise = b1 - b0; bestAt = fmt ("%s x Epi5 %s F%.0f", kTerrainNames[t], note == 60 ? "C4" : "C6", F); }
                     }
-            std::printf ("  [H3] sweep: worst average-form Nyquist peak rel. strongest bin %.1f dB; largest single-sample rise %.1f dB at %s\n", worstRel0, bestRise, bestAt.c_str());
+            std::printf ("  [H3] sweep (1x): worst average-form Nyquist peak rel. strongest bin %.1f dB; largest single-sample rise %.1f dB at %s\n", worstRel0, bestRise, bestAt.c_str());
+            {
+                double c0, c1;
+                nyquistPeak (0, 4, 8.0f, 84, false, c0, 1); nyquistPeak (0, 4, 8.0f, 84, true, c1, 1);
+                std::printf ("  [H3] at 2x the decimator removes the oversampled-Nyquist hunt: SineProduct x Epi5 C6 F8 single-sample rise %.1f dB (record only)\n", c1 - c0);
+            }
             check (worstRel0 < 0.0, fmt ("[H3] two-sample average: fs/2 region never the strongest bin across the sweep (worst %.1f dB)", worstRel0));
             check (bestRise >= 20.0, fmt ("[H3 ctrl] single-sample feedback raises the Nyquist-region peak by %.1f dB at %s (need >= 20)", bestRise, bestAt.c_str()));
         }
@@ -1263,11 +1274,234 @@ namespace
     }
 
     //==========================================================================
+    // ── Phase 2.3: decimator, H6 aliasing, H7 CPU, H8 across Quality, crossfade, latency, export ──
+
+    void gateDecimator()
+    {
+        std::printf ("\n== decimator (HalfbandStage2 at 96 k -> 48 k: 30 kHz alias <= -68 dB; designed latencies) ==\n");
+        const auto& c = HalfbandCoeffs::get();
+        std::printf ("  coefficients 2x: direct %.6f %.6f %.6f delayed %.6f %.6f | 4x: direct %.6f %.6f delayed %.6f\n",
+                     c.direct2[0], c.direct2[1], c.direct2[2], c.delayed2[0], c.delayed2[1], c.direct4[0], c.direct4[1], c.delayed4[0]);
+        std::printf ("  latency: L2 = %.4f base samples, L4 = %.4f base samples (report +1 constant)\n", c.latency2, c.latency4);
+        check (c.latency2 <= 2.0 && c.latency4 <= 2.0 && c.latency2 > 1.0 && c.latency4 > c.latency2, fmt ("[dec] L2 = %.3f, L4 = %.3f (need 1 < L2 < L4 <= 2)", c.latency2, c.latency4));
+        HalfbandStage2 st;
+        const double fsOs = 96000.0; const size_t N = 65536;
+        std::vector<double> y (N);
+        for (size_t n = 0; n < N; ++n)
+        {
+            const double t0 = double (2 * n) / fsOs, t1 = double (2 * n + 1) / fsOs;
+            const float e = float (std::sin (2 * spectrum::kPi * 1000.0 * t0) + std::sin (2 * spectrum::kPi * 30000.0 * t0));
+            const float o = float (std::sin (2 * spectrum::kPi * 1000.0 * t1) + std::sin (2 * spectrum::kPi * 30000.0 * t1));
+            y[n] = st.down (e, o, c);
+        }
+        const size_t nfft = 65536;
+        const auto sp = spec (y, 0, nfft, nfft);
+        const double binHz = 48000.0 / double (nfft);
+        const double p1k = spectrum::peakPowerNear (sp, binHz, 1000.0, 5.0), p18k = spectrum::peakPowerNear (sp, binHz, 18000.0, 5.0);
+        check (spectrum::db (p18k, p1k) <= -68.0, fmt ("[dec] 30 kHz -> 18 kHz alias after 2x decimation: %.1f dB re 1 kHz (need <= -68)", spectrum::db (p18k, p1k)));
+    }
+
+    // ── H6: exact-cycle aliasing at fs = 440·65536/k ──
+    struct H6Row { double nonHarmMax, nonHarmFund; int highestHarm; };
+
+    H6Row h6Render (int terrain, int orbit, int note, int quality, int k, double fs)
+    {
+        Instance in; in.cleanPatch(); in.setTerrainOrbit (0, terrain, orbit);
+        in.setChoice ("oscAQuality", quality); in.setReal ("oscATerTrack", 1.0f);
+        in.p.harnessPreFilterTap.store (true);
+        in.prepare (fs, 512);
+        const size_t N = 65536;
+        RenderSpec s; s.seconds = 0.35 + double (N) / fs + 0.01; s.note = note; s.velocity = 1.0f;
+        auto r = render (in, s);
+        const size_t from = (size_t) (0.35 * fs);
+        std::vector<double> y (r.L.begin() + (long) from, r.L.begin() + (long) (from + N));
+        const auto a = spectrum::analyseExactCycle (y.data(), N, k, (size_t) (22000.0 / (fs / double (N))));
+        return { a.nonHarmOverMax(), a.nonHarmOverFund(), a.maxHarmIdxAboveMinus100dB };
+    }
+
+    void gateH6()
+    {
+        std::printf ("\n== H6 aliasing (66 x {A2, A4, A6} exact-cycle at fs = 440*65536/600, 2x: nonharm/max <= -60 dB; 4x and 1x reported; rate rows within 3 dB) ==\n");
+        const double fs = 440.0 * 65536.0 / 600.0;
+        const int notes[3] = { 45, 69, 93 }; const int cycles[3] = { 150, 600, 2400 }; const char* names[3] = { "A2", "A4", "A6" };
+        int fails2 = 0; double worst2 = -1e9, worst4 = -1e9, worst1 = -1e9; std::string worst2At, worst4At;
+        for (int t = 0; t < kNumAnalyticTerrains; ++t)
+            for (int o = 0; o < kNumOrbitKinds; ++o)
+            {
+                std::string line = fmt ("  [H6] %-13s x %-13s", kTerrainNames[t], kOrbitNames[o]);
+                for (int n = 0; n < 3; ++n)
+                {
+                    const auto r2 = h6Render (t, o, notes[n], 1, cycles[n], fs);
+                    const auto r4 = h6Render (t, o, notes[n], 2, cycles[n], fs);
+                    const auto r1 = h6Render (t, o, notes[n], 0, cycles[n], fs);
+                    line += fmt ("  %s 2x %6.1f (fund %6.1f, h<=%d) 4x %6.1f 1x %6.1f", names[n], r2.nonHarmMax, r2.nonHarmFund, r2.highestHarm, r4.nonHarmMax, r1.nonHarmMax);
+                    if (r2.nonHarmMax > -60.0) ++fails2;
+                    if (r2.nonHarmMax > worst2) { worst2 = r2.nonHarmMax; worst2At = fmt ("%s x %s %s", kTerrainNames[t], kOrbitNames[o], names[n]); }
+                    if (r4.nonHarmMax > worst4) { worst4 = r4.nonHarmMax; worst4At = fmt ("%s x %s %s", kTerrainNames[t], kOrbitNames[o], names[n]); }
+                    worst1 = std::max (worst1, r1.nonHarmMax);
+                }
+                std::printf ("%s\n", line.c_str());
+            }
+        check (fails2 == 0, fmt ("[H6] 2x: nonharm/max <= -60 dB on %d / 198 rows; worst %.1f dB at %s", 198 - fails2, worst2, worst2At.c_str()));
+        std::printf ("  [H6] 4x reported (not gated in Round A): worst %.1f dB at %s; 1x (analytic) worst %.1f dB\n", worst4, worst4At.c_str(), worst1);
+        // rate rows: Sine Product + Ellipse and Ridged Cosines + Epitrochoid 7 at 44.1 k / 96 k analogues
+        struct Rate { const char* name; double fs; int k[3]; } rates[] = { { "48k", 440.0 * 65536 / 600, { 150, 600, 2400 } }, { "44.1k", 440.0 * 65536 / 652, { 163, 652, 2608 } }, { "96k", 440.0 * 65536 / 300, { 75, 300, 1200 } } };
+        bool rateOk = true;
+        for (auto pr : { std::make_pair (0, 0), std::make_pair (3, 5) })
+        {
+            double ref[3] = {};
+            for (auto& rt : rates)
+            {
+                std::string line = fmt ("  [H6 rate] %-13s x %-13s %-5s 2x:", kTerrainNames[pr.first], kOrbitNames[pr.second], rt.name);
+                for (int n = 0; n < 3; ++n)
+                {
+                    const auto r = h6Render (pr.first, pr.second, notes[n], 1, rt.k[n], rt.fs);
+                    line += fmt (" %s %6.1f", names[n], r.nonHarmMax);
+                    if (&rt == &rates[0]) ref[n] = r.nonHarmMax;
+                    else if (std::abs (r.nonHarmMax - ref[n]) > 3.0 && r.nonHarmMax > -60.0) rateOk = false;
+                }
+                std::printf ("%s\n", line.c_str());
+            }
+        }
+        check (rateOk, "[H6] 44.1 k / 96 k rows within 3 dB of the 48 k row (or below -60 dB)");
+    }
+
+    // ── H7: CPU delta ──
+    double h7Wall (int quality, int unison, bool kernelBypass)
+    {
+        double best = 1.0e9;
+        for (int run = 0; run < 3; ++run)
+        {
+            Instance in;
+            in.setChoice ("oscAQuality", quality); in.setChoice ("oscBQuality", quality);
+            in.setReal ("oscAUnison", (float) unison); in.setReal ("oscBUnison", (float) unison);
+            in.p.harnessTerrainKernelBypass.store (kernelBypass);
+            in.prepare (48000.0, 512);
+            juce::AudioBuffer<float> buf (2, 512);
+            juce::MidiBuffer midi; midi.ensureSize (256);
+            for (int v = 0; v < 16; ++v) midi.addEvent (juce::MidiMessage::noteOn (1, 40 + v * 2, 0.8f), 0);
+            buf.clear(); in.p.processBlock (buf, midi);   // note-ons + warm-up
+            midi.clear();
+            const int blocks = 10 * 48000 / 512;
+            const auto t0 = std::chrono::steady_clock::now();
+            for (int b = 0; b < blocks; ++b) { buf.clear(); in.p.processBlock (buf, midi); }
+            best = std::min (best, secondsSince (t0));
+        }
+        return best / (10.0 * 48000.0 / 512.0 * 512.0 / 48000.0) * 100.0;   // % of one core over 10 s of audio
+    }
+
+    void gateH7()
+    {
+        std::printf ("\n== H7 CPU (16 voices x 2 osc, unison 1, 2x, default patch, 48 kHz, block 512, 10 s, best of 3; oscillator delta <= 12 %%) ==\n");
+        std::printf ("  machine: Apple M4 Max (Release build)\n");
+        const double total = h7Wall (1, 1, false), base = h7Wall (1, 1, true);
+        std::printf ("  [H7] total = %.2f %%  baseline (kernel bypass) = %.2f %%  delta = %.2f %%\n", total, base, total - base);
+        check (total - base <= 12.0, fmt ("[H7] oscillator delta = %.2f %% (need <= 12; total %.2f, baseline %.2f)", total - base, total, base));
+        const double t4 = h7Wall (1, 4, false), b4 = h7Wall (1, 4, true);
+        std::printf ("  [H7 rows] unison 4, 2x: total %.2f %% baseline %.2f %% delta %.2f %%\n", t4, b4, t4 - b4);
+        const double tq4 = h7Wall (2, 1, false), bq4 = h7Wall (2, 1, true);
+        std::printf ("  [H7 rows] unison 1, 4x: total %.2f %% baseline %.2f %% delta %.2f %%\n", tq4, bq4, tq4 - bq4);
+        const double tq1 = h7Wall (0, 1, false), bq1 = h7Wall (0, 1, true);
+        std::printf ("  [H7 rows] unison 1, Bandlimited (= 1x analytic in Round A): total %.2f %% baseline %.2f %% delta %.2f %%\n", tq1, bq1, tq1 - bq1);
+    }
+
+    // ── H8 across Quality ──
+    void gateH8Quality()
+    {
+        std::printf ("\n== H8 across Quality (Bandlimited -> 2x -> 4x every 50 ms + terrain / orbit changes under 16 held notes, 5 s) ==\n");
+        Instance in;
+        in.prepare (48000.0, 480);
+        RenderSpec s; s.seconds = 5.0; s.note = 40; s.armAllocations = true;
+        for (int v = 1; v < 16; ++v) s.extra.push_back ({ 0, juce::MidiMessage::noteOn (1, 40 + v * 2, 0.8f) });
+        int step = 0;
+        s.onBlock = [&] (int start) {
+            if (start % 2400 == 0)
+            {
+                in.setChoice ("oscAQuality", step % 3); in.setChoice ("oscBQuality", (step + 1) % 3);
+                in.setChoice ("oscATerrain", step % kNumAnalyticTerrains); in.setChoice ("oscAOrbit", (step * 7) % kNumOrbitKinds);
+                ++step;
+            }
+        };
+        auto r = render (in, s);
+        check (r.allocations == 0, fmt ("[H8] %lld allocations across %d Quality / terrain / orbit changes under 16 held notes%s (need 0)", r.allocations, step, rtcheck::foreignNote().c_str()));
+        check (allFinite (r.L) && allFinite (r.R), "[H8] output finite through every Quality switch");
+    }
+
+    // ── crossfade click + latency ──
+    void gateCrossfade()
+    {
+        std::printf ("\n== Quality switch (2x -> 4x at t = 1 s mid-note: no excess step outside the 64-sample crossfade) ==\n");
+        Instance in; h5Patch (in, false); in.setChoice ("oscAQuality", 1);
+        in.p.harnessPreFilterTap.store (true);
+        in.prepare (48000.0, 480);
+        RenderSpec s; s.seconds = 2.0; s.note = 60; s.velocity = 1.0f;
+        s.onBlock = [&] (int start) { if (start == 48000) in.setChoice ("oscAQuality", 2); };
+        auto r = render (in, s);
+        auto segMax = [&] (int from, int to) { double m = 0; for (int i = std::max (from, 1); i < to; ++i) m = std::max (m, std::abs (r.L[(size_t) i] - r.L[(size_t) i - 1])); return m; };
+        const double inside = segMax (48000, 48064), after = segMax (48064, 48000 + 4800), plateau = std::max (segMax (43200, 48000), segMax (52800, 57600));
+        std::printf ("  [xfade] max step inside the 64-sample window %.4f, outside (next 100 ms) %.4f, plateau %.4f\n", inside, after, plateau);
+        check (after <= 1.5 * plateau, fmt ("[xfade] max step outside the window %.4f <= 1.5 x plateau %.4f", after, plateau));
+        check (inside <= 1.5 * plateau, fmt ("[xfade] max step inside the window %.4f <= 1.5 x plateau %.4f (equal-gain fade of the same theta)", inside, plateau));
+    }
+
+    void gateLatency()
+    {
+        std::printf ("\n== latency (getLatencySamples() after prepareToPlay = distortion latency + 1 for every Quality pair x bypass) ==\n");
+        int bypassed[9], on[9]; int i = 0;
+        for (int qa = 0; qa < 3; ++qa) for (int qb = 0; qb < 3; ++qb)
+        {
+            Instance a; a.setChoice ("oscAQuality", qa); a.setChoice ("oscBQuality", qb); a.setNorm ("distBypass", 1.0f); a.prepare (48000.0, 512); bypassed[i] = a.p.getLatencySamples();
+            Instance b; b.setChoice ("oscAQuality", qa); b.setChoice ("oscBQuality", qb); b.setNorm ("distBypass", 0.0f); b.prepare (48000.0, 512); on[i] = b.p.getLatencySamples();
+            ++i;
+        }
+        bool ok = true; for (int j = 0; j < 9; ++j) if (bypassed[j] != 1 || on[j] != on[0] || on[j] < 2) ok = false;
+        std::printf ("  latency: distortion bypassed %d, distortion on %d (all 9 Quality pairs)\n", bypassed[0], on[0]);
+        check (ok, fmt ("[latency] bypassed = 1 and on = %d (= distortion latency %d + 1) for all 9 Quality pairs", on[0], on[0] - 1));
+        std::printf ("  note: the timerCallback follow-up uses the same expression (inspected; no message loop in Round A)\n");
+    }
+
+    // ── export grid ──
+    void gateExport()
+    {
+        std::printf ("\n== export (6 x 11 x {C2, C4, C6}, 2 s, defaults, 2x, 24-bit WAV -> %s; golden/round-a-grid.sha256) ==\n", opt.exportsDir.c_str());
+        juce::File dir (juce::String (opt.exportsDir));
+        dir.createDirectory();
+        juce::String sha;
+        int written = 0;
+        for (int t = 0; t < kNumAnalyticTerrains; ++t)
+            for (int o = 0; o < kNumOrbitKinds; ++o)
+                for (int n = 0; n < 3; ++n)
+                {
+                    Instance in; in.setReal ("oscAPhase", 0.25f); in.p.setHarnessPhaseSeed (opt.seed);
+                    in.setTerrainOrbit (0, t, o);
+                    RenderSpec s; s.seconds = 2.0; s.note = kCNotes[n]; s.velocity = 0.8f; s.noteOffAt = 1.5;
+                    auto r = render (in, s);
+                    const juce::String name = juce::String (kTerrainNames[t]) + "-" + kOrbitNames[o] + "-" + kNoteNames[n] + ".wav";
+                    juce::File f = dir.getChildFile (name);
+                    f.deleteFile();
+                    juce::WavAudioFormat wav;
+                    std::unique_ptr<juce::AudioFormatWriter> w (wav.createWriterFor (new juce::FileOutputStream (f), r.fs, 2, 24, {}, 0));
+                    if (w == nullptr) { std::printf ("!! cannot write %s\n", name.toRawUTF8()); continue; }
+                    juce::AudioBuffer<float> buf (2, (int) r.L.size());
+                    for (size_t i = 0; i < r.L.size(); ++i) { buf.setSample (0, (int) i, (float) r.L[i]); buf.setSample (1, (int) i, (float) r.R[i]); }
+                    w->writeFromAudioSampleBuffer (buf, 0, buf.getNumSamples());
+                    w.reset();
+                    juce::MemoryBlock bytes; f.loadFileAsData (bytes);
+                    sha << juce::SHA256 (bytes.getData(), bytes.getSize()).toHexString() << "  " << name << "\n";
+                    ++written;
+                }
+        const juce::File golden = juce::File (juce::String (opt.fixtures)).getParentDirectory().getChildFile ("golden/round-a-grid.sha256");
+        golden.getParentDirectory().createDirectory();
+        golden.replaceWithText (sha);
+        check (written == 198, fmt ("[export] %d / 198 WAVs written; checksums -> %s", written, golden.getFullPathName().toRawUTF8()));
+    }
+
+    //==========================================================================
     // ── CLI ──────────────────────────────────────────────────────────────────
 
     void usage()
     {
-        std::printf ("O-Strata-render-test --gate <H1..H9|tuning|smoke|centroids|saturation|all> [--gate ...]\n"
+        std::printf ("O-Strata-render-test --gate <H1..H9|tuning|smoke|centroids|saturation|decimator|crossfade|latency|export|all> [--gate ...]\n"
                      "  [--note N] [--velocity V] [--seconds S] [--terrain I] [--orbit I] [--quality I]\n"
                      "  [--set id=norm]... [--fs F] [--block B] [--seed S] [--fixtures DIR] [--export NAME]\n"
                      "  [--print-only] [--with-disk]\n");
@@ -1306,6 +1540,11 @@ namespace
         for (const auto& s : opt.gates) if (s == g || s == "all") return true;
         return false;
     }
+    bool wantsExact (const char* g)   // not part of --all (writes files)
+    {
+        for (const auto& s : opt.gates) if (s == g) return true;
+        return false;
+    }
 }
 
 //==============================================================================
@@ -1331,7 +1570,7 @@ int main (int argc, char** argv)
     {
         Instance in; in.cleanPatch(); in.applyCliOverrides();
         in.prepare (opt.fs, opt.block);
-        std::printf ("latency: %d samples\n", in.p.getLatencySamples());
+        std::printf ("latency: %d samples (halfband L2 = %.4f, L4 = %.4f base samples)\n", in.p.getLatencySamples(), HalfbandCoeffs::get().latency2, HalfbandCoeffs::get().latency4);
         RenderSpec s; s.seconds = opt.seconds; s.note = opt.note; s.velocity = opt.velocity;
         auto r = render (in, s);
         std::printf ("render: %d samples, rms %.4f, max %.4f, finite %d\n", (int) r.L.size(), rms (r.L, 0), maxAbs (r.L), (int) allFinite (r.L));
@@ -1349,6 +1588,13 @@ int main (int argc, char** argv)
     if (wants ("H5"))        gateH5();
     if (wants ("H8"))        gateH8();
     if (wants ("H9"))        gateH9();
+    if (wants ("decimator")) gateDecimator();
+    if (wants ("H6"))        gateH6();
+    if (wants ("H8"))        gateH8Quality();
+    if (wants ("crossfade")) gateCrossfade();
+    if (wants ("latency"))   gateLatency();
+    if (wants ("H7"))        gateH7();
+    if (wantsExact ("export")) gateExport();
 
     std::printf ("\n%s — %d check(s), %d failure(s), %.1f s\n", failures == 0 ? "ALL GATES PASSED" : "GATES FAILED", checksRun, failures, secondsSince (t0));
     return failures;

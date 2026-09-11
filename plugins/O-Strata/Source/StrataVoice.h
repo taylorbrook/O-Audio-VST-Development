@@ -230,14 +230,11 @@ private:
     CycleCapture* captureA = nullptr;
     CycleCapture* captureB = nullptr;
 
-    // Core 9 smoothing (QUAL-02): one 5 ms ramp per modulated base value (22) +
-    // ModWheel / Aftertouch (2). setTargetValue once per block, getNextValue per
-    // sample, setCurrentAndTargetValue at note-on when the voice was idle
-    // (an idle voice never advances its ramps — RESEARCH §2.4).
-    std::array<juce::SmoothedValue<float>, kNumRamps> ramps;
+    // Core 9 smoothing (QUAL-02) lives in the processor since Phase 2.3 (plan
+    // Decision 5): 24 shared ramp rows filled per block, read here by absolute
+    // sample index — every voice sees identical, always-current base values and
+    // no note-on snap is needed.
 
-    /** Base value for ramp row r (rows 6 / 17 in log2). */
-    float rampTarget (int row) const;
     /** Per-sample oscillator feed: ramp rows + mod offsets → the nine per-sample setters. */
     void feedOscillator (TerrainOscillator& osc, int rowBase, int destBase, const float* rowValues);
     double lastOscAOut = 0.0;

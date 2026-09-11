@@ -641,6 +641,15 @@ OStrataAudioProcessor::OStrataAudioProcessor()
     // Processor-level mod matrix for global FX destinations (WR-02)
     fxModMatrix.setAPVTS (&parameters);
 
+    // Shared ramp rows: the 22 base parameters in StrataVoice row order
+    {
+        static const char* const kRowSuffix[11] = { "Pos", "OrbAspect", "OrbRot", "OrbCX", "OrbCY", "OrbMod",
+                                                    "TerFreq", "TerModX", "TerModY", "OrbFeedback", "TerSat" };
+        for (int osc = 0; osc < 2; ++osc)
+            for (int r = 0; r < 11; ++r)
+                pRampParam[osc * 11 + r] = parameters.getRawParameterValue (juce::String (osc == 0 ? "oscA" : "oscB") + kRowSuffix[r]);
+    }
+
     // Reaper for retired objects (see retire / timerCallback) + latency follow-up
     startTimer (500);
 }
@@ -712,11 +721,24 @@ void OStrataAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     masterVolSmoothed.reset (sampleRate, 0.02);
     stereoWidthSmoothed.reset (sampleRate, 0.02);
 
-    // IN-04: distortion (oversampler) is the only latency source and is
-    // skipped entirely when bypassed — report 0 then, or the host delay-
-    // compensates a path with no latency. Kept current by timerCallback.
-    setLatencySamples (pDistBypass->load() > 0.5f
-        ? 0 : static_cast<int> (distortion.getLatencyInSamples()));
+    // Shared base-value ramps (5 ms; harnessRampSeconds is the H5 negative control)
+    rampBuffers.setSize (kNumRampRows, juce::jmax (1, samplesPerBlock));
+    rampCapacity = juce::jmax (1, samplesPerBlock);
+    for (int i = 0; i < kNumRampRows; ++i)
+    {
+        baseRamps[static_cast<size_t> (i)].reset (sampleRate, static_cast<double> (harnessRampSeconds.load()));
+        baseRamps[static_cast<size_t> (i)].setCurrentAndTargetValue (0.0f);
+    }
+    fillRampRows (rampCapacity);   // snap every row to its current base value (no start-up glide)
+    for (auto& r : baseRamps) r.setCurrentAndTargetValue (r.getTargetValue());
+
+    // IN-04: the distortion oversampler is skipped entirely when bypassed, so
+    // its latency is reported only when it runs. Kept current by timerCallback.
+    // +1: the terrain oscillators' halfband decimators (1.26 samples at 2×, 1.74
+    // at 4×, 0 Bandlimited — ARCH Decision 5, RESEARCH §2.2); constant because
+    // Quality is per-oscillator and automatable, so a per-path report is impossible.
+    setLatencySamples ((pDistBypass->load() > 0.5f
+        ? 0 : static_cast<int> (distortion.getLatencyInSamples())) + 1);
 }
 
 void OStrataAudioProcessor::releaseResources() {}
@@ -796,6 +818,9 @@ void OStrataAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         else if (msg.isChannelPressure()) // Channel aftertouch
             aftertouchValue.store (msg.getChannelPressureValue() / 127.0f, std::memory_order_relaxed);
     }
+
+    // Shared base-value ramp rows for this block (voices read them by absolute sample index)
+    fillRampRows (buffer.getNumSamples());
 
     // Render synth voices
     synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
@@ -1001,9 +1026,10 @@ void OStrataAudioProcessor::retire (std::unique_ptr<Retirable> object)
 void OStrataAudioProcessor::timerCallback()
 {
     // IN-04: follow distortion bypass with the reported latency (message
-    // thread — setLatencySamples notifies the host).
-    const int wantedLatency = pDistBypass->load() > 0.5f
-        ? 0 : static_cast<int> (distortion.getLatencyInSamples());
+    // thread — setLatencySamples notifies the host). +1 for the terrain
+    // oscillators' halfband decimators, constant across Quality (see prepareToPlay).
+    const int wantedLatency = (pDistBypass->load() > 0.5f
+        ? 0 : static_cast<int> (distortion.getLatencyInSamples())) + 1;
     if (wantedLatency != getLatencySamples())
         setLatencySamples (wantedLatency);
 
@@ -1020,6 +1046,39 @@ void OStrataAudioProcessor::timerCallback()
         std::remove_if (retired.begin(), retired.end(),
                         [gen] (const Retired& r) { return gen >= r.retiredAt + 2; }),
         retired.end());
+}
+
+void OStrataAudioProcessor::fillRampRows (int numSamples)
+{
+    jassert (numSamples <= rampCapacity);   // a host exceeding samplesPerBlock reads the last ramp sample
+    const int n = juce::jmin (numSamples, rampCapacity);
+
+    for (int i = 0; i < kNumRampRows; ++i)
+    {
+        float target;
+        if (i < kNumRampRows - 2)
+        {
+            target = pRampParam[i]->load();
+            if (i == 6 || i == 17)
+                target = std::log2 (target);   // exact-log Terrain Freq ramps in log2 (Stage 2 CONTEXT constraint)
+        }
+        else
+            target = i == kNumRampRows - 2 ? modWheelValue.load (std::memory_order_relaxed)
+                                           : aftertouchValue.load (std::memory_order_relaxed);
+
+        auto& ramp = baseRamps[static_cast<size_t> (i)];
+        ramp.setTargetValue (target);
+        float* row = rampBuffers.getWritePointer (i);
+        if (ramp.isSmoothing())
+        {
+            for (int s = 0; s < n; ++s)
+                row[s] = ramp.getNextValue();
+        }
+        else
+        {
+            juce::FloatVectorOperations::fill (row, target, n);
+        }
+    }
 }
 
 void OStrataAudioProcessor::updateOscillatorAssignments()
