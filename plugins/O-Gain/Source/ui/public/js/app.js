@@ -754,10 +754,21 @@ const METER_DB_MIN = -60;        // meter bottom (dB)
 const METER_DB_MAX = 0;          // meter top / full scale (dB)
 const CLIP_THRESHOLD_DB = -0.5;  // clip indicator lights when peak exceeds this (dBFS)
 
-// Convert linear amplitude to dB
+// Convert linear amplitude to dB.
+//
+// The guard is written as `!(amp > x)` rather than `amp <= x` so it also
+// catches undefined and NaN: every field below arrives from a C++-built
+// string, and a payload that predates a field (an older editor, or a
+// tests/i18n-states.json fixture written before v1.5.0 added the output VU
+// pair) would otherwise reach Math.log10 and paint every bar NaN% tall.
 function ampToDb(amp) {
-  if (amp <= 0.00001) return -100;
+  if (!(amp > 0.00001)) return -100;
   return 20 * Math.log10(amp);
+}
+
+// A dB reading for a readout cell: one decimal, or the -inf floor.
+function fmtDb(db) {
+  return db > -99 ? db.toFixed(1) : '-inf';
 }
 
 // Convert dB to meter percentage (0-100) across the METER_DB_MIN..MAX range
@@ -783,10 +794,15 @@ window.updateMeters = function(data) {
       outR = ampToDb(data.outputRmsR);
       break;
     case 2: // VU
+      // v1.5.0: the output pair is the post-gain VU, not outputRms. Through
+      // v1.4.0 this case read a 300 ms ANSI-ballistic input against a
+      // per-block RMS output, so the two columns a user compares to confirm
+      // unity gain were two different integrations of the same signal, and a
+      // transient read as a gain error that was not there.
       inL = ampToDb(data.vuLevelL);
       inR = ampToDb(data.vuLevelR);
-      outL = ampToDb(data.outputRmsL);
-      outR = ampToDb(data.outputRmsR);
+      outL = ampToDb(data.vuLevelOutL);
+      outR = ampToDb(data.vuLevelOutR);
       break;
     case 3: // LUFS — K-weighted momentary loudness (input, during Learn)
       // Momentary LUFS is only computed while Learn runs; when it is live,
@@ -798,6 +814,9 @@ window.updateMeters = function(data) {
         inL = ampToDb(data.inputRmsL);
         inR = ampToDb(data.inputRmsR);
       }
+      // The output column stays RMS here and is NOT relabelled LUFS: the
+      // K-weighting filters run on the input only, so there is no post-gain
+      // loudness value to show. Stated rather than silently mirrored.
       outL = ampToDb(data.outputRmsL);
       outR = ampToDb(data.outputRmsR);
       break;
@@ -822,11 +841,23 @@ window.updateMeters = function(data) {
   document.getElementById('output-clip-l').classList.toggle('clipping', outPeakL > CLIP_THRESHOLD_DB);
   document.getElementById('output-clip-r').classList.toggle('clipping', outPeakR > CLIP_THRESHOLD_DB);
 
-  // dB readouts under meters
-  const maxInDb = Math.max(inL, inR);
-  const maxOutDb = Math.max(outL, outR);
-  document.getElementById('input-db-label').textContent = maxInDb > -99 ? maxInDb.toFixed(0) : '-inf';
-  document.getElementById('output-db-label').textContent = maxOutDb > -99 ? maxOutDb.toFixed(0) : '-inf';
+  // v1.5.0: the held peak rides over the average bar, on EVERY mode. The
+  // source is the same decayed peak the clip strip already used (a ~300 ms
+  // per-block decay applied in the processor), so no new measurement was
+  // added -- the value was always being sent and only the clip strip read it.
+  // In Peak mode the cap sits exactly on the bar top, which is the honest
+  // reading rather than a redundancy to hide.
+  document.getElementById('input-peak-cap-l').style.bottom = dbToPercent(inPeakL) + '%';
+  document.getElementById('input-peak-cap-r').style.bottom = dbToPercent(inPeakR) + '%';
+  document.getElementById('output-peak-cap-l').style.bottom = dbToPercent(outPeakL) + '%';
+  document.getElementById('output-peak-cap-r').style.bottom = dbToPercent(outPeakR) + '%';
+
+  // dB readouts under meters: the peak-versus-average PAIR, both columns.
+  // Loudest of L/R on each, which is the reading that decides headroom.
+  document.getElementById('input-db-peak').textContent  = fmtDb(Math.max(inPeakL, inPeakR));
+  document.getElementById('input-db-avg').textContent   = fmtDb(Math.max(inL, inR));
+  document.getElementById('output-db-peak').textContent = fmtDb(Math.max(outPeakL, outPeakR));
+  document.getElementById('output-db-avg').textContent  = fmtDb(Math.max(outL, outR));
 
   // Apply meter bar color gradient based on level
   applyMeterColor('input-meter-l', inL);
@@ -958,5 +989,5 @@ window.addEventListener('DOMContentLoaded', () => {
   initI18n();
   initializeTooltips();
 
-  console.log('O-Gain v1.3.2 UI loaded');
+  console.log('O-Gain v1.5.0 UI loaded');
 });

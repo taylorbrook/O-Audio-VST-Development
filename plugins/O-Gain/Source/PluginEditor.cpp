@@ -169,7 +169,15 @@ OGainAudioProcessorEditor::OGainAudioProcessorEditor(OGainAudioProcessor& p)
 #endif
 
     // Set window size (compact for mixer strip)
-    setSize(350, 500);
+    //
+    // v1.5.0: 350 -> 380. The extra 30 px is the two 14 px dB-scale gutters the
+    // meter columns gained (44 -> 58 px each) plus 2 px that lands in the centre
+    // column. It is NOT cosmetic: .learn-section is pinned at 121 + 8 + 91 = 220
+    // px exactly, so taking the gutters out of the centre instead would have
+    // overflowed that row. Both UI gates parse this call for their viewport
+    // (check-ui-labels, measure-ui via readEditorSize), so they re-measure at
+    // the new frame with no argument of their own.
+    setSize(380, 500);
 
     // Start meter update timer (30fps)
     startTimerHz(30);
@@ -210,7 +218,7 @@ void OGainAudioProcessorEditor::timerCallback()
         "if (typeof updateMeters === 'function') { updateMeters({"
         "inputPeakL:%f, inputPeakR:%f, inputRmsL:%f, inputRmsR:%f,"
         "outputPeakL:%f, outputPeakR:%f, outputRmsL:%f, outputRmsR:%f,"
-        "vuLevelL:%f, vuLevelR:%f,"
+        "vuLevelL:%f, vuLevelR:%f, vuLevelOutL:%f, vuLevelOutR:%f,"
         "momentaryLUFS:%f, shortTermLUFS:%f, integratedLUFS:%f, samplePeakDBFS:%f,"
         "learnState:%d, learnElapsedSeconds:%f, learnConfidence:%d"
         "}); }",
@@ -219,6 +227,7 @@ void OGainAudioProcessorEditor::timerCallback()
         processorRef.outputPeakL.load(), processorRef.outputPeakR.load(),
         processorRef.outputRmsL.load(), processorRef.outputRmsR.load(),
         processorRef.vuLevelL.load(), processorRef.vuLevelR.load(),
+        processorRef.vuLevelOutL.load(), processorRef.vuLevelOutR.load(),
         learn.momentaryLUFS, learn.shortTermLUFS,
         learn.integratedLUFS, learn.samplePeakDBFS,
         learn.state, learn.elapsedSeconds, learn.confidence

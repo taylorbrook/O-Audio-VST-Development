@@ -81,6 +81,17 @@ public:
     std::atomic<float> vuLevelL    { 0.0f };
     std::atomic<float> vuLevelR    { 0.0f };
 
+    // v1.5.0: OUTPUT VU metering (ballistics-filtered, post-gain).
+    //
+    // Through v1.4.0 the page drove the input bar from vuLevel* and the OUTPUT
+    // bar from outputRms* in the very same VU mode, so the two columns were a
+    // 300 ms ANSI-ballistic reading beside a per-block RMS one. Comparing input
+    // against output is the whole reason a gain utility shows both columns --
+    // "check that the output roughly matches the input" -- and in the DEFAULT
+    // meter mode that comparison was between two different integrations.
+    std::atomic<float> vuLevelOutL { 0.0f };
+    std::atomic<float> vuLevelOutR { 0.0f };
+
     // =========================================================================
     // Learn mode state (UI thread writes flags, audio thread reads/accumulates)
     // =========================================================================
@@ -156,6 +167,12 @@ private:
     // VU meter ballistics (300ms attack/release, RMS mode)
     juce::dsp::BallisticsFilter<float> vuBallisticsL;
     juce::dsp::BallisticsFilter<float> vuBallisticsR;
+
+    // v1.5.0: the post-gain pair. Separate filter state from the input pair --
+    // one filter cannot carry two signals, and reusing the input filters would
+    // make each column's reading depend on the order the two were processed.
+    juce::dsp::BallisticsFilter<float> vuBallisticsOutL;
+    juce::dsp::BallisticsFilter<float> vuBallisticsOutR;
 
     // =========================================================================
     // K-Weighting Filters (double precision, per channel)

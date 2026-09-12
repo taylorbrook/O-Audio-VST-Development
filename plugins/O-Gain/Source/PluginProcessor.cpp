@@ -637,6 +637,22 @@ void OGainAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     vuBallisticsR.setReleaseTime(kVuBallisticsMs);
     vuBallisticsR.setLevelCalculationType(juce::dsp::BallisticsFilterLevelCalculationType::RMS);
 
+    // v1.5.0: the post-gain pair, configured IDENTICALLY to the input pair.
+    // Identical is the point: the two columns are read against each other, so
+    // any difference in attack, release or level-calculation type would show up
+    // as a gain error that is not there.
+    vuBallisticsOutL.prepare(monoSpec);
+    vuBallisticsOutL.reset();
+    vuBallisticsOutL.setAttackTime(kVuBallisticsMs);
+    vuBallisticsOutL.setReleaseTime(kVuBallisticsMs);
+    vuBallisticsOutL.setLevelCalculationType(juce::dsp::BallisticsFilterLevelCalculationType::RMS);
+
+    vuBallisticsOutR.prepare(monoSpec);
+    vuBallisticsOutR.reset();
+    vuBallisticsOutR.setAttackTime(kVuBallisticsMs);
+    vuBallisticsOutR.setReleaseTime(kVuBallisticsMs);
+    vuBallisticsOutR.setLevelCalculationType(juce::dsp::BallisticsFilterLevelCalculationType::RMS);
+
     // Prepare K-weight filters
     juce::dsp::ProcessSpec doubleMonoSpec;
     doubleMonoSpec.sampleRate = sampleRate;
@@ -1099,6 +1115,42 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         outputPeakR.store(outputPeakDecayR, std::memory_order_relaxed);
         outputRmsL.store(rmsL, std::memory_order_relaxed);
         outputRmsR.store(rmsR, std::memory_order_relaxed);
+    }
+
+    // =========================================================================
+    // STEP 7: Output VU Ballistics (post-gain) -- v1.5.0
+    // =========================================================================
+    //
+    // The mirror image of STEP 3, sample-for-sample, on the post-gain buffer.
+    // Mono mirrors into both meters exactly as STEP 3 does (WR-02).
+
+    if (numChannels >= 2)
+    {
+        const auto* leftData  = buffer.getReadPointer(0);
+        const auto* rightData = buffer.getReadPointer(1);
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            float vuL = vuBallisticsOutL.processSample(0, std::abs(leftData[i]));
+            float vuR = vuBallisticsOutR.processSample(0, std::abs(rightData[i]));
+
+            if (i == numSamples - 1)
+            {
+                vuLevelOutL.store(vuL, std::memory_order_relaxed);
+                vuLevelOutR.store(vuR, std::memory_order_relaxed);
+            }
+        }
+    }
+    else if (numChannels == 1)
+    {
+        const auto* data = buffer.getReadPointer(0);
+
+        float vu = 0.0f;
+        for (int i = 0; i < numSamples; ++i)
+            vu = vuBallisticsOutL.processSample(0, std::abs(data[i]));
+
+        vuLevelOutL.store(vu, std::memory_order_relaxed);
+        vuLevelOutR.store(vu, std::memory_order_relaxed);
     }
 }
 

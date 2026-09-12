@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.1
+- **Version:** 1.5.0
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -30,7 +30,16 @@
   Manual `gain_offset` keeps its full ±40 dB range. Verified auval PASS (Component Version
   1.2.1 = 0x10201).
 
+- **2026-09-12 (v1.5.0):** Metering read-out overhaul. A held peak cap now rides over
+  the average bar in every mode (reusing the existing decayed-peak atomics), each column
+  gained a 14 px dB scale gutter with gridlines at 0/-6/-12/-18/-24/-36/-60, the -18 to
+  -12 dBFS staging band and the -6 dBFS mix-bus line are drawn on the bar, and the single
+  rounded readout became a peak/average pair. Fixed VU mode comparing a 300 ms ballistic
+  input against a per-block RMS output by adding post-gain VU ballistics (STEP 7). Frame
+  350 x 500 -> 380 x 500. No parameter, range, type or state format changed.
+
 ## Known Issues
+
 
 All code-review findings (CR-01/02, WR-01…05, IN-01…06) are now resolved across v1.1.0
 and v1.2.0. One conscious non-defect remains:

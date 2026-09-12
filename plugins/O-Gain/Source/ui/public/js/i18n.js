@@ -283,24 +283,24 @@ export const I18N = Object.freeze({
     //    the control's own caption, reused verbatim from v1.2.1's markup.
     'input-meter': {
         en: { t: 'Input',
-              b: 'Input level after channel utilities, before gain is applied' },
+              b: 'Input level after channel utilities, before gain is applied. The bar is the average, the line riding above it the recent peak. The shaded band is the -18 to -12 dBFS staging target; the red line is -6 dBFS.' },
         fr: { t: 'Entrée',
-              b: 'Niveau d’entrée après les utilitaires de canal, avant application du gain',
+              b: 'Niveau d’entrée après les utilitaires de canal, avant application du gain. La barre indique la moyenne, le trait au-dessus la crête récente. La bande ombrée est la cible de calibrage de −18 à −12 dBFS ; le trait rouge marque −6 dBFS.',
               reviewed: true },
     
         'zh-Hans': { t: '输入',
-              b: '经过声道工具之后、施加增益之前的输入电平',
+              b: '经过声道工具之后、施加增益之前的输入电平。柱体为平均值，上方的细线为近期峰值。阴影带是−18 至 −12 dBFS 的增益校准目标，红线为−6 dBFS。',
               reviewed: 'bt' },
     },
     'output-meter': {
         en: { t: 'Output',
-              b: 'Output level after gain is applied' },
+              b: 'Output level after gain is applied. Read it against the input column to confirm a plugin chain is passing at unity. Both columns use the same meter mode, so peak sits over average on each.' },
         fr: { t: 'Sortie',
-              b: 'Niveau de sortie après application du gain',
+              b: 'Niveau de sortie après application du gain. À lire en regard de la colonne d’entrée pour vérifier qu’une chaîne de traitement reste à gain unitaire. Les deux colonnes utilisent le même mode de vumètre, la crête se plaçant au-dessus de la moyenne sur chacune.',
               reviewed: true },
     
         'zh-Hans': { t: '输出',
-              b: '施加增益之后的输出电平',
+              b: '施加增益之后的输出电平。与输入栏对照阅读，可确认插件链保持单位增益。两栏使用相同的表模式，峰值均位于平均值上方。',
               reviewed: 'bt' },
     },
     'gain-display': {
@@ -597,6 +597,18 @@ export const LABELS = Object.freeze({
     'label.input':  { en: { t: 'Input' },  fr: { t: 'Entrée', reviewed: true } , 'zh-Hans': { t: '输入', reviewed: 'bt' }},
     'label.output': { en: { t: 'Output' }, fr: { t: 'Sortie', reviewed: true } , 'zh-Hans': { t: '输出', reviewed: 'bt' }},
 
+    // ── v1.5.0: the peak-versus-average readout pair under each column ──────
+    // KEYED, not exempt, and the distinction is worth stating because this page
+    // carries an I18N_EXEMPT entry for the string 'Peak' three rows below the
+    // meter. That exemption is the meter_mode OPTION STRING, matched BYTE for
+    // byte and capitalised; these are lowercase captions the page invented for
+    // its own readout, they never reached the host, and no automation lane has
+    // ever shown them. Exemption matching is `e.text === text` -- case
+    // sensitive -- so 'peak' is NOT silenced by 'Peak' and assertion 10 will
+    // demand a key for it. It has one.
+    'label.pk':  { en: { t: 'peak' }, fr: { t: 'crête', reviewed: false } , 'zh-Hans': { t: '峰值', reviewed: 'mt' }},
+    'label.avg': { en: { t: 'avg' },  fr: { t: 'moy.',  reviewed: false } , 'zh-Hans': { t: '平均', reviewed: 'mt' }},
+
     // ── The big gain readout's caption. The readout itself and its "dB" unit
     //    are NOT keyed — contract §5, D-03.
     'label.gainOffset': { en: { t: 'Gain Offset' }, fr: { t: 'Décalage de gain', reviewed: true } , 'zh-Hans': { t: '增益偏移', reviewed: 'bt' }},
@@ -771,6 +783,22 @@ export const I18N_EXEMPT = [
      'the placeholder face of the four Learn readouts, which otherwise show "-23.4 LUFS". A readout under D-03, and its unit is language-neutral'],
     ['-- dBFS',
      'the placeholder face of the #lufs-true-peak readout, which otherwise shows "-1.2 dBFS" — a readout under D-03'],
+
+    // ── v1.5.0: the dB scale gutter ─────────────────────────────────────────
+    // Seven numerals down the side of each meter. SCOPED to .meter-scale, which
+    // is the whole reason the scope argument exists: "0" and "-6" are not rare
+    // strings, and an unscoped entry here would silence assertion 10 for any
+    // future caption anywhere on the page that happened to read "0". A dB
+    // gridline number is a unit-scale mark, language-neutral under D-03, and it
+    // carries hyphen-minus rather than U+2212 for the same reason every readout
+    // on this page does.
+    ['0',   'dB scale gridline in the v1.5.0 meter gutter -- a unit-scale mark, language-neutral (D-03)', '.meter-scale'],
+    ['-6',  'dB scale gridline (the mix-bus ceiling mark) -- language-neutral (D-03)', '.meter-scale'],
+    ['-12', 'dB scale gridline (top of the staging band) -- language-neutral (D-03)', '.meter-scale'],
+    ['-18', 'dB scale gridline (bottom of the staging band, 0 VU) -- language-neutral (D-03)', '.meter-scale'],
+    ['-24', 'dB scale gridline -- language-neutral (D-03)', '.meter-scale'],
+    ['-36', 'dB scale gridline -- language-neutral (D-03)', '.meter-scale'],
+    ['-60', 'dB scale gridline (METER_DB_MIN, the meter floor) -- language-neutral (D-03)', '.meter-scale'],
 
     // ── Endonyms ────────────────────────────────────────────────────────────
     ['English',  'endonym — a language name is never translated'],
