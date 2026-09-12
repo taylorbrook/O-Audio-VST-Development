@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.0
+- **Version:** 1.9.1
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -69,6 +69,9 @@
   bars in LUFS; the second readout caption is the mode's name and unit (RMS in Peak mode, VU
   signed). `label.avg` retired. check-i18n / fr / zh lints and check-ui-labels (11 states)
   all 0 FAIL at 380 x 500. UI-only; no parameter or state change.
+- **2026-09-12 (v1.9.1):** Measure / Meter captions and the Settings cog (glyph and ring) black
+  (`#000000`, were the `#8B7355` tan); cog hover is an 8 % black wash instead of the brown
+  swap. CSS-only.
 
 ## Known Issues
 
