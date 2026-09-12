@@ -2,6 +2,124 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.5.0] - 2026-09-12
+
+The meter learns to show the PAIR. MINOR: new UI surfaces, one new DSP
+measurement (post-gain VU ballistics), a 30 px wider frame. No parameter, range,
+type or state format changed, and the audio path is untouched — every v1.x
+session and preset loads identically.
+
+### Added
+
+- **A held peak riding over the average bar, in every meter mode.** Through
+  v1.4.0 one bar carried whichever single reading `meter_mode` selected, so the
+  peak and the average were never on screen at the same time — the one
+  comparison a level meter exists to support. The cap reads the SAME decayed
+  peak the clip strip already used (a ~300 ms per-block decay computed in the
+  processor), so **no new measurement was added for it**: the value was being
+  sent every frame and only the clip strip read it. In Peak mode the cap sits
+  exactly on the bar top, which is the honest reading rather than a redundancy
+  worth hiding.
+- **A dB scale gutter on each meter column**, 14 px, on the OUTER edge of each
+  (left of the input bars, right of the output bars) so neither scale is
+  stranded in the middle of the window beside the gain readout. Seven gridlines
+  — 0, -6, -12, -18, -24, -36, -60 — positioned off the meter's own
+  `METER_DB_MIN` = -60 linear mapping, so a gridline and the bar beside it
+  cannot disagree.
+- **The staging targets drawn ON the bar**: a shaded band from -18 to -12 dBFS
+  and a line at -6 dBFS. Both are z-indexed ABOVE `.meter-bar`, deliberately.
+  Painted behind it they would be visible only while the signal sits below
+  them, which is exactly the moment a staging target does not matter — the
+  reading a user needs is "the bar is IN the band", and that is unreadable if
+  arriving at the band erases the band.
+- **A peak-versus-average readout pair under each column**, replacing the single
+  rounded number. Both now show one decimal.
+- **`vuLevelOutL` / `vuLevelOutR` and a second pair of `BallisticsFilter`s**
+  (STEP 7 in `processBlock`, the mirror of STEP 3 on the post-gain buffer),
+  configured IDENTICALLY to the input pair — identical is the point, since the
+  two columns are read against each other and any difference in attack, release
+  or level-calculation type would surface as a gain error that is not there.
+  Mono mirrors into both meters exactly as STEP 3 does (WR-02).
+
+### Fixed
+
+- **VU mode compared a 300 ms ballistic input against a per-block RMS output.**
+  `case 2` drove the input bars from `vuLevel*` and the output bars from
+  `outputRms*` — two different integrations of the same signal, in the DEFAULT
+  meter mode, on the one plugin whose job is confirming that a chain passes at
+  unity. A transient therefore read as a gain error that was not there. The
+  output pair is now the post-gain VU.
+- **`ampToDb` now rejects undefined and NaN, not just silence.** The guard was
+  `amp <= 0.00001`, which is false for `undefined`, so any payload missing a
+  field reached `Math.log10` and painted every bar `NaN%` tall. Written as
+  `!(amp > 0.00001)` it catches both. This is not hypothetical: this version's
+  own `tests/i18n-states.json` fixtures predated the output-VU pair.
+
+### Changed
+
+- **The editor frame is 350 x 500 -> 380 x 500** and the meter columns 44 -> 58
+  px. The extra 30 px is the two 14 px gutters plus 2 px landing in the centre
+  column. It is NOT cosmetic: `.learn-section` is pinned at 121 + 8 + 91 = 220
+  px exactly, so taking the gutters out of the centre instead would have
+  overflowed that row. Both UI gates parse `setSize` for their viewport, so they
+  re-measure at the new frame with no argument of their own.
+- **`.meter-pair` went from `width: 100%` to `min-width: 0`.** It used to be a
+  direct column child, where 100% meant "the column"; it is now a flex item in
+  a row, where a 100% basis is the parent's FULL width and the gutter beside it
+  would push the pair into overflow.
+- **`label.pk` / `label.avg` are KEYED, not exempt**, and the distinction is
+  worth recording because this page carries an `I18N_EXEMPT` entry for the
+  string `Peak`. That exemption is the `meter_mode` OPTION STRING, matched byte
+  for byte and capitalised. These are lowercase captions the page invented for
+  its own readout; they never reached the host and no automation lane has shown
+  them. Exemption matching is `e.text === text` — case sensitive — so `peak` is
+  not silenced by `Peak`, and assertion 10 demands a key for it. It has one.
+- **The seven scale numerals are exempt WITH A SCOPE** (`.meter-scale`). An
+  unscoped entry would have silenced assertion 10 for any future caption
+  anywhere on the page that happened to read `0`, which is the precise hole the
+  scope argument was added to close.
+- **Both meter tooltips were rewritten in all three languages** to name the
+  bar, the cap, the band and the -6 line, since a tip that describes a meter
+  the page no longer draws is worse than no tip.
+
+### Caught by the gates before shipping, and recorded
+
+- **`grid-template-columns: auto 1fr` let the French caption move the value
+  cell.** Column one was sized from its content — a `[data-i18n]` element — so
+  `#input-db-peak`, `#input-db-avg`, `#output-db-peak` and `#output-db-avg` each
+  moved `dx=0.8 dw=-0.8` between English and French. check-ui-labels assertion 7
+  named all four. The column is now a hard 20 px against measured captions of
+  **en 17.56 / fr 18.41 / zh 16.77 px** (rendered in this element at 8px with
+  its 0.2px letter-spacing) — the widest cleared by 1.59 px, and the row's
+  geometry is language-invariant by construction, which is the only thing
+  assertion 7 accepts.
+- **The two new leaves shipped without line-height pins and the Chinese arm
+  cascaded.** `line-height: normal` is whatever the RESOLVED FACE reports, and
+  PingFang SC reports a taller box than Georgia: both leaves grew 9 -> 11 px,
+  `.meter-db-label` went 18 -> 22 px, the `flex: 1` meter body above it
+  shortened, and **34 elements moved**. Each leaf now carries a pin derived from
+  its OWN measured English box (9.00 px, no padding, no border, over 8px) =
+  **1.125**, unitless — the same derivation as the v1.4.0 pin block.
+
+### Verified
+
+- `check-ui-labels --plugin O-Gain`: **ALL CHECKS PASSED**, 255 assertions, 0
+  FAIL, across the en / fr / zh-Hans arms at 380 x 500; 32 of 32 `[data-i18n]`
+  elements visible in at least one state; no uncaught page error; every
+  requested resource served.
+- `check-i18n` all checks pass; `i18n-fr-lint` **CLEAN, exit 0**;
+  `i18n-zh-lint` **0 findings, exit 0**.
+- `tests/i18n-states.json`: all six `updateMeters` payloads carry the new output
+  VU pair, so the fixtures drive the code this version actually ships.
+
+### Below the ship bar, stated rather than buried
+
+- **The two new Chinese strings are at `reviewed: 'mt'`** — machine draft, no
+  blind back-translation run on them. `i18n-zh-lint` counts them
+  (`BELOW SHIP BAR: 2`) and passes; every other zh row on this page remains at
+  `'bt'`. The two new French strings are at `reviewed: false` for the same
+  reason: no QA pass has read them.
+
 ## [1.4.0] - 2026-09-05
 
 Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c).

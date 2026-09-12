@@ -112,14 +112,58 @@
     }
 
     /* Meter column (L/R pair) */
+    /* v1.5.0: 44 -> 58 px. The extra 14 px is the dB-scale gutter, which is a
+       CHILD of the column rather than an overlay on the bars: an 8 px numeral
+       drawn on top of a 20 px bar is unreadable at either contrast, and the
+       whole reason the scale exists is to be read while the bar moves. The
+       column still holds the widest caption comfortably -- ENTREE measured
+       42.4 px against 44 and now clears by 15.6. */
     .meter-column {
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: 44px;
+      width: 58px;
       flex-shrink: 0;
       gap: 2px;
     }
+    /* The row that holds the scale gutter beside the L/R pair. The gutter sits
+       on the OUTER edge of each column -- left of the input bars, right of the
+       output bars -- so neither scale is stranded in the middle of the window
+       beside the gain readout. */
+    .meter-body {
+      display: flex;
+      flex: 1;
+      width: 100%;
+      gap: 3px;
+      min-height: 0;
+    }
+    .meter-body.mirror {
+      flex-direction: row-reverse;
+    }
+    .meter-scale {
+      position: relative;
+      width: 14px;
+      flex: 0 0 14px;
+    }
+    .meter-scale span {
+      position: absolute;
+      right: 0;
+      font-size: 7px;
+      line-height: 1;
+      color: #8B7355;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      transform: translateY(50%);
+    }
+    .meter-body.mirror .meter-scale span {
+      right: auto;
+      left: 0;
+    }
+    /* The two extremes are pulled fully INSIDE the box instead of straddling
+       their gridline: at bottom:100% a straddling numeral overhangs into the
+       column caption above, and at bottom:0 into the readout below. */
+    .meter-scale span.tick-top { transform: translateY(100%); }
+    .meter-scale span.tick-bot { transform: translateY(0); }
     /* nowrap added in v1.3.0. The column is a hard 44 px and ENTREE renders
        42.4 px inside it — 1.6 px of clearance. Without nowrap, a caption one
        glyph wider than the column does not clip, it takes a SECOND LINE and
@@ -180,11 +224,15 @@
       text-transform: uppercase;
       white-space: nowrap;
     }
+    /* width:100% became min-width:0 in v1.5.0. This box used to be a direct
+       column child, where width:100% meant "the column"; it is now a flex item
+       in the row above, where a 100% basis is the parent's FULL width and the
+       14 px gutter beside it would push the pair into overflow. */
     .meter-pair {
       display: flex;
       gap: 3px;
       flex: 1;
-      width: 100%;
+      min-width: 0;
     }
     .meter-bar-container {
       flex: 1;
@@ -213,15 +261,97 @@
       height: 3px;
       background: transparent;
       border-radius: 2px 2px 0 0;
+      z-index: 4;   /* above the v1.5.0 staging marks and the peak cap */
     }
     .meter-clip-indicator.clipping {
       background: #a04030;
     }
+
+    /* ── v1.5.0: the staging marks drawn ON the bar ────────────────────────
+       Both are z-INDEXED ABOVE .meter-bar deliberately. Painted behind it they
+       would be visible only while the signal sits below them, which is exactly
+       the moment a staging target does not matter: the reading a user needs is
+       "the bar is IN the band", and that is unreadable if arriving at the band
+       erases it. Semi-transparent so the bar reads through. */
+    .meter-zone-target {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 70%;            /* -18 dBFS on the -60..0 scale */
+      height: 10%;            /* up to -12 dBFS */
+      background: rgba(107, 142, 78, 0.18);
+      border-top: 1px dashed rgba(60, 47, 47, 0.35);
+      border-bottom: 1px dashed rgba(60, 47, 47, 0.35);
+      z-index: 2;
+      pointer-events: none;
+    }
+    .meter-line-bus {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 90%;            /* -6 dBFS: the mix-bus ceiling to stay under */
+      height: 1px;
+      background: rgba(160, 64, 48, 0.5);
+      z-index: 2;
+      pointer-events: none;
+    }
+    /* The held peak, riding over the average bar. This is the pair the meter
+       could not show before v1.5.0: one bar carried whichever single reading
+       the mode selected, so peak and average were never on screen together. */
+    .meter-peak-cap {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 2px;
+      background: #3C2F2F;
+      z-index: 3;
+      pointer-events: none;
+      transition: bottom 0.06s linear;
+    }
+    /* CAPTION COLUMN PINNED, and the first draft's `auto` is why.
+       `grid-template-columns: auto 1fr` sizes column one from its CONTENT, so
+       the caption -- a [data-i18n] element -- was setting the position of the
+       value cell beside it, which is not one. check-ui-labels assertion 7 read
+       that correctly and named all four: #input-db-peak, #input-db-avg,
+       #output-db-peak and #output-db-avg each moved dx=0.8 dw=-0.8 between
+       English and French. Measured caption widths at the shipping frame, as
+       rendered in this element at 8px with its 0.2px letter-spacing:
+
+         en   peak / avg     17.56 px
+         fr   crête / moy.   18.41 px   <- widest
+         zh   峰值 / 平均     16.77 px
+
+       20 px covers the widest by 1.59 px and makes the row's geometry
+       language-INVARIANT by construction, which is the only thing assertion 7
+       accepts. The value column keeps 58 - 20 - 3 = 35 px, against "-18.1" at
+       roughly 17 px. */
     .meter-db-label {
+      display: grid;
+      grid-template-columns: 20px 1fr;
+      gap: 0 3px;
+      width: 100%;
       font-size: 8px;
-      color: #5C4033;
-      text-align: center;
       white-space: nowrap;
+    }
+    /* LINE-HEIGHT PINS, same derivation as the v1.4.0 block above: each is this
+       leaf's OWN measured English box (9.00 px, no padding, no border) over its
+       own font-size (8px) = 1.125, unitless. Without them `line-height: normal`
+       resolves against the RESOLVED FACE, PingFang SC reports a taller natural
+       line box than Georgia, and these two leaves grew 9 -> 11 px on the Chinese
+       arm. That is not a local 2 px: it took .meter-db-label from 18 to 22 px,
+       which shortened the flex:1 .meter-body above it and moved the scale, the
+       bars and everything keyed off them -- 34 elements on the zh-Hans arm. */
+    .meter-db-cap {
+      line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px */
+      color: #8B7355;
+      letter-spacing: 0.2px;
+    }
+    .meter-db-val {
+      line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px */
+      color: #5C4033;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
     }
 
     /* Gain display area (center) */
@@ -849,17 +979,31 @@
       <!-- Input Meters -->
       <div class="meter-column" id="input-meter-group">
         <div class="meter-label" data-i18n="label.input" data-label="Input">Input</div>
-        <div class="meter-pair">
-          <div class="meter-bar-container" id="input-meter-l-container">
-            <div class="meter-clip-indicator" id="input-clip-l"></div>
-            <div class="meter-bar green" id="input-meter-l"></div>
-          </div>
-          <div class="meter-bar-container" id="input-meter-r-container">
-            <div class="meter-clip-indicator" id="input-clip-r"></div>
-            <div class="meter-bar green" id="input-meter-r"></div>
+        <div class="meter-body">
+          <div class="meter-scale" aria-hidden="true"><span class="tick-top" style="bottom: 100%">0</span><span style="bottom: 90%">-6</span><span style="bottom: 80%">-12</span><span style="bottom: 70%">-18</span><span style="bottom: 60%">-24</span><span style="bottom: 40%">-36</span><span class="tick-bot" style="bottom: 0%">-60</span></div>
+          <div class="meter-pair">
+            <div class="meter-bar-container" id="input-meter-l-container">
+              <div class="meter-bar green" id="input-meter-l"></div>
+              <div class="meter-zone-target"></div>
+              <div class="meter-line-bus"></div>
+              <div class="meter-peak-cap" id="input-peak-cap-l"></div>
+              <div class="meter-clip-indicator" id="input-clip-l"></div>
+            </div>
+            <div class="meter-bar-container" id="input-meter-r-container">
+              <div class="meter-bar green" id="input-meter-r"></div>
+              <div class="meter-zone-target"></div>
+              <div class="meter-line-bus"></div>
+              <div class="meter-peak-cap" id="input-peak-cap-r"></div>
+              <div class="meter-clip-indicator" id="input-clip-r"></div>
+            </div>
           </div>
         </div>
-        <div class="meter-db-label" id="input-db-label">-inf</div>
+        <div class="meter-db-label">
+          <span class="meter-db-cap" data-i18n="label.pk" data-label="peak">peak</span>
+          <span class="meter-db-val" id="input-db-peak">-inf</span>
+          <span class="meter-db-cap" data-i18n="label.avg" data-label="avg">avg</span>
+          <span class="meter-db-val" id="input-db-avg">-inf</span>
+        </div>
       </div>
 
       <!-- Center: Gain + Controls -->
@@ -919,17 +1063,31 @@
       <!-- Output Meters -->
       <div class="meter-column" id="output-meter-group">
         <div class="meter-label" data-i18n="label.output" data-label="Output">Output</div>
-        <div class="meter-pair">
-          <div class="meter-bar-container" id="output-meter-l-container">
-            <div class="meter-clip-indicator" id="output-clip-l"></div>
-            <div class="meter-bar green" id="output-meter-l"></div>
-          </div>
-          <div class="meter-bar-container" id="output-meter-r-container">
-            <div class="meter-clip-indicator" id="output-clip-r"></div>
-            <div class="meter-bar green" id="output-meter-r"></div>
+        <div class="meter-body mirror">
+          <div class="meter-scale" aria-hidden="true"><span class="tick-top" style="bottom: 100%">0</span><span style="bottom: 90%">-6</span><span style="bottom: 80%">-12</span><span style="bottom: 70%">-18</span><span style="bottom: 60%">-24</span><span style="bottom: 40%">-36</span><span class="tick-bot" style="bottom: 0%">-60</span></div>
+          <div class="meter-pair">
+            <div class="meter-bar-container" id="output-meter-l-container">
+              <div class="meter-bar green" id="output-meter-l"></div>
+              <div class="meter-zone-target"></div>
+              <div class="meter-line-bus"></div>
+              <div class="meter-peak-cap" id="output-peak-cap-l"></div>
+              <div class="meter-clip-indicator" id="output-clip-l"></div>
+            </div>
+            <div class="meter-bar-container" id="output-meter-r-container">
+              <div class="meter-bar green" id="output-meter-r"></div>
+              <div class="meter-zone-target"></div>
+              <div class="meter-line-bus"></div>
+              <div class="meter-peak-cap" id="output-peak-cap-r"></div>
+              <div class="meter-clip-indicator" id="output-clip-r"></div>
+            </div>
           </div>
         </div>
-        <div class="meter-db-label" id="output-db-label">-inf</div>
+        <div class="meter-db-label">
+          <span class="meter-db-cap" data-i18n="label.pk" data-label="peak">peak</span>
+          <span class="meter-db-val" id="output-db-peak">-inf</span>
+          <span class="meter-db-cap" data-i18n="label.avg" data-label="avg">avg</span>
+          <span class="meter-db-val" id="output-db-avg">-inf</span>
+        </div>
       </div>
     </div>
 
