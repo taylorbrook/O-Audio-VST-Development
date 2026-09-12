@@ -2,6 +2,62 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.8.0] - 2026-09-12
+
+Dial legibility and placement. MINOR: the centre stack is re-laid, two
+dead localisation entries are retired, and nothing else — no parameter,
+range, type or state format changed, no C++ touched, and the audio path is
+untouched. Every v1.x session and preset loads identically.
+
+### Changed
+
+- **The three dials share one row.** v1.7.0 spread them over three: Gain
+  and Trim side by side but vertically centred, so a 48 px dial and a
+  36 px dial lined up on nothing; Target alone on a third row to the left
+  of its caption; and the Target readout one row above its dial, beside
+  LEARN. Now Trim | Gain | Target sit in the 220 px column the display and
+  the preset block already use, the large dial in the middle, top-aligned.
+  The two small dials carry a 6 px vertical margin so every dial box is
+  48 px, which is what puts the three captions on one baseline and the two
+  readouts on the next without a wrapper element. LEARN is alone on its row
+  and centred; its 121 px pin (v1.3.0) stays, for the same reason it was
+  set.
+- **Captions darker and larger**: `.knob-label` 9 → 10 px, `#8B7355`
+  (the tan the paper texture swallows) → `#5C4033` (the brown the buttons
+  already use), pinned at 1.1 like `.settings-label`, `white-space: nowrap`
+  so a caption that wrapped in one language only could not move the readout
+  under it. The preset unit captions (`dBFS` / `LUFS`) go 8 → 9 px in the
+  same brown, and the `Gain Offset` display caption takes the brown at its
+  existing size.
+- **Readouts darker and larger**: `.knob-value` 10 → 11 px, weight 600,
+  `#3C2F2F`, pinned at 1.0909 like `.learn-btn`. The Target readout now
+  uses this class; `.target-group`, `.target-label`, `.target-value` and
+  `.target-knob-row` are gone.
+
+### Removed
+
+- **`label.targetLevel`** (en / fr / zh-Hans) — the caption under the
+  Target dial is `label.target` (`Target` / `Cible` / `目标`), which fits
+  the 65 px column in all three languages where `Target Level` did not.
+  check-i18n [15] rejects a key nothing references, so the key is deleted
+  rather than left.
+- **The `target-group` tooltip and its `#target-group` binding** — the
+  element it anchored to no longer exists. Its loudness references
+  (-18 dB = 0 VU, -14 LUFS Spotify, -23 LUFS EBU R128) are already in the
+  `target-presets` tooltip body.
+
+### Testing
+
+- `scripts/check-i18n.js --plugin O-Gain`: ALL CHECKS PASS.
+- `scripts/i18n-fr-lint.js` / `i18n-zh-lint.js`: CLEAN / 0 findings.
+- `scripts/check-ui-labels.js --plugin O-Gain`: ALL CHECKS PASSED at
+  380 x 500, all seven states in `tests/i18n-states.json`, 32 / 32
+  `[data-i18n]` elements visible; assertion 7 reports no non-label element
+  moved between English, French and zh-Hans.
+- Rendered at 380 x 500 through `scripts/serve-ui.js` before and after:
+  knob row 180.1 → 255.1 px, LEARN 261.1 → 287.1, presets 293.1 → 346.1,
+  inside the 383 px centre column.
+
 ## [1.7.0] - 2026-09-12
 
 Target-level presets. MINOR: one new block of six buttons in the editor and
