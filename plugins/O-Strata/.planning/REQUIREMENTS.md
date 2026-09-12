@@ -4,7 +4,7 @@
 version: 2.0.0
 plugin: O-Strata
 created: 2026-09-07
-lastUpdated: 2026-09-12 (Stage 2 Round B verify — FUNC-06 / DSP-02 / DSP-04 / QUAL-01 complete, FUNC-06 acceptance amended to the ≤ D_max·K bound on A-notes; 2026-09-11: DSP-01 acceptance amended to the Decision 2 law)
+lastUpdated: 2026-09-12 (Stage 3 Round A verify — UI-04 partial (controls half), FUNC-05 UI list of 46 verified; Stage 2 Round B verify — FUNC-06 / DSP-02 / DSP-04 / QUAL-01 complete, FUNC-06 acceptance amended to the ≤ D_max·K bound on A-notes; 2026-09-11: DSP-01 acceptance amended to the Decision 2 law)
 supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 ---
 
@@ -24,7 +24,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 | FUNC-02 | Analytic terrain library ≥ 6 (Sine Product, Radial Rings, Saddle, Ridged Cosines, Mitsuhashi, Cosine Wells), each with Terrain Freq and two documented shape inputs (Mod X / Mod Y), clean-room formulas | must | complete | stage-2 |
 | FUNC-03 | Orbit library ≥ 11 (Ellipse, Superellipse, Limaçon, Epitrochoid 3/5/7, Hypocycloid 3/5/7, Butterfly, Squarcle) with Size, Aspect, Rotation, Centre X/Y and a per-orbit shape input (Orbit Mod) | must | complete | stage-2 |
 | FUNC-04 | Trajectory feedback: previous output displaces the next orbit point, with Feedback amount and Feedback Damp; bounded for every setting | must | complete | stage-2 |
-| FUNC-05 | Audio-rate modulation: Orbit Size (= `osc?Pos`), Aspect, Rotation, Centre X, Centre Y, Orbit Mod, Terrain Freq, Terrain Mod X/Y, Feedback and Saturation are mod-matrix destinations (10 new per oscillator, appended after O-Prism's 26), smoothed per sample | must | complete | stage-2 |
+| FUNC-05 | Audio-rate modulation: Orbit Size (= `osc?Pos`), Aspect, Rotation, Centre X, Centre Y, Orbit Mod, Terrain Freq, Terrain Mod X/Y, Feedback and Saturation are mod-matrix destinations (10 new per oscillator, appended after O-Prism's 26), smoothed per sample — UI half (46 entries in every destination dropdown) verified Stage 3 Round A, 2026-09-12 | must | complete | stage-2 |
 | FUNC-06 | Per-oscillator Quality: Bandlimited (Chebyshev, 1×) / 2× / 4× — 2× / 4× half complete (Stage 2 Round A, 2026-09-11), Bandlimited half complete (Round B, 2026-09-12: H6 127 / 127 sounding rows ≤ −90 dB; 17 rows above ≈ A6 with K ≥ 6 orbits on even terrains are muted by the truncation law — documented limit) | must | complete | stage-2 |
 | FUNC-07 | User greyscale PNG terrain import via file chooser and drag-and-drop, with Image Blur and Edge Mode; decode and pre-blur off the audio thread — DSP half (import API, blur, edge, off-thread job ≤ 100 ms) verified Stage 2 Round B, 2026-09-12; chooser / drag-and-drop / view are Stage 3 (macOS); the WebView2 drop half is measured on the Phase 4.2 CI Windows build (Stage 3 CONTEXT D2) | must | pending | stage-3 |
 | FUNC-08 | Imported PNG persists in plugin state and presets (raw bytes ≤ 2 MB; path + SHA-256 above the cap); presets regenerate on load — bytes half (identical bytes ⇒ identical render SHA-256, H10) verified Stage 2 Round B, 2026-09-12; state child / cap / notice are Stage 4 | must | pending | stage-4 |
@@ -51,7 +51,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 | UI-01 | Per-oscillator 3D terrain view (displaced 64×64 wireframe + orbit + scan point + feedback trail) with a 30 Hz playhead, hand-rolled WebGL2 — WKWebView in Stage 3; the WebView2 render is verified on the Phase 4.2 CI Windows build (Stage 3 CONTEXT D2) | should | pending | stage-3 |
 | UI-02 | Canvas 2D fallback in the same view when WebGL2 is unavailable; localised placeholder in en/fr/zh-Hans | must | pending | stage-3 |
 | UI-03 | Drag on the view edits Orbit Centre X/Y, wheel edits Orbit Size, alt-drag edits Rotation, through the slider relay with drag-start/drag-end | should | pending | stage-3 |
-| UI-04 | 3D view and playhead re-push after every preset apply and session restore | must | pending | stage-3 |
+| UI-04 | 3D view and playhead re-push after every preset apply and session restore — controls half (34 parameters bound through relays / proxies, preset apply calls `requestTerrainRepush`) verified Stage 3 Round A, 2026-09-12; view / playhead re-push is Round B 3.2 | must | partial | stage-3 |
 
 ### Performance (PERF)
 
@@ -96,7 +96,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 ### FUNC-05: Audio-rate modulation
 
 - [ ] An LFO at 40 Hz on Orbit Centre X produces sidebands at ±40 Hz around each harmonic (proof the destination is per-sample, not per-block)
-- [ ] `modSlot?Dst` lists 46 entries: O-Prism's 26 followed by the 10 new per oscillator
+- [x] `modSlot?Dst` lists 46 entries: O-Prism's 26 followed by the 10 new per oscillator — layout gate 46 options × 16 selects, Stage 3 Round A (2026-09-12)
 
 ### FUNC-06 / DSP-02 / DSP-03: Quality
 
