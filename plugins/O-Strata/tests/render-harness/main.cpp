@@ -293,6 +293,7 @@ namespace
         double noteOffAt = -1.0;            // < 0: held for the whole render
         std::vector<MidiEvent> extra;       // additional events (sample index absolute)
         std::function<void (int blockStart)> onBlock;   // called BEFORE each block (setValueNotifyingHost etc.)
+        std::function<void (int blockStart)> afterBlock; // called AFTER each block (disarmed)
         bool armAllocations = false;
         bool noSync = false;                // skip the syncScheduler() call after the warm-up block
     };
@@ -339,6 +340,7 @@ namespace
             if (spec.armAllocations) rtcheck::arm (false);
             in.p.processBlock (buf, midi);
             if (spec.armAllocations) { rtcheck::disarm(); counted += rtcheck::kCounting ? rtcheck::allocations.load() : 0; }
+            if (spec.afterBlock) spec.afterBlock (start);
             for (int i = 0; i < n; ++i)
             {
                 out.L.push_back (buf.getSample (0, i));
@@ -1944,6 +1946,265 @@ namespace
     }
 
     //==========================================================================
+    // ── Round B, Phase 2.5: PNG fixtures, import, H11, H10, H8 image row ─────
+
+    /** Synthesised in-process (plan Decision 42): no binary fixture is committed. */
+    juce::MemoryBlock pngFromLuminance (int size, std::function<float (float u, float v)> lum)
+    {
+        juce::Image img (juce::Image::RGB, size, size, false);
+        juce::Image::BitmapData bd (img, juce::Image::BitmapData::writeOnly);
+        for (int y = 0; y < size; ++y)
+            for (int x = 0; x < size; ++x)
+            {
+                const float u = -1.0f + 2.0f * (float (x) + 0.5f) / float (size);
+                const float v =  1.0f - 2.0f * (float (y) + 0.5f) / float (size);   // row 0 = top = v +1
+                const auto g = (juce::uint8) juce::jlimit (0, 255, (int) std::lround (255.0f * juce::jlimit (0.0f, 1.0f, lum (u, v))));
+                bd.setPixelColour (x, y, juce::Colour (g, g, g));
+            }
+        juce::MemoryOutputStream out;
+        juce::PNGImageFormat png;
+        png.writeImageToStream (img, out);
+        return juce::MemoryBlock (out.getData(), out.getDataSize());
+    }
+
+    /** 512²: a horizontal gradient 0.2 → 0.8 (left → right, so the left and right borders
+        differ — the tiling discontinuity of the H11 control), a hard vertical step to a
+        dark band 0.05 at u < −0.6 (never reached by the H11 orbit, x ∈ [−0.4, 1.6], nor by
+        the default orbit), a mild vertical gradient; non-zero at every border. */
+    juce::MemoryBlock makeHardEdgedPng (int size = 512)
+    {
+        return pngFromLuminance (size, [] (float u, float v) { return u < -0.6f ? 0.05f : 0.2f + 0.6f * (u + 1.0f) * 0.5f + 0.05f * v; });
+    }
+
+    /** 1024²: gradient + a 16-px checker (high spatial frequencies for the blur rows / timing). */
+    juce::MemoryBlock makeTimingPng (int size = 1024)
+    {
+        return pngFromLuminance (size, [size] (float u, float v) {
+            const int cx = (int) ((u + 1.0f) * 0.5f * float (size)) / 16, cy = (int) ((1.0f - v) * 0.5f * float (size)) / 16;
+            return 0.5f + 0.2f * u + (((cx + cy) & 1) ? 0.25f : -0.25f);
+        });
+    }
+
+    /** Level (dB) of the strongest partial h >= hFrom relative to h1 (Hann 32768 over 1 s from 0.1 s). */
+    double highPartialsRelH1 (const std::vector<double>& y, double fs, double f0, int hFrom)
+    {
+        const size_t nfft = 32768;
+        const auto sp = spec (y, (size_t) (0.1 * fs), nfft, nfft);
+        const double binHz = fs / double (nfft);
+        const double h1 = spectrum::peakPowerNear (sp, binHz, f0, 2.0 * binHz);
+        double hi = 0.0;
+        for (int h = hFrom; h * f0 < std::min (20000.0, 0.5 * fs); ++h) hi = std::max (hi, spectrum::peakPowerNear (sp, binHz, h * f0, 2.0 * binHz));
+        return spectrum::db (hi, h1);
+    }
+
+    void imagePatch (Instance& in)
+    {
+        in.cleanPatch(); in.setChoice ("oscATerrain", (int) TerrainKind::Imported); in.setChoice ("oscAOrbit", 0);
+        in.p.harnessPreFilterTap.store (true);
+    }
+
+    void gateImport()
+    {
+        std::printf ("\n== import (FUNC-07 DSP half: 512^2 PNG through importTerrainImage; Blur monotone; Mirror vs Window; timing; never on the audio thread; missing file; async publish) ==\n");
+        const juce::MemoryBlock hard = makeHardEdgedPng (512), timing = makeTimingPng (1024);
+        std::printf ("  fixtures: hard-edged %d bytes, timing %d bytes (synthesised in-process)\n", (int) hard.getSize(), (int) timing.getSize());
+
+        // (a) renders, non-silent, differs from Sine Product
+        {
+            Instance in; imagePatch (in);
+            check (in.p.importTerrainImage (0, hard, "hard-edged.png"), "[import] importTerrainImage (512^2 hard-edged bytes) returns true");
+            auto r = tapRender (in, 60, 1.0);
+            Instance sp; sp.cleanPatch(); sp.setTerrainOrbit (0, 0, 0);
+            auto rs = tapRender (sp, 60, 1.0);
+            check (in.p.imageGeneration[0].load() == 1 && rms (r.L, r.L.size() / 2) > 1.0e-3,
+                   fmt ("[import] Terrain = Imported renders non-silent through the sync path: rms %.4f (need > 1e-3; imageGeneration %d, fit %.1f %%)", rms (r.L, r.L.size() / 2), in.p.imageGeneration[0].load(), in.p.imageFit[0].load()));
+            check (maxAbsDiff (r.L, rs.L) > 1.0e-3, fmt ("[import] the image render differs from the Sine Product render: max|d| = %.3e", maxAbsDiff (r.L, rs.L)));
+            const juce::String sha = juce::SHA256 (hard.getData(), hard.getSize()).toHexString();
+            check (in.p.getImportSlotCopy (0).sha256 == sha && in.p.getImportSlotCopy (0).name == "hard-edged.png", "[import] importSlot carries the name and the SHA-256 of the bytes");
+        }
+        // (b) Blur 0 -> 1 lowers the centroid monotonically (checker image, default orbit)
+        {
+            Instance in; imagePatch (in); in.p.importTerrainImage (0, timing, "timing.png");
+            double prev = 1.0e9; bool mono = true; std::string line = "  [import] Blur 0/.25/.5/.75/1 centroids:";
+            for (int i = 0; i < 5; ++i)
+            {
+                in.setReal ("oscATerBlur", 0.25f * (float) i);
+                auto r = tapRender (in, 60, 1.0);   // the sync call inside render() re-projects the image at the new Blur
+                const double c = centroidOf (r.L, r.fs);
+                line += fmt (" %.0f", c);
+                if (i > 0 && c > prev * 1.005) mono = false;
+                prev = c;
+            }
+            std::printf ("%s Hz (imageGeneration %d)\n", line.c_str(), in.p.imageGeneration[0].load());
+            check (mono && in.p.imageGeneration[0].load() == 5, "[import] Blur 0 -> 1 lowers the spectral centroid monotonically (non-increasing within 0.5 % per step; one publish per Blur value)");
+        }
+        // (c) Mirror vs Window differ at r = 1
+        {
+            CentroidRow rows[2];
+            for (int e = 0; e < 2; ++e)
+            {
+                Instance in; imagePatch (in); in.p.importTerrainImage (0, hard, "hard-edged.png");
+                in.setReal ("oscAPos", 1.0f); in.setReal ("oscAOrbAspect", 1.0f); in.setReal ("oscAOrbCX", 0.6f); in.setReal ("oscAOrbCY", 0.0f); in.setReal ("oscATerFreq", 1.0f);
+                in.setChoice ("oscATerEdge", e);
+                auto r = tapRender (in, 60, 1.0);
+                rows[e].centroid = centroidOf (r.L, r.fs);
+                const size_t nfft = 32768; const auto sp = spec (r.L, (size_t) (0.1 * r.fs), nfft, nfft);
+                const double binHz = r.fs / double (nfft), f0 = in.p.getTuningEngine()->getFrequency (60);
+                double maxP = 0.0; for (size_t b = 1; b < sp.size(); ++b) maxP = std::max (maxP, sp[b]);
+                for (int h = 1; h <= 12; ++h) rows[e].partialDb.push_back (spectrum::db (spectrum::peakPowerNear (sp, binHz, h * f0, 1.5 * binHz), maxP));
+            }
+            const double delta = std::abs (rows[0].centroid - rows[1].centroid) / std::max (rows[0].centroid, rows[1].centroid), move = partialMove (rows[0], rows[1]);
+            check (delta >= 0.05 || move >= 3.0, fmt ("[import] Mirror vs Window at r = 1 (Centre 0.6, Size 1): centroids %.0f / %.0f Hz (delta %.1f %%), max partial move %.1f dB (need >= 5 %% or >= 3 dB)", rows[0].centroid, rows[1].centroid, 100.0 * delta, move));
+        }
+        // (d) timing: 1024^2 at Blur 1 — decode, blur + projection, best of 3
+        {
+            double decodeMs = 1e9, buildMs = 1e9, syncMs = 1e9;
+            std::shared_ptr<const DecodedImage> dec;
+            for (int i = 0; i < 3; ++i)
+            {
+                auto t0 = std::chrono::steady_clock::now();
+                dec = DecodedImage::decode (timing.getData(), timing.getSize());
+                decodeMs = std::min (decodeMs, secondsSince (t0) * 1000.0);
+                t0 = std::chrono::steady_clock::now();
+                auto img = TerrainImage::build (dec, 1.0f, EdgeMode::Mirror, 1, "timing.png", "", nullptr);
+                buildMs = std::min (buildMs, secondsSince (t0) * 1000.0);
+                check (img != nullptr && img->w == 1024 && img->h == 1024, fmt ("[import] 1024^2 build ok (w %d, h %d, box width %d px per pass at Blur 1)", img ? img->w : 0, img ? img->h : 0, TerrainImage::boxWidthFor (1.0f, 1024)));
+            }
+            for (int i = 0; i < 3; ++i)
+            {
+                Instance in; imagePatch (in); in.setReal ("oscATerBlur", 1.0f); in.prepare (48000.0, 512);
+                in.p.importTerrainImage (0, timing, "timing.png");
+                const auto t0 = std::chrono::steady_clock::now();
+                in.syncScheduler();
+                syncMs = std::min (syncMs, secondsSince (t0) * 1000.0);
+            }
+            std::printf ("  [import] 1024^2 at Blur 1: decode %.1f ms, blur + projection + view %.1f ms, sync-path import %.1f ms (best of 3)\n", decodeMs, buildMs, syncMs);
+            check (decodeMs + buildMs <= 100.0, fmt ("[import] decode + blur + projection at 1024^2 / Blur 1 = %.1f ms (need <= 100)", decodeMs + buildMs));
+        }
+        // (e) never on the audio thread: publishCount unchanged inside every block while an async import is pending (pump only between blocks)
+        {
+            Instance in; imagePatch (in); in.prepare (48000.0, 480);
+            juce::AudioBuffer<float> buf (2, 480); juce::MidiBuffer midi; midi.ensureSize (256);
+            buf.clear(); in.p.processBlock (buf, midi);
+            in.p.importTerrainImage (0, hard, "hard-edged.png");   // pending: the timer + pool will publish between blocks
+            bool insideChanged = false; int before = 0, blocks = 0, changedBetween = 0, last = 0;
+            RenderSpec s; s.seconds = 1.0; s.note = 60; s.noSync = true;
+            s.onBlock = [&] (int) {
+                pump (5);                                   // between blocks, disarmed
+                before = in.p.publishCount.load();
+                if (before != last) ++changedBetween;       // a publish landed during the pump
+            };
+            s.afterBlock = [&] (int) {
+                last = in.p.publishCount.load();
+                if (last != before) insideChanged = true;   // a publish landed INSIDE processBlock
+                ++blocks;
+            };
+            auto r = render (in, s);
+            (void) r;
+            check (! insideChanged && changedBetween >= 1, fmt ("[import] async import published between blocks only: publishCount changed inside a processBlock on 0 of %d blocks (need 0), between blocks %d time(s) (need >= 1); the Decision 39 assert is Debug-only", blocks, changedBetween));
+        }
+        // (f) missing file
+        {
+            Instance in; imagePatch (in);
+            const bool ok = in.p.importTerrainFile (0, juce::File ("/nonexistent/O-Strata-missing.png"));
+            in.prepare (48000.0, 512); in.syncScheduler();
+            check (! ok && in.p.imagePtr[0].load() == nullptr && in.p.importRevision[0].load() == 0, "[import] importTerrainFile (missing) returns false, imagePtr stays null, no revision");
+            juce::MemoryBlock junk (64); std::memset (junk.getData(), 0x5A, 64);
+            check (! in.p.importTerrainImage (0, junk, "junk"), "[import] undecodable bytes return false");
+        }
+        // (g) async publish through the timer + pool
+        {
+            Instance in; imagePatch (in); in.prepare (48000.0, 512);
+            { juce::AudioBuffer<float> buf (2, 512); juce::MidiBuffer midi; buf.clear(); in.p.processBlock (buf, midi); }
+            in.p.importTerrainImage (0, hard, "hard-edged.png");
+            const auto t0 = std::chrono::steady_clock::now();
+            while (in.p.imagePtr[0].load() == nullptr && secondsSince (t0) < 0.5) pump (10);
+            check (in.p.imagePtr[0].load() != nullptr && in.p.imageGeneration[0].load() == 1, fmt ("[import] async import published after %.0f ms of pumping: imageGeneration = %d (need 1)", secondsSince (t0) * 1000.0, in.p.imageGeneration[0].load()));
+            // cancellation path: a Blur change while an image job is in flight
+            in.setReal ("oscATerBlur", 1.0f); pump (60);   // poll → submit (1024² would be slower; 512² job ≈ a few ms)
+            in.setReal ("oscATerBlur", 0.7f); pump (400);
+            std::printf ("  [import] scheduler counters after two Blur changes: completed %d cancelled %d superseded %d dropped %d\n",
+                         in.p.getTerrainScheduler().jobsCompleted.load(), in.p.getTerrainScheduler().jobsCancelled.load(), in.p.getTerrainScheduler().keysSuperseded.load(), in.p.getTerrainScheduler().resultsDropped.load());
+        }
+    }
+
+    void gateH11()
+    {
+        std::printf ("\n== H11 edge continuity (DSP-04: hard-edged 512^2, Mirror / Window, orbit crossing the border (Centre X 0.6, Size 1, Aspect 1, F 1), 2x, unity gain, tap; partials h >= 32 re h1 <= -40 dB at Blur 0.2 and Blur 0; HarnessWrap control) ==\n");
+        const juce::MemoryBlock hard = makeHardEdgedPng (512);
+        auto row = [&] (int edge, float blur, int edgeOverride) {
+            Instance in; h5Patch (in, false);
+            in.setChoice ("oscATerrain", (int) TerrainKind::Imported); in.setChoice ("oscAOrbit", 0); in.setChoice ("oscAQuality", 1);
+            in.setReal ("oscAPos", 1.0f); in.setReal ("oscAOrbAspect", 1.0f); in.setReal ("oscAOrbCX", 0.6f); in.setReal ("oscAOrbCY", 0.0f); in.setReal ("oscATerFreq", 1.0f);
+            in.setChoice ("oscATerEdge", edge); in.setReal ("oscATerBlur", blur);
+            in.p.harnessEdgeOverride[0].store (edgeOverride);
+            in.p.harnessPreFilterTap.store (true);
+            in.p.importTerrainImage (0, hard, "hard-edged.png");
+            auto r = tapRender (in, 60, 1.0);
+            return highPartialsRelH1 (r.L, r.fs, in.p.getTuningEngine()->getFrequency (60), 32);
+        };
+        const double m02 = row (0, 0.2f, -1), w02 = row (1, 0.2f, -1), m0 = row (0, 0.0f, -1), w0 = row (1, 0.0f, -1);
+        const double wrap0 = row (0, 0.0f, 100), wrap02 = row (0, 0.2f, 100);
+        std::printf ("  [H11] h >= 32 re h1: Mirror Blur 0.2 %.1f dB, Window Blur 0.2 %.1f dB, Mirror Blur 0 %.1f dB, Window Blur 0 %.1f dB; HarnessWrap Blur 0 %.1f dB, Blur 0.2 %.1f dB\n", m02, w02, m0, w0, wrap0, wrap02);
+        check (m02 <= -40.0 && w02 <= -40.0, fmt ("[H11] Blur 0.2 (default): Mirror %.1f dB, Window %.1f dB (need <= -40)", m02, w02));
+        check (m0 <= -40.0 && w0 <= -40.0, fmt ("[H11] Blur 0: Mirror %.1f dB, Window %.1f dB (need <= -40)", m0, w0));
+        checkFailsAsExpected (wrap0 <= -40.0, fmt ("[H11 neg] HarnessWrap (periodic tiling) at Blur 0: %.1f dB", wrap0));
+        // Bandlimited + image: the embedded set, Ellipse, A4 exact-cycle
+        {
+            const double fs = 440.0 * 65536.0 / 600.0;
+            Instance in; in.cleanPatch(); in.setChoice ("oscATerrain", (int) TerrainKind::Imported); in.setChoice ("oscAOrbit", 0);
+            in.setChoice ("oscAQuality", 0); in.setReal ("oscATerTrack", 1.0f);
+            in.p.harnessPreFilterTap.store (true);
+            in.p.importTerrainImage (0, hard, "hard-edged.png");
+            in.prepare (fs, 512);
+            const size_t N = 65536;
+            RenderSpec s; s.seconds = 0.35 + double (N) / fs + 0.01; s.note = 69; s.velocity = 1.0f;
+            auto r = render (in, s);
+            const size_t from = (size_t) (0.35 * fs);
+            std::vector<double> y (r.L.begin() + (long) from, r.L.begin() + (long) (from + N));
+            const auto a = spectrum::analyseExactCycle (y.data(), N, 600, (size_t) (22000.0 / (fs / double (N))));
+            check (a.nonHarmOverMax() <= -90.0 && in.p.chebGeneration[0].load() >= 1,
+                   fmt ("[H11] Bandlimited + image (embedded set, Ellipse, A4 exact-cycle): nonharm/max %.1f dB (need <= -90; h<=%d, fit %.1f %%, chebFit %.1f %%)", a.nonHarmOverMax(), a.maxHarmIdxAboveMinus100dB, in.p.imageFit[0].load(), in.p.chebFit[0].load()));
+        }
+    }
+
+    void gateH10()
+    {
+        std::printf ("\n== H10 bytes determinism (FUNC-08 bytes half: identical PNG bytes in two instances -> identical 1 s render SHA-256; the library fallback differs) ==\n");
+        const juce::MemoryBlock hard = makeHardEdgedPng (512);
+        auto renderSha = [&] (bool import) {
+            Instance in; in.cleanPatch(); in.setChoice ("oscAOrbit", 0);
+            if (import) { in.setChoice ("oscATerrain", (int) TerrainKind::Imported); in.p.importTerrainImage (0, hard, "hard-edged.png"); }
+            else in.setChoice ("oscATerrain", 0);
+            in.p.harnessPreFilterTap.store (true);
+            auto r = tapRender (in, 60, 1.0);
+            return juce::SHA256 (r.L.data(), r.L.size() * sizeof (double)).toHexString();
+        };
+        const auto a = renderSha (true), b = renderSha (true), c = renderSha (false);
+        std::printf ("  [H10] A %s\n  [H10] B %s\n  [H10] library (Sine Product) %s\n", a.toRawUTF8(), b.toRawUTF8(), c.toRawUTF8());
+        check (a == b, "[H10] two instances fed identical bytes render byte-identical audio (SHA-256 equal)");
+        check (a != c, "[H10] the library fallback (Sine Product, no import) renders differently");
+    }
+
+    void gateH8Image()
+    {
+        std::printf ("\n== H8 image row (import + pump (200) between blocks at t = 1 s under 16 held notes, 3 s, armed around every block) ==\n");
+        const juce::MemoryBlock hard = makeHardEdgedPng (512);
+        Instance in; in.setChoice ("oscATerrain", (int) TerrainKind::Imported); in.setChoice ("oscBTerrain", (int) TerrainKind::Imported);
+        in.prepare (48000.0, 480);
+        RenderSpec s; s.seconds = 3.0; s.note = 40; s.armAllocations = true;
+        for (int v = 1; v < 16; ++v) s.extra.push_back ({ 0, juce::MidiMessage::noteOn (1, 40 + v * 2, 0.8f) });
+        s.onBlock = [&] (int start) {
+            if (start == 48000) { in.p.importTerrainImage (0, hard, "hard-edged.png"); in.p.importTerrainImage (1, hard, "hard-edged.png"); pump (200); }
+        };
+        auto r = render (in, s);
+        if (! rtcheck::kCounting) std::printf ("  [H8] allocation count skipped under ASan (plan Decision 43)\n");
+        else check (r.allocations == 0, fmt ("[H8] image row: %lld allocations counted with an import published under 16 held notes%s (need 0; imageGeneration %d / %d)", r.allocations, rtcheck::foreignNote().c_str(), in.p.imageGeneration[0].load(), in.p.imageGeneration[1].load()));
+        check (allFinite (r.L) && allFinite (r.R) && in.p.imageGeneration[0].load() == 1, fmt ("[H8] image row: output finite, image published (imageGeneration %d)", in.p.imageGeneration[0].load()));
+        std::printf ("  [H8] TerrainImage::liveCount %d, ChebyshevSet::liveCount %d (each image embeds one set)\n", TerrainImage::liveCount.load(), ChebyshevSet::liveCount.load());
+    }
+
+    //==========================================================================
     // ── CLI ──────────────────────────────────────────────────────────────────
 
     void usage()
@@ -2018,7 +2279,12 @@ int main (int argc, char** argv)
     {
         Instance in; in.cleanPatch(); in.applyCliOverrides();
         in.prepare (opt.fs, opt.block);
-        // --png PATH: Phase 2.5 (Task 13) wires importTerrainFile here
+        if (! opt.pngPath.empty())
+        {
+            const bool ok = in.p.importTerrainFile (0, juce::File (juce::String (opt.pngPath)));
+            in.setChoice ("oscATerrain", (int) TerrainKind::Imported);
+            std::printf ("import %s: %s\n", opt.pngPath.c_str(), ok ? "ok" : "FAILED (missing or undecodable)");
+        }
         std::printf ("latency: %d samples (halfband L2 = %.4f, L4 = %.4f base samples)\n", in.p.getLatencySamples(), HalfbandCoeffs::get().latency2, HalfbandCoeffs::get().latency4);
         RenderSpec s; s.seconds = opt.seconds; s.note = opt.note; s.velocity = opt.velocity;
         auto r = render (in, s);
@@ -2046,6 +2312,10 @@ int main (int argc, char** argv)
     if (wants ("clenshaw"))  gateClenshaw();
     if (wants ("scheduler")) gateScheduler();
     if (wants ("storm"))     gateStorm();
+    if (wants ("import"))    gateImport();
+    if (wants ("H11"))       gateH11();
+    if (wants ("H10"))       gateH10();
+    if (wants ("H8"))        gateH8Image();
     if (wantsExact ("export")) gateExport();
 
     std::printf ("\n%s — %d check(s), %d failure(s), %.1f s\n", failures == 0 ? "ALL GATES PASSED" : "GATES FAILED", checksRun, failures, secondsSince (t0));

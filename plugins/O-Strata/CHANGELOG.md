@@ -41,7 +41,10 @@ Stage 2, Round B — Bandlimited mode + PNG terrain path (Phases 2.4–2.5, 2026
 - Harness: `--gate H6` gains the 144 Bandlimited rows; new `clenshaw`, `scheduler`,
   `storm`, `import` gates and H10 / H11; the message loop is pumped by exactly one
   call site (`pump`); an AddressSanitizer configuration (`build-asan/`) with
-  instance counters as the leak verdict.
+  instance counters as the leak verdict — on this machine (macOS 26 / Darwin
+  25.6, Xcode 26.3 clang 17) the ASan runtime hangs in its own shadow-memory
+  initialisation before `main`, so the ASan rows are recorded as not runnable
+  here; the instance-counter rows (storm, H8 image row) carry the verdict.
 - Deviations from the plan: Cosine Wells' fit is re-measured at πF (99.99 / 98.63 %
   at F = 1 / 2; the architecture's 98 / 76 % was the 2πF form); Mitsuhashi's fit is
   98.3 / 87.6 % (its `tri()` wrap is piecewise-linear — the "≈ 100 %" was an

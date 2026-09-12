@@ -1110,7 +1110,45 @@ void OStrataAudioProcessor::updateOscillatorAssignments()
 
 void OStrataAudioProcessor::releasePublishedImages()
 {
-    // Phase 2.5 (Task 11) deletes the published TerrainImages here (complete type needed).
+    for (auto& ptr : imagePtr)
+        delete ptr.exchange (nullptr, std::memory_order_acq_rel);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PNG import API (message thread; plan Decision 38)
+// ═══════════════════════════════════════════════════════════════════
+
+bool OStrataAudioProcessor::importTerrainImage (int osc, const juce::MemoryBlock& pngBytes, const juce::String& name)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+    if (osc < 0 || osc > 1 || pngBytes.getSize() == 0)
+        return false;
+    auto decoded = DecodedImage::decode (pngBytes.getData(), pngBytes.getSize());   // once per revision; Blur / Edge re-runs reuse it
+    if (decoded == nullptr)
+        return false;
+    int revision;
+    {
+        const juce::ScopedLock sl (importLock);
+        auto& slot = importSlot[osc];
+        slot.bytes = pngBytes;
+        slot.name = name;
+        slot.sha256 = juce::SHA256 (pngBytes.getData(), pngBytes.getSize()).toHexString();
+        slot.decoded = std::move (decoded);
+        revision = ++slot.revision;
+    }
+    importRevision[osc].store (revision, std::memory_order_release);   // the scheduler's ImageKey picks it up
+    return true;
+}
+
+bool OStrataAudioProcessor::importTerrainFile (int osc, const juce::File& file)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+    if (! file.existsAsFile())
+        return false;
+    juce::MemoryBlock bytes;
+    if (! file.loadFileAsData (bytes))
+        return false;
+    return importTerrainImage (osc, bytes, file.getFileName());
 }
 
 // ═══════════════════════════════════════════════════════════════════
