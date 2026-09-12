@@ -946,6 +946,16 @@ function watchMeterMode() {
   const state = getComboBoxState('meter_mode');
   if (!state) return;
 
+  // SEED IT FIRST. Both lines below are LISTENERS: they fire on a CHANGE, and
+  // opening an editor is not a change. `currentMeterMode` was declared as a
+  // hard-coded 2 (VU) and stayed there until the user touched something, so a
+  // session saved in any other mode reopened with the buttons showing the saved
+  // mode and the bars drawing VU -- the control and the meter disagreeing about
+  // the same setting, silently, until the first click. Found by driving the
+  // page headless at v1.5.0: the stub seeded meter_mode = Peak, the Peak button
+  // lit, and the bars kept painting the VU value.
+  currentMeterMode = state.getChoiceIndex();
+
   state.valueChangedEvent.addListener(() => {
     currentMeterMode = state.getChoiceIndex();
   });
