@@ -82,11 +82,14 @@ enum class EdgeMode
 
 /** Core 10: view data for the ≋ waveform and the feedback trail. One ring per
     oscillator, owned by the processor; the display voice's partial 0 writes
-    (θ, p.x, p.y, y) per base sample. Written only — nothing reads it until
-    Stage 3. */
+    (θ radians, p.x, p.y, y pre-saturation) per SUB-sample (fs · OS — the write
+    sits inside scan(), which runs OS times per base sample). Read by
+    TerrainViewFeed on the message thread (Stage 3): 8192 slots hold a full
+    cycle down to 23.4 Hz at 2× / 48 k (RESEARCH §2.3). */
 struct CycleCapture
 {
-    static constexpr int kPoints = 2048;
+    static constexpr int kPoints = 8192;
+    static_assert ((kPoints & (kPoints - 1)) == 0, "CycleCapture::kPoints must be a power of two (the writer masks the index)");
     std::array<float, kPoints * 4> ring {};
     std::atomic<uint32_t> writeIndex { 0 };
 };

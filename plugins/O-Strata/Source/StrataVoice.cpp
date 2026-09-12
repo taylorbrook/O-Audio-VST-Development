@@ -295,6 +295,7 @@ void StrataVoice::startNote (int midiNoteNumber, float velocity,
     {
         processor->setLastPlayedFrequency (currentFrequency);
         processor->setLastPlayedNote (midiNoteNumber);
+        startSerial = processor->nextStartSerial();   // display-voice re-election order (Stage 3 Decision 10)
     }
 
     // Harness phase seed (plan Decision 8): 0 = production address hash; otherwise
@@ -309,7 +310,7 @@ void StrataVoice::startNote (int midiNoteNumber, float velocity,
     // Osc A: apply coarse/fine tuning
     int coarseA = static_cast<int> (pOscACoarse->load());
     float fineA = pOscAFine->load();
-    double freqA = currentFrequency * std::pow (2.0, (coarseA + fineA / 100.0) / 12.0);
+    double freqA = currentFrequency * pitchRatio (coarseA, fineA);
     oscA.setFrequency (freqA);
 
     // Osc A unison
@@ -332,7 +333,7 @@ void StrataVoice::startNote (int midiNoteNumber, float velocity,
     // Osc B: apply coarse/fine tuning
     int coarseB = static_cast<int> (pOscBCoarse->load());
     float fineB = pOscBFine->load();
-    double freqB = currentFrequency * std::pow (2.0, (coarseB + fineB / 100.0) / 12.0);
+    double freqB = currentFrequency * pitchRatio (coarseB, fineB);
     oscB.setFrequency (freqB);
 
     // Osc B unison
@@ -505,8 +506,8 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float fineA = pOscAFine->load();
     int coarseB = static_cast<int> (pOscBCoarse->load());
     float fineB = pOscBFine->load();
-    double pitchRatioA = std::pow (2.0, (coarseA + fineA / 100.0) / 12.0);
-    double pitchRatioB = std::pow (2.0, (coarseB + fineB / 100.0) / 12.0);
+    double pitchRatioA = pitchRatio (coarseA, fineA);
+    double pitchRatioB = pitchRatio (coarseB, fineB);
 
     // Pitch-tracked terrain frequency uses the glide TARGET (ARCH Algorithm
     // "Pitch tracking"), not the per-sample glided value; the Bandlimited

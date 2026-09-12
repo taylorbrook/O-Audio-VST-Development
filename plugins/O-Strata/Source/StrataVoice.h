@@ -76,6 +76,11 @@ public:
         display voice (currentMidiNote == processor->getLastPlayedNote()) writes. */
     void setCaptureTargets (CycleCapture* a, CycleCapture* b) { captureA = a; captureB = b; }
 
+    /** Start order stamp (Stage 3, plan Decision 10): the processor re-elects the
+        display voice at block end from the active voice with the greatest serial. */
+    uint32_t getStartSerial() const { return startSerial; }
+    int getCurrentMidiNote() const { return currentMidiNote; }
+
     /** The processor's published Chebyshev sets / images for this block (plan
         Decision 33) — stored here, handed to the oscillators at block start. */
     void setPublished (const ChebyshevSet* a, const ChebyshevSet* b, const TerrainImage* ia, const TerrainImage* ib)
@@ -234,6 +239,7 @@ private:
     TerrainOscillator oscA;
     TerrainOscillator oscB;
     int voiceIndex = 0;
+    uint32_t startSerial = 0;
     CycleCapture* captureA = nullptr;
     CycleCapture* captureB = nullptr;
     const ChebyshevSet* chebA = nullptr;

@@ -405,11 +405,11 @@ float TerrainOscillator::scan (double phase, int partial, bool shadow) noexcept
     fbY2[partial] = fbY1[partial];
     fbY1[partial] = y;
 
-    // Core 10: the display voice's partial 0 writes (θ, p.x, p.y, y) per base sample
+    // Core 10: the display voice's partial 0 writes (θ, p.x, p.y, y) per sub-sample (fs · OS)
     if (capture != nullptr && partial == 0)
     {
         const uint32_t w = capture->writeIndex.load (std::memory_order_relaxed);
-        float* slot = capture->ring.data() + (w % CycleCapture::kPoints) * 4;
+        float* slot = capture->ring.data() + (w & (CycleCapture::kPoints - 1)) * 4;
         slot[0] = theta; slot[1] = px; slot[2] = py; slot[3] = y;
         capture->writeIndex.store (w + 1, std::memory_order_release);
     }

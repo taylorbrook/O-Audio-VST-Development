@@ -39,6 +39,7 @@
 #include "NoteDivisions.h"
 #include "dsp/ModulationMatrix.h"
 #include "dsp/TerrainOscillator.h"
+#include "dsp/MathConstants.h"
 
 // ═══════════════════════════════════════════════════════════════════
 // FX bypass-and-process helper (used by processBlock)
@@ -999,8 +1000,38 @@ void OStrataAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         }
     }
 
+    // Core 10 display voice: re-elect when the last-played note's voice has ended
+    reelectDisplayVoice();
+
     // Publish "this block is done reading published pointers" for the retired-object reaper
     blockGeneration.fetch_add (1, std::memory_order_release);
+}
+
+void OStrataAudioProcessor::reelectDisplayVoice()
+{
+    // Stage 3 plan Decision 10 (RESEARCH §2.3 rule A′): `lastPlayedNote` stays the
+    // display gate the voices read at block start. If no active voice still plays
+    // that note, hand the ring to the active voice that started most recently, so
+    // the ≋ view keeps moving while older notes sound instead of freezing on the
+    // released voice's last cycle. ≤ 16 relaxed loads, no allocation, audio thread.
+    const int current = lastPlayedNote.load (std::memory_order_relaxed);
+    int newest = -1;
+    uint32_t newestSerial = 0;
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        auto* voice = static_cast<StrataVoice*> (synthesiser.getVoice (i));   // every voice is a StrataVoice (ctor)
+        if (voice == nullptr || ! voice->isVoiceActive())
+            continue;
+        if (voice->getCurrentMidiNote() == current)
+            return;   // the display voice is still sounding — nothing to do
+        if (newest < 0 || voice->getStartSerial() > newestSerial)
+        {
+            newest = voice->getCurrentMidiNote();
+            newestSerial = voice->getStartSerial();
+        }
+    }
+    if (newest >= 0)
+        lastPlayedNote.store (newest, std::memory_order_relaxed);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1106,6 +1137,33 @@ void OStrataAudioProcessor::updateOscillatorAssignments()
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
         if (auto* voice = dynamic_cast<StrataVoice*> (synthesiser.getVoice (i)))
             voice->setPublished (chebA, chebB, imgA, imgB);
+}
+
+double OStrataAudioProcessor::tunedFrequency (int midi, int osc)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+    const juce::String pre = osc == 0 ? "oscA" : "oscB";
+    const int coarse = static_cast<int> (parameters.getRawParameterValue (pre + "Coarse")->load());
+    const double fine = parameters.getRawParameterValue (pre + "Fine")->load();
+    return tuningEngine.getFrequency (juce::jlimit (0, 127, midi)) * pitchRatio (coarse, fine);
+}
+
+OStrataAudioProcessor::TerrainStatus OStrataAudioProcessor::getTerrainStatus (int osc) const
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+    const int o = juce::jlimit (0, 1, osc);
+    const juce::String pre = o == 0 ? "oscA" : "oscB";
+    TerrainStatus s;
+    s.quality = juce::jlimit (0, 2, static_cast<int> (parameters.getRawParameterValue (pre + "Quality")->load()));
+    s.terrain = juce::jlimit (0, 6, static_cast<int> (parameters.getRawParameterValue (pre + "Terrain")->load()));
+    s.partialsAtC4 = chebPartialsAtC4[o].load (std::memory_order_relaxed);
+    const float fit = s.terrain == static_cast<int> (TerrainKind::Imported) ? imageFit[o].load (std::memory_order_relaxed)
+                                                                              : chebFit[o].load (std::memory_order_relaxed);
+    s.fitPercent = juce::jlimit (0, 100, static_cast<int> (std::lround (fit)));
+    s.topNote = chebTopNote[o].load (std::memory_order_relaxed);
+    s.approximate = chebApproximate[o].load (std::memory_order_relaxed);
+    s.sourceMissing = false;   // Stage 4.1 ("Locate…")
+    return s;
 }
 
 void OStrataAudioProcessor::releasePublishedImages()

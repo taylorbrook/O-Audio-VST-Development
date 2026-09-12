@@ -28,6 +28,7 @@ target_sources(O-Strata
         Source/ScaleGenerator.cpp
         Source/EmbeddedTunings.cpp
         Source/TuningExporter.cpp
+        Source/TerrainViewFeed.cpp
         Source/dsp/TerrainOscillator.cpp
         Source/dsp/ChebyshevProjector.cpp
         Source/dsp/TerrainScheduler.cpp
@@ -80,13 +81,16 @@ juce_generate_juce_header(O-Strata)
 ouaricon_add_module(O-Strata note-expression)
 
 # WebView UI Resources — exactly ONE binary-data target (two collide on the
-# BinaryData namespace). Stage 3 adds js/geometry-view.js + the shell PNG HERE.
+# BinaryData namespace). Stage 3 Round A added the botanical plate
+# (img/shell_conchologiaiconi12reev_0090.png → BinaryData::shell_conchologiaiconi12reev_0090_png,
+# served by getResource as image/png); Round B's terrain view module goes HERE too.
 juce_add_binary_data(O-Strata_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/shell_conchologiaiconi12reev_0090.png
 )
 
 target_link_libraries(O-Strata

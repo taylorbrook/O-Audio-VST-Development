@@ -137,6 +137,15 @@ TerrainScheduler::TerrainScheduler (OStrataAudioProcessor& p)
         pFeedback[osc] = apvts.getRawParameterValue (pre + "OrbFeedback");
         pBlur[osc]     = apvts.getRawParameterValue (pre + "TerBlur");
         pEdge[osc]     = apvts.getRawParameterValue (pre + "TerEdge");
+        // Stage 3 D3 top-note key (plan Decision 13)
+        pPos[osc]      = apvts.getRawParameterValue (pre + "Pos");
+        pAspect[osc]   = apvts.getRawParameterValue (pre + "OrbAspect");
+        pRot[osc]      = apvts.getRawParameterValue (pre + "OrbRot");
+        pCX[osc]       = apvts.getRawParameterValue (pre + "OrbCX");
+        pCY[osc]       = apvts.getRawParameterValue (pre + "OrbCY");
+        pOrbMod[osc]   = apvts.getRawParameterValue (pre + "OrbMod");
+        pCoarse[osc]   = apvts.getRawParameterValue (pre + "Coarse");
+        pFine[osc]     = apvts.getRawParameterValue (pre + "Fine");
     }
     startTimer (kPollMs);
 }
@@ -230,6 +239,146 @@ void TerrainScheduler::refreshReadouts (int osc)
     const bool fbRouted = foldMatrix.isDestinationRouted (osc == 0 ? ModDest::OscAOrbFeedback : ModDest::OscBOrbFeedback);
     const bool approximate = orbitK (orbit) == 0 || pFeedback[osc]->load() > 0.0f || fbRouted;
     processor.chebApproximate[osc].store (approximate, std::memory_order_relaxed);
+
+    refreshTopNote (osc, fs, orbit);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Stage 3 D3: "silent above <note>" (plan Decision 13; RESEARCH §2.4)
+// ═══════════════════════════════════════════════════════════════════
+
+void TerrainScheduler::refreshTopNote (int osc, double fs, OrbitKind orbit)
+{
+    // Only Bandlimited with a published set that stands for the current terrain (the
+    // oscillator's own rule in updateBlockRate: key.terrain must match, else it plays
+    // the analytic 1× path and nothing is muted).
+    const int quality = static_cast<int> (pQuality[osc]->load());
+    const int terrainIdx = juce::jlimit (0, 6, static_cast<int> (pTerrain[osc]->load()));
+    const ChebyshevSet* set = nullptr;
+    int generation = -1;
+    if (quality == static_cast<int> (Quality::Bandlimited))
+    {
+        if (terrainIdx == static_cast<int> (TerrainKind::Imported))
+        {
+            if (const auto* img = processor.imagePtr[osc].load (std::memory_order_acquire))
+            {
+                set = &img->cheb;
+                generation = processor.imageGeneration[osc].load (std::memory_order_acquire);
+            }
+        }
+        else if (const auto* published = processor.chebPtr[osc].load (std::memory_order_acquire))
+        {
+            if (published->key.terrain == terrainIdx)
+            {
+                set = published;
+                generation = processor.chebGeneration[osc].load (std::memory_order_acquire);
+            }
+        }
+    }
+    if (set == nullptr)
+    {
+        processor.chebTopNote[osc].store (-1, std::memory_order_relaxed);
+        topNoteKeyValid[osc] = false;
+        return;
+    }
+
+    auto q = [] (float v) { return static_cast<int> (std::lround (v * 1024.0f)); };
+    TopNoteKey key;
+    key.generation = generation;
+    key.orbit = static_cast<int> (orbit);
+    key.coarse = static_cast<int> (pCoarse[osc]->load());
+    key.fine = q (pFine[osc]->load() / 100.0f);
+    key.pos = q (pPos[osc]->load());
+    key.aspect = q (pAspect[osc]->load());
+    key.rot = q (pRot[osc]->load() / 360.0f);
+    key.cx = q (pCX[osc]->load());
+    key.cy = q (pCY[osc]->load());
+    key.mod = q (pOrbMod[osc]->load());
+    key.fs = static_cast<int> (std::lround (fs));
+
+    const bool periodic = ++topNotePolls[osc] >= kTopNoteRefreshPolls;
+    if (topNoteKeyValid[osc] && key == topNoteKey[osc] && ! periodic)
+        return;
+    topNotePolls[osc] = 0;
+    topNoteKey[osc] = key;
+    topNoteKeyValid[osc] = true;
+
+    // Bisection over MIDI 0–127 for the highest sounding note: A(n) is non-increasing in
+    // n (the taper only removes diagonals as f rises), so ≈ 7 probes (≈ 0.6 ms) settle it.
+    const int K = orbitKNominal (orbit);
+    auto sounds = [&] (int n) {
+        return probeHarmonicAmplitude (osc, *set, orbit, K, fs, processor.tunedFrequency (n, osc)) >= kTopNoteTau;
+    };
+    int top;
+    if (sounds (127))       top = 127;
+    else if (! sounds (0))  top = -1;   // nothing sounds at any pitch — no note to name
+    else
+    {
+        int lo = 0, hi = 127;           // invariant: lo sounds, hi is muted
+        while (hi - lo > 1)
+        {
+            const int mid = (lo + hi) / 2;
+            if (sounds (mid)) lo = mid; else hi = mid;
+        }
+        top = lo;
+    }
+    processor.chebTopNote[osc].store (top >= kTopNoteHide ? -1 : top, std::memory_order_relaxed);
+}
+
+double TerrainScheduler::probeHarmonicAmplitude (int osc, const ChebyshevSet& set, OrbitKind orbit, int K, double fs, double f) const
+{
+    // The voice's tapered copy (TerrainOscillator::buildChebWeights) at this pitch
+    const double dc = chebDiagonalCutoff (fs, K, f);
+    float c[kChebCoeffs];
+    for (int n = 0; n <= kChebDegree; ++n)
+    {
+        const int row = chebRowStart (n);
+        for (int m = 0; m + n <= kChebDegree; ++m)
+            c[row + m] = set.c[static_cast<size_t> (row + m)] * chebTaperWeight (n + m, dc);
+    }
+
+    // The base orbit at the raw (unmodulated) orbit parameters, then the voice's affine
+    // (aspect on y, rotation, size, centre, clamp) — no feedback, no saturation.
+    const float m = juce::jlimit (0.0f, 1.0f, pOrbMod[osc]->load());
+    const float aspect = juce::jlimit (0.1f, 1.0f, pAspect[osc]->load());
+    const float rotRad = pRot[osc]->load() * 0.017453292519943295f;
+    const float r = 0.05f + 0.95f * juce::jlimit (0.0f, 1.0f, pPos[osc]->load());
+    const float cx = juce::jlimit (-1.0f, 1.0f, pCX[osc]->load());
+    const float cy = juce::jlimit (-1.0f, 1.0f, pCY[osc]->load());
+    const float sinRot = std::sin (rotRad), cosRot = std::cos (rotRad);
+    const float* lut = SuperellipseLUT::get();
+    OrbitScratch scratch;
+    scratch.invTanhK = orbit == OrbitKind::Squarcle ? 1.0f / std::tanh (0.3f + 6.0f * m) : 1.0f;
+    scratch.normFactor = 1.0f / OrbitDetail::maxRadius (orbit, m, scratch, lut);
+
+    constexpr int N = 256;
+    float y[N];
+    for (int i = 0; i < N; ++i)
+    {
+        const float theta = static_cast<float> (6.283185307179586 * double (i) / double (N));
+        const OrbitPoint b = baseOrbit (orbit, theta, m, scratch, lut);
+        const float bx = b.x, by = b.y * aspect;
+        const float px = juce::jlimit (-1.0f, 1.0f, (bx * cosRot - by * sinRot) * r + cx);
+        const float py = juce::jlimit (-1.0f, 1.0f, (bx * sinRot + by * cosRot) * r + cy);
+        const float v = clenshaw2D (c, px, py);
+        y[i] = std::isfinite (v) ? v : 0.0f;
+    }
+
+    // 256-point DFT, strongest harmonic k >= 1: A = 2 |X_k| / N (one orbit cycle = one period)
+    double best = 0.0;
+    for (int k = 1; k <= N / 2; ++k)
+    {
+        double re = 0.0, im = 0.0;
+        const double w = 6.283185307179586 * double (k) / double (N);
+        for (int i = 0; i < N; ++i)
+        {
+            re += y[i] * std::cos (w * i);
+            im -= y[i] * std::sin (w * i);
+        }
+        const double a = 2.0 * std::sqrt (re * re + im * im) / double (N);
+        if (a > best) best = a;
+    }
+    return best;
 }
 
 void TerrainScheduler::poll (bool synchronous)
