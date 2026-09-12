@@ -146,11 +146,41 @@ public:
     std::atomic<float> chebFit[2]          { 0.0f, 0.0f };   // 0–100 %
     std::atomic<int>   chebPartialsAtC4[2] { 0, 0 };         // min (16, D_max (C4, fs)) · K_nominal
     std::atomic<bool>  chebApproximate[2]  { false, false }; // orbitK == 0 || Feedback > 0 || Feedback routed
+    // Stage 3 (CONTEXT D3, plan Decision 13): the highest MIDI note that still sounds in
+    // Bandlimited — the strongest harmonic of the tapered set traced on the base orbit
+    // (Pos / Aspect / Rot / Centre / Mod, raw values) at the tuned f(n) · pitchRatio
+    // (Coarse, Fine), 256-θ trace + 256-point DFT, sounding iff A(n) >= 2e-3 (≈ −54 dBFS),
+    // bisection over MIDI 0–127. −1 = nothing to show: Quality ≠ Bandlimited, no set
+    // published, or the top note is >= 108 (C8). Computed by TerrainScheduler::
+    // refreshReadouts when its key changes or every 10 polls (500 ms — covers tuning
+    // table changes without a generation counter). The page prints "silent above <note>".
+    std::atomic<int>   chebTopNote[2]      { -1, -1 };
     std::atomic<int>   imageGeneration[2]  { 0, 0 };
     std::atomic<float> imageFit[2]         { 0.0f, 0.0f };
     std::atomic<int>   publishCount { 0 };                    // prepareToPlay / setStateInformation publish nothing (harness)
 
     TerrainScheduler& getTerrainScheduler() { return terrainScheduler; }
+
+    /** Message thread: the tuned frequency the voice would give MIDI `midi` on
+        oscillator `osc` = tuningEngine.getFrequency (midi) · pitchRatio (Coarse, Fine)
+        (Stage 3 plan Task 2 — the D3 top-note probe's f(n)). */
+    double tunedFrequency (int midi, int osc);
+
+    // ─── Stage 3 (plan Decision 12): the readout status pushed to the page as `terrainStatus` ───
+    struct TerrainStatus
+    {
+        int quality = 1, terrain = 0, partialsAtC4 = 0, fitPercent = 0, topNote = -1;
+        bool approximate = false, sourceMissing = false;   // sourceMissing hard-false until Stage 4.1
+        bool operator== (const TerrainStatus& o) const noexcept
+        {
+            return quality == o.quality && terrain == o.terrain && partialsAtC4 == o.partialsAtC4
+                && fitPercent == o.fitPercent && topNote == o.topNote
+                && approximate == o.approximate && sourceMissing == o.sourceMissing;
+        }
+        bool operator!= (const TerrainStatus& o) const noexcept { return ! (*this == o); }
+    };
+    /** Message thread. `fitPercent` reads imageFit when Terrain = Imported, chebFit otherwise. */
+    TerrainStatus getTerrainStatus (int osc) const;
 
     // ─── PNG import API (ARCH Core 8; plan Decision 38; FUNC-07 DSP half) ───
     // Message thread. Decodes once (a 1024² decode is a few ms — a user gesture),
@@ -205,9 +235,15 @@ public:
     const float* getRampRow (int row) const { return rampBuffers.getReadPointer (juce::jlimit (0, kNumRampRows - 1, row)); }
     int getRampCapacity() const { return rampCapacity; }
 
-    /** MIDI note of the most recently started voice — selects the Core 10 display voice. */
+    /** MIDI note of the most recently started voice — selects the Core 10 display voice.
+        Stage 3 (plan Decision 10): when no active voice plays this note any more, the
+        end of processBlock re-elects the active voice with the greatest start serial,
+        so the ring keeps moving while older notes sound (it never freezes on a
+        released voice). */
     int getLastPlayedNote() const { return lastPlayedNote.load (std::memory_order_relaxed); }
     void setLastPlayedNote (int n) { lastPlayedNote.store (n, std::memory_order_relaxed); }
+    /** Audio thread (startNote): monotonic start-order stamp for the re-election. */
+    uint32_t nextStartSerial() { return startSerialCounter.fetch_add (1, std::memory_order_relaxed) + 1; }
 
     /** Get current mod wheel value (0..1) for modulation matrix */
     float getModWheelValue() const { return modWheelValue.load (std::memory_order_relaxed); }
@@ -359,6 +395,8 @@ private:
     // Last started note frequency for glide "Always" seeding (WR-06)
     std::atomic<double> lastPlayedFrequency { 0.0 };
     std::atomic<int> lastPlayedNote { -1 };
+    std::atomic<uint32_t> startSerialCounter { 0 };
+    void reelectDisplayVoice();   // end of processBlock (Stage 3 Decision 10)
 
     // Master volume and stereo width (smoothed)
     juce::SmoothedValue<float> masterVolSmoothed { 0.8f };

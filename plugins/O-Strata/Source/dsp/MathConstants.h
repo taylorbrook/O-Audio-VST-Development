@@ -31,6 +31,17 @@
 
 #pragma once
 
+#include <cmath>
+
 inline constexpr double kPi     = 3.141592653589793;
 inline constexpr double kTwoPi  = 6.283185307179586;
 inline constexpr double kHalfPi = 1.5707963267948966;
+
+/** Oscillator Coarse (semitones) + Fine (cents) → frequency ratio. One law for the
+    voice (StrataVoice::startNote / renderNextBlock) and the D3 top-note probe
+    (TerrainScheduler::computeTopNote) — lifted here so neither mirrors the other
+    (Stage 3 plan Task 2). Block-rate pow only. */
+inline double pitchRatio (int coarseSemitones, double fineCents) noexcept
+{
+    return std::pow (2.0, (static_cast<double> (coarseSemitones) + fineCents / 100.0) / 12.0);
+}

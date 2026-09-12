@@ -57,6 +57,7 @@
 #include <JuceHeader.h>
 #include "ChebyshevSet.h"
 #include "ModulationMatrix.h"
+#include "Orbits.h"
 #include <atomic>
 #include <memory>
 #include <vector>
@@ -141,6 +142,30 @@ private:
     std::unique_ptr<TerrainImage> buildImage (int osc, const ImageKey& key, const std::atomic<bool>* cancel);
 
     void refreshReadouts (int osc);
+
+    // ─── Stage 3 D3 top-note probe (plan Decision 13; RESEARCH §2.4) ───
+    struct TopNoteKey
+    {
+        int generation = -1, orbit = -1, coarse = 0, fine = 0;
+        int pos = 0, aspect = 0, rot = 0, cx = 0, cy = 0, mod = 0;   // raw values quantised to 1/1024 (rot: turns)
+        int fs = 0;
+        bool operator== (const TopNoteKey& o) const noexcept
+        {
+            return generation == o.generation && orbit == o.orbit && coarse == o.coarse && fine == o.fine
+                && pos == o.pos && aspect == o.aspect && rot == o.rot && cx == o.cx && cy == o.cy && mod == o.mod && fs == o.fs;
+        }
+        bool operator!= (const TopNoteKey& o) const noexcept { return ! (*this == o); }
+    };
+    static constexpr int kTopNoteRefreshPolls = 10;        // 500 ms — covers tuning-table changes
+    static constexpr double kTopNoteTau = 2.0e-3;           // ≈ −54 dBFS strongest harmonic (17 / 17 muted rows)
+    static constexpr int kTopNoteHide = 108;                // C8: top >= this → −1 (nothing to show)
+    void refreshTopNote (int osc, double fs, OrbitKind orbit);
+    /** Strongest-harmonic amplitude A(n) of the tapered `set` traced on the base orbit at f (Hz). */
+    double probeHarmonicAmplitude (int osc, const ChebyshevSet& set, OrbitKind orbit, int K, double fs, double f) const;
+    TopNoteKey topNoteKey[2];
+    bool topNoteKeyValid[2] = { false, false };
+    int topNotePolls[2] = { 0, 0 };
+
     void pruneFinishedJobs();
     static double nowMs();
     int publishedThisPoll = 0;
@@ -163,6 +188,15 @@ private:
     std::atomic<float>* pFeedback[2] = {};
     std::atomic<float>* pBlur[2] = {};
     std::atomic<float>* pEdge[2] = {};
+    // D3 top-note key inputs (Stage 3)
+    std::atomic<float>* pPos[2] = {};
+    std::atomic<float>* pAspect[2] = {};
+    std::atomic<float>* pRot[2] = {};
+    std::atomic<float>* pCX[2] = {};
+    std::atomic<float>* pCY[2] = {};
+    std::atomic<float>* pOrbMod[2] = {};
+    std::atomic<float>* pCoarse[2] = {};
+    std::atomic<float>* pFine[2] = {};
 
     JUCE_DECLARE_NON_COPYABLE (TerrainScheduler)
 };

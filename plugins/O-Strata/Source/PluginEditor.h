@@ -32,6 +32,7 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 #include "StrataParamIds.h"
+#include "TerrainViewFeed.h"
 
 class OStrataAudioProcessorEditor : public juce::AudioProcessorEditor,
                                    private juce::Timer
@@ -82,9 +83,23 @@ private:
     juce::WebBrowserComponent::Options addNativeFunctions (
         juce::WebBrowserComponent::Options options);
 
-    // Timer callback to push active notes to WebView for TrueKeys
+    // 30 Hz timer: pushes heldNotes (TrueKeys), terrainStatus (struct compare) and
+    // terrainCycle (even ticks, new complete cycle only) through
+    // emitEventIfBrowserIsVisible — never evaluateJavascript (Stage 3 plan Decision 8).
     void timerCallback() override;
+    void pushHeldNotes (bool force);
+    void pushStatus (int osc, bool force);
+    void pushCycle (int osc);
     std::vector<std::pair<int, double>> lastSentNotes;
+    OStrataAudioProcessor::TerrainStatus lastStatus[2];
+    bool hasLastStatus[2] = { false, false };
+    TerrainViewFeed::CycleScratch cycleScratch[2];
+    std::array<float, TerrainViewFeed::kCyclePoints * 3> cycleOut {};
+    // Page → C++ handshake: `requestTerrainRepush` (boot and __refreshAllControls)
+    // sets this; the next tick forces all three pushes (the page-load drop window,
+    // RESEARCH §2.5). Written on the message thread by the native fn, read by the timer.
+    bool repushPending = false;
+    uint32_t tickCount = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OStrataAudioProcessorEditor)
 };

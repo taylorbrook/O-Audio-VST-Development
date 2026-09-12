@@ -211,6 +211,7 @@ namespace
         bool printOnly = false;
         bool withDisk = false;
         std::string pngPath;   // --png PATH: importTerrainFile for ad-hoc runs
+        bool dumpChoices = false;   // --dump-choices: print the combo / mod-name JSON and exit (Stage 3 stub fixtures)
     } opt;
 
     // ── Instance: one processor + the setters the gates need ──
@@ -2204,15 +2205,68 @@ namespace
         std::printf ("  [H8] TerrainImage::liveCount %d, ChebyshevSet::liveCount %d (each image embeds one set)\n", TerrainImage::liveCount.load(), ChebyshevSet::liveCount.load());
     }
 
+    // ── H12 (Stage 3 Round A): the D3 top-note readout ──
+    void gateTopNote()
+    {
+        std::printf ("\n== topnote (Stage 3 D3: chebTopNote = highest sounding MIDI note in Bandlimited, strongest harmonic on the base orbit >= 2e-3; -1 = nothing to show / top >= 108) ==\n");
+        auto row = [&] (int terrain, int orbit, int quality) {
+            Instance in; in.cleanPatch(); in.setTerrainOrbit (0, terrain, orbit); in.setChoice ("oscAQuality", quality);
+            in.prepare (opt.fs, 512);
+            in.syncScheduler();   // publishes the set (the readout poll runs before the publish inside one poll)
+            in.syncScheduler();   // the next poll's refreshReadouts sees the new chebGeneration and computes
+            return in.p.chebTopNote[0].load();
+        };
+        const int radialEpi3 = row (1, 3, 0);
+        const int sineEpi3   = row (0, 3, 0);
+        const int mitsuEll   = row (4, 0, 0);
+        const int sineEpi3x2 = row (0, 3, 1);
+        std::printf ("  [topnote] RadialRings x Epitrochoid3 %d, SineProduct x Epitrochoid3 %d, Mitsuhashi x Ellipse %d, SineProduct x Epitrochoid3 @2x %d (fs %.0f)\n",
+                     radialEpi3, sineEpi3, mitsuEll, sineEpi3x2, opt.fs);
+        check (radialEpi3 >= 0 && radialEpi3 <= 92, fmt ("[topnote] Radial Rings x Epitrochoid 3 (K = 4, muted at A6 in H6): top note %d in [0, 92]", radialEpi3));
+        check (sineEpi3 == -1 || sineEpi3 >= 93, fmt ("[topnote] Sine Product x Epitrochoid 3 (sounding at A6 in H6): top note %d >= 93 or hidden (-1)", sineEpi3));
+        check (mitsuEll == -1, fmt ("[topnote] Mitsuhashi x Ellipse never mutes: %d == -1", mitsuEll));
+        check (sineEpi3x2 == -1, fmt ("[topnote] Quality 2x: %d == -1 (Bandlimited only)", sineEpi3x2));
+    }
+
+    // ── --dump-choices (Stage 3 Round A, plan Decision 14): the stub fixture source ──
+    // Prints one JSON object read from the LIVE APVTS + ModulationMatrix so
+    // tests/ui-stub/generic-overrides.json is generated, never typed
+    // (memory pattern_test_fixture_mirrors_drift_silently).
+    void dumpChoices()
+    {
+        Instance in;
+        auto* root = new juce::DynamicObject();
+        auto* combos = new juce::DynamicObject();
+        for (const auto& id : StrataParamIds::allComboIds())
+        {
+            auto* choice = dynamic_cast<juce::AudioParameterChoice*> (in.param (id.toStdString()));
+            if (choice == nullptr) { std::printf ("!! %s is not an AudioParameterChoice\n", id.toRawUTF8()); std::exit (2); }
+            juce::Array<juce::var> names;
+            for (const auto& n : choice->choices) names.add (n);
+            auto* c = new juce::DynamicObject();
+            c->setProperty ("choices", names);
+            const auto* ranged = static_cast<const juce::RangedAudioParameter*> (choice);   // getDefaultValue is public on the base
+            c->setProperty ("def", static_cast<int> (std::lround (ranged->getDefaultValue() * float (choice->choices.size() - 1))));
+            combos->setProperty (id, juce::var (c));
+        }
+        root->setProperty ("combos", juce::var (combos));
+        juce::Array<juce::var> dests, sources;
+        for (const auto& n : getModDestNames()) dests.add (n);
+        for (const auto& n : getModSourceNames()) sources.add (n);
+        root->setProperty ("modDestNames", dests);
+        root->setProperty ("modSourceNames", sources);
+        std::printf ("%s\n", juce::JSON::toString (juce::var (root), false).toRawUTF8());
+    }
+
     //==========================================================================
     // ── CLI ──────────────────────────────────────────────────────────────────
 
     void usage()
     {
-        std::printf ("O-Strata-render-test --gate <H1..H11|tuning|smoke|centroids|saturation|decimator|crossfade|latency|clenshaw|scheduler|storm|import|export|all> [--gate ...]\n"
+        std::printf ("O-Strata-render-test --gate <H1..H11|tuning|smoke|centroids|saturation|decimator|crossfade|latency|clenshaw|scheduler|storm|import|export|topnote|all> [--gate ...]\n"
                      "  [--note N] [--velocity V] [--seconds S] [--terrain I] [--orbit I] [--quality I]\n"
                      "  [--set id=norm]... [--fs F] [--block B] [--seed S] [--fixtures DIR] [--export NAME] [--png PATH]\n"
-                     "  [--print-only] [--with-disk]\n");
+                     "  [--print-only] [--with-disk] [--dump-choices]\n");
     }
 
     bool parse (int argc, char** argv)
@@ -2239,6 +2293,7 @@ namespace
             else if (a == "--print-only") opt.printOnly = true;
             else if (a == "--with-disk") opt.withDisk = true;
             else if (a == "--png") opt.pngPath = next();
+            else if (a == "--dump-choices") opt.dumpChoices = true;
             else { usage(); return false; }
         }
         return true;
@@ -2261,6 +2316,7 @@ int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI init;   // juce_events; the loop is pumped only inside pump()
     if (! parse (argc, argv)) return 2;
+    if (opt.dumpChoices) { dumpChoices(); return 0; }
     if (opt.gates.empty()) { usage(); return 2; }
 
     const auto t0 = std::chrono::steady_clock::now();
@@ -2316,6 +2372,7 @@ int main (int argc, char** argv)
     if (wants ("H11"))       gateH11();
     if (wants ("H10"))       gateH10();
     if (wants ("H8"))        gateH8Image();
+    if (wants ("topnote"))   gateTopNote();
     if (wantsExact ("export")) gateExport();
 
     std::printf ("\n%s — %d check(s), %d failure(s), %.1f s\n", failures == 0 ? "ALL GATES PASSED" : "GATES FAILED", checksRun, failures, secondsSince (t0));

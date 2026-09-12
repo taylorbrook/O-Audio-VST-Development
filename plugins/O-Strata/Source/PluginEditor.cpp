@@ -115,6 +115,11 @@ OStrataAudioProcessorEditor::getResource (const juce::String& url)
         return makeBinaryResource (BinaryData::check_native_interop_js,
                                    BinaryData::check_native_interop_jsSize, "application/javascript");
 
+    // Stage 3 Round A: the Terrain tab's botanical plate (CSS background, multiply, 0.3 α)
+    if (url == "/img/shell_conchologiaiconi12reev_0090.png")
+        return makeBinaryResource (BinaryData::shell_conchologiaiconi12reev_0090_png,
+                                   BinaryData::shell_conchologiaiconi12reev_0090_pngSize, "image/png");
+
     return std::nullopt;
 }
 
@@ -472,21 +477,17 @@ OStrataAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Opti
                 });
         });
 
-    // ─── Table-era native functions, stubbed (Phase 2.1; the tables are gone).
-    //     The page is untouched until Phase 3.1 (Stage 1 D1): getActiveOscFrame is
-    //     awaited at page load by the page's waveform display class, so it must still
-    //     answer — "[]" parses to an empty array and draw() returns early; nothing
-    //     throws (memory pattern_webview_native_fn_bridge_gap). getActiveOscInfo
-    //     has no page caller. Phase 3.1 removes this stub (both registrations). ───
-    options = options.withNativeFunction ("getActiveOscInfo",
-        [] (const juce::Array<juce::var>&, auto complete) {
-            complete ("{}");   // Phase 3.1 removes this stub
+    // ─── Stage 3 (plan Decision 8): the page-driven re-push handshake. Called by the
+    //     page at boot (its listeners exist by then) and inside __refreshAllControls
+    //     (preset apply); the next timer tick forces heldNotes + terrainStatus +
+    //     terrainCycle regardless of the change gates. Round B adds terrainState /
+    //     terrainHeightmap to the forced set. ───
+    options = options.withNativeFunction ("requestTerrainRepush",
+        [this] (const juce::Array<juce::var>&, auto complete) {
+            repushPending = true;
+            complete (true);
         });
 
-    options = options.withNativeFunction ("getActiveOscFrame",
-        [] (const juce::Array<juce::var>&, auto complete) {
-            complete ("[]");   // Phase 3.1 removes this stub
-        });
 
     // Mod matrix source/dest name lists for UI dropdowns
     options = options.withNativeFunction ("getModSourceNames",
@@ -782,7 +783,9 @@ void OStrataAudioProcessorEditor::resized()
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Timer: Push active MIDI notes to WebView for TrueKeys
+// Timer (30 Hz): heldNotes (TrueKeys), terrainStatus, terrainCycle pushes
+// Every push goes through emitEventIfBrowserIsVisible (Stage 3 plan Decisions
+// 8 / 15); the page registers the listeners before it calls requestTerrainRepush.
 // ═══════════════════════════════════════════════════════════════════
 
 void OStrataAudioProcessorEditor::timerCallback()
@@ -790,18 +793,52 @@ void OStrataAudioProcessorEditor::timerCallback()
     if (webView == nullptr)
         return;
 
+    const bool force = repushPending;
+    repushPending = false;
+    ++tickCount;
+
+    pushHeldNotes (force);
+    for (int osc = 0; osc < 2; ++osc)
+    {
+        pushStatus (osc, force);
+        if (force || (tickCount & 1u) == 0)   // ≤ 15 Hz: every other tick, and only when a new complete cycle exists
+            pushCycle (osc);
+    }
+}
+
+void OStrataAudioProcessorEditor::pushHeldNotes (bool force)
+{
     auto currentNotes = processorRef.getActiveNotes();
-
-    // Only send update if notes changed
-    if (currentNotes == lastSentNotes)
+    if (! force && currentNotes == lastSentNotes)
         return;
-
     lastSentNotes = currentNotes;
 
-    // Build JS call: window.updateHeldNotes([midi1,midi2,...], [freq1,freq2,...])
-    auto noteArray = toJsonArray (currentNotes, [] (const auto& n) { return juce::String (n.first); });
-    auto freqArray = toJsonArray (currentNotes, [] (const auto& n) { return juce::String (n.second, 4); });
+    juce::Array<juce::var> notes, freqs;
+    for (const auto& n : currentNotes)
+    {
+        notes.add (n.first);
+        freqs.add (n.second);
+    }
+    auto* obj = new juce::DynamicObject();
+    obj->setProperty ("notes", notes);
+    obj->setProperty ("freqs", freqs);
+    webView->emitEventIfBrowserIsVisible ("heldNotes", juce::var (obj));
+}
 
-    juce::String js = "if(window.updateHeldNotes) window.updateHeldNotes(" + noteArray + "," + freqArray + ");";
-    webView->evaluateJavascript (js, nullptr);
+void OStrataAudioProcessorEditor::pushStatus (int osc, bool force)
+{
+    const auto status = processorRef.getTerrainStatus (osc);
+    if (! force && hasLastStatus[osc] && status == lastStatus[osc])
+        return;
+    lastStatus[osc] = status;
+    hasLastStatus[osc] = true;
+    webView->emitEventIfBrowserIsVisible ("terrainStatus", TerrainViewFeed::makeStatusEvent (osc, status));
+}
+
+void OStrataAudioProcessorEditor::pushCycle (int osc)
+{
+    // A non-advancing writeIndex is idle: no push, the page keeps the last cycle drawn.
+    if (TerrainViewFeed::copyCycle (processorRef, osc, cycleScratch[osc], cycleOut.data()) == 0)
+        return;
+    webView->emitEventIfBrowserIsVisible ("terrainCycle", TerrainViewFeed::makeCycleEvent (osc, cycleOut.data()));
 }
