@@ -1062,7 +1062,13 @@ namespace
 
     void gateH4()
     {
-        std::printf ("\n== H4 pitch tracking (Track 1: partials > -40 dB at C2 / C4 / C6 differ <= 2 at F = 1 and F = 4; Track 0 / F = 8 / C6 control) ==\n");
+        std::printf ("\n== H4 pitch tracking (Track 1: partials > -40 dB at C2 == C4 (+-2) and C6 <= C4 at F = 1 and F = 4, C6 below its Track 0 count; Track 0 / F = 8 / C6 control) ==\n");
+        // Round A verify ruling (VERIFICATION.md, DSP-01 amended 2026-09-11): the law is
+        // F_eff = F * min (1, C4 / f) ^ Track (ARCH Decision 2, scaling downward only), so
+        // C2 and C4 share F_eff and C6 sits at F / 4 -- "spread <= 2 across C2 / C4 / C6"
+        // was unsatisfiable at F = 4 under the contracted law. The gate is what the law
+        // promises: identical below the knee (+-2 for the -40 dB threshold), not growing
+        // above it, and the tracked C6 count strictly below the untracked one (the branch).
         auto countsAt = [] (float F, float track, int counts[3], std::string* levels) {
             for (int n = 0; n < 3; ++n)
             {
@@ -1087,13 +1093,22 @@ namespace
             countsAt (F, 1.0f, counts, &levels);
             std::printf ("  [H4] F = %.0f, Track 1: h1..h6 levels (dB re max)%s\n", F, levels.c_str());
             const int spread = std::max ({ counts[0], counts[1], counts[2] }) - std::min ({ counts[0], counts[1], counts[2] });
-            check (spread <= 2, fmt ("[H4] F = %.0f, Track 1: partials > -40 dB at C2 / C4 / C6 = %d / %d / %d (spread %d, need <= 2)", F, counts[0], counts[1], counts[2], spread));
-            // diagnostic rows for verify / Round B (not gated): Track 0 and Track 0.5
+            std::printf ("  [H4] F = %.0f, Track 1: partials > -40 dB at C2 / C4 / C6 = %d / %d / %d (spread %d; the original \"<= 2\" literal is reported, not gated)\n",
+                         F, counts[0], counts[1], counts[2], spread);
+            // Track 0 and Track 0.5 rows: Track 0 supplies the untracked C6 count the gate compares against; 0.5 is diagnostic.
+            int untracked[3] = { 0, 0, 0 };
             for (float tr : { 0.0f, 0.5f })
             {
                 int c[3]; countsAt (F, tr, c, nullptr);
+                if (tr == 0.0f) { untracked[0] = c[0]; untracked[1] = c[1]; untracked[2] = c[2]; }
                 std::printf ("  [H4 diag] F = %.0f, Track %.1f: partials > -40 dB at C2 / C4 / C6 = %d / %d / %d\n", F, tr, c[0], c[1], c[2]);
             }
+            check (std::abs (counts[0] - counts[1]) <= 2,
+                   fmt ("[H4] F = %.0f, Track 1: C2 / C4 partial counts %d / %d (shared F_eff below the knee, need |diff| <= 2)", F, counts[0], counts[1]));
+            check (counts[2] <= counts[1],
+                   fmt ("[H4] F = %.0f, Track 1: C6 partial count %d <= C4 count %d (not growing above the knee)", F, counts[2], counts[1]));
+            check (counts[2] < untracked[2],
+                   fmt ("[H4] F = %.0f: C6 partial count Track 1 = %d < Track 0 = %d (tracking reduces the count on the branch)", F, counts[2], untracked[2]));
         }
         // negative control: Track 0 at F = 8 → non-harmonic energy >= 20 dB above the Track 1 run.
         // The plan's row (Ellipse, C6) is measured first; Ellipse at F = 8 / C6 tops out near
