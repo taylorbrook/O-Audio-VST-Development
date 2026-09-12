@@ -2,6 +2,25 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.9.1] - 2026-09-12
+
+Cosmetic. PATCH: page CSS only — no parameter, range, type or state format
+changed, no C++ touched, audio path untouched.
+
+### Changed
+
+- **Measure / Meter captions black.** `.mode-label` was the `#8B7355` tan
+  shared with the selector borders; it is now `#000000`.
+- **Settings cog black.** `.gear-btn` glyph and ring were the same tan; both
+  are now `#000000`. Hover no longer swaps to the `#5C4033` brown (that would
+  read as lighter than the new black) and instead tints the disc with an 8 %
+  black wash. The open state (`aria-expanded="true"`, green) and the
+  focus ring are unchanged.
+
+### Testing
+
+- Built Release VST3 + AU, installed, auval PASS 1.9.1.
+
 ## [1.9.0] - 2026-09-12
 
 The four meter methods now look different from each other. MINOR: page,

@@ -701,7 +701,7 @@
     .mode-label {
       line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px — see the pin block above */
       font-size: 8px;
-      color: #8B7355;
+      color: #000000;       /* v1.9.1: black (was the #8B7355 tan) */
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
@@ -835,10 +835,10 @@
     .gear-btn {
       width: 18px;
       height: 18px;
-      border: 1px solid #8B7355;
+      border: 1px solid #000000;   /* v1.9.1: black (was the #8B7355 tan) */
       border-radius: 50%;
       background: transparent;
-      color: #8B7355;
+      color: #000000;
       font-size: 11px;
       font-weight: 700;
       font-family: inherit;
@@ -851,8 +851,7 @@
       padding: 0;
     }
     .gear-btn:hover {
-      border-color: #5C4033;
-      color: #5C4033;
+      background: rgba(0, 0, 0, 0.08);   /* v1.9.1: the ink is already black; hover tints the disc */
     }
     .gear-btn[aria-expanded="true"] {
       border-color: #6B8E4E;
