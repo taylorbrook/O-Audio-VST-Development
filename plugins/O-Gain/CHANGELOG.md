@@ -2,6 +2,108 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.6.0] - 2026-09-12
+
+The LUFS meter mode shows LUFS. MINOR: one new continuous measurement pair and
+a second K-weight chain on the post-gain buffer. No parameter, range, type or
+state format changed, and the audio path is untouched — every v1.x session and
+preset loads identically.
+
+### Fixed
+
+- **LUFS meter mode drew RMS under a LUFS label whenever Learn was idle — on
+  both columns, which is nearly always.** The BS.1770 K-weight chain ran only
+  inside the `isLearnActive` branch of STEP 4, and the sole loudness value the
+  editor pushed was the Learn snapshot's momentary field, which sits at -100
+  outside a Learn. `case 3` in app.js therefore fell back to `inputRms*` on the
+  input column, and the output column was RMS by design because the plugin had
+  never measured post-gain loudness. Root cause: a meter mode wired to a
+  measurement that existed only during a different feature's window. Fix: the
+  chain runs on every block, and there are now two of them.
+
+### Added
+
+- **`momentaryLufsIn` / `momentaryLufsOut`**, published every 100 ms hop in
+  LUFS (not amplitude; -100 is the silence floor), Learn or no Learn. Both
+  columns of the LUFS mode read them and nothing else — the RMS fallback is
+  gone, and one value drives both bars of a column because loudness is not
+  per-channel.
+- **`MomentaryLoudnessMeter`**: the two K-weight stages per channel plus the
+  four rotating 100 ms sub-block accumulators, as a struct, because there are
+  two instances — `inputLoudness` on the post-utilities/pre-gain buffer (which
+  Learn also reads) and `outputLoudness` on the post-gain buffer (STEP 8, new).
+  They are prepared with the same spec, coefficients and hop, so their windows
+  close on the same sample and the two columns always describe the same 400 ms.
+- **Learn consumes the input meter's closed blocks** in the new `onLearnHop()`
+  rather than owning the filters: gating store, short-term, integrated,
+  confidence and the seqlock publish are unchanged line for line, only moved.
+  The Learn panel and the LUFS column are the SAME measurement, not two chains
+  that could disagree.
+- **`tests/lufs-harness/`**, an offline console target built with the shared
+  processor-console helper (`OUARICON_BUILD_TESTS=ON`, `ninja O-Gain-lufs-test`,
+  JUCE_WEB_BROWSER=0, no editor TU). Stereo pink noise is calibrated to
+  -18.00 LUFS by an INDEPENDENT BS.1770 implementation (ITU-R BS.1770-4 Table
+  1/2 coefficients typed from the Recommendation, not read from the plugin's
+  `KWeight` namespace) and run with Learn idle at 48 kHz / 480-sample blocks.
+- **`createEditor()` and the editor include are guarded on `JUCE_WEB_BROWSER`**
+  so the console target links (pattern_render_harness_breaks_on_webview_editor).
+
+### Changed
+
+- **`resetLearnAccumulators()` no longer resets the K-weight filter state.**
+  It restarts the input meter's 400 ms window so the first block Learn
+  accumulates lies wholly inside the Learn window (the v1.5.0 semantics, kept),
+  but the filters keep their steady-state history of the very signal being
+  measured. v1.5.0 reset them, which put a start-up transient into the first
+  gating block. The continuous readout holds its last value for one window at
+  Learn start.
+- **`powerToLufs()` is FLOORED at -100, not merely guarded against zero.**
+  After the signal stops the IIR tails leave a vanishing but nonzero power, and
+  the unfloored formula published -1265 LUFS (seen in the harness's silence
+  phase before the floor went in). The page already treats <= -99 as -inf, so
+  nothing was visible, but a published value should not be absurd.
+- **The meter-mode tooltip** in en / fr / zh-Hans no longer promises the RMS
+  fallback: "LUFS = K-weighted momentary loudness (400ms window), measured
+  continuously on both columns".
+- **`tests/i18n-states.json`**: all six `updateMeters` payloads carry the new
+  pair, and a seventh state clicks the LUFS meter button with Learn idle and
+  pushes -18 / -12, so the fixtures drive the code this version ships.
+
+### Verified
+
+- `O-Gain-lufs-test`: **ALL GATES PASSED, 11/11.** With Learn idle
+  (`learnActive` false, snapshot state 0 throughout) and gain 0 dB, over 12 s
+  of -18 LUFS pink noise: input column max |dev| **0.199 dB** over 1150 blocks
+  (mean -18.00 LUFS), output column max |dev| **0.199 dB**, max |in - out|
+  **0.0000 dB**; the plugin's 115 closed windows match the independent reference
+  on the same hop grid to **0.0000 dB**. The reading is a loudness and not the
+  RMS it replaced: mean LUFS sits **+2.52 dB** above the loudest channel's RMS
+  in dBFS on the same signal (gate: > 0.5). At `gain_offset` +6 dB the output
+  column reads -12.00 LUFS (max |dev| 0.199 dB) while the input stays at -18.
+  Nothing is published before the first full window (block 39: -100 / -100;
+  block 40: -18.05 / -18.19 — the 0.14 dB gap on the very first window is the
+  gain stage's pre-existing 20 ms fade-in from `reset()`, excluded by the 0.5 s
+  settle). One second of silence: both columns exactly -100.
+- `check-ui-labels --plugin O-Gain`: **ALL CHECKS PASSED** across en / fr /
+  zh-Hans at 380 x 500, default + 6 states from `tests/i18n-states.json`, 32 of
+  32 `[data-i18n]` elements visible, no uncaught page error, every requested
+  resource served.
+- `check-i18n` all checks pass; `i18n-fr-lint` **CLEAN, exit 0**;
+  `i18n-zh-lint` **0 findings, exit 0**.
+- `auval -v aufx OGan OuDv` (the dev-branded triple this checkout installs):
+  **AU VALIDATION SUCCEEDED**, Component Version 1.6.0 (0x10600), after
+  `build-and-install.sh` swept both variants and cleared the AU cache.
+
+### Below the ship bar, stated rather than buried
+
+- **The rewritten French string is at `reviewed: false` and the Chinese one at
+  `reviewed: 'mt'`** — the developer re-reads the French; the zh lint counts the
+  mt row (`BELOW SHIP BAR: 3`, the two v1.5.0 rows plus this one) and passes.
+- **Mono in LUFS mode** feeds channel 0 into the L side only, R stays zero, so
+  L + R collapses to single-channel loudness (WR-02) — the same rule Learn has
+  used since v1.1.0, now shared by construction. Not exercised by the harness,
+  which runs stereo.
+
 ## [1.5.0] - 2026-09-12
 
 The meter learns to show the PAIR. MINOR: new UI surfaces, one new DSP

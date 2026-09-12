@@ -219,6 +219,7 @@ void OGainAudioProcessorEditor::timerCallback()
         "inputPeakL:%f, inputPeakR:%f, inputRmsL:%f, inputRmsR:%f,"
         "outputPeakL:%f, outputPeakR:%f, outputRmsL:%f, outputRmsR:%f,"
         "vuLevelL:%f, vuLevelR:%f, vuLevelOutL:%f, vuLevelOutR:%f,"
+        "momentaryLufsIn:%f, momentaryLufsOut:%f,"
         "momentaryLUFS:%f, shortTermLUFS:%f, integratedLUFS:%f, samplePeakDBFS:%f,"
         "learnState:%d, learnElapsedSeconds:%f, learnConfidence:%d"
         "}); }",
@@ -228,6 +229,7 @@ void OGainAudioProcessorEditor::timerCallback()
         processorRef.outputRmsL.load(), processorRef.outputRmsR.load(),
         processorRef.vuLevelL.load(), processorRef.vuLevelR.load(),
         processorRef.vuLevelOutL.load(), processorRef.vuLevelOutR.load(),
+        processorRef.momentaryLufsIn.load(), processorRef.momentaryLufsOut.load(),
         learn.momentaryLUFS, learn.shortTermLUFS,
         learn.integratedLUFS, learn.samplePeakDBFS,
         learn.state, learn.elapsedSeconds, learn.confidence

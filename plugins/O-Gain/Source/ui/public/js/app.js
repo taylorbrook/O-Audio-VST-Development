@@ -771,6 +771,13 @@ function fmtDb(db) {
   return db > -99 ? db.toFixed(1) : '-inf';
 }
 
+// A LUFS value arrives from C++ already in dB, with -100 as its silence floor.
+// Same shape of guard as ampToDb: `!(v > -99)` also rejects undefined/NaN from
+// a payload that predates the field (an older editor, or an old fixture).
+function lufsOrFloor(v) {
+  return v > -99 ? v : -100;
+}
+
 // Convert dB to meter percentage (0-100) across the METER_DB_MIN..MAX range
 function dbToPercent(db) {
   return Math.max(0, Math.min(100, ((db - METER_DB_MIN) / (METER_DB_MAX - METER_DB_MIN)) * 100));
@@ -804,21 +811,17 @@ window.updateMeters = function(data) {
       outL = ampToDb(data.vuLevelOutL);
       outR = ampToDb(data.vuLevelOutR);
       break;
-    case 3: // LUFS — K-weighted momentary loudness (input, during Learn)
-      // Momentary LUFS is only computed while Learn runs; when it is live,
-      // drive both input meters from it (loudness is not per-channel). Outside
-      // Learn there is no loudness value, so fall back to RMS (IN-03).
-      if (data.momentaryLUFS > -99) {
-        inL = inR = data.momentaryLUFS;
-      } else {
-        inL = ampToDb(data.inputRmsL);
-        inR = ampToDb(data.inputRmsR);
-      }
-      // The output column stays RMS here and is NOT relabelled LUFS: the
-      // K-weighting filters run on the input only, so there is no post-gain
-      // loudness value to show. Stated rather than silently mirrored.
-      outL = ampToDb(data.outputRmsL);
-      outR = ampToDb(data.outputRmsR);
+    case 3: // LUFS — K-weighted momentary loudness, both columns, always
+      // v1.6.0: the processor now runs the BS.1770 chain on every block, on
+      // the pre-gain buffer AND on the post-gain buffer, and publishes both as
+      // momentaryLufsIn / momentaryLufsOut in LUFS already (not amplitude).
+      // Through v1.5.0 the only loudness value in the payload was the Learn
+      // snapshot's momentary field, which sits at -100 whenever Learn is idle,
+      // so this case fell back to RMS on both columns and the mode displayed a
+      // different metric than its label for all but the seconds a Learn ran.
+      // Loudness is not per-channel: one value drives both bars of a column.
+      inL = inR = lufsOrFloor(data.momentaryLufsIn);
+      outL = outR = lufsOrFloor(data.momentaryLufsOut);
       break;
     default:
       inL = inR = outL = outR = -100;
@@ -999,5 +1002,5 @@ window.addEventListener('DOMContentLoaded', () => {
   initI18n();
   initializeTooltips();
 
-  console.log('O-Gain v1.5.0 UI loaded');
+  console.log('O-Gain v1.6.0 UI loaded');
 });
