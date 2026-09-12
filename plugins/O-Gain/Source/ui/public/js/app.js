@@ -814,6 +814,22 @@ const METER_DB_MIN = -60;        // meter bottom (dB)
 const METER_DB_MAX = 0;          // meter top / full scale (dB)
 const CLIP_THRESHOLD_DB = -0.5;  // clip indicator lights when peak exceeds this (dBFS)
 
+// v1.9.0: the VU reference. The plugin has read 0 VU as -18 dBFS since the
+// v1.5.0 staging band was drawn at that line (its exempt-list note says so);
+// this is the same number written once so the VU column of the method strip,
+// the VU-mode readout and the VU-mode scale cannot disagree about it.
+const VU_REFERENCE_DBFS = -18;
+
+// The caption of the second readout row per meter_mode index. In Peak mode
+// the bar IS the peak, so that row shows RMS rather than the peak twice.
+// These are meter_mode option strings verbatim -- exempt under D-01, never
+// keyed, so a language change does not repaint them.
+const METER_MODE_AVG_CAPTION = ['RMS', 'RMS', 'VU', 'LUFS'];
+
+// target_level in dB, mirrored from the slider state by watchTargetLevel().
+// Drives the LU scale and the target line in LUFS mode.
+let currentTargetDb = -18;
+
 // Convert linear amplitude to dB.
 //
 // The guard is written as `!(amp > x)` rather than `amp <= x` so it also
@@ -836,6 +852,24 @@ function fmtDb(db) {
 // a payload that predates the field (an older editor, or an old fixture).
 function lufsOrFloor(v) {
   return v > -99 ? v : -100;
+}
+
+// v1.9.0: dBFS -> VU against VU_REFERENCE_DBFS, keeping the -100 floor a floor
+// (a -100 dBFS silence would otherwise read "-82.0 VU").
+function toVu(db) {
+  return db > -99 ? db - VU_REFERENCE_DBFS : -100;
+}
+
+// A readout with its sign: VU and LU are relative scales, so "+7.5" and "-3.0"
+// both occur and the sign is the reading. dBFS and LUFS keep fmtDb.
+function fmtSigned(v) {
+  return v > -99 ? (v >= 0 ? '+' : '') + v.toFixed(1) : '-inf';
+}
+
+// One readout in the unit of meter_mode index m: 0 Peak dBFS, 1 RMS dBFS,
+// 2 VU (signed), 3 LUFS.
+function fmtMethod(m, v) {
+  return m === 2 ? fmtSigned(v) : fmtDb(v);
 }
 
 // Convert dB to meter percentage (0-100) across the METER_DB_MIN..MAX range
@@ -918,9 +952,36 @@ window.updateMeters = function(data) {
   // dB readouts under meters: the peak-versus-average PAIR, both columns.
   // Loudest of L/R on each, which is the reading that decides headroom.
   document.getElementById('input-db-peak').textContent  = fmtDb(Math.max(inPeakL, inPeakR));
-  document.getElementById('input-db-avg').textContent   = fmtDb(Math.max(inL, inR));
   document.getElementById('output-db-peak').textContent = fmtDb(Math.max(outPeakL, outPeakR));
-  document.getElementById('output-db-avg').textContent  = fmtDb(Math.max(outL, outR));
+
+  // v1.9.0: the same signal read four ways, In and Out -- the method strip.
+  // Every value below was already in the payload; the page simply never
+  // showed more than the one the mode selected. Loudest of L/R, as above.
+  // Peak and RMS are dBFS; VU is dBFS re-based on VU_REFERENCE_DBFS (0 VU =
+  // -18 dBFS) and carries a sign; LUFS is the momentary pair in LUFS.
+  const methodsIn = [
+    Math.max(inPeakL, inPeakR),
+    Math.max(ampToDb(data.inputRmsL), ampToDb(data.inputRmsR)),
+    toVu(Math.max(ampToDb(data.vuLevelL), ampToDb(data.vuLevelR))),
+    lufsOrFloor(data.momentaryLufsIn)
+  ];
+  const methodsOut = [
+    Math.max(outPeakL, outPeakR),
+    Math.max(ampToDb(data.outputRmsL), ampToDb(data.outputRmsR)),
+    toVu(Math.max(ampToDb(data.vuLevelOutL), ampToDb(data.vuLevelOutR))),
+    lufsOrFloor(data.momentaryLufsOut)
+  ];
+  for (let m = 0; m < 4; ++m) {
+    document.getElementById('method-in-' + m).textContent  = fmtMethod(m, methodsIn[m]);
+    document.getElementById('method-out-' + m).textContent = fmtMethod(m, methodsOut[m]);
+  }
+
+  // The second readout row under each column is the MODE's own reading, in
+  // the mode's own unit -- and in Peak mode it is RMS, because the bar and
+  // the cap are the same number there. Its caption is set by applyMeterMode().
+  const avgMode = currentMeterMode === 0 ? 1 : currentMeterMode;
+  document.getElementById('input-db-avg').textContent  = fmtMethod(avgMode, methodsIn[avgMode]);
+  document.getElementById('output-db-avg').textContent = fmtMethod(avgMode, methodsOut[avgMode]);
 
   // Apply meter bar color gradient based on level
   applyMeterColor('input-meter-l', inL);
@@ -1018,13 +1079,87 @@ function watchMeterMode() {
   // page headless at v1.5.0: the stub seeded meter_mode = Peak, the Peak button
   // lit, and the bars kept painting the VU value.
   currentMeterMode = state.getChoiceIndex();
+  applyMeterMode();
 
   state.valueChangedEvent.addListener(() => {
     currentMeterMode = state.getChoiceIndex();
+    applyMeterMode();
   });
   state.propertiesChangedEvent.addListener(() => {
     currentMeterMode = state.getChoiceIndex();
+    applyMeterMode();
   });
+}
+
+// =========================================================================
+// v1.9.0: the mode-aware meter -- scale, marks, captions, strip highlight
+// =========================================================================
+// Everything on the page that should LOOK different between the four meter
+// modes is written here, from currentMeterMode and currentTargetDb, so the
+// four cannot drift apart:
+//
+//   .meter-section carries mode-dbfs / mode-vu / mode-lufs, and the CSS
+//   shows the staging band and bus line only under mode-dbfs, the 0 VU line
+//   only under mode-vu, the target line only under mode-lufs.
+//
+//   The scale gutter numerals are rewritten from each span's data-db: dBFS
+//   as before in Peak and RMS; VU (0 VU = -18 dBFS) in VU mode; LU against
+//   target_level in LUFS mode, so "0" on the ruler is the Target and the bar
+//   reads as distance to it. Rounded to whole units -- the gutter is 14 px
+//   and "+16.5" would not fit; every preset target is a whole number anyway.
+//
+//   The second readout caption under each column takes the mode's name, and
+//   the method strip lights the column the bars are drawing.
+function applyMeterMode() {
+  const section = document.querySelector('.meter-section');
+  if (!section) return;
+  const isDbfs = currentMeterMode === 0 || currentMeterMode === 1;
+  section.classList.toggle('mode-dbfs', isDbfs);
+  section.classList.toggle('mode-vu',   currentMeterMode === 2);
+  section.classList.toggle('mode-lufs', currentMeterMode === 3);
+
+  const reference = currentMeterMode === 2 ? VU_REFERENCE_DBFS
+                  : currentMeterMode === 3 ? currentTargetDb
+                  : null;
+  for (const span of document.querySelectorAll('.meter-scale span[data-db]')) {
+    const db = parseFloat(span.dataset.db);
+    if (reference === null) {
+      span.textContent = String(db);
+    } else {
+      const rel = Math.round(db - reference);
+      span.textContent = (rel > 0 ? '+' : '') + String(rel);
+    }
+  }
+
+  const targetPct = dbToPercent(currentTargetDb) + '%';
+  for (const id of ['output-target-l', 'output-target-r']) {
+    const el = document.getElementById(id);
+    if (el) el.style.bottom = targetPct;
+  }
+
+  // Option strings verbatim (D-01, exempt), so textContent and not setLabel.
+  const caption = METER_MODE_AVG_CAPTION[currentMeterMode] || METER_MODE_AVG_CAPTION[2];
+  document.getElementById('input-db-avg-cap').textContent  = caption;
+  document.getElementById('output-db-avg-cap').textContent = caption;
+
+  for (const cell of document.querySelectorAll('#method-strip [data-mode]'))
+    cell.classList.toggle('active', parseInt(cell.dataset.mode, 10) === currentMeterMode);
+}
+
+// Mirror target_level into currentTargetDb and repaint what depends on it.
+// getScaledValue(), not normToScaled() over paramDefs, for the reason
+// setupTargetPresets() gives: the range the backend pushed is the truth.
+function watchTargetLevel() {
+  const state = getSliderState('target_level');
+  if (!state) return;
+  const update = () => {
+    const dB = state.getScaledValue();
+    if (Number.isFinite(dB)) currentTargetDb = dB;
+    applyMeterMode();
+  };
+  state.valueChangedEvent.addListener(update);
+  state.propertiesChangedEvent.addListener(update);
+  update();
 }
 
 // =========================================================================
@@ -1048,8 +1183,9 @@ window.addEventListener('DOMContentLoaded', () => {
   setupComboBox('meter-mode-selector', 'meter_mode');
   setupMsMode();
 
-  // Watch meter mode for display
+  // Watch meter mode for display, and the target the LUFS-mode scale is read against
   watchMeterMode();
+  watchTargetLevel();
 
   // Learn button
   setupLearnButton();
@@ -1063,5 +1199,5 @@ window.addEventListener('DOMContentLoaded', () => {
   initI18n();
   initializeTooltips();
 
-  console.log('O-Gain v1.7.0 UI loaded');
+  console.log('O-Gain v1.9.0 UI loaded');
 });

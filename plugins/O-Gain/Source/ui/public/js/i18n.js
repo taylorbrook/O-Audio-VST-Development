@@ -283,25 +283,25 @@ export const I18N = Object.freeze({
     //    the control's own caption, reused verbatim from v1.2.1's markup.
     'input-meter': {
         en: { t: 'Input',
-              b: 'Input level after channel utilities, before gain is applied. The bar is the average, the line riding above it the recent peak. The shaded band is the -18 to -12 dBFS staging target; the red line is -6 dBFS.' },
+              b: 'Input level after channel utilities, before gain is applied. The bar is the average, the line riding above it the recent peak. In Peak and RMS modes the shaded band is the -18 to -12 dBFS staging target and the red line is -6 dBFS; in VU mode the dashed line is 0 VU (-18 dBFS); in LUFS mode the scale reads in LU against the Target.' },
         fr: { t: 'Entrée',
-              b: 'Niveau d’entrée après les utilitaires de canal, avant application du gain. La barre indique la moyenne, le trait au-dessus la crête récente. La bande ombrée est la cible de calibrage de −18 à −12 dBFS ; le trait rouge marque −6 dBFS.',
-              reviewed: true },
+              b: 'Niveau d’entrée après les utilitaires de canal, avant application du gain. La barre indique la moyenne, le trait au-dessus la crête récente. En modes Peak et RMS, la bande ombrée est la cible de calibrage de −18 à −12 dBFS et le trait rouge marque −6 dBFS ; en mode VU, le trait pointillé marque 0 VU (−18 dBFS) ; en mode LUFS, l’échelle se lit en LU par rapport à la cible.',
+              reviewed: false },
     
         'zh-Hans': { t: '输入',
-              b: '经过声道工具之后、施加增益之前的输入电平。柱体为平均值，上方的细线为近期峰值。阴影带是−18 至 −12 dBFS 的增益校准目标，红线为−6 dBFS。',
-              reviewed: 'bt' },
+              b: '经过声道工具之后、施加增益之前的输入电平。柱体为平均值，上方的细线为近期峰值。在 Peak 和 RMS 模式下，阴影带是 −18 至 −12 dBFS 的增益校准目标，红线为 −6 dBFS；在 VU 模式下，虚线为 0 VU（−18 dBFS）；在 LUFS 模式下，刻度以相对目标的 LU 读数。',
+              reviewed: 'mt' },
     },
     'output-meter': {
         en: { t: 'Output',
-              b: 'Output level after gain is applied. Read it against the input column to confirm a plugin chain is passing at unity. Both columns use the same meter mode, so peak sits over average on each.' },
+              b: 'Output level after gain is applied. Read it against the input column to confirm a plugin chain is passing at unity. Both columns use the same meter mode, so peak sits over average on each. In LUFS mode the light line across both bars is the Target level: aim the bar at it.' },
         fr: { t: 'Sortie',
-              b: 'Niveau de sortie après application du gain. À lire en regard de la colonne d’entrée pour vérifier qu’une chaîne de traitement reste à gain unitaire. Les deux colonnes utilisent le même mode de vumètre, la crête se plaçant au-dessus de la moyenne sur chacune.',
-              reviewed: true },
+              b: 'Niveau de sortie après application du gain. À lire en regard de la colonne d’entrée pour vérifier qu’une chaîne de traitement reste à gain unitaire. Les deux colonnes utilisent le même mode de vumètre, la crête se plaçant au-dessus de la moyenne sur chacune. En mode LUFS, le trait clair en travers des deux barres marque le niveau cible : la barre doit le rejoindre.',
+              reviewed: false },
     
         'zh-Hans': { t: '输出',
-              b: '施加增益之后的输出电平。与输入栏对照阅读，可确认插件链保持单位增益。两栏使用相同的表模式，峰值均位于平均值上方。',
-              reviewed: 'bt' },
+              b: '施加增益之后的输出电平。与输入栏对照阅读，可确认插件链保持单位增益。两栏使用相同的表模式，峰值均位于平均值上方。在 LUFS 模式下，横跨两根柱体的浅色线为目标电平：让柱体对准它。',
+              reviewed: 'mt' },
     },
     'gain-display': {
         en: { t: 'Gain Offset',
@@ -391,13 +391,25 @@ export const I18N = Object.freeze({
     },
     'meter-mode': {
         en: { t: 'Meter',
-              b: 'Meter display type. Peak = instantaneous peaks. RMS = average level. VU = analog-style 300ms ballistics. LUFS = K-weighted momentary loudness (400ms window), measured continuously on both columns' },
+              b: 'Meter display type. Peak = instantaneous peaks. RMS = average level. VU = analog-style 300ms ballistics, read in VU with 0 VU at -18 dBFS. LUFS = K-weighted momentary loudness (400ms window), measured continuously on both columns and read in LU against the Target. The scale, the readout under each column and the marks on the bars follow the mode.' },
         fr: { t: 'Vumètre',
-              b: 'Type d’affichage du vumètre. Peak = crêtes instantanées. RMS = niveau moyen. VU = balistique analogique de 300 ms. LUFS = sonie momentanée pondérée K (fenêtre de 400 ms), mesurée en continu sur les deux colonnes',
+              b: 'Type d’affichage du vumètre. Peak = crêtes instantanées. RMS = niveau moyen. VU = balistique analogique de 300 ms, lue en VU avec 0 VU à −18 dBFS. LUFS = sonie momentanée pondérée K (fenêtre de 400 ms), mesurée en continu sur les deux colonnes et lue en LU par rapport à la cible. L’échelle, la valeur sous chaque colonne et les repères sur les barres suivent le mode.',
               reviewed: false },
     
         'zh-Hans': { t: '表',
-              b: '表的显示类型。Peak = 瞬时峰值。RMS = 平均电平。VU = 模拟风格的 300ms 弹道。LUFS = K 计权瞬时响度（400ms 窗口），在两列上持续测量',
+              b: '表的显示类型。Peak = 瞬时峰值。RMS = 平均电平。VU = 模拟风格的 300ms 弹道，以 VU 读数，0 VU 对应 −18 dBFS。LUFS = K 计权瞬时响度（400ms 窗口），在两列上持续测量，并以相对目标的 LU 读数。刻度、每列下方的读数和柱上的标记均随模式变化。',
+              reviewed: 'mt' },
+    },
+    // v1.9.0: the method strip under the target presets.
+    'method-strip': {
+        en: { t: 'All methods',
+              b: 'The same signal read four ways at once: sample peak and RMS in dBFS, VU with 0 VU at -18 dBFS, and K-weighted momentary loudness in LUFS. In = before gain, Out = after. The lit column is the Meter mode the bars are drawing.' },
+        fr: { t: 'Toutes les méthodes',
+              b: 'Le même signal lu de quatre façons à la fois : crête d’échantillon et RMS en dBFS, VU avec 0 VU à −18 dBFS, et sonie momentanée pondérée K en LUFS. Ent. = avant le gain, Sort. = après. La colonne allumée est le mode de vumètre que les barres affichent.',
+              reviewed: false },
+
+        'zh-Hans': { t: '全部方法',
+              b: '同一信号同时以四种方式读取：采样峰值和 RMS 以 dBFS 计，VU 以 0 VU 对应 −18 dBFS，K 计权瞬时响度以 LUFS 计。输入 = 施加增益之前，输出 = 之后。高亮的列即为柱体正在显示的表模式。',
               reviewed: 'mt' },
     },
     'info-momentary': {
@@ -610,7 +622,18 @@ export const LABELS = Object.freeze({
     // sensitive -- so 'peak' is NOT silenced by 'Peak' and assertion 10 will
     // demand a key for it. It has one.
     'label.pk':  { en: { t: 'peak' }, fr: { t: 'crête', reviewed: false } , 'zh-Hans': { t: '峰值', reviewed: 'mt' }},
-    'label.avg': { en: { t: 'avg' },  fr: { t: 'moy.',  reviewed: false } , 'zh-Hans': { t: '平均', reviewed: 'mt' }},
+    // v1.9.0: label.avg is GONE. The second caption is now the meter_mode
+    // option string the bar is drawing (RMS / VU / LUFS), written by
+    // applyMeterMode() -- exempt under D-01, like the Meter buttons. A key
+    // nothing references fails check-i18n [15], so it is deleted, not kept.
+
+    // ── v1.9.0: the method strip's two row captions. The four column heads
+    //    (Peak / RMS / VU / LUFS) are option strings, exempt. The glossary
+    //    settles in -> ent / out -> sort (fr) and 输入 / 输出 (zh); the French
+    //    is abbreviated with its period because the caption column is pinned
+    //    at 28 px and "Sortie" at 9 px is 26 px before letter-spacing.
+    'label.in':  { en: { t: 'In' },  fr: { t: 'Ent.',  reviewed: false } , 'zh-Hans': { t: '输入', reviewed: 'mt' }},
+    'label.out': { en: { t: 'Out' }, fr: { t: 'Sort.', reviewed: false } , 'zh-Hans': { t: '输出', reviewed: 'mt' }},
 
     // ── The big gain readout's caption. The readout itself and its "dB" unit
     //    are NOT keyed — contract §5, D-03.
@@ -784,7 +807,7 @@ export const I18N_EXEMPT = [
     ['dB',
      'unit symbol in .gain-display-unit, language-neutral (D-03)'],
     ['-inf',
-     'the #input-db-label / #output-db-label readout floor. The same node shows "-12" whenever the level is above -99 dB, so it is a VALUE MIRROR alternating with a number — contract §5: a readout is never a [data-i18n] element (D-03)'],
+     'the #input-db-label / #output-db-label readout floor, and since v1.9.0 the floor of the eight #method-strip cells too. The same node shows "-12" whenever the level is above -99 dB, so it is a VALUE MIRROR alternating with a number — contract §5: a readout is never a [data-i18n] element (D-03)'],
     ['-- LUFS',
      'the placeholder face of the four Learn readouts, which otherwise show "-23.4 LUFS". A readout under D-03, and its unit is language-neutral'],
     ['-- dBFS',
@@ -801,7 +824,7 @@ export const I18N_EXEMPT = [
     ['0',   'dB scale gridline in the v1.5.0 meter gutter -- a unit-scale mark, language-neutral (D-03)', '.meter-scale'],
     ['-6',  'dB scale gridline (the mix-bus ceiling mark) -- language-neutral (D-03)', '.meter-scale'],
     ['-12', 'dB scale gridline (top of the staging band) -- language-neutral (D-03)', '.meter-scale'],
-    ['-18', 'dB scale gridline (bottom of the staging band, 0 VU) -- language-neutral (D-03)', '.meter-scale'],
+    ['-18', 'dB scale gridline (bottom of the staging band, 0 VU) -- language-neutral (D-03). v1.9.0: applyMeterMode() rewrites all seven numerals in VU and LUFS modes ("+18" .. "-42", from each span\'s data-db); those are JS-written numbers with no letters, invisible to [12] by construction, and the markup keeps the dBFS faces below', '.meter-scale'],
     ['-24', 'dB scale gridline -- language-neutral (D-03)', '.meter-scale'],
     ['-36', 'dB scale gridline -- language-neutral (D-03)', '.meter-scale'],
     ['-60', 'dB scale gridline (METER_DB_MIN, the meter floor) -- language-neutral (D-03)', '.meter-scale'],
@@ -837,6 +860,7 @@ export const TIP_BINDINGS = [
     ['#learn-btn',          'learn-btn'],
     ['#target-knob-group',  'target-knob'],
     ['#target-preset-row',  'target-presets'],
+    ['#method-strip',       'method-strip'],   // v1.9.0
 
     // Mode selectors.
     ['#measure-mode-group', 'measure-mode'],
