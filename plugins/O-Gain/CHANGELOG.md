@@ -2,6 +2,81 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.9.0] - 2026-09-12
+
+The four meter methods now look different from each other. MINOR: page,
+controller and i18n table only — no parameter, range, type or state format
+changed, no C++ touched, and the audio path is untouched. Every v1.x session
+and preset loads identically.
+
+### Added
+
+- **Method strip.** A Peak | RMS | VU | LUFS row of live In / Out readouts
+  under the target presets, the column the bars are drawing lit. Every value
+  was already in the `updateMeters` payload each frame (`inputPeak*`,
+  `inputRms*`, `vuLevel*`, `momentaryLufsIn` and their output pairs); the
+  page simply never showed more than the one the mode selected. Peak and RMS
+  read in dBFS, VU in VU against `VU_REFERENCE_DBFS` (0 VU = -18 dBFS, the
+  line the v1.5.0 staging band has always sat on) with its sign, LUFS in
+  LUFS. 32 px tall (three 10 px lines, two 1 px gaps) in the 220 px centre
+  column, inside the 78 px of slack the stack had with the Learn panel open,
+  so the meter columns keep their height in every state. Tooltip
+  `method-strip` (en / fr / zh-Hans), bound to `#method-strip`.
+- **Mode-aware ruler and marks.** `applyMeterMode()` writes `mode-dbfs` /
+  `mode-vu` / `mode-lufs` on `.meter-section` from `meter_mode` and rewrites
+  the seven gutter numerals from each span's new `data-db`:
+  - Peak and RMS: the dBFS ruler as before, with the -18 to -12 dBFS staging
+    band and the -6 dBFS bus line. These two marks are dBFS marks and now
+    render **only** here; through v1.8.1 they were drawn under a LUFS ruler
+    too, where "-18" is -18 LUFS.
+  - VU: the ruler reads in VU (+18 at the top, 0 on the old -18 line, -42 at
+    the floor) and a dashed 0 VU reference line replaces the band.
+  - LUFS: the ruler reads in LU against `target_level` (0 LU is the Target)
+    and a cream target line with a dark outline is drawn on both output bars
+    at the Target's own height. `watchTargetLevel()` mirrors the slider
+    through `getScaledValue()` (the range the backend pushed, not the JS
+    table — pattern_webview_knob_readout_scaled_value) so the ruler and the
+    line follow a knob drag or a preset click. Numerals are rounded to whole
+    units: the gutter is 14 px and "+16.5" would not fit; every preset
+    target is a whole number anyway.
+  - The bar range itself stays -60..0 dBFS in every mode, so the held peak
+    cap, the clip strip and the bar are on one ruler as before.
+
+### Changed
+
+- **The second readout caption under each column is the mode's name.** It
+  read `avg` in all four modes, so VU, RMS and LUFS were indistinguishable on
+  the readout, LUFS carried no unit at all, and in Peak mode "avg" was the
+  peak repeated. It now reads `RMS` / `VU` / `LUFS` (the `meter_mode` option
+  string verbatim, exempt under D-01, written by `applyMeterMode()` and never
+  keyed) with the value in that unit — VU signed — and in Peak mode the row
+  shows RMS rather than the peak twice.
+- The `input-meter`, `output-meter` and `meter-mode` tooltips describe the
+  per-mode marks and units (en rewritten; fr re-drafted at `reviewed: false`;
+  zh-Hans at `'mt'`).
+
+### Removed
+
+- **`label.avg`** (en / fr / zh-Hans) — nothing references it after the
+  caption change, and check-i18n [15] rejects a dead key.
+
+### Testing
+
+- `scripts/check-i18n.js --plugin O-Gain`: ALL CHECKS PASS.
+- `scripts/i18n-fr-lint.js` / `i18n-zh-lint.js --plugin O-Gain`: CLEAN /
+  0 findings (9 entries at `'mt'`, counted not failed).
+- `scripts/check-ui-labels.js --plugin O-Gain`: ALL CHECKS PASSED at
+  380 x 500 across eleven states — the seven existing plus Peak, RMS and VU
+  meter modes and LUFS with the -23 preset lit (`tests/i18n-states.json`),
+  32 of 32 `[data-i18n]` elements visible, 0 moved elements on the fr and
+  zh arms. The strip's caption column is pinned at 28 px for the same reason
+  `.meter-db-label`'s is (assertion 7).
+- Rendered through `scripts/serve-ui.js` in all four modes and with the
+  Learn panel open: document scroll extent 380 x 500 throughout, meter body
+  347 px (279 px with Learn open) exactly as at v1.8.1. The first draft's
+  green target line vanished the moment the green bar reached it; it is
+  cream with a dark outline.
+
 ## [1.8.1] - 2026-09-12
 
 Three small placement and legibility fixes. PATCH: CSS only, no markup,

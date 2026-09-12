@@ -26,5 +26,21 @@
   {
     "name": "target preset -23 LUFS lit (v1.7.0)",
     "click": "#preset-lufs [data-target=\"-23\"]"
+  },
+  {
+    "name": "Peak meter mode (v1.9.0: dBFS marks, scale numerals, avg caption and strip column follow the mode)",
+    "eval": "document.querySelector('#meter-mode-selector [data-index=\"0\"]').click(); window.updateMeters({\"inputPeakL\": 0.5, \"inputPeakR\": 0.45, \"inputRmsL\": 0.3, \"inputRmsR\": 0.28, \"outputPeakL\": 0.55, \"outputPeakR\": 0.5, \"outputRmsL\": 0.33, \"outputRmsR\": 0.31, \"vuLevelL\": 0.3, \"vuLevelR\": 0.28, \"vuLevelOutL\": 0.33, \"vuLevelOutR\": 0.31, \"momentaryLufsIn\": -18.0, \"momentaryLufsOut\": -12.0, \"momentaryLUFS\": -100, \"shortTermLUFS\": -100, \"integratedLUFS\": -100, \"samplePeakDBFS\": -100, \"learnElapsedSeconds\": 0, \"learnState\": 0, \"learnConfidence\": 0});"
+  },
+  {
+    "name": "RMS meter mode (v1.9.0: dBFS marks, scale numerals, avg caption and strip column follow the mode)",
+    "eval": "document.querySelector('#meter-mode-selector [data-index=\"1\"]').click(); window.updateMeters({\"inputPeakL\": 0.5, \"inputPeakR\": 0.45, \"inputRmsL\": 0.3, \"inputRmsR\": 0.28, \"outputPeakL\": 0.55, \"outputPeakR\": 0.5, \"outputRmsL\": 0.33, \"outputRmsR\": 0.31, \"vuLevelL\": 0.3, \"vuLevelR\": 0.28, \"vuLevelOutL\": 0.33, \"vuLevelOutR\": 0.31, \"momentaryLufsIn\": -18.0, \"momentaryLufsOut\": -12.0, \"momentaryLUFS\": -100, \"shortTermLUFS\": -100, \"integratedLUFS\": -100, \"samplePeakDBFS\": -100, \"learnElapsedSeconds\": 0, \"learnState\": 0, \"learnConfidence\": 0});"
+  },
+  {
+    "name": "VU meter mode (v1.9.0: dBFS marks, scale numerals, avg caption and strip column follow the mode)",
+    "eval": "document.querySelector('#meter-mode-selector [data-index=\"2\"]').click(); window.updateMeters({\"inputPeakL\": 0.5, \"inputPeakR\": 0.45, \"inputRmsL\": 0.3, \"inputRmsR\": 0.28, \"outputPeakL\": 0.55, \"outputPeakR\": 0.5, \"outputRmsL\": 0.33, \"outputRmsR\": 0.31, \"vuLevelL\": 0.3, \"vuLevelR\": 0.28, \"vuLevelOutL\": 0.33, \"vuLevelOutR\": 0.31, \"momentaryLufsIn\": -18.0, \"momentaryLufsOut\": -12.0, \"momentaryLUFS\": -100, \"shortTermLUFS\": -100, \"integratedLUFS\": -100, \"samplePeakDBFS\": -100, \"learnElapsedSeconds\": 0, \"learnState\": 0, \"learnConfidence\": 0});"
+  },
+  {
+    "name": "LUFS meter mode with target -23 (v1.9.0: LU scale and target line follow target_level)",
+    "eval": "document.querySelector('#meter-mode-selector [data-index=\"3\"]').click(); document.querySelector('#preset-lufs [data-target=\"-23\"]').click(); window.updateMeters({\"inputPeakL\": 0.5, \"inputPeakR\": 0.45, \"inputRmsL\": 0.3, \"inputRmsR\": 0.28, \"outputPeakL\": 0.55, \"outputPeakR\": 0.5, \"outputRmsL\": 0.33, \"outputRmsR\": 0.31, \"vuLevelL\": 0.3, \"vuLevelR\": 0.28, \"vuLevelOutL\": 0.33, \"vuLevelOutR\": 0.31, \"momentaryLufsIn\": -18.0, \"momentaryLufsOut\": -12.0, \"momentaryLUFS\": -100, \"shortTermLUFS\": -100, \"integratedLUFS\": -100, \"samplePeakDBFS\": -100, \"learnElapsedSeconds\": 0, \"learnState\": 0, \"learnConfidence\": 0});"
   }
 ]

@@ -308,6 +308,45 @@
       pointer-events: none;
       transition: bottom 0.06s linear;
     }
+    /* ── v1.9.0: the mode-aware marks ────────────────────────────────────
+       The staging band and the mix-bus line are dBFS marks, so they show only
+       while the bar IS dBFS (Peak, RMS). VU mode draws its own reference, 0 VU
+       at -18 dBFS, on the same 70% line the band's floor sits on; LUFS mode
+       draws the Target level on the OUTPUT column, at a bottom% js/app.js
+       writes from target_level. The class that selects them lives on
+       .meter-section and is written by applyMeterMode(), never by CSS state. */
+    .meter-section:not(.mode-dbfs) .meter-zone-target,
+    .meter-section:not(.mode-dbfs) .meter-line-bus,
+    .meter-section:not(.mode-vu)   .meter-line-ref,
+    .meter-section:not(.mode-lufs) .meter-line-target {
+      display: none;
+    }
+    .meter-line-ref {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 70%;            /* 0 VU = -18 dBFS on the -60..0 scale */
+      height: 0;
+      border-top: 1px dashed rgba(60, 47, 47, 0.55);
+      z-index: 2;
+      pointer-events: none;
+    }
+    .meter-line-target {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 70%;            /* overwritten from target_level; -18 is its default */
+      height: 2px;
+      /* Cream with a dark outline, not green: the first draft was green and
+         vanished the moment the green bar reached it, which is exactly the
+         reading the line exists for. The outline keeps it visible over the
+         empty container too. */
+      background: rgba(245, 230, 211, 0.95);
+      box-shadow: 0 0 0 1px rgba(60, 47, 47, 0.6);
+      z-index: 2;
+      pointer-events: none;
+      transition: bottom 0.06s linear;
+    }
     /* CAPTION COLUMN PINNED, and the first draft's `auto` is why.
        `grid-template-columns: auto 1fr` sizes column one from its CONTENT, so
        the caption -- a [data-i18n] element -- was setting the position of the
@@ -593,6 +632,57 @@
     }
 
     /* Mode selectors */
+    /* ── v1.9.0: the method strip ─────────────────────────────────────────
+       The same signal read four ways at once, In and Out, so the difference
+       between Peak, RMS, VU and LUFS is a thing the eye sees rather than a
+       tooltip sentence. The four column heads are the meter_mode option
+       strings VERBATIM and are I18N_EXEMPT under D-01, like the buttons in
+       the Meter selector; the two row captions are keyed. The caption column
+       is PINNED (28 px) for the same reason .meter-db-label's is: a [data-i18n]
+       caption must not set the position of the readout cells beside it
+       (check-ui-labels assertion 7). fr "Sort." measures about 22 px at 9 px,
+       zh 输出 about 18. Values are 9 px tabular in a 46 px cell against
+       "-18.2" at roughly 22 px. Three 10 px lines and two 1 px gaps: 32 px,
+       inside the 78 px of slack the centre stack had with the Learn panel
+       open, so the meter columns do not shorten. */
+    .method-strip {
+      display: grid;
+      grid-template-columns: 28px repeat(4, 1fr);
+      gap: 1px 2px;
+      width: 100%;
+      max-width: 220px;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+    .method-cell {
+      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — same pin as .preset-cap */
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .method-head {
+      color: #5C4033;
+      letter-spacing: 0.3px;
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+    .method-head.active {
+      color: #F5E6D3;
+      background: #5C4033;
+    }
+    .method-cap {
+      color: #5C4033;
+      letter-spacing: 0.5px;
+      text-align: right;
+      padding-right: 2px;
+    }
+    .method-val {
+      color: #7A6552;
+    }
+    .method-val.active {
+      color: #3C2F2F;
+      font-weight: 600;
+    }
+
     .mode-row {
       display: flex;
       gap: 8px;
@@ -1031,12 +1121,13 @@
       <div class="meter-column" id="input-meter-group">
         <div class="meter-label" data-i18n="label.input" data-label="Input">Input</div>
         <div class="meter-body">
-          <div class="meter-scale" aria-hidden="true"><span class="tick-top" style="bottom: 100%">0</span><span style="bottom: 90%">-6</span><span style="bottom: 80%">-12</span><span style="bottom: 70%">-18</span><span style="bottom: 60%">-24</span><span style="bottom: 40%">-36</span><span class="tick-bot" style="bottom: 0%">-60</span></div>
+          <div class="meter-scale" aria-hidden="true"><span class="tick-top" data-db="0" style="bottom: 100%">0</span><span data-db="-6" style="bottom: 90%">-6</span><span data-db="-12" style="bottom: 80%">-12</span><span data-db="-18" style="bottom: 70%">-18</span><span data-db="-24" style="bottom: 60%">-24</span><span data-db="-36" style="bottom: 40%">-36</span><span class="tick-bot" data-db="-60" style="bottom: 0%">-60</span></div>
           <div class="meter-pair">
             <div class="meter-bar-container" id="input-meter-l-container">
               <div class="meter-bar green" id="input-meter-l"></div>
               <div class="meter-zone-target"></div>
               <div class="meter-line-bus"></div>
+              <div class="meter-line-ref"></div>
               <div class="meter-peak-cap" id="input-peak-cap-l"></div>
               <div class="meter-clip-indicator" id="input-clip-l"></div>
             </div>
@@ -1044,6 +1135,7 @@
               <div class="meter-bar green" id="input-meter-r"></div>
               <div class="meter-zone-target"></div>
               <div class="meter-line-bus"></div>
+              <div class="meter-line-ref"></div>
               <div class="meter-peak-cap" id="input-peak-cap-r"></div>
               <div class="meter-clip-indicator" id="input-clip-r"></div>
             </div>
@@ -1052,7 +1144,11 @@
         <div class="meter-db-label">
           <span class="meter-db-cap" data-i18n="label.pk" data-label="peak">peak</span>
           <span class="meter-db-val" id="input-db-peak">-inf</span>
-          <span class="meter-db-cap" data-i18n="label.avg" data-label="avg">avg</span>
+          <!-- v1.9.0: the second caption is the METER MODE the bar is drawing
+               (RMS / VU / LUFS), a meter_mode option string written by
+               js/app.js -- exempt under D-01, so no key. In Peak mode the bar
+               IS the peak and this row shows RMS instead of the peak twice. -->
+          <span class="meter-db-cap" id="input-db-avg-cap">VU</span>
           <span class="meter-db-val" id="input-db-avg">-inf</span>
         </div>
       </div>
@@ -1129,18 +1225,40 @@
             </div>
           </div>
         </div>
+        <!-- v1.9.0: the method strip. See the CSS note. The heads are the
+             meter_mode option strings verbatim (exempt, D-01); "-inf" is the
+             readout floor every other readout on the page shares. -->
+        <div class="method-strip" id="method-strip">
+          <span class="method-cell method-corner"></span>
+          <span class="method-cell method-head" data-mode="0">Peak</span>
+          <span class="method-cell method-head" data-mode="1">RMS</span>
+          <span class="method-cell method-head" data-mode="2">VU</span>
+          <span class="method-cell method-head" data-mode="3">LUFS</span>
+          <span class="method-cell method-cap" data-i18n="label.in" data-label="In">In</span>
+          <span class="method-cell method-val" data-mode="0" id="method-in-0">-inf</span>
+          <span class="method-cell method-val" data-mode="1" id="method-in-1">-inf</span>
+          <span class="method-cell method-val" data-mode="2" id="method-in-2">-inf</span>
+          <span class="method-cell method-val" data-mode="3" id="method-in-3">-inf</span>
+          <span class="method-cell method-cap" data-i18n="label.out" data-label="Out">Out</span>
+          <span class="method-cell method-val" data-mode="0" id="method-out-0">-inf</span>
+          <span class="method-cell method-val" data-mode="1" id="method-out-1">-inf</span>
+          <span class="method-cell method-val" data-mode="2" id="method-out-2">-inf</span>
+          <span class="method-cell method-val" data-mode="3" id="method-out-3">-inf</span>
+        </div>
       </div>
 
       <!-- Output Meters -->
       <div class="meter-column" id="output-meter-group">
         <div class="meter-label" data-i18n="label.output" data-label="Output">Output</div>
         <div class="meter-body mirror">
-          <div class="meter-scale" aria-hidden="true"><span class="tick-top" style="bottom: 100%">0</span><span style="bottom: 90%">-6</span><span style="bottom: 80%">-12</span><span style="bottom: 70%">-18</span><span style="bottom: 60%">-24</span><span style="bottom: 40%">-36</span><span class="tick-bot" style="bottom: 0%">-60</span></div>
+          <div class="meter-scale" aria-hidden="true"><span class="tick-top" data-db="0" style="bottom: 100%">0</span><span data-db="-6" style="bottom: 90%">-6</span><span data-db="-12" style="bottom: 80%">-12</span><span data-db="-18" style="bottom: 70%">-18</span><span data-db="-24" style="bottom: 60%">-24</span><span data-db="-36" style="bottom: 40%">-36</span><span class="tick-bot" data-db="-60" style="bottom: 0%">-60</span></div>
           <div class="meter-pair">
             <div class="meter-bar-container" id="output-meter-l-container">
               <div class="meter-bar green" id="output-meter-l"></div>
               <div class="meter-zone-target"></div>
               <div class="meter-line-bus"></div>
+              <div class="meter-line-ref"></div>
+              <div class="meter-line-target" id="output-target-l"></div>
               <div class="meter-peak-cap" id="output-peak-cap-l"></div>
               <div class="meter-clip-indicator" id="output-clip-l"></div>
             </div>
@@ -1148,6 +1266,8 @@
               <div class="meter-bar green" id="output-meter-r"></div>
               <div class="meter-zone-target"></div>
               <div class="meter-line-bus"></div>
+              <div class="meter-line-ref"></div>
+              <div class="meter-line-target" id="output-target-r"></div>
               <div class="meter-peak-cap" id="output-peak-cap-r"></div>
               <div class="meter-clip-indicator" id="output-clip-r"></div>
             </div>
@@ -1156,7 +1276,7 @@
         <div class="meter-db-label">
           <span class="meter-db-cap" data-i18n="label.pk" data-label="peak">peak</span>
           <span class="meter-db-val" id="output-db-peak">-inf</span>
-          <span class="meter-db-cap" data-i18n="label.avg" data-label="avg">avg</span>
+          <span class="meter-db-cap" id="output-db-avg-cap">VU</span>
           <span class="meter-db-val" id="output-db-avg">-inf</span>
         </div>
       </div>

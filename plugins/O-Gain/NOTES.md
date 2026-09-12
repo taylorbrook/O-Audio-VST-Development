@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.8.1
+- **Version:** 1.9.0
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -61,6 +61,14 @@
   (caption column re-pinned 20 → 25 px, v1.8.0 colours); Measure / Meter row and the
   Learn Analysis panel centred with `align-self: center` — `.container` never centred its
   children, so both 300 px blocks sat at the left. check-ui-labels 0 FAIL. UI-only.
+- **2026-09-12 (v1.9.0):** The four meter methods made visibly different. A Peak | RMS | VU |
+  LUFS method strip of live In / Out readouts under the presets (all four values were already
+  in every payload), the lit column the mode the bars draw; the ruler and marks follow the
+  mode — dBFS with the staging band and bus line in Peak / RMS only, VU with 0 VU at -18 dBFS
+  and a dashed reference line, LU against `target_level` with a target line on the output
+  bars in LUFS; the second readout caption is the mode's name and unit (RMS in Peak mode, VU
+  signed). `label.avg` retired. check-i18n / fr / zh lints and check-ui-labels (11 states)
+  all 0 FAIL at 380 x 500. UI-only; no parameter or state change.
 
 ## Known Issues
 
