@@ -92,6 +92,20 @@ public:
     std::atomic<float> vuLevelOutL { 0.0f };
     std::atomic<float> vuLevelOutR { 0.0f };
 
+    // v1.6.0: CONTINUOUS momentary loudness, both columns. BS.1770 K-weighted,
+    // 400 ms window at a 100 ms hop, published in LUFS (-100 = silence floor).
+    //
+    // Through v1.5.0 the K-weight chain ran only inside the Learn branch of
+    // STEP 4, and the sole loudness value the editor pushed was the Learn
+    // snapshot's momentary field, so with Learn idle the LUFS meter mode drew
+    // RMS under a LUFS label on both columns. These two are fed every block,
+    // Learn or not. The output pair is a SECOND chain on the post-gain buffer
+    // -- until this version the plugin never measured post-gain loudness at
+    // all, which is why the v1.5.0 page kept the output column on RMS in LUFS
+    // mode rather than mirror the input.
+    std::atomic<float> momentaryLufsIn  { -100.0f };
+    std::atomic<float> momentaryLufsOut { -100.0f };
+
     // =========================================================================
     // Learn mode state (UI thread writes flags, audio thread reads/accumulates)
     // =========================================================================
@@ -175,33 +189,65 @@ private:
     juce::dsp::BallisticsFilter<float> vuBallisticsOutR;
 
     // =========================================================================
-    // K-Weighting Filters (double precision, per channel)
+    // Momentary loudness meter (v1.6.0) -- K-weighting + 400 ms block power
     // =========================================================================
+    //
+    // One BS.1770 front end: the two K-weight stages per channel (double
+    // precision) feeding four 100 ms sub-block power accumulators that rotate
+    // to form the 400 ms momentary window at a 100 ms hop. Through v1.5.0 these
+    // lived loose in the processor and ran only while Learn was active; they
+    // are a struct now because there are TWO of them -- one on the pre-gain
+    // buffer (which Learn also reads) and one on the post-gain buffer -- and
+    // the two columns are read against each other, so they must be the same
+    // code to the sample.
+    struct MomentaryLoudnessMeter
+    {
+        // BS.1770 Stage 1: Pre-filter (high-shelf ~+4dB above 2kHz)
+        juce::dsp::IIR::Filter<double> preL, preR;
+        // BS.1770 Stage 2: RLB high-pass (~100Hz rolloff)
+        juce::dsp::IIR::Filter<double> rlbL, rlbR;
 
-    // BS.1770 Stage 1: Pre-filter (high-shelf ~+4dB above 2kHz)
-    juce::dsp::IIR::Filter<double> kWeightPreFilterL;
-    juce::dsp::IIR::Filter<double> kWeightPreFilterR;
+        static constexpr int kNumSubBlocks = 4;
+        double subBlockPowerL[kNumSubBlocks] = {};
+        double subBlockPowerR[kNumSubBlocks] = {};
+        int    subBlockSampleCount[kNumSubBlocks] = {};
+        int    currentSubBlock = 0;
+        int    hopCounter      = 0;   // samples into the current 100 ms hop
+        int    hopSize         = 0;   // 100 ms in samples
 
-    // BS.1770 Stage 2: RLB high-pass (~100Hz rolloff)
-    juce::dsp::IIR::Filter<double> kWeightRlbFilterL;
-    juce::dsp::IIR::Filter<double> kWeightRlbFilterR;
+        // Mean K-weighted power (L + R, per BS.1770) of the block that closed
+        // on the last hop, or -1.0 while fewer than four sub-blocks are filled.
+        double lastBlockMeanPower = -1.0;
+
+        void prepare(const juce::dsp::ProcessSpec& monoSpec, int hopSizeSamples);
+        void setCoefficients(juce::dsp::IIR::Coefficients<double>::Ptr pre,
+                             juce::dsp::IIR::Coefficients<double>::Ptr rlb);
+        void resetFilters() noexcept;
+        void resetBlocks()  noexcept;
+
+        // Push one sample pair (mono: stereo == false, only l is read; the R
+        // accumulator stays zero so L + R collapses to single-channel
+        // loudness, WR-02). Returns true when a hop boundary was crossed, at
+        // which point lastBlockMeanPower is current.
+        bool pushSample(double l, double r, bool stereo) noexcept;
+    };
+
+    MomentaryLoudnessMeter inputLoudness;    // post-utilities, pre-gain; Learn reads this one
+    MomentaryLoudnessMeter outputLoudness;   // post-gain
+
+    // -0.691 + 10 log10(power), or -100 for no power.
+    static float powerToLufs(double meanPower) noexcept;
+
+    // The Learn side of a closed input hop: gating store, momentary /
+    // short-term / integrated, peak, elapsed, confidence, publish (WR-05).
+    void onLearnHop(double blockMeanPower) noexcept;
 
     // =========================================================================
-    // LUFS Gating Block Accumulator
+    // LUFS Gating Block Accumulator (Learn only)
     // =========================================================================
 
     int lufsBlockSize       = 0;     // 400ms in samples
     int lufsHopSize         = 0;     // 100ms in samples
-    int lufsHopCounter      = 0;     // counts samples within current hop
-
-    // Per-channel squared accumulation for current 400ms window
-    // Using circular buffer approach: accumulate power in overlapping windows
-    // We keep 4 sub-accumulators (each 100ms), rotate them to form 400ms blocks
-    static constexpr int kNumSubBlocks = 4;
-    double subBlockPowerL[kNumSubBlocks] = {};
-    double subBlockPowerR[kNumSubBlocks] = {};
-    int    subBlockSampleCount[kNumSubBlocks] = {};
-    int    currentSubBlock  = 0;
 
     // All gating block loudness values (for integrated LUFS dual-gate)
     std::vector<double> gatingBlockPowers;  // mean power per 400ms block (pre-allocated)
@@ -279,7 +325,7 @@ private:
     // Helper Methods
     // =========================================================================
 
-    // Initialize K-weight filter coefficients for a given sample rate
+    // Initialize K-weight filter coefficients for a given sample rate (both meters)
     void setupKWeightFilters(double sampleRate);
 
     // Reset all learn accumulators

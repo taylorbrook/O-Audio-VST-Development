@@ -8,7 +8,7 @@ juce_add_plugin(O-Gain
     PLUGIN_CODE OGan
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Gain${OUARICON_DEV_SUFFIX}"
-    VERSION 1.5.0
+    VERSION 1.6.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -84,3 +84,17 @@ target_compile_definitions(O-Gain
         JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
+
+# Test targets — off by default, enable with -DOUARICON_BUILD_TESTS=ON.
+# Suite-wide cache option (same name as the other plugins' gates, deliberately).
+option(OUARICON_BUILD_TESTS "Build O-Gain test targets" OFF)
+
+if(OUARICON_BUILD_TESTS)
+    # v1.6.0 offline LUFS harness — the derived-identity console the other
+    # plugins' render harnesses use (JUCE_WEB_BROWSER=0, no editor TU, no
+    # UIResources). Feeds -18 LUFS pink noise with Learn idle and checks that
+    # momentaryLufsIn / momentaryLufsOut both read it; see tests/lufs-harness/main.cpp.
+    include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
+    ouaricon_add_processor_console(O-Gain ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/lufs-harness/main.cpp lufs-test)
+endif()

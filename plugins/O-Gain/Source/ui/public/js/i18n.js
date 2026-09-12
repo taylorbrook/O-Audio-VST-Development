@@ -388,14 +388,14 @@ export const I18N = Object.freeze({
     },
     'meter-mode': {
         en: { t: 'Meter',
-              b: 'Meter display type. Peak = instantaneous peaks. RMS = average level. VU = analog-style 300ms ballistics. LUFS = K-weighted momentary loudness (shown while Learn runs; falls back to RMS otherwise)' },
+              b: 'Meter display type. Peak = instantaneous peaks. RMS = average level. VU = analog-style 300ms ballistics. LUFS = K-weighted momentary loudness (400ms window), measured continuously on both columns' },
         fr: { t: 'Vumètre',
-              b: 'Type d’affichage du vumètre. Peak = crêtes instantanées. RMS = niveau moyen. VU = balistique analogique de 300 ms. LUFS = sonie momentanée pondérée K (affichée pendant la mesure ; sinon retour au RMS)',
-              reviewed: true },
+              b: 'Type d’affichage du vumètre. Peak = crêtes instantanées. RMS = niveau moyen. VU = balistique analogique de 300 ms. LUFS = sonie momentanée pondérée K (fenêtre de 400 ms), mesurée en continu sur les deux colonnes',
+              reviewed: false },
     
         'zh-Hans': { t: '表',
-              b: '表的显示类型。Peak = 瞬时峰值。RMS = 平均电平。VU = 模拟风格的 300ms 弹道。LUFS = K 计权瞬时响度（学习运行时显示，否则回落到 RMS）',
-              reviewed: 'bt' },
+              b: '表的显示类型。Peak = 瞬时峰值。RMS = 平均电平。VU = 模拟风格的 300ms 弹道。LUFS = K 计权瞬时响度（400ms 窗口），在两列上持续测量',
+              reviewed: 'mt' },
     },
     'info-momentary': {
         en: { t: 'Momentary',

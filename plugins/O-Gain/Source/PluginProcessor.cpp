@@ -26,15 +26,23 @@
 
     DSP Architecture:
       Input -> Phase Invert -> Channel Swap -> M/S Encode -> Mono Sum
-           -> Input Metering -> Learn Measurement (K-weight, LUFS)
+           -> Input Metering -> Input Loudness (K-weight, momentary LUFS,
+              continuous; Learn accumulates from its closed blocks)
            -> Apply Gain (gain_offset + trim)
-           -> Output Metering -> Output
+           -> Output Metering -> Output Loudness (K-weight, momentary LUFS) -> Output
 
   ==============================================================================
 */
 
 #include "PluginProcessor.h"
+
+// v1.6.0: the offline LUFS harness (tests/lufs-harness) compiles this TU with
+// JUCE_WEB_BROWSER=0 and no editor sources; the editor header references
+// WebView types, so it is reachable only from a real plugin build
+// (pattern_render_harness_breaks_on_webview_editor).
+#if JUCE_WEB_BROWSER
 #include "PluginEditor.h"
+#endif
 
 // =============================================================================
 // K-Weight Filter Coefficients
@@ -324,10 +332,8 @@ void OGainAudioProcessor::setupKWeightFilters(double sampleRate)
             rlb_b0, rlb_b1, rlb_b2, 1.0, rlb_a1, rlb_a2));
 
     // Assign to filters
-    kWeightPreFilterL.coefficients = preCoeffs;
-    kWeightPreFilterR.coefficients = preCoeffs;
-    kWeightRlbFilterL.coefficients = rlbCoeffs;
-    kWeightRlbFilterR.coefficients = rlbCoeffs;
+    inputLoudness .setCoefficients(preCoeffs, rlbCoeffs);
+    outputLoudness.setCoefficients(preCoeffs, rlbCoeffs);
 }
 
 // =============================================================================
@@ -336,15 +342,13 @@ void OGainAudioProcessor::setupKWeightFilters(double sampleRate)
 
 void OGainAudioProcessor::resetLearnAccumulators()
 {
-    // Reset sub-block accumulators
-    for (int i = 0; i < kNumSubBlocks; ++i)
-    {
-        subBlockPowerL[i] = 0.0;
-        subBlockPowerR[i] = 0.0;
-        subBlockSampleCount[i] = 0;
-    }
-    currentSubBlock = 0;
-    lufsHopCounter = 0;
+    // Restart the input meter's 400 ms window so the first block Learn
+    // accumulates lies wholly inside the Learn window -- the v1.5.0 semantics,
+    // kept. The FILTER state is deliberately left alone: it is steady-state
+    // history of the very signal being measured, and resetting it (as v1.5.0
+    // did) put a start-up transient into the first gating block. The
+    // continuous readout simply holds its last value for one window.
+    inputLoudness.resetBlocks();
 
     // Reset gating block storage
     gatingBlockCount = 0;
@@ -368,12 +372,6 @@ void OGainAudioProcessor::resetLearnAccumulators()
 
     // Reset the integrated-LUFS recompute throttle (WR-04)
     integratedHopCounter = 0;
-
-    // Reset K-weight filter state (remove history from previous learn sessions)
-    kWeightPreFilterL.reset();
-    kWeightPreFilterR.reset();
-    kWeightRlbFilterL.reset();
-    kWeightRlbFilterR.reset();
 
     // Reset the audio-thread working copy of the Learn snapshot (WR-05). Its
     // state field is set by the caller (learn-start edge / prepareToPlay).
@@ -653,27 +651,25 @@ void OGainAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     vuBallisticsOutR.setReleaseTime(kVuBallisticsMs);
     vuBallisticsOutR.setLevelCalculationType(juce::dsp::BallisticsFilterLevelCalculationType::RMS);
 
-    // Prepare K-weight filters
+    // Calculate LUFS block and hop sizes
+    lufsBlockSize = static_cast<int>(sampleRate * kLufsBlockSeconds);
+    lufsHopSize   = static_cast<int>(sampleRate * kLufsHopSeconds);
+
+    // Prepare the two momentary loudness meters (v1.6.0): identical spec,
+    // identical coefficients, identical hop -- they close their blocks on the
+    // same sample, so the two LUFS columns always describe the same 400 ms.
     juce::dsp::ProcessSpec doubleMonoSpec;
     doubleMonoSpec.sampleRate = sampleRate;
     doubleMonoSpec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
     doubleMonoSpec.numChannels = 1;
 
-    kWeightPreFilterL.prepare(doubleMonoSpec);
-    kWeightPreFilterR.prepare(doubleMonoSpec);
-    kWeightRlbFilterL.prepare(doubleMonoSpec);
-    kWeightRlbFilterR.prepare(doubleMonoSpec);
-
+    inputLoudness .prepare(doubleMonoSpec, lufsHopSize);
+    outputLoudness.prepare(doubleMonoSpec, lufsHopSize);
     setupKWeightFilters(sampleRate);
-
-    kWeightPreFilterL.reset();
-    kWeightPreFilterR.reset();
-    kWeightRlbFilterL.reset();
-    kWeightRlbFilterR.reset();
-
-    // Calculate LUFS block and hop sizes
-    lufsBlockSize = static_cast<int>(sampleRate * kLufsBlockSeconds);
-    lufsHopSize   = static_cast<int>(sampleRate * kLufsHopSeconds);
+    inputLoudness .resetFilters();  inputLoudness .resetBlocks();
+    outputLoudness.resetFilters();  outputLoudness.resetBlocks();
+    momentaryLufsIn .store(-100.0f, std::memory_order_relaxed);
+    momentaryLufsOut.store(-100.0f, std::memory_order_relaxed);
 
     // Pre-allocate gating block storage (~400 s of learn at a 100 ms hop)
     gatingBlockPowers.resize(static_cast<size_t>(kMaxGatingBlocks), 0.0);
@@ -910,11 +906,15 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 
     prevLearnActive = isLearnActive;
 
-    if (isLearnActive && numChannels >= 1)
+    // The input loudness meter runs on EVERY block (v1.6.0). Learn, when
+    // active, accumulates alongside it and consumes the meter's closed blocks
+    // in onLearnHop(), so the Learn panel and the LUFS meter column are the
+    // same measurement -- not two chains that could disagree.
+    if (numChannels >= 1)
     {
-        // Mono support (WR-02): feed channel 0 into the L accumulators only. The R
-        // accumulators stay zero, so the LUFS block power (meanPowerL + meanPowerR)
-        // collapses to the correct single-channel loudness, and the RMS divisor uses
+        // Mono support (WR-02): feed channel 0 into the L side only. The R side
+        // stays zero, so the block power (meanPowerL + meanPowerR) collapses to
+        // the correct single-channel loudness, and the Learn RMS divisor uses
         // learnChannelsAtStart == 1 in finalizeLearn().
         const bool  stereo    = (numChannels >= 2);
         const auto* leftData  = buffer.getReadPointer(0);
@@ -923,133 +923,38 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         for (int i = 0; i < numSamples; ++i)
         {
             const double sampleL = static_cast<double>(leftData[i]);
+            const double sampleR = stereo ? static_cast<double>(rightData[i]) : 0.0;
 
-            // Sample-peak detection (WR-03: un-oversampled digital peak, dBFS)
-            double absL = std::abs(sampleL);
-            if (absL > samplePeakMax) samplePeakMax = absL;
-
-            // RMS accumulation (for RMS measurement mode)
-            rmsAccumL += sampleL * sampleL;
-
-            // K-weight filtering: pre-filter then RLB
-            double kWeightedL = kWeightPreFilterL.processSample(sampleL);
-            kWeightedL = kWeightRlbFilterL.processSample(kWeightedL);
-            subBlockPowerL[currentSubBlock] += kWeightedL * kWeightedL;
-
-            if (stereo)
+            if (isLearnActive)
             {
-                const double sampleR = static_cast<double>(rightData[i]);
+                // Sample-peak detection (WR-03: un-oversampled digital peak, dBFS)
+                const double absL = std::abs(sampleL);
+                if (absL > samplePeakMax) samplePeakMax = absL;
 
-                double absR = std::abs(sampleR);
-                if (absR > samplePeakMax) samplePeakMax = absR;
+                // RMS accumulation (for RMS measurement mode)
+                rmsAccumL += sampleL * sampleL;
 
-                rmsAccumR += sampleR * sampleR;
+                if (stereo)
+                {
+                    const double absR = std::abs(sampleR);
+                    if (absR > samplePeakMax) samplePeakMax = absR;
+                    rmsAccumR += sampleR * sampleR;
+                }
 
-                double kWeightedR = kWeightPreFilterR.processSample(sampleR);
-                kWeightedR = kWeightRlbFilterR.processSample(kWeightedR);
-                subBlockPowerR[currentSubBlock] += kWeightedR * kWeightedR;
+                ++rmsSampleCount;
+                learnSampleCount += 1.0;
             }
 
-            ++rmsSampleCount;
-            subBlockSampleCount[currentSubBlock]++;
-
-            learnSampleCount += 1.0;
-            lufsHopCounter++;
-
-            // When we complete a hop (100ms worth of samples)
-            if (lufsHopCounter >= lufsHopSize)
+            // K-weight + 400 ms block power, continuous
+            if (inputLoudness.pushSample(sampleL, sampleR, stereo))
             {
-                lufsHopCounter = 0;
+                const double blockMeanPower = inputLoudness.lastBlockMeanPower;
 
-                // Calculate 400ms block power (sum of all 4 sub-blocks)
-                // Only if we have accumulated at least 4 sub-blocks (first 400ms)
-                int totalSubBlocks = 0;
-                double totalPowerL = 0.0;
-                double totalPowerR = 0.0;
-                int totalSamples = 0;
+                if (blockMeanPower >= 0.0)
+                    momentaryLufsIn.store(powerToLufs(blockMeanPower), std::memory_order_relaxed);
 
-                for (int sb = 0; sb < kNumSubBlocks; ++sb)
-                {
-                    if (subBlockSampleCount[sb] > 0)
-                    {
-                        totalPowerL += subBlockPowerL[sb];
-                        totalPowerR += subBlockPowerR[sb];
-                        totalSamples += subBlockSampleCount[sb];
-                        ++totalSubBlocks;
-                    }
-                }
-
-                if (totalSubBlocks == kNumSubBlocks && totalSamples > 0)
-                {
-                    // Mean power per channel (stereo: equal weight 1.0 for L and R)
-                    double meanPowerL = totalPowerL / static_cast<double>(totalSamples);
-                    double meanPowerR = totalPowerR / static_cast<double>(totalSamples);
-                    double blockMeanPower = meanPowerL + meanPowerR; // sum across channels per BS.1770
-
-                    // Store block power for integrated LUFS gating
-                    if (gatingBlockCount < static_cast<int>(gatingBlockPowers.size()))
-                    {
-                        gatingBlockPowers[static_cast<size_t>(gatingBlockCount)] = blockMeanPower;
-                        ++gatingBlockCount;
-                    }
-
-                    // Momentary LUFS (this single 400ms block)
-                    liveLearn.momentaryLUFS = (blockMeanPower > 0.0)
-                        ? static_cast<float>(-0.691 + 10.0 * std::log10(blockMeanPower))
-                        : -100.0f;
-
-                    // Short-term buffer (last 3s = 30 blocks at 100ms hop)
-                    shortTermPowers[shortTermWritePos] = blockMeanPower;
-                    shortTermWritePos = (shortTermWritePos + 1) % kShortTermBlocks;
-                    if (shortTermBlockCount < kShortTermBlocks)
-                        ++shortTermBlockCount;
-
-                    // Calculate short-term LUFS (mean of last 3s)
-                    double stSum = 0.0;
-                    for (int sb = 0; sb < shortTermBlockCount; ++sb)
-                        stSum += shortTermPowers[sb];
-
-                    if (shortTermBlockCount > 0 && stSum > 0.0)
-                    {
-                        double stMeanPower = stSum / static_cast<double>(shortTermBlockCount);
-                        liveLearn.shortTermLUFS = static_cast<float>(-0.691 + 10.0 * std::log10(stMeanPower));
-                    }
-
-                    // Running integrated LUFS (dual-gate). WR-04: the recompute is
-                    // O(gatingBlockCount); it is display-only, so throttle it to
-                    // ~1 Hz (first qualifying block + every kIntegratedRecomputeHops)
-                    // rather than paying it on every 100 ms hop. The authoritative
-                    // final value is computed once in finalizeLearn().
-                    if ((integratedHopCounter++ % kIntegratedRecomputeHops) == 0)
-                        liveLearn.integratedLUFS = static_cast<float>(calculateIntegratedLUFS());
-                }
-
-                // Advance to next sub-block (circular)
-                int nextSubBlock = (currentSubBlock + 1) % kNumSubBlocks;
-                subBlockPowerL[nextSubBlock] = 0.0;
-                subBlockPowerR[nextSubBlock] = 0.0;
-                subBlockSampleCount[nextSubBlock] = 0;
-                currentSubBlock = nextSubBlock;
-
-                // Update sample peak (WR-03: dBFS, un-oversampled)
-                if (samplePeakMax > 0.0)
-                    liveLearn.samplePeakDBFS = static_cast<float>(20.0 * std::log10(samplePeakMax));
-
-                // Update elapsed time
-                const float elapsed = static_cast<float>(learnSampleCount / currentSampleRate);
-                liveLearn.elapsedSeconds = elapsed;
-
-                // Update confidence indicator
-                if (elapsed < kConfidenceLowSeconds || gatingBlockCount < kConfidenceMinBlocks)
-                    liveLearn.confidence = 1; // low
-                else if (elapsed < kConfidenceMediumSeconds)
-                    liveLearn.confidence = 2; // medium
-                else
-                    liveLearn.confidence = 3; // high
-
-                // Publish the whole Learn panel coherently once per hop (WR-05).
-                liveLearn.state = 1; // learning
-                publishLearnSnapshot(liveLearn);
+                if (isLearnActive)
+                    onLearnHop(blockMeanPower);
             }
         }
     }
@@ -1152,6 +1057,209 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         vuLevelOutL.store(vu, std::memory_order_relaxed);
         vuLevelOutR.store(vu, std::memory_order_relaxed);
     }
+
+    // =========================================================================
+    // STEP 8: Output Loudness (post-gain) -- v1.6.0
+    // =========================================================================
+    //
+    // The mirror of the input meter in STEP 4 on the post-gain buffer: same
+    // struct, same coefficients, same hop phase. Mono feeds the L side only,
+    // exactly as STEP 4 does (WR-02).
+
+    if (numChannels >= 1)
+    {
+        const bool  stereo    = (numChannels >= 2);
+        const auto* leftData  = buffer.getReadPointer(0);
+        const auto* rightData = stereo ? buffer.getReadPointer(1) : nullptr;
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const double sampleL = static_cast<double>(leftData[i]);
+            const double sampleR = stereo ? static_cast<double>(rightData[i]) : 0.0;
+
+            if (outputLoudness.pushSample(sampleL, sampleR, stereo)
+                && outputLoudness.lastBlockMeanPower >= 0.0)
+            {
+                momentaryLufsOut.store(powerToLufs(outputLoudness.lastBlockMeanPower),
+                                       std::memory_order_relaxed);
+            }
+        }
+    }
+}
+
+// =============================================================================
+// MomentaryLoudnessMeter (v1.6.0)
+// =============================================================================
+
+void OGainAudioProcessor::MomentaryLoudnessMeter::prepare(const juce::dsp::ProcessSpec& monoSpec,
+                                                          int hopSizeSamples)
+{
+    preL.prepare(monoSpec);  preR.prepare(monoSpec);
+    rlbL.prepare(monoSpec);  rlbR.prepare(monoSpec);
+    hopSize = juce::jmax(1, hopSizeSamples);
+}
+
+void OGainAudioProcessor::MomentaryLoudnessMeter::setCoefficients(juce::dsp::IIR::Coefficients<double>::Ptr pre,
+                                                                  juce::dsp::IIR::Coefficients<double>::Ptr rlb)
+{
+    preL.coefficients = pre;  preR.coefficients = pre;
+    rlbL.coefficients = rlb;  rlbR.coefficients = rlb;
+}
+
+void OGainAudioProcessor::MomentaryLoudnessMeter::resetFilters() noexcept
+{
+    preL.reset();  preR.reset();
+    rlbL.reset();  rlbR.reset();
+}
+
+void OGainAudioProcessor::MomentaryLoudnessMeter::resetBlocks() noexcept
+{
+    for (int i = 0; i < kNumSubBlocks; ++i)
+    {
+        subBlockPowerL[i] = 0.0;
+        subBlockPowerR[i] = 0.0;
+        subBlockSampleCount[i] = 0;
+    }
+    currentSubBlock    = 0;
+    hopCounter         = 0;
+    lastBlockMeanPower = -1.0;
+}
+
+bool OGainAudioProcessor::MomentaryLoudnessMeter::pushSample(double l, double r, bool stereo) noexcept
+{
+    // K-weight filtering: pre-filter then RLB, per channel
+    double kL = preL.processSample(l);
+    kL = rlbL.processSample(kL);
+    subBlockPowerL[currentSubBlock] += kL * kL;
+
+    if (stereo)
+    {
+        double kR = preR.processSample(r);
+        kR = rlbR.processSample(kR);
+        subBlockPowerR[currentSubBlock] += kR * kR;
+    }
+
+    subBlockSampleCount[currentSubBlock]++;
+
+    if (++hopCounter < hopSize)
+        return false;
+
+    hopCounter = 0;
+
+    // Close the 400 ms block: sum of all four sub-blocks, valid only once all
+    // four have been filled (the first 400 ms after a reset report nothing).
+    int    totalSubBlocks = 0;
+    double totalPowerL = 0.0, totalPowerR = 0.0;
+    int    totalSamples = 0;
+
+    for (int sb = 0; sb < kNumSubBlocks; ++sb)
+    {
+        if (subBlockSampleCount[sb] > 0)
+        {
+            totalPowerL  += subBlockPowerL[sb];
+            totalPowerR  += subBlockPowerR[sb];
+            totalSamples += subBlockSampleCount[sb];
+            ++totalSubBlocks;
+        }
+    }
+
+    if (totalSubBlocks == kNumSubBlocks && totalSamples > 0)
+    {
+        // Mean power per channel, summed across channels (equal weight, BS.1770)
+        const double n = static_cast<double>(totalSamples);
+        lastBlockMeanPower = totalPowerL / n + totalPowerR / n;
+    }
+    else
+    {
+        lastBlockMeanPower = -1.0;
+    }
+
+    // Advance to the next sub-block (circular)
+    const int nextSubBlock = (currentSubBlock + 1) % kNumSubBlocks;
+    subBlockPowerL[nextSubBlock] = 0.0;
+    subBlockPowerR[nextSubBlock] = 0.0;
+    subBlockSampleCount[nextSubBlock] = 0;
+    currentSubBlock = nextSubBlock;
+
+    return true;
+}
+
+float OGainAudioProcessor::powerToLufs(double meanPower) noexcept
+{
+    // Floored at -100, not merely guarded against zero: after the signal stops
+    // the IIR tails leave a vanishing but NONZERO power for a while, and the
+    // unfloored formula published readings like -1265 LUFS (seen in the
+    // tests/lufs-harness silence phase). -100 is the published silence floor
+    // the page already treats as "-inf".
+    if (meanPower <= 0.0)
+        return -100.0f;
+
+    return juce::jmax(-100.0f, static_cast<float>(-0.691 + 10.0 * std::log10(meanPower)));
+}
+
+// =============================================================================
+// Learn hop (v1.6.0: the Learn half of what STEP 4 did inline through v1.5.0)
+// =============================================================================
+
+void OGainAudioProcessor::onLearnHop(double blockMeanPower) noexcept
+{
+    if (blockMeanPower >= 0.0)
+    {
+        // Store block power for integrated LUFS gating
+        if (gatingBlockCount < static_cast<int>(gatingBlockPowers.size()))
+        {
+            gatingBlockPowers[static_cast<size_t>(gatingBlockCount)] = blockMeanPower;
+            ++gatingBlockCount;
+        }
+
+        // Momentary LUFS (this single 400ms block)
+        liveLearn.momentaryLUFS = powerToLufs(blockMeanPower);
+
+        // Short-term buffer (last 3s = 30 blocks at 100ms hop)
+        shortTermPowers[shortTermWritePos] = blockMeanPower;
+        shortTermWritePos = (shortTermWritePos + 1) % kShortTermBlocks;
+        if (shortTermBlockCount < kShortTermBlocks)
+            ++shortTermBlockCount;
+
+        // Calculate short-term LUFS (mean of last 3s)
+        double stSum = 0.0;
+        for (int sb = 0; sb < shortTermBlockCount; ++sb)
+            stSum += shortTermPowers[sb];
+
+        if (shortTermBlockCount > 0 && stSum > 0.0)
+        {
+            const double stMeanPower = stSum / static_cast<double>(shortTermBlockCount);
+            liveLearn.shortTermLUFS = static_cast<float>(-0.691 + 10.0 * std::log10(stMeanPower));
+        }
+
+        // Running integrated LUFS (dual-gate). WR-04: the recompute is
+        // O(gatingBlockCount); it is display-only, so throttle it to
+        // ~1 Hz (first qualifying block + every kIntegratedRecomputeHops)
+        // rather than paying it on every 100 ms hop. The authoritative
+        // final value is computed once in finalizeLearn().
+        if ((integratedHopCounter++ % kIntegratedRecomputeHops) == 0)
+            liveLearn.integratedLUFS = static_cast<float>(calculateIntegratedLUFS());
+    }
+
+    // Update sample peak (WR-03: dBFS, un-oversampled)
+    if (samplePeakMax > 0.0)
+        liveLearn.samplePeakDBFS = static_cast<float>(20.0 * std::log10(samplePeakMax));
+
+    // Update elapsed time
+    const float elapsed = static_cast<float>(learnSampleCount / currentSampleRate);
+    liveLearn.elapsedSeconds = elapsed;
+
+    // Update confidence indicator
+    if (elapsed < kConfidenceLowSeconds || gatingBlockCount < kConfidenceMinBlocks)
+        liveLearn.confidence = 1; // low
+    else if (elapsed < kConfidenceMediumSeconds)
+        liveLearn.confidence = 2; // medium
+    else
+        liveLearn.confidence = 3; // high
+
+    // Publish the whole Learn panel coherently once per hop (WR-05).
+    liveLearn.state = 1; // learning
+    publishLearnSnapshot(liveLearn);
 }
 
 // =============================================================================
@@ -1160,7 +1268,11 @@ void OGainAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 
 juce::AudioProcessorEditor* OGainAudioProcessor::createEditor()
 {
+#if JUCE_WEB_BROWSER
     return new OGainAudioProcessorEditor(*this);
+#else
+    return new juce::GenericAudioProcessorEditor(*this);   // console-target build
+#endif
 }
 
 // =============================================================================

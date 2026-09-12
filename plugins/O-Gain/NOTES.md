@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.5.0
+- **Version:** 1.6.0
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -37,6 +37,14 @@
   rounded readout became a peak/average pair. Fixed VU mode comparing a 300 ms ballistic
   input against a per-block RMS output by adding post-gain VU ballistics (STEP 7). Frame
   350 x 500 -> 380 x 500. No parameter, range, type or state format changed.
+- **2026-09-12 (v1.6.0):** LUFS meter mode shows LUFS. The BS.1770 K-weight chain ran
+  only inside the Learn branch, so with Learn idle `case 3` drew RMS under a LUFS label on
+  both columns. The chain now runs continuously as a `MomentaryLoudnessMeter` struct with
+  two instances — pre-gain (Learn consumes its closed blocks via `onLearnHop()`) and a new
+  post-gain one (STEP 8) — publishing `momentaryLufsIn` / `momentaryLufsOut`. Offline
+  `tests/lufs-harness` (console target, independent BS.1770 reference) proves both columns
+  track -18 LUFS pink noise to 0.2 dB with Learn idle, and -12 at +6 dB gain. No parameter,
+  range, type or state format changed.
 
 ## Known Issues
 
