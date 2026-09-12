@@ -369,6 +369,20 @@ export const I18N = Object.freeze({
               b: '期望的输出响度。拖动旋钮，或双击复位到 -18 dB',
               reviewed: 'bt' },
     },
+    // v1.7.0: the preset block under the Target Level knob. The body names the
+    // six values with the reference each one is (BRIEF.md), because a bare
+    // "-23" beside "LUFS" tells a user nothing about WHY they would pick it.
+    'target-presets': {
+        en: { t: 'Target Presets',
+              b: 'Set Target Level in one click. dBFS: -18 = 0 VU standard, -16 hotter (EDM/pop), -20 conservative (film/post). LUFS: -14 Spotify/YouTube, -16 Apple Music, -23 EBU R128 broadcast. The lit preset is the current Target Level' },
+        fr: { t: 'Préréglages de cible',
+              b: 'Règle le niveau cible en un clic. dBFS : −18 = 0 VU (norme), −16 plus chaud (EDM/pop), −20 prudent (film/post-production). LUFS : −14 Spotify/YouTube, −16 Apple Music, −23 EBU R128 (diffusion). Le préréglage allumé est le niveau cible courant',
+              reviewed: false },
+
+        'zh-Hans': { t: '目标预设',
+              b: '一键设定目标电平。dBFS：-18 = 0 VU（标准），-16 更热（EDM/流行），-20 保守（影视/后期）。LUFS：-14 Spotify/YouTube，-16 Apple Music，-23 EBU R128（广播）。点亮的预设即当前目标电平',
+              reviewed: 'mt' },
+    },
     'measure-mode': {
         en: { t: 'Measure',
               b: 'Algorithm used by Learn. LUFS = K-weighted loudness (recommended, industry standard). RMS = simple average level' },
@@ -624,6 +638,10 @@ export const LABELS = Object.freeze({
     'label.trim':        { en: { t: 'Trim' },         fr: { t: 'Ajust.',       reviewed: true } , 'zh-Hans': { t: '微调电平', reviewed: 'bt' }},
     'label.targetLevel': { en: { t: 'Target Level' }, fr: { t: 'Niveau cible', reviewed: true } , 'zh-Hans': { t: '目标电平', reviewed: 'bt' }},
     'label.target':      { en: { t: 'Target' },       fr: { t: 'Cible',        reviewed: true } , 'zh-Hans': { t: '目标', reviewed: 'bt' }},
+    // v1.7.0: the title over the six target-preset buttons. The buttons' own
+    // faces are numerals (READOUT under D-03) and the row captions are the
+    // unit symbols dBFS / LUFS, so this is the block's only keyed string.
+    'label.presets':     { en: { t: 'Presets' },      fr: { t: 'Préréglages',  reviewed: false } , 'zh-Hans': { t: '预设', reviewed: 'mt' }},
 
     // ── Mode-selector captions. The OPTION captions beside them (LUFS, RMS,
     //    Peak, VU) are the AudioParameterChoice option strings verbatim and are
@@ -831,6 +849,7 @@ export const TIP_BINDINGS = [
     ['#learn-btn',          'learn-btn'],
     ['#target-group',       'target-group'],
     ['#target-knob-group',  'target-knob'],
+    ['#target-preset-row',  'target-presets'],
 
     // Mode selectors.
     ['#measure-mode-group', 'measure-mode'],

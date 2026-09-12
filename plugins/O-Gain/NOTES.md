@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.6.0
+- **Version:** 1.7.0
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -45,6 +45,11 @@
   `tests/lufs-harness` (console target, independent BS.1770 reference) proves both columns
   track -18 LUFS pink noise to 0.2 dB with Learn idle, and -12 at +6 dB gain. No parameter,
   range, type or state format changed.
+- **2026-09-12 (v1.7.0):** Target presets. Six buttons under the Target Level knob
+  (dBFS -18/-16/-20, LUFS -14/-16/-23 — BRIEF.md's unshipped "Target level selector with
+  presets") write `target_level` through the knob's own relay as a gesture; the lit preset
+  is the one `getScaledValue()` matches within 0.05 dB. UI-only, keyed in en/fr/zh-Hans,
+  check-ui-labels 0 FAIL at 380 x 500. No parameter or state change.
 
 ## Known Issues
 

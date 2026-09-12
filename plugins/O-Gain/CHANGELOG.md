@@ -2,6 +2,59 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.7.0] - 2026-09-12
+
+Target-level presets. MINOR: one new block of six buttons in the editor and
+nothing else — no parameter, range, type or state format changed, no C++
+touched, and the audio path is untouched. Every v1.x session and preset loads
+identically.
+
+### Added
+
+- **Target presets under the Target Level knob**: two segmented rows,
+  `dBFS -18 / -16 / -20` and `LUFS -14 / -16 / -23`, the six references
+  BRIEF.md's "Target level selector with presets" named for v1.0 and which
+  never shipped — only the continuous knob did. Each button writes
+  `target_level` through the knob's own `WebSliderRelay` / attachment as a
+  gesture (drag-started, one value, drag-ended), so the host records it the
+  way it records a knob drag. The block owns no parameter.
+- **The lit preset is the current value.** Matching reads
+  `getScaledValue()` — the value the C++ `NormalisableRange` holds, not the
+  JS `paramDefs` table — with a tolerance of 0.05 dB, half the parameter's
+  0.1 dB step, so a knob nudged one step off a preset goes dark. `-16` sits in
+  both rows and both light together: the parameter holds one number, and
+  which unit the user reads it in is the Measure selector's business.
+- **Writes go through `state.properties`** (start / end / skew pushed by the
+  backend), not a JS constant, for the same reason
+  (`pattern_webview_knob_readout_scaled_value`).
+- **`label.presets`** keyed in en / fr / zh-Hans (`Presets` / `Préréglages` /
+  `预设`) and a `target-presets` tooltip on `#target-preset-row` naming what
+  each of the six values is for. The numerals are READOUT-class text and the
+  row captions are the unit symbols `dBFS` / `LUFS` (D-03), so the title is
+  the block's only keyed string. fr `reviewed: false`, zh-Hans `'mt'`.
+- **`tests/ui-stub/generic-overrides.json`**: the three sliders' real ranges.
+  The generic stub seeds every slider 0..1 linear, under which a preset click
+  stored 0 and nothing could light — the new gate state would have measured a
+  page in which the feature cannot work.
+- **Gate state `target preset -23 LUFS lit`** in `tests/i18n-states.json`.
+
+### Layout
+
+- The block reuses `.mode-selector` / `.mode-option`, is the same 220 px
+  column as every other centre-stack row, and its unit caption is a fixed
+  30 px flex basis so no caption can reposition a selector. Measured at
+  380 x 500 through the gate's own boot: 52 px tall, identical rectangles in
+  en / fr / zh-Hans, bottom edge 325.6 against the centre stack's 351.1 with
+  the Learn panel open. `check-ui-labels` 0 FAIL, 33 of 33 labels visible
+  across 8 states; `check-i18n`, `i18n-fr-lint`, `i18n-zh-lint` clean.
+
+### Verified
+
+- Headless click probe against the seeded stub: -18 lit at boot, the -23
+  LUFS click writes -23.0 dB and lights that button, -16 lights both rows,
+  a 0.1 dB nudge darkens all six. pluginval strictness 5 SUCCESS on the
+  installed VST3; auval PASS on `aufx OGan OuDv` (Component Version 1.7.0).
+
 ## [1.6.0] - 2026-09-12
 
 The LUFS meter mode shows LUFS. MINOR: one new continuous measurement pair and
