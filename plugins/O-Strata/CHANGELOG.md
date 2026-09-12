@@ -7,6 +7,42 @@
 `O-Strata`, APVTS state identifier `OStrataParameters`, its own preset folder.
 O-Prism is untouched and the two plugins coexist in a host.
 
+Stage 3, Round A — Terrain tab, oscillator panels, readout, cycle view, i18n (Phase 3.1, 2026-09-12):
+- **Shell re-forked from O-Prism v1.26.0** (`4f12ef57`): the Wavetable tab, its
+  editor, modal and natives are gone; the card grid, the full Tuning tab, the
+  tooltip canon and the preset modal are byte-identical to O-Prism (shell-diff
+  gate: 0 px outside the masks on synth / mod / tuning / effects).
+- **Oscillator cards**: Terrain and Orbit dropdowns bound to the C++ choice lists
+  (`WebComboBoxRelay`), Orbit Size (default 50 %), unison 1–4, ⬡ / ≋ view toggle on
+  each mini canvas.
+- **Terrain tab** (fifth tab): one panel for whichever oscillator is active (Osc A / B
+  repoints, never copies), Terrain / Orbit / Quality / Import… toolbar, 14 knobs
+  through proxies, inert rules (Blur + Edge unless Imported…, Orbit Mod on Ellipse,
+  Pitch Track in Bandlimited), the readout (`2× · 16 partials at C4`,
+  `Bandlimited · … · approx.`, `image projected at F = 1 · fit N %`, and the new
+  **`silent above <note>`** form from the scheduler's top-note probe), the ≋
+  last-cycle view fed by the display voice's ring, the botanical plate. The 3D view
+  is the mockup's placeholder renderer until Round B ports `Orbits.h`.
+- **Terrain Freq readout / reset are exact on the log range** (page-side adapter —
+  the lambda `NormalisableRange` never reaches the JUCE JS frontend).
+- **Pushes, never `evaluateJavascript`**: `heldNotes`, `terrainStatus`,
+  `terrainCycle` (512 × {px, py, y}, base64 Float32, ≤ 15 Hz) through
+  `emitEventIfBrowserIsVisible`; `requestTerrainRepush` handshake at boot and after
+  every preset apply.
+- **DSP side**: `CycleCapture` ring 2048 → 8192 (a full cycle down to 23 Hz at 2×),
+  display-voice re-election at block end (the ≋ view keeps moving while older notes
+  sound), `chebTopNote` (strongest harmonic of the tapered set on the base orbit,
+  ≥ 2e-3 ≈ −54 dBFS, bisection over MIDI 0–127, hidden ≥ C8), `TerrainViewFeed`,
+  `getTerrainStatus`. Audio unchanged: `--gate all` 139 / 139 (135 + 4 `topnote`).
+- **i18n**: 32 new / changed keys + 14 Terrain tooltips (en / fr / zh-Hans; fr
+  unreviewed, zh at `'mt'` pending the back-translation read); `label.oscAShort` /
+  `BShort` restored, `label.position` retired.
+- **Gates**: new `tests/ui_layout_check.js` (666 budget, one-row `.osc-params`,
+  width pins across languages, hit tests, 46 destinations) and
+  `tests/ui_shell_diff_check.js`; stub fixtures generated from the binary
+  (`--dump-choices` → `tests/tools/gen-stub-overrides.mjs`); 13 Terrain states;
+  tip gate over five tabs (120 bindings); CDP font probe for the Terrain tab.
+
 Stage 2, Round B — Bandlimited mode + PNG terrain path (Phases 2.4–2.5, 2026-09-12):
 - **Bandlimited mode** (`osc?Quality` = Bandlimited): the terrain is a degree-16
   Chebyshev triangle (153 coefficients, `dsp/ChebyshevSet.h`) evaluated per sample

@@ -1889,6 +1889,148 @@ export const I18N = Object.freeze({
           b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
           reviewed: 'bt' },
     },
+
+    // ── Stage 3 Round A: the 14 Terrain-tab knobs (bodies from the mockup v2 title= attributes) ──
+    'tip.terFreq': {
+        en: { t: 'Freq',
+              b: 'Spatial frequency multiplier — the main brightness / harmonic-count control. Range 0.25× to 8×.' },
+        fr: { t: 'Fréq.',
+              b: 'Multiplicateur de fréquence spatiale du terrain : la commande principale de brillance et de nombre d’harmoniques. Plage de 0,25× à 8×.',
+              reviewed: false, termNote: 'spatial frequency multiplier (×) of the terrain, not a rate' },
+    'zh-Hans': { t: '频率',
+          b: '地形的空间频率倍数——主要的亮度和泛音数量控制。范围 0.25× 到 8×。',
+          reviewed: 'mt' },
+    },
+    'tip.terModX': {
+        en: { t: 'Mod X',
+              b: 'Terrain-specific shape input: ring spacing, saddle skew, well depth. Range 0 to 100 %.' },
+        fr: { t: 'Mod X',
+              b: 'Entrée de forme propre au terrain : espacement des anneaux, inclinaison de la selle, profondeur des puits. Plage de 0 à 100 %.',
+              reviewed: false },
+    'zh-Hans': { t: '调制 X',
+          b: '与地形相关的形状输入：环间距、鞍面倾斜、井深。范围 0 到 100%。',
+          reviewed: 'mt' },
+    },
+    'tip.terModY': {
+        en: { t: 'Mod Y',
+              b: 'Second terrain-specific shape input. Range 0 to 100 %.' },
+        fr: { t: 'Mod Y',
+              b: 'Seconde entrée de forme propre au terrain. Plage de 0 à 100 %.',
+              reviewed: false },
+    'zh-Hans': { t: '调制 Y',
+          b: '第二个与地形相关的形状输入。范围 0 到 100%。',
+          reviewed: 'mt' },
+    },
+    'tip.terTrack': {
+        en: { t: 'Pitch Track',
+              b: 'How much Terrain Freq scales down with note pitch — 100 % keeps the harmonic count constant across the keyboard. Range 0 to 100 %.' },
+        fr: { t: 'Suivi de hauteur',
+              b: 'À quel point la fréquence du terrain diminue avec la hauteur de la note : à 100 %, le nombre d’harmoniques reste constant sur tout le clavier. Plage de 0 à 100 %.',
+              reviewed: false },
+    'zh-Hans': { t: '音高跟踪',
+          b: '地形频率随音高下降的程度——100% 时泛音数量在整个键盘上保持不变。范围 0 到 100%。',
+          reviewed: 'mt' },
+    },
+    'tip.terSat': {
+        en: { t: 'Saturation',
+              b: 'tanh drive on the scanned value; identity at 0. Range 0 to 100 %.' },
+        fr: { t: 'Saturation',
+              b: 'Saturation tanh de la valeur balayée ; identité à 0. Plage de 0 à 100 %.',
+              reviewed: false },
+    'zh-Hans': { t: '饱和',
+          b: '对扫描值施加 tanh 驱动；0 时为恒等。范围 0 到 100%。',
+          reviewed: 'mt' },
+    },
+    'tip.terBlur': {
+        en: { t: 'Image Blur',
+              b: 'Gaussian pre-blur on PNG terrains. Range 0 to 100 %.' },
+        fr: { t: 'Flou image',
+              b: 'Pré-flou gaussien des terrains PNG. Plage de 0 à 100 %.',
+              reviewed: false },
+    'zh-Hans': { t: '图像模糊',
+          b: '对 PNG 地形的高斯预模糊。范围 0 到 100%。',
+          reviewed: 'mt' },
+    },
+    'tip.terSize': {
+        en: { t: 'Size',
+              b: 'Orbit radius 0.05 to 1.0 — the same parameter as the Synth tab\'s Orbit Size. Range 0 to 100 %.' },
+        fr: { t: 'Taille',
+              b: 'Rayon de l’orbite de 0,05 à 1,0 : le même paramètre que Taille orbite dans l’onglet Synthé. Plage de 0 à 100 %.',
+              reviewed: false },
+    'zh-Hans': { t: '尺寸',
+          b: '轨道半径 0.05 到 1.0——与合成器页的轨道尺寸是同一个参数。范围 0 到 100%。',
+          reviewed: 'mt' },
+    },
+    'tip.terAspect': {
+        en: { t: 'Aspect',
+              b: 'Minor / major axis ratio of the orbit. Range 0.1 to 1.' },
+        fr: { t: 'Aspect',
+              b: 'Rapport petit axe / grand axe de l’orbite. Plage de 0,1 à 1.',
+              reviewed: false },
+    'zh-Hans': { t: '纵横比',
+          b: '轨道的短轴与长轴之比。范围 0.1 到 1。',
+          reviewed: 'mt' },
+    },
+    'tip.terRot': {
+        en: { t: 'Rotation',
+              b: 'X / Y phase relationship — PWM and phase-distortion-like motion. Range 0 to 360°.' },
+        fr: { t: 'Rotation',
+              b: 'Relation de phase X / Y : mouvements proches de la PWM et de la distorsion de phase. Plage de 0 à 360°.',
+              reviewed: false },
+    'zh-Hans': { t: '旋转',
+          b: 'X / Y 相位关系——类似 PWM 和相位失真的运动。范围 0 到 360°。',
+          reviewed: 'mt' },
+    },
+    'tip.terCX': {
+        en: { t: 'Centre X',
+              b: 'Centre offset — asymmetry and even harmonics; draggable in the view. Range −1 to 1.' },
+        fr: { t: 'Centre X',
+              b: 'Décalage du centre : asymétrie et harmoniques paires ; se déplace à la souris dans la vue. Plage de −1 à 1.',
+              reviewed: false },
+    'zh-Hans': { t: '中心 X',
+          b: '中心偏移——不对称性与偶次泛音；可在视图中拖动。范围 −1 到 1。',
+          reviewed: 'mt' },
+    },
+    'tip.terCY': {
+        en: { t: 'Centre Y',
+              b: 'Centre offset — asymmetry and even harmonics; draggable in the view. Range −1 to 1.' },
+        fr: { t: 'Centre Y',
+              b: 'Décalage du centre : asymétrie et harmoniques paires ; se déplace à la souris dans la vue. Plage de −1 à 1.',
+              reviewed: false },
+    'zh-Hans': { t: '中心 Y',
+          b: '中心偏移——不对称性与偶次泛音；可在视图中拖动。范围 −1 到 1。',
+          reviewed: 'mt' },
+    },
+    'tip.terOrbMod': {
+        en: { t: 'Orbit Mod',
+              b: 'Shape parameter of the chosen orbit: superellipse exponent, limaçon loop, epitrochoid inner ratio, squarcle corner. Range 0 to 1.' },
+        fr: { t: 'Mod orbite',
+              b: 'Paramètre de forme de l’orbite choisie : exposant de la superellipse, boucle du limaçon, rapport interne de l’épitrochoïde, coin du squarcle. Plage de 0 à 1.',
+              reviewed: false },
+    'zh-Hans': { t: '轨道调制',
+          b: '所选轨道的形状参数：超椭圆指数、蚶线环、外旋轮线内比、方圆角。范围 0 到 1。',
+          reviewed: 'mt' },
+    },
+    'tip.terFb': {
+        en: { t: 'Feedback',
+              b: 'Trajectory feedback: the previous output displaces the next orbit point. Range 0 to 100 %.' },
+        fr: { t: 'Réinjection',
+              b: 'Réinjection de trajectoire : la sortie précédente déplace le point d’orbite suivant. Plage de 0 à 100 %.',
+              reviewed: false },
+    'zh-Hans': { t: '反馈',
+          b: '轨迹反馈：前一个输出会移动下一个轨道点。范围 0 到 100%。',
+          reviewed: 'mt' },
+    },
+    'tip.terFbDamp': {
+        en: { t: 'Fb Damp',
+              b: 'One-pole smoothing of the feedback displacement — the stability / character control. Range 0 to 100 %.' },
+        fr: { t: 'Amortissement de la réinjection',
+              b: 'Lissage à un pôle du déplacement de réinjection : la commande de stabilité et de caractère. Plage de 0 à 100 %.',
+              reviewed: false },
+    'zh-Hans': { t: '反馈阻尼',
+          b: '对反馈位移的一阶平滑——稳定性与音色特征的控制。范围 0 到 100%。',
+          reviewed: 'mt' },
+    },
 });
 
 // ============================================================================
@@ -1959,6 +2101,22 @@ export const TIP_BINDINGS = [
     ['#knob-oscBWidth',        'tip.oscBWidth'],
     ['#select-oscBWarpType',   'tip.oscBWarpType',   '.dropdown-group'],
     ['#knob-oscBWarpAmt',      'tip.oscBWarpAmt'],
+
+    // ── Terrain tab (Stage 3 Round A) — ids from expandKnobMarkup: #knob-<data-knob> ──
+    ['#knob-terFreq',       'tip.terFreq'],
+    ['#knob-terModX',       'tip.terModX'],
+    ['#knob-terModY',       'tip.terModY'],
+    ['#knob-terTrack',      'tip.terTrack'],
+    ['#knob-terSat',        'tip.terSat'],
+    ['#knob-terBlur',       'tip.terBlur'],
+    ['#knob-terSize',       'tip.terSize'],
+    ['#knob-terAspect',     'tip.terAspect'],
+    ['#knob-terRot',        'tip.terRot'],
+    ['#knob-terCX',         'tip.terCX'],
+    ['#knob-terCY',         'tip.terCY'],
+    ['#knob-terOrbMod',     'tip.terOrbMod'],
+    ['#knob-terFb',         'tip.terFb'],
+    ['#knob-terFbDamp',     'tip.terFbDamp'],
 
     // ── Sub oscillator and noise ────────────────────────────────────────────
     ['#select-subShape',       'tip.subShape',       '.dropdown-group'],
@@ -2084,8 +2242,8 @@ export const LABELS = Object.freeze({
     // the preset browser sits. `Synthétiseur microtonal à tables d’ondes` is
     // 242.13 px against the English 202.78 and drags the browser 13.1 px left.
     // Anything at or under 202.78 px is free.
-    'label.subtitle':        { en: { t: 'Microtonal Wavetable Synthesizer' },
-                               fr: { t: 'Synthé microtonal à tables d’onde', reviewed: true }, 'zh-Hans': { t: '微分音波表合成器', reviewed: 'bt' } },
+    'label.subtitle':        { en: { t: 'Microtonal Wave-Terrain Synthesizer' },
+                               fr: { t: 'Synthétiseur microtonal à terrain d’onde', reviewed: false }, 'zh-Hans': { t: '微分音波地形合成器', reviewed: 'mt' } },
     'label.language':        { en: { t: 'Language' },      fr: { t: 'Langue',        reviewed: true }, 'zh-Hans': { t: '语言', reviewed: 'bt' } },
 
     // v1.23.0. All four renderings below are settled glossary ROOTS, copied
@@ -2112,10 +2270,15 @@ export const LABELS = Object.freeze({
     'tab.mod':               { en: { t: 'Mod' },           fr: { t: 'Mod',        reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '调制', reviewed: 'bt' } },
     'tab.tuning':            { en: { t: 'Tuning' },        fr: { t: 'Accord',        reviewed: true }, 'zh-Hans': { t: '调音', reviewed: 'bt' } },
     'tab.effects':           { en: { t: 'Effects' },       fr: { t: 'Effets',        reviewed: true }, 'zh-Hans': { t: '效果', reviewed: 'bt' } },
+    // Stage 3 Round A (mockup v2): the fifth tab.
+    'tab.terrain':           { en: { t: 'Terrain' },       fr: { t: 'Terrain',       reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '地形', reviewed: 'mt' } },
 
     // ── Synth tab: section headers ──────────────────────────────────────────
     'label.oscA':            { en: { t: 'Oscillator A' },  fr: { t: 'Oscillateur A', reviewed: true }, 'zh-Hans': { t: '振荡器 A', reviewed: 'bt' } },
     'label.oscB':            { en: { t: 'Oscillator B' },  fr: { t: 'Oscillateur B', reviewed: true }, 'zh-Hans': { t: '振荡器 B', reviewed: 'bt' } },
+    // Restored from O-Prism 4f12ef57 (Stage 3 Round A): the Terrain tab's Osc A / B toggle faces.
+    'label.oscAShort':       { en: { t: 'Osc A' },         fr: { t: 'Osc A',         reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '振荡器 A', reviewed: 'bt' } },
+    'label.oscBShort':       { en: { t: 'Osc B' },         fr: { t: 'Osc B',         reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '振荡器 B', reviewed: 'bt' } },
     'label.subOsc':          { en: { t: 'Sub Oscillator' }, fr: { t: 'Sous-oscillateur', reviewed: true }, 'zh-Hans': { t: '副振荡器', reviewed: 'bt' } },
     'label.noise':           { en: { t: 'Noise' },         fr: { t: 'Bruit',         reviewed: true }, 'zh-Hans': { t: '噪声', reviewed: 'bt' } },
     'label.performance':     { en: { t: 'Performance' },   fr: { t: 'Performance',   reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '性能', reviewed: 'bt' } },
@@ -2149,7 +2312,6 @@ export const LABELS = Object.freeze({
     // Keyed on the STATIC `.knob-container[data-i18n]`, moved onto the generated
     // `.knob-label` span by expandKnobMarkup(). 64 attributes, 35 distinct
     // strings, 35 keys — one per string, shared wherever the caption repeats.
-    'label.position':        { en: { t: 'Position' },      fr: { t: 'Position',      reviewed: true, sameAsEn: true }, 'zh-Hans': { t: '位置', reviewed: 'bt' } },
     'label.level':           { en: { t: 'Level' },         fr: { t: 'Niv.',          reviewed: true }, 'zh-Hans': { t: '电平', reviewed: 'bt' } },
     'label.pan':             { en: { t: 'Pan' },           fr: { t: 'Pano',          reviewed: true }, 'zh-Hans': { t: '声像', reviewed: 'bt' } },
     // `Grossier` is 51.75 px and clears neither test: the knob column is 52 px, and
@@ -2190,11 +2352,55 @@ export const LABELS = Object.freeze({
     'label.midFreq':         { en: { t: 'Mid Freq' },      fr: { t: 'Fq. méd',       reviewed: true }, 'zh-Hans': { t: '中频频率', reviewed: 'bt' } },
     'label.high':            { en: { t: 'High' },          fr: { t: 'Aigu',          reviewed: true }, 'zh-Hans': { t: '高', reviewed: 'bt' } },
 
+    // ── Stage 3 Round A: oscillator cards + Terrain tab (mockup v2, checklist §B.2) ──
+    // fr `reviewed: false` (Taylor's read at Round A verify), zh `reviewed: 'mt'` (back-
+    // translation triples queued). Readouts, the HUD, `2×` / `4×`, note names and the
+    // orbit / terrain choice names are never localised (READOUT class).
+    'label.terrain':         { en: { t: 'Terrain' },       fr: { t: 'Terrain',       reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '地形', reviewed: 'mt' } },
+    'label.orbit':           { en: { t: 'Orbit' },         fr: { t: 'Orbite',        reviewed: false }, 'zh-Hans': { t: '轨道', reviewed: 'mt' } },
+    'label.orbitSize':       { en: { t: 'Orbit Size' },    fr: { t: 'Taille',        reviewed: false }, 'zh-Hans': { t: '轨道尺寸', reviewed: 'mt' } },   // fr: "Taille orbite" (78.3 px) overflowed the 64 px card column; the caption sits beside the Orbit dropdown
+    // `Fréq.` is forbidden-in-labels as a RATE word; here it names the terrain's spatial
+    // frequency multiplier (×), the same sense as label.midFreq's `Fq. méd`, hence the termNote.
+    'label.terrainFreq':     { en: { t: 'Freq' },          fr: { t: 'Fréq.',         reviewed: false, termNote: 'spatial frequency multiplier (×) of the terrain, not a rate' }, 'zh-Hans': { t: '频率', reviewed: 'mt' } },
+    'label.terrainModX':     { en: { t: 'Mod X' },         fr: { t: 'Mod X',         reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '调制 X', reviewed: 'mt' } },
+    'label.terrainModY':     { en: { t: 'Mod Y' },         fr: { t: 'Mod Y',         reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '调制 Y', reviewed: 'mt' } },
+    'label.pitchTrack':      { en: { t: 'Pitch Track' },   fr: { t: 'Suivi haut.',   reviewed: false }, 'zh-Hans': { t: '音高跟踪', reviewed: 'mt' } },   // fr: "Suivi hauteur" (82 px) filled the whole 82 px Terrain-card column and touched its neighbours
+    'label.saturation':      { en: { t: 'Saturation' },    fr: { t: 'Saturation',    reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '饱和', reviewed: 'mt' } },
+    'label.imageBlur':       { en: { t: 'Image Blur' },    fr: { t: 'Flou image',    reviewed: false }, 'zh-Hans': { t: '图像模糊', reviewed: 'mt' } },
+    'label.edgeMode':        { en: { t: 'Edge Mode' },     fr: { t: 'Mode bord',     reviewed: false }, 'zh-Hans': { t: '边缘模式', reviewed: 'mt' } },
+    'label.orbitAspect':     { en: { t: 'Aspect' },        fr: { t: 'Aspect',        reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '纵横比', reviewed: 'mt' } },
+    'label.orbitRotation':   { en: { t: 'Rotation' },      fr: { t: 'Rotation',      reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '旋转', reviewed: 'mt' } },
+    'label.orbitCentreX':    { en: { t: 'Centre X' },      fr: { t: 'Centre X',      reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '中心 X', reviewed: 'mt' } },
+    'label.orbitCentreY':    { en: { t: 'Centre Y' },      fr: { t: 'Centre Y',      reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '中心 Y', reviewed: 'mt' } },
+    'label.orbitMod':        { en: { t: 'Orbit Mod' },     fr: { t: 'Mod orbite',    reviewed: false }, 'zh-Hans': { t: '轨道调制', reviewed: 'mt' } },
+    'label.feedbackDamp':    { en: { t: 'Fb Damp' },       fr: { t: 'Amort. réinj.', reviewed: false }, 'zh-Hans': { t: '反馈阻尼', reviewed: 'mt' } },
+    'label.quality':         { en: { t: 'Quality' },       fr: { t: 'Qualité',       reviewed: false }, 'zh-Hans': { t: '质量', reviewed: 'mt' } },
+    'label.bandlimited':     { en: { t: 'Bandlimited' },   fr: { t: 'Bande limitée', reviewed: false }, 'zh-Hans': { t: '带限', reviewed: 'mt' } },
+    'label.import':          { en: { t: 'Import…' },       fr: { t: 'Importer…',     reviewed: false }, 'zh-Hans': { t: '导入…', reviewed: 'mt' } },
+    'label.dropPng':         { en: { t: 'Drop PNG' },      fr: { t: 'Déposer PNG',   reviewed: false }, 'zh-Hans': { t: '拖入 PNG', reviewed: 'mt' } },
+    'label.webglUnavailable': { en: { t: 'WebGL unavailable — 2D fallback' },
+                               fr: { t: 'WebGL indisponible — repli 2D', reviewed: false }, 'zh-Hans': { t: 'WebGL 不可用——2D 回退', reviewed: 'mt' } },
+    'label.sourceMissing':   { en: { t: 'Source missing — using library fallback' },
+                               fr: { t: 'Source manquante — repli sur la bibliothèque', reviewed: false }, 'zh-Hans': { t: '源文件缺失——使用库内替代', reviewed: 'mt' } },
+    'aria.view3d':           { en: { t: '3D view' },       fr: { t: 'Vue 3D',        reviewed: false }, 'zh-Hans': { t: '3D 视图', reviewed: 'mt' } },
+    'aria.viewWaveform':     { en: { t: 'Waveform view' }, fr: { t: 'Vue forme d’onde', reviewed: false }, 'zh-Hans': { t: '波形视图', reviewed: 'mt' } },
+    'label.hintView':        { en: { t: 'Drag: centre · Wheel: size · ⌥ drag: rotation' },
+                               fr: { t: 'Glisser : centre · Molette : taille · ⌥ glisser : rotation', reviewed: false }, 'zh-Hans': { t: '拖动：中心 · 滚轮：尺寸 · ⌥ 拖动：旋转', reviewed: 'mt' } },
+    // Readout words (setLabel spans beside the never-localised numerals / note names)
+    'label.readoutPartials': { en: { t: '{n} partials at {note}' },
+                               fr: { t: '{n} partiels à {note}', reviewed: false }, 'zh-Hans': { t: '{note} 处 {n} 个分音', reviewed: 'mt' } },
+    'label.approx':          { en: { t: 'approx.' },       fr: { t: 'approx.',       reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '近似', reviewed: 'mt' } },
+    'label.imageProjected':  { en: { t: 'image projected at F = {f} · fit {pct} %' },
+                               fr: { t: 'image projetée à F = {f} · ajustement {pct} %', reviewed: false }, 'zh-Hans': { t: '图像投影 F = {f} · 拟合 {pct} %', reviewed: 'mt' } },
+    // CONTEXT D3: the scheduler's "silent above <note>" third span (Bandlimited only)
+    'label.silentAbove':     { en: { t: 'silent above {note}' },
+                               fr: { t: 'muet au-dessus de {note}', reviewed: false }, 'zh-Hans': { t: '{note} 以上静音', reviewed: 'mt' } },
+
     // ── Mod matrix ──────────────────────────────────────────────────────────
     'label.modMatrix':       { en: { t: 'Modulation Matrix' },
                                fr: { t: 'Matrice de modulation', reviewed: true }, 'zh-Hans': { t: '调制矩阵', reviewed: 'bt' } },
-    'label.modMatrixInfo':   { en: { t: 'Route any source to any destination. 16 slots available.' },
-                               fr: { t: 'Acheminer n’importe quelle source vers n’importe quelle destination. 16 emplacements disponibles.', reviewed: true }, 'zh-Hans': { t: '可将任意调制源接到任意目标。共 16 个插槽。', reviewed: 'bt' } },
+    'label.modMatrixInfo':   { en: { t: 'Route any source to any destination. 16 slots available, 46 destinations.' },
+                               fr: { t: 'Routez n’importe quelle source vers n’importe quelle destination. 16 emplacements, 46 destinations.', reviewed: false }, 'zh-Hans': { t: '将任意源路由到任意目标。16 个槽位，46 个目标。', reviewed: 'mt' } },
     // `.mod-col-on` is a fixed 36 px column, which is what decides this against
     // the fuller `Activé`.
     'label.colOn':           { en: { t: 'On' },            fr: { t: 'Act.',          reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'bt' } },
