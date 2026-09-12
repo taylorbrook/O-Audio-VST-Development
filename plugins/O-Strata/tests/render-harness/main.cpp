@@ -1,10 +1,15 @@
 // O-Strata offline render harness — the Stage 2 DSP gate (ARCHITECTURE "Harness
-// design", stages/2-dsp/PLAN.md Task 12 / 16 / 25). Console target
-// O-Strata-render-test built by ouaricon_add_processor_console (JUCE_WEB_BROWSER=0,
-// no editor TU, no UIResources). Round A: gates H1–H9, `tuning`, `smoke`, the
-// FUNC-02/03 centroid checks, latency, crossfade, export. No message loop is ever
-// pumped — every gate drives the processor directly (README: the dispatch-loop token
-// does not appear in this file in Round A).
+// design", stages/2-dsp/round-a/PLAN.md Task 12 / 16 / 25, stages/2-dsp/PLAN.md
+// Tasks 8 / 13). Console target O-Strata-render-test built by
+// ouaricon_add_processor_console (JUCE_WEB_BROWSER=0, no editor TU, no UIResources).
+// Round A: gates H1–H9, `tuning`, `smoke`, the FUNC-02/03 centroid checks, latency,
+// crossfade, export — every one drives the processor directly, no message loop.
+// Round B: the Bandlimited H6 rows, `clenshaw`, `scheduler`, `storm`, `import`,
+// H10, H11. Exactly ONE call site pumps the message loop: pump() (README rule);
+// only the gates the README lists call it, and only while the allocation counter
+// is disarmed. Sets are published deterministically through
+// TerrainScheduler::runOnceSynchronously() (Instance::syncScheduler, called by
+// render() after the warm-up block unless RenderSpec::noSync).
 //
 // Exit code = number of failed checks. Every check prints its measured value and
 // its threshold on one line. Fixture paths come from STRATA_FIXTURES_DIR (or
@@ -18,6 +23,10 @@
 #include "dsp/ModulationMatrix.h"
 #include "dsp/TerrainOscillator.h"
 #include "dsp/HalfbandDecimator.h"
+#include "dsp/ChebyshevSet.h"
+#include "dsp/ChebyshevProjector.h"
+#include "dsp/TerrainScheduler.h"
+#include "dsp/TerrainImage.h"
 #include "reference/theta_reference.h"
 #include "reference/spectrum.h"
 
@@ -27,6 +36,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <deque>
 #include <functional>
 #include <map>
 #include <string>
@@ -92,6 +102,14 @@ namespace rtcheck
     }
 }
 
+#ifdef STRATA_HARNESS_ASAN
+// Under AddressSanitizer the operator-new family is NOT replaced (ASan owns the
+// allocator; a replaced delete calling std::free would corrupt its bookkeeping —
+// plan Decision 43). H8-style rows print "skipped under ASan"; the leak verdict is
+// the instance counters (ChebyshevSet::liveCount, TerrainImage::liveCount).
+namespace rtcheck { constexpr bool kCounting = false; }
+#else
+namespace rtcheck { constexpr bool kCounting = true; }
 void* operator new (std::size_t size)
 {
     rtcheck::note();
@@ -127,6 +145,7 @@ void operator delete (void* p, std::align_val_t) noexcept            { std::free
 void operator delete[] (void* p, std::align_val_t) noexcept          { std::free (p); }
 void operator delete (void* p, std::size_t, std::align_val_t) noexcept   { std::free (p); }
 void operator delete[] (void* p, std::size_t, std::align_val_t) noexcept { std::free (p); }
+#endif
 
 //==============================================================================
 // ── Bookkeeping ───────────────────────────────────────────────────────────────
@@ -191,6 +210,7 @@ namespace
         std::string exportName;
         bool printOnly = false;
         bool withDisk = false;
+        std::string pngPath;   // --png PATH: importTerrainFile for ad-hoc runs
     } opt;
 
     // ── Instance: one processor + the setters the gates need ──
@@ -250,7 +270,17 @@ namespace
             p.prepareToPlay (fs, block);
             prepared = true;
         }
+
+        /** Deterministic publish: one scheduler poll, inline projection / import,
+            direct publish (no timer, no pool, no pump). Returns objects published. */
+        int syncScheduler() { return p.getTerrainScheduler().runOnceSynchronously(); }
     };
+
+    /** THE message-loop pump — the only dispatch-loop call site in this file (README
+        rule: the token appears exactly once, here). Used only by the gates the README
+        lists (storm, the async rows of scheduler and import), never while the
+        allocation counter is armed. */
+    void pump (int ms) { juce::MessageManager::getInstance()->runDispatchLoopUntil (ms); }
 
     struct MidiEvent { int sample; juce::MidiMessage msg; };
 
@@ -264,6 +294,7 @@ namespace
         std::vector<MidiEvent> extra;       // additional events (sample index absolute)
         std::function<void (int blockStart)> onBlock;   // called BEFORE each block (setValueNotifyingHost etc.)
         bool armAllocations = false;
+        bool noSync = false;                // skip the syncScheduler() call after the warm-up block
     };
 
     struct Rendered
@@ -286,6 +317,7 @@ namespace
         // warm-up (never counted): first processBlock posts the tuning async update
         buf.clear(); midi.clear();
         in.p.processBlock (buf, midi);
+        if (! spec.noSync) in.syncScheduler();   // Bandlimited sets / images published deterministically
 
         Rendered out; out.fs = in.fs;
         out.L.reserve ((size_t) total); out.R.reserve ((size_t) total);
@@ -306,7 +338,7 @@ namespace
             buf.clear();
             if (spec.armAllocations) rtcheck::arm (false);
             in.p.processBlock (buf, midi);
-            if (spec.armAllocations) { rtcheck::disarm(); counted += rtcheck::allocations.load(); }
+            if (spec.armAllocations) { rtcheck::disarm(); counted += rtcheck::kCounting ? rtcheck::allocations.load() : 0; }
             for (int i = 0; i < n; ++i)
             {
                 out.L.push_back (buf.getSample (0, i));
@@ -585,7 +617,7 @@ namespace
             in.setReal (pre + "OrbAspect", 1.0f); in.setReal (pre + "OrbRot", 0.0f);
             in.setReal (pre + "OrbCX", 0.0f); in.setReal (pre + "OrbCY", 0.0f);
             in.setReal (pre + "Pos", 1.0f);
-            in.setChoice (pre + "Quality", 0);   // Bandlimited = analytic 1× in Round A
+            in.setChoice (pre + "Quality", 0);   // Bandlimited: kind 100 never matches a published set → analytic 1× (plan Decision 30)
             in.p.harnessTerrainOverride[osc].store (static_cast<int> (TerrainKind::HarnessIdentityX));
         }
         in.setReal ("oscAUnison", (float) row.unison); in.setReal ("oscADetune", 0.2f); in.setReal ("oscAWidth", 0.5f);
@@ -663,6 +695,40 @@ namespace
         H1Row neg { "Bend-ctrl", theta_ref::WarpType::Bend, 2, 0.5f, 1 };
         const double e = h1Error (neg, 0.6f, false);
         checkFailsAsExpected (e <= -80.0, fmt ("[H1 neg] Bend 0.5 reference vs Bend 0.6 render: %.1f dB", e));
+
+        // Round B "Chebyshev identity" row (plan Task 6): a hand-built set c = δ_{1,0}
+        // (f = T1 (x) = x) published directly for the Sine Product key, Ellipse / Size 1 /
+        // Aspect 1 / Centre 0 → y = cos θ through the real Clenshaw path, vs the same
+        // DC-blocked analytic cosine reference.
+        {
+            Instance in; in.cleanPatch();
+            in.setChoice ("oscAOrbit", 0); in.setChoice ("oscATerrain", 0);
+            in.setReal ("oscAOrbAspect", 1.0f); in.setReal ("oscAOrbRot", 0.0f);
+            in.setReal ("oscAOrbCX", 0.0f); in.setReal ("oscAOrbCY", 0.0f); in.setReal ("oscAPos", 1.0f);
+            in.setChoice ("oscAQuality", 0);
+            in.p.harnessPreFilterTap.store (true);
+            in.prepare (opt.fs, opt.block);
+            auto set = std::make_unique<ChebyshevSet>();
+            set->key.terrain = 0; set->key.F = 1.0f; set->key.modX = 0.5f; set->key.modY = 0.5f;
+            set->c[(size_t) chebRowStart (1) + 0] = 1.0f; set->fit = 100.0f;
+            in.p.getTerrainScheduler().publishForHarness (0, std::move (set));
+            RenderSpec s; s.seconds = 1.0; s.note = 60; s.velocity = 1.0f; s.noSync = true;
+            auto r = render (in, s);
+            theta_ref::OscParams a, b;
+            a.frequency = in.p.getTuningEngine()->getFrequency (60); a.unison = 1; a.startPhase = 0.25;
+            b.frequency = a.frequency; b.unison = 1; b.startPhase = 0.25;
+            std::vector<double> refL, refR;
+            theta_ref::renderCosReference (a, b, (int) r.L.size(), r.fs, refL, refR);
+            const size_t from = (size_t) (0.05 * r.fs);
+            double num = 0, den = 0;
+            for (size_t i = from; i < r.L.size(); ++i) { num += r.L[i] * refL[i]; den += refL[i] * refL[i]; }
+            const double g = den > 0 ? num / den : 0.0;
+            double err = 0, pw = 0;
+            for (size_t i = from; i < r.L.size(); ++i) { const double d = r.L[i] - g * refL[i]; err += d * d; pw += refL[i] * refL[i]; }
+            const double eDb = spectrum::db (err, pw);
+            check (in.p.chebGeneration[0].load() == 1 && eDb <= -80.0,
+                   fmt ("[H1] Chebyshev identity (c = delta_{1,0}, Ellipse, Size 1, Aspect 1, Centre 0): %.1f dB vs the cosine reference (g = %.4f; need <= -80)", eDb, g));
+        }
     }
 
     //==========================================================================
@@ -725,6 +791,22 @@ namespace
                 }
             }
         check (passCount == 66, fmt ("[H2] terrain x orbit grid: %d / 66 pairs pass", passCount));
+
+        // Round B: the same grid in Bandlimited (sets published by the sync call in render(); plan Decision 45)
+        {
+            int blPass = 0; double blWorst = 0.0; std::string blWorstAt;
+            for (int t = 0; t < kNumAnalyticTerrains; ++t)
+                for (int o = 0; o < kNumOrbitKinds; ++o)
+                {
+                    Instance in; in.cleanPatch(); in.setTerrainOrbit (0, t, o); in.setChoice ("oscAQuality", 0);
+                    const auto r = h2Render (in);
+                    const bool ok = r.passFraction >= 0.95 && in.p.chebGeneration[0].load() >= 1;
+                    if (ok) ++blPass;
+                    else std::printf ("  [H2 BL] %-13s x %-13s h1-max worst = %6.1f dB, %3.0f %% windows FAIL (generation %d)\n", kTerrainNames[t], kOrbitNames[o], r.worstH1RelDb, 100.0 * r.passFraction, in.p.chebGeneration[0].load());
+                    if (r.worstH1RelDb < blWorst) { blWorst = r.worstH1RelDb; blWorstAt = fmt ("%s x %s", kTerrainNames[t], kOrbitNames[o]); }
+                }
+            check (blPass == 66, fmt ("[H2] Bandlimited (Chebyshev) grid: %d / 66 pairs pass; worst h1-max %.1f dB at %s", blPass, blWorst, blWorstAt.c_str()));
+        }
 
         // Factory presets through the disk-free apply loop (RESEARCH §2.11)
         {
@@ -910,7 +992,8 @@ namespace
             }
         };
         auto r = render (in, s);
-        check (r.allocations == 0, fmt ("[H8] %lld allocations counted across %d terrain / orbit changes under 8 held notes%s (need 0)",
+        if (! rtcheck::kCounting) std::printf ("  [H8] allocation count skipped under ASan (plan Decision 43)\n");
+        else check (r.allocations == 0, fmt ("[H8] %lld allocations counted across %d terrain / orbit changes under 8 held notes%s (need 0)",
                                         r.allocations, step, rtcheck::foreignNote().c_str()));
         check (allFinite (r.L) && allFinite (r.R), "[H8] output finite through every change");
     }
@@ -938,6 +1021,22 @@ namespace
         const auto a37 = renderAt (64, 37), c37 = renderAt (1024, 37);
         const double d37 = std::max (maxAbsDiff (a37.L, c37.L), maxAbsDiff (a37.R, c37.R));
         check (d37 <= 1.0e-5, fmt ("[H9] note-on at sample 37: 64 vs 1024 max|d| = %.3e (need <= 1e-5)", d37));
+        // Round B: Bandlimited (Chebyshev) row through the sync path — sets published before the render, no swaps during
+        {
+            auto renderBl = [] (int block) {
+                Instance in; in.setReal ("oscAPhase", 0.25f); in.setReal ("oscBPhase", 0.25f); in.p.setHarnessPhaseSeed (opt.seed);
+                in.setReal ("oscBLevel", 0.8f); in.setChoice ("oscAQuality", 0); in.setChoice ("oscBQuality", 0);
+                in.prepare (48000.0, block);
+                RenderSpec s; s.seconds = 10.0; s.note = 60;
+                auto r = render (in, s);
+                if (in.p.chebGeneration[0].load() < 1 || in.p.chebGeneration[1].load() < 1) std::printf ("  [H9 BL] !! no set published\n");
+                return r;
+            };
+            const auto b64 = renderBl (64), b256 = renderBl (256), b1024 = renderBl (1024);
+            const double e = std::max ({ maxAbsDiff (b64.L, b256.L), maxAbsDiff (b256.L, b1024.L), maxAbsDiff (b64.L, b1024.L),
+                                         maxAbsDiff (b64.R, b256.R), maxAbsDiff (b256.R, b1024.R), maxAbsDiff (b64.R, b1024.R) });
+            check (e <= 1.0e-5, fmt ("[H9] Bandlimited (Chebyshev) row: pairwise max|d| 64 / 256 / 1024 = %.3e (need <= 1e-5; rms %.4f)", e, rms (b64.L, 0)));
+        }
         std::printf ("  note: the unseeded path (osc?Phase = 0, harnessPhaseSeed = 0) is address-seeded and non-deterministic by design\n");
     }
 
@@ -1238,6 +1337,7 @@ namespace
                 Instance in; in.cleanPatch(); in.setTerrainOrbit (0, terrain, orbit);
                 in.setReal ("oscAOrbFeedback", 1.0f); in.setReal ("oscAOrbFbDamp", 0.0f); in.setReal ("oscATerFreq", F);
                 in.setChoice ("oscAQuality", quality);
+                in.p.harnessChebyshevBypass.store (quality == 0);   // Round A meaning: Bandlimited = analytic 1×
                 in.p.harnessSingleSampleFeedback.store (single);
                 auto r = tapRender (in, note, 1.0);
                 const size_t nfft = 32768;
@@ -1317,13 +1417,17 @@ namespace
     }
 
     // ── H6: exact-cycle aliasing at fs = 440·65536/k ──
-    struct H6Row { double nonHarmMax, nonHarmFund; int highestHarm; };
+    struct H6Row { double nonHarmMax, nonHarmFund; int highestHarm; double maxHarmAmp; double peak; double nonHarmAmp; };
 
-    H6Row h6Render (int terrain, int orbit, int note, int quality, int k, double fs)
+    /** quality 0 with analytic1x = the analytic 1× path (harnessChebyshevBypass, the Round A
+        "1x" column); quality 0 without it = the real Chebyshev path (set published by the sync
+        call inside render()). */
+    H6Row h6Render (int terrain, int orbit, int note, int quality, int k, double fs, bool analytic1x = true, float* fitOut = nullptr)
     {
         Instance in; in.cleanPatch(); in.setTerrainOrbit (0, terrain, orbit);
         in.setChoice ("oscAQuality", quality); in.setReal ("oscATerTrack", 1.0f);
         in.p.harnessPreFilterTap.store (true);
+        in.p.harnessChebyshevBypass.store (quality == 0 && analytic1x);
         in.prepare (fs, 512);
         const size_t N = 65536;
         RenderSpec s; s.seconds = 0.35 + double (N) / fs + 0.01; s.note = note; s.velocity = 1.0f;
@@ -1331,7 +1435,10 @@ namespace
         const size_t from = (size_t) (0.35 * fs);
         std::vector<double> y (r.L.begin() + (long) from, r.L.begin() + (long) (from + N));
         const auto a = spectrum::analyseExactCycle (y.data(), N, k, (size_t) (22000.0 / (fs / double (N))));
-        return { a.nonHarmOverMax(), a.nonHarmOverFund(), a.maxHarmIdxAboveMinus100dB };
+        if (fitOut != nullptr) *fitOut = in.p.chebFit[0].load();
+        // amplitude of the strongest harmonic (rectangular window over N: |X|² = (A·N/2)²)
+        return { a.nonHarmOverMax(), a.nonHarmOverFund(), a.maxHarmIdxAboveMinus100dB, 2.0 * std::sqrt (a.maxHarmPow) / double (N), maxAbs (y),
+                 2.0 * std::sqrt (a.nonHarmPow) / double (N) };
     }
 
     void gateH6()
@@ -1379,6 +1486,69 @@ namespace
             }
         }
         check (rateOk, "[H6] 44.1 k / 96 k rows within 3 dB of the 48 k row (or below -60 dB)");
+
+        // ── Round B: Bandlimited (Chebyshev) rows — plan Decision 44 ──
+        // 8 exact orbits x 6 terrains x {A2, A4, A6}: nonharm/max <= -90 dB and the highest
+        // harmonic above -100 dB <= D_max · K (equality printed, not required — a symmetric
+        // terrain has zero diagonals). The three approximate orbits are reported.
+        {
+            std::printf ("  == H6 Bandlimited (Chebyshev): 8 exact orbits x 6 terrains x {A2, A4, A6}, nonharm/max <= -90 dB, h_max <= D_max * K ==\n");
+            const int exactOrbits[8] = { 0, 2, 3, 4, 5, 6, 7, 8 }, approxOrbits[3] = { 1, 9, 10 };
+            const double noteHz[3] = { 110.0, 440.0, 1760.0 };
+            // Three tiers by the strongest harmonic's amplitude: >= -40 dBFS → the relative
+            // nonharm/max <= -90 dB gate; in [-60, -40) dBFS ("quiet": D_max = 2 leaves the d = 2
+            // diagonal at a 10 % taper weight) → the ABSOLUTE non-harmonic level <= -100 dBFS
+            // (-90 dB relative to a -40 dBFS tone would be -130 dBFS, under the float floor of
+            // the path); < -60 dBFS → MUTED BY TRUNCATION (D_max = 1 leaves only the linear
+            // diagonal, which is zero for an even terrain — a design finding recorded for
+            // verify, not an aliasing defect): reported, excluded from both checks.
+            int rows = 0, failsDb = 0, failsH = 0, equal = 0, muted = 0, quiet = 0; double worst = -1e9, peak = 0.0, worstAbs = -1e9; std::string worstAt, mutedList, peakAt, worstAbsAt;
+            for (int t = 0; t < kNumAnalyticTerrains; ++t)
+                for (int oi = 0; oi < 8; ++oi)
+                {
+                    const int o = exactOrbits[oi];
+                    const int K = orbitKNominal (static_cast<OrbitKind> (o));
+                    std::string line = fmt ("  [H6 BL] %-13s x %-13s", kTerrainNames[t], kOrbitNames[o]);
+                    for (int n = 0; n < 3; ++n)
+                    {
+                        float fit = 0.0f;
+                        const auto r = h6Render (t, o, notes[n], 0, cycles[n], fs, false, &fit);
+                        const int dmax = chebDMax (chebDiagonalCutoff (fs, K, noteHz[n]));
+                        const int hLimit = dmax * K;
+                        const bool isMuted = r.maxHarmAmp < 1.0e-3;   // < -60 dBFS
+                        if (r.peak > peak) { peak = r.peak; peakAt = fmt ("%s x %s %s", kTerrainNames[t], kOrbitNames[o], names[n]); }
+                        if (isMuted)
+                        {
+                            ++muted; mutedList += fmt (" %s/%s/%s", kTerrainNames[t], kOrbitNames[o], names[n]);
+                            line += fmt ("  %s MUTED (h1 amp %.1e, D_max %d, fit %.1f)", names[n], r.maxHarmAmp, dmax, fit);
+                            continue;
+                        }
+                        ++rows;
+                        const bool isQuiet = r.maxHarmAmp < 1.0e-2;   // < -40 dBFS
+                        const double absDb = 20.0 * std::log10 (std::max (r.nonHarmAmp, 1.0e-12));
+                        if (isQuiet) { ++quiet; if (absDb > -100.0) ++failsDb; if (absDb > worstAbs) { worstAbs = absDb; worstAbsAt = fmt ("%s x %s %s", kTerrainNames[t], kOrbitNames[o], names[n]); } }
+                        else { if (r.nonHarmMax > -90.0) ++failsDb; if (r.nonHarmMax > worst) { worst = r.nonHarmMax; worstAt = fmt ("%s x %s %s", kTerrainNames[t], kOrbitNames[o], names[n]); } }
+                        if (r.highestHarm > hLimit) ++failsH;
+                        if (r.highestHarm == hLimit) ++equal;
+                        line += fmt ("  %s %6.1f dB (h<=%d, D_max*K=%d%s, fit %.1f, peak %.2f%s)", names[n], r.nonHarmMax, r.highestHarm, hLimit, r.highestHarm == hLimit ? " =" : "", fit, r.peak,
+                                     isQuiet ? fmt (", QUIET: nonharm %.0f dBFS", absDb).c_str() : "");
+                    }
+                    std::printf ("%s\n", line.c_str());
+                }
+            std::printf ("  [H6 BL] %d of 144 rows muted by truncation (strongest harmonic < -60 dBFS):%s\n  [H6 BL] largest |y| (tap, post-blocker) %.3f at %s — the Chebyshev value is not clamped (see TerrainOscillator::scan)\n", muted, mutedList.c_str(), peak, peakAt.c_str());
+            check (failsDb == 0, fmt ("[H6] Bandlimited: nonharm/max <= -90 dB on %d / %d sounding rows (%d quiet rows gated on absolute nonharm <= -100 dBFS, worst %.0f dBFS at %s; %d muted by truncation, reported); worst %.1f dB at %s",
+                                      rows - failsDb, rows, quiet, worstAbs, worstAbsAt.c_str(), muted, worst, worstAt.c_str()));
+            check (failsH == 0, fmt ("[H6] Bandlimited: highest harmonic above -100 dB <= D_max * K on %d / %d sounding rows (equality on %d)", rows - failsH, rows, equal));
+            double worstA = -1e9; std::string worstAAt;
+            for (int t = 0; t < kNumAnalyticTerrains; ++t)
+                for (int o : approxOrbits)
+                    for (int n = 0; n < 3; ++n)
+                    {
+                        const auto r = h6Render (t, o, notes[n], 0, cycles[n], fs, false);
+                        if (r.nonHarmMax > worstA) { worstA = r.nonHarmMax; worstAAt = fmt ("%s x %s %s", kTerrainNames[t], kOrbitNames[o], names[n]); }
+                    }
+            std::printf ("  [H6 BL] approximate orbits (Superellipse / Butterfly / Squarcle, nominal K) reported: worst %.1f dB at %s\n", worstA, worstAAt.c_str());
+        }
     }
 
     // ── H7: CPU delta ──
@@ -1397,6 +1567,7 @@ namespace
             for (int v = 0; v < 16; ++v) midi.addEvent (juce::MidiMessage::noteOn (1, 40 + v * 2, 0.8f), 0);
             buf.clear(); in.p.processBlock (buf, midi);   // note-ons + warm-up
             midi.clear();
+            if (quality == 0) { in.syncScheduler(); buf.clear(); in.p.processBlock (buf, midi); }   // Round B: real Chebyshev sets before timing
             const int blocks = 10 * 48000 / 512;
             const auto t0 = std::chrono::steady_clock::now();
             for (int b = 0; b < blocks; ++b) { buf.clear(); in.p.processBlock (buf, midi); }
@@ -1417,7 +1588,7 @@ namespace
         const double tq4 = h7Wall (2, 1, false), bq4 = h7Wall (2, 1, true);
         std::printf ("  [H7 rows] unison 1, 4x: total %.2f %% baseline %.2f %% delta %.2f %%\n", tq4, bq4, tq4 - bq4);
         const double tq1 = h7Wall (0, 1, false), bq1 = h7Wall (0, 1, true);
-        std::printf ("  [H7 rows] unison 1, Bandlimited (= 1x analytic in Round A): total %.2f %% baseline %.2f %% delta %.2f %%\n", tq1, bq1, tq1 - bq1);
+        std::printf ("  [H7 rows] unison 1, Bandlimited (Chebyshev): total %.2f %% baseline %.2f %% delta %.2f %% (reported; Decision 25 fallback layout only if > 12)\n", tq1, bq1, tq1 - bq1);
     }
 
     // ── H8 across Quality ──
@@ -1438,7 +1609,8 @@ namespace
             }
         };
         auto r = render (in, s);
-        check (r.allocations == 0, fmt ("[H8] %lld allocations across %d Quality / terrain / orbit changes under 16 held notes%s (need 0)", r.allocations, step, rtcheck::foreignNote().c_str()));
+        if (! rtcheck::kCounting) std::printf ("  [H8] allocation count skipped under ASan (plan Decision 43)\n");
+        else check (r.allocations == 0, fmt ("[H8] %lld allocations across %d Quality / terrain / orbit changes under 16 held notes%s (need 0)", r.allocations, step, rtcheck::foreignNote().c_str()));
         check (allFinite (r.L) && allFinite (r.R), "[H8] output finite through every Quality switch");
     }
 
@@ -1512,13 +1684,273 @@ namespace
     }
 
     //==========================================================================
+    // ── Round B, Phase 2.4: clenshaw, scheduler, storm ───────────────────────
+
+    void gateClenshaw()
+    {
+        std::printf ("\n== clenshaw (1e6 dependency-carried clenshaw2D evaluations on a random 153-float set; ns per evaluation, reported) ==\n");
+        float c[kChebCoeffs];
+        uint32_t seed = 0xC1E45AA7u;
+        for (auto& v : c) { seed = seed * 1664525u + 1013904223u; v = (float) (seed >> 8) / (float) (1u << 24) - 0.5f; }
+        float x = 0.3f, y = -0.2f; double acc = 0.0;
+        const int N = 1000000;
+        const auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < N; ++i)
+        {
+            const float v = clenshaw2D (c, x, y);
+            acc += v;
+            x = juce::jlimit (-1.0f, 1.0f, 0.5f * v); y = juce::jlimit (-1.0f, 1.0f, -0.5f * v + 0.1f);   // dependency carried through the next evaluation (domain kept in [-1, 1])
+        }
+        const double ns = secondsSince (t0) * 1.0e9 / N;
+        std::printf ("  [clenshaw] %.1f ns per evaluation (acc %.3f; RESEARCH §2.10 measured 43–91 ns)\n", ns, acc);
+        check (std::isfinite (acc), fmt ("[clenshaw] 1e6 evaluations finite, %.1f ns each (reported)", ns));
+    }
+
+    // Measured in the Task 3 scratch check (Release, M4 Max): fit % at mx = my = 0.5 for F = 1 / 2.
+    // Cosine Wells is re-measured at πF (ARCH's 98 / 76 % was the 2πF form — Round A deviation 1).
+    struct FitRow { const char* name; double f1, f2, archF1, archF2; };
+    const FitRow kFitTable[6] = {
+        { "SineProduct",   100.00, 100.00, 100.0, 100.0 },
+        { "RadialRings",   100.00,  96.28, 100.0,  94.0 },
+        { "Saddle",        100.00,  99.85,  99.0,  99.0 },
+        { "RidgedCosines",  99.71,  98.55,  99.5,  96.8 },
+        { "Mitsuhashi",     98.32,  87.58,  98.0,  87.0 },   // ARCH's "≈ 100" was an ESTIMATE (tri() is piecewise-linear, kinks at ±0.5 even at F = 1) — the measured figures stand in; recorded in SUMMARY
+        { "CosineWells",    99.99,  98.63,  98.0,  76.0 },   // ARCH figures are 2πF; πF re-measured
+    };
+
+    void gateScheduler()
+    {
+        std::printf ("\n== scheduler (fit table, F clamp, ModWheel route under pump, LFO inert in Bandlimited, approximate flag, publish discipline, sync == async, readouts) ==\n");
+        auto blPatch = [] (Instance& in, int terrain, int orbit) {
+            in.cleanPatch(); in.setTerrainOrbit (0, terrain, orbit); in.setChoice ("oscAQuality", 0);
+            in.p.harnessPreFilterTap.store (true);
+        };
+
+        // (a) fit table vs the scratch numbers (0.5 %) and one-sided vs ARCH (>= ARCH - 2 %)
+        {
+            bool okScratch = true, okArch = true;
+            for (int t = 0; t < kNumAnalyticTerrains; ++t)
+            {
+                double got[2];
+                for (int fi = 0; fi < 2; ++fi)
+                {
+                    Instance in; blPatch (in, t, 0); in.setReal ("oscATerFreq", fi == 0 ? 1.0f : 2.0f);
+                    in.setReal ("oscATerModX", 0.5f); in.setReal ("oscATerModY", 0.5f);
+                    in.prepare (48000.0, 512);
+                    in.syncScheduler();
+                    got[fi] = in.p.chebFit[0].load();
+                }
+                const auto& row = kFitTable[t];
+                const bool s1 = std::abs (got[0] - row.f1) <= 0.5 && std::abs (got[1] - row.f2) <= 0.5;
+                const bool a1 = got[0] >= row.archF1 - 2.0 && got[1] >= row.archF2 - 2.0;
+                if (! s1) okScratch = false;
+                if (! a1) okArch = false;
+                std::printf ("  [sched fit] %-14s F=1 %6.2f %% (scratch %6.2f, ARCH %5.1f)  F=2 %6.2f %% (scratch %6.2f, ARCH %5.1f)%s\n",
+                             row.name, got[0], row.f1, row.archF1, got[1], row.f2, row.archF2, (s1 && a1) ? "" : "  BELOW");
+            }
+            check (okScratch, "[sched] fit % of every terrain at F = 1 / 2 within 0.5 % of the Task 3 scratch table");
+            check (okArch, "[sched] fit % >= ARCH's table - 2 % on the five measured rows (Cosine Wells at πF); Mitsuhashi vs its re-measured 98.3 / 87.6 (ARCH's 100 was an estimate — tri() is piecewise-linear; recorded)");
+        }
+
+        // (b) F = 4 clamps to the F = 2 set (byte-identical coefficients)
+        {
+            Instance a; blPatch (a, 0, 0); a.setReal ("oscATerFreq", 4.0f); a.prepare (48000.0, 512); a.syncScheduler();
+            Instance b; blPatch (b, 0, 0); b.setReal ("oscATerFreq", 2.0f); b.prepare (48000.0, 512); b.syncScheduler();
+            const auto* sa = a.p.chebPtr[0].load(); const auto* sb = b.p.chebPtr[0].load();
+            const bool same = sa != nullptr && sb != nullptr && std::memcmp (sa->c.data(), sb->c.data(), sizeof (sa->c)) == 0;
+            check (sa != nullptr && sa->key.F == 2.0f && same, fmt ("[sched] Terrain Freq 4 -> published key F = %.2f, coefficients byte-identical to the F = 2 set (%d)", sa ? sa->key.F : -1.0f, (int) same));
+        }
+
+        // (c) ModWheel -> OscA Terrain Freq (amount 0.5) changes the set within 100 ms under pump
+        {
+            Instance in; blPatch (in, 0, 0);
+            in.setChoice ("modSlot0Src", kSrcModWheel); in.setChoice ("modSlot0Dst", kDstOscATerFreq); in.setReal ("modSlot0Amt", 0.5f); in.setNorm ("modSlot0On", 1.0f);
+            in.prepare (48000.0, 512);
+            juce::AudioBuffer<float> buf (2, 512); juce::MidiBuffer midi; midi.ensureSize (256);
+            buf.clear(); in.p.processBlock (buf, midi);
+            in.syncScheduler();
+            const int g0 = in.p.chebGeneration[0].load();
+            const float f0 = in.p.chebPtr[0].load()->key.F;
+            midi.clear(); midi.addEvent (juce::MidiMessage::controllerEvent (1, 1, 127), 0);
+            buf.clear(); in.p.processBlock (buf, midi);   // CC1 0 -> 127: modWheelValue = 1
+            const auto t0 = std::chrono::steady_clock::now();
+            double elapsedMs = 0.0;
+            while (in.p.chebGeneration[0].load() == g0 && elapsedMs < 300.0) { pump (10); elapsedMs = secondsSince (t0) * 1000.0; }
+            const float f1 = in.p.chebPtr[0].load()->key.F;
+            std::printf ("  [sched] ModWheel route: generation %d -> %d after %.0f ms, key F %.3f -> %.3f\n", g0, in.p.chebGeneration[0].load(), elapsedMs, f0, f1);
+            check (in.p.chebGeneration[0].load() > g0 && f1 != f0 && elapsedMs <= 120.0,
+                   fmt ("[sched] ModWheel -> OscA Terrain Freq re-publishes the set in %.0f ms (need <= 120 under pump; 50 ms poll + job), F %.3f -> %.3f", elapsedMs, f0, f1));
+        }
+
+        // (d) LFO1 -> OscA Terrain Mod X: inert in Bandlimited (bit-identical), live in 2x
+        {
+            auto route = [] (Instance& in) { in.setChoice ("modSlot0Src", kSrcLFO1); in.setChoice ("modSlot0Dst", kDstOscATerFreq + 1); in.setReal ("modSlot0Amt", 1.0f); in.setNorm ("modSlot0On", 1.0f); };
+            Instance a; blPatch (a, 0, 0);
+            Instance b; blPatch (b, 0, 0); route (b);
+            auto ra = tapRender (a, 60, 1.0), rb = tapRender (b, 60, 1.0);
+            const bool ident = bitIdentical (ra.L, rb.L) && bitIdentical (ra.R, rb.R);
+            check (ident && a.p.chebGeneration[0].load() >= 1, fmt ("[sched] LFO1 -> OscA Terrain Mod X inert in Bandlimited: renders bit-identical (%d; max|d| %.3e)", (int) ident, maxAbsDiff (ra.L, rb.L)));
+            Instance c; c.cleanPatch(); c.setTerrainOrbit (0, 0, 0); c.setChoice ("oscAQuality", 1);
+            Instance d; d.cleanPatch(); d.setTerrainOrbit (0, 0, 0); d.setChoice ("oscAQuality", 1); route (d);
+            auto rc = tapRender (c, 60, 1.0), rd = tapRender (d, 60, 1.0);
+            check (maxAbsDiff (rc.L, rd.L) > 1.0e-3, fmt ("[sched] the same route is live in 2x: max|d| = %.3e (need > 1e-3)", maxAbsDiff (rc.L, rd.L)));
+        }
+
+        // (e) approximate flag
+        {
+            Instance a; blPatch (a, 0, 0); a.setReal ("oscAOrbFeedback", 0.0f); a.prepare (48000.0, 512); a.syncScheduler();
+            Instance b; blPatch (b, 0, 0); b.setReal ("oscAOrbFeedback", 0.3f); b.prepare (48000.0, 512); b.syncScheduler();
+            Instance c; blPatch (c, 0, 1); c.setReal ("oscAOrbFeedback", 0.0f); c.prepare (48000.0, 512); c.syncScheduler();
+            Instance d; blPatch (d, 0, 0); d.setReal ("oscAOrbFeedback", 0.0f);
+            d.setChoice ("modSlot0Src", kSrcLFO1); d.setChoice ("modSlot0Dst", kDstOscATerFreq + 3); d.setReal ("modSlot0Amt", 0.2f); d.setNorm ("modSlot0On", 1.0f);
+            d.prepare (48000.0, 512); d.syncScheduler();
+            check (! a.p.chebApproximate[0].load() && b.p.chebApproximate[0].load() && c.p.chebApproximate[0].load() && d.p.chebApproximate[0].load(),
+                   fmt ("[sched] chebApproximate: Ellipse fb 0 = %d, Feedback 0.3 = %d, Superellipse = %d, Feedback routed = %d (need 0 / 1 / 1 / 1)",
+                        (int) a.p.chebApproximate[0].load(), (int) b.p.chebApproximate[0].load(), (int) c.p.chebApproximate[0].load(), (int) d.p.chebApproximate[0].load()));
+        }
+
+        // (f) prepareToPlay / setStateInformation publish nothing (default patch, pumping)
+        {
+            Instance in;
+            in.prepare (48000.0, 512); pump (120);
+            juce::MemoryBlock state; in.p.getStateInformation (state);
+            in.p.setStateInformation (state.getData(), (int) state.getSize()); pump (120);
+            in.prepare (44100.0, 256); pump (120);
+            check (in.p.publishCount.load() == 0, fmt ("[sched] prepareToPlay x2 + setStateInformation under pump: publishCount = %d (need 0)", in.p.publishCount.load()));
+        }
+
+        // (g) sync == async: the timer's set (pump) equals the sync set (memcmp)
+        {
+            Instance a; blPatch (a, 3, 5); a.setReal ("oscATerFreq", 1.5f); a.prepare (48000.0, 512);
+            { juce::AudioBuffer<float> buf (2, 512); juce::MidiBuffer midi; buf.clear(); a.p.processBlock (buf, midi); }
+            const auto t0 = std::chrono::steady_clock::now();
+            while (a.p.chebGeneration[0].load() == 0 && secondsSince (t0) < 0.5) pump (10);
+            Instance b; blPatch (b, 3, 5); b.setReal ("oscATerFreq", 1.5f); b.prepare (48000.0, 512); b.syncScheduler();
+            const auto* sa = a.p.chebPtr[0].load(); const auto* sb = b.p.chebPtr[0].load();
+            const bool same = sa != nullptr && sb != nullptr && sa->key == sb->key && std::memcmp (sa->c.data(), sb->c.data(), sizeof (sa->c)) == 0;
+            check (same, fmt ("[sched] async (pump, %.0f ms) set == sync set: keys equal and coefficients memcmp-identical (%d)", secondsSince (t0) * 1000.0, (int) same));
+            std::printf ("  [sched] counters: completed %d cancelled %d superseded %d dropped %d inFlightMax %d\n",
+                         a.p.getTerrainScheduler().jobsCompleted.load(), a.p.getTerrainScheduler().jobsCancelled.load(),
+                         a.p.getTerrainScheduler().keysSuperseded.load(), a.p.getTerrainScheduler().resultsDropped.load(), a.p.getTerrainScheduler().jobsInFlightMax[0].load());
+        }
+
+        // (h) readouts: chebPartialsAtC4 = min (16, D_max (C4)) * K
+        {
+            Instance a; blPatch (a, 0, 0); a.prepare (48000.0, 512); a.syncScheduler();
+            Instance b; blPatch (b, 0, 5); b.prepare (48000.0, 512); b.syncScheduler();
+            const int pa = a.p.chebPartialsAtC4[0].load(), pb = b.p.chebPartialsAtC4[0].load();
+            const int wantB = chebDMax (chebDiagonalCutoff (48000.0, 8, 261.6256)) * 8;
+            check (pa == 16 && pb == 80 && wantB == 80, fmt ("[sched] chebPartialsAtC4: Ellipse %d (need 16), Epitrochoid7 %d (need 80 = D_max 10 * K 8 at 48 k)", pa, pb));
+        }
+    }
+
+    struct StormResult { long long allocations; bool finite; double clickRatio; int swaps; double plateau, outside; };
+
+    /** One storm: Bandlimited, `notes` held, 5 s, block 480, unity gain, tap; oscATerModX
+        stepped by 0.05 every 20 ms from 0.5 s; pump (10) between blocks (real-time pacing so
+        the 50 ms scheduler cadence is exercised); armed around every processBlock. */
+    StormResult runStorm (const std::vector<int>& notes, int& minGenGapAtFree, int& frees, bool trackLeaks)
+    {
+        Instance in; h5Patch (in, false);
+        in.setChoice ("oscAQuality", 0); in.setChoice ("oscBQuality", 0);
+        in.p.harnessPreFilterTap.store (true);
+        in.prepare (48000.0, 480);
+        RenderSpec s; s.seconds = 5.0; s.note = notes[0]; s.velocity = 1.0f; s.armAllocations = true;
+        for (size_t i = 1; i < notes.size(); ++i) s.extra.push_back ({ 0, juce::MidiMessage::noteOn (1, notes[i], 1.0f) });
+        std::vector<int> swapBlocks;
+        int lastGen = -1, step = 0, lastLive = -1;
+        std::deque<uint64_t> retireGens;   // block generation at each publish that retired a set (FIFO: the reaper frees oldest first)
+        minGenGapAtFree = 1000; frees = 0;
+        s.onBlock = [&] (int start) {
+            if (start >= 24000 && (start % 960) == 0)
+            {
+                in.setReal ("oscATerModX", 0.05f * (float) (step % 21));
+                ++step;
+            }
+            pump (10);   // between blocks, disarmed (README rule)
+            const int g = in.p.chebGeneration[0].load();
+            if (g != lastGen)
+            {
+                // every publish after the first retires the previous set at the current block generation
+                if (lastGen >= 1) retireGens.push_back (in.p.getBlockGeneration());
+                if (lastGen >= 0) swapBlocks.push_back (start);
+                lastGen = g;
+            }
+            if (trackLeaks)
+            {
+                const int live = ChebyshevSet::liveCount.load();
+                if (lastLive >= 0 && live < lastLive)
+                {
+                    for (int k = 0; k < lastLive - live; ++k)
+                    {
+                        ++frees;
+                        if (retireGens.empty()) { minGenGapAtFree = -1; break; }   // a free with no matching retire: impossible
+                        const int gap = (int) (in.p.getBlockGeneration() - retireGens.front());
+                        retireGens.pop_front();
+                        minGenGapAtFree = std::min (minGenGapAtFree, gap);
+                    }
+                }
+                lastLive = live;
+            }
+        };
+        auto r = render (in, s);
+        // click metric (plan Decision 41): max step outside the 64-sample windows after each swap
+        // over [0.5, 5) s vs the plateau max step over [0.1, 0.5) s (static Bandlimited tone)
+        std::vector<char> excluded (r.L.size(), 0);
+        for (int b : swapBlocks) for (int i = b; i < b + 64 && i < (int) r.L.size(); ++i) excluded[(size_t) i] = 1;
+        auto segMax = [&] (size_t from, size_t to) { double m = 0; for (size_t i = std::max<size_t> (from, 1); i < to && i < r.L.size(); ++i) if (! excluded[i] && ! excluded[i - 1]) m = std::max (m, std::abs (r.L[i] - r.L[i - 1])); return m; };
+        const double plateau = segMax (4800, 24000), outside = segMax (24000, r.L.size());
+        // post-storm: keep the block generation advancing while the reaper timer runs (2 s), then drain
+        {
+            juce::AudioBuffer<float> buf (2, 480); juce::MidiBuffer midi;
+            for (int b = 0; b < 40; ++b) { buf.clear(); in.p.processBlock (buf, midi); pump (50); }
+            pump (700); pump (700);
+        }
+        const int live = ChebyshevSet::liveCount.load(), retired = in.p.getRetiredCount();
+        std::printf ("  [storm] %d notes: %d swaps seen, %d ModX steps, allocations %lld%s, plateau step %.4f, outside-window step %.4f (ratio %.2f); after drain: liveCount %d, retired %d, live jobs %d\n",
+                     (int) notes.size(), (int) swapBlocks.size(), step, r.allocations, rtcheck::foreignNote().c_str(), plateau, outside, plateau > 0 ? outside / plateau : 0.0,
+                     live, retired, in.p.getTerrainScheduler().getLiveJobCount());
+        std::printf ("  [storm] scheduler counters: completed %d cancelled %d superseded %d dropped %d inFlightMax A %d B %d\n",
+                     in.p.getTerrainScheduler().jobsCompleted.load(), in.p.getTerrainScheduler().jobsCancelled.load(), in.p.getTerrainScheduler().keysSuperseded.load(),
+                     in.p.getTerrainScheduler().resultsDropped.load(), in.p.getTerrainScheduler().jobsInFlightMax[0].load(), in.p.getTerrainScheduler().jobsInFlightMax[1].load());
+        StormResult out { r.allocations, allFinite (r.L) && allFinite (r.R), plateau > 0 ? outside / plateau : 0.0, (int) swapBlocks.size(), plateau, outside };
+        if (trackLeaks)
+        {
+            check (live == 2 && retired == 0, fmt ("[storm] after the reaper: ChebyshevSet::liveCount = %d (need 2 = the published A / B sets), retired = %d (need 0)", live, retired));
+            check (in.p.getTerrainScheduler().jobsInFlightMax[0].load() <= 1, fmt ("[storm] max non-cancelled jobs in flight for A = %d (need <= 1)", in.p.getTerrainScheduler().jobsInFlightMax[0].load()));
+            const int superseded = in.p.getTerrainScheduler().keysSuperseded.load() + in.p.getTerrainScheduler().jobsCancelled.load();
+            check (superseded > 0, fmt ("[storm] superseded keys + cancelled jobs = %d (need > 0: 20 ms steps under the 50 ms cadence must supersede; a 0.3 ms cheb job is never caught in flight — recorded)", superseded));
+        }
+        return out;
+    }
+
+    void gateStorm()
+    {
+        std::printf ("\n== storm (Bandlimited sets swapping: oscATerModX stepped 0.05 / 20 ms under 16 held notes, 5 s, block 480, pump (10) between blocks; armed around every block) ==\n");
+        int gap = 0, frees = 0;
+        const auto r16 = runStorm ({ 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70 }, gap, frees, true);
+        if (! rtcheck::kCounting) std::printf ("  [storm] allocation count skipped under ASan (plan Decision 43)\n");
+        else check (r16.allocations == 0, fmt ("[storm] %lld allocations counted across %d swaps under 16 held notes (need 0)", r16.allocations, r16.swaps));
+        check (r16.finite, "[storm] output finite through every swap");
+        check (r16.swaps >= 20, fmt ("[storm] %d set swaps observed over 5 s (need >= 20 — the storm is not vacuous)", r16.swaps));
+        check (frees > 0 && gap >= 2, fmt ("[storm] %d frees observed, every one >= 2 block generations after its publish (min gap %d, need >= 2)", frees, gap));
+        // click metric on a single note (a one-voice swap click would hide under a 16-voice sum)
+        int gap1 = 0, frees1 = 0;
+        const auto r1 = runStorm ({ 60 }, gap1, frees1, false);
+        check (r1.clickRatio <= 1.5, fmt ("[storm] single note C4: max step outside the 64-sample windows %.4f <= 1.5 x plateau %.4f (ratio %.2f; %d swaps)", r1.outside, r1.plateau, r1.clickRatio, r1.swaps));
+        // H8 banner row (Decision 45): the same storm's allocation verdict under the H8 label
+        if (rtcheck::kCounting)
+            std::printf ("  [H8 storm] %lld allocations across %d Bandlimited set swaps under 16 held notes (armed around every block)\n", r16.allocations, r16.swaps);
+    }
+
+    //==========================================================================
     // ── CLI ──────────────────────────────────────────────────────────────────
 
     void usage()
     {
-        std::printf ("O-Strata-render-test --gate <H1..H9|tuning|smoke|centroids|saturation|decimator|crossfade|latency|export|all> [--gate ...]\n"
+        std::printf ("O-Strata-render-test --gate <H1..H11|tuning|smoke|centroids|saturation|decimator|crossfade|latency|clenshaw|scheduler|storm|import|export|all> [--gate ...]\n"
                      "  [--note N] [--velocity V] [--seconds S] [--terrain I] [--orbit I] [--quality I]\n"
-                     "  [--set id=norm]... [--fs F] [--block B] [--seed S] [--fixtures DIR] [--export NAME]\n"
+                     "  [--set id=norm]... [--fs F] [--block B] [--seed S] [--fixtures DIR] [--export NAME] [--png PATH]\n"
                      "  [--print-only] [--with-disk]\n");
     }
 
@@ -1545,6 +1977,7 @@ namespace
             else if (a == "--export") opt.exportName = next();
             else if (a == "--print-only") opt.printOnly = true;
             else if (a == "--with-disk") opt.withDisk = true;
+            else if (a == "--png") opt.pngPath = next();
             else { usage(); return false; }
         }
         return true;
@@ -1565,7 +1998,7 @@ namespace
 //==============================================================================
 int main (int argc, char** argv)
 {
-    juce::ScopedJuceInitialiser_GUI init;   // juce_events; no message loop is ever pumped
+    juce::ScopedJuceInitialiser_GUI init;   // juce_events; the loop is pumped only inside pump()
     if (! parse (argc, argv)) return 2;
     if (opt.gates.empty()) { usage(); return 2; }
 
@@ -1585,6 +2018,7 @@ int main (int argc, char** argv)
     {
         Instance in; in.cleanPatch(); in.applyCliOverrides();
         in.prepare (opt.fs, opt.block);
+        // --png PATH: Phase 2.5 (Task 13) wires importTerrainFile here
         std::printf ("latency: %d samples (halfband L2 = %.4f, L4 = %.4f base samples)\n", in.p.getLatencySamples(), HalfbandCoeffs::get().latency2, HalfbandCoeffs::get().latency4);
         RenderSpec s; s.seconds = opt.seconds; s.note = opt.note; s.velocity = opt.velocity;
         auto r = render (in, s);
@@ -1609,6 +2043,9 @@ int main (int argc, char** argv)
     if (wants ("crossfade")) gateCrossfade();
     if (wants ("latency"))   gateLatency();
     if (wants ("H7"))        gateH7();
+    if (wants ("clenshaw"))  gateClenshaw();
+    if (wants ("scheduler")) gateScheduler();
+    if (wants ("storm"))     gateStorm();
     if (wantsExact ("export")) gateExport();
 
     std::printf ("\n%s — %d check(s), %d failure(s), %.1f s\n", failures == 0 ? "ALL GATES PASSED" : "GATES FAILED", checksRun, failures, secondsSince (t0));

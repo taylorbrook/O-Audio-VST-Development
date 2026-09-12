@@ -75,8 +75,8 @@ struct OrbitScratch
     float invTanhK   = 1.0f;   // Squarcle 1 / tanh k
 };
 
-/** Trigonometric-polynomial degree K of each orbit (0 = not a trig polynomial;
-    Round B's Bandlimited D_max uses it). */
+/** Trigonometric-polynomial degree K of each orbit (0 = not a trig polynomial).
+    The Bandlimited readout flags `orbitK == 0` as approximate (plan Decision 26). */
 constexpr int orbitK (OrbitKind k)
 {
     switch (k)
@@ -94,6 +94,18 @@ constexpr int orbitK (OrbitKind k)
         case OrbitKind::Squarcle:     return 0;
     }
     return 0;
+}
+
+/** Nominal degree for the Bandlimited D_max / partialsAtC4 laws (plan Decision 26):
+    orbitK where it is > 0, else the nominal degrees parameter-spec.md v2 row 20
+    lists for the three approximate orbits — Superellipse 1, Butterfly 4, Squarcle 1.
+    orbitK itself is unchanged; the readout's `approximate` flag comes from it. */
+constexpr int orbitKNominal (OrbitKind k)
+{
+    const int exact = orbitK (k);
+    if (exact > 0) return exact;
+    if (k == OrbitKind::Butterfly) return 4;
+    return 1;   // Superellipse, Squarcle
 }
 
 // ═══════════════════════════════════════════════════════════════════

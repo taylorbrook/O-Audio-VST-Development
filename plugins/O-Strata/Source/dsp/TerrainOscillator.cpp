@@ -28,6 +28,7 @@
 */
 
 #include "TerrainOscillator.h"
+#include "TerrainImage.h"
 #include "MathConstants.h"
 
 // ═══════════════════════════════════════════════════════════════════
@@ -104,11 +105,16 @@ void TerrainOscillator::setQuality (Quality q)
 
     // Mid-note: the old path keeps its decimator set as the shadow, the new path
     // starts from reset states and both run for 64 base samples (equal-gain linear).
+    // The shadow keeps the evaluator it had (Chebyshev copy or analytic) even if
+    // updateBlockRate flips chebActive for the new path this block.
     oldQuality = quality;
     quality = q;
     oversampling = osFor (q);
     currentSet ^= 1;
     for (int i = 0; i < kMaxUnison; ++i) { hb2[currentSet][i].reset(); hb4[currentSet][i].reset(); }
+    shadowIsCheb = chebActive;
+    shadowIdx = chebCur;
+    xfadeKind = XfadeKind::Quality;
     xfadeRemaining = 64;
 }
 
@@ -205,7 +211,20 @@ void TerrainOscillator::setUnison (int count, float detune, float width)
 // Block-rate feed
 // ═══════════════════════════════════════════════════════════════════
 
-void TerrainOscillator::updateBlockRate (double noteHz)
+void TerrainOscillator::buildChebWeights (int idx, double dc) noexcept
+{
+    // 153 multiplies by the diagonal weight (plan Decisions 27–28); block-rate, no allocation.
+    const float* src = chebSet->c.data();
+    float* dst = chebW[idx];
+    for (int n = 0; n <= kChebDegree; ++n)
+    {
+        const int row = chebRowStart (n);
+        for (int m = 0; m + n <= kChebDegree; ++m)
+            dst[row + m] = src[row + m] * chebTaperWeight (n + m, dc);
+    }
+}
+
+void TerrainOscillator::updateBlockRate (double noteHz, double dmaxHz)
 {
     // Squarcle 1 / tanh k (block-rate; std::tanh allowed here only)
     if (orbitKind == OrbitKind::Squarcle)
@@ -230,9 +249,62 @@ void TerrainOscillator::updateBlockRate (double noteHz)
 
     // Pitch tracking (DSP-01): F_eff = F_mod · r_track, r_track = min (1, C4 / f_note)^track,
     // from the glide TARGET the voice passes in. Block-rate pow (DSP-05 exemption: updateBlockRate).
-    // Round A applies it in every Quality (Bandlimited = analytic fallback); Round B makes it inert there.
+    // Still computed in Bandlimited; the Chebyshev branch below never reads it (truncation is the mip).
     const double ratio = noteHz > 0.0 ? juce::jmin (1.0, 261.6256 / noteHz) : 1.0;
     rTrack = static_cast<float> (std::pow (ratio, static_cast<double> (pitchTrack)));   // block-rate (DSP-05 exemption: updateBlockRate)
+
+    // ─── Bandlimited: which set, which taper, whether to crossfade (plan Decisions 27–31, 35) ───
+    {
+        // Imported takes the image's embedded set (projected at F = 1 at import); an
+        // analytic terrain takes the published set only when its key names this terrain
+        // (the harness override kind 100 never matches → analytic 1×, ARCH "never silence").
+        const ChebyshevSet* candidate = terrainKind == TerrainKind::Imported
+                                          ? (image != nullptr ? &image->cheb : nullptr)
+                                          : chebSet;
+        const bool wantActive = quality == Quality::Bandlimited && ! chebBypass
+                             && candidate != nullptr && candidate->key.terrain == static_cast<int> (terrainKind);
+        const ChebyshevSet* wantSet = wantActive ? candidate : nullptr;
+        const double dc = wantActive ? chebDiagonalCutoff (currentSampleRate, orbitKNominal (orbitKind), dmaxHz) : -1.0;
+
+        if (wantActive != chebActive || wantSet != chebBuilt)
+        {
+            if (fresh || xfadeRemaining > 0)
+            {
+                // Inactive, or a fade already running: switch instantly (same rule as setQuality).
+                // Never overwrite the copy a running fade's shadow is reading.
+                if (wantActive)
+                {
+                    const int idx = xfadeRemaining > 0 ? (shadowIdx ^ 1) : chebCur;
+                    chebSet = wantSet; buildChebWeights (idx, dc); chebCur = idx;
+                }
+            }
+            else
+            {
+                // Mid-note: 64-sample equal-gain crossfade, the old evaluator as the shadow
+                // (Chebyshev copy → Chebyshev copy, analytic → Chebyshev, or Chebyshev → analytic).
+                shadowIsCheb = chebActive;
+                shadowIdx = chebCur;
+                if (wantActive)
+                {
+                    chebSet = wantSet; chebCur = shadowIdx ^ 1; buildChebWeights (chebCur, dc);
+                }
+                xfadeKind = XfadeKind::Set;
+                xfadeRemaining = 64;
+            }
+            chebActive = wantActive;
+            chebBuilt = wantSet;
+            lastDc = dc;
+        }
+        else if (wantActive && std::abs (dc - lastDc) > 1.0e-6)
+        {
+            // D_c moved (glide / pitch modulation): rebuild in place — the law is
+            // continuous in f, so no fade (plan Decision 29).
+            chebSet = wantSet; buildChebWeights (chebCur, dc);
+            lastDc = dc;
+        }
+        if (! wantActive)
+            chebSet = candidate;   // keep the pointer current for the next block's comparison
+    }
 
     // Feedback damp law (ARCH Core 4, Decision 1): a = 1 − 2^(−1 − 9·damp) at 48 kHz / 1×,
     // rate- and OS-corrected so the displacement time constant is invariant.
@@ -308,7 +380,23 @@ float TerrainOscillator::scan (double phase, int partial, bool shadow) noexcept
     px = juce::jlimit (-1.0f, 1.0f, px);
     py = juce::jlimit (-1.0f, 1.0f, py);
 
-    float y = terrain (terrainKind, px, py, terrainFreq * rTrack, terrainModX, terrainModY);   // clamped inside
+    // Terrain evaluation: the Chebyshev copy (Bandlimited — Terrain Freq / Mod X / Mod Y
+    // and rTrack are not read here, plan Decision 31), the image (Imported), or the
+    // analytic terrain. A crossfade's old path (`shadow`) keeps the evaluator it had.
+    // The Chebyshev value is deliberately NOT clamped: a truncated series overshoots
+    // [−1, 1] slightly (Gibbs-like, largest for Radial Rings at heavy truncation) and a
+    // clamp is a hard nonlinearity that re-introduces exactly the harmonics the taper
+    // removed (measured: h > D_max·K and aliasing at −48 dB on the clamped rows). The
+    // consumers are bounded anyway: the feedback displacement is clamped ± 0.5, the
+    // saturation is a bounded tanh, the DC blocker is linear.
+    const bool useCheb = shadow ? shadowIsCheb : chebActive;
+    float y;
+    if (useCheb)
+        y = clenshaw2D (chebW[shadow ? shadowIdx : chebCur], px, py);
+    else if (terrainKind == TerrainKind::Imported)
+        y = image != nullptr ? image->sample (px, py, terrainFreq * rTrack, edgeMode) : 0.0f;   // audio-thread read path
+    else
+        y = terrain (terrainKind, px, py, terrainFreq * rTrack, terrainModX, terrainModY);   // clamped inside
 
     if (shadow)
         return y;   // crossfade's old path: no feedback / capture writes (saturation below is stateless)
@@ -438,8 +526,9 @@ void TerrainOscillator::getNextSampleStereo (double& outL, double& outR)
 
             if (xfadeRemaining > 0)
             {
-                // Old path as a shadow from the same θ (local phase copies, no state writes)
-                const int oldOs = osFor (oldQuality);
+                // Old path as a shadow from the same θ (local phase copies, no state writes).
+                // A Set fade keeps the current OS (it only ever runs at 1×, Bandlimited).
+                const int oldOs = xfadeKind == XfadeKind::Quality ? osFor (oldQuality) : os;
                 const double oldInc = phaseIncrement / oldOs;
                 double p = phaseAccumulators[i], m = masterPhases[i];
                 float oldSub[4];

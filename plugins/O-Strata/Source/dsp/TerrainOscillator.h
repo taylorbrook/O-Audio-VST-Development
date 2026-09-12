@@ -43,6 +43,7 @@
 #include "Orbits.h"
 #include "Terrains.h"
 #include "HalfbandDecimator.h"
+#include "ChebyshevSet.h"
 #include <array>
 #include <atomic>
 #include <cmath>
@@ -58,9 +59,9 @@ enum class WarpType
     Window
 };
 
-// = the osc?Quality choice list. In Round A `Bandlimited` runs the analytic
-// terrain at 1× (the "chebPtr == nullptr fallback"); Round B lands the
-// Chebyshev path.
+// = the osc?Quality choice list. `Bandlimited` evaluates the published Chebyshev
+// set (ARCH Core 6) at 1× when one matches the terrain, and falls back to the
+// analytic terrain at 1× otherwise (never silence — plan Decision 30).
 enum class Quality
 {
     Bandlimited = 0,
@@ -68,23 +69,29 @@ enum class Quality
     X4
 };
 
-// = the osc?TerEdge choice list. Stored in Round A, read by the PNG path (2.5).
+// = the osc?TerEdge choice list (0–1), read by the PNG path (TerrainImage::sample).
+// HarnessWrap (100) is harness-only — periodic tiling, the H11 negative control on
+// the edge branch — reachable only through harnessEdgeOverride[], never from the
+// parameter (the voice maps the choice through jlimit (0, 1, …)).
 enum class EdgeMode
 {
     Mirror = 0,
-    Window
+    Window,
+    HarnessWrap = 100
 };
 
 /** Core 10: view data for the ≋ waveform and the feedback trail. One ring per
     oscillator, owned by the processor; the display voice's partial 0 writes
-    (θ, p.x, p.y, y) per base sample. Round A writes only — nothing reads it
-    until Stage 3. */
+    (θ, p.x, p.y, y) per base sample. Written only — nothing reads it until
+    Stage 3. */
 struct CycleCapture
 {
     static constexpr int kPoints = 2048;
     std::array<float, kPoints * 4> ring {};
     std::atomic<uint32_t> writeIndex { 0 };
 };
+
+struct TerrainImage;
 
 class TerrainOscillator
 {
@@ -118,10 +125,22 @@ public:
     void setPitchTrack (float t)        { pitchTrack = t; }
     void setFeedbackDamp (float d)      { feedbackDamp = d; }
     void setEdgeMode (EdgeMode e)       { edgeMode = e; }
+    /** Round B (plan Decisions 28–31, 35): the published set for this oscillator
+        (nullptr = none). Stored only; the tapered copy is rebuilt in updateBlockRate. */
+    void setChebyshevSet (const ChebyshevSet* s) { chebSet = s; }
+    /** The published image (Terrain = Imported); nullptr = none → silent. */
+    void setImage (const TerrainImage* i)       { image = i; }
+    /** Harness: force the analytic 1× path in Bandlimited (H6 "1x" column, H1). */
+    void setChebyshevBypass (bool b)            { chebBypass = b; }
+    bool isChebyshevActive() const              { return chebActive; }
+
     /** Orbit re-normalisation, Squarcle 1/tanh k, pitch-track ratio, damp
-        coefficient — computed from constants and the block-start values, never
-        from the block length (block-size invariance). */
-    void updateBlockRate (double noteHz);
+        coefficient, the Chebyshev taper / set crossfade — computed from constants
+        and the block-start values, never from the block length (block-size
+        invariance). `noteHz` = glide TARGET × pitch ratio (pitch tracking, ARCH
+        Decision 2); `dmaxHz` = max (target, current) × ratio (the truncation law,
+        plan Decision 27 — a downward glide never leaves a diagonal above Nyquist). */
+    void updateBlockRate (double noteHz, double dmaxHz);
 
     // Harness-only switches (ARCH "Harness design"); copied from the processor
     // atomics by the voice at block start. Never parameters.
@@ -154,6 +173,8 @@ public:
     static double decimatorLatency4() { return HalfbandCoeffs::get().latency4; }
 
 private:
+    enum class XfadeKind { Quality, Set };
+    void buildChebWeights (int idx, double dc) noexcept;
     float scan (double phase, int partial, bool shadow) noexcept;
     float saturate (float y) const noexcept;
     double applyWarp (double phase) const noexcept;
@@ -216,7 +237,24 @@ private:
     int currentSet = 0;
     Quality oldQuality = Quality::X2;
     int xfadeRemaining = 0;          // base samples left in the 64-sample equal-gain crossfade
-    bool fresh = true;               // no sample rendered since the last reset → Quality switches instantly
+    XfadeKind xfadeKind = XfadeKind::Quality;
+    bool fresh = true;               // no sample rendered since the last reset → Quality / set switches instantly
+
+    // ─── Bandlimited mode (ARCH Core 6; plan Decisions 27–31, 35) ───
+    // chebSet / image: the block's published pointers (dereferenced at block start only).
+    // chebW[2]: the per-oscillator TAPERED coefficient copies — the sample loop reads
+    // chebW[chebCur] (or chebW[shadowIdx] on the crossfade's old path), never the set.
+    const ChebyshevSet* chebSet = nullptr;
+    const ChebyshevSet* chebBuilt = nullptr;   // the set chebW[chebCur] was built from
+    const TerrainImage* image = nullptr;
+    float chebW[2][kChebCoeffs] = {};
+    int chebCur = 0;
+    bool chebActive = false;                    // this block evaluates clenshaw2D (chebW[chebCur])
+    bool chebBypass = false;                    // harness
+    double lastDc = -1.0;
+    // The crossfade's old path: which evaluator (Chebyshev or analytic) and which copy
+    bool shadowIsCheb = false;
+    int shadowIdx = 1;
 
     // DC blocker (per oscillator, L and R): y = x − x1 + R · y1, R = 1 − 2π·5/fs
     double dcR = 1.0;
