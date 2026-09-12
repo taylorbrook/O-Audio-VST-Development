@@ -26,7 +26,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 | FUNC-04 | Trajectory feedback: previous output displaces the next orbit point, with Feedback amount and Feedback Damp; bounded for every setting | must | complete | stage-2 |
 | FUNC-05 | Audio-rate modulation: Orbit Size (= `osc?Pos`), Aspect, Rotation, Centre X, Centre Y, Orbit Mod, Terrain Freq, Terrain Mod X/Y, Feedback and Saturation are mod-matrix destinations (10 new per oscillator, appended after O-Prism's 26), smoothed per sample | must | complete | stage-2 |
 | FUNC-06 | Per-oscillator Quality: Bandlimited (Chebyshev, 1×) / 2× / 4× — 2× / 4× half complete (Stage 2 Round A, 2026-09-11), Bandlimited half complete (Round B, 2026-09-12: H6 127 / 127 sounding rows ≤ −90 dB; 17 rows above ≈ A6 with K ≥ 6 orbits on even terrains are muted by the truncation law — documented limit) | must | complete | stage-2 |
-| FUNC-07 | User greyscale PNG terrain import via file chooser and drag-and-drop, with Image Blur and Edge Mode; decode and pre-blur off the audio thread — DSP half (import API, blur, edge, off-thread job ≤ 100 ms) verified Stage 2 Round B, 2026-09-12; chooser / drag-and-drop / view are Stage 3 | must | pending | stage-3 |
+| FUNC-07 | User greyscale PNG terrain import via file chooser and drag-and-drop, with Image Blur and Edge Mode; decode and pre-blur off the audio thread — DSP half (import API, blur, edge, off-thread job ≤ 100 ms) verified Stage 2 Round B, 2026-09-12; chooser / drag-and-drop / view are Stage 3 (macOS); the WebView2 drop half is measured on the Phase 4.2 CI Windows build (Stage 3 CONTEXT D2) | must | pending | stage-3 |
 | FUNC-08 | Imported PNG persists in plugin state and presets (raw bytes ≤ 2 MB; path + SHA-256 above the cap); presets regenerate on load — bytes half (identical bytes ⇒ identical render SHA-256, H10) verified Stage 2 Round B, 2026-09-12; state child / cap / notice are Stage 4 | must | pending | stage-4 |
 | FUNC-09 | All O-Prism v1.24.0 non-oscillator sections (sub/noise, envelopes, dual filters, LFOs, mod matrix, FX rack, global) carry over unchanged | must | complete | stage-2 |
 | FUNC-10 | Full microtonal tuning engine (scala-tuning-engine v3.0.1: factory tunings, Scala/KBM import, EDO / harmonic / rank-2 generators, tuning tab) | must | complete | stage-2 |
@@ -48,7 +48,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | Per-oscillator 3D terrain view (displaced 64×64 wireframe + orbit + scan point + feedback trail) with a 30 Hz playhead, hand-rolled WebGL2 | should | pending | stage-3 |
+| UI-01 | Per-oscillator 3D terrain view (displaced 64×64 wireframe + orbit + scan point + feedback trail) with a 30 Hz playhead, hand-rolled WebGL2 — WKWebView in Stage 3; the WebView2 render is verified on the Phase 4.2 CI Windows build (Stage 3 CONTEXT D2) | should | pending | stage-3 |
 | UI-02 | Canvas 2D fallback in the same view when WebGL2 is unavailable; localised placeholder in en/fr/zh-Hans | must | pending | stage-3 |
 | UI-03 | Drag on the view edits Orbit Centre X/Y, wheel edits Orbit Size, alt-drag edits Rotation, through the slider relay with drag-start/drag-end | should | pending | stage-3 |
 | UI-04 | 3D view and playhead re-push after every preset apply and session restore | must | pending | stage-3 |
@@ -59,7 +59,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 |----|-------------|----------|--------|-------------|
 | PERF-01 | Real-time safe audio processing (no allocations, locks, file I/O or coefficient projection in processBlock) | must | complete | stage-2 |
 | PERF-02 | CPU: **oscillator delta** ≤ 12 % of one Apple M-series core — 16 voices × 2 oscillators, unison 1, Quality 2×, default patch, measured as (full render) − (same render with the harness-only terrain-kernel bypass); whole-plugin total reported, not gated; unison capped at 4 for the live oscillator (amended 2026-09-10, Stage 2 discuss D2) | must | complete | stage-2 |
-| PERF-03 | 3D view costs ≤ 2 ms per frame in WKWebView and WebView2 at DPR 2 | should | pending | stage-3 |
+| PERF-03 | 3D view costs ≤ 2 ms per frame in WKWebView and WebView2 at DPR 2 — WKWebView measured in Stage 3; the WebView2 figure comes from the Phase 4.2 CI Windows build (Stage 3 CONTEXT D2) | should | pending | stage-3 |
 
 ### Compatibility (COMPAT)
 

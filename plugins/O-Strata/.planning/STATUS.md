@@ -1,18 +1,18 @@
 ---
 plugin: O-Strata
-stage: 2
-stage_name: dsp
-phase: verify
-status: stage_2_complete
-round: B
+stage: 3
+stage_name: gui
+phase: discuss
+status: stage_3_discuss_complete
+round: A
 last_updated: 2026-09-12
 workflow_mode: manual
 complexity_score: 5.0
 complexity_raw: 25.0
 staged_implementation: true
 orchestration_mode: true
-next_action: "/plugin-discuss O-Strata 3-gui (Stage 2 ✅ VERIFIED 2026-09-12 — stages/2-dsp/VERIFICATION.md: --gate all 135 / 135 from / and the repo root, pluginval ×2 + auval green; Stage 3 = WebGL 3D view, readout pushes, chooser / drag-and-drop on the import API, relays from parameter-spec.md v2, native stubs removed)"
-next_stage: 3
+next_action: "/plugin-research O-Strata 3-gui (Stage 3 discuss ✓ 2026-09-12 — stages/3-gui/CONTEXT.md: D1 ROADMAP split as two rounds (A = 3.1, B = 3.2 + 3.3), D2 WebView2 evidence → Phase 4.2, D3 Bandlimited readout gains a scheduler-computed 'silent above <note>' form, D4 O-Prism octave-stretch port is a separate /improve; 12 research items)"
+next_stage: 4
 ready_for_implementation: true
 contract_checksums:
   brief: sha256:955f20b31a5f99a45b97a989e5c7d1333b8d23b359dd1f8b66ec90af189c4671
@@ -38,7 +38,7 @@ stage_0_status: ui_design_complete
 
 ## Current Position
 
-Stage: 2 — **DSP (live wave-terrain oscillator) — discuss ✓ (2026-09-10), research ✓ (2026-09-11), Round A plan ✓ / execute ✓ (commits `4640a1a7` 2.1, `45b1fb40` 2.2, `0c07923a` 2.3) / verify ✓ (2026-09-11, `stages/2-dsp/round-a/VERIFICATION.md` — ✅ VERIFIED); Round B plan ✓ (2026-09-11, `stages/2-dsp/PLAN.md`); Round B execute ✓ (2026-09-12, `stages/2-dsp/SUMMARY.md`); **Round B verify ✓ (2026-09-12, `stages/2-dsp/VERIFICATION.md` — ✅ VERIFIED, stage verdict: `--gate all` 135 / 135 from `/` (109.1 s) and the repo root (110.0 s), H6 Bandlimited 127 / 127 sounding rows ≤ −90 dB, H7 2× delta 4.19 / 4.38 %, pluginval ×2 + auval green, params.tsv diff empty; all 19 stage-2 requirement rows complete). STAGE 2 COMPLETE — Stage 3 (GUI) discuss next.** Stage 1 second pass complete (discuss ✓ research ✓ plan ✓ execute ✓ verify ✓, 2026-09-10). Stage 0 v2 is complete (ARCHITECTURE / ROADMAP v2, mockup v2 finalised + scaffolded, `parameter-spec.md` v2 locked); the baked-geometry design is superseded (`superseded-baked-v1/README.md`) and its tables ship as an O-Prism factory bank.
+Stage: 3 — **GUI — discuss ✓ (2026-09-12, `stages/3-gui/CONTEXT.md`): two rounds (D1: Round A = Phase 3.1 shell re-fork from O-Prism v1.26.0 + oscillator cards + Terrain-tab panel/proxies + readout + ≋ view + i18n; Round B = 3.2 3D view/pushes + 3.3 interaction/import); WebView2 halves of UI-01 / PERF-03 / FUNC-07 deferred to Phase 4.2 (D2); Bandlimited readout gains a scheduler-computed "silent above <note>" form (D3); O-Prism octave-stretch port is a separate /improve (D4). Findings: the fork page is still the v1.24.0 shell with zero terrain controls; the editor keeps two dead native stubs + one `evaluateJavascript`; Stage 2's processor surface differs from the template §7 API (atomics + `CycleCapture` ring + `TerrainImage::view` exist; playhead / heightmap / status helpers do not). Research next.** Previous — Stage 2: **DSP (live wave-terrain oscillator) — discuss ✓ (2026-09-10), research ✓ (2026-09-11), Round A plan ✓ / execute ✓ (commits `4640a1a7` 2.1, `45b1fb40` 2.2, `0c07923a` 2.3) / verify ✓ (2026-09-11, `stages/2-dsp/round-a/VERIFICATION.md` — ✅ VERIFIED); Round B plan ✓ (2026-09-11, `stages/2-dsp/PLAN.md`); Round B execute ✓ (2026-09-12, `stages/2-dsp/SUMMARY.md`); **Round B verify ✓ (2026-09-12, `stages/2-dsp/VERIFICATION.md` — ✅ VERIFIED, stage verdict: `--gate all` 135 / 135 from `/` (109.1 s) and the repo root (110.0 s), H6 Bandlimited 127 / 127 sounding rows ≤ −90 dB, H7 2× delta 4.19 / 4.38 %, pluginval ×2 + auval green, params.tsv diff empty; all 19 stage-2 requirement rows complete). STAGE 2 COMPLETE — Stage 3 (GUI) discuss next.** Stage 1 second pass complete (discuss ✓ research ✓ plan ✓ execute ✓ verify ✓, 2026-09-10). Stage 0 v2 is complete (ARCHITECTURE / ROADMAP v2, mockup v2 finalised + scaffolded, `parameter-spec.md` v2 locked); the baked-geometry design is superseded (`superseded-baked-v1/README.md`) and its tables ship as an O-Prism factory bank.
 Status: `stages/1-foundation/VERIFICATION.md` (second pass) — **✅ VERIFIED**, COMPAT-01 complete; every SUMMARY figure re-measured (param-dump byte-identical, ID diff −2 +34 +20 / 151 identical, pluginval ×2 SUCCESS, auval SUCCEEDED, smoke 62/0, all UI gates at baseline). Harness note: `strata-smoke` must run from the repo root (fixture path is cwd-relative). The binary exposes **205** parameters (params.tsv diff vs O-Prism v1.24.0: −2 `osc?Table`, +34, 20 rows changed in place), 46 mod destinations, `terrainImports` state child, 8 combo relays, factory bank = `Init` only (stale 192-preset bank removed from `~/Library/O-Strata/Presets`); pluginval strictness 10 SUCCESS VST3 + AU, auval SUCCEEDED (COMPAT-01); smoke harness 62/62 (checks [1]–[6], incl. the D3 route check with `Pitch` positive control); UI gates equal the first-pass baseline (page byte-identical). Harness finding: the placeholder's random start phase is seeded from the oscillator address, so sample-identical comparisons need `osc?Phase > 0` (pinned in the harness).
 Progress: [#################...] 85% (fork + rename + strip verified; architecture + plan done; mockup v2 + spec locked; Stage 1 second pass verified; Stage 2 VERIFIED (Rounds A + B) — live oscillator, Bandlimited mode, PNG path on the DSP side, every H1–H11 gate green; Stage 3 GUI next)
 
@@ -82,6 +82,18 @@ Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guard
 | execute (Round B) | ✓ | 2026-09-12 | `stages/2-dsp/SUMMARY.md` — Tasks 1–16; commits Phase 2.4 (`ChebyshevSet` / `ChebyshevProjector` / `TerrainScheduler` / `Retirable.h` / `TerrainImage` type, oscillator Chebyshev path + taper + set crossfade, harness pump / H6 Bandlimited / scheduler / storm / clenshaw) and Phase 2.5 (import API, scheduler image side, `import` / H10 / H11 / H8 image rows, README H1–H11, CHANGELOG "Known limits — Bandlimited mode"); H6 Bandlimited 127 / 127 sounding rows ≤ −90 dB (17 A6 rows muted by truncation — finding), H7 Bandlimited delta ≈ 11.7 % (reported, under the 12 % fallback line), storm 0 allocations / click ratio 1.02–1.15 / liveCount 2, import 26 ms at 1024², H10 identical, H11 ≤ −58 dB with the tiling control at −24 dB; pluginval ×2 + auval green; params.tsv diff empty. Deviations: Chebyshev output not clamped; Mitsuhashi fit 98.3 / 87.6 %; ASan runtime hangs at init on this toolchain (instance counters carry the leak verdict); `.gitignore` gained `build-asan/` |
 | verify (Round B) | ✓ | 2026-09-12 | `stages/2-dsp/VERIFICATION.md` — ✅ VERIFIED (stage verdict); every SUMMARY figure re-measured (`--gate all` 135 / 135 from `/` and the repo root, 109.1 / 110.0 s; H6 Bandlimited 127 / 127 ≤ −90 dB worst −98.4 dB, 17 muted rows = exactly the law's prediction; H7 2× 4.19 / 4.38 %, Bandlimited 11.61 / 12.06 % reported; storm 0 alloc, ratio ≤ 1.16, liveCount 2; import 26.3 ms; H11 ≤ −58 dB, control −24.4 dB; H10 identical; pluginval ×2 SUCCESS, auval SUCCEEDED; params.tsv diff empty; 0 warnings in the new files). Rulings: muted rows = documented limit (optional Stage 4 / v1.1 discuss item with the soft knee); H7 Bandlimited ≈ 12 % → Stage 4 PERF item (vectorised basis); ASan = toolchain limit, instance counters are the verdict; FUNC-06 acceptance re-worded (≤ D_max·K, A-notes). FUNC-06 / DSP-02 / DSP-04 / QUAL-01 → complete; FUNC-07 DSP half + FUNC-08 bytes half verified for their stages |
 
+### Stage 3: GUI — two rounds (CONTEXT D1); Round A = 3.1 shell re-fork + panels + readout + ≋ + i18n, Round B = 3.2 3D view / pushes + 3.3 interaction / import
+| Phase | Status | Date | Notes |
+|-------|--------|------|-------|
+| discuss | ✓ | 2026-09-12 | `stages/3-gui/CONTEXT.md` — D1 ROADMAP split as two rounds (Round A artifacts → `round-a/` after verify); D2 WebView2 halves of UI-01 / PERF-03 / FUNC-07 → Phase 4.2 (REQUIREMENTS rows annotated); D3 readout form `Bandlimited · N partials at C4 · silent above <note>` from a scheduler-owned top-note atomic + `label.silentAbove`; D4 O-Prism `min-width: 0` port = separate `/improve`. Findings: v1.24.0 page with no terrain controls, stubs at `PluginEditor.cpp:481/486` + `evaluateJavascript` at `:806`, template §7 API absent (map onto the Stage 2 atomics / ring / `TerrainImage::view`), shared ring across voices, O-Prism stable at `4f12ef57`. 12 research items |
+| research | → | | |
+| plan (Round A) | | | |
+| execute (Round A) | | | |
+| verify (Round A) | | | |
+| plan (Round B) | | | |
+| execute (Round B) | | | |
+| verify (Round B) | | | |
+
 ## Stage 0 decisions (summary — full table in `stages/0-ideation/CONTEXT.md`)
 
 - Terrain formulas use the **πF convention**; defaults c = (0.13, 0.21), aspect 0.7, r = 0.5, F = 1 measured h1 = 0 dB (symmetry gate passes); the gate is not monotone in F, so every factory preset is gated individually.
@@ -97,7 +109,7 @@ Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guard
 1. ~~Play Aaron Anderson's *Terrain* before Stage 2~~ **skipped by decision (Stage 2 CONTEXT D3)** — the Phase 2.3 WAV grid and the Stage 4 QUAL-04 listening pass are the listening material; the raw-feedback blend stays an internal fallback.
 2. ~~**UI mockup v2:** `design UI for O-Strata` (ui-mockup skill) from BRIEF §UI Concept and ARCHITECTURE "Parameter Mapping" → finalise → `parameter-spec.md` v2 locked; then set `mockup_finalized: true`, `ready_for_implementation: true` here.~~ **Done 2026-09-10** — mockup v2 finalised and scaffolded; `parameter-spec.md` v2 locked (sha256 in `contract_checksums`); `ready_for_implementation: true`.
 3. ~~Stage 1 second pass: `/plugin-discuss O-Strata 1-foundation`~~ **verified 2026-09-10** (`stages/1-foundation/VERIFICATION.md`).
-4. ~~`/plugin-discuss O-Strata 2-dsp`~~ **done 2026-09-10**; ~~`/plugin-research O-Strata 2-dsp`~~ **done 2026-09-11**; ~~Round A plan / execute / verify~~ **done 2026-09-11**; ~~`/plugin-plan O-Strata 2-dsp` (Round B)~~ **done 2026-09-11**; ~~`/plugin-execute O-Strata 2-dsp` (Round B)~~ **done 2026-09-12** (`stages/2-dsp/SUMMARY.md`, two commits). ~~`/plugin-verify O-Strata 2-dsp` (Round B)~~ **done 2026-09-12** (`stages/2-dsp/VERIFICATION.md` ✅ VERIFIED — Stage 2 complete). **Next:** `/plugin-discuss O-Strata 3-gui` — Stage 3 GUI; carried items: muted Bandlimited rows + soft knee (optional Stage 4 / v1.1 discuss), vectorised Chebyshev basis (Stage 4 PERF), ASan re-run when the toolchain allows.
+4. ~~`/plugin-discuss O-Strata 2-dsp`~~ **done 2026-09-10**; ~~`/plugin-research O-Strata 2-dsp`~~ **done 2026-09-11**; ~~Round A plan / execute / verify~~ **done 2026-09-11**; ~~`/plugin-plan O-Strata 2-dsp` (Round B)~~ **done 2026-09-11**; ~~`/plugin-execute O-Strata 2-dsp` (Round B)~~ **done 2026-09-12** (`stages/2-dsp/SUMMARY.md`, two commits). ~~`/plugin-verify O-Strata 2-dsp` (Round B)~~ **done 2026-09-12** (`stages/2-dsp/VERIFICATION.md` ✅ VERIFIED — Stage 2 complete). ~~`/plugin-discuss O-Strata 3-gui`~~ **done 2026-09-12** (`stages/3-gui/CONTEXT.md`). **Next:** `/plugin-research O-Strata 3-gui` — 12 research items, then Round A plan (Phase 3.1); carried items: O-Prism v1.26.1 octave-stretch port (separate `/improve`), WebView2 evidence (Phase 4.2), muted Bandlimited rows + soft knee (optional Stage 4 / v1.1 discuss), vectorised Chebyshev basis (Stage 4 PERF), ASan re-run when the toolchain allows.
 5. ~~Answer the four open questions in `stages/0-ideation/CONTEXT.md`~~ **all closed 2026-09-10**: PERF-02 → oscillator delta (REQUIREMENTS amended); *Terrain* listening skipped (Decisions 1 / 3 stand); F-lattice v1.1; host strings closed by the mockup v2 lock.
 
 ## Context to Preserve
@@ -113,5 +125,6 @@ Full `Strata` rename, wavetable library/editor removed, `JUCE_WEB_BROWSER`-guard
 - plugins/O-Strata/Source/** (fork, spec v2 parameter set — 205 params, live terrain oscillator at 2× since Round A: `dsp/TerrainOscillator.*`, `Orbits.h`, `Terrains.h`, `HalfbandDecimator.h`; **Round B:** `dsp/Retirable.h`, `ChebyshevSet.h`, `ChebyshevProjector.*`, `TerrainScheduler.*`, `TerrainImage.*`, the processor import API + readout atomics), CMakeLists.txt (render-test target, `JUCE_MODAL_LOOPS_PERMITTED`, ASan option), tests/render-harness/** (harness H1–H11, reference headers, fixture, golden .sha256), CHANGELOG.md, .planning/params.tsv (205 rows, current binary, unchanged by Rounds A / B); root `.gitignore` (`build-asan/`)
 - plugins/O-Strata/.planning/{BRIEF.md, REQUIREMENTS.md, parameter-spec-draft.md} (v2, 2026-09-08); parameter-spec.md (v2 locked, 2026-09-10); mockups/{v2-ui.yaml, v2-ui-test.html, v2-ui.html, v2-PluginEditor-TEMPLATE.h, v2-PluginEditor-TEMPLATE.cpp, v2-CMakeLists-SNIPPET.txt, v2-integration-checklist.md, img/}
 - plugins/O-Strata/.planning/research/ARCHITECTURE.md, ROADMAP.md, stages/0-ideation/CONTEXT.md (v2, 2026-09-08); stages/2-dsp/CONTEXT.md (2026-09-10), RESEARCH.md (2026-09-11), round-a/{PLAN,SUMMARY,VERIFICATION}.md (Round A, 2026-09-11), PLAN.md (Round B, 2026-09-11), SUMMARY.md (Round B, 2026-09-12), VERIFICATION.md (Round B + stage verdict, 2026-09-12); REQUIREMENTS.md (DSP-01 amended 2026-09-11; FUNC-06 / DSP-02 / DSP-04 / QUAL-01 complete + FUNC-06 acceptance amended 2026-09-12)
+- plugins/O-Strata/.planning/stages/3-gui/CONTEXT.md (2026-09-12); REQUIREMENTS.md (UI-01 / PERF-03 / FUNC-07 WebView2 note 2026-09-12)
 - plugins/O-Strata/.planning/superseded-baked-v1/** ; .planning/evidence/*.md (WAVs gitignored)
 - PLUGINS.md (row 🚧 Stage 2 — Round B executed, 2026-09-12)
