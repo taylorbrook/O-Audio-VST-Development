@@ -130,6 +130,9 @@ if(OUARICON_BUILD_TESTS)
 
     option(STRATA_HARNESS_ASAN "AddressSanitizer on O-Strata-render-test only (Round B)" OFF)
     if(STRATA_HARNESS_ASAN)
+        # The harness compiles its operator-new family out under this define (ASan owns
+        # the allocator); H8-style rows print "skipped under ASan" (plan Decision 43).
+        target_compile_definitions(O-Strata-render-test PRIVATE STRATA_HARNESS_ASAN=1)
         target_compile_options(O-Strata-render-test PRIVATE -fsanitize=address -fno-omit-frame-pointer)
         target_link_options(O-Strata-render-test PRIVATE -fsanitize=address)
     endif()

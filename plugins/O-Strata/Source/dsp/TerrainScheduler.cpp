@@ -33,6 +33,7 @@
 #include "TerrainScheduler.h"
 #include "ChebyshevProjector.h"
 #include "Orbits.h"
+#include "TerrainImage.h"
 #include "../PluginProcessor.h"
 #include <chrono>
 #include <thread>
@@ -84,7 +85,28 @@ struct TerrainScheduler::ImageJob final : juce::ThreadPoolJob
     ImageJob (TerrainScheduler& s, int o, const ImageKey& k)
         : juce::ThreadPoolJob ("O-Strata image"), scheduler (s), osc (o), key (k) {}
 
-    JobStatus runJob() override;
+    JobStatus runJob() override
+    {
+        if (shouldExit() || cancel.load())
+            return jobHasFinished;
+        jassert (! scheduler.processor.isInsideProcessBlockOnThisThread());   // plan Decision 39
+
+        auto built = scheduler.buildImage (osc, key, &cancel);
+        if (built == nullptr || shouldExit() || cancel.load())
+            return jobHasFinished;
+
+        auto box = std::make_shared<std::unique_ptr<TerrainImage>> (std::move (built));
+        std::weak_ptr<AliveToken> weak = scheduler.alive;
+        TerrainScheduler* s = &scheduler;
+        const int o = osc;
+        juce::MessageManager::callAsync ([weak, s, o, box]
+        {
+            if (auto a = weak.lock())
+                s->publishImage (o, std::move (*box));
+        });
+        scheduler.jobsCompleted.fetch_add (1);
+        return jobHasFinished;
+    }
 
     TerrainScheduler& scheduler;
     int osc;
@@ -380,10 +402,74 @@ void TerrainScheduler::publishForHarness (int osc, std::unique_ptr<ChebyshevSet>
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Image side — Phase 2.5 (Task 11) fills these in
+// Image side (ARCH Core 8; plan Decisions 32, 35–38)
 // ═══════════════════════════════════════════════════════════════════
 
-bool TerrainScheduler::buildImageKey (int, ImageKey&) { return false; }
-void TerrainScheduler::importInline (int, const ImageKey&) {}
-void TerrainScheduler::submitImage (int, const ImageKey&) {}
-juce::ThreadPoolJob::JobStatus TerrainScheduler::ImageJob::runJob() { return jobHasFinished; }
+bool TerrainScheduler::buildImageKey (int osc, ImageKey& out)
+{
+    // Hashed whenever an import exists (not only while the terrain is Imported), so
+    // the image is ready when the user switches — plan Task 11's recorded decision.
+    const int revision = processor.importRevision[osc].load (std::memory_order_acquire);
+    if (revision <= 0)
+        return false;
+    out.revision = revision;
+    out.blurQ = static_cast<int> (std::lround (juce::jlimit (0.0f, 1.0f, pBlur[osc]->load()) * 1024.0f));
+    out.edge = juce::jlimit (0, 1, static_cast<int> (pEdge[osc]->load()));
+    return true;
+}
+
+std::unique_ptr<TerrainImage> TerrainScheduler::buildImage (int osc, const ImageKey& key, const std::atomic<bool>* cancel)
+{
+    const auto slot = processor.getImportSlotCopy (osc);
+    if (slot.decoded == nullptr || slot.revision != key.revision)
+        return nullptr;   // superseded by a newer import
+    return TerrainImage::build (slot.decoded, static_cast<float> (key.blurQ) / 1024.0f, static_cast<EdgeMode> (key.edge),
+                                key.revision, slot.name, slot.sha256, cancel);
+}
+
+void TerrainScheduler::submitImage (int osc, const ImageKey& key)
+{
+    auto job = std::make_unique<ImageJob> (*this, osc, key);
+    image[osc].inFlight = job.get();
+    pool.addJob (job.get(), false);
+    jobs.push_back (std::move (job));
+
+    int live = 0;
+    for (const auto& j : jobs)
+        if (auto* ij = dynamic_cast<ImageJob*> (j.get()))
+            if (ij->osc == osc && ! ij->cancel.load()) ++live;
+    if (live > jobsInFlightMax[osc].load()) jobsInFlightMax[osc].store (live);
+}
+
+void TerrainScheduler::importInline (int osc, const ImageKey& key)
+{
+    jassert (! processor.isInsideProcessBlockOnThisThread());
+    publishImage (osc, buildImage (osc, key, nullptr));
+}
+
+void TerrainScheduler::publishImage (int osc, std::unique_ptr<TerrainImage> img)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+    if (img == nullptr) return;
+    auto& s = image[osc];
+    const ImageKey key { img->cheb.key.imageRevision, static_cast<int> (std::lround (img->blur * 1024.0f)), static_cast<int> (img->edge) };
+    if (! s.seenValid || key != s.lastSeen || (s.publishedValid && key == s.lastPublished))
+    {
+        resultsDropped.fetch_add (1);
+        return;
+    }
+    s.lastPublished = key; s.publishedValid = true;
+    processor.imageFit[osc].store (img->fit, std::memory_order_relaxed);
+    const TerrainImage* old = processor.imagePtr[osc].exchange (img.release(), std::memory_order_acq_rel);
+    processor.retire (std::unique_ptr<Retirable> (const_cast<TerrainImage*> (old)));
+    processor.imageGeneration[osc].fetch_add (1, std::memory_order_release);
+    // Bandlimited + Imported: the image's embedded set IS the oscillator's set — mirror the readouts
+    if (static_cast<int> (pQuality[osc]->load()) == static_cast<int> (Quality::Bandlimited)
+        && juce::jlimit (0, 6, static_cast<int> (pTerrain[osc]->load())) == static_cast<int> (TerrainKind::Imported))
+    {
+        processor.chebFit[osc].store (processor.imageFit[osc].load (std::memory_order_relaxed), std::memory_order_relaxed);
+        processor.chebGeneration[osc].fetch_add (1, std::memory_order_release);
+    }
+    processor.publishCount.fetch_add (1, std::memory_order_release);
+    ++publishedThisPoll;
+}

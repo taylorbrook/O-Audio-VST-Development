@@ -50,7 +50,7 @@
 #include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 #include <thread>
 
-struct TerrainImage;   // dsp/TerrainImage.h (Phase 2.5)
+#include "dsp/TerrainImage.h"
 
 class OStrataAudioProcessor : public juce::AudioProcessor,
                              private juce::Timer,
@@ -151,6 +151,31 @@ public:
     std::atomic<int>   publishCount { 0 };                    // prepareToPlay / setStateInformation publish nothing (harness)
 
     TerrainScheduler& getTerrainScheduler() { return terrainScheduler; }
+
+    // ─── PNG import API (ARCH Core 8; plan Decision 38; FUNC-07 DSP half) ───
+    // Message thread. Decodes once (a 1024² decode is a few ms — a user gesture),
+    // stores bytes + name + SHA-256 + the decoded luminance in importSlot[osc] and
+    // bumps importRevision[osc]; the scheduler's image side projects and publishes.
+    // Returns false (nothing changes, no notice — QUAL-03 is Stage 4) when the file
+    // is missing or the bytes do not decode. NEVER touches a parameter: Stage 3's
+    // UI selects `Imported`. Stage 4 persists the slot in the terrainImports child.
+    bool importTerrainImage (int osc, const juce::MemoryBlock& pngBytes, const juce::String& name);
+    bool importTerrainFile (int osc, const juce::File& file);
+
+    struct ImportSlot
+    {
+        juce::MemoryBlock bytes;
+        juce::String name, sha256;
+        std::shared_ptr<const DecodedImage> decoded;
+        int revision = 0;
+    };
+    /** A copy of the slot (message thread; Stage 4 persistence, the scheduler's job source). */
+    ImportSlot getImportSlotCopy (int osc) const
+    {
+        const juce::ScopedLock sl (importLock);
+        return importSlot[juce::jlimit (0, 1, osc)];
+    }
+    std::atomic<int> importRevision[2] { 0, 0 };
 
     /** True while processBlock is running AND the caller is the thread running it
         (plan Decision 39: jobs assert the negation). */
@@ -377,6 +402,9 @@ private:
     void timerCallback() override;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    ImportSlot importSlot[2];
+    juce::CriticalSection importLock;
 
     // processBlock bookkeeping for isInsideProcessBlockOnThisThread() (plan Decision 39)
     std::atomic<bool> insideProcessBlock { false };

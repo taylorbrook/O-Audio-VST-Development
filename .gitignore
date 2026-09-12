@@ -85,6 +85,8 @@ plugins/O-Bowed/tests/render-harness/golden/canonical-preset.wav
 build/
 Build/
 build-release/
+# O-Strata Round B: AddressSanitizer harness build dir (plugins/O-Strata/tests/render-harness/README.md)
+build-asan/
 cmake-build-*/
 out/
 bin/

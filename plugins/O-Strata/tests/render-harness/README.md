@@ -81,8 +81,35 @@ oscillator A for `--print-only`), `--print-only`, `--with-disk`.
 |---|---|---|---|
 | `clenshaw` | (Decision 25) | 1e6 dependency-carried `clenshaw2D` evaluations on a random 153-float set | ns per evaluation reported |
 | `scheduler` | DSP-02, PERF-01 | (a) fit % per terrain at F = 1 / 2 vs the Task 3 scratch table and one-sided vs ARCH; (b) Terrain Freq 4 → key F = 2, coefficients memcmp-equal to the F = 2 set; (c) *pumps*: ModWheel → OscA Terrain Freq (amount 0.5), CC1 0 → 127 through `processBlock`, pumped in 10 ms slices until `chebGeneration[0]` advances; (d) LFO1 → OscA Terrain Mod X renders bit-identical in Bandlimited and differs in 2×; (e) `chebApproximate` for Ellipse / Feedback 0.3 / Superellipse / Feedback routed; (f) *pumps*: `prepareToPlay` ×2 + `setStateInformation` at the default patch; (g) *pumps*: the timer's set vs the sync set; (h) `chebPartialsAtC4` Ellipse / Epitrochoid 7 | scratch ± 0.5 %, ≥ ARCH − 2 %; F = 2 + identical; ≤ 120 ms; identical / > 1e−3; 0 / 1 / 1 / 1; `publishCount` 0; memcmp-equal; 16 / 80 |
+| `import` | FUNC-07 (DSP half), PERF-01 | fixtures synthesised in-process (`makeHardEdgedPng` 512²: gradient 0.2 → 0.8 left → right, a hard step to a 0.05 band at u < −0.6, mild vertical gradient; `makeTimingPng` 1024²: gradient + 16-px checker); (a) `importTerrainImage` → Terrain = Imported renders non-silent through the sync path and differs from Sine Product; slot carries name + SHA-256; (b) Blur 0 / .25 / .5 / .75 / 1 on the checker: centroid non-increasing (one publish per value); (c) Mirror vs Window at r = 1 (Centre 0.6, Size 1, Aspect 1, F 1): centroid ≥ 5 % or a partial ≥ 3 dB apart; (d) 1024² at Blur 1: decode, blur + projection + view, sync-path import, best of 3; (e) *pumps*: an async import pending during a 1 s render, `pump (5)` between blocks, `publishCount` sampled before and after every `processBlock`; (f) `importTerrainFile (missing)` → false, `imagePtr` null; undecodable bytes → false; (g) *pumps*: async import through the timer + pool | rms > 1e−3; monotone; ≥ 5 % / ≥ 3 dB; decode + build ≤ 100 ms; 0 in-block changes, ≥ 1 between; false; `imageGeneration` = 1 |
+| H11 | DSP-04 (edge half) | hard-edged 512², **Mirror** and **Window**, Centre X 0.6 / Size 1 / Aspect 1 / F 1 (the orbit crosses the right border), 2×, unity gain, tap, Blur 0.2 and Blur 0: level of the strongest partial h ≥ 32 relative to h1 (Hann 32768, 1 s); negative control `harnessEdgeOverride[0] = 100` (HarnessWrap = periodic tiling) at Blur 0; Bandlimited + image: Ellipse, sync, A4 exact-cycle on the embedded set | ≤ −40 dB ×4; control > −40 dB; nonharm/max ≤ −90 dB, fit printed |
+| H10 | FUNC-08 (bytes half) | two instances fed identical 512² bytes, Terrain = Imported, sync path, Phase 0.25 + seed, 1 s at C4: SHA-256 of the sample bytes; a third instance on Sine Product (the library fallback) | identical; differs |
 | `storm` | PERF-01, DSP-05, ROADMAP 2.4 | *pumps*: Bandlimited (both oscillators), 16 held notes, 5 s, block 480, unity gain, tap; `oscATerModX` stepped 0.05 every 20 ms from 0.5 s, `pump (10)` between blocks (real-time pacing so the 50 ms cadence is exercised), armed around every `processBlock`; `chebGeneration[0]` read before every block; then 40 more blocks with `pump (50)` and `pump (700)` ×2 so the reaper runs. A second storm on a single C4 note carries the click metric (a one-voice swap click would hide under a 16-voice sum): max step outside the 64-sample windows after each swap over [0.5, 5) s vs the plateau max step over [0.1, 0.5) s | 0 allocations; finite; ≥ 20 swaps; every free ≥ 2 block generations after its retire (FIFO); `liveCount` = 2 and `retired` = 0 after the drain; ≤ 1 non-cancelled job in flight; superseded keys + cancelled jobs > 0; click ratio ≤ 1.5 |
 
+## AddressSanitizer run (Round B, plan Decision 43)
+
+A separate build directory at the repo root (`build-asan/`, gitignored), Release, harness
+only. The operator-new family is compiled out under `STRATA_HARNESS_ASAN` (ASan owns the
+allocator), so the H8-style rows print `skipped under ASan`; the leak verdict is the
+instance counters (`ChebyshevSet::liveCount`, `TerrainImage::liveCount`) after the reaper
+drains — LSan is unavailable on Apple Silicon. Commands, executable as written from any
+directory:
+
+```bash
+cmake -S /Users/taylorbrook/Dev/VST-development -B /Users/taylorbrook/Dev/VST-development/build-asan -G Ninja -DCMAKE_BUILD_TYPE=Release -DOUARICON_BUILD_TESTS=ON -DSTRATA_HARNESS_ASAN=ON
+cmake --build /Users/taylorbrook/Dev/VST-development/build-asan --target O-Strata-render-test
+A=/Users/taylorbrook/Dev/VST-development/build-asan/plugins/O-Strata/O-Strata-render-test_artefacts/Release/O-Strata-render-test
+ASAN_OPTIONS=detect_leaks=0 $A --gate storm --gate scheduler --gate import --gate H10 --gate H11 --gate H8 --gate smoke
+```
+
+**Status 2026-09-12 (Round B execute):** the configuration builds (`build-asan/`, 102 steps,
+0 errors) but the binary never reaches `main` on macOS 26 / Darwin 25.6 with Xcode 26.3's
+clang 17 runtime — `sample` shows it spinning in `__asan::InitializeShadowMemory →
+__sanitizer::MemoryMappingLayout::Next → dyld_shared_cache_iterate_text_swift` for > 10 min,
+with and without `MallocNanoZone=0`. Recorded as a toolchain limit, not a harness defect;
+re-run on a toolchain where the runtime initialises. The leak verdict in the meantime is the
+instance-counter rows (`storm`: `ChebyshevSet::liveCount` = 2 / `retired` = 0 after the reaper;
+H8 image row: `TerrainImage::liveCount` printed).
 ## Allocation counter coverage (H8)
 
 Measured via the replaced `operator new` family (copied from O-Octagon's probe AO with its
@@ -96,14 +123,16 @@ the five tuning parameters are never touched while armed.
 
 `harnessPhaseSeed`, `harnessFeedbackPathEnabled`, `harnessTerrainKernelBypass`,
 `harnessSingleSampleFeedback`, `harnessPreFilterTap`, `harnessSaturationBypass`,
-`harnessDcBlockerBypass`, `harnessRampSeconds`, `harnessTerrainOverride[2]` — see
-`PluginProcessor.h`. Diagnostics: `STRATA_H1_DUMP=1` prints the H1 error envelope,
+`harnessDcBlockerBypass`, `harnessRampSeconds`, `harnessTerrainOverride[2]`,
+`harnessChebyshevBypass`, `harnessEdgeOverride[2]` — see `PluginProcessor.h`. Harness-only
+entry points on the scheduler: `runOnceSynchronously()`, `publishForHarness()`. Diagnostics: `STRATA_H1_DUMP=1` prints the H1 error envelope,
 `STRATA_H3_DUMP=1` a 2 s DC trace for every H3 DC failure.
 
 ## Files
 
 `main.cpp` (single TU), `reference/theta_reference.h` (θ pipeline copied from the deleted
 wavetable oscillator at `efae0bfc`), `reference/spectrum.h` (FFT / exact-cycle / windowed
-helpers adapted from the terrain bench's own code), `fixtures/test-tunings/just-major.scl`,
+helpers adapted from the terrain bench's own code), `fixtures/test-tunings/just-major.scl`
+(the PNG fixtures are synthesised in-process — none is committed),
 `golden/*.sha256` (tracked; WAVs and JSON are gitignored via `tests/.gitignore`),
 `tests/exports/` (gitignored).
