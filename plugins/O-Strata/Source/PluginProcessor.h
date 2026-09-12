@@ -38,6 +38,9 @@
 #include "StrataSound.h"
 #include "StrataVoice.h"
 #include "dsp/TerrainOscillator.h"
+#include "dsp/Retirable.h"
+#include "dsp/ChebyshevSet.h"
+#include "dsp/TerrainScheduler.h"
 #include "dsp/DistortionProcessor.h"
 #include "dsp/DelayProcessor.h"
 #include "dsp/ReverbProcessor.h"
@@ -45,6 +48,9 @@
 #include "dsp/EnsembleChorus.h"
 #include "OuariconPresetManager.h"
 #include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
+#include <thread>
+
+struct TerrainImage;   // dsp/TerrainImage.h (Phase 2.5)
 
 class OStrataAudioProcessor : public juce::AudioProcessor,
                              private juce::Timer,
@@ -122,11 +128,42 @@ public:
     std::atomic<bool>  harnessPreFilterTap { false };        // H1 / H6 signal tap (plan Decision 3)
     std::atomic<bool>  harnessSaturationBypass { false };    // DSP-07 memcmp control
     std::atomic<bool>  harnessDcBlockerBypass { false };     // H3 |y| <= 1 row reads the pre-blocker scan bound
+    std::atomic<bool>  harnessChebyshevBypass { false };     // Bandlimited = the analytic 1x path (H6 "1x" column, H1; plan Decision 30)
     std::atomic<float> harnessRampSeconds { 0.005f };        // H5 negative control (0 s ⇒ stepped)
     std::atomic<int>   harnessTerrainOverride[2] { -1, -1 }; // TerrainKind forced per oscillator (−1 = parameter)
+    std::atomic<int>   harnessEdgeOverride[2] { -1, -1 };    // EdgeMode forced per oscillator (100 = HarnessWrap, H11 control)
 
     void setHarnessPhaseSeed (uint32_t s) { harnessPhaseSeed.store (s, std::memory_order_relaxed); }
     uint32_t getHarnessPhaseSeed() const { return harnessPhaseSeed.load (std::memory_order_relaxed); }
+
+    // ─── Round B: published terrain objects + readout atomics (plan Decisions 33, 34) ───
+    // Written by TerrainScheduler::publish* on the message thread; load-acquired once
+    // per block by updateOscillatorAssignments() and handed to every voice. Old objects
+    // go through retire(). Data only — nothing pushes them until Stage 3.
+    std::atomic<const ChebyshevSet*> chebPtr[2]  { nullptr, nullptr };
+    std::atomic<const TerrainImage*> imagePtr[2] { nullptr, nullptr };
+    std::atomic<int>   chebGeneration[2]   { 0, 0 };
+    std::atomic<float> chebFit[2]          { 0.0f, 0.0f };   // 0–100 %
+    std::atomic<int>   chebPartialsAtC4[2] { 0, 0 };         // min (16, D_max (C4, fs)) · K_nominal
+    std::atomic<bool>  chebApproximate[2]  { false, false }; // orbitK == 0 || Feedback > 0 || Feedback routed
+    std::atomic<int>   imageGeneration[2]  { 0, 0 };
+    std::atomic<float> imageFit[2]         { 0.0f, 0.0f };
+    std::atomic<int>   publishCount { 0 };                    // prepareToPlay / setStateInformation publish nothing (harness)
+
+    TerrainScheduler& getTerrainScheduler() { return terrainScheduler; }
+
+    /** True while processBlock is running AND the caller is the thread running it
+        (plan Decision 39: jobs assert the negation). */
+    bool isInsideProcessBlockOnThisThread() const
+    {
+        return insideProcessBlock.load (std::memory_order_acquire)
+            && audioThreadHash.load (std::memory_order_relaxed) == std::hash<std::thread::id>{} (std::this_thread::get_id());
+    }
+
+    /** Message thread: park an object the audio thread may still read (see dsp/Retirable.h). */
+    void retire (std::unique_ptr<Retirable> object);
+    int getRetiredCount() const { return static_cast<int> (retired.size()); }   // harness (message thread)
+    uint64_t getBlockGeneration() const { return blockGeneration.load (std::memory_order_acquire); }
 
     /** Core 10 rings (0 = A, 1 = B); written by the display voice, read by Stage 3. */
     const CycleCapture& getCycleCapture (int oscIndex) const { return cycleCapture[juce::jlimit (0, 1, oscIndex)]; }
@@ -317,32 +354,37 @@ private:
     std::array<double, 4> globalLfoPhase {};
     void advanceGlobalLfoPhases (int numSamples, double sampleRate);
 
-    /** Round B: publishes chebPtr[] / imagePtr[] into the voices (the renamed
-        wavetable-assignment step). Round A: empty body, called every block. */
+    /** Publishes chebPtr[] / imagePtr[] into the voices once per block (the renamed
+        wavetable-assignment step; plan Decision 33). */
     void updateOscillatorAssignments();
+    void releasePublishedImages();   // destructor helper (Phase 2.5)
 
     // ─── Retired-object reaper (ARCH Decision 6: type-erased) ───
-    // An object the audio thread may still be reading (Round B: a ChebyshevSet
-    // or a TerrainImage) is never freed in place: it is parked here (message
-    // thread only) stamped with the current block generation, and freed by the
-    // timer only after the generation has advanced ≥ 2 — guaranteeing a full
-    // processBlock has started and finished since the pointer was unpublished,
-    // so no voice still references it. Same class of fix as O-MicrotonalSampler v1.23.2.
+    // A ChebyshevSet or a TerrainImage the audio thread may still be reading is
+    // never freed in place: it is parked here (message thread only) stamped with
+    // the current block generation, and freed by the timer only after the
+    // generation has advanced ≥ 2 — guaranteeing a full processBlock has started
+    // and finished since the pointer was unpublished, so no voice still references
+    // it (the full argument lives in dsp/Retirable.h). Same class of fix as
+    // O-MicrotonalSampler v1.23.2.
     std::atomic<uint64_t> blockGeneration { 0 };
-    struct Retirable
-    {
-        virtual ~Retirable() = default;
-    };
     struct Retired
     {
         std::unique_ptr<Retirable> object;
         uint64_t retiredAt = 0;
     };
     std::vector<Retired> retired;   // message thread only
-    void retire (std::unique_ptr<Retirable> object);   // message thread
     void timerCallback() override;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // processBlock bookkeeping for isInsideProcessBlockOnThisThread() (plan Decision 39)
+    std::atomic<bool> insideProcessBlock { false };
+    std::atomic<size_t> audioThreadHash { 0 };
+
+    // LAST data member on purpose: destroyed first, and the destructor calls
+    // terrainScheduler.shutdown() before anything else (plan Decision 32).
+    TerrainScheduler terrainScheduler { *this };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OStrataAudioProcessor)
 };

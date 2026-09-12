@@ -29,6 +29,9 @@ target_sources(O-Strata
         Source/EmbeddedTunings.cpp
         Source/TuningExporter.cpp
         Source/dsp/TerrainOscillator.cpp
+        Source/dsp/ChebyshevProjector.cpp
+        Source/dsp/TerrainScheduler.cpp
+        Source/dsp/TerrainImage.cpp
         Source/dsp/SubOscillator.cpp
         Source/dsp/NoiseGenerator.cpp
         Source/dsp/SVFFilter.cpp
@@ -122,7 +125,8 @@ if(OUARICON_BUILD_TESTS)
     # Fixtures resolve from the source tree, never from cwd (Stage 1 trap).
     target_compile_definitions(O-Strata-render-test PRIVATE
         STRATA_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/render-harness/fixtures"
-        STRATA_EXPORTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/exports")
+        STRATA_EXPORTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/exports"
+        JUCE_MODAL_LOOPS_PERMITTED=1)   # Round B: the harness's single bounded message-loop pump (plan Decision 40)
 
     option(STRATA_HARNESS_ASAN "AddressSanitizer on O-Strata-render-test only (Round B)" OFF)
     if(STRATA_HARNESS_ASAN)

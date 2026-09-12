@@ -7,6 +7,49 @@
 `O-Strata`, APVTS state identifier `OStrataParameters`, its own preset folder.
 O-Prism is untouched and the two plugins coexist in a host.
 
+Stage 2, Round B — Bandlimited mode + PNG terrain path (Phases 2.4–2.5, 2026-09-12):
+- **Bandlimited mode** (`osc?Quality` = Bandlimited): the terrain is a degree-16
+  Chebyshev triangle (153 coefficients, `dsp/ChebyshevSet.h`) evaluated per sample
+  by 2-D Clenshaw at 1×, truncated per voice to the diagonals D ≤ ⌊fs / (2·K·f) − 1⌋
+  with a continuous raised-cosine taper (K = the orbit's trigonometric degree;
+  h1 never mutes) — truncation is the mip, so nothing aliases: 127 / 127 sounding
+  exact-cycle rows ≤ −90 dB nonharm/max on the eight exact orbits. Coefficient
+  sets are projected off the audio thread by `dsp/TerrainScheduler` (50 ms poll,
+  2-thread pool, ModWheel / Aftertouch folded into the key, keys quantised to
+  1/1024), published by atomic pointer on the message thread, retired through
+  the type-erased reaper and crossfaded on arrival (64 base samples, equal-gain —
+  also analytic ↔ Chebyshev). The oscillator copies the tapered coefficients at
+  block start and never dereferences a set inside the sample loop. Readout
+  atomics for Stage 3: generation, fit %, partials at C4, approximate flag.
+- **PNG terrain path (DSP side)**: `dsp/TerrainImage` decodes a PNG (box-downsampled
+  to ≤ 1024², luminance → [−1, 1]), pre-blurs it (3-pass box blur, σ = Blur·W/32 px,
+  mirror-padded), embeds its own Chebyshev set projected at F = 1 for Bandlimited
+  mode, and is read bilinearly with **Mirror** (even reflection) or **Window**
+  (raised-cosine) edge handling. Import API on the processor:
+  `importTerrainImage (osc, bytes, name)` / `importTerrainFile (osc, file)` (message
+  thread; never touches a parameter; missing / undecodable → false). Blur / Edge
+  changes re-run the job at a 150 ms cadence.
+- **Known limits — Bandlimited mode:** Terrain Freq is clamped to 0.25–2.0× in this
+  mode (one coefficient set per oscillator; the F-lattice is a v1.1 candidate —
+  REQUIREMENTS "Out of Scope"); Pitch Track is inert (truncation is the mip); the
+  three terrain destinations follow ModWheel / Aftertouch at the 20 Hz swap
+  cadence and ignore per-voice sources; Superellipse / Butterfly / Squarcle and
+  any Feedback > 0 are approximate (readout says so). Above ≈ A6 with a degree-6
+  or -8 orbit (Epitrochoid 5 / 7, Hypocycloid 7) only the linear diagonal survives
+  the truncation law, which is zero for an even terrain — those notes are silent
+  in Bandlimited mode (17 of the 144 gate rows; reported).
+- Harness: `--gate H6` gains the 144 Bandlimited rows; new `clenshaw`, `scheduler`,
+  `storm`, `import` gates and H10 / H11; the message loop is pumped by exactly one
+  call site (`pump`); an AddressSanitizer configuration (`build-asan/`) with
+  instance counters as the leak verdict.
+- Deviations from the plan: Cosine Wells' fit is re-measured at πF (99.99 / 98.63 %
+  at F = 1 / 2; the architecture's 98 / 76 % was the 2πF form); Mitsuhashi's fit is
+  98.3 / 87.6 % (its `tri()` wrap is piecewise-linear — the "≈ 100 %" was an
+  estimate); the Chebyshev value is not clamped to [−1, 1] (a clamp is a hard
+  nonlinearity that re-introduces the harmonics the taper removed); the scheduler
+  is one class (`TerrainScheduler`, not `ChebyshevScheduler`) with throttle-plus-
+  trailing debounce semantics; the blur is a 3-pass box, not a separable Gaussian.
+
 Stage 2, Round A — live wave-terrain oscillator (Phases 2.1–2.3, 2026-09-11):
 - `TerrainOscillator` replaces the wavetable oscillator in place: a closed orbit
   at the note frequency scans an analytic terrain per sample; θ is the phase
@@ -26,8 +69,8 @@ Stage 2, Round A — live wave-terrain oscillator (Phases 2.1–2.3, 2026-09-11)
 - Per-oscillator, per-partial 2× / 4× oversampling with hand-rolled polyphase-IIR
   halfband decimators (JUCE `FilterDesign` coefficients: 0.06 / −70 dB and
   0.15 / −60 dB), a 64-sample equal-gain crossfade on a Quality change mid-note,
-  no allocation on any change. In Round A `Bandlimited` runs the analytic path
-  at 1× (the Chebyshev mode lands in Round B).
+  no allocation on any change. (In Round A `Bandlimited` ran the analytic path
+  at 1×; the Chebyshev mode landed in Round B.)
 - **Latency: +1 sample constant** (the decimators' 1.26 / 1.74 samples at 2× / 4×),
   added to the distortion oversampler's report in every Quality combination.
 - Wavetable path deleted (`WavetableOscillator`, `WavetableData`,

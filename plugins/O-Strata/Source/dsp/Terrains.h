@@ -134,7 +134,7 @@ inline float terrain (TerrainKind kind, float x, float y, float F, float mx, flo
         }
 
         case TerrainKind::Imported:
-            v = 0.0f;   // Round B (Phase 2.5) lands the PNG path; the choice is legal, the terrain is silent
+            v = 0.0f;   // null fallback only: the oscillator reads TerrainImage::sample when an image is published; no image → silent
             break;
 
         case TerrainKind::HarnessIdentityX:

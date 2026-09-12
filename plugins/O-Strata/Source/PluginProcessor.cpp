@@ -656,8 +656,15 @@ OStrataAudioProcessor::OStrataAudioProcessor()
 
 OStrataAudioProcessor::~OStrataAudioProcessor()
 {
+    // The scheduler first: no job may finish (and post a publish) after this point.
+    terrainScheduler.shutdown();
     cancelPendingUpdate();
     stopTimer();
+    // The audio thread has stopped (host contract): free the published objects
+    // directly; `retired` frees its own on destruction.
+    for (auto& ptr : chebPtr)
+        delete ptr.exchange (nullptr, std::memory_order_acq_rel);
+    releasePublishedImages();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -748,6 +755,11 @@ void OStrataAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
 
+    // plan Decision 39: jobs assert they never run inside this window on this thread
+    audioThreadHash.store (std::hash<std::thread::id>{} (std::this_thread::get_id()), std::memory_order_relaxed);
+    insideProcessBlock.store (true, std::memory_order_release);
+    struct ClearInside { std::atomic<bool>& f; ~ClearInside() { f.store (false, std::memory_order_release); } } clearInside { insideProcessBlock };
+
     // VST3 Note Expression: drain the JUCE wrapper's raw-event queue and
     // correlate tuning deltas to their NoteOn's MIDI pitch.
     vst3Extensions.drainAndUpdate();
@@ -800,7 +812,7 @@ void OStrataAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
             triggerAsyncUpdate();
     }
 
-    // Round B publishes chebPtr[] / imagePtr[] into the voices here (empty in Round A)
+    // Hand the published Chebyshev sets / images to the voices (load-acquire once per block)
     updateOscillatorAssignments();
 
     // Track active MIDI notes and extract CC data for mod matrix
@@ -1083,9 +1095,22 @@ void OStrataAudioProcessor::fillRampRows (int numSamples)
 
 void OStrataAudioProcessor::updateOscillatorAssignments()
 {
-    // Round B: publishes chebPtr[] / imagePtr[] into the voices (load-acquire per
-    // block, as the wavetable-assignment step did for the tables). Nothing to publish
-    // in Round A — the analytic paths need no shared object.
+    // The renamed wavetable-assignment step: load-acquire the published pointers
+    // once per block and store them into every voice. The voices copy the tapered
+    // coefficients at block start and never dereference a set inside the sample
+    // loop (plan Decision 28), so the reaper's two-generation rule covers any block size.
+    const ChebyshevSet* chebA = chebPtr[0].load (std::memory_order_acquire);
+    const ChebyshevSet* chebB = chebPtr[1].load (std::memory_order_acquire);
+    const TerrainImage* imgA  = imagePtr[0].load (std::memory_order_acquire);
+    const TerrainImage* imgB  = imagePtr[1].load (std::memory_order_acquire);
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+        if (auto* voice = dynamic_cast<StrataVoice*> (synthesiser.getVoice (i)))
+            voice->setPublished (chebA, chebB, imgA, imgB);
+}
+
+void OStrataAudioProcessor::releasePublishedImages()
+{
+    // Phase 2.5 (Task 11) deletes the published TerrainImages here (complete type needed).
 }
 
 // ═══════════════════════════════════════════════════════════════════

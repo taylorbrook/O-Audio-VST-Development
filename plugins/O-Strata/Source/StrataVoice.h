@@ -76,6 +76,13 @@ public:
         display voice (currentMidiNote == processor->getLastPlayedNote()) writes. */
     void setCaptureTargets (CycleCapture* a, CycleCapture* b) { captureA = a; captureB = b; }
 
+    /** The processor's published Chebyshev sets / images for this block (plan
+        Decision 33) — stored here, handed to the oscillators at block start. */
+    void setPublished (const ChebyshevSet* a, const ChebyshevSet* b, const TerrainImage* ia, const TerrainImage* ib)
+    {
+        chebA = a; chebB = b; imgA = ia; imgB = ib;
+    }
+
     // Row order of the 24 smoothed base values (plan Decision 6; reused by the
     // Phase 2.3 processor ramp rows): 0 Pos, 1 OrbAspect, 2 OrbRot, 3 OrbCX,
     // 4 OrbCY, 5 OrbMod, 6 TerFreq (log2), 7 TerModX, 8 TerModY, 9 OrbFeedback,
@@ -111,7 +118,7 @@ private:
     // Osc A warp
     std::atomic<float>* pOscAWarpType = nullptr;
     std::atomic<float>* pOscAWarpAmt = nullptr;
-    // Osc A terrain / orbit (parameter-spec.md v2 rows 12–28; all 17 cached, Round A reads 15)
+    // Osc A terrain / orbit (parameter-spec.md v2 rows 12–28; all 17 cached; Terrain Blur is read by the TerrainScheduler, not here)
     std::atomic<float>* pOscATerrain = nullptr;
     std::atomic<float>* pOscATerFreq = nullptr;
     std::atomic<float>* pOscATerModX = nullptr;
@@ -229,6 +236,10 @@ private:
     int voiceIndex = 0;
     CycleCapture* captureA = nullptr;
     CycleCapture* captureB = nullptr;
+    const ChebyshevSet* chebA = nullptr;
+    const ChebyshevSet* chebB = nullptr;
+    const TerrainImage* imgA = nullptr;
+    const TerrainImage* imgB = nullptr;
 
     // Core 9 smoothing (QUAL-02) lives in the processor since Phase 2.3 (plan
     // Decision 5): 24 shared ramp rows filled per block, read here by absolute

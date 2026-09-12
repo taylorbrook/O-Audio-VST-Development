@@ -449,8 +449,18 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         oscB.setPitchTrack (pOscBTerTrack->load());
         oscA.setFeedbackDamp (pOscAOrbFbDamp->load());
         oscB.setFeedbackDamp (pOscBOrbFbDamp->load());
-        oscA.setEdgeMode (static_cast<EdgeMode> (juce::jlimit (0, 1, static_cast<int> (pOscATerEdge->load()))));
-        oscB.setEdgeMode (static_cast<EdgeMode> (juce::jlimit (0, 1, static_cast<int> (pOscBTerEdge->load()))));
+        // Edge: the choice (0–1); a harness override (HarnessWrap = 100, H11 control)
+        // replaces it — never reachable from the parameter.
+        {
+            const int edgeOvA = (processor != nullptr) ? processor->harnessEdgeOverride[0].load() : -1;
+            const int edgeOvB = (processor != nullptr) ? processor->harnessEdgeOverride[1].load() : -1;
+            oscA.setEdgeMode (edgeOvA >= 0 ? static_cast<EdgeMode> (edgeOvA) : static_cast<EdgeMode> (juce::jlimit (0, 1, static_cast<int> (pOscATerEdge->load()))));
+            oscB.setEdgeMode (edgeOvB >= 0 ? static_cast<EdgeMode> (edgeOvB) : static_cast<EdgeMode> (juce::jlimit (0, 1, static_cast<int> (pOscBTerEdge->load()))));
+        }
+
+        // Published terrain objects for this block (plan Decisions 33, 35)
+        oscA.setChebyshevSet (chebA); oscB.setChebyshevSet (chebB);
+        oscA.setImage (imgA);         oscB.setImage (imgB);
 
         if (processor != nullptr)
         {
@@ -459,6 +469,7 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             const bool single = processor->harnessSingleSampleFeedback.load();
             const bool satOff = processor->harnessSaturationBypass.load();
             const bool dcOff  = processor->harnessDcBlockerBypass.load();
+            const bool chebOff = processor->harnessChebyshevBypass.load();
             for (auto* o : { &oscA, &oscB })
             {
                 o->setKernelBypass (bypass);
@@ -466,6 +477,7 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                 o->setSingleSampleFeedback (single);
                 o->setSaturationBypass (satOff);
                 o->setDcBlockerBypass (dcOff);
+                o->setChebyshevBypass (chebOff);
             }
             // Core 10: only the display voice writes the rings
             const bool display = currentMidiNote == processor->getLastPlayedNote();
@@ -497,9 +509,12 @@ void StrataVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     double pitchRatioB = std::pow (2.0, (coarseB + fineB / 100.0) / 12.0);
 
     // Pitch-tracked terrain frequency uses the glide TARGET (ARCH Algorithm
-    // "Pitch tracking"), not the per-sample glided value.
-    oscA.updateBlockRate (glide.getTargetFrequency() * pitchRatioA);
-    oscB.updateBlockRate (glide.getTargetFrequency() * pitchRatioB);
+    // "Pitch tracking"), not the per-sample glided value; the Bandlimited
+    // truncation law takes max (target, current) so a downward glide never leaves
+    // a diagonal above Nyquist (plan Decision 27).
+    const double glideTop = juce::jmax (glide.getTargetFrequency(), glide.getCurrentFrequency());
+    oscA.updateBlockRate (glide.getTargetFrequency() * pitchRatioA, glideTop * pitchRatioA);
+    oscB.updateBlockRate (glide.getTargetFrequency() * pitchRatioB, glideTop * pitchRatioB);
 
     // Filter parameters
     int filtAType = static_cast<int> (pFiltAType->load());
