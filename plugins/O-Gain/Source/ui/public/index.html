@@ -325,12 +325,17 @@
        language-INVARIANT by construction, which is the only thing assertion 7
        accepts. The value column keeps 58 - 20 - 3 = 35 px, against "-18.1" at
        roughly 17 px. */
+    /* v1.8.1: 8 -> 10 px. The caption column is re-pinned for the larger
+       face: the widest caption (fr crête, 18.41 px at 8 px) scales to about
+       23 px at 10 px, so the column is 25 px and the value cell keeps
+       58 - 25 - 3 = 30 px against "-60.0" at roughly 22 px. Both leaves
+       take the v1.8.0 caption / readout colours. */
     .meter-db-label {
       display: grid;
-      grid-template-columns: 20px 1fr;
+      grid-template-columns: 25px 1fr;
       gap: 0 3px;
       width: 100%;
-      font-size: 8px;
+      font-size: 10px;
       white-space: nowrap;
     }
     /* LINE-HEIGHT PINS, same derivation as the v1.4.0 block above: each is this
@@ -342,13 +347,14 @@
        which shortened the flex:1 .meter-body above it and moved the scale, the
        bars and everything keyed off them -- 34 elements on the zh-Hans arm. */
     .meter-db-cap {
-      line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px */
-      color: #8B7355;
+      line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — v1.8.1, same pin as .settings-label */
+      color: #5C4033;
       letter-spacing: 0.2px;
     }
     .meter-db-val {
-      line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px */
-      color: #5C4033;
+      line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — v1.8.1 */
+      color: #3C2F2F;
+      font-weight: 600;
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
@@ -557,6 +563,11 @@
       width: 100%;
       max-width: 220px;
     }
+    /* v1.8.1: the title is centred over the two rows. text-align, not
+       align-items on the block: that would shrink the rows to content. */
+    .preset-block > .knob-label {
+      text-align: center;
+    }
     .preset-row {
       display: flex;
       align-items: center;
@@ -587,6 +598,7 @@
       gap: 8px;
       width: 100%;
       max-width: 300px;
+      align-self: center;   /* v1.8.1: .container never centres its children, so a 300 px block sat at the left */
       justify-content: center;
       flex-shrink: 0;
     }
@@ -638,6 +650,7 @@
       padding: 6px 10px;
       width: 100%;
       max-width: 300px;
+      align-self: center;   /* v1.8.1: see .mode-row */
       display: none;
       flex-shrink: 0;
     }
