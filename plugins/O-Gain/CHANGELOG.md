@@ -49,6 +49,16 @@ session and preset loads identically.
   meter mode, on the one plugin whose job is confirming that a chain passes at
   unity. A transient therefore read as a gain error that was not there. The
   output pair is now the post-gain VU.
+- **The meter mode was never SEEDED from its parameter, only listened to.**
+  `currentMeterMode` was declared as a hard-coded `2` (VU) and `watchMeterMode()`
+  registered two LISTENERS — which fire on a change, and opening an editor is not
+  a change. So a session saved in Peak, RMS or LUFS reopened with the mode
+  buttons showing the saved mode and the bars drawing VU: the control and the
+  meter disagreeing about the same setting, silently, until the user's first
+  click. Pre-existing since the mode selector landed; found at v1.5.0 by driving
+  the page headless, where the stub seeded `meter_mode = Peak`, the Peak button
+  lit, and the bars kept painting the VU value. One line: read
+  `state.getChoiceIndex()` before attaching the listeners.
 - **`ampToDb` now rejects undefined and NaN, not just silence.** The guard was
   `amp <= 0.00001`, which is false for `undefined`, so any payload missing a
   field reached `Math.log10` and painted every bar `NaN%` tall. Written as
