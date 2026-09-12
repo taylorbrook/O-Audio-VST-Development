@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.7.0
+- **Version:** 1.8.0
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -50,6 +50,13 @@
   presets") write `target_level` through the knob's own relay as a gesture; the lit preset
   is the one `getScaledValue()` matches within 0.05 dB. UI-only, keyed in en/fr/zh-Hans,
   check-ui-labels 0 FAIL at 380 x 500. No parameter or state change.
+- **2026-09-12 (v1.8.0):** Dial legibility and placement. The three dials now share one
+  220 px row — Trim | Gain | Target, the large dial in the middle — top-aligned so the
+  captions sit on one baseline and the readouts on the next; the Target readout moved from
+  beside LEARN to under its own dial and LEARN is centred alone. Captions 9 → 10 px in
+  #5C4033 (were the #8B7355 tan), readouts 10 → 11 px semibold. `label.targetLevel` and
+  the `target-group` tooltip retired (dead after the merge). check-i18n / fr / zh lints
+  and check-ui-labels all 0 FAIL at 380 x 500. UI-only; no parameter or state change.
 
 ## Known Issues
 

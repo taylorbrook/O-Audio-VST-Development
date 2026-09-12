@@ -347,17 +347,6 @@ export const I18N = Object.freeze({
               b: '点击开始测量。播放 10-30s 音频，然后再次点击。增益会自动设定',
               reviewed: 'bt' },
     },
-    'target-group': {
-        en: { t: 'Target',
-              b: 'Target loudness for Learn. -18 dB = 0 VU (standard), -14 LUFS = Spotify, -23 LUFS = EBU R128' },
-        fr: { t: 'Cible',
-              b: 'Sonie visée par la mesure. −18 dB = 0 VU (norme), −14 LUFS = Spotify, −23 LUFS = EBU R128',
-              reviewed: true },
-    
-        'zh-Hans': { t: '目标',
-              b: '学习的目标响度。-18 dB = 0 VU（标准），-14 LUFS = Spotify，-23 LUFS = EBU R128',
-              reviewed: 'bt' },
-    },
     'target-knob': {
         en: { t: 'Target Level',
               b: 'Desired output loudness. Drag knob or double-click to reset to -18 dB' },
@@ -636,7 +625,6 @@ export const LABELS = Object.freeze({
     // is indistinguishable from a translation somebody forgot to write.
     'label.gain':        { en: { t: 'Gain' },         fr: { t: 'Gain', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '增益', reviewed: 'bt' }},
     'label.trim':        { en: { t: 'Trim' },         fr: { t: 'Ajust.',       reviewed: true } , 'zh-Hans': { t: '微调电平', reviewed: 'bt' }},
-    'label.targetLevel': { en: { t: 'Target Level' }, fr: { t: 'Niveau cible', reviewed: true } , 'zh-Hans': { t: '目标电平', reviewed: 'bt' }},
     'label.target':      { en: { t: 'Target' },       fr: { t: 'Cible',        reviewed: true } , 'zh-Hans': { t: '目标', reviewed: 'bt' }},
     // v1.7.0: the title over the six target-preset buttons. The buttons' own
     // faces are numerals (READOUT under D-03) and the row captions are the
@@ -847,7 +835,6 @@ export const TIP_BINDINGS = [
     ['#gain-knob-group',    'gain-knob'],
     ['#trim-knob-group',    'trim-knob'],
     ['#learn-btn',          'learn-btn'],
-    ['#target-group',       'target-group'],
     ['#target-knob-group',  'target-knob'],
     ['#target-preset-row',  'target-presets'],
 

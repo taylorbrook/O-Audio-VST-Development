@@ -190,8 +190,7 @@
 
          .meter-label        10.00 - 0 - 0            = 10.00 /  9px = 1.1111
          .gain-display-label 10.00 - 0 - 0            = 10.00 /  9px = 1.1111
-         .knob-label         10.00 - 0 - 0            = 10.00 /  9px = 1.1111
-         .target-label       10.00 - 0 - 0            = 10.00 /  9px = 1.1111
+         .knob-label         10.00 - 0 - 0            = 10.00 /  9px = 1.1111  (v1.8.0: 10px, pin 1.1 — see the knob row)
          .learn-info-title   10.00 - 0 - 0            = 10.00 /  9px = 1.1111
          .learn-info-label   10.00 - 0 - 0            = 10.00 /  9px = 1.1111
          .learn-info-value   10.00 - 0 - 0            = 10.00 /  9px = 1.1111
@@ -378,7 +377,7 @@
     .gain-display-label {
       line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
       font-size: 9px;
-      color: #8B7355;
+      color: #5C4033;   /* v1.8.0: was #8B7355 — the same darkening as the dial captions, size kept */
       letter-spacing: 1px;
       text-transform: uppercase;
       margin-bottom: 2px;
@@ -396,10 +395,28 @@
       margin-left: 2px;
     }
 
-    /* Knob/Slider row */
+    /* ── Knob row (v1.8.0: ONE row of three) ──────────────────────────────
+       v1.7.0 spread the three dials over three rows: Gain and Trim side by
+       side but vertically CENTRED, so the 48 px Gain dial and the 36 px Trim
+       dial lined up on nothing; the Target dial alone on a third row, to the
+       LEFT of its caption; and the Target readout one row ABOVE its dial,
+       beside LEARN. v1.8.0 puts all three in the 220 px column the display
+       and the preset block already share — Trim | Gain | Target, the large
+       dial in the middle — top-aligned, with every caption on ONE baseline
+       and every readout on the next. The small dials get a 6 px vertical
+       margin so their box is the same 48 px as the large one; that is what
+       puts the three captions on one line without a wrapper element.
+
+       Captions were 9 px in #8B7355 (the muted tan), which the paper texture
+       swallows; they are 10 px in #5C4033 now, the brown the buttons already
+       use for their own captions. Readouts were 10 px regular and are 11 px
+       semibold in #3C2F2F. Both are nowrap: a 65 px column ((220 - 2×12) / 3)
+       holds TRIM / GAIN / TARGET and their French and Chinese faces on one
+       line, and a caption that wrapped in one language only would move the
+       readout under it, which check-ui-labels assertion 7 rejects. */
     .knob-row {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 12px;
       width: 100%;
       max-width: 220px;
@@ -409,19 +426,24 @@
       flex-direction: column;
       align-items: center;
       flex: 1;
+      min-width: 0;
       gap: 2px;
     }
     .knob-label {
-      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
-      font-size: 9px;
-      color: #8B7355;
+      line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — same face and pin as .settings-label */
+      font-size: 10px;
+      color: #5C4033;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      white-space: nowrap;
     }
     .knob-value {
-      font-size: 10px;
+      line-height: 1.0909;   /* 12.00 - 0 - 0 = 12.00 / 11px — same face and pin as .learn-btn */
+      font-size: 11px;
+      font-weight: 600;
       color: #3C2F2F;
       font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
 
     /* SVG Knob */
@@ -433,6 +455,7 @@
     .knob-svg-container.small {
       width: 36px;
       height: 36px;
+      margin: 6px 0;   /* 36 + 2×6 = 48: the same box as the large dial, so the captions share a baseline */
     }
     .knob-track {
       fill: none;
@@ -454,30 +477,23 @@
       fill: #3C2F2F;
     }
 
-    /* Learn section */
+    /* Learn section. v1.8.0: the button is alone on this row and centred; the
+       Target readout that used to sit beside it lives under the Target dial. */
     .learn-section {
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: center;
       width: 100%;
       max-width: 220px;
     }
-    /* v1.3.0: WIDTH PINNED, and .target-group pinned to the remainder.
-       .learn-section is 220 px of `flex: 0 1 auto` button plus a `flex: 1`
-       target group, so the button's INTRINSIC width positioned everything to
-       its right. That was already a defect in English: the four faces this
-       button wears measure LEARN 80.8, LEARNING... 120.7, DONE 73.4 and
-       TOO QUIET 109.9 px, so the Target caption and its readout slid up to
-       40 px sideways every time Learn ran or finished. In French it would
-       also have moved on the LANGUAGE, which check-ui-labels assertion 7
-       reads — correctly — as a French string pushing a non-label element.
-
-       121 px is the widest ENGLISH face (LEARNING... at 120.67) rounded up,
-       so no English face re-wraps and none is clipped; 121 + 8 gap + 91 = 220
-       exactly. The four French faces measure 70.0 / 74.0 / 66.6 / 69.6 px of
-       content against the 89 px content box. The visible cost, stated rather
-       than hidden: the resting LEARN pill is 40 px wider than in v1.2.1 and
-       the Target block sits 40 px further right. */
+    /* v1.3.0: WIDTH PINNED. The four faces this button wears measure LEARN
+       80.8, LEARNING... 120.7, DONE 73.4 and TOO QUIET 109.9 px, so an
+       intrinsic width would re-centre the pill every time Learn ran or
+       finished, and in French would also move on the LANGUAGE, which
+       check-ui-labels assertion 7 reads — correctly — as a French string
+       pushing a non-label element. 121 px is the widest ENGLISH face
+       (LEARNING... at 120.67) rounded up, so no English face re-wraps and none
+       is clipped; the French faces measure 70.0 / 74.0 / 66.6 / 69.6 px. */
     .learn-btn {
       line-height: 1.0909;   /* 26.00 -12 pad -2 border = 12.00 / 11px — see the pin block above */
       flex: 0 0 121px;
@@ -515,34 +531,6 @@
       50% { opacity: 0.7; }
     }
 
-    .target-group {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      flex: 0 0 91px;
-    }
-    .target-label {
-      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the pin block above */
-      font-size: 9px;
-      color: #8B7355;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .target-value {
-      font-size: 10px;
-      color: #3C2F2F;
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Target knob row */
-    .target-knob-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      width: 100%;
-      max-width: 220px;
-    }
-
     /* ── Target presets (v1.7.0) ─────────────────────────────────────────
        BRIEF.md's "Target level selector with presets", unshipped since v1.0.
        Two rows of three under the Target Level knob: dBFS -18 / -16 / -20 and
@@ -575,10 +563,10 @@
       gap: 6px;
     }
     .preset-cap {
-      line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px — same pin as .mode-label, same face */
+      line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — v1.8.0: 8 -> 9 px, same face as the v1.4.0 9 px pins */
       flex: 0 0 30px;
-      font-size: 8px;
-      color: #8B7355;
+      font-size: 9px;
+      color: #5C4033;   /* v1.8.0: was #8B7355, the tan the paper swallows */
       letter-spacing: 0.5px;
       text-align: right;
       white-space: nowrap;
@@ -1067,16 +1055,10 @@
           </div>
         </div>
 
-        <!-- Gain + Trim Knobs -->
+        <!-- The three dials (v1.8.0): Trim | Gain | Target, the large dial in
+             the middle, captions on one baseline and readouts on the next.
+             Gain has no readout of its own: the display above IS its readout. -->
         <div class="knob-row">
-          <div class="knob-group" id="gain-knob-group">
-            <svg class="knob-svg-container" id="gain-knob" viewBox="0 0 48 48" data-param="gain_offset">
-              <path class="knob-track" id="gain-track" />
-              <path class="knob-fill" id="gain-fill" />
-              <circle class="knob-dot" id="gain-dot" r="2" />
-            </svg>
-            <div class="knob-label" data-i18n="label.gain" data-label="Gain">Gain</div>
-          </div>
           <div class="knob-group" id="trim-knob-group">
             <svg class="knob-svg-container small" id="trim-knob" viewBox="0 0 48 48" data-param="trim">
               <path class="knob-track" id="trim-track" />
@@ -1086,27 +1068,28 @@
             <div class="knob-label" data-i18n="label.trim" data-label="Trim">Trim</div>
             <div class="knob-value" id="trim-value">0.0 dB</div>
           </div>
+          <div class="knob-group" id="gain-knob-group">
+            <svg class="knob-svg-container" id="gain-knob" viewBox="0 0 48 48" data-param="gain_offset">
+              <path class="knob-track" id="gain-track" />
+              <path class="knob-fill" id="gain-fill" />
+              <circle class="knob-dot" id="gain-dot" r="2" />
+            </svg>
+            <div class="knob-label" data-i18n="label.gain" data-label="Gain">Gain</div>
+          </div>
+          <div class="knob-group" id="target-knob-group">
+            <svg class="knob-svg-container small" id="target-knob" viewBox="0 0 48 48" data-param="target_level">
+              <path class="knob-track" id="target-track" />
+              <path class="knob-fill" id="target-fill" />
+              <circle class="knob-dot" id="target-dot" r="2" />
+            </svg>
+            <div class="knob-label" data-i18n="label.target" data-label="Target">Target</div>
+            <div class="knob-value" id="target-value">-18.0 dB</div>
+          </div>
         </div>
 
-        <!-- Learn + Target -->
+        <!-- Learn -->
         <div class="learn-section">
           <button class="learn-btn" id="learn-btn" data-i18n="ui.learn" data-label="LEARN">LEARN</button>
-          <div class="target-group" id="target-group">
-            <div class="target-label" data-i18n="label.target" data-label="Target">Target</div>
-            <div class="target-value" id="target-value">-18.0 dB</div>
-          </div>
-        </div>
-
-        <!-- Target Knob -->
-        <div class="target-knob-row">
-          <svg class="knob-svg-container small" id="target-knob" viewBox="0 0 48 48" data-param="target_level">
-            <path class="knob-track" id="target-track" />
-            <path class="knob-fill" id="target-fill" />
-            <circle class="knob-dot" id="target-dot" r="2" />
-          </svg>
-          <div class="knob-group" id="target-knob-group" style="align-items: flex-start;">
-            <div class="knob-label" data-i18n="label.targetLevel" data-label="Target Level">Target Level</div>
-          </div>
         </div>
 
         <!-- Target presets (v1.7.0). The numerals are READOUT-class text under
