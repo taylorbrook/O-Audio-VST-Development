@@ -2,6 +2,36 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.8.1] - 2026-09-12
+
+Three small placement and legibility fixes. PATCH: CSS only, no markup,
+no parameter, no state change, no C++.
+
+### Fixed
+
+- **Presets title centred** over its two rows (`text-align: center` on the
+  title, not `align-items` on the block, which would shrink the rows to
+  content).
+- **Peak / avg meter readouts larger**: `.meter-db-label` 8 → 10 px, the
+  captions in the v1.8.0 brown `#5C4033` and the values semibold `#3C2F2F`.
+  The caption column is re-pinned 20 → 25 px for the larger face (fr
+  `crête`, the widest, scales from 18.41 to about 23 px), leaving the value
+  cell 30 px against `-60.0` at roughly 22 px. Both line-height pins go
+  1.125 → 1.1 (11 / 10 px, the `.settings-label` derivation).
+- **Measure / Meter row and the Learn Analysis panel centred.** Both are
+  300 px blocks inside the 364 px `.container`, which is a column flex with
+  default `align-items: stretch` and so placed them at the left edge.
+  `align-self: center` on each.
+
+### Testing
+
+- `scripts/check-ui-labels.js --plugin O-Gain`: ALL CHECKS PASSED at
+  380 x 500, all seven states; no readout cell overflows its column in
+  English, French or zh-Hans.
+- Rendered through `scripts/serve-ui.js` with the Learn panel open: the
+  meter section shortened 2 px for the taller readout row, and the centre
+  stack still clears the panel.
+
 ## [1.8.0] - 2026-09-12
 
 Dial legibility and placement. MINOR: the centre stack is re-laid, two

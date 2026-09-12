@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.8.0
+- **Version:** 1.8.1
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -57,6 +57,10 @@
   #5C4033 (were the #8B7355 tan), readouts 10 → 11 px semibold. `label.targetLevel` and
   the `target-group` tooltip retired (dead after the merge). check-i18n / fr / zh lints
   and check-ui-labels all 0 FAIL at 380 x 500. UI-only; no parameter or state change.
+- **2026-09-12 (v1.8.1):** Presets title centred; peak / avg meter readouts 8 → 10 px
+  (caption column re-pinned 20 → 25 px, v1.8.0 colours); Measure / Meter row and the
+  Learn Analysis panel centred with `align-self: center` — `.container` never centred its
+  children, so both 300 px blocks sat at the left. check-ui-labels 0 FAIL. UI-only.
 
 ## Known Issues
 
