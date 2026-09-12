@@ -197,6 +197,8 @@ function outsideViewport(rect, W, H) {
 const TAB_OF = (sel) => {
     if (/^#(toggle|knob|select)-(delay|chorus|dist|reverb|eq)/.test(sel)) return 'effects';
     if (sel === '#ref-pitch-knob' || sel === '#octave-stretch') return 'tuning';
+    // Stage 3 Round A: the 14 Terrain-tab knobs (ids from data-knob="ter…").
+    if (/^#knob-ter/.test(sel)) return 'terrain';
     return null;   // synth tab, or header/footer chrome
 };
 
@@ -347,7 +349,8 @@ const HIDDEN_WHEN_SYNC = new Set([
             // and times out. A positioned click is still a real, actionability-checked
             // click on the real control — never `force: true`, which would paper over
             // a genuinely covered target (pattern_forced_click_under_popover_silent_coverage_hole).
-            // Stage 3.1's Geometry tab restores five tabs.
+            // Stage 3 Round A's Terrain tab restored five tabs (960-1200 px, centre
+            // 1080 > 1032 — the same trap, the same positioned click).
             await page.click(`.tab[data-tab="${want}"]`, { position: { x: 16, y: 12 } });
             await page.waitForTimeout(160);
             currentTab = await page.evaluate(() => {
@@ -401,7 +404,7 @@ const HIDDEN_WHEN_SYNC = new Set([
         console.log('-- 1. binding resolution');
         await setPopover(true);
         const resolution = [];
-        for (const tab of ['synth', 'effects', 'tuning']) {
+        for (const tab of ['synth', 'effects', 'tuning', 'terrain']) {
             await openTab(tab);
             const rows = TIP_BINDINGS.filter(b => (TAB_OF(b[0]) || 'synth') === tab);
             const got = await page.evaluate((bindings) => bindings.map(([sel, key, wrapper]) => {
@@ -992,24 +995,26 @@ const HIDDEN_WHEN_SYNC = new Set([
         // once the Matrix and Rotation views had been opened, and every gate in
         // the repo saw only the six (v1.21.0's finding).
         let nativeTitles = 0;
-        for (const tab of ['synth', 'mod', 'tuning', 'effects']) {
+        for (const tab of ['synth', 'mod', 'tuning', 'effects', 'terrain']) {
             await openTab(tab);
             nativeTitles += await page.evaluate(() => document.querySelectorAll('[title]').length);
         }
         check(nativeTitles === 0,
-            `[8] zero native title= attributes across all four tabs — got ${nativeTitles}`);
+            `[8] zero native title= attributes across all five tabs — got ${nativeTitles}`);
 
         // The count this whole dispatch turns on: 103 of O-Strata's 205 parameters
-        // have a control whose anchor exists when applyI18n() runs, and all 103
-        // are bound. The other 102 have no bound anchor — 64 async mod-matrix rows,
-        // `tonic` (async), three with no control at all (`tuningPreset`,
-        // `stereoWidth`, `velocityCurve`), and the 34 terrain / orbit parameters,
-        // which have no control until Phase 3.1 (Stage 1 fork: the two Shape
-        // dropdowns left with the wavetable library, 105 → 103).
+        // have a Synth / Effects / Tuning control whose anchor exists when
+        // applyI18n() runs, and all 103 are bound; Stage 3 Round A (Phase 3.1)
+        // added the 14 Terrain-tab knobs (one tip each, through the proxies —
+        // the panel serves both oscillators, so 28 parameters share 14 anchors).
+        // The remaining parameters have no bound anchor — 64 async mod-matrix
+        // rows, `tonic` (async), three with no control at all (`tuningPreset`,
+        // `stereoWidth`, `velocityCurve`), and the 8 choice params bound as
+        // <select>s without a tip.
         // v1.23.0: THREE chrome tips — #tips-toggle joined #gear-btn and
         // #lang-select when the settings popover grew a hover-help switch.
-        check(TIP_BINDINGS.length === 106,
-            `[8] 103 parameter tips + 3 chrome tips = 106 bindings — got ${TIP_BINDINGS.length}`);
+        check(TIP_BINDINGS.length === 120,
+            `[8] 103 parameter tips + 14 terrain tips + 3 chrome tips = 120 bindings — got ${TIP_BINDINGS.length}`);
         const modAnchors = await page.evaluate(() =>
             document.querySelectorAll('[id^="modSlot"]').length);
         check(modAnchors === 0,
