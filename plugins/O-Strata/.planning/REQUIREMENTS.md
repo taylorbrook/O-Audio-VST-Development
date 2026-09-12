@@ -4,7 +4,7 @@
 version: 2.0.0
 plugin: O-Strata
 created: 2026-09-07
-lastUpdated: 2026-09-10 (PERF-02 amended to oscillator delta — Stage 2 discuss D2)
+lastUpdated: 2026-09-11 (DSP-01 acceptance amended to the Decision 2 law — Stage 2 Round A verify; Round A requirement statuses)
 supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 ---
 
@@ -20,29 +20,29 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Each oscillator (A, B) is a live wave-terrain oscillator: a closed orbit at the note frequency scans a 2D terrain per sample; θ is the phase accumulator so Sync / Bend / Window warps, FM, unison and Phase apply unchanged | must | pending | stage-2 |
-| FUNC-02 | Analytic terrain library ≥ 6 (Sine Product, Radial Rings, Saddle, Ridged Cosines, Mitsuhashi, Cosine Wells), each with Terrain Freq and two documented shape inputs (Mod X / Mod Y), clean-room formulas | must | pending | stage-2 |
-| FUNC-03 | Orbit library ≥ 11 (Ellipse, Superellipse, Limaçon, Epitrochoid 3/5/7, Hypocycloid 3/5/7, Butterfly, Squarcle) with Size, Aspect, Rotation, Centre X/Y and a per-orbit shape input (Orbit Mod) | must | pending | stage-2 |
-| FUNC-04 | Trajectory feedback: previous output displaces the next orbit point, with Feedback amount and Feedback Damp; bounded for every setting | must | pending | stage-2 |
-| FUNC-05 | Audio-rate modulation: Orbit Size (= `osc?Pos`), Aspect, Rotation, Centre X, Centre Y, Orbit Mod, Terrain Freq, Terrain Mod X/Y, Feedback and Saturation are mod-matrix destinations (10 new per oscillator, appended after O-Prism's 26), smoothed per sample | must | pending | stage-2 |
-| FUNC-06 | Per-oscillator Quality: Bandlimited (Chebyshev, 1×) / 2× / 4× | must | pending | stage-2 |
+| FUNC-01 | Each oscillator (A, B) is a live wave-terrain oscillator: a closed orbit at the note frequency scans a 2D terrain per sample; θ is the phase accumulator so Sync / Bend / Window warps, FM, unison and Phase apply unchanged | must | complete | stage-2 |
+| FUNC-02 | Analytic terrain library ≥ 6 (Sine Product, Radial Rings, Saddle, Ridged Cosines, Mitsuhashi, Cosine Wells), each with Terrain Freq and two documented shape inputs (Mod X / Mod Y), clean-room formulas | must | complete | stage-2 |
+| FUNC-03 | Orbit library ≥ 11 (Ellipse, Superellipse, Limaçon, Epitrochoid 3/5/7, Hypocycloid 3/5/7, Butterfly, Squarcle) with Size, Aspect, Rotation, Centre X/Y and a per-orbit shape input (Orbit Mod) | must | complete | stage-2 |
+| FUNC-04 | Trajectory feedback: previous output displaces the next orbit point, with Feedback amount and Feedback Damp; bounded for every setting | must | complete | stage-2 |
+| FUNC-05 | Audio-rate modulation: Orbit Size (= `osc?Pos`), Aspect, Rotation, Centre X, Centre Y, Orbit Mod, Terrain Freq, Terrain Mod X/Y, Feedback and Saturation are mod-matrix destinations (10 new per oscillator, appended after O-Prism's 26), smoothed per sample | must | complete | stage-2 |
+| FUNC-06 | Per-oscillator Quality: Bandlimited (Chebyshev, 1×) / 2× / 4× — 2× / 4× half complete (Stage 2 Round A, 2026-09-11), Bandlimited half Round B | must | partial | stage-2 |
 | FUNC-07 | User greyscale PNG terrain import via file chooser and drag-and-drop, with Image Blur and Edge Mode; decode and pre-blur off the audio thread | must | pending | stage-3 |
 | FUNC-08 | Imported PNG persists in plugin state and presets (raw bytes ≤ 2 MB; path + SHA-256 above the cap); presets regenerate on load | must | pending | stage-4 |
-| FUNC-09 | All O-Prism v1.24.0 non-oscillator sections (sub/noise, envelopes, dual filters, LFOs, mod matrix, FX rack, global) carry over unchanged | must | pending | stage-2 |
-| FUNC-10 | Full microtonal tuning engine (scala-tuning-engine v3.0.1: factory tunings, Scala/KBM import, EDO / harmonic / rank-2 generators, tuning tab) | must | pending | stage-2 |
+| FUNC-09 | All O-Prism v1.24.0 non-oscillator sections (sub/noise, envelopes, dual filters, LFOs, mod matrix, FX rack, global) carry over unchanged | must | complete | stage-2 |
+| FUNC-10 | Full microtonal tuning engine (scala-tuning-engine v3.0.1: factory tunings, Scala/KBM import, EDO / harmonic / rank-2 generators, tuning tab) | must | complete | stage-2 |
 | FUNC-11 | Factory presets ≥ 15 covering terrains, orbits, feedback and Bandlimited mode, every one passing the symmetry gate (DSP-06) | should | pending | stage-4 |
 
 ### DSP (DSP)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Pitch-tracked terrain spatial frequency ("terrain mip"): with Pitch Track = 1 the harmonic count of a patch is constant across the keyboard; Pitch Track = 0 keeps the spatial frequency fixed | must | pending | stage-2 |
+| DSP-01 | Pitch-tracked terrain spatial frequency ("terrain mip"): with Pitch Track = 1 the harmonic count of a patch is identical below C4 and does not grow above it (F_eff = F · min(1, C4/f_note)^Track — ARCH Decision 2, scaling downward only); Pitch Track = 0 keeps the spatial frequency fixed (amended 2026-09-11, Stage 2 Round A verify — the "constant across the keyboard" wording was unsatisfiable at F = 4 under the contracted law) | must | complete | stage-2 |
 | DSP-02 | Bandlimited mode: terrain in the Chebyshev basis, total degree ≤ 16, coefficients truncated per pitch so the maximum harmonic (n+m)·K stays below Nyquist; coefficient sets computed off the audio thread and swapped atomically; PNG terrains projected onto the basis at import | must | pending | stage-2 |
-| DSP-03 | Oversampling is per oscillator (halfband polyphase IIR 2×, 4× HQ), parameters held over sub-samples; the voice loop, filters, LFOs and mod matrix run at base rate | must | pending | stage-2 |
-| DSP-04 | Orbit (including feedback displacement) clamped inside [−1,1]²; PNG terrains pre-blurred with Mirror / Window edge handling; every sampled value `isfinite`-guarded | must | pending | stage-2 |
-| DSP-05 | No `pow`, `std::function` or allocation in the per-sample path; enum `switch` dispatch; fast tanh; `SmoothedValue` per modulated parameter; a Quality change never allocates on the audio thread | must | pending | stage-2 |
-| DSP-06 | Symmetry rule: default orbit centre, aspect and every library / factory default produce harmonic 1 as the strongest partial or within 6 dB of it (a centred orbit over an even terrain plays an octave up) | must | pending | stage-2 |
-| DSP-07 | Saturation applies tanh to the scanned value before the oscillator output; identity at 0 | should | pending | stage-2 |
+| DSP-03 | Oversampling is per oscillator (halfband polyphase IIR 2×, 4× HQ), parameters held over sub-samples; the voice loop, filters, LFOs and mod matrix run at base rate | must | complete | stage-2 |
+| DSP-04 | Orbit (including feedback displacement) clamped inside [−1,1]²; PNG terrains pre-blurred with Mirror / Window edge handling; every sampled value `isfinite`-guarded — clamp / guard half complete (Round A, 2026-09-11), pre-blur / edge half Round B | must | partial | stage-2 |
+| DSP-05 | No `pow`, `std::function` or allocation in the per-sample path; enum `switch` dispatch; fast tanh; `SmoothedValue` per modulated parameter; a Quality change never allocates on the audio thread | must | complete | stage-2 |
+| DSP-06 | Symmetry rule: default orbit centre, aspect and every library / factory default produce harmonic 1 as the strongest partial or within 6 dB of it (a centred orbit over an even terrain plays an octave up) | must | complete | stage-2 |
+| DSP-07 | Saturation applies tanh to the scanned value before the oscillator output; identity at 0 | should | complete | stage-2 |
 
 ### UI (UI)
 
@@ -57,8 +57,8 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations, locks, file I/O or coefficient projection in processBlock) | must | pending | stage-2 |
-| PERF-02 | CPU: **oscillator delta** ≤ 12 % of one Apple M-series core — 16 voices × 2 oscillators, unison 1, Quality 2×, default patch, measured as (full render) − (same render with the harness-only terrain-kernel bypass); whole-plugin total reported, not gated; unison capped at 4 for the live oscillator (amended 2026-09-10, Stage 2 discuss D2) | must | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations, locks, file I/O or coefficient projection in processBlock) | must | complete | stage-2 |
+| PERF-02 | CPU: **oscillator delta** ≤ 12 % of one Apple M-series core — 16 voices × 2 oscillators, unison 1, Quality 2×, default patch, measured as (full render) − (same render with the harness-only terrain-kernel bypass); whole-plugin total reported, not gated; unison capped at 4 for the live oscillator (amended 2026-09-10, Stage 2 discuss D2) | must | complete | stage-2 |
 | PERF-03 | 3D view costs ≤ 2 ms per frame in WKWebView and WebView2 at DPR 2 | should | pending | stage-3 |
 
 ### Compatibility (COMPAT)
@@ -72,8 +72,8 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | Aliasing: every library terrain × orbit at defaults measures ≤ −60 dB non-harmonic energy at C6 at Quality 2× with Pitch Track 1; ≤ −90 dB in Bandlimited mode with a trig-polynomial orbit | must | pending | stage-2 |
-| QUAL-02 | No zipper noise when any mod destination of FUNC-05 is stepped by host automation or the mod matrix (sample-step detector on the rendered output) | must | pending | stage-2 |
+| QUAL-01 | Aliasing: every library terrain × orbit at defaults measures ≤ −60 dB non-harmonic energy at C6 at Quality 2× with Pitch Track 1; ≤ −90 dB in Bandlimited mode with a trig-polynomial orbit — 2× half complete (Round A, 2026-09-11: 198 / 198 rows, worst −70.7 dB), Bandlimited half Round B | must | partial | stage-2 |
+| QUAL-02 | No zipper noise when any mod destination of FUNC-05 is stepped by host automation or the mod matrix (sample-step detector on the rendered output) | must | complete | stage-2 |
 | QUAL-03 | Loading a preset whose imported PNG is missing degrades to the library fallback with a visible notice, never silence or a crash | nice | pending | stage-4 |
 | QUAL-04 | Listening pass on the factory presets and on a terrain × orbit grid rendered by the harness | nice | pending | stage-4 |
 
@@ -116,7 +116,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 
 ### DSP-01: Pitch tracking
 
-- [ ] With Pitch Track 1, the number of partials above −40 dB at C2, C4 and C6 differs by ≤ 2; with Pitch Track 0, non-harmonic energy at C6 rises (negative control)
+- [x] With Pitch Track 1, the number of partials above −40 dB at C2 and C4 differs by ≤ 2 (shared F_eff below the knee) and the count at C6 does not exceed the C4 count, at F = 1 and F = 4; the tracked C6 count is strictly below the Pitch Track 0 count; with Pitch Track 0 at F = 8, non-harmonic energy at C6 / C8 rises ≥ 20 dB (negative control) — H4, 2026-09-11 (`stages/2-dsp/round-a/VERIFICATION.md`; amended from "C2 / C4 / C6 differ by ≤ 2": measured 5 / 5 / 2 at F = 1 and 13 / 12 / 5 at F = 4, the F = 4 form is unsatisfiable under Decision 2)
 
 ### DSP-05 / PERF-01 / PERF-02: Real-time
 
