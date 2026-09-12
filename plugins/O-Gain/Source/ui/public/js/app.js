@@ -642,6 +642,66 @@ function updateSliderDisplay(paramId, norm) {
 }
 
 // =========================================================================
+// Target Presets (v1.7.0)
+// =========================================================================
+// Six buttons that WRITE target_level through the knob's own slider state, so
+// the host sees exactly what a knob drag sends: a gesture begin, one value, a
+// gesture end. No second parameter, no second attachment.
+//
+// Matching reads getScaledValue() -- the value the C++ NormalisableRange
+// actually holds -- rather than normToScaled() over the JS paramDefs table,
+// because the table is a second source of truth that can drift from the
+// processor (pattern_webview_knob_readout_scaled_value). Writing goes the other
+// way through state.properties for the same reason: the normalised position of
+// "-16 dB" is computed from the range the backend PUSHED, not from a constant.
+// Before propertiesChanged lands the properties default to 0..1 linear, so the
+// first paint lights nothing; the propertiesChanged listener repaints once the
+// real range arrives.
+//
+// The tolerance is HALF the parameter's 0.1 dB step: a preset lights only when
+// target_level IS that value, and a knob nudged one step off it goes dark.
+// -16 appears in both rows (dBFS and LUFS) and both light together -- the
+// parameter holds one number and the row caption is the unit the user reads it
+// in, which is the Measure selector's business, not this block's.
+const TARGET_PRESET_TOLERANCE_DB = 0.05;
+
+function setupTargetPresets() {
+  const state = getSliderState('target_level');
+  if (!state) { console.error('No slider state for target_level'); return; }
+  const buttons = Array.from(document.querySelectorAll('#target-preset-row .preset-btn'));
+  if (buttons.length === 0) { console.error('No target preset buttons in the page'); return; }
+
+  const scaledToNorm = (dB) => {
+    const p = state.properties;
+    const span = p.end - p.start;
+    if (!(span > 0)) return 0.5;
+    const lin = Math.max(0, Math.min(1, (dB - p.start) / span));
+    return Math.pow(lin, p.skew || 1);
+  };
+
+  const updateVisual = () => {
+    const dB = state.getScaledValue();
+    buttons.forEach((btn) => {
+      const preset = parseFloat(btn.dataset.target);
+      btn.classList.toggle('active', Math.abs(dB - preset) < TARGET_PRESET_TOLERANCE_DB);
+    });
+  };
+
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const preset = parseFloat(btn.dataset.target);
+      state.sliderDragStarted();
+      state.setNormalisedValue(scaledToNorm(preset));
+      state.sliderDragEnded();
+    });
+  });
+
+  state.valueChangedEvent.addListener(updateVisual);
+  state.propertiesChangedEvent.addListener(updateVisual);
+  updateVisual();
+}
+
+// =========================================================================
 // Toggle Button Binding
 // =========================================================================
 function setupToggle(btnId, paramId) {
@@ -975,6 +1035,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupSliderKnob('gain_offset');
   setupSliderKnob('trim');
   setupSliderKnob('target_level');
+  setupTargetPresets();
 
   // Toggle buttons
   setupToggle('phase-l-btn', 'phase_invert_l');
@@ -1002,5 +1063,5 @@ window.addEventListener('DOMContentLoaded', () => {
   initI18n();
   initializeTooltips();
 
-  console.log('O-Gain v1.6.0 UI loaded');
+  console.log('O-Gain v1.7.0 UI loaded');
 });

@@ -1,0 +1,8 @@
+{
+  "__why": "v1.7.0. The generic stub seeds every slider 0..1 linear unless told otherwise, and this plugin has no .planning/params.tsv to seed from. The target-preset buttons compute their write position from state.properties and light by getScaledValue(), so under a neutral range a click stored 0 (-36 dB on the readout) and nothing lit — the gate state 'target preset -23 LUFS lit' measured a page in which no preset CAN light. These three rows are the NormalisableRanges in PluginProcessor.cpp createParameterLayout(), typed from the source: gain_offset -40..40 def 0, trim -6..6 def 0, target_level -36..0 step 0.1 def -18.",
+  "sliders": {
+    "gain_offset":  { "start": -40, "end": 40, "skew": 1, "interval": 0.1, "def": 0 },
+    "trim":         { "start": -6,  "end": 6,  "skew": 1, "interval": 0.1, "def": 0 },
+    "target_level": { "start": -36, "end": 0,  "skew": 1, "interval": 0.1, "def": -18 }
+  }
+}

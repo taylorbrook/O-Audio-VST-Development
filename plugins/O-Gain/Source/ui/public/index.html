@@ -543,6 +543,56 @@
       max-width: 220px;
     }
 
+    /* ── Target presets (v1.7.0) ─────────────────────────────────────────
+       BRIEF.md's "Target level selector with presets", unshipped since v1.0.
+       Two rows of three under the Target Level knob: dBFS -18 / -16 / -20 and
+       LUFS -14 / -16 / -23. Each button WRITES target_level through the same
+       slider relay the knob uses; the block owns no parameter of its own, so
+       nothing changes in state format and a v1.x session reopens identically.
+
+       The buttons reuse .mode-option / .mode-selector so the segmented look
+       matches the Measure / Meter row below, and the block is the same
+       220 px column every other centre-stack row is. The unit caption is a
+       FIXED 30 px flex basis so a caption can never reposition the selector:
+       the caption is a unit symbol (dBFS / LUFS, D-03), identical in every
+       language, and the only localized text in the block is the PRESETS
+       title, which sits on its own line and shares .knob-label's pin.
+
+       Height: 10 (title) + 3 + 17 (row) + 3 + 17 (row) = 50 px, plus the
+       6 px stack gap. The centre stack measured 206 px of content inside
+       315 px with the Learn panel open (90.5 to 296.6 at 380 x 500), so the
+       block lands with 53 px to spare in the tightest state. */
+    .preset-block {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      width: 100%;
+      max-width: 220px;
+    }
+    .preset-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .preset-cap {
+      line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px — same pin as .mode-label, same face */
+      flex: 0 0 30px;
+      font-size: 8px;
+      color: #8B7355;
+      letter-spacing: 0.5px;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .preset-selector {
+      flex: 1;
+      min-width: 0;
+    }
+    .preset-btn {
+      flex: 1;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
     /* Mode selectors */
     .mode-row {
       display: flex;
@@ -1056,6 +1106,31 @@
           </svg>
           <div class="knob-group" id="target-knob-group" style="align-items: flex-start;">
             <div class="knob-label" data-i18n="label.targetLevel" data-label="Target Level">Target Level</div>
+          </div>
+        </div>
+
+        <!-- Target presets (v1.7.0). The numerals are READOUT-class text under
+             D-03 and the unit captions are unit symbols; only the title is a
+             label, and it is keyed. Buttons carry data-target in dB, which is
+             what target_level stores, so the table below IS the parameter's
+             own unit and never needs a conversion table of its own. -->
+        <div class="preset-block" id="target-preset-row">
+          <div class="knob-label" data-i18n="label.presets" data-label="Presets">Presets</div>
+          <div class="preset-row">
+            <span class="preset-cap">dBFS</span>
+            <div class="mode-selector preset-selector" id="preset-dbfs">
+              <button class="mode-option preset-btn" data-target="-18">-18</button>
+              <button class="mode-option preset-btn" data-target="-16">-16</button>
+              <button class="mode-option preset-btn" data-target="-20">-20</button>
+            </div>
+          </div>
+          <div class="preset-row">
+            <span class="preset-cap">LUFS</span>
+            <div class="mode-selector preset-selector" id="preset-lufs">
+              <button class="mode-option preset-btn" data-target="-14">-14</button>
+              <button class="mode-option preset-btn" data-target="-16">-16</button>
+              <button class="mode-option preset-btn" data-target="-23">-23</button>
+            </div>
           </div>
         </div>
       </div>
