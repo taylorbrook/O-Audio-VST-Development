@@ -120,9 +120,11 @@ const report = {
   nativeKnown: [],
   nativeUnknown: [],
 };
+const nativeCalls = [];   // declared BEFORE the preamble below reads it (memory pattern_module_toplevel_init_tdz)
 if (typeof window !== 'undefined') {
   window.__stubReport = report;
   window.__stubUnknownNativeFns = report.nativeUnknown;
+  window.__stubNativeCalls = nativeCalls;   // every getNativeFunction() call: { name, args } (gates read it; inert otherwise)
 }
 
 // ── overrides, optional, per plugin ─────────────────────────────────────────
@@ -414,17 +416,17 @@ export function getNativeFunction(name) {
   if (Object.prototype.hasOwnProperty.call(NATIVE_OVERRIDES, name)) {
     if (!report.nativeKnown.includes(name)) report.nativeKnown.push(name);
     const v = NATIVE_OVERRIDES[name];
-    return () => Promise.resolve(v);
+    return (...args) => { nativeCalls.push({ name, args }); return Promise.resolve(v); };
   }
 
   if (Object.prototype.hasOwnProperty.call(KNOWN, name)) {
     if (!report.nativeKnown.includes(name)) report.nativeKnown.push(name);
-    return (...args) => Promise.resolve(KNOWN[name](...args));
+    return (...args) => { nativeCalls.push({ name, args }); return Promise.resolve(KNOWN[name](...args)); };
   }
 
   if (!report.nativeUnknown.includes(name)) report.nativeUnknown.push(name);
   const value = benignDefault(name);
-  return () => Promise.resolve(value);
+  return (...args) => { nativeCalls.push({ name, args }); return Promise.resolve(value); };
 }
 
 // ── the rest of the real module's export surface ────────────────────────────
