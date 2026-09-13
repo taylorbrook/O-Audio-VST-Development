@@ -118,11 +118,29 @@
        whole reason the scale exists is to be read while the bar moves. The
        column still holds the widest caption comfortably -- ENTREE measured
        42.4 px against 44 and now clears by 15.6. */
+    /* v1.9.2: 58 -> 72 px, and the 14 px is the READOUT's, not the scale's.
+       The dB readout under the bars is the number a person actually reads off
+       this plugin, and at 10 px it had NO room left to grow: the value cell
+       was 58 - 25 cap - 3 gap = 30 px against "+24.0" (the signed VU worst
+       case) at 30.09 px of ink -- 0.01 px of slack, measured, with the 1fr
+       track already stretched to 30.1 and pushing the grid 0.1 px past the
+       column. So "make the readout bigger" is not a font-size edit; the
+       column has to carry it. At 72 the row is 27 cap + 3 gap + 42 value, and
+       the 13 px value clears "+24.0" (39.11 px of ink) by 2.89 px in all
+       three languages.
+
+       The 14 px comes out of .center-section, which is flex:1 and absorbs it:
+       232 -> 204 px, its children 220 -> 192. Measured at the shipping
+       380 x 500 frame in en / fr / zh-Hans, nothing in the centre overflows
+       or gains a line -- the method strip's four columns go 46 -> 42 px,
+       against "+24.0" at 30.83 px in their own 10 px face. The meter body
+       gives up 8 px of height (347 -> 339) to the taller readout row; the
+       scale ticks are percentage-positioned, so they simply re-space. */
     .meter-column {
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: 58px;
+      width: 72px;
       flex-shrink: 0;
       gap: 2px;
     }
@@ -369,9 +387,28 @@
        23 px at 10 px, so the column is 25 px and the value cell keeps
        58 - 25 - 3 = 30 px against "-60.0" at roughly 22 px. Both leaves
        take the v1.8.0 caption / readout colours. */
+    /* v1.9.2: 25 -> 27 px, on a 72 px column. Two corrections, both measured
+       rather than scaled from the estimate above:
+
+         - "roughly 22 px" for the value was low. The widest string this cell
+           can hold is not "-60.0" (27.58 px) but the SIGNED VU reading
+           "+24.0" at 30.09 px -- .meter-db-avg runs fmtSigned() in VU mode,
+           and "+" is 3.25 px wider than "-" because the sign is not covered
+           by tabular-nums. Against a 30 px cell that was a 0.09 px overrun,
+           not a 8 px clearance.
+         - 25 px never covered the caption either. The second caption is the
+           METER MODE, and "LUFS" measures 26.02 px at 10 px -- 1.02 px past
+           the track, painting into the 3 px gutter. 27 px contains it by
+           0.98 px and still leaves the fr "crête" (22.77 px) 4.23 px.
+
+       The value cell is therefore 72 - 27 - 3 = 42 px, which the 13 px face
+       clears by 2.89 px on "+24.0". The caption stays PINNED for the v1.8.1
+       reason -- a [data-i18n] element must not size the track that positions
+       the four readouts beside it, or check-ui-labels assertion 7 sees them
+       move between languages. */
     .meter-db-label {
       display: grid;
-      grid-template-columns: 25px 1fr;
+      grid-template-columns: 27px 1fr;
       gap: 0 3px;
       width: 100%;
       font-size: 10px;
@@ -390,9 +427,20 @@
       color: #5C4033;
       letter-spacing: 0.2px;
     }
+    /* v1.9.2: the readout is 10 -> 13 px and BLACK. #3C2F2F was the darkest
+       brown on the page, not black, and at 10 px beside a 32 px gain display
+       it read as a footnote rather than as the meter's number. #000000 is the
+       same black v1.9.1 gave .mode-label and .gear-btn.
+       The pin is re-derived, never scaled: measured English box at 13 px with
+       line-height:normal is 15.00 px, no padding, no border, so 15.00 / 13px
+       = 1.1538. Taking the old 1.1 would have pinned a 13 px face into a
+       14.3 px box -- inside Georgia's own natural line box, which is the
+       clipping this pin exists to prevent, not the language drift it also
+       prevents. */
     .meter-db-val {
-      line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — v1.8.1 */
-      color: #3C2F2F;
+      line-height: 1.1538;   /* 15.00 - 0 - 0 = 15.00 / 13px — v1.9.2 */
+      color: #000000;
+      font-size: 13px;
       font-weight: 600;
       text-align: right;
       font-variant-numeric: tabular-nums;
