@@ -2,6 +2,55 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.9.3] - 2026-09-12
+
+The dB scale beside the meter bars, given the same treatment v1.9.2 gave the
+readouts under them. Cosmetic. PATCH: page CSS only — no parameter, range,
+type or state format changed, no C++ touched, audio path untouched.
+
+### Changed
+
+- **Meter scale numerals 7 → 9 px and black.** `.meter-scale span` was 7 px in
+  `#8B7355`, the tan the selector borders use — the lowest-contrast text on the
+  parchment ground, while being the ruler the bars are actually read against.
+  It is now 9 px in `#000000`, the same black v1.9.1 gave `.mode-label` and
+  v1.9.2 gave `.meter-db-val`.
+
+- **Scale gutter 14 → 17 px.** Required, for the same reason the readout
+  needed a wider column: the numerals are anchored `right: 0` (`left: 0` on
+  the mirrored output column), so ink wider than the gutter does not clip — it
+  spills OUTWARD, off the column toward the window edge, where nothing is laid
+  out to receive it. The widest tick is `-60`: 10.89 px at 7 px, **13.98 px at
+  9 px**, against a 14 px box — 0.02 px of slack. 17 px restores the
+  baseline's clearance exactly, 3.02 px against the old 3.11 px.
+
+- **Meter bars 26 → 24.5 px wide**, back toward their pre-v1.9.2 width. The
+  3 px the gutter gained comes out of `.meter-pair`, which is `flex: 1` inside
+  the column. The column itself stays 72 px, so nothing outside it moves —
+  the centre section, the method strip and the readout row are untouched.
+
+  `line-height` stays `1`: the ticks are absolutely positioned and the two
+  extremes are pulled fully inside by `translateY(100%)` / `translateY(0)`, so
+  the box is the numeral and nothing keys off its height. Vertical clearance
+  is therefore unmoved by the size change — measured at 9 px, the top tick
+  still meets the column caption across the column's own 2 px gap and the
+  bottom tick the readout row across 2 px, and the tightest tick-to-tick
+  spacing on the 339 px body is 33.9 px against a 9 px line box.
+
+### Testing
+
+- `check-ui-labels --plugin O-Gain` PASS, including assertion 8b (no label
+  intersects a non-label element it cleared in English) — the check that would
+  catch a grown tick colliding with the INPUT / OUTPUT caption — and assertion
+  7 (no non-label element moves between en / fr / zh-Hans at 380 × 500).
+- `check-i18n --plugin O-Gain` PASS.
+- Gutter fit measured on the shipped CSS in en / fr / zh-Hans: widest tick
+  `-60` at 13.98 px in a 17.00 px gutter, 3.02 px slack, no spill past the
+  gutter's outer edge.
+- The v1.9.2 readout sweep re-run unchanged: 60 cells, 4 meter modes × 3
+  languages, minimum slack 2.89 px.
+- Built Release VST3 + AU, installed, auval PASS 1.9.3.
+
 ## [1.9.2] - 2026-09-12
 
 The dB readouts under the meters are the number this plugin exists to show,

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.2
+- **Version:** 1.9.3
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -81,6 +81,14 @@
   `flex: 1`, so the bars went 19 -> 26 px wide and the centre section 232 -> 204 px.
   60 readout cells measured across 4 meter modes x en / fr / zh-Hans, minimum slack
   2.89 px. CSS-only.
+- **2026-09-12 (v1.9.3):** Meter scale numerals 7 -> 9 px and black (`#000000`, were the
+  `#8B7355` tan). The gutter had to go 14 -> 17 px: the ticks are anchored `right: 0`
+  (`left: 0` mirrored), so ink wider than the gutter spills OUTWARD off the column rather
+  than clipping, and the widest tick `-60` measures 13.98 px at 9 px against a 14 px box.
+  17 px restores the baseline clearance exactly (3.02 vs 3.11 px). The 3 px comes out of
+  `.meter-pair`, so the bars go 26 -> 24.5 px, back toward pre-v1.9.2; the column stays
+  72 px so nothing outside it moves. Vertical clearance is size-independent -- the ticks
+  are absolutely positioned with the extremes pulled inside by transforms. CSS-only.
 
 ## Known Issues
 

@@ -158,17 +158,40 @@
     .meter-body.mirror {
       flex-direction: row-reverse;
     }
+    /* v1.9.3: 14 -> 17 px, to hold a 9 px scale rather than a 7 px one. The
+       numerals are anchored `right: 0` (and `left: 0` on the mirrored output
+       column), so ink wider than the gutter does not clip -- it spills OUTWARD,
+       off the meter column and toward the window edge, where nothing is laid
+       out to receive it. The widest tick is "-60": 10.89 px at 7 px, 13.98 px
+       at 9 px, against a 14 px box. That is 0.02 px of slack -- the same
+       vanishing margin the v1.9.2 readout had at 58 px, and the same answer.
+       17 px restores the baseline's clearance exactly (3.02 px against 3.11).
+
+       The 3 px comes out of .meter-pair, which is flex:1 inside the column, so
+       the bars go 26 -> 24.5 px each -- back toward their pre-v1.9.2 width.
+       The column itself stays 72 px. */
     .meter-scale {
       position: relative;
-      width: 14px;
-      flex: 0 0 14px;
+      width: 17px;
+      flex: 0 0 17px;
     }
+    /* v1.9.3: 7 -> 9 px and BLACK. #8B7355 is the tan the selector borders
+       use, and on the parchment ground a 7 px tan numeral is the lowest-
+       contrast text on the page while being the ruler the bars are read
+       against. #000000 is the same black v1.9.1 gave .mode-label and v1.9.2
+       gave .meter-db-val.
+       line-height stays 1 -- these are absolutely positioned and the two
+       extremes are pulled inside by the transforms below, so the box is the
+       numeral and nothing keys off its height. Vertical clearance is unmoved
+       by the size: at 9 px the top tick still meets the caption with the
+       column's own 2 px gap, the bottom tick the readout row with 2 px, and
+       the tightest tick-to-tick spacing on the 339 px body is 33.9 px. */
     .meter-scale span {
       position: absolute;
       right: 0;
-      font-size: 7px;
+      font-size: 9px;
       line-height: 1;
-      color: #8B7355;
+      color: #000000;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
       transform: translateY(50%);
