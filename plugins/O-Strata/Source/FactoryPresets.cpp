@@ -99,7 +99,7 @@ std::map<juce::String, float> normalize (juce::AudioProcessorValueTreeState& apv
         }
         else
         {
-            DBG ("FactoryPresets: unknown parameter ID '" << id << "' — skipped");
+            DBG ("FactoryPresets: unknown parameter ID '" << id << "' - skipped");
             jassertfalse;
         }
     }

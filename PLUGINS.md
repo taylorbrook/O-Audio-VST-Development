@@ -49,7 +49,7 @@ Ouaricon Plugins:
 | O-TextureForge | 📦 Installed | 1.4.0 | Instrument (Concatenative Synth) | 2026-09-05 |
 | O-Texture | 📦 Installed | 0.5.0 | Instrument/Effect (Neural Texture Synth) |  2026-09-04 |
 | O-Prism | 📦 Installed | 1.26.0 | Synth (Microtonal Wavetable) |  2026-09-08 |
-| O-Strata | 🚧 Stage 4 Polish — Round A plan ✓ 2026-09-12 (`stages/4-polish/PLAN.md`: 12 tasks / 4 waves / 3 commits, Decisions 1–26; D2 two caps — drop / embed 2 MiB unchanged, Import… / Locate… 8 MiB so the path form is reachable; `terrainImports` slot layout + `customState`; Sine Product fallback pinned by H10; `locateTerrainImage` refuses on SHA mismatch; 18-preset bank with the `1.0.0+sha256` stamp; H2 Coarse / Fine + osc-B rows; H10 (a)–(e)) — Round A execute next | 1.0.0 | Synth (Microtonal Wave Terrain) | 2026-09-12 |
+| O-Strata | 🚧 Stage 4 Polish — Round A executed 2026-09-12 (`stages/4-polish/SUMMARY.md`: commits `f2fe26ed` preset-manager v1.0.7 + `1a1ff54e` 4.1a + 4.1; `terrainImports` persistence with the bytes / path forms + `customState`, Sine Product fallback for a missing source + Locate… (refuses on SHA mismatch), Import… / Locate… at 8 MiB while drop stays 2 MiB, the 18-preset bank under a content stamp; `--gate all` 159 / 159, H10 24 / 24, layout 607 / 0, labels 1809 / 0, auval + install clean) — Round A verify next | 1.0.0 | Synth (Microtonal Wave Terrain) | 2026-09-12 |
 | O-Gain | 📦 Installed | 1.9.5 | Audio Effect (Gain Staging Utility) | 2026-09-12 |
 | O-Formant | 📦 Installed | 1.29.0 | Synth (Physical Model Vocal) | 2026-08-31 |
 | O-Bowed | 📦 Installed | 1.9.0 | Synth (Physical Model Bowed String) | 2026-09-07 |

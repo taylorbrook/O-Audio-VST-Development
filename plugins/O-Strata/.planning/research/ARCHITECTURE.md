@@ -234,14 +234,27 @@ Inherited (O-Prism ARCHITECTURE "MIDI Routing": note on/off, pitch bend through 
 
 ### State Persistence
 
-Reuses superseded "State Persistence" and "Decision 1" verbatim with these substitutions:
-- Child `terrainImports` (the Stage 1 fork wrote an empty `geometryImports`, `PluginProcessor.cpp:1081, 1129` — renamed in the Stage 1 second pass) → `<oscAImport kind="png" name="…" sha256="…" bytes="…" embedded="1" data="<base64>"/>` or `embedded="0" path="…" sha256="…" name="…"`.
-- **Cap 2 MB per oscillator, raw PNG bytes, no gzip** (already deflated). Above the cap: path + SHA-256 + name.
-- Non-parameter properties are strings on round-trip (`isVoid()` / `toString()`, memory `critical_valuetree_xml_roundtrip_loses_type`).
-- Preset files: preset-manager `customSave` / `customLoad` carry the `terrainImports` tree; the choice-param migration hook covers future list changes.
+**As built (Stage 4 Round A, 2026-09-12; PLAN Decisions 2–10):** one `terrainImports` child of the APVTS state, `v="1"`, with zero to two `<slot>` children — written only for oscillators whose slot holds an import — and the same field set in every preset's `customState`:
+
+```xml
+<terrainImports v="1">
+  <slot osc="0" form="bytes" name="lava.png" sha256="…" size="1834211" data="…standard base64…"/>
+  <slot osc="1" form="path"  name="big.png"  sha256="…" size="4102233" path="/Users/…/big.png"/>
+</terrainImports>
+```
+```json
+"customState": { "v": 1, "slots": [ { "osc": 0, "form": "bytes", "name": "…", "sha256": "…", "size": 1834211, "data": "…" } ] }
+```
+
+- **Two caps, both on the processor.** `kMaxImportBytes` = 2 MiB is the **embed rule** (bytes ≤ 2 MiB are stored inline, `juce::Base64` standard alphabet — never `MemoryBlock::toBase64Encoding`) **and** the drop path's cap (`importTerrainImageData` + the page's `IMPORT_MAX_BYTES`: a dropped file carries no path, so a path-form slot could never be relocated). `kMaxImportFileBytes` = 8 MiB is the cap of the two natives that hold a `juce::File` (`chooseTerrainImage`, `locateTerrainImage`): a PNG between 2 and 8 MiB imports through Import…, persists as `form="path"` with its absolute path, and is what Locate… exists for. `DecodedImage::decode` box-downsamples to ≤ 1024², so the 8 MiB bound guards the transient decode only. Form is chosen at **save** time from the byte count; the bytes form stores no path (the bytes are the identity).
+- **One adapter pair** (`saveTerrainImportsTree` / `loadTerrainImportsTree`, `saveTerrainImportsVar` / `loadTerrainImportsVar`) serves both carriers through ≈ 20-line `var ↔ ValueTree` adapters. Every XML property is read as a **string** (`isVoid()` / `toString()`, memory `critical_valuetree_xml_roundtrip_loses_type`); JSON ints the same way. `customSave` always returns the object (`slots: []` when empty); factory defs carry no `customState`, and since preset-manager v1.0.7 `customLoad` fires with an empty var when the key is absent — which **clears both slots** (an image-less preset after an image preset must not keep the image live).
+- **Restore** clears both slots first (`clearImportSlot`: bytes / name / sha256 / path / decoded gone, `sourceMissing` false, `importRevision` → 0, the published image retired through `retire()`, `imageGeneration` bumped so the view re-pushes; `slot.revision` stays monotonic so a later import produces a new scheduler key), then re-imports each slot through the Stage 2 API: bytes form → decode + import; path form → `File (path).existsAsFile()` → `loadFileAsData` → SHA-256 equal to the slot's → import (the file's current bytes). Missing file, empty path, unreadable, or hash mismatch → the slot keeps `name / sha256 / size / path`, `bytes` / `decoded` stay empty, **`sourceMissing = true`** (an atomic mirror per oscillator feeds `getTerrainStatus` at the 30 Hz poll — the slot copy would memcpy up to 2 MiB per tick), no import.
+- **Thread guard.** `importTerrainImage` asserts the message thread. `setStateInformation` restores inline when `MessageManager::existsAndIsCurrentThread()` (Logic / VST3 in practice, the harness always); otherwise it copies the child and posts `MessageManager::callAsync` guarded by a weak `restoreAlive` token (the `TerrainScheduler` pattern; reset in the destructor before the published images are released). The `stateGeneration` bump stays the last statement in both cases — the forced push shows the pre-publish heightmap, and the `imageGeneration`-keyed heightmap re-push shows the map (UI-04).
+- **Fallback sound (QUAL-03).** An `Imported…` oscillator with no published image plays **Sine Product** on every quality path — `TerrainOscillator::scan` takes the analytic call with the same F / Mod X / Mod Y / tracking, and `TerrainViewFeed::copyHeightmap` mirrors it so the wireframe shows what sounds. (Before Round A it was silent.) The notice carries the meaning: `#terrain-notice` shows `label.sourceMissing` with a **Locate…** button whose native re-links the file only when its SHA-256 matches the slot; a different file is refused with `label.locateMismatch` (a preset promises a specific terrain — Import… is one click away and re-stamps by definition). A located file re-enters the size rule at the next save.
 - **Not saved:** Chebyshev sets (regenerated), decoded / blurred images (regenerated from bytes), view caches.
-- Restore: `setStateInformation` stores the blob under `importLock` (message/host threads only) and bumps `imageGeneration[osc]`; the import job regenerates on the message-thread timer. Identical bytes ⇒ identical render (FUNC-08 acceptance: SHA-256 of a 1 s render matches).
+- **Known limit:** the path form is an absolute path; on another machine the preset opens with the notice and Locate…. A dropped PNG embeds up to 2 MiB; larger PNGs go through Import…, which links them by path.
 - **Parameter migration on the fork:** no O-Strata preset has shipped, so the Stage 1 second pass changes `osc?Pos` default and `osc?Unison` range without a migration gate. From v1.0.0 on, each range change needs its own gate (memory `pattern_preset_migration_per_param_version_gate`).
+- **Factory bank (FUNC-11):** 18 presets authored in engineering units (`RawMap → completeBase() → convertTo0to1`), stamped `JucePlugin_VersionString + "+" + sha256(bank)[0:12]`; on a stamp mismatch the constructor deletes `Factory/` recursively and regenerates, so an orphaned preset or category cannot outlive the content that wrote it (`User/` is a sibling, never touched).
 
 ### 3D Terrain View (Stage 3; data path starts in the processor)
 
