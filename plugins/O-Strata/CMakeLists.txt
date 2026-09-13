@@ -83,11 +83,15 @@ ouaricon_add_module(O-Strata note-expression)
 # WebView UI Resources — exactly ONE binary-data target (two collide on the
 # BinaryData namespace). Stage 3 Round A added the botanical plate
 # (img/shell_conchologiaiconi12reev_0090.png → BinaryData::shell_conchologiaiconi12reev_0090_png,
-# served by getResource as image/png); Round B's terrain view module goes HERE too.
+# served by getResource as image/png); Round B added the terrain view module
+# (js/terrain-view.js → BinaryData::terrainview_js — the hyphen is stripped —
+# served as application/javascript). Every file here must ALSO have a getResource
+# branch in PluginEditor.cpp (check-i18n [8] for i18n.js, the layout gate for the module).
 juce_add_binary_data(O-Strata_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/i18n.js
+        Source/ui/public/js/terrain-view.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/shell_conchologiaiconi12reev_0090.png

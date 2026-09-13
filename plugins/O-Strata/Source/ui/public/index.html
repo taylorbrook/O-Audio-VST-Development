@@ -1557,7 +1557,7 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
 }
 .terrain-view { display: block; width: 100%; height: 100%; }
 .terrain-hud {
-    position: absolute; left: 10px; bottom: 9px; z-index: 5; pointer-events: none;
+    position: absolute; left: 10px; bottom: 9px; z-index: 5; cursor: default;   /* takes the ⌥-click perf burst (Round B) */
     font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
     font-size: 10px; letter-spacing: .3px; color: #8B7355; opacity: .72;
     transition: opacity .15s;
@@ -2456,6 +2456,7 @@ html[lang="zh-Hans"] .terrain-toprow .wt-osc-btn { padding-left: 7.85px; padding
 <script type="module">
 import * as Juce from './js/juce/index.js';
 import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
+import { makeScene, HM_N, perf, TAU } from './js/terrain-view.js';   // Stage 3 Round B: the terrain view module (Orbits.h port, renderers, perf ring)
 
 // ═══════════════════════════════════════════════════════════════════
 // i18n — canon v2, verbatim from scripts/i18n-canon.js
@@ -4880,49 +4881,13 @@ bindBypassToggle('eqBypass', 'toggle-eqBypass', 'section-eq');
 })();
 
 // ═══════════════════════════════════════════════════════════════════
-// NEW — O-STRATA (Stage 3 Round A): terrain / orbit look-alikes, the ⬡ view
-// placeholder, the ≋ cycle view fed by the pushed `terrainCycle`, the readout,
-// the inert rules and the Terrain-tab bindings.
-//
-// PLACEHOLDER (Stage 3 Round B replaces): orbitXY / terrainH are look-alikes,
-// not Orbits.h / Terrains.h (RESEARCH §2.7 — max divergence 0.02–2.0 on 10 of
-// 11 orbits, Butterfly axes swapped). Round B ports the C++ maths verbatim into
-// js/terrain-view.js, pushes the R32F heightmap and the playhead, and adds the
-// view gestures + the PNG import flow. Until then the wireframe and the orbit
-// curve drawn here are illustrative; the ≋ view and the readout are real.
+// NEW — O-STRATA (Stage 3): the Terrain views. The maths and the renderers live
+// in js/terrain-view.js (Orbits.h ported verbatim — orbit golden ≤ 1e-4 — the
+// camera, the heightmap sampler, Canvas 2D + WebGL2, the PERF-03 ring). This
+// page owns the STATE the views draw from: snapshot() of the relays, the PUSHED
+// heightmap / cycle / playhead, the ≋ cycle view, the readout, the inert rules,
+// the Terrain-tab bindings, the view gestures and the PNG import flow.
 // ═══════════════════════════════════════════════════════════════════
-const TAU = Math.PI * 2;
-function terrainH(kind, x, y, F, mx, my) {
-    const P = Math.PI * F;
-    let h;
-    switch (kind) {
-        case 0: h = Math.sin(P * x + (mx - 0.5) * 2.2) * Math.sin(P * y + (my - 0.5) * 2.2); break;                       // Sine Product
-        case 1: { const r = Math.hypot(x, y); h = Math.cos(P * (0.6 + mx * 2.6) * r) * Math.exp(-r * r * (0.15 + my * 1.6)); break; }   // Radial Rings
-        case 2: h = Math.tanh(1.7 * ((0.3 + mx * 1.5) * x * x - (0.3 + my * 1.5) * y * y) * F); break;                      // Saddle
-        case 3: { const u = 1 - Math.abs(Math.cos(P * x * (0.5 + mx * 1.5))), v = 1 - Math.abs(Math.cos(P * y)); h = (u * u + v * v) * (0.6 + my * 0.8) - 1; break; }   // Ridged Cosines
-        case 4: { const w = (1 - x * x) * (1 - y * y); h = w * Math.sin(P * (x + y) + (mx - 0.5) * 3.2) * Math.cos(P * (x - y) * (0.4 + my * 1.8)) * 1.6; break; }   // Mitsuhashi
-        case 5: { const well = Math.exp(-(x * x + y * y) * (0.8 + my * 4.5)); h = Math.cos(P * x) * Math.cos(P * y) * (1 - (0.35 + mx * 1.1) * well) - (0.35 + mx * 1.1) * well * 0.7; break; }   // Cosine Wells
-        default: {                                                                                                       // Imported… (until the PNG heightmap arrives)
-            let s = 0, amp = 1, f = 0.30 * F;
-            for (let o = 0; o < 3; o++) { s += amp * Math.sin(Math.PI * f * (x * (1 + 0.27 * o) + 0.8 * Math.sin(Math.PI * f * y + o * 1.7))); amp *= 0.5; f *= 1.9; }
-            h = Math.tanh(s * (0.6 + mx)) * (0.45 + my * 0.85);
-        }
-    }
-    return clamp(h, -1, 1);
-}
-function orbitXY(kind, th, m) {
-    const c = Math.cos(th), s = Math.sin(th);
-    switch (kind) {
-        case 0: return [c, s];
-        case 1: { const p = 2 / (2 + m * 7); return [Math.sign(c) * Math.pow(Math.abs(c), p), Math.sign(s) * Math.pow(Math.abs(s), p)]; }
-        case 2: { const k = m * 1.5, r = (1 + k * c) / (1 + k); return [r * c, r * s]; }
-        case 3: case 4: case 5: { const K = [3, 5, 7][kind - 3], Aa = K + 1, d = (0.15 + m * 0.9) * Aa * 0.3, N = Aa + d; return [(Aa * c - d * Math.cos(Aa * th)) / N, (Aa * s - d * Math.sin(Aa * th)) / N]; }
-        case 6: case 7: case 8: { const K = [3, 5, 7][kind - 6], Aa = K - 1, d = (0.15 + m * 0.9) * Aa * 0.4, N = Aa + d; return [(Aa * c + d * Math.cos(Aa * th)) / N, (Aa * s - d * Math.sin(Aa * th)) / N]; }
-        case 9: { const r = (Math.exp(Math.cos(th)) - (1.2 + m * 1.6) * Math.cos(4 * th) + Math.pow(Math.sin((2 * th - Math.PI) / 24), 5)) / 4.2; return [r * s, r * c]; }
-        default: { const mx = Math.max(Math.abs(c), Math.abs(s)) || 1; return [c * (1 - m) + (c / mx) * m, s * (1 - m) + (s / mx) * m]; }
-    }
-}
-
 // Snapshot of everything the view needs for one oscillator (read from the relays).
 function snapshot(osc) {
     const g = (suffix) => Juce.getSliderState('osc' + osc + suffix).getNormalisedValue();
@@ -4937,468 +4902,40 @@ function snapshot(osc) {
         cx: g('OrbCX') * 2 - 1, cy: g('OrbCY') * 2 - 1, m: g('OrbMod'), fb: g('OrbFeedback'), damp: g('OrbFbDamp')
     };
 }
-function orbitPoint(p, th) {
-    const uv = orbitXY(p.orbit, th, p.m);
-    const r = 0.05 + 0.95 * p.size;
-    const x = uv[0] * r, y = uv[1] * r * p.aspect;
-    const ca = Math.cos(p.rot), sa = Math.sin(p.rot);
-    return [clamp(x * ca - y * sa + p.cx, -1, 1), clamp(x * sa + y * ca + p.cy, -1, 1)];
-}
 
-// ─── HEIGHTMAPS: pushed from C++ (authoritative — PNG, Chebyshev-truncated
-//     Bandlimited, pitch tracking) or computed locally until the first push. ───
-const HM_N = 64;
+// ─── HEIGHTMAPS: PUSHED from C++ as `terrainHeightmap` {osc, n: 64, data: base64
+//     Float32 LE 4096} — the ACTIVE surface (analytic at F, Chebyshev untapered,
+//     the imported image with Blur / Edge) sampled by TerrainViewFeed::copyHeightmap
+//     on the corner grid, ≤ 10 Hz, key-gated, re-pushed after a preset apply or a
+//     session restore (stateGeneration). Until the first push the wireframe draws
+//     from a flat zero map — never a local look-alike (Round B, plan Decision 33). ───
 const pushedHeightmap = { A: null, B: null };          // { gen, data: Float32Array(64*64) }
-const localHeightmap  = { A: { key: '', data: new Float32Array(HM_N * HM_N) }, B: { key: '', data: new Float32Array(HM_N * HM_N) } };
+const ZERO_HEIGHTMAP = { gen: 0, data: new Float32Array(HM_N * HM_N) };
 let hmGeneration = 0;
-function heightmapFor(p) {
-    const pushed = pushedHeightmap[p.osc];
-    if (pushed) return pushed;
-    const loc = localHeightmap[p.osc];
-    const key = [p.terrain, p.F.toFixed(4), p.mx.toFixed(3), p.my.toFixed(3)].join('|');
-    if (loc.key !== key) {
-        loc.key = key; loc.gen = ++hmGeneration;
-        for (let j = 0; j < HM_N; j++) for (let i = 0; i < HM_N; i++)
-            loc.data[j * HM_N + i] = terrainH(p.terrain, i / (HM_N - 1) * 2 - 1, j / (HM_N - 1) * 2 - 1, p.F, p.mx, p.my);
-    }
-    return loc;
-}
-function sampleH(hm, x, y) {           // bilinear, x/y in [-1,1]
-    const fx = (clamp(x, -1, 1) + 1) * 0.5 * (HM_N - 1), fy = (clamp(y, -1, 1) + 1) * 0.5 * (HM_N - 1);
-    const i0 = Math.floor(fx), j0 = Math.floor(fy), i1 = Math.min(i0 + 1, HM_N - 1), j1 = Math.min(j0 + 1, HM_N - 1);
-    const tx = fx - i0, ty = fy - j0, d = hm.data;
-    const a = d[j0 * HM_N + i0] * (1 - tx) + d[j0 * HM_N + i1] * tx;
-    const b = d[j1 * HM_N + i0] * (1 - tx) + d[j1 * HM_N + i1] * tx;
-    return a * (1 - ty) + b * ty;
-}
-function surfaceH(hm, p, x, y) {
-    let h = sampleH(hm, x, y);
-    if (p.sat > 0) { const k = 1 + p.sat * 4; h = Math.tanh(k * h) / Math.tanh(k); }   // TerrainOscillator::saturate: g = 1 + 4·sat
-    return h;
-}
-// p[n] = orbit(θ) + fb·d·û ,  d[n] = damp·d[n-1] + (1-damp)·y[n-1] ,  |d| ≤ 0.5.
-function trajectory(hm, p, N) {
-    const ux = Math.cos(p.rot), uy = Math.sin(p.rot);
-    let d = 0, pts = null;
-    for (let lap = 0; lap < 2; lap++) {
-        pts = new Float64Array(N * 3);
-        for (let i = 0; i < N; i++) {
-            const o = orbitPoint(p, i / N * TAU);
-            const dd = clamp(d, -0.5, 0.5) * p.fb;
-            const x = clamp(o[0] + dd * ux, -1, 1), y = clamp(o[1] + dd * uy, -1, 1);
-            const h = surfaceH(hm, p, x, y);
-            d = p.damp * d + (1 - p.damp) * h;
-            pts[i * 3] = x; pts[i * 3 + 1] = y; pts[i * 3 + 2] = h;
-        }
-    }
-    return pts;
-}
+function heightmapFor(osc) { return pushedHeightmap[osc] || ZERO_HEIGHTMAP; }
 // ─── ≋ DATA: the last complete cycle of the display voice, PUSHED from C++ as
 //     `terrainCycle` {osc, n: 512, data: base64 Float32 LE 512 × {px, py, y}}
 //     (TerrainViewFeed::copyCycle — the ring's own trajectory, saturated with the
 //     DSP's law). Nothing is computed here; with no push yet the ≋ view draws its
-//     baseline only. ───
+//     baseline only. The same array is the 3D view's feedback trail (Decision 33). ───
 const CYCLE = { A: null, B: null };            // Float32Array(512 * 3) per oscillator
-function cycleFor(osc) {
-    const d = CYCLE[osc];
-    if (!d) return null;
-    const n = d.length / 3, y = new Float64Array(n);
-    let peak = 1e-6;
-    for (let i = 0; i < n; i++) { y[i] = d[i * 3 + 2]; peak = Math.max(peak, Math.abs(y[i])); }
-    return { y: y, n: n, peak: peak };
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// NEW — CAMERA (solved per aspect, not picked: see v2-ui.yaml view_3d.renderer.camera)
-// ═══════════════════════════════════════════════════════════════════
-function perspective(fovy, aspect, near, far) {
-    const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
-    return new Float32Array([f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0]);
-}
-function lookAt(eye, c, up) {
-    let zx = eye[0] - c[0], zy = eye[1] - c[1], zz = eye[2] - c[2];
-    let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
-    let xx = up[1] * zz - up[2] * zy, xy = up[2] * zx - up[0] * zz, xz = up[0] * zy - up[1] * zx;
-    l = Math.hypot(xx, xy, xz); xx /= l; xy /= l; xz /= l;
-    const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
-    return new Float32Array([xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0,
-        -(xx * eye[0] + xy * eye[1] + xz * eye[2]), -(yx * eye[0] + yy * eye[1] + yz * eye[2]), -(zx * eye[0] + zy * eye[1] + zz * eye[2]), 1]);
-}
-function mmul(a, b) {
-    const o = new Float32Array(16);
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; }
-    return o;
-}
-const CAM = { yaw: -0.62, pitch: 0.52, fov: 0.82 };
-const HSCALE = 0.45;
-function viewProjAt(aspect, dist) {
-    const e = [dist * Math.cos(CAM.pitch) * Math.sin(CAM.yaw), dist * Math.sin(CAM.pitch), dist * Math.cos(CAM.pitch) * Math.cos(CAM.yaw)];
-    return { vp: mmul(perspective(CAM.fov, aspect, 0.1, 40), lookAt(e, [0, 0, 0], [0, 1, 0])), eye: e };
-}
-const FIT_CORNERS = [];
-for (const x of [-1, 1]) for (const z of [-1, 1]) for (const h of [-0.28, 0.28]) FIT_CORNERS.push([x, h, z]);
-function viewProj(aspect) {
-    let dist = 2.10;
-    for (let it = 0; it < 60; it++) {
-        const M = viewProjAt(aspect, dist);
-        let worst = 0;
-        for (let i = 0; i < FIT_CORNERS.length; i++) {
-            const c = FIT_CORNERS[i], m = M.vp;
-            const w = m[3] * c[0] + m[7] * c[1] + m[11] * c[2] + m[15];
-            worst = Math.max(worst, Math.abs((m[0] * c[0] + m[4] * c[1] + m[8] * c[2] + m[12]) / w), Math.abs((m[1] * c[0] + m[5] * c[1] + m[9] * c[2] + m[13]) / w));
-        }
-        if (worst <= 0.97) return M;
-        dist *= 1.025;
-    }
-    return viewProjAt(aspect, dist);
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// NEW — RENDERERS. makeScene() returns the same interface from either path:
-//   Canvas 2D  — the two 160×90 Synth canvases, and the big view's fallback
-//   WebGL2     — the big view (R32F heightmap texture, ribbon lines, no GLSL `flat`)
-// The wireframe is the expensive static layer; both paths cache it and only
-// redraw the orbit / trail / scan layer per frame.
-// ═══════════════════════════════════════════════════════════════════
-function makeScene2D(canvas, grid, step) {
-    const wire = document.createElement('canvas');
-    let key = '', W = 0, H = 0, dpr = 1, M = null;
-    function fit() {
-        const r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1;
-        const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
-        if (w !== W || h !== H || d !== dpr) {
-            W = w; H = h; dpr = d;
-            canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-            wire.width = canvas.width; wire.height = canvas.height;
-            M = viewProj(W / H); key = '';
-        }
-        if (!M) M = viewProj(W / H);
-    }
-    function proj(x, h, z) {
-        const m = M.vp, w = m[3] * x + m[7] * h + m[11] * z + m[15];
-        return [((m[0] * x + m[4] * h + m[8] * z + m[12]) / w * 0.5 + 0.5) * W, (0.5 - (m[1] * x + m[5] * h + m[9] * z + m[13]) / w * 0.5) * H];
-    }
-    function unproject(px, py) {
-        const m = M.vp, nx = px / W * 2 - 1, ny = 1 - py / H * 2;
-        const a1 = m[0] - nx * m[3], b1 = m[8] - nx * m[11], c1 = m[12] - nx * m[15];
-        const a2 = m[1] - ny * m[3], b2 = m[9] - ny * m[11], c2 = m[13] - ny * m[15];
-        const det = a1 * b2 - a2 * b1;
-        if (Math.abs(det) < 1e-9) return null;
-        return [(-c1 * b2 + c2 * b1) / det, (-a1 * c2 + a2 * c1) / det];
-    }
-    function buildWire(hm, p) {
-        const k = [hm.gen, W, H, dpr].join('|');
-        if (k === key) return;
-        key = k;
-        const c = wire.getContext('2d');
-        c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
-        const N = grid, S = step;
-        c.beginPath();
-        [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach((q, i) => { const s = proj(q[0], 0, q[1]); i ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]); });
-        c.closePath();
-        c.fillStyle = 'rgba(139,115,85,0.055)'; c.fill();
-        c.strokeStyle = 'rgba(139,115,85,0.32)'; c.lineWidth = 1; c.setLineDash([3, 3]); c.stroke(); c.setLineDash([]);
-        const eye = M.eye, lines = [];
-        for (let j = 0; j < N; j += S) lines.push({ row: true, k: j, d: Math.hypot(eye[0], eye[2] - (j / (N - 1) * 2 - 1)) });
-        for (let i = 0; i < N; i += S) lines.push({ row: false, k: i, d: Math.hypot(eye[0] - (i / (N - 1) * 2 - 1), eye[2]) });
-        lines.sort((a, b) => b.d - a.d);
-        const dmin = Math.min.apply(null, lines.map(l => l.d)), dmax = Math.max.apply(null, lines.map(l => l.d));
-        c.lineWidth = 1;
-        lines.forEach(l => {
-            const t = dmax > dmin ? (l.d - dmin) / (dmax - dmin) : 0;
-            c.strokeStyle = 'rgba(139,115,85,' + (0.64 - 0.34 * t).toFixed(3) + ')';
-            c.beginPath();
-            for (let n = 0; n < N; n++) {
-                const i = l.row ? n : l.k, j = l.row ? l.k : n;
-                const s = proj(i / (N - 1) * 2 - 1, sampleH(hm, i / (N - 1) * 2 - 1, j / (N - 1) * 2 - 1) * HSCALE, j / (N - 1) * 2 - 1);
-                n ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]);
-            }
-            c.stroke();
-        });
-    }
-    function draw3d(hm, p, phase, big) {
-        fit(); buildWire(hm, p);
-        const c = canvas.getContext('2d');
-        c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H); c.drawImage(wire, 0, 0, W, H);
-        const N = big ? 320 : 160;
-        if (p.fb > 0.001) {
-            const t = trajectory(hm, p, N);
-            c.strokeStyle = 'rgba(201,130,43,0.75)'; c.lineWidth = big ? 1.4 : 1; c.beginPath();
-            for (let i = 0; i <= N; i++) { const k = (i % N) * 3; const s = proj(t[k], t[k + 2] * HSCALE + 0.008, t[k + 1]); i ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]); }
-            c.stroke();
-        }
-        const pts = new Float64Array((N + 1) * 2);
-        c.strokeStyle = '#8BA870'; c.lineWidth = big ? 2 : 1.5; c.lineJoin = 'round'; c.beginPath();
-        for (let i = 0; i <= N; i++) {
-            const o = orbitPoint(p, (i % N) / N * TAU);
-            const s = proj(o[0], surfaceH(hm, p, o[0], o[1]) * HSCALE + 0.012, o[1]);
-            pts[i * 2] = s[0]; pts[i * 2 + 1] = s[1];
-            i ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]);
-        }
-        c.stroke();
-        const k = Math.round(phase * N) % N, sx = pts[k * 2], sy = pts[k * 2 + 1], rr = big ? 5 : 3;
-        c.fillStyle = 'rgba(107,142,78,0.22)'; c.beginPath(); c.arc(sx, sy, rr * 2.4, 0, TAU); c.fill();
-        c.fillStyle = '#6B8E4E'; c.beginPath(); c.arc(sx, sy, rr, 0, TAU); c.fill();
-    }
-    function drawWave(hm, p, phase, big) {
-        fit();
-        const c = canvas.getContext('2d');
-        c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
-        const w = cycleFor(p.osc), N = w ? w.n : 512, pad = big ? 40 : 9, mid = H / 2;
-        const amp = (H / 2 - pad) / Math.max(1, w ? w.peak : 1), X = (i) => pad + (W - pad * 2) * (i / N);
-        c.strokeStyle = 'rgba(139,115,85,0.26)'; c.lineWidth = 1; c.beginPath(); c.moveTo(pad, mid); c.lineTo(W - pad, mid); c.stroke();
-        if (big) { c.strokeStyle = 'rgba(139,115,85,0.16)'; c.setLineDash([2, 4]); [0.25, 0.5, 0.75].forEach(f => { c.beginPath(); c.moveTo(X(N * f), pad); c.lineTo(X(N * f), H - pad); c.stroke(); }); c.setLineDash([]); }
-        if (!w) return;   // no cycle pushed yet: baseline only
-        c.strokeStyle = '#5C4033'; c.lineWidth = big ? 1.8 : 1.4; c.lineJoin = 'round'; c.lineCap = 'round'; c.beginPath();
-        for (let i = 0; i <= N; i++) { const y = mid - w.y[i % N] * amp; i ? c.lineTo(X(i), y) : c.moveTo(X(i), y); }
-        c.stroke();
-        const pi = Math.round(phase * N) % N;
-        c.fillStyle = '#6B8E4E'; c.beginPath(); c.arc(X(pi), mid - w.y[pi] * amp, big ? 5 : 3, 0, TAU); c.fill();
-    }
-    return {
-        render: (hm, p, phase, mode, big) => (mode === 'wave' ? drawWave(hm, p, phase, big) : draw3d(hm, p, phase, big)),
-        unproject: unproject, fit: fit, size: () => [W, H], kind: '2d'
-    };
-}
-
-// WebGL2 path. Returns null when a context cannot be created (caller falls back).
-function makeSceneGL(canvas, grid, step) {
-    const gl = canvas.getContext('webgl2', { antialias: true, alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: false });
-    if (!gl) return null;
-    let W = 0, H = 0, dpr = 1, M = null, lost = false, wireGen = -1;
-    let R = null;                                    // GL resources (rebuilt after a context restore)
-
-    const VS_WIRE = `#version 300 es
-        precision highp float; precision highp sampler2D;
-        in vec2 a_ij;
-        uniform mat4 u_vp; uniform sampler2D u_hm; uniform float u_n; uniform float u_hscale; uniform vec3 u_eye; uniform vec2 u_dist;
-        out float v_alpha;
-        void main() {
-            float x = a_ij.x / (u_n - 1.0) * 2.0 - 1.0;
-            float z = a_ij.y / (u_n - 1.0) * 2.0 - 1.0;
-            float h = texelFetch(u_hm, ivec2(a_ij), 0).r * u_hscale;
-            float d = distance(u_eye.xz, vec2(x, z));
-            float t = clamp((d - u_dist.x) / max(1e-4, u_dist.y - u_dist.x), 0.0, 1.0);
-            v_alpha = 0.64 - 0.34 * t;
-            gl_Position = u_vp * vec4(x, h, z, 1.0);
-        }`;
-    const FS_WIRE = `#version 300 es
-        precision mediump float;
-        in float v_alpha; uniform vec4 u_color; out vec4 o;
-        void main() { o = vec4(u_color.rgb * v_alpha * u_color.a, v_alpha * u_color.a); }`;
-    // Screen-space ribbon: each polyline vertex is emitted twice (a_side ±1) with
-    // its neighbours, and extruded along the screen normal by u_width pixels.
-    const VS_RIB = `#version 300 es
-        precision highp float;
-        in vec3 a_pos; in vec3 a_prev; in vec3 a_next; in float a_side;
-        uniform mat4 u_vp; uniform vec2 u_vpx; uniform float u_width;
-        void main() {
-            vec4 c = u_vp * vec4(a_pos, 1.0), p = u_vp * vec4(a_prev, 1.0), n = u_vp * vec4(a_next, 1.0);
-            vec2 cs = c.xy / c.w * u_vpx, ps = p.xy / p.w * u_vpx, ns = n.xy / n.w * u_vpx;
-            vec2 d1 = cs - ps, d2 = ns - cs;
-            vec2 dir = normalize((length(d1) > 1e-4 ? normalize(d1) : vec2(0)) + (length(d2) > 1e-4 ? normalize(d2) : vec2(0)) + vec2(1e-6));
-            vec2 nrm = vec2(-dir.y, dir.x);
-            vec2 off = nrm * a_side * u_width * 0.5 / u_vpx * c.w;
-            gl_Position = vec4(c.xy + off, c.z, c.w);
-        }`;
-    const FS_FLAT = `#version 300 es
-        precision mediump float; uniform vec4 u_color; out vec4 o;
-        void main() { o = vec4(u_color.rgb * u_color.a, u_color.a); }`;
-    const VS_PT = `#version 300 es
-        precision highp float; in vec3 a_pos; uniform mat4 u_vp; uniform float u_size;
-        void main() { gl_Position = u_vp * vec4(a_pos, 1.0); gl_PointSize = u_size; }`;
-    const FS_PT = `#version 300 es
-        precision mediump float; uniform vec4 u_color; out vec4 o;
-        void main() { if (length(gl_PointCoord - 0.5) > 0.5) discard; o = vec4(u_color.rgb * u_color.a, u_color.a); }`;
-
-    function compile(vs, fs) {
-        const mk = (t, s) => { const sh = gl.createShader(t); gl.shaderSource(sh, s); gl.compileShader(sh); if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); return sh; };
-        const pr = gl.createProgram(); gl.attachShader(pr, mk(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, mk(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr);
-        if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
-        const u = {}; const n = gl.getProgramParameter(pr, gl.ACTIVE_UNIFORMS);
-        for (let i = 0; i < n; i++) { const info = gl.getActiveUniform(pr, i); u[info.name] = gl.getUniformLocation(pr, info.name); }
-        return { pr: pr, u: u };
-    }
-    function initResources() {
-        const N = grid, S = step;
-        const ij = new Float32Array(N * N * 2);
-        for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { ij[(j * N + i) * 2] = i; ij[(j * N + i) * 2 + 1] = j; }
-        const idx = [];
-        for (let j = 0; j < N; j += S) for (let i = 0; i < N - 1; i++) idx.push(j * N + i, j * N + i + 1);
-        for (let i = 0; i < N; i += S) for (let j = 0; j < N - 1; j++) idx.push(j * N + i, (j + 1) * N + i);
-        const wire = compile(VS_WIRE, FS_WIRE), rib = compile(VS_RIB, FS_FLAT), pt = compile(VS_PT, FS_PT);
-        const vaoWire = gl.createVertexArray(); gl.bindVertexArray(vaoWire);
-        const bIJ = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bIJ); gl.bufferData(gl.ARRAY_BUFFER, ij, gl.STATIC_DRAW);
-        const aIJ = gl.getAttribLocation(wire.pr, 'a_ij'); gl.enableVertexAttribArray(aIJ); gl.vertexAttribPointer(aIJ, 2, gl.FLOAT, false, 0, 0);
-        const bIdx = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bIdx); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(idx), gl.STATIC_DRAW);
-        gl.bindVertexArray(null);
-        const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, HM_N, HM_N, 0, gl.RED, gl.FLOAT, null);
-        // Ribbon VAO: interleaved [pos(3) prev(3) next(3) side(1)] = 10 floats.
-        const vaoRib = gl.createVertexArray(); gl.bindVertexArray(vaoRib);
-        const bRib = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bRib);
-        const st = 40;
-        [['a_pos', 3, 0], ['a_prev', 3, 12], ['a_next', 3, 24], ['a_side', 1, 36]].forEach(([n, sz, off]) => {
-            const loc = gl.getAttribLocation(rib.pr, n); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, sz, gl.FLOAT, false, st, off);
-        });
-        gl.bindVertexArray(null);
-        const vaoPt = gl.createVertexArray(); gl.bindVertexArray(vaoPt);
-        const bPt = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bPt);
-        const aP = gl.getAttribLocation(pt.pr, 'a_pos'); gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 3, gl.FLOAT, false, 0, 0);
-        gl.bindVertexArray(null);
-        // Ground: two triangles at y = 0, drawn through the point shader's sibling (flat colour).
-        const gnd = compile(`#version 300 es
-            precision highp float; in vec3 a_pos; uniform mat4 u_vp; void main() { gl_Position = u_vp * vec4(a_pos, 1.0); }`, FS_FLAT);
-        const vaoGnd = gl.createVertexArray(); gl.bindVertexArray(vaoGnd);
-        const bGnd = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bGnd);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, -1, 1, 0, 1, -1, 0, 1]), gl.STATIC_DRAW);
-        const aG = gl.getAttribLocation(gnd.pr, 'a_pos'); gl.enableVertexAttribArray(aG); gl.vertexAttribPointer(aG, 3, gl.FLOAT, false, 0, 0);
-        gl.bindVertexArray(null);
-        R = { wire, rib, pt, gnd, vaoWire, vaoRib, vaoPt, vaoGnd, bRib, bPt, tex, nIdx: idx.length };
-        wireGen = -1;
-        gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.DEPTH_TEST);
-    }
-    canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); lost = true; R = null; }, false);
-    canvas.addEventListener('webglcontextrestored', () => { lost = false; try { initResources(); } catch (e) { console.error('[terrain] GL restore failed:', e); } requestDraw(); }, false);
-    try { initResources(); } catch (e) { console.error('[terrain] GL init failed:', e); return null; }
-
-    function fit() {
-        const r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1;
-        const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
-        if (w !== W || h !== H || d !== dpr) {
-            W = w; H = h; dpr = d;
-            canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-            M = viewProj(W / H);
-        }
-        if (!M) M = viewProj(W / H);
-    }
-    function unproject(px, py) {
-        const m = M.vp, nx = px / W * 2 - 1, ny = 1 - py / H * 2;
-        const a1 = m[0] - nx * m[3], b1 = m[8] - nx * m[11], c1 = m[12] - nx * m[15];
-        const a2 = m[1] - ny * m[3], b2 = m[9] - ny * m[11], c2 = m[13] - ny * m[15];
-        const det = a1 * b2 - a2 * b1;
-        if (Math.abs(det) < 1e-9) return null;
-        return [(-c1 * b2 + c2 * b1) / det, (-a1 * c2 + a2 * c1) / det];
-    }
-    const IDENT = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-    const col = (r, g, b, a) => [r / 255, g / 255, b / 255, a];
-    function ribbon(vp, pts, closed, widthPx, color) {          // pts: flat [x,y,z,...] world (or NDC when vp = IDENT)
-        const n = pts.length / 3; if (n < 2) return;
-        const out = new Float32Array(n * 2 * 10);
-        for (let i = 0; i < n; i++) {
-            const ip = closed ? (i - 1 + n) % n : Math.max(0, i - 1), inx = closed ? (i + 1) % n : Math.min(n - 1, i + 1);
-            for (let s = 0; s < 2; s++) {
-                const o = (i * 2 + s) * 10;
-                out[o] = pts[i * 3]; out[o + 1] = pts[i * 3 + 1]; out[o + 2] = pts[i * 3 + 2];
-                out[o + 3] = pts[ip * 3]; out[o + 4] = pts[ip * 3 + 1]; out[o + 5] = pts[ip * 3 + 2];
-                out[o + 6] = pts[inx * 3]; out[o + 7] = pts[inx * 3 + 1]; out[o + 8] = pts[inx * 3 + 2];
-                out[o + 9] = s ? 1 : -1;
-            }
-        }
-        gl.useProgram(R.rib.pr); gl.bindVertexArray(R.vaoRib);
-        gl.bindBuffer(gl.ARRAY_BUFFER, R.bRib); gl.bufferData(gl.ARRAY_BUFFER, out, gl.DYNAMIC_DRAW);
-        gl.uniformMatrix4fv(R.rib.u.u_vp, false, vp); gl.uniform2f(R.rib.u.u_vpx, canvas.width / 2, canvas.height / 2);
-        gl.uniform1f(R.rib.u.u_width, widthPx * dpr); gl.uniform4fv(R.rib.u.u_color, color);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, n * 2);
-        gl.bindVertexArray(null);
-    }
-    function point(vp, x, y, z, sizePx, color) {
-        gl.useProgram(R.pt.pr); gl.bindVertexArray(R.vaoPt);
-        gl.bindBuffer(gl.ARRAY_BUFFER, R.bPt); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([x, y, z]), gl.DYNAMIC_DRAW);
-        gl.uniformMatrix4fv(R.pt.u.u_vp, false, vp); gl.uniform1f(R.pt.u.u_size, sizePx * dpr); gl.uniform4fv(R.pt.u.u_color, color);
-        gl.drawArrays(gl.POINTS, 0, 1);
-        gl.bindVertexArray(null);
-    }
-    function uploadHeightmap(hm) {
-        if (hm.gen === wireGen) return;
-        wireGen = hm.gen;
-        gl.bindTexture(gl.TEXTURE_2D, R.tex);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, HM_N, HM_N, gl.RED, gl.FLOAT, hm.data);
-    }
-    function begin() {
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-    }
-    function draw3d(hm, p, phase, big) {
-        fit(); if (lost || !R) return;
-        begin(); uploadHeightmap(hm);
-        const vp = M.vp, eye = M.eye;
-        // ground wash + dashed edge
-        gl.useProgram(R.gnd.pr); gl.bindVertexArray(R.vaoGnd);
-        gl.uniformMatrix4fv(R.gnd.u.u_vp, false, vp); gl.uniform4fv(R.gnd.u.u_color, col(139, 115, 85, 0.055));
-        gl.drawArrays(gl.TRIANGLES, 0, 6); gl.bindVertexArray(null);
-        const edge = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
-        for (let e = 0; e < 4; e++) {
-            const a = edge[e], b = edge[(e + 1) % 4], D = 44;
-            for (let s = 0; s < D; s += 2) {
-                const t0 = s / D, t1 = (s + 1) / D;
-                ribbon(vp, [a[0] + (b[0] - a[0]) * t0, 0, a[1] + (b[1] - a[1]) * t0, a[0] + (b[0] - a[0]) * t1, 0, a[1] + (b[1] - a[1]) * t1], false, 1, col(139, 115, 85, 0.32));
-            }
-        }
-        // wireframe from the R32F heightmap (vertex texture fetch; alpha ramps with distance from the eye)
-        let dmin = Infinity, dmax = 0;
-        for (const x of [-1, 1]) for (const z of [-1, 1]) { const d = Math.hypot(eye[0] - x, eye[2] - z); dmin = Math.min(dmin, d); dmax = Math.max(dmax, d); }
-        gl.useProgram(R.wire.pr); gl.bindVertexArray(R.vaoWire);
-        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.tex); gl.uniform1i(R.wire.u.u_hm, 0);
-        gl.uniformMatrix4fv(R.wire.u.u_vp, false, vp); gl.uniform1f(R.wire.u.u_n, grid); gl.uniform1f(R.wire.u.u_hscale, HSCALE);
-        gl.uniform3fv(R.wire.u.u_eye, eye); gl.uniform2f(R.wire.u.u_dist, dmin, dmax); gl.uniform4fv(R.wire.u.u_color, col(139, 115, 85, 1));
-        gl.drawElements(gl.LINES, R.nIdx, gl.UNSIGNED_INT, 0); gl.bindVertexArray(null);
-        const N = big ? 320 : 160;
-        if (p.fb > 0.001) {
-            const t = trajectory(hm, p, N), pts = new Float32Array(N * 3);
-            for (let i = 0; i < N; i++) { pts[i * 3] = t[i * 3]; pts[i * 3 + 1] = t[i * 3 + 2] * HSCALE + 0.008; pts[i * 3 + 2] = t[i * 3 + 1]; }
-            ribbon(vp, pts, true, big ? 1.4 : 1, col(201, 130, 43, 0.75));
-        }
-        const orb = new Float32Array(N * 3);
-        for (let i = 0; i < N; i++) { const o = orbitPoint(p, i / N * TAU); orb[i * 3] = o[0]; orb[i * 3 + 1] = surfaceH(hm, p, o[0], o[1]) * HSCALE + 0.012; orb[i * 3 + 2] = o[1]; }
-        ribbon(vp, orb, true, big ? 2 : 1.5, col(139, 168, 112, 1));
-        const k = Math.round(phase * N) % N, rr = big ? 5 : 3;
-        point(vp, orb[k * 3], orb[k * 3 + 1], orb[k * 3 + 2], rr * 4.8, col(107, 142, 78, 0.22));
-        point(vp, orb[k * 3], orb[k * 3 + 1], orb[k * 3 + 2], rr * 2,   col(107, 142, 78, 1));
-    }
-    function drawWave(hm, p, phase, big) {
-        fit(); if (lost || !R) return;
-        begin();
-        const w = cycleFor(p.osc), N = w ? w.n : 512, pad = big ? 40 : 9;
-        const amp = (H / 2 - pad) / Math.max(1, w ? w.peak : 1);
-        const X = (i) => (pad + (W - pad * 2) * (i / N)) / W * 2 - 1, Y = (v) => -(v * amp) / (H / 2);
-        ribbon(IDENT, [X(0), 0, 0, X(N), 0, 0], false, 1, col(139, 115, 85, 0.26));
-        if (big) [0.25, 0.5, 0.75].forEach(f => { for (let s = 0; s < H - pad * 2; s += 6) { const y0 = 1 - (pad + s) / H * 2, y1 = 1 - (pad + s + 2) / H * 2; ribbon(IDENT, [X(N * f), y0, 0, X(N * f), y1, 0], false, 1, col(139, 115, 85, 0.16)); } });
-        if (!w) return;   // no cycle pushed yet: baseline only
-        const pts = new Float32Array((N + 1) * 3);
-        for (let i = 0; i <= N; i++) { pts[i * 3] = X(i); pts[i * 3 + 1] = Y(w.y[i % N]); pts[i * 3 + 2] = 0; }
-        ribbon(IDENT, pts, false, big ? 1.8 : 1.4, col(92, 64, 51, 1));
-        const pi = Math.round(phase * N) % N;
-        point(IDENT, X(pi), Y(w.y[pi]), 0, (big ? 5 : 3) * 2, col(107, 142, 78, 1));
-    }
-    return {
-        render: (hm, p, phase, mode, big) => (mode === 'wave' ? drawWave(hm, p, phase, big) : draw3d(hm, p, phase, big)),
-        unproject: unproject, fit: fit, size: () => [W, H], kind: 'webgl2'
-    };
-}
-function makeScene(canvas, grid, step, preferGL) {
-    if (preferGL) {
-        const gls = makeSceneGL(canvas, grid, step);
-        if (gls) return gls;
-        const badge = document.getElementById('terrain-webgl-unavailable');
-        if (badge) { badge.classList.add('visible'); setTimeout(() => badge.classList.remove('visible'), 6000); }
-    }
-    return makeScene2D(canvas, grid, step);
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // NEW — SCENES + ANIMATION. The phase does NOT run on a clock: it arrives as
-// a change-gated {osc, theta, x, y} push at 30 Hz through
+// a change-gated {osc, theta, x, y, h} push at 30 Hz through
 // emitEventIfBrowserIsVisible → backend.addEventListener — never an
 // eval-JS call. Frames are only drawn while something changed.
 // ═══════════════════════════════════════════════════════════════════
 const VIEWMODE = { A: '3d', B: '3d', big: '3d' };           // UI state, never a parameter
-const PLAYHEAD = { A: { theta: 0, x: 0, y: 0 }, B: { theta: 0, x: 0, y: 0 } };
+const PLAYHEAD = { A: null, B: null };                      // {theta, x, y, h} from `terrainState` — null until the first push
 const sceneA   = makeScene(document.getElementById('canvasOscA'), 26, 1, false);
 const sceneB   = makeScene(document.getElementById('canvasOscB'), 26, 1, false);
-const sceneBig = makeScene(document.getElementById('terrainView'), 64, 2, true);
+// WebGL2 when available, else Canvas 2D with the localised placeholder — which STAYS
+// (Decision 36: on a 10.13–11 host the 2D path is the product and the badge says so).
+const sceneBig = makeScene(document.getElementById('terrainView'), 64, 2, true,
+    () => document.getElementById('terrain-webgl-unavailable').classList.add('visible'),
+    () => requestDraw());
+window.__strataScene = sceneBig;               // test seam (layout gate: webgl / fallback sections)
 let dirty = true, rafPending = false;
 function requestDraw() { dirty = true; if (!rafPending) { rafPending = true; requestAnimationFrame(frame); } }
 
@@ -5407,27 +4944,30 @@ function frame() {
     if (!dirty) return;
     dirty = false;
     const pa = snapshot('A'), pb = snapshot('B');
-    const ha = heightmapFor(pa), hb = heightmapFor(pb);
+    const ha = heightmapFor('A'), hb = heightmapFor('B');
     if (document.getElementById('synth-tab').classList.contains('active')) {
-        sceneA.render(ha, pa, PLAYHEAD.A.theta, VIEWMODE.A, false);
-        sceneB.render(hb, pb, PLAYHEAD.B.theta, VIEWMODE.B, false);
+        sceneA.render(ha, pa, PLAYHEAD.A, CYCLE.A, VIEWMODE.A, false);
+        sceneB.render(hb, pb, PLAYHEAD.B, CYCLE.B, VIEWMODE.B, false);
     }
     if (document.getElementById('terrain-tab').classList.contains('active')) {
         const p = ACTIVE_OSC === 'A' ? pa : pb, hm = ACTIVE_OSC === 'A' ? ha : hb, ph = PLAYHEAD[ACTIVE_OSC];
-        sceneBig.render(hm, p, ph.theta, VIEWMODE.big, true);
+        sceneBig.render(hm, p, ph, CYCLE[ACTIVE_OSC], VIEWMODE.big, true);
+        // READOUT: θ / r / c are numbers, never localised (the HUD is a readout node).
         document.getElementById('terrain-hud').textContent =
-            'θ ' + ph.theta.toFixed(2) + ' · r ' + (0.05 + 0.95 * p.size).toFixed(2) + ' · c (' + p.cx.toFixed(2) + ', ' + p.cy.toFixed(2) + ')';
+            'θ ' + (ph ? ph.theta : 0).toFixed(2) + ' · r ' + (0.05 + 0.95 * p.size).toFixed(2) + ' · c (' + p.cx.toFixed(2) + ', ' + p.cy.toFixed(2) + ')';
     }
 }
 
 // ─── Pushed events from C++ (view_push_contract) ───
 const backend = window.__JUCE__ && window.__JUCE__.backend;
 if (backend) {
-    // {osc:'A'|'B', theta, x, y} — 30 Hz, change-gated per oscillator.
+    // {osc:'A'|'B', theta, x, y, h} — 30 Hz, change-gated per oscillator: the ring's newest
+    // slot (TerrainViewFeed::getPlayhead) — x, y are the DISPLACED point (feedback, clamp),
+    // h its saturated terrain value; the scan point rides it, θ indexes the ≋ playhead.
     backend.addEventListener('terrainState', (payload) => {
         const s = typeof payload === 'string' ? JSON.parse(payload) : payload;
         if (!s || !(s.osc in PLAYHEAD)) return;
-        PLAYHEAD[s.osc] = { theta: +s.theta || 0, x: +s.x || 0, y: +s.y || 0 };
+        PLAYHEAD[s.osc] = { theta: +s.theta || 0, x: +s.x || 0, y: +s.y || 0, h: +s.h || 0 };
         requestDraw();
     });
     // {osc, n:64, data:<base64 Float32 little-endian>} — on terrain-parameter change, ≤ 10 Hz.
@@ -5468,6 +5008,21 @@ if (backend) {
 }
 const STATUS = { A: { sourceMissing: false, fit: null, partials: null, approx: null, topNote: -1 },
                  B: { sourceMissing: false, fit: null, partials: null, approx: null, topNote: -1 } };
+
+// ─── PERF-03 (Round B, plan Decision 37): the module's 300-frame ring reports when it
+//     wraps; ⌥-click on the HUD runs a 300-frame burst; both go to the native
+//     `reportViewPerf` → ~/Library/Logs/O-Strata/view-perf.log (the Release WKWebView
+//     has no inspector — the log file is the verdict path). window.__strataPerf is the
+//     test seam, like __setLanguage. ───
+function reportViewPerf(snap) {
+    try { Juce.getNativeFunction('reportViewPerf')(JSON.stringify(snap)).catch(() => {}); } catch (e) {}
+}
+perf.onWrap = reportViewPerf;
+window.__strataPerf = {
+    burst: (k) => { perf.burst(k || 300); const snap = perf.snapshot(); reportViewPerf(snap); return snap; },
+    snapshot: () => perf.snapshot()
+};
+document.getElementById('terrain-hud').addEventListener('click', (e) => { if (e.altKey) { e.preventDefault(); window.__strataPerf.burst(300); } });
 
 // ═══════════════════════════════════════════════════════════════════
 // NEW — READOUT: "2× · 12 partials at C4" / "… · approx." / "image projected …"

@@ -159,6 +159,16 @@ public:
     std::atomic<float> imageFit[2]         { 0.0f, 0.0f };
     std::atomic<int>   publishCount { 0 };                    // prepareToPlay / setStateInformation publish nothing (harness)
 
+    // ─── Stage 3 Round B (plan Decision 34): the re-push generation. Bumped as the last
+    //     statement of setStateInformation and by notifyStateChanged() (the four preset
+    //     natives after a `true` result — savePreset does not bump). The editor reads it
+    //     per tick and forces all five pushes when it moved; it also sits inside the
+    //     heightmap key, so a restore landing identical values still re-pushes once
+    //     (memory pattern_webview_one_shot_state_push_stale_on_preset_load). ───
+    std::atomic<uint32_t> stateGeneration { 0 };
+    uint32_t getStateGeneration() const { return stateGeneration.load (std::memory_order_acquire); }
+    void notifyStateChanged() { stateGeneration.fetch_add (1, std::memory_order_release); }
+
     TerrainScheduler& getTerrainScheduler() { return terrainScheduler; }
 
     /** Message thread: the tuned frequency the voice would give MIDI `midi` on
