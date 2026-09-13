@@ -4,7 +4,7 @@
 version: 2.0.0
 plugin: O-Strata
 created: 2026-09-07
-lastUpdated: 2026-09-12 (Stage 4 discuss — D2 COMPAT-02 evidence = `ci-tests.yml` O-Strata macOS harness + Windows VST3 / pluginval-10 jobs run by manual dispatch (the repository never builds on push); D3 local install only, no `/publish` in Stage 4; D4 vectorised Chebyshev basis taken as the PERF-02 Bandlimited item, the analytic fallback above the muting note and the pitch-tracking soft knee → v1.1; Stage 3 verify — UI-02 / UI-03 / UI-04 complete, UI-01 / FUNC-07 partial at the CONTEXT D2 ceiling (WebView2 halves → Phase 4.2), PERF-03 pending the WKWebView row; Stage 3 Round A verify — UI-04 partial (controls half), FUNC-05 UI list of 46 verified; Stage 2 Round B verify — FUNC-06 / DSP-02 / DSP-04 / QUAL-01 complete, FUNC-06 acceptance amended to the ≤ D_max·K bound on A-notes; 2026-09-11: DSP-01 acceptance amended to the Decision 2 law)
+lastUpdated: 2026-09-13 (Stage 4 Round A verify — FUNC-08 / FUNC-11 / QUAL-03 complete, UI-04 + COMPAT-01 regressions held; 2026-09-12: Stage 4 discuss — D2 COMPAT-02 evidence = `ci-tests.yml` O-Strata macOS harness + Windows VST3 / pluginval-10 jobs run by manual dispatch (the repository never builds on push); D3 local install only, no `/publish` in Stage 4; D4 vectorised Chebyshev basis taken as the PERF-02 Bandlimited item, the analytic fallback above the muting note and the pitch-tracking soft knee → v1.1; Stage 3 verify — UI-02 / UI-03 / UI-04 complete, UI-01 / FUNC-07 partial at the CONTEXT D2 ceiling (WebView2 halves → Phase 4.2), PERF-03 pending the WKWebView row; Stage 3 Round A verify — UI-04 partial (controls half), FUNC-05 UI list of 46 verified; Stage 2 Round B verify — FUNC-06 / DSP-02 / DSP-04 / QUAL-01 complete, FUNC-06 acceptance amended to the ≤ D_max·K bound on A-notes; 2026-09-11: DSP-01 acceptance amended to the Decision 2 law)
 supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 ---
 
@@ -27,10 +27,10 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 | FUNC-05 | Audio-rate modulation: Orbit Size (= `osc?Pos`), Aspect, Rotation, Centre X, Centre Y, Orbit Mod, Terrain Freq, Terrain Mod X/Y, Feedback and Saturation are mod-matrix destinations (10 new per oscillator, appended after O-Prism's 26), smoothed per sample — UI half (46 entries in every destination dropdown) verified Stage 3 Round A, 2026-09-12 | must | complete | stage-2 |
 | FUNC-06 | Per-oscillator Quality: Bandlimited (Chebyshev, 1×) / 2× / 4× — 2× / 4× half complete (Stage 2 Round A, 2026-09-11), Bandlimited half complete (Round B, 2026-09-12: H6 127 / 127 sounding rows ≤ −90 dB; 17 rows above ≈ A6 with K ≥ 6 orbits on even terrains are muted by the truncation law — documented limit) | must | complete | stage-2 |
 | FUNC-07 | User greyscale PNG terrain import via file chooser and drag-and-drop, with Image Blur and Edge Mode; decode and pre-blur off the audio thread — DSP half (import API, blur, edge, off-thread job ≤ 100 ms) verified Stage 2 Round B, 2026-09-12; chooser / drag-and-drop / view are Stage 3 (macOS) — drop path + cap / signature refusals + Imported… selected from C++ verified 2026-09-12 (layout gate drop section; chooser + real-PNG Blur / Edge rows for Taylor); the WebView2 drop half is measured on the Phase 4.2 CI Windows build (Stage 3 CONTEXT D2) | must | partial | stage-3 |
-| FUNC-08 | Imported PNG persists in plugin state and presets (raw bytes ≤ 2 MB; path + SHA-256 above the cap); presets regenerate on load — bytes half (identical bytes ⇒ identical render SHA-256, H10) verified Stage 2 Round B, 2026-09-12; state child / cap / notice are Stage 4 | must | pending | stage-4 |
+| FUNC-08 | Imported PNG persists in plugin state and presets (raw bytes ≤ 2 MB; path + SHA-256 above the cap); presets regenerate on load — bytes half (identical bytes ⇒ identical render SHA-256, H10) verified Stage 2 Round B, 2026-09-12; state child / cap / notice verified Stage 4 Round A, 2026-09-13 (`stages/4-polish/round-a/VERIFICATION.md`: H10 (a)–(e) — bytes-form state round trip render-SHA-identical, path form present / deleted / rewritten, preset `customState` through the file loader + the no-`customState` clear, two ≈ 1.9 MB slots in 64 ms; Logic bytes-form + live-restore rows for Taylor) | must | complete | stage-4 |
 | FUNC-09 | All O-Prism v1.24.0 non-oscillator sections (sub/noise, envelopes, dual filters, LFOs, mod matrix, FX rack, global) carry over unchanged | must | complete | stage-2 |
 | FUNC-10 | Full microtonal tuning engine (scala-tuning-engine v3.0.1: factory tunings, Scala/KBM import, EDO / harmonic / rank-2 generators, tuning tab) | must | complete | stage-2 |
-| FUNC-11 | Factory presets ≥ 15 covering terrains, orbits, feedback and Bandlimited mode, every one passing the symmetry gate (DSP-06) | should | pending | stage-4 |
+| FUNC-11 | Factory presets ≥ 15 covering terrains, orbits, feedback and Bandlimited mode, every one passing the symmetry gate (DSP-06) — verified Stage 4 Round A, 2026-09-13: 18 presets, 6 / 6 terrains, 11 / 11 orbits, feedback 3, Bandlimited 3, the five BRIEF use cases; H2 20 / 20 rows at C4 (Coarse / Fine + osc B); on-disk bank stamped `1.0.0+18c17735821c` with the `Init` orphan swept (Squarcle Storm's figure varies run-to-run through the S&H LFO's clock-seeded RNG, −2.2 … −4.0 dB, always inside −6 dB — Round B item) | should | complete | stage-4 |
 
 ### DSP (DSP)
 
@@ -74,7 +74,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 |----|-------------|----------|--------|-------------|
 | QUAL-01 | Aliasing: every library terrain × orbit at defaults measures ≤ −60 dB non-harmonic energy at C6 at Quality 2× with Pitch Track 1; ≤ −90 dB in Bandlimited mode with a trig-polynomial orbit — 2× half complete (Round A, 2026-09-11: 198 / 198 rows, worst −70.7 dB), Bandlimited half complete (Round B, 2026-09-12: 127 / 127 sounding rows, worst −98.4 dB) | must | complete | stage-2 |
 | QUAL-02 | No zipper noise when any mod destination of FUNC-05 is stepped by host automation or the mod matrix (sample-step detector on the rendered output) | must | complete | stage-2 |
-| QUAL-03 | Loading a preset whose imported PNG is missing degrades to the library fallback with a visible notice, never silence or a crash | nice | pending | stage-4 |
+| QUAL-03 | Loading a preset whose imported PNG is missing degrades to the library fallback with a visible notice, never silence or a crash — verified Stage 4 Round A, 2026-09-13: a missing or SHA-mismatched source plays Sine Product (H10 (b): rms 0.242, render SHA-equal to a Sine Product instance), `sourceMissing` in the status push, the sticky notice carries Locate… which refuses a hash mismatch (layout gate `locate`); the Locate… hands-on row is Taylor's | nice | complete | stage-4 |
 | QUAL-04 | Listening pass on the factory presets and on a terrain × orbit grid rendered by the harness | nice | pending | stage-4 |
 
 ## Acceptance Criteria Details
@@ -107,7 +107,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 ### FUNC-07 / FUNC-08: PNG import and persistence
 
 - [ ] PNG loads via chooser and via drag-and-drop on macOS and Windows; Blur and Edge Mode are audible and visible in the 3D view
-- [ ] Save/reload a preset with an embedded PNG: identical rendered output (SHA-256 of a 1 s render matches); above the cap: path + SHA; missing file → fallback + notice (QUAL-03)
+- [x] Save/reload a preset with an embedded PNG: identical rendered output (SHA-256 of a 1 s render matches); above the cap: path + SHA; missing file → fallback + notice (QUAL-03) — H10 (a) / (b) / (c), Stage 4 Round A (2026-09-13); the chooser / drop / Blur / Edge bullet above stays Stage 3's
 
 ### FUNC-09 / FUNC-10: Inherited sections
 
@@ -125,7 +125,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 
 ### DSP-06: Symmetry gate
 
-- [ ] For every library terrain × orbit at defaults and every factory preset: harmonic 1 is the strongest partial or within 6 dB in ≥ 95 % of 1 s at C4; negative control: Centre (0,0), Aspect 1 over Sine Product fails the gate (octave up)
+- [x] For every library terrain × orbit at defaults and every factory preset: harmonic 1 is the strongest partial or within 6 dB in ≥ 95 % of 1 s at C4; negative control: Centre (0,0), Aspect 1 over Sine Product fails the gate (octave up) — library grid 66 / 66 (Stage 2); factory presets 20 / 20 rows, negative control −109 dB (Stage 4 Round A, 2026-09-13)
 
 ### UI-01 through UI-04: 3D view
 
