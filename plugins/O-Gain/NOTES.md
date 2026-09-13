@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.4
+- **Version:** 1.9.5
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -100,6 +100,14 @@
   `.meter-scale`, giving it the identical padding box. Error is now 0.00 px at all seven
   gridlines in all four modes, confirmed with a border-removed negative control. Tick
   labels were verified exact in every mode and were not touched. CSS-only.
+- **2026-09-12 (v1.9.5):** TOOLTIP COPY. A positive VU / LU reading looked like a clip
+  warning; four hover-help entries (`meter-mode`, `input-meter`, `output-meter`,
+  `method-strip`) now say that 0 VU / 0 LU are reference levels (full scale +18 VU,
+  +|Target| LU), that both are averages that under-read transients and cannot show
+  clipping, and that the clip strip (> -0.5 dBFS sample peak), the peak line and the
+  `peak` readout stay in dBFS in every mode and are the only clipping cues. fr and
+  zh-Hans arms re-authored; lints at zero; check-ui-labels PASS; all 27 tips in frame
+  at 380 x 500 in three languages (tallest now fr meter-mode at 297 px). i18n.js only.
 
 ## Known Issues
 

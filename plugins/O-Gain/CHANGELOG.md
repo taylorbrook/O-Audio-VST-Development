@@ -2,6 +2,78 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.9.5] - 2026-09-12
+
+**A positive VU or LU reading is not a clipping warning, and the tooltips now
+say so — and say what is.** Copy only: four hover-help entries in
+`Source/ui/public/js/i18n.js`, English re-written and the French and
+Simplified Chinese arms re-authored to match. No HTML, CSS or C++ touched;
+no parameter, range, type or state format changed; audio path untouched.
+PATCH.
+
+### Changed
+
+- **`meter-mode`** — after the VU and LUFS sentences, three new ones: 0 VU and
+  0 LU are reference levels, not ceilings (full scale is +18 VU, and in LU it
+  is 0 minus the Target, so +18 LU at a −18 Target); both are averages (300 ms
+  VU ballistics, 400 ms K-weighted momentary), so they under-read transients
+  and cannot show clipping; the clip strip, the peak line and the `peak`
+  readout stay in dBFS in every mode and are the only clipping cues.
+- **`input-meter`** and **`output-meter`** — one sentence each: the peak line
+  and the `peak` readout under the column are always dBFS whatever the scale
+  reads, the line at the very top of the scale is 0 dBFS in every mode, and
+  the clip strip lights above −0.5 dBFS sample peak.
+- **`method-strip`** — two short sentences: the VU column carries a sign
+  because it reads relative to −18 dBFS; the Peak column is the one that
+  reports headroom.
+- Every claim was read against the page code before it was written:
+  `CLIP_THRESHOLD_DB = -0.5` on the L/R sample peak (`app.js`), the peak cap
+  and `#input-db-peak` / `#output-db-peak` are `dbToPercent` / `fmtDb` of the
+  absolute dBFS peak in every mode, `METER_DB_MAX = 0` is the top tick, the
+  VU ruler prints dBFS − (−18) and the LU ruler dBFS − `target_level`, and
+  the strip's VU cell is the only one through `fmtSigned`.
+- English keeps the plain ASCII minus; the fr and zh-Hans arms use U+2212 as
+  they already did. fr: U+2019 apostrophes, U+00A0 before `:` and `;` and
+  between every number and its unit, `−0,5` with the decimal comma; the clip
+  indicator is *le témoin d’écrêtage*, headroom stays *la marge* (as in
+  `info-sample-peak`). zh-Hans: full-width punctuation, one U+0020 at every
+  Latin/Han boundary, `300ms` / `400ms` as the entry already spelled them;
+  headroom stays 余量 (as in `info-sample-peak`). Flags unchanged: the four fr
+  arms stay `reviewed: false` (they were already), the four zh-Hans arms stay
+  `reviewed: 'mt'`.
+
+### Testing
+
+- `check-i18n --plugin O-Gain` ALL CHECKS PASS; `i18n-fr-lint --plugin O-Gain`
+  CLEAN, exit 0; `i18n-zh-lint --plugin O-Gain` GATE PASSED, 0 findings
+  (9 entries at 'mt', counted not failed) — all three were also at zero before
+  the edit, so the zero is not inherited from an inert rule.
+- `check-ui-labels --plugin O-Gain` ALL CHECKS PASSED at 380 × 500 across
+  en / fr / zh-Hans, default + 10 states.
+- **Tooltip clamp, measured through the renderer's own mouseover + dwell path**
+  (scratchpad Playwright probe over `scripts/serve-ui.js`, hover help switched
+  on through the gear popover, all 27 `[data-tip]` anchors, popover closed and
+  open, three languages): 120 hovers, **0 off-frame**, every tip pinned at the
+  220 px cap. The four edited tips, before → after (px tall, body lines):
+
+  | entry | en | fr | zh-Hans |
+  |---|---|---|---|
+  | meter-mode | 148.6 (9) → 256.6 (17) | 148.6 (9) → 297.1 (20) | 121.6 (7) → 202.6 (13) |
+  | input-meter | 135.1 (8) → 202.6 (13) | 148.6 (9) → 216.1 (14) | 121.6 (7) → 175.6 (11) |
+  | output-meter | 121.6 (7) → 175.6 (11) | 148.6 (9) → 216.1 (14) | 94.6 (5) → 148.6 (9) |
+  | method-strip | 108.1 (6) → 148.6 (9) | 108.1 (6) → 148.6 (9) | 94.6 (5) → 121.6 (7) |
+
+  `meter-mode` (anchor at y 425) and `method-strip` (y 333) place *above* with
+  room to spare — the tallest, fr meter-mode, tops out at y 119.9. The two
+  meter-column tips flip *below* their 383 px anchor and the vertical clamp
+  pins them at y 492, so they overlap the column they describe; **that was
+  already true at 1.9.4** (the same probe on HEAD's i18n.js reports the same
+  placement and overlap for all six column tips), the tips are
+  `pointer-events: none`, and only their height changed here. The page and
+  its renderer were not touched.
+- Build + install through `scripts/build-and-install.sh O-Gain`; `auval`
+  after the install.
+
 ## [1.9.4] - 2026-09-12
 
 **The ruler and the thing it measures were in different coordinate spaces.**
