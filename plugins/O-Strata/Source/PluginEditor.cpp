@@ -512,45 +512,84 @@ OStrataAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Opti
             complete (true);
         });
 
-    // ─── Stage 3 Round B (plan Decision 39): PNG import. `chooseTerrainImage (osc)` opens
-    //     the native chooser (*.png); `importTerrainImageData (osc, name, base64)` takes the
-    //     bytes a drop streamed through the page (WKWebView strips file paths from the
-    //     DataTransfer — memory critical_webview_drag_drop_macos), whole file in one call.
-    //     Both apply the 2 MiB cap, hand the bytes to the Stage 2 API (message thread,
-    //     decode + queued publish; works with the editor closed) and, on success, select
-    //     Imported… from C++ and force the pushes. Result = {ok, reason}. ───
+    // ─── Stage 3 Round B (plan Decision 39) + Stage 4 Round A (Decisions 2, 13): the
+    //     three import natives. `chooseTerrainImage (osc)` opens the native chooser
+    //     (*.png) — cap kMaxImportFileBytes (8 MiB) by file, the slot records the path;
+    //     `importTerrainImageData (osc, name, base64)` takes the bytes a drop streamed
+    //     through the page (WKWebView strips file paths from the DataTransfer — memory
+    //     critical_webview_drag_drop_macos), whole file in one call — cap kMaxImportBytes
+    //     (2 MiB) by bytes, unchanged since Stage 3 (a dropped file has no path to
+    //     relocate); `locateTerrainImage (osc)` re-links a missing path-form source —
+    //     cap 8 MiB + the SHA-256 must match the slot. All hand the bytes to the Stage 2
+    //     API (message thread, decode + queued publish; works with the editor closed).
+    //     The first two select Imported… from C++ on success and force the pushes.
+    //     Result = {ok, reason}. ───
     options = options.withNativeFunction ("chooseTerrainImage",
         [this] (const juce::Array<juce::var>& args, auto complete) {
             const int osc = oscFromArg (args, 0);
-            auto chooser = std::make_shared<juce::FileChooser> (
-                "Import Terrain Image",
-                juce::File::getSpecialLocation (juce::File::userPicturesDirectory),
-                "*.png");
-
-            juce::Component::SafePointer<OStrataAudioProcessorEditor> safeThis (this);
-            chooser->launchAsync (juce::FileBrowserComponent::openMode
-                                | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis, chooser, complete, osc] (const juce::FileChooser& fc) {
-                    if (safeThis == nullptr)
-                        return; // editor destroyed — `complete` is owned by the dead WebView, never call it
-                    auto file = fc.getResult();
+            launchPngChooser (osc, "Import Terrain Image",
+                [complete, osc] (OStrataAudioProcessorEditor& ed, const juce::File& file) {
                     if (file == juce::File())
                     {
                         complete (importResult (false, "cancelled"));   // parameter untouched
                         return;
                     }
-                    if (file.getSize() > kMaxImportBytes)
+                    if (file.getSize() > OStrataAudioProcessor::kMaxImportFileBytes)
                     {
-                        complete (importResult (false, "tooLarge"));
+                        complete (importResult (false, "tooLargeFile"));
                         return;
                     }
-                    if (! safeThis->processorRef.importTerrainFile (osc, file))
+                    if (! ed.processorRef.importTerrainFile (osc, file))
                     {
                         complete (importResult (false, "undecodable"));
                         return;
                     }
-                    safeThis->selectImportedTerrain (osc);
-                    safeThis->repushPending = true;
+                    ed.selectImportedTerrain (osc);
+                    ed.repushPending = true;
+                    complete (importResult (true, ""));
+                });
+        });
+
+    // ─── Stage 4 Round A (Decision 13): Locate… for a path-form slot whose file is
+    //     missing. A preset promises a specific terrain, so a file whose SHA-256 differs
+    //     from the slot's is REFUSED and nothing is touched — Import… is one click away
+    //     and re-stamps by definition. A match re-imports the file's bytes (the slot
+    //     records the new path, sourceMissing clears); the terrain is not re-selected
+    //     (it already reads Imported…). The located file re-enters the size rule at the
+    //     next save. ───
+    options = options.withNativeFunction ("locateTerrainImage",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            const int osc = oscFromArg (args, 0);
+            launchPngChooser (osc, "Locate Terrain Image",
+                [complete, osc] (OStrataAudioProcessorEditor& ed, const juce::File& file) {
+                    if (file == juce::File())
+                    {
+                        complete (importResult (false, "cancelled"));
+                        return;
+                    }
+                    if (file.getSize() > OStrataAudioProcessor::kMaxImportFileBytes)
+                    {
+                        complete (importResult (false, "tooLargeFile"));
+                        return;
+                    }
+                    juce::MemoryBlock bytes;
+                    if (! file.loadFileAsData (bytes) || bytes.getSize() == 0)
+                    {
+                        complete (importResult (false, "undecodable"));
+                        return;
+                    }
+                    if (juce::SHA256 (bytes.getData(), bytes.getSize()).toHexString()
+                            != ed.processorRef.getImportSlotCopy (osc).sha256)
+                    {
+                        complete (importResult (false, "hashMismatch"));   // nothing touched
+                        return;
+                    }
+                    if (! ed.processorRef.importTerrainFile (osc, file))
+                    {
+                        complete (importResult (false, "undecodable"));
+                        return;
+                    }
+                    ed.repushPending = true;
                     complete (importResult (true, ""));
                 });
         });
@@ -571,7 +610,7 @@ OStrataAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Opti
                 complete (importResult (false, "undecodable"));
                 return;
             }
-            if (static_cast<juce::int64> (decoded.getDataSize()) > kMaxImportBytes)
+            if (static_cast<juce::int64> (decoded.getDataSize()) > OStrataAudioProcessor::kMaxImportBytes)   // the drop cap (Decision 2)
             {
                 complete (importResult (false, "tooLarge"));
                 return;
@@ -1006,6 +1045,25 @@ void OStrataAudioProcessorEditor::pushHeightmap (int osc, bool force)
 // Round B (plan Decision 40): select Imported… (index 6 of the osc?Terrain choice list)
 // inside one gesture; idempotent so a re-import records no undo step. The combo relay
 // pushes valueChanged → the page's listener → refreshInert() un-greys Blur / Edge.
+void OStrataAudioProcessorEditor::launchPngChooser (int osc, const juce::String& title,
+                                                    std::function<void (OStrataAudioProcessorEditor&, const juce::File&)> onFile)
+{
+    juce::ignoreUnused (osc);   // the natives bind it into onFile; kept in the signature for the call-site read
+    auto chooser = std::make_shared<juce::FileChooser> (
+        title,
+        juce::File::getSpecialLocation (juce::File::userPicturesDirectory),
+        "*.png");
+
+    juce::Component::SafePointer<OStrataAudioProcessorEditor> safeThis (this);
+    chooser->launchAsync (juce::FileBrowserComponent::openMode
+                        | juce::FileBrowserComponent::canSelectFiles,
+        [safeThis, chooser, onFile] (const juce::FileChooser& fc) {
+            if (safeThis == nullptr)
+                return; // editor destroyed — `complete` is owned by the dead WebView, never call it
+            onFile (*safeThis, fc.getResult());
+        });
+}
+
 void OStrataAudioProcessorEditor::selectImportedTerrain (int osc)
 {
     JUCE_ASSERT_MESSAGE_THREAD

@@ -568,13 +568,33 @@ OStrataAudioProcessor::OStrataAudioProcessor()
         "pitchBendRange", "glideMode", "glideTime"
     };
 
-    // Initialize factory presets on first run, and regenerate whenever the
-    // plugin version changes — otherwise on-disk factory JSON stays pinned to
-    // the first-installed version's parameter set forever (WR-08)
-    const juce::String factoryVersion (JucePlugin_VersionString);
-    if (! presetManager.factoryPresetsExist()
-        || presetManager.getFactoryPresetsVersion() != factoryVersion)
-        presetManager.initializeFactoryPresets (FactoryPresets::build (parameters), factoryVersion);
+    // Stage 4 Round A (Decision 12): the terrain import slots ride every preset as
+    // `customState` (the same fields as the terrainImports state child). customSave
+    // always returns the object (slots: [] when empty — a user preset is self-describing);
+    // customLoad fires on every apply since preset-manager v1.0.7, with an empty var when
+    // the preset carries none — which clears both slots (an image-less preset after an
+    // image preset must not keep the image live, RESEARCH C4).
+    presetManager.setCustomStateCallbacks ([this] { return saveTerrainImportsVar(); },
+                                           [this] (const juce::var& v) { loadTerrainImportsVar (v); });
+
+    // Factory bank (Stage 4 Round A, Decision 19): the bank is built every launch and
+    // stamped by content (JucePlugin_VersionString + "+" + sha256(bank)[0:12]); when the
+    // on-disk stamp differs — first run, a version bump, or any authoring change — the
+    // whole Factory/ tree is swept and regenerated, so an orphaned preset or category
+    // (the Stage 1 `Init`-only bank) cannot outlive the content that wrote it. User/ is
+    // a sibling and is never touched. (WR-08's version-only stamp could not regenerate
+    // a content change inside one version; two instances constructed at once race
+    // exactly as initializeFactoryPresets did before — noted, not gated.)
+    {
+        const auto defs = FactoryPresets::build (parameters);
+        const auto stamp = FactoryPresets::stamp (defs);
+        if (! presetManager.factoryPresetsExist()
+            || presetManager.getFactoryPresetsVersion() != stamp)
+        {
+            presetManager.getFactoryPresetsDirectory().deleteRecursively();
+            presetManager.initializeFactoryPresets (defs, stamp);
+        }
+    }
 
     // Create 16 voices
     for (int i = 0; i < 16; ++i)
@@ -665,6 +685,7 @@ OStrataAudioProcessor::~OStrataAudioProcessor()
     // directly; `retired` frees its own on destruction.
     for (auto& ptr : chebPtr)
         delete ptr.exchange (nullptr, std::memory_order_acq_rel);
+    restoreAlive.reset();   // a queued async restore (Decision 9) finds the weak token dead
     releasePublishedImages();
 }
 
@@ -1162,7 +1183,7 @@ OStrataAudioProcessor::TerrainStatus OStrataAudioProcessor::getTerrainStatus (in
     s.fitPercent = juce::jlimit (0, 100, static_cast<int> (std::lround (fit)));
     s.topNote = chebTopNote[o].load (std::memory_order_relaxed);
     s.approximate = chebApproximate[o].load (std::memory_order_relaxed);
-    s.sourceMissing = false;   // Stage 4.1 ("Locate…")
+    s.sourceMissing = sourceMissingFlag[o].load (std::memory_order_relaxed);   // the ImportSlot mirror (Decision 8)
     return s;
 }
 
@@ -1178,6 +1199,12 @@ void OStrataAudioProcessor::releasePublishedImages()
 
 bool OStrataAudioProcessor::importTerrainImage (int osc, const juce::MemoryBlock& pngBytes, const juce::String& name)
 {
+    return importTerrainImageFromPath (osc, pngBytes, name, {});
+}
+
+bool OStrataAudioProcessor::importTerrainImageFromPath (int osc, const juce::MemoryBlock& pngBytes,
+                                                        const juce::String& name, const juce::String& path)
+{
     JUCE_ASSERT_MESSAGE_THREAD
     if (osc < 0 || osc > 1 || pngBytes.getSize() == 0)
         return false;
@@ -1191,9 +1218,13 @@ bool OStrataAudioProcessor::importTerrainImage (int osc, const juce::MemoryBlock
         slot.bytes = pngBytes;
         slot.name = name;
         slot.sha256 = juce::SHA256 (pngBytes.getData(), pngBytes.getSize()).toHexString();
+        slot.path = path;                                  // empty for a drop / a bytes-form restore (Decision 6)
         slot.decoded = std::move (decoded);
+        slot.sourceMissing = false;
+        slot.sourceSize = static_cast<juce::int64> (pngBytes.getSize());
         revision = ++slot.revision;
     }
+    sourceMissingFlag[osc].store (false, std::memory_order_relaxed);
     importRevision[osc].store (revision, std::memory_order_release);   // the scheduler's ImageKey picks it up
     return true;
 }
@@ -1206,7 +1237,211 @@ bool OStrataAudioProcessor::importTerrainFile (int osc, const juce::File& file)
     juce::MemoryBlock bytes;
     if (! file.loadFileAsData (bytes))
         return false;
-    return importTerrainImage (osc, bytes, file.getFileName());
+    return importTerrainImageFromPath (osc, bytes, file.getFileName(), file.getFullPathName());
+}
+
+void OStrataAudioProcessor::clearImportSlot (int osc)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+    if (osc < 0 || osc > 1)
+        return;
+    {
+        const juce::ScopedLock sl (importLock);
+        auto& slot = importSlot[osc];
+        slot.bytes.reset();
+        slot.name.clear(); slot.sha256.clear(); slot.path.clear();
+        slot.decoded.reset();
+        slot.sourceMissing = false;
+        slot.sourceSize = 0;
+        // slot.revision is NOT reset (monotonic — a later import must produce a new scheduler key)
+    }
+    sourceMissingFlag[osc].store (false, std::memory_order_relaxed);
+    importRevision[osc].store (0, std::memory_order_release);           // the scheduler hashes nothing → a late result is dropped
+    // Never `delete` on the message thread while voices may read it: retire exactly as
+    // TerrainScheduler::publishImage retires the previous image.
+    if (const TerrainImage* old = imagePtr[osc].exchange (nullptr, std::memory_order_acq_rel))
+        retire (std::unique_ptr<Retirable> (const_cast<TerrainImage*> (old)));
+    imageFit[osc].store (0.0f, std::memory_order_relaxed);
+    imageGeneration[osc].fetch_add (1, std::memory_order_release);      // the view re-pushes the (now analytic) heightmap
+}
+
+// ─── Slot records: the one field set both the state child and the preset customState carry ───
+
+std::vector<std::pair<int, OStrataAudioProcessor::SlotRecord>> OStrataAudioProcessor::collectSlotRecords() const
+{
+    std::vector<std::pair<int, SlotRecord>> out;
+    const juce::ScopedLock sl (importLock);
+    for (int osc = 0; osc < 2; ++osc)
+    {
+        const auto& slot = importSlot[osc];
+        const bool hasBytes = slot.bytes.getSize() > 0;
+        if (! hasBytes && ! (slot.sourceMissing && slot.sha256.isNotEmpty()))
+            continue;   // nothing imported on this oscillator: no <slot> (the default session serialises an empty child)
+        SlotRecord r;
+        r.name = slot.name;
+        r.sha256 = slot.sha256;
+        r.size = hasBytes ? static_cast<juce::int64> (slot.bytes.getSize()) : slot.sourceSize;
+        if (hasBytes && static_cast<juce::int64> (slot.bytes.getSize()) <= kMaxImportBytes)
+        {
+            r.form = "bytes";   // the bytes are the identity — no path stored
+            r.data = juce::Base64::toBase64 (slot.bytes.getData(), slot.bytes.getSize());   // standard alphabet, never MemoryBlock::toBase64Encoding
+        }
+        else
+        {
+            r.form = "path";
+            r.path = slot.path;
+        }
+        out.emplace_back (osc, std::move (r));
+    }
+    return out;
+}
+
+// Every XML property round-trips as a STRING (memory critical_valuetree_xml_roundtrip_loses_type);
+// JSON ints come back as ints — both are read through toString().
+OStrataAudioProcessor::SlotRecord OStrataAudioProcessor::recordFromTree (const juce::ValueTree& slot)
+{
+    auto str = [&slot] (const char* id) { const juce::var v = slot.getProperty (id); return v.isVoid() ? juce::String() : v.toString(); };
+    SlotRecord r;
+    r.form = str ("form"); r.name = str ("name"); r.sha256 = str ("sha256"); r.path = str ("path"); r.data = str ("data");
+    r.size = str ("size").getLargeIntValue();
+    return r;
+}
+
+OStrataAudioProcessor::SlotRecord OStrataAudioProcessor::recordFromVar (const juce::var& slot)
+{
+    auto str = [&slot] (const char* id) { const juce::var v = slot.getProperty (id, juce::var()); return v.isVoid() ? juce::String() : v.toString(); };
+    SlotRecord r;
+    r.form = str ("form"); r.name = str ("name"); r.sha256 = str ("sha256"); r.path = str ("path"); r.data = str ("data");
+    r.size = str ("size").getLargeIntValue();
+    return r;
+}
+
+void OStrataAudioProcessor::applySlotRecord (int osc, const SlotRecord& r)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+    if (osc < 0 || osc > 1)
+        return;
+    if (r.form == "bytes")
+    {
+        juce::MemoryOutputStream decoded;
+        if (r.data.isNotEmpty() && juce::Base64::convertFromBase64 (decoded, r.data) && decoded.getDataSize() > 0)
+        {
+            const juce::MemoryBlock bytes (decoded.getData(), decoded.getDataSize());
+            if (importTerrainImageFromPath (osc, bytes, r.name, {}))
+                return;
+        }
+        // absent / undecodable data: degrade to a path form with an empty path → sourceMissing (Decision 5)
+    }
+    else if (r.form != "path")
+    {
+        return;   // unknown form: skip (the slot stays cleared)
+    }
+
+    // Path form (Decision 6): re-import the file's CURRENT bytes only when they hash to the slot's SHA-256.
+    if (r.path.isNotEmpty() && juce::File::isAbsolutePath (r.path))
+    {
+        const juce::File file (r.path);
+        juce::MemoryBlock bytes;
+        if (file.existsAsFile() && file.loadFileAsData (bytes) && bytes.getSize() > 0
+            && juce::SHA256 (bytes.getData(), bytes.getSize()).toHexString() == r.sha256
+            && importTerrainImageFromPath (osc, bytes, r.name, file.getFullPathName()))
+            return;
+    }
+    // Missing, unreadable, mismatched or undecodable: keep the record for Locate…, no image
+    // (the oscillator plays Sine Product — Decision 7 — and the status push says so).
+    {
+        const juce::ScopedLock sl (importLock);
+        auto& slot = importSlot[osc];
+        slot.bytes.reset();
+        slot.name = r.name; slot.sha256 = r.sha256; slot.path = r.path;
+        slot.decoded.reset();
+        slot.sourceMissing = true;
+        slot.sourceSize = r.size;
+    }
+    sourceMissingFlag[osc].store (true, std::memory_order_relaxed);
+}
+
+// ─── The adapters (Decisions 3, 5) ───
+
+juce::ValueTree OStrataAudioProcessor::saveTerrainImportsTree() const
+{
+    juce::ValueTree child ("terrainImports");
+    child.setProperty ("v", 1, nullptr);
+    for (const auto& [osc, r] : collectSlotRecords())
+    {
+        juce::ValueTree slot ("slot");
+        slot.setProperty ("osc", osc, nullptr);
+        slot.setProperty ("form", r.form, nullptr);
+        slot.setProperty ("name", r.name, nullptr);
+        slot.setProperty ("sha256", r.sha256, nullptr);
+        slot.setProperty ("size", juce::String (r.size), nullptr);
+        if (r.form == "bytes") slot.setProperty ("data", r.data, nullptr);
+        else                   slot.setProperty ("path", r.path, nullptr);
+        child.appendChild (slot, nullptr);
+    }
+    return child;
+}
+
+void OStrataAudioProcessor::loadTerrainImportsTree (const juce::ValueTree& child)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+    clearImportSlot (0);
+    clearImportSlot (1);
+    if (! child.isValid())
+        return;
+    for (const auto& slot : child)
+    {
+        if (! slot.hasType ("slot"))
+            continue;
+        const juce::var oscVar = slot.getProperty ("osc");
+        const int osc = oscVar.isVoid() ? -1 : oscVar.toString().getIntValue();
+        if (osc < 0 || osc > 1)
+            continue;
+        applySlotRecord (osc, recordFromTree (slot));
+    }
+}
+
+juce::var OStrataAudioProcessor::saveTerrainImportsVar() const
+{
+    auto* obj = new juce::DynamicObject();
+    obj->setProperty ("v", 1);
+    juce::Array<juce::var> slots;
+    for (const auto& [osc, r] : collectSlotRecords())
+    {
+        auto* slot = new juce::DynamicObject();
+        slot->setProperty ("osc", osc);
+        slot->setProperty ("form", r.form);
+        slot->setProperty ("name", r.name);
+        slot->setProperty ("sha256", r.sha256);
+        slot->setProperty ("size", r.size);
+        if (r.form == "bytes") slot->setProperty ("data", r.data);
+        else                   slot->setProperty ("path", r.path);
+        slots.add (juce::var (slot));
+    }
+    obj->setProperty ("slots", slots);   // always present — `slots: []` when nothing is imported
+    return juce::var (obj);
+}
+
+void OStrataAudioProcessor::loadTerrainImportsVar (const juce::var& v)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+    clearImportSlot (0);
+    clearImportSlot (1);
+    const auto* obj = v.getDynamicObject();   // void / non-object (a preset without customState) = "clear both slots"
+    if (obj == nullptr)
+        return;
+    const juce::var slots = obj->getProperty ("slots");
+    if (const auto* arr = slots.getArray())
+        for (const auto& slot : *arr)
+        {
+            if (slot.getDynamicObject() == nullptr)
+                continue;
+            const juce::var oscVar = slot.getProperty ("osc", juce::var());
+            const int osc = oscVar.isVoid() ? -1 : oscVar.toString().getIntValue();
+            if (osc < 0 || osc > 1)
+                continue;
+            applySlotRecord (osc, recordFromVar (slot));
+        }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1228,10 +1463,12 @@ void OStrataAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     state.setProperty ("uiLanguage",
                        languageCode (uiLanguage.load (std::memory_order_acquire)), nullptr);
 
-    // Stage 1: reserve the terrainImports child Phase 4.1 fills (ARCHITECTURE "State Persistence"); written
-    // empty so the round-trip test can assert its presence and a 4.1 reader never sees a
-    // missing node.
-    state.getOrCreateChildWithName ("terrainImports", nullptr);
+    // Stage 4 Round A (Decision 3): the terrainImports child — one <slot> per oscillator
+    // holding an import (bytes form <= 2 MiB as base64, path form above), always present
+    // (empty on the default session, smoke [3]). A child restored by setStateInformation
+    // still sits in the live tree; it is replaced, never appended beside.
+    state.removeChild (state.getChildWithName ("terrainImports"), nullptr);
+    state.appendChild (saveTerrainImportsTree(), nullptr);
 
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
     copyXmlToBinary (*xml, destData);
@@ -1277,9 +1514,31 @@ void OStrataAudioProcessor::setStateInformation (const void* data, int sizeInByt
         if (tuningState.isValid())
             tuningEngine.restoreStateFrom (tuningState);
 
-        // Stage 1: nothing to restore yet — an absent or empty terrainImports child is
-        // the pre-4.1 state.
-        juce::ignoreUnused (state.getChildWithName ("terrainImports"));
+        // Stage 4 Round A (Decisions 6, 9): re-import the terrain slots through the Stage 2
+        // API (which asserts the message thread) — inline when the host restores on the
+        // message thread (Logic / VST3 in practice, the harness always), else queued with
+        // a weak alive token so a processor destroyed before the queue drains is never
+        // touched. An absent child (a pre-4.1 session) clears both slots.
+        {
+            const juce::ValueTree imports = state.getChildWithName ("terrainImports");
+            if (juce::MessageManager::existsAndIsCurrentThread())
+            {
+                loadTerrainImportsTree (imports);
+            }
+            else
+            {
+                const juce::ValueTree copy = imports.isValid() ? imports.createCopy() : juce::ValueTree();
+                std::weak_ptr<RestoreAliveToken> weak = restoreAlive;
+                juce::MessageManager::callAsync ([weak, copy, this]
+                {
+                    if (auto alive = weak.lock())
+                    {
+                        loadTerrainImportsTree (copy);
+                        stateGeneration.fetch_add (1, std::memory_order_release);   // the map lands after the first forced push (RESEARCH C3)
+                    }
+                });
+            }
+        }
 
         // Stage 3 Round B (plan Decision 34): the editor's next tick forces every push.
         stateGeneration.fetch_add (1, std::memory_order_release);

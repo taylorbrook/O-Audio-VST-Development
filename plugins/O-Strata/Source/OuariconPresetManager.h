@@ -270,8 +270,12 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
         }
     }
 
-    if (customLoad && preset->hasProperty("customState"))
-        customLoad(preset->getProperty("customState"));
+    // v1.0.7: customLoad fires on EVERY apply — with an empty var when the preset carries
+    // no customState — so a callback can clear state a previous preset left live
+    // (O-Strata: an image-less preset after an image preset must drop the terrain slots).
+    // Callbacks null-check getDynamicObject(), so a void var is a no-op for older consumers.
+    if (customLoad)
+        customLoad(preset->hasProperty("customState") ? preset->getProperty("customState") : juce::var());
 
     return true;
 }

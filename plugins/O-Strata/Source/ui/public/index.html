@@ -1599,7 +1599,17 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
     background: rgba(201, 130, 43, 0.10); color: #C9822B;
     font-size: 10px; font-style: italic; letter-spacing: .3px;
 }
-.terrain-notice.visible { display: block; }
+.terrain-notice.visible { display: flex; align-items: center; gap: 8px; }
+/* Stage 4 Round A (plan Decision 14): Locate… lives INSIDE the sticky source-missing notice
+   and hides while the div carries a transient import notice (.transient). The notice is a
+   flex row, not a line box: an inline button with vertical-align on a Han line box made the
+   div 3 px taller in zh-Hans (check-ui-labels [7]); with the 21.98 px button as the tallest
+   flex item the box is the same height in every language. */
+.terrain-notice #btn-terLocate { flex: none; }
+/* The text's line box pinned too: a Han fallback face lifts a `normal` line-height by
+   3 px, which moved the (button-less) transient notice between en and zh-Hans. */
+.terrain-notice #terrain-notice-text { line-height: 12px; }
+.terrain-notice.transient #btn-terLocate { display: none; }
 
 /* The nautilus sits BEHIND the panel column, low and right, on the Terrain tab
    only — it is a child of #terrain-tab, so no other tab can reach it.
@@ -1641,6 +1651,9 @@ html[lang="zh-Hans"] .terrain-toprow .wt-osc-btn { padding-left: 7.85px; padding
 /* "Import…" 76.19 / fr "Importer…" 90.39 / zh "导入…" 54.67 — pinned so the readout's box
    (the last flex item, right-aligned) starts at the same x in every language. */
 #btn-terImport                                { min-width: 90.39px; }
+/* Stage 4 Round A: "Locate…" 75.67 / fr "Localiser…" 93.41 / zh "定位…" 54.67 — pinned at
+   fr so the button inside #terrain-notice keeps one box in every language. */
+#btn-terLocate                                { min-width: 93.41px; }
 /* The Terrain-card grid: a cell is content-sized by its caption, so a narrower
    French or Chinese caption shrank the cell and re-centred the knob by a pixel or
    two (check-ui-labels [7]). Cells fill their 82 px column instead; the knob is
@@ -2414,7 +2427,7 @@ html[lang="zh-Hans"] .terrain-toprow .wt-osc-btn { padding-left: 7.85px; padding
                 </div>
             </div>
 
-            <div class="terrain-notice" id="terrain-notice" data-i18n="label.sourceMissing">Source missing &mdash; using library fallback</div>
+            <div class="terrain-notice" id="terrain-notice"><span id="terrain-notice-text" data-i18n="label.sourceMissing">Source missing &mdash; using library fallback</span> <button class="terrain-import-btn" id="btn-terLocate" data-i18n="label.locate">Locate&#8230;</button></div>
         </div>
     </div>
 
@@ -2899,7 +2912,7 @@ window.switchTab = function(tabName) {
     const isFactoryFn = Juce.getNativeFunction('isFactoryPreset');
 
     const CATEGORY_ORDER = [
-        'Pads', 'Drone', 'Lead', 'Bass', 'Pluck',
+        'Init', 'Pads', 'Drone', 'Lead', 'Bass', 'Pluck',
         'Harmonic', 'Keys', 'Sequence', 'FX', 'Percussion', 'User'
     ];
 
@@ -5128,6 +5141,12 @@ document.querySelectorAll('#seg-terQuality .terrain-seg-btn').forEach(btn => {
 // in ONE call. C++ applies the same cap, hands the bytes to the Stage 2 API and
 // selects Imported… itself on success (the combo relay → refreshInert un-greys
 // Blur / Edge); {ok:false, reason} → a transient notice; cancelled → nothing.
+// Stage 4 Round A (plan Decisions 2, 13, 14): TWO caps — the drop stays at
+// IMPORT_MAX_BYTES (2 MiB, embedded in the state), while Import… by file caps at
+// 8 MiB in C++ (a larger file persists by path; reason 'tooLargeFile' above it).
+// Locate… = a button INSIDE the sticky source-missing notice → the native
+// locateTerrainImage (osc), which re-links only a file whose SHA-256 matches the
+// slot and refuses any other ('hashMismatch' → label.locateMismatch).
 // ═══════════════════════════════════════════════════════════════════
 const IMPORT_MAX_BYTES = 2 * 1024 * 1024;
 const PNG_SIGNATURE = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
@@ -5135,21 +5154,29 @@ const PNG_SIGNATURE = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 // label.sourceMissing form. window.__showTerrainNotice (key, holdMs) is the test seam
 // (holdMs = 0 → sticky; key null → restore now) — the same kind as __setLanguage.
 let noticeTimer = 0;
+// The label is written onto the SPAN (#terrain-notice-text), never the div — the div also
+// holds the Locate… button (memory pattern_js_state_updater_overwrites_html_labels).
 function restoreTerrainNotice() {
     const el = document.getElementById('terrain-notice');
+    const text = document.getElementById('terrain-notice-text');
     clearTimeout(noticeTimer); noticeTimer = 0;
     NOTICE.transient = false;
-    setLabel(el, 'label.sourceMissing');
+    setLabel(text, 'label.sourceMissing');
+    el.classList.remove('transient');
     el.classList.toggle('visible', !!STATUS[ACTIVE_OSC].sourceMissing);
 }
 function showTerrainNotice(key, holdMs) {
     const el = document.getElementById('terrain-notice');
+    const text = document.getElementById('terrain-notice-text');
     clearTimeout(noticeTimer); noticeTimer = 0;
     if (!key) { restoreTerrainNotice(); return; }
-    if (key === 'label.importTooLarge') setLabel(el, 'label.importTooLarge');
-    else if (key === 'label.importFailed') setLabel(el, 'label.importFailed');
+    if (key === 'label.importTooLarge') setLabel(text, 'label.importTooLarge');
+    else if (key === 'label.importFailed') setLabel(text, 'label.importFailed');
+    else if (key === 'label.locateMismatch') setLabel(text, 'label.locateMismatch');
+    else if (key === 'label.importTooLargeFile') setLabel(text, 'label.importTooLargeFile');
     else return;
     NOTICE.transient = true;
+    el.classList.add('transient');
     el.classList.add('visible');
     const hold = holdMs === undefined ? 4000 : holdMs;
     if (hold > 0) noticeTimer = setTimeout(restoreTerrainNotice, hold);   // a second call restarts the timer
@@ -5160,12 +5187,22 @@ function handleImportResult(res) {
     if (typeof res === 'string') { try { r = JSON.parse(res); } catch (e) { r = null; } }
     if (!r || r.ok) return;
     if (r.reason === 'tooLarge') showTerrainNotice('label.importTooLarge');
+    else if (r.reason === 'tooLargeFile') showTerrainNotice('label.importTooLargeFile');
     else if (r.reason === 'undecodable') showTerrainNotice('label.importFailed');
+    else if (r.reason === 'hashMismatch') showTerrainNotice('label.locateMismatch');
     // 'cancelled' → nothing: the parameter was left alone
 }
 document.getElementById('btn-terImport').addEventListener('click', () => {
     try { Juce.getNativeFunction('chooseTerrainImage')(ACTIVE_OSC).then(handleImportResult).catch(e => console.warn('[terrain] import:', e)); }
     catch (e) { console.warn('[terrain] chooseTerrainImage unavailable:', e); }
+});
+// Locate… (Stage 4 Round A, plan Decisions 13, 14): re-link a missing source. The native
+// hashes the chosen file and refuses a different one ({ok:false, reason:'hashMismatch'} →
+// label.locateMismatch for 4 s, then the sticky notice returns); a match re-imports and
+// the next status tick clears sourceMissing.
+document.getElementById('btn-terLocate').addEventListener('click', () => {
+    try { Juce.getNativeFunction('locateTerrainImage')(ACTIVE_OSC).then(handleImportResult).catch(e => console.warn('[terrain] locate:', e)); }
+    catch (e) { console.warn('[terrain] locateTerrainImage unavailable:', e); }
 });
 function readEntryFile(item) {
     return new Promise((resolve, reject) => {

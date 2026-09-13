@@ -198,7 +198,8 @@ const TAB_OF = (sel) => {
     if (/^#(toggle|knob|select)-(delay|chorus|dist|reverb|eq)/.test(sel)) return 'effects';
     if (sel === '#ref-pitch-knob' || sel === '#octave-stretch') return 'tuning';
     // Stage 3 Round A: the 14 Terrain-tab knobs (ids from data-knob="ter…").
-    if (/^#knob-ter/.test(sel)) return 'terrain';
+    // Stage 4 Round A: the two Terrain-tab buttons (Import…, Locate…).
+    if (/^#(knob|btn)-ter/.test(sel)) return 'terrain';
     return null;   // synth tab, or header/footer chrome
 };
 
@@ -517,6 +518,17 @@ const HIDDEN_WHEN_SYNC = new Set([
             return { box, tip: await page.evaluate(READ_TIP) };
         }
 
+        // Stage 4 Round A: #btn-terLocate lives inside the sticky source-missing notice
+        // (#terrain-notice.visible), which only STATUS.sourceMissing reveals — drive it
+        // through the same stub push the gate states use, and put it back afterwards.
+        let sourceMissingShown = false;
+        async function setSourceMissing(on) {
+            if (sourceMissingShown === on) return;
+            await page.evaluate((v) => window.__stubEmit('terrainStatus', { osc: 'A', sourceMissing: v }), on);
+            await page.waitForTimeout(80);
+            sourceMissingShown = on;
+        }
+
         // Drive one anchor through its own visibility prerequisites, then hover.
         async function reachAndHover(sel, wrapper) {
             if (POPOVER_ONLY.has(sel) || sel === '#gear-btn') {
@@ -527,6 +539,7 @@ const HIDDEN_WHEN_SYNC = new Set([
                 await openTab(TAB_OF(sel));
                 if (HIDDEN_UNTIL_SYNC.has(sel))      await setLfoSync(true);
                 else if (HIDDEN_WHEN_SYNC.has(sel))  await setLfoSync(false);
+                await setSourceMissing(sel === '#btn-terLocate');
             }
             return hoverAnchor(sel, wrapper);
         }
@@ -1013,8 +1026,8 @@ const HIDDEN_WHEN_SYNC = new Set([
         // <select>s without a tip.
         // v1.23.0: THREE chrome tips — #tips-toggle joined #gear-btn and
         // #lang-select when the settings popover grew a hover-help switch.
-        check(TIP_BINDINGS.length === 120,
-            `[8] 103 parameter tips + 14 terrain tips + 3 chrome tips = 120 bindings — got ${TIP_BINDINGS.length}`);
+        check(TIP_BINDINGS.length === 122,
+            `[8] 103 parameter tips + 16 terrain tips + 3 chrome tips = 122 bindings — got ${TIP_BINDINGS.length}`);
         const modAnchors = await page.evaluate(() =>
             document.querySelectorAll('[id^="modSlot"]').length);
         check(modAnchors === 0,

@@ -118,9 +118,16 @@ private:
     // ─── Round B (plan Decisions 39, 40): PNG import from the page ───
     // A successful import selects Imported… on osc?Terrain from HERE (the processor API
     // never touches a parameter) inside one begin / end gesture — skipped when it already
-    // is, so no spurious undo step.
+    // is, so no spurious undo step. Both caps live on the processor since Stage 4 Round A
+    // (Decision 2): OStrataAudioProcessor::kMaxImportBytes (2 MiB, the drop path — the
+    // page pre-checks it) and kMaxImportFileBytes (8 MiB, the two file natives).
     void selectImportedTerrain (int osc);
-    static constexpr juce::int64 kMaxImportBytes = 2 * 1024 * 1024;   // the 2 MiB cap (both natives; the page pre-checks drops)
+    // Stage 4 Round A (Decision 13): the one FileChooser::launchAsync site for the two
+    // file natives (chooseTerrainImage, locateTerrainImage); hoisted SafePointer (MSVC
+    // trap 2), bare return on the dead path (never call `complete`); onFile receives the
+    // LIVE editor and the chosen file (File() on cancel).
+    void launchPngChooser (int osc, const juce::String& title,
+                           std::function<void (OStrataAudioProcessorEditor&, const juce::File&)> onFile);
 
     // ─── Round B (plan Decision 37): PERF-03 — `reportViewPerf (json)` from the page →
     //     DBG + one line per report in ~/Library/Logs/O-Strata/view-perf.log (the Release

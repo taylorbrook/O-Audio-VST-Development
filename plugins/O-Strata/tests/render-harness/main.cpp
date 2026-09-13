@@ -202,6 +202,7 @@ namespace
         double seconds = 1.0;
         int terrain = -1, orbit = -1, quality = -1;
         std::vector<std::pair<std::string, float>> sets;
+        std::vector<std::pair<std::string, float>> reals;   // --real id=engineering (Stage 4 Round A, Decision 20)
         double fs = 48000.0;
         int block = 512;
         uint32_t seed = 0x5EED0001u;
@@ -250,6 +251,32 @@ namespace
             p.setHarnessPhaseSeed (opt.seed);
         }
 
+        /** B-oscillator pass (Decision 20 ii): A silent, B full — the same envelope / phase / seed lines. */
+        void cleanPatchB()
+        {
+            setReal ("oscMix", 1.0f);
+            setReal ("oscALevel", 0.0f);
+            setReal ("oscBLevel", 1.0f);
+            setReal ("ampAttack", 0.001f);
+            setReal ("ampSustain", 1.0f);
+            setReal ("ampRelease", 0.001f);
+            setReal ("oscAPhase", 0.25f);
+            setReal ("oscBPhase", 0.25f);
+            p.setHarnessPhaseSeed (opt.seed);
+        }
+
+        /** The preset rows measure the OSCILLATOR (H2 = the symmetry rule): the pre-filter
+            tap is a voice tap, so the processor's reverb / chorus / delay / distortion / EQ
+            would still run on it — a bank preset with reverb 0.35 read −5.7 dB through the
+            tail while the same patch FX-free reads 0.0 dB. The research measured the bank
+            FX-free; this keeps the gate on that contract. Never folded into cleanPatch()
+            (whose renders feed the export golden). */
+        void bypassFx()
+        {
+            for (const char* id : { "reverbBypass", "delayBypass", "chorusBypass", "distBypass", "eqBypass" })
+                setReal (id, 1.0f);
+        }
+
         void setTerrainOrbit (int osc, int terrain, int orbit)
         {
             const std::string pre = osc == 0 ? "oscA" : "oscB";
@@ -263,6 +290,7 @@ namespace
             if (opt.orbit >= 0)   setChoice ("oscAOrbit", opt.orbit);
             if (opt.quality >= 0) setChoice ("oscAQuality", opt.quality);
             for (const auto& kv : opt.sets) setNorm (kv.first, kv.second);
+            for (const auto& kv : opt.reals) setReal (kv.first, kv.second);   // engineering units through convertTo0to1
         }
 
         void prepare (double sampleRate, int blockSize)
@@ -283,6 +311,14 @@ namespace
         lists (storm, the async rows of scheduler and import), never while the
         allocation counter is armed. */
     void pump (int ms) { juce::MessageManager::getInstance()->runDispatchLoopUntil (ms); }
+
+    /** The state blob's XML: strip copyXmlToBinary's 9-byte frame (as smoke [3] did inline). */
+    std::unique_ptr<juce::XmlElement> stateXml (const juce::MemoryBlock& blob)
+    {
+        const char* txt = static_cast<const char*> (blob.getData()) + 8;
+        const auto len = (int) blob.getSize() - 9;
+        return juce::XmlDocument::parse (juce::String::fromUTF8 (txt, len));
+    }
 
     struct MidiEvent { int sample; juce::MidiMessage msg; };
 
@@ -485,9 +521,7 @@ namespace
             check (i1.p.getTuningEngine()->loadScalaFile (scl), "[3] scala loaded into P1 before save");
             juce::MemoryBlock block;
             i1.p.getStateInformation (block);
-            const char* txt = static_cast<const char*> (block.getData()) + 8;
-            const auto len = (int) block.getSize() - 9;
-            std::unique_ptr<juce::XmlElement> xml (juce::XmlDocument::parse (juce::String::fromUTF8 (txt, len)));
+            std::unique_ptr<juce::XmlElement> xml = stateXml (block);
             check (xml != nullptr, "[3] state XML parses");
             const auto* geo = xml != nullptr ? xml->getChildByName ("terrainImports") : nullptr;
             check (geo != nullptr && geo->getNumChildElements() == 0, "[3] <terrainImports/> child present and empty");
@@ -759,12 +793,14 @@ namespace
         return { windows ? double (passed) / windows : 0.0, worst, windows };
     }
 
-    H2Result h2Render (Instance& in, int note = 60)
+    /** f0Mul: the oscillator's Coarse / Fine pitch ratio (Decision 20 i) — the tuned note alone
+        put the h1 bin on the 2nd harmonic of a Coarse −12 bass (RESEARCH §2.5 defect 1). */
+    H2Result h2Render (Instance& in, int note = 60, double f0Mul = 1.0)
     {
         in.p.harnessPreFilterTap.store (true);
         RenderSpec s; s.seconds = 1.0; s.note = note; s.velocity = 1.0f;
         auto r = render (in, s);
-        return h2Analyse (r.L, r.fs, in.p.getTuningEngine()->getFrequency (note));
+        return h2Analyse (r.L, r.fs, in.p.getTuningEngine()->getFrequency (note) * f0Mul);
     }
 
     void gateH2()
@@ -812,28 +848,59 @@ namespace
             check (blPass == 66, fmt ("[H2] Bandlimited (Chebyshev) grid: %d / 66 pairs pass; worst h1-max %.1f dB at %s", blPass, blWorst, blWorstAt.c_str()));
         }
 
-        // Factory presets through the disk-free apply loop (RESEARCH §2.11)
+        // Factory presets through the disk-free apply loop (RESEARCH §2.11; Stage 4 Round A Decision 20:
+        // f0 corrected for the oscillator's Coarse / Fine, a second (B) row when the def sets oscBLevel > 0,
+        // the eight ±0.1 neighbours printed around the PRESET'S OWN centre on FAIL)
         {
             Instance in;
             const auto defs = FactoryPresets::build (in.p.getAPVTS());
             std::printf ("  presets: %d (%s)\n", (int) defs.size(), defs.empty() ? "-" : defs[0].name.toRawUTF8());
-            int presetPass = 0;
-            for (const auto& def : defs)
-            {
-                Instance pi;
+            int presetPass = 0, presetRows = 0;
+            auto applyDef = [] (Instance& pi, const OuariconPresetManager::FactoryPresetDef& def) {
                 for (auto* prm : pi.p.getParameters())
                     if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm))
                         if (! pi.p.getPresetManager().excludedParameterIds.contains (rp->getParameterID()))
                             rp->setValueNotifyingHost (rp->getDefaultValue());
                 for (const auto& kv : def.parameters)
                     if (auto* prm = pi.p.getAPVTS().getParameter (kv.first)) prm->setValueNotifyingHost (kv.second);
-                pi.cleanPatch();
-                const auto r = h2Render (pi);
+            };
+            // One row: osc = 0 (A, cleanPatch) or 1 (B, cleanPatchB); f0 follows that oscillator's Coarse / Fine.
+            auto presetRow = [&] (const OuariconPresetManager::FactoryPresetDef& def, int osc) {
+                const std::string pre = osc == 0 ? "oscA" : "oscB";
+                auto patch = [&] (Instance& pi) { applyDef (pi, def); if (osc == 0) pi.cleanPatch(); else pi.cleanPatchB(); pi.bypassFx(); };
+                Instance pi; patch (pi);
+                const float coarse = pi.getReal (pre + "Coarse"), fine = pi.getReal (pre + "Fine");
+                const double f0Mul = std::exp2 ((coarse + fine / 100.0) / 12.0);
+                const float cx = pi.getReal (pre + "OrbCX"), cy = pi.getReal (pre + "OrbCY");
+                const auto r = h2Render (pi, 60, f0Mul);
                 const bool ok = r.passFraction >= 0.95;
+                ++presetRows;
                 if (ok) ++presetPass;
-                std::printf ("  [H2] preset %-10s h1-max worst = %6.1f dB, %3.0f %% windows %s\n", def.name.toRawUTF8(), r.worstH1RelDb, 100.0 * r.passFraction, ok ? "PASS" : "FAIL");
+                std::printf ("  [H2] preset %-18s%s centre (%+.2f,%+.2f) f0 x%.3f  h1-max worst = %6.1f dB, %3.0f %% windows %s\n",
+                             def.name.toRawUTF8(), osc == 0 ? "    " : " (B)", cx, cy, f0Mul, r.worstH1RelDb, 100.0 * r.passFraction, ok ? "PASS" : "FAIL");
+                if (! ok)
+                {
+                    std::printf ("      neighbouring centres (+-0.1):");
+                    for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx)
+                    {
+                        if (dx == 0 && dy == 0) continue;
+                        Instance n; patch (n);
+                        n.setReal (pre + "OrbCX", cx + 0.1f * dx); n.setReal (pre + "OrbCY", cy + 0.1f * dy);
+                        const auto rn = h2Render (n, 60, f0Mul);
+                        std::printf ("  (%+.2f,%+.2f) %.1f dB/%.0f%%", cx + 0.1 * dx, cy + 0.1 * dy, rn.worstH1RelDb, 100.0 * rn.passFraction);
+                    }
+                    std::printf ("\n");
+                }
+            };
+            for (const auto& def : defs)
+            {
+                presetRow (def, 0);
+                const auto b = def.parameters.find ("oscBLevel");
+                if (b != def.parameters.end())
+                    if (auto* prm = in.param ("oscBLevel"); prm->convertFrom0to1 (b->second) > 0.0f)
+                        presetRow (def, 1);
             }
-            check (presetPass == (int) defs.size(), fmt ("[H2] factory presets: %d / %d pass (presets: %d — Init only; Phase 4.1 re-runs over the full bank)", presetPass, (int) defs.size(), (int) defs.size()));
+            check (presetPass == presetRows, fmt ("[H2] factory presets: %d / %d pass (presets: %d)", presetPass, presetRows, (int) defs.size()));
         }
 
         // negative control: Sine Product + Ellipse, Centre (0, 0), Aspect 1 → period halves → h1 absent
@@ -842,6 +909,36 @@ namespace
             in.setReal ("oscAOrbCX", 0.0f); in.setReal ("oscAOrbCY", 0.0f); in.setReal ("oscAOrbAspect", 1.0f);
             const auto r = h2Render (in);
             checkFailsAsExpected (r.passFraction >= 0.95, fmt ("[H2 neg] centred circle over Sine Product: h1-max = %.1f dB, %.0f %% windows", r.worstH1RelDb, 100.0 * r.passFraction));
+        }
+    }
+
+    /** `--gate h2cli` (Decision 20 iv; never in `all`): H2 on the patch assembled from
+        --terrain / --orbit / --quality / --set / --real (osc A, cleanPatch zeroes B), f0
+        following osc A's Coarse / Fine, the eight ±0.1 neighbours printed around the
+        patch's own centre on FAIL. Prints only — a user patch may legitimately fail. */
+    void gateH2Cli()
+    {
+        std::printf ("\n== h2cli (H2 on the CLI patch: --terrain / --orbit / --quality / --set / --real; osc A; neighbour print on FAIL) ==\n");
+        Instance in; in.cleanPatch(); in.applyCliOverrides();
+        const float cx = in.getReal ("oscAOrbCX"), cy = in.getReal ("oscAOrbCY");
+        const int q = (int) std::lround (in.getReal ("oscAQuality"));
+        const float coarse = in.getReal ("oscACoarse"), fine = in.getReal ("oscAFine");
+        const double f0Mul = std::exp2 ((coarse + fine / 100.0) / 12.0);
+        const auto r = h2Render (in, opt.note, f0Mul);
+        const bool ok = r.passFraction >= 0.95;
+        std::printf ("  [H2CLI] note %d q %d cx %+.2f cy %+.2f f0 x%.3f  h1-max worst = %6.1f dB, %3.0f %% windows %s\n", opt.note, q, cx, cy, f0Mul, r.worstH1RelDb, 100.0 * r.passFraction, ok ? "PASS" : "FAIL");
+        if (! ok)
+        {
+            std::printf ("      neighbouring centres (+-0.1):");
+            for (int dy = -1; dy <= 1; ++dy) for (int dx = -1; dx <= 1; ++dx)
+            {
+                if (dx == 0 && dy == 0) continue;
+                Instance n; n.cleanPatch(); n.applyCliOverrides();
+                n.setReal ("oscAOrbCX", cx + 0.1f * dx); n.setReal ("oscAOrbCY", cy + 0.1f * dy);
+                const auto rn = h2Render (n, opt.note, f0Mul);
+                std::printf ("  (%+.2f,%+.2f) %.1f dB/%.0f%%", cx + 0.1 * dx, cy + 0.1 * dy, rn.worstH1RelDb, 100.0 * rn.passFraction);
+            }
+            std::printf ("\n");
         }
     }
 
@@ -1161,6 +1258,14 @@ namespace
         in.p.harnessPreFilterTap.store (true);
         RenderSpec s; s.seconds = seconds; s.note = note; s.velocity = velocity;
         return render (in, s);
+    }
+
+    /** SHA-256 hex of a 1 s C4 tap render (Stage 4 Round A: the H10 state / preset round-trip rows). */
+    [[maybe_unused]] juce::String renderShaOf (Instance& in)
+    {
+        in.p.harnessPreFilterTap.store (true);
+        auto r = tapRender (in, 60, 1.0);
+        return juce::SHA256 (r.L.data(), r.L.size() * sizeof (double)).toHexString();
     }
 
     void gateH4()
@@ -1987,6 +2092,28 @@ namespace
         });
     }
 
+    /** side²: per-channel LCG noise (rgb) or one grey byte per pixel — incompressible → the size
+        seam that reaches the path form (Stage 4 Round A H10 (b): 1024² rgb lands in (2 MiB, 8 MiB]). */
+    [[maybe_unused]] juce::MemoryBlock makeNoisePng (int side, bool rgb)
+    {
+        juce::Image img (juce::Image::RGB, side, side, false);
+        juce::Image::BitmapData bd (img, juce::Image::BitmapData::writeOnly);
+        uint32_t x = 0x9E3779B9u;
+        auto nextByte = [&x] { x = x * 1664525u + 1013904223u; return (juce::uint8) (x >> 24); };
+        for (int y = 0; y < side; ++y)
+            for (int px = 0; px < side; ++px)
+            {
+                const juce::uint8 r = nextByte();
+                const juce::uint8 g = rgb ? nextByte() : r;
+                const juce::uint8 b = rgb ? nextByte() : r;
+                bd.setPixelColour (px, y, juce::Colour (r, g, b));
+            }
+        juce::MemoryOutputStream out;
+        juce::PNGImageFormat png;
+        png.writeImageToStream (img, out);
+        return juce::MemoryBlock (out.getData(), out.getDataSize());
+    }
+
     /** Level (dB) of the strongest partial h >= hFrom relative to h1 (Hann 32768 over 1 s from 0.1 s). */
     double highPartialsRelH1 (const std::vector<double>& y, double fs, double f0, int hFrom)
     {
@@ -2329,9 +2456,9 @@ namespace
 
     void usage()
     {
-        std::printf ("O-Strata-render-test --gate <H1..H11|tuning|smoke|centroids|saturation|decimator|crossfade|latency|clenshaw|scheduler|storm|import|export|topnote|orbits|all> [--gate ...]\n"
+        std::printf ("O-Strata-render-test --gate <H1..H11|tuning|smoke|centroids|saturation|decimator|crossfade|latency|clenshaw|scheduler|storm|import|export|topnote|orbits|h2cli|all> [--gate ...]\n"
                      "  [--note N] [--velocity V] [--seconds S] [--terrain I] [--orbit I] [--quality I]\n"
-                     "  [--set id=norm]... [--fs F] [--block B] [--seed S] [--fixtures DIR] [--export NAME] [--png PATH]\n"
+                     "  [--set id=norm]... [--real id=eng]... [--fs F] [--block B] [--seed S] [--fixtures DIR] [--export NAME] [--png PATH]\n"
                      "  [--print-only] [--with-disk] [--dump-choices] [--out PATH]   (--out: the --gate orbits JSON, default ./orbits.json)\n");
     }
 
@@ -2351,6 +2478,7 @@ namespace
             else if (a == "--orbit") opt.orbit = std::stoi (next());
             else if (a == "--quality") opt.quality = std::stoi (next());
             else if (a == "--set") { const auto kv = next(); const auto eq = kv.find ('='); if (eq == std::string::npos) return false; opt.sets.push_back ({ kv.substr (0, eq), std::stof (kv.substr (eq + 1)) }); }
+            else if (a == "--real") { const auto kv = next(); const auto eq = kv.find ('='); if (eq == std::string::npos) return false; opt.reals.push_back ({ kv.substr (0, eq), std::stof (kv.substr (eq + 1)) }); }
             else if (a == "--fs") opt.fs = std::stod (next());
             else if (a == "--block") opt.block = std::stoi (next());
             else if (a == "--seed") opt.seed = (uint32_t) std::stoul (next());
@@ -2442,6 +2570,7 @@ int main (int argc, char** argv)
     if (wants ("topnote"))   gateTopNote();
     if (wantsExact ("export")) gateExport();
     if (wantsExact ("orbits")) gateOrbits();
+    if (wantsExact ("h2cli"))  gateH2Cli();
 
     std::printf ("\n%s — %d check(s), %d failure(s), %.1f s\n", failures == 0 ? "ALL GATES PASSED" : "GATES FAILED", checksRun, failures, secondsSince (t0));
     return failures;

@@ -2031,6 +2031,28 @@ export const I18N = Object.freeze({
           b: '对反馈位移的一阶平滑——稳定性与音色特征的控制。范围 0 到 100%。',
           reviewed: 'mt' },
     },
+    // Stage 4 Round A (plan Decision 15): the two terrain buttons. Neither had a tip before
+    // (C5) — a tip is a choice, and Locate… earns one because its refusal rule is not obvious.
+    'tip.terImport': {
+        en: { t: 'Import…',
+              b: 'Import a greyscale PNG as this oscillator\'s terrain (up to 8 MB here, up to 2 MB by drop)' },
+        fr: { t: 'Importer…',
+              b: 'Importer un PNG en niveaux de gris comme terrain de cet oscillateur (jusqu’à 8 Mo ici, 2 Mo par dépôt)',
+              reviewed: false },
+    'zh-Hans': { t: '导入…',
+          b: '将灰度 PNG 导入为此振荡器的地形（此处最大 8 MB，拖放最大 2 MB）',
+          reviewed: 'mt' },
+    },
+    'tip.terLocate': {
+        en: { t: 'Locate…',
+              b: 'Find the missing PNG on disk — accepted only when its contents match the preset' },
+        fr: { t: 'Localiser…',
+              b: 'Retrouver le PNG manquant sur le disque — accepté seulement si son contenu correspond au préréglage',
+              reviewed: false },
+    'zh-Hans': { t: '定位…',
+          b: '在磁盘上找到缺失的 PNG——仅当其内容与预设匹配时才接受',
+          reviewed: 'mt' },
+    },
 });
 
 // ============================================================================
@@ -2117,6 +2139,8 @@ export const TIP_BINDINGS = [
     ['#knob-terOrbMod',     'tip.terOrbMod'],
     ['#knob-terFb',         'tip.terFb'],
     ['#knob-terFbDamp',     'tip.terFbDamp'],
+    ['#btn-terImport',      'tip.terImport'],
+    ['#btn-terLocate',      'tip.terLocate'],
 
     // ── Sub oscillator and noise ────────────────────────────────────────────
     ['#select-subShape',       'tip.subShape',       '.dropdown-group'],
@@ -2387,6 +2411,13 @@ export const LABELS = Object.freeze({
                                fr: { t: 'Image de plus de 2 Mo — non importée', reviewed: false }, 'zh-Hans': { t: '图片超过 2 MB——未导入', reviewed: 'mt' } },
     'label.importFailed':    { en: { t: 'Could not read image — terrain unchanged' },
                                fr: { t: 'Image illisible — terrain inchangé', reviewed: false }, 'zh-Hans': { t: '无法读取图片——地形未更改', reviewed: 'mt' } },
+    // Stage 4 Round A (plan Decisions 14, 15): Locate… button inside the sticky notice, its
+    // hash-mismatch refusal, and the Import… (8 MB, by file) refusal — drop stays at 2 MB.
+    'label.locate':          { en: { t: 'Locate…' },       fr: { t: 'Localiser…',    reviewed: false }, 'zh-Hans': { t: '定位…', reviewed: 'mt' } },
+    'label.locateMismatch':  { en: { t: 'Different file — hash does not match the preset' },
+                               fr: { t: 'Fichier différent — l’empreinte ne correspond pas au préréglage', reviewed: false }, 'zh-Hans': { t: '文件不同——哈希值与预设不匹配', reviewed: 'mt' } },
+    'label.importTooLargeFile': { en: { t: 'Image over 8 MB — not imported' },
+                               fr: { t: 'Image de plus de 8 Mo — non importée', reviewed: false }, 'zh-Hans': { t: '图片超过 8 MB——未导入', reviewed: 'mt' } },
     'aria.view3d':           { en: { t: '3D view' },       fr: { t: 'Vue 3D',        reviewed: false }, 'zh-Hans': { t: '3D 视图', reviewed: 'mt' } },
     'aria.viewWaveform':     { en: { t: 'Waveform view' }, fr: { t: 'Vue forme d’onde', reviewed: false }, 'zh-Hans': { t: '波形视图', reviewed: 'mt' } },
     'label.hintView':        { en: { t: 'Drag: centre · Wheel: size · ⌥ drag: rotation' },
