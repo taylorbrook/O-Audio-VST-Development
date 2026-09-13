@@ -49,8 +49,15 @@
       drop         a synthetic File dropped on #terrainView / #canvasWrapB → exactly one
                    importTerrainImageData call with the right osc / name / bytes
                    (window.__stubNativeCalls); > 2 MiB and a .jpg name → the notice, no call
+    Stage 4 Round A (PLAN Decision 16) adds one more:
+      locate       in state terrain-source-missing the Locate… button (#btn-terLocate) is
+                   visible inside #terrain-notice's box in every language with the text
+                   span to its left; a transient notice hides it; a click records exactly
+                   one locateTerrainImage call with ['A'] (['B'] after the Osc B switch);
+                   label.locateMismatch shows for its hold and the sticky notice returns
     plus source greps (placeholder token gone, the module embedded AND served, the
-    four natives referenced by the page AND registered by the editor).
+    five natives referenced by the page AND registered by the editor, the editor's own
+    kMaxImportBytes gone — both caps live on the processor).
 
     Served through scripts/serve-ui.js (generic stub + tests/ui-stub/
     generic-overrides.json, port 0), Playwright resolved from wherever it lives.
@@ -171,11 +178,16 @@ function sourceGreps() {
     check(bd.length === 1 && /Source\/ui\/public\/js\/terrain-view\.js/.test(bd[0]), `js/terrain-view.js is in the ONE juce_add_binary_data SOURCES block (${bd.length} block(s))`);
     check(/"\/js\/terrain-view\.js"/.test(cpp) && /BinaryData::terrainview_js\b/.test(cpp), 'PluginEditor.cpp serves /js/terrain-view.js from a getResource() branch (BinaryData::terrainview_js)');
     check(/from '\.\/js\/terrain-view\.js'/.test(html), "index.html imports './js/terrain-view.js' from its module script");
-    for (const fn of ['requestTerrainRepush', 'reportViewPerf', 'chooseTerrainImage', 'importTerrainImageData']) {
+    for (const fn of ['requestTerrainRepush', 'reportViewPerf', 'chooseTerrainImage', 'importTerrainImageData', 'locateTerrainImage']) {
         const inHtml = new RegExp(`getNativeFunction\\s*\\(\\s*['"]${fn}['"]`).test(html);
         const inCpp  = new RegExp(`withNativeFunction\\s*\\(\\s*"${fn}"`).test(cpp);
         check(inHtml && inCpp, `native ${fn} is referenced by index.html AND registered by PluginEditor.cpp (${inHtml} / ${inCpp})`);
     }
+    // Stage 4 Round A (Decision 13): the editor's own cap constant is gone; both caps are the processor's
+    const editorH = fs.readFileSync(path.join(pluginRoot, 'Source', 'PluginEditor.h'), 'utf8');
+    const capDecl = (editorH.match(/constexpr\s+juce::int64\s+kMaxImportBytes/g) || []).length;
+    check(capDecl === 0 && /OStrataAudioProcessor::kMaxImportBytes/.test(cpp) && /OStrataAudioProcessor::kMaxImportFileBytes/.test(cpp),
+        `PluginEditor.h declares no kMaxImportBytes (${capDecl}); PluginEditor.cpp reads the processor's kMaxImportBytes and kMaxImportFileBytes`);
 }
 
 async function main() {
@@ -499,7 +511,8 @@ async function main() {
             document.querySelector(sel).dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
         }, { sel, name, b64: PNG_1x1, big: big || 0 });
         const calls = () => page.evaluate(() => (window.__stubNativeCalls || []).filter((c) => c.name === 'importTerrainImageData').map((c) => ({ args: c.args })));
-        const notice = () => page.evaluate(() => { const e = document.getElementById('terrain-notice'); return { visible: e.classList.contains('visible'), key: e.dataset.i18n, text: e.textContent.trim() }; });
+        // Stage 4 Round A (Decision 14): the label lives on the #terrain-notice-text span (the div also holds the Locate… button)
+        const notice = () => page.evaluate(() => { const e = document.getElementById('terrain-notice'), t = document.getElementById('terrain-notice-text'); return { visible: e.classList.contains('visible'), key: t.dataset.i18n, text: t.textContent.trim() }; });
         const hasSpy = await page.evaluate(() => Array.isArray(window.__stubNativeCalls));
         check(hasSpy, 'window.__stubNativeCalls is recorded by the generic stub');
         await page.evaluate(() => { if (window.__stubNativeCalls) window.__stubNativeCalls.length = 0; window.__showTerrainNotice(null, 0); });
@@ -522,6 +535,71 @@ async function main() {
         await dropFile('#canvasWrapB', 'probe.png'); await page.waitForTimeout(400);
         c = await calls();
         check(c.length === 2 && c[1].args[0] === 'B' && c[1].args[1] === 'probe.png', `drop on #canvasWrapB → importTerrainImageData ('B', 'probe.png', …) (${c.length} call(s)${c.length > 1 ? `: ${c[1].args[0]}` : ''})`);
+    }
+
+    // locate (Stage 4 Round A, Decision 16): the Locate… button inside the sticky notice; the stub records the native call
+    {
+        head('locate');
+        await switchTab('terrain');
+        const MISSING_A = (terrainStates.find((s) => s.name === 'terrain-source-missing') || {}).eval;
+        const MISMATCH  = (terrainStates.find((s) => s.name === 'terrain-locate-mismatch') || {}).eval;
+        check(typeof MISSING_A === 'string' && typeof MISMATCH === 'string', 'states terrain-source-missing and terrain-locate-mismatch exist in tests/i18n-states.json');
+        const runState = (src) => page.evaluate((x) => { (0, eval)(x); }, src);
+        const geom = () => page.evaluate(() => {
+            const n = document.getElementById('terrain-notice'), t = document.getElementById('terrain-notice-text'), b = document.getElementById('btn-terLocate');
+            if (!n || !t || !b) return null;
+            const r = (e) => { const q = e.getBoundingClientRect(); return { x: q.left, y: q.top, r: q.right, b: q.bottom, w: q.width, h: q.height }; };
+            const vis = (e) => { const cs = getComputedStyle(e); return cs.display !== 'none' && cs.visibility !== 'hidden' && e.getBoundingClientRect().width > 0; };
+            return { noticeVisible: n.classList.contains('visible'), transient: n.classList.contains('transient'),
+                     notice: r(n), text: r(t), btn: r(b), btnVisible: vis(b), textKey: t.dataset.i18n, textStr: t.textContent.trim(),
+                     btnStr: b.textContent.trim(), overflow: n.scrollWidth > n.clientWidth + 1 };
+        });
+        const calls = () => page.evaluate(() => (window.__stubNativeCalls || []).filter((c) => c.name === 'locateTerrainImage').map((c) => c.args));
+        await page.evaluate(() => window.__showTerrainNotice(null, 0));
+        for (const lang of LANGS) {
+            await setLang(lang);
+            await runState(MISSING_A); await page.waitForTimeout(150);
+            const g = await geom();
+            const inside = g && g.btn.x >= g.notice.x - 0.5 && g.btn.r <= g.notice.r + 0.5 && g.btn.y >= g.notice.y - 0.5 && g.btn.b <= g.notice.b + 0.5;
+            check(g && g.noticeVisible && g.btnVisible && inside && !g.overflow,
+                `[${lang}] #btn-terLocate ("${g ? g.btnStr : '?'}") visible inside #terrain-notice's box, no overflow${g ? ` (btn ${g.btn.w.toFixed(1)} x ${g.btn.h.toFixed(1)} at x ${g.btn.x.toFixed(1)}..${g.btn.r.toFixed(1)}, notice ${g.notice.x.toFixed(1)}..${g.notice.r.toFixed(1)})` : ''}`);
+            check(g && g.text.r <= g.btn.x + 0.5 && g.textKey === 'label.sourceMissing' && g.textStr.length > 0,
+                `[${lang}] #terrain-notice-text ("${g ? g.textStr : '?'}") sits left of the button (text right ${g ? g.text.r.toFixed(1) : '?'} <= btn left ${g ? g.btn.x.toFixed(1) : '?'})`);
+            if (g) measured.widths[`btn-terLocate/${lang}`] = +g.btn.w.toFixed(2);
+        }
+        await setLang('en');
+        await page.evaluate(() => window.__showTerrainNotice('label.importFailed', 0)); await page.waitForTimeout(150);
+        let g = await geom();
+        check(g && g.noticeVisible && g.transient && !g.btnVisible && g.textKey === 'label.importFailed',
+            `a transient notice (terrain-import-notice) hides #btn-terLocate (transient ${g && g.transient}, visible ${g && g.btnVisible})`);
+        await page.evaluate(() => window.__showTerrainNotice(null, 0)); await page.waitForTimeout(150);
+        g = await geom();
+        check(g && g.noticeVisible && !g.transient && g.btnVisible && g.textKey === 'label.sourceMissing',
+            `restore → the sticky label.sourceMissing notice with the button back (visible ${g && g.btnVisible})`);
+        await page.evaluate(() => { if (window.__stubNativeCalls) window.__stubNativeCalls.length = 0; });
+        await page.click('#btn-terLocate'); await page.waitForTimeout(300);
+        let c = await calls();
+        check(c.length === 1 && c[0][0] === 'A', `click on #btn-terLocate → exactly one locateTerrainImage ('A') (${c.length} call(s)${c.length ? `: ${JSON.stringify(c[0])}` : ''})`);
+        await page.evaluate(() => document.querySelector('#terrain-osc-toggle .wt-osc-btn[data-osc="B"]').click()); await page.waitForTimeout(120);
+        await page.evaluate(() => window.__stubEmit('terrainStatus', { osc: 'B', sourceMissing: true })); await page.waitForTimeout(150);
+        g = await geom();
+        check(g && g.noticeVisible && g.btnVisible, `after terrain-osc-b with B's sourceMissing the notice + button show (visible ${g && g.btnVisible})`);
+        await page.click('#btn-terLocate'); await page.waitForTimeout(300);
+        c = await calls();
+        check(c.length === 2 && c[1][0] === 'B', `click after the Osc B switch → locateTerrainImage ('B') (${c.length} call(s)${c.length > 1 ? `: ${JSON.stringify(c[1])}` : ''})`);
+        await page.evaluate(() => window.__stubEmit('terrainStatus', { osc: 'B', sourceMissing: false }));
+        await page.evaluate(() => document.querySelector('#terrain-osc-toggle .wt-osc-btn[data-osc="A"]').click()); await page.waitForTimeout(120);
+        await page.evaluate(() => window.__showTerrainNotice('label.locateMismatch', 50)); await page.waitForTimeout(15);
+        g = await geom();
+        check(g && g.noticeVisible && g.transient && !g.btnVisible && g.textKey === 'label.locateMismatch' && g.textStr.length > 0,
+            `label.locateMismatch shows as a transient ("${g ? g.textStr : '?'}"), button hidden`);
+        await page.waitForTimeout(300);
+        g = await geom();
+        check(g && g.noticeVisible && !g.transient && g.btnVisible && g.textKey === 'label.sourceMissing',
+            `after the hold the sticky label.sourceMissing text is back with the button visible (key ${g && g.textKey}, visible ${g && g.btnVisible})`);
+        await page.evaluate(() => window.__stubEmit('terrainStatus', { osc: 'A', sourceMissing: false })); await page.waitForTimeout(120);
+        g = await geom();
+        check(g && !g.noticeVisible, `sourceMissing false → the notice is hidden again (visible ${g && g.noticeVisible})`);
     }
 
     head('runtime');

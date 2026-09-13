@@ -7,6 +7,65 @@
 `O-Strata`, APVTS state identifier `OStrataParameters`, its own preset folder.
 O-Prism is untouched and the two plugins coexist in a host.
 
+Stage 4, Round A — persistence, fallback, Locate…, factory bank (Phase 4.1, 2026-09-12):
+- **The imported PNG survives the session and the preset.** The `terrainImports`
+  state child carries one `<slot osc form name sha256 size data|path/>` per oscillator
+  that holds an import: a PNG of **2 MB or less is embedded** as standard base64, a
+  larger one is stored as its absolute **path + SHA-256 + name**; the same fields ride
+  every preset as `customState`. A restore re-imports through the Stage 2 API before
+  the view's re-push generation moves, so the map lands within one push interval; a
+  path-form file is re-read only when its contents still hash to the slot's SHA-256.
+- **A missing source is heard, not silent.** An `Imported…` oscillator with no image
+  now plays **Sine Product** at the same Terrain Freq / Mod X / Mod Y (before this
+  round it produced nothing), the wireframe shows the same surface, and the sticky
+  "Source missing — using library fallback" notice grows a **Locate…** button. Locate…
+  re-links a file only when its SHA-256 matches the preset; a different file is refused
+  for 4 s with "Different file — hash does not match the preset" and the terrain is left
+  alone (Import… is one click away and re-stamps by definition).
+- **Two import caps.** A dropped PNG still embeds up to 2 MB (`Image over 2 MB — not
+  imported` unchanged). **Import…** and Locate… now accept up to **8 MB** (`Image over
+  8 MB — not imported` above that); a PNG between 2 and 8 MB is linked by path. The cap
+  constants live on the processor; the editor's copy is gone.
+- **Factory bank: 18 presets** (Init + 17) covering all six terrains, all eleven
+  orbits, feedback (Chatter Lead, Folded Bass, Squarcle Storm), Bandlimited (Pierce
+  Bell, Wells Drone, Glass Rings) and the five BRIEF use cases (Breathing Pad, Chatter
+  Lead, Pierce Bell, Your Terrain Here, PD Organ). Categories Init, Pads, Drone, Lead,
+  Bass, Pluck, Keys, Sequence, FX; `Init` sorts first in the dropdown. Two notes the
+  preset files cannot carry: **Pierce Bell** wants the Tuning tab set to Bohlen-Pierce
+  (a preset never changes the tuning); **Your Terrain Here** is the placeholder for a
+  dropped greyscale PNG — a saved User preset keeps the image. The bank is stamped
+  `1.0.0+<sha256(bank)[0:12]>`; on a stamp mismatch the factory folder is swept and
+  regenerated, so the Stage 1 `Init`-only bank (and any future orphan) cannot survive a
+  bank edit. Every preset passes H2 at C4 on oscillator A (and B where it sounds):
+  Breathing Pad −1.9 dB, PD Organ −3.3 dB, Butterfly Choir −4.5 dB, Squarcle Storm
+  −3.8 dB at its centre (0.23, 0.21) (the default centre read −6.9 dB / 0 %), all others
+  0.0 dB with 100 % of windows.
+- **preset-manager v1.0.7** (module + O-Strata's copy): `customLoad` fires with an empty
+  var when a preset carries no `customState`, so an image-less preset after an image
+  preset clears the terrain slots instead of leaving the image live.
+- **i18n**: five new keys (`label.locate`, `label.locateMismatch`,
+  `label.importTooLargeFile`, `tip.terImport`, `tip.terLocate`; fr unreviewed, zh-Hans
+  at `'mt'` → 53 rows); Import… and Locate… now carry tooltips (tip gate 120 → 122).
+- **Harness**: `--gate H10` grows the state round trip (bytes form), the cap form with an
+  incompressible 3.6 MB fixture (present / deleted / rewritten → Sine Product + `sourceMissing`),
+  the preset `customState` round trip through the public file loader, the
+  no-`customState` clear, two 1.9 MB slots published under `pump` (< 1 s; measured ≈ 60 ms)
+  and the UI-04 ordering row; smoke [5] asserts the 18-file bank + stamp; the H2 preset
+  rows honour Coarse / Fine, gate oscillator B when it sounds, bypass the FX chain (the
+  pre-filter tap is a voice tap — reverb was smearing the h1 windows) and print the
+  neighbours around the preset's own centre; `--real id=eng` and `--gate h2cli` run H2 on
+  any patch without a rebuild; the layout gate gains a `locate` section.
+
+**Known limits — persistence (Round A):**
+- A PNG above 2 MB is linked by **absolute path**; a preset made that way opens on
+  another machine with the "Source missing" notice and Locate….
+- Drop embeds up to 2 MB; larger PNGs go through Import…, which links them by path.
+- A preset without an image clears both terrain slots when loaded.
+- A user preset is stored as normalised parameter values; reloading it moves a
+  skewed-range parameter by at most one float ulp against the live patch (render delta
+  ≤ 5e-8), which is preset storage, not the image path (the image path itself is
+  SHA-exact).
+
 Stage 3, Round A — Terrain tab, oscillator panels, readout, cycle view, i18n (Phase 3.1, 2026-09-12):
 - **Shell re-forked from O-Prism v1.26.0** (`4f12ef57`): the Wavetable tab, its
   editor, modal and natives are gone; the card grid, the full Tuning tab, the

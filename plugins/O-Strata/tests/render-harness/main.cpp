@@ -35,6 +35,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <unistd.h>   // getpid — the H10 temp directory name (macOS-only TU, like posix_memalign above)
 #include <cstring>
 #include <deque>
 #include <functional>
@@ -569,20 +570,42 @@ namespace
             check (dT > 1.0e-3, fmt ("[4] LFO1 -> OscA Terrain Freq (index 31) CHANGES the render: max|d| = %.3e (need > 1e-3)", dT));
             check (dP > 1.0e-3, fmt ("[4] positive control: LFO1 -> Pitch (index 23) changes the render: max|d| = %.3e", dP));
         }
-        // [5] on-disk factory bank — only with --with-disk (the harness never touches ~/Library by default)
+        // [5] on-disk factory bank — only with --with-disk (the harness never touches ~/Library by default).
+        //     Stage 4 Round A (Decision 22): the 18-preset bank under the content stamp. Note the Instance
+        //     constructed above already ran the constructor's sweep (stamp mismatch → Factory/ deleted and
+        //     regenerated), so this asserts the constructor's behaviour, not a stale install.
         if (opt.withDisk)
         {
             const juce::File presets = juce::File::getSpecialLocation (juce::File::userHomeDirectory).getChildFile ("Library/O-Strata/Presets");
             const juce::File factory = presets.getChildFile ("Factory");
             juce::Array<juce::File> jsons; factory.findChildFiles (jsons, juce::File::findFiles, true, "*.json");
-            juce::Array<juce::File> all; presets.findChildFiles (all, juce::File::findFiles, true, "*");
+            juce::Array<juce::File> all; factory.findChildFiles (all, juce::File::findFiles, true, "*");
+            juce::Array<juce::File> dirs; factory.findChildFiles (dirs, juce::File::findDirectories, false, "*");
+            Instance in;
+            const auto defs = FactoryPresets::build (in.p.getAPVTS());
+            const juce::String want = FactoryPresets::stamp (defs);
+            const juce::String stamp = factory.getChildFile (".factory-version").loadFileAsString().trim();
             check (factory.isDirectory(), "[5] ~/Library/O-Strata/Presets/Factory exists");
-            check (jsons.size() == 1 && jsons[0].getRelativePathFrom (factory) == "Init/Init.json", "[5] exactly one factory JSON: Init/Init.json");
-            check (factory.getChildFile (".factory-version").loadFileAsString().trim() == "1.0.0", "[5] .factory-version == 1.0.0");
-            check (all.size() == 2, fmt ("[5] the Presets tree holds exactly two files (%d)", all.size()));
+            check (defs.size() == 18 && jsons.size() == 18, fmt ("[5] Factory/ holds 18 JSONs (%d; bank %d)", jsons.size(), (int) defs.size()));
+            check (factory.getChildFile ("Init/Init.json").existsAsFile(), "[5] Init/Init.json among them");
+            check (stamp.startsWith ("1.0.0+") && stamp == want, fmt ("[5] .factory-version '%s' starts with 1.0.0+ and equals FactoryPresets::stamp (bank) '%s'", stamp.toRawUTF8(), want.toRawUTF8()));
+            check (all.size() == 19, fmt ("[5] Factory/ holds exactly 19 files (18 + the stamp): %d", all.size()));
+            const juce::StringArray wantCats { "Init", "Pads", "Drone", "Lead", "Bass", "Pluck", "Keys", "Sequence", "FX" };
+            int strayDirs = 0; for (const auto& d : dirs) if (! wantCats.contains (d.getFileName())) ++strayDirs;
+            check (dirs.size() == 9 && strayDirs == 0, fmt ("[5] nine category folders, no stray directory (%d dirs, %d stray)", dirs.size(), strayDirs));
+            int badKeys = 0, withCustom = 0;
+            for (const auto& f : jsons)
+            {
+                const juce::var j = juce::JSON::parse (f.loadFileAsString());
+                const auto* obj = j.getDynamicObject();
+                const auto* params = obj != nullptr ? obj->getProperty ("parameters").getDynamicObject() : nullptr;
+                if (params == nullptr || params->getProperties().size() != 198) ++badKeys;
+                if (obj != nullptr && obj->hasProperty ("customState")) ++withCustom;
+            }
+            check (badKeys == 0 && withCustom == 0, fmt ("[5] every JSON carries 198 parameter keys and no customState (%d bad, %d with customState)", badKeys, withCustom));
         }
         else
-            std::printf ("skip  [5] on-disk factory bank (pass --with-disk; verified in Stage 1)\n");
+            std::printf ("skip  [5] on-disk factory bank (pass --with-disk; the 18-preset bank + stamp, Stage 4 Round A)\n");
         // [6]
         {
             Instance in;
@@ -1261,7 +1284,7 @@ namespace
     }
 
     /** SHA-256 hex of a 1 s C4 tap render (Stage 4 Round A: the H10 state / preset round-trip rows). */
-    [[maybe_unused]] juce::String renderShaOf (Instance& in)
+    juce::String renderShaOf (Instance& in)
     {
         in.p.harnessPreFilterTap.store (true);
         auto r = tapRender (in, 60, 1.0);
@@ -2094,7 +2117,7 @@ namespace
 
     /** side²: per-channel LCG noise (rgb) or one grey byte per pixel — incompressible → the size
         seam that reaches the path form (Stage 4 Round A H10 (b): 1024² rgb lands in (2 MiB, 8 MiB]). */
-    [[maybe_unused]] juce::MemoryBlock makeNoisePng (int side, bool rgb)
+    juce::MemoryBlock makeNoisePng (int side, bool rgb)
     {
         juce::Image img (juce::Image::RGB, side, side, false);
         juce::Image::BitmapData bd (img, juce::Image::BitmapData::writeOnly);
@@ -2299,20 +2322,190 @@ namespace
 
     void gateH10()
     {
-        std::printf ("\n== H10 bytes determinism (FUNC-08 bytes half: identical PNG bytes in two instances -> identical 1 s render SHA-256; the library fallback differs) ==\n");
+        std::printf ("\n== H10 persistence (FUNC-08: identical bytes -> identical 1 s render SHA-256; state child bytes / path forms; missing / mismatched source -> Sine Product + sourceMissing; preset customState; two 2 MiB slots < 1 s; UI-04 ordering) ==\n");
         const juce::MemoryBlock hard = makeHardEdgedPng (512);
+        auto patchImported = [] (Instance& in, int osc = 0) {
+            in.cleanPatch(); in.setChoice ("oscAOrbit", 0); in.setChoice ("oscBOrbit", 0);
+            in.setChoice (osc == 0 ? "oscATerrain" : "oscBTerrain", (int) TerrainKind::Imported);
+        };
         auto renderSha = [&] (bool import) {
             Instance in; in.cleanPatch(); in.setChoice ("oscAOrbit", 0);
             if (import) { in.setChoice ("oscATerrain", (int) TerrainKind::Imported); in.p.importTerrainImage (0, hard, "hard-edged.png"); }
             else in.setChoice ("oscATerrain", 0);
-            in.p.harnessPreFilterTap.store (true);
-            auto r = tapRender (in, 60, 1.0);
-            return juce::SHA256 (r.L.data(), r.L.size() * sizeof (double)).toHexString();
+            return renderShaOf (in);
         };
         const auto a = renderSha (true), b = renderSha (true), c = renderSha (false);
         std::printf ("  [H10] A %s\n  [H10] B %s\n  [H10] library (Sine Product) %s\n", a.toRawUTF8(), b.toRawUTF8(), c.toRawUTF8());
         check (a == b, "[H10] two instances fed identical bytes render byte-identical audio (SHA-256 equal)");
         check (a != c, "[H10] the library fallback (Sine Product, no import) renders differently");
+
+        // Slot reader for the state XML: the <slot osc="N"> element and the slot count
+        auto slotOf = [] (const juce::XmlElement* imports, const char* osc, int& count) -> const juce::XmlElement* {
+            const juce::XmlElement* found = nullptr; count = 0;
+            if (imports != nullptr)
+                for (auto* e : imports->getChildIterator())
+                    if (e->hasTagName ("slot")) { ++count; if (e->getStringAttribute ("osc") == osc) found = e; }
+            return found;
+        };
+        const juce::File tmpDir = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                                      .getChildFile ("o-strata-h10-" + juce::String (static_cast<juce::int64> (getpid())));
+        tmpDir.createDirectory();
+
+        // (a) state round trip, bytes form
+        {
+            Instance ia; patchImported (ia); ia.p.importTerrainImage (0, hard, "hard-edged.png");
+            juce::MemoryBlock blob; ia.p.getStateInformation (blob);
+            auto xml = stateXml (blob);
+            int n = 0; const auto* s0 = slotOf (xml != nullptr ? xml->getChildByName ("terrainImports") : nullptr, "0", n);
+            check (s0 != nullptr && n == 1 && s0->getStringAttribute ("form") == "bytes" && s0->getStringAttribute ("data").isNotEmpty()
+                   && ! s0->hasAttribute ("path") && s0->getStringAttribute ("sha256") == ia.p.getImportSlotCopy (0).sha256
+                   && s0->getStringAttribute ("size").getLargeIntValue() == (juce::int64) hard.getSize(),
+                   fmt ("[H10 a] state carries exactly one <slot osc=\"0\" form=\"bytes\"> with data, no path, the slot's SHA and size (%d slot(s), blob %d bytes)", n, (int) blob.getSize()));
+            Instance ib; patchImported (ib); ib.p.setStateInformation (blob.getData(), (int) blob.getSize());
+            const auto sb = ib.p.getImportSlotCopy (0);
+            check (sb.sha256 == ia.p.getImportSlotCopy (0).sha256 && sb.decoded != nullptr && ! sb.sourceMissing
+                   && ib.p.getImportSlotCopy (1).sha256.isEmpty() && ib.p.importRevision[1].load() == 0,
+                   "[H10 a] restored instance: slot 0 SHA equal, decoded present, sourceMissing false; slot 1 empty");
+            check (renderShaOf (ia) == renderShaOf (ib), "[H10 a] render SHA equal through getStateInformation / setStateInformation");
+        }
+
+        // (b) cap form: an incompressible fixture in (2 MiB, 8 MiB] persists as form="path"
+        {
+            const juce::MemoryBlock noise = makeNoisePng (1024, true);
+            const auto noiseSize = (juce::int64) noise.getSize();
+            check (noiseSize > OStrataAudioProcessor::kMaxImportBytes && noiseSize <= OStrataAudioProcessor::kMaxImportFileBytes,
+                   fmt ("[H10 b] noise fixture %lld bytes in (kMaxImportBytes 2 MiB, kMaxImportFileBytes 8 MiB]", (long long) noiseSize));
+            const juce::File big = tmpDir.getChildFile ("big-noise.png");
+            big.replaceWithData (noise.getData(), noise.getSize());
+            Instance ia; patchImported (ia);
+            check (ia.p.importTerrainFile (0, big), "[H10 b] importTerrainFile (3 MiB PNG) succeeds (the API has no cap — the natives do)");
+            juce::MemoryBlock blob; ia.p.getStateInformation (blob);
+            auto xml = stateXml (blob);
+            int n = 0; const auto* s0 = slotOf (xml != nullptr ? xml->getChildByName ("terrainImports") : nullptr, "0", n);
+            check (s0 != nullptr && n == 1 && s0->getStringAttribute ("form") == "path" && ! s0->hasAttribute ("data")
+                   && s0->getStringAttribute ("path") == big.getFullPathName() && s0->getStringAttribute ("size").getLargeIntValue() == noiseSize,
+                   fmt ("[H10 b] state carries form=\"path\", no data, the absolute path, size %lld (blob %d bytes)", (long long) noiseSize, (int) blob.getSize()));
+            const auto shaA = renderShaOf (ia);
+            Instance ib; patchImported (ib); ib.p.setStateInformation (blob.getData(), (int) blob.getSize());
+            check (! ib.p.getImportSlotCopy (0).sourceMissing && ib.p.getImportSlotCopy (0).path == big.getFullPathName() && renderShaOf (ib) == shaA,
+                   "[H10 b present] file present -> re-imported from the path (render SHA equal, path recorded, sourceMissing false)");
+            big.deleteFile();
+            Instance ic; patchImported (ic); ic.p.setStateInformation (blob.getData(), (int) blob.getSize());
+            const auto sc = ic.p.getImportSlotCopy (0);
+            check (sc.sourceMissing && ic.p.getTerrainStatus (0).sourceMissing && ic.p.imagePtr[0].load() == nullptr && sc.sha256 == ia.p.getImportSlotCopy (0).sha256 && sc.path == big.getFullPathName() && sc.decoded == nullptr,
+                   "[H10 b missing] file deleted -> sourceMissing on the slot copy AND getTerrainStatus, imagePtr null, name / sha256 / path kept for Locate...");
+            auto rc = tapRender (ic, 60, 1.0);
+            Instance sp; sp.cleanPatch(); sp.setChoice ("oscAOrbit", 0); sp.setChoice ("oscATerrain", 0);
+            const auto shaC = juce::SHA256 (rc.L.data(), rc.L.size() * sizeof (double)).toHexString();
+            check (rms (rc.L, 0) > 1.0e-3 && shaC == renderShaOf (sp),
+                   fmt ("[H10 b missing] the Imported... oscillator with no image is NOT silent (rms %.4f) and renders SHA-equal to a Sine Product instance at the same patch (Decision 7)", rms (rc.L, 0)));
+            const juce::MemoryBlock other = makeNoisePng (1024, false);
+            big.replaceWithData (other.getData(), other.getSize());
+            Instance id; patchImported (id); id.p.setStateInformation (blob.getData(), (int) blob.getSize());
+            const auto sd = id.p.getImportSlotCopy (0);
+            check (sd.sourceMissing && id.p.imagePtr[0].load() == nullptr && sd.decoded == nullptr && sd.sha256 == ia.p.getImportSlotCopy (0).sha256,
+                   "[H10 b mismatch] file rewritten with different bytes -> SHA mismatch -> sourceMissing, no image, the preset's SHA kept");
+            big.deleteFile();
+        }
+
+        // (c) preset customState: saveTerrainImportsVar / loadTerrainImportsVar, a preset file, and no customState
+        juce::File presetWithCustom, presetWithout;
+        {
+            Instance ia; patchImported (ia); ia.p.importTerrainImage (0, hard, "hard-edged.png");
+            const juce::var v = ia.p.saveTerrainImportsVar();
+            const auto* obj = v.getDynamicObject();
+            const auto* slots = obj != nullptr ? obj->getProperty ("slots").getArray() : nullptr;
+            check (obj != nullptr && slots != nullptr && slots->size() == 1 && (*slots)[0].getProperty ("form", {}).toString() == "bytes"
+                   && (*slots)[0].getProperty ("osc", {}).toString() == "0" && (*slots)[0].getProperty ("data", {}).toString().isNotEmpty(),
+                   fmt ("[H10 c] saveTerrainImportsVar: {v, slots:[one bytes-form slot for osc 0]} (%d slot(s))", slots != nullptr ? slots->size() : -1));
+            const auto shaA = renderShaOf (ia);   // rendered ONCE — a second render of the same instance is not the first
+            Instance ib; patchImported (ib); ib.p.loadTerrainImportsVar (v);
+            check (ib.p.getImportSlotCopy (0).sha256 == ia.p.getImportSlotCopy (0).sha256 && renderShaOf (ib) == shaA,
+                   "[H10 c] loadTerrainImportsVar on a fresh instance: SHA equal, render SHA equal");
+            // a hand-built preset JSON (parameters + customState) through the public file loader
+            auto makePresetJson = [&] (bool withCustom) {
+                auto* presetObj = new juce::DynamicObject();
+                auto* params = new juce::DynamicObject();
+                for (auto* prm : ia.p.getParameters())
+                    if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm))
+                        if (! ia.p.getPresetManager().excludedParameterIds.contains (rp->getParameterID()))
+                            params->setProperty (rp->getParameterID(), rp->getValue());
+                presetObj->setProperty ("parameters", juce::var (params));
+                if (withCustom) presetObj->setProperty ("customState", v);
+                presetObj->setProperty ("version", "1.0.0");
+                presetObj->setProperty ("plugin", "O-Strata");
+                presetObj->setProperty ("category", "User");
+                return juce::JSON::toString (juce::var (presetObj), true);
+            };
+            presetWithCustom = tmpDir.getChildFile ("h10-with-customState.json");
+            presetWithout   = tmpDir.getChildFile ("h10-without-customState.json");
+            presetWithCustom.replaceWithText (makePresetJson (true));
+            presetWithout.replaceWithText (makePresetJson (false));
+            Instance ic; ic.cleanPatch();
+            const bool loadedC = ic.p.getPresetManager().loadPresetFromFile (presetWithCustom);
+            {   // diagnostic: every parameter must land where the source instance has it
+                int diff = 0; std::string first;
+                const auto& pa = ia.p.getParameters(); const auto& pc = ic.p.getParameters();
+                for (int i = 0; i < pa.size(); ++i)
+                    if (std::abs (pa[i]->getValue() - pc[i]->getValue()) > 1e-6f) { ++diff; if (first.empty()) first = dynamic_cast<juce::RangedAudioParameter*> (pa[i])->getParameterID().toStdString() + fmt (" %.6f vs %.6f", pa[i]->getValue(), pc[i]->getValue()); }
+                std::printf ("  [H10 c] loadPresetFromFile %s; parameters differing from the source instance: %d%s%s\n", loadedC ? "ok" : "FAILED", diff, diff ? " — first " : "", first.c_str());
+            }
+            // The reference went through the SAME preset apply (a normalised JSON round trip moves a
+            // skewed-range parameter by an ulp — measured max |d| 4.5e-8 against the live patch, which is
+            // preset storage, not the image) and imported the image directly: customState vs direct import
+            // must be SHA-exact.
+            Instance ir; ir.cleanPatch();
+            const bool loadedR = ir.p.getPresetManager().loadPresetFromFile (presetWithout);
+            ir.p.importTerrainImage (0, hard, "hard-edged.png");
+            check (loadedC && loadedR && ic.p.getImportSlotCopy (0).sha256 == ia.p.getImportSlotCopy (0).sha256
+                   && renderShaOf (ic) == renderShaOf (ir),
+                   "[H10 c] a preset file with customState restores the slot through loadPresetFromFile (render SHA equal to the same preset + a direct import)");
+            check (ic.p.imagePtr[0].load() != nullptr && ic.p.importRevision[0].load() > 0, "[H10 c] ... and the image is published after the render's sync poll");
+            check (ic.p.getPresetManager().loadPresetFromFile (presetWithout)
+                   && ic.p.getImportSlotCopy (0).sha256.isEmpty() && ic.p.getImportSlotCopy (1).sha256.isEmpty()
+                   && ic.p.imagePtr[0].load() == nullptr && ic.p.importRevision[0].load() == 0 && ! ic.p.getTerrainStatus (0).sourceMissing,
+                   "[H10 c no-customState] a preset WITHOUT customState clears both slots (sha256 empty, imagePtr null, importRevision 0) — preset-manager v1.0.7");
+        }
+
+        // (d) two 2 MiB-class slots restored through setStateInformation publish both images < 1 s under pump
+        {
+            // RGBA on disk (JUCE writes the alpha plane): ≈ 3.5 bytes / pixel of incompressible noise
+            const juce::MemoryBlock fixA = makeNoisePng (740, true), fixB = makeNoisePng (730, true);
+            const auto szA = (juce::int64) fixA.getSize(), szB = (juce::int64) fixB.getSize();
+            check (szA > 1536 * 1024 && szA <= OStrataAudioProcessor::kMaxImportBytes && szB > 1536 * 1024 && szB <= OStrataAudioProcessor::kMaxImportBytes,
+                   fmt ("[H10 d] two bytes-form fixtures in (1.5 MiB, 2 MiB]: %lld / %lld bytes", (long long) szA, (long long) szB));
+            Instance ia; patchImported (ia, 0); ia.setChoice ("oscBTerrain", (int) TerrainKind::Imported);
+            ia.p.importTerrainImage (0, fixA, "noise-a.png"); ia.p.importTerrainImage (1, fixB, "noise-b.png");
+            juce::MemoryBlock blob; ia.p.getStateInformation (blob);
+            Instance ib; ib.prepare (48000.0, 512);
+            { juce::AudioBuffer<float> buf (2, 512); juce::MidiBuffer midi; buf.clear(); ib.p.processBlock (buf, midi); }
+            const int g0 = ib.p.imageGeneration[0].load(), g1 = ib.p.imageGeneration[1].load();
+            const auto t0 = std::chrono::steady_clock::now();
+            ib.p.setStateInformation (blob.getData(), (int) blob.getSize());
+            const double restoreMs = secondsSince (t0) * 1000.0;
+            // clearImportSlot bumps imageGeneration before the import lands, so the wait is on the PUBLISHED pointers
+            while ((ib.p.imagePtr[0].load() == nullptr || ib.p.imagePtr[1].load() == nullptr) && secondsSince (t0) < 3.0) pump (10);
+            const double totalMs = secondsSince (t0) * 1000.0;
+            check (ib.p.imagePtr[0].load() != nullptr && ib.p.imagePtr[1].load() != nullptr
+                   && ib.p.imageGeneration[0].load() > g0 && ib.p.imageGeneration[1].load() > g1 && totalMs < 1000.0,
+                   fmt ("[H10 d] both slots published in %.0f ms (< 1000; restore %.0f ms + jobs %.0f ms; blob %.1f MB)", totalMs, restoreMs, totalMs - restoreMs, blob.getSize() / 1.0e6));
+        }
+
+        // (e) UI-04 ordering, headless: the stateGeneration bump lands AFTER the import is queued
+        {
+            Instance ia; patchImported (ia); ia.p.importTerrainImage (0, hard, "hard-edged.png");
+            juce::MemoryBlock blob; ia.p.getStateInformation (blob);
+            Instance ib; const auto g0 = ib.p.getStateGeneration();
+            ib.p.setStateInformation (blob.getData(), (int) blob.getSize());
+            check (ib.p.getStateGeneration() == g0 + 1 && ib.p.importRevision[0].load() > 0,
+                   fmt ("[H10 e] setStateInformation: stateGeneration %u -> %u (+1) and importRevision[0] = %d (> 0) — import queued before the bump", g0, ib.p.getStateGeneration(), ib.p.importRevision[0].load()));
+            Instance ic; const auto gc = ic.p.getStateGeneration();
+            check (ic.p.getPresetManager().loadPresetFromFile (presetWithCustom) && ic.p.importRevision[0].load() > 0 && ic.p.getStateGeneration() == gc,
+                   "[H10 e] preset path: loadPresetFromFile moves importRevision without a bump");
+            ic.p.notifyStateChanged();
+            check (ic.p.getStateGeneration() == gc + 1, "[H10 e] ... and notifyStateChanged() (the natives after a true result) then bumps");
+        }
+        tmpDir.deleteRecursively();
     }
 
     void gateH8Image()
