@@ -265,6 +265,9 @@ When implementing a preset dropdown menu, use these styles to ensure it appears 
 
 ## Version History
 
+### 1.0.7 (2026-09-12)
+- `customLoad` fires on every preset apply, with an empty `juce::var` when the preset carries no `customState` — a callback can now clear state a previous preset left live (O-Strata Stage 4 Round A: terrain image slots). Older callbacks null-check `getDynamicObject()`, so nothing changes for them.
+
 ### 1.0.0 (2026-01-12)
 - Initial extraction from OuariconMarimba
 - Genericized for multi-plugin use
