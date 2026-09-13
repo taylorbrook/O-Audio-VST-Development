@@ -4,6 +4,27 @@ All notable changes to O-Gain are documented here.
 
 ## [1.9.1] - 2026-09-12
 
+**First GitHub release of O-Gain.** No earlier version was ever tagged, so this
+build is the first one published with macOS, Windows and Linux binaries. The
+1.9.1 change itself is cosmetic (below); what the release carries is the whole
+1.x line:
+
+- **1.0.0 – 1.2.1** — the stereo gain-staging utility: phase invert L/R,
+  channel swap, mono sum, M/S encode/decode, BS.1770 K-weighted LUFS "Learn"
+  auto-gain, VU / peak / RMS metering; two code-review remediation passes
+  (working mono support) and a Learn-mode safety fix.
+- **1.3.0 – 1.4.0** — French and Simplified Chinese UI with a rewritten
+  hover-help layer.
+- **1.5.0 – 1.6.0** — the meter shows the pair: a held peak over the average
+  bar in every mode, post-gain VU ballistics, and a LUFS mode that measures
+  LUFS on the output (it drew RMS whenever Learn was idle).
+- **1.7.0 – 1.8.1** — six target-level presets, the three dials on one row,
+  readout and layout legibility fixes.
+- **1.9.0** — Peak | RMS | VU | LUFS method strip with live In / Out readouts,
+  and a mode-aware ruler (dBFS band and bus line in Peak/RMS only, VU scale
+  with 0 VU = -18 dBFS, LU scale against the Target with a target line on the
+  output bars).
+
 Cosmetic. PATCH: page CSS only — no parameter, range, type or state format
 changed, no C++ touched, audio path untouched.
 
