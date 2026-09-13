@@ -49,7 +49,7 @@ Ouaricon Plugins:
 | O-TextureForge | 📦 Installed | 1.4.0 | Instrument (Concatenative Synth) | 2026-09-05 |
 | O-Texture | 📦 Installed | 0.5.0 | Instrument/Effect (Neural Texture Synth) |  2026-09-04 |
 | O-Prism | 📦 Installed | 1.26.0 | Synth (Microtonal Wavetable) |  2026-09-08 |
-| O-Strata | 🚧 Stage 4 Polish — research ✓ 2026-09-12 (10 items for both rounds; Round A scope change: Imported… with no image is silent — Sine Product fallback is new DSP; `customLoad` needs a `customState` key; 18-preset bank drafted + H2-measured; D4 portable padded Chebyshev evaluator 2.9× / 3.5×; `ci-tests.yml` `plugin` dispatch input; MSVC survey 0 hits; listening = `round-b/LISTENING.md`) — Round A plan next | 1.0.0 | Synth (Microtonal Wave Terrain) | 2026-09-12 |
+| O-Strata | 🚧 Stage 4 Polish — Round A plan ✓ 2026-09-12 (`stages/4-polish/PLAN.md`: 12 tasks / 4 waves / 3 commits, Decisions 1–26; D2 two caps — drop / embed 2 MiB unchanged, Import… / Locate… 8 MiB so the path form is reachable; `terrainImports` slot layout + `customState`; Sine Product fallback pinned by H10; `locateTerrainImage` refuses on SHA mismatch; 18-preset bank with the `1.0.0+sha256` stamp; H2 Coarse / Fine + osc-B rows; H10 (a)–(e)) — Round A execute next | 1.0.0 | Synth (Microtonal Wave Terrain) | 2026-09-12 |
 | O-Gain | 📦 Installed | 1.9.5 | Audio Effect (Gain Staging Utility) | 2026-09-12 |
 | O-Formant | 📦 Installed | 1.29.0 | Synth (Physical Model Vocal) | 2026-08-31 |
 | O-Bowed | 📦 Installed | 1.9.0 | Synth (Physical Model Bowed String) | 2026-09-07 |
