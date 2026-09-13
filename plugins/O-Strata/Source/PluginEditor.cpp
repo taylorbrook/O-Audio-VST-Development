@@ -115,6 +115,13 @@ OStrataAudioProcessorEditor::getResource (const juce::String& url)
         return makeBinaryResource (BinaryData::check_native_interop_js,
                                    BinaryData::check_native_interop_jsSize, "application/javascript");
 
+    // Stage 3 Round B: the terrain view module (Orbits.h port, renderers, perf ring).
+    // EMBEDDED (CMakeLists.txt, symbol terrainview_js — the hyphen is stripped) *and*
+    // SERVED here; the layout gate greps both halves (plan Decision 45).
+    if (url == "/js/terrain-view.js")
+        return makeBinaryResource (BinaryData::terrainview_js,
+                                   BinaryData::terrainview_jsSize, "application/javascript");
+
     // Stage 3 Round A: the Terrain tab's botanical plate (CSS background, multiply, 0.3 α)
     if (url == "/img/shell_conchologiaiconi12reev_0090.png")
         return makeBinaryResource (BinaryData::shell_conchologiaiconi12reev_0090_png,
@@ -149,6 +156,23 @@ static void syncTuningPresetToCustom (juce::AudioProcessorValueTreeState& apvts)
     if (auto* param = apvts.getParameter ("tuningPreset"))
         param->setValueNotifyingHost (param->convertTo0to1 (
             static_cast<float> (StrataParamIds::kCustomTuningPresetIndex)));
+}
+
+// Round B (plan Decision 39): the {ok, reason} result of the two import natives.
+// reason ∈ "cancelled" | "tooLarge" | "undecodable" (the page maps the last two onto
+// label.importTooLarge / label.importFailed; cancelled shows nothing).
+static juce::var importResult (bool ok, const char* reason)
+{
+    auto* obj = new juce::DynamicObject();
+    obj->setProperty ("ok", ok);
+    obj->setProperty ("reason", juce::String (reason));
+    return juce::var (obj);
+}
+
+// The page sends "A" / "B".
+static int oscFromArg (const juce::Array<juce::var>& args, int index)
+{
+    return args.size() > index && args[index].toString().trim().equalsIgnoreCase ("B") ? 1 : 0;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -488,6 +512,89 @@ OStrataAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Opti
             complete (true);
         });
 
+    // ─── Stage 3 Round B (plan Decision 39): PNG import. `chooseTerrainImage (osc)` opens
+    //     the native chooser (*.png); `importTerrainImageData (osc, name, base64)` takes the
+    //     bytes a drop streamed through the page (WKWebView strips file paths from the
+    //     DataTransfer — memory critical_webview_drag_drop_macos), whole file in one call.
+    //     Both apply the 2 MiB cap, hand the bytes to the Stage 2 API (message thread,
+    //     decode + queued publish; works with the editor closed) and, on success, select
+    //     Imported… from C++ and force the pushes. Result = {ok, reason}. ───
+    options = options.withNativeFunction ("chooseTerrainImage",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            const int osc = oscFromArg (args, 0);
+            auto chooser = std::make_shared<juce::FileChooser> (
+                "Import Terrain Image",
+                juce::File::getSpecialLocation (juce::File::userPicturesDirectory),
+                "*.png");
+
+            juce::Component::SafePointer<OStrataAudioProcessorEditor> safeThis (this);
+            chooser->launchAsync (juce::FileBrowserComponent::openMode
+                                | juce::FileBrowserComponent::canSelectFiles,
+                [safeThis, chooser, complete, osc] (const juce::FileChooser& fc) {
+                    if (safeThis == nullptr)
+                        return; // editor destroyed — `complete` is owned by the dead WebView, never call it
+                    auto file = fc.getResult();
+                    if (file == juce::File())
+                    {
+                        complete (importResult (false, "cancelled"));   // parameter untouched
+                        return;
+                    }
+                    if (file.getSize() > kMaxImportBytes)
+                    {
+                        complete (importResult (false, "tooLarge"));
+                        return;
+                    }
+                    if (! safeThis->processorRef.importTerrainFile (osc, file))
+                    {
+                        complete (importResult (false, "undecodable"));
+                        return;
+                    }
+                    safeThis->selectImportedTerrain (osc);
+                    safeThis->repushPending = true;
+                    complete (importResult (true, ""));
+                });
+        });
+
+    options = options.withNativeFunction ("importTerrainImageData",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() < 3)
+            {
+                complete (importResult (false, "undecodable"));
+                return;
+            }
+            const int osc = oscFromArg (args, 0);
+            const juce::String name = args[1].toString();
+            // juce::Base64::convertFromBase64 (never MemoryBlock::fromBase64Encoding — JUCE's own format)
+            juce::MemoryOutputStream decoded;
+            if (! juce::Base64::convertFromBase64 (decoded, args[2].toString()) || decoded.getDataSize() == 0)
+            {
+                complete (importResult (false, "undecodable"));
+                return;
+            }
+            if (static_cast<juce::int64> (decoded.getDataSize()) > kMaxImportBytes)
+            {
+                complete (importResult (false, "tooLarge"));
+                return;
+            }
+            const juce::MemoryBlock bytes (decoded.getData(), decoded.getDataSize());
+            if (! processorRef.importTerrainImage (osc, bytes, name))
+            {
+                complete (importResult (false, "undecodable"));
+                return;
+            }
+            selectImportedTerrain (osc);
+            repushPending = true;
+            complete (importResult (true, ""));
+        });
+
+    // ─── Stage 3 Round B (plan Decision 37): PERF-03 report from the page's frame ring ───
+    options = options.withNativeFunction ("reportViewPerf",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() > 0)
+                logViewPerf (args[0].toString());
+            complete (true);
+        });
+
 
     // Mod matrix source/dest name lists for UI dropdowns
     options = options.withNativeFunction ("getModSourceNames",
@@ -535,6 +642,7 @@ OStrataAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Opti
             {
                 auto ok = processorRef.getPresetManager()
                     .loadPresetFromCategory (args[0].toString(), args[1].toString());
+                if (ok) processorRef.notifyStateChanged();   // Round B (Decision 34): force the five pushes
                 complete (ok);
                 return;
             }
@@ -545,7 +653,9 @@ OStrataAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Opti
         [this] (const juce::Array<juce::var>& args, auto complete) {
             if (args.size() >= 1)
             {
-                complete (processorRef.getPresetManager().loadPreset (args[0].toString()));
+                const bool ok = processorRef.getPresetManager().loadPreset (args[0].toString());
+                if (ok) processorRef.notifyStateChanged();
+                complete (ok);
                 return;
             }
             complete (false);
@@ -553,12 +663,18 @@ OStrataAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Opti
 
     options = options.withNativeFunction ("selectNextPreset",
         [this] (const juce::Array<juce::var>&, auto complete) {
-            complete (processorRef.getPresetManager().getNextPreset());
+            // Returns the name it loaded (always loads when the bank is non-empty).
+            const juce::String name = processorRef.getPresetManager().getNextPreset();
+            if (name.isNotEmpty()) processorRef.notifyStateChanged();
+            complete (name);
         });
 
     options = options.withNativeFunction ("selectPreviousPreset",
         [this] (const juce::Array<juce::var>&, auto complete) {
-            complete (processorRef.getPresetManager().getPreviousPreset());
+            // Returns the name it loaded (always loads when the bank is non-empty).
+            const juce::String name = processorRef.getPresetManager().getPreviousPreset();
+            if (name.isNotEmpty()) processorRef.notifyStateChanged();
+            complete (name);
         });
 
     options = options.withNativeFunction ("savePreset",
@@ -793,16 +909,25 @@ void OStrataAudioProcessorEditor::timerCallback()
     if (webView == nullptr)
         return;
 
-    const bool force = repushPending;
+    // A moved stateGeneration (setStateInformation, the preset natives — Decision 34)
+    // forces every push exactly like requestTerrainRepush.
+    const uint32_t generation = processorRef.getStateGeneration();
+    const bool force = repushPending || generation != lastStateGeneration;
     repushPending = false;
+    lastStateGeneration = generation;
     ++tickCount;
 
     pushHeldNotes (force);
     for (int osc = 0; osc < 2; ++osc)
     {
-        pushStatus (osc, force);
-        if (force || (tickCount & 1u) == 0)   // ≤ 15 Hz: every other tick, and only when a new complete cycle exists
+        pushState (osc, force);                    // O(1): the ring's newest slot
+        if (force || (tickCount & 1u) == 0)        // ≤ 15 Hz: status (struct compare) + cycle (new complete cycle only)
+        {
+            pushStatus (osc, force);
             pushCycle (osc);
+        }
+        if (force || tickCount % 3u == 0)          // ≤ 10 Hz by construction (Decision 35): the heightmap, key-gated
+            pushHeightmap (osc, force);
     }
 }
 
@@ -841,4 +966,70 @@ void OStrataAudioProcessorEditor::pushCycle (int osc)
     if (TerrainViewFeed::copyCycle (processorRef, osc, cycleScratch[osc], cycleOut.data()) == 0)
         return;
     webView->emitEventIfBrowserIsVisible ("terrainCycle", TerrainViewFeed::makeCycleEvent (osc, cycleOut.data()));
+}
+
+// Round B (plan Decision 32): {osc, theta, x, y, h} from the ring's newest slot — pushed
+// when the ring advanced AND the rounded quad changed; a forced tick with an idle ring
+// repeats the last known playhead (the page-reload case).
+void OStrataAudioProcessorEditor::pushState (int osc, bool force)
+{
+    TerrainViewFeed::Playhead ph;
+    if (! TerrainViewFeed::getPlayhead (processorRef, osc, lastWriteIndexState[osc], ph))
+    {
+        if (! (force && hasLastState[osc]))
+            return;   // idle: nothing to say; the page keeps its last values
+        ph = lastState[osc];
+    }
+    else if (! force && hasLastState[osc]
+             && juce::exactlyEqual (ph.theta, lastState[osc].theta) && juce::exactlyEqual (ph.x, lastState[osc].x)
+             && juce::exactlyEqual (ph.y, lastState[osc].y) && juce::exactlyEqual (ph.h, lastState[osc].h))
+    {
+        return;   // the rounded quad did not change (every field is already at 1e-4)
+    }
+    lastState[osc] = ph;
+    hasLastState[osc] = true;
+    webView->emitEventIfBrowserIsVisible ("terrainState", TerrainViewFeed::makeStateEvent (osc, ph));
+}
+
+// Round B (plan Decision 31): the active surface on the 64 × 64 grid, gated by a key over
+// the terrain inputs + the four generations (≈ 21.8 K chars of base64 per push).
+void OStrataAudioProcessorEditor::pushHeightmap (int osc, bool force)
+{
+    const uint64_t key = TerrainViewFeed::heightmapKey (processorRef, osc);
+    if (! force && key == lastHeightmapKey[osc])
+        return;
+    lastHeightmapKey[osc] = key;
+    TerrainViewFeed::copyHeightmap (processorRef, osc, heightmapOut.data());
+    webView->emitEventIfBrowserIsVisible ("terrainHeightmap", TerrainViewFeed::makeHeightmapEvent (osc, heightmapOut.data()));
+}
+
+// Round B (plan Decision 40): select Imported… (index 6 of the osc?Terrain choice list)
+// inside one gesture; idempotent so a re-import records no undo step. The combo relay
+// pushes valueChanged → the page's listener → refreshInert() un-greys Blur / Edge.
+void OStrataAudioProcessorEditor::selectImportedTerrain (int osc)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+    auto* p = processorRef.getAPVTS().getParameter (juce::String ("osc") + (osc == 0 ? "A" : "B") + "Terrain");
+    if (p == nullptr)
+        return;
+    const float target = p->convertTo0to1 (static_cast<float> (TerrainKind::Imported));
+    if (std::abs (p->getValue() - target) < 1.0e-6f)
+        return;
+    p->beginChangeGesture();
+    p->setValueNotifyingHost (target);
+    p->endChangeGesture();
+}
+
+// Round B (plan Decision 37): PERF-03 rows — "<ISO time> <json>" appended to
+// ~/Library/Logs/O-Strata/view-perf.log (created lazily on the first report).
+void OStrataAudioProcessorEditor::logViewPerf (const juce::String& json)
+{
+    DBG ("[view-perf] " + json);
+    if (perfLog == nullptr)
+    {
+        auto dir = juce::File::getSpecialLocation (juce::File::userHomeDirectory).getChildFile ("Library/Logs/O-Strata");
+        dir.createDirectory();
+        perfLog = std::make_unique<juce::FileLogger> (dir.getChildFile ("view-perf.log"), "O-Strata view-perf (PERF-03)", 256 * 1024);
+    }
+    perfLog->logMessage (juce::Time::getCurrentTime().toISO8601 (true) + " " + json);
 }

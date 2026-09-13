@@ -212,6 +212,7 @@ namespace
         bool withDisk = false;
         std::string pngPath;   // --png PATH: importTerrainFile for ad-hoc runs
         bool dumpChoices = false;   // --dump-choices: print the combo / mod-name JSON and exit (Stage 3 stub fixtures)
+        std::string orbitsOut = "orbits.json";   // --out PATH for `--gate orbits` (Stage 3 Round B, plan Decision 30)
     } opt;
 
     // ── Instance: one processor + the setters the gates need ──
@@ -2228,6 +2229,71 @@ namespace
         check (sineEpi3x2 == -1, fmt ("[topnote] Quality 2x: %d == -1 (Bandlimited only)", sineEpi3x2));
     }
 
+    // ── --gate orbits [--out PATH] (Stage 3 Round B, plan Decision 30): the orbit golden ──
+    // Dumps Orbits.h through the SAME functions the voice calls — baseOrbit() with the
+    // scratch updateBlockRate would compute (normFactor from the 64-point maxRadius scan,
+    // invTanhK = 1 / tanh (0.3 + 6 m) for Squarcle) — at 512 HALF-STEP θ (the Superellipse
+    // LUT nodes are never hit, RESEARCH C16) and four Orbit Mod values, plus the
+    // oscillator's affine of each point (aspect on y, rotate, r = 0.05 + 0.95 · size, centre,
+    // clamp ±1 — TerrainOscillator::scan's order). tests/orbit-golden.mjs asserts the JS port
+    // (Source/ui/public/js/terrain-view.js) within 1e-4 of this file. Never part of --all;
+    // the file is not committed — the binary is the oracle.
+    void gateOrbits()
+    {
+        std::printf ("\n== orbits (Orbits.h dump: 11 kinds x m {0, 0.3, 0.5, 1} x 512 half-step theta, base + affine -> %s) ==\n", opt.orbitsOut.c_str());
+        const float* lut = SuperellipseLUT::get();
+        constexpr int n = 512;
+        const float ms[4] = { 0.0f, 0.3f, 0.5f, 1.0f };
+        const float aspect = 0.7f, rotDeg = 30.0f, size = 0.5f, cx = 0.13f, cy = 0.21f;
+        const float rot = rotDeg * 0.017453292519943295f;   // StrataVoice: degrees → radians
+        const float sinRot = std::sin (rot), cosRot = std::cos (rot);
+        const float r = 0.05f + 0.95f * size;
+
+        std::string out;
+        out.reserve (1400000);
+        out += "{\"thetaOffset\":0.5,\"n\":512,\"m\":[0,0.3,0.5,1],"
+               "\"affine\":{\"aspect\":0.7,\"rotDeg\":30,\"size\":0.5,\"cx\":0.13,\"cy\":0.21},\"orbits\":[";
+        int curves = 0;
+        char buf[64];
+        for (int k = 0; k < kNumOrbitKinds; ++k)
+            for (int mi = 0; mi < 4; ++mi)
+            {
+                const auto kind = static_cast<OrbitKind> (k);
+                const float m = ms[mi];
+                OrbitScratch scratch;   // exactly as TerrainOscillator::updateBlockRate fills it
+                scratch.invTanhK = kind == OrbitKind::Squarcle ? 1.0f / std::tanh (0.3f + 6.0f * m) : 1.0f;
+                scratch.normFactor = 1.0f;
+                scratch.normFactor = 1.0f / OrbitDetail::maxRadius (kind, m, scratch, lut);
+
+                if (curves++ > 0) out += ",";
+                std::snprintf (buf, sizeof (buf), "{\"kind\":%d,\"name\":\"%s\",\"m\":%.8g,\"base\":[", k, kOrbitNames[k], m);
+                out += buf;
+                std::string affine = "\"affine\":[";
+                for (int i = 0; i < n; ++i)
+                {
+                    const float theta = 6.283185307179586f * (static_cast<float> (i) + 0.5f) / static_cast<float> (n);
+                    const OrbitPoint b = baseOrbit (kind, theta, m, scratch, lut);
+                    std::snprintf (buf, sizeof (buf), "%s[%.8g,%.8g]", i ? "," : "", b.x, b.y);
+                    out += buf;
+                    const float bx = b.x, by = b.y * aspect;
+                    const float px = juce::jlimit (-1.0f, 1.0f, (bx * cosRot - by * sinRot) * r + cx);
+                    const float py = juce::jlimit (-1.0f, 1.0f, (bx * sinRot + by * cosRot) * r + cy);
+                    std::snprintf (buf, sizeof (buf), "%s[%.8g,%.8g]", i ? "," : "", px, py);
+                    affine += buf;
+                }
+                out += "],";
+                out += affine;
+                out += "]}";
+            }
+        out += "]}\n";
+
+        juce::File f = juce::File::getCurrentWorkingDirectory().getChildFile (juce::String (opt.orbitsOut));
+        const bool written = f.replaceWithText (juce::String (out));
+        check (written && curves == kNumOrbitKinds * 4,
+               fmt ("[orbits] %d / %d curves x %d half-step theta (base + affine) written to %s (%zu bytes)",
+                    curves, kNumOrbitKinds * 4, n, f.getFullPathName().toRawUTF8(), out.size()));
+    }
+
     // ── --dump-choices (Stage 3 Round A, plan Decision 14): the stub fixture source ──
     // Prints one JSON object read from the LIVE APVTS + ModulationMatrix so
     // tests/ui-stub/generic-overrides.json is generated, never typed
@@ -2263,10 +2329,10 @@ namespace
 
     void usage()
     {
-        std::printf ("O-Strata-render-test --gate <H1..H11|tuning|smoke|centroids|saturation|decimator|crossfade|latency|clenshaw|scheduler|storm|import|export|topnote|all> [--gate ...]\n"
+        std::printf ("O-Strata-render-test --gate <H1..H11|tuning|smoke|centroids|saturation|decimator|crossfade|latency|clenshaw|scheduler|storm|import|export|topnote|orbits|all> [--gate ...]\n"
                      "  [--note N] [--velocity V] [--seconds S] [--terrain I] [--orbit I] [--quality I]\n"
                      "  [--set id=norm]... [--fs F] [--block B] [--seed S] [--fixtures DIR] [--export NAME] [--png PATH]\n"
-                     "  [--print-only] [--with-disk] [--dump-choices]\n");
+                     "  [--print-only] [--with-disk] [--dump-choices] [--out PATH]   (--out: the --gate orbits JSON, default ./orbits.json)\n");
     }
 
     bool parse (int argc, char** argv)
@@ -2294,6 +2360,7 @@ namespace
             else if (a == "--with-disk") opt.withDisk = true;
             else if (a == "--png") opt.pngPath = next();
             else if (a == "--dump-choices") opt.dumpChoices = true;
+            else if (a == "--out") opt.orbitsOut = next();
             else { usage(); return false; }
         }
         return true;
@@ -2374,6 +2441,7 @@ int main (int argc, char** argv)
     if (wants ("H8"))        gateH8Image();
     if (wants ("topnote"))   gateTopNote();
     if (wantsExact ("export")) gateExport();
+    if (wantsExact ("orbits")) gateOrbits();
 
     std::printf ("\n%s — %d check(s), %d failure(s), %.1f s\n", failures == 0 ? "ALL GATES PASSED" : "GATES FAILED", checksRun, failures, secondsSince (t0));
     return failures;

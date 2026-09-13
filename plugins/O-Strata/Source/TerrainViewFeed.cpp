@@ -29,6 +29,9 @@
 
 #include "TerrainViewFeed.h"
 #include "dsp/MathConstants.h"
+#include "dsp/Terrains.h"
+#include "dsp/ChebyshevSet.h"
+#include "dsp/TerrainImage.h"
 #include <cmath>
 #include <cstring>
 
@@ -49,6 +52,23 @@ namespace TerrainViewFeed
         }
 
         inline float scrub (float v) noexcept { return std::isfinite (v) ? v : 0.0f; }
+
+        /** The oscillator's saturation law (TerrainOscillator::saturate), applied on
+            extraction: y' = tanh (g · y) / tanh (g), g = 1 + 4 · sat; identity at sat = 0.
+            Shared by copyCycle's third column and getPlayhead's `h` (plan Decision 32). */
+        inline float saturateLikeOscillator (float y, float sat) noexcept
+        {
+            if (sat <= 0.0f) return y;
+            const float g = 1.0f + 4.0f * sat;
+            return juce::jlimit (-1.0f, 1.0f, std::tanh (g * y) / std::tanh (g));
+        }
+
+        inline float round4 (float v) noexcept { return std::round (scrub (v) * 10000.0f) / 10000.0f; }
+
+        inline float rawParam (OStrataAudioProcessor& processor, int o, const char* suffix) noexcept
+        {
+            return processor.getAPVTS().getRawParameterValue ((o == 0 ? "oscA" : "oscB") + juce::String (suffix))->load();
+        }
     }
 
     int copyCycle (OStrataAudioProcessor& processor, int osc, CycleScratch& scratch, float* out)
@@ -136,9 +156,7 @@ namespace TerrainViewFeed
 
         // ── 3. Resample to 512 by linear interpolation on slot index (closed loop: the
         //       512th point stops short of the next cycle's first slot) ──
-        const float sat = juce::jlimit (0.0f, 1.0f, processor.getAPVTS().getRawParameterValue (o == 0 ? "oscATerSat" : "oscBTerSat")->load());
-        const float g = 1.0f + 4.0f * sat;
-        const float invTanhG = sat > 0.0f ? 1.0f / std::tanh (g) : 1.0f;
+        const float sat = juce::jlimit (0.0f, 1.0f, rawParam (processor, o, "TerSat"));
         const double step = static_cast<double> (spanLen) / static_cast<double> (kCyclePoints);
         for (int i = 0; i < kCyclePoints; ++i)
         {
@@ -151,9 +169,7 @@ namespace TerrainViewFeed
             slotPoint (scratch, ia, ax, ay, av);
             slotPoint (scratch, ib, bx, by, bv);
             float px = ax + t * (bx - ax), py = ay + t * (by - ay), y = av + t * (bv - av);
-            // The oscillator's saturation law (TerrainOscillator::saturate), applied on extraction
-            if (sat > 0.0f)
-                y = juce::jlimit (-1.0f, 1.0f, std::tanh (g * y) * invTanhG);
+            y = saturateLikeOscillator (y, sat);
             out[i * 3 + 0] = scrub (px);
             out[i * 3 + 1] = scrub (py);
             out[i * 3 + 2] = scrub (y);
@@ -193,6 +209,143 @@ namespace TerrainViewFeed
         obj->setProperty ("approx", s.approximate);
         obj->setProperty ("topNote", s.topNote);
         obj->setProperty ("sourceMissing", s.sourceMissing);
+        return juce::var (obj);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Round B — playhead (plan Decision 32)
+    // ═══════════════════════════════════════════════════════════════════
+
+    bool getPlayhead (OStrataAudioProcessor& processor, int osc, uint32_t& lastWriteIndex, Playhead& out)
+    {
+        JUCE_ASSERT_MESSAGE_THREAD
+        const int o = juce::jlimit (0, 1, osc);
+        const CycleCapture& cap = processor.getCycleCapture (o);
+        const uint32_t w = cap.writeIndex.load (std::memory_order_acquire);
+        if (w == lastWriteIndex || w == 0)
+            return false;   // idle: nothing new since the last playhead we sent
+        lastWriteIndex = w;
+
+        // Slot (w − 1) was complete before writeIndex was released. It is overwritten
+        // again only after kPoints more sub-samples (≥ 42 ms at 4× / 48 k); the second
+        // load catches the turnover on a stalled message thread.
+        const float* slot = cap.ring.data() + ((w - 1) & kMask) * 4;
+        const float theta = slot[0], px = slot[1], py = slot[2], y = slot[3];
+        const uint32_t w2 = cap.writeIndex.load (std::memory_order_acquire);
+        if (w2 - w >= static_cast<uint32_t> (CycleCapture::kPoints))
+            return false;
+
+        const float sat = juce::jlimit (0.0f, 1.0f, rawParam (processor, o, "TerSat"));
+        out.theta = round4 (theta);
+        out.x = round4 (px);
+        out.y = round4 (py);
+        out.h = round4 (saturateLikeOscillator (scrub (y), sat));
+        return true;
+    }
+
+    juce::var makeStateEvent (int osc, const Playhead& ph)
+    {
+        auto* obj = new juce::DynamicObject();
+        obj->setProperty ("osc", osc == 0 ? "A" : "B");
+        obj->setProperty ("theta", static_cast<double> (ph.theta));
+        obj->setProperty ("x", static_cast<double> (ph.x));
+        obj->setProperty ("y", static_cast<double> (ph.y));
+        obj->setProperty ("h", static_cast<double> (ph.h));
+        return juce::var (obj);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Round B — heightmap (plan Decision 31)
+    // ═══════════════════════════════════════════════════════════════════
+
+    namespace
+    {
+        struct HeightmapInputs
+        {
+            int quality = 1, terrain = 0, edge = 0;
+            float F = 1.0f, mx = 0.5f, my = 0.5f;
+        };
+
+        HeightmapInputs readHeightmapInputs (OStrataAudioProcessor& processor, int o)
+        {
+            HeightmapInputs in;
+            in.quality = juce::jlimit (0, 2, static_cast<int> (rawParam (processor, o, "Quality")));
+            in.terrain = juce::jlimit (0, 6, static_cast<int> (rawParam (processor, o, "Terrain")));
+            in.edge    = juce::jlimit (0, 1, static_cast<int> (rawParam (processor, o, "TerEdge")));
+            in.F  = rawParam (processor, o, "TerFreq");
+            in.mx = juce::jlimit (0.0f, 1.0f, rawParam (processor, o, "TerModX"));
+            in.my = juce::jlimit (0.0f, 1.0f, rawParam (processor, o, "TerModY"));
+            if (! (in.F > 0.0f)) in.F = 1.0f;
+            return in;
+        }
+
+        inline float gridCoord (int i) noexcept { return -1.0f + 2.0f * static_cast<float> (i) / static_cast<float> (kHeightmapN - 1); }
+    }
+
+    uint64_t heightmapKey (OStrataAudioProcessor& processor, int osc)
+    {
+        JUCE_ASSERT_MESSAGE_THREAD
+        const int o = juce::jlimit (0, 1, osc);
+        const auto in = readHeightmapInputs (processor, o);
+        auto q = [] (float v) { return static_cast<uint64_t> (static_cast<int64_t> (std::lround (v * 1024.0f))); };   // 1/1024 quantisation (the scheduler's rule)
+        uint64_t h = 0xcbf29ce484222325ull;
+        auto mix = [&h] (uint64_t v) { h ^= v; h *= 0x100000001b3ull; };
+        mix (static_cast<uint64_t> (in.quality));
+        mix (static_cast<uint64_t> (in.terrain));
+        mix (q (in.F));
+        mix (q (in.mx));
+        mix (q (in.my));
+        mix (static_cast<uint64_t> (in.edge));
+        mix (static_cast<uint64_t> (static_cast<uint32_t> (processor.chebGeneration[o].load (std::memory_order_acquire))));
+        mix (static_cast<uint64_t> (static_cast<uint32_t> (processor.imageGeneration[o].load (std::memory_order_acquire))));
+        mix (static_cast<uint64_t> (static_cast<uint32_t> (processor.importRevision[o].load (std::memory_order_acquire))));
+        mix (static_cast<uint64_t> (processor.getStateGeneration()));
+        return h;
+    }
+
+    void copyHeightmap (OStrataAudioProcessor& processor, int osc, float* out)
+    {
+        JUCE_ASSERT_MESSAGE_THREAD
+        const int o = juce::jlimit (0, 1, osc);
+        const auto in = readHeightmapInputs (processor, o);
+        const bool imported = in.terrain == static_cast<int> (TerrainKind::Imported);
+        const TerrainImage* image = processor.imagePtr[o].load (std::memory_order_acquire);
+
+        // The oscillator's set rule (TerrainOscillator::updateBlockRate): Bandlimited takes
+        // the candidate set only when its key names this terrain; otherwise the 1× fallback.
+        const ChebyshevSet* set = nullptr;
+        if (in.quality == static_cast<int> (Quality::Bandlimited))
+        {
+            const ChebyshevSet* candidate = imported ? (image != nullptr ? &image->cheb : nullptr)
+                                                     : processor.chebPtr[o].load (std::memory_order_acquire);
+            if (candidate != nullptr && candidate->key.terrain == in.terrain)
+                set = candidate;
+        }
+
+        for (int j = 0; j < kHeightmapN; ++j)
+        {
+            const float y = gridCoord (j);   // j = 0 ⇒ y = −1
+            for (int i = 0; i < kHeightmapN; ++i)
+            {
+                const float x = gridCoord (i);
+                float v;
+                if (set != nullptr)
+                    v = clenshaw2D (set->c.data(), x, y);   // untapered — the published set itself
+                else if (imported)
+                    v = image != nullptr ? image->sample (x, y, in.F, static_cast<EdgeMode> (in.edge)) : 0.0f;
+                else
+                    v = terrain (static_cast<TerrainKind> (in.terrain), x, y, in.F, in.mx, in.my);
+                out[j * kHeightmapN + i] = scrub (v);
+            }
+        }
+    }
+
+    juce::var makeHeightmapEvent (int osc, const float* out4096)
+    {
+        auto* obj = new juce::DynamicObject();
+        obj->setProperty ("osc", osc == 0 ? "A" : "B");
+        obj->setProperty ("n", kHeightmapN);
+        obj->setProperty ("data", encodeFloat32Base64 (out4096, static_cast<size_t> (kHeightmapSize)));
         return juce::var (obj);
     }
 }

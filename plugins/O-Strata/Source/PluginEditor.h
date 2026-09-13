@@ -83,23 +83,50 @@ private:
     juce::WebBrowserComponent::Options addNativeFunctions (
         juce::WebBrowserComponent::Options options);
 
-    // 30 Hz timer: pushes heldNotes (TrueKeys), terrainStatus (struct compare) and
-    // terrainCycle (even ticks, new complete cycle only) through
-    // emitEventIfBrowserIsVisible — never evaluateJavascript (Stage 3 plan Decision 8).
+    // 30 Hz timer: the five pushed events, every one through emitEventIfBrowserIsVisible —
+    // never evaluateJavascript (Stage 3 plan Decisions 8, 35):
+    //   heldNotes        every tick, change-gated (TrueKeys)
+    //   terrainState     every tick, change-gated — the ring's newest slot {θ, x, y, h}
+    //   terrainStatus    even ticks (≤ 15 Hz), struct compare
+    //   terrainCycle     even ticks, only when a new COMPLETE cycle exists
+    //   terrainHeightmap ticks % 3 (≤ 10 Hz), key-gated — the active surface, 64 × 64 R32F
+    // `force` (requestTerrainRepush, or a moved stateGeneration after a preset apply /
+    // session restore — Decision 34) bypasses every gate and tick filter once.
     void timerCallback() override;
     void pushHeldNotes (bool force);
     void pushStatus (int osc, bool force);
     void pushCycle (int osc);
+    void pushState (int osc, bool force);
+    void pushHeightmap (int osc, bool force);
     std::vector<std::pair<int, double>> lastSentNotes;
     OStrataAudioProcessor::TerrainStatus lastStatus[2];
     bool hasLastStatus[2] = { false, false };
     TerrainViewFeed::CycleScratch cycleScratch[2];
     std::array<float, TerrainViewFeed::kCyclePoints * 3> cycleOut {};
+    uint32_t lastWriteIndexState[2] = { 0, 0 };
+    TerrainViewFeed::Playhead lastState[2];
+    bool hasLastState[2] = { false, false };
+    uint64_t lastHeightmapKey[2] = { 0, 0 };
+    std::array<float, TerrainViewFeed::kHeightmapSize> heightmapOut {};
+    uint32_t lastStateGeneration = 0;
     // Page → C++ handshake: `requestTerrainRepush` (boot and __refreshAllControls)
-    // sets this; the next tick forces all three pushes (the page-load drop window,
+    // sets this; the next tick forces all five pushes (the page-load drop window,
     // RESEARCH §2.5). Written on the message thread by the native fn, read by the timer.
     bool repushPending = false;
     uint32_t tickCount = 0;
+
+    // ─── Round B (plan Decisions 39, 40): PNG import from the page ───
+    // A successful import selects Imported… on osc?Terrain from HERE (the processor API
+    // never touches a parameter) inside one begin / end gesture — skipped when it already
+    // is, so no spurious undo step.
+    void selectImportedTerrain (int osc);
+    static constexpr juce::int64 kMaxImportBytes = 2 * 1024 * 1024;   // the 2 MiB cap (both natives; the page pre-checks drops)
+
+    // ─── Round B (plan Decision 37): PERF-03 — `reportViewPerf (json)` from the page →
+    //     DBG + one line per report in ~/Library/Logs/O-Strata/view-perf.log (the Release
+    //     WKWebView has no inspector; the log file is the verdict path). Lazily created. ───
+    void logViewPerf (const juce::String& json);
+    std::unique_ptr<juce::FileLogger> perfLog;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OStrataAudioProcessorEditor)
 };

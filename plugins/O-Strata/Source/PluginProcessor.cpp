@@ -1280,6 +1280,9 @@ void OStrataAudioProcessor::setStateInformation (const void* data, int sizeInByt
         // Stage 1: nothing to restore yet — an absent or empty terrainImports child is
         // the pre-4.1 state.
         juce::ignoreUnused (state.getChildWithName ("terrainImports"));
+
+        // Stage 3 Round B (plan Decision 34): the editor's next tick forces every push.
+        stateGeneration.fetch_add (1, std::memory_order_release);
     }
 }
 
