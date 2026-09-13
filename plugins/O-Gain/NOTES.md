@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.3
+- **Version:** 1.9.4
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -89,6 +89,17 @@
   `.meter-pair`, so the bars go 26 -> 24.5 px, back toward pre-v1.9.2; the column stays
   72 px so nothing outside it moves. Vertical clearance is size-independent -- the ticks
   are absolutely positioned with the extremes pulled inside by transforms. CSS-only.
+- **2026-09-12 (v1.9.4):** METERING ACCURACY. The ruler and the bars were in different
+  coordinate spaces. Every mark riding the bars (bar top, peak cap, staging band, mix-bus
+  line, 0 VU line, LUFS target line) is an absolute child of `.meter-bar-container`, whose
+  `border: 1px solid` makes its padding box 2 px shorter and 1 px lower than its border
+  box; `.meter-scale` had no border, so the numerals resolved against the full height.
+  That is a LINEAR drift, not a constant offset: the bar sat 1.00 px below its gridline at
+  0 dBFS and 1.00 px above at -60, crossing zero at -30 -- i.e. -0.18 dB at the top of the
+  scale to +0.18 dB at the bottom. Fixed with a transparent 1 px top/bottom border on
+  `.meter-scale`, giving it the identical padding box. Error is now 0.00 px at all seven
+  gridlines in all four modes, confirmed with a border-removed negative control. Tick
+  labels were verified exact in every mode and were not touched. CSS-only.
 
 ## Known Issues
 

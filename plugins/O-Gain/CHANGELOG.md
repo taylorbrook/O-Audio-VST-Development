@@ -2,6 +2,82 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.9.4] - 2026-09-12
+
+**The ruler and the thing it measures were in different coordinate spaces.**
+Found by checking the scale placement against the bars rather than by eye.
+Cosmetic in size, a metering-accuracy fix in kind. PATCH: page CSS only — no
+parameter, range, type or state format changed, no C++ touched, audio path
+untouched.
+
+### Fixed
+
+- **Every mark that rides the bars sat up to 1 px off the gridline that names
+  it.** The bar top, the held peak cap, the staging band, the mix-bus line,
+  the 0 VU line and the LUFS target line are all absolutely positioned
+  children of `.meter-bar-container`, so their `bottom: X%` resolves against
+  that element's **padding** box. The container carries `border: 1px solid`,
+  so its padding box is 2 px shorter than its border box and starts 1 px
+  lower. `.meter-scale` had no border, so the numerals resolved against the
+  **full** height. Measured at the shipping frame: gutter 47.98–387.03
+  (339.05 px) against bar padding box 48.98–386.03 (337.05 px).
+
+  Two spaces 2 px apart give a **linear drift, not a constant offset** — the
+  bar sat 1.00 px below its gridline at 0 dBFS, 0.41 px below at −18 dBFS, and
+  1.00 px above at −60 dBFS, crossing zero at −30. In dB: **−0.18 dB at the
+  top of the scale to +0.18 dB at the bottom**, against the plugin's own
+  ruler.
+
+  The fix is a transparent 1 px top/bottom border on `.meter-scale`, which
+  gives the gutter the identical padding box (`box-sizing` is `border-box`
+  globally and both elements are height-stretched by the same flex row).
+  Left and right stay 0 — the gutter is a hard 17 px and a side border would
+  eat the v1.9.3 tick clearance. Post-fix error is **0.00 px at all seven
+  gridlines in all four meter modes**, with the border removed again as a
+  negative control to confirm the drift returns.
+
+### Verified unchanged
+
+- **Tick labels are exact in every mode.** Peak and RMS print dBFS; VU prints
+  dBFS − (−18); LUFS prints dBFS − `target_level`. Checked at all seven
+  gridlines × four modes against the value the bar actually draws there.
+- **The two extreme numerals stay edge-anchored by design**, not centred: `0`
+  has its top edge on the 0 dBFS line and `-60` its bottom edge on the −60
+  line, each therefore 4.5 px off-centre at 9 px. This is the v1.3.0
+  `tick-top` / `tick-bot` transform, which exists because a centred numeral at
+  `bottom: 100%` overhangs into the column caption above and at `bottom: 0`
+  into the readout below — the column's own gap there is 2 px, so there is no
+  room to centre them. Unchanged; recorded here because the v1.9.3 size bump
+  took the inset from 3.5 px to 4.5 px.
+
+### Known, by design — the unit of the ruler vs. the unit of the readouts
+
+Not changed in this release; recorded because the check surfaced them and they
+are display-design decisions rather than defects:
+
+- **In VU and LUFS mode the held peak cap is still a dBFS quantity on a
+  relabelled ruler.** With peak −6 dBFS the cap sits where the VU ruler reads
+  `+12`, while the `peak` readout beside it reads `-6.0`. For VU the two agree
+  (VU is dBFS + 18, the same axis renamed); for LUFS the cap has no meaning on
+  an LU-relative-to-target ruler.
+- **In LUFS mode the ruler is relative and the readout is absolute.** With
+  target −18 and momentary −23 LUFS, the bar top sits at `-5` on the LU ruler
+  while the `LUFS` readout reads `-23.0`.
+
+### Testing
+
+- `check-ui-labels --plugin O-Gain` PASS; `check-i18n --plugin O-Gain` PASS.
+- Placement measured from **painted geometry**, with no model of the box: a
+  span's untransformed bottom edge is on its gridline, so the gridline is
+  recovered from the rendered rect and the known transform (centre for the
+  middle ticks, `rect.top` for `.tick-top`, `rect.bottom` for `.tick-bot`).
+  The first cut of this probe modelled the gutter's box instead and was
+  therefore blind to exactly the defect being hunted.
+- Bar settling honoured: `.meter-bar` carries `transition: height 0.06s
+  linear`, so a rect read in the same task as the `updateMeters` call returns
+  the pre-transition value — the first run reported every bar pinned at 0 %.
+- Built Release VST3 + AU, installed, auval PASS 1.9.4.
+
 ## [1.9.3] - 2026-09-12
 
 The dB scale beside the meter bars, given the same treatment v1.9.2 gave the
