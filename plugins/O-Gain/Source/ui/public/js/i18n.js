@@ -281,26 +281,32 @@ export const I18N = Object.freeze({
 
     // ── The twenty-three ported tips. NONE split on a ": ". Every title is
     //    the control's own caption, reused verbatim from v1.2.1's markup.
+    // ── v1.9.5: four of them re-read for the clipping question. A reading of
+    //    +7 VU or +5 LU looked like a warning: 0 VU and 0 LU are references, not
+    //    ceilings (full scale is +18 VU / +|Target| LU), both are averages that
+    //    cannot show clipping, and the clip strip, the peak line and the `peak`
+    //    readout stay in dBFS in every mode. meter-mode, input-meter, output-meter
+    //    and method-strip carry the sentences; fr and zh-Hans re-authored with them.
     'input-meter': {
         en: { t: 'Input',
-              b: 'Input level after channel utilities, before gain is applied. The bar is the average, the line riding above it the recent peak. In Peak and RMS modes the shaded band is the -18 to -12 dBFS staging target and the red line is -6 dBFS; in VU mode the dashed line is 0 VU (-18 dBFS); in LUFS mode the scale reads in LU against the Target.' },
+              b: 'Input level after channel utilities, before gain is applied. The bar is the average, the line riding above it the recent peak. In Peak and RMS modes the shaded band is the -18 to -12 dBFS staging target and the red line is -6 dBFS; in VU mode the dashed line is 0 VU (-18 dBFS); in LUFS mode the scale reads in LU against the Target. The peak line and the peak readout under the column are always dBFS whatever the scale reads, the line at the very top of the scale is 0 dBFS in every mode, and the clip strip lights above -0.5 dBFS sample peak.' },
         fr: { t: 'Entrée',
-              b: 'Niveau d’entrée après les utilitaires de canal, avant application du gain. La barre indique la moyenne, le trait au-dessus la crête récente. En modes Peak et RMS, la bande ombrée est la cible de calibrage de −18 à −12 dBFS et le trait rouge marque −6 dBFS ; en mode VU, le trait pointillé marque 0 VU (−18 dBFS) ; en mode LUFS, l’échelle se lit en LU par rapport à la cible.',
+              b: 'Niveau d’entrée après les utilitaires de canal, avant application du gain. La barre indique la moyenne, le trait au-dessus la crête récente. En modes Peak et RMS, la bande ombrée est la cible de calibrage de −18 à −12 dBFS et le trait rouge marque −6 dBFS ; en mode VU, le trait pointillé marque 0 VU (−18 dBFS) ; en mode LUFS, l’échelle se lit en LU par rapport à la cible. Le trait de crête et la valeur de crête sous la colonne sont toujours en dBFS, quoi que lise l’échelle ; le trait tout en haut de l’échelle marque 0 dBFS dans tous les modes ; le témoin d’écrêtage s’allume au-dessus de −0,5 dBFS de crête d’échantillon.',
               reviewed: false },
     
         'zh-Hans': { t: '输入',
-              b: '经过声道工具之后、施加增益之前的输入电平。柱体为平均值，上方的细线为近期峰值。在 Peak 和 RMS 模式下，阴影带是 −18 至 −12 dBFS 的增益校准目标，红线为 −6 dBFS；在 VU 模式下，虚线为 0 VU（−18 dBFS）；在 LUFS 模式下，刻度以相对目标的 LU 读数。',
+              b: '经过声道工具之后、施加增益之前的输入电平。柱体为平均值，上方的细线为近期峰值。在 Peak 和 RMS 模式下，阴影带是 −18 至 −12 dBFS 的增益校准目标，红线为 −6 dBFS；在 VU 模式下，虚线为 0 VU（−18 dBFS）；在 LUFS 模式下，刻度以相对目标的 LU 读数。无论刻度以何种单位显示，峰值线和列下方的峰值读数始终为 dBFS；刻度最顶端的线在所有模式下都是 0 dBFS；采样峰值超过 −0.5 dBFS 时削波指示条点亮。',
               reviewed: 'mt' },
     },
     'output-meter': {
         en: { t: 'Output',
-              b: 'Output level after gain is applied. Read it against the input column to confirm a plugin chain is passing at unity. Both columns use the same meter mode, so peak sits over average on each. In LUFS mode the light line across both bars is the Target level: aim the bar at it.' },
+              b: 'Output level after gain is applied. Read it against the input column to confirm a plugin chain is passing at unity. Both columns use the same meter mode, so peak sits over average on each. In LUFS mode the light line across both bars is the Target level: aim the bar at it. The peak line and the peak readout under the column are always dBFS whatever the scale reads, the line at the very top of the scale is 0 dBFS in every mode, and the clip strip lights above -0.5 dBFS sample peak.' },
         fr: { t: 'Sortie',
-              b: 'Niveau de sortie après application du gain. À lire en regard de la colonne d’entrée pour vérifier qu’une chaîne de traitement reste à gain unitaire. Les deux colonnes utilisent le même mode de vumètre, la crête se plaçant au-dessus de la moyenne sur chacune. En mode LUFS, le trait clair en travers des deux barres marque le niveau cible : la barre doit le rejoindre.',
+              b: 'Niveau de sortie après application du gain. À lire en regard de la colonne d’entrée pour vérifier qu’une chaîne de traitement reste à gain unitaire. Les deux colonnes utilisent le même mode de vumètre, la crête se plaçant au-dessus de la moyenne sur chacune. En mode LUFS, le trait clair en travers des deux barres marque le niveau cible : la barre doit le rejoindre. Le trait de crête et la valeur de crête sous la colonne sont toujours en dBFS, quoi que lise l’échelle ; le trait tout en haut de l’échelle marque 0 dBFS dans tous les modes ; le témoin d’écrêtage s’allume au-dessus de −0,5 dBFS de crête d’échantillon.',
               reviewed: false },
     
         'zh-Hans': { t: '输出',
-              b: '施加增益之后的输出电平。与输入栏对照阅读，可确认插件链保持单位增益。两栏使用相同的表模式，峰值均位于平均值上方。在 LUFS 模式下，横跨两根柱体的浅色线为目标电平：让柱体对准它。',
+              b: '施加增益之后的输出电平。与输入栏对照阅读，可确认插件链保持单位增益。两栏使用相同的表模式，峰值均位于平均值上方。在 LUFS 模式下，横跨两根柱体的浅色线为目标电平：让柱体对准它。无论刻度以何种单位显示，峰值线和列下方的峰值读数始终为 dBFS；刻度最顶端的线在所有模式下都是 0 dBFS；采样峰值超过 −0.5 dBFS 时削波指示条点亮。',
               reviewed: 'mt' },
     },
     'gain-display': {
@@ -391,25 +397,25 @@ export const I18N = Object.freeze({
     },
     'meter-mode': {
         en: { t: 'Meter',
-              b: 'Meter display type. Peak = instantaneous peaks. RMS = average level. VU = analog-style 300ms ballistics, read in VU with 0 VU at -18 dBFS. LUFS = K-weighted momentary loudness (400ms window), measured continuously on both columns and read in LU against the Target. The scale, the readout under each column and the marks on the bars follow the mode.' },
+              b: 'Meter display type. Peak = instantaneous peaks. RMS = average level. VU = analog-style 300ms ballistics, read in VU with 0 VU at -18 dBFS. LUFS = K-weighted momentary loudness (400ms window), measured continuously on both columns and read in LU against the Target. 0 VU and 0 LU are reference levels, not ceilings: full scale is +18 VU, and in LU it is 0 minus the Target (+18 LU at a -18 Target). Both are averages (300 ms VU ballistics, 400 ms K-weighted momentary), so they under-read transients and cannot show clipping. The clip strip, the peak line and the peak readout stay in dBFS in every mode and are the only clipping cues. The scale, the readout under each column and the marks on the bars follow the mode.' },
         fr: { t: 'Vumètre',
-              b: 'Type d’affichage du vumètre. Peak = crêtes instantanées. RMS = niveau moyen. VU = balistique analogique de 300 ms, lue en VU avec 0 VU à −18 dBFS. LUFS = sonie momentanée pondérée K (fenêtre de 400 ms), mesurée en continu sur les deux colonnes et lue en LU par rapport à la cible. L’échelle, la valeur sous chaque colonne et les repères sur les barres suivent le mode.',
+              b: 'Type d’affichage du vumètre. Peak = crêtes instantanées. RMS = niveau moyen. VU = balistique analogique de 300 ms, lue en VU avec 0 VU à −18 dBFS. LUFS = sonie momentanée pondérée K (fenêtre de 400 ms), mesurée en continu sur les deux colonnes et lue en LU par rapport à la cible. 0 VU et 0 LU sont des niveaux de référence, pas des plafonds : la pleine échelle est à +18 VU, et en LU à 0 moins la cible (+18 LU pour une cible à −18). Les deux sont des moyennes (balistique VU de 300 ms, fenêtre pondérée K de 400 ms) : elles sous-estiment les transitoires et ne peuvent pas signaler l’écrêtage. Le témoin d’écrêtage, le trait de crête et la valeur de crête restent en dBFS dans tous les modes et sont les seuls indices d’écrêtage. L’échelle, la valeur sous chaque colonne et les repères sur les barres suivent le mode.',
               reviewed: false },
     
         'zh-Hans': { t: '表',
-              b: '表的显示类型。Peak = 瞬时峰值。RMS = 平均电平。VU = 模拟风格的 300ms 弹道，以 VU 读数，0 VU 对应 −18 dBFS。LUFS = K 计权瞬时响度（400ms 窗口），在两列上持续测量，并以相对目标的 LU 读数。刻度、每列下方的读数和柱上的标记均随模式变化。',
+              b: '表的显示类型。Peak = 瞬时峰值。RMS = 平均电平。VU = 模拟风格的 300ms 弹道，以 VU 读数，0 VU 对应 −18 dBFS。LUFS = K 计权瞬时响度（400ms 窗口），在两列上持续测量，并以相对目标的 LU 读数。0 VU 和 0 LU 是参考电平，不是上限：满刻度为 +18 VU，在 LU 下为 0 减去目标（目标为 −18 时即 +18 LU）。两者都是平均值（300ms VU 弹道，400ms K 计权瞬时），因此会低估瞬态，无法显示削波。削波指示条、峰值线和峰值读数在所有模式下都保持 dBFS，是唯一的削波提示。刻度、每列下方的读数和柱上的标记均随模式变化。',
               reviewed: 'mt' },
     },
     // v1.9.0: the method strip under the target presets.
     'method-strip': {
         en: { t: 'All methods',
-              b: 'The same signal read four ways at once: sample peak and RMS in dBFS, VU with 0 VU at -18 dBFS, and K-weighted momentary loudness in LUFS. In = before gain, Out = after. The lit column is the Meter mode the bars are drawing.' },
+              b: 'The same signal read four ways at once: sample peak and RMS in dBFS, VU with 0 VU at -18 dBFS, and K-weighted momentary loudness in LUFS. In = before gain, Out = after. The lit column is the Meter mode the bars are drawing. The VU column carries a sign because it reads relative to -18 dBFS. The Peak column is the one that reports headroom.' },
         fr: { t: 'Toutes les méthodes',
-              b: 'Le même signal lu de quatre façons à la fois : crête d’échantillon et RMS en dBFS, VU avec 0 VU à −18 dBFS, et sonie momentanée pondérée K en LUFS. Ent. = avant le gain, Sort. = après. La colonne allumée est le mode de vumètre que les barres affichent.',
+              b: 'Le même signal lu de quatre façons à la fois : crête d’échantillon et RMS en dBFS, VU avec 0 VU à −18 dBFS, et sonie momentanée pondérée K en LUFS. Ent. = avant le gain, Sort. = après. La colonne allumée est le mode de vumètre que les barres affichent. La colonne VU porte un signe parce qu’elle se lit par rapport à −18 dBFS. C’est la colonne Peak qui indique la marge.',
               reviewed: false },
 
         'zh-Hans': { t: '全部方法',
-              b: '同一信号同时以四种方式读取：采样峰值和 RMS 以 dBFS 计，VU 以 0 VU 对应 −18 dBFS，K 计权瞬时响度以 LUFS 计。输入 = 施加增益之前，输出 = 之后。高亮的列即为柱体正在显示的表模式。',
+              b: '同一信号同时以四种方式读取：采样峰值和 RMS 以 dBFS 计，VU 以 0 VU 对应 −18 dBFS，K 计权瞬时响度以 LUFS 计。输入 = 施加增益之前，输出 = 之后。高亮的列即为柱体正在显示的表模式。VU 列带有正负号，因为它相对于 −18 dBFS 读数。报告余量的是 Peak 列。',
               reviewed: 'mt' },
     },
     'info-momentary': {
