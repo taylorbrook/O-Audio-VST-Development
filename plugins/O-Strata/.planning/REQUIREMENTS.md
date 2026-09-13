@@ -4,7 +4,7 @@
 version: 2.0.0
 plugin: O-Strata
 created: 2026-09-07
-lastUpdated: 2026-09-12 (Stage 3 verify — UI-02 / UI-03 / UI-04 complete, UI-01 / FUNC-07 partial at the CONTEXT D2 ceiling (WebView2 halves → Phase 4.2), PERF-03 pending the WKWebView row; Stage 3 Round A verify — UI-04 partial (controls half), FUNC-05 UI list of 46 verified; Stage 2 Round B verify — FUNC-06 / DSP-02 / DSP-04 / QUAL-01 complete, FUNC-06 acceptance amended to the ≤ D_max·K bound on A-notes; 2026-09-11: DSP-01 acceptance amended to the Decision 2 law)
+lastUpdated: 2026-09-12 (Stage 4 discuss — D2 COMPAT-02 evidence = `ci-tests.yml` O-Strata macOS harness + Windows VST3 / pluginval-10 jobs run by manual dispatch (the repository never builds on push); D3 local install only, no `/publish` in Stage 4; D4 vectorised Chebyshev basis taken as the PERF-02 Bandlimited item, the analytic fallback above the muting note and the pitch-tracking soft knee → v1.1; Stage 3 verify — UI-02 / UI-03 / UI-04 complete, UI-01 / FUNC-07 partial at the CONTEXT D2 ceiling (WebView2 halves → Phase 4.2), PERF-03 pending the WKWebView row; Stage 3 Round A verify — UI-04 partial (controls half), FUNC-05 UI list of 46 verified; Stage 2 Round B verify — FUNC-06 / DSP-02 / DSP-04 / QUAL-01 complete, FUNC-06 acceptance amended to the ≤ D_max·K bound on A-notes; 2026-09-11: DSP-01 acceptance amended to the Decision 2 law)
 supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 ---
 
@@ -66,7 +66,7 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
 | COMPAT-01 | Passes pluginval validation (VST3 and AU) at strictness 10, and auval — re-verified after the re-parameterise pass (the baked fork passed on 2026-09-07) | must | complete | stage-1 |
-| COMPAT-02 | Windows VST3 build via CI (WebView2, static linking) | must | pending | stage-4 |
+| COMPAT-02 | Windows VST3 build via CI (WebView2, static linking) — `ci-tests.yml` O-Strata Windows job, manual dispatch, green before the Round B verify (Stage 4 CONTEXT D2); the build + pluginval 10 is the ceiling — WebView2 render / drop / PERF-03 hands-on rows need a Windows machine (CONTEXT Finding 6) | must | pending | stage-4 |
 
 ### Quality (QUAL)
 
@@ -165,6 +165,8 @@ supersedes: superseded-baked-v1/REQUIREMENTS.md (v1.0.0, baked-geometry design)
 | Dual displaced-orbit stereo | Per-voice CPU doubling | v1.x |
 | Scanned synthesis | Stability + block-rate simulation | v1.2+ |
 | ADAA for terrains | Unsound for composite paths | none |
+| Analytic 2× fallback above the Bandlimited muting note (17 A6 rows, K ≥ 6 on even terrains) | Re-opens the taper-law contract and QUAL-01's −90 dB above the knee; documented limit in CHANGELOG + the `silent above <note>` readout (Stage 4 discuss D4) | v1.1 |
+| Pitch-tracking soft knee (replace the hard min(1, C4/f)) | Re-opens ARCH Decision 2 + DSP-01; every default patch changes above C4 (Stage 4 discuss D4) | v1.1 |
 | three.js / lit rendering | No bundler; ESM-only | v1.x |
 
 ---
