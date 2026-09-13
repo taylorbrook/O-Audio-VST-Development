@@ -49,7 +49,7 @@ Ouaricon Plugins:
 | O-TextureForge | 📦 Installed | 1.4.0 | Instrument (Concatenative Synth) | 2026-09-05 |
 | O-Texture | 📦 Installed | 0.5.0 | Instrument/Effect (Neural Texture Synth) |  2026-09-04 |
 | O-Prism | 📦 Installed | 1.26.0 | Synth (Microtonal Wavetable) |  2026-09-08 |
-| O-Strata | 🚧 Stage 3 GUI — Round B executed (3D terrain view from the verbatim Orbits.h port + pushed heightmap / playhead / trail, preset re-push, drag / wheel / ⌥-drag gestures with one undo step each, PNG import via chooser + drop with the 2 MiB cap; layout gate 575 / 0 with webgl / fallback / interaction / drop sections, orbit golden 2.9e-6, --gate all 139 / 139; verify next — fr read, zh flips, PERF-03 Logic row, hands-on rows open for Taylor) | 1.0.0 | Synth (Microtonal Wave Terrain) | 2026-09-12 |
+| O-Strata | 🚧 Stage 3 GUI VERIFIED 2026-09-12 (3D terrain view = verbatim Orbits.h port to 2.9e-6, pushed heightmap / playhead / trail, preset re-push, one-undo-step gestures, PNG chooser + drop with the 2 MiB cap; every automated gate re-measured green — layout 575 / 0, --gate all 139 / 139, pluginval ×2 + auval; PERF-03 WKWebView row + hands-on + fr / zh reads open for Taylor) — Stage 4 Polish discuss next | 1.0.0 | Synth (Microtonal Wave Terrain) | 2026-09-12 |
 | O-Gain | 📦 Installed | 1.9.3 | Audio Effect (Gain Staging Utility) | 2026-09-12 |
 | O-Formant | 📦 Installed | 1.29.0 | Synth (Physical Model Vocal) | 2026-08-31 |
 | O-Bowed | 📦 Installed | 1.9.0 | Synth (Physical Model Bowed String) | 2026-09-07 |
