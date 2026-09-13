@@ -2,7 +2,7 @@
 # JSON-based preset persistence for Ouaricon plugins
 
 name: preset-manager
-version: 1.0.6
+version: 1.0.7
 description: |
   JSON-based preset persistence with factory/user preset separation.
   Supports APVTS parameter serialization, navigation (next/previous),
@@ -71,6 +71,10 @@ used_by:
     version: 1.0.0
 
 changelog:
+  - version: 1.0.7
+    date: 2026-09-12
+    changes:
+      - "O-Strata Stage 4 Round A (Decision 11): applyPresetJson() now calls customLoad on EVERY apply, passing an empty juce::var when the preset JSON carries no customState key — previously the callback only fired when the key was present, so state a previous preset left live (O-Strata's terrain image slots) survived an image-less preset and a later user save carried the wrong image. Existing callbacks null-check getDynamicObject(), so a void var is a no-op for older consumers"
   - version: 1.0.6
     date: 2026-08-16
     changes:

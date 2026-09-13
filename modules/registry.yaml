@@ -137,7 +137,7 @@ modules:
 
   - name: preset-manager
     path: persistence/preset-manager
-    version: 1.0.6
+    version: 1.0.7
     description: |
       JSON-based preset persistence with factory/user preset separation.
       Supports APVTS parameter serialization, navigation (next/previous),
@@ -218,6 +218,8 @@ modules:
         version: 1.5.7
       - plugin: O-SpectralShaper
         version: 1.5.0
+      - plugin: O-Strata
+        version: 1.0.0
       - plugin: O-Tapestop
         version: 1.0.0
       - plugin: O-Tremolo
