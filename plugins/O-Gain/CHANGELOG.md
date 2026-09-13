@@ -2,6 +2,62 @@
 
 All notable changes to O-Gain are documented here.
 
+## [1.9.2] - 2026-09-12
+
+The dB readouts under the meters are the number this plugin exists to show,
+and they were the smallest thing on the page. Cosmetic. PATCH: page CSS only
+— no parameter, range, type or state format changed, no C++ touched, audio
+path untouched.
+
+### Changed
+
+- **Input / output dB readouts 10 → 13 px and black.** `.meter-db-val` was
+  10 px in `#3C2F2F`, the darkest brown on the page but not black; it is now
+  13 px in `#000000` — the same black v1.9.1 gave `.mode-label` and
+  `.gear-btn`. The line-height pin is re-derived rather than scaled: the
+  measured English box at 13 px with `line-height: normal` is 15.00 px, no
+  padding, no border, so the unitless pin is 15.00 / 13 = 1.1538. Keeping the
+  old 1.1 would have pinned a 13 px face into a 14.3 px box, which is the
+  clipping the pin exists to prevent.
+
+- **Meter columns 58 → 72 px.** Required, not incidental: at 58 the value
+  cell was 58 − 25 cap − 3 gap = 30 px and the widest string it can hold
+  measured **30.09 px** of ink, so the readout had 0.01 px of room to grow.
+  The widest string is not `-60.0` (27.58 px) as the v1.8.1 note assumed but
+  the signed VU reading `+24.0` — the second readout row runs `fmtSigned()`
+  in VU mode, and `+` is 3.25 px wider than `-` because the sign is not
+  covered by `tabular-nums`. At 72 the row is 27 + 3 + 42 and the 13 px face
+  clears `+24.0` by 2.89 px.
+
+- **Readout caption column 25 → 27 px.** 25 never contained the second
+  caption either: it carries the meter mode, and `LUFS` measures 26.02 px at
+  10 px — 1.02 px past the track, painting into the 3 px gutter. 27 px
+  contains it by 0.98 px and still leaves the French `crête` 4.23 px. The
+  column stays pinned for the v1.8.1 reason: a `[data-i18n]` element must not
+  size the track that positions the four readouts beside it.
+
+- **Meter bars 19 → 26 px wide, as a consequence.** `.meter-pair` is `flex: 1`
+  inside the column, so it absorbed the 14 px the column gained. Not part of
+  the request; called out because it is the most visible change in the frame
+  after the numerals themselves.
+
+- **Centre section 232 → 204 px**, its children 220 → 192, and the method
+  strip's four columns 46 → 42 px (against `+24.0` at 30.83 px in their own
+  10 px face). The meter body gives up 8 px of height, 347 → 339, to the
+  taller readout row; the scale ticks are percentage-positioned and re-space.
+
+### Testing
+
+- `check-ui-labels --plugin O-Gain` PASS, including assertion 7 (no non-label
+  element moves between en / fr / zh-Hans at the fixed 380 × 500 frame) and
+  assertion 6 (no language enlarges the scroll extent).
+- `check-i18n --plugin O-Gain` PASS.
+- Fit measured directly in the stub, all four meter modes × en / fr /
+  zh-Hans: 60 readout cells, every one clearing its widest reachable string,
+  minimum slack 2.89 px (`+24.0` in VU). No element on the page reports
+  horizontal overflow and the document stays 380 × 500.
+- Built Release VST3 + AU, installed, auval PASS 1.9.2.
+
 ## [1.9.1] - 2026-09-12
 
 **First GitHub release of O-Gain.** No earlier version was ever tagged, so this

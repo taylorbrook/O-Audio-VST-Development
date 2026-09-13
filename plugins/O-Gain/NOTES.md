@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.1
+- **Version:** 1.9.2
 - **Type:** Audio Effect (Gain Staging Utility)
 
 ## Lifecycle Timeline
@@ -72,6 +72,15 @@
 - **2026-09-12 (v1.9.1):** Measure / Meter captions and the Settings cog (glyph and ring) black
   (`#000000`, were the `#8B7355` tan); cog hover is an 8 % black wash instead of the brown
   swap. CSS-only.
+- **2026-09-12 (v1.9.2):** Input / output dB readouts 10 -> 13 px and black (`#000000`,
+  were `#3C2F2F`), line-height pin re-derived to 15.00 / 13 = 1.1538. The meter columns
+  had to go 58 -> 72 px to carry it: at 58 the value cell was 30 px and its widest
+  reachable string -- the signed VU reading `+24.0`, not `-60.0` as the v1.8.1 note
+  assumed -- measured 30.09 px of ink, so the readout had 0.01 px of room. Caption column
+  25 -> 27 px (`LUFS` was overrunning it by 1.02 px). Side effect: `.meter-pair` is
+  `flex: 1`, so the bars went 19 -> 26 px wide and the centre section 232 -> 204 px.
+  60 readout cells measured across 4 meter modes x en / fr / zh-Hans, minimum slack
+  2.89 px. CSS-only.
 
 ## Known Issues
 
