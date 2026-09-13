@@ -49,8 +49,8 @@ Ouaricon Plugins:
 | O-TextureForge | 📦 Installed | 1.4.0 | Instrument (Concatenative Synth) | 2026-09-05 |
 | O-Texture | 📦 Installed | 0.5.0 | Instrument/Effect (Neural Texture Synth) |  2026-09-04 |
 | O-Prism | 📦 Installed | 1.26.0 | Synth (Microtonal Wavetable) |  2026-09-08 |
-| O-Strata | 🚧 Stage 4 Polish — discuss ✓ 2026-09-12 (two rounds: 4.1 `terrainImports` persistence + 2 MB cap form + Locate… fallback + factory bank ≥ 15 gated by H2; 4.2 vectorised Chebyshev basis, `ci-tests.yml` O-Strata harness + Windows pluginval jobs by manual dispatch, listening pass, CHANGELOG v1.0.0, local install — no publish in Stage 4; Stage 3 human rows ride along) — research next | 1.0.0 | Synth (Microtonal Wave Terrain) | 2026-09-12 |
-| O-Gain | 📦 Installed | 1.9.4 | Audio Effect (Gain Staging Utility) | 2026-09-12 |
+| O-Strata | 🚧 Stage 4 Polish — research ✓ 2026-09-12 (10 items for both rounds; Round A scope change: Imported… with no image is silent — Sine Product fallback is new DSP; `customLoad` needs a `customState` key; 18-preset bank drafted + H2-measured; D4 portable padded Chebyshev evaluator 2.9× / 3.5×; `ci-tests.yml` `plugin` dispatch input; MSVC survey 0 hits; listening = `round-b/LISTENING.md`) — Round A plan next | 1.0.0 | Synth (Microtonal Wave Terrain) | 2026-09-12 |
+| O-Gain | 📦 Installed | 1.9.5 | Audio Effect (Gain Staging Utility) | 2026-09-12 |
 | O-Formant | 📦 Installed | 1.29.0 | Synth (Physical Model Vocal) | 2026-08-31 |
 | O-Bowed | 📦 Installed | 1.9.0 | Synth (Physical Model Bowed String) | 2026-09-07 |
 | O-Reed | 📦 Installed | 1.6.0 | Synth (Physical Modeling Reed Wind) | 2026-09-07 |
