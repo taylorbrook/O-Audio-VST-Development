@@ -11,6 +11,10 @@
       "ok": false,
       "reason": "cancelled"
     },
+    "locateTerrainImage": {
+      "ok": false,
+      "reason": "cancelled"
+    },
     "importTerrainImageData": {
       "ok": true
     },

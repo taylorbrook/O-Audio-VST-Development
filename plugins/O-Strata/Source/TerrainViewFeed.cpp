@@ -332,7 +332,8 @@ namespace TerrainViewFeed
                 if (set != nullptr)
                     v = clenshaw2D (set->c.data(), x, y);   // untapered — the published set itself
                 else if (imported)
-                    v = image != nullptr ? image->sample (x, y, in.F, static_cast<EdgeMode> (in.edge)) : 0.0f;
+                    v = image != nullptr ? image->sample (x, y, in.F, static_cast<EdgeMode> (in.edge))
+                                         : terrain (TerrainKind::SineProduct, x, y, in.F, in.mx, in.my);   // mirrors the oscillator's QUAL-03 fallback
                 else
                     v = terrain (static_cast<TerrainKind> (in.terrain), x, y, in.F, in.mx, in.my);
                 out[j * kHeightmapN + i] = scrub (v);

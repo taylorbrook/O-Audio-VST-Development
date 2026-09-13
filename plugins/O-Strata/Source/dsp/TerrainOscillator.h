@@ -131,7 +131,7 @@ public:
     /** Round B (plan Decisions 28–31, 35): the published set for this oscillator
         (nullptr = none). Stored only; the tapered copy is rebuilt in updateBlockRate. */
     void setChebyshevSet (const ChebyshevSet* s) { chebSet = s; }
-    /** The published image (Terrain = Imported); nullptr = none → silent. */
+    /** The published image (Terrain = Imported); nullptr = none → Sine Product fallback (QUAL-03, Stage 4.1). */
     void setImage (const TerrainImage* i)       { image = i; }
     /** Harness: force the analytic 1× path in Bandlimited (H6 "1x" column, H1). */
     void setChebyshevBypass (bool b)            { chebBypass = b; }

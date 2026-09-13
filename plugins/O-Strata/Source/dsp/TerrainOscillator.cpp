@@ -394,7 +394,9 @@ float TerrainOscillator::scan (double phase, int partial, bool shadow) noexcept
     if (useCheb)
         y = clenshaw2D (chebW[shadow ? shadowIdx : chebCur], px, py);
     else if (terrainKind == TerrainKind::Imported)
-        y = image != nullptr ? image->sample (px, py, terrainFreq * rTrack, edgeMode) : 0.0f;   // audio-thread read path
+        // QUAL-03 (Stage 4 Round A, Decision 7): no published image -> Sine Product at the same F / Mod X / Mod Y, never silence
+        y = image != nullptr ? image->sample (px, py, terrainFreq * rTrack, edgeMode)   // audio-thread read path
+                             : terrain (TerrainKind::SineProduct, px, py, terrainFreq * rTrack, terrainModX, terrainModY);
     else
         y = terrain (terrainKind, px, py, terrainFreq * rTrack, terrainModX, terrainModY);   // clamped inside
 

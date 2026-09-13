@@ -33,6 +33,7 @@
   { "name": "terrain-drop-overlay",      "eval": "document.getElementById('terrain-view-wrap').dispatchEvent(new DragEvent('dragover', {bubbles:true, cancelable:true, dataTransfer:new DataTransfer()}));" },
   { "name": "terrain-drop-overlay-off",  "eval": "document.getElementById('terrain-view-wrap').dispatchEvent(new DragEvent('dragleave', {bubbles:true, cancelable:true, dataTransfer:new DataTransfer()}));" },
   { "name": "terrain-import-notice",     "eval": "window.__showTerrainNotice('label.importFailed', 0);" },
+  { "name": "terrain-locate-mismatch",   "eval": "window.__showTerrainNotice('label.locateMismatch', 0);" },
   { "name": "terrain-notice-clear",      "eval": "window.__showTerrainNotice(null, 0);" },
   { "name": "terrain-webgl-unavailable", "eval": "document.getElementById('terrain-webgl-unavailable').classList.add('visible');" },
   { "name": "terrain-webgl-available-back", "eval": "document.getElementById('terrain-webgl-unavailable').classList.remove('visible');" },

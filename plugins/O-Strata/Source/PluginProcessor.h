@@ -180,7 +180,7 @@ public:
     struct TerrainStatus
     {
         int quality = 1, terrain = 0, partialsAtC4 = 0, fitPercent = 0, topNote = -1;
-        bool approximate = false, sourceMissing = false;   // sourceMissing hard-false until Stage 4.1
+        bool approximate = false, sourceMissing = false;   // sourceMissing = the sourceMissingFlag mirror (Stage 4.1)
         bool operator== (const TerrainStatus& o) const noexcept
         {
             return quality == o.quality && terrain == o.terrain && partialsAtC4 == o.partialsAtC4
@@ -196,9 +196,23 @@ public:
     // Message thread. Decodes once (a 1024² decode is a few ms — a user gesture),
     // stores bytes + name + SHA-256 + the decoded luminance in importSlot[osc] and
     // bumps importRevision[osc]; the scheduler's image side projects and publishes.
-    // Returns false (nothing changes, no notice — QUAL-03 is Stage 4) when the file
-    // is missing or the bytes do not decode. NEVER touches a parameter: Stage 3's
-    // UI selects `Imported`. Stage 4 persists the slot in the terrainImports child.
+    // Returns false (nothing changes) when the file is missing or the bytes do not
+    // decode. NEVER touches a parameter: the UI selects `Imported`.
+    //
+    // Two caps, both owned here (Stage 4 Round A, Decision 2):
+    //   kMaxImportBytes     2 MiB — the EMBED rule (FUNC-08: bytes <= 2 MiB are stored
+    //                       inline as base64) AND the drop path (`importTerrainImageData`
+    //                       + the page's IMPORT_MAX_BYTES — a dropped file carries no
+    //                       path, so a path-form slot could never be relocated).
+    //   kMaxImportFileBytes 8 MiB — the two natives that hold a juce::File
+    //                       (`chooseTerrainImage`, `locateTerrainImage`): a PNG between
+    //                       2 and 8 MiB imports through Import…, persists as form="path"
+    //                       and is what Locate… exists for. DecodedImage::decode
+    //                       box-downsamples to <= 1024², so the bound guards the
+    //                       transient decode only.
+    static constexpr juce::int64 kMaxImportBytes     = 2 * 1024 * 1024;
+    static constexpr juce::int64 kMaxImportFileBytes = 8 * 1024 * 1024;
+
     bool importTerrainImage (int osc, const juce::MemoryBlock& pngBytes, const juce::String& name);
     bool importTerrainFile (int osc, const juce::File& file);
 
@@ -206,16 +220,50 @@ public:
     {
         juce::MemoryBlock bytes;
         juce::String name, sha256;
+        juce::String path;             // absolute, as File::getFullPathName() gave it at import / locate (Stage 4.1)
         std::shared_ptr<const DecodedImage> decoded;
-        int revision = 0;
+        int revision = 0;              // monotonic — never reset (a later import must produce a new scheduler key)
+        bool sourceMissing = false;    // path-form restore found no file / unreadable / SHA mismatch (QUAL-03)
+        juce::int64 sourceSize = 0;    // the PNG's byte count as recorded (kept while sourceMissing, bytes empty)
     };
-    /** A copy of the slot (message thread; Stage 4 persistence, the scheduler's job source). */
+    /** A copy of the slot (message thread; the scheduler's job source, the Locate… SHA read). */
     ImportSlot getImportSlotCopy (int osc) const
     {
         const juce::ScopedLock sl (importLock);
         return importSlot[juce::jlimit (0, 1, osc)];
     }
     std::atomic<int> importRevision[2] { 0, 0 };
+    /** Lock-free mirror of ImportSlot::sourceMissing for the 30 Hz status poll
+        (getTerrainStatus must not memcpy up to 2 MiB per oscillator per tick — Decision 8). */
+    std::atomic<bool> sourceMissingFlag[2] { false, false };
+
+    // ─── Stage 4 Round A (Decisions 3, 5, 6, 9, 10): terrainImports persistence ───
+    // One writer / reader pair serves the APVTS state child AND the preset-manager
+    // customState through ~20-line var <-> ValueTree adapters. Layout (v = 1):
+    //   <terrainImports v="1">
+    //     <slot osc="0" form="bytes" name="lava.png" sha256="…" size="1834211" data="…base64…"/>
+    //     <slot osc="1" form="path"  name="big.png"  sha256="…" size="4102233" path="/Users/…/big.png"/>
+    //   </terrainImports>
+    //   customState = { "v": 1, "slots": [ { osc, form, name, sha256, size, data | path } ] }
+    // Slots are written only for oscillators holding an import (bytes, or a path-form
+    // record); the default session still serialises an empty child. Form is chosen at
+    // save time: bytes.getSize() <= kMaxImportBytes → bytes (standard juce::Base64, no
+    // path stored — the bytes are the identity), else path. Every XML property is read
+    // as a STRING (memory critical_valuetree_xml_roundtrip_loses_type); JSON ints the
+    // same way. load* clears both slots first; a path-form slot whose file is missing,
+    // unreadable or SHA-mismatched keeps name / sha256 / size / path with
+    // sourceMissing = true and no image (the oscillator plays Sine Product, Decision 7).
+    // Message thread only (importTerrainImage asserts it): setStateInformation calls
+    // loadTerrainImportsTree inline when on the message thread, else posts it through
+    // MessageManager::callAsync guarded by the weak `restoreAlive` token (Decision 9).
+    juce::ValueTree saveTerrainImportsTree() const;
+    void            loadTerrainImportsTree (const juce::ValueTree& child);
+    juce::var       saveTerrainImportsVar() const;
+    void            loadTerrainImportsVar (const juce::var& v);
+    /** Empties the slot (bytes / name / sha256 / path / decoded, sourceMissing false; `revision`
+        stays monotonic), importRevision → 0, retires the published image through retire(),
+        bumps imageGeneration so the view re-pushes, imageFit → 0 (Decision 10). */
+    void            clearImportSlot (int osc);
 
     /** True while processBlock is running AND the caller is the thread running it
         (plan Decision 39: jobs assert the negation). */
@@ -453,6 +501,20 @@ private:
 
     ImportSlot importSlot[2];
     juce::CriticalSection importLock;
+
+    // Stage 4 Round A (Decision 9): the alive token the async restore path captures weakly
+    // (the TerrainScheduler pattern); reset in the destructor before releasePublishedImages().
+    struct RestoreAliveToken {};
+    std::shared_ptr<RestoreAliveToken> restoreAlive { std::make_shared<RestoreAliveToken>() };
+
+    // The record-keeping half of import (path + sourceMissing) shared by importTerrainFile,
+    // the path-form restore and Locate… (all message thread).
+    bool importTerrainImageFromPath (int osc, const juce::MemoryBlock& pngBytes, const juce::String& name, const juce::String& path);
+    struct SlotRecord { juce::String form, name, sha256, path, data; juce::int64 size = 0; };
+    void applySlotRecord (int osc, const SlotRecord& r);
+    static SlotRecord recordFromTree (const juce::ValueTree& slot);
+    static SlotRecord recordFromVar  (const juce::var& slot);
+    std::vector<std::pair<int, SlotRecord>> collectSlotRecords() const;   // slots holding an import, in osc order
 
     // processBlock bookkeeping for isInsideProcessBlockOnThisThread() (plan Decision 39)
     std::atomic<bool> insideProcessBlock { false };
