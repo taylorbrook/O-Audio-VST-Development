@@ -43,6 +43,59 @@ Stage 3, Round A — Terrain tab, oscillator panels, readout, cycle view, i18n (
   (`--dump-choices` → `tests/tools/gen-stub-overrides.mjs`); 13 Terrain states;
   tip gate over five tabs (120 bindings); CDP font probe for the Terrain tab.
 
+Stage 3, Round B — 3D terrain view, playhead, feedback trail, preset re-push (Phase 3.2) and view interaction, PNG import via chooser and drag-and-drop (Phase 3.3), 2026-09-12:
+- **The 3D view is real**: the placeholder look-alikes are gone. `js/terrain-view.js`
+  (one ES module, embedded and served) carries `Orbits.h` ported verbatim — the
+  33 × 129 Superellipse LUT, the Padé-tanh Squarcle, the 64-point radius
+  normalisation, the oscillator's affine order — held within 1e-4 of the binary by
+  a new harness dump (`O-Strata-render-test --gate orbits --out PATH` +
+  `tests/orbit-golden.mjs`; measured 2.9e-6 over 44 curves, base + affine), the
+  camera, the heightmap sampler, Canvas 2D and WebGL2 renderers (R32F heightmap
+  texture, screen-space ribbons, one static VBO for the dashed edge, `low-power`,
+  context-loss recovery) and the PERF-03 frame ring.
+- **Everything the view draws is pushed from C++**, never simulated on the page:
+  `terrainHeightmap` (the ACTIVE surface — analytic at Terrain Freq, the imported
+  image with Blur / Edge, or the untapered Chebyshev set — sampled on the 64 × 64
+  grid by `TerrainViewFeed::copyHeightmap`, ≤ 10 Hz, key-gated), `terrainState`
+  (the ring's newest slot {θ, x, y, h}: the DISPLACED point after feedback and its
+  saturated value, 30 Hz, change-gated — the scan point rides where the voice
+  is), the Round A `terrainCycle` (now also the amber feedback trail, shown only
+  while Feedback > 0) and `terrainStatus`. Until the first heightmap arrives the
+  wireframe is flat.
+- **Preset apply and session restore re-push**: `stateGeneration` on the processor
+  is bumped at the end of `setStateInformation` and by the four preset natives; the
+  editor forces all five pushes once when it moved, even when every value landed
+  identical.
+- **View interaction** (big view only): drag → Orbit Centre X / Y under the cursor
+  (unprojection onto the ground plane), wheel → Orbit Size (≤ 5 % per notch, one
+  gesture per burst), ⌥-drag → Rotation (0.5° per px), ⌥-click → Rotation 0°. One
+  host undo step per gesture; the gesture is captured on the oscillator it started
+  on, so an Osc A ↔ B switch mid-drag cannot straddle two parameters.
+- **PNG import**: `Import…` opens a native chooser (`*.png`); a PNG dropped on the
+  big view or on either oscillator's mini canvas is streamed as bytes (WKWebView
+  strips file paths). Both paths cap at 2 MiB, hand the bytes to the Stage 2 import
+  API and select Imported… from C++ inside one gesture (Blur / Edge un-grey). A
+  file over the cap or an undecodable one shows a transient notice for 4 s
+  (`label.importTooLarge` / `label.importFailed`, en / fr / zh-Hans) and leaves the
+  terrain unchanged; cancel leaves the parameter alone.
+- **WebGL2 unavailable** (a 10.13–11 host): the Canvas 2D path draws the same view
+  and the localised badge stays visible.
+- **PERF-03 instrumentation**: the page's 300-frame ring (finish-inclusive and
+  submit-only) reports through the native `reportViewPerf` to
+  `~/Library/Logs/O-Strata/view-perf.log`; ⌥-click on the HUD runs a 300-frame
+  burst so a Release host with no inspector can be measured.
+- **i18n**: two keys (`label.importTooLarge`, `label.importFailed`; fr unreviewed,
+  zh at `'mt'` → 48).
+- **Gates**: `tests/ui_layout_check.js` gains `webgl` (DPR 1 + DPR 2 contexts,
+  backing store, NO_ERROR, lose / restore), `fallback` (forced-null WebGL2 in three
+  languages), `interaction` (page.mouse gestures with a Started / Ended spy on the
+  stub instances, A ↔ B repoint) and `drop` (synthetic Files through the real
+  handlers, `window.__stubNativeCalls`) sections plus source greps; 8 new Terrain
+  states (default + 41); stub natives regenerated from the binary; the generic
+  stub records native calls (`test(ui-stub)` commit). Windows / WebView2 halves of
+  UI-01 / PERF-03 / FUNC-07 → Phase 4.2; `terrainImports` persistence,
+  `sourceMissing`, factory presets → Stage 4.1.
+
 Stage 2, Round B — Bandlimited mode + PNG terrain path (Phases 2.4–2.5, 2026-09-12):
 - **Bandlimited mode** (`osc?Quality` = Bandlimited): the terrain is a degree-16
   Chebyshev triangle (153 coefficients, `dsp/ChebyshevSet.h`) evaluated per sample

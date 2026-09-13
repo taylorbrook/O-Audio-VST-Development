@@ -36,6 +36,12 @@ const natives = Object.assign({}, existing.natives || {}, {
     getModDestNames: JSON.stringify(dump.modDestNames),
     getModSourceNames: JSON.stringify(dump.modSourceNames),
     requestTerrainRepush: true,
+    // Round B (plan Decision 43): the three new natives. The chooser "cancels" (the
+    // parameter stays), a streamed drop "succeeds" (the page shows no notice), the
+    // perf report is acknowledged.
+    chooseTerrainImage: { ok: false, reason: 'cancelled' },
+    importTerrainImageData: { ok: true },
+    reportViewPerf: true,
 });
 
 // Key order: the provenance header first, then every block the file already had

@@ -2382,6 +2382,11 @@ export const LABELS = Object.freeze({
                                fr: { t: 'WebGL indisponible — repli 2D', reviewed: false }, 'zh-Hans': { t: 'WebGL 不可用——2D 回退', reviewed: 'mt' } },
     'label.sourceMissing':   { en: { t: 'Source missing — using library fallback' },
                                fr: { t: 'Source manquante — repli sur la bibliothèque', reviewed: false }, 'zh-Hans': { t: '源文件缺失——使用库内替代', reviewed: 'mt' } },
+    // Round B (plan Decision 42): the transient import notices (#terrain-notice, 4 s)
+    'label.importTooLarge':  { en: { t: 'Image over 2 MB — not imported' },
+                               fr: { t: 'Image de plus de 2 Mo — non importée', reviewed: false }, 'zh-Hans': { t: '图片超过 2 MB——未导入', reviewed: 'mt' } },
+    'label.importFailed':    { en: { t: 'Could not read image — terrain unchanged' },
+                               fr: { t: 'Image illisible — terrain inchangé', reviewed: false }, 'zh-Hans': { t: '无法读取图片——地形未更改', reviewed: 'mt' } },
     'aria.view3d':           { en: { t: '3D view' },       fr: { t: 'Vue 3D',        reviewed: false }, 'zh-Hans': { t: '3D 视图', reviewed: 'mt' } },
     'aria.viewWaveform':     { en: { t: 'Waveform view' }, fr: { t: 'Vue forme d’onde', reviewed: false }, 'zh-Hans': { t: '波形视图', reviewed: 'mt' } },
     'label.hintView':        { en: { t: 'Drag: centre · Wheel: size · ⌥ drag: rotation' },

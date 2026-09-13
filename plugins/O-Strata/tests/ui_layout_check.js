@@ -33,6 +33,25 @@
     tests/i18n-states.json (replayed cumulatively, exactly as check-ui-labels
     replays them).
 
+    Stage 3 Round B (PLAN Decision 45) adds four sections after the walk:
+      webgl        #terrainView 700 x 540 inside the 704 x 544 wrap at DPR 1 AND in a
+                   deviceScaleFactor: 2 context (backing 700·DPR x 540·DPR),
+                   window.__strataScene.kind === 'webgl2', lastGLError() === 0 after the
+                   R32F upload, debugLoseContext() → no page error, debugRestoreContext()
+                   → a frame draws again (the perf ring advances)
+      fallback     a context whose getContext('webgl2') returns null: Canvas 2D path,
+                   #terrain-webgl-unavailable visible in every language, every Terrain-tab
+                   layout row re-run
+      interaction  page.mouse drag / wheel / ⌥-drag / ⌥-click on #terrainView move
+                   oscAOrbCX/CY / oscAPos / oscAOrbRot with ONE sliderDragStarted/Ended
+                   pair per gesture (spy on the stub instances); after Osc B the same
+                   drag moves oscB* and leaves oscA* alone
+      drop         a synthetic File dropped on #terrainView / #canvasWrapB → exactly one
+                   importTerrainImageData call with the right osc / name / bytes
+                   (window.__stubNativeCalls); > 2 MiB and a .jpg name → the notice, no call
+    plus source greps (placeholder token gone, the module embedded AND served, the
+    four natives referenced by the page AND registered by the editor).
+
     Served through scripts/serve-ui.js (generic stub + tests/ui-stub/
     generic-overrides.json, port 0), Playwright resolved from wherever it lives.
 
@@ -143,6 +162,20 @@ function sourceGreps() {
     const evHtml = (html.match(/evaluateJavascript/g) || []).length;
     const evCpp  = (cpp.match(/evaluateJavascript/g) || []).length;
     check(evHtml === 0 && evCpp === 0, `evaluateJavascript count 0 / 0 (index.html ${evHtml}, PluginEditor.cpp ${evCpp})`);
+
+    // Round B (Decision 45): the placeholder is gone, the module is embedded AND served, the natives exist on both sides
+    const placeholder = (html.match(/PLACEHOLDER \(Stage 3 Round B/g) || []).length;
+    check(placeholder === 0, `placeholder token "PLACEHOLDER (Stage 3 Round B" count 0 in index.html (${placeholder})`);
+    const cmake = fs.readFileSync(path.join(pluginRoot, 'CMakeLists.txt'), 'utf8');
+    const bd = cmake.match(/juce_add_binary_data\s*\([\s\S]*?\)/g) || [];
+    check(bd.length === 1 && /Source\/ui\/public\/js\/terrain-view\.js/.test(bd[0]), `js/terrain-view.js is in the ONE juce_add_binary_data SOURCES block (${bd.length} block(s))`);
+    check(/"\/js\/terrain-view\.js"/.test(cpp) && /BinaryData::terrainview_js\b/.test(cpp), 'PluginEditor.cpp serves /js/terrain-view.js from a getResource() branch (BinaryData::terrainview_js)');
+    check(/from '\.\/js\/terrain-view\.js'/.test(html), "index.html imports './js/terrain-view.js' from its module script");
+    for (const fn of ['requestTerrainRepush', 'reportViewPerf', 'chooseTerrainImage', 'importTerrainImageData']) {
+        const inHtml = new RegExp(`getNativeFunction\\s*\\(\\s*['"]${fn}['"]`).test(html);
+        const inCpp  = new RegExp(`withNativeFunction\\s*\\(\\s*"${fn}"`).test(cpp);
+        check(inHtml && inCpp, `native ${fn} is referenced by index.html AND registered by PluginEditor.cpp (${inHtml} / ${inCpp})`);
+    }
 }
 
 async function main() {
@@ -298,6 +331,197 @@ async function main() {
         }
         // put the walk back to its start for the next language (the states end on the Synth tab)
         await switchTab('synth');
+    }
+
+
+    // ══ D. Round B (PLAN Decision 45): webgl / fallback / interaction / drop ══
+    await setLang('en');
+    await closeSettings();
+    await switchTab('terrain');
+    const HM_PUSH = (terrainStates.find((s) => s.name === 'terrain-heightmap-pushed') || {}).eval;
+    check(typeof HM_PUSH === 'string', 'state terrain-heightmap-pushed exists (its eval seeds the heightmap for the webgl section)');
+
+    const PROBE_VIEW = () => {
+        const c = document.getElementById('terrainView'), w = document.getElementById('terrain-view-wrap'), sc = window.__strataScene;
+        return { cw: c.clientWidth, ch: c.clientHeight, bw: c.width, bh: c.height, wow: w.offsetWidth, woh: w.offsetHeight,
+                 kind: sc ? sc.kind : null, dpr: window.devicePixelRatio, n: window.__strataPerf ? window.__strataPerf.snapshot().n : -1 };
+    };
+    const TERRAIN_HITS = ['#btn-terImport', '#terrain-view-wrap .osc-view-btn[data-view="3d"]', '#terrain-view-wrap .osc-view-btn[data-view="wave"]', '#seg-terQuality .terrain-seg-btn[data-idx="0"]', '#seg-terQuality .terrain-seg-btn[data-idx="1"]', '#seg-terQuality .terrain-seg-btn[data-idx="2"]', '#select-terTerrain', '#select-terOrbit', '.tab-bar .tab[data-tab="terrain"]'];
+
+    async function webglSection(pg, errs, dpr) {
+        head(`webgl — DPR ${dpr}`);
+        await pg.evaluate(() => window.switchTab('terrain')); await pg.waitForTimeout(150);
+        if (HM_PUSH) { await pg.evaluate((src) => { (0, eval)(src); }, HM_PUSH); await pg.waitForTimeout(250); }
+        const v = await pg.evaluate(PROBE_VIEW);
+        check(v.dpr === dpr, `[dpr${dpr}] window.devicePixelRatio === ${dpr} (${v.dpr})`);
+        check(v.cw === 700 && v.ch === 540, `[dpr${dpr}] #terrainView is 700 x 540 CSS px (${v.cw} x ${v.ch})`);
+        check(v.wow === 704 && v.woh === 544, `[dpr${dpr}] #terrain-view-wrap border-box is 704 x 544 (${v.wow} x ${v.woh})`);
+        check(v.bw === 700 * dpr && v.bh === 540 * dpr, `[dpr${dpr}] backing store is 700·${dpr} x 540·${dpr} (${v.bw} x ${v.bh})`);
+        check(v.kind === 'webgl2', `[dpr${dpr}] window.__strataScene.kind === 'webgl2' (${v.kind})`);
+        const err = await pg.evaluate(() => window.__strataScene.lastGLError());
+        check(err === 0, `[dpr${dpr}] lastGLError() === 0 (NO_ERROR) after the R32F heightmap upload (${err})`);
+        const before = errs.length, n0 = v.n;
+        const lost = await pg.evaluate(() => window.__strataScene.debugLoseContext());
+        await pg.waitForTimeout(250);
+        check(lost === true && errs.length === before, `[dpr${dpr}] debugLoseContext() → no page error (${errs.length - before} new)`);
+        const restored = await pg.evaluate(() => window.__strataScene.debugRestoreContext());
+        await pg.waitForTimeout(400);
+        await pg.evaluate(() => window.__stubEmit('terrainState', { osc: 'A', theta: 0.5, x: 0.1, y: 0.1, h: 0.2 }));
+        await pg.waitForTimeout(250);
+        const n1 = await pg.evaluate(() => window.__strataPerf.snapshot().n);
+        check(restored === true && n1 > n0, `[dpr${dpr}] debugRestoreContext() → a frame draws again (perf ring n ${n0} → ${n1})`);
+    }
+    await webglSection(page, pageErrors, 1);
+    {
+        const ctx2 = await browser.newContext({ viewport: { width: SHIP_W, height: SHIP_H }, deviceScaleFactor: 2 });
+        const page2 = await ctx2.newPage(); const errs2 = [];
+        page2.on('pageerror', (e) => errs2.push(String(e && e.message ? e.message : e)));
+        await page2.goto(`http://127.0.0.1:${srv.port}/index.html`, { waitUntil: 'load', timeout: 20000 });
+        await page2.waitForTimeout(900);
+        await webglSection(page2, errs2, 2);
+        check(errs2.length === 0, `[dpr2] no page errors in the DPR 2 context (${errs2.length})${errs2.length ? ': ' + errs2.slice(0, 2).join(' | ') : ''}`);
+        await ctx2.close();
+    }
+
+    // fallback: getContext('webgl2') → null → the Canvas 2D path + the localised placeholder; every Terrain-tab layout row holds
+    {
+        head('fallback — forced-null webgl2');
+        const ctx3 = await browser.newContext({ viewport: { width: SHIP_W, height: SHIP_H }, deviceScaleFactor: 1 });
+        await ctx3.addInitScript(() => {
+            const orig = HTMLCanvasElement.prototype.getContext;
+            HTMLCanvasElement.prototype.getContext = function (type, ...rest) { return type === 'webgl2' ? null : orig.call(this, type, ...rest); };
+        });
+        const page3 = await ctx3.newPage(); const errs3 = [];
+        page3.on('pageerror', (e) => errs3.push(String(e && e.message ? e.message : e)));
+        await page3.goto(`http://127.0.0.1:${srv.port}/index.html`, { waitUntil: 'load', timeout: 20000 });
+        await page3.waitForTimeout(900);
+        await page3.evaluate(() => window.switchTab('terrain')); await page3.waitForTimeout(150);
+        if (HM_PUSH) { await page3.evaluate((src) => { (0, eval)(src); }, HM_PUSH); await page3.waitForTimeout(250); }
+        const kind = await page3.evaluate(() => window.__strataScene && window.__strataScene.kind);
+        check(kind === '2d', `[fallback] window.__strataScene.kind === '2d' (${kind})`);
+        for (const lang of LANGS) {
+            await page3.evaluate((x) => window.__setLanguage(x), lang); await page3.waitForTimeout(180);
+            const badge = await page3.evaluate(() => { const e = document.getElementById('terrain-webgl-unavailable'); const cs = getComputedStyle(e); const r = e.getBoundingClientRect(); return { display: cs.display, text: e.textContent.trim(), w: r.width, h: r.height, key: e.dataset.i18n }; });
+            check(badge.display !== 'none' && badge.w > 0 && badge.h > 0 && badge.text.length > 0 && badge.key === 'label.webglUnavailable',
+                `[fallback/${lang}] #terrain-webgl-unavailable visible with label.webglUnavailable (${badge.display}, ${badge.w.toFixed(1)} x ${badge.h.toFixed(1)}, "${badge.text}")`);
+            const t = await page3.evaluate(PROBE_TAB);
+            check(t && t.id === 'terrain-tab' && t.sh === t.ch && t.ch === TAB_BUDGET, `[fallback/${lang}] #terrain-tab scrollHeight === clientHeight === ${TAB_BUDGET} (${t ? `${t.sh}/${t.ch}` : 'no tab'})`);
+            check(t && t.sw === t.cw, `[fallback/${lang}] #terrain-tab scrollWidth === clientWidth`);
+            const ov = await page3.evaluate(PROBE_TERRAIN_REGIONS);
+            for (const o of ov) check(!o.missing && o.area === 0, `[fallback/${lang}] ${o.a} x ${o.b} overlap ${o.missing ? 'MISSING' : o.area.toFixed(2)} px²`);
+            const hits = await page3.evaluate(PROBE_HITS, TERRAIN_HITS);
+            for (const h of hits) check(h.ok === true, `[fallback/${lang}] elementFromPoint hits ${h.sel}${h.ok ? '' : ` (got ${h.missing ? 'MISSING' : h.zero ? 'zero-size' : h.hit})`}`);
+            const vf = await page3.evaluate(() => { const e = document.getElementById('val-terFreq'); return e ? e.textContent : null; });
+            check(vf === '1.00×', `[fallback/${lang}] #val-terFreq reads 1.00× (got ${JSON.stringify(vf)})`);
+            const v3 = await page3.evaluate(PROBE_VIEW);
+            check(v3.cw === 700 && v3.ch === 540 && v3.bw === 700 && v3.bh === 540, `[fallback/${lang}] #terrainView 700 x 540 with a 700 x 540 backing store (${v3.cw} x ${v3.ch}, ${v3.bw} x ${v3.bh})`);
+        }
+        check(errs3.length === 0, `[fallback] no page errors (${errs3.length})${errs3.length ? ': ' + errs3.slice(0, 2).join(' | ') : ''}`);
+        await ctx3.close();
+    }
+
+    // interaction (Decision 38): drag → CX / CY, wheel → Pos, ⌥-drag → Rot, ⌥-click → Rot = 0, A ↔ B repoint
+    {
+        head('interaction');
+        await setLang('en'); await closeSettings(); await switchTab('terrain');
+        await page.evaluate(() => { const b = document.querySelector('#terrain-osc-toggle .wt-osc-btn[data-osc="A"]'); if (b) b.click(); });
+        await page.waitForTimeout(120);
+        const SPY = ['oscAOrbCX', 'oscAOrbCY', 'oscAPos', 'oscAOrbRot', 'oscBOrbCX', 'oscBOrbCY'];
+        await page.evaluate((ids) => {
+            window.__gestureSpy = {};
+            for (const id of ids) {
+                const st = window.__stubStates.sliders.get(id);
+                const rec = window.__gestureSpy[id] = { started: 0, ended: 0 };
+                const s0 = st.sliderDragStarted.bind(st), e0 = st.sliderDragEnded.bind(st);
+                st.sliderDragStarted = () => { rec.started++; s0(); };
+                st.sliderDragEnded = () => { rec.ended++; e0(); };
+            }
+        }, SPY);
+        const vals = () => page.evaluate((ids) => { const o = {}; for (const id of ids) o[id] = window.__stubStates.sliders.get(id).getNormalisedValue(); return o; }, SPY);
+        const spy = () => page.evaluate(() => JSON.parse(JSON.stringify(window.__gestureSpy)));
+        const resetSpy = () => page.evaluate(() => { for (const k in window.__gestureSpy) { window.__gestureSpy[k].started = 0; window.__gestureSpy[k].ended = 0; } });
+        const box = await page.locator('#terrainView').boundingBox();
+        check(box && Math.round(box.width) === 700 && Math.round(box.height) === 540, `#terrainView bounding box 700 x 540 (${box ? `${box.width} x ${box.height}` : 'MISSING'})`);
+        const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+        // drag → Centre X / Y, one pair each, the point lands under the cursor
+        const v0 = await vals();
+        await page.mouse.move(cx - 60, cy + 20); await page.mouse.down(); await page.mouse.move(cx + 60, cy - 20, { steps: 6 }); await page.mouse.up();
+        await page.waitForTimeout(150);
+        const v1 = await vals(); let s = await spy();
+        check(v1.oscAOrbCX !== v0.oscAOrbCX && v1.oscAOrbCY !== v0.oscAOrbCY, `drag across #terrainView moves oscAOrbCX (${v0.oscAOrbCX.toFixed(3)} → ${v1.oscAOrbCX.toFixed(3)}) and oscAOrbCY (${v0.oscAOrbCY.toFixed(3)} → ${v1.oscAOrbCY.toFixed(3)})`);
+        check(s.oscAOrbCX.started === 1 && s.oscAOrbCX.ended === 1 && s.oscAOrbCY.started === 1 && s.oscAOrbCY.ended === 1, `drag = ONE Started / Ended pair on CX and on CY (CX ${s.oscAOrbCX.started}/${s.oscAOrbCX.ended}, CY ${s.oscAOrbCY.started}/${s.oscAOrbCY.ended})`);
+        const landed = await page.evaluate(({ px, py }) => { const r = document.getElementById('terrainView').getBoundingClientRect(); return window.__strataScene.unproject(px - r.left, py - r.top); }, { px: cx + 60, py: cy - 20 });
+        check(landed && Math.abs((landed[0] + 1) / 2 - v1.oscAOrbCX) < 2e-3 && Math.abs((landed[1] + 1) / 2 - v1.oscAOrbCY) < 2e-3,
+            `the centre landed under the cursor (unproject ${landed ? `${landed[0].toFixed(3)}, ${landed[1].toFixed(3)}` : 'null'} vs CX/CY ${(v1.oscAOrbCX * 2 - 1).toFixed(3)}, ${(v1.oscAOrbCY * 2 - 1).toFixed(3)})`);
+        // wheel → Orbit Size, ≤ 0.05 per event, one pair per burst
+        await resetSpy();
+        await page.mouse.move(cx, cy); await page.mouse.wheel(0, 120); await page.waitForTimeout(350);
+        const v2 = await vals(); s = await spy();
+        const dPos = v2.oscAPos - v1.oscAPos;
+        check(dPos !== 0 && Math.abs(dPos) <= 0.05 + 1e-6, `wheel (deltaY 120) moves oscAPos by ≤ 0.05 (Δ ${dPos.toFixed(4)})`);
+        check(s.oscAPos.started === 1 && s.oscAPos.ended === 1, `wheel burst = ONE Started / Ended pair after 250 ms (${s.oscAPos.started}/${s.oscAPos.ended})`);
+        // ⌥-drag → Rotation (0.5° / px)
+        await resetSpy();
+        await page.keyboard.down('Alt');
+        await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.move(cx + 40, cy, { steps: 4 }); await page.mouse.up();
+        await page.keyboard.up('Alt'); await page.waitForTimeout(150);
+        const v3 = await vals(); s = await spy();
+        check(v3.oscAOrbRot !== v2.oscAOrbRot && Math.abs(v3.oscAOrbRot - (v2.oscAOrbRot + 40 * 0.5 / 360)) < 2e-3, `⌥-drag 40 px rotates oscAOrbRot by 20° (${v2.oscAOrbRot.toFixed(4)} → ${v3.oscAOrbRot.toFixed(4)})`);
+        check(s.oscAOrbRot.started === 1 && s.oscAOrbRot.ended === 1 && s.oscAOrbCX.started === 0, `⌥-drag = ONE pair on Rot, none on CX (Rot ${s.oscAOrbRot.started}/${s.oscAOrbRot.ended}, CX ${s.oscAOrbCX.started})`);
+        // ⌥-click (< 3 px) → Rotation = 0
+        await resetSpy();
+        await page.keyboard.down('Alt'); await page.mouse.move(cx + 10, cy + 10); await page.mouse.down(); await page.mouse.up(); await page.keyboard.up('Alt');
+        await page.waitForTimeout(150);
+        const v4 = await vals(); s = await spy();
+        check(v4.oscAOrbRot === 0 && s.oscAOrbRot.started === 1 && s.oscAOrbRot.ended === 1, `⌥-click (< 3 px) resets oscAOrbRot to 0 inside ONE pair (${v4.oscAOrbRot}, ${s.oscAOrbRot.started}/${s.oscAOrbRot.ended})`);
+        // Osc B: the same drag moves oscB* and leaves oscA* alone
+        await page.evaluate(() => document.querySelector('#terrain-osc-toggle .wt-osc-btn[data-osc="B"]').click()); await page.waitForTimeout(150);
+        await resetSpy();
+        await page.mouse.move(cx - 40, cy); await page.mouse.down(); await page.mouse.move(cx + 40, cy + 30, { steps: 5 }); await page.mouse.up();
+        await page.waitForTimeout(150);
+        const v5 = await vals(); s = await spy();
+        check(v5.oscBOrbCX !== v4.oscBOrbCX && v5.oscBOrbCY !== v4.oscBOrbCY && v5.oscAOrbCX === v4.oscAOrbCX && v5.oscAOrbCY === v4.oscAOrbCY,
+            `after Osc B the drag moves oscBOrbCX/CY (${v4.oscBOrbCX.toFixed(3)} → ${v5.oscBOrbCX.toFixed(3)}) and leaves oscAOrbCX/CY unchanged`);
+        check(s.oscBOrbCX.started === 1 && s.oscBOrbCX.ended === 1 && s.oscAOrbCX.started === 0, `the Osc B gesture pairs on oscB* only (B ${s.oscBOrbCX.started}/${s.oscBOrbCX.ended}, A ${s.oscAOrbCX.started})`);
+        await page.evaluate(() => document.querySelector('#terrain-osc-toggle .wt-osc-btn[data-osc="A"]').click()); await page.waitForTimeout(120);
+    }
+
+    // drop (Decisions 41, 44): a synthetic File through the real handlers; the stub records the native call
+    {
+        head('drop');
+        const PNG_1x1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNoAAAAggCBd81ytgAAAABJRU5ErkJggg==';   // a 67-byte 1 x 1 greyscale PNG
+        const dropFile = (sel, name, big) => page.evaluate(({ sel, name, b64, big }) => {
+            let bytes;
+            if (big) { bytes = new Uint8Array(big); const sig = atob(b64); for (let i = 0; i < 8; i++) bytes[i] = sig.charCodeAt(i); }
+            else { const bin = atob(b64); bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); }
+            const file = new File([bytes], name, { type: 'image/png' });
+            const dt = new DataTransfer(); dt.items.add(file);
+            document.querySelector(sel).dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+        }, { sel, name, b64: PNG_1x1, big: big || 0 });
+        const calls = () => page.evaluate(() => (window.__stubNativeCalls || []).filter((c) => c.name === 'importTerrainImageData').map((c) => ({ args: c.args })));
+        const notice = () => page.evaluate(() => { const e = document.getElementById('terrain-notice'); return { visible: e.classList.contains('visible'), key: e.dataset.i18n, text: e.textContent.trim() }; });
+        const hasSpy = await page.evaluate(() => Array.isArray(window.__stubNativeCalls));
+        check(hasSpy, 'window.__stubNativeCalls is recorded by the generic stub');
+        await page.evaluate(() => { if (window.__stubNativeCalls) window.__stubNativeCalls.length = 0; window.__showTerrainNotice(null, 0); });
+        await dropFile('#terrainView', 'probe.png'); await page.waitForTimeout(400);
+        let c = await calls();
+        check(c.length === 1 && c[0].args[0] === 'A' && c[0].args[1] === 'probe.png' && c[0].args[2] === PNG_1x1,
+            `drop of a 1 x 1 PNG on #terrainView → exactly one importTerrainImageData ('A', 'probe.png', <base64>) (${c.length} call(s)${c.length ? `: ${c[0].args[0]}, ${c[0].args[1]}, ${c[0].args[2] === PNG_1x1 ? 'bytes match' : 'bytes DIFFER'}` : ''})`);
+        let n = await notice();
+        check(!n.visible, `no notice after a successful drop (visible ${n.visible})`);
+        await dropFile('#terrainView', 'big.png', 2 * 1024 * 1024 + 1); await page.waitForTimeout(400);
+        c = await calls(); n = await notice();
+        check(c.length === 1 && n.visible && n.key === 'label.importTooLarge' && n.text.length > 0, `a 2 MiB + 1 byte .png → label.importTooLarge notice ("${n.text}"), no new call (${c.length})`);
+        await dropFile('#terrainView', 'photo.jpg'); await page.waitForTimeout(400);
+        c = await calls(); n = await notice();
+        check(c.length === 1 && n.visible && n.key === 'label.importFailed' && n.text.length > 0, `a .jpg name → label.importFailed notice ("${n.text}"), no new call (${c.length})`);
+        await page.evaluate(() => window.__showTerrainNotice(null, 0));
+        n = await notice();
+        check(!n.visible && n.key === 'label.sourceMissing', `#terrain-notice restored to the STATUS-driven label.sourceMissing form (visible ${n.visible}, key ${n.key})`);
+        await switchTab('synth');
+        await dropFile('#canvasWrapB', 'probe.png'); await page.waitForTimeout(400);
+        c = await calls();
+        check(c.length === 2 && c[1].args[0] === 'B' && c[1].args[1] === 'probe.png', `drop on #canvasWrapB → importTerrainImageData ('B', 'probe.png', …) (${c.length} call(s)${c.length > 1 ? `: ${c[1].args[0]}` : ''})`);
     }
 
     head('runtime');

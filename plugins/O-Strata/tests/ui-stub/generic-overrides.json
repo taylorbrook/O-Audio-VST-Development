@@ -6,7 +6,15 @@
     "getEmbeddedTuningList": "[{\"id\": \"stub-pyth\", \"name\": \"Pythagorean\", \"category\": \"Historical\", \"noteCount\": 12, \"period\": 1200.0}, {\"id\": \"stub-just\", \"name\": \"Just Major\", \"category\": \"Just Intonation\", \"noteCount\": 12, \"period\": 1200.0}, {\"id\": \"stub-bp\", \"name\": \"Bohlen-Pierce\", \"category\": \"Non-Octave\", \"noteCount\": 13, \"period\": 1901.955}]",
     "getModDestNames": "[\"None\",\"OscA Orbit Size\",\"OscB Orbit Size\",\"FiltA Cut\",\"FiltB Cut\",\"FiltA Res\",\"FiltB Res\",\"Osc Mix\",\"Sub Level\",\"Noise Level\",\"LFO1 Rate\",\"LFO2 Rate\",\"LFO3 Rate\",\"LFO4 Rate\",\"OscA Detune\",\"OscB Detune\",\"OscA Pan\",\"OscB Pan\",\"Reverb Mix\",\"Delay Mix\",\"Chorus Mix\",\"Dist Mix\",\"Master Vol\",\"Pitch\",\"OscA Warp\",\"OscB Warp\",\"OscA Orbit Aspect\",\"OscA Orbit Rot\",\"OscA Orbit CX\",\"OscA Orbit CY\",\"OscA Orbit Mod\",\"OscA Terrain Freq\",\"OscA Terrain Mod X\",\"OscA Terrain Mod Y\",\"OscA Feedback\",\"OscA Saturation\",\"OscB Orbit Aspect\",\"OscB Orbit Rot\",\"OscB Orbit CX\",\"OscB Orbit CY\",\"OscB Orbit Mod\",\"OscB Terrain Freq\",\"OscB Terrain Mod X\",\"OscB Terrain Mod Y\",\"OscB Feedback\",\"OscB Saturation\"]",
     "getModSourceNames": "[\"None\",\"LFO1\",\"LFO2\",\"LFO3\",\"LFO4\",\"AmpEnv\",\"FilterEnv\",\"Velocity\",\"NoteNum\",\"ModWheel\",\"Aftertouch\"]",
-    "requestTerrainRepush": true
+    "requestTerrainRepush": true,
+    "chooseTerrainImage": {
+      "ok": false,
+      "reason": "cancelled"
+    },
+    "importTerrainImageData": {
+      "ok": true
+    },
+    "reportViewPerf": true
   },
   "combos": {
     "oscATerrain": {
