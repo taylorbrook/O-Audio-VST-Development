@@ -170,8 +170,36 @@
        The 3 px comes out of .meter-pair, which is flex:1 inside the column, so
        the bars go 26 -> 24.5 px each -- back toward their pre-v1.9.2 width.
        The column itself stays 72 px. */
+    /* v1.9.4: THE TRANSPARENT BORDER IS THE WHOLE POINT -- do not remove it as
+       a no-op. The ruler and the thing it measures were in different coordinate
+       spaces.
+
+       Every mark that rides the bars -- the bar top itself, the held peak cap,
+       the staging band, the mix-bus line, the 0 VU line, the LUFS target line
+       -- is an absolutely positioned child of .meter-bar-container, so its
+       `bottom: X%` resolves against that element's PADDING box. The container
+       carries `border: 1px solid`, so its padding box is 2 px shorter than its
+       border box and starts 1 px lower. The scale gutter had no border, so the
+       numerals' `bottom: X%` resolved against the FULL height. Measured at the
+       shipping frame: gutter box 47.98..387.03 (339.05 px), bar padding box
+       48.98..386.03 (337.05 px).
+
+       Two spaces 2 px apart produce a LINEAR drift, not a constant offset --
+       the bar sat 1.00 px BELOW its gridline at 0 dBFS, 0.40 px below at
+       -18 dBFS, and 1.00 px ABOVE at -60 dBFS, crossing zero at -30. In dB
+       that is -0.18 dB at the top of the scale to +0.18 dB at the bottom: a
+       meter that read 0.2 dB hot where it matters most, against its own ruler.
+
+       A transparent 1 px top/bottom border gives the gutter the identical
+       padding box (box-sizing is border-box globally, and the gutter is
+       height-stretched by the flex row exactly as the container is), so both
+       spaces are 48.98..386.03 and every gridline lands on the mark it names.
+       Left/right stay 0: the gutter is a hard 17 px and a side border would
+       eat the tick clearance. */
     .meter-scale {
       position: relative;
+      border-top: 1px solid transparent;
+      border-bottom: 1px solid transparent;
       width: 17px;
       flex: 0 0 17px;
     }
