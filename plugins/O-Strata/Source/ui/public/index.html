@@ -5008,6 +5008,7 @@ if (backend) {
 }
 const STATUS = { A: { sourceMissing: false, fit: null, partials: null, approx: null, topNote: -1 },
                  B: { sourceMissing: false, fit: null, partials: null, approx: null, topNote: -1 } };
+const NOTICE = { transient: false };           // #terrain-notice is showing an import notice (refreshInert leaves it alone)
 
 // ─── PERF-03 (Round B, plan Decision 37): the module's 300-frame ring reports when it
 //     wraps; ⌥-click on the HUD runs a 300-frame burst; both go to the native
@@ -5077,7 +5078,7 @@ function refreshInert() {
     document.querySelectorAll('#seg-terQuality .terrain-seg-btn').forEach(b => b.classList.toggle('active', +b.dataset.idx === p.quality));
     document.querySelectorAll('#terrain-osc-toggle .wt-osc-btn').forEach(b => b.classList.toggle('active', b.dataset.osc === ACTIVE_OSC));
     document.getElementById('terrain-view-wrap').dataset.osc = ACTIVE_OSC;
-    document.getElementById('terrain-notice').classList.toggle('visible', !!STATUS[ACTIVE_OSC].sourceMissing);
+    if (!NOTICE.transient) document.getElementById('terrain-notice').classList.toggle('visible', !!STATUS[ACTIVE_OSC].sourceMissing);
     const v = document.getElementById('val-terFreq');
     if (v && v.dataset.editing !== '1') v.textContent = freqFmt(PROXY.terFreq.getNormalisedValue());
     updateReadout();
@@ -5118,8 +5119,95 @@ document.querySelectorAll('#seg-terQuality .terrain-seg-btn').forEach(btn => {
     btn.addEventListener('click', () => PROXY.terQuality.setChoiceIndex(+btn.dataset.idx));
 });
 
-// Import… (#btn-terImport) and the Drop PNG overlays are markup only in Round A;
-// Round B (Phase 3.3) wires chooseTerrainImage / importTerrainImageData.
+// ═══════════════════════════════════════════════════════════════════
+// NEW — PNG IMPORT (Round B, plan Decisions 39, 41): Import… → the native chooser
+// (chooseTerrainImage (osc)); Drop PNG on the big view or either mini canvas → the
+// BYTES are streamed (WKWebView strips file paths from the DataTransfer — memory
+// critical_webview_drag_drop_macos): webkitGetAsEntry → File → the PNG signature
+// and 2 MiB guards → base64 → importTerrainImageData (osc, name, base64), whole file
+// in ONE call. C++ applies the same cap, hands the bytes to the Stage 2 API and
+// selects Imported… itself on success (the combo relay → refreshInert un-greys
+// Blur / Edge); {ok:false, reason} → a transient notice; cancelled → nothing.
+// ═══════════════════════════════════════════════════════════════════
+const IMPORT_MAX_BYTES = 2 * 1024 * 1024;
+const PNG_SIGNATURE = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+// #terrain-notice reused transiently (4 s), then restored to the STATUS-driven
+// label.sourceMissing form. window.__showTerrainNotice (key, holdMs) is the test seam
+// (holdMs = 0 → sticky; key null → restore now) — the same kind as __setLanguage.
+let noticeTimer = 0;
+function restoreTerrainNotice() {
+    const el = document.getElementById('terrain-notice');
+    clearTimeout(noticeTimer); noticeTimer = 0;
+    NOTICE.transient = false;
+    setLabel(el, 'label.sourceMissing');
+    el.classList.toggle('visible', !!STATUS[ACTIVE_OSC].sourceMissing);
+}
+function showTerrainNotice(key, holdMs) {
+    const el = document.getElementById('terrain-notice');
+    clearTimeout(noticeTimer); noticeTimer = 0;
+    if (!key) { restoreTerrainNotice(); return; }
+    if (key === 'label.importTooLarge') setLabel(el, 'label.importTooLarge');
+    else if (key === 'label.importFailed') setLabel(el, 'label.importFailed');
+    else return;
+    NOTICE.transient = true;
+    el.classList.add('visible');
+    const hold = holdMs === undefined ? 4000 : holdMs;
+    if (hold > 0) noticeTimer = setTimeout(restoreTerrainNotice, hold);   // a second call restarts the timer
+}
+window.__showTerrainNotice = showTerrainNotice;
+function handleImportResult(res) {
+    let r = res;
+    if (typeof res === 'string') { try { r = JSON.parse(res); } catch (e) { r = null; } }
+    if (!r || r.ok) return;
+    if (r.reason === 'tooLarge') showTerrainNotice('label.importTooLarge');
+    else if (r.reason === 'undecodable') showTerrainNotice('label.importFailed');
+    // 'cancelled' → nothing: the parameter was left alone
+}
+document.getElementById('btn-terImport').addEventListener('click', () => {
+    try { Juce.getNativeFunction('chooseTerrainImage')(ACTIVE_OSC).then(handleImportResult).catch(e => console.warn('[terrain] import:', e)); }
+    catch (e) { console.warn('[terrain] chooseTerrainImage unavailable:', e); }
+});
+function readEntryFile(item) {
+    return new Promise((resolve, reject) => {
+        const entry = item && item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+        if (entry && entry.isFile) entry.file(resolve, reject);
+        else { const f = item && item.getAsFile ? item.getAsFile() : null; f ? resolve(f) : reject(new Error('not a file')); }
+    });
+}
+async function importDropped(osc, dt) {
+    let file = null;
+    try {
+        if (dt.items && dt.items.length) file = await readEntryFile(dt.items[0]);
+        else if (dt.files && dt.files.length) file = dt.files[0];            // WebView2 fallback (Phase 4.2)
+    } catch (e) { file = null; }
+    if (!file) { showTerrainNotice('label.importFailed'); return; }
+    // Guards in this order: name AND the 8-byte PNG signature → importFailed; size → importTooLarge (no native call).
+    if (!/\.png$/i.test(file.name)) { showTerrainNotice('label.importFailed'); return; }
+    let head = null;
+    try { head = new Uint8Array(await file.slice(0, 8).arrayBuffer()); } catch (e) { head = null; }
+    if (!head || head.length < 8 || PNG_SIGNATURE.some((b, i) => head[i] !== b)) { showTerrainNotice('label.importFailed'); return; }
+    if (file.size > IMPORT_MAX_BYTES) { showTerrainNotice('label.importTooLarge'); return; }
+    try {
+        const u8 = new Uint8Array(await file.arrayBuffer());
+        let bin = '';
+        for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+        const res = await Juce.getNativeFunction('importTerrainImageData')(osc, file.name, btoa(bin));
+        handleImportResult(res);
+    } catch (e) { console.error('[terrain] drop import failed:', e); showTerrainNotice('label.importFailed'); }
+}
+// Drop targets: the big view (→ the active oscillator) and both mini canvases (→ that card's).
+[document.getElementById('terrain-view-wrap'), document.getElementById('canvasWrapA'), document.getElementById('canvasWrapB')].forEach(el => {
+    el.addEventListener('dragover', (e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; el.classList.add('drag-over'); });
+    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+    el.addEventListener('drop', (e) => {
+        e.preventDefault(); el.classList.remove('drag-over');
+        const osc = el.id === 'terrain-view-wrap' ? ACTIVE_OSC : (el.dataset.osc === 'B' ? 'B' : 'A');
+        if (e.dataTransfer) importDropped(osc, e.dataTransfer);
+    });
+});
+// A drop that misses every target must never navigate the WebView.
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => e.preventDefault());
 
 
 // ⬡ / ≋ per canvas. UI state only.
@@ -5143,8 +5231,73 @@ for (const o of ['A', 'B']) {
         Juce.getComboBoxState('osc' + o + s).valueChangedEvent.addListener(() => { requestDraw(); if (o === ACTIVE_OSC) refreshInert(); });
 }
 
-// View gestures (drag → Centre, wheel → Size, ⌥ drag → Rotation) and the PNG drop
-// flow are Round B (Phase 3.3) — the view is display-only in Round A.
+// ═══════════════════════════════════════════════════════════════════
+// NEW — 3D VIEW INTERACTION (Round B, plan Decision 38): drag → Orbit Centre X / Y
+// (the point lands under the cursor — unprojection onto the ground plane), wheel →
+// Orbit Size (≤ 5 % per event, one gesture per burst), ⌥-drag → Rotation (0.5° per
+// px, wraps), ⌥-click (< 3 px travel) → Rotation reset to 0°. One sliderDragStarted /
+// sliderDragEnded pair per gesture = ONE host undo step. The concrete relay states
+// are captured at mousedown so a gesture never straddles an Osc A ↔ B repoint; only
+// #terrainView is editable (a mini-canvas pixel is 2.6e-2 in x — too coarse). Terrain
+// Freq is never written from the view (the TerFreq adapter is untouched).
+// ═══════════════════════════════════════════════════════════════════
+(function bindView() {
+    const canvas = document.getElementById('terrainView');
+    let drag = null;                       // { rot:false, sx, sy } | { rot:true, srot, x0, y0, base, moved }
+    function moveCentre(e) {
+        const r = canvas.getBoundingClientRect();           // per move: the box can move (resize, tab)
+        const hit = sceneBig.unproject(e.clientX - r.left, e.clientY - r.top);
+        if (!hit) return;                                   // singular projection → ignore the move
+        drag.sx.setNormalisedValue((clamp(hit[0], -1, 1) + 1) / 2);
+        drag.sy.setNormalisedValue((clamp(hit[1], -1, 1) + 1) / 2);
+    }
+    function endDrag() {
+        if (!drag) return;
+        const d = drag; drag = null;
+        if (d.rot) {
+            if (!d.moved) d.srot.setNormalisedValue(0);     // ⌥-click: Rotation → 0° inside the same gesture
+            d.srot.sliderDragEnded();
+        } else { d.sx.sliderDragEnded(); d.sy.sliderDragEnded(); }
+    }
+    canvas.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        if (drag) endDrag();
+        if (e.altKey) {
+            const srot = PROXY.terRot.target;               // captured: the gesture stays on this oscillator
+            drag = { rot: true, srot: srot, x0: e.clientX, y0: e.clientY, base: srot.getNormalisedValue(), moved: false };
+            srot.sliderDragStarted();
+        } else {
+            const sx = PROXY.terCX.target, sy = PROXY.terCY.target;
+            drag = { rot: false, sx: sx, sy: sy };
+            sx.sliderDragStarted(); sy.sliderDragStarted();
+            moveCentre(e);
+        }
+        e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!drag) return;
+        if (e.buttons === 0) { endDrag(); return; }         // the up was lost outside the host window
+        if (drag.rot) {
+            const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+            if (Math.abs(dx) >= 3 || Math.abs(dy) >= 3) drag.moved = true;
+            if (!drag.moved) return;
+            let v = drag.base + dx * 0.5 / 360; v = ((v % 1) + 1) % 1;   // 0.5° per px, wraps
+            drag.srot.setNormalisedValue(v);
+        } else moveCentre(e);
+    });
+    document.addEventListener('mouseup', () => endDrag());
+    // Wheel → Orbit Size: per-event step clamped to ± 5 %; the burst is ONE gesture
+    // (first wheel → Started, 250 ms after the last → Ended) so the host records one step.
+    let wheelState = null, wheelTimer = 0;
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (!wheelState) { wheelState = PROXY.terSize.target; wheelState.sliderDragStarted(); }
+        const step = clamp(-e.deltaY * 0.0012, -0.05, 0.05);
+        wheelState.setNormalisedValue(clamp(wheelState.getNormalisedValue() + step, 0, 1));
+        clearTimeout(wheelTimer);
+        wheelTimer = setTimeout(() => { const s = wheelState; wheelState = null; if (s) s.sliderDragEnded(); }, 250);
+    }, { passive: false });
+})();
 
 // ─── Held notes arrive as a PUSHED EVENT (no eval-JS call — Stage 3
 //     Decision 8); the Tuning IIFE above consumes window.updateHeldNotes(notes, freqs). ───
