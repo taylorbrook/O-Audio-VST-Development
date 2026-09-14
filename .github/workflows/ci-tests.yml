@@ -1,4 +1,7 @@
-# C++ probe gate for O-Octagon (PLAN-4.1 P86, P87, P88, P89) — MANUAL ONLY.
+# C++ probe gate — MANUAL ONLY. One workflow, one `plugin` dispatch input.
+#   * O-Octagon (PLAN-4.1 P86, P87, P88, P89) — the original probes.
+#   * O-Strata (Stage 4 Round B, COMPAT-02) — the render harness on macOS, the
+#     first MSVC compile + pluginval 10 on Windows.
 #
 # ---------------------------------------------------------------------------
 # TRIGGER POLICY (2026-08-27): NO BUILD ON PUSH
@@ -30,19 +33,52 @@
 #     packaging, no Release (PLAN-4.1 D4).
 #
 # ---------------------------------------------------------------------------
-# THE GATE IS THE BUILD STEP, NOT THE RUN STEP
+# THE GATE IS THE BUILD STEP, NOT THE RUN STEP  (O-OCTAGON ONLY)
 # ---------------------------------------------------------------------------
 # O-Octagon's COMPAT-03 Layer-2 tripwire is a compile-time static_assert against
 # a golden header GENERATED from parsed JUCE source (tests/unit/CMakeLists.txt).
 # A JUCE bump that reorders AudioChannelSet's enum fails to COMPILE. A job that
 # only executes a cached binary discharges nothing — negative control NC5
 # (PLAN-4.1 P98) demonstrates exactly this. `cmake --build` must run here.
+#
+# This paragraph is about O-Octagon's tripwire and nothing else. O-Strata has no
+# Layer-2 golden; for O-Strata the RUN step is the gate on macOS (the harness
+# asserts its own rows) and the BUILD step is the gate on Windows (first MSVC
+# compile), with pluginval as the run.
+#
+# ---------------------------------------------------------------------------
+# THE TWO-PLUGIN CONTRACT (Stage 4 Round B, Decision 33)
+# ---------------------------------------------------------------------------
+# `plugin` is a required choice input. Each job runs the shared steps (checkout,
+# JUCE, overrides, configure, and on Windows the WebView2 NuGet package, target
+# resolution, VST3 build and pluginval) for whichever plugin was chosen, and the
+# plugin-specific steps behind an `if:`. Dispatching one plugin never builds the
+# other — SKIP_PLUGINS is constructed from the input.
+#
+# O-Strata, macOS — what this job CAN claim: the render harness passes every
+# H1–H11 row and the orbit golden on a clean checkout.
+#
+# O-Strata, Windows — what this job CAN claim: the code compiles under MSVC; the
+# VST3 loads; pluginval 10 OPENS THE EDITOR, so a silently-blank WebView surfaces
+# as an Editor-Automation failure or a timeout rather than passing green.
+#
+# What it CANNOT claim: that the UI is CORRECT on Windows. No human sees it
+# this milestone. Named deferral, owner none, blocked on hardware.
 # ---------------------------------------------------------------------------
 
 name: CI Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      plugin:
+        description: Plugin whose probes / Windows VST3 to build
+        type: choice
+        options:
+          - O-Octagon
+          - O-Strata
+        default: O-Octagon
+        required: true
 
 permissions:
   contents: read
@@ -54,7 +90,7 @@ jobs:
   # ============================================
   # macOS — build BOTH C++ test targets, then run them.
   # ============================================
-  octagon-probes-macos:
+  probes-macos:
     runs-on: macos-14
     steps:
       - name: Checkout
@@ -94,12 +130,13 @@ jobs:
           grep -q "JUCE-NE-PATCH" JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
           echo "JUCE overrides applied."
 
-      # OUARICON_BUILD_TESTS is a SHARED option name across 12 plugins. A
-      # full-tree configure with it ON enables eleven other harnesses that have
-      # never run in CI and are not this job's problem.
+      # OUARICON_BUILD_TESTS is a SHARED option name. A full-tree configure with
+      # it ON enables the other plugins' harnesses (37 carry the option; those
+      # have never run in CI and are not this job's problem) — SKIP_PLUGINS keeps
+      # them out, built from the dispatched plugin.
       - name: Configure CMake
         run: |
-          PLUGIN="O-Octagon"
+          PLUGIN="${{ inputs.plugin }}"
           SKIP="O-Orbit"
           for d in plugins/*/; do
             name="$(basename "$d")"
@@ -125,21 +162,50 @@ jobs:
       # from the JUCE downloaded above and compared by static_assert during this
       # compile; a reordered AudioChannelSet fails here, before any binary runs.
       - name: Build test targets
+        if: inputs.plugin == 'O-Octagon'
         run: |
           cmake --build build \
             --target O-Octagon-geometry-test O-Octagon-render-test \
             --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
 
       - name: Run geometry unit probes
+        if: inputs.plugin == 'O-Octagon'
         run: |
           ./build/plugins/O-Octagon/tests/unit/O-Octagon-geometry-test_artefacts/${{ env.BUILD_TYPE }}/O-Octagon-geometry-test
 
       - name: Run render-harness probes
+        if: inputs.plugin == 'O-Octagon'
         run: |
           ./build/plugins/O-Octagon/tests/render-harness/O-Octagon-render-test_artefacts/${{ env.BUILD_TYPE }}/O-Octagon-render-test
 
+      # ── O-Strata (Stage 4 Round B) ─────────────────────────────────────────
+      # The render harness is the gate here: it asserts its own H1–H11 rows and
+      # exits non-zero on any failure. Fixtures resolve through
+      # STRATA_FIXTURES_DIR, so `--gate all` is cwd-independent and is run from
+      # the repo root. The harness TU is macOS-only (CMake: OUARICON_BUILD_TESTS
+      # AND APPLE), which is why the Windows job has no counterpart step.
+      - name: Build render harness
+        if: inputs.plugin == 'O-Strata'
+        run: |
+          cmake --build build \
+            --target O-Strata-render-test \
+            --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
+
+      - name: Run render harness (--gate all)
+        if: inputs.plugin == 'O-Strata'
+        run: |
+          ./build/plugins/O-Strata/O-Strata-render-test_artefacts/${{ env.BUILD_TYPE }}/O-Strata-render-test --gate all
+
+      - name: Orbit golden
+        if: inputs.plugin == 'O-Strata'
+        run: |
+          ./build/plugins/O-Strata/O-Strata-render-test_artefacts/${{ env.BUILD_TYPE }}/O-Strata-render-test \
+            --gate orbits --out "$RUNNER_TEMP/orbits.json"
+          node plugins/O-Strata/tests/orbit-golden.mjs "$RUNNER_TEMP/orbits.json"
+
   # ============================================
-  # Windows — the FIRST MSVC compile of this code (PLAN-4.1 D3, P88).
+  # Windows — the FIRST MSVC compile of the dispatched plugin (PLAN-4.1 D3, P88
+  # for O-Octagon; COMPAT-02 for O-Strata).
   #
   # What this job CAN claim: the code compiles under MSVC; the VST3 loads;
   # pluginval 10 OPENS THE EDITOR, so a silently-blank WebView surfaces as an
@@ -150,7 +216,7 @@ jobs:
   #
   # The C++ test targets are macOS-only (D6): MSVC sees the plugin TUs only.
   # ============================================
-  octagon-windows-vst3:
+  windows-vst3:
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -192,7 +258,7 @@ jobs:
       - name: Configure CMake
         shell: bash
         run: |
-          PLUGIN="O-Octagon"
+          PLUGIN="${{ inputs.plugin }}"
           SKIP="O-Orbit"
           for d in plugins/*/; do
             name="$(basename "$d")"
@@ -209,9 +275,9 @@ jobs:
         id: resolve
         shell: bash
         run: |
-          # O-Octagon's CMake target is OuariconOctagon, NOT the folder name
-          # (build_script_target_name_vs_folder — 11 of 37 plugins differ).
-          CMAKE_TARGET=$(bash scripts/resolve-target.sh cmake-target "O-Octagon")
+          # A plugin's CMake target is often NOT the folder name (O-Octagon's is
+          # OuariconOctagon — build_script_target_name_vs_folder, 11 of 37 differ).
+          CMAKE_TARGET=$(bash scripts/resolve-target.sh cmake-target "${{ inputs.plugin }}")
           echo "cmake_target=$CMAKE_TARGET" >> $GITHUB_OUTPUT
           echo "Resolved CMake target: $CMAKE_TARGET"
 
@@ -226,7 +292,7 @@ jobs:
           TARGET="${{ steps.resolve.outputs.cmake_target }}"
           curl -L -o pluginval.zip https://github.com/Tracktion/pluginval/releases/download/v1.0.3/pluginval_Windows.zip
           7z x pluginval.zip -opluginval_bin
-          VST3=$(ls -d "build/plugins/O-Octagon/${TARGET}_artefacts/${{ env.BUILD_TYPE }}/VST3/"*.vst3 | head -1)
+          VST3=$(ls -d "build/plugins/${{ inputs.plugin }}/${TARGET}_artefacts/${{ env.BUILD_TYPE }}/VST3/"*.vst3 | head -1)
           echo "Validating: $VST3"
           # 600 s: a fresh Windows runner has a cold WebView2 (no cache), so the
           # first editor open can be slow. The release workflow's Windows job
@@ -237,5 +303,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
         with:
-          name: pluginval-windows-octagon-log
+          name: pluginval-windows-${{ inputs.plugin }}-log
           path: pluginval-log.txt
