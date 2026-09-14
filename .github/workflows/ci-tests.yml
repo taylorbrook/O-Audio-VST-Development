@@ -196,8 +196,11 @@ jobs:
         run: |
           ./build/plugins/O-Strata/O-Strata-render-test_artefacts/${{ env.BUILD_TYPE }}/O-Strata-render-test --gate all
 
+      # `!cancelled()` rather than plain `if:` — the orbit golden and `--gate all` are
+      # INDEPENDENT checks, and a wall-clock row missing on a shared runner must not
+      # skip the golden and leave it unmeasured. The job still fails if either fails.
       - name: Orbit golden
-        if: inputs.plugin == 'O-Strata'
+        if: ${{ !cancelled() && inputs.plugin == 'O-Strata' }}
         run: |
           ./build/plugins/O-Strata/O-Strata-render-test_artefacts/${{ env.BUILD_TYPE }}/O-Strata-render-test \
             --gate orbits --out "$RUNNER_TEMP/orbits.json"
