@@ -263,7 +263,9 @@ FactoryPresets::build (juce::AudioProcessorValueTreeState& apvts)
 
     // 13 Squarcle Storm — RR x Squarcle, F 1.0; Feedback 0.6 / Damp 0.2; CENTRE (0.23, 0.21) — the default
     //    (0.13, 0.21) reads -6.9 dB / 0 % (the trajectory drags through the origin), +0.1 in X restores h1;
-    //    LFO1 S&H 4 Hz -> Centre Y +0.05; ping-pong delay 0.3; soft clip 0.3. H2 0.0 dB / 100 %.
+    //    LFO1 S&H 4 Hz -> Centre Y +0.05; ping-pong delay 0.3; soft clip 0.3. H2 -3.6 dB / 100 %
+    //    (bit-stable since Stage 4 Round B Decision 32 — the S&H LFO draws from the harness phase
+    //    seed; Round A's -2.2 ... -4.0 dB spread was the clock-seeded juce::Random).
     bank.push_back (makePreset (apvts, "FX", "Squarcle Storm", merge (merge (
         oscA (TER_RadialRings, ORB_Squarcle, 1.0f),
         { { "oscAOrbFeedback", 0.6f }, { "oscAOrbFbDamp", 0.2f }, { "oscAOrbCX", 0.23f }, { "oscAOrbCY", 0.21f },

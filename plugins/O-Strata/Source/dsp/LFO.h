@@ -52,6 +52,10 @@ public:
     /** Get current phase in [0, 1). */
     double getPhase() const { return phase; }
 
+    /** Seed the Sample & Hold generator (Stage 4 Round B, Decision 32). Called only on the
+        harness path (a non-zero harness phase seed); production keeps the clock-seeded Random. */
+    void seed (juce::int64 s) { random.setSeed (s); }
+
 private:
     double sampleRate = 44100.0;
     double phase = 0.0;

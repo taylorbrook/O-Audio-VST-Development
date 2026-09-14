@@ -32,10 +32,14 @@
     d = n + m contributes harmonics up to d·K·f_note, so truncating diagonals per
     voice (the taper in TerrainOscillator::updateBlockRate) IS the mip.
 
-    Audio-thread budget (DSP-05): clenshaw2D is noexcept, branch-free on data,
-    allocation-free. The set itself is built off the audio thread
-    (ChebyshevProjector), published by atomic pointer and retired through the
-    type-erased reaper (Retirable).
+    Audio-thread budget (DSP-05): the audio-thread evaluator is chebEvalPadded —
+    noexcept, branch-free on data, allocation-free, fixed trip counts over the
+    padded 17 x kChebPadRow copy the oscillator builds at block rate (Stage 4
+    Round B, Decision 28). clenshaw2D remains the reference form and the
+    off-thread evaluator for the unpadded 153-float triangle (ChebyshevProjector,
+    TerrainScheduler's readout, TerrainViewFeed). The set itself is built off the
+    audio thread (ChebyshevProjector), published by atomic pointer and retired
+    through the type-erased reaper (Retirable).
 
   ==============================================================================
 */
@@ -166,4 +170,47 @@ inline float clenshaw2D (const float* c, float x, float y) noexcept
         b2 = b1; b1 = b0;
     }
     return g[0] + x * b1 - b2;
+}
+
+
+/** Audio-thread layout (Stage 4 Round B, Decision 28): each of the 17 rows padded to
+    kChebPadRow floats, cp[n * kChebPadRow + m], pad lanes zero. buildChebWeights
+    writes it by loop index; the evaluator has fixed trip counts and no data branch. */
+constexpr int kChebPadRow = 20;
+constexpr int kChebPadded = (kChebDegree + 1) * kChebPadRow;   // 340
+static_assert (kChebPadRow >= kChebDegree + 1 && kChebPadRow % 4 == 0, "pad row");
+
+/** T_0..T_16 (x) by the three-term recurrence. */
+inline void chebBasis17 (float x, float* T) noexcept
+{
+    T[0] = 1.0f; T[1] = x;
+    const float x2 = 2.0f * x;
+    for (int k = 2; k <= kChebDegree; ++k) T[k] = x2 * T[k - 1] - T[k - 2];
+}
+
+/** f(x, y) = Σ_{n+m<=16} c_nm T_n(x) T_m(y) on a padded copy (17 x kChebPadRow).
+    Per-row 4-lane dot products, even / odd rows into separate accumulators;
+    max |Δ| vs clenshaw2D <= 2e-5 on a uniform ±0.5 set, <= 1e-6 on a projected set
+    (harness --gate clenshaw). Portable plain C — MSVC x64 and clang auto-vectorise it. */
+inline float chebEvalPadded (const float* cp, float x, float y) noexcept
+{
+    float T[kChebDegree + 1]; chebBasis17 (x, T);
+    alignas (16) float U[kChebPadRow] = {}; chebBasis17 (y, U);   // U[17..19] stay 0
+    float accE[4] = {}, accO[4] = {};
+    for (int n = 0; n <= kChebDegree; n += 2)
+    {
+        const float* row = cp + n * kChebPadRow;
+        float g[4] = {};
+        for (int j = 0; j < kChebPadRow; j += 4)
+            for (int l = 0; l < 4; ++l) g[l] += row[j + l] * U[j + l];
+        for (int l = 0; l < 4; ++l) accE[l] += g[l] * T[n];
+        if (n + 1 <= kChebDegree)
+        {
+            const float* r1 = row + kChebPadRow; float h[4] = {};
+            for (int j = 0; j < kChebPadRow; j += 4)
+                for (int l = 0; l < 4; ++l) h[l] += r1[j + l] * U[j + l];
+            for (int l = 0; l < 4; ++l) accO[l] += h[l] * T[n + 1];
+        }
+    }
+    return ((accE[0] + accO[0]) + (accE[1] + accO[1])) + ((accE[2] + accO[2]) + (accE[3] + accO[3]));
 }

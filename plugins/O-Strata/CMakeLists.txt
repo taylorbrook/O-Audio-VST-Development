@@ -115,7 +115,10 @@ target_compile_definitions(O-Strata
 # Suite-wide cache option (same name as the other plugins' gates, deliberately).
 option(OUARICON_BUILD_TESTS "Build O-Strata test targets" OFF)
 
-if(OUARICON_BUILD_TESTS)
+# AND APPLE (Stage 4 Round B, Decision 35): the render-harness TU uses posix_memalign /
+# getpid, so it only builds on macOS. The Windows CI job never passes the option — this
+# condition makes that omission an explicit guard rather than an accident.
+if(OUARICON_BUILD_TESTS AND APPLE)
     # Runtime parameter inventory. Most of O-Strata's 205 parameter IDs are
     # string-concatenated (createOscParameters / mod-matrix loops) and appear
     # nowhere in the source as literals — the runtime walk is the only way to
