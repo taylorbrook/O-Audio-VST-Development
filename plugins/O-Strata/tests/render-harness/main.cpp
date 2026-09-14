@@ -1782,6 +1782,21 @@ namespace
     }
 
     // ── export grid ──
+    /** 24-bit stereo WAV of a render result. The single `createWriterFor` call in the
+        harness — both export gates go through it. Returns false if the file cannot be opened. */
+    template <typename Result>
+    static bool writeWav24 (const juce::File& f, const Result& r)
+    {
+        f.deleteFile();
+        juce::WavAudioFormat wav;
+        std::unique_ptr<juce::AudioFormatWriter> w (wav.createWriterFor (new juce::FileOutputStream (f), r.fs, 2, 24, {}, 0));
+        if (w == nullptr) return false;
+        juce::AudioBuffer<float> buf (2, (int) r.L.size());
+        for (size_t i = 0; i < r.L.size(); ++i) { buf.setSample (0, (int) i, (float) r.L[i]); buf.setSample (1, (int) i, (float) r.R[i]); }
+        w->writeFromAudioSampleBuffer (buf, 0, buf.getNumSamples());
+        return true;
+    }
+
     void gateExport()
     {
         std::printf ("\n== export (6 x 11 x {C2, C4, C6}, 2 s, defaults, 2x, 24-bit WAV -> %s; golden/round-a-grid.sha256) ==\n", opt.exportsDir.c_str());
@@ -1799,14 +1814,7 @@ namespace
                     auto r = render (in, s);
                     const juce::String name = juce::String (kTerrainNames[t]) + "-" + kOrbitNames[o] + "-" + kNoteNames[n] + ".wav";
                     juce::File f = dir.getChildFile (name);
-                    f.deleteFile();
-                    juce::WavAudioFormat wav;
-                    std::unique_ptr<juce::AudioFormatWriter> w (wav.createWriterFor (new juce::FileOutputStream (f), r.fs, 2, 24, {}, 0));
-                    if (w == nullptr) { std::printf ("!! cannot write %s\n", name.toRawUTF8()); continue; }
-                    juce::AudioBuffer<float> buf (2, (int) r.L.size());
-                    for (size_t i = 0; i < r.L.size(); ++i) { buf.setSample (0, (int) i, (float) r.L[i]); buf.setSample (1, (int) i, (float) r.R[i]); }
-                    w->writeFromAudioSampleBuffer (buf, 0, buf.getNumSamples());
-                    w.reset();
+                    if (! writeWav24 (f, r)) { std::printf ("!! cannot write %s\n", name.toRawUTF8()); continue; }
                     juce::MemoryBlock bytes; f.loadFileAsData (bytes);
                     sha << juce::SHA256 (bytes.getData(), bytes.getSize()).toHexString() << "  " << name << "\n";
                     ++written;
@@ -1832,7 +1840,7 @@ namespace
         Instance probe;
         const auto defs = FactoryPresets::build (probe.p.getAPVTS());
         int written = 0, silent = 0;
-        for (int i = 0; i < defs.size(); ++i)
+        for (size_t i = 0; i < defs.size(); ++i)
         {
             const auto& def = defs[i];
             Instance in;
@@ -1849,21 +1857,11 @@ namespace
 
             juce::String safe = def.name;
             safe = safe.replaceCharacters (" /", "--");
-            const juce::String name = juce::String (i + 1).paddedLeft ('0', 2) + "-" + safe + ".wav";
+            const juce::String name = juce::String ((int) i + 1).paddedLeft ('0', 2) + "-" + safe + ".wav";
             juce::File f = presetsDir.getChildFile (name);
-            f.deleteFile();
-            juce::WavAudioFormat wav;
-            std::unique_ptr<juce::AudioFormatWriter> w (wav.createWriterFor (new juce::FileOutputStream (f), r.fs, 2, 24, {}, 0));
-            if (w == nullptr) { std::printf ("!! cannot write %s\n", name.toRawUTF8()); continue; }
-            juce::AudioBuffer<float> buf (2, (int) r.L.size());
+            if (! writeWav24 (f, r)) { std::printf ("!! cannot write %s\n", name.toRawUTF8()); continue; }
             double sum = 0.0;
-            for (size_t n = 0; n < r.L.size(); ++n)
-            {
-                buf.setSample (0, (int) n, (float) r.L[n]); buf.setSample (1, (int) n, (float) r.R[n]);
-                sum += r.L[n] * r.L[n] + r.R[n] * r.R[n];
-            }
-            w->writeFromAudioSampleBuffer (buf, 0, buf.getNumSamples());
-            w.reset();
+            for (size_t n = 0; n < r.L.size(); ++n) sum += r.L[n] * r.L[n] + r.R[n] * r.R[n];
             const double rms = std::sqrt (sum / (double) std::max<size_t> (size_t (1), r.L.size() * 2));
             if (rms <= 1.0e-3) ++silent;
             std::printf ("  [exportPresets] %-24s rms %.4f %s\n", name.toRawUTF8(), rms, rms > 1.0e-3 ? "" : "<- SILENT");
