@@ -104,6 +104,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout OCompAudioProcessor::createP
 OCompAudioProcessor::OCompAudioProcessor()
     : AudioProcessor(BusesProperties()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
+                        // Discrete external key input. Disabled by default so an
+                        // existing session's negotiated layout is unchanged.
+                        .withInput("Sidechain", juce::AudioChannelSet::stereo(), false)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
     , presetManager(parameters, "O-Comp")
@@ -250,7 +253,10 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     const int numSamples = buffer.getNumSamples();
     // channelPtrs is sized for 2; cap all channel loops to what we actually populated
     // so a >2-channel layout can never dereference a null pointer.
-    const int numChannels = juce::jmin(buffer.getNumChannels(), 2);
+    // Count from the MAIN bus, not from the whole buffer: with the key bus enabled
+    // the buffer also carries the aux channels, and a mono main + stereo key layout
+    // would otherwise make channelPtrs[1] a key channel.
+    const int numChannels = juce::jmin(getMainBusNumOutputChannels(), 2);
 
     // Track peak levels for metering
     float peakInputLevel = 0.0f;
@@ -432,7 +438,15 @@ bool OCompAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) con
         return false;
 
     // Input must match output (in-place stereo-linked processing).
-    return layouts.getMainInputChannelSet() == mainOut;
+    if (layouts.getMainInputChannelSet() != mainOut)
+        return false;
+
+    // Key bus: disabled, mono or stereo. Never wider - keyPtrs is a 2-slot
+    // array, the same reason the main path caps at 2.
+    const auto& key = layouts.getChannelSet(true, 1);
+    return key.isDisabled()
+        || key == juce::AudioChannelSet::mono()
+        || key == juce::AudioChannelSet::stereo();
 }
 
 // Factory function

@@ -86,4 +86,11 @@ if(OUARICON_BUILD_TESTS)
     # AudioProcessor::getParameters() on a constructed processor sees the real set.
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(O-Comp ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+
+    # v1.10.0: bus-layout gate for the external key input. auval proves the AU
+    # wrapper publishes two input elements and pluginval reports only the main
+    # bus; neither walks isBusesLayoutSupported across the layouts a host will
+    # offer. Rides the same generic console builder as param-dump.
+    ouaricon_add_processor_console(O-Comp ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/bus-dump-main.cpp bus-dump)
 endif()
