@@ -213,14 +213,18 @@ void TerrainOscillator::setUnison (int count, float detune, float width)
 
 void TerrainOscillator::buildChebWeights (int idx, double dc) noexcept
 {
-    // 153 multiplies by the diagonal weight (plan Decisions 27–28); block-rate, no allocation.
+    // 153 multiplies by the diagonal weight (plan Decisions 27–28), written into the PADDED
+    // audio-thread layout (Stage 4 Round B, Decision 28): 17 rows of kChebPadRow floats, the
+    // out-of-triangle lanes zero. Fixed trip counts, the condition on loop indices only
+    // (DSP-05 branch-free-on-data holds); block-rate, no allocation.
     const float* src = chebSet->c.data();
     float* dst = chebW[idx];
     for (int n = 0; n <= kChebDegree; ++n)
     {
-        const int row = chebRowStart (n);
-        for (int m = 0; m + n <= kChebDegree; ++m)
-            dst[row + m] = src[row + m] * chebTaperWeight (n + m, dc);
+        const int rowStart = chebRowStart (n);
+        for (int m = 0; m < kChebPadRow; ++m)
+            dst[n * kChebPadRow + m] = (m + n <= kChebDegree) ? src[rowStart + m] * chebTaperWeight (n + m, dc)
+                                                              : 0.0f;
     }
 }
 
@@ -392,7 +396,7 @@ float TerrainOscillator::scan (double phase, int partial, bool shadow) noexcept
     const bool useCheb = shadow ? shadowIsCheb : chebActive;
     float y;
     if (useCheb)
-        y = clenshaw2D (chebW[shadow ? shadowIdx : chebCur], px, py);
+        y = chebEvalPadded (chebW[shadow ? shadowIdx : chebCur], px, py);
     else if (terrainKind == TerrainKind::Imported)
         // QUAL-03 (Stage 4 Round A, Decision 7): no published image -> Sine Product at the same F / Mod X / Mod Y, never silence
         y = image != nullptr ? image->sample (px, py, terrainFreq * rTrack, edgeMode)   // audio-thread read path

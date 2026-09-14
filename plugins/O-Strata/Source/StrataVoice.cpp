@@ -381,6 +381,18 @@ void StrataVoice::startNote (int midiNoteNumber, float velocity,
     filterBL.reset();
     filterBR.reset();
 
+    // Sample & Hold determinism under the render harness (Stage 4 Round B, Decision 32):
+    // the S&H shape draws from juce::Random, which is clock-seeded in production. When the
+    // harness sets a phase seed, seed the four LFOs from it so preset renders are bit-stable.
+    // Production (harnessSeed == 0) is untouched.
+    if (harnessSeed != 0u)
+    {
+        lfo1.seed (seedFor (2));
+        lfo2.seed (seedFor (3));
+        lfo3.seed (seedFor (4));
+        lfo4.seed (seedFor (5));
+    }
+
     // Reset LFOs for consistent per-note modulation (skip if free-running)
     if (pLfo1FreeRun == nullptr || pLfo1FreeRun->load() < 0.5f) lfo1.reset();
     if (pLfo2FreeRun == nullptr || pLfo2FreeRun->load() < 0.5f) lfo2.reset();

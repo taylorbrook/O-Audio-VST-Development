@@ -1711,7 +1711,7 @@ namespace
     void gateH7()
     {
         std::printf ("\n== H7 CPU (16 voices x 2 osc, unison 1, 2x, default patch, 48 kHz, block 512, 10 s, best of 3; oscillator delta <= 12 %%) ==\n");
-        std::printf ("  machine: Apple M4 Max (Release build)\n");
+        std::printf ("  machine: %s (Release build)\n", juce::SystemStats::getCpuModel().toRawUTF8());
         const double total = h7Wall (1, 1, false), base = h7Wall (1, 1, true);
         std::printf ("  [H7] total = %.2f %%  baseline (kernel bypass) = %.2f %%  delta = %.2f %%\n", total, base, total - base);
         check (total - base <= 12.0, fmt ("[H7] oscillator delta = %.2f %% (need <= 12; total %.2f, baseline %.2f)", total - base, total, base));
@@ -1720,7 +1720,9 @@ namespace
         const double tq4 = h7Wall (2, 1, false), bq4 = h7Wall (2, 1, true);
         std::printf ("  [H7 rows] unison 1, 4x: total %.2f %% baseline %.2f %% delta %.2f %%\n", tq4, bq4, tq4 - bq4);
         const double tq1 = h7Wall (0, 1, false), bq1 = h7Wall (0, 1, true);
-        std::printf ("  [H7 rows] unison 1, Bandlimited (Chebyshev): total %.2f %% baseline %.2f %% delta %.2f %% (reported; Decision 25 fallback layout only if > 12)\n", tq1, bq1, tq1 - bq1);
+        check (tq1 - bq1 <= (total - base) + 2.0,
+               fmt ("[H7] Bandlimited delta %.2f %% <= 2x delta %.2f %% + 2.0 (D4 padded evaluator; was ~11.9 %% with Clenshaw; total %.2f, baseline %.2f)",
+                    tq1 - bq1, total - base, tq1, bq1));
     }
 
     // ── H8 across Quality ──
@@ -1811,31 +1813,145 @@ namespace
                 }
         const juce::File golden = juce::File (juce::String (opt.fixtures)).getParentDirectory().getChildFile ("golden/round-a-grid.sha256");
         golden.getParentDirectory().createDirectory();
-        golden.replaceWithText (sha);
+        golden.replaceWithText (sha, false, false, "\n");   // LF (Decision 39): `shasum -a 256 -c` reads it without `tr -d '\r'`
         check (written == 198, fmt ("[export] %d / 198 WAVs written; checksums -> %s", written, golden.getFullPathName().toRawUTF8()));
+    }
+
+    /** `--gate exportPresets` (Stage 4 Round B, Decision 39; never in `all`): listening material for
+        QUAL-04 — every factory preset rendered through the REAL signal path (the FX chain is NOT
+        bypassed, unlike the H2 preset rows) to tests/exports/presets/NN-<Name>.wav. No golden: the
+        FX chain's own juce::Random users sit outside the harness phase seed, so these files are
+        material for the sitting, not a gate. */
+    void gateExportPresets()
+    {
+        juce::File dir (juce::String (opt.exportsDir));
+        juce::File presetsDir = dir.getChildFile ("presets");
+        presetsDir.createDirectory();
+        std::printf ("\n== exportPresets (every factory preset, note 60 velocity 1.0, 2 s held + 1 s release, post-FX, 24-bit WAV -> %s) ==\n",
+                     presetsDir.getFullPathName().toRawUTF8());
+        Instance probe;
+        const auto defs = FactoryPresets::build (probe.p.getAPVTS());
+        int written = 0, silent = 0;
+        for (int i = 0; i < defs.size(); ++i)
+        {
+            const auto& def = defs[i];
+            Instance in;
+            for (auto* prm : in.p.getParameters())
+                if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm))
+                    if (! in.p.getPresetManager().excludedParameterIds.contains (rp->getParameterID()))
+                        rp->setValueNotifyingHost (rp->getDefaultValue());
+            for (const auto& kv : def.parameters)
+                if (auto* prm = in.p.getAPVTS().getParameter (kv.first)) prm->setValueNotifyingHost (kv.second);
+            in.p.setHarnessPhaseSeed (opt.seed);
+
+            RenderSpec spec; spec.seconds = 3.0; spec.note = 60; spec.velocity = 1.0f; spec.noteOffAt = 2.0;
+            auto r = render (in, spec);
+
+            juce::String safe = def.name;
+            safe = safe.replaceCharacters (" /", "--");
+            const juce::String name = juce::String (i + 1).paddedLeft ('0', 2) + "-" + safe + ".wav";
+            juce::File f = presetsDir.getChildFile (name);
+            f.deleteFile();
+            juce::WavAudioFormat wav;
+            std::unique_ptr<juce::AudioFormatWriter> w (wav.createWriterFor (new juce::FileOutputStream (f), r.fs, 2, 24, {}, 0));
+            if (w == nullptr) { std::printf ("!! cannot write %s\n", name.toRawUTF8()); continue; }
+            juce::AudioBuffer<float> buf (2, (int) r.L.size());
+            double sum = 0.0;
+            for (size_t n = 0; n < r.L.size(); ++n)
+            {
+                buf.setSample (0, (int) n, (float) r.L[n]); buf.setSample (1, (int) n, (float) r.R[n]);
+                sum += r.L[n] * r.L[n] + r.R[n] * r.R[n];
+            }
+            w->writeFromAudioSampleBuffer (buf, 0, buf.getNumSamples());
+            w.reset();
+            const double rms = std::sqrt (sum / (double) std::max<size_t> (size_t (1), r.L.size() * 2));
+            if (rms <= 1.0e-3) ++silent;
+            std::printf ("  [exportPresets] %-24s rms %.4f %s\n", name.toRawUTF8(), rms, rms > 1.0e-3 ? "" : "<- SILENT");
+            ++written;
+        }
+        check (written == 18, fmt ("[exportPresets] %d / 18 preset WAVs written to %s", written, presetsDir.getFullPathName().toRawUTF8()));
+        check (silent == 0, fmt ("[exportPresets] %d silent render(s) (rms <= 1e-3)", silent));
     }
 
     //==========================================================================
     // ── Round B, Phase 2.4: clenshaw, scheduler, storm ───────────────────────
 
+    // Padded copy of an unpadded 153-float triangle (Stage 4 Round B, Decision 28 layout):
+    // 153 -> 340 floats, cp[n * kChebPadRow + m], the out-of-triangle lanes zero.
+    static void padTriangle (const float* c, float* cp) noexcept
+    {
+        for (int n = 0; n <= kChebDegree; ++n)
+            for (int m = 0; m < kChebPadRow; ++m)
+                cp[n * kChebPadRow + m] = (m + n <= kChebDegree) ? c[chebRowStart (n) + m] : 0.0f;
+    }
+
+    // 17-term double recurrence — the accuracy reference the float evaluators are measured against.
+    static double chebRefDouble (const float* c, double x, double y) noexcept
+    {
+        double T[17], U[17]; T[0] = 1; T[1] = x; U[0] = 1; U[1] = y;
+        for (int k = 2; k <= 16; ++k) { T[k] = 2 * x * T[k - 1] - T[k - 2]; U[k] = 2 * y * U[k - 1] - U[k - 2]; }
+        double acc = 0;
+        for (int n = 0; n <= 16; ++n) for (int m = 0; m + n <= 16; ++m) acc += (double) c[chebRowStart (n) + m] * T[n] * U[m];
+        return acc;
+    }
+
     void gateClenshaw()
     {
-        std::printf ("\n== clenshaw (1e6 dependency-carried clenshaw2D evaluations on a random 153-float set; ns per evaluation, reported) ==\n");
+        std::printf ("\n== clenshaw (1e6 dependency-carried evaluations on a random 153-float set, ns each (reported); chebEvalPadded vs clenshaw2D accuracy, checked) ==\n");
         float c[kChebCoeffs];
         uint32_t seed = 0xC1E45AA7u;
         for (auto& v : c) { seed = seed * 1664525u + 1013904223u; v = (float) (seed >> 8) / (float) (1u << 24) - 0.5f; }
-        float x = 0.3f, y = -0.2f; double acc = 0.0;
+        alignas (16) float cp[kChebPadded];
+        padTriangle (c, cp);
+
         const int N = 1000000;
-        const auto t0 = std::chrono::steady_clock::now();
-        for (int i = 0; i < N; ++i)
+        auto timeOne = [&] (bool padded) -> std::pair<double, double>
         {
-            const float v = clenshaw2D (c, x, y);
-            acc += v;
-            x = juce::jlimit (-1.0f, 1.0f, 0.5f * v); y = juce::jlimit (-1.0f, 1.0f, -0.5f * v + 0.1f);   // dependency carried through the next evaluation (domain kept in [-1, 1])
-        }
-        const double ns = secondsSince (t0) * 1.0e9 / N;
-        std::printf ("  [clenshaw] %.1f ns per evaluation (acc %.3f; RESEARCH §2.10 measured 43–91 ns)\n", ns, acc);
-        check (std::isfinite (acc), fmt ("[clenshaw] 1e6 evaluations finite, %.1f ns each (reported)", ns));
+            float x = 0.3f, y = -0.2f; double acc = 0.0;
+            const auto t0 = std::chrono::steady_clock::now();
+            for (int i = 0; i < N; ++i)
+            {
+                const float v = padded ? chebEvalPadded (cp, x, y) : clenshaw2D (c, x, y);
+                acc += v;
+                x = juce::jlimit (-1.0f, 1.0f, 0.5f * v); y = juce::jlimit (-1.0f, 1.0f, -0.5f * v + 0.1f);   // dependency carried through the next evaluation (domain kept in [-1, 1])
+            }
+            return { secondsSince (t0) * 1.0e9 / N, acc };
+        };
+        const auto ref = timeOne (false);
+        const auto pad = timeOne (true);
+        std::printf ("  [clenshaw] clenshaw2D %.1f ns / chebEvalPadded %.1f ns per dependency-carried evaluation (reported; acc %.3f / %.3f)\n",
+                     ref.first, pad.first, ref.second, pad.second);
+        check (std::isfinite (ref.second) && std::isfinite (pad.second),
+               fmt ("[clenshaw] 1e6 evaluations finite on both evaluators, %.1f / %.1f ns each (reported)", ref.first, pad.first));
+
+        // Accuracy (Decision 29): 100 000 uniform points in [-1, 1]^2 — the random set and a projected set.
+        auto maxDelta = [] (const float* tri, const float* padded, double& vsDouble) -> double
+        {
+            uint32_t s2 = 0x5EED1234u;
+            auto uni = [&] () { s2 = s2 * 1664525u + 1013904223u; return (float) ((double) (s2 >> 8) / (double) (1u << 24) * 2.0 - 1.0); };
+            double worst = 0.0, worstDbl = 0.0;
+            for (int i = 0; i < 100000; ++i)
+            {
+                const float x = uni(), y = uni();
+                const float a = clenshaw2D (tri, x, y), b = chebEvalPadded (padded, x, y);
+                worst = std::max (worst, (double) std::abs (a - b));
+                worstDbl = std::max (worstDbl, std::abs ((double) b - chebRefDouble (tri, x, y)));
+            }
+            vsDouble = worstDbl;
+            return worst;
+        };
+        double dblRandom = 0.0;
+        const double dRandom = maxDelta (c, cp, dblRandom);
+        check (dRandom <= 2.0e-5, fmt ("[clenshaw] max |chebEvalPadded - clenshaw2D| = %.3e over 100k uniform points on the random set (need <= 2e-5)", dRandom));
+
+        ChebyshevSet projected;
+        ChebyshevProjector::projectAnalytic (TerrainKind::SineProduct, 1.0f, 0.5f, 0.5f, projected, nullptr);
+        alignas (16) float pp[kChebPadded];
+        padTriangle (projected.c.data(), pp);
+        double dblProjected = 0.0;
+        const double dProjected = maxDelta (projected.c.data(), pp, dblProjected);
+        check (dProjected <= 1.0e-6, fmt ("[clenshaw] max |chebEvalPadded - clenshaw2D| = %.3e on a projected set (Sine Product, F 1, mx = my = 0.5; need <= 1e-6)", dProjected));
+        std::printf ("  [clenshaw] max |chebEvalPadded - double reference| %.2e (random set) / %.2e (projected set) (reported)\n", dblRandom, dblProjected);
     }
 
     // Measured in the Task 3 scratch check (Release, M4 Max): fit % at mx = my = 0.5 for F = 1 / 2.
@@ -2649,7 +2765,7 @@ namespace
 
     void usage()
     {
-        std::printf ("O-Strata-render-test --gate <H1..H11|tuning|smoke|centroids|saturation|decimator|crossfade|latency|clenshaw|scheduler|storm|import|export|topnote|orbits|h2cli|all> [--gate ...]\n"
+        std::printf ("O-Strata-render-test --gate <H1..H11|tuning|smoke|centroids|saturation|decimator|crossfade|latency|clenshaw|scheduler|storm|import|export|exportPresets|topnote|orbits|h2cli|all> [--gate ...]\n"
                      "  [--note N] [--velocity V] [--seconds S] [--terrain I] [--orbit I] [--quality I]\n"
                      "  [--set id=norm]... [--real id=eng]... [--fs F] [--block B] [--seed S] [--fixtures DIR] [--export NAME] [--png PATH]\n"
                      "  [--print-only] [--with-disk] [--dump-choices] [--out PATH]   (--out: the --gate orbits JSON, default ./orbits.json)\n");
@@ -2762,6 +2878,7 @@ int main (int argc, char** argv)
     if (wants ("H8"))        gateH8Image();
     if (wants ("topnote"))   gateTopNote();
     if (wantsExact ("export")) gateExport();
+    if (wantsExact ("exportPresets")) gateExportPresets();
     if (wantsExact ("orbits")) gateOrbits();
     if (wantsExact ("h2cli"))  gateH2Cli();
 

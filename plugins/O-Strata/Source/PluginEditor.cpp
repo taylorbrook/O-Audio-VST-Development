@@ -1079,13 +1079,16 @@ void OStrataAudioProcessorEditor::selectImportedTerrain (int osc)
 }
 
 // Round B (plan Decision 37): PERF-03 rows — "<ISO time> <json>" appended to
-// ~/Library/Logs/O-Strata/view-perf.log (created lazily on the first report).
+// <system log folder>/O-Strata/view-perf.log, created lazily on the first report.
+// juce::FileLogger::getSystemLogFileFolder() is ~/Library/Logs on macOS (the Stage 3
+// documented path is unchanged) and %APPDATA% on Windows, where a hand-built
+// "Library/Logs" tree would have been a fake (Stage 4 Round B, Decision 35).
 void OStrataAudioProcessorEditor::logViewPerf (const juce::String& json)
 {
     DBG ("[view-perf] " + json);
     if (perfLog == nullptr)
     {
-        auto dir = juce::File::getSpecialLocation (juce::File::userHomeDirectory).getChildFile ("Library/Logs/O-Strata");
+        auto dir = juce::FileLogger::getSystemLogFileFolder().getChildFile ("O-Strata");
         dir.createDirectory();
         perfLog = std::make_unique<juce::FileLogger> (dir.getChildFile ("view-perf.log"), "O-Strata view-perf (PERF-03)", 256 * 1024);
     }

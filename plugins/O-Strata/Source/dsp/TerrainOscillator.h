@@ -245,14 +245,16 @@ private:
 
     // ─── Bandlimited mode (ARCH Core 6; plan Decisions 27–31, 35) ───
     // chebSet / image: the block's published pointers (dereferenced at block start only).
-    // chebW[2]: the per-oscillator TAPERED coefficient copies — the sample loop reads
-    // chebW[chebCur] (or chebW[shadowIdx] on the crossfade's old path), never the set.
+    // chebW[2]: the per-oscillator TAPERED coefficient copies in the PADDED audio-thread
+    // layout (Stage 4 Round B, Decision 28 — 17 rows x kChebPadRow, cp[n * kChebPadRow + m],
+    // pad lanes zero, written by buildChebWeights). The sample loop reads chebW[chebCur]
+    // (or chebW[shadowIdx] on the crossfade's old path) through chebEvalPadded, never the set.
     const ChebyshevSet* chebSet = nullptr;
     const ChebyshevSet* chebBuilt = nullptr;   // the set chebW[chebCur] was built from
     const TerrainImage* image = nullptr;
-    float chebW[2][kChebCoeffs] = {};
+    alignas (16) float chebW[2][kChebPadded] = {};
     int chebCur = 0;
-    bool chebActive = false;                    // this block evaluates clenshaw2D (chebW[chebCur])
+    bool chebActive = false;                    // this block evaluates chebEvalPadded (chebW[chebCur])
     bool chebBypass = false;                    // harness
     double lastDc = -1.0;
     // The crossfade's old path: which evaluator (Chebyshev or analytic) and which copy
