@@ -337,7 +337,13 @@ c_nm = (2/M)² · w_n w_m · Σ_i Σ_j f(x_i, x_j) T_n(x_i) T_m(x_j), w_0 = ½, 
 
 **Per-pitch truncation:** Core 6. Bound uses 0.5·fs strictly (no oversampling in this mode, so the top harmonic must sit below Nyquist, and with the 2-diagonal taper the last diagonal is already attenuated).
 
-**Per-sample evaluation:** 2-D Clenshaw over the triangle at p (after feedback displacement and centre offset — p is just a point; the bound only depends on the orbit being a trig polynomial, which feedback breaks → "approximate" readout when fb > 0). Cost ≤ 57 ns (full 16 × 16 tensor measured, §7.2) → PERF model uses 57 ns as the ceiling, ≈ 35 ns expected for the triangle.
+**Per-sample evaluation:** the terrain value at p (after feedback displacement and centre offset — p is just a point; the bound only depends on the orbit being a trig polynomial, which feedback breaks → "approximate" readout when fb > 0). Cost ≤ 57 ns (full 16 × 16 tensor measured, §7.2) → PERF model used 57 ns as the ceiling, ≈ 35 ns expected for the triangle.
+
+**Evaluator (Stage 4 Round B, D4 — supersedes "2-D Clenshaw" on the audio thread).** The audio thread evaluates `chebEvalPadded`, not `clenshaw2D`. `TerrainOscillator::buildChebWeights` writes its tapered copy at block rate into a **padded** layout — 17 rows of `kChebPadRow` = 20 floats, `cp[n * kChebPadRow + m]`, the out-of-triangle lanes zero, `alignas (16)`, fixed trip counts with the condition on loop indices only (so DSP-05's branch-free-on-data still holds). The evaluator is then per-row 4-lane dot products with even and odd rows into separate accumulators: plain portable C that MSVC x64 and clang both auto-vectorise, with no intrinsics and no `#if` on the architecture. Measured on an M4 Max in Release, 1e6 dependency-carried evaluations: `clenshaw2D` 83.9–95.2 ns against `chebEvalPadded` 28.0–30.3 ns (2.8–3.4×), which takes the H7 Bandlimited oscillator delta from 11.69 % to 4.46–4.54 % — level with the 2× path's own 4.46 % and now checked against it (`delta_BL ≤ delta_2x + 2.0`) rather than reported.
+
+Accuracy is contracted, not assumed (`--gate clenshaw`): max |`chebEvalPadded` − `clenshaw2D`| ≤ 2e-5 over 100 000 uniform points in [−1, 1]² on a random coefficient set (measured 9.775e-06, dominated by Clenshaw's own float error — both sit within 3.4e-06 of a 17-term double recurrence) and ≤ 1e-6 on a **projected** set, the kind the scheduler actually publishes (measured 2.980e-07).
+
+`clenshaw2D` is unchanged and stays in `ChebyshevSet.h` as the reference form and the off-thread evaluator for the unpadded 153-float triangle — `ChebyshevProjector`, the `TerrainScheduler` readout and `TerrainViewFeed` all still call it, because they read the set's own `c` and are not on the audio thread.
 
 **Swap cadence:** Core 7 — 50 ms poll, 50 ms debounce, ≤ 20 Hz publish, one-block crossfade in the oscillator.
 
