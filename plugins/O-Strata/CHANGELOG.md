@@ -1,11 +1,178 @@
 # O-Strata Changelog
 
-## v1.0.0 (unreleased)
+## v1.0.0 — 2026-09-13
+
+O-Strata is a microtonal **wave-terrain** synthesizer: two oscillators each trace an
+orbit across a 2-D height field and read the surface as their waveform, with the whole
+microtonal engine, preset system and UI shell inherited from O-Prism. This is the first
+complete version — installed locally, not published.
+
+### Added
+
+- **The live wave-terrain oscillator.** Six analytic terrains (Sine Product, Radial
+  Rings, Saddle, Ridged Cosines, Mitsuhashi, Cosine Wells) × eleven orbit curves
+  (Ellipse, Superellipse, Limaçon, Epitrochoid 3 / 5 / 7, Hypocycloid 3 / 5 / 7,
+  Butterfly, Squarcle), each with Size, Aspect, Rotation, Centre X / Y and Orbit Mod;
+  Terrain Freq, Mod X, Mod Y, Saturation; **Feedback** with Damp (the scan point rides
+  its own displaced trajectory); pitch tracking; per-oscillator unison 1–4 with detune
+  and width. Quality is 2× (default), 4×, or **Bandlimited** — a degree-16 Chebyshev
+  projection of the terrain, truncated per pitch so the orbit's own harmonic bound sits
+  under Nyquist with no oversampling at all.
+- **PNG terrain import.** By chooser or by dropping a greyscale PNG on the big view or
+  either oscillator's mini canvas, with Blur and Edge Mode (Mirror / Window). The image
+  is projected into the same Chebyshev set in Bandlimited mode, and the readout reports
+  how much of the picture survives the bandlimit.
+- **Imports persist in both forms.** A PNG of 2 MB or less is embedded in the session
+  and in the preset; a larger one (up to 8 MB through Import… / Locate…) is stored as
+  its absolute path plus SHA-256. A missing source plays **Sine Product** rather than
+  silence, shows a sticky notice, and offers **Locate…**, which re-links only a file
+  whose hash still matches the preset.
+- **18 factory presets** across Init, Pads, Drone, Lead, Bass, Pluck, Keys, Sequence and
+  FX, covering every terrain, every orbit, feedback and Bandlimited. Two notes the
+  preset files cannot carry themselves: **Pierce Bell** wants the Tuning tab at
+  Bohlen-Pierce, and **Your Terrain Here** is the placeholder for a dropped PNG.
+- **The Terrain tab**: a real 3-D view of the surface with the orbit drawn on it, the
+  scan point where the voice actually is, the amber feedback trail, drag / wheel /
+  ⌥-drag gestures that edit the active oscillator, the ≋ last-cycle view, and a readout
+  that says exactly what the mode is doing (`2× · 16 partials at C4`,
+  `Bandlimited · … · approx.`, `image projected at F = 1 · fit N %`,
+  `silent above <note>`).
+- **Inherited from O-Prism v1.24.0**: the microtonal tuning engine (24+ factory tunings,
+  Scala / KBM import, EDO generators), the preset system, the five effects, the
+  modulation matrix (46 destinations) and the interface in **English, French and
+  Simplified Chinese**.
+
+### Behaviour to know
+
+- **Latency** is a constant **+1 sample** on top of whatever the distortion oversampler
+  reports, on every Quality setting (ARCHITECTURE Decision 5). It is reported to the
+  host, so a DAW compensates it.
+- **There is no wavetable mode.** O-Strata reads a live surface, not a baked table; the
+  superseded baked-geometry sources ship as an O-Prism factory bank instead
+  (ARCHITECTURE Decision 6). Baked sources are a v1.1 item.
+- **2× is the default Quality**, and **Bandlimited is the showpiece** (ARCHITECTURE
+  Decision 8) — it is the mode that makes the aliasing floor disappear, at the cost of
+  Terrain Freq being fixed per set.
+- The terrain oscillator's CPU cost (PERF-02) is measured as a *delta* against a
+  kernel-bypass baseline, not as a total, so the figure does not move with the rest of
+  the synth.
+
+### Known limits
+
+**Bandlimited mode.** Terrain Freq is clamped to 0.25–2 and is not a live per-voice
+destination (the coefficient set is per-F, published off-thread). At the top of the
+keyboard the per-pitch truncation can remove every harmonic a pair has: 17 of the 144
+terrain × orbit rows measured at A6 are muted this way, all of them
+Epitrochoid 5 / 7 or Hypocycloid 7. This is audible as the note going silent, so the
+readout carries a **`silent above <note>`** line whenever it applies. Feedback breaks
+the trigonometric-polynomial bound the truncation depends on, which is why the readout
+says *approx.* once Feedback > 0.
+
+**Persistence.** A PNG above 2 MB is linked by **absolute path** — a preset made that
+way opens on another machine with the "Source missing" notice and Locate…. Drop embeds
+up to 2 MB; larger PNGs go through Import…, which links them by path. A preset without
+an image clears both terrain slots on load. A user preset stores normalised parameter
+values, so reloading one moves a skewed-range parameter by at most one float ulp against
+the live patch (render delta ≤ 5e-8) — preset storage, not the image path, which is
+SHA-exact.
+
+**Windows.** *Named deferral — owner none, blocked on hardware. No human sees the
+Windows UI this milestone.* CI now builds the VST3 under MSVC with WebView2 and runs
+pluginval at strictness 10, which opens the editor: that proves the code compiles, the
+plugin loads, and a silently-blank WebView would surface as an Editor-Automation failure
+rather than passing green. It does not prove the UI is correct.
+
+**PERF-03 (WKWebView frame time)** has no measured figure yet. The scripted Standalone
+burst could not reach the WebView without taking the screen from the user; the row is
+pending and carried as `stages/4-polish/LISTENING.md` Table C row 1 (Stage 3 human
+row 1). No `gl.finish()` flag was added.
+
+**Sample & Hold LFOs** draw from a clock-seeded RNG in production, so a patch using the
+S&H shape is not sample-identical between runs (it is seeded deterministically only
+under the offline render harness). Every other LFO shape is bit-reproducible.
+
+**Inherited:** `stereoWidth` has no UI binding (from O-Prism).
+
+### Technical notes
+
+**Harness.** `--gate all` is 162 checks, 0 failures, 111.7 s on an M4 Max. H2 passes all
+20 factory-preset rows (18 presets; two of them also gate oscillator B) and is now
+bit-stable across runs. H6 holds `nonharm/max ≤ −60 dB` on all 198 grid rows at 2×
+(worst −70.7 dB, Mitsuhashi × Epitrochoid 7 at A2) and `≤ −90 dB` on all 127 sounding
+Bandlimited rows (worst −98.4 dB). H8 counts 0 allocations across 100 Quality / terrain /
+orbit changes under 16 held notes. The orbit golden holds the JS port of `Orbits.h`
+within 2.93e-6 over 44 curves.
+
+**The audio-thread Chebyshev evaluator (Stage 4 Round B, D4).** `clenshaw2D` was
+replaced on the audio thread by `chebEvalPadded`, which reads a padded 17 × 20
+coefficient copy (pad lanes zero, `alignas (16)`) with fixed trip counts and per-row
+4-lane dot products — plain portable C, no intrinsics. Measured over 1e6
+dependency-carried evaluations on an M4 Max: **83.9–95.2 ns → 28.0–30.3 ns** (2.8–3.4×),
+taking the H7 Bandlimited oscillator delta from **11.69 % to 4.46–4.54 %**, level with
+the 2× path's own 4.46 %. Accuracy is contracted rather than assumed: max
+|`chebEvalPadded` − `clenshaw2D`| = 9.775e-06 over 100 000 uniform points on a random
+coefficient set (bound 2e-5) and 2.980e-07 on a projected set (bound 1e-6); both float
+forms sit within 3.4e-06 of a double reference. Regression: the 144 Bandlimited H6 rows
+moved by at most **0.100 dB**, with the truncation-muted and bound-equality sets
+identical and the 2× / 4× / 1× rows bit-identical. `clenshaw2D` is unchanged and still
+serves the three off-thread consumers.
+
+**CI (COMPAT-02).** `.github/workflows/ci-tests.yml` takes a `plugin` dispatch input;
+`gh workflow run ci-tests.yml --ref main -f plugin=O-Strata` builds the render harness on
+macOS and runs `--gate all` plus the orbit golden, and builds the VST3 under MSVC with
+WebView2 on Windows and runs pluginval at strictness 10. Three dispatches were made from `origin/main`. The **Windows job passed all three times** (6m35s / 6m01s / 6m12s): MSVC compiled the plugin TUs, WebView2 linked, the VST3 loaded, and pluginval strictness 10 completed every suite including Editor, Open-editor-whilst-processing, Editor Automation and Fuzz parameters, exiting 0 under `pipefail`. The **macOS job built the harness and ran the orbit golden at 44 / 44, worst 2.93e-6 — identical to the local figure** — and ran all 162 `--gate all` checks, of which two are wall-clock rows that the runner (Apple M1 Virtual, ~2.6× slower than the dev machine at 288–304 s against 111 s) does not meet: the scheduler's publish-latency row (264 / 176 / 154 ms against a 120 ms threshold) and, on two of three runs, the H7 Bandlimited row. **The local thresholds were deliberately not loosened**; a runner-appropriate band is a v1.1 item. Latest run: <https://github.com/taylorbrook/O-Audio-VST-Development/actions/runs/34809565500> at `dcbc609a`.
+
+**Validation.** pluginval strictness 10 `SUCCESS` on the installed VST3 **and** AU;
+`auval -v aumu OuSt OuDv` → `AU VALIDATION SUCCEEDED`; `auval -a` lists the plugin once
+on a cold rescan; the installed binaries are byte-identical to the build tree's. The
+on-disk factory bank is 18 JSONs in 9 category folders under the content stamp
+`1.0.0+18c17735821c`.
+
+### Stage history
+
+The per-stage entries below are the development record, kept verbatim.
 
 **Foundation.** O-Strata is forked from O-Prism v1.24.0 (commit `e88ec412`,
 2026-09-07) as a new, independent plugin: `PLUGIN_CODE OuSt`, product name
 `O-Strata`, APVTS state identifier `OStrataParameters`, its own preset folder.
 O-Prism is untouched and the two plugins coexist in a host.
+
+Stage 4, Round B — audio-thread evaluator, harness determinism, CI Windows, release-ready (Phase 4.2, 2026-09-13):
+- **The audio thread stopped running Clenshaw.** `chebEvalPadded` reads a padded 17 × 20
+  coefficient copy (pad lanes zero, `alignas (16)`) with fixed trip counts and per-row
+  4-lane dot products — portable C, no intrinsics, no architecture `#if`.
+  `buildChebWeights` writes the padded layout by loop index, so DSP-05's
+  branch-free-on-data property is unchanged. Measured 83.9–95.2 ns → 28.0–30.3 ns
+  (2.8–3.4×); H7's Bandlimited oscillator delta 11.69 % → 4.46–4.54 %, now a **check**
+  against the same run's 2× delta + 2.0 rather than a reported row, with the `machine:`
+  line reading `juce::SystemStats::getCpuModel()`. `clenshaw2D` is untouched and still
+  serves `ChebyshevProjector`, the `TerrainScheduler` readout and `TerrainViewFeed`.
+- **Accuracy is contracted, not assumed.** `--gate clenshaw` grew three checks: both
+  evaluators' ns figures (reported), `max |chebEvalPadded − clenshaw2D| ≤ 2e-5` over
+  100 000 uniform points on a random set (measured 9.775e-06), the same `≤ 1e-6` on a
+  `projectAnalytic` set (measured 2.980e-07), and the distance to a 17-term double
+  recurrence (3.41e-06 / 2.49e-07, reported). Regression: the 144 Bandlimited H6 rows
+  moved by at most 0.100 dB, with the truncation-muted (17) and bound-equality (13) sets
+  identical and the 2× / 4× / 1× rows bit-identical; H1's Chebyshev identity row is
+  unchanged at −128.3 dB and H9's Bandlimited row is still `0.000e+00`.
+- **Harness renders are now fully deterministic.** The Sample & Hold LFO drew from a
+  clock-seeded `juce::Random`, so the one preset that uses it (Squarcle Storm) reported a
+  different H2 figure on every run. `LFO::seed()` is now called for the four voice LFOs
+  from the harness phase seed at note-on; **production is untouched** and keeps the
+  clock-seeded RNG. `--gate H2` ×3 is byte-identical, Squarcle Storm reads −3.6 dB /
+  100 % every time, and all 20 preset rows pass.
+- **CI covers O-Strata.** `ci-tests.yml` takes a `plugin` dispatch input; the macOS job
+  builds the render harness and runs `--gate all` plus the orbit golden, the Windows job
+  builds the VST3 under MSVC with WebView2 and runs pluginval at strictness 10. The
+  O-Octagon steps are unchanged behind an `if:`.
+- **Listening material.** New `--gate exportPresets` renders all 18 factory presets
+  through the real signal path (no FX bypass) to `tests/exports/presets/`; the 198-file
+  grid golden is now LF-terminated so `shasum -a 256 -c` reads it directly.
+  `.planning/stages/4-polish/LISTENING.md` carries the sitting.
+- **Build**: `if(OUARICON_BUILD_TESTS AND APPLE)` makes the harness's macOS-only TU an
+  explicit guard rather than an omission; `logViewPerf` writes through
+  `juce::FileLogger::getSystemLogFileFolder()`, unchanged on macOS and no longer a fake
+  `Library/Logs` tree on Windows.
 
 Stage 4, Round A — persistence, fallback, Locate…, factory bank (Phase 4.1, 2026-09-12):
 - **The imported PNG survives the session and the preset.** The `terrainImports`
