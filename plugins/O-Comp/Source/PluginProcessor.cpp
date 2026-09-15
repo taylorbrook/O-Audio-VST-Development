@@ -98,6 +98,48 @@ juce::AudioProcessorValueTreeState::ParameterLayout OCompAudioProcessor::createP
         false
     ));
 
+    // ── v1.10.0: external sidechain ──────────────────────────────────────────
+    // Four NEW ids. No existing id is renamed, no existing range moves, nothing
+    // is removed, so a v1.9.0 preset loads with Internal / Off / Off / listen-off
+    // and is bit-identical to v1.9.0 behaviour. That is the argument for MINOR.
+
+    // sc_source - detector input: the main signal, or the external key bus
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "sc_source", 1 },
+        "SC Source",
+        juce::StringArray { "Internal", "External" },
+        0
+    ));
+
+    // sc_hpf - detector high-pass, 0 = Off.
+    //
+    // SKEW FACTOR (0.3f), never the lambda NormalisableRange ctor: a lambda range
+    // is invisible to the WebView slider frontend, and a log-ish frequency knob is
+    // exactly the shape that invites one.
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "sc_hpf", 1 },
+        "SC HPF",
+        juce::NormalisableRange<float>(0.0f, 2000.0f, 0.1f, 0.3f),
+        0.0f,
+        "Hz"
+    ));
+
+    // sc_lpf - detector low-pass, 0 = Off
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "sc_lpf", 1 },
+        "SC LPF",
+        juce::NormalisableRange<float>(0.0f, 20000.0f, 0.1f, 0.3f),
+        0.0f,
+        "Hz"
+    ));
+
+    // sc_listen - monitor the filtered detector signal instead of the output
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "sc_listen", 1 },
+        "SC Listen",
+        false
+    ));
+
     return layout;
 }
 
@@ -127,6 +169,10 @@ OCompAudioProcessor::OCompAudioProcessor()
     kneeParam = parameters.getRawParameterValue("knee");
     outputGainParam = parameters.getRawParameterValue("output_gain");
     autoGainParam = parameters.getRawParameterValue("auto_gain");
+    scSourceParam = parameters.getRawParameterValue("sc_source");
+    scHPFParam = parameters.getRawParameterValue("sc_hpf");
+    scLPFParam = parameters.getRawParameterValue("sc_lpf");
+    scListenParam = parameters.getRawParameterValue("sc_listen");
 
     // Initialize factory presets (only writes files if they don't already exist on disk)
     presetManager.initializeFactoryPresets({
@@ -213,12 +259,95 @@ OCompAudioProcessor::OCompAudioProcessor()
     });
 }
 
+// v1.10.0 — lifted from O-MultiBandCompressor's Compressor.h, including the shape
+// of its v1.6.0 fix.
+//
+// The ENABLED flags are derived from the requested frequency on EVERY call, and
+// only the COEFFICIENTS are recomputed conditionally. Folding the flag assignment
+// into the "frequency changed" branch reintroduces a documented bug: the case
+// (freq > 0 && freq == currentFreq) falls through both branches and leaves the flag
+// at whatever it was, so any path that had disabled the filter leaves it disabled
+// even though the parameter asks for it. Reachable with one knob — set SC HPF to
+// 100 Hz, down to Off, back to 100 Hz, and it silently stays off, because
+// currentSCHPFFreq still reads 100.
+//
+// RT-safety: ArrayCoefficients returns a stack std::array with identical maths,
+// where Coefficients::makeHighPass heap-allocates a ref-counted object on the
+// audio thread.
+void OCompAudioProcessor::updateSidechainFilters(float hpfFreq, float lpfFreq)
+{
+    const bool wantHPF = hpfFreq > 0.0f;
+
+    if (wantHPF && hpfFreq != currentSCHPFFreq)
+    {
+        // operator=(std::array) normalises the 6 raw values by a0 and stores the
+        // resulting 5. Do NOT memcpy the array over getRawCoefficients().
+        const auto taps = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
+            currentSampleRate, hpfFreq, 0.707f);   // Q = 0.707 (Butterworth)
+        *scHPF[0].coefficients = taps;
+        *scHPF[1].coefficients = taps;
+        currentSCHPFFreq = hpfFreq;
+    }
+
+    scHPFEnabled = wantHPF;                        // <- outside, deliberately
+
+    // 20 kHz or above is treated as off too
+    const bool wantLPF = lpfFreq > 0.0f && lpfFreq < 20000.0f;
+
+    if (wantLPF && lpfFreq != currentSCLPFFreq)
+    {
+        const auto taps = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
+            currentSampleRate, lpfFreq, 0.707f);
+        *scLPF[0].coefficients = taps;
+        *scLPF[1].coefficients = taps;
+        currentSCLPFFreq = lpfFreq;
+    }
+
+    scLPFEnabled = wantLPF;                        // <- outside, deliberately
+}
+
+float OCompAudioProcessor::applySidechainFilters(int det, float input)
+{
+    float filtered = input;
+
+    if (scHPFEnabled)
+        filtered = scHPF[det].processSample(filtered);
+
+    if (scLPFEnabled)
+        filtered = scLPF[det].processSample(filtered);
+
+    return filtered;
+}
+
 void OCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
 
     // Initialize envelope state
     envelopeDB = -60.0f;
+
+    // Sidechain detector filters. Coefficients are computed per block in
+    // processBlock; prepare() and reset() here only establish state and rate.
+    const juce::dsp::ProcessSpec scSpec {
+        sampleRate,
+        static_cast<juce::uint32>(juce::jmax(1, samplesPerBlock)),
+        1
+    };
+
+    for (int i = 0; i < 2; ++i)
+    {
+        scHPF[i].prepare(scSpec);
+        scLPF[i].prepare(scSpec);
+        scHPF[i].reset();
+        scLPF[i].reset();
+    }
+
+    // Force a coefficient recompute on the first block after a rate change:
+    // the cached frequencies were computed at the OLD sample rate.
+    currentSCHPFFreq = -1.0f;
+    currentSCLPFFreq = -1.0f;
+    scFiltersNeedReset = false;
+    lastUseExternal = false;
 
     // Calculate initial coefficients
     updateCoefficients(attackParam->load(), releaseParam->load(), sampleRate);
@@ -233,6 +362,12 @@ void OCompAudioProcessor::releaseResources()
 {
     // Reset envelope state
     envelopeDB = -60.0f;
+
+    for (int i = 0; i < 2; ++i)
+    {
+        scHPF[i].reset();
+        scLPF[i].reset();
+    }
 }
 
 void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -277,18 +412,82 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     for (int ch = 0; ch < numChannels && ch < 2; ++ch)
         channelPtrs[ch] = buffer.getWritePointer(ch);
 
-    for (int sample = 0; sample < numSamples; ++sample)
+    // ── v1.10.0 Task 2: key source, with auto-fallback ───────────────────────
+    // Recomputed EVERY block: a host can enable or disable the key bus between
+    // blocks, and "External" selected with nothing routed must still compress.
+    const auto* keyBus = getBus(true, 1);
+    const bool keyAvailable = keyBus != nullptr
+                           && keyBus->isEnabled()
+                           && getChannelCountOfBus(true, 1) > 0;
+    const bool useExternal = (scSourceParam->load() > 0.5f) && keyAvailable;
+
+    // The bus-buffer view is constructed ONCE, outside the sample loop.
+    const float* keyPtrs[2] = {};
+
+    if (useExternal)
     {
-        // Stereo-linked detection: use max of all channels
-        float maxInputLevel = 0.0f;
+        auto keyBuffer = getBusBuffer(buffer, true, 1);
+        const int numKeyChannels = juce::jmin(keyBuffer.getNumChannels(), 2);
+
+        for (int ch = 0; ch < numKeyChannels; ++ch)
+            keyPtrs[ch] = keyBuffer.getReadPointer(ch);
+
+        // A mono key against a stereo main: replicate slot 0 so the stereo-linked
+        // detector sees the same signal on both sides rather than a null pointer.
+        for (int ch = numKeyChannels; ch < numChannels; ++ch)
+            keyPtrs[ch] = keyPtrs[0];
+    }
+    else
+    {
         for (int ch = 0; ch < numChannels; ++ch)
+            keyPtrs[ch] = channelPtrs[ch];
+    }
+
+    // Source flip: drop filter state so the old source's tail does not ring into
+    // the first samples of the new one.
+    if (useExternal != lastUseExternal)
+    {
+        scFiltersNeedReset = true;
+        lastUseExternal = useExternal;
+    }
+
+    if (scFiltersNeedReset)
+    {
+        for (int i = 0; i < 2; ++i)
         {
-            float inputLevel = std::abs(channelPtrs[ch][sample]);
-            maxInputLevel = std::max(maxInputLevel, inputLevel);
+            scHPF[i].reset();
+            scLPF[i].reset();
         }
 
-        // Track peak input for metering
-        peakInputLevel = std::max(peakInputLevel, maxInputLevel);
+        scFiltersNeedReset = false;
+    }
+
+    updateSidechainFilters(scHPFParam->load(), scLPFParam->load());
+
+    const bool scListen = scListenParam->load() > 0.5f;
+
+    for (int sample = 0; sample < numSamples; ++sample)
+    {
+        // ── Task 3: detector reads the KEY, never the signal path ────────────
+        // Filter first, per detector channel, then rectify and stereo-link. The
+        // filters are detector-only: the audio itself is untouched, and no
+        // latency is introduced, so setLatencySamples() is deliberately not called.
+        float filteredKey[2] = {};
+        float maxInputLevel = 0.0f;
+
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            filteredKey[ch] = applySidechainFilters(ch, keyPtrs[ch][sample]);
+            maxInputLevel = std::max(maxInputLevel, std::abs(filteredKey[ch]));
+        }
+
+        // Metering stays on the MAIN input: it is the signal being compressed.
+        // SC Listen is the way to hear the key.
+        float maxMainLevel = 0.0f;
+        for (int ch = 0; ch < numChannels; ++ch)
+            maxMainLevel = std::max(maxMainLevel, std::abs(channelPtrs[ch][sample]));
+
+        peakInputLevel = std::max(peakInputLevel, maxMainLevel);
 
         // Convert to dB
         float inputLevelDBLocal = juce::Decibels::gainToDecibels(maxInputLevel, -60.0f);
@@ -307,11 +506,16 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         float makeupGainLinear = smoothedMakeup.getNextValue();
         float gainLinear = juce::Decibels::decibelsToGain(-gainReductionDBLocal) * makeupGainLinear;
 
-        // Apply same gain to all channels (stereo-linked)
+        // Apply same gain to all channels (stereo-linked).
+        //
+        // SC Listen substitutes the filtered key for the compressed signal. It is
+        // written AFTER the detector has read, and the gain-reduction meter keeps
+        // updating above, so the display still reads true while monitoring.
         float maxOutputLevel = 0.0f;
         for (int ch = 0; ch < numChannels; ++ch)
         {
-            channelPtrs[ch][sample] *= gainLinear;
+            channelPtrs[ch][sample] = scListen ? filteredKey[ch]
+                                               : channelPtrs[ch][sample] * gainLinear;
             maxOutputLevel = std::max(maxOutputLevel, std::abs(channelPtrs[ch][sample]));
         }
         peakOutputLevel = std::max(peakOutputLevel, maxOutputLevel);

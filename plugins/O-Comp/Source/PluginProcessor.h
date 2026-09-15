@@ -29,6 +29,7 @@
 
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 #include "OuariconPresetManager.h"
 
 class OCompAudioProcessor : public juce::AudioProcessor
@@ -114,6 +115,10 @@ private:
     std::atomic<float>* kneeParam = nullptr;
     std::atomic<float>* outputGainParam = nullptr;
     std::atomic<float>* autoGainParam = nullptr;
+    std::atomic<float>* scSourceParam = nullptr;
+    std::atomic<float>* scHPFParam = nullptr;
+    std::atomic<float>* scLPFParam = nullptr;
+    std::atomic<float>* scListenParam = nullptr;
 
     // Compressor state
     float envelopeDB = -60.0f;  // Current envelope level in dB
@@ -122,6 +127,29 @@ private:
 
     // Makeup/output gain smoothing (de-zippers automation and auto-gain toggles)
     juce::SmoothedValue<float> smoothedMakeup { 1.0f };
+
+    // ── v1.10.0: sidechain detector filters ─────────────────────────────────
+    // One pair per detector channel; both pairs share coefficients, only the
+    // state differs. Lifted from O-MultiBandCompressor's Compressor.h.
+    juce::dsp::IIR::Filter<float> scHPF[2];
+    juce::dsp::IIR::Filter<float> scLPF[2];
+
+    // Cached so coefficients are only recomputed when the frequency actually
+    // moves. The ENABLED flags are deliberately NOT cached alongside them —
+    // see updateSidechainFilters() for the bug that causes.
+    float currentSCHPFFreq = -1.0f;
+    float currentSCLPFFreq = -1.0f;
+    bool  scHPFEnabled = false;
+    bool  scLPFEnabled = false;
+
+    // Set when the key source flips Internal<->External, checked at block start:
+    // the filters would otherwise carry state from one source into the first
+    // samples of the other.
+    bool  lastUseExternal = false;
+    bool  scFiltersNeedReset = false;
+
+    void updateSidechainFilters(float hpfFreq, float lpfFreq);
+    float applySidechainFilters(int det, float input);
 
     // Metering (atomic for thread-safe access from UI)
     std::atomic<float> inputLevelDB { -60.0f };

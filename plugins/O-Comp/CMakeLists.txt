@@ -38,6 +38,8 @@ target_link_libraries(O-Comp
         juce::juce_audio_utils
         juce::juce_core
         juce::juce_data_structures
+        # v1.10.0: IIR::Filter for the sidechain detector HPF/LPF
+        juce::juce_dsp
         juce::juce_events
         juce::juce_graphics
         juce::juce_gui_basics
