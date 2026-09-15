@@ -348,11 +348,12 @@ int main()
         const float  mainLevel  = juce::Decibels::decibelsToGain (-40.0f);
 
         // external: 0 = Internal, 1 = External. listen: 0 = off, 1 = on.
-        auto render = [&] (float external, float listen, float hpf = 0.0f) -> float
+        auto render = [&] (float external, float listen, float hpf = 0.0f,
+                           bool keyRouted = true) -> float
         {
             juce::AudioProcessor::BusesLayout layout;
             layout.inputBuses.add (stereo);
-            layout.inputBuses.add (stereo);
+            layout.inputBuses.add (keyRouted ? stereo : none);
             layout.outputBuses.add (stereo);
 
             if (! proc->setBusesLayout (layout))
@@ -408,6 +409,16 @@ int main()
         // actually engaged, rather than being computed and discarded.
         const float hpfDB = juce::Decibels::gainToDecibels (render (1.0f, 0.0f, 1.0f), -120.0f);
 
+        // AUTO-FALLBACK. External selected with the key bus DISABLED must behave
+        // exactly like Internal, not like a compressor whose detector reads
+        // silence — that would pin gain reduction at zero in one direction or
+        // duck to nothing in the other, and either way "External" would be a
+        // quiet lie. Deliberately measured against the Internal reading rather
+        // than against a constant, so it cannot pass by both paths being broken
+        // in the same way.
+        const float fallbackDB = juce::Decibels::gainToDecibels (
+            render (1.0f, 0.0f, 0.0f, false), -120.0f);
+
         std::cout << "# key.internalOutDB\t" << internalDB << "\n";
         std::cout << "# key.externalOutDB\t" << externalDB << "\n";
         std::cout << "# key.listenOutDB\t"   << listenDB   << "\n";
@@ -437,7 +448,16 @@ int main()
                 ++failures;
             }
 
-            std::cout << "# key.hpfOutDB\t" << hpfDB << "\n";
+            std::cout << "# key.hpfOutDB\t"      << hpfDB      << "\n";
+            std::cout << "# key.fallbackOutDB\t" << fallbackDB << "\n";
+
+            if (std::abs (fallbackDB - internalDB) > 0.1f)
+            {
+                std::cout << "# FAIL: External with no key routed read " << fallbackDB
+                          << " dB where Internal reads " << internalDB
+                          << " dB — the auto-fallback is not engaging\n";
+                ++failures;
+            }
 
             if (std::abs (hpfDB - (-40.0f)) > 0.5f)
             {
