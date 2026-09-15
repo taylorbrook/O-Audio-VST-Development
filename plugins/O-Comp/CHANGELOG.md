@@ -2,6 +2,59 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.10.0] - 2026-09-14
+
+**External sidechain.** A real key input: a discrete Sidechain bus, an
+Internal/External source select, a detector high-pass and low-pass, and a
+sidechain listen toggle. MINOR: four parameter IDs are added; nothing is renamed,
+no range moves, nothing is removed, and the state format is unchanged.
+
+### Added
+
+- **A discrete Sidechain input bus.** The first plugin in this suite to negotiate
+  a main bus alongside an aux bus. Appears as Logic's Side Chain menu and as a
+  second input pin pair in VST3 hosts.
+- **`sc_source`** — Internal or External. Selecting External with nothing routed
+  falls back to the internal detector, so the compressor always works rather than
+  going silent on a routing mistake.
+- **`sc_hpf` / `sc_lpf`** — detector-only high-pass and low-pass, 0 Hz = Off. The
+  audio itself is untouched and no latency is introduced. Keeps subsonic rumble
+  from ducking the whole mix, or stops cymbals and air holding the compressor down.
+- **`sc_listen`** — monitor the filtered detector signal. The gain-reduction meter
+  keeps reading while you listen, so the display stays true.
+- The frame grows 620x360 to 620x420 for the new Detector / Sidechain strip, in
+  English, French and Simplified Chinese.
+
+### Fixed
+
+- **A mono track could take 10 dB of gain reduction that nothing asked for.** The
+  detector sized its channel loop from the whole buffer capped at two. With a mono
+  main bus and the key bus enabled the buffer carries three channels, so the second
+  channel pointer became a *key* channel: the detector read it and the gain write
+  landed in it. The count now comes from the main bus. Present since the aux bus
+  was added and never shipped.
+
+### Compatibility
+
+A v1.9.0 preset or session restores its seven parameters exactly. On a fresh
+instance the four new parameters sit at Internal / Off / Off / listen-off, so an
+old preset reproduces v1.9.0 behaviour bit for bit.
+
+One nuance worth stating plainly: applying a preset sets only the parameters that
+preset names. So an old preset loaded *after* you have changed the sidechain
+controls in the same session leaves those controls where they are, rather than
+returning them to Off. That is not new here — it is how every parameter has always
+behaved with a partial preset, and it is shared by the eight plugins using this
+preset manager.
+
+### Note for Logic Pro users upgrading
+
+Logic caches a plugin's I/O configuration against its version number, so a plugin
+that gains a sidechain at the same version can keep showing no Side Chain menu no
+matter how many times its caches are cleared. This release carries a new version
+number, which is what makes the menu appear. If you have been running a
+development build, expect a rescan on first load.
+
 ## [1.9.0] - 2026-09-04
 
 **Simplified Chinese.** Every caption, hover-help body and accessible name
