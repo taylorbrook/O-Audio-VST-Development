@@ -8,6 +8,27 @@ All notable changes to this plugin will be documented in this file.
 parameter is added, renamed or removed, no range moves, and the state format is
 unchanged. A v1.10.0 preset or session restores bit-identically.
 
+### Ships in this release
+
+**This is the first release since v1.9.0 (2026-09-04), and the download contains
+v1.10.0 as well as v1.10.1.** v1.10.0 is where the external sidechain arrives; it
+has its own section immediately below, and is summarised here because the two
+versions ship as one download.
+
+- **v1.10.0 — external sidechain.** A discrete Sidechain input bus, which appears
+  as Logic's Side Chain menu and as a second input pin pair in VST3 hosts; an
+  Internal/External source select; detector-only high-pass and low-pass filters
+  with 0 Hz = Off, leaving the audio itself untouched and adding no latency; and a
+  sidechain listen toggle that keeps the gain-reduction meter reading while you
+  monitor the key. Four parameter IDs are added, nothing is renamed or removed,
+  and the state format is unchanged. It also fixed a defect in which a mono track
+  could take 10 dB of gain reduction nothing asked for: the detector sized its
+  channel loop from the whole buffer, so with the key bus enabled it read a key
+  channel as a main channel. The frame grows 620x360 to 620x420 for the new
+  Detector / Sidechain strip, in English, French and Simplified Chinese.
+
+Everything below describes v1.10.1 only.
+
 ### Fixed
 
 - **"External" with nothing routed made the compressor inert in Logic instead of
