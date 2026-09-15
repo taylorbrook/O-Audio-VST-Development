@@ -1,5 +1,40 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.12.2 (2026-09-14)
+
+**The per-band sidechain low-pass could build an unstable filter below 40 kHz.**
+PATCH: no parameter, range, type, state format or string changed, and nothing
+rendered in English, French or Simplified Chinese is different.
+
+### Fixed
+
+- **A band stopped compressing at any sample rate under 40 kHz.**
+  `updateSidechainFilters` treated "20 kHz or above is Off" as the upper bound, which
+  is an absolute number where Nyquist is not. At 32 kHz Nyquist is 16 kHz, so any
+  band whose SC LPF sat between 16 and 20 kHz built a detector biquad whose pole pair
+  sits at |z| = 1.32 — outside the unit circle — and that band's detector state
+  diverged.
+
+  Nothing about this was audible as a glitch, which is why it survived. The
+  divergence never reaches a sample: `EnvelopeDetector::processSample` carries the
+  v1.6.1 non-finite guard, which rewrites the runaway value to zero. So the output
+  stays finite, no band slams shut, nothing is NaN by the time it can be measured —
+  the band simply stops seeing its own signal and quietly gives up. Measured on
+  *Acoustic Guitar* at 32 kHz, gain reduction moved by up to 7 dB per band against
+  the same preset with a legal corner. The guard was doing its job; it was hiding a
+  defect upstream of it.
+
+  Both detector filters now clamp their corner to 0.45 × rate; 0.45 rather than 0.5
+  because at exactly Nyquist the pole pair lands *on* the unit circle. At 44.1 kHz
+  and above nothing changes. Found while verifying the same code in O-Comp, fixed
+  there as v1.10.1 — where, with no such guard in its envelope, the identical defect
+  silenced the plugin outright.
+
+### Compatibility
+
+No parameter, range, type or state-format change. A v1.12.1 preset or session
+restores exactly.
+
 ## Version 1.12.1 (2026-09-07)
 
 **The spectrum placeholder stops advertising an internal build stage.** PATCH:

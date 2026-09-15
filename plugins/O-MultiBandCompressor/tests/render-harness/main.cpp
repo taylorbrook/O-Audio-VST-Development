@@ -82,18 +82,14 @@ namespace
 {
     struct BandGr { float gr[4]; bool nonFinite; };
 
-    // Loads a preset and measures the peak gain reduction each band reaches.
-    BandGr measurePreset(OMultiBandCompressorAudioProcessor& processor,
-                         const juce::String& name,
-                         bool& loadFailed)
+    // Renders pink noise at `rate` and measures the peak gain reduction each band
+    // reaches. Split out of measurePreset() at v1.12.2 so the low-rate stability
+    // pass can drive the same signal at a different sample rate.
+    BandGr renderAndMeasure(OMultiBandCompressorAudioProcessor& processor, double rate)
     {
         BandGr out { { 0.0f, 0.0f, 0.0f, 0.0f }, false };
 
-        loadFailed = ! processor.presetManager.loadPreset(name);
-        if (loadFailed)
-            return out;
-
-        processor.prepareToPlay(kSampleRate, kBlockSize);
+        processor.prepareToPlay(rate, kBlockSize);
 
         PinkNoise noiseL, noiseR;
         juce::AudioBuffer<float> buffer(2, kBlockSize);
@@ -132,6 +128,19 @@ namespace
         }
 
         return out;
+    }
+
+    // Loads a preset and measures it at the harness's standard rate.
+    BandGr measurePreset(OMultiBandCompressorAudioProcessor& processor,
+                         const juce::String& name,
+                         bool& loadFailed)
+    {
+        loadFailed = ! processor.presetManager.loadPreset(name);
+
+        if (loadFailed)
+            return BandGr { { 0.0f, 0.0f, 0.0f, 0.0f }, false };
+
+        return renderAndMeasure(processor, kSampleRate);
     }
 }
 
@@ -259,6 +268,152 @@ int main()
         std::printf("  OK - all %d presets identical in both orders\n", presets.size());
     else
         failures += mismatches;
+
+    // ---- v1.12.2: detector low-pass stability below 40 kHz -----------------------
+    //
+    // "20 kHz is Off" in updateSidechainFilters is an ABSOLUTE ceiling; Nyquist is
+    // not. At 32 kHz Nyquist is 16 kHz, so an SC LPF of 18 kHz handed makeLowPass a
+    // corner above it and built a biquad whose pole pair sits at |z| = 1.32. That
+    // band's detector diverges.
+    //
+    // WHAT THAT LOOKS LIKE HERE IS NOT WHAT IT LOOKS LIKE IN O-Comp. The divergence
+    // never reaches a sample: EnvelopeDetector::processSample carries the v1.6.1
+    // non-finite guard, which rewrites the runaway detector value to 0 before it is
+    // measured. The output stays finite, no band slams shut, and nothing is NaN by
+    // the time it is observable. The band simply stops seeing its own signal and
+    // quietly gives up compressing. A "finite output" check and a "gain reduction
+    // within sane bounds" check both go green on the broken build — this pass was
+    // written with both and neither could tell the two builds apart.
+    //
+    // So discriminate against the CLAMP TARGET instead. 0.45 x 32 kHz is 14.4 kHz,
+    // so with the clamp in place "18 kHz" and "14.4 kHz" are the same request and
+    // must render identically. Without it, 18 kHz builds the divergent filter, the
+    // guard zeroes that band's detector, and the gain reduction moves by several dB.
+    std::printf("\nLow-rate detector stability (32 kHz)...\n");
+
+    {
+        // Probe with a preset that actually compresses, so "no band engages" cannot
+        // be mistaken for "stable".
+        juce::String probe;
+
+        for (const auto& name : presets)
+        {
+            const auto& m = forward[name];
+
+            if (processor.getPresetCategory(name)
+                    != OMultiBandCompressorAudioProcessor::kInertPresetCategory
+                && (m.gr[0] <= -0.1f || m.gr[1] <= -0.1f
+                 || m.gr[2] <= -0.1f || m.gr[3] <= -0.1f))
+            {
+                probe = name;
+                break;
+            }
+        }
+
+        if (probe.isEmpty())
+        {
+            std::printf("  *** no compressing preset to probe with — pass is vacuous ***\n");
+            ++failures;
+        }
+        else
+        {
+            // Set every band's SC LPF, in HZ. The normalised value must come from the
+            // parameter's own range: SC_LPF carries a 0.3 skew, so a hand-computed
+            // proportion probes a corner three-odd octaves from the one named here.
+            // getParameters() on this processor returns the APVTS, not
+            // AudioProcessor's parameter array — walk the array through the base.
+            auto setAllScLpf = [&] (float hz)
+            {
+                int setCount = 0;
+
+                for (auto* param :
+                        static_cast<juce::AudioProcessor&>(processor).getParameters())
+                    if (auto* asFloat = dynamic_cast<juce::AudioParameterFloat*>(param))
+                        if (asFloat->paramID.endsWith("_SC_LPF"))
+                        {
+                            asFloat->setValueNotifyingHost(
+                                asFloat->getNormalisableRange().convertTo0to1(hz));
+                            ++setCount;
+                        }
+
+                return setCount;
+            };
+
+            auto renderAt = [&] (float scLpfHz, bool& loadFailed) -> BandGr
+            {
+                loadFailed = ! processor.presetManager.loadPreset(probe);
+
+                if (loadFailed)
+                    return BandGr { { 0.0f, 0.0f, 0.0f, 0.0f }, false };
+
+                // AFTER the preset load: the preset names SC_LPF and would overwrite it.
+                if (setAllScLpf(scLpfHz) != 4)
+                {
+                    std::printf("  *** expected 4 SC_LPF parameters ***\n");
+                    ++failures;
+                }
+
+                return renderAndMeasure(processor, 32000.0);
+            };
+
+            bool failA = false, failB = false;
+            const auto aboveNyquist = renderAt(18000.0f, failA);   // clamped to 14400
+            const auto atClampTarget = renderAt(14400.0f, failB);  // 0.45 * 32000
+
+            if (failA || failB)
+            {
+                std::printf("  *** could not load probe preset '%s' ***\n",
+                            probe.toRawUTF8());
+                ++failures;
+            }
+            else
+            {
+                std::printf("  preset '%s'\n", probe.toRawUTF8());
+                std::printf("    SC LPF 18000 Hz (above Nyquist)  %7.2f %7.2f %7.2f %7.2f  finite=%s\n",
+                            aboveNyquist.gr[0], aboveNyquist.gr[1],
+                            aboveNyquist.gr[2], aboveNyquist.gr[3],
+                            aboveNyquist.nonFinite ? "no" : "yes");
+                std::printf("    SC LPF 14400 Hz (clamp target)   %7.2f %7.2f %7.2f %7.2f  finite=%s\n",
+                            atClampTarget.gr[0], atClampTarget.gr[1],
+                            atClampTarget.gr[2], atClampTarget.gr[3],
+                            atClampTarget.nonFinite ? "no" : "yes");
+
+                if (aboveNyquist.nonFinite || atClampTarget.nonFinite)
+                {
+                    std::printf("  *** NON-FINITE OUTPUT at 32 kHz ***\n");
+                    ++failures;
+                }
+
+                // LIVENESS. If the reference render does not compress, the comparison
+                // below is two zeros agreeing with each other.
+                bool engaged = false;
+                for (int b = 0; b < 4; ++b)
+                    if (atClampTarget.gr[b] <= -0.1f)
+                        engaged = true;
+
+                if (! engaged)
+                {
+                    std::printf("  *** reference render pulls no gain reduction —"
+                                " this pass is vacuous ***\n");
+                    ++failures;
+                }
+
+                // Same tolerance as the order-independence pass: well under the several
+                // dB the real bug moves a band, loose enough for float non-determinism.
+                for (int b = 0; b < 4; ++b)
+                    if (std::abs(aboveNyquist.gr[b] - atClampTarget.gr[b]) > 0.01f)
+                    {
+                        std::printf("  *** band %d: 18 kHz reads %.2f dB where the"
+                                    " 14.4 kHz clamp target reads %.2f dB — the corner"
+                                    " is not being clamped, so the detector biquad is"
+                                    " above Nyquist and its poles are outside the unit"
+                                    " circle ***\n",
+                                    b, aboveNyquist.gr[b], atClampTarget.gr[b]);
+                        ++failures;
+                    }
+            }
+        }
+    }
 
     std::printf("\n%d preset(s) active, %d failure(s)\n", enginesFound, failures);
     return failures == 0 ? 0 : 1;

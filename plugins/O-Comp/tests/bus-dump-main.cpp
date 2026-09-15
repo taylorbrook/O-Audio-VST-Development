@@ -43,6 +43,7 @@
 */
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <cmath>
 #include <iostream>
 #include <vector>
 
@@ -342,6 +343,26 @@ int main()
             return false;
         };
 
+        // Set a frequency parameter in HZ. The normalised value must come from the
+        // parameter's own NormalisableRange: sc_hpf / sc_lpf carry a 0.3 skew, so a
+        // hand-computed proportion is wrong by a factor of three and silently probes
+        // a different corner than the one named here.
+        auto setParamHz = [&] (const juce::String& id, float hz)
+        {
+            for (auto* param : proc->getParameters())
+                if (auto* asFloat = dynamic_cast<juce::AudioParameterFloat*> (param))
+                    if (asFloat->paramID == id)
+                    {
+                        asFloat->setValueNotifyingHost (
+                            asFloat->getNormalisableRange().convertTo0to1 (hz));
+                        return true;
+                    }
+
+            std::cout << "# FAIL: no float parameter with id '" << id << "'\n";
+            ++failures;
+            return false;
+        };
+
         const int    blockSize  = 256;
         const int    numBlocks  = 200;
         const double sampleRate = 48000.0;
@@ -349,7 +370,10 @@ int main()
 
         // external: 0 = Internal, 1 = External. listen: 0 = off, 1 = on.
         auto render = [&] (float external, float listen, float hpf = 0.0f,
-                           bool keyRouted = true) -> float
+                           bool keyRouted = true, bool keySilent = false,
+                           double rate = 0.0, float lpfHz = 0.0f,
+                           bool* sawNonFinite = nullptr,
+                           float mainDB = -40.0f) -> float
         {
             juce::AudioProcessor::BusesLayout layout;
             layout.inputBuses.add (stereo);
@@ -365,11 +389,15 @@ int main()
 
             // Parameters BEFORE prepareToPlay: a value set after prepare can miss
             // the first block's coefficient update.
-            setParam ("sc_source", external);
-            setParam ("sc_listen", listen);
-            setParam ("sc_hpf",    hpf);
+            setParam   ("sc_source", external);
+            setParam   ("sc_listen", listen);
+            setParam   ("sc_hpf",    hpf);
+            setParamHz ("sc_lpf",    lpfHz);
 
-            proc->prepareToPlay (sampleRate, blockSize);
+            // 0 means "the default rate for this harness" — a default argument cannot
+            // reference sampleRate, so the sentinel resolves here instead of
+            // duplicating the literal and letting the two drift.
+            proc->prepareToPlay (rate > 0.0 ? rate : sampleRate, blockSize);
 
             const int totalChans = juce::jmax (proc->getTotalNumInputChannels(),
                                                proc->getTotalNumOutputChannels());
@@ -381,15 +409,33 @@ int main()
             {
                 buffer.clear();
 
+                const float lvl = juce::Decibels::decibelsToGain (mainDB);
+
                 for (int ch = 0; ch < 2 && ch < totalChans; ++ch)
                     for (int i = 0; i < blockSize; ++i)
-                        buffer.setSample (ch, i, mainLevel);
+                        buffer.setSample (ch, i, lvl);
 
-                for (int ch = 2; ch < totalChans; ++ch)
-                    for (int i = 0; i < blockSize; ++i)
-                        buffer.setSample (ch, i, 1.0f);
+                // keySilent leaves the key channels at the zeros buffer.clear() wrote:
+                // that is what an AU host hands an ENABLED but unrouted sidechain.
+                if (! keySilent)
+                    for (int ch = 2; ch < totalChans; ++ch)
+                        for (int i = 0; i < blockSize; ++i)
+                            buffer.setSample (ch, i, 1.0f);
 
                 proc->processBlock (buffer, midi);
+
+                // Checked on EVERY block, not just the last: an unstable detector
+                // biquad diverges to inf and then latches NaN, and a later block can
+                // read finite again once the state has been clobbered.
+                if (sawNonFinite != nullptr)
+                    for (int ch = 0; ch < juce::jmin (2, totalChans); ++ch)
+                    {
+                        const float* p = buffer.getReadPointer (ch);
+
+                        for (int i = 0; i < blockSize; ++i)
+                            if (! std::isfinite (p[i]))
+                                *sawNonFinite = true;
+                    }
 
                 if (b == numBlocks - 1)
                     mainPeak = buffer.getMagnitude (0, 0, blockSize);
@@ -409,15 +455,58 @@ int main()
         // actually engaged, rather than being computed and discarded.
         const float hpfDB = juce::Decibels::gainToDecibels (render (1.0f, 0.0f, 1.0f), -120.0f);
 
-        // AUTO-FALLBACK. External selected with the key bus DISABLED must behave
-        // exactly like Internal, not like a compressor whose detector reads
-        // silence — that would pin gain reduction at zero in one direction or
-        // duck to nothing in the other, and either way "External" would be a
-        // quiet lie. Deliberately measured against the Internal reading rather
-        // than against a constant, so it cannot pass by both paths being broken
-        // in the same way.
-        const float fallbackDB = juce::Decibels::gainToDecibels (
-            render (1.0f, 0.0f, 0.0f, false), -120.0f);
+        // AUTO-FALLBACK. External selected with no key must behave exactly like
+        // Internal, not like a compressor whose detector reads silence.
+        //
+        // v1.10.1 — THE STIMULUS, NOT THE REFERENCE, IS WHAT MAKES THIS GATE REAL.
+        // The v1.10.0 form measured against internalDB rather than a constant, which
+        // was the right instinct, but drove the plugin at -40 dBFS. The default
+        // threshold is -20 dB, so at -40 the compressor does nothing at all and
+        // Internal, a working fallback and a detector reading pure silence ALL read
+        // -40 dB. The gate could not tell them apart, and went green against a build
+        // that went inert in Logic.
+        //
+        // These run at -6 dBFS instead: above the threshold, clear of the 6 dB knee,
+        // where a working detector pulls threshold + overshoot/ratio = 7 dB of gain
+        // reduction and a detector reading zeros pulls none. 7 dB of daylight.
+        const float hotMainDB = -6.0f;
+
+        auto renderHot = [&] (bool keyRouted, bool keySilent) -> float
+        {
+            return juce::Decibels::gainToDecibels (
+                render (1.0f, 0.0f, 0.0f, keyRouted, keySilent, 0.0, 0.0f, nullptr,
+                        hotMainDB),
+                -120.0f);
+        };
+
+        // Internal at the same level: the reference every fallback is measured
+        // against, so the gate cannot pass by both paths breaking the same way.
+        const float hotInternalDB = juce::Decibels::gainToDecibels (
+            render (0.0f, 0.0f, 0.0f, true, false, 0.0, 0.0f, nullptr, hotMainDB),
+            -120.0f);
+
+        // Key bus DISABLED — the VST3 case, where Bus::isEnabled() is false.
+        const float fallbackDB = renderHot (false, false);
+
+        // Key bus ROUTED but SILENT — the LOGIC case, and the branch the v1.10.0
+        // probe never entered. An AU host does not disable an unrouted sidechain: it
+        // negotiates the bus, reports it enabled, and hands it zeros. Every bus-state
+        // test reads true here, so only signal presence can tell this from a live key.
+        const float silentKeyDB = renderHot (true, true);
+
+        // v1.10.1 — DETECTOR LOW-PASS STABILITY BELOW 40 kHz.
+        //
+        // "20 kHz is Off" is an absolute ceiling; Nyquist is not. At 32 kHz, Nyquist
+        // is 16 kHz, so an sc_lpf of 18 kHz asked makeLowPass for w0 > pi and built a
+        // biquad whose poles sit at |z| = 1.32 — the detector state diverges to inf
+        // and latches NaN. The corner is named in HZ and converted through the
+        // parameter's own skewed range, so this probes 18 kHz and not some other
+        // frequency. Rendered at 32 kHz, where the old code was unstable; at 48 kHz
+        // 18 kHz is legal and proves nothing.
+        bool lowRateNonFinite = false;
+        const float lowRateDB = juce::Decibels::gainToDecibels (
+            render (0.0f, 0.0f, 0.0f, true, false, 32000.0, 18000.0f, &lowRateNonFinite),
+            -120.0f);
 
         std::cout << "# key.internalOutDB\t" << internalDB << "\n";
         std::cout << "# key.externalOutDB\t" << externalDB << "\n";
@@ -448,14 +537,59 @@ int main()
                 ++failures;
             }
 
-            std::cout << "# key.hpfOutDB\t"      << hpfDB      << "\n";
-            std::cout << "# key.fallbackOutDB\t" << fallbackDB << "\n";
+            std::cout << "# key.hpfOutDB\t"        << hpfDB         << "\n";
+            std::cout << "# key.hotInternalDB\t"   << hotInternalDB << "\n";
+            std::cout << "# key.hotFallbackDB\t"   << fallbackDB    << "\n";
+            std::cout << "# key.hotSilentKeyDB\t"  << silentKeyDB   << "\n";
+            std::cout << "# sc.lowRateOutDB\t"    << lowRateDB   << "\n";
+            std::cout << "# sc.lowRateFinite\t"   << (lowRateNonFinite ? 0 : 1) << "\n";
 
-            if (std::abs (fallbackDB - internalDB) > 0.1f)
+            // LIVENESS. Everything below compares against hotInternalDB, so if the
+            // reference itself stops compressing — a moved default threshold, ratio
+            // or knee — the comparisons go vacuous exactly as the v1.10.0 gate did.
+            // Require the reference to pull real gain reduction before trusting it.
+            if (hotMainDB - hotInternalDB < 3.0f)
             {
-                std::cout << "# FAIL: External with no key routed read " << fallbackDB
-                          << " dB where Internal reads " << internalDB
+                std::cout << "# FAIL: the -6 dBFS reference render pulled only "
+                          << (hotMainDB - hotInternalDB) << " dB of gain reduction —"
+                             " the fallback probes below cannot discriminate and this"
+                             " gate is vacuous\n";
+                ++failures;
+            }
+
+            if (std::abs (fallbackDB - hotInternalDB) > 0.1f)
+            {
+                std::cout << "# FAIL: External with the key bus DISABLED read "
+                          << fallbackDB << " dB where Internal reads " << hotInternalDB
                           << " dB — the auto-fallback is not engaging\n";
+                ++failures;
+            }
+
+            if (std::abs (silentKeyDB - hotInternalDB) > 0.1f)
+            {
+                std::cout << "# FAIL: External with the key bus ROUTED but SILENT read "
+                          << silentKeyDB << " dB where Internal reads " << hotInternalDB
+                          << " dB — this is the LOGIC case: the bus is enabled and"
+                             " carries zeros, so no bus-state test can see it\n";
+                ++failures;
+            }
+
+            if (lowRateNonFinite)
+            {
+                std::cout << "# FAIL: sc_lpf 18 kHz at a 32 kHz rate produced a"
+                             " non-finite sample — the detector biquad is above"
+                             " Nyquist and its poles are outside the unit circle\n";
+                ++failures;
+            }
+
+            // Not just finite: the compressor must still be doing its job. A clamped
+            // corner is a working filter, and -40 dBFS in must still come out at the
+            // level Internal produces at 48 kHz.
+            if (std::abs (lowRateDB - internalDB) > 0.5f)
+            {
+                std::cout << "# FAIL: sc_lpf 18 kHz at 32 kHz read " << lowRateDB
+                          << " dB where the 48 kHz internal render reads " << internalDB
+                          << " dB — the clamp is not producing a working filter\n";
                 ++failures;
             }
 

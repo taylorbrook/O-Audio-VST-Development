@@ -336,19 +336,63 @@ private:
     // audio thread.
     void updateSidechainFilters(float hpfFreq, float lpfFreq)
     {
+        // v1.12.2 — NYQUIST CLAMP.
+        //
+        // The "20 kHz is Off" ceiling below is an ABSOLUTE bound, but Nyquist is not:
+        // at any rate under 40 kHz it sits beneath that ceiling, so an sc_lpf anywhere
+        // in (Nyquist, 20 kHz) was handed to makeLowPass unchecked.
+        //
+        // JUCE builds these by the bilinear transform, not the RBJ cos/sin form:
+        //
+        //     n  = 1 / tan(pi * f / rate)
+        //     c1 = 1 / (1 + n/Q + n*n)
+        //     denominator = z^2 + c1*2*(1 - n*n) z + c1*(1 - n/Q + n*n)
+        //
+        // Above Nyquist the argument to tan passes pi/2, so TAN GOES NEGATIVE and with
+        // it n. That flips the sign of the n/Q term in both c1 and the trailing
+        // coefficient, and the denominator's constant term — the product of the two
+        // pole radii — rises above 1. At 18 kHz on a 32 kHz rate it is 1.742, putting
+        // both poles at |z| = 1.32: outside the unit circle, so that band's detector
+        // state grows by 32% per sample and is past float range within a few hundred.
+        //
+        // What it does NOT do is show up in the audio. EnvelopeDetector's v1.6.1
+        // non-finite guard rewrites the runaway value to zero, so the output stays
+        // finite and the band just stops seeing its own signal and gives up
+        // compressing. The guard is right; it was masking this.
+        //
+        // JUCE's own jassert(frequency > 0 && frequency <= sampleRate * 0.5) catches
+        // exactly this, and is compiled out of a Release build.
+        //
+        // 0.45 * rate, not 0.5: at exactly Nyquist tan is infinite, n is 0, and the
+        // denominator becomes z^2 + 2z + 1 — a double pole ON the unit circle at
+        // z = -1. Marginally stable is still not a filter you want in a recursive path.
+        //
+        // sc_hpf tops out at 2000 Hz and is therefore already clear at every rate a
+        // host will offer — the clamp is a no-op for it at 8 kHz and above. It is
+        // applied anyway so the invariant "never hand makeXxx a corner above Nyquist"
+        // holds without a per-parameter argument about which ranges happen to be safe.
+        //
+        // Shared with O-Comp, which carries the same code and the same fix at v1.10.1.
+        const float nyquistCeiling = static_cast<float>(currentSampleRate) * 0.45f;
+
         // HPF: 0 means off, otherwise 20-2000 Hz
         const bool wantHPF = hpfFreq > 0.0f;
 
-        if (wantHPF && hpfFreq != currentSCHPFFreq)
+        if (wantHPF)
         {
-            // operator=(std::array) normalises the 6 raw values by a0 and stores the
-            // resulting 5. Do NOT memcpy the array over getRawCoefficients() — the
-            // stored form is 5 normalised values, not the 6 raw ones.
-            const auto taps = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
-                currentSampleRate, hpfFreq, 0.707f); // Q = 0.707 (Butterworth)
-            *scHPF[0].coefficients = taps;
-            *scHPF[1].coefficients = taps;
-            currentSCHPFFreq = hpfFreq;
+            const float safeHPF = juce::jmin(hpfFreq, nyquistCeiling);
+
+            if (safeHPF != currentSCHPFFreq)
+            {
+                // operator=(std::array) normalises the 6 raw values by a0 and stores the
+                // resulting 5. Do NOT memcpy the array over getRawCoefficients() — the
+                // stored form is 5 normalised values, not the 6 raw ones.
+                const auto taps = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
+                    currentSampleRate, safeHPF, 0.707f); // Q = 0.707 (Butterworth)
+                *scHPF[0].coefficients = taps;
+                *scHPF[1].coefficients = taps;
+                currentSCHPFFreq = safeHPF;              // cache the CLAMPED corner
+            }
         }
 
         scHPFEnabled = wantHPF;
@@ -356,13 +400,18 @@ private:
         // LPF: 0 means off, and 20 kHz or above is treated as off too
         const bool wantLPF = lpfFreq > 0.0f && lpfFreq < 20000.0f;
 
-        if (wantLPF && lpfFreq != currentSCLPFFreq)
+        if (wantLPF)
         {
-            const auto taps = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
-                currentSampleRate, lpfFreq, 0.707f); // Q = 0.707 (Butterworth)
-            *scLPF[0].coefficients = taps;
-            *scLPF[1].coefficients = taps;
-            currentSCLPFFreq = lpfFreq;
+            const float safeLPF = juce::jmin(lpfFreq, nyquistCeiling);
+
+            if (safeLPF != currentSCLPFFreq)
+            {
+                const auto taps = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
+                    currentSampleRate, safeLPF, 0.707f); // Q = 0.707 (Butterworth)
+                *scLPF[0].coefficients = taps;
+                *scLPF[1].coefficients = taps;
+                currentSCLPFFreq = safeLPF;              // cache the CLAMPED corner
+            }
         }
 
         scLPFEnabled = wantLPF;

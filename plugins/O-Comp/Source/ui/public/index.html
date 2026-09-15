@@ -1321,8 +1321,24 @@
       });
 
       // Double-click to reset to default
+      //
+      // v1.10.1: `paramDefaults[paramId] || 0.5` was wrong for exactly the two
+      // parameters whose default is Off. paramDefaults.sc_hpf and .sc_lpf are 0.0,
+      // 0.0 is falsy, so `||` substituted 0.5 — which under the 0.3 skew is
+      // 2000 * 0.5^(1/0.3) = 198 Hz on the HPF and 1984 Hz on the LPF. Double-
+      // clicking "reset" switched the detector filters ON.
+      //
+      // Test the TYPE, not the truthiness. Same idiom as resetToDefault() in
+      // O-Contrabass.
       knob.addEventListener('dblclick', () => {
-        sliderState.setNormalisedValue(paramDefaults[paramId] || 0.5);
+        const def = paramDefaults[paramId];
+
+        if (typeof def !== 'number') {
+          console.warn('No default for', paramId, '- skipping reset');
+          return;
+        }
+
+        sliderState.setNormalisedValue(def);
       });
 
       // Mouse wheel support
