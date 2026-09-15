@@ -326,6 +326,97 @@
         0 1px 2px rgba(0, 0, 0, 0.2);
     }
 
+    /* ── v1.10.0: the detector / sidechain strip ─────────────────────────── */
+    /*
+       The strip sits below the meters, which end at y=345 in a frame that grew
+       360 -> 420. Its controls are SMALLER than the main row on purpose: this is
+       a secondary, set-and-forget row, and 65px of height cannot hold a 52px knob
+       plus a caption plus a readout (79px) anyway.
+    */
+    .sc-strip {
+      position: absolute;
+      left: 10px;
+      top: 350px;
+      width: 600px;
+      height: 64px;
+      border-top: 1px solid rgba(139, 115, 85, 0.35);
+    }
+
+    .sc-section-label {
+      position: absolute;
+      left: 8px;
+      top: 26px;
+      font-size: 11px;
+      color: #3C2F2F;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      /* PINNED at the widest language. "Détecteur / Sidechain" is the longest of
+         the three faces; without a fixed width the controls to its right shift
+         when the language changes. check-ui-labels is blind to a width-pinned
+         [data-i18n] node, so this needs an eye, not just the gate. */
+      width: 138px;
+    }
+
+    /* The strip's knobs reuse the main row's SVG verbatim — same viewBox, same
+       r=22, same 138.23 dasharray — and only the container scales. */
+    .knob-visual.sc-knob {
+      width: 34px;
+      height: 34px;
+    }
+
+    /* BOTH BOXES ARE PINNED IN WIDTH AND HEIGHT, and the height matters as much
+       as the width here.
+       Width: "Arrêt" is 6.7px wider than "Off", which moved the readout under
+       [7] GEOMETRY DIFF in French.
+       Height: a Han glyph at the same font-size builds a 3px taller line box, so
+       zh-Hans grew the readout AND its .control-group by 3px, pushed the strip
+       past the 420px frame and took the document's scroll extent to 423. An
+       explicit line-height pins the CJK line box; font-size alone does not.
+       check-ui-labels is blind to a width-pinned [data-i18n], so this was only
+       visible once params.tsv carried the real defaults and the Off face
+       actually rendered. */
+    .sc-strip .param-label {
+      font-size: 10px;
+      width: 66px;
+      height: 12px;
+      line-height: 12px;
+      overflow: hidden;
+    }
+
+    .sc-strip .value-display {
+      font-size: 9px;
+      width: 66px;
+      height: 11px;
+      line-height: 11px;
+      overflow: hidden;
+    }
+
+    .sc-section-label { height: 13px; line-height: 13px; overflow: hidden; }
+
+    /* Source select. appearance:none exposes the CAPTION width, so the box is
+       sized here and not left to the longest <option>. */
+    .sc-select {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 92px;
+      height: 22px;
+      padding: 0 6px;
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      background: linear-gradient(to bottom, #E8D5BF, #D4C4B0);
+      color: #3C2F2F;
+      font-size: 10px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .toggle-button.sc-toggle {
+      width: 56px;
+      height: 24px;
+      font-size: 9px;
+      border-width: 1px;
+    }
+
     /* LED meter */
     .led-meter {
       position: absolute;
@@ -930,12 +1021,69 @@
 
          It is position: fixed, so its place in the markup decides nothing about
          where it paints. -->
+    <!-- Detector / Sidechain strip (v1.10.0) -->
+    <div class="sc-strip">
+      <div class="sc-section-label" data-i18n="label.detector"
+           data-label="Detector / Sidechain">Detector / Sidechain</div>
+
+      <div class="control-group" style="left: 150px; top: 14px;">
+        <div class="param-label" data-i18n="label.scSource" data-label="Source">Source</div>
+        <!-- The two <option> faces are [data-i18n] nodes and ARE localized, but
+             check-ui-labels can never measure them: an option inside a closed
+             native select has no layout box, and the open dropdown is drawn by
+             the OS outside the page. It reports them as an unmeasured coverage
+             hole, permanently, and no state driver can close it.
+             What protects the layout is the pin on the SELECT, not on the
+             options — appearance:none makes the box show the selected option's
+             text as its caption, so the select is sized here and never left to
+             size itself from the longest face. -->
+        <select class="sc-select" id="sc-source-select" data-param="sc_source">
+          <option value="0" data-i18n="label.scSourceInt" data-label="Internal">Internal</option>
+          <option value="1" data-i18n="label.scSourceExt" data-label="External">External</option>
+        </select>
+      </div>
+
+      <div class="control-group" style="left: 290px; top: 2px;">
+        <div class="knob-container" id="sc-hpf-knob" data-param="sc_hpf">
+          <div class="knob-visual sc-knob">
+            <svg viewBox="0 0 52 52">
+              <circle class="knob-track" cx="26" cy="26" r="22"/>
+              <circle class="knob-vine" id="sc-hpf-vine" cx="26" cy="26" r="22"
+                stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+            </svg>
+          </div>
+        </div>
+        <div class="param-label" data-i18n="label.scHpf" data-label="SC HPF">SC HPF</div>
+        <div class="value-display" id="sc-hpf-value"><span id="sc-hpf-num" hidden>0 Hz</span><span id="sc-hpf-off" data-i18n="label.freqOff" data-label="Off">Off</span></div>
+      </div>
+
+      <div class="control-group" style="left: 370px; top: 2px;">
+        <div class="knob-container" id="sc-lpf-knob" data-param="sc_lpf">
+          <div class="knob-visual sc-knob">
+            <svg viewBox="0 0 52 52">
+              <circle class="knob-track" cx="26" cy="26" r="22"/>
+              <circle class="knob-vine" id="sc-lpf-vine" cx="26" cy="26" r="22"
+                stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+            </svg>
+          </div>
+        </div>
+        <div class="param-label" data-i18n="label.scLpf" data-label="SC LPF">SC LPF</div>
+        <div class="value-display" id="sc-lpf-value"><span id="sc-lpf-num" hidden>0 Hz</span><span id="sc-lpf-off" data-i18n="label.freqOff" data-label="Off">Off</span></div>
+      </div>
+
+      <div class="control-group" style="left: 460px; top: 14px;">
+        <div class="param-label" data-i18n="label.scListen" data-label="SC Listen">SC Listen</div>
+        <div class="toggle-button sc-toggle" id="sc-listen-toggle" data-param="sc_listen"
+             data-i18n="label.scListenOff" data-label="OFF">OFF</div>
+      </div>
+    </div>
+
     <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
   </div>
 
   <!-- JUCE WebView Integration -->
   <script type="module">
-    import { getSliderState, getToggleState, getNativeFunction } from './js/juce/index.js';
+    import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } from './js/juce/index.js';
     // The canon block below calls Juce.getNativeFunction(). It needs the ES
     // MODULE NAMESPACE, not window.__JUCE__ — the latter is the raw transport
     // and does not carry the promise contract
@@ -967,13 +1115,44 @@
       attack_time: { min: 0.1, max: 100.0, unit: ' ms', format: (v) => v.toFixed(1) },
       release_time: { min: 10.0, max: 1000.0, unit: ' ms', format: (v) => v.toFixed(0) },
       knee: { min: 0.0, max: 20.0, unit: ' dB', format: (v) => v.toFixed(1) },
-      output_gain: { min: -12.0, max: 24.0, unit: ' dB', format: (v) => (v >= 0 ? '+' : '') + v.toFixed(1) }
+      output_gain: { min: -12.0, max: 24.0, unit: ' dB', format: (v) => (v >= 0 ? '+' : '') + v.toFixed(1) },
+
+      // v1.10.0. `scaled: true` means DO NOT interpolate min..max from the
+      // normalised value: both carry a NormalisableRange skew of 0.3, and a
+      // linear read of a skewed range is wrong everywhere except the two ends.
+      // formatValue() takes getScaledValue() off the slider state instead, which
+      // is the only number that has been through the range's own mapping.
+      sc_hpf: { scaled: true, min: 0.0, max: 2000.0,  unit: ' Hz', format: (v) => v.toFixed(0) },
+      sc_lpf: { scaled: true, min: 0.0, max: 20000.0, unit: ' Hz', format: (v) => v.toFixed(0) }
     };
+
+    // Slider states, kept so a skewed readout can ask for its scaled value and so
+    // refreshFreqReadouts() can repaint after a language change.
+    const sliderStates = {};
 
     // Format value for display
     function formatValue(paramId, normalized) {
       const param = params[paramId];
-      const value = param.min + normalized * (param.max - param.min);
+
+      // A skewed range is read from the parameter itself; a linear one is
+      // interpolated as before.
+      const state = sliderStates[paramId];
+      const value = (param.scaled && state)
+        ? state.getScaledValue()
+        : param.min + normalized * (param.max - param.min);
+
+      // null means "this parameter is Off". updateKnob() answers it by showing the
+      // readout's OWN [data-i18n] span instead of writing text, so the localized
+      // face is owned by the language sweep and this render path never touches it.
+      //
+      // The alternative — painting a translated "Off" with textContent from here —
+      // is the readout third arm: correct on first paint, and frozen in the old
+      // language forever after, because applyI18n()'s sweep only reaches
+      // [data-i18n] nodes and this is not one. It cannot be fixed by calling a
+      // refresh from inside applyI18n either: that region is byte-checked against
+      // scripts/i18n-canon.js by check-i18n assertion 6.
+      if (param.scaled && value < 0.05) return null;
+
       return param.format(value) + param.unit;
     }
 
@@ -985,7 +1164,9 @@
       attack_time: { vineId: 'attack-vine', valueId: 'attack-value' },
       release_time: { vineId: 'release-vine', valueId: 'release-value' },
       knee: { vineId: 'knee-vine', valueId: 'knee-value' },
-      output_gain: { vineId: 'output-vine', valueId: 'output-value' }
+      output_gain: { vineId: 'output-vine', valueId: 'output-value' },
+      sc_hpf: { vineId: 'sc-hpf-vine', valueId: 'sc-hpf-value', numId: 'sc-hpf-num', offId: 'sc-hpf-off' },
+      sc_lpf: { vineId: 'sc-lpf-vine', valueId: 'sc-lpf-value', numId: 'sc-lpf-num', offId: 'sc-lpf-off' }
     };
 
     // Animation state for smooth knob movement
@@ -1033,7 +1214,9 @@
       attack_time: (10.0 - 0.1) / (100.0 - 0.1),          // 10 ms default
       release_time: (100.0 - 10.0) / (1000.0 - 10.0),     // 100 ms default
       knee: 6.0 / 20.0,                                    // 6 dB default
-      output_gain: (0.0 - (-12.0)) / (24.0 - (-12.0))     // 0 dB default
+      output_gain: (0.0 - (-12.0)) / (24.0 - (-12.0)),    // 0 dB default
+      sc_hpf: 0.0,                                        // Off default
+      sc_lpf: 0.0                                         // Off default
     };
 
     // Update SVG vine-arc knob and value display
@@ -1048,9 +1231,27 @@
       }
 
       // Update value display
+      const text = formatValue(paramId, normalized);
+
+      if (config.offId) {
+        // A readout that can read Off owns TWO child spans: a number span this
+        // path writes, and an [data-i18n] Off span the language sweep owns.
+        // NEVER write textContent on the parent here — that erases both spans,
+        // and the Off face never comes back.
+        const numEl = document.getElementById(config.numId);
+        const offEl = document.getElementById(config.offId);
+        if (numEl && offEl) {
+          const isOff = (text === null);
+          offEl.hidden = !isOff;
+          numEl.hidden = isOff;
+          if (!isOff) numEl.textContent = text;
+        }
+        return;
+      }
+
       const valueDisplay = document.getElementById(config.valueId);
       if (valueDisplay) {
-        valueDisplay.textContent = formatValue(paramId, normalized);
+        valueDisplay.textContent = text;
       }
 
       // Update transfer curve when compression params change
@@ -1083,6 +1284,11 @@
         console.error(`Failed to get slider state for ${paramId}`);
         return;
       }
+
+      // Registered BEFORE the first updateKnob() below: formatValue() reads this
+      // map for a skewed parameter, and an unregistered state would silently fall
+      // back to the linear branch on the first paint only.
+      sliderStates[paramId] = sliderState;
 
       // Initialize animation state for this knob
       const config = knobConfigs[paramId];
@@ -1170,6 +1376,62 @@
 
       // Initialize visual state
       paintToggle(toggleState.getValue());
+    }
+
+    // v1.10.0 — SC Listen. Same shape as setupToggle(): an if/else rather than a
+    // ternary inside the setLabel call, because check-i18n assertion 13 rejects a
+    // conditional in a setLabel argument. Its faces are label.scListenOff /
+    // label.scListenOn, NOT the auto-gain pair — two different controls.
+    function setupListenToggle() {
+      const toggle = document.getElementById('sc-listen-toggle');
+      const toggleState = getToggleState('sc_listen');
+
+      if (!toggleState) {
+        console.error('Failed to get toggle state for sc_listen');
+        return;
+      }
+
+      const paintToggle = (value) => {
+        toggle.classList.toggle('active', value);
+        if (value) setLabel(toggle, 'label.scListenOn');
+        else       setLabel(toggle, 'label.scListenOff');
+      };
+
+      toggleState.valueChangedEvent.addListener(() => {
+        paintToggle(toggleState.getValue());
+      });
+
+      toggle.addEventListener('click', () => {
+        toggleState.setValue(!toggleState.getValue());
+      });
+
+      paintToggle(toggleState.getValue());
+    }
+
+    // v1.10.0 — the key source. The <option> faces are [data-i18n] nodes, so the
+    // language sweep repaints them in place and this function never writes their
+    // text; it only moves the selection.
+    function setupSourceSelect() {
+      const select = document.getElementById('sc-source-select');
+      const comboState = getComboBoxState('sc_source');
+
+      if (!comboState) {
+        console.error('Failed to get combo box state for sc_source');
+        return;
+      }
+
+      const paint = () => {
+        const index = comboState.getChoiceIndex();
+        if (select.selectedIndex !== index) select.selectedIndex = index;
+      };
+
+      comboState.valueChangedEvent.addListener(paint);
+
+      select.addEventListener('change', () => {
+        comboState.setChoiceIndex(select.selectedIndex);
+      });
+
+      paint();
     }
 
     // Transfer curve visualization
@@ -1397,6 +1659,12 @@
       setupKnob('output-knob', 'output_gain');
       setupToggle();
 
+      // v1.10.0 detector strip
+      setupKnob('sc-hpf-knob', 'sc_hpf');
+      setupKnob('sc-lpf-knob', 'sc_lpf');
+      setupListenToggle();
+      setupSourceSelect();
+
       // Initialize Preset Manager
       const presetNameEl = document.getElementById('preset-name');
       const presetDropdown = document.getElementById('preset-dropdown');
@@ -1510,7 +1778,7 @@
       initializeSettingsPopover();
       try { initI18n(); setupTooltips(); initializeTipsToggle(); } catch (e) { console.error('i18n init failed:', e); }
 
-      console.log('O-Comp v1.7.1 UI loaded - vine-arc knobs, hover-help');
+      console.log('O-Comp v1.10.0 UI loaded - vine-arc knobs, hover-help');
     });
 
     // ═══════════════════════════════════════════════════════════════════════

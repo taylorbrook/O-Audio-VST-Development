@@ -69,6 +69,11 @@ private:
     std::unique_ptr<juce::WebSliderRelay> kneeRelay;
     std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> autoGainRelay;
+    // v1.10.0 — detector / sidechain strip
+    std::unique_ptr<juce::WebSliderRelay> scHPFRelay;
+    std::unique_ptr<juce::WebSliderRelay> scLPFRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> scListenRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> scSourceRelay;
 
     // 2️⃣ WEBVIEW SECOND (depends on relays)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -81,6 +86,10 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> kneeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> autoGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> scHPFAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> scLPFAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> scListenAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> scSourceAttachment;
 
     //==========================================================================
     // Resource provider for WebView

@@ -23,11 +23,17 @@
 //
 // ── v1.8.0: SIMPLIFIED CHINESE (zh-Hans rollout Stage 4, wave 4a) ──
 //
-// 39 entries — 26 labels and 13 hover-help entries. LANGUAGES is three long.
+// 53 entries — 36 labels and 17 hover-help entries. LANGUAGES is three long.
+//
+// v1.10.0 added 14 of those: the detector / sidechain strip. Ten labels and
+// four tips. Most are ported from O-MultiBandCompressor with their review
+// state intact; label.scSource / scSourceInt / scSourceExt and tip.scSource
+// are authored here, because O-MBC has no external key, and they are the
+// v1.10.0 entries on the unreviewed-French worklist.
 //
 // ── THE RENDERINGS ARE THE GLOSSARY'S ───────────────────────────────────────
 // Every English name string that is a TERMS key in scripts/i18n-zh-glossary.js
-// takes that term's ROOT rendering, which lint rule Z5 enforces. 36 of this page's 39 name strings are glossary roots; three are authored.
+// takes that term's ROOT rendering, which lint rule Z5 enforces.
 //
 // ── TYPOGRAPHY ──────────────────────────────────────────────────────────────
 //   Z1 full-width punctuation; ASCII punctuation inside a Latin or numeric
@@ -419,6 +425,62 @@ export const I18N = Object.freeze({
           reviewed: 'bt' },
     },
 
+    // ── v1.10.0: the detector / sidechain strip ─────────────────────────────
+    //
+    // PROVENANCE. The SC HPF / SC LPF / SC Listen bodies and their French and
+    // Chinese faces are PORTED from O-MultiBandCompressor, where a human read
+    // the French and a back-translation checked the Chinese, so they keep
+    // reviewed: true / 'bt'. The wording is adapted where O-MBC says "band" —
+    // this compressor is full-range, so a rumble ducks the MIX, not a band.
+    //
+    // tip.scSource is AUTHORED HERE (O-MBC has no external key at all) and is
+    // therefore fr reviewed: false, zh 'mt'. It is the entry to read first if
+    // the French worklist is being cleared.
+
+    'tip.scSource': {
+        en: { t: 'Source',
+              b: 'Which signal the detector listens to. Internal uses the audio being compressed; External uses whatever is routed to the Sidechain input. Select External with nothing routed and the detector falls back to internal, so the compressor keeps working rather than going silent. Internal or External.' },
+        fr: { t: 'Source',
+              b: 'Le signal que le détecteur écoute. Interne utilise l’audio en cours de compression ; Externe utilise ce qui est routé vers l’entrée sidechain. Si Externe est choisi sans rien de routé, le détecteur revient à l’interne et le compresseur continue de fonctionner au lieu de se taire. Interne ou Externe.',
+              reviewed: false },
+    'zh-Hans': { t: '来源',
+          b: '检测器所监听的信号。内部使用正在被压缩的音频；外部使用路由到侧链输入的信号。若选择外部却未路由任何信号，检测器会回退到内部，压缩器继续工作而不会静音。内部或外部。',
+          reviewed: 'mt' },
+    },
+
+    'tip.scHpf': {
+        en: { t: 'SC HPF',
+              b: 'High-passes the detector only — the audio itself is untouched. Keeps low energy from triggering gain reduction, so subsonic rumble does not duck the whole mix. Fully left is Off. 0 to 2000 Hz.' },
+        fr: { t: 'SC PH',
+              b: 'Applique un passe-haut au détecteur seulement — l’audio lui-même n’est pas touché. Empêche l’énergie grave de déclencher la réduction de gain, afin qu’un grondement subsonique ne fasse pas plonger tout le mixage. Complètement à gauche : Arrêt. 0 à 2000 Hz.',
+              reviewed: true },
+    'zh-Hans': { t: 'SC 高通',
+          b: '仅对检测器进行高通滤波，音频本身不受影响。避免低频能量触发增益衰减，使次声隆隆声不会压低整个混音。最左端为关。0 至 2000 Hz。',
+          reviewed: 'bt' },
+    },
+
+    'tip.scLpf': {
+        en: { t: 'SC LPF',
+              b: 'Low-passes the detector only — the audio itself is untouched. Narrows what the compressor responds to, for example keeping cymbals and air from holding it down. Fully left is Off. 0 to 20000 Hz.' },
+        fr: { t: 'SC PB',
+              b: 'Applique un passe-bas au détecteur seulement — l’audio lui-même n’est pas touché. Restreint ce à quoi le compresseur réagit, par exemple pour éviter que les cymbales et l’aigu ne le maintiennent enfoncé. Complètement à gauche : Arrêt. 0 à 20000 Hz.',
+              reviewed: true },
+    'zh-Hans': { t: 'SC 低通',
+          b: '仅对检测器进行低通滤波，音频本身不受影响。收窄压缩器的响应范围，例如避免镲片与高频空气感持续压住增益。最左端为关。0 至 20000 Hz。',
+          reviewed: 'bt' },
+    },
+
+    'tip.scListen': {
+        en: { t: 'SC Listen',
+              b: 'Monitor the detector signal driving the compressor, including its sidechain filtering. This is what the compressor hears, not what it outputs. The gain-reduction meter keeps reading while you listen, so the display stays true.' },
+        fr: { t: 'Écoute SC',
+              b: 'Écouter le signal du détecteur qui pilote le compresseur, filtrage sidechain compris. C’est ce que le compresseur entend, et non ce qu’il émet. L’indicateur de réduction de gain continue d’afficher pendant l’écoute, si bien que l’affichage reste juste.',
+              reviewed: true },
+    'zh-Hans': { t: 'SC 监听',
+          b: '监听驱动压缩器的检测器信号，包含其侧链滤波。这是压缩器所听到的内容，而非其输出。监听期间增益衰减表继续读数，因此显示始终如实。',
+          reviewed: 'bt' },
+    },
+
     // ── The three CANVAS-PAINTED strings — NOT tooltips ─────────────────────
     //
     // Empty bodies, deliberately and permanently. See the block comment above.
@@ -603,6 +665,45 @@ export const LABELS = Object.freeze({
     // width, still 115px inside the panel it sits in.
     'label.transferCurve': { en: { t: 'Transfer Curve' }, fr: { t: 'Courbe de transfert', reviewed: true }, 'zh-Hans': { t: '传输曲线', reviewed: 'bt' } },
 
+    // ── v1.10.0: the detector / sidechain strip ─────────────────────────────
+    //
+    // SC HPF / SC LPF / SC Listen and the section caption are PORTED from
+    // O-MultiBandCompressor with their review state intact. "Sidechain" is the
+    // loan word this suite's French already uses — O-MBC argued that out and
+    // kept it — so the SC prefix survives; PH / PB are passe-haut / passe-bas.
+    //
+    // label.scSource and its two option faces are AUTHORED HERE and carry
+    // fr reviewed: false / zh 'mt'. Interne and Externe are the ordinary French
+    // adjectives and need no glossary term.
+    'label.detector':    { en: { t: 'Detector / Sidechain' }, fr: { t: 'Détecteur / Sidechain', reviewed: true }, 'zh-Hans': { t: '检测器 / 侧链', reviewed: 'bt' } },
+    'label.scSource':    { en: { t: 'Source' },   fr: { t: 'Source',  reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '来源', reviewed: 'mt' } },
+    'label.scSourceInt': { en: { t: 'Internal' }, fr: { t: 'Interne', reviewed: false }, 'zh-Hans': { t: '内部', reviewed: 'mt' } },
+    'label.scSourceExt': { en: { t: 'External' }, fr: { t: 'Externe', reviewed: false }, 'zh-Hans': { t: '外部', reviewed: 'mt' } },
+    'label.scHpf':       { en: { t: 'SC HPF' },    fr: { t: 'SC PH',     reviewed: true }, 'zh-Hans': { t: 'SC 高通', reviewed: 'bt' } },
+    'label.scLpf':       { en: { t: 'SC LPF' },    fr: { t: 'SC PB',     reviewed: true }, 'zh-Hans': { t: 'SC 低通', reviewed: 'bt' } },
+    'label.scListen':    { en: { t: 'SC Listen' }, fr: { t: 'Écoute SC', reviewed: true }, 'zh-Hans': { t: 'SC 监听', reviewed: 'bt' } },
+
+    // The SC Listen toggle's two faces. SEPARATE KEYS from label.autoGainOff /
+    // label.autoGainOn even though the strings are identical today: the two
+    // toggles are different controls, and a future width pin or an inflection
+    // on one must not silently move the other.
+    'label.scListenOff': { en: { t: 'OFF' }, fr: { t: 'ARRÊT',  reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'bt' } },
+    'label.scListenOn':  { en: { t: 'ON' },  fr: { t: 'MARCHE', reviewed: true }, 'zh-Hans': { t: '开', reviewed: 'bt' } },
+
+    // The 0 Hz face of the two frequency readouts.
+    //
+    // THIS IS A READOUT STRING, and readouts on this page are painted by
+    // textContent from formatValue(), not by the [data-i18n] sweep — so nothing
+    // would re-render it on a language change. applyI18n() therefore calls
+    // refreshFreqReadouts() explicitly after the sweep. Without that call this
+    // label is correct on first paint and stale forever after, which is the
+    // failure mode that reads as "the translation is missing".
+    //
+    // "Arrêt" and not "Aucun": this Off is a filter SWITCHED OFF, not a routing
+    // mode that is not engaged — the same distinction O-MBC draws for its M/S
+    // mode, where the unengaged mode takes Aucun and the switch takes Arrêt.
+    'label.freqOff': { en: { t: 'Off' }, fr: { t: 'Arrêt', reviewed: true }, 'zh-Hans': { t: '关', reviewed: 'bt' } },
+
     // ── The preset dropdown, built at runtime ───────────────────────────────
     //
     // Both are written by buildDropdownMenu() into elements it creates, so both
@@ -740,6 +841,11 @@ export const TIP_BINDINGS = [
     ['#knee-knob',         'tip.knee',      '.control-group'],
     ['#output-knob',       'tip.output',    '.control-group'],
     ['#auto-gain-toggle',  'tip.autoGain',  '.control-group'],
+
+    ['#sc-source-select',  'tip.scSource',  '.control-group'],
+    ['#sc-hpf-knob',       'tip.scHpf',     '.control-group'],
+    ['#sc-lpf-knob',       'tip.scLpf',     '.control-group'],
+    ['#sc-listen-toggle',  'tip.scListen',  '.control-group'],
 
     ['#gear-btn',          'tip.gearBtn'],
     ['#lang-select',       'tip.langSelect'],
