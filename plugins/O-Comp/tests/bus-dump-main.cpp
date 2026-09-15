@@ -107,9 +107,13 @@ int main()
         ++failures;
     }
 
-    // The key bus MUST ship disabled: that is the entire backward-compatibility
-    // argument for MINOR. A key bus enabled by default re-negotiates every
-    // existing session's channel strip on first load.
+    // The key bus must be ACTIVE by default. The plan originally specified
+    // inactive, to leave an existing session's negotiated layout untouched, but
+    // Logic Pro does not offer its Side Chain menu for an inactive bus and the
+    // whole feature is unreachable there. See the constructor for the evidence.
+    //
+    // Backward compatibility is now carried by the render probe below rather than
+    // by this flag: an active-but-unrouted key must not change the main path.
     if (numInputBuses >= 2)
     {
         auto* key = proc->getBus (true, 1);
@@ -121,10 +125,10 @@ int main()
             ++failures;
         }
 
-        if (key->isEnabledByDefault())
+        if (! key->isEnabledByDefault())
         {
-            std::cout << "# FAIL: key bus is enabled by default — an existing session would "
-                         "re-negotiate its layout on load\n";
+            std::cout << "# FAIL: key bus is inactive by default — Logic will not offer "
+                         "its Side Chain menu\n";
             ++failures;
         }
     }
@@ -143,11 +147,23 @@ int main()
         { "mono main, stereo key",      mono,   mono,   stereo, true  },
 
         // Still rejected, for the same reason as v1.9.0: the channel-pointer
-        // arrays hold 2.
+        // arrays hold 2. These constrain the MAIN bus only.
         { "quad main",                  quad,   quad,   none,   false },
         { "stereo in, mono out",        stereo, mono,   none,   false },
         { "mono in, stereo out",        mono,   stereo, none,   false },
-        { "stereo main, quad key",      stereo, stereo, quad,   false },
+
+        // A WIDE KEY IS ACCEPTED, not refused. Logic probes the key element with
+        // counts past 2 and answers a refusal by dropping its Side Chain menu
+        // entirely. The detector reads the first two key channels and ignores the
+        // rest, so accepting these costs nothing.
+        { "stereo main, quad key",      stereo, stereo, quad,   true  },
+
+        // A host does not have to spell a 2-channel key as AudioChannelSet::stereo().
+        // AudioChannelSet is a BITSET compared for exact equality, so discreteChannels(2)
+        // is a different value from stereo() even though both are two channels.
+        { "stereo main, discrete-2 key", stereo, stereo, juce::AudioChannelSet::discreteChannels (2), true },
+        { "mono main, discrete-2 key",   mono,   mono,   juce::AudioChannelSet::discreteChannels (2), true },
+        { "stereo main, discrete-1 key", stereo, stereo, juce::AudioChannelSet::discreteChannels (1), true },
     };
 
     std::cout << "layout\tmainIn\tmainOut\tkey\texpected\tactual\tverdict\n";
