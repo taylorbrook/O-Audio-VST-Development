@@ -104,9 +104,18 @@ juce::AudioProcessorValueTreeState::ParameterLayout OCompAudioProcessor::createP
 OCompAudioProcessor::OCompAudioProcessor()
     : AudioProcessor(BusesProperties()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
-                        // Discrete external key input. Disabled by default so an
-                        // existing session's negotiated layout is unchanged.
-                        .withInput("Sidechain", juce::AudioChannelSet::stereo(), false)
+                        // Discrete external key input, ACTIVE by default.
+                        //
+                        // The v1.10.0 plan called for false (inactive), on the argument
+                        // that an inactive bus leaves an existing session's negotiated
+                        // layout untouched. Logic Pro will not offer its Side Chain menu
+                        // for an inactive bus: with false the AU still published two input
+                        // elements, still accepted a stereo format on element 1 and still
+                        // initialised clean -- indistinguishable from NI Solid Bus Comp and
+                        // iZotope Neutron 5 at every AU property -- and Logic showed no menu
+                        // regardless. JUCE's own NoiseGatePluginDemo declares its sidechain
+                        // with the default argument, which is true.
+                        .withInput("Sidechain", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
     , presetManager(parameters, "O-Comp")
@@ -441,12 +450,30 @@ bool OCompAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) con
     if (layouts.getMainInputChannelSet() != mainOut)
         return false;
 
-    // Key bus: disabled, mono or stereo. Never wider - keyPtrs is a 2-slot
-    // array, the same reason the main path caps at 2.
-    const auto& key = layouts.getChannelSet(true, 1);
-    return key.isDisabled()
-        || key == juce::AudioChannelSet::mono()
-        || key == juce::AudioChannelSet::stereo();
+    // Key bus: UNCONSTRAINED, deliberately. Any layout, any width, disabled included.
+    //
+    // The detector reads at most the first two key channels (keyPtrs is a 2-slot
+    // array). A wider key is ACCEPTED and its surplus channels ignored, never
+    // refused -- refusing them is what kept Logic's Side Chain menu off the header.
+    //
+    // Two rules were tried here and both broke Logic, each in a way no AU property
+    // revealed:
+    //
+    //   (key == mono() || key == stereo())   AudioChannelSet is a bitset compared
+    //                                        for exact equality, so a host spelling
+    //                                        a 2-channel key as discreteChannels(2)
+    //                                        was refused.
+    //   key.size() <= 2                      Logic probes the key element with wider
+    //                                        counts too; 3..8 came back -10868
+    //                                        kAudioUnitErr_FormatNotSupported.
+    //
+    // In BOTH cases Logic answered a refused probe by omitting the Side Chain menu
+    // entirely -- no error, no greyed control -- while every AU property still read
+    // correct: two input elements, element 1 named "Sidechain", a stereo format
+    // accepted on it, a clean AudioUnitInitialize, indistinguishable from plugins
+    // that do side-chain in Logic. This matches JUCE's own NoiseGatePluginDemo,
+    // which constrains the main bus and says nothing about the key.
+    return true;
 }
 
 // Factory function
