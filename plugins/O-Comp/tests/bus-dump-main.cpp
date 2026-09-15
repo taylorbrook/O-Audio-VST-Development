@@ -320,6 +320,134 @@ int main()
                      "uninterpretable)\n";
     }
 
+    // ── 4. The external key actually drives the detector ─────────────────────
+    // Main sits at -40 dBFS, under the -20 dB default threshold. The key carries a
+    // 0 dBFS tone. With sc_source Internal the detector sees -40 and does nothing;
+    // with External it sees 0 dBFS and pulls roughly 10 dB. The two must separate,
+    // or "External" is a label on a control that changes nothing.
+    if (failures == 0)
+    {
+        auto setParam = [&] (const juce::String& id, float normalised)
+        {
+            for (auto* param : proc->getParameters())
+                if (auto* withID = dynamic_cast<juce::AudioProcessorParameterWithID*> (param))
+                    if (withID->paramID == id)
+                    {
+                        withID->setValueNotifyingHost (normalised);
+                        return true;
+                    }
+
+            std::cout << "# FAIL: no parameter with id '" << id << "'\n";
+            ++failures;
+            return false;
+        };
+
+        const int    blockSize  = 256;
+        const int    numBlocks  = 200;
+        const double sampleRate = 48000.0;
+        const float  mainLevel  = juce::Decibels::decibelsToGain (-40.0f);
+
+        // external: 0 = Internal, 1 = External. listen: 0 = off, 1 = on.
+        auto render = [&] (float external, float listen, float hpf = 0.0f) -> float
+        {
+            juce::AudioProcessor::BusesLayout layout;
+            layout.inputBuses.add (stereo);
+            layout.inputBuses.add (stereo);
+            layout.outputBuses.add (stereo);
+
+            if (! proc->setBusesLayout (layout))
+            {
+                std::cout << "# FAIL: setBusesLayout(stereo main + stereo key) refused\n";
+                ++failures;
+                return -1.0f;
+            }
+
+            // Parameters BEFORE prepareToPlay: a value set after prepare can miss
+            // the first block's coefficient update.
+            setParam ("sc_source", external);
+            setParam ("sc_listen", listen);
+            setParam ("sc_hpf",    hpf);
+
+            proc->prepareToPlay (sampleRate, blockSize);
+
+            const int totalChans = juce::jmax (proc->getTotalNumInputChannels(),
+                                               proc->getTotalNumOutputChannels());
+            juce::AudioBuffer<float> buffer (totalChans, blockSize);
+            juce::MidiBuffer midi;
+            float mainPeak = 0.0f;
+
+            for (int b = 0; b < numBlocks; ++b)
+            {
+                buffer.clear();
+
+                for (int ch = 0; ch < 2 && ch < totalChans; ++ch)
+                    for (int i = 0; i < blockSize; ++i)
+                        buffer.setSample (ch, i, mainLevel);
+
+                for (int ch = 2; ch < totalChans; ++ch)
+                    for (int i = 0; i < blockSize; ++i)
+                        buffer.setSample (ch, i, 1.0f);
+
+                proc->processBlock (buffer, midi);
+
+                if (b == numBlocks - 1)
+                    mainPeak = buffer.getMagnitude (0, 0, blockSize);
+            }
+
+            proc->releaseResources();
+            return mainPeak;
+        };
+
+        const float internalDB = juce::Decibels::gainToDecibels (render (0.0f, 0.0f), -120.0f);
+        const float externalDB = juce::Decibels::gainToDecibels (render (1.0f, 0.0f), -120.0f);
+        const float listenDB   = juce::Decibels::gainToDecibels (render (1.0f, 1.0f), -120.0f);
+
+        // The key is a DC tone, so a working detector high-pass must remove it
+        // ENTIRELY and the compressor must fall back to doing nothing. This is the
+        // cheapest possible proof that the filters sit in the detector path and are
+        // actually engaged, rather than being computed and discarded.
+        const float hpfDB = juce::Decibels::gainToDecibels (render (1.0f, 0.0f, 1.0f), -120.0f);
+
+        std::cout << "# key.internalOutDB\t" << internalDB << "\n";
+        std::cout << "# key.externalOutDB\t" << externalDB << "\n";
+        std::cout << "# key.listenOutDB\t"   << listenDB   << "\n";
+
+        if (failures == 0)
+        {
+            if (std::abs (internalDB - (-40.0f)) > 0.5f)
+            {
+                std::cout << "# FAIL: Internal source compressed a -40 dBFS signal against a "
+                             "-20 dB threshold (" << internalDB << " dB)\n";
+                ++failures;
+            }
+
+            if ((internalDB - externalDB) < 5.0f)
+            {
+                std::cout << "# FAIL: External source changed the output by only "
+                          << (internalDB - externalDB) << " dB — the key is not reaching "
+                             "the detector\n";
+                ++failures;
+            }
+
+            // SC Listen substitutes the filtered key, which is full scale here.
+            if (listenDB < -1.0f)
+            {
+                std::cout << "# FAIL: SC Listen did not monitor the key (" << listenDB
+                          << " dB, expected about 0)\n";
+                ++failures;
+            }
+
+            std::cout << "# key.hpfOutDB\t" << hpfDB << "\n";
+
+            if (std::abs (hpfDB - (-40.0f)) > 0.5f)
+            {
+                std::cout << "# FAIL: SC HPF at 2 kHz did not remove a DC key — output "
+                          << hpfDB << " dB, expected the uncompressed -40\n";
+                ++failures;
+            }
+        }
+    }
+
     std::cout << (failures == 0 ? "PASS\n" : "FAIL\n");
     std::cout << "# failures\t" << failures << "\n";
 
