@@ -57,7 +57,7 @@
       3. the rendered title and body are BYTE-EQUAL to the table entry. Not
          "contains": a .tip-title that silently kept the previous anchor's text
          passes a contains check and fails this one;
-      4. the tip rectangle is fully inside the 620 x 360 frame on all four
+      4. the tip rectangle is fully inside the 620 x 420 frame on all four
          edges. 360px is the shortest dimension in batch M1 after O-Chorus and
          O-DigiDelay, so the vertical clamp is the normal path here.
 
@@ -114,7 +114,7 @@ const i18nPath  = path.join(publicDir, 'js', 'i18n.js');
 // without checking it starts describing the release before it and keeps
 // passing (pattern_test_fixture_mirrors_drift_silently).
 const SHIP_W = 620;
-const SHIP_H = 360;
+const SHIP_H = 420;   // v1.10.0: 360 -> 420 for the detector / sidechain strip
 const MARGIN = 8;               // setupTooltips()'s clamp margin
 const DOCUMENTED_MAX_W = 250;   // .tooltip max-width
 
@@ -252,7 +252,7 @@ const READ_TIP = `() => {
     // silently IGNORED as a launch option, leaving Chromium's 1280x720 default.
     // At 1280x720 every anchor on this page has room below and to the right, the
     // clamp never engages, and every assertion below would pass while the real
-    // 620 x 360 frame overflowed
+    // 620 x 420 frame overflowed
     // (pattern_tooltip_clamp_gate_viewport_sensitive).
     const page = await browser.newPage({ viewport: { width: SHIP_W, height: SHIP_H } });
 

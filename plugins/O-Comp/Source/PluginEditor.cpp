@@ -51,6 +51,10 @@ OCompAudioProcessorEditor::OCompAudioProcessorEditor(OCompAudioProcessor& p)
     kneeRelay = std::make_unique<juce::WebSliderRelay>("knee");
     outputGainRelay = std::make_unique<juce::WebSliderRelay>("output_gain");
     autoGainRelay = std::make_unique<juce::WebToggleButtonRelay>("auto_gain");
+    scHPFRelay = std::make_unique<juce::WebSliderRelay>("sc_hpf");
+    scLPFRelay = std::make_unique<juce::WebSliderRelay>("sc_lpf");
+    scListenRelay = std::make_unique<juce::WebToggleButtonRelay>("sc_listen");
+    scSourceRelay = std::make_unique<juce::WebComboBoxRelay>("sc_source");
 
     // 2️⃣ Create WebView with relay options and preset native functions
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -71,6 +75,10 @@ OCompAudioProcessorEditor::OCompAudioProcessorEditor(OCompAudioProcessor& p)
             .withOptionsFrom(*kneeRelay)
             .withOptionsFrom(*outputGainRelay)
             .withOptionsFrom(*autoGainRelay)
+            .withOptionsFrom(*scHPFRelay)
+            .withOptionsFrom(*scLPFRelay)
+            .withOptionsFrom(*scListenRelay)
+            .withOptionsFrom(*scSourceRelay)
             // Preset Manager native functions
             .withNativeFunction("savePreset", [this](auto& args, auto complete) {
                 if (args.size() > 0)
@@ -217,6 +225,14 @@ OCompAudioProcessorEditor::OCompAudioProcessorEditor(OCompAudioProcessor& p)
         *processorRef.parameters.getParameter("output_gain"), *outputGainRelay, nullptr);
     autoGainAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.parameters.getParameter("auto_gain"), *autoGainRelay, nullptr);
+    scHPFAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("sc_hpf"), *scHPFRelay, nullptr);
+    scLPFAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("sc_lpf"), *scLPFRelay, nullptr);
+    scListenAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("sc_listen"), *scListenRelay, nullptr);
+    scSourceAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *processorRef.parameters.getParameter("sc_source"), *scSourceRelay, nullptr);
 
     // Load UI from resource provider
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
@@ -224,7 +240,11 @@ OCompAudioProcessorEditor::OCompAudioProcessorEditor(OCompAudioProcessor& p)
 #endif
 
     // Set window size from mockup dimensions (620x360px)
-    setSize(620, 360);
+    // v1.10.0: 360 -> 420. The meters already ran to y=345 in the old frame, so
+    // the detector strip could not be fitted without growing it. paper-bg.jpg is
+    // background-size: cover and shell.png is contain, so both rescale and no new
+    // art is needed.
+    setSize(620, 420);
 
     // Start meter update timer (30fps = ~33ms)
     startTimerHz(30);
