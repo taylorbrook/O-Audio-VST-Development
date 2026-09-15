@@ -2,6 +2,67 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.10.1] - 2026-09-14
+
+**Four defects in the v1.10.0 sidechain, all found in verify.** PATCH: no
+parameter is added, renamed or removed, no range moves, and the state format is
+unchanged. A v1.10.0 preset or session restores bit-identically.
+
+### Fixed
+
+- **"External" with nothing routed made the compressor inert in Logic instead of
+  falling back to the internal detector.** The auto-fallback tested the *bus*, not
+  the *signal*. `getBus()`, `isEnabled()` and `getChannelCountOfBus()` are all
+  properties of the negotiated layout, and an AU host does not disable an unrouted
+  sidechain — it hands it a buffer of silence. All three therefore read true with
+  nothing patched in: the detector read zeros, the envelope parked at −60 dB, and
+  no gain reduction ever happened. The v1.10.0 release note promised the opposite
+  of what shipped. The verdict now comes from signal presence. The key is scanned
+  until it first carries anything above −140 dBFS and that result is latched, so
+  the scan costs nothing once the key is live and a key with real dynamics can
+  never flap back to the internal detector during a quiet bar. The bus checks
+  remain as a prerequisite, which is what a VST3 host that genuinely disables the
+  bus needs. The latch re-arms whenever the source returns to Internal, so a
+  re-patch is picked up rather than judged against an older routing.
+
+- **SC LPF silenced the plugin at any sample rate below 40 kHz.** The "20 kHz is
+  Off" ceiling is an absolute bound; Nyquist is not. At 32 kHz Nyquist is 16 kHz, so
+  anything the knob offered between 16 and 20 kHz built a detector biquad whose pole
+  pair sits at |z| = 1.32 — outside the unit circle. The detector state diverged
+  within a few hundred samples. What that sounds like is not a glitch: the runaway
+  envelope becomes a gain-reduction figure so large that it converts to a zero
+  multiplier, so the compressor slams shut and the plugin outputs digital silence
+  and stays there. Measured at −120 dB where a working build reads −40 dB. JUCE
+  asserts on exactly this, but the assertion is compiled out of a Release build, so
+  nothing caught it in a shipped plugin. Both detector filters now clamp their
+  corner to 0.45 × rate. At 44.1 kHz and above nothing changes; 0.45 rather than
+  0.5 because at exactly Nyquist the poles land *on* the unit circle. The same code
+  is in O-MultiBandCompressor, fixed there as v1.12.2 — where the same defect
+  presents completely differently.
+
+- **Double-clicking SC HPF or SC LPF switched the filter on instead of resetting
+  it to Off.** The reset read `paramDefaults[id] || 0.5`, and the default for both
+  is `0.0` — falsy, so `||` substituted 0.5. Under the 0.3 skew that is 198 Hz on
+  the HPF and 1984 Hz on the LPF. The handler now tests the *type* of the stored
+  default rather than its truthiness, so a legitimate 0.0 survives, and warns
+  rather than guessing when a knob has no default recorded at all.
+
+- **The first block that enabled a detector filter allocated on the audio thread.**
+  `juce::dsp::IIR::Filter<float>` default-constructs from `Coefficients(1, 0, 1, 0)`
+  — a *first-order* set. The first biquad assignment in `processBlock` took the
+  order to 2, and the next `processSample()` saw the mismatch and called `reset()`,
+  which runs `HeapBlock::malloc()`. Both filter pairs are now seeded with a real
+  biquad in `prepareToPlay()`, on the host thread, so the order is already 2 and no
+  later assignment can change it. O-MultiBandCompressor has carried this seed since
+  its v1.6.0; O-Comp lifted the update function without it.
+
+### Compatibility
+
+No parameter, range, type or state-format change, so a v1.10.0 preset or session
+restores exactly. Logic caches a plugin's I/O configuration against its version
+number, so the new version number means a rescan on first load — expected, and the
+same note as v1.10.0.
+
 ## [1.10.0] - 2026-09-14
 
 **External sidechain.** A real key input: a discrete Sidechain bus, an

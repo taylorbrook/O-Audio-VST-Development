@@ -276,17 +276,54 @@ OCompAudioProcessor::OCompAudioProcessor()
 // audio thread.
 void OCompAudioProcessor::updateSidechainFilters(float hpfFreq, float lpfFreq)
 {
+    // v1.10.1 — NYQUIST CLAMP.
+    //
+    // The "20 kHz is Off" ceiling below is an ABSOLUTE bound, but Nyquist is not:
+    // at any rate under 40 kHz it sits beneath that ceiling, so an sc_lpf anywhere
+    // in (Nyquist, 20 kHz) was handed to makeLowPass unchecked.
+    //
+    // JUCE builds these by the bilinear transform, not the RBJ cos/sin form:
+    //
+    //     n  = 1 / tan(pi * f / rate)
+    //     c1 = 1 / (1 + n/Q + n*n)
+    //     denominator = z^2 + c1*2*(1 - n*n) z + c1*(1 - n/Q + n*n)
+    //
+    // Above Nyquist the argument to tan passes pi/2, so TAN GOES NEGATIVE and with
+    // it n. That flips the sign of the n/Q term in both c1 and the trailing
+    // coefficient, and the denominator's constant term — the product of the two
+    // pole radii — rises above 1. At 18 kHz on a 32 kHz rate it is 1.742, putting
+    // both poles at |z| = 1.32: outside the unit circle, so the detector state grows
+    // by 32% per sample and is past float range within a few hundred samples.
+    //
+    // JUCE's own jassert(frequency > 0 && frequency <= sampleRate * 0.5) catches
+    // exactly this, and is compiled out of a Release build.
+    //
+    // 0.45 * rate, not 0.5: at exactly Nyquist tan is infinite, n is 0, and the
+    // denominator becomes z^2 + 2z + 1 — a double pole ON the unit circle at z = -1.
+    // Marginally stable is still not a filter you want in a recursive path.
+    //
+    // sc_hpf tops out at 2000 Hz and is therefore already clear at every rate a host
+    // will offer — the clamp is a no-op for it at 8 kHz and above. It is applied
+    // anyway so the invariant "never hand makeXxx a corner above Nyquist" holds
+    // without a per-parameter argument about which ranges happen to be safe.
+    const float nyquistCeiling = static_cast<float>(currentSampleRate) * 0.45f;
+
     const bool wantHPF = hpfFreq > 0.0f;
 
-    if (wantHPF && hpfFreq != currentSCHPFFreq)
+    if (wantHPF)
     {
-        // operator=(std::array) normalises the 6 raw values by a0 and stores the
-        // resulting 5. Do NOT memcpy the array over getRawCoefficients().
-        const auto taps = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
-            currentSampleRate, hpfFreq, 0.707f);   // Q = 0.707 (Butterworth)
-        *scHPF[0].coefficients = taps;
-        *scHPF[1].coefficients = taps;
-        currentSCHPFFreq = hpfFreq;
+        const float safeHPF = juce::jmin(hpfFreq, nyquistCeiling);
+
+        if (safeHPF != currentSCHPFFreq)
+        {
+            // operator=(std::array) normalises the 6 raw values by a0 and stores the
+            // resulting 5. Do NOT memcpy the array over getRawCoefficients().
+            const auto taps = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
+                currentSampleRate, safeHPF, 0.707f);   // Q = 0.707 (Butterworth)
+            *scHPF[0].coefficients = taps;
+            *scHPF[1].coefficients = taps;
+            currentSCHPFFreq = safeHPF;               // cache the CLAMPED corner
+        }
     }
 
     scHPFEnabled = wantHPF;                        // <- outside, deliberately
@@ -294,13 +331,18 @@ void OCompAudioProcessor::updateSidechainFilters(float hpfFreq, float lpfFreq)
     // 20 kHz or above is treated as off too
     const bool wantLPF = lpfFreq > 0.0f && lpfFreq < 20000.0f;
 
-    if (wantLPF && lpfFreq != currentSCLPFFreq)
+    if (wantLPF)
     {
-        const auto taps = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
-            currentSampleRate, lpfFreq, 0.707f);
-        *scLPF[0].coefficients = taps;
-        *scLPF[1].coefficients = taps;
-        currentSCLPFFreq = lpfFreq;
+        const float safeLPF = juce::jmin(lpfFreq, nyquistCeiling);
+
+        if (safeLPF != currentSCLPFFreq)
+        {
+            const auto taps = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
+                currentSampleRate, safeLPF, 0.707f);
+            *scLPF[0].coefficients = taps;
+            *scLPF[1].coefficients = taps;
+            currentSCLPFFreq = safeLPF;               // cache the CLAMPED corner
+        }
     }
 
     scLPFEnabled = wantLPF;                        // <- outside, deliberately
@@ -334,8 +376,31 @@ void OCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
         1
     };
 
+    // v1.10.1 — seed a real BIQUAD here, on the host thread, BEFORE prepare().
+    //
+    // IIR::Filter<float> default-constructs from Coefficients(1, 0, 1, 0): a
+    // FIRST-order set, order 1. The first 6-tap assignment in processBlock takes the
+    // order to 2, and the very next processSample() calls check(), sees
+    // order != coefficients->getFilterOrder() and calls reset() — which runs
+    // HeapBlock::malloc() on the audio thread. Establishing order 2 here means no
+    // later assignment can change it, so reset() never reallocates again.
+    //
+    // O-MultiBandCompressor's Compressor.h has carried this seed since v1.6.0;
+    // O-Comp lifted the update function without it.
+    //
+    // The seeded curve is never heard: scHPFEnabled / scLPFEnabled start false and
+    // currentSC*Freq is forced to -1 below, so the first block that asks for a
+    // filter overwrites these taps before using them. Its only job is the order,
+    // so the corner is pinned to the RATE and is safely below Nyquist everywhere.
+    const float seedFreq = static_cast<float>(sampleRate) * 0.25f;
+
     for (int i = 0; i < 2; ++i)
     {
+        *scHPF[i].coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
+            sampleRate, seedFreq, 0.707f);
+        *scLPF[i].coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(
+            sampleRate, seedFreq, 0.707f);
+
         scHPF[i].prepare(scSpec);
         scLPF[i].prepare(scSpec);
         scHPF[i].reset();
@@ -348,6 +413,7 @@ void OCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     currentSCLPFFreq = -1.0f;
     scFiltersNeedReset = false;
     lastUseExternal = false;
+    keySignalSeen = false;
 
     // Calculate initial coefficients
     updateCoefficients(attackParam->load(), releaseParam->load(), sampleRate);
@@ -412,14 +478,43 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     for (int ch = 0; ch < numChannels && ch < 2; ++ch)
         channelPtrs[ch] = buffer.getWritePointer(ch);
 
-    // ── v1.10.0 Task 2: key source, with auto-fallback ───────────────────────
+    // ── v1.10.0 Task 2 / v1.10.1 R1: key source, with auto-fallback ─────────
     // Recomputed EVERY block: a host can enable or disable the key bus between
     // blocks, and "External" selected with nothing routed must still compress.
+    //
+    // v1.10.1 — the bus checks are a PREREQUISITE, not the test. An AU host does not
+    // disable an unrouted sidechain bus; it hands it a buffer of silence. All three
+    // bus properties therefore read true in Logic with nothing patched in, so
+    // useExternal went true, the detector read zeros, the envelope parked at -60 dB
+    // and the compressor went inert — precisely the failure the auto-fallback exists
+    // to prevent, and the opposite of what the v1.10.0 CHANGELOG promised.
+    //
+    // The verdict now comes from SIGNAL PRESENCE, latched. The scan runs only until
+    // the key first shows signal; after that keySignalSeen short-circuits it and the
+    // per-block cost disappears. One-way while External is selected, so a key with
+    // real dynamics can never flap back to the internal detector during a quiet bar.
     const auto* keyBus = getBus(true, 1);
-    const bool keyAvailable = keyBus != nullptr
-                           && keyBus->isEnabled()
-                           && getChannelCountOfBus(true, 1) > 0;
-    const bool useExternal = (scSourceParam->load() > 0.5f) && keyAvailable;
+    const bool keyBusPresent = keyBus != nullptr
+                            && keyBus->isEnabled()
+                            && getChannelCountOfBus(true, 1) > 0;
+
+    const bool wantExternal = scSourceParam->load() > 0.5f;
+
+    // Re-armed whenever the key is not being asked for, so returning to External
+    // re-probes the bus rather than trusting a verdict from an older routing.
+    if (! wantExternal || ! keyBusPresent)
+    {
+        keySignalSeen = false;
+    }
+    else if (! keySignalSeen)
+    {
+        // A view over the existing buffer, and getMagnitude() is a bare min/max
+        // scan: no allocation, RT-safe.
+        const auto keyProbe = getBusBuffer(buffer, true, 1);
+        keySignalSeen = keyProbe.getMagnitude(0, numSamples) > keySilenceThreshold;
+    }
+
+    const bool useExternal = wantExternal && keyBusPresent && keySignalSeen;
 
     // The bus-buffer view is constructed ONCE, outside the sample loop.
     const float* keyPtrs[2] = {};

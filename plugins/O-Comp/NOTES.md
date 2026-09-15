@@ -2,11 +2,14 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.5.0
+- **Version:** 1.10.1
 - **Type:** Audio Effect (Compressor)
 
 ## Lifecycle Timeline
 
+- **2026-09-14 (v1.10.1):** Four defects in the v1.10.0 sidechain, all found in verify. (1) The External auto-fallback tested the *bus*, not the *signal*. An AU host does not disable an unrouted sidechain — it negotiates the bus, reports it enabled, and hands it silence — so all three bus properties read true in Logic with nothing patched in, the detector read zeros, the envelope parked at −60 dB and the compressor went inert. The verdict now comes from signal presence, latched one-way so a key with real dynamics cannot flap back mid-phrase. (2) SC LPF above Nyquist built a biquad with poles at |z| = 1.32; below a 40 kHz rate anything between Nyquist and the absolute 20 kHz "Off" ceiling diverged and the plugin output digital silence. Both detector filters now clamp to 0.45 × rate. (3) `paramDefaults[id] || 0.5` ate the 0.0 Off default, so double-clicking SC HPF/LPF switched the filter *on* at 198/1984 Hz; the handler now tests the type, not the truthiness. (4) `IIR::Filter<float>` default-constructs first-order, so the first biquad assignment in `processBlock` changed the order and triggered `HeapBlock::malloc()` on the audio thread — `prepareToPlay` now seeds a real biquad, as O-MultiBandCompressor has since its v1.6.0.
+
+  **The v1.10.0 gate for (1) was vacuous, and that is the transferable lesson.** It rendered the key bus *disabled*, which is the VST3 case where `isEnabled()` is already false — never the Logic case. Worse, it drove the plugin at −40 dBFS against a −20 dB default threshold, so the compressor did nothing at all and Internal, a working fallback and a detector reading pure silence all measured −40 dB. The reference was right; the stimulus could not discriminate. Both fallback probes now run at −6 dBFS with a liveness assertion on the reference, and a new probe renders the key bus routed-but-silent. Every new probe was negative-controlled: reverted individually, each fails.
 - **2026-07-01 (v1.5.0):** Bundled code-review fixes CR-01 + WR-01/02/03 — soft-knee /0→NaN guard (hit "Parallel Crush" preset), channel-loop OOB cap + `isBusesLayoutSupported` (mono/stereo), smoothed makeup gain (de-zipper), preset Prev/Next wrap fix for imported/deleted presets. See `.planning/REVIEW.md`.
 - **2026-03-06 (v1.4.3):** Fixed auto-gain overcompensation (50% makeup-gain scaling)
 - **2026-01-24 (v1.2.0):** Renamed from OuariconComp to O-Comp

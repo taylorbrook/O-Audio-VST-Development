@@ -148,6 +148,21 @@ private:
     bool  lastUseExternal = false;
     bool  scFiltersNeedReset = false;
 
+    // ── v1.10.1: the auto-fallback latch ────────────────────────────────────
+    // An AU host does not disable an UNROUTED sidechain bus, it hands it a buffer
+    // of silence, so getBus() / isEnabled() / getChannelCountOfBus() all read true
+    // with nothing patched in. Bus state cannot tell a live key from an empty one.
+    // Signal presence can.
+    //
+    // One-way while External is selected: a latch cannot flap, so a key with real
+    // dynamics never switches detector source mid-phrase. Re-armed in processBlock
+    // whenever the key is not being asked for, and in prepareToPlay.
+    bool  keySignalSeen = false;
+
+    // ~-140 dBFS: far below any real signal, far above the exact zeros an unrouted
+    // bus delivers.
+    static constexpr float keySilenceThreshold = 1.0e-7f;
+
     void updateSidechainFilters(float hpfFreq, float lpfFreq);
     float applySidechainFilters(int det, float input);
 
