@@ -1,12 +1,47 @@
 # O-Octagon Changelog
 
-## v1.13.0 (2026-09-08)
+## [1.13.0] - 2026-09-08
 
 Blur and Air made audible. MINOR: both controls were reported as having no
 appreciable effect, and in both cases the cause was GEOMETRIC rather than a
 matter of taste — each was measured, and each law was replaced. No parameter ID,
 range, type or state format changed, so sessions are untouched; user presets
 carry a second migration gate and factory presets keep their authored sound.
+
+### Ships in this release
+
+**This is O-Octagon's first public release, and the download contains everything
+from v1.0.0 through v1.13.0.** Each version has its own section below; they are
+summarised here because they ship as one download.
+
+- **v1.0.0 — eight-channel DBAP spatializer for irregular concert arrays.** A
+  mono or stereo source rendered to eight discrete speaker feeds by Distance-Based
+  Amplitude Panning, solved from a measured venue model (speaker positions, rake,
+  bounding box) that is editable in the UI and saved to `.venue` files
+  independently of presets. A source puck over the room plan, width, blur,
+  rolloff, per-speaker weights as an automatable compositional control, and scenes.
+- **v1.1.0 — speaker→output assignment**, so a rig whose device order differs
+  from the 7.1 role order (CoreAudio's does) is corrected in the plugin.
+- **v1.2.0 — hover-help tooltips** behind a "?" toggle.
+- **v1.3.0 — source height, rolloff, width and blur made audibly effective** on
+  rigs hung well above the ear plane. v1.3.1–v1.3.5 fix the level meters drawing
+  off their speakers, a state-restore race with the audio thread, and the rest of
+  that version's review findings.
+- **v1.4.0 — per-speaker alignment delay**, 0–50 ms, stored in the venue beside
+  the trims.
+- **v1.5.0 — a mono decorrelator behind Width**, so a mono stem widens rather
+  than combs.
+- **v1.7.0 — binaural / stereo monitoring fold-down**, guarded so the monitor can
+  never silently contaminate a render. **v1.11.0** makes that fold the default on
+  a stereo output bus, so the panning is audible on headphones away from the rig.
+- **v1.8.0 — motion engine.** Six generative trajectories for the source puck —
+  Orbit, Figure-8, Sweep, Drift, Pendulum, Spiral — reproducible across renders
+  and added downstream of the position lanes, so existing automation keeps working.
+- **v1.6.0, v1.9.0, v1.11.1–v1.12.0 — French and Simplified Chinese**, on the
+  page itself as well as the hover help, chosen from a settings gear.
+- **v1.10.0–v1.10.1 — code-review fixes**: four Warnings and the Info-tier sweep.
+
+Everything below describes v1.13.0 only.
 
 ### Changed — Blur: a SQUARE law, `kBlurScale` 1.5 -> 6.0
 
@@ -174,7 +209,7 @@ at the default sits outside the untouched region, and the first 5 ms of the rend
 ramps from a different starting vector. That is the whole reason the first
 re-anchor attempt produced a digest that still did not match.
 
-## v1.12.0 (2026-09-04)
+## [1.12.0] - 2026-09-04
 
 Simplified Chinese. MINOR: a third language on the hover-help and label tables,
 plus the geometry pins that make it fit. No parameter, range, type or state
@@ -311,7 +346,7 @@ lint rule catches because Z4 polices the Latin/Han boundary only. The accepted
 drifts and the single one that needed a decision (`aria.scene-store`) are each
 recorded with their reason in the `js/i18n.js` header.
 
-## v1.11.2 (2026-09-03)
+## [1.11.2] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
 260903-ukp; O-Gain 1.3.3 was the tracer). PATCH: French strings and source
@@ -342,7 +377,7 @@ comments only — no parameter, range, type or state format changed.
   repo-wide unreviewed-French TOTAL stays at 0.
 
 
-## v1.11.1 (2026-08-31)
+## [1.11.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout.
 
@@ -378,7 +413,7 @@ French copy revised. Stage N of the repo-wide i18n rollout.
   speaker's reading, and this pass is a second machine reading against a
   glossary and a lint.
 
-## v1.11.0 (2026-08-27)
+## [1.11.0] - 2026-08-27
 
 **A stereo output bus now defaults to a binaural headphone fold of the rig.** Until v1.10.1 a
 stereo negotiation — a stereo track, a laptop with no 8-channel interface — took SAFE mode, which
@@ -441,7 +476,7 @@ re-ranged or re-ordered; one root XML attribute is added to the session (`stereo
 - `ui_frontend_check.js` 43/43 (native-function count 28); `check-i18n.js` O-Octagon all PASS.
 - `i18n-states.json` gains the BINAURAL banner state for the screenshot sweep.
 
-## v1.10.1 (2026-08-27)
+## [1.10.1] - 2026-08-27
 
 **Info-tier sweep of `CODE_REVIEW.md` (v1.8.0 review) — 12 of 30 findings.** Every finding was
 re-verified against the v1.10.0 tree before anything was written; three were already fixed by
@@ -533,7 +568,7 @@ range (`motionRate`), `kGainCeil = 4.0`.
   unprobed CHANGELOG claims).
 - Gates run for this release are listed in `NOTES.md` under the v1.10.1 timeline entry.
 
-## v1.10.0 (2026-08-27)
+## [1.10.0] - 2026-08-27
 
 **Resolves the four Warnings of `CODE_REVIEW.md` (v1.8.0 review, 2026-08-27).** No Critical
 findings existed. Every fix below was verified against the working tree before it was written —
@@ -640,7 +675,7 @@ strip. (`pattern_shared_checkout_index_race_between_sessions`.)
 - `./scripts/build-and-install.sh O-Octagon` → `auval -v aufx OuOc OuDv` **PASSED**; installed
   `O-Octagon-dev.component` reports 1.10.0.
 
-## v1.9.0 (2026-08-27)
+## [1.9.0] - 2026-08-27
 
 **The PAGE speaks French, not only the hover help.** O-Octagon has offered a French/English
 selector since v1.6.0, and its own `lang-select` tooltip told the user, in both languages, that
@@ -749,7 +784,7 @@ read one. The language round-trip through the C++ APVTS has still never been exe
 
 ---
 
-## v1.8.0 (2026-08-27)
+## [1.8.0] - 2026-08-27
 
 **Motion engine — generative trajectories for the source puck.** Closes the last HIGH-priority gap
 in `.planning/FEATURE-REVIEW.md`: hand-drawing Logic automation for a ten-minute rotation was the
@@ -808,7 +843,7 @@ fails eight probes; deleting the dirty-check bypass fails DE and DG.
   to 63 samples shifted from a bounce from zero — the grid is aligned to the absolute sample
   counter, by design (`GainStage.h`), and the 5 ms ramps absorb it.
 
-## v1.7.0 (2026-08-26)
+## [1.7.0] - 2026-08-26
 
 **Binaural / stereo monitoring fold-down — the piece is finally audible away from the hall.**
 Closes the HIGH-priority gap in `.planning/FEATURE-REVIEW.md`: the brief's own use case, "preparing
@@ -892,7 +927,7 @@ verify ping (each arms by disarming the other).
 - **Not yet done:** hall/headphone listening, and the two manual render checks (bounce offline with
   the monitor armed; reload a session and confirm it comes back disarmed).
 
-## v1.6.0 (2026-08-26)
+## [1.6.0] - 2026-08-26
 
 **Hover help in English or French, and a settings gear to choose between them** — Stage C of the
 repo-wide i18n rollout (quick task `260826-ieq`), and the plugin the rollout deliberately runs
@@ -992,7 +1027,7 @@ likely to want judgement are `rake` ("Inclinaison"), `hullAtten` ("Atténuation 
   verbatim by design — this release moves English, it does not rewrite it — so the stale count came
   with it. It is a one-word fix for whoever next touches that string.
 
-## v1.5.0 (2026-08-26)
+## [1.5.0] - 2026-08-26
 
 **A mono decorrelator behind the Width control** — the MEDIUM-value/small-effort gap from
 `.planning/FEATURE-REVIEW.md`, and the limitation the v1.3.0 changelog named as a deliberate future
@@ -1113,7 +1148,7 @@ the common case, not the corner one. Width was doing geometry with no signal div
 - `tests/render-harness/main.cpp`, `tests/unit/main.cpp`, `tests/ui_frontend_check.js`,
   `tests/ui_layout_check.js`, `tests/ui-stub/juce-stub.js`
 
-## v1.4.0 (2026-08-26)
+## [1.4.0] - 2026-08-26
 
 **Per-speaker alignment delay** — the HIGH-value/small-effort gap from `.planning/FEATURE-REVIEW.md`.
 The venue model measured positions but the DSP only ever compensated LEVEL; on a deep hall with
@@ -1236,7 +1271,7 @@ lines and 8 new venue values.
 - **Layout, Playwright (31 sections).** §12 confirms all 50 fields are present, editable, populated
   and fully inside 1100 × 720 — the new column fits without touching the window size.
 
-## v1.3.5 (2026-08-26)
+## [1.3.5] - 2026-08-26
 
 **MEDIUM-03** from `.planning/SIMPLIFICATION-AUDIT.md` — the one item in that audit that corrects
 behaviour rather than shape. Batch B's remaining four (MEDIUM-01, 02, 04, 05) stay skipped; Batch C
@@ -1272,7 +1307,7 @@ behaviour rather than shape. Batch B's remaining four (MEDIUM-01, 02, 04, 05) st
 - Render goldens untouched: `PluginEditor.cpp` is excluded from the offline harness, and no static
   gate parses these literals.
 
-## v1.3.4 (2026-08-26)
+## [1.3.4] - 2026-08-26
 
 Phase 3 sweep from `.planning/SIMPLIFICATION-AUDIT.md` — **6 of 7 approved LOW-tier candidates
 applied**, one reverted as a false positive. Batch B (MEDIUM-01…05) was skipped by choice and
@@ -1344,7 +1379,7 @@ generation counter has no probe at all. LOW-01 is therefore verified by the call
 compiler — the three sites now call one function holding the same two statements in the same order —
 and not by a test. Worth a probe; filed as follow-up rather than folded into a cosmetic sweep.
 
-## v1.3.3 (2026-08-26)
+## [1.3.3] - 2026-08-26
 
 Applies **HIGH-01** from `.planning/SIMPLIFICATION-AUDIT.md`. No behaviour change: the rendered DOM
 is byte-identical, proven rather than asserted (below).
@@ -1403,7 +1438,7 @@ Byte-identity of the DOM is the whole claim, so it was **measured on the rendere
 
 No C++ changed and no render golden is exposed.
 
-## v1.3.2 (2026-08-25)
+## [1.3.2] - 2026-08-25
 
 Resolves the five Warning findings from the v1.3.0 code review (`CODE_REVIEW.md` WR-01 … WR-05).
 Every one was re-read from disk and confirmed still present before it was touched, and every fix
@@ -1607,7 +1642,7 @@ which would have taken the uncommitted fix with it:
 
 ---
 
-## v1.3.1 (2026-08-25)
+## [1.3.1] - 2026-08-25
 
 ### Fixed — all eight level meters rendered 507 px off their speakers (CODE_REVIEW CR-01)
 
@@ -1664,7 +1699,7 @@ pattern, and it is why the defect shipped.
 5 failures with the CSS reverted. UI/CSS only — no parameter, no DSP, no state-format change;
 presets and sessions are unaffected.
 
-## v1.3.0 (2026-08-20)
+## [1.3.0] - 2026-08-20
 
 ### Changed — srcZ / rolloff / width / blur made audibly effective (the flat-field fix)
 
@@ -1709,7 +1744,7 @@ Factory .json files regenerate automatically via the WR-04 version sentinel.
 GainStage path, Distant Field blur expectation 0.55 → 0.18), ui_frontend_check 42/42 (stub ranges
 synced), ui_layout_check 28/28.
 
-## v1.2.0 (2026-08-20)
+## [1.2.0] - 2026-08-20
 
 ### Added — hover-help tooltips ("?" toggle)
 
@@ -1742,7 +1777,7 @@ Ported from O-Contrabass v1.7.0, which carries the VERIFIED measure-then-pin too
 
 **Testing:** `ui_frontend_check.js` 42/42 and `ui_layout_check.js` 28/28 pass.
 
-## v1.1.0 (2026-08-20)
+## [1.1.0] - 2026-08-20
 
 ### Added — speaker→output assignment (the in-space rig fix)
 
@@ -1780,7 +1815,7 @@ truth in any host, and the popover says so.
 **Testing:** `ui_frontend_check.js` — all 42 sections pass, including the widened §3 closure.
 Default behavior unchanged: with factory labels the map, the solve, and the meters are untouched.
 
-## v1.0.0 (unreleased — Stage 4 phase 4.2 Block C complete, 2026-08-14)
+## [1.0.0] - 2026-08-14 (unreleased — Stage 4 phase 4.2 Block C complete)
 
 ### Host validation (Logic Pro 12.3, BlackHole 64ch — phase 4.2)
 
@@ -1806,7 +1841,7 @@ Default behavior unchanged: with factory labels the map, the solve, and the mete
   and `User/`-preset non-pollution all verified in-host; full gate-by-gate record in
   `.planning/stages/4-polish/evidence/session-gates-4.2.txt`.
 
-## v1.0.0 (unreleased — Stage 4 phase 4.1 complete, 2026-08-12)
+## [1.0.0] - 2026-08-12 (unreleased — Stage 4 phase 4.1 complete)
 
 Eight-channel DBAP spatializer for irregular concert arrays. First release.
 
