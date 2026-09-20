@@ -80,6 +80,26 @@ public:
     // Public access to preset manager
     OuariconPresetManager& getPresetManager() { return presetManager; }
 
+#if OBELLS_TEST_HOOKS
+    // Test-only (tests/render-harness): deterministic per-voice RNG seeds.
+    // Voice i gets splitmix64(baseSeed + i), NOT baseSeed + i: juce::Random is a
+    // 48-bit LCG, and adjacent integer seeds give near-identical first draws.
+    void setVoiceSeedsForTesting(juce::int64 baseSeed)
+    {
+        auto mix = [](juce::uint64 z)
+        {
+            z += 0x9e3779b97f4a7c15ULL;
+            z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
+            z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
+            return static_cast<juce::int64>(z ^ (z >> 31));
+        };
+
+        for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+            if (auto* voice = dynamic_cast<BellVoice*>(synthesiser.getVoice(i)))
+                voice->setRandomSeedForTesting(mix(static_cast<juce::uint64>(baseSeed) + static_cast<juce::uint64>(i)));
+    }
+#endif
+
     // v2.2.0: GUI keyboard note triggering
     void triggerNoteOn(int midiNote, float velocity);
     void triggerNoteOff(int midiNote);

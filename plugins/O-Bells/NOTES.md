@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 4.5.1
+- **Version:** 4.5.2
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -36,6 +36,7 @@
 - **2026-08-02 (v4.1.5):** Fixed the v4.1.1 CR-02 EQ coefficient update: `std::copy` of 6 RAW ArrayCoefficients values into the 5-slot NORMALISED `IIR::Coefficients` array → EQ unstable to Inf on any gain/freq change (same bug as O-IntonationPad v2.8.4, caught there by Windows CI pluginval fuzz). Now assigns via `Coefficients::operator=(std::array)` — normalises by a0, still allocation-free after prepare(). pluginval strictness-10 clean.
 - **2026-08-29 (v4.2.0):** The PAGE speaks French. 122 label entries over 123 keyed elements and 19 keyed accessible names, a gear popover with the language selector, and the C++ language pair persisted as a non-parameter property on the APVTS state tree. The Tuning tab is included: `Resources/ui/js/tuning-panel.js` is a plugin-owned copy 279 lines diverged from the scala-tuning-engine module, so its 34 captions are localized here and the divergence deliberately widens. Fixed two pre-existing ENGLISH defects the keying exposed: "True Keys" wrapped to two lines inside its own button (10px of phantom row height in the tuning panel, present at v4.1.5), and the header's version label read v4.0.0. Twelve geometry pins, each negative-controlled. All French is a machine draft, `reviewed: false`.
 - **2026-09-20 (v4.5.1):** Visual polish. The snail plate's two shells are now two independently placed overlays at 3x size and 0.11 opacity (upper shell off the top-right corner, lower shell off the bottom-left); value readouts 9px brown -> 11px black; Save/Load and the Strike/Velocity choice buttons centre their captions. Footer version label caught up from v4.3.2.
+- **2026-09-20 (v4.5.2):** Preset-differentiation Step 1. In-repo processor-level render harness (`tests/render-harness/`: `O-Bells-render-test` + `report.py` + `probes.py`, behind `OUARICON_BUILD_TESTS`) reproducing the v4.5.1 baseline within 1 dB; test-only RNG seed hook compiled into the harness target only. No audio change. The brief's held pair-min (4.1) was a one-off draw — re-anchored at the 8-seed mean 3.2.
 
 ## Known Issues / Limitations
 

@@ -8,7 +8,7 @@ juce_add_plugin(O-Bells
     PLUGIN_CODE OBls
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bells${OUARICON_DEV_SUFFIX}"
-    VERSION 4.5.1
+    VERSION 4.5.2
     # Synthesizer configuration
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
@@ -124,4 +124,15 @@ if(OUARICON_BUILD_TESTS)
     # AudioProcessor::getParameters() on a constructed processor sees the real set.
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(O-Bells ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+
+    # Processor-level offline render harness (O-Bells-render-test), driven by
+    # tests/render-harness/report.py. Comes through the same builder as the
+    # param-dump: JUCE_WEB_BROWSER=0, no editor TU, and every JucePlugin_* macro
+    # — JucePlugin_VersionString included — DERIVED from the plugin target, so it
+    # tracks VERSION above without a mirrored literal.
+    ouaricon_add_processor_console(O-Bells ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/render-harness/main.cpp render-test)
+    # Test-only RNG seed hook (BellVoice / PluginProcessor). Defined HERE ONLY:
+    # the plugin target never compiles it.
+    target_compile_definitions(O-Bells-render-test PRIVATE OBELLS_TEST_HOOKS=1)
 endif()

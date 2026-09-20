@@ -26,7 +26,7 @@
 Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
-| O-Bells | 📦 Installed | 4.5.1 | Synth (Physical Modeling Bells) | 2026-09-20 |
+| O-Bells | 📦 Installed | 4.5.2 | Synth (Physical Modeling Bells) | 2026-09-20 |
 | O-Tremolo | 📦 Installed | 1.10.0 | Audio Effect (Tremolo) | 2026-09-05 |
 | O-AnalogSaturation | 📦 Installed | 1.5.0 | Audio Effect (Saturation) |  2026-09-04 |
 | O-Marimba | 📦 Installed | 1.14.0 | Synth (Physical Model) | 2026-08-31 |
