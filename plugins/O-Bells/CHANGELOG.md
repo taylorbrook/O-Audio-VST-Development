@@ -2,6 +2,47 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.5.1] - 2026-09-20
+
+Visual polish. PATCH: CSS and markup only. No parameter, range, type or state
+format changed, and no audio path was touched.
+
+### Changed
+
+- **The two shells are 3x larger, fainter and spread apart.** `snail.png` stacks
+  both shells in one 472x876 plate, which v4.5.0 drew once, 427px tall, against
+  the right edge at 0.25 opacity. The plate is now drawn twice at 213.75% of the
+  frame height and `clip-path` keeps one shell per copy, so the upper shell
+  bleeds off the top-right corner and the lower shell off the bottom-left with
+  no second asset. Opacity 0.25 -> 0.11 (tuning tab 0.18 -> 0.07). The second
+  copy is `alt="" aria-hidden`, so `alt.snail` is still announced once. The
+  tuning tab no longer slides the overlay sideways; it only dims it.
+- **Value readouts are 11px black** (were 9px `#5C4033`) — `.param-value`,
+  `#effects-tab .knob-value` and the double-click edit field. Both readout rules
+  gained an explicit `line-height: 1.0909` (12px box), which also closes the
+  `line-height: normal` finding on the 16 effect readouts.
+- **Slider readouts sit 8px under the track** (was 4px). The thumb hangs 5px
+  below the 8px track, so at 4px the larger readout touched it; 8px leaves a 3px
+  gap. The footer Gain readout is a row layout and keeps its 4px.
+
+### Fixed
+
+- **Save / Load and the Strike Type / Velocity Curve buttons centre their
+  captions.** Root cause: all five are `<div>`s whose width is pinned or
+  flex-stretched WIDER than the caption (the v4.2.0 geometry pins), and a div
+  does not centre text the way a `<button>` does — so the French-sized slack all
+  landed on the right. `text-align: center` on `.preset-action-btn` and
+  `.choice-button`.
+- **The footer version label read v4.3.2** through two releases; now v4.5.1.
+
+### Testing
+
+- `check-ui-labels --plugin O-Bells`: ALL CHECKS PASSED on the en / fr / zh-Hans
+  arms (0 moved elements, no new label intersections).
+- Centring probe over every visible button on all three tabs: caption centre
+  within 1px of box centre on every button.
+- Regression baseline: `backups/O-Bells/v4.5.0/`.
+
 ## [4.5.0] - 2026-09-05
 
 Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c).

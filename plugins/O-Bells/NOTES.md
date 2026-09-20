@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 4.2.0
+- **Version:** 4.5.1
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -35,6 +35,7 @@
 - **2026-07-08 (v4.1.1):** Code-review resolution — 3 critical / 12 warning / 13 info findings from `CODE_REVIEW.md`. Factory presets fixed (were recalling at rails), EQ RT-safety (ArrayCoefficients), FileChooser UAF (SafePointer), preset reset-to-defaults + name sanitization, dead `material` control fixed, all knob readouts migrated to `getScaledValue()`, tuning APVTS↔engine bridge, post-EQ safety limiter, high-SR delay overflow, tail length, per-voice RNG. auval PASS.
 - **2026-08-02 (v4.1.5):** Fixed the v4.1.1 CR-02 EQ coefficient update: `std::copy` of 6 RAW ArrayCoefficients values into the 5-slot NORMALISED `IIR::Coefficients` array → EQ unstable to Inf on any gain/freq change (same bug as O-IntonationPad v2.8.4, caught there by Windows CI pluginval fuzz). Now assigns via `Coefficients::operator=(std::array)` — normalises by a0, still allocation-free after prepare(). pluginval strictness-10 clean.
 - **2026-08-29 (v4.2.0):** The PAGE speaks French. 122 label entries over 123 keyed elements and 19 keyed accessible names, a gear popover with the language selector, and the C++ language pair persisted as a non-parameter property on the APVTS state tree. The Tuning tab is included: `Resources/ui/js/tuning-panel.js` is a plugin-owned copy 279 lines diverged from the scala-tuning-engine module, so its 34 captions are localized here and the divergence deliberately widens. Fixed two pre-existing ENGLISH defects the keying exposed: "True Keys" wrapped to two lines inside its own button (10px of phantom row height in the tuning panel, present at v4.1.5), and the header's version label read v4.0.0. Twelve geometry pins, each negative-controlled. All French is a machine draft, `reviewed: false`.
+- **2026-09-20 (v4.5.1):** Visual polish. The snail plate's two shells are now two independently placed overlays at 3x size and 0.11 opacity (upper shell off the top-right corner, lower shell off the bottom-left); value readouts 9px brown -> 11px black; Save/Load and the Strike/Velocity choice buttons centre their captions. Footer version label caught up from v4.3.2.
 
 ## Known Issues / Limitations
 
