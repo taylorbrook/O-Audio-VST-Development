@@ -63,6 +63,13 @@ public:
     // v3.1.2: High Fidelity mode toggle (disables voice culling)
     void setHighFidelity(bool enabled) { currentHighFidelity = enabled; }
 
+#if OBELLS_TEST_HOOKS
+    // Test-only (tests/render-harness): replace the clock ^ `this` seed so an
+    // offline render is reproducible. Defined ONLY on the harness target — the
+    // plugin binary never compiles this, so its sound cannot change.
+    void setRandomSeedForTesting(juce::int64 seed) { voiceRandom.setSeed(seed); }
+#endif
+
     // Parameter update (called from processor's prepareToPlay or processBlock)
     void updateParameters(float inharmonicity, float damping, float overtoneBrightness, float acousticBrightness,
                          float airAbsorption, float airAbsorptionTime,

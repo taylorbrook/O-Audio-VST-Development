@@ -2,6 +2,64 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.5.2] - 2026-09-20
+
+Step 1 of `improvements/preset-differentiation-v4.6-v4.8.md`: an in-repo,
+processor-level offline render harness and the v4.5.1 baseline report. PATCH:
+test infrastructure only. No parameter, range, type, state format or audio path
+changed; the shipped binary differs from 4.5.1 by its version stamp and the
+footer label.
+
+### Added
+
+- **`tests/render-harness/` — `O-Bells-render-test`** (behind
+  `-DOUARICON_BUILD_TESTS=ON`). Constructs the real `OBellsAudioProcessor`,
+  recalls a factory preset through the real preset manager, plays one note over
+  MIDI and writes float32. Built through `ouaricon_add_processor_console` (the
+  param-dump builder): `JUCE_WEB_BROWSER=0`, no editor TU, and every
+  `JucePlugin_*` macro — `JucePlugin_VersionString` included — derived from the
+  plugin target, so it tracks `VERSION` with no mirrored literal. Chorus / delay
+  / reverb / EQ are bypassed and High Fidelity is on, so the render is the voice
+  through the limiter and one-pole LP only (`--fx` renders the full chain).
+- **`report.py`** — every factory preset, tap (0.25 s) + held (6 s) at C4:
+  pairwise distance, self-noise, T40, centroid, nearest neighbour; exits 1 when
+  a baseline quantity moves more than 1 dB. **`probes.py`** — the RC-1…RC-4
+  measurements (material, sub-layer decay under bloom, damping law, 60 random
+  parameter points), gated on the random-point median.
+- **Test-only RNG seed hook** — `BellVoice::setRandomSeedForTesting`,
+  `OBellsAudioProcessor::setVoiceSeedsForTesting`, both inside
+  `#if OBELLS_TEST_HOOKS`, which only the harness target defines. The plugin
+  never compiles them (0 `ForTesting` symbols in the installed VST3). Seeds are
+  splitmix64-mixed: `juce::Random` is a 48-bit LCG and adjacent integer seeds
+  give near-identical first draws.
+
+### Findings while reproducing the baseline
+
+- **One shared seed per run is common random numbers.** The first cut seeded
+  every job identically; the per-note randomisation then cancelled BETWEEN
+  presets and Deep Bronze Tower <-> Grand Cathedral Bell read 2.8 dB — below the
+  3.9 dB self-noise of the same preset. Same-preset voice-only vs processor
+  renders were indistinguishable (distance = self-noise), so the processor path
+  was never the difference. Each job now draws from its own stream.
+- **The brief's held `pair min` (4.1 dB) is not reproducible, including by the
+  scratch harness that produced it** (re-runs: 2.7 / 2.8 / 3.5). It was one
+  clock-seeded draw of an extreme statistic. This harness gives 2.7–3.5, mean
+  3.2, over 8 seeds; the gate anchors that cell at 3.2 and the brief is
+  annotated. Every other cell is the brief's value.
+
+### Testing
+
+- `report.py`: BASELINE GATE PASS. tap self-noise / median / p10 / min
+  2.8 / 12.9 / 7.7 / 3.7 (brief 3.4 / 13.0 / 7.4 / 3.7); held 2.9 / 13.9 / 8.3 /
+  3.1 (brief 3.2 / 14.1 / 8.2 / 4.1 -> 3.2, see above). Same seed re-renders
+  bit-identically. 8-seed spread: median sd 0.2, p10 sd 0.2, min sd 0.3 dB.
+- `probes.py`: RANGE GATE PASS — random median 11.4 tap / 10.1 held (brief 11.5 /
+  10.3). Materials idx 1/2/3 sit 1.6 / 3.2 / 1.5 dB from Cast Iron (self-noise
+  2.4); sub layer under bloom 0.05 holds −29…−35 dB over 12 s; damping 0 / 0.5 /
+  1 -> tap T40 9.4 / 6.0 / 2.2 s.
+- `auval -v aumu OBls OuDv`: PASS, component version 4.5.2.
+- Regression baseline: `backups/O-Bells/v4.5.1/`.
+
 ## [4.5.1] - 2026-09-20
 
 Visual polish. PATCH: CSS and markup only. No parameter, range, type or state
