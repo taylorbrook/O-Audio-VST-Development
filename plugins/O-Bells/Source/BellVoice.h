@@ -105,7 +105,7 @@ private:
     {
         float decayMultiplier;      // Overall sustain (1.0 = baseline)
         float brightnessOffset;     // Spectral tilt (-0.2 to +0.2)
-        float inharmonicity;        // Partial stretch (0.0 = harmonic, higher = more inharmonic)
+        float inharmonicity;        // Partial stretch — NOT applied (never was; see initializePartials, v4.6.0)
     };
 
     // Research-based material definitions (5 materials) - v1.3.0 exaggerated for audible differentiation
@@ -296,7 +296,7 @@ private:
     float applyVelocityCurve(float velocity, int curve);
     MaterialProperties getMaterialProperties(float material);
     void calculateUnisonDetunes(int count, float detuneAmount);
-    void initializePartials(float fundamental, float velocity);
+    void initializePartials(int unisonIndex, float velocity);
     void initializeBloom(ModalPartial& partial, int partialIndex);
     void applyBloom(ModalPartial& partial);
     void initializeShimmer(ModalPartial& partial, int partialIndex);

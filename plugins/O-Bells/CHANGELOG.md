@@ -2,6 +2,112 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.6.0] - 2026-09-20
+
+Step 2 of `improvements/preset-differentiation-v4.6-v4.8.md`: three voice bugs.
+MINOR: no parameter, range, type or state format changed and every session
+loads, but **the sound changes** — see the next section before updating a
+project you need to recall exactly.
+
+### ⚠ Saved sessions and presets WILL sound different
+
+Nothing is migrated, because nothing was stored wrong — the stored values are
+finally being honoured. A session sounds different if it uses any of:
+
+- **Material = Brass, Steel or Aluminum.** All three have been playing as Cast
+  Iron. They now play as themselves: Brass shorter (0.7× decay) and
+  brighter, Steel much longer (2×) and brighter, Aluminum shortest (0.5×) and
+  brightest. 11 factory presets. Bronze and Cast Iron are unchanged (bit-identical).
+- **Sub or Oct layer > 0 together with Bloom Amount > 0.** The layer used to hold
+  at a fixed level for as long as the key was down — it never decayed — and
+  started quieter than intended. It now blooms and decays like the main layer:
+  held notes no longer carry a static drone underneath, and the layer's attack
+  is slightly louder. 24 factory presets (every preset has Bloom ≥ 0.05).
+- **Unison ≥ 2.** The detune spread was one-sided: the lowest voice played at the
+  HIGHEST voice's pitch. Unison 2 had no detune at all and sat `Detune / 2` sharp
+  (12 c → +6 c); Unison 3 played 0 / +D / +D instead of −D / 0 / +D. The spread is
+  now symmetric about the played pitch: real beating at Unison 2, a wider chorus
+  at 3–4, and the note is no longer sharp. 17 factory presets.
+
+To keep the old sound exactly: stay on 4.5.2 (`backups/O-Bells/v4.5.2/`, or
+`git restore --source=<4.5.2 commit> -- plugins/O-Bells`). Unison 1 + Bronze or
+Cast Iron + no Sub / Oct under Bloom renders bit-identically to 4.5.2.
+
+### Fixed
+
+- **RC-1 — Material was a 2-way switch.** `getMaterialProperties()` did
+  `round(material * 4)`, written for the normalised 0–1 value; the processor
+  passes `getRawParameterValue()`, which for a Choice is the index 0–4. Index 0 →
+  Bronze, every other index clamped to 4 → Cast Iron. It now rounds the index.
+- **RC-2 — Sub / upper-octave layers never decayed while Bloom > 0.**
+  `startNote()` calls `initializeBloom()` on those partials (`bloomPhase = 0`) but
+  their render loops never called `applyBloom()`, and `applyMultiStageDecay()`
+  returns early while `bloomPhase < 1`. Both loops now call `applyBloom()`.
+- **RC-2, secondary — `initialFraction` applied twice on those layers.** Their
+  partials are copied from the fundamental layer AFTER its `initializeBloom()`,
+  so the copied amplitude was already the bloom start level, then bloomed again.
+  The copy now takes the pre-bloom level (`targetAmplitude`).
+- **Unison voice 0 took the last voice's detune** (found while deciding the
+  item below). `initializePartials()` always wrote into `fundamentalVoices[0]`
+  and `startNote()` copied out of it, so each later unison pass re-initialised
+  voice 0 after its frequency had been set. It now writes the voice it is
+  initialising; the copy is gone.
+
+### Decided — the brief's "noted, not planned" `startNote` frequency overwrite: DELETE
+
+`startNote()` overwrites every fundamental-layer partial frequency with
+`detune × table ratio`, discarding what `initializePartials()` computed: the
+material inharmonicity offset, `noteVariationInharmonicity` and a ±10-cent
+per-partial scatter. Not honoured: a 10-cent random scatter on the prime partial
+defeats the tuning engine (Scala / Dorico microtonal playback), and it would have
+moved every note of every session. The dead computation is removed; the
+fundamental layer is exactly tuned by definition. The random draw it consumed is
+kept so the per-voice RNG sequence — and therefore every unaffected render — is
+unchanged. The Sub / Oct layers keep their own ±10-cent scatter (always live).
+`MaterialProperties::inharmonicity` is now documented as not applied; since
+partials 0–1 share one ratio in all three tables it would be tuning-safe to
+honour, which makes it a candidate axis for Step 3, not a bug fix.
+
+### Not changed
+
+- **Damping semantics** — law, range, tooltip and every coefficient untouched
+  (tap T40 at damping 0 / 0.5 / 1: 9.4 / 6.0 / 2.2 s, identical to 4.5.2).
+- Observed, left alone: any Bloom > 0 also skips the strike-stage decay of every
+  layer (the decay is parked until the bloom ends, by which time the strike
+  window has passed), so Bloom 0 → 0.01 is a 6–8 dB level step (measured,
+  defaults, 0.5–1.5 s). Pre-existing on the main layer; recorded in the brief.
+
+### Testing
+
+- `probes.py` gained four gates; all PASS on 4.6.0 and all FAIL on a harness
+  built from the 4.5.2 tree (negative control):
+  - **Materials pairwise ≥ 5 dB:** closest pair Bronze ↔ Cast Iron 6.3 dB (both
+    seeds; 5.6 on a third). Others 8.2–19.8 dB. 4.5.2: Aluminum ↔ Cast Iron 1.5.
+  - **Held sub layer, 2 s → 10 s**, read in 50–90 Hz (the layer's own hum partial;
+    −95 dB without the layer): falls **12.3 dB at damping 1** and 9.1 dB at the
+    default damping 0.7 — at every Bloom amount, equal to the Bloom-0 row to
+    0.1 dB. 4.5.2: 0.0 dB at every Bloom > 0. The brief's "≥ 12 dB" is the hum-stage
+    law's figure at damping 1; at default damping the law gives 9.1 with or
+    without Bloom, so the default row is gated against the Bloom-0 reference
+    rather than by bending the damping law to reach 12.
+  - **Unison prime peaks at 50 c:** −25.8 / +25.4; −49.5 / +0.8 / +49.7;
+    −37.6 / −12.5 / +12.4 / +36.8 (4.5.2: +25.4 only; +0.8 / +49.7 / +56.1).
+  - **Bit-identity vs 4.5.2**, five configs the fixes cannot reach (defaults;
+    Bronze + Bloom; Cast Iron; Humanize + Damping; Sub with Bloom 0): sha256
+    equal. Constants were recorded from the 4.5.2 build, not this one.
+- Random-parameter median 11.3 tap / 10.2 held — inside ±1 dB of the v4.5.1
+  anchor, which therefore stays.
+- `report.py` **re-anchored to v4.6.0** (the sound changed on purpose; held p10
+  left the ±1 dB window at +1.1). tap self-noise / median / p10 / min 2.5 / 13.3 /
+  8.0 / 3.5, held 2.4 / 14.7 / 9.3 / 3.6. Self-noise fell ~0.8 dB because the
+  stray scatter on unison voice 0 is gone. The v4.5.1 rows are kept in the file's
+  comment. Nearest-neighbour problem is essentially unmoved (min 3.5 / 3.6) —
+  as the brief predicted, that is Steps 3–5.
+- `auval -v aumu OBls OuDv`: AU VALIDATION SUCCEEDED, component version 4.6.0.
+  Installed VST3 carries 0 `ForTesting` symbols.
+- Not yet auditioned in a DAW.
+- Regression baseline: `backups/O-Bells/v4.5.2/`.
+
 ## [4.5.2] - 2026-09-20
 
 Step 1 of `improvements/preset-differentiation-v4.6-v4.8.md`: an in-repo,

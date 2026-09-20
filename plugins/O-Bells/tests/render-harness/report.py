@@ -25,8 +25,13 @@ BANDS = np.geomspace(60, 16000, 25)
 MODES = [('tap', 0.25, 6.0), ('held', 6.0, 6.0)]
 SEED_A, SEED_B = 1, 2
 
-# improvements/preset-differentiation-v4.6-v4.8.md, "Measured baseline" (v4.5.1).
 # Re-anchor ONLY in a step whose CHANGELOG says the sound changed.
+#
+# v4.6.0 (Step 2) re-anchored: material mapping, octave-layer decay under bloom and
+# the unison spread all changed the sound on purpose. Seeds are fixed, so these are
+# exact for SEED_A / SEED_B. The v4.5.1 rows they replace (brief, "Measured baseline"):
+#   tap  3.4 / 13.0 / 7.4 / 3.7     held 3.2 / 14.1 / 8.2 / 3.2
+# and the note below is about that v4.5.1 'held pair min' cell.
 #
 # One cell is NOT the brief's number: held 'pair min' was 4.1 there. That was a
 # single clock-seeded draw of an extreme statistic — the scratch harness that
@@ -34,9 +39,10 @@ SEED_A, SEED_B = 1, 2
 # 3.2) over 8 seeds, never 4.1. 3.2 is that 8-seed mean. Every other cell is the
 # brief's and sits inside its own 8-seed range (median sd 0.2, p10 sd 0.2,
 # min sd 0.3).
+BASELINE_VERSION = 'v4.6.0'
 BASELINE = {
-    'tap':  {'self-noise': 3.4, 'pair median': 13.0, 'pair p10': 7.4, 'pair min': 3.7},
-    'held': {'self-noise': 3.2, 'pair median': 14.1, 'pair p10': 8.2, 'pair min': 3.2},
+    'tap':  {'self-noise': 2.5, 'pair median': 13.3, 'pair p10': 8.0, 'pair min': 3.5},
+    'held': {'self-noise': 2.4, 'pair median': 14.7, 'pair p10': 9.3, 'pair min': 3.6},
 }
 TOL = 1.0
 
@@ -133,7 +139,7 @@ def main():
         got = {'self-noise': self_noise(S, S2), 'pair median': float(np.median(D[iu])),
                'pair p10': float(np.percentile(D[iu], 10)), 'pair min': float(D[iu].min())}
         print(f'\n== {tag} (hold {hold}s) ==  pair max {D[iu].max():.1f} dB')
-        print(f'  {"quantity":12s} {"now":>6s} {"v4.5.1":>7s} {"delta":>6s}')
+        print(f'  {"quantity":12s} {"now":>6s} {BASELINE_VERSION:>7s} {"delta":>6s}')
         for k, v in got.items():
             ref = BASELINE[tag][k]; bad = abs(v - ref) > TOL
             print(f'  {k:12s} {v:6.1f} {ref:7.1f} {v - ref:+6.1f}{"   <-- outside " + str(TOL) + " dB" if bad else ""}')
