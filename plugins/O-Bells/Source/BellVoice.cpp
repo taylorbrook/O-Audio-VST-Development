@@ -223,12 +223,12 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
     for (int i = 0; i < currentUnisonCount; ++i)
     {
         float detunedFundamental = fundamental * std::pow(2.0f, fundamentalVoices[i].detuneAmount / 1200.0f);
-        initializePartials(detunedFundamental, currentVelocity);
+        initializePartials(i, currentVelocity);
 
-        // Copy initialized partials to fundamental voice
         for (int p = 0; p < NUM_PARTIALS; ++p)
         {
-            fundamentalVoices[i].partials[p] = fundamentalVoices[0].partials[p];
+            // The fundamental layer is exactly tuned: detune x table ratio, no
+            // per-partial scatter (see initializePartials).
             fundamentalVoices[i].partials[p].frequency = detunedFundamental *
                 calculatePartialFrequency(p, 1.0f, currentInharmonicity);
             fundamentalVoices[i].partials[p].phaseIncrement =
@@ -251,6 +251,10 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
             for (int p = 0; p < NUM_PARTIALS; ++p)
             {
                 subOctaveVoices[i].partials[p] = fundamentalVoices[i].partials[p];
+                // v4.6.0: the source has already been through initializeBloom(), so its
+                // amplitude is the bloom START level — take the pre-bloom level, or
+                // initialFraction is applied twice.
+                subOctaveVoices[i].partials[p].amplitude = fundamentalVoices[i].partials[p].targetAmplitude;
                 subOctaveVoices[i].partials[p].frequency = subFundamental *
                     calculatePartialFrequency(p, 1.0f, currentInharmonicity);
 
@@ -284,6 +288,10 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
             for (int p = 0; p < NUM_PARTIALS; ++p)
             {
                 upperOctaveVoices[i].partials[p] = fundamentalVoices[i].partials[p];
+                // v4.6.0: the source has already been through initializeBloom(), so its
+                // amplitude is the bloom START level — take the pre-bloom level, or
+                // initialFraction is applied twice.
+                upperOctaveVoices[i].partials[p].amplitude = fundamentalVoices[i].partials[p].targetAmplitude;
                 upperOctaveVoices[i].partials[p].frequency = octFundamental *
                     calculatePartialFrequency(p, 1.0f, currentInharmonicity);
 
@@ -523,6 +531,10 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
                         float partialSample = std::sin(partial.phase * juce::MathConstants<float>::twoPi);
                         voiceSample += partialSample * partial.amplitude;
 
+                        // v4.6.0: startNote() blooms this layer too; without this
+                        // bloomPhase never reaches 1 and the decay below never starts.
+                        applyBloom(partial);
+
                         // Apply multi-stage decay (always active in v1.2.0)
                         applyMultiStageDecay(partial, p);
 
@@ -561,6 +573,10 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
 
                         float partialSample = std::sin(partial.phase * juce::MathConstants<float>::twoPi);
                         voiceSample += partialSample * partial.amplitude;
+
+                        // v4.6.0: startNote() blooms this layer too; without this
+                        // bloomPhase never reaches 1 and the decay below never starts.
+                        applyBloom(partial);
 
                         // Apply multi-stage decay (always active in v1.2.0)
                         applyMultiStageDecay(partial, p);
@@ -811,9 +827,11 @@ float BellVoice::applyVelocityCurve(float velocity, int curve)
 
 BellVoice::MaterialProperties BellVoice::getMaterialProperties(float material)
 {
-    // v1.3.0: Discrete lookup (Choice parameter normalizes to 0.0, 0.25, 0.5, 0.75, 1.0)
-    int index = static_cast<int>(std::round(material * 4.0f));
-    index = juce::jlimit(0, 4, index);
+    // v4.6.0: `material` is the Choice INDEX (0-4) — the processor passes
+    // getRawParameterValue(), which is denormalised. Until v4.5.2 this scaled it
+    // by 4 as if it were the normalised 0-1 value, so every index >= 1 clamped
+    // to Cast Iron.
+    int index = juce::jlimit(0, 4, static_cast<int>(std::round(material)));
 
     switch (index)
     {
@@ -862,27 +880,30 @@ void BellVoice::calculateUnisonDetunes(int count, float detuneAmount)
     }
 }
 
-void BellVoice::initializePartials(float fundamental, float velocity)
+void BellVoice::initializePartials(int unisonIndex, float velocity)
 {
     // Get material properties
     auto materialProps = getMaterialProperties(currentMaterial);
 
     for (int p = 0; p < NUM_PARTIALS; ++p)
     {
-        auto& partial = fundamentalVoices[0].partials[p];
+        // v4.6.0: write into the voice being initialised. Until v4.5.2 this was
+        // always fundamentalVoices[0] and startNote() copied out of it, so with
+        // Unison >= 2 every later pass re-initialised voice 0 AFTER its own
+        // frequency had been set: voice 0 kept the LAST voice's detune and the
+        // negative side of the spread never sounded (Unison 2 = no detune at all).
+        auto& partial = fundamentalVoices[unisonIndex].partials[p];
 
-        // Apply material inharmonicity offset to base inharmonicity
-        // v2.4.0: Apply per-note inharmonicity variation for humanization
-        float effectiveInharmonicity = currentInharmonicity * noteVariationInharmonicity + materialProps.inharmonicity;
-        effectiveInharmonicity = juce::jlimit(0.0f, 1.0f, effectiveInharmonicity);
+        // v4.6.0: frequency / phaseIncrement are set by startNote(), which has
+        // always overwritten whatever was computed here. That computation — a
+        // material inharmonicity offset, noteVariationInharmonicity and a
+        // +-10 cent per-partial scatter — was therefore dead on the fundamental
+        // layer (live only on voice 0 under Unison >= 2, through the bug above)
+        // and is removed rather than honoured: a 10-cent scatter on the prime
+        // defeats the tuning engine. The draw stays so the per-voice RNG sequence
+        // is unchanged. The sub / upper-octave layers keep their own scatter.
+        juce::ignoreUnused(gaussianApprox());
 
-        partial.frequency = calculatePartialFrequency(p, fundamental, effectiveInharmonicity);
-
-        // Per-note pitch randomization (v1.3.0 - ±10 cents std dev)
-        float pitchOffset = gaussianApprox() * 10.0f;  // ±10 cents
-        partial.frequency *= std::pow(2.0f, pitchOffset / 1200.0f);
-
-        partial.phaseIncrement = partial.frequency / static_cast<float>(currentSampleRate);
         partial.phase = 0.0f;
 
         // Calculate initial amplitude with material brightness offset
