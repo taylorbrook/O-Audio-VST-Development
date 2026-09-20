@@ -1,0 +1,289 @@
+{
+  "plugin": "O-Lyrica",
+  "uiRootLabel": "Resources/ui",
+  "uiRootFrom": "cmake",
+  "stubKind": "generic",
+  "seedFrom": "neutral-defaults",
+  "frame": {
+    "w": 700,
+    "h": 450
+  },
+  "languages": [
+    "en",
+    "fr",
+    "zh-Hans"
+  ],
+  "allLanguages": [
+    "en",
+    "fr",
+    "zh-Hans"
+  ],
+  "stateCount": 16,
+  "capturedAt": "2026-09-20T14:42:17.175Z",
+  "quality": 92,
+  "shots": [
+    {
+      "file": "en__00-default.jpg",
+      "lang": "en",
+      "index": 0,
+      "stateName": "default",
+      "sha": "2d8d37ef9f6b7a7e",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 111442
+    },
+    {
+      "file": "en__01-techniques-tab-the-section-headings-both-keyswit.jpg",
+      "lang": "en",
+      "index": 1,
+      "stateName": "TECHNIQUES tab (the section headings, both keyswitch captions, and the Free / Scale-Locked glissando panels — 29 labels live behind a display:none tab-content and no resting state shows any of them)",
+      "sha": "70e92aa9de3688a8",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 108162
+    },
+    {
+      "file": "en__02-the-free-glissando-toggle-switched-on-ui-oncaps-.jpg",
+      "lang": "en",
+      "index": 2,
+      "stateName": "the Free glissando toggle switched ON (ui.onCaps, the other face of a caption whose resting face is ui.offCaps; the C++ default is off, so nothing else reveals it)",
+      "sha": "aa336dfe1e1eaa33",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 107775
+    },
+    {
+      "file": "en__03-both-semitones-groups-revealed-freeinterval-and-.jpg",
+      "lang": "en",
+      "index": 3,
+      "stateName": "BOTH Semitones groups revealed (freeInterval and glissandoInterval set to Custom, index 16, which is what un-hides #freeCustomSemitonesGroup and #glissandoCustomSemitonesGroup). Driven through the PLUGIN'S OWN combo states, not the DOM: setChoiceIndex fires the valueChangedEvent listener the page itself registered, so this is the state the plugin can actually produce.",
+      "sha": "68cdb937698ad2ba",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 109224
+    },
+    {
+      "file": "en__04-the-degrees-caption-revealed-glissandoscale-set-.jpg",
+      "lang": "en",
+      "index": 4,
+      "stateName": "the Degrees caption revealed (glissandoScale set to Custom, index 3, which is what un-hides #customDegreeToggles). Same mechanism and same reason as above.",
+      "sha": "92163b2881b9a341",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 108630
+    },
+    {
+      "file": "en__05-tuning-tab-the-interval-list-header-with-its-n-t.jpg",
+      "lang": "en",
+      "index": 5,
+      "stateName": "TUNING tab (the interval list header with its {n} token substituted, the tonic caption, the five visualization buttons, the library heading, A4 REF, Stretch, the five file buttons and the scale generator)",
+      "sha": "707ee67c734c749a",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 103327
+    },
+    {
+      "file": "en__06-the-scale-generator-expanded-generate-scale-s-th.jpg",
+      "lang": "en",
+      "index": 6,
+      "stateName": "the scale generator expanded (Generate Scale's three type options, the EDO form's Divisions and Period captions and the Generate button all sit inside a collapsed .generator-content). EVAL, not a click, and the reason is measured: .generator-header sits at (472, 393, 200x19) and the topmost element at its centre point is the footer keyboard's white key for note 71, so a FORCED click dispatches into the keyboard and toggleGenerator never fires. The step does not throw, --verbose logs no skip, and the whole generator form -- ten captions -- was silently never measured on any arm until elementFromPoint was asked what was actually under the cursor.",
+      "sha": "08aae4cf7d727943",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 103196
+    },
+    {
+      "file": "en__07-the-generator-switched-to-harmonic-series-label-.jpg",
+      "lang": "en",
+      "index": 7,
+      "stateName": "the generator switched to Harmonic Series (label.genStart and label.genEnd exist only in that form — handleGeneratorTypeChange REBUILDS #generator-inputs, so no single state can show all three forms at once)",
+      "sha": "b1a57d39e8537d30",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 103737
+    },
+    {
+      "file": "en__08-the-generator-switched-to-rank-2-temperament-lab.jpg",
+      "lang": "en",
+      "index": 8,
+      "stateName": "the generator switched to Rank-2 Temperament (label.genGenerator and label.genCount, the last two captions of the third form)",
+      "sha": "b1a57d39e8537d30",
+      "duplicateOf": "en__07-the-generator-switched-to-harmonic-series-label-.jpg",
+      "stepSkipped": null,
+      "bytes": 103737
+    },
+    {
+      "file": "en__09-the-generator-switched-back-to-edo-handlegenerat.jpg",
+      "lang": "en",
+      "index": 9,
+      "stateName": "the generator switched BACK to EDO (handleGeneratorTypeChange REBUILDS #generator-inputs, so the Divisions and Period captions the resting markup carries are DESTROYED by the two states above and only exist again once the form is rebuilt — without this they report as never measured while being the form the plugin opens on)",
+      "sha": "b1a57d39e8537d30",
+      "duplicateOf": "en__07-the-generator-switched-to-harmonic-series-label-.jpg",
+      "stepSkipped": null,
+      "bytes": 103737
+    },
+    {
+      "file": "en__10-the-rotation-visualization-label-mode-is-the-rot.jpg",
+      "lang": "en",
+      "index": 10,
+      "stateName": "the ROTATION visualization (label.mode is the rotation table's first column header, written into an `html +=` accumulation and keyed afterwards — the one view no resting state renders)",
+      "sha": "c704ef0d77db8a85",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 112718
+    },
+    {
+      "file": "en__11-the-true-keys-visualization-label-tkhint-is-the-.jpg",
+      "lang": "en",
+      "index": 11,
+      "stateName": "the TRUE KEYS visualization (label.tkHint is the empty-state line inside #truekeys-view, which is display:none in every other mode — as of v2.4.0, because .truekeys-view no longer overrides .viz-view's display and paint itself beside the pitch circle in all five modes)",
+      "sha": "dab2c0e156d814b3",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 101575
+    },
+    {
+      "file": "en__12-effects-tab-the-four-section-titles-the-four-byp.jpg",
+      "lang": "en",
+      "index": 12,
+      "stateName": "EFFECTS tab (the four section titles, the four bypass faces and all sixteen knob captions, every one of them written by setLabel from js/app.js rather than authored in the markup)",
+      "sha": "e06ca9fdd2906fae",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 96827
+    },
+    {
+      "file": "en__13-the-chorus-section-bypassed-ui-off-the-other-fac.jpg",
+      "lang": "en",
+      "index": 13,
+      "stateName": "the Chorus section BYPASSED (ui.off, the other face of the four bypass buttons — their resting face is ui.on)",
+      "sha": "d22c038a5d20e49b",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 95837
+    },
+    {
+      "file": "en__14-settings-popover-open-label-language-label-hover.jpg",
+      "lang": "en",
+      "index": 14,
+      "stateName": "settings popover OPEN (label.language, label.hoverHelp and the ui.off face of the switch are all inside a [hidden] panel, so no resting state measures them). LAST but one on purpose: the popover's own dismiss handler closes it on a mousedown anywhere else, so opening it earlier would leave it shut by the time the switch below is clicked.",
+      "sha": "192fb350c74009fe",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 95482
+    },
+    {
+      "file": "en__15-hover-help-on-the-ui-on-face-of-the-settings-swi.jpg",
+      "lang": "en",
+      "index": 15,
+      "stateName": "hover help ON (the ui.on face of the settings switch, which no resting state shows — the C++ default is off). A real click on the real control, inside the popover the previous state opened, so the dismiss handler leaves the panel up.",
+      "sha": "f60b44a8d4930cf3",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 95728
+    },
+    {
+      "file": "fr__00-default.jpg",
+      "lang": "fr",
+      "index": 0,
+      "stateName": "default",
+      "sha": "e5bdc322b05b73d1",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 111322
+    },
+    {
+      "file": "fr__01-techniques-tab-the-section-headings-both-keyswit.jpg",
+      "lang": "fr",
+      "index": 1,
+      "stateName": "TECHNIQUES tab (the section headings, both keyswitch captions, and the Free / Scale-Locked glissando panels — 29 labels live behind a display:none tab-content and no resting state shows any of them)",
+      "sha": "a016291e04488353",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 108715
+    },
+    {
+      "file": "fr__05-tuning-tab-the-interval-list-header-with-its-n-t.jpg",
+      "lang": "fr",
+      "index": 5,
+      "stateName": "TUNING tab (the interval list header with its {n} token substituted, the tonic caption, the five visualization buttons, the library heading, A4 REF, Stretch, the five file buttons and the scale generator)",
+      "sha": "7343b9db65f0dc67",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 103928
+    },
+    {
+      "file": "fr__12-effects-tab-the-four-section-titles-the-four-byp.jpg",
+      "lang": "fr",
+      "index": 12,
+      "stateName": "EFFECTS tab (the four section titles, the four bypass faces and all sixteen knob captions, every one of them written by setLabel from js/app.js rather than authored in the markup)",
+      "sha": "50e12e47626605cc",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 97591
+    },
+    {
+      "file": "fr__14-settings-popover-open-label-language-label-hover.jpg",
+      "lang": "fr",
+      "index": 14,
+      "stateName": "settings popover OPEN (label.language, label.hoverHelp and the ui.off face of the switch are all inside a [hidden] panel, so no resting state measures them). LAST but one on purpose: the popover's own dismiss handler closes it on a mousedown anywhere else, so opening it earlier would leave it shut by the time the switch below is clicked.",
+      "sha": "f00c38934729bff3",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 96045
+    },
+    {
+      "file": "zh-Hans__00-default.jpg",
+      "lang": "zh-Hans",
+      "index": 0,
+      "stateName": "default",
+      "sha": "02598255619063bf",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 108634
+    },
+    {
+      "file": "zh-Hans__01-techniques-tab-the-section-headings-both-keyswit.jpg",
+      "lang": "zh-Hans",
+      "index": 1,
+      "stateName": "TECHNIQUES tab (the section headings, both keyswitch captions, and the Free / Scale-Locked glissando panels — 29 labels live behind a display:none tab-content and no resting state shows any of them)",
+      "sha": "9130b1f2e4ebc2e5",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 105781
+    },
+    {
+      "file": "zh-Hans__05-tuning-tab-the-interval-list-header-with-its-n-t.jpg",
+      "lang": "zh-Hans",
+      "index": 5,
+      "stateName": "TUNING tab (the interval list header with its {n} token substituted, the tonic caption, the five visualization buttons, the library heading, A4 REF, Stretch, the five file buttons and the scale generator)",
+      "sha": "82c4e7af6f3a8b22",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 101316
+    },
+    {
+      "file": "zh-Hans__12-effects-tab-the-four-section-titles-the-four-byp.jpg",
+      "lang": "zh-Hans",
+      "index": 12,
+      "stateName": "EFFECTS tab (the four section titles, the four bypass faces and all sixteen knob captions, every one of them written by setLabel from js/app.js rather than authored in the markup)",
+      "sha": "53043e20a9f341ed",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 95119
+    },
+    {
+      "file": "zh-Hans__14-settings-popover-open-label-language-label-hover.jpg",
+      "lang": "zh-Hans",
+      "index": 14,
+      "stateName": "settings popover OPEN (label.language, label.hoverHelp and the ui.off face of the switch are all inside a [hidden] panel, so no resting state measures them). LAST but one on purpose: the popover's own dismiss handler closes it on a mousedown anywhere else, so opening it earlier would leave it shut by the time the switch below is clicked.",
+      "sha": "d105f86097ebc963",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 93324
+    }
+  ],
+  "pageErrors": [],
+  "unplaced": [],
+  "missing": []
+}
