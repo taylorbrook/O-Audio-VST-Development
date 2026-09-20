@@ -100,6 +100,12 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     brillianceRelay = std::make_unique<juce::WebSliderRelay>("brilliance");
     bodyTimeRelay = std::make_unique<juce::WebSliderRelay>("bodyTime");
     humSustainRelay = std::make_unique<juce::WebSliderRelay>("humSustain");
+    // v4.7.1: Partials section. partialModel is an AudioParameterChoice drawn as
+    // a slider, so it takes a slider relay for the same reason material does (WR-03).
+    partialModelRelay = std::make_unique<juce::WebSliderRelay>("partialModel");
+    humLevelRelay = std::make_unique<juce::WebSliderRelay>("humLevel");
+    primeLevelRelay = std::make_unique<juce::WebSliderRelay>("primeLevel");
+    humFollowRelay = std::make_unique<juce::WebSliderRelay>("humFollow");
 
     // v3.0.0: Tuning relays
     tuningMasterTuneRelay = std::make_unique<juce::WebSliderRelay>("tuning_masterTune");
@@ -188,6 +194,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*brillianceRelay)
             .withOptionsFrom(*bodyTimeRelay)
             .withOptionsFrom(*humSustainRelay)
+            // v4.7.1: Partials section
+            .withOptionsFrom(*partialModelRelay)
+            .withOptionsFrom(*humLevelRelay)
+            .withOptionsFrom(*primeLevelRelay)
+            .withOptionsFrom(*humFollowRelay)
             .withOptionsFrom(*strikeNoiseCharRelay)
             .withOptionsFrom(*velocityCurveRelay)
             // v3.0.0: Tuning relays
@@ -887,6 +898,15 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("bodyTime"), *bodyTimeRelay, nullptr);
     humSustainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("humSustain"), *humSustainRelay, nullptr);
+    // v4.7.1: Partials section attachments
+    partialModelAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("partialModel"), *partialModelRelay, nullptr);
+    humLevelAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humLevel"), *humLevelRelay, nullptr);
+    primeLevelAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("primeLevel"), *primeLevelRelay, nullptr);
+    humFollowAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humFollow"), *humFollowRelay, nullptr);
 
     // v3.0.0: Tuning attachments
     tuningMasterTuneAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

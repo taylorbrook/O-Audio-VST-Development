@@ -420,6 +420,59 @@ export const I18N = Object.freeze({
               reviewed: 'bt' },
     },
 
+    // ── Instrument tab: Partials (v4.7.1) ───────────────────────────────────
+    // Controls for the four v4.7.0 timbral-range parameters. Bodies read against
+    // BellVoice.cpp / CHANGELOG 4.7.0: the prime is ratio 1.0 in every model;
+    // on a model Inharmonicity stretches the one table (slots 2-7) instead of
+    // morphing three; Hum Follow reaches EVERY partial's hum stage and is masked
+    // by the Damping-driven release once the key is up. The model option words
+    // stay English on every arm — D-01 arms 1 and 3, as tip.material.
+    // fr drafted this step: reviewed: false. zh-Hans machine draft: 'mt'.
+    'tip.partialModel': {
+        en: { t: 'Partial Model',
+              b: 'Chooses which struck body the partial ratios and levels come from. Classic is the original O-Bells voice, where Inharmonicity morphs harmonic into bell into gamelan. Tubular is a chime, Plate a clangorous metal disc, Bowl a singing bowl and Glass a wine glass; on these four, Inharmonicity stretches or squeezes the one table instead. The prime stays on the played pitch in every model, so the tuning holds. Classic, Tubular, Plate, Bowl or Glass.' },
+        fr: { t: 'Modèle de partiels',
+              b: 'Choisit le corps frappé dont proviennent les rapports et les niveaux des partiels. Classic est la voix d’origine d’O-Bells, où l’inharmonicité passe de l’harmonique à la cloche puis au gamelan. Tubular est une cloche tubulaire, Plate un disque de métal au timbre discordant, Bowl un bol chantant et Glass un verre à pied ; sur ces quatre modèles, l’inharmonicité étire ou resserre plutôt la table unique. La prime reste sur la hauteur jouée dans chaque modèle, donc l’accord tient. Classic, Tubular, Plate, Bowl ou Glass.',
+              reviewed: false },
+
+        'zh-Hans': { t: '分音模型',
+              b: '选择分音比例和电平取自哪一种被击奏的物体。Classic 是 O-Bells 原本的音色，其中非谐性从谐波过渡到钟再到甘美兰。Tubular 是管钟，Plate 是铿锵的金属圆板，Bowl 是颂钵，Glass 是高脚酒杯；在这四种模型上，非谐性改为拉伸或压缩这一张表。在每种模型中基音都保持在所演奏的音高上，因此调音不受影响。Classic、Tubular、Plate、Bowl 或 Glass。',
+              reviewed: 'mt' },
+    },
+    'tip.humLevel': {
+        en: { t: 'Hum Level',
+              b: 'Sets the level of the hum — the lowest partial, an octave under the strike tone. Lower, the bell turns lighter; higher, it gains weight. The Sub and Oct layers follow it. −24 to +6 dB.' },
+        fr: { t: 'Niveau bourdon',
+              b: 'Règle le niveau du bourdon — le partiel le plus grave, une octave sous le son de frappe. Plus bas, la cloche s’allège ; plus haut, elle prend du poids. Les couches Sub et Oct le suivent. −24 à +6 dB.',
+              reviewed: false },
+
+        'zh-Hans': { t: '嗡鸣电平',
+              b: '设定嗡鸣的电平，也就是最低的分音，比击奏音低一个八度。调低，钟声更轻；调高，钟声更有分量。低音层和八度层随之变化。−24 到 +6 dB。',
+              reviewed: 'mt' },
+    },
+    'tip.primeLevel': {
+        en: { t: 'Prime Level',
+              b: 'Sets the level of the prime — the partial on the played pitch, the one the ear takes as the note. Lower, the upper partials and the hum carry the sound; higher, the bell is plainer and more clearly pitched. The Sub and Oct layers follow it. −24 to +6 dB.' },
+        fr: { t: 'Niveau prime',
+              b: 'Règle le niveau de la prime — le partiel situé sur la hauteur jouée, celui que l’oreille prend pour la note. Plus bas, les partiels aigus et le bourdon portent le son ; plus haut, la cloche est plus simple et sa hauteur plus nette. Les couches Sub et Oct le suivent. −24 à +6 dB.',
+              reviewed: false },
+
+        'zh-Hans': { t: '基音电平',
+              b: '设定基音的电平，也就是位于所演奏音高上的分音，耳朵把它听作这个音。调低，由较高的分音和嗡鸣来承载声音；调高，钟声更朴素、音高更明确。低音层和八度层随之变化。−24 到 +6 dB。',
+              reviewed: 'mt' },
+    },
+    'tip.humFollow': {
+        en: { t: 'Hum Follow',
+              b: 'Ties the length of the last stage of every partial — the hum stage — to Body Time. At 0 % that tail runs on its own clock, so even a short body rings for seconds; at 100 % a short Body Time gives a short tail and a long one a long tail. It is heard on held notes: after the key is released, Damping sets the fade. 0 to 100 %.' },
+        fr: { t: 'Suivi bourdon',
+              b: 'Lie la durée de la dernière étape de chaque partiel — l’étape du bourdon — à la durée du corps. À 0 %, cette queue suit sa propre horloge, si bien que même un corps court résonne plusieurs secondes ; à 100 %, une durée de corps courte donne une queue courte, une longue une queue longue. S’entend sur les notes tenues : après le relâchement de la touche, c’est l’amortissement qui règle l’extinction. 0 à 100 %.',
+              reviewed: false },
+
+        'zh-Hans': { t: '嗡鸣跟随',
+              b: '把每个分音的最后一段（嗡鸣段）的长度与共鸣体时间联系起来。0% 时这条尾音按自己的时钟走，所以即使共鸣体很短也会响上好几秒；100% 时，共鸣体时间短则尾音短，长则尾音长。它在保持的音符上才听得出来：松键之后，由阻尼决定释音的快慢。0 到 100%。',
+              reviewed: 'mt' },
+    },
+
     // ── Instrument tab: Ensemble ────────────────────────────────────────────
     // UNIT RECOVERED — empty `label`; index.html:2059 renders a bare count.
     'tip.unisonCount': {
@@ -1128,6 +1181,16 @@ export const LABELS = Object.freeze({
     'label.amountMid':      { en: { t: 'Amount Mid' },  fr: { t: 'Quantité médium', reviewed: true } , 'zh-Hans': { t: '中频量', reviewed: 'bt' }},
     'label.amountHigh':     { en: { t: 'Amount High' }, fr: { t: 'Quantité aigu', reviewed: true } , 'zh-Hans': { t: '高频量', reviewed: 'bt' }},
 
+    // ── Instrument tab: Partials (v4.7.1) ───────────────────────────────────
+    // Captions are a 4-column .param-row-4 (min-width: 0), so a caption that
+    // outgrows its column WRAPS and pushes the row. Widest on each arm measured
+    // by check-ui-labels; "Niveau bourdon" is the widest of the twelve.
+    'label.secPartials':  { en: { t: 'Partials' },    fr: { t: 'Partiels', reviewed: false } , 'zh-Hans': { t: '分音', reviewed: 'mt' }},
+    'label.partialModel': { en: { t: 'Model' },       fr: { t: 'Modèle', reviewed: false } , 'zh-Hans': { t: '模型', reviewed: 'mt' }},
+    'label.humLevel':     { en: { t: 'Hum Level' },   fr: { t: 'Niveau bourdon', reviewed: false } , 'zh-Hans': { t: '嗡鸣电平', reviewed: 'mt' }},
+    'label.primeLevel':   { en: { t: 'Prime Level' }, fr: { t: 'Niveau prime', reviewed: false } , 'zh-Hans': { t: '基音电平', reviewed: 'mt' }},
+    'label.humFollow':    { en: { t: 'Hum Follow' },  fr: { t: 'Suivi bourdon', reviewed: false } , 'zh-Hans': { t: '嗡鸣跟随', reviewed: 'mt' }},
+
     // ── Instrument tab: Ensemble ────────────────────────────────────────────
     'label.secEnsemble': { en: { t: 'Ensemble' }, fr: { t: 'Ensemble', reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '合奏', reviewed: 'bt' }},
     'label.unison':      { en: { t: 'Unison' },   fr: { t: 'Unisson',  reviewed: true } , 'zh-Hans': { t: '齐奏', reviewed: 'bt' }},
@@ -1386,6 +1449,13 @@ export const I18N_EXEMPT = [
     ['Aluminum',  'material choice-parameter value written into a .param-value READOUT node — D-01 arms 1 and 3'],
     ['Cast Iron', 'material choice-parameter value written into a .param-value READOUT node — D-01 arms 1 and 3'],
 
+    // ── partialModel (v4.7.1): the material case again, both arms ───────────
+    ['Classic', 'partialModel choice-parameter value written into a .param-value READOUT node — D-01 arms 1 and 3'],
+    ['Tubular', 'partialModel choice-parameter value written into a .param-value READOUT node — D-01 arms 1 and 3'],
+    ['Plate',   'partialModel choice-parameter value written into a .param-value READOUT node — D-01 arms 1 and 3'],
+    ['Bowl',    'partialModel choice-parameter value written into a .param-value READOUT node — D-01 arms 1 and 3'],
+    ['Glass',   'partialModel choice-parameter value written into a .param-value READOUT node — D-01 arms 1 and 3'],
+
     // ── Identifiers, not words ──────────────────────────────────────────────
     ['12-TET Standard',
      'a tuning IDENTIFIER, not a caption — it is the name the tuning engine reports for the loaded scale and is matched against Scala file names'],
@@ -1482,6 +1552,11 @@ export const TIP_BINDINGS = [
     ['.slider[data-param="bloomAmountMid"]',     'tip.bloomAmountMid',     '.param-control'],
     ['.slider[data-param="bloomAmountHigh"]',    'tip.bloomAmountHigh',    '.param-control'],
 
+    // ── Instrument tab: Partials (v4.7.1) ───────────────────────────────────
+    ['.slider[data-param="partialModel"]',       'tip.partialModel',       '.param-control'],
+    ['.slider[data-param="humLevel"]',           'tip.humLevel',           '.param-control'],
+    ['.slider[data-param="primeLevel"]',         'tip.primeLevel',         '.param-control'],
+    ['.slider[data-param="humFollow"]',          'tip.humFollow',          '.param-control'],
     // ── Instrument tab: Ensemble ────────────────────────────────────────────
     ['.slider[data-param="unisonCount"]',        'tip.unisonCount',        '.param-control'],
     ['.slider[data-param="unisonDetune"]',       'tip.unisonDetune',       '.param-control'],
