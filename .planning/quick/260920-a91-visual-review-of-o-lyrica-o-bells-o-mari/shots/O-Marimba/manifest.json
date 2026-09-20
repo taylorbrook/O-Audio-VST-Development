@@ -1,0 +1,149 @@
+{
+  "plugin": "O-Marimba",
+  "uiRootLabel": "Source/ui/public",
+  "uiRootFrom": "cmake",
+  "stubKind": "generic",
+  "seedFrom": "neutral-defaults",
+  "frame": {
+    "w": 600,
+    "h": 400
+  },
+  "languages": [
+    "en",
+    "fr",
+    "zh-Hans"
+  ],
+  "allLanguages": [
+    "en",
+    "fr",
+    "zh-Hans"
+  ],
+  "stateCount": 4,
+  "capturedAt": "2026-09-20T14:33:28.053Z",
+  "quality": 92,
+  "shots": [
+    {
+      "file": "en__00-default.jpg",
+      "lang": "en",
+      "index": 0,
+      "stateName": "default",
+      "sha": "8e95210324a757c3",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 91932
+    },
+    {
+      "file": "en__01-tuning-tab.jpg",
+      "lang": "en",
+      "index": 1,
+      "stateName": "tuning tab",
+      "sha": "df2d29920bb6569e",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 84056
+    },
+    {
+      "file": "en__02-custom-scala-mode.jpg",
+      "lang": "en",
+      "index": 2,
+      "stateName": "custom (Scala) mode",
+      "sha": "2c295a35d3bbcbec",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 83852
+    },
+    {
+      "file": "en__03-settings-popover.jpg",
+      "lang": "en",
+      "index": 3,
+      "stateName": "settings popover",
+      "sha": "7849a33ad6de8ef9",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 83166
+    },
+    {
+      "file": "fr__00-default.jpg",
+      "lang": "fr",
+      "index": 0,
+      "stateName": "default",
+      "sha": "2dc4cd6ae95afe6a",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 91695
+    },
+    {
+      "file": "fr__01-tuning-tab.jpg",
+      "lang": "fr",
+      "index": 1,
+      "stateName": "tuning tab",
+      "sha": "caacb876249878d6",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 84255
+    },
+    {
+      "file": "fr__02-custom-scala-mode.jpg",
+      "lang": "fr",
+      "index": 2,
+      "stateName": "custom (Scala) mode",
+      "sha": "67fbe48095b9fbc5",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 84150
+    },
+    {
+      "file": "fr__03-settings-popover.jpg",
+      "lang": "fr",
+      "index": 3,
+      "stateName": "settings popover",
+      "sha": "d5d4bba2fb5a60d0",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 83184
+    },
+    {
+      "file": "zh-Hans__00-default.jpg",
+      "lang": "zh-Hans",
+      "index": 0,
+      "stateName": "default",
+      "sha": "8682043f44069e41",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 89560
+    },
+    {
+      "file": "zh-Hans__01-tuning-tab.jpg",
+      "lang": "zh-Hans",
+      "index": 1,
+      "stateName": "tuning tab",
+      "sha": "6cce5fdcf8224b6b",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 83140
+    },
+    {
+      "file": "zh-Hans__02-custom-scala-mode.jpg",
+      "lang": "zh-Hans",
+      "index": 2,
+      "stateName": "custom (Scala) mode",
+      "sha": "55e11dd4f47a184c",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 82934
+    },
+    {
+      "file": "zh-Hans__03-settings-popover.jpg",
+      "lang": "zh-Hans",
+      "index": 3,
+      "stateName": "settings popover",
+      "sha": "d996be279c799aa7",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 82070
+    }
+  ],
+  "pageErrors": [],
+  "unplaced": [],
+  "missing": []
+}
