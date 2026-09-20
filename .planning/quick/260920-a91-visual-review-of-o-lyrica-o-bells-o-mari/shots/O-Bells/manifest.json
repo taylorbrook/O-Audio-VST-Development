@@ -1,0 +1,259 @@
+{
+  "plugin": "O-Bells",
+  "uiRootLabel": "Resources/ui",
+  "uiRootFrom": "cmake",
+  "stubKind": "generic",
+  "seedFrom": "param-dump (65 rows) + overrides",
+  "frame": {
+    "w": 800,
+    "h": 600
+  },
+  "languages": [
+    "en",
+    "fr",
+    "zh-Hans"
+  ],
+  "allLanguages": [
+    "en",
+    "fr",
+    "zh-Hans"
+  ],
+  "stateCount": 15,
+  "capturedAt": "2026-09-20T14:50:44.653Z",
+  "quality": 92,
+  "shots": [
+    {
+      "file": "en__00-default.jpg",
+      "lang": "en",
+      "index": 0,
+      "stateName": "default",
+      "sha": "9b0d75765cb6f5ba",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 88163
+    },
+    {
+      "file": "en__01-bloom-fine-expanded.jpg",
+      "lang": "en",
+      "index": 1,
+      "stateName": "bloom-fine-expanded",
+      "sha": "5e863d7a08727afc",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 89590
+    },
+    {
+      "file": "en__02-settings-popover-open.jpg",
+      "lang": "en",
+      "index": 2,
+      "stateName": "settings-popover-open",
+      "sha": "33333e1e853775b9",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 91370
+    },
+    {
+      "file": "en__03-settings-popover-shut.jpg",
+      "lang": "en",
+      "index": 3,
+      "stateName": "settings-popover-shut",
+      "sha": "173d8bad5083d2e8",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 89387
+    },
+    {
+      "file": "en__04-tuning-tab.jpg",
+      "lang": "en",
+      "index": 4,
+      "stateName": "tuning-tab",
+      "sha": "b30730226260f004",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 80070
+    },
+    {
+      "file": "en__05-tuning-library-open.jpg",
+      "lang": "en",
+      "index": 5,
+      "stateName": "tuning-library-open",
+      "sha": "3fc631971a98a9a2",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 77740
+    },
+    {
+      "file": "en__06-tuning-generator-open.jpg",
+      "lang": "en",
+      "index": 6,
+      "stateName": "tuning-generator-open",
+      "sha": "1af8abf0efcc9fef",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 71571
+    },
+    {
+      "file": "en__07-generator-harmonic.jpg",
+      "lang": "en",
+      "index": 7,
+      "stateName": "generator-harmonic",
+      "sha": "b9b66ee502dcd0af",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 71583
+    },
+    {
+      "file": "en__08-generator-rank2.jpg",
+      "lang": "en",
+      "index": 8,
+      "stateName": "generator-rank2",
+      "sha": "e01fb78bf62c4992",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 71905
+    },
+    {
+      "file": "en__09-generator-edo.jpg",
+      "lang": "en",
+      "index": 9,
+      "stateName": "generator-edo",
+      "sha": "a2fddb0143ef8a71",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 71583
+    },
+    {
+      "file": "en__10-viz-matrix.jpg",
+      "lang": "en",
+      "index": 10,
+      "stateName": "viz-matrix",
+      "sha": "6965792e449e0a20",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 91185
+    },
+    {
+      "file": "en__11-viz-rotation.jpg",
+      "lang": "en",
+      "index": 11,
+      "stateName": "viz-rotation",
+      "sha": "e377c75e1f1251d3",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 90626
+    },
+    {
+      "file": "en__12-viz-truekeys.jpg",
+      "lang": "en",
+      "index": 12,
+      "stateName": "viz-truekeys",
+      "sha": "932ea2023e2f22df",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 65023
+    },
+    {
+      "file": "en__13-viz-truekeys-held.jpg",
+      "lang": "en",
+      "index": 13,
+      "stateName": "viz-truekeys-held",
+      "sha": "126a6c15cfbf7c4d",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 67678
+    },
+    {
+      "file": "en__14-effects-tab.jpg",
+      "lang": "en",
+      "index": 14,
+      "stateName": "effects-tab",
+      "sha": "acc8a1369b9ff8eb",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 64892
+    },
+    {
+      "file": "fr__00-default.jpg",
+      "lang": "fr",
+      "index": 0,
+      "stateName": "default",
+      "sha": "b7ea8ff33691d2f1",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 91665
+    },
+    {
+      "file": "fr__02-settings-popover-open.jpg",
+      "lang": "fr",
+      "index": 2,
+      "stateName": "settings-popover-open",
+      "sha": "e727c217a08f9517",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 95224
+    },
+    {
+      "file": "fr__04-tuning-tab.jpg",
+      "lang": "fr",
+      "index": 4,
+      "stateName": "tuning-tab",
+      "sha": "93d024a81878339e",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 81857
+    },
+    {
+      "file": "fr__14-effects-tab.jpg",
+      "lang": "fr",
+      "index": 14,
+      "stateName": "effects-tab",
+      "sha": "95a877a0a01d8b60",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 66034
+    },
+    {
+      "file": "zh-Hans__00-default.jpg",
+      "lang": "zh-Hans",
+      "index": 0,
+      "stateName": "default",
+      "sha": "53af09955ef8ffd5",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 79450
+    },
+    {
+      "file": "zh-Hans__02-settings-popover-open.jpg",
+      "lang": "zh-Hans",
+      "index": 2,
+      "stateName": "settings-popover-open",
+      "sha": "b0e0687ee5c0ecfb",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 83316
+    },
+    {
+      "file": "zh-Hans__04-tuning-tab.jpg",
+      "lang": "zh-Hans",
+      "index": 4,
+      "stateName": "tuning-tab",
+      "sha": "c5a578046906ac8e",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 76766
+    },
+    {
+      "file": "zh-Hans__14-effects-tab.jpg",
+      "lang": "zh-Hans",
+      "index": 14,
+      "stateName": "effects-tab",
+      "sha": "8b4b640eaf7e38a0",
+      "duplicateOf": null,
+      "stepSkipped": null,
+      "bytes": 61329
+    }
+  ],
+  "pageErrors": [],
+  "unplaced": [],
+  "missing": []
+}
