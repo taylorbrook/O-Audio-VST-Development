@@ -186,7 +186,7 @@ const SHIP_H = 600;
 const MARGIN = 8;               // setupTooltips()'s clamp margin
 const DOCUMENTED_MAX_W = 260;   // .tooltip max-width
 const FX_KNOB_COUNT = 16;       // makeFxKnob() calls across the four FX sections
-const SLIDER_COUNT  = 35;       // sliderParams entries in index.html
+const SLIDER_COUNT  = 39;       // sliderParams entries in index.html (35 + the four v4.7.1 Partials sliders)
 const MIN_HOVER_AREA = 400;     // px2 — the floor an anchor must clear to be openable
 
 let failed = 0;
@@ -409,7 +409,7 @@ const needsFine = (sel) => FINE.has(paramOf(sel) || '');
     // Non-vacuity: the module must have RUN. A TDZ throw out of module
     // evaluation leaves the HTML looking correct and every control dead
     // (pattern_module_toplevel_init_tdz), and on this page the ENTIRE UI is two
-    // inline modules — 35 sliders, the tab bar, the preset browser, the sixteen
+    // inline modules — 39 sliders, the tab bar, the preset browser, the sixteen
     // FX knobs and the i18n block would all go together. Three independent
     // witnesses, each written only by the module into markup that authors none:
     // the FX knob containers, the tuning panel's subtree, and the FX bypass

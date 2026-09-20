@@ -119,6 +119,11 @@ private:
     std::unique_ptr<juce::WebSliderRelay> brillianceRelay;
     std::unique_ptr<juce::WebSliderRelay> bodyTimeRelay;
     std::unique_ptr<juce::WebSliderRelay> humSustainRelay;
+    // v4.7.1: Partials section (partialModel is a Choice bound as a SLIDER relay — WR-03, as material)
+    std::unique_ptr<juce::WebSliderRelay> partialModelRelay;
+    std::unique_ptr<juce::WebSliderRelay> humLevelRelay;
+    std::unique_ptr<juce::WebSliderRelay> primeLevelRelay;
+    std::unique_ptr<juce::WebSliderRelay> humFollowRelay;
 
     // v3.0.0: Tuning parameter relays
     std::unique_ptr<juce::WebSliderRelay> tuningMasterTuneRelay;
@@ -200,6 +205,11 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> brillianceAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> bodyTimeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> humSustainAttachment;
+    // v4.7.1: Partials section attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> partialModelAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> humLevelAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> primeLevelAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> humFollowAttachment;
 
     // v3.0.0: Tuning parameter attachments
     std::unique_ptr<juce::WebSliderParameterAttachment> tuningMasterTuneAttachment;

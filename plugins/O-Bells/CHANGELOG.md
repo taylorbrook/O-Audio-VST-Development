@@ -2,6 +2,67 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.7.1] - 2026-09-20
+
+Step 4 of `improvements/preset-differentiation-v4.6-v4.8.md`: the plugin window
+gets controls for the four 4.7.0 parameters. PATCH: no new parameter, no state
+change, no audio change — every session loads and sounds as it did on 4.7.0.
+
+### Added
+
+- **Partials** section on the Instrument tab, between Synthesis and Ensemble: one
+  four-column row — **Model** (`partialModel`), **Hum Level**, **Prime Level**,
+  **Hum Follow**. Model is a 5-way slider with a word readout, bound through a
+  slider relay exactly as Material is (WR-03); its option words stay English on
+  every arm (D-01 arms 1 and 3, five new `I18N_EXEMPT` rows). Level readouts are
+  scaled dB (`0.0dB`, as Gain), Hum Follow a percentage. Double-click resets, as
+  on every other slider.
+- Four relays + attachments in `PluginEditor`; the four tips are bound to their
+  `.param-control`, so caption, slider and readout all carry the tip.
+- en / fr / zh-Hans rows for the section title, four captions and four tips
+  (13 lint rows per arm, 255 → 268). French is drafted this step —
+  `reviewed: false`, nine entries on the unreviewed worklist. zh-Hans is authored
+  at `reviewed: 'mt'` (nine entries below the ship bar, counted not failed).
+  Tip bodies were written against `BellVoice.cpp`, including the two things a
+  user would otherwise trip on: Inharmonicity changes meaning on a model
+  (stretches the one table), and Hum Follow is heard on held notes because the
+  release after note-off is Damping's.
+
+### Geometry
+
+- The row is a `.param-row-4` (`flex: 1; min-width: 0`), so the four columns are
+  174.5 px on every arm whatever the captions say — that is the width pin; no
+  per-caption pin was needed. Widest caption on any arm: `Niveau bourdon`
+  101.5 px (en `Hum Follow` 75.5, zh 44.1). Section height 65.97 px, caption box
+  11 px, slider → readout gap 8 px, readouts 11 px `#000` — identical on en, fr
+  and zh-Hans.
+- Everything below Synthesis moves down by the new section's height on every
+  arm alike. The tab already scrolls.
+
+### Testing
+
+- `check-ui-labels --plugin O-Bells`: ALL CHECKS PASSED, exit 0. Geometry diff
+  [7] reports 0 moved non-label elements on fr and on zh-Hans in all 15 states —
+  inside the new section as well as outside it. Visible labels 126 → 131.
+- `i18n-fr-lint`: 268 rows, 0 findings. `i18n-zh-lint`: 268 rows, 0 findings,
+  9 at `'mt'`. `check-i18n`: 44 PASS, 0 FAIL.
+- `boot-all-uis --plugin O-Bells`: clean 1 / 1, 0 DEAD bindings. The 2 late
+  bindings (`#ref-pitch-knob`, `#octave-stretch`) are the lazily mounted tuning
+  panel's, not this section's.
+- `tests/ui_tip_render_check.js`: 1522 PASS, 0 FAIL. Its pinned `SLIDER_COUNT`
+  went 35 → 39; it failed on exactly that line before the pin was moved. All four
+  new tips render inside the 800 × 600 frame on every arm (tallest: fr Partial
+  Model, 260 × 219.9).
+- Release build + install (VST3, AU, dev branding): `auval -v aumu OBls OuDv`
+  PASS, the four parameters listed; pluginval strictness 5 SUCCESS. Neither opens
+  the WebView editor, so the Standalone was built and launched once: the editor
+  constructs with the four new attachments and quits clean, no crash report.
+- NOT verified by any gate: the live readouts and drag behaviour in the real
+  plugin. The generic UI stub seeds neutral values, so the readouts the headless
+  gates saw are not the plugin's, and the section sits below the fold of the
+  Standalone window. Hands-on in a DAW: Model steps through five words, the
+  levels read −24.0 … 6.0dB with 0.0dB at default, double-click resets.
+
 ## [4.7.0] - 2026-09-20
 
 Step 3 of `improvements/preset-differentiation-v4.6-v4.8.md` (RC-4): a wider

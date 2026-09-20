@@ -165,10 +165,18 @@ or delete; honouring it changes every note's tuning scatter.
 | 1 | 4.5.2 | PATCH | In-repo render harness + baseline report. No plugin binary change. | Reproduces the table above ±1 dB |
 | 2 | 4.6.0 ✅ | MINOR | RC-1 material mapping, RC-2 octave-layer decay (+ double initialFraction), unison voice-0 detune (found in-step). Audible change to saved sessions using Brass/Steel/Aluminum, Sub/Oct + Bloom, or Unison ≥ 2 — called out in CHANGELOG. | Materials pairwise ≥ 5 dB; sub layer tracks its bloom-0 decay and falls ≥ 12 dB between 2 s and 10 s held at damping 1 (amended, see RC-2); unison prime peaks on the designed detune; 5 untouched configs bit-identical to v4.5.2 |
 | 3 | 4.7.0 ✅ | MINOR | RC-4 DSP: `partialModel` choice (Classic / Tubular / Plate / Bowl / Glass …), `humLevel`, `primeLevel` (dB), `humFollow` (0–1: hum-stage τ tracks bodyTime). Processor + voice only; generic defaults = old sound. | Default-param render within self-noise of v4.6.0; random-param pair median ≥ 16 dB (was 11.5) |
-| 4 | 4.7.1 / 4.8.0-pre | MINOR | UI for the Step-3 params: controls, tooltips, en / fr / zh-Hans rows, width pins, `check-ui-labels`, `i18n-fr-lint`, `i18n-zh-lint`. | All three language arms pass; no moved elements outside the new section |
+| 4 | 4.7.1 ✅ | PATCH | UI for the Step-3 params: controls, tooltips, en / fr / zh-Hans rows, width pins, `check-ui-labels`, `i18n-fr-lint`, `i18n-zh-lint`. | All three language arms pass; no moved elements outside the new section |
 | 5 | 4.8.0 | MINOR | Re-voice all 25 presets (RC-3, RC-5 + new params); factory sentinel `4.1.1` → `4.8.0`. | Every preset's nearest neighbour ≥ 8 dB (tap AND held); tap T40 ordering Large > Warm > Bright ≥ Metallic-short; category medians distinct |
 
 Step 3 and 4 may be merged if the UI work is small; keep them split if the new section needs layout work.
+
+> **Step 4 DONE v4.7.1 (kept split, shipped as PATCH — no parameter or state change).** New **Partials**
+> section between Synthesis and Ensemble, one `.param-row-4`: Model · Hum Level · Prime Level · Hum Follow.
+> The width pin is structural — `.param-row-4` columns are `flex: 1; min-width: 0`, 174.5 px on every arm;
+> widest caption `Niveau bourdon` 101.5 px. `check-ui-labels`: 0 moved on fr and zh-Hans in all 15 states.
+> fr rows are `reviewed: false` (9), zh-Hans `'mt'` (9) — **both worklists are open going into Step 5.**
+> Step 5 note: the tips tell the user Hum Follow is heard on HELD notes and that Inharmonicity stretches the
+> table on a model — voice the presets so those statements stay true.
 
 ## Harness
 

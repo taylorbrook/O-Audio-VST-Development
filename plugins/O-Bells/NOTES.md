@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 4.7.0
+- **Version:** 4.7.1
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -39,6 +39,7 @@
 - **2026-09-20 (v4.5.2):** Preset-differentiation Step 1. In-repo processor-level render harness (`tests/render-harness/`: `O-Bells-render-test` + `report.py` + `probes.py`, behind `OUARICON_BUILD_TESTS`) reproducing the v4.5.1 baseline within 1 dB; test-only RNG seed hook compiled into the harness target only. No audio change. The brief's held pair-min (4.1) was a one-off draw — re-anchored at the 8-seed mean 3.2.
 - **2026-09-20 (v4.6.0):** Preset-differentiation Step 2 — three voice bugs, all AUDIBLE in saved sessions. RC-1: Material choice index was scaled as if normalised, so Brass / Steel / Aluminum all played as Cast Iron (now 8–14 dB apart). RC-2: Sub / Oct layers never decayed while Bloom > 0 (`applyBloom` never ran on them) and had `initialFraction` applied twice. Unison: `initializePartials` always wrote voice 0, so Unison ≥ 2 lost the negative side of the detune and sat sharp (Unison 2 = no detune). "Noted" startNote frequency overwrite decided: DELETE — fundamental layer is exactly tuned. Damping untouched. New `probes.py` gates (material ≥ 5 dB, sub-band fall, unison peaks, bit-identity vs v4.5.2); `report.py` re-anchored to v4.6.0.
 - **2026-09-20 (v4.7.0):** Preset-differentiation Step 3 (RC-4) — four append-only parameters (version hint 2), defaults BIT-IDENTICAL to 4.6.0: `partialModel` (Classic / Tubular / Plate / Bowl / Glass ratio + amplitude tables; prime stays 1.0 in every model), `humLevel` / `primeLevel` (−24…+6 dB), `humFollow` (hum-stage τ tracks Body Time, all partials). No UI yet (Step 4). The tables were not in `research/`; written in-step as `research/idiophone-partial-models.md` with per-row provenance (Glass row recalled, amplitudes are design values). Random-range median tap 11.3 → 16.4 (gate 16), held 10.2 → 15.5 (gated at equal gain 14.8 — does not reach 16). Harness gained `--alloc-check` (malloc_logger, audio-thread-scoped, liveness-proven): 0 allocations. Left alone: Classic has no Nyquist guard; Hum Follow is masked by the release on taps.
+- **2026-09-20 (v4.7.1):** Preset-differentiation Step 4 — UI for the four v4.7.0 parameters. New **Partials** section between Synthesis and Ensemble, one `.param-row-4`: Model (5-way slider relay, as Material — option words exempt, D-01 arms 1 + 3), Hum Level, Prime Level, Hum Follow; four relays + attachments; four tips bound to `.param-control`. en / fr / zh-Hans rows for 5 labels + 4 tips — fr `reviewed: false` (9 on the worklist), zh-Hans `'mt'` (9 below ship bar). Width pin is structural: `.param-row-4` columns are 174.5 px on every arm, widest caption `Niveau bourdon` 101.5 px. `check-ui-labels` 0 moved on fr / zh-Hans in all 15 states; fr-lint / zh-lint 268 rows 0 findings; boot clean; `ui_tip_render_check` `SLIDER_COUNT` 35 → 39. No audio or state change.
 
 ## Known Issues / Limitations
 
