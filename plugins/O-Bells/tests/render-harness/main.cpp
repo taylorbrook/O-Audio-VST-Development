@@ -34,7 +34,7 @@
 
         O-Bells-render-test --render <jobs.txt> <outdir>
                             [--note=60] [--vel=0.8] [--hold=0.25] [--total=6]
-                            [--seed=1] [--fx]
+                            [--seed=1] [--fx] [--alloc-check]
             jobs.txt, one job per line, '|'-separated:
                 <label>|preset=<category>/<name>|<paramId>=<value>|...
             `preset=` is optional (omitted = parameter defaults). Overrides
@@ -51,6 +51,13 @@
     still ran through the reverb would measure `reverbMix`, not the engine
     (pattern_voice_level_tap_still_passes_through_processor_fx).
 
+    --alloc-check (macOS): counts heap allocations made INSIDE processBlock, via
+    libmalloc's malloc_logger hook — it sees malloc / calloc / realloc whoever
+    calls them, so juce::HeapBlock and operator new are both covered — on the
+    thread calling processBlock only (JUCE's TimerThread allocates at will). Any
+    allocation fails the job and prints its backtrace. The hook is proven live first (a deliberate malloc
+    must be counted), so a dead hook cannot read as a clean render.
+
     Determinism: BellVoice seeds its RNG from clock ^ `this`. --seed routes
     through the OBELLS_TEST_HOOKS seed hook (defined on this target only), so
     the same seed gives the same file and two different seeds give the
@@ -64,12 +71,53 @@
 #include "PluginProcessor.h"
 
 #include <cmath>
+#include <cstdlib>
+#if JUCE_MAC
+ #include <execinfo.h>
+ #include <pthread.h>
+#endif
 #include <fstream>
 #include <iostream>
 #include <string>
 
+#if JUCE_MAC
+// libmalloc's stack-logging hook (what MallocStackLogging / Instruments attach to).
+extern "C"
+{
+    typedef void (malloc_logger_t) (uint32_t type, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3,
+                                    uintptr_t result, uint32_t numHotFramesToSkip);
+    extern malloc_logger_t* malloc_logger;
+}
+#endif
+
 namespace
 {
+#if JUCE_MAC
+// volatile: clang knows malloc() as a builtin that cannot touch globals, so it
+// folds "armed = true; malloc(); armed = false" into "armed = false" and the hook
+// never sees the flag up. Single-threaded harness: processBlock runs on main.
+volatile bool allocArmed = false;
+volatile int allocCount = 0;
+bool allocTrace = false;
+pthread_t audioThread;
+
+void countAllocation (uint32_t type, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uint32_t)
+{
+    // The hook is process-wide and JUCE's TimerThread mallocs (MessageQueue::post)
+    // whenever it likes: only the thread that calls processBlock is the audio thread.
+    if (allocArmed && (type & 2u) != 0 && pthread_equal (pthread_self(), audioThread))   // MALLOC_LOG_TYPE_ALLOCATE
+    {
+        allocArmed = false;   // the first one is the finding; say where it came from
+        allocCount = allocCount + 1;
+        if (allocTrace)
+        {
+            void* frames[32];
+            backtrace_symbols_fd (frames, backtrace (frames, 32), 2);   // does not malloc
+        }
+    }
+}
+#endif
+
 constexpr double kSampleRate = 48000.0;
 constexpr int kBlockSize = 512;
 
@@ -113,6 +161,7 @@ struct RenderOptions
     double totalSeconds = 6.0;
     juce::int64 seed = 1;
     bool isolateVoice = true;
+    bool allocCheck = false;
 };
 
 int renderJob (const juce::String& line, int index, const juce::File& outDir, const RenderOptions& options)
@@ -183,7 +232,17 @@ int renderJob (const juce::String& line, int index, const juce::File& outDir, co
             released = true;
         }
 
+       #if JUCE_MAC
+        allocArmed = options.allocCheck;
+       #endif
         processor.processBlock (block, midi);
+       #if JUCE_MAC
+        allocArmed = false;
+
+        if (allocCount > 0)
+            return fail ("job " + juce::String (index) + " (" + label + "): " + juce::String (allocCount)
+                         + " heap allocation(s) inside processBlock, block at sample " + juce::String (pos));
+       #endif
 
         for (int i = 0; i < n; ++i)
         {
@@ -223,7 +282,7 @@ int main (int argc, char** argv)
         return listPresets();
 
     if (! args.containsOption ("--render") || args.size() < 3)
-        return fail ("usage: --list | --render <jobs.txt> <outdir> [--note=n] [--vel=v] [--hold=s] [--total=s] [--seed=n] [--fx]");
+        return fail ("usage: --list | --render <jobs.txt> <outdir> [--note=n] [--vel=v] [--hold=s] [--total=s] [--seed=n] [--fx] [--alloc-check]");
 
     const int renderIndex = args.indexOfOption ("--render");
     const juce::File jobsFile = args[renderIndex + 1].resolveAsFile();
@@ -236,6 +295,27 @@ int main (int argc, char** argv)
     if (args.containsOption ("--total")) options.totalSeconds = args.getValueForOption ("--total").getDoubleValue();
     if (args.containsOption ("--seed"))  options.seed = args.getValueForOption ("--seed").getLargeIntValue();
     options.isolateVoice = ! args.containsOption ("--fx");
+    options.allocCheck = args.containsOption ("--alloc-check");
+
+    if (options.allocCheck)
+    {
+       #if JUCE_MAC
+        audioThread = pthread_self();
+        malloc_logger = countAllocation;
+        allocArmed = true;
+        void* volatile probe = std::malloc (64);
+        allocArmed = false;
+        std::free (probe);
+
+        if (allocCount != 1)
+            return fail ("--alloc-check: the malloc hook is not live (a deliberate malloc counted " + juce::String (allocCount) + ")");
+
+        allocCount = 0;
+        allocTrace = true;
+       #else
+        return fail ("--alloc-check is macOS-only");
+       #endif
+    }
 
     if (! jobsFile.existsAsFile())
         return fail ("jobs file '" + jobsFile.getFullPathName() + "' does not exist");

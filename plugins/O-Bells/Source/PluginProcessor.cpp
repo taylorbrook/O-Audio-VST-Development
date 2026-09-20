@@ -553,6 +553,46 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "dB"
     ));
 
+    // ========== Timbral range (v4.7.0) ==========
+    // APPEND-ONLY, version hint 2: AU orders parameters by hint, so these land
+    // after every v1 parameter and no existing automation index moves. Defaults
+    // (Classic, 0 dB, 0 dB, 0) take the v4.6.0 code paths — bit-identical render.
+    // Tables: research/idiophone-partial-models.md.
+
+    // PARTIAL_MODEL - which body the partial ratio + amplitude tables describe
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "partialModel", 2 },
+        "Partial Model",
+        juce::StringArray { "Classic", "Tubular", "Plate", "Bowl", "Glass" },
+        0  // Classic: the harmonic -> bell -> gamelan interpolation
+    ));
+
+    // HUM_LEVEL / PRIME_LEVEL - level of partial 0 (hum) and partial 1 (prime)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "humLevel", 2 },
+        "Hum Level",
+        juce::NormalisableRange<float>(-24.0f, 6.0f, 0.1f),
+        0.0f,
+        "dB"
+    ));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "primeLevel", 2 },
+        "Prime Level",
+        juce::NormalisableRange<float>(-24.0f, 6.0f, 0.1f),
+        0.0f,
+        "dB"
+    ));
+
+    // HUM_FOLLOW - 0 = hum-stage time constant independent of Body Time (the
+    // v4.6.0 law), 1 = it tracks Body Time, so a short body gets a short tail
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "humFollow", 2 },
+        "Hum Follow",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f,
+        "%"
+    ));
+
     return layout;
 }
 
@@ -708,6 +748,11 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     humSustainParam = parameters.getRawParameterValue("humSustain");
     // Realism (v2.4.0)
     humanizeParam = parameters.getRawParameterValue("humanize");
+    // Timbral range (v4.7.0)
+    partialModelParam = parameters.getRawParameterValue("partialModel");
+    humLevelParam = parameters.getRawParameterValue("humLevel");
+    primeLevelParam = parameters.getRawParameterValue("primeLevel");
+    humFollowParam = parameters.getRawParameterValue("humFollow");
     // Lowpass Filter (v2.6.0)
     lpFilterEnabledParam = parameters.getRawParameterValue("lpFilterEnabled");
     lpFilterCutoffParam = parameters.getRawParameterValue("lpFilterCutoff");
@@ -805,6 +850,11 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     float humSustain = humSustainParam->load();
     // Realism (v2.4.0)
     float humanize = humanizeParam->load();
+    // Timbral range (v4.7.0)
+    int partialModel = static_cast<int>(partialModelParam->load());
+    float humLevel = humLevelParam->load();
+    float primeLevel = primeLevelParam->load();
+    float humFollow = humFollowParam->load();
     float outputGain = outputGainParam->load();
 
     // v3.1.2: Read high fidelity toggle
@@ -831,6 +881,7 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
                 strikeTime, brilliance, bodyTime, humSustain,
                 humanize
             );
+            voice->updateTimbreParameters(partialModel, humLevel, primeLevel, humFollow);
         }
     }
 
