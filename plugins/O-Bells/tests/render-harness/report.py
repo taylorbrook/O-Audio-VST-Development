@@ -12,7 +12,18 @@ Metric: RMS dB difference of level-normalised log-band energies (24 bands,
     python3 plugins/O-Bells/tests/render-harness/report.py            # report + baseline gate
     python3 plugins/O-Bells/tests/render-harness/report.py --no-gate  # report only
 
-Needs numpy. Exit 1 when a gated quantity is more than TOL dB off BASELINE.
+Needs numpy. Exit 1 when a gated quantity is more than TOL dB off BASELINE, or when
+a Step-5 (v4.8.0) bank gate fails:
+  - every preset's nearest neighbour >= NEAREST_MIN dB, tap AND held, on BOTH seeds;
+  - tap T40 category medians ordered Large > Warm > Bright, and Bright >= every
+    METALLIC_SHORT preset. T40 is read on a T40_TOTAL-second tap: on the 6 s window
+    every low-damping bell saturates at 5.98 s and the ordering would be a tie;
+  - the five category T40 medians pairwise >= T40_DISTINCT s apart.
+
+The factory bank is read from ~/Library/O-Bells/Presets/Factory — the INSTALLED
+plugin's directory — and is only rewritten when the `.factory_version` sentinel
+changes. Re-voicing under an unchanged sentinel would gate the stale bank, so the
+sentinel file is removed before every run and the harness binary rewrites the bank.
 """
 import argparse, os, subprocess, sys, tempfile
 import numpy as np
@@ -39,12 +50,24 @@ SEED_A, SEED_B = 1, 2
 # 3.2) over 8 seeds, never 4.1. 3.2 is that 8-seed mean. Every other cell is the
 # brief's and sits inside its own 8-seed range (median sd 0.2, p10 sd 0.2,
 # min sd 0.3).
-BASELINE_VERSION = 'v4.6.0'
+#
+# v4.8.0 (Step 5) re-anchored: the whole bank was re-voiced. The v4.6.0 rows it replaces:
+#   tap  2.5 / 13.3 / 8.0 / 3.5     held 2.4 / 14.7 / 9.3 / 3.6
+BASELINE_VERSION = 'v4.8.0'
 BASELINE = {
-    'tap':  {'self-noise': 2.5, 'pair median': 13.3, 'pair p10': 8.0, 'pair min': 3.5},
-    'held': {'self-noise': 2.4, 'pair median': 14.7, 'pair p10': 9.3, 'pair min': 3.6},
+    'tap':  {'self-noise': 2.4, 'pair median': 26.0, 'pair p10': 17.4, 'pair min': 11.1},
+    'held': {'self-noise': 2.4, 'pair median': 26.6, 'pair p10': 18.0, 'pair min': 11.6},
 }
 TOL = 1.0
+
+# Step 5 bank gates. 8 dB is ~3x self-noise; 'pair min' moves ~0.3 dB (1 sd) between
+# seeds, so the bank is voiced to >= 10 and gated at 8 on both seeds.
+NEAREST_MIN = 8.0
+T40_TOTAL = 12.0
+T40_ORDER = ['Large Bells', 'Warm Bells', 'Bright Bells']
+METALLIC_SHORT = ['Clanging Steel Plate', 'Shimmering Bell Tree']
+T40_DISTINCT = 0.25
+FACTORY_SENTINEL = os.path.expanduser('~/Library/O-Bells/Presets/Factory/.factory_version')
 
 
 def presets():
@@ -122,8 +145,12 @@ def main():
     out = args.out or tmp.name
     os.makedirs(out, exist_ok=True)
 
+    if os.path.exists(FACTORY_SENTINEL):
+        os.remove(FACTORY_SENTINEL)   # see the module docstring: never gate a stale bank
+
     P = presets()
     names = [n for _, n in P]
+    cats = [c for c, _ in P]
     jobs = [(n, [f'preset={c}/{n}']) for c, n in P]
     print(f'{len(P)} factory presets')
     failures = []
@@ -136,6 +163,12 @@ def main():
             failures.append(f'{tag}: same seed, different render — the seed hook no longer covers every RNG')
 
         D = matrix(S); iu = np.triu_indices(len(P), 1)
+        for seed, sigs in ((SEED_A, None), (SEED_B, S2)):
+            Dn = D.copy() if sigs is None else matrix(sigs)
+            np.fill_diagonal(Dn, 1e9)
+            for i in np.where(Dn.min(axis=1) < NEAREST_MIN)[0]:
+                failures.append(f'{tag} seed {seed}: {names[i]} is {Dn[i].min():.1f} dB from '
+                                f'{names[Dn[i].argmin()]} (< {NEAREST_MIN})')
         got = {'self-noise': self_noise(S, S2), 'pair median': float(np.median(D[iu])),
                'pair p10': float(np.percentile(D[iu], 10)), 'pair min': float(D[iu].min())}
         print(f'\n== {tag} (hold {hold}s) ==  pair max {D[iu].max():.1f} dB')
@@ -152,6 +185,24 @@ def main():
             print(f'  {n:28s} {t40(S[i]):6.2f} {centroid(S[i], 0, .08):9.0f} {centroid(S[i], .25, .7):9.0f}  {names[j]} ({d[j]:.1f})')
         if args.out:
             np.save(os.path.join(out, f'D_{tag}.npy'), D)
+
+    T = [t40(x) for x in render(jobs, out, 't40', MODES[0][1], T40_TOTAL, SEED_A)]
+    med = {c: float(np.median([t for t, k in zip(T, cats) if k == c])) for c in sorted(set(cats))}
+    print(f'\n== tap T40, {T40_TOTAL:.0f} s window ==')
+    for c in med:
+        print(f'  {c:14s} median {med[c]:5.2f}   ' + '  '.join(f'{t:.2f}' for t, k in zip(T, cats) if k == c))
+    for a, b in zip(T40_ORDER[:-1], T40_ORDER[1:]):
+        if not med[a] > med[b]:
+            failures.append(f'T40 order: {a} {med[a]:.2f} s is not > {b} {med[b]:.2f} s')
+    for n in METALLIC_SHORT:
+        if n not in names:
+            failures.append(f'T40 order: METALLIC_SHORT names a preset that is gone: {n}')
+        elif not med[T40_ORDER[-1]] >= T[names.index(n)]:
+            failures.append(f'T40 order: {T40_ORDER[-1]} {med[T40_ORDER[-1]]:.2f} s is not >= {n} {T[names.index(n)]:.2f} s')
+    ms = sorted(med.items(), key=lambda kv: kv[1])
+    for (a, x), (b, y) in zip(ms[:-1], ms[1:]):
+        if y - x < T40_DISTINCT:
+            failures.append(f'T40 medians not distinct: {a} {x:.2f} s vs {b} {y:.2f} s')
 
     if args.no_gate:
         return 0

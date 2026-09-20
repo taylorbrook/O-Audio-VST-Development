@@ -1184,7 +1184,9 @@ void OBellsAudioProcessor::initializeFactoryPresets()
     // engineering units and recalled slammed to a rail; the sentinel guarantees
     // the corrected, normalized presets are (re)written on upgrade rather than
     // being skipped by the plain "already exists" guard.
-    const juce::String factoryVersion = "4.1.1";
+    // v4.8.0: the whole bank was re-voiced (same 25 names, so every file is
+    // overwritten in place and nothing is orphaned).
+    const juce::String factoryVersion = "4.8.0";
     auto versionFile = presetManager.getFactoryPresetsDirectory().getChildFile(".factory_version");
 
     if (presetManager.factoryPresetsExist()
@@ -1195,471 +1197,508 @@ void OBellsAudioProcessor::initializeFactoryPresets()
     std::vector<OuariconPresetManager::FactoryPresetDef> presets;
 
     // ==========================================================================
-    // v2.2.1 FACTORY PRESETS - Research-Informed Bell Sounds
+    // v4.8.0 FACTORY PRESETS - re-voiced against the v4.7 engine
+    // (improvements/preset-differentiation-v4.6-v4.8.md, Step 5)
     // ==========================================================================
-    // Designed using acoustic research on real bells (modal-synthesis-bells-academic-research.md):
-    // - Church bell partial ratios: Hum(0.25), Prime(0.5), Tierce(0.6), Quint(0.75), Nominal(1.0)
-    // - Frequency-dependent damping: R_k = b_1 + b_3 * f_k^2 (higher partials decay faster)
-    // - Multi-stage envelope: Strike (1-5ms) → Body (0.5-3s) → Hum tail (5-15s)
-    // - Risset bell inharmonicity ratios for beating effects
+    // RC-3: Damping is the LIVE law - higher = SHORTER (note-off release 3 s -> 0.5 s,
+    //   and the hum stage of partials 0-1). Big bells sit at 0-0.15, bars and plates
+    //   at 0.8-1.0. The v2.2.1 bank had this inverted (Large Bells at 0.88-1.0).
+    // RC-4: every preset picks a partialModel and sets humLevel / primeLevel; short
+    //   presets pair Hum Follow with HIGH damping (Hum Follow alone is inaudible on a tap).
+    // RC-5: every preset carries its own FX signature. Preset apply resets unnamed
+    //   parameters to default first, so a block that is absent here is at default.
+    // outputGain balances the bank to about -24 dBFS RMS (C3 / C4 / C5, vel 1, FX on).
     //
-    // Material Choice: 0=Bronze, 1=Brass, 2=Steel, 3=Aluminum, 4=Cast Iron
-    // StrikeNoiseChar Choice: 0=Click, 1=Thud, 2=Ping
-    // VelocityCurve Choice: 0=Linear, 1=Exponential, 2=Logarithmic
+    // Gate: tests/render-harness/report.py - every preset's nearest neighbour >= 8 dB,
+    //   tap and held, and the tap-T40 category ordering.
     //
-    // v2.2.0+ parameters utilized: airAbsorption, airAbsorptionTime, acousticBrightness
-    // v3.2.0+ parameters utilized: humanize, lpFilterEnabled, lpFilterCutoff,
-    //   bloomFineEnabled, bloomSpeedLow/Mid/High, bloomAmountLow/Mid/High,
-    //   nonlinearEffects, partialTuning, pitchEnvelope, pitchEnvTime (expanded usage)
+    // Choice indices (tables are in ENGINEERING units; the manager normalises):
+    //   material:        0 Bronze, 1 Brass, 2 Steel, 3 Aluminum, 4 Cast Iron
+    //   partialModel:    0 Classic, 1 Tubular, 2 Plate, 3 Bowl, 4 Glass
+    //   strikeNoiseChar: 0 Click, 1 Thud, 2 Ping
+    //   velocityCurve:   0 Linear, 1 Exponential, 2 Logarithmic
+    //   delayMode:       0 Normal, 1 PingPong
+    //   bloomSpeed*:     0-1 (not ms)
     // ==========================================================================
 
-    // ========== LARGE BELLS (5 presets) ==========
-    // Deep, long-sustaining bell tones with extended decay
+    // ========== AMBIENT (5 presets) ==========
+    // Heavily processed, bloom-led textures
 
-    // Large tower bell - deep bronze with rich hum tail
-    // Research: Church bells have T60 of 8-15 seconds, hum partial persists longest
-    presets.push_back({ "Large Bells", "Deep Bronze Tower", {
-        {"strikePosition", 0.25f}, {"malletHardness", 0.55f}, {"damping", 0.95f},
-        {"overtoneBrightness", 0.42f}, {"acousticBrightness", 0.55f}, {"material", 0.0f}, {"inharmonicity", 0.55f},
-        {"airAbsorption", 0.35f}, {"airAbsorptionTime", 4.0f},
-        {"bloomSpeed", 0.75f}, {"bloomAmount", 0.32f}, {"shimmer", 0.22f},
-        {"bloomFineEnabled", 1.0f},
-        {"bloomSpeedLow", 0.85f}, {"bloomSpeedMid", 0.7f}, {"bloomSpeedHigh", 0.55f},
-        {"bloomAmountLow", 0.4f}, {"bloomAmountMid", 0.3f}, {"bloomAmountHigh", 0.18f},
-        {"unisonCount", 2.0f}, {"unisonDetune", 12.0f},
-        {"octaveBlendSub", 0.45f}, {"octaveBlendOct", 0.12f}, {"stereoSpread", 0.85f},
-        {"strikeTime", 45.0f}, {"brilliance", 38.0f}, {"bodyTime", 3200.0f}, {"humSustain", 82.0f},
-        {"attackLevel", 0.52f}, {"reverbMix", 0.55f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.35f}, {"pitchEnvelope", 0.03f}, {"pitchEnvTime", 80.0f}
-    }, {} });
-
-    // Heavy cast iron bell - dark, industrial quality
-    // Research: Cast iron bells have stronger low partials, longer decay than bronze
-    presets.push_back({ "Large Bells", "Massive Iron Bell", {
-        {"strikePosition", 0.2f}, {"malletHardness", 0.48f}, {"damping", 1.0f},
-        {"overtoneBrightness", 0.28f}, {"acousticBrightness", 0.45f}, {"material", 4.0f}, {"inharmonicity", 0.65f},
-        {"airAbsorption", 0.42f}, {"airAbsorptionTime", 5.5f},
-        {"bloomSpeed", 0.88f}, {"bloomAmount", 0.45f}, {"shimmer", 0.18f},
-        {"bloomFineEnabled", 1.0f},
-        {"bloomSpeedLow", 0.95f}, {"bloomSpeedMid", 0.82f}, {"bloomSpeedHigh", 0.65f},
-        {"bloomAmountLow", 0.55f}, {"bloomAmountMid", 0.4f}, {"bloomAmountHigh", 0.22f},
-        {"unisonCount", 3.0f}, {"unisonDetune", 18.0f},
-        {"octaveBlendSub", 0.62f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.92f},
-        {"strikeTime", 55.0f}, {"brilliance", 22.0f}, {"bodyTime", 4000.0f}, {"humSustain", 90.0f},
-        {"attackLevel", 0.45f}, {"reverbMix", 0.6f},
-        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 6500.0f},
-        {"nonlinearEffects", 0.08f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.3f}, {"pitchEnvelope", 0.04f}, {"pitchEnvTime", 100.0f}
-    }, {} });
-
-    // Warm brass bell - resonant, musical tone
-    // Research: Brass bells have shorter decay but warmer midrange
-    presets.push_back({ "Large Bells", "Cavernous Brass", {
-        {"strikePosition", 0.32f}, {"malletHardness", 0.52f}, {"damping", 0.88f},
-        {"overtoneBrightness", 0.55f}, {"acousticBrightness", 0.62f}, {"material", 1.0f}, {"inharmonicity", 0.48f},
-        {"airAbsorption", 0.28f}, {"airAbsorptionTime", 3.5f},
-        {"bloomSpeed", 0.65f}, {"bloomAmount", 0.28f}, {"shimmer", 0.25f},
-        {"unisonCount", 2.0f}, {"unisonDetune", 10.0f},
-        {"octaveBlendSub", 0.38f}, {"octaveBlendOct", 0.15f}, {"stereoSpread", 0.78f},
-        {"strikeTime", 38.0f}, {"brilliance", 48.0f}, {"bodyTime", 2800.0f}, {"humSustain", 72.0f},
-        {"attackLevel", 0.55f}, {"reverbMix", 0.52f},
-        {"partialTuning", -5.0f},
-        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.3f}
-    }, {} });
-
-    // Classic European church bell - balanced, traditional
-    // Research: Well-tuned bells have Tierce at minor third (2.4x hum frequency)
-    presets.push_back({ "Large Bells", "Grand Cathedral Bell", {
-        {"strikePosition", 0.28f}, {"malletHardness", 0.58f}, {"damping", 0.92f},
-        {"overtoneBrightness", 0.5f}, {"acousticBrightness", 0.58f}, {"material", 0.0f}, {"inharmonicity", 0.52f},
-        {"airAbsorption", 0.32f}, {"airAbsorptionTime", 4.5f},
-        {"bloomSpeed", 0.72f}, {"bloomAmount", 0.35f}, {"shimmer", 0.2f},
-        {"unisonCount", 2.0f}, {"unisonDetune", 8.0f},
-        {"octaveBlendSub", 0.42f}, {"octaveBlendOct", 0.18f}, {"stereoSpread", 0.88f},
-        {"strikeTime", 42.0f}, {"brilliance", 45.0f}, {"bodyTime", 3500.0f}, {"humSustain", 78.0f},
-        {"attackLevel", 0.58f}, {"reverbMix", 0.58f},
-        {"partialTuning", -8.0f}, {"pitchEnvelope", 0.02f}, {"pitchEnvTime", 65.0f},
-        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.4f}
-    }, {} });
-
-    // Very slow, meditative bell - extended decay
-    // Research: Maximum T60 for contemplative quality
-    presets.push_back({ "Large Bells", "Slow Tolling Bell", {
-        {"strikePosition", 0.22f}, {"malletHardness", 0.42f}, {"damping", 1.0f},
-        {"overtoneBrightness", 0.38f}, {"acousticBrightness", 0.5f}, {"material", 0.0f}, {"inharmonicity", 0.58f},
-        {"airAbsorption", 0.48f}, {"airAbsorptionTime", 6.0f},
-        {"bloomSpeed", 0.92f}, {"bloomAmount", 0.52f}, {"shimmer", 0.28f},
-        {"bloomFineEnabled", 1.0f},
-        {"bloomSpeedLow", 0.98f}, {"bloomSpeedMid", 0.88f}, {"bloomSpeedHigh", 0.72f},
-        {"bloomAmountLow", 0.6f}, {"bloomAmountMid", 0.48f}, {"bloomAmountHigh", 0.3f},
+    // A tower bell heard across a valley: no sub, no strike, air absorption at full, everything above 1.8 kHz gone.
+    // FX: the room IS the sound - 85 % wet, 150 ms pre-delay, largest size.
+    presets.push_back({ "Ambient", "Distant Cathedral", {
+        {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.5f},
+        {"strikePosition", 0.5f}, {"malletHardness", 0.3f}, {"damping", 0.1f},
+        {"overtoneBrightness", 0.5f}, {"acousticBrightness", 0.35f}, {"airAbsorption", 1.0f}, {"airAbsorptionTime", 1.5f},
+        {"humLevel", -12.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 1.0f}, {"bloomAmount", 0.9f}, {"shimmer", 0.15f},
         {"unisonCount", 3.0f}, {"unisonDetune", 15.0f},
-        {"octaveBlendSub", 0.55f}, {"octaveBlendOct", 0.08f}, {"stereoSpread", 0.95f},
-        {"strikeTime", 60.0f}, {"brilliance", 32.0f}, {"bodyTime", 4500.0f}, {"humSustain", 95.0f},
-        {"attackLevel", 0.38f}, {"reverbMix", 0.65f},
-        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 8000.0f},
-        {"pitchEnvelope", 0.05f}, {"pitchEnvTime", 120.0f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.45f}
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 1.0f},
+        {"strikeTime", 60.0f}, {"brilliance", 20.0f}, {"bodyTime", 4000.0f}, {"humSustain", 90.0f},
+        {"attackLevel", 0.1f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 1800.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}, {"humanize", 0.35f},
+        {"eqLowGain", -3.0f}, {"eqHighGain", -6.0f},
+        {"reverbSize", 1.0f}, {"reverbDamp", 0.7f}, {"reverbPredelay", 150.0f}, {"reverbMix", 0.85f}, {"reverbMod", 0.25f},
+        {"outputGain", -5.5f}
+    }, {} });
+
+    // Glass model, full bloom on all three bands and no strike - a swell, not a hit.
+    // FX: slow deep chorus into a shimmer reverb.
+    presets.push_back({ "Ambient", "Ethereal Chime Pad", {
+        {"partialModel", 4.0f}, {"material", 3.0f}, {"inharmonicity", 0.4f},
+        {"strikePosition", 0.5f}, {"malletHardness", 0.0f}, {"damping", 0.15f},
+        {"overtoneBrightness", 0.6f}, {"acousticBrightness", 0.8f}, {"airAbsorption", 0.2f}, {"airAbsorptionTime", 6.0f},
+        {"humLevel", -12.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 1.0f}, {"bloomAmount", 1.0f}, {"shimmer", 0.6f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 1.0f}, {"bloomSpeedMid", 1.0f}, {"bloomSpeedHigh", 1.0f},
+        {"bloomAmountLow", 1.0f}, {"bloomAmountMid", 1.0f}, {"bloomAmountHigh", 0.9f},
+        {"unisonCount", 4.0f}, {"unisonDetune", 20.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.5f}, {"stereoSpread", 1.0f},
+        {"strikeTime", 100.0f}, {"brilliance", 70.0f}, {"bodyTime", 5000.0f}, {"humSustain", 100.0f},
+        {"attackLevel", 0.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}, {"humanize", 0.5f},
+        {"chorusRate", 0.4f}, {"chorusDepth", 0.7f}, {"chorusMix", 0.5f},
+        {"reverbSize", 0.9f}, {"reverbDamp", 0.3f}, {"reverbPredelay", 40.0f}, {"reverbMix", 0.65f}, {"reverbMod", 0.6f}, {"reverbShimmer", 0.6f},
+        {"outputGain", -3.0f}
+    }, {} });
+
+    // Bowl model. Fine bloom staggers the bands (low at once, high after 800 ms) so the spectrum opens over time.
+    // FX: long ping-pong delay at 70 % feedback, heavily modulated reverb.
+    presets.push_back({ "Ambient", "Evolving Bronze Wash", {
+        {"partialModel", 3.0f}, {"material", 0.0f}, {"inharmonicity", 0.7f},
+        {"strikePosition", 0.65f}, {"malletHardness", 0.2f}, {"damping", 0.05f},
+        {"overtoneBrightness", 0.8f}, {"acousticBrightness", 0.9f}, {"airAbsorption", 0.1f}, {"airAbsorptionTime", 8.0f},
+        {"humLevel", 0.0f}, {"primeLevel", -8.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 1.0f}, {"bloomAmount", 0.9f}, {"shimmer", 0.8f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.0f}, {"bloomSpeedMid", 0.47f}, {"bloomSpeedHigh", 1.0f},
+        {"bloomAmountLow", 0.2f}, {"bloomAmountMid", 0.8f}, {"bloomAmountHigh", 1.0f},
+        {"unisonCount", 3.0f}, {"unisonDetune", 28.0f},
+        {"octaveBlendSub", 0.4f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 1.0f},
+        {"strikeTime", 80.0f}, {"brilliance", 85.0f}, {"bodyTime", 5000.0f}, {"humSustain", 100.0f},
+        {"attackLevel", 0.05f}, {"nonlinearEffects", 0.4f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.45f},
+        {"delayTime", 0.75f}, {"delayFeedback", 0.7f}, {"delayMode", 1.0f}, {"delayMix", 0.35f},
+        {"reverbSize", 0.85f}, {"reverbDamp", 0.4f}, {"reverbPredelay", 30.0f}, {"reverbMix", 0.55f}, {"reverbMod", 0.8f},
+        {"outputGain", 5.0f}
+    }, {} });
+
+    // Plate model in steel, damping 0, hum removed, octave layer high - a bright sheet that never settles.
+    // FX: undamped shimmer reverb, EQ tilted up. Output trimmed: the shimmer builds on held notes.
+    presets.push_back({ "Ambient", "Frozen Steel Shimmer", {
+        {"partialModel", 2.0f}, {"material", 2.0f}, {"inharmonicity", 0.35f},
+        {"strikePosition", 0.85f}, {"malletHardness", 0.6f}, {"damping", 0.0f},
+        {"overtoneBrightness", 0.95f}, {"acousticBrightness", 1.0f}, {"airAbsorption", 0.0f},
+        {"humLevel", -24.0f}, {"primeLevel", -6.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 0.33f}, {"bloomAmount", 0.4f}, {"shimmer", 0.9f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 9.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.8f}, {"stereoSpread", 0.9f},
+        {"strikeTime", 20.0f}, {"brilliance", 100.0f}, {"bodyTime", 5000.0f}, {"humSustain", 100.0f},
+        {"attackLevel", 0.3f},
+        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.2f},
+        {"eqLowGain", -6.0f}, {"eqHighGain", 5.0f},
+        {"reverbSize", 1.0f}, {"reverbDamp", 0.0f}, {"reverbPredelay", 20.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.35f}, {"reverbShimmer", 0.6f},
+        {"outputGain", -7.5f}
+    }, {} });
+
+    // Cast iron under a 900 Hz low-pass with a deep 200 ms pitch dip.
+    // FX: full-depth chorus wobble, fully damped reverb, high shelf at -12 dB.
+    presets.push_back({ "Ambient", "Underwater Bell", {
+        {"partialModel", 0.0f}, {"material", 4.0f}, {"inharmonicity", 0.4f},
+        {"strikePosition", 0.05f}, {"malletHardness", 0.1f}, {"damping", 0.3f},
+        {"overtoneBrightness", 0.05f}, {"acousticBrightness", 0.1f}, {"airAbsorption", 0.8f}, {"airAbsorptionTime", 0.6f},
+        {"humLevel", 6.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 0.6f}, {"bloomAmount", 0.5f}, {"shimmer", 0.4f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 16.0f},
+        {"octaveBlendSub", 0.6f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.7f},
+        {"strikeTime", 70.0f}, {"brilliance", 0.0f}, {"bodyTime", 3000.0f}, {"humSustain", 70.0f},
+        {"attackLevel", 0.05f}, {"pitchEnvelope", 0.6f}, {"pitchEnvTime", 200.0f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 900.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}, {"humanize", 0.4f},
+        {"eqMidGain", 3.0f}, {"eqMidFreq", 350.0f}, {"eqHighGain", -12.0f},
+        {"chorusRate", 0.8f}, {"chorusDepth", 1.0f}, {"chorusMix", 0.6f},
+        {"reverbSize", 0.7f}, {"reverbDamp", 1.0f}, {"reverbPredelay", 0.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.7f},
+        {"outputGain", -10.0f}
     }, {} });
 
     // ========== BRIGHT BELLS (5 presets) ==========
-    // Clear, articulate tones with pronounced upper partials
+    // Hard mallets, high partials, moderate damping
 
-    // Small bronze disc - pure, sustaining tone
-    // Research: Crotales have nearly harmonic partials, extremely long sustain
+    // Near-harmonic Classic (inharmonicity 0.08), hardest mallet, ping, hum removed.
+    // Oct stays near its v2.2.1 value: Classic has no Nyquist guard (MODEL_NYQUIST_GUARD) and crotales are played high.
+    // FX: small bright room, a touch of shimmer, high shelf up.
     presets.push_back({ "Bright Bells", "Bright Clear Crotale", {
-        {"strikePosition", 0.58f}, {"malletHardness", 0.82f}, {"damping", 0.88f},
-        {"overtoneBrightness", 0.85f}, {"acousticBrightness", 0.82f}, {"material", 0.0f}, {"inharmonicity", 0.15f},
-        {"airAbsorption", 0.12f}, {"airAbsorptionTime", 2.0f},
-        {"bloomSpeed", 0.28f}, {"bloomAmount", 0.1f}, {"shimmer", 0.22f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
-        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.2f}, {"stereoSpread", 0.55f},
-        {"strikeTime", 12.0f}, {"brilliance", 88.0f}, {"bodyTime", 1800.0f}, {"humSustain", 35.0f},
-        {"attackLevel", 0.65f}, {"reverbMix", 0.38f},
-        {"partialTuning", 3.0f},
-        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.15f}
+        {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.08f},
+        {"strikePosition", 0.8f}, {"malletHardness", 0.95f}, {"damping", 0.55f},
+        {"overtoneBrightness", 0.85f}, {"acousticBrightness", 0.95f},
+        {"humLevel", -24.0f}, {"primeLevel", 3.0f}, {"humFollow", 0.4f},
+        {"bloomSpeed", 0.0f}, {"bloomAmount", 0.05f}, {"shimmer", 0.05f},
+        {"unisonCount", 1.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.25f}, {"stereoSpread", 0.4f},
+        {"strikeTime", 8.0f}, {"brilliance", 95.0f}, {"bodyTime", 2500.0f}, {"humSustain", 60.0f},
+        {"attackLevel", 0.8f},
+        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.15f},
+        {"eqHighGain", 4.0f},
+        {"reverbSize", 0.5f}, {"reverbDamp", 0.1f}, {"reverbPredelay", 15.0f}, {"reverbMix", 0.25f}, {"reverbMod", 0.1f}, {"reverbShimmer", 0.15f},
+        {"outputGain", 3.5f}
     }, {} });
 
-    // Steel tube - bright, tubular bell character
-    // Research: Tubular bells have strike pitch from 4th/5th/6th partials in 2:3:4 ratio
-    presets.push_back({ "Bright Bells", "Crystalline Steel Chime", {
-        {"strikePosition", 0.52f}, {"malletHardness", 0.78f}, {"damping", 0.75f},
-        {"overtoneBrightness", 0.78f}, {"acousticBrightness", 0.75f}, {"material", 2.0f}, {"inharmonicity", 0.42f},
-        {"airAbsorption", 0.15f}, {"airAbsorptionTime", 1.8f},
-        {"bloomSpeed", 0.32f}, {"bloomAmount", 0.12f}, {"shimmer", 0.18f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
-        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.1f}, {"stereoSpread", 0.48f},
-        {"strikeTime", 18.0f}, {"brilliance", 82.0f}, {"bodyTime", 1400.0f}, {"humSustain", 28.0f},
-        {"attackLevel", 0.62f}, {"reverbMix", 0.32f},
-        {"pitchEnvelope", 0.04f}, {"pitchEnvTime", 25.0f},
-        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.2f}
-    }, {} });
-
-    // Light aluminum - shimmery, delicate
-    // Research: Aluminum has high brightness, short decay
-    presets.push_back({ "Bright Bells", "Sparkling Aluminum", {
-        {"strikePosition", 0.62f}, {"malletHardness", 0.75f}, {"damping", 0.65f},
-        {"overtoneBrightness", 0.88f}, {"acousticBrightness", 0.88f}, {"material", 3.0f}, {"inharmonicity", 0.28f},
-        {"airAbsorption", 0.08f}, {"airAbsorptionTime", 1.2f},
-        {"bloomSpeed", 0.22f}, {"bloomAmount", 0.08f}, {"shimmer", 0.35f},
-        {"unisonCount", 2.0f}, {"unisonDetune", 8.0f},
-        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.28f}, {"stereoSpread", 0.65f},
-        {"strikeTime", 10.0f}, {"brilliance", 92.0f}, {"bodyTime", 900.0f}, {"humSustain", 18.0f},
-        {"attackLevel", 0.68f}, {"reverbMix", 0.35f},
-        {"nonlinearEffects", 0.05f},
-        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.12f}
-    }, {} });
-
-    // Bright bronze plate - clear attack, singing sustain
+    // Plate model stretched wide (inharmonicity 0.9), sub layer, some nonlinear clang. Hum Follow keeps the ring short.
+    // FX: mid push at 3 kHz, medium bright room.
     presets.push_back({ "Bright Bells", "Brilliant Bronze Plate", {
-        {"strikePosition", 0.55f}, {"malletHardness", 0.72f}, {"damping", 0.78f},
-        {"overtoneBrightness", 0.75f}, {"acousticBrightness", 0.72f}, {"material", 0.0f}, {"inharmonicity", 0.22f},
-        {"airAbsorption", 0.18f}, {"airAbsorptionTime", 1.5f},
-        {"bloomSpeed", 0.35f}, {"bloomAmount", 0.15f}, {"shimmer", 0.25f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
-        {"octaveBlendSub", 0.05f}, {"octaveBlendOct", 0.18f}, {"stereoSpread", 0.52f},
-        {"strikeTime", 15.0f}, {"brilliance", 78.0f}, {"bodyTime", 1600.0f}, {"humSustain", 32.0f},
-        {"attackLevel", 0.6f}, {"reverbMix", 0.4f},
-        {"partialTuning", 5.0f},
-        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.18f}
+        {"partialModel", 2.0f}, {"material", 0.0f}, {"inharmonicity", 0.9f},
+        {"strikePosition", 0.45f}, {"malletHardness", 0.7f}, {"damping", 0.65f},
+        {"overtoneBrightness", 0.7f}, {"acousticBrightness", 0.8f},
+        {"humLevel", -12.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.5f},
+        {"bloomSpeed", 0.04f}, {"bloomAmount", 0.1f}, {"shimmer", 0.3f},
+        {"unisonCount", 1.0f},
+        {"octaveBlendSub", 0.3f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.75f},
+        {"strikeTime", 15.0f}, {"brilliance", 80.0f}, {"bodyTime", 1200.0f}, {"humSustain", 30.0f},
+        {"attackLevel", 0.7f}, {"nonlinearEffects", 0.3f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.25f},
+        {"eqMidGain", 3.0f}, {"eqMidFreq", 3000.0f},
+        {"reverbSize", 0.65f}, {"reverbDamp", 0.25f}, {"reverbPredelay", 35.0f}, {"reverbMix", 0.35f}, {"reverbMod", 0.2f},
+        {"outputGain", 4.5f}
     }, {} });
 
-    // Steel bar - glockenspiel-like, pure fundamental
-    // Research: Short bars suppress higher partials
+    // Tubular model, hardest mallet, click. RC-3: a bar is SHORT - damping 0.8, body 600 ms, Hum Follow 1.
+    // FX: tight ping-pong slap, nearly dry.
     presets.push_back({ "Bright Bells", "Crisp Steel Bar", {
-        {"strikePosition", 0.65f}, {"malletHardness", 0.88f}, {"damping", 0.55f},
-        {"overtoneBrightness", 0.82f}, {"acousticBrightness", 0.78f}, {"material", 2.0f}, {"inharmonicity", 0.18f},
-        {"airAbsorption", 0.05f}, {"airAbsorptionTime", 0.8f},
-        {"bloomSpeed", 0.15f}, {"bloomAmount", 0.05f}, {"shimmer", 0.12f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
-        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.12f}, {"stereoSpread", 0.45f},
-        {"strikeTime", 8.0f}, {"brilliance", 85.0f}, {"bodyTime", 800.0f}, {"humSustain", 15.0f},
-        {"attackLevel", 0.75f}, {"reverbMix", 0.28f},
-        {"pitchEnvelope", 0.06f}, {"pitchEnvTime", 12.0f},
-        {"nonlinearEffects", 0.03f},
-        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.1f}
+        {"partialModel", 1.0f}, {"material", 2.0f}, {"inharmonicity", 0.75f},
+        {"strikePosition", 0.7f}, {"malletHardness", 1.0f}, {"damping", 0.8f},
+        {"overtoneBrightness", 0.8f}, {"acousticBrightness", 0.6f},
+        {"humLevel", -24.0f}, {"primeLevel", -3.0f}, {"humFollow", 1.0f},
+        {"bloomSpeed", 0.0f}, {"bloomAmount", 0.02f}, {"shimmer", 0.0f},
+        {"unisonCount", 1.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.3f},
+        {"strikeTime", 5.0f}, {"brilliance", 60.0f}, {"bodyTime", 600.0f}, {"humSustain", 10.0f},
+        {"attackLevel", 0.9f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 1.0f}, {"humanize", 0.2f},
+        {"delayTime", 0.18f}, {"delayFeedback", 0.25f}, {"delayMode", 1.0f}, {"delayMix", 0.2f},
+        {"reverbSize", 0.25f}, {"reverbDamp", 0.4f}, {"reverbPredelay", 5.0f}, {"reverbMix", 0.15f}, {"reverbMod", 0.0f},
+        {"outputGain", 1.5f}
     }, {} });
 
-    // ========== WARM BELLS (5 presets) ==========
-    // Mellow tones with soft attack and rounded character
-
-    // Soft felt mallet on bronze - warm, organ-like
-    presets.push_back({ "Warm Bells", "Soft Mallet Bronze", {
-        {"strikePosition", 0.35f}, {"malletHardness", 0.25f}, {"damping", 0.82f},
-        {"overtoneBrightness", 0.42f}, {"acousticBrightness", 0.48f}, {"material", 0.0f}, {"inharmonicity", 0.35f},
-        {"airAbsorption", 0.25f}, {"airAbsorptionTime", 3.0f},
-        {"bloomSpeed", 0.58f}, {"bloomAmount", 0.35f}, {"shimmer", 0.15f},
-        {"bloomFineEnabled", 1.0f},
-        {"bloomSpeedLow", 0.65f}, {"bloomSpeedMid", 0.55f}, {"bloomSpeedHigh", 0.4f},
-        {"bloomAmountLow", 0.42f}, {"bloomAmountMid", 0.32f}, {"bloomAmountHigh", 0.15f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
-        {"octaveBlendSub", 0.22f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.55f},
-        {"strikeTime", 35.0f}, {"brilliance", 35.0f}, {"bodyTime", 2200.0f}, {"humSustain", 65.0f},
-        {"attackLevel", 0.28f}, {"reverbMix", 0.45f},
-        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 7500.0f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f},
-        {"humanize", 0.4f}
+    // Glass model in steel with the octave layer and full brilliance.
+    // FX: dotted ping-pong delay, shimmer reverb.
+    presets.push_back({ "Bright Bells", "Crystalline Steel Chime", {
+        {"partialModel", 4.0f}, {"material", 2.0f}, {"inharmonicity", 0.6f},
+        {"strikePosition", 0.75f}, {"malletHardness", 0.85f}, {"damping", 0.6f},
+        {"overtoneBrightness", 0.9f}, {"acousticBrightness", 1.0f},
+        {"humLevel", -18.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.3f},
+        {"bloomSpeed", 0.01f}, {"bloomAmount", 0.08f}, {"shimmer", 0.4f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 4.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.5f}, {"stereoSpread", 0.85f},
+        {"strikeTime", 10.0f}, {"brilliance", 100.0f}, {"bodyTime", 2000.0f}, {"humSustain", 45.0f},
+        {"attackLevel", 0.6f},
+        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.2f},
+        {"delayTime", 0.33f}, {"delayFeedback", 0.4f}, {"delayMode", 1.0f}, {"delayMix", 0.18f},
+        {"reverbSize", 0.7f}, {"reverbDamp", 0.15f}, {"reverbPredelay", 25.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.3f}, {"reverbShimmer", 0.35f},
+        {"outputGain", 0.5f}
     }, {} });
 
-    // Singing bowl character - meditative, beating
-    // Research: Asymmetric bowls create 2-3Hz monaural beats
-    presets.push_back({ "Warm Bells", "Mellow Brass Bowl", {
-        {"strikePosition", 0.28f}, {"malletHardness", 0.3f}, {"damping", 0.9f},
-        {"overtoneBrightness", 0.45f}, {"acousticBrightness", 0.52f}, {"material", 1.0f}, {"inharmonicity", 0.28f},
-        {"airAbsorption", 0.2f}, {"airAbsorptionTime", 2.5f},
-        {"bloomSpeed", 0.65f}, {"bloomAmount", 0.42f}, {"shimmer", 0.38f},
-        {"unisonCount", 2.0f}, {"unisonDetune", 5.0f},
-        {"octaveBlendSub", 0.18f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.6f},
-        {"strikeTime", 40.0f}, {"brilliance", 42.0f}, {"bodyTime", 2800.0f}, {"humSustain", 72.0f},
-        {"attackLevel", 0.32f}, {"reverbMix", 0.48f},
-        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 9000.0f},
-        {"partialTuning", -12.0f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f},
-        {"humanize", 0.35f}
+    // Tubular model stretched to the limit, struck at the rim, wide unison. A model (not Classic) so the octave layer is Nyquist-guarded.
+    // FX: fast chorus, EQ low cut / high lift.
+    presets.push_back({ "Bright Bells", "Sparkling Aluminum", {
+        {"partialModel", 1.0f}, {"material", 3.0f}, {"inharmonicity", 1.0f},
+        {"strikePosition", 1.0f}, {"malletHardness", 0.9f}, {"damping", 0.7f},
+        {"overtoneBrightness", 1.0f}, {"acousticBrightness", 0.9f},
+        {"humLevel", -18.0f}, {"primeLevel", -3.0f}, {"humFollow", 0.6f},
+        {"bloomSpeed", 0.0f}, {"bloomAmount", 0.05f}, {"shimmer", 0.5f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 25.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.7f}, {"stereoSpread", 1.0f},
+        {"strikeTime", 6.0f}, {"brilliance", 90.0f}, {"bodyTime", 900.0f}, {"humSustain", 20.0f},
+        {"attackLevel", 0.75f},
+        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
+        {"eqLowGain", -4.0f}, {"eqHighGain", 6.0f},
+        {"chorusRate", 2.5f}, {"chorusDepth", 0.4f}, {"chorusMix", 0.3f},
+        {"reverbSize", 0.35f}, {"reverbDamp", 0.2f}, {"reverbPredelay", 10.0f}, {"reverbMix", 0.3f}, {"reverbMod", 0.15f},
+        {"outputGain", 5.5f}
     }, {} });
 
-    // Vibraphone-like - warm aluminum with gentle attack
-    // Research: Resonator tubes amplify fundamental, modal ratios 1:2.76:5.4
-    presets.push_back({ "Warm Bells", "Warm Aluminum Bars", {
-        {"strikePosition", 0.4f}, {"malletHardness", 0.38f}, {"damping", 0.72f},
-        {"overtoneBrightness", 0.52f}, {"acousticBrightness", 0.58f}, {"material", 3.0f}, {"inharmonicity", 0.32f},
-        {"airAbsorption", 0.12f}, {"airAbsorptionTime", 1.5f},
-        {"bloomSpeed", 0.45f}, {"bloomAmount", 0.22f}, {"shimmer", 0.28f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
-        {"octaveBlendSub", 0.1f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.58f},
-        {"strikeTime", 25.0f}, {"brilliance", 48.0f}, {"bodyTime", 1400.0f}, {"humSustain", 52.0f},
-        {"attackLevel", 0.4f}, {"reverbMix", 0.35f},
-        {"pitchEnvelope", 0.02f}, {"pitchEnvTime", 18.0f},
-        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 2.0f},
-        {"humanize", 0.3f}
+    // ========== LARGE BELLS (5 presets) ==========
+    // RC-3: big bells ring - damping 0-0.15, longest body
+
+    // Tubular model in brass - the orchestral tubular bell. RC-3: damping 0.05.
+    // FX: 120 ms pre-delay and a half-second echo: the cavern.
+    presets.push_back({ "Large Bells", "Cavernous Brass", {
+        {"partialModel", 1.0f}, {"material", 1.0f}, {"inharmonicity", 0.5f},
+        {"strikePosition", 0.6f}, {"malletHardness", 0.55f}, {"damping", 0.05f},
+        {"overtoneBrightness", 0.7f}, {"acousticBrightness", 0.7f}, {"airAbsorption", 0.15f}, {"airAbsorptionTime", 5.0f},
+        {"humLevel", -6.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 0.25f}, {"bloomAmount", 0.2f}, {"shimmer", 0.25f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 10.0f},
+        {"octaveBlendSub", 0.35f}, {"octaveBlendOct", 0.2f}, {"stereoSpread", 0.8f},
+        {"strikeTime", 35.0f}, {"brilliance", 55.0f}, {"bodyTime", 5000.0f}, {"humSustain", 100.0f},
+        {"attackLevel", 0.55f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
+        {"delayTime", 0.5f}, {"delayFeedback", 0.35f}, {"delayMode", 0.0f}, {"delayMix", 0.15f},
+        {"reverbSize", 0.95f}, {"reverbDamp", 0.45f}, {"reverbPredelay", 120.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.2f},
+        {"outputGain", -4.0f}
     }, {} });
 
-    // Soft hand bell - gentle, intimate
-    presets.push_back({ "Warm Bells", "Gentle Hand Bell", {
-        {"strikePosition", 0.42f}, {"malletHardness", 0.35f}, {"damping", 0.68f},
-        {"overtoneBrightness", 0.55f}, {"acousticBrightness", 0.55f}, {"material", 1.0f}, {"inharmonicity", 0.38f},
-        {"airAbsorption", 0.15f}, {"airAbsorptionTime", 1.8f},
-        {"bloomSpeed", 0.35f}, {"bloomAmount", 0.18f}, {"shimmer", 0.18f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
-        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.15f}, {"stereoSpread", 0.48f},
-        {"strikeTime", 22.0f}, {"brilliance", 52.0f}, {"bodyTime", 1200.0f}, {"humSustain", 45.0f},
-        {"attackLevel", 0.35f}, {"reverbMix", 0.38f},
-        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 12000.0f},
-        {"pitchEnvelope", 0.015f}, {"pitchEnvTime", 30.0f},
-        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 2.0f},
-        {"humanize", 0.35f}
+    // The reference church bell: Classic at 0.5, struck low, hum lifted, heavy sub layer. RC-3: damping 0.05 (was 0.95).
+    // FX: large damped hall, low shelf up.
+    presets.push_back({ "Large Bells", "Deep Bronze Tower", {
+        {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.5f},
+        {"strikePosition", 0.15f}, {"malletHardness", 0.5f}, {"damping", 0.05f},
+        {"overtoneBrightness", 0.3f}, {"acousticBrightness", 0.5f}, {"airAbsorption", 0.3f}, {"airAbsorptionTime", 5.0f},
+        {"humLevel", 2.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 0.47f}, {"bloomAmount", 0.3f}, {"shimmer", 0.2f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 12.0f},
+        {"octaveBlendSub", 0.6f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.85f},
+        {"strikeTime", 45.0f}, {"brilliance", 30.0f}, {"bodyTime", 4500.0f}, {"humSustain", 100.0f},
+        {"attackLevel", 0.5f}, {"pitchEnvelope", 0.03f}, {"pitchEnvTime", 80.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.35f},
+        {"eqLowGain", 3.0f},
+        {"reverbSize", 0.85f}, {"reverbDamp", 0.6f}, {"reverbPredelay", 40.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.15f},
+        {"outputGain", -6.0f}
     }, {} });
 
-    // Dark, smooth bronze - velvet character
-    presets.push_back({ "Warm Bells", "Velvet Bronze Tone", {
-        {"strikePosition", 0.3f}, {"malletHardness", 0.22f}, {"damping", 0.85f},
-        {"overtoneBrightness", 0.35f}, {"acousticBrightness", 0.42f}, {"material", 0.0f}, {"inharmonicity", 0.4f},
-        {"airAbsorption", 0.32f}, {"airAbsorptionTime", 3.5f},
-        {"bloomSpeed", 0.7f}, {"bloomAmount", 0.4f}, {"shimmer", 0.12f},
-        {"bloomFineEnabled", 1.0f},
-        {"bloomSpeedLow", 0.78f}, {"bloomSpeedMid", 0.65f}, {"bloomSpeedHigh", 0.45f},
-        {"bloomAmountLow", 0.5f}, {"bloomAmountMid", 0.38f}, {"bloomAmountHigh", 0.12f},
+    // Same bell family as the Tower but struck hard and bright: prime lifted, octave layer, minor-third tierce (-8 c).
+    // FX: bright hall with long pre-delay.
+    presets.push_back({ "Large Bells", "Grand Cathedral Bell", {
+        {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.5f}, {"partialTuning", -8.0f},
+        {"strikePosition", 0.55f}, {"malletHardness", 0.8f}, {"damping", 0.1f},
+        {"overtoneBrightness", 0.75f}, {"acousticBrightness", 0.85f}, {"airAbsorption", 0.1f}, {"airAbsorptionTime", 6.0f},
+        {"humLevel", 3.0f}, {"primeLevel", 4.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 0.15f}, {"bloomAmount", 0.15f}, {"shimmer", 0.2f},
         {"unisonCount", 2.0f}, {"unisonDetune", 6.0f},
-        {"octaveBlendSub", 0.28f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.62f},
-        {"strikeTime", 45.0f}, {"brilliance", 28.0f}, {"bodyTime", 2500.0f}, {"humSustain", 68.0f},
-        {"attackLevel", 0.25f}, {"reverbMix", 0.5f},
-        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 5500.0f},
-        {"partialTuning", -6.0f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f},
-        {"humanize", 0.45f}
+        {"octaveBlendSub", 0.25f}, {"octaveBlendOct", 0.3f}, {"stereoSpread", 0.9f},
+        {"strikeTime", 25.0f}, {"brilliance", 75.0f}, {"bodyTime", 4000.0f}, {"humSustain", 85.0f},
+        {"attackLevel", 0.7f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.4f},
+        {"reverbSize", 0.9f}, {"reverbDamp", 0.3f}, {"reverbPredelay", 80.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.3f},
+        {"outputGain", -3.0f}
+    }, {} });
+
+    // Cast iron toward gamelan ratios, sub at 0.85, 3.5 kHz low-pass, wide 3-voice unison. RC-3: damping 0 (was 1.0).
+    // FX: largest, darkest hall; EQ low up, high down.
+    presets.push_back({ "Large Bells", "Massive Iron Bell", {
+        {"partialModel", 0.0f}, {"material", 4.0f}, {"inharmonicity", 0.72f},
+        {"strikePosition", 0.3f}, {"malletHardness", 0.45f}, {"damping", 0.0f},
+        {"overtoneBrightness", 0.12f}, {"acousticBrightness", 0.3f}, {"airAbsorption", 0.4f}, {"airAbsorptionTime", 5.5f},
+        {"humLevel", 3.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 0.87f}, {"bloomAmount", 0.45f}, {"shimmer", 0.15f},
+        {"unisonCount", 3.0f}, {"unisonDetune", 22.0f},
+        {"octaveBlendSub", 0.85f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.9f},
+        {"strikeTime", 55.0f}, {"brilliance", 15.0f}, {"bodyTime", 5000.0f}, {"humSustain", 100.0f},
+        {"attackLevel", 0.45f}, {"nonlinearEffects", 0.25f}, {"pitchEnvelope", 0.05f}, {"pitchEnvTime", 100.0f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 3500.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
+        {"eqLowGain", 4.0f}, {"eqHighGain", -6.0f},
+        {"reverbSize", 1.0f}, {"reverbDamp", 0.85f}, {"reverbPredelay", 60.0f}, {"reverbMix", 0.45f}, {"reverbMod", 0.1f},
+        {"outputGain", -8.0f}
+    }, {} });
+
+    // Softest mallet, slowest bloom, prime pulled down 12 dB so the hum carries the note.
+    // FX: 1.2 s echo - the toll repeats.
+    presets.push_back({ "Large Bells", "Slow Tolling Bell", {
+        {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.35f},
+        {"strikePosition", 0.6f}, {"malletHardness", 0.15f}, {"damping", 0.0f},
+        {"overtoneBrightness", 0.4f}, {"acousticBrightness", 0.6f}, {"airAbsorption", 0.25f}, {"airAbsorptionTime", 7.0f},
+        {"humLevel", 6.0f}, {"primeLevel", -12.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 1.0f}, {"bloomAmount", 0.8f}, {"shimmer", 0.3f},
+        {"unisonCount", 1.0f},
+        {"octaveBlendSub", 0.2f}, {"octaveBlendOct", 0.35f}, {"stereoSpread", 0.7f},
+        {"strikeTime", 90.0f}, {"brilliance", 45.0f}, {"bodyTime", 5000.0f}, {"humSustain", 100.0f},
+        {"attackLevel", 0.1f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}, {"humanize", 0.45f},
+        {"eqMidGain", -3.0f}, {"eqMidFreq", 800.0f},
+        {"delayTime", 1.2f}, {"delayFeedback", 0.5f}, {"delayMode", 0.0f}, {"delayMix", 0.2f},
+        {"reverbSize", 0.8f}, {"reverbDamp", 0.5f}, {"reverbPredelay", 50.0f}, {"reverbMix", 0.45f}, {"reverbMod", 0.2f},
+        {"outputGain", -2.0f}
     }, {} });
 
     // ========== METALLIC (5 presets) ==========
-    // Complex spectra with pronounced inharmonicity
+    // Plates, gongs, gamelan: the inharmonic end
 
-    // Gamelan-inspired - extreme inharmonicity
-    // Research: Sléndro tuning derived from inharmonic bonang spectrum
-    presets.push_back({ "Metallic", "Dense Bronze Gamelan", {
-        {"strikePosition", 0.55f}, {"malletHardness", 0.62f}, {"damping", 0.58f},
-        {"overtoneBrightness", 0.58f}, {"acousticBrightness", 0.65f}, {"material", 0.0f}, {"inharmonicity", 0.88f},
-        {"airAbsorption", 0.1f}, {"airAbsorptionTime", 1.2f},
-        {"bloomSpeed", 0.18f}, {"bloomAmount", 0.08f}, {"shimmer", 0.1f},
-        {"unisonCount", 1.0f}, {"unisonDetune", 0.0f},
-        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.5f},
-        {"strikeTime", 12.0f}, {"brilliance", 62.0f}, {"bodyTime", 600.0f}, {"humSustain", 22.0f},
-        {"attackLevel", 0.72f}, {"reverbMix", 0.25f},
-        {"nonlinearEffects", 0.12f}, {"partialTuning", 15.0f},
-        {"pitchEnvelope", 0.03f}, {"pitchEnvTime", 15.0f},
-        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.2f}
-    }, {} });
-
-    // Industrial steel plate - clanging, harsh
-    presets.push_back({ "Metallic", "Clanging Steel Plate", {
-        {"strikePosition", 0.7f}, {"malletHardness", 0.85f}, {"damping", 0.52f},
-        {"overtoneBrightness", 0.78f}, {"acousticBrightness", 0.72f}, {"material", 2.0f}, {"inharmonicity", 0.72f},
-        {"airAbsorption", 0.08f}, {"airAbsorptionTime", 0.8f},
-        {"bloomSpeed", 0.15f}, {"bloomAmount", 0.05f}, {"shimmer", 0.08f},
-        {"unisonCount", 2.0f}, {"unisonDetune", 15.0f},
-        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.15f}, {"stereoSpread", 0.72f},
-        {"strikeTime", 8.0f}, {"brilliance", 75.0f}, {"bodyTime", 500.0f}, {"humSustain", 15.0f},
-        {"attackLevel", 0.85f}, {"reverbMix", 0.2f},
-        {"nonlinearEffects", 0.18f}, {"partialTuning", 22.0f},
-        {"pitchEnvelope", 0.08f}, {"pitchEnvTime", 10.0f},
-        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 1.0f},
-        {"humanize", 0.15f}
-    }, {} });
-
-    // Complex gong - beating partials, evolving texture
-    // Research: Gongs have strongly inharmonic partials with slow beating
+    // Plate model - a gong IS a plate. 4-voice unison at 35 c, heavy nonlinear, slow bloom, pitch dip.
+    // FX: modulated hall, mid push at 400 Hz.
     presets.push_back({ "Metallic", "Beating Bronze Gong", {
-        {"strikePosition", 0.22f}, {"malletHardness", 0.48f}, {"damping", 0.95f},
-        {"overtoneBrightness", 0.42f}, {"acousticBrightness", 0.52f}, {"material", 0.0f}, {"inharmonicity", 0.78f},
-        {"airAbsorption", 0.35f}, {"airAbsorptionTime", 4.0f},
-        {"bloomSpeed", 0.82f}, {"bloomAmount", 0.55f}, {"shimmer", 0.32f},
-        {"bloomFineEnabled", 1.0f},
-        {"bloomSpeedLow", 0.9f}, {"bloomSpeedMid", 0.78f}, {"bloomSpeedHigh", 0.6f},
-        {"bloomAmountLow", 0.65f}, {"bloomAmountMid", 0.5f}, {"bloomAmountHigh", 0.35f},
-        {"unisonCount", 3.0f}, {"unisonDetune", 22.0f},
-        {"octaveBlendSub", 0.45f}, {"octaveBlendOct", 0.12f}, {"stereoSpread", 0.92f},
-        {"strikeTime", 55.0f}, {"brilliance", 35.0f}, {"bodyTime", 3800.0f}, {"humSustain", 85.0f},
-        {"attackLevel", 0.42f}, {"reverbMix", 0.55f},
-        {"nonlinearEffects", 0.15f}, {"partialTuning", -18.0f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.25f}
+        {"partialModel", 2.0f}, {"material", 0.0f}, {"inharmonicity", 0.7f},
+        {"strikePosition", 0.4f}, {"malletHardness", 0.25f}, {"damping", 0.2f},
+        {"overtoneBrightness", 0.55f}, {"acousticBrightness", 0.7f},
+        {"humLevel", 0.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 1.0f}, {"bloomAmount", 0.7f}, {"shimmer", 0.7f},
+        {"unisonCount", 4.0f}, {"unisonDetune", 35.0f},
+        {"octaveBlendSub", 0.5f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 1.0f},
+        {"strikeTime", 70.0f}, {"brilliance", 60.0f}, {"bodyTime", 4500.0f}, {"humSustain", 80.0f},
+        {"attackLevel", 0.3f}, {"nonlinearEffects", 0.7f}, {"pitchEnvelope", 0.15f}, {"pitchEnvTime", 200.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 1.0f}, {"humanize", 0.4f},
+        {"eqMidGain", 3.0f}, {"eqMidFreq", 400.0f},
+        {"reverbSize", 0.75f}, {"reverbDamp", 0.5f}, {"reverbPredelay", 30.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.5f},
+        {"outputGain", 5.5f}
     }, {} });
 
-    // Bell tree - multiple resonances, cascading
-    presets.push_back({ "Metallic", "Shimmering Bell Tree", {
-        {"strikePosition", 0.6f}, {"malletHardness", 0.68f}, {"damping", 0.72f},
-        {"overtoneBrightness", 0.72f}, {"acousticBrightness", 0.7f}, {"material", 1.0f}, {"inharmonicity", 0.55f},
-        {"airAbsorption", 0.12f}, {"airAbsorptionTime", 1.5f},
-        {"bloomSpeed", 0.28f}, {"bloomAmount", 0.15f}, {"shimmer", 0.45f},
-        {"unisonCount", 4.0f}, {"unisonDetune", 25.0f},
-        {"octaveBlendSub", 0.08f}, {"octaveBlendOct", 0.25f}, {"stereoSpread", 0.88f},
-        {"strikeTime", 15.0f}, {"brilliance", 72.0f}, {"bodyTime", 1100.0f}, {"humSustain", 38.0f},
-        {"attackLevel", 0.58f}, {"reverbMix", 0.42f},
-        {"nonlinearEffects", 0.06f},
-        {"pitchEnvelope", 0.05f}, {"pitchEnvTime", 20.0f},
-        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.28f}
+    // Plate model at full stretch. RC-3: the shortest preset - damping 1, body 350 ms, Hum Follow 1, hum removed.
+    // FX: 90 ms slap, tiny bright room.
+    presets.push_back({ "Metallic", "Clanging Steel Plate", {
+        {"partialModel", 2.0f}, {"material", 2.0f}, {"inharmonicity", 1.0f},
+        {"strikePosition", 0.9f}, {"malletHardness", 1.0f}, {"damping", 1.0f},
+        {"overtoneBrightness", 0.9f}, {"acousticBrightness", 0.5f},
+        {"humLevel", -24.0f}, {"primeLevel", -6.0f}, {"humFollow", 1.0f},
+        {"bloomSpeed", 0.0f}, {"bloomAmount", 0.02f}, {"shimmer", 0.1f},
+        {"unisonCount", 1.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.6f},
+        {"strikeTime", 5.0f}, {"brilliance", 40.0f}, {"bodyTime", 350.0f}, {"humSustain", 0.0f},
+        {"attackLevel", 1.0f}, {"nonlinearEffects", 0.5f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 1.0f}, {"humanize", 0.35f},
+        {"eqMidGain", 4.0f}, {"eqMidFreq", 2500.0f},
+        {"delayTime", 0.09f}, {"delayFeedback", 0.2f}, {"delayMode", 0.0f}, {"delayMix", 0.25f},
+        {"reverbSize", 0.2f}, {"reverbDamp", 0.2f}, {"reverbPredelay", 0.0f}, {"reverbMix", 0.15f}, {"reverbMod", 0.0f},
+        {"outputGain", 5.0f}
     }, {} });
 
-    // Heavy iron - dark, complex
+    // Bowl model in cast iron under a 2.5 kHz low-pass, hum lifted, heavy sub.
+    // FX: huge fully damped hall, high shelf at -8 dB.
     presets.push_back({ "Metallic", "Dark Iron Resonance", {
-        {"strikePosition", 0.25f}, {"malletHardness", 0.52f}, {"damping", 0.88f},
-        {"overtoneBrightness", 0.32f}, {"acousticBrightness", 0.45f}, {"material", 4.0f}, {"inharmonicity", 0.75f},
-        {"airAbsorption", 0.4f}, {"airAbsorptionTime", 4.5f},
-        {"bloomSpeed", 0.75f}, {"bloomAmount", 0.42f}, {"shimmer", 0.22f},
-        {"bloomFineEnabled", 1.0f},
-        {"bloomSpeedLow", 0.85f}, {"bloomSpeedMid", 0.7f}, {"bloomSpeedHigh", 0.5f},
-        {"bloomAmountLow", 0.52f}, {"bloomAmountMid", 0.38f}, {"bloomAmountHigh", 0.2f},
-        {"unisonCount", 2.0f}, {"unisonDetune", 12.0f},
-        {"octaveBlendSub", 0.52f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.82f},
-        {"strikeTime", 48.0f}, {"brilliance", 25.0f}, {"bodyTime", 3200.0f}, {"humSustain", 78.0f},
-        {"attackLevel", 0.48f}, {"reverbMix", 0.52f},
+        {"partialModel", 3.0f}, {"material", 4.0f}, {"inharmonicity", 0.3f},
+        {"strikePosition", 0.25f}, {"malletHardness", 0.3f}, {"damping", 0.25f},
+        {"overtoneBrightness", 0.1f}, {"acousticBrightness", 0.2f}, {"airAbsorption", 0.3f}, {"airAbsorptionTime", 3.0f},
+        {"humLevel", 6.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"bloomSpeed", 0.73f}, {"bloomAmount", 0.4f}, {"shimmer", 0.35f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 18.0f},
+        {"octaveBlendSub", 0.7f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.8f},
+        {"strikeTime", 60.0f}, {"brilliance", 10.0f}, {"bodyTime", 4000.0f}, {"humSustain", 90.0f},
+        {"attackLevel", 0.25f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 2500.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
+        {"eqHighGain", -8.0f},
+        {"reverbSize", 0.95f}, {"reverbDamp", 0.9f}, {"reverbPredelay", 100.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.3f},
+        {"outputGain", 0.5f}
+    }, {} });
+
+    // Classic at full gamelan ratios, 3-voice unison at 30 c for the ombak beating, tierce pushed +35 c.
+    // No octave layer (as in v2.2.1): Classic has no Nyquist guard. FX: ping-pong delay.
+    presets.push_back({ "Metallic", "Dense Bronze Gamelan", {
+        {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 1.0f}, {"partialTuning", 35.0f},
+        {"strikePosition", 0.7f}, {"malletHardness", 0.75f}, {"damping", 0.75f},
+        {"overtoneBrightness", 0.65f}, {"acousticBrightness", 0.75f},
+        {"humLevel", -6.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.3f},
+        {"bloomSpeed", 0.01f}, {"bloomAmount", 0.1f}, {"shimmer", 0.45f},
+        {"unisonCount", 3.0f}, {"unisonDetune", 30.0f},
+        {"octaveBlendSub", 0.35f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.95f},
+        {"strikeTime", 12.0f}, {"brilliance", 65.0f}, {"bodyTime", 1600.0f}, {"humSustain", 35.0f},
+        {"attackLevel", 0.65f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.5f},
+        {"delayTime", 0.25f}, {"delayFeedback", 0.45f}, {"delayMode", 1.0f}, {"delayMix", 0.22f},
+        {"reverbSize", 0.45f}, {"reverbDamp", 0.35f}, {"reverbPredelay", 20.0f}, {"reverbMix", 0.3f}, {"reverbMod", 0.2f},
+        {"outputGain", 8.0f}
+    }, {} });
+
+    // Glass model, octave layer at full, 4-voice unison at 50 c, shimmer at full, hum and prime pulled down.
+    // FX: fast chorus, short high-feedback ping-pong, shimmer reverb.
+    presets.push_back({ "Metallic", "Shimmering Bell Tree", {
+        {"partialModel", 4.0f}, {"material", 1.0f}, {"inharmonicity", 0.85f},
+        {"strikePosition", 0.95f}, {"malletHardness", 0.9f}, {"damping", 0.75f},
+        {"overtoneBrightness", 1.0f}, {"acousticBrightness", 1.0f},
+        {"humLevel", -24.0f}, {"primeLevel", -10.0f}, {"humFollow", 0.5f},
+        {"bloomSpeed", 0.0f}, {"bloomAmount", 0.05f}, {"shimmer", 1.0f},
+        {"unisonCount", 4.0f}, {"unisonDetune", 50.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 1.0f}, {"stereoSpread", 1.0f},
+        {"strikeTime", 5.0f}, {"brilliance", 100.0f}, {"bodyTime", 1100.0f}, {"humSustain", 25.0f},
+        {"attackLevel", 0.7f},
+        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.6f},
+        {"chorusRate", 6.0f}, {"chorusDepth", 0.5f}, {"chorusMix", 0.4f},
+        {"delayTime", 0.12f}, {"delayFeedback", 0.55f}, {"delayMode", 1.0f}, {"delayMix", 0.25f},
+        {"reverbSize", 0.6f}, {"reverbDamp", 0.1f}, {"reverbPredelay", 10.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.4f}, {"reverbShimmer", 0.5f},
+        {"outputGain", 9.0f}
+    }, {} });
+
+    // ========== WARM BELLS (5 presets) ==========
+    // Soft mallets, prime-led spectra, mid damping
+
+    // Small brass bell: near-harmonic, hum removed, short body.
+    // FX: small dry room only.
+    presets.push_back({ "Warm Bells", "Gentle Hand Bell", {
+        {"partialModel", 0.0f}, {"material", 1.0f}, {"inharmonicity", 0.2f},
+        {"strikePosition", 0.4f}, {"malletHardness", 0.45f}, {"damping", 0.45f},
+        {"overtoneBrightness", 0.45f}, {"acousticBrightness", 0.65f},
+        {"humLevel", -24.0f}, {"primeLevel", 2.0f}, {"humFollow", 0.2f},
+        {"bloomSpeed", 0.07f}, {"bloomAmount", 0.1f}, {"shimmer", 0.15f},
+        {"unisonCount", 1.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.3f}, {"stereoSpread", 0.5f},
+        {"strikeTime", 20.0f}, {"brilliance", 55.0f}, {"bodyTime", 1200.0f}, {"humSustain", 40.0f},
+        {"attackLevel", 0.45f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.35f},
+        {"reverbSize", 0.3f}, {"reverbDamp", 0.5f}, {"reverbPredelay", 10.0f}, {"reverbMix", 0.2f}, {"reverbMod", 0.1f},
+        {"outputGain", 8.0f}
+    }, {} });
+
+    // Bowl model, soft mallet, slow beating shimmer.
+    // FX: slow shallow chorus, damped medium room.
+    presets.push_back({ "Warm Bells", "Mellow Brass Bowl", {
+        {"partialModel", 3.0f}, {"material", 1.0f}, {"inharmonicity", 0.5f},
+        {"strikePosition", 0.35f}, {"malletHardness", 0.2f}, {"damping", 0.35f},
+        {"overtoneBrightness", 0.4f}, {"acousticBrightness", 0.6f},
+        {"humLevel", -18.0f}, {"primeLevel", 3.0f}, {"humFollow", 0.3f},
+        {"bloomSpeed", 0.41f}, {"bloomAmount", 0.3f}, {"shimmer", 0.5f},
+        {"unisonCount", 2.0f}, {"unisonDetune", 5.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.7f},
+        {"strikeTime", 40.0f}, {"brilliance", 50.0f}, {"bodyTime", 3000.0f}, {"humSustain", 70.0f},
+        {"attackLevel", 0.2f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
+        {"chorusRate", 0.3f}, {"chorusDepth", 0.3f}, {"chorusMix", 0.25f},
+        {"reverbSize", 0.6f}, {"reverbDamp", 0.7f}, {"reverbPredelay", 25.0f}, {"reverbMix", 0.35f}, {"reverbMod", 0.25f},
+        {"outputGain", -1.5f}
+    }, {} });
+
+    // A true bell (0.55) hit with the softest mallet at the centre, 5 kHz low-pass.
+    // FX: damped room, EQ tilted down.
+    presets.push_back({ "Warm Bells", "Soft Mallet Bronze", {
+        {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.55f},
+        {"strikePosition", 0.1f}, {"malletHardness", 0.0f}, {"damping", 0.5f},
+        {"overtoneBrightness", 0.2f}, {"acousticBrightness", 0.4f},
+        {"humLevel", 2.0f}, {"primeLevel", 3.0f}, {"humFollow", 0.2f},
+        {"bloomSpeed", 0.2f}, {"bloomAmount", 0.2f}, {"shimmer", 0.1f},
+        {"unisonCount", 1.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.45f},
+        {"strikeTime", 50.0f}, {"brilliance", 25.0f}, {"bodyTime", 2200.0f}, {"humSustain", 50.0f},
+        {"attackLevel", 0.05f},
         {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 5000.0f},
-        {"nonlinearEffects", 0.1f}, {"partialTuning", -10.0f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.22f}
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}, {"humanize", 0.35f},
+        {"eqLowGain", 2.0f}, {"eqHighGain", -4.0f},
+        {"reverbSize", 0.45f}, {"reverbDamp", 0.8f}, {"reverbPredelay", 15.0f}, {"reverbMix", 0.25f}, {"reverbMod", 0.1f},
+        {"outputGain", -4.5f}
     }, {} });
 
-    // ========== AMBIENT (5 presets) ==========
-    // Atmospheric, evolving textures
-
-    // Large bell heard from distance - air absorption effect
-    presets.push_back({ "Ambient", "Distant Cathedral", {
-        {"strikePosition", 0.3f}, {"malletHardness", 0.45f}, {"damping", 0.95f},
-        {"overtoneBrightness", 0.38f}, {"acousticBrightness", 0.42f}, {"material", 0.0f}, {"inharmonicity", 0.52f},
-        {"airAbsorption", 0.72f}, {"airAbsorptionTime", 6.0f},
-        {"bloomSpeed", 0.78f}, {"bloomAmount", 0.45f}, {"shimmer", 0.28f},
-        {"bloomFineEnabled", 1.0f},
-        {"bloomSpeedLow", 0.88f}, {"bloomSpeedMid", 0.72f}, {"bloomSpeedHigh", 0.55f},
-        {"bloomAmountLow", 0.55f}, {"bloomAmountMid", 0.4f}, {"bloomAmountHigh", 0.2f},
-        {"unisonCount", 3.0f}, {"unisonDetune", 18.0f},
-        {"octaveBlendSub", 0.48f}, {"octaveBlendOct", 0.1f}, {"stereoSpread", 0.95f},
-        {"strikeTime", 50.0f}, {"brilliance", 28.0f}, {"bodyTime", 4200.0f}, {"humSustain", 88.0f},
-        {"attackLevel", 0.32f}, {"reverbMix", 0.75f},
-        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 4500.0f},
-        {"pitchEnvelope", 0.02f}, {"pitchEnvTime", 90.0f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.42f}
+    // Fully harmonic Classic, hum removed, prime at +6 dB, 4-voice unison, sub + octave layers.
+    // FX: deep slow chorus - the velvet.
+    presets.push_back({ "Warm Bells", "Velvet Bronze Tone", {
+        {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.0f},
+        {"strikePosition", 0.5f}, {"malletHardness", 0.3f}, {"damping", 0.4f},
+        {"overtoneBrightness", 0.5f}, {"acousticBrightness", 0.55f},
+        {"humLevel", -24.0f}, {"primeLevel", 6.0f}, {"humFollow", 0.1f},
+        {"bloomSpeed", 0.6f}, {"bloomAmount", 0.5f}, {"shimmer", 0.3f},
+        {"unisonCount", 4.0f}, {"unisonDetune", 14.0f},
+        {"octaveBlendSub", 0.5f}, {"octaveBlendOct", 0.3f}, {"stereoSpread", 0.9f},
+        {"strikeTime", 60.0f}, {"brilliance", 40.0f}, {"bodyTime", 2600.0f}, {"humSustain", 60.0f},
+        {"attackLevel", 0.15f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
+        {"chorusRate", 0.6f}, {"chorusDepth", 0.6f}, {"chorusMix", 0.45f},
+        {"reverbSize", 0.55f}, {"reverbDamp", 0.6f}, {"reverbPredelay", 20.0f}, {"reverbMix", 0.35f}, {"reverbMod", 0.3f},
+        {"outputGain", 7.5f}
     }, {} });
 
-    // Heavy filtering - muffled, submerged
-    presets.push_back({ "Ambient", "Underwater Bell", {
-        {"strikePosition", 0.28f}, {"malletHardness", 0.32f}, {"damping", 0.92f},
-        {"overtoneBrightness", 0.25f}, {"acousticBrightness", 0.28f}, {"material", 0.0f}, {"inharmonicity", 0.58f},
-        {"airAbsorption", 0.88f}, {"airAbsorptionTime", 3.5f},
-        {"bloomSpeed", 0.85f}, {"bloomAmount", 0.55f}, {"shimmer", 0.35f},
-        {"bloomFineEnabled", 1.0f},
-        {"bloomSpeedLow", 0.92f}, {"bloomSpeedMid", 0.8f}, {"bloomSpeedHigh", 0.6f},
-        {"bloomAmountLow", 0.65f}, {"bloomAmountMid", 0.5f}, {"bloomAmountHigh", 0.25f},
-        {"unisonCount", 4.0f}, {"unisonDetune", 20.0f},
-        {"octaveBlendSub", 0.58f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.88f},
-        {"strikeTime", 55.0f}, {"brilliance", 18.0f}, {"bodyTime", 3500.0f}, {"humSustain", 82.0f},
-        {"attackLevel", 0.25f}, {"reverbMix", 0.72f},
-        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 3000.0f},
-        {"partialTuning", -15.0f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.38f}
-    }, {} });
-
-    // Maximum bloom - slowly evolving pad
-    presets.push_back({ "Ambient", "Evolving Bronze Wash", {
-        {"strikePosition", 0.38f}, {"malletHardness", 0.28f}, {"damping", 1.0f},
-        {"overtoneBrightness", 0.48f}, {"acousticBrightness", 0.52f}, {"material", 0.0f}, {"inharmonicity", 0.42f},
-        {"airAbsorption", 0.35f}, {"airAbsorptionTime", 5.0f},
-        {"bloomSpeed", 0.95f}, {"bloomAmount", 0.78f}, {"shimmer", 0.42f},
-        {"bloomFineEnabled", 1.0f},
-        {"bloomSpeedLow", 0.98f}, {"bloomSpeedMid", 0.92f}, {"bloomSpeedHigh", 0.8f},
-        {"bloomAmountLow", 0.85f}, {"bloomAmountMid", 0.72f}, {"bloomAmountHigh", 0.55f},
-        {"unisonCount", 4.0f}, {"unisonDetune", 15.0f},
-        {"octaveBlendSub", 0.35f}, {"octaveBlendOct", 0.22f}, {"stereoSpread", 0.98f},
-        {"strikeTime", 65.0f}, {"brilliance", 42.0f}, {"bodyTime", 4800.0f}, {"humSustain", 92.0f},
-        {"attackLevel", 0.2f}, {"reverbMix", 0.68f},
-        {"nonlinearEffects", 0.05f},
-        {"pitchEnvelope", 0.01f}, {"pitchEnvTime", 150.0f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.5f}
-    }, {} });
-
-    // Maximum shimmer - icy, crystalline texture
-    presets.push_back({ "Ambient", "Frozen Steel Shimmer", {
-        {"strikePosition", 0.55f}, {"malletHardness", 0.58f}, {"damping", 0.85f},
-        {"overtoneBrightness", 0.72f}, {"acousticBrightness", 0.68f}, {"material", 2.0f}, {"inharmonicity", 0.32f},
-        {"airAbsorption", 0.18f}, {"airAbsorptionTime", 2.5f},
-        {"bloomSpeed", 0.45f}, {"bloomAmount", 0.28f}, {"shimmer", 0.75f},
-        {"unisonCount", 3.0f}, {"unisonDetune", 12.0f},
-        {"octaveBlendSub", 0.12f}, {"octaveBlendOct", 0.35f}, {"stereoSpread", 0.92f},
-        {"strikeTime", 18.0f}, {"brilliance", 78.0f}, {"bodyTime", 2200.0f}, {"humSustain", 55.0f},
-        {"attackLevel", 0.45f}, {"reverbMix", 0.58f},
-        {"nonlinearEffects", 0.04f}, {"partialTuning", 8.0f},
-        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
-        {"humanize", 0.2f}
-    }, {} });
-
-    // Soft, ethereal pad texture
-    presets.push_back({ "Ambient", "Ethereal Chime Pad", {
-        {"strikePosition", 0.45f}, {"malletHardness", 0.22f}, {"damping", 0.98f},
-        {"overtoneBrightness", 0.55f}, {"acousticBrightness", 0.5f}, {"material", 3.0f}, {"inharmonicity", 0.35f},
-        {"airAbsorption", 0.45f}, {"airAbsorptionTime", 4.5f},
-        {"bloomSpeed", 0.88f}, {"bloomAmount", 0.65f}, {"shimmer", 0.48f},
-        {"bloomFineEnabled", 1.0f},
-        {"bloomSpeedLow", 0.95f}, {"bloomSpeedMid", 0.85f}, {"bloomSpeedHigh", 0.7f},
-        {"bloomAmountLow", 0.72f}, {"bloomAmountMid", 0.6f}, {"bloomAmountHigh", 0.42f},
-        {"unisonCount", 4.0f}, {"unisonDetune", 18.0f},
-        {"octaveBlendSub", 0.25f}, {"octaveBlendOct", 0.38f}, {"stereoSpread", 1.0f},
-        {"strikeTime", 70.0f}, {"brilliance", 52.0f}, {"bodyTime", 4500.0f}, {"humSustain", 85.0f},
-        {"attackLevel", 0.18f}, {"reverbMix", 0.72f},
-        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 10000.0f},
-        {"pitchEnvelope", 0.01f}, {"pitchEnvTime", 180.0f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f},
-        {"humanize", 0.48f}
+    // Tubular model compressed (0.2), soft mallet, prime only - vibraphone territory.
+    // FX: 4.5 Hz chorus as the motor, small room.
+    presets.push_back({ "Warm Bells", "Warm Aluminum Bars", {
+        {"partialModel", 1.0f}, {"material", 3.0f}, {"inharmonicity", 0.2f},
+        {"strikePosition", 0.3f}, {"malletHardness", 0.35f}, {"damping", 0.55f},
+        {"overtoneBrightness", 0.25f}, {"acousticBrightness", 0.5f},
+        {"humLevel", -24.0f}, {"primeLevel", 6.0f}, {"humFollow", 0.6f},
+        {"bloomSpeed", 0.04f}, {"bloomAmount", 0.1f}, {"shimmer", 0.1f},
+        {"unisonCount", 1.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.6f},
+        {"strikeTime", 25.0f}, {"brilliance", 35.0f}, {"bodyTime", 1500.0f}, {"humSustain", 30.0f},
+        {"attackLevel", 0.35f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.25f},
+        {"chorusRate", 4.5f}, {"chorusDepth", 0.35f}, {"chorusMix", 0.35f},
+        {"reverbSize", 0.4f}, {"reverbDamp", 0.55f}, {"reverbPredelay", 15.0f}, {"reverbMix", 0.25f}, {"reverbMod", 0.15f},
+        {"outputGain", 7.5f}
     }, {} });
 
     presetManager.initializeFactoryPresets(presets);
