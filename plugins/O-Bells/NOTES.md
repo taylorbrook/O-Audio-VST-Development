@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 4.6.0
+- **Version:** 4.7.0
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -38,6 +38,7 @@
 - **2026-09-20 (v4.5.1):** Visual polish. The snail plate's two shells are now two independently placed overlays at 3x size and 0.11 opacity (upper shell off the top-right corner, lower shell off the bottom-left); value readouts 9px brown -> 11px black; Save/Load and the Strike/Velocity choice buttons centre their captions. Footer version label caught up from v4.3.2.
 - **2026-09-20 (v4.5.2):** Preset-differentiation Step 1. In-repo processor-level render harness (`tests/render-harness/`: `O-Bells-render-test` + `report.py` + `probes.py`, behind `OUARICON_BUILD_TESTS`) reproducing the v4.5.1 baseline within 1 dB; test-only RNG seed hook compiled into the harness target only. No audio change. The brief's held pair-min (4.1) was a one-off draw — re-anchored at the 8-seed mean 3.2.
 - **2026-09-20 (v4.6.0):** Preset-differentiation Step 2 — three voice bugs, all AUDIBLE in saved sessions. RC-1: Material choice index was scaled as if normalised, so Brass / Steel / Aluminum all played as Cast Iron (now 8–14 dB apart). RC-2: Sub / Oct layers never decayed while Bloom > 0 (`applyBloom` never ran on them) and had `initialFraction` applied twice. Unison: `initializePartials` always wrote voice 0, so Unison ≥ 2 lost the negative side of the detune and sat sharp (Unison 2 = no detune). "Noted" startNote frequency overwrite decided: DELETE — fundamental layer is exactly tuned. Damping untouched. New `probes.py` gates (material ≥ 5 dB, sub-band fall, unison peaks, bit-identity vs v4.5.2); `report.py` re-anchored to v4.6.0.
+- **2026-09-20 (v4.7.0):** Preset-differentiation Step 3 (RC-4) — four append-only parameters (version hint 2), defaults BIT-IDENTICAL to 4.6.0: `partialModel` (Classic / Tubular / Plate / Bowl / Glass ratio + amplitude tables; prime stays 1.0 in every model), `humLevel` / `primeLevel` (−24…+6 dB), `humFollow` (hum-stage τ tracks Body Time, all partials). No UI yet (Step 4). The tables were not in `research/`; written in-step as `research/idiophone-partial-models.md` with per-row provenance (Glass row recalled, amplitudes are design values). Random-range median tap 11.3 → 16.4 (gate 16), held 10.2 → 15.5 (gated at equal gain 14.8 — does not reach 16). Harness gained `--alloc-check` (malloc_logger, audio-thread-scoped, liveness-proven): 0 allocations. Left alone: Classic has no Nyquist guard; Hum Follow is masked by the release on taps.
 
 ## Known Issues / Limitations
 

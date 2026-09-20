@@ -217,6 +217,11 @@ private:
     std::atomic<float>* humSustainParam = nullptr;
     // Realism (v2.4.0)
     std::atomic<float>* humanizeParam = nullptr;
+    // Timbral range (v4.7.0)
+    std::atomic<float>* partialModelParam = nullptr;
+    std::atomic<float>* humLevelParam = nullptr;
+    std::atomic<float>* primeLevelParam = nullptr;
+    std::atomic<float>* humFollowParam = nullptr;
     // Lowpass Filter (v2.6.0)
     std::atomic<float>* lpFilterEnabledParam = nullptr;
     std::atomic<float>* lpFilterCutoffParam = nullptr;

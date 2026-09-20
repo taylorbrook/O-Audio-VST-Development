@@ -120,6 +120,15 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float overt
     currentHumanize = humanize;
 }
 
+void BellVoice::updateTimbreParameters(int partialModel, float humLevelDb, float primeLevelDb, float humFollow)
+{
+    currentPartialModel = juce::jlimit(0, NUM_MODELS - 1, partialModel);
+    // Exactly 1.0f at 0 dB, so the default leaves partial amplitudes bit-identical.
+    currentHumLevelGain = juce::Decibels::decibelsToGain(humLevelDb);
+    currentPrimeLevelGain = juce::Decibels::decibelsToGain(primeLevelDb);
+    currentHumFollow = juce::jlimit(0.0f, 1.0f, humFollow);
+}
+
 void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserSound*, int)
 {
     currentMidiNote = midiNoteNumber;
@@ -239,6 +248,7 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
 
             // Initialize shimmer for this partial
             initializeShimmer(fundamentalVoices[i].partials[p], p);
+            cullAboveNyquist(fundamentalVoices[i].partials[p]);
         }
     }
 
@@ -275,6 +285,7 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
 
                 // Initialize shimmer for sub-octave partial
                 initializeShimmer(subOctaveVoices[i].partials[p], p);
+                cullAboveNyquist(subOctaveVoices[i].partials[p]);
             }
         }
     }
@@ -312,6 +323,7 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
 
                 // Initialize shimmer for upper-octave partial
                 initializeShimmer(upperOctaveVoices[i].partials[p], p);
+                cullAboveNyquist(upperOctaveVoices[i].partials[p]);
             }
         }
     }
@@ -755,7 +767,17 @@ float BellVoice::calculatePartialFrequency(int partialIndex, float fundamental, 
 {
     float ratio;
 
-    if (inharmonicity < 0.5f)
+    if (currentPartialModel > 0)
+    {
+        // v4.7.0: a model has ONE table, so Inharmonicity stretches it instead of
+        // morphing between three: 0.5 = the table, either side compresses /
+        // expands partials 2-7 about the prime. Partials 0-1 never move — the
+        // prime is the pitch the tuning engine owns.
+        ratio = modelRatios[currentPartialModel - 1][partialIndex];
+        if (partialIndex >= 2)
+            ratio = std::pow(ratio, 1.0f + 0.3f * (inharmonicity - 0.5f));
+    }
+    else if (inharmonicity < 0.5f)
     {
         // Interpolate harmonic → church bell
         ratio = juce::jmap(inharmonicity, 0.0f, 0.5f,
@@ -800,6 +822,8 @@ float BellVoice::calculatePartialAmplitude(int partialIndex, float overtoneBrigh
 {
     // Base amplitude decreases with partial number
     float baseAmp = 1.0f / (partialIndex + 1.0f);
+    if (currentPartialModel > 0)
+        baseAmp = modelAmplitudes[currentPartialModel - 1][partialIndex] * MODEL_AMPLITUDE_SCALES[currentPartialModel - 1];
 
     // Overtone brightness scales upper partials with expanded range [0.1, 2.0]
     // v2.0.0: Renamed from "brightness" to clarify it controls initial partial balance
@@ -880,6 +904,16 @@ void BellVoice::calculateUnisonDetunes(int count, float detuneAmount)
     }
 }
 
+void BellVoice::cullAboveNyquist(ModalPartial& partial)
+{
+    if (currentPartialModel > 0
+        && partial.frequency > MODEL_NYQUIST_GUARD * static_cast<float>(currentSampleRate))
+    {
+        partial.amplitude = 0.0f;
+        partial.active = false;
+    }
+}
+
 void BellVoice::initializePartials(int unisonIndex, float velocity)
 {
     // Get material properties
@@ -919,6 +953,13 @@ void BellVoice::initializePartials(int unisonIndex, float velocity)
         float malletGain = 1.0f + effectiveMalletHardness * (p / static_cast<float>(NUM_PARTIALS));
 
         partial.amplitude = baseAmplitude * strikeGain * malletGain * velocity;
+
+        // v4.7.0: Hum Level / Prime Level. The sub / upper-octave layers copy
+        // targetAmplitude, so they inherit it.
+        if (p == 0)
+            partial.amplitude *= currentHumLevelGain;
+        else if (p == 1)
+            partial.amplitude *= currentPrimeLevelGain;
 
         // Per-note amplitude randomization (v1.3.0 - ±25% std dev, clamped 50%-150%)
         float ampVariation = 1.0f + gaussianApprox() * 0.25f;
@@ -1054,6 +1095,13 @@ void BellVoice::calculateMultiStageCoefficients(float fundamental)
             float dampingFactor = 1.0f - (currentDamping * 0.8f);
             humDecayTime *= (1.0f + dampingFactor * 2.0f);  // Damping extends hum
         }
+        // v4.7.0: Hum Follow. The law above hangs off 1/b1 = 2 s whatever Body Time
+        // is, so a 500 ms body still carries a multi-second tail. At 1 that 2 s is
+        // replaced by Body Time (brilliance, hum sustain, material and damping keep
+        // their say); between, the two time constants are blended in the log domain.
+        if (currentHumFollow > 0.0f)
+            humDecayTime *= std::pow(bodyTimeSec * b1, currentHumFollow);
+
         humDecayCoeffs[p] = std::exp(-1.0f / (humDecayTime * static_cast<float>(currentSampleRate)));
     }
 }

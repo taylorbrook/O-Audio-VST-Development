@@ -87,6 +87,10 @@ public:
                          float strikeTime, float brilliance, float bodyTime, float humSustain,
                          float humanize);
 
+    // v4.7.0: timbral-range parameters, kept off the signature above so its
+    // call site stays untouched. partialModel is the Choice INDEX (0 = Classic).
+    void updateTimbreParameters(int partialModel, float humLevelDb, float primeLevelDb, float humFollow);
+
 private:
     // Modal synthesis configuration
     static constexpr int NUM_PARTIALS = 8;
@@ -96,6 +100,32 @@ private:
     static constexpr float harmonicRatios[NUM_PARTIALS] = {0.5f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f};
     static constexpr float bellRatios[NUM_PARTIALS] = {0.5f, 1.0f, 2.4f, 3.0f, 4.0f, 5.2f, 6.0f, 8.0f};
     static constexpr float gamelanRatios[NUM_PARTIALS] = {0.5f, 1.0f, 2.1f, 3.5f, 4.8f, 5.8f, 7.2f, 9.5f};
+
+    // v4.7.0: partialModel 1-4. Ratio + amplitude tables and their provenance:
+    // research/idiophone-partial-models.md. Slot 1 is the tuned prime (1.0) in
+    // every model; Classic (model 0) keeps the three tables above and 1/(p+1).
+    static constexpr int NUM_MODELS = 5;
+    static constexpr float modelRatios[NUM_MODELS - 1][NUM_PARTIALS] = {
+        {0.617f, 1.0f, 1.210f, 2.000f, 2.988f, 4.173f,  5.556f,  7.136f},   // Tubular
+        {0.5f,   1.0f, 1.723f, 2.327f, 3.898f, 4.091f,  6.283f,  6.698f},   // Plate
+        {0.5f,   1.0f, 2.770f, 5.180f, 8.120f, 11.530f, 15.400f, 19.600f},  // Bowl
+        {0.5f,   1.0f, 2.320f, 4.250f, 6.630f, 9.380f,  12.400f, 15.700f},  // Glass
+    };
+    static constexpr float modelAmplitudes[NUM_MODELS - 1][NUM_PARTIALS] = {
+        {0.25f, 0.30f, 0.55f, 1.00f, 0.85f, 0.65f, 0.40f, 0.25f},  // Tubular
+        {0.12f, 1.00f, 0.80f, 0.90f, 0.60f, 0.65f, 0.45f, 0.40f},  // Plate
+        {0.12f, 1.00f, 0.70f, 0.35f, 0.18f, 0.09f, 0.05f, 0.03f},  // Bowl
+        {0.12f, 1.00f, 0.18f, 0.38f, 0.38f, 0.15f, 0.08f, 0.04f},  // Glass
+    };
+    // Classic's sum of 1/(p+1) (2.71786) over each row's sum (4.25, 4.92, 2.52,
+    // 2.33): switching model changes the spectrum, not (roughly) the level.
+    // Literals, because an in-class constexpr function is not usable until the
+    // class is complete. Re-derive if a row of modelAmplitudes changes.
+    static constexpr float MODEL_AMPLITUDE_SCALES[NUM_MODELS - 1] = {0.63950f, 0.55241f, 1.07851f, 1.16646f};
+    // Models reach 19.6x the played pitch (Classic 9.5x): partials above this
+    // fraction of the sample rate are dropped at note-on. Not applied to Classic,
+    // whose render must not change.
+    static constexpr float MODEL_NYQUIST_GUARD = 0.45f;
 
     // Decay multipliers per partial (higher partials decay faster)
     static constexpr float DECAY_MULTIPLIERS[NUM_PARTIALS] = {1.2f, 1.0f, 0.85f, 0.7f, 0.6f, 0.5f, 0.4f, 0.3f};
@@ -230,6 +260,12 @@ private:
     // Humanize parameter (v2.4.0)
     float currentHumanize = 0.3f;         // 0-1, per-note variation amount
 
+    // Timbral range (v4.7.0) — defaults take the v4.6.0 code paths
+    int currentPartialModel = 0;          // 0 = Classic
+    float currentHumLevelGain = 1.0f;     // linear, partial 0
+    float currentPrimeLevelGain = 1.0f;   // linear, partial 1
+    float currentHumFollow = 0.0f;        // 0-1
+
     // Per-note variation state (calculated in startNote, applied during note)
     // These represent variation factors (1.0 = no change)
     float noteVariationStrikePos = 1.0f;      // ±5% variation
@@ -297,6 +333,7 @@ private:
     MaterialProperties getMaterialProperties(float material);
     void calculateUnisonDetunes(int count, float detuneAmount);
     void initializePartials(int unisonIndex, float velocity);
+    void cullAboveNyquist(ModalPartial& partial);
     void initializeBloom(ModalPartial& partial, int partialIndex);
     void applyBloom(ModalPartial& partial);
     void initializeShimmer(ModalPartial& partial, int partialIndex);

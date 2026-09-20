@@ -13,11 +13,18 @@ Everything runs from parameter DEFAULTS plus overrides, humanize 0. Gated:
   - Step 2 (v4.6.0), unison: the prime of every unison voice sits on its designed
     detune (+-UNISON_TOL cents) — v4.5.2 had no negative side.
   - identity: configs Step 2 must not touch render BIT-IDENTICAL to v4.5.2.
-The rest is printed for the Step 3 gates to read.
+  - Step 3 (v4.7.0), RC-4: the same 60 points with the four new parameters ALSO drawn
+    reach a pair median >= baseline + RANGE_GAIN (tap 16.0, held 14.8; both seeds), while with them left at default
+    the median stays on RANDOM_BASELINE — the gain is the new axes, not a moved box.
+    The five models pairwise >= MODEL_MIN dB; Hum Follow 1 shortens a 500 ms body's
+    ring by >= FOLLOW_MIN x and leaves Hum Follow 0 alone.
+  - Step 3 (v4.7.0): no heap allocation on the thread calling processBlock
+    (--alloc-check: malloc_logger, proven live per run), every model, low / high note, FX on.
+The rest is printed.
 """
-import hashlib, random, sys, tempfile
+import hashlib, os, random, subprocess, sys, tempfile
 import numpy as np
-from report import MODES, SEED_A, SEED_B, SR, TOL, centroid, dist, feat, matrix, render, self_noise, t40
+from report import BIN, MODES, SEED_A, SEED_B, SR, TOL, centroid, dist, feat, matrix, render, self_noise, t40
 
 RANDOM_BASELINE = {'tap': 11.5, 'held': 10.3}
 MATERIALS = ['Bronze', 'Brass', 'Steel', 'Aluminum', 'Cast Iron']
@@ -45,6 +52,14 @@ IDENTITY = [
     ('humanize .7, damping .8', ['humanize=0.7', 'damping=0.8', 'unisonCount=1', 'octaveBlendSub=0', 'octaveBlendOct=0'], '2025c4965dbfac2b'),
     ('sub .6, bloom 0', ['humanize=0', 'octaveBlendSub=0.6', 'bloomAmount=0', 'unisonCount=1'], '47c8d37b466bae43'),
 ]
+MODELS = ['Classic', 'Tubular', 'Plate', 'Bowl', 'Glass']
+MODEL_MIN = 5.0
+# Step 3's gate is ">= 16 dB (baseline 11.5)" — the TAP figure, a gain of 4.5 dB. The
+# held column has its own baseline (10.3), so it is held to the same gain, not to 16.
+RANGE_GAIN = 4.5
+RANGE_MIN = {k: v + RANGE_GAIN for k, v in RANDOM_BASELINE.items()}
+FOLLOW_MIN = 2.0
+PRIME_BAND = (230, 300)
 C4 = 261.6256
 
 
@@ -129,8 +144,37 @@ def main():
         for (n, _), x in zip(jobs, render(jobs, out, 'damp', .25, 12, SEED_A)):
             print(f'  {n:12s} {t40(x):5.2f}')
 
+        # RC-4 — partial models, at defaults otherwise.
+        jobs = [(n, fields(partialModel=i)) for i, n in enumerate(MODELS)]
+        S = render(jobs, out, 'model', 6, 6, SEED_A); S2 = render(jobs, out, 'model_b', 6, 6, SEED_B); F = [feat(x) for x in S]
+        print('\nPARTIAL MODEL (held 6 s): dist to Classic / level 0-1 s / centroid .25-.7 s')
+        for i, n in enumerate(MODELS):
+            print(f'  {n:8s} d(Classic)={dist(F[i], F[0]):4.1f}  {lvl(S[i], 0, 1):6.1f} dB  {centroid(S[i], .25, .7):5.0f} Hz')
+        iu = np.triu_indices(len(MODELS), 1)
+        for seed, sigs in ((SEED_A, S), (SEED_B, S2)):
+            D = matrix(sigs); i, j = [k[D[iu].argmin()] for k in iu]; bad = D[iu].min() < MODEL_MIN
+            print(f'  seed {seed}: closest pair {MODELS[i]} <-> {MODELS[j]} {D[iu].min():.1f} dB (gate >= {MODEL_MIN:.1f})'
+                  + ('   <-- FAIL' if bad else ''))
+            if bad:
+                failures.append(f'model {MODELS[i]} <-> {MODELS[j]} {D[iu].min():.1f} dB (seed {seed})')
+
+        # RC-4 — Hum Follow, read on a HELD note in the prime's band: after a tap the
+        # ring is the damping-driven release (1.25 s at the default), which Hum
+        # Follow does not touch and which hides it (T40 3.9 -> 2.9 s).
+        jobs = [(f'body {b} follow {hf}', fields(bodyTime=b, humFollow=hf)) for b in (500, 4000) for hf in (0, 1)]
+        R = [(band(x, 2, 3, *PRIME_BAND) - band(x, 6, 7, *PRIME_BAND)) / 4 for x in render(jobs, out, 'follow', 8, 8, SEED_A)]
+        print(f'\nHUM FOLLOW ({PRIME_BAND[0]}-{PRIME_BAND[1]} Hz, held 8 s): hum-stage decay between 2 s and 6 s, dB/s')
+        for (n, _), r in zip(jobs, R):
+            print(f'  {n:22s} {r:5.2f}')
+        if R[1] / R[0] < FOLLOW_MIN:
+            failures.append(f'hum follow: body 500 decays {R[0]:.2f} dB/s at 0 and {R[1]:.2f} at 1 (< {FOLLOW_MIN:.0f}x faster)')
+        if R[3] >= R[2]:
+            failures.append(f'hum follow: body 4000 decays {R[2]:.2f} dB/s at 0 and {R[3]:.2f} at 1 (should slow)')
+
         # RC-4 — reachable range: 60 random points across the parameter space.
-        random.seed(1); jobs = []
+        # The Step 3 parameters come from their OWN generator so the 20 old
+        # dimensions are the v4.5.1 points exactly, with or without them.
+        random.seed(1); jobs = []; new = random.Random(2); jobs_new = []
         for i in range(60):
             d = {k: random.uniform(lo, hi) for k, (lo, hi) in dict(
                 inharmonicity=(0, 1), damping=(0, 1), overtoneBrightness=(0, 1), acousticBrightness=(0, 1),
@@ -141,6 +185,9 @@ def main():
             d['material'] = random.choice([0, 4]); d['strikeNoiseChar'] = random.randint(0, 2)
             d['unisonCount'] = random.randint(1, 4)
             jobs.append((f'r{i}', fields(**d)))
+            d = dict(d, partialModel=new.randint(0, 4), humLevel=new.uniform(-24, 6),
+                     primeLevel=new.uniform(-24, 6), humFollow=new.uniform(0, 1))
+            jobs_new.append((f'n{i}', fields(**d)))
         print('\nRANGE: 60 random parameter points, pairwise')
         for tag, hold, total in MODES:
             D = matrix(render(jobs, out, 'rand_' + tag, hold, total, SEED_A)); iu = np.triu_indices(len(jobs), 1)
@@ -149,6 +196,28 @@ def main():
                   + ('   <-- outside %.1f dB' % TOL if bad else ''))
             if bad:
                 failures.append(f'random {tag} median {med:.1f} vs baseline {ref:.1f}')
+            for seed in (SEED_A, SEED_B):
+                D = matrix(render(jobs_new, out, f'randnew_{tag}_{seed}', hold, total, seed))
+                med = float(np.median(D[iu])); bad = med < RANGE_MIN[tag]
+                print(f'  {tag:5s} + model / hum / prime / follow, seed {seed}: median {med:.1f} (gate >= {RANGE_MIN[tag]:.1f})  p10 {np.percentile(D[iu], 10):.1f}  p90 {np.percentile(D[iu], 90):.1f}'
+                      + ('   <-- FAIL' if bad else ''))
+                if bad:
+                    failures.append(f'random {tag} median with Step 3 parameters {med:.1f} < {RANGE_MIN[tag]:.1f} (seed {seed})')
+
+        # No allocation in processBlock. Every model, octave layers + unison 4, extremes.
+        ajobs = ['defaults|humanize=0', 'classic wide|unisonCount=4|octaveBlendSub=1|octaveBlendOct=1',
+                 'tubular|partialModel=1|humFollow=1|humLevel=-12|primeLevel=6',
+                 'plate wide|partialModel=2|unisonCount=4|octaveBlendSub=1|octaveBlendOct=1|humFollow=0.5',
+                 'bowl|partialModel=3|inharmonicity=1|octaveBlendOct=1|humLevel=6',
+                 'glass|partialModel=4|primeLevel=-24|bloomAmount=1']
+        jobfile = os.path.join(out, 'alloc.txt'); open(jobfile, 'w').write('\n'.join(ajobs) + '\n')
+        print('\nALLOCATION in processBlock (audio thread)')
+        for tag, extra in (('C4 held', ['--hold=2', '--total=4']), ('C8', ['--note=108', '--hold=1', '--total=2']),
+                           ('C0 tap', ['--note=24', '--hold=0.1', '--total=2']), ('FX on', ['--fx', '--hold=1', '--total=3'])):
+            r = subprocess.run([BIN, '--render', jobfile, os.path.join(out, 'alloc'), '--alloc-check'] + extra, capture_output=True, text=True)
+            print(f'  {tag:8s} ' + ('none' if r.returncode == 0 else 'FAIL\n' + r.stderr))
+            if r.returncode != 0:
+                failures.append(f'allocation check, {tag}: ' + r.stderr.strip().splitlines()[-1])
 
     print('\n' + ('PROBE GATES: PASS' if not failures else 'PROBE GATES: FAIL\n  ' + '\n  '.join(failures)))
     return 1 if failures else 0

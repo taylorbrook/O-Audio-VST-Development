@@ -2,6 +2,92 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.7.0] - 2026-09-20
+
+Step 3 of `improvements/preset-differentiation-v4.6-v4.8.md` (RC-4): a wider
+engine. MINOR: four new parameters, append-only; every existing session, preset
+and automation lane loads and **sounds exactly as it did on 4.6.0** (bit-identical
+render at the new parameters' defaults). Processor + voice only — the new
+parameters have no controls in the plugin window yet (Step 4); they are
+reachable from the host's generic parameter list / automation.
+
+### Added
+
+- **Partial Model** (`partialModel`: Classic / Tubular / Plate / Bowl / Glass,
+  default Classic). Classic is the existing harmonic → bell → gamelan
+  interpolation. The other four swap in one body's partial ratio AND amplitude
+  table: a tubular chime (2 : 3 : 4.2 group over a virtual strike pitch), a free
+  circular plate (dense, clangy), a singing bowl (1 : 2.77 : 5.18 : 8.12 …, steep
+  fall) and a wine glass (weak second mode). Tables and their provenance:
+  `research/idiophone-partial-models.md`. Each amplitude row is scaled to
+  Classic's total, so switching model changes the spectrum, not the level
+  (−39 … −32 dB vs Classic −36, first second, defaults).
+  - Partial 1 is the tuned prime (ratio 1.0) in every model, so tuning tables,
+    Scala files and Dorico note-expression behave identically across models.
+  - On a model, **Inharmonicity** stretches the table about the prime
+    (`ratio^(1 + 0.3·(inh − 0.5))`, partials 2–7; 0.5 = the table as published).
+    Partial Tuning still moves partial 2.
+  - Models drop any partial above 0.45 × sample rate at note-on (Bowl reaches
+    19.6× the played pitch). Classic is untouched — see Known.
+- **Hum Level** / **Prime Level** (`humLevel`, `primeLevel`: −24 … +6 dB, default
+  0): level of partial 0 and partial 1, the two that dominate every O-Bells
+  spectrum. The Sub / Oct layers inherit them.
+- **Hum Follow** (`humFollow`: 0–1, default 0). The hum-stage time constant hangs
+  off a fixed 2 s whatever Body Time says, so a 500 ms body still carried a
+  multi-second tail. At 1 that 2 s becomes Body Time (Brilliance, Hum Sustain,
+  Material and Damping keep their say); in between the two are blended in the log
+  domain. Applies to every partial's hum stage. Body 500 ms, held: prime decays
+  1.17 dB/s at 0, 4.62 dB/s at 1 (designed 4×); Body 4000 ms: 1.58 → 1.21 dB/s.
+- The four parameters carry **version hint 2**, so AU lists them after every
+  existing parameter and no automation index moves. `params.tsv` regenerated:
+  65 → 69, the diff is the four new rows and the count.
+
+### Known / left alone
+
+- **Hum Follow does little to a short TAP.** After note-off the ring is the
+  Damping-driven release (τ 1.25 s at the default), which Hum Follow does not
+  touch: tap T40 3.9 → 2.9 s at Body 500 ms. A short struck-plate sound wants high
+  Damping too. Preset work, Step 5.
+- **Classic still has no Nyquist guard** (gamelan 9.5× on the Oct layer aliases
+  above ~C6 at 48 kHz). Pre-existing; fixing it would change Classic renders, which
+  this step promises not to do.
+- The Glass ratio row is recalled from Rossing (1994) and cross-checked only against
+  a published figure (within the measured glass-to-glass spread); all amplitude
+  rows are design values. Graded row by row in the research file.
+- Factory presets do not use the new parameters yet (Step 5). Preset recall resets
+  them to default, so the bank is unchanged: `report.py` baseline gate PASS.
+
+### Testing
+
+- **Defaults reproduce 4.6.0 — bit-exact, not merely within self-noise:** the five
+  `probes.py` identity hashes (recorded from the 4.5.2 tree, untouched by 4.6.0)
+  are equal, and the 60-point random control (new parameters at default) reads
+  11.3 tap / 10.2 held, as on 4.6.0.
+- **Random-range gate, ≥ 16 dB (was 11.5):** the same 60 points with the four new
+  parameters drawn from a separate generator (the 20 old dimensions are the
+  original points exactly): **tap 16.4 / 16.3** (two seeds) — PASS, by 0.3–0.4 dB
+  (seed sd 0.2). **Held 15.5 / 15.4** against its own 10.3 baseline: the same
+  +5 dB, but it does NOT reach 16; it is gated at the equivalent gain (≥ 14.8).
+- **Models pairwise ≥ 5 dB:** closest Plate ↔ Glass 19.9 / 19.3 dB; to Classic
+  23.2–31.6 dB. Centroid at C4 223 Hz (Classic) → 336–548 Hz.
+- **No allocation in the audio thread:** new `--alloc-check` on the render harness
+  hooks libmalloc's `malloc_logger` (sees malloc / calloc / realloc, so
+  `HeapBlock` and `operator new` alike), scoped to the thread calling
+  `processBlock`, and proves the hook live on every run. 0 allocations: six configs
+  (every model, Unison 4 + both octave layers) × C4 held / C8 / C0 tap / FX on.
+  Two traps met on the way, both now handled in the harness: clang folds
+  `armed = true; malloc(); armed = false` (flags must be `volatile`) — caught by the
+  liveness check, which would otherwise have read as a clean pass — and JUCE's
+  TimerThread mallocs during `processBlock` (hence the thread scope).
+- C8 renders of every model are finite (harness non-finite check), Nyquist cull live.
+- **pluginval strictness 10**, in-process, installed VST3 and AU: SUCCESS, 0
+  failures. One AU warning, `Current program is -1` — a program-index notice,
+  nothing this step touches.
+- `auval -v aumu OBls OuDv`: AU VALIDATION SUCCEEDED, component version 4.7.0,
+  69 parameters. Installed VST3 carries 0 `ForTesting` symbols.
+- Not yet auditioned in a DAW.
+- Regression baseline: `backups/O-Bells/v4.6.0/`.
+
 ## [4.6.0] - 2026-09-20
 
 Step 2 of `improvements/preset-differentiation-v4.6-v4.8.md`: three voice bugs.

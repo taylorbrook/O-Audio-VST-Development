@@ -91,6 +91,37 @@ the live law; fix the preset values.
   independent of `bodyTime` → a 500 ms "plate" still carries a multi-second fundamental tail.
 - No control over hum (p0) / prime (p1) level.
 
+> **EXTENDED v4.7.0.** Four append-only parameters (version hint 2), defaults bit-identical to v4.6.0:
+> `partialModel` (Classic / Tubular / Plate / Bowl / Glass), `humLevel`, `primeLevel` (−24…+6 dB),
+> `humFollow` (0–1). Random-range pair median, same 60 points + the four new axes: **tap 11.3 → 16.4,
+> held 10.2 → 15.5** (seed 2: 16.3 / 15.4). Models 19–32 dB apart at defaults. Hum Follow 1 at Body
+> 500 ms: prime decay 1.17 → 4.62 dB/s.
+>
+> **The tables were NOT in `research/`** — only the free-free bar series was. Written in-step:
+> `research/idiophone-partial-models.md`, provenance-graded per row. Plate computed (Leissa's
+> equation, reproduces his table), Bowl and Tubular quoted from measurements, **Glass recalled from
+> Rossing 1994 and only cross-checked against a figure — re-verify if the paper turns up.** All four
+> AMPLITUDE rows are design values, not measurements (except Glass slots 1–4, read off Jundt Fig. 3a).
+>
+> **Decisions.** Slot 1 stays the tuned prime (1.0) in every model — Tubular therefore carries a quiet
+> SYNTHETIC prime at its virtual strike pitch. Plate / Bowl / Glass keep the engine's 0.5 hum at −18 dB
+> so Hum Level is live everywhere. On a model, Inharmonicity stretches the one table
+> (`ratio^(1 + 0.3·(inh − 0.5))`, slots 2–7) instead of morphing three. Hum Follow replaces the law's
+> fixed 1/b1 = 2 s with Body Time on EVERY partial's hum stage, not only p0–1 — the multi-second tail
+> was all eight partials. Models cull partials above 0.45·fs at note-on.
+>
+> **Held gate.** The Step-3 gate "≥ 16 (was 11.5)" is the tap column: +4.5 dB. Held has its own baseline
+> (10.3) and is gated at the same gain (≥ 14.8); it reads 15.5, NOT 16. Say so rather than round it.
+>
+> **Observed, not planned.**
+> 1. Classic has NO Nyquist guard: gamelan 9.5× on the Oct layer aliases above ~C6 at 48 kHz.
+>    Pre-existing; left alone because fixing it changes Classic renders. grep token: `MODEL_NYQUIST_GUARD`
+> 2. Hum Follow is inaudible on a TAP: the ring after note-off is the damping-driven release
+>    (τ 1.25 s at default), T40 3.9 → 2.9 s only. A short "plate" preset needs high Damping as well —
+>    Step 5 voicing, and one more reason RC-3 matters.
+> 3. `.planning/parameter-spec.md` is the 22-parameter Stage-0 document (no `humanize`, no FX); it was
+>    not extended. `.planning/params.tsv` (regenerated, 69 params, append-only diff) is the live record.
+
 ### RC-5 — Unused differentiation axis
 No preset sets chorus*, delay*, eq*, reverbSize/Damp/Predelay/Mod/Shimmer. Preset apply resets
 unset params to default first, so all 25 share identical FX apart from `reverbMix`.
@@ -133,7 +164,7 @@ or delete; honouring it changes every note's tuning scatter.
 |---|---|---|---|---|
 | 1 | 4.5.2 | PATCH | In-repo render harness + baseline report. No plugin binary change. | Reproduces the table above ±1 dB |
 | 2 | 4.6.0 ✅ | MINOR | RC-1 material mapping, RC-2 octave-layer decay (+ double initialFraction), unison voice-0 detune (found in-step). Audible change to saved sessions using Brass/Steel/Aluminum, Sub/Oct + Bloom, or Unison ≥ 2 — called out in CHANGELOG. | Materials pairwise ≥ 5 dB; sub layer tracks its bloom-0 decay and falls ≥ 12 dB between 2 s and 10 s held at damping 1 (amended, see RC-2); unison prime peaks on the designed detune; 5 untouched configs bit-identical to v4.5.2 |
-| 3 | 4.7.0 | MINOR | RC-4 DSP: `partialModel` choice (Classic / Tubular / Plate / Bowl / Glass …), `humLevel`, `primeLevel` (dB), `humFollow` (0–1: hum-stage τ tracks bodyTime). Processor + voice only; generic defaults = old sound. | Default-param render within self-noise of v4.6.0; random-param pair median ≥ 16 dB (was 11.5) |
+| 3 | 4.7.0 ✅ | MINOR | RC-4 DSP: `partialModel` choice (Classic / Tubular / Plate / Bowl / Glass …), `humLevel`, `primeLevel` (dB), `humFollow` (0–1: hum-stage τ tracks bodyTime). Processor + voice only; generic defaults = old sound. | Default-param render within self-noise of v4.6.0; random-param pair median ≥ 16 dB (was 11.5) |
 | 4 | 4.7.1 / 4.8.0-pre | MINOR | UI for the Step-3 params: controls, tooltips, en / fr / zh-Hans rows, width pins, `check-ui-labels`, `i18n-fr-lint`, `i18n-zh-lint`. | All three language arms pass; no moved elements outside the new section |
 | 5 | 4.8.0 | MINOR | Re-voice all 25 presets (RC-3, RC-5 + new params); factory sentinel `4.1.1` → `4.8.0`. | Every preset's nearest neighbour ≥ 8 dB (tap AND held); tap T40 ordering Large > Warm > Bright ≥ Metallic-short; category medians distinct |
 
@@ -146,7 +177,8 @@ Step 3 and 4 may be merged if the UI work is small; keep them split if the new s
 (preset bank + baseline gate — **re-anchored to v4.6.0** in Step 2: tap 2.5 / 13.3 / 8.0 / 3.5, held
 2.4 / 14.7 / 9.3 / 3.6; the v4.5.1 table above is history, not the gate) and `probes.py` (RC-1…RC-4
 measurements + random-range gate, still on its v4.5.1 anchor: 11.3 / 10.2 after Step 2; from v4.6.0
-also the material, sub-layer, unison and bit-identity-vs-v4.5.2 gates). The
+also the material, sub-layer, unison and bit-identity-vs-v4.5.2 gates; from v4.7.0 the model, Hum
+Follow, extended-range and `--alloc-check` gates). The
 scratch seed harness it was promoted from is deleted.
 
     cmake -B build -G Ninja -DOUARICON_BUILD_TESTS=ON && ninja -C build O-Bells-render-test
