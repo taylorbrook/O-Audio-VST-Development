@@ -15,12 +15,12 @@ repeat it. Nothing under `plugins/` was modified.
 | Frames captured / distinct | 12 / 12 | 26 / 24 | 23 / 23 |
 | Shared modules consumed | `effects/analog-eq-unit`, `effects/compressor-unit` | `persistence/preset-manager` | **none** |
 | Stub seed | `neutral-defaults` | `neutral-defaults` | `param-dump (65 rows) + overrides` |
-| Content hidden below the fold | **0px** | 201px (tuning) | **496px** (instrument) |
+| Scrolled tab content (reachable; overlay scrollbar not painted in capture) | 0px | 201px (tuning) | 496px (instrument) |
 | Distinct hex colours / greens | 19 / **8** | 14 / 3 | 16 / 5 |
 | Declared font sizes (min) | 8 (6px) | 9 (6px) | 10 (6px) |
 | `line-height-normal` zh-Hans | 8 | **25** | 19 |
 | `check-ui-labels` | PASS | PASS | PASS |
-| **P1 / P2 / P3** | **3 / 7 / 7** | **3 / 6 / 5** | **2 / 7 / 6** |
+| **P1 / P2 / P3** | **3 / 7 / 7** | **0 / 7 / 7** | **1 / 7 / 7** |
 
 The three default frames, side by side:
 
@@ -29,7 +29,7 @@ The three default frames, side by side:
 | [![](shots/O-Marimba/en__00-default.jpg)](shots/O-Marimba/en__00-default.jpg) | [![](shots/O-Lyrica/en__00-default.jpg)](shots/O-Lyrica/en__00-default.jpg) | [![](shots/O-Bells/en__00-default.jpg)](shots/O-Bells/en__00-default.jpg) |
 | Parchment texture, botanical overlay, radial wooden knobs | Parchment texture, botanical overlay, horizontal range sliders | **Flat cream, no texture**, rect-thumb sliders |
 
-**Batch total: 46 findings — P1 = 8, P2 = 20, P3 = 18.**
+**Batch total: 46 findings — P1 = 4, P2 = 21, P3 = 21.** *Revised 2026-09-20: the three "below the fold" P1s (Lyrica 1–2, Bells 1) were retracted after the user confirmed the shipping WKWebView shows a scrollbar — the tabs scroll; the headless capture never scrolled, so macOS overlay scrollbars never painted. Lyrica 3 lowered to P2.*
 
 ## Consistency findings
 
@@ -38,7 +38,7 @@ diverge and **which one is right**.
 
 | # | Severity | Area | Element | What's wrong (measured evidence) | Recommended change |
 |---|---|---|---|---|---|
-| 1 | P1 | layout | `.tab-content` overflow | **Two of three ship a feature the user cannot see.** `#tuning-tab` on O-Lyrica computes `clientHeight 334 / scrollHeight 535` — 201px hidden, containing the entire scale generator. `#instrument-tab` on O-Bells computes `clientHeight 449 / scrollHeight 945` — **496px, 52%**, containing the Advanced, Multi-Stage Envelope, Filter, Performance and Output sections. Neither renders a scrollbar in any captured frame. O-Marimba: no `.tab-content` overflows at all. **O-Marimba is right, and O-Bells' own tuning tab is the built fix** — `scrollHeight == clientHeight == 449` because its generator sits behind a `GENERATE SCALE ▼` disclosure and opens inside the frame ([`O-Bells/en__06-tuning-generator-open.jpg`](shots/O-Bells/en__06-tuning-generator-open.jpg)). | Copy O-Bells' tuning-tab disclosure pattern into O-Lyrica, and promote O-Bells' Advanced group to a fourth tab. Then add a gate: for every plugin, assert `scrollHeight <= clientHeight` on each `.tab-content` at the frame parsed from `PluginEditor.cpp`. This defect class is invisible to `check-ui-labels` (all three PASS) and invisible to a screenshot, which is exactly why it survived. |
+| 1 | P3 *(was P1 — retracted 2026-09-20)* | layout | `.tab-content` overflow | **Retracted.** O-Lyrica `#tuning-tab` (`334/535`) and O-Bells `#instrument-tab` (`449/945`) are scroll regions, and the **shipping WKWebView shows a scrollbar** (user-verified). No scrollbar appeared in the frames because macOS overlay scrollbars paint only during a scroll gesture and the capture walk never scrolled. The residual observation is a design preference, not a defect: O-Marimba and O-Bells' tuning tab fit their frames without scrolling (the latter via a `GENERATE SCALE ▼` disclosure, [`O-Bells/en__06-tuning-generator-open.jpg`](shots/O-Bells/en__06-tuning-generator-open.jpg)); the other two tabs scroll. | Nothing required. If a no-scroll editor is ever wanted, O-Bells' disclosure is the pattern. **Do not add a `scrollHeight <= clientHeight` gate** — scrolling tabs are accepted here. What the harness *should* gain is a scroll-to-bottom frame per scrollable container, so a future batch reviews the scrolled content instead of guessing at it. |
 | 2 | P2 | affordance | `#settings-popover` | **All three occlude live UI, and the boxes are near-identical, so it is one copied pattern with one bug.** O-Marimba `168x62` covers `#btn-load-kbm`; O-Lyrica `178x63` covers the reverb `Mix` readout and the EQ `High` knob; O-Bells covers the **EFFECTS tab label** in the tab bar. None has a backdrop, none has a tail, and because `serve-ui`/`measure-ui` click with `force: true` a control underneath is clicked *through* it silently (`pattern_forced_click_under_popover_silent_coverage_hole`). **None is right.** | Fix once, land three times: anchor below a header gear, offset clear of the tab bar, add a `rgba(60,47,47,0.2)` backdrop and a 6px tail. O-Bells already has the correct anchor (finding 4); it needs only the offset and backdrop. |
 | 3 | P2 | affordance | `#gear-btn` placement | O-Marimba `(562,327) 20x20` and O-Lyrica `(662,377) 20x20` both put the gear **bottom-right inside `.tab-content`**, floating over live controls and needing `z-index` to stay clickable — and that placement is what forces their popovers to open up-and-left over the panel. O-Bells puts it at `(753,15) 24x24` **in `div.header-bar`**. **O-Bells is right.** | Move both gears into the header beside the preset buttons and raise the hit area to 24x24. This resolves half of finding 2 for free. |
 | 4 | P2 | consistency | header title | **Three plugins, three elements, three treatments.** O-Marimba `div.title` 18px `uppercase` ls 2.5px fw 400 → `O-MARIMBA`. O-Lyrica `span.title` 16px `uppercase` ls 2.5px fw 400 → `OUARICON LYRICA`. O-Bells `h1` **22px** `text-transform: none` ls 2px **fw 300** → `Ouaricon Bells`. The brand string itself also differs — `O-<Name>` on one, `Ouaricon <Name>` on two. | Standardise on O-Bells' semantic `h1` with O-Marimba/O-Lyrica's engraved-plate treatment: `uppercase`, `letter-spacing: 2.5px`, `font-weight: 400`, size scaled to the frame (18 / 20 / 22px). Settle the brand string separately — it is a naming decision, not a CSS one. |
@@ -116,18 +116,18 @@ period. Chinese needs no abbreviation anywhere. Every case traces to a button pi
 
 ## Recommended sequencing
 
-If you do one thing, do **1**. Items marked **[shared]** are fix-once-land-three-times.
+*Revised 2026-09-20 — the former items 1–2 (surface below-the-fold content; add a no-overflow gate) were retracted: the tabs scroll and the shipping WKWebView shows a scrollbar.* Items marked **[shared]** are fix-once-land-three-times.
 
 | # | Do this | Why first | Where |
 |---|---|---|---|
-| 1 | **Surface the content hidden below the fold** — O-Bells' Advanced group (496px) and O-Lyrica's scale generator (201px) | Two whole features are shipped and unreachable. Everything else on this list is polish by comparison, and the fix already exists in the batch (O-Bells' tuning-tab disclosure). | SUITE 1; Bells 1; Lyrica 1–2 |
-| 2 | **Add a `scrollHeight <= clientHeight` gate per `.tab-content`** at the parsed frame **[shared]** | Item 1 fixes two instances; this stops the class. All three plugins pass `check-ui-labels` today, so nothing currently catches it. | SUITE 1 |
-| 3 | **Settle O-Bells' accent colour** — re-skin to the brief's aged gold, or correct the brief | The single highest-impact visual decision in the batch: 28 green surfaces against 2 gold on a plugin whose brief names no green. It is one decision, and it blocks any shared-palette work. | Bells 2; SUITE 10 |
-| 4 | **Move both stray gears into the header and fix the popover once [shared]** | Three plugins, one copied pattern, one copied occlusion bug — and O-Bells already has the right anchor to copy. Resolves 6 per-plugin findings. | SUITE 2–3; Marimba 7/11; Lyrica 7/11; Bells 7 |
-| 5 | **`line-height: 1.1` on `.tab`, `.knob-value`, `.slider-value` [shared]** | Clears all 52 zh-Hans findings and makes 66–76% of `wrap-count`'s nodes measurable instead of estimated. Three one-line CSS edits. | SUITE i18n; Marimba 11; Lyrica 4; Bells 9 |
-| 6 | **Flex-distribute O-Marimba's tab bar** | The only language-dependent geometry in the batch; O-Lyrica already ships the fix. | SUITE 7; Marimba 3 |
-| 7 | **Raise the type floor to 8–9px and delete the one-off sizes [shared]** | Every plugin declares 6px text; O-Bells does it on an 800x600 frame with 131px of empty space. Purely additive legibility. | Marimba 1/14; Lyrica 10; Bells 14 |
-| 8 | **Widen the French-abbreviated buttons [shared]** | `CHARG. .SCL` reads as broken text. Every case has free width beside it; no layout risk. | SUITE i18n; Marimba 2/10; Lyrica 9 |
+| 1 | **Settle O-Bells' accent colour** — re-skin to the brief's aged gold, or correct the brief | The single highest-impact visual decision in the batch: 28 green surfaces against 2 gold on a plugin whose brief names no green. It is one decision, and it blocks any shared-palette work. | Bells 2; SUITE 10 |
+| 2 | **Move both stray gears into the header and fix the popover once [shared]** | Three plugins, one copied pattern, one copied occlusion bug — and O-Bells already has the right anchor to copy. Resolves 6 per-plugin findings. | SUITE 2–3; Marimba 7/11; Lyrica 7/11; Bells 7 |
+| 3 | **`line-height: 1.1` on `.tab`, `.knob-value`, `.slider-value` [shared]** | Clears all 52 zh-Hans findings and makes 66–76% of `wrap-count`'s nodes measurable instead of estimated. Three one-line CSS edits. | SUITE i18n; Marimba 11; Lyrica 4; Bells 9 |
+| 4 | **Fix O-Lyrica's footer / tab overlap** | `div.footer` paints over the bottom 15px of every tab; the last row of a scrolled tab lands under it. One height change. | Lyrica 3 |
+| 5 | **Flex-distribute O-Marimba's tab bar** | The only language-dependent geometry in the batch; O-Lyrica already ships the fix. | SUITE 7; Marimba 3 |
+| 6 | **Raise the type floor to 8–9px and delete the one-off sizes [shared]** | Every plugin declares 6px text; O-Bells does it on an 800x600 frame with 131px of empty space. Purely additive legibility. | Marimba 1/14; Lyrica 10; Bells 14 |
+| 7 | **Widen the French-abbreviated buttons [shared]** | `CHARG. .SCL` reads as broken text. Every case has free width beside it; no layout risk. | SUITE i18n; Marimba 2/10; Lyrica 9 |
+| 8 | **Teach `shoot-ui.js` to capture a scrolled-to-bottom frame per scrollable container** | This batch never saw the scrolled half of two tabs and mis-called it as hidden. Cheap, and it makes every later batch honest. | SUITE 1; Carried blindness 2 |
 | 9 | **One shared effects-rack column grid [shared, blocked]** | Two of three call sites compared and both wrong the same way — but hold until O-Marimba's effects tab has actually been rendered. | SUITE 6; Lyrica 5; Bells 4 |
 | 10 | **Converge the preset strip and header title** | Real inconsistency, lowest user cost. Do it after 1–9 so the extraction in the next batch has agreeing call sites to work from. | SUITE 4–5 |
 
@@ -139,9 +139,12 @@ What this batch could **not** see. A later batch reads this to know what it stil
    none clicks `#tab-effects`; the census confirms no `#effects-tab` in the visible-node set.
    **A third of the plugin is unreviewed, not clean** — and it is the reason SUITE finding 6
    and sequencing item 9 are blocked at two of three call sites.
-2. **The O-Lyrica generator form was never seen rendered.** Its shape is known only from
-   `#generator-inputs` own text (`Start HarmonicEnd Harmonic`, `Generator (¢)Period (¢)Notes`),
-   because it lays out past the fold. No visual judgement was made about it.
+2. **The capture walk never scrolled, so scrolled content was never seen and overlay
+   scrollbars never painted.** O-Lyrica's generator form (`#generator-inputs`: `Start
+   HarmonicEnd Harmonic`, `Generator (¢)Period (¢)Notes`) and O-Bells' Advanced / Envelope /
+   Filter / Performance / Output sections were measured but not looked at. This blindness
+   produced three false P1s in the first draft ("hidden below the fold") — `scrollHeight >
+   clientHeight` in a headless frame means *scrollable*, not *hidden*. Sequencing item 8.
 3. **Slider values on O-Marimba and O-Lyrica are fixtures**, not shipped defaults — both seed
    `neutral-defaults` with the default at the middle. Only O-Bells has real defaults (and even
    there the *ranges* are still normalised `0..1`). No finding in the batch rests on a value
