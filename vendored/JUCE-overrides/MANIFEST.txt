@@ -6,7 +6,7 @@
 # is that these fingerprints were derived, not asserted.
 #
 # Every sha256 below is taken over CR-STRIPPED bytes (tr -d '\r'), so the
-# same value holds for the LF release zip, the CRLF git tag, and a Windows
+# same value holds for the release zip, the git tag, and an autocrlf/Windows
 # checkout. A change to line endings ALONE is invisible here, by design.
 #
 # Format:

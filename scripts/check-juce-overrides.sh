@@ -28,11 +28,12 @@
 # WHAT THIS GATE DOES NOT CLAIM
 #   * It is BLIND TO LINE-ENDING-ONLY CHANGES. Every fingerprint is taken over
 #     CR-stripped bytes (`tr -d '\r'`). That is deliberate and load-bearing:
-#     the vendored overrides are CRLF, the release zip CI unpacks is LF, the
-#     git tag on raw.githubusercontent.com is CRLF, and there is no
-#     .gitattributes entry for vendored/ so a Windows checkout is a further
-#     uncontrolled axis. A byte-level compare would fail on line endings alone,
-#     on at least one axis, every time. `cp -R` is byte-preserving and neither
+#     the vendored overrides, the release zip CI unpacks, and the git tag on
+#     raw.githubusercontent.com all measured CRLF (2026-09-21), but nothing
+#     pins that: there is no .gitattributes entry for vendored/, so any
+#     checkout with autocrlf / eol settings is an uncontrolled axis. A
+#     byte-level compare would then fail on line endings alone.
+#     `cp -R` is byte-preserving and neither
 #     CMake nor the compiler cares about CR, so normalizing costs nothing real
 #     and is what makes the gate stable across all four axes.
 #   * It does not stop a motivated insider. Anyone can re-run --update to
@@ -243,7 +244,7 @@ if [ "$MODE" = "update" ]; then
         echo "# is that these fingerprints were derived, not asserted."
         echo "#"
         echo "# Every sha256 below is taken over CR-STRIPPED bytes (tr -d '\\r'), so the"
-        echo "# same value holds for the LF release zip, the CRLF git tag, and a Windows"
+        echo "# same value holds for the release zip, the git tag, and an autocrlf/Windows"
         echo "# checkout. A change to line endings ALONE is invisible here, by design."
         echo "#"
         echo "# Format:"
