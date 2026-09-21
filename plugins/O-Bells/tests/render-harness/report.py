@@ -27,7 +27,9 @@ a Step-5 (v4.8.0) bank gate fails:
     cannot see a MILD chorus (4.5 Hz / 35 % reads 5 c, under the hall floor), so the
     causes are gated too: a realism preset names no chorus, Unison 1, Reverb Mod <= 0.2;
   - no factory preset names a USER_OWNED parameter (Output Gain is the user's
-    control — a preset never moves it; the bank is balanced by voicing).
+    control — a preset never moves it; the bank is balanced by voicing), and
+    recalling any factory preset leaves Output Gain where the user put it
+    (`--check-user-owned`; its control is that Damping DID move).
 
 The factory bank is read from ~/Library/O-Bells/Presets/Factory — the INSTALLED
 plugin's directory — and is only rewritten when the `.factory_version` sentinel
@@ -186,6 +188,11 @@ def main():
     jobs = [(n, [f'preset={c}/{n}']) for c, n in P]
     print(f'{len(P)} factory presets')
     failures = []
+
+    owned = subprocess.run([BIN, '--check-user-owned'], capture_output=True, text=True)
+    print((owned.stdout or owned.stderr).strip())
+    if owned.returncode != 0:
+        failures.append('a preset recall moved Output Gain: ' + owned.stderr.strip())
 
     for c, n in P:
         with open(os.path.join(os.path.dirname(FACTORY_SENTINEL), c, n + '.json')) as f:
