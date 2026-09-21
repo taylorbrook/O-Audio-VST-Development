@@ -1207,7 +1207,9 @@ void OBellsAudioProcessor::initializeFactoryPresets()
     //   presets pair Hum Follow with HIGH damping (Hum Follow alone is inaudible on a tap).
     // RC-5: every preset carries its own FX signature. Preset apply resets unnamed
     //   parameters to default first, so a block that is absent here is at default.
-    // outputGain balances the bank to about -24 dBFS RMS (C3 / C4 / C5, vel 1, FX on).
+    // NO preset names outputGain: Output is the user's control, not a preset's. The bank
+    //   is balanced by voicing instead (hum / prime level, strike position, layer blends,
+    //   nonlinear drive, wet mixes): 8.7 dB RMS spread, C3 / C4 / C5, vel 1, FX on.
     //
     // Gate: tests/render-harness/report.py - every preset's nearest neighbour >= 8 dB,
     //   tap and held, and the tap-T40 category ordering.
@@ -1230,7 +1232,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.5f},
         {"strikePosition", 0.5f}, {"malletHardness", 0.3f}, {"damping", 0.1f},
         {"overtoneBrightness", 0.5f}, {"acousticBrightness", 0.35f}, {"airAbsorption", 1.0f}, {"airAbsorptionTime", 1.5f},
-        {"humLevel", -12.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"humLevel", -12.0f}, {"primeLevel", -8.0f}, {"humFollow", 0.0f},
         {"bloomSpeed", 1.0f}, {"bloomAmount", 0.9f}, {"shimmer", 0.15f},
         {"unisonCount", 3.0f}, {"unisonDetune", 15.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 1.0f},
@@ -1239,8 +1241,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 1800.0f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}, {"humanize", 0.35f},
         {"eqLowGain", -3.0f}, {"eqHighGain", -6.0f},
-        {"reverbSize", 1.0f}, {"reverbDamp", 0.7f}, {"reverbPredelay", 150.0f}, {"reverbMix", 0.85f}, {"reverbMod", 0.25f},
-        {"outputGain", -5.5f}
+        {"reverbSize", 1.0f}, {"reverbDamp", 0.7f}, {"reverbPredelay", 150.0f}, {"reverbMix", 0.85f}, {"reverbMod", 0.25f}
     }, {} });
 
     // Glass model, full bloom on all three bands and no strike - a swell, not a hit.
@@ -1260,8 +1261,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"attackLevel", 0.0f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}, {"humanize", 0.5f},
         {"chorusRate", 0.4f}, {"chorusDepth", 0.7f}, {"chorusMix", 0.5f},
-        {"reverbSize", 0.9f}, {"reverbDamp", 0.3f}, {"reverbPredelay", 40.0f}, {"reverbMix", 0.65f}, {"reverbMod", 0.6f}, {"reverbShimmer", 0.6f},
-        {"outputGain", -3.0f}
+        {"reverbSize", 0.9f}, {"reverbDamp", 0.3f}, {"reverbPredelay", 40.0f}, {"reverbMix", 0.65f}, {"reverbMod", 0.6f}, {"reverbShimmer", 0.6f}
     }, {} });
 
     // Bowl model. Fine bloom staggers the bands (low at once, high after 800 ms) so the spectrum opens over time.
@@ -1270,7 +1270,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"partialModel", 3.0f}, {"material", 0.0f}, {"inharmonicity", 0.7f},
         {"strikePosition", 0.65f}, {"malletHardness", 0.2f}, {"damping", 0.05f},
         {"overtoneBrightness", 0.8f}, {"acousticBrightness", 0.9f}, {"airAbsorption", 0.1f}, {"airAbsorptionTime", 8.0f},
-        {"humLevel", 0.0f}, {"primeLevel", -8.0f}, {"humFollow", 0.0f},
+        {"humLevel", 0.0f}, {"primeLevel", -4.0f}, {"humFollow", 0.0f},
         {"bloomSpeed", 1.0f}, {"bloomAmount", 0.9f}, {"shimmer", 0.8f},
         {"bloomFineEnabled", 1.0f},
         {"bloomSpeedLow", 0.0f}, {"bloomSpeedMid", 0.47f}, {"bloomSpeedHigh", 1.0f},
@@ -1278,49 +1278,48 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 3.0f}, {"unisonDetune", 28.0f},
         {"octaveBlendSub", 0.4f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 1.0f},
         {"strikeTime", 80.0f}, {"brilliance", 85.0f}, {"bodyTime", 5000.0f}, {"humSustain", 100.0f},
-        {"attackLevel", 0.05f}, {"nonlinearEffects", 0.4f},
+        {"attackLevel", 0.05f}, {"nonlinearEffects", 0.25f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.45f},
         {"delayTime", 0.75f}, {"delayFeedback", 0.7f}, {"delayMode", 1.0f}, {"delayMix", 0.35f},
-        {"reverbSize", 0.85f}, {"reverbDamp", 0.4f}, {"reverbPredelay", 30.0f}, {"reverbMix", 0.55f}, {"reverbMod", 0.8f},
-        {"outputGain", 5.0f}
+        {"reverbSize", 0.85f}, {"reverbDamp", 0.4f}, {"reverbPredelay", 30.0f}, {"reverbMix", 0.6f}, {"reverbMod", 0.8f}
     }, {} });
 
     // Plate model in steel, damping 0, hum removed, octave layer high - a bright sheet that never settles.
-    // FX: undamped shimmer reverb, EQ tilted up. Output trimmed: the shimmer builds on held notes.
+    // FX: shimmer reverb, EQ low cut. Soft mallet and a reined-in reverb (size 0.8, 30 % wet): at size 1 / damp 0 the tail
+    // stacks on the sustained plate and one held note reached -3 dBFS.
     presets.push_back({ "Ambient", "Frozen Steel Shimmer", {
         {"partialModel", 2.0f}, {"material", 2.0f}, {"inharmonicity", 0.35f},
-        {"strikePosition", 0.85f}, {"malletHardness", 0.6f}, {"damping", 0.0f},
-        {"overtoneBrightness", 0.95f}, {"acousticBrightness", 1.0f}, {"airAbsorption", 0.0f},
-        {"humLevel", -24.0f}, {"primeLevel", -6.0f}, {"humFollow", 0.0f},
+        {"strikePosition", 1.0f}, {"malletHardness", 0.35f}, {"damping", 0.0f},
+        {"overtoneBrightness", 0.85f}, {"acousticBrightness", 1.0f}, {"airAbsorption", 0.0f},
+        {"humLevel", -24.0f}, {"primeLevel", -10.0f}, {"humFollow", 0.0f},
         {"bloomSpeed", 0.33f}, {"bloomAmount", 0.4f}, {"shimmer", 0.9f},
         {"unisonCount", 2.0f}, {"unisonDetune", 9.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.8f}, {"stereoSpread", 0.9f},
         {"strikeTime", 20.0f}, {"brilliance", 100.0f}, {"bodyTime", 5000.0f}, {"humSustain", 100.0f},
         {"attackLevel", 0.3f},
         {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.2f},
-        {"eqLowGain", -6.0f}, {"eqHighGain", 5.0f},
-        {"reverbSize", 1.0f}, {"reverbDamp", 0.0f}, {"reverbPredelay", 20.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.35f}, {"reverbShimmer", 0.6f},
-        {"outputGain", -7.5f}
+        {"eqLowGain", -9.0f}, {"eqHighGain", 2.0f},
+        {"reverbSize", 0.8f}, {"reverbDamp", 0.2f}, {"reverbPredelay", 20.0f}, {"reverbMix", 0.3f}, {"reverbMod", 0.35f}, {"reverbShimmer", 0.5f}
     }, {} });
 
     // Cast iron under a 900 Hz low-pass with a deep 200 ms pitch dip.
+    // Hum and prime pulled down: at strike 0.05 under the low-pass they ARE the level.
     // FX: full-depth chorus wobble, fully damped reverb, high shelf at -12 dB.
     presets.push_back({ "Ambient", "Underwater Bell", {
         {"partialModel", 0.0f}, {"material", 4.0f}, {"inharmonicity", 0.4f},
         {"strikePosition", 0.05f}, {"malletHardness", 0.1f}, {"damping", 0.3f},
         {"overtoneBrightness", 0.05f}, {"acousticBrightness", 0.1f}, {"airAbsorption", 0.8f}, {"airAbsorptionTime", 0.6f},
-        {"humLevel", 6.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"humLevel", -3.0f}, {"primeLevel", -6.0f}, {"humFollow", 0.0f},
         {"bloomSpeed", 0.6f}, {"bloomAmount", 0.5f}, {"shimmer", 0.4f},
         {"unisonCount", 2.0f}, {"unisonDetune", 16.0f},
-        {"octaveBlendSub", 0.6f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.7f},
+        {"octaveBlendSub", 0.5f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.7f},
         {"strikeTime", 70.0f}, {"brilliance", 0.0f}, {"bodyTime", 3000.0f}, {"humSustain", 70.0f},
         {"attackLevel", 0.05f}, {"pitchEnvelope", 0.6f}, {"pitchEnvTime", 200.0f},
         {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 900.0f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}, {"humanize", 0.4f},
-        {"eqMidGain", 3.0f}, {"eqMidFreq", 350.0f}, {"eqHighGain", -12.0f},
-        {"chorusRate", 0.8f}, {"chorusDepth", 1.0f}, {"chorusMix", 0.6f},
-        {"reverbSize", 0.7f}, {"reverbDamp", 1.0f}, {"reverbPredelay", 0.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.7f},
-        {"outputGain", -10.0f}
+        {"eqHighGain", -12.0f},
+        {"chorusRate", 0.8f}, {"chorusDepth", 1.0f}, {"chorusMix", 0.5f},
+        {"reverbSize", 0.7f}, {"reverbDamp", 1.0f}, {"reverbPredelay", 0.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.7f}
     }, {} });
 
     // ========== BRIGHT BELLS (5 presets) ==========
@@ -1333,7 +1332,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.08f},
         {"strikePosition", 0.8f}, {"malletHardness", 0.95f}, {"damping", 0.55f},
         {"overtoneBrightness", 0.85f}, {"acousticBrightness", 0.95f},
-        {"humLevel", -24.0f}, {"primeLevel", 3.0f}, {"humFollow", 0.4f},
+        {"humLevel", -24.0f}, {"primeLevel", 6.0f}, {"humFollow", 0.4f},
         {"bloomSpeed", 0.0f}, {"bloomAmount", 0.05f}, {"shimmer", 0.05f},
         {"unisonCount", 1.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.25f}, {"stereoSpread", 0.4f},
@@ -1341,8 +1340,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"attackLevel", 0.8f},
         {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.15f},
         {"eqHighGain", 4.0f},
-        {"reverbSize", 0.5f}, {"reverbDamp", 0.1f}, {"reverbPredelay", 15.0f}, {"reverbMix", 0.25f}, {"reverbMod", 0.1f}, {"reverbShimmer", 0.15f},
-        {"outputGain", 3.5f}
+        {"reverbSize", 0.5f}, {"reverbDamp", 0.1f}, {"reverbPredelay", 15.0f}, {"reverbMix", 0.25f}, {"reverbMod", 0.1f}, {"reverbShimmer", 0.15f}
     }, {} });
 
     // Plate model stretched wide (inharmonicity 0.9), sub layer, some nonlinear clang. Hum Follow keeps the ring short.
@@ -1351,16 +1349,15 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"partialModel", 2.0f}, {"material", 0.0f}, {"inharmonicity", 0.9f},
         {"strikePosition", 0.45f}, {"malletHardness", 0.7f}, {"damping", 0.65f},
         {"overtoneBrightness", 0.7f}, {"acousticBrightness", 0.8f},
-        {"humLevel", -12.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.5f},
+        {"humLevel", -12.0f}, {"primeLevel", 4.0f}, {"humFollow", 0.5f},
         {"bloomSpeed", 0.04f}, {"bloomAmount", 0.1f}, {"shimmer", 0.3f},
         {"unisonCount", 1.0f},
-        {"octaveBlendSub", 0.3f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.75f},
+        {"octaveBlendSub", 0.2f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.75f},
         {"strikeTime", 15.0f}, {"brilliance", 80.0f}, {"bodyTime", 1200.0f}, {"humSustain", 30.0f},
-        {"attackLevel", 0.7f}, {"nonlinearEffects", 0.3f},
+        {"attackLevel", 0.7f}, {"nonlinearEffects", 0.2f},
         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.25f},
         {"eqMidGain", 3.0f}, {"eqMidFreq", 3000.0f},
-        {"reverbSize", 0.65f}, {"reverbDamp", 0.25f}, {"reverbPredelay", 35.0f}, {"reverbMix", 0.35f}, {"reverbMod", 0.2f},
-        {"outputGain", 4.5f}
+        {"reverbSize", 0.65f}, {"reverbDamp", 0.25f}, {"reverbPredelay", 35.0f}, {"reverbMix", 0.35f}, {"reverbMod", 0.2f}
     }, {} });
 
     // Tubular model, hardest mallet, click. RC-3: a bar is SHORT - damping 0.8, body 600 ms, Hum Follow 1.
@@ -1377,8 +1374,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"attackLevel", 0.9f},
         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 1.0f}, {"humanize", 0.2f},
         {"delayTime", 0.18f}, {"delayFeedback", 0.25f}, {"delayMode", 1.0f}, {"delayMix", 0.2f},
-        {"reverbSize", 0.25f}, {"reverbDamp", 0.4f}, {"reverbPredelay", 5.0f}, {"reverbMix", 0.15f}, {"reverbMod", 0.0f},
-        {"outputGain", 1.5f}
+        {"reverbSize", 0.25f}, {"reverbDamp", 0.4f}, {"reverbPredelay", 5.0f}, {"reverbMix", 0.15f}, {"reverbMod", 0.0f}
     }, {} });
 
     // Glass model in steel with the octave layer and full brilliance.
@@ -1395,8 +1391,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"attackLevel", 0.6f},
         {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.2f},
         {"delayTime", 0.33f}, {"delayFeedback", 0.4f}, {"delayMode", 1.0f}, {"delayMix", 0.18f},
-        {"reverbSize", 0.7f}, {"reverbDamp", 0.15f}, {"reverbPredelay", 25.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.3f}, {"reverbShimmer", 0.35f},
-        {"outputGain", 0.5f}
+        {"reverbSize", 0.7f}, {"reverbDamp", 0.15f}, {"reverbPredelay", 25.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.3f}, {"reverbShimmer", 0.35f}
     }, {} });
 
     // Tubular model stretched to the limit, struck at the rim, wide unison. A model (not Classic) so the octave layer is Nyquist-guarded.
@@ -1405,17 +1400,16 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"partialModel", 1.0f}, {"material", 3.0f}, {"inharmonicity", 1.0f},
         {"strikePosition", 1.0f}, {"malletHardness", 0.9f}, {"damping", 0.7f},
         {"overtoneBrightness", 1.0f}, {"acousticBrightness", 0.9f},
-        {"humLevel", -18.0f}, {"primeLevel", -3.0f}, {"humFollow", 0.6f},
+        {"humLevel", -12.0f}, {"primeLevel", 6.0f}, {"humFollow", 0.6f},
         {"bloomSpeed", 0.0f}, {"bloomAmount", 0.05f}, {"shimmer", 0.5f},
         {"unisonCount", 2.0f}, {"unisonDetune", 25.0f},
-        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.7f}, {"stereoSpread", 1.0f},
-        {"strikeTime", 6.0f}, {"brilliance", 90.0f}, {"bodyTime", 900.0f}, {"humSustain", 20.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.5f}, {"stereoSpread", 1.0f},
+        {"strikeTime", 6.0f}, {"brilliance", 90.0f}, {"bodyTime", 1300.0f}, {"humSustain", 20.0f},
         {"attackLevel", 0.75f},
         {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
         {"eqLowGain", -4.0f}, {"eqHighGain", 6.0f},
         {"chorusRate", 2.5f}, {"chorusDepth", 0.4f}, {"chorusMix", 0.3f},
-        {"reverbSize", 0.35f}, {"reverbDamp", 0.2f}, {"reverbPredelay", 10.0f}, {"reverbMix", 0.3f}, {"reverbMod", 0.15f},
-        {"outputGain", 5.5f}
+        {"reverbSize", 0.35f}, {"reverbDamp", 0.2f}, {"reverbPredelay", 10.0f}, {"reverbMix", 0.3f}, {"reverbMod", 0.15f}
     }, {} });
 
     // ========== LARGE BELLS (5 presets) ==========
@@ -1434,27 +1428,24 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"strikeTime", 35.0f}, {"brilliance", 55.0f}, {"bodyTime", 5000.0f}, {"humSustain", 100.0f},
         {"attackLevel", 0.55f},
         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
-        {"delayTime", 0.5f}, {"delayFeedback", 0.35f}, {"delayMode", 0.0f}, {"delayMix", 0.15f},
-        {"reverbSize", 0.95f}, {"reverbDamp", 0.45f}, {"reverbPredelay", 120.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.2f},
-        {"outputGain", -4.0f}
+        {"delayTime", 0.5f}, {"delayFeedback", 0.35f}, {"delayMode", 0.0f}, {"delayMix", 0.12f},
+        {"reverbSize", 0.95f}, {"reverbDamp", 0.45f}, {"reverbPredelay", 120.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.2f}
     }, {} });
 
     // The reference church bell: Classic at 0.5, struck low, hum lifted, heavy sub layer. RC-3: damping 0.05 (was 0.95).
-    // FX: large damped hall, low shelf up.
+    // FX: large damped hall.
     presets.push_back({ "Large Bells", "Deep Bronze Tower", {
         {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.5f},
         {"strikePosition", 0.15f}, {"malletHardness", 0.5f}, {"damping", 0.05f},
         {"overtoneBrightness", 0.3f}, {"acousticBrightness", 0.5f}, {"airAbsorption", 0.3f}, {"airAbsorptionTime", 5.0f},
-        {"humLevel", 2.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"humLevel", 0.0f}, {"primeLevel", -3.0f}, {"humFollow", 0.0f},
         {"bloomSpeed", 0.47f}, {"bloomAmount", 0.3f}, {"shimmer", 0.2f},
         {"unisonCount", 2.0f}, {"unisonDetune", 12.0f},
         {"octaveBlendSub", 0.6f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.85f},
         {"strikeTime", 45.0f}, {"brilliance", 30.0f}, {"bodyTime", 4500.0f}, {"humSustain", 100.0f},
         {"attackLevel", 0.5f}, {"pitchEnvelope", 0.03f}, {"pitchEnvTime", 80.0f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.35f},
-        {"eqLowGain", 3.0f},
-        {"reverbSize", 0.85f}, {"reverbDamp", 0.6f}, {"reverbPredelay", 40.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.15f},
-        {"outputGain", -6.0f}
+        {"reverbSize", 0.85f}, {"reverbDamp", 0.6f}, {"reverbPredelay", 40.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.15f}
     }, {} });
 
     // Same bell family as the Tower but struck hard and bright: prime lifted, octave layer, minor-third tierce (-8 c).
@@ -1470,17 +1461,16 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"strikeTime", 25.0f}, {"brilliance", 75.0f}, {"bodyTime", 4000.0f}, {"humSustain", 85.0f},
         {"attackLevel", 0.7f},
         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.4f},
-        {"reverbSize", 0.9f}, {"reverbDamp", 0.3f}, {"reverbPredelay", 80.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.3f},
-        {"outputGain", -3.0f}
+        {"reverbSize", 0.9f}, {"reverbDamp", 0.3f}, {"reverbPredelay", 80.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.3f}
     }, {} });
 
     // Cast iron toward gamelan ratios, sub at 0.85, 3.5 kHz low-pass, wide 3-voice unison. RC-3: damping 0 (was 1.0).
-    // FX: largest, darkest hall; EQ low up, high down.
+    // FX: largest, darkest hall; high shelf down.
     presets.push_back({ "Large Bells", "Massive Iron Bell", {
         {"partialModel", 0.0f}, {"material", 4.0f}, {"inharmonicity", 0.72f},
         {"strikePosition", 0.3f}, {"malletHardness", 0.45f}, {"damping", 0.0f},
         {"overtoneBrightness", 0.12f}, {"acousticBrightness", 0.3f}, {"airAbsorption", 0.4f}, {"airAbsorptionTime", 5.5f},
-        {"humLevel", 3.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"humLevel", -3.0f}, {"primeLevel", -4.0f}, {"humFollow", 0.0f},
         {"bloomSpeed", 0.87f}, {"bloomAmount", 0.45f}, {"shimmer", 0.15f},
         {"unisonCount", 3.0f}, {"unisonDetune", 22.0f},
         {"octaveBlendSub", 0.85f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.9f},
@@ -1488,9 +1478,8 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"attackLevel", 0.45f}, {"nonlinearEffects", 0.25f}, {"pitchEnvelope", 0.05f}, {"pitchEnvTime", 100.0f},
         {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 3500.0f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
-        {"eqLowGain", 4.0f}, {"eqHighGain", -6.0f},
-        {"reverbSize", 1.0f}, {"reverbDamp", 0.85f}, {"reverbPredelay", 60.0f}, {"reverbMix", 0.45f}, {"reverbMod", 0.1f},
-        {"outputGain", -8.0f}
+        {"eqHighGain", -6.0f},
+        {"reverbSize", 1.0f}, {"reverbDamp", 0.85f}, {"reverbPredelay", 60.0f}, {"reverbMix", 0.45f}, {"reverbMod", 0.1f}
     }, {} });
 
     // Softest mallet, slowest bloom, prime pulled down 12 dB so the hum carries the note.
@@ -1508,8 +1497,7 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}, {"humanize", 0.45f},
         {"eqMidGain", -3.0f}, {"eqMidFreq", 800.0f},
         {"delayTime", 1.2f}, {"delayFeedback", 0.5f}, {"delayMode", 0.0f}, {"delayMix", 0.2f},
-        {"reverbSize", 0.8f}, {"reverbDamp", 0.5f}, {"reverbPredelay", 50.0f}, {"reverbMix", 0.45f}, {"reverbMod", 0.2f},
-        {"outputGain", -2.0f}
+        {"reverbSize", 0.8f}, {"reverbDamp", 0.5f}, {"reverbPredelay", 50.0f}, {"reverbMix", 0.45f}, {"reverbMod", 0.2f}
     }, {} });
 
     // ========== METALLIC (5 presets) ==========
@@ -1521,16 +1509,15 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"partialModel", 2.0f}, {"material", 0.0f}, {"inharmonicity", 0.7f},
         {"strikePosition", 0.4f}, {"malletHardness", 0.25f}, {"damping", 0.2f},
         {"overtoneBrightness", 0.55f}, {"acousticBrightness", 0.7f},
-        {"humLevel", 0.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.0f},
+        {"humLevel", 3.0f}, {"primeLevel", 4.0f}, {"humFollow", 0.0f},
         {"bloomSpeed", 1.0f}, {"bloomAmount", 0.7f}, {"shimmer", 0.7f},
         {"unisonCount", 4.0f}, {"unisonDetune", 35.0f},
-        {"octaveBlendSub", 0.5f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 1.0f},
+        {"octaveBlendSub", 0.4f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 1.0f},
         {"strikeTime", 70.0f}, {"brilliance", 60.0f}, {"bodyTime", 4500.0f}, {"humSustain", 80.0f},
-        {"attackLevel", 0.3f}, {"nonlinearEffects", 0.7f}, {"pitchEnvelope", 0.15f}, {"pitchEnvTime", 200.0f},
+        {"attackLevel", 0.3f}, {"nonlinearEffects", 0.5f}, {"pitchEnvelope", 0.15f}, {"pitchEnvTime", 200.0f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 1.0f}, {"humanize", 0.4f},
         {"eqMidGain", 3.0f}, {"eqMidFreq", 400.0f},
-        {"reverbSize", 0.75f}, {"reverbDamp", 0.5f}, {"reverbPredelay", 30.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.5f},
-        {"outputGain", 5.5f}
+        {"reverbSize", 0.75f}, {"reverbDamp", 0.5f}, {"reverbPredelay", 30.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.5f}
     }, {} });
 
     // Plate model at full stretch. RC-3: the shortest preset - damping 1, body 350 ms, Hum Follow 1, hum removed.
@@ -1539,17 +1526,16 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"partialModel", 2.0f}, {"material", 2.0f}, {"inharmonicity", 1.0f},
         {"strikePosition", 0.9f}, {"malletHardness", 1.0f}, {"damping", 1.0f},
         {"overtoneBrightness", 0.9f}, {"acousticBrightness", 0.5f},
-        {"humLevel", -24.0f}, {"primeLevel", -6.0f}, {"humFollow", 1.0f},
+        {"humLevel", -24.0f}, {"primeLevel", 3.0f}, {"humFollow", 1.0f},
         {"bloomSpeed", 0.0f}, {"bloomAmount", 0.02f}, {"shimmer", 0.1f},
         {"unisonCount", 1.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.6f},
         {"strikeTime", 5.0f}, {"brilliance", 40.0f}, {"bodyTime", 350.0f}, {"humSustain", 0.0f},
-        {"attackLevel", 1.0f}, {"nonlinearEffects", 0.5f},
+        {"attackLevel", 1.0f}, {"nonlinearEffects", 0.35f},
         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 1.0f}, {"humanize", 0.35f},
         {"eqMidGain", 4.0f}, {"eqMidFreq", 2500.0f},
         {"delayTime", 0.09f}, {"delayFeedback", 0.2f}, {"delayMode", 0.0f}, {"delayMix", 0.25f},
-        {"reverbSize", 0.2f}, {"reverbDamp", 0.2f}, {"reverbPredelay", 0.0f}, {"reverbMix", 0.15f}, {"reverbMod", 0.0f},
-        {"outputGain", 5.0f}
+        {"reverbSize", 0.2f}, {"reverbDamp", 0.2f}, {"reverbPredelay", 0.0f}, {"reverbMix", 0.15f}, {"reverbMod", 0.0f}
     }, {} });
 
     // Bowl model in cast iron under a 2.5 kHz low-pass, hum lifted, heavy sub.
@@ -1567,45 +1553,44 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 2500.0f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
         {"eqHighGain", -8.0f},
-        {"reverbSize", 0.95f}, {"reverbDamp", 0.9f}, {"reverbPredelay", 100.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.3f},
-        {"outputGain", 0.5f}
+        {"reverbSize", 0.95f}, {"reverbDamp", 0.9f}, {"reverbPredelay", 100.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.3f}
     }, {} });
 
     // Classic at full gamelan ratios, 3-voice unison at 30 c for the ombak beating, tierce pushed +35 c.
-    // No octave layer (as in v2.2.1): Classic has no Nyquist guard. FX: ping-pong delay.
+    // No octave layer (as in v2.2.1): Classic has no Nyquist guard. FX: ping-pong delay, mid push at 1.2 kHz.
     presets.push_back({ "Metallic", "Dense Bronze Gamelan", {
         {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 1.0f}, {"partialTuning", 35.0f},
-        {"strikePosition", 0.7f}, {"malletHardness", 0.75f}, {"damping", 0.75f},
+        {"strikePosition", 0.55f}, {"malletHardness", 0.75f}, {"damping", 0.75f},
         {"overtoneBrightness", 0.65f}, {"acousticBrightness", 0.75f},
-        {"humLevel", -6.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.3f},
+        {"humLevel", -2.0f}, {"primeLevel", 5.0f}, {"humFollow", 0.3f},
         {"bloomSpeed", 0.01f}, {"bloomAmount", 0.1f}, {"shimmer", 0.45f},
         {"unisonCount", 3.0f}, {"unisonDetune", 30.0f},
         {"octaveBlendSub", 0.35f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.95f},
         {"strikeTime", 12.0f}, {"brilliance", 65.0f}, {"bodyTime", 1600.0f}, {"humSustain", 35.0f},
         {"attackLevel", 0.65f},
         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.5f},
+        {"eqMidGain", 3.0f}, {"eqMidFreq", 1200.0f},
         {"delayTime", 0.25f}, {"delayFeedback", 0.45f}, {"delayMode", 1.0f}, {"delayMix", 0.22f},
-        {"reverbSize", 0.45f}, {"reverbDamp", 0.35f}, {"reverbPredelay", 20.0f}, {"reverbMix", 0.3f}, {"reverbMod", 0.2f},
-        {"outputGain", 8.0f}
+        {"reverbSize", 0.45f}, {"reverbDamp", 0.35f}, {"reverbPredelay", 20.0f}, {"reverbMix", 0.3f}, {"reverbMod", 0.2f}
     }, {} });
 
-    // Glass model, octave layer at full, 4-voice unison at 50 c, shimmer at full, hum and prime pulled down.
-    // FX: fast chorus, short high-feedback ping-pong, shimmer reverb.
+    // Glass model, high octave layer, 3-voice unison at 50 c, shimmer at full, hum removed.
+    // FX: fast chorus, short high-feedback ping-pong, shimmer reverb, high shelf up.
     presets.push_back({ "Metallic", "Shimmering Bell Tree", {
         {"partialModel", 4.0f}, {"material", 1.0f}, {"inharmonicity", 0.85f},
-        {"strikePosition", 0.95f}, {"malletHardness", 0.9f}, {"damping", 0.75f},
+        {"strikePosition", 0.8f}, {"malletHardness", 0.9f}, {"damping", 0.75f},
         {"overtoneBrightness", 1.0f}, {"acousticBrightness", 1.0f},
-        {"humLevel", -24.0f}, {"primeLevel", -10.0f}, {"humFollow", 0.5f},
+        {"humLevel", -24.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.3f},
         {"bloomSpeed", 0.0f}, {"bloomAmount", 0.05f}, {"shimmer", 1.0f},
-        {"unisonCount", 4.0f}, {"unisonDetune", 50.0f},
-        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 1.0f}, {"stereoSpread", 1.0f},
-        {"strikeTime", 5.0f}, {"brilliance", 100.0f}, {"bodyTime", 1100.0f}, {"humSustain", 25.0f},
+        {"unisonCount", 3.0f}, {"unisonDetune", 50.0f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.6f}, {"stereoSpread", 1.0f},
+        {"strikeTime", 5.0f}, {"brilliance", 100.0f}, {"bodyTime", 1500.0f}, {"humSustain", 25.0f},
         {"attackLevel", 0.7f},
         {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.6f},
+        {"eqHighGain", 6.0f},
         {"chorusRate", 6.0f}, {"chorusDepth", 0.5f}, {"chorusMix", 0.4f},
         {"delayTime", 0.12f}, {"delayFeedback", 0.55f}, {"delayMode", 1.0f}, {"delayMix", 0.25f},
-        {"reverbSize", 0.6f}, {"reverbDamp", 0.1f}, {"reverbPredelay", 10.0f}, {"reverbMix", 0.4f}, {"reverbMod", 0.4f}, {"reverbShimmer", 0.5f},
-        {"outputGain", 9.0f}
+        {"reverbSize", 0.6f}, {"reverbDamp", 0.1f}, {"reverbPredelay", 10.0f}, {"reverbMix", 0.5f}, {"reverbMod", 0.4f}, {"reverbShimmer", 0.5f}
     }, {} });
 
     // ========== WARM BELLS (5 presets) ==========
@@ -1615,17 +1600,16 @@ void OBellsAudioProcessor::initializeFactoryPresets()
     // FX: small dry room only.
     presets.push_back({ "Warm Bells", "Gentle Hand Bell", {
         {"partialModel", 0.0f}, {"material", 1.0f}, {"inharmonicity", 0.2f},
-        {"strikePosition", 0.4f}, {"malletHardness", 0.45f}, {"damping", 0.45f},
+        {"strikePosition", 0.3f}, {"malletHardness", 0.45f}, {"damping", 0.45f},
         {"overtoneBrightness", 0.45f}, {"acousticBrightness", 0.65f},
-        {"humLevel", -24.0f}, {"primeLevel", 2.0f}, {"humFollow", 0.2f},
+        {"humLevel", -18.0f}, {"primeLevel", 6.0f}, {"humFollow", 0.2f},
         {"bloomSpeed", 0.07f}, {"bloomAmount", 0.1f}, {"shimmer", 0.15f},
         {"unisonCount", 1.0f},
-        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.3f}, {"stereoSpread", 0.5f},
+        {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.2f}, {"stereoSpread", 0.5f},
         {"strikeTime", 20.0f}, {"brilliance", 55.0f}, {"bodyTime", 1200.0f}, {"humSustain", 40.0f},
         {"attackLevel", 0.45f},
         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.35f},
-        {"reverbSize", 0.3f}, {"reverbDamp", 0.5f}, {"reverbPredelay", 10.0f}, {"reverbMix", 0.2f}, {"reverbMod", 0.1f},
-        {"outputGain", 8.0f}
+        {"reverbSize", 0.3f}, {"reverbDamp", 0.5f}, {"reverbPredelay", 10.0f}, {"reverbMix", 0.2f}, {"reverbMod", 0.1f}
     }, {} });
 
     // Bowl model, soft mallet, slow beating shimmer.
@@ -1642,17 +1626,16 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"attackLevel", 0.2f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
         {"chorusRate", 0.3f}, {"chorusDepth", 0.3f}, {"chorusMix", 0.25f},
-        {"reverbSize", 0.6f}, {"reverbDamp", 0.7f}, {"reverbPredelay", 25.0f}, {"reverbMix", 0.35f}, {"reverbMod", 0.25f},
-        {"outputGain", -1.5f}
+        {"reverbSize", 0.6f}, {"reverbDamp", 0.7f}, {"reverbPredelay", 25.0f}, {"reverbMix", 0.35f}, {"reverbMod", 0.25f}
     }, {} });
 
     // A true bell (0.55) hit with the softest mallet at the centre, 5 kHz low-pass.
-    // FX: damped room, EQ tilted down.
+    // FX: damped room, high shelf down.
     presets.push_back({ "Warm Bells", "Soft Mallet Bronze", {
         {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.55f},
         {"strikePosition", 0.1f}, {"malletHardness", 0.0f}, {"damping", 0.5f},
         {"overtoneBrightness", 0.2f}, {"acousticBrightness", 0.4f},
-        {"humLevel", 2.0f}, {"primeLevel", 3.0f}, {"humFollow", 0.2f},
+        {"humLevel", -2.0f}, {"primeLevel", 0.0f}, {"humFollow", 0.2f},
         {"bloomSpeed", 0.2f}, {"bloomAmount", 0.2f}, {"shimmer", 0.1f},
         {"unisonCount", 1.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.45f},
@@ -1660,45 +1643,44 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"attackLevel", 0.05f},
         {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 5000.0f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}, {"humanize", 0.35f},
-        {"eqLowGain", 2.0f}, {"eqHighGain", -4.0f},
-        {"reverbSize", 0.45f}, {"reverbDamp", 0.8f}, {"reverbPredelay", 15.0f}, {"reverbMix", 0.25f}, {"reverbMod", 0.1f},
-        {"outputGain", -4.5f}
+        {"eqHighGain", -4.0f},
+        {"reverbSize", 0.45f}, {"reverbDamp", 0.8f}, {"reverbPredelay", 15.0f}, {"reverbMix", 0.25f}, {"reverbMod", 0.1f}
     }, {} });
 
-    // Fully harmonic Classic, hum removed, prime at +6 dB, 4-voice unison, sub + octave layers.
+    // Fully harmonic Classic, hum removed, prime at +6 dB, 3-voice unison, sub + octave layers.
     // FX: deep slow chorus - the velvet.
     presets.push_back({ "Warm Bells", "Velvet Bronze Tone", {
         {"partialModel", 0.0f}, {"material", 0.0f}, {"inharmonicity", 0.0f},
-        {"strikePosition", 0.5f}, {"malletHardness", 0.3f}, {"damping", 0.4f},
+        {"strikePosition", 0.25f}, {"malletHardness", 0.3f}, {"damping", 0.4f},
         {"overtoneBrightness", 0.5f}, {"acousticBrightness", 0.55f},
         {"humLevel", -24.0f}, {"primeLevel", 6.0f}, {"humFollow", 0.1f},
-        {"bloomSpeed", 0.6f}, {"bloomAmount", 0.5f}, {"shimmer", 0.3f},
-        {"unisonCount", 4.0f}, {"unisonDetune", 14.0f},
-        {"octaveBlendSub", 0.5f}, {"octaveBlendOct", 0.3f}, {"stereoSpread", 0.9f},
+        {"bloomSpeed", 0.6f}, {"bloomAmount", 0.2f}, {"shimmer", 0.3f},
+        {"unisonCount", 3.0f}, {"unisonDetune", 14.0f},
+        {"octaveBlendSub", 0.25f}, {"octaveBlendOct", 0.2f}, {"stereoSpread", 0.9f},
         {"strikeTime", 60.0f}, {"brilliance", 40.0f}, {"bodyTime", 2600.0f}, {"humSustain", 60.0f},
-        {"attackLevel", 0.15f},
+        {"attackLevel", 0.3f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.3f},
+        {"eqLowGain", 3.0f},
         {"chorusRate", 0.6f}, {"chorusDepth", 0.6f}, {"chorusMix", 0.45f},
-        {"reverbSize", 0.55f}, {"reverbDamp", 0.6f}, {"reverbPredelay", 20.0f}, {"reverbMix", 0.35f}, {"reverbMod", 0.3f},
-        {"outputGain", 7.5f}
+        {"reverbSize", 0.55f}, {"reverbDamp", 0.6f}, {"reverbPredelay", 20.0f}, {"reverbMix", 0.35f}, {"reverbMod", 0.3f}
     }, {} });
 
     // Tubular model compressed (0.2), soft mallet, prime only - vibraphone territory.
-    // FX: 4.5 Hz chorus as the motor, small room.
+    // FX: 4.5 Hz chorus as the motor, small room, low / low-mid warmth.
     presets.push_back({ "Warm Bells", "Warm Aluminum Bars", {
         {"partialModel", 1.0f}, {"material", 3.0f}, {"inharmonicity", 0.2f},
-        {"strikePosition", 0.3f}, {"malletHardness", 0.35f}, {"damping", 0.55f},
-        {"overtoneBrightness", 0.25f}, {"acousticBrightness", 0.5f},
+        {"strikePosition", 0.15f}, {"malletHardness", 0.45f}, {"damping", 0.55f},
+        {"overtoneBrightness", 0.35f}, {"acousticBrightness", 0.5f},
         {"humLevel", -24.0f}, {"primeLevel", 6.0f}, {"humFollow", 0.6f},
         {"bloomSpeed", 0.04f}, {"bloomAmount", 0.1f}, {"shimmer", 0.1f},
         {"unisonCount", 1.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.6f},
-        {"strikeTime", 25.0f}, {"brilliance", 35.0f}, {"bodyTime", 1500.0f}, {"humSustain", 30.0f},
-        {"attackLevel", 0.35f},
+        {"strikeTime", 25.0f}, {"brilliance", 35.0f}, {"bodyTime", 2200.0f}, {"humSustain", 30.0f},
+        {"attackLevel", 0.5f},
         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}, {"humanize", 0.25f},
+        {"eqLowGain", 3.0f}, {"eqMidGain", 2.0f}, {"eqMidFreq", 500.0f},
         {"chorusRate", 4.5f}, {"chorusDepth", 0.35f}, {"chorusMix", 0.35f},
-        {"reverbSize", 0.4f}, {"reverbDamp", 0.55f}, {"reverbPredelay", 15.0f}, {"reverbMix", 0.25f}, {"reverbMod", 0.15f},
-        {"outputGain", 7.5f}
+        {"reverbSize", 0.4f}, {"reverbDamp", 0.55f}, {"reverbPredelay", 15.0f}, {"reverbMix", 0.25f}, {"reverbMod", 0.15f}
     }, {} });
 
     presetManager.initializeFactoryPresets(presets);
