@@ -253,6 +253,48 @@ plugins/*/.continue-here.md
 scratch-pv/
 
 # =============================================================================
+# Build-Log Tree (repo-root logs/)
+# =============================================================================
+# WHAT IS THERE, AND WHO WRITES IT. 50 per-plugin directories, 739 build logs,
+# 51 MB at the time this rule was written. The sole writer is
+# scripts/build-and-install.sh:92 (`local log_dir="logs/$PLUGIN_NAME"`), which
+# drops one timestamped log per build into a per-plugin subdirectory of this
+# repo-root tree. Every file under it is generated output. Nothing there is ever
+# authored by hand.
+#
+# THIS RULE CHANGES NOTHING TODAY — AND IS STILL WORTH HAVING. Every file
+# currently under the tree is ALREADY ignored: the 739 build logs by the `*.log`
+# rule earlier in this file, the one stray `logs/.DS_Store` by the `.DS_Store`
+# rule (both confirmed with `git check-ignore -v`). What was NOT covered is the
+# DIRECTORY ITSELF and any file carrying a different extension — a JSON status
+# dump, a text report, a WAV capture dropped beside a build log by some future
+# harness. This repository has a public origin, so that next artifact is one
+# wide `git add` away from permanent published history. The rule closes the NEXT
+# artifact, not the current one. Do not delete it as redundant on the strength
+# of the current contents.
+#
+# WHY A WHOLE-DIRECTORY RULE IS CORRECT HERE. The Installer block below, the
+# O-Bowed golden block and the GSD sentinel block all deliberately match an
+# ARTIFACT rather than its containing directory, because those directories also
+# hold hand-authored source (installer.iss, install-readme text, tracked
+# fixtures). A directory-wide rule there would silently stop new source from
+# being tracked. This directory holds no source of any kind — it is generated
+# output end to end — so here the directory IS the artifact.
+#
+# WHY THE LEADING SLASH. The anchor pins the rule to the repo root, the only
+# place this tree exists (`find . -maxdepth 4 -type d -name logs` returns `./logs`
+# alone). An UNANCHORED `logs/` would additionally swallow any future nested
+# logs directory anywhere in the tree — a per-plugin or per-test one that might
+# legitimately hold something tracked — and that failure is invisible: the file
+# simply never appears in `git status`. The anchor is what keeps a correct
+# directory rule from broadening into the exact failure mode the rest of this
+# file exists to avoid.
+#
+# NOTHING WAS UNTRACKED BY THIS RULE. `git ls-files logs` was empty when it was
+# authored, so no `git rm --cached` was needed — and none was run.
+/logs/
+
+# =============================================================================
 # Installer / Distribution Packages
 # =============================================================================
 # Built installer packages are release artifacts, not source. They belong on

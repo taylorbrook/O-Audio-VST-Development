@@ -88,7 +88,10 @@ env:
 
 jobs:
   # ============================================
-  # macOS — build BOTH C++ test targets, then run them.
+  # macOS — build BOTH C++ test targets and run them, then build the dispatched
+  # plugin's AU and validate it with Apple's auval. The AU pair is a full plugin
+  # compile appended after the probes; before it was added this job produced no
+  # plugin format at all.
   # ============================================
   probes-macos:
     runs-on: macos-14
@@ -205,6 +208,81 @@ jobs:
           ./build/plugins/O-Strata/O-Strata-render-test_artefacts/${{ env.BUILD_TYPE }}/O-Strata-render-test \
             --gate orbits --out "$RUNNER_TEMP/orbits.json"
           node plugins/O-Strata/tests/orbit-golden.mjs "$RUNNER_TEMP/orbits.json"
+
+      # ── AU format gate (auval) ─────────────────────────────────────────────
+      # THE COST, STATED PLAINLY RATHER THAN BURIED. Before these two steps this
+      # job built C++ TEST BINARIES only — no plugin format was produced anywhere
+      # in this workflow on macOS. `<TARGET>_AU` is therefore a FULL PLUGIN
+      # COMPILE (JUCE modules, SharedCode, the AU wrapper), not a few lines
+      # bolted onto an existing build, and it is a real addition to job runtime.
+      # Weigh that figure before copying this pair into another job.
+      #
+      # WHAT THIS GATE CAN CLAIM: the AU bundle links, registers with the system
+      # AudioComponent registry, and passes Apple's own validation battery. That
+      # is the first automated coverage the AU format has ever had here — the
+      # Windows job validates VST3, and nothing validated AU.
+      #
+      # WHAT IT CANNOT CLAIM: anything about the EDITOR. auval never opens the
+      # WebView, so a silently-blank UI passes it green. pluginval 10 on the
+      # windows-vst3 job is what covers that surface, and only on Windows.
+      #
+      # CODES ARE DERIVED, NEVER MIRRORED. No AU type, subtype or manufacturer
+      # code is written into this file. scripts/verify-au-link.sh parses
+      # PLUGIN_CODE and the AU main type from the plugin's own CMakeLists,
+      # resolves the manufacturer code from the root CMakeLists, kicks the
+      # component registrar, then validates. A literal here would be a second
+      # copy of a value that lives elsewhere — exactly the drift the "Read JUCE
+      # version" step above documents, and in the same direction that matters:
+      # it keeps reporting green about something nobody ships.
+      #
+      # DEV BRANDING — TWO INDEPENDENT CHOICES THAT HAPPEN TO AGREE. Configure
+      # CMake deliberately omits OUARICON_RELEASE, so the bundle built here
+      # carries the `-dev` suffix and the dev manufacturer code; verify-au-link.sh
+      # resolves the DEV branch of the root CMakeLists by design. Both sides
+      # agree — but by coincidence of two separate decisions, not by
+      # construction. Move either and auval hunts a component that was never
+      # installed. Globbing the built bundle rather than naming it is what keeps
+      # this step correct if that branding choice ever changes.
+      #
+      # `!cancelled()` ON BOTH STEPS, for the reason already written on the Orbit
+      # golden step above: auval is an INDEPENDENT check from the render harness
+      # and the golden, and a failing harness row must not leave the AU format
+      # unmeasured. The asymmetry between the two is deliberate — the validate
+      # step additionally requires its OWN build to have succeeded, because
+      # validating a bundle that was never produced reports a registry miss
+      # rather than a plugin defect, which is a misleading failure rather than a
+      # useful one.
+      - name: Build AU
+        id: au_build
+        if: ${{ !cancelled() }}
+        run: |
+          # A plugin's CMake target is often NOT the folder name (O-Octagon's is
+          # OuariconOctagon), so a folder-derived `<plugin>_AU` target would not
+          # exist. Resolved the same way the windows-vst3 job resolves it;
+          # resolve-target.sh's contract requires the repo root as CWD, which is
+          # the runner default.
+          CMAKE_TARGET=$(bash scripts/resolve-target.sh cmake-target "${{ inputs.plugin }}")
+          echo "cmake_target=$CMAKE_TARGET" >> $GITHUB_OUTPUT
+          echo "Resolved CMake target: $CMAKE_TARGET"
+          cmake --build build \
+            --target "${CMAKE_TARGET}_AU" \
+            --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
+
+      - name: Install AU and validate (auval)
+        if: ${{ !cancelled() && steps.au_build.outcome == 'success' }}
+        run: |
+          TARGET="${{ steps.au_build.outputs.cmake_target }}"
+          COMPONENT=$(ls -d "build/plugins/${{ inputs.plugin }}/${TARGET}_artefacts/${{ env.BUILD_TYPE }}/AU/"*.component | head -1)
+          echo "Built AU: $COMPONENT"
+          mkdir -p "$HOME/Library/Audio/Plug-Ins/Components"
+          # Remove any same-named bundle BEFORE copying: a warm or re-run runner
+          # must not be able to validate a stale bundle left by an earlier run.
+          # Same registry-slot pinning hazard CLAUDE.md describes for local
+          # installs, where an orphaned variant pins the slot to whichever
+          # bundle was installed first.
+          rm -rf "$HOME/Library/Audio/Plug-Ins/Components/$(basename "$COMPONENT")"
+          cp -R "$COMPONENT" "$HOME/Library/Audio/Plug-Ins/Components/"
+          bash scripts/verify-au-link.sh "${{ inputs.plugin }}"
 
   # ============================================
   # Windows — the FIRST MSVC compile of the dispatched plugin (PLAN-4.1 D3, P88
