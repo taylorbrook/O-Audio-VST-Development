@@ -146,11 +146,13 @@ if [ "$MODE" = "wiring" ]; then
         fi
 
         # Pair guard N with copy N in file order and require guard to come first.
+        wf_ok=1
         i=1
         while [ "$i" -le "$n_copy" ]; do
             g=$(printf '%s\n' "$guard_lines" | sed -n "${i}p")
             c=$(printf '%s\n' "$copy_lines" | sed -n "${i}p")
             if [ "$g" -ge "$c" ]; then
+                wf_ok=0
                 echo -e "${RED}${TAG} $rel: guard at line $g does NOT precede its copy at line $c.${NC}" >&2
                 echo -e "${RED}${TAG}   The guard must run against the PRISTINE JUCE tree; after the copy${NC}" >&2
                 echo -e "${RED}${TAG}   there is no pristine upstream left to fingerprint.${NC}" >&2
@@ -159,7 +161,10 @@ if [ "$MODE" = "wiring" ]; then
             i=$((i + 1))
         done
 
-        echo -e "${GREEN}${TAG} $rel: $n_guard guard invocation(s), each before its copy.${NC}"
+        # Only vouch for a workflow that cleared every ordering pair.
+        if [ "$wf_ok" -eq 1 ]; then
+            echo -e "${GREEN}${TAG} $rel: $n_guard guard invocation(s), each before its copy.${NC}"
+        fi
     done
 
     [ "$WIRING_FAILURES" -eq 0 ] || die "CI wiring check FAILED ($WIRING_FAILURES problem(s))."
