@@ -269,18 +269,35 @@ find "$WORK" -type f -print | while IFS= read -r f; do
 done
 
 # ------------------------------------------------------------------------------
-# Step 6 — apply. -F0 forbids fuzz: a fuzzed apply silently produces a shifted
-# result, which is the exact drift this gate exists to catch.
+# Step 6 — apply.
+#   -F0  forbids fuzz: a fuzzed apply silently produces a shifted result, which
+#        is the exact drift this gate exists to catch.
+#   -N   forbids REVERSE application. Without it, `patch -t` against a tree that
+#        ALREADY carries the patch happily reverse-applies it and exits 0,
+#        yielding a pristine tree from a patched one — the gate then fails with a
+#        "drifted apart" message that blames the wrong thing. Observed on the
+#        real patched /Users/taylorbrook/JUCE tree (negative control NC6).
+#        With -N the already-applied patch is skipped and patch exits non-zero,
+#        so the failure is diagnosed as a non-pristine base, which it is.
+#   -t   batch: never prompt. A prompt in CI is a hang.
 # ------------------------------------------------------------------------------
 PATCH_RC=0
-PATCH_OUT="$(cd "$WORK" && patch -p1 -F0 -t -r "$REJ" -i "$PATCH_FILE" 2>&1)" || PATCH_RC=$?
+PATCH_OUT="$(cd "$WORK" && patch -p1 -F0 -N -t -r "$REJ" -i "$PATCH_FILE" 2>&1)" || PATCH_RC=$?
 
 STRAY="$(find "$WORK" -type f \( -name '*.rej' -o -name '*.orig' \) | LC_ALL=C sort || true)"
+
+ALREADY_APPLIED=""
+if printf '%s' "$PATCH_OUT" | grep -qi 'reversed\|previously applied'; then
+    ALREADY_APPLIED="  DIAGNOSIS: patch reports the change is ALREADY PRESENT in the base.
+  The tree supplied as the pristine baseline is not pristine — it has the
+  note-expression patch applied already, so there is nothing left to derive.
+"
+fi
 
 if [ "$PATCH_RC" -ne 0 ] || { [ -f "$REJ" ] && [ -s "$REJ" ]; } || [ -n "$STRAY" ]; then
     die "the patch did not apply cleanly to the pristine base (patch exit $PATCH_RC).
 
-  patch output:
+$ALREADY_APPLIED  patch output:
 $(printf '%s\n' "$PATCH_OUT" | sed 's/^/    /')
 $( [ -n "$STRAY" ] && printf '  stray reject/backup files:\n%s\n' "$(printf '%s\n' "$STRAY" | sed 's/^/    /')" || true )
   The base this ran against is NOT pristine JUCE $PINNED_VERSION, or the patch no
