@@ -132,6 +132,20 @@ jobs:
         shell: bash
         run: bash scripts/check-juce-overrides.sh --juce-root JUCE
 
+      # Proves vendored/JUCE-overrides/ is still exactly what
+      # scripts/juce-patches/note-expression-juce-<pinned>.patch produces from a
+      # pristine JUCE. The provenance guard above proves the overrides were cut
+      # from THIS JUCE; this proves they were cut BY THE PATCH — so the local
+      # patch path and the vendored whole-file path cannot drift apart.
+      # macOS-only on purpose: this is a property of repo content, not of the
+      # runner, so once per workflow run discharges it — and it keeps the release
+      # workflow free of a dependency on `patch` existing in Windows git-bash.
+      # Like the guard above it must run BEFORE the copy: the copy destroys the
+      # pristine tree this check reads.
+      - name: Verify vendored overrides regenerate from the patch
+        shell: bash
+        run: bash scripts/gen-juce-overrides.sh --check --juce-root JUCE
+
       # Retained even though O-Octagon has no note-expression: the two greps are
       # a fail-fast that keeps BOTH workflows' JUCE byte-identical, and an
       # identical JUCE is what makes the Layer-2 golden comparable across them.

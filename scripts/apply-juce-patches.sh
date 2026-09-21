@@ -8,7 +8,11 @@ set -e
 # Behavior:
 #   1. Fail loudly if JUCE_DIR (default /Users/taylorbrook/JUCE) is missing.
 #   2. Skip application if the JUCE-NE-PATCH marker is already present.
-#   3. Apply scripts/juce-patches/note-expression-juce-8.0.14.patch otherwise.
+#   3. Apply scripts/juce-patches/note-expression-juce-<pinned>.patch otherwise,
+#      where <pinned> is DERIVED from .github/juce-version.txt — the same single
+#      source of truth check-juce-overrides.sh and gen-juce-overrides.sh read.
+#      Never hardcode the version here: a second literal drifts in the worst
+#      direction, silently applying the OLD patch to a NEWLY bumped JUCE tree.
 # ==============================================================================
 
 GREEN='\033[0;32m'
@@ -19,8 +23,22 @@ NC='\033[0m'
 JUCE_DIR="${JUCE_DIR:-/Users/taylorbrook/JUCE}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PATCH_DIR="$SCRIPT_DIR/juce-patches"
-PATCH_FILE="$PATCH_DIR/note-expression-juce-8.0.14.patch"
+VERSION_FILE="$SCRIPT_DIR/../.github/juce-version.txt"
 MARKER="JUCE-NE-PATCH"
+
+# Step 0: resolve the patch from the pinned JUCE version (single source of truth).
+if [[ ! -f "$VERSION_FILE" ]]; then
+  echo -e "${RED}[apply-juce-patches] Pinned version file not found: .github/juce-version.txt${NC}"
+  exit 1
+fi
+JUCE_VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
+if [[ -z "$JUCE_VERSION" ]]; then
+  echo -e "${RED}[apply-juce-patches] .github/juce-version.txt is empty — cannot determine the pinned JUCE version.${NC}"
+  exit 1
+fi
+PATCH_FILE="$PATCH_DIR/note-expression-juce-${JUCE_VERSION}.patch"
+echo -e "${YELLOW}[apply-juce-patches] Pinned JUCE version: ${JUCE_VERSION}${NC}"
+echo -e "${YELLOW}[apply-juce-patches] Resolved patch:      ${PATCH_FILE}${NC}"
 
 # Step 1: preflight — JUCE tree must exist
 if [[ ! -d "$JUCE_DIR" ]]; then
