@@ -274,6 +274,14 @@ fi
 [ -f "$MANIFEST" ] || die "manifest not found: vendored/JUCE-overrides/MANIFEST.txt
   Generate it with:  bash scripts/check-juce-overrides.sh --update"
 
+# The manifest is a tracked text file, so a Windows checkout (core.autocrlf)
+# hands it over with CRLF endings. `read` keeps the CR on the LAST field of each
+# line, so the recorded override sha compares unequal to a byte-identical actual
+# one and the failure prints two hashes that look the same (ci-tests.yml run
+# 35659240413, windows-vst3). Every read below goes through this CR-stripped
+# copy — the same normalisation the fingerprints themselves already get.
+MANIFEST_TEXT="$(tr -d '\r' < "$MANIFEST")"
+
 FAILURES=0
 fail_check() {
     echo -e "${RED}${TAG} $*${NC}" >&2
@@ -281,7 +289,7 @@ fail_check() {
 }
 
 # --- Check 1: manifest version == pinned version (the bump tripwire) ----------
-MANIFEST_VERSION="$(grep '^juce_version ' "$MANIFEST" | head -1 | awk '{print $2}' || true)"
+MANIFEST_VERSION="$(printf '%s\n' "$MANIFEST_TEXT" | grep '^juce_version ' | head -1 | awk '{print $2}' || true)"
 if [ -z "$MANIFEST_VERSION" ]; then
     fail_check "CHECK 1 (version): manifest has no 'juce_version' line. Re-run --update."
 elif [ "$MANIFEST_VERSION" != "$PINNED_VERSION" ]; then
@@ -295,7 +303,7 @@ elif [ "$MANIFEST_VERSION" != "$PINNED_VERSION" ]; then
 fi
 
 # --- Check 4: set equality, manifest entries <-> files on disk ----------------
-MANIFEST_FILES="$(grep '^override ' "$MANIFEST" | awk '{print $2}' | LC_ALL=C sort || true)"
+MANIFEST_FILES="$(printf '%s\n' "$MANIFEST_TEXT" | grep '^override ' | awk '{print $2}' | LC_ALL=C sort || true)"
 if [ "$MANIFEST_FILES" != "$DISK_FILES" ]; then
     fail_check "CHECK 4 (inventory): manifest entries do not match the files on disk.
   Only in manifest (listed but missing from disk):
@@ -355,7 +363,7 @@ while read -r kw rel rec_up rec_ov; do
     else
         echo -e "${RED}${TAG} BAD $rel${NC}" >&2
     fi
-done < "$MANIFEST"
+done <<< "$MANIFEST_TEXT"
 
 if [ "$FAILURES" -ne 0 ]; then
     echo -e "${RED}${TAG} FAILED — $FAILURES check(s) did not pass.${NC}" >&2
