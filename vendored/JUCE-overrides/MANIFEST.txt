@@ -1,0 +1,18 @@
+# vendored/JUCE-overrides provenance manifest
+#
+# GENERATED — do not hand-edit. Regenerate with:
+#     bash scripts/check-juce-overrides.sh --update
+# Hand-editing this file defeats the gate it exists to feed: the whole point
+# is that these fingerprints were derived, not asserted.
+#
+# Every sha256 below is taken over CR-STRIPPED bytes (tr -d '\r'), so the
+# same value holds for the LF release zip, the CRLF git tag, and a Windows
+# checkout. A change to line endings ALONE is invisible here, by design.
+#
+# Format:
+#   juce_version <version>
+#   override <path-relative-to-vendored/JUCE-overrides/> <upstream_sha256> <override_sha256>
+#
+juce_version 8.0.14
+override modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp 4b8ff18df1d37677cf1be315ae0616fd10d691d4a69ca29a57e2504649fec4e2 c02f2774418a73354eb1944888972eba4e474c5fd78a732b8f9c5318a416ec8c
+override modules/juce_audio_processors_headless/utilities/juce_VST3ClientExtensions.h 5488c7ef6b2af884e91af7c23ac74bb352ab49863fb0e68ab7e1ace149c2a4c0 4e2b9023f01aedd0256a7752ba1c66a3a2e90278652c858d150a5032739ed720
