@@ -41,6 +41,12 @@
             are in ENGINEERING units and land after the preset. Job N is
             written to <outdir>/N.f32.
 
+        O-Bells-render-test --check-user-owned
+            Output Gain is the user's: sets it to -6 dB and Damping to a marker
+            value, recalls every factory preset and fails if Output Gain moved.
+            Control: Damping MUST have moved, or the recall did nothing and the
+            check would pass on a dead load.
+
     Every job gets a FRESH processor, so nothing rings over from the previous
     render.
 
@@ -150,6 +156,50 @@ int listPresets()
             std::cout << category << "|" << name << "\n";
     }
 
+    return 0;
+}
+
+int checkUserOwned()
+{
+    OBellsAudioProcessor processor;
+    auto* gain = processor.getAPVTS().getParameter ("outputGain");
+    auto* damping = processor.getAPVTS().getParameter ("damping");
+
+    if (gain == nullptr || damping == nullptr)
+        return fail ("--check-user-owned: outputGain / damping parameter is gone");
+
+    int checked = 0;
+
+    for (const auto& [category, names] : processor.getPresetManager().getPresetListWithCategories())
+    {
+        if (category == "User")
+            continue;
+
+        for (const auto& name : names)
+        {
+            const float marker = 0.1234f;
+            setEngineering (processor, "outputGain", -6.0f);
+            damping->setValueNotifyingHost (marker);
+            const float before = gain->getValue();
+
+            if (! processor.getPresetManager().loadPresetFromCategory (category, name))
+                return fail ("--check-user-owned: could not load '" + category + "/" + name + "'");
+
+            if (std::abs (damping->getValue() - marker) < 1.0e-4f)
+                return fail ("--check-user-owned: '" + name + "' left Damping on the marker - the recall did nothing");
+
+            if (std::abs (gain->getValue() - before) > 1.0e-6f)
+                return fail ("--check-user-owned: '" + name + "' moved Output Gain to "
+                             + gain->getCurrentValueAsText() + " (it was -6 dB)");
+
+            ++checked;
+        }
+    }
+
+    if (checked == 0)
+        return fail ("--check-user-owned: no factory presets found");
+
+    std::cout << "Output Gain survived " << checked << " factory preset recalls\n";
     return 0;
 }
 
@@ -280,6 +330,9 @@ int main (int argc, char** argv)
 
     if (args.containsOption ("--list"))
         return listPresets();
+
+    if (args.containsOption ("--check-user-owned"))
+        return checkUserOwned();
 
     if (! args.containsOption ("--render") || args.size() < 3)
         return fail ("usage: --list | --render <jobs.txt> <outdir> [--note=n] [--vel=v] [--hold=s] [--total=s] [--seed=n] [--fx] [--alloc-check]");

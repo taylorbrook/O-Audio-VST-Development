@@ -194,8 +194,10 @@ Step 3 and 4 may be merged if the UI work is small; keep them split if the new s
 >    Gain. Redone by voicing (10.9 dB spread over 40, peak −7.0 dBFS); `report.py` fails any factory preset naming
 >    `outputGain`. Level levers that are NOT gain: the layer norm divides by 1 + sub + oct, the nonlinear tanh divides
 >    by its drive, strike position sets the hum / prime gain, and a size-1 / damp-0 reverb stacks +5.6 dB on a
->    sustained voice. Still open: preset apply RESETS Output Gain to 0 dB on every load (only `tuning_*` is exempt) —
->    same principle, but it lives in the shared preset-manager module, so it was not changed here.
+>    sustained voice. Preset apply also RESET Output Gain to 0 dB on every load (only `tuning_*` was exempt) —
+>    fixed in the same version: O-Bells' `OuariconPresetManager` copy treats `outputGain` as user-owned (not reset,
+>    not applied, not saved; old user presets' key is ignored; DAW session state untouched). Every plugin carries its
+>    OWN diverged copy of that header (9 copies, 9 hashes), so this is O-Bells only — the other plugins still reset.
 > 2. *"The pitch is too wobbly … on presets that suggest realism in the title."* Measured (cents RMS of instantaneous
 >    frequency, prime / hum bands): wide Unison detune 14–31, chorus 12–30, Reverb Mod ≥ 0.3 ~10; the voice's Shimmer
 >    ≤ 1. Realism presets (28) are now Unison 1 / no chorus / Reverb Mod ≤ 0.2 → ≤ 1.7 c. Twelve are declared stylised

@@ -115,6 +115,12 @@ private:
 
     juce::var createPresetJson() const;
     bool applyPresetJson(const juce::var& presetData);
+
+    // v4.8.0: parameters that belong to the USER, not to a preset. Output Gain is a
+    // mix control: a preset load never resets it and never writes it, and a saved
+    // preset does not carry it (older user presets that do are read without it).
+    // The DAW session state is untouched - that goes through the APVTS, not here.
+    static bool isUserOwnedParameter(const juce::String& paramId) { return paramId == "outputGain"; }
     void rebuildFlatPresetList();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconPresetManager)
@@ -190,6 +196,8 @@ inline juce::var OuariconPresetManager::createPresetJson() const
     {
         if (auto* paramWithID = dynamic_cast<juce::RangedAudioParameter*>(param))
         {
+            if (isUserOwnedParameter(paramWithID->getParameterID()))
+                continue;
             paramsObj->setProperty(paramWithID->getParameterID(),
                                    paramWithID->getValue());
         }
@@ -223,13 +231,14 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
     // of a timbre preset. Factory presets carry no tuning keys, so resetting them
     // would snap the user's temperament/A4/stretch back to defaults on every load.
     // User presets that DO save tuning_* still recall correctly (they name the keys).
+    // Output Gain is skipped here AND below: it is the user's, never a preset's.
     for (auto* param : parameters.processor.getParameters())
     {
         auto* rp = dynamic_cast<juce::RangedAudioParameter*>(param);
         if (rp == nullptr)
             continue;
         if (auto* pid = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
-            if (pid->getParameterID().startsWith("tuning_"))
+            if (pid->getParameterID().startsWith("tuning_") || isUserOwnedParameter(pid->getParameterID()))
                 continue;
         rp->setValueNotifyingHost(rp->getDefaultValue());
     }
@@ -241,6 +250,8 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
         {
             for (auto& prop : paramsObj->getProperties())
             {
+                if (isUserOwnedParameter(prop.name.toString()))
+                    continue;
                 if (auto* param = parameters.getParameter(prop.name.toString()))
                     param->setValueNotifyingHost(static_cast<float>(prop.value));
             }

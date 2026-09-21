@@ -72,9 +72,21 @@ motion on purpose — seven of Ambient, Beating Bronze Gong (2 × 16 c: the beat
 the title), Dense Bronze Gamelan (2 × 14 c ombak), Shimmering Bell Tree (a cluster of
 bells), Thunder Sheet, Velvet Bronze Tone — but were roughly halved (worst 46.7 → 24.4 c).
 
-### No preset names Output Gain
+### Output Gain belongs to the user, not to presets
 
-It is the user's control, not a preset's (`report.py` gates it). Pushing parameters
+**A preset load no longer touches Output Gain.** Until now every recall reset it to
+0 dB (the reset-to-defaults pass exempted only `tuning_*`), and user presets saved
+and restored it. Now `OuariconPresetManager` (this plugin's copy) treats it as
+user-owned: not reset, not applied, not saved. **Behaviour change for existing user
+presets:** one saved on ≤ 4.7.1 carries an `outputGain` key; it is ignored on load,
+so the gain stays where you left it. DAW sessions are unaffected — session state
+goes through the APVTS (`replaceState`), not the preset path, and still recalls
+Output Gain. Harness: `--check-user-owned` sets −6 dB, recalls all 40 factory
+presets and fails if the gain moved; its control is that Damping DID move (a dead
+load would pass otherwise). Negative control: with the exemption switched off it
+fails on the first preset ("moved Output Gain to 0.0").
+
+No factory preset names it either (`report.py` gates that too). Pushing parameters
 to their extremes first spread the bank over 20 dB (−14.0…−33.8 dBFS RMS; C3 / C4 /
 C5, vel 1, FX on, loudest 1-s window) and put one held note of Frozen Steel Shimmer
 at −2.9 dBFS. The bank is balanced by VOICING instead — hum / prime level, strike
@@ -114,7 +126,8 @@ every old file is overwritten in place — no orphaned JSON. User presets are un
   ≤ 30 c. The FX ceiling cannot see a MILD chorus (4.5 Hz / 35 % reads 5.1 c, under
   the hall floor), so the causes are gated as well: a realism preset names no
   chorus, Unison 1, Reverb Mod ≤ 0.2;
-- no factory preset names `outputGain`.
+- no factory preset names `outputGain`, and no factory recall moves it
+  (`--check-user-owned`).
 - **Stale-bank guard.** The harness reads the bank from the installed plugin's
   `~/Library/O-Bells/Presets/Factory`, which is only rewritten when the sentinel
   changes — re-voicing twice under one sentinel would have gated the first bank.
