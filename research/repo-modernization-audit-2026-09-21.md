@@ -18,8 +18,19 @@ keywords:
 
 ## Executive Summary
 
+**Nothing here is an emergency, and the toolchain is in better shape than a two-releases-behind
+JUCE pin suggests** — JUCE 9 API exposure measured at literally zero, the memory index has no
+broken links, and `.gitignore` is sound. The five below are ranked by impact on plugin-building
+quality divided by effort × risk. Ranks 1–3 are cheap, mechanical, and fix things that are
+silently wrong right now; ranks 4–5 are larger and can wait for a deliberate session.
+
 | # | Action | Why now | Effort | Risk |
 |---|--------|---------|--------|------|
+| 1 | Divide all ten hook `timeout` values in `.claude/settings.json` by 1000 | §3 row 1: the field is documented in **seconds**, so `SubagentStop: 30000` is 8.3 hours, not 30 s. Every hook currently has *less* hang protection than the 600 s default, which is the exact opposite of the intent. One mechanical edit, fully reversible. | S | Low |
+| 2 | Rename the 7 wrong `mcp__context7__*` tool names in `.claude/agents/` to `mcp__context7__query-docs` | §3 row 3: six agents declare `get-library-docs` and one declares `search_juce_docs`; neither exists. Those agents answer version-specific JUCE questions from recollection while believing they have a docs tool — the worst failure mode for a framework that just shipped a major version. | S | Low |
+| 3 | Add `logs/` to `.gitignore`, and add `auval` to the macOS CI leg | §5 row 3 and §4 row 5: `logs/` holds 51 MB that only path-scoped commits are keeping out of git, and AU — a shipped format — has zero automated validation while VST3 gets pluginval at strictness 10. Both are one-to-few-line changes with no downstream effects. | S | Low |
+| 4 | Gate the `vendored/JUCE-overrides/` copy on the pinned JUCE version, then take 8.0.15 | §1 row 2: CI blindly copies two 8.0.14-derived files over whatever JUCE it downloaded. Upstream changed one of them in 8.0.15, so bumping today would silently revert an upstream `getPosition()` fix. This is the one blocker standing between here and *any* JUCE upgrade, 8.x or 9.x. | M | High |
+| 5 | Give `ci-tests.yml` a real trigger and widen it beyond 2 of 44 plugins | §4 rows 1–3: it is `workflow_dispatch`-only with a two-plugin choice list, and it has been red since 2026-09-14 on two load-sensitive thresholds. A gate nobody runs, that fails for reasons unrelated to correctness, trains the team to ignore it. Fix the thresholds first, then add the trigger. | M | Med |
 
 ## 1. JUCE Version & Toolchain
 
@@ -61,8 +72,22 @@ an existing build graph, or real CI run history.
 
 ## 3. Claude Workflow & Tooling
 
+Hook semantics below were verified against the official reference at
+`https://docs.claude.com/en/docs/claude-code/hooks.md` (HTTP 200, 329,656 bytes,
+retrieved 2026-09-21), not from recollection.
+
 | Finding | Evidence | Recommendation | Effort | Risk |
 |---------|----------|----------------|--------|------|
+| **Every hook `timeout` in `settings.json` is off by a factor of 1000.** The field is documented in **seconds**; this repo's values are millisecond-scaled. The practical effect is the opposite of what the numbers suggest: instead of constraining hooks, all ten *raise* the cancel threshold far above the 600-second default. `SubagentStop.py` is set to 30000 — **8.3 hours** — so a hook that hangs never gets cancelled within any realistic session. | `https://docs.claude.com/en/docs/claude-code/hooks.md` "Common fields" → "`timeout` — Seconds before canceling. Defaults: 600 for `command`..." (retrieved 2026-09-21); `.claude/settings.json` → `SessionStart` 5000, `PostToolUse` 2000, `validate-research-frontmatter` 5000, `regenerate-manifest` 10000, `PreCompact` 10000, `SubagentStart` 3000, `TaskCompleted` 15000, `SubagentStop` 30000, `write-back-agent-memory` 10000 | Divide all ten by 1000. This is the highest-value single edit in the report: it is mechanical, reversible, and it restores the hang-protection the numbers were clearly meant to express. | S | Low |
+| **The "dead hook" hypothesis is refuted — all six registered event names are real.** `SubagentStart` and `TaskCompleted` are both documented events, so `inject-agent-memory.py` and `task-validator-dispatch.py` do execute. This was worth checking and worth recording as a negative. | Documented `### ` events under "Hook events" in the official reference include `SessionStart`, `PostToolUse`, `PreCompact`, `SubagentStart`, `SubagentStop`, `TaskCompleted` (retrieved 2026-09-21); `.claude/settings.json` registers exactly those six | No action. Recorded so this is not re-investigated. | S | Low |
+| **7 of 8 context7 MCP tool references name tools that do not exist.** Six agent files declare `mcp__context7__get-library-docs` and one declares `mcp__context7__search_juce_docs`; the server actually registers `mcp__context7__resolve-library-id` and `mcp__context7__query-docs`. Those agents silently have no documentation tool — they fall back to training recollection on exactly the version-specific JUCE questions where that is most dangerous. | `grep -rn "mcp__context7[A-Za-z0-9_-]*" .claude/agents/` → `troubleshoot-agent.md:4` `search_juce_docs`; `dsp-agent.md:4`, `foundation-shell-agent.md:4`, `dorico-agent.md:4`, `research-planning-agent.md:4`, `research-planning-agent.md:765`, `gui-agent.md:4` all `get-library-docs`; only `research-planning-agent.md:764` `resolve-library-id` is real | Rename all seven to `mcp__context7__query-docs`. A wrong tool name is worse than no tool: the agent believes it has a doc source and never says otherwise. | S | Low |
+| **Three separate Python processes spawn on every single `Write` or `Edit`**, because all three `PostToolUse` handlers register the same broad `Write&#124;Edit` matcher and then self-filter inside Python. The `if` field exists precisely to scope this and is unused on every hook. | `.claude/settings.json` → three `PostToolUse` groups, each `matcher: "Write&#124;Edit"`, each with `if` absent; `validate-research-frontmatter.py:271-281` self-filters by checking `"research" not in parts` *after* interpreter startup; official reference "Common fields" → `if` "Permission rule syntax to filter when this hook runs... Only evaluated on tool events: PreToolUse, PostToolUse..." (retrieved 2026-09-21) | Add `if: "Write(research/**)"`-style scoping so the interpreter never starts for irrelevant edits, and collapse the three groups into one. | S | Low |
+| The per-session context tax is modest and well-structured: roughly **8.5 K tokens** always-on, with the 1.4 MB skills tree correctly loaded on demand rather than eagerly. | `wc -c CLAUDE.md` → 8,664 B; `MEMORY.md` → 19,683 B; 22 project `SKILL.md` descriptions → 5,583 B; total ≈ 33,930 B ≈ **8,482 tokens**; skills tree on disk → 1,467,572 B, surfaced as descriptions only | No action. The lazy-loading design is working; this is not where to cut. | S | Low |
+| **The user memory file is in excellent health — all 225 links resolve.** 86 entries across 19,683 bytes, indexing 226 files in a 996 K directory, with zero dangling targets. | `wc -c MEMORY.md` → 19,683; `grep -c '^- '` → 86 entries; 225 distinct `](*.md)` link targets extracted and `test -e`'d → **0 dangling**; `ls *.md &#124; wc -l` → 226; `du -sh` → 996 K | No pruning needed on integrity grounds. See next row for the one real redundancy. | S | Low |
+| A handful of memory entries restate policy that `CLAUDE.md` already states in full, so those facts are paid for twice in every session. | `MEMORY.md:22` "Trunk-based on main since 2026-08-21" vs `CLAUDE.md` "This project is trunk-based: all plugin work happens on `main`"; `MEMORY.md:23`/`:32` concurrent-session and pathspec-commit entries vs `CLAUDE.md:116` "Path-scope every commit... Never `git add -A`" | Adopt a tiering rule: `CLAUDE.md` holds the *policy*; memory holds only the *surprise that motivated it*. Where memory merely restates the rule, drop the entry and keep the linked detail file. | S | Low |
+| Six `.claude/` path references are genuinely dead out of 111 distinct references harvested — a 95% resolution rate. One is a real staleness signal: a file was moved to `archive/` but is still cited as live. | Harvest of `\.claude/[A-Za-z0-9._/-]*` across `.claude/{commands,agents,skills}/` → 111 distinct, 11 failing `test -e`, of which 3 resolve under `$HOME` (the memory files) and 2 are glob prefixes. Genuinely dead: `.claude/skills/plugin-planning/references/stage-0-research.md` (actual location `.../plugin-planning/archive/stage-0-research.md`), `.claude/CLAUDE.md`, and 4 under `.claude/aesthetics/modern-*` (present dirs are `ouaricon-naturalist-001`, `studio-hardware-001`, `swiss-minimal-001`, `vintage-bakelite-001`, `vintage-hardware-001`) | Fix the six. The `stage-0-research.md` one matters most — a pointer to an archived file invites a future session to treat retired guidance as current. | S | Low |
+| `CLAUDE.md`'s own cited reference path resolves, and the references directory is small and intact. | `CLAUDE.md` cites `.claude/references/handoff-protocol.md`; `ls .claude/references/` → `agent-profiles.json`, `handoff-protocol.md`, `preferences-README.md` (3 files) — the cited file is present | No action. | S | Low |
+| Two newer hook capabilities map directly onto friction found above and are currently unused. `async: true` would take the 10-second `regenerate-manifest.py` off the critical path of every edit; `asyncRewake` would still surface a failure. The tooling predates both (`settings.json` last touched 2026-07-20, `agents/` 2026-05-05). | Official reference "Command hook fields" → `async` "If `true`, runs in the background without blocking" and `asyncRewake` "runs in the background and wakes Claude on exit code 2" (retrieved 2026-09-21); `.claude/settings.json` hook entries carry only `['command','timeout','type']` — no `async`, no `if`, no `statusMessage`; `stat` mtimes → `settings.json` 2026-07-20, `skills/` 2026-06-23, `commands/` and `hooks/` 2026-08-21, `agents/` 2026-05-05 | Mark `regenerate-manifest.py` `async: true`. It is a manifest regeneration — nothing downstream in the same turn reads its output. | S | Low |
 
 ## 4. Testing & Quality Gates
 
@@ -111,3 +136,28 @@ instrument-scoped rather than repo-wide.
 | Block-size invariance is universally handled: all 22 instruments reference `samplesPerBlock`. Offline-render determinism is not: only 1 of 22 references `isNonRealtime`, while 17 of 22 use `juce::Random`. | `grep -rqI samplesPerBlock` → **22/22**; `isNonRealtime` → **1/22** (O-Texture); `juce::Random` → **17/22** | Audit RNG seeding in the 17. Per project knowledge, clock- or `this`-seeded `Random` breaks render-diff determinism — which is precisely what the §4 golden harness depends on. | M | Med |
 
 ## Apply Later
+
+Independent items first — each is self-contained and can be pasted into a fresh session in any
+order. The JUCE-bump group at the end is ordered and must stay ordered.
+
+**Independent**
+
+- [ ] `/gsd-quick Divide all ten hook timeout values in .claude/settings.json by 1000 — the field is documented in seconds, so SubagentStop 30000 currently means 8.3 hours, not 30 s. Verify against https://docs.claude.com/en/docs/claude-code/hooks.md before editing.` (§3)
+- [ ] `/gsd-quick Rename the 7 nonexistent context7 MCP tool names in .claude/agents/ to mcp__context7__query-docs — six declare get-library-docs (dsp, foundation-shell, dorico, research-planning, gui agents at line 4, plus research-planning-agent.md:765) and troubleshoot-agent.md:4 declares search_juce_docs.` (§3)
+- [ ] `/gsd-quick Add logs/ to .gitignore — 50 per-plugin directories and 51 MB are currently untracked only because CLAUDE.md mandates path-scoped commits.` (§5)
+- [ ] `/gsd-quick Add an auval validation step to the probes-macos job in .github/workflows/ci-tests.yml — the runner already builds the AU and auval ships with macOS, so AU gains automated validation for a few lines.` (§4)
+- [ ] `/gsd-quick Fix the 6 dead .claude/ path references, starting with .claude/skills/plugin-planning/references/stage-0-research.md which now lives at .../plugin-planning/archive/stage-0-research.md.` (§3)
+- [ ] `/gsd-quick Correct the release-tag format in CLAUDE.md to plugin-first (O-Bells-v4.8.0) — it currently documents version-first (v3.1.1-O-Bells), which the CI trigger glob '*-v*' at .github/workflows/build-and-release.yml:40 can never match.` (§5)
+- [ ] `/gsd-quick Add ccache via CMAKE_CXX_COMPILER_LAUNCHER and an actions/cache step keyed on .github/juce-version.txt — neither workflow caches anything today, so every CI run re-downloads JUCE and rebuilds from zero.` (§2)
+- [ ] `/gsd-quick Bump pluginval from v1.0.3 to v1.0.4 in .github/workflows/ci-tests.yml:296 and .github/workflows/build-and-release.yml:578, keeping strictness level 10.` (§4)
+- [ ] `/gsd-quick Re-express the two failing render-harness gates as ratios instead of absolute constants — [H7] uses a '+ 2.0' slack and [sched] asserts a 120 ms wall-clock budget, so both fail on runner load rather than on regression.` (§4)
+- [ ] `/gsd-quick Resolve the resource-provider registry entry in modules/registry.yaml — it declares path core/resource-provider with reuse_score 9, but that directory does not exist. Either restore the module or delete the entry.` (§6)
+- [ ] `/gsd-quick git rm --cached the 21 golden WAVs that already have a tracked .sha256 sibling — 204.4 MB at HEAD, and the checksum-only policy already intends the .sha256 to be the contract.` (§5)
+- [ ] `/gsd-quick Reconcile the 3 drifted copies of JUCE's WebView interop index.js across 34 plugins to a single version — currently 27 at 2e45ed40, 5 at fcb126fa, 2 at fea0d398.` (§1)
+
+**JUCE bump — ordered, do not reorder**
+
+- [ ] `/gsd-quick Add a CI guard that fails when vendored/JUCE-overrides/ was derived from a JUCE version other than the one in .github/juce-version.txt — must land BEFORE any bump.` (§1)
+- [ ] `/gsd-quick Generate vendored/JUCE-overrides/ from scripts/juce-patches/ in a script and diff it in CI, so the local patch path and the CI whole-file path cannot drift apart.` (§1)
+- [ ] `/gsd-quick Bump .github/juce-version.txt to 8.0.15 and re-derive the two vendored override files from the 8.0.15 tag — BREAKING_CHANGES.md lists no entries between 8.0.13 and 9.0.0, so this is breaking-change-free once the guard above exists.` (§1)
+
