@@ -89,7 +89,7 @@ Dorico drives per-note microtonal playback in these plugins directly from the sc
 
 ### Per-Note Tuning (VST3 Note Expression)
 
-Per-note tuning is provided by a shared module, `modules/tuning/note-expression` (v1.1.1). It owns the Note Expression Controller for `kTuningTypeID`, drains raw Note Expression events from a patched JUCE wrapper (`scripts/juce-patches/note-expression-juce-8.0.14.patch`), and applies the resulting per-note semitone offset at the voice call site. It composes with the `scala-tuning-engine` module, so a Dorico-driven delta and a plugin-side tuning table stack rather than conflict.
+Per-note tuning is provided by a shared module, `modules/tuning/note-expression` (v1.1.1). It owns the Note Expression Controller for `kTuningTypeID`, drains raw Note Expression events from a patched JUCE wrapper (`scripts/juce-patches/note-expression-juce-8.0.15.patch`), and applies the resulting per-note semitone offset at the voice call site. It composes with the `scala-tuning-engine` module, so a Dorico-driven delta and a plugin-side tuning table stack rather than conflict.
 
 This is the VST3 path — the Note Expression symbols are VST3-only, so the capability requires a plugin's VST3 build. Dorico loads VST3 on both macOS and Windows.
 
@@ -1023,13 +1023,13 @@ All 35 requirements delivered across 7 phases:
 
 **Dependencies (validated/installed via `/setup`):**
 - Xcode Command Line Tools (`xcode-select --install`)
-- JUCE 8.0.14 (audio plugin framework)
+- JUCE 8.0.15 (audio plugin framework)
 - Python 3.8+ (build scripts)
 - CMake 3.15+ (build system)
 - pluginval (plugin validation tool)
 - Git
 
-**Cross-platform release builds:** VST3 for both macOS and Windows (plus macOS AU) are produced by GitHub Actions CI and triggered via `/publish`. Windows builds use the same JUCE 8.0.14 pin (see `.github/workflows/build-and-release.yml`); local Windows installs use `scripts/build-and-install.ps1`.
+**Cross-platform release builds:** VST3 for both macOS and Windows (plus macOS AU) are produced by GitHub Actions CI and triggered via `/publish`. Windows builds use the same JUCE 8.0.15 pin (see `.github/workflows/build-and-release.yml`); local Windows installs use `scripts/build-and-install.ps1`.
 
 ### Hardware
 
