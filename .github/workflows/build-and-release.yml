@@ -153,6 +153,15 @@ jobs:
           # Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)
           echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $GITHUB_ENV
 
+      # Must run HERE — after Setup JUCE, before the copy below. The post-copy
+      # `grep -q "JUCE-NE-PATCH"` greps the vendored bytes themselves, so they
+      # pass for any JUCE version; that is the hole this step closes. Only here
+      # does a pristine JUCE tree still exist to fingerprint, and the copy
+      # destroys it.
+      - name: Verify JUCE overrides provenance
+        shell: bash
+        run: bash scripts/check-juce-overrides.sh --juce-root JUCE
+
       - name: Apply JUCE overrides (note-expression — Dorico microtonal)
         run: |
           # Copy vendored patched files (JUCE-NE-PATCH) over the vanilla download.
@@ -517,6 +526,15 @@ jobs:
           Expand-Archive -Path juce.zip -DestinationPath .
           # Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)
           echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $env:GITHUB_ENV
+
+      # Must run HERE — after Setup JUCE, before the copy below. The post-copy
+      # `grep -q "JUCE-NE-PATCH"` greps the vendored bytes themselves, so they
+      # pass for any JUCE version; that is the hole this step closes. Only here
+      # does a pristine JUCE tree still exist to fingerprint, and the copy
+      # destroys it.
+      - name: Verify JUCE overrides provenance
+        shell: bash
+        run: bash scripts/check-juce-overrides.sh --juce-root JUCE
 
       - name: Apply JUCE overrides (note-expression — Dorico microtonal)
         shell: bash

@@ -123,6 +123,15 @@ jobs:
           unzip -q juce.zip
           echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $GITHUB_ENV
 
+      # Must run HERE — after Setup JUCE, before the copy below. The post-copy
+      # `grep -q "JUCE-NE-PATCH"` greps the vendored bytes themselves, so they
+      # pass for any JUCE version; that is the hole this step closes. Only here
+      # does a pristine JUCE tree still exist to fingerprint, and the copy
+      # destroys it.
+      - name: Verify JUCE overrides provenance
+        shell: bash
+        run: bash scripts/check-juce-overrides.sh --juce-root JUCE
+
       # Retained even though O-Octagon has no note-expression: the two greps are
       # a fail-fast that keeps BOTH workflows' JUCE byte-identical, and an
       # identical JUCE is what makes the Layer-2 golden comparable across them.
@@ -322,6 +331,15 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/${{ steps.juce.outputs.version }}/juce-${{ steps.juce.outputs.version }}-windows.zip" -OutFile juce.zip
           Expand-Archive -Path juce.zip -DestinationPath .
           echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $env:GITHUB_ENV
+
+      # Must run HERE — after Setup JUCE, before the copy below. The post-copy
+      # `grep -q "JUCE-NE-PATCH"` greps the vendored bytes themselves, so they
+      # pass for any JUCE version; that is the hole this step closes. Only here
+      # does a pristine JUCE tree still exist to fingerprint, and the copy
+      # destroys it.
+      - name: Verify JUCE overrides provenance
+        shell: bash
+        run: bash scripts/check-juce-overrides.sh --juce-root JUCE
 
       - name: Apply JUCE overrides (note-expression — Dorico microtonal)
         shell: bash
