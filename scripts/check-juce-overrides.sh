@@ -314,9 +314,12 @@ while read -r kw rel rec_up rec_ov; do
         continue
     fi
 
+    file_ok=1
+
     # Check 2 — the override file is what the manifest says it is.
     act_ov="$(sha_of_file_normalized "$OVERRIDE_ROOT/$rel")"
     if [ "$act_ov" != "$rec_ov" ]; then
+        file_ok=0
         fail_check "CHECK 2 (override fingerprint): $rel has changed since the manifest was written.
     recorded: $rec_ov
     actual:   $act_ov
@@ -328,6 +331,7 @@ while read -r kw rel rec_up rec_ov; do
     # Check 3 — the upstream file at the pinned version is the derivation base.
     act_up="$(upstream_sha "$rel")"
     if [ "$act_up" != "$rec_up" ]; then
+        file_ok=0
         fail_check "CHECK 3 (upstream provenance): $rel was NOT derived from the upstream file now at JUCE $PINNED_VERSION.
     recorded upstream: $rec_up
     actual upstream:   $act_up
@@ -336,8 +340,14 @@ while read -r kw rel rec_up rec_ov; do
   supplied as the upstream baseline is not pristine (already patched).
   Fix: re-cut the override from pristine JUCE $PINNED_VERSION, then re-run:
       bash scripts/check-juce-overrides.sh --update"
-    else
+    fi
+
+    # Only vouch for a file that cleared BOTH per-file checks — a green line
+    # next to a failure is worse than no line.
+    if [ "$file_ok" -eq 1 ]; then
         echo -e "${GREEN}${TAG} OK  $rel${NC}"
+    else
+        echo -e "${RED}${TAG} BAD $rel${NC}" >&2
     fi
 done < "$MANIFEST"
 
