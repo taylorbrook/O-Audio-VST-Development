@@ -2124,10 +2124,16 @@ namespace
         //     not a regression (memory note pattern_wallclock_inside_a_stability_verdict:
         //     wall clock belongs in the log, never inside a stability verdict).
         //
-        //     Wall clock is now PRINTED for both paths and asserted for neither. The
-        //     portable quantity is a SAME-RUN ratio against a reference publish driven
-        //     through the identical 50 ms poll + job machinery: both paths pay the same
-        //     runner tax, so the tax cancels in the ratio.
+        //     Wall clock is PRINTED for both paths and asserted for neither — no ratio
+        //     either. A same-run ratio against a reference publish (same 50 ms poll +
+        //     job) was tried first and FAILED on ci-tests.yml run 35659240413: ModWheel
+        //     211 ms vs reference 67 ms, x K 3.0 = 202 ms. The two paths do identical
+        //     work, but identical publishes on that runner have read 67 / 154 / 176 /
+        //     211 / 219 / 264 ms — a 4x spread between single draws of a timer + pool
+        //     thread + message-loop chain, so the load does NOT cancel in a one-shot
+        //     ratio. It had little power besides: at K 3.0 it could not see one extra
+        //     poll period (~110 vs 58 ms = 1.9x). The reference publish stays, printed
+        //     beside the ModWheel one with their ratio, as log evidence only.
         {
             struct PublishWait { bool advanced, fMoved, guardHit; double ms; int g0, g1; float f0, f1; };
 
@@ -2140,25 +2146,7 @@ namespace
             // is ~8x the worst honest wait ever observed here.
             constexpr double kHangGuardMs = 2000.0;
 
-            // Denominator floor: a divide-by-a-near-zero guard, never an additive slack
-            // (it sits inside max(), not added to the bound). The scheduler polls at
-            // 50 ms so no honest async publish completes below one poll period, and the
-            // measured reference lands several times this figure — the floor never binds
-            // on the real assertion. It is deliberately well BELOW one poll period so the
-            // fast-path control at the bottom of this block can still exceed the bound.
-            constexpr double kRefFloorMs = 10.0;
-
-            // K = 3.0. The ModWheel path and the reference path do the same amount of
-            // work (one value change -> one 50 ms poll -> one projection -> one publish),
-            // so their honest ratio is ~1. K admits a 3x spread between two identical
-            // publishes in the same run, which is one missed poll boundary (a change that
-            // arrives just after a poll waits a full extra 50 ms period) plus jitter.
-            // K is NOT sized to admit the 154 / 176 / 264 ms CI readings — those are
-            // runner tax, and the ratio is the thing that cancels them. Measured local
-            // figures for both paths print on the informational lines below.
-            constexpr double kK = 3.0;
-
-            enum Drive { ModWheelOn, ModWheelOff, DirectAsync, DirectSync };
+            enum Drive { ModWheelOn, ModWheelOff, DirectAsync };
 
             auto measure = [&] (Drive drive) -> PublishWait
             {
@@ -2180,15 +2168,7 @@ namespace
                 buf.clear(); in.p.processBlock (buf, midi);
                 const auto t0 = std::chrono::steady_clock::now();
                 double ms = 0.0;
-                if (drive == DirectSync)
-                {
-                    in.syncScheduler();   // deliberately fast: publishes inline, pays no poll wait at all
-                    ms = secondsSince (t0) * 1000.0;
-                }
-                else
-                {
-                    while (in.p.chebGeneration[0].load() == g0 && ms < kHangGuardMs) { pump (10); ms = secondsSince (t0) * 1000.0; }
-                }
+                while (in.p.chebGeneration[0].load() == g0 && ms < kHangGuardMs) { pump (10); ms = secondsSince (t0) * 1000.0; }
                 const int g1 = in.p.chebGeneration[0].load();
                 const float f1 = in.p.chebPtr[0].load()->key.F;
                 return { g1 > g0, f1 != f0, g1 == g0 && ms >= kHangGuardMs, ms, g0, g1, f0, f1 };
@@ -2196,7 +2176,6 @@ namespace
 
             const auto ref = measure (DirectAsync);
             const auto mod = measure (ModWheelOn);
-            const double bound = std::max (ref.ms, kRefFloorMs) * kK;
 
             std::printf ("  [sched] ModWheel route: generation %d -> %d after %.0f ms, key F %.3f -> %.3f%s\n",
                          mod.g0, mod.g1, mod.ms, mod.f0, mod.f1,
@@ -2204,14 +2183,12 @@ namespace
             std::printf ("  [sched] reference publish (oscATerFreq written directly, same 50 ms poll + job): generation %d -> %d after %.0f ms, key F %.3f -> %.3f%s\n",
                          ref.g0, ref.g1, ref.ms, ref.f0, ref.f1,
                          ref.guardHit ? "   *** HANG GUARD HIT at 2000 ms: no publish at all ***" : "");
+            std::printf ("  [sched] ModWheel / reference = %.2f (informational: single draws, never asserted)\n", mod.ms / std::max (ref.ms, 1.0));
 
             check (mod.advanced && mod.fMoved,
                    fmt ("[sched] ModWheel -> OscA Terrain Freq re-publishes the set under pump: generation advanced %d -> %d and key F moved %.3f -> %.3f (deterministic terms only; wall clock printed above, never asserted)%s",
                         mod.g0, mod.g1, mod.f0, mod.f1,
                         mod.guardHit ? " — HANG GUARD HIT: the scheduler never published" : ""));
-            check (mod.ms <= bound,
-                   fmt ("[sched] ModWheel publish %.0f ms <= same-run reference %.0f ms (floor %.0f) x K %.1f = %.0f ms — a ratio, so runner load cancels",
-                        mod.ms, ref.ms, kRefFloorMs, kK, bound));
 
             // NEGATIVE CONTROL (permanent): the same sub-test with the route DISABLED
             // (modSlot0On = 0) must NOT advance the generation and must NOT move key F.
@@ -2223,29 +2200,6 @@ namespace
             checkFailsAsExpected (off.advanced || off.fMoved,
                                   fmt ("[sched neg] modSlot0On = 0: CC1 0 -> 127 must NOT re-publish — generation %d -> %d, key F %.3f -> %.3f",
                                        off.g0, off.g1, off.f0, off.f1));
-
-            // SECOND CONTROL, aimed at the RATIO term specifically: a ratio bound goes
-            // vacuous if the denominator always dwarfs the numerator, so prove this one
-            // can still fail. Drive the denominator from a deliberately fast path — a
-            // direct syncScheduler() publish, which pays no poll wait at all — and assert
-            // the real ModWheel wait EXCEEDS the bound that results.
-            //
-            // The control asserts against the FLOORED bound (kRefFloorMs x K) rather than
-            // against `max(fast.ms, floor) x K`. That is deliberate: a denominator taken
-            // live from a wall-clock reading would put wall clock back inside a pass
-            // expression, and a runner slow enough to inflate the sync publish past the
-            // floor would flip this control's verdict — the very defect this sub-check was
-            // rewritten to remove. The measured sync figure is PRINTED beside the bound as
-            // the evidence that the fast path really does land at or below the floor, and
-            // the floored bound is the tightest bound the ratio expression can ever
-            // impose, so exceeding it is the strongest form of this control.
-            const auto fast = measure (DirectSync);
-            const double tightBound = kRefFloorMs * kK;
-            std::printf ("  [sched neg] fast reference (syncScheduler, no poll wait): %.2f ms measured vs the %.0f ms floor -> tightest bound the ratio can impose = %.0f ms\n",
-                         fast.ms, kRefFloorMs, tightBound);
-            checkFailsAsExpected (mod.ms <= tightBound,
-                                  fmt ("[sched neg] ratio term at its tightest denominator (floor %.0f x K %.1f = %.0f ms; a sync publish measured %.2f ms, at or below that floor): the %.0f ms ModWheel wait must EXCEED it",
-                                       kRefFloorMs, kK, tightBound, fast.ms, mod.ms));
         }
 
         // (d) LFO1 -> OscA Terrain Mod X: inert in Bandlimited (bit-identical), live in 2x
