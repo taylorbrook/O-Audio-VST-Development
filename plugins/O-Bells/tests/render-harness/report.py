@@ -18,14 +18,16 @@ a Step-5 (v4.8.0) bank gate fails:
   - tap T40 category medians ordered Large > Warm > Bright, and Bright >= every
     METALLIC_SHORT preset. T40 is read on a T40_TOTAL-second tap: on the 6 s window
     every low-damping bell saturates at 5.98 s and the ordering would be a tie;
-  - the five category T40 medians pairwise >= T40_DISTINCT s apart.
+  - the five category T40 medians pairwise >= T40_DISTINCT s apart;
+  - no factory preset names a USER_OWNED parameter (Output Gain is the user's
+    control — a preset never moves it; the bank is balanced by voicing).
 
 The factory bank is read from ~/Library/O-Bells/Presets/Factory — the INSTALLED
 plugin's directory — and is only rewritten when the `.factory_version` sentinel
 changes. Re-voicing under an unchanged sentinel would gate the stale bank, so the
 sentinel file is removed before every run and the harness binary rewrites the bank.
 """
-import argparse, os, subprocess, sys, tempfile
+import argparse, json, os, subprocess, sys, tempfile
 import numpy as np
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
@@ -55,8 +57,8 @@ SEED_A, SEED_B = 1, 2
 #   tap  2.5 / 13.3 / 8.0 / 3.5     held 2.4 / 14.7 / 9.3 / 3.6
 BASELINE_VERSION = 'v4.8.0'
 BASELINE = {
-    'tap':  {'self-noise': 2.4, 'pair median': 26.0, 'pair p10': 17.4, 'pair min': 11.1},
-    'held': {'self-noise': 2.4, 'pair median': 26.6, 'pair p10': 18.0, 'pair min': 11.6},
+    'tap':  {'self-noise': 2.4, 'pair median': 25.1, 'pair p10': 16.3, 'pair min': 10.6},
+    'held': {'self-noise': 2.5, 'pair median': 25.6, 'pair p10': 16.1, 'pair min': 11.0},
 }
 TOL = 1.0
 
@@ -67,6 +69,7 @@ T40_TOTAL = 12.0
 T40_ORDER = ['Large Bells', 'Warm Bells', 'Bright Bells']
 METALLIC_SHORT = ['Clanging Steel Plate', 'Shimmering Bell Tree']
 T40_DISTINCT = 0.25
+USER_OWNED = ['outputGain']
 FACTORY_SENTINEL = os.path.expanduser('~/Library/O-Bells/Presets/Factory/.factory_version')
 
 
@@ -154,6 +157,11 @@ def main():
     jobs = [(n, [f'preset={c}/{n}']) for c, n in P]
     print(f'{len(P)} factory presets')
     failures = []
+
+    for c, n in P:
+        with open(os.path.join(os.path.dirname(FACTORY_SENTINEL), c, n + '.json')) as f:
+            named = json.load(f)['parameters']
+        failures += [f'{n} names {k} — that parameter is the user\'s, not a preset\'s' for k in USER_OWNED if k in named]
 
     for tag, hold, total in MODES:
         S = render(jobs, out, tag, hold, total, SEED_A)

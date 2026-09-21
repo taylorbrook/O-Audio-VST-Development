@@ -24,20 +24,27 @@ the on-disk bank regenerates on first launch.
   on a tap by itself (brief, Step 3 note 2), and the tooltip says so.
 - **Out of the 0.3–0.7 band.** Inharmonicity 0.0 (Velvet Bronze Tone) to 1.0 (three
   presets); Mallet 0.0–1.0; Strike 0.05–1.0; Overtone 0.05–1.0; Body 350–5000 ms;
-  Sub to 0.85, Oct to 1.0; Bloom to 1.0 with Fine bands staggered (Evolving Bronze
-  Wash); Unison 4 × 50 c (Shimmering Bell Tree); LP filter down to 900 Hz.
+  Sub to 0.85, Oct to 0.8; Bloom to 1.0 with Fine bands staggered (Evolving Bronze
+  Wash); Unison 3 × 50 c (Shimmering Bell Tree); LP filter down to 900 Hz.
 - **RC-5 — every preset has its own FX signature.** Until now no preset named a
   chorus, delay, EQ or reverb-shape parameter, so all 25 shared one FX chain apart
   from Reverb Mix. Now: chorus on 7 (0.3 Hz bowl drift → 6 Hz bell-tree flutter,
   4.5 Hz "motor" on Warm Aluminum Bars), delay on 8 (5 PingPong; 90 ms slap → 1.2 s
-  toll), EQ on 13, Reverb Shimmer on 5, and size / damp / pre-delay / mod voiced per
+  toll), EQ on 16, Reverb Shimmer on 5, and size / damp / pre-delay / mod voiced per
   preset (Clanging Steel Plate 0.2 size, 0 ms → Distant Cathedral 1.0 size, 150 ms,
   85 % wet).
-- **Output Gain is set per preset** (−10…+9 dB) so the bank sits at −24 dBFS RMS
-  ±0.8 dB (C3 / C4 / C5, vel 1, FX on; loudest 1-s window). Unbalanced, the
-  re-voiced bank spread over 20 dB (−14.0…−33.8); the old bank spread 8.5. Preset
-  apply already reset Output Gain to 0 dB on every load, so no user setting that
-  survived before is lost now.
+- **No preset names Output Gain** — it is the user's control, not a preset's
+  (`report.py` gates it). Pushing parameters to their extremes first spread the
+  bank over 20 dB (−14.0…−33.8 dBFS RMS; C3 / C4 / C5, vel 1, FX on, loudest 1-s
+  window) and put one held note of Frozen Steel Shimmer at −2.9 dBFS. The bank is
+  balanced by VOICING instead — hum / prime level, strike position, sub / oct
+  blends (the layer norm divides by 1 + sub + oct), nonlinear drive (its tanh
+  divides by the drive), EQ boosts dropped from the loud presets, wet mixes:
+  spread **8.7 dB** (−20.8…−29.5; the old bank was 8.5), loudest single-note peak
+  −8.1 dBFS. The quiet end is the short bright presets, which read low on
+  unweighted RMS. Frozen Steel Shimmer's level was the REVERB, not the voice:
+  size 1 / damp 0 stacks +5.6 dB on a sustained plate even at 35 % wet → size 0.8,
+  damp 0.2, 30 % wet, softer mallet.
 - Factory sentinel `4.1.1` → `4.8.0`: existing installs rewrite
   `~/Library/O-Bells/Presets/Factory` on first launch. All 25 names are kept, so
   every file is overwritten in place — no orphaned JSON. User presets are untouched.
@@ -54,7 +61,8 @@ Dense Bronze Gamelan keeps Oct 0 as in v2.2.1; Bright Clear Crotale keeps Oct at
 - `report.py` gains the Step-5 bank gates: every preset's nearest neighbour
   ≥ 8 dB, tap AND held, on BOTH seeds; tap-T40 category medians Large > Warm >
   Bright ≥ each short Metallic preset (Clanging Steel Plate, Shimmering Bell
-  Tree); the five medians pairwise ≥ 0.25 s apart. T40 is read on a 12 s tap —
+  Tree); the five medians pairwise ≥ 0.25 s apart; no factory preset names
+  `outputGain`. T40 is read on a 12 s tap —
   on the 6 s window every low-damping bell saturates at 5.98 s and the ordering
   would be a tie.
 - **Stale-bank guard.** The harness reads the bank from the installed plugin's
@@ -69,34 +77,37 @@ Voice-isolated (FX bypassed, High Fidelity on), C4, vel 0.8, 48 kHz:
 
 | | tap v4.7.1 → v4.8.0 | held v4.7.1 → v4.8.0 |
 |---|---|---|
-| self-noise | 2.5 → 2.4 | 2.4 → 2.4 |
-| pair median | 13.3 → **26.0** | 14.7 → **26.6** |
-| pair p10 | 8.0 → 17.4 | 9.3 → 18.0 |
-| pair min = worst nearest neighbour | 3.5 → **11.1** | 3.6 → **11.6** |
+| self-noise | 2.5 → 2.4 | 2.4 → 2.5 |
+| pair median | 13.3 → **25.1** | 14.7 → **25.6** |
+| pair p10 | 8.0 → 16.3 | 9.3 → 16.1 |
+| pair min = worst nearest neighbour | 3.5 → **10.6** | 3.6 → **11.0** |
 
 - Nearest-neighbour gate (≥ 8 dB): PASS on both seeds, tap and held. The table is
-  seed 1; the worst cell over both seeds is 10.5 (held, seed 2: Slow Tolling Bell ↔
-  Velvet Bronze Tone). Closest tap pair: Bright Clear Crotale ↔ Gentle Hand Bell 11.1. On 4.7.1, 15 of 25 presets
+  seed 1; the worst cell over both seeds is 10.6 (tap, seed 1: Deep Bronze Tower). On 4.7.1, 15 of 25 presets
   had a neighbour inside 6 dB.
-- Tap T40 medians (12 s window): Large **9.97** > Warm **5.56** > Bright **3.96** ≥
-  Clanging Steel Plate 1.44 / Shimmering Bell Tree 2.13. Ambient 8.77, Metallic
-  3.34. On 4.7.1 Large Bells were the SHORTEST category (2.1–2.8 s) and the two
+- Tap T40 medians (12 s window): Large **9.94** > Warm **5.56** > Bright **4.18** ≥
+  Clanging Steel Plate 1.45 / Shimmering Bell Tree 2.68. Ambient 8.37, Metallic
+  3.55. On 4.7.1 Large Bells were the SHORTEST category (2.1–2.8 s) and the two
   steel bar / plate presets the longest (5.9 s).
 - The distinct-medians gate failed once in-step (Bright 3.96 vs Metallic 4.01) and
   was met by voicing, not by loosening: Dense Bronze Gamelan Damping 0.6 → 0.75.
 - Negative control: the same run with `NEAREST_MIN = 12` exits 1 and names the
-  10.5–11.7 dB pairs on both seeds — the gate can fail.
-- Spectral centroid, first 80 ms, across the bank: 135–699 Hz → 123–3380 Hz.
-- Informational, NOT gated — FX on (`--fx`, seed 1): pair median 23.2 / 23.8, worst
-  neighbour 9.0 / 9.3 (Underwater Bell ↔ Massive Iron Bell). Reverb pulls dark
+  sub-12 dB pairs on both seeds — the gate can fail. (Run on the first voicing pass;
+  the gate code is unchanged since.)
+- Spectral centroid, first 80 ms, across the bank: 135–699 Hz → 129–2367 Hz.
+- Informational, NOT gated — FX on (`--fx`, seed 1): pair median 22.7 / 23.3, worst
+  neighbour 9.1 / 8.8 (Underwater Bell ↔ Massive Iron Bell). Reverb pulls dark
   long presets together; it does not take any pair under 8.
 - The table in `PluginProcessor.cpp` was generated from the measured scratch
   table; the gate run through the real `preset=` path reproduces the scratch
   numbers to 0.1 dB, so nothing drifted in transcription.
-- Stability, FX on, 20 s: the four feedback / shimmer-heavy presets all decay
-  monotonically (Frozen Steel Shimmer peaks −12 dBFS RMS at 2–3 s held before its
-  −7.5 dB trim; Reverb Shimmer was pulled 0.8 → 0.6 for it). Harness fails any
-  non-finite sample; none.
+- Stability, FX on, 20 s, final bank: the four feedback / shimmer-heavy presets all
+  decay; Frozen Steel Shimmer no longer swells on a held note (−22, −21, −23 dBFS
+  RMS over the first three seconds; it read −17, −14, −12).
+  Harness fails any non-finite sample; none.
+- The first voicing pass of this version balanced the bank with per-preset Output
+  Gain. Rejected in review — a preset must not move the user's gain — and redone by
+  voicing; the numbers above are the final bank's.
 
 ## [4.7.1] - 2026-09-20
 

@@ -179,9 +179,9 @@ Step 3 and 4 may be merged if the UI work is small; keep them split if the new s
 > table on a model — voice the presets so those statements stay true.
 
 > **Step 5 DONE v4.8.0.** Same 5 categories, same 25 names (none stopped fitting). Voice-isolated: pair median
-> 13.3 → 26.0 tap / 14.7 → 26.6 held; worst nearest neighbour 3.5 → **10.5** over both seeds (held, seed 2: Slow
-> Tolling Bell ↔ Velvet Bronze Tone) against the ≥ 8 gate. Tap T40 medians, 12 s window: Large 9.97 > Warm 5.56 >
-> Bright 3.96 ≥ Clanging Steel Plate 1.44 / Shimmering Bell Tree 2.13; Ambient 8.77, Metallic 3.34.
+> 13.3 → 25.1 tap / 14.7 → 25.6 held; worst nearest neighbour 3.5 → **10.6** over both seeds (tap, seed 1: Deep
+> Bronze Tower ↔ Massive Iron Bell) against the ≥ 8 gate. Tap T40 medians, 12 s window: Large 9.94 > Warm 5.56 >
+> Bright 4.18 ≥ Clanging Steel Plate 1.45 / Shimmering Bell Tree 2.68; Ambient 8.37, Metallic 3.55.
 >
 > **Gate readings.** "Metallic-short" is two named presets, not the category — Metallic also holds the gong and the
 > iron bowl (9.5 / 8.9 s). "Category medians distinct" is read as the five tap-T40 medians pairwise ≥ 0.25 s apart; it
@@ -193,19 +193,24 @@ Step 3 and 4 may be merged if the UI work is small; keep them split if the new s
 >    sentinel change — a second voicing pass under `4.8.0` would have gated the first bank. `report.py` now removes
 >    the sentinel each run. Voicing itself was iterated through job overrides (defaults + overrides == preset apply),
 >    and the real `preset=` path reproduces those numbers to 0.1 dB.
-> 2. The re-voiced bank spread 20 dB in level (old bank 8.5), and Frozen Steel Shimmer hit 0 dBFS on one note. Output
->    Gain is now set per preset (−10…+9 dB → −24 dBFS RMS ±0.8). Preset apply already reset Output Gain on every load.
+> 2. The re-voiced bank spread 20 dB in level (old bank 8.5), and Frozen Steel Shimmer hit −3 dBFS on one note. A first
+>    pass fixed that with per-preset Output Gain — **rejected: a preset must not move the user's gain.** Balanced by
+>    voicing instead (8.7 dB spread, peak −8.1 dBFS); `report.py` fails any factory preset that names `outputGain`.
+>    Level levers that are NOT gain: the layer norm divides by 1 + sub + oct, the nonlinear tanh divides by its drive,
+>    strike position sets the hum / prime gain, and a size-1 / damp-0 reverb stacks +5.6 dB on a sustained voice.
+>    Still open: preset apply RESETS Output Gain to 0 dB on every load (only `tuning_*` is exempt) — same principle,
+>    but it lives in the shared preset-manager module, so it was not changed here.
 > 3. Classic's missing Nyquist guard (Step 3 note 1) is still open; the bank was steered off it (Sparkling Aluminum →
 >    Tubular; Gamelan Oct 0; Crotale Oct 0.25). Any future Classic preset with a high Oct layer re-exposes it.
-> 4. FX on (informational, not gated): worst neighbour 9.0 / 9.3 — reverb pulls dark long presets together.
+> 4. FX on (informational, not gated): worst neighbour 9.1 / 8.8 — reverb pulls dark long presets together.
 > 5. The Bloom 0 → 0.01 level step (RC-2 note) is untouched: no preset ships at Bloom 0 (minimum 0.02).
 
 ## Harness
 
 `tests/render-harness/` (Step 1, v4.5.2): `O-Bells-render-test` (processor-level,
 `JUCE_WEB_BROWSER=0`, no editor TU, identity macros derived from the plugin target), `report.py`
-(preset bank + baseline gate — **re-anchored to v4.8.0** in Step 5: tap 2.4 / 26.0 / 17.4 / 11.1, held
-2.4 / 26.6 / 18.0 / 11.6, plus the Step-5 nearest-neighbour and tap-T40 bank gates; the v4.5.1 table above and the
+(preset bank + baseline gate — **re-anchored to v4.8.0** in Step 5: tap 2.4 / 25.1 / 16.3 / 10.6, held
+2.5 / 25.6 / 16.1 / 11.0, plus the Step-5 nearest-neighbour and tap-T40 bank gates; the v4.5.1 table above and the
 v4.6.0 anchor are history, not the gate) and `probes.py` (RC-1…RC-4
 measurements + random-range gate, still on its v4.5.1 anchor: 11.3 / 10.2 after Step 2; from v4.6.0
 also the material, sub-layer, unison and bit-identity-vs-v4.5.2 gates; from v4.7.0 the model, Hum
