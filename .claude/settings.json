@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/SessionStart.py",
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       },
@@ -17,7 +17,7 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/PostCompact-SessionStart.py",
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       }
@@ -29,7 +29,7 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/PostToolUse.py",
-            "timeout": 2000
+            "timeout": 2
           }
         ]
       },
@@ -39,7 +39,7 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/validators/validate-research-frontmatter.py",
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       },
@@ -49,7 +49,7 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/regenerate-manifest.py",
-            "timeout": 10000
+            "timeout": 10
           }
         ]
       }
@@ -60,7 +60,7 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/PreCompact.py",
-            "timeout": 10000
+            "timeout": 10
           }
         ]
       }
@@ -72,7 +72,7 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/inject-agent-memory.py",
-            "timeout": 3000
+            "timeout": 3
           }
         ]
       }
@@ -83,7 +83,7 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/task-validator-dispatch.py",
-            "timeout": 15000
+            "timeout": 15
           }
         ]
       }
@@ -94,7 +94,7 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/SubagentStop.py",
-            "timeout": 30000
+            "timeout": 30
           }
         ]
       },
@@ -103,7 +103,7 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/write-back-agent-memory.py",
-            "timeout": 10000
+            "timeout": 10
           }
         ]
       }
