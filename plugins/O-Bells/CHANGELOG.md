@@ -4,6 +4,19 @@ All notable changes to O-Bells will be documented in this file.
 
 ## [4.8.0] - 2026-09-21
 
+### Since the last published release (4.5.0)
+
+This download ships 4.5.1 through 4.8.0:
+
+- **4.8.0** — factory bank re-voiced and grown 25 → 40; presets whose title names a
+  real instrument no longer wobble in pitch; a preset load never touches Output Gain.
+- **4.7.0 / 4.7.1** — Partial Model (Classic / Tubular / Plate / Bowl / Glass), Hum
+  Level, Prime Level and Hum Follow, plus a Partials section in the plugin window
+  (en / fr / zh-Hans).
+- **4.6.0** — three voice fixes. ⚠ Sessions using Material = Brass, Steel or Aluminum
+  WILL sound different (all three had been playing as Cast Iron). See [4.6.0] below.
+- **4.5.1 / 4.5.2** — visual polish; test infrastructure only.
+
 Step 5 (last) of `improvements/preset-differentiation-v4.6-v4.8.md`: the factory bank
 re-voiced against the final engine and grown **25 → 40**. MINOR: no parameter, range
 or state change — sessions load and sound as they did on 4.7.1. **What changes is the
