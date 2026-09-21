@@ -36,6 +36,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>   // getpid — the H10 temp directory name (macOS-only TU, like posix_memalign above)
+#include <sys/resource.h>   // getrusage — the H7 duty-cycle witness (same macOS-only TU)
 #include <cstring>
 #include <deque>
 #include <functional>
@@ -183,6 +184,40 @@ namespace
     {
         return std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count();
     }
+
+    /** Process CPU time (user + system, ALL threads) consumed so far. RUSAGE_SELF
+        deliberately, NOT RUSAGE_THREAD: the terrain scheduler thread's CPU is real work
+        that the timing rows are measuring, and RUSAGE_THREAD would drop it. */
+    double processCpuSeconds()
+    {
+        rusage ru {};
+        getrusage (RUSAGE_SELF, &ru);
+        auto sec = [] (const timeval& t) { return (double) t.tv_sec + 1.0e-6 * (double) t.tv_usec; };
+        return sec (ru.ru_utime) + sec (ru.ru_stime);
+    }
+
+    /** Duty-cycle witness: process CPU time over wall clock, accumulated across the
+        intervals the caller BRACKETS. The bracketing is the whole point — a duty figure
+        measured over the process lifetime says nothing about whether one particular
+        timing block was contended, and this harness sleeps in pump() during other gates.
+
+        Reference points, MEASURED (memory note
+        pattern_absolute_slack_threshold_is_not_runner_portable, plus the local run that
+        justified kH7MinDuty below): an honest `--gate all` run read 76.5 s user /
+        108.6 s real = ~70 %; the H7 timing block alone, being a pure processBlock loop,
+        reads ~99 % on a quiet machine (28.08 s real / 27.80 s user, 2026-09-21); a
+        contended run read 123 s user / 2125 s real = ~6 %. Two orders of magnitude
+        separate honest from contended, which is what makes a mid-band threshold
+        defensible rather than arbitrary. */
+    struct DutyWitness
+    {
+        void open()  { t0 = std::chrono::steady_clock::now(); c0 = processCpuSeconds(); }
+        void close() { wall += secondsSince (t0); cpu += processCpuSeconds() - c0; }
+        double duty() const { return wall > 0.0 ? cpu / wall : 1.0; }
+
+        double cpu = 0.0, wall = 0.0, c0 = 0.0;
+        std::chrono::steady_clock::time_point t0;
+    };
 
     const char* kTerrainNames[kNumAnalyticTerrains] = { "SineProduct", "RadialRings", "Saddle", "RidgedCosines", "Mitsuhashi", "CosineWells" };
     const char* kOrbitNames[kNumOrbitKinds] = { "Ellipse", "Superellipse", "Limacon", "Epitrochoid3", "Epitrochoid5", "Epitrochoid7",
@@ -1712,17 +1747,90 @@ namespace
     {
         std::printf ("\n== H7 CPU (16 voices x 2 osc, unison 1, 2x, default patch, 48 kHz, block 512, 10 s, best of 3; oscillator delta <= 12 %%) ==\n");
         std::printf ("  machine: %s (Release build)\n", juce::SystemStats::getCpuModel().toRawUTF8());
+        // The duty witness brackets ONLY the four h7Wall calls that feed the Bandlimited
+        // ratio below (the unison-1 2x reference pair and the Bandlimited pair). The two
+        // informational [H7 rows] pairs are deliberately outside it: contention there
+        // cannot corrupt a ratio those figures do not enter.
+        DutyWitness duty;
+        duty.open();
         const double total = h7Wall (1, 1, false), base = h7Wall (1, 1, true);
+        duty.close();
         std::printf ("  [H7] total = %.2f %%  baseline (kernel bypass) = %.2f %%  delta = %.2f %%\n", total, base, total - base);
         check (total - base <= 12.0, fmt ("[H7] oscillator delta = %.2f %% (need <= 12; total %.2f, baseline %.2f)", total - base, total, base));
         const double t4 = h7Wall (1, 4, false), b4 = h7Wall (1, 4, true);
         std::printf ("  [H7 rows] unison 4, 2x: total %.2f %% baseline %.2f %% delta %.2f %%\n", t4, b4, t4 - b4);
         const double tq4 = h7Wall (2, 1, false), bq4 = h7Wall (2, 1, true);
         std::printf ("  [H7 rows] unison 1, 4x: total %.2f %% baseline %.2f %% delta %.2f %%\n", tq4, bq4, tq4 - bq4);
+        duty.open();
         const double tq1 = h7Wall (0, 1, false), bq1 = h7Wall (0, 1, true);
-        check (tq1 - bq1 <= (total - base) + 2.0,
-               fmt ("[H7] Bandlimited delta %.2f %% <= 2x delta %.2f %% + 2.0 (D4 padded evaluator; was ~11.9 %% with Clenshaw; total %.2f, baseline %.2f)",
-                    tq1 - bq1, total - base, tq1, bq1));
+        duty.close();
+
+        // ── Bandlimited vs the 2x reference: a SAME-RUN RATIO behind a contention witness.
+        //
+        //     Rewritten 2026-09-21 (quick-260921-j94). The old bound was
+        //     `blDelta <= refDelta + 2.0` — an absolute slack constant sized on a quiet dev
+        //     machine, which is not runner-portable (memory note
+        //     pattern_absolute_slack_threshold_is_not_runner_portable). The MEASURED delta
+        //     ratio spans 1.05x here, 1.15 / 1.26 / 1.97x across three CI dispatches, and
+        //     3.9x on a dev machine with XprotectService at 134 %.
+        //
+        //     A ratio alone does NOT fix this row, and that is the load-bearing point:
+        //     `delta` is a DIFFERENCE of two independently measured best-of-3 timings, so
+        //     the ratio of deltas amplifies noise (the same three CI runs span 1.04-1.30 on
+        //     the ratio of TOTALS). Any K loose enough to admit 1.97 could not detect a
+        //     90 % regression. So the fix is two-part: a ratio for the scale-invariance,
+        //     plus a duty-cycle witness that makes a contended machine SKIP rather than
+        //     FAIL. Contention must never be able to read as a regression.
+        const double refDelta = total - base, blDelta = tq1 - bq1;
+
+        // Denominator floor: inside max(), so it is a floor and never an additive slack.
+        // The 2x reference delta measured 4.27 % locally and 8.2-9.6 % across the three CI
+        // runs, so 2.0 % binds on none of them. It exists only because refDelta is a
+        // difference and can collapse toward (or below) zero on noise, which would make
+        // the ratio meaningless.
+        constexpr double kH7FloorPct = 2.0;
+
+        // K = 1.8. Local measured ratio 4.47 / 4.27 = 1.05 (2026-09-21, quiet machine,
+        // 28.08 s real / 27.80 s user), so 1.8 leaves ~70 % headroom for an honest-but-
+        // slower runner — it also spans the 1.15 / 1.26 honest-looking CI readings. K stays
+        // BELOW 2.0 on purpose: at or above 2.0 the row could no longer detect a doubling
+        // of Bandlimited kernel cost, which is the regression it exists to catch. The
+        // 1.97 CI reading is deliberately NOT admitted — that is what the duty witness is
+        // for, and inflating K to swallow it would retire the coverage instead.
+        constexpr double kH7K = 1.8;
+
+        // Contention threshold. Honest: ~99 % on this block locally, ~70 % over a whole
+        // honest `--gate all`. Contended: ~6 %. 50 % sits an order of magnitude above the
+        // contended figure and well below every honest one — a pure processBlock loop that
+        // only gets half a core has lost the other half to something else, and a ratio of
+        // differences measured through that is not evidence either way.
+        constexpr double kH7MinDuty = 0.50;
+
+        const double bound = std::max (refDelta, kH7FloorPct) * kH7K;
+        const double d = duty.duty();
+        std::printf ("  [H7] Bandlimited delta %.2f %% vs 2x reference delta %.2f %% -> ratio %.2f (bound %.2f %%); duty over the four timing calls %.0f %% (CPU %.1f s / wall %.1f s, need >= %.0f %%)\n",
+                     blDelta, refDelta, refDelta != 0.0 ? blDelta / refDelta : 0.0, bound,
+                     100.0 * d, duty.cpu, duty.wall, 100.0 * kH7MinDuty);
+        if (d < kH7MinDuty)
+            std::printf ("  [H7] Bandlimited delta skipped (machine contended, duty %.0f %%) — asserts nothing; the measured ratio was %.2f against bound %.2f %% (plan quick-260921-j94)\n",
+                         100.0 * d, refDelta != 0.0 ? blDelta / refDelta : 0.0, bound);
+        else
+            check (blDelta <= bound,
+                   fmt ("[H7] Bandlimited delta %.2f %% <= 2x reference delta %.2f %% (floor %.2f) x K %.1f = %.2f %% (D4 padded evaluator; was ~11.9 %% with Clenshaw; total %.2f, baseline %.2f; duty %.0f %%)",
+                        blDelta, refDelta, kH7FloorPct, kH7K, bound, tq1, bq1, 100.0 * d));
+
+        // NEGATIVE CONTROL (permanent): prove the rewritten ratio can still fail on a
+        // configuration that really does cost more kernel work. Bandlimited at unison 4
+        // against the SAME unison-1 2x reference is the cheapest real regression shape
+        // available — h7Wall already takes unison as a parameter — and it must EXCEED the
+        // bound. Costs one extra h7Wall pair (~7 s here). Without this line a K that had
+        // drifted upward, or a refDelta that had inflated, would leave the row green and
+        // blind.
+        const double tn = h7Wall (0, 4, false), bn = h7Wall (0, 4, true);
+        std::printf ("  [H7 neg] Bandlimited unison 4: total %.2f %% baseline %.2f %% delta %.2f %% (vs bound %.2f %%)\n", tn, bn, tn - bn, bound);
+        checkFailsAsExpected (tn - bn <= bound,
+                              fmt ("[H7 neg] Bandlimited unison 4 delta %.2f %% must EXCEED the unison-1 bound %.2f %% (reference delta %.2f x K %.1f) — the ratio is not vacuous",
+                                   tn - bn, bound, refDelta, kH7K));
     }
 
     // ── H8 across Quality ──
