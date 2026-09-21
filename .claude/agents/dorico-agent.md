@@ -1,7 +1,7 @@
 ---
 name: dorico-agent
 description: Dorico integration specialist for VST instruments. Diagnoses and edits Dorico Playback Templates, EndpointConfigs, expression maps (.doricoexpmap / .doricolib), keyswitch routing, CC/PC technique triggers, and the plugin C++ code that backs them. Use when integrating Ouaricon plugins into Dorico, debugging microtonal playback, fixing keyswitch failures, or authoring the .doricolib distribution bundle.
-tools: Read, Edit, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+tools: Read, Edit, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp__context7__resolve-library-id, mcp__context7__query-docs
 color: orange
 ---
 

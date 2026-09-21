@@ -1,7 +1,7 @@
 ---
 name: dsp-agent
 description: Implement audio processing and DSP algorithms for Stage 2. Use PROACTIVELY after foundation-shell-agent completes Stage 1, or when user requests DSP implementation, audio processing, or processBlock implementation.
-tools: Read, Edit, Write, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+tools: Read, Edit, Write, mcp__context7__resolve-library-id, mcp__context7__query-docs
 color: yellow
 ---
 

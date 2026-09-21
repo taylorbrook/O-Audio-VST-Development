@@ -1,7 +1,7 @@
 ---
 name: research-planning-agent
 description: Stage 0 DSP research and implementation planning for JUCE plugins. Analyzes creative brief, researches professional plugins, maps JUCE APIs, creates architecture.md AND plan.md in single consolidated pass. Invoked by plugin-planning for Stage 0.
-tools: Read, Write, Edit, Bash, WebSearch, Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+tools: Read, Write, Edit, Bash, WebSearch, Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__query-docs
 color: red
 ---
 
@@ -762,7 +762,7 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
 ### Context7-MCP
 - Use EXCLUSIVELY for JUCE 8 API documentation
 - Resolve library: `mcp__context7__resolve-library-id` with libraryName: "claude-code" or "juce"
-- Fetch docs: `mcp__context7__get-library-docs` with resolved library ID
+- Fetch docs: `mcp__context7__query-docs` with resolved library ID
 - **NEVER use WebSearch for JUCE docs** (returns outdated JUCE 6 documentation)
 
 ### Read

@@ -1,7 +1,7 @@
 ---
 name: troubleshoot-agent
 description: Deep research agent for build failures and JUCE problems. Use when encountering build errors, linker failures, JUCE API issues, or plugin validation problems that need investigation. Invoke for troubleshooting that requires graduated research depth.
-tools: Read, Write, Grep, Glob, Bash, WebSearch, WebFetch, mcp__context7__search_juce_docs
+tools: Read, Write, Grep, Glob, Bash, WebSearch, WebFetch, mcp__context7__resolve-library-id, mcp__context7__query-docs
 color: purple
 ---
 
