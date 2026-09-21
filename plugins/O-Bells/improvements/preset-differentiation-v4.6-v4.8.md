@@ -166,7 +166,7 @@ or delete; honouring it changes every note's tuning scatter.
 | 2 | 4.6.0 ✅ | MINOR | RC-1 material mapping, RC-2 octave-layer decay (+ double initialFraction), unison voice-0 detune (found in-step). Audible change to saved sessions using Brass/Steel/Aluminum, Sub/Oct + Bloom, or Unison ≥ 2 — called out in CHANGELOG. | Materials pairwise ≥ 5 dB; sub layer tracks its bloom-0 decay and falls ≥ 12 dB between 2 s and 10 s held at damping 1 (amended, see RC-2); unison prime peaks on the designed detune; 5 untouched configs bit-identical to v4.5.2 |
 | 3 | 4.7.0 ✅ | MINOR | RC-4 DSP: `partialModel` choice (Classic / Tubular / Plate / Bowl / Glass …), `humLevel`, `primeLevel` (dB), `humFollow` (0–1: hum-stage τ tracks bodyTime). Processor + voice only; generic defaults = old sound. | Default-param render within self-noise of v4.6.0; random-param pair median ≥ 16 dB (was 11.5) |
 | 4 | 4.7.1 ✅ | PATCH | UI for the Step-3 params: controls, tooltips, en / fr / zh-Hans rows, width pins, `check-ui-labels`, `i18n-fr-lint`, `i18n-zh-lint`. | All three language arms pass; no moved elements outside the new section |
-| 5 | 4.8.0 ✅ | MINOR | Re-voice all 25 presets (RC-3, RC-5 + new params); factory sentinel `4.1.1` → `4.8.0`. | Every preset's nearest neighbour ≥ 8 dB (tap AND held); tap T40 ordering Large > Warm > Bright ≥ Metallic-short; category medians distinct |
+| 5 | 4.8.0 ✅ | MINOR | Re-voice all 25 presets (RC-3, RC-5 + new params) — and, in-step, 15 new ones (40); factory sentinel `4.1.1` → `4.8.0`. | Every preset's nearest neighbour ≥ 8 dB (tap AND held); tap T40 ordering Large > Warm > Bright ≥ Metallic-short; category medians distinct |
 
 Step 3 and 4 may be merged if the UI work is small; keep them split if the new section needs layout work.
 
@@ -178,39 +178,53 @@ Step 3 and 4 may be merged if the UI work is small; keep them split if the new s
 > Step 5 note: the tips tell the user Hum Follow is heard on HELD notes and that Inharmonicity stretches the
 > table on a model — voice the presets so those statements stay true.
 
-> **Step 5 DONE v4.8.0.** Same 5 categories, same 25 names (none stopped fitting). Voice-isolated: pair median
-> 13.3 → 25.1 tap / 14.7 → 25.6 held; worst nearest neighbour 3.5 → **10.6** over both seeds (tap, seed 1: Deep
-> Bronze Tower ↔ Massive Iron Bell) against the ≥ 8 gate. Tap T40 medians, 12 s window: Large 9.94 > Warm 5.56 >
-> Bright 4.18 ≥ Clanging Steel Plate 1.45 / Shimmering Bell Tree 2.68; Ambient 8.37, Metallic 3.55.
+> **Step 5 DONE v4.8.0 (2026-09-21).** The 5 categories and all 25 names kept (none stopped fitting), plus 15 new presets
+> (3 per category) → **40**. Voice-isolated: pair median 13.3 → 26.4 tap / 14.7 → 27.1 held; worst nearest neighbour
+> 3.5 → **9.5** over both seeds against the ≥ 8 gate — adding 15 presets RAISED the median (25 presets, same voicing:
+> 24.7 / 25.7). Tap T40 medians, 12 s window: Large 9.08 > Warm 5.17 > Bright 3.94 ≥ Anvil 1.45 / Clanging Plate 1.44 /
+> Brake Drum 2.66 / Bell Tree 2.69; Ambient 8.36, Metallic 3.04.
 >
-> **Gate readings.** "Metallic-short" is two named presets, not the category — Metallic also holds the gong and the
-> iron bowl (9.5 / 8.9 s). "Category medians distinct" is read as the five tap-T40 medians pairwise ≥ 0.25 s apart; it
-> failed once (Bright 3.96 vs Metallic 4.01) and was met by voicing (Gamelan Damping 0.6 → 0.75). T40 needs the 12 s
-> window: at 6 s every low-damping bell saturates at 5.98 and Large > Warm would be a tie.
+> **Gate readings.** "Metallic-short" is four named presets, not the category — Metallic also holds the gong and the
+> iron bowl (8.7 / 8.6 s). "Category medians distinct" is read as the five tap-T40 medians pairwise ≥ 0.25 s apart; it
+> failed twice and was met by voicing both times. T40 needs the 12 s window: at 6 s every low-damping bell saturates
+> at 5.98 and Large > Warm would be a tie.
+>
+> **Two review corrections, both before release.**
+> 1. *"Gain changes should not be part of a preset."* A first pass balanced a 20 dB level spread with per-preset Output
+>    Gain. Redone by voicing (10.9 dB spread over 40, peak −7.0 dBFS); `report.py` fails any factory preset naming
+>    `outputGain`. Level levers that are NOT gain: the layer norm divides by 1 + sub + oct, the nonlinear tanh divides
+>    by its drive, strike position sets the hum / prime gain, and a size-1 / damp-0 reverb stacks +5.6 dB on a
+>    sustained voice. Still open: preset apply RESETS Output Gain to 0 dB on every load (only `tuning_*` is exempt) —
+>    same principle, but it lives in the shared preset-manager module, so it was not changed here.
+> 2. *"The pitch is too wobbly … on presets that suggest realism in the title."* Measured (cents RMS of instantaneous
+>    frequency, prime / hum bands): wide Unison detune 14–31, chorus 12–30, Reverb Mod ≥ 0.3 ~10; the voice's Shimmer
+>    ≤ 1. Realism presets (28) are now Unison 1 / no chorus / Reverb Mod ≤ 0.2 → ≤ 1.7 c. Twelve are declared stylised
+>    and were roughly halved. Gated on the metric AND on the causes — a mild chorus reads 5 c with FX on, under the
+>    7–8 c a large static hall reads by itself.
 >
 > **Observed, not planned.**
-> 1. The harness reads the bank from the INSTALLED plugin's `~/Library/O-Bells/Presets/Factory`, rewritten only on a
+> 1. **Sub / Oct layers collide with the fundamental layer.** The sub layer's prime (0.5×) lands on the hum, the oct
+>    layer's hum (2 × 0.5) on the prime — every table but Tubular has the 0.5 slot — each with the layer's random
+>    ±10 c scatter (the one Step 2 kept). With Unison ≥ 2 it averages out; on ONE voice it is a slow beat and up to
+>    8 dB of note-to-note level swing (Massive Iron Bell, Sub 0.85: −12.5…−20.4 dBFS over five notes; Sub 0: 1.4 dB).
+>    The realism presets avoid the stack. An engine fix (drop the scatter on the colliding slot, or phase-lock it)
+>    would change renders — candidate for a later step. grep token: `octaveBlendSub`
+> 2. The harness reads the bank from the INSTALLED plugin's `~/Library/O-Bells/Presets/Factory`, rewritten only on a
 >    sentinel change — a second voicing pass under `4.8.0` would have gated the first bank. `report.py` now removes
 >    the sentinel each run. Voicing itself was iterated through job overrides (defaults + overrides == preset apply),
 >    and the real `preset=` path reproduces those numbers to 0.1 dB.
-> 2. The re-voiced bank spread 20 dB in level (old bank 8.5), and Frozen Steel Shimmer hit −3 dBFS on one note. A first
->    pass fixed that with per-preset Output Gain — **rejected: a preset must not move the user's gain.** Balanced by
->    voicing instead (8.7 dB spread, peak −8.1 dBFS); `report.py` fails any factory preset that names `outputGain`.
->    Level levers that are NOT gain: the layer norm divides by 1 + sub + oct, the nonlinear tanh divides by its drive,
->    strike position sets the hum / prime gain, and a size-1 / damp-0 reverb stacks +5.6 dB on a sustained voice.
->    Still open: preset apply RESETS Output Gain to 0 dB on every load (only `tuning_*` is exempt) — same principle,
->    but it lives in the shared preset-manager module, so it was not changed here.
 > 3. Classic's missing Nyquist guard (Step 3 note 1) is still open; the bank was steered off it (Sparkling Aluminum →
->    Tubular; Gamelan Oct 0; Crotale Oct 0.25). Any future Classic preset with a high Oct layer re-exposes it.
-> 4. FX on (informational, not gated): worst neighbour 9.1 / 8.8 — reverb pulls dark long presets together.
+>    Tubular; Gamelan Oct 0; Crotale Oct 0.25; no new preset uses Oct). A future Classic preset with a high Oct layer
+>    re-exposes it.
+> 4. Level figures are ±2–3 dB: per-note amplitude randomisation moves one dark single-voice preset that much.
 > 5. The Bloom 0 → 0.01 level step (RC-2 note) is untouched: no preset ships at Bloom 0 (minimum 0.02).
 
 ## Harness
 
 `tests/render-harness/` (Step 1, v4.5.2): `O-Bells-render-test` (processor-level,
 `JUCE_WEB_BROWSER=0`, no editor TU, identity macros derived from the plugin target), `report.py`
-(preset bank + baseline gate — **re-anchored to v4.8.0** in Step 5: tap 2.4 / 25.1 / 16.3 / 10.6, held
-2.5 / 25.6 / 16.1 / 11.0, plus the Step-5 nearest-neighbour and tap-T40 bank gates; the v4.5.1 table above and the
+(preset bank + baseline gate — **re-anchored to v4.8.0** in Step 5 (40 presets): tap 2.4 / 26.4 / 19.6 / 9.9, held
+2.5 / 27.1 / 20.3 / 9.5, plus the Step-5 bank gates — nearest neighbour, tap-T40 order, pitch wobble, no Output Gain; the v4.5.1 table above and the
 v4.6.0 anchor are history, not the gate) and `probes.py` (RC-1…RC-4
 measurements + random-range gate, still on its v4.5.1 anchor: 11.3 / 10.2 after Step 2; from v4.6.0
 also the material, sub-layer, unison and bit-identity-vs-v4.5.2 gates; from v4.7.0 the model, Hum
