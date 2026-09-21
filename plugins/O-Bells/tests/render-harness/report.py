@@ -19,6 +19,13 @@ a Step-5 (v4.8.0) bank gate fails:
     METALLIC_SHORT preset. T40 is read on a T40_TOTAL-second tap: on the 6 s window
     every low-damping bell saturates at 5.98 s and the ordering would be a tie;
   - the five category T40 medians pairwise >= T40_DISTINCT s apart;
+  - pitch wobble: RMS deviation (cents) of the instantaneous frequency in the prime
+    and hum bands (+-3 %), 0.4-4 s of a 4 s hold. A preset whose title names a real
+    instrument stays <= WOBBLE_REAL voice-isolated and <= WOBBLE_REAL_FX with FX on
+    (a big static hall alone reads 7-8 c: dense reflections, not modulation); the
+    WOBBLE_STYLISED presets stay <= WOBBLE_STYLISED_MAX either way. The FX ceiling
+    cannot see a MILD chorus (4.5 Hz / 35 % reads 5 c, under the hall floor), so the
+    causes are gated too: a realism preset names no chorus, Unison 1, Reverb Mod <= 0.2;
   - no factory preset names a USER_OWNED parameter (Output Gain is the user's
     control — a preset never moves it; the bank is balanced by voicing).
 
@@ -53,12 +60,12 @@ SEED_A, SEED_B = 1, 2
 # brief's and sits inside its own 8-seed range (median sd 0.2, p10 sd 0.2,
 # min sd 0.3).
 #
-# v4.8.0 (Step 5) re-anchored: the whole bank was re-voiced. The v4.6.0 rows it replaces:
+# v4.8.0 (Step 5) re-anchored: the whole bank was re-voiced and grew 25 -> 40. The v4.6.0 rows it replaces:
 #   tap  2.5 / 13.3 / 8.0 / 3.5     held 2.4 / 14.7 / 9.3 / 3.6
 BASELINE_VERSION = 'v4.8.0'
 BASELINE = {
-    'tap':  {'self-noise': 2.4, 'pair median': 25.1, 'pair p10': 16.3, 'pair min': 10.6},
-    'held': {'self-noise': 2.5, 'pair median': 25.6, 'pair p10': 16.1, 'pair min': 11.0},
+    'tap':  {'self-noise': 2.4, 'pair median': 26.4, 'pair p10': 19.6, 'pair min': 9.9},
+    'held': {'self-noise': 2.5, 'pair median': 27.1, 'pair p10': 20.3, 'pair min': 9.5},
 }
 TOL = 1.0
 
@@ -67,9 +74,16 @@ TOL = 1.0
 NEAREST_MIN = 8.0
 T40_TOTAL = 12.0
 T40_ORDER = ['Large Bells', 'Warm Bells', 'Bright Bells']
-METALLIC_SHORT = ['Clanging Steel Plate', 'Shimmering Bell Tree']
+METALLIC_SHORT = ['Anvil Strike', 'Brake Drum', 'Clanging Steel Plate', 'Shimmering Bell Tree']
 T40_DISTINCT = 0.25
 USER_OWNED = ['outputGain']
+# Wobble ceilings, cents RMS. Unison 1 / no chorus reads < 2 voice-isolated; the v4.8.0
+# first pass had realism presets at 14-31 (wide unison) and 28-60 with chorus.
+WOBBLE_REAL, WOBBLE_REAL_FX, WOBBLE_STYLISED_MAX = 3.0, 10.0, 30.0
+WOBBLE_STYLISED = ['Bowed Bowl Drone', 'Ethereal Chime Pad', 'Evolving Bronze Wash', 'Frozen Steel Shimmer', 'Glass Halo',
+                   'Underwater Bell', 'Worn Tape Chimes', 'Beating Bronze Gong', 'Dense Bronze Gamelan',
+                   'Shimmering Bell Tree', 'Thunder Sheet', 'Velvet Bronze Tone']
+C4 = 261.6256
 FACTORY_SENTINEL = os.path.expanduser('~/Library/O-Bells/Presets/Factory/.factory_version')
 
 
@@ -78,7 +92,7 @@ def presets():
     return [tuple(l.split('|', 1)) for l in out.splitlines() if '|' in l]
 
 
-def render(jobs, outdir, tag, hold, total, seed, note=60, vel=0.8):
+def render(jobs, outdir, tag, hold, total, seed, note=60, vel=0.8, fx=False):
     """jobs: list of (label, [fields]) — fields are 'preset=Cat/Name' or 'paramId=value'."""
     d = os.path.join(outdir, tag)
     os.makedirs(d, exist_ok=True)
@@ -87,7 +101,7 @@ def render(jobs, outdir, tag, hold, total, seed, note=60, vel=0.8):
         for label, fields in jobs:
             f.write('|'.join([label] + list(fields)) + '\n')
     subprocess.run([BIN, '--render', jobfile, d, f'--note={note}', f'--vel={vel}', f'--hold={hold}',
-                    f'--total={total}', f'--seed={seed}'], check=True, stdout=subprocess.DEVNULL)
+                    f'--total={total}', f'--seed={seed}'] + (['--fx'] if fx else []), check=True, stdout=subprocess.DEVNULL)
     return [np.fromfile(os.path.join(d, f'{i}.f32'), dtype=np.float32).reshape(-1, 2).astype(np.float64)
             for i in range(len(jobs))]
 
@@ -128,6 +142,21 @@ def t40(x, db=-40):
     return idx[-1] * hop / SR if len(idx) else 0
 
 
+def wobble(x):
+    """Worst of the prime / hum bands that carry signal (within 20 dB of the mix)."""
+    m = x.mean(axis=1); N = len(m); F = np.fft.fft(m); f = np.fft.fftfreq(N, 1 / SR)
+    sel = slice(int(0.4 * SR), int(4.0 * SR)); total = np.sqrt((m[sel] ** 2).mean()); out = []
+    for fc in (C4, C4 / 2):
+        z = np.fft.ifft(F * np.where((f > fc * 0.97) & (f < fc * 1.03), 2.0, 0.0))
+        inst = np.diff(np.unwrap(np.angle(z))) * SR / (2 * np.pi)
+        k = int(0.02 * SR); inst = np.convolve(inst, np.ones(k) / k, 'same')[sel]
+        a = np.abs(z)[sel][:len(inst)]; ok = a > a.max() * 0.05
+        c = 1200 * np.log2(np.maximum(inst[ok], 1) / np.median(inst[ok]))
+        out.append((float(np.sqrt((c ** 2).mean())), float(np.sqrt((a ** 2).mean()))))
+    live = [w for w, lvl in out if lvl > total * 0.1]
+    return max(live) if live else max(out, key=lambda t: t[1])[0]
+
+
 def centroid(x, a, b):
     seg = x.mean(axis=1)[int(a * SR):int(b * SR)]
     P = np.abs(np.fft.rfft(seg * np.hanning(len(seg)))) ** 2
@@ -162,6 +191,10 @@ def main():
         with open(os.path.join(os.path.dirname(FACTORY_SENTINEL), c, n + '.json')) as f:
             named = json.load(f)['parameters']
         failures += [f'{n} names {k} — that parameter is the user\'s, not a preset\'s' for k in USER_OWNED if k in named]
+        if n not in WOBBLE_STYLISED:   # stored values are normalised: all three are 0-1 already, unisonCount 0 == 1 voice
+            if named.get('chorusMix', 0) > 0: failures.append(f'wobble cause: {n} has chorus (mix {named["chorusMix"]:.2f})')
+            if named.get('unisonCount', 0) > 0: failures.append(f'wobble cause: {n} is not Unison 1')
+            if named.get('reverbMod', 0.2) > 0.2 + 1e-6: failures.append(f'wobble cause: {n} Reverb Mod {named["reverbMod"]:.2f} > 0.2')
 
     for tag, hold, total in MODES:
         S = render(jobs, out, tag, hold, total, SEED_A)
@@ -211,6 +244,19 @@ def main():
     for (a, x), (b, y) in zip(ms[:-1], ms[1:]):
         if y - x < T40_DISTINCT:
             failures.append(f'T40 medians not distinct: {a} {x:.2f} s vs {b} {y:.2f} s')
+
+    print('\n== pitch wobble, cents RMS (4 s hold) ==')
+    Wv = [wobble(x) for x in render(jobs, out, 'wob', 4.0, 5.0, SEED_A)]
+    Wf = [wobble(x) for x in render(jobs, out, 'wob_fx', 4.0, 5.0, SEED_A, fx=True)]
+    for n in WOBBLE_STYLISED:
+        if n not in names:
+            failures.append(f'wobble: WOBBLE_STYLISED names a preset that is gone: {n}')
+    for n, v, w in zip(names, Wv, Wf):
+        sty = n in WOBBLE_STYLISED
+        lim_v, lim_f = (WOBBLE_STYLISED_MAX, WOBBLE_STYLISED_MAX) if sty else (WOBBLE_REAL, WOBBLE_REAL_FX)
+        print(f'  {n:28s} voice {v:5.1f}  fx {w:5.1f}  {"stylised" if sty else ""}')
+        if v > lim_v: failures.append(f'wobble: {n} voice {v:.1f} c > {lim_v}')
+        if w > lim_f: failures.append(f'wobble: {n} FX on {w:.1f} c > {lim_f}')
 
     if args.no_gate:
         return 0
