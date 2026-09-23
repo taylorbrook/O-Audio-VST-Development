@@ -216,8 +216,8 @@ grep -n "userTablePtr.*memory_order_relaxed\|userPtr.load (std::memory_order_rel
 ```
 
 Second new gate `tests/edit_rotation_check.cpp` (`O-Prism-edit-rotation-check`),
-15/15, covering the three regressions with a deterministic single-threaded
-observable:
+28/28, covering the three regressions with a deterministic single-threaded
+observable, plus two sections added after a false alarm in the DAW (see below):
 
 - **[A] REG-01, bounded.** 200 sequential edits with `processBlock` never
   called — the frozen-generation case — must leave at most 3 tables held
@@ -275,6 +275,26 @@ EOF
 Its behavioural half — a zero-channel block, then a normal block still
 rendering at pitch — is already gated in `bend-state-check` [D].
 
+- **[E] The edit is AUDIBLE.** [A]-[D] all prove the POINTER moves; none of
+  them proves a voice rendering audio reads the new buffer. That gap is how a
+  copy-on-write fix regresses — in-place mutation was audible to a held voice
+  for free (that *was* the CR-01 race), whereas a swap is audible only if
+  `updateWavetableAssignments` repoints the voices. Three edits with real
+  blocks rendered in between, each of which must change the rendered output.
+
+  Added after the fix was reported inaudible in a DAW. It was not: the DAW had
+  a stale in-memory copy of the plugin and a full restart resolved it. But the
+  gate that would have shown this immediately did not exist, so it does now.
+  Confirmed in-host with temporary instrumentation: 129 publishes, **zero**
+  blocked on the cooling slot, exactly 2 rotating table addresses,
+  `userTablePtrA` == `resolveActiveTable(0)` on 129/129, and voice repoints
+  tracking publishes 1:1.
+
+- **[F] Repeated edits must not compound in gain.** `setFrameHarmonics`
+  rescales the user's 0..1 magnitudes by the frame's own current peak, so 250
+  successive edits must leave the level where they found it. Measured 1.0 ->
+  0.540 on the first edit, then flat to 250.
+
 Regression: `O-Prism-bend-state-check` (15/15) and `O-Prism-geometry-check`
 (166 ok, 0 failed) both still pass. `auval -v aumu OuPr OuDv` and pluginval
 strictness 10 both SUCCEED on the installed bundles.
@@ -284,6 +304,22 @@ strictness 10 both SUCCEED on the installed bundles.
 WR-01 (free-run LFOs replay the same phase in every MIDI sub-block), the
 DSP-quality tier (WR-02, WR-04, WR-05, WR-06, WR-08, IN-09) and the IN-*
 cleanup sweep.
+
+**New, unrelated to this batch — processor-level mod destinations render
+non-finite.** Found incidentally while isolating the [E] gate. Routing any
+source to `Reverb Mix`, `Delay Mix`, `Chorus Mix`, `Dist Mix` or `Master Vol`
+at full amount produces NaN in the output on the FIRST block. The other 20
+destinations are finite. All five are consumed in `processBlock` from
+`fxModMatrix` (the processor-level matrix) rather than in the voice, and all
+five sites clamp with `juce::jlimit`, which passes NaN straight through — both
+of its comparisons are false for NaN — so the NaN arrives in the offset itself.
+
+Verified **pre-existing**: the same five destinations fail identically on
+`018ca3ef` (v1.26.0, the last committed release, before any of this round's
+work), on a freshly linked binary. Not caused by CR-01/CR-02 or REG-01..04 —
+`ModulationMatrix::evaluate()`, `getModOffset()` and the `fxModMatrix` source
+feed are all untouched by this batch. Left open deliberately rather than fixed
+here; it wants its own investigation and its own gate.
 
 ## [1.26.1] - 2026-09-23
 
