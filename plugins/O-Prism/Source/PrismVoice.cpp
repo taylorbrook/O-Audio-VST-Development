@@ -177,7 +177,7 @@ void PrismVoice::setWavetableB (const WavetableData* table)
 }
 
 void PrismVoice::startNote (int midiNoteNumber, float velocity,
-                            juce::SynthesiserSound*, int /*currentPitchWheelPosition*/)
+                            juce::SynthesiserSound*, int currentPitchWheelPosition)
 {
     bool wasActive = getCurrentlyPlayingNote() >= 0;
     currentMidiNote = midiNoteNumber;
@@ -199,11 +199,34 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
         noteVelocity = velocity;
     }
 
-    // Get base frequency from TuningEngine
+    // Base frequency from TuningEngine, with this note's bend seeded from the
+    // wheel position the host hands us at note-on.
+    //
+    // TuningEngine's bend table is per-note, and JUCE only delivers
+    // pitchWheelMoved to voices that are already sounding. Without the seed a
+    // note struck — or re-struck — under a held wheel reads NO_BEND and starts
+    // unbent, staying unbent until the wheel next moves: holding the wheel at
+    // +2 st and playing C4 sounded 261.626 Hz instead of 293.661 Hz.
+    //
+    // The seed also makes the CR-03 residual unobservable. A held note whose
+    // voice is stolen never reaches its own note-end clear — releaseNotePitchBend
+    // skips any note noteStates still reports as down — so its entry is stranded
+    // for the life of the instance. It is now overwritten here on the next
+    // strike rather than inherited.
+    //
+    // A centred wheel seeds 0.0f, and applyPitchBend(f, 0.0f) is f * pow(2, 0.0),
+    // i.e. exactly f — so this is inert for hosts that never send a wheel.
     if (tuningEngine != nullptr)
+    {
+        const float wheelBend = (static_cast<float> (currentPitchWheelPosition) - 8192.0f) / 8192.0f;
+        tuningEngine->setPitchBend (midiNoteNumber, wheelBend);
+
         currentFrequency = tuningEngine->getFrequency (midiNoteNumber);
+    }
     else
+    {
         currentFrequency = juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber);
+    }
 
     // VST3 Note Expression tuning delta (Dorico microtonal).
     // Compose multiplicatively after TuningEngine, before glide/oscillator setup.
@@ -355,6 +378,7 @@ void PrismVoice::stopNote (float /*velocity*/, bool allowTailOff)
     {
         ampEnvelope.reset();
         filterEnvelope.reset();
+        releaseNotePitchBend();
         clearCurrentNote();
     }
 }
@@ -499,6 +523,24 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                              ? outputBuffer.getWritePointer (1)
                              : nullptr;
 
+    // Which LFO-rate destinations are routed at all this block (REG-03).
+    // modMatrix.updateFromAPVTS() ran above, so these are block-constant. An
+    // unrouted rate destination yields 0.0f for every sample, exp2(0) is 1,
+    // and lfo[N].setRate (lfo[N]Rate) is already in force from the prologue —
+    // so the per-sample call is pure waste and is skipped. Four std::exp2 per
+    // sample is ~1% of a core at 48 kHz on a full voice pool, paid by every
+    // patch whether or not it modulates an LFO rate.
+    //
+    // NOT the WR-07 dead-band guard: that one tested |offset| > 0.0001f per
+    // sample, so a modulator crossing zero left the last modulated rate
+    // latched for the rest of the sub-block, notching the rate instead of
+    // returning it to base. This test never reads the modulator's value, and
+    // a destination cannot become routed part-way through a block.
+    const bool lfo1RateRouted = modMatrix.isDestinationRouted (ModDest::LFO1Rate);
+    const bool lfo2RateRouted = modMatrix.isDestinationRouted (ModDest::LFO2Rate);
+    const bool lfo3RateRouted = modMatrix.isDestinationRouted (ModDest::LFO3Rate);
+    const bool lfo4RateRouted = modMatrix.isDestinationRouted (ModDest::LFO4Rate);
+
     // Precompute key tracking multipliers (block-constant: currentMidiNote and
     // filt[A/B]KeyTrack don't change within a render block, so std::pow can be
     // hoisted out of the per-sample loop).
@@ -516,6 +558,7 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
         if (! ampEnvelope.isActive())
         {
+            releaseNotePitchBend();
             clearCurrentNote();
             break;
         }
@@ -555,16 +598,32 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         modMatrix.evaluate();
 
         // LFO rate mod destinations (WR-02): ±2 octaves at full offset,
-        // applied to the next LFO sample
+        // applied to the next LFO sample. Unconditional WITHIN a routed
+        // destination (WR-07) — no value-based dead band, so a modulator
+        // crossing zero returns the rate to base instead of latching the last
+        // modulated value. The only skip is the block-constant routing test
+        // hoisted above (REG-03), which cannot change mid-block.
         {
-            const float lr1 = modMatrix.getModOffset (ModDest::LFO1Rate);
-            if (std::abs (lr1) > 0.0001f) lfo1.setRate (lfo1Rate * std::exp2 (lr1 * 2.0f));
-            const float lr2 = modMatrix.getModOffset (ModDest::LFO2Rate);
-            if (std::abs (lr2) > 0.0001f) lfo2.setRate (lfo2Rate * std::exp2 (lr2 * 2.0f));
-            const float lr3 = modMatrix.getModOffset (ModDest::LFO3Rate);
-            if (std::abs (lr3) > 0.0001f) lfo3.setRate (lfo3Rate * std::exp2 (lr3 * 2.0f));
-            const float lr4 = modMatrix.getModOffset (ModDest::LFO4Rate);
-            if (std::abs (lr4) > 0.0001f) lfo4.setRate (lfo4Rate * std::exp2 (lr4 * 2.0f));
+            if (lfo1RateRouted)
+            {
+                const float lr1 = modMatrix.getModOffset (ModDest::LFO1Rate);
+                lfo1.setRate (lfo1Rate * std::exp2 (lr1 * 2.0f));
+            }
+            if (lfo2RateRouted)
+            {
+                const float lr2 = modMatrix.getModOffset (ModDest::LFO2Rate);
+                lfo2.setRate (lfo2Rate * std::exp2 (lr2 * 2.0f));
+            }
+            if (lfo3RateRouted)
+            {
+                const float lr3 = modMatrix.getModOffset (ModDest::LFO3Rate);
+                lfo3.setRate (lfo3Rate * std::exp2 (lr3 * 2.0f));
+            }
+            if (lfo4RateRouted)
+            {
+                const float lr4 = modMatrix.getModOffset (ModDest::LFO4Rate);
+                lfo4.setRate (lfo4Rate * std::exp2 (lr4 * 2.0f));
+            }
         }
 
         // ─── Apply modulation offsets to parameters ──────────────
@@ -736,6 +795,21 @@ void PrismVoice::pitchWheelMoved (int newPitchWheelValue)
         currentFrequency = tuningEngine->getFrequency (currentMidiNote);
         glide.setTarget (currentFrequency, true);
     }
+}
+
+void PrismVoice::releaseNotePitchBend()
+{
+    if (tuningEngine == nullptr || currentMidiNote < 0)
+        return;
+
+    // A re-struck note is stopped with allowTailOff by Synthesiser::noteOn
+    // *before* the replacement voice runs startNote(), so the old voice must
+    // not take the live bend down with it. noteStates still reads true for a
+    // note that is down, which is exactly the case to skip.
+    if (processor != nullptr && processor->isNoteHeld (currentMidiNote))
+        return;
+
+    tuningEngine->clearPitchBend (currentMidiNote);
 }
 
 void PrismVoice::controllerMoved (int /*controllerNumber*/, int /*newControllerValue*/)

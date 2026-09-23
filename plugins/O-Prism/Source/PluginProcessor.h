@@ -170,6 +170,31 @@ public:
 
     WavetableEditor& getWavetableEditor() { return wavetableEditor; }
 
+    /** Run a mutating wavetable-editor operation copy-on-write (CR-01).
+
+        startEditing() publishes the editor's working table to the oscillator
+        for live preview, so from that moment the audio thread reads it every
+        block. `op` therefore builds its result in a fresh WavetableData; this
+        wrapper publishes the new pointer with a release store and retires the
+        displaced one through the generation reaper.
+
+        EVERY mutating WavetableEditor call must go through here — calling
+        setFrameHarmonics / normalizeFrames / fadeEdges / reverseFrames /
+        reverseOrder / smoothFrames directly on the editor leaves the new table
+        unpublished and the old one unretired. */
+    template <typename EditOp>
+    void editWavetable (EditOp&& op)
+    {
+        // Sweep FIRST: this is what hands the cooled buffer back to the editor
+        // so `op` can write into a recycled shadow instead of allocating one
+        // (REG-01). It also drains the general retire queue at the edit rate
+        // rather than waiting on the timer.
+        sweepRetiredTables();
+
+        op (wavetableEditor);        // writes into the editor's private shadow
+        publishEditedWorkingTable(); // swaps it in, if the rotation is free
+    }
+
     /** Start editing: clone the active table into working copy, point oscillator at it. */
     void startEditing (int oscIndex);
 
@@ -178,6 +203,17 @@ public:
 
     /** Get which oscillator is being edited (-1 = none). */
     int getEditingOscIndex() const { return editingOscIndex; }
+
+    /** Diagnostic: every WavetableData this processor is currently keeping
+        alive on the editing path — live, shadow, the one cooling buffer, and
+        anything still in the retire queue.
+
+        The publish rotation bounds this at 3 for an editing session. Before
+        REG-01 it was unbounded: a harmonic drag pushed a fresh 20 MiB clone
+        into retiredTables at 60 Hz, and the only sweep ran off a 500 ms timer
+        whose expiry rule keyed on processBlock — so with the transport stopped
+        the queue never drained at all. */
+    int getHeldTableCount() const;
 
     /** Get current mod wheel value (0..1) for modulation matrix */
     float getModWheelValue() const { return modWheelValue.load (std::memory_order_relaxed); }
@@ -211,6 +247,16 @@ public:
 
     // ─── Preset Manager (factory + user presets) ───
     OuariconPresetManager& getPresetManager() { return presetManager; }
+
+    /** True if this MIDI note is currently held.
+        Gates the per-note pitch-bend release (CR-03): a voice tailing off must
+        not clear the bend of a note that has already been re-struck. */
+    bool isNoteHeld (int midiNote) const
+    {
+        if (midiNote < 0 || midiNote > 127)
+            return false;
+        return noteStates[static_cast<size_t> (midiNote)].load (std::memory_order_relaxed);
+    }
 
     /** Get currently active MIDI notes and their microtonal frequencies */
     std::vector<std::pair<int, double>> getActiveNotes()
@@ -246,6 +292,16 @@ private:
     int editingOscIndex = -1;
     juce::String userTableNameA;
     juce::String userTableNameB;
+
+    // CR-02: the publish handshake for wavetable buffers. The message thread
+    // fully writes a WavetableData (up to ~21 MB of samples for a 256-frame
+    // table) and then stores the pointer; the audio thread loads it in
+    // resolveActiveTable and dereferences it in the same block. These stores
+    // MUST be release and these loads MUST be acquire — a relaxed pair
+    // establishes no happens-before edge, and on arm64 (the primary target,
+    // weakly ordered) the audio thread is then permitted to observe the new
+    // pointer while the sample data is still in the writer's store buffer.
+    // Free on x86, one `dmb ish` per publish on arm64. Never weaken these.
     std::atomic<const WavetableData*> userTablePtrA { nullptr };
     std::atomic<const WavetableData*> userTablePtrB { nullptr };
     const WavetableData* lastAssignedTableA = nullptr;
@@ -365,7 +421,16 @@ private:
     // generation has advanced ≥ 2 — guaranteeing a full processBlock has
     // started and finished since the pointers were unpublished, so no voice
     // still references it. Same class of fix as O-MicrotonalSampler v1.23.2.
-    std::atomic<uint64_t> blockGeneration { 0 };
+    std::atomic<uint64_t> blockGeneration { 0 };   // blocks FINISHED
+
+    // Blocks STARTED — incremented at the very top of processBlock on every
+    // path out, including the WR-09 zero-channel return, so the pair stays
+    // consistent. entries == exits means no block is in flight, which is the
+    // reaper's second expiry rule (REG-01): without it, a host that stops
+    // calling processBlock while the editor is open freezes blockGeneration
+    // and NOTHING is ever freed.
+    std::atomic<uint64_t> blockEntries { 0 };
+
     struct RetiredTable
     {
         std::unique_ptr<WavetableData> table;
@@ -373,6 +438,22 @@ private:
     };
     std::vector<RetiredTable> retiredTables;   // message thread only
     void retireTable (std::unique_ptr<WavetableData> table);
+
+    /** Free every retired table the audio thread can no longer reach, and give
+        the cooled editor buffer back to the rotation. Message thread only.
+        Called from retireTable(), editWavetable() and timerCallback(). */
+    void sweepRetiredTables();
+
+    // The ONE buffer displaced by the editor's publish rotation, held until it
+    // is unreachable and then returned to the editor as its next shadow. A
+    // single slot is the bound on the whole copy-on-write path: an edit that
+    // arrives while this is occupied coalesces into the shadow instead of
+    // minting another 20 MiB clone (REG-01).
+    RetiredTable coolingEditBuffer;
+
+    // Swap the editor's shadow buffer in as the live table and publish it.
+    // No-op while coolingEditBuffer is occupied. See editWavetable().
+    void publishEditedWorkingTable();
     void timerCallback() override;
 
     // Single source of truth for "user pointer takes priority over factory index" lookup.

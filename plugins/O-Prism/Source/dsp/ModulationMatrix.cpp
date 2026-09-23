@@ -58,6 +58,28 @@ void ModulationMatrix::updateFromAPVTS()
         slots[static_cast<size_t> (i)].amount  = cp.amt->load();
         slots[static_cast<size_t> (i)].enabled = cp.on->load() > 0.5f;
     }
+
+    // Which destinations any slot actually targets this block (REG-03). The
+    // skip conditions below are evaluate()'s, verbatim: a destination absent
+    // from this set receives no accumulation, so getModOffset returns 0.0f for
+    // every sample until the next updateFromAPVTS. Amount is deliberately NOT
+    // part of the test — an amount of exactly 0 is a value, and keeping the
+    // predicate purely structural is what makes it safe to hoist out of the
+    // per-sample loop.
+    destRouted.fill (false);
+
+    for (int i = 0; i < kNumSlots; ++i)
+    {
+        const auto& slot = slots[static_cast<size_t> (i)];
+
+        if (! slot.enabled || slot.source == 0 || slot.dest == 0)
+            continue;
+
+        auto dstIdx = static_cast<size_t> (slot.dest);
+
+        if (dstIdx < destRouted.size())
+            destRouted[dstIdx] = true;
+    }
 }
 
 void ModulationMatrix::setSourceValue (ModSource source, float value)
@@ -92,6 +114,14 @@ float ModulationMatrix::getModOffset (ModDest dest) const
     if (idx < destOffsets.size())
         return destOffsets[idx];
     return 0.0f;
+}
+
+bool ModulationMatrix::isDestinationRouted (ModDest dest) const
+{
+    auto idx = static_cast<size_t> (dest);
+    if (idx < destRouted.size())
+        return destRouted[idx];
+    return false;
 }
 
 void ModulationMatrix::clearOffsets()

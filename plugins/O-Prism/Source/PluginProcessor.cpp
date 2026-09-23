@@ -633,8 +633,10 @@ OPrismAudioProcessor::OPrismAudioProcessor()
     // Processor-level mod matrix for global FX destinations (WR-02)
     fxModMatrix.setAPVTS (&parameters);
 
-    // Reaper for retired wavetables (see retireTable / timerCallback)
-    startTimer (500);
+    // Reaper for retired wavetables AND the publish-rotation flush
+    // (see sweepRetiredTables / publishEditedWorkingTable). 30 ms bounds how
+    // long a gesture's last edit can sit unpublished (REG-01).
+    startTimer (30);
 }
 
 OPrismAudioProcessor::~OPrismAudioProcessor()
@@ -716,11 +718,39 @@ void OPrismAudioProcessor::releaseResources() {}
 void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-    buffer.clear();
+
+    // Entry counter for the reaper's quiescence rule (REG-01). Incremented on
+    // EVERY path out of processBlock, including the zero-channel return below,
+    // so blockEntries and blockGeneration stay paired: equal means no block is
+    // in flight, greater means one is mid-render.
+    blockEntries.fetch_add (1, std::memory_order_release);
 
     // VST3 Note Expression: drain the JUCE wrapper's raw-event queue and
     // correlate tuning deltas to their NoteOn's MIDI pitch.
+    //
+    // ABOVE the WR-09 return, not below it (REG-04). The drain is bookkeeping,
+    // not rendering: it empties a queue the patched JUCE wrapper pushes into
+    // from this same thread just before the call, and writes the per-pitch
+    // PendingTuningTable. It touches no channel, so a zero-channel block can
+    // run it safely — and must. Skipping it strands that block's raw events in
+    // blockEvents, where the NEXT block's drain correlates them against the
+    // wrong NoteOns: a Dorico tuning delta lands on a later note, detuned.
+    // (onVst3RawEvent also drops pushes past its 64-slot capacity, so a
+    // skipped drain can lose the deltas outright under a dense divisi.)
     vst3Extensions.drainAndUpdate();
+
+    // WR-09: some hosts push a zero-channel block while probing, and pluginval
+    // exercises it. The mono branch of the width/volume stage and
+    // PrismVoice::renderNextBlock both index channel 0 unguarded. Nothing to
+    // render — still publish the generation, since this block read no
+    // wavetables and the retired-table reaper waits on it.
+    if (buffer.getNumChannels() == 0)
+    {
+        blockGeneration.fetch_add (1, std::memory_order_release);
+        return;
+    }
+
+    buffer.clear();
 
     // Read BPM from host transport for tempo-synced LFOs
     if (auto* playHead = getPlayHead())
@@ -782,7 +812,10 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         else if (msg.isNoteOff())
             noteStates[static_cast<size_t> (msg.getNoteNumber())].store (false, std::memory_order_relaxed);
         else if (msg.isAllNotesOff() || msg.isAllSoundOff())
+        {
             for (auto& s : noteStates) s.store (false, std::memory_order_relaxed);
+            tuningEngine.clearAllPitchBends(); // CR-03: 128 relaxed stores, RT-safe
+        }
         else if (msg.isController() && msg.getControllerNumber() == 1) // Mod wheel
             modWheelValue.store (msg.getControllerValue() / 127.0f, std::memory_order_relaxed);
         else if (msg.isChannelPressure()) // Channel aftertouch
@@ -984,9 +1017,75 @@ void OPrismAudioProcessor::handleAsyncUpdate()
 
 void OPrismAudioProcessor::retireTable (std::unique_ptr<WavetableData> table)
 {
-    if (table != nullptr)
-        retiredTables.push_back ({ std::move (table),
-                                   blockGeneration.load (std::memory_order_acquire) });
+    if (table == nullptr)
+        return;
+
+    // Drain before adding (REG-01). The queue used to be swept only by the
+    // timer, so a 60 Hz harmonic drag stacked ~30 tables — 630 MB — before the
+    // first 500 ms sweep even ran. Sweeping here bounds the queue at the rate
+    // tables are produced instead of the rate the timer fires.
+    sweepRetiredTables();
+
+    retiredTables.push_back ({ std::move (table),
+                               blockGeneration.load (std::memory_order_acquire) });
+}
+
+int OPrismAudioProcessor::getHeldTableCount() const
+{
+    return (wavetableEditor.hasWorkingTable() ? 1 : 0)
+         + (wavetableEditor.hasShadowTable()  ? 1 : 0)
+         + (coolingEditBuffer.table != nullptr ? 1 : 0)
+         + static_cast<int> (retiredTables.size());
+}
+
+void OPrismAudioProcessor::sweepRetiredTables()
+{
+    // Read exits BEFORE entries. Both counters are monotone and entries is
+    // never behind exits, so observing entries == exits means no block was in
+    // flight at the moment entries was read. A block that starts after that
+    // read runs updateWavetableAssignments before it touches a wavetable, so
+    // it can only see the pointers published before the retirement.
+    const auto exits    = blockGeneration.load (std::memory_order_acquire);
+    const auto entries  = blockEntries.load (std::memory_order_acquire);
+    const bool quiescent = (entries == exits);
+
+    // Rule 1 (+2 generations): a table is safe once two blocks have FINISHED
+    // since retirement. Blocks are serialised on the audio thread, so any
+    // block that was mid-render when the stamp was taken has returned, and
+    // every block that starts afterwards repoints its voices first.
+    //
+    // Not every counted generation repoints voices. The WR-09 zero-channel
+    // early return publishes the generation and returns before
+    // updateWavetableAssignments — deliberately, because such a block renders
+    // nothing and therefore reads no wavetable at all. It is a valid witness
+    // that the audio thread passed through, which is all the +2 needs.
+    //
+    // Rule 2 (quiescence): a table is also safe when no block is running at
+    // all. Voices hold raw table pointers between blocks but only dereference
+    // them inside renderNextBlock, i.e. inside processBlock — so with nothing
+    // in flight, nothing can be reading. This is the rule that matters when a
+    // host idles the audio thread while the editor is open: rule 1 alone
+    // freezes with it and the queue grows without bound.
+    const auto unreachable = [exits, quiescent] (uint64_t stamp)
+    {
+        return quiescent || exits >= stamp + 2;
+    };
+
+    // The editor's rotation gets its buffer back rather than freeing it — the
+    // next shadow, repaired on only the frames that diverged.
+    if (coolingEditBuffer.table != nullptr && unreachable (coolingEditBuffer.retiredAt))
+    {
+        wavetableEditor.returnCooledTable (std::move (coolingEditBuffer.table));
+        coolingEditBuffer.retiredAt = 0;
+    }
+
+    if (retiredTables.empty())
+        return;
+
+    retiredTables.erase (
+        std::remove_if (retiredTables.begin(), retiredTables.end(),
+                        [&unreachable] (const RetiredTable& r) { return unreachable (r.retiredAt); }),
+        retiredTables.end());
 }
 
 void OPrismAudioProcessor::timerCallback()
@@ -998,19 +1097,15 @@ void OPrismAudioProcessor::timerCallback()
     if (wantedLatency != getLatencySamples())
         setLatencySamples (wantedLatency);
 
-    if (retiredTables.empty())
-        return;
+    sweepRetiredTables();
 
-    // A table is safe to free once two generations have passed since
-    // retirement: at least one full processBlock has then started AFTER the
-    // new pointers were published (its updateWavetableAssignments repointed
-    // every voice) and completed. If the host stops calling processBlock the
-    // generation freezes and tables are simply held — never freed unsafely.
-    const auto gen = blockGeneration.load (std::memory_order_acquire);
-    retiredTables.erase (
-        std::remove_if (retiredTables.begin(), retiredTables.end(),
-                        [gen] (const RetiredTable& r) { return gen >= r.retiredAt + 2; }),
-        retiredTables.end());
+    // The flush that closes the rotation (REG-01). A gesture's LAST edit can
+    // land while the previous buffer is still cooling, leaving it coalesced in
+    // the shadow with no further UI event to publish it — mouseup has already
+    // fired. This retry is why the timer runs at 30 ms and not 500: the period
+    // is the upper bound on how long the final value of a drag stays
+    // inaudible. Both calls are a handful of atomic loads when idle.
+    publishEditedWorkingTable();
 }
 
 void OPrismAudioProcessor::updateWavetableAssignments()
@@ -1048,12 +1143,12 @@ void OPrismAudioProcessor::selectUserWavetable (int oscIndex, const juce::String
     if (oscIndex == 0)
     {
         userTableNameA = name;
-        userTablePtrA.store (table, std::memory_order_relaxed);
+        userTablePtrA.store (table, std::memory_order_release);
     }
     else
     {
         userTableNameB = name;
-        userTablePtrB.store (table, std::memory_order_relaxed);
+        userTablePtrB.store (table, std::memory_order_release);
     }
 }
 
@@ -1062,12 +1157,12 @@ void OPrismAudioProcessor::clearUserWavetableOverride (int oscIndex)
     if (oscIndex == 0)
     {
         userTableNameA = {};
-        userTablePtrA.store (nullptr, std::memory_order_relaxed);
+        userTablePtrA.store (nullptr, std::memory_order_release);
     }
     else
     {
         userTableNameB = {};
-        userTablePtrB.store (nullptr, std::memory_order_relaxed);
+        userTablePtrB.store (nullptr, std::memory_order_release);
     }
 }
 
@@ -1079,7 +1174,7 @@ const WavetableData* OPrismAudioProcessor::getActiveOscTable (int oscIndex) cons
 const WavetableData* OPrismAudioProcessor::resolveActiveTable (int oscIndex) const
 {
     const auto& userPtr = (oscIndex == 0) ? userTablePtrA : userTablePtrB;
-    if (auto* userTable = userPtr.load (std::memory_order_relaxed))
+    if (auto* userTable = userPtr.load (std::memory_order_acquire))
         return userTable;
 
     // IN-01: cached in the constructor — this runs every block via
@@ -1098,8 +1193,8 @@ juce::String OPrismAudioProcessor::getActiveUserTableName (int oscIndex) const
 bool OPrismAudioProcessor::isUserTableActive (int oscIndex) const
 {
     return oscIndex == 0
-        ? userTablePtrA.load (std::memory_order_relaxed) != nullptr
-        : userTablePtrB.load (std::memory_order_relaxed) != nullptr;
+        ? userTablePtrA.load (std::memory_order_acquire) != nullptr
+        : userTablePtrB.load (std::memory_order_acquire) != nullptr;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1112,8 +1207,13 @@ void OPrismAudioProcessor::startEditing (int oscIndex)
     if (editingOscIndex >= 0)
         stopEditing (editingOscIndex);
 
-    // Defensive: a stale working table must be retired, not freed by
-    // loadTable's reassignment — the audio thread may still be reading it
+    // Defensive: stale rotation buffers must be retired, not freed by
+    // loadTable's reassignment — the audio thread may still be reading the
+    // live one. The shadow was never published, but routing it through the
+    // same path keeps one teardown rule for all three slots.
+    retireTable (std::move (coolingEditBuffer.table));
+    coolingEditBuffer.retiredAt = 0;
+    retireTable (wavetableEditor.releaseShadowTable());
     retireTable (wavetableEditor.releaseWorkingTable());
 
     const WavetableData* sourceTable = getActiveOscTable (oscIndex);
@@ -1128,10 +1228,49 @@ void OPrismAudioProcessor::startEditing (int oscIndex)
     if (workingTable != nullptr)
     {
         if (oscIndex == 0)
-            userTablePtrA.store (workingTable, std::memory_order_relaxed);
+            userTablePtrA.store (workingTable, std::memory_order_release);
         else
-            userTablePtrB.store (workingTable, std::memory_order_relaxed);
+            userTablePtrB.store (workingTable, std::memory_order_release);
     }
+}
+
+void OPrismAudioProcessor::publishEditedWorkingTable()
+{
+    // An edit made while no session is open has nowhere to go: with no working
+    // table the editor's operations all early-return, so nothing is pending
+    // and nothing can be republished over a restored state (REG-02).
+    if (editingOscIndex < 0 || editingOscIndex > 1)
+        return;
+
+    if (! wavetableEditor.hasPendingEdits())
+        return;
+
+    // The previous displaced buffer is still reachable by the audio thread.
+    // Publishing again would mint a second 20 MiB clone for a change the audio
+    // thread has not even observed yet, so instead the edit stays coalesced in
+    // the shadow and rides out on the next publish (REG-01). The 30 ms timer
+    // guarantees it does not sit there.
+    if (coolingEditBuffer.table != nullptr)
+        return;
+
+    // CR-01: the edit landed in a buffer the audio thread has never seen.
+    // Publish it first — the release store orders every sample and mipmap
+    // write before the pointer becomes visible (CR-02) — and only then hold
+    // the buffer it displaced. Order matters: the stamp is the current block
+    // generation, and the reaper's +2 rule guarantees a full block has started
+    // and finished since. Every block starting after the store runs
+    // updateWavetableAssignments first and so repoints its voices at the new
+    // table, which is what makes the old one safe to reuse.
+    auto displaced = wavetableEditor.commitPendingEdits();
+
+    if (displaced == nullptr)
+        return;
+
+    (editingOscIndex == 0 ? userTablePtrA : userTablePtrB)
+        .store (wavetableEditor.getWorkingTable(), std::memory_order_release);
+
+    coolingEditBuffer = { std::move (displaced),
+                          blockGeneration.load (std::memory_order_acquire) };
 }
 
 void OPrismAudioProcessor::stopEditing (int oscIndex)
@@ -1145,11 +1284,11 @@ void OPrismAudioProcessor::stopEditing (int oscIndex)
         if (userTableNameA.isNotEmpty())
         {
             auto* userTable = userWavetableManager.getTable (userTableNameA);
-            userTablePtrA.store (userTable, std::memory_order_relaxed);
+            userTablePtrA.store (userTable, std::memory_order_release);
         }
         else
         {
-            userTablePtrA.store (nullptr, std::memory_order_relaxed);
+            userTablePtrA.store (nullptr, std::memory_order_release);
         }
     }
     else
@@ -1157,16 +1296,20 @@ void OPrismAudioProcessor::stopEditing (int oscIndex)
         if (userTableNameB.isNotEmpty())
         {
             auto* userTable = userWavetableManager.getTable (userTableNameB);
-            userTablePtrB.store (userTable, std::memory_order_relaxed);
+            userTablePtrB.store (userTable, std::memory_order_release);
         }
         else
         {
-            userTablePtrB.store (nullptr, std::memory_order_relaxed);
+            userTablePtrB.store (nullptr, std::memory_order_release);
         }
     }
 
     // Working table pointers are unpublished above but voices only repoint at
-    // the top of the NEXT processBlock — retire, never free in place (CR-02)
+    // the top of the NEXT processBlock — retire, never free in place (CR-02).
+    // All three rotation slots go, so a reopened session starts clean.
+    retireTable (std::move (coolingEditBuffer.table));
+    coolingEditBuffer.retiredAt = 0;
+    retireTable (wavetableEditor.releaseShadowTable());
     retireTable (wavetableEditor.releaseWorkingTable());
     editingOscIndex = -1;
 }
@@ -1203,7 +1346,7 @@ bool OPrismAudioProcessor::saveEditedWavetable (const juce::String& name)
         if (boundName.isNotEmpty())
         {
             auto* fresh = userWavetableManager.getTable (boundName);
-            (osc == 0 ? userTablePtrA : userTablePtrB).store (fresh, std::memory_order_relaxed);
+            (osc == 0 ? userTablePtrA : userTablePtrB).store (fresh, std::memory_order_release);
         }
     }
 
@@ -1245,6 +1388,26 @@ void OPrismAudioProcessor::setStateInformation (const void* data, int sizeInByte
 
     if (xml != nullptr && xml->hasTagName (parameters.state.getType()))
     {
+        // REG-02: close any live wavetable-editing session BEFORE anything
+        // else touches the wavetable pointers.
+        //
+        // editingOscIndex and the editor's buffers are processor members —
+        // replaceState does not reset them. Left open, the session outlives
+        // the restore twice over: the oscillator keeps pointing at the working
+        // table (so the restored selection is inaudible, and the preview of a
+        // table belonging to the OLD session plays instead), and the next
+        // editor operation calls publishEditedWorkingTable(), which stores the
+        // working-table pointer straight back over whatever selectUserWavetable
+        // just restored below.
+        //
+        // stopEditing() re-resolves the oscillator to its by-name source,
+        // retires the live and shadow buffers through the reaper, and clears
+        // editingOscIndex. With no working table every editor op early-returns,
+        // so a UI panel still showing the editor cannot republish over the
+        // restored state — it simply does nothing until the user re-opens it.
+        if (editingOscIndex >= 0)
+            stopEditing (editingOscIndex);
+
         auto state = juce::ValueTree::fromXml (*xml);
         parameters.replaceState (state);
 
@@ -1279,7 +1442,15 @@ void OPrismAudioProcessor::setStateInformation (const void* data, int sizeInByte
         if (tuningState.isValid())
             tuningEngine.restoreStateFrom (tuningState);
 
-        // Restore user wavetable selections
+        // Restore user wavetable selections. Clear first, unconditionally:
+        // userTableName/Ptr A/B are processor members that survive the state
+        // swap and resolveActiveTable gives them priority over the factory
+        // index, so without this a session with no override inherits the
+        // previous session's table (WR-03). Legacy states with no
+        // "userWavetables" child are covered by the same clear.
+        clearUserWavetableOverride (0);
+        clearUserWavetableOverride (1);
+
         auto userWtState = state.getChildWithName ("userWavetables");
         if (userWtState.isValid())
         {

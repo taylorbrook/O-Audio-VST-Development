@@ -92,11 +92,89 @@ public:
     /** Get const pointer to working table. */
     const WavetableData* getWorkingTable() const { return workingTable.get(); }
 
+    // ─── Publish rotation (CR-01 / REG-01) ───
+    //
+    // Two buffers alternate. `workingTable` is LIVE: startEditing() publishes
+    // it to userTablePtrA/B, so the audio thread reads it every block.
+    // `shadowTable` is PRIVATE and is where every mutating operation above
+    // writes — mutating it cannot race anything.
+    //
+    // A publish is a swap, not a copy: shadow becomes live, and the buffer it
+    // displaces goes to the caller to hold until the audio thread can no
+    // longer reach it, then comes back through returnCooledTable() as the next
+    // shadow. Exactly one buffer is ever in that cooling state, which is what
+    // bounds the whole path to three allocations for an editing session.
+    //
+    // Edits arriving while the rotation is cooling are NOT dropped and do not
+    // allocate: they accumulate in the shadow and ride out on the next
+    // publish. Publishing faster than the audio thread can observe is waste,
+    // so the coalescing costs nothing — a 60 Hz harmonic drag used to clone
+    // 20 MiB per rAF frame.
+
+    /** True when the shadow holds edits that have not been published. */
+    bool hasPendingEdits() const { return ! dirtyFrames.empty(); }
+
+    /** Swap the shadow in as the live table and hand back the buffer it
+        displaced. Returns nullptr when nothing is pending. The caller MUST
+        keep the returned buffer alive until the audio thread cannot reach it
+        and then return it through returnCooledTable(). */
+    std::unique_ptr<WavetableData> commitPendingEdits();
+
+    /** Take back a buffer handed out by commitPendingEdits(), now unreachable
+        by the audio thread. It becomes the next shadow, repaired from the live
+        table on only the frames that diverged — one frame for a harmonic drag,
+        ~82 KB, rather than a 20 MiB whole-table copy. */
+    void returnCooledTable (std::unique_ptr<WavetableData> cooled);
+
+    /** Release the private shadow buffer (session teardown). */
+    std::unique_ptr<WavetableData> releaseShadowTable();
+
     int getNumFrames() const;
     bool hasWorkingTable() const { return workingTable != nullptr; }
+    bool hasShadowTable() const { return shadowTable != nullptr; }
+
+    /** Diagnostic: how many times acquireShadow() had to ALLOCATE a buffer
+        instead of reusing the one the rotation handed back. The whole point of
+        the rotation is that this stays flat while edits stream in — it is the
+        counter that separates "recycled" from "reallocated", which buffer
+        ADDRESSES cannot do, because a freed 20 MiB block is usually handed
+        straight back by the allocator. */
+    int getShadowAllocationCount() const { return shadowAllocations; }
 
 private:
-    std::unique_ptr<WavetableData> workingTable;
+    /** The buffer every read accessor and every save must consult: the shadow
+        while it carries unpublished edits, otherwise the live table. Without
+        this the UI would redraw the last PUBLISHED table and a save would
+        write it to disk, silently dropping the tail of the user's gesture. */
+    const WavetableData* latest() const
+    {
+        return (shadowTable != nullptr && ! dirtyFrames.empty())
+            ? shadowTable.get() : workingTable.get();
+    }
+
+    /** The private buffer mutating operations write into, created on demand
+        and synced to the live table plus any edits made since the last
+        publish. Returns nullptr when there is no working table.
+
+        The allocating branch only runs when an edit arrives while the rotation
+        is still cooling — once per publish cycle at large buffer sizes, never
+        at small ones, where the cooled buffer is always back first. */
+    WavetableData* acquireShadow();
+
+    /** Record the frames an operation changed, so the next returned buffer
+        knows what to repair. */
+    void markDirty (int frame);
+    void markDirty (const std::vector<int>& frames);
+
+    /** Copy `frames` — all 10 mipmap levels and guard samples — from the live
+        table into `dst`. */
+    void copyFramesInto (WavetableData& dst, const std::vector<int>& frames) const;
+
+    std::unique_ptr<WavetableData> workingTable;   // live, published
+    std::unique_ptr<WavetableData> shadowTable;    // private, receives edits
+    std::vector<int> dirtyFrames;     // edited into the shadow, not yet published
+    std::vector<int> coolingResync;   // frames the outstanding cooled buffer must repair
+    int shadowAllocations = 0;        // diagnostic, see getShadowAllocationCount()
     juce::dsp::FFT fft { 11 }; // 2048-point
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WavetableEditor)

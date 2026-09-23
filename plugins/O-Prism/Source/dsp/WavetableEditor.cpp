@@ -52,22 +52,160 @@ void WavetableEditor::loadTable (const WavetableData* sourceTable)
     }
 
     WavetableGenerator::generateMipmaps (*workingTable);
+
+    // A fresh session starts with no rotation state: any shadow left from the
+    // previous table is the wrong geometry and the wrong content.
+    shadowTable.reset();
+    dirtyFrames.clear();
+    coolingResync.clear();
 }
 
 void WavetableEditor::clearWorkingTable()
 {
     workingTable.reset();
+    shadowTable.reset();
+    dirtyFrames.clear();
+    coolingResync.clear();
+}
+
+std::unique_ptr<WavetableData> WavetableEditor::releaseShadowTable()
+{
+    dirtyFrames.clear();
+    coolingResync.clear();
+    return std::move (shadowTable);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Copy-on-write publish rotation (CR-01, coalesced per REG-01)
+//
+// startEditing() publishes getWorkingTable() to userTablePtrA/B, so from that
+// moment the audio thread reads this exact buffer every block for live
+// preview. Mutating it in place raced the render: the voice saw level-0
+// samples and mipmap levels that were half-old and half-new. Every operation
+// below therefore writes into the PRIVATE shadow buffer, and the publish is a
+// pointer swap performed by the processor.
+//
+// The first shape of this fix cloned the whole 20 MiB table per operation. The
+// harmonic editor drives operations from requestAnimationFrame, so a drag ran
+// that at 60 Hz — 1.2 GB/s of allocation, against a 500 ms reaper that let
+// ~30 of them (630 MB) pile up before the first sweep. Worse, the reaper's
+// +2-generation rule keys off processBlock, so a host that idles the audio
+// thread while the editor is open never expired any of them at all.
+//
+// Now: at most one buffer is ever cooling, an edit that cannot publish yet
+// coalesces into the shadow for free, and a returned buffer is repaired on
+// only the frames that diverged.
+// ═══════════════════════════════════════════════════════════════════
+
+WavetableData* WavetableEditor::acquireShadow()
+{
+    if (workingTable == nullptr)
+        return nullptr;
+
+    if (shadowTable == nullptr)
+    {
+        // Cold path: the previous shadow is still cooling. Allocate — this is
+        // the old per-edit cost, but it is now paid at most once per publish
+        // cycle instead of once per operation, and not at all whenever the
+        // cooled buffer is back before the next edit (every buffer size where
+        // two blocks are shorter than a display frame).
+        shadowTable = std::make_unique<WavetableData>();
+        shadowTable->numFrames = workingTable->numFrames;
+        shadowTable->data = workingTable->data;   // all 10 levels + guard samples
+        ++shadowAllocations;
+    }
+
+    return shadowTable.get();
+}
+
+void WavetableEditor::markDirty (int frame)
+{
+    if (workingTable == nullptr || frame < 0 || frame >= workingTable->numFrames)
+        return;
+
+    if (std::find (dirtyFrames.begin(), dirtyFrames.end(), frame) == dirtyFrames.end())
+        dirtyFrames.push_back (frame);
+}
+
+void WavetableEditor::markDirty (const std::vector<int>& frames)
+{
+    for (int f : frames)
+        markDirty (f);
+}
+
+void WavetableEditor::copyFramesInto (WavetableData& dst, const std::vector<int>& frames) const
+{
+    if (workingTable == nullptr)
+        return;
+
+    for (int frame : frames)
+    {
+        if (frame < 0 || frame >= workingTable->numFrames || frame >= dst.numFrames)
+            continue;
+
+        for (int level = 0; level < WavetableData::kNumMipmapLevels; ++level)
+        {
+            const float* src = workingTable->getFrameData (level, frame);
+            float* out = dst.getFrameData (level, frame);
+            std::copy (src, src + WavetableData::kFrameSize, out);
+        }
+    }
+}
+
+std::unique_ptr<WavetableData> WavetableEditor::commitPendingEdits()
+{
+    if (dirtyFrames.empty() || shadowTable == nullptr || workingTable == nullptr)
+        return nullptr;
+
+    auto displaced = std::move (workingTable);
+    workingTable = std::move (shadowTable);   // shadowTable is now null
+
+    // `displaced` differs from the new live table on exactly these frames —
+    // that is what returnCooledTable() repairs when it comes back.
+    coolingResync = std::move (dirtyFrames);
+    dirtyFrames.clear();
+
+    return displaced;
+}
+
+void WavetableEditor::returnCooledTable (std::unique_ptr<WavetableData> cooled)
+{
+    if (cooled == nullptr)
+        return;
+
+    // A shadow already exists when an edit arrived during cooling and took the
+    // allocating branch of acquireShadow(). That buffer carries live edits, so
+    // it keeps its place and the returned one is freed here (message thread —
+    // the audio thread provably cannot reach it, which is why it came back).
+    // Geometry is re-checked because loadTable() can have swapped tables under
+    // a buffer that was already in flight.
+    if (shadowTable != nullptr || workingTable == nullptr
+        || cooled->numFrames != workingTable->numFrames
+        || cooled->data.size() != workingTable->data.size())
+    {
+        coolingResync.clear();
+        return;
+    }
+
+    copyFramesInto (*cooled, coolingResync);
+    coolingResync.clear();
+    shadowTable = std::move (cooled);
 }
 
 std::vector<float> WavetableEditor::getFrameHarmonics (int frameIndex, int numBins) const
 {
-    if (! workingTable || frameIndex < 0 || frameIndex >= workingTable->numFrames)
+    // latest(), not workingTable: an edit still coalesced in the shadow must
+    // be what the UI reads back, or the harmonic display snaps to the last
+    // published state mid-drag (REG-01).
+    const auto* source = latest();
+
+    if (source == nullptr || frameIndex < 0 || frameIndex >= source->numFrames)
         return {};
 
     numBins = std::min (numBins, kFFTSize / 2);
 
     std::vector<float> fftBuffer (static_cast<size_t> (kFFTSize * 2), 0.0f);
-    const float* frameData = workingTable->getFrameData (0, frameIndex);
+    const float* frameData = source->getFrameData (0, frameIndex);
     std::copy (frameData, frameData + kFFTSize, fftBuffer.begin());
 
     // Use a non-const copy of the FFT (JUCE FFT is mutable-safe but needs non-const)
@@ -104,9 +242,13 @@ void WavetableEditor::setFrameHarmonics (int frameIndex, const std::vector<float
     if (numBins == 0)
         return;
 
+    auto* next = acquireShadow();   // private buffer — never the one the voices read
+    if (next == nullptr)
+        return;
+
     // Forward FFT to get current phase information
     std::vector<float> fftBuffer (static_cast<size_t> (kFFTSize * 2), 0.0f);
-    const float* frameData = workingTable->getFrameData (0, frameIndex);
+    const float* frameData = next->getFrameData (0, frameIndex);
     std::copy (frameData, frameData + kFFTSize, fftBuffer.begin());
 
     fft.performRealOnlyForwardTransform (fftBuffer.data(), false);
@@ -162,35 +304,41 @@ void WavetableEditor::setFrameHarmonics (int frameIndex, const std::vector<float
     // Inverse FFT
     fft.performRealOnlyInverseTransform (fftBuffer.data());
 
-    // Store in working table level 0
-    float* dest = workingTable->getFrameData (0, frameIndex);
+    // Store in the clone's level 0
+    float* dest = next->getFrameData (0, frameIndex);
     std::copy (fftBuffer.begin(), fftBuffer.begin() + kFFTSize, dest);
 
     // Regenerate mipmaps for this frame only
-    WavetableGenerator::generateMipmapsForFrame (*workingTable, frameIndex);
+    WavetableGenerator::generateMipmapsForFrame (*next, frameIndex);
+
+    markDirty (frameIndex);
 }
 
 std::vector<float> WavetableEditor::getFrameWaveform (int frameIndex) const
 {
-    if (! workingTable || frameIndex < 0 || frameIndex >= workingTable->numFrames)
+    const auto* source = latest();
+
+    if (source == nullptr || frameIndex < 0 || frameIndex >= source->numFrames)
         return {};
 
-    const float* data = workingTable->getFrameData (0, frameIndex);
+    const float* data = source->getFrameData (0, frameIndex);
     return { data, data + kFFTSize };
 }
 
 std::vector<std::vector<float>> WavetableEditor::getAllFrameWaveforms (int samplesPerFrame) const
 {
-    if (! workingTable)
+    const auto* source = latest();
+
+    if (source == nullptr)
         return {};
 
     samplesPerFrame = std::max (2, samplesPerFrame);
     std::vector<std::vector<float>> result;
-    result.reserve (static_cast<size_t> (workingTable->numFrames));
+    result.reserve (static_cast<size_t> (source->numFrames));
 
-    for (int frame = 0; frame < workingTable->numFrames; ++frame)
+    for (int frame = 0; frame < source->numFrames; ++frame)
     {
-        const float* data = workingTable->getFrameData (0, frame);
+        const float* data = source->getFrameData (0, frame);
         std::vector<float> downsampled (static_cast<size_t> (samplesPerFrame));
 
         // Min/max pairs for waveform display
@@ -217,15 +365,16 @@ std::vector<std::vector<float>> WavetableEditor::getAllFrameWaveforms (int sampl
 
 void WavetableEditor::normalizeFrames (const std::vector<int>& frames, bool perFrame)
 {
-    if (! workingTable)
+    auto* next = acquireShadow();   // private buffer — never the one the voices read
+    if (next == nullptr)
         return;
 
     if (perFrame)
     {
         for (int fi : frames)
         {
-            if (fi < 0 || fi >= workingTable->numFrames) continue;
-            float* data = workingTable->getFrameData (0, fi);
+            if (fi < 0 || fi >= next->numFrames) continue;
+            float* data = next->getFrameData (0, fi);
             float peak = 0.0f;
             for (int i = 0; i < kFFTSize; ++i)
                 peak = std::max (peak, std::abs (data[i]));
@@ -235,7 +384,7 @@ void WavetableEditor::normalizeFrames (const std::vector<int>& frames, bool perF
                 for (int i = 0; i < kFFTSize; ++i)
                     data[i] *= gain;
             }
-            WavetableGenerator::generateMipmapsForFrame (*workingTable, fi);
+            WavetableGenerator::generateMipmapsForFrame (*next, fi);
         }
     }
     else
@@ -244,8 +393,8 @@ void WavetableEditor::normalizeFrames (const std::vector<int>& frames, bool perF
         float globalPeak = 0.0f;
         for (int fi : frames)
         {
-            if (fi < 0 || fi >= workingTable->numFrames) continue;
-            const float* data = workingTable->getFrameData (0, fi);
+            if (fi < 0 || fi >= next->numFrames) continue;
+            const float* data = next->getFrameData (0, fi);
             for (int i = 0; i < kFFTSize; ++i)
                 globalPeak = std::max (globalPeak, std::abs (data[i]));
         }
@@ -255,14 +404,16 @@ void WavetableEditor::normalizeFrames (const std::vector<int>& frames, bool perF
             float gain = 1.0f / globalPeak;
             for (int fi : frames)
             {
-                if (fi < 0 || fi >= workingTable->numFrames) continue;
-                float* data = workingTable->getFrameData (0, fi);
+                if (fi < 0 || fi >= next->numFrames) continue;
+                float* data = next->getFrameData (0, fi);
                 for (int i = 0; i < kFFTSize; ++i)
                     data[i] *= gain;
-                WavetableGenerator::generateMipmapsForFrame (*workingTable, fi);
+                WavetableGenerator::generateMipmapsForFrame (*next, fi);
             }
         }
     }
+
+    markDirty (frames);
 }
 
 void WavetableEditor::fadeEdges (const std::vector<int>& frames, float fadePercent)
@@ -274,10 +425,14 @@ void WavetableEditor::fadeEdges (const std::vector<int>& frames, float fadePerce
     int fadeSamples = static_cast<int> (kFFTSize * fadePercent / 100.0f);
     if (fadeSamples < 1) return;
 
+    auto* next = acquireShadow();   // private buffer — never the one the voices read
+    if (next == nullptr)
+        return;
+
     for (int fi : frames)
     {
-        if (fi < 0 || fi >= workingTable->numFrames) continue;
-        float* data = workingTable->getFrameData (0, fi);
+        if (fi < 0 || fi >= next->numFrames) continue;
+        float* data = next->getFrameData (0, fi);
 
         // Fade in
         for (int i = 0; i < fadeSamples; ++i)
@@ -287,27 +442,36 @@ void WavetableEditor::fadeEdges (const std::vector<int>& frames, float fadePerce
         for (int i = 0; i < fadeSamples; ++i)
             data[kFFTSize - 1 - i] *= static_cast<float> (i) / static_cast<float> (fadeSamples);
 
-        WavetableGenerator::generateMipmapsForFrame (*workingTable, fi);
+        WavetableGenerator::generateMipmapsForFrame (*next, fi);
     }
+
+    markDirty (frames);
 }
 
 void WavetableEditor::reverseFrames (const std::vector<int>& frames)
 {
-    if (! workingTable)
+    auto* next = acquireShadow();   // private buffer — never the one the voices read
+    if (next == nullptr)
         return;
 
     for (int fi : frames)
     {
-        if (fi < 0 || fi >= workingTable->numFrames) continue;
-        float* data = workingTable->getFrameData (0, fi);
+        if (fi < 0 || fi >= next->numFrames) continue;
+        float* data = next->getFrameData (0, fi);
         std::reverse (data, data + kFFTSize);
-        WavetableGenerator::generateMipmapsForFrame (*workingTable, fi);
+        WavetableGenerator::generateMipmapsForFrame (*next, fi);
     }
+
+    markDirty (frames);
 }
 
 void WavetableEditor::reverseOrder (const std::vector<int>& frameIndices)
 {
     if (! workingTable || frameIndices.size() < 2)
+        return;
+
+    auto* next = acquireShadow();   // private buffer — never the one the voices read
+    if (next == nullptr)
         return;
 
     // Sort indices to determine order
@@ -320,24 +484,27 @@ void WavetableEditor::reverseOrder (const std::vector<int>& frameIndices)
     {
         int a = sorted[i];
         int b = sorted[sorted.size() - 1 - i];
-        if (a < 0 || a >= workingTable->numFrames || b < 0 || b >= workingTable->numFrames)
+        if (a < 0 || a >= next->numFrames || b < 0 || b >= next->numFrames)
             continue;
 
-        float* dataA = workingTable->getFrameData (0, a);
-        float* dataB = workingTable->getFrameData (0, b);
+        float* dataA = next->getFrameData (0, a);
+        float* dataB = next->getFrameData (0, b);
 
         std::copy (dataA, dataA + kFFTSize, tempFrame.begin());
         std::copy (dataB, dataB + kFFTSize, dataA);
         std::copy (tempFrame.begin(), tempFrame.end(), dataB);
 
-        WavetableGenerator::generateMipmapsForFrame (*workingTable, a);
-        WavetableGenerator::generateMipmapsForFrame (*workingTable, b);
+        WavetableGenerator::generateMipmapsForFrame (*next, a);
+        WavetableGenerator::generateMipmapsForFrame (*next, b);
     }
+
+    markDirty (frameIndices);
 }
 
 void WavetableEditor::smoothFrames (const std::vector<int>& frames, float strength)
 {
-    if (! workingTable)
+    auto* next = acquireShadow();   // private buffer — never the one the voices read
+    if (next == nullptr)
         return;
 
     // IN-12: strength 1.0 = maximum smoothing (lowest cutoff), 0.0 = no-op.
@@ -351,8 +518,8 @@ void WavetableEditor::smoothFrames (const std::vector<int>& frames, float streng
 
     for (int fi : frames)
     {
-        if (fi < 0 || fi >= workingTable->numFrames) continue;
-        float* frameData = workingTable->getFrameData (0, fi);
+        if (fi < 0 || fi >= next->numFrames) continue;
+        float* frameData = next->getFrameData (0, fi);
 
         std::copy (frameData, frameData + kFFTSize, fftBuffer.begin());
         std::fill (fftBuffer.begin() + kFFTSize, fftBuffer.end(), 0.0f);
@@ -378,8 +545,10 @@ void WavetableEditor::smoothFrames (const std::vector<int>& frames, float streng
         fft.performRealOnlyInverseTransform (fftBuffer.data());
         std::copy (fftBuffer.begin(), fftBuffer.begin() + kFFTSize, frameData);
 
-        WavetableGenerator::generateMipmapsForFrame (*workingTable, fi);
+        WavetableGenerator::generateMipmapsForFrame (*next, fi);
     }
+
+    markDirty (frames);
 }
 
 bool WavetableEditor::saveAsUserWavetable (const juce::String& nameIn, UserWavetableManager& manager,
@@ -389,20 +558,25 @@ bool WavetableEditor::saveAsUserWavetable (const juce::String& nameIn, UserWavet
 
     // The name arrives from the WebView — sanitize before it becomes a file
     // path, or "../../Desktop/x" writes a .wav outside the wavetable dir (WR-10)
+    // latest(), not workingTable: saving mid-gesture must write what the user
+    // is looking at. Sourcing the published table would silently drop every
+    // edit still coalesced in the shadow (REG-01).
+    const auto* source = latest();
+
     const auto name = UserWavetableManager::legalTableName (nameIn);
-    if (! workingTable || name.isEmpty())
+    if (source == nullptr || name.isEmpty())
         return false;
 
     // Save as WAV to user directory using manager's save infrastructure
     auto dir = manager.getWavetableDirectory();
 
     // Build concatenated frame buffer
-    int totalSamples = workingTable->numFrames * kFFTSize;
+    int totalSamples = source->numFrames * kFFTSize;
     juce::AudioBuffer<float> buffer (1, totalSamples);
 
-    for (int frame = 0; frame < workingTable->numFrames; ++frame)
+    for (int frame = 0; frame < source->numFrames; ++frame)
     {
-        const float* frameData = workingTable->getFrameData (0, frame);
+        const float* frameData = source->getFrameData (0, frame);
         int startSample = frame * kFFTSize;
         for (int i = 0; i < kFFTSize; ++i)
             buffer.setSample (0, startSample + i, frameData[i]);
@@ -440,5 +614,6 @@ bool WavetableEditor::saveAsUserWavetable (const juce::String& nameIn, UserWavet
 
 int WavetableEditor::getNumFrames() const
 {
-    return workingTable ? workingTable->numFrames : 0;
+    const auto* source = latest();
+    return source != nullptr ? source->numFrames : 0;
 }
