@@ -86,6 +86,27 @@
         evaluate()'s skip conditions exactly. This gates the implication
         directly, over a sweep of slot configurations.
 
+    [E] REG-01 — the edit is AUDIBLE.
+
+        Everything above proves the POINTER moves. None of it proves a voice
+        rendering audio reads the new buffer, and that gap is exactly how a
+        copy-on-write fix regresses: in-place mutation was audible to a held
+        voice for free (that was the CR-01 race), whereas a swap is audible
+        only if updateWavetableAssignments repoints the voices. Three edits
+        with real blocks rendered in between — the DAW interleave — each must
+        change the rendered output.
+
+        Runs on a FRESH processor. Sections [A]-[D] hammer the table with
+        hundreds of synthetic spectra and leave the mod matrix randomised;
+        rendering that would confound "the edit is inaudible" with "the state
+        those sections left behind is degenerate".
+
+    [F] REG-01 — repeated edits must not compound in gain.
+
+        setFrameHarmonics rescales the user's 0..1 magnitudes by the frame's
+        OWN current peak, so 250 successive edits must leave the level where
+        they found it. Measured: 1.0 -> 0.540 on the first edit, then flat.
+
     NOT covered here:
       - REG-04, moving vst3Extensions.drainAndUpdate() above the WR-09
         zero-channel return. The drain dispatches through a slot that only the
@@ -419,6 +440,176 @@ int main()
         check (routedSeen > 0,
                juce::String ("[D] the sweep actually produced routed destinations (")
                + juce::String (routedSeen) + ") — not a vacuous pass");
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    std::cout << "\n[E] The edit is AUDIBLE — rendered output actually changes\n";
+
+    {
+        // Everything above proves the POINTER moves. None of it proves a voice
+        // rendering audio reads the new buffer. That gap is exactly how a
+        // copy-on-write fix regresses: in-place mutation was audible to a held
+        // voice for free (that was the CR-01 race), whereas a swap is audible
+        // only if updateWavetableAssignments repoints the voices.
+        // A FRESH instance. Sections [A]-[D] hammered this table with hundreds
+        // of synthetic spectra; rendering the result would confound "the edit
+        // is inaudible" with "the table those sections left behind is
+        // degenerate". This section must answer one question only.
+        std::unique_ptr<juce::AudioProcessor> proc2 (createPluginFilter());
+        auto* prism = dynamic_cast<OPrismAudioProcessor*> (proc2.get());
+        check (prism != nullptr, "[E] fresh processor instance");
+        if (prism == nullptr)
+            return failures;
+
+        prism->prepareToPlay (kSampleRate, kBlockSize);
+
+        auto setParam = [&] (const juce::String& id, float scaled)
+        {
+            if (auto* p = prism->getAPVTS().getParameter (id))
+                p->setValueNotifyingHost (p->convertTo0to1 (scaled));
+        };
+
+        // Park osc A at frame 0 and make it the only thing we hear.
+        setParam ("oscAPos", 0.0f);
+        setParam ("oscMix", 0.0f);
+
+        juce::AudioBuffer<float> buf (2, kBlockSize);
+
+        auto renderBlocks = [&] (int n, juce::MidiBuffer& midi)
+        {
+            for (int i = 0; i < n; ++i)
+            {
+                buf.clear();
+                prism->processBlock (buf, midi);
+                midi.clear();
+            }
+        };
+
+        juce::MidiBuffer midi;
+        midi.addEvent (juce::MidiMessage::noteOn (1, 60, 0.9f), 0);
+        renderBlocks (6, midi);   // settle the envelope and the assignments
+
+        auto capture = [&] ()
+        {
+            juce::MidiBuffer none;
+            buf.clear();
+            prism->processBlock (buf, none);
+            return std::vector<float> (buf.getReadPointer (0),
+                                       buf.getReadPointer (0) + kBlockSize);
+        };
+
+        auto rms = [] (const std::vector<float>& v)
+        {
+            double sum = 0.0;
+            for (float x : v) sum += static_cast<double> (x) * x;
+            return std::sqrt (sum / static_cast<double> (v.size()));
+        };
+
+        auto differs = [&] (const std::vector<float>& a, const std::vector<float>& b)
+        {
+            double sum = 0.0;
+            for (size_t i = 0; i < a.size(); ++i)
+            {
+                const double d = static_cast<double> (a[i]) - b[i];
+                sum += d * d;
+            }
+            return std::sqrt (sum / static_cast<double> (a.size()));
+        };
+
+        auto allFin = [] (const std::vector<float>& v)
+        {
+            for (float x : v) if (! std::isfinite (x)) return false;
+            return true;
+        };
+
+        const auto reference = capture();
+        check (allFin (reference), "[E] pre-edit output is finite (no NaN)");
+        check (rms (reference) > 1.0e-4,
+               juce::String ("[E] the held note is audible before editing (rms ")
+               + juce::String (rms (reference), 6) + ")");
+
+        prism->startEditing (0);
+        check (prism->getEditingOscIndex() == 0, "[E] editing session open");
+
+        // Three edits in sequence, each rendering blocks in between — the real
+        // DAW interleave, and the path where a publish can be coalesced.
+        std::vector<float> previous = reference;
+
+        for (int step = 0; step < 3; ++step)
+        {
+            std::vector<float> mags (kNumBins, 0.0f);
+            mags[static_cast<size_t> (1 + step * 5)] = 1.0f;   // a different partial each time
+
+            prism->editWavetable ([&] (WavetableEditor& ed) { ed.setFrameHarmonics (0, mags); });
+
+            juce::MidiBuffer none;
+            renderBlocks (4, none);
+            const auto after = capture();
+
+            check (allFin (after),
+                   juce::String ("[E] edit ") + juce::String (step + 1) + " output is finite");
+
+            const double delta = differs (previous, after);
+            check (delta > 1.0e-3,
+                   juce::String ("[E] edit ") + juce::String (step + 1)
+                   + " changed the rendered audio (rms delta " + juce::String (delta, 6)
+                   + ", held=" + juce::String (prism->getHeldTableCount())
+                   + ", osc=" + juce::String (prism->getEditingOscIndex()) + ")");
+
+            previous = after;
+        }
+
+        prism->stopEditing (0);
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    std::cout << "\n[F] Repeated harmonic edits must not compound in gain\n";
+
+    {
+        std::unique_ptr<juce::AudioProcessor> proc3 (createPluginFilter());
+        auto* prism = dynamic_cast<OPrismAudioProcessor*> (proc3.get());
+        check (prism != nullptr, "[F] fresh processor instance");
+        if (prism == nullptr)
+            return failures;
+
+        prism->prepareToPlay (kSampleRate, kBlockSize);
+        prism->startEditing (0);
+
+        auto framePeak = [&] () -> float
+        {
+            const auto wf = prism->getWavetableEditor().getFrameWaveform (0);
+            float pk = 0.0f;
+            for (float v : wf)
+                pk = std::max (pk, std::abs (v));
+            return pk;
+        };
+
+        const float peak0 = framePeak();
+        std::cout << "        peak after   0 edits: " << peak0 << "\n";
+
+        float peakN = peak0;
+        for (int i = 1; i <= 250; ++i)
+        {
+            prism->editWavetable ([&] (WavetableEditor& ed) {
+                ed.setFrameHarmonics (0, spikeSpectrum (kNumBins, i));
+            });
+            peakN = framePeak();
+            if (i % 50 == 0)
+                std::cout << "        peak after " << i << " edits: " << peakN << "\n";
+        }
+
+        check (std::isfinite (peakN),
+               juce::String ("[F] frame is still finite after 250 harmonic edits (peak ")
+               + juce::String (peakN) + ")");
+
+        // setFrameHarmonics rescales the user's 0..1 magnitudes by the frame's
+        // OWN current peak, so an edit whose input peaks at 1.0 should leave
+        // the frame's level where it was. Any systematic drift compounds.
+        check (peakN < peak0 * 8.0f && peakN > peak0 / 8.0f,
+               juce::String ("[F] level is stable across edits (") + juce::String (peak0)
+               + " -> " + juce::String (peakN) + ", bound is 8x either way)");
+
+        prism->stopEditing (0);
     }
 
     std::cout << "\n" << (failures == 0 ? "ALL CHECKS PASSED" : "FAILURES: " + std::to_string (failures))
