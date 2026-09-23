@@ -1,5 +1,396 @@
 # O-Prism Changelog
 
+## [1.27.0] - 2026-09-23
+
+**Code-review batch 2: the wavetable publish path.** Resolves CR-01 and CR-02
+from `CODE_REVIEW.md` (v1.26.0) — the two halves of the wavetable lifetime
+problem that v1.19.0 left open. v1.19.0 solved *freeing* a table the audio
+thread might read; it did not solve *mutating* one (CR-01), and every pointer
+publish crossed threads with no ordering (CR-02).
+
+Also folded in: REG-01 … REG-04, four regressions introduced by this batch and
+by v1.26.1 and caught before either was committed. Neither version shipped, so
+they are corrected here rather than tracked as a follow-up release.
+
+MINOR rather than PATCH: no parameter ID, range, type or state-format change
+and no preset migration — sessions and presets round-trip identically — but
+the editor's mutation path is restructured, which is the batching the review
+itself prescribed for these two.
+
+### Fixed
+
+- **The wavetable editor no longer mutates the table the audio thread is
+  reading (CR-01).** `startEditing()` stores `wavetableEditor.getWorkingTable()`
+  into `userTablePtrA/B`, so from that moment the voices read that exact buffer
+  every block for live preview. Every editor operation then wrote straight into
+  it from the message thread: level 0 overwritten via `std::copy`, then
+  `generateMipmapsForFrame` rewriting all 10 mipmap levels and the guard sample
+  for that frame — with no synchronisation of the *contents* between the two
+  threads.
+
+  Holding a pad chord, opening the wavetable editor on that oscillator and
+  dragging a harmonic bin made the audio thread read level-0 samples and mipmap
+  levels that were half-old and half-new: torn floats, i.e. audible garbage,
+  and formally UB. Every ops-bar button (Normalize, Fade, Reverse, Reverse
+  Order, Smooth) was the same path, as was the harmonic editor.
+
+  All seven mutating operations are now copy-on-write, via a two-buffer publish
+  rotation in `WavetableEditor`. `workingTable` is LIVE — the buffer
+  `startEditing()` published, read by the voices every block. `shadowTable` is
+  PRIVATE, and every operation writes into it through `acquireShadow()`, so no
+  operation ever touches a buffer another thread holds.
+
+  A publish is a swap, not a copy: `commitPendingEdits()` makes the shadow live
+  and hands back the buffer it displaced, which the processor holds in a single
+  `coolingEditBuffer` slot until the audio thread can no longer reach it and
+  then returns to the editor as the next shadow.
+
+  The publish order is load-bearing: the new pointer is stored *before* the old
+  buffer starts cooling. The stamp is the current block generation and the
+  reaper's `+2` rule guarantees a full `processBlock` has both started and
+  finished since; every block starting after the store runs
+  `updateWavetableAssignments` first and so repoints its voices at the new
+  table, which is what makes the old one safe to reuse.
+
+  Mutating calls route through a new `OPrismAudioProcessor::editWavetable()`
+  wrapper rather than the editor directly, so a future call site cannot publish
+  a table without cycling the one it replaced.
+
+- **Wavetable pointers are published with release/acquire, not relaxed
+  (CR-02).** `userTablePtrA/B` are `std::atomic<const WavetableData*>` and every
+  store and load used `std::memory_order_relaxed`. The message thread fully
+  constructs a `WavetableData` — up to ~21 MB of floats for a 256-frame table —
+  and then publishes the pointer; the audio thread loads it in
+  `resolveActiveTable` and dereferences it in the same block.
+
+  A relaxed store/load pair creates no synchronizes-with edge, so nothing
+  ordered the buffer writes before the pointer store. Not theoretical here: the
+  primary target is Apple Silicon, and arm64 is weakly ordered — the audio
+  thread was permitted to observe the new pointer while the sample data was
+  still in the writer's store buffer. Importing a wavetable or selecting a user
+  table mid-playback could read uninitialised heap for the first blocks after
+  the swap: intermittent, hardware-dependent, and exactly the kind of bug that
+  never reproduces on x86 CI.
+
+  All 13 stores are now `memory_order_release` and all 3 loads
+  `memory_order_acquire` (11 stores and 3 loads pre-existing, plus the 2 new
+  ones in `publishEditedWorkingTable`). No structural change and no cost on
+  x86; one `dmb ish` per publish on the message thread and a cheap acquire on
+  the audio side. The invariant is documented at the member declaration in
+  `PluginProcessor.h` — these must never be weakened back.
+
+### Fixed — regressions in this batch
+
+These four were introduced by the CR-01/CR-02 work above and by v1.26.1, and
+found before either was committed. Numbered REG-* to keep them distinct from
+the `CODE_REVIEW.md` findings, which are all pre-existing.
+
+- **A harmonic drag no longer clones 20 MiB per display frame, and the retire
+  queue is bounded (REG-01).** The first shape of the CR-01 fix cloned the
+  whole table per operation: 10 mipmap levels x 256 frames x 2049 floats =
+  **20.0 MiB**. The harmonic editor drives operations from
+  `requestAnimationFrame` (`wavetable-editor.js`, `scheduleHarmonicUpdate`), so
+  a single drag ran that at 60 Hz — ~1.2 GB/s of allocation for an edit that
+  touches **one** frame, i.e. 255/256 of every copy was waste.
+
+  The displaced tables went to `retiredTables`, which had no cap and was swept
+  only by the 500 ms timer, so ~30 of them (630 MB) accumulated before the
+  first sweep even ran. Worse, the reaper's `+2`-generation rule keys off
+  `processBlock`: with the transport stopped — exactly when a user opens the
+  wavetable editor — the counter never advanced and **nothing was ever freed**.
+  The growth was unbounded, not merely large.
+
+  Three changes, each closing a different half:
+
+  1. *Coalesced publish.* Edits land in the private shadow buffer and publish
+     only when the rotation is free. An edit arriving while the previous buffer
+     is still cooling costs **nothing** — it accumulates in the shadow and
+     rides out on the next publish. Publishing faster than the audio thread can
+     observe a change is pure waste, so this loses no fidelity: the preview
+     tracks the block rate, which is the only rate a change can be heard at.
+     The 30 ms timer (was 500 ms) re-tries the publish, which bounds how long a
+     gesture's final value can sit unpublished.
+
+  2. *Recycled buffers.* A cooled buffer is returned to the editor as the next
+     shadow rather than freed, and repaired on only the frames that diverged —
+     ~82 KB for a harmonic drag against a 20.0 MiB whole-table copy. After the
+     first allocation an entire drag allocates nothing.
+
+  3. *Two expiry rules, and a sweep that actually runs.* `sweepRetiredTables()`
+     is called from `retireTable()` and from `editWavetable()`, not just the
+     timer, so the queue drains at the rate tables are produced. And a table is
+     now freeable under **either** the `+2` rule **or** a new quiescence rule:
+     `blockEntries == blockGeneration` means no block is in flight at all.
+     Voices hold raw table pointers between blocks but only dereference them
+     inside `renderNextBlock`, i.e. inside `processBlock` — so with nothing in
+     flight, nothing can be reading. `blockEntries` is incremented at the top
+     of `processBlock` on every path out, including the WR-09 zero-channel
+     return, so the two counters stay paired. This is the rule that fixes the
+     idle-host case; `+2` alone freezes with the audio thread.
+
+  Measured, 200 edits with the audio thread idle: **2** tables held and **1**
+  shadow allocation, against **201** and **200** for the pre-fix shape.
+
+- **A host state restore no longer kills live preview, and a stale editor
+  operation can no longer overwrite it (REG-02).** `setStateInformation` never
+  called `stopEditing`. `editingOscIndex` and the editor's buffers are
+  processor members that `replaceState` does not reset, so an open session
+  outlived the restore twice over: the oscillator kept pointing at the working
+  table, making the restored selection inaudible and playing a preview
+  belonging to the *old* session instead; and the next editor operation called
+  `publishEditedWorkingTable()`, which stored the working-table pointer straight
+  back over whatever `selectUserWavetable` had just restored.
+
+  The restore now closes the session first, ahead of `replaceState` and ahead
+  of the `clearUserWavetableOverride` calls, so the teardown cannot be undone
+  by the restore it precedes. With no working table every editor operation
+  early-returns, so a UI panel still showing the editor is inert rather than
+  destructive until the user re-opens it.
+
+  Unchanged assumption: `setStateInformation` is treated as message-thread, as
+  it already was — it mutates `userTableNameA/B` directly.
+
+- **`std::exp2` is out of the per-sample voice loop again (REG-03).** Removing
+  WR-07's dead-band guard left four `std::exp2` calls running unconditionally
+  for every sample of every voice — roughly 1% of a core at 48 kHz on a full
+  pool, paid by every patch whether or not it modulates an LFO rate.
+
+  The guard is not restored. The skip is now **structural and block-constant**:
+  `ModulationMatrix::isDestinationRouted()`, computed once in
+  `updateFromAPVTS()` from evaluate()'s own skip conditions, hoisted into four
+  locals above the sample loop alongside the existing `keytrackMultiplierA/B`.
+
+  This is why it does not reintroduce WR-07. That guard tested the modulator's
+  **instantaneous value**, so crossing zero left the last modulated rate latched
+  for the rest of the sub-block, notching the rate instead of returning it to
+  base. The routing test never reads a modulator value, a destination cannot
+  become routed part-way through a block, and an unrouted destination
+  accumulates exactly `0.0f` for every sample — for which `setRate (base)` is
+  already in force from the block prologue. There is nothing to latch.
+
+- **A Note Expression tuning delta is no longer stranded by a zero-channel
+  block (REG-04).** WR-09's early return was placed **above**
+  `vst3Extensions.drainAndUpdate()`, so a zero-channel block skipped the drain.
+  The drain is bookkeeping, not rendering — it empties a queue the patched JUCE
+  wrapper pushes into from the same thread moments earlier and writes the
+  per-pitch `PendingTuningTable`, touching no channel. Skipping it stranded
+  that block's raw events in `blockEvents`, where the *next* block's drain
+  correlated them against the wrong NoteOns: a Dorico tuning delta landing on a
+  later note, detuned. `onVst3RawEvent` also drops pushes past its 64-slot
+  capacity, so under a dense divisi a skipped drain could lose the deltas
+  outright.
+
+  The drain now runs above the return, which still publishes `blockGeneration`
+  exactly as before.
+
+### Testing
+
+New gate `tests/wavetable_cow_check.cpp` (`O-Prism-wavetable-cow-check`), 41/41.
+It drives the real processor and, for each of the seven mutating operations,
+asserts that the edit publishes a *new* table, that the displaced buffer is
+byte-identical to a snapshot taken before the call (the CR-01 assertion proper —
+in-place mutation is exactly what makes it differ), that the new buffer
+nonetheless *differs* from that snapshot so the check cannot pass vacuously, and
+that frame count and finiteness are preserved. Osc A is first parked on a
+multi-frame factory table by walking the bank for one with ≥ 2 frames: the
+default table has a single frame, which silently skips `reverseOrder` and the
+global normalize — the two frame-swapping ops.
+
+Negative control: reverting `WavetableEditor.cpp` to its v1.26.1 in-place form
+fails 14/14 — the two CR-01 assertions across all seven ops — while the
+non-vacuity and shape checks still pass, confirming the gate isolates the race
+and not the edit.
+
+A render thread holding a chord through 60 rounds of hammered edits is included
+as a smoke test over the retire path under contention, not as a verdict: it does
+*not* fail on pre-fix code, because a weak-ordering race does not reproduce on
+demand.
+
+CR-02 has no single-threaded observable and the window it closes is an arm64
+store-buffer visibility gap that no stress loop reproduces on demand, so it is
+verified statically — this must return nothing:
+
+```bash
+grep -n "userTablePtr.*memory_order_relaxed\|userPtr.load (std::memory_order_relaxed)" \
+  plugins/O-Prism/Source/PluginProcessor.cpp
+```
+
+Second new gate `tests/edit_rotation_check.cpp` (`O-Prism-edit-rotation-check`),
+15/15, covering the three regressions with a deterministic single-threaded
+observable:
+
+- **[A] REG-01, bounded.** 200 sequential edits with `processBlock` never
+  called — the frozen-generation case — must leave at most 3 tables held
+  (`getHeldTableCount()`: live + shadow + cooling + the retire queue) and cost
+  at most 2 shadow allocations (`getShadowAllocationCount()`). Measured: 2 and
+  1.
+
+  Deliberately **not** gated on buffer addresses. An earlier draft counted
+  distinct published pointers and was unsound: with recycling disabled the
+  allocator handed the same freed 20 MiB block straight back, so 200 real
+  allocations still read as 2 addresses. The two counters separate the memory
+  bound from the allocation bound, which addresses cannot.
+
+- **[B] REG-01, lossless.** The dirty-frame resync is what makes the rotation
+  cheap, and a missed frame or a missed mipmap level would silently revert an
+  edit two publishes later. 8 distinct frames are edited one publish apart and
+  must all survive ([B1]), and all 9 upper mipmap levels must agree with a full
+  regeneration from level 0 ([B2]) — a resync that repaired level 0 only passes
+  [B1] and still detunes the top two octaves.
+
+- **[C] REG-02.** Open a session, edit, restore a blob captured before editing:
+  the session must close, osc A must resolve to the restored table, and a
+  further editor operation must publish nothing.
+
+- **[D] REG-03.** The implication the hoist rests on — *not routed ⇒ offset is
+  exactly 0* — over 200 randomised 16-slot configurations with every source
+  driven to 1.0. 1260 routed destinations observed, so the pass is not vacuous.
+
+Negative controls, each reverting one mechanism and rebuilding:
+
+| Control | Expected | Result |
+|---------|----------|--------|
+| Cooled buffer freed instead of recycled | [A2] fails | 200 allocations |
+| Resync repairs level 0 only | [B2] fails | 9 levels diverged |
+| Resync removed | [B1] fails | 4 of 8 frames reverted |
+| `stopEditing` removed from the restore | [C] fails | 2 checks |
+| Routed scan misses slots 8–15 | [D] fails | 578 violations |
+| Full pre-REG-01 shape (publish every edit, retire the displaced, timer-only sweep, no quiescence) | [A1]+[A2] fail | **201 held, 200 allocations** — the predicted pre-fix numbers exactly |
+
+REG-04 has no console observable: `drainAndUpdate` dispatches through a slot
+only the VST3 translation unit populates, so in a console build it is a
+pass-through. Verified statically — the drain must precede the zero-channel
+return, and `blockEntries` must precede both:
+
+```bash
+python3 - <<'EOF'
+s = open('plugins/O-Prism/Source/PluginProcessor.cpp').read()
+b = s.index('void OPrismAudioProcessor::processBlock')
+assert s.index('blockEntries.fetch_add', b) \
+     < s.index('vst3Extensions.drainAndUpdate();', b) \
+     < s.index('if (buffer.getNumChannels() == 0)', b)
+EOF
+```
+
+Its behavioural half — a zero-channel block, then a normal block still
+rendering at pitch — is already gated in `bend-state-check` [D].
+
+Regression: `O-Prism-bend-state-check` (15/15) and `O-Prism-geometry-check`
+(166 ok, 0 failed) both still pass. `auval -v aumu OuPr OuDv` and pluginval
+strictness 10 both SUCCEED on the installed bundles.
+
+### Still open
+
+WR-01 (free-run LFOs replay the same phase in every MIDI sub-block), the
+DSP-quality tier (WR-02, WR-04, WR-05, WR-06, WR-08, IN-09) and the IN-*
+cleanup sweep.
+
+## [1.26.1] - 2026-09-23
+
+**Code-review batch 1: contained correctness.** Resolves CR-03, WR-03, WR-07 and
+WR-09 from `CODE_REVIEW.md` (v1.26.0, 22 findings), plus one unnumbered bend bug
+found while fixing CR-03 — `startNote` discarded `currentPitchWheelPosition`.
+PATCH: no parameter ID, range, type or state-format change, and no preset
+migration. The remaining findings — the wavetable publish/mutation races
+(CR-01, CR-02), the sub-block LFO (WR-01) and the DSP-quality tier — are
+untouched and still open.
+
+### Fixed
+
+- **A released note no longer re-strikes detuned (CR-03).** `pitchWheelMoved`
+  wrote the wheel into `TuningEngine::notePitchBends[note]`, but nothing ever
+  cleared it: `clearPitchBend` and `clearAllPitchBends` were fully implemented
+  with zero callers. JUCE only delivers wheel messages to voices whose
+  `isPlayingChannel()` is true, so once a note was released its entry froze at
+  the last bend it saw. `startNote` reads `getFrequency(note)`, so playing C4
+  after bending and releasing C4 sounded up to a full pitch-bend range sharp
+  (default 2 semitones, up to 48) with the wheel visibly centred — and each note
+  carried its own stale offset, so a passage could return in several wrong
+  tunings at once. The Tuning tab's held-note readout showed the same wrong Hz.
+
+  The bend is now released at the two points a note actually ends — the
+  immediate branch of `PrismVoice::stopNote` and the tail-off completion in
+  `renderNextBlock` — via a new `PrismVoice::releaseNotePitchBend()`, and
+  `clearAllPitchBends()` runs on All Notes Off / All Sound Off.
+
+  *Not* at note-off itself, which is where the obvious fix goes and where it
+  breaks: `Synthesiser::noteOn` tail-offs the existing voice for a re-struck
+  note *before* the replacement voice runs `startNote`, so clearing on note-off
+  would strip the bend from a note being re-struck under a held wheel. The
+  helper additionally skips any note `noteStates` still reports as down, which
+  covers the same collision when the outgoing tail outlives the re-strike. The
+  release tail itself is unaffected either way — the render path runs on the
+  cached `currentFrequency`, and `getFrequency` is only read at `startNote` and
+  `pitchWheelMoved`.
+
+- **A note struck under a held wheel now plays bent.** `PrismVoice::startNote`
+  took `currentPitchWheelPosition` and discarded it — the parameter was
+  commented out in the signature. `TuningEngine`'s bend table is keyed per
+  note and JUCE only delivers `pitchWheelMoved` to voices that are already
+  sounding, so a note whose entry was `NO_BEND` read its unbent frequency and
+  stayed there until the wheel next moved. Holding the wheel at +2 semitones
+  and playing C4 sounded 261.626 Hz instead of 293.661 Hz.
+
+  This is the mirror image of CR-03 and the same edit closes both directions:
+  `startNote` now seeds the note's entry from `currentPitchWheelPosition` with
+  the same normalisation `pitchWheelMoved` uses, before it reads
+  `getFrequency`. It is inert when the wheel is centred — the seed is `0.0f`
+  and `applyPitchBend(f, 0.0f)` is `f * pow(2, 0.0)`, exactly `f` — so hosts
+  that never send a wheel are bit-identical.
+
+  The seed also retires CR-03's one residual. `releaseNotePitchBend` skips any
+  note `noteStates` still reports as down, so a *held* note whose voice is
+  stolen never reaches either clear site and strands its entry for the life of
+  the instance. That entry is now overwritten at the next strike rather than
+  inherited, which makes the residual unobservable without reintroducing the
+  re-strike collision that the skip exists to avoid.
+
+- **A restored session no longer inherits the previous session's user wavetable
+  (WR-03).** `setStateInformation` only *applied* an override, under
+  `if (name.isNotEmpty())`, with no `else` and no unconditional clear.
+  `userTableNameA/B` and `userTablePtrA/B` are processor members that survive
+  the state swap, and `resolveActiveTable` gives the user pointer priority over
+  the factory index unconditionally. Loading session A (Osc A → user table
+  "Alpha") then session B (Osc A → factory "Vowel Morph") in the same instance
+  played "Alpha"; the UI reads the same resolver, so it agreed with the wrong
+  answer, and only deleting the table from disk or reselecting by hand
+  recovered. Both overrides are now cleared unconditionally before the restore,
+  which also covers legacy states carrying no `userWavetables` child.
+
+- **LFO-rate modulation no longer sticks inside its dead band (WR-07).** The
+  per-sample rate update was guarded by `if (std::abs (offset) > 0.0001f)`,
+  and the base rate is only applied once per sub-block. Once the modulator
+  entered the dead band the LFO kept the *last modulated* rate for the rest of
+  the sub-block instead of returning to base, so a slow modulator crossing zero
+  left a short rate notch at every zero crossing. The guard is gone and
+  `setRate` (one divide) is called unconditionally for all four LFOs.
+
+  *Superseded by REG-03 in v1.27.0*, which keeps the fix — no value-based dead
+  band — but skips the four `std::exp2` for LFO-rate destinations no slot is
+  routed to, a block-constant test that cannot latch.
+
+- **Zero-channel blocks no longer dereference a null pointer (WR-09).** The
+  mono branch of the width/volume stage called `buffer.getSample (0, …)` /
+  `setSample (0, …)` unguarded and `PrismVoice::renderNextBlock` called
+  `outputBuffer.getWritePointer (0)` with no check, so a zero-channel block —
+  which some hosts pass while probing and which pluginval exercises — crashed.
+  `processBlock` now returns early on `getNumChannels() == 0`, which is the
+  single chokepoint covering both sites. The early return still publishes
+  `blockGeneration`, since the block genuinely read no wavetables and the
+  retired-table reaper waits on that counter.
+
+### Notes
+
+- Tested: `auval -v aumu OuPr OuDv` (dev branding; release builds are
+  `aumu OuPr OuAu`) and pluginval strictness 10.
+- Not covered by an automated gate: the bend paths (CR-03's release/re-strike,
+  the `startNote` seed, the stolen-held-note residual) and WR-03's two-session
+  restore are all host-interaction sequences — they need a wheel held across a
+  note-on, or two `setStateInformation` calls into one instance. Verified by
+  reasoning against the JUCE `Synthesiser` call order (documented above) and by
+  DAW check. The seed's centred-wheel no-op is exact by construction
+  (`pow(2, 0.0) == 1.0`), not measured.
+
 ## [1.26.0] - 2026-09-08
 
 **UI restructure: cards, tab grids, custom selects.** The Synth, Effects and

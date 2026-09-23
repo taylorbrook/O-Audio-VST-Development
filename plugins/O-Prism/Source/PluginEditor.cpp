@@ -758,8 +758,11 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     for (const auto& val : *arr)
                         magnitudes.push_back (static_cast<float> (val));
 
-                    processorRef.getWavetableEditor()
-                        .setFrameHarmonics (frameIndex, magnitudes);
+                    // CR-01: copy-on-write — never mutate the table the
+                    // audio thread is previewing.
+                    processorRef.editWavetable ([&] (WavetableEditor& editor) {
+                        editor.setFrameHarmonics (frameIndex, magnitudes);
+                    });
 
                     // Return updated waveform for display
                     auto waveform = processorRef.getWavetableEditor()
@@ -787,26 +790,28 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     for (const auto& val : *arr)
                         frameIndices.push_back (static_cast<int> (val));
 
-                auto& editor = processorRef.getWavetableEditor();
-
-                if (opType == "normalize")
-                    editor.normalizeFrames (frameIndices, true);
-                else if (opType == "normalizeGlobal")
-                    editor.normalizeFrames (frameIndices, false);
-                else if (opType == "fade")
-                {
-                    float pct = args.size() >= 3 ? static_cast<float> (args[2]) : 10.0f;
-                    editor.fadeEdges (frameIndices, pct);
-                }
-                else if (opType == "reverse")
-                    editor.reverseFrames (frameIndices);
-                else if (opType == "reverseOrder")
-                    editor.reverseOrder (frameIndices);
-                else if (opType == "smooth")
-                {
-                    float strength = args.size() >= 3 ? static_cast<float> (args[2]) : 0.5f;
-                    editor.smoothFrames (frameIndices, strength);
-                }
+                // CR-01: copy-on-write — every ops-bar button used to write
+                // straight into the buffer the voices were reading.
+                processorRef.editWavetable ([&] (WavetableEditor& editor) {
+                    if (opType == "normalize")
+                        editor.normalizeFrames (frameIndices, true);
+                    else if (opType == "normalizeGlobal")
+                        editor.normalizeFrames (frameIndices, false);
+                    else if (opType == "fade")
+                    {
+                        float pct = args.size() >= 3 ? static_cast<float> (args[2]) : 10.0f;
+                        editor.fadeEdges (frameIndices, pct);
+                    }
+                    else if (opType == "reverse")
+                        editor.reverseFrames (frameIndices);
+                    else if (opType == "reverseOrder")
+                        editor.reverseOrder (frameIndices);
+                    else if (opType == "smooth")
+                    {
+                        float strength = args.size() >= 3 ? static_cast<float> (args[2]) : 0.5f;
+                        editor.smoothFrames (frameIndices, strength);
+                    }
+                });
 
                 complete (true);
                 return;

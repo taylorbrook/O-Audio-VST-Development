@@ -74,6 +74,21 @@ public:
     void setWavetableB (const WavetableData* table);
 
 private:
+    /** Drop this voice's note from the TuningEngine per-note bend table (CR-03).
+        Called at the two points a note truly ends — the immediate branch of
+        stopNote() and the tail-off completion in renderNextBlock() — never at
+        note-off itself, because JUCE tail-offs the old voice of a re-struck
+        note *before* the new voice reads getFrequency(). Held notes are
+        skipped for the same reason.
+
+        The skip leaves one residual: a held note whose voice is stolen never
+        reaches either call site, so its entry is stranded. startNote() seeds
+        the table from currentPitchWheelPosition, which overwrites any stranded
+        entry on the next strike — so the residual is unobservable, and this
+        helper is no longer the only thing standing between a release and a
+        detuned re-strike. */
+    void releaseNotePitchBend();
+
     juce::AudioProcessorValueTreeState* parameters = nullptr;
     TuningEngine* tuningEngine = nullptr;
     OPrismAudioProcessor* processor = nullptr;

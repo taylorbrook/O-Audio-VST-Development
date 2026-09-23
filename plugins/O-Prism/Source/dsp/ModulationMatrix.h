@@ -128,6 +128,19 @@ public:
     /** Get the accumulated modulation offset for a destination */
     float getModOffset (ModDest dest) const;
 
+    /** True when at least one ENABLED slot with a real source targets `dest`.
+
+        Block-constant: recomputed in updateFromAPVTS(), which runs once per
+        block, and it mirrors evaluate()'s skip conditions exactly — so a
+        destination that is not routed accumulates 0.0f for every sample of
+        the block. Voices use it to hoist the transcendentals that would
+        otherwise evaluate to their identity every sample (REG-03).
+
+        This is a STRUCTURAL test, not the per-sample dead-band guard WR-07
+        removed: it never inspects the modulator's instantaneous value, so it
+        cannot latch a stale modulated value when that value crosses zero. */
+    bool isDestinationRouted (ModDest dest) const;
+
     /** Reset all destination offsets to zero */
     void clearOffsets();
 
@@ -152,4 +165,5 @@ private:
     std::array<SlotState, kNumSlots> slots {};
     std::array<float, kNumSources> sourceValues {};
     std::array<float, kNumDests> destOffsets {};
+    std::array<bool,  kNumDests> destRouted {};
 };
