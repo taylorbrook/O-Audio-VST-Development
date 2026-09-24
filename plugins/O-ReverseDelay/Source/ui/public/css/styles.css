@@ -201,7 +201,11 @@
 
   /* Buttons */
   --btn-default:       rgba(139, 168, 112, 0.3);
-  --btn-active:        rgba(107, 142, 35, 0.6);
+  /* v1.12.3: solid --green-dark, was rgba(107,142,35,0.6). Cream --knob-core on
+     the old 60 % tint was ~2.3:1 — a lit button read WORSE than an unlit one
+     (6.9:1). On --green-dark it is 7.2:1. Every lit state reads this token:
+     .segment.active, the open gear, the armed Delete. */
+  --btn-active:        #3C5C1A;
   --btn-border:        #3C5C1A;
   --btn-border-active: #2C3E10;
 
@@ -301,7 +305,7 @@ body {
   font-size: 10px;
   letter-spacing: 1.6px;
   text-transform: uppercase;
-  color: var(--brown-border);
+  color: var(--brown-frame);   /* v1.12.3: was --brown-border, 3.7:1 → 7.7:1 */
   text-shadow: 1px 1px 2px var(--text-emboss);
 }
 
@@ -404,7 +408,7 @@ body {
   font-size: 10px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--brown-border);
+  color: var(--brown-frame);   /* v1.12.3: was --brown-border, 3.7:1 → 6.8:1 */
 }
 
 /* .division-select's recessed cartouche, sized for "Français". */
@@ -459,9 +463,10 @@ body {
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
+/* v1.12.3: --green-dark, was --green-mid (3.3:1 → 6.8:1). */
 .settings-toggle[aria-pressed="true"] {
-  background: var(--green-mid);
-  border-color: var(--green-mid);
+  background: var(--green-dark);
+  border-color: var(--green-dark);
   color: var(--bg-paper-light);
 }
 
@@ -573,6 +578,19 @@ body {
   border-color: var(--btn-border-active);
   color: var(--knob-core);
   box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+/* v1.12.3: factory presets cannot be deleted, so the button says so up front
+   (app.js updateDeleteAvailability) instead of arming and then doing nothing.
+   Dimmed and inert, no hover lift; same box, so nothing moves. */
+#preset-delete:disabled,
+#preset-delete:disabled:hover,
+#preset-delete:disabled:active {
+  opacity: 0.4;
+  background: var(--btn-default);
+  transform: none;
+  box-shadow: none;
+  cursor: default;
 }
 
 /* Recessed cartouche, identical treatment to .division-select. Fixed width with
@@ -1140,8 +1158,7 @@ body {
   font-size: 9px;
   letter-spacing: 1.1px;
   text-transform: uppercase;
-  color: var(--brown-border);
-  opacity: 0.75;
+  color: var(--brown-frame);   /* v1.12.3: was --brown-border at 0.75 opacity, 2.5:1 → 7.7:1 */
 }
 
 /* ── Tooltips ────────────────────────────────────────────────────────────── */
@@ -1174,7 +1191,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: var(--green-mid);
+  color: var(--green-dark);   /* v1.12.3: was --green-mid, 3.3:1 → 5.6:1 */
   margin-bottom: 3px;
 }
 

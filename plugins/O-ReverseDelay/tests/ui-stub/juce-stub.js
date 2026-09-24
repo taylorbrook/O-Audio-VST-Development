@@ -156,9 +156,18 @@ class StubSliderState {
     const p = this.properties;
     return Math.pow((this.scaledValue - p.start) / (p.end - p.start), p.skew);
   }
+  // v1.12.3: snaps to the interval exactly as juce/index.js snapToLegalValue()
+  // does. Up to v1.12.2 the stub stored the raw value, so a sub-step nudge that
+  // the real backend rounds straight back (grainCount's wheel and arrows) moved
+  // here and no gate could see the knob was stuck.
   setNormalisedValue(n) {
     const p = this.properties;
-    this.scaledValue = Math.pow(n, 1 / p.skew) * (p.end - p.start) + p.start;
+    let v = Math.pow(n, 1 / p.skew) * (p.end - p.start) + p.start;
+    if (p.interval) {
+      v = Math.max(p.start, Math.min(p.end,
+        p.start + p.interval * Math.floor((v - p.start) / p.interval + 0.5)));
+    }
+    this.scaledValue = v;
     this.valueChangedEvent.callListeners();
   }
   sliderDragStarted() {}
