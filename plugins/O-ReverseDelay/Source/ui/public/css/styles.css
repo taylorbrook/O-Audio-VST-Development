@@ -1257,6 +1257,90 @@ body {
   outline-offset: 2px;
 }
 
+/* ── v1.17.0: Grain Link ─────────────────────────────────────────────────────
+   The Mix lock's box, token for token, hanging off the SIZE caption. The
+   difference is inside: a native <select> at opacity 0 covers the whole box, so
+   a click opens the OS menu (Free, = Delay, then the divisions) rather than
+   toggling. Unlinked, the two chain halves sit apart with no bar; linked, they
+   close up and the bar joins them, so the state never relies on colour alone.
+
+   While linked the DIAL dims (.knob-cell-inert's 0.38, dial only — the caption
+   and glyph stay live) and #val-grainSize swaps for #grain-linked, which reads
+   in --brown-border rather than full ink: the number is the engine's, not the
+   knob's. Division with no host tempo falls back to the knob, so the dial
+   un-dims and the readout turns --warn-text, as the delay readout does. */
+.grain-link {
+  position: absolute;
+  left: calc(100% + 5px);
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 1.5px solid var(--btn-border);
+  border-radius: 4px;
+  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.grain-link svg { display: block; overflow: visible; pointer-events: none; }
+.grain-link path { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+.grain-link .link-bar { display: none; }
+.grain-link .link-half:nth-of-type(1) { transform: translate(0.9px, -0.9px); }
+.grain-link .link-half:nth-of-type(2) { transform: translate(-0.9px, 0.9px); }
+.grain-link.active .link-bar { display: inline; }
+.grain-link.active .link-half { transform: none; }
+
+.grain-link select {
+  position: absolute;
+  inset: -1.5px;
+  width: calc(100% + 3px);
+  height: calc(100% + 3px);
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 12px;   /* the OS menu's type size, not the box's */
+}
+
+.grain-link:hover {
+  background: rgba(139, 168, 112, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.grain-link.active,
+.grain-link.active:hover {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+  transform: none;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.grain-link:has(select:focus-visible) {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+/* The caption-row shrinks to its caption, so the glyph (absolute, off its right
+   edge) would ride the caption's width: fr "Taille" is 14 px wider than "SIZE"
+   and moved it 7 px (check-ui-labels [7]). Pinned at the widest language, fr,
+   so the glyph sits still in all three; the caption stays centred inside. */
+#cell-grainSize .caption-row { width: 38px; display: flex; justify-content: center; }
+
+.knob-dial-inert {
+  opacity: 0.38;
+  transition: opacity 0.18s ease;
+}
+
+.grain-linked-readout      { color: var(--brown-border); }
+.grain-linked-readout.warn { color: var(--warn-text); }
+
 /* ── TIME slot: identical box for both wraps → zero layout shift ─────────── */
 .time-slot {
   position: relative;

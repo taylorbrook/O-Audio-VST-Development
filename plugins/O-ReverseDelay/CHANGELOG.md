@@ -4,6 +4,82 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.17.0] — 2026-09-24
+
+Grain Link. MINOR: two new choice parameters, appended. Both default to the
+shipped behaviour, so every existing session, preset and render is
+bit-identical to v1.16.0 (all 47 `--digest` hashes match). The window stays
+940 × 768 and no panel moved.
+
+### Added
+
+- **Grain Link** (`grainLink`: Free / = Delay / Division, default Free) and
+  **Grain Division** (`grainDivision`: the `kNoteDivisions` table, default 1/4).
+  The classic reverse delay plays each grain as long as the delay. Until now
+  that meant setting Size by hand, and in Sync it drifted whenever the tempo
+  changed.
+  - **Free** is the Size knob, through the same G expression as v1.16.0.
+  - **= Delay** sets G to the effective D, so it includes the tempo result,
+    the no-tempo fallback to the Delay knob, and the 50 / 4000 ms clamp.
+    G == D in samples.
+  - **Division** plays the chosen note value at the host tempo in either TIME
+    mode, independent of the delay's own division. It is clamped to the
+    grainSize range (50–4000 ms). With no host tempo (Standalone, or no
+    playhead) it falls back to the Size knob, the same way Sync falls back to
+    the Delay knob.
+  - **Resolved per block, latched per grain.** `resolveGrainMs()` (pure, in
+    the header) runs right after D. As with D, a tempo change or a link
+    switch reaches the next spawn and never a grain that is already playing.
+    The playhead is only asked for a tempo in Division mode.
+  - **Ring and randomisation unchanged.** Every mode stays inside
+    [kGrainSizeMinMs, kGrainSizeMaxMs], so kCaptureSeconds' 2·G_max and
+    sizeRandom's clamp still hold. Freeze Length's Delay mode reads the
+    linked G.
+  - **Compatibility.** Free is index 0, and index 0 is what an absent key
+    resolves to in an older session or preset. `kShippedNoOpTail` pins Free and
+    1/4 for the factory presets. User presets need no migration because no
+    existing range moved. Both parameters are appended at the end of the
+    layout, so no existing parameter index moved.
+- **UI: a chain glyph beside the SIZE caption.** It is a 16 px box that uses
+  the Mix lock's caption-row idiom and tokens, because GRAIN has no room for
+  another control. A transparent native `<select>` covers the box, so one
+  click opens one menu: Free, = Delay, a Division heading, then the 13
+  divisions. Picking a division writes `grainDivision` and then `grainLink`.
+  - Linked: the glyph lights and its chain closes, so the state doesn't rely on
+    colour alone. The Size dial dims to 0.38, the same as the inert-knob
+    treatment, but stays adjustable. The readout swaps to `= 250 ms` in
+    `--brown-border`: the value the engine is playing, not the knob's.
+  - Division with no tempo is playing the knob, so the dial lights up again and
+    the readout turns `--warn-text`. A division pinned at 50 or 4000 ms also
+    turns `--warn-text`, matching the delay readout.
+  - `grainMs` / `grainSource` ride `getGrainMeter`, so there is no new native
+    function.
+  - The caption-row is pinned at 38 px, the fr "Taille" width. Otherwise the
+    glyph moved 7 px in fr and 1 px in zh-Hans (check-ui-labels [7]).
+  - i18n: `grainLink` (tip), `aria.grainLink`, and `opt.grainLink.free` /
+    `.delay` / `.division` in en, fr (reviewed: false; "Division" is
+    `sameAsEn`) and zh-Hans ('mt'; Division = 分割, as on the TIME panel).
+
+### Testing
+
+- Harness probe **BL**, 5 lines:
+  - `grainlink-free-bitwise`: 7 pinned v1.16.0 digests, explicit Free equals
+    the default, and the linked modes differ.
+  - `grainlink-eq-delay`: G = D, and the render is bitwise equal to Free with
+    Size set to D, in TIME Free and TIME Sync.
+  - `grainlink-division-tempo`: 1/8 across a mid-render 120 → 96 BPM change
+    renders bitwise equal to Free with Size stepped 250 → 312.5 ms at the same
+    block. The Sync + Grain 1/2 case is independent of the delay's division.
+  - `grainlink-division-fallback`: no tempo and no playhead both fall back to
+    Size.
+  - `grainlink-division-clamp`: both rails clamp; 1/1 @ 60 BPM = 4000 exactly
+    is not reported as clamped.
+- `--digest`: all 47 v1.16.0 scenarios are identical. Three linked scenarios
+  are appended.
+- All 177 v1.16.0 probe lines are byte-identical.
+- ui_frontend_check, ui_tooltip_clamp_check, check-ui-labels, check-i18n,
+  i18n-fr-lint and i18n-zh-lint all pass.
+
 ## [1.16.0] — 2026-09-24
 
 Mix lock. MINOR: no parameter, no preset-format change and no DSP change. With

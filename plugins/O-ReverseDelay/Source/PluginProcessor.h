@@ -179,6 +179,17 @@ public:
         invisible — Sync hides the Delay knob, and the clamp is silent. */
     enum class DelaySource : int { free = 0, tempo = 1, fallback = 2, clamped = 3 };
 
+    /** v1.17.0: the Grain Link choice, in parameter order. ORDER IS LOAD-BEARING:
+        Free is index 0 because an absent key in a pre-v1.17.0 session or preset
+        resolves to index 0, and Free is the shipped behaviour. */
+    enum class GrainLink : int { free = 0, delay = 1, division = 2 };
+
+    /** v1.17.0: which rule set the G the engine is playing — DelaySource's
+        counterpart for the Grain readout. `fallback` is Division with no host
+        tempo (G falls back to the Size knob), `clamped` is Division pinned at
+        kGrainSizeMinMs / kGrainSizeMaxMs. */
+    enum class GrainSource : int { free = 0, delay = 1, tempo = 2, fallback = 3, clamped = 4 };
+
     struct GrainMeter
     {
         int   active  = 0;
@@ -188,6 +199,10 @@ public:
         float       delayMs       = 0.0f;                 // D the next spawn latches
         DelaySource delaySource   = DelaySource::free;
         bool        freezeEngaged = false;                // the latch, not the parameter
+
+        // v1.17.0 — the G the next spawn latches, and why. Same poll again.
+        float       grainMs       = 0.0f;
+        GrainSource grainSource   = GrainSource::free;
     };
 
     GrainMeter getGrainMeter() const noexcept
@@ -196,7 +211,9 @@ public:
                  publishedOverlap    .load (std::memory_order_relaxed),
                  publishedDelayMs    .load (std::memory_order_relaxed),
                  static_cast<DelaySource> (publishedDelaySource.load (std::memory_order_relaxed)),
-                 publishedFreezeEngaged.load (std::memory_order_relaxed) };
+                 publishedFreezeEngaged.load (std::memory_order_relaxed),
+                 publishedGrainMs    .load (std::memory_order_relaxed),
+                 static_cast<GrainSource> (publishedGrainSource.load (std::memory_order_relaxed)) };
     }
 
     /** v1.14.0: input and output peak (linear, 0 = silence) SINCE THE LAST CALL.
@@ -898,6 +915,55 @@ public:
     static constexpr float kCaptureSeconds         = 14.0f;
 
     //==========================================================================
+    // v1.17.0 — Grain Link.
+    //
+    // The classic reverse delay plays grains exactly as long as the delay. Until
+    // v1.17.0 that meant dialling Size to match Delay by hand, and in Sync the
+    // match drifted as soon as the host tempo moved. Grain Link resolves G per
+    // block, right after D:
+    //   Free     — the Size knob, the v1.0-v1.16 expression verbatim.
+    //   = Delay  — the effective D (tempo, fallback or clamp included), so
+    //              G == D in samples.
+    //   Division — grainDivision's note value at the host tempo, in either TIME
+    //              mode, clamped to the grainSize range. With no tempo it falls
+    //              back to the Size knob, as Sync falls back to the Delay knob.
+    //
+    // The result stays inside [kGrainSizeMinMs, kGrainSizeMaxMs] in every mode,
+    // so kCaptureSeconds' 2·G_max and sizeRandom's clamp are untouched.
+    //
+    // Pure, so the harness can audit the arithmetic directly. `bpm` <= 0 means
+    // "no host tempo". The Free branch returns grainKnobMs untouched, which is
+    // what keeps a Free render bitwise the v1.16.0 one.
+    static float resolveGrainMs (GrainLink link, float grainKnobMs, float effectiveDelayMs,
+                                 int divisionIndex, double bpm, GrainSource& source) noexcept
+    {
+        if (link == GrainLink::delay)
+        {
+            source = GrainSource::delay;
+            return juce::jlimit (kGrainSizeMinMs, kGrainSizeMaxMs, effectiveDelayMs);
+        }
+
+        if (link == GrainLink::division)
+        {
+            if (bpm <= 0.0)
+            {
+                source = GrainSource::fallback;
+                return grainKnobMs;
+            }
+
+            const int div = juce::jlimit (0, kNumNoteDivisions - 1, divisionIndex);
+            const double ms = kNoteDivisions[div].beats * 60000.0 / juce::jmax (1.0, bpm);
+            source = (ms < kGrainSizeMinMs || ms > kGrainSizeMaxMs) ? GrainSource::clamped
+                                                                    : GrainSource::tempo;
+            return static_cast<float> (juce::jlimit (static_cast<double> (kGrainSizeMinMs),
+                                                     static_cast<double> (kGrainSizeMaxMs), ms));
+        }
+
+        source = GrainSource::free;
+        return grainKnobMs;
+    }
+
+    //==========================================================================
     // v1.15.0 — Freeze Length.
     //
     // Through v1.14.0 a hold looped everything captured, up to bufferSize − 1
@@ -1171,6 +1237,8 @@ private:
     std::atomic<float>* pSyncMode     = nullptr;
     std::atomic<float>* pNoteDivision = nullptr;
     std::atomic<float>* pGrainSize    = nullptr;
+    std::atomic<float>* pGrainLink    = nullptr;   // v1.17.0: Free at index 0
+    std::atomic<float>* pGrainDivision = nullptr;  // v1.17.0: kNoteDivisions index
     std::atomic<float>* pDensity      = nullptr;
     std::atomic<float>* pFeedback     = nullptr;
     std::atomic<float>* pLowCut       = nullptr;
@@ -1292,6 +1360,8 @@ private:
     std::atomic<float>        publishedDelayMs      { 0.0f };    // v1.13.0
     std::atomic<int>          publishedDelaySource  { 0 };       // v1.13.0: DelaySource
     std::atomic<bool>         publishedFreezeEngaged { false };  // v1.13.0
+    std::atomic<float>        publishedGrainMs      { 0.0f };    // v1.17.0
+    std::atomic<int>          publishedGrainSource  { 0 };       // v1.17.0: GrainSource
     std::atomic<float>        peakInSinceRead       { 0.0f };    // v1.14.0: max-folded, drained by takeLevelPeaks()
     std::atomic<float>        peakOutSinceRead      { 0.0f };    // v1.14.0
     std::atomic<juce::uint32> droppedSpawns         { 0 };

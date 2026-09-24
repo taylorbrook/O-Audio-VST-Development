@@ -206,10 +206,33 @@
       <section class="group group-grain">
         <div class="group-label" data-i18n="label.grain">Grain</div>
         <div class="group-body">
-          <div class="knob-cell">
+          <div class="knob-cell" id="cell-grainSize">
             <div class="knob" id="knob-grainSize" data-param="grainSize"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="label.size">Size</div>
+            <!-- v1.17.0: Grain Link. A chain glyph hanging off the SIZE caption,
+                 the Mix lock's caption-row idiom, because GRAIN has no room for
+                 another control. The glyph is a transparent native <select>
+                 laid over a drawn box, so one click opens a single menu: Free,
+                 = Delay, then the note divisions (grainLink + grainDivision).
+                 Options are built by bindGrainLink() from both params' live
+                 choices. The glyph closes its chain while linked, so the state
+                 does not rely on colour alone. -->
+            <div class="caption-row">
+              <div class="knob-label" data-i18n="label.size">Size</div>
+              <div class="grain-link" id="grain-link">
+                <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true" focusable="false">
+                  <path class="link-half" d="M5.2 3.6 6.4 2.4a2.1 2.1 0 0 1 3 3L8.2 6.6" />
+                  <path class="link-half" d="M6.8 8.4 5.6 9.6a2.1 2.1 0 0 1-3-3L3.8 5.4" />
+                  <path class="link-bar"  d="M4.4 7.6 7.6 4.4" />
+                </svg>
+                <select id="grain-link-menu" data-i18n-aria="aria.grainLink" aria-label="Grain Link"></select>
+              </div>
+            </div>
             <div class="knob-value" id="val-grainSize">&#8212;</div>
+            <!-- v1.17.0: the linked G from getGrainMeter, swapped in for the Size
+                 value while linked (same box, no layout shift). Numbers and a unit
+                 only, so never localized. NOT .knob-value, like #effective-delay:
+                 the clamp gate counts those as knobs. -->
+            <div class="division-readout grain-linked-readout hidden" id="grain-linked" aria-live="off">&#8212;</div>
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-density" data-param="density"><div class="knob-stem"></div></div>

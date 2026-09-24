@@ -123,6 +123,9 @@ const COMBO_SHAPE    = "grainShape";
 // way; only the control drawn on top of it differs.
 const COMBO_SOURCE   = "sourceMode";
 const COMBO_FREEZE_LENGTH = "freezeLength";   // v1.15.0: select in MOTION
+// v1.17.0: two params, ONE control — the chain glyph beside GRAIN's Size caption.
+const COMBO_GRAIN_LINK     = "grainLink";
+const COMBO_GRAIN_DIVISION = "grainDivision";
 
 // v1.6.0 — the plugin's only bool parameter, and so its only ToggleState.
 const TOGGLE_FREEZE  = "freeze";
@@ -755,6 +758,119 @@ function bindSourceSegments(juce) {
   segStereo.addEventListener("click", () => st.setChoiceIndex(1));
 }
 
+// ── Grain Link (v1.17.0) ────────────────────────────────────────────────────
+// grainLink (Free / = Delay / Division) and grainDivision share one native
+// <select> laid over the chain glyph: "free", "delay", a disabled "Division"
+// heading, then "div-N" for every kNoteDivisions entry. A heading OPTION rather
+// than an <optgroup>: its caption is text, so setLabel/applyI18n relabel it like
+// any other, where an optgroup's label attribute would need its own i18n path. Picking a division writes
+// grainDivision first and then grainLink, so the engine never sees Division
+// with the previous note value for longer than one block.
+//
+// Both relays stay bound at all times and the Size knob stays adjustable while
+// linked: it is the Free value, and Division's no-tempo fallback. Classes, aria
+// and the readout span only — the SIZE caption is authored in index.html.
+let grainLinkState   = null;
+let grainDivState    = null;
+let grainLinkBox     = null;
+let grainKnobEl      = null;
+let grainValEl       = null;
+let grainLinkedEl    = null;
+let grainMeterMs     = 0;
+let grainMeterSource = "free";
+
+function bindGrainLink(juce) {
+  grainLinkState = juce.getComboBoxState(COMBO_GRAIN_LINK);
+  grainDivState  = juce.getComboBoxState(COMBO_GRAIN_DIVISION);
+
+  const sel     = document.getElementById("grain-link-menu");
+  grainLinkBox  = document.getElementById("grain-link");
+  grainKnobEl   = document.getElementById("knob-grainSize");
+  grainValEl    = document.getElementById("val-grainSize");
+  grainLinkedEl = document.getElementById("grain-linked");
+
+  if (!sel || !grainLinkBox || !grainKnobEl || !grainValEl || !grainLinkedEl) {
+    console.error("Missing Grain Link elements");
+    grainLinkState = null;
+    return;
+  }
+
+  // Built from grainDivision's LIVE choices, like bindSelectCombo — rebuilt if
+  // they arrive late. Free / = Delay / Division are words, so each carries a
+  // literal LABELS key; the note names are proper names and are not localized.
+  const buildOptions = () => {
+    const divs = (grainDivState.properties && grainDivState.properties.choices) || [];
+    if (divs.length === 0 || sel.options.length === divs.length + 3) return;
+    sel.innerHTML = "";
+    const add = (parent, value, text) => {
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = text;
+      parent.appendChild(opt);
+      return opt;
+    };
+    setLabel(add(sel, "free", "Free"), "opt.grainLink.free");
+    setLabel(add(sel, "delay", "= Delay"), "opt.grainLink.delay");
+    const heading = add(sel, "", "Division");
+    heading.disabled = true;
+    setLabel(heading, "opt.grainLink.division");
+    divs.forEach((d, i) => add(sel, `div-${i}`, d));
+  };
+
+  const refresh = () => {
+    buildOptions();
+    const link = grainLinkState.getChoiceIndex();
+    sel.value = link === 1 ? "delay"
+              : link === 2 ? `div-${grainDivState.getChoiceIndex()}`
+              : "free";
+    grainLinkBox.classList.toggle("active", link !== 0);
+    paintGrainReadout();
+  };
+
+  for (const st of [grainLinkState, grainDivState]) {
+    st.propertiesChangedEvent.addListener(refresh);
+    st.valueChangedEvent.addListener(refresh);
+  }
+
+  sel.addEventListener("change", () => {
+    const v = sel.value;
+    if (v.startsWith("div-")) {
+      grainDivState.setChoiceIndex(Number(v.slice(4)));
+      grainLinkState.setChoiceIndex(2);
+    } else {
+      grainLinkState.setChoiceIndex(v === "delay" ? 1 : 0);
+    }
+  });
+
+  refresh();
+}
+
+// Linked: the dial dims and the readout shows the engine's G. Division with no
+// host tempo is playing the knob, so the dial is live again and the readout
+// warns — as does a division pinned at 50 or 4000 ms. The number comes from
+// getGrainMeter; until a linked value arrives the readout keeps what it had.
+function paintGrainReadout() {
+  if (!grainLinkState) return;
+  const linked   = grainLinkState.getChoiceIndex() !== 0;
+  const knobLive = !linked || grainMeterSource === "fallback";
+
+  grainValEl.classList.toggle("hidden", linked);
+  grainLinkedEl.classList.toggle("hidden", !linked);
+  grainKnobEl.classList.toggle("knob-dial-inert", !knobLive);
+  grainKnobEl.setAttribute("aria-disabled", String(!knobLive));
+
+  if (linked && grainMeterSource !== "free" && grainMeterMs > 0)
+    grainLinkedEl.textContent = `= ${fmtMs(grainMeterMs)}`;
+  grainLinkedEl.classList.toggle("warn",
+    linked && (grainMeterSource === "fallback" || grainMeterSource === "clamped"));
+}
+
+function renderGrainLink(ms, source) {
+  grainMeterMs     = ms;
+  grainMeterSource = source;
+  paintGrainReadout();
+}
+
 // ── Drift Rate is inert while Depth is 0 (v1.7.0, B4 #6) ────────────────────
 // Same shape as refreshTaperEnabled, and for the same reason: the knob is not
 // dead, it is inapplicable, and the page should say which. Class + aria only —
@@ -1057,6 +1173,7 @@ async function pollGrainMeter() {
     // throws — which inside an interval callback would be a silent dead readout.
     renderGrainMeter(Number(m.active) || 0, Number(m.overlap) || 0);
     renderEffectiveDelay(Number(m.delayMs) || 0, String(m.delaySource));
+    renderGrainLink(Number(m.grainMs) || 0, String(m.grainSource));   // v1.17.0
     renderLevelMeter(Number(m.peakIn) || 0, Number(m.peakOut) || 0);
 
     const engaged = m.freezeEngaged === true || m.freezeEngaged === "true";
@@ -1536,6 +1653,7 @@ function init() {
   bindSourceSegments(Juce);      // v1.7.0 (B4 #5)
   bindSelectCombo(Juce, COMBO_DIVISION);
   shapeState = bindSelectCombo(Juce, COMBO_SHAPE);
+  bindGrainLink(Juce);           // v1.17.0
   bindSelectCombo(Juce, COMBO_FREEZE_LENGTH, [   // v1.15.0, in choice order
     (o) => setLabel(o, "opt.freezeLength.ring"),
     (o) => setLabel(o, "opt.freezeLength.delay"),

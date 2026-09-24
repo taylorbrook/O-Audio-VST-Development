@@ -117,8 +117,12 @@ namespace
     //
     // v1.15.0: freezeLength is a select (four entries, a list rather than a
     // pair), inside the MOTION panel under the Off / Freeze segments.
+    //
+    // v1.17.0: grainLink and grainDivision are both driven by ONE menu, the
+    // chain glyph beside GRAIN's Size caption, but each keeps its own relay so
+    // the host sees two ordinary choice parameters.
     const juce::StringArray kComboIds { "syncMode", "noteDivision", "grainShape", "sourceMode",
-                                        "freezeLength" };
+                                        "freezeLength", "grainLink", "grainDivision" };
 
     // v1.6.0: the plugin's first bool parameter, and therefore its first toggle
     // relay. Kept as a StringArray rather than a bare id so the frontend check's
@@ -313,6 +317,11 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
             obj->setProperty ("delayMs",       meter.delayMs);
             obj->setProperty ("delaySource",   juce::String (kDelaySourceNames[static_cast<int> (meter.delaySource)]));
             obj->setProperty ("freezeEngaged", meter.freezeEngaged);
+
+            // v1.17.0: the G the engine plays under Grain Link. Same poll, no new fn.
+            static constexpr const char* kGrainSourceNames[] { "free", "delay", "tempo", "fallback", "clamped" };
+            obj->setProperty ("grainMs",       meter.grainMs);
+            obj->setProperty ("grainSource",   juce::String (kGrainSourceNames[static_cast<int> (meter.grainSource)]));
 
             // v1.14.0: linear in/out peak since the previous poll — same poll,
             // still 15 native functions. This is the one CONSUMING read in the
