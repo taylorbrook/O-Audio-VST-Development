@@ -4,6 +4,62 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.12.3] — 2026-09-23
+
+Five UI fixes in `Source/ui/public`. PATCH: no parameter, range, preset, state
+format or DSP change, and no layout geometry change (colour, gesture and
+enable-state only).
+
+### Fixed
+
+- **Count answers the wheel and arrow keys.** Every nudge was 0.02 normalised.
+  On `grainCount` (2–16, step 1) that is 0.28 of a step, and
+  `SliderState.setNormalisedValue()` snaps to the interval, so every nudge
+  rounded back to where it started. The footer's "wheel or arrows to trim" did
+  nothing on that knob. A nudge is now `max(NUDGE_STEP, interval / (end − start))`
+  (`nudgeStep()`). The floor only engages on `grainCount`. Every other knob's
+  step is under 0.001 normalised, so each keeps its 0.02 nudge.
+- **Wheel: direction, magnitude, one gesture.** A horizontal swipe (deltaY 0)
+  read as "down" and walked the knob to its floor. Events with
+  |deltaX| ≥ |deltaY| are now ignored and not `preventDefault()`ed. Each event
+  moves `clamp(|delta| / 100 px, 1, 4)` nudges, with lines and pages converted to
+  px. The floor of 1 keeps a slow notch exactly as it was in v1.12.2. A burst of
+  ticks is one `sliderDragStarted`/`sliderDragEnded` gesture, which closes 250 ms
+  after the last tick. Previously each tick was its own gesture, which left a
+  comb of automation touches in Logic and Live. A drag, key, or double-click on
+  the same knob closes an open wheel gesture first. Wheel events during a drag
+  are ignored.
+- **Lit buttons read better than unlit ones.** `--btn-active` was
+  `rgba(107,142,35,0.6)`, and cream `--knob-core` text on it measured about
+  2.3:1, against 6.9:1 for an unlit button. It is now solid `--green-dark`
+  (7.2:1). This covers SYNC/FREE, FREEZE, MONO/STEREO, the open gear and the
+  armed Delete. The hover-help "On" toggle moves from `--green-mid` to
+  `--green-dark` (3.3 → 6.8:1).
+- **Delete is disabled on factory presets.** It used to arm, take the
+  confirming click, and then do nothing: the shared `preset-manager.js` refuses
+  factory deletes with only a `console.warn`. `updateDeleteAvailability()` now
+  asks `isFactoryPreset` from `onPresetChanged` and `onPresetListUpdated`. On a
+  factory preset it sets `disabled` and `aria-disabled`, and disarms Delete if it
+  was armed. A token drops answers that arrive late, and a failed lookup leaves
+  the button enabled (the manager's own guard still holds). The shared module is
+  untouched.
+- **Small text meets 4.5:1.** The footer moves from `--brown-border` at 0.75
+  opacity to `--brown-frame` with no opacity (2.5 → 7.7:1). The subtitle goes
+  3.7 → 7.7:1 and the settings labels 3.7 → 6.8:1, both `--brown-frame`. Tooltip
+  titles move to `--green-dark` (3.3 → 5.6:1).
+
+### Tests
+
+- `tests/ui-stub/juce-stub.js` `setNormalisedValue()` now snaps to the interval
+  as `juce/index.js` does. The stub used to store the raw value, which is why no
+  gate saw the stuck Count knob.
+- A Playwright probe at 940×768 covered arrows and wheel on Count (±1 per
+  notch), the one-gesture burst and its 250 ms close, the 4-step clamp, ignored
+  horizontal swipes, the unchanged +2.0 % Mix notch, and the factory and user
+  Delete paths. It measured computed contrast in en, fr and zh-Hans. All
+  passed, with zero console errors. `ui_frontend_check`,
+  `ui_tooltip_clamp_check`, `check-i18n` and `check-ui-labels` all pass.
+
 ## [1.12.2] — 2026-09-23
 
 Three low-severity DSP/state fixes. PATCH: no parameter, range, preset, state

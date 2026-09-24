@@ -233,7 +233,24 @@ const FORMAT = {
 const KNOB_MIN_DEG   = -135;   // normalised 0.0
 const KNOB_MAX_DEG   = 135;    // normalised 1.0
 const DRAG_TRAVEL_PX = 220;    // vertical px for a full 0→1 sweep
-const NUDGE_STEP     = 0.02;   // wheel / arrow-key increment
+const NUDGE_STEP     = 0.02;   // wheel / arrow-key increment (floored at one param step)
+
+// v1.12.3: wheel scaling and gesture hold.
+//
+// One wheel event is AT LEAST one nudge — the behaviour every backend had
+// before — and a larger delta (a fast flick, or a backend reporting lines or
+// pages) scales up to WHEEL_MAX_NUDGES. The floor is deliberate: WebKit's
+// per-notch pixel delta varies with acceleration, and a pure proportional map
+// would make a slow notch move a continuous knob less than it did in v1.12.2.
+//
+// A burst of ticks is ONE automation gesture, closed WHEEL_GESTURE_MS after the
+// last tick, rather than a begin/end pair per tick: Logic and Live write one
+// automation touch per gesture, so the old shape left a comb of tiny touches.
+const WHEEL_PX_PER_NUDGE = 100;  // pixel delta worth one nudge
+const WHEEL_LINE_PX      = 33;   // deltaMode 1 (lines) → px
+const WHEEL_PAGE_PX      = 400;  // deltaMode 2 (pages) → px
+const WHEEL_MAX_NUDGES   = 4;    // per-event clamp
+const WHEEL_GESTURE_MS   = 250;
 
 // ── Tooltip geometry ────────────────────────────────────────────────────────
 const TOOLTIP_MARGIN   = 8;    // gap between a tip and its control / the viewport edge
@@ -274,6 +291,7 @@ let tooltipTimer      = null;
 let tooltipTarget     = null;
 let tooltipSuppressed = false;
 let deleteArmTimer    = null;
+let deleteGateToken   = 0;       // v1.12.3: discards stale isFactoryPreset answers
 
 let meterTimer      = null;    // setInterval handle for the grain meter poll
 let meterActiveEl   = null;    // #meter-active  span
@@ -328,13 +346,33 @@ function updateKnobVisual(id) {
   }
 }
 
-// One-shot fine adjust shared by wheel + arrow keys (a full bracketed gesture).
-function nudge(st, delta, id) {
-  const n = Math.min(1, Math.max(0, st.getNormalisedValue() + delta));
-  st.sliderDragStarted();
+// v1.12.3: the normalised size of one nudge — NUDGE_STEP, floored at one
+// parameter step. setNormalisedValue() snaps to the range's interval, so a move
+// smaller than half a step rounds straight back: on grainCount (2–16, step 1)
+// 0.02 is 0.28 of a step and the wheel and arrows did nothing at all. Every
+// other knob's step is under 0.001 normalised, so the floor only bites where
+// the knob was stuck. interval / span is exact for grainCount because it is
+// linear; the skewed ranges all have 0.01 steps over spans of 100+, where the
+// floor never engages.
+function nudgeStep(st) {
+  const p = st.properties;
+  const span = p.end - p.start;
+  if (!(p.interval > 0) || !isFinite(span) || span <= 0) return NUDGE_STEP;
+  return Math.max(NUDGE_STEP, p.interval / span);
+}
+
+// Move by `nudges` nudge-steps (signed). Unbracketed — the caller owns the gesture.
+function stepBy(st, nudges, id) {
+  const n = Math.min(1, Math.max(0, st.getNormalisedValue() + nudges * nudgeStep(st)));
   st.setNormalisedValue(n);
-  st.sliderDragEnded();
   updateKnobVisual(id);
+}
+
+// One-shot fine adjust for the arrow keys (a full bracketed gesture).
+function nudge(st, dir, id) {
+  st.sliderDragStarted();
+  stepBy(st, dir, id);
+  st.sliderDragEnded();
 }
 
 function resetToDefault(st, id) {
@@ -362,17 +400,29 @@ function bindKnob(juce, id) {
   knob.setAttribute("tabindex", "0");
   knob.setAttribute("role", "slider");
   knob.addEventListener("keydown", (e) => {
-    let delta = 0;
-    if (e.key === "ArrowUp" || e.key === "ArrowRight") delta = NUDGE_STEP;
-    else if (e.key === "ArrowDown" || e.key === "ArrowLeft") delta = -NUDGE_STEP;
+    let dir = 0;
+    if (e.key === "ArrowUp" || e.key === "ArrowRight") dir = 1;
+    else if (e.key === "ArrowDown" || e.key === "ArrowLeft") dir = -1;
     else return;
-    nudge(st, delta, id);
+    endWheelGesture();
+    nudge(st, dir, id);
     e.preventDefault();
   });
 
   let dragging  = false;
   let startY    = 0;
   let startNorm = 0;
+
+  // v1.12.3: the open wheel gesture, if any. Every other interaction on this
+  // knob closes it first, so a key, drag or double-click never nests its own
+  // begin/end inside it.
+  let wheelTimer = null;
+  const endWheelGesture = () => {
+    if (wheelTimer === null) return;
+    clearTimeout(wheelTimer);
+    wheelTimer = null;
+    st.sliderDragEnded();
+  };
 
   const onMove = (e) => {
     if (!dragging) return;
@@ -399,6 +449,7 @@ function bindKnob(juce, id) {
   };
 
   knob.addEventListener("pointerdown", (e) => {
+    endWheelGesture();
     dragging  = true;
     startY    = e.clientY;
     startNorm = st.getNormalisedValue();
@@ -428,15 +479,32 @@ function bindKnob(juce, id) {
     e.preventDefault();
   });
 
+  // v1.12.3: horizontal-dominant events are not ours — up to v1.12.2 a sideways
+  // trackpad swipe (deltaY 0) read as "down" and walked the knob to its floor.
+  // Not preventDefault()ed, so they reach whatever else wants them. Ignored
+  // mid-drag too: the drag already holds the gesture, and a tick there used to
+  // close it early.
   knob.addEventListener("wheel", (e) => {
-    nudge(st, e.deltaY < 0 ? NUDGE_STEP : -NUDGE_STEP, id);
+    if (dragging) { e.preventDefault(); return; }
+    if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
     e.preventDefault();
+
+    const px = Math.abs(e.deltaY) *
+      (e.deltaMode === 1 ? WHEEL_LINE_PX : e.deltaMode === 2 ? WHEEL_PAGE_PX : 1);
+    const nudges = Math.min(WHEEL_MAX_NUDGES, Math.max(1, px / WHEEL_PX_PER_NUDGE));
+
+    if (wheelTimer === null) st.sliderDragStarted();
+    else clearTimeout(wheelTimer);
+    wheelTimer = setTimeout(endWheelGesture, WHEEL_GESTURE_MS);
+
+    stepBy(st, e.deltaY < 0 ? nudges : -nudges, id);
   }, { passive: false });
 
   // Dblclick-reset uses the engineering default fetched from C++ — the
   // properties payload carries no default field, so a JS default table would
   // be the only alternative (and would drift).
   knob.addEventListener("dblclick", (e) => {
+    endWheelGesture();
     resetToDefault(st, id);
     e.preventDefault();
   });
@@ -906,6 +974,28 @@ function confirmDeleteInline(_name, _message) {
   return false;
 }
 
+// v1.12.3: Delete is disabled on a factory preset. Up to v1.12.2 it armed,
+// took the confirming click, and then did nothing — preset-manager's
+// deletePreset() refuses factory presets with only a console.warn. The shared
+// module is left alone; this asks the same isFactoryPreset question up front
+// whenever the current preset may have changed (load, prev/next, save, file
+// load via onPresetChanged; initial refresh and post-delete refresh via
+// onPresetListUpdated). A token discards an answer that arrives after a newer
+// change. On a failed lookup the button stays enabled — the manager's own
+// guard still stops a factory delete, so failing open costs nothing.
+async function updateDeleteAvailability() {
+  const btn = document.getElementById("preset-delete");
+  if (!btn || !presetManager) return;
+  const token = ++deleteGateToken;
+  const name = presetManager.getCurrentPreset();
+  let factory = false;
+  try { factory = (await presetManager.isFactoryPreset(name)) === true; } catch (_) { /* fail open */ }
+  if (token !== deleteGateToken) return;
+  if (factory && btn.dataset.armed === "1") disarmDelete(btn);
+  btn.disabled = factory;
+  btn.setAttribute("aria-disabled", factory ? "true" : "false");
+}
+
 // Hoisted declaration, called from inside init() — never at module top level,
 // and the dynamic import() lives in here rather than at the top of the file, so
 // a failure cannot escape module evaluation. The try/catch is load-bearing: it
@@ -923,6 +1013,8 @@ async function initPresetBar() {
       deleteButton:   document.getElementById("preset-delete"),
       getNativeFunction: Juce.getNativeFunction,
       onConfirmDelete: confirmDeleteInline,
+      onPresetChanged:     () => { updateDeleteAvailability(); },
+      onPresetListUpdated: () => { updateDeleteAvailability(); },
     });
 
     await presetManager.initialize();
