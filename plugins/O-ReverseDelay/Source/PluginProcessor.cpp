@@ -578,6 +578,8 @@ void ReverseDelayProcessor::reset()
     mixSmoothed.setCurrentAndTargetValue(pMix->load() * 0.01f);
     lowCutSmoothed.setCurrentAndTargetValue(pLowCut->load());
     highCutSmoothed.setCurrentAndTargetValue(pHighCut->load());
+    diffuseSmoothed.setCurrentAndTargetValue(currentDiffuseMix());   // v1.12.2
+    driveSmoothed.setCurrentAndTargetValue(driveRatio (pDrive->load()));
 
     // v1.7.2 (CR-02): freeze starts at ZERO here, not at the parameter's value —
     // the same correction prepareToPlay carries, for the same reason and with one
@@ -1112,11 +1114,15 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     lowCutSmoothed.reset(sampleRate, smoothingSeconds);
     highCutSmoothed.reset(sampleRate, smoothingSeconds);
     freezeSmoothed.reset(sampleRate, smoothingSeconds);   // v1.6.0
+    diffuseSmoothed.reset(sampleRate, smoothingSeconds);  // v1.12.2
+    driveSmoothed.reset(sampleRate, smoothingSeconds);
 
     feedbackSmoothed.setCurrentAndTargetValue(pFeedback->load() * 0.01f);
     mixSmoothed.setCurrentAndTargetValue(pMix->load() * 0.01f);
     lowCutSmoothed.setCurrentAndTargetValue(pLowCut->load());
     highCutSmoothed.setCurrentAndTargetValue(pHighCut->load());
+    diffuseSmoothed.setCurrentAndTargetValue(currentDiffuseMix());   // v1.12.2
+    driveSmoothed.setCurrentAndTargetValue(driveRatio (pDrive->load()));
 
     // v1.7.2 (CR-02): start UN-frozen, even when the parameter says frozen.
     //
@@ -1253,18 +1259,45 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const int numInputChannels  = juce::jmin(getTotalNumInputChannels(),  buffer.getNumChannels());
     const int numOutputChannels = juce::jmin(getTotalNumOutputChannels(), buffer.getNumChannels());
 
-    // Defensive: host delivered a block larger than prepared, or prepareToPlay
-    // never ran. Bail without touching the wet path — but pass DRY through rather
-    // than emitting whatever the extra output channels happen to hold.
+    // Defensive: prepareToPlay never ran. Bail without touching the wet path —
+    // but pass DRY through rather than emitting whatever the extra output
+    // channels happen to hold.
     //
     // (C: the v1.0.0 bare `return` did already leave channel 0 dry — the review's
     // "bails to total silence" reading is wrong. What it genuinely leaked is the
     // mono->stereo case, where output channel 1 is never written by this plugin
     // and would carry stale host memory. Duplicating dry closes that.)
-    if (numSamples > wetScratch.getNumSamples() || capture.getBufferSize() == 0)
+    if (capture.getBufferSize() == 0 || wetScratch.getNumSamples() <= 0)
     {
         for (int ch = numInputChannels; ch < numOutputChannels; ++ch)
             buffer.copyFrom(ch, 0, buffer, 0, 0, numSamples);
+
+        return;
+    }
+
+    // v1.12.2: a host block LARGER than prepared is processed in chunks of the
+    // prepared size rather than bailed to dry. The old bail passed dry at unity
+    // whatever Mix said, and stalled the ring, the scheduler and the feedback
+    // loop for that block — so the tail jumped a block's worth on the next one.
+    //
+    // Each chunk is a full processBlock over a buffer that REFERS to a slice of
+    // the host's channels: the pointer-array constructor with ≤ 32 channels uses
+    // AudioBuffer's preallocated channel space, so nothing is allocated here.
+    // Recursion depth is exactly one — every chunk fits wetScratch. Parameters
+    // are re-read per chunk, which is what the host would have delivered had it
+    // split the block itself; at a static setting a 2N block renders bitwise the
+    // same as two N blocks (probe BG).
+    if (numSamples > wetScratch.getNumSamples())
+    {
+        const int maxChunk = wetScratch.getNumSamples();
+
+        for (int start = 0; start < numSamples; start += maxChunk)
+        {
+            juce::AudioBuffer<float> chunk (buffer.getArrayOfWritePointers(),
+                                            buffer.getNumChannels(), start,
+                                            juce::jmin (maxChunk, numSamples - start));
+            processBlock (chunk, midiMessages);
+        }
 
         return;
     }
@@ -1342,22 +1375,27 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const float duckAttack = duckCoeff (kDuckAttackSec,  currentSampleRate);
     const float duckRelease= duckCoeff (kDuckReleaseSec, currentSampleRate);
 
-    // v1.8.0 (B4 #7-#8) — COLOUR, both read at block rate.
+    // v1.8.0 (B4 #7-#8) — COLOUR. Read here, applied per sample in step 5.
     //
-    // Neither is smoothed, and unlike regenMakeup — which gets away with it by
-    // riding alongside a gain that IS smoothed — each has its own reason:
+    // v1.12.2: both are now SMOOTHED (~20 ms, stepped per sample like
+    // feedbackSmoothed). v1.8.0 read them at block rate on the argument that
+    // neither moves quiet material — true, but loud material moves plenty, and
+    // both sit INSIDE the feedback loop, so the step then recirculates:
     //
-    //   * diffuseMix is a crossfade between two unity-magnitude paths, so a step
-    //     in it changes phase distribution rather than level. There is no gain
-    //     discontinuity for a ramp to hide.
-    //   * driveD scales the argument of a function whose small-signal gain is 1
-    //     at every d, so a step leaves quiet material bitwise where it was and
-    //     moves only the harmonic content of loud material.
+    //   * driveD: tanh(d·x)/d at x = 0.9 is 0.716 at 0 % and 0.125 at 100 %;
+    //     even 40 -> 50 % steps that sample by 0.072 (about -23 dB).
+    //   * diffuseMix: the output steps by Δm·(allpass − dry), which is as large
+    //     as the signal itself wherever the chain has decorrelated it.
     //
-    // Both are exact at their defaults: 0 % gives diffuseMix == 0.0f (dry term
-    // exactly 1.0f) and driveD == 1.0f (driveShape early-outs to std::tanh).
-    const float diffuseMix = juce::jlimit (0.0f, 1.0f, pDiffusion->load() * 0.01f);
-    const float driveD     = driveRatio (pDrive->load());
+    // Bitwise inert at a static setting: prepare/reset jump each smoother to
+    // its target, setTargetValue() with an unchanged value starts no ramp, and a
+    // SmoothedValue at rest returns its target exactly — the same float the
+    // block-rate read produced. Both defaults are still exact: diffusion 0 gives
+    // a dry term of exactly 1.0f and driveD 1.0f still early-outs to std::tanh.
+    // Mid-ramp from Drive 0, d passes through values just above 1.0f; tanh(d·x)/d
+    // is continuous in d there, so the early-out boundary is not a seam.
+    diffuseSmoothed.setTargetValue (currentDiffuseMix());
+    driveSmoothed.setTargetValue (driveRatio (pDrive->load()));
 
     // Smoothed (~20 ms) parameters — set targets once per block.
     feedbackSmoothed.setTargetValue(pFeedback->load() * 0.01f);
@@ -2139,7 +2177,9 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
                 for (int e = i + n; i < e; ++i)
                 {
-                    const float g = feedbackSmoothed.getNextValue() * regenMakeup;
+                    const float g          = feedbackSmoothed.getNextValue() * regenMakeup;
+                    const float diffuseMix = diffuseSmoothed.getNextValue();   // v1.12.2
+                    const float driveD     = driveSmoothed.getNextValue();
                     float l = hpL.processSample(loopL[i] * g);
                     float r = hpR.processSample(loopR[i] * g);
                     l = lpL.processSample(l);
@@ -2512,6 +2552,43 @@ void ReverseDelayProcessor::setStateInformation(const void* data, int sizeInByte
 {
     if (auto xml = getXmlFromBinary(data, sizeInBytes))
     {
+        // v1.12.2: a parameter the saved state does not mention restores to its
+        // DEFAULT, not to whatever this instance currently holds — stated here
+        // explicitly rather than inherited from JUCE.
+        //
+        // On the JUCE this builds against (8.0.15) that already happens, but only
+        // incidentally: replaceState() re-binds the parameters, appends an id-only
+        // PARAM child for each one the tree lacks, and the APVTS's own
+        // valueTreeChildAdded listener then reads that child's missing "value"
+        // with the parameter's default as fallback. Nothing documents that path,
+        // and if it changed a v1.0–v1.7 session (no diffusion/drive; before
+        // v1.6.0 no freeze/direction/regenMakeup either) opened into a slot at
+        // Drive 60 or Freeze on would keep those values. Writing the defaults into
+        // the incoming XML makes the guarantee ours, and matches the JSON preset
+        // path, which resets to defaults before applying (WR-01 in
+        // OuariconPresetManager::loadPreset). Probe BF pins the behaviour.
+        //
+        // On the XML rather than by resetting the live parameters first: that
+        // would notify the host of a default for every parameter and then again
+        // with the saved value. Only for the APVTS root — setStateFromXml ignores
+        // anything else.
+        if (xml->hasTagName (parameters.state.getType()))
+        {
+            for (auto* p : getParameters())
+            {
+                auto* rp = dynamic_cast<juce::RangedAudioParameter*> (p);
+
+                if (rp == nullptr
+                    || xml->getChildByAttribute ("id", rp->paramID) != nullptr)
+                    continue;
+
+                auto* child = xml->createNewChildElement ("PARAM");
+                child->setAttribute ("id", rp->paramID);
+                child->setAttribute ("value",
+                                     static_cast<double> (rp->convertFrom0to1 (rp->getDefaultValue())));
+            }
+        }
+
         presetManager.setStateFromXml(xml.get());
 
         // Read AFTER the restore: setStateFromXml replaces the whole tree, so

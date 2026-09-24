@@ -4,6 +4,61 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.12.2] — 2026-09-23
+
+Three low-severity DSP/state fixes. PATCH: no parameter, range, preset, state
+format or UI change.
+
+### Fixed
+
+- **Drive and Diffusion are smoothed inside the feedback loop.** v1.8.0 read
+  both at block rate on the argument that "a step leaves quiet material where it
+  was". True, but loud material moves: `tanh(d·x)/d` at x = 0.9 goes 0.716 → 0.125
+  across 0 → 100 %, and even 40 → 50 % steps that sample by 0.072 (about −23 dB).
+  Diffusion steps the loop by Δm·(allpass − dry). Both sit inside the
+  recirculating path, so the click then came back every generation. Each now has
+  a 20 ms `SmoothedValue` (`diffuseSmoothed`, `driveSmoothed`, the latter
+  holding `driveRatio()` rather than the percentage) stepped per sample in step 5
+  exactly as `feedbackSmoothed` is, jumped to target in `prepareToPlay`/`reset`.
+  At a static setting the smoother returns its target float exactly, so renders
+  change only while either control is moving.
+- **Blocks larger than prepared are processed in chunks.** Up to v1.12.1 a host
+  block bigger than `prepareToPlay`'s size bailed to dry at unity whatever Mix
+  said, and the ring, scheduler and feedback loop stalled for that block. It is
+  now split into chunks of `wetScratch.getNumSamples()`, each a `processBlock`
+  over an `AudioBuffer` that refers to a slice of the host's channels (no
+  allocation at ≤ 32 channels; recursion depth one). The unprepared case still
+  bails to dry.
+- **Old sessions restore missing parameters to their defaults, explicitly.**
+  `setStateInformation` now writes every parameter id the saved tree lacks into
+  the incoming XML at its default before `replaceState`, matching the JSON preset
+  path's reset-to-defaults (WR-01). **Measured, this was not a live bug on the
+  JUCE this builds against (8.0.15):** `replaceState` appends an id-only `PARAM`
+  child for each missing parameter and the APVTS's `valueTreeChildAdded` listener
+  resets it through `getProperty ("value", getDenormalisedDefaultValue())`. The
+  fill makes the guarantee ours rather than a side effect of an undocumented JUCE
+  path.
+
+### Testing
+
+- **Probe BF** (2 checks): a v1.7 state (no `diffusion`/`drive`) and a v1.5 state
+  (also no `freeze`, `direction`, `regenMakeup`, `sourceMode`, `duck`,
+  `driftRate`, `driftDepth`), synthesised by removing those `PARAM` children from
+  a fresh instance's state, loaded into an instance with every one of those
+  parameters driven off-default (Drive 60, Freeze on, …). Asserts all missing ids
+  at default and the saved feedback/mix (55/70) restored. **Also passes with the
+  fill disabled** on JUCE 8.0.15, for the reason above — it is a guard, not a
+  demonstration.
+- **Probe BG** (1 check): prepared at 512, 2.0 s rendered as 512-sample blocks
+  vs 1024-sample blocks, with feedback 60, width 60, mix 70, diffusion 40,
+  drive 50. Asserts bitwise equality. **Verified by restoring the dry bail:**
+  0.287 divergence; with chunking 0.0.
+- **Every existing probe's printed output is byte-identical** to v1.12.1
+  (full-stdout diff; the only added lines are BF's and BG's). No existing probe
+  moves Drive or Diffusion mid-render, so the smoothers are inert across the
+  suite. Harness 153 → **156 checks**, all passing. The smoothing itself has no
+  dedicated probe.
+
 ## [1.12.1] — 2026-09-23
 
 Forward grains could read stale ring audio when the delay GREW. PATCH: no
