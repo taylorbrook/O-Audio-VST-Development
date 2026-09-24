@@ -317,6 +317,7 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                         for (const auto& val : *arr)
                             intervals.push_back(static_cast<double>(val));
                         processorRef.getTuningEngine()->setCustomIntervals(intervals, "Custom");
+                        processorRef.selectTuningSystem(0);  // CR-03: Scala
                         complete(true);
                         return;
                     }
@@ -333,6 +334,7 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                     int index = static_cast<int>(args[0]);
                     double cents = static_cast<double>(args[1]);
                     processorRef.getTuningEngine()->setSingleInterval(index, cents);
+                    processorRef.selectTuningSystem(0);  // CR-03: Scala
                     complete(true);
                     return;
                 }
@@ -365,15 +367,24 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                 complete(false);
             })
 
+            // CR-04: the panel's reference knob reads and writes the referencePitch
+            // PARAMETER, the single A4 owner. The voice applies it as a ratio and
+            // the engine's own A4 stays at 440 by design; writing the engine here
+            // would apply the reference twice (and, until v1.9.2, processBlock
+            // overwrote it on the next block anyway).
             .withNativeFunction("getMasterTune", [this](const juce::Array<juce::var>&, auto complete) {
-                complete(processorRef.getTuningEngine()->getMasterTune());
+                complete(static_cast<double>(
+                    processorRef.getAPVTS().getRawParameterValue("referencePitch")->load()));
             })
 
             .withNativeFunction("setMasterTune", [this](const juce::Array<juce::var>& args, auto complete) {
                 if (args.size() >= 1) {
-                    processorRef.getTuningEngine()->setMasterTune(static_cast<double>(args[0]));
-                    complete(true);
-                    return;
+                    if (auto* param = processorRef.getAPVTS().getParameter("referencePitch")) {
+                        const auto hz = static_cast<float>(static_cast<double>(args[0]));
+                        param->setValueNotifyingHost(param->convertTo0to1(hz));
+                        complete(true);
+                        return;
+                    }
                 }
                 complete(false);
             })
@@ -383,6 +394,9 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                     int preset = static_cast<int>(args[0]);
                     processorRef.getTuningEngine()->setBuiltInPreset(
                         static_cast<TuningEngine::BuiltInPreset>(preset));
+                    // CR-03: Equal 12-TET selects 12-TET; any other temperament is a scale.
+                    processorRef.selectTuningSystem(
+                        preset == static_cast<int>(TuningEngine::BuiltInPreset::Equal12TET) ? 2 : 0);
                     complete(true);
                     return;
                 }
@@ -407,6 +421,8 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
                             bool success = processorRef.getTuningEngine()->loadScalaFile(file);
+                            if (success)
+                                processorRef.selectTuningSystem(0);  // CR-03: Scala
                             complete(success);
                         } else {
                             complete(false);
@@ -427,7 +443,9 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                             return;
                         auto file = fc.getResult();
                         if (file.existsAsFile()) {
-                            bool success = processorRef.getTuningEngine()->loadKBMFile(file);
+                            // CR-04/WR-10: through the processor, which keeps the file
+                            // for the session and moves its A4 to referencePitch.
+                            bool success = processorRef.loadKbmFile(file);
                             complete(success);
                         } else {
                             complete(false);
@@ -500,6 +518,7 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                         for (const auto& val : *arr)
                             intervals.push_back(static_cast<double>(val));
                         processorRef.getTuningEngine()->setCustomIntervals(intervals, scaleName);
+                        processorRef.selectTuningSystem(0);  // CR-03: Scala
                         complete(true);
                         return;
                     }
@@ -535,6 +554,7 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                         intervals.push_back(tuning->period);
                         processorRef.getTuningEngine()->setCustomIntervals(
                             intervals, juce::String(tuning->name));
+                        processorRef.selectTuningSystem(0);  // CR-03: Scala
                         complete(true);
                         return;
                     }

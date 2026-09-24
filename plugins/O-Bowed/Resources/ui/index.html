@@ -678,6 +678,22 @@
         }
         .tuning-overlay.open { display: block; }
 
+        /* v1.9.3 (CR-03): the Tuning System selector, the only control for the
+           tuningSystem parameter. Left-aligned above the shared panel. */
+        .tuning-system-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 10px 0;
+        }
+        /* The caption is content-sized and the select sits right after it, so
+           the select moved with each language's caption width (fr +20.5 px,
+           zh-Hans -50.1 px in the geometry diff). A fixed box, wider than the
+           widest of the three, keeps the select in one place. */
+        .tuning-system-row > .settings-label {
+            flex: 0 0 140px;
+        }
+
         /* ── PAGE-LOCAL LINE BOXES (v1.9.0) ──────────────────────────────────
            Five captions on this page inherit `line-height: normal`, so their
            used line box is the FACE's ascent + descent. PingFang SC's is
@@ -1352,6 +1368,20 @@
          Tuning Overlay (toggled from header)
          ================================================================ -->
     <div class="tuning-overlay" id="tuning-overlay">
+        <!-- v1.9.3 (CR-03): tuningSystem had no control at all, and processBlock
+             forced the engine to it every block, so every scale loaded in the
+             panel below played 12-TET. The option index IS the choice index
+             (0 Scala/TUN, 1 MTS-ESP, 2 12-TET). The option words are names, the
+             same in every language. MTS-ESP is disabled: the engine has no client
+             for it yet. Loading a scale in the panel selects Scala on its own. -->
+        <div class="tuning-system-row">
+            <span class="settings-label" data-i18n="label.tuningSystem">Tuning System</span>
+            <select class="settings-select" id="tuning-system-select">
+                <option value="0">Scala</option>
+                <option value="1" disabled>MTS-ESP</option>
+                <option value="2" selected>12-TET</option>
+            </select>
+        </div>
         <div id="tuning-container"></div>
     </div>
 
@@ -2411,6 +2441,7 @@
             });
 
             // Bind combo boxes
+            bindComboBox('tuningSystem', 'tuning-system-select');
             // Initialize conditional visibility
             if (sliderStates.sympatheticCount) {
                 updateSympVisibility(sliderStates.sympatheticCount.getNormalisedValue());

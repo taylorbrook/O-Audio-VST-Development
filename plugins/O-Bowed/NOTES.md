@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.2
+- **Version:** 1.9.3
 - **Type:** Synth (Physical Model Bowed String)
 
 ## Lifecycle Timeline
@@ -46,12 +46,39 @@
   byte-identical to v1.9.1. New `tests/register_gate.py` (10 factory presets × MIDI 45–96, gated
   from 74) PASSES at 44.1/48/96 kHz; v1.9.1 fails it. Harness gained `--sample-rate` and
   `--param id=norm`. Validated: auval PASS, pluginval 5 SUCCESS.
+- **2026-09-24 (v1.9.3):** Resolved **CR-03 / CR-04 / WR-07 / WR-10** via `/improve-review`
+  (PATCH), porting the O-Contrabass tuning-ownership design. `tuningSystem` owns the engine mode
+  (async apply on the message thread; panel scale loads select Scala), with a new Tuning System select
+  in the tuning overlay. `referencePitch` is applied as a voice-side ratio over an engine held at 440,
+  so the full 220–880 Hz range works (CR-04 option chosen over narrowing the range or widening the
+  shared clamp). Tuning state (intervals, name, temperament, tonic, stretch, KBM) persists through
+  `customState`, and `setStateInformation` strips the stale `<CustomState>` child that the shared
+  preset manager leaves in the tree. The default render is byte-identical (`c8aa14d6…`). The harness
+  gained `--edo` / `--roundtrip-edo`. Validated: all pitch checks within +0.6 c, i18n/UI gates pass,
+  auval SUCCEEDED.
 
 ## Known Issues
 
-Open from the v1.9.0 review (`CODE_REVIEW.md`, 2026-09-23): **CR-03 / CR-04 / WR-07 / WR-10** (tuning ownership; CR-04 needs a range-vs-module-clamp
-decision), **WR-02 / WR-03** (sympathetic loop), **WR-04, WR-06, WR-08, WR-09, WR-11, WR-12**, and
-IN-01..IN-10.
+Open from the v1.9.0 review (`CODE_REVIEW.md`, 2026-09-23): **WR-02 / WR-03** (sympathetic loop),
+**WR-04, WR-06, WR-08, WR-09, WR-11, WR-12**, and IN-01..IN-10.
+
+- **Shared preset-manager bug: stale `<CustomState>` in the restored tree (found in v1.9.3).**
+  `OuariconPresetManager::setStateFromXml` (module v1.0.7) leaves the `<CustomState>` child inside
+  the APVTS tree, so every plugin that uses `setCustomStateCallbacks` (O-Contrabass, O-Wind and
+  others) restores the state from the FIRST reopen at the second and later ones. O-Bowed strips it
+  locally in `setStateInformation`. The module-level fix belongs in `preset-manager` (strip it in
+  `setStateFromXml`, or in `getStateAsXml` before appending), which is a module upgrade across its
+  consumers.
+- **The tuning panel's reference knob spans 400–480 Hz (shared `tuning-panel.js`).** It writes
+  `referencePitch`, so it works inside that range, but it can't reach 220–400 or 480–880 (use the
+  footer Ref Pitch knob), and it only re-reads the parameter when the panel re-initialises.
+- **Scale name when the scale is loaded but 12-TET is selected.** The engine only reports a loaded
+  scale's own name in Scala mode, so a session saved with 12-TET selected restores the scale's
+  intervals under the temperament menu's name. The intervals are exact.
+- **Saved .kbm exports write A4 = 440.** The engine's A4 is held at 440 by design (CR-04), so "Save
+  .kbm" writes 440 as the reference frequency, not the Ref Pitch value.
+- **zh-Hans `tip.tuningSystem` is at `reviewed: 'mt'`** and fr at `reviewed: false`. Both need the
+  normal promotion (blind back-translation for zh, a read for fr).
 
 - **Mode lock-in islands below the register floor (found in v1.9.2 measurement, pre-existing).**
   CR-01's floor only covers D5 and up. Lower down, some (β, bow speed) pairs still lock to H2/H3.
@@ -75,7 +102,7 @@ IN-07, IN-09 were resolved in v1.4.1; IN-01, IN-03 in v1.4.0):
 - **IN-02 / IN-04** — `ThermalFriction.h` and the elasto-plastic Newton-Raphson helper are unused dead code.
 - **IN-05** — factory-preset authoring comment inverts the `brightness` skew exponent (stored values are correct).
 - **IN-08** — dead per-block constant `setPan`; mislabeled step comments.
-- **IN-10 / IN-11 / IN-12 / IN-13** — dead `bindComboBox`/`tuningSystem` select, unused `savePreset` fn,
+- **IN-11 / IN-12 / IN-13** — (IN-10's dead `bindComboBox`/`tuningSystem` select was resolved by CR-03 in v1.9.3) unused `savePreset` fn,
   unconditional 15 Hz visualization poll, and several unused registered tuning fns.
 - Per-voice `updateParametersFromAPVTS` still uses string-keyed parameter lookups (WR-06 covered only
   the processor's `processBlock`, as the finding scoped it).

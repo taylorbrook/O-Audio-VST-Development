@@ -278,11 +278,26 @@ OBowedAudioProcessor::OBowedAudioProcessor()
     // Enable legacy mode for non-MPE controllers (standard keyboards, +/- 2 semitone bend)
     synthesiser.enableLegacyMode (2);
 
+    // v1.9.3 (CR-03): tuningSystem owns the engine mode. Seeded synchronously
+    // here (message thread, nothing rendering yet, and the offline harness never
+    // pumps a message loop), then kept in step by the listener.
+    parameters.addParameterListener ("tuningSystem", this);
+    handleAsyncUpdate();
+
+    // v1.9.3 (WR-10): tuning-panel state rides presets and the session.
+    presetManager.setCustomStateCallbacks (
+        [this]() { return saveTuningState(); },
+        [this] (const juce::var& state) { loadTuningState (state); });
+
     initializeFactoryPresets();
 }
 
 OBowedAudioProcessor::~OBowedAudioProcessor()
 {
+    // handleAsyncUpdate() touches tuningEngine; don't let a pending update
+    // outlive the processor.
+    parameters.removeParameterListener ("tuningSystem", this);
+    cancelPendingUpdate();
 }
 
 void OBowedAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -319,10 +334,8 @@ void OBowedAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     pBodyMaterial      = parameters.getRawParameterValue ("bodyMaterial");
     pBodySize          = parameters.getRawParameterValue ("bodySize");
     pWidth             = parameters.getRawParameterValue ("width");
-    pReferencePitch    = parameters.getRawParameterValue ("referencePitch");
     pSympatheticDecay  = parameters.getRawParameterValue ("sympatheticDecay");
     pBodyAmount        = parameters.getRawParameterValue ("bodyAmount");
-    pTuningSystem      = parameters.getRawParameterValue ("tuningSystem");
     pOutputLevel       = parameters.getRawParameterValue ("outputLevel");
     pHumanizeRange[0]  = parameters.getRawParameterValue ("humanizeSpeedRange");
     pHumanizeRange[1]  = parameters.getRawParameterValue ("humanizePressureRange");
@@ -361,7 +374,6 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     float material        = pBodyMaterial->load();
     float bodySize        = pBodySize->load();
     float width           = pWidth->load();
-    float refPitch        = pReferencePitch->load();
     float sympDecay       = pSympatheticDecay->load();
     float bodyAmount      = pBodyAmount->load();
 
@@ -376,15 +388,13 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     };
     humanizeEngine.update (humanRanges, humanRates, buffer.getNumSamples());
 
-    // === 1b. Wire tuning engine ===
-    tuningEngine.setMasterTune (static_cast<double> (refPitch));
-    int tuningSystemIdx = static_cast<int> (pTuningSystem->load());
-    switch (tuningSystemIdx)
-    {
-        case 0:  tuningEngine.setMode (TuningEngine::Mode::Scala); break;
-        case 1:  tuningEngine.setMode (TuningEngine::Mode::MTSESP); break;
-        default: tuningEngine.setMode (TuningEngine::Mode::TwelveTET); break;
-    }
+    // v1.9.3 (CR-03, CR-04, WR-07): the tuning engine is no longer written from
+    // here. Until v1.9.2 this block called setMasterTune and setMode on every
+    // block, which overrode every tuning-panel scale with the tuningSystem
+    // parameter (12-TET by default, with no control to change it) and raced the
+    // editor's own rebuilds. The mode now follows tuningSystem through
+    // parameterChanged -> handleAsyncUpdate on the message thread, and
+    // referencePitch is applied by the voice as a ratio (BowedStringVoice).
 
     // === 2. Set voice panning ===
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
@@ -519,6 +529,17 @@ void OBowedAudioProcessor::setStateInformation(const void* data, int sizeInBytes
     if (xmlState != nullptr)
         presetManager.setStateFromXml(xmlState.get());
 
+    // v1.9.3 (WR-10): setStateFromXml() hands the WHOLE element to replaceState(),
+    // so the <CustomState> child it has just read also lands inside the live
+    // APVTS tree. getStateAsXml() starts from copyState() and APPENDS a fresh
+    // <CustomState>, so the next save would carry two, and the next restore's
+    // getChildByName() would read the stale first one. Every tuning change
+    // made after one reopen would be lost at the second. Drop it here.
+    for (auto stale = parameters.state.getChildWithName ("CustomState");
+         stale.isValid();
+         stale = parameters.state.getChildWithName ("CustomState"))
+        parameters.state.removeChild (stale, nullptr);
+
     // v1.5.0: the UI language, read back AFTER the preset manager has restored
     // the tree — setStateFromXml() calls parameters.replaceState(), so reading
     // before it would read the property off the tree that was just discarded.
@@ -539,6 +560,149 @@ void OBowedAudioProcessor::setStateInformation(const void* data, int sizeInBytes
 
     if (! lang.isVoid())
         uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
+}
+
+//==============================================================================
+// v1.9.3 — tuning ownership (CR-03, CR-04, WR-07, WR-10)
+//==============================================================================
+
+void OBowedAudioProcessor::parameterChanged (const juce::String& parameterID, float)
+{
+    // Possibly the audio thread (host automation). triggerAsyncUpdate() reuses a
+    // preallocated message, so this is RT-safe; the mode is read back from the
+    // parameter in handleAsyncUpdate, so only the latest value is applied.
+    if (parameterID == "tuningSystem")
+        triggerAsyncUpdate();
+}
+
+void OBowedAudioProcessor::handleAsyncUpdate()
+{
+    // Choice index -> Mode: 0 "Scala/TUN", 1 "MTS-ESP", 2 "12-TET".
+    switch (static_cast<int> (parameters.getRawParameterValue ("tuningSystem")->load()))
+    {
+        case 0:  tuningEngine.setMode (TuningEngine::Mode::Scala);     break;
+        case 1:  tuningEngine.setMode (TuningEngine::Mode::MTSESP);    break;
+        default: tuningEngine.setMode (TuningEngine::Mode::TwelveTET); break;
+    }
+}
+
+void OBowedAudioProcessor::selectTuningSystem (int choiceIndex)
+{
+    if (auto* param = parameters.getParameter ("tuningSystem"))
+        param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (choiceIndex)));
+
+    // The engine calls that precede this (setCustomIntervals and friends) set
+    // the engine's mode themselves; when the parameter already held this choice
+    // no listener fires, so reconcile directly.
+    handleAsyncUpdate();
+}
+
+bool OBowedAudioProcessor::loadKbmFile (const juce::File& kbmFile)
+{
+    if (! tuningEngine.loadKBMFile (kbmFile))
+        return false;
+
+    loadedKbmText = kbmFile.loadFileAsString();
+
+    // loadKBMFile() writes the file's reference frequency into the engine's A4.
+    // referencePitch is the only A4 owner (the voice applies it as a ratio over
+    // an engine held at 440), so move the value to the parameter and put the
+    // engine back. Leaving it would apply the reference twice.
+    const double kbmRefHz = tuningEngine.getMasterTune();
+    tuningEngine.setMasterTune (440.0);
+
+    if (auto* param = parameters.getParameter ("referencePitch"))
+        param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (kbmRefHz)));
+
+    return true;
+}
+
+juce::var OBowedAudioProcessor::saveTuningState() const
+{
+    const auto& engine = tuningEngine;
+
+    auto* obj = new juce::DynamicObject();
+
+    juce::Array<juce::var> intervals;
+    for (double cents : engine.getIntervals())
+        intervals.add (cents);
+
+    obj->setProperty ("intervals",     intervals);
+    // The engine has no mode-independent name getter: getActiveTuningName()
+    // gives the scale's own name only in Scala mode, and getPresetName() gives
+    // the temperament menu's name (which library scales and edits leave in place).
+    obj->setProperty ("scaleName",     engine.getMode() == TuningEngine::Mode::Scala
+                                           ? engine.getActiveTuningName()
+                                           : engine.getPresetName());
+    obj->setProperty ("preset",        static_cast<int> (engine.getBuiltInPreset()));
+    obj->setProperty ("tonic",         engine.getTonicNote());
+    obj->setProperty ("octaveStretch", static_cast<double> (engine.getOctaveStretch()));
+
+    if (loadedKbmText.isNotEmpty())
+        obj->setProperty ("kbm", loadedKbmText);
+
+    return juce::var (obj);
+}
+
+void OBowedAudioProcessor::loadTuningState (const juce::var& state)
+{
+    // A preset without customState (every factory preset, every pre-1.9.3 user
+    // preset or session) leaves the loaded scale in the engine: tuningSystem,
+    // which the preset DID set, decides whether it is heard.
+    if (auto* obj = state.getDynamicObject())
+    {
+        const int preset = obj->hasProperty ("preset")
+                             ? static_cast<int> (obj->getProperty ("preset"))
+                             : static_cast<int> (TuningEngine::BuiltInPreset::Custom);
+
+        // Re-select the temperament first so the panel's temperament menu shows
+        // what it showed at save time. The engine leaves that selection in place
+        // when single intervals are edited or a library scale is applied, so the
+        // saved INTERVALS are always re-applied on top: they are the truth.
+        if (preset >= 0 && preset < static_cast<int> (TuningEngine::BuiltInPreset::Custom))
+            tuningEngine.setBuiltInPreset (static_cast<TuningEngine::BuiltInPreset> (preset));
+
+        if (auto* arr = obj->getProperty ("intervals").getArray(); arr != nullptr && arr->size() >= 2)
+        {
+            std::vector<double> cents;
+            cents.reserve (static_cast<size_t> (arr->size()));
+            for (const auto& v : *arr)
+                cents.push_back (static_cast<double> (v));
+
+            auto name = obj->getProperty ("scaleName").toString();
+            if (name.isEmpty())
+                name = "Custom";
+
+            tuningEngine.setCustomIntervals (cents, name);
+        }
+
+        // Tonic after the intervals: the engine rotates the base intervals
+        // for the tonic, so the order only decides which rebuild is last.
+        if (obj->hasProperty ("tonic"))
+            tuningEngine.setTonicNote (static_cast<int> (obj->getProperty ("tonic")));
+
+        if (obj->hasProperty ("octaveStretch"))
+            tuningEngine.setOctaveStretch (static_cast<float> (static_cast<double> (obj->getProperty ("octaveStretch"))));
+
+        const auto kbm = obj->getProperty ("kbm").toString();
+        if (kbm.isNotEmpty() && kbm != loadedKbmText)
+        {
+            // The engine's KBM parser only reads files. Its A4 is put straight
+            // back to 440: the saved referencePitch parameter already carries
+            // the reference.
+            juce::TemporaryFile tmp (".kbm");
+            if (tmp.getFile().replaceWithText (kbm) && tuningEngine.loadKBMFile (tmp.getFile()))
+            {
+                tuningEngine.setMasterTune (440.0);
+                loadedKbmText = kbm;
+            }
+        }
+    }
+
+    // setCustomIntervals() switches the engine to Scala by itself; put the mode
+    // back to whatever tuningSystem says (already applied by the preset manager
+    // before this callback runs).
+    handleAsyncUpdate();
 }
 
 void OBowedAudioProcessor::initializeFactoryPresets()

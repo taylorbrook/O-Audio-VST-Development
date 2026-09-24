@@ -43,7 +43,9 @@
 #include "OuariconPresetManager.h"
 #include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 
-class OBowedAudioProcessor : public juce::AudioProcessor
+class OBowedAudioProcessor : public juce::AudioProcessor,
+                             private juce::AsyncUpdater,
+                             private juce::AudioProcessorValueTreeState::Listener
 {
 public:
     OBowedAudioProcessor();
@@ -77,6 +79,17 @@ public:
 
     // Public access to tuning engine
     TuningEngine* getTuningEngine() { return &tuningEngine; }
+
+    // v1.9.3 (CR-03): the tuningSystem PARAMETER owns the engine's mode. Every
+    // editor write that loads a scale (or picks the 12-TET temperament) selects
+    // the matching choice here, through the host, so the parameter, the panel
+    // and the engine agree. Message thread only.
+    void selectTuningSystem (int choiceIndex);
+
+    // v1.9.3 (CR-04, WR-10): load a .kbm through the engine, keep its text for
+    // the session state, and hand its reference frequency to the referencePitch
+    // parameter (the single A4 owner) instead of the engine. Message thread only.
+    bool loadKbmFile (const juce::File& kbmFile);
 
     // Public access to humanize engine (voices read per-block offsets)
     const HumanizeEngine* getHumanizeEngine() const noexcept { return &humanizeEngine; }
@@ -147,6 +160,24 @@ private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    // v1.9.3 (CR-03, WR-07): tuningSystem -> TuningEngine::Mode. parameterChanged
+    // fires on the SETTER's thread (the audio thread under host automation), and
+    // setMode takes intervalMutex and rebuilds the table, so it only triggers
+    // an async update; handleAsyncUpdate applies the mode on the message thread.
+    // After this, nothing on the audio thread writes to the engine.
+    void parameterChanged (const juce::String& parameterID, float newValue) override;
+    void handleAsyncUpdate() override;
+
+    // v1.9.3 (WR-10): tuning-panel state (intervals, name, tonic, stretch, KBM)
+    // rides presets and the session as the preset manager's customState.
+    juce::var saveTuningState() const;
+    void loadTuningState (const juce::var& state);
+
+    // The text of the last user-loaded .kbm, or empty. The engine exposes no
+    // "is a KBM loaded" getter, and generateKBMFileContent() always emits a
+    // mapping, so the processor remembers the file itself. Message thread only.
+    juce::String loadedKbmText;
+
     // Factory preset initialization
     void initializeFactoryPresets();
 
@@ -161,10 +192,8 @@ private:
     std::atomic<float>* pBodyMaterial      = nullptr;
     std::atomic<float>* pBodySize          = nullptr;
     std::atomic<float>* pWidth             = nullptr;
-    std::atomic<float>* pReferencePitch    = nullptr;
     std::atomic<float>* pSympatheticDecay  = nullptr;
     std::atomic<float>* pBodyAmount        = nullptr;
-    std::atomic<float>* pTuningSystem      = nullptr;
     std::atomic<float>* pOutputLevel       = nullptr;
     std::atomic<float>* pHumanizeRange[4]  = { nullptr, nullptr, nullptr, nullptr };
     std::atomic<float>* pHumanizeRate[4]   = { nullptr, nullptr, nullptr, nullptr };

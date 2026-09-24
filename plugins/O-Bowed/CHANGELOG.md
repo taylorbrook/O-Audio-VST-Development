@@ -2,6 +2,69 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.9.3] - 2026-09-24
+
+Tuning ownership: CR-03, CR-04, WR-07 and WR-10 from the v1.9.0 deep review
+(`CODE_REVIEW.md`, 2026-09-23), resolved through `/improve-review`. PATCH. No
+parameter ID, range or type changed. The session format only gains a
+`CustomState` child; older sessions and presets load unchanged. The default A4
+render is still `c8aa14d6…` (byte-identical to v1.9.1/v1.9.2). The four fixes
+port the tested O-Contrabass design.
+
+### Fixed
+
+- **CR-03: tuning-panel scales are heard.** Loading a .scl, a library tuning, a
+  generated scale, a temperament, or editing an interval showed the scale but
+  every note played 12-TET. **Root cause:** `processBlock` called
+  `tuningEngine.setMode()` from the `tuningSystem` parameter on every block.
+  That parameter defaults to 12-TET, every factory preset stores 12-TET, and
+  nothing in the UI could change it. **Fix:** `tuningSystem` owns the mode.
+  Every panel action that loads a scale selects Scala through the host
+  (`selectTuningSystem`); Equal 12-TET selects 12-TET. A **Tuning System**
+  select (Scala / MTS-ESP (disabled, no client yet) / 12-TET) now sits at the
+  top of the tuning overlay, with a tooltip in all three languages. Presets
+  carry the choice: user presets store it with the scale, and factory presets
+  select 12-TET but leave the loaded scale in the engine, so choosing Scala
+  again brings it back.
+- **CR-04: Ref Pitch works across its whole 220–880 Hz range, and the panel's
+  reference knob sticks.** **Root cause:** the engine clamps A4 to 400–480 Hz,
+  so the knob played A=400 at 220 and A=480 at 880. The tuning panel's own
+  reference knob wrote the engine directly and `processBlock` overwrote it on
+  the next block. Both threads also wrote a plain `double`. **Fix:** the voice
+  applies `referencePitch / 440` as a ratio over an engine held at A4 = 440
+  (exactly 1.0 at the default). The panel knob's `get/setMasterTune` read and
+  write the `referencePitch` parameter, so there is one owner. A loaded .kbm's
+  reference frequency moves into the parameter too, instead of stacking.
+  Measured: 392 Hz → 392.10, 220 → 220.03, 880 (A3) → 440.14 (v1.9.2: 400, 400,
+  480).
+- **WR-07: no engine writes from the audio thread.** **Root cause:** the audio
+  thread rebuilt the frequency table in `setMasterTune` and `setMode`, and took
+  `intervalMutex`, while the editor rebuilt the same table and held the mutex
+  copying vectors. **Fix:** `processBlock` no longer touches the engine. A
+  `tuningSystem` change (including host automation on the audio thread) only
+  triggers an `AsyncUpdater`, and `handleAsyncUpdate` applies the mode on the
+  message thread. The audio thread only reads the atomic frequency table.
+- **WR-10: the tuning is saved with the session and in user presets.**
+  **Root cause:** the state held only the APVTS tree and the UI language.
+  **Fix:** intervals, scale name, temperament, tonic, octave stretch and any
+  loaded .kbm ride the preset manager's `customState`. **Also fixed:**
+  `OuariconPresetManager::setStateFromXml` passes the whole element to
+  `replaceState`, so the restored `<CustomState>` child stayed inside the live
+  tree. The next save wrote the stale child first and the restore read it, so
+  any tuning change made after one reopen was lost at the next.
+  `setStateInformation` now strips it. Harness negative control: without the
+  strip, save → reopen → change to 31-EDO → reopen plays 19-EDO; with it, 31-EDO.
+
+### Testing
+
+- Render harness gained `--edo N` (applies a scale through the panel's own path)
+  and `--roundtrip-edo M` (save, reopen, apply M-EDO, save, reopen), and
+  reports `tuningSystem`, `engineHz` and `expectedHz` in its JSON. Measured f0
+  (autocorrelation, 1.5–3.5 s) is within +0.6 c of expected for Ref Pitch
+  220/392/880, 19-EDO, 19-EDO at 392 Hz, and the 19→31-EDO double reopen.
+- check-i18n, check-ui-labels (en/fr/zh-Hans geometry), fr-lint and zh-lint
+  pass. auval SUCCEEDED.
+
 ## [1.9.2] - 2026-09-24
 
 The upper register: CR-01 from the v1.9.0 deep review (`CODE_REVIEW.md`,

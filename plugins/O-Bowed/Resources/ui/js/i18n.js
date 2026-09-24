@@ -223,12 +223,12 @@ export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 // The value READOUT keeps its point — D-03 exempts the readout NODE, and
 // .knob-value is machine-formatted rather than prose. They differ on purpose.
 //
-// D-01 arm 1 does not arise on this page. O-Bowed has exactly one
-// AudioParameterChoice, `tuningSystem` ("Scala/TUN" / "MTS-ESP" / "12-TET"),
-// and it has NO control in the WebView at all — see the FINDING at the foot of
-// TIP_BINDINGS. No option string is named in any body below, in either
-// language, so the "option stays English, the sentence naming it is French"
-// split never had to be made here.
+// D-01 arm 1: O-Bowed has exactly one AudioParameterChoice, `tuningSystem`
+// ("Scala/TUN" / "MTS-ESP" / "12-TET"). Until v1.9.3 it had no control in the
+// WebView; it now has #tuning-system-select in the tuning overlay. Its option
+// words are names and stay as written; tip.tuningSystem names them inside
+// translated sentences ("option stays English, the sentence naming it is
+// French").
 //
 // ALL FRENCH BELOW IS MACHINE-DRAFTED, every entry `reviewed: false`.
 // ============================================================================
@@ -722,6 +722,23 @@ export const I18N = Object.freeze({
         'zh-Hans': { t: '语言', b: '选择本面板上所有标签、悬停帮助和无障碍名称的语言，该选择随插件一同保存。无论选择哪种语言，数值读数都保持英文。',
                     reviewed: 'bt' },
     },
+    // v1.9.3 (CR-03) — the Tuning System select in the tuning overlay. Option
+    // words are names (Scala, MTS-ESP, 12-TET) and stay as written in every
+    // language; the sentences naming them are translated.
+    'tip.tuningSystem': {
+        en: { t: 'Tuning System',
+              b: 'Which tuning the notes play in. 12-TET is standard equal temperament. Scala '
+               + 'plays the scale set in the panel below, and loading or editing a scale there '
+               + 'selects it. MTS-ESP is not available yet. Presets store this choice.' },
+        fr: { t: 'Système d’accord',
+              b: 'L’accord dans lequel jouent les notes. 12-TET est le tempérament égal standard. '
+               + 'Scala joue la gamme définie dans le panneau ci-dessous ; charger ou modifier '
+               + 'une gamme dans ce panneau la sélectionne. MTS-ESP n’est pas encore disponible. '
+               + 'Les préréglages enregistrent ce choix.',
+              reviewed: false },
+        'zh-Hans': { t: '调音体系', b: '音符所用的调音方式。12-TET 是标准的十二平均律。Scala 使用下方面板中设定的音阶；在该面板中载入或编辑音阶时会自动选中它。MTS-ESP 暂不可用。预设会保存这一选择。',
+                    reviewed: 'mt' },
+    },
     // v1.7.0 — the switch that reaches this whole layer.
     'tip.tipsToggle': {
         en: { t: 'Hover Help',
@@ -826,6 +843,11 @@ export const LABELS = Object.freeze({
     // "Accordage" (55.09) does not fit the 62 px pin; "Accord" (37.13) does,
     // against English "Tuning" at 37.97.
     'label.tuning':    { en: { t: 'Tuning' },   fr: { t: 'Accord',   reviewed: true } , 'zh-Hans': { t: '调音', reviewed: 'bt' }},
+    // v1.9.3 (CR-03): caption of #tuning-system-select in the tuning overlay.
+    // All three strings copied verbatim from O-Contrabass's label.tuningSystem,
+    // where they were reviewed; they also match "système d'accord" / "调音体系"
+    // in tip.refPitch below.
+    'label.tuningSystem': { en: { t: 'Tuning System' }, fr: { t: "Système d’accord", reviewed: true } , 'zh-Hans': { t: '调音体系', reviewed: 'bt' }},
 
     // ── Tuning panel (modules/tuning/scala-tuning-engine/js/tuning-panel.js) ──
     //
@@ -1064,6 +1086,12 @@ export const I18N_EXEMPT = [
     ['English',  'endonym — a language name is never translated'],
     ['Français', 'endonym — a language name is never translated'],
     ['简体中文', 'endonym — a language name is never translated'],
+
+    // v1.9.3 (CR-03): the #tuning-system-select options. Tuning-system names,
+    // the same in every language, so the select's box keeps one width.
+    ['Scala',    'proper noun — the Scala tuning-file format'],
+    ['MTS-ESP',  'proper noun — the MTS-ESP tuning protocol'],
+    ['12-TET',   'technical abbreviation — twelve-tone equal temperament'],
 ];
 
 // ============================================================================
@@ -1107,20 +1135,13 @@ export const I18N_EXEMPT = [
 // #lang-select resolve to the gear's own tip — the O-Comp trap, and the same
 // ancestor shape. Both rows are bare.
 //
-// ── FINDING: one dumped parameter has NO CONTROL and therefore NO TIP ────────
+// ── RESOLVED v1.9.3 (CR-03): `tuningSystem` has a control ─────────────────
 //
-// `tuningSystem` — AudioParameterChoice, 3 options ("Scala/TUN", "MTS-ESP",
-// "12-TET"), default 12-TET (PluginProcessor.cpp:224-230). It is automatable
-// and host-reachable, and PluginEditor.cpp:78 even builds a WebComboBoxRelay
-// for it — but there is no <select> anywhere on the page bound to it, and the
-// page's own bindComboBox() helper (index.html:1275) is never called. The
-// shared tuning panel does not carry one either. So the dump's 29 parameters
-// produce 28 controls and 28 parameter tips.
-//
-// NOT FIXED, deliberately. Adding a selector is a feature change with a
-// geometry cost and a host-visible surface, which is not this stage's scope,
-// and authoring a body for it would be an ORPHAN that check-i18n assertion 2
-// fails by design.
+// Until v1.9.3 the one AudioParameterChoice had no <select> and no tip, so the
+// dump's 29 parameters produced 28 controls and 28 parameter tips. It now has
+// #tuning-system-select in the tuning overlay (bindComboBox), and the review
+// found the missing control disabled the whole tuning panel, so the feature
+// change was the fix. 29 controls, 29 parameter tips.
 // ============================================================================
 
 export const TIP_BINDINGS = [
@@ -1170,6 +1191,9 @@ export const TIP_BINDINGS = [
     ['#gear-btn',                                         'tip.settings'],
     ['#lang-select',                                      'tip.language'],
     ['#tips-toggle',                                      'tip.tipsToggle'],
+
+    // Tuning overlay (v1.9.3, CR-03)
+    ['#tuning-system-select',                             'tip.tuningSystem'],
 ];
 
 export function tr(key, lang, vars) {
