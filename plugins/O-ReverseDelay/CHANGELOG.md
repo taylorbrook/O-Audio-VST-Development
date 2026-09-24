@@ -4,6 +4,53 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.12.1] — 2026-09-23
+
+Forward grains could read stale ring audio when the delay GREW. PATCH: no
+parameter, range, preset, state or UI change.
+
+### Fixed
+
+- **A live forward grain now caps the engine pass at its own latched delay.**
+  The pass bound (A2, v1.0.1; extended v1.1.0 / v1.7.2) keys off the parameters
+  as they are *now*: `grainDelayFloor` while `delayScatter` or `driftDepth` is on,
+  `D` otherwise. That covers every grain spawned from here on, and carried
+  REVERSE grains always (they read away from the write head). It did not cover a
+  carried FORWARD grain whose `gD` was latched under an older, smaller delay.
+  With Direction > 0 and scatter/drift at 0, a delay increase — knob, automation,
+  or a tempo drop in Sync — lifted the bound to the new `D` while that grain
+  still read `t − gD_old`; once the pass ran past `gD_old` the read landed on
+  slots step 6 had not written yet, i.e. audio from a full ring lap (~14 s) ago,
+  into both the wet and the feedback loop. Same hole when scatter or drift was
+  switched off while scattered forward grains were still sounding.
+  Needs a host block larger than the old delay (e.g. 4096 against 50 ms at
+  48 kHz), so a 512-sample session monitored clean and bounced dirty.
+
+  **Root cause:** `ReverseGrain.h`'s forward-collision proof assumed
+  `passLen <= grainDelayFloor <= gD`, which holds only while a shortening
+  parameter is on. **Fix:** each pass is capped at `passStartAbs − readAbs`
+  over live forward grains (their remaining lag, = `gD`), recomputed per pass.
+  Bit-inert whenever no forward grain is live (Direction 0, all factory presets)
+  and whenever every live forward grain's `gD >= passBound`, which is the steady
+  state at any Direction — the cap only bites in the transient after a delay
+  increase. The proof comment in `ReverseGrain.h` is corrected to match.
+
+### Testing
+
+- **Probe BE** (2 checks): Direction 100, 4096- vs 512-sample blocks, the step
+  landing on a 4096 boundary so both block sizes deliver it at the same sample.
+  BE1 steps delay 50 → 500 ms; BE2 switches `delayScatter` 60 → 0 ms at 85 ms
+  delay. Each asserts 512 == 4096 **exactly** and a new harness-only
+  unwritten-read counter (`getUnwrittenReadCount()`, compiled only under
+  `OUARICON_RENDER_HARNESS`, evaluated outside the inner loop) at **zero** in
+  both renders.
+- **Verified by reverting the cap:** BE1 reads `max|512−4096| = 0.108` with 6
+  unwritten reads at 4096 (0 at 512); BE2 reads 0.054 with 4. With the cap: 0.0
+  and 0 in both arms.
+- **Every existing probe's printed output is byte-identical** to a rebuild of
+  v1.12.0 (full-stdout diff; the only added lines are BE's two). Harness
+  151 → **153 checks**, all passing.
+
 ## [1.12.0] — 2026-09-06
 
 O-ReverseDelay speaks Simplified Chinese. Stage 4 wave 4d of the zh-Hans

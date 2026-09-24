@@ -1743,9 +1743,45 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     int droppedThisBlock    = 0;
     int refusedThisBlock    = 0;
 
-    for (int off = 0; off < numSamples; off += passLen)
+    for (int off = 0; off < numSamples; )
     {
-        const int len = juce::jmin(passLen, numSamples - off);
+        const juce::int64 passStartAbs = capture.getTotalWritten();   // capture write happens in step 6
+
+        // v1.12.1: the bound above covers every grain spawned from here on, but
+        // not a FORWARD grain carried in from an earlier pass. Its latched gD is
+        // whatever D (or scatter, or drift) was when it spawned, and passBound
+        // only drops to grainDelayFloor while a shortening parameter is on NOW.
+        // So with Direction > 0 and scatter/drift at 0, a delay that GROWS —
+        // knob, automation, or a tempo drop in Sync — lifts the bound to the new
+        // D while a live forward grain still reads `t − gD_old`; once the pass
+        // outruns gD_old that read lands on a slot this pass has not written
+        // yet, i.e. a full ring lap (~14 s) of stale audio, into the wet AND the
+        // loop. The same hole opens when scatter or drift is switched off while
+        // scattered forward grains are still sounding.
+        //
+        // Fix: cap the pass at the smallest remaining lag over live forward
+        // grains. A carried forward grain's next read is g.readAbs, and it reads
+        // strictly behind the write head for exactly `passStartAbs − g.readAbs`
+        // (= its gD) more samples. Reverse grains move away from the write head
+        // and never constrain the pass. The cap is recomputed every pass because
+        // the live set changes between passes.
+        //
+        // Block-size invariance survives it: the pass partition was already free
+        // to vary with the host block (512 vs 4096 differ in it by construction),
+        // and every piece of state that crosses a pass boundary is sample-exact.
+        // Bit-inert whenever no forward grain is live — Direction 0, every factory
+        // preset at 0, and every pre-v1.6.0 session — and whenever every live
+        // forward grain's gD >= passBound, which is the steady state at any
+        // Direction: the cap only bites in the transient after a delay increase.
+        int thisPassLen = passLen;
+        for (const auto& g : grainPool.grains)
+            if (g.active && g.step > 0)
+                thisPassLen = juce::jmin(thisPassLen,
+                                         static_cast<int>(juce::jmin<juce::int64>(
+                                             passStartAbs - g.readAbs, passLen)));
+        thisPassLen = juce::jmax(1, thisPassLen);
+
+        const int len = juce::jmin(thisPassLen, numSamples - off);
         const int passEnd = off + len;
 
         // ---- (3) schedule spawns, latch per-grain state ---------------------
@@ -1767,8 +1803,6 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                                                   spawnRequests,
                                                   [this] { return nextJitterRand01(); });
         droppedThisBlock += spawn.dropped;
-
-        const juce::int64 passStartAbs = capture.getTotalWritten();   // capture write happens in step 6
 
         for (int s = 0; s < spawn.count; ++s)
         {
@@ -1980,6 +2014,18 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // this costs the reverse path nothing measurable and nothing at all
             // in the result.
             const juce::int64 step = g.step;
+
+           #if OUARICON_RENDER_HARNESS
+            // v1.12.1: HARNESS ONLY — count every grain-pass whose furthest read
+            // lands at or past this pass's write head, i.e. on a slot not yet
+            // written. Evaluated from the grain's endpoints, outside the inner
+            // loop, so the harness build's hot path is the shipped one.
+            {
+                const juce::int64 last = readAbs + step * static_cast<juce::int64>(end - start - 1);
+                if (juce::jmax(readAbs, last) >= passStartAbs)
+                    ++harnessUnwrittenReads;
+            }
+           #endif
 
             // v1.7.0 (B4 #5): the grain's latched source channel, hoisted for the
             // same reason `step` is. −1 selects the mono sum, which keeps the
@@ -2233,6 +2279,8 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         // spawns and the instantaneous count reads low, which would make the UI
         // meter flicker toward zero on material that is plainly still washing.
         peakActiveThisBlock = juce::jmax(peakActiveThisBlock, grainPool.countActive());
+
+        off += len;
     }
 
     // ---- (6b) publish the meter + spawn accounting (v1.3.0 / B2) ------------

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.8.0
+- **Version:** 1.12.1
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -100,6 +100,8 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
   **Both Critical fixes were verified by reverting them against the new probes, not by inspection.** CR-01's probe reads `max|512−4096| = 0.084275` on the old code — 1.75× the wet RMS of 0.048, i.e. the stale read dominates the signal — against `0.000000000000` on the new. CR-02's reads a wet RMS of `0.000000` against `0.061454`. That step also caught a probe that did not work: the "a hold must not become a tone" arm was first written with probe AP's **crest factor**, which detects a pulse train and not a periodic waveform, and it *passed on the very code it was meant to reject* (crest 3.62 against a live 3.20). Re-pointed at **lagged autocorrelation** it separates cleanly — 0.9936 broken, 0.5531 fixed. A probe that has not been seen to fail is not a regression guard.
 
   **WR-03 turned out smaller than the finding claimed, and the measurement is the deliverable.** Rendered both ways, the 512-vs-4096 divergence under a fast `highCut` sweep moves only 7.2 % → 6.7 % of wet RMS, and the click detector cannot tell the implementations apart at all (0.98× either way). The divergence is dominated by `processBlock` reading each parameter **once per block** — all a host without sample-accurate automation offers — so bit-identity under automation is not reachable in the DSP, and the 32-sample grid is a fidelity-to-contract fix rather than an artefact fix. The overstated invariant claim needed correcting either way and now reads **"bit-identical for static parameters"** (see Known Issues). Two estimates written into probe comments before measuring (79 %, 2.68×) were both wrong and were removed; the shipped comments carry measured numbers only.
+
+- **2026-09-23 (v1.12.1):** Patch — **forward grains no longer read stale ring audio when the delay grows.** With Direction > 0 and scatter/drift at 0, a delay increase (knob, automation, Sync tempo drop) lifted the pass bound to the new D while a carried forward grain still read `t − gD_old`; at host blocks larger than the old delay it read unwritten ring slots (~14 s old) into wet and loop. Same hole when scatter/drift was switched off with scattered forward grains live. Each pass is now capped at the smallest remaining lag over live forward grains. Bit-inert at Direction 0 and in steady state; every existing probe's output byte-identical to v1.12.0. New probe BE (delay 50→500 ms step and scatter-off, 512 vs 4096 exact, harness-only unwritten-read counter at zero) — fails on the old code (0.108 divergence, 6 stale reads). Harness 151→153 checks.
 
 ## Known Issues
 
