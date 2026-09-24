@@ -225,7 +225,28 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
 
     // Both dialog fns must resolve {success, name}; preset-manager.js checks
     // `result && result.success`, so a bare bool silently no-ops the bar.
-    check((editorCpp.match(/setProperty\s*\(\s*"success"/g) || []).length >= 2,
+    //
+    // v1.12.4: the two fns share one builder, makePresetDialogResult(), so the
+    // old proxy ("setProperty("success" appears >= 2 times") no longer holds by
+    // construction. Asserted directly instead: the builder sets BOTH keys, and
+    // each dialog fn's body resolves through it and never through a bare
+    // juce::var — which is the property the proxy was standing in for.
+    const builder = editorCpp.match(/juce::var\s+makePresetDialogResult\s*\([^)]*\)\s*\{([\s\S]*?)\n    \}/);
+    const dialogBody = name => {
+        const start = editorCpp.indexOf('withNativeFunction ("' + name + '"');
+        if (start < 0) return '';
+        const next = editorCpp.indexOf('withNativeFunction (', start + 1);
+        return editorCpp.slice(start, next < 0 ? undefined : next);
+    };
+    const dialogFns = ['savePresetWithDialog', 'loadPresetFromFile'];
+    const dialogOk = !!builder
+        && /setProperty\s*\(\s*"success"/.test(builder[1])
+        && /setProperty\s*\(\s*"name"/.test(builder[1])
+        && dialogFns.every(n => {
+            const b = dialogBody(n);
+            return /makePresetDialogResult\s*\(/.test(b) && !/complete\s*\(\s*juce::var\s*\(/.test(b);
+        });
+    check(dialogOk,
         'both dialog fns build a {success, name} result object, not a bare bool');
 
     // MSVC resolves `this` in a NESTED lambda's capture-initialiser to the

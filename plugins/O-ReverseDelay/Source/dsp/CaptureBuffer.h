@@ -149,8 +149,15 @@ public:
                     readAbs (1, src) * holdWeight + R * k);
     }
 
-    // Integer read at an absolute (monotonic) sample index. Double-mod handles
-    // negative indices (pre-history reads return the cleared buffer's zeros).
+    // Absolute (monotonic) sample index -> ring index. Double-mod handles
+    // negative indices, so a pre-history read lands on the cleared buffer's
+    // zeros rather than out of bounds.
+    int wrapIndex (juce::int64 absIndex) const noexcept
+    {
+        return static_cast<int> (((absIndex % bufferSize) + bufferSize) % bufferSize);
+    }
+
+    // Integer read at an absolute (monotonic) sample index.
     //
     // v1.7.0: this is the STEREO SOURCE read (B4 #5). Through v1.6.0 it existed
     // and was called by nothing but pushLooped/pushCrossfaded — the grain engine
@@ -159,15 +166,14 @@ public:
     // A grain in Stereo mode now latches a channel at spawn and reads it here.
     float readAbs (int ch, juce::int64 absIndex) const noexcept
     {
-        const int idx = static_cast<int> (((absIndex % bufferSize) + bufferSize) % bufferSize);
-        return buffer.getSample (ch, idx);
+        return buffer.getSample (ch, wrapIndex (absIndex));
     }
 
     // Mono-sum grain source (Stage-2 CONTEXT decision D4): the grain engine
     // reads 0.5·(L+R); equal-power pan then places the mono grain.
     float monoSum (juce::int64 absIndex) const noexcept
     {
-        const int idx = static_cast<int> (((absIndex % bufferSize) + bufferSize) % bufferSize);
+        const int idx = wrapIndex (absIndex);
         return 0.5f * (buffer.getSample (0, idx) + buffer.getSample (1, idx));
     }
 

@@ -32,7 +32,7 @@
         q = min (p, tiltT)·tiltA + max (p - tiltT, 0)·tiltB;   // B1 window tilt
         s = srcCh < 0 ? capture.monoSum (readAbs)              // v1.7.0: B4 #5
                       : capture.readAbs (srcCh, readAbs);
-        e = windowLuts.readAt (win, q);                        // B1 window shape
+        e = windowLuts.readShaped (win, taper, q);             // B1 shape, v1.4.0 taper
         v = s * e * gain;
         wetL  += v * gLout;  wetR  += v * gRout;   // output: per-grain random gain
         loopL += v * gL;     loopR += v * gR;      // feedback tap: never randomised

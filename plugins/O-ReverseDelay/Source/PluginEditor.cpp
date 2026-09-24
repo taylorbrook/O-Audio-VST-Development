@@ -22,10 +22,11 @@
 
     O-ReverseDelay — Plugin Editor (implementation)
 
-    20 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
+    22 WebSliderRelay knobs (delayTime, grainSize, density, feedback, lowCut,
     highCut, width, mix + v1.1.0's jitter, delayScatter, sizeRandom, gainRandom
     + v1.2.0's grainTilt + v1.3.0's grainCount + v1.4.0's tukeyTaper + v1.6.0's
-    direction, regenMakeup + v1.7.0's duck, driftRate, driftDepth) + 4
+    direction, regenMakeup + v1.7.0's duck, driftRate, driftDepth + v1.8.0's
+    diffusion, drive) + 4
     WebComboBoxRelay controls (syncMode, noteDivision, grainShape + v1.7.0's
     sourceMode) + 1 WebToggleButtonRelay (v1.6.0's freeze) bound two-way to the
     APVTS. The UI-02 Sync/Free control swap is pure JS — both controls stay
@@ -138,6 +139,27 @@ namespace
             juce::String (mimeType)
         };
     }
+
+    // The preset bridge's name-taking functions all accept exactly one string
+    // argument; anything else from the page resolves false without touching
+    // the preset manager.
+    std::optional<juce::String> firstStringArg (const juce::Array<juce::var>& args)
+    {
+        if (args.size() < 1 || ! args[0].isString())
+            return std::nullopt;
+
+        return args[0].toString();
+    }
+
+    // Both dialog fns MUST resolve {success, name} — preset-manager.js checks
+    // `result && result.success`, so a bare bool silently no-ops the bar.
+    juce::var makePresetDialogResult (bool ok, const juce::String& name)
+    {
+        auto* obj = new juce::DynamicObject();
+        obj->setProperty ("success", ok);
+        obj->setProperty ("name", name);
+        return juce::var (obj);
+    }
 }
 
 // ── Resource provider ───────────────────────────────────────────────────────
@@ -230,9 +252,10 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     for (const auto& relay : toggleRelays)
         options = options.withOptionsFrom (*relay);
 
-    // ── NATIVE FUNCTIONS — exactly 13 ──────────────────────────────────────
+    // ── NATIVE FUNCTIONS — exactly 15 ──────────────────────────────────────
     // 1 for dblclick-reset + 1 for the v1.3.0 grain meter + 1 for v1.4.0's
-    // window-shape curve + the 10 that js/preset-manager.js fetches. The count is grep-diffed against app.js +
+    // window-shape curve + v1.9.0's getUiLanguage/setUiLanguage pair + the 10
+    // that js/preset-manager.js fetches. The count is grep-diffed against app.js +
     // preset-manager.js at the Stage-4 gate: an unregistered fn leaves its
     // control silently dead while build, auval and pluginval all pass
     // (pattern_webview_native_fn_bridge_gap).
@@ -359,9 +382,9 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     options = options.withNativeFunction ("setUiLanguage",
         [this] (auto& args, auto complete)
         {
-            // languageIndex() maps anything that is not "fr" to 0, so an unexpected
-            // argument from the page degrades to English rather than being stored
-            // unvalidated.
+            // languageIndex() maps anything that is neither "fr" nor "zh-Hans" to 0,
+            // so an unexpected argument from the page degrades to English rather
+            // than being stored unvalidated.
             if (args.size() > 0)
                 processorRef.uiLanguage.store (
                     ReverseDelayProcessor::languageIndex (args[0].toString()),
@@ -375,14 +398,14 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     options = options
         .withNativeFunction ("savePreset", [this] (const auto& args, auto complete)
         {
-            if (args.size() < 1 || ! args[0].isString()) { complete (juce::var (false)); return; }
-            complete (juce::var (processorRef.getPresetManager().savePreset (args[0].toString())));
+            const auto name = firstStringArg (args);
+            complete (juce::var (name && processorRef.getPresetManager().savePreset (*name)));
         })
 
         .withNativeFunction ("loadPreset", [this] (const auto& args, auto complete)
         {
-            if (args.size() < 1 || ! args[0].isString()) { complete (juce::var (false)); return; }
-            complete (juce::var (processorRef.getPresetManager().loadPreset (args[0].toString())));
+            const auto name = firstStringArg (args);
+            complete (juce::var (name && processorRef.getPresetManager().loadPreset (*name)));
         })
 
         .withNativeFunction ("getPresetList", [this] (const auto&, auto complete)
@@ -412,18 +435,17 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
 
         .withNativeFunction ("deletePreset", [this] (const auto& args, auto complete)
         {
-            if (args.size() < 1 || ! args[0].isString()) { complete (juce::var (false)); return; }
-            complete (juce::var (processorRef.getPresetManager().deletePreset (args[0].toString())));
+            const auto name = firstStringArg (args);
+            complete (juce::var (name && processorRef.getPresetManager().deletePreset (*name)));
         })
 
         .withNativeFunction ("isFactoryPreset", [this] (const auto& args, auto complete)
         {
-            if (args.size() < 1 || ! args[0].isString()) { complete (juce::var (false)); return; }
-            complete (juce::var (processorRef.getPresetManager().isFactoryPreset (args[0].toString())));
+            const auto name = firstStringArg (args);
+            complete (juce::var (name && processorRef.getPresetManager().isFactoryPreset (*name)));
         })
 
-        // Both dialog fns MUST resolve {success, name} — preset-manager.js checks
-        // `result && result.success`, so a bare bool silently no-ops the bar.
+        // Both dialog fns resolve {success, name} — see makePresetDialogResult.
         .withNativeFunction ("savePresetWithDialog", [this] (const auto&, auto complete)
         {
             // MSVC: the SafePointer is hoisted to a LOCAL here and captured by
@@ -435,15 +457,7 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
             // (critical_msvc_safepointer_init_capture_nested_lambda).
             auto safeThis = juce::Component::SafePointer<ReverseDelayEditor> (this);
 
-            auto makeResult = [] (bool ok, const juce::String& name)
-            {
-                auto* obj = new juce::DynamicObject();
-                obj->setProperty ("success", ok);
-                obj->setProperty ("name", name);
-                return juce::var (obj);
-            };
-
-            if (fileDialogOpen) { complete (makeResult (false, {})); return; }
+            if (fileDialogOpen) { complete (makePresetDialogResult (false, {})); return; }
             fileDialogOpen = true;
 
             fileChooser = std::make_shared<juce::FileChooser> (
@@ -453,7 +467,7 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
 
             fileChooser->launchAsync (
                 juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis, complete, makeResult] (const juce::FileChooser& fc)
+                [safeThis, complete] (const juce::FileChooser& fc)
                 {
                     // Editor destroyed while the dialog was up: BARE return.
                     // `complete` is owned by the now-dead WebView Impl, so even
@@ -465,7 +479,7 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
                     safeThis->fileDialogOpen = false;
 
                     auto result = fc.getResult();
-                    if (result == juce::File{}) { complete (makeResult (false, {})); return; }
+                    if (result == juce::File{}) { complete (makePresetDialogResult (false, {})); return; }
 
                     auto  name = result.getFileNameWithoutExtension();
                     auto& pm   = safeThis->processorRef.getPresetManager();
@@ -476,7 +490,7 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
                                       ? pm.savePreset (name)
                                       : pm.savePresetToFile (result.withFileExtension ("json"));
 
-                    complete (makeResult (ok, name));
+                    complete (makePresetDialogResult (ok, name));
                 });
         })
 
@@ -484,15 +498,7 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
         {
             auto safeThis = juce::Component::SafePointer<ReverseDelayEditor> (this);   // hoisted — see above
 
-            auto makeResult = [] (bool ok, const juce::String& name)
-            {
-                auto* obj = new juce::DynamicObject();
-                obj->setProperty ("success", ok);
-                obj->setProperty ("name", name);
-                return juce::var (obj);
-            };
-
-            if (fileDialogOpen) { complete (makeResult (false, {})); return; }
+            if (fileDialogOpen) { complete (makePresetDialogResult (false, {})); return; }
             fileDialogOpen = true;
 
             fileChooser = std::make_shared<juce::FileChooser> (
@@ -502,7 +508,7 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
 
             fileChooser->launchAsync (
                 juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                [safeThis, complete, makeResult] (const juce::FileChooser& fc)
+                [safeThis, complete] (const juce::FileChooser& fc)
                 {
                     if (safeThis == nullptr)
                         return;   // bare return — see savePresetWithDialog
@@ -510,10 +516,10 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
                     safeThis->fileDialogOpen = false;
 
                     auto file = fc.getResult();
-                    if (! file.existsAsFile()) { complete (makeResult (false, {})); return; }
+                    if (! file.existsAsFile()) { complete (makePresetDialogResult (false, {})); return; }
 
                     const bool ok = safeThis->processorRef.getPresetManager().loadPresetFromFile (file);
-                    complete (makeResult (ok, file.getFileNameWithoutExtension()));
+                    complete (makePresetDialogResult (ok, file.getFileNameWithoutExtension()));
                 });
         });
 
