@@ -33,7 +33,8 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 
 BowedStringVoice::BowedStringVoice (juce::AudioProcessorValueTreeState* apvts)
-    : parameters (apvts)
+    : parameters (apvts),
+      referencePitchParam (apvts->getRawParameterValue ("referencePitch"))
 {
 }
 
@@ -393,6 +394,14 @@ float BowedStringVoice::getBaseFrequencyFromTuning (int midiNote) const
     double freq = (tuningEngine != nullptr)
         ? tuningEngine->getFrequency (midiNote)
         : juce::MidiMessage::getMidiNoteInHertz (midiNote);
+
+    // v1.9.3 (CR-04): Ref Pitch is applied HERE, as a ratio over an engine held
+    // at A4 = 440. The engine clamps its own A4 to 400-480 Hz, so the knob's
+    // 220-880 Hz range used to play 400 at 220 and 480 at 880. The ratio honours
+    // the whole range without touching the shared module. At 440 it is exactly
+    // 1.0, so default-tuned output is unchanged (the O-Contrabass pattern).
+    if (referencePitchParam != nullptr)
+        freq *= static_cast<double> (referencePitchParam->load()) / 440.0;
 
     return static_cast<float> (freq);
 }

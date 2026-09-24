@@ -1,7 +1,7 @@
 ---
 phase: O-Bowed-v1.9.0
 reviewed: 2026-09-23
-verified: 2026-09-23T21:35:00-07:00  # v1.9.1 resolution (CR-02, WR-01, WR-05); v1.9.2 resolution (CR-01, 2026-09-24)
+verified: 2026-09-24T08:15:00-07:00  # v1.9.2 (CR-01) via /improve-verify; v1.9.1 (CR-02, WR-01, WR-05) verified 2026-09-23T21:35:00-07:00
 depth: deep
 files_reviewed: 26
 files_reviewed_list:
@@ -448,3 +448,9 @@ finding against the current source, then apply).
   claim (CR-01 root cause 1 and fix item 1, WR-05 fix) is false. JUCE `DelayLine` pop-then-push is
   exactly `setDelay` samples. Applying it made A4 +17.6 c sharp. The v1.9.0 +4 c at A4 was entirely
   the `sr/(2π·fc)` over-compensation (1.755 vs 1.303 samples). Re-measure CR-01 without that premise.
+- **v1.9.3 (2026-09-24):** CR-03, CR-04, WR-07 and WR-10 resolved (see CHANGELOG). CR-04 took a
+  third option the review didn't list: a voice-side `referencePitch/440` ratio over an engine held
+  at 440 (the O-Contrabass design), which needs neither a range change nor a shared-module edit.
+  Presets carry `tuningSystem`. WR-10 also found a shared preset-manager defect: the restored
+  `<CustomState>` child stays in the APVTS tree and shadows later saves. It's stripped locally in
+  O-Bowed; the module fix is open (NOTES.md Known Issues).

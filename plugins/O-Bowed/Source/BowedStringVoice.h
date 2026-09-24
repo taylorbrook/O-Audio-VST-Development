@@ -117,6 +117,9 @@ private:
     // TuningEngine (processor-owned, voice holds non-owning pointer)
     TuningEngine* tuningEngine = nullptr;
 
+    // v1.9.3 (CR-04): referencePitch, applied as a ratio in getBaseFrequencyFromTuning.
+    std::atomic<float>* referencePitchParam = nullptr;
+
     // VST3 Note Expression pending-tuning table (Phase 24): module-owned, voice holds non-owning pointer.
     Ouaricon::NoteExpression::PendingTuningTable* pendingTuningSource = nullptr;
 

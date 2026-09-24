@@ -71,6 +71,7 @@
 #include <juce_core/juce_core.h>
 
 #include "PluginProcessor.h"
+#include "ScaleGenerator.h"
 
 #include <algorithm>
 #include <chrono>
@@ -110,7 +111,29 @@ struct Args
     // v1.9.2 register gate flags (CR-01). Unset = HEAD behaviour.
     double sampleRate         = 44100.0;
     juce::StringArray params;           // "id=norm"
+
+    // v1.9.3 tuning-ownership flags (CR-03, WR-10). 0 = unset (HEAD behaviour).
+    int edo                   = 0;      // apply an N-EDO scale the way the panel does
+    int roundtripEdo          = 0;      // save -> restore -> apply M-EDO -> save -> restore
 };
+
+// Mirrors the editor's applyGeneratedScale native function exactly.
+void applyEdo (OBowedAudioProcessor& p, int divisions)
+{
+    p.getTuningEngine()->setCustomIntervals (ScaleGenerator::generateEDO (divisions, 1200.0),
+                                             juce::String (divisions) + "-EDO");
+    p.selectTuningSystem (0);
+}
+
+// getStateInformation -> fresh instance -> setStateInformation, as a DAW reopen.
+std::unique_ptr<OBowedAudioProcessor> reopen (OBowedAudioProcessor& from)
+{
+    juce::MemoryBlock state;
+    from.getStateInformation (state);
+    auto to = std::make_unique<OBowedAudioProcessor>();
+    to->setStateInformation (state.getData(), static_cast<int> (state.getSize()));
+    return to;
+}
 
 bool parseArgs (int argc, char** argv, Args& args)
 {
@@ -141,6 +164,8 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--bend-vibrato")     args.bendVibratoSeconds  = val.getFloatValue();
         else if (key == "--sample-rate")      args.sampleRate          = val.getDoubleValue();
         else if (key == "--param")            args.params.add (val);
+        else if (key == "--edo")              args.edo                 = val.getIntValue();
+        else if (key == "--roundtrip-edo")    args.roundtripEdo        = val.getIntValue();
         else
         {
             std::fprintf (stderr, "Unknown arg: %s\n", argv[i - 1]);
@@ -198,6 +223,24 @@ int main (int argc, char** argv)
     if (args.neSemis != 0.0f)
         if (auto* ne = dynamic_cast<Ouaricon::NoteExpression::VST3Extensions*> (proc.getVST3ClientExtensions()))
             ne->getPendingTable()[(size_t) juce::jlimit (0, 127, args.midiNote)].store ((double) args.neSemis);
+
+    // v1.9.3 (CR-03): a scale applied through the panel's own path must be heard.
+    if (args.edo > 0)
+        applyEdo (proc, args.edo);
+
+    // v1.9.3 (WR-10): reopen, change the tuning, reopen again, render the last
+    // instance. The second reopen is the one a stale <CustomState> child in the
+    // restored tree would break.
+    std::unique_ptr<OBowedAudioProcessor> reopened;
+    if (args.roundtripEdo > 0)
+    {
+        auto middle = reopen (proc);
+        applyEdo (*middle, args.roundtripEdo);
+        reopened = reopen (*middle);
+        reopened->setPlayConfigDetails (0, 2, sampleRate, blockSize);
+        reopened->prepareToPlay (sampleRate, blockSize);
+    }
+    auto& renderProc = reopened != nullptr ? *reopened : proc;
 
     const int totalSeconds   = static_cast<int> (std::ceil (args.sustainSeconds + args.releaseSeconds));
     const int totalSamples   = static_cast<int> (totalSeconds * sampleRate);
@@ -263,7 +306,7 @@ int main (int argc, char** argv)
         }
 
         const auto t0 = std::chrono::steady_clock::now();
-        proc.processBlock (blockBuffer, midi);
+        renderProc.processBlock (blockBuffer, midi);
         const auto t1 = std::chrono::steady_clock::now();
         blockMicros.push_back (std::chrono::duration<double, std::micro> (t1 - t0).count());
 
@@ -339,6 +382,19 @@ int main (int argc, char** argv)
     summary->setProperty ("pass_peak",              passPeak);
     summary->setProperty ("pass_blockTime",         passBlockTime);
     summary->setProperty ("outputWav",              args.outWav);
+
+    // v1.9.3: what the rendering instance's tuning says the note should be.
+    // The engine is held at A4 = 440 and the voice applies referencePitch.
+    {
+        auto& apvts = renderProc.getAPVTS();
+        const double refHz = apvts.getRawParameterValue ("referencePitch")->load();
+        const double engineHz = renderProc.getTuningEngine()->getFrequency (args.midiNote);
+        summary->setProperty ("tuningSystem",   static_cast<int> (apvts.getRawParameterValue ("tuningSystem")->load()));
+        summary->setProperty ("tuningName",     renderProc.getTuningEngine()->getActiveTuningName());
+        summary->setProperty ("referencePitch", refHz);
+        summary->setProperty ("engineHz",       engineHz);
+        summary->setProperty ("expectedHz",     engineHz * refHz / 440.0);
+    }
 
     juce::var summaryVar (summary.get());
     juce::File jsonOut (juce::File::getCurrentWorkingDirectory().getChildFile (args.outJson));
