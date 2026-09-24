@@ -1,7 +1,7 @@
 ---
 phase: O-Bowed-v1.9.0
 reviewed: 2026-09-23
-verified: 2026-09-24T08:15:00-07:00  # v1.9.2 (CR-01) via /improve-verify; v1.9.1 (CR-02, WR-01, WR-05) verified 2026-09-23T21:35:00-07:00
+verified: 2026-09-24T15:20:00-07:00  # v1.9.3 (CR-03, CR-04, WR-07, WR-10) via /improve-verify; v1.9.2 (CR-01) verified 2026-09-24T08:15:00-07:00; v1.9.1 (CR-02, WR-01, WR-05) verified 2026-09-23T21:35:00-07:00
 depth: deep
 files_reviewed: 26
 files_reviewed_list:

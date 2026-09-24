@@ -2,6 +2,51 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.9.4] - 2026-09-24
+
+KBM reference note. PATCH. No parameter ID, range or type changed. The default
+A4 render is still `c8aa14d6…` (byte-identical to v1.9.3).
+
+### Fixed
+- **A loaded `.kbm` played its reference note at the wrong pitch.** A `.kbm`
+  names a reference note and that note's frequency. The common form is
+  `60 @ 261.6256`, i.e. middle C. The shared engine's `loadKBMFile()` passed the
+  frequency to `setMasterTune()`, which clamps to 400–480 Hz. v1.9.3 then read
+  the clamped value back and stored it in `referencePitch` as A4. Loading that
+  file set Ref Pitch to 400 Hz and played middle C at 400 Hz. Plain 12-TET notes
+  and any notes the file leaves unmapped got A4 = 400.
+  - **Root cause:** the engine uses one field for two things. It is A4 for
+    12-TET and unmapped notes, and the reference-note frequency for mapped
+    notes. The clamp makes any reference far from A4 impossible.
+  - **Fix:** `loadKbmFile()` now derives A4 = f_ref · 2^((69 − refNote)/12)
+    and writes it to `referencePitch` (60 @ 261.6256 → 440.0, 60 @ 256 →
+    430.5, 69 @ 432 → 432). The engine stays at A4 = 440 and holds the
+    reference note at its 12-TET frequency for that A4, through the new
+    scala-tuning-engine 3.2.0 `setKbmReferenceFrequency()`. That call has no
+    clamp. The voice's existing `referencePitch / 440` ratio then lands the
+    reference note on the file's frequency. The Ref Pitch knob still moves the
+    whole mapping, and 12-TET and unmapped notes agree with it. Session restore
+    re-anchors the engine in the same way.
+- **Save .kbm wrote 440 as the reference frequency** (the engine's held master
+  tune), so loading and then saving a file lost its reference. The frequency
+  line now carries what the reference note actually plays at the current Ref
+  Pitch (`generateKbmFileContent()`).
+
+### Notes
+- Ref Pitch has a 0.1 Hz step. A derived A4 is stored to 0.1 Hz, so the
+  reference note can land up to about 0.2 cents from the file (60 @ 256 plays
+  255.977 Hz). A derived A4 outside 220–880 Hz is limited to that range.
+- A session saved in v1.9.3 with a `.kbm` loaded restores the clamped Ref Pitch
+  it stored. Reload the `.kbm` to re-derive A4.
+
+### Testing
+- Harness `--kbm` / `--kbm-roundtrip` / `--save-kbm`. Base-frequency checks
+  (60 @ 261.6256, 69 @ 432, 60 @ 256, including a reopen) are exact at the
+  reference note and at A4. Rendered f0: C4 261.72 Hz (identical to a plain
+  12-TET C4 render), 60 @ 256 → 256.04 Hz after reopen, 69 @ 432 → 432.14 Hz.
+  A saved .kbm carries `255.976832` for 60 @ 256.
+- Canonical render sha256 `c8aa14d6…` unchanged.
+
 ## [1.9.3] - 2026-09-24
 
 Tuning ownership: CR-03, CR-04, WR-07 and WR-10 from the v1.9.0 deep review

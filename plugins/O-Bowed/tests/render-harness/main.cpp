@@ -51,6 +51,11 @@
         --param <id>=<norm>        (v1.9.2, CR-01: pin any APVTS parameter;
                                     repeatable, applied before the named flags,
                                     so a whole factory preset can be rendered)
+        --kbm <path>               (v1.9.4: load a .kbm through loadKbmFile and
+                                    select Scala; prints referencePitch and the
+                                    note's base frequency)
+        --kbm-roundtrip <0|1>      (v1.9.4: with --kbm, reopen before rendering)
+        --save-kbm <path>          (v1.9.4: write generateKbmFileContent())
 
     Pass-conditions (exit 0):
       - No NaN / Inf samples.
@@ -115,6 +120,11 @@ struct Args
     // v1.9.3 tuning-ownership flags (CR-03, WR-10). 0 = unset (HEAD behaviour).
     int edo                   = 0;      // apply an N-EDO scale the way the panel does
     int roundtripEdo          = 0;      // save -> restore -> apply M-EDO -> save -> restore
+
+    // v1.9.4 KBM reference flags. Empty = HEAD behaviour.
+    juce::String kbmPath;
+    bool kbmRoundtrip         = false;
+    juce::String saveKbmPath;
 };
 
 // Mirrors the editor's applyGeneratedScale native function exactly.
@@ -166,6 +176,9 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--param")            args.params.add (val);
         else if (key == "--edo")              args.edo                 = val.getIntValue();
         else if (key == "--roundtrip-edo")    args.roundtripEdo        = val.getIntValue();
+        else if (key == "--kbm")              args.kbmPath             = val;
+        else if (key == "--kbm-roundtrip")    args.kbmRoundtrip        = val.getIntValue() != 0;
+        else if (key == "--save-kbm")         args.saveKbmPath         = val;
         else
         {
             std::fprintf (stderr, "Unknown arg: %s\n", argv[i - 1]);
@@ -240,7 +253,33 @@ int main (int argc, char** argv)
         reopened->setPlayConfigDetails (0, 2, sampleRate, blockSize);
         reopened->prepareToPlay (sampleRate, blockSize);
     }
+
+    // v1.9.4: a .kbm loaded the way the panel's loadKBMFile native function does.
+    if (args.kbmPath.isNotEmpty())
+    {
+        if (! proc.loadKbmFile (juce::File (args.kbmPath)))
+        {
+            std::fprintf (stderr, "loadKbmFile failed: %s\n", args.kbmPath.toRawUTF8());
+            return 2;
+        }
+        proc.selectTuningSystem (0);
+        if (args.kbmRoundtrip)
+        {
+            reopened = reopen (proc);
+            reopened->setPlayConfigDetails (0, 2, sampleRate, blockSize);
+            reopened->prepareToPlay (sampleRate, blockSize);
+        }
+    }
     auto& renderProc = reopened != nullptr ? *reopened : proc;
+
+    if (args.kbmPath.isNotEmpty())
+    {
+        const double ref = renderProc.getAPVTS().getRawParameterValue ("referencePitch")->load();
+        std::printf ("kbm: referencePitch=%.4f Hz  note %d base=%.4f Hz\n", ref, args.midiNote,
+                     renderProc.getTuningEngine()->getFrequency (args.midiNote) * ref / 440.0);
+    }
+    if (args.saveKbmPath.isNotEmpty())
+        juce::File (args.saveKbmPath).replaceWithText (renderProc.generateKbmFileContent());
 
     const int totalSeconds   = static_cast<int> (std::ceil (args.sustainSeconds + args.releaseSeconds));
     const int totalSamples   = static_cast<int> (totalSeconds * sampleRate);

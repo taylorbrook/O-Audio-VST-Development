@@ -1,8 +1,8 @@
-# scala-tuning-engine module v3.1.0
+# scala-tuning-engine module v3.2.0
 # Complete microtonal tuning system extracted from O-Lyrica
 
 name: scala-tuning-engine
-version: 3.1.0
+version: 3.2.0
 description: |
   Complete microtonal tuning system with:
   - 12-TET, custom scales (Scala .scl/.kbm), and MTS-ESP support
@@ -206,6 +206,13 @@ embedded_tuning_categories:
 used_by: []
 
 changelog:
+  - version: 3.2.0
+    date: 2026-09-24
+    changes:
+      - "ADDITIVE: setKbmReferenceFrequency(hz) is an unclamped reference-note frequency for KBM-mapped notes. When it is > 0, it replaces the master tune in the KBM branch of calculateCustomFrequency"
+      - "Added getKbmReferenceNote() / getKbmReferenceFrequency(). The second returns the file's value unclamped (loadKBMFile still clamps it to 400-480 through setMasterTune)"
+      - "loadKBMFile() and resetKeyboardMapping() reset the override to 0, which is the legacy behaviour. Consumers that never call the setter produce unchanged output"
+      - "Why: the master tune means A4 for 12-TET and unmapped notes, but it means the REFERENCE-NOTE frequency for mapped notes, clamped to 400-480. A standard '60 @ 261.63' .kbm played middle C at 400 Hz. First consumer: O-Bowed v1.9.4"
   - version: 3.1.0
     date: 2026-09-06
     changes:
