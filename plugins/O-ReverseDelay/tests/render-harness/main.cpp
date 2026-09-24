@@ -298,6 +298,17 @@
                               restores the session's own Mix into a locked
                               slot, and a state without the property unlocks.
 
+    v1.17.0 probe (Grain Link):
+      BL. grainlink-*       — Free is v1.16.0 BITWISE (pinned --digest hashes;
+                              explicit Free == default). = Delay publishes G = D
+                              and renders bitwise equal to Free with Size dialled
+                              to D, in Free and in Sync. Division follows the
+                              host tempo in either TIME mode and renders bitwise
+                              equal to Free at the division's ms, INCLUDING
+                              across a mid-render tempo change (120 -> 96 BPM).
+                              No tempo / no playhead falls back to Size; 50 and
+                              4000 ms clamp and report `clamped`.
+
   ==============================================================================
 */
 
@@ -735,6 +746,8 @@ static void setBaseline (juce::AudioProcessorValueTreeState& a)
     setParam (a, "syncMode",       0.0f);   // Free — Sync exercised by probes I/J/M
     setParam (a, "noteDivision",   6.0f);   // 1/4 (inert in Phase 2.1)
     setParam (a, "grainSize",    200.0f);
+    setParam (a, "grainLink",      0.0f);   // v1.17.0: Free — probe BL moves it
+    setParam (a, "grainDivision",  6.0f);   // 1/4
     setParam (a, "density",       60.0f);
     setParam (a, "feedback",       0.0f);
     setParam (a, "lowCut",       100.0f);
@@ -821,6 +834,8 @@ static void setDefaults (juce::AudioProcessorValueTreeState& a)
     setParam (a, "syncMode",       1.0f);   // Sync (plugin default)
     setParam (a, "noteDivision",   6.0f);   // 1/4
     setParam (a, "grainSize",    200.0f);
+    setParam (a, "grainLink",      0.0f);   // v1.17.0: Free — probe BL moves it
+    setParam (a, "grainDivision",  6.0f);   // 1/4
     setParam (a, "density",       60.0f);
     setParam (a, "feedback",      40.0f);
     setParam (a, "lowCut",       100.0f);
@@ -953,6 +968,11 @@ static std::vector<DigestLine> computeDigests()
     // line must equal freeze-at-1.5s above; probe BJ asserts it.
     { DigestScenario d { "freeze-ring-explicit-1.5s",  { {"feedback",60}, {"freezeLength",0} } }; d.freezeAt = 1.5; sc.push_back (d); }
     { DigestScenario d { "freeze-delay-1.5s",          { {"feedback",60}, {"freezeLength",1} } }; d.freezeAt = 1.5; sc.push_back (d); }
+    // v1.17.0 — appended after everything above, so a v1.16.0 diff shows pure
+    // additions plus the ALL line. The mock playhead is 120 BPM.
+    sc.push_back ({ "grainlink-free-explicit", { {"grainLink",0} } });
+    sc.push_back ({ "grainlink-delay-sync14",  { {"grainLink",1}, {"syncMode",1}, {"noteDivision",6}, {"feedback",50} } });
+    sc.push_back ({ "grainlink-div-1/8",       { {"grainLink",2}, {"grainDivision",3}, {"feedback",50} } });
 
     juce::uint64 all = 0xcbf29ce484222325ull;
     for (const auto& s : sc)
@@ -7068,6 +7088,187 @@ int main (int argc, char** argv)
                    hadIt && ! dst.mixLock.load(),
                    juce::String ("v1.16 state carries the attribute: ") + (hadIt ? "yes" : "NO")
                      + " | stripped state into a locked slot -> lock " + (dst.mixLock.load() ? "ON" : "off"));
+        }
+    }
+
+    // --- Probe BL (v1.17.0): Grain Link -------------------------------------------
+    //
+    //   BL0 Free is the v1.16.0 engine BITWISE — pinned from the v1.16.0 build's
+    //       `--digest` (2026-09-24) — and an explicit Free equals the default.
+    //   BL1 = Delay: the meter publishes G == D, and the render is bitwise the
+    //       Free render with Size dialled to that D (TIME Free and TIME Sync).
+    //   BL2 Division follows the host tempo in EITHER TIME mode, and is bitwise
+    //       the Free render at the division's ms — including across a tempo
+    //       change mid-render, against Free with Size stepped at the same block.
+    //   BL3 Division with no tempo, or no playhead, falls back to Size.
+    //   BL4 Division clamps to the grainSize range and says so.
+    {
+        using Src = ReverseDelayProcessor::GrainSource;
+        auto near = [] (float a, float b) { return std::abs (a - b) < 0.01f; };
+
+        // BL0
+        {
+            const auto dg = computeDigests();
+            auto hashOf = [&] (const char* n) -> juce::uint64
+            {
+                for (const auto& l : dg) if (l.name == n) return l.hash;
+                return 0;
+            };
+            struct Pin { const char* name; juce::uint64 hash; };
+            const Pin pins[] = {
+                { "baseline",          0x816f3fcbfd2e85bdull },
+                { "sync-div04",        0x9369d018d877b371ull },
+                { "sync-div06",        0xeeda7c7926829b11ull },
+                { "randomised",        0xc9c5bab8a1132085ull },
+                { "freeze-delay-1.5s", 0x1f7393a9018acd05ull },
+                { "Reverse Bloom",     0x8633d07d2c7dbee2ull },
+                { "Rhythmic Reverse",  0xe720a0ae46d9f563ull } };
+
+            int mismatched = 0;
+            juce::String firstBad;
+            for (const auto& pin : pins)
+                if (hashOf (pin.name) != pin.hash && mismatched++ == 0)
+                    firstBad = pin.name;
+
+            const bool explicitEq = hashOf ("grainlink-free-explicit") == hashOf ("baseline");
+            const bool linkedDiffers = hashOf ("grainlink-delay-sync14") != hashOf ("sync-div06")
+                                       && hashOf ("grainlink-div-1/8") != hashOf ("baseline");
+
+            check ("grainlink-free-bitwise",
+                   mismatched == 0 && explicitEq && linkedDiffers,
+                   juce::String (7 - mismatched) + "/7 v1.16.0 digests match"
+                     + (mismatched ? " (first bad: " + firstBad + ")" : juce::String())
+                     + " | explicit Free == default " + (explicitEq ? "yes" : "NO")
+                     + " | linked modes differ " + (linkedDiffers ? "yes" : "NO (dead mode)"));
+        }
+
+        // Deterministic noise bursts: every grain has onsets to reverse, so a
+        // wrong G shows in the samples, not just in the meter.
+        auto burst = [&] (int n)
+        {
+            juce::uint32 x = (juce::uint32) n * 2654435761u + 0x9e3779b9u;
+            x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+            const float noise = (float) (x & 0xffffu) / 32768.0f - 1.0f;
+            return (std::fmod ((double) n / fs, 0.6) < 0.15) ? 0.3f * noise : 0.0f;
+        };
+
+        struct Run { StereoRender y; ReverseDelayProcessor::GrainMeter m; };
+
+        // A fresh instance per render, so two renders differ ONLY in what the
+        // arguments say. `bpmAt(pos)` <= 0 means "no tempo" for that block.
+        auto run = [&] (std::vector<std::pair<const char*, float>> params, bool withPlayhead,
+                        auto&& bpmAt, auto&& perBlock) -> Run
+        {
+            ReverseDelayProcessor p;
+            p.setPlayConfigDetails (2, 2, fs, block);
+            MockPlayHead mph;
+            if (withPlayhead) p.setPlayHead (&mph);
+            setBaseline (p.parameters);
+            setParam (p.parameters, "feedback", 40.0f);
+            for (const auto& [id, v] : params) setParam (p.parameters, id, v);
+            p.prepareToPlay (fs, block);
+
+            Run r;
+            r.y = renderEffect (p, 2.5, fs, block, burst, [&] (int pos, int)
+            {
+                const double b = bpmAt (pos);
+                mph.bpm = b > 0.0 ? juce::Optional<double> (b) : juce::Optional<double> {};
+                perBlock (p.parameters, pos);
+            });
+            r.m = p.getGrainMeter();
+            p.setPlayHead (nullptr);
+            return r;
+        };
+        auto at120  = [] (int) { return 120.0; };
+        auto noMove = [] (juce::AudioProcessorValueTreeState&, int) {};
+        auto same   = [] (const StereoRender& a, const StereoRender& b)
+        {
+            return a.L == b.L && a.R == b.R && peakAbs (a.L) > 0.0;
+        };
+
+        // BL1 — = Delay, TIME Free (D = 350 ms) and TIME Sync (1/4 @ 120 = 500 ms).
+        {
+            const auto lf = run ({ {"grainLink",1}, {"delayTime",350} }, true, at120, noMove);
+            const auto rf = run ({ {"grainSize",350}, {"delayTime",350} }, true, at120, noMove);
+            const auto ls = run ({ {"grainLink",1}, {"syncMode",1}, {"noteDivision",6} }, true, at120, noMove);
+            const auto rs = run ({ {"grainSize",500}, {"syncMode",1}, {"noteDivision",6} }, true, at120, noMove);
+
+            const bool ok = near (lf.m.grainMs, lf.m.delayMs) && lf.m.grainSource == Src::delay
+                            && near (ls.m.grainMs, 500.0f) && near (ls.m.delayMs, 500.0f)
+                            && same (lf.y, rf.y) && same (ls.y, rs.y);
+            check ("grainlink-eq-delay", ok,
+                   juce::String ("Free: G=") + juce::String (lf.m.grainMs, 2) + " D=" + juce::String (lf.m.delayMs, 2)
+                     + " render==Size350 " + (same (lf.y, rf.y) ? "yes" : "NO")
+                     + " | Sync 1/4@120: G=" + juce::String (ls.m.grainMs, 2)
+                     + " render==Size500 " + (same (ls.y, rs.y) ? "yes" : "NO"));
+        }
+
+        // BL2 — Division 1/8 across a tempo change 120 -> 96 BPM at 1.0 s:
+        // 250 ms -> 312.5 ms, both exactly on grainSize's 0.01 grid, so the Free
+        // reference can step Size at the same block and must match bitwise.
+        // TIME stays Free (D = 500) to show Division does not need Sync.
+        {
+            const int switchAt = (int) (1.0 * fs);
+            auto tempoStep = [switchAt] (int pos) { return pos < switchAt ? 120.0 : 96.0; };
+
+            const auto l = run ({ {"grainLink",2}, {"grainDivision",3} }, true, tempoStep, noMove);
+            const auto r = run ({ {"grainSize",250} }, true, tempoStep,
+                                [switchAt] (juce::AudioProcessorValueTreeState& a, int pos)
+                                {
+                                    if (pos >= switchAt) setParam (a, "grainSize", 312.5f);
+                                });
+            const auto pre = run ({ {"grainLink",2}, {"grainDivision",3} }, true, at120, noMove);
+
+            // Sync on too: Division is independent of noteDivision.
+            const auto ls = run ({ {"grainLink",2}, {"grainDivision",9}, {"syncMode",1}, {"noteDivision",6} },
+                                 true, [] (int) { return 150.0; }, noMove);   // 1/2 @150 = 800
+
+            const bool ok = near (pre.m.grainMs, 250.0f) && near (l.m.grainMs, 312.5f)
+                            && l.m.grainSource == Src::tempo && same (l.y, r.y)
+                            && near (ls.m.grainMs, 800.0f) && near (ls.m.delayMs, 400.0f);
+            check ("grainlink-division-tempo", ok,
+                   juce::String ("1/8: G@120=") + juce::String (pre.m.grainMs, 2)
+                     + " G@96=" + juce::String (l.m.grainMs, 2)
+                     + " | render==Free stepped 250->312.5 " + (same (l.y, r.y) ? "yes" : "NO")
+                     + " | Sync 1/4 + Grain 1/2 @150: D=" + juce::String (ls.m.delayMs, 2)
+                     + " G=" + juce::String (ls.m.grainMs, 2));
+        }
+
+        // BL3 — no tempo, and no playhead: Size (300 ms), reported as fallback.
+        {
+            const auto nt = run ({ {"grainLink",2}, {"grainDivision",3}, {"grainSize",300} }, true,
+                                 [] (int) { return -1.0; }, noMove);
+            const auto np = run ({ {"grainLink",2}, {"grainDivision",3}, {"grainSize",300} }, false, at120, noMove);
+            const auto rf = run ({ {"grainSize",300} }, false, at120, noMove);
+
+            const bool ok = near (nt.m.grainMs, 300.0f) && nt.m.grainSource == Src::fallback
+                            && near (np.m.grainMs, 300.0f) && np.m.grainSource == Src::fallback
+                            && same (np.y, rf.y);
+            check ("grainlink-division-fallback", ok,
+                   juce::String ("no tempo G=") + juce::String (nt.m.grainMs, 2) + " src=" + juce::String ((int) nt.m.grainSource)
+                     + " | no playhead G=" + juce::String (np.m.grainMs, 2) + " src=" + juce::String ((int) np.m.grainSource)
+                     + " render==Size300 " + (same (np.y, rf.y) ? "yes" : "NO"));
+        }
+
+        // BL4 — clamp both rails: 1/16T @300 = 33.3 ms -> 50; 1/1 @40 = 6000 -> 4000.
+        {
+            using RDP = ReverseDelayProcessor;
+            RDP::GrainSource s1, s2, s3;
+            const float lo = RDP::resolveGrainMs (RDP::GrainLink::division, 200.0f, 500.0f, 2, 300.0, s1);
+            const float hi = RDP::resolveGrainMs (RDP::GrainLink::division, 200.0f, 500.0f, 12, 40.0, s2);
+            const float in = RDP::resolveGrainMs (RDP::GrainLink::division, 200.0f, 500.0f, 12, 60.0, s3);
+            const auto rendered = run ({ {"grainLink",2}, {"grainDivision",12} }, true,
+                                       [] (int) { return 40.0; }, noMove);
+
+            const bool ok = lo == RDP::kGrainSizeMinMs && s1 == Src::clamped
+                            && hi == RDP::kGrainSizeMaxMs && s2 == Src::clamped
+                            && near (rendered.m.grainMs, 4000.0f) && rendered.m.grainSource == Src::clamped
+                            && in == 4000.0f && s3 == Src::tempo;
+            check ("grainlink-division-clamp", ok,
+                   juce::String ("1/16T@300 -> ") + juce::String (lo, 2) + " src=" + juce::String ((int) s1)
+                     + " | 1/1@40 -> " + juce::String (hi, 2) + " src=" + juce::String ((int) s2)
+                     + " (rendered " + juce::String (rendered.m.grainMs, 2) + ")"
+                     + " | 1/1@60 -> " + juce::String (in, 2) + " src=" + juce::String ((int) s3) + " (exact, not clamped)");
         }
     }
 

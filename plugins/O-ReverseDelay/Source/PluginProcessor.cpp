@@ -32,6 +32,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     pSyncMode     = parameters.getRawParameterValue("syncMode");
     pNoteDivision = parameters.getRawParameterValue("noteDivision");
     pGrainSize    = parameters.getRawParameterValue("grainSize");
+    pGrainLink    = parameters.getRawParameterValue("grainLink");       // v1.17.0
+    pGrainDivision = parameters.getRawParameterValue("grainDivision");  // v1.17.0
     pDensity      = parameters.getRawParameterValue("density");
     pFeedback     = parameters.getRawParameterValue("feedback");
     pLowCut       = parameters.getRawParameterValue("lowCut");
@@ -96,7 +98,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
                      pJitter, pDelayScatter, pSizeRandom, pGainRandom,
                      pGrainTilt, pGrainShape, pGrainCount, pTukeyTaper,
                      pFreeze, pDirection, pRegenMakeup, pFreezeLength,
-                     pSourceMode, pDuck, pDriftRate, pDriftDepth })
+                     pSourceMode, pDuck, pDriftRate, pDriftDepth,
+                     pGrainLink, pGrainDivision })
     {
         jassert (p != nullptr);   // id typo in createParameterLayout() or above
         juce::ignoreUnused (p);
@@ -109,7 +112,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // 3162 Hz); a hand-written normalised fraction on any of them recalls 10–30×
     // wrong (pattern_factory_preset_normalized_ignores_skew).
     //
-    // All twenty-eight keys are explicit in every preset. Omitted keys would
+    // All thirty keys are explicit in every preset. Omitted keys would
     // revert to the APVTS default (applyPresetJson resets everything first),
     // which is safe but makes the table's intent unreadable.
     //
@@ -214,7 +217,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
         {"sourceMode", 0.0f}, {"duck", 0.0f},
         {"driftRate", 0.30f}, {"driftDepth", 0.0f},    // rate: the DEFAULT, not 0
         {"diffusion", 0.0f}, {"drive", 0.0f},
-        {"freezeLength", 0.0f}};                        // v1.15.0: Ring, the shipped loop
+        {"freezeLength", 0.0f},                         // v1.15.0: Ring, the shipped loop
+        {"grainLink", 0.0f},                            // v1.17.0: Free, the Size knob
+        {"grainDivision", static_cast<float> (kDefaultNoteDivision)}};   // inert while Free
 
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
         { "Reverse Bloom",
@@ -986,6 +991,30 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
+    // ── v1.17.0: Grain Link ──────────────────────────────────────────────────
+    //
+    // grainLink: Free / = Delay / Division, default index 0 (Free). Free is the
+    // Size knob through the v1.16.0 expression verbatim, and index 0 is what an
+    // absent key in any older session or preset resolves to — the sourceMode /
+    // freezeLength guarantee again. See resolveGrainMs() in the header.
+    //
+    // Appended at the END of the layout rather than beside grainSize, so no
+    // existing parameter's index moves for a host that automates by index.
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "grainLink", 1 }, "Grain Link",
+        juce::StringArray { "Free", "= Delay", "Division" }, 0));
+
+    // grainDivision: the SAME kNoteDivisions table as noteDivision (one table,
+    // v1.12.4 HIGH-03), default 1/4 so Division at the defaults lands on the
+    // same note value as a synced delay. Read only while grainLink is Division.
+    juce::StringArray grainDivisionNames;
+    for (const auto& d : kNoteDivisions)
+        grainDivisionNames.add (d.name);
+
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "grainDivision", 1 }, "Grain Division",
+        grainDivisionNames, kDefaultNoteDivision));
+
     return layout;
 }
 
@@ -1424,8 +1453,29 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         }
     }
 
+    // ---- (1b) resolve grain length G (v1.17.0 Grain Link) ---------------------
+    // Right after D, because = Delay reads it. Like D, only the VALUE moves per
+    // block: G is latched at spawn, so a tempo change or a link switch reaches
+    // the next grain and never a live one. Free passes the Size knob through
+    // untouched, so the G expression below is bitwise v1.16.0's. The playhead is
+    // only asked for a tempo in Division mode.
+    const auto grainLink = static_cast<GrainLink>(
+        juce::jlimit(0, 2, static_cast<int>(pGrainLink->load())));
+
+    double grainBpm = 0.0;
+    if (grainLink == GrainLink::division)
+        if (auto* playHead = getPlayHead())
+            if (const auto position = playHead->getPosition())
+                if (const auto bpm = position->getBpm())
+                    grainBpm = *bpm;
+
+    auto grainSource = GrainSource::free;
+    const float effectiveGrainMs = resolveGrainMs(grainLink, grainSizeMs, effectiveDelayMs,
+                                                  static_cast<int>(pGrainDivision->load()),
+                                                  grainBpm, grainSource);
+
     const int D = juce::jmax(1, static_cast<int>(effectiveDelayMs * 0.001 * currentSampleRate));
-    const int G = juce::jmax(2, static_cast<int>(grainSizeMs * 0.001 * currentSampleRate));
+    const int G = juce::jmax(2, static_cast<int>(effectiveGrainMs * 0.001 * currentSampleRate));
 
     // ---- Freeze latch (v1.6.0 B4 #1; corrected v1.7.2 CR-02) ----------------
     // Latch the loop length on the RISING edge only. Recomputing it per block
@@ -2354,6 +2404,8 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     publishedDelayMs.store(effectiveDelayMs, std::memory_order_relaxed);
     publishedDelaySource.store(static_cast<int>(delaySource), std::memory_order_relaxed);
     publishedFreezeEngaged.store(freezeEngaged, std::memory_order_relaxed);
+    publishedGrainMs.store(effectiveGrainMs, std::memory_order_relaxed);                   // v1.17.0
+    publishedGrainSource.store(static_cast<int>(grainSource), std::memory_order_relaxed);
 
     // Cumulative, and only touched when non-zero: the common case is two loads
     // and no stores rather than an unconditional read-modify-write per block.

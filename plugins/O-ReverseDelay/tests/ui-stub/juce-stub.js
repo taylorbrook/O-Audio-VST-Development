@@ -127,6 +127,7 @@ const CHOICES = {
   // pre-v1.7.0 session or preset resolves to, so Mono Sum has to be first.
   sourceMode: ["Mono Sum", "Stereo"],
   freezeLength: ["Ring", "Delay", "1 Bar", "2 Bars"],   // v1.15.0
+  grainLink: ["Free", "= Delay", "Division"],           // v1.17.0
   // v1.2.0 — must match WindowLut::Shape order and the C++ StringArray.
   grainShape: ["Hann", "Tukey", "Gaussian", "Triangular", "Expo-Decay"],
   noteDivision: [
@@ -137,8 +138,10 @@ const CHOICES = {
     "1/1",
   ],
 };
+CHOICES.grainDivision = CHOICES.noteDivision;           // v1.17.0: the same table
 
-const DEFAULT_CHOICE = { syncMode: 1, noteDivision: 6, grainShape: 0, sourceMode: 0, freezeLength: 0 };
+const DEFAULT_CHOICE = { syncMode: 1, noteDivision: 6, grainShape: 0, sourceMode: 0, freezeLength: 0,
+                         grainLink: 0, grainDivision: 6 };
 
 class StubSliderState {
   constructor(name) {
@@ -379,6 +382,24 @@ export function getNativeFunction(name) {
           delaySource = "fallback";
         }
       }
+      // v1.17.0 — Grain Link, mirroring resolveGrainMs(): Division reads the
+      // tempo in either TIME mode and falls back to the Size knob without one.
+      let grainMs = getSliderState("grainSize").getScaledValue();
+      let grainSource = "free";
+      const link = getComboBoxState("grainLink").getChoiceIndex();
+      if (link === 1) {
+        grainMs = Math.min(4000, Math.max(50, delayMs));
+        grainSource = "delay";
+      } else if (link === 2) {
+        if (bpm > 0) {
+          const ms = beats[getComboBoxState("grainDivision").getChoiceIndex()] * 60000 / bpm;
+          grainMs = Math.min(4000, Math.max(50, ms));
+          grainSource = ms < 50 || ms > 4000 ? "clamped" : "tempo";
+        } else {
+          grainSource = "fallback";
+        }
+      }
+
       const frozen = getToggleState("freeze").getValue() === true;
       stubFreezeOnAt = frozen ? (stubFreezeOnAt ?? Date.now()) : null;
 
@@ -387,6 +408,8 @@ export function getNativeFunction(name) {
         overlap,
         delayMs,
         delaySource,
+        grainMs,
+        grainSource,
         freezeEngaged: frozen && Date.now() - stubFreezeOnAt >= 1000,
         // v1.14.0: a wobbling input at -8 dBFS, and an output lifted by Regen
         // so that Regen above ~+4 dB crosses 0 dBFS and latches the clip lamp.

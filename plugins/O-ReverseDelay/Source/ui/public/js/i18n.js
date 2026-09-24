@@ -466,6 +466,20 @@ export const I18N = Object.freeze({
               reviewed: 'mt' },
     },
 
+    // ── v1.17.0: Grain Link ─────────────────────────────────────────────────
+    // The chain glyph's tip. Icon only, so no caption has to fit; its menu's
+    // accessible name is aria.grainLink. fr reviewed:false, zh-Hans 'mt'.
+    'grainLink': {
+        en: { t: 'Grain Link',
+              b: 'Ties the grain length to time. Free uses the Size knob. = Delay makes every grain as long as the delay, the classic reverse delay, and follows it in Sync. A division follows the host tempo in either time mode, and uses the Size knob when there is no tempo. While linked, the readout shows the length in use.' },
+        fr: { t: 'Lien du grain',
+              b: 'Lie la durée des grains au temps. Libre utilise le bouton Taille. = Délai donne à chaque grain la durée du délai, comme le délai inversé classique, et le suit en mode Synchro. Une division suit le tempo de l’hôte dans les deux modes de temps, et utilise le bouton Taille en l’absence de tempo. Une fois lié, l’affichage indique la durée utilisée.',
+              reviewed: false },
+        'zh-Hans': { t: '颗粒联动',
+              b: '将颗粒长度与时间关联。自由使用尺寸旋钮。= 延迟让每个颗粒与延迟等长，即经典的反向延迟，并在同步模式下跟随延迟。选择分割时值时跟随宿主速度，两种时间模式均适用；没有速度时使用尺寸旋钮。联动时，读数显示实际使用的长度。',
+              reviewed: 'mt' },
+    },
+
     // ── MOTION (v1.6.0) ─────────────────────────────────────────────────────
     'freezeSegments': {
         en: { t: 'Freeze',
@@ -818,6 +832,13 @@ export const LABELS = Object.freeze({
     'opt.freezeLength.delay':   { en: { t: 'Delay' },   fr: { t: 'Délai',     reviewed: false } , 'zh-Hans': { t: '延迟',   reviewed: 'mt' },},
     'opt.freezeLength.oneBar':  { en: { t: '1 Bar' },   fr: { t: '1 mesure',  reviewed: false } , 'zh-Hans': { t: '1 小节', reviewed: 'mt' },},
     'opt.freezeLength.twoBars': { en: { t: '2 Bars' },  fr: { t: '2 mesures', reviewed: false } , 'zh-Hans': { t: '2 小节', reviewed: 'mt' },},
+
+    // v1.17.0 — Grain Link. The menu's accessible name, its two word options,
+    // and the Division optgroup's label (an attribute, via data-i18n-label).
+    'aria.grainLink':         { en: { t: 'Grain Link' }, fr: { t: 'Lien du grain', reviewed: false } , 'zh-Hans': { t: '颗粒联动', reviewed: 'mt' },},
+    'opt.grainLink.free':     { en: { t: 'Free' },       fr: { t: 'Libre',         reviewed: false } , 'zh-Hans': { t: '自由',     reviewed: 'mt' },},
+    'opt.grainLink.delay':    { en: { t: '= Delay' },    fr: { t: '= Délai',       reviewed: false } , 'zh-Hans': { t: '= 延迟',   reviewed: 'mt' },},
+    'opt.grainLink.division': { en: { t: 'Division' },   fr: { t: 'Division',      sameAsEn: true, reviewed: true } , 'zh-Hans': { t: '分割', reviewed: 'mt' },},
 });
 
 // ============================================================================
@@ -866,6 +887,7 @@ export const TIP_BINDINGS = [
     ['#knob-mix',            'knob-mix'],
     ['#levelMeter',          'levelMeter'],   // v1.14.0
     ['#mix-lock',            'mixLock'],      // v1.16.0
+    ['#grain-link',          'grainLink'],    // v1.17.0
 
     ['#knob-jitter',         'knob-jitter'],
     ['#knob-delayScatter',   'knob-delayScatter'],
