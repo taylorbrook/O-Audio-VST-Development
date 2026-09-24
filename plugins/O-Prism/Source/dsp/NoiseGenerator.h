@@ -40,14 +40,29 @@ public:
     void setType (int type);
     void getNextSampleStereo (double& outL, double& outR);
 
+    /** WR-06: seed the two channel streams deterministically. A
+        default-constructed juce::Random is clock-seeded, so any noise level
+        above zero made a bounce non-reproducible. The two channels take
+        DIFFERENT derived seeds — they must stay decorrelated or the noise bed
+        collapses to mono. Stored and re-applied by prepare(). */
+    void setSeed (juce::uint32 seed);
+
 private:
-    juce::Random randomL, randomR;
+    // WR-06: explicit construction seeds, so an instance whose owner never
+    // calls setSeed() is reproducible rather than clock-seeded.
+    static constexpr juce::uint32 kDefaultSeedL = 0x2545F491u;
+    static constexpr juce::uint32 kDefaultSeedR = 0x8A5CD9B7u;
+    juce::uint32 rngSeedL = kDefaultSeedL;
+    juce::uint32 rngSeedR = kDefaultSeedR;
+    juce::Random randomL { static_cast<juce::int64> (kDefaultSeedL) };
+    juce::Random randomR { static_cast<juce::int64> (kDefaultSeedR) };
     double currentSampleRate = 44100.0;
     int currentType = 0; // 0=White, 1=Pink, 2=Brown, 3=Digital, 4=Vinyl, 5=Wind
 
     // Pink noise state (Paul Kellet economy) — per channel
     double b0L = 0.0, b1L = 0.0, b2L = 0.0;
     double b0R = 0.0, b1R = 0.0, b2R = 0.0;
+
 
     // Brown noise state — per channel
     double brownStateL = 0.0;

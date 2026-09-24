@@ -92,7 +92,17 @@ void DelayProcessor::process (juce::dsp::AudioBlock<float>& block)
 
     auto numSamples = block.getNumSamples();
     auto* leftData = block.getChannelPointer (0);
-    auto* rightData = block.getNumChannels() > 1 ? block.getChannelPointer (1) : leftData;
+
+    // WR-04: in mono, rightData aliases leftData. Reading through it is fine
+    // (the mono input feeds both lines), but WRITING through it made the
+    // right-line store overwrite the left-line one, so the left delay line was
+    // computed and thrown away — in PingPong, where the two lines carry
+    // genuinely different signal, mono played the right line only.
+    // isBusesLayoutSupported is not overridden, so juce::AudioProcessor's
+    // permissive default lets a host — or the Standalone on a mono output
+    // device — negotiate one channel against the declared stereo bus.
+    const bool isStereo = block.getNumChannels() > 1;
+    auto* rightData = isStereo ? block.getChannelPointer (1) : leftData;
 
     for (size_t i = 0; i < numSamples; ++i)
     {
@@ -117,8 +127,18 @@ void DelayProcessor::process (juce::dsp::AudioBlock<float>& block)
         feedbackL = feedbackFilterL.processSample (0, wetL);
         feedbackR = feedbackFilterR.processSample (0, wetR);
 
-        leftData[i] = wetL;
-        rightData[i] = wetR;
+        if (isStereo)
+        {
+            leftData[i] = wetL;
+            rightData[i] = wetR;
+        }
+        else
+        {
+            // Sum both lines at equal gain so neither is discarded. 0.5 keeps
+            // a correlated pair (Normal mode on a mono source) at the level it
+            // had in stereo instead of summing to +6 dB.
+            leftData[i] = 0.5f * (wetL + wetR);
+        }
     }
 
     dryWetMixer.mixWetSamples (block);

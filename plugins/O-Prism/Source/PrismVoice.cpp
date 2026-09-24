@@ -141,6 +141,35 @@ void PrismVoice::setProcessor (OPrismAudioProcessor* proc)
     processor = proc;
 }
 
+void PrismVoice::setVoiceIndex (int index)
+{
+    voiceIndex = index;
+
+    // WR-06: one deterministic stream per (voice, component). The index is
+    // mixed by Knuth's 2654435761 so adjacent voices do not get adjacent
+    // seeds, then each component is offset by the golden-ratio constant —
+    // separation in the HIGH bits, which an LCG propagates, unlike the low
+    // bits a small XOR would have varied.
+    //
+    // index + 1 keeps voice 0 off seed 0.
+    const juce::uint32 base = static_cast<juce::uint32> (index + 1) * 2654435761u;
+    const auto stream = [base] (juce::uint32 component)
+    {
+        return base + component * 0x9E3779B9u;
+    };
+
+    lfo1.setSeed (stream (1));
+    lfo2.setSeed (stream (2));
+    lfo3.setSeed (stream (3));
+    lfo4.setSeed (stream (4));
+    noiseGen.setSeed (stream (5));
+
+    // Distinct per oscillator: a shared seed would give oscA and oscB the same
+    // random start phases, and all 16 voices the same set as each other.
+    oscA.setPhaseSeed (stream (6));
+    oscB.setPhaseSeed (stream (7));
+}
+
 void PrismVoice::prepare (double sampleRate, int /*samplesPerBlock*/)
 {
     voiceSampleRate = sampleRate;
