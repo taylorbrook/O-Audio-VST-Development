@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.1
+- **Version:** 1.9.2
 - **Type:** Synth (Physical Model Bowed String)
 
 ## Lifecycle Timeline
@@ -40,15 +40,28 @@
   (JUCE `DelayLine` pop-then-push is exactly `setDelay`). Harness gained `--brightness`,
   `--ne-semis` and `--bend-vibrato`. Validated: auval PASS, pluginval 5 SUCCESS. The canonical golden
   sha256 stays the v1.9.0 anchor (the default render moves by design: A4 +4.2 c → +0.3 c).
+- **2026-09-24 (v1.9.2):** Resolved **CR-01** via `/improve-review` (PATCH): the upper register
+  plays its fundamental. `WaveguideString` raises β to a register floor (0 up to C#5, 0.30 from
+  D5, a one-semitone step that skips the H2/H3 lock-in islands at β 0.10–0.22). MIDI ≤ 73 is
+  byte-identical to v1.9.1. New `tests/register_gate.py` (10 factory presets × MIDI 45–96, gated
+  from 74) PASSES at 44.1/48/96 kHz; v1.9.1 fails it. Harness gained `--sample-rate` and
+  `--param id=norm`. Validated: auval PASS, pluginval 5 SUCCESS.
 
 ## Known Issues
 
-Open from the v1.9.0 review (`CODE_REVIEW.md`, 2026-09-23): **CR-01** (upper register lock-in or
-silence above ~E5; the review's fix item 1, "subtract the extra sample per rail", is WRONG, see
-v1.9.1), **CR-03 / CR-04 / WR-07 / WR-10** (tuning ownership; CR-04 needs a range-vs-module-clamp
+Open from the v1.9.0 review (`CODE_REVIEW.md`, 2026-09-23): **CR-03 / CR-04 / WR-07 / WR-10** (tuning ownership; CR-04 needs a range-vs-module-clamp
 decision), **WR-02 / WR-03** (sympathetic loop), **WR-04, WR-06, WR-08, WR-09, WR-11, WR-12**, and
 IN-01..IN-10.
 
+- **Mode lock-in islands below the register floor (found in v1.9.2 measurement, pre-existing).**
+  CR-01's floor only covers D5 and up. Lower down, some (β, bow speed) pairs still lock to H2/H3.
+  β ≈ 0.19 (Bow Position ≈ 60 %) at the default speed sounds H2 on every note C4–F#6. Viola sounds
+  H3 at MIDI 63–66, and Double Bass H2 at 69–73. The likely root is the capped-injection junction
+  (`min(frictionVel, |Δv|)` instead of STK's `ρ·Δv`), which picks modes chaotically. A fix means
+  re-voicing every preset: an `/improve-milestone`, not a patch.
+- **Reversed Friction sharpens pitch as β grows (pre-existing).** C4 at Bow Position max is
+  +48 c with Reversed Friction 0.3. Since v1.9.2 the register floor puts β at 0.30 from D5, so
+  Impossible Strings runs +14 to +24 c sharp at MIDI 74–86, and is still silent from 88.
 - **Low Brightness doesn't speak (found in v1.9.1 measurement, pre-existing in v1.9.0).** At default
   bow settings the string is silent (rms < 5e-5) at Brightness 300 and 1000 Hz for A3/A4/A5, and
   for A4/A5 at 3 kHz. The loss filter takes too much loop gain for the bow to sustain the
