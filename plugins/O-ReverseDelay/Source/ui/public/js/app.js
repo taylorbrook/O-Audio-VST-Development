@@ -291,6 +291,9 @@ let meterActiveEl   = null;    // #meter-active  span
 let meterOverlapEl  = null;    // #meter-overlap span
 let meterFn         = null;    // the getGrainMeter native fn, resolved once
 let meterInFlight   = false;   // drop a tick rather than queue behind a slow one
+let meterDelayEl    = null;    // #effective-delay (v1.13.0)
+let freezeEngaged   = null;    // v1.13.0: the latch, from the meter; null until the first poll
+let repaintFreeze   = null;    // bindFreezeSegments' refresh, re-run when freezeEngaged moves
 
 let envCanvas    = null;       // #envelopeCanvas
 let envCtx       = null;       // its 2D context
@@ -621,7 +624,14 @@ function bindFreezeSegments(juce) {
 
   if (!segOff || !segOn) { console.error("Missing freeze segment elements"); return; }
 
-  const refresh = () => paintSegmentPair(segOff, segOn, st.getValue() === true);
+  // v1.13.0: ON but not yet engaged paints as armed. null (no poll yet) is
+  // not false, so an editor opening on an engaged hold never pulses first.
+  const refresh = () => {
+    const on = st.getValue() === true;
+    paintSegmentPair(segOff, segOn, on);
+    segOn.classList.toggle("armed", on && freezeEngaged === false);
+  };
+  repaintFreeze = refresh;
 
   st.valueChangedEvent.addListener(refresh);
   st.propertiesChangedEvent.addListener(refresh);
@@ -889,6 +899,15 @@ function renderGrainMeter(active, overlap) {
   }
 }
 
+// v1.13.0: the delay the engine is playing. Same fmtMs as the Delay knob, so a
+// Sync readout and a Free readout of the same time are the same string. Only
+// the value span is written; the Division caption is authored in index.html.
+function renderEffectiveDelay(ms, source) {
+  if (!meterDelayEl || ms <= 0) return;
+  meterDelayEl.textContent = `= ${fmtMs(ms)}`;
+  meterDelayEl.classList.toggle("warn", source === "fallback" || source === "clamped");
+}
+
 async function pollGrainMeter() {
   // Never let ticks stack: at 15 Hz a round trip that stalls would otherwise
   // queue, and the queue would drain as a burst of stale values.
@@ -903,6 +922,13 @@ async function pollGrainMeter() {
     // these as strings depending on backend, and `overlap.toFixed` on a string
     // throws — which inside an interval callback would be a silent dead readout.
     renderGrainMeter(Number(m.active) || 0, Number(m.overlap) || 0);
+    renderEffectiveDelay(Number(m.delayMs) || 0, String(m.delaySource));
+
+    const engaged = m.freezeEngaged === true || m.freezeEngaged === "true";
+    if (engaged !== freezeEngaged) {
+      freezeEngaged = engaged;
+      if (repaintFreeze) repaintFreeze();
+    }
   } catch (e) {
     // Stop after the first failure rather than logging 15 times a second. The
     // readout freezes on its last value; every other control is unaffected.
@@ -917,6 +943,7 @@ async function pollGrainMeter() {
 function initGrainMeter(juce) {
   meterActiveEl  = document.getElementById("meter-active");
   meterOverlapEl = document.getElementById("meter-overlap");
+  meterDelayEl   = document.getElementById("effective-delay");   // optional: its absence only blanks it
 
   if (!meterActiveEl || !meterOverlapEl) {
     console.warn("Grain meter elements not found — meter disabled");

@@ -303,6 +303,12 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
             obj->setProperty ("active",  meter.active);
             obj->setProperty ("overlap", meter.overlap);
 
+            // v1.13.0 riders — same poll, so the bridge surface stays at 15.
+            static constexpr const char* kDelaySourceNames[] { "free", "tempo", "fallback", "clamped" };
+            obj->setProperty ("delayMs",       meter.delayMs);
+            obj->setProperty ("delaySource",   juce::String (kDelaySourceNames[static_cast<int> (meter.delaySource)]));
+            obj->setProperty ("freezeEngaged", meter.freezeEngaged);
+
             complete (juce::var (obj));
         });
 

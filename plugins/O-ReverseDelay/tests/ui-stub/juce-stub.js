@@ -337,14 +337,40 @@ export function getNativeFunction(name) {
   // which is also what makes the two readouts consistent with the knobs on screen.
   if (name === "getGrainMeter") {
     let tick = 0;
+    let stubFreezeOnAt = null;
     return () => {
       const ceiling = getSliderState("grainCount").getScaledValue();
       const density = getSliderState("density").getScaledValue();
       const overlap = 2 + (density / 100) * (ceiling - 2);
       tick = (tick + 1) % 7;
+
+      // v1.13.0 riders. A fixed 120 BPM host tempo; ?bpm=0 simulates Standalone
+      // (fallback to the Delay knob) and ?bpm=40 lands 1/1 on the 4000 ms rail.
+      // Freeze engages ~1 s after it is switched on, standing in for the
+      // one-grain wait, so the armed pulse is visible in the stub.
+      const bpmArg = new URLSearchParams(window.location.search).get("bpm");
+      const bpm = bpmArg === null ? 120 : Number(bpmArg);
+      const beats = [0.25, 0.375, 1 / 6, 0.5, 0.75, 1 / 3, 1, 1.5, 2 / 3, 2, 3, 4 / 3, 4];
+      let delayMs = getSliderState("delayTime").getScaledValue();
+      let delaySource = "free";
+      if (getComboBoxState("syncMode").getChoiceIndex() === 1) {
+        if (bpm > 0) {
+          const ms = beats[getComboBoxState("noteDivision").getChoiceIndex()] * 60000 / bpm;
+          delayMs = Math.min(4000, Math.max(50, ms));
+          delaySource = ms < 50 || ms > 4000 ? "clamped" : "tempo";
+        } else {
+          delaySource = "fallback";
+        }
+      }
+      const frozen = getToggleState("freeze").getValue() === true;
+      stubFreezeOnAt = frozen ? (stubFreezeOnAt ?? Date.now()) : null;
+
       return Promise.resolve({
         active: Math.max(0, Math.round(overlap) - (tick % 2)),
         overlap,
+        delayMs,
+        delaySource,
+        freezeEngaged: frozen && Date.now() - stubFreezeOnAt >= 1000,
       });
     };
   }

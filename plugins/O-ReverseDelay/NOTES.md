@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.12.5
+- **Version:** 1.13.0
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -106,6 +106,7 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
 - **2026-09-23 (v1.12.4):** Patch — behaviour-preserving C++ simplification (audit HIGH-01..05, MED-05, LOW-01, LOW-04, and the C++ half of MED-07). Changes: `kShippedNoOpTail`, the allpass length argument dropped, `resetLoopState()`, `WindowLut::integrateHalves()`, the `kNoteDivisions` table, `makePresetDialogResult()`/`firstStringArg()`, `CaptureBuffer::wrapIndex()`, and stale invariant comments corrected. Proven **bit-identical** by the new harness `--digest` mode (45 scenarios, `ALL ddee853f446b7fbb` before and after). 156/156 probes pass with identical measurement lines. The re-seeded factory presets hold identical values. Audit status table added: 8 done, 2 partial, 10 open, all of the remainder on the UI/JS side.
 - **2026-09-23 (v1.12.5):** Patch. Behaviour-preserving UI simplification (audit MED-01..04, the UI half of MED-07, LOW-02/03/05/06): `fmtPctOrOff`/`fmtMsInt`, a single-format `updateKnobVisual`, `paintSegmentPair()`/`setCellApplicable()`/`parseNativeResult()`, the write-only state removed, CSS rule pairs merged, and stale comments fixed. Verified **pixel-identical** to v1.12.4: 24 shots at 940 × 768 (8 states × en/fr/zh-Hans) and their DOM dumps match byte for byte. All four UI gates pass. Audit tally: 17 done, 3 open (test-fixture mirrors only).
 - **2026-09-23 (v1.12.2):** Patch — **Drive and Diffusion smoothed (20 ms, per sample) inside the feedback loop** (block-rate steps clicked loud material and recirculated); **oversized host blocks processed in prepared-size chunks** instead of bailing to dry at unity; **setStateInformation fills missing parameter ids with defaults** before replaceState (not a live bug on JUCE 8.0.15 — replaceState already resets missing params via valueTreeChildAdded; now explicit). Static-setting output byte-identical to v1.12.1. New probes BF (v1.7/v1.5 state into non-default instance → defaults) and BG (2×512 vs 1×1024 at prepared 512, exact; 0.287 divergence on old code). Harness 153→156 checks.
+- **2026-09-24 (v1.13.0):** Minor. The UI shows what the engine actually plays. A `= 500 ms` readout sits under Division in Sync and turns burnt sienna when Sync falls back to the Delay knob (no host tempo) or the tempo result is clamped at 50 or 4000 ms. The FREEZE segment pulses while armed and turns solid once the v1.7.2 one-grain latch engages. Both ride on `getGrainMeter` (`delayMs`, `delaySource`, `freezeEngaged`), so the bridge surface stays at **15**. No parameter, preset, state or DSP change. Harness +6 probes (`meter-*`, all passing); `ui_frontend_check` +4 checks; auval SUCCEEDED, bundle 1.13.0.
 
 ## Known Issues
 

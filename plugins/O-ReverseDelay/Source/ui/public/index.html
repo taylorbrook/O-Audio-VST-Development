@@ -190,6 +190,11 @@
                      StringArray is the single source of truth (never hardcode). -->
                 <select class="division-select" id="combo-noteDivision" data-i18n-aria="aria.noteDivision" aria-label="Note Division"></select>
                 <div class="knob-label" data-i18n="combo-noteDivision">Division</div>
+                <!-- v1.13.0: the delay the engine is actually playing, from
+                     getGrainMeter. Numbers and a unit only, so never localized.
+                     .warn when Sync fell back to the Delay knob (no host tempo)
+                     or the tempo result was pinned at 50 / 4000 ms. -->
+                <div class="division-readout" id="effective-delay" aria-live="off">&#8212;</div>
               </div>
             </div>
           </div>
