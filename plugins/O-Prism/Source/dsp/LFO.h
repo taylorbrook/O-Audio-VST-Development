@@ -52,11 +52,29 @@ public:
     /** Get current phase in [0, 1). */
     double getPhase() const { return phase; }
 
+    /** WR-06: seed the Sample & Hold random stream deterministically.
+        A default-constructed juce::Random calls setSeedRandomly() — ticks,
+        wall clock and the object address — so every instantiation drew a
+        different stream and two bounces of the same project with S&H on an
+        LFO differed sample-for-sample. The seed is stored and re-applied by
+        prepare(), which the host calls before each render, so a render always
+        starts the stream from the same place. */
+    void setSeed (juce::uint32 seed)
+    {
+        rngSeed = seed;
+        random.setSeed (static_cast<juce::int64> (seed));
+    }
+
 private:
     double sampleRate = 44100.0;
     double phase = 0.0;
     double phaseIncrement = 0.0;
     Shape currentShape = Shape::Sine;
     float shHeldValue = 0.0f;
-    juce::Random random;
+
+    // WR-06: explicitly seeded at construction too, so an LFO whose owner
+    // never calls setSeed() is still reproducible rather than clock-seeded.
+    static constexpr juce::uint32 kDefaultSeed = 0x9E3779B9u;
+    juce::uint32 rngSeed = kDefaultSeed;
+    juce::Random random { static_cast<juce::int64> (kDefaultSeed) };
 };

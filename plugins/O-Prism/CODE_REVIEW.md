@@ -11,12 +11,16 @@ findings:
   info: 10
   total: 22
 status: issues_found
-verified: 2026-09-23T00:00:00Z
+verified: 2026-09-24T00:00:00Z
 verified_resolution: 1.26.1 (CR-03, WR-03, WR-07, WR-09 + the startNote pitch-wheel seed);
   1.27.0 (CR-01, CR-02);
   1.27.1 (no finding — retraction of the v1.27.0 "FX mod NaN" note + the
-  advanceGlobalLfoPhases finite guard and both harness rate declarations)
-  1.27.2 (WR-01)
+  advanceGlobalLfoPhases finite guard and both harness rate declarations);
+  1.27.2 (WR-01);
+  1.28.0 (WR-02, WR-06, WR-08 fixed; WR-04 and WR-05 RETRACTED with evidence —
+  WR-04 is inert in the only case it occurs, WR-05's prescribed fix measurably
+  makes the rate match worse)
+open_findings: IN-01..IN-10 (Info tier only — all CR-* and WR-* are dispositioned)
 supersedes: .planning/CODE-REVIEW.md (v1.18.1, all 47 findings resolved)
 ---
 
@@ -30,6 +34,11 @@ supersedes: .planning/CODE-REVIEW.md (v1.18.1, all 47 findings resolved)
 > | CR-02 | ✅ Resolved in **v1.27.0** | 13 stores → `memory_order_release`, 3 loads → `memory_order_acquire` (the 11 + 3 cited, plus the 2 new stores in `publishEditedWorkingTable`). The invariant is documented at the `userTablePtrA/B` declaration in `PluginProcessor.h`. Static-only verdict: a memory-ordering edge has no single-threaded observable and the arm64 store-buffer window it closes does not reproduce on demand. |
 > | CR-03 | ✅ Resolved in **v1.26.1** | `PrismVoice::releaseNotePitchBend()` at both note-end points + `clearAllPitchBends()` on All Notes Off / All Sound Off. Deliberately *not* placed in `stopNote`'s tail-off branch as prescribed: `Synthesiser::noteOn` tail-offs the old voice of a re-struck note **before** the new voice runs `startNote`, so clearing at note-off would strip a live bend from the re-strike. Guarded on `isNoteHeld()` for the same collision. The `isNoteHeld()` skip strands the entry of a **held** note whose voice is stolen; `startNote` now seeds the entry from `currentPitchWheelPosition`, so the stranded value is overwritten at the next strike and the residual is unobservable. |
 > | WR-01 | ✅ Resolved in **v1.27.2** | `PrismSynthesiser`, a `juce::Synthesiser` subclass, overrides `renderVoices` and advances the global phase by *that sub-block's* length right after the voices seed from it; `processBlock` no longer advances. Sub-block lengths sum to the block length, so the end-of-block phase `fxLfo[]` reads is unchanged to the last bit. Coupling now recorded at the declaration: `juce::Synthesiser` skips `renderVoices` entirely on a zero-channel output, so the advance goes with it — the WR-09 early return keeps the two in agreement, but they must change together. |
+> | WR-02 | ✅ Resolved in **v1.28.0** | `readSample` selected its mipmap level from the member `frequency`. A cached `warpHarmonicScale` — recomputed by BOTH `setWarpType` (outside its change guard, so it cannot go stale) and `setWarpAmount` — now scales the frequency the level selector sees; `getLevelSelectFrequency()` exposes the product so the contract is assertable rather than inferred from a spectrum. Sync/Window and Bend take `1 + 3*warpAmount`; Off and FM stay 1.0, because FM's index is `fmInput` and moves every sample. The Sync predicate mirrors `isSyncMode` exactly, 0.001f floor included. Sync/Bend at high warp now sound duller and cleaner — that is the trade. No built-in negative control is possible (pre-fix the accessor returns `frequency` unconditionally); falsified by source revert, 7 `[W]` assertions fail. |
+> | WR-04 | ⚠️ **RETRACTED in v1.28.0** — not a live defect; prescribed guard applied anyway | The write aliasing is real but occurs ONLY on a one-channel block, and there `rightData` aliases `leftData` for *reading* too, so `inputL == inputR`. `DelayProcessor` is symmetric end to end — same maximum delay, same lowpass type and 8 kHz cutoff on both feedback filters, ONE shared `delaySamples` smoother driving both reads, both feedback states reset to 0 — and PingPong's cross-feedback is itself symmetric. Nothing breaks the symmetry, so `wetL == wetR` for all time (measured max \|L-R\| exactly 0.0) and the overwritten store held a bit-identical value. The review's premise, "in PingPong mode the two lines carry genuinely different signal", holds in stereo and fails in mono. The guard is applied because it is free, makes the mono intent explicit, and is the correct arithmetic if an asymmetric mono path is ever added — but it changes no audio, which `[M2]` asserts. |
+> | WR-05 | ⚠️ **RETRACTED in v1.28.0** — do NOT re-apply | Mechanism real for a pole in isolation; impact claim unsupported, and every prescribed correction is WORSE. Worst octave-band deviation from the 44.1 kHz reference over 125 Hz–16 kHz, as power per Hz: **as shipped 0.160 dB @ 48 kHz / 0.631 dB @ 96 kHz**; poles warped `a' = a^(44100/fs)` 0.650 / 5.010; that plus the white-noise PSD rescale 0.282 / 1.632. 0.160 dB at 48 kHz is not "measurably brighter" by any standard. The reason both corrections fail: preserving each pole's frequency and each section's DC gain is not the same as preserving the SUMMED response, and the sum is what is audible — the three sections plus the flat direct term combine into a magnitude already nearly rate-invariant, the frequency-axis compression at a higher rate offsetting the 1/fs fall in white-noise power per Hz almost exactly. Coefficients unchanged; a retraction note sits at them, and `[P-neg]` runs both corrections through the same measurement so re-applying either one fails the gate. |
+> | WR-06 | ✅ Resolved in **v1.28.0** | `PrismVoice::setVoiceIndex(i)` from the construction loop, before `prepare()`: index mixed by Knuth's 2654435761, each component offset by the golden-ratio constant `0x9E3779B9` so separation lands in the HIGH bits an LCG propagates. `fxLfo[]` seeded on the same terms in `prepareToPlay`. `prepare()` rewinds every stream to its seed — that is what makes a *render* reproducible, since the host calls it once per bounce. `resetWithRandomPhases` takes a supplied `phaseSeed` instead of `this`, keeping both original properties (same set per note, different set per voice) without the heap address. Two deliberate non-choices: `NoiseGenerator::reset()` does NOT re-seed (it fires per note-on; re-seeding would restart the same burst on every note, a pitched artefact), and per-voice seeds must stay distinct (a shared seed makes all 16 voices phase-coherent). This is the finding that unblocks a byte-stable offline render gate. |
+> | WR-08 | ✅ Resolved in **v1.28.0** | The one-pole now runs on `log2(frequency)`; `currentLog`/`targetLog` are kept in step with `currentFreq`/`targetFreq` at every mutation and `getNextFrequency` returns `exp2(currentLog)`. Shape unchanged — same coefficient, same asymptotic approach — only the domain moves. `toLog` floors at 1e-6 Hz so a zero target cannot poison the state with `-inf`. One `exp2` per sample and only while a glide runs; the convergence early-out returns before it. At the halfway point in PITCH the frequency is now the geometric mean 185.0010 Hz (exact 184.9972) where the old code passed 294.33 Hz. Built-in negative control: the linear-Hz one-pole is reproduced in the gate and fails both assertions — pitch half-life spread 39.113 % vs 0.0000 %, direction asymmetry 0.4466 vs 0.000000000. |
 > | WR-03 | ✅ Resolved in **v1.26.1** | `clearUserWavetableOverride(0/1)` unconditionally, ahead of the `userWtState` block (so legacy states with no child are covered too). |
 > | WR-07 | ✅ Resolved in **v1.26.1** | Dead-band guard removed; all four `setRate` calls unconditional. |
 > | WR-09 | ✅ Resolved in **v1.26.1** | Early return in `processBlock` on `getNumChannels() == 0`, still publishing `blockGeneration`. Covers `PrismVoice.cpp` `getWritePointer(0)` via the same chokepoint. |
@@ -125,6 +134,32 @@ supersedes: .planning/CODE-REVIEW.md (v1.18.1, all 47 findings resolved)
 > 159/159, `edit-rotation-check` 28/28, `wavetable-cow-check` 41/41, `bend-state-check`
 > 15/15, `geometry-check` PASS. `auval -v aumu OuPr OuDv` and pluginval strictness 10
 > both SUCCEED on the installed 1.27.2 bundles.
+>
+> **`/improve-verify` 2026-09-24 (v1.27.2) — PASS.** WR-01 CLOSED; no regression survived
+> verification. Survived-to-disk: CMakeLists `VERSION`, CHANGELOG top entry, NOTES.md,
+> PLUGINS.md row and both installed bundles' `CFBundleShortVersionString` all read 1.27.2,
+> the installed VST3/AU binaries are byte-identical to a fresh build of the current tree,
+> and `nm` finds `OPrismAudioProcessor::PrismSynthesiser::renderVoices` in the installed
+> VST3 — the fix is in the shipped binary, not just the source. Closure re-derived from
+> JUCE 8.0.15 `juce_Synthesiser.cpp` rather than from the resolution's account: the three
+> `renderVoices` call sites in `processNextBlock` partition the block exactly (the `break`
+> path renders the full remainder, the sub-`minimumSubBlockSize` path renders nothing and
+> consumes nothing), so the redistribution is exact, and all three sit under
+> `if (targetChannels > 0)` — the zero-channel coupling recorded at the declaration.
+> `advanceGlobalLfoPhases` now has exactly one caller. **Negative control re-run
+> independently** (revert both hunks, rebuild the gate only, sources restored and
+> SHA-verified against a pre-revert backup): **4/21 fail, exactly the four [A]
+> assertions**, at 0.359234661 / 0.345356464 (Pitch) and 0.251120985 / 0.066679746
+> (FiltA Cut) — the CHANGELOG's recorded magnitudes, reproduced. [A0], [B], [C], [D], [E]
+> stayed green. All six gates green on the restored tree: `lfo-subblock-check` 21/21,
+> `fx-mod-nan-check` 159/159, `edit-rotation-check`, `wavetable-cow-check`,
+> `bend-state-check` all 0-failed, `geometry-check` PASS (0 failed).
+> `auval -v aumu OuPr OuDv` SUCCEEDED and pluginval strictness 10 SUCCESS on the installed
+> bundles. One latent coupling noted, **not a live defect**: only the `AudioBuffer<float>`
+> `renderVoices` overload is overridden, so enabling double-precision processing (O-Prism
+> does not override `supportsDoublePrecisionProcessing()`, and has no double `processBlock`)
+> would silently stop the advance entirely — a third member of the same family as the two
+> couplings already recorded at the declaration.
 
 **Reviewed:** 2026-09-22 (v1.26.0, 📦 Installed)
 **Scope:** everything that landed since the last review closed at v1.19.1 — v1.19.2
@@ -275,6 +310,7 @@ audibly stutters. Tempo-synced and per-note LFOs are unaffected.
 voice from `globalLfoPhase + (subBlockStart / sampleRate) * rate`.
 
 ### WR-02: Mipmap level is chosen from the un-warped frequency, so Sync and Bend alias
+**✅ Resolved in v1.28.0** — see the resolution log above.
 **Files:** `Source/dsp/WavetableOscillator.cpp:164-170` vs `:245-246` and `:196-201`
 
 `readSample` picks its mipmap level from the member `frequency`:
@@ -317,6 +353,13 @@ disk or reselecting by hand recovers.
 `userWtState` block.
 
 ### WR-04: Mono output drops the left delay line entirely
+**⚠️ RETRACTED in v1.28.0 — not a live defect.** The aliasing only happens on a
+one-channel block, and there `inputL == inputR` and the processor is symmetric end to
+end, so `wetL == wetR` for all time (measured max |L-R| exactly 0.0) and the
+overwritten store held a bit-identical value. The premise quoted below — that in
+PingPong "the two lines carry genuinely different signal" — is true in stereo and
+false in mono. The prescribed guard was applied anyway; it changes no audio. See the
+resolution log above.
 **File:** `Source/dsp/DelayProcessor.cpp:95, 120-121`
 
 ```cpp
@@ -338,6 +381,11 @@ negotiate one channel against the declared stereo bus (`PluginProcessor.cpp:512-
 lines explicitly in the mono case.
 
 ### WR-05: Pink noise is the only noise type with no sample-rate correction
+**⚠️ RETRACTED in v1.28.0 — do NOT re-apply the fix below.** The mechanism is real for
+a pole in isolation, but the summed response of the economy filter is already nearly
+rate-invariant, and both prescribed corrections measurably make it worse (as shipped
+0.160 dB / 0.631 dB worst band at 48 / 96 kHz; poles warped 0.650 / 5.010; warped plus
+the PSD rescale 0.282 / 1.632). See the resolution log above.
 **File:** `Source/dsp/NoiseGenerator.cpp:73-85`
 
 Brown (`:89` `rateScale`), Vinyl (`:121` `cutNorm = 2000/fs`) and Wind (`:150, :161`) all
@@ -351,6 +399,7 @@ class as `pattern_noise_bed_level_is_rate_dependent`.
 **Fix:** warp the three pole coefficients by `44100 / fs` in `prepare()`.
 
 ### WR-06: Two clock-seeded RNGs make any render non-reproducible
+**✅ Resolved in v1.28.0** — see the resolution log above.
 **Files:** `Source/dsp/LFO.h:61` + `LFO.cpp:43, 91` (S&H), `Source/dsp/NoiseGenerator.h:44`
 
 Both are default-constructed `juce::Random`, whose constructor calls `setSeedRandomly()` —
@@ -392,6 +441,7 @@ guard buys nothing (`setRate` is one divide).
 rate.
 
 ### WR-08: Glide interpolates in linear Hz, not in pitch
+**✅ Resolved in v1.28.0** — see the resolution log above.
 **File:** `Source/dsp/GlideProcessor.h:82`
 
 `currentFreq = currentFreq * glideCoeff + targetFreq * (1 - glideCoeff)` is a one-pole in

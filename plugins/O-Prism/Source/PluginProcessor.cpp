@@ -569,6 +569,7 @@ OPrismAudioProcessor::OPrismAudioProcessor()
     for (int i = 0; i < 16; ++i)
     {
         auto* voice = new PrismVoice();
+        voice->setVoiceIndex (i); // WR-06: deterministic RNG streams, before prepare()
         voice->setAPVTS (&parameters);
         voice->setTuningEngine (&tuningEngine);
         voice->setProcessor (this);
@@ -743,8 +744,15 @@ void OPrismAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     eq.prepare (spec);
     reverbProcessor.prepare (spec);
 
+    // WR-06: the four processor-level LFOs own Sample & Hold streams too, so
+    // they need seeding on the same terms as the voices'. setSeed() must come
+    // before prepare(), which rewinds the stream to the seed.
+    juce::uint32 fxLfoStream = 0;
     for (auto& lfo : fxLfo)
+    {
+        lfo.setSeed (0xC2B2AE35u + (++fxLfoStream) * 0x9E3779B9u);
         lfo.prepare (sampleRate);
+    }
 
     distWasActive = chorusWasActive = delayWasActive = reverbWasActive = eqWasActive = false;
 

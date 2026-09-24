@@ -40,11 +40,61 @@ void WavetableOscillator::setWarpType (WarpType type)
         for (int i = 0; i < kMaxUnison; ++i)
             masterPhases[i] = phaseAccumulators[i];
     }
+
+    // WR-02: deliberately OUTSIDE the change guard. The scale is a pure
+    // function of (warpType, warpAmount) and both setters recompute it, so an
+    // unconditional call cannot leave a stale value behind the way a
+    // guarded one could (pattern_conditional_coeff_update_leaks_enabled_flag).
+    updateWarpHarmonicScale();
 }
 
 void WavetableOscillator::setWarpAmount (float amount)
 {
     warpAmount = amount;
+    updateWarpHarmonicScale();
+}
+
+void WavetableOscillator::updateWarpHarmonicScale()
+{
+    // WR-02: readSample() picked its mipmap level from the member `frequency`,
+    // but two warp modes multiply the effective harmonic content without ever
+    // touching it — so the oscillator read a table band-limited for the BASE
+    // pitch while generating harmonics well above it, and they folded. Sync at
+    // warp 1.0 around C6 aliased audibly; sweeping warp back to 0 cleaned up.
+    //
+    // Scaling the frequency the level selector sees pushes it onto a table
+    // band-limited for the content that is actually there.
+    switch (warpType)
+    {
+        case WarpType::Sync:
+        case WarpType::Window:
+            // The slave accumulator runs at phaseIncrement * syncRatio, up to 4x.
+            // The predicate must mirror getNextSampleStereo()'s isSyncMode
+            // EXACTLY, 0.001f floor included: below it the sync branch is not
+            // taken, the accumulator runs at the base rate, and scaling the
+            // level here would band-limit a spectrum nothing widened.
+            warpHarmonicScale = warpAmount > 0.001f
+                              ? 1.0 + static_cast<double> (warpAmount) * 3.0
+                              : 1.0;
+            break;
+
+        case WarpType::Bend:
+            // pow(phase, exponent) compresses the cycle into its head, which
+            // raises the harmonic order roughly in step with the exponent.
+            // Exact only asymptotically — it is the proxy the review prescribes.
+            // At warpAmount 0 the exponent is 1, so this is continuous with Off.
+            warpHarmonicScale = 1.0 + static_cast<double> (warpAmount) * 3.0;
+            break;
+
+        case WarpType::FM:
+        case WarpType::Off:
+        default:
+            // FM's modulation index is fmInput, which changes every sample, so
+            // no value cached here describes it. Left unscaled (IN-tier: FM
+            // aliasing is a separate, per-sample problem).
+            warpHarmonicScale = 1.0;
+            break;
+    }
 }
 
 void WavetableOscillator::setFMInput (double value)
@@ -97,8 +147,15 @@ void WavetableOscillator::resetWithPhase (double phase)
 
 void WavetableOscillator::resetWithRandomPhases()
 {
-    // Use a simple LCG for deterministic-per-note random phases
-    uint32_t seed = static_cast<uint32_t> (reinterpret_cast<uintptr_t> (this) ^ 0x12345678u);
+    // Use a simple LCG for deterministic-per-note random phases.
+    //
+    // WR-06: the seed was `this ^ 0x12345678`. That gave the intended property
+    // — the same phase set on every note of a given voice, a different set per
+    // voice — but keyed it to the heap address, so it moved between runs and
+    // builds and no render could be byte-compared. phaseSeed is supplied by
+    // the owner (PrismVoice::setVoiceIndex) and carries both properties
+    // without the address.
+    uint32_t seed = phaseSeed;
     for (int i = 0; i < kMaxUnison; ++i)
     {
         seed = seed * 1664525u + 1013904223u;
@@ -161,9 +218,12 @@ double WavetableOscillator::readSample (double phase) const
     int frame1 = std::min (frame0 + 1, wavetable->numFrames - 1);
     double frameFrac = framePos - frame0;
 
-    // Mipmap level interpolation
+    // Mipmap level interpolation.
+    // WR-02: warpHarmonicScale accounts for Sync/Bend raising the harmonic
+    // content above `frequency`; it is 1.0 for Off and FM.
     double baseFreq = currentSampleRate / static_cast<double> (WavetableData::kTableSize);
-    double levelFloat = std::log2 (std::max (frequency, baseFreq) / baseFreq);
+    double levelFreq = frequency * warpHarmonicScale;
+    double levelFloat = std::log2 (std::max (levelFreq, baseFreq) / baseFreq);
     levelFloat = juce::jlimit (0.0, static_cast<double> (WavetableData::kNumMipmapLevels - 1), levelFloat);
     int level0 = static_cast<int> (levelFloat);
     int level1 = std::min (level0 + 1, WavetableData::kNumMipmapLevels - 1);

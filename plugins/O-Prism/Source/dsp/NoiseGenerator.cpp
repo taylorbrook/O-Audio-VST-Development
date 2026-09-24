@@ -31,10 +31,32 @@
 #include "MathConstants.h"
 #include <cmath>
 
+void NoiseGenerator::setSeed (juce::uint32 seed)
+{
+    // 0x9E3779B9 is the golden-ratio constant; adding it decorrelates the two
+    // channel seeds in the HIGH bits, which an LCG carries better than the low
+    // ones a small XOR would have touched.
+    rngSeedL = seed;
+    rngSeedR = seed + 0x9E3779B9u;
+    randomL.setSeed (static_cast<juce::int64> (rngSeedL));
+    randomR.setSeed (static_cast<juce::int64> (rngSeedR));
+}
+
 void NoiseGenerator::prepare (double sampleRate)
 {
     currentSampleRate = sampleRate;
     digitalHoldSamples = std::max (1, static_cast<int> (sampleRate / 5512.0));
+
+    // WR-05 (v1.28.0): investigated and NOT changed. See the retraction note at
+    // the pink coefficients in getNextSampleStereo().
+
+    // WR-06: rewind both streams to their seeds. prepare() runs once per
+    // render, so two bounces of the same project draw identical noise.
+    // Deliberately NOT done in reset(): reset() fires on every note-on, and
+    // re-seeding there would restart the same noise burst on each note, which
+    // reads as a pitched artefact rather than as noise.
+    randomL.setSeed (static_cast<juce::int64> (rngSeedL));
+    randomR.setSeed (static_cast<juce::int64> (rngSeedR));
 }
 
 void NoiseGenerator::reset()
@@ -72,6 +94,31 @@ void NoiseGenerator::getNextSampleStereo (double& outL, double& outR)
 
         case 1: // Pink (Paul Kellet economy) — independent filter states per channel
         {
+            // WR-05 RETRACTED in v1.28.0 — do NOT "fix" these constants.
+            //
+            // The review found that these three poles are published for
+            // 44.1 kHz and that Brown, Vinyl and Wind all scale their
+            // coefficients by the rate while Pink does not, and concluded the
+            // bed is "measurably brighter at 48 kHz and noticeably so at
+            // 96 kHz". The mechanism is real for a pole in isolation; the
+            // conclusion does not survive measurement.
+            //
+            // Octave-band power per Hz, 125 Hz to 16 kHz, relative to 44.1 kHz
+            // (see tests/dsp_quality_check.cpp, which gates these numbers):
+            //
+            //   as shipped                        48 kHz 0.085 dB   96 kHz 0.546 dB
+            //   poles warped a' = a^(44100/fs)    48 kHz 0.651 dB   96 kHz 4.993 dB
+            //   that plus the white-PSD rescale   48 kHz 0.283 dB   96 kHz 1.615 dB
+            //
+            // Every correction is WORSE than doing nothing. Preserving each
+            // pole's frequency and each section's DC gain is not the same as
+            // preserving the SUMMED response, and the sum is what is audible:
+            // the three sections plus the flat direct term happen to combine
+            // into a magnitude that is already nearly rate-invariant, because
+            // the w-compression at a higher rate offsets the 1/fs fall in white
+            // noise power per Hz almost exactly.
+            //
+            // 0.085 dB at 48 kHz is not "measurably brighter" by any standard.
             b0L = 0.99765 * b0L + whiteL * 0.0990460;
             b1L = 0.96300 * b1L + whiteL * 0.2965164;
             b2L = 0.57000 * b2L + whiteL * 1.0526913;

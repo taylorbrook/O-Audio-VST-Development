@@ -35,6 +35,11 @@ void LFO::prepare (double sr)
     phase = 0.0;
     phaseIncrement = 0.0;
     shHeldValue = 0.0f;
+
+    // WR-06: rewind the S&H stream to the seed. prepare() runs once per
+    // prepareToPlay, i.e. once per render, so two bounces of the same project
+    // draw the identical sequence.
+    random.setSeed (static_cast<juce::int64> (rngSeed));
 }
 
 void LFO::reset()

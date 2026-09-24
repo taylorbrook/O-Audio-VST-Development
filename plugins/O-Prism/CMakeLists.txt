@@ -9,7 +9,7 @@ juce_add_plugin(O-Prism
     PLUGIN_CODE OuPr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Prism${OUARICON_DEV_SUFFIX}"
-    VERSION 1.27.2
+    VERSION 1.28.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -194,4 +194,21 @@ if(OUARICON_BUILD_TESTS)
     # Exit code = number of failed checks.
     ouaricon_add_processor_console(O-Prism ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/lfo_subblock_check.cpp lfo-subblock-check)
+
+    # v1.28.0 — DSP-quality gate for the five remaining Warning-tier findings.
+    # WR-06 (two clock-seeded juce::Random streams plus a `this`-seeded phase
+    # LCG made any render non-reproducible) is asserted at processor level: two
+    # instances, held alive at once so they cannot share a heap address, must
+    # render bit-identically with noise, S&H and random start phases all
+    # engaged. WR-02 pins getLevelSelectFrequency() — the quantity the mipmap
+    # fix introduces — for every warp mode and both sides of the 0.001 Sync
+    # floor. WR-04, WR-05 and WR-08 each carry a BUILT-IN negative control: the
+    # pre-fix arithmetic is reproduced inside the gate (right-line-only mono
+    # delay, the unwarped 44.1 kHz pink coefficients at 96 kHz, the linear-Hz
+    # glide one-pole) and must fail the same assertion the fixed code passes,
+    # so none of the three needs a source revert to be falsifiable.
+    #     ninja O-Prism-dsp-quality-check && ./build/plugins/O-Prism/O-Prism-dsp-quality-check_artefacts/Release/O-Prism-dsp-quality-check
+    # Exit code = number of failed checks.
+    ouaricon_add_processor_console(O-Prism ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/dsp_quality_check.cpp dsp-quality-check)
 endif()

@@ -53,6 +53,12 @@ public:
     void setProcessor (OPrismAudioProcessor* proc);
     void prepare (double sampleRate, int samplesPerBlock);
 
+    /** WR-06: give this voice its deterministic random streams. Called once
+        per voice from the processor's construction loop; every RNG the voice
+        owns gets a distinct, reproducible seed derived from the index. Must
+        run before prepare(), which rewinds each stream to its seed. */
+    void setVoiceIndex (int index);
+
     /** Set pointer to the module-owned pending-tuning table (128 MIDI slots,
         semitones). Voice reads-and-clears its slot in startNote() to apply
         Dorico's VST3 Note Expression tuning delta before the first sample. */
@@ -191,6 +197,7 @@ private:
     float noteVelocity = 0.0f;
     int currentMidiNote = -1;
     double voiceSampleRate = 44100.0;
+    int voiceIndex = 0;
 
     // Oscillators
     WavetableOscillator oscA;

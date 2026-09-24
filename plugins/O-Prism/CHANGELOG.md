@@ -1,5 +1,198 @@
 # O-Prism Changelog
 
+## [1.28.0] - 2026-09-24
+
+Closes the Warning tier of `CODE_REVIEW.md`. Three findings were real and are
+fixed — **WR-06** (renders were not reproducible), **WR-02** (Sync and Bend
+aliased) and **WR-08** (glide ran in the wrong domain). Two did not survive
+verification and are **retracted with evidence**: **WR-04** is inert and
+**WR-05** is a misdiagnosis whose prescribed fix measurably makes things worse.
+
+MINOR: no parameter ID, range, type or state-format change, and no preset
+migration — but WR-02 and WR-08 change rendered output for existing patches,
+and WR-06 threads a voice index through voice construction, so this is more
+than a patch.
+
+### WR-06: two clock-seeded RNGs made any render non-reproducible — FIXED
+
+`LFO::random` (Sample & Hold) and `NoiseGenerator::randomL/randomR` were
+default-constructed `juce::Random`, and that constructor calls
+`setSeedRandomly()` — high-resolution ticks, wall clock and the object address.
+Every instantiation drew a different stream, so two bounces of the same project
+with S&H on an LFO or any noise level above zero differed sample-for-sample, and
+O-Prism could not have a byte-stable offline render gate at all.
+`WavetableOscillator::resetWithRandomPhases` was the milder third case: an LCG
+seeded from `this`, stable within a process but moving with the heap layout, so
+it varied across runs and builds.
+
+**Fix.** `PrismVoice::setVoiceIndex (i)`, called once per voice from the
+processor's construction loop before `prepare()`, hands every RNG the voice owns
+a distinct deterministic seed: the index is mixed by Knuth's 2654435761, then
+each component is offset by the golden-ratio constant `0x9E3779B9` — separation
+in the high bits, which an LCG propagates, unlike the low bits a small XOR
+would have varied. The four processor-level `fxLfo[]` are seeded on the same
+terms in `prepareToPlay`. `prepare()` rewinds each stream to its seed, which is
+what makes a *render* reproducible: the host calls it once per bounce.
+
+Two deliberate non-choices, both commented at the source:
+
+- `NoiseGenerator::reset()` does **not** re-seed. It fires on every note-on, and
+  re-seeding there would restart the same noise burst on each note — which reads
+  as a pitched artefact, not as noise.
+- The per-voice seeds must stay **distinct**. `resetWithRandomPhases` gave the
+  same phase set on every note of a given voice and a different set per voice;
+  collapsing that to one shared seed would make all 16 voices phase-coherent and
+  change the level.
+
+### WR-02: mipmap level was chosen from the un-warped frequency — FIXED
+
+`readSample` picked its level from the member `frequency`, but Sync runs the
+slave accumulator at `phaseIncrement * (1 + 3*warpAmount)` — up to 4x — and Bend
+applies `pow(phase, 1 + 3*warpAmount)`, compressing the cycle into its head.
+Both generate harmonics far above the unwarped spectrum while reading a table
+band-limited for the base pitch, so the surplus folded: Sync at warp 1.0 around
+C6 aliased audibly and cleaned up as warp swept back to 0.
+
+**Fix.** A cached `warpHarmonicScale`, recomputed by both `setWarpType` and
+`setWarpAmount`, scales the frequency the level selector sees;
+`getLevelSelectFrequency()` exposes the product. Sync and Window take
+`1 + 3*warpAmount`, Bend takes the same value as a proxy for its exponent, and
+Off and FM stay at 1.0 — FM's index is `fmInput`, which moves every sample, so no
+cached scale describes it.
+
+Two details that are easy to get wrong:
+
+- The Sync predicate mirrors `getNextSampleStereo`'s `isSyncMode` **exactly**,
+  `0.001f` floor included. Below the floor the sync branch is not taken and the
+  accumulator runs at the base rate, so scaling the level there would
+  band-limit a spectrum nothing had widened.
+- The recompute sits **outside** `setWarpType`'s change guard, so it cannot
+  leave a stale scale behind (`pattern_conditional_coeff_update_leaks_enabled_flag`).
+
+Expect Sync and Bend patches at high warp to sound duller and cleaner. That is
+the trade the fix makes.
+
+### WR-08: glide interpolated in linear Hz, not in pitch — FIXED
+
+`currentFreq = currentFreq*c + targetFreq*(1-c)` is a one-pole on **frequency**.
+Perceived pitch is logarithmic, so a C2 to C5 glide crawled through the bottom
+octave and crossed the top one in a fraction of the time. For a plugin whose
+premise is microtonal pitch accuracy that is the wrong domain.
+
+**Fix.** The one-pole runs on `log2(frequency)`; `currentLog`/`targetLog` are
+kept in step with `currentFreq`/`targetFreq` at every mutation, and
+`getNextFrequency` returns `exp2(currentLog)`. The one-pole *shape* is unchanged
+— same coefficient, same asymptotic approach — only the domain moves. `toLog`
+floors at 1e-6 Hz so a zero target cannot poison `currentLog` with `-inf`. Cost
+is one `exp2` per sample and only while a glide is running: the convergence
+early-out returns before it once the note has arrived.
+
+Measured: the glide now covers equal cents per sample rather than equal hertz,
+so at the halfway point in pitch the frequency is the geometric mean
+185.0010 Hz (exact 184.9972 Hz) where the old code passed 294.33 Hz.
+
+### WR-04: mono output dropped the left delay line — RETRACTED (guard applied)
+
+`rightData` aliases `leftData` on a one-channel block, so `rightData[i] = wetR`
+overwrote `leftData[i] = wetL`. The review concluded that "in PingPong mode the
+two lines carry genuinely different signal, so mono ping-pong is the right line
+only". True in stereo, **false in mono** — and mono is the only case where the
+aliasing happens.
+
+In mono `rightData` aliases `leftData` for *reading* too, so `inputL == inputR`.
+`DelayProcessor` is symmetric end to end — same maximum delay, same lowpass type
+and 8 kHz cutoff on both feedback filters, one *shared* `delaySamples` smoother
+driving both reads, both feedback states reset to 0 — and PingPong's
+cross-feedback is itself symmetric. Nothing ever breaks the symmetry, so
+`wetL == wetR` for all time and the overwritten store held a bit-identical
+value. Measured: max |L-R| is exactly 0.0.
+
+The prescribed guard is applied anyway — it is free, it makes the mono intent
+explicit, and it is the correct arithmetic if an asymmetric mono path is ever
+added — but **it fixes no live defect and changes no audio**, which the gate
+asserts directly.
+
+### WR-05: pink noise had no rate correction — RETRACTED, no change made
+
+The three Paul Kellet poles are published for 44.1 kHz, and Brown, Vinyl and
+Wind all scale their coefficients by the rate while Pink does not. The mechanism
+is real for a pole in isolation. The conclusion — "measurably brighter at 48 kHz
+and noticeably so at 96 kHz" — does not survive measurement.
+
+Worst octave-band deviation from the 44.1 kHz reference, 125 Hz to 16 kHz,
+measured as power per Hz (Welch-averaged, 8 s per rate):
+
+| coefficients | 48 kHz | 96 kHz |
+|---|---|---|
+| **as shipped (unchanged)** | **0.160 dB** | **0.631 dB** |
+| poles warped `a' = a^(44100/fs)` | 0.650 dB | 5.010 dB |
+| that plus the white-noise PSD rescale | 0.282 dB | 1.632 dB |
+
+Every correction is worse than doing nothing, and 0.160 dB at 48 kHz is not
+"measurably brighter" by any standard. The reason both corrections fail is that
+preserving each pole's frequency and each section's DC gain is not the same as
+preserving the **summed** response — and the sum is what is audible. The three
+sections plus the flat direct term happen to combine into a magnitude that is
+already nearly rate-invariant, because the frequency-axis compression at a
+higher rate offsets the 1/fs fall in white-noise power per Hz almost exactly.
+
+The coefficients are unchanged. A retraction note sits at the constants, and the
+gate runs both prescribed corrections through the same measurement so
+re-applying either one fails.
+
+**Separate observation, not fixed and not a WR-05 restatement:** a `±1` white
+sequence has fs-independent *total* power, so its power per Hz falls as `1/fs`.
+White and Digital noise are therefore ~3.4 dB quieter in the audio band at
+96 kHz than at 44.1 kHz for the same `noiseLevel`. Pink escapes this only by the
+coincidence above. Recorded in NOTES.md under Known Limitations rather than
+fixed here — it is a new finding, not part of this batch's scope.
+
+### Testing
+
+New gate `O-Prism-dsp-quality-check`, **64/64**. Three of the five findings
+carry a **built-in negative control** — the pre-fix arithmetic is reproduced
+inside the gate, so they are falsifiable without touching a source file:
+
+- **WR-08**: the linear-Hz one-pole is re-implemented in the gate and must fail
+  both pitch-domain assertions. It does: pitch half-life spread 39.113 % against
+  0.0000 % for the fix, and up/down asymmetry 0.4466 against 0.000000000.
+- **WR-05**: both prescribed coefficient sets are run through the identical
+  measurement and must each be worse than shipped. Numbers in the table above.
+- **WR-04**: `[M1]`/`[M2]` prove the inertness directly (max |L-R| = 0.0, mono
+  output bit-identical to both the sum and the right line alone), and `[M3]`
+  pins the arithmetic that would matter if the lines ever diverged.
+
+**WR-06 and WR-02 negative control, run with a source revert** (six files
+snapshotted, reverted, gate-only rebuild, restored and SHA-256 verified against
+the snapshot): **16/64 fail, exactly the expected set** — the four `[D]`
+bit-identity renders (max |diff| 0.835518658 / 0.693961382 / 0.707067966 /
+1.222041726), the four `[D-lfo]`/`[D-noise]` same-seed and prepare-rewind
+assertions, `[D-osc]` different-seeds, and the seven `[W]` scale assertions that
+are not 1x. Everything else stayed green.
+
+One nuance in that result, noted at the assertion: `[D-osc]` *equal* seeds
+passes pre-fix, because each oscillator in the helper is built and destroyed on
+the same stack address, so the `this`-seeded LCG produced identical phases every
+time. The pre-fix failure lands entirely on the different-seeds assertion. The
+processor-level `[D]` checks hold two instances **alive at once** for the same
+reason — sequentially created instances can be handed the same heap address, and
+the comparison would then pass on pre-fix code for the wrong reason
+(`pattern_distinct_buffer_addresses_are_not_an_allocation_bound`).
+
+WR-02 has no built-in control: pre-fix `getLevelSelectFrequency()` returns
+`frequency` unconditionally, so the contract can only be falsified by reverting.
+
+Regression: `lfo-subblock-check` 21/21, `fx-mod-nan-check` 159/159,
+`edit-rotation-check`, `wavetable-cow-check`, `bend-state-check` and
+`geometry-check` all 0-failed. `auval -v aumu OuPr OuDv` and pluginval
+strictness 10 both SUCCEED on the installed 1.28.0 bundles.
+
+Not gated, deliberately: WR-02's audible improvement. Aliasing in a sync'd or
+phase-distorted oscillator is periodic at the master f0, so it lands *on* the
+harmonics rather than between them and no inharmonic-energy metric separates it.
+The gate pins the level-selection contract exactly instead, and the listening
+check is a human row.
+
 ## [1.27.2] - 2026-09-24
 
 **WR-01: free-running LFOs replayed the same phase in every MIDI sub-block.**
