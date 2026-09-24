@@ -149,8 +149,15 @@ struct ReverseGrain
     // Collision safety is UNCHANGED and needs no extra clamp, which is worth
     // recording because it is the opposite of the intuition (a forward read head
     // moves TOWARD the write head rather than away from it). At pass-relative
-    // index k a forward grain reads `passStartAbs − gD + k`, and A2's pass bound
-    // already guarantees k < passLen <= grainDelayFloor <= gD — so the read is
+    // index k a forward grain reads `passStartAbs − gD + k`, so it needs
+    // k < gD. For a grain spawned THIS pass, A2's bound gives that (passLen <=
+    // grainDelayFloor <= gD while a shortening parameter is on, passLen <= D = gD
+    // otherwise). For a grain CARRIED in from an earlier pass it does not: its gD
+    // was latched under the parameters of its spawn, and the bound follows the
+    // parameters of now — a delay that grows, or scatter/drift switched off,
+    // lifts passLen past gD_old. v1.12.1 closes that in processBlock by capping
+    // each pass at `passStartAbs − readAbs` over the live forward grains, which
+    // restores k < gD for every forward grain — so the read is
     // strictly behind the write head at every k, at every host block size. The
     // ring span a forward grain needs is gD + G, which is SMALLER than the
     // reverse case's gD + 2·G that kCaptureSeconds is sized for.

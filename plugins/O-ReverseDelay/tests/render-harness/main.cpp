@@ -267,6 +267,13 @@
                               across block boundaries, which is the exact shape
                               of the v1.0.1 delay-read-latch bug.
 
+    v1.12.1 probes:
+      BE. fwd-no-stale-read  — a carried FORWARD grain's latched gD caps the
+                              pass. Direction 100 with (1) delay 50 -> 500 ms
+                              and (2) scatter switched off mid-render; 512 vs
+                              4096 must match exactly and the harness-only
+                              unwritten-read counter must stay at zero.
+
   ==============================================================================
 */
 
@@ -6072,6 +6079,92 @@ int main()
                  + " | maxStep swept=" + juce::String (stepSwept, 6)
                  + " parked-ref=" + juce::String (stepRef, 6)
                  + " ratio=" + juce::String (stepRatio, 3) + "x (bound 2.0x)");
+    }
+
+    // --- Probe BE: a live FORWARD grain never outruns its own latched delay ----
+    //
+    // v1.12.1. The pass bound keys off the parameters as they are NOW:
+    // grainDelayFloor while scatter or drift is on, D otherwise. That covers every
+    // grain spawned from here on, and it covered carried REVERSE grains always
+    // (they read away from the write head). It did not cover a carried FORWARD
+    // grain whose gD was latched under an older, smaller delay. Two ways in:
+    //
+    //   BE1  delay GROWS with scatter/drift at 0 — 50 -> 500 ms here, i.e. a knob
+    //        move, an automation step, or a tempo drop in Sync. The bound lifts to
+    //        the new D (and to the whole 4096 block) while a forward grain latched
+    //        at gD = 2400 is still sounding; past pass index 2400 it reads slots
+    //        step 6 has not written yet.
+    //   BE2  scatter switched OFF while scattered forward grains are live — the
+    //        bound jumps from grainDelayFloor (2400) to D (4080 < 4096), above
+    //        every grain that drew a negative scatter.
+    //
+    // At 512 the pass never gets that long, so the two renders diverge — and the
+    // divergence is ring content from a lap ago feeding the wet AND the loop. Two
+    // assertions per arm: 512 == 4096 EXACTLY (the invariance every probe here
+    // asserts), and the harness-only unwritten-read counter at ZERO in both
+    // renders, which pins the mechanism rather than just its symptom.
+    //
+    // The step lands on a multiple of 4096 so both block sizes deliver it at the
+    // SAME sample — otherwise per-block parameter delivery alone would make them
+    // differ (probe BD's inherent ~7 %) and the equality would test nothing.
+    {
+        const int stepAt = 4096 * 12;   // ~1.02 s at 48 kHz
+
+        auto renderArm = [&] (int blk, bool scatterArm, juce::uint64& unwritten)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            clearWindow();
+            setParam (apvts, "delayTime",    scatterArm ? 85.0f : 50.0f);   // 4080 / 2400 samples
+            setParam (apvts, "grainSize",   200.0f);    // 9600: grains span the step by far
+            setParam (apvts, "density",      70.0f);
+            setParam (apvts, "feedback",     50.0f);    // loop engaged — a stale read regenerates
+            setParam (apvts, "width",        60.0f);
+            setParam (apvts, "mix",         100.0f);
+            setParam (apvts, "direction",   100.0f);    // every grain forward
+            setParam (apvts, "delayScatter", scatterArm ? 60.0f : 0.0f);
+            proc.setPlayConfigDetails (2, 2, fs, blk);
+            proc.prepareToPlay (fs, blk);
+            proc.resetUnwrittenReadCount();
+
+            auto out = renderEffect (proc, 2.5, fs, blk,
+                                     [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); },
+                                     [&] (int pos, int)
+                                     {
+                                         if (pos == stepAt)
+                                         {
+                                             if (scatterArm) setParam (apvts, "delayScatter", 0.0f);
+                                             else            setParam (apvts, "delayTime",  500.0f);
+                                         }
+                                     });
+            unwritten = proc.getUnwrittenReadCount();
+            return out;
+        };
+
+        for (int arm = 0; arm < 2; ++arm)
+        {
+            const bool scatterArm = arm == 1;
+            juce::uint64 u512 = 0, u4096 = 0;
+            auto small = renderArm (512,  scatterArm, u512);
+            auto large = renderArm (4096, scatterArm, u4096);
+
+            const double d = juce::jmax (maxAbsDiff (small.L, large.L),
+                                         maxAbsDiff (small.R, large.R));
+            const double r = rms (small.L, stepAt, (int) (0.4 * fs));   // the post-step window
+
+            check (scatterArm ? "fwd-scatter-off-no-stale-read" : "fwd-delay-grow-no-stale-read",
+                   d == 0.0 && u512 == 0 && u4096 == 0 && r > 1.0e-4
+                     && allFinite (small.L) && allFinite (large.L),
+                   juce::String ("max|512-4096| = ") + juce::String (d, 12)
+                     + " unwrittenReads 512=" + juce::String ((juce::int64) u512)
+                     + " 4096=" + juce::String ((juce::int64) u4096)
+                     + (scatterArm ? " | direction 100, delay 85 ms, scatter 60 -> 0 ms"
+                                   : " | direction 100, delay 50 -> 500 ms")
+                     + " rms512(post-step)=" + juce::String (r, 6));
+        }
+
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
     }
 
     std::printf ("%s (%d failure%s)\n",

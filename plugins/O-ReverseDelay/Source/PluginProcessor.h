@@ -187,6 +187,15 @@ public:
         refusedSpawns.store (0, std::memory_order_relaxed);
     }
 
+   #if OUARICON_RENDER_HARNESS
+    /** v1.12.1: HARNESS ONLY. Cumulative count of grain-passes that read a capture
+        slot at or past the pass's write head — a slot not yet written this pass,
+        which holds audio from a full ring lap ago. Must stay zero at every block
+        size and every parameter trajectory; probe BE asserts it. */
+    juce::uint64 getUnwrittenReadCount() const noexcept { return harnessUnwrittenReads; }
+    void         resetUnwrittenReadCount() noexcept     { harnessUnwrittenReads = 0; }
+   #endif
+
     /** v1.2.0 (B1): the window bank, exposed read-only so the render harness can
         PRINT the per-shape power duty cycles and normalisation constants it is
         asserting against. A level-match probe that derives its own expected
@@ -1137,6 +1146,10 @@ private:
     std::atomic<float>        publishedOverlap      { 0.0f };
     std::atomic<juce::uint32> droppedSpawns         { 0 };
     std::atomic<juce::uint32> refusedSpawns         { 0 };
+
+   #if OUARICON_RENDER_HARNESS
+    juce::uint64              harnessUnwrittenReads = 0;   // audio thread only; harness is single-threaded
+   #endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ReverseDelayProcessor)
 };
