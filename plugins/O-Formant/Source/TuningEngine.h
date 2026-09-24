@@ -346,6 +346,11 @@ private:
     int kbmReferenceNote = 69;
     int kbmOctaveDegree = 12;
     std::vector<int> kbmMapping;
+    // CR-07: the loaded .kbm's own reference frequency. Kept apart from
+    // a4Frequency (the user's A4 / masterTune, clamped 400–480 Hz) — a KBM
+    // reference is often middle C (261.63 Hz) and must not be clamped into,
+    // or overwrite, the A4 range.
+    double kbmReferenceFreq = 440.0;
     bool kbmLoaded = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TuningEngine)

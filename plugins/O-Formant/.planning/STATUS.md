@@ -3,8 +3,8 @@ plugin: O-Formant
 stage: 4
 status: complete
 phase: verified
-version: 1.25.0
-last_updated: 2026-04-26
+version: 1.29.1
+last_updated: 2026-09-24
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
@@ -24,6 +24,12 @@ contract_checksums:
 Stage: 4 of 4 (Polish) -- VERIFIED COMPLETE
 Status: All stages verified, pluginval level 10 PASSED (VST3 + AU)
 Progress: [####################] 100%
+
+## v1.29.1 -- CODE_REVIEW.md wave 1 (2026-09-24)
+
+- Resolved CR-02, CR-04, CR-05, CR-07, CR-08, CR-09, WR-02, WR-05 (module note-expression 1.1.1 → 1.1.2), WR-10, WR-12, WR-13, IN-05. PATCH — no param/state-format change. Details in CHANGELOG.md.
+- **Known limitations (deferred):** wave 2 → v1.30.0: CR-03, CR-06, WR-03, WR-04, WR-06, WR-09, WR-14, WR-16, WR-18. Wave 3 → v1.31.0 (timbre re-render + preset listen pass): CR-01+WR-01, WR-11, WR-15, WR-17. Unscheduled: WR-07, WR-08, WR-19, WR-20, remaining IN-*.
+- Other note-expression consumers (O-Bassoon, O-Bells, O-Bowed, O-Contrabass, O-IntonationPad, O-Lyrica, O-MicrotonalSampler, O-Prism, O-Reed, O-Strata) pick up WR-05 on their next rebuild.
 
 ## v1.25.0 -- Phase 24 propagation (2026-04-26)
 

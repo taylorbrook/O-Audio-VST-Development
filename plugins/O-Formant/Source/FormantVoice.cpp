@@ -187,15 +187,7 @@ void FormantVoice::noteStarted()
         aspirationNoise.setBreathiness (pBreathiness->load());
 
     // Configure ADSR from current parameter values
-    if (pAttack != nullptr)
-    {
-        adsr.setParameters ({
-            pAttack->load(),
-            pDecay->load(),
-            pSustain->load(),
-            pRelease->load()
-        });
-    }
+    updateAdsrParameters (true);
     adsr.noteOn();
 
     // Vibrato onset delay
@@ -327,6 +319,23 @@ void FormantVoice::noteStarted()
     sampleCounter = 0;
 }
 
+void FormantVoice::updateAdsrParameters (bool force)
+{
+    if (pAttack == nullptr)
+        return;
+
+    const juce::ADSR::Parameters p { pAttack->load(), pDecay->load(),
+                                     pSustain->load(), pRelease->load() };
+
+    if (! force
+        && p.attack == lastAdsrParams.attack && p.decay == lastAdsrParams.decay
+        && p.sustain == lastAdsrParams.sustain && p.release == lastAdsrParams.release)
+        return;
+
+    adsr.setParameters (p);
+    lastAdsrParams = p;
+}
+
 void FormantVoice::noteStopped (bool allowTailOff)
 {
     if (allowTailOff)
@@ -380,16 +389,11 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     if (! voiceActive)
         return;
 
-    // Update ADSR parameters (block-rate, safe per JUCE docs)
-    if (pAttack != nullptr)
-    {
-        adsr.setParameters ({
-            pAttack->load(),
-            pDecay->load(),
-            pSustain->load(),
-            pRelease->load()
-        });
-    }
+    // CR-02: follow knob moves while the note is held; never during release
+    // (a released note keeps the rate noteOff() computed; the new values apply
+    // at the next note-on).
+    if (releaseSampleCount < 0)
+        updateAdsrParameters (false);
 
     // Nasal state (read once per block; lyrics override when active)
     float nasalCouplingVal, nasalPlaceVal;

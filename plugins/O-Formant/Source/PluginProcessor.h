@@ -79,8 +79,15 @@ public:
     ScaleGenerator scaleGenerator;
     TuningExporter tuningExporter;
     LyricsEngine lyricsEngine;
+    std::atomic<uint32_t> stateGeneration { 0 };
 
     LyricsEngine& getLyricsEngine() { return lyricsEngine; }
+
+    // WR-10: bumped at the end of every setStateInformation. The editor polls
+    // it and tells the page to re-read everything it only reads at load
+    // (preset name, lyrics text/loop, language, tuning panel) — a host preset
+    // menu / A-B compare / undo restores state with the editor already open.
+    uint32_t getStateGeneration() const noexcept { return stateGeneration.load (std::memory_order_acquire); }
 
     // VST3 Note Expression (kTuningTypeID) — Dorico microtonal playback.
     juce::VST3ClientExtensions* getVST3ClientExtensions() override { return &vst3Extensions; }
@@ -117,6 +124,13 @@ private:
 
     // Post-synth output gain (dB -> linear, smoothed)
     juce::SmoothedValue<float> outputGainSmoothed { 1.0f };
+
+    // WR-12: inactive effects skip processing and keep their buffers; each is
+    // reset on the inactive -> active edge so re-enabling doesn't replay them.
+    bool chorusWasActive = false;
+    bool delayWasActive  = false;
+    bool reverbWasActive = false;
+    bool eqWasActive     = false;
 
     // Effects chain (Chorus -> Delay -> Reverb -> EQ)
     juce::dsp::Chorus<float> chorus;

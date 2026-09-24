@@ -42,6 +42,9 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     sibilanceRelay     = std::make_unique<juce::WebSliderRelay> ("sibilanceSlider");
     consonantVoicingRelay = std::make_unique<juce::WebSliderRelay> ("consonantVoicingSlider");
     consonantTransitionRelay = std::make_unique<juce::WebSliderRelay> ("consonantTransitionSlider");
+    consonantAttackRelay = std::make_unique<juce::WebSliderRelay> ("consonantAttackSlider");
+    consonantHoldRelay   = std::make_unique<juce::WebSliderRelay> ("consonantHoldSlider");
+    consonantDecayRelay  = std::make_unique<juce::WebSliderRelay> ("consonantDecaySlider");
     autoConsonantRelay = std::make_unique<juce::WebToggleButtonRelay> ("autoConsonantToggle");
     attackRelay        = std::make_unique<juce::WebSliderRelay> ("attackSlider");
     decayRelay         = std::make_unique<juce::WebSliderRelay> ("decaySlider");
@@ -117,6 +120,9 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             .withOptionsFrom (*sibilanceRelay)
             .withOptionsFrom (*consonantVoicingRelay)
             .withOptionsFrom (*consonantTransitionRelay)
+            .withOptionsFrom (*consonantAttackRelay)
+            .withOptionsFrom (*consonantHoldRelay)
+            .withOptionsFrom (*consonantDecayRelay)
             .withOptionsFrom (*autoConsonantRelay)
             .withOptionsFrom (*attackRelay)
             .withOptionsFrom (*decayRelay)
@@ -228,6 +234,38 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                 auto& pm = processorRef.getPresetManager();
                 bool success = pm.loadPresetFromCategory (args[0].toString(), args[1].toString());
                 complete (juce::var (success));
+            })
+
+            // CR-05: args = [caption, okLabel, cancelLabel, defaultName] (all
+            // localized by the page). Completes with the entered name, or ""
+            // on cancel / empty / editor closed.
+            .withNativeFunction ("promptPresetName", [this] (const auto& args, auto complete) {
+                auto arg = [&args] (int i, const char* fallback) {
+                    return (args.size() > i && args[i].isString()) ? args[i].toString()
+                                                                  : juce::String (fallback);
+                };
+
+                presetNameDialog = std::make_unique<juce::AlertWindow> (
+                    "O-Formant", arg (0, "Save preset as:"),
+                    juce::MessageBoxIconType::NoIcon, this);
+                presetNameDialog->addTextEditor ("name", arg (3, ""));
+                presetNameDialog->addButton (arg (1, "Save"), 1, juce::KeyPress (juce::KeyPress::returnKey));
+                presetNameDialog->addButton (arg (2, "Cancel"), 0, juce::KeyPress (juce::KeyPress::escapeKey));
+                presetNameDialog->setAlwaysOnTop (true);
+
+                juce::Component::SafePointer<OFormantEditor> safeThis (this);
+                presetNameDialog->enterModalState (true,
+                    juce::ModalCallbackFunction::create ([safeThis, complete] (int result) {
+                        if (safeThis == nullptr)
+                            return; // editor (and its WebView) already gone
+
+                        juce::String name;
+                        if (result == 1 && safeThis->presetNameDialog != nullptr)
+                            name = safeThis->presetNameDialog->getTextEditorContents ("name").trim();
+
+                        complete (juce::var (name));
+                    }),
+                    false);
             })
 
             .withNativeFunction ("savePreset", [this] (const auto& args, auto complete) {
@@ -595,7 +633,11 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                         targets.push_back (t);
                     }
                 }
-                if (! targets.empty())
+                // WR-10: an empty list is a real edit (all lyrics deleted), not
+                // a no-op — skipping it kept the engine singing the old text.
+                if (targets.empty())
+                    le.clear();
+                else
                     le.setSyllables (targets.data(), static_cast<int> (targets.size()));
                 complete (juce::var (true));
             })
@@ -687,6 +729,9 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     sibilanceAttachment     = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("sibilance"), *sibilanceRelay);
     consonantVoicingAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantVoicing"), *consonantVoicingRelay);
     consonantTransitionAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantTransition"), *consonantTransitionRelay);
+    consonantAttackAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantAttack"), *consonantAttackRelay);
+    consonantHoldAttachment   = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantHold"), *consonantHoldRelay);
+    consonantDecayAttachment  = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantDecay"), *consonantDecayRelay);
     autoConsonantAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment> (*apvts.getParameter ("autoConsonant"), *autoConsonantRelay);
     attackAttachment        = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("attack"), *attackRelay);
     decayAttachment         = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("decay"), *decayRelay);
@@ -732,10 +777,33 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
 #endif
 
     setSize (800, 600);
+
+    // WR-10: the page reads its non-parameter state once at load; the current
+    // generation is what it will read, so only LATER restores are signalled.
+    lastSeenStateGeneration = processorRef.getStateGeneration();
+    startTimerHz (5);
+}
+
+void OFormantEditor::timerCallback()
+{
+    const auto gen = processorRef.getStateGeneration();
+    if (gen == lastSeenStateGeneration || webView == nullptr)
+        return;
+
+    // emitEventIfBrowserIsVisible drops the event while hidden — only mark the
+    // generation seen once it could actually be delivered, so a restore made
+    // while the editor window is hidden is still signalled when it shows.
+    if (! webView->isShowing())
+        return;
+
+    lastSeenStateGeneration = gen;
+    webView->emitEventIfBrowserIsVisible ("stateRestored", juce::var());
 }
 
 OFormantEditor::~OFormantEditor()
 {
+    stopTimer();
+
     // Destroy in reverse: attachments first, then webView, then relays
     eqHighGainAttachment.reset();
     eqMidFreqAttachment.reset();
@@ -771,6 +839,9 @@ OFormantEditor::~OFormantEditor()
     sustainAttachment.reset();
     decayAttachment.reset();
     attackAttachment.reset();
+    consonantDecayAttachment.reset();
+    consonantHoldAttachment.reset();
+    consonantAttackAttachment.reset();
     autoConsonantAttachment.reset();
     consonantVoicingAttachment.reset();
     sibilanceAttachment.reset();
@@ -825,6 +896,9 @@ OFormantEditor::~OFormantEditor()
     sustainRelay.reset();
     decayRelay.reset();
     attackRelay.reset();
+    consonantDecayRelay.reset();
+    consonantHoldRelay.reset();
+    consonantAttackRelay.reset();
     autoConsonantRelay.reset();
     consonantVoicingRelay.reset();
     sibilanceRelay.reset();

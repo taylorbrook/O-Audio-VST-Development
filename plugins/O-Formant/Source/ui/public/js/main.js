@@ -285,7 +285,33 @@ document.addEventListener('DOMContentLoaded', () => {
   drawADSR();
   initPresetBrowser();
   initLyricsTab();
+  bindStateRestored();
 });
+
+// WR-10: the host restored state (preset menu, A/B, undo, session reload) with
+// the editor open. Parameters follow through their relays; everything below is
+// read once at load and would otherwise stay stale.
+function bindStateRestored() {
+  const backend = window.__JUCE__ && window.__JUCE__.backend;
+  if (!backend || !backend.addEventListener) return;
+  backend.addEventListener('stateRestored', async () => {
+    try {
+      const nameEl = document.getElementById('preset-name');
+      const current = await getNativeFunction('getCurrentPreset')();
+      if (current && nameEl) nameEl.textContent = current;
+    } catch (e) { console.warn('stateRestored: preset name', e); }
+
+    try {
+      if (getUiLanguageNative) applyI18n(await getUiLanguageNative());
+    } catch (e) { console.warn('stateRestored: language', e); }
+
+    if (refreshLyricsFromEngine) await refreshLyricsFromEngine(true);
+
+    try {
+      if (window.__tuningPanel) await window.__tuningPanel.refreshState();
+    } catch (e) { console.warn('stateRestored: tuning panel', e); }
+  });
+}
 
 function initRelays() {
   vowelXState = getSliderState('vowelXSlider');
@@ -1323,6 +1349,7 @@ async function initPresetBrowser() {
     loadPreset: getNativeFunction('loadPreset'),
     loadPresetFromCategory: getNativeFunction('loadPresetFromCategory'),
     savePreset: getNativeFunction('savePreset'),
+    promptPresetName: getNativeFunction('promptPresetName'),
     selectNextPreset: getNativeFunction('selectNextPreset'),
     selectPreviousPreset: getNativeFunction('selectPreviousPreset'),
     deletePreset: getNativeFunction('deletePreset'),
@@ -1355,7 +1382,13 @@ async function initPresetBrowser() {
 
   // Save
   saveBtn.addEventListener('click', async () => {
-    const name = prompt(trLabel('js.savePresetAs', uiLanguage));
+    // CR-05: window.prompt() returns null in WKWebView (macOS) — the name comes
+    // from a native dialog instead.
+    const name = await presetFns.promptPresetName(
+      trLabel('js.savePresetAs', uiLanguage),
+      trLabel('js.save', uiLanguage),
+      trLabel('js.cancel', uiLanguage),
+      (nameEl && nameEl.textContent) || '');
     if (!name || !name.trim()) return;
     const success = await presetFns.savePreset(name.trim());
     if (success && nameEl) {
@@ -1610,6 +1643,7 @@ function parseArpabet(text) {
 let lyricsEnabledState;
 let lyricsFns = {};
 let lyricsPollingId = null;
+let refreshLyricsFromEngine = null; // set by initLyricsTab (WR-10)
 
 function initLyricsTab() {
   const input = document.getElementById('lyrics-input');
@@ -1674,11 +1708,13 @@ function initLyricsTab() {
     await lyricsFns.resetLyrics();
   });
 
-  // Restore saved lyrics text on load
-  (async () => {
+  // Restore saved lyrics text on load — and again on every host state restore
+  // (WR-10). isRestore: the engine already holds the restored TEXT but still
+  // the previous SYLLABLES, so an empty restored text must clear them too.
+  refreshLyricsFromEngine = async (isRestore) => {
     try {
-      const savedText = await lyricsFns.getLyricsText();
-      if (savedText && savedText.length > 0) {
+      const savedText = (await lyricsFns.getLyricsText()) || '';
+      if (savedText.length > 0 || isRestore) {
         input.value = savedText;
         parsedSyllables = parseArpabet(savedText);
         renderSyllables(parsedSyllables, syllablesEl, counterEl, -1);
@@ -1688,7 +1724,8 @@ function initLyricsTab() {
       looping = !!savedLoop;
       loopBtn.classList.toggle('active', looping);
     } catch (e) { /* ignore on first load */ }
-  })();
+  };
+  refreshLyricsFromEngine(false);
 
   // Position polling (50ms when lyrics tab is visible)
   startPositionPolling(parsedSyllables, syllablesEl, counterEl);

@@ -95,6 +95,12 @@ public:
     void triggerBurst (float velocity) noexcept
     {
         burstSamplesRemaining = cachedBurstDuration;
+        // WR-02: latch the envelope shape for this burst. updateCoefficients()
+        // runs every block, so reading the live cached values mid-burst lets a
+        // manner change shrink the duration below the samples remaining →
+        // progress < 0 → exp() overflows to inf/NaN.
+        burstTotalSamples = cachedBurstDuration;
+        burstDecayRate = cachedBurstDecayRate;
         onsetSamplesRemaining = onsetTotalSamples;
         burstAmplitude = velocity;
 
@@ -272,8 +278,8 @@ public:
         if (burstSamplesRemaining > 0)
         {
             float progress = 1.0f - static_cast<float> (burstSamplesRemaining)
-                                    / static_cast<float> (juce::jmax (1, cachedBurstDuration));
-            float burstEnv = std::exp (-cachedBurstDecayRate * progress) * burstAmplitude;
+                                    / static_cast<float> (juce::jmax (1, burstTotalSamples));
+            float burstEnv = std::exp (-burstDecayRate * progress) * burstAmplitude;
 
             // Stevens-Blumstein place-dependent burst templates (plosives only)
             // For plosives (manner < 0.3), replace the generic dual-BPF shape
@@ -456,6 +462,8 @@ private:
     float cachedBurstDecayRate = 7.0f;
 
     int burstSamplesRemaining = 0;
+    int burstTotalSamples = 353;       // WR-02: latched at triggerBurst()
+    float burstDecayRate = 7.0f;       // WR-02: latched at triggerBurst()
     float burstAmplitude = 0.0f;
 
     int onsetSamplesRemaining = 0;

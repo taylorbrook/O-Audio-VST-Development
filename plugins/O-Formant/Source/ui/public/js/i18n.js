@@ -178,8 +178,9 @@ export const I18N = Object.freeze({
 
     // ── Runtime-composed strings that are not element text ──────────────────
 
-    // window.prompt caption for Save. Not a DOM node, so no [data-i18n]
-    // element can own it. See the CHANGELOG note about prompt() itself.
+    // Caption of the native Save dialog (CR-05, v1.29.1 — was window.prompt,
+    // which WKWebView does not implement). Not a DOM node, so no [data-i18n]
+    // element can own it; the page passes it to promptPresetName.
     'js.savePresetAs': {
         en: { t: 'Save preset as:', b: '' },
         fr: { t: 'Enregistrer le préréglage sous :', b: '', reviewed: true },
@@ -189,6 +190,11 @@ export const I18N = Object.freeze({
               b: '',
               reviewed: 'bt' },
     },
+
+    // The two buttons of the same native dialog. 'js.save' is the full verb,
+    // not label.save — that one is abbreviated ("Enreg.") to fit the preset bar.
+    'js.save':   { en: { t: 'Save',   b: '' }, fr: { t: 'Enregistrer', b: '', reviewed: false }, 'zh-Hans': { t: '保存', b: '', reviewed: 'mt' },},
+    'js.cancel': { en: { t: 'Cancel', b: '' }, fr: { t: 'Annuler',     b: '', reviewed: false }, 'zh-Hans': { t: '取消', b: '', reviewed: 'mt' },},
 
     // ── HOVER-HELP (v1.27.0, Stage M batch M3) ──────────────────────────────
     //

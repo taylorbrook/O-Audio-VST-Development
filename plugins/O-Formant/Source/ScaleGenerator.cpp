@@ -74,9 +74,12 @@ std::vector<double> ScaleGenerator::generateHarmonicSeries(int startHarmonic, in
 
 std::vector<double> ScaleGenerator::generateRank2(double generatorCents, double periodCents, int count)
 {
-    // Validate inputs
-    generatorCents = std::max(1.0, std::min(periodCents - 1.0, generatorCents));
+    // Validate inputs. CR-09: period FIRST — the generator used to be clamped
+    // against the raw, unbounded period, so a typed 1e12 reached reduceAndSort.
+    if (! std::isfinite(periodCents))    periodCents = 1200.0;
+    if (! std::isfinite(generatorCents)) generatorCents = 700.0;
     periodCents = std::max(100.0, std::min(2400.0, periodCents));
+    generatorCents = std::max(1.0, std::min(periodCents - 1.0, generatorCents));
     count = std::max(3, std::min(31, count));
 
     std::vector<double> intervals;
@@ -100,13 +103,22 @@ std::vector<double> ScaleGenerator::generateRank2(double generatorCents, double 
 
 std::vector<double> ScaleGenerator::reduceAndSort(std::vector<double>& cents, double period)
 {
-    // Reduce all values to within [0, period)
+    // CR-09: a non-positive or non-finite period cannot reduce anything.
+    if (! std::isfinite(period) || period <= 0.0)
+        period = 1200.0;
+
+    // Reduce all values to within [0, period). fmod, not a subtract-one-period
+    // loop: that was ~6e9 iterations for a 1e13 input, and never terminated
+    // once c - period == c in double precision.
     for (auto& c : cents)
     {
-        while (c < 0.0)
+        if (! std::isfinite(c))
+            c = 0.0;
+        c = std::fmod(c, period);
+        if (c < 0.0)
             c += period;
-        while (c >= period)
-            c -= period;
+        if (c >= period) // -tiny + period can round up to period
+            c = 0.0;
     }
 
     // Sort in ascending order

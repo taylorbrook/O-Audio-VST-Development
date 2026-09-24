@@ -1,10 +1,10 @@
-# note-expression module v1.1.1
+# note-expression module v1.1.2
 # VST3 Note Expression (kTuningTypeID) for Dorico microtonal playback.
 # Surfaces NE events via a local JUCE patch and exposes a header-only
 # Controller + Extensions + voice helper for per-note semitone offsets.
 
 name: note-expression
-version: 1.1.1
+version: 1.1.2
 description: |
   VST3 Note Expression (kTuningTypeID) support for Dorico-driven microtonal
   playback. Owns the Note Expression Controller (NEC), the
@@ -59,6 +59,11 @@ used_by:
     version: 2.3.0
 
 changelog:
+  - version: 1.1.2
+    date: 2026-09-24
+    changes:
+      - "RT-safety (O-Formant WR-05): updatePendingFromEvents no longer builds a std::map<int32_t,int> on every block containing a VST3 NoteOn (one heap node per NoteOn on the audio thread) — replaced by a fixed 64-slot std::array + newest-first linear scan (same last-NoteOn-wins semantics; the raw-event queue is already capped at 64)"
+      - "VST3-TU-only change; no API, ABI, or resource-surface change — safe drop-in; consumers pick it up on their next rebuild"
   - version: 1.1.1
     date: 2026-07-01
     changes:
