@@ -207,7 +207,9 @@ const FORMAT = {
   // v1.3.0 (B2). The parameter is a float with step 1, so the scaled value
   // arrives as 8 rather than 8.0 — Math.round guards against a host that
   // reports it a hair off the grid, which would render "7.999999".
-  grainCount:   (v) => `${Math.round(v)}`,
+  // v1.14.0: "8×", not "8" — it sits beside the Overlap readout ("5.6×") and
+  // is the ceiling that readout is measured against, so they share a unit.
+  grainCount:   (v) => `${Math.round(v)}×`,
   // v1.4.0. Two decimals, matching the 0.01 parameter step exactly: one decimal
   // would make adjacent steps read identically and the knob would look stuck.
   tukeyTaper:   (v) => v.toFixed(2),
@@ -227,6 +229,7 @@ const FORMAT = {
 const KNOB_MIN_DEG   = -135;   // normalised 0.0
 const KNOB_MAX_DEG   = 135;    // normalised 1.0
 const DRAG_TRAVEL_PX = 220;    // vertical px for a full 0→1 sweep
+const FINE_DRAG_RATE = 0.2;    // v1.14.0: Shift-drag speed (a full sweep = 1100 px)
 const NUDGE_STEP     = 0.02;   // wheel / arrow-key increment (floored at one param step)
 
 // v1.12.3: wheel scaling and gesture hold.
@@ -261,6 +264,16 @@ const DELETE_ARM_MS    = 3000; // how long the delete button stays armed
 // bridge inside the getNativeFunction surface the ui-stub already models.
 const METER_POLL_MS = 66;
 
+// ── Output level meter (v1.14.0) ────────────────────────────────────────────
+// Linear peaks arrive from getGrainMeter (peak since the previous poll). The bar
+// is drawn in dBFS over LEVEL_FLOOR_DB..LEVEL_CEIL_DB so the region above 0 dB —
+// where Regen can put the output — is visible rather than pinned at full.
+const LEVEL_FLOOR_DB     = -48;
+const LEVEL_CEIL_DB      = 6;
+const LEVEL_FALL_DB      = 1.5;    // bar release per poll (~23 dB/s at 66 ms)
+const LEVEL_HOLD_MS      = 1500;   // peak-hold tick dwell before it falls
+const LEVEL_CLIP_LINEAR  = 1.0;    // lamp latches above 0 dBFS
+
 // ── Envelope display (v1.4.0) ───────────────────────────────────────────────
 // Drawing constants. The curve is fetched from C++, so nothing here describes the
 // window's SHAPE — only how it is painted.
@@ -294,6 +307,15 @@ let meterInFlight   = false;   // drop a tick rather than queue behind a slow on
 let meterDelayEl    = null;    // #effective-delay (v1.13.0)
 let freezeEngaged   = null;    // v1.13.0: the latch, from the meter; null until the first poll
 let repaintFreeze   = null;    // bindFreezeSegments' refresh, re-run when freezeEngaged moves
+
+let levelOutEl   = null;       // #level-out  (v1.14.0)
+let levelInEl    = null;       // #level-in
+let levelHoldEl  = null;       // #level-hold
+let clipLampEl   = null;       // #clip-lamp
+let levelOutDb   = LEVEL_FLOOR_DB;   // displayed bar, after release ballistics
+let levelInDb    = LEVEL_FLOOR_DB;
+let levelHoldDb  = LEVEL_FLOOR_DB;
+let levelHoldAt  = 0;          // performance.now() when the hold tick was set
 
 let envCanvas    = null;       // #envelopeCanvas
 let envCtx       = null;       // its 2D context
@@ -410,6 +432,8 @@ function bindKnob(juce, id) {
   let dragging  = false;
   let startY    = 0;
   let startNorm = 0;
+  let lastY     = 0;       // v1.14.0: previous move's Y, the re-base point
+  let fine      = false;   // v1.14.0: Shift held for the current drag segment
 
   // v1.12.3: the open wheel gesture, if any. Every other interaction on this
   // knob closes it first, so a key, drag or double-click never nests its own
@@ -422,10 +446,22 @@ function bindKnob(juce, id) {
     st.sliderDragEnded();
   };
 
+  // v1.14.0: Shift drags at FINE_DRAG_RATE. The drag is absolute from an origin
+  // (startY, startNorm), so a bare rate switch would jump the knob by the whole
+  // distance travelled so far times the rate change. Instead the origin is
+  // re-based to where the knob IS whenever the modifier flips — at the previous
+  // move's Y, so this event's motion is applied at the new rate, not dropped.
   const onMove = (e) => {
     if (!dragging) return;
+    if (e.shiftKey !== fine) {
+      fine      = e.shiftKey;
+      startY    = lastY;
+      startNorm = st.getNormalisedValue();
+    }
+    lastY = e.clientY;
+    const travel = fine ? DRAG_TRAVEL_PX / FINE_DRAG_RATE : DRAG_TRAVEL_PX;
     const dy = startY - e.clientY;
-    const n = Math.min(1, Math.max(0, startNorm + dy / DRAG_TRAVEL_PX));
+    const n = Math.min(1, Math.max(0, startNorm + dy / travel));
     st.setNormalisedValue(n);
     updateKnobVisual(id);
     e.preventDefault();
@@ -450,6 +486,8 @@ function bindKnob(juce, id) {
     endWheelGesture();
     dragging  = true;
     startY    = e.clientY;
+    lastY     = e.clientY;
+    fine      = e.shiftKey;
     startNorm = st.getNormalisedValue();
     st.sliderDragStarted();
     // v1.7.2 (WR-05): capture on the KNOB rather than listening on window.
@@ -908,6 +946,53 @@ function renderEffectiveDelay(ms, source) {
   meterDelayEl.classList.toggle("warn", source === "fallback" || source === "clamped");
 }
 
+// v1.14.0: the OUTPUT level meter. Instant attack, LEVEL_FALL_DB per poll
+// release, a hold tick, and a clip lamp that stays lit until the meter is
+// clicked — a 66 ms flash would be missed exactly when it matters.
+function linToDb(v) {
+  return v > 0 ? 20 * Math.log10(v) : -Infinity;
+}
+
+function dbToPct(db) {
+  const c = Math.min(LEVEL_CEIL_DB, Math.max(LEVEL_FLOOR_DB, db));
+  return (c - LEVEL_FLOOR_DB) / (LEVEL_CEIL_DB - LEVEL_FLOOR_DB) * 100;
+}
+
+function renderLevelMeter(peakIn, peakOut) {
+  if (!levelOutEl) return;
+  const now = performance.now();
+
+  levelOutDb = Math.max(linToDb(peakOut), levelOutDb - LEVEL_FALL_DB, LEVEL_FLOOR_DB);
+  levelInDb  = Math.max(linToDb(peakIn),  levelInDb  - LEVEL_FALL_DB, LEVEL_FLOOR_DB);
+
+  if (levelOutDb >= levelHoldDb || now - levelHoldAt > LEVEL_HOLD_MS) {
+    levelHoldDb = levelOutDb;
+    levelHoldAt = now;
+  }
+
+  levelOutEl.style.clipPath = `inset(0 ${100 - dbToPct(levelOutDb)}% 0 0)`;
+  levelInEl.style.width  = `${dbToPct(levelInDb)}%`;
+  levelHoldEl.style.left = `${dbToPct(levelHoldDb)}%`;
+  levelHoldEl.classList.toggle("off", levelHoldDb <= LEVEL_FLOOR_DB);
+
+  if (peakOut > LEVEL_CLIP_LINEAR) clipLampEl.classList.add("lit");
+}
+
+function initLevelMeter() {
+  levelOutEl  = document.getElementById("level-out");
+  levelInEl   = document.getElementById("level-in");
+  levelHoldEl = document.getElementById("level-hold");
+  clipLampEl  = document.getElementById("clip-lamp");
+  const meter = document.getElementById("levelMeter");
+
+  if (!levelOutEl || !levelInEl || !levelHoldEl || !clipLampEl || !meter) {
+    console.warn("Level meter elements not found — level meter disabled");
+    levelOutEl = null;
+    return;
+  }
+  meter.addEventListener("click", () => clipLampEl.classList.remove("lit"));
+}
+
 async function pollGrainMeter() {
   // Never let ticks stack: at 15 Hz a round trip that stalls would otherwise
   // queue, and the queue would drain as a burst of stale values.
@@ -923,6 +1008,7 @@ async function pollGrainMeter() {
     // throws — which inside an interval callback would be a silent dead readout.
     renderGrainMeter(Number(m.active) || 0, Number(m.overlap) || 0);
     renderEffectiveDelay(Number(m.delayMs) || 0, String(m.delaySource));
+    renderLevelMeter(Number(m.peakIn) || 0, Number(m.peakOut) || 0);
 
     const engaged = m.freezeEngaged === true || m.freezeEngaged === "true";
     if (engaged !== freezeEngaged) {
@@ -944,6 +1030,7 @@ function initGrainMeter(juce) {
   meterActiveEl  = document.getElementById("meter-active");
   meterOverlapEl = document.getElementById("meter-overlap");
   meterDelayEl   = document.getElementById("effective-delay");   // optional: its absence only blanks it
+  initLevelMeter();                                               // v1.14.0: optional in the same way
 
   if (!meterActiveEl || !meterOverlapEl) {
     console.warn("Grain meter elements not found — meter disabled");

@@ -4,6 +4,86 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.14.0] — 2026-09-24
+
+Output metering and UI polish. MINOR: no parameter, preset, state or DSP change.
+The native-function surface stays at 15, because the level peaks travel on the
+existing `getGrainMeter` poll. The window is still 940 × 768, and no panel or
+row height moved.
+
+### Added
+
+- **Output level meter and clip lamp (OUTPUT panel).** Regen above 0 dB can
+  push the output to 1.41–1.55 (v1.6.0), and until now the page had no level
+  feedback. A thin bar sits under Width and Mix:
+  - The upper bar shows the output peak on a −48 to +6 dBFS scale, green up to
+    0 dBFS and sienna above it. It has a 1.5 s hold tick and falls at about
+    23 dB/s.
+  - A 1 px hairline beneath it shows the input peak, so any gain Regen adds is
+    visible as a gap between the two.
+  - The lamp latches when the output passes 0 dBFS, and stays lit until you
+    click the meter. A lamp that only flashed for 66 ms would be missed exactly
+    when it matters.
+  - The meter has a hover tip in all three languages.
+- **Shift for fine drag.** Holding Shift while dragging moves a knob at 0.2×
+  speed, so a full sweep takes 1100 px instead of 220. The drag origin re-bases
+  whenever Shift is pressed or released mid-drag, so the knob never jumps.
+  Verified in the browser: a 22 px normal, 22 px Shift, 22 px normal drag moves
+  0.2 → 0.30 → 0.32 → 0.42 exactly.
+
+### Changed
+
+- **Row 1 knobs are 62 px, up from 56.** Row 1 (Time, Grain, Feedback, Output)
+  is the main signal path, and before this all 12 panels had equal weight. The
+  knob-cell grows from 92 to 98 px inside row 1's 113 px content box. Rows 2
+  and 3 keep 56 px.
+- **Captions.** The COUNT panel's knob and the DUCK panel's knob now read
+  *Amount* (`label.amount`, which Feedback already uses) rather than repeating
+  the panel name. The Count readout reads `8×` rather than `8`, matching the
+  Overlap readout beside it (`5.6×`), which it sets the ceiling for.
+- **Footer copy** adds the Shift hint in all three languages.
+  - fr: with the clause added, the old French wrapped to two lines in the
+    pinned 560 px box. It was re-cut to *Glisser · Maj pour un réglage fin ·
+    molette ou flèches · double-clic pour réinitialiser* (526 px, one line). It
+    drops *verticalement* and *pour ajuster* and keeps the glossary roots *fin*
+    and *réinitialiser*. Status is `reviewed: false`.
+  - zh-Hans: 垂直拖动 · 按住 Shift 精调 · 滚轮或方向键微调 · 双击重置, at `'mt'`.
+
+### Technical
+
+- **The peaks are the maximum since the last read, not the latest block.** The
+  brief asked for per-block peaks. At 512 samples and 48 kHz, though, one 15 Hz
+  poll spans about 6 blocks, so a latest-block snapshot would miss about 5 in 6
+  overs.
+  - processBlock tracks the in and out peaks inside the existing mix loops,
+    where the dry input is still readable. `a > p` keeps a NaN from ever
+    becoming the peak.
+  - Each block's peak folds into `peakInSinceRead` / `peakOutSinceRead` with a
+    relaxed compare-and-swap max.
+  - `takeLevelPeaks()` exchanges both accumulators to 0. It is a separate call
+    from `getGrainMeter()` because it consumes the values, and the harness reads
+    `getGrainMeter()` freely.
+  - `reset()` clears both.
+  - Oversize host blocks are chunked, and each chunk folds its own peak.
+- **The meter sits in OUTPUT's bottom padding strip** (`position: absolute`),
+  not in the flow. Wrapping it into `.group-body` lifted OUTPUT's knobs 7 px
+  above the other three panels' knobs, which broke row 1's shared knob line.
+- **The fill is a fixed gradient revealed by `clip-path`,** so the sienna region
+  stays anchored at 0 dBFS instead of the whole bar changing colour.
+- The render harness adds **probe BI** (`level-peaks-since-read`). A 0.9 spike
+  in the first block followed by a 0.25 sine must read `in = 0.9` exactly, and
+  `out` must equal the rendered buffer's own peak bit for bit. The second read
+  must be 0 / 0.
+- The UI stub's `getGrainMeter` returns `peakIn` / `peakOut`. The output
+  follows the Regen knob, so Regen above about +4 dB lights the lamp in the
+  stub.
+- **Gates.** These pass at 940 × 768 in en / fr / zh-Hans: `ui_frontend_check`,
+  `ui_tooltip_clamp_check` (33 anchors, 9 clamped, 2 flipped per language),
+  `check-ui-labels`, `check-i18n`, `i18n-fr-lint --strict` and `i18n-zh-lint`.
+  Two entries are at `'mt'` (new zh copy), which is below the ship bar and
+  counted, not failed.
+  - The labels gate's "body scrolls to 968" note was already present in v1.13.0.
+
 ## [1.13.0] — 2026-09-24
 
 The UI now shows the delay the engine is actually playing in Sync, and whether

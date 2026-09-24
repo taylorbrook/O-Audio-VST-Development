@@ -490,6 +490,8 @@ void ReverseDelayProcessor::reset()
     // drop that happened in the pass before.
     publishedActiveGrains.store(0, std::memory_order_relaxed);
     publishedFreezeEngaged.store(false, std::memory_order_relaxed);   // v1.13.0: latch cleared below
+    peakInSinceRead.store(0.0f, std::memory_order_relaxed);           // v1.14.0
+    peakOutSinceRead.store(0.0f, std::memory_order_relaxed);
 
     // v1.8.0 (B4 #7): the diffusion chain holds up to ~48 ms of the previous
     // pass's tail, so it belongs with the filter memory in reason C above — a
@@ -2368,6 +2370,14 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         return 1.0f - duckNorm * (duckEnv / (duckEnv + kDuckKnee));
     };
 
+    // v1.14.0: the page's level meter. Tracked inside the mix loops because the
+    // dry input is still readable here and nothing downstream touches the
+    // buffer. `a > p` rather than jmax so a NaN sample never becomes the peak;
+    // an infinity does, and should — it lights the clip lamp.
+    float blockPeakIn  = 0.0f;
+    float blockPeakOut = 0.0f;
+    auto trackPeak = [] (float& p, float x) noexcept { const float a = std::abs (x); if (a > p) p = a; };
+
     if (numOutputChannels > 1)
     {
         float* outL = buffer.getWritePointer(0);
@@ -2388,6 +2398,11 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
             outL[i] = dryGain * dryL + wg * wetL[i];
             outR[i] = dryGain * dryR + wg * wetR[i];
+
+            trackPeak (blockPeakIn,  dryL);
+            trackPeak (blockPeakIn,  dryR);
+            trackPeak (blockPeakOut, outL[i]);
+            trackPeak (blockPeakOut, outR[i]);
         }
     }
     else
@@ -2426,8 +2441,23 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // mono fold in both source modes rather than taking either claim on
             // trust.
             outM[i] = dryGain * dryM + wg * 0.70710677f * (wetL[i] + wetR[i]);
+
+            trackPeak (blockPeakIn,  dryM);
+            trackPeak (blockPeakOut, outM[i]);
         }
     }
+
+    // Max-fold into the since-last-read accumulators (see takeLevelPeaks()).
+    // The message thread only ever exchanges them to 0, so the CAS loop retries
+    // at most once per poll and never spins against another writer.
+    auto foldPeak = [] (std::atomic<float>& acc, float v) noexcept
+    {
+        float cur = acc.load (std::memory_order_relaxed);
+        while (v > cur && ! acc.compare_exchange_weak (cur, v, std::memory_order_relaxed)) {}
+    };
+
+    foldPeak (peakInSinceRead,  blockPeakIn);
+    foldPeak (peakOutSinceRead, blockPeakOut);
 }
 
 // The editor include lives INSIDE the guard: the Stage-2 render harness compiles

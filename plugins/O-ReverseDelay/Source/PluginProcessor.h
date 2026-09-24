@@ -173,6 +173,27 @@ public:
                  publishedFreezeEngaged.load (std::memory_order_relaxed) };
     }
 
+    /** v1.14.0: input and output peak (linear, 0 = silence) SINCE THE LAST CALL.
+
+        processBlock folds each block's peak into these with a max, and this
+        call swaps them back to zero — so the UI's 15 Hz poll sees the loudest
+        sample of every block since the previous poll, not whichever single
+        block happened to be the latest. At 512 samples / 48 kHz there are ~6
+        blocks per poll; a latest-block snapshot would miss 5 in 6 overs, which
+        is exactly what a clip light exists to catch.
+
+        CONSUMING, hence non-const and a separate call from getGrainMeter():
+        the harness reads getGrainMeter() freely and must not drain these. One
+        reader only — two editors open at once would split the peaks between
+        them. Output can exceed 1.0: Regen above 0 dB reaches 1.41–1.55 (v1.6.0). */
+    struct LevelPeaks { float in = 0.0f; float out = 0.0f; };
+
+    LevelPeaks takeLevelPeaks() noexcept
+    {
+        return { peakInSinceRead .exchange (0.0f, std::memory_order_relaxed),
+                 peakOutSinceRead.exchange (0.0f, std::memory_order_relaxed) };
+    }
+
     /** Cumulative spawn requests the scheduler's fixed array could not hold, and
         spawns GrainPool::obtain() refused for want of a free slot.
 
@@ -1194,6 +1215,8 @@ private:
     std::atomic<float>        publishedDelayMs      { 0.0f };    // v1.13.0
     std::atomic<int>          publishedDelaySource  { 0 };       // v1.13.0: DelaySource
     std::atomic<bool>         publishedFreezeEngaged { false };  // v1.13.0
+    std::atomic<float>        peakInSinceRead       { 0.0f };    // v1.14.0: max-folded, drained by takeLevelPeaks()
+    std::atomic<float>        peakOutSinceRead      { 0.0f };    // v1.14.0
     std::atomic<juce::uint32> droppedSpawns         { 0 };
     std::atomic<juce::uint32> refusedSpawns         { 0 };
 

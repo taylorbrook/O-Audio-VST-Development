@@ -1022,6 +1022,98 @@ body {
   pointer-events: none;
 }
 
+/* ── v1.14.0: row 1 is the main path, so its knobs are larger ───────────────
+   56 -> 62 px on TIME, GRAIN, FEEDBACK and OUTPUT only; rows 2 and 3 keep 56.
+   The knob-cell grows 92 -> 98 px inside row 1's 113 px content box, so no
+   panel height, row height or window size moves. The stem keeps the ~86 %
+   radius it has at 56 px (24 / 28 -> 27 / 31). */
+.group-row-1 .knob      { width: 62px; height: 62px; }
+.group-row-1 .knob-stem { height: 27px; }
+
+/* ── v1.14.0: OUTPUT level meter ────────────────────────────────────────────
+   Positioned in OUTPUT's 12 px bottom PADDING strip rather than in the flow:
+   wrapping it into .group-body lifted OUTPUT's knobs 7 px above the other three
+   panels' and broke row 1's shared knob line. Here it takes no body height, the
+   knob-cells stay centred with their neighbours, and it sits 7.5 px under the
+   value readouts (body bottom 281 -> meter 281..289 of the 295 panel edge). */
+.level-meter {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 4px;
+  height: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.level-track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  border: 1px solid var(--brown-border);
+  border-radius: 2px;
+  background: rgba(255, 248, 220, 0.45);
+  box-shadow: inset 1px 1px 2px var(--shadow-light);
+  overflow: hidden;
+}
+
+/* Output: top 4 px of the 6 px inner box. Input: the bottom 1 px hairline. */
+.level-fill,
+.level-in {
+  position: absolute;
+  left: 0;
+  width: 0;
+}
+/* The fill spans the whole track and is REVEALED by clip-path from JS, so its
+   gradient stays anchored to the scale: green to 0 dBFS, sienna above it. */
+.level-fill {
+  top: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(to right,
+    var(--green-mid) 0%, var(--green-mid) 88.888889%,
+    var(--warn-text) 88.888889%, var(--warn-text) 100%);
+  clip-path: inset(0 100% 0 0);
+}
+.level-in   { bottom: 0; height: 1px; background: var(--brown-frame); opacity: 0.55; }
+
+.level-hold {
+  position: absolute;
+  top: 0;
+  height: 4px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--green-darkest);
+}
+.level-hold.off { display: none; }
+
+/* 0 dBFS on the -48..+6 scale = 48 / 54 of the track. */
+.level-zero {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 88.888889%;
+  width: 1px;
+  background: var(--brown-frame);
+  opacity: 0.6;
+}
+
+.clip-lamp {
+  flex: 0 0 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--brown-border);
+  background: var(--bg-paper-mid);
+  box-shadow: inset 1px 1px 1px var(--shadow-light);
+}
+.clip-lamp.lit {
+  border-color: var(--warn-text);
+  background: #C0502A;
+  box-shadow: 0 0 4px rgba(192, 80, 42, 0.7);
+}
+
 /* ── syncMode segments (labels authored in HTML — JS toggles class only) ─── */
 .segments {
   display: flex;
