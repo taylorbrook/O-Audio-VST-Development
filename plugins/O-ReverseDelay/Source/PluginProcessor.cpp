@@ -2598,6 +2598,14 @@ void ReverseDelayProcessor::getStateInformation(juce::MemoryBlock& destData)
                                   languageCode (uiLanguage.load (std::memory_order_acquire)),
                                   nullptr);
 
+    // v1.16.0: Mix lock, written the same way and before the same delegation.
+    // Written as a STRING ("1" / "0") so that what is saved is exactly what the
+    // restore below reads back. The XML round-trip turns every property into a
+    // string anyway (critical_valuetree_xml_roundtrip_loses_type).
+    parameters.state.setProperty ("mixLock",
+                                  mixLock.load (std::memory_order_acquire) ? "1" : "0",
+                                  nullptr);
+
     if (auto xml = presetManager.getStateAsXml())
         copyXmlToBinary(*xml, destData);
 }
@@ -2659,7 +2667,61 @@ void ReverseDelayProcessor::setStateInformation(const void* data, int sizeInByte
 
         if (! lang.isVoid())
             uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
+
+        // v1.16.0: same guard, same read, but an ABSENT property turns the lock
+        // OFF instead of leaving it alone — see mixLock's declaration. A
+        // pre-v1.16 session opened into an instance whose lock is on therefore
+        // comes up unlocked, like any setting it never saved. This path
+        // restores the session's own Mix and never re-applies a held one.
+        const juce::var lock = parameters.state.getProperty ("mixLock");
+        mixLock.store (! lock.isVoid() && lock.toString() == "1", std::memory_order_release);
     }
+}
+
+//==============================================================================
+// v1.16.0: Mix lock. The shared OuariconPresetManager is used exactly as is.
+// Each wrapper captures Mix, performs the load, and then — only if the load
+// SUCCEEDED and the lock is on — puts Mix back.
+//
+// Captured as the NORMALISED value and written back through
+// setValueNotifyingHost, which is also the call applyPresetJson makes. The host
+// sees the same kind of change it already sees for every other parameter, and
+// no range conversion sits between capture and restore to round the value.
+//
+// Known limit, not worked around: applyPresetJson resets every parameter to
+// its default before applying the preset, so during the load Mix passes through
+// 35 % and the preset's value on the message thread. An audio block that starts
+// inside that window reads one of those targets, and mixSmoothed starts toward
+// it for that block before the restore takes effect. It happens only while the
+// rest of the preset is changing at the same instant, and removing it would mean
+// changing the module, which this feature was scoped not to do.
+namespace
+{
+    template <typename Load>
+    bool loadHoldingMix (juce::AudioProcessorValueTreeState& apvts,
+                         const std::atomic<bool>& lock, Load&& load)
+    {
+        auto* mix = apvts.getParameter ("mix");
+        jassert (mix != nullptr);
+
+        const float held = mix->getValue();
+        const bool  ok   = load();
+
+        if (ok && lock.load (std::memory_order_acquire))
+            mix->setValueNotifyingHost (held);
+
+        return ok;
+    }
+}
+
+bool ReverseDelayProcessor::loadPresetHoldingMix (const juce::String& name)
+{
+    return loadHoldingMix (parameters, mixLock, [&] { return presetManager.loadPreset (name); });
+}
+
+bool ReverseDelayProcessor::loadPresetFromFileHoldingMix (const juce::File& file)
+{
+    return loadHoldingMix (parameters, mixLock, [&] { return presetManager.loadPresetFromFile (file); });
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

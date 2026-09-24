@@ -300,14 +300,19 @@ const PRESET_FNS = {
 // broken page look correct.
 let uiLanguage = "en";
 
-// Mirrors the FIFTEEN native functions registered in PluginEditor.cpp:
+// v1.16.0 — the Mix lock, held here for the same reason as uiLanguage, and
+// mirroring setMixLock's C++ rule: only a real boolean true locks.
+let mixLock = false;
+
+// Mirrors the SEVENTEEN native functions registered in PluginEditor.cpp:
 // getParameterDefaults + getGrainMeter + getWindowCurve + v1.9.0's
-// getUiLanguage/setUiLanguage (all fetched by app.js) + the ten preset fns
+// getUiLanguage/setUiLanguage + v1.16.0's getMixLock/setMixLock (all fetched
+// by app.js) + the ten preset fns
 // (fetched by js/preset-manager.js). Any OTHER name must still reject —
 // rejecting the unknown is the whole point of this stub, and is how a bridge gap
 // surfaces here instead of as a silently dead control in a DAW
 // (pattern_webview_native_fn_bridge_gap). The whitelist grew
-// 1 -> 11 -> 12 -> 13 -> 15; it did not become permissive.
+// 1 -> 11 -> 12 -> 13 -> 15 -> 17; it did not become permissive.
 //
 // NOTE what is NOT here and must never be added: setTooltipsEnabled. D13 scoped
 // this plugin to display-only hover help, and section 14 of ui_frontend_check.js
@@ -321,6 +326,17 @@ export function getNativeFunction(name) {
     return (code) => {
       uiLanguage = code === "fr" ? "fr" : "en";
       return Promise.resolve(uiLanguage);
+    };
+  }
+
+  if (name === "getMixLock") {
+    return () => Promise.resolve(mixLock);
+  }
+
+  if (name === "setMixLock") {
+    return (on) => {
+      mixLock = on === true;
+      return Promise.resolve(mixLock);
     };
   }
 

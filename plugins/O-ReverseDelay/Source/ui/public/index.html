@@ -252,7 +252,25 @@
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-mix" data-param="mix"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="knob-mix">Mix</div>
+            <!-- v1.16.0: Mix lock. The caption is wrapped so the lock can hang off
+                 its right edge. The wrapper shrinks to the caption, and the button
+                 is absolute, so the caption stays centred under the knob in every
+                 language and the cell keeps its height. The button sits BESIDE the
+                 .knob-label, never inside it: applyLabel() writes that element's
+                 textContent, which would erase a child
+                 (pattern_js_state_updater_overwrites_html_labels). Icon only, so
+                 the accessible name comes from data-i18n-aria. -->
+            <div class="caption-row">
+              <div class="knob-label" data-i18n="knob-mix">Mix</div>
+              <button type="button" class="mix-lock" id="mix-lock" aria-pressed="false"
+                      data-i18n-aria="mixLock" aria-label="Mix Lock">
+                <svg viewBox="0 0 10 12" width="9" height="11" aria-hidden="true" focusable="false">
+                  <path class="shackle-open"   d="M2.5 5.5V3.5a2.5 2.5 0 0 1 5 0" />
+                  <path class="shackle-closed" d="M2.5 5.5V3.5a2.5 2.5 0 0 1 5 0v2" />
+                  <rect x="1" y="5.5" width="8" height="6" rx="1" />
+                </svg>
+              </button>
+            </div>
             <div class="knob-value" id="val-mix">&#8212;</div>
           </div>
 

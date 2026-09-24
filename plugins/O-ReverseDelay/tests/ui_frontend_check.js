@@ -194,9 +194,11 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     //   12 -> 13  v1.4.0  getWindowCurve
     //   13 -> 15  v1.9.0  getUiLanguage + setUiLanguage (the hover-help language
     //                     pair). NOT a tooltip on/off pair — see section 14.
-    check(called.size === 15 && registered.size === 15,
-        `bridge surface is exactly 15 fns (getParameterDefaults + getGrainMeter`
-        + ` + getWindowCurve + getUiLanguage + setUiLanguage + 10 preset)`
+    //   15 -> 17  v1.16.0 getMixLock + setMixLock (the Mix lock state pair).
+    check(called.size === 17 && registered.size === 17,
+        `bridge surface is exactly 17 fns (getParameterDefaults + getGrainMeter`
+        + ` + getWindowCurve + getUiLanguage + setUiLanguage + getMixLock`
+        + ` + setMixLock + 10 preset)`
         + ` — got JS=${called.size} C++=${registered.size}`);
     check(called.has('getParameterDefaults') && registered.has('getParameterDefaults'),
         'getParameterDefaults is called by the JS AND registered in C++');
@@ -237,6 +239,14 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     check(missingPreset.length === 0,
         'all 10 preset-manager fns are registered in PluginEditor.cpp'
         + (missingPreset.length ? ' — MISSING: ' + missingPreset.join(', ') : ''));
+
+    // v1.16.0: every preset load the page can start must go through the
+    // processor's Mix-lock wrappers. A direct presetManager load would still
+    // work, and would silently ignore the lock.
+    check(/processorRef\.loadPresetHoldingMix\s*\(/.test(editorCpp)
+          && /loadPresetFromFileHoldingMix\s*\(/.test(editorCpp)
+          && !/getPresetManager\(\)\s*\.\s*loadPreset(FromFile)?\s*\(/.test(editorCpp),
+        'both preset loads route through the Mix-lock wrappers (no direct presetManager load in the editor)');
 
     // Both dialog fns must resolve {success, name}; preset-manager.js checks
     // `result && result.success`, so a bare bool silently no-ops the bar.
@@ -770,7 +780,11 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         // time; the first was v1.6.0's MOTION panel, backfilled above. Found
         // here because v1.9.0 cross-checks the inventory against TIP_BINDINGS,
         // which is derived from the page rather than typed.
-        'knob-diffusion', 'knob-drive'];
+        'knob-diffusion', 'knob-drive',
+        // v1.14.0's meter and v1.15.0's Length select were the THIRD and
+        // FOURTH times this list was not updated when a panel changed. Both
+        // added in v1.16.0, alongside the Mix lock.
+        'levelMeter', 'combo-freezeLength', 'mix-lock'];
 
     // ── v1.9.0: this assertion was REWRITTEN, and made stronger ─────────────
     //

@@ -37,13 +37,14 @@
 // SliderState or a ComboBoxState. getSliderState("freeze") does not fail loudly
 // — it builds a state the backend never updates.
 //
-// Native-function surface is 15 and must match PluginEditor.cpp exactly:
-// getParameterDefaults, getGrainMeter, getWindowCurve and — since v1.9.0 —
-// getUiLanguage/setUiLanguage are fetched HERE; the other ten are fetched by
+// Native-function surface is 17 and must match PluginEditor.cpp exactly:
+// getParameterDefaults, getGrainMeter, getWindowCurve, v1.9.0's
+// getUiLanguage/setUiLanguage and v1.16.0's getMixLock/setMixLock are fetched
+// HERE; the other ten are fetched by
 // js/preset-manager.js, which this file loads dynamically. Any grep-diff of the
 // bridge has to read both files.
 //
-// NOTE what is NOT in that 15: there is no setTooltipsEnabled. D13 scoped this
+// NOTE what is NOT in that 17: there is no setTooltipsEnabled. D13 scoped this
 // plugin's hover help to display only, and section 14 of ui_frontend_check.js
 // asserts the absence by name. v1.9.0 added the language pair and nothing else.
 //
@@ -685,6 +686,46 @@ function bindFreezeSegments(juce) {
 
   segOff.addEventListener("click", () => { st.setValue(false); refresh(); });
   segOn.addEventListener("click", () => { st.setValue(true); refresh(); });
+}
+
+// ── Mix lock (v1.16.0) ──────────────────────────────────────────────────────
+// NOT a relay: the lock is a processor state property, not a parameter, so it
+// uses a get/set native pair like the language. The page reads it once at init.
+// No preset load can change it (applyPresetJson walks preset["parameters"]
+// only), so pattern_webview_one_shot_state_push_stale_on_preset_load does not
+// apply. Classes and aria-pressed only; the button has no text to overwrite.
+//
+// The click paints optimistically, then repaints from what setMixLock returns,
+// so the button always shows the processor's value — including after a failed
+// call, which falls back to the last confirmed state.
+function initMixLock(juce) {
+  const btn = document.getElementById("mix-lock");
+  if (!btn) { console.error("Missing #mix-lock"); return; }
+
+  let getFn = null, setFn = null;
+  try {
+    getFn = juce.getNativeFunction("getMixLock");
+    setFn = juce.getNativeFunction("setMixLock");
+  } catch (e) {
+    console.warn("Mix lock not available:", e);
+  }
+
+  let locked = false;
+  const paint = (on) => {
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", String(on));
+  };
+  const confirm = (raw) => { locked = parseNativeResult(raw) === true; paint(locked); };
+
+  paint(false);
+  if (getFn) getFn().then(confirm).catch((e) => console.warn("Could not read Mix lock:", e));
+
+  btn.addEventListener("click", () => {
+    if (!setFn) return;
+    const want = !locked;
+    paint(want);
+    setFn(want).then(confirm).catch(() => paint(locked));
+  });
 }
 
 // ── sourceMode segment pair (v1.7.0, B4 #5) ─────────────────────────────────
@@ -1535,6 +1576,7 @@ function init() {
   // reads setLabel() to rewrite it from the stored state. Its own try/catch,
   // matching the two above: a missing switch must not take the renderer down.
   try { initTipsToggle(); } catch (e) { console.error("tips toggle init failed:", e); }
+  try { initMixLock(Juce); }    catch (e) { console.error("mix lock init failed:", e); }   // v1.16.0
   initGrainMeter(Juce);          // v1.3.0 (B2); self-contained failure
   // AFTER bindKnob/bindSelectCombo above: it subscribes to sliderState[...] and
   // shapeState, which those calls create. Ordering here is load-bearing in the

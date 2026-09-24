@@ -4,6 +4,89 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.16.0] — 2026-09-24
+
+Mix lock. MINOR: no parameter, no preset-format change and no DSP change. With
+the lock off, every preset load, session and render behaves exactly as in
+v1.15.0. The window stays 940 × 768, and no panel, row or knob moved.
+
+### Added
+
+- **Mix lock.** A small padlock to the right of the MIX caption. While it is
+  lit, browsing (◀/▶, the list) or loading a preset (by name or from a file)
+  keeps the Mix you had. Every other parameter still comes from the preset.
+  - **Not a parameter.** It never shows up as an automation lane, and a preset
+    can't turn it on or off. It is stored as a `mixLock` property on the APVTS
+    state tree, next to `uiLanguage`, and is saved with the session. Preset
+    JSON never contains it.
+  - **Implemented in the processor, not the module.**
+    `loadPresetHoldingMix()` and `loadPresetFromFileHoldingMix()` capture Mix's
+    normalised value, call `OuariconPresetManager` unchanged, and, only if the
+    load succeeded and the lock is on, restore Mix with `setValueNotifyingHost`.
+    The editor's `loadPreset` and `loadPresetFromFile` fns call these. ◀/▶ are
+    covered too, because `selectNext/PreviousPreset` only return a name that
+    preset-manager.js then passes to `loadPreset`.
+  - **Session recall doesn't use the lock.** `setStateInformation` restores the
+    session's own Mix even when the lock is on.
+  - **A session saved before v1.16 turns the lock OFF.** This is deliberately
+    different from `uiLanguage`, which leaves the language unchanged when the
+    property is missing. The lock changes what a preset load does, so it
+    follows v1.12.2's rule: a setting the saved state doesn't mention goes back
+    to its default.
+  - **UI.** A 16 px button that hangs off a shrink-to-fit `.caption-row`, so
+    the caption stays centred and the cell stays the same height in en, fr and
+    zh-Hans. It uses `.segment`'s tokens: unlit is `--btn-default` with dark
+    ink; lit is `--btn-active` with cream `--knob-core` ink (7.2:1, the v1.12.3
+    contrast fix) plus the pressed inset. The shackle also closes when lit, so
+    the state doesn't rely on colour alone. It has `aria-pressed` and an
+    accessible name through `data-i18n-aria`.
+  - **Copy.** One new I18N key, `mixLock`, serves as both the tooltip and the
+    accessible name: en, fr (`reviewed: false`) and zh-Hans (`'mt'`).
+- **Bridge 15 → 17**: `getMixLock` / `setMixLock`. The page reads the lock
+  once at init (no preset load can change it). `setMixLock` locks only on a
+  real boolean `true`, and the ui-stub mirrors that rule.
+
+### Known limit
+
+- `applyPresetJson` resets every parameter to its default before applying the
+  preset. During a locked load, Mix therefore passes through 35 % and then the
+  preset's value on the message thread before it is restored. An audio block
+  that starts inside that window can set `mixSmoothed` heading toward one of
+  those targets for that one block. This only happens while the rest of the
+  preset is changing too. Removing it would mean changing the shared module,
+  which this feature was scoped not to do.
+
+### Tests
+
+- **Probe BK (6 checks, render harness 170 → 176, all passing).**
+  - By name and from file: locked keeps 80; unlocked applies Reverse Bloom's
+    40; Feedback applies either way.
+  - A failed load (missing name, missing file) leaves Mix at 62.
+  - The lock round-trips through state in both directions and never appears in
+    preset JSON.
+  - A session at Mix 25 recalled into a locked slot at 80 comes back at 25,
+    still locked.
+  - A state with the property stripped turns a locked slot off.
+  - **Negative control:** with the restore disabled, `mixlock-by-name` and
+    `mixlock-from-file` fail (locked Mix = 40). Source restored afterwards.
+- `ui_frontend_check.js`: the bridge census moves to 17, and a new check fails
+  if the editor calls `getPresetManager().loadPreset*` directly instead of the
+  wrappers. The tooltip inventory gains `mix-lock`, and backfills `levelMeter`
+  (v1.14.0) and `combo-freezeLength` (v1.15.0). Both were missing from this
+  hand-maintained list, the third and fourth time this fixture has fallen
+  behind the page.
+- UI gates, all passing at 940 × 768 in en, fr and zh-Hans:
+  - `ui_frontend_check`
+  - `ui_tooltip_clamp_check`: 35 anchors, 10 clamped, 2 flipped per language
+  - `check-ui-labels`: geometry diff clean in fr and zh-Hans
+  - `check-i18n`
+  - `i18n-fr-lint --strict`: first draft hit T4, a missing U+00A0 before
+    « : », now fixed
+  - `i18n-zh-lint`: 9 entries at `'mt'`, counted, not failed
+- Screenshots of OUTPUT, lit and unlit, in each language: caption at the same
+  x in all six. The lock sits 5 px right of the caption, 4.4 px inside the
+  cell, and 20 px inside the panel border.
+
 ## [1.15.0] — 2026-09-24
 
 Freeze Length. MINOR: one new parameter, additive. Its default is the loop
