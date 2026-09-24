@@ -41,6 +41,12 @@
         --release <sec=0>
         --out <wav=o-bowed-pre-extraction-canonical.wav>
         --json <json=o-bowed-pre-extraction-canonical.json>
+        --brightness <norm>        (v1.9.1, WR-05 pitch check)
+        --ne-semis <semitones>     (v1.9.1, WR-01: seed a Note Expression tuning
+                                    delta for --note before note-on)
+        --bend-vibrato <sec>       (v1.9.1, CR-02: from 1.0 s, one pitch-wheel
+                                    message per block, 6 Hz / +-1 semitone, then
+                                    back to centre)
 
     Pass-conditions (exit 0):
       - No NaN / Inf samples.
@@ -91,6 +97,11 @@ struct Args
     float bowPressureNorm     = -1.0f;
     float bowPositionNorm     = -1.0f;
     float infiniteSustainNorm = -1.0f;
+
+    // v1.9.1 pitch-path flags. Unset = HEAD behaviour (golden stays byte-identical).
+    float brightnessNorm      = -1.0f;
+    float neSemis             = 0.0f;
+    float bendVibratoSeconds  = 0.0f;
 };
 
 bool parseArgs (int argc, char** argv, Args& args)
@@ -117,6 +128,9 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--bow-pressure")     args.bowPressureNorm     = val.getFloatValue();
         else if (key == "--bow-position")     args.bowPositionNorm     = val.getFloatValue();
         else if (key == "--infinite-sustain") args.infiniteSustainNorm = val.getFloatValue();
+        else if (key == "--brightness")       args.brightnessNorm      = val.getFloatValue();
+        else if (key == "--ne-semis")         args.neSemis             = val.getFloatValue();
+        else if (key == "--bend-vibrato")     args.bendVibratoSeconds  = val.getFloatValue();
         else
         {
             std::fprintf (stderr, "Unknown arg: %s\n", argv[i - 1]);
@@ -157,6 +171,13 @@ int main (int argc, char** argv)
     if (args.bowPressureNorm     >= 0.0f) pinNorm ("bowPressure",     args.bowPressureNorm);
     if (args.bowPositionNorm     >= 0.0f) pinNorm ("bowPosition",     args.bowPositionNorm);
     if (args.infiniteSustainNorm >= 0.0f) pinNorm ("infiniteSustain", args.infiniteSustainNorm);
+    if (args.brightnessNorm      >= 0.0f) pinNorm ("brightness",      args.brightnessNorm);
+
+    // WR-01: seed the NE pending slot the way drainAndUpdate() would for a
+    // Dorico kTuningTypeID event arriving with the note-on.
+    if (args.neSemis != 0.0f)
+        if (auto* ne = dynamic_cast<Ouaricon::NoteExpression::VST3Extensions*> (proc.getVST3ClientExtensions()))
+            ne->getPendingTable()[(size_t) juce::jlimit (0, 127, args.midiNote)].store ((double) args.neSemis);
 
     const int totalSeconds   = static_cast<int> (std::ceil (args.sustainSeconds + args.releaseSeconds));
     const int totalSamples   = static_cast<int> (totalSeconds * sampleRate);
@@ -201,6 +222,24 @@ int main (int argc, char** argv)
             const int offOffset = juce::jlimit (0, thisBlock - 1, sustainSamples - sampleCursor);
             midi.addEvent (juce::MidiMessage::noteOff (channel, args.midiNote), offOffset);
             noteOffSent = true;
+        }
+
+        // CR-02: a held-note vibrato as a stream of pitch-wheel messages (legacy
+        // mode, +-2 st range, so +-4096 = +-1 st), then a final centre message.
+        if (args.bendVibratoSeconds > 0.0f)
+        {
+            const int vibStart = static_cast<int> (1.0 * sampleRate);
+            const int vibEnd   = vibStart + static_cast<int> (args.bendVibratoSeconds * sampleRate);
+            if (sampleCursor >= vibStart && sampleCursor < vibEnd)
+            {
+                const double t = (sampleCursor - vibStart) / sampleRate;
+                const int wheel = 8192 + static_cast<int> (std::round (4096.0 * std::sin (2.0 * juce::MathConstants<double>::pi * 6.0 * t)));
+                midi.addEvent (juce::MidiMessage::pitchWheel (channel, juce::jlimit (0, 16383, wheel)), 0);
+            }
+            else if (sampleCursor >= vibEnd && sampleCursor - thisBlock < vibEnd)
+            {
+                midi.addEvent (juce::MidiMessage::pitchWheel (channel, 8192), 0);
+            }
         }
 
         const auto t0 = std::chrono::steady_clock::now();

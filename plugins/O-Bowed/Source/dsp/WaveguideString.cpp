@@ -81,14 +81,32 @@ void WaveguideString::reset()
     energyEstimate = 0.0f;
 }
 
+void WaveguideString::setFrequency (float frequency)
+{
+    // CR-02: retune without reset(). trigger() clears both rails and the energy
+    // estimate, so calling it on every pitch-bend message restarted the string
+    // from silence. A held note keeps its travelling waves and only moves the
+    // rail lengths.
+    if (std::abs (currentFrequency - frequency) < 1e-4f)
+        return;
+
+    currentFrequency = frequency;
+    updateDelayLengths();
+}
+
 void WaveguideString::updateDelayLengths()
 {
     float totalDelay = static_cast<float> (sampleRate) / currentFrequency;
 
-    // Filter group delay compensation: subtract bridge filter group delay
+    // WR-05: compensate the bridge loss filter with its PHASE delay at f0, not the
+    // DC-ish sr/(2*pi*fc) estimate, which over-compensated (pitch sharp) whenever
+    // the corner sat near or below f0 (A4 at Brightness 300 Hz was +161 c).
+    // One-pole H = b0 / (1 - p z^-1): phase delay = atan2(p sin w, 1 - p cos w) / w.
     float pi = juce::MathConstants<float>::pi;
-    float filterGroupDelay = static_cast<float> (sampleRate) / (2.0f * pi * brightnessHz);
-    float compensatedDelay = totalDelay - filterGroupDelay;
+    float p = std::exp (-2.0f * pi * brightnessHz / static_cast<float> (sampleRate));
+    float w = 2.0f * pi * currentFrequency / static_cast<float> (sampleRate);
+    float filterPhaseDelay = std::atan2 (p * std::sin (w), 1.0f - p * std::cos (w)) / w;
+    float compensatedDelay = totalDelay - filterPhaseDelay;
 
     // Clamp to ensure positive total delay
     compensatedDelay = std::max (4.0f, compensatedDelay);
@@ -96,6 +114,12 @@ void WaveguideString::updateDelayLengths()
     // Split at bow position
     float bridgeSamples = compensatedDelay * bowPosition;
     float neckSamples = compensatedDelay * (1.0f - bowPosition);
+
+    // No per-rail sample correction for readJunction popping before
+    // writeJunction pushes: JUCE's DelayLine read/write pointers advance in
+    // lockstep, so pop-then-push is exactly setDelay samples (it's a BARE push
+    // without a pop that shifts the delay). Measured: subtracting 1 per rail
+    // put A4 +17.6 c sharp. The review's CR-01/WR-05 "+1 per rail" is wrong.
 
     // Clamp minimum delay per rail (Thiran needs >= 2 samples)
     bridgeSamples = std::max (2.0f, bridgeSamples);
