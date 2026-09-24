@@ -942,6 +942,21 @@ private:
     // NEVER smoothed (latched per grain): delayTime/D, grainSize, density, width.
     juce::SmoothedValue<float> feedbackSmoothed, mixSmoothed, lowCutSmoothed, highCutSmoothed;
 
+    // v1.12.2 — the COLOUR pair, smoothed on the same ~20 ms and stepped per
+    // sample inside step 5's loop exactly as feedbackSmoothed is. Both sit INSIDE
+    // the feedback loop, so a block-rate step there is a click that recirculates.
+    // diffuseSmoothed holds the 0..1 mix; driveSmoothed holds driveRatio(), not
+    // the percentage, so the smoother's resting value is the same float the
+    // v1.8.0 block-rate read produced and a static Drive stays bitwise.
+    juce::SmoothedValue<float> diffuseSmoothed, driveSmoothed;
+
+    /** The Diffusion parameter as the loop's 0..1 mix — one definition shared by
+        prepare/reset (jump) and processBlock (target), so the two cannot drift. */
+    float currentDiffuseMix() const noexcept
+    {
+        return juce::jlimit (0.0f, 1.0f, pDiffusion->load() * 0.01f);
+    }
+
     double currentSampleRate = 44100.0;
 
     // TWO RT-safe xorshift32 streams (never juce::Random::getSystemRandom on the

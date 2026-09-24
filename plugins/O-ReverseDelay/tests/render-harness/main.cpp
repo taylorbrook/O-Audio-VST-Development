@@ -6167,6 +6167,148 @@ int main()
         proc.prepareToPlay (fs, block);
     }
 
+    // --- Probe BF: an OLD session restores missing parameters to DEFAULT --------
+    //
+    // v1.12.2. A v1.7 session (no diffusion, no drive) opened into a slot sitting
+    // at Drive 60 must come up at Drive 0, and a v1.5 session (also no freeze/
+    // direction/regen/source/duck/drift) opened into a frozen slot must come up
+    // unfrozen. setStateInformation now writes every missing id into the XML at
+    // its default before the restore.
+    //
+    // NOTE: this probe also passes WITHOUT that fill on JUCE 8.0.15 — measured.
+    // replaceState() appends an id-only child for each missing parameter and the
+    // APVTS's valueTreeChildAdded listener resets it to its default. The probe is
+    // the guard that keeps the guarantee if either the fill or that JUCE path
+    // goes away; it is not a demonstration of a shipped bug.
+    //
+    // Old states are SYNTHESISED rather than stored: a fresh instance's state
+    // with the PARAM children of later releases removed is exactly what the
+    // older plugin wrote (the tree's shape has not changed since v1.0.0, only
+    // grown). Two non-default values that ARE in the state — feedback and mix —
+    // prove the restore still applies what the session carries.
+    //
+    // The target instance is driven to non-default values on EVERY parameter the
+    // old state lacks, so each one is a live assertion rather than a pass-by-
+    // coincidence at an already-default value.
+    {
+        auto oldState = [] (const juce::StringArray& dropIds)
+        {
+            ReverseDelayProcessor src;
+            setParam (src.parameters, "feedback", 55.0f);
+            setParam (src.parameters, "mix",      70.0f);
+
+            juce::MemoryBlock blob;
+            src.getStateInformation (blob);
+            auto xml = juce::AudioProcessor::getXmlFromBinary (blob.getData(), (int) blob.getSize());
+
+            for (const auto& id : dropIds)
+                if (auto* c = xml->getChildByAttribute ("id", id))
+                    xml->removeChildElement (c, true);
+
+            juce::MemoryBlock out;
+            juce::AudioProcessor::copyXmlToBinary (*xml, out);
+            return out;
+        };
+
+        const juce::StringArray v18Ids { "diffusion", "drive" };
+        const juce::StringArray v16Ids { "freeze", "direction", "regenMakeup",
+                                         "sourceMode", "duck", "driftRate", "driftDepth" };
+
+        for (int arm = 0; arm < 2; ++arm)
+        {
+            const bool v15 = arm == 1;
+            juce::StringArray missing (v18Ids);
+            if (v15) missing.addArray (v16Ids);
+
+            const auto blob = oldState (missing);
+
+            ReverseDelayProcessor dst;
+            setParam (dst.parameters, "diffusion",   50.0f);
+            setParam (dst.parameters, "drive",       60.0f);
+            setParam (dst.parameters, "freeze",       1.0f);
+            setParam (dst.parameters, "direction",   70.0f);
+            setParam (dst.parameters, "regenMakeup",  3.0f);
+            setParam (dst.parameters, "sourceMode",   1.0f);
+            setParam (dst.parameters, "duck",        40.0f);
+            setParam (dst.parameters, "driftRate",    1.5f);
+            setParam (dst.parameters, "driftDepth",  30.0f);
+            setParam (dst.parameters, "feedback",    10.0f);
+            setParam (dst.parameters, "mix",         20.0f);
+
+            dst.setStateInformation (blob.getData(), (int) blob.getSize());
+
+            int wrong = 0;
+            juce::String firstWrong;
+            for (auto* prm : dst.getParameters())
+            {
+                auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm);
+                if (rp == nullptr || ! missing.contains (rp->paramID))
+                    continue;
+
+                if (std::abs (rp->getValue() - rp->getDefaultValue()) > 1.0e-6f)
+                {
+                    if (wrong++ == 0)
+                        firstWrong = rp->paramID + "=" + juce::String (paramValue (dst.parameters,
+                                                                         rp->paramID.toRawUTF8()), 3);
+                }
+            }
+
+            const float fb  = paramValue (dst.parameters, "feedback");
+            const float mix = paramValue (dst.parameters, "mix");
+
+            check (v15 ? "v15-state-missing-to-defaults" : "v17-state-missing-to-defaults",
+                   wrong == 0 && std::abs (fb - 55.0f) < 1.0e-3f && std::abs (mix - 70.0f) < 1.0e-3f,
+                   juce::String (missing.size()) + " missing ids, " + juce::String (wrong)
+                     + " not at default" + (wrong > 0 ? " (first: " + firstWrong + ")" : juce::String())
+                     + " | drive=" + juce::String (paramValue (dst.parameters, "drive"), 3)
+                     + " freeze=" + juce::String (paramValue (dst.parameters, "freeze"), 1)
+                     + " | saved feedback=" + juce::String (fb, 2) + " mix=" + juce::String (mix, 2)
+                     + " (expect 55 / 70)");
+        }
+    }
+
+    // --- Probe BG: a block LARGER than prepared is processed, not bailed -------
+    //
+    // v1.12.2. Up to v1.12.1 a host block bigger than prepareToPlay's size passed
+    // dry at unity regardless of Mix and stalled the ring, scheduler and feedback
+    // loop for that block. It is now split into prepared-size chunks, so a 2N
+    // block must render bitwise what two N blocks render. Static settings with the
+    // loop, width, drive and diffusion all engaged so every stateful stage is in
+    // the comparison; mix 70 so a dry bail cannot pass by accident.
+    {
+        auto renderArm = [&] (int hostBlk)
+        {
+            setBaseline (apvts);
+            clearRandomisation();
+            clearWindow();
+            setParam (apvts, "feedback",  60.0f);
+            setParam (apvts, "width",     60.0f);
+            setParam (apvts, "mix",       70.0f);
+            setParam (apvts, "diffusion", 40.0f);
+            setParam (apvts, "drive",     50.0f);
+            proc.setPlayConfigDetails (2, 2, fs, block);
+            proc.prepareToPlay (fs, block);      // prepared at 512 in BOTH arms
+
+            return renderEffect (proc, 2.0, fs, hostBlk,
+                                 [&] (int t) { return (float) (kRandA * whiteNoiseAt (t)); });
+        };
+
+        auto halves = renderArm (block);
+        auto whole  = renderArm (2 * block);
+
+        const double d = juce::jmax (maxAbsDiff (halves.L, whole.L),
+                                     maxAbsDiff (halves.R, whole.R));
+        const double r = rms (halves.L, (int) (0.5 * fs), (int) fs);
+
+        check ("oversize-block-chunked",
+               d == 0.0 && r > 1.0e-4 && allFinite (whole.L) && allFinite (whole.R),
+               juce::String ("max|2x512 - 1x1024| = ") + juce::String (d, 12)
+                 + " (prepared 512) | rms=" + juce::String (r, 6));
+
+        proc.setPlayConfigDetails (2, 2, fs, block);
+        proc.prepareToPlay (fs, block);
+    }
+
     std::printf ("%s (%d failure%s)\n",
                  failures == 0 ? "ALL PROBES PASSED" : "PROBES FAILED",
                  failures, failures == 1 ? "" : "s");
