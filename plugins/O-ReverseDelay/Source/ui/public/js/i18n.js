@@ -437,6 +437,20 @@ export const I18N = Object.freeze({
               reviewed: 'bt' },
     },
 
+    // ── v1.14.0: the OUTPUT level meter ─────────────────────────────────────
+    // New copy: fr starts reviewed:false, zh-Hans at 'mt' (written by the same
+    // session, no blind reverse pass — below the 'bt' ship bar).
+    'levelMeter': {
+        en: { t: 'Output Level',
+              b: 'Output peak, with the input as the thin line beneath it. The lamp latches when the output passes 0 dBFS, which Regen above 0 dB can do. Click the meter to clear it.' },
+        fr: { t: 'Niveau de sortie',
+              b: 'Crête de sortie, avec l’entrée en fine ligne dessous. Le voyant reste allumé dès que la sortie dépasse 0 dBFS, ce que Regain au-dessus de 0 dB peut provoquer. Cliquez sur l’indicateur pour l’éteindre.',
+              reviewed: false },
+        'zh-Hans': { t: '输出电平',
+              b: '输出峰值，下方细线为输入。输出超过 0 dBFS 时指示灯保持点亮，再生高于 0 dB 时可能出现这种情况。点击电平表可将其熄灭。',
+              reviewed: 'mt' },
+    },
+
     // ── MOTION (v1.6.0) ─────────────────────────────────────────────────────
     'freezeSegments': {
         en: { t: 'Freeze',
@@ -733,11 +747,15 @@ export const LABELS = Object.freeze({
     'label.active':    { en: { t: 'Active' },   fr: { t: 'Actifs',    reviewed: true } , 'zh-Hans': { t: '活动', reviewed: 'bt' },},
     'label.overlap':   { en: { t: 'Overlap' },  fr: { t: 'Recouvr.',  reviewed: true } , 'zh-Hans': { t: '重叠', reviewed: 'bt' },},
 
-    'label.footer':    { en: { t: 'Drag vertically · wheel or arrows to trim · double-click to reset' },
-                         fr: { t: 'Glisser verticalement · molette ou flèches pour ajuster · double-clic pour réinitialiser', reviewed: true } ,
+    // v1.14.0: + the Shift fine-drag hint. French had 17 px left in the pinned
+    // 560 px box and wrapped to two lines with the clause added, so it was re-cut:
+    // "verticalement" and "pour ajuster" go, glossary roots fin / réinitialiser
+    // stay. Measured 526 px, one line, at 940 × 768.
+    'label.footer':    { en: { t: 'Drag vertically · shift for fine · wheel or arrows to trim · double-click to reset' },
+                         fr: { t: 'Glisser · Maj pour un réglage fin · molette ou flèches · double-clic pour réinitialiser', reviewed: false } ,
 
-        'zh-Hans': { t: '垂直拖动 · 滚轮或方向键微调 · 双击重置',
-              reviewed: 'bt' },
+        'zh-Hans': { t: '垂直拖动 · 按住 Shift 精调 · 滚轮或方向键微调 · 双击重置',
+              reviewed: 'mt' },
     },
 
     // ── Accessible names ────────────────────────────────────────────────────
@@ -811,6 +829,7 @@ export const TIP_BINDINGS = [
 
     ['#knob-width',          'knob-width'],
     ['#knob-mix',            'knob-mix'],
+    ['#levelMeter',          'levelMeter'],   // v1.14.0
 
     ['#knob-jitter',         'knob-jitter'],
     ['#knob-delayScatter',   'knob-delayScatter'],

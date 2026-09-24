@@ -6546,6 +6546,38 @@ int main (int argc, char** argv)
         proc.prepareToPlay (fs, block);
     }
 
+    // --- Probe BI: the level meter reports the loudest sample since the last read
+    //
+    // v1.14.0. takeLevelPeaks() must return the max over EVERY block since the
+    // previous call — not the latest block — and then read zero. The input is a
+    // single 0.9 spike in the first block followed by a quiet sine, so a
+    // latest-block implementation reads ~0.25 and fails. Output is checked
+    // against the rendered buffer's own peak, bit-for-bit.
+    {
+        setBaseline (apvts);
+        setParam (apvts, "mix", 50.0f);
+        proc.prepareToPlay (fs, block);
+        (void) proc.takeLevelPeaks();   // drain anything earlier probes left
+
+        const auto r = renderEffect (proc, 0.5, fs, block, [&] (int n)
+        {
+            return n == 10 ? 0.9f
+                           : 0.25f * (float) std::sin (2.0 * juce::MathConstants<double>::pi * 220.0 * n / fs);
+        });
+
+        const auto p1 = proc.takeLevelPeaks();
+        const auto p2 = proc.takeLevelPeaks();
+        const float outExpect = (float) juce::jmax (peakAbs (r.L), peakAbs (r.R));
+
+        check ("level-peaks-since-read",
+               p1.in == 0.9f && p1.out == outExpect && p2.in == 0.0f && p2.out == 0.0f,
+               juce::String ("in=") + juce::String (p1.in, 6) + " (expect 0.9) out="
+                 + juce::String (p1.out, 6) + " (expect " + juce::String (outExpect, 6)
+                 + ") | second read in=" + juce::String (p2.in, 6) + " out=" + juce::String (p2.out, 6));
+
+        proc.prepareToPlay (fs, block);
+    }
+
     std::printf ("%s (%d failure%s)\n",
                  failures == 0 ? "ALL PROBES PASSED" : "PROBES FAILED",
                  failures, failures == 1 ? "" : "s");

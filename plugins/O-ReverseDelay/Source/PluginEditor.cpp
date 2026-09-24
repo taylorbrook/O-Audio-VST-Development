@@ -309,6 +309,14 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
             obj->setProperty ("delaySource",   juce::String (kDelaySourceNames[static_cast<int> (meter.delaySource)]));
             obj->setProperty ("freezeEngaged", meter.freezeEngaged);
 
+            // v1.14.0: linear in/out peak since the previous poll — same poll,
+            // still 15 native functions. This is the one CONSUMING read in the
+            // payload (takeLevelPeaks() drains the accumulators), which is fine
+            // because this native fn is its only caller.
+            const auto peaks = processorRef.takeLevelPeaks();
+            obj->setProperty ("peakIn",  peaks.in);
+            obj->setProperty ("peakOut", peaks.out);
+
             complete (juce::var (obj));
         });
 

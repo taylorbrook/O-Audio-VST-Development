@@ -371,6 +371,11 @@ export function getNativeFunction(name) {
         delayMs,
         delaySource,
         freezeEngaged: frozen && Date.now() - stubFreezeOnAt >= 1000,
+        // v1.14.0: a wobbling input at -8 dBFS, and an output lifted by Regen
+        // so that Regen above ~+4 dB crosses 0 dBFS and latches the clip lamp.
+        peakIn:  0.4 * (0.8 + 0.2 * Math.sin(tick)),
+        peakOut: 0.6 * Math.pow(10, getSliderState("regenMakeup").getScaledValue() / 20)
+                     * (0.8 + 0.2 * Math.sin(tick + 1)),
       });
     };
   }
