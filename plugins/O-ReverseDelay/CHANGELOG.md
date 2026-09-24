@@ -4,6 +4,62 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.12.4] — 2026-09-23
+
+Behaviour-preserving C++ simplification from `.planning/SIMPLIFICATION-AUDIT.md`.
+PATCH: no parameter, range, preset value, state format, DSP or UI change. Every
+render is bit-identical to 1.12.3.
+
+### Changed
+
+- **Factory presets (HIGH-01).** The 17 no-op keys every preset repeated now
+  live once in `kShippedNoOpTail`. It is merged into each preset with
+  `map::insert`, which never overwrites, so a future preset can still author one
+  of those keys in its own row. The rows keep the ten keys that differ.
+- **Allpass length argument removed.** `prepare(n)` sized each buffer to exactly
+  the delay that `process()` was always called with, so the per-sample `jlimit`
+  (8× per sample) could never change anything. `apDelaySamples` is gone and
+  `process()` reads `buf[idx]` before writing it.
+- **`resetLoopState()`.** `reset()` and the non-finite guard both cleared the
+  damping filters and the diffusion chain with the same four lines. They now
+  share one function. `coeffCountdown` is still reset in `reset()` only.
+- **`WindowLut::integrateHalves()` (HIGH-02).** The half-window integration and
+  the two canonicalisation gates were duplicated between `computeStats()` and
+  `computeTaperStats()`. The code moved verbatim into one helper.
+- **`kNoteDivisions` (HIGH-03).** A single `{name, beats}` table now builds the
+  `noteDivision` choice list, feeds the tempo-sync beat lookup, and sets the
+  index clamp. The literal `12` is gone.
+- **Preset bridge (MED-05).** `makePresetDialogResult()` replaces the two copies
+  of `makeResult`. `firstStringArg()` replaces the string-argument guard that was
+  copied four times.
+- **Dead code and duplication (LOW-01, LOW-04).** `WindowLut::read()` and
+  `getSize()` had no callers and are removed. `CaptureBuffer::wrapIndex()` holds
+  the double-mod index that `readAbs()` and `monoSum()` each wrote out.
+- **Stale comments (HIGH-04, HIGH-05, MED-07).** The native-function count is now
+  15, not 13, and the relay count is 22 + 4 + 1 = 27, not 20/25. The `setSize`
+  and id-list line pointers are corrected, and `uiLanguage` now lists
+  2 = zh-Hans. `GrainScheduler.h` describes the two RNG streams and probe W2
+  instead of one shared stream. The capture-ring notes say 14 s, not 5.5 or
+  3.5 s. `ReverseGrain.h`'s render sketch calls `readShaped`.
+
+### Tests
+
+- **Render harness `--digest`.** A new mode renders 45 scenarios, each on a
+  fresh processor, and prints an FNV-1a hash of every output sample's bits. The
+  scenarios cover all 8 factory presets (loaded through the real preset
+  manager), all 13 divisions, every window shape, diffusion and drive, MOTION,
+  SOURCE, DUCK and DRIFT, the mono fold, and blocks 97, 512 and 4096. The 1.12.3
+  and 1.12.4 digests match line for line (`ALL ddee853f446b7fbb`).
+- All 156 probes pass, and every printed measurement line matches 1.12.3.
+- The factory presets were re-seeded at 1.12.4. All 8 files hold the same 27
+  values as the 1.12.3 files; only the `version` stamp differs.
+- `ui_frontend_check.js`: the dialog-result gate counted
+  `setProperty("success"` sites (at least 2). With one shared builder that count
+  is 1 by design, so the gate now asserts the property directly: the builder
+  sets `success` and `name`, and both dialog functions resolve only through it,
+  never through a bare `juce::var`. A negative control fails it both ways.
+- auval passes. pluginval (strictness 10, VST3) passes.
+
 ## [1.12.3] — 2026-09-23
 
 Five UI fixes in `Source/ui/public`. PATCH: no parameter, range, preset, state

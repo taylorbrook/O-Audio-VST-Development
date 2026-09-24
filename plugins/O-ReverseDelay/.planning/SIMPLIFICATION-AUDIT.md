@@ -1035,3 +1035,47 @@ Recorded so a later pass does not re-derive them:
   `pattern_flex1_container_slack_invisible_to_row_sum`; the two CSS candidates here
   (MED-01, MED-02) are merges justified by selector-reference checks, and the one slack
   assertion touched (HIGH-07) is proposed to be *measured* rather than summed.
+
+---
+
+## Status (updated 2026-09-23, v1.12.4)
+
+v1.12.4 applied the C++ candidates below as a behaviour-preserving pass. The render
+harness gained a `--digest` mode (FNV-1a over every output sample of 45 scenarios: all 8
+factory presets through the real preset manager, all 13 note divisions, every window
+shape, COLOUR/MOTION/SOURCE/DUCK/DRIFT, the mono fold, blocks 97/512/4096, each on a
+fresh processor). The digest is **bit-identical** before and after
+(`ALL ddee853f446b7fbb`), all 156 probes pass with every printed measurement line
+unchanged, and all 8 factory preset files re-seeded at 1.12.4 hold the same 27
+parameter values as the 1.12.3 files.
+
+| ID | Candidate | Status | Where / what remains |
+|----|-----------|--------|----------------------|
+| HIGH-01 | Factory presets repeat the no-op tail (now 17 keys) | ✅ Done v1.12.4 | `kShippedNoOpTail`, merged with `map::insert` before the `convertTo0to1` loop |
+| HIGH-02 | `computeStats`/`computeTaperStats` duplicate the half-window integration | ✅ Done v1.12.4 | `WindowLut::integrateHalves()`, moved verbatim |
+| HIGH-03 | Note divisions encoded in several places | ✅ Done v1.12.4 (C++) | `kNoteDivisions {name, beats}` in `PluginProcessor.h` feeds the choice list, the sync path and the index clamp. The ui-stub mirror is MED-06 |
+| HIGH-04 | `PluginEditor.h` header states wrong counts | ✅ Done v1.12.4 | Had drifted again after an earlier fix: native fns 13 → 15, relays 20/25 → 22/27, `setSize` and list line pointers corrected |
+| HIGH-05 | `GrainScheduler.h` documents one shared RNG stream | ✅ Done v1.12.4 | Header and `nextInterval` note now describe the two streams (`rngState` / `jitterRngState`) and probe W2 |
+| HIGH-06 | Stub `delayTime` check uses literals | ⬜ Open | `tests/ui_frontend_check.js:1301` |
+| HIGH-07 | `CHROME` is a hand-summed geometry mirror | ⬜ Open | `tests/ui_frontend_check.js:514` |
+| MED-01 | `.meter-*` / `.knob-*` rule pairs duplicated | ⬜ Open | `styles.css` |
+| MED-02 | `.group-motion` / `.group-source` segment rules duplicated | ⬜ Open | `styles.css:736-768` |
+| MED-03 | Write-only module `let`s in `app.js` | 🟡 Partial | `envLastCurve` is gone. `syncState`, `sourceState`, `freezeState` and `divisionState` remain (`app.js:280-283`) |
+| MED-04 | Segment-pair paint block written three times | ⬜ Open | `app.js` |
+| MED-05 | Preset-dialog fns duplicate `makeResult` + string-arg guard | ✅ Done v1.12.4 | `makePresetDialogResult()` + `firstStringArg()` in the anon namespace. `ui_frontend_check.js`'s dialog-result gate now asserts the builder and both call sites directly (negative-controlled), replacing its `setProperty` count proxy |
+| MED-06 | Stub mirrors C++ choice lists; only `grainShape` validated | ⬜ Open | `tests/ui-stub/juce-stub.js:123-140` |
+| MED-07 | Stale geometry and capacity numbers | 🟡 Partial | C++ fixed in v1.12.4 (capture member 14 s, `releaseResources` 14 s / ~5.4 MB, `ReverseGrain.h` → `readShaped`). UI prose still stale: `index.html:403` (743), `app.js:675` ("only native function"), `styles.css:753` (215 px), `ui_frontend_check.js:68` (484), `ui_frontend_check.js:85` (743) |
+| LOW-01 | `WindowLut::read()` / `getSize()` have no callers | ✅ Done v1.12.4 | Removed |
+| LOW-02 | Six unread `data-choice` attributes | ⬜ Open | `index.html` |
+| LOW-03 | `refreshTaperEnabled` / `refreshDriftRateEnabled` duplicate | ⬜ Open | `app.js:665`, `:695` |
+| LOW-04 | `CaptureBuffer` double-mod index written twice | ✅ Done v1.12.4 | `wrapIndex()`. `monoSum` keeps `0.5f * (L + R)` as one expression |
+| LOW-05 | Three copies of the payload normalisation | ⬜ Open | `app.js` |
+| LOW-06 | `initEnvelope()` has two identical `shapeState` listeners | ⬜ Open | `app.js:859-864` |
+
+**Not in the original audit, also done in v1.12.4:** the allpass length argument was
+redundant (`prepare(n)` sized each buffer to exactly the delay `process()` was always
+called with, so `jlimit` was a no-op 8× per sample). `apDelaySamples` is removed and
+`process()` reads `buf[idx]`. The loop-state reset shared by `reset()` and the non-finite
+guard is now `resetLoopState()`. The `uiLanguage` comments now include 2 = zh-Hans.
+
+**Tally:** 8 done, 2 partial, 10 open. Everything still open or partial is on the UI/JS/test side.

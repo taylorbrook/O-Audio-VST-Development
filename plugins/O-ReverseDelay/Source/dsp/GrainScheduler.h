@@ -48,9 +48,16 @@
     spawn — interval·(1 ± dev), dev symmetric so the MEAN interval, and with
     it the average density and the loop's duty cycle, are unchanged.
 
-    The RNG is injected rather than owned: PluginProcessor holds one xorshift32
-    stream shared by the pan spread and all four v1.1 randomisations, and a
-    single stream is what makes the whole engine reproducible from one seed.
+    The RNG is injected rather than owned, and the caller passes the JITTER
+    stream specifically. PluginProcessor holds TWO xorshift32 streams, split by
+    WHEN they are consumed: `jitterRngState` is drawn from here, inside the
+    per-sample countdown; `rngState` (the grain stream) is drawn by the spawn
+    handler — scatter, size, gain, pan — after a whole pass is scheduled.
+    Sharing one stream would interleave the two differently at different pass
+    lengths — i.e. differently at 512 than at 4096 samples — and the engine
+    would stop being block-size invariant. Render-harness probe W2 asserts
+    512-vs-4096 bit equality and caught exactly this. Both derive from one
+    instanceSeed, so the whole engine is still reproducible from one seed.
 
   ==============================================================================
 */
@@ -206,13 +213,14 @@ public:
 private:
     // LOAD-BEARING: at jitterAmount == 0 this draws NOTHING.
     //
-    // The processor's xorshift is a single shared stream — pan spread, delay
-    // scatter, size random and gain random all pull from it. An unconditional
-    // draw here would advance that stream one step per spawn even with jitter
-    // off, shifting every subsequent pan value and changing the shipped v1.0
-    // sound on existing sessions. Every v1.1 randomisation follows the same
-    // rule at its own call site, which is what makes "all four at 0" render
-    // bit-identically to v1.0.1 (render-harness probe T asserts exactly this).
+    // Not because the stream is shared with the other randomisations — it is
+    // not, see the header — but because the jitter stream's consumption must be
+    // a pure function of the spawn INDEX. An unconditional draw here would
+    // advance it once per spawn even with jitter off, so turning jitter on
+    // later would land its draws at different offsets than a fresh session's.
+    // Every v1.1 randomisation follows the same rule at its own call site,
+    // which is what makes "all four at 0" render bit-identically to v1.0.1
+    // (render-harness probe T asserts exactly this).
     template <typename RandomFn>
     static int nextInterval (int interval, float jitterAmount, RandomFn&& nextRand01) noexcept
     {

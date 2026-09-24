@@ -287,6 +287,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <limits>
 #include <vector>
 
@@ -812,9 +813,176 @@ static void setDefaults (juce::AudioProcessorValueTreeState& a)
 }
 
 //==============================================================================
-int main()
+// --digest (v1.12.4): bit-identity gate for behaviour-preserving refactors.
+//
+// Renders a fixed scenario set (every factory preset through the real preset
+// manager, every note division, every window shape, the COLOUR/MOTION/SOURCE
+// panels, the mono fold, three block sizes) on a FRESH processor each, and
+// prints an FNV-1a 64 hash of every output sample's bit pattern. Probes
+// measure within tolerances; this measures nothing and asserts nothing — it
+// exists to be diffed against the same run on the pre-refactor tree, where any
+// changed line means the refactor changed audio.
+//     O-ReverseDelay-render-test --digest > before.txt   (old tree)
+//     O-ReverseDelay-render-test --digest > after.txt    (new tree)
+//     diff before.txt after.txt                          (must be empty)
+struct DigestScenario
+{
+    const char* name;
+    std::vector<std::pair<const char*, float>> params;
+    const char* preset    = nullptr;   // loaded through the preset manager instead
+    int         block     = 512;
+    bool        mono      = false;
+    bool        stereoIn  = false;
+    double      freezeAt  = -1.0;      // seconds; < 0 = never
+};
+
+static juce::uint64 fnv1a (juce::uint64 h, const std::vector<float>& x)
+{
+    for (float f : x)
+    {
+        juce::uint32 bits;
+        std::memcpy (&bits, &f, sizeof bits);
+        for (int b = 0; b < 4; ++b)
+        {
+            h ^= (bits >> (8 * b)) & 0xffu;
+            h *= 0x100000001b3ull;
+        }
+    }
+    return h;
+}
+
+static int runDigest()
+{
+    const double fs = 48000.0;
+    const double seconds = 3.0;
+
+    // Deterministic excitation: noise bursts + a decaying sine, with gaps, so
+    // grains see onsets, sustain and silence. R is a different stream so the
+    // stereo-source scenarios read distinct material.
+    auto makeInput = [&] (juce::uint32 seed)
+    {
+        std::vector<float> v ((size_t) (seconds * fs));
+        juce::uint32 s = seed;
+        for (size_t i = 0; i < v.size(); ++i)
+        {
+            s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+            const float n  = (float) (s & 0xffffffu) / 16777216.0f * 2.0f - 1.0f;
+            const double t = (double) i / fs;
+            const double phase = std::fmod (t, 0.75);
+            const float env = phase < 0.4 ? (float) std::exp (-phase * 6.0) : 0.0f;
+            v[i] = 0.25f * env * (n + (float) std::sin (2.0 * juce::MathConstants<double>::pi * 330.0 * t));
+        }
+        return v;
+    };
+    const auto inL = makeInput (0x2468ace1u);
+    const auto inR = makeInput (0x13579bdfu);
+
+    std::vector<DigestScenario> sc;
+    sc.push_back ({ "baseline", {} });
+    sc.push_back ({ "fb70-width60-mix50", { {"feedback",70}, {"width",60}, {"mix",50} } });
+    sc.push_back ({ "fb100", { {"feedback",100}, {"width",80} } });
+    sc.push_back ({ "diffusion60", { {"diffusion",60}, {"feedback",50} } });
+    sc.push_back ({ "diffusion100-drive50-fb90", { {"diffusion",100}, {"drive",50}, {"feedback",90} } });
+    sc.push_back ({ "fb40", { {"feedback",40} } });
+    sc.push_back ({ "drive100", { {"drive",100}, {"feedback",40} } });
+    sc.push_back ({ "drive100-fb90-mix100", { {"drive",100}, {"feedback",90}, {"lowCut",20}, {"highCut",20000} } });
+    for (int d = 0; d < 13; ++d)
+    {
+        static char names[13][16];
+        std::snprintf (names[d], sizeof names[d], "sync-div%02d", d);
+        sc.push_back ({ names[d], { {"syncMode",1}, {"noteDivision",(float) d}, {"feedback",40} } });
+    }
+    for (int sh = 1; sh <= 4; ++sh)
+    {
+        static char names[5][16];
+        std::snprintf (names[sh], sizeof names[sh], "shape%d", sh);
+        sc.push_back ({ names[sh], { {"grainShape",(float) sh}, {"grainTilt",0.25f} } });
+    }
+    sc.push_back ({ "tilt0-taper0.1", { {"grainTilt",0.0f}, {"tukeyTaper",0.1f} } });
+    sc.push_back ({ "tilt1-taper0.9", { {"grainTilt",1.0f}, {"tukeyTaper",0.9f} } });
+    sc.push_back ({ "count2", { {"grainCount",2}, {"density",100} } });
+    sc.push_back ({ "count16", { {"grainCount",16}, {"density",100}, {"feedback",60} } });
+    sc.push_back ({ "randomised", { {"jitter",50}, {"delayScatter",50}, {"sizeRandom",50}, {"gainRandom",50}, {"feedback",60} } });
+    sc.push_back ({ "direction50-regen", { {"direction",50}, {"regenMakeup",1}, {"feedback",80} } });
+    sc.push_back ({ "duck-drift", { {"duck",60}, {"driftDepth",50}, {"driftRate",2.0f}, {"feedback",50} } });
+    { DigestScenario d { "stereo-source", { {"sourceMode",1}, {"width",50}, {"feedback",50} } }; d.stereoIn = true; sc.push_back (d); }
+    { DigestScenario d { "freeze-at-1.5s", { {"feedback",60} } }; d.freezeAt = 1.5; sc.push_back (d); }
+    { DigestScenario d { "mono-fold", { {"feedback",50}, {"width",60} } }; d.mono = true; sc.push_back (d); }
+    { DigestScenario d { "block97", { {"feedback",60}, {"diffusion",40} } }; d.block = 97; sc.push_back (d); }
+    { DigestScenario d { "block4096", { {"feedback",60}, {"diffusion",40} } }; d.block = 4096; sc.push_back (d); }
+    for (const char* p : { "Reverse Bloom", "Guitar Swell", "Vocal Halo", "Slow Wash",
+                           "Tight Smear", "Dark Cavern", "Near-Infinite", "Rhythmic Reverse" })
+    {
+        DigestScenario d { p, {} };
+        d.preset = p;
+        sc.push_back (d);
+    }
+
+    juce::uint64 all = 0xcbf29ce484222325ull;
+    for (const auto& s : sc)
+    {
+        ReverseDelayProcessor proc;
+        const int ch = s.mono ? 1 : 2;
+        proc.setPlayConfigDetails (ch, ch, fs, s.block);
+        MockPlayHead mph;
+        proc.setPlayHead (&mph);
+        auto& a = proc.parameters;
+
+        setBaseline (a);
+        setParam (a, "diffusion", 0.0f);
+        setParam (a, "drive",     0.0f);
+        for (const auto& [id, v] : s.params)
+            setParam (a, id, v);
+        if (s.preset != nullptr && ! proc.getPresetManager().loadPreset (s.preset))
+            std::printf ("  !! preset '%s' failed to load\n", s.preset);
+
+        proc.prepareToPlay (fs, s.block);
+
+        const int total = (int) inL.size();
+        juce::AudioBuffer<float> buf (ch, s.block);
+        juce::MidiBuffer midi;
+        std::vector<float> outL, outR;
+        outL.reserve ((size_t) total);
+        outR.reserve ((size_t) total);
+
+        for (int pos = 0; pos < total; pos += s.block)
+        {
+            if (s.freezeAt >= 0.0 && pos >= (int) (s.freezeAt * fs))
+                setParam (a, "freeze", 1.0f);
+
+            for (int i = 0; i < s.block; ++i)
+            {
+                const size_t k = (size_t) juce::jmin (pos + i, total - 1);
+                buf.setSample (0, i, inL[k]);
+                if (ch > 1) buf.setSample (1, i, s.stereoIn ? inR[k] : inL[k]);
+            }
+            proc.processBlock (buf, midi);
+
+            const int n = juce::jmin (s.block, total - pos);
+            for (int i = 0; i < n; ++i)
+            {
+                outL.push_back (buf.getSample (0, i));
+                if (ch > 1) outR.push_back (buf.getSample (1, i));
+            }
+        }
+
+        juce::uint64 h = fnv1a (0xcbf29ce484222325ull, outL);
+        h = fnv1a (h, outR);
+        const double pk = juce::jmax (peakAbs (outL), outR.empty() ? 0.0 : peakAbs (outR));
+        std::printf ("%-28s %016llx  peak=%.6f\n", s.name, (unsigned long long) h, pk);
+        all = (all ^ h) * 0x100000001b3ull;
+    }
+    std::printf ("%-28s %016llx  (%d scenarios)\n", "ALL", (unsigned long long) all, (int) sc.size());
+    return 0;
+}
+
+//==============================================================================
+int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
+
+    if (argc > 1 && std::strcmp (argv[1], "--digest") == 0)
+        return runDigest();
 
     const double fs    = 48000.0;
     const int    block = 512;

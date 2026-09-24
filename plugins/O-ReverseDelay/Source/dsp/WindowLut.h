@@ -238,12 +238,6 @@ public:
         return table[i0] + frac * (table[i1] - table[i0]);
     }
 
-    /** Convenience read for non-hot paths (tests, offline analysis). */
-    float read (int shape, float phase) const noexcept
-    {
-        return readAt (getTable (shape), phase);
-    }
-
     //==========================================================================
     // v1.4.0 — the Tukey taper remap.
 
@@ -509,8 +503,6 @@ public:
         return statsFor (shape, alpha).mean;
     }
 
-    int getSize() const noexcept { return size; }
-
     /** Samples the window a caller will actually HEAR, composing shape, tilt and
         taper in the same order and by the same calls the render loop uses.
 
@@ -658,7 +650,6 @@ private:
         them as an auditable cross-check rather than an unverifiable claim. */
     void computeTaperStats()
     {
-        const int half = size / 2;
         std::vector<float> w ((size_t) size, 0.0f);
 
         for (int k = 0; k < kNumTaperSteps; ++k)
@@ -671,44 +662,13 @@ private:
                 w[(size_t) i] = readShaped (tables[(size_t) hann].data(), taper, phi);
             }
 
-            double lo = 0.0, hi = 0.0, aLo = 0.0, aHi = 0.0;
-
-            for (int i = 0; i < half; ++i)
-            {
-                const double v = (double) w[(size_t) i];
-                lo += v * v;  aLo += v;
-            }
-
-            for (int i = half; i < size; ++i)
-            {
-                const double v = (double) w[(size_t) i];
-                hi += v * v;  aHi += v;
-            }
-
-            const double nLo = (double) juce::jmax (1, half);
-            const double nHi = (double) juce::jmax (1, size - half);
-
+            // The canonicalisation inside integrateHalves() is needed here for
+            // the same reason as in computeStats(): Tukey is symmetric at every
+            // α, but its two halves are built from table reads at different
+            // arguments and can disagree in the last ulp. Collapsing them is what
+            // keeps getTiltNorm EXACTLY 1.0f for Tukey at every α.
             auto& st = taperStats[(size_t) k];
-            st.meanSqLo = (float) (lo  / nLo);
-            st.meanSqHi = (float) (hi  / nHi);
-            st.meanSq   = 0.5f * (st.meanSqLo + st.meanSqHi);
-            st.meanLo   = (float) (aLo / nLo);
-            st.meanHi   = (float) (aHi / nHi);
-            st.mean     = 0.5f * (st.meanLo + st.meanHi);
-
-            // Same canonicalisation as computeStats(), and needed for the same
-            // reason: Tukey is symmetric at every α, but its two halves are built
-            // from table reads at different arguments and can disagree in the last
-            // ulp. Collapsing them is what keeps getTiltNorm EXACTLY 1.0f for
-            // Tukey at every α — an invariant that can only be checked to within
-            // a tolerance is one that can rot later without any probe noticing.
-            if (std::abs (st.meanSqLo - st.meanSqHi)
-                  <= 1.0e-6f * juce::jmax (st.meanSqLo, st.meanSqHi))
-                st.meanSqLo = st.meanSqHi = st.meanSq;
-
-            if (std::abs (st.meanLo - st.meanHi)
-                  <= 1.0e-6f * juce::jmax (st.meanLo, st.meanHi))
-                st.meanLo = st.meanHi = st.mean;
+            st = integrateHalves (w.data());
 
             st.shapeNorm = (st.meanSq > 0.0f)
                              ? std::sqrt (stats[(size_t) hann].meanSq / st.meanSq)
@@ -728,6 +688,76 @@ private:
         return stats[(size_t) s];
     }
 
+    /** Half-window means of w² and w over `size` samples of `w`, with the
+        symmetric-halves canonicalisation applied. Shared by computeStats() (the
+        fixed tables) and computeTaperStats() (the per-α Tukey renders); moved
+        verbatim from computeStats() in v1.12.4 so every float it produces is
+        unchanged. shapeNorm is left at its default — each caller normalises
+        against its own reference. */
+    ShapeStats integrateHalves (const float* w) const noexcept
+    {
+        const int half = size / 2;
+
+        // Both the POWER duty (mean of w²) and the AMPLITUDE duty (mean of
+        // w) are needed: the output path sums decorrelated grains and
+        // follows the first, the feedback path sums self-similar material
+        // and follows the second. See getLoopNorm().
+        double lo = 0.0, hi = 0.0, aLo = 0.0, aHi = 0.0;
+
+        for (int i = 0; i < half; ++i)
+        {
+            const double v = (double) w[(size_t) i];
+            lo  += v * v;
+            aLo += v;
+        }
+
+        for (int i = half; i < size; ++i)
+        {
+            const double v = (double) w[(size_t) i];
+            hi  += v * v;
+            aHi += v;
+        }
+
+        const double nLo = (double) juce::jmax (1, half);
+        const double nHi = (double) juce::jmax (1, size - half);
+
+        ShapeStats st;
+        st.meanSqLo = (float) (lo  / nLo);
+        st.meanSqHi = (float) (hi  / nHi);
+        st.meanSq   = 0.5f * (st.meanSqLo + st.meanSqHi);
+        st.meanLo   = (float) (aLo / nLo);
+        st.meanHi   = (float) (aHi / nHi);
+        st.mean     = 0.5f * (st.meanLo + st.meanHi);
+
+        // ── canonicalise a symmetric window's two halves ────────────────────
+        // Hann, Tukey, Gaussian and Triangular are symmetric AS FUNCTIONS,
+        // but their TABLES are not symmetric to the last bit: w[i] and
+        // w[size-1-i] come from std::cos/std::exp evaluated at different
+        // arguments, so the two halves' summed power can disagree in the
+        // last ulp or two. Left alone that turns the tilt normalisation from
+        // "exactly 1.0f at every tilt" into "1.0f ± 5e-8", which is
+        // inaudible but destroys the ability to ASSERT power invariance as
+        // an exact property — and an invariant that can only be checked to
+        // within a tolerance is one that can rot by a real amount later
+        // without any probe noticing.
+        //
+        // A relative 1e-6 gate separates a float artefact from a genuinely
+        // asymmetric window by an enormous margin: Expo-Decay's two halves
+        // differ by a factor of about 11, i.e. by 1e7 times this threshold.
+        // Mirroring the table itself would be the other fix and is NOT
+        // available: the Hann table must stay bit-identical to the one
+        // v1.0.0 built, or every existing session changes.
+        if (std::abs (st.meanSqLo - st.meanSqHi)
+              <= 1.0e-6f * juce::jmax (st.meanSqLo, st.meanSqHi))
+            st.meanSqLo = st.meanSqHi = st.meanSq;
+
+        if (std::abs (st.meanLo - st.meanHi)
+              <= 1.0e-6f * juce::jmax (st.meanLo, st.meanHi))
+            st.meanLo = st.meanHi = st.mean;
+
+        return st;
+    }
+
     /** Half-window mean squares, integrated from the tables themselves rather
         than from closed forms — the Gaussian's pedestal removal and the
         Expo-Decay's piecewise definition have no tidy analytic mean square, and
@@ -738,69 +768,8 @@ private:
         the same number of entries and meanSq is their exact average. */
     void computeStats()
     {
-        const int half = size / 2;
-
         for (int s = 0; s < kNumShapes; ++s)
-        {
-            const auto& t = tables[(size_t) s];
-
-            // Both the POWER duty (mean of w²) and the AMPLITUDE duty (mean of
-            // w) are needed: the output path sums decorrelated grains and
-            // follows the first, the feedback path sums self-similar material
-            // and follows the second. See getLoopNorm().
-            double lo = 0.0, hi = 0.0, aLo = 0.0, aHi = 0.0;
-
-            for (int i = 0; i < half; ++i)
-            {
-                const double w = (double) t[(size_t) i];
-                lo  += w * w;
-                aLo += w;
-            }
-
-            for (int i = half; i < size; ++i)
-            {
-                const double w = (double) t[(size_t) i];
-                hi  += w * w;
-                aHi += w;
-            }
-
-            const double nLo = (double) juce::jmax (1, half);
-            const double nHi = (double) juce::jmax (1, size - half);
-
-            auto& st = stats[(size_t) s];
-            st.meanSqLo = (float) (lo  / nLo);
-            st.meanSqHi = (float) (hi  / nHi);
-            st.meanSq   = 0.5f * (st.meanSqLo + st.meanSqHi);
-            st.meanLo   = (float) (aLo / nLo);
-            st.meanHi   = (float) (aHi / nHi);
-            st.mean     = 0.5f * (st.meanLo + st.meanHi);
-
-            // ── canonicalise a symmetric window's two halves ────────────────
-            // Hann, Tukey, Gaussian and Triangular are symmetric AS FUNCTIONS,
-            // but their TABLES are not symmetric to the last bit: w[i] and
-            // w[size-1-i] come from std::cos/std::exp evaluated at different
-            // arguments, so the two halves' summed power can disagree in the
-            // last ulp or two. Left alone that turns the tilt normalisation from
-            // "exactly 1.0f at every tilt" into "1.0f ± 5e-8", which is
-            // inaudible but destroys the ability to ASSERT power invariance as
-            // an exact property — and an invariant that can only be checked to
-            // within a tolerance is one that can rot by a real amount later
-            // without any probe noticing.
-            //
-            // A relative 1e-6 gate separates a float artefact from a genuinely
-            // asymmetric window by an enormous margin: Expo-Decay's two halves
-            // differ by a factor of about 11, i.e. by 1e7 times this threshold.
-            // Mirroring the table itself would be the other fix and is NOT
-            // available: the Hann table must stay bit-identical to the one
-            // v1.0.0 built, or every existing session changes.
-            if (std::abs (st.meanSqLo - st.meanSqHi)
-                  <= 1.0e-6f * juce::jmax (st.meanSqLo, st.meanSqHi))
-                st.meanSqLo = st.meanSqHi = st.meanSq;
-
-            if (std::abs (st.meanLo - st.meanHi)
-                  <= 1.0e-6f * juce::jmax (st.meanLo, st.meanHi))
-                st.meanLo = st.meanHi = st.mean;
-        }
+            stats[(size_t) s] = integrateHalves (tables[(size_t) s].data());
 
         // Hann is the reference: its own norm is a value divided by itself, so
         // sqrt() of exactly 1.0f, so exactly 1.0f — the multiply into grainGain

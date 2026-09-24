@@ -195,96 +195,61 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // step resolves each of these exactly). Only the knob's *scale* moved; the
     // presets did not. Old -> new: 60->53.3, 55->47.5, 70->65, 30->18.3,
     // 90->88.3, 65->59.2, 80->76.7.
+    //
+    // ── v1.12.4: the no-op tail is written ONCE ─────────────────────────────
+    // Every key added since v1.1.0 is pinned to its no-op in every preset, so
+    // the pins live in kShippedNoOpTail below rather than as eight copies. The
+    // rows keep only the ten v1.0 keys that genuinely differ per preset. The
+    // tail is merged with map::insert, which never overwrites — so a FUTURE
+    // preset that deliberately authors one of these keys writes it in its own
+    // row and wins. Every value above still applies; it is simply stated once.
+    const std::map<juce::String, float> kShippedNoOpTail = {
+        {"jitter", 0.0f}, {"delayScatter", 0.0f},
+        {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
+        {"grainTilt", 0.5f}, {"grainShape", 0.0f},     // tilt: 0.5, NOT 0
+        {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},    // v1.2.0's ceiling; taper no-op 0.5
+        {"freeze", 0.0f}, {"direction", 0.0f},
+        {"regenMakeup", 0.0f},
+        {"sourceMode", 0.0f}, {"duck", 0.0f},
+        {"driftRate", 0.30f}, {"driftDepth", 0.0f},    // rate: the DEFAULT, not 0
+        {"diffusion", 0.0f}, {"drive", 0.0f}};
+
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
         { "Reverse Bloom",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  500.0f},
            {"grainSize", 200.0f}, {"density", 53.3f}, {"feedback",  40.0f},
            {"lowCut",    100.0f}, {"highCut", 8000.0f},
-           {"width",      60.0f}, {"mix",       40.0f},
-           {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
-           {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f},
-           {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
-           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
+           {"width",      60.0f}, {"mix",       40.0f}}, {} },
 
         { "Guitar Swell",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  700.0f},
            {"grainSize", 300.0f}, {"density", 47.5f}, {"feedback",  45.0f},
            {"lowCut",    120.0f}, {"highCut", 6500.0f},
-           {"width",      55.0f}, {"mix",       55.0f},
-           {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
-           {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f},
-           {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
-           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
+           {"width",      55.0f}, {"mix",       55.0f}}, {} },
 
         { "Vocal Halo",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  380.0f},
            {"grainSize", 180.0f}, {"density", 65.0f}, {"feedback",  30.0f},
            {"lowCut",    300.0f}, {"highCut", 7000.0f},
-           {"width",      70.0f}, {"mix",       25.0f},
-           {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
-           {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f},
-           {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
-           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
+           {"width",      70.0f}, {"mix",       25.0f}}, {} },
 
         { "Slow Wash",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f},
            {"grainSize", 450.0f}, {"density", 18.3f}, {"feedback",  65.0f},
            {"lowCut",     80.0f}, {"highCut", 5000.0f},
-           {"width",      85.0f}, {"mix",       50.0f},
-           {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
-           {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f},
-           {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
-           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
+           {"width",      85.0f}, {"mix",       50.0f}}, {} },
 
         { "Tight Smear",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  180.0f},
            {"grainSize",  70.0f}, {"density", 88.3f}, {"feedback",  35.0f},
            {"lowCut",    150.0f}, {"highCut", 11000.0f},
-           {"width",      35.0f}, {"mix",       45.0f},
-           {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
-           {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f},
-           {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
-           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
+           {"width",      35.0f}, {"mix",       45.0f}}, {} },
 
         { "Dark Cavern",
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  850.0f},
            {"grainSize", 320.0f}, {"density", 59.2f}, {"feedback",  70.0f},
            {"lowCut",    220.0f}, {"highCut", 1800.0f},
-           {"width",      75.0f}, {"mix",       55.0f},
-           {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
-           {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f},
-           {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
-           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
+           {"width",      75.0f}, {"mix",       55.0f}}, {} },
 
         // feedback = 100 %: doubles as the preset-driven DSP-03 stability
         // statement (probe N renders this one for 30 s, not 10). Its density is
@@ -294,31 +259,13 @@ ReverseDelayProcessor::ReverseDelayProcessor()
           {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  900.0f},
            {"grainSize", 350.0f}, {"density", 65.0f}, {"feedback", 100.0f},
            {"lowCut",    180.0f}, {"highCut", 2500.0f},
-           {"width",      80.0f}, {"mix",       50.0f},
-           {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
-           {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f},
-           {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
-           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
+           {"width",      80.0f}, {"mix",       50.0f}}, {} },
 
         { "Rhythmic Reverse",
           {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime",  500.0f},
            {"grainSize", 120.0f}, {"density", 76.7f}, {"feedback",  50.0f},
            {"lowCut",    140.0f}, {"highCut", 9000.0f},
-           {"width",      50.0f}, {"mix",       45.0f},
-           {"jitter", 0.0f}, {"delayScatter", 0.0f},
-           {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-           {"grainTilt", 0.5f}, {"grainShape", 0.0f},
-           {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},
-           {"freeze", 0.0f}, {"direction", 0.0f},
-           {"regenMakeup", 0.0f},
-           {"sourceMode", 0.0f}, {"duck", 0.0f},
-           {"driftRate", 0.30f}, {"driftDepth", 0.0f},
-           {"diffusion", 0.0f}, {"drive", 0.0f}}, {} },
+           {"width",      50.0f}, {"mix",       45.0f}}, {} },
     };
 
     // C1: engineering units → normalised, through each param's own range. Handles
@@ -326,6 +273,9 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // 0…n-1 step 1, so convertTo0to1(6.0f) on the 13-entry division list = 0.5).
     // initializeFactoryPresets stores the normalised value verbatim;
     // applyPresetJson feeds it back through convertFrom0to1 on load.
+    for (auto& preset : factoryPresets)
+        preset.parameters.insert(kShippedNoOpTail.begin(), kShippedNoOpTail.end());
+
     for (auto& preset : factoryPresets)
         for (auto& [id, value] : preset.parameters)
             if (auto* p = parameters.getParameter(id))
@@ -540,16 +490,12 @@ void ReverseDelayProcessor::reset()
     // drop that happened in the pass before.
     publishedActiveGrains.store(0, std::memory_order_relaxed);
 
-    hpL.reset(); hpR.reset();
-    lpL.reset(); lpR.reset();
-
     // v1.8.0 (B4 #7): the diffusion chain holds up to ~48 ms of the previous
     // pass's tail, so it belongs with the filter memory in reason C above — a
     // host reset that dropped the ring and the filters but left the allpasses
-    // loaded would splice the old tail's smear into the new pass. reset() only
-    // zeroes state; the buffers keep their prepareToPlay sizing.
-    for (auto& ap : apL) ap.reset();
-    for (auto& ap : apR) ap.reset();
+    // loaded would splice the old tail's smear into the new pass. Allpass
+    // reset() only zeroes state; the buffers keep their prepareToPlay sizing.
+    resetLoopState();
 
     // v1.7.2 (WR-03): the coefficient grid restarts with the filter state, so a
     // host reset does not leave a partial countdown straddling the boundary.
@@ -638,15 +584,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
         juce::ParameterID { "syncMode", 1 }, "Sync Mode",
         juce::StringArray { "Free", "Sync" }, 1));
 
-    // noteDivision: 13 entries, contract order, default index 6 (1/4)
+    // noteDivision: the kNoteDivisions table, contract order, default 1/4.
+    juce::StringArray divisionNames;
+    for (const auto& d : kNoteDivisions)
+        divisionNames.add (d.name);
+
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "noteDivision", 1 }, "Note Division",
-        juce::StringArray { "1/16", "1/16D", "1/16T",
-                            "1/8",  "1/8D",  "1/8T",
-                            "1/4",  "1/4D",  "1/4T",
-                            "1/2",  "1/2D",  "1/2T",
-                            "1/1" },
-        6));
+        divisionNames, kDefaultNoteDivision));
 
     // grainSize: 50–4000 ms, default 200, skew centred on 316 ms (v1.5.0).
     //
@@ -1172,21 +1117,33 @@ void ReverseDelayProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     // v1.8.0 (B4 #7) — the diffusion chain. Lengths are re-derived from ms here
     // rather than kept as samples across a rate change, so 4.7 ms stays 4.7 ms
     // at 192 kHz instead of becoming 1.2. This is the ONLY place the allpass
-    // buffers are sized; process() clamps its index into the allocated size, so
-    // even a length/rate mismatch cannot walk off the end.
+    // buffers are sized, and the buffer length IS the section's delay, so a
+    // length/rate mismatch has nowhere to exist.
     for (size_t i = 0; i < kDiffusionAllpassMs.size(); ++i)
     {
-        apDelaySamples[i] = juce::jmax (1, juce::roundToInt (kDiffusionAllpassMs[i]
-                                                               * 0.001f * fsF));
-        apL[i].prepare (apDelaySamples[i]);
-        apR[i].prepare (apDelaySamples[i]);
+        const int n = juce::jmax (1, juce::roundToInt (kDiffusionAllpassMs[i] * 0.001f * fsF));
+        apL[i].prepare (n);
+        apR[i].prepare (n);
     }
+}
+
+// The loop's recirculating filter memory: damping HP/LP and the diffusion
+// chain. Shared by reset() and the non-finite guard so neither can drift into
+// clearing only half of it. State only — coefficients are left alone
+// (pattern_biquad_nan_guard_sticky_silence).
+void ReverseDelayProcessor::resetLoopState() noexcept
+{
+    hpL.reset(); hpR.reset();
+    lpL.reset(); lpR.reset();
+    for (auto& ap : apL) ap.reset();
+    for (auto& ap : apR) ap.reset();
 }
 
 void ReverseDelayProcessor::releaseResources()
 {
-    // Buffers are modest (capture ring ~3.5 s stereo); keep them allocated so a
-    // transport stop/start cycle never reallocates. Nothing to do here.
+    // Buffers are modest (capture ring kCaptureSeconds = 14 s stereo, ~5.4 MB at
+    // 48 kHz); keep them allocated so a transport stop/start cycle never
+    // reallocates. Nothing to do here.
 }
 
 bool ReverseDelayProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -1425,19 +1382,9 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             {
                 if (const auto bpm = position->getBpm())
                 {
-                    // noteDivision -> beats, contract order:
-                    // 1/16, 1/16D, 1/16T, 1/8, 1/8D, 1/8T, 1/4, 1/4D, 1/4T,
-                    // 1/2, 1/2D, 1/2T, 1/1
-                    static constexpr double kDivisionBeats[13] = {
-                        0.25, 0.375, 1.0 / 6.0,
-                        0.5,  0.75,  1.0 / 3.0,
-                        1.0,  1.5,   2.0 / 3.0,
-                        2.0,  3.0,   4.0 / 3.0,
-                        4.0
-                    };
-
-                    const int div = juce::jlimit(0, 12, static_cast<int>(pNoteDivision->load()));
-                    const double ms = kDivisionBeats[div] * 60000.0 / juce::jmax(1.0, *bpm);
+                    const int div = juce::jlimit(0, kNumNoteDivisions - 1,
+                                                 static_cast<int>(pNoteDivision->load()));
+                    const double ms = kNoteDivisions[div].beats * 60000.0 / juce::jmax(1.0, *bpm);
                     // A1: clamp tracks the delayTime range. It MUST stay in sync
                     // with kDelayTimeMaxMs — a stale literal here is exactly the
                     // v1.0.0 defect (division named but not played, silently).
@@ -2218,8 +2165,8 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                         float dl = l, dr = r;
                         for (size_t s = 0; s < apL.size(); ++s)
                         {
-                            dl = apL[s].process (dl, apDelaySamples[s]);
-                            dr = apR[s].process (dr, apDelaySamples[s]);
+                            dl = apL[s].process (dl);
+                            dr = apR[s].process (dr);
                         }
 
                         l += diffuseMix * (dl - l);
@@ -2256,10 +2203,7 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // like it worked while the chain kept re-poisoning the loop.
             if (! std::isfinite(acc))
             {
-                hpL.reset(); hpR.reset();
-                lpL.reset(); lpR.reset();
-                for (auto& ap : apL) ap.reset();
-                for (auto& ap : apR) ap.reset();
+                resetLoopState();
                 juce::FloatVectorOperations::clear(fbLw + off, len);
                 juce::FloatVectorOperations::clear(fbRw + off, len);
             }

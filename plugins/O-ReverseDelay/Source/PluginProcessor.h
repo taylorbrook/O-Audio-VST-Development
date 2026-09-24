@@ -25,6 +25,7 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <iterator>
 #include <vector>
 
 // Set to 1 ONLY by tests/render-harness/CMakeLists.txt. Under the harness the
@@ -93,7 +94,7 @@ public:
     juce::AudioProcessorValueTreeState parameters;
 
     //==========================================================================
-    /** v1.9.0 — the hover-help language. 0 = en, 1 = fr.
+    /** v1.9.0 — the hover-help language. 0 = en, 1 = fr, 2 = zh-Hans (v1.12.0).
 
         An INDEX rather than a string because std::atomic<juce::String> does not
         compile — juce::String is not trivially copyable — so the audio-safe
@@ -218,6 +219,26 @@ public:
         preset written against this max recalls a different number of ms once the
         max moves — see migrateUserPresets(). */
     static constexpr float kLegacyDelayTimeMaxMs   = 2000.0f;
+
+    //==========================================================================
+    // noteDivision (v1.12.4, audit HIGH-03): ONE table. A division's display
+    // name and its length in beats are the same fact; kept in two lists 800
+    // lines apart, a reorder or insert could land in one and not the other, and
+    // the UI would name a division the engine is not playing — the v1.0.0 A1
+    // symptom. createParameterLayout() builds the choice list from `name`, the
+    // tempo-sync path reads `beats`, and the index clamp reads the length.
+    // Contract order: index = saved parameter value, so NEVER reorder — only
+    // append. Default is index 6 (1/4).
+    struct NoteDivision { const char* name; double beats; };
+    static constexpr NoteDivision kNoteDivisions[] = {
+        { "1/16", 0.25 }, { "1/16D", 0.375 }, { "1/16T", 1.0 / 6.0 },
+        { "1/8",  0.5  }, { "1/8D",  0.75  }, { "1/8T",  1.0 / 3.0 },
+        { "1/4",  1.0  }, { "1/4D",  1.5   }, { "1/4T",  2.0 / 3.0 },
+        { "1/2",  2.0  }, { "1/2D",  3.0   }, { "1/2T",  4.0 / 3.0 },
+        { "1/1",  4.0  },
+    };
+    static constexpr int kNumNoteDivisions = static_cast<int> (std::size (kNoteDivisions));
+    static constexpr int kDefaultNoteDivision = 6;   // 1/4
 
     //==========================================================================
     // grainSize range + v1.1.0 randomisation constants.
@@ -754,24 +775,17 @@ public:
             idx = 0;
         }
 
-        /** `n` is the section's delay in samples, clamped to the allocated size
-            so a sample-rate change can never index past the buffer. */
-        float process (float x, int n) noexcept
+        /** The section's delay IS the buffer length, set by prepare(): the slot
+            about to be overwritten holds the sample written exactly size() ago,
+            so it is read and then written in place. */
+        float process (float x) noexcept
         {
-            const int size = static_cast<int> (buf.size());
-            const int d    = juce::jlimit (1, size, n);
-
-            // Read n back from the write position, wrapping.
-            int readIdx = idx - d;
-            if (readIdx < 0)
-                readIdx += size;
-
-            const float delayed = buf[static_cast<size_t> (readIdx)];
+            const float delayed = buf[static_cast<size_t> (idx)];
             const float y       = -kDiffusionCoeff * x + delayed;
 
             buf[static_cast<size_t> (idx)] = x + kDiffusionCoeff * y;
 
-            if (++idx >= size)
+            if (++idx >= static_cast<int> (buf.size()))
                 idx = 0;
 
             return y;
@@ -869,6 +883,10 @@ private:
         by a version sentinel exactly like initializeFactoryPresets(). */
     void migrateUserPresets();
 
+    /** Zero the feedback loop's filter memory (damping HP/LP + diffusion
+        chain). Used by reset() and processBlock's non-finite guard. */
+    void resetLoopState() noexcept;
+
     // MUST be declared after `parameters` — it binds a reference at construction,
     // and members initialise in declaration order regardless of access specifier.
     // Name is hardcoded (no OUARICON_DEV_SUFFIX) so dev and release builds share
@@ -877,7 +895,7 @@ private:
 
     //==========================================================================
     // DSP components (Stage 2). All allocation confined to prepareToPlay().
-    CaptureBuffer  capture;             // 5.5 s stereo ring, input + feedback return
+    CaptureBuffer  capture;             // kCaptureSeconds (14 s) stereo ring, input + feedback return
 
     // v1.2.0 (B1): five shapes + per-shape power-normalisation constants, all
     // built in this member's CONSTRUCTOR — i.e. before prepareToPlay, never on
@@ -903,7 +921,6 @@ private:
         kDiffusionAllpassMs, so a sample-rate change re-derives them rather than
         keeping a length that means a different time. */
     std::array<Allpass, 4> apL, apR;
-    std::array<int, 4>     apDelaySamples { 1, 1, 1, 1 };
 
     // In-loop damping filters (2nd-order Butterworth): lowCut = HP, highCut = LP.
     // Coefficient updates use ArrayCoefficients assigned IN PLACE into the
