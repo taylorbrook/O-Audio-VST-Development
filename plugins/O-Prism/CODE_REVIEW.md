@@ -13,7 +13,10 @@ findings:
 status: issues_found
 verified: 2026-09-23T00:00:00Z
 verified_resolution: 1.26.1 (CR-03, WR-03, WR-07, WR-09 + the startNote pitch-wheel seed);
-  1.27.0 (CR-01, CR-02)
+  1.27.0 (CR-01, CR-02);
+  1.27.1 (no finding — retraction of the v1.27.0 "FX mod NaN" note + the
+  advanceGlobalLfoPhases finite guard and both harness rate declarations)
+  1.27.2 (WR-01)
 supersedes: .planning/CODE-REVIEW.md (v1.18.1, all 47 findings resolved)
 ---
 
@@ -26,6 +29,7 @@ supersedes: .planning/CODE-REVIEW.md (v1.18.1, all 47 findings resolved)
 > | CR-01 | ✅ Resolved in **v1.27.0** | All seven mutating `WavetableEditor` ops write into a PRIVATE shadow buffer (`acquireShadow()`), never the published one. A publish is a swap: `commitPendingEdits()` makes the shadow live and hands back the buffer it displaced, which the processor holds in a single `coolingEditBuffer` slot until the audio thread cannot reach it, then returns as the next shadow. The new pointer is stored **before** the old buffer starts cooling — the `+2` rule only makes it safe once a block has started (repointing voices) and finished. Mutations route through the new `editWavetable()` wrapper so a call site cannot publish without cycling the buffer it replaced. |
 > | CR-02 | ✅ Resolved in **v1.27.0** | 13 stores → `memory_order_release`, 3 loads → `memory_order_acquire` (the 11 + 3 cited, plus the 2 new stores in `publishEditedWorkingTable`). The invariant is documented at the `userTablePtrA/B` declaration in `PluginProcessor.h`. Static-only verdict: a memory-ordering edge has no single-threaded observable and the arm64 store-buffer window it closes does not reproduce on demand. |
 > | CR-03 | ✅ Resolved in **v1.26.1** | `PrismVoice::releaseNotePitchBend()` at both note-end points + `clearAllPitchBends()` on All Notes Off / All Sound Off. Deliberately *not* placed in `stopNote`'s tail-off branch as prescribed: `Synthesiser::noteOn` tail-offs the old voice of a re-struck note **before** the new voice runs `startNote`, so clearing at note-off would strip a live bend from the re-strike. Guarded on `isNoteHeld()` for the same collision. The `isNoteHeld()` skip strands the entry of a **held** note whose voice is stolen; `startNote` now seeds the entry from `currentPitchWheelPosition`, so the stranded value is overwritten at the next strike and the residual is unobservable. |
+> | WR-01 | ✅ Resolved in **v1.27.2** | `PrismSynthesiser`, a `juce::Synthesiser` subclass, overrides `renderVoices` and advances the global phase by *that sub-block's* length right after the voices seed from it; `processBlock` no longer advances. Sub-block lengths sum to the block length, so the end-of-block phase `fxLfo[]` reads is unchanged to the last bit. Coupling now recorded at the declaration: `juce::Synthesiser` skips `renderVoices` entirely on a zero-channel output, so the advance goes with it — the WR-09 early return keeps the two in agreement, but they must change together. |
 > | WR-03 | ✅ Resolved in **v1.26.1** | `clearUserWavetableOverride(0/1)` unconditionally, ahead of the `userWtState` block (so legacy states with no child are covered too). |
 > | WR-07 | ✅ Resolved in **v1.26.1** | Dead-band guard removed; all four `setRate` calls unconditional. |
 > | WR-09 | ✅ Resolved in **v1.26.1** | Early return in `processBlock` on `getNumChannels() == 0`, still publishing `blockGeneration`. Covers `PrismVoice.cpp` `getWritePointer(0)` via the same chokepoint. |
@@ -82,7 +86,45 @@ supersedes: .planning/CODE-REVIEW.md (v1.18.1, all 47 findings resolved)
 > return nothing. `bend-state-check` 14/14 and `geometry-check` 0-failed still green;
 > `auval -v aumu OuPr OuDv` and pluginval strictness 10 both SUCCEED on the installed
 > 1.27.0 bundles.
+>
+> **v1.27.1 — the "FX mod NaN" that came out of that round was NOT a finding.**
+> It never entered this report, and it should not be re-opened as one. The v1.27.0
+> CHANGELOG recorded five processor-level mod destinations rendering NaN and blamed
+> `juce::jlimit`; both halves were wrong. `getSampleRate()` is set by
+> `setPlayConfigDetails`, not `prepareToPlay`, and `edit_rotation_check` and
+> `wavetable_cow_check` called only the latter — so they rendered at rate 0, where
+> `rateHz / 0` is inf and `phase -= std::floor (phase)` makes that a sticky NaN in
+> `advanceGlobalLfoPhases`. Those five destinations are simply the ones fed from
+> `fxModMatrix`, whose LFO sources are the poisoned global phases; the other twenty
+> are voice-level. No host reaches it. Fixed anyway in v1.27.1 (a finite guard, since
+> the NaN was unrecoverable once produced) together with both harnesses, and gated by
+> `tests/fx_mod_nan_check.cpp` (`O-Prism-fx-mod-nan-check`), 159/159, whose negative
+> control is built in: 9/159 fail on the pre-fix guard with no file revert.
 
+
+> **`/improve-review` 2026-09-24 (v1.27.2) — WR-01 CLOSED.** Verified still present at
+> the cited `Source/PrismVoice.cpp:452-464` / `Source/PluginProcessor.cpp:796` before
+> editing. Gated by `tests/lfo_subblock_check.cpp` (new, `O-Prism-lfo-subblock-check`),
+> 21/21. The observable is that MIDI carrying no modulation must not change the sound:
+> CC#20 is untouched by `processBlock`'s MIDI scan and by the empty
+> `PrismVoice::controllerMoved`, so all it does is force a sub-block boundary. 15 CC per
+> block 32 samples apart (16 sub-blocks) and 3 per block (4 sub-blocks) now render
+> **bit-identically** to the undivided block, for LFO1 → Pitch and LFO1 → FiltA Cutoff —
+> Pitch integrates the LFO error and the filter does not, so neither one's sensitivity is
+> carrying the result. Determinism is constructed rather than assumed around still-open
+> WR-06: Sine shape (not S&H), noise and sub at their 0.0 defaults, and osc A/B Phase
+> above zero so `startNote` takes `resetWithPhase` instead of `resetWithRandomPhases`.
+> [A0] asserts two instances render bit-identically before anything else, so a later
+> equality cannot pass for the wrong reason. Negative control (restore the single
+> `processBlock` advance, delete the override): **4/21 fail, exactly the four [A]
+> assertions** — 0.359 and 0.345 max |diff| on Pitch, 0.251 and 0.067 on FiltA Cut —
+> while [A0], [B] non-vacuity, [C] traversal, [D] the free-run-off control and [E] the
+> end-of-block phase all stay green. [C] and [E] pass pre-fix *because* the global phase
+> itself was never wrong: it always advanced by the full block length, and the damage was
+> only in what the voices sampled on the way through. Regression: `fx-mod-nan-check`
+> 159/159, `edit-rotation-check` 28/28, `wavetable-cow-check` 41/41, `bend-state-check`
+> 15/15, `geometry-check` PASS. `auval -v aumu OuPr OuDv` and pluginval strictness 10
+> both SUCCEED on the installed 1.27.2 bundles.
 
 **Reviewed:** 2026-09-22 (v1.26.0, 📦 Installed)
 **Scope:** everything that landed since the last review closed at v1.19.1 — v1.19.2
@@ -212,6 +254,7 @@ tail-off and immediate branches), and `clearAllPitchBends()` in the
 ## Warning
 
 ### WR-01: Free-running LFOs replay the same phase in every MIDI sub-block
+**✅ Resolved in v1.27.2** — see the resolution log at the top.
 **Files:** `Source/PrismVoice.cpp:452-464`, `Source/PluginProcessor.cpp:796`
 
 `juce::Synthesiser::renderNextBlock` splits the buffer at MIDI events whenever the gap is
@@ -495,6 +538,6 @@ Re-checked against known suite-wide patterns and found correct in v1.26.0:
 | Batch | Findings | Rationale |
 |-------|----------|-----------|
 | **v1.26.1 (PATCH)** | CR-03, WR-03, WR-07, WR-09 | Contained, user-visible correctness. CR-03 is the one a player will actually hit. |
-| **v1.27.0 (MINOR)** | ✅ CR-01, ✅ CR-02 — WR-01 still open | Thread-safety work on the wavetable publish path + the sub-block LFO. Touches real structure; wants its own version. |
+| **v1.27.0 (MINOR)** | ✅ CR-01, ✅ CR-02 — ✅ WR-01 in v1.27.2 | Thread-safety work on the wavetable publish path + the sub-block LFO. Touches real structure; wants its own version. |
 | **v1.27.x** | WR-02, WR-04, WR-05, WR-06, WR-08, IN-09 | DSP quality and determinism. WR-06 unblocks a byte-stable render gate, so it is worth doing before the rest so the others can be regression-tested against goldens. |
 | **Cleanup sweep** | IN-01..IN-08, IN-10 | ~200 LOC removed, no behaviour change. `/simplify` territory. |

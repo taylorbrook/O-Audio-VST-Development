@@ -1,5 +1,209 @@
 # O-Prism Changelog
 
+## [1.27.2] - 2026-09-24
+
+**WR-01: free-running LFOs replayed the same phase in every MIDI sub-block.**
+Under continuous controller traffic — aftertouch, CC1, or any CC at all — a
+free-running LFO advanced a fraction of the distance it should and audibly
+stuttered. Tempo-synced and per-note LFOs were never affected.
+
+PATCH: no parameter ID, range, type or state-format change, no preset
+migration, and no change to any rendered value in the absence of dense MIDI.
+
+### Root cause
+
+`juce::Synthesiser::renderNextBlock` splits the buffer at MIDI events whenever
+the gap is at least `minimumSubBlockSize` (default 32; O-Prism never calls
+`setMinimumRenderingSubdivisionSize`), and calls `renderVoices` — hence
+`PrismVoice::renderNextBlock` — once per sub-block. The voice seeds
+`lfoN.setPhase (processor->getGlobalLfoPhase (n))` at the top of **every** one
+of those calls.
+
+`advanceGlobalLfoPhases` ran once per `processBlock`, *after*
+`renderNextBlock` returned. So with k sub-blocks the free-running LFO was
+rewound to the same start phase k times and only ever advanced through the
+last sub-block's worth of samples. At ~30 events per block it covered roughly
+1/30th of the ground it should.
+
+The global phase itself was never wrong — it advanced by the full block length
+exactly as intended, which is why `fxLfo[]` and anything reading
+`getGlobalLfoPhase()` after the block looked correct. The damage was entirely
+in what the *voices* sampled on the way through.
+
+### The fix
+
+`PrismSynthesiser`, a `juce::Synthesiser` subclass, overrides `renderVoices`
+and advances the global phase by **that sub-block's** length, immediately after
+the voices have seeded from it. `processBlock` no longer advances at all.
+
+The sub-block lengths sum to the block length, so this redistributes the
+advance rather than adding to it: the end-of-block phase is unchanged to the
+last bit, which is what lets `fxLfo[]` keep reading `globalLfoPhase` after
+`renderNextBlock` exactly as before. Measured identical at 0.768000000000 in
+both the undivided and the 16-sub-block case.
+
+Two coupling notes, both recorded at the declaration:
+
+- `juce::Synthesiser` skips `renderVoices` entirely when the output has no
+  channels, so the advance would be skipped with it. `processBlock` returns on
+  a zero-channel block before it ever reaches the synthesiser (WR-09), so the
+  two agree today — but they now have to be changed together.
+- `globalLfoPhase` is no longer merely a block-boundary value. It is the
+  free-run phase at the current render position, everywhere.
+
+### Testing
+
+New gate `O-Prism-lfo-subblock-check`, **21/21**. The observable is that MIDI
+carrying no modulation must not change the sound: CC#20 is inert on both paths
+(`processBlock`'s scan reads only note on/off, All Notes/Sound Off, CC#1 and
+channel pressure; `PrismVoice::controllerMoved` is empty), so all it does is
+force a sub-block boundary.
+
+- **[A0]** baseline reproducibility — two instances render bit-identically
+  (max |diff| 0.0). WR-06's clock- and address-seeded RNGs are kept out of the
+  path by construction rather than by hoping: Sine shape (not S&H), noise and
+  sub at their 0.0 defaults, and osc A/B Phase set above zero so `startNote`
+  takes the `resetWithPhase` branch instead of `resetWithRandomPhases`.
+- **[A]** the finding: 15 CC#20 per block 32 samples apart (16 sub-blocks) and
+  3 per block (4 sub-blocks) each render bit-identically to the undivided
+  block, for LFO1 → Pitch and LFO1 → FiltA Cutoff. Pitch integrates the LFO
+  error and the filter does not, so a pass on both rules out either one's
+  sensitivity carrying the result.
+- **[B]** non-vacuity: at amount 1 the route moves the audio by 0.348 (Pitch)
+  and 0.337 (FiltA Cut) against amount 0 — [A] is not comparing two dead
+  renders.
+- **[C]** traversal: the window is 0.768 of a cycle by construction, so the
+  comparison cannot alias back onto its own start, and the global phase lands
+  on the analytic `rate × samples / sampleRate` to 1e-9.
+- **[D]** the control that proves the CC events are inert: with free-run
+  **off**, a per-note LFO never reads the global phase, so density must not
+  matter either before or after the fix — and it does not (max |diff| 0.0).
+  Without this, [A]'s pre-fix failure could have been the CC traffic itself.
+- **[E]** the end-of-block phase is unchanged by the redistribution, at both
+  densities, to 0.0.
+
+Negative control — restore the single `processBlock` advance and delete the
+`PrismSynthesiser` override: **4 of 21 fail, and they are exactly the four [A]
+assertions** (max |diff| 0.359 and 0.345 on Pitch, 0.251 and 0.067 on FiltA
+Cut). [A0], [B], [C], [D] and [E] all stay green — including [C] and [E],
+because the *global* phase was already correct pre-fix. The gate isolates what
+the voices see and nothing else.
+
+Regression: `fx-mod-nan-check` 159/159, `edit-rotation-check` 28/28,
+`wavetable-cow-check` 41/41, `bend-state-check` 15/15, `geometry-check` PASS
+(0 failed). `auval -v aumu OuPr OuDv` and pluginval strictness 10 both SUCCEED
+on the installed bundles.
+
+### Still open
+
+Unchanged from v1.27.1 apart from WR-01 closing: the DSP-quality tier (WR-02,
+WR-04, WR-05, WR-06, WR-08, IN-09) and the IN-* cleanup sweep.
+
+## [1.27.1] - 2026-09-23
+
+**Retraction and guard: the v1.27.0 "FX mod NaN" was a test-harness artifact.**
+The v1.27.0 entry left an open finding — routing any source to `Reverb Mix`,
+`Delay Mix`, `Chorus Mix`, `Dist Mix` or `Master Vol` rendered NaN on the first
+block — and blamed `juce::jlimit` for passing a NaN offset through. Measuring
+it properly showed both halves of that to be wrong. **No released build was
+ever affected and no DAW can reach the failure**, but two real defects sat
+underneath it, and both are fixed here.
+
+PATCH: no parameter ID, range, type or state-format change, no preset
+migration, and no change to any value a conforming host ever computes.
+
+### Root cause
+
+`AudioProcessor::getSampleRate()` is set by `setPlayConfigDetails`, **not** by
+`prepareToPlay`. It is read in exactly **one** place in the entire plugin —
+`processBlock`, line 829, feeding `advanceGlobalLfoPhases`. Two of O-Prism's
+four console gates (`edit_rotation_check`, `wavetable_cow_check`) called only
+`prepareToPlay`, so every block they rendered ran with `getSampleRate() == 0`.
+
+`rateHz / 0.0` is infinity, and the wrap on the next line —
+`phase -= std::floor (phase)` — turns that into a **NaN**, because
+`inf - floor(inf)` is NaN. It is then permanent: every later block does
+`phase += increment` onto a NaN.
+
+`globalLfoPhase` feeds `fxLfo[]`, whose output is the LFO1–4 source of the
+**processor-level** matrix, and those five destinations are precisely the ones
+consumed from `fxModMatrix` in `processBlock`. The other twenty are voice-level
+— read from the voice's own matrix, driven by the voice's own LFOs, which are
+prepared from `prepareToPlay`'s *argument* and so never saw a zero rate. That
+is the whole of "only these five". `jlimit` was a bystander: it never had a
+finite value to clamp, and clamping it would have masked the cause.
+
+Measured, with the host contract honoured (`setPlayConfigDetails` first): all
+25 destinations render finite and audible, all 10 sources into all 5
+processor-level destinations render finite, and all 18 tempo-sync divisions
+render finite. Every JUCE wrapper publishes the rate before the first block, so
+the configuration that failed is one no host produces.
+
+### Fixed
+
+- **`advanceGlobalLfoPhases` can no longer manufacture a permanent NaN.** A
+  non-positive or non-finite sample rate, a zero block, or a non-finite
+  increment now skip the advance instead of poisoning the phase, and a phase
+  that is *already* non-finite restarts at 0 rather than staying poisoned. Cost
+  is one compare per block. The reason this is worth fixing even though no host
+  reaches it is the failure mode, not the likelihood: the NaN is unrecoverable.
+  `prepareToPlay` refills `globalLfoPhase` with 0, so the phases *look* clean
+  after a re-prepare while the output does not — by then the NaN has reached
+  `masterVolSmoothed` and the effect tails, and neither is cleared there. One
+  bad block silenced the instrument for the life of the instance. Same family
+  as the SVF's `flushIfNonFinite`.
+
+- **Two gates rendered audio in a state no host produces.**
+  `edit_rotation_check` (three instances) and `wavetable_cow_check` now call
+  `setPlayConfigDetails (0, 2, kSampleRate, kBlockSize)` before
+  `prepareToPlay`, as `geometry_check` and `bend_state_check` already did —
+  which is exactly why only the first two ever saw the NaN. Both still pass at
+  a real sample rate: `edit-rotation-check` 28/28, `wavetable-cow-check` 41/41.
+  This omission is what produced the bogus v1.27.0 finding, so it is fixed at
+  the harness rather than papered over in the plugin.
+
+- **The v1.27.0 "Still open" note is retracted in place** rather than deleted,
+  with a pointer here. It asserted a user-reachable NaN and a wrong mechanism;
+  leaving it standing would have sent the next reader after `jlimit`.
+
+### Testing
+
+New gate `O-Prism-fx-mod-nan-check`, **159/159**:
+
+- **[A]** all 25 destinations, source LFO1 at full amount — finite, still
+  audible, global LFO phases still finite.
+- **[B]** all 10 sources into each of the 5 processor-level destinations — 50
+  combinations, finite. [A] fixes the source and sweeps destinations; [B] fixes
+  the destination and sweeps sources, so neither axis is assumed.
+- **[C]** the negative control, built in: an instance that never declares its
+  rate must still render finite. This fails on pre-fix code **without reverting
+  a file** — it is the guard's own contract, not an experiment someone has to
+  remember to run.
+- **[D1]** the rate published late with nothing else re-initialised: phases
+  must become finite *and advance*. **[D2]** the same with a full re-prepare,
+  which is what shows the poison outliving the phases themselves.
+- **[E]** all 18 tempo-sync divisions finite — the sync arm has its own
+  division, `1/(beats*60/bpm)`.
+- **[F]** non-vacuity: each of the five routes must actually change the
+  rendered level (54.1%, 53.6%, 16.8%, 2.8%, 18.9%). Without this, [A] and [B]
+  would pass just as happily on a build where `fxModMatrix` was dead and every
+  offset was a hard zero — the one other way to make a NaN go away.
+
+Negative control, by reverting `advanceGlobalLfoPhases` to the v1.27.0 form:
+**9 of 159 fail**, and they are exactly [C] and [D] — [A], [B], [E] and [F]
+still pass, because they run under the host contract where the pre-fix code was
+already correct. The gate isolates the guard and nothing else.
+
+Regression: `edit-rotation-check` 28/28, `wavetable-cow-check` 41/41,
+`bend-state-check` 15/15, `geometry-check` PASS (0 failed). `auval -v aumu OuPr
+OuDv` and pluginval strictness 10 both SUCCEED on the installed bundles.
+
+### Still open
+
+Unchanged from v1.27.0: WR-01 (free-run LFOs replay the same phase in every
+MIDI sub-block), the DSP-quality tier (WR-02, WR-04, WR-05, WR-06, WR-08,
+IN-09) and the IN-* cleanup sweep.
+
 ## [1.27.0] - 2026-09-23
 
 **Code-review batch 2: the wavetable publish path.** Resolves CR-01 and CR-02
@@ -305,21 +509,18 @@ WR-01 (free-run LFOs replay the same phase in every MIDI sub-block), the
 DSP-quality tier (WR-02, WR-04, WR-05, WR-06, WR-08, IN-09) and the IN-*
 cleanup sweep.
 
-**New, unrelated to this batch — processor-level mod destinations render
-non-finite.** Found incidentally while isolating the [E] gate. Routing any
-source to `Reverb Mix`, `Delay Mix`, `Chorus Mix`, `Dist Mix` or `Master Vol`
-at full amount produces NaN in the output on the FIRST block. The other 20
-destinations are finite. All five are consumed in `processBlock` from
-`fxModMatrix` (the processor-level matrix) rather than in the voice, and all
-five sites clamp with `juce::jlimit`, which passes NaN straight through — both
-of its comparisons are false for NaN — so the NaN arrives in the offset itself.
-
-Verified **pre-existing**: the same five destinations fail identically on
-`018ca3ef` (v1.26.0, the last committed release, before any of this round's
-work), on a freshly linked binary. Not caused by CR-01/CR-02 or REG-01..04 —
-`ModulationMatrix::evaluate()`, `getModOffset()` and the `fxModMatrix` source
-feed are all untouched by this batch. Left open deliberately rather than fixed
-here; it wants its own investigation and its own gate.
+~~**New, unrelated to this batch — processor-level mod destinations render
+non-finite.**~~ **RETRACTED in v1.27.1 — this was a harness artifact, not a
+plugin bug, and the diagnosis recorded here was wrong.** The symptom was real
+(those five destinations did render NaN), but it was reachable only from a
+gate that never declared its sample rate, and `juce::jlimit` had nothing to do
+with it. `getSampleRate()` returns 0 unless `setPlayConfigDetails` is called,
+and `processBlock` divides by it in `advanceGlobalLfoPhases`; the resulting
+infinity became a sticky NaN in the phase wrap, poisoning the global LFOs that
+feed those five destinations and only those five. The "pre-existing on
+`018ca3ef`" observation was correct and consistent — the harness omission
+predates that commit too. See the v1.27.1 entry for the measurement, the fix
+and the `O-Prism-fx-mod-nan-check` gate that now covers all 25 destinations.
 
 ## [1.26.1] - 2026-09-23
 

@@ -191,6 +191,12 @@ int main()
         return 1;
     }
 
+    // setPlayConfigDetails BEFORE prepareToPlay, not instead of it: it is what
+    // sets AudioProcessor::getSampleRate(), which prepareToPlay alone leaves
+    // at 0. processBlock divides by that rate in advanceGlobalLfoPhases, so a
+    // gate that skips this renders every block under a configuration no host
+    // ever produces — and this one did, until v1.27.1.
+    prism->setPlayConfigDetails (0, 2, kSampleRate, kBlockSize);
     prism->prepareToPlay (kSampleRate, kBlockSize);
 
     // Park osc A on a multi-frame factory table, same walk as the CR-01 gate:
@@ -461,6 +467,12 @@ int main()
         if (prism == nullptr)
             return failures;
 
+        // setPlayConfigDetails BEFORE prepareToPlay, not instead of it: it is what
+        // sets AudioProcessor::getSampleRate(), which prepareToPlay alone leaves
+        // at 0. processBlock divides by that rate in advanceGlobalLfoPhases, so a
+        // gate that skips this renders every block under a configuration no host
+        // ever produces — and this one did, until v1.27.1.
+        prism->setPlayConfigDetails (0, 2, kSampleRate, kBlockSize);
         prism->prepareToPlay (kSampleRate, kBlockSize);
 
         auto setParam = [&] (const juce::String& id, float scaled)
@@ -572,6 +584,12 @@ int main()
         if (prism == nullptr)
             return failures;
 
+        // setPlayConfigDetails BEFORE prepareToPlay, not instead of it: it is what
+        // sets AudioProcessor::getSampleRate(), which prepareToPlay alone leaves
+        // at 0. processBlock divides by that rate in advanceGlobalLfoPhases, so a
+        // gate that skips this renders every block under a configuration no host
+        // ever produces — and this one did, until v1.27.1.
+        prism->setPlayConfigDetails (0, 2, kSampleRate, kBlockSize);
         prism->prepareToPlay (kSampleRate, kBlockSize);
         prism->startEditing (0);
 

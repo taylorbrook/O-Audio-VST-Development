@@ -40,6 +40,8 @@
 #include "dsp/ModulationMatrix.h"
 #include "dsp/WavetableOscillator.h"
 
+#include <cmath>
+
 // ═══════════════════════════════════════════════════════════════════
 // FX bypass-and-process helper (used by processBlock)
 // ═══════════════════════════════════════════════════════════════════
@@ -649,11 +651,38 @@ OPrismAudioProcessor::~OPrismAudioProcessor()
 // Audio Processing
 // ═══════════════════════════════════════════════════════════════════
 
+void OPrismAudioProcessor::PrismSynthesiser::renderVoices (juce::AudioBuffer<float>& outputAudio,
+                                                            int startSample, int numSamples)
+{
+    juce::Synthesiser::renderVoices (outputAudio, startSample, numSamples);
+
+    // WR-01: the voices above seeded their free-running LFOs from
+    // owner.globalLfoPhase on entry. Advance it now, by THIS sub-block's
+    // length, so the next sub-block seeds from the phase the LFO has actually
+    // reached instead of rewinding to where the block started.
+    owner.advanceGlobalLfoPhases (numSamples, owner.getSampleRate());
+}
+
 void OPrismAudioProcessor::advanceGlobalLfoPhases (int numSamples, double sampleRate)
 {
     // Keep in sync with the rate calculation in PrismVoice::renderNextBlock.
     // Param pointers are cached in the constructor — juce::String construction
     // heap-allocates and must never happen on the audio thread (CR-06).
+
+    // A non-positive or non-finite sample rate makes the increment below
+    // infinite, and the wrap then turns that infinity into a NaN — inf minus
+    // floor(inf) is NaN. That NaN is STICKY: every later block adds to it and
+    // stays NaN, so these phases never recover even after a valid rate
+    // arrives. They feed fxLfo[], whose output is the LFO1-4 source of the
+    // processor-level matrix, so the poison reaches Reverb/Delay/Chorus/Dist
+    // Mix and Master Vol and silences the instrument for the life of the
+    // instance. Every JUCE wrapper publishes the rate before the first block,
+    // so a host never gets here — but the cost of not depending on that is one
+    // compare per call (per MIDI sub-block since WR-01), and the failure it
+    // prevents is unrecoverable.
+    if (numSamples <= 0 || ! (sampleRate > 0.0) || ! std::isfinite (sampleRate))
+        return;
+
     const double bpm = currentBPM.load (std::memory_order_relaxed);
 
     for (int i = 0; i < 4; ++i)
@@ -672,7 +701,23 @@ void OPrismAudioProcessor::advanceGlobalLfoPhases (int numSamples, double sample
         }
 
         double& phase = globalLfoPhase[static_cast<size_t> (i)];
-        phase += (static_cast<double> (rateHz) / sampleRate) * static_cast<double> (numSamples);
+
+        // Recovery, not just prevention: a phase that is already non-finite
+        // (restored state, an earlier block under a bad rate) restarts at 0
+        // rather than staying poisoned forever.
+        if (! std::isfinite (phase))
+            phase = 0.0;
+
+        const double increment = (static_cast<double> (rateHz) / sampleRate)
+                               * static_cast<double> (numSamples);
+
+        // A zero or negative bpm makes `seconds` infinite and rateHz zero,
+        // which is finite and simply freezes a synced LFO. A non-finite bpm
+        // or rate does not: skip the advance and leave the phase where it is.
+        if (! std::isfinite (increment))
+            continue;
+
+        phase += increment;
         phase -= std::floor (phase); // wrap to [0, 1)
     }
 }
@@ -825,8 +870,10 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     // Render synth voices
     synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
 
-    // Advance shared free-running LFO phases for next block
-    advanceGlobalLfoPhases (buffer.getNumSamples(), getSampleRate());
+    // The shared free-running LFO phases were advanced inside renderNextBlock,
+    // once per MIDI sub-block (WR-01). They now hold the end-of-block phase —
+    // the same value a single advance here used to leave — so fxLfo[] below
+    // reads exactly what it always did.
 
     // Global FX mod destinations (WR-02): evaluate the processor-level matrix
     // once per block. Sources are the global LFOs (sampled at the shared
