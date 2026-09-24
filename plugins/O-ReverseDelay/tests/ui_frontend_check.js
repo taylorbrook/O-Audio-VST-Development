@@ -206,6 +206,21 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     // count.
     check(called.has('getGrainMeter') && registered.has('getGrainMeter'),
         'getGrainMeter is called by the JS AND registered in C++');
+    // v1.13.0: the delay/freeze riders travel on getGrainMeter rather than on
+    // new fns. A key renamed on one side would pass every count above and leave
+    // the readout on its em-dash, so each key must be set in C++ AND read in JS.
+    for (const key of ['delayMs', 'delaySource', 'freezeEngaged'])
+        check(editorCpp.includes(`setProperty ("${key}"`) && appJs.includes(`m.${key}`),
+            `getGrainMeter rider "${key}" is set in C++ AND read in app.js`);
+    // The name table is indexed by DelaySource's value, so its order IS the enum's.
+    const procH = fs.readFileSync(path.join(pluginRoot, 'Source', 'PluginProcessor.h'), 'utf8');
+    const enumBody = (procH.match(/enum class DelaySource[^{]*\{([^}]*)\}/) || [])[1] || '';
+    const enumOrder = [...enumBody.matchAll(/(\w+)\s*=\s*(\d+)/g)]
+        .sort((a, b) => a[2] - b[2]).map(m => m[1]).join(',');
+    const namesBody = (editorCpp.match(/kDelaySourceNames\[\]\s*\{([^}]*)\}/) || [])[1] || '';
+    const namesOrder = [...namesBody.matchAll(/"(\w+)"/g)].map(m => m[1]).join(',');
+    check(enumOrder !== '' && enumOrder === namesOrder,
+        `kDelaySourceNames matches DelaySource order — enum=${enumOrder} names=${namesOrder}`);
     // v1.4.0: same invisible-failure argument as the meter, and stronger — an
     // unwired curve leaves an EMPTY panel, which reads as a display waiting for
     // audio rather than as a broken bridge.

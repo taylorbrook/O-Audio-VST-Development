@@ -214,6 +214,11 @@
   --shadow-medium: rgba(0, 0, 0, 0.25);
   --shadow-heavy:  rgba(0, 0, 0, 0.5);
   --text-emboss:   rgba(255, 255, 255, 0.5);
+
+  /* v1.13.0: the Sync readout's "not what Division says" state. Burnt sienna,
+     5.6:1 on --bg-paper — off the green/brown axis so it reads as a caution,
+     not as another label. */
+  --warn-text:     #8E4420;
   --fleuron-color: rgba(60, 47, 47, 0.3);
 
   /* v1.12.0 — the CJK tail. Times New Roman is named here and IS installed, so
@@ -947,7 +952,8 @@ body {
 }
 
 .knob-value,
-.meter-value {
+.meter-value,
+.division-readout {   /* v1.13.0: NOT .knob-value — the clamp gate counts those as knobs */
   font-size: 11px;
   letter-spacing: 0.4px;
   color: var(--brown-text);
@@ -1066,6 +1072,28 @@ body {
   outline-offset: 2px;
 }
 
+/* v1.13.0: Freeze is ON but the latch has not engaged yet — it waits for one
+   grain of captured audio (PluginProcessor, v1.7.2 CR-02). Lit like .active, the
+   border breathes until the hold is real. The 250 ms delay swallows the <=67 ms
+   meter-poll lag after a click, so an instant engage never flashes. */
+.segment.active.armed {
+  animation: freeze-armed 1.2s ease-in-out 250ms infinite;
+}
+
+@keyframes freeze-armed {
+  0%, 100% { border-color: var(--btn-border-active); }
+  50%      { border-color: var(--green-light);
+             box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(139, 168, 112, 0.55); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment.active.armed { animation: freeze-armed-static 0s 250ms forwards; }
+}
+
+@keyframes freeze-armed-static {
+  to { border-style: dashed; border-color: var(--green-light); }
+}
+
 /* ── TIME slot: identical box for both wraps → zero layout shift ─────────── */
 .time-slot {
   position: relative;
@@ -1104,6 +1132,11 @@ body {
   box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.18), 2px 2px 5px var(--shadow-light);
   cursor: pointer;
 }
+
+/* v1.13.0: "= 500 ms" under the Division caption. The select-cell is ~52 px in
+   the 100 px .time-slot, so this ~13 px line plus the 8 px gap fits without
+   moving the slot or the Free/Sync segments. */
+.division-readout.warn { color: var(--warn-text); }
 
 .division-select:focus-visible {
   outline: 2px dotted var(--green-mid);

@@ -146,16 +146,31 @@ public:
         and reads low), and `overlap` is that block's effective overlap. Both are
         published by processBlock through relaxed atomics and read here — the
         message thread never touches pool or scheduler state. */
+    /** v1.13.0: which rule set the delay the engine is playing. Only Sync has
+        more than one outcome: the host's tempo, the Delay knob when there is no
+        tempo (Standalone, or a host with no playhead), or the tempo result pinned
+        at kDelayTimeMinMs / kDelayTimeMaxMs. Before v1.13.0 the last two were
+        invisible — Sync hides the Delay knob, and the clamp is silent. */
+    enum class DelaySource : int { free = 0, tempo = 1, fallback = 2, clamped = 3 };
+
     struct GrainMeter
     {
         int   active  = 0;
         float overlap = 0.0f;
+
+        // v1.13.0 — riders on the same poll, so the bridge surface stays at 15.
+        float       delayMs       = 0.0f;                 // D the next spawn latches
+        DelaySource delaySource   = DelaySource::free;
+        bool        freezeEngaged = false;                // the latch, not the parameter
     };
 
     GrainMeter getGrainMeter() const noexcept
     {
         return { publishedActiveGrains.load (std::memory_order_relaxed),
-                 publishedOverlap    .load (std::memory_order_relaxed) };
+                 publishedOverlap    .load (std::memory_order_relaxed),
+                 publishedDelayMs    .load (std::memory_order_relaxed),
+                 static_cast<DelaySource> (publishedDelaySource.load (std::memory_order_relaxed)),
+                 publishedFreezeEngaged.load (std::memory_order_relaxed) };
     }
 
     /** Cumulative spawn requests the scheduler's fixed array could not hold, and
@@ -1176,6 +1191,9 @@ private:
     // audio state, and nothing in the audio path ever reads them back.
     std::atomic<int>          publishedActiveGrains { 0 };
     std::atomic<float>        publishedOverlap      { 0.0f };
+    std::atomic<float>        publishedDelayMs      { 0.0f };    // v1.13.0
+    std::atomic<int>          publishedDelaySource  { 0 };       // v1.13.0: DelaySource
+    std::atomic<bool>         publishedFreezeEngaged { false };  // v1.13.0
     std::atomic<juce::uint32> droppedSpawns         { 0 };
     std::atomic<juce::uint32> refusedSpawns         { 0 };
 

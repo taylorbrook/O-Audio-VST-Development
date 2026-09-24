@@ -6477,6 +6477,75 @@ int main (int argc, char** argv)
         proc.prepareToPlay (fs, block);
     }
 
+    // --- Probe BH: the meter reports the delay and Freeze the engine PLAYS ------
+    //
+    // v1.13.0. The UI's "= 500 ms" readout and Freeze's armed state read
+    // getGrainMeter, so the published values must be the engine's, not the
+    // parameters'. Five delay cases — one per DelaySource plus the clamp's floor —
+    // and the Freeze latch's false -> true edge after one grain of capture.
+    {
+        using Src = ReverseDelayProcessor::DelaySource;
+        auto meterAfter = [&] (double seconds)
+        {
+            proc.prepareToPlay (fs, block);
+            renderEffect (proc, seconds, fs, block, [] (int) { return 0.0f; });
+            return proc.getGrainMeter();
+        };
+
+        struct Case { const char* name; double bpm; bool hasBpm; int sync; float div;
+                      float expectMs; Src expectSrc; };
+        const Case cases[] = {
+            { "meter-free",        120.0, true,  0,  6.0f,  350.0f, Src::free     },
+            { "meter-tempo",       120.0, true,  1,  6.0f,  500.0f, Src::tempo    },   // 1/4
+            { "meter-clamped-max",  40.0, true,  1, 12.0f, 4000.0f, Src::clamped  },   // 1/1 = 6000 ms
+            { "meter-clamped-min", 300.0, true,  1,  2.0f,   50.0f, Src::clamped  },   // 1/16T = 33 ms
+            { "meter-fallback",    120.0, false, 1,  6.0f,  350.0f, Src::fallback },   // no tempo
+        };
+
+        for (const auto& c : cases)
+        {
+            MockPlayHead mph;
+            mph.bpm = c.hasBpm ? juce::Optional<double> (c.bpm) : juce::Optional<double> {};
+            proc.setPlayHead (&mph);
+
+            setBaseline (apvts);
+            setParam (apvts, "syncMode",     (float) c.sync);
+            setParam (apvts, "noteDivision", c.div);
+            setParam (apvts, "delayTime",    350.0f);
+
+            const auto m = meterAfter (0.1);
+            proc.setPlayHead (nullptr);
+
+            check (c.name,
+                   std::abs (m.delayMs - c.expectMs) < 0.01f && m.delaySource == c.expectSrc,
+                   juce::String ("delayMs=") + juce::String (m.delayMs, 2)
+                     + " (expect " + juce::String (c.expectMs, 2) + ") src="
+                     + juce::String ((int) m.delaySource) + " (expect "
+                     + juce::String ((int) c.expectSrc) + ")");
+        }
+
+        // Freeze ON from the first block against a just-cleared ring: the latch
+        // must wait for one grain (grainSize 200 ms at baseline), so the meter
+        // reads NOT engaged at 50 ms and engaged by 400 ms.
+        setBaseline (apvts);
+        setParam (apvts, "freeze", 1.0f);
+        const float gMs = paramValue (apvts, "grainSize");
+        const bool early = meterAfter (0.05).freezeEngaged;
+        const bool late  = meterAfter (0.001 * gMs + 0.2).freezeEngaged;
+
+        // And reset() clears it, since the latch it reports on is cleared there.
+        proc.reset();
+        const bool afterReset = proc.getGrainMeter().freezeEngaged;
+
+        check ("meter-freeze-armed-then-engaged", ! early && late && ! afterReset,
+               juce::String ("grainSize=") + juce::String (gMs, 0) + " ms | engaged@50ms="
+                 + (early ? "true" : "false") + " engaged@G+200ms=" + (late ? "true" : "false")
+                 + " afterReset=" + (afterReset ? "true" : "false"));
+
+        setParam (apvts, "freeze", 0.0f);
+        proc.prepareToPlay (fs, block);
+    }
+
     std::printf ("%s (%d failure%s)\n",
                  failures == 0 ? "ALL PROBES PASSED" : "PROBES FAILED",
                  failures, failures == 1 ? "" : "s");

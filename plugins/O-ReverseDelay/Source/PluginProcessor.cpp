@@ -489,6 +489,7 @@ void ReverseDelayProcessor::reset()
     // reset() between transport passes would otherwise erase the evidence of a
     // drop that happened in the pass before.
     publishedActiveGrains.store(0, std::memory_order_relaxed);
+    publishedFreezeEngaged.store(false, std::memory_order_relaxed);   // v1.13.0: latch cleared below
 
     // v1.8.0 (B4 #7): the diffusion chain holds up to ~48 ms of the previous
     // pass's tail, so it belongs with the filter memory in reason C above — a
@@ -1374,6 +1375,11 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // values (the click-free mechanism).
     float effectiveDelayMs = delayTimeMs;
 
+    // v1.13.0: published with the meter so the UI can show the D in use.
+    // Starts at `fallback` in Sync and is promoted only when a tempo arrives,
+    // so every early-out of the playhead chain below reports honestly.
+    auto delaySource = syncMode ? DelaySource::fallback : DelaySource::free;
+
     if (syncMode)
     {
         if (auto* playHead = getPlayHead())
@@ -1391,6 +1397,11 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                     effectiveDelayMs = static_cast<float>(
                         juce::jlimit(static_cast<double>(kDelayTimeMinMs),
                                      static_cast<double>(kDelayTimeMaxMs), ms));
+
+                    // Either rail: 1/1 below 60 BPM hits the 4000 ms max, and
+                    // 1/16T above 200 BPM hits the 50 ms floor.
+                    delaySource = (ms < kDelayTimeMinMs || ms > kDelayTimeMaxMs)
+                                      ? DelaySource::clamped : DelaySource::tempo;
                 }
             }
         }
@@ -2272,6 +2283,12 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // the audio path reads these back, so there is no ordering to establish.
     publishedActiveGrains.store(peakActiveThisBlock, std::memory_order_relaxed);
     publishedOverlap.store(overlap, std::memory_order_relaxed);
+
+    // v1.13.0: what the delay and the Freeze latch are actually doing, which is
+    // not what their parameters say — see DelaySource and freezeEngaged.
+    publishedDelayMs.store(effectiveDelayMs, std::memory_order_relaxed);
+    publishedDelaySource.store(static_cast<int>(delaySource), std::memory_order_relaxed);
+    publishedFreezeEngaged.store(freezeEngaged, std::memory_order_relaxed);
 
     // Cumulative, and only touched when non-zero: the common case is two loads
     // and no stores rather than an unconditional read-modify-write per block.

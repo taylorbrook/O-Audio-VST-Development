@@ -4,6 +4,55 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.13.0] — 2026-09-24
+
+The UI now shows the delay the engine is actually playing in Sync, and whether
+Freeze is actually holding. MINOR: no parameter, preset, state or DSP change. The
+native-function surface stays at 15 — both values travel on the existing
+`getGrainMeter` poll.
+
+### Added
+
+- **Sync readout — "= 500 ms" under Division.** Before this, Sync never showed
+  the delay in use, and two cases played something other than what Division
+  named, with no sign on the panel:
+  - the 50–4000 ms clamp pinned the tempo result — 1/1 below 60 BPM, 1/2D below
+    45 BPM, and 1/16T above 200 BPM on the 50 ms floor;
+  - with no host tempo (Standalone, or a host with no playhead) Sync fell back to
+    the Delay knob, which Sync hides.
+
+  Both cases now show the readout in a warning colour (`--warn-text`, burnt
+  sienna, 5.6:1 on paper). It uses the same `fmtMs` as the Delay knob, so from
+  1 s it reads `= 2.00 s`. The readout fits in the 100 px `.time-slot`'s spare
+  height, so no layout moves.
+- **Freeze armed state.** Since v1.7.2 the hold waits until the ring has one
+  grain's worth of audio. That wait is up to 4 s, and longer straight after load
+  because the ring was just cleared. The FREEZE segment still lit immediately.
+  While the parameter is on and the latch has not engaged, the segment now stays
+  lit with a pulsing border. It turns solid once the hold is real. A 250 ms
+  animation delay covers the ≤67 ms poll lag after a click, so an instant
+  engage never flashes. Under `prefers-reduced-motion` the border turns dashed
+  and does not pulse.
+
+### Changed
+
+- `GrainMeter` carries `delayMs`, `delaySource` (`free` / `tempo` / `fallback` /
+  `clamped`) and `freezeEngaged`. processBlock publishes them next to the
+  grain count, using relaxed atomics. `reset()` clears the published
+  `freezeEngaged` along with the latch.
+- `ui_frontend_check` adds 4 checks. Each rider key must be set in C++ and read
+  in app.js, and `kDelaySourceNames` must match the `DelaySource` enum order.
+- The render harness adds probe BH, 6 checks. The five `meter-*` delay cases
+  are free, tempo, clamped at the max, clamped at the min, and fallback.
+  `meter-freeze-armed-then-engaged` checks the meter is unengaged at 50 ms,
+  engaged at G + 200 ms, and cleared by `reset()`.
+- The readout is `.division-readout`, not `.knob-value`. `ui_tooltip_clamp_check`
+  counts `.knob-value` nodes as bound knobs, so borrowing that class made it
+  read 23/22 readouts. The readout shares the type rule instead.
+- The UI stub simulates both states. It uses 120 BPM by default, `?bpm=0` for
+  fallback, and `?bpm=40` for the clamp. Freeze engages 1 s after it is
+  switched on.
+
 ## [1.12.5] — 2026-09-23
 
 Behaviour-preserving UI simplification in `Source/ui/public`, from
