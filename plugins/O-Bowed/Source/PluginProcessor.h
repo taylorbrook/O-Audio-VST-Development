@@ -87,9 +87,16 @@ public:
     void selectTuningSystem (int choiceIndex);
 
     // v1.9.3 (CR-04, WR-10): load a .kbm through the engine, keep its text for
-    // the session state, and hand its reference frequency to the referencePitch
-    // parameter (the single A4 owner) instead of the engine. Message thread only.
+    // the session state, and hand its reference to the referencePitch parameter
+    // (the single A4 owner) instead of the engine. v1.9.4: the parameter gets
+    // the A4 the file's reference note and frequency imply, not the frequency
+    // itself. Message thread only.
     bool loadKbmFile (const juce::File& kbmFile);
+
+    // v1.9.4: the engine's .kbm text with its reference-frequency line set to
+    // what the reference note actually plays at the current referencePitch.
+    // Message thread only.
+    juce::String generateKbmFileContent() const;
 
     // Public access to humanize engine (voices read per-block offsets)
     const HumanizeEngine* getHumanizeEngine() const noexcept { return &humanizeEngine; }
@@ -177,6 +184,12 @@ private:
     // "is a KBM loaded" getter, and generateKBMFileContent() always emits a
     // mapping, so the processor remembers the file itself. Message thread only.
     juce::String loadedKbmText;
+
+    // v1.9.4: hold the engine's A4 at 440 and pin the KBM reference note to its
+    // 12-TET frequency at that A4, so the voice's referencePitch/440 ratio lands
+    // the reference note on the file's frequency when referencePitch carries the
+    // derived A4.
+    void anchorKbmReferenceToA4();
 
     // Factory preset initialization
     void initializeFactoryPresets();

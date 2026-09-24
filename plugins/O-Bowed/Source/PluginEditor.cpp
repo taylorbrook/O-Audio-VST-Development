@@ -599,7 +599,8 @@ OBowedAudioProcessorEditor::OBowedAudioProcessorEditor(OBowedAudioProcessor& p)
                             return;
                         auto file = fc.getResult();
                         if (file != juce::File()) {
-                            auto content = processorRef.getTuningEngine()->generateKBMFileContent();
+                            // v1.9.4: carries the reference note's real frequency.
+                            auto content = processorRef.generateKbmFileContent();
                             file.replaceWithText(content);
                             complete(file.getFileName());
                         } else {

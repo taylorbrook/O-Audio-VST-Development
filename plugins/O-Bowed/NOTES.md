@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.3
+- **Version:** 1.9.4
 - **Type:** Synth (Physical Model Bowed String)
 
 ## Lifecycle Timeline
@@ -56,6 +56,12 @@
   preset manager leaves in the tree. The default render is byte-identical (`c8aa14d6…`). The harness
   gained `--edo` / `--roundtrip-edo`. Validated: all pitch checks within +0.6 c, i18n/UI gates pass,
   auval SUCCEEDED.
+- **2026-09-24 (v1.9.4):** A loaded `.kbm` now keeps its reference **note**. `referencePitch`
+  gets the A4 that the file's reference note and frequency imply (60 @ 261.6256 → 440), not the
+  frequency clamped to 400–480 Hz. The engine pins the reference note through the new
+  scala-tuning-engine 3.2.0 `setKbmReferenceFrequency()`. Save .kbm writes the real reference
+  frequency. The harness gained `--kbm` / `--kbm-roundtrip` / `--save-kbm`. The default render is
+  byte-identical (`c8aa14d6…`).
 
 ## Known Issues
 

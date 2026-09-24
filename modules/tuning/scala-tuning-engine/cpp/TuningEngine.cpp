@@ -591,6 +591,8 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
         kbmLastNote = newLastNote;
         kbmMiddleNote = newMiddleNote;
         kbmReferenceNote = newReferenceNote;
+        kbmFileReferenceFrequency = (newRefFreq > 0.0) ? newRefFreq : 440.0;
+        kbmReferenceFrequency = 0.0;
         kbmOctaveDegree = (newOctaveDegree > 0) ? newOctaveDegree : static_cast<int>(scaleIntervals.size()) - 1;
         kbmMapping = newMapping;
         kbmLoaded = true;
@@ -606,6 +608,27 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
 
     DBG("TuningEngine::loadKBMFile() - Loaded KBM: mapSize=" + juce::String(kbmMapSize));
     return true;
+}
+
+int TuningEngine::getKbmReferenceNote() const
+{
+    std::lock_guard<std::mutex> lock(intervalMutex);
+    return kbmReferenceNote;
+}
+
+double TuningEngine::getKbmReferenceFrequency() const
+{
+    std::lock_guard<std::mutex> lock(intervalMutex);
+    return kbmFileReferenceFrequency;
+}
+
+void TuningEngine::setKbmReferenceFrequency(double freqHz)
+{
+    {
+        std::lock_guard<std::mutex> lock(intervalMutex);
+        kbmReferenceFrequency = (freqHz > 0.0) ? freqHz : 0.0;
+    }
+    rebuildFrequencyTable();
 }
 
 juce::String TuningEngine::generateScalaFileContent() const
@@ -716,6 +739,8 @@ void TuningEngine::resetKeyboardMapping()
     kbmLastNote = 127;
     kbmMiddleNote = 60;
     kbmReferenceNote = 69;
+    kbmFileReferenceFrequency = 440.0;
+    kbmReferenceFrequency = 0.0;
     kbmOctaveDegree = mapSize;
 
     kbmMapping.clear();
@@ -854,7 +879,7 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
         double centsOffset = activeIntervals[static_cast<size_t>(scaleDegree)];
         centsOffset += octaveNumber * period;
 
-        double refFreq = a4Frequency;
+        double refFreq = (kbmReferenceFrequency > 0.0) ? kbmReferenceFrequency : a4Frequency;
         int refNote = kbmReferenceNote;
 
         int refOffset = refNote - kbmMiddleNote;

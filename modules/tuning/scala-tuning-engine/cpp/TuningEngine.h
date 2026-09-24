@@ -228,6 +228,22 @@ public:
     bool loadKBMFile(const juce::File& kbmFile);
 
     /**
+     * Reference note and frequency (Hz) exactly as the last loaded .kbm gives
+     * them. The frequency is unclamped; loadKBMFile() hands it to
+     * setMasterTune(), which clamps it to 400-480 Hz.
+     */
+    int getKbmReferenceNote() const;
+    double getKbmReferenceFrequency() const;
+
+    /**
+     * v3.2.0: frequency of the KBM reference note, independent of A4 and
+     * unclamped. When > 0, mapped notes use it in place of the master tune;
+     * 0 (the default, restored by loadKBMFile/resetKeyboardMapping) keeps the
+     * legacy behaviour where the master tune is the reference-note frequency.
+     */
+    void setKbmReferenceFrequency(double freqHz);
+
+    /**
      * Check if a MIDI note is mapped in the current keyboard mapping
      * @param midiNote MIDI note number (0-127)
      * @return true if mapped, false if unmapped ('x' in KBM)
@@ -345,6 +361,8 @@ private:
     int kbmMiddleNote = 60;
     int kbmReferenceNote = 69;
     int kbmOctaveDegree = 12;
+    double kbmFileReferenceFrequency = 440.0; // as read from the file
+    double kbmReferenceFrequency = 0.0;       // override; 0 = use a4Frequency
     std::vector<int> kbmMapping;
     bool kbmLoaded = false;
 

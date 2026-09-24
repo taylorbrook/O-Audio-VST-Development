@@ -604,17 +604,59 @@ bool OBowedAudioProcessor::loadKbmFile (const juce::File& kbmFile)
 
     loadedKbmText = kbmFile.loadFileAsString();
 
-    // loadKBMFile() writes the file's reference frequency into the engine's A4.
+    // v1.9.4: a .kbm names a reference NOTE and its frequency (commonly
+    // 60 @ 261.6256). Until v1.9.3 the engine's clamped master tune (400-480 Hz)
+    // was read back and stored as A4, so that file played middle C at 400 Hz.
     // referencePitch is the only A4 owner (the voice applies it as a ratio over
-    // an engine held at 440), so move the value to the parameter and put the
-    // engine back. Leaving it would apply the reference twice.
-    const double kbmRefHz = tuningEngine.getMasterTune();
-    tuningEngine.setMasterTune (440.0);
+    // an engine held at 440): give it the A4 the reference implies, and let the
+    // engine carry the reference note at its 12-TET frequency for A4 = 440.
+    const int    refNote = tuningEngine.getKbmReferenceNote();
+    const double refHz   = tuningEngine.getKbmReferenceFrequency();
+    const double derivedA4 = refHz * std::pow (2.0, (69 - refNote) / 12.0);
+
+    anchorKbmReferenceToA4();
 
     if (auto* param = parameters.getParameter ("referencePitch"))
-        param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (kbmRefHz)));
+        param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (derivedA4)));
 
     return true;
+}
+
+void OBowedAudioProcessor::anchorKbmReferenceToA4()
+{
+    tuningEngine.setMasterTune (440.0);
+    tuningEngine.setKbmReferenceFrequency (
+        juce::MidiMessage::getMidiNoteInHertz (tuningEngine.getKbmReferenceNote(), 440.0));
+}
+
+juce::String OBowedAudioProcessor::generateKbmFileContent() const
+{
+    // The engine writes its own master tune (held at 440) as the reference
+    // frequency. The reference note really plays at its 12-TET frequency for
+    // A4 = referencePitch (voice ratio over the anchor above), so write that.
+    const int refNote = tuningEngine.getKbmReferenceNote();
+    const double refHz = juce::MidiMessage::getMidiNoteInHertz (
+        refNote, static_cast<double> (parameters.getRawParameterValue ("referencePitch")->load()));
+
+    juce::StringArray lines;
+    lines.addLines (tuningEngine.generateKBMFileContent());
+
+    // Header data lines, skipping comments: size, first, last, middle,
+    // reference note, reference frequency (index 5), octave degree.
+    int dataIndex = 0;
+    for (auto& line : lines)
+    {
+        const auto trimmed = line.trim();
+        if (trimmed.isEmpty() || trimmed.startsWith ("!"))
+            continue;
+        if (dataIndex++ == 5)
+        {
+            line = juce::String (refHz, 6);
+            break;
+        }
+    }
+
+    return lines.joinIntoString ("\n") + "\n";
 }
 
 juce::var OBowedAudioProcessor::saveTuningState() const
@@ -687,13 +729,13 @@ void OBowedAudioProcessor::loadTuningState (const juce::var& state)
         const auto kbm = obj->getProperty ("kbm").toString();
         if (kbm.isNotEmpty() && kbm != loadedKbmText)
         {
-            // The engine's KBM parser only reads files. Its A4 is put straight
-            // back to 440: the saved referencePitch parameter already carries
-            // the reference.
+            // The engine's KBM parser only reads files. The saved
+            // referencePitch parameter already carries the derived A4, so only
+            // re-anchor the engine (v1.9.4).
             juce::TemporaryFile tmp (".kbm");
             if (tmp.getFile().replaceWithText (kbm) && tuningEngine.loadKBMFile (tmp.getFile()))
             {
-                tuningEngine.setMasterTune (440.0);
+                anchorKbmReferenceToA4();
                 loadedKbmText = kbm;
             }
         }
