@@ -1652,6 +1652,8 @@ async function initTuningPanel() {
         const container = document.getElementById('tuning-container');
         const tuningPanel = new TuningPanel(container, Juce);
         await tuningPanel.init();
+        // WR-10: main.js refreshes it when the host restores state.
+        window.__tuningPanel = tuningPanel;
     } catch (err) {
         console.error('[O-Formant] Failed to init tuning panel:', err);
         const failBox = document.getElementById('tuning-container');

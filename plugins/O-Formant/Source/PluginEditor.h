@@ -21,7 +21,8 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
-class OFormantEditor : public juce::AudioProcessorEditor
+class OFormantEditor : public juce::AudioProcessorEditor,
+                       private juce::Timer
 {
 public:
     explicit OFormantEditor (OFormantAudioProcessor&);
@@ -32,6 +33,11 @@ public:
 
 private:
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
+
+    // WR-10: emits "stateRestored" to the page when the processor's state
+    // generation moves (host restored state with the editor open).
+    void timerCallback() override;
+    uint32_t lastSeenStateGeneration = 0;
 
     OFormantAudioProcessor& processorRef;
 
@@ -53,6 +59,9 @@ private:
     std::unique_ptr<juce::WebSliderRelay> sibilanceRelay;
     std::unique_ptr<juce::WebSliderRelay> consonantVoicingRelay;
     std::unique_ptr<juce::WebSliderRelay> consonantTransitionRelay;
+    std::unique_ptr<juce::WebSliderRelay> consonantAttackRelay;
+    std::unique_ptr<juce::WebSliderRelay> consonantHoldRelay;
+    std::unique_ptr<juce::WebSliderRelay> consonantDecayRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> autoConsonantRelay;
     std::unique_ptr<juce::WebSliderRelay> attackRelay;
     std::unique_ptr<juce::WebSliderRelay> decayRelay;
@@ -116,6 +125,9 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> sibilanceAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> consonantVoicingAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> consonantTransitionAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> consonantAttackAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> consonantHoldAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> consonantDecayAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> autoConsonantAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> attackAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> decayAttachment;
@@ -159,6 +171,11 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> eqHighGainAttachment;
 
     std::shared_ptr<juce::FileChooser> fileChooser;
+
+    // CR-05: native preset-name dialog. WKWebView (macOS) implements no
+    // text-input panel, so window.prompt() returns null there and Save was a
+    // no-op; the page asks C++ for the name instead.
+    std::unique_ptr<juce::AlertWindow> presetNameDialog;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OFormantEditor)
 };

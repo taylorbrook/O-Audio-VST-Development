@@ -772,6 +772,12 @@ void OFormantAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
 
     cacheParamPointers();
 
+    // WR-13: start AT the saved output gain, not at unity — reset() alone
+    // leaves the smoother at its 1.0 construction value for the first 50 ms.
+    if (fxParams.outputGain != nullptr)
+        outputGainSmoothed.setCurrentAndTargetValue (
+            juce::Decibels::decibelsToGain (fxParams.outputGain->load()));
+
     // Prepare all voices with current sample rate
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
@@ -815,7 +821,11 @@ void OFormantAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     {
         bool bypassed = fxParams.chorusBypass->load() >= 0.5f;
         float mix = fxParams.chorusMix->load();
-        if (! bypassed && mix > 0.001f)
+        const bool active = ! bypassed && mix > 0.001f;
+        if (active && ! chorusWasActive)
+            chorus.reset();
+        chorusWasActive = active;
+        if (active)
         {
             chorus.setRate (fxParams.chorusRate->load());
             chorus.setDepth (fxParams.chorusDepth->load());
@@ -829,7 +839,11 @@ void OFormantAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     {
         bool bypassed = fxParams.delayBypass->load() >= 0.5f;
         float mix = fxParams.delayMix->load();
-        if (! bypassed && mix > 0.001f)
+        const bool active = ! bypassed && mix > 0.001f;
+        if (active && ! delayWasActive)
+            delayProcessor.reset();
+        delayWasActive = active;
+        if (active)
         {
             delayProcessor.setTime (fxParams.delayTime->load());
             delayProcessor.setFeedback (fxParams.delayFeedback->load());
@@ -843,7 +857,11 @@ void OFormantAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     {
         bool bypassed = fxParams.reverbBypass->load() >= 0.5f;
         float mix = fxParams.reverbMix->load();
-        if (! bypassed && mix > 0.001f)
+        const bool active = ! bypassed && mix > 0.001f;
+        if (active && ! reverbWasActive)
+            reverbProcessor.reset();
+        reverbWasActive = active;
+        if (active)
         {
             reverbProcessor.setSize (fxParams.reverbSize->load());
             reverbProcessor.setDamping (fxParams.reverbDamp->load());
@@ -858,6 +876,9 @@ void OFormantAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     // EQ
     {
         bool bypassed = fxParams.eqBypass->load() >= 0.5f;
+        if (! bypassed && ! eqWasActive)
+            eqProcessor.reset();
+        eqWasActive = ! bypassed;
         if (! bypassed)
         {
             eqProcessor.setLowGain (fxParams.eqLowGain->load());
@@ -879,12 +900,33 @@ void OFormantAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
             buffer.setSample (ch, i, buffer.getSample (ch, i) * gain);
     }
 
-    // Brickwall safety limiter — hard clip at 0 dBFS
+    // Brickwall safety limiter — hard clip at 0 dBFS.
+    // IN-05: jlimit passes NaN straight through (every comparison is false), and
+    // the reverb tank clamp / delay feedback would then latch it. A non-finite
+    // sample anywhere in the block means the FX state is poisoned: silence the
+    // block and reset the effects so the next block starts clean.
+    bool nonFinite = false;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
     {
         auto* channelData = buffer.getWritePointer (ch);
         for (int i = 0; i < buffer.getNumSamples(); ++i)
+        {
+            if (! std::isfinite (channelData[i]))
+            {
+                nonFinite = true;
+                channelData[i] = 0.0f;
+            }
             channelData[i] = juce::jlimit (-1.0f, 1.0f, channelData[i]);
+        }
+    }
+
+    if (nonFinite)
+    {
+        buffer.clear();
+        chorus.reset();
+        delayProcessor.reset();
+        reverbProcessor.reset();
+        eqProcessor.reset();
     }
 }
 
@@ -1045,6 +1087,8 @@ void OFormantAudioProcessor::setStateInformation (const void* data, int sizeInBy
             bool loop = lyricsState.getProperty ("looping", true);
             lyricsEngine.setLooping (loop);
         }
+
+        stateGeneration.fetch_add (1, std::memory_order_acq_rel); // WR-10
     }
 }
 

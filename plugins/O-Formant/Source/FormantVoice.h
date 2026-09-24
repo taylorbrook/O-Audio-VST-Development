@@ -81,6 +81,12 @@ private:
     ConsonantEngine consonantEngine;
     FricationFormantBank fricationBank;
     juce::ADSR adsr;
+    // CR-02: last parameters handed to adsr. setParameters() recomputes the
+    // release rate from SUSTAIN (JUCE 8 recalculateRates), clobbering the
+    // level-based rate noteOff() derived — so it is re-applied only on change,
+    // and never while releasing.
+    juce::ADSR::Parameters lastAdsrParams { -1.0f, -1.0f, -1.0f, -1.0f };
+    void updateAdsrParameters (bool force);
 
     // --- Voice state ---
     bool voiceActive = false;

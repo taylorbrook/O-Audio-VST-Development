@@ -2,6 +2,101 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.29.1] - 2026-09-24
+
+Wave 1 of the v1.29.0 `CODE_REVIEW.md`: the twelve findings that fix bugs
+without re-rendering the voice. PATCH — no parameter ID, range, type or state
+format changed. One audible change is intended: **releases now follow the
+Release knob** (CR-02).
+
+### Fixed
+
+- **CR-02 — Releases were cut off or stretched.** `renderNextBlock` called
+  `adsr.setParameters()` every block. In JUCE 8 that recomputes the release
+  rate from the SUSTAIN level and overwrites the rate `noteOff()` had derived
+  from the level the note was actually at. With Sustain 0, a note released
+  during attack/decay stopped dead one block after note-off. With Sustain > 0,
+  the tail ran far too long (released at 1.0, sustain 0.1, release 10 s gave a
+  ~100 s tail). Parameters are now re-applied only when a value changes, never
+  after note-off; a knob moved during a release takes effect at the next
+  note-on.
+- **CR-04 — Consonant Atk / Hold / Decay knobs did nothing.** The page asked
+  for `consonantAttackSlider`, `consonantHoldSlider` and `consonantDecaySlider`
+  relays the editor never created. The parameters and DSP were fine, but the
+  knobs were unbound, and their readouts fell back to "0.00" after load. Added
+  the three relays (before `webView`) and attachments (after it).
+- **CR-05 — Preset Save was a no-op on macOS.** Save used `window.prompt()`,
+  and JUCE's WKWebView UI delegate implements no text-input panel (checked in
+  `juce_WebBrowserComponent_mac.mm`), so `prompt()` returned `null` and the
+  handler returned early. Save now calls a new native function,
+  `promptPresetName`, which opens a JUCE `AlertWindow` pre-filled with the
+  current preset name. The caption and both button labels come from the page
+  in the active language; `js.save` and `js.cancel` are new I18N entries. The
+  preset bar is unchanged, so its pinned French and Chinese geometry is
+  unchanged.
+- **CR-07 — Loading a `.kbm` detuned everything and overwrote A4.** The file's
+  reference frequency went through `setMasterTune()`, which clamps to 400–480
+  Hz. A standard middle-C map (261.63 Hz) became 400 Hz, about 735 cents
+  sharp, and the session then saved `masterTune=400`. The KBM reference now
+  has its own member (`kbmReferenceFreq`, clamped 1–20000 Hz) used by the KBM
+  lookup and the `.kbm` exporter, and A4 is left alone.
+- **CR-08 — A malformed `.kbm` could crash the host.** Map size was taken from
+  the file unbounded; `2000000000` meant ~2 billion `push_back`s on the
+  message thread. Map size is now clamped to 0–128 and octave degree to ≤ 128.
+- **CR-09 — The Rank-2 generator could hang the DAW UI.** The generator was
+  clamped against the raw, unclamped period, and `reduceAndSort` reduced by
+  subtracting one period per loop: ~6e9 iterations for a typed 1e13, and
+  never terminating once `c - period == c` in double precision. The period is
+  now clamped first and non-finite input replaced. Reduction uses `fmod`, with
+  a guard for a non-positive period. The panel also clamps typed values, since
+  an `<input type=number>`'s min/max never bounds what is typed.
+- **WR-02 — A manner change during a burst could blast full-scale noise.**
+  The burst envelope read `cachedBurstDuration` / `cachedBurstDecayRate`,
+  which `updateCoefficients()` rewrites every block. A shorter duration
+  mid-burst made `progress` negative and `exp()` overflow to inf, giving
+  ~68 ms of full-scale noise or a NaN voice reset. Length and decay rate are
+  now latched in `triggerBurst()`.
+- **WR-05 — note-expression module allocated on the audio thread.**
+  `updatePendingFromEvents` built a `std::map` on every block containing a
+  VST3 note-on. It is replaced by a fixed 64-slot array scanned newest-first,
+  keeping the map's last-NoteOn-wins behaviour; the raw-event queue was
+  already capped at 64. Shared module `note-expression` bumped 1.1.1 → 1.1.2.
+  The other consumers get the fix on their next rebuild.
+- **WR-10 — The page went stale when the host restored state.** The preset
+  name, lyrics text and loop, UI language and tuning panel were read once at
+  load, so a host preset menu, A/B compare or undo with the editor open left
+  them showing the old session. `setStateInformation` now bumps a generation
+  counter; a 5 Hz editor timer sends `stateRestored` to the page, which
+  re-reads all four. The generation is only marked seen while the WebView is
+  showing, because `emitEventIfBrowserIsVisible` drops events while hidden.
+  Separately, deleting all lyrics now clears the engine: `setLyrics` skipped
+  an empty list, so the old syllables kept playing.
+- **WR-12 — Re-enabling an effect replayed old audio.** Bypassed (or mix ≈ 0)
+  effects skip processing and were never reset, so turning the delay back on
+  replayed up to 2 s of old echoes, and the reverb its old tail. Chorus,
+  delay, reverb and EQ now `reset()` when they switch from inactive to active.
+  All four resets are allocation-free.
+- **WR-13 — Output gain started at unity for 50 ms.** The smoother is
+  constructed at 1.0, and `reset()` in `prepareToPlay` does not move it, so a
+  −60 dB session played its first 50 ms at 0 dB. `prepareToPlay` now sets the
+  smoother to the saved gain.
+- **IN-05 — NaN passed through the output clipper.** `jlimit` passes NaN (all
+  comparisons are false), and the reverb tank and delay feedback then keep
+  recirculating it. The output stage now checks for non-finite samples; on
+  one, it silences the block and resets the effects chain.
+
+### Deferred (CODE_REVIEW.md waves 2–3)
+
+Still open, by design:
+- **v1.30.0 (behaviour changes):** CR-03, CR-06, WR-03, WR-04, WR-06, WR-09,
+  WR-14, WR-16, WR-18.
+- **v1.31.0 (timbre re-render):** CR-01 + WR-01, WR-11, WR-15, WR-17.
+- **Not yet scheduled:** WR-07, WR-08, WR-19, WR-20, IN-01..04, IN-06..24.
+
+Note on WR-10 and CR-06: a restore with the editor open re-parses the lyrics
+and re-sends the syllables, which restarts the lyric at syllable 1. That is
+the CR-06 position behaviour, and it is fixed with CR-06.
+
 ## [1.29.0] - 2026-09-06
 
 O-Formant speaks Simplified Chinese. Stage 4 wave 4d of the zh-Hans rollout,

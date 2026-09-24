@@ -882,9 +882,12 @@ export class TuningPanel {
                     break;
                 }
                 case 'rank2': {
-                    const generator = parseFloat(this.container.querySelector('#gen-generator').value);
-                    const period = parseFloat(this.container.querySelector('#gen-r2-period').value);
-                    const count = parseInt(this.container.querySelector('#gen-count').value);
+                    // CR-09: typed values ignore the inputs' min/max — clamp here
+                    // (period first; the generator's bound depends on it).
+                    const clampNum = (v, lo, hi, dflt) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt);
+                    const period = clampNum(parseFloat(this.container.querySelector('#gen-r2-period').value), 100, 2400, 1200);
+                    const generator = clampNum(parseFloat(this.container.querySelector('#gen-generator').value), 1, period - 1, 696.6);
+                    const count = clampNum(parseInt(this.container.querySelector('#gen-count').value), 3, 31, 12);
                     intervalsJson = await this.juce.getNativeFunction('generateRank2')(generator, period, count);
                     scaleName = `Rank-2 (${generator.toFixed(1)}c, ${count} notes)`;
                     break;

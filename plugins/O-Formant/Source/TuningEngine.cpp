@@ -558,6 +558,11 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
     int newOctaveDegree = dataLines[6].getIntValue();
 
     // Validate ranges
+    // CR-08: map size / octave degree come straight from the file; an
+    // unbounded map size drove a multi-GB push_back loop on the message thread.
+    newMapSize = juce::jlimit(0, 128, newMapSize);
+    if (newOctaveDegree > 0)
+        newOctaveDegree = juce::jmin(newOctaveDegree, 128);
     newFirstNote = juce::jlimit(0, 127, newFirstNote);
     newLastNote = juce::jlimit(0, 127, newLastNote);
     newMiddleNote = juce::jlimit(0, 127, newMiddleNote);
@@ -593,13 +598,10 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
         kbmReferenceNote = newReferenceNote;
         kbmOctaveDegree = (newOctaveDegree > 0) ? newOctaveDegree : static_cast<int>(scaleIntervals.size()) - 1;
         kbmMapping = newMapping;
+        // CR-07: own member, sane audio range; a4Frequency is left untouched.
+        kbmReferenceFreq = (newRefFreq > 0.0) ? juce::jlimit(1.0, 20000.0, newRefFreq)
+                                              : 440.0;
         kbmLoaded = true;
-    }
-
-    // Set reference frequency
-    if (newRefFreq > 0.0)
-    {
-        setMasterTune(newRefFreq);
     }
 
     rebuildFrequencyTable();
@@ -643,7 +645,7 @@ juce::String TuningEngine::generateKBMFileContent() const
     content += juce::String(kbmLastNote) + "\n";
     content += juce::String(kbmMiddleNote) + "\n";
     content += juce::String(kbmReferenceNote) + "\n";
-    content += juce::String(a4Frequency, 6) + "\n";
+    content += juce::String(kbmLoaded ? kbmReferenceFreq : a4Frequency, 6) + "\n";
 
     int octDegree = kbmLoaded ? kbmOctaveDegree : (static_cast<int>(scaleIntervals.size()) - 1);
     content += juce::String(octDegree) + "\n";
@@ -717,6 +719,7 @@ void TuningEngine::resetKeyboardMapping()
     kbmMiddleNote = 60;
     kbmReferenceNote = 69;
     kbmOctaveDegree = mapSize;
+    kbmReferenceFreq = 440.0;
 
     kbmMapping.clear();
     kbmMapping.reserve(static_cast<size_t>(mapSize));
@@ -854,7 +857,7 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
         double centsOffset = activeIntervals[static_cast<size_t>(scaleDegree)];
         centsOffset += octaveNumber * period;
 
-        double refFreq = a4Frequency;
+        double refFreq = kbmReferenceFreq;
         int refNote = kbmReferenceNote;
 
         int refOffset = refNote - kbmMiddleNote;

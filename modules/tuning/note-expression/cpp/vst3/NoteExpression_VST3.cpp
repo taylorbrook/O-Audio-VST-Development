@@ -68,7 +68,8 @@
 
 #include <cstdio>
 #include <cstring>
-#include <map>
+#include <array>
+#include <utility>
 
 namespace Ouaricon::NoteExpression
 {
@@ -206,20 +207,34 @@ void updatePendingFromEvents (
 
     using Kind = juce::VST3ClientExtensions::Vst3RawEvent::Kind;
 
-    std::map<int32_t, int> noteIdToPitch;
+    // v1.1.2 (O-Formant WR-05): fixed-size noteId -> pitch table instead of a
+    // std::map, which allocated a node per NoteOn on the audio thread. The
+    // raw-event queue is capped at kMaxBlockEvents (onVst3RawEvent drops past
+    // the reserved capacity), so 64 slots always suffice; the guard below is
+    // belt-and-braces. Lookup scans newest-first to keep the map's
+    // last-NoteOn-wins semantics for a reused noteId.
+    constexpr size_t kMaxBlockEvents = 64;
+    std::array<std::pair<int32_t, int>, kMaxBlockEvents> noteIdToPitch;
+    size_t numNoteIds = 0;
     for (const auto& e : events)
-        if (e.kind == Kind::NoteOn)
-            noteIdToPitch[e.noteId] = (int) e.pitch;
+        if (e.kind == Kind::NoteOn && numNoteIds < kMaxBlockEvents)
+            noteIdToPitch[numNoteIds++] = { e.noteId, (int) e.pitch };
 
     for (const auto& e : events)
     {
         if (e.kind != Kind::NoteExpressionValue)        continue;
         if (e.typeId != Steinberg::Vst::kTuningTypeID)  continue;
 
-        auto it = noteIdToPitch.find (e.noteId);
-        if (it == noteIdToPitch.end())                  continue;
+        int pitch = -1;
+        for (size_t i = numNoteIds; i-- > 0;)
+        {
+            if (noteIdToPitch[i].first == e.noteId)
+            {
+                pitch = noteIdToPitch[i].second;
+                break;
+            }
+        }
 
-        const int pitch = it->second;
         if (pitch < 0 || pitch >= 128)                  continue;
 
         // VST3 kTuningTypeID: norm [0,1] -> plain semitones [-120, +120].
