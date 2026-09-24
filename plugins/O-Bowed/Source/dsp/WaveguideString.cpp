@@ -111,9 +111,10 @@ void WaveguideString::updateDelayLengths()
     // Clamp to ensure positive total delay
     compensatedDelay = std::max (4.0f, compensatedDelay);
 
-    // Split at bow position
-    float bridgeSamples = compensatedDelay * bowPosition;
-    float neckSamples = compensatedDelay * (1.0f - bowPosition);
+    // Split at bow position, raised to the register floor (CR-01)
+    const float beta = std::max (bowPosition, registerBowPositionFloor (currentFrequency));
+    float bridgeSamples = compensatedDelay * beta;
+    float neckSamples = compensatedDelay * (1.0f - beta);
 
     // No per-rail sample correction for readJunction popping before
     // writeJunction pushes: JUCE's DelayLine read/write pointers advance in
@@ -127,6 +128,28 @@ void WaveguideString::updateDelayLengths()
 
     bridgeDelay.setDelay (bridgeSamples);
     neckDelay.setDelay (neckSamples);
+}
+
+float WaveguideString::registerBowPositionFloor (float frequency) noexcept
+{
+    // CR-01: above ~D5 the junction can't hold Helmholtz motion at a small beta.
+    // At the factory beta 0.12 the string locked to H3 at G5-A5, to H2 at C6 and
+    // went silent from D6 up; a (note x beta x bow-speed) render grid found beta
+    // 0.30 speaks the fundamental on every note to C7 across the factory presets,
+    // while 0.16-0.22 lands in H2 islands. So the floor steps straight to 0.30
+    // over one semitone (C#5 -> D5) instead of ramping through those islands.
+    // Physically: the bow keeps its distance from the bridge while the stopped
+    // string shortens, so beta grows with pitch. Hz-based, so it follows bends
+    // and is independent of the sample rate.
+    constexpr float lowHz  = 554.37f;   // C#5 (MIDI 73): no floor at or below
+    constexpr float highHz = 587.33f;   // D5  (MIDI 74): full floor at or above
+    constexpr float floorBeta = 0.30f;  // = the Bow Position maximum
+
+    if (frequency <= lowHz)
+        return 0.0f;
+    if (frequency >= highHz)
+        return floorBeta;
+    return floorBeta * std::log2 (frequency / lowHz) / std::log2 (highHz / lowHz);
 }
 
 void WaveguideString::updateBridgeFilterCoeffs()

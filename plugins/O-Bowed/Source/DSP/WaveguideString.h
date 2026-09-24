@@ -77,6 +77,7 @@ public:
 private:
     void updateDelayLengths();
     void updateBridgeFilterCoeffs();
+    static float registerBowPositionFloor (float frequency) noexcept;   // CR-01
 
     double sampleRate = 44100.0;
     float currentFrequency = 440.0f;

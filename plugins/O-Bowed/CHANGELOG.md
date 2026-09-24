@@ -2,6 +2,59 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.9.2] - 2026-09-24
+
+The upper register: CR-01 from the v1.9.0 deep review (`CODE_REVIEW.md`,
+2026-09-23), resolved through `/improve-review`. PATCH. No parameter, range, type
+or state format changed. Notes at or below C#5 (MIDI 73) render byte-identically
+to v1.9.1. The default A4 render is still `c8aa14d6…`.
+
+### Fixed
+
+- **CR-01: the upper register plays its fundamental.** At the factory bow
+  position (β 0.12, used by Violin, Erhu, Sarangi and Nyckelharpa) the string
+  locked to H3 from about G5, to H2 at C6, and went silent from D6 up. Cello,
+  Viola and Double Bass failed the same way a few semitones lower. **Root cause:**
+  at a small β the bow–bridge segment is too short for this junction to hold
+  Helmholtz motion. A 936-cell render grid (MIDI 60–96 × β × bow speed) put the
+  silence edge at a bridge rail of about 10 samples, and found H2/H3 lock-in
+  islands at β 0.10–0.22 through the upper register. β 0.30 spoke the
+  fundamental on every note to C7. **Fix:** `WaveguideString` raises the split
+  to a register floor, `β_eff = max(knob, floor(f0))`. The floor is 0 up to C#5
+  and 0.30 (the Bow Position maximum) from D5. Between them it is interpolated
+  over one semitone, so it steps past the lock-in islands instead of ramping
+  through them. Physically, the bow keeps its distance from the bridge while the
+  stopped string shortens, so β grows with pitch. The floor is in Hz, so it
+  follows pitch bends and Note Expression, and doesn't depend on the sample rate.
+  From D5 up the Bow Position knob (and MPE timbre) now only matters above 0.30.
+  In practice it has no effect there.
+- The review's fix item 1 ("subtract the extra sample per rail") was already
+  disproven in v1.9.1 and was not applied. Item 2 (bridge rail from the
+  post-compensation loop length) was already in place.
+
+### Changed (flagged)
+
+- **Impossible Strings, MIDI 74–86: +14 to +24 c sharp.** v1.9.1 was in tune at
+  75–78 and near-silent (rms ≈ 0.0015) from 81. The string now speaks there, but
+  its Reversed Friction (0.3) sharpens pitch as β grows. The pitch pull comes
+  from Reversed Friction, not the floor: C4 at Bow Position max is +48 c in v1.9.1
+  too. Logged in NOTES.md Known Issues.
+
+### Testing
+
+- New `tests/register_gate.py`: renders all 10 factory presets over MIDI 45–96.
+  It requires the fundamental (rms ≥ 5e-3, harmonics within 30 dB sharing
+  gcd 1, H1 within ±10 c) from MIDI 74 up, with Impossible Strings and Double
+  Bass reported but not gated. **PASS** at 44.1, 48 and 96 kHz. v1.9.1 fails it
+  (Violin H3 at 84, silent at 93; 55 non-ok cells).
+- Render harness: new `--sample-rate <hz>` and repeatable `--param <id>=<norm>`
+  flags. With neither set it is byte-identical to before.
+- Byte identity below the threshold: 70/70 preset renders at MIDI 45–72 match
+  v1.9.1. A pitch-wheel vibrato on MIDI 73 (±1 st, crossing the C#5→D5 step):
+  no click (max |Δx| 0.0155 vs 0.0126 steady).
+- `auval -v aumu OBwd OuDv` PASS (only the pre-existing Bow Position max-value
+  warning); pluginval (strictness 5) SUCCESS.
+
 ## [1.9.1] - 2026-09-23
 
 The pitch path: three findings from the v1.9.0 deep review (`CODE_REVIEW.md`,

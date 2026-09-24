@@ -47,6 +47,10 @@
         --bend-vibrato <sec>       (v1.9.1, CR-02: from 1.0 s, one pitch-wheel
                                     message per block, 6 Hz / +-1 semitone, then
                                     back to centre)
+        --sample-rate <hz=44100>   (v1.9.2, CR-01: the waveguide runs at 2x this)
+        --param <id>=<norm>        (v1.9.2, CR-01: pin any APVTS parameter;
+                                    repeatable, applied before the named flags,
+                                    so a whole factory preset can be rendered)
 
     Pass-conditions (exit 0):
       - No NaN / Inf samples.
@@ -102,6 +106,10 @@ struct Args
     float brightnessNorm      = -1.0f;
     float neSemis             = 0.0f;
     float bendVibratoSeconds  = 0.0f;
+
+    // v1.9.2 register gate flags (CR-01). Unset = HEAD behaviour.
+    double sampleRate         = 44100.0;
+    juce::StringArray params;           // "id=norm"
 };
 
 bool parseArgs (int argc, char** argv, Args& args)
@@ -131,6 +139,8 @@ bool parseArgs (int argc, char** argv, Args& args)
         else if (key == "--brightness")       args.brightnessNorm      = val.getFloatValue();
         else if (key == "--ne-semis")         args.neSemis             = val.getFloatValue();
         else if (key == "--bend-vibrato")     args.bendVibratoSeconds  = val.getFloatValue();
+        else if (key == "--sample-rate")      args.sampleRate          = val.getDoubleValue();
+        else if (key == "--param")            args.params.add (val);
         else
         {
             std::fprintf (stderr, "Unknown arg: %s\n", argv[i - 1]);
@@ -149,7 +159,7 @@ int main (int argc, char** argv)
     if (! parseArgs (argc, argv, args))
         return 2;
 
-    constexpr double sampleRate = 44100.0;
+    const double sampleRate = args.sampleRate;
     constexpr int    blockSize  = 512;
 
     OBowedAudioProcessor proc;
@@ -167,6 +177,16 @@ int main (int argc, char** argv)
         if (auto* p = proc.getAPVTS().getParameter (paramId))
             p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f, norm));
     };
+    for (const auto& kv : args.params)
+    {
+        const auto id = kv.upToFirstOccurrenceOf ("=", false, false);
+        if (proc.getAPVTS().getParameter (id) == nullptr)
+        {
+            std::fprintf (stderr, "Unknown --param id: %s\n", id.toRawUTF8());
+            return 2;
+        }
+        pinNorm (id.toRawUTF8(), kv.fromFirstOccurrenceOf ("=", false, false).getFloatValue());
+    }
     if (args.bowSpeedNorm        >= 0.0f) pinNorm ("bowSpeed",        args.bowSpeedNorm);
     if (args.bowPressureNorm     >= 0.0f) pinNorm ("bowPressure",     args.bowPressureNorm);
     if (args.bowPositionNorm     >= 0.0f) pinNorm ("bowPosition",     args.bowPositionNorm);
