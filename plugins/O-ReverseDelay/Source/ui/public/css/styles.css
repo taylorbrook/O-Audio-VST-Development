@@ -752,6 +752,16 @@ body {
 .group-motion .segment,
 .group-source .segment { width: 75px; }
 
+/* v1.15.0: Freeze Length — a full-width select-cell row between the Off / Freeze
+   pair and the knobs. STACKED (the base column .select-cell), not caption-beside-
+   select: side by side, the centred pair moved the select 8 px in fr and 11 px
+   in zh-Hans as the caption changed width (check-ui-labels [7]), and fr
+   overflowed the 158 px box. Stacked, only the caption varies. Height: 26 + 12
+   + (26 + 6 + 10) + 12 + 78 = 170 of the 213 px body, so row 2's 245 px
+   (WINDOW's) is untouched. 96 px clears fr "2 mesures". */
+.group-motion .freeze-length-cell { flex: 0 0 100%; gap: 6px; }
+.group-motion .freeze-length-select { width: 96px; padding: 4px 6px; }
+
 /* ── Row 3: SOURCE | DUCK | DRIFT | COLOUR (v1.7.0) ───────────────────────── */
 /* The row-3 decision the v1.0.0 review's section D warned about, paid once and
    at the same width. Every panel here inherits its width from the shared

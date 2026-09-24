@@ -464,6 +464,17 @@ export const I18N = Object.freeze({
               b: '停止向缓冲区写入，而颗粒继续读取它，于是声浪无限保持下去。干声原样通过，释放时缓冲区从中断处继续采集。',
               reviewed: 'bt' },
     },
+    // v1.15.0. Title doubles as the on-page caption (the reuse rule below).
+    'combo-freezeLength': {
+        en: { t: 'Length',
+              b: 'How much a freeze loops. Ring holds everything captured so far, up to about 14 s. Delay holds only what the grains are reading — the delay plus two grains — so a short phrase repeats instead of cycling through older material. 1 Bar and 2 Bars follow the host tempo, and act as Delay when there is none. Applies the next time Freeze engages.' },
+        fr: { t: 'Longueur',
+              b: 'La part bouclée par le gel. Tampon maintient tout ce qui a été capté jusque-là, jusqu’à 14 s environ. Délai ne maintient que ce que lisent les grains — le délai plus deux grains —, si bien qu’une phrase courte se répète au lieu de parcourir des passages plus anciens. 1 mesure et 2 mesures suivent le tempo de l’hôte, et se comportent comme Délai en son absence. S’applique au prochain déclenchement du gel.',
+              reviewed: false },
+        'zh-Hans': { t: '长度',
+              b: '冻结时循环多长。缓冲区保持目前采集到的全部内容，最长约 14 s。延迟只保持颗粒正在读取的部分——延迟加两个颗粒——于是一段短乐句会重复，而不是轮流经过更早的素材。1 小节和 2 小节跟随宿主速度，没有速度时按延迟处理。下一次启用冻结时生效。',
+              reviewed: 'mt' },
+    },
     'knob-direction': {
         en: { t: 'Direction',
               b: 'How many grains play forwards instead of backwards. At zero every grain is reversed. Turn it up and forward grains blend in as a clean delay tap — add Scatter to break them apart into a forward cloud. Level is matched across the whole range.' },
@@ -583,12 +594,13 @@ export const I18N = Object.freeze({
 // ── THE REUSE RULE ─────────────────────────────────────────────────────────
 // trLabel() falls back to I18N when a key is absent here, so a control whose
 // tooltip TITLE already IS its caption carries ONE key. This page reuses more
-// than any other in the suite — SEVENTEEN keys as rendered text — because its
+// than any other in the suite — EIGHTEEN keys as rendered text — because its
 // tooltip titles were authored as the captions they sit under: knob-delayTime
 // (Delay / Délai), combo-noteDivision, knob-density, knob-feedback,
 // knob-lowCut, knob-highCut, knob-width, knob-mix, knob-jitter,
 // knob-delayScatter, combo-grainShape, knob-direction, knob-regenMakeup,
-// knob-diffusion, knob-drive, freezeSegments and sourceSegments, plus
+// knob-diffusion, knob-drive, freezeSegments, combo-freezeLength (v1.15.0)
+// and sourceSegments, plus
 // syncSegments and settings for the accessible names that match exactly.
 // None of those appears below.
 //
@@ -783,6 +795,14 @@ export const LABELS = Object.freeze({
               reviewed: 'bt' },
     },
     'aria.sourceMode':   { en: { t: 'Source Mode' },  fr: { t: 'Mode de source', reviewed: true } , 'zh-Hans': { t: '源模式', reviewed: 'bt' },},
+
+    // v1.15.0 — Freeze Length. The select's accessible name, and its four
+    // option labels (applied per <option> by bindSelectCombo's labelKeys).
+    'aria.freezeLength':       { en: { t: 'Freeze Length' }, fr: { t: 'Longueur du gel', reviewed: false } , 'zh-Hans': { t: '冻结长度', reviewed: 'mt' },},
+    'opt.freezeLength.ring':    { en: { t: 'Ring' },    fr: { t: 'Tampon',    reviewed: false } , 'zh-Hans': { t: '缓冲区', reviewed: 'mt' },},
+    'opt.freezeLength.delay':   { en: { t: 'Delay' },   fr: { t: 'Délai',     reviewed: false } , 'zh-Hans': { t: '延迟',   reviewed: 'mt' },},
+    'opt.freezeLength.oneBar':  { en: { t: '1 Bar' },   fr: { t: '1 mesure',  reviewed: false } , 'zh-Hans': { t: '1 小节', reviewed: 'mt' },},
+    'opt.freezeLength.twoBars': { en: { t: '2 Bars' },  fr: { t: '2 mesures', reviewed: false } , 'zh-Hans': { t: '2 小节', reviewed: 'mt' },},
 });
 
 // ============================================================================
@@ -845,6 +865,7 @@ export const TIP_BINDINGS = [
     ['#grainMeter',          'grainMeter'],
 
     ['#freezeSegments',      'freezeSegments'],
+    ['#combo-freezeLength',  'combo-freezeLength'],   // v1.15.0
     ['#knob-direction',      'knob-direction'],
     ['#knob-regenMakeup',    'knob-regenMakeup'],
 

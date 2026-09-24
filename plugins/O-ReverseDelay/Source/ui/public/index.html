@@ -453,6 +453,17 @@
             <button type="button" class="segment" id="seg-freeze-on" aria-pressed="false" data-i18n="freezeSegments">Freeze</button>
           </div>
 
+          <!-- v1.15.0: Freeze Length. A select-cell (select over caption, as
+               Shape) on its own row under the pair, in the panel's existing
+               slack (the body was 116 of 213 px), so no panel width, height or
+               position moves. Options are built from properties.choices and
+               relabelled through LABELS opt.freezeLength.* — unlike grainShape's
+               proper names, these are words. -->
+          <div class="select-cell freeze-length-cell">
+            <select class="division-select freeze-length-select" id="combo-freezeLength" data-i18n-aria="aria.freezeLength" aria-label="Freeze Length"></select>
+            <div class="knob-label" data-i18n="combo-freezeLength">Length</div>
+          </div>
+
           <div class="knob-cell">
             <div class="knob" id="knob-direction" data-param="direction"><div class="knob-stem"></div></div>
             <div class="knob-label" data-i18n="knob-direction">Direction</div>

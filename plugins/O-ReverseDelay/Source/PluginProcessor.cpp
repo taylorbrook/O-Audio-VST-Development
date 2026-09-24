@@ -59,6 +59,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     pFreeze       = parameters.getRawParameterValue("freeze");
     pDirection    = parameters.getRawParameterValue("direction");
     pRegenMakeup  = parameters.getRawParameterValue("regenMakeup");
+    pFreezeLength = parameters.getRawParameterValue("freezeLength");   // v1.15.0
 
     // v1.7.0 SOURCE / DUCK / DRIFT (B4 #4-#6).
     pSourceMode   = parameters.getRawParameterValue("sourceMode");
@@ -94,7 +95,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
                      pFeedback, pLowCut, pHighCut, pWidth, pMix,
                      pJitter, pDelayScatter, pSizeRandom, pGainRandom,
                      pGrainTilt, pGrainShape, pGrainCount, pTukeyTaper,
-                     pFreeze, pDirection, pRegenMakeup,
+                     pFreeze, pDirection, pRegenMakeup, pFreezeLength,
                      pSourceMode, pDuck, pDriftRate, pDriftDepth })
     {
         jassert (p != nullptr);   // id typo in createParameterLayout() or above
@@ -108,7 +109,7 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // 3162 Hz); a hand-written normalised fraction on any of them recalls 10–30×
     // wrong (pattern_factory_preset_normalized_ignores_skew).
     //
-    // All twenty-five keys are explicit in every preset. Omitted keys would
+    // All twenty-eight keys are explicit in every preset. Omitted keys would
     // revert to the APVTS default (applyPresetJson resets everything first),
     // which is safe but makes the table's intent unreadable.
     //
@@ -212,7 +213,8 @@ ReverseDelayProcessor::ReverseDelayProcessor()
         {"regenMakeup", 0.0f},
         {"sourceMode", 0.0f}, {"duck", 0.0f},
         {"driftRate", 0.30f}, {"driftDepth", 0.0f},    // rate: the DEFAULT, not 0
-        {"diffusion", 0.0f}, {"drive", 0.0f}};
+        {"diffusion", 0.0f}, {"drive", 0.0f},
+        {"freezeLength", 0.0f}};                        // v1.15.0: Ring, the shipped loop
 
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
         { "Reverse Bloom",
@@ -828,6 +830,19 @@ juce::AudioProcessorValueTreeState::ParameterLayout ReverseDelayProcessor::creat
     // on/off state.
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "freeze", 1 }, "Freeze", false));
+
+    // v1.15.0 — freezeLength: how much of the ring a hold loops. Latched on the
+    // freeze rising edge with the loop length itself, so moving it mid-hold
+    // changes the NEXT hold, never the running one (a loop whose length moves
+    // under the read head skips).
+    //
+    // Ring is index 0 and the default: an absent key in any pre-v1.15.0 session
+    // or preset resolves there, and Ring is the v1.6.0-v1.14.0 loop bitwise.
+    // Bar modes read the host's tempo whether or not TIME is in Sync, and fall
+    // back to Delay when there is none. See FreezeLength in the header.
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "freezeLength", 1 }, "Freeze Length",
+        juce::StringArray { "Ring", "Delay", "1 Bar", "2 Bars" }, 0));
 
     // direction: 0–100 %, default 0 (every grain reverse). The probability that
     // a grain is latched FORWARD at spawn, not a crossfade between two renders —
@@ -1449,10 +1464,58 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     {
         if (! freezeEngaged && capture.getTotalWritten() >= minLoopSamples)
         {
-            freezeLoopSamples = static_cast<int>(
-                juce::jlimit(static_cast<juce::int64>(1),
-                             static_cast<juce::int64>(juce::jmax(1, capture.getBufferSize() - 1)),
-                             capture.getTotalWritten()));
+            // v1.15.0 — Freeze Length, latched here with everything else. Ring
+            // reads nothing new and resolves to the v1.7.2 expression exactly.
+            const auto mode = static_cast<FreezeLength>(
+                juce::jlimit(0, 3, static_cast<int>(pFreezeLength->load())));
+
+            juce::int64 modeSamples = 0;
+
+            if (mode != FreezeLength::ring)
+            {
+                // Delay: the furthest back any grain spawned now could read —
+                // the latched delay at its widest (drift up, scatter up) plus
+                // two of the largest grain sizeRandom allows — plus the seam
+                // margin. At the randomisation defaults this is D + 2G + margin.
+                //
+                // ms -> samples as ms·fs/1000, not ms·0.001·fs: 0.001 is inexact
+                // in binary, so the product can land a hair above an integer,
+                // which ceil() would round up a whole sample.
+                const double reach =
+                    static_cast<double>(D) * (1.0 + static_cast<double>(driftDepthNorm) * kDriftMaxFraction)
+                    + static_cast<double>(juce::jmax(0.0f, scatterMs)) * currentSampleRate / 1000.0
+                    + 2.0 * static_cast<double>(G) * (1.0 + static_cast<double>(juce::jlimit(0.0f, 1.0f, sizeRandNorm)))
+                    + static_cast<double>(kFreezeLoopMarginMs) * currentSampleRate / 1000.0;
+
+                modeSamples = static_cast<juce::int64>(std::ceil(reach));
+
+                // Bars: the host's bar, Sync or not. No tempo -> stays Delay.
+                if (mode == FreezeLength::oneBar || mode == FreezeLength::twoBars)
+                {
+                    if (auto* playHead = getPlayHead())
+                    {
+                        if (const auto position = playHead->getPosition())
+                        {
+                            if (const auto bpm = position->getBpm(); bpm && *bpm > 0.0)
+                            {
+                                double beatsPerBar = 4.0;
+                                if (const auto sig = position->getTimeSignature();
+                                    sig && sig->numerator > 0 && sig->denominator > 0)
+                                    beatsPerBar = sig->numerator * 4.0 / sig->denominator;
+
+                                const double bars = mode == FreezeLength::twoBars ? 2.0 : 1.0;
+                                modeSamples = static_cast<juce::int64>(std::llround(
+                                    bars * beatsPerBar * 60.0 / *bpm * currentSampleRate));
+                            }
+                        }
+                    }
+                }
+            }
+
+            freezeLoopSamples = resolveFreezeLoopSamples(mode, modeSamples,
+                                                         capture.getTotalWritten(),
+                                                         capture.getBufferSize(),
+                                                         minLoopSamples);
             freezeEngaged = true;
         }
     }

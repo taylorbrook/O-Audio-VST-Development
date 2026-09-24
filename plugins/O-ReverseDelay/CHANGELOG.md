@@ -4,6 +4,87 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.15.0] — 2026-09-24
+
+Freeze Length. MINOR: one new parameter, additive. Its default is the loop
+every earlier version played, so existing sessions and presets render
+bit-identically. There is no DSP change outside the freeze latch, and no panel
+or row height moved.
+
+### Added
+
+- **Freeze Length (`freezeLength`): Ring / Delay / 1 Bar / 2 Bars, default
+  Ring.** Until now a hold looped everything captured, up to `bufferSize − 1`,
+  which is about 14 s once the ring fills. Freezing a 2 s phrase therefore
+  cycled through up to 12 s of earlier material, or through silence. The new
+  modes shorten the loop:
+  - **Ring** is the v1.6.0–v1.14.0 loop. It resolves through the same
+    expression as before, bit for bit.
+  - **Delay** loops the span the grains are actually reading:
+    `D·(1 + drift·0.25) + scatter + 2·G·(1 + sizeRandom) + 20 ms`. With the
+    randomisations at zero that is exactly **D + 2G + 20 ms**; with them on,
+    the loop still covers every grain. The 20 ms margin equals the freeze
+    ramp, so the loop's seam sits just outside the audible span.
+  - **1 Bar / 2 Bars** take the bar length from the host's BPM and time
+    signature (4/4 when the host reports no signature), in Free or Sync
+    alike. With no tempo or no playhead they fall back to Delay.
+- **Latched at the rising edge**, together with the existing loop length. A
+  change made mid-hold applies to the next hold, and never moves the running
+  loop under the read head.
+- **The seam reuses the existing freeze crossfade** (`pushCrossfaded`); no new
+  write path was added.
+- **Every mode clamps to `min(totalWritten, bufferSize − 1)`**, with the
+  existing one-grain floor below. The loop never spans cleared ring, and the
+  looped copy's source (`totalWritten − L`) is never the slot being written.
+  The clamp lives in one pure function, `resolveFreezeLoopSamples()`.
+- **UI:** a select-cell (select over a *Length* caption, like Shape) under the
+  Off / Freeze pair in MOTION. It uses the panel's existing slack (body 170 of
+  213 px), so no width, height or position moved. The hover tip and all four
+  option names are localised in en / fr / zh-Hans. The options relabel through
+  LABELS `opt.freezeLength.*` via a new optional labeler list on
+  `bindSelectCombo`, because these choices are words rather than proper names.
+  A caption-beside-select layout was tried first. The label-geometry gate
+  rejected it: the select shifted 8 px in French and 11 px in Chinese as the
+  caption width changed.
+
+### Migration
+
+- Ring is **choice index 0**. A pre-v1.15.0 session gets it through
+  `setStateInformation`'s default fill (probe BF). A user preset gets it
+  through `applyPresetJson`'s reset-to-defaults. No version-gated rewrite is
+  needed, because nothing is being rescaled.
+- The factory presets and `kShippedNoOpTail` pin `freezeLength = Ring`
+  explicitly, as every no-op key has been pinned since v1.1.0.
+
+### Testing
+
+- **Harness probe BJ** adds six lines, all passing:
+  - `freezelen-ring-bitwise`: ten `--digest` hashes pinned from the v1.14.0
+    binary (baseline, freeze-at-1.5s, and the eight factory presets) match.
+    An explicit-Ring render also equals the untouched default.
+  - `freezelen-delay-latch`: L = 24000 + 2·9600 + 960 = **44160**.
+  - `freezelen-delay-period`: the frozen wash's envelope autocorrelation
+    peaks at **920.0 ms = L**, r = 1.000. Ring, fed the same input, reads
+    r = −0.17 at that lag. The measurement runs at density 50: at overlap 5.6
+    the Hann ripple at the spawn hop pulled the peak to 26·hop (928 ms).
+  - `freezelen-bars`: 96000 / 192000 at 120 BPM, 72000 in 6/8, the same in
+    Sync, and Delay with no tempo or no playhead.
+  - `freezelen-clamps` / `freezelen-no-write-slot`:
+    - An early freeze latches L = totalWritten.
+    - The worst case (4 s D and G, scatter, drift and size randomisation all
+      at max) and 2 bars at 30 BPM both latch bufferSize − 1.
+    - On every block, L ∈ [1, size − 1], L ≤ totalWritten and L mod size ≠ 0.
+    - The unwritten-read counter stays at 0.
+  - `freezelen-latched`: switching Length and D mid-hold leaves L at 44160,
+    and the next hold picks up Ring.
+- **All 164 v1.14.0 probe lines are byte-identical** (the v1.14.0 binary's
+  log diffed against this build's), and all 45 v1.14.0 `--digest` lines are
+  identical. The two new digest scenarios are appended after them.
+- UI gates: `ui_frontend_check.js`, `ui_tooltip_clamp_check.js`,
+  `check-ui-labels --plugin O-ReverseDelay` (geometry diff in fr and zh-Hans),
+  `check-i18n`, the fr lint and the zh lint all pass. The new French is
+  `reviewed: false` and the new Chinese is `reviewed: 'mt'`.
+
 ## [1.14.0] — 2026-09-24
 
 Output metering and UI polish. MINOR: no parameter, preset, state or DSP change.

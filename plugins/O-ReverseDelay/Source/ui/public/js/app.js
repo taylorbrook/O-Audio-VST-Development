@@ -121,6 +121,7 @@ const COMBO_SHAPE    = "grainShape";
 // it names two modes rather than picking from a list. Same ComboBoxState either
 // way; only the control drawn on top of it differs.
 const COMBO_SOURCE   = "sourceMode";
+const COMBO_FREEZE_LENGTH = "freezeLength";   // v1.15.0: select in MOTION
 
 // v1.6.0 — the plugin's only bool parameter, and so its only ToggleState.
 const TOGGLE_FREEZE  = "freeze";
@@ -552,7 +553,13 @@ function bindKnob(juce, id) {
 // LIVE properties.choices, rebuilt when they arrive late, index refreshed on
 // both events — and a second copy would be a second place for that to rot.
 // Returns the state so the caller can hold it.
-function bindSelectCombo(juce, paramId) {
+//
+// v1.15.0: optional `labelers` — one function per option, for choices that are
+// WORDS (freezeLength) rather than proper names (grainShape, divisions). Each
+// calls setLabel with a LITERAL key (check-i18n [13] rejects a computed one),
+// so the option carries data-i18n and applyI18n() relabels it on a language
+// change like any other caption; the C++ string is only the pre-i18n fallback.
+function bindSelectCombo(juce, paramId, labelers) {
   const st = juce.getComboBoxState(paramId);
 
   const sel = document.getElementById(`combo-${paramId}`);
@@ -567,6 +574,7 @@ function bindSelectCombo(juce, paramId) {
       const opt = document.createElement("option");
       opt.value = String(i);
       opt.textContent = c;
+      if (labelers && labelers[i]) labelers[i](opt);
       sel.appendChild(opt);
     });
   };
@@ -1487,6 +1495,12 @@ function init() {
   bindSourceSegments(Juce);      // v1.7.0 (B4 #5)
   bindSelectCombo(Juce, COMBO_DIVISION);
   shapeState = bindSelectCombo(Juce, COMBO_SHAPE);
+  bindSelectCombo(Juce, COMBO_FREEZE_LENGTH, [   // v1.15.0, in choice order
+    (o) => setLabel(o, "opt.freezeLength.ring"),
+    (o) => setLabel(o, "opt.freezeLength.delay"),
+    (o) => setLabel(o, "opt.freezeLength.oneBar"),
+    (o) => setLabel(o, "opt.freezeLength.twoBars"),
+  ]);
 
   // v1.7.0: Drift Rate dims while Depth is 0. AFTER the bindKnob loop above,
   // which is what creates sliderState.driftDepth — ordinary ordering, not the

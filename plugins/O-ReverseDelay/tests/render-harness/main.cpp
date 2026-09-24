@@ -274,6 +274,21 @@
                               4096 must match exactly and the harness-only
                               unwritten-read counter must stay at zero.
 
+    v1.15.0 probe (Freeze Length):
+      BJ. freeze-length     — Ring is v1.14.0 BITWISE (ten pinned --digest
+                              hashes: baseline, freeze-at-1.5s, the eight
+                              factory presets; explicit Ring == default).
+                              Delay latches exactly D + 2G + 20 ms and the
+                              frozen wash's envelope autocorrelation peaks AT
+                              that L (Ring, same input, does not). Bars follow
+                              the host bar and time signature in either TIME
+                              mode and fall back to Delay with no tempo or no
+                              playhead. Early and over-long lengths clamp to
+                              totalWritten / bufferSize-1, the looped copy
+                              never reads the write slot, no grain reads an
+                              unwritten slot, and the length is latched at the
+                              rising edge.
+
   ==============================================================================
 */
 
@@ -289,6 +304,7 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <string>
 #include <vector>
 
 //==============================================================================
@@ -557,12 +573,14 @@ struct MockPlayHead : juce::AudioPlayHead
 {
     juce::Optional<double> bpm { 120.0 };
     bool playing = true;
+    juce::Optional<TimeSignature> timeSig;   // v1.15.0: empty = unset, as before
 
     juce::Optional<PositionInfo> getPosition() const override
     {
         PositionInfo pi;
         pi.setBpm (bpm);
         pi.setIsPlaying (playing);
+        pi.setTimeSignature (timeSig);
         return pi;
     }
 };
@@ -761,6 +779,7 @@ static void setBaseline (juce::AudioProcessorValueTreeState& a)
     setParam (a, "freeze",         0.0f);
     setParam (a, "direction",      0.0f);
     setParam (a, "regenMakeup",    0.0f);
+    setParam (a, "freezeLength",   0.0f);   // v1.15.0: Ring
 
     // v1.7.0 (B4 #4-#6): SOURCE / DUCK / DRIFT, reset here for the sixth release
     // running and for the reason every block above it gives — probes AR-AV sweep
@@ -851,8 +870,11 @@ static juce::uint64 fnv1a (juce::uint64 h, const std::vector<float>& x)
     return h;
 }
 
-static int runDigest()
+struct DigestLine { std::string name; juce::uint64 hash; double peak; };
+
+static std::vector<DigestLine> computeDigests()
 {
+    std::vector<DigestLine> lines;
     const double fs = 48000.0;
     const double seconds = 3.0;
 
@@ -917,6 +939,11 @@ static int runDigest()
         d.preset = p;
         sc.push_back (d);
     }
+    // v1.15.0 — appended AFTER every pre-existing scenario so a cross-version
+    // diff shows them as pure additions (plus the ALL line). The explicit-Ring
+    // line must equal freeze-at-1.5s above; probe BJ asserts it.
+    { DigestScenario d { "freeze-ring-explicit-1.5s",  { {"feedback",60}, {"freezeLength",0} } }; d.freezeAt = 1.5; sc.push_back (d); }
+    { DigestScenario d { "freeze-delay-1.5s",          { {"feedback",60}, {"freezeLength",1} } }; d.freezeAt = 1.5; sc.push_back (d); }
 
     juce::uint64 all = 0xcbf29ce484222325ull;
     for (const auto& s : sc)
@@ -969,10 +996,21 @@ static int runDigest()
         juce::uint64 h = fnv1a (0xcbf29ce484222325ull, outL);
         h = fnv1a (h, outR);
         const double pk = juce::jmax (peakAbs (outL), outR.empty() ? 0.0 : peakAbs (outR));
-        std::printf ("%-28s %016llx  peak=%.6f\n", s.name, (unsigned long long) h, pk);
+        lines.push_back ({ s.name, h, pk });
         all = (all ^ h) * 0x100000001b3ull;
     }
-    std::printf ("%-28s %016llx  (%d scenarios)\n", "ALL", (unsigned long long) all, (int) sc.size());
+    lines.push_back ({ "ALL", all, (double) sc.size() });
+    return lines;
+}
+
+static int runDigest()
+{
+    const auto lines = computeDigests();
+    for (size_t i = 0; i + 1 < lines.size(); ++i)
+        std::printf ("%-28s %016llx  peak=%.6f\n", lines[i].name.c_str(),
+                     (unsigned long long) lines[i].hash, lines[i].peak);
+    std::printf ("%-28s %016llx  (%d scenarios)\n", "ALL",
+                 (unsigned long long) lines.back().hash, (int) lines.back().peak);
     return 0;
 }
 
@@ -6575,6 +6613,321 @@ int main (int argc, char** argv)
                  + juce::String (p1.out, 6) + " (expect " + juce::String (outExpect, 6)
                  + ") | second read in=" + juce::String (p2.in, 6) + " out=" + juce::String (p2.out, 6));
 
+        proc.prepareToPlay (fs, block);
+    }
+
+    // --- Probe BJ: Freeze Length (v1.15.0) ------------------------------------
+    //
+    // Five claims, each with its own line:
+    //   BJ0 Ring is the v1.14.0 engine BITWISE — pinned digests from the v1.14.0
+    //       binary for the freeze scenario and all eight factory presets, plus
+    //       an explicit-Ring render equal to the untouched default.
+    //   BJ1 Delay latches exactly D + 2G + margin at the randomisation defaults.
+    //   BJ2 ...and the frozen wash REPEATS at that period (rendered, not read
+    //       back): the envelope autocorrelation peaks at L, and Ring on the same
+    //       input does not, so the measurement can tell the modes apart.
+    //   BJ3 Bars follow the host bar in either TIME mode, honour the time
+    //       signature, and fall back to Delay with no tempo or no playhead.
+    //   BJ4 Every latched L is in [1, bufferSize-1] and <= totalWritten, so the
+    //       looped copy's source (totalWritten - L) is never the write slot, and
+    //       no grain reads an unwritten slot — including the worst case, where
+    //       the Delay reach exceeds the ring.
+    //   BJ5 The length is LATCHED: moving it mid-hold leaves the running loop
+    //       alone, and the next hold picks it up.
+    {
+        // BJ0 — pinned from the v1.14.0 build's `--digest` (2026-09-24).
+        {
+            const auto dg = computeDigests();
+            auto hashOf = [&] (const char* n) -> juce::uint64
+            {
+                for (const auto& l : dg) if (l.name == n) return l.hash;
+                return 0;
+            };
+            struct Pin { const char* name; juce::uint64 hash; };
+            const Pin pins[] = {
+                { "baseline",         0x816f3fcbfd2e85bdull },
+                { "freeze-at-1.5s",   0x8130b7f75b6577d9ull },
+                { "Reverse Bloom",    0x8633d07d2c7dbee2ull },
+                { "Guitar Swell",     0xe91c807778fbc997ull },
+                { "Vocal Halo",       0x94be89be43ce4d57ull },
+                { "Slow Wash",        0xacce3af60e64de1aull },
+                { "Tight Smear",      0x109cf7ab5764b3f4ull },
+                { "Dark Cavern",      0xe4836e5fe24fba72ull },
+                { "Near-Infinite",    0xaaa988eda5a8427bull },
+                { "Rhythmic Reverse", 0xe720a0ae46d9f563ull } };
+
+            int mismatched = 0;
+            juce::String firstBad;
+            for (const auto& pin : pins)
+                if (hashOf (pin.name) != pin.hash)
+                {
+                    if (mismatched++ == 0) firstBad = pin.name;
+                }
+
+            const bool explicitEq = hashOf ("freeze-ring-explicit-1.5s") == hashOf ("freeze-at-1.5s")
+                                    && hashOf ("freeze-at-1.5s") != 0;
+            const bool delayDiffers = hashOf ("freeze-delay-1.5s") != hashOf ("freeze-at-1.5s");
+
+            check ("freezelen-ring-bitwise",
+                   mismatched == 0 && explicitEq && delayDiffers,
+                   juce::String (10 - mismatched) + "/10 v1.14.0 digests match"
+                     + (mismatched ? " (first bad: " + firstBad + ")" : juce::String())
+                     + " | explicit Ring == default " + (explicitEq ? "yes" : "NO")
+                     + " | Delay differs " + (delayDiffers ? "yes" : "NO (dead mode)"));
+        }
+
+        struct HoldRun
+        {
+            StereoRender  y;
+            int           L        = 0;
+            int           latchTw  = -1;    // totalWritten at the latching block
+            bool          boundsOk = true;  // every block: 1 <= L <= size-1, L <= latchTw
+            juce::uint64  unwritten = 0;
+        };
+
+        // One hold on a fresh prepare. `perBlock` may move params mid-render.
+        auto runHold = [&] (int mode, double freezeAt, double releaseAt, double seconds,
+                            auto&& fill, auto&& perBlock) -> HoldRun
+        {
+            HoldRun r;
+            setParam (apvts, "freezeLength", (float) mode);
+            proc.prepareToPlay (fs, block);
+            proc.resetUnwrittenReadCount();
+            const int size = proc.getCaptureBufferSize();
+
+            bool wasEngaged = false;
+            int  holdTw     = -1;     // totalWritten at THIS hold's latch
+
+            r.y = renderEffect (proc, seconds, fs, block, fill, [&] (int pos, int total)
+            {
+                const bool engaged = proc.isFreezeEngaged();
+                if (engaged)
+                {
+                    const int L = proc.getFreezeLoopSamples();
+                    if (! wasEngaged) holdTw = pos - block;             // this block's start
+                    if (r.latchTw < 0) { r.latchTw = holdTw; r.L = L; }
+                    if (L < 1 || L > size - 1 || L > holdTw || (L % size) == 0)
+                        r.boundsOk = false;
+                }
+                else if (wasEngaged && pos < (int) (releaseAt * fs))
+                {
+                    r.boundsOk = false;   // a hold that dropped on its own
+                }
+                wasEngaged = engaged;
+
+                const bool on = pos >= (int) (freezeAt * fs) && pos < (int) (releaseAt * fs);
+                setParam (apvts, "freeze", on ? 1.0f : 0.0f);
+                perBlock (pos, total);
+            });
+            r.unwritten = proc.getUnwrittenReadCount();
+            setParam (apvts, "freeze", 0.0f);
+            return r;
+        };
+        auto noop = [] (int, int) {};
+
+        // Envelope-marked noise: slow incommensurate AM, so the envelope has no
+        // period of its own anywhere near L.
+        auto amNoise = [&] (int t)
+        {
+            const double ts = (double) t / fs;
+            const double e  = std::abs (std::sin (2.0 * juce::MathConstants<double>::pi * 1.7 * ts))
+                              * (0.6 + 0.4 * std::sin (2.0 * juce::MathConstants<double>::pi * 0.37 * ts + 1.0));
+            return (float) (kRandA * e * whiteNoiseAt (t));
+        };
+
+        setBaseline (apvts);
+        setParam (apvts, "feedback", 40.0f);
+        // Density 50 = overlap 5, an integer, where Hann overlap-adds FLAT. At
+        // the baseline's 60 (overlap 5.6) the wash carries a ripple at the spawn
+        // hop, and BJ2's autocorrelation locked onto 26·hop (928 ms) rather than
+        // L (920 ms) — the grid's period, not the loop's.
+        setParam (apvts, "density", 50.0f);
+        clearRandomisation();
+        clearWindow();
+
+        const int D = currentD(), G = currentG();
+        const int expectDelayL = D + 2 * G + (int) (ReverseDelayProcessor::kFreezeLoopMarginMs * fs / 1000.0);
+        const int size = proc.getCaptureBufferSize();
+        bool allBounds = true;
+        juce::uint64 allUnwritten = 0;
+        auto tally = [&] (const HoldRun& r) { allBounds &= r.boundsOk; allUnwritten += r.unwritten; };
+
+        // BJ1 + BJ2 — Delay latch and rendered period, Ring as the control.
+        const auto hd = runHold (1, 3.0, 99.0, 12.0, amNoise, noop);
+        const auto hr = runHold (0, 3.0, 99.0, 12.0, amNoise, noop);
+        tally (hd); tally (hr);
+
+        check ("freezelen-delay-latch",
+               hd.L == expectDelayL && hd.L == D + 2 * G + 960,
+               juce::String ("L=") + juce::String (hd.L) + " expect D+2G+margin = "
+                 + juce::String (D) + "+2*" + juce::String (G) + "+960 = " + juce::String (expectDelayL)
+                 + " | Ring L=" + juce::String (hr.L) + " (= totalWritten " + juce::String (hr.latchTw) + ")");
+
+        {
+            // RMS over one spawn interval (G/5), stepped every 5 ms, across 5-12 s
+            // (the hold, past the pre-freeze reach). A window of exactly one
+            // spawn hop averages out any residual grid ripple.
+            const int hop = (int) (0.005 * fs);
+            const int win = G / 5;
+            auto envelope = [&] (const StereoRender& y)
+            {
+                std::vector<double> e;
+                for (int k = (int) (5.0 * fs); k + win <= (int) y.L.size(); k += hop)
+                {
+                    double acc = 0.0;
+                    for (int i = 0; i < win; ++i)
+                    {
+                        const double m = 0.5 * ((double) y.L[(size_t) (k + i)] + (double) y.R[(size_t) (k + i)]);
+                        acc += m * m;
+                    }
+                    e.push_back (std::sqrt (acc / win));
+                }
+                double mean = 0.0; for (double v : e) mean += v; mean /= (double) e.size();
+                for (double& v : e) v -= mean;
+                return e;
+            };
+            auto corrAt = [] (const std::vector<double>& e, int lag)
+            {
+                double xy = 0.0, xx = 0.0, yy = 0.0;
+                for (size_t k = 0; k + (size_t) lag < e.size(); ++k)
+                {
+                    xy += e[k] * e[k + (size_t) lag];
+                    xx += e[k] * e[k];
+                    yy += e[k + (size_t) lag] * e[k + (size_t) lag];
+                }
+                return (xx > 0.0 && yy > 0.0) ? xy / std::sqrt (xx * yy) : 0.0;
+            };
+
+            const auto ed = envelope (hd.y);
+            const auto er = envelope (hr.y);
+            const double Lf = (double) hd.L / hop;
+
+            int bestLag = 0; double best = -2.0;
+            for (int lag = (int) (0.4 * Lf); lag <= (int) (1.6 * Lf); ++lag)
+            {
+                const double c = corrAt (ed, lag);
+                if (c > best) { best = c; bestLag = lag; }
+            }
+            const double errMs  = std::abs ((double) bestLag * hop - (double) hd.L) / fs * 1000.0;
+            const double ringAt = corrAt (er, (int) std::lround (Lf));
+
+            check ("freezelen-delay-period",
+                   errMs <= 10.0 && best > 0.8 && ringAt < best - 0.3,
+                   juce::String ("envelope autocorr peak at ") + juce::String ((double) bestLag * hop / fs * 1000.0, 1)
+                     + " ms (L = " + juce::String (hd.L / fs * 1000.0, 1) + " ms, err "
+                     + juce::String (errMs, 1) + " <= 10) r=" + juce::String (best, 3)
+                     + " (> 0.8) | Ring at the same lag r=" + juce::String (ringAt, 3));
+        }
+
+        // BJ3 — bars.
+        {
+            MockPlayHead mph;
+            proc.setPlayHead (&mph);
+
+            mph.bpm = 120.0;
+            const auto b1 = runHold (2, 5.0, 99.0, 6.0, amNoise, noop);
+            const auto b2 = runHold (3, 5.0, 99.0, 6.0, amNoise, noop);
+
+            mph.timeSig = juce::AudioPlayHead::TimeSignature { 6, 8 };
+            const auto b68 = runHold (2, 5.0, 99.0, 6.0, amNoise, noop);
+            mph.timeSig = {};
+
+            setParam (apvts, "syncMode", 1.0f);          // bars ignore TIME mode
+            const auto bSync = runHold (2, 5.0, 99.0, 6.0, amNoise, noop);
+            setParam (apvts, "syncMode", 0.0f);
+
+            mph.bpm = {};                                 // host with no tempo
+            const auto bNoTempo = runHold (3, 5.0, 99.0, 6.0, amNoise, noop);
+            mph.bpm = 120.0;
+
+            proc.setPlayHead (nullptr);                   // no playhead at all
+            const auto bNoHead = runHold (2, 5.0, 99.0, 6.0, amNoise, noop);
+
+            for (const auto* r : { &b1, &b2, &b68, &bSync, &bNoTempo, &bNoHead }) tally (*r);
+
+            const int bar = (int) (4.0 * 60.0 / 120.0 * fs);   // 96000
+            check ("freezelen-bars",
+                   b1.L == bar && b2.L == 2 * bar && b68.L == (int) (3.0 * 60.0 / 120.0 * fs)
+                     && bSync.L == bar && bNoTempo.L == expectDelayL && bNoHead.L == expectDelayL,
+                   juce::String ("120 BPM: 1 bar=") + juce::String (b1.L) + " 2 bars=" + juce::String (b2.L)
+                     + " 6/8=" + juce::String (b68.L) + " (expect " + juce::String (bar) + "/"
+                     + juce::String (2 * bar) + "/" + juce::String ((int) (1.5 * fs)) + ") | Sync="
+                     + juce::String (bSync.L) + " | no tempo=" + juce::String (bNoTempo.L)
+                     + " no playhead=" + juce::String (bNoHead.L) + " (Delay " + juce::String (expectDelayL) + ")");
+        }
+
+        // BJ4 — clamps, write slot, unwritten reads, and the hold still holds.
+        {
+            // Early: Delay wants 44160 but only ~0.5 s is captured.
+            const auto early = runHold (1, 0.5, 99.0, 4.0, amNoise, noop);
+
+            // Worst case: every widening at max; reach ~21.5 s > the 14 s ring.
+            setParam (apvts, "delayTime",   4000.0f);
+            setParam (apvts, "grainSize",   4000.0f);
+            setParam (apvts, "delayScatter", 500.0f);
+            setParam (apvts, "sizeRandom",   100.0f);
+            setParam (apvts, "driftDepth",   100.0f);
+            const auto worst = runHold (1, 20.0, 99.0, 26.0, amNoise, noop);
+            clearRandomisation();
+            setParam (apvts, "driftDepth", 0.0f);
+            setParam (apvts, "delayTime", 500.0f);
+            setParam (apvts, "grainSize", 200.0f);
+
+            // Two bars at 30 BPM is 16 s, also past the ring.
+            MockPlayHead slow; slow.bpm = 30.0;
+            proc.setPlayHead (&slow);
+            const auto longBars = runHold (3, 20.0, 99.0, 22.0, amNoise, noop);
+            proc.setPlayHead (nullptr);
+
+            for (const auto* r : { &early, &worst, &longBars }) tally (*r);
+
+            const double sustain = rms (hd.y.L, (int) (10.0 * fs), (int) (2.0 * fs));
+            const bool finite = allFinite (hd.y.L) && allFinite (worst.y.L) && allFinite (longBars.y.L);
+
+            check ("freezelen-clamps",
+                   early.L == early.latchTw && worst.L == size - 1 && longBars.L == size - 1,
+                   juce::String ("early L=") + juce::String (early.L) + " (= totalWritten "
+                     + juce::String (early.latchTw) + ") | worst L=" + juce::String (worst.L)
+                     + " 2 bars@30=" + juce::String (longBars.L) + " (= bufferSize-1 "
+                     + juce::String (size - 1) + ")");
+
+            check ("freezelen-no-write-slot",
+                   allBounds && allUnwritten == 0 && finite && sustain > 1.0e-4,
+                   juce::String ("every latched L in [1, size-1], <= totalWritten, L mod size != 0: ")
+                     + (allBounds ? "yes" : "NO") + " | unwritten grain reads=" + juce::String ((juce::int64) allUnwritten)
+                     + " | Delay hold rms@10s=" + juce::String (sustain, 6) + " finite=" + (finite ? "yes" : "NO"));
+        }
+
+        // BJ5 — latched on the rising edge.
+        {
+            int midL = -1;
+            const auto lat = runHold (1, 3.0, 8.0, 10.0, amNoise, [&] (int pos, int)
+            {
+                if (pos >= (int) (5.0 * fs) && midL < 0)
+                {
+                    setParam (apvts, "freezeLength", 0.0f);     // Ring, mid-hold
+                    setParam (apvts, "delayTime",  1500.0f);   // and a new D
+                    midL = 0;
+                }
+                if (pos >= (int) (7.0 * fs) && midL == 0)
+                    midL = proc.getFreezeLoopSamples();
+                if (pos >= (int) (9.0 * fs))
+                    setParam (apvts, "freeze", 1.0f);          // second hold
+            });
+            const int secondL = proc.getFreezeLoopSamples();
+            setParam (apvts, "delayTime", 500.0f);
+            tally (lat);
+
+            check ("freezelen-latched",
+                   lat.L == expectDelayL && midL == expectDelayL && secondL > expectDelayL && lat.unwritten == 0,
+                   juce::String ("first hold L=") + juce::String (lat.L) + " | after Length->Ring + D->1500 mid-hold L="
+                     + juce::String (midL) + " (unchanged) | next hold L=" + juce::String (secondL)
+                     + " (Ring: the whole capture)");
+        }
+
+        setParam (apvts, "freezeLength", 0.0f);
+        setParam (apvts, "freeze", 0.0f);
+        proc.setPlayHead (nullptr);
         proc.prepareToPlay (fs, block);
     }
 

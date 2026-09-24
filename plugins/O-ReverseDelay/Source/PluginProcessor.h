@@ -231,6 +231,13 @@ public:
         size and every parameter trajectory; probe BE asserts it. */
     juce::uint64 getUnwrittenReadCount() const noexcept { return harnessUnwrittenReads; }
     void         resetUnwrittenReadCount() noexcept     { harnessUnwrittenReads = 0; }
+
+    /** v1.15.0: HARNESS ONLY. The loop length the current hold latched, and
+        whether a hold is armed, so probe BJ can assert the Freeze Length
+        arithmetic against the D and G the harness itself set. */
+    int  getFreezeLoopSamples() const noexcept { return freezeLoopSamples; }
+    bool isFreezeEngaged()      const noexcept { return freezeEngaged; }
+    int  getCaptureBufferSize() const noexcept { return capture.getBufferSize(); }
    #endif
 
     /** v1.2.0 (B1): the window bank, exposed read-only so the render harness can
@@ -864,6 +871,49 @@ public:
         chose, not with anything the user can dial in. */
     static constexpr float kCaptureSeconds         = 14.0f;
 
+    //==========================================================================
+    // v1.15.0 — Freeze Length.
+    //
+    // Through v1.14.0 a hold looped everything captured, up to bufferSize − 1
+    // (~14 s once the ring is full), so freezing a 2 s phrase cycled through up
+    // to 12 s of whatever preceded it. The three new modes shorten the loop to
+    // the span the grains are actually reading, or to the host's bar.
+    //
+    // ORDER IS LOAD-BEARING: Ring is index 0 because an absent key in a
+    // pre-v1.15.0 session or preset resolves to index 0, and Ring is the
+    // shipped behaviour — same guarantee sourceMode and grainShape carry.
+    enum class FreezeLength : int { ring = 0, delay = 1, oneBar = 2, twoBars = 3 };
+
+    /** Added to the Delay-mode reach so the loop's seam — the ~20 ms content
+        crossfade pushCrossfaded writes at the rising edge — sits just outside
+        the span a grain could have been reading at the moment of the freeze. */
+    static constexpr float kFreezeLoopMarginMs = 20.0f;
+
+    /** The latched loop length for a hold, in samples. Pure, so the harness can
+        audit the arithmetic directly.
+
+        `modeSamples` is the requested length for the chosen mode (ignored for
+        Ring); `totalWritten` and `bufferSize` are the ring's; `minLoop` is the
+        one-grain floor the latch already refuses to arm below (v1.7.2 CR-02).
+
+        Every mode ends in the same clamp: at most bufferSize − 1, so the
+        pushLooped source index can never be the slot about to be written, and
+        at most totalWritten, so the loop never spans cleared ring. Ring is the
+        v1.7.2 expression verbatim — bitwise the shipped latch. */
+    static int resolveFreezeLoopSamples (FreezeLength mode, juce::int64 modeSamples,
+                                         juce::int64 totalWritten, int bufferSize,
+                                         juce::int64 minLoop) noexcept
+    {
+        const auto hi = static_cast<juce::int64> (juce::jmax (1, bufferSize - 1));
+
+        if (mode == FreezeLength::ring)
+            return static_cast<int> (juce::jlimit (static_cast<juce::int64> (1), hi, totalWritten));
+
+        const auto want = juce::jmax (minLoop, modeSamples);
+        return static_cast<int> (juce::jlimit (static_cast<juce::int64> (1), hi,
+                                               juce::jmin (want, totalWritten)));
+    }
+
     /** v1.7.2 (WR-03) — the damping filters' control rate, in samples.
 
         32 samples is ~0.67 ms at 48 kHz, i.e. ~30 updates across the 20 ms
@@ -1135,6 +1185,7 @@ private:
     std::atomic<float>* pFreeze       = nullptr;
     std::atomic<float>* pDirection    = nullptr;
     std::atomic<float>* pRegenMakeup  = nullptr;
+    std::atomic<float>* pFreezeLength = nullptr;   // v1.15.0: Ring at index 0
 
     // v1.7.0 (B4 #4-#6) — SOURCE / DUCK / DRIFT. Four more no-ops at the range
     // minimum, i.e. the v1.1.0 and v1.6.0 situation rather than the v1.2-v1.4
