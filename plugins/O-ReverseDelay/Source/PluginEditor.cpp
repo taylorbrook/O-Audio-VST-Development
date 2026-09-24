@@ -114,7 +114,11 @@ namespace
     // PAIR rather than a select — like syncMode, and unlike noteDivision and
     // grainShape — because it names two modes rather than picking from a list;
     // the relay type is the same either way.
-    const juce::StringArray kComboIds { "syncMode", "noteDivision", "grainShape", "sourceMode" };
+    //
+    // v1.15.0: freezeLength is a select (four entries, a list rather than a
+    // pair), inside the MOTION panel under the Off / Freeze segments.
+    const juce::StringArray kComboIds { "syncMode", "noteDivision", "grainShape", "sourceMode",
+                                        "freezeLength" };
 
     // v1.6.0: the plugin's first bool parameter, and therefore its first toggle
     // relay. Kept as a StringArray rather than a bare id so the frontend check's

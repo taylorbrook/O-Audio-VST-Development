@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.14.0
+- **Version:** 1.15.0
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -108,6 +108,7 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
 - **2026-09-23 (v1.12.2):** Patch — **Drive and Diffusion smoothed (20 ms, per sample) inside the feedback loop** (block-rate steps clicked loud material and recirculated); **oversized host blocks processed in prepared-size chunks** instead of bailing to dry at unity; **setStateInformation fills missing parameter ids with defaults** before replaceState (not a live bug on JUCE 8.0.15 — replaceState already resets missing params via valueTreeChildAdded; now explicit). Static-setting output byte-identical to v1.12.1. New probes BF (v1.7/v1.5 state into non-default instance → defaults) and BG (2×512 vs 1×1024 at prepared 512, exact; 0.287 divergence on old code). Harness 153→156 checks.
 - **2026-09-24 (v1.13.0):** Minor. The UI shows what the engine actually plays. A `= 500 ms` readout sits under Division in Sync and turns burnt sienna when Sync falls back to the Delay knob (no host tempo) or the tempo result is clamped at 50 or 4000 ms. The FREEZE segment pulses while armed and turns solid once the v1.7.2 one-grain latch engages. Both ride on `getGrainMeter` (`delayMs`, `delaySource`, `freezeEngaged`), so the bridge surface stays at **15**. No parameter, preset, state or DSP change. Harness +6 probes (`meter-*`, all passing); `ui_frontend_check` +4 checks; auval SUCCEEDED, bundle 1.13.0.
 - **2026-09-24 (v1.14.0):** Minor — output metering and UI polish. An OUTPUT level meter (output peak bar, input hairline, clip lamp that latches over 0 dBFS until clicked) is fed by `peakIn`/`peakOut` riders on `getGrainMeter`, so the bridge stays at **15**. The peaks are the max since the last poll (`takeLevelPeaks()`), not the latest block. Shift-drag runs at 0.2× and re-bases the origin when the modifier changes. Row-1 knobs 56 → 62 px. The COUNT and DUCK knobs are captioned *Amount*, Count reads `8×`, and the footer gains the Shift hint (French re-cut to fit 560 px on one line). No parameter, preset, state or DSP change. Harness probe BI added.
+- **2026-09-24 (v1.15.0):** Minor — **Freeze Length.** New choice `freezeLength` (Ring / Delay / 1 Bar / 2 Bars, default Ring), latched on the Freeze rising edge alongside the loop length. Delay loops the grains' reach, `D·(1+drift·0.25) + scatter + 2G·(1+sizeRnd) + 20 ms` (exactly D + 2G + 20 ms at the randomisation defaults), so a 2 s phrase repeats instead of cycling through up to 12 s of older ring. The bar modes use host BPM and time signature (4/4 if none) in either TIME mode and fall back to Delay with no tempo. Every mode clamps to `min(totalWritten, bufferSize−1)` and reuses the existing seam crossfade. Ring is index 0, so old sessions and presets resolve to it through the existing default-fill paths; factory presets and `kShippedNoOpTail` pin it explicitly. UI: a select-cell under Off/Freeze in MOTION, localised en/fr/zh-Hans (options through LABELS `opt.freezeLength.*`). Harness probe BJ (6 lines); all 164 v1.14.0 probe lines byte-identical, and all 45 v1.14.0 `--digest` hashes identical.
 
 ## Known Issues
 

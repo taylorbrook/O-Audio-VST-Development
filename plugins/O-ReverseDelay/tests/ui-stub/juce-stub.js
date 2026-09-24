@@ -126,6 +126,7 @@ const CHOICES = {
   // load-bearing rather than cosmetic: index 0 is what an absent key in a
   // pre-v1.7.0 session or preset resolves to, so Mono Sum has to be first.
   sourceMode: ["Mono Sum", "Stereo"],
+  freezeLength: ["Ring", "Delay", "1 Bar", "2 Bars"],   // v1.15.0
   // v1.2.0 — must match WindowLut::Shape order and the C++ StringArray.
   grainShape: ["Hann", "Tukey", "Gaussian", "Triangular", "Expo-Decay"],
   noteDivision: [
@@ -137,7 +138,7 @@ const CHOICES = {
   ],
 };
 
-const DEFAULT_CHOICE = { syncMode: 1, noteDivision: 6, grainShape: 0, sourceMode: 0 };
+const DEFAULT_CHOICE = { syncMode: 1, noteDivision: 6, grainShape: 0, sourceMode: 0, freezeLength: 0 };
 
 class StubSliderState {
   constructor(name) {
