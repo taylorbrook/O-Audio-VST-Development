@@ -256,9 +256,10 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     for (const auto& relay : toggleRelays)
         options = options.withOptionsFrom (*relay);
 
-    // ── NATIVE FUNCTIONS — exactly 15 ──────────────────────────────────────
+    // ── NATIVE FUNCTIONS — exactly 17 ──────────────────────────────────────
     // 1 for dblclick-reset + 1 for the v1.3.0 grain meter + 1 for v1.4.0's
-    // window-shape curve + v1.9.0's getUiLanguage/setUiLanguage pair + the 10
+    // window-shape curve + v1.9.0's getUiLanguage/setUiLanguage pair + v1.16.0's
+    // getMixLock/setMixLock pair + the 10
     // that js/preset-manager.js fetches. The count is grep-diffed against app.js +
     // preset-manager.js at the Stage-4 gate: an unregistered fn leaves its
     // control silently dead while build, auval and pluginval all pass
@@ -386,7 +387,7 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     // preset path can change it behind the page's back
     // (pattern_webview_one_shot_state_push_stale_on_preset_load does not apply).
     //
-    // This is the ONLY pair v1.9.0 adds, taking the bridge 13 -> 15. There is
+    // This is the ONLY pair v1.9.0 added, taking the bridge 13 -> 15. There is
     // deliberately no setTooltipsEnabled: D13 scoped this plugin's hover help to
     // display only, and section 14 of tests/ui_frontend_check.js asserts that
     // absence by name against this file.
@@ -412,6 +413,31 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
                 processorRef.uiLanguage.load (std::memory_order_acquire))));
         });
 
+    // ── v1.16.0: the Mix lock pair ──────────────────────────────────────────
+    //
+    // Same shape as the language pair above: the page reads it once at init,
+    // with no push and no poll. A preset load cannot change the lock — it is a
+    // state property, not a parameter, and applyPresetJson only walks
+    // preset["parameters"]. Takes the bridge 15 -> 17.
+    options = options.withNativeFunction ("getMixLock",
+        [this] (auto&, auto complete)
+        {
+            complete (juce::var (processorRef.mixLock.load (std::memory_order_acquire)));
+        });
+
+    options = options.withNativeFunction ("setMixLock",
+        [this] (auto& args, auto complete)
+        {
+            // Only a real bool true locks. Anything else, including a missing
+            // argument or the string "true", unlocks, so a malformed call from
+            // the page can never turn the lock on by accident.
+            if (args.size() > 0)
+                processorRef.mixLock.store (args[0].isBool() && static_cast<bool> (args[0]),
+                                            std::memory_order_release);
+
+            complete (juce::var (processorRef.mixLock.load (std::memory_order_acquire)));
+        });
+
     // ── Preset bridge (OuariconPresetManager v1.0.5 contract) ──────────────
     options = options
         .withNativeFunction ("savePreset", [this] (const auto& args, auto complete)
@@ -423,7 +449,10 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
         .withNativeFunction ("loadPreset", [this] (const auto& args, auto complete)
         {
             const auto name = firstStringArg (args);
-            complete (juce::var (name && processorRef.getPresetManager().loadPreset (*name)));
+            // v1.16.0: through the processor so a locked Mix survives the load.
+            // selectNext/PreviousPreset only return a name, and preset-manager.js
+            // then calls this, so ◀/▶ go through here too.
+            complete (juce::var (name && processorRef.loadPresetHoldingMix (*name)));
         })
 
         .withNativeFunction ("getPresetList", [this] (const auto&, auto complete)
@@ -536,7 +565,7 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
                     auto file = fc.getResult();
                     if (! file.existsAsFile()) { complete (makePresetDialogResult (false, {})); return; }
 
-                    const bool ok = safeThis->processorRef.getPresetManager().loadPresetFromFile (file);
+                    const bool ok = safeThis->processorRef.loadPresetFromFileHoldingMix (file);   // v1.16.0
                     complete (makePresetDialogResult (ok, file.getFileNameWithoutExtension()));
                 });
         });

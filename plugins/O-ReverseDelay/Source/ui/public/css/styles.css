@@ -1196,6 +1196,67 @@ body {
   to { border-style: dashed; border-color: var(--green-light); }
 }
 
+/* ── v1.16.0: Mix lock ───────────────────────────────────────────────────────
+   A 16 px square hanging off the right edge of the MIX caption. The OUTPUT
+   panel has no horizontal room (two 72 px cells in 162 px), so the lock uses
+   the empty space beside the caption. The caption-row shrinks to the caption,
+   and the button is absolute, so the caption stays centred and the knob-cell
+   keeps its height. Nothing else in row 1 moves.
+
+   States use .segment's tokens so a lit lock reads like every other lit
+   control on the page: unlit --btn-default with dark ink, lit --btn-active with
+   cream --knob-core ink (7.2:1, the v1.12.3 contrast fix) and the pressed
+   inset. The shackle also closes when lit, so the state does not rely on
+   colour alone. */
+.caption-row { position: relative; }
+
+.mix-lock {
+  position: absolute;
+  left: calc(100% + 5px);
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--green-darkest);
+  background: var(--btn-default);
+  border: 1.5px solid var(--btn-border);
+  border-radius: 4px;
+  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mix-lock svg { display: block; overflow: visible; }
+.mix-lock path { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+.mix-lock rect { fill: currentColor; }
+.mix-lock .shackle-closed,
+.mix-lock.active .shackle-open { display: none; }
+.mix-lock.active .shackle-closed { display: inline; }
+
+.mix-lock:hover {
+  background: rgba(139, 168, 112, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.mix-lock.active,
+.mix-lock.active:hover {
+  background: var(--btn-active);
+  border-color: var(--btn-border-active);
+  color: var(--knob-core);
+  transform: none;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.mix-lock:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
 /* ── TIME slot: identical box for both wraps → zero layout shift ─────────── */
 .time-slot {
   position: relative;

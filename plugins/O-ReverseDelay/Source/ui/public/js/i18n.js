@@ -451,6 +451,21 @@ export const I18N = Object.freeze({
               reviewed: 'mt' },
     },
 
+    // ── v1.16.0: the Mix lock ───────────────────────────────────────────────
+    // A tip AND the lock's accessible name (data-i18n-aria resolves the title).
+    // The button is icon-only, so no caption has to fit. New copy: fr starts
+    // reviewed:false, zh-Hans at 'mt'.
+    'mixLock': {
+        en: { t: 'Mix Lock',
+              b: 'Keeps the current Mix when you browse or load presets, so a preset changes the sound but not the dry/wet balance. Saved with the session. Reopening a session still restores the Mix it was saved with.' },
+        fr: { t: 'Verrouillage du mix',
+              b: 'Conserve le mix actuel lorsque vous parcourez ou chargez des préréglages : un préréglage change le son, mais pas l’équilibre entre signal direct et signal traité. Enregistré avec la session. Une session rouverte retrouve toujours le mix avec lequel elle a été enregistrée.',
+              reviewed: false },
+        'zh-Hans': { t: '混合锁定',
+              b: '浏览或载入预设时保留当前的混合值，因此预设只改变声音，而不改变干湿平衡。该设置随会话一起保存。重新打开的会话仍会恢复它保存时的混合值。',
+              reviewed: 'mt' },
+    },
+
     // ── MOTION (v1.6.0) ─────────────────────────────────────────────────────
     'freezeSegments': {
         en: { t: 'Freeze',
@@ -850,6 +865,7 @@ export const TIP_BINDINGS = [
     ['#knob-width',          'knob-width'],
     ['#knob-mix',            'knob-mix'],
     ['#levelMeter',          'levelMeter'],   // v1.14.0
+    ['#mix-lock',            'mixLock'],      // v1.16.0
 
     ['#knob-jitter',         'knob-jitter'],
     ['#knob-delayScatter',   'knob-delayScatter'],

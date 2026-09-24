@@ -289,6 +289,15 @@
                               unwritten slot, and the length is latched at the
                               rising edge.
 
+    v1.16.0 probe (Mix lock):
+      BK. mixlock-*         — by name and from file: locked keeps Mix 80,
+                              unlocked applies the preset's 40, other params
+                              apply either way. A failed load moves nothing.
+                              The lock round-trips through session state and
+                              never enters preset JSON. setStateInformation
+                              restores the session's own Mix into a locked
+                              slot, and a state without the property unlocks.
+
   ==============================================================================
 */
 
@@ -6929,6 +6938,137 @@ int main (int argc, char** argv)
         setParam (apvts, "freeze", 0.0f);
         proc.setPlayHead (nullptr);
         proc.prepareToPlay (fs, block);
+    }
+
+    // --- Probe BK (v1.16.0): Mix lock ---------------------------------------------
+    //
+    // The two page-reachable loads (by name, from file) keep Mix when the lock
+    // is on and apply the preset's Mix when it is off. A failed load does not
+    // move Mix. The lock survives a state round-trip, is not saved into the
+    // preset JSON, and setStateInformation restores the session's OWN Mix even
+    // with the lock on. A pre-v1.16 session turns the lock off.
+    //
+    // Reverse Bloom's Mix is 40, and the held value is 80, so each arm is a
+    // real difference and can't pass because the two values happen to match.
+    // The unlocked arm's value is printed and asserted to be the preset's.
+    {
+        const float held = 80.0f;
+        ReverseDelayProcessor p;
+        auto& pa = p.parameters;
+        const juce::String preset ("Reverse Bloom");
+        auto near = [] (float a, float b) { return std::abs (a - b) < 0.01f; };
+
+        // BK1 — by name.
+        p.mixLock = false;
+        setParam (pa, "mix", held);
+        const bool okOff  = p.loadPresetHoldingMix (preset);
+        const float mixOff = paramValue (pa, "mix");
+        const float fbOff  = paramValue (pa, "feedback");
+
+        setParam (pa, "feedback", 90.0f);
+        setParam (pa, "mix", held);
+        p.mixLock = true;
+        const bool okOn  = p.loadPresetHoldingMix (preset);
+        const float mixOn = paramValue (pa, "mix");
+        const float fbOn  = paramValue (pa, "feedback");
+
+        check ("mixlock-by-name",
+               okOff && okOn && near (mixOff, 40.0f) && near (mixOn, held) && near (fbOn, fbOff),
+               juce::String ("unlocked mix=") + juce::String (mixOff, 2) + " (preset 40) | locked mix="
+                 + juce::String (mixOn, 2) + " (held " + juce::String (held, 0) + ") | feedback still applied: "
+                 + juce::String (fbOn, 1) + " == " + juce::String (fbOff, 1));
+
+        // BK2 — from file. The file is written from the preset just loaded
+        // (Mix 40 after an unlocked load), so its Mix is known.
+        auto file = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                        .getChildFile ("ord-mixlock-probe.json");
+        p.mixLock = false;
+        p.loadPresetHoldingMix (preset);
+        const bool saved = p.getPresetManager().savePresetToFile (file);
+        const bool jsonClean = ! file.loadFileAsString().contains ("mixLock");
+
+        setParam (pa, "mix", held);
+        p.mixLock = true;
+        const bool fOn = p.loadPresetFromFileHoldingMix (file);
+        const float fMixOn = paramValue (pa, "mix");
+
+        setParam (pa, "mix", held);
+        p.mixLock = false;
+        const bool fOff = p.loadPresetFromFileHoldingMix (file);
+        const float fMixOff = paramValue (pa, "mix");
+        file.deleteFile();
+
+        check ("mixlock-from-file",
+               saved && fOn && fOff && near (fMixOn, held) && near (fMixOff, 40.0f) && jsonClean,
+               juce::String ("locked mix=") + juce::String (fMixOn, 2) + " | unlocked mix=" + juce::String (fMixOff, 2)
+                 + " | preset JSON free of mixLock: " + (jsonClean ? "yes" : "NO"));
+
+        // BK3 — a failed load leaves Mix alone (either lock state).
+        setParam (pa, "mix", 62.0f);
+        p.mixLock = true;
+        const bool badOn = p.loadPresetHoldingMix ("No Such Preset");
+        const bool badFile = p.loadPresetFromFileHoldingMix (file);   // deleted above
+        const float mixBad = paramValue (pa, "mix");
+        check ("mixlock-failed-load",
+               ! badOn && ! badFile && near (mixBad, 62.0f),
+               juce::String ("missing name -> ") + (badOn ? "true" : "false") + ", missing file -> "
+                 + (badFile ? "true" : "false") + ", mix=" + juce::String (mixBad, 2) + " (was 62)");
+
+        // BK4 — the lock round-trips through session state in both states.
+        auto roundTrip = [] (bool lock)
+        {
+            ReverseDelayProcessor src;
+            src.mixLock = lock;
+            juce::MemoryBlock blob;
+            src.getStateInformation (blob);
+            ReverseDelayProcessor dst;
+            dst.mixLock = ! lock;
+            dst.setStateInformation (blob.getData(), (int) blob.getSize());
+            return dst.mixLock.load() == lock;
+        };
+        const bool rtOn = roundTrip (true), rtOff = roundTrip (false);
+        check ("mixlock-state-roundtrip", rtOn && rtOff,
+               juce::String ("on->on: ") + (rtOn ? "yes" : "NO") + " | off->off: " + (rtOff ? "yes" : "NO"));
+
+        // BK5 — session recall restores its OWN Mix, even with the lock on.
+        {
+            ReverseDelayProcessor src;
+            setParam (src.parameters, "mix", 25.0f);
+            src.mixLock = true;
+            juce::MemoryBlock blob;
+            src.getStateInformation (blob);
+
+            ReverseDelayProcessor dst;
+            setParam (dst.parameters, "mix", held);
+            dst.mixLock = true;
+            dst.setStateInformation (blob.getData(), (int) blob.getSize());
+            const float recalled = paramValue (dst.parameters, "mix");
+
+            check ("mixlock-session-recall",
+                   near (recalled, 25.0f) && dst.mixLock.load(),
+                   juce::String ("session mix 25 into a locked slot at ") + juce::String (held, 0)
+                     + " -> " + juce::String (recalled, 2) + ", lock=" + (dst.mixLock.load() ? "on" : "off"));
+        }
+
+        // BK6 — a pre-v1.16 session (no mixLock property) turns the lock OFF.
+        {
+            ReverseDelayProcessor src;
+            juce::MemoryBlock blob;
+            src.getStateInformation (blob);
+            auto xml = juce::AudioProcessor::getXmlFromBinary (blob.getData(), (int) blob.getSize());
+            const bool hadIt = xml->hasAttribute ("mixLock");
+            xml->removeAttribute ("mixLock");
+            juce::MemoryBlock old;
+            juce::AudioProcessor::copyXmlToBinary (*xml, old);
+
+            ReverseDelayProcessor dst;
+            dst.mixLock = true;
+            dst.setStateInformation (old.getData(), (int) old.getSize());
+            check ("mixlock-old-session",
+                   hadIt && ! dst.mixLock.load(),
+                   juce::String ("v1.16 state carries the attribute: ") + (hadIt ? "yes" : "NO")
+                     + " | stripped state into a locked slot -> lock " + (dst.mixLock.load() ? "ON" : "off"));
+        }
     }
 
     std::printf ("%s (%d failure%s)\n",

@@ -122,6 +122,32 @@ public:
     static juce::String languageCode  (int i)                 { return i == 1 ? "fr" : i == 2 ? "zh-Hans" : "en"; }
     static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
+    //==========================================================================
+    /** v1.16.0 — Mix lock. While true, a preset loaded from the page keeps the
+        Mix the plugin had before the load.
+
+        Same shape as uiLanguage and for the same reasons: NOT a parameter (it
+        must not show up as a DAW automation lane, and a preset must not be able
+        to turn it on or off), stored in the APVTS state tree as a non-parameter
+        property, and public so the editor's getMixLock/setMixLock can reach it.
+
+        Where they differ is on restore. A session that does not carry the
+        property turns the lock OFF, and does not leave it as it was. The
+        language is a reading preference, while the lock changes what a preset
+        load does — the same class of state as a parameter. v1.12.2 decided that
+        a parameter the saved state does not mention goes back to its default. */
+    std::atomic<bool> mixLock { false };
+
+    /** The only two preset loads the page can trigger (◀/▶ resolve a name and
+        then call loadPreset). Each one passes straight through to
+        OuariconPresetManager, then puts Mix back if the lock is on and the load
+        succeeded. The shared module is not modified.
+
+        setStateInformation does NOT go through these: a session recall restores
+        its own Mix. Message thread only — they call setValueNotifyingHost. */
+    bool loadPresetHoldingMix         (const juce::String& name);
+    bool loadPresetFromFileHoldingMix (const juce::File& file);
+
     /** Stage 4: preset library access for the editor's 10 preset native functions
         and for the render harness' probe N factory audit. */
     OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
