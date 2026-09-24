@@ -9,7 +9,7 @@ juce_add_plugin(O-Prism
     PLUGIN_CODE OuPr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Prism${OUARICON_DEV_SUFFIX}"
-    VERSION 1.27.0
+    VERSION 1.27.2
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -166,4 +166,32 @@ if(OUARICON_BUILD_TESTS)
     # Exit code = number of failed checks.
     ouaricon_add_processor_console(O-Prism ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/edit_rotation_check.cpp edit-rotation-check)
+
+    # v1.27.1 — modulation finiteness gate. getSampleRate() is read in exactly
+    # one place in the plugin (processBlock -> advanceGlobalLfoPhases) and is
+    # set by setPlayConfigDetails, NOT prepareToPlay; a gate that omits it
+    # renders at rate 0, where rateHz/0 is inf and inf - floor(inf) is a NaN
+    # that never clears. That poisoned the global LFO phases, hence the five
+    # processor-level mod destinations, and produced the bogus "FX mod NaN"
+    # finding in the v1.27.0 CHANGELOG. Sweeps all 25 destinations and all 10
+    # sources under the host contract, and carries its own negative control:
+    # an instance that never declares its rate must still render finite.
+    #     ninja O-Prism-fx-mod-nan-check && ./build/plugins/O-Prism/O-Prism-fx-mod-nan-check_artefacts/Release/O-Prism-fx-mod-nan-check
+    # Exit code = number of failed checks.
+    ouaricon_add_processor_console(O-Prism ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/fx_mod_nan_check.cpp fx-mod-nan-check)
+
+    # v1.27.2 — free-run LFO sub-block gate (WR-01). juce::Synthesiser splits
+    # the block at MIDI events and calls renderVoices() per sub-block; the
+    # voices re-seed their free-running LFOs from globalLfoPhase on every one
+    # of those calls, so advancing the phase once per processBlock rewound the
+    # LFO k times and advanced it through only the last sub-block. The
+    # observable is that MIDI carrying no modulation (CC#20 — inert on both the
+    # processor scan and PrismVoice::controllerMoved) must not change the
+    # sound: a held note with a free-running LFO renders identically whether
+    # the block goes through whole or in 16 pieces.
+    #     ninja O-Prism-lfo-subblock-check && ./build/plugins/O-Prism/O-Prism-lfo-subblock-check_artefacts/Release/O-Prism-lfo-subblock-check
+    # Exit code = number of failed checks.
+    ouaricon_add_processor_console(O-Prism ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/lfo_subblock_check.cpp lfo-subblock-check)
 endif()

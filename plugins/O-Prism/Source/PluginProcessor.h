@@ -273,7 +273,35 @@ public:
 private:
     juce::AudioProcessorValueTreeState parameters;
     OuariconPresetManager presetManager;
-    juce::Synthesiser synthesiser;
+    /** juce::Synthesiser splits the block at MIDI events and calls
+        renderVoices() once per sub-block; the voices re-seed their free-running
+        LFOs from globalLfoPhase at the top of every one of those calls. So the
+        phase has to advance per SUB-block, not per processBlock (WR-01) —
+        otherwise k sub-blocks rewind the LFO to the same start phase k times.
+
+        The sub-block lengths sum to the block length, so the phase reached by
+        the end of a block is unchanged: this redistributes the advance, it does
+        not add to it. Two consequences worth knowing:
+
+          - juce::Synthesiser skips renderVoices() entirely when the output has
+            no channels, so the advance would be skipped too. processBlock
+            returns on a zero-channel block before it ever gets here (WR-09), so
+            the two agree — but they have to be changed together.
+          - fxLfo[] reads globalLfoPhase after renderNextBlock returns, i.e.
+            still the end-of-block phase, exactly as before.
+    */
+    struct PrismSynthesiser final : juce::Synthesiser
+    {
+        explicit PrismSynthesiser (OPrismAudioProcessor& p) : owner (p) {}
+
+        using juce::Synthesiser::renderVoices; // keep the double overload visible
+        void renderVoices (juce::AudioBuffer<float>& outputAudio,
+                           int startSample, int numSamples) override;
+
+        OPrismAudioProcessor& owner;
+    };
+
+    PrismSynthesiser synthesiser { *this };
     // VST3 Note Expression support (module-owned table + raw-event scratch)
     Ouaricon::NoteExpression::VST3Extensions vst3Extensions;
     TuningEngine tuningEngine;
@@ -408,7 +436,9 @@ private:
     std::atomic<double> currentBPM { 120.0 };
 
     // Shared global LFO phase accumulators for free-running mode.
-    // Advanced at block rate after renderNextBlock; voices copy from here when lfoNFreeRun=true.
+    // Advanced per MIDI sub-block from PrismSynthesiser::renderVoices (WR-01),
+    // so this is the free-run phase at the CURRENT render position, not merely
+    // at block boundaries; voices copy from here when lfoNFreeRun=true.
     std::array<double, 4> globalLfoPhase {};
     void advanceGlobalLfoPhases (int numSamples, double sampleRate);
 
