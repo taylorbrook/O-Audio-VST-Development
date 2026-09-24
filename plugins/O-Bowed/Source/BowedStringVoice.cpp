@@ -48,7 +48,16 @@ void BowedStringVoice::noteStarted()
     float velocity = note.noteOnVelocity.asUnsignedFloat();
 
     // Get base frequency from tuning engine (Scala/MTS-ESP/12-TET)
-    currentFrequency = getBaseFrequencyFromTuning (midiNote);
+    const float engineFrequency = getBaseFrequencyFromTuning (midiNote);
+    currentFrequency = engineFrequency;
+
+    // VST3 Note Expression tuning delta (Dorico microtonal). Phase 24.
+    // exchange(0.0) consume — applies once per note, so keep it as a ratio for
+    // notePitchbendChanged. WR-01.
+    if (pendingTuningSource != nullptr)
+        currentFrequency = static_cast<float> (Ouaricon::NoteExpression::applyPendingTuning (
+            *pendingTuningSource, midiNote, static_cast<double> (engineFrequency)));
+    noteTuningRatio = engineFrequency > 0.0f ? currentFrequency / engineFrequency : 1.0f;
 
     // Apply initial MPE pitch bend on top of tuning engine frequency
     float bendSemitones = static_cast<float> (note.totalPitchbendInSemitones);
@@ -56,6 +65,7 @@ void BowedStringVoice::noteStarted()
         currentFrequency *= std::pow (2.0f, bendSemitones / 12.0f);
 
     waveguideString.trigger (currentFrequency);
+    frequencySmoothed.setCurrentAndTargetValue (currentFrequency);
     bowModel.startBow (velocity);
     oversampling.reset();
     bowNoiseGen.reset();
@@ -95,13 +105,16 @@ void BowedStringVoice::notePitchbendChanged()
     auto note = getCurrentlyPlayingNote();
     int midiNote = note.initialNote;
 
-    // Recompute from tuning engine base + new MPE bend
-    currentFrequency = getBaseFrequencyFromTuning (midiNote);
+    // Recompute from tuning engine base + this note's NE offset (WR-01) + new MPE bend
+    currentFrequency = getBaseFrequencyFromTuning (midiNote) * noteTuningRatio;
     float bendSemitones = static_cast<float> (note.totalPitchbendInSemitones);
     if (std::abs (bendSemitones) > 0.001f)
         currentFrequency *= std::pow (2.0f, bendSemitones / 12.0f);
 
-    waveguideString.trigger (currentFrequency);
+    // CR-02: retune the held string, don't re-trigger it. trigger() resets both
+    // rails, so every bend message used to restart the note from silence. The
+    // render loop glides the waveguide to the new target.
+    frequencySmoothed.setTargetValue (currentFrequency);
 }
 
 void BowedStringVoice::notePressureChanged()
@@ -149,6 +162,7 @@ void BowedStringVoice::prepareToPlay (double sampleRate, int maxBlockSize)
     // ~15 ms ramp removes block-boundary steps without smearing intentional gestures.
     bowPositionSmoothed.reset (sampleRate * 2.0, 0.015);
     brightnessSmoothed.reset (sampleRate * 2.0, 0.015);
+    frequencySmoothed.reset (sampleRate * 2.0, 0.005);
     smoothersPrimed = false;
 }
 
@@ -191,6 +205,8 @@ void BowedStringVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // at block boundaries.
         waveguideString.setBowPosition (bowPositionSmoothed.getNextValue());
         waveguideString.setBrightness  (brightnessSmoothed.getNextValue());
+        if (frequencySmoothed.isSmoothing())
+            waveguideString.setFrequency (frequencySmoothed.getNextValue());   // CR-02
 
         // Step 1: Update bow envelope
         bowModel.updateEnvelope();
@@ -372,18 +388,11 @@ void BowedStringVoice::updateParametersFromAPVTS()
 
 float BowedStringVoice::getBaseFrequencyFromTuning (int midiNote) const
 {
+    // Tuning-engine base only. The Note Expression offset is applied once in
+    // noteStarted() and carried as noteTuningRatio. WR-01.
     double freq = (tuningEngine != nullptr)
         ? tuningEngine->getFrequency (midiNote)
         : juce::MidiMessage::getMidiNoteInHertz (midiNote);
-
-    // VST3 Note Expression tuning delta (Dorico microtonal). Phase 24.
-    // Single source of truth for noteStarted() (line 32) and notePitchbendChanged()
-    // (line 71) — both call this helper before waveguideString.trigger() (lines
-    // 39, 76). exchange(0.0) consume — first call (in noteStarted) tunes; held-note
-    // pitch-bend updates return base unchanged (correct: NE applies once per
-    // noteStarted, MPE pitch-bend updates compose multiplicatively per-block).
-    if (pendingTuningSource != nullptr)
-        freq = Ouaricon::NoteExpression::applyPendingTuning (*pendingTuningSource, midiNote, freq);
 
     return static_cast<float> (freq);
 }

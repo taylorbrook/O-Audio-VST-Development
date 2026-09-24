@@ -51,6 +51,7 @@ public:
 
     void prepare (double sampleRate, int maxBlockSize);
     void trigger (float frequency);       // set delay lengths for new note
+    void setFrequency (float frequency);  // retune a held note (no reset). CR-02
     void reset();                         // clear delay lines + filter state
 
     // Core per-sample processing: takes bow signals + friction model, returns output sample.

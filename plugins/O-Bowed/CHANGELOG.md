@@ -2,6 +2,65 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.9.1] - 2026-09-23
+
+The pitch path: three findings from the v1.9.0 deep review (`CODE_REVIEW.md`,
+2026-09-23), resolved through `/improve-review`. PATCH. No parameter, range, type
+or state format changed. Pitch moves slightly at every note by design (WR-05), so
+every render differs from v1.9.0 by a few cents.
+
+### Fixed
+
+- **CR-02: pitch bend no longer empties the string.** `notePitchbendChanged()`
+  called `WaveguideString::trigger()`, which calls `reset()` and clears both rails,
+  the bridge-filter state and the energy estimate, so every bend message restarted
+  the note from silence. **Root cause:** `trigger()` did two jobs, starting a note
+  and retuning a held one. **Fix:** a new `WaveguideString::setFrequency()` retunes
+  the rails without resetting them. The voice glides to the bent frequency with a
+  5 ms multiplicative `frequencySmoothed`, advanced per sample at 2×, so 14-bit bend
+  streams don't step the Thiran delays. `trigger()` is now for note-on only.
+  Measured with a 6 Hz, ±1 st pitch-wheel vibrato on A4: v1.9.0 dipped to **27 %**
+  of the pre-bend RMS; v1.9.1 holds **100 %** and tracks the bend (±~80 c in 46 ms
+  windows), returning to +0.4 c.
+- **WR-01: Dorico microtonal offsets survive pitch bend.** `applyPendingTuning()`
+  consumes the Note Expression slot (`exchange(0.0)`) in `noteStarted()`, and
+  `notePitchbendChanged()` rebuilt the frequency through the same helper, found the
+  slot empty and dropped the offset. **Fix:** `noteStarted()` stores the offset as
+  `noteTuningRatio` over the tuning-engine base, and pitch bends compose
+  `engine × ratio × bend`. Re-reading the engine on a bend keeps the previous
+  MTS-ESP/Scala behaviour. `getBaseFrequencyFromTuning()` is now engine-only, and its
+  comment claiming the drop was correct is gone. Measured: a +50 c NE note snapped
+  to **+4.1 c** after a bend in v1.9.0 and holds **+50.4 c** in v1.9.1.
+- **WR-05: bridge-filter delay compensated at f0.** `updateDelayLengths()`
+  subtracted `sr / (2π·fc)`, roughly the one-pole's low-frequency delay, which
+  over-compensated whenever the corner sat near f0. **Fix:** subtract the phase
+  delay at the note, `atan2(p·sin ω, 1 − p·cos ω) / ω`. At the default Brightness
+  8 kHz: A4 **+4.2 c → +0.3 c**, A3 **+2.6 c → +0.6 c**; at 3 kHz, A3
+  **+3.7 c → +1.6 c**. This only runs when the frequency, bow position or
+  brightness moves.
+
+### Not applied (review claim rejected by measurement)
+
+- The review's "+1 sample per rail from popping before pushing" (half of WR-05,
+  and CR-01 fix item 1) is **wrong**. JUCE `DelayLine`'s read and write pointers
+  advance in lockstep, so pop-then-push delays by exactly `setDelay`. It is a *bare*
+  push with no pop that shifts the delay. Subtracting 1 per rail put A4 at
+  **+17.6 c**; without it A4 is +0.3 c. Don't apply CR-01's item 1.
+
+### Testing
+
+- Render harness: new `--brightness <norm>`, `--ne-semis <st>` (seeds the NE
+  pending slot) and `--bend-vibrato <sec>` flags. With none of them set, the
+  harness is byte-identical to before: a v1.9.0 build still reproduces
+  `golden/canonical-preset.wav.sha256`. That checksum stays as the **v1.9.0
+  anchor**. It was deliberately not re-recorded, because WR-05 moves the default
+  render. The v1.9.1 default render is `c8aa14d6…44079e8`.
+- Before/after pairs came from a v1.9.0 harness built from `HEAD` sources.
+- `auval -v aumu OBwd OuDv` PASS; pluginval (strictness 5) SUCCESS.
+- **Found, not fixed (pre-existing):** at default bow settings the string doesn't
+  speak at Brightness 300/1000 Hz (A3–A5), or at 3 kHz for A4/A5. This is the same
+  in v1.9.0. See NOTES.md Known Issues.
+
 ## [1.9.0] - 2026-09-07
 
 Simplified Chinese, at the same bar as English and French (wave 4f of the

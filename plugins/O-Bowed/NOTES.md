@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.1
+- **Version:** 1.9.1
 - **Type:** Synth (Physical Model Bowed String)
 
 ## Lifecycle Timeline
@@ -32,8 +32,30 @@
   drift rate now uses actual block size (was max-block-size → ~8× fast on small buffers),
   **IN-09** DC-blocker + engine state cleared in `prepareToPlay` (startup transient on SR change).
   Validated: auval PASS, render-harness PASS (peak 0.053, no NaN/Inf, maxRatio 1.85).
+- **2026-09-23 (v1.9.1):** Resolved the v1.9.0 review's pitch-path findings via `/improve-review`
+  (PATCH): **CR-02** pitch bend no longer restarts the string (`WaveguideString::setFrequency` +
+  5 ms multiplicative glide; `trigger()` is note-on only), **WR-01** the Dorico Note Expression
+  offset survives pitch bends (`noteTuningRatio`), **WR-05** the bridge filter is compensated with
+  its phase delay at f0. The review's "+1 sample per rail" half of WR-05 was measured and rejected
+  (JUCE `DelayLine` pop-then-push is exactly `setDelay`). Harness gained `--brightness`,
+  `--ne-semis` and `--bend-vibrato`. Validated: auval PASS, pluginval 5 SUCCESS. The canonical golden
+  sha256 stays the v1.9.0 anchor (the default render moves by design: A4 +4.2 c → +0.3 c).
 
 ## Known Issues
+
+Open from the v1.9.0 review (`CODE_REVIEW.md`, 2026-09-23): **CR-01** (upper register lock-in or
+silence above ~E5; the review's fix item 1, "subtract the extra sample per rail", is WRONG, see
+v1.9.1), **CR-03 / CR-04 / WR-07 / WR-10** (tuning ownership; CR-04 needs a range-vs-module-clamp
+decision), **WR-02 / WR-03** (sympathetic loop), **WR-04, WR-06, WR-08, WR-09, WR-11, WR-12**, and
+IN-01..IN-10.
+
+- **Low Brightness doesn't speak (found in v1.9.1 measurement, pre-existing in v1.9.0).** At default
+  bow settings the string is silent (rms < 5e-5) at Brightness 300 and 1000 Hz for A3/A4/A5, and
+  for A4/A5 at 3 kHz. The loss filter takes too much loop gain for the bow to sustain the
+  oscillation. The review's WR-05 pitch table for those settings came from a numeric model and was
+  never audible. Not in the scope of the WR-05 fix. Worth a finding next to CR-01.
+
+Older deferred items from the v1.3.0 review:
 
 Remaining deferred Info-level findings from the v1.3.0 review (cosmetic / non-behavioral — IN-06,
 IN-07, IN-09 were resolved in v1.4.1; IN-01, IN-03 in v1.4.0):

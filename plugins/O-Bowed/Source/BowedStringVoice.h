@@ -141,6 +141,15 @@ private:
 
     float outputGainLinear = 1.0f;
     float currentFrequency = 440.0f;
+
+    // WR-01: the Dorico Note Expression offset is consumed once in noteStarted
+    // (exchange(0.0)); keep it as a ratio over the tuning-engine base so
+    // pitch-bend recomputes don't drop it.
+    float noteTuningRatio = 1.0f;
+
+    // CR-02: pitch-bend retunes glide per sample (~5 ms) instead of stepping the
+    // Thiran rails at each 14-bit bend message.
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> frequencySmoothed { 440.0f };
     float panL = 0.707f;
     float panR = 0.707f;
 
