@@ -109,10 +109,12 @@
          deliberately does NOT carry the plugin name: that would give the page
          two competing title bars.
 
-         Element IDs are the ones js/preset-manager.js binds. Button copy lives
-         HERE, in data-label / data-confirm, never in JS — a shared JS state
-         updater writing textContent silently erases HTML-authored labels
-         (pattern_js_state_updater_overwrites_html_labels). #preset-name is the
+         Element IDs are the ones js/preset-manager.js binds. Button copy is a
+         data-i18n KEY resolved by applyLabel(), never a literal in JS — a shared
+         JS state updater writing textContent silently erases HTML-authored labels
+         (pattern_js_state_updater_overwrites_html_labels). Delete's armed face
+         is a second key set through setLabel(); the data-confirm attribute that
+         held it was removed in v1.10.0. #preset-name is the
          sanctioned exception: _updateDisplay() owning its own element is the
          module's intended behaviour. Its placeholder is "Default" because a
          fresh instance genuinely reports "Default" — deliberately not a member
@@ -167,8 +169,8 @@
                is NEVER rewritten by JS — refresh() toggles classes + aria-pressed
                only (pattern_js_state_updater_overwrites_html_labels). -->
           <div class="segments" id="syncSegments" role="group" data-i18n-aria="syncSegments" aria-label="Sync Mode">
-            <button type="button" class="segment" id="seg-free" data-choice="0" aria-pressed="false" data-i18n="label.free">Free</button>
-            <button type="button" class="segment" id="seg-sync" data-choice="1" aria-pressed="true" data-i18n="label.sync">Sync</button>
+            <button type="button" class="segment" id="seg-free" aria-pressed="false" data-i18n="label.free">Free</button>
+            <button type="button" class="segment" id="seg-sync" aria-pressed="true" data-i18n="label.sync">Sync</button>
           </div>
 
           <!-- Fixed-dimension slot: both wraps are absolutely positioned to the
@@ -400,7 +402,8 @@
            promised the reserve would cost: markup, one width alias in the CSS
            and nothing else. No panel width, position or height changed, so the
            tooltip edge-clamp geometry is the one already verified and the
-           940 x 743 frame is untouched (pattern_tooltip_clamp_gate_viewport_sensitive).
+           frame (940 x 743 then; 940 x 768 since v1.7.1) was untouched
+           (pattern_tooltip_clamp_gate_viewport_sensitive).
 
            The three controls belong together because all three are properties of
            the capture buffer rather than of the grains: whether it is being
@@ -424,8 +427,8 @@
         <div class="group-body">
 
           <div class="segments" id="freezeSegments" role="group" data-i18n-aria="freezeSegments" aria-label="Freeze">
-            <button type="button" class="segment" id="seg-freeze-off" data-choice="0" aria-pressed="true" data-i18n="label.off">Off</button>
-            <button type="button" class="segment" id="seg-freeze-on" data-choice="1" aria-pressed="false" data-i18n="freezeSegments">Freeze</button>
+            <button type="button" class="segment" id="seg-freeze-off" aria-pressed="true" data-i18n="label.off">Off</button>
+            <button type="button" class="segment" id="seg-freeze-on" aria-pressed="false" data-i18n="freezeSegments">Freeze</button>
           </div>
 
           <div class="knob-cell">
@@ -467,8 +470,8 @@
         <div class="group-body">
 
           <div class="segments" id="sourceSegments" role="group" data-i18n-aria="aria.sourceMode" aria-label="Source Mode">
-            <button type="button" class="segment" id="seg-source-mono" data-choice="0" aria-pressed="true" data-i18n="label.mono">Mono</button>
-            <button type="button" class="segment" id="seg-source-stereo" data-choice="1" aria-pressed="false" data-i18n="label.stereo">Stereo</button>
+            <button type="button" class="segment" id="seg-source-mono" aria-pressed="true" data-i18n="label.mono">Mono</button>
+            <button type="button" class="segment" id="seg-source-stereo" aria-pressed="false" data-i18n="label.stereo">Stereo</button>
           </div>
 
         </div>

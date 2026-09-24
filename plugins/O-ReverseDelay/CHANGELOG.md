@@ -4,6 +4,63 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.12.5] — 2026-09-23
+
+Behaviour-preserving UI simplification in `Source/ui/public`, from
+`.planning/SIMPLIFICATION-AUDIT.md`. PATCH: no parameter, preset, state, DSP or
+rendered-UI change. `js/juce/*` and the i18n canon block (`trLabel` … `initI18n`)
+are untouched.
+
+### Changed
+
+- **Formatters.** `fmtDuck`, `fmtDriftDepth`, `fmtDiffusion` and `fmtDrive` were
+  byte-identical and are now one `fmtPctOrOff`. The four reasons each reads "Off"
+  at 0 are kept in one comment. The inline integer-ms formatter shared by
+  `grainSize` and `delayScatter` is now `fmtMsInt`.
+- **`updateKnobVisual()`** formats once and writes the same string to
+  `aria-valuetext` and the readout. Its `String` / `toFixed(2)` fallbacks could
+  never run, because ui_frontend_check requires a FORMAT entry for every knob,
+  so they are removed.
+- **Shared painters (MED-04, LOW-03, LOW-06).** `paintSegmentPair()` paints the
+  sync, freeze and source pairs. It sets classes and `aria-pressed` only and never
+  writes text. `setCellApplicable()` dims the Taper and Drift Rate cells.
+  `initEnvelope()` registers one `onShapeChanged` callback on both shape events.
+- **Module state (MED-03, LOW-05).** The write-only `syncState`, `sourceState`,
+  `freezeState` and `divisionState` are removed. `tipsEnabled` moved into the
+  top module-state block. `parseNativeResult()` replaces three copies of the
+  string-or-object payload parse.
+- **Markup (LOW-02).** Removed the six `data-choice` attributes, which nothing read.
+- **Stylesheet (MED-01, MED-02).** `.meter-label` and `.meter-value` now share
+  `.knob-label`'s and `.knob-value`'s rules, and SOURCE shares MOTION's two segment
+  rules through one selector list. The 74 px width and `5px 0` padding moved
+  from the `#preset-*` ID rule into `.preset-btn`, which had been setting padding
+  that the ID rule always overrode. The two `.header` and two `.footer-text`
+  blocks are each one block now. `.group-duck .group-body` is deleted because
+  it repeated the base rule.
+- **Stale comments (MED-07, UI half).** The knob count is 22, not 20, and there
+  are 27 bindings, not 25. The settings popover has two rows since v1.11.0, not
+  one. `getParameterDefaults` is no longer called "the only native function".
+  The preset-bar note no longer cites `data-confirm`, which was removed in
+  v1.10.0. Row 3 is 145 px, not 215. The frame is 940 × 768, not 743. The
+  ui_frontend_check header no longer says 484 or 743.
+
+### Tests
+
+- **Pixel-identical.** 24 screenshots at 940 × 768 match v1.12.4 byte for byte:
+  8 UI states (default, Free, Freeze + Stereo, Tukey + drift live, both
+  switched back, popover with tips off, the `mix` tooltip, a 12-knob readout
+  sweep) in each of en, fr and zh-Hans. The DOM dump of every element's
+  attributes, text and rectangle also matches, with `data-choice` excluded. The
+  render uses software raster, which is deterministic across runs. As a
+  negative control, a 1 px width change on one segment changes all 24 shots.
+- `ui_frontend_check.js` §6 checked for `segFree.setAttribute("aria-pressed"`.
+  It now checks the body of `paintSegmentPair()`: aria-pressed and the active
+  class are set, and no text is written. It also checks that all three pairs
+  call it. The MOTION scoping regex accepts a selector list. Both changes are
+  negative-controlled.
+- ui_frontend_check, ui_tooltip_clamp_check, check-i18n and check-ui-labels all
+  pass.
+
 ## [1.12.4] — 2026-09-23
 
 Behaviour-preserving C++ simplification from `.planning/SIMPLIFICATION-AUDIT.md`.

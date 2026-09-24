@@ -65,11 +65,11 @@
      11. Editor member order relays -> webView -> attachments, and the render
          harness never compiles PluginEditor.cpp
          (pattern_render_harness_breaks_on_webview_editor).
-     12. Geometry is 940 x 484 in the editor AND both CSS spots, and the preset
+     12. Geometry is 940 x 768 in the editor AND both CSS spots, and the preset
          band occupies exactly the 44 px the frame grew by.
-     13. Preset-bar IDs exist; the delete copy lives in data-attrs; the bar
+     13. Preset-bar IDs exist; the delete faces are setLabel() keys; the bar
          initialiser is hoisted, called from inside init(), and try/catch'd so a
-         bar failure cannot take the ten knobs down (pattern_module_toplevel_init_tdz,
+         bar failure cannot take the bound controls down (pattern_module_toplevel_init_tdz,
          pattern_js_state_updater_overwrites_html_labels).
      14. All 14 controls carry tooltip copy, and showTooltip pins the measured
          width BEFORE placing (pattern_fixed_tooltip_shrink_to_fit_edge) — the
@@ -82,7 +82,7 @@
 
     NOTE: sections 1-15 are STATIC. The tooltip edge-clamp is viewport-sensitive
     and CANNOT be verified here — see tests/ui_tooltip_clamp_check.js, which
-    drives the real page at the real 940 x 743 shipping size.
+    drives the real page at the real 940 x 768 shipping size.
 
   ==============================================================================
 */
@@ -303,10 +303,21 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'FREE/SYNC labels are authored in index.html');
     check(!/seg(Free|Sync)\.textContent\s*=/.test(appJs),
         'app.js never assigns textContent on the syncMode segments');
-    check(/seg(Free|Sync)\.setAttribute\("aria-pressed"/.test(appJs),
-        'segment state is published via aria-pressed');
-    check(/classList\.toggle\("active"/.test(appJs),
-        'segment state is shown by toggling the active class');
+    // v1.12.5: all three segment pairs paint through one shared function, so
+    // the evidence is that function's body plus each pair routing through it.
+    const painter = appJs.match(/function paintSegmentPair\([\s\S]*?\n\}/);
+    check(!!painter
+          && /offSeg\.setAttribute\("aria-pressed"/.test(painter[0])
+          && /onSeg\.setAttribute\("aria-pressed"/.test(painter[0]),
+        'segment state is published via aria-pressed (paintSegmentPair)');
+    check(!!painter && /classList\.toggle\("active"/.test(painter[0]),
+        'segment state is shown by toggling the active class (paintSegmentPair)');
+    check(!!painter && !/textContent|innerHTML|innerText/.test(painter[0]),
+        'paintSegmentPair never writes text — classes and aria-pressed only');
+    const painted = ['segFree, segSync', 'segOff, segOn', 'segMono, segStereo']
+        .filter(args => appJs.includes(`paintSegmentPair(${args},`));
+    check(painted.length === 3,
+        `all three segment pairs (sync, freeze, source) paint through paintSegmentPair — found ${painted.length}`);
 }
 
 // ------------------------------------------- 7. Juce namespace, not __JUCE__
@@ -578,7 +589,8 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     // with TIME's vertical Free/Sync pair, so an unscoped `flex-direction: row`
     // here would lay that one out sideways too — the same class of change the
     // WINDOW scoping check below guards against.
-    check(/\.group-motion \.segments\s*\{/.test(css) && /\.group-motion \.segment\s*\{/.test(css),
+    // `[,{]`, not `\{`: since v1.12.5 MOTION and SOURCE share one selector list.
+    check(/\.group-motion \.segments\s*[,{]/.test(css) && /\.group-motion \.segment\s*[,{]/.test(css),
         'MOTION\'s segment overrides are scoped to that panel');
     // Extract the WINDOW <section> and look inside it, rather than guessing a
     // character distance — the panel carries long comments and a fixed lookahead

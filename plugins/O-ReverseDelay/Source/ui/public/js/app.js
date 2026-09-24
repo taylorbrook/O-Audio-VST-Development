@@ -20,7 +20,7 @@
 // ============================================================================
 // O-ReverseDelay — WebView UI controller (Stage 3 controls, Stage 4 bar + tips)
 //
-// Binds all 25 APVTS parameters two-way: 20 WebSliderRelay knobs + 4
+// Binds all 27 APVTS parameters two-way: 22 WebSliderRelay knobs + 4
 // WebComboBoxRelay controls (syncMode and sourceMode as segment pairs,
 // noteDivision and grainShape as selects) + 1 WebToggleButtonRelay (freeze, as
 // a segment pair).
@@ -163,15 +163,24 @@ const fmtDirection = (v) => {
 // is being touched when it is not.
 const fmtRegen = (v) => (v <= 0 ? "0.0 dB" : `+${v.toFixed(1)} dB`);
 
-// duck's 0 is the shipped no-op, so it reads as a word rather than as "0 %" —
+// duck, driftDepth, diffusion and drive all read "Off" at 0 rather than "0 %" —
 // the same reasoning fmtTilt uses for "Centre" and fmtDirection for "Reverse".
-// "Off" and not "0 %" because the control is genuinely bypassed there: the wet
-// multiply is exactly 1.0f, not a very small attenuation.
-const fmtDuck = (v) => (v <= 0 ? "Off" : `${Math.round(v)} %`);
+// In all four the word is literally true of the engine rather than a rounding
+// of something small:
+//
+//   * duck 0: the wet multiply is exactly 1.0f, not a very small attenuation.
+//   * driftDepth 0: no LFO is evaluated at all.
+//   * diffusion 0 (v1.8.0) leaves the dry term at exactly 1.0, so the allpass
+//     chain's output is multiplied by exactly zero — it runs, but nothing it
+//     computes reaches the loop.
+//   * drive 0 (v1.8.0) maps to a pre-gain of exactly 1.0, and driveShape()
+//     branches on that to call plain std::tanh — the same call the loop has
+//     made since v1.0.0, not tanh(1.0·x)/1.0 evaluated the long way.
+const fmtPctOrOff = (v) => (v <= 0 ? "Off" : `${Math.round(v)} %`);
 
-// driftDepth reads the same way and for the same reason — at 0 no LFO is
-// evaluated at all, so "Off" is the literal truth about the engine.
-const fmtDriftDepth = (v) => (v <= 0 ? "Off" : `${Math.round(v)} %`);
+// grainSize and delayScatter: plain integer ms. Scatter spans 0-500, so it never
+// reaches fmtMs's second branch; this keeps "0 ms" from ever rendering "0.00 s".
+const fmtMsInt = (v) => `${Math.round(v)} ms`;
 
 // driftRate spans 0.02–5 Hz, so a single format would print "0 Hz" at the bottom
 // and "5.00 Hz" at the top. Two decimals below 1 Hz keeps the slow end legible —
@@ -180,32 +189,17 @@ const fmtDriftDepth = (v) => (v <= 0 ? "Off" : `${Math.round(v)} %`);
 // range map (pattern_webview_knob_readout_scaled_value).
 const fmtDriftRate = (v) => (v < 1 ? `${v.toFixed(2)} Hz` : `${v.toFixed(1)} Hz`);
 
-// v1.8.0 (B4 #7, #8). Both read "Off" at 0 on the same grounds fmtDuck and
-// fmtDriftDepth do, and in both cases the word is literally true of the engine
-// rather than a rounding of something small:
-//
-//   * diffusion 0 leaves the dry term at exactly 1.0, so the allpass chain's
-//     output is multiplied by exactly zero — it runs, but nothing it computes
-//     reaches the loop.
-//   * drive 0 maps to a pre-gain of exactly 1.0, and driveShape() branches on
-//     that to call plain std::tanh — the same call the loop has made since
-//     v1.0.0, not tanh(1.0·x)/1.0 evaluated the long way.
-const fmtDiffusion = (v) => (v <= 0 ? "Off" : `${Math.round(v)} %`);
-const fmtDrive     = (v) => (v <= 0 ? "Off" : `${Math.round(v)} %`);
-
 const FORMAT = {
   delayTime: fmtMs,
-  grainSize: (v) => `${Math.round(v)} ms`,
+  grainSize: fmtMsInt,
   density:   fmtPct,
   feedback:  fmtPct,
   lowCut:    fmtHz,
   highCut:   fmtHz,
   width:     fmtPct,
   mix:       fmtPct,
-  // Scatter reads in ms and spans 0-500, so it never reaches fmtMs's second
-  // branch; a plain ms formatter keeps "0 ms" from ever rendering as "0.00 s".
   jitter:       fmtPct,
-  delayScatter: (v) => `${Math.round(v)} ms`,
+  delayScatter: fmtMsInt,
   sizeRandom:   fmtPct,
   gainRandom:   fmtPct,
   // v1.2.0 (B1)
@@ -221,12 +215,12 @@ const FORMAT = {
   direction:    fmtDirection,
   regenMakeup:  fmtRegen,
   // v1.7.0 (B4 #4, #6) — DUCK and DRIFT panels.
-  duck:         fmtDuck,
+  duck:         fmtPctOrOff,
   driftRate:    fmtDriftRate,
-  driftDepth:   fmtDriftDepth,
+  driftDepth:   fmtPctOrOff,
   // v1.8.0 (B4 #7, #8) — COLOUR panel.
-  diffusion:    fmtDiffusion,
-  drive:        fmtDrive,
+  diffusion:    fmtPctOrOff,
+  drive:        fmtPctOrOff,
 };
 
 // ── Knob geometry ───────────────────────────────────────────────────────────
@@ -276,11 +270,9 @@ const ENV_REDRAW_MS = 40;   // coalescing delay while a knob is being dragged
 
 // ── Mutable module state ────────────────────────────────────────────────────
 // EVERY module-level binding lives in this one block — see the TDZ note above.
+// The syncMode, sourceMode, freeze and noteDivision states are held only by
+// their binders' closures — nothing outside them reads those states.
 const sliderState = {};        // id -> Juce SliderState
-let syncState     = null;      // Juce ComboBoxState (syncMode)
-let sourceState   = null;      // Juce ComboBoxState (sourceMode, v1.7.0)
-let freezeState   = null;      // Juce ToggleState (freeze, v1.6.0)
-let divisionState = null;      // Juce ComboBoxState (noteDivision)
 let shapeState    = null;      // Juce ComboBoxState (grainShape, v1.2.0)
 let paramDefaults = null;      // { id: engineeringDefault } from the native fn
 
@@ -292,6 +284,7 @@ let tooltipTarget     = null;
 let tooltipSuppressed = false;
 let deleteArmTimer    = null;
 let deleteGateToken   = 0;       // v1.12.3: discards stale isFactoryPreset answers
+let tipsEnabled       = true;    // v1.11.0 hover-help switch — see applyTipsEnabled()
 
 let meterTimer      = null;    // setInterval handle for the grain meter poll
 let meterActiveEl   = null;    // #meter-active  span
@@ -325,9 +318,14 @@ function scaledToNorm(st, scaled) {
   return Math.pow(proportion, p.skew);
 }
 
+// FORMAT[id] is called without a fallback: section 15 of ui_frontend_check.js
+// requires a FORMAT entry for every KNOB_IDS member, so a missing one fails the
+// gate rather than rendering a unitless number.
 function updateKnobVisual(id) {
   const st = sliderState[id];
   if (!st) return;
+
+  const text = FORMAT[id](st.getScaledValue());   // scaled value — never a JS range map
 
   const knob = document.getElementById(`knob-${id}`);
   if (knob) {
@@ -336,14 +334,11 @@ function updateKnobVisual(id) {
       stem.style.transform =
         `translate(-50%, -100%) rotate(${normToDeg(st.getNormalisedValue())}deg)`;
     }
-    knob.setAttribute("aria-valuetext", (FORMAT[id] || String)(st.getScaledValue()));
+    knob.setAttribute("aria-valuetext", text);
   }
 
   const valEl = document.getElementById(`val-${id}`);
-  if (valEl) {
-    const fmt = FORMAT[id] || ((v) => v.toFixed(2));
-    valEl.textContent = fmt(st.getScaledValue());   // scaled value — never a JS range map
-  }
+  if (valEl) valEl.textContent = text;
 }
 
 // v1.12.3: the normalised size of one nudge — NUDGE_STEP, floored at one
@@ -550,10 +545,33 @@ function bindSelectCombo(juce, paramId) {
   return st;
 }
 
+// ── Segment pairs and inapplicable cells: the shared painters ───────────────
+// Classes and aria ONLY. Every segment caption (FREE / SYNC, OFF / FREEZE,
+// MONO / STEREO) and every knob label is authored in index.html, and nothing
+// here may write textContent (pattern_js_state_updater_overwrites_html_labels).
+function paintSegmentPair(offSeg, onSeg, on) {
+  offSeg.classList.toggle("active", !on);
+  onSeg.classList.toggle("active", on);
+  offSeg.setAttribute("aria-pressed", String(!on));
+  onSeg.setAttribute("aria-pressed", String(on));
+}
+
+// Dims a cell whose control does not apply in the current state. The relay stays
+// bound and pointer-events stay on — see .knob-cell-inert in styles.css.
+function setCellApplicable(cell, applicable) {
+  cell.classList.toggle("knob-cell-inert", !applicable);
+  cell.setAttribute("aria-disabled", String(!applicable));
+}
+
+// A var round-trip delivers a native function's result as either a JSON string
+// or an already-parsed value, depending on backend.
+function parseNativeResult(raw) {
+  return typeof raw === "string" ? JSON.parse(raw) : raw;
+}
+
 // ── syncMode segment pair + UI-02 time-slot swap ────────────────────────────
 function bindSyncSegments(juce) {
   const st = juce.getComboBoxState(COMBO_SYNC);
-  syncState = st;
 
   const segFree     = document.getElementById("seg-free");
   const segSync     = document.getElementById("seg-sync");
@@ -572,10 +590,7 @@ function bindSyncSegments(juce) {
 
     // Classes + aria only. The FREE / SYNC text is authored in index.html and is
     // never touched here (pattern_js_state_updater_overwrites_html_labels).
-    segFree.classList.toggle("active", !isSync);
-    segSync.classList.toggle("active", isSync);
-    segFree.setAttribute("aria-pressed", String(!isSync));
-    segSync.setAttribute("aria-pressed", String(isSync));
+    paintSegmentPair(segFree, segSync, isSync);
 
     divisionWrap.classList.toggle("hidden", !isSync);
     delayWrap.classList.toggle("hidden", isSync);
@@ -600,20 +615,13 @@ function bindSyncSegments(juce) {
 // Only classes and aria-pressed move (pattern_js_state_updater_overwrites_html_labels).
 function bindFreezeSegments(juce) {
   const st = juce.getToggleState(TOGGLE_FREEZE);
-  freezeState = st;
 
   const segOff = document.getElementById("seg-freeze-off");
   const segOn  = document.getElementById("seg-freeze-on");
 
   if (!segOff || !segOn) { console.error("Missing freeze segment elements"); return; }
 
-  const refresh = () => {
-    const frozen = st.getValue() === true;
-    segOff.classList.toggle("active", !frozen);
-    segOn.classList.toggle("active", frozen);
-    segOff.setAttribute("aria-pressed", String(!frozen));
-    segOn.setAttribute("aria-pressed", String(frozen));
-  };
+  const refresh = () => paintSegmentPair(segOff, segOn, st.getValue() === true);
 
   st.valueChangedEvent.addListener(refresh);
   st.propertiesChangedEvent.addListener(refresh);
@@ -633,20 +641,14 @@ function bindFreezeSegments(juce) {
 // classes and aria-pressed only (pattern_js_state_updater_overwrites_html_labels).
 function bindSourceSegments(juce) {
   const st = juce.getComboBoxState(COMBO_SOURCE);
-  sourceState = st;
 
   const segMono   = document.getElementById("seg-source-mono");
   const segStereo = document.getElementById("seg-source-stereo");
 
   if (!segMono || !segStereo) { console.error("Missing sourceMode segment elements"); return; }
 
-  const refresh = () => {
-    const isStereo = st.getChoiceIndex() === 1;   // { Mono Sum, Stereo }, default 0
-    segMono.classList.toggle("active", !isStereo);
-    segStereo.classList.toggle("active", isStereo);
-    segMono.setAttribute("aria-pressed", String(!isStereo));
-    segStereo.setAttribute("aria-pressed", String(isStereo));
-  };
+  // { Mono Sum, Stereo }, default 0
+  const refresh = () => paintSegmentPair(segMono, segStereo, st.getChoiceIndex() === 1);
 
   st.valueChangedEvent.addListener(refresh);
   st.propertiesChangedEvent.addListener(refresh);
@@ -667,16 +669,14 @@ function refreshDriftRateEnabled() {
   const st   = sliderState.driftDepth;
   if (!cell || !st) return;
 
-  const live = st.getScaledValue() > 0;
-  cell.classList.toggle("knob-cell-inert", !live);
-  cell.setAttribute("aria-disabled", String(!live));
+  setCellApplicable(cell, st.getScaledValue() > 0);
 }
 
-// ── Defaults for dblclick-reset (the only native function) ──────────────────
+// ── Defaults for dblclick-reset (getParameterDefaults) ──────────────────────
 async function loadParameterDefaults(juce) {
   try {
     const raw = await juce.getNativeFunction("getParameterDefaults")();
-    paramDefaults = typeof raw === "string" ? JSON.parse(raw) : raw;
+    paramDefaults = parseNativeResult(raw);
   } catch (e) {
     console.error("getParameterDefaults failed:", e);
     paramDefaults = null;   // dblclick becomes a no-op; every other control is unaffected
@@ -698,9 +698,7 @@ function refreshTaperEnabled() {
 
   // 1 == WindowLut::tukey. The index comes from the C++ StringArray via the
   // relay's own choices, so it cannot drift from the enum.
-  const isTukey = shapeState.getChoiceIndex() === 1;
-  cell.classList.toggle("knob-cell-inert", !isTukey);
-  cell.setAttribute("aria-disabled", String(!isTukey));
+  setCellApplicable(cell, shapeState.getChoiceIndex() === 1);
 }
 
 // Sizes the backing store for the device pixel ratio and returns the CSS-px box.
@@ -807,7 +805,7 @@ async function fetchEnvelope() {
   envInFlight = true;
   try {
     const raw = await envCurveFn();
-    const curve = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const curve = parseNativeResult(raw);
 
     if (Array.isArray(curve) && curve.length >= 2) {
       drawEnvelope(curve.map(Number));
@@ -857,14 +855,12 @@ function initEnvelope(juce) {
   });
 
   if (shapeState) {
-    shapeState.valueChangedEvent.addListener(() => {
+    const onShapeChanged = () => {
       refreshTaperEnabled();
       scheduleEnvelopeRedraw();
-    });
-    shapeState.propertiesChangedEvent.addListener(() => {
-      refreshTaperEnabled();
-      scheduleEnvelopeRedraw();
-    });
+    };
+    shapeState.valueChangedEvent.addListener(onShapeChanged);
+    shapeState.propertiesChangedEvent.addListener(onShapeChanged);
   }
 
   refreshTaperEnabled();
@@ -901,7 +897,7 @@ async function pollGrainMeter() {
   meterInFlight = true;
   try {
     const raw = await meterFn();
-    const m = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const m = parseNativeResult(raw);
 
     // Number() rather than trusting the payload: a var round-trip can deliver
     // these as strings depending on backend, and `overlap.toFixed` on a string
@@ -999,7 +995,7 @@ async function updateDeleteAvailability() {
 // Hoisted declaration, called from inside init() — never at module top level,
 // and the dynamic import() lives in here rather than at the top of the file, so
 // a failure cannot escape module evaluation. The try/catch is load-bearing: it
-// contains a preset-bar failure so the ten already-bound controls survive it.
+// contains a preset-bar failure so every already-bound control survives it.
 async function initPresetBar() {
   try {
     const { PresetManager } = await import("./preset-manager.js");
@@ -1148,10 +1144,11 @@ function initI18n() {
 
 // ── The settings popover (v1.9.0) ──────────────────────────────────────────
 //
-// The gear that carries the language selector. ONE ROW — D13 scoped this plugin
-// to display-only hover help, so there is deliberately no on/off toggle and no
-// setTooltipsEnabled native function, which section 14 of ui_frontend_check.js
-// asserts by name.
+// The gear that carries the language selector and, since v1.11.0, the hover-help
+// switch (#tips-toggle, initTipsToggle() below). The switch persists through
+// localStorage only: D13 scoped this plugin to display-only hover help, so there
+// is still no setTooltipsEnabled native function and no processor state, which
+// section 14 of ui_frontend_check.js asserts by name.
 //
 // All state lives in this closure, so nothing here can join a TDZ chain.
 
@@ -1318,9 +1315,8 @@ function hideTooltip() {
 // surface and call it correct.
 //
 // hideTooltip() is a module-level function on this page rather than a closure,
-// so unlike the sibling plugins this one needs no published reference.
-
-let tipsEnabled = true;
+// so unlike the sibling plugins this one needs no published reference. The
+// tipsEnabled binding itself lives in the module-state block at the top.
 
 function applyTipsEnabled(on) {
   tipsEnabled = !!on;
@@ -1375,8 +1371,8 @@ function init() {
   bindSyncSegments(Juce);
   bindFreezeSegments(Juce);      // v1.6.0 (B4 #1); the only ToggleState
   bindSourceSegments(Juce);      // v1.7.0 (B4 #5)
-  divisionState = bindSelectCombo(Juce, COMBO_DIVISION);
-  shapeState    = bindSelectCombo(Juce, COMBO_SHAPE);
+  bindSelectCombo(Juce, COMBO_DIVISION);
+  shapeState = bindSelectCombo(Juce, COMBO_SHAPE);
 
   // v1.7.0: Drift Rate dims while Depth is 0. AFTER the bindKnob loop above,
   // which is what creates sliderState.driftDepth — ordinary ordering, not the
@@ -1400,7 +1396,7 @@ function init() {
   // load-bearing in the ordinary way, not the TDZ way.
   //
   // Each inside its own try/catch: a translation-table typo must not take the
-  // 20 bound knobs down with it, which is exactly what the MBC v1.4.0 TDZ throw
+  // 22 bound knobs down with it, which is exactly what the MBC v1.4.0 TDZ throw
   // did to unrelated working controls while build, auval and every static check
   // still passed.
   try { initSettingsPopover(); } catch (e) { console.error("settings popover init failed:", e); }
