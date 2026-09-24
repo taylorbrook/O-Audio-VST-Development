@@ -281,6 +281,7 @@ body {
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
 .header {
+  position: relative;   /* anchors .settings-cluster — see the popover block */
   text-align: center;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(139, 115, 85, 0.45);
@@ -310,9 +311,11 @@ body {
 }
 
 /* ── Settings popover (v1.9.0) ───────────────────────────────────────────── */
-/* The gear that carries the hover-help language selector, and nothing else:
-   D13 scoped this plugin to display-only hover help, so there is no on/off row
-   here and ui_frontend_check.js section 14 asserts that by name.
+/* The gear that carries the hover-help language selector and, since v1.11.0,
+   the hover-help on/off switch (#tips-toggle). The switch is page-local
+   (localStorage): D13 scoped this plugin to display-only hover help, so there
+   is still no setTooltipsEnabled native function, and ui_frontend_check.js
+   section 14 asserts that by name.
 
    ABSOLUTELY positioned inside .header rather than added as a flex child.
    .header is a plain text-align:center block; making it a flex row to seat a
@@ -321,11 +324,11 @@ body {
    absolute child changes no sibling's box at all — which is what lets
    ui_tooltip_clamp_check.js's numbers still mean what they meant.
 
-   `position: relative` with NO z-index on .header, so it does not open a
-   stacking context of its own. .frame does (z-index: 2), and .tooltip lives
-   OUTSIDE .frame at z-index 1000 — so a tip raised over the language selector
-   inside this panel still paints above it without any z-index tuning here. */
-.header { position: relative; }
+   .header carries `position: relative` (declared in its block above) with NO
+   z-index, so it does not open a stacking context of its own. .frame does
+   (z-index: 2), and .tooltip lives OUTSIDE .frame at z-index 1000 — so a tip
+   raised over the language selector inside this panel still paints above it
+   without any z-index tuning here. */
 
 .settings-cluster {
   position: absolute;
@@ -516,8 +519,14 @@ body {
   line-height: 1;
 }
 
+/* v1.10.0: a fixed 74 px box with no side padding. SAVE 56.8 -> ENREG. 69.8,
+   LOAD 59.8 -> OUVRIR 72.3, DELETE 71.8 -> SUPPR. 67.1 — the band is centred,
+   so under shrink-to-fit the three growing together slid both fleurons and all
+   three nav controls 10.4 px. Measured against the French strings; see the
+   French label geometry block below. */
 .preset-btn {
-  padding: 5px 12px;
+  width: 74px;
+  padding: 5px 0;
   font-size: 10px;
 }
 
@@ -529,14 +538,7 @@ body {
    short-variant fallback, so a fixed box is the move available. Widths are
    MEASURED against the French string. */
 
-/* SAVE 56.8 -> ENREG. 69.8, LOAD 59.8 -> OUVRIR 72.3, DELETE 71.8 -> SUPPR.
-   67.1. The band is centred, so the three growing together slid both fleurons
-   and all three nav controls 10.4 px. */
-#preset-save, #preset-load, #preset-delete {
-  width: 74px;
-  padding-left: 0;
-  padding-right: 0;
-}
+/* The preset buttons' 74 px box is declared on .preset-btn itself, above. */
 
 /* SYNCHRO is 54.8 px of type inside a 58 px segment's 54 px content box — a
    clip, not a near miss. Widening to 66 leaves the pair 132 px inside the
@@ -544,12 +546,8 @@ body {
    little wider. */
 #syncSegments .segment { width: 66px; }
 
-/* The footer caption runs 403.5 -> 542.7, and the footer is
-   `justify-content: center`, so both fleurons moved 69.6 px apart. */
-.footer-text {
-  width: 560px;
-  text-align: center;
-}
+/* The footer caption's 560 px box is declared on .footer-text, in the footer
+   block. */
 
 .preset-nav:hover,
 .preset-btn:hover {
@@ -721,7 +719,7 @@ body {
    panel is real and filled instead.
 
    Cost of filling it: this comment, one width alias above, and the two rules
-   below. No panel width, position or height moved, so the tooltip edge-clamp
+   below (which SOURCE has shared since v1.7.0). No panel width, position or height moved, so the tooltip edge-clamp
    geometry is the one already verified at 940 px
    (pattern_tooltip_clamp_gate_viewport_sensitive). */
 
@@ -733,7 +731,8 @@ body {
    Both overrides are scoped to this panel: .segments and .segment are shared
    with the TIME panel's vertical Free/Sync pair, and an unscoped edit here would
    turn that one sideways too. */
-.group-motion .segments {
+.group-motion .segments,
+.group-source .segments {           /* v1.7.0: SOURCE shares the layout */
   flex: 0 0 100%;
   flex-direction: row;
   justify-content: center;
@@ -745,32 +744,23 @@ body {
    the WINDOW panel's height budget both use. Two 72 px knob-cells plus the
    body's 14 px gap land on the same 158, so the segment pair and the knob row
    share one edge-to-edge width. */
-.group-motion .segment { width: 75px; }
+.group-motion .segment,
+.group-source .segment { width: 75px; }
 
 /* ── Row 3: SOURCE | DUCK | DRIFT | COLOUR (v1.7.0) ───────────────────────── */
 /* The row-3 decision the v1.0.0 review's section D warned about, paid once and
    at the same width. Every panel here inherits its width from the shared
-   contract above and its 215 px height from the base .group rule, so the only
-   NEW geometry in this release is the three rules below and the reserve's
-   fleuron — the rest is the existing chassis with one more row of it.
+   contract above and its height (215 px at v1.7.0, 145 px since v1.7.1) from
+   the base .group rule — the rest is the existing chassis with one more row of
+   it.
 
    SOURCE reuses MOTION's segment layout verbatim rather than sharing a class
    with it: both are a full-width horizontal pair over a 190 px panel, and the
-   two selectors are listed together so the arithmetic (2 × 75 + 8 = 158, the
-   panel's exact content box) has one home. */
-.group-source .segments {
-  flex: 0 0 100%;
-  flex-direction: row;
-  justify-content: center;
-  gap: 8px;
-}
+   two selectors are listed together in the MOTION rules above so the
+   arithmetic (2 × 75 + 8 = 158, the panel's exact content box) has one home.
 
-.group-source .segment { width: 75px; }
-
-/* Centre the single Duck knob in its panel rather than letting it sit against
-   the label. .group-body is a flex row for every other panel; with one child
-   there is nothing to distribute, so this is the one place it needs saying. */
-.group-duck .group-body { justify-content: center; }
+   The single Duck knob is centred by the base .group-body rule's
+   `justify-content: center`; it needs no rule of its own. */
 
 /* COLOUR (v1.8.0): filled with Diffusion + Drive, and needing NO rule of its
    own to do it. Two .knob-cells at 72 px with the shared 14 px .group-body gap
@@ -911,22 +901,8 @@ body {
   gap: 8px;
 }
 
-.meter-label {
-  font-size: 9.5px;
-  letter-spacing: 0.9px;
-  text-transform: uppercase;
-  color: var(--brown-frame);
-  white-space: nowrap;
-  text-shadow: 1px 1px 2px var(--text-emboss);
-}
-
-.meter-value {
-  font-size: 11px;
-  letter-spacing: 0.4px;
-  color: var(--brown-text);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
+/* .meter-label and .meter-value share .knob-label's and .knob-value's rules —
+   see the knob-cell block below. */
 
 .group-label {
   position: absolute;
@@ -960,7 +936,8 @@ body {
   gap: 7px;
 }
 
-.knob-label {
+.knob-label,
+.meter-label {
   font-size: 9.5px;
   letter-spacing: 0.9px;
   text-transform: uppercase;
@@ -969,7 +946,8 @@ body {
   text-shadow: 1px 1px 2px var(--text-emboss);
 }
 
-.knob-value {
+.knob-value,
+.meter-value {
   font-size: 11px;
   letter-spacing: 0.4px;
   color: var(--brown-text);
@@ -1154,7 +1132,12 @@ body {
   color: var(--fleuron-color);
 }
 
+/* v1.10.0: pinned at 560 px. The caption runs 403.5 -> 542.7 in French, and
+   the footer is `justify-content: center`, so under shrink-to-fit both fleurons
+   moved 69.6 px apart. */
 .footer-text {
+  width: 560px;
+  text-align: center;
   font-size: 9px;
   letter-spacing: 1.1px;
   text-transform: uppercase;
