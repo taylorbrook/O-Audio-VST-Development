@@ -3,7 +3,7 @@ plugin: O-Formant
 stage: 4
 status: complete
 phase: verified
-version: 1.30.1
+version: 1.31.0
 last_updated: 2026-09-24
 complexity_score: 5.0
 staged_implementation: true
@@ -24,6 +24,11 @@ contract_checksums:
 Stage: 4 of 4 (Polish) -- VERIFIED COMPLETE
 Status: All stages verified, pluginval level 10 PASSED (VST3 + AU)
 Progress: [####################] 100%
+
+## v1.31.0 -- CODE_REVIEW.md wave 3, timbre (2026-09-24)
+
+- Resolved CR-01 (LF alpha false root → pressed half re-rendered), WR-01 (Fant Rg + Ta clamp), WR-11 (MPE Rd bias centred, note-on seeds pressure/timbre), WR-15 (shimmer +12 st), WR-17 (hybrid vowel gains + Singer's boost, exact cascade peak gain, 0.45·sr clamp). MINOR — timbre change, no param/state change. auval PASS, pluginval 10 PASS (VST3). All CR-*/WR-* in CODE_REVIEW.md now resolved; IN-01..04, IN-06..24 remain (/improve-review-info).
+- Known: pressed presets are +11..+19 dB louder than v1.30.1 (they were near-silent from CR-01). Listening pass on the 16 factory presets owed.
 
 ## v1.30.0 -- CODE_REVIEW.md wave 2 (2026-09-24)
 

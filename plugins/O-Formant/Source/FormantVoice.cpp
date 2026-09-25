@@ -198,9 +198,12 @@ void FormantVoice::noteStarted()
     cascadeBank.snapToTargets();
     nasalPoleZero.snapToTargets();
 
-    // MPE state reset
-    mpeBreathOffset = 0.0f;
-    mpeVowelYOffset = 0.0f;
+    // MPE state: seed from the note (WR-11). Zeroing here dropped any pressure /
+    // timbre the note already carried (legacy mode keeps the channel's last value)
+    // until the next change. JUCE starts pressure at 0 and timbre at centre, so a
+    // note with no expression still seeds 0 / 0.
+    mpeBreathOffset = getCurrentlyPlayingNote().pressure.asUnsignedFloat();
+    mpeVowelYOffset = getCurrentlyPlayingNote().timbre.asUnsignedFloat() - 0.5f;
     spectralTiltPrev = 0.0f;
     sourceFilterGain.setCurrentAndTargetValue (1.0f);
     sourceFilterJitterBoost = 0.0f;
@@ -264,9 +267,10 @@ void FormantVoice::noteStarted()
         float midiNoteF = static_cast<float> (currentlyPlayingNote.initialNote);
         float pitchRdOffset = -0.3f * (midiNoteF - 60.0f) / 12.0f;
         float velRdOffset = -0.5f * noteVelocity;
+        float exprRdOffset = mpeBreathOffset * 0.4f;
 
         float initRd = juce::jlimit (0.3f, 2.7f,
-            baseRd + modDepth * (pitchRdOffset + velRdOffset));
+            baseRd + modDepth * (pitchRdOffset + velRdOffset + exprRdOffset));
         rdSmoothed.setCurrentAndTargetValue (initRd);
         glottalSource.setRd (initRd);
     }
@@ -519,8 +523,12 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // (2) Velocity: higher velocity = lower Rd (more effort)
         float velRdOffset = -0.5f * noteVelocity;
 
-        // (3) Expression: MPE pressure 0-1 -> +/-0.4 Rd offset
-        float exprRdOffset = (mpeBreathOffset - 0.5f) * 0.8f;
+        // (3) Expression: MPE pressure 0-1 -> 0..+0.4 Rd offset. WR-11: was
+        // (pressure - 0.5) * 0.8, i.e. -0.4 with no pressure, and note-on left
+        // it out, so every note swept Rd down over 20 ms and non-MPE playing sat
+        // permanently off the knob. Now no pressure = no offset, and note-on
+        // applies the same term.
+        float exprRdOffset = mpeBreathOffset * 0.4f;
 
         float effectiveRd = juce::jlimit (0.3f, 2.7f,
             baseRd + modDepth * (pitchRdOffset + velRdOffset + exprRdOffset));
@@ -722,7 +730,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             if (topology != 1)
             {
                 cascadeBank.setNumCascadeStages (topology == 0 ? 5 : 3);
-                cascadeBank.updateCoefficients (formantFreqs, formantBWs,
+                cascadeBank.updateCoefficients (formantFreqs, formantBWs, formantGains,
                                                 shift, spread, getSampleRate());
             }
 
@@ -740,7 +748,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                 if (topology != 1)
                 {
                     cascadeBank.snapToTargets();
-                    cascadeBank.updateCoefficients (formantFreqs, formantBWs,
+                    cascadeBank.updateCoefficients (formantFreqs, formantBWs, formantGains,
                                                     shift, spread, getSampleRate());
                 }
             }
