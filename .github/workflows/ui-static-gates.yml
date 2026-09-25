@@ -1,0 +1,52 @@
+# UI static gates — the three browser-free i18n gates, on every push to main.
+#
+#   scripts/check-i18n.js    repo i18n consistency + canon drift (44 plugins)
+#   scripts/i18n-fr-lint.js  French typography / glossary
+#   scripts/i18n-zh-lint.js  Simplified Chinese typography / glossary (Z1–Z8)
+#
+# Why: all three existed but ran only by hand, so a red gate could sit on main
+# unnoticed (O-Comp zh `scSource` Z5, 2026-09-24). R1 of
+# .planning/quick/260924-nho-*/260924-nho-UI-DESIGN-REVIEW.md.
+#
+# This is NOT an exception to the "no build on push" rule in ci-tests.yml:
+# nothing is compiled, no JUCE, no secrets, no npm install — plain Node over the
+# checked-out sources, well under a second.
+#
+# Each gate runs even if an earlier one failed (`!cancelled()`), so one red run
+# reports every broken gate rather than only the first.
+
+name: UI Static Gates
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-static-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ui-static-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: check-i18n
+        run: node scripts/check-i18n.js
+
+      - name: i18n-fr-lint
+        if: ${{ !cancelled() }}
+        run: node scripts/i18n-fr-lint.js
+
+      - name: i18n-zh-lint
+        if: ${{ !cancelled() }}
+        run: node scripts/i18n-zh-lint.js
