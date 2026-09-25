@@ -1,0 +1,85 @@
+# eb-garamond module
+# Bundled EB Garamond web font (SIL OFL 1.1) with Times-matched vertical metrics
+
+name: eb-garamond
+version: 1.0.0
+description: |
+  EB Garamond Regular 400, Italic 400 and Bold 700 as woff2, subset to
+  Latin + Latin-Ext plus the punctuation, arrows and fleurons the Ouaricon
+  UIs use, with Times New Roman's vertical metrics baked in so a plugin that
+  switches from Times keeps every line box where it was. Ships an @font-face
+  stylesheet, a getResource() snippet and a reproducible build script.
+
+category: ui
+author: Ouaricon Audio
+
+# Licence split: the font files are an OFL Modified Version of EB Garamond
+# (Copyright 2017 The EB Garamond Project Authors); everything else here is
+# Ouaricon code.
+license:
+  fonts: OFL-1.1            # fonts/*.woff2, OFL.txt
+  code: AGPL-3.0-or-later   # css/eb-garamond.css, snippets/, tools/
+
+# What this module provides
+provides:
+  stylesheet: css/eb-garamond.css
+  fonts:
+    - fonts/EBGaramond-Regular.woff2
+    - fonts/EBGaramond-Italic.woff2
+    - fonts/EBGaramond-Bold.woff2
+  served-urls:
+    - /css/eb-garamond.css
+    - /fonts/EBGaramond-Regular.woff2
+    - /fonts/EBGaramond-Italic.woff2
+    - /fonts/EBGaramond-Bold.woff2
+  binary-data-symbols:        # hyphens STRIPPED by juce_add_binary_data
+    - ebgaramond_css
+    - EBGaramondRegular_woff2
+    - EBGaramondItalic_woff2
+    - EBGaramondBold_woff2
+  font-family: EB Garamond
+  faces:
+    - { weight: 400, style: normal }
+    - { weight: 400, style: italic }
+    - { weight: 700, style: normal }
+
+# Provenance — tools/build-fonts.sh checks every input hash and aborts on mismatch
+source:
+  repository: https://github.com/google/fonts
+  commit: f8c1d3d6cc75e30d77130bdcbfbff27e3b6233fe
+  path: ofl/ebgaramond
+  font_version: "1.003"
+  inputs:
+    "EBGaramond[wght].ttf": ef9512f92f6d579e5dc75af59a5a4b1b8b47d2eda89e00b954d44520e5369027
+    "EBGaramond-Italic[wght].ttf": bba2c4499c93c9612b90b9825d32b07da52fce2fe57562a1eb6b833553f93c4e
+    "OFL.txt": 0985066662eb755ed3683ae5482a81a9195b49ce3f7e165cc2388b3dbece7dd7
+  outputs:                    # byte-reproducible (SOURCE_DATE_EPOCH=1781654400)
+    EBGaramond-Regular.woff2: { sha256: 0356da56b528e90715294af36d5139b5ae667a50e5ccabc4b0ab6b1243908b8f, bytes: 37656 }
+    EBGaramond-Italic.woff2: { sha256: aed562a19c371728c9ef54455ce0428abc2f807f5f96f96ab9a0b502d5a2b86a, bytes: 38892 }
+    EBGaramond-Bold.woff2: { sha256: 0a7f0f4333ba9ddba3d1ff7254daea3a4d7b4f9500f837e1ba7a88cc66dbd407, bytes: 41276 }
+
+# Baked vertical metrics, per 1000 UPM (Times New Roman, macOS: 1825/-443/87 @ 2048)
+metrics:
+  ascent: 891
+  descent: 216
+  line_gap: 42
+  use_typo_metrics: true     # OS/2 fsSelection bit 7
+  applies_to: [hhea, OS/2 typo]
+  win_clip: "usWinAscent = max(933, yMax), usWinDescent = max(216, -yMin)"
+
+# How a plugin consumes it (see README.md)
+integration: direct-embed
+
+# Dependencies
+dependencies: []
+
+# Tracking
+used_by:
+  - plugin: O-ReverseDelay
+    version: 1.22.0
+
+changelog:
+  - version: 1.0.0
+    date: 2026-09-25
+    changes:
+      - "Initial module (R5 from the 2026-09-24 UI design review): 400 / 400i / 700 woff2 (~117 KB), Times-matched metrics, @font-face stylesheet carrying the OFL notice, getResource() snippet, pinned reproducible build script. Piloted on O-ReverseDelay v1.22.0"
