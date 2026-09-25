@@ -13,7 +13,7 @@ juce_add_plugin(OuariconReverseDelay
     # preset .factory-version sentinel, which is what makes preset table edits
     # actually reach disk instead of being a silent no-op — v1.1.0 adds the four
     # randomisation keys to all eight presets, so this bump is load-bearing.
-    VERSION 1.21.1
+    VERSION 1.22.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -89,6 +89,16 @@ juce_add_binary_data(OuariconReverseDelay_UIResources
         # hyphen, it does NOT convert it to an underscore
         # (critical_binary_data_strips_hyphens). Served at /js/preset-manager.js.
         ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/js/preset-manager.js
+        # v1.22.0 — the shared EB Garamond face, module ui/eb-garamond: the
+        # eb-garamond stylesheet and three woff2 faces, embedded into this SAME
+        # target and served under /css/ and /fonts/ so the stylesheet's relative
+        # font URLs resolve. Symbols have the hyphen STRIPPED:
+        # ebgaramond_css, EBGaramondRegular_woff2, EBGaramondItalic_woff2,
+        # EBGaramondBold_woff2 (critical_binary_data_strips_hyphens).
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(OuariconReverseDelay
