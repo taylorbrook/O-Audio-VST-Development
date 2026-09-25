@@ -419,8 +419,55 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
             embeddedFiles.set('/' + m[1], path.join(publicDir, m[1]));
         for (const m of binaryBlock[0].matchAll(/\$\{CMAKE_SOURCE_DIR\}\/(modules\/\S*\/js\/([^/\s]+\.js))/g))
             embeddedFiles.set('/js/' + m[2], path.join(repoRoot, m[1]));
+        // v1.22.0 — the third shape: a shared module's stylesheet and fonts
+        // (modules/ui/eb-garamond), served under /css/ and /fonts/ so the
+        // stylesheet's relative url('../fonts/…') resolves. Without this the
+        // font branches read as "provided but not embedded" on correct code.
+        for (const m of binaryBlock[0].matchAll(/\$\{CMAKE_SOURCE_DIR\}\/(modules\/\S*\/(css|fonts)\/([^/\s]+))/g))
+            embeddedFiles.set('/' + m[2] + '/' + m[3], path.join(repoRoot, m[1]));
 
         const embedded = new Set(embeddedFiles.keys());
+
+        // Every url(...) inside every EMBEDDED stylesheet must land on a
+        // getResource() path once resolved against that stylesheet's served
+        // directory — a CSS-referenced font that 404s falls back silently to a
+        // system face and every layout gate still passes. Comments are stripped
+        // first (the eb-garamond stylesheet names its fonts in its licence
+        // note). data: and scheme URLs are skipped.
+        const cssUrlMisses = [];
+        let cssUrlCount = 0, ebgFontUrls = 0;
+        for (const [served, abs] of embeddedFiles) {
+            if (!served.endsWith('.css') || !fs.existsSync(abs)) continue;
+            const css = fs.readFileSync(abs, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+            for (const u of css.matchAll(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g)) {
+                const ref = u[2].trim();
+                if (/^data:/i.test(ref) || /^[a-z][a-z0-9+.-]*:/i.test(ref)) continue;
+                const resolved = ref.startsWith('/')
+                    ? path.posix.normalize(ref)
+                    : path.posix.normalize(path.posix.join(path.posix.dirname(served), ref));
+                ++cssUrlCount;
+                if (served === '/css/eb-garamond.css' && /^\/fonts\/.+\.woff2$/.test(resolved)) ++ebgFontUrls;
+                if (!provided.has(resolved)) cssUrlMisses.push(`${served}: ${ref} -> ${resolved}`);
+            }
+        }
+        check(cssUrlMisses.length === 0,
+            `every url(...) in the embedded stylesheets resolves to a getResource() path (${cssUrlCount} resolved)`
+            + (cssUrlMisses.length ? ' — UNSERVED: ' + cssUrlMisses.join(', ') : ''));
+        check(ebgFontUrls === 3,
+            `the eb-garamond stylesheet contributes exactly 3 font URLs (found ${ebgFontUrls}) — the url() check cannot go vacuous`);
+
+        // Every .woff2 provider branch must hand WebKit / WebView2 font/woff2.
+        // Same 400-char window serve-ui's urlSymbolMap() pairs url -> symbol in.
+        const badFontMime = [];
+        for (const m of editorCpp.matchAll(/url == "([^"]+\.woff2)"/g)) {
+            const win = editorCpp.slice(m.index, m.index + 400);
+            const next = win.slice(1).search(/url\s*==\s*"/);
+            const scoped = next >= 0 ? win.slice(0, next + 1) : win;
+            if (!/"font\/woff2"/.test(scoped)) badFontMime.push(m[1]);
+        }
+        check(badFontMime.length === 0,
+            'every .woff2 getResource() branch serves "font/woff2"'
+            + (badFontMime.length ? ' — WRONG MIME: ' + badFontMime.join(', ') : ''));
 
         const notEmbedded = [...provided].filter(p => p !== '/' && p !== '/index.html' && !embedded.has(p));
         check(notEmbedded.length === 0,

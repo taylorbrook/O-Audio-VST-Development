@@ -224,6 +224,22 @@ ReverseDelayEditor::getResource (const juce::String& url)
         return makeBinaryResource (UIBinaryData::birds_png, UIBinaryData::birds_pngSize,
                                    "image/png");
 
+    // v1.22.0 — the shared EB Garamond face (modules/ui/eb-garamond): its
+    // stylesheet under /css/ and the three woff2 faces under /fonts/, where the
+    // stylesheet's relative font URLs land. Exact-match only, no path joining.
+    if (url == "/css/eb-garamond.css")
+        return makeBinaryResource (UIBinaryData::ebgaramond_css, UIBinaryData::ebgaramond_cssSize,
+                                   "text/css; charset=utf-8");
+    if (url == "/fonts/EBGaramond-Regular.woff2")
+        return makeBinaryResource (UIBinaryData::EBGaramondRegular_woff2,
+                                   UIBinaryData::EBGaramondRegular_woff2Size, "font/woff2");
+    if (url == "/fonts/EBGaramond-Italic.woff2")
+        return makeBinaryResource (UIBinaryData::EBGaramondItalic_woff2,
+                                   UIBinaryData::EBGaramondItalic_woff2Size, "font/woff2");
+    if (url == "/fonts/EBGaramond-Bold.woff2")
+        return makeBinaryResource (UIBinaryData::EBGaramondBold_woff2,
+                                   UIBinaryData::EBGaramondBold_woff2Size, "font/woff2");
+
     return std::nullopt;
 }
 

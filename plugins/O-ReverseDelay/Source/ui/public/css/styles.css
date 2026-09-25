@@ -221,16 +221,23 @@
   --warn-text:     #8E4420;
   --fleuron-color: rgba(60, 47, 47, 0.3);
 
-  /* v1.12.0 — the CJK tail. Times New Roman is named here and IS installed, so
-     the Latin half of this stack was already safe and the face-naming half of
-     the repair does not apply: this token takes the tail and nothing else. It
-     is the whole font surface of this plugin — all ten font-family
-     declarations in this file read var(--serif), and the computed census finds
-     ZERO form controls on the UA face and ZERO nodes resolving to a bare
-     generic. One edit covers the page. The tail goes BEFORE the trailing
-     generic because under a Chinese document language a bare `serif` is
-     ALREADY a Chinese face, and a tail written after it is never consulted. */
-  --serif: 'Garamond', 'EB Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  /* v1.22.0 — the face is BUNDLED. 'EB Garamond' is the @font-face family from
+     the shared module modules/ui/eb-garamond, served at /css/eb-garamond.css
+     (linked before this file) with its three woff2 faces under /fonts/. It
+     comes first, so every Latin run paints in it on every host. The old bare
+     'Garamond' first entry is gone: left ahead of the bundled face it let an
+     Office-installed Windows Garamond outrank it. Georgia now precedes Times so
+     that any fallback converges on the R5 suite order. The font carries Times
+     New Roman's vertical metrics baked in, so line boxes are unchanged.
+
+     v1.12.0 — the CJK tail. This token is the whole font surface of this
+     plugin — every font-family declaration in this file (twelve, recounted at
+     v1.22.0) reads var(--serif), and the computed census finds ZERO form controls on the UA face and ZERO
+     nodes resolving to a bare generic. One edit covers the page. The tail goes
+     BEFORE the trailing generic because under a Chinese document language a
+     bare `serif` is ALREADY a Chinese face, and a tail written after it is
+     never consulted. */
+  --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

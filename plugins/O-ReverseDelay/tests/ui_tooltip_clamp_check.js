@@ -156,6 +156,7 @@ const MIME = {
     '.css':  'text/css; charset=utf-8',
     '.js':   'application/javascript; charset=utf-8',
     '.png':  'image/png',
+    '.woff2': 'font/woff2',
 };
 
 let failed = 0;
@@ -178,6 +179,16 @@ function buildRoot() {
     fs.copyFileSync(
         path.join(repoRoot, 'modules', 'persistence', 'preset-manager', 'js', 'preset-manager.js'),
         path.join(root, 'js', 'preset-manager.js'));
+    // v1.22.0 — nor is the bundled EB Garamond face: CMake embeds the
+    // stylesheet and the three woff2 files from modules/ui/eb-garamond and
+    // getResource() serves them at /css/eb-garamond.css and /fonts/. Without
+    // these copies the stylesheet 404s, every run falls back to Times, and the
+    // WINDOW budget below would be measured on a face the WebView never paints.
+    const ebg = path.join(repoRoot, 'modules', 'ui', 'eb-garamond');
+    fs.copyFileSync(path.join(ebg, 'css', 'eb-garamond.css'), path.join(root, 'css', 'eb-garamond.css'));
+    fs.mkdirSync(path.join(root, 'fonts'), { recursive: true });
+    for (const f of fs.readdirSync(path.join(ebg, 'fonts')).filter(f => f.endsWith('.woff2')))
+        fs.copyFileSync(path.join(ebg, 'fonts', f), path.join(root, 'fonts', f));
     return root;
 }
 
@@ -275,6 +286,13 @@ function serve(root) {
     page.on('pageerror', e => consoleErrors.push(String(e)));
 
     await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+    // font-display: block — measure only once the bundled face is in, or every
+    // width below is taken on invisible fallback metrics.
+    await page.evaluate(() => document.fonts.ready);
+    const ebgFaces = await page.evaluate(() => [...document.fonts]
+        .filter(f => f.family.replace(/^["']|["']$/g, '') === 'EB Garamond').map(f => f.status));
+    check(ebgFaces.includes('loaded') && !ebgFaces.includes('error'),
+        `bundled EB Garamond faces loaded (${ebgFaces.join(', ') || 'none'})`);
 
     // The page must actually be alive: a TDZ throw out of module evaluation
     // kills every control while leaving the HTML looking correct

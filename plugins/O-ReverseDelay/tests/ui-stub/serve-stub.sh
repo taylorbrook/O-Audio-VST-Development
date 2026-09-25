@@ -24,5 +24,16 @@ cp "$HERE/juce-stub.js" "$ROOT/js/juce/index.js"
 cp "$HERE/../../../../modules/persistence/preset-manager/js/preset-manager.js" \
    "$ROOT/js/preset-manager.js"
 
+# v1.22.0 — the bundled EB Garamond face is not under Source/ui/public either:
+# CMake embeds the stylesheet and three woff2 files from modules/ui/eb-garamond
+# and getResource() serves them at /css/eb-garamond.css and /fonts/. Without
+# these lines the stylesheet 404s and the stub renders on Times, not the face
+# the resource provider serves.
+EBG="$HERE/../../../../modules/ui/eb-garamond"
+mkdir -p "$ROOT/fonts"
+cp "$EBG/css/eb-garamond.css" "$ROOT/css/eb-garamond.css"
+cp "$EBG/fonts/EBGaramond-Regular.woff2" "$EBG/fonts/EBGaramond-Italic.woff2" \
+   "$EBG/fonts/EBGaramond-Bold.woff2" "$ROOT/fonts/"
+
 echo "Serving $ROOT on http://localhost:$PORT"
 exec python3 -m http.server "$PORT" --directory "$ROOT" --bind 127.0.0.1

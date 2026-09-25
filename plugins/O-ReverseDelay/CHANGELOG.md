@@ -4,6 +4,86 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.22.0] — 2026-09-25
+
+The UI now ships its own typeface. MINOR: a new bundled face. This is the R5
+pilot from the 2026-09-24 UI design review. Audio is untouched.
+
+### Added
+
+- **Bundled EB Garamond** from the new shared module `modules/ui/eb-garamond`
+  1.0.0 (SIL OFL 1.1):
+  - Regular 400, Italic 400 and Bold 700 woff2, subset to Latin + Latin-Ext,
+    about 117 KB in total (37 656 + 38 892 + 41 276 B);
+  - embedded into the existing `OuariconReverseDelay_UIResources` target, with
+    no second binary-data target;
+  - served by four exact-match `getResource()` branches:
+    `/css/eb-garamond.css` (`text/css; charset=utf-8`) and
+    `/fonts/EBGaramond-{Regular,Italic,Bold}.woff2` (`font/woff2`);
+  - linked from `index.html` ahead of `styles.css`.
+- **Times-matched vertical metrics** are baked into the font (891 / -216 / 42,
+  USE_TYPO_METRICS), so every line box keeps its v1.21.1 height.
+
+### Changed
+
+- **Font token order.** `--serif` is now `'EB Garamond', 'Georgia', 'Times New
+  Roman', 'PingFang SC', 'Microsoft YaHei', serif`.
+  - The bundled face comes first, so macOS no longer lands on Times and Windows
+    (which has no Garamond) gets the same face.
+  - The bare `'Garamond'` entry is removed. Left first, it let an
+    Office-installed Windows Garamond outrank the bundled face.
+  - Georgia now precedes Times, matching the R5 suite order for any fallback.
+  - The CJK tail still sits before the generic.
+- **Text is about 5% narrower and has a smaller x-height** (0.40 against
+  Times' 0.447). Line boxes do not change.
+- **The fleurons** (❦) now come from EB Garamond instead of a Zapf Dingbats
+  fallback.
+
+### Tests
+
+- **New `tests/tools/cdp-font-probe.js`.** It resolves each text run's face
+  through CDP `CSS.getPlatformFontsForNode` after `document.fonts.ready`.
+  - Before: RED on v1.21.1 (exit 2). Every Latin run was on Times New Roman and
+    there was no EB Garamond FontFace.
+  - After: GREEN (exit 0) in en, fr and zh-Hans. Every Latin run is on
+    EB Garamond (custom), Han runs stay on PingFang SC, all three FontFaces are
+    `loaded`, and there are 0 unserved requests.
+- **Rect diff against v1.21.1: 0 vertical moves** out of 278 elements in each
+  language. Only horizontal shifts and width changes remain (narrower
+  centred text). A before-vs-before noise-floor run also shows 0.
+- **`ui_frontend_check.js` §9** maps module `css/` and `fonts/` paths. It
+  resolves every `url(...)` in the embedded stylesheets to a provider path
+  (3 font URLs asserted) and requires `font/woff2` on `.woff2` branches. It
+  goes from 183 to 186 passes. A misspelled Bold branch URL made it FAIL
+  (3 checks), and reverting that restored the prior diff byte for byte.
+- **`ui_tooltip_clamp_check.js`** copies the stylesheet and fonts into its
+  hand-built tree, maps `.woff2`, waits for `document.fonts.ready`, and adds a
+  "bundled EB Garamond faces loaded" check. It goes from 155 to 156 passes.
+  The WINDOW budget line is byte-identical: `212 into body 212 — 0 px spare`.
+- **`tests/ui-stub/serve-stub.sh`** copies the stylesheet and fonts. All four
+  URLs return 200.
+- **`check-ui-labels`** still reports ALL CHECKS PASSED (172 / 0), including
+  "every requested resource was served". check-i18n, i18n-fr-lint and
+  i18n-zh-lint all exit 0, as at baseline.
+- **Build and install:** the -dev variant only, bundle version 1.22.0. The VST3, AU
+  and Standalone binaries each carry the `/fonts/EBGaramond-Regular.woff2`
+  provider string. `auval -v aufx ORvD OuDv` reports AU VALIDATION SUCCEEDED, and
+  pluginval strictness 10 (VST3) reports SUCCESS.
+- **WKWebView:** CONFIRMED by a background capture of the rebuilt Standalone.
+  The title, its italic accent, the small-caps labels and the fleurons paint in
+  EB Garamond, not Times / Zapf Dingbats. Line boxes match the Chromium render
+  by eye only; they were not measured.
+
+### Notes
+
+- **Windows parity is ASSUMED** until a Windows build is looked at. The MIME is
+  identical and USE_TYPO_METRICS should make DirectWrite use the baked metrics.
+- **U+25BE ▾ and U+2699 ⚙** are absent from the subset. They still fall back per
+  glyph, as they did under Times.
+- **Audio is untouched.** The diff has no DSP or processor change.
+- **Factory presets are re-seeded** by the VERSION bump (the `.factory-version`
+  sentinel). Their content is identical.
+
 ## [1.21.1] — 2026-09-25
 
 ### Since the last published release (1.12.1)
