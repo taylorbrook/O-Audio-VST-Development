@@ -42,6 +42,7 @@
 #include <array>
 #include <atomic>
 #include <mutex>
+#include <optional>
 
 /**
  * TuningEngine: Converts MIDI notes to frequencies with tuning flexibility
@@ -235,9 +236,21 @@ public:
     bool isNoteMapped(int midiNote) const;
 
     /**
-     * Reset keyboard mapping to default (linear mapping)
+     * Reset keyboard mapping to default (linear mapping) and rebuild the table
      */
     void resetKeyboardMapping();
+
+    /**
+     * Load a keyboard mapping from .kbm text (session restore, WR-06)
+     */
+    bool loadKBMFromString(const juce::String& kbmText);
+
+    /**
+     * The loaded .kbm as text, or empty when no KBM is loaded (WR-06)
+     */
+    juce::String getKBMState() const;
+
+    bool isKBMLoaded() const;
 
     /**
      * Generate Scala file content from current intervals
@@ -300,7 +313,7 @@ private:
     double applyPitchBend(double baseFreq, float bendAmount) const;
     void rebuildFrequencyTable();
     void rotateIntervalsForTonic(int tonic);
-    double parseScalaPitch(const juce::String& line) const;
+    std::optional<double> parseScalaPitch(const juce::String& line) const;
 
     // ═══════════════════════════════════════════════════════════════════
     // State
@@ -339,12 +352,12 @@ private:
     // Keyboard Mapping (KBM) State
     // ═══════════════════════════════════════════════════════════════════
 
-    int kbmMapSize = 12;
+    int kbmMapSize = 0;
     int kbmFirstNote = 0;
     int kbmLastNote = 127;
     int kbmMiddleNote = 60;
     int kbmReferenceNote = 69;
-    int kbmOctaveDegree = 12;
+    int kbmOctaveDegree = 0;
     std::vector<int> kbmMapping;
     // CR-07: the loaded .kbm's own reference frequency. Kept apart from
     // a4Frequency (the user's A4 / masterTune, clamped 400–480 Hz) — a KBM

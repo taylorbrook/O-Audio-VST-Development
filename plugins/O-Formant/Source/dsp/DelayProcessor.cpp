@@ -46,7 +46,10 @@ void DelayProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     feedbackFilterL.setCutoffFrequency (8000.0f);
     feedbackFilterR.setCutoffFrequency (8000.0f);
 
-    delaySamples = 0.375f * currentSampleRate;
+    // WR-16: delay time glides per sample (tape-style) instead of stepping at
+    // block rate, which clicked on every knob / automation move.
+    delaySamples.reset (spec.sampleRate, 0.1);
+    delaySamples.setCurrentAndTargetValue (0.375f * currentSampleRate);
 }
 
 void DelayProcessor::reset()
@@ -57,6 +60,7 @@ void DelayProcessor::reset()
     feedbackFilterR.reset();
     dryWetMixer.reset();
     feedbackL = feedbackR = 0.0f;
+    delaySamples.setCurrentAndTargetValue (delaySamples.getTargetValue());
 }
 
 void DelayProcessor::setTime (float seconds)
@@ -66,8 +70,8 @@ void DelayProcessor::setTime (float seconds)
     // silently alias (popSample masks by % totalSize) to a wrong, shorter time
     // — and trip the jassert in Debug builds. (REVIEW.md WR-07)
     float requested = seconds * currentSampleRate;
-    delaySamples = juce::jmin (requested,
-                               static_cast<float> (delayL.getMaximumDelayInSamples()));
+    delaySamples.setTargetValue (juce::jmin (requested,
+                                             static_cast<float> (delayL.getMaximumDelayInSamples())));
 }
 
 void DelayProcessor::setFeedback (float fb)
@@ -105,12 +109,16 @@ void DelayProcessor::process (juce::dsp::AudioBlock<float>& block)
         }
         else // PingPong (cross-feedback)
         {
-            delayL.pushSample (0, inputL + feedbackR * feedbackAmount);
-            delayR.pushSample (0, inputR + feedbackL * feedbackAmount);
+            // WR-18: feed the mono sum into L only. Feeding L and R each into
+            // their own line made a centred source (L == R) produce identical
+            // taps on both sides — no bounce at all.
+            delayL.pushSample (0, 0.5f * (inputL + inputR) + feedbackR * feedbackAmount);
+            delayR.pushSample (0, feedbackL * feedbackAmount);
         }
 
-        float wetL = delayL.popSample (0, delaySamples);
-        float wetR = delayR.popSample (0, delaySamples);
+        const float d = delaySamples.getNextValue();
+        float wetL = delayL.popSample (0, d);
+        float wetR = delayR.popSample (0, d);
 
         feedbackL = feedbackFilterL.processSample (0, wetL);
         feedbackR = feedbackFilterR.processSample (0, wetR);

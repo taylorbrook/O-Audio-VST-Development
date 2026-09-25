@@ -16,5 +16,7 @@
     "eval": "const s=document.querySelector('#generator-type'); s.value='rank2'; s.dispatchEvent(new Event('change',{bubbles:true}));" },
   { "name": "generator edo",
     "eval": "const s=document.querySelector('#generator-type'); s.value='edo'; s.dispatchEvent(new Event('change',{bubbles:true}));" },
+  { "name": "kbm loaded (Clear .KBM shown)",
+    "eval": "const b=document.querySelector('#btn-clear-kbm'); if (b) b.hidden=false;" },
   { "name": "back to synth tab",     "click": ".tab[data-tab=\"synth\"]" }
 ]

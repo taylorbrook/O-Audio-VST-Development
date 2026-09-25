@@ -85,6 +85,8 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
 
     pLyricsEnabled = apvts->getRawParameterValue ("lyricsEnabled");
 
+    pPitchBendRange = apvts->getRawParameterValue ("tuning_pitchBendRange"); // WR-04
+
     pOutputGain   = apvts->getRawParameterValue ("outputGain");
     pStereoWidth  = apvts->getRawParameterValue ("stereoWidth");
 }
@@ -116,6 +118,8 @@ void FormantVoice::prepare (double sampleRate)
     consonantEngine.prepare (sampleRate, voiceIdx);
     fricationBank.prepare (sampleRate);
     adsr.setSampleRate (sampleRate);
+    declickCoeff = static_cast<float> (std::exp (-1.0 / (0.003 * sampleRate))); // WR-03: 3 ms tau
+    declickL = declickR = lastOutL = lastOutR = 0.0f;
     rdSmoothed.reset (sampleRate, 0.020); // 20ms ramp for Rd modulation
     sourceFilterGain.reset (sampleRate, 0.010); // 10ms ramp for coupling gain
     sourceFilterGain.setCurrentAndTargetValue (1.0f);
@@ -150,6 +154,26 @@ static float computeF3Locus (float place) noexcept
 
 void FormantVoice::noteStarted()
 {
+    // WR-07: a key the loaded .kbm leaves unmapped ('x', or outside its
+    // first..last range) is silent per the Scala spec — the tuning table holds
+    // 0 Hz for it. Release the voice without sounding.
+    if (tuningEnginePtr != nullptr
+        && ! tuningEnginePtr->isNoteMapped (currentlyPlayingNote.initialNote))
+    {
+        declickL = declickR = lastOutL = lastOutR = 0.0f;
+        adsr.reset();
+        voiceActive = false;
+        clearCurrentNote();
+        return;
+    }
+
+    // WR-03: voice stealing calls noteStarted() on a voice that is still
+    // sounding (MPESynthesiser does not stop it first). Everything below
+    // resets, so the old note would drop to 0 in one sample — hand its last
+    // output to the declick tail instead.
+    if (voiceActive)
+        beginDeclickTail();
+
     voiceActive = true;
     sampleCounter = 0;
     releaseSampleCount = -1;
@@ -317,6 +341,7 @@ void FormantVoice::noteStarted()
 
     // Force immediate coefficient update on first sample
     sampleCounter = 0;
+    snapFormantsOnNextUpdate = true;
 }
 
 void FormantVoice::updateAdsrParameters (bool force)
@@ -345,11 +370,41 @@ void FormantVoice::noteStopped (bool allowTailOff)
     }
     else
     {
+        // Hard stop: the voice goes inactive and MPESynthesiser stops rendering
+        // it, so no declick tail could play — drop any pending one rather than
+        // leak it into the next note-on.
+        declickL = declickR = lastOutL = lastOutR = 0.0f;
         adsr.reset();
         voiceActive = false;
         wasActive = false;
         clearCurrentNote();
     }
+}
+
+void FormantVoice::beginDeclickTail() noexcept
+{
+    // Accumulate (a steal during a running tail keeps what is still decaying).
+    declickL += lastOutL;
+    declickR += lastOutR;
+    lastOutL = lastOutR = 0.0f;
+}
+
+void FormantVoice::renderDeclickTail (float* outL, float* outR, int numSamples) noexcept
+{
+    if (declickL == 0.0f && declickR == 0.0f)
+        return;
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        outL[i] += declickL;
+        if (outR != nullptr)
+            outR[i] += declickR;
+        declickL *= declickCoeff;
+        declickR *= declickCoeff;
+    }
+
+    if (std::abs (declickL) < 1.0e-6f && std::abs (declickR) < 1.0e-6f)
+        declickL = declickR = 0.0f;
 }
 
 void FormantVoice::notePressureChanged()
@@ -361,7 +416,7 @@ void FormantVoice::notePressureChanged()
 void FormantVoice::notePitchbendChanged()
 {
     // Nothing to do per-event: renderNextBlock reads the live bend each block via
-    // getCurrentlyPlayingNote().getFrequencyInHertz(). MPESynthesiser re-splits the
+    // getCurrentlyPlayingNote().pitchbend (× tuning_pitchBendRange, WR-04). MPESynthesiser re-splits the
     // buffer at every bend event, so the updated pitch is picked up on the next
     // renderNextBlock call for this voice.
 }
@@ -386,6 +441,14 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     // wraps every renderNextBlock call. Any future caller that drives this voice
     // directly (e.g. an offline render harness) MUST establish the same scope.
     // FormantBiquad::processSample also carries a cheap belt-and-suspenders flush.
+    auto* outL = outputBuffer.getWritePointer (0, startSample);
+    auto* outR = outputBuffer.getNumChannels() > 1
+                     ? outputBuffer.getWritePointer (1, startSample)
+                     : nullptr;
+
+    // WR-03: a stolen note's last sample decays out here.
+    renderDeclickTail (outL, outR, numSamples);
+
     if (! voiceActive)
         return;
 
@@ -419,37 +482,28 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     // Suppress aspiration during nasal murmurs (nasals are purely voiced)
     effectiveBreath *= (1.0f - nasalCouplingVal * 0.5f);
 
-    // Envelope-aware breath modulation: aspirated onset + release breath burst
+    // Envelope-aware breath modulation (aspirated onset + release breath burst)
+    // is evaluated on the 32-sample update inside the sample loop — WR-14: a
+    // once-per-block evaluation held the +4.5 dB onset boost for a whole
+    // 2048-sample block, so the attack sounded different at every buffer size.
+    const float baseBreath = effectiveBreath;
+    const float srF = static_cast<float> (getSampleRate());
+    auto breathEnvelopeMul = [this, srF]() noexcept
     {
-        float sr = static_cast<float> (getSampleRate());
-        float breathEnvMul = 1.0f;
-
         if (releaseSampleCount >= 0)
         {
             // Release phase: brief breath burst as vocal folds disengage (~40ms)
-            float tMs = releaseSampleCount * 1000.0f / sr;
+            const float tMs = static_cast<float> (releaseSampleCount) * 1000.0f / srF;
             if (tMs < 40.0f)
-            {
-                float decayTau = 12.0f; // ms time constant
-                breathEnvMul = juce::Decibels::decibelsToGain (3.0f * std::exp (-tMs / decayTau));
-            }
-            releaseSampleCount += numSamples;
+                return juce::Decibels::decibelsToGain (3.0f * std::exp (-tMs / 12.0f));
+            return 1.0f;
         }
-        else
-        {
-            // Attack phase: boost breath for aspirated vocal onset (~50ms)
-            float tMs = sampleCounter * 1000.0f / sr;
-            if (tMs < 50.0f)
-            {
-                float decayTau = 15.0f; // ms time constant
-                breathEnvMul = juce::Decibels::decibelsToGain (4.5f * std::exp (-tMs / decayTau));
-            }
-        }
-
-        effectiveBreath = juce::jlimit (0.0f, 1.0f, effectiveBreath * breathEnvMul);
-    }
-
-    aspirationNoise.setBreathiness (effectiveBreath);
+        // Attack phase: boost breath for aspirated vocal onset (~50ms)
+        const float tMs = static_cast<float> (sampleCounter) * 1000.0f / srF;
+        if (tMs < 50.0f)
+            return juce::Decibels::decibelsToGain (4.5f * std::exp (-tMs / 15.0f));
+        return 1.0f;
+    };
 
     // Dynamic Rd modulation: pitch + velocity + expression
     {
@@ -551,26 +605,18 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     // Velocity-to-amplitude: ~12 dB dynamic range (0.25 at vel=0, 1.0 at vel=1)
     float velocityGain = 0.25f + 0.75f * noteVelocity;
 
-    auto* outL = outputBuffer.getWritePointer (0, startSample);
-    auto* outR = outputBuffer.getNumChannels() > 1
-                     ? outputBuffer.getWritePointer (1, startSample)
-                     : nullptr;
-
-    // --- Live pitch bend: standard MIDI wheel (legacy MPE, +/-2 st) + MPE per-note ---
-    // getFrequencyInHertz() folds channel/master + per-note pitchbend into the
-    // sounding frequency. Dividing by the bend-free reference (the note's initial
-    // pitch at zero bend; the A=440 basis cancels in the ratio) isolates the bend
-    // as a pure multiplier. tunedF0 already carries microtonal tuning + Dorico
-    // Note-Expression, so folding the ratio into the glide target makes tuning,
-    // NE and bend stack multiplicatively. MPESynthesiser splits sub-blocks at bend
-    // events, so the note's pitchbend is constant across one renderNextBlock —
-    // compute once here. bendRatio == 1.0 when the wheel is centred, leaving the
-    // tuning/glide target identical to the note-on value.
-    const float bendFreeRefHz = 440.0f * std::pow (2.0f,
-        (static_cast<float> (currentlyPlayingNote.initialNote) - 69.0f) / 12.0f);
-    const float bendRatio = bendFreeRefHz > 0.0f
-        ? static_cast<float> (getCurrentlyPlayingNote().getFrequencyInHertz()) / bendFreeRefHz
-        : 1.0f;
+    // --- Live pitch bend: the note's wheel value × the Pitch Bend Range param ---
+    // WR-04: the range was fixed at the legacy-mode ±2 st (getFrequencyInHertz
+    // folds the bend in with MPEInstrument's own range); tuning_pitchBendRange
+    // reached nothing. In legacy mode note.pitchbend carries the channel wheel.
+    // tunedF0 already carries microtonal tuning + Dorico Note-Expression, so
+    // folding the ratio into the glide target makes tuning, NE and bend stack
+    // multiplicatively. MPESynthesiser splits sub-blocks at bend events, so the
+    // bend is constant across one renderNextBlock — compute once here.
+    // bendRatio == 1.0 when the wheel is centred.
+    const float bendRangeSt = pPitchBendRange != nullptr ? pPitchBendRange->load() : 2.0f;
+    const float bendRatio = std::pow (2.0f,
+        getCurrentlyPlayingNote().pitchbend.asSignedFloat() * bendRangeSt / 12.0f);
     pitchGlide.setTarget (tunedF0 * bendRatio);
 
     for (int i = 0; i < numSamples; ++i)
@@ -578,6 +624,9 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // Block-rate formant coefficient update every 32 samples
         if ((sampleCounter % kCoeffUpdateInterval) == 0)
         {
+            effectiveBreath = juce::jlimit (0.0f, 1.0f, baseBreath * breathEnvelopeMul());
+            aspirationNoise.setBreathiness (effectiveBreath);
+
             float vowelX, vowelY;
             if (lyricsActive)
             {
@@ -673,6 +722,25 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                 cascadeBank.setNumCascadeStages (topology == 0 ? 5 : 3);
                 cascadeBank.updateCoefficients (formantFreqs, formantBWs,
                                                 shift, spread, getSampleRate());
+            }
+
+            // CR-03: the note's first update lands on this note's formants
+            // instead of gliding from the previous note's (or from 0 Hz on a
+            // fresh voice) — the Transition ramp is for moves within a note.
+            // Snap, then re-run so coefficients apply directly (a snapped
+            // smoother no longer drives them from process()).
+            if (snapFormantsOnNextUpdate)
+            {
+                snapFormantsOnNextUpdate = false;
+                filterBank.snapToTargets();
+                filterBank.updateCoefficients (formantFreqs, formantBWs, formantGains,
+                                               shift, spread, getSampleRate());
+                if (topology != 1)
+                {
+                    cascadeBank.snapToTargets();
+                    cascadeBank.updateCoefficients (formantFreqs, formantBWs,
+                                                    shift, spread, getSampleRate());
+                }
             }
 
             // Source-filter coupling: harmonic reinforcement near formant peaks (Titze 2008)
@@ -806,17 +874,22 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         }
 
         // Stereo width: pan by MIDI note (equal-power)
-        outL[i] += sample * panLGain;
+        lastOutL = sample * panLGain;
+        lastOutR = sample * panRGain;
+        outL[i] += lastOutL;
         if (outR != nullptr)
-            outR[i] += sample * panRGain;
+            outR[i] += lastOutR;
 
         ++sampleCounter;
+        if (releaseSampleCount >= 0)
+            ++releaseSampleCount;
     }
 
     // Check if voice has finished releasing
     if (! adsr.isActive())
     {
         voiceActive = false;
+        lastOutL = lastOutR = declickL = declickR = 0.0f; // inactive voices aren't rendered
         clearCurrentNote();
     }
 }

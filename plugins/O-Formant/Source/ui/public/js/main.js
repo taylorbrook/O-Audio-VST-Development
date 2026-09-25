@@ -944,15 +944,7 @@ function updateKnobVisual(paramId, state) {
 
   const valueEl = wrap.querySelector('.knob-value');
   if (valueEl) {
-    const scaled = state.getScaledValue();
-    const props = state.properties;
-    let text;
-    if (props.label) {
-      text = formatValue(scaled) + ' ' + props.label;
-    } else {
-      text = formatValue(scaled);
-    }
-    valueEl.textContent = text;
+    valueEl.textContent = formatParamValue(paramId, state.getScaledValue(), state.properties.label);
   }
 }
 
@@ -960,6 +952,34 @@ function formatValue(v) {
   if (Math.abs(v) >= 100) return Math.round(v).toString();
   if (Math.abs(v) >= 10) return v.toFixed(1);
   return v.toFixed(2);
+}
+
+// WR-19: per-unit readouts, matching the placeholders in index.html so a
+// readout keeps its format after load. The generic formatter showed times in
+// seconds to 2 dp (1-4 ms -> "0.00 s", "375 ms" -> "0.38 s") and FX amounts
+// as bare fractions ("50 %" -> "0.50").
+const PERCENT_PARAMS = new Set([
+  'chorusDepth', 'chorusMix', 'delayFeedback', 'delayMix',
+  'reverbSize', 'reverbDamp', 'reverbMod', 'reverbShimmer', 'reverbMix',
+]);
+
+function formatMs(ms) {
+  return ms >= 1000 ? (ms / 1000).toFixed(2) + ' s' : Math.round(ms) + ' ms';
+}
+
+function formatParamValue(paramId, v, label) {
+  if (PERCENT_PARAMS.has(paramId)) return Math.round(v * 100) + '%';
+  switch (label) {
+    case 's':     return formatMs(v * 1000);
+    case 'ms':    return formatMs(v);
+    case 'dB':    return v.toFixed(1) + ' dB';
+    case 'st':    return v.toFixed(1) + ' st';
+    case 'cents': return Math.round(v) + ' ct';
+    case '':
+    case undefined:
+    case null:    return formatValue(v);
+    default:      return formatValue(v) + ' ' + label;
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════

@@ -259,8 +259,23 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 
     dryWetMixer.prepare (spec);
 
-    prevSizeForDelays = -1.0f;
+    // WR-16: size (all 8 tank lengths + loop gain) and pre-delay glide per
+    // sample instead of stepping at block rate, which clicked on every move.
+    sizeSmoothed.reset (spec.sampleRate, 0.1);
+    sizeSmoothed.setCurrentAndTargetValue (0.5f);
+    predelaySmoothed.reset (spec.sampleRate, 0.1);
+    predelaySmoothed.setCurrentAndTargetValue (0.0f);
+    setTankSize (0.5f);
+
     prevMix = -999.0f;
+}
+
+void ReverbProcessor::setTankSize (float size) noexcept
+{
+    const float delayScale = (0.5f + size) * (currentSampleRate / 48000.0f);
+    for (int ch = 0; ch < kNumChannels; ++ch)
+        scaledDelays[static_cast<size_t> (ch)] = static_cast<float> (kBaseDelays[ch]) * delayScale;
+    tankFeedbackGain = computeFeedbackGain (size);
 }
 
 void ReverbProcessor::reset()
@@ -328,32 +343,31 @@ void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
 
     dryWetMixer.pushDrySamples (block);
 
-    float srRatio = currentSampleRate / 48000.0f;
-    if (size != prevSizeForDelays)
-    {
-        float delayScale = (0.5f + size) * srRatio;
-        for (int ch = 0; ch < kNumChannels; ++ch)
-            scaledDelays[static_cast<size_t> (ch)] = static_cast<float> (kBaseDelays[ch]) * delayScale;
-        prevSizeForDelays = size;
-    }
-
-    float feedbackGain = computeFeedbackGain (size);
+    sizeSmoothed.setTargetValue (size);
+    predelaySmoothed.setTargetValue (predelayMs * 0.001f * currentSampleRate);
 
     float dampCoeff = damping * 0.7f;
     for (int ch = 0; ch < kNumChannels; ++ch)
         tankFilters[static_cast<size_t> (ch)].setCoefficient (dampCoeff);
 
-    float preDelaySamples = predelayMs * 0.001f * currentSampleRate;
-
     for (size_t i = 0; i < numSamples; ++i)
     {
+        if (sizeSmoothed.isSmoothing())
+            setTankSize (sizeSmoothed.getNextValue());
+        const float feedbackGain = tankFeedbackGain;
+
         float inL = leftData[i];
         float inR = rightData[i];
 
-        if (preDelaySamples > 0.0f)
+        // WR-16: always write the pre-delay line, so raising pre-delay from 0
+        // reads recent input instead of whatever was left from the last time
+        // it was on. read(1) after push is the current sample, so below one
+        // sample of delay the input passes straight through (continuous).
+        preDelayL.push (inL);
+        preDelayR.push (inR);
+        const float preDelaySamples = predelaySmoothed.getNextValue();
+        if (preDelaySamples >= 1.0f)
         {
-            preDelayL.push (inL);
-            preDelayR.push (inR);
             inL = preDelayL.read (preDelaySamples);
             inR = preDelayR.read (preDelaySamples);
         }

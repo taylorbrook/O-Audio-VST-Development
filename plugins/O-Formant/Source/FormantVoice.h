@@ -88,6 +88,14 @@ private:
     juce::ADSR::Parameters lastAdsrParams { -1.0f, -1.0f, -1.0f, -1.0f };
     void updateAdsrParameters (bool force);
 
+    // WR-03: declick tail for stolen voices — the last output
+    // sample decays to zero (3 ms tau) instead of stepping there.
+    float lastOutL = 0.0f, lastOutR = 0.0f;
+    float declickL = 0.0f, declickR = 0.0f;
+    float declickCoeff = 0.0f;
+    void beginDeclickTail() noexcept;
+    void renderDeclickTail (float* outL, float* outR, int numSamples) noexcept;
+
     // --- Voice state ---
     bool voiceActive = false;
     bool wasActive = false;
@@ -115,6 +123,7 @@ private:
     float formantFreqs[5] = {};
     float formantBWs[5] = {};
     float formantGains[5] = {};
+    bool snapFormantsOnNextUpdate = false; // CR-03: first update of a note snaps
 
     // Consonant-to-vowel F2/F3 locus transition
     // (Delattre-Liberman-Cooper 1955; Kewley-Port 1982 τ=15ms exp. decay)
@@ -192,6 +201,9 @@ private:
 
     // Lyrics
     std::atomic<float>* pLyricsEnabled = nullptr;
+
+    // Tuning
+    std::atomic<float>* pPitchBendRange = nullptr; // WR-04
 
     // Output
     std::atomic<float>* pOutputGain   = nullptr;

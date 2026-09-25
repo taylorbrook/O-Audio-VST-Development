@@ -2,6 +2,147 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.30.0] - 2026-09-24
+
+Wave 2 of the v1.29.0 `CODE_REVIEW.md`: behaviour fixes that do not re-render
+the voice (CR-03, CR-06, WR-03, WR-04, WR-06, WR-09, WR-14, WR-16, WR-18), plus
+the four findings the review left unscheduled (WR-07, WR-08, WR-19, WR-20).
+MINOR: no parameter ID, range or type changed, and older sessions and presets
+still load. The session state gains two additive properties (`syllables` on
+`lyricsEngine`, `kbm` on `tuningEngine`), and four `tuning_*` parameters are no
+longer offered for automation (see WR-04).
+
+### Fixed
+
+- **CR-03 — Formant glides were cut at every block boundary.** Both formant
+  banks called `setTransitionTime()` every block, and `SmoothedValue::reset()`
+  snaps current = target. Every vowel glide therefore stopped at the end of the
+  block: at 256 samples / 48 kHz an /a/→/i/ glide ran 5.3 ms of its ~20 ms, and
+  at 64 samples it was near-instant. The Transition knob barely worked, and
+  offline renders differed from realtime. The ramp is now re-armed only when
+  the time changes, carrying the in-flight position. The first coefficient
+  update of each note snaps onto that note's formants, so a note doesn't glide
+  up from the previous note's vowel or from 0 Hz.
+- **CR-06 — Lyrics only had syllables while the editor was open.** Only the
+  page can parse lyric text, and the session saved the text alone, so a
+  reloaded session bounced offline with the UI closed sang no syllables. The
+  parsed schedule is now saved as `syllables` in the `lyricsEngine` child and
+  restored without the editor. Re-sending an unchanged schedule is a no-op, so
+  opening the editor no longer restarts the lyric mid-song. Empty text always
+  clears the schedule on restore, so session B can't inherit session A's
+  lyric. The lyric now restarts at syllable 1 whenever the host transport
+  starts, so two bounces begin on the same syllable. *A session saved before
+  1.30.0 has text only: open the editor once and save, and it then renders
+  headless.*
+- **WR-03 — The 17th note was dropped.** `MPESynthesiser` does not steal by
+  default, and releases can run for up to 10 s. Voice stealing is now on
+  (JUCE's heuristic: oldest released voice first, lowest and highest held
+  notes protected). JUCE steals by calling `noteStarted()` on a voice that is
+  still sounding, so the stolen note's last output sample decays over a 3 ms
+  tail instead of stepping to 0.
+- **WR-04 — Pitch-bend range was fixed at ±2 st.** Bend came from
+  `getFrequencyInHertz()`, which uses the legacy-mode range. The voice now
+  applies `note.pitchbend × tuning_pitchBendRange` (1–48 st). The parameter
+  is read through a cached pointer, and `setLegacyModePitchbendRange()` is
+  never called, because it releases every note. `tuning_masterTune`,
+  `tuning_tuningMode`, `tuning_octaveStretch` and
+  `tuning_temperamentPreset` are now **non-automatable**. The tuning panel
+  writes the engine directly and a saved session restores the engine's own
+  values over them, so a host lane on them never did anything. Their IDs are
+  unchanged.
+- **WR-06 — Keyboard mappings weren't saved and couldn't be cleared.** The
+  loaded `.kbm` is now saved as text in the `tuningEngine` child and restored
+  with the session. A session without one clears any previous mapping. A new
+  **Clear .KBM** button (`clearKBMFile`) returns to linear mapping. It shows
+  only while a KBM is loaded, spanning both columns of the file grid, so the
+  default panel layout is unchanged.
+- **WR-07 — KBM behaviour diverged from the Scala spec.**
+  - `x` keys and keys outside the file's first..last range played 12-TET
+    instead of staying silent. They are now 0 Hz in the tuning table, and the
+    voice skips them without sounding.
+  - The formal octave (octave degree) was ignored; each mapping pattern now
+    steps by that degree's pitch.
+  - Map size 0 is linear mapping instead of a 12-key map.
+  - Degrees beyond the scale size wrap into the next period instead of being
+    clamped.
+- **WR-08 — The `.scl` parser misread valid files.**
+  - A blank description line (legal) was skipped, so the count line became the
+    name.
+  - Negative-cent pitches were dropped, because −1 was the error sentinel.
+  - Trailing text after a pitch was mis-parsed.
+  - Short or malformed files loaded partially.
+
+  The first non-comment line is now always the description, a stray blank line
+  above a real description is still tolerated, and only the first token of a
+  pitch line is read. Pitches come back as `std::optional`. A file whose pitch
+  count doesn't match its declared count, or that contains a malformed pitch
+  line, is rejected.
+- **WR-09 — Presets carried state over and moved the output level.**
+  - A preset applied only the parameters its file listed. The factory bank
+    omits the effects rack, `consonantVOT`/`consonantTransition` and
+    `lyricsEnabled`, so those carried over from the previous preset. Everything
+    is now reset to defaults before a preset applies.
+  - All 16 factory presets and every user save included `outputGain`. It is no
+    longer written, and it is ignored in older files. The `tuning_*`
+    parameters are session state and are likewise not saved, loaded or reset
+    by presets.
+  - Factory preset files were rewritten on every construction, host scans
+    included. They are now written only when missing or changed.
+- **WR-14 — The onset/release breath boost depended on buffer size.** The
+  50 ms aspirated-onset boost and the 40 ms release breath were evaluated once
+  per block, so a 2048-sample block held +4.5 dB for the whole block. Both are
+  now evaluated on the voice's 32-sample update.
+- **WR-16 — Delay time, reverb size and pre-delay clicked.**
+  - All three stepped at block rate, which clicked on every move. Each now
+    glides per sample over 100 ms: delay time tape-style, reverb size across
+    all eight tank lengths plus loop gain.
+  - The pre-delay line was only written while pre-delay was above 0, so
+    raising it from 0 replayed old audio. It is now always written.
+  - Below one sample of pre-delay the input passes straight through (the
+    reviewed IN-13 blend with ~370 ms-old audio no longer occurs).
+- **WR-18 — Consonant→vowel handovers stepped in one sample; ping-pong didn't
+  bounce.**
+  - Voiceless-fricative suppression dropped from full to zero the moment the
+    consonant envelope reached Off. It now follows the envelope.
+  - Aspiration's full suppression now releases over a 4 ms ramp instead of
+    stepping the glottal source from 0.3 to 1.0 at an arbitrary phase.
+  - Ping-pong fed L and R into their own lines, so a centred source gave
+    identical taps on both sides. It now feeds the mono sum into L only.
+- **WR-19 — Knob needles pivoted off-centre; readouts changed format after
+  load.**
+  - The page is border-box, so a needle's positioned box sits inside the 2 px
+    border. Pivots moved 23.5→21.5 px (main), 19→17 px (FX), 16→14 px (small),
+    and the tuning A4 knob's `bottom center` → 15 px (it pivoted 3 px high).
+  - Readouts now format per unit: times show in ms below 1 s and in s above,
+    FX amounts in %, dB and semitones to 1 dp, and vibrato depth in ct. The
+    two placeholders that didn't match their formatted defaults were updated
+    (`5.50 Hz`, `0.0 st`).
+- **WR-20 — Exporters wrote wrong or unsafe output.**
+  - The `.scl` description went into the HTML export's `<title>`/`<h1>`
+    unescaped. It is now HTML-escaped.
+  - The export forced a 1200 c period whenever the last interval was ≤ 1200,
+    giving wrong ET deviations for non-octave scales. It now uses the scale's
+    real period.
+  - The pitch circle counted the period as a note ("13 notes" for 12-TET).
+  - With no KBM loaded, the `.kbm` export wrote a 12-key map at note 69 / A4,
+    while the engine anchors on 60 + tonic. It now writes what plays: map size
+    0, reference = middle = 60 + tonic at its 12-TET frequency, octave degree
+    = scale size.
+
+### Added
+
+- `tuning.clearKbm` I18N entry: en "Clear .KBM", fr "Retirer .KBM"
+  (`reviewed: false`), zh-Hans "清除 .kbm" (`reviewed: 'mt'`, below the 'bt'
+  ship bar until a reverse pass). `tests/i18n-states.json` gains a state that
+  reveals the button, so `check-ui-labels` measures it in all three languages.
+
+### Deferred
+
+- **v1.31.0 (timbre re-render, listen pass on all 16 presets):** CR-01 +
+  WR-01, WR-11, WR-15, WR-17.
+- **Info tier:** IN-01..04, IN-06..24 (`/improve-review-info`). IN-13 is
+  resolved as a side effect of WR-16.
+
 ## [1.29.1] - 2026-09-24
 
 Wave 1 of the v1.29.0 `CODE_REVIEW.md`: the twelve findings that fix bugs

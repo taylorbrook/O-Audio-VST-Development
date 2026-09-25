@@ -287,24 +287,31 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFormantAudioProcessor::crea
         0.5f));
 
     // --- Tuning (5) ---
+    // WR-04: master tune / mode / stretch / temperament are set by the tuning
+    // panel, which writes the engine directly, and a saved session restores the
+    // engine's own values over them — so a host automation lane on these did
+    // nothing. They stay (IDs unchanged, older sessions still load) but are no
+    // longer offered for automation. Pitch Bend Range IS live (FormantVoice).
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "tuning_masterTune", 1 },
         "Master Tune",
         juce::NormalisableRange<float> (400.0f, 480.0f, 0.1f),
         440.0f,
-        "Hz"));
+        juce::AudioParameterFloatAttributes().withLabel ("Hz").withAutomatable (false)));
 
     layout.add (std::make_unique<juce::AudioParameterChoice> (
         juce::ParameterID { "tuning_tuningMode", 1 },
         "Tuning Mode",
         juce::StringArray { "12-TET", "Custom", "MTS-ESP" },
-        0));
+        0,
+        juce::AudioParameterChoiceAttributes().withAutomatable (false)));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "tuning_octaveStretch", 1 },
         "Octave Stretch",
         juce::NormalisableRange<float> (0.95f, 1.25f, 0.001f),
-        1.0f));
+        1.0f,
+        juce::AudioParameterFloatAttributes().withAutomatable (false)));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "tuning_pitchBendRange", 1 },
@@ -320,7 +327,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFormantAudioProcessor::crea
             "Equal 12-TET", "Pythagorean", "Zarlino", "Meantone (1/4)",
             "Werckmeister III", "Kirnberger III", "Vallotti",
             "Well Tempered", "Just Intonation", "Bohlen-Pierce", "Custom" },
-        0));
+        0,
+        juce::AudioParameterChoiceAttributes().withAutomatable (false)));
 
     // --- Effects: Chorus (4) ---
     layout.add (std::make_unique<juce::AudioParameterBool> (
@@ -489,7 +497,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.6f}, {"sourceFilterCoupling", 0.5f},
             {"singersFormant", 0.0f},
             {"nasalCoupling", 0.2f}, {"nasalPlace", 0.3f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Cinematic", "Alien Whisper", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 1.5f},
@@ -503,7 +511,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.7f}, {"sourceFilterCoupling", 0.2f},
             {"singersFormant", 0.0f},
             {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Cinematic", "Sci-Fi Choir", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
@@ -517,7 +525,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.3f},
             {"singersFormant", 0.4f},
             {"nasalCoupling", 0.15f}, {"nasalPlace", 0.5f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.9f}
+            {"stereoWidth", 0.9f}
         }, juce::var() },
         { "Cinematic", "Spectral Voice", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 4.0f},
@@ -531,7 +539,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.4f},
             {"singersFormant", 0.0f},
             {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
 
         // ── Electronic ──
@@ -547,7 +555,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.3f}, {"sourceFilterCoupling", 0.6f},
             {"singersFormant", 0.0f},
             {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Electronic", "Vowel Pad", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
@@ -561,7 +569,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.6f}, {"sourceFilterCoupling", 0.3f},
             {"singersFormant", 0.0f},
             {"nasalCoupling", 0.1f}, {"nasalPlace", 0.7f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.7f}
+            {"stereoWidth", 0.7f}
         }, juce::var() },
         { "Electronic", "Glitch Vocal", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
@@ -575,7 +583,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.1f}, {"sourceFilterCoupling", 0.1f},
             {"singersFormant", 0.0f},
             {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Electronic", "Robotic Speech", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 5.5f},
@@ -589,7 +597,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.0f}, {"sourceFilterCoupling", 0.0f},
             {"singersFormant", 0.0f},
             {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
 
         // ── Ambient ──
@@ -605,7 +613,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.8f}, {"sourceFilterCoupling", 0.2f},
             {"singersFormant", 0.0f},
             {"nasalCoupling", 0.1f}, {"nasalPlace", 0.6f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.8f}
+            {"stereoWidth", 0.8f}
         }, juce::var() },
         { "Ambient", "Breath Texture", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 1.0f},
@@ -619,7 +627,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.1f},
             {"singersFormant", 0.0f},
             {"nasalCoupling", 0.0f}, {"nasalPlace", 0.5f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Ambient", "Overtone Chant", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 5.0f},
@@ -633,7 +641,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.4f}, {"sourceFilterCoupling", 0.7f},
             {"singersFormant", 0.7f},
             {"nasalCoupling", 0.35f}, {"nasalPlace", 0.4f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Ambient", "Wind Voice", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
@@ -647,7 +655,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.7f}, {"sourceFilterCoupling", 0.2f},
             {"singersFormant", 0.0f},
             {"nasalCoupling", 0.1f}, {"nasalPlace", 0.5f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
 
         // ── Speech ──
@@ -663,7 +671,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.4f}, {"sourceFilterCoupling", 0.4f},
             {"singersFormant", 0.5f},
             {"nasalCoupling", 0.2f}, {"nasalPlace", 0.5f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Speech", "Breathy Soprano", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
@@ -677,7 +685,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.3f},
             {"singersFormant", 0.3f},
             {"nasalCoupling", 0.15f}, {"nasalPlace", 0.6f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Speech", "Pressed Baritone", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 3.0f},
@@ -691,7 +699,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.3f}, {"sourceFilterCoupling", 0.5f},
             {"singersFormant", 0.7f},
             {"nasalCoupling", 0.25f}, {"nasalPlace", 0.4f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Speech", "Child Voice", {
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
@@ -705,7 +713,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"transitionTime", 0.4f}, {"sourceFilterCoupling", 0.3f},
             {"singersFormant", 0.0f},
             {"nasalCoupling", 0.1f}, {"nasalPlace", 0.6f},
-            {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
+            {"stereoWidth", 0.5f}
         }, juce::var() },
     };
     presetManager.initializeFactoryPresets (factoryPresets);
@@ -722,8 +730,16 @@ OFormantAudioProcessor::OFormantAudioProcessor()
         synthesiser.addVoice (voice);
     }
 
-    // Enable legacy mode for standard MIDI (channel range 1-16, pitchbend +/-2 semitones)
+    // Enable legacy mode for standard MIDI (channel range 1-16). The ±2 here is
+    // only the MPEInstrument's own bookkeeping — FormantVoice applies the
+    // tuning_pitchBendRange parameter to the wheel itself (WR-04), because
+    // setLegacyModePitchbendRange() releases all notes and can't follow a knob.
     synthesiser.enableLegacyMode (2, juce::Range<int> (1, 17));
+
+    // WR-03: steal instead of dropping the 17th note. JUCE's heuristic already
+    // prefers the oldest released voice and protects the lowest/highest held
+    // notes; FormantVoice declicks the stolen note's last sample.
+    synthesiser.setVoiceStealingEnabled (true);
 }
 
 OFormantAudioProcessor::~OFormantAudioProcessor()
@@ -811,6 +827,19 @@ void OFormantAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     // VST3 Note Expression: drain the JUCE wrapper's raw-event queue and
     // correlate tuning deltas to their NoteOn's MIDI pitch.
     vst3Extensions.drainAndUpdate();
+
+    // CR-06: restart the lyric when the transport starts, so two bounces of
+    // the same passage begin on the same syllable (atomic store — RT-safe).
+    if (auto* ph = getPlayHead())
+    {
+        if (auto pos = ph->getPosition())
+        {
+            const bool playing = pos->getIsPlaying();
+            if (playing && ! transportWasPlaying)
+                lyricsEngine.reset();
+            transportWasPlaying = playing;
+        }
+    }
 
     synthesiser.renderNextBlock (buffer, midi, 0, buffer.getNumSamples());
 
@@ -987,10 +1016,16 @@ void OFormantAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     tuningState.setProperty ("masterTune",    tuningEngine.getMasterTune(), nullptr);
     tuningState.setProperty ("octaveStretch", static_cast<double> (tuningEngine.getOctaveStretch()), nullptr);
 
+    // WR-06: the keyboard mapping, as .kbm text (empty = none loaded). It was
+    // never saved, so a KBM session reopened unmapped.
+    tuningState.setProperty ("kbm", tuningEngine.getKBMState(), nullptr);
+
     // Save lyrics engine state
     auto lyricsState = state.getOrCreateChildWithName ("lyricsEngine", nullptr);
     lyricsState.setProperty ("text", lyricsEngine.getLyricsText(), nullptr);
     lyricsState.setProperty ("looping", lyricsEngine.isLooping(), nullptr);
+    // CR-06: the parsed schedule, so lyrics play with the editor never opened
+    lyricsState.setProperty ("syllables", lyricsEngine.getSyllablesJson(), nullptr);
 
     // v1.26.0: the UI language rides the same tree as one plain property.
     // Written as a STRING ("en"/"fr") rather than the atomic's int index, so a
@@ -1076,6 +1111,16 @@ void OFormantAudioProcessor::setStateInformation (const void* data, int sizeInBy
             const juce::var savedStretch = tuningState.getProperty ("octaveStretch");
             if (! savedStretch.isVoid())
                 tuningEngine.setOctaveStretch (static_cast<float> (savedStretch.toString().getDoubleValue()));
+
+            // WR-06: restore the keyboard mapping, or clear it — a session with
+            // no KBM must not inherit the previous session's mapping.
+            const juce::String savedKbm = tuningState.getProperty ("kbm").toString();
+            if (savedKbm.isEmpty() || ! tuningEngine.loadKBMFromString (savedKbm))
+                tuningEngine.resetKeyboardMapping();
+        }
+        else
+        {
+            tuningEngine.resetKeyboardMapping();
         }
 
         // Restore lyrics engine state
@@ -1086,6 +1131,17 @@ void OFormantAudioProcessor::setStateInformation (const void* data, int sizeInBy
             lyricsEngine.setLyricsText (text);
             bool loop = lyricsState.getProperty ("looping", true);
             lyricsEngine.setLooping (loop);
+
+            // CR-06: restore the syllable schedule itself — only the page can
+            // parse text, so a restore that carried text alone left lyrics mode
+            // silent in a headless bounce. isVoid() guard: a pre-1.30.0 session
+            // has no schedule; it is re-sent the first time the editor opens.
+            // Empty text always clears, so session B cannot inherit A's lyric.
+            const juce::var syllables = lyricsState.getProperty ("syllables");
+            if (text.isEmpty())
+                lyricsEngine.setSyllablesFromJson ("[]");
+            else if (! syllables.isVoid())
+                lyricsEngine.setSyllablesFromJson (syllables.toString());
         }
 
         stateGeneration.fetch_add (1, std::memory_order_acq_rel); // WR-10
