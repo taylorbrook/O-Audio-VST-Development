@@ -413,9 +413,14 @@ function buildCanon() {
     return { components: out, broken };
 }
 
-// Defs of every name, per source order.
+const ND_KEYWORDS = new Set(['const', 'let', 'var']);
+
+// Declared defs of every name, in source order, plus the names bound by a
+// non-declaration form (`const NAME =`, `let NAME =`, `var NAME =`) — arrow
+// or function-expression bindings, which must not read as "absent".
 function defsByName(sources) {
     const map = new Map();
+    const nonDecl = new Set();
     const warnings = [];
     for (const s of sources) {
         const toks = lexJs(s.code);
@@ -423,40 +428,74 @@ function defsByName(sources) {
             if (!map.has(d.name)) map.set(d.name, []);
             map.get(d.name).push({ ...d, source: s.label });
         }
+        const sig = toks.filter(isSig);
+        for (let k = 0; k + 2 < sig.length; ++k) {
+            if (sig[k].t === 'word' && ND_KEYWORDS.has(sig[k].v) && sig[k + 1].t === 'word'
+                && sig[k + 2].t === 'punct' && sig[k + 2].v === '=')
+                nonDecl.add(sig[k + 1].v);
+        }
     }
-    return { map, warnings };
+    return { map, nonDecl, warnings };
 }
 
-function classifyComponent(comp, canonComp, defs) {
+// `name` or `name×N`, joined with '+', canon order then alias order.
+function foundLabel(names, defs) {
+    return names.filter((nm) => (defs.get(nm) || []).length)
+        .map((nm) => { const k = defs.get(nm).length; return k > 1 ? `${nm}×${k}` : nm; })
+        .join('+');
+}
+
+function classifyComponent(comp, canonComp, defs, nonDecl) {
     const names = [...comp.canon, ...comp.aliases];
     const found = [];
     for (const nm of names) for (const d of defs.get(nm) || []) found.push(d);
+    const base = { found: [], alsoFound: [], nonDecl: [], label: '', hash: null, shapeHash: null };
 
-    if (!canonComp.ok) return { status: 'CANON?', hash: null, found: found.map((d) => d.name) };
+    if (!canonComp || !canonComp.ok)
+        return { ...base, status: 'CANON?', found: names.filter((nm) => defs.has(nm)), label: foundLabel(names, defs) };
 
+    // 1–2: a complete canon set is judged on the canon-name defs alone.
     const canonDefs = comp.canon.map((nm) => defs.get(nm) || []);
     if (canonDefs.every((a) => a.length === 1)) {
         const ex = canonDefs.map((a) => normExact(a[0].tokens)).join('\n');
         const sh = canonDefs.map((a) => normShape(a[0].tokens)).join('\n');
-        const foundNames = comp.canon.slice();
-        if (ex === canonComp.exact) return { status: 'canon', hash: sha256(ex), found: foundNames };
-        if (sh === canonComp.shape) return { status: 'shape', hash: sha256(ex), shapeHash: sha256(sh), found: foundNames };
-        return { status: 'variant', hash: sha256(ex), shapeHash: sha256(sh), found: foundNames };
+        const r = { ...base, found: comp.canon.slice(), label: comp.canon.join('+'),
+                    alsoFound: comp.aliases.filter((nm) => defs.has(nm)),
+                    hash: sha256(ex), shapeHash: sha256(sh) };
+        if (ex === canonComp.exact) return { ...r, status: 'canon' };
+        if (sh === canonComp.shape) return { ...r, status: 'shape' };
+        return { ...r, status: 'variant' };
     }
 
+    // 3: anything else declared is a variant, hashed over every found def.
     if (found.length) {
         const ex = found.map((d) => normExact(d.tokens)).join('\n');
-        return { status: 'variant', hash: sha256(ex), found: found.map((d) => d.name) };
+        const sh = found.map((d) => normShape(d.tokens)).join('\n');
+        return { ...base, status: 'variant', hash: sha256(ex), shapeHash: sha256(sh),
+                 found: names.filter((nm) => defs.has(nm)), label: foundLabel(names, defs) };
     }
 
-    return { status: 'absent', hash: null, found: [] };
+    // 4: bound, but not declared.
+    const nd = names.filter((nm) => nonDecl.has(nm));
+    if (nd.length) return { ...base, status: 'nd', nonDecl: nd, label: nd.join('+') };
+
+    return { ...base, status: 'absent' };
+}
+
+// Per-plugin classification over its sources; also the self-test entry point.
+function classifySources(sources, canon) {
+    const { map, nonDecl, warnings } = defsByName(sources);
+    const components = {};
+    for (const c of COMPONENTS)
+        components[c.id] = classifyComponent(c, canon && canon.components[c.id], map, nonDecl);
+    return { components, defined: new Set(map.keys()), warnings };
 }
 
 function cellText(r) {
     if (!r) return 'ERR';
     if (r.status === 'variant') return 'v:' + short(r.hash);
     if (r.status === 'absent') return '—';
-    return r.status;
+    return r.status;              // canon | shape | nd | CANON?
 }
 
 // ════════════════════════════════════════════════════════════════════ scan ══
@@ -478,12 +517,10 @@ function scan(repoRoot, onlyPlugin) {
             if (!uiRoot) row.notes.push('(no UI root)');
             else if (!sources.length) row.notes.push('no JS sources found');
 
-            const { map, warnings } = defsByName(sources);
-            for (const w of warnings) row.notes.push('parse warning: ' + w);
-            for (const nm of map.keys()) row.defined.add(nm);
-
-            if (uiRoot) for (const c of COMPONENTS)
-                row.components[c.id] = classifyComponent(c, canon.components[c.id], map);
+            const cls = classifySources(sources, canon);
+            for (const w of cls.warnings) row.notes.push('parse warning: ' + w);
+            row.defined = cls.defined;
+            if (uiRoot) row.components = cls.components;
         } catch (e) {
             row.error = e && e.message ? e.message : String(e);
             errors.push({ scope: name, message: row.error });
@@ -497,7 +534,7 @@ function scan(repoRoot, onlyPlugin) {
 // ══════════════════════════════════════════════════════════════════ report ══
 
 function componentStats(comp, rows) {
-    const counts = { canon: 0, shape: 0, variant: 0, distinct: 0, absent: 0, error: 0 };
+    const counts = { canon: 0, shape: 0, variant: 0, distinct: 0, nonDecl: 0, absent: 0, error: 0 };
     const groups = new Map();
     const distinct = new Set();
 
@@ -510,9 +547,10 @@ function componentStats(comp, rows) {
         if (status === 'canon')        { counts.canon++;  key = 'canon'; }
         else if (status === 'shape')   { counts.shape++;  key = 'shape:' + c.hash; }
         else if (status === 'variant') { counts.variant++; distinct.add(c.hash); key = 'v:' + c.hash; }
+        else if (status === 'nd')      { counts.nonDecl++; key = 'nd:' + c.label; }
         else if (status === 'absent')  { counts.absent++; key = 'absent'; }
         else { counts.error++; continue; }
-        if (!groups.has(key)) groups.set(key, { status, hash: c.hash, names: c.found.join('+'), plugins: [] });
+        if (!groups.has(key)) groups.set(key, { status, hash: c.hash, names: c.label, plugins: [] });
         groups.get(key).plugins.push(r.name);
     }
     counts.distinct = distinct.size;
@@ -521,7 +559,7 @@ function componentStats(comp, rows) {
     for (const nm of [...comp.canon, ...comp.aliases])
         definedBy[nm] = rows.filter((r) => r.defined.has(nm)).map((r) => r.name);
 
-    const order = { canon: 0, shape: 1, variant: 2, absent: 4 };
+    const order = { canon: 0, shape: 1, variant: 2, nd: 3, absent: 4 };
     const gl = [...groups.values()].sort((a, b) =>
         (b.plugins.length - a.plugins.length) || (order[a.status] - order[b.status]) || String(a.hash).localeCompare(String(b.hash)));
 
@@ -529,7 +567,8 @@ function componentStats(comp, rows) {
 }
 
 function countsLine(id, c) {
-    return `${id}: canon ${c.canon} · shape ${c.shape} · variant ${c.variant} (distinct ${c.distinct}) · absent ${c.absent} · error ${c.error}`;
+    return `${id}: canon ${c.canon} · shape ${c.shape} · variant ${c.variant} (distinct ${c.distinct})`
+         + ` · non-decl ${c.nonDecl} · absent ${c.absent} · error ${c.error}`;
 }
 
 function printReport(res, repoRoot) {
@@ -571,6 +610,7 @@ function printReport(res, repoRoot) {
             if (g.status === 'canon')        L(`  canon ×${n}  ${g.plugins.join(', ')}`);
             else if (g.status === 'shape')   L(`  shape ×${n}  [${g.names}]  ${g.plugins.join(', ')}`);
             else if (g.status === 'variant') L(`  v:${short(g.hash)} ×${n}  [${g.names}]  ${g.plugins.join(', ')}`);
+            else if (g.status === 'nd')      L(`  nd ×${n}  [${g.names}]  ${g.plugins.join(', ')}`);
             else                             L(`  absent ×${n}  ${g.plugins.join(', ')}`);
         }
     }
@@ -675,6 +715,80 @@ function selfTest() {
         const outer = defs.find((d) => d.name === 'outer');
         return !!outer && outer.text.startsWith('async') && outer.text === src
             && defs.some((d) => d.name === 'inner');
+    });
+
+    // ── classifier controls. Each positive is paired with a negative, so a
+    // classifier that always answers `canon` (or always `variant`) fails.
+    let canon = null, canonText = '', canonDefs = [];
+    try { canon = buildCanon(); canonText = CANON.readCanonText(); canonDefs = extractFunctions(canonText); } catch { /* checks below fail */ }
+    const classify = (code) => classifySources([{ label: 'fixture', code }], canon).components;
+    const statuses = (comps) => COMPONENTS.map((c) => comps[c.id].status);
+    const defText = (nm) => canonDefs.find((d) => d.name === nm).text;
+
+    // Rebuild source from its own tokens: every whitespace run doubled and a
+    // comment after every `{` and `;`. String/template text is untouched.
+    const reflow = (code) => lexJs(code).map((t) => {
+        if (t.t === 'ws') return t.v + t.v;
+        if (t.t === 'punct' && t.v === '{') return '{ /* n1 { */';
+        if (t.t === 'punct' && t.v === ';') return '; // n1 }\n';
+        return t.v;
+    }).join('');
+
+    check('N1', () => {
+        const pos = statuses(classify(reflow(canonText)));
+        const neg = statuses(classify(canonText.replace('const ', 'let ')));
+        return pos.every((x) => x === 'canon')
+            && neg.filter((x) => x === 'variant').length === 1 && neg.filter((x) => x === 'canon').length === COMPONENTS.length - 1;
+    });
+
+    check('N2', () => {
+        const at = canonText.indexOf('function initTipsToggle');
+        const lit = canonText.indexOf('"tips-toggle"', at);
+        if (at < 0 || lit < 0) return false;
+        const strOnly = canonText.slice(0, lit) + '"help-toggle"' + canonText.slice(lit + '"tips-toggle"'.length);
+        const codeToo = strOnly.replace('let stored = null', 'var stored = null');
+        if (codeToo === strOnly) return false;
+        return classify(strOnly)['hover-help-init'].status === 'shape'
+            && classify(codeToo)['hover-help-init'].status === 'variant';
+    });
+
+    check('N3', () => {
+        const none = statuses(classify('function unrelated() { return 1; }'));
+        const nd = classify('const bindKnob = (el) => {};');
+        return none.every((x) => x === 'absent')
+            && nd['knob-binding'].status === 'nd' && nd['knob-binding'].nonDecl.includes('bindKnob')
+            && nd['knob-visual'].status === 'absent';
+    });
+
+    check('G1', () => {
+        const base = defText('updateKnobVisual');
+        const mA = base.replace('if (!st) return;', 'if (!st) return null;');
+        const mB = base.replace('if (!st) return;', 'if (!st) return 0;');
+        if (mA === base || mB === base) return false;
+        const a1 = classify(mA)['knob-visual'], a2 = classify(mA)['knob-visual'], b = classify(mB)['knob-visual'];
+        return a1.status === 'variant' && b.status === 'variant' && a1.hash === a2.hash && a1.hash !== b.hash;
+    });
+
+    check('M1', () => {
+        const base = defText('updateKnobVisual');
+        const one = classify(base)['knob-visual'];
+        const two = classify(base + '\n' + base)['knob-visual'];
+        return one.status === 'canon' && two.status === 'variant' && two.label === 'updateKnobVisual×2';
+    });
+
+    check('N4', () => {
+        for (const c of COMPONENTS) for (const nm of c.canon)
+            if (canonDefs.filter((d) => d.name === nm).length !== 1) return false;
+        try {
+            child_process.execFileSync('git', ['cat-file', '-e', UI_CANON_SOURCE.commit],
+                { cwd: SERVE.REPO_ROOT, stdio: 'ignore' });
+        } catch { return 'SKIP'; }             // shallow clone: the anchor commit is not here
+        const emitted = emitCanonText(UI_CANON_SOURCE.commit).text.replace(/\n$/, '').split('\n');
+        const own = fs.readFileSync(require.resolve('./ui-canon.js'), 'utf8').replace(/\r\n?/g, '\n').split('\n');
+        const b = own.findIndex((l) => l.includes(CANON.CANON_BEGIN));
+        const e = own.findIndex((l) => l.includes(CANON.CANON_END));
+        const block = own.slice(b, e + 1);
+        return block.length === emitted.length && block.every((l, i) => l.trimEnd() === emitted[i].trimEnd());
     });
 
     const failed = results.filter((r) => r.status === 'fail');
