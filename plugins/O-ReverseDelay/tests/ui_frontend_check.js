@@ -495,15 +495,16 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
 
 // -------------------------------- 12. geometry: preset bar + the three rows
 {
-    check(/setSize\s*\(\s*940\s*,\s*768\s*\)/.test(editorCpp),
-        'editor setSize is 940 x 768 (v1.7.1 chassis)');
-    const heights = css.match(/height:\s*768px/g) || [];
+    check(/setSize\s*\(\s*940\s*,\s*693\s*\)/.test(editorCpp),
+        'editor setSize is 940 x 693 (v1.19.0 chassis)');
+    const heights = css.match(/height:\s*693px/g) || [];
     check(heights.length >= 2,
-        `styles.css declares 768px in BOTH html/body and .frame — found ${heights.length}`);
+        `styles.css declares 693px in BOTH html/body and .frame — found ${heights.length}`);
     check(!/height:\s*440px/.test(css) && !/height:\s*484px/.test(css)
-          && !/height:\s*743px/.test(css) && !/height:\s*972px/.test(css),
+          && !/height:\s*743px/.test(css) && !/height:\s*972px/.test(css)
+          && !/height:\s*768px/.test(css),
         'no superseded frame height survives in styles.css '
-        + '(440 Stage-3, 484 Stage-4, 743 v1.1-v1.6, 972 v1.7.0)');
+        + '(440 Stage-3, 484 Stage-4, 743 v1.1-v1.6, 972 v1.7.0, 768 v1.7.1-v1.18)');
 
     // v1.7.1: the frame must FIT A 1080p SCREEN with a host's chrome above it,
     // which is the whole point of the release and the one property a future
@@ -523,48 +524,30 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     check(/width:\s*940px/.test(css) && /setSize\s*\(\s*940\s*,/.test(editorCpp),
         'the frame is still 940 px WIDE — the clamp verification survives a height-only resize');
 
-    // The row heights, pinned. If any of them drifts, the rows no longer fit the
-    // frame and the tooltip clamp verification below is measuring a stale layout.
-    const rowGap = (css.match(/\.groups\s*\{[\s\S]*?gap:\s*(\d+)px/) || [])[1];
-    const row2H  = (css.match(/\.group-row-2 \.group\s*\{[\s\S]*?height:\s*(\d+)px/) || [])[1];
-    const row1H  = (css.match(/\n\.group\s*\{[\s\S]*?height:\s*(\d+)px/) || [])[1];
-    // Row 3 has no height rule of its own — it INHERITS row 1's from the base
-    // .group rule, which is why the sum below reads row1 twice.
-    // v1.7.1: 145 + 14 + 245 + 14 + 145 = 563.
-    const rowsTotal = Number(row1H) + Number(rowGap) + Number(row2H)
-                      + Number(rowGap) + Number(row1H);
-    check(row1H === '145' && rowGap === '14' && row2H === '245' && rowsTotal === 563,
-        `row geometry is 145 + 14 + 245 + 14 + 145 = 563 `
-        + `— got row1=${row1H} gap=${rowGap} row2=${row2H} total=${rowsTotal}`);
-
-    // The claim v1.7.1 exists to correct. .groups is flex:1, so its height is the
-    // frame's content box MINUS header, preset band and footer — NOT the row sum
-    // — and it centres the rows in what is left. Every comment from v1.1.0 to
-    // v1.7.0 called the row sum "exactly zero slack" and none of them ever did
-    // this subtraction, which is how 93.5 px of centred nothing survived five
-    // releases and a 972 px frame (pattern_test_fixture_mirrors_drift_silently:
-    // the fixture agreed with the comment because it mirrored the same sum).
-    //
-    // Chrome is measured, not guessed — these are rendered values from the
-    // stub page at the shipping viewport, and ui_tooltip_clamp_check.js renders
-    // the same page, so a drift here shows up there as an overflow.
-    const CHROME = 6 + 32 + 70.5 + 44 + 23;   // border, padding, header, band, footer
-    const groupsH = shipH - CHROME;
-    const slack   = groupsH - rowsTotal;
+    // v1.19.0: rows are CONTENT-SIZED. No panel or row carries a pinned
+    // height; each row stretches its panels to the tallest one. What is pinned
+    // instead is the absence of slack, and that is a RENDERED property —
+    // ui_tooltip_clamp_check.js measures the row sum against .groups at the
+    // shipping viewport. Statically we assert the mechanism.
+    check(!/\n\.group\s*\{[^}]*?\bheight:/.test(css),
+        'the base .group rule pins no height (rows are content-sized)');
+    check(!/\.group-row-\d \.group\s*\{[^}]*?\bheight:/.test(css),
+        'no row pins its panels\' height');
+    check(/\.group-row\s*\{[^}]*?align-items:\s*stretch/.test(css),
+        '.group-row stretches its panels to the tallest one');
     // The .group-label cartouches sit at top:-9px, straddling each panel's top
     // border, so row 1 needs >= 9 px of clearance under the preset band's rule.
-    // Slack is centred, so half of it is what row 1 actually gets.
-    check(slack >= 18 && slack <= 40,
-        `.groups slack is deliberate and bounded — ${slack.toFixed(1)} px `
-        + `(${(slack / 2).toFixed(1)} above row 1; >= 9 needed for .group-label, `
-        + `and the whole band <= 40 or it is dead space again)`);
+    // Through v1.18.0 centred slack provided it; with no slack it is padding.
+    const groupsPadTop = Number((css.match(/\.groups\s*\{[^}]*?padding-top:\s*(\d+)px/) || [])[1]);
+    check(groupsPadTop >= 9,
+        `.groups clears row 1's cartouches — padding-top ${groupsPadTop} px, >= 9 needed`);
 
-    // Both rows must share ONE width contract or the columns stop aligning.
-    // All THREE rows share one contract (v1.7.0), so the 276 px selector is now a
-    // group list ending in .group-drift rather than .group-count alone.
-    check(/\.group-random,/.test(css) && /\.group-source,/.test(css)
-          && /\.group-drift\s*\{\s*width:\s*276px/.test(css),
-        'rows 2 and 3 reuse row 1\'s pinned widths (190 | 190 | 276 | 190)');
+    // ONE width contract (190 | 190 | 276 | 190) so the columns align down the
+    // page; OUTPUT spans columns 2-4 (190 + 276 + 190 + 2 x 12 = 680).
+    check(/\.group-drift,/.test(css) && /\.group-source\s*\{\s*width:\s*190px/.test(css)
+          && /\.group-feedback\s*\{\s*width:\s*276px/.test(css)
+          && /\.group-output\s*\{\s*width:\s*680px/.test(css),
+        'panels share the 190 | 190 | 276 | 190 contract; OUTPUT spans columns 2-4 at 680');
     // v1.6.0 filled the last reserved panel: SPACE -> MOTION. The assertion that
     // used to live here was the mirror image — v1.3.0 renamed row 2's 276 px
     // column MOTION -> COUNT and this checked that no stale `.group-motion` rule
@@ -584,23 +567,21 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     // fleuron on top of Diffusion and Drive.
     check(!/\.group-reserved\s*[,{]/.test(css) && !/class="group-reserved"/.test(html),
         'no .group-reserved rule or ornament survives v1.8.0 spending the reserve');
+    // v1.19.0: COLOUR folded into FEEDBACK — Diffusion and Drive are inside
+    // the loop. The panel holds exactly five cells, wrapping 3 + 2 in its 276 px
+    // body (3 x 72 + 2 x 14 = 244, the content box exactly).
     {
-        const start = html.indexOf('class="group group-colour"');
+        const start = html.indexOf('class="group group-feedback"');
         const end   = start >= 0 ? html.indexOf('</section>', start) : -1;
-        const colour = start >= 0 && end > start ? html.slice(start, end) : '';
-        check(colour.includes('data-param="diffusion"')
-              && colour.includes('data-param="drive"')
-              && colour.includes('id="val-diffusion"')
-              && colour.includes('id="val-drive"'),
-            'COLOUR is a real panel: both B4 #7/#8 knobs bound, both readouts present');
-        // Two cells at 72 px with the shared 14 px .group-body gap = 158 px, and
-        // the panel is 190. This is the arithmetic that made the fill free — if a
-        // later release adds a third control here it FAILS, which is the point:
-        // that is the resize the reserve was spent to defer, and it should stop
-        // the build rather than silently overflow the panel.
-        const cells = (colour.match(/class="knob-cell"/g) || []).length;
-        check(cells === 2,
-            `COLOUR holds exactly 2 knob-cells (2x72 + 14 = 158 of 190 px) — got ${cells}`);
+        const fb = start >= 0 && end > start ? html.slice(start, end) : '';
+        check(['feedback', 'lowCut', 'highCut', 'diffusion', 'drive']
+                .every((id) => fb.includes(`data-param="${id}"`) && fb.includes(`id="val-${id}"`)),
+            'FEEDBACK holds the whole loop: Amount, Low Cut, High Cut, Diffusion, Drive');
+        const cells = (fb.match(/class="knob-cell"/g) || []).length;
+        check(cells === 5, `FEEDBACK holds exactly 5 knob-cells — got ${cells}`);
+        check(!/group-colour/.test(html) && !/\.group-colour\b/.test(css)
+              && !/group-duck/.test(html) && !/\.group-duck\b/.test(css),
+            'no COLOUR or DUCK panel, rule or class survives the v1.19.0 regroup');
     }
     {
         const start = html.indexOf('class="group group-motion"');
@@ -658,26 +639,28 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         };
         check(panelHas('group-source', ['id="seg-source-mono"', 'id="seg-source-stereo"']),
             'both Source segments are inside the SOURCE panel');
-        check(panelHas('group-duck', ['id="knob-duck"']),
-            'Duck is inside the DUCK panel');
+        check(panelHas('group-output', ['id="knob-duck"', 'id="knob-width"', 'id="knob-mix"', 'id="levelMeter"']),
+            'Duck, Width, Mix and the level meter are inside the OUTPUT panel');
+        check(panelHas('group-count', ['id="knob-grainCount"', 'id="grainMeter"']),
+            'Count and its readout are inside the COUNT panel');
         check(panelHas('group-drift', ['id="knob-driftRate"', 'id="knob-driftDepth"']),
             'Rate and Depth are both inside the DRIFT panel');
         // Same scoping rule MOTION's segments are held to: .segments and .segment
-        // are shared with TIME's VERTICAL Free/Sync pair, so an unscoped
-        // flex-direction here would lay that one out sideways too.
+        // are shared with TIME's Free/Sync pair. v1.19.0: SOURCE is vertical like
+        // TIME, so its overrides are gap and width only — still scoped.
         check(/\.group-source \.segments\s*\{/.test(css) && /\.group-source \.segment\s*\{/.test(css),
             'SOURCE\'s segment overrides are scoped to that panel');
     }
 
-    // The band and the height increase must be the same 44 px, or the panels
-    // and footer move (D15's whole low-regression premise).
+    // v1.19.0: the band is 32 px with no bottom margin — .groups' padding-top
+    // is the gap under it (see the cartouche-clearance check above).
     const barBlock = css.match(/\.preset-bar\s*\{[\s\S]*?\}/);
     check(!!barBlock, '.preset-bar rule found');
     if (barBlock) {
         const h  = (barBlock[0].match(/height:\s*(\d+)px/) || [])[1];
-        const mb = (barBlock[0].match(/margin-bottom:\s*(\d+)px/) || [])[1];
-        check(h && mb && (Number(h) + Number(mb)) === 44,
-            `.preset-bar occupies exactly 44px (height ${h} + margin-bottom ${mb})`);
+        const mb = (barBlock[0].match(/margin-bottom:\s*(\d+)(px)?/) || [])[1];
+        check(h === '32' && mb === '0',
+            `.preset-bar is a 32 px band with no bottom margin (height ${h} + margin-bottom ${mb})`);
     }
 }
 

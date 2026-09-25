@@ -132,7 +132,7 @@ const publicDir  = path.join(pluginRoot, 'Source', 'ui', 'public');
 // past a bottom edge that has moved up. Assertion 3 covers both directions and
 // is re-run here rather than reasoned about.
 const SHIP_W = 940;
-const SHIP_H = 768;
+const SHIP_H = 693;
 
 // app.js constants — mirrored here, and cross-checked against the source below
 // so this file cannot drift from the page it is measuring.

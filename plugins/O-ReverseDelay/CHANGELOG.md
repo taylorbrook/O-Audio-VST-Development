@@ -4,6 +4,74 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.19.0] — 2026-09-24
+
+The UI is tighter and regrouped. The window drops from 940 × 768 to
+**940 × 693**, and every panel is now full. MINOR because controls moved
+between panels. No parameter was added, removed or changed, and nothing on the
+audio path or in the saved state moved.
+
+### Why
+
+When measured at the shipping viewport, the v1.18.0 layout was a 4 × 3 grid of
+rows pinned at 145 / 245 / 145 px. Several panels were mostly empty:
+
+- COUNT used a 276 × 245 panel for one knob and a readout (93 px of content).
+- SOURCE used a 190 × 145 panel for two buttons (29 px of content).
+- DUCK held one knob.
+- `.groups` centred the rows inside 30 px of slack.
+
+### Changed
+
+- **Regrouped by what each control acts on:**
+  - Row 1, the grains: TIME | GRAIN | COUNT | DRIFT. COUNT now sits beside
+    GRAIN, in row 1's 276 px column.
+  - Row 2, character: RANDOM | WINDOW | **FEEDBACK** | MOTION. FEEDBACK is now
+    the whole loop: Amount, Low Cut and High Cut, then Diffusion and Drive
+    (three over two). Diffusion and Drive always sat inside the feedback
+    return, so the separate COLOUR panel is gone.
+  - Row 3, in / out: SOURCE | **OUTPUT**. OUTPUT spans columns 2–4 (680 px) and
+    holds Duck, Width, Mix and the level meter. Duck is applied to the output
+    only, so the separate DUCK panel is gone. The meter moves from an 8 px
+    sliver in the bottom padding into the flow, beside the knobs and on their
+    centre line.
+- **Rows are sized by their content.** No row or panel pins a height any more,
+  and rows use `align-items: stretch`. Panel padding went from 16/12 to 15/11,
+  the row gap from 14 to 12 (matching the column gap) and the header margin
+  from 16 to 10. The preset band's 12 px bottom margin is replaced by an
+  11 px `.groups` padding-top that clears row 1's cartouches.
+- SOURCE stacks Mono / Stereo vertically, the same shape as TIME's Free / Sync.
+- The 62 px main-path knobs now cover row 1, FEEDBACK and OUTPUT.
+- The column contract (190 | 190 | 276 | 190) is unchanged, so the columns
+  still line up down the page. The width stays 940, which keeps the tooltip
+  edge-clamp geometry valid.
+
+### i18n
+
+- Removed `label.duck` and `label.colour`, which no longer had a panel
+  (check-i18n [15]). The Duck caption now reads `knob-duck` (fr "Ducking").
+- The **Randomise** tip is re-worded in en, fr and zh-Hans. It used to say
+  "Colour controls … Feedback never touched", but Diffusion and Drive now sit
+  in FEEDBACK. It now names Diffusion and Drive and excludes "Feedback Amount,
+  the cut filters, Regen, Mix and Output". fr stays `reviewed: false` and zh
+  stays `'mt'`, as they were in v1.18.0.
+
+### Testing
+
+- `ui_frontend_check.js`: section 12 is rewritten for the new chassis:
+  - 940 × 693 in the editor and both CSS spots.
+  - Content-sized rows, and the cartouche clearance.
+  - The new width contract, with OUTPUT at 680 px.
+  - FEEDBACK holds exactly 5 cells.
+  - No COLOUR or DUCK rule or class survives.
+  - Duck, Width, Mix and the meter are inside OUTPUT.
+  - ALL PASS.
+- `ui_tooltip_clamp_check.js` at 940 × 693: ALL PASS in en, fr and zh-Hans.
+  - The WINDOW budget is 212 of 212, and the panel is 242.
+- `check-ui-labels` passes, and so do `check-i18n` (repo-wide),
+  `i18n-fr-lint` and `i18n-zh-lint`.
+- Regression testing was skipped (no DSP change).
+
 ## [1.18.0] — 2026-09-24
 
 A/B compare and a limited Randomise. MINOR: no parameter was added, removed or

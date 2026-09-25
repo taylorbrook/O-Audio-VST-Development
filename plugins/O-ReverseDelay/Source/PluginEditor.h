@@ -27,7 +27,7 @@
     Web*Relay / Web*ParameterAttachment.
 
     Stage 4 (Polish) added the preset bar and the OuariconPresetManager v1.0.5
-    bridge. The window is 940 × 768 as of v1.7.1, which is the size that fits a
+    bridge. The window is 940 × 693 as of v1.19.0 (768 from v1.7.1), which fits a
     1080p display; PluginEditor.cpp:611 is the single setSize call and
     styles.css (html/body and .frame) must agree with it.
 
