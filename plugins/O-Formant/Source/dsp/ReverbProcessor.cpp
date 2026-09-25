@@ -266,6 +266,7 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     predelaySmoothed.reset (spec.sampleRate, 0.1);
     predelaySmoothed.setCurrentAndTargetValue (0.0f);
     setTankSize (0.5f);
+    snapSmoothersOnNextProcess = true;
 
     prevMix = -999.0f;
 }
@@ -305,6 +306,10 @@ void ReverbProcessor::reset()
     shimmerAccumR = 0.0f;
 
     dryWetMixer.reset();
+
+    // v1.30.1: the smoothers kept their pre-bypass (or prepare()-seeded 0.5 /
+    // 0 ms) value, so the first block glided from it and chirped the tank.
+    snapSmoothersOnNextProcess = true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -343,8 +348,19 @@ void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
 
     dryWetMixer.pushDrySamples (block);
 
-    sizeSmoothed.setTargetValue (size);
-    predelaySmoothed.setTargetValue (predelayMs * 0.001f * currentSampleRate);
+    const float predelaySamplesTarget = predelayMs * 0.001f * currentSampleRate;
+    if (snapSmoothersOnNextProcess)
+    {
+        sizeSmoothed.setCurrentAndTargetValue (size);
+        predelaySmoothed.setCurrentAndTargetValue (predelaySamplesTarget);
+        setTankSize (size);
+        snapSmoothersOnNextProcess = false;
+    }
+    else
+    {
+        sizeSmoothed.setTargetValue (size);
+        predelaySmoothed.setTargetValue (predelaySamplesTarget);
+    }
 
     float dampCoeff = damping * 0.7f;
     for (int ch = 0; ch < kNumChannels; ++ch)

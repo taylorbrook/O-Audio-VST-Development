@@ -42,6 +42,27 @@
 #include "EmbeddedTunings.h"
 #include "NoteExpression.h"  // modules/tuning/note-expression (via ouaricon_add_module)
 
+// v1.30.1: a key the loaded .kbm leaves unmapped is silent (WR-07). Filtering
+// it here, before voice allocation, means it never claims a voice — with voice
+// stealing on (WR-03), it used to steal a sounding voice that FormantVoice then
+// released without its declick tail, cutting the stolen note to 0 in one sample.
+class FormantSynthesiser : public juce::MPESynthesiser
+{
+public:
+    void setTuningEngine (const TuningEngine* engine) noexcept { tuningEngine = engine; }
+
+protected:
+    void noteAdded (juce::MPENote newNote) override
+    {
+        if (tuningEngine != nullptr && ! tuningEngine->isNoteMapped (newNote.initialNote))
+            return;
+        juce::MPESynthesiser::noteAdded (newNote);
+    }
+
+private:
+    const TuningEngine* tuningEngine = nullptr;
+};
+
 class OFormantAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -141,7 +162,7 @@ private:
 
     juce::AudioProcessorValueTreeState parameters;
     OuariconPresetManager presetManager;
-    juce::MPESynthesiser synthesiser;
+    FormantSynthesiser synthesiser;
 
     // Cached raw-parameter pointers for the effects/output chain (IN-02).
     // Fetched once in prepareToPlay so processBlock avoids ~22 string-keyed

@@ -133,6 +133,7 @@ private:
     // WR-16: per-sample smoothing of size (tank lengths + loop gain) and pre-delay
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> sizeSmoothed;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> predelaySmoothed; // samples
+    bool snapSmoothersOnNextProcess = true; // v1.30.1: first block after prepare/reset snaps, never glides
     float tankFeedbackGain = 0.0f;
     void setTankSize (float size) noexcept;
 

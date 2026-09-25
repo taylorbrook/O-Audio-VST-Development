@@ -2,6 +2,42 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.30.1] - 2026-09-24
+
+Four regressions from v1.30.0. PATCH: no parameter ID, range, type or state
+format changed.
+
+### Fixed
+
+- **The first echo after enabling Delay or Reverb chirped (WR-16 regression).**
+  `DelayProcessor::reset()` snapped the time glide to its *previous* target,
+  and the processor calls `reset()` before that block's `setTime()`. The first
+  echo therefore glided over 100 ms from a stale time (or from the 375 ms
+  seeded in `prepare()`), which is audible as a pitch sweep. The reverb's
+  size and pre-delay glides were seeded to 0.5 / 0 ms in `prepare()` and never
+  re-seeded by `reset()`. Both effects now snap to the live parameter values on
+  the first block after `prepare()` or `reset()`. Knob and automation moves
+  while running still glide.
+- **A `.kbm` was ignored in 12-TET mode but still saved and exported.** The
+  frequency table applied the keyboard mapping in Scala mode only. The KBM
+  buttons show in every mode, and choosing the *Equal 12-TET* temperament
+  switches to 12-TET mode, so a loaded mapping went silent while the Clear
+  button, the saved session and the `.kbm` export all still reported it.
+  12-TET mode now applies the mapping to a 12 × 100 c scale, so what is saved
+  is what plays. The Scala path and the 12-TET path share one mapping routine
+  (`calculateKBMFrequency`), which also covers Scala mode with an empty scale.
+- **A key left unmapped by the `.kbm` could cut a sounding note dead (WR-03 ×
+  WR-07).** With voice stealing on, an unmapped key stole a voice, and
+  `noteStarted()` then released it without the 3 ms declick tail. Unmapped
+  keys are now filtered in `FormantSynthesiser::noteAdded()` before a voice is
+  chosen, so they never claim or steal one.
+- **A `.scl` ratio could load as NaN or ±inf (WR-08 gap).** Only the cents
+  branch checked that the pitch was finite. A digit string too long for a
+  double parses as inf, so `inf/inf` loaded a NaN degree into the tuning
+  table. Ratio pitches must now be finite, and a token with more than one `/`
+  (e.g. `3/2/5`, which used to load as 3/2) is rejected, which rejects the
+  whole file as for any malformed pitch line.
+
 ## [1.30.0] - 2026-09-24
 
 Wave 2 of the v1.29.0 `CODE_REVIEW.md`: behaviour fixes that do not re-render

@@ -310,6 +310,9 @@ private:
 
     double calculate12TETFrequency(int midiNote) const;
     double calculateCustomFrequency(int midiNote) const;
+    double calculateTwelveTETTableFrequency(int midiNote) const;
+    double calculateKBMFrequency(int midiNote, const std::vector<double>& intervals) const;
+    static const std::vector<double>& twelveTETIntervals() noexcept;
     double applyPitchBend(double baseFreq, float bendAmount) const;
     void rebuildFrequencyTable();
     void rotateIntervalsForTonic(int tonic);

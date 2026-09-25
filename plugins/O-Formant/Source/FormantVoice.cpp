@@ -156,7 +156,9 @@ void FormantVoice::noteStarted()
 {
     // WR-07: a key the loaded .kbm leaves unmapped ('x', or outside its
     // first..last range) is silent per the Scala spec — the tuning table holds
-    // 0 Hz for it. Release the voice without sounding.
+    // 0 Hz for it. Release the voice without sounding. v1.30.1: normally
+    // FormantSynthesiser::noteAdded() filters these before a voice (or a
+    // steal) is chosen; this only catches a table rebuilt in between.
     if (tuningEnginePtr != nullptr
         && ! tuningEnginePtr->isNoteMapped (currentlyPlayingNote.initialNote))
     {

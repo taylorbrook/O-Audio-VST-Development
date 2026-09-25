@@ -52,6 +52,7 @@ private:
     juce::dsp::DryWetMixer<float> dryWetMixer;
 
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> delaySamples; // WR-16
+    bool snapTimeOnNextSet = true; // v1.30.1: first setTime() after prepare/reset snaps, never glides
     float feedbackAmount = 0.3f;
     int delayMode = 0; // 0=Normal, 1=PingPong
     float currentSampleRate = 44100.0f;

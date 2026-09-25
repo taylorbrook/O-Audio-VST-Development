@@ -50,6 +50,7 @@ void DelayProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     // block rate, which clicked on every knob / automation move.
     delaySamples.reset (spec.sampleRate, 0.1);
     delaySamples.setCurrentAndTargetValue (0.375f * currentSampleRate);
+    snapTimeOnNextSet = true;
 }
 
 void DelayProcessor::reset()
@@ -60,7 +61,10 @@ void DelayProcessor::reset()
     feedbackFilterR.reset();
     dryWetMixer.reset();
     feedbackL = feedbackR = 0.0f;
-    delaySamples.setCurrentAndTargetValue (delaySamples.getTargetValue());
+    // v1.30.1: don't snap to the old target here — reset() runs BEFORE the
+    // block's setTime(), so the line would then glide from a stale time and
+    // chirp the first echo. The next setTime() snaps to the live value instead.
+    snapTimeOnNextSet = true;
 }
 
 void DelayProcessor::setTime (float seconds)
@@ -70,8 +74,17 @@ void DelayProcessor::setTime (float seconds)
     // silently alias (popSample masks by % totalSize) to a wrong, shorter time
     // — and trip the jassert in Debug builds. (REVIEW.md WR-07)
     float requested = seconds * currentSampleRate;
-    delaySamples.setTargetValue (juce::jmin (requested,
-                                             static_cast<float> (delayL.getMaximumDelayInSamples())));
+    const float target = juce::jmin (requested, static_cast<float> (delayL.getMaximumDelayInSamples()));
+
+    if (snapTimeOnNextSet)
+    {
+        delaySamples.setCurrentAndTargetValue (target);
+        snapTimeOnNextSet = false;
+    }
+    else
+    {
+        delaySamples.setTargetValue (target);
+    }
 }
 
 void DelayProcessor::setFeedback (float fb)
