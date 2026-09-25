@@ -109,6 +109,36 @@
             <div class="spectrum-container">
                 <canvas id="spectrum-canvas" class="spectrum-canvas"></canvas>
                 <div class="spectrum-overlay">
+                    <!-- v1.13.0: per-band gain reduction, drawn as DOM rather than into the
+                         canvas. sendSpectrumData() returns early unless new FFT data is ready,
+                         so the canvas redraws at FFT cadence; gain reduction arrives on every
+                         30 Hz tick. Painting it here keeps the two rates independent and leaves
+                         the working spectrum path untouched. This layer comes BEFORE the
+                         crossover lines so the drag handles keep their pointer priority.
+                         Initial left/width are the log-scale positions of the parameter
+                         defaults, for the same no-jump reason as the lines below. -->
+                    <div class="gr-bands" id="gr-bands" aria-hidden="true">
+                        <div class="gr-band" id="grBandLow" style="left: 0%; width: 33.3%;">
+                            <div class="gr-band-fill"></div>
+                            <div class="gr-band-peak"></div>
+                            <div class="gr-band-readout"></div>
+                        </div>
+                        <div class="gr-band" id="grBandLomid" style="left: 33.3%; width: 33.4%;">
+                            <div class="gr-band-fill"></div>
+                            <div class="gr-band-peak"></div>
+                            <div class="gr-band-readout"></div>
+                        </div>
+                        <div class="gr-band" id="grBandHimid" style="left: 66.7%; width: 20%;">
+                            <div class="gr-band-fill"></div>
+                            <div class="gr-band-peak"></div>
+                            <div class="gr-band-readout"></div>
+                        </div>
+                        <div class="gr-band" id="grBandHigh" style="left: 86.7%; width: 13.3%;">
+                            <div class="gr-band-fill"></div>
+                            <div class="gr-band-peak"></div>
+                            <div class="gr-band-readout"></div>
+                        </div>
+                    </div>
                     <!-- v1.4.0: initial left values are the true log-scale positions of the
                          parameter defaults (200 Hz / 2 kHz / 8 kHz) so the lines do not jump
                          when the first C++ position push arrives. -->
@@ -144,6 +174,7 @@
                 <div class="band-controls">
                     <div class="gr-meter">
                         <div class="gr-fill" id="grLow"></div>
+                        <span class="gr-readout" id="grLowVal">0.0 dB</span>
                         <span class="gr-label" data-i18n="label.gr">GR</span>
                     </div>
                     <div class="knob-grid">
@@ -215,6 +246,7 @@
                 <div class="band-controls">
                     <div class="gr-meter">
                         <div class="gr-fill" id="grLomid"></div>
+                        <span class="gr-readout" id="grLomidVal">0.0 dB</span>
                         <span class="gr-label" data-i18n="label.gr">GR</span>
                     </div>
                     <div class="knob-grid">
@@ -286,6 +318,7 @@
                 <div class="band-controls">
                     <div class="gr-meter">
                         <div class="gr-fill" id="grHimid"></div>
+                        <span class="gr-readout" id="grHimidVal">0.0 dB</span>
                         <span class="gr-label" data-i18n="label.gr">GR</span>
                     </div>
                     <div class="knob-grid">
@@ -357,6 +390,7 @@
                 <div class="band-controls">
                     <div class="gr-meter">
                         <div class="gr-fill" id="grHigh"></div>
+                        <span class="gr-readout" id="grHighVal">0.0 dB</span>
                         <span class="gr-label" data-i18n="label.gr">GR</span>
                     </div>
                     <div class="knob-grid">

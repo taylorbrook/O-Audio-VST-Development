@@ -1,5 +1,89 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.13.0 (2026-09-25)
+
+**Gain reduction now reads off the analyzer, not just off four strip meters.**
+MINOR: one new view of a number the plugin already computed. No parameter, range,
+type, state format or DSP path changed, and no new translatable string was added.
+
+### Added
+
+- **Per-band gain reduction drawn over the spectrum.** Four regions spanning the
+  analyzer between the crossovers, each filling downward from its top edge at
+  12 dB full scale, with a peak line that holds 500 ms and then falls at 24 dB/s.
+  The band that is compressing is now the one you are looking at, rather than a
+  strip meter three inches below the frequency it belongs to.
+
+  Twelve dB rather than the strip meters' 24 because program material compresses
+  1–6 dB, which on a 24 dB scale over a 100 px box is a 4-to-25 px sliver. Past
+  12 dB the fill pins and the number keeps reading the true value.
+
+  It is drawn as DOM, not into the spectrum canvas. `sendSpectrumData()` returns
+  early unless the FFT has new data, so the canvas redraws at FFT cadence while
+  gain reduction arrives on every 30 Hz tick; sharing the canvas would have
+  coupled the two rates and put new code in the one path whose failure mode is a
+  frozen analyzer. The regions sit in the overlay layer the crossover lines
+  already use, and inherit its `pointer-events: none` — `check-ui-labels`
+  classifies all 52 of them as decoration, which is the gate confirming the drag
+  handles keep their pointer priority.
+
+- **A numeric readout in each band's strip meter.** The bar it sits in was the
+  only place the exact figure was not available.
+
+- **Bypassed and solo-muted bands are hatched in the analyzer.** Both states
+  already store a gain reduction of 0 (`Compressor.h:177`,
+  `MultiBandProcessor.h:130`), so before this a band you had switched out of the
+  signal was the same flat rectangle as a band that simply was not compressing.
+  The region follows the eight existing `*_SOLO` / `*_BYPASS` toggles, so
+  automation and preset loads move it too, not just clicks.
+
+### Changed
+
+- **The band regions move from `updateBandRanges()`.** That function is the single
+  point both the 30 Hz C++ push and the live crossover drag already funnel
+  through. Hooking the drag alone is the v1.4.0 mistake — it leaves host
+  automation and preset loads behind, and the regions would have drifted off the
+  crossovers whenever the frequencies changed from anywhere but the mouse.
+
+### Fixed
+
+- **A contrast defect introduced earlier in this same release.** The strip
+  readout first shipped here at a resting opacity of 0.45 as de-emphasis;
+  `measure-ui --contrast` read the composite at **1.32:1** against a 4.5 need.
+  It now sits on a deterministic cream chip, the same device `.crossover-label`
+  uses to stay readable over the analyzer, and measures **8.73:1** in all three
+  languages. Without the chip the backing is whatever the `.gr-fill` gradient
+  happens to be under it — between 7.95:1 over the empty meter and 3.35:1 over
+  its olive stop, i.e. AA or not depending on the signal.
+
+### Testing
+
+- `check-ui-labels --plugin O-MultiBandCompressor`: ALL CHECKS PASSED, including
+  assertion 7 (no non-label element moves between en / fr / zh-Hans at the parsed
+  900 x 640 frame) and "no uncaught page error during the sweep".
+- `check-i18n`: ALL CHECKS PASS. Zero new keys — every string the new nodes render
+  is digits plus `dB`, identical in all three languages, which is also why
+  assertion 7 holds by construction rather than by luck.
+- `measure-ui --contrast`: page-wide AA shortfalls 339 → 327. The twelve that
+  went are the four readouts × three languages; v1.13.0 contributes **zero**. The
+  remaining 327 are the pre-existing 8 px `.knob-label` baseline, untouched here.
+- Analyzer readouts are `opacity: 0` until their band compresses, so the contrast
+  tool reports them `vis: false` and never measures them. Computed by hand
+  instead: worst case is the readout over its own fill over the spectrum fill's
+  top stop, **4.72:1**, above the 4.5 need. Stated because an unmeasured node is
+  a coverage hole, not a pass.
+- Geometry verified against the push: at 5.2 / 0.1 / 6.8 / 1.3 dB the four fills
+  computed 34.67 / 0.67 / 45.33 / 8.67 % of an 80 % zone, which is the scale
+  reproducing itself, and the band edges landed on the crossovers at 180 Hz /
+  1.9 kHz / 7.2 kHz.
+
+### Compatibility
+
+No parameter, range, type or state-format change. A v1.12.2 preset or session
+restores exactly. Bumping the version restamps the factory-preset directory's
+`.factory-version` sentinel, which is the designed behaviour on every version
+change.
+
 ## Version 1.12.2 (2026-09-14)
 
 **The per-band sidechain low-pass could build an unstable filter below 40 kHz.**

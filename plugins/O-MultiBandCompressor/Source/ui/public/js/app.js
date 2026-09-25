@@ -1027,14 +1027,212 @@ window.updateSpectrumData = function(magnitudes) {
 
 // ========== PHASE 5.3: METERING FUNCTIONS ==========
 
+// ========== v1.13.0: GAIN REDUCTION IN THE ANALYZER ==========
+//
+// The 30 Hz push below now feeds two views of the same number: the horizontal
+// strip meters that have always been there, and the four regions laid over the
+// analyzer between the crossovers.
+//
+// It is drawn as DOM, not into the spectrum canvas, on purpose.
+// PluginEditor::sendSpectrumData() returns early unless the FFT has new data, so
+// the canvas redraws at FFT cadence while gain reduction arrives on every timer
+// tick. Sharing the canvas would have coupled the two rates and put new code in
+// the one path whose failure mode is a frozen analyzer.
+
+// What C++ normalised against: jmap(gr, 0, -24, 0, 1) in sendGainReductionMeters.
+// Changing either end means changing it there too.
+const GR_METER_SPAN_DB = 24.0;
+
+// What the analyzer regions are scaled to. Half the strip meters' span because
+// program material compresses 1-6 dB, which on a 24 dB scale over a 100px box is
+// a 4-to-25px sliver. Anything past 12 dB pins at the bottom, and the number
+// keeps reading the true value.
+const GR_ANALYZER_FULL_SCALE_DB = 12.0;
+
+// Below this a band is not considered to be compressing: no number, no peak line.
+// Above zero rather than at it because the detector idles a few hundredths of a
+// dB below unity and a 0.0 that flickers reads as a fault.
+const GR_ACTIVE_DB = 0.3;
+
+// A region narrower than this cannot hold "-10.0 dB" without clipping a glyph.
+const GR_NARROW_PX = 34;
+
+// How much of the region's height the scale above is drawn into. The bottom fifth
+// is the crossover labels' lane — they are painted after this layer and would win
+// the overlap, but a peak line entering and leaving a label pill on both sides is
+// noise, so heavy reduction stops short of them instead.
+const GR_ZONE_PCT = 80;
+
+// Peak hold, in ticks of the 30 Hz timer, then a constant fall.
+const GR_PEAK_HOLD_TICKS = 15;                   // 500 ms
+const GR_PEAK_FALL_DB_PER_TICK = 24.0 / 30.0;    // 24 dB/s
+
+const GR_BAND_ROOT_IDS = ['grBandLow', 'grBandLomid', 'grBandHimid', 'grBandHigh'];
+const GR_STRIP_FILL_IDS = ['grLow', 'grLomid', 'grHimid', 'grHigh'];
+const GR_BAND_PREFIXES = ['LOW', 'LOMID', 'HIMID', 'HIGH'];
+
+const grPeakDb = [0, 0, 0, 0];
+const grPeakHoldTicks = [0, 0, 0, 0];
+
+// Resolved once. Four elements looked up per band per tick is 480 getElementById
+// calls a second for a tree that never changes shape.
+let grBandEls = null;
+let grStripEls = null;
+
+function grResolveElements() {
+    if (grBandEls) return;
+
+    grBandEls = GR_BAND_ROOT_IDS.map((id) => {
+        const root = document.getElementById(id);
+        if (!root) return null;
+        return {
+            root:    root,
+            fill:    root.querySelector('.gr-band-fill'),
+            peak:    root.querySelector('.gr-band-peak'),
+            readout: root.querySelector('.gr-band-readout')
+        };
+    });
+
+    grStripEls = GR_STRIP_FILL_IDS.map((id) => {
+        const fill = document.getElementById(id);
+        if (!fill) return null;
+        return { readout: document.getElementById(id + 'Val') };
+    });
+}
+
+// "3.4 dB" of reduction reads as -3.4 dB, matching every other dB readout on the
+// page. ASCII hyphen, as the knob readouts produce.
+function grFormatDb(db) {
+    return (db >= GR_ACTIVE_DB ? '-' + db.toFixed(1) : '0.0') + ' dB';
+}
+
 // Called by C++ to update gain reduction meters
 window.updateGainReductionMeters = function(lowNorm, lomidNorm, himidNorm, highNorm) {
-    // Update each band's GR meter (normalized 0-1, where 1 = full -24 dB GR)
-    updateMeterFill('grLow', lowNorm);
-    updateMeterFill('grLomid', lomidNorm);
-    updateMeterFill('grHimid', himidNorm);
-    updateMeterFill('grHigh', highNorm);
+    const norms = [lowNorm, lomidNorm, himidNorm, highNorm];
+
+    grResolveElements();
+
+    for (let i = 0; i < 4; i++) {
+        // Update each band's GR meter (normalized 0-1, where 1 = full -24 dB GR)
+        updateMeterFill(GR_STRIP_FILL_IDS[i], norms[i]);
+
+        const norm = Math.max(0, Math.min(1, norms[i]));
+        const db = norm * GR_METER_SPAN_DB;
+        const active = db >= GR_ACTIVE_DB;
+
+        // Peak: rises instantly, holds, then falls at a fixed rate. Held in dB
+        // rather than in percent so the fall rate is independent of the scale.
+        if (db >= grPeakDb[i]) {
+            grPeakDb[i] = db;
+            grPeakHoldTicks[i] = GR_PEAK_HOLD_TICKS;
+        } else if (grPeakHoldTicks[i] > 0) {
+            grPeakHoldTicks[i]--;
+        } else {
+            grPeakDb[i] = Math.max(db, grPeakDb[i] - GR_PEAK_FALL_DB_PER_TICK);
+        }
+
+        const band = grBandEls[i];
+        if (band) {
+            const fillPct = GR_ZONE_PCT * Math.min(1, db / GR_ANALYZER_FULL_SCALE_DB);
+            const peakPct = GR_ZONE_PCT * Math.min(1, grPeakDb[i] / GR_ANALYZER_FULL_SCALE_DB);
+
+            if (band.fill) band.fill.style.height = fillPct + '%';
+            if (band.peak) band.peak.style.top = peakPct + '%';
+            if (band.readout) band.readout.textContent = grFormatDb(db);
+
+            // Classes, never an inline opacity — see the state-rule note in
+            // styles.css. An inline opacity here would outrank .is-muted.
+            band.root.classList.toggle('is-active', active);
+        }
+
+        // The strip number carries no active/idle styling: it reads at 9.3:1 on its
+        // chip whatever the fill is doing, and dimming an idle "0.0 dB" was what
+        // measure-ui --contrast caught at 1.32:1.
+        const strip = grStripEls[i];
+        if (strip && strip.readout) strip.readout.textContent = grFormatDb(db);
+    }
 };
+
+// Lay the four regions between the crossovers. Called from updateBandRanges, which
+// is the single point both the 30 Hz C++ push and the live drag already funnel
+// through — the v1.4.0 lesson was that hooking only the drag leaves automation and
+// preset loads behind.
+function updateGrBandEdges(xover1Hz, xover2Hz, xover3Hz) {
+    grResolveElements();
+    if (!grBandEls) return;
+
+    const edges = [0, freqToX(xover1Hz), freqToX(xover2Hz), freqToX(xover3Hz), 100];
+
+    // One layout read per crossover move, not per tick.
+    const container = document.querySelector('.spectrum-container');
+    const containerPx = container ? container.clientWidth : 0;
+
+    for (let i = 0; i < 4; i++) {
+        const band = grBandEls[i];
+        if (!band) continue;
+
+        const left = edges[i];
+        const width = Math.max(0, edges[i + 1] - edges[i]);
+
+        band.root.style.left = left + '%';
+        band.root.style.width = width + '%';
+        band.root.classList.toggle('is-narrow',
+                                   containerPx * width / 100 < GR_NARROW_PX);
+    }
+}
+
+// A band that is bypassed, or muted by another band's solo, already stores GR 0
+// (Compressor.h:177, MultiBandProcessor.h:130). Dimming its region is what
+// separates "not compressing" from "not being heard" — without it the two are
+// the same flat rectangle.
+function updateGrMuteStates() {
+    grResolveElements();
+    if (!grBandEls) return;
+
+    const readToggle = (paramId) => {
+        const state = parameterStates[paramId];
+        return state ? !!state.getValue() : false;
+    };
+
+    const solos = GR_BAND_PREFIXES.map((p) => readToggle(p + '_SOLO'));
+    const anySolo = solos.some(Boolean);
+
+    for (let i = 0; i < 4; i++) {
+        const band = grBandEls[i];
+        if (!band) continue;
+
+        const bypassed = readToggle(GR_BAND_PREFIXES[i] + '_BYPASS');
+        const silenced = anySolo && !solos[i];
+
+        band.root.classList.toggle('is-muted', bypassed || silenced);
+    }
+}
+
+function initializeGrBands() {
+    grResolveElements();
+
+    // Follow the eight toggles that decide whether a band is audible. These states
+    // are already bound by bindBandParameters; this only adds a second listener.
+    GR_BAND_PREFIXES.forEach((prefix) => {
+        ['_SOLO', '_BYPASS'].forEach((suffix) => {
+            const state = parameterStates[prefix + suffix];
+            if (!state) return;
+            try {
+                state.valueChangedEvent.addListener(updateGrMuteStates);
+            } catch (e) {
+                console.warn('Could not follow ' + prefix + suffix + ':', e);
+            }
+        });
+    });
+
+    updateGrMuteStates();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeGrBands);
+} else {
+    initializeGrBands();
+}
 
 // Called by C++ to update input/output level meters
 window.updateInputOutputMeters = function(inputLevel, outputLevel) {
@@ -1128,6 +1326,11 @@ function updateBandRanges(xover1Hz, xover2Hz, xover3Hz) {
     setBandRange('range-lomid', xover1Hz,        xover2Hz);
     setBandRange('range-himid', xover2Hz,        xover3Hz);
     setBandRange('range-high',  xover3Hz,        SPECTRUM_MAX_HZ);
+
+    // v1.13.0: the analyzer's gain-reduction regions span the same four ranges,
+    // so they move from here rather than from a second hook that would have to
+    // be kept in step with this one.
+    updateGrBandEdges(xover1Hz, xover2Hz, xover3Hz);
 }
 
 function setBandRange(elementId, lowHz, highHz) {
