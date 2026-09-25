@@ -157,6 +157,60 @@
 
     A screen with findings still exits 0. --report with an unknown name exits 2.
 
+    ── THE CONTRAST REPORT (opt-in) ───────────────────────────────────────────
+
+    contrast          Per visible node that OWNS a non-empty text node, the
+                      WCAG 2.x contrast ratio of its text against the
+                      background it actually sits on, then per language: text
+                      node count, % below AA, count under the 9px text floor,
+                      count over a background-image, median / min ratio.
+
+                      Provenance: R4 of the UI design review (quick task
+                      260924-nho, §2.2), using the same method as that review's
+                      A.4 table so the numbers stay comparable with it:
+                        fg  = own computed `color` (SVG: computed `fill`), its
+                              alpha multiplied by the computed `opacity` of the
+                              node and every ancestor, composited over bg;
+                        bg  = the nearest ancestor-or-self whose
+                              background-color alpha is >= 0.99, with every
+                              semi-transparent background-color between it and
+                              the node composited on top, outermost first.
+                              When no element on the chain is opaque, the base
+                              is #FFFFFF — Chromium's default canvas colour.
+                      Both are rounded to 8-bit #RRGGBB and the ratio is
+                      computed FROM those rounded values, so recomputing it
+                      from the two hex strings in the row reproduces it
+                      exactly. Thresholds: 4.5:1, or 3:1 for large text
+                      (>= 24px, or >= 18.66px at weight >= 700). Floor: 9px.
+                      Per-node values land in each row as `ct`.
+
+                      OPT-IN, and deliberately NOT part of `--report all`:
+                      turn it on with --contrast (or --report contrast). The
+                      `ct` field is only collected when asked for, so every run
+                      without the flag produces byte-identical output to the
+                      runs before this report existed, and `all` still means
+                      the four screens above. Report-only, like the rest: its
+                      findings never change the exit code.
+
+                      Disclosed limitations — each one can make a real defect
+                      read clean:
+                        - background-image (paper JPG, gradients, plates) is
+                          FLAGGED (`img`), never sampled;
+                        - the walk follows ancestors only, so an absolutely
+                          positioned overlay or a stacked sibling painted
+                          behind the text is invisible to it;
+                        - text in pseudo-element `content`, input values and
+                          closed-<select> captions owns no text node here and
+                          is not counted;
+                        - computed font-size ignores CSS transforms, `zoom`
+                          and SVG viewBox scaling, so the large-text rule and
+                          the floor read the CSS size, not the painted size;
+                        - `filter: opacity()` is ignored;
+                        - opacity is applied to the foreground only, not to the
+                          background layers;
+                        - like every other field, each node's values come from
+                          the LAST state in which it was visible (note 3).
+
     ── Exit codes ─────────────────────────────────────────────────────────────
 
         0    the run completed — read stdout
@@ -183,6 +237,7 @@
         node scripts/measure-ui.js --plugin O-Emulator --mode box
         node scripts/measure-ui.js --plugin O-AnalogEQ --select text
         node scripts/measure-ui.js --plugin O-Fixture --root /tmp/fix --verbose
+        node scripts/measure-ui.js --plugin O-Prism --contrast
 
     The reasoning behind every note above, the measured evidence for each, the
     positive controls that make a screen's 0 readable, the known limitations and
@@ -214,11 +269,14 @@ const select   = val('--select') || '';
 const repoRoot = val('--root') || REPO_ROOT;
 const verbose  = argv.includes('--verbose');
 
+// The contrast report is opt-in and outside `all` — see its header block.
+const wantContrast = argv.includes('--contrast') || val('--report') === 'contrast';
+
 const SCREEN_ORDER = ['undeclared-font', 'line-height-normal', 'wrap-count', 'svg-font-attr'];
 
 const USAGE = [
     'usage: node scripts/measure-ui.js --plugin <Name> [--mode fonts|box] [--select <css>]',
-    '                                  [--report <screen>] [--root DIR] [--verbose]',
+    '                                  [--report <screen>] [--contrast] [--root DIR] [--verbose]',
     '       node scripts/measure-ui.js --report <screen> --from <rows.json>',
     '',
     '  --plugin <Name>   the plugin to measure (required unless --from is given)',
@@ -227,7 +285,10 @@ const USAGE = [
     '  --select <css>    restrict the sweep to nodes matching this selector',
     '  --report <screen> run a defect screen over the rows; counts go to stderr',
     '                    ' + SCREEN_ORDER.join(' | ') + ' | all',
-    '  --from <file>     read rows from a saved JSON array instead of measuring',
+    '  --contrast        also collect a per-node WCAG ratio (`ct`) and run the',
+    '                    contrast report; opt-in, NOT part of `all`',
+    '                    (--report contrast is the same switch)',
+    '  --from <file>    read rows from a saved JSON array instead of measuring',
     '  --cjk-faces <a,b> extend the CJK face list undeclared-font checks against',
     '  --root DIR        repo-root override (fixture trees)',
     '  --verbose         diagnostics to stderr, including skipped states',
@@ -245,8 +306,95 @@ function die(code, msg) { console.error('measure-ui: ' + msg); process.exit(code
 // ── the page-side probe ────────────────────────────────────────────────────
 // Everything measured in ONE evaluate per state, so nothing can shift between
 // two round trips.
-function pageProbe({ mode, sel, hanSrc }) {
+function pageProbe({ mode, sel, hanSrc, contrast }) {
     const han = new RegExp(hanSrc);
+
+    // ── contrast helpers — only reached when the report was asked for ────────
+    // Colour parsing: Chromium serialises hex, named and sRGB-authored colours
+    // as rgb()/rgba(); anything else (color(), oklch(), ...) falls back to ONE
+    // reused 1x1 canvas. A colour neither path reads is 'unparsed', never a guess.
+    let ctx2d = null;
+    const RGB_RE = /^rgba?\(\s*(-?[\d.]+)(?:\s*,\s*|\s+)(-?[\d.]+)(?:\s*,\s*|\s+)(-?[\d.]+)\s*(?:[,/]\s*([\d.]+)(%?)\s*)?\)$/i;
+    const parseColor = (s) => {
+        s = String(s || '').trim();
+        const m = RGB_RE.exec(s);
+        if (m) {
+            let a = m[4] === undefined ? 1 : parseFloat(m[4]);
+            if (m[5]) a /= 100;
+            return { r: +m[1], g: +m[2], b: +m[3], a: Math.max(0, Math.min(1, a)) };
+        }
+        try {
+            if (!ctx2d) {
+                const cv = document.createElement('canvas');
+                cv.width = 1; cv.height = 1;
+                ctx2d = cv.getContext('2d', { willReadFrequently: true });
+            }
+            ctx2d.fillStyle = 'rgba(1, 2, 3, 0.5)';
+            const before = ctx2d.fillStyle;
+            ctx2d.fillStyle = s;
+            if (ctx2d.fillStyle === before) return null;         // rejected by the canvas
+            ctx2d.clearRect(0, 0, 1, 1);
+            ctx2d.fillRect(0, 0, 1, 1);
+            const d = ctx2d.getImageData(0, 0, 1, 1).data;
+            return { r: d[0], g: d[1], b: d[2], a: d[3] / 255 };
+        } catch (e) { return null; }
+    };
+    const to8 = (v) => Math.max(0, Math.min(255, Math.round(v)));
+    const hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+    const lum = (c) => {
+        const l = c.map((v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+        return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
+    };
+    const contrastOf = (n, cs) => {
+        const fs = parseFloat(cs.fontSize) || 0;
+        const fw = parseFloat(cs.fontWeight) || 400;
+        const large = fs >= 24 || (fs >= 18.66 && fw >= 700);
+        const ah = !!(n.closest && n.closest('[aria-hidden="true"]'));
+        const ct = { fg: null, bg: null, ratio: null, need: large ? 3 : 4.5, large, fs, fw,
+                     img: false, ah, skip: null };
+
+        // Background: nearest opaque ancestor-or-self, semi-transparent layers
+        // on the way composited outermost-first. background-image is FLAGGED
+        // on every element up to and including the base, never sampled.
+        const layers = [];
+        let base = null, bgBad = false;
+        for (let e = n; e; e = e.parentElement) {
+            const s = getComputedStyle(e);
+            if (s.backgroundImage && s.backgroundImage !== 'none') ct.img = true;
+            const c = parseColor(s.backgroundColor);
+            if (!c) { bgBad = true; continue; }
+            if (c.a >= 0.99) { base = c; break; }
+            if (c.a > 0) layers.push(c);
+        }
+        let bg = base ? [base.r, base.g, base.b] : [255, 255, 255];  // Chromium canvas default
+        for (let i = layers.length - 1; i >= 0; --i) {
+            const L = layers[i], lc = [L.r, L.g, L.b];
+            bg = bg.map((v, j) => L.a * lc[j] + (1 - L.a) * v);
+        }
+        bg = bg.map(to8);
+        ct.bg = hex(bg);
+
+        // Foreground: own colour (SVG: fill), alpha x the opacity product up
+        // the whole ancestor chain, composited over bg.
+        const isSvg = typeof SVGElement !== 'undefined' && n instanceof SVGElement;
+        const src = isSvg ? cs.fill : cs.color;
+        const fc = (isSvg && (src === 'none' || /^url\(/i.test(src))) ? null : parseColor(src);
+        if (!fc || bgBad) { ct.skip = 'unparsed'; return ct; }
+        let op = 1;
+        for (let e = n; e; e = e.parentElement) {
+            const o = parseFloat(getComputedStyle(e).opacity);
+            if (isFinite(o)) op *= o;
+        }
+        const a = fc.a * op;
+        if (a < 0.01) { ct.skip = 'transparent'; return ct; }
+        const fcv = [fc.r, fc.g, fc.b];
+        const fg = fcv.map((v, j) => to8(a * v + (1 - a) * bg[j]));
+        ct.fg = hex(fg);
+
+        const lf = lum(fg), lb = lum(bg);
+        ct.ratio = (Math.max(lf, lb) + 0.05) / (Math.min(lf, lb) + 0.05);
+        return ct;
+    };
 
     // A structural key: an nth-of-type chain walked to documentElement. This is
     // what makes siblings distinct rows. See design note 4.
@@ -302,8 +450,9 @@ function pageProbe({ mode, sel, hanSrc }) {
 
         const base = { key: domKey(n), id, vis, han: han.test(carriers), own: own.slice(0, 40), kids, ffAttr };
 
-        if (mode === 'fonts') out.push(Object.assign({}, base, { ff: cs.fontFamily, ls: cs.letterSpacing }));
-        else out.push(Object.assign({}, base, {
+        let row;
+        if (mode === 'fonts') row = Object.assign({}, base, { ff: cs.fontFamily, ls: cs.letterSpacing });
+        else row = Object.assign({}, base, {
             x: +bb.x.toFixed(2), y: +bb.y.toFixed(2),
             w: +bb.width.toFixed(2), h: +bb.height.toFixed(2),
             ls: cs.letterSpacing, lh: cs.lineHeight, fs: cs.fontSize,
@@ -311,7 +460,11 @@ function pageProbe({ mode, sel, hanSrc }) {
             pt: parseFloat(cs.paddingTop) || 0, pb: parseFloat(cs.paddingBottom) || 0,
             bt: parseFloat(cs.borderTopWidth) || 0, bb: parseFloat(cs.borderBottomWidth) || 0,
             fsn: parseFloat(cs.fontSize) || 0,
-        }));
+        });
+        // `ct` exists ONLY when the contrast report was asked for, so a run
+        // without --contrast emits exactly the rows it always did.
+        if (contrast) row.ct = (vis && own) ? contrastOf(n, cs) : null;
+        out.push(row);
     }
     return { rows: out };
 }
@@ -415,7 +568,7 @@ async function measure() {
             }
             await page.waitForTimeout(140);
 
-            const res = await page.evaluate(pageProbe, { mode, sel: select, hanSrc: HAN_SRC });
+            const res = await page.evaluate(pageProbe, { mode, sel: select, hanSrc: HAN_SRC, contrast: wantContrast });
             if (res.error) { probeError = res.error; break; }
 
             for (const row of res.rows) {
@@ -472,6 +625,9 @@ const CJK_FACES = ['PingFang SC', 'Microsoft YaHei', 'Songti SC'];
 // The UA's `normal` line box is not exposed anywhere. 1.2 is the conventional
 // approximation, and it is an APPROXIMATION — see the wrap-count note above.
 const NORMAL_LINE_BOX = 1.2;
+
+// The text floor the naturalist template sets (R4): no rendered text below it.
+const CONTRAST_FLOOR_PX = 9;
 
 function esc(x) { return x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
@@ -569,6 +725,60 @@ const SCREENS = {
                      notes: [`${carriers.size} node(s) carry a font-family presentation attribute`] };
         },
     },
+
+    // Opt-in (--contrast), NOT in SCREEN_ORDER — see THE CONTRAST REPORT in
+    // the header. `hint` replaces the SKIPPED text, because the missing field
+    // here comes from a missing flag, not a missing --mode box.
+    'contrast': {
+        needs: ['ct'],
+        hint: 'needs --contrast',
+        run(rows) {
+            const counted = rows.filter((r) => r.vis && r.ct && r.ct.skip === null);
+            const below = (r) => r.ct.ratio < r.ct.need;              // unrounded: 4.499 fails
+            const floor = (r) => r.ct.fs < CONTRAST_FLOOR_PX;
+            const f2 = (x) => x.toFixed(2);
+
+            const langs = [];
+            for (const r of rows) if (!langs.includes(r.lang)) langs.push(r.lang);
+
+            const notes = [];
+            for (const lang of langs) {
+                const L = counted.filter((r) => r.lang === lang);
+                const T = L.length;
+                const B = L.filter(below).length;
+                const F = L.filter(floor).length;
+                const I = L.filter((r) => r.ct.img).length;
+                const rs = L.map((r) => r.ct.ratio).sort((a, b) => a - b);
+                const med = T === 0 ? null
+                    : T % 2 ? rs[(T - 1) / 2] : (rs[T / 2 - 1] + rs[T / 2]) / 2;
+                notes.push(`${lang}: ${T} text node(s), ${B} below AA (${T ? (100 * B / T).toFixed(1) : 'n/a'}%), `
+                         + `${F} under ${CONTRAST_FLOOR_PX}px floor, ${I} over background-image, `
+                         + `ratio median ${T ? f2(med) : 'n/a'} / min ${T ? f2(rs[0]) : 'n/a'}`);
+            }
+
+            const hits = counted.filter((r) => below(r) || floor(r))
+                .sort((a, b) => a.ct.ratio - b.ct.ratio);
+            const ahBelow = counted.filter((r) => below(r) && r.ct.ah).length;
+            const skipT = rows.filter((r) => r.vis && r.ct && r.ct.skip === 'transparent').length;
+            const skipU = rows.filter((r) => r.vis && r.ct && r.ct.skip === 'unparsed').length;
+
+            notes.push(`${ahBelow} of the below-AA node(s) sit under aria-hidden (decorative) — still counted`);
+            notes.push(`skipped: ${skipT} transparent, ${skipU} unparsed colour`);
+            notes.push('thresholds: 4.5:1 normal text, 3:1 large (>= 24px, or >= 18.66px at weight >= 700); '
+                     + `floor ${CONTRAST_FLOOR_PX}px`);
+            notes.push('background: nearest opaque ancestor background-color, semi-transparent layers '
+                     + 'composited; background-image is NOT sampled (flagged only)');
+
+            const findings = hits.map((r) => {
+                const c = r.ct;
+                return `${r.lang}  ${r.key}  (${r.id})  "${r.own}"  ratio=${f2(c.ratio)} need=${c.need} `
+                     + `fg=${c.fg} bg=${c.bg} fs=${c.fs}px`
+                     + (below(r) ? ' [AA]' : '') + (floor(r) ? ' [<9px]' : '')
+                     + (c.img ? ' [img]' : '') + (c.ah ? ' [aria-hidden]' : '');
+            });
+            return { count: findings.length, findings, notes };
+        },
+    },
 };
 
 // Fixed line format, because a paraphrase would make the verify blocks that
@@ -579,7 +789,7 @@ function runScreen(name, rows, opts) {
     const missing = probe ? sc.needs.find((f) => !(f in probe)) : sc.needs[0];
 
     if (missing) {
-        console.error(`${name}: SKIPPED — needs --mode box (field ${missing} not present)`);
+        console.error(`${name}: SKIPPED — ${sc.hint || 'needs --mode box'} (field ${missing} not present)`);
         return;
     }
 
@@ -604,7 +814,7 @@ if (require.main === module) {
 
     if (report && report !== 'all' && !SCREENS[report]) {
         console.log(USAGE);
-        console.log(`\n--report: no such screen '${report}'. Valid: ${SCREEN_ORDER.join(', ')}, all`);
+        console.log(`\n--report: no such screen '${report}'. Valid: ${SCREEN_ORDER.join(', ')}, all, contrast`);
         process.exit(2);
     }
     if (!plugin && !from) { console.log(USAGE); process.exit(2); }
@@ -617,8 +827,9 @@ if (require.main === module) {
     const emit = (rows) => {
         process.stdout.write(JSON.stringify(rows));
         process.stdout.write('\n');
-        if (report) for (const name of (report === 'all' ? SCREEN_ORDER : [report]))
-            runScreen(name, rows, { cjkFaces });
+        const screens = report ? (report === 'all' ? SCREEN_ORDER.slice() : [report]) : [];
+        if (wantContrast && !screens.includes('contrast')) screens.push('contrast');
+        for (const name of screens) runScreen(name, rows, { cjkFaces });
     };
 
     if (from) {
@@ -636,4 +847,4 @@ if (require.main === module) {
     }
 }
 
-module.exports = { HAN_SRC, pageProbe, SCREENS, SCREEN_ORDER, CJK_FACES, NORMAL_LINE_BOX };
+module.exports = { HAN_SRC, pageProbe, SCREENS, SCREEN_ORDER, CJK_FACES, NORMAL_LINE_BOX, CONTRAST_FLOOR_PX };
