@@ -26,7 +26,7 @@ This approach provides:
 | **metering** | Audio analysis | vu-meter |
 | **tuning** | Pitch/tuning systems | scala-tuning-engine |
 | **effects** | DSP processing units | analog-eq-unit, compressor-unit |
-| **ui** | Interface components | playable-keyboard |
+| **ui** | Interface components | — (none registered) |
 
 ### Relationship to CMake
 

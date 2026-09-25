@@ -216,8 +216,6 @@ This module uses the **standalone ES6 class approach** rather than surgical inte
 3. **Complexity** - 880 lines of JS with 5 visualization modes would be unwieldy as inline snippets
 4. **API cohesion** - The 20+ native functions form a logical API managed by a single class
 
-For simpler modules that integrate INTO existing UI (like footer keyboards), see `instrument-footer-panel` which uses surgical integration with inline snippets.
-
 ## Breaking Changes from v1.0.0
 
 - **New API**: TuningEngine class has expanded methods

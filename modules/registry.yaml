@@ -9,8 +9,8 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.0.4
-last_updated: 2026-09-06
+version: 1.1.0
+last_updated: 2026-09-24
 schema_version: 1.0.0
 
 # Module categories
@@ -529,40 +529,6 @@ modules:
     used_by:
       - plugin: O-Marimba
         version: 1.12.1
-
-  # ============================================================================
-  # UI MODULES
-  # ============================================================================
-
-  - name: playable-keyboard
-    path: ui/playable-keyboard
-    version: 1.0.0
-    description: |
-      Interactive piano keyboard for WebView-based plugins. Supports mouse
-      and touch input, sends MIDI notes via native function, highlights
-      active keys, and integrates with pitch circle visualization.
-    category: ui
-    provides:
-      - js-module: playable-keyboard.js
-      - native-functions:
-        - sendMidiNote
-    config:
-      octaves:
-        type: integer
-        default: 1
-        description: Number of octaves to display (1-5)
-      start_note:
-        type: integer
-        default: 60
-        description: MIDI note number for first key (60 = C4)
-      velocity:
-        type: float
-        default: 0.8
-        description: Default velocity for mouse/touch input
-    dependencies: []
-    tags: [keyboard, midi, piano, touch, interactive]
-    reuse_score: 8
-    used_by: []
 
 # ============================================================================
 # HOW TO USE THIS REGISTRY
