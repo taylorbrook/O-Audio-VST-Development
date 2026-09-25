@@ -1,10 +1,10 @@
 ---
 plugin: O-Prism
-version: 1.17.0
+version: 1.29.0
 stage: 4
 gsd_phase: verify_complete
 status: plugin_complete
-last_updated: 2026-04-26
+last_updated: 2026-09-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
@@ -68,9 +68,33 @@ Progress: [####################] 100%
 
 ## Next Steps
 
-1. Install plugin (`/install-plugin O-Prism`)
-2. DAW testing (Ableton + Logic)
-3. CPU profiling (if needed)
+1. **Dorico microtonal smoke test** (`next_action`) — still genuinely open. The
+   v1.17.0 note below deferred the 3-point gate to Phase 24 batch validation and
+   there is no evidence file for it: no `Resources/dorico/` in this plugin and
+   nothing in `.planning/evidence/`. Shared with the rest of the Phase 24 cohort,
+   whose STATUS.md files carry the same pending `next_action`.
+2. **DAW audition of the v1.29.0 Fold change** — Fold's timbre moved at every
+   setting (partial-spectrum deviation -4 to -20 dB vs v1.28.1). The factory preset
+   to check is "Fold Engine". Automated verification is complete; this is the ear
+   gate only.
+3. **O-Strata carries the pre-fix DistortionProcessor** — byte-identical to
+   O-Prism's v1.28.1 file apart from two comment lines, so it has IN-09 in full.
+   Not a shared module, so the v1.29.0 fix did not propagate. Its own `/improve`.
+
+Stages 0-4 and the install are long done; this section previously still listed them
+as pending.
+
+## Improve history since v1.17.0
+
+27 releases, v1.17.1 -> v1.29.0, all recorded in `../CHANGELOG.md` (67 entries) and
+summarised in `../NOTES.md`. This file tracks stage/phase state, not release detail,
+and deliberately does not restate them.
+
+Review state: `../CODE_REVIEW.md` (v1.26.0 review, 22 findings) has **no open
+findings** as of v1.29.0 — the last one, IN-09, closed there. Its predecessor
+`.planning/CODE-REVIEW.md` (v1.18.1, 47 findings) is superseded and all resolved.
+`.planning/SIMPLIFICATION-AUDIT.md` Phase 3 is the one audit item still marked open,
+against drifted v1.17.0 line numbers, and needs re-verification before it is applied.
 
 ## v1.17.0 — Phase 24 propagation (2026-04-26)
 
@@ -82,3 +106,7 @@ VST3 Note Expression microtonal support for Dorico via shared `modules/tuning/no
 - Stage 4 Verification: plugins/O-Prism/.planning/stages/4-polish/VERIFICATION.md
 - Complexity: 5.0 (Very High)
 - Tuning module: modules/tuning/scala-tuning-engine/ v2.1.0
+- Test gates (8, behind `-DOUARICON_BUILD_TESTS=ON`): geometry-check,
+  bend-state-check, wavetable-cow-check, edit-rotation-check, fx-mod-nan-check,
+  lfo-subblock-check, dsp-quality-check, distortion-alias-check. 602 assertions,
+  all green at v1.29.0.
