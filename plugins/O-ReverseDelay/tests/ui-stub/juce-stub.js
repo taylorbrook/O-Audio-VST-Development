@@ -232,11 +232,26 @@ export function getToggleState(name) {
 // zero-console-errors render gate and adds 5 s to every stub run.
 if (typeof window !== "undefined") window.__JUCE__ = { backend: {} };
 
-// In-memory preset library. FACTORY mirrors the eight seeded by
-// initializeFactoryPresets(), in the same case-insensitive sorted order
-// getPresetList() returns.
-const FACTORY = ["Dark Cavern", "Guitar Swell", "Near-Infinite", "Reverse Bloom",
-                 "Rhythmic Reverse", "Slow Wash", "Tight Smear", "Vocal Halo"];
+// In-memory preset library. FACTORY_CATEGORIES mirrors the 56 rows of
+// ReverseDelayProcessor::getFactoryPresetRows() (v1.20.0) and the display
+// order of kPresetCategories. FACTORY is their names in the same
+// case-insensitive sorted order getPresetList() returns.
+const FACTORY_CATEGORY_ORDER = ["Swells", "Vocals", "Rhythmic", "Ambient",
+                                "Dark", "Glitch & Texture", "Lo-Fi & Drive", "Motion & Width"];
+const FACTORY_CATEGORIES = {
+  "Swells": ["Bowed Swell", "Cathedral Swell", "Guitar Swell", "Keys Bloom", "Pad Riser", "Reverse Bloom", "Soft Inhale"],
+  "Vocals": ["Backwards Chorus", "Choir Ghost", "Ducked Wash", "Pre-Echo Lead", "Spoken Reverse", "Vocal Halo", "Whisper Trail"],
+  "Rhythmic": ["Bar Rewind", "Dotted Rewind", "Half Note Reverse", "Quarter Flip", "Rhythmic Reverse", "Stutter Sixteenths", "Triplet Tumble"],
+  "Ambient": ["Drone Cloud", "Endless Sky", "Glacier", "Near-Infinite", "Shimmer Fog", "Slow Wash", "Tidal Pool"],
+  "Dark": ["Dark Cavern", "Deep Well", "Low Moan", "Muffled Room", "Night Tape", "Smoke", "Subterranean"],
+  "Glitch & Texture": ["Crumbs", "Either Way", "Grain Spray", "Micro Cloud", "Scatterbrain", "Shatter", "Tight Smear"],
+  "Lo-Fi & Drive": ["Broken Cassette", "Fuzz Trails", "Mono Memory", "Overdriven Loop", "Radio Ghost", "Tube Rewind", "Worn Vinyl"],
+  "Motion & Width": ["Drift Chamber", "Pendulum", "Seasick", "Slow Orbit", "Stereo Scatter", "Warble", "Wide Rewind"],
+};
+const FACTORY = Object.values(FACTORY_CATEGORIES).flat().sort((a, b) =>
+  a.toLowerCase().localeCompare(b.toLowerCase()));
+const categoryOfFactory = (name) =>
+  Object.keys(FACTORY_CATEGORIES).find((c) => FACTORY_CATEGORIES[c].includes(name));
 const userPresets = new Set();
 let currentPreset = "Default";
 
@@ -290,6 +305,13 @@ const PRESET_FNS = {
     return true;
   },
   isFactoryPreset: (name) => FACTORY.includes(name),
+  // v1.20.0 — mirrors PluginEditor.cpp: every listed name mapped to its group,
+  // "User" for anything the factory table does not name.
+  getPresetCategories: () => {
+    const categories = {};
+    for (const name of presetList()) categories[name] = categoryOfFactory(name) || "User";
+    return { order: [...FACTORY_CATEGORY_ORDER, "User"], categories };
+  },
 };
 
 // v1.9.0 — the hover-help language, mirrored so the stub round-trips it exactly
@@ -331,15 +353,16 @@ function abStateVar() {
   return { active: abActive, filledA: abSlots[0] !== null, filledB: abSlots[1] !== null };
 }
 
-// Mirrors the TWENTY-ONE native functions registered in PluginEditor.cpp:
+// Mirrors the TWENTY-TWO native functions registered in PluginEditor.cpp:
 // getParameterDefaults + getGrainMeter + getWindowCurve + v1.9.0's
 // getUiLanguage/setUiLanguage + v1.16.0's getMixLock/setMixLock + v1.18.0's
-// getAbState/abSelect/abCopy/randomise (all fetched by app.js) + the ten preset fns
+// getAbState/abSelect/abCopy/randomise + v1.20.0's getPresetCategories (all
+// fetched by app.js) + the ten preset fns
 // (fetched by js/preset-manager.js). Any OTHER name must still reject —
 // rejecting the unknown is the whole point of this stub, and is how a bridge gap
 // surfaces here instead of as a silently dead control in a DAW
 // (pattern_webview_native_fn_bridge_gap). The whitelist grew
-// 1 -> 11 -> 12 -> 13 -> 15 -> 17 -> 21; it did not become permissive.
+// 1 -> 11 -> 12 -> 13 -> 15 -> 17 -> 21 -> 22; it did not become permissive.
 //
 // NOTE what is NOT here and must never be added: setTooltipsEnabled. D13 scoped
 // this plugin to display-only hover help, and section 14 of ui_frontend_check.js

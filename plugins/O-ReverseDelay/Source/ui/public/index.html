@@ -118,12 +118,22 @@
          sanctioned exception: _updateDisplay() owning its own element is the
          module's intended behaviour. Its placeholder is "Default" because a
          fresh instance genuinely reports "Default" — deliberately not a member
-         of the preset list. -->
+         of the preset list. v1.20.0: clicking it opens the grouped preset
+         list (#preset-dropdown); ◀ / ▶ walk that same grouped order. -->
     <div class="preset-bar">
       <span class="fleuron">&#10086;</span>
       <button type="button" class="preset-nav" id="preset-prev" data-i18n-aria="aria.presetPrev" aria-label="Previous preset">&#9664;</button>
       <button type="button" class="preset-nav" id="preset-next" data-i18n-aria="aria.presetNext" aria-label="Next preset">&#9654;</button>
-      <div class="preset-name" id="preset-name" aria-live="polite">Default</div>
+      <!-- v1.20.0: the name is the dropdown's trigger. The wrap positions the
+           list under it; the caret is a CSS ::after because preset-manager.js
+           writes the name with textContent, which would erase a child. -->
+      <div class="preset-name-wrap">
+        <div class="preset-name" id="preset-name" role="button" tabindex="0"
+             aria-haspopup="listbox" aria-expanded="false" aria-controls="preset-dropdown"
+             aria-live="polite">Default</div>
+        <div class="preset-dropdown" id="preset-dropdown" role="listbox"
+             data-i18n-aria="aria.presetList" aria-label="Presets" hidden></div>
+      </div>
       <button type="button" class="preset-btn" id="preset-save" data-i18n="label.save" data-label="Save">Save</button>
       <button type="button" class="preset-btn" id="preset-load" data-i18n="label.load" data-label="Load">Load</button>
       <button type="button" class="preset-btn" id="preset-delete"

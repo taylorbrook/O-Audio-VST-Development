@@ -653,6 +653,109 @@ body {
   text-overflow: ellipsis;
 }
 
+/* ── v1.20.0: the preset name is a dropdown trigger ─────────────────────────
+   Same 300 px cartouche; the side padding grows 10 -> 24 on BOTH sides so the
+   name stays centred and clears the caret. The caret is ::after because
+   preset-manager.js writes the name with textContent (a child would be erased).
+   The wrap is the positioning context, so the list opens under the name only. */
+.preset-name-wrap { position: relative; }
+
+.preset-name {
+  position: relative;
+  padding-left: 24px;
+  padding-right: 24px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.preset-name::after {
+  content: "\25BE";               /* ▾ */
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-style: normal;
+  font-size: 11px;
+  color: var(--brown-border);
+}
+
+.preset-name:hover,
+.preset-name[aria-expanded="true"] { background: var(--knob-core); }
+
+.preset-name:focus-visible {
+  outline: 2px dotted var(--green-mid);
+  outline-offset: 2px;
+}
+
+.preset-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 300px;
+  /* 56 presets in 8 groups. The bar's bottom edge sits ~90 px down a 693 px
+     window, so 480 px stays clear of the footer while showing ~2.5 groups. */
+  max-height: 480px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  z-index: 20;                     /* above the rows; .frame is the context */
+  padding-bottom: 4px;
+  background: var(--bg-paper-light);
+  border: 2px solid var(--brown-border);
+  border-radius: 4px;
+  box-shadow: 2px 4px 14px var(--shadow-medium);
+  text-align: left;
+}
+
+.preset-dropdown[hidden] { display: none; }
+
+/* Sticky headings need an OPAQUE fill, or the rows they pin over show
+   through (pattern_grouping_preset_dropdown_breaks_prev_next). --bg-accent is
+   the page's own solid tan. Line heights are pinned so the Chinese face cannot
+   grow the rows. */
+.preset-group-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 5px 12px 4px;
+  font-family: var(--serif);
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--brown-frame);
+  background: var(--bg-accent);
+  border-bottom: 1px solid var(--brown-border);
+  cursor: default;
+}
+
+.preset-group + .preset-group .preset-group-heading { border-top: 1px solid var(--brown-border); }
+
+.preset-option {
+  padding: 5px 12px 5px 20px;
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.25;
+  color: var(--brown-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.preset-option:hover,
+.preset-option:focus { background: rgba(139, 168, 112, 0.3); outline: none; }
+
+.preset-option:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: -3px; }
+
+/* The loaded preset reads as a lit segment: cream on --btn-active (7.2:1). */
+.preset-option.active,
+.preset-option.active:hover {
+  background: var(--btn-active);
+  color: var(--knob-core);
+  font-style: italic;
+}
+
 /* ── Group rows ──────────────────────────────────────────────────────────── */
 /* v1.1.0: .groups became the COLUMN holding both specimen rows; .group-row is
    what each row of panels now is, and it kept .groups' old flex behaviour

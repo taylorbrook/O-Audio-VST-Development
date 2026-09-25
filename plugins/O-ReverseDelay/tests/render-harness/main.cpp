@@ -5830,6 +5830,95 @@ int main (int argc, char** argv)
                      + " " + juce::String (e.seconds, 0) + "s");
         }
 
+        // v1.20.0 — the WHOLE bank, 56 rows, straight from the processor's own
+        // table (getFactoryPresetRows) rather than a mirror: every key of every
+        // row must recall through the real OuariconPresetManager to within
+        // 1e-4 of its own normalised value, and every preset must render
+        // finite, under full scale and alive. The eight shipped rows above keep
+        // their hand-typed mirror as the bit-identity guard; this loop is the
+        // coverage for the 48 new ones and for the category plumbing.
+        {
+            const auto& rows  = ReverseDelayProcessor::getFactoryPresetRows();
+            const auto  order = ReverseDelayProcessor::getPresetCategoryOrder();
+            const auto  list  = proc.getPresetManager().getPresetList();
+
+            bool   tableOk = rows.size() == 56;
+            juce::StringArray names;
+            for (const auto& row : rows)
+            {
+                tableOk = tableOk && ! names.contains (row.name)               // unique
+                                  && order.contains (row.category)
+                                  && row.category != ReverseDelayProcessor::kUserPresetCategory
+                                  && ReverseDelayProcessor::getPresetCategory (row.name) == row.category
+                                  && list.contains (row.name)                   // seeded to disk
+                                  && row.parameters.count ("freeze") == 1
+                                  && row.parameters.at ("freeze") == 0.0f;      // never ships frozen
+                names.add (row.name);
+            }
+            int groupsUsed = 0;
+            for (const auto& c : order)
+                for (const auto& row : rows)
+                    if (row.category == c) { ++groupsUsed; break; }
+
+            check ("factory-bank-table",
+                   tableOk && groupsUsed == 8 && order.size() == 9
+                     && ReverseDelayProcessor::getPresetCategory ("Not A Factory Preset") == "User",
+                   juce::String ("rows=") + juce::String ((int) rows.size())
+                     + " groups=" + juce::String (groupsUsed)
+                     + " order=" + order.joinIntoString ("|"));
+
+            int    failed   = 0;
+            double minWash  = 1.0e9, maxWash = 0.0, maxPk = 0.0;
+            juce::String minName, maxName, firstFail;
+
+            for (const auto& row : rows)
+            {
+                const bool loaded = proc.getPresetManager().loadPreset (row.name);
+                proc.prepareToPlay (fs, block);
+
+                float worst = 0.0f;
+                juce::String worstId = "-";
+                for (const auto& [id, value] : row.parameters)
+                {
+                    auto* p = apvts.getParameter (id);
+                    const float d = p == nullptr ? 1.0f
+                                                 : std::abs (p->getValue() - p->convertTo0to1 (value));
+                    if (d > worst) { worst = d; worstId = id; }
+                }
+
+                juce::Random rng ((juce::int64) 0x0feedbac);
+                auto fill = [&] (int t)
+                {
+                    return t < exciteLen ? (float) (A * (rng.nextDouble() * 2.0 - 1.0)) : 0.0f;
+                };
+                auto y = renderEffect (proc, 6.0, fs, block, fill);
+
+                const double pk      = juce::jmax (peakAbs (y.L), peakAbs (y.R));
+                const double washRms = rms (y.L, (int) (2.0 * fs), (int) (2.0 * fs));
+                const bool   ok      = loaded && worst < 1.0e-4
+                                    && allFinite (y.L) && allFinite (y.R)
+                                    && pk < 1.0 && washRms > 1.0e-5;
+
+                std::printf ("    bank %-20s %-17s peak=%.3f wash=%6.1f dBFS worst=%.1e(%s)%s\n",
+                             row.name.toRawUTF8(), row.category.toRawUTF8(), pk,
+                             20.0 * std::log10 (juce::jmax (washRms, 1.0e-9)),
+                             worst, worstId.toRawUTF8(), ok ? "" : "  <-- FAIL");
+
+                if (! ok) { ++failed; if (firstFail.isEmpty()) firstFail = row.name; }
+                if (washRms < minWash) { minWash = washRms; minName = row.name; }
+                if (washRms > maxWash) { maxWash = washRms; maxName = row.name; }
+                maxPk = juce::jmax (maxPk, pk);
+            }
+
+            check ("factory-bank-recall-render",
+                   failed == 0,
+                   juce::String ("failed=") + juce::String (failed)
+                     + (firstFail.isNotEmpty() ? " first=" + firstFail : juce::String())
+                     + " maxPeak=" + juce::String (maxPk, 3)
+                     + " wash " + juce::String (20.0 * std::log10 (minWash), 1) + " (" + minName + ")"
+                     + " .. " + juce::String (20.0 * std::log10 (maxWash), 1) + " (" + maxName + ") dBFS");
+        }
+
         proc.setPlayHead (nullptr);
     }
 

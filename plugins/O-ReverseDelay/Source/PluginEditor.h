@@ -38,13 +38,15 @@
     this class and no emitEvent plumbing — see PluginEditor.cpp:44-58 for why
     that distinction is what keeps the ui-stub able to render the page.
 
-    The native-function surface is exactly SEVENTEEN:
+    The native-function surface is exactly TWENTY-TWO (v1.18.0 A/B + Randomise
+    added four, v1.20.0 getPresetCategories one):
       - getParameterDefaults  (dblclick-reset)
       - getWindowCurve        (the v1.4.0 envelope display)
       - getGrainMeter         (the v1.3.0 COUNT readout, polled)
       - getUiLanguage / setUiLanguage (the persisted UI language)
       - getMixLock / setMixLock       (v1.16.0, the persisted Mix lock)
       - 10 preset fns         (the contract js/preset-manager.js fetches)
+      - getPresetCategories   (v1.20.0, the grouped preset dropdown)
     Keep that count in sync with app.js + preset-manager.js — an unregistered fn
     is a silently dead control that passes build, auval AND pluginval
     (pattern_webview_native_fn_bridge_gap).
