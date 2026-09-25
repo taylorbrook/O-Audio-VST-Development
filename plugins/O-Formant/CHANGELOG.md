@@ -2,6 +2,128 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.31.1] - 2026-09-24
+
+Info-tier sweep of the v1.29.0 `CODE_REVIEW.md` (`/improve-review-info`):
+eleven IN-* findings, in whole or in part. PATCH: no parameter ID, range, type
+or state format changed. Audio is bit-identical to v1.31.0 at 44.1 and 48 kHz
+(see Testing). The one audible change is intended: at 176.4 kHz and above,
+Delay Time now reaches its full 2 s.
+
+### Fixed
+
+- **Delay Time stopped at 1 s at 192 kHz (IN-16).** Both delay lines were a
+  fixed 192000 samples, so the WR-07 guard capped any longer time. `prepare()`
+  now sizes them from the sample rate: 2 s plus 4 samples for the Lagrange
+  taps. The guard stays in place. Measured at 192 kHz with a 1.9 s delay-only
+  setting: the first echo arrives at 1.000 s in v1.31.0 and at 1.900 s now.
+- **A 12-TET session reopened in Scala mode (IN-19).** Restoring the saved
+  intervals always switched the tuning engine to Scala mode. The mode is not
+  saved, so restore now infers it. It returns to 12-TET mode only when all
+  three hold:
+  - the saved preset is Equal 12-TET;
+  - the saved name is the one 12-TET mode writes;
+  - the intervals are still that preset's own.
+
+  An edited 12-TET scale keeps its edits, and a 12-EDO loaded from the
+  library stays a Scala scale. An out-of-range `preset` value is now read as
+  Custom instead of being cast to an enumerator that does not exist. A
+  restored session renders bit-identical to v1.31.0 (state round-trip test).
+- **Saving a preset showed the wrong name, and a failed save said nothing
+  (IN-21, save part).** The file is written under a sanitised name ("a/b" →
+  "ab"), but the preset bar showed what you typed. `savePreset` now returns
+  the sanitised name and the bar shows it. A failed save now shows "Save
+  failed" (fr "Échec de l’enregistrement", zh-Hans "保存失败") in the name slot
+  for 2.5 s, then the previous name returns. Causes include a factory name,
+  an unwritable folder, or a name that sanitises to nothing. New I18N key
+  `js.savePresetFailed`.
+- **Tuning panel: the interval rows ignored a tonic change (IN-22a).** The
+  row labels are derived from the tonic, but `setTonic` updated only the
+  tonic readout. The list is now rebuilt, keeping its scroll position.
+- **The XY pads and the ADSR display were blurry after moving the window to a
+  display with a different pixel density (IN-22c).** Each canvas read the
+  display's pixel ratio once, at start-up. A `matchMedia` watch, re-armed at
+  each new ratio, and a `ResizeObserver` per canvas now re-run the setup when
+  the ratio or the box size changes. A change made while a tab is hidden is
+  applied when the tab is shown.
+- **Consonant pad glyphs collided with the captions and the readout
+  (IN-23a/b).** Measured at the shipped 800×600 frame, in all three languages:
+  - p overlapped "Lab" by 34 px², and k overlapped "Vel" by 24 px². In
+    zh-Hans, t also touched 齿龈 by 0.8 px².
+  - The readout crossed f by 19–27 px².
+
+  The plosive and fricative rows now each move as a unit, just far enough to
+  clear the captions and the readout by 1 px. The distances come from boxes
+  measured at draw time. For the readout, the box is the largest of the three
+  manner words in the current language, so the row does not move as the
+  cursor does. Re-measured: 0 px² overlap in en, fr and zh-Hans.
+- **Lyrics playback redrew both XY pads every 80 ms, and poll ticks could
+  overlap (IN-23e).** The pads are now redrawn only when the target moves,
+  when animation starts, or when the Synth tab comes into view. A new tick
+  waits for the previous native call to return.
+- **Robustness, no audible change:**
+  - The voice NaN guard now also resets the spectral-tilt filter state,
+    which feeds back on itself, and snaps the Rd and coupling smoothers and
+    the glide to finite values. Before, one NaN silenced the voice until the
+    next note (IN-03).
+  - The glottal table read is clamped at the end of the frame, so a phase
+    that rounds to 1.0f no longer reads one past it (IN-07).
+  - The 6 kHz frication band is clamped to 0.45·sr, a no-op at 13 333 Hz and
+    above (IN-09).
+  - `scaleName` reads now take the tuning lock (IN-20).
+  - The tuning-library list is serialised by `juce::JSON` instead of string
+    concatenation. It parses deep-equal to the old output on all 24 entries
+    (IN-24k).
+
+### Changed (comments / docs)
+
+- Corrected stale comments:
+  - The lyrics poll interval is 80 ms, not 50 (IN-23d).
+  - `languageIndex()` also maps zh-Hans to 2, not only "fr" to 1 (IN-24h/i).
+  - VowelData holds 7 targets, not "5 cardinal vowels": the 5 cardinal
+    vowels plus the approximants /r/ and /l/ (IN-24j).
+- Added I18N_EXEMPT rows, scoped to their elements, for the cents unit
+  symbols `ct` (Vib Depth readout) and `c` (tuning-panel interval unit)
+  (IN-24g).
+
+### Testing
+
+- **Null test** with a VST3 host written for this sweep, rendering a 4-note
+  phrase. IN-06's clock-seeded vibrato jitter makes unmodified builds
+  non-reproducible, so both sides were rebuilt out of tree with the same
+  test-only fixed seed.
+  - v1.31.0 against v1.31.1: **bit-identical** in six cases: defaults,
+    Creature Growl, and a stress case, each at 48 and 44.1 kHz. The stress
+    case is Hybrid topology, sibilance 0.95, delay at 1.9 s with 0.7
+    feedback, and reverb and chorus on.
+  - A state round-trip (save, restore into a fresh instance, render) is also
+    bit-identical.
+  - The 192 kHz delay case above is the positive control.
+- check-i18n, fr-lint, zh-lint, check-ui-labels and ui_tip_render_check all
+  PASS for O-Formant. boot-all-uis reports no page errors.
+- auval `aumu OuFm OuDv` and pluginval 10 (VST3): see the commit record.
+
+### Notes — still open from CODE_REVIEW.md
+
+- **Audible, for a MINOR with a listening pass:** IN-01 (bend and glide),
+  IN-02 (glide source), IN-06 (vibrato seed), IN-10 (aspiration burst vs Te),
+  IN-11 (topology-switch click), IN-12 (reverb SR dependence), IN-14a (burst
+  truncation), IN-15 (EQ zipper), IN-17 (Partch 43 missing 11/10 and 20/11;
+  the same table is in the shared tuning module and five other plugins).
+- **Needs a design decision:**
+  - IN-18 (tonic semantics): cross-plugin, better fixed in the module.
+  - IN-04 (tail length).
+  - IN-21 (category and prev/next navigation).
+- **Feature work (MINOR):** IN-24a–e. Covers keyboard and ARIA access for
+  tabs, knobs and the gear, wheel, double-click reset and fine drag, and
+  localised generated scale names.
+- **Closed without change:**
+  - Already fixed: IN-08 (v1.31.0), IN-13 and IN-14b (v1.30.0).
+  - IN-24f: the UI already shows `ct`.
+  - IN-22b: the drag listeners are already on `document`.
+  - IN-23c: measured, the overlay adds 0 px to the column's 350 px of real
+    overflow.
+
 ## [1.31.0] - 2026-09-24
 
 Wave 3 of the v1.29.0 `CODE_REVIEW.md`: the timbre findings deferred from
@@ -257,7 +379,8 @@ longer offered for automation (see WR-04).
 - **v1.31.0 (timbre re-render, listen pass on all 16 presets):** CR-01 +
   WR-01, WR-11, WR-15, WR-17.
 - **Info tier:** IN-01..04, IN-06..24 (`/improve-review-info`). IN-13 is
-  resolved as a side effect of WR-16.
+  resolved as a side effect of WR-16. *(v1.31.1 cleared part of this list;
+  see its Notes for what remains open.)*
 
 ## [1.29.1] - 2026-09-24
 

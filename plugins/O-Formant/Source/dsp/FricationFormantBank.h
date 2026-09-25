@@ -124,7 +124,11 @@ private:
     {
         auto c3 = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sr, 2500.0f, 2.0f);
         auto c4 = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sr, 3500.0f, 1.8f);
-        auto c6 = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sr, 6000.0f, 2.5f);
+        // v1.31.1 (review IN-09): 6 kHz is past Nyquist below 12 kHz and near it
+        // below ~13.3 kHz; clamp to 0.45·sr like the cascade bank (WR-17).
+        // No-op at sr >= 6000 / 0.45 = 13 333 Hz.
+        auto c6 = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (
+            sr, std::min (6000.0f, 0.45f * static_cast<float> (sr)), 2.5f);
         f3f.setCoefficients (c3);
         f4f.setCoefficients (c4);
         f6f.setCoefficients (c6);

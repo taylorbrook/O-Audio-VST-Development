@@ -192,6 +192,11 @@ public:
      */
     juce::String getActiveTuningName() const;
 
+    /** What getActiveTuningName() returns in TwelveTET mode — and so what a
+        session saved in that mode carries as its "scaleName" (PluginProcessor
+        setStateInformation infers the mode from it, review IN-19). */
+    static constexpr const char* kTwelveTetModeName = "12-TET Standard";
+
     // ═══════════════════════════════════════════════════════════════════
     // Tonic Selection
     // ═══════════════════════════════════════════════════════════════════

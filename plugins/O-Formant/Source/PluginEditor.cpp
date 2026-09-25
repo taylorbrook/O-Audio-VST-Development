@@ -175,9 +175,9 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                     processorRef.uiLanguage.load (std::memory_order_acquire))));
             })
             .withNativeFunction ("setUiLanguage", [this] (const auto& args, auto complete) {
-                // languageIndex() maps anything that is not "fr" to 0, so an
-                // unexpected argument from the page degrades to English rather
-                // than being stored unvalidated.
+                // languageIndex() maps "fr" to 1, "zh-Hans" to 2 and anything
+                // else to 0, so an unexpected argument from the page degrades
+                // to English rather than being stored unvalidated.
                 if (args.size() > 0)
                     processorRef.uiLanguage.store (
                         OFormantAudioProcessor::languageIndex (args[0].toString()),
@@ -275,8 +275,14 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                     return;
                 }
                 auto& pm = processorRef.getPresetManager();
-                bool success = pm.savePreset (args[0].toString());
-                complete (juce::var (success));
+                // v1.31.1 (review IN-21): answer with the name the file was
+                // actually written under (sanitizePresetName strips "/" etc.),
+                // so the preset bar shows "ab", not the typed "a/b". false on
+                // failure, which the page now reports instead of ignoring.
+                if (pm.savePreset (args[0].toString()))
+                    complete (juce::var (pm.getCurrentPresetName()));
+                else
+                    complete (juce::var (false));
             })
 
             .withNativeFunction ("selectNextPreset", [this] (auto, auto complete) {
@@ -569,20 +575,22 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             })
 
             .withNativeFunction ("getEmbeddedTuningList", [this] (auto, auto complete) {
-                auto& tunings = EmbeddedTunings::getAllTunings();
-                juce::String json = "[";
-                for (size_t i = 0; i < tunings.size(); ++i)
+                // v1.31.1 (review IN-24k): built as a var and serialised by
+                // juce::JSON, so a quote, backslash or non-ASCII character in a
+                // name is escaped instead of breaking the page's JSON.parse. The
+                // string-concatenated version was only safe because every
+                // embedded id / name / category happens to be plain ASCII.
+                juce::Array<juce::var> list;
+                for (const auto& t : EmbeddedTunings::getAllTunings())
                 {
-                    if (i > 0) json += ",";
-                    json += "{";
-                    json += "\"id\":\"" + juce::String (tunings[i].id) + "\",";
-                    json += "\"name\":\"" + juce::String (tunings[i].name) + "\",";
-                    json += "\"category\":\"" + juce::String (tunings[i].category) + "\",";
-                    json += "\"noteCount\":" + juce::String (static_cast<int> (tunings[i].intervals.size()));
-                    json += "}";
+                    auto* obj = new juce::DynamicObject();
+                    obj->setProperty ("id",        juce::String::fromUTF8 (t.id));
+                    obj->setProperty ("name",      juce::String::fromUTF8 (t.name));
+                    obj->setProperty ("category",  juce::String::fromUTF8 (t.category));
+                    obj->setProperty ("noteCount", static_cast<int> (t.intervals.size()));
+                    list.add (juce::var (obj));
                 }
-                json += "]";
-                complete (juce::var (json));
+                complete (juce::var (juce::JSON::toString (juce::var (list), true)));
             })
 
             .withNativeFunction ("loadEmbeddedTuning", [this] (const auto& args, auto complete) {

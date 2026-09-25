@@ -142,7 +142,11 @@ public:
 
         // Sample position within table
         float samplePos = static_cast<float> (phase) * static_cast<float> (GlottalWavetable::kTableSize);
-        int idx0 = static_cast<int> (samplePos);
+        // v1.31.1 (review IN-07): a phase in [1 - 2^-25, 1) rounds to 1.0f in the
+        // float cast, so samplePos == kTableSize and idx0 + 1 would read past the
+        // guard sample. Clamping idx0 makes frac 1.0, which reads the guard
+        // sample — the value the unclamped read landed on.
+        int idx0 = std::min (static_cast<int> (samplePos), GlottalWavetable::kTableSize - 1);
         float frac = samplePos - static_cast<float> (idx0);
 
         // 4 table lookups (2 Rd x 2 mipmap levels), each with linear sample interpolation

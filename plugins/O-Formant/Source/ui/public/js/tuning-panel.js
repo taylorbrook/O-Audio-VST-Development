@@ -410,7 +410,14 @@ export class TuningPanel {
     async setTonic(tonic) {
         try {
             await this.juce.getNativeFunction('setTonicNote')(tonic);
-            this.container.querySelector('#tonic-value').textContent = this.noteNames[tonic];
+            // O-Formant v1.31.1 (review IN-22): the row labels come from
+            // getNoteLabel(), which reads this.tonic, so rebuild the list (it
+            // also rewrites #tonic-value) instead of patching only the tonic
+            // readout. Keep the scroll position across the rebuild.
+            const listEl = this.container.querySelector('#interval-list');
+            const scrollTop = listEl ? listEl.scrollTop : 0;
+            this.updateIntervalList();
+            if (listEl) listEl.scrollTop = scrollTop;
             this.updateVisualization();
         } catch (err) {
             console.error('[TuningPanel] Failed to set tonic:', err);

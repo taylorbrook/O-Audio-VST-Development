@@ -283,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindTopologySelector();
   bindEffectsControls();
   drawADSR();
+  watchCanvasGeometry();
   initPresetBrowser();
   initLyricsTab();
   bindStateRestored();
@@ -472,6 +473,59 @@ function setupCanvas() {
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   drawXYPad();
+}
+
+// ============================================================================
+// Canvas geometry watch (v1.31.1, review IN-22)
+// ============================================================================
+// The three setups read devicePixelRatio and the box size ONCE, at init, so a
+// window moved between a Retina and a non-Retina display kept the old backing
+// store (blurry, or 4x the pixels). Re-run a canvas's setup when its box size
+// or the DPR changes:
+//   - matchMedia on the CURRENT dppx fires when the DPR leaves it; it is
+//     re-armed on the new value each time;
+//   - a ResizeObserver per box catches size changes, including a hidden tab's
+//     canvas coming back from 0x0 — so a DPR change made while the tab was
+//     hidden is applied when the tab is shown.
+// A zero-sized (hidden) box is skipped, and a canvas is set up again only when
+// its "w x h @ dpr" key changed, so the observers' initial callbacks are no-ops.
+function watchCanvasGeometry() {
+  const targets = [
+    { box: () => canvas && canvas.parentElement,       setup: () => setupCanvas() },
+    { box: () => cxyCanvas && cxyCanvas.parentElement, setup: () => setupConsonantXYCanvas() },
+    { box: () => adsrCanvas,                           setup: () => { setupADSRCanvas(); drawADSR(); } },
+  ];
+  const keyOf = (el) => el.clientWidth + 'x' + el.clientHeight + '@' + (window.devicePixelRatio || 1);
+  for (const t of targets) { const el = t.box(); t.key = el ? keyOf(el) : ''; }
+
+  const refresh = () => {
+    for (const t of targets) {
+      const el = t.box();
+      if (!el || el.clientWidth === 0 || el.clientHeight === 0) continue;
+      const key = keyOf(el);
+      if (key === t.key) continue;
+      t.key = key;
+      try { t.setup(); } catch (e) { /* relays not up yet; next change retries */ }
+    }
+  };
+
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(refresh);
+    for (const t of targets) { const el = t.box(); if (el) ro.observe(el); }
+  } else {
+    window.addEventListener('resize', refresh);
+  }
+
+  if (typeof window.matchMedia === 'function') {
+    let mq = null;
+    const onDprChange = () => { refresh(); arm(); };
+    const arm = () => {
+      if (mq) mq.removeEventListener('change', onDprChange);
+      mq = window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)');
+      mq.addEventListener('change', onDprChange);
+    };
+    arm();
+  }
 }
 
 // ============================================================================
@@ -813,9 +867,16 @@ function drawConsonantXYPad() {
   cxyCtx.fillStyle = 'rgba(60,47,47,0.4)';
   cxyCtx.textAlign = 'center';
   cxyCtx.textBaseline = 'middle';
+  // v1.31.1 (review IN-23): at the shipped frame the plosive row sat on the
+  // place captions (p on Lab, k on Vel — measured 34 / 24 px² in every
+  // language) and the fricative row under the readout (f, 19–27 px²). Each
+  // edge row is moved as a unit, just far enough to clear its neighbour by
+  // CXY_LABEL_GAP, from boxes measured here rather than fixed offsets.
+  const rowShift = consonantRowShifts(cw, ch, pad);
   for (const c of consonantLabels) {
     const lx = pad + c.x * (cw - pad * 2);
-    const ly = pad + (1.0 - c.y) * (ch - pad * 2);
+    const row = c.y > 0.5 ? 'top' : c.y < 0.5 ? 'bottom' : 'mid';
+    const ly = pad + (1.0 - c.y) * (ch - pad * 2) + (rowShift[row] || 0);
     cxyCtx.fillText(c.label, lx, ly);
   }
 
@@ -864,6 +925,8 @@ function drawConsonantXYPad() {
 
   // Frequency readout
   const freq = computePlaceFreq(normX);
+  // (The glyph rows above were placed clear of this readout's box — see
+  // consonantRowShifts; keep its font / position in step with CXY_READOUT.)
   const freqText = freq >= 1000 ? (freq / 1000).toFixed(1) + 'k' : Math.round(freq) + '';
   // The number and the 'Hz' are a readout and stay (D-03). The MANNER is a
   // word, and the axis captions right above it — Fric / Plos — are
@@ -873,11 +936,66 @@ function drawConsonantXYPad() {
   if (normY < 0.3) mannerKey = 'canvas.plosive';
   else if (normY > 0.7) mannerKey = 'canvas.fricative';
   const mannerText = trLabel(mannerKey, uiLanguage);
-  cxyCtx.font = '8px Garamond, Times New Roman, serif';
+  cxyCtx.font = CXY_READOUT.font;
   cxyCtx.fillStyle = 'rgba(60,47,47,0.5)';
   cxyCtx.textAlign = 'left';
   cxyCtx.textBaseline = 'top';
-  cxyCtx.fillText(freqText + 'Hz ' + mannerText, 4, 2);
+  cxyCtx.fillText(freqText + 'Hz ' + mannerText, CXY_READOUT.x, CXY_READOUT.y);
+}
+
+// Readout geometry, shared by the draw above and consonantRowShifts below.
+const CXY_READOUT = { font: '8px Garamond, Times New Roman, serif', x: 4, y: 2 };
+// Clearance between a glyph row and the readout / place captions it avoids.
+const CXY_LABEL_GAP = 1;
+let cxyReadoutBottomCache = { lang: null, bottom: 0 };
+
+// Vertical offsets (CSS px) for the fricative (top) and plosive (bottom)
+// glyph rows of the consonant pad. Each row moves as one unit so it stays
+// level, by just enough to clear:
+//   top    — the readout's lowest ink, taken as the max over all three manner
+//            words in the current language, so the row does not twitch when
+//            the cursor crosses from 'mixed' to 'plosive';
+//   bottom — the highest visible place caption (.cxy-label in the lower half;
+//            read from the DOM, so a font or language change is followed).
+// Expects cxyCtx.font / textBaseline to be the glyph font, 'middle'.
+function consonantRowShifts(cw, ch, pad) {
+  const shifts = { top: 0, bottom: 0, mid: 0 };
+  const glyphFont = cxyCtx.font;
+
+  if (cxyReadoutBottomCache.lang !== uiLanguage) {
+    cxyCtx.font = CXY_READOUT.font;
+    cxyCtx.textBaseline = 'top';
+    let bottom = 0;
+    for (const k of ['canvas.plosive', 'canvas.mixed', 'canvas.fricative']) {
+      const m = cxyCtx.measureText('0.0kHz ' + trLabel(k, uiLanguage));
+      bottom = Math.max(bottom, CXY_READOUT.y + m.actualBoundingBoxDescent);
+    }
+    cxyReadoutBottomCache = { lang: uiLanguage, bottom };
+    cxyCtx.font = glyphFont;
+    cxyCtx.textBaseline = 'middle';
+  }
+
+  let captionTop = Infinity;
+  for (const el of document.querySelectorAll('.consonant-xy-labels .cxy-label')) {
+    if (el.offsetHeight === 0) continue; // display:none, or the tab is hidden
+    if (el.offsetTop + el.offsetHeight / 2 < ch / 2) continue; // top captions
+    captionTop = Math.min(captionTop, el.offsetTop);
+  }
+
+  let topInk = Infinity, bottomInk = -Infinity;
+  for (const c of consonantLabels) {
+    if (c.y === 0.5) continue;
+    const ly = pad + (1.0 - c.y) * (ch - pad * 2);
+    const m = cxyCtx.measureText(c.label);
+    if (c.y > 0.5) topInk = Math.min(topInk, ly - m.actualBoundingBoxAscent);
+    else bottomInk = Math.max(bottomInk, ly + m.actualBoundingBoxDescent);
+  }
+
+  if (Number.isFinite(topInk))
+    shifts.top = Math.max(0, cxyReadoutBottomCache.bottom + CXY_LABEL_GAP - topInk);
+  if (Number.isFinite(bottomInk) && Number.isFinite(captionTop))
+    shifts.bottom = -Math.max(0, bottomInk - (captionTop - CXY_LABEL_GAP));
+  return shifts;
 }
 
 // ============================================================================
@@ -1410,10 +1528,32 @@ async function initPresetBrowser() {
       trLabel('js.cancel', uiLanguage),
       (nameEl && nameEl.textContent) || '');
     if (!name || !name.trim()) return;
-    const success = await presetFns.savePreset(name.trim());
-    if (success && nameEl) {
-      nameEl.textContent = name.trim();
+    // IN-21: savePreset answers with the sanitised name the file was written
+    // under, or false. A failure (factory name, unwritable folder, a name that
+    // sanitises to nothing) used to be silent.
+    // The failure text goes through setLabel (data-i18n), so a language switch
+    // during the 2.5 s re-translates it; the revert drops the key again, and
+    // only if nothing (a load, prev/next) replaced the label meanwhile.
+    const saved = await presetFns.savePreset(name.trim());
+    if (!nameEl) return;
+    if (saved) {
+      const savedName = (saved === true) ? name.trim() : String(saved);
+      nameEl.textContent = savedName;
       await populateCategories(categorySelect);
+    } else {
+      const previous = nameEl.textContent;
+      setLabel(nameEl, 'js.savePresetFailed');
+      nameEl.classList.add('preset-name-error');
+      setTimeout(() => {
+        nameEl.classList.remove('preset-name-error');
+        if (nameEl.dataset.i18n !== 'js.savePresetFailed') return;
+        // applyLabel writes textContent and data-label together, so a
+        // mismatch means a load / prev / next wrote the name meanwhile.
+        const stillOurs = nameEl.textContent === nameEl.dataset.label;
+        delete nameEl.dataset.i18n;
+        delete nameEl.dataset.label;
+        if (stillOurs) nameEl.textContent = previous;
+      }, 2500);
     }
   });
 
@@ -1747,7 +1887,7 @@ function initLyricsTab() {
   };
   refreshLyricsFromEngine(false);
 
-  // Position polling (50ms when lyrics tab is visible)
+  // Position polling (80 ms when lyrics tab is visible)
   startPositionPolling(parsedSyllables, syllablesEl, counterEl);
 }
 
@@ -1809,9 +1949,16 @@ function startPositionPolling(initialParsed, container, counterEl) {
   let cachedParsed = initialParsed;
 
   const input = document.getElementById('lyrics-input');
+  // IN-23e: a tick awaits a native call, so without a guard a slow reply lets
+  // the next tick start and the two resolve out of order. The pads are
+  // redrawn only when the polled target moved, animation just began, or the
+  // synth tab just came into view.
+  let pollInFlight = false;
+  let lastDrawnKey = '';
+  let lastSynthTabActive = false;
 
   setInterval(async () => {
-    if (!lyricsFns.getLyricsPosition) return;
+    if (!lyricsFns.getLyricsPosition || pollInFlight) return;
 
     const enabled = lyricsEnabledState && lyricsEnabledState.getValue();
     const lyricsTab = document.getElementById('lyrics-tab');
@@ -1829,6 +1976,7 @@ function startPositionPolling(initialParsed, container, counterEl) {
       return;
     }
 
+    pollInFlight = true;
     try {
       const pos = await lyricsFns.getLyricsPosition();
       if (!pos || pos.total === 0) {
@@ -1841,6 +1989,7 @@ function startPositionPolling(initialParsed, container, counterEl) {
       }
 
       // Update XY pad animation target
+      const wasAnimating = lyricsAnimating;
       lyricsTarget = {
         vowelX: pos.vowelX,
         vowelY: pos.vowelY,
@@ -1849,8 +1998,10 @@ function startPositionPolling(initialParsed, container, counterEl) {
       };
       lyricsAnimating = true;
 
-      // Redraw XY pads on synth tab
-      if (synthTabActive) {
+      // Redraw XY pads on synth tab, only when something visible changed
+      const key = pos.vowelX + ',' + pos.vowelY + ',' + pos.consonantTone + ',' + pos.sibilance;
+      if (synthTabActive && (key !== lastDrawnKey || !wasAnimating || !lastSynthTabActive)) {
+        lastDrawnKey = key;
         drawXYPad();
         drawConsonantXYPad();
       }
@@ -1863,5 +2014,9 @@ function startPositionPolling(initialParsed, container, counterEl) {
         renderSyllables(cachedParsed, container, counterEl, idx);
       }
     } catch (e) { /* ignore polling errors */ }
+    finally {
+      pollInFlight = false;
+      lastSynthTabActive = synthTabActive;
+    }
   }, 80);
 }

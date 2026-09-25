@@ -196,6 +196,11 @@ export const I18N = Object.freeze({
     'js.save':   { en: { t: 'Save',   b: '' }, fr: { t: 'Enregistrer', b: '', reviewed: false }, 'zh-Hans': { t: '保存', b: '', reviewed: 'mt' },},
     'js.cancel': { en: { t: 'Cancel', b: '' }, fr: { t: 'Annuler',     b: '', reviewed: false }, 'zh-Hans': { t: '取消', b: '', reviewed: 'mt' },},
 
+    // v1.31.1 (IN-21): shown for 2.5 s in the preset-name slot when a save
+    // fails, then the previous name returns. Written by main.js through
+    // trLabel, not a DOM caption.
+    'js.savePresetFailed': { en: { t: 'Save failed', b: '' }, fr: { t: 'Échec de l’enregistrement', b: '', reviewed: false }, 'zh-Hans': { t: '保存失败', b: '', reviewed: 'mt' },},
+
     // ── HOVER-HELP (v1.27.0, Stage M batch M3) ──────────────────────────────
     //
     // 55 parameter tips + 2 chrome tips = 57, one per CONTROL on this page.
@@ -1470,6 +1475,12 @@ export const I18N_EXEMPT = [
      'formant-index markers painted onto the vowel XY pad (main.js drawXYPad) — a letter and a number, language-neutral (D-01 arm 2)'],
     ['Hz',
      'unit symbol in the consonant pad readout, language-neutral (D-03)'],
+    ['ct',
+     'cents unit symbol in the Vib Depth knob readout (main.js formatParamValue case \'cents\') — a unit symbol, language-neutral (D-03)',
+     '.knob-value'],
+    ['c',
+     'cents unit symbol after each tuning-panel interval input (tuning-panel.js .interval-unit) — a unit symbol, deliberately not keyed, as in the upstream scala-tuning-engine module (D-03)',
+     '.interval-unit'],
 
     // ── Tuning-panel data from the engine ───────────────────────────────────
     // The scale-name display and the library rows render whatever

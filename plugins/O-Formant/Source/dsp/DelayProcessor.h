@@ -45,6 +45,10 @@ public:
     void setMix (float mix);
 
 private:
+    // The delayTime parameter's upper bound (PluginProcessor.cpp "delayTime").
+    // prepare() sizes both lines from it and the sample rate (review IN-16).
+    static constexpr double kMaxDelaySeconds = 2.0;
+
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> delayL { 192000 };
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> delayR { 192000 };
     juce::dsp::StateVariableTPTFilter<float> feedbackFilterL;

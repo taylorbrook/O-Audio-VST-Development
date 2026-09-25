@@ -1057,9 +1057,9 @@ void OFormantAudioProcessor::setStateInformation (const void* data, int sizeInBy
         // APVTS tree round-trips through XML as a STRING var
         // (critical_valuetree_xml_roundtrip_loses_type), so isString()/isBool()
         // would be wrong here. A pre-1.26.0 session carries no such property
-        // and the default (English) stands. languageIndex() clamps anything
-        // that is not "fr" to 0, so a hand-edited value degrades to English
-        // rather than to a bad index.
+        // and the default (English) stands. languageIndex() maps "fr" to 1,
+        // "zh-Hans" to 2 and anything else to 0, so a hand-edited value
+        // degrades to English rather than to a bad index.
         const juce::var lang = state.getProperty ("uiLanguage");
 
         if (! lang.isVoid())
@@ -1081,8 +1081,15 @@ void OFormantAudioProcessor::setStateInformation (const void* data, int sizeInBy
             // Apply the saved built-in temperament BEFORE any custom intervals so a
             // custom .scl (restored just below) still wins when one was in use.
             // setBuiltInPreset(Custom) is a no-op on intervals, so this is safe.
-            tuningEngine.setBuiltInPreset (static_cast<TuningEngine::BuiltInPreset> (
-                static_cast<int> (tuningState.getProperty ("preset", 0))));
+            // v1.31.1 (review IN-19): an out-of-range value is treated as Custom
+            // (a no-op on intervals) rather than cast to an enumerator that does
+            // not exist, so the saved intervals below decide the tuning.
+            int savedPreset = tuningState.getProperty ("preset", 0);
+            if (savedPreset < 0 || savedPreset > static_cast<int> (TuningEngine::BuiltInPreset::Custom))
+                savedPreset = static_cast<int> (TuningEngine::BuiltInPreset::Custom);
+            const auto preset = static_cast<TuningEngine::BuiltInPreset> (savedPreset);
+            tuningEngine.setBuiltInPreset (preset);
+            const auto presetIntervals = tuningEngine.getIntervals();
 
             juce::String intervalsStr = tuningState.getProperty ("intervals", "");
             if (intervalsStr.isNotEmpty())
@@ -1095,6 +1102,25 @@ void OFormantAudioProcessor::setStateInformation (const void* data, int sizeInBy
 
                 juce::String scaleName = tuningState.getProperty ("scaleName", "Custom");
                 tuningEngine.setCustomIntervals (intervals, scaleName);
+
+                // v1.31.1 (review IN-19): setCustomIntervals always switches to
+                // Scala mode, so a 12-TET session reopened labelled as a Scala
+                // scale. The mode is not saved, so infer it from three facts that
+                // only a 12-TET-mode save carries together: preset Equal12TET, the
+                // name getActiveTuningName() writes in that mode, and intervals
+                // still equal to the preset's own (saved at 6 decimals).
+                // setSingleInterval edits leave preset and name alone, so an edited
+                // 12-TET scale fails the interval test and keeps its edits; a
+                // library 12-EDO (Scala mode, preset untouched) fails the name test.
+                // Pitches match either way — both modes give A4·2^(n·stretch/12).
+                const auto restored = tuningEngine.getIntervals();
+                const bool unedited12Tet = preset == TuningEngine::BuiltInPreset::Equal12TET
+                    && scaleName == TuningEngine::kTwelveTetModeName
+                    && restored.size() == presetIntervals.size()
+                    && std::equal (restored.begin(), restored.end(), presetIntervals.begin(),
+                                   [] (double a, double b) { return std::abs (a - b) < 1.0e-6; });
+                if (unedited12Tet)
+                    tuningEngine.setMode (TuningEngine::Mode::TwelveTET);
             }
 
             int tonic = tuningState.getProperty ("tonic", 0);

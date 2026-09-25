@@ -35,6 +35,15 @@ void DelayProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 {
     currentSampleRate = static_cast<float> (spec.sampleRate);
 
+    // v1.31.1 (review IN-16): size the lines from the sample rate so the full
+    // 2 s range exists at every rate — the fixed 192000 samples topped the
+    // knob out at 1 s at 192 kHz. The + 4 keeps the Lagrange3rd taps
+    // (delayInt .. delayInt + 3) inside the buffer at the 2 s maximum.
+    // prepare() runs off the audio thread, so the allocation is fine here.
+    const int maxDelaySamples = static_cast<int> (std::ceil (kMaxDelaySeconds * spec.sampleRate)) + 4;
+    delayL.setMaximumDelayInSamples (maxDelaySamples);
+    delayR.setMaximumDelayInSamples (maxDelaySamples);
+
     delayL.prepare (spec);
     delayR.prepare (spec);
     feedbackFilterL.prepare (spec);
@@ -69,8 +78,9 @@ void DelayProcessor::reset()
 
 void DelayProcessor::setTime (float seconds)
 {
-    // Clamp to the delay line's capacity. The lines are fixed at 192000 samples,
-    // so a 2.0 s request above 96 kHz would otherwise exceed the buffer and
+    // Clamp to the delay line's capacity. Since v1.31.1 prepare() sizes the
+    // lines for the full 2 s at the current rate (IN-16), so this no longer
+    // bites; it stays as a guard, because a request past the buffer would
     // silently alias (popSample masks by % totalSize) to a wrong, shorter time
     // — and trip the jassert in Debug builds. (REVIEW.md WR-07)
     float requested = seconds * currentSampleRate;
