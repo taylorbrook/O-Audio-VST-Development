@@ -6,6 +6,28 @@ version** — there is no earlier release track.
 
 ## [1.21.1] — 2026-09-25
 
+### Since the last published release (1.12.1)
+
+This download ships 1.12.2 through 1.21.1. Every existing session and preset
+loads and renders as it did on 1.12.1, except that preset loads now leave Mix
+alone.
+
+- **1.21.0 / 1.21.1** — a live grain view in the OUTPUT panel, and each dot's
+  darkness follows its grain's amplitude. Presets no longer change Mix.
+- **1.20.0** — the preset name is now a dropdown browser, and the factory bank
+  grows from 8 to 56 presets in 8 categories.
+- **1.19.0** — the UI is tighter and regrouped, and the window drops from
+  940 × 768 to 940 × 693.
+- **1.18.0** — A/B compare and a limited Randomise.
+- **1.17.0** — Grain Link (two new choice parameters that default to the
+  earlier behaviour).
+- **1.15.0 / 1.16.0** — Freeze Length and a Mix lock. The lock was removed in
+  1.21.0.
+- **1.13.0 / 1.14.0** — the UI shows the delay actually playing in Sync and
+  whether Freeze is holding, and adds output metering.
+- **1.12.2 – 1.12.5** — DSP/state fixes (Drive and Diffusion smoothed inside
+  the feedback loop), five UI fixes and code simplification.
+
 The grain view's darkness now follows each grain's actual amplitude. PATCH:
 this is a display change only, and the audio is bit-identical.
 
