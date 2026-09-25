@@ -50,6 +50,32 @@
     authored), and bundles (*.bundle.js, *.min.js, a line over 2000 chars, or
     a sourceMappingURL).
 
+    ── Module-copy census ───────────────────────────────────────────────────
+    Every tracked file under plugins/ whose basename is a modules/ .js or .css
+    file (preset-manager.js, tuning-panel.js, tuning-panel.css, …) is hashed
+    (sha256, CRLF normalised to LF) against its modules/ source: MATCH or FORK.
+    The tracked list is `git ls-files` when --repo-root is a work tree's top
+    level, else a filesystem walk (exact on a `git archive` snapshot). Per copy:
+
+      ships   yes when the copy is a juce_add_binary_data SOURCES entry
+      sync    configure — the copy sits at Source/ui/public/modules/<file>,
+              the module file at <module>/js/<file>, and the plugin calls
+              ouaricon_add_module(<target> <module>), so a configure run
+              refreshes it. Anything else is frozen: a frozen MATCH is still
+              worth seeing, because it becomes a fork on the next module bump.
+
+    Direct embeds (SOURCES entries that point into modules/ itself) are listed
+    but never compared — the build reads the module, so there is no drift by
+    construction. Untracked configure-time copies are out of scope: they are
+    gitignored and the build refreshes them.
+
+    ── Output ───────────────────────────────────────────────────────────────
+    Human report (matrix, per-component groups, census, direct embeds,
+    summary) or, with --json, ONE JSON document and no human text. Every
+    section and every plugin is caught separately; failures are listed in an
+    `errors` section (or array), never swallowed. Zero plugins scanned prints a
+    WARNING — a scan that found nothing has stopped looking; it is not clean.
+
     ── Exit code ────────────────────────────────────────────────────────────
     Always 0, in every mode, including internal errors (printed, never
     swallowed). CI runs it as a continue-on-error step of ui-static-gates.
@@ -61,7 +87,7 @@
     which a mangled token stream cannot reproduce by accident.
 
     Usage:
-      node scripts/check-ui-canon.js [--repo-root <dir>] [--plugin <Name>]
+      node scripts/check-ui-canon.js [--repo-root <dir>] [--plugin <Name>] [--json]
       node scripts/check-ui-canon.js --self-test
       node scripts/check-ui-canon.js --emit-canon <rev>
 
@@ -502,7 +528,13 @@ function cellText(r) {
 
 function scan(repoRoot, onlyPlugin) {
     const errors = [];
-    const canon = buildCanon();
+    let canon;
+    try { canon = buildCanon(); }
+    catch (e) {
+        errors.push({ scope: 'canon', message: e.message });
+        canon = { components: {}, broken: [`CANON BROKEN: ${e.message}`] };
+        for (const c of COMPONENTS) canon.components[c.id] = { ok: false };
+    }
     const all = SERVE.listPlugins(repoRoot);
     const plugins = onlyPlugin ? all.filter((p) => p === onlyPlugin) : all;
     const moduleBasenames = moduleJsBasenames(repoRoot);
@@ -528,7 +560,128 @@ function scan(repoRoot, onlyPlugin) {
         rows.push(row);
     }
 
-    return { canon, rows, errors, allCount: all.length, onlyPlugin };
+    let mods = new Map(), tracked = { label: 'unavailable', files: [] }, copies = [], embeds = [];
+    try { mods = moduleMap(repoRoot); } catch (e) { errors.push({ scope: 'module map', message: e.message }); }
+    try { tracked = trackedPluginFiles(repoRoot); } catch (e) { errors.push({ scope: 'tracked list', message: e.message }); }
+    try { copies = moduleCopies(repoRoot, mods, tracked, onlyPlugin, errors); } catch (e) { errors.push({ scope: 'module copies', message: e.message }); }
+    try { embeds = directEmbeds(repoRoot, plugins, errors); } catch (e) { errors.push({ scope: 'direct embeds', message: e.message }); }
+
+    return { canon, rows, errors, allCount: all.length, onlyPlugin, mods, tracked, copies, embeds };
+}
+
+// ═════════════════════════════════════════════════════ module-copy census ══
+
+const lf = (buf) => Buffer.from(buf.toString('latin1').replace(/\r\n/g, '\n'), 'latin1');
+const lineCount = (buf) => { const t = buf.toString('latin1'); return t.length ? t.split('\n').length - (t.endsWith('\n') ? 1 : 0) : 0; };
+
+// basename -> [repo-relative module paths], for every .js / .css under modules/.
+// Derived from the tree, never a transcribed list.
+function moduleMap(repoRoot) {
+    const map = new Map();
+    for (const f of walkFiles(path.join(repoRoot, 'modules'), (n) => n === 'node_modules')) {
+        if (!/\.(js|css)$/.test(f)) continue;
+        const b = path.basename(f);
+        if (!map.has(b)) map.set(b, []);
+        map.get(b).push(toPosix(path.relative(repoRoot, f)));
+    }
+    for (const v of map.values()) v.sort();
+    return new Map([...map.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+}
+
+// Repo-relative files under plugins/: `git ls-files` when repoRoot IS a work
+// tree's top level, otherwise a filesystem walk (exact on a `git archive`
+// snapshot, which holds tracked files only).
+function trackedPluginFiles(repoRoot) {
+    try {
+        const top = child_process.execFileSync('git', ['-C', repoRoot, 'rev-parse', '--show-toplevel'],
+            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+        if (top && fs.realpathSync(top) === fs.realpathSync(repoRoot)) {
+            const out = child_process.execFileSync('git', ['-C', repoRoot, 'ls-files', '-z', '--', 'plugins'],
+                { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
+            return { label: 'git ls-files', files: out.split('\0').filter(Boolean) };
+        }
+    } catch { /* not a work tree: fall through */ }
+    const skip = (n) => n === '.git' || n === 'node_modules' || n === 'build';
+    const files = walkFiles(path.join(repoRoot, 'plugins'), skip).map((f) => toPosix(path.relative(repoRoot, f)));
+    return { label: 'filesystem walk (not a git work tree)', files: files.sort() };
+}
+
+function hasAddModule(cmake, moduleDirName) {
+    const re = /ouaricon_add_module\s*\(([^)]*)\)/g;
+    let m;
+    while ((m = re.exec(cmake))) {
+        const args = m[1].trim().split(/\s+/);
+        if (args.length >= 2 && args[1] === moduleDirName) return true;
+    }
+    return false;
+}
+
+function moduleCopies(repoRoot, mods, tracked, onlyPlugin, errors) {
+    const modHash = new Map();
+    for (const list of mods.values()) for (const rel of list) {
+        try {
+            const buf = fs.readFileSync(path.join(repoRoot, rel));
+            modHash.set(rel, { hash: sha256(lf(buf)), lines: lineCount(buf) });
+        } catch (e) { errors.push({ scope: `module ${rel}`, message: e.message }); }
+    }
+
+    const embedsCache = new Map();
+    const embeds = (plugin) => {
+        if (!embedsCache.has(plugin)) embedsCache.set(plugin, new Set(SERVE.binaryDataSources(plugin, repoRoot).map((x) => path.resolve(x.abs))));
+        return embedsCache.get(plugin);
+    };
+
+    const out = [];
+    for (const rel of tracked.files) {
+        const parts = rel.split('/');
+        if (parts[0] !== 'plugins' || parts.length < 3) continue;
+        const base = parts[parts.length - 1];
+        if (!mods.has(base)) continue;
+        const plugin = parts[1];
+        if (onlyPlugin && plugin !== onlyPlugin) continue;
+        try {
+            const abs = path.join(repoRoot, rel);
+            const buf = fs.readFileSync(abs);
+            const hash = sha256(lf(buf));
+            const cands = mods.get(base).filter((m) => modHash.has(m));
+            const match = cands.find((m) => modHash.get(m).hash === hash);
+            const module = match || cands[0] || mods.get(base)[0];
+            const pluginRel = parts.slice(2).join('/');
+            const cmake = SERVE.readCmake(plugin, repoRoot);
+            const sync = pluginRel === `Source/ui/public/modules/${base}`
+                && mods.get(base).some((m) => {
+                    const dir = path.posix.dirname(m);
+                    return path.posix.basename(dir) === 'js' && hasAddModule(cmake, path.posix.basename(path.posix.dirname(dir)));
+                });
+            out.push({
+                plugin, path: pluginRel, module,
+                status: match ? 'MATCH' : 'FORK',
+                ambiguous: mods.get(base).length > 1,
+                lines: lineCount(buf),
+                moduleLines: modHash.has(module) ? modHash.get(module).lines : null,
+                ships: embeds(plugin).has(path.resolve(abs)) ? 'yes' : 'no',
+                sync: sync ? 'configure' : 'frozen',
+            });
+        } catch (e) { errors.push({ scope: `copy ${rel}`, message: e.message }); }
+    }
+
+    out.sort((a, b) => (a.status === b.status ? 0 : a.status === 'FORK' ? -1 : 1)
+        || a.plugin.localeCompare(b.plugin) || a.path.localeCompare(b.path));
+    return out;
+}
+
+function directEmbeds(repoRoot, plugins, errors) {
+    const modRoot = path.resolve(repoRoot, 'modules') + path.sep;
+    const out = [];
+    for (const p of plugins) {
+        try {
+            const files = SERVE.binaryDataSources(p, repoRoot)
+                .filter((x) => path.resolve(x.abs).startsWith(modRoot))
+                .map((x) => toPosix(path.relative(repoRoot, path.resolve(x.abs))));
+            if (files.length) out.push({ plugin: p, files });
+        } catch (e) { errors.push({ scope: `embeds ${p}`, message: e.message }); }
+    }
+    return out;
 }
 
 // ══════════════════════════════════════════════════════════════════ report ══
@@ -615,11 +768,85 @@ function printReport(res, repoRoot) {
         }
     }
 
+    L();
+    L(`── tracked module copies vs modules/ (sha256, CRLF-normalised; tracked list: ${res.tracked.label})`);
+    if (!res.copies.length) L('  (none)');
+    const PW = Math.max(8, ...res.copies.map((c) => c.plugin.length + 2));
+    const RW = Math.max(8, ...res.copies.map((c) => c.path.length + 2));
+    for (const c of res.copies) {
+        L(`  ${c.plugin.padEnd(PW)}${c.path.padEnd(RW)}${c.status.padEnd(7)}`
+          + `lines ${String(c.lines).padStart(5)}/${String(c.moduleLines ?? '?').padEnd(6)}`
+          + `ships ${c.ships.padEnd(5)}sync ${c.sync}${c.ambiguous ? '  (ambiguous basename)' : ''}`);
+    }
+
+    L();
+    L('── direct embeds (build reads modules/ itself — zero drift by construction)');
+    if (!res.embeds.length) L('  (none)');
+    const EW = Math.max(8, ...res.embeds.map((e) => e.plugin.length + 2));
+    for (const e of res.embeds) L(`  ${e.plugin.padEnd(EW)}${e.files.join(', ')}`);
+
+    L();
+    L('── summary');
+    for (const c of COMPONENTS) L('  ' + countsLine(c.id, componentStats(c, rows).counts));
+    let tc = 0, tm = 0;
+    for (const base of res.mods.keys()) {
+        const cs = res.copies.filter((c) => path.posix.basename(c.path) === base);
+        const m = cs.filter((c) => c.status === 'MATCH').length;
+        tc += cs.length; tm += m;
+        L(`  ${base}: ${cs.length} tracked copies — ${m} MATCH, ${cs.length - m} FORK`);
+    }
+    L(`  total: ${tc} tracked copies — ${tm} MATCH, ${tc - tm} FORK; direct embeds in ${res.embeds.length} plugins`);
+    if (!rows.length && !res.onlyPlugin)
+        L('WARNING: 0 plugins scanned — the scanner found nothing, which is not a clean result');
+
     if (res.errors.length) {
         L();
         L('── errors');
         for (const e of res.errors) L(`  ${e.scope}: ${e.message}`);
     }
+
+    L();
+    L('REPORT-ONLY — exit 0');
+}
+
+function jsonReport(res, repoRoot) {
+    const canonHashes = {};
+    for (const c of COMPONENTS) {
+        const cc = res.canon.components[c.id];
+        canonHashes[c.id] = cc && cc.ok ? cc.hash : null;
+    }
+    const components = {};
+    for (const c of COMPONENTS) {
+        const st = componentStats(c, res.rows);
+        components[c.id] = {
+            counts: st.counts,
+            definedBy: st.definedBy,
+            groups: st.groups.map((g) => ({ status: g.status, hash: g.hash, names: g.names ? g.names.split('+') : [], plugins: g.plugins })),
+        };
+    }
+    return {
+        tool: 'check-ui-canon',
+        reportOnly: true,
+        canon: { ...UI_CANON_SOURCE, components: canonHashes, broken: res.canon.broken },
+        repoRoot,
+        trackedListSource: res.tracked.label,
+        plugins: res.rows.map((r) => ({
+            name: r.name,
+            uiRoot: r.uiRoot,
+            sources: r.sources,
+            components: Object.fromEntries(Object.entries(r.components).map(([id, c]) => [id, {
+                status: c.status, hash: c.hash, shapeHash: c.shapeHash,
+                found: c.found, alsoFound: c.alsoFound, nonDecl: c.nonDecl,
+            }])),
+            notes: r.notes,
+            error: r.error,
+        })),
+        components,
+        trackedCopies: res.copies,
+        directEmbeds: res.embeds,
+        errors: res.errors,
+        warnings: !res.rows.length && !res.onlyPlugin ? ['0 plugins scanned — the scanner found nothing, which is not a clean result'] : [],
+    };
 }
 
 // ═════════════════════════════════════════════════════════════ emit canon ══
@@ -822,25 +1049,31 @@ function main(argv) {
         return;
     }
 
+    const asJson = argv.includes('--json');
     const repoRoot = path.resolve(val('--repo-root') || SERVE.REPO_ROOT);
-    if (!fs.existsSync(repoRoot)) {
-        console.log(`check-ui-canon: repo root not found: ${repoRoot}`);
+    if (!fs.existsSync(repoRoot) || !fs.statSync(repoRoot).isDirectory()) {
+        const msg = `repo root not found: ${repoRoot}`;
+        if (asJson) console.log(JSON.stringify({ tool: 'check-ui-canon', reportOnly: true, repoRoot, errors: [{ scope: 'repo root', message: msg }] }, null, 2));
+        else console.log(`check-ui-canon: ERROR ${msg}`);
         return;
     }
 
     const res = scan(repoRoot, val('--plugin'));
-    printReport(res, repoRoot);
+    if (asJson) console.log(JSON.stringify(jsonReport(res, repoRoot), null, 2));
+    else printReport(res, repoRoot);
 }
 
 if (require.main === module) {
     try {
         main(process.argv.slice(2));
     } catch (e) {
-        console.log(`check-ui-canon: internal error — ${e && e.message ? e.message : e}`);
+        const msg = `check-ui-canon: internal error — ${e && e.message ? e.message : e}`;
+        if (process.argv.includes('--json')) console.log(JSON.stringify({ tool: 'check-ui-canon', reportOnly: true, errors: [{ scope: 'internal', message: msg }] }));
+        else console.log(msg);
     }
     // exitCode, not process.exit(): stdout to a pipe is asynchronous on macOS,
     // and an explicit exit would truncate a long report mid-write.
     process.exitCode = 0;
 }
 
-module.exports = { lexJs, extractFunctions, normExact, normShape, prepSource };
+module.exports = { lexJs, extractFunctions, normExact, normShape, prepSource, pluginSources, classifySources, moduleMap };
