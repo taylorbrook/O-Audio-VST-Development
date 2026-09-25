@@ -881,6 +881,21 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             fricationBank.reset();
             nasalPoleZero.reset();
             consonantEngine.reset();
+
+            // v1.31.1 (review IN-03): the tilt one-pole feeds itself back, so a
+            // NaN left in spectralTiltPrev re-poisons every later sample and the
+            // voice stays silent until the next note-on. The smoothers and the
+            // glide are snapped to a finite value too — SmoothedValue::reset()
+            // would copy a NaN target into current. Fallbacks are the note-on
+            // values: unity coupling gain (:208) and the glottalRd default 1.0.
+            spectralTiltPrev = 0.0f;
+            const float rdT = rdSmoothed.getTargetValue();
+            rdSmoothed.setCurrentAndTargetValue (std::isfinite (rdT) ? rdT : 1.0f);
+            const float sfgT = sourceFilterGain.getTargetValue();
+            sourceFilterGain.setCurrentAndTargetValue (std::isfinite (sfgT) ? sfgT : 1.0f);
+            const float glideT = tunedF0 * bendRatio;
+            if (std::isfinite (glideT) && glideT > 0.0f)
+                pitchGlide.snapTo (glideT);
         }
 
         // Stereo width: pan by MIDI note (equal-power)

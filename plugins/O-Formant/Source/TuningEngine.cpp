@@ -339,9 +339,13 @@ juce::String TuningEngine::getActiveTuningName() const
 {
     Mode mode = currentMode.load(std::memory_order_relaxed);
     if (mode == Mode::TwelveTET)
-        return "12-TET Standard";
+        return kTwelveTetModeName;
     if (mode == Mode::MTSESP)
         return "MTS-ESP (Not Connected)";
+    // v1.31.1 (review IN-20): scaleName is a juce::String written under
+    // intervalMutex; an unlocked copy races a host that restores state off the
+    // message thread. Never called from the audio thread.
+    std::lock_guard<std::mutex> lock(intervalMutex);
     return scaleName;
 }
 
@@ -648,11 +652,11 @@ juce::String TuningEngine::generateScalaFileContent() const
 {
     juce::String content;
 
+    // v1.31.1 (review IN-20): lock before the scaleName reads, not after them.
+    std::lock_guard<std::mutex> lock(intervalMutex);
     content += "! " + scaleName + ".scl\n";
     content += "!\n";
     content += scaleName + "\n";
-
-    std::lock_guard<std::mutex> lock(intervalMutex);
     content += juce::String(scaleDegrees) + "\n";
 
     // Pitch values (skip unison at index 0)

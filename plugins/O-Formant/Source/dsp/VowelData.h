@@ -25,7 +25,8 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Constexpr formant data for 5 cardinal vowels (Csound bass voice).
+    Constexpr formant data for 7 morph targets: 5 cardinal vowels
+    (/a e i o u/, Csound bass voice) + the approximants /r/ and /l/.
     Frequencies, bandwidths, gains, and XY positions for vowel morphing.
 
   ==============================================================================

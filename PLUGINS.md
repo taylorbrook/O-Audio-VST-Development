@@ -51,7 +51,7 @@ Ouaricon Plugins:
 | O-Prism | 📦 Installed | 1.28.1 | Synth (Microtonal Wavetable) |  2026-09-24 |
 | O-Strata | 📦 Installed — **installed locally, not published** (no tag; `/publish` is a separate decision). Stage 4 Round B (Phase 4.2) executed 2026-09-13 (`stages/4-polish/SUMMARY.md`): the padded Chebyshev evaluator on the audio thread (`clenshaw2D` 84–95 ns → `chebEvalPadded` 28–30 ns; H7 Bandlimited delta 11.69 % → 4.5 %, accuracy contracted at ≤ 2e-5 random / ≤ 1e-6 projected; H6 band worst shift 0.100 dB with the muted / equality sets identical), the S&H LFO seeded under the harness phase seed (H2 20 / 20 bit-stable across three runs), `ci-tests.yml` with a `plugin` dispatch input — Windows MSVC + WebView2 VST3 build and pluginval 10 SUCCESS (COMPAT-02 at the named-deferral ceiling); `--gate all` 162 / 162 in 111.7 s, labels 1809 / 0 over default + 42, tips 3215 at 122, layout 607 / 0, shell diff 0 px, orbit golden 44 / 44, params diff empty, 0 new warnings; pluginval ×2 + auval SUCCEEDED on the installed `-dev` bundles, byte-identical to the build. QUAL-04 listening material ready (`stages/4-polish/LISTENING.md`, 15 human rows open); PERF-03 pending. Round B verify next | 1.0.0 | Synth (Microtonal Wave Terrain) | 2026-09-13 |
 | O-Gain | 📦 Installed | 1.9.5 | Audio Effect (Gain Staging Utility) | 2026-09-12 |
-| O-Formant | 📦 Installed | 1.31.0 | Synth (Physical Model Vocal) | 2026-09-24 |
+| O-Formant | 📦 Installed | 1.31.1 | Synth (Physical Model Vocal) | 2026-09-24 |
 | O-Bowed | 📦 Installed | 1.9.4 | Synth (Physical Model Bowed String) | 2026-09-24 |
 | O-Reed | 📦 Installed | 1.6.0 | Synth (Physical Modeling Reed Wind) | 2026-09-07 |
 | O-Wind | 📦 Installed | 1.21.0 | Synth (Physical Model Flute) | 2026-09-07 |

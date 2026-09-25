@@ -3,7 +3,7 @@ plugin: O-Formant
 stage: 4
 status: complete
 phase: verified
-version: 1.31.0
+version: 1.31.1
 last_updated: 2026-09-24
 complexity_score: 5.0
 staged_implementation: true
@@ -24,6 +24,11 @@ contract_checksums:
 Stage: 4 of 4 (Polish) -- VERIFIED COMPLETE
 Status: All stages verified, pluginval level 10 PASSED (VST3 + AU)
 Progress: [####################] 100%
+
+## v1.31.1 -- CODE_REVIEW.md Info-tier sweep (2026-09-24)
+
+- Resolved (whole or part) IN-03, 07, 09, 16, 19, 20, 21 (save), 22a/c, 23a/b/d/e, 24g/h/i/j/k. PATCH. Audio bit-identical to v1.31.0 at 44.1/48 kHz (seeded out-of-tree null test, 6 cases + state round-trip); 192 kHz delay now reaches 2 s. auval PASS, pluginval 10 PASS (VST3), UI gates PASS.
+- Open: audible IN-01/02/06/10/11/12/14a/15/17 (MINOR + listening pass); IN-18, IN-04, IN-21 nav (decisions); IN-24a-e (a11y/i18n feature). Listening pass on the 16 factory presets from v1.31.0 still owed.
 
 ## v1.31.0 -- CODE_REVIEW.md wave 3, timbre (2026-09-24)
 

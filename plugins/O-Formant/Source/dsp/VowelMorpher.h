@@ -25,7 +25,8 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Shepard (IDW) interpolation between 5 cardinal vowels.
+    Shepard (IDW) interpolation between the 7 VowelData targets
+    (5 cardinal vowels + the approximants /r/ and /l/).
     Frequencies blended in log domain, bandwidths and gains linear.
 
   ==============================================================================
