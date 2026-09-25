@@ -2,6 +2,25 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.10.2] - 2026-09-24
+
+**Chinese sidechain Source caption now uses the glossary term.** PATCH: UI
+string only. No parameter, range or state format changes.
+
+### Fixed
+
+- `label.scSource` and `tip.scSource` (zh-Hans) read `来源`, which failed
+  `i18n-zh-lint` Z5: the suite glossary pins "Source" to the root `源`
+  (`scripts/i18n-zh-glossary.js`), and Z5 matches whole strings, so the
+  two-character word did not satisfy it. Both entries now read `源`, the same
+  form O-Octagon ships for its Source control. Both entries stay
+  `reviewed: 'mt'`. Found by the 260924-nho UI/design review, §4.3.
+
+### Verified
+
+- `node scripts/i18n-zh-lint.js` exits 0 (was exit 2, 2 findings, O-Comp only).
+- `node scripts/check-i18n.js`: ALL CHECKS PASS, 44 localized plugins.
+
 ## [1.10.1] - 2026-09-14
 
 **Four defects in the v1.10.0 sidechain, all found in verify.** PATCH: no
