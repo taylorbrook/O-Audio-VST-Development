@@ -16,6 +16,7 @@ node scripts/measure-ui.js --plugin O-Emulator --mode box --report all
 node scripts/measure-ui.js --plugin O-AnalogEQ --select text --report svg-font-attr
 node scripts/measure-ui.js --report wrap-count --from /tmp/rows.json  # no browser
 node scripts/measure-ui.js --plugin O-Fixture --root /tmp/fix --verbose
+node scripts/measure-ui.js --plugin O-Prism --contrast               # opt-in WCAG AA report
 ```
 
 Raw JSON goes to **stdout** and nothing else does, so this composes with `jq`
@@ -207,11 +208,77 @@ the attribute is what keeps the tail off them. Those 24 are numeric tick labels
 and carry no Han, so this is a finding to **read**, not a defect — but it is the
 opposite way round from the account wave 4b left behind.
 
+## The contrast report (opt-in)
+
+R4 of the UI design review (quick task 260924-nho, §2.2) found that the
+naturalist template's own text colours fail WCAG AA at the sizes it prescribes,
+and that nothing in the repo measured contrast. `--contrast` is that
+measurement, using the same method as the review's A.4 table so the numbers
+stay comparable.
+
+```bash
+node scripts/measure-ui.js --plugin O-Prism --contrast          # or: --report contrast
+```
+
+**What is measured.** Every visible element that owns a non-empty text node
+gets a `ct` field in its row:
+
+- `fg` — its own computed `color` (SVG: computed `fill`), alpha multiplied by
+  the computed `opacity` of the node and every ancestor, composited over `bg`.
+- `bg` — the nearest ancestor-or-self whose `background-color` alpha is
+  `>= 0.99`, with every semi-transparent `background-color` on the way
+  composited on top, outermost first. When nothing on the chain is opaque the
+  base is `#FFFFFF`, Chromium's default canvas colour.
+- `ratio` — WCAG 2.x, computed from the 8-bit rounded `fg`/`bg`, so a
+  recompute from the two hex strings reproduces it exactly.
+- `need` (`4.5`, or `3` for large text: `>= 24px`, or `>= 18.66px` at weight
+  `>= 700`), `large`, `fs`, `fw`, `img` (a `background-image` somewhere up to the
+  base), `ah` (under `aria-hidden="true"`), and `skip` (`'transparent'` below
+  0.01 effective alpha, `'unparsed'` for a colour neither the regex nor the
+  1×1 canvas fallback can read).
+
+**Output.** The count line is `contrast: <N> finding(s)`, where N is the counted
+rows that are below AA **or** under the 9px text floor. Then, per language:
+
+```
+  en: <T> text node(s), <B> below AA (<pct>%), <F> under 9px floor, <I> over background-image, ratio median <m> / min <n>
+```
+
+followed by the aria-hidden count, the skipped counts, the thresholds and the
+background method, then one finding per node sorted by ratio ascending and
+tagged `[AA]`, `[<9px]`, `[img]`, `[aria-hidden]`. Report-only: findings never
+change the exit code.
+
+**Why it is opt-in, and outside `all`.** `ct` is collected only when asked for.
+A run without `--contrast` is byte-identical to a run before this report
+existed (verified on O-TextureForge in fonts mode and `--mode box --report all`),
+and `--report all` still means the four screens above. Putting `contrast` in
+`all` would add a SKIPPED line to every existing `all` run. Over rows saved
+without `ct`, the report prints `contrast: SKIPPED — needs --contrast (field ct
+not present)`.
+
+**Reference reading** — `en`, at `b2f3d7ba`, measured on a `git archive`
+snapshot (not the working tree), every state × every language. `fr` and
+`zh-Hans` read identically on all four.
+
+| Plugin | Frame | Text nodes | Below AA | Under 9px | Over bg-image | Median / min |
+|---|---|---|---|---|---|---|
+| O-TextureForge | 900×600 | 35 | 24 (68.6%) | 10 | 28 | 4.49 / 1.46 |
+| O-MicrotonalSampler | 900×640 | 632 | 106 (16.8%) | 337 | 528 | 10.38 / 2.02 |
+| O-Prism | 1200×800 | 652 | 230 (35.3%) | 55 | 1 | 7.44 / 1.36 |
+| O-ReverseDelay | 940×693 | 89 | 8 (9.0%) | 0 | 73 | 7.67 / 1.78 |
+
+Read the `Over bg-image` column beside the rest. On O-TextureForge, 17 of the
+24 below-AA nodes are walnut `#8B7355` over the paper JPG with no opaque
+`background-color` anywhere on the chain, so they are measured against the
+`#FFFFFF` canvas fallback at **4.49**. Against a `#F5E6D3`-toned paper the same
+walnut reads 3.66, so the true count there is a lower bound.
+
 ## Reading a `0`
 
 Three of the four screens read `0` on the plugins wave 4b already repaired.
 A `0` is only worth anything beside a control that reports non-zero on the same
-data. Two are cheap:
+data. The first two are cheap; the third covers the contrast report:
 
 **Control 1 — the carrier the screen exists to see.** `undeclared-font` reads 0
 on O-Emulator. This proves the input was not empty and the tail is really there:
@@ -250,6 +317,54 @@ svg-font-attr: 24 attribute carrier(s), 1 finding(s)
 Because the screens are pure functions, this control needs no browser and no
 plugin edit.
 
+**Control 3 — the contrast fixture.** A contrast `0` is only readable beside
+this control, because a report whose compositing is wrong reads clean just as
+easily as one whose page is clean. Build a scratch tree (never inside the repo —
+a committed `O-*` folder is picked up by repo-wide globs):
+
+- `<root>/modules/`, empty;
+- `<root>/plugins/O-Fixture/CMakeLists.txt` — `juce_add_binary_data(O-Fixture_WebUI SOURCES`
+  listing `Source/ui/public/index.html` and `Source/ui/public/js/i18n.js`;
+- `<root>/plugins/O-Fixture/Source/PluginEditor.cpp` — `setSize (400, 300);`;
+- `<root>/plugins/O-Fixture/Source/ui/public/js/i18n.js` — `export const LANGUAGES = ['en'];`;
+- `<root>/plugins/O-Fixture/Source/ui/public/index.html` — body `margin:0`,
+  background `#F5E6D3`, font-size 10px, `p { margin: 0 }`, and these elements,
+  each with a short text:
+
+  | id | Markup | Expected |
+  |---|---|---|
+  | a | `p`, `#8B7355` | 3.66, need 4.5, below |
+  | b | `p`, `#7A654B` | 4.52, pass |
+  | c | `p` in a div with background `#EBD9C7`, colour `#715D45` | 4.56, pass |
+  | d | `p`, `#55703E` | 4.54, pass |
+  | e | `p`, `#8B7355` at 26px | 3.66, need 3, pass (large) |
+  | f | `p`, `#6B8E4E` at 19px weight 700 | 3.06, need 3, pass (large bold) |
+  | g | `p`, `#6B8E4E` at 19px weight 400 | 3.06, need 4.5, below |
+  | h | `p`, `#3C2F2F` at 8px | 10.45, pass, under the floor |
+  | i | `p`, `#000000`, in a div `rgba(0,0,0,0.5)` in a div `#FFFFFF` | bg `#808080`, 5.32 |
+  | j | `p`, colour `rgba(60,47,47,0.5)` | fg `#998B81`, 2.69, below |
+  | k | `p`, `#3C2F2F`, in a div with `opacity: 0.5` | 2.69, below |
+  | m | `p`, `#3C2F2F`, in a div with background-color `#F5E6D3` and `background-image: linear-gradient(#000,#000)` | 10.45, `img` |
+  | n | `span aria-hidden="true"`, `#8B7355`, text `&#10086;` | 3.66, below, `ah` |
+  | o | `p`, `#3C2F2F`, `opacity: 0` | skipped `transparent` |
+  | p | `p`, `display:none` | not counted |
+  | q | `p`, `visibility:hidden` | not counted |
+
+```bash
+node scripts/measure-ui.js --plugin O-Fixture --root <root> --contrast 2>&1 1>/dev/null
+```
+
+```
+contrast: 6 finding(s)
+  en: 13 text node(s), 5 below AA (38.5%), 1 under 9px floor, 1 over background-image, ratio median 3.66 / min 2.69
+  1 of the below-AA node(s) sit under aria-hidden (decorative) — still counted
+  skipped: 1 transparent, 0 unparsed colour
+```
+
+Those two lines exercise layer compositing (i), the opacity product (j, k), the
+large-text rule (e, f against g), the floor (h), the image flag (m) and the
+transparent skip (o) against hand-computed values.
+
 ## Known limitations, carried openly
 
 - **The `1.2` normal line box in `wrap-count` is an approximation.** Every node
@@ -273,6 +388,21 @@ plugin edit.
   four carriers. A Han string reaching the page by any other route — canvas,
   a pseudo-element's `content`, an SVG `<title>` — is invisible to every screen
   here.
+- **`contrast` does not sample `background-image`.** A paper JPG, gradient or
+  botanical plate is flagged (`img`, `[img]`), never read. When no opaque
+  `background-color` sits on the chain the base is the `#FFFFFF` canvas
+  fallback, which can make a node read higher than it paints.
+- **`contrast` walks ancestors only.** An absolutely positioned overlay or a
+  stacked sibling painted behind the text is invisible to it.
+- **`contrast` counts own text nodes only.** Text in a pseudo-element's
+  `content`, an input's value and a closed `<select>`'s caption is not counted.
+- **`contrast` reads the CSS font size.** It ignores CSS transforms, `zoom` and
+  SVG viewBox scaling, so the large-text rule and the 9px floor judge the
+  declared size, not the painted size.
+- **`contrast` ignores `filter: opacity()`, and applies `opacity` to the
+  foreground only**, not to the background layers.
+- **`contrast` takes each node's values from the last state in which it was
+  visible**, like every other field (design note 3).
 
 ## What was NOT promoted, and why
 
