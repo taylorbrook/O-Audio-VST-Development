@@ -160,20 +160,21 @@ document.addEventListener("dragstart", (e) => {
 
 ## Sizing Strategies
 
-### Rule 4: Choose Fixed or Resizable Based on Complexity
+### Rule 4: Fixed Frame by Default, No Taller Than 800 px
 
-**Decision criteria:**
+**Suite evidence** (UI design review 260924-nho, §5.6):
+- 40 of 44 plugins ship a fixed frame. Only four are resizable: O-MicrotonalSampler (720×480 – 1600×1080, the only one with `@media` breakpoints), O-Orbit, O-simpleBeatmaker and O-simpleSubtractive.
+- Complexity has not driven sizing in practice: O-Prism (1200×800, five tabs) and O-Octagon (a visualizer) are both fixed, and work.
+- Five shipped frames are 820–980 px tall (O-simpleFM 980, O-simpleAdditive 930, O-simpleBeatmaker 900, O-simplePhysicalModelSynth 860, O-simpleSubtractive 820). A 13-inch laptop at its default scaled resolution leaves about 800 px below the menu bar and a DAW's plugin-window title bar, so those windows fall off-screen.
 
-| Parameter Count | Layout Complexity | Recommended |
-|----------------|-------------------|-------------|
-| 1-5 parameters | Simple | **Fixed size** |
-| 6-12 parameters | Moderate | **Fixed or Resizable** (user preference) |
-| 13+ parameters | Complex | **Resizable** |
-
-**Special cases:**
-- Visualizers (spectrum, waveform): **Resizable** (benefits from larger size)
-- Utility plugins (tuner, meter): **Fixed** (single purpose)
-- Multi-page UIs: **Resizable** (more screen real estate helpful)
+**The rule:**
+- **Parameter count and page count do not decide sizing.**
+- **Default: a fixed frame no taller than 800 px.** Width follows the design. Use tabs, pages or a denser layout before growing the frame past 800 px.
+- **Only if a design genuinely cannot fit in 800 px**, make it resizable with a fixed aspect ratio and whole-page scaling (review R7) — see "Resizable Pattern" below:
+  - `setResizable(true, true)`, plus `getConstrainer()->setFixedAspectRatio(designW / designH)`, plus `setResizeLimits`;
+  - the page keeps its fixed design-size composition and scales it as a whole — CSS `zoom`, or a `transform: scale()` on the root, computed from `window.innerWidth / designWidth` in a `resize` listener;
+  - it does NOT reflow, and has no breakpoints.
+  - No shipped plugin uses this scale approach yet, so the Stage 3 integration checklist carries a hands-on DAW resize check for any resizable frame.
 
 ---
 
@@ -190,10 +191,14 @@ setResizable(false, false);
 **CSS:**
 
 ```css
+html, body {
+    height: 100%;
+    overflow: hidden;  /* No scrolling */
+}
+
 body {
     width: 600px;
     height: 400px;
-    overflow: hidden;  /* No scrolling */
 }
 
 .container {
@@ -203,8 +208,9 @@ body {
 ```
 
 **When to use:**
-- Simple plugins (≤5 parameters)
-- Single-purpose tools
+- Every plugin whose design fits in a frame ≤ 800 px tall — the default
+- Multi-page and tabbed UIs (O-Prism: 1200×800, five tabs)
+- Visualizers (O-Octagon)
 - Skeuomorphic designs (replicating hardware)
 
 ---
@@ -214,52 +220,52 @@ body {
 **C++ (PluginEditor constructor):**
 
 ```cpp
-// Resizable with aspect ratio lock
-setSize(800, 600);
+// The design size is the composition the page is authored at.
+constexpr int designW = 1000, designH = 760;
+
+setSize(designW, designH);
 setResizable(true, true);
-
-// Optional: Set size limits
-setResizeLimits(600, 400, 1920, 1080);
-
-// Optional: Constrain aspect ratio
-getConstrainer()->setFixedAspectRatio(4.0 / 3.0);  // 4:3 ratio
+getConstrainer()->setFixedAspectRatio(static_cast<double>(designW) / designH);
+setResizeLimits(designW * 3 / 4, designH * 3 / 4, designW * 3 / 2, designH * 3 / 2);
 ```
 
-**CSS (responsive with constraints):**
+**CSS + JS (scale the fixed composition; never reflow):**
 
 ```css
-body {
-    min-width: 600px;
-    max-width: 1920px;
-    min-height: 400px;
-    max-height: 1080px;
+html, body {
     width: 100%;
     height: 100%;
+    overflow: hidden;
 }
 
-.control-group {
-    /* Use clamp() for responsive sizing */
-    font-size: clamp(12px, 1.5vw, 18px);
-    gap: clamp(10px, 2vw, 30px);
-}
-
-.knob {
-    /* Scale with window size */
-    width: clamp(60px, 8vw, 100px);
-    height: clamp(60px, 8vw, 100px);
+#stage {
+    width: 1000px;            /* designW — the composition never changes size */
+    height: 760px;            /* designH */
+    transform-origin: 0 0;
 }
 ```
 
+```javascript
+// In the module-state block:  const DESIGN_W = 1000;
+function applyScale() {
+    const s = window.innerWidth / DESIGN_W;       // aspect is locked by the constrainer
+    document.getElementById('stage').style.transform = `scale(${s})`;
+}
+// In init():
+applyScale();
+window.addEventListener('resize', applyScale);
+```
+
+Keep `#tooltip` OUTSIDE `#stage`: a transformed ancestor becomes the containing block for `position: fixed` children, which would break the tooltip's frame clamp. Drag travel is measured in window pixels, so knobs feel the same at every scale.
+
 **When to use:**
-- Complex plugins (>5 parameters)
-- Multi-section layouts
-- Visualizers and analysis tools
-- Accessibility (users want larger UI)
+- Only when the design cannot fit in a fixed frame ≤ 800 px tall (Rule 4)
 
 **Testing requirements:**
-- Test at minimum size (controls don't overlap)
+- Test at minimum size (text stays at or above the 9 px floor once scaled)
 - Test at maximum size (no pixelation, acceptable spacing)
 - Test aspect ratio lock (no distortion)
+- Hands-on in a DAW: drag-resize the plugin window and confirm the page scales as a whole
 
 ---
 
@@ -818,8 +824,13 @@ Before finalizing any mockup, validate against these rules:
 
 - [ ] **Native feel CSS:** `user-select: none`, `cursor: default`, `overflow: hidden`
 - [ ] **Native feel JS:** Context menu disabled via `contextmenu` event
-- [ ] **Sizing strategy:** Fixed or resizable chosen based on complexity
+- [ ] **Sizing strategy:** fixed frame ≤ 800 px tall, or resizable with a fixed-aspect whole-page scale per Rule 4
 - [ ] **Performance:** Updates throttled to ≤60 FPS
+- [ ] **i18n canon:** the canonical block copied verbatim from `scripts/i18n-canon.js` (never retyped); table module `js/i18n.js` with en / fr / zh-Hans (`html-generation.md` "i18n — the canonical block")
+- [ ] **Hover-help switch:** exactly one `#tips-toggle`, in the settings popover beside `#lang-select`, bound in `TIP_BINDINGS`
+- [ ] **Tooltip copy:** `data-tip` / `data-tip-title` written only by `applyI18n()` from `TIP_BINDINGS` — none authored in markup, no native `title`
+- [ ] **9 px text floor:** no text element below 9 px (`aesthetic.md`: parameter labels 9–11 px)
+- [ ] **Reduced motion:** every transition or animation has a counterpart inside `@media (prefers-reduced-motion: reduce)`
 
 ### Recommended (Best Practices)
 
