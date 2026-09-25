@@ -197,10 +197,12 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     //   15 -> 17  v1.16.0 getMixLock + setMixLock (the Mix lock state pair).
     //   17 -> 21  v1.18.0 getAbState + abSelect + abCopy + randomise (A/B).
     //   21 -> 22  v1.20.0 getPresetCategories (the grouped preset dropdown).
-    check(called.size === 22 && registered.size === 22,
-        `bridge surface is exactly 22 fns (getParameterDefaults + getGrainMeter`
-        + ` + getWindowCurve + getUiLanguage + setUiLanguage + getMixLock`
-        + ` + setMixLock + getAbState + abSelect + abCopy + randomise`
+    //   22 -> 20  v1.21.0 getMixLock + setMixLock REMOVED with the padlock —
+    //                     preset loads now always hold Mix.
+    check(called.size === 20 && registered.size === 20,
+        `bridge surface is exactly 20 fns (getParameterDefaults + getGrainMeter`
+        + ` + getWindowCurve + getUiLanguage + setUiLanguage`
+        + ` + getAbState + abSelect + abCopy + randomise`
         + ` + getPresetCategories + 10 preset)`
         + ` — got JS=${called.size} C++=${registered.size}`);
     check(called.has('getParameterDefaults') && registered.has('getParameterDefaults'),
@@ -214,7 +216,7 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     // v1.13.0: the delay/freeze riders travel on getGrainMeter rather than on
     // new fns. A key renamed on one side would pass every count above and leave
     // the readout on its em-dash, so each key must be set in C++ AND read in JS.
-    for (const key of ['delayMs', 'delaySource', 'freezeEngaged'])
+    for (const key of ['delayMs', 'delaySource', 'freezeEngaged', 'grains', 'grainSeq'])
         check(editorCpp.includes(`setProperty ("${key}"`) && appJs.includes(`m.${key}`),
             `getGrainMeter rider "${key}" is set in C++ AND read in app.js`);
     // The name table is indexed by DelaySource's value, so its order IS the enum's.
@@ -243,13 +245,18 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'all 10 preset-manager fns are registered in PluginEditor.cpp'
         + (missingPreset.length ? ' — MISSING: ' + missingPreset.join(', ') : ''));
 
-    // v1.16.0: every preset load the page can start must go through the
-    // processor's Mix-lock wrappers. A direct presetManager load would still
-    // work, and would silently ignore the lock.
+    // v1.16.0 / v1.21.0: every preset load the page can start must go through
+    // the processor's Mix-hold wrappers. A direct presetManager load would still
+    // work, and would silently let the preset change Mix.
     check(/processorRef\.loadPresetHoldingMix\s*\(/.test(editorCpp)
           && /loadPresetFromFileHoldingMix\s*\(/.test(editorCpp)
           && !/getPresetManager\(\)\s*\.\s*loadPreset(FromFile)?\s*\(/.test(editorCpp),
-        'both preset loads route through the Mix-lock wrappers (no direct presetManager load in the editor)');
+        'both preset loads route through the Mix-hold wrappers (no direct presetManager load in the editor)');
+    // v1.21.0: the padlock is gone for good — no markup, no JS, no C++ pair.
+    check(!html.includes('id="mix-lock"') && !/getNativeFunction\(\s*["'](get|set)MixLock/.test(appJs)
+          && !appJs.includes('initMixLock')
+          && !editorCpp.includes('"getMixLock"') && !editorCpp.includes('"setMixLock"'),
+        'the v1.16.0 Mix lock is fully removed (markup, app.js, native fns)');
 
     // Both dialog fns must resolve {success, name}; preset-manager.js checks
     // `result && result.success`, so a bare bool silently no-ops the bar.
@@ -641,8 +648,8 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         };
         check(panelHas('group-source', ['id="seg-source-mono"', 'id="seg-source-stereo"']),
             'both Source segments are inside the SOURCE panel');
-        check(panelHas('group-output', ['id="knob-duck"', 'id="knob-width"', 'id="knob-mix"', 'id="levelMeter"']),
-            'Duck, Width, Mix and the level meter are inside the OUTPUT panel');
+        check(panelHas('group-output', ['id="knob-duck"', 'id="knob-width"', 'id="knob-mix"', 'id="levelMeter"', 'id="grainCanvas"']),
+            'Duck, Width, Mix, the grain view and the level meter are inside the OUTPUT panel');
         check(panelHas('group-count', ['id="knob-grainCount"', 'id="grainMeter"']),
             'Count and its readout are inside the COUNT panel');
         check(panelHas('group-drift', ['id="knob-driftRate"', 'id="knob-driftDepth"']),
@@ -769,8 +776,9 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
         'knob-diffusion', 'knob-drive',
         // v1.14.0's meter and v1.15.0's Length select were the THIRD and
         // FOURTH times this list was not updated when a panel changed. Both
-        // added in v1.16.0, alongside the Mix lock.
-        'levelMeter', 'combo-freezeLength', 'mix-lock'];
+        // added in v1.16.0, alongside the Mix lock (removed again in v1.21.0,
+        // which adds the grain view).
+        'levelMeter', 'combo-freezeLength', 'grainCanvas'];
 
     // ── v1.9.0: this assertion was REWRITTEN, and made stronger ─────────────
     //

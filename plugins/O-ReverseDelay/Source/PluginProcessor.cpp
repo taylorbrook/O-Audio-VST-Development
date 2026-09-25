@@ -818,6 +818,7 @@ void ReverseDelayProcessor::reset()
     // drop that happened in the pass before.
     publishedActiveGrains.store(0, std::memory_order_relaxed);
     publishedFreezeEngaged.store(false, std::memory_order_relaxed);   // v1.13.0: latch cleared below
+    grainViewCount.store(0, std::memory_order_relaxed);               // v1.21.0: no stale grains after reset
     peakInSinceRead.store(0.0f, std::memory_order_relaxed);           // v1.14.0
     peakOutSinceRead.store(0.0f, std::memory_order_relaxed);
 
@@ -2728,6 +2729,8 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     publishedGrainMs.store(effectiveGrainMs, std::memory_order_relaxed);                   // v1.17.0
     publishedGrainSource.store(static_cast<int>(grainSource), std::memory_order_relaxed);
 
+    publishGrainView();   // v1.21.0: the grain visualizer's per-grain snapshot
+
     // Cumulative, and only touched when non-zero: the common case is two loads
     // and no stores rather than an unconditional read-modify-write per block.
     if (droppedThisBlock > 0)
@@ -2971,14 +2974,6 @@ void ReverseDelayProcessor::getStateInformation(juce::MemoryBlock& destData)
                                   languageCode (uiLanguage.load (std::memory_order_acquire)),
                                   nullptr);
 
-    // v1.16.0: Mix lock, written the same way and before the same delegation.
-    // Written as a STRING ("1" / "0") so that what is saved is exactly what the
-    // restore below reads back. The XML round-trip turns every property into a
-    // string anyway (critical_valuetree_xml_roundtrip_loses_type).
-    parameters.state.setProperty ("mixLock",
-                                  mixLock.load (std::memory_order_acquire) ? "1" : "0",
-                                  nullptr);
-
     if (auto xml = presetManager.getStateAsXml())
         copyXmlToBinary(*xml, destData);
 }
@@ -3041,20 +3036,102 @@ void ReverseDelayProcessor::setStateInformation(const void* data, int sizeInByte
         if (! lang.isVoid())
             uiLanguage.store (languageIndex (lang.toString()), std::memory_order_release);
 
-        // v1.16.0: same guard, same read, but an ABSENT property turns the lock
-        // OFF instead of leaving it alone — see mixLock's declaration. A
-        // pre-v1.16 session opened into an instance whose lock is on therefore
-        // comes up unlocked, like any setting it never saved. This path
-        // restores the session's own Mix and never re-applies a held one.
-        const juce::var lock = parameters.state.getProperty ("mixLock");
-        mixLock.store (! lock.isVoid() && lock.toString() == "1", std::memory_order_release);
+        // v1.21.0: the v1.16.0–v1.20.0 Mix lock property is obsolete (preset
+        // loads now always hold Mix). Drop it from a restored v1.16–v1.20
+        // session so it is not carried forward into the next save.
+        parameters.state.removeProperty ("mixLock", nullptr);
     }
 }
 
 //==============================================================================
-// v1.16.0: Mix lock. The shared OuariconPresetManager is used exactly as is.
-// Each wrapper captures Mix, performs the load, and then — only if the load
-// SUCCEEDED and the lock is on — puts Mix back.
+// v1.21.0: the grain visualizer's snapshot. A classic seqlock over relaxed
+// atomics — the writer bumps the sequence to odd, fences, writes, then publishes
+// an even sequence with release; the reader copies between two sequence reads
+// and discards the copy if they differ. Every field is a std::atomic, so there is
+// no formal data race even when a copy is discarded.
+//
+// Audio-thread cost: one walk of the 32-slot pool and six relaxed stores per
+// live grain, once per block. Nothing on the audio path reads any of it back, so
+// it cannot change the output — probe BL0's pinned digests assert that.
+void ReverseDelayProcessor::publishGrainView() noexcept
+{
+    const juce::int64 writeHead = capture.getTotalWritten();
+    const float msPerSample = currentSampleRate > 0.0 ? static_cast<float> (1000.0 / currentSampleRate) : 0.0f;
+
+    const auto seq = grainViewSeq.load (std::memory_order_relaxed);
+    grainViewSeq.store (seq + 1, std::memory_order_relaxed);
+    std::atomic_thread_fence (std::memory_order_release);
+
+    int count = 0;
+    for (const auto& g : grainPool.grains)
+    {
+        if (! g.active || g.G <= 0)
+            continue;
+
+        const float loop = std::hypot (g.gL, g.gR);
+        const float out  = std::hypot (g.gLout, g.gRout);
+
+        const float fields[kGrainViewFields] {
+            static_cast<float> (writeHead - g.readAbs) * msPerSample,
+            static_cast<float> (g.G) * msPerSample,
+            juce::jlimit (0.0f, 1.0f, static_cast<float> (g.n) * g.invG),
+            std::atan2 (g.gR, g.gL) * (2.0f / juce::MathConstants<float>::pi),
+            loop > 0.0f ? out / loop : 1.0f,
+            g.step > 0 ? 1.0f : 0.0f
+        };
+
+        const size_t base = static_cast<size_t> (count * kGrainViewFields);
+        for (int f = 0; f < kGrainViewFields; ++f)
+            grainViewData[base + static_cast<size_t> (f)].store (fields[f], std::memory_order_relaxed);
+
+        ++count;
+    }
+
+    grainViewCount.store (count, std::memory_order_relaxed);
+    grainViewSeq.store (seq + 2, std::memory_order_release);
+}
+
+bool ReverseDelayProcessor::readGrainView (GrainViewSnapshot& out) const noexcept
+{
+    for (int attempt = 0; attempt < 4; ++attempt)
+    {
+        const auto before = grainViewSeq.load (std::memory_order_acquire);
+        if ((before & 1u) != 0)
+            continue;
+
+        const int count = juce::jlimit (0, GrainPool::kMaxGrains,
+                                        grainViewCount.load (std::memory_order_relaxed));
+
+        for (int i = 0; i < count; ++i)
+        {
+            const size_t base = static_cast<size_t> (i * kGrainViewFields);
+            auto& v = out.grains[static_cast<size_t> (i)];
+            v.ageMs    = grainViewData[base + 0].load (std::memory_order_relaxed);
+            v.lengthMs = grainViewData[base + 1].load (std::memory_order_relaxed);
+            v.phase    = grainViewData[base + 2].load (std::memory_order_relaxed);
+            v.pan      = grainViewData[base + 3].load (std::memory_order_relaxed);
+            v.level    = grainViewData[base + 4].load (std::memory_order_relaxed);
+            v.forward  = grainViewData[base + 5].load (std::memory_order_relaxed) > 0.5f;
+        }
+
+        std::atomic_thread_fence (std::memory_order_acquire);
+
+        if (grainViewSeq.load (std::memory_order_relaxed) == before)
+        {
+            out.seq   = before;
+            out.count = count;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+//==============================================================================
+// v1.21.0: preset loads never change Mix. The shared OuariconPresetManager is
+// used exactly as is. Each wrapper captures Mix, performs the load, and — only if
+// the load SUCCEEDED — puts Mix back. (v1.16.0–v1.20.0 did this only while an
+// opt-in padlock was lit; v1.21.0 made it unconditional and removed the lock.)
 //
 // Captured as the NORMALISED value and written back through
 // setValueNotifyingHost, which is also the call applyPresetJson makes. The host
@@ -3071,8 +3148,7 @@ void ReverseDelayProcessor::setStateInformation(const void* data, int sizeInByte
 namespace
 {
     template <typename Load>
-    bool loadHoldingMix (juce::AudioProcessorValueTreeState& apvts,
-                         const std::atomic<bool>& lock, Load&& load)
+    bool loadHoldingMix (juce::AudioProcessorValueTreeState& apvts, Load&& load)
     {
         auto* mix = apvts.getParameter ("mix");
         jassert (mix != nullptr);
@@ -3080,7 +3156,7 @@ namespace
         const float held = mix->getValue();
         const bool  ok   = load();
 
-        if (ok && lock.load (std::memory_order_acquire))
+        if (ok && mix->getValue() != held)
             mix->setValueNotifyingHost (held);
 
         return ok;
@@ -3089,12 +3165,12 @@ namespace
 
 bool ReverseDelayProcessor::loadPresetHoldingMix (const juce::String& name)
 {
-    return loadHoldingMix (parameters, mixLock, [&] { return presetManager.loadPreset (name); });
+    return loadHoldingMix (parameters, [&] { return presetManager.loadPreset (name); });
 }
 
 bool ReverseDelayProcessor::loadPresetFromFileHoldingMix (const juce::File& file)
 {
-    return loadHoldingMix (parameters, mixLock, [&] { return presetManager.loadPresetFromFile (file); });
+    return loadHoldingMix (parameters, [&] { return presetManager.loadPresetFromFile (file); });
 }
 
 //==============================================================================
@@ -3131,9 +3207,9 @@ ReverseDelayProcessor::AbState ReverseDelayProcessor::abSelect (int slot)
     {
         const auto& target = abSlots[slot];
 
-        // Same Mix-lock hold as a preset load: with the lock on, A/B compares
-        // the sound at a fixed dry/wet balance.
-        if (loadHoldingMix (parameters, mixLock, [&] { return presetManager.applyPresetData (target.data); }))
+        // v1.21.0: NOT held. A snapshot is the plugin's own earlier state, not a
+        // preset, so it recalls its own Mix — A/B compares everything.
+        if (presetManager.applyPresetData (target.data))
             presetManager.setCurrentPresetName (target.presetName);
     }
 

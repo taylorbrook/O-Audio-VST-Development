@@ -124,28 +124,20 @@ public:
     static int          languageIndex (const juce::String& s) { return s == "fr" ? 1 : s == "zh-Hans" ? 2 : 0; }
 
     //==========================================================================
-    /** v1.16.0 — Mix lock. While true, a preset loaded from the page keeps the
-        Mix the plugin had before the load.
+    /** v1.21.0 — preset loads never change Mix.
 
-        Same shape as uiLanguage and for the same reasons: NOT a parameter (it
-        must not show up as a DAW automation lane, and a preset must not be able
-        to turn it on or off), stored in the APVTS state tree as a non-parameter
-        property, and public so the editor's getMixLock/setMixLock can reach it.
-
-        Where they differ is on restore. A session that does not carry the
-        property turns the lock OFF, and does not leave it as it was. The
-        language is a reading preference, while the lock changes what a preset
-        load does — the same class of state as a parameter. v1.12.2 decided that
-        a parameter the saved state does not mention goes back to its default. */
-    std::atomic<bool> mixLock { false };
-
-    /** The only two preset loads the page can trigger (◀/▶ resolve a name and
+        The only two preset loads the page can trigger (◀/▶ resolve a name and
         then call loadPreset). Each one passes straight through to
-        OuariconPresetManager, then puts Mix back if the lock is on and the load
-        succeeded. The shared module is not modified.
+        OuariconPresetManager, then puts Mix back if the load succeeded. The
+        shared module is not modified.
+
+        v1.16.0 made this an opt-in padlock (`mixLock`, default off); v1.21.0
+        makes the hold unconditional and removes the padlock, its two native
+        functions and its state property. A preset's stored Mix is ignored.
 
         setStateInformation does NOT go through these: a session recall restores
-        its own Mix. Message thread only — they call setValueNotifyingHost. */
+        its own Mix, and so does an A/B recall (a snapshot is not a preset).
+        Message thread only — they call setValueNotifyingHost. */
     bool loadPresetHoldingMix         (const juce::String& name);
     bool loadPresetFromFileHoldingMix (const juce::File& file);
 
@@ -159,8 +151,8 @@ public:
         A snapshot is the same JSON object a user preset file holds
         (OuariconPresetManager::capturePresetData) plus the preset name that was
         showing, and it is recalled through applyPresetData — the exact
-        reset-to-defaults / meta-first / migration path a preset load takes —
-        wrapped in the same Mix-lock hold as loadPresetHoldingMix. */
+        reset-to-defaults / meta-first / migration path a preset load takes.
+        v1.21.0: NOT wrapped in the Mix hold — a snapshot recalls its own Mix. */
     struct AbState
     {
         int  active = 0;                 // 0 = A, 1 = B
@@ -306,6 +298,40 @@ public:
         return { peakInSinceRead .exchange (0.0f, std::memory_order_relaxed),
                  peakOutSinceRead.exchange (0.0f, std::memory_order_relaxed) };
     }
+
+    //==========================================================================
+    /** v1.21.0 — the grain visualizer's snapshot: every live grain at the end
+        of the last processed block.
+
+        `ageMs` is how far behind the capture write head the grain's read point
+        sits, `lengthMs` its latched G, `phase` how far through its window it is
+        (n / G, 0..1), `forward` its read direction, `pan` 0 (L) .. 1 (R), and
+        `level` its OUTPUT gain relative to its loop gain — 1.0 unless Gain RND
+        or the forward-grain trim moved it.
+
+        Published by processBlock under a seqlock over relaxed atomics: the audio
+        thread never blocks, never allocates and never reads any of it back, and
+        the reader retries (bounded) if a block landed mid-copy, so one grain's
+        fields are never mixed with another block's. A reader that loses every
+        retry gets `false` and simply keeps its previous frame. */
+    struct GrainView
+    {
+        float ageMs    = 0.0f;
+        float lengthMs = 0.0f;
+        float phase    = 0.0f;
+        float pan      = 0.5f;
+        float level    = 1.0f;
+        bool  forward  = false;
+    };
+
+    struct GrainViewSnapshot
+    {
+        juce::uint32 seq = 0;   // changes every published block; unchanged = host idle
+        int count = 0;
+        std::array<GrainView, GrainPool::kMaxGrains> grains {};
+    };
+
+    bool readGrainView (GrainViewSnapshot& out) const noexcept;
 
     /** Cumulative spawn requests the scheduler's fixed array could not hold, and
         spawns GrainPool::obtain() refused for want of a free slot.
@@ -1447,6 +1473,15 @@ private:
     std::atomic<int>          publishedGrainSource  { 0 };       // v1.17.0: GrainSource
     std::atomic<float>        peakInSinceRead       { 0.0f };    // v1.14.0: max-folded, drained by takeLevelPeaks()
     std::atomic<float>        peakOutSinceRead      { 0.0f };    // v1.14.0
+    // v1.21.0 — grain visualizer snapshot (see readGrainView). Six floats per
+    // slot: ageMs, lengthMs, phase, pan, level, forward (0/1). An odd sequence
+    // number means a write is in progress.
+    static constexpr int kGrainViewFields = 6;
+    std::atomic<juce::uint32> grainViewSeq   { 0 };
+    std::atomic<int>          grainViewCount { 0 };
+    std::array<std::atomic<float>, GrainPool::kMaxGrains * kGrainViewFields> grainViewData {};
+    void publishGrainView() noexcept;   // audio thread, end of processBlock
+
     std::atomic<juce::uint32> droppedSpawns         { 0 };
     std::atomic<juce::uint32> refusedSpawns         { 0 };
 

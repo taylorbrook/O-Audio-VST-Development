@@ -587,43 +587,39 @@
           </div>
           <div class="knob-cell">
             <div class="knob" id="knob-mix" data-param="mix"><div class="knob-stem"></div></div>
-            <!-- v1.16.0: Mix lock. The caption is wrapped so the lock can hang off
-                 its right edge. The wrapper shrinks to the caption, and the button
-                 is absolute, so the caption stays centred under the knob in every
-                 language and the cell keeps its height. The button sits BESIDE the
-                 .knob-label, never inside it: applyLabel() writes that element's
-                 textContent, which would erase a child
-                 (pattern_js_state_updater_overwrites_html_labels). Icon only, so
-                 the accessible name comes from data-i18n-aria. -->
-            <div class="caption-row">
-              <div class="knob-label" data-i18n="knob-mix">Mix</div>
-              <button type="button" class="mix-lock" id="mix-lock" aria-pressed="false"
-                      data-i18n-aria="mixLock" aria-label="Mix Lock">
-                <svg viewBox="0 0 10 12" width="9" height="11" aria-hidden="true" focusable="false">
-                  <path class="shackle-open"   d="M2.5 5.5V3.5a2.5 2.5 0 0 1 5 0" />
-                  <path class="shackle-closed" d="M2.5 5.5V3.5a2.5 2.5 0 0 1 5 0v2" />
-                  <rect x="1" y="5.5" width="8" height="6" rx="1" />
-                </svg>
-              </button>
-            </div>
+            <!-- v1.21.0: the v1.16.0 Mix lock is gone. Preset loads always keep
+                 Mix, so the caption is a plain label again. -->
+            <div class="knob-label" data-i18n="knob-mix">Mix</div>
             <div class="knob-value" id="val-mix">&#8212;</div>
           </div>
 
-          <!-- v1.14.0: output level. Regen above 0 dB can push the output to
-               1.41–1.55 and the page had no level feedback at all. Upper bar =
-               output peak with a 1.5 s hold tick, lower hairline = input peak,
-               lamp = latched over-0-dBFS, cleared by a click anywhere on the
-               meter. Fed from getGrainMeter's peakIn / peakOut (peak since the
-               previous poll), so the bridge surface stays at 15. Numbers-free,
-               so nothing here is localized except its tip. -->
-          <div class="level-meter" id="levelMeter" aria-hidden="true">
-            <div class="level-track">
-              <div class="level-fill" id="level-out"></div>
-              <div class="level-hold" id="level-hold"></div>
-              <div class="level-in" id="level-in"></div>
-              <div class="level-zero"></div>
+          <!-- v1.21.0: grain view + level meter, stacked in the width the three
+               knobs leave. The canvas is the live grain cloud: x is time behind
+               now (left = now), each grain a pill spanning the stretch of audio
+               it reads, with a playhead dot sliding the way the grain plays
+               (older for reverse, newer for forward), faded by its window; y is
+               pan. Drawn by app.js from getGrainMeter's `grains` rider, so the
+               bridge stays at 20. Decorative for AT: the COUNT readout carries
+               the numbers, so the canvas only has an aria-label. -->
+          <div class="output-display">
+            <canvas id="grainCanvas" class="grain-canvas" width="330" height="62" role="img"
+                    data-i18n-aria="aria.grainCanvas" aria-label="Live grain display"></canvas>
+            <!-- v1.14.0: output level. Regen above 0 dB can push the output to
+                 1.41–1.55 and the page had no level feedback at all. Upper bar =
+                 output peak with a 1.5 s hold tick, lower hairline = input peak,
+                 lamp = latched over-0-dBFS, cleared by a click anywhere on the
+                 meter. Fed from getGrainMeter's peakIn / peakOut (peak since the
+                 previous poll), so the bridge surface stays at 15. Numbers-free,
+                 so nothing here is localized except its tip. -->
+            <div class="level-meter" id="levelMeter" aria-hidden="true">
+              <div class="level-track">
+                <div class="level-fill" id="level-out"></div>
+                <div class="level-hold" id="level-hold"></div>
+                <div class="level-in" id="level-in"></div>
+                <div class="level-zero"></div>
+              </div>
+              <div class="clip-lamp" id="clip-lamp"></div>
             </div>
-            <div class="clip-lamp" id="clip-lamp"></div>
           </div>
         </div>
       </section>

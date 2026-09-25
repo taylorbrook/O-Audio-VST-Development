@@ -293,15 +293,15 @@ export const I18N = Object.freeze({
     },
     'knob-mix': {
         en: { t: 'Mix',
-              b: 'Balance of dry input against the reversed wash. Equal-power, so the total stays level.' },
+              b: 'Balance of dry input against the reversed wash. Equal-power, so the total stays level. Presets never change it.' },
         fr: { t: 'Mix',
-              b: 'Équilibre entre le signal direct et la nappe inversée. À puissance constante, le niveau total reste stable.',
-              reviewed: true },
+              b: 'Équilibre entre le signal direct et la nappe inversée. À puissance constante, le niveau total reste stable. Les préréglages ne le modifient jamais.',
+              reviewed: false },
     
 
         'zh-Hans': { t: '混合',
-              b: '干输入与倒放声浪之间的平衡。等功率，所以总电平保持不变。',
-              reviewed: 'bt' },
+              b: '干输入与倒放声浪之间的平衡。等功率，所以总电平保持不变。预设不会改变它。',
+              reviewed: 'mt' },
     },
 
     // ── RANDOM (v1.1.0) ─────────────────────────────────────────────────────
@@ -497,18 +497,18 @@ export const I18N = Object.freeze({
               reviewed: 'mt' },
     },
 
-    // ── v1.16.0: the Mix lock ───────────────────────────────────────────────
-    // A tip AND the lock's accessible name (data-i18n-aria resolves the title).
-    // The button is icon-only, so no caption has to fit. New copy: fr starts
+    // ── v1.21.0: the grain view (OUTPUT panel) ──────────────────────────────
+    // v1.16.0's `mixLock` tip was removed with the padlock: preset loads now
+    // always keep Mix (the knob-mix tip says so). New copy: fr starts
     // reviewed:false, zh-Hans at 'mt'.
-    'mixLock': {
-        en: { t: 'Mix Lock',
-              b: 'Keeps the current Mix when you browse or load presets, so a preset changes the sound but not the dry/wet balance. Saved with the session. Reopening a session still restores the Mix it was saved with.' },
-        fr: { t: 'Verrouillage du mix',
-              b: 'Conserve le mix actuel lorsque vous parcourez ou chargez des préréglages : un préréglage change le son, mais pas l’équilibre entre signal direct et signal traité. Enregistré avec la session. Une session rouverte retrouve toujours le mix avec lequel elle a été enregistrée.',
+    'grainView': {
+        en: { t: 'Grain View',
+              b: 'Every grain playing right now. Left is now, right is further back in time. Each bar is the stretch of audio a grain reads, and its dot slides the way the grain plays: back in time when reversed, forward when not. Brighter means louder in the grain’s window. Height is pan.' },
+        fr: { t: 'Vue des grains',
+              b: 'Chaque grain en cours de lecture. La gauche est l’instant présent, la droite remonte dans le temps. Chaque barre est le passage audio que lit un grain, et son point glisse dans le sens de lecture, vers le passé quand le grain est inversé, vers le présent sinon. Plus le point est vif, plus le grain est fort dans sa fenêtre. La hauteur indique le panoramique.',
               reviewed: false },
-        'zh-Hans': { t: '混合锁定',
-              b: '浏览或载入预设时保留当前的混合值，因此预设只改变声音，而不改变干湿平衡。该设置随会话一起保存。重新打开的会话仍会恢复它保存时的混合值。',
+        'zh-Hans': { t: '颗粒视图',
+              b: '此刻正在播放的每个颗粒。左侧为当前，越往右越久远。每条横条是一个颗粒读取的音频片段，其上的圆点沿播放方向滑动：倒放时向过去，正放时向现在。越亮表示颗粒在其窗口中越响。高度表示声像。',
               reviewed: 'mt' },
     },
 
@@ -880,6 +880,9 @@ export const LABELS = Object.freeze({
         'zh-Hans': { t: '颗粒振幅包络',
               reviewed: 'bt' },
     },
+    'aria.grainCanvas':  { en: { t: 'Live grain display' },
+                           fr: { t: 'Affichage des grains en direct', reviewed: false },
+                           'zh-Hans': { t: '实时颗粒显示', reviewed: 'mt' } },
     'aria.sourceMode':   { en: { t: 'Source Mode' },  fr: { t: 'Mode de source', reviewed: true } , 'zh-Hans': { t: '源模式', reviewed: 'bt' },},
 
     // v1.15.0 — Freeze Length. The select's accessible name, and its four
@@ -946,7 +949,7 @@ export const TIP_BINDINGS = [
     ['#knob-width',          'knob-width'],
     ['#knob-mix',            'knob-mix'],
     ['#levelMeter',          'levelMeter'],   // v1.14.0
-    ['#mix-lock',            'mixLock'],      // v1.16.0
+    ['#grainCanvas',         'grainView'],    // v1.21.0
     ['#grain-link',          'grainLink'],    // v1.17.0
     ['#ab-a',                'abA'],          // v1.18.0
     ['#ab-b',                'abB'],

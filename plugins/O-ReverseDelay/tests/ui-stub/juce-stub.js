@@ -325,9 +325,14 @@ const PRESET_FNS = {
 // broken page look correct.
 let uiLanguage = "en";
 
-// v1.16.0 — the Mix lock, held here for the same reason as uiLanguage, and
-// mirroring setMixLock's C++ rule: only a real boolean true locks.
-let mixLock = false;
+// v1.21.0 — a toy grain scheduler for the grain view. Spawns at G / overlap,
+// latches D (± Scatter), G, pan and direction like the engine, and reports each
+// live grain as the same [ageMs, lengthMs, phase, pan, level, forward] tuple the
+// C++ does. Test fixture only — the engine's scheduler is authoritative.
+let stubGrains = [];
+let stubNextSpawn = 0;
+let stubPanSign = 1;
+let stubGrainSeq = 0;
 
 // v1.18.0 — A/B slots. A snapshot is every slider's normalised value and every
 // combo's index the stub has created, which is what the page can see.
@@ -353,16 +358,17 @@ function abStateVar() {
   return { active: abActive, filledA: abSlots[0] !== null, filledB: abSlots[1] !== null };
 }
 
-// Mirrors the TWENTY-TWO native functions registered in PluginEditor.cpp:
+// Mirrors the TWENTY native functions registered in PluginEditor.cpp:
 // getParameterDefaults + getGrainMeter + getWindowCurve + v1.9.0's
-// getUiLanguage/setUiLanguage + v1.16.0's getMixLock/setMixLock + v1.18.0's
+// getUiLanguage/setUiLanguage + v1.18.0's
 // getAbState/abSelect/abCopy/randomise + v1.20.0's getPresetCategories (all
 // fetched by app.js) + the ten preset fns
 // (fetched by js/preset-manager.js). Any OTHER name must still reject —
 // rejecting the unknown is the whole point of this stub, and is how a bridge gap
 // surfaces here instead of as a silently dead control in a DAW
 // (pattern_webview_native_fn_bridge_gap). The whitelist grew
-// 1 -> 11 -> 12 -> 13 -> 15 -> 17 -> 21 -> 22; it did not become permissive.
+// 1 -> 11 -> 12 -> 13 -> 15 -> 17 -> 21 -> 22, then v1.21.0 dropped v1.16.0's
+// getMixLock/setMixLock with the padlock -> 20. It never became permissive.
 //
 // NOTE what is NOT here and must never be added: setTooltipsEnabled. D13 scoped
 // this plugin to display-only hover help, and section 14 of ui_frontend_check.js
@@ -376,17 +382,6 @@ export function getNativeFunction(name) {
     return (code) => {
       uiLanguage = code === "fr" ? "fr" : "en";
       return Promise.resolve(uiLanguage);
-    };
-  }
-
-  if (name === "getMixLock") {
-    return () => Promise.resolve(mixLock);
-  }
-
-  if (name === "setMixLock") {
-    return (on) => {
-      mixLock = on === true;
-      return Promise.resolve(mixLock);
     };
   }
 
@@ -481,7 +476,35 @@ export function getNativeFunction(name) {
       const frozen = getToggleState("freeze").getValue() === true;
       stubFreezeOnAt = frozen ? (stubFreezeOnAt ?? Date.now()) : null;
 
+      // v1.21.0 grain view.
+      const now = performance.now();
+      const scatter = getSliderState("delayScatter").getScaledValue();
+      const width   = getSliderState("width").getScaledValue() / 100;
+      const fwdProb = getSliderState("direction").getScaledValue() / 100;
+      const gainRnd = getSliderState("gainRandom").getScaledValue() / 100;
+      const interval = grainMs / Math.max(1, overlap);
+      if (stubNextSpawn === 0 || now - stubNextSpawn > 4 * grainMs) stubNextSpawn = now;
+      while (stubNextSpawn <= now) {
+        stubPanSign = -stubPanSign;
+        const d = Math.max(grainMs, delayMs + scatter * (2 * Math.random() - 1));
+        stubGrains.push({
+          born: stubNextSpawn, d, len: grainMs,
+          pan: 0.5 + width * 0.5 * stubPanSign * (0.35 + 0.65 * Math.random()),
+          level: 1 + gainRnd * (2 * Math.random() - 1),
+          fwd: Math.random() < fwdProb,
+        });
+        stubNextSpawn += interval;
+      }
+      stubGrains = stubGrains.filter((g) => now - g.born < g.len);
+      const grains = stubGrains.map((g) => {
+        const n = now - g.born;
+        return [g.fwd ? g.d : g.d + 2 * n, g.len, n / g.len, g.pan, g.level, g.fwd ? 1 : 0];
+      });
+      stubGrainSeq += 1;
+
       return Promise.resolve({
+        grains,
+        grainSeq: stubGrainSeq,
         active: Math.max(0, Math.round(overlap) - (tick % 2)),
         overlap,
         delayMs,
