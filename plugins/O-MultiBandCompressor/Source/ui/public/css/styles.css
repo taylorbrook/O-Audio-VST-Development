@@ -44,6 +44,11 @@
      .knob-label             9    11      8px       9 /  8 = 1.125
      .detector-title         8     9      7px       8 /  7 = 1.1428571
 
+   v1.13.0 adds two more 9px leaves, .gr-readout and .gr-band-readout, carrying
+   the same 10 / 9 pin. Their content is digits and "dB" — Latin in all three
+   languages — so they are pinned for determinism rather than to repair a
+   measured Han growth, and both are absolutely positioned besides.
+
    THE PIN IS LANGUAGE-INDEPENDENT ON PURPOSE. Each value is what English and
    French already computed, so neither arm moves; only the Chinese box is
    brought back to it. A pin written under `html[lang="zh-Hans"]` would leave
@@ -559,6 +564,130 @@ body {
     pointer-events: none;
 }
 
+/* ── v1.13.0: PER-BAND GAIN REDUCTION IN THE ANALYZER ───────────────────────
+
+   Four regions spanning the analyzer's x-axis between the crossovers. Each one
+   fills DOWNWARD from the top edge, which is 0 dB, at 12 dB full scale over the
+   container's 100px — 1 dB is 8.33px. Twelve rather than the strip meters'
+   24: program material compresses 1-6 dB, and on a 24 dB scale that is a
+   two-to-six-pixel sliver.
+
+   The fill is translucent so the spectrum curve reads through it rather than
+   being covered by it — this layer sits ON TOP of the canvas, and an opaque
+   fill would hide exactly the material whose compression it is reporting.
+
+   Visibility is carried by CLASSES, never by an inline opacity from JS: an
+   inline style outranks any class rule, so a JS-written opacity would make
+   .is-muted unable to hide a band. JS writes height, top, textContent and
+   class names only. The three state rules are ordered is-active -> is-narrow
+   -> is-muted; they share specificity, so source order is what resolves a band
+   that is more than one of them at once.                                    */
+
+.gr-bands {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.gr-band {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    overflow: hidden;   /* a band dragged narrow clips its readout, never spills it */
+    background: rgba(139, 115, 85, 0.05);
+    transition: left 0.1s ease-out, width 0.1s ease-out,
+                opacity 0.15s ease, filter 0.15s ease;
+    will-change: left, width;
+}
+
+/* Alternating tint so the four zones read as distinct at rest, with no data in them. */
+.gr-bands > .gr-band:nth-child(even) {
+    background: rgba(139, 115, 85, 0.09);
+}
+
+.gr-band-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 0%;
+    background: linear-gradient(to bottom,
+        rgba(107, 142, 35, 0.34) 0%,
+        rgba(107, 142, 35, 0.20) 55%,
+        rgba(107, 142, 35, 0.08) 100%);
+    border-bottom: 1px solid rgba(85, 107, 47, 0.7);
+    transition: height 0.05s ease-out, opacity 0.15s ease;
+    will-change: height;
+}
+
+/* Recent maximum. Held, then released at a fixed dB/s — see PEAK_* in app.js. */
+.gr-band-peak {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2px;
+    background: rgba(212, 165, 40, 0.85);
+    opacity: 0;
+    transition: top 0.08s linear, opacity 0.15s ease;
+    will-change: top;
+}
+
+/* Painted last in the band, so it stays legible over its own fill. Latin-only
+   content (digits + "dB") in all three languages, so unlike the caption leaves
+   in the LINE-HEIGHT PINS block its box cannot grow on the Chinese arm — the
+   pin is here for determinism, not to repair a measured growth. */
+.gr-band-readout {
+    line-height: 1.1111111;   /* 10.00 / 9px — see the LINE-HEIGHT PINS block */
+    position: absolute;
+    top: 3px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 600;
+    color: #3C2F2F;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+
+.gr-band.is-active .gr-band-readout,
+.gr-band.is-active .gr-band-peak {
+    opacity: 1;
+}
+
+/* Too narrow to hold the number without clipping it mid-glyph. */
+.gr-band.is-narrow .gr-band-readout {
+    opacity: 0;
+}
+
+/* Bypassed, or muted by another band's solo. Both states already store GR 0
+   (Compressor.h, MultiBandProcessor.h), so without this the region would read
+   as a band that simply is not compressing rather than one that is not being
+   heard. */
+/* Selector carries .gr-bands > so it outranks the nth-child tint above, which is
+   (0,3,0) and would otherwise keep its background. A hatch rather than a lowered
+   opacity: the tint it would be dimming is already only 5-9% alpha, so dimming it
+   makes an inaudible band look like an ordinary idle one. */
+.gr-bands > .gr-band.is-muted {
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(92, 64, 51, 0.11) 0px,
+        rgba(92, 64, 51, 0.11) 3px,
+        rgba(92, 64, 51, 0.03) 3px,
+        rgba(92, 64, 51, 0.03) 6px);
+}
+
+.gr-band.is-muted .gr-band-fill,
+.gr-band.is-muted .gr-band-peak,
+.gr-band.is-muted .gr-band-readout {
+    opacity: 0;
+}
+
 .crossover-line {
     position: absolute;
     top: 0;
@@ -755,6 +884,35 @@ body {
     color: #3C2F2F;
     font-weight: 600;
     text-transform: uppercase;
+}
+
+/* v1.13.0: the band's gain reduction as a number, opposite the GR caption.
+   Absolutely positioned, so the widest caption arm (zh-Hans 增益衰减) cannot
+   push it and it cannot push the caption — the two never share a flow. Latin-only
+   content; pinned for the same determinism reason as .gr-band-readout.
+
+   The chip is not decoration. This number sits in the lane the .gr-fill gradient
+   sweeps through, so without it the text's background is whatever the fill happens
+   to be under it — measured between 7.95:1 over the empty meter and 3.35:1 over
+   the gradient's olive stop, i.e. AA or not depending on the signal. The chip
+   makes the backing deterministic at 9.3:1 whatever the fill is doing, the same
+   trick .crossover-label uses to stay readable over the analyzer.
+
+   It replaces a resting opacity of 0.45, which measure-ui --contrast read at
+   1.32:1 — de-emphasis bought at the cost of legibility. */
+.gr-readout {
+    line-height: 1.1111111;   /* 10.00 / 9px — see the LINE-HEIGHT PINS block */
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 1px 4px;
+    border-radius: 2px;
+    background: rgba(245, 240, 225, 0.82);
+    font-size: 9px;
+    color: #3C2F2F;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Band Controls Grid */
