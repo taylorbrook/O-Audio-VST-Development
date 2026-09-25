@@ -46,21 +46,44 @@ The overall feeling is:
 
 **Earth Tone Accents:**
 
-- Muted green: #8BA870 (moss/sage) - for active states, botanical references
-- Deeper green: #6B8E4E - for hover states, emphasis
-- Warm brown: #8B7355 (walnut/oak) - for borders, text, structural elements
+- Muted green: #8BA870 (moss/sage) - for active-state fills and botanical references, not text (2.16:1 on #F5E6D3)
+- Deeper green: #6B8E4E - for hover fills, emphasis borders and decoration; sage TEXT uses #55703E / #4E6839 instead (the original is 3.06:1)
+- Warm brown: #8B7355 (walnut/oak) - for borders, structural elements and decoration only; walnut-toned text uses the AA variants in Text Contrast below (the original is 3.66:1 on #F5E6D3, 3.26:1 on #EBD9C7)
 - Dark brown: #5C4033 - for deep shadows, strong borders, emphasis
 
 **Text Colors:**
 
 - Primary text: Dark brown (#3C2F2F) - warm, readable, elegant
 - Secondary text: Medium brown (#5C4033) - labels, less prominent information
-- Subtle text: Lighter brown with reduced opacity - tertiary information
+- Tertiary text: the walnut AA variants (#7A654B on #F5E6D3, #715D45 on #EBD9C7) at FULL opacity. Reduced opacity is for decoration only (fleurons, dividers), never for text a user must read
+- On #D4C4B0 accent panels: text uses #5C4033 (5.51:1) or darker - the walnut variants fail there (#715D45 = 3.67:1)
 
 **Special Accents:**
 
 - Botanical green: #6B8E4E to #8BA870 - for toggles, active states, botanical elements
 - Fleuron decorations: Use sparingly in dark brown (#5C4033) at low opacity
+
+### Text Contrast (WCAG AA)
+
+Every piece of text a user must read meets **4.5:1** against the colour it sits on, or **3:1** for large text (>= 24px, or >= 18.66px bold). The palette's walnut and sage originals fail as text at this template's label sizes, so text takes the AA variants below. Each variant is bound to its background.
+
+| Text colour | On background | Ratio | Use |
+|---|---|---|---|
+| #7A654B | #F5E6D3 | 4.52 | Walnut text on the lighter paper |
+| #715D45 | #EBD9C7 | 4.56 | Walnut text on the darker paper - also 5.11 on #F5E6D3, so the walnut that is safe on either paper tone |
+| #55703E | #F5E6D3 | 4.54 | Sage text on the lighter paper |
+| #4E6839 | #EBD9C7 | 4.54 | Sage text on the darker paper |
+| #3C2F2F | #F5E6D3 | 10.45 | Primary text (already passing) |
+| #5C4033 | #F5E6D3 | 7.67 | Secondary text (already passing); 5.51 on #D4C4B0 panels |
+| #2C3E10 | default / active button tint | 7.66 / 5.01 | Button text (already passing; tints composited over #F5E6D3) |
+| #8B7355 | #F5E6D3 | 3.66 | Borders / fills / decoration only - fails as text |
+| #6B8E4E | #F5E6D3 | 3.06 | Borders / fills / decoration only - fails as text |
+| #8BA870 | #F5E6D3 | 2.16 | Borders / fills / decoration only - fails as text |
+
+- **Bound to the background:** #7A654B and #55703E FAIL on #EBD9C7 (4.03 / 4.05). On the darker paper use #715D45 and #4E6839.
+- Ratios are WCAG 2.x relative luminance. Each variant was derived by scaling the original's RGB until it clears 4.5:1 (R4, UI design review 260924-nho).
+- Text over a background image (paper JPG, botanical plate) is not captured by a colour ratio. Keep reading-critical text on flat colour, or check it by eye.
+- Measure a plugin with `node scripts/measure-ui.js --plugin <Name> --contrast`.
 
 ### Control Colors
 
@@ -108,6 +131,7 @@ Warm, low-saturation earth palette evokes vintage paper and botanical specimens.
 - Section labels: Medium (12-14px), uppercase, moderate spacing (1px)
 - Parameter labels: Small (9-11px), uppercase, wide letter-spacing (0.5-1px)
 - Value displays: Small to medium (10-12px), regular case for numbers
+- **Text floor: 9px.** No rendered text below 9px - including version labels, keyboard note names, units and footers. Text at the floor must still meet 4.5:1 (see Text Contrast)
 
 **Font Styling:**
 
@@ -604,9 +628,15 @@ Core identity elements (preserve these):
 --bg-accent: #D4C4B0;             /* Darker tan for panels */
 
 /* Browns */
---brown-border: #8B7355;          /* Walnut - borders, text */
+--brown-border: #8B7355;          /* Walnut - borders and decoration, NOT text (3.66:1) */
 --brown-frame: #5C4033;           /* Oak - strong borders */
 --brown-text: #3C2F2F;            /* Primary text */
+
+/* Text on paper — WCAG AA 4.5:1 */
+--text-walnut: #7A654B;           /* Walnut text on #F5E6D3 (4.52:1) */
+--text-walnut-mid: #715D45;       /* Walnut text on #EBD9C7 (4.56:1); 5.11:1 on #F5E6D3 */
+--text-sage: #55703E;             /* Sage text on #F5E6D3 (4.54:1) */
+--text-sage-mid: #4E6839;         /* Sage text on #EBD9C7 (4.54:1) */
 
 /* Greens (Botanical Accents) */
 --green-light: #8BA870;           /* Moss/sage - active states */
@@ -656,6 +686,8 @@ When applying Ouaricon Naturalist aesthetic to a new plugin:
 - [ ] Include decorative fleurons where appropriate
 - [ ] Test visual balance with botanical overlay
 - [ ] Verify all controls readable and accessible
+- [ ] No text below the 9px text floor (version labels, note names, units and footers included)
+- [ ] Text colours taken from the Text Contrast pair table; `node scripts/measure-ui.js --plugin <Name> --contrast` shows 0 below AA on flat backgrounds
 - [ ] Validate WebView constraints (no viewport units, etc.)
 - [ ] Test in Debug and Release builds
 
