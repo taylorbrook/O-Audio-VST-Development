@@ -451,6 +451,52 @@ export const I18N = Object.freeze({
               reviewed: 'mt' },
     },
 
+    // ── v1.18.0: A/B compare + Randomise ────────────────────────────────────
+    // Each is a tip AND its control's accessible name (data-i18n-aria resolves
+    // the title). Glyph faces, so no caption has to fit. New copy: fr starts
+    // reviewed:false, zh-Hans at 'mt'. The fr bodies avoid : ; ? ! so no
+    // espace insécable is needed.
+    'abA': {
+        en: { t: 'Snapshot A',
+              b: 'Switch to snapshot A. The settings you leave are kept in B, so you can flip back and forth to compare. Snapshots last while the plugin is open and are not saved with the session.' },
+        fr: { t: 'Instantané A',
+              b: 'Passe à l’instantané A. Les réglages que vous quittez sont conservés dans B, ce qui permet d’alterner pour comparer. Les instantanés durent tant que le plugin est ouvert et ne sont pas enregistrés avec la session.',
+              reviewed: false },
+        'zh-Hans': { t: '快照 A',
+              b: '切换到快照 A。离开时的设置会保存在 B 中，因此可以来回切换进行比较。快照在插件打开期间有效，不随会话保存。',
+              reviewed: 'mt' },
+    },
+    'abB': {
+        en: { t: 'Snapshot B',
+              b: 'Switch to snapshot B. The settings you leave are kept in A, so you can flip back and forth to compare. The first time, B starts as a copy of A. Snapshots last while the plugin is open and are not saved with the session.' },
+        fr: { t: 'Instantané B',
+              b: 'Passe à l’instantané B. Les réglages que vous quittez sont conservés dans A, ce qui permet d’alterner pour comparer. La première fois, B part d’une copie de A. Les instantanés durent tant que le plugin est ouvert et ne sont pas enregistrés avec la session.',
+              reviewed: false },
+        'zh-Hans': { t: '快照 B',
+              b: '切换到快照 B。离开时的设置会保存在 A 中，因此可以来回切换进行比较。第一次切换时，B 从 A 的副本开始。快照在插件打开期间有效，不随会话保存。',
+              reviewed: 'mt' },
+    },
+    'abCopy': {
+        en: { t: 'Copy Snapshot',
+              b: 'Copies the snapshot you are on into the other one (A→B on A, B→A on B). Nothing you hear changes.' },
+        fr: { t: 'Copier l’instantané',
+              b: 'Copie l’instantané actif dans l’autre (A→B sur A, B→A sur B). Le son ne change pas.',
+              reviewed: false },
+        'zh-Hans': { t: '复制快照',
+              b: '将当前快照复制到另一个快照（在 A 上为 A→B，在 B 上为 B→A）。听到的声音不会改变。',
+              reviewed: 'mt' },
+    },
+    'randomise': {
+        en: { t: 'Randomise',
+              b: 'Sets random values for the Random, Window, Drift and Colour controls only. Feedback, Regen, Mix and Output are never touched. The settings from before are kept in the other snapshot, so one click on it takes you back.' },
+        fr: { t: 'Aléatoire',
+              b: 'Donne des valeurs aléatoires aux seules commandes Aléa, Fenêtre, Dérive et Couleur. La réinjection, le regain, le mix et la sortie ne sont jamais modifiés. Les réglages d’avant sont conservés dans l’autre instantané, et un clic sur celui-ci vous y ramène.',
+              reviewed: false },
+        'zh-Hans': { t: '随机化',
+              b: '仅为随机、窗口、漂移和音色面板中的控件设置随机值。反馈、再生、混合和输出永远不会被改动。之前的设置保存在另一个快照中，点击它即可返回。',
+              reviewed: 'mt' },
+    },
+
     // ── v1.16.0: the Mix lock ───────────────────────────────────────────────
     // A tip AND the lock's accessible name (data-i18n-aria resolves the title).
     // The button is icon-only, so no caption has to fit. New copy: fr starts
@@ -839,6 +885,9 @@ export const LABELS = Object.freeze({
     'opt.grainLink.free':     { en: { t: 'Free' },       fr: { t: 'Libre',         reviewed: false } , 'zh-Hans': { t: '自由',     reviewed: 'mt' },},
     'opt.grainLink.delay':    { en: { t: '= Delay' },    fr: { t: '= Délai',       reviewed: false } , 'zh-Hans': { t: '= 延迟',   reviewed: 'mt' },},
     'opt.grainLink.division': { en: { t: 'Division' },   fr: { t: 'Division',      sameAsEn: true, reviewed: true } , 'zh-Hans': { t: '分割', reviewed: 'mt' },},
+
+    // v1.18.0 — the A/B group's accessible name (role="group").
+    'aria.abGroup':           { en: { t: 'A/B compare' }, fr: { t: 'Comparaison A/B', reviewed: false } , 'zh-Hans': { t: 'A/B 比较', reviewed: 'mt' },},
 });
 
 // ============================================================================
@@ -888,6 +937,10 @@ export const TIP_BINDINGS = [
     ['#levelMeter',          'levelMeter'],   // v1.14.0
     ['#mix-lock',            'mixLock'],      // v1.16.0
     ['#grain-link',          'grainLink'],    // v1.17.0
+    ['#ab-a',                'abA'],          // v1.18.0
+    ['#ab-b',                'abB'],
+    ['#ab-copy',             'abCopy'],
+    ['#ab-random',           'randomise'],
 
     ['#knob-jitter',         'knob-jitter'],
     ['#knob-delayScatter',   'knob-delayScatter'],

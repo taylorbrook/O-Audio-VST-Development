@@ -128,6 +128,29 @@
       <button type="button" class="preset-btn" id="preset-load" data-i18n="label.load" data-label="Load">Load</button>
       <button type="button" class="preset-btn" id="preset-delete"
               data-i18n="label.delete" data-label="Delete" data-armed="0">Delete</button>
+      <!-- v1.18.0: A/B compare + Randomise, after a hairline divider. Glyph faces
+           (A, B, A→B, a die) so no caption changes width with the language; each
+           control's accessible name and tip come from its data-i18n-aria key.
+           #ab-copy's face is written by app.js (A→B on A, B→A on B) — it carries
+           no data-i18n, so applyLabel() never overwrites it. -->
+      <span class="ab-divider" aria-hidden="true"></span>
+      <div class="ab-group" role="group" data-i18n-aria="aria.abGroup" aria-label="A/B compare">
+        <button type="button" class="preset-nav ab-slot active" id="ab-a" aria-pressed="true"
+                data-i18n-aria="abA" aria-label="Snapshot A">A</button>
+        <button type="button" class="preset-nav ab-slot" id="ab-b" aria-pressed="false"
+                data-i18n-aria="abB" aria-label="Snapshot B">B</button>
+        <button type="button" class="preset-nav ab-copy" id="ab-copy"
+                data-i18n-aria="abCopy" aria-label="Copy Snapshot">A&#8594;B</button>
+        <button type="button" class="preset-nav ab-random" id="ab-random"
+                data-i18n-aria="randomise" aria-label="Randomise">
+          <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">
+            <rect x="0.75" y="0.75" width="10.5" height="10.5" rx="2" />
+            <circle cx="3.5" cy="3.5" r="1" /><circle cx="8.5" cy="3.5" r="1" />
+            <circle cx="6"   cy="6"   r="1" />
+            <circle cx="3.5" cy="8.5" r="1" /><circle cx="8.5" cy="8.5" r="1" />
+          </svg>
+        </button>
+      </div>
       <span class="fleuron">&#10086;</span>
     </div>
 

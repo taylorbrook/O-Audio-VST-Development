@@ -195,10 +195,11 @@ console.log('== O-ReverseDelay ui_frontend_check ==');
     //   13 -> 15  v1.9.0  getUiLanguage + setUiLanguage (the hover-help language
     //                     pair). NOT a tooltip on/off pair — see section 14.
     //   15 -> 17  v1.16.0 getMixLock + setMixLock (the Mix lock state pair).
-    check(called.size === 17 && registered.size === 17,
-        `bridge surface is exactly 17 fns (getParameterDefaults + getGrainMeter`
+    //   17 -> 21  v1.18.0 getAbState + abSelect + abCopy + randomise (A/B).
+    check(called.size === 21 && registered.size === 21,
+        `bridge surface is exactly 21 fns (getParameterDefaults + getGrainMeter`
         + ` + getWindowCurve + getUiLanguage + setUiLanguage + getMixLock`
-        + ` + setMixLock + 10 preset)`
+        + ` + setMixLock + getAbState + abSelect + abCopy + randomise + 10 preset)`
         + ` — got JS=${called.size} C++=${registered.size}`);
     check(called.has('getParameterDefaults') && registered.has('getParameterDefaults'),
         'getParameterDefaults is called by the JS AND registered in C++');
