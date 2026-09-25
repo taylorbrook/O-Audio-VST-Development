@@ -2,6 +2,85 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.32.0] - 2026-09-25
+
+Second Info-tier sweep of the v1.29.0 `CODE_REVIEW.md`
+(`/improve-review-info`): the eight findings v1.31.1 listed as audible. MINOR,
+following that note and the v1.31.0 precedent: no parameter ID, range, type
+or state format changed, but glide, bend, consonant bursts, the reverb away
+from 48 kHz and EQ sweeps sound different. Needs a listening pass on the
+factory presets.
+
+### Fixed
+
+- **Pitch bend lagged behind the wheel, and a note started with the wheel
+  already bent slid up to it (IN-01).** The bend was folded into the Glide
+  smoother's target. It is now applied after the smoother, so the wheel is
+  immediate and Glide shapes only note-to-note movement. Tuning, Note
+  Expression and bend still multiply.
+- **Glide started from whatever a voice last played (IN-02).** A voice that
+  finished its release kept its old pitch as the glide source, so a later
+  chord slid in from unrelated notes. It is now cleared when the release
+  ends, and on the unmapped-note early-out. Glide still applies when a
+  voice that is still sounding is retaken.
+- **Switching Formant Topology clicked (IN-11).** Cascade ↔ Hybrid turns
+  cascade stages 4–5 from resonators into band-passes with the old state
+  still inside, and the bank Parallel skips holds stale state and targets.
+  A switch now clears both banks and snaps onto the current formants.
+- **High-manner consonant bursts were cut off at 13.5 % (IN-14).** The burst
+  decay `exp(−rate·t)` with rate 12 − 10·manner ends at `exp(−2)` at the
+  fricative end. It is now rescaled from `(e^{−rt} − e^{−r}) / (1 − e^{−r})`,
+  so it still peaks at 1 and ends at exactly 0. Plosives are effectively
+  unchanged (rate 12: end level 6·10⁻⁶).
+- **The host tail was a fixed 5 s (IN-04), shorter than Release alone
+  (up to 10 s).** Offline bounces could cut the tail. The tail is now computed
+  from the current settings: release, plus the delay to −60 dB when delay is
+  active, plus reverb pre-delay and RT60 when reverb is active. A constant
+  would have to be ≈ 291.5 s, because 2 s of delay at 0.95 feedback alone
+  takes 269.3 s to fall 60 dB.
+- **Renders were not reproducible (IN-06).** Vibrato jitter and aspiration
+  noise used clock-seeded `juce::Random`. Both are now seeded per voice at
+  `prepare()`, with distinct constants. Seeding per note would have repeated
+  the same breath noise on every note.
+- **The reverb changed colour and modulation depth with sample rate
+  (IN-12).** The tank damping one-pole and the 16-sample mod excursion were
+  per-sample constants. Both now follow the 48 kHz reference that every
+  reverb delay length already uses. Damping maps to `a^(48000/sr)` and
+  excursion scales by `sr/48000`. At 48 kHz the reverb is unchanged: the
+  mapping returns its input exactly for all 1,060,320,052 float damping
+  values in [0, 0.7]. At 44.1 kHz, damping 0.7 becomes 0.678, and the
+  excursion becomes 14.7 samples.
+- **EQ sweeps zippered (IN-15).** Coefficients were recomputed once per host
+  block. Gains (linear) and Mid Freq (multiplicative) now glide over 20 ms,
+  and the coefficients follow in 32-sample sub-blocks while any of them
+  moves. This is still allocation-free (`ArrayCoefficients`). Re-enabling
+  the EQ snaps to the current settings instead of gliding from stale values.
+
+### Testing
+
+- Build is clean, with no new warnings. `auval -v aumu OuFm OuDv`: PASS.
+- `ui_tip_render_check` (1794), check-i18n, fr-lint, zh-lint and
+  check-ui-labels: all PASS.
+- pluginval strictness 10 (VST3, in-process, parameter fuzz): SUCCESS.
+- No render-based null or positive control: there is no render harness for
+  O-Formant, and the v1.31.1 null host was not kept. The arithmetic claims
+  above were checked in a standalone program. Listening pass pending.
+
+### Notes — still open from CODE_REVIEW.md
+
+- **Chosen resolutions, not yet applied:**
+  - IN-17: fix O-Formant's Partch 43 table only (add 11/10 = 165.0 ¢ and
+    20/11 = 1035.0 ¢). The shared module and five other copies follow
+    separately. This moves every degree above 11/10 onto a different key.
+  - IN-18: document and leave (cross-plugin tonic semantics).
+  - IN-24: semantics and i18n only. That covers tab roles and tabindex, the
+    gear's `aria-expanded`, and localised generated scale names.
+- **Open:**
+  - IN-10 (aspiration burst at a fixed 0.6 phase vs Te).
+  - IN-21 (category and prev/next navigation).
+  - IN-24 interaction work (focusable knobs, wheel, double-click reset,
+    fine drag).
+
 ## [1.31.1] - 2026-09-24
 
 Info-tier sweep of the v1.29.0 `CODE_REVIEW.md` (`/improve-review-info`):
@@ -110,9 +189,10 @@ Delay Time now reaches its full 2 s.
   IN-11 (topology-switch click), IN-12 (reverb SR dependence), IN-14a (burst
   truncation), IN-15 (EQ zipper), IN-17 (Partch 43 missing 11/10 and 20/11;
   the same table is in the shared tuning module and five other plugins).
+  *Resolved in v1.32.0: IN-01, IN-02, IN-06, IN-11, IN-12, IN-14a, IN-15.*
 - **Needs a design decision:**
   - IN-18 (tonic semantics): cross-plugin, better fixed in the module.
-  - IN-04 (tail length).
+  - IN-04 (tail length). *Resolved in v1.32.0.*
   - IN-21 (category and prev/next navigation).
 - **Feature work (MINOR):** IN-24a–e. Covers keyboard and ARIA access for
   tabs, knobs and the gear, wheel, double-click reset and fine drag, and

@@ -48,6 +48,14 @@ void EQProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     *highShelf.state = ArrayCoeffs::makeHighShelf (
         currentSampleRate, 8000.0f, 0.707f,
         juce::Decibels::decibelsToGain (targetHighGainDB.load()));
+
+    // IN-15: 20 ms glide on every band control. Multiplicative for the
+    // frequency so a sweep moves evenly in octaves.
+    lowGainSm.reset (spec.sampleRate, 0.02);
+    midGainSm.reset (spec.sampleRate, 0.02);
+    highGainSm.reset (spec.sampleRate, 0.02);
+    midFreqSm.reset (spec.sampleRate, 0.02);
+    snapOnNextProcess = true;
 }
 
 void EQProcessor::reset()
@@ -55,6 +63,9 @@ void EQProcessor::reset()
     lowShelf.reset();
     midPeak.reset();
     highShelf.reset();
+    // Re-enable path: the caller resets before it pushes the current targets,
+    // so snap on the next process() rather than glide from stale values.
+    snapOnNextProcess = true;
 }
 
 void EQProcessor::setLowGain (float dB)  { targetLowGainDB.store (dB, std::memory_order_relaxed); }
@@ -64,15 +75,71 @@ void EQProcessor::setHighGain (float dB) { targetHighGainDB.store (dB, std::memo
 
 void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
 {
-    float lowGain = targetLowGainDB.load (std::memory_order_relaxed);
-    float midGain = targetMidGainDB.load (std::memory_order_relaxed);
-    float midFreq = targetMidFreqHz.load (std::memory_order_relaxed);
-    float highGain = targetHighGainDB.load (std::memory_order_relaxed);
+    const float lowGain  = targetLowGainDB.load (std::memory_order_relaxed);
+    const float midGain  = targetMidGainDB.load (std::memory_order_relaxed);
+    const float midFreq  = juce::jmax (1.0f, targetMidFreqHz.load (std::memory_order_relaxed));
+    const float highGain = targetHighGainDB.load (std::memory_order_relaxed);
+
+    if (snapOnNextProcess)
+    {
+        snapOnNextProcess = false;
+        lowGainSm.setCurrentAndTargetValue (lowGain);
+        midGainSm.setCurrentAndTargetValue (midGain);
+        midFreqSm.setCurrentAndTargetValue (midFreq);
+        highGainSm.setCurrentAndTargetValue (highGain);
+    }
+    else
+    {
+        lowGainSm.setTargetValue (lowGain);
+        midGainSm.setTargetValue (midGain);
+        midFreqSm.setTargetValue (midFreq);
+        highGainSm.setTargetValue (highGain);
+    }
+
+    const auto numSamples = block.getNumSamples();
+    size_t pos = 0;
+
+    // v1.31.2 (review IN-15): step the coefficients along the smoothed values
+    // in kCoeffInterval sub-blocks while any control is gliding; once settled,
+    // one update (skipped when unchanged) covers the rest of the block.
+    while (pos < numSamples)
+    {
+        const bool smoothing = lowGainSm.isSmoothing() || midGainSm.isSmoothing()
+                            || midFreqSm.isSmoothing() || highGainSm.isSmoothing();
+        const size_t len = smoothing
+            ? std::min (static_cast<size_t> (kCoeffInterval), numSamples - pos)
+            : numSamples - pos;
+
+        if (smoothing)
+        {
+            const int n = static_cast<int> (len);
+            lowGainSm.skip (n);
+            midGainSm.skip (n);
+            midFreqSm.skip (n);
+            highGainSm.skip (n);
+        }
+        updateCoefficients();
+
+        auto sub = block.getSubBlock (pos, len);
+        juce::dsp::ProcessContextReplacing<float> context (sub);
+        lowShelf.process (context);
+        midPeak.process (context);
+        highShelf.process (context);
+        pos += len;
+    }
+}
+
+void EQProcessor::updateCoefficients() noexcept
+{
+    const float lowGain  = lowGainSm.getCurrentValue();
+    const float midGain  = midGainSm.getCurrentValue();
+    const float midFreq  = midFreqSm.getCurrentValue();
+    const float highGain = highGainSm.getCurrentValue();
 
     // Recompute coefficients in place on the audio thread. ArrayCoeffs::makeXXX
     // returns a stack std::array<float,6>; assigning it into *state reuses the
     // storage allocated in prepare() — no ref-counted Coefficients heap alloc
-    // per changed block, unlike FilterCoeffs::makeXXX() (WR-08).
+    // per update, unlike FilterCoeffs::makeXXX() (WR-08).
     if (lowGain != prevLowGainDB)
     {
         *lowShelf.state = ArrayCoeffs::makeLowShelf (
@@ -97,9 +164,4 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
             juce::Decibels::decibelsToGain (highGain));
         prevHighGainDB = highGain;
     }
-
-    juce::dsp::ProcessContextReplacing<float> context (block);
-    lowShelf.process (context);
-    midPeak.process (context);
-    highShelf.process (context);
 }

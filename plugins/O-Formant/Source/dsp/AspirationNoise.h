@@ -63,6 +63,10 @@ public:
         breathSmoothed.setTargetValue (breath);
     }
 
+    // IN-06: a default-constructed juce::Random is clock-seeded, so no two
+    // renders matched. The voice seeds this once per prepare().
+    void setSeed (juce::int64 seed) noexcept { random.setSeed (seed); }
+
     void setGlottalPhase (float phase01) noexcept
     {
         glottalPhase = phase01;

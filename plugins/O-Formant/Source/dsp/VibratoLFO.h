@@ -87,6 +87,10 @@ public:
         return depthCents * sinVal * delayGain;
     }
 
+    // IN-06: a default-constructed juce::Random is clock-seeded, so no two
+    // renders matched. The voice seeds this once per prepare().
+    void setSeed (juce::int64 seed) noexcept { random.setSeed (seed); }
+
     float getJitterOffset() const noexcept { return jitterOffset; }
 
     void reset() noexcept
