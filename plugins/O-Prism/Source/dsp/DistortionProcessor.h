@@ -48,8 +48,21 @@ public:
 private:
     void applyDistortion (juce::dsp::AudioBlock<float>& block);
 
+    /** Channel count the oversampler is built for. The oversampled block can
+        therefore never present more channels than this, which is what bounds
+        `adaaPrevU` below -- the two MUST stay in agreement.
+    */
+    static constexpr size_t kNumChannels = 2;
+
     juce::dsp::Oversampling<float> oversampling;
     juce::dsp::DryWetMixer<float> dryWetMixer;
+
+    /** Previous oversampled input sample per channel, for the antialiased Fold
+        (IN-09). Tracked for EVERY distortion type, not only Fold, so that
+        switching into Fold never differences against a sample left over from
+        whenever Fold last ran. Cleared by `prepare()` and `reset()`.
+    */
+    double adaaPrevU[kNumChannels] { 0.0, 0.0 };
 
     int distType = 0;
     float driveAmount = 0.0f;

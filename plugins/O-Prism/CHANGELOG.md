@@ -1,5 +1,225 @@
 # O-Prism Changelog
 
+## [1.29.0] - 2026-09-24
+
+Closes **IN-09**, the one finding `CODE_REVIEW.md` still had open — the Fold
+distortion mode aliasing at 2× oversampling — which v1.28.1 deferred to its own
+MINOR because neither prescribed fix was PATCH-shaped. `CODE_REVIEW.md` now has
+no open findings.
+
+MINOR, not PATCH: **Fold sounds different at every setting**, and reported
+latency changes for all four distortion modes. No parameter ID, range, type or
+state-format change, and no preset migration — a saved patch's stored values
+still mean exactly what they meant.
+
+Every figure below is measured against the real processor by the new
+`distortion-alias-check` gate (91 assertions). The metric throughout is
+alias-to-signal ratio in dB: a band-limited saw whose partials all sit under
+Nyquist is driven through the stage, and energy returning at frequencies that
+are *not* integer multiples of the fundamental is alias by construction, since a
+memoryless shaper can only make harmonics.
+
+### Both of the review's prescribed fixes were refuted — one on effectiveness
+
+v1.28.1 rejected both prescriptions as non-PATCH-shaped. That was right, but it
+was not the binding objection for either.
+
+**Raising the oversampling factor does not work.** Not "is too expensive" —
+does not work. The review's premise was that 2× cannot contain Fold's harmonic
+order, which is true: `sin (πx)` at drive 1.0's 10× pre-gain reaches order ~37
+*per input partial*, and against a saw carrying tens of partials the product
+needs roughly 36× to contain. But the fix does not follow. With Fold
+antialiased, alias-to-signal at 110 Hz / drive 1.0 measures 2× −29.2 dB, 4×
+−27.3 dB, 8× −25.9 dB — the bigger factors are marginally **worse**. What
+remains at that point is not content far above Nyquist that a larger factor
+would push away; it is content sitting in the polyphase IIR decimator's wide
+transition band, which no factor reaches.
+
+**A bounded triangle fold is not bounded either.** Its corners are
+derivative-discontinuous, so harmonic order is still infinite — 1/n² decay
+instead of Bessel. It trades a full rewrite of Fold's timbre for a partial
+improvement, which is the worse half of the deal.
+
+### Fold is antialiased directly, and the decimator was the real bottleneck
+
+`Source/dsp/DistortionProcessor.cpp`
+
+**First-order antiderivative antialiasing on Fold** (Parker, Zavalishin &
+D'Angelo 2016). `sin (πu)` has the closed-form antiderivative `F(u) = −cos (πu)/π`,
+so the difference quotient `y[n] = (F(u[n]) − F(u[n−1])) / (u[n] − u[n−1])` is
+*exact* — the shaper is not approximated. It evaluates the average of `f` over
+the segment the input travelled during the sample, which is precisely the
+band-limiting the naive point evaluation omits.
+
+**Then the decimator, which turned out to matter more than the factor.** The two
+JUCE half-band filters fail in complementary places:
+
+- `filterHalfBandPolyphaseIIR` at max quality has the **deeper stopband** but a
+  **wide transition band**, so alias just above the base Nyquist returns barely
+  attenuated.
+- `filterHalfBandFIREquiripple` has the **narrow transition** but a shallower
+  stopband, so it catches that near-Nyquist content and misses a little of what
+  lands far above.
+
+Low fundamentals scatter alias widely, mostly deep in the stopband, where IIR
+wins. High fundamentals pile it just above Nyquist, where FIR wins — and by far
+more: Fold at 4 kHz / drive 1.0 measured −7.2 dB under IIR against −21.7 dB
+under FIR, a 17 dB difference, in the octave where Fold was genuinely unusable.
+
+Shipped: **4× FIR equiripple**, factor and filter both moved. Fold:
+
+| f0 | drive 0.5 → | drive 1.0 → |
+|---|---|---|
+| 110.7 Hz | −23.8 → **−39.7** (+15.9) | −19.9 → **−30.8** (+10.9) |
+| 440.7 Hz | −17.9 → **−28.4** (+10.5) | −13.6 → **−23.6** (+9.9) |
+| 1000.7 Hz | −14.5 → **−31.8** (+17.3) | −9.7 → **−28.3** (+18.6) |
+| 4000.7 Hz | −0.3 → **−10.5** (+10.2) | −5.2 → **−24.5** (+19.3) |
+
+At 4 kHz / drive 0.5 the alias was *louder than the signal* (−0.3 dB). It still
+is not good there (−10.5 dB, against the saturators' −33), and that is stated
+rather than papered over: the top octave at moderate drive is Fold's remaining
+weak point, improved by 10 dB but not resolved.
+
+### The factor had to move because FIR alone regressed the other three modes
+
+This is the part the gate caught and a source reading would not have. The
+decimator is not Fold-scoped — it moves Soft Clip, Hard Clip and Tube too, none
+of which touch the ADAA branch. **FIR at 2×, the obvious cheaper answer, made
+all three worse by 0.6 to 2.9 dB at 110 and 440 Hz**, because IIR's deeper
+stopband had been carrying the low fundamentals:
+
+| | pre-fix 2× IIR | 2× FIR (rejected) | 4× FIR (shipped) |
+|---|---|---|---|
+| Soft Clip 110 Hz d0.5 | −46.0 | −43.1 ✗ | **−52.2** |
+| Hard Clip 110 Hz d0.5 | −43.2 | −40.9 ✗ | **−52.0** |
+| Tube 440 Hz d0.5 | −38.1 | −36.5 ✗ | **−45.1** |
+| Soft Clip 4 kHz d1.0 | −21.3 | −31.3 | **−34.5** |
+
+Raising to 4× recovers the stopband depth FIR gives up. 4× FIR then beats the
+pre-fix path at **every one of the 24 saturator measurements**, by 6.3 to
+13.9 dB, and at every Fold measurement by 9.9 to 19.3 dB. It is the only
+configuration tested that regresses nothing, which is why it is shipped over the
+cheaper 2× FIR.
+
+### The trade, stated plainly: Fold's timbre moves everywhere
+
+ADAA band-limits by averaging `f` over each sample's excursion, and that average
+attenuates genuine high harmonics along with the alias. Fold is duller than it
+was. Measured as partial-spectrum deviation from the pre-fix path — off-harmonic
+bins excluded, so alias removal does not inflate it:
+
+| f0 | drive 0.5 | drive 1.0 |
+|---|---|---|
+| 110.7 Hz | −20.1 dB | −18.8 dB |
+| 440.7 Hz | −11.2 dB | −14.9 dB |
+| 1000.7 Hz | −13.1 dB | −11.4 dB |
+| 4000.7 Hz | −4.1 dB | −5.6 dB |
+
+−11 dB is roughly a 28 % change in partial magnitudes; −4 dB is a different
+spectrum. So this is not a subtle correction at the extremes — **any patch on
+Fold will sound different**, most so at high pitch, where the old output was
+predominantly alias and the change therefore runs *towards* a true Fold rather
+than away from it. Exactly one factory preset selects the mode — **"Fold
+Engine"**, at drive 0.5, mix 0.25, filter at 900 Hz — so the factory bank is
+affected at the mild end. User patches on Fold will shift.
+
+### The two costs: reported latency, and ×7 CPU
+
+**CPU: ×6.7 to ×8.5.** Measured, not estimated — this was the cost that came in
+worst against expectation, and the figure is recorded here because "roughly
+double the oversampling work" was wrong by a factor of three. Per 512-sample
+stereo stage at drive 1.0, where one block is 10.67 ms of audio:
+
+| mode | pre-fix | shipped | | of one core |
+|---|---|---|---|---|
+| Soft Clip | 9.92 µs | 66.94 µs | ×6.8 | 0.63 % |
+| Hard Clip | 7.00 µs | 59.49 µs | ×8.5 | 0.56 % |
+| Tube | 8.90 µs | 64.01 µs | ×7.2 | 0.60 % |
+| Fold | 12.45 µs | 83.09 µs | ×6.7 | 0.78 % |
+
+JUCE's equiripple half-band FIR at max quality is simply far more work than the
+polyphase IIR — the ~120 taps per stage that buy the narrow transition band are
+the same taps that account for the latency — and 4× runs two such stages. In
+absolute terms the stage goes from 0.12 % to 0.78 % of one core, which on a
+16-voice wavetable synth is small beside the voices; it is nonetheless a real
+increase paid on every instance by default.
+
+For the record, the candidate sweep this was chosen from (Fold with ADAA, µs per
+block, against the 12.45 µs pre-fix path):
+
+| config | µs | ×pre-fix | latency | alias @ drive 1.0, 110/440/1k/4k Hz |
+|---|---|---|---|---|
+| 2× IIR | 20.05 | ×1.7 | 3.1 | −29.2 / −22.9 / −25.3 / −9.3 |
+| 4× IIR | 51.84 | ×4.3 | 4.4 | −27.3 / −22.1 / −32.3 / −7.2 |
+| 2× FIR | 46.37 | ×3.9 | 49.0 | −31.5 / −24.6 / −25.2 / −21.7 |
+| **4× FIR** | **83.48** | **×7.0** | **59.5** | **−30.8 / −23.6 / −28.3 / −24.5** |
+
+Plain ADAA at the existing 2× IIR lands within about 1 dB of the shipped build at
+110, 440 and 1000 Hz for ×1.7 and no latency change at all. The whole of the
+remaining cost buys one thing: the top octave, −9.3 → −24.5 dB. That is the case
+that made IN-09 a defect rather than a character quirk — at 4 kHz / drive 0.5 the
+alias was *louder than the signal* — so it is bought deliberately.
+
+### Reported latency: 3.1 → 59.5 samples at 48 kHz
+
+Paid by all four modes, not just Fold, and paid by **default**: `distBypass`
+defaults to `false`, so the stage is active on a fresh instance even though
+`distMix` defaults to `0.0`. ~1.2 ms, host-compensated, and fixed for the
+session — neither the filter nor the factor follows a parameter, because
+`initProcessing` allocates and because this is the plugin's only latency source
+with its latency reported to the host (`PluginProcessor.cpp:765, 1151`); making
+either follow `distType` would move reported latency whenever the user changed
+distortion type.
+
+One consequence worth recording: the IN-04 behaviour of following `distBypass`
+with the reported latency now swings 0 ↔ 59 samples instead of 0 ↔ 3. Hosts that
+re-negotiate delay compensation on a latency change will do more work when the
+bypass is toggled. Unchanged in design, 16× larger in magnitude.
+
+### Added — `distortion-alias-check`, the eighth gate
+
+`plugins/O-Prism/tests/distortion_alias_check.cpp`, wired behind
+`OUARICON_BUILD_TESTS`. The distortion stage had **no coverage of any kind**
+before this: seven gates and not one drove `DistortionProcessor`. 91 assertions.
+
+- **[A]** Sanity, including the excitation's own alias floor (−83 to −86 dB), so
+  the ratios cannot be measuring the input.
+- **[B]** The finding, as ≥ 8 dB improvement over the pre-fix path — **not** as
+  parity with the sibling modes. Parity was tried first and is the wrong bar:
+  `tanh` is intrinsically gentle and `sin (πu)` is not, so demanding equal
+  aliasing demands something the arithmetic does not grant. Fold remains behind
+  the saturators in the top octave and no decimator closes that.
+- **[C]** The in-gate replica must reproduce `DistortionProcessor` bit-for-bit at
+  the shipped configuration. This is what stops [B] measuring a straw man if the
+  replica drifts from the code it mirrors.
+- **[D]** Soft Clip, Hard Clip and Tube bit-identical to their naive arithmetic —
+  the ADAA branch is reached only by `case 3`.
+- **[E]** The ill-conditioned branch. Below `kAdaaEpsilon` the 0/0 quotient falls
+  back to the midpoint; silence, DC, a full-scale step and a full-scale square
+  all render finite, and silence is *exactly* silent. The trap is armed: the same
+  path without the guard renders non-finite, so the guard is proven load-bearing.
+- **[F]** `reset()` clears the ADAA history.
+- **[G]** Diagnostic sweep over (factor × decimation filter) with reported
+  latency, kept so the shipped configuration can be re-derived rather than taken
+  on trust.
+- **[H]** Diagnostic: partial-spectrum movement, the table above.
+- **[J]** Diagnostic: CPU per block per mode, plus the four-candidate sweep — the
+  tables above. Timed with the excitation generated outside the timed region, so
+  only `process()` is measured.
+- **[I]** Non-regression for the three saturators, at **zero** tolerance, each
+  also printing what 2× FIR would have scored. This is the assertion that caught
+  the 2× FIR regression.
+
+The negative control is built in ([B] and [C] together), so nothing needs
+reverting in the source for the gate to be falsifiable.
+
+### Note — O-Strata carries the same defect
+
+`plugins/O-Strata/Source/dsp/DistortionProcessor.cpp` is byte-identical to
+O-Prism's pre-fix file apart from two comment lines. It has IN-09 in full, is
+not a tracked shared module (each plugin holds its own copy), and is **not**
+touched here — it belongs to its own `/improve`.
+
 ## [1.28.1] - 2026-09-24
 
 Closes the **Info tier** of `CODE_REVIEW.md` — the eight findings `/improve-review`

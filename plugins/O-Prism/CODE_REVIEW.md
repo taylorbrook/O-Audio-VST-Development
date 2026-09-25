@@ -23,11 +23,11 @@ verified_resolution: 1.26.1 (CR-03, WR-03, WR-07, WR-09 + the startNote pitch-wh
   1.28.1 (Info tier: IN-02, IN-03a, IN-03b, IN-04, IN-05, IN-06, IN-07, IN-08,
   IN-10 resolved; IN-01 REFUTED — the "dead" code is called by
   WavetableFactory::createFactoryLibrary; IN-03c SKIPPED as module-owned;
-  IN-09 DEFERRED)
-open_findings: IN-09 only (Fold aliases at 2x oversampling — deferred to its own
-  MINOR: the oversampling factor is fixed in the DistortionProcessor ctor and
-  initProcessing allocates, so it cannot follow a parameter on the audio thread,
-  and the distortion latency is reported to the host)
+  IN-09 DEFERRED);
+  1.29.0 (IN-09 — antiderivative antialiasing on Fold plus a 4x FIR-equiripple
+  decimator; BOTH prescribed fixes refuted, raising the factor on measurement and
+  the triangle fold on unbounded order)
+open_findings: none
 supersedes: .planning/CODE-REVIEW.md (v1.18.1, all 47 findings resolved)
 ---
 
@@ -59,7 +59,7 @@ supersedes: .planning/CODE-REVIEW.md (v1.18.1, all 47 findings resolved)
 > | IN-06 | ✅ Resolved in **v1.28.1** | `updateFromAPVTS()` compacts passing slots into `activeSlots` and reuses the existing `destRouted` set (added for REG-03 in v1.27.0 — half the prescribed fix already existed); `evaluate()` walks and clears only those, and both per-sample bounds checks are hoisted. **The trap, and the wrong answer that had to be backed out:** clearing only routed destinations strands a destination that stops being routed, so it needs a clear elsewhere — but a blanket `destOffsets.fill(0.0f)` in `updateFromAPVTS()` is WRONG, because that function runs once per MIDI *sub-block* and `PrismVoice` reads `ModDest::Pitch` one sample late (`PrismVoice.cpp:599`, above `evaluate()` at `:627`, whereas `FiltACutoff` at `:756` is read after). The blanket wipe changed the rendered pitch on the first sample after every MIDI event: max \|diff\| 0.380141199 at 15 CC/block, `lfo-subblock-check` 3/21 failing. Shipped shape is a **transition clear** — zero exactly the destinations that just left the routed set. Two complementary negative controls: removing the clear fails `[N2]`/`[N3]` (offset frozen at 0.999999940); the blanket wipe passes `dsp-quality-check` 0-failed while failing `lfo-subblock-check` 3/21. Neither gate alone covers this change. |
 > | IN-07 | ✅ Resolved in **v1.28.1** | `WavetableEditor::fft` marked `mutable`; the per-call `juce::dsp::FFT tempFFT (11)` and its 2048-point twiddle allocation are gone from `getFrameHarmonics`. Safe to share — all five uses (`:213, 254, 305, 527, 545`) are message-thread, reached only from the WebView native functions in `PluginEditor.cpp`; the audio thread never touches it. |
 > | IN-08 | ✅ Resolved in **v1.28.1** | `idx0 = std::min (idx0, WavetableData::kTableSize - 1)` in `readSample`. Premise confirmed exactly: `-1e-20` wraps to *exactly* 1.0 in double, giving `idx0 = 2048` and an `idx0 + 1` read of index 2049 in a 2049-element frame, through a `getSample` that is a bare unchecked vector index. Unreachable from the plugin (all internal callers wrap; the phase parameters are non-negative) but reachable through the public `resetWithPhase`, which is how the gate drives it. Audio-neutral, and that is *why* it sat latent: unclamped, `frac` is exactly 0.0, so the interpolation is `a + 0.0*(b-a)` and the out-of-bounds `b` is multiplied away. Hence `[X7]`, the only assertion here that can fail on a clamp removal: it plants an infinity where the overflowing read lands and exploits `0.0 * inf == NaN`. Removing the clamp renders `nan`; `[X7-nv]` proves the trap is armed. |
-> | IN-09 | ⏸️ **DEFERRED in v1.28.1** to its own MINOR | Real — 2× oversampling (`DistortionProcessor.cpp:34`) cannot contain `std::sin (x * kPi)` (`:95`) at a 10× pre-gain. Neither prescribed fix is PATCH-shaped. Raising oversampling per mode: the factor is fixed in the constructor and `initProcessing` allocates, so it cannot follow a parameter on the audio thread — and the distortion is the plugin's only latency source with its latency reported to the host (`PluginProcessor.cpp:765, 1151`), so reported latency would move when the user changes distortion type. A bounded triangle fold: changes Fold's timbre for every existing patch and preset. **The only finding left open in this report.** |
+> | IN-09 | ✅ Resolved in **v1.29.0** — after refuting BOTH prescribed fixes | Real, and worse than reported: at 4 kHz / drive 0.5 the alias was measured *louder than the signal* (−0.3 dB). But neither prescription was the answer. **Raising the factor does not work** — with Fold antialiased, 110 Hz / drive 1.0 measures 2× −29.2 dB, 4× −27.3, 8× −25.9, the bigger factors marginally WORSE, because the residual is transition-band content the factor cannot reach. **A bounded triangle fold is not bounded** — derivative-discontinuous corners are still infinite order (1/n² rather than Bessel), for a full timbre rewrite. Shipped instead: first-order antiderivative antialiasing on Fold (`sin (πu)` has the closed-form `F(u) = −cos (πu)/π`, so the difference quotient is exact, not an approximation), plus the decimator swapped to `filterHalfBandFIREquiripple` at 4×. The two JUCE half-band filters fail complementarily — IIR deeper stopband / wide transition, FIR narrow transition / shallower stopband — and Fold's alias piles up near Nyquist, so FIR is worth 17 dB at 4 kHz. The factor had to move too: **FIR at 2× regressed Soft Clip, Hard Clip and Tube by 0.6–2.9 dB at 110/440 Hz**, caught by the new gate's [I], since IIR's deeper stopband had been carrying the low fundamentals. 4× FIR beats the pre-fix path at all 24 saturator points (6.3–13.9 dB) and all 8 Fold points (9.9–19.3 dB) — the only configuration tested that regresses nothing. Costs: reported latency 3.1 → 59.5 samples for all four modes, and Fold's timbre moves at every setting (partial deviation −4 to −20 dB), one factory preset affected ("Fold Engine", drive 0.5, mix 0.25). New gate `distortion-alias-check`, 91 assertions, negative control built in — the distortion stage previously had none. |
 > | IN-10 | ✅ Resolved in **v1.28.1** | `.planning/IMPROVE-STATE.md` moved to `.planning/archive/` with an ARCHIVED header (it described the v1.8.0 → v1.9.0 cycle as in progress against a plugin shipping 1.28.0, and three items it listed as open were re-found as IN-04/IN-05). `.planning/CODE-REVIEW.md` gained a `superseded_by` front-matter key — its numbering is its own, and its IN-08 is not this report's IN-08. `.planning/SIMPLIFICATION-AUDIT.md` now states it was audited against v1.17.0 with drifted line numbers; its Phase 3 is still genuinely open, so the `/simplify-phase3` pointer in the v1.17.1 CHANGELOG entry was deliberately left alone. |
 >
 > All verified still present at the cited `file:line` before editing — the v1.26.1
@@ -623,7 +623,14 @@ gives `1.0 - 1e-20`, which rounds to exactly `1.0` in double; then `samplePos = 
 closing it is `idx0 = std::min(idx0, WavetableData::kTableSize - 1);` and the failure mode
 is a heap OOB.
 
-### IN-09: Distortion "Fold" aliases at 2× oversampling — ⏸️ **DEFERRED to its own MINOR**
+### IN-09: Distortion "Fold" aliases at 2× oversampling — ✅ **Resolved in v1.29.0**
+**Both prescribed fixes were refuted — see the resolution log above and the v1.29.0
+CHANGELOG entry.** The diagnosis below stands; the two remedies it proposes do not.
+Raising the factor is ineffective, not merely expensive (measured: with Fold
+antialiased, 8× is *worse* than 2×, because the residual alias is in the decimator's
+transition band). A triangle fold is not order-bounded. What shipped is antiderivative
+antialiasing on Fold plus a 4× FIR-equiripple decimator.
+
 `Source/dsp/DistortionProcessor.cpp:34` (`2^1 = 2x`), `:94-96`
 (`data[i] = std::sin(x * kPi)`). Sine folding generates unbounded harmonic order; at drive
 1.0 the pre-gain is 10×, so `sin(10x·π)` produces components an order of magnitude above
