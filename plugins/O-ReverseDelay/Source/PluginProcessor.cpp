@@ -2406,6 +2406,7 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
             // −1 reverse, +1 forward. The whole of B4 #2 in the engine.
             g.step = forward ? 1 : -1;
+            g.srcPeak = 0.0f;   // v1.21.1: a reused slot must not inherit the last grain's peak
 
             // v1.7.0 (B4 #5): the source channel, latched. Follows panSign — the
             // grain's pan SIDE — rather than the resolved pan position, because
@@ -2471,6 +2472,7 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // unswitching — the same argument readShaped's taper branch has made
             // since v1.4.0.
             const int srcCh = g.srcCh;
+            float srcPeak = g.srcPeak;   // v1.21.1: grain view only — never feeds the output
 
             const float invG = g.invG, gain = g.gain;
             const float gL = g.gL,    gR = g.gR;       // feedback tap — never randomised
@@ -2504,6 +2506,7 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             {
                 const float src = srcCh < 0 ? capture.monoSum(readAbs)
                                             : capture.readAbs(srcCh, readAbs);
+                srcPeak = juce::jmax(srcPeak, std::abs(src));
 
                 // B1 tilt: two branchless segments mapping [0,t] -> [0,0.5] and
                 // [t,1] -> [0.5,1]. At the default t = 0.5 both coefficients are
@@ -2529,6 +2532,7 @@ void ReverseDelayProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
             g.readAbs = readAbs;
             g.n       = n;
+            g.srcPeak = srcPeak;
 
             if (g.n >= g.G)
                 g.active = false;
@@ -3063,10 +3067,16 @@ void ReverseDelayProcessor::publishGrainView() noexcept
     std::atomic_thread_fence (std::memory_order_release);
 
     int count = 0;
-    for (const auto& g : grainPool.grains)
+    for (auto& g : grainPool.grains)
     {
         if (! g.active || g.G <= 0)
             continue;
+
+        // v1.21.1: consume the grain's source peak — the loudest sample it read
+        // since the previous publish (one block), so the view tracks the
+        // material under the grain rather than holding a stale maximum.
+        const float srcPeak = g.srcPeak;
+        g.srcPeak = 0.0f;
 
         const float loop = std::hypot (g.gL, g.gR);
         const float out  = std::hypot (g.gLout, g.gRout);
@@ -3077,7 +3087,8 @@ void ReverseDelayProcessor::publishGrainView() noexcept
             juce::jlimit (0.0f, 1.0f, static_cast<float> (g.n) * g.invG),
             std::atan2 (g.gR, g.gL) * (2.0f / juce::MathConstants<float>::pi),
             loop > 0.0f ? out / loop : 1.0f,
-            g.step > 0 ? 1.0f : 0.0f
+            g.step > 0 ? 1.0f : 0.0f,
+            srcPeak
         };
 
         const size_t base = static_cast<size_t> (count * kGrainViewFields);
@@ -3112,6 +3123,7 @@ bool ReverseDelayProcessor::readGrainView (GrainViewSnapshot& out) const noexcep
             v.pan      = grainViewData[base + 3].load (std::memory_order_relaxed);
             v.level    = grainViewData[base + 4].load (std::memory_order_relaxed);
             v.forward  = grainViewData[base + 5].load (std::memory_order_relaxed) > 0.5f;
+            v.srcPeak  = grainViewData[base + 6].load (std::memory_order_relaxed);
         }
 
         std::atomic_thread_fence (std::memory_order_acquire);

@@ -498,7 +498,13 @@ export function getNativeFunction(name) {
       stubGrains = stubGrains.filter((g) => now - g.born < g.len);
       const grains = stubGrains.map((g) => {
         const n = now - g.born;
-        return [g.fwd ? g.d : g.d + 2 * n, g.len, n / g.len, g.pan, g.level, g.fwd ? 1 : 0];
+        const age = g.fwd ? g.d : g.d + 2 * n;
+        // v1.21.1: source level under the read point — the stub's "input" is
+        // 600 ms bursts separated by 600 ms of silence, so the view shows both
+        // loud grains and hollow silent ones.
+        const srcT = now - age;
+        const peak = Math.floor(srcT / 600) % 2 === 0 ? 0.35 + 0.15 * Math.sin(srcT / 90) : 0;
+        return [age, g.len, n / g.len, g.pan, g.level, g.fwd ? 1 : 0, peak];
       });
       stubGrainSeq += 1;
 

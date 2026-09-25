@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.21.0
+- **Version:** 1.21.1
 - **Type:** Audio Effect (Granular Reverse Delay)
 
 ## Overview
@@ -115,6 +115,7 @@ Ambient granular reverse delay: the wet signal is assembled from overlapping Han
 - **2026-09-24 (v1.19.0):** Minor — **UI tightened and regrouped.** Editor 940×768 → **940×693**. Panels regrouped by what they act on, all full: row 1 TIME | GRAIN | COUNT | DRIFT; row 2 RANDOM | WINDOW | FEEDBACK (now the whole loop — Amount, Low Cut, High Cut, Diffusion, Drive; COLOUR panel removed) | MOTION; row 3 SOURCE (vertical pair) | OUTPUT (680 px, spans cols 2–4: Duck, Width, Mix, in-flow level meter; DUCK panel removed). Rows are content-sized (no pinned 145/245 heights, `align-items: stretch`), 30 px centring slack gone. 62 px main-path knobs now on row 1 + FEEDBACK + OUTPUT. i18n `label.duck`/`label.colour` deleted (dead), Randomise tip re-worded (en/fr/zh) since Diffusion/Drive now sit in FEEDBACK. No parameter, DSP or state change. All UI gates pass in 3 languages.
 - **2026-09-24 (v1.20.0):** Minor. **Grouped preset dropdown and a 56-preset bank.** Clicking the name cartouche opens the list under 8 sticky category headings (Swells, Vocals, Rhythmic, Ambient, Dark, Glitch & Texture, Lo-Fi & Drive, Motion & Width, plus User). It has keyboard navigation and localized headings. ◀/▶ walk the grouped order through JS `stepPreset()`; PresetManager no longer binds them. There are 48 new presets, 7 per category, and the original 8 are bit-identical. The table moved to `getFactoryPresetRows()` with a category per row, and the new `getPresetCategories` native fn takes the bridge to 22. Harness probe N gained `factory-bank-table` and `factory-bank-recall-render`, both PASS (all 56 recall exactly, max peak 0.38). auval passes.
 - **2026-09-24 (v1.21.0):** Minor. **Presets never change Mix, plus a live grain view.** Mix is now held on every preset load, and the v1.16.0 padlock is removed: the `mixLock` atomic, state property (dropped from legacy sessions on restore), CSS and i18n key, and `getMixLock`/`setMixLock` (bridge 22 → 20). A/B recalls each slot's own Mix. The grain view is a 62 px canvas in OUTPUT right of Mix, with the meter moved under it. x is time behind now and y is pan. Each grain is drawn as a pill for the stretch it reads, plus a playhead dot faded by the real window curve (reverse dots move back in time; forward grains are brown). Data comes from a seqlock snapshot (`publishGrainView`/`readGrainView`, 32 slots × 6 relaxed atomics, no allocation) riding `getGrainMeter` as `grains` + `grainSeq`, and is animated analytically at rAF between the 15 Hz polls. Harness: probe BK rewritten (`mixhold-*`), BM3 → `ab-own-mix`, new probe BN (`grainview-*`), audio bit-identical to v1.20.0 (`--digest`).
+- **2026-09-25 (v1.21.1):** Patch. **Grain darkness follows amplitude.** Each grain now carries `srcPeak`, the peak |source| it read that block, consumed at publish (7 fields per slot). The page computes srcPeak × window(phase) × Gain RND level over −54…−6 dB: silence is a hollow ring, and louder grains fill toward dark green. Probe BN adds `grainview-amplitude` (noise 0.25 → every grain > 0, silence → every grain = 0). `--digest` is identical to v1.20.0, and auval and pluginval-10 pass.
 
 ## Known Issues
 

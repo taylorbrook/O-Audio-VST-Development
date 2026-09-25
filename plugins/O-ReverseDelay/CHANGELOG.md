@@ -4,6 +4,46 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.21.1] — 2026-09-25
+
+The grain view's darkness now follows each grain's actual amplitude. PATCH:
+this is a display change only, and the audio is bit-identical.
+
+### Changed
+
+- **Grain darkness = amplitude.** In v1.21.0 a dot's brightness followed only
+  its window, so a grain reading silence looked as dark as one reading a loud
+  note. Each grain's level is now:
+  - the peak of the audio it read in the last block,
+  - × its window at its current phase (so it still fades in and out),
+  - × its Gain RND level,
+  - mapped over −54 … −6 dB.
+
+  At or below the floor a grain is drawn as a faint **hollow ring** on an almost
+  invisible bar (running, but reading silence). As it gets louder the dot fills
+  and grows toward solid dark green, and its bar darkens with it.
+- `grainView` tip copy describes the new mapping in en, fr (`reviewed: false`)
+  and zh-Hans (`'mt'`).
+
+### Added
+
+- `ReverseGrain::srcPeak`: the peak |source sample| each grain reads,
+  accumulated in the render loop with one compare per grain-sample. It never
+  feeds the output. `publishGrainView()` reads and clears it once per block, and
+  a newly spawned grain starts at 0. The snapshot goes from 6 to **7** fields
+  per slot, and the `grains` tuples gain `srcPeak` as their 7th entry.
+
+### Tests
+
+- Probe BN gains `grainview-amplitude`: with a 0.25-peak noise input every
+  grain reads 0.253–0.274, and with silence every grain reads exactly 0.
+- Audio is still bit-identical to v1.20.0. The 51 `--digest` lines are
+  identical, and BL0's pins hold.
+- The full harness passes, and auval and pluginval-10 (VST3) succeed.
+- All UI and i18n gates pass.
+- The UI stub feeds 600 ms bursts separated by silence, so both loud grains and
+  hollow rings show.
+
 ## [1.21.0] — 2026-09-24
 
 Presets no longer change Mix, and a live grain view now fills the empty space in

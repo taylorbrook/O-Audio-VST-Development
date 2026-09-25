@@ -331,8 +331,8 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
             obj->setProperty ("peakOut", peaks.out);
 
             // v1.21.0: the grain visualizer — every live grain at the end of the
-            // last block, as compact 6-tuples [ageMs, lengthMs, phase, pan,
-            // level, forward], plus the block's sequence number so the page can
+            // last block, as compact 7-tuples [ageMs, lengthMs, phase, pan,
+            // level, forward, srcPeak (v1.21.1)], plus the block's sequence number so the page can
             // tell a new block from a host that has stopped calling
             // processBlock. Same poll, so the bridge stays at 20. A torn read
             // (a block landed mid-copy four times running) omits the key and the
@@ -347,7 +347,8 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
                 {
                     const auto& g = view.grains[static_cast<size_t> (i)];
                     grains.add (juce::Array<juce::var> { g.ageMs, g.lengthMs, g.phase,
-                                                         g.pan, g.level, g.forward ? 1 : 0 });
+                                                         g.pan, g.level, g.forward ? 1 : 0,
+                                                         g.srcPeak });
                 }
 
                 obj->setProperty ("grains", grains);

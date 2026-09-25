@@ -300,6 +300,12 @@ const GV_BAR_H        = 3;      // pill height, px
 const GV_DOT_R_MIN    = 1.8;    // playhead radius at the quietest level
 const GV_DOT_R_MAX    = 3.6;    // ... and the loudest
 const GV_STALE_MS     = 400;    // a snapshot this old with no new block = host idle
+// v1.21.1: darkness follows the grain's AMPLITUDE — the level of the material it
+// is reading × where it is in its window × its Gain RND level — on a dB scale.
+// At or below the floor a grain is drawn as a hollow ring (it is running, but
+// reading silence); at the ceiling it is solid dark green.
+const GV_FLOOR_DB     = -54;
+const GV_CEIL_DB      = -6;
 
 // ── Mutable module state ────────────────────────────────────────────────────
 // EVERY module-level binding lives in this one block — see the TDZ note above.
@@ -345,7 +351,7 @@ let envInFlight  = false;      // as meterInFlight — never queue fetches
 
 let gvCanvas     = null;       // #grainCanvas (v1.21.0)
 let gvCtx        = null;
-let gvGrains     = [];         // last snapshot: { age, len, phase, pan, level, fwd }
+let gvGrains     = [];         // last snapshot: { age, len, phase, pan, level, fwd, peak }
 let gvAnchorAt   = 0;          // performance.now() when gvGrains was taken
 let gvSeq        = -1;         // grainSeq of gvGrains; unchanged = no new block
 let gvDelayMs    = 0;          // from the meter, for the delay guide
@@ -1261,6 +1267,7 @@ function ingestGrainView(grains, seq, delayMs) {
     pan:   Math.min(1, Math.max(0, Number(t[3]))),
     level: Math.max(0, Number(t[4]) || 0),
     fwd:   Number(t[5]) === 1,
+    peak:  Math.max(0, Number(t[6]) || 0),   // v1.21.1: source level under the grain
   }));
   gvAnchorAt = performance.now();
 }
@@ -1286,7 +1293,6 @@ function drawGrainView(now) {
   const dt = Math.max(0, now - gvAnchorAt);
   const live = [];
   let target = Math.max(GV_MIN_AXIS_MS, gvDelayMs * 1.5);
-  let levelMax = 1;
 
   // A snapshot with no successor for GV_STALE_MS is let run out, never renewed.
   for (const g of gvGrains) {
@@ -1294,7 +1300,6 @@ function drawGrainView(now) {
     if (!a) continue;
     live.push([g, a]);
     target = Math.max(target, gvOldestAt(g));
-    levelMax = Math.max(levelMax, g.level);
   }
   if (dt > GV_STALE_MS && live.length === 0) gvGrains = [];
 
@@ -1336,12 +1341,21 @@ function drawGrainView(now) {
   gvCtx.globalAlpha = 0.6;
   gvCtx.fillRect(x0, GV_PAD, 1.5, h - 2 * GV_PAD);
 
+  // Amplitude 0..1 on the dB scale — the material's level through the window
+  // at the grain's CURRENT phase, so a loud grain still fades in and out.
+  const loud = (g, a) => {
+    const amp = g.peak * gvWindow(a.phase) * g.level;
+    if (amp <= 0) return 0;
+    const db = 20 * Math.log10(amp);
+    return Math.min(1, Math.max(0, (db - GV_FLOOR_DB) / (GV_CEIL_DB - GV_FLOOR_DB)));
+  };
+  const drawn = live.map(([g, a]) => [g, a, loud(g, a)]);
+
   // Stretches first, then every playhead on top, so no dot hides under a bar.
-  for (const [g, a] of live) {
-    const env = gvWindow(a.phase);
+  for (const [g, a, t] of drawn) {
     const xa = xAt(a.young), xb = xAt(a.old);
     const y = yAt(g.pan);
-    gvCtx.globalAlpha = 0.10 + 0.22 * env;
+    gvCtx.globalAlpha = 0.05 + 0.30 * t;
     gvCtx.fillStyle = g.fwd ? c.fwd : c.ink;
     const bw = Math.max(1, xb - xa);
     if (typeof gvCtx.roundRect === "function") {   // WKWebView < Safari 16 lacks it
@@ -1352,14 +1366,23 @@ function drawGrainView(now) {
       gvCtx.fillRect(xa, y - GV_BAR_H / 2, bw, GV_BAR_H);
     }
   }
-  for (const [g, a] of live) {
-    const env = gvWindow(a.phase);
-    const r = GV_DOT_R_MIN + (GV_DOT_R_MAX - GV_DOT_R_MIN) * Math.min(1, g.level / levelMax);
-    gvCtx.globalAlpha = 0.18 + 0.82 * env;
-    gvCtx.fillStyle = g.fwd ? c.fwd : c.ink;
+  for (const [g, a, t] of drawn) {
+    const r = GV_DOT_R_MIN + (GV_DOT_R_MAX - GV_DOT_R_MIN) * t;
+    const col = g.fwd ? c.fwd : c.ink;
     gvCtx.beginPath();
     gvCtx.arc(xAt(a.age), yAt(g.pan), r, 0, Math.PI * 2);
-    gvCtx.fill();
+    if (t <= 0) {
+      // Silent: a faint hollow ring — the grain is running, there is just
+      // nothing under it.
+      gvCtx.globalAlpha = 0.35;
+      gvCtx.strokeStyle = col;
+      gvCtx.lineWidth = 1;
+      gvCtx.stroke();
+    } else {
+      gvCtx.globalAlpha = 0.15 + 0.85 * t;
+      gvCtx.fillStyle = col;
+      gvCtx.fill();
+    }
   }
   gvCtx.globalAlpha = 1;
   gvDrewEmpty = live.length === 0;

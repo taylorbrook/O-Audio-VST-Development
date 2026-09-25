@@ -323,7 +323,9 @@
                               every field in range), its geometry is the
                               engine's (reverse: age − 2·phase·G == D; forward:
                               age == D), the sequence advances once per block,
-                              and reset() empties it. Audio is untouched: BL0's
+                              and reset() empties it. v1.21.1: srcPeak tracks
+                              the input under the grain and is exactly 0 on
+                              silence. Audio is untouched: BL0's
                               pinned digests still hold.
 
   ==============================================================================
@@ -7608,6 +7610,38 @@ int main (int argc, char** argv)
 
         inspect (0.0f,   "grainview-reverse");
         inspect (100.0f, "grainview-forward");
+
+        // v1.21.1: srcPeak is the level of the material under the grain. With
+        // a constant 0.25-peak noise input it tracks that input (the grains
+        // read it, feedback adds on top); with silence it is exactly 0, which
+        // is what makes the page draw a hollow ring.
+        {
+            auto peakRange = [&] (auto&& fill, float& lo, float& hi)
+            {
+                ReverseDelayProcessor p;
+                p.setPlayConfigDetails (2, 2, fs, block);
+                p.prepareToPlay (fs, block);
+                renderEffect (p, 1.5, fs, block, fill);
+                ReverseDelayProcessor::GrainViewSnapshot v;
+                p.readGrainView (v);
+                lo = 1.0e9f; hi = 0.0f;
+                for (int i = 0; i < v.count; ++i)
+                {
+                    lo = juce::jmin (lo, v.grains[(size_t) i].srcPeak);
+                    hi = juce::jmax (hi, v.grains[(size_t) i].srcPeak);
+                }
+                return v.count;
+            };
+            float nLo, nHi, sLo, sHi;
+            const int nCount = peakRange (noise, nLo, nHi);
+            const int sCount = peakRange ([] (int) { return 0.0f; }, sLo, sHi);
+            check ("grainview-amplitude",
+                   nCount > 0 && nLo > 0.1f && nHi < 1.0f && sCount > 0 && sHi == 0.0f,
+                   juce::String ("noise: ") + juce::String (nCount) + " grains, srcPeak "
+                     + juce::String (nLo, 3) + ".." + juce::String (nHi, 3)
+                     + " | silence: " + juce::String (sCount) + " grains, max srcPeak "
+                     + juce::String (sHi, 6) + " (0)");
+        }
 
         // Sequence advances by exactly one publish (2) per block; reset() empties.
         {
