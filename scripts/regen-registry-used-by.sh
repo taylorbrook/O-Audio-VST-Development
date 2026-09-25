@@ -5,7 +5,10 @@
 #
 # For each module, consumers are derived by grepping plugins/*/CMakeLists.txt
 # and plugins/*/Source for the module's own file basenames (the .h/.cpp/.js
-# files under its cpp/ and js/ dirs) as fixed strings, plus the module's
+# files under its cpp/ and js/ dirs, and the .css/.woff2 files under its css/
+# and fonts/ dirs — asset-only modules such as ui/eb-garamond have no cpp/ or
+# js/, and would otherwise always regenerate to `used_by: []`) as fixed
+# strings, plus the module's
 # registry name as a CMake `ouaricon_add_module(...)` token. Only the `used_by`
 # blocks and the three header lines/comment are
 # rewritten; every other line is preserved byte-for-byte. Deterministic and
@@ -60,13 +63,14 @@ while i < n:
 # Helpers
 # ---------------------------------------------------------------------------
 def module_tokens(path):
-    """Fixed-string grep tokens = basenames of *.h/*.cpp/*.js under cpp/ and js/."""
+    """Fixed-string grep tokens = basenames of *.h/*.cpp/*.js under cpp/ and js/,
+    and of *.css/*.woff2 under css/ and fonts/ (asset-only modules)."""
     toks = set()
-    for sub in ('cpp', 'js'):
+    for sub in ('cpp', 'js', 'css', 'fonts'):
         base = os.path.join(root, 'modules', path, sub)
         for dp, _dirs, files in os.walk(base):
             for fn in files:
-                if fn.endswith(('.h', '.cpp', '.js')):
+                if fn.endswith(('.h', '.cpp', '.js', '.css', '.woff2')):
                     toks.add(fn)
     return toks
 

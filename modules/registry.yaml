@@ -9,8 +9,8 @@
 # - Modules: Working code (CMake import with configuration)
 
 # NOTE: `version` and `last_updated` MUST be bumped on every edit. scripts/regen-registry-used-by.sh bumps them automatically when used_by content changes; bump minor/major by hand for significant changes.
-version: 1.1.0
-last_updated: 2026-09-24
+version: 1.2.0
+last_updated: 2026-09-25
 schema_version: 1.0.0
 
 # Module categories
@@ -37,7 +37,7 @@ categories:
     description: DSP effect modules (EQ, compression, delay, reverb)
 
   - name: ui
-    description: UI components (keyboards, visualizations, controls)
+    description: UI components and shared UI assets (keyboards, visualizations, controls, bundled fonts)
 
 # Module entries
 modules:
@@ -529,6 +529,35 @@ modules:
     used_by:
       - plugin: O-Marimba
         version: 1.12.1
+
+  # ============================================================================
+  # UI MODULES
+  # ============================================================================
+
+  - name: eb-garamond
+    path: ui/eb-garamond
+    version: 1.0.0
+    description: |
+      Bundled EB Garamond (SIL OFL 1.1) for WebView UIs: static Regular 400,
+      Italic 400 and Bold 700 woff2, subset to Latin + Latin-Ext plus the
+      punctuation, arrows and fleurons the UIs use (~117 KB total), with Times
+      New Roman's vertical metrics baked in (891/-216/42, USE_TYPO_METRICS) so
+      line boxes do not move when a plugin switches from Times. Direct-embed:
+      the stylesheet and fonts go into the plugin's existing UIResources
+      target and are served at /css/eb-garamond.css and /fonts/*.woff2.
+      Rebuilt reproducibly from a pinned google/fonts commit by
+      tools/build-fonts.sh.
+    category: ui
+    provides:
+      - css: eb-garamond.css
+      - fonts: [EBGaramond-Regular.woff2, EBGaramond-Italic.woff2, EBGaramond-Bold.woff2]
+      - font-family: EB Garamond
+    dependencies: []
+    tags: [ui, font, typography, webview, ofl]
+    reuse_score: 8
+    used_by:
+      - plugin: O-ReverseDelay
+        version: 1.22.0
 
 # ============================================================================
 # HOW TO USE THIS REGISTRY
