@@ -126,6 +126,81 @@ std::unique_ptr<WavetableData> WavetableGenerator::generateProceduralTable (Wave
     return table;
 }
 
+namespace
+{
+// ═══════════════════════════════════════════════════════════════════
+// IN-02: the whole-table and single-frame mipmap builders were ~55 lines of
+// verbatim duplication — same FFT setup, same per-level bin zeroing, same
+// negative-frequency mirror loop, same IFFT and copy. That core lives here
+// once. Both callers own their FFT and scratch buffers and pass them in, so
+// the whole-table path keeps its allocate-once property.
+//
+// LOAD-BEARING: the guard sample is NOT written here. That is the one place
+// the two paths genuinely differ and it must stay at the call sites —
+// generateMipmaps() sets every guard in one sweep after all frames are done,
+// generateMipmapsForFrame() sets only its own frame's guard, per level. Moving
+// either into this helper stops the two paths from being provably equivalent.
+// ═══════════════════════════════════════════════════════════════════
+void buildFrameMipmaps (WavetableData& table, int frameIndex,
+                        juce::dsp::FFT& fft,
+                        std::vector<float>& fftBuffer,
+                        std::vector<float>& workBuffer)
+{
+    static constexpr int fftOrder = 11; // log2(2048)
+    static constexpr int fftSize = 1 << fftOrder;
+
+    // Copy level 0 frame data into FFT buffer
+    const float* srcFrame = table.getFrameData (0, frameIndex);
+    std::copy (srcFrame, srcFrame + fftSize, fftBuffer.begin());
+    std::fill (fftBuffer.begin() + fftSize, fftBuffer.end(), 0.0f);
+
+    // Forward FFT (false = full spectrum, needed for IFFT)
+    fft.performRealOnlyForwardTransform (fftBuffer.data(), false);
+
+    // Generate each mipmap level
+    for (int level = 0; level < WavetableData::kNumMipmapLevels; ++level)
+    {
+        int maxHarmonic = (fftSize / 2) >> level;
+
+        // Copy spectral data
+        std::copy (fftBuffer.begin(), fftBuffer.end(), workBuffer.begin());
+
+        // Zero DC bin
+        workBuffer[0] = 0.0f;
+        workBuffer[1] = 0.0f;
+
+        // Zero bins above maxHarmonic
+        for (int bin = maxHarmonic + 1; bin <= fftSize / 2; ++bin)
+        {
+            workBuffer[bin * 2] = 0.0f;
+            workBuffer[bin * 2 + 1] = 0.0f;
+        }
+
+        // Zero negative frequency bins that correspond to zeroed positive bins
+        // In JUCE's real-only FFT layout, negative freqs are at bins fftSize-k
+        for (int bin = 1; bin < fftSize / 2; ++bin)
+        {
+            if (bin > maxHarmonic)
+            {
+                int negBin = fftSize - bin;
+                if (negBin < fftSize)
+                {
+                    workBuffer[negBin * 2] = 0.0f;
+                    workBuffer[negBin * 2 + 1] = 0.0f;
+                }
+            }
+        }
+
+        // Inverse FFT
+        fft.performRealOnlyInverseTransform (workBuffer.data());
+
+        // Store result (JUCE IFFT divides by N internally)
+        float* destFrame = table.getFrameData (level, frameIndex);
+        std::copy (workBuffer.begin(), workBuffer.begin() + fftSize, destFrame);
+    }
+}
+} // namespace
+
 void WavetableGenerator::generateMipmaps (WavetableData& table)
 {
     static constexpr int fftOrder = 11; // log2(2048)
@@ -136,57 +211,7 @@ void WavetableGenerator::generateMipmaps (WavetableData& table)
     std::vector<float> workBuffer (fftSize * 2, 0.0f);
 
     for (int frame = 0; frame < table.numFrames; ++frame)
-    {
-        // Copy level 0 frame data into FFT buffer
-        const float* srcFrame = table.getFrameData (0, frame);
-        std::copy (srcFrame, srcFrame + fftSize, fftBuffer.begin());
-        std::fill (fftBuffer.begin() + fftSize, fftBuffer.end(), 0.0f);
-
-        // Forward FFT (false = full spectrum, needed for IFFT)
-        fft.performRealOnlyForwardTransform (fftBuffer.data(), false);
-
-        // Generate each mipmap level
-        for (int level = 0; level < WavetableData::kNumMipmapLevels; ++level)
-        {
-            int maxHarmonic = (fftSize / 2) >> level;
-
-            // Copy spectral data
-            std::copy (fftBuffer.begin(), fftBuffer.end(), workBuffer.begin());
-
-            // Zero DC bin
-            workBuffer[0] = 0.0f;
-            workBuffer[1] = 0.0f;
-
-            // Zero bins above maxHarmonic
-            for (int bin = maxHarmonic + 1; bin <= fftSize / 2; ++bin)
-            {
-                workBuffer[bin * 2] = 0.0f;
-                workBuffer[bin * 2 + 1] = 0.0f;
-            }
-
-            // Zero negative frequency bins that correspond to zeroed positive bins
-            // In JUCE's real-only FFT layout, negative freqs are at bins fftSize-k
-            for (int bin = 1; bin < fftSize / 2; ++bin)
-            {
-                if (bin > maxHarmonic)
-                {
-                    int negBin = fftSize - bin;
-                    if (negBin < fftSize)
-                    {
-                        workBuffer[negBin * 2] = 0.0f;
-                        workBuffer[negBin * 2 + 1] = 0.0f;
-                    }
-                }
-            }
-
-            // Inverse FFT
-            fft.performRealOnlyInverseTransform (workBuffer.data());
-
-            // Store result (JUCE IFFT divides by N internally)
-            float* destFrame = table.getFrameData (level, frame);
-            std::copy (workBuffer.begin(), workBuffer.begin() + fftSize, destFrame);
-        }
-    }
+        buildFrameMipmaps (table, frame, fft, fftBuffer, workBuffer);
 
     // Set guard samples for all levels and frames
     table.setGuardSamples();
@@ -201,48 +226,11 @@ void WavetableGenerator::generateMipmapsForFrame (WavetableData& table, int fram
     std::vector<float> fftBuffer (fftSize * 2, 0.0f);
     std::vector<float> workBuffer (fftSize * 2, 0.0f);
 
-    // Copy level 0 frame data into FFT buffer
-    const float* srcFrame = table.getFrameData (0, frameIndex);
-    std::copy (srcFrame, srcFrame + fftSize, fftBuffer.begin());
-    std::fill (fftBuffer.begin() + fftSize, fftBuffer.end(), 0.0f);
+    buildFrameMipmaps (table, frameIndex, fft, fftBuffer, workBuffer);
 
-    fft.performRealOnlyForwardTransform (fftBuffer.data(), false);
-
+    // Set guard sample for this frame at every level. Deliberately not folded
+    // into buildFrameMipmaps — see the note there.
     for (int level = 0; level < WavetableData::kNumMipmapLevels; ++level)
-    {
-        int maxHarmonic = (fftSize / 2) >> level;
-
-        std::copy (fftBuffer.begin(), fftBuffer.end(), workBuffer.begin());
-
-        workBuffer[0] = 0.0f;
-        workBuffer[1] = 0.0f;
-
-        for (int bin = maxHarmonic + 1; bin <= fftSize / 2; ++bin)
-        {
-            workBuffer[bin * 2] = 0.0f;
-            workBuffer[bin * 2 + 1] = 0.0f;
-        }
-
-        for (int bin = 1; bin < fftSize / 2; ++bin)
-        {
-            if (bin > maxHarmonic)
-            {
-                int negBin = fftSize - bin;
-                if (negBin < fftSize)
-                {
-                    workBuffer[negBin * 2] = 0.0f;
-                    workBuffer[negBin * 2 + 1] = 0.0f;
-                }
-            }
-        }
-
-        fft.performRealOnlyInverseTransform (workBuffer.data());
-
-        float* destFrame = table.getFrameData (level, frameIndex);
-        std::copy (workBuffer.begin(), workBuffer.begin() + fftSize, destFrame);
-
-        // Set guard sample for this frame at this level
         table.setSample (level, frameIndex, WavetableData::kTableSize,
                          table.getSample (level, frameIndex, 0));
-    }
 }

@@ -175,7 +175,13 @@ private:
     std::vector<int> dirtyFrames;     // edited into the shadow, not yet published
     std::vector<int> coolingResync;   // frames the outstanding cooled buffer must repair
     int shadowAllocations = 0;        // diagnostic, see getShadowAllocationCount()
-    juce::dsp::FFT fft { 11 }; // 2048-point
+    // mutable so the const analysis path (getFrameHarmonics) can use it instead
+    // of allocating its own 2048-point twiddle tables on every harmonic-editor
+    // refresh (IN-07). Safe to share: every call site — getFrameHarmonics,
+    // setFrameHarmonics and the two analysis helpers below — runs on the
+    // message thread, reached only from the WebView native functions in
+    // PluginEditor.cpp. The audio thread never touches this object.
+    mutable juce::dsp::FFT fft { 11 }; // 2048-point
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WavetableEditor)
 };

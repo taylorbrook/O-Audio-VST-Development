@@ -19,8 +19,15 @@ verified_resolution: 1.26.1 (CR-03, WR-03, WR-07, WR-09 + the startNote pitch-wh
   1.27.2 (WR-01);
   1.28.0 (WR-02, WR-06, WR-08 fixed; WR-04 and WR-05 RETRACTED with evidence —
   WR-04 is inert in the only case it occurs, WR-05's prescribed fix measurably
-  makes the rate match worse)
-open_findings: IN-01..IN-10 (Info tier only — all CR-* and WR-* are dispositioned)
+  makes the rate match worse);
+  1.28.1 (Info tier: IN-02, IN-03a, IN-03b, IN-04, IN-05, IN-06, IN-07, IN-08,
+  IN-10 resolved; IN-01 REFUTED — the "dead" code is called by
+  WavetableFactory::createFactoryLibrary; IN-03c SKIPPED as module-owned;
+  IN-09 DEFERRED)
+open_findings: IN-09 only (Fold aliases at 2x oversampling — deferred to its own
+  MINOR: the oversampling factor is fixed in the DistortionProcessor ctor and
+  initProcessing allocates, so it cannot follow a parameter on the audio thread,
+  and the distortion latency is reported to the host)
 supersedes: .planning/CODE-REVIEW.md (v1.18.1, all 47 findings resolved)
 ---
 
@@ -42,6 +49,18 @@ supersedes: .planning/CODE-REVIEW.md (v1.18.1, all 47 findings resolved)
 > | WR-03 | ✅ Resolved in **v1.26.1** | `clearUserWavetableOverride(0/1)` unconditionally, ahead of the `userWtState` block (so legacy states with no child are covered too). |
 > | WR-07 | ✅ Resolved in **v1.26.1** | Dead-band guard removed; all four `setRate` calls unconditional. |
 > | WR-09 | ✅ Resolved in **v1.26.1** | Early return in `processBlock` on `getNumChannels() == 0`, still publishing `blockGeneration`. Covers `PrismVoice.cpp` `getWritePointer(0)` via the same chokepoint. |
+> | IN-01 | ⚠️ **REFUTED in v1.28.1** — nothing to delete | The premise "`WavetableFactory` owns every factory table" is false. `WavetableFactory::createFactoryLibrary()` (`WavetableFactory.cpp:178`) *delegates* factory tables 0–3 to `generateProceduralTable` at `:184-187`, and it is called from `PluginProcessor.cpp:560` and `tests/dsp_quality_check.cpp:434,487`. Deleting the "dead" ~105 LOC would have removed the Saw, Square, Triangle and Sine factory wavetables. The secondary observation stands and is deliberately NOT acted on: the three additive generators are O(N²) (~4.2M `std::sin` each), but that is live construction cost and reducing it would change table contents — a DSP change, not an Info sweep. |
+> | IN-02 | ✅ Resolved in **v1.28.1** | One file-static `buildFrameMipmaps` replaces ~55 lines of verbatim duplication; both callers pass their own FFT and scratch buffers, so the whole-table path keeps allocate-once. The guard-sample write is deliberately NOT in the helper — it is the one place the paths differ (whole-table sweeps all guards once at the end, single-frame sets only its own, per level) and folding it in would end the equivalence. Side effect: the duplicated `bin * 2` indexing was the source of 8 `-Wsign-conversion` warnings, now 4. |
+> | IN-03a | ✅ Resolved in **v1.28.1** | `SVFFilter::setKeyTrack` deleted from header and implementation. Zero callers (`PrismVoice` computes key tracking itself and calls `setCutoff`), and wrong as written — it multiplied `cutoffHz` into itself cumulatively on every call. |
+> | IN-03b | ✅ Resolved in **v1.28.1** — by deletion, after one wrong turn | `ModulationMatrix::clearOffsets` deleted as prescribed. Worth recording the intermediate state: the sweep first tried to resolve this *by making the function live*, as IN-06's once-per-block wipe. That wipe was itself a regression (see IN-06), so the function went back to having no caller and the finding resolves by deletion after all. The tidy-looking pairing of two findings was the wrong answer. |
+> | IN-03c | ⏭️ **SKIPPED in v1.28.1** — module-owned | `TuningEngine::getScaleFrequencies` is genuinely uncalled, but `Source/TuningEngine.{h,cpp}` is a vendored copy of `modules/tuning/scala-tuning-engine`, where the identical method sits at `cpp/TuningEngine.cpp:793`. Deleting it from one consumer makes O-Prism a customized divergence that the next `/module-upgrade` would fight, and helps none of the other consumers. Belongs to a module change. |
+> | IN-04 | ✅ Resolved in **v1.28.1** | `g`, `R2`, `h` and `butterR2`/`butterH` are all pure functions of cutoff, resonance and rate, so all four now live in `updateCoefficients()`; `processSingleSVF` takes its coefficient pair as arguments, letting the second stage run the shared core instead of open-coding it. **The literal `0.707` is preserved exactly** — it sits 1.510e-4 relative below true Butterworth (`2*0.707 = 1.414` vs `sqrt(2) = 1.4142135623730951`, measured), and the comment now states the literal and the measured gap instead of the old false claim that `R2 = sqrt(2)`. Substituting the exact value would change rendered output for every patch on LP24/HP24/BP24. Falsified by doing exactly that: `[S1]` fails with 207,360 mismatches — precisely the cascade sample count — worst \|diff\| 3.186e-4. |
+> | IN-05 | ✅ Resolved in **v1.28.1** | `processNotch` folded in as `case 6: return yLP + yHP;`. Same operations in the same order. One nuance preserved deliberately: for an out-of-range `filterType` the pre-fix 24 dB path ran the second stage's integrators and then returned *stage 1*; `filterType` is an APVTS Choice over 0–6 so this is unreachable, but it is reproduced verbatim so the refactor is bit-identical even on the branch that cannot execute. |
+> | IN-06 | ✅ Resolved in **v1.28.1** | `updateFromAPVTS()` compacts passing slots into `activeSlots` and reuses the existing `destRouted` set (added for REG-03 in v1.27.0 — half the prescribed fix already existed); `evaluate()` walks and clears only those, and both per-sample bounds checks are hoisted. **The trap, and the wrong answer that had to be backed out:** clearing only routed destinations strands a destination that stops being routed, so it needs a clear elsewhere — but a blanket `destOffsets.fill(0.0f)` in `updateFromAPVTS()` is WRONG, because that function runs once per MIDI *sub-block* and `PrismVoice` reads `ModDest::Pitch` one sample late (`PrismVoice.cpp:599`, above `evaluate()` at `:627`, whereas `FiltACutoff` at `:756` is read after). The blanket wipe changed the rendered pitch on the first sample after every MIDI event: max \|diff\| 0.380141199 at 15 CC/block, `lfo-subblock-check` 3/21 failing. Shipped shape is a **transition clear** — zero exactly the destinations that just left the routed set. Two complementary negative controls: removing the clear fails `[N2]`/`[N3]` (offset frozen at 0.999999940); the blanket wipe passes `dsp-quality-check` 0-failed while failing `lfo-subblock-check` 3/21. Neither gate alone covers this change. |
+> | IN-07 | ✅ Resolved in **v1.28.1** | `WavetableEditor::fft` marked `mutable`; the per-call `juce::dsp::FFT tempFFT (11)` and its 2048-point twiddle allocation are gone from `getFrameHarmonics`. Safe to share — all five uses (`:213, 254, 305, 527, 545`) are message-thread, reached only from the WebView native functions in `PluginEditor.cpp`; the audio thread never touches it. |
+> | IN-08 | ✅ Resolved in **v1.28.1** | `idx0 = std::min (idx0, WavetableData::kTableSize - 1)` in `readSample`. Premise confirmed exactly: `-1e-20` wraps to *exactly* 1.0 in double, giving `idx0 = 2048` and an `idx0 + 1` read of index 2049 in a 2049-element frame, through a `getSample` that is a bare unchecked vector index. Unreachable from the plugin (all internal callers wrap; the phase parameters are non-negative) but reachable through the public `resetWithPhase`, which is how the gate drives it. Audio-neutral, and that is *why* it sat latent: unclamped, `frac` is exactly 0.0, so the interpolation is `a + 0.0*(b-a)` and the out-of-bounds `b` is multiplied away. Hence `[X7]`, the only assertion here that can fail on a clamp removal: it plants an infinity where the overflowing read lands and exploits `0.0 * inf == NaN`. Removing the clamp renders `nan`; `[X7-nv]` proves the trap is armed. |
+> | IN-09 | ⏸️ **DEFERRED in v1.28.1** to its own MINOR | Real — 2× oversampling (`DistortionProcessor.cpp:34`) cannot contain `std::sin (x * kPi)` (`:95`) at a 10× pre-gain. Neither prescribed fix is PATCH-shaped. Raising oversampling per mode: the factor is fixed in the constructor and `initProcessing` allocates, so it cannot follow a parameter on the audio thread — and the distortion is the plugin's only latency source with its latency reported to the host (`PluginProcessor.cpp:765, 1151`), so reported latency would move when the user changes distortion type. A bounded triangle fold: changes Fold's timbre for every existing patch and preset. **The only finding left open in this report.** |
+> | IN-10 | ✅ Resolved in **v1.28.1** | `.planning/IMPROVE-STATE.md` moved to `.planning/archive/` with an ARCHIVED header (it described the v1.8.0 → v1.9.0 cycle as in progress against a plugin shipping 1.28.0, and three items it listed as open were re-found as IN-04/IN-05). `.planning/CODE-REVIEW.md` gained a `superseded_by` front-matter key — its numbering is its own, and its IN-08 is not this report's IN-08. `.planning/SIMPLIFICATION-AUDIT.md` now states it was audited against v1.17.0 with drifted line numbers; its Phase 3 is still genuinely open, so the `/simplify-phase3` pointer in the v1.17.1 CHANGELOG entry was deliberately left alone. |
 >
 > All verified still present at the cited `file:line` before editing — the v1.26.1
 > four against v1.26.0, CR-01 and CR-02 against v1.26.1.
@@ -109,6 +128,81 @@ supersedes: .planning/CODE-REVIEW.md (v1.18.1, all 47 findings resolved)
 > the NaN was unrecoverable once produced) together with both harnesses, and gated by
 > `tests/fx_mod_nan_check.cpp` (`O-Prism-fx-mod-nan-check`), 159/159, whose negative
 > control is built in: 9/159 fail on the pre-fix guard with no file revert.
+>
+> **`/improve-verify` 2026-09-24 (v1.28.0) — PASS.** All five Warning-tier findings
+> dispositioned as claimed: **WR-02, WR-06, WR-08 CLOSED**; **WR-04, WR-05 retractions
+> upheld**. No regression survived verification.
+>
+> *Survived-to-disk.* The installed `-dev` AU and VST3 **binaries are byte-identical
+> (SHA-256) to a fresh build from committed HEAD** — `3c58ae94…` (AU) and `ba87bd89…`
+> (VST3) — so the shipped bundle is provably this source. Version coherent end to end:
+> CMakeLists `1.28.0`, CHANGELOG top entry, PLUGINS.md row and both bundles'
+> `CFBundleShortVersionString` all agree. No alternate-variant orphan on disk (only
+> `-dev`, per the dual-variant sweep rule).
+>
+> *Closure evidence.* **WR-06**: `updateWarpHarmonicScale` aside, a full sweep of
+> `Source/` finds **no unseeded RNG left** — every `juce::Random` is constructed with an
+> explicit seed and `WavetableFactory`'s three `std::mt19937` are fixed at 42/99/77; the
+> only `Time::currentTimeMillis` is a filename generator. The per-render rewind claim
+> holds structurally: `prepareToPlay` → `voice->prepare()` (PluginProcessor.cpp:736) →
+> `noiseGen.prepare` / `lfo1..4.prepare`, each of which re-applies its stored seed, so the
+> *same instance* is reproducible across bounces, not merely a fresh one. All seven
+> RNG-owning components of `PrismVoice` are covered (lfo1–4, noiseGen, oscA, oscB);
+> `subOsc` and `glide` own none. **WR-02**: the level-select predicate mirrors
+> `getNextSampleStereo`'s `isSyncMode` **exactly** — same `(Sync || Window) && warpAmount
+> > 0.001f` — and the recompute sits outside `setWarpType`'s change guard, so no stale
+> scale can survive a mode switch. All four warp paths are coherent: Sync/Window scale by
+> the slave ratio, Bend by its exponent, Off and FM stay 1.0. **WR-08**: `currentLog` and
+> `targetLog` are kept in step at **all five** mutation points (`reset`, `startFrom`,
+> `setTarget` incl. its snap branch, and both arms of `getNextFrequency`); the `exp2` is
+> gated behind the convergence early-out, so it costs nothing once a note has arrived —
+> this matters because REG-03 in v1.27.0 was exactly an unconditional `exp2` in the
+> per-sample voice loop. **WR-04**: `isBusesLayoutSupported` is confirmed **not**
+> overridden anywhere in `Source/`, so the mono negotiation the retraction depends on is
+> genuinely reachable; one shared `delaySamples.getNextValue()` drives both reads, which
+> is the symmetry the inertness argument rests on.
+>
+> *Gates, all re-run from a clean build (exit 0, zero warnings): **494 checks, 0 failed**.*
+> `dsp-quality-check` 64/64 (the new gate) · `fx-mod-nan-check` 159/159 ·
+> `geometry-check` 166/166 · `wavetable-cow-check` 41/41 · `edit-rotation-check` 28/28 ·
+> `lfo-subblock-check` 21/21 · `bend-state-check` 15/15. Every negative control fired as
+> documented: `[G1-neg]` pitch half-life spread 39.113 % vs 0.0000 %, `[G2-neg]`
+> direction asymmetry 0.4466 vs 0.000000000, `[P-neg]` both prescribed WR-05 corrections
+> measurably worse at both rates, `[M3]` the asymmetric case the WR-04 guard would matter
+> for. `auval -v aumu OuPr OuDv` **SUCCEEDED** and pluginval **strictness 10 SUCCESS** on
+> the installed 1.28.0 bundles.
+>
+> *Three Info-tier observations, none blocking (no new WR/CR number assigned).*
+> **(a)** The WR-05 retraction note at `NoiseGenerator.cpp:109–121` and the gate header at
+> `dsp_quality_check.cpp:95–99` cite **0.085 dB / 0.546 dB** "as shipped", but the live
+> gate measures **0.160 dB / 0.631 dB** — the CHANGELOG and the table above are correct
+> and the code comments are stale from a measurement taken before WR-06 fixed the noise
+> seeds. The conclusion is unaffected (0.160 ≪ 0.650), but the comment is the artefact a
+> future maintainer reads before deciding whether to "fix" WR-05, so it should carry the
+> reproducible numbers. **(b)** `frequency * warpHarmonicScale` is written **twice** —
+> `getLevelSelectFrequency()` (WavetableOscillator.h:81) and `readSample` inline
+> (WavetableOscillator.cpp:225). The `[W]` contract assertions read the accessor while the
+> audio path uses the duplicate, so a future edit to one alone would leave the gate green
+> and the audio wrong; `readSample` should call the accessor. **(c)** Nothing asserts that
+> the processor's 16 voices actually receive **16 distinct** indices. `[D]` proves
+> reproducibility and `[D-osc]` proves seed separation at the unit level, but both would
+> still pass if `PluginProcessor.cpp:572` regressed to a constant — which is precisely the
+> phase-coherent-unison failure WR-06's distinctness requirement guards against. Verified
+> correct by reading (`setVoiceIndex (i)`), i.e. static-only. **(d)** The CHANGELOG's stated
+> reason for leaving WR-02's *audible* improvement ungated — "aliasing in a sync'd or
+> phase-distorted oscillator is periodic at the master f0, so it lands *on* the harmonics
+> rather than between them and no inharmonic-energy metric separates it" — holds only when
+> `fs / f0` is an **integer**. The sync'd output is periodic at f_master, so its partials sit
+> at `k·f0`, but a partial above Nyquist folds to `|k·f0 − n·fs|`, which is a multiple of f0
+> only if `fs ≡ 0 (mod f0)`. Measured on a naive hard-synced saw at ratio 4 (a proxy for the
+> pre-fix surplus, not the plugin itself): inharmonic energy **3.45 %** at f0 = 1000 Hz
+> (`fs/f0` = 48, i.e. the leakage floor) against **11.0 %** at f0 = 1017 Hz and 11.0 % at
+> f0 ≈ 1046.5 Hz — a clean 3× separation. The premise that no such metric can discriminate
+> is therefore not established, and a `[W]`-tier aliasing gate at a deliberately
+> non-commensurate f0 looks constructible. Worth retesting before the listening row is
+> accepted as the only possible evidence; cf.
+> `pattern_exact_cycle_gate_needs_exactly_representable_f0`, which is this trap's mirror
+> image.
 
 
 > **`/improve-review` 2026-09-24 (v1.27.2) — WR-01 CLOSED.** Verified still present at
@@ -468,7 +562,7 @@ some hosts pass while probing, and which pluginval exercises — dereferences a 
 
 ## Info
 
-### IN-01: Half of `WavetableGenerator` is dead — ~105 LOC
+### IN-01: Half of `WavetableGenerator` is dead — ~105 LOC — ⚠️ **REFUTED in v1.28.1**
 `Source/dsp/WavetableGenerator.h:33-53`, `.cpp:35-127`. `generateProceduralTable`,
 `generateSaw`, `generateSquare`, `generateTriangle`, `generateSine` and the `WaveShape`
 enum have no callers anywhere — `WavetableFactory` owns every factory table and the
@@ -476,13 +570,13 @@ importer/editor call only `generateMipmaps` / `generateMipmapsForFrame`. Bonus: 
 additive generators are O(N²) (`2048` harmonics × `2048` samples = 4.2M `std::sin` calls
 each), so deleting them also removes dead construction-time cost.
 
-### IN-02: `generateMipmaps` duplicates `generateMipmapsForFrame` verbatim — ~55 LOC
+### IN-02: `generateMipmaps` duplicates `generateMipmapsForFrame` verbatim — ~55 LOC — ✅ **Resolved in v1.28.1**
 `Source/dsp/WavetableGenerator.cpp:129-193` vs `:195-248`. Identical FFT setup, identical
 per-level bin zeroing, identical mirror loop. Extract one file-static helper taking
 `(table, frameIndex, fft, fftBuffer, workBuffer)`; the whole-table path keeps its
 allocate-FFT-once property by passing its own buffers in.
 
-### IN-03: Dead public API
+### IN-03: Dead public API — ✅ **Resolved in v1.28.1** (a, b) / ⏭️ **SKIPPED** (c, module-owned)
 - `SVFFilter::setKeyTrack` (`SVFFilter.cpp:75-86`) — `PrismVoice` computes key tracking
   itself at `:505-510` and calls `setCutoff`. As written the method is also wrong: it
   multiplies `cutoffHz` cumulatively on each call.
@@ -492,18 +586,18 @@ allocate-FFT-once property by passing its own buffers in.
 - `TuningEngine::clearPitchBend` / `clearAllPitchBends` — **do not delete these**; see
   CR-03, they should be called.
 
-### IN-04: SVF 24 dB second stage is `processSingleSVF` inlined with a magic constant
+### IN-04: SVF 24 dB second stage is `processSingleSVF` inlined with a magic constant — ✅ **Resolved in v1.28.1**
 `Source/dsp/SVFFilter.cpp:156-171` repeats the TPT core and recomputes
 `h = 1/(1 + 2*0.707*g + g*g)` **every sample** from a literal `0.707`. Give
 `processSingleSVF` an `R2` parameter and cache the Butterworth `h` next to `g`/`R2` in
 `updateCoefficients()`. Carried over from the v1.9.0 improve backlog (items 6 and 10),
 never applied.
 
-### IN-05: `processNotch` is `processSingleSVF` plus one line
+### IN-05: `processNotch` is `processSingleSVF` plus one line — ✅ **Resolved in v1.28.1**
 `Source/dsp/SVFFilter.cpp:124-133` — the whole body is identical to `:103-111`; only the
 return differs (`yLP + yHP`). Fold it in as `case 6`.
 
-### IN-06: The mod matrix rescans all 16 slots for every sample of every voice
+### IN-06: The mod matrix rescans all 16 slots for every sample of every voice — ✅ **Resolved in v1.28.1**
 `ModulationMatrix::evaluate()` (`ModulationMatrix.cpp:70-87`) is called per sample at
 `PrismVoice.cpp:555`. It zeroes all 26 destinations and walks all 16 slots regardless of
 how many are enabled. At 16 voices and 48 kHz that is ~32M operations per second of
@@ -513,12 +607,12 @@ overhead when a typical patch uses two or three routes.
 small `activeSlots` array and record which destinations they touch; `evaluate()` then
 clears only those destinations and walks only the active list.
 
-### IN-07: `getFrameHarmonics` builds a `juce::dsp::FFT` on every call
+### IN-07: `getFrameHarmonics` builds a `juce::dsp::FFT` on every call — ✅ **Resolved in v1.28.1**
 `Source/dsp/WavetableEditor.cpp:74` — `juce::dsp::FFT tempFFT (11);` allocates its twiddle
 tables per call, purely because the method is `const` and the `fft` member is not. Mark the
 member `mutable` and drop the local. Called on every harmonic-editor refresh.
 
-### IN-08: `readSample` can index one past the frame for a tiny negative phase
+### IN-08: `readSample` can index one past the frame for a tiny negative phase — ✅ **Resolved in v1.28.1**
 `Source/dsp/WavetableOscillator.cpp:151-155`. `phase -= std::floor(phase)` on `-1e-20`
 gives `1.0 - 1e-20`, which rounds to exactly `1.0` in double; then `samplePos = 2048.0`,
 `idx0 = 2048`, and `getSample(level, frame, idx0 + 1)` reads index 2049 — one past the
@@ -529,14 +623,14 @@ gives `1.0 - 1e-20`, which rounds to exactly `1.0` in double; then `samplePos = 
 closing it is `idx0 = std::min(idx0, WavetableData::kTableSize - 1);` and the failure mode
 is a heap OOB.
 
-### IN-09: Distortion "Fold" aliases at 2× oversampling
+### IN-09: Distortion "Fold" aliases at 2× oversampling — ⏸️ **DEFERRED to its own MINOR**
 `Source/dsp/DistortionProcessor.cpp:34` (`2^1 = 2x`), `:94-96`
 (`data[i] = std::sin(x * kPi)`). Sine folding generates unbounded harmonic order; at drive
 1.0 the pre-gain is 10×, so `sin(10x·π)` produces components an order of magnitude above
 the source that 2× cannot contain. The other three shapes are saturating and mostly fine at
 2×. Either raise oversampling for this mode specifically or swap to a bounded triangle fold.
 
-### IN-10: Planning artifacts are stale
+### IN-10: Planning artifacts are stale — ✅ **Resolved in v1.28.1**
 `.planning/IMPROVE-STATE.md` still describes the v1.8.0 → v1.9.0 cycle as in progress
 ("Completed Fixes (3/40)") against a plugin that ships 1.26.0 — several of its listed items
 (the `0.707` constant, the SVF core unification, `stereoWidth` in `allSliderIds()`) are
@@ -591,3 +685,42 @@ Re-checked against known suite-wide patterns and found correct in v1.26.0:
 | **v1.27.0 (MINOR)** | ✅ CR-01, ✅ CR-02 — ✅ WR-01 in v1.27.2 | Thread-safety work on the wavetable publish path + the sub-block LFO. Touches real structure; wants its own version. |
 | **v1.27.x** | WR-02, WR-04, WR-05, WR-06, WR-08, IN-09 | DSP quality and determinism. WR-06 unblocks a byte-stable render gate, so it is worth doing before the rest so the others can be regression-tested against goldens. |
 | **Cleanup sweep** | IN-01..IN-08, IN-10 | ~200 LOC removed, no behaviour change. `/simplify` territory. |
+
+---
+
+## Resolved
+
+| Tier | Findings | Closed in |
+|------|----------|-----------|
+| Critical | CR-03 | v1.26.1 |
+| Critical | CR-01, CR-02 | v1.27.0 |
+| Warning | WR-03, WR-07, WR-09 | v1.26.1 |
+| Warning | WR-01 | v1.27.2 |
+| Warning | WR-02, WR-06, WR-08 fixed; WR-04, WR-05 retracted with evidence | v1.28.0 |
+| Info | IN-02, IN-03a, IN-03b, IN-04, IN-05, IN-06, IN-07, IN-08, IN-10 | v1.28.1 |
+| Info | IN-01 refuted (the cited code is called); IN-03c skipped (module-owned) | v1.28.1 |
+
+**Open: IN-09 only.**
+
+The v1.28.1 sweep is carried by the single commit
+`refactor(O-Prism): v1.28.1 — Info-tier review sweep (8 findings)`; resolutions are
+keyed to the version rather than to a SHA, because the annotation and the commit
+that contains it cannot reference each other in one atomic change. `git log
+--oneline -- plugins/O-Prism` resolves it.
+
+Three things a later reader should not have to rediscover:
+
+1. **A review finding can be wrong about its own premise.** IN-01 read as an
+   obvious ~105-LOC deletion and would have removed four factory wavetables. The
+   check that caught it was grepping for callers across `Source/`, `tests/` *and*
+   `modules/` rather than trusting the finding's own claim about who owns what.
+2. **Two findings that look like they solve each other may not.** IN-03b (dead
+   `clearOffsets`) and IN-06 (per-sample wipe) appeared to cancel: make the dead
+   function the per-block clear and both close. The pairing was wrong, because
+   `updateFromAPVTS()` runs per MIDI sub-block and one destination is read a sample
+   late. Only `lfo-subblock-check` distinguished the tidy answer from the correct
+   one.
+3. **An invisible defect needs a gate that can see it.** IN-08's out-of-bounds read
+   could not change any rendered value, so no value assertion could fail on it. The
+   assertion that works plants an infinity at the exact address the overflow lands
+   on and lets `0.0 * inf == NaN` surface the read.

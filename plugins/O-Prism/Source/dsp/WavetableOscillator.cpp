@@ -210,6 +210,23 @@ double WavetableOscillator::readSample (double phase) const
     // Sample position within frame
     double samplePos = phase * static_cast<double> (WavetableData::kTableSize);
     int idx0 = static_cast<int> (samplePos);
+
+    // IN-08: the wrap above cannot guarantee phase < 1.0. For a tiny negative
+    // phase such as -1e-20, `phase -= std::floor (phase)` evaluates 1.0 - 1e-20,
+    // which rounds to EXACTLY 1.0 in double (eps at 1.0 is ~2.2e-16). That puts
+    // samplePos at 2048.0 and idx0 at 2048, so the `idx0 + 1` lookups below read
+    // sample index 2049 of a 2049-element frame — past its end, and past the end
+    // of the whole buffer for the last frame at the last mipmap level.
+    // WavetableData::getSample is a bare vector index with no bounds check, so
+    // that is an unchecked heap read.
+    //
+    // No current caller can reach it (Bend returns pow(p, e) with p >= 0, FM
+    // wraps, Sync/Off read a wrapped accumulator), so this clamp is a no-op on
+    // every live path — idx0 <= 2047 whenever phase < 1.0. When it does fire,
+    // idx0 + 1 lands on the guard sample, which setGuardSamples() holds equal to
+    // sample 0: the correct wrap, and the value the interpolation wants anyway.
+    idx0 = std::min (idx0, WavetableData::kTableSize - 1);
+
     double frac = samplePos - idx0;
 
     // Frame interpolation

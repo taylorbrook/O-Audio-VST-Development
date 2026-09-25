@@ -1,3 +1,12 @@
+> **ARCHIVED 2026-09-24 (v1.28.1, IN-10).** Historical only — do NOT read as
+> live state. This tracked the v1.8.0 → v1.9.0 improve cycle and was never
+> closed out; it has described a cycle that finished twenty releases ago ever
+> since. Three of the items it still lists as open (the `0.707` constant, the
+> SVF core unification, `stereoWidth` in `allSliderIds()`) were re-found by the
+> 2026-09-22 deep review as IN-04/IN-05 and resolved in v1.28.1. The live
+> review is `plugins/O-Prism/CODE_REVIEW.md`; the live state is
+> `.planning/STATUS.md`.
+
 # O-Prism Code Quality Improvement - In Progress
 
 ## Version: 1.8.0 → 1.9.0 (MINOR)

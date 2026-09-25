@@ -141,9 +141,6 @@ public:
         cannot latch a stale modulated value when that value crosses zero. */
     bool isDestinationRouted (ModDest dest) const;
 
-    /** Reset all destination offsets to zero */
-    void clearOffsets();
-
 private:
     struct SlotState
     {
@@ -166,4 +163,18 @@ private:
     std::array<float, kNumSources> sourceValues {};
     std::array<float, kNumDests> destOffsets {};
     std::array<bool,  kNumDests> destRouted {};
+
+    // IN-06: evaluate() runs per sample per voice, so at 16 voices and 48 kHz
+    // its old shape — zero all kNumDests, then walk all kNumSlots — cost ~32M
+    // operations a second to service the two or three routes a typical patch
+    // uses. updateFromAPVTS() (once per block) compacts the slots that pass
+    // the routing predicate into activeSlots, and destRouted records which
+    // destinations they reach; evaluate() then walks and clears only those.
+    //
+    // The predicate is the same one destRouted uses and the same one
+    // evaluate() used to apply inline. It must stay identical in both places.
+    std::array<int, kNumSlots> activeSlots {};
+    int numActiveSlots = 0;
+    std::array<int, kNumDests> routedDests {};
+    int numRoutedDests = 0;
 };

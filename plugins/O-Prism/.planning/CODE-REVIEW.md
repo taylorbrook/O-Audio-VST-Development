@@ -1,4 +1,9 @@
 ---
+superseded_by: plugins/O-Prism/CODE_REVIEW.md
+superseded_note: >
+  HISTORICAL (IN-10, v1.28.1). This is the 2026-07-02 review of v1.18.1; all 47
+  findings are resolved and its numbering is its own — its IN-08 is not the
+  IN-08 of the live review. The live review is plugins/O-Prism/CODE_REVIEW.md.
 phase: O-Prism code review
 reviewed: 2026-07-02T00:00:00Z
 depth: deep

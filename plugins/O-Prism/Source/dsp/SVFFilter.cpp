@@ -72,19 +72,6 @@ void SVFFilter::setDrive (double drive)
     driveAmount = drive;
 }
 
-void SVFFilter::setKeyTrack (double amount, int midiNote)
-{
-    double keyTrackOffset = amount * (midiNote - 60);
-    double tracked = cutoffHz * std::pow (2.0, keyTrackOffset / 12.0);
-    double newCutoff = std::max (20.0, std::min (20000.0, tracked));
-
-    if (cutoffHz != newCutoff)
-    {
-        cutoffHz = newCutoff;
-        coeffsDirty = true;
-    }
-}
-
 void SVFFilter::updateCoefficients()
 {
     // Clamp below Nyquist as well as the nominal 20 kHz ceiling: at fs < 40 kHz
@@ -98,12 +85,22 @@ void SVFFilter::updateCoefficients()
     // resonance=0 -> R2=2 (Butterworth), resonance=1 -> R2~0.1 (self-osc)
     double svfRes = 1.0 / (1.0 + resonance * 19.0);
     R2 = 2.0 * svfRes;
+    h = 1.0 / (1.0 + R2 * g + g * g);
+
+    // The 24 dB cascade's second stage runs at fixed Butterworth damping. The
+    // literal 0.707 is deliberate and MUST NOT be "corrected" to sqrt(2)/2: it
+    // sits 1.510e-4 relative below it (2*0.707 = 1.414 against sqrt(2) =
+    // 1.4142135623730951, measured), and substituting the exact value changes
+    // rendered output for every existing patch on LP24/HP24/BP24. Kept as
+    // shipped; only the recomputation moved out of the per-sample path (IN-04).
+    butterR2 = 2.0 * 0.707;
+    butterH = 1.0 / (1.0 + butterR2 * g + g * g);
 }
 
-double SVFFilter::processSingleSVF (double input, double& s1, double& s2)
+double SVFFilter::processSingleSVF (double input, double& s1, double& s2,
+                                   double r2, double hCoeff)
 {
-    double h = 1.0 / (1.0 + R2 * g + g * g);
-    double yHP = h * (input - s1 * (R2 + g) - s2);
+    double yHP = hCoeff * (input - s1 * (r2 + g) - s2);
     double yBP = yHP * g + s1;
     s1 = yHP * g + yBP;
     double yLP = yBP * g + s2;
@@ -112,24 +109,14 @@ double SVFFilter::processSingleSVF (double input, double& s1, double& s2)
     switch (filterType)
     {
         case 0: return yLP;  // LP12
-        case 1: return yLP;  // LP24 (first stage)
+        case 1: return yLP;  // LP24 (per stage)
         case 2: return yHP;  // HP12
-        case 3: return yHP;  // HP24 (first stage)
+        case 3: return yHP;  // HP24 (per stage)
         case 4: return yBP;  // BP12
-        case 5: return yBP;  // BP24 (first stage)
+        case 5: return yBP;  // BP24 (per stage)
+        case 6: return yLP + yHP;  // Notch = LP + HP (IN-05)
         default: return yLP;
     }
-}
-
-double SVFFilter::processNotch (double input, double& s1, double& s2)
-{
-    double h = 1.0 / (1.0 + R2 * g + g * g);
-    double yHP = h * (input - s1 * (R2 + g) - s2);
-    double yBP = yHP * g + s1;
-    s1 = yHP * g + yBP;
-    double yLP = yBP * g + s2;
-    s2 = yBP * g + yLP;
-    return yLP + yHP; // Notch = LP + HP
 }
 
 double SVFFilter::processSample (double input)
@@ -144,32 +131,25 @@ double SVFFilter::processSample (double input)
     if (driveAmount > 0.0)
         input = std::tanh (input * (1.0 + driveAmount * 9.0));
 
-    // Notch mode
-    if (filterType == 6)
-        return flushIfNonFinite (processNotch (input, ic1eq_1, ic2eq_1));
+    // Single-stage modes: the three 12 dB responses and Notch, which is the
+    // same core with a different return (IN-05).
+    if (filterType == 0 || filterType == 2 || filterType == 4 || filterType == 6)
+        return flushIfNonFinite (processSingleSVF (input, ic1eq_1, ic2eq_1, R2, h));
 
-    // 12dB modes (single stage)
-    if (filterType == 0 || filterType == 2 || filterType == 4)
-        return flushIfNonFinite (processSingleSVF (input, ic1eq_1, ic2eq_1));
+    // 24dB modes (cascaded: two stages, resonance on first only). Both stages
+    // are the same core; the second gets the Butterworth pair (IN-04).
+    double stage1 = processSingleSVF (input, ic1eq_1, ic2eq_1, R2, h);
+    double stage2 = processSingleSVF (stage1, ic1eq_2, ic2eq_2, butterR2, butterH);
 
-    // 24dB modes (cascaded: two stages, resonance on first only)
-    double stage1 = processSingleSVF (input, ic1eq_1, ic2eq_1);
+    // filterType is an APVTS Choice over 0-6, so only 1/3/5 reach here and
+    // both stages map identically for those. An out-of-range type cannot
+    // occur, but the pre-IN-04 code ran the second stage's integrators and
+    // then returned stage1 — preserved verbatim so the refactor is
+    // bit-identical even on the unreachable branch.
+    if (filterType != 1 && filterType != 3 && filterType != 5)
+        return flushIfNonFinite (stage1);
 
-    // Second stage with no resonance (R2 = sqrt(2) for Butterworth)
-    double h = 1.0 / (1.0 + 2.0 * 0.707 * g + g * g);
-    double yHP = h * (stage1 - ic1eq_2 * (2.0 * 0.707 + g) - ic2eq_2);
-    double yBP = yHP * g + ic1eq_2;
-    ic1eq_2 = yHP * g + yBP;
-    double yLP = yBP * g + ic2eq_2;
-    ic2eq_2 = yBP * g + yLP;
-
-    switch (filterType)
-    {
-        case 1: return flushIfNonFinite (yLP);  // LP24
-        case 3: return flushIfNonFinite (yHP);  // HP24
-        case 5: return flushIfNonFinite (yBP);  // BP24
-        default: return flushIfNonFinite (stage1);
-    }
+    return flushIfNonFinite (stage2);
 }
 
 double SVFFilter::flushIfNonFinite (double output)
