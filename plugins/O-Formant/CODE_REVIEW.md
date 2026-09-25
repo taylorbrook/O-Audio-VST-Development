@@ -190,3 +190,18 @@ Border-box sizing puts the rotation origin inside the 2 px border: main knob piv
 1. **v1.29.1 (PATCH, no timbre change):** CR-02, CR-04, CR-05, CR-07, CR-08, CR-09, WR-02, WR-05 (module), WR-10, WR-12, WR-13, IN-05.
 2. **v1.30.0 (MINOR, behaviour changes):** CR-03, CR-06, WR-03, WR-04, WR-06, WR-09, WR-14, WR-16, WR-18.
 3. **v1.31.0 (MINOR, timbre re-render — listen pass on all 16 presets):** CR-01 + WR-01 together, WR-11, WR-15, WR-17.
+
+---
+
+## Resolved
+
+| Version | Commit | Findings |
+|---|---|---|
+| v1.29.1 | `b7528dc3` | CR-02/04/05/07/08/09, WR-02/05/10/12/13, IN-05 |
+| v1.30.0 | `265eb24f` | CR-03/06, WR-03/04/06/07/08/09/14/16/18/19/20 (IN-13, IN-14b as side effects) |
+| v1.31.0 | `7c0baac5` | CR-01, WR-01, WR-11, WR-15, WR-17 (IN-08 as a side effect) |
+| v1.31.1 | `6bd37253` | IN-03, IN-07, IN-09, IN-16, IN-19, IN-20, IN-21 (save), IN-22a/c, IN-23a/b/d/e, IN-24g/h/i/j/k |
+
+Closed without change: IN-22b (drag listeners already on `document`), IN-23c (overlay adds 0 px — measured), IN-24f (UI shows `ct`).
+
+Still open: IN-01, IN-02, IN-04, IN-06, IN-10, IN-11, IN-12, IN-14a, IN-15, IN-17, IN-18, IN-21 (navigation), IN-24a–e.
