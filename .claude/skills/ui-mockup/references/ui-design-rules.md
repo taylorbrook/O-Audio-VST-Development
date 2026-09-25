@@ -406,61 +406,53 @@ gainSlider.value = gainState.getNormalisedValue();
 - Parameter IDs in JavaScript must match C++ exactly (case-sensitive)
 - Always initialize HTML controls from `getNormalisedValue()` (handles preset recall)
 - Always listen to `valueChangedEvent` (handles DAW automation)
+- Always listen to `propertiesChangedEvent` too — range, skew and choices can arrive after the first paint
+- Readouts come from `getScaledValue()`, never from a JS range map; the C++ `NormalisableRange` is the only range
+- The full knob contract (markup, CSS, `bindKnob` lifecycle, readouts) lives in `html-generation.md`
 
 ---
 
 ## Interactive Control Patterns
 
-### Rule 8: Rotary Control Rotation
+### Rule 8: Rotary Control Rotation — Family A stem
 
-**Principle:** Rotate the parent knob element, not child indicator.
+**Principle:** The seed ring and its lighting stay fixed. Only the `.knob-stem` rotates. This is the house knob (Family A, O-ReverseDelay) and is consistent with Rule 9: the light source does not follow the knob.
 
-**❌ WRONG (Clock hand effect):**
+```html
+<div class="knob" id="knob-threshold" data-param="threshold"><div class="knob-stem"></div></div>
+```
 
 ```css
-.knob-indicator {
-    transform-origin: center bottom;
-    transition: transform 50ms;
+.knob-stem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.5px;
+  height: 24px;
+  border-radius: 1.5px;
+  background: var(--brown-frame);
+  transform-origin: 50% 100%;                        /* pivot at the stem's base */
+  transform: translate(-50%, -100%) rotate(0deg);    /* base sits on the knob centre */
+  pointer-events: none;
 }
 ```
 
+The `translate(-50%, -100%)` puts the stem's base on the knob centre, and `transform-origin: 50% 100%` makes that base the pivot, so the stem reads as a pointer from the centre outwards.
+
+**Angle:** −135° to +135° (270° travel), from the parameter's own normalised value:
+
 ```javascript
-// Only indicator rotates, knob stays fixed
-indicator.style.transform = `rotate(${degrees}deg)`;
-```
-
-**✅ CORRECT (Entire control rotates):**
-
-```css
-.knob {
-    transform-origin: center center;
-    transition: transform 50ms;
+function normToDeg(n) {
+    return KNOB_MIN_DEG + n * (KNOB_MAX_DEG - KNOB_MIN_DEG);   // -135 .. +135
 }
 
-.knob-indicator {
-    /* No transform - inherits parent rotation */
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);  /* Only for centering */
-}
+stem.style.transform =
+    `translate(-50%, -100%) rotate(${normToDeg(st.getNormalisedValue())}deg)`;
 ```
 
-```javascript
-// Rotate parent - indicator follows automatically
-knob.style.transform = `rotate(${degrees}deg)`;
-```
+`getNormalisedValue()` already carries the C++ range and skew. Never compute the angle from mirrored engineering ranges in JS: it matches C++ only on linear parameters.
 
-**Rationale:** The entire knob (body + indicator) should rotate as a single unit. Rotating only the indicator creates a "clock hand" effect where the line spins around a pivot point while the knob body stays fixed.
-
-**Standard rotation range:** -135° to +135° (270° total range)
-
-```javascript
-// Standard knob rotation calculation
-const normalized = (value - min) / (max - min);  // 0 to 1
-const degrees = -135 + (normalized * 270);       // -135° to +135°
-knob.style.transform = `rotate(${degrees}deg)`;
-```
+The full binding — `updateKnobVisual`, `bindKnob`, pointer capture, arrow keys, ARIA, wheel and dblclick reset — is in `html-generation.md` ("Rotary Knob — Family A" and "Knob Interaction").
 
 ---
 
@@ -641,25 +633,25 @@ body {
 ```
 
 ```javascript
-// Update debug monitor on parameter change
-function updateDebugMonitor(paramId, value, normalizedValue) {
-    document.getElementById('debugParam').textContent = paramId;
-    document.getElementById('debugValue').textContent = formatValue(paramId, value);
-    document.getElementById('debugNormalized').textContent = `${(normalizedValue * 100).toFixed(1)}%`;
+// Update debug monitor on parameter change. Reads what the knob already shows:
+// its own aria-valuetext (= the readout text, from getScaledValue()) and the
+// normalised value straight from the SliderState. No range math here.
+function updateDebugMonitor(id) {
+    const st = sliderState[id];
+    const knob = document.getElementById(`knob-${id}`);
+    if (!st || !knob) return;
+    document.getElementById('debugParam').textContent = id;
+    document.getElementById('debugValue').textContent = knob.getAttribute('aria-valuetext') || '—';
+    document.getElementById('debugNormalized').textContent =
+        `${(st.getNormalisedValue() * 100).toFixed(1)}%`;
 }
 
-// Call in parameter update handlers
-function updateKnob(paramId, value, min, max) {
-    // ... normal parameter update logic ...
-
-    const normalized = (value - min) / (max - min);
-    updateDebugMonitor(paramId, value, normalized);
-}
+// Call at the end of updateKnobVisual(id), after aria-valuetext is written.
 ```
 
 **Requirements:**
 - Position: `bottom: 10px; right: 10px` (fixed)
-- Shows: Parameter ID, formatted value, normalized percentage
+- Shows: Parameter ID, the knob's readout text (its `aria-valuetext`), normalised percentage from `getNormalisedValue()`
 - Updates in real-time during drag/scroll/interaction
 - Non-interactive (`pointer-events: none`)
 - High z-index (appears above all UI elements)
@@ -836,9 +828,14 @@ Before finalizing any mockup, validate against these rules:
 - [ ] **Platform support:** Platform-specific options included if cross-platform
 - [ ] **Testing:** Tested in Debug and Release builds, tested reload 10+ times
 
-### Interactive Controls (Test HTML)
+### Interactive Controls
 
-- [ ] **Rotary rotation:** Parent knob rotates (not child indicator)
+These apply to test HTML and production HTML alike.
+
+- [ ] **Rotary rotation:** Family A — ring and lighting fixed, only `.knob-stem` rotates, angle from `getNormalisedValue()` (Rule 8)
+- [ ] **Pointer lifecycle:** `setPointerCapture` on the knob, with `pointerup`, `pointercancel` and `lostpointercapture` all ending the gesture exactly once
+- [ ] **Keyboard + ARIA:** arrow keys nudge, `role="slider"`, `tabindex="0"`, `aria-valuetext` = readout text
+- [ ] **Readouts:** from `getScaledValue()` — no JS range map, no mirrored min/max
 - [ ] **Skeuomorphic lighting:** Light/shadow fixed, only texture rotates
 - [ ] **Preview frame:** Fixed-size frame with visible border (test HTML only)
 - [ ] **Debug monitor:** Parameter monitor bottom-right (test HTML only)
