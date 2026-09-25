@@ -159,7 +159,7 @@ html, body {
 .fx-knobs .knob-indicator {
   height: 11px;
   top: 3px;
-  transform-origin: 50% 19px;
+  transform-origin: 50% 17px; /* WR-19: 44px knob, 40px padding box: 20 - 3 */
 }
 .fx-knobs .knob-center {
   width: 12px; height: 12px;
@@ -716,7 +716,9 @@ canvas#xy-pad {
   background: #3C2F2F;
   border-radius: 1px;
   left: 50%; top: 4px;
-  transform-origin: 50% 23.5px;
+  /* WR-19: border-box with a 2px border — the padding box is 51px, centre
+     25.5px; 25.5 - top 4 = 21.5 (23.5 pivoted 2px below centre). */
+  transform-origin: 50% 21.5px;
   transform: translateX(-50%) rotate(-135deg);
   pointer-events: none;
 }
@@ -861,7 +863,7 @@ canvas#xy-pad {
 .knob-sm .knob-indicator {
   height: 10px;
   top: 3px;
-  transform-origin: 50% 16px;
+  transform-origin: 50% 14px; /* WR-19: 38px knob, 34px padding box: 17 - 3 */
 }
 .consonant-xy-wrap {
   flex: 1;
@@ -1023,7 +1025,7 @@ canvas#consonant-xy-pad {
 .tuning-ref-section { text-align: center; padding: 10px; }
 .ref-knob-container { display: inline-block; }
 .ref-knob { width: 50px; height: 50px; background: radial-gradient(circle at 30% 30%, #FFF8DC, #D4C4B0); border: 2px solid var(--tuning-border); border-radius: 50%; position: relative; cursor: ns-resize; }
-.ref-knob-indicator { position: absolute; top: 8px; left: 50%; width: 2px; height: 12px; background: var(--tuning-text); transform-origin: bottom center; margin-left: -1px; }
+.ref-knob-indicator { position: absolute; top: 8px; left: 50%; width: 2px; height: 12px; background: var(--tuning-text); transform-origin: 50% 15px; margin-left: -1px; } /* WR-19: 50px knob, 46px padding box: 23 - top 8 (bottom center pivoted 3px high) */
 .ref-knob-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); margin-top: 6px; }
 .ref-knob-value { font-size: 11px; font-weight: 600; }
 .scale-name-display { text-align: center; padding: 8px; background: rgba(255,255,255,0.6); border: 1px solid var(--tuning-border); border-radius: 4px; font-weight: 500; font-size: 11px; }
@@ -1051,6 +1053,8 @@ canvas#consonant-xy-pad {
 .tuning-file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .tuning-file-btn { padding: 6px 8px; background: rgba(255,255,255,0.6); border: 1px solid var(--tuning-border); border-radius: 4px; font-size: 9px; cursor: pointer; color: var(--tuning-text); }
 .tuning-file-btn:hover { background: var(--tuning-hover); }
+.tuning-kbm-clear-btn { grid-column: span 2; }
+.tuning-kbm-clear-btn[hidden] { display: none; }
 .tuning-export-btn { grid-column: span 2; background: var(--tuning-accent); border-color: var(--tuning-accent); color: white; font-weight: 600; }
 .tuning-export-btn:hover { filter: brightness(1.1); }
 
@@ -1271,7 +1275,7 @@ canvas#consonant-xy-pad {
         <div class="knob-wrap" data-param="vibratoRate">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
           <div class="knob-label" data-i18n="label.vibRate">Vib Rate</div>
-          <div class="knob-value">5.5 Hz</div>
+          <div class="knob-value">5.50 Hz</div>
         </div>
         <div class="knob-wrap" data-param="vibratoDepth">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
@@ -1375,7 +1379,7 @@ canvas#consonant-xy-pad {
         <div class="knob-wrap" data-param="formantShift">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
           <div class="knob-label" data-i18n="label.shift">Shift</div>
-          <div class="knob-value">0 st</div>
+          <div class="knob-value">0.0 st</div>
         </div>
         <div class="knob-wrap" data-param="formantSpread">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>

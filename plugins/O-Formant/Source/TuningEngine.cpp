@@ -410,36 +410,46 @@ void TuningEngine::setTonicNote(int tonicIndex)
 // Scala File I/O
 // ═══════════════════════════════════════════════════════════════════
 
-double TuningEngine::parseScalaPitch(const juce::String& line) const
+std::optional<double> TuningEngine::parseScalaPitch(const juce::String& line) const
 {
-    juce::String trimmed = line.trim();
-    if (trimmed.isEmpty())
-        return -1.0;
+    // WR-08: only the first token is the pitch (the rest of the line is a
+    // free comment, e.g. "3/2 perfect fifth"), and a negative cents value is a
+    // legal pitch — std::optional replaces the old -1.0 error sentinel, which
+    // silently dropped every negative-cent line.
+    const juce::String token = line.trim().upToFirstOccurrenceOf(" ", false, false)
+                                          .upToFirstOccurrenceOf("\t", false, false);
+    if (token.isEmpty())
+        return std::nullopt;
 
-    // Check if it's a ratio (contains /)
-    if (trimmed.contains("/"))
+    if (token.contains("."))
     {
-        int slashPos = trimmed.indexOf("/");
-        double numerator = trimmed.substring(0, slashPos).getDoubleValue();
-        double denominator = trimmed.substring(slashPos + 1).getDoubleValue();
-        if (denominator <= 0.0 || numerator <= 0.0)
-            return -1.0;
-        double ratio = numerator / denominator;
-        return 1200.0 * std::log2(ratio);
+        // Cents: optional sign, digits, one '.'
+        if (!token.containsOnly("+-0123456789."))
+            return std::nullopt;
+        const double cents = token.getDoubleValue();
+        return std::isfinite(cents) ? std::optional<double>(cents) : std::nullopt;
     }
-    else if (trimmed.contains("."))
+
+    // Ratio "n/d" or integer "n" (= n/1)
+    if (!token.containsOnly("0123456789/"))
+        return std::nullopt;
+
+    double ratio;
+    if (token.contains("/"))
     {
-        // It's already in cents
-        return trimmed.getDoubleValue();
+        const double numerator = token.upToFirstOccurrenceOf("/", false, false).getDoubleValue();
+        const double denominator = token.fromFirstOccurrenceOf("/", false, false).getDoubleValue();
+        if (denominator <= 0.0 || numerator <= 0.0)
+            return std::nullopt;
+        ratio = numerator / denominator;
     }
     else
     {
-        // Integer ratio (e.g., "2" means 2/1)
-        double ratio = trimmed.getDoubleValue();
+        ratio = token.getDoubleValue();
         if (ratio <= 0.0)
-            return -1.0;
-        return 1200.0 * std::log2(ratio);
+            return std::nullopt;
     }
+    return 1200.0 * std::log2(ratio);
 }
 
 bool TuningEngine::loadScalaFile(const juce::File& sclFile)
@@ -466,13 +476,12 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
     {
         juce::String trimmed = line.trim();
 
-        // Skip empty lines and comments
-        if (trimmed.isEmpty())
-            continue;
         if (trimmed.startsWith("!"))
             continue;
 
-        // First non-comment line is the description
+        // WR-08: the first non-comment line is the description EVEN WHEN
+        // EMPTY (legal per the Scala spec). Skipping it made the count line
+        // the name and the first pitch the count.
         if (!foundDescription)
         {
             parsedName = trimmed;
@@ -480,30 +489,44 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
             continue;
         }
 
-        // Second non-comment line is the number of degrees
+        if (trimmed.isEmpty())
+            continue;
+
         if (!foundDegreeCount)
         {
-            expectedDegrees = trimmed.getIntValue();
+            const juce::String token = trimmed.upToFirstOccurrenceOf(" ", false, false);
+            if (!token.containsOnly("0123456789"))
+            {
+                // Tolerate a stray blank line above the real description.
+                if (parsedName.isEmpty())
+                {
+                    parsedName = trimmed;
+                    continue;
+                }
+                DBG("TuningEngine::loadScalaFile() - Bad note count line");
+                return false;
+            }
+            expectedDegrees = token.getIntValue();
             foundDegreeCount = true;
             continue;
         }
 
-        // Parse pitch lines
-        double cents = parseScalaPitch(trimmed);
-        if (cents >= 0.0)
+        const auto cents = parseScalaPitch(trimmed);
+        if (!cents.has_value())
         {
-            newIntervals.push_back(cents);
-            pitchLineCount++;
-
-            if (pitchLineCount >= expectedDegrees)
-                break;
+            DBG("TuningEngine::loadScalaFile() - Malformed pitch line: " + trimmed);
+            return false;
         }
+
+        newIntervals.push_back(*cents);
+        if (++pitchLineCount >= expectedDegrees)
+            break;
     }
 
-    // Validate
-    if (newIntervals.size() < 2)
+    // Validate: the declared count must be met exactly (WR-08)
+    if (!foundDegreeCount || expectedDegrees < 1 || pitchLineCount != expectedDegrees)
     {
-        DBG("TuningEngine::loadScalaFile() - Not enough pitch values in file");
+        DBG("TuningEngine::loadScalaFile() - Pitch count does not match the declared count");
         return false;
     }
 
@@ -528,8 +551,13 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
         return false;
     }
 
+    return loadKBMFromString(kbmFile.loadFileAsString());
+}
+
+bool TuningEngine::loadKBMFromString(const juce::String& kbmText)
+{
     juce::StringArray lines;
-    kbmFile.readLines(lines);
+    lines.addLines(kbmText);
 
     // Collect non-comment, non-empty lines
     juce::StringArray dataLines;
@@ -561,32 +589,29 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
     // CR-08: map size / octave degree come straight from the file; an
     // unbounded map size drove a multi-GB push_back loop on the message thread.
     newMapSize = juce::jlimit(0, 128, newMapSize);
-    if (newOctaveDegree > 0)
-        newOctaveDegree = juce::jmin(newOctaveDegree, 128);
+    newOctaveDegree = juce::jlimit(0, 128, newOctaveDegree);
     newFirstNote = juce::jlimit(0, 127, newFirstNote);
     newLastNote = juce::jlimit(0, 127, newLastNote);
     newMiddleNote = juce::jlimit(0, 127, newMiddleNote);
     newReferenceNote = juce::jlimit(0, 127, newReferenceNote);
 
-    // Parse mapping entries
+    // Parse mapping entries. WR-07: map size 0 is LINEAR mapping per the Scala
+    // spec (no entries; key offset from the middle note = scale degree) — it
+    // used to become a 12-key map.
     std::vector<int> newMapping;
-    int mappingCount = (newMapSize > 0) ? newMapSize : 12;
-
-    for (int i = 7; i < dataLines.size() && newMapping.size() < static_cast<size_t>(mappingCount); ++i)
+    for (int i = 7; i < dataLines.size() && newMapping.size() < static_cast<size_t>(newMapSize); ++i)
     {
         juce::String entry = dataLines[i].trim().toLowerCase();
 
-        if (entry == "x")
+        if (entry.startsWith("x"))
             newMapping.push_back(-1);
         else
-            newMapping.push_back(entry.getIntValue());
+            newMapping.push_back(juce::jmax(0, entry.getIntValue()));
     }
 
-    // Fill with linear mapping if needed
-    while (newMapping.size() < static_cast<size_t>(mappingCount))
-    {
+    // Fill with linear mapping if the file lists fewer entries than it declares
+    while (newMapping.size() < static_cast<size_t>(newMapSize))
         newMapping.push_back(static_cast<int>(newMapping.size()));
-    }
 
     // Apply the new mapping
     {
@@ -596,7 +621,10 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
         kbmLastNote = newLastNote;
         kbmMiddleNote = newMiddleNote;
         kbmReferenceNote = newReferenceNote;
-        kbmOctaveDegree = (newOctaveDegree > 0) ? newOctaveDegree : static_cast<int>(scaleIntervals.size()) - 1;
+        // WR-07: kept as written (0 = "the scale's own period", resolved at
+        // lookup) so the formal octave follows the file, not the scale size
+        // at load time.
+        kbmOctaveDegree = newOctaveDegree;
         kbmMapping = newMapping;
         // CR-07: own member, sane audio range; a4Frequency is left untouched.
         kbmReferenceFreq = (newRefFreq > 0.0) ? juce::jlimit(1.0, 20000.0, newRefFreq)
@@ -639,32 +667,34 @@ juce::String TuningEngine::generateKBMFileContent() const
     content += "! Keyboard mapping for " + scaleName + "\n";
     content += "! Generated by scala-tuning-engine module\n";
 
-    int mapSize = kbmLoaded ? kbmMapSize : static_cast<int>(kbmMapping.size());
-    content += juce::String(mapSize) + "\n";
+    if (!kbmLoaded)
+    {
+        // WR-20: describe what the engine actually plays with no KBM loaded —
+        // linear mapping anchored on MIDI 60 + tonic at its (stretched) 12-TET
+        // frequency, repeating every scale period. The old export wrote a
+        // 12-key map at note 69 / A4, which plays differently elsewhere.
+        const int anchor = 60 + tonicOffset.load(std::memory_order_relaxed);
+        const int scaleSize = juce::jmax(1, static_cast<int>(scaleIntervals.size()) - 1);
+        content += "0\n";                                  // map size: linear
+        content += "0\n";                                  // first note
+        content += "127\n";                                // last note
+        content += juce::String(anchor) + "\n";            // middle note
+        content += juce::String(anchor) + "\n";            // reference note
+        content += juce::String(calculate12TETFrequency(anchor), 6) + "\n";
+        content += juce::String(scaleSize) + "\n";         // formal octave
+        return content;
+    }
+
+    content += juce::String(kbmMapSize) + "\n";
     content += juce::String(kbmFirstNote) + "\n";
     content += juce::String(kbmLastNote) + "\n";
     content += juce::String(kbmMiddleNote) + "\n";
     content += juce::String(kbmReferenceNote) + "\n";
-    content += juce::String(kbmLoaded ? kbmReferenceFreq : a4Frequency, 6) + "\n";
+    content += juce::String(kbmReferenceFreq, 6) + "\n";
+    content += juce::String(kbmOctaveDegree) + "\n";
 
-    int octDegree = kbmLoaded ? kbmOctaveDegree : (static_cast<int>(scaleIntervals.size()) - 1);
-    content += juce::String(octDegree) + "\n";
-
-    if (kbmMapping.empty())
-    {
-        for (int i = 0; i < mapSize; ++i)
-            content += juce::String(i) + "\n";
-    }
-    else
-    {
-        for (int degree : kbmMapping)
-        {
-            if (degree < 0)
-                content += "x\n";
-            else
-                content += juce::String(degree) + "\n";
-        }
-    }
+    for (int degree : kbmMapping)
+        content += (degree < 0 ? juce::String("x") : juce::String(degree)) + "\n";
 
     return content;
 }
@@ -684,49 +714,41 @@ bool TuningEngine::connectMTSClient()
 
 bool TuningEngine::isNoteMapped(int midiNote) const
 {
+    // WR-07: unmapped keys ('x' entries, keys outside the KBM's first..last
+    // range) are baked into the frequency table as 0 Hz — the voice reads that
+    // lock-free and stays silent.
     midiNote = juce::jlimit(0, 127, midiNote);
-
-    if (!kbmLoaded || kbmMapping.empty())
-        return true;
-
-    if (midiNote < kbmFirstNote || midiNote > kbmLastNote)
-        return true;
-
-    int mapSize = kbmMapSize > 0 ? kbmMapSize : static_cast<int>(kbmMapping.size());
-    int noteOffset = midiNote - kbmMiddleNote;
-    int positionInPattern = noteOffset % mapSize;
-
-    if (positionInPattern < 0)
-        positionInPattern += mapSize;
-
-    if (positionInPattern >= 0 && positionInPattern < static_cast<int>(kbmMapping.size()))
-    {
-        return kbmMapping[static_cast<size_t>(positionInPattern)] >= 0;
-    }
-
-    return true;
+    return frequencyTable[static_cast<size_t>(midiNote)].load(std::memory_order_relaxed) > 0.0;
 }
 
 void TuningEngine::resetKeyboardMapping()
 {
+    {
+        std::lock_guard<std::mutex> lock(intervalMutex);
+
+        kbmMapSize = 0;
+        kbmFirstNote = 0;
+        kbmLastNote = 127;
+        kbmMiddleNote = 60;
+        kbmReferenceNote = 69;
+        kbmOctaveDegree = 0;
+        kbmReferenceFreq = 440.0;
+        kbmMapping.clear();
+        kbmLoaded = false;
+    }
+
+    rebuildFrequencyTable();
+}
+
+juce::String TuningEngine::getKBMState() const
+{
+    return isKBMLoaded() ? generateKBMFileContent() : juce::String();
+}
+
+bool TuningEngine::isKBMLoaded() const
+{
     std::lock_guard<std::mutex> lock(intervalMutex);
-
-    int mapSize = (scaleDegrees > 0) ? scaleDegrees : 12;
-
-    kbmMapSize = mapSize;
-    kbmFirstNote = 0;
-    kbmLastNote = 127;
-    kbmMiddleNote = 60;
-    kbmReferenceNote = 69;
-    kbmOctaveDegree = mapSize;
-    kbmReferenceFreq = 440.0;
-
-    kbmMapping.clear();
-    kbmMapping.reserve(static_cast<size_t>(mapSize));
-    for (int i = 0; i < mapSize; ++i)
-        kbmMapping.push_back(i);
-
-    kbmLoaded = false;
+    return kbmLoaded;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -803,11 +825,10 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
     if (scaleIntervals.size() < 2)
         return calculate12TETFrequency(midiNote);
 
-    // Check if note is in the retune range
+    // WR-07: keys outside the KBM's retune range are unmapped — silent (0 Hz),
+    // per the Scala spec, instead of falling back to 12-TET.
     if (kbmLoaded && (midiNote < kbmFirstNote || midiNote > kbmLastNote))
-    {
-        return calculate12TETFrequency(midiNote);
-    }
+        return 0.0;
 
     // Use rotated intervals when tonic != 0
     int tonic = tonicOffset.load(std::memory_order_relaxed);
@@ -818,69 +839,62 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
     if (scaleSize <= 0) scaleSize = 12;
 
     int scaleDegree;
-    int octaveNumber;
 
-    if (kbmLoaded && !kbmMapping.empty())
+    if (kbmLoaded)
     {
-        // Full KBM mapping mode
-        int mapSize = kbmMapSize > 0 ? kbmMapSize : static_cast<int>(kbmMapping.size());
-
-        int noteOffset = midiNote - kbmMiddleNote;
-        int patternOctave = noteOffset >= 0 ? noteOffset / mapSize : (noteOffset - mapSize + 1) / mapSize;
-        int positionInPattern = noteOffset - (patternOctave * mapSize);
-
-        if (positionInPattern < 0)
+        // Full KBM mapping mode (Scala .kbm semantics, WR-07)
+        auto floorDiv = [](int a, int b) noexcept
         {
-            positionInPattern += mapSize;
-            patternOctave--;
-        }
+            int q = a / b;
+            if ((a % b != 0) && ((a < 0) != (b < 0)))
+                --q;
+            return q;
+        };
 
-        if (positionInPattern >= 0 && positionInPattern < static_cast<int>(kbmMapping.size()))
+        // Any scale degree, including beyond the scale size (it WRAPS into the
+        // next period instead of being clamped) and negative ones.
+        auto degreeCents = [&](int degree) noexcept
         {
-            int mappedDegree = kbmMapping[static_cast<size_t>(positionInPattern)];
+            const int periods = floorDiv(degree, scaleSize);
+            const int index = degree - periods * scaleSize;
+            return activeIntervals[static_cast<size_t>(index)] + periods * period;
+        };
 
-            if (mappedDegree < 0)
+        // The formal octave: the pitch step between adjacent mapping patterns,
+        // taken from the file's octave degree (0 = the scale's own period).
+        const double patternCents = degreeCents(kbmOctaveDegree > 0 ? kbmOctaveDegree : scaleSize);
+
+        // Cents of a key relative to degree 0 at the middle note; false = 'x'.
+        auto keyCents = [&](int note, double& cents) noexcept
+        {
+            const int offset = note - kbmMiddleNote;
+            if (kbmMapSize == 0)            // linear: offset IS the degree
             {
-                return calculate12TETFrequency(midiNote);
+                cents = degreeCents(offset);
+                return true;
             }
+            const int pattern = floorDiv(offset, kbmMapSize);
+            const int position = offset - pattern * kbmMapSize;
+            const int mapped = position < static_cast<int>(kbmMapping.size())
+                                   ? kbmMapping[static_cast<size_t>(position)] : -1;
+            if (mapped < 0)
+            {
+                cents = pattern * patternCents;   // degree 0 of its pattern
+                return false;
+            }
+            cents = degreeCents(mapped) + pattern * patternCents;
+            return true;
+        };
 
-            scaleDegree = mappedDegree;
-        }
-        else
-        {
-            scaleDegree = positionInPattern % scaleSize;
-        }
+        double noteCents;
+        if (!keyCents(midiNote, noteCents))
+            return 0.0;                         // 'x' key: silent
 
-        octaveNumber = patternOctave;
-        scaleDegree = juce::jlimit(0, scaleSize, scaleDegree);
+        double refCents;
+        keyCents(kbmReferenceNote, refCents);   // an unmapped reference still anchors
 
-        double centsOffset = activeIntervals[static_cast<size_t>(scaleDegree)];
-        centsOffset += octaveNumber * period;
-
-        double refFreq = kbmReferenceFreq;
-        int refNote = kbmReferenceNote;
-
-        int refOffset = refNote - kbmMiddleNote;
-        int refPatternOctave = refOffset >= 0 ? refOffset / mapSize : (refOffset - mapSize + 1) / mapSize;
-        int refPosInPattern = refOffset - (refPatternOctave * mapSize);
-        if (refPosInPattern < 0) {
-            refPosInPattern += mapSize;
-            refPatternOctave--;
-        }
-
-        int refDegree = 0;
-        if (refPosInPattern >= 0 && refPosInPattern < static_cast<int>(kbmMapping.size()))
-        {
-            int mapped = kbmMapping[static_cast<size_t>(refPosInPattern)];
-            if (mapped >= 0) refDegree = mapped;
-        }
-        refDegree = juce::jlimit(0, scaleSize, refDegree);
-        double refCentsFromC0 = activeIntervals[static_cast<size_t>(refDegree)] + refPatternOctave * period;
-
-        double centsFromRef = centsOffset - refCentsFromC0;
-        double stretchedCents = centsFromRef * static_cast<double>(octaveStretch);
-
-        return refFreq * std::pow(2.0, stretchedCents / 1200.0);
+        const double stretchedCents = (noteCents - refCents) * static_cast<double>(octaveStretch);
+        return kbmReferenceFreq * std::pow(2.0, stretchedCents / 1200.0);
     }
     else
     {

@@ -51,7 +51,7 @@ private:
     juce::dsp::StateVariableTPTFilter<float> feedbackFilterR;
     juce::dsp::DryWetMixer<float> dryWetMixer;
 
-    float delaySamples = 0.0f;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> delaySamples; // WR-16
     float feedbackAmount = 0.3f;
     int delayMode = 0; // 0=Normal, 1=PingPong
     float currentSampleRate = 44100.0f;

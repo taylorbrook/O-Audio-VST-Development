@@ -326,7 +326,9 @@ juce::String TuningExporter::generatePitchCircleSVG(const std::vector<double>& i
     svg += "  <circle cx=\"" + juce::String(cx) + "\" cy=\"" + juce::String(cy)
          + "\" r=\"4\" fill=\"#8b7355\"/>\n";
 
-    const int total = static_cast<int>(intervals.size());
+    // WR-20: the last entry is the period (it lands on degree 0), not a note —
+    // counting it drew a duplicate node and read "13 notes" for 12-TET.
+    const int total = juce::jmax(0, static_cast<int>(intervals.size()) - 1);
     const double twoPi = 6.283185307179586;
 
     // Draw ET reference lines (faint)
@@ -381,24 +383,32 @@ juce::String TuningExporter::generatePitchCircleSVG(const std::vector<double>& i
 // Main HTML Export
 // ═══════════════════════════════════════════════════════════════════
 
+static juce::String escapeHtml(const juce::String& text)
+{
+    return text.replace("&", "&amp;")
+               .replace("<", "&lt;")
+               .replace(">", "&gt;")
+               .replace("\"", "&quot;")
+               .replace("'", "&#39;");
+}
+
 juce::String TuningExporter::toHTML(const TuningEngine& engine, const juce::String& pluginName)
 {
-    juce::String scaleName = engine.getActiveTuningName();
+    // WR-20: the name comes from the .scl description line — untrusted text.
+    // Escape it before it reaches <title>/<h1>, or a crafted scale file puts
+    // script into the exported page.
+    const juce::String scaleName = escapeHtml(engine.getActiveTuningName());
     std::vector<double> intervals = engine.getIntervals();
     int noteCount = engine.getScaleDegrees();
     double masterTune = engine.getMasterTune();
     float octaveStretch = engine.getOctaveStretch();
 
-    // Determine period
+    // WR-20: the period is the scale's own last interval. Forcing 1200 when it
+    // was <= 1200 gave wrong ET deviations for non-octave scales (e.g. Carlos
+    // Gamma, 737.1 c).
     double period = 1200.0;
-    if (!intervals.empty() && intervals.back() > 1200.0)
-    {
+    if (!intervals.empty() && intervals.back() > 0.0)
         period = intervals.back();
-    }
-    else if (!intervals.empty() && noteCount > 0)
-    {
-        period = 1200.0;
-    }
 
     // Current date
     auto now = juce::Time::getCurrentTime();

@@ -1362,6 +1362,8 @@ export const LABELS = Object.freeze({
     'tuning.loadKbm':      { en: { t: 'Load .KBM' },   fr: { t: 'Ouvrir .KBM', reviewed: true } , 'zh-Hans': { t: '载入 .kbm', reviewed: 'bt' },},
     'tuning.saveScl':      { en: { t: 'Save .SCL' },   fr: { t: 'Enreg. .SCL', reviewed: true } , 'zh-Hans': { t: '保存 .scl', reviewed: 'bt' },},
     'tuning.saveKbm':      { en: { t: 'Save .KBM' },   fr: { t: 'Enreg. .KBM', reviewed: true } , 'zh-Hans': { t: '保存 .kbm', reviewed: 'bt' },},
+    // v1.30.0 (WR-06): shown only while a .kbm is loaded; spans both columns.
+    'tuning.clearKbm':     { en: { t: 'Clear .KBM' },  fr: { t: 'Retirer .KBM', reviewed: false } , 'zh-Hans': { t: '清除 .kbm', reviewed: 'mt' },},
     'tuning.exportHtml':   { en: { t: 'Export HTML' }, fr: { t: 'Exporter HTML', reviewed: true } , 'zh-Hans': { t: '导出 HTML', reviewed: 'bt' },},
     'tuning.generateScale':{ en: { t: 'Generate Scale' }, fr: { t: 'Générer une gamme', reviewed: true } , 'zh-Hans': { t: '生成音阶', reviewed: 'bt' },},
     'tuning.genEdo':       { en: { t: 'EDO (Equal Division)' }, fr: { t: 'EDO (division égale)', reviewed: true } , 'zh-Hans': { t: '等分八度 (EDO)', reviewed: 'bt' },},

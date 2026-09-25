@@ -456,6 +456,17 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                     });
             })
 
+            // WR-06: a loaded .kbm could not be removed short of reloading
+            // the plugin. Clearing returns to linear mapping.
+            .withNativeFunction ("clearKBMFile", [this] (auto, auto complete) {
+                processorRef.tuningEngine.resetKeyboardMapping();
+                complete (juce::var (true));
+            })
+
+            .withNativeFunction ("isKBMLoaded", [this] (auto, auto complete) {
+                complete (juce::var (processorRef.tuningEngine.isKBMLoaded()));
+            })
+
             .withNativeFunction ("saveKBMFile", [this] (auto, auto complete) {
                 fileChooser = std::make_shared<juce::FileChooser> (
                     "Save Keyboard Mapping",
@@ -606,40 +617,10 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
                     complete (juce::var (false));
                     return;
                 }
-                auto& le = processorRef.getLyricsEngine();
-                auto jsonStr = args[0].toString();
-                auto parsed = juce::JSON::parse (jsonStr);
-                auto* arr = parsed.getArray();
-                if (arr == nullptr)
-                {
-                    complete (juce::var (false));
-                    return;
-                }
-                std::vector<LyricsEngine::SyllableTarget> targets;
-                for (const auto& item : *arr)
-                {
-                    if (auto* obj = item.getDynamicObject())
-                    {
-                        LyricsEngine::SyllableTarget t;
-                        t.vowelX          = static_cast<float> (obj->getProperty ("vowelX"));
-                        t.vowelY          = static_cast<float> (obj->getProperty ("vowelY"));
-                        t.consonantTone   = static_cast<float> (obj->getProperty ("consonantTone"));
-                        t.sibilance       = static_cast<float> (obj->getProperty ("sibilance"));
-                        t.consonantVoicing = static_cast<float> (obj->getProperty ("consonantVoicing"));
-                        t.consonantLevel  = static_cast<float> (obj->getProperty ("consonantLevel"));
-                        t.nasalCoupling   = static_cast<float> (obj->getProperty ("nasalCoupling"));
-                        t.nasalPlace      = static_cast<float> (obj->getProperty ("nasalPlace"));
-                        t.hasConsonant    = static_cast<bool> (obj->getProperty ("hasConsonant"));
-                        targets.push_back (t);
-                    }
-                }
-                // WR-10: an empty list is a real edit (all lyrics deleted), not
-                // a no-op — skipping it kept the engine singing the old text.
-                if (targets.empty())
-                    le.clear();
-                else
-                    le.setSyllables (targets.data(), static_cast<int> (targets.size()));
-                complete (juce::var (true));
+                // CR-06: parsed + persisted by the engine; an unchanged schedule
+                // (the page re-sends on every open) keeps the lyric position.
+                complete (juce::var (processorRef.getLyricsEngine()
+                                         .setSyllablesFromJson (args[0].toString())));
             })
 
             .withNativeFunction ("setLyricsText", [this] (const auto& args, auto complete) {

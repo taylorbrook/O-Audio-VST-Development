@@ -62,6 +62,7 @@ public:
         burstSamplesRemaining = 0;
         onsetSamplesRemaining = 0;
         onsetTotalSamples = static_cast<int> (0.025f * static_cast<float> (sr));
+        aspirationReleaseSamples = juce::jmax (1, static_cast<int> (0.004 * sr)); // WR-18: 4 ms
         aspirationSamplesRemaining = 0;
         aspirationTotalSamples = 0;
         consonantPhase = EnvPhase::Off;
@@ -86,6 +87,7 @@ public:
         burstAmplitude = 0.0f;
         currentOnsetSuppression = 0.0f;
         currentAspirationNoise = 0.0f;
+        currentEnvValue = 0.0f;
         consonantPhase = EnvPhase::Off;
         consonantEnvSample = 0;
         burstLpState = 0.0f;
@@ -206,6 +208,7 @@ public:
         // -------- Aspiration phase: voice-suppressed noise for voiceless stops
         // Generates a separate noise stream that FormantVoice routes through
         // the cascade (vowel) bank so it is shaped by the opening vocal tract.
+        const int aspirationRemainingNow = aspirationSamplesRemaining; // WR-18
         if (aspirationSamplesRemaining > 0)
         {
             float aspProgress = 1.0f - static_cast<float> (aspirationSamplesRemaining)
@@ -238,9 +241,15 @@ public:
             currentOnsetSuppression = 0.0f;
         }
 
-        // Aspiration phase also fully suppresses the glottal source
-        if (aspirationSamplesRemaining > 0 || currentAspirationNoise > 0.0f)
-            currentOnsetSuppression = juce::jmax (currentOnsetSuppression, burstAmplitude);
+        // Aspiration phase also fully suppresses the glottal source. WR-18: the
+        // last 4 ms ramp the hold down instead of releasing the voice in one
+        // sample (a 0.3 -> 1.0 source step at an arbitrary glottal phase).
+        if (aspirationRemainingNow > 0)
+        {
+            const float release = juce::jmin (1.0f, static_cast<float> (aspirationRemainingNow)
+                                                    / static_cast<float> (aspirationReleaseSamples));
+            currentOnsetSuppression = juce::jmax (currentOnsetSuppression, burstAmplitude * release);
+        }
 
         // -------- Early-out: no consonant activity
         bool burstActive = burstSamplesRemaining > 0;
@@ -272,6 +281,7 @@ public:
         // initial onset is heard at sample 0 instead of being silenced by the
         // attack ramp (critical for fricative perception in lyrics mode).
         float envValue = advanceEnvelope();
+        currentEnvValue = envValue;
         float output = consonantLevel * cachedManner * shaped * envValue;
 
         // -------- Burst component: plosive/fricative onset transient (envelope-bypassed)
@@ -319,7 +329,10 @@ public:
             return 0.0f;
         float fricativeFactor = cachedManner;          // 0 for plosives, 1 for fricatives
         float voicelessFactor = 1.0f - cachedVoicing;  // 1 for voiceless, 0 for voiced
-        return fricativeFactor * voicelessFactor;
+        // WR-18: follow the consonant envelope so /s/ -> vowel hands over as
+        // the frication decays, rather than stepping from full suppression to
+        // none when the envelope reaches Off.
+        return fricativeFactor * voicelessFactor * currentEnvValue;
     }
 
 private:
@@ -473,7 +486,9 @@ private:
     // VOT / aspiration state (voiceless plosives only)
     int aspirationSamplesRemaining = 0;
     int aspirationTotalSamples = 0;
+    int aspirationReleaseSamples = 176;  // WR-18: suppression release ramp
     float currentAspirationNoise = 0.0f;
+    float currentEnvValue = 0.0f;        // WR-18: last advanceEnvelope() value
 
     // Consonant envelope state
     EnvPhase consonantPhase = EnvPhase::Off;

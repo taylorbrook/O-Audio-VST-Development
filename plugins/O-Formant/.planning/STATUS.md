@@ -3,7 +3,7 @@ plugin: O-Formant
 stage: 4
 status: complete
 phase: verified
-version: 1.29.1
+version: 1.30.0
 last_updated: 2026-09-24
 complexity_score: 5.0
 staged_implementation: true
@@ -24,6 +24,12 @@ contract_checksums:
 Stage: 4 of 4 (Polish) -- VERIFIED COMPLETE
 Status: All stages verified, pluginval level 10 PASSED (VST3 + AU)
 Progress: [####################] 100%
+
+## v1.30.0 -- CODE_REVIEW.md wave 2 (2026-09-24)
+
+- Resolved CR-03, CR-06, WR-03, WR-04, WR-06, WR-07, WR-08, WR-09, WR-14, WR-16, WR-18, WR-19, WR-20 (IN-13 as a side effect). MINOR — additive state (`lyricsEngine.syllables`, `tuningEngine.kbm`); 4 tuning_* params non-automatable (IDs unchanged). auval PASS, pluginval 10 PASS (VST3), check-i18n / fr-lint / zh-lint (O-Formant) / check-ui-labels / ui_tip_render_check PASS.
+- Deferred: v1.31.0 timbre wave (CR-01 + WR-01, WR-11, WR-15, WR-17) — needs a listen pass on all 16 presets. IN tier via /improve-review-info.
+- Needs hands-on: DAW listen for glides (Transition knob), steal declick at 17+ voices, bend range, preset switching, KBM load/clear/reopen, offline bounce of a lyrics session with the editor closed.
 
 ## v1.29.1 -- CODE_REVIEW.md wave 1 (2026-09-24)
 

@@ -124,6 +124,15 @@ private:
     // empty when nothing legal remains — callers treat that as a hard failure.
     static juce::String sanitizePresetName(const juce::String& name);
 
+    // WR-09: session-level parameters a preset never saves, loads or resets —
+    // the output level (a preset must not jump the user's gain) and the
+    // tuning_* parameters (tuning is session state; the pitch-bend range is a
+    // controller setting).
+    static bool isSessionOnlyParameter(const juce::String& paramId)
+    {
+        return paramId == "outputGain" || paramId.startsWith("tuning_");
+    }
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconPresetManager)
 };
 
@@ -206,6 +215,8 @@ inline juce::var OuariconPresetManager::createPresetJson() const
     {
         if (auto* paramWithID = dynamic_cast<juce::RangedAudioParameter*>(param))
         {
+            if (isSessionOnlyParameter(paramWithID->getParameterID()))
+                continue;
             paramsObj->setProperty(paramWithID->getParameterID(),
                                    paramWithID->getValue());
         }
@@ -235,9 +246,21 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
         auto paramsVar = preset->getProperty("parameters");
         if (auto* paramsObj = paramsVar.getDynamicObject())
         {
+            // WR-09: reset to defaults first. A preset file lists only the
+            // parameters it sets (the factory bank omits the whole FX rack,
+            // consonantVOT/Transition and lyricsEnabled), so anything it left
+            // out used to carry over from the previous preset.
+            for (auto* param : parameters.processor.getParameters())
+                if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+                    if (!isSessionOnlyParameter(ranged->getParameterID()))
+                        ranged->setValueNotifyingHost(ranged->getDefaultValue());
+
             for (auto& prop : paramsObj->getProperties())
             {
-                if (auto* param = parameters.getParameter(prop.name.toString()))
+                const auto paramId = prop.name.toString();
+                if (isSessionOnlyParameter(paramId))
+                    continue;   // older user presets carry outputGain — ignore it
+                if (auto* param = parameters.getParameter(paramId))
                     param->setValueNotifyingHost(static_cast<float>(prop.value));
             }
         }
@@ -545,6 +568,9 @@ inline void OuariconPresetManager::initializeFactoryPresets(
 
         for (const auto& [paramId, value] : preset.parameters)
         {
+            if (isSessionOnlyParameter(paramId))
+                continue;
+
             // Convert denormalized values to normalized (0-1) to match
             // the format produced by createPresetJson / getValue()
             if (auto* param = parameters.getParameter(paramId))
@@ -569,7 +595,10 @@ inline void OuariconPresetManager::initializeFactoryPresets(
         presetObj->setProperty("factory", true);
 
         auto jsonString = juce::JSON::toString(juce::var(presetObj), true);
-        presetFile.replaceWithText(jsonString);
+        // WR-09: this runs in every constructor, host scans included — write
+        // only when the file is missing or its content changed.
+        if (!presetFile.existsAsFile() || presetFile.loadFileAsString() != jsonString)
+            presetFile.replaceWithText(jsonString);
     }
 
     rebuildFlatPresetList();

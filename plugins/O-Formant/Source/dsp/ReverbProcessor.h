@@ -130,7 +130,11 @@ private:
     juce::dsp::DryWetMixer<float> dryWetMixer;
 
     std::array<float, kNumChannels> scaledDelays {};
-    float prevSizeForDelays = -1.0f;
+    // WR-16: per-sample smoothing of size (tank lengths + loop gain) and pre-delay
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> sizeSmoothed;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> predelaySmoothed; // samples
+    float tankFeedbackGain = 0.0f;
+    void setTankSize (float size) noexcept;
 
     std::atomic<float> targetSize     { 0.5f };
     std::atomic<float> targetDamping  { 0.5f };

@@ -80,6 +80,7 @@ public:
     TuningExporter tuningExporter;
     LyricsEngine lyricsEngine;
     std::atomic<uint32_t> stateGeneration { 0 };
+    bool transportWasPlaying = false; // CR-06: audio thread only
 
     LyricsEngine& getLyricsEngine() { return lyricsEngine; }
 

@@ -48,6 +48,7 @@ public:
             smoothedFreq[i].reset (sr, 0.0);
             smoothedBW[i].reset (sr, 0.0);
         }
+        lastTransitionTime = -1.0f;
         reset();
     }
 
@@ -63,12 +64,20 @@ public:
     //   F1: 50ms (jaw — fastest), F2-F3: 80ms (tongue body), F4-F5: 120ms (slowest)
     void setTransitionTime (float normTime) noexcept
     {
+        // CR-03: SmoothedValue::reset() snaps current = target, so calling it
+        // every block cut every glide at the block boundary (buffer-size
+        // dependent). Re-arm only when the time actually changes, and carry
+        // the in-flight position so a knob move mid-glide doesn't jump.
+        if (normTime == lastTransitionTime)
+            return;
+        lastTransitionTime = normTime;
+
         static constexpr float maxTimesMs[5] = { 50.0f, 80.0f, 80.0f, 120.0f, 120.0f };
         for (int i = 0; i < 5; ++i)
         {
             double timeSec = static_cast<double> (normTime * maxTimesMs[i]) * 0.001;
-            smoothedFreq[i].reset (sampleRate, timeSec);
-            smoothedBW[i].reset (sampleRate, timeSec);
+            rearm (smoothedFreq[i], timeSec);
+            rearm (smoothedBW[i], timeSec);
         }
     }
 
@@ -158,4 +167,14 @@ private:
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedFreq[5];
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedBW[5];
     double sampleRate = 44100.0;
+    float lastTransitionTime = -1.0f;
+
+    void rearm (juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>& sv, double timeSec) noexcept
+    {
+        const float current = sv.getCurrentValue();
+        const float target  = sv.getTargetValue();
+        sv.reset (sampleRate, timeSec);
+        sv.setCurrentAndTargetValue (current);
+        sv.setTargetValue (target);
+    }
 };

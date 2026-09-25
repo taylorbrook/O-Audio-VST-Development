@@ -135,6 +135,53 @@ public:
     void setLyricsText (const juce::String& text) { lyricsText = text; }
     juce::String getLyricsText() const { return lyricsText; }
 
+    // CR-06: the parsed syllable schedule as the page sends it (a JSON array of
+    // SyllableTarget objects). Persisted in the session so lyrics play with the
+    // editor never opened. An unchanged schedule is a no-op, so opening the
+    // editor (which re-sends) does not restart the lyric mid-song.
+    // MESSAGE-THREAD ONLY. Returns false on malformed JSON (engine untouched).
+    bool setSyllablesFromJson (const juce::String& json)
+    {
+        if (json == syllablesJson && json.isNotEmpty())
+            return true;
+
+        auto parsed = juce::JSON::parse (json);
+        auto* arr = parsed.getArray();
+        if (arr == nullptr)
+            return false;
+
+        std::array<SyllableTarget, kMaxSyllables> targets;
+        int n = 0;
+        for (const auto& item : *arr)
+        {
+            if (n >= kMaxSyllables)
+                break;
+            if (auto* obj = item.getDynamicObject())
+            {
+                auto& t = targets[static_cast<size_t> (n++)];
+                t.vowelX           = static_cast<float> (obj->getProperty ("vowelX"));
+                t.vowelY           = static_cast<float> (obj->getProperty ("vowelY"));
+                t.consonantTone    = static_cast<float> (obj->getProperty ("consonantTone"));
+                t.sibilance        = static_cast<float> (obj->getProperty ("sibilance"));
+                t.consonantVoicing = static_cast<float> (obj->getProperty ("consonantVoicing"));
+                t.consonantLevel   = static_cast<float> (obj->getProperty ("consonantLevel"));
+                t.nasalCoupling    = static_cast<float> (obj->getProperty ("nasalCoupling"));
+                t.nasalPlace       = static_cast<float> (obj->getProperty ("nasalPlace"));
+                t.hasConsonant     = static_cast<bool>  (obj->getProperty ("hasConsonant"));
+            }
+        }
+
+        syllablesJson = json;
+        // WR-10: an empty list is a real edit (all lyrics deleted) — clear.
+        if (n == 0)
+            clear();
+        else
+            setSyllables (targets.data(), n);
+        return true;
+    }
+
+    juce::String getSyllablesJson() const { return syllablesJson; }
+
 private:
     std::array<SyllableTarget, kMaxSyllables> syllables;
     std::atomic<int> numSyllables { 0 };
@@ -144,4 +191,6 @@ private:
 
     // Raw ARPABET text for state persistence (message thread only)
     juce::String lyricsText;
+    // CR-06: the schedule JSON last applied (message thread only)
+    juce::String syllablesJson;
 };

@@ -202,6 +202,7 @@ export class TuningPanel {
                             <button class="tuning-file-btn" id="btn-load-kbm" data-i18n="tuning.loadKbm">Load .KBM</button>
                             <button class="tuning-file-btn" id="btn-save-scl" data-i18n="tuning.saveScl">Save .SCL</button>
                             <button class="tuning-file-btn" id="btn-save-kbm" data-i18n="tuning.saveKbm">Save .KBM</button>
+                            <button class="tuning-file-btn tuning-kbm-clear-btn" id="btn-clear-kbm" data-i18n="tuning.clearKbm" hidden>Clear .KBM</button>
                             <button class="tuning-file-btn tuning-export-btn" id="btn-export-html" data-i18n="tuning.exportHtml">Export HTML</button>
                         </div>
                     </div>
@@ -259,6 +260,7 @@ export class TuningPanel {
         this.container.querySelector('#btn-load-kbm').addEventListener('click', () => this.loadKBM());
         this.container.querySelector('#btn-save-scl').addEventListener('click', () => this.saveSCL());
         this.container.querySelector('#btn-save-kbm').addEventListener('click', () => this.saveKBM());
+        this.container.querySelector('#btn-clear-kbm').addEventListener('click', () => this.clearKBM());
         this.container.querySelector('#btn-export-html').addEventListener('click', () => this.exportHTML());
 
         // Octave stretch
@@ -313,6 +315,9 @@ export class TuningPanel {
         } catch (e) {
             console.error('[TuningPanel] Failed to load initial state:', e);
         }
+
+        // WR-06: a restored session may carry (or drop) a keyboard mapping.
+        await this.refreshKbmState();
     }
 
     async refreshState() {
@@ -925,6 +930,30 @@ export class TuningPanel {
             await this.juce.getNativeFunction('loadKBMFile')();
         } catch (e) {
             console.error('[TuningPanel] Load KBM failed:', e);
+        }
+        await this.refreshKbmState();
+    }
+
+    // WR-06: a loaded .kbm can be cleared (back to linear mapping). The button
+    // only shows while one is loaded, so the default panel is unchanged.
+    async clearKBM() {
+        if (!this.juce) return;
+        try {
+            await this.juce.getNativeFunction('clearKBMFile')();
+        } catch (e) {
+            console.error('[TuningPanel] Clear KBM failed:', e);
+        }
+        await this.refreshKbmState();
+    }
+
+    async refreshKbmState() {
+        const btn = this.container.querySelector('#btn-clear-kbm');
+        if (!btn || !this.juce) return;
+        try {
+            const loaded = await this.juce.getNativeFunction('isKBMLoaded')();
+            btn.hidden = loaded !== true;
+        } catch (e) {
+            btn.hidden = true;
         }
     }
 
