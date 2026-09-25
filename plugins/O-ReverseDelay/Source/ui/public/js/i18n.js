@@ -491,7 +491,7 @@ export const I18N = Object.freeze({
               b: 'Sets random values for the Random, Window and Drift controls plus Diffusion and Drive, and nothing else. Feedback Amount, the cut filters, Regen, Mix and Output are never touched. The settings from before are kept in the other snapshot, so one click on it takes you back.' },
         fr: { t: 'Aléatoire',
               b: 'Donne des valeurs aléatoires aux seules commandes Aléa, Fenêtre et Dérive, plus Diffusion et Saturation. La quantité de réinjection, les filtres coupe-bas et coupe-haut, le regain, le mix et la sortie ne sont jamais modifiés. Les réglages d’avant sont conservés dans l’autre instantané, et un clic sur celui-ci vous y ramène.',
-              reviewed: false },
+              reviewed: true },
         'zh-Hans': { t: '随机化',
               b: '仅为随机、窗口和漂移面板中的控件以及扩散度和驱动设置随机值，不涉及其他任何控件。反馈量、低切和高切、再生、混合和输出永远不会被改动。之前的设置保存在另一个快照中，点击它即可返回。',
               reviewed: 'mt' },
