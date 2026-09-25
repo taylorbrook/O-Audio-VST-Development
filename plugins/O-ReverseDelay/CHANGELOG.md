@@ -4,6 +4,72 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.20.0] — 2026-09-24
+
+The preset name is now a dropdown, and the factory bank grows from 8 to
+**56 presets in 8 categories**. MINOR: this adds presets and a browser. No
+parameter changed. The eight shipped presets are bit-identical.
+
+### Added
+
+- **Grouped preset dropdown.** Click the name (or focus it and press Enter,
+  Space or ↓) to open the whole bank under sticky category headings, with the
+  loaded preset lit. Keyboard: ↑/↓, Home/End, Enter to load, Esc to close. A
+  click outside closes it. The headings are localized (en, fr, zh-Hans).
+  Preset names stay in English, because a name is also its file name.
+- **48 new factory presets.** There are now 7 per category:
+  - **Swells:** Bowed Swell, Cathedral Swell, Keys Bloom, Pad Riser, Soft
+    Inhale, plus Guitar Swell and Reverse Bloom.
+  - **Vocals:** Backwards Chorus, Choir Ghost, Ducked Wash, Pre-Echo Lead,
+    Spoken Reverse, Whisper Trail, plus Vocal Halo.
+  - **Rhythmic** (tempo-synced, most with Grain Link = Delay): Bar Rewind,
+    Dotted Rewind, Half Note Reverse, Quarter Flip, Stutter Sixteenths,
+    Triplet Tumble, plus Rhythmic Reverse.
+  - **Ambient:** Drone Cloud, Endless Sky, Glacier, Shimmer Fog, Tidal Pool,
+    plus Slow Wash and Near-Infinite.
+  - **Dark:** Deep Well, Low Moan, Muffled Room, Night Tape, Smoke,
+    Subterranean, plus Dark Cavern.
+  - **Glitch & Texture:** Crumbs, Either Way, Grain Spray, Micro Cloud,
+    Scatterbrain, Shatter, plus Tight Smear.
+  - **Lo-Fi & Drive:** Broken Cassette, Fuzz Trails, Mono Memory, Overdriven
+    Loop, Radio Ghost, Tube Rewind, Worn Vinyl.
+  - **Motion & Width:** Drift Chamber, Pendulum, Seasick, Slow Orbit, Stereo
+    Scatter, Warble, Wide Rewind.
+
+  The new presets are the first to use the controls added since v1.0:
+  diffusion, drive, randomisation, drift, direction, window shape and tilt,
+  grain count, source mode, duck and grain link. None loads frozen. Mix stays
+  in the shipped bank's 22–60 % range, and no preset trims the output.
+- `getPresetCategories` native function. The bridge goes from 21 to 22
+  functions.
+
+### Changed
+
+- **◀ / ▶ step through the grouped order** shown in the dropdown, not the old
+  flat alphabetical list, so ▶ from the last Swells preset goes to the first
+  Vocals preset (pattern_grouping_preset_dropdown_breaks_prev_next).
+  PresetManager no longer binds these two buttons; app.js `stepPreset()`
+  does.
+- The factory table moved out of the processor constructor into
+  `ReverseDelayProcessor::getFactoryPresetRows()`. Each row has a category.
+  Its history comments moved with it. The constructor now only normalises.
+  The editor, the UI stub and the harness all read this one table.
+
+### Testing
+
+- Render harness probe N: the existing 8-preset bit-identity mirror is
+  unchanged. There are two new checks. `factory-bank-table` checks for 56
+  unique rows, 8 non-empty categories, every row seeded to disk and none
+  frozen. `factory-bank-recall-render` checks every key of every row through
+  the real preset manager (to within 1e-4 normalised) and renders every preset
+  (finite, peak < 1, alive).
+- `tests/ui_frontend_check.js`: the bridge census is now 22. The UI stub
+  mirrors the 56-row bank and `getPresetCategories`.
+- `check-i18n`, `i18n-fr-lint` and `i18n-zh-lint` are clean. The 10 new
+  entries are `fr reviewed: false` and `zh-Hans 'mt'`.
+- Headless stub run: 56 options in 8 groups, keyboard load, ◀/▶ across a group
+  boundary, click-outside close, French headings, and no console errors.
+
 ## [1.19.0] — 2026-09-24
 
 The UI is tighter and regrouped. The window drops from 940 × 768 to

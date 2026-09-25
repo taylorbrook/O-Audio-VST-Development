@@ -1334,6 +1334,171 @@ async function updateDeleteAvailability() {
   btn.setAttribute("aria-disabled", factory ? "true" : "false");
 }
 
+// ── v1.20.0: grouped preset dropdown ────────────────────────────────────────
+// Clicking the name cartouche opens the bank grouped by category, in the order
+// C++ reports (getPresetCategories). Built after O-MultiBandCompressor v1.7.0.
+//
+// ◀ / ▶ are deliberately NOT handed to PresetManager any more: the module binds
+// them to selectNextPreset/selectPreviousPreset, which walk getPresetList()'s
+// flat alphabetical order. With the list grouped, those two orders disagree and
+// ▶ from the last Swells preset would land mid-Vocals
+// (pattern_grouping_preset_dropdown_breaks_prev_next). stepPreset() walks
+// presetWalkOrder — the dropdown flattened — instead.
+const USER_CATEGORY = "User";
+
+let presetGroups       = [];     // [{ category, names }], display order, non-empty only
+let presetWalkOrder    = [];     // presetGroups flattened — the ◀ / ▶ sequence
+let presetCategoriesFn = null;   // the getPresetCategories native fn
+let presetDropdownEl   = null;   // #preset-dropdown
+let presetNameEl       = null;   // #preset-name — the dropdown's trigger
+
+// One LITERAL key per heading: check-i18n [13] rejects a computed setLabel key.
+// A category C++ adds without a line here falls back to its raw name.
+const PRESET_CATEGORY_LABELERS = {
+  "Swells":           (el) => setLabel(el, "presetCat.swells"),
+  "Vocals":           (el) => setLabel(el, "presetCat.vocals"),
+  "Rhythmic":         (el) => setLabel(el, "presetCat.rhythmic"),
+  "Ambient":          (el) => setLabel(el, "presetCat.ambient"),
+  "Dark":             (el) => setLabel(el, "presetCat.dark"),
+  "Glitch & Texture": (el) => setLabel(el, "presetCat.glitch"),
+  "Lo-Fi & Drive":    (el) => setLabel(el, "presetCat.lofi"),
+  "Motion & Width":   (el) => setLabel(el, "presetCat.motion"),
+  "User":             (el) => setLabel(el, "presetCat.user"),
+};
+
+async function refreshPresetCategories() {
+  if (!presetManager) return;
+
+  const list = presetManager.getPresetList();
+  let order = [];
+  let map   = {};
+
+  try {
+    const result = await presetCategoriesFn();
+    order = (result && result.order) || [];
+    map   = (result && result.categories) || {};
+  } catch (e) {
+    // One ungrouped list beats losing the browser.
+    console.warn("[preset-bar] categories unavailable, flat list:", e);
+    order = [USER_CATEGORY];
+    map   = {};
+  }
+
+  // Own-property lookup: a user preset saved as "constructor" or "toString"
+  // would otherwise read an Object.prototype member and fall out of every group.
+  const categoryOf = (name) =>
+    (Object.prototype.hasOwnProperty.call(map, name) ? map[name] : null) || USER_CATEGORY;
+
+  presetGroups = order
+    .map((category) => ({ category, names: list.filter((n) => categoryOf(n) === category) }))
+    .filter((g) => g.names.length > 0);
+
+  // A category C++ did not list (only if the two tables drift) is appended
+  // rather than hidden.
+  const grouped = new Set(presetGroups.flatMap((g) => g.names));
+  const orphans = list.filter((n) => !grouped.has(n));
+  if (orphans.length > 0) presetGroups.push({ category: "Other", names: orphans });
+
+  presetWalkOrder = presetGroups.flatMap((g) => g.names);
+}
+
+async function stepPreset(delta) {
+  if (!presetManager || presetWalkOrder.length === 0) return;
+  const index = presetWalkOrder.indexOf(presetManager.getCurrentPreset());
+  // Out of the list ("Default", or a file loaded from disk): enter at the top
+  // going forward, at the bottom going back.
+  const base = index >= 0 ? index : (delta > 0 ? -1 : 0);
+  const next = (base + delta + presetWalkOrder.length) % presetWalkOrder.length;
+  await presetManager.loadPreset(presetWalkOrder[next]);
+}
+
+function isPresetDropdownOpen() {
+  return !!presetDropdownEl && !presetDropdownEl.hidden;
+}
+
+function showPresetDropdown() {
+  if (!presetDropdownEl) return;
+  renderPresetDropdown();
+  presetDropdownEl.hidden = false;
+  presetNameEl.setAttribute("aria-expanded", "true");
+  // Land on the current preset, centred, and focus it so arrows work at once.
+  const active = presetDropdownEl.querySelector(".preset-option.active")
+              || presetDropdownEl.querySelector(".preset-option");
+  if (active) {
+    active.scrollIntoView({ block: "center" });
+    active.focus({ preventScroll: true });
+  }
+}
+
+function hidePresetDropdown(refocus) {
+  if (!isPresetDropdownOpen()) return;
+  presetDropdownEl.hidden = true;
+  presetNameEl.setAttribute("aria-expanded", "false");
+  if (refocus) presetNameEl.focus();
+}
+
+function renderPresetDropdown() {
+  presetDropdownEl.textContent = "";
+  const current = presetManager ? presetManager.getCurrentPreset() : "";
+
+  for (const group of presetGroups) {
+    const groupEl = document.createElement("div");
+    groupEl.className = "preset-group";
+    groupEl.setAttribute("role", "group");
+
+    const heading = document.createElement("div");
+    heading.className = "preset-group-heading";
+    heading.id = `preset-group-${presetGroups.indexOf(group)}`;
+    const labeler = PRESET_CATEGORY_LABELERS[group.category];
+    if (labeler) labeler(heading); else heading.textContent = group.category;
+    groupEl.setAttribute("aria-labelledby", heading.id);
+    groupEl.appendChild(heading);
+
+    for (const name of group.names) {
+      const item = document.createElement("div");
+      const isActive = name === current;
+      item.className = "preset-option" + (isActive ? " active" : "");
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", isActive ? "true" : "false");
+      item.tabIndex = -1;
+      item.textContent = name;   // a preset name IS its filename — never translated
+      item.addEventListener("click", async () => {
+        hidePresetDropdown(true);
+        await presetManager.loadPreset(name);
+      });
+      groupEl.appendChild(item);
+    }
+
+    presetDropdownEl.appendChild(groupEl);
+  }
+}
+
+function onPresetDropdownKey(e) {
+  const options = [...presetDropdownEl.querySelectorAll(".preset-option")];
+  const i = options.indexOf(document.activeElement);
+  const focusAt = (j) => {
+    const el = options[Math.max(0, Math.min(options.length - 1, j))];
+    if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: "nearest" }); }
+  };
+
+  switch (e.key) {
+    case "ArrowDown": e.preventDefault(); focusAt(i + 1); break;
+    case "ArrowUp":   e.preventDefault(); focusAt(i - 1); break;
+    case "Home":      e.preventDefault(); focusAt(0); break;
+    case "End":       e.preventDefault(); focusAt(options.length - 1); break;
+    case "Enter":
+    case " ":
+      e.preventDefault();
+      if (i >= 0) options[i].click();
+      break;
+    case "Escape":
+    case "Tab":
+      if (e.key === "Escape") e.preventDefault();
+      hidePresetDropdown(e.key === "Escape");
+      break;
+  }
+}
+
 // Hoisted declaration, called from inside init() — never at module top level,
 // and the dynamic import() lives in here rather than at the top of the file, so
 // a failure cannot escape module evaluation. The try/catch is load-bearing: it
@@ -1342,20 +1507,51 @@ async function initPresetBar() {
   try {
     const { PresetManager } = await import("./preset-manager.js");
 
+    presetNameEl       = document.getElementById("preset-name");
+    presetDropdownEl   = document.getElementById("preset-dropdown");
+    presetCategoriesFn = Juce.getNativeFunction("getPresetCategories");
+
     presetManager = new PresetManager({
-      displayElement: document.getElementById("preset-name"),
-      prevButton:     document.getElementById("preset-prev"),
-      nextButton:     document.getElementById("preset-next"),
+      displayElement: presetNameEl,
+      // prevButton / nextButton deliberately omitted — see stepPreset().
       saveButton:     document.getElementById("preset-save"),
       loadButton:     document.getElementById("preset-load"),
       deleteButton:   document.getElementById("preset-delete"),
       getNativeFunction: Juce.getNativeFunction,
       onConfirmDelete: confirmDeleteInline,
       onPresetChanged:     () => { updateDeleteAvailability(); },
-      onPresetListUpdated: () => { updateDeleteAvailability(); },
+      onPresetListUpdated: () => {
+        updateDeleteAvailability();
+        refreshPresetCategories().then(() => {
+          if (isPresetDropdownOpen()) renderPresetDropdown();
+        });
+      },
     });
 
     await presetManager.initialize();
+    await refreshPresetCategories();
+
+    document.getElementById("preset-prev").addEventListener("click", () => stepPreset(-1));
+    document.getElementById("preset-next").addEventListener("click", () => stepPreset(1));
+
+    presetNameEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (isPresetDropdownOpen()) hidePresetDropdown(false); else showPresetDropdown();
+    });
+    presetNameEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+        e.preventDefault();
+        showPresetDropdown();
+      }
+    });
+    presetDropdownEl.addEventListener("keydown", onPresetDropdownKey);
+
+    // Any press outside the name + list closes it.
+    document.addEventListener("mousedown", (e) => {
+      if (!isPresetDropdownOpen()) return;
+      if (presetDropdownEl.contains(e.target) || presetNameEl.contains(e.target)) return;
+      hidePresetDropdown(false);
+    });
   } catch (e) {
     console.error("[preset-bar] init failed:", e);   // the bar dies alone
   }

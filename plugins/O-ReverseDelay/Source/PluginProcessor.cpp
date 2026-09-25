@@ -105,188 +105,30 @@ ReverseDelayProcessor::ReverseDelayProcessor()
         juce::ignoreUnused (p);
     }
 
-    // ── Stage 4 (D16): 8 factory presets ────────────────────────────────────
-    // Authored in ENGINEERING UNITS (ms, %, Hz, choice index) and converted once
-    // through each parameter's own NormalisableRange below. Four params are
-    // skewed (delayTime centre 316 ms, grainSize 158 ms, lowCut 200 Hz, highCut
-    // 3162 Hz); a hand-written normalised fraction on any of them recalls 10–30×
-    // wrong (pattern_factory_preset_normalized_ignores_skew).
+    // ── v1.20.0: the factory bank lives in getFactoryPresetRows() ──────────
+    // It moved out of this constructor so the render harness can audit EVERY
+    // row against the real preset manager, and so the editor's category
+    // dropdown reads the same table. The history of the eight shipped rows
+    // travelled with them. Rows arrive in engineering units with the no-op
+    // tail already merged; this only normalises.
     //
-    // All thirty keys are explicit in every preset. Omitted keys would
-    // revert to the APVTS default (applyPresetJson resets everything first),
-    // which is safe but makes the table's intent unreadable.
-    //
-    // ── v1.7.0 (B4 #4-#6): sourceMode / duck / driftRate / driftDepth ────────
-    // Three of the four are pinned at 0 and the fourth — driftRate — is pinned
-    // at its own default of 0.30 Hz, which is inert while driftDepth is 0. That
-    // asymmetry is deliberate and is the trap this block carries: a rate written
-    // as 0 would be CLAMPED up to kDriftRateMinHz by the NormalisableRange, so
-    // the preset would recall 0.02 Hz rather than the default and probe N's
-    // round-trip comparison would fail against a table that looked correct.
-    //
-    // sourceMode carries the grainShape trap rather than the freeze one: its
-    // no-op is index 0 (Mono Sum), and 0 is also what an absent key resolves to,
-    // so the ORDER of the choice list is load-bearing. Putting Stereo first
-    // would re-voice every existing session the moment v1.7.0 is installed.
-    //
-    // ── v1.8.0 (B4 #7-#8): diffusion / drive both pinned at 0 ───────────────
-    // Sixth release running that adds keys here and pins every one to the no-op.
-    // Both are plain zero, so this block carries neither the grainTilt trap nor
-    // the driftRate one — but pinning them is doing real work even so, because
-    // these are the two keys most obviously "free" to author into the presets.
-    //
-    // "Reverse Bloom" at diffusion 40 would be a better patch. It would also be
-    // a DIFFERENT patch than the one shipped since v1.0.0, and re-voicing a
-    // sound people have built work on is the thing this table has refused five
-    // times now (pattern_activating_dead_param_default_timbre). A v1.8.0 preset
-    // that wants diffusion is a NEW entry, not an edit to an existing one.
-    //
-    // ── v1.6.0 (B4): freeze / direction / regenMakeup all pinned at 0 ────────
-    // Fifth release running that adds keys here and pins every one of them to
-    // the no-op, and the FIRST where all three no-ops are plain zero — so this
-    // block is the one that does NOT carry the trap the four above it do.
-    //
-    // regenMakeup deserves a sentence of its own, because it is the one an
-    // improvement pass is most tempted to move. The review's motivation for
-    // exposing it is precisely that "Near-Infinite" cannot self-sustain at
-    // feedback 100 — the topology loses ≈7.3 dB per generation — so the obvious
-    // reflex is to author that preset at +7 dB and finally make its name true.
-    // Deliberately NOT done: "Near-Infinite" is a shipped sound that people have
-    // used since v1.0.0, and quietly turning it into a self-oscillator would
-    // re-voice their work (pattern_activating_dead_param_default_timbre). The
-    // preset stays exactly what it was; true sustain is now one knob away, which
-    // is what the review actually asked for.
-    //
-    // ── v1.3.0 (B2): grainCount pinned at 8 ─────────────────────────────────
-    // 8 is v1.2.0's hard-coded overlap ceiling, so every preset below keeps the
-    // exact overlap it was authored for. Same trap as grainTilt one paragraph
-    // down and worth naming separately, because the wrong reflex here is the
-    // OTHER one: "new ceiling, use the new maximum" would push all eight presets
-    // to overlap 16 and make every factory sound roughly twice as dense.
-    //
-    // Note this is also why the v1.0.1 density re-authoring survives untouched:
-    // those values encode overlaps against a ceiling of 8, and the ceiling is
-    // now written down next to them rather than implied by the engine.
-    //
-    // ── v1.2.0 (B1): grainTilt pinned at 0.5, grainShape at 0 (Hann) ────────
-    // Same reasoning as the v1.1 block below, with one extra trap: the no-op
-    // value for grainTilt is 0.5, NOT 0. A reflex "new key, write 0" here would
-    // hard-tilt all eight factory presets to a peak-early window and change what
-    // "Reverse Bloom" sounds like for everyone already using it.
-    //
-    // ── v1.1.0 (B3): the four randomisation keys are pinned at 0 ────────────
-    // Not an oversight. These presets are the shipped v1.0 sound, and a factory
-    // preset that quietly switched on grain randomisation would change what
-    // "Reverse Bloom" means for everyone who already uses it
-    // (pattern_activating_dead_param_default_timbre). They are written
-    // explicitly rather than left to the default so that intent is on the page:
-    // v1.1 presets are deliberately unchanged, and a future release that DOES
-    // want a randomised preset edits a visible number here.
-    //
-    // No "/" in any name — OuariconPresetManager sanitises it to "_", so
-    // "Reverse 1/8" would round-trip as "Reverse 1_8"
-    // (critical_preset_name_slash_path_separator). Hence "Rhythmic Reverse".
-    //
-    // syncMode: 0 = Free, 1 = Sync. noteDivision: 4 = 1/8D, 6 = 1/4 (the default).
-    //
-    // ── v1.0.1 (A3): density values re-authored ─────────────────────────────
-    // density no longer means what it meant at v1.0.0. The old map was
-    // overlap = 1 + d·7; the new one is overlap = 2 + d·6. Every preset's
-    // density is therefore rewritten to the value that reproduces its SHIPPED
-    // overlap exactly:
-    //     d_new = (7·d_old − 100) / 6
-    // so all eight presets render bit-identically to v1.0.0 (the 0.1 % density
-    // step resolves each of these exactly). Only the knob's *scale* moved; the
-    // presets did not. Old -> new: 60->53.3, 55->47.5, 70->65, 30->18.3,
-    // 90->88.3, 65->59.2, 80->76.7.
-    //
-    // ── v1.12.4: the no-op tail is written ONCE ─────────────────────────────
-    // Every key added since v1.1.0 is pinned to its no-op in every preset, so
-    // the pins live in kShippedNoOpTail below rather than as eight copies. The
-    // rows keep only the ten v1.0 keys that genuinely differ per preset. The
-    // tail is merged with map::insert, which never overwrites — so a FUTURE
-    // preset that deliberately authors one of these keys writes it in its own
-    // row and wins. Every value above still applies; it is simply stated once.
-    const std::map<juce::String, float> kShippedNoOpTail = {
-        {"jitter", 0.0f}, {"delayScatter", 0.0f},
-        {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
-        {"grainTilt", 0.5f}, {"grainShape", 0.0f},     // tilt: 0.5, NOT 0
-        {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},    // v1.2.0's ceiling; taper no-op 0.5
-        {"freeze", 0.0f}, {"direction", 0.0f},
-        {"regenMakeup", 0.0f},
-        {"sourceMode", 0.0f}, {"duck", 0.0f},
-        {"driftRate", 0.30f}, {"driftDepth", 0.0f},    // rate: the DEFAULT, not 0
-        {"diffusion", 0.0f}, {"drive", 0.0f},
-        {"freezeLength", 0.0f},                         // v1.15.0: Ring, the shipped loop
-        {"grainLink", 0.0f},                            // v1.17.0: Free, the Size knob
-        {"grainDivision", static_cast<float> (kDefaultNoteDivision)}};   // inert while Free
-
-    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
-        { "Reverse Bloom",
-          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  500.0f},
-           {"grainSize", 200.0f}, {"density", 53.3f}, {"feedback",  40.0f},
-           {"lowCut",    100.0f}, {"highCut", 8000.0f},
-           {"width",      60.0f}, {"mix",       40.0f}}, {} },
-
-        { "Guitar Swell",
-          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  700.0f},
-           {"grainSize", 300.0f}, {"density", 47.5f}, {"feedback",  45.0f},
-           {"lowCut",    120.0f}, {"highCut", 6500.0f},
-           {"width",      55.0f}, {"mix",       55.0f}}, {} },
-
-        { "Vocal Halo",
-          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  380.0f},
-           {"grainSize", 180.0f}, {"density", 65.0f}, {"feedback",  30.0f},
-           {"lowCut",    300.0f}, {"highCut", 7000.0f},
-           {"width",      70.0f}, {"mix",       25.0f}}, {} },
-
-        { "Slow Wash",
-          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f},
-           {"grainSize", 450.0f}, {"density", 18.3f}, {"feedback",  65.0f},
-           {"lowCut",     80.0f}, {"highCut", 5000.0f},
-           {"width",      85.0f}, {"mix",       50.0f}}, {} },
-
-        { "Tight Smear",
-          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  180.0f},
-           {"grainSize",  70.0f}, {"density", 88.3f}, {"feedback",  35.0f},
-           {"lowCut",    150.0f}, {"highCut", 11000.0f},
-           {"width",      35.0f}, {"mix",       45.0f}}, {} },
-
-        { "Dark Cavern",
-          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  850.0f},
-           {"grainSize", 320.0f}, {"density", 59.2f}, {"feedback",  70.0f},
-           {"lowCut",    220.0f}, {"highCut", 1800.0f},
-           {"width",      75.0f}, {"mix",       55.0f}}, {} },
-
-        // feedback = 100 %: doubles as the preset-driven DSP-03 stability
-        // statement (probe N renders this one for 30 s, not 10). Its density is
-        // re-authored to hold overlap at 5.9, so the v1.0.1 loop duty cycle —
-        // and with it the measured decay — is unchanged from v1.0.0.
-        { "Near-Infinite",
-          {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  900.0f},
-           {"grainSize", 350.0f}, {"density", 65.0f}, {"feedback", 100.0f},
-           {"lowCut",    180.0f}, {"highCut", 2500.0f},
-           {"width",      80.0f}, {"mix",       50.0f}}, {} },
-
-        { "Rhythmic Reverse",
-          {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime",  500.0f},
-           {"grainSize", 120.0f}, {"density", 76.7f}, {"feedback",  50.0f},
-           {"lowCut",    140.0f}, {"highCut", 9000.0f},
-           {"width",      50.0f}, {"mix",       45.0f}}, {} },
-    };
-
     // C1: engineering units → normalised, through each param's own range. Handles
     // skew, step and choice-index uniformly (AudioParameterChoice's range is
     // 0…n-1 step 1, so convertTo0to1(6.0f) on the 13-entry division list = 0.5).
     // initializeFactoryPresets stores the normalised value verbatim;
     // applyPresetJson feeds it back through convertFrom0to1 on load.
-    for (auto& preset : factoryPresets)
-        preset.parameters.insert(kShippedNoOpTail.begin(), kShippedNoOpTail.end());
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets;
 
-    for (auto& preset : factoryPresets)
-        for (auto& [id, value] : preset.parameters)
+    for (const auto& row : getFactoryPresetRows())
+    {
+        OuariconPresetManager::FactoryPresetDef def { row.name, row.parameters, {} };
+
+        for (auto& [id, value] : def.parameters)
             if (auto* p = parameters.getParameter(id))
                 value = p->convertTo0to1(value);
+
+        factoryPresets.push_back (std::move (def));
+    }
 
     // Only re-seeds when JucePlugin_VersionString changes (.factory-version
     // sentinel). At a frozen 1.0.0 that means edits to the table above are a
@@ -300,6 +142,485 @@ ReverseDelayProcessor::ReverseDelayProcessor()
     // grainSize at v1.5.0. Runs immediately after the factory seed, on the
     // message thread, once per version.
     migrateUserPresets();
+}
+
+//==============================================================================
+// The factory bank. Engineering units; the constructor normalises.
+//
+// ── v1.20.0: 8 -> 56 presets in 8 browser categories ─────────────────────────
+// The eight rows below the history block are the shipped sound and are
+// UNCHANGED — same values, same no-op tail — so they still render
+// bit-identically (probe N keeps its hand-typed mirror of them for exactly that
+// reason). Each row now also names its category.
+//
+// The 48 rows after them are NEW entries, which is the door every block of the
+// history above leaves open: "a future release that DOES want a randomised
+// preset edits a visible number here", "a v1.8.0 preset that wants diffusion
+// is a NEW entry". They author only the keys they voice on top of the ten v1.0
+// ones; the tail fills in the rest with the same no-ops the shipped rows use.
+// Rules the new rows keep:
+//   * freeze is never authored — a factory preset must not load frozen.
+//   * No output-level trim: Mix sits 22–60 % like the shipped bank, and there
+//     is no gain parameter to touch (feedback_presets_never_set_output_gain).
+//   * regenMakeup appears once (Endless Sky, +3 dB at feedback 85). The loop
+//     loses ≈7.3 dB per generation, so it still decays.
+//   * Rhythmic rows are Sync, and most link the grain to the synced delay
+//     (grainLink = Delay), so a Rhythmic preset follows the host tempo in
+//     both size and time. grainSize is still written as the matching ms value
+//     so the knob reads sensibly when a user flips the link back to Free.
+//   * Category strings must be one of kPresetCategories verbatim — the debug
+//     jassert in getPresetCategoryOrder() catches a typo.
+const std::vector<ReverseDelayProcessor::FactoryPresetRow>& ReverseDelayProcessor::getFactoryPresetRows()
+{
+    static const std::vector<FactoryPresetRow> table = []
+    {
+        // ── Stage 4 (D16): 8 factory presets ────────────────────────────────────
+        // Authored in ENGINEERING UNITS (ms, %, Hz, choice index) and converted once
+        // through each parameter's own NormalisableRange below. Four params are
+        // skewed (delayTime centre 316 ms, grainSize 158 ms, lowCut 200 Hz, highCut
+        // 3162 Hz); a hand-written normalised fraction on any of them recalls 10–30×
+        // wrong (pattern_factory_preset_normalized_ignores_skew).
+        //
+        // All thirty keys are explicit in every preset. Omitted keys would
+        // revert to the APVTS default (applyPresetJson resets everything first),
+        // which is safe but makes the table's intent unreadable.
+        //
+        // ── v1.7.0 (B4 #4-#6): sourceMode / duck / driftRate / driftDepth ────────
+        // Three of the four are pinned at 0 and the fourth — driftRate — is pinned
+        // at its own default of 0.30 Hz, which is inert while driftDepth is 0. That
+        // asymmetry is deliberate and is the trap this block carries: a rate written
+        // as 0 would be CLAMPED up to kDriftRateMinHz by the NormalisableRange, so
+        // the preset would recall 0.02 Hz rather than the default and probe N's
+        // round-trip comparison would fail against a table that looked correct.
+        //
+        // sourceMode carries the grainShape trap rather than the freeze one: its
+        // no-op is index 0 (Mono Sum), and 0 is also what an absent key resolves to,
+        // so the ORDER of the choice list is load-bearing. Putting Stereo first
+        // would re-voice every existing session the moment v1.7.0 is installed.
+        //
+        // ── v1.8.0 (B4 #7-#8): diffusion / drive both pinned at 0 ───────────────
+        // Sixth release running that adds keys here and pins every one to the no-op.
+        // Both are plain zero, so this block carries neither the grainTilt trap nor
+        // the driftRate one — but pinning them is doing real work even so, because
+        // these are the two keys most obviously "free" to author into the presets.
+        //
+        // "Reverse Bloom" at diffusion 40 would be a better patch. It would also be
+        // a DIFFERENT patch than the one shipped since v1.0.0, and re-voicing a
+        // sound people have built work on is the thing this table has refused five
+        // times now (pattern_activating_dead_param_default_timbre). A v1.8.0 preset
+        // that wants diffusion is a NEW entry, not an edit to an existing one.
+        //
+        // ── v1.6.0 (B4): freeze / direction / regenMakeup all pinned at 0 ────────
+        // Fifth release running that adds keys here and pins every one of them to
+        // the no-op, and the FIRST where all three no-ops are plain zero — so this
+        // block is the one that does NOT carry the trap the four above it do.
+        //
+        // regenMakeup deserves a sentence of its own, because it is the one an
+        // improvement pass is most tempted to move. The review's motivation for
+        // exposing it is precisely that "Near-Infinite" cannot self-sustain at
+        // feedback 100 — the topology loses ≈7.3 dB per generation — so the obvious
+        // reflex is to author that preset at +7 dB and finally make its name true.
+        // Deliberately NOT done: "Near-Infinite" is a shipped sound that people have
+        // used since v1.0.0, and quietly turning it into a self-oscillator would
+        // re-voice their work (pattern_activating_dead_param_default_timbre). The
+        // preset stays exactly what it was; true sustain is now one knob away, which
+        // is what the review actually asked for.
+        //
+        // ── v1.3.0 (B2): grainCount pinned at 8 ─────────────────────────────────
+        // 8 is v1.2.0's hard-coded overlap ceiling, so every preset below keeps the
+        // exact overlap it was authored for. Same trap as grainTilt one paragraph
+        // down and worth naming separately, because the wrong reflex here is the
+        // OTHER one: "new ceiling, use the new maximum" would push all eight presets
+        // to overlap 16 and make every factory sound roughly twice as dense.
+        //
+        // Note this is also why the v1.0.1 density re-authoring survives untouched:
+        // those values encode overlaps against a ceiling of 8, and the ceiling is
+        // now written down next to them rather than implied by the engine.
+        //
+        // ── v1.2.0 (B1): grainTilt pinned at 0.5, grainShape at 0 (Hann) ────────
+        // Same reasoning as the v1.1 block below, with one extra trap: the no-op
+        // value for grainTilt is 0.5, NOT 0. A reflex "new key, write 0" here would
+        // hard-tilt all eight factory presets to a peak-early window and change what
+        // "Reverse Bloom" sounds like for everyone already using it.
+        //
+        // ── v1.1.0 (B3): the four randomisation keys are pinned at 0 ────────────
+        // Not an oversight. These presets are the shipped v1.0 sound, and a factory
+        // preset that quietly switched on grain randomisation would change what
+        // "Reverse Bloom" means for everyone who already uses it
+        // (pattern_activating_dead_param_default_timbre). They are written
+        // explicitly rather than left to the default so that intent is on the page:
+        // v1.1 presets are deliberately unchanged, and a future release that DOES
+        // want a randomised preset edits a visible number here.
+        //
+        // No "/" in any name — OuariconPresetManager sanitises it to "_", so
+        // "Reverse 1/8" would round-trip as "Reverse 1_8"
+        // (critical_preset_name_slash_path_separator). Hence "Rhythmic Reverse".
+        //
+        // syncMode: 0 = Free, 1 = Sync. noteDivision: 4 = 1/8D, 6 = 1/4 (the default).
+        //
+        // ── v1.0.1 (A3): density values re-authored ─────────────────────────────
+        // density no longer means what it meant at v1.0.0. The old map was
+        // overlap = 1 + d·7; the new one is overlap = 2 + d·6. Every preset's
+        // density is therefore rewritten to the value that reproduces its SHIPPED
+        // overlap exactly:
+        //     d_new = (7·d_old − 100) / 6
+        // so all eight presets render bit-identically to v1.0.0 (the 0.1 % density
+        // step resolves each of these exactly). Only the knob's *scale* moved; the
+        // presets did not. Old -> new: 60->53.3, 55->47.5, 70->65, 30->18.3,
+        // 90->88.3, 65->59.2, 80->76.7.
+        //
+        // ── v1.12.4: the no-op tail is written ONCE ─────────────────────────────
+        // Every key added since v1.1.0 is pinned to its no-op in every preset, so
+        // the pins live in kShippedNoOpTail below rather than as eight copies. The
+        // rows keep only the ten v1.0 keys that genuinely differ per preset. The
+        // tail is merged with map::insert, which never overwrites — so a FUTURE
+        // preset that deliberately authors one of these keys writes it in its own
+        // row and wins. Every value above still applies; it is simply stated once.
+        const std::map<juce::String, float> kShippedNoOpTail = {
+            {"jitter", 0.0f}, {"delayScatter", 0.0f},
+            {"sizeRandom", 0.0f}, {"gainRandom", 0.0f},
+            {"grainTilt", 0.5f}, {"grainShape", 0.0f},     // tilt: 0.5, NOT 0
+            {"grainCount", 8.0f}, {"tukeyTaper", 0.5f},    // v1.2.0's ceiling; taper no-op 0.5
+            {"freeze", 0.0f}, {"direction", 0.0f},
+            {"regenMakeup", 0.0f},
+            {"sourceMode", 0.0f}, {"duck", 0.0f},
+            {"driftRate", 0.30f}, {"driftDepth", 0.0f},    // rate: the DEFAULT, not 0
+            {"diffusion", 0.0f}, {"drive", 0.0f},
+            {"freezeLength", 0.0f},                         // v1.15.0: Ring, the shipped loop
+            {"grainLink", 0.0f},                            // v1.17.0: Free, the Size knob
+            {"grainDivision", static_cast<float> (kDefaultNoteDivision)}};   // inert while Free
+
+        std::vector<FactoryPresetRow> rows = {
+            { "Reverse Bloom", "Swells",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  500.0f},
+               {"grainSize", 200.0f}, {"density", 53.3f}, {"feedback",  40.0f},
+               {"lowCut",    100.0f}, {"highCut", 8000.0f},
+               {"width",      60.0f}, {"mix",       40.0f}} },
+
+            { "Guitar Swell", "Swells",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  700.0f},
+               {"grainSize", 300.0f}, {"density", 47.5f}, {"feedback",  45.0f},
+               {"lowCut",    120.0f}, {"highCut", 6500.0f},
+               {"width",      55.0f}, {"mix",       55.0f}} },
+
+            { "Vocal Halo", "Vocals",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  380.0f},
+               {"grainSize", 180.0f}, {"density", 65.0f}, {"feedback",  30.0f},
+               {"lowCut",    300.0f}, {"highCut", 7000.0f},
+               {"width",      70.0f}, {"mix",       25.0f}} },
+
+            { "Slow Wash", "Ambient",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f},
+               {"grainSize", 450.0f}, {"density", 18.3f}, {"feedback",  65.0f},
+               {"lowCut",     80.0f}, {"highCut", 5000.0f},
+               {"width",      85.0f}, {"mix",       50.0f}} },
+
+            { "Tight Smear", "Glitch & Texture",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  180.0f},
+               {"grainSize",  70.0f}, {"density", 88.3f}, {"feedback",  35.0f},
+               {"lowCut",    150.0f}, {"highCut", 11000.0f},
+               {"width",      35.0f}, {"mix",       45.0f}} },
+
+            { "Dark Cavern", "Dark",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  850.0f},
+               {"grainSize", 320.0f}, {"density", 59.2f}, {"feedback",  70.0f},
+               {"lowCut",    220.0f}, {"highCut", 1800.0f},
+               {"width",      75.0f}, {"mix",       55.0f}} },
+
+            // feedback = 100 %: doubles as the preset-driven DSP-03 stability
+            // statement (probe N renders this one for 30 s, not 10). Its density is
+            // re-authored to hold overlap at 5.9, so the v1.0.1 loop duty cycle —
+            // and with it the measured decay — is unchanged from v1.0.0.
+            { "Near-Infinite", "Ambient",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime",  900.0f},
+               {"grainSize", 350.0f}, {"density", 65.0f}, {"feedback", 100.0f},
+               {"lowCut",    180.0f}, {"highCut", 2500.0f},
+               {"width",      80.0f}, {"mix",       50.0f}} },
+
+            { "Rhythmic Reverse", "Rhythmic",
+              {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime",  500.0f},
+               {"grainSize", 120.0f}, {"density", 76.7f}, {"feedback",  50.0f},
+               {"lowCut",    140.0f}, {"highCut", 9000.0f},
+               {"width",      50.0f}, {"mix",       45.0f}} },
+
+            // ── Swells ────────────────────────────────────────────────────────────
+            { "Cathedral Swell", "Swells",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1200.0f}, {"grainSize", 600.0f},
+               {"density", 55.0f}, {"feedback", 55.0f}, {"lowCut", 90.0f}, {"highCut", 6000.0f},
+               {"width", 80.0f}, {"mix", 50.0f}, {"diffusion", 45.0f}, {"grainShape", 2.0f},
+               {"grainTilt", 0.65f}} },
+            { "Pad Riser", "Swells",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 900.0f}, {"grainSize", 800.0f},
+               {"density", 70.0f}, {"feedback", 50.0f}, {"lowCut", 150.0f}, {"highCut", 7000.0f},
+               {"width", 70.0f}, {"mix", 45.0f}, {"diffusion", 30.0f}, {"driftDepth", 10.0f},
+               {"driftRate", 0.2f}, {"grainShape", 2.0f}} },
+            { "Keys Bloom", "Swells",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 600.0f}, {"grainSize", 250.0f},
+               {"density", 55.0f}, {"feedback", 35.0f}, {"lowCut", 180.0f}, {"highCut", 9000.0f},
+               {"width", 65.0f}, {"mix", 35.0f}, {"diffusion", 20.0f}} },
+            { "Soft Inhale", "Swells",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 450.0f}, {"grainSize", 400.0f},
+               {"density", 40.0f}, {"feedback", 25.0f}, {"lowCut", 120.0f}, {"highCut", 8000.0f},
+               {"width", 50.0f}, {"mix", 40.0f}, {"grainShape", 3.0f}, {"grainTilt", 0.75f}} },
+            { "Bowed Swell", "Swells",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1000.0f}, {"grainSize", 700.0f},
+               {"density", 60.0f}, {"feedback", 60.0f}, {"lowCut", 100.0f}, {"highCut", 5500.0f},
+               {"width", 75.0f}, {"mix", 50.0f}, {"diffusion", 35.0f}, {"grainShape", 1.0f},
+               {"tukeyTaper", 0.8f}} },
+
+            // ── Vocals ────────────────────────────────────────────────────────────
+            { "Whisper Trail", "Vocals",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 320.0f}, {"grainSize", 150.0f},
+               {"density", 60.0f}, {"feedback", 25.0f}, {"lowCut", 400.0f}, {"highCut", 10000.0f},
+               {"width", 70.0f}, {"mix", 22.0f}, {"diffusion", 15.0f}} },
+            { "Pre-Echo Lead", "Vocals",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 250.0f}, {"grainSize", 250.0f},
+               {"density", 30.0f}, {"feedback", 20.0f}, {"lowCut", 250.0f}, {"highCut", 8000.0f},
+               {"width", 40.0f}, {"mix", 25.0f}, {"duck", 50.0f}, {"grainLink", 1.0f}} },
+            { "Choir Ghost", "Vocals",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 700.0f}, {"grainSize", 350.0f},
+               {"density", 70.0f}, {"feedback", 45.0f}, {"lowCut", 300.0f}, {"highCut", 6000.0f},
+               {"width", 90.0f}, {"mix", 35.0f}, {"diffusion", 50.0f}, {"driftDepth", 15.0f},
+               {"driftRate", 0.25f}, {"sizeRandom", 20.0f}} },
+            { "Ducked Wash", "Vocals",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 800.0f}, {"grainSize", 400.0f},
+               {"density", 55.0f}, {"feedback", 55.0f}, {"lowCut", 250.0f}, {"highCut", 7000.0f},
+               {"width", 80.0f}, {"mix", 45.0f}, {"diffusion", 40.0f}, {"duck", 70.0f}} },
+            { "Backwards Chorus", "Vocals",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 400.0f}, {"grainSize", 200.0f},
+               {"density", 65.0f}, {"feedback", 30.0f}, {"lowCut", 200.0f}, {"highCut", 9000.0f},
+               {"width", 85.0f}, {"mix", 30.0f}, {"driftDepth", 30.0f}, {"driftRate", 1.2f},
+               {"sourceMode", 1.0f}} },
+            { "Spoken Reverse", "Vocals",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 600.0f}, {"grainSize", 600.0f},
+               {"density", 20.0f}, {"feedback", 15.0f}, {"lowCut", 150.0f}, {"highCut", 9000.0f},
+               {"width", 30.0f}, {"mix", 50.0f}, {"grainLink", 1.0f}} },
+
+            // ── Rhythmic ──────────────────────────────────────────────────────────
+            { "Quarter Flip", "Rhythmic",
+              {{"syncMode", 1.0f}, {"noteDivision", 6.0f}, {"delayTime", 500.0f}, {"grainSize", 500.0f},
+               {"density", 25.0f}, {"feedback", 35.0f}, {"lowCut", 120.0f}, {"highCut", 9000.0f},
+               {"width", 50.0f}, {"mix", 40.0f}, {"grainLink", 1.0f}} },
+            { "Dotted Rewind", "Rhythmic",
+              {{"syncMode", 1.0f}, {"noteDivision", 4.0f}, {"delayTime", 500.0f}, {"grainSize", 250.0f},
+               {"density", 50.0f}, {"feedback", 45.0f}, {"lowCut", 150.0f}, {"highCut", 8000.0f},
+               {"width", 60.0f}, {"mix", 40.0f}, {"grainDivision", 3.0f}, {"grainLink", 2.0f}} },
+            { "Stutter Sixteenths", "Rhythmic",
+              {{"syncMode", 1.0f}, {"noteDivision", 0.0f}, {"delayTime", 500.0f}, {"grainSize", 125.0f},
+               {"density", 40.0f}, {"feedback", 40.0f}, {"lowCut", 200.0f}, {"highCut", 10000.0f},
+               {"width", 40.0f}, {"mix", 45.0f}, {"grainLink", 1.0f}, {"grainShape", 1.0f},
+               {"tukeyTaper", 0.2f}} },
+            { "Triplet Tumble", "Rhythmic",
+              {{"syncMode", 1.0f}, {"noteDivision", 5.0f}, {"delayTime", 500.0f}, {"grainSize", 170.0f},
+               {"density", 45.0f}, {"feedback", 50.0f}, {"lowCut", 150.0f}, {"highCut", 8500.0f},
+               {"width", 65.0f}, {"mix", 40.0f}, {"grainLink", 1.0f}} },
+            { "Half Note Reverse", "Rhythmic",
+              {{"syncMode", 1.0f}, {"noteDivision", 9.0f}, {"delayTime", 500.0f}, {"grainSize", 1000.0f},
+               {"density", 30.0f}, {"feedback", 40.0f}, {"lowCut", 100.0f}, {"highCut", 7000.0f},
+               {"width", 60.0f}, {"mix", 45.0f}, {"grainLink", 1.0f}} },
+            { "Bar Rewind", "Rhythmic",
+              {{"syncMode", 1.0f}, {"noteDivision", 12.0f}, {"delayTime", 500.0f}, {"grainSize", 2000.0f},
+               {"density", 35.0f}, {"feedback", 30.0f}, {"lowCut", 100.0f}, {"highCut", 7500.0f},
+               {"width", 70.0f}, {"mix", 40.0f}, {"duck", 40.0f}, {"grainLink", 1.0f}} },
+
+            // ── Ambient ───────────────────────────────────────────────────────────
+            { "Glacier", "Ambient",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 2500.0f}, {"grainSize", 1500.0f},
+               {"density", 70.0f}, {"feedback", 75.0f}, {"lowCut", 100.0f}, {"highCut", 4000.0f},
+               {"width", 90.0f}, {"mix", 55.0f}, {"diffusion", 60.0f}, {"driftDepth", 10.0f},
+               {"driftRate", 0.05f}, {"grainShape", 2.0f}} },
+            { "Endless Sky", "Ambient",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1800.0f}, {"grainSize", 1000.0f},
+               {"density", 65.0f}, {"feedback", 85.0f}, {"lowCut", 150.0f}, {"highCut", 6000.0f},
+               {"width", 95.0f}, {"mix", 50.0f}, {"diffusion", 55.0f}, {"grainCount", 12.0f},
+               {"regenMakeup", 3.0f}, {"sourceMode", 1.0f}} },
+            { "Drone Cloud", "Ambient",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 3000.0f}, {"grainSize", 2000.0f},
+               {"density", 80.0f}, {"feedback", 80.0f}, {"lowCut", 60.0f}, {"highCut", 3500.0f},
+               {"width", 85.0f}, {"mix", 60.0f}, {"diffusion", 70.0f}, {"grainCount", 12.0f},
+               {"jitter", 30.0f}, {"sizeRandom", 30.0f}} },
+            { "Tidal Pool", "Ambient",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1600.0f}, {"grainSize", 900.0f},
+               {"density", 50.0f}, {"feedback", 60.0f}, {"lowCut", 120.0f}, {"highCut", 5000.0f},
+               {"width", 80.0f}, {"mix", 45.0f}, {"diffusion", 35.0f}, {"driftDepth", 40.0f},
+               {"driftRate", 0.1f}} },
+            { "Shimmer Fog", "Ambient",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1200.0f}, {"grainSize", 500.0f},
+               {"density", 75.0f}, {"feedback", 65.0f}, {"lowCut", 400.0f}, {"highCut", 12000.0f},
+               {"width", 90.0f}, {"mix", 45.0f}, {"diffusion", 50.0f}, {"direction", 30.0f},
+               {"sourceMode", 1.0f}} },
+
+            // ── Dark ──────────────────────────────────────────────────────────────
+            { "Subterranean", "Dark",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1100.0f}, {"grainSize", 450.0f},
+               {"density", 55.0f}, {"feedback", 65.0f}, {"lowCut", 40.0f}, {"highCut", 900.0f},
+               {"width", 60.0f}, {"mix", 50.0f}, {"diffusion", 40.0f}} },
+            { "Night Tape", "Dark",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 750.0f}, {"grainSize", 300.0f},
+               {"density", 50.0f}, {"feedback", 55.0f}, {"lowCut", 150.0f}, {"highCut", 1500.0f},
+               {"width", 50.0f}, {"mix", 45.0f}, {"driftDepth", 15.0f}, {"driftRate", 0.4f},
+               {"drive", 25.0f}} },
+            { "Muffled Room", "Dark",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 300.0f}, {"grainSize", 150.0f},
+               {"density", 70.0f}, {"feedback", 35.0f}, {"lowCut", 100.0f}, {"highCut", 1200.0f},
+               {"width", 45.0f}, {"mix", 40.0f}, {"diffusion", 60.0f}} },
+            { "Deep Well", "Dark",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 2000.0f}, {"grainSize", 700.0f},
+               {"density", 45.0f}, {"feedback", 70.0f}, {"lowCut", 60.0f}, {"highCut", 1100.0f},
+               {"width", 70.0f}, {"mix", 50.0f}, {"diffusion", 30.0f}, {"grainShape", 2.0f}} },
+            { "Smoke", "Dark",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 900.0f}, {"grainSize", 500.0f},
+               {"density", 65.0f}, {"feedback", 50.0f}, {"lowCut", 200.0f}, {"highCut", 2200.0f},
+               {"width", 85.0f}, {"mix", 40.0f}, {"diffusion", 45.0f}, {"sizeRandom", 15.0f}} },
+            { "Low Moan", "Dark",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1400.0f}, {"grainSize", 1000.0f},
+               {"density", 60.0f}, {"feedback", 60.0f}, {"lowCut", 30.0f}, {"highCut", 700.0f},
+               {"width", 40.0f}, {"mix", 55.0f}, {"grainShape", 2.0f}} },
+
+            // ── Glitch & Texture ──────────────────────────────────────────────────
+            { "Grain Spray", "Glitch & Texture",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 400.0f}, {"grainSize", 60.0f},
+               {"density", 90.0f}, {"feedback", 30.0f}, {"lowCut", 200.0f}, {"highCut", 12000.0f},
+               {"width", 90.0f}, {"mix", 40.0f}, {"delayScatter", 150.0f}, {"gainRandom", 40.0f},
+               {"grainCount", 16.0f}, {"jitter", 70.0f}, {"sizeRandom", 50.0f}} },
+            { "Shatter", "Glitch & Texture",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 250.0f}, {"grainSize", 50.0f},
+               {"density", 60.0f}, {"feedback", 45.0f}, {"lowCut", 300.0f}, {"highCut", 14000.0f},
+               {"width", 80.0f}, {"mix", 45.0f}, {"gainRandom", 70.0f}, {"grainShape", 4.0f},
+               {"jitter", 50.0f}} },
+            { "Scatterbrain", "Glitch & Texture",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 700.0f}, {"grainSize", 120.0f},
+               {"density", 70.0f}, {"feedback", 40.0f}, {"lowCut", 150.0f}, {"highCut", 10000.0f},
+               {"width", 75.0f}, {"mix", 40.0f}, {"delayScatter", 400.0f}, {"jitter", 40.0f},
+               {"sizeRandom", 60.0f}} },
+            { "Crumbs", "Glitch & Texture",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 150.0f}, {"grainSize", 55.0f},
+               {"density", 50.0f}, {"feedback", 25.0f}, {"lowCut", 400.0f}, {"highCut", 11000.0f},
+               {"width", 60.0f}, {"mix", 35.0f}, {"gainRandom", 60.0f}, {"grainShape", 3.0f},
+               {"jitter", 80.0f}} },
+            { "Either Way", "Glitch & Texture",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 500.0f}, {"grainSize", 180.0f},
+               {"density", 60.0f}, {"feedback", 40.0f}, {"lowCut", 150.0f}, {"highCut", 9000.0f},
+               {"width", 60.0f}, {"mix", 40.0f}, {"direction", 50.0f}, {"jitter", 30.0f}} },
+            { "Micro Cloud", "Glitch & Texture",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 90.0f}, {"grainSize", 50.0f},
+               {"density", 100.0f}, {"feedback", 20.0f}, {"lowCut", 250.0f}, {"highCut", 13000.0f},
+               {"width", 70.0f}, {"mix", 35.0f}, {"grainCount", 16.0f}, {"jitter", 60.0f},
+               {"sizeRandom", 30.0f}} },
+
+            // ── Lo-Fi & Drive ─────────────────────────────────────────────────────
+            { "Broken Cassette", "Lo-Fi & Drive",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 650.0f}, {"grainSize", 280.0f},
+               {"density", 50.0f}, {"feedback", 50.0f}, {"lowCut", 250.0f}, {"highCut", 3500.0f},
+               {"width", 40.0f}, {"mix", 45.0f}, {"driftDepth", 35.0f}, {"driftRate", 0.6f},
+               {"drive", 45.0f}, {"gainRandom", 20.0f}} },
+            { "Tube Rewind", "Lo-Fi & Drive",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 550.0f}, {"grainSize", 220.0f},
+               {"density", 55.0f}, {"feedback", 55.0f}, {"lowCut", 120.0f}, {"highCut", 6000.0f},
+               {"width", 55.0f}, {"mix", 40.0f}, {"drive", 40.0f}} },
+            { "Fuzz Trails", "Lo-Fi & Drive",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 400.0f}, {"grainSize", 150.0f},
+               {"density", 60.0f}, {"feedback", 60.0f}, {"lowCut", 300.0f}, {"highCut", 4500.0f},
+               {"width", 50.0f}, {"mix", 40.0f}, {"drive", 75.0f}} },
+            { "Radio Ghost", "Lo-Fi & Drive",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 900.0f}, {"grainSize", 350.0f},
+               {"density", 45.0f}, {"feedback", 45.0f}, {"lowCut", 600.0f}, {"highCut", 3000.0f},
+               {"width", 20.0f}, {"mix", 45.0f}, {"drive", 30.0f}, {"jitter", 20.0f}} },
+            { "Worn Vinyl", "Lo-Fi & Drive",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1200.0f}, {"grainSize", 500.0f},
+               {"density", 50.0f}, {"feedback", 50.0f}, {"lowCut", 200.0f}, {"highCut", 4000.0f},
+               {"width", 50.0f}, {"mix", 40.0f}, {"driftDepth", 25.0f}, {"driftRate", 0.33f},
+               {"drive", 20.0f}} },
+            { "Overdriven Loop", "Lo-Fi & Drive",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1000.0f}, {"grainSize", 400.0f},
+               {"density", 60.0f}, {"feedback", 75.0f}, {"lowCut", 180.0f}, {"highCut", 5000.0f},
+               {"width", 65.0f}, {"mix", 45.0f}, {"diffusion", 20.0f}, {"drive", 60.0f}} },
+            { "Mono Memory", "Lo-Fi & Drive",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 700.0f}, {"grainSize", 300.0f},
+               {"density", 45.0f}, {"feedback", 40.0f}, {"lowCut", 300.0f}, {"highCut", 3200.0f},
+               {"width", 0.0f}, {"mix", 45.0f}, {"drive", 35.0f}} },
+
+            // ── Motion & Width ────────────────────────────────────────────────────
+            { "Wide Rewind", "Motion & Width",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 600.0f}, {"grainSize", 250.0f},
+               {"density", 60.0f}, {"feedback", 40.0f}, {"lowCut", 120.0f}, {"highCut", 9000.0f},
+               {"width", 100.0f}, {"mix", 40.0f}, {"sourceMode", 1.0f}} },
+            { "Seasick", "Motion & Width",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 700.0f}, {"grainSize", 300.0f},
+               {"density", 55.0f}, {"feedback", 45.0f}, {"lowCut", 150.0f}, {"highCut", 7000.0f},
+               {"width", 80.0f}, {"mix", 40.0f}, {"driftDepth", 70.0f}, {"driftRate", 0.4f}} },
+            { "Warble", "Motion & Width",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 350.0f}, {"grainSize", 180.0f},
+               {"density", 60.0f}, {"feedback", 35.0f}, {"lowCut", 150.0f}, {"highCut", 8500.0f},
+               {"width", 60.0f}, {"mix", 35.0f}, {"driftDepth", 50.0f}, {"driftRate", 3.0f}} },
+            { "Slow Orbit", "Motion & Width",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1100.0f}, {"grainSize", 500.0f},
+               {"density", 65.0f}, {"feedback", 55.0f}, {"lowCut", 100.0f}, {"highCut", 7000.0f},
+               {"width", 95.0f}, {"mix", 45.0f}, {"diffusion", 25.0f}, {"driftDepth", 30.0f},
+               {"driftRate", 0.08f}, {"sourceMode", 1.0f}} },
+            { "Pendulum", "Motion & Width",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 800.0f}, {"grainSize", 400.0f},
+               {"density", 50.0f}, {"feedback", 45.0f}, {"lowCut", 120.0f}, {"highCut", 8000.0f},
+               {"width", 90.0f}, {"mix", 40.0f}, {"direction", 40.0f}, {"driftDepth", 20.0f},
+               {"driftRate", 0.5f}} },
+            { "Stereo Scatter", "Motion & Width",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 500.0f}, {"grainSize", 150.0f},
+               {"density", 70.0f}, {"feedback", 40.0f}, {"lowCut", 150.0f}, {"highCut", 10000.0f},
+               {"width", 100.0f}, {"mix", 40.0f}, {"delayScatter", 200.0f}, {"jitter", 40.0f},
+               {"sourceMode", 1.0f}} },
+            { "Drift Chamber", "Motion & Width",
+              {{"syncMode", 0.0f}, {"noteDivision", 6.0f}, {"delayTime", 1300.0f}, {"grainSize", 600.0f},
+               {"density", 60.0f}, {"feedback", 60.0f}, {"lowCut", 100.0f}, {"highCut", 6000.0f},
+               {"width", 85.0f}, {"mix", 45.0f}, {"diffusion", 50.0f}, {"driftDepth", 40.0f},
+               {"driftRate", 0.15f}} },
+        };
+
+        // map::insert never overwrites, so a row that authors a tail key keeps it.
+        for (auto& row : rows)
+            row.parameters.insert (kShippedNoOpTail.begin(), kShippedNoOpTail.end());
+
+        return rows;
+    }();
+
+    return table;
+}
+
+namespace
+{
+    // v1.20.0 — display order of the preset dropdown's groups. The UI must not
+    // re-sort this. "User" is appended by getPresetCategoryOrder(), always last.
+    const char* const kPresetCategories[] =
+    {
+        "Swells", "Vocals", "Rhythmic", "Ambient",
+        "Dark", "Glitch & Texture", "Lo-Fi & Drive", "Motion & Width",
+    };
+}
+
+juce::StringArray ReverseDelayProcessor::getPresetCategoryOrder()
+{
+    juce::StringArray order;
+
+    for (const auto* category : kPresetCategories)
+        order.add (category);
+
+   #if JUCE_DEBUG
+    // A category in the table that is not listed above would surface as an
+    // extra "Other" group sorted after every real one. Catch the typo here.
+    for (const auto& row : getFactoryPresetRows())
+        jassert (order.contains (row.category));
+   #endif
+
+    order.add (kUserPresetCategory);
+    return order;
+}
+
+juce::String ReverseDelayProcessor::getPresetCategory (const juce::String& presetName)
+{
+    for (const auto& row : getFactoryPresetRows())
+        if (row.name == presetName)
+            return row.category;
+
+    return kUserPresetCategory;
 }
 
 namespace

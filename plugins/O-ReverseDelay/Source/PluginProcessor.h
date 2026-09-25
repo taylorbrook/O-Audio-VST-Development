@@ -26,6 +26,7 @@
 #include <atomic>
 #include <cmath>
 #include <iterator>
+#include <map>
 #include <vector>
 
 // Set to 1 ONLY by tests/render-harness/CMakeLists.txt. Under the harness the
@@ -199,6 +200,27 @@ public:
     /** Stage 4: preset library access for the editor's 10 preset native functions
         and for the render harness' probe N factory audit. */
     OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
+
+    /** v1.20.0 — the factory bank, in ENGINEERING units, one row per preset with
+        its browser category. Every row already carries the full key set (the
+        shipped no-op tail is merged in), so the constructor only normalises
+        and the render harness compares every key of every row against what
+        the real preset manager recalls. Single source for both. */
+    struct FactoryPresetRow
+    {
+        juce::String name;
+        juce::String category;                       // one of getPresetCategoryOrder()
+        std::map<juce::String, float> parameters;    // engineering units
+    };
+    static const std::vector<FactoryPresetRow>& getFactoryPresetRows();
+
+    /** v1.20.0 — the dropdown's grouping. getPresetCategory() answers "User"
+        for any name not in the factory table, which is exactly the set of
+        deletable presets. The order is authoritative for display; "User" is
+        always last. */
+    static constexpr const char* kUserPresetCategory = "User";
+    static juce::StringArray getPresetCategoryOrder();
+    static juce::String getPresetCategory (const juce::String& presetName);
 
     /** Live concurrent-grain count, read STRAIGHT off the pool.
 

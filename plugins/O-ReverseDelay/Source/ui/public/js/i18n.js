@@ -739,6 +739,19 @@ export const LABELS = Object.freeze({
     // mid-arm would have restored the ENGLISH armed face.
     'ui.confirm':      { en: { t: 'Confirm?' }, fr: { t: 'Confirmer ?', reviewed: true } , 'zh-Hans': { t: '确认？', reviewed: 'bt' },},
 
+    // v1.20.0 — preset dropdown group headings. Rendered uppercase by CSS, in a
+    // 300 px sticky row, so none is a geometry risk. The preset NAMES under
+    // them are never translated: a name is its JSON filename.
+    'presetCat.swells':   { en: { t: 'Swells' },           fr: { t: 'Montées',              reviewed: false } , 'zh-Hans': { t: '渐强',       reviewed: 'mt' },},
+    'presetCat.vocals':   { en: { t: 'Vocals' },           fr: { t: 'Voix',                 reviewed: false } , 'zh-Hans': { t: '人声',       reviewed: 'mt' },},
+    'presetCat.rhythmic': { en: { t: 'Rhythmic' },         fr: { t: 'Rythmiques',           reviewed: false } , 'zh-Hans': { t: '节奏',       reviewed: 'mt' },},
+    'presetCat.ambient':  { en: { t: 'Ambient' },          fr: { t: 'Ambiances',            reviewed: false } , 'zh-Hans': { t: '氛围',       reviewed: 'mt' },},
+    'presetCat.dark':     { en: { t: 'Dark' },             fr: { t: 'Sombres',              reviewed: false } , 'zh-Hans': { t: '暗色',       reviewed: 'mt' },},
+    'presetCat.glitch':   { en: { t: 'Glitch & Texture' }, fr: { t: 'Glitch et textures',   reviewed: false } , 'zh-Hans': { t: '故障与纹理', reviewed: 'mt' },},
+    'presetCat.lofi':     { en: { t: 'Lo-Fi & Drive' },    fr: { t: 'Lo-fi et saturation',  reviewed: false } , 'zh-Hans': { t: '低保真与过载', reviewed: 'mt' },},
+    'presetCat.motion':   { en: { t: 'Motion & Width' },   fr: { t: 'Mouvement et largeur', reviewed: false } , 'zh-Hans': { t: '运动与宽度', reviewed: 'mt' },},
+    'presetCat.user':     { en: { t: 'User' },             fr: { t: 'Utilisateur',          reviewed: false } , 'zh-Hans': { t: '用户',       reviewed: 'mt' },},
+
     // v1.11.0. THE SETTINGS POPOVER'S CAPTION KEY IS 'lang-select', WHICH LIVES
     // IN I18N, NOT HERE — this page's language caption resolves through that tip
     // entry's own title. The three keys below are LABELS keys and belong in this
@@ -849,6 +862,7 @@ export const LABELS = Object.freeze({
     // has a rendered box, so none is a geometry risk.
     'aria.presetPrev':   { en: { t: 'Previous preset' }, fr: { t: 'Préréglage précédent', reviewed: true } , 'zh-Hans': { t: '上一个预设', reviewed: 'bt' },},
     'aria.presetNext':   { en: { t: 'Next preset' },     fr: { t: 'Préréglage suivant',   reviewed: true } , 'zh-Hans': { t: '下一个预设', reviewed: 'bt' },},
+    'aria.presetList':   { en: { t: 'Presets' },         fr: { t: 'Préréglages',          reviewed: false } , 'zh-Hans': { t: '预设',       reviewed: 'mt' },},
     // v1.10.0: this was ALSO false copy. It read "Hover help language" while
     // the control now sets the language of the whole page.
     'aria.langSelect':   { en: { t: 'Interface language' },

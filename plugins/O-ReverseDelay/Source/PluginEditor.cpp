@@ -260,7 +260,7 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     for (const auto& relay : toggleRelays)
         options = options.withOptionsFrom (*relay);
 
-    // ── NATIVE FUNCTIONS — exactly 17 ──────────────────────────────────────
+    // ── NATIVE FUNCTIONS — exactly 22 (17 below + A/B 4 + categories 1) ───
     // 1 for dblclick-reset + 1 for the v1.3.0 grain meter + 1 for v1.4.0's
     // window-shape curve + v1.9.0's getUiLanguage/setUiLanguage pair + v1.16.0's
     // getMixLock/setMixLock pair + the 10
@@ -543,6 +543,27 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
         {
             const auto name = firstStringArg (args);
             complete (juce::var (name && processorRef.getPresetManager().isFactoryPreset (*name)));
+        })
+
+        // v1.20.0: the grouped preset dropdown. One round trip answers "which
+        // group is each listed preset in"; a name absent from the factory table
+        // reports "User". Takes the bridge 21 -> 22.
+        // Shape: { order: [...categories, "User"], categories: { name: category } }
+        // The order array is authoritative — the page must not re-sort it.
+        .withNativeFunction ("getPresetCategories", [this] (const auto&, auto complete)
+        {
+            auto* categories = new juce::DynamicObject();
+            for (const auto& name : processorRef.getPresetManager().getPresetList())
+                categories->setProperty (name, ReverseDelayProcessor::getPresetCategory (name));
+
+            juce::Array<juce::var> order;
+            for (const auto& category : ReverseDelayProcessor::getPresetCategoryOrder())
+                order.add (category);
+
+            auto* result = new juce::DynamicObject();
+            result->setProperty ("order", juce::var (order));
+            result->setProperty ("categories", juce::var (categories));
+            complete (juce::var (result));
         })
 
         // Both dialog fns resolve {success, name} — see makePresetDialogResult.
