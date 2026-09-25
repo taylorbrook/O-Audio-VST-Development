@@ -146,12 +146,28 @@ Generate all 5 implementation files required to integrate finalized WebView mock
 
 This file contains non-negotiable JUCE 8 patterns that prevent repeat mistakes.
 
+**The production UI contract — generate against these, not from memory:**
+
+- `.claude/skills/ui-mockup/references/html-generation.md` — the production contract: page skeleton, parameter binding and readouts, the Family A knob, `bindKnob` interaction, toggles, choices, faders.
+- `.claude/skills/ui-mockup/references/ui-design-rules.md` — the non-negotiable CSS/sizing/interaction rules.
+- **O-ReverseDelay, the reference implementation.** Read the COMMITTED version only — another session may have uncommitted edits in its working tree:
+  ```bash
+  git show HEAD:plugins/O-ReverseDelay/Source/ui/public/index.html
+  git show HEAD:plugins/O-ReverseDelay/Source/ui/public/css/styles.css
+  git show HEAD:plugins/O-ReverseDelay/Source/ui/public/js/app.js
+  git show HEAD:plugins/O-ReverseDelay/Source/ui/public/js/i18n.js
+  git show HEAD:plugins/O-ReverseDelay/Source/PluginEditor.cpp
+  ```
+  Look things up by function or selector name (`bindKnob`, `updateKnobVisual`, `.knob-stem`), never by line number.
+
 **Key patterns for UI finalization:**
 1. Member order: relays → webView → attachments (prevents release build crashes)
 2. WebView requires `juce::juce_gui_extra` module + `JUCE_WEB_BROWSER=1` flag
 3. NO viewport units (`100vh`, `100vw`) in CSS - use `100%` with `html, body { height: 100%; }`
 4. REQUIRED: `user-select: none` for native application feel
 5. Resource provider must return correct MIME types (especially `application/javascript` for .js)
+6. Readouts and knob angles come from the SliderState — `getScaledValue()` for text, `getNormalisedValue()` for the angle — never from mirrored min/max ranges in JS. The C++ `NormalisableRange` is the only range.
+7. Every continuous parameter is a Family A knob (conic seed ring + rotating `.knob-stem`) with the full `bindKnob` lifecycle: `setPointerCapture` + `pointerup`/`pointercancel`/`lostpointercapture` ending the gesture once, arrow keys, `tabindex="0"`, `role="slider"`, `aria-valuetext`, wheel gesture, dblclick reset via `getParameterDefaults`.
 </required_reading>
 
 <workflow>
@@ -207,14 +223,13 @@ echo "✓ Preconditions met - proceeding to file generation"
 
 **Generation strategy:**
 
-1. **Use base template:** `ui-mockup/assets/webview-templates/index-template.html`
-2. **Extract controls from v[N]-ui-test.html:**
-   - Parse HTML for control elements (sliders, buttons, dropdowns)
-   - Extract parameter IDs from JUCE binding calls
-3. **Replace template placeholders:**
-   - `{{PLUGIN_NAME}}` → Plugin name from BRIEF.md (or "Plugin UI" if standalone)
-   - `{{CONTROL_HTML}}` → Extracted controls from test HTML
-   - `{{PARAMETER_BINDINGS}}` → Generated JavaScript bindings
+1. **Base: the `html-generation.md` contract.** Build the page from its skeleton (module-state top block, hoisted function declarations, one `init()` at the bottom) and its control sections. `ui-mockup/assets/webview-templates/index-template.html` is NOT the base any more — it carries the retired dark palette and the old binding API. Leave that asset untouched; just don't use it.
+2. **Read v[N]-ui-test.html for three things only:** parameter IDs, parameter types (slider / toggle / combo), and layout (grouping, order, positions, frame size). Plugin name comes from BRIEF.md (or "Plugin UI" if standalone).
+3. **Regenerate ALL control code from the contract.** Never carry the test HTML's control JS or control CSS forward — the mockup's knobs, formatters and handlers are design-time sketches, and they are exactly where the anti-patterns (dark SVG knobs, mirrored ranges, window-level drag listeners) come from.
+   - Every continuous parameter → Family A `.knob-cell` + `bindKnob` (html-generation.md "Rotary Knob — Family A", "Knob Interaction").
+   - Every Bool → `<button type="button" aria-pressed>` + `bindToggle`.
+   - Every Choice → `<select>` + `bindSelectCombo` (options from `properties.choices`).
+   - `FORMAT[id]` per knob: units and decimals only, taken from parameter-spec.md.
 
 **Parameter ID extraction from test HTML:**
 
@@ -247,11 +262,17 @@ for (const match of comboMatches) {
 - ✅ REQUIRED: `html, body { height: 100%; }`
 - ✅ REQUIRED: `user-select: none` (native feel)
 - ✅ REQUIRED: Context menu disabled in JavaScript
+- ✅ REQUIRED: JUCE 8 relay-state API only — `import * as Juce from './js/juce/index.js'` and `Juce.getSliderState` / `getToggleButtonState` / `getComboBoxState`. No message-passing bridge, no hand-written C++→JS update functions.
+- ✅ REQUIRED: Family A knob — conic seed ring, only `.knob-stem` rotates, angle `normToDeg(st.getNormalisedValue())`
+- ✅ REQUIRED: readouts `FORMAT[id](st.getScaledValue())`; no range numbers anywhere in the page
+- ✅ REQUIRED: full `bindKnob` lifecycle — pointer capture with `pointerup`, `pointercancel`, `lostpointercapture`; arrow keys; `role="slider"`; `aria-valuetext`
+- ✅ REQUIRED: every binder listens to `valueChangedEvent` AND `propertiesChangedEvent`
 
 **Verification:**
 - Check generated HTML for viewport unit violations
 - Verify all JUCE imports present
 - Confirm parameter bindings match extracted IDs
+- Run the "Control contract" greps in the Self-Validation Checklist below
 
 ### Phase 7: Generate C++ Boilerplate
 
@@ -377,9 +398,32 @@ for param in parameters:
 
 **Key sections to generate:**
 1. Constructor initializer list (relays, webView, attachments)
-2. WebView options with `.withOptionsFrom()` calls
-3. Resource provider implementation
-4. Window sizing from YAML
+2. WebView options: `.withNativeIntegrationEnabled()`, `.withKeepPageLoadedWhenBrowserIsHidden()`, the resource provider, and one `.withOptionsFrom()` per relay (slider, combo AND toggle relays)
+3. Native functions registered with `options.withNativeFunction` — at minimum `getParameterDefaults` (below)
+4. Resource provider implementation
+5. Window sizing from YAML
+
+**`getParameterDefaults` native function (required — dblclick reset depends on it):**
+
+The relay's properties payload carries start/end/skew but no default, and a JS default table would drift from C++. So the page asks C++ for every slider's default in engineering units and converts it back through the live properties (`scaledToNorm`).
+
+```cpp
+options = options.withNativeFunction ("getParameterDefaults",
+    [this] (auto&, auto complete)
+    {
+        auto* obj = new juce::DynamicObject();
+
+        for (const auto& id : kSliderIds)   // every WebSliderRelay parameter id
+        {
+            if (auto* param = audioProcessor.parameters.getParameter (id))
+                obj->setProperty (id, param->convertFrom0to1 (param->getDefaultValue()));
+        }
+
+        complete (juce::var (obj));
+    });
+```
+
+**Every native function the page calls must be registered.** An unregistered one never settles its promise: the control that depends on it is silently dead while build, auval and pluginval all pass. Grep the page for `getNativeFunction(` and diff the names against the `withNativeFunction` calls.
 
 **Window dimensions extraction:**
 
@@ -1159,6 +1203,28 @@ Before returning success report, verify:
 - [ ] CMake snippet defines `JUCE_WEB_BROWSER=1`
 - [ ] Production HTML has no viewport units (`100vh`, `100vw`)
 - [ ] Production HTML has `user-select: none`
+- [ ] PluginEditor-TEMPLATE.cpp registers `getParameterDefaults` via `withNativeFunction`
+- [ ] PluginEditor-TEMPLATE.cpp calls `.withNativeIntegrationEnabled()`
+
+**Control contract (v[N]-ui.html):**
+
+```bash
+PAGE="v${VERSION}-ui.html"
+
+# Must be present — each one is part of the Family A knob contract
+for t in 'knob-stem' 'conic-gradient' 'setPointerCapture' 'lostpointercapture' \
+         'pointercancel' 'aria-valuetext' 'getScaledValue'; do
+  grep -qF -- "$t" "$PAGE" || { echo "CONTRACT: missing $t"; exit 1; }
+done
+# The slider role — set by bindKnob, or authored in the markup
+grep -qE "'role', 'slider'|role=\"slider\"" "$PAGE" || { echo "CONTRACT: missing slider role"; exit 1; }
+
+# Must be absent — hand-mirrored ranges and the retired SVG knob
+if grep -nE 'data-(min|max)=' "$PAGE"; then echo "CONTRACT: mirrored min/max attributes"; exit 1; fi
+if grep -nE '<svg[^>]*class="knob' "$PAGE"; then echo "CONTRACT: SVG knob"; exit 1; fi
+
+echo "✓ Control contract holds"
+```
 
 **State management:**
 - [ ] Git commit succeeded (all files staged)
