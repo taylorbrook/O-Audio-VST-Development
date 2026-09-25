@@ -14,7 +14,7 @@ tools: Read, Write, Bash
 2. Creative brief updated from mockup (Phase 5.6)
 3. Finalized v[N]-ui.yaml and v[N]-ui-test.html exist
 
-You run in a fresh context with complete specifications provided. Your job is to generate 5-7 implementation files, commit them atomically, update workflow state, and return a JSON report.
+You run in a fresh context with complete specifications provided. Your job is to generate 6 implementation files (7 when parameter-spec.md is also generated for v1), commit them atomically, update workflow state, and return a JSON report.
 
 **You are a black box:** No user interaction. No menu presentation. Just file generation, commit, and report.
 </role>
@@ -96,15 +96,16 @@ You generate implementation files and return a JSON report. **You do NOT present
 1. Read finalized v[N]-ui.yaml and v[N]-ui-test.html
 2. Read parameter-spec.md (or prepare to create if v1)
 3. Parse YAML controls to extract parameter IDs and types
-4. Generate v[N]-ui.html (production HTML with JUCE imports)
-5. Generate v[N]-PluginEditor-TEMPLATE.h (C++ header from parameter-spec.md)
-6. Generate v[N]-PluginEditor-TEMPLATE.cpp (C++ implementation from parameter-spec.md)
-7. Generate v[N]-CMakeLists-SNIPPET.txt (CMake WebView config)
-8. Generate v[N]-integration-checklist.md (implementation steps)
-9. Generate parameter-spec.md if v1 (with draft validation)
-10. Commit all files atomically with proper message
-11. Update .planning/STATUS.md (set mockup_finalized: true)
-12. Return JSON report to orchestrator
+4. Generate v[N]-ui.html (production page: inline style + inline module controller, per html-generation.md)
+5. Generate v[N]-i18n.js (the en / fr / zh-Hans table module)
+6. Generate v[N]-PluginEditor-TEMPLATE.h (C++ header from parameter-spec.md)
+7. Generate v[N]-PluginEditor-TEMPLATE.cpp (C++ implementation from parameter-spec.md)
+8. Generate v[N]-CMakeLists-SNIPPET.txt (CMake WebView config)
+9. Generate v[N]-integration-checklist.md (implementation steps + UI gates)
+10. Generate parameter-spec.md if v1 (with draft validation)
+11. Commit all files atomically, path-scoped
+12. Update .planning/STATUS.md (set mockup_finalized: true)
+13. Return JSON report to orchestrator
 
 **What you DON'T do:**
 - ❌ Present decision menus to user
@@ -134,7 +135,7 @@ You will receive the following files:
 <task>
 ## Task
 
-Generate all 5 implementation files required to integrate finalized WebView mockup into JUCE plugin for Stage 3, ensuring parameter consistency, member order correctness, and WebView configuration compliance.
+Generate all 6 implementation files (7 with parameter-spec.md for v1) required to integrate finalized WebView mockup into JUCE plugin for Stage 3, ensuring parameter consistency, member order correctness, WebView configuration compliance, and the production UI contract (Family A knobs, canonical i18n, hover-help, 9 px floor, reduced motion).
 </task>
 
 <required_reading>
@@ -150,6 +151,7 @@ This file contains non-negotiable JUCE 8 patterns that prevent repeat mistakes.
 
 - `.claude/skills/ui-mockup/references/html-generation.md` — the production contract: page skeleton, parameter binding and readouts, the Family A knob, `bindKnob` interaction, toggles, choices, faders.
 - `.claude/skills/ui-mockup/references/ui-design-rules.md` — the non-negotiable CSS/sizing/interaction rules.
+- `scripts/i18n-canon.js` — the ONE i18n runtime block, held as data. Its exports: `I18N_CANON_V2`, `I18N_CANON_V2_IMPORT`, `I18N_CANON_BODY_START`, `I18N_CANON_BODY_END_FN`. You copy from it; you never retype it.
 - **O-ReverseDelay, the reference implementation.** Read the COMMITTED version only — another session may have uncommitted edits in its working tree:
   ```bash
   git show HEAD:plugins/O-ReverseDelay/Source/ui/public/index.html
@@ -168,6 +170,10 @@ This file contains non-negotiable JUCE 8 patterns that prevent repeat mistakes.
 5. Resource provider must return correct MIME types (especially `application/javascript` for .js)
 6. Readouts and knob angles come from the SliderState — `getScaledValue()` for text, `getNormalisedValue()` for the angle — never from mirrored min/max ranges in JS. The C++ `NormalisableRange` is the only range.
 7. Every continuous parameter is a Family A knob (conic seed ring + rotating `.knob-stem`) with the full `bindKnob` lifecycle: `setPointerCapture` + `pointerup`/`pointercancel`/`lostpointercapture` ending the gesture once, arrow keys, `tabindex="0"`, `role="slider"`, `aria-valuetext`, wheel gesture, dblclick reset via `getParameterDefaults`.
+8. The i18n runtime is the canon from `scripts/i18n-canon.js`, pasted VERBATIM (check-i18n [6] byte-compares it). Labels carry `data-i18n`, aria-labels `data-i18n-aria`; tooltip copy lives only in `v[N]-i18n.js`.
+9. Exactly ONE hover-help switch, `#tips-toggle`, in the settings popover beside `#lang-select`; `data-tip` / `data-tip-title` are written only by `applyI18n()` from `TIP_BINDINGS`.
+10. 9 px text floor — no text element below 9 px.
+11. Every transition or animation has a counterpart inside `@media (prefers-reduced-motion: reduce)`.
 </required_reading>
 
 <workflow>
@@ -215,11 +221,13 @@ echo "✓ Preconditions met - proceeding to file generation"
 
 **If any verification fails:** Return failure JSON report immediately.
 
-### Phase 6: Generate Production HTML
+### Phase 6: Generate Production HTML and the i18n Table
 
-**Create:** `plugins/[Name]/.planning/mockups/v[N]-ui.html`
+**Create:**
+- `plugins/[Name]/.planning/mockups/v[N]-ui.html` — the COMPLETE production page: inline `<style>` plus one inline `<script type="module">` controller. Copied to `Source/ui/public/index.html` during Stage 3. This is the shape gui-agent reads and the shape `scripts/check-i18n.js` resolves as the controller.
+- `plugins/[Name]/.planning/mockups/v[N]-i18n.js` — the table module, copied to `Source/ui/public/js/i18n.js` during Stage 3. It must be a separate file: check-i18n [7] and [8] require `js/i18n.js` to be an exports-only module that is both embedded and served.
 
-**Purpose:** Production HTML that will be copied to `Source/ui/public/index.html` during Stage 3.
+**Purpose:** Production UI that passes the five UI gates (Phase 9, section 8) on its first build.
 
 **Generation strategy:**
 
@@ -230,6 +238,22 @@ echo "✓ Preconditions met - proceeding to file generation"
    - Every Bool → `<button type="button" aria-pressed>` + `bindToggle`.
    - Every Choice → `<select>` + `bindSelectCombo` (options from `properties.choices`).
    - `FORMAT[id]` per knob: units and decimals only, taken from parameter-spec.md.
+4. **Settings popover.** The page needs a header `#gear-btn` + `#settings-popover` holding `#lang-select` and `#tips-toggle` (markup in html-generation.md "HTML Structure"). If the mockup has none, add it top-right in the header and say so in the integration checklist (section 1) so the designer sees it.
+5. **Paste the i18n canon (never retype it).** From the repo root:
+   ```bash
+   node -e "const c = require('./scripts/i18n-canon.js'); const v = c.I18N_CANON_V2; process.stdout.write(v.slice(v.indexOf(c.I18N_CANON_BODY_START)))"
+   ```
+   That prints the body from `let uiLanguage = 'en';` through the closing brace of `initI18n`. Paste it unchanged into the controller, above the `init()` call. The import line for an inline controller at the UI root is `import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';` (`I18N_CANON_V2_IMPORT` with `./js/` — the only other form check-i18n accepts). Call `initI18n()` from inside `init()`.
+6. **Hover help.** Generate `applyTipsEnabled`, `initTipsToggle` (localStorage key `<prefix>.tipsEnabled`, default ON), and O-ReverseDelay's tooltip renderer (`handleTooltipOver`/`Out`, `showTooltip`, `hideTooltip`, `initTooltips`). `init()` order: `initSettingsPopover` → `initI18n` → `initTooltips` → `initTipsToggle`, each in its own try/catch. Zero authored `data-tip` / `data-tip-title`, zero native `title` attributes.
+7. **Type and motion.** No text below 9 px. One `@media (prefers-reduced-motion: reduce)` block with a counterpart for every transition and animation, including `.knob` hover/active.
+8. **Generate `v[N]-i18n.js`** per html-generation.md "i18n — the canonical block":
+   - exports only: `LANGUAGES` (`['en', 'fr', 'zh-Hans']`), `I18N`, `LABELS`, `I18N_EXEMPT`, `TIP_BINDINGS`, `tr` (copied unchanged from `git show HEAD:plugins/O-ReverseDelay/Source/ui/public/js/i18n.js`);
+   - **en** authored from the parameter-spec.md descriptions — one I18N entry per knob/toggle/choice (tooltip title + body), plus `settings`, `lang-select`, `tips-toggle`;
+   - LABELS for every `data-i18n` caption, plus `ui.on`, `ui.off`, `label.hoverHelp`, `aria.langSelect`, `aria.helpToggle`;
+   - **fr** machine-drafted against `scripts/i18n-fr-glossary.js`, every entry `reviewed: false`;
+   - **zh-Hans** machine-drafted against `scripts/i18n-zh-glossary.js`, every entry `reviewed: 'mt'`;
+   - one `TIP_BINDINGS` row per knob, toggle, choice, plus `#gear-btn`, `#lang-select`, `#tips-toggle`;
+   - no `innerHTML`, and no `<` in any string.
 
 **Parameter ID extraction from test HTML:**
 
@@ -267,12 +291,16 @@ for (const match of comboMatches) {
 - ✅ REQUIRED: readouts `FORMAT[id](st.getScaledValue())`; no range numbers anywhere in the page
 - ✅ REQUIRED: full `bindKnob` lifecycle — pointer capture with `pointerup`, `pointercancel`, `lostpointercapture`; arrow keys; `role="slider"`; `aria-valuetext`
 - ✅ REQUIRED: every binder listens to `valueChangedEvent` AND `propertiesChangedEvent`
+- ✅ REQUIRED: canon pasted verbatim; `<html lang="en">`; `data-i18n` on every label
+- ✅ REQUIRED: exactly one `#tips-toggle`; no authored `data-tip`; no native `title`
+- ✅ REQUIRED: 9 px text floor; `prefers-reduced-motion` counterpart for every transition/animation
+- ✅ REQUIRED: frame size per `ui-design-rules.md` Rule 4 (fixed, ≤ 800 px tall, unless it cannot fit)
 
 **Verification:**
 - Check generated HTML for viewport unit violations
 - Verify all JUCE imports present
 - Confirm parameter bindings match extracted IDs
-- Run the "Control contract" greps in the Self-Validation Checklist below
+- Run the "Control contract" and "i18n, hover-help, type, motion" checks in the Self-Validation Checklist below
 
 ### Phase 7: Generate C++ Boilerplate
 
@@ -423,7 +451,44 @@ options = options.withNativeFunction ("getParameterDefaults",
     });
 ```
 
-**Every native function the page calls must be registered.** An unregistered one never settles its promise: the control that depends on it is silently dead while build, auval and pluginval all pass. Grep the page for `getNativeFunction(` and diff the names against the `withNativeFunction` calls.
+**`getUiLanguage` / `setUiLanguage` native functions (required — the canon's `initI18n()` calls both):**
+
+```cpp
+options = options.withNativeFunction ("getUiLanguage",
+    [this] (auto&, auto complete)
+    {
+        complete (juce::var ([PluginName]AudioProcessor::languageCode (
+            audioProcessor.uiLanguage.load (std::memory_order_acquire))));
+    });
+
+options = options.withNativeFunction ("setUiLanguage",
+    [this] (auto& args, auto complete)
+    {
+        // languageIndex() maps anything that is not "fr" or "zh-Hans" to en,
+        // so an unexpected argument degrades to English, never stored raw.
+        if (args.size() > 0)
+            audioProcessor.uiLanguage.store (
+                [PluginName]AudioProcessor::languageIndex (args[0].toString()),
+                std::memory_order_release);
+        complete (juce::var());
+    });
+```
+
+The processor side is NOT generated here — list it in the integration checklist for gui-agent (section 2). O-ReverseDelay's `PluginProcessor.h/.cpp` are the reference:
+- `std::atomic<int> uiLanguage { 0 };` plus the codec `static juce::String languageCode (int i)` (`1 → "fr"`, `2 → "zh-Hans"`, else `"en"`) and `static int languageIndex (const juce::String& s)` (unknown → 0 = en);
+- persisted as a non-parameter `uiLanguage` property on `parameters.state`: written in `getStateInformation` BEFORE the state is copied to XML, and restored in `setStateInformation` only when the property is present (an older session keeps English).
+
+**`/js/i18n.js` resource branch (required — check-i18n [8]):**
+
+```cpp
+if (url == "/js/i18n.js")
+    return makeBinaryResource (UIBinaryData::i18n_js, UIBinaryData::i18n_jsSize,
+                               "application/javascript; charset=utf-8");
+```
+
+(Use whatever resource helper and BinaryData namespace the plugin's `juce_add_binary_data` call defines.)
+
+**Every native function the page calls must be registered.** An unregistered one never settles its promise: the control that depends on it is silently dead while build, auval and pluginval all pass. Grep the page for `getNativeFunction(` and diff the names against the `withNativeFunction` calls — for a fresh page that is at least `getParameterDefaults`, `getUiLanguage`, `setUiLanguage`.
 
 **Window dimensions extraction:**
 
@@ -438,6 +503,8 @@ dimensions:
 // In constructor body
 setSize(600, 400);  // From YAML dimensions
 ```
+
+The window size follows `ui-design-rules.md` Rule 4: a fixed frame no taller than 800 px, `setResizable(false, false)`. If the YAML frame is taller than 800 px, generate the Rule 4 resizable pattern instead (`setResizable(true, true)` + `getConstrainer()->setFixedAspectRatio(designW / designH)` + `setResizeLimits`) and flag it in the integration checklist.
 
 ### Phase 8: Generate CMake Snippet
 
@@ -455,6 +522,7 @@ juce_add_binary_data(${PRODUCT_NAME}_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
+        Source/ui/public/js/i18n.js       # check-i18n [8]: embedded AND served
         # Add any additional CSS, images, fonts from mockup
 )
 
@@ -498,19 +566,25 @@ target_compile_definitions(${PRODUCT_NAME}
 
 ## 1. Copy UI Files
 - [ ] Copy v[N]-ui.html to Source/ui/public/index.html
+- [ ] Copy v[N]-i18n.js to Source/ui/public/js/i18n.js
 - [ ] Copy JUCE frontend library to Source/ui/public/js/juce/index.js
 - [ ] Copy any CSS, images, fonts to Source/ui/public/
+- [ ] [Only if the generator added it] Settings popover (#gear-btn, #lang-select, #tips-toggle) was added top-right in the header — the mockup had none
 
-## 2. Update PluginEditor Files
+## 2. Update PluginEditor and Processor Files
 - [ ] Replace PluginEditor.h with v[N]-PluginEditor-TEMPLATE.h content
 - [ ] Verify member order: relays → webView → attachments
 - [ ] Update class name to [PluginName]AudioProcessorEditor
 - [ ] Replace PluginEditor.cpp with v[N]-PluginEditor-TEMPLATE.cpp content
 - [ ] Verify initialization order matches declaration order
+- [ ] Native functions registered: getParameterDefaults, getUiLanguage, setUiLanguage (and any other the page calls)
+- [ ] getResource serves /js/i18n.js as application/javascript; charset=utf-8
+- [ ] Processor: `std::atomic<int> uiLanguage` + languageCode/languageIndex codec (unknown code → en), persisted as a `uiLanguage` state property in getStateInformation/setStateInformation (O-ReverseDelay is the reference)
+- [ ] Window size per ui-design-rules.md Rule 4 (fixed ≤ 800 px tall, or fixed-aspect resizable)
 
 ## 3. Update CMakeLists.txt
 - [ ] Append v[N]-CMakeLists-SNIPPET.txt to CMakeLists.txt
-- [ ] Verify juce_add_binary_data includes all UI files
+- [ ] Verify juce_add_binary_data includes all UI files, including Source/ui/public/js/i18n.js
 - [ ] Verify JUCE_WEB_BROWSER=1 definition present
 - [ ] Verify juce::juce_gui_extra linked
 
@@ -537,6 +611,28 @@ target_compile_definitions(${PRODUCT_NAME}
 - [ ] Native feel CSS present (user-select: none)
 - [ ] Resource provider returns all files (no 404s)
 - [ ] Correct MIME types for all resources
+
+## 8. UI gates
+Run from the repo root. ALL must pass before the Stage 3 commit.
+
+- [ ] `node scripts/check-i18n.js --plugin [PluginName]` — exit code = number of failed assertions [1]–[16]; 0 = pass
+- [ ] `node scripts/i18n-fr-lint.js --plugin [PluginName]` — exit 2 on any finding; 0 = clean
+- [ ] `node scripts/i18n-zh-lint.js --plugin [PluginName]` — exit 2 on any finding; 0 = clean (entries at `reviewed: 'mt'` are counted, not failed)
+- [ ] `node scripts/check-ui-labels.js --plugin [PluginName]` — needs Playwright; 0 = pass, n > 0 = n assertions failed
+- [ ] `node scripts/boot-all-uis.js --plugin [PluginName] --strict-tips` — needs Playwright; 0 = run completed (read the table), 2 = a DEAD tip binding
+
+**Exit 77 from check-ui-labels or boot-all-uis means Playwright could not be resolved and NOTHING was verified. It is not a pass.** Install it (`npx playwright install chromium`) and re-run.
+
+The first three also run in CI on every push to main (`.github/workflows/ui-static-gates.yml`), so a failure there turns main red.
+
+## 9. Hands-on (Standalone or DAW)
+- [ ] Tab reaches every knob, and the arrow keys move it
+- [ ] Drag a knob out of the window and release outside: the gesture ends and the knob stops following the cursor
+- [ ] Double-click resets each knob to its default
+- [ ] The hover-help switch toggles tooltips, and its state persists across closing and reopening the editor
+- [ ] Switching the language to fr and to zh-Hans relabels the page with no clipping
+- [ ] With macOS Reduce Motion on (System Settings → Accessibility → Display), no animation runs
+- [ ] If the frame is resizable: drag-resizing keeps the aspect ratio and scales the whole page
 
 ## Parameter List (from parameter-spec.md)
 
@@ -714,32 +810,47 @@ if missing_from_mockup or extra_in_mockup:
 
 #### Step 10.5.1: Stage all generated files
 
+Other sessions may share this checkout, its index and HEAD (project CLAUDE.md, "Commit discipline for concurrent sessions"). Name every path explicitly — never `git add -A`, never `git commit -a` — and commit with a pathspec so nothing another session staged can ride along.
+
 ```bash
 cd plugins/[PluginName]/.planning/mockups
 
-git add v[N]-ui.html \
-        v[N]-PluginEditor-TEMPLATE.h \
-        v[N]-PluginEditor-TEMPLATE.cpp \
-        v[N]-CMakeLists-SNIPPET.txt \
-        v[N]-integration-checklist.md
+FILES=(
+  v[N]-ui.html
+  v[N]-i18n.js
+  v[N]-PluginEditor-TEMPLATE.h
+  v[N]-PluginEditor-TEMPLATE.cpp
+  v[N]-CMakeLists-SNIPPET.txt
+  v[N]-integration-checklist.md
+)
 
 # If parameter-spec.md was created (v1 only)
 if [ -f "../parameter-spec.md" ]; then
-    git add ../parameter-spec.md
+  FILES+=(../parameter-spec.md)
 fi
+
+git add -- "${FILES[@]}"
 ```
 
 #### Step 10.5.2: Create commit
 
+Re-check location and staging IMMEDIATELY before committing — a session-start snapshot can be minutes stale:
+
 ```bash
-# Commit message format
+git branch --show-current   # expect main
+git status --short          # anything staged that is not in FILES belongs to another session — leave it
+```
+
+```bash
+# Commit message format — path-scoped: only FILES are committed
 git commit -m "feat([PluginName]): UI mockup v[N] finalized (implementation files)
 
-Generated 5 implementation files for WebView integration:
-- Production HTML with JUCE bindings
-- C++ PluginEditor boilerplate (correct member order)
+Generated 6 implementation files for WebView integration:
+- Production HTML with JUCE bindings (Family A knobs, canonical i18n, hover-help)
+- i18n table module (en / fr / zh-Hans)
+- C++ PluginEditor boilerplate (correct member order, native functions)
 - CMake WebView configuration
-- Integration checklist for Stage 3
+- Integration checklist for Stage 3 (incl. UI gates)
 
 [Parameter count]: [N] parameters
 [Relay declarations]: [N] relays
@@ -747,7 +858,7 @@ Generated 5 implementation files for WebView integration:
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
-Co-Authored-By: Claude <noreply@anthropic.com>"
+Co-Authored-By: Claude <noreply@anthropic.com>" -- "${FILES[@]}"
 ```
 
 **Verification:**
@@ -1016,6 +1127,7 @@ All reports MUST conform to the unified subagent report schema.
     "version": 2,
     "files_created": [
       "v2-ui.html",
+      "v2-i18n.js",
       "v2-PluginEditor-TEMPLATE.h",
       "v2-PluginEditor-TEMPLATE.cpp",
       "v2-CMakeLists-SNIPPET.txt",
@@ -1043,6 +1155,7 @@ All reports MUST conform to the unified subagent report schema.
     "version": 1,
     "files_created": [
       "v1-ui.html",
+      "v1-i18n.js",
       "v1-PluginEditor-TEMPLATE.h",
       "v1-PluginEditor-TEMPLATE.cpp",
       "v1-CMakeLists-SNIPPET.txt",
@@ -1157,12 +1270,12 @@ All reports MUST conform to the unified subagent report schema.
     "plugin_name": "[PluginName]",
     "error_type": "commit_failed",
     "version": 1,
-    "files_generated": 5,
+    "files_generated": 6,
     "git_error": "[Git error message]"
   },
   "issues": [
     "Files generated successfully but commit failed",
-    "All 5 implementation files exist in mockups directory",
+    "All 6 implementation files exist in mockups directory",
     "Git error: [error message]",
     "Resolution: Manual commit or fix git state"
   ],
@@ -1179,6 +1292,7 @@ Before returning success report, verify:
 
 **File generation:**
 - [ ] v[N]-ui.html exists and contains no {{PLACEHOLDERS}}
+- [ ] v[N]-i18n.js exists (exports only: LANGUAGES, I18N, LABELS, I18N_EXEMPT, TIP_BINDINGS, tr)
 - [ ] v[N]-PluginEditor-TEMPLATE.h exists with correct member order
 - [ ] v[N]-PluginEditor-TEMPLATE.cpp exists with initialization order matching declaration
 - [ ] v[N]-CMakeLists-SNIPPET.txt exists with WebView config
@@ -1204,7 +1318,10 @@ Before returning success report, verify:
 - [ ] Production HTML has no viewport units (`100vh`, `100vw`)
 - [ ] Production HTML has `user-select: none`
 - [ ] PluginEditor-TEMPLATE.cpp registers `getParameterDefaults` via `withNativeFunction`
+- [ ] PluginEditor-TEMPLATE.cpp registers `getUiLanguage` and `setUiLanguage` via `withNativeFunction`
+- [ ] PluginEditor-TEMPLATE.cpp serves `/js/i18n.js` from getResource as `application/javascript; charset=utf-8`
 - [ ] PluginEditor-TEMPLATE.cpp calls `.withNativeIntegrationEnabled()`
+- [ ] CMake snippet embeds `Source/ui/public/js/i18n.js`
 
 **Control contract (v[N]-ui.html):**
 
@@ -1225,6 +1342,40 @@ if grep -nE '<svg[^>]*class="knob' "$PAGE"; then echo "CONTRACT: SVG knob"; exit
 
 echo "✓ Control contract holds"
 ```
+
+**i18n, hover-help, type, motion (v[N]-ui.html):**
+
+```bash
+PAGE="v${VERSION}-ui.html"
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+# 1. Canon containment: the page holds the canon body verbatim
+#    (whole-line // comments dropped and whitespace collapsed on both sides)
+node -e "
+const c = require(process.argv[1] + '/scripts/i18n-canon.js');
+const page = require('fs').readFileSync(process.argv[2], 'utf8');
+const norm = (s) => s.replace(/^[ \t]*\/\/.*$/gm, '').replace(/\s+/g, ' ').trim();
+const body = c.I18N_CANON_V2.slice(c.I18N_CANON_V2.indexOf(c.I18N_CANON_BODY_START));
+if (!norm(page).includes(norm(body))) { console.error('CANON: body not found verbatim in page'); process.exit(1); }
+console.log('✓ canon body present verbatim');
+" "$REPO_ROOT" "$PAGE" || exit 1
+
+# 2. No authored tooltip copy — applyI18n() writes it from TIP_BINDINGS
+if grep -nE 'data-tip(-title)?=' "$PAGE"; then echo "HOVER: authored data-tip"; exit 1; fi
+
+# 3. Exactly one hover-help switch
+[ "$(grep -o 'id="tips-toggle"' "$PAGE" | wc -l | tr -d ' ')" = "1" ] || { echo "HOVER: need exactly one #tips-toggle"; exit 1; }
+
+# 4. 9 px text floor
+if grep -nE 'font-size: *[0-8](\.[0-9]+)?px' "$PAGE"; then echo "TYPE: font-size below 9 px"; exit 1; fi
+
+# 5. Reduced motion present
+grep -q 'prefers-reduced-motion' "$PAGE" || { echo "MOTION: no prefers-reduced-motion block"; exit 1; }
+
+echo "✓ i18n / hover-help / type / motion hold"
+```
+
+Check 5 proves the block exists; confirm by reading it that every `transition` and `animation` in the page has a counterpart inside it.
 
 **State management:**
 - [ ] Git commit succeeded (all files staged)
@@ -1265,7 +1416,7 @@ echo "✓ Validation passed"
 
 **File generation succeeds when:**
 
-1. All 5 implementation files generated (or 6 if v1 with parameter-spec.md)
+1. All 6 implementation files generated, including v[N]-i18n.js (or 7 if v1 with parameter-spec.md)
 2. No {{PLACEHOLDERS}} remain in any file
 3. Member order correct in PluginEditor.h (relays → webView → attachments)
 4. Parameter count consistent: YAML controls = relays = attachments

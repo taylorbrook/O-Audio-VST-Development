@@ -17,44 +17,121 @@
 
 ## HTML Structure
 
-The production page is ONE complete file: inline `<style>` plus one inline `<script type="module">` controller. That is the shape gui-agent copies to `Source/ui/public/index.html`.
+The production page is ONE complete file: inline `<style>` plus one inline `<script type="module">` controller. That is the shape gui-agent copies to `Source/ui/public/index.html`, and the shape `scripts/check-i18n.js` resolves as the controller (the O-Bitrot layout). The only other generated UI file is the i18n table module, `js/i18n.js` (see "i18n — the canonical block").
+
+The palette and type come from the brand source, `.claude/aesthetics/ouaricon-naturalist-001/aesthetic.md`, as O-ReverseDelay implements it.
 
 ```html
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>[PluginName]</title>
     <style>
         /* Inline CSS - no external stylesheets */
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Inter, system-ui, sans-serif;
-            background: #2b2b2b;
-            color: #ffffff;
-            overflow: hidden;
+        :root {
+            /* Paper + ink (ouaricon-naturalist-001, as O-ReverseDelay ships it) */
+            --bg-paper-light: #FAF0E6;
+            --bg-paper:       #F5E6D3;
+            --bg-paper-mid:   #EBD9C7;
+            --brown-border:   #8B7355;   /* borders and decoration only */
+            --brown-frame:    #5C4033;
+            --brown-text:     #3C2F2F;   /* all text */
+            --green-light:    #8BA870;
+            --green-mid:      #6B8E4E;
+            --green-dark:     #3C5C1A;
+            --green-darkest:  #2C3E10;
+            --shadow-medium:  rgba(0, 0, 0, 0.25);
+            --text-emboss:    rgba(255, 255, 255, 0.5);
+            /* --knob-* tokens: see "Rotary Knob — Family A" */
+
+            /* The CJK tail goes BEFORE the generic: under a Chinese document
+               language a bare `serif` is already a Chinese face, and a tail
+               written after it is never consulted. zh-Hans needs it. */
+            --serif: 'Garamond', 'EB Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
         }
 
-        /* Layout styles */
-        /* Control styles — the knob rules are in "Rotary Knob — Family A" below */
-        /* Animation styles */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body { height: 100%; overflow: hidden; }
+
+        body {
+            width: 600px;              /* FIXED — from v[N]-ui.yaml, per ui-design-rules.md Rule 4 */
+            height: 400px;
+            position: relative;
+            font-family: var(--serif);
+            color: var(--brown-text);
+            background: linear-gradient(160deg, var(--bg-paper-light) 0%, var(--bg-paper) 45%, var(--bg-paper-mid) 100%);
+            -webkit-user-select: none;
+            user-select: none;
+            cursor: default;
+        }
+
+        .knob-label { font-size: 9.5px; letter-spacing: 0.9px; text-transform: uppercase; color: var(--brown-frame); }
+        .knob-value { font-size: 11px; color: var(--brown-text); font-variant-numeric: tabular-nums; }
+
+        /* Knob rules: "Rotary Knob — Family A".
+           Popover + tooltip rules: copy .settings-cluster, .gear-btn, .settings-popover,
+           .settings-row, .settings-label, .settings-select, .settings-toggle and .tooltip*
+           from O-ReverseDelay's committed styles.css. */
+
+        @media (prefers-reduced-motion: reduce) {
+            /* One counterpart per transition/animation above — see "Motion" */
+            .knob { transition: none; }
+            .knob:hover, .knob:active { transform: none; }
+        }
     </style>
 </head>
 <body>
+    <header class="header">
+        <h1 class="title">[PluginName]</h1>   <!-- product name: an I18N_EXEMPT entry, not a key -->
+
+        <div class="settings-cluster">
+            <button type="button" class="gear-btn" id="gear-btn"
+                    aria-haspopup="dialog" aria-expanded="false"
+                    data-i18n-aria="settings" aria-label="Settings" data-tip-always>&#9881;</button>
+
+            <div class="settings-popover" id="settings-popover"
+                 role="dialog" data-i18n-aria="settings" aria-label="Settings" hidden>
+                <label class="settings-row" for="lang-select">
+                    <span class="settings-label" data-i18n="lang-select">Language</span>
+                    <!-- Endonyms: never localized -->
+                    <select class="settings-select" id="lang-select"
+                            data-i18n-aria="aria.langSelect" aria-label="Hover help language">
+                        <option value="en">English</option>
+                        <option value="fr">Fran&ccedil;ais</option>
+                        <option value="zh-Hans">&#31616;&#20307;&#20013;&#25991;</option>
+                    </select>
+                </label>
+                <!-- A <div>, NEVER <label for="tips-toggle">: a label re-dispatches the
+                     click to the button and the switch toggles twice. -->
+                <div class="settings-row">
+                    <span class="settings-label" data-i18n="label.hoverHelp">Hover help</span>
+                    <button type="button" class="settings-toggle" id="tips-toggle"
+                            aria-pressed="true" data-i18n-aria="aria.helpToggle"
+                            aria-label="Toggle hover help"
+                            data-i18n="ui.on" data-tip-always>On</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
     <!-- UI structure matching YAML layout -->
-    <div id="plugin-container">
+    <main id="plugin-container">
         <div class="knob-cell">
             <div class="knob" id="knob-threshold" data-param="threshold"><div class="knob-stem"></div></div>
-            <div class="knob-label">Threshold</div>
+            <div class="knob-label" data-i18n="knob-threshold">Threshold</div>
             <div class="knob-value" id="val-threshold">&#8212;</div>
         </div>
         <!-- ... more controls ... -->
-    </div>
+    </main>
+
+    <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
     <script type="module">
     import * as Juce from './js/juce/index.js';
+    import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
 
     // ════ MODULE STATE — every module-level const/let lives in this block ════
     const KNOB_IDS = ['threshold' /* , ... every WebSliderRelay id */];
@@ -75,17 +152,39 @@ The production page is ONE complete file: inline `<style>` plus one inline `<scr
     const WHEEL_MAX_NUDGES   = 4;     // per-event clamp
     const WHEEL_GESTURE_MS   = 250;   // one wheel burst = one automation gesture
 
+    const TOOLTIP_MARGIN     = 8;     // gap between a tip and its control / the frame edge
+    const TOOLTIP_DELAY_MS   = 350;   // hover dwell before a tip appears
+    const TIPS_STORAGE_KEY   = '[prefix].tipsEnabled';   // per plugin, e.g. 'ord.tipsEnabled'
+
     const sliderState = {};           // id -> Juce SliderState
-    let paramDefaults = null;         // { id: engineeringDefault } from getParameterDefaults
+    let paramDefaults     = null;     // { id: engineeringDefault } from getParameterDefaults
+    let tooltipEl         = null;
+    let tooltipTimer      = null;
+    let tooltipTarget     = null;
+    let tooltipSuppressed = false;
+    let tipsEnabled       = true;
 
     // ════ FUNCTION DECLARATIONS (hoisted — safe to call from init()) ════
     // normToDeg, scaledToNorm, updateKnobVisual, nudgeStep, stepBy, nudge,
-    // resetToDefault, bindKnob, bindSelectCombo, bindToggle,
-    // loadParameterDefaults ... (see the sections below)
+    // resetToDefault, bindKnob, bindSelectCombo, bindToggle, loadParameterDefaults,
+    // initSettingsPopover, handleTooltipOver/Out, showTooltip, hideTooltip,
+    // applyTipsEnabled, initTipsToggle, initTooltips ... (see the sections below)
+
+    // ════ THE CANON — pasted verbatim from scripts/i18n-canon.js ════
+    // From I18N_CANON_BODY_START through the closing brace of initI18n.
+    // See "i18n — the canonical block". Never retyped, never edited.
 
     function init() {
         KNOB_IDS.forEach((id) => bindKnob(Juce, id));
+        // bindToggle / bindSelectCombo for every Bool / Choice parameter
         loadParameterDefaults(Juce);   // async; only dblclick-reset depends on it
+
+        // Order is load-bearing: applyI18n() (inside initI18n) is what writes
+        // data-tip onto the anchors the tooltip renderer resolves.
+        try { initSettingsPopover(); } catch (e) { console.error('settings popover init failed:', e); }
+        try { initI18n(); }            catch (e) { console.error('i18n init failed:', e); }
+        try { initTooltips(); }        catch (e) { console.error('tooltip init failed:', e); }
+        try { initTipsToggle(); }      catch (e) { console.error('tips toggle init failed:', e); }
     }
 
     // ════ ONE call, at the very BOTTOM of the module ════
@@ -95,7 +194,13 @@ The production page is ONE complete file: inline `<style>` plus one inline `<scr
 </html>
 ```
 
-**Why that layout is mandatory:** a module-level statement that reaches a `const`/`let` binding declared further down throws a ReferenceError (the temporal dead zone) out of module evaluation. That kills the WHOLE UI, silently, while build, auval and pluginval all pass. So every binding is declared in the top block, everything else is a hoisted function declaration, and the single `init()` call is the last line of the module. Nothing is declared after it.
+**Why that layout is mandatory:** a module-level statement that reaches a `const`/`let` binding declared further down throws a ReferenceError (the temporal dead zone) out of module evaluation. That kills the WHOLE UI, silently, while build, auval and pluginval all pass. So every binding is declared in the top block, everything else is a hoisted function declaration, and the single `init()` call is the last line of the module. Nothing is declared after it. The canon's own three `let` lines are the one sanctioned exception: they are part of the verbatim block, and they sit above `init()`, so every reader runs after them.
+
+**Markup rules the gates enforce:**
+- `<html lang="en">`; the canon's `applyI18n()` updates it on a language change.
+- Every visible label carries `data-i18n="key"`; every `aria-label` carries `data-i18n-aria="key"`. Text that must not localize (the product name, units, endonyms) gets an `I18N_EXEMPT` entry with a reason (check-i18n [10], [14]).
+- **Zero** authored `data-tip` / `data-tip-title` attributes (check-i18n [3]) — tooltip copy lives in `js/i18n.js` and is written by `applyI18n()` from `TIP_BINDINGS`.
+- **Zero** native `title` attributes (check-i18n [11]) — a native title renders a second, untranslated OS tooltip.
 
 ## Parameter Binding and Readouts
 
@@ -170,7 +275,7 @@ The house knob. The ring, segments and lighting never move; only the `.knob-stem
 ```html
 <div class="knob-cell">
     <div class="knob" id="knob-threshold" data-param="threshold"><div class="knob-stem"></div></div>
-    <div class="knob-label">Threshold</div>
+    <div class="knob-label" data-i18n="knob-threshold">Threshold</div>
     <div class="knob-value" id="val-threshold">&#8212;</div>
 </div>
 ```
@@ -394,7 +499,7 @@ The C++ side must register `getParameterDefaults` (see `ui-finalization-agent.md
 A real `<button type="button">` carrying `aria-pressed`, bound to `getToggleButtonState`. State is painted with `aria-pressed` and classes only; the caption stays authored in the markup.
 
 ```html
-<button type="button" class="toggle" id="toggle-bypass" aria-pressed="false">Bypass</button>
+<button type="button" class="toggle" id="toggle-bypass" aria-pressed="false" data-i18n="toggle-bypass">Bypass</button>
 ```
 
 ```javascript
@@ -452,6 +557,8 @@ function bindSelectCombo(juce, paramId) {
 }
 ```
 
+Choices that are proper names or musical values ("1/8", "Hann") can show the C++ string. Choices that are WORDS need localizing: give `bindSelectCombo` one labeler per option that calls `setLabel(opt, 'opt.<param>.<choice>')` with a literal key — O-ReverseDelay's `freezeLength` binding is the reference.
+
 ### Linear Fader (only when the design demands one)
 
 Knobs are the default. When the design needs a fader, use a native `<input type="range">` over the **normalised** domain — never the engineering range — so the C++ range stays the only range:
@@ -494,56 +601,135 @@ function bindFader(juce, id) {
 }
 ```
 
-## Styling Guidelines
+## i18n — the canonical block
 
-**Use CSS custom properties for theming:**
+Every plugin ships en / fr / zh-Hans. The runtime is ONE block, held as data in `scripts/i18n-canon.js` and byte-compared against every plugin by `scripts/check-i18n.js` assertion [6] (comments stripped, whitespace collapsed). A copy that drifts by one character fails the gate.
 
-```css
-:root {
-    --bg-color: #2b2b2b;
-    --primary-color: #4a9eff;
-    --text-color: #ffffff;
-    --control-bg: #333333;
-    --control-hover: #444444;
+**Copy the canon VERBATIM. Never retype it.** This document deliberately holds no copy of it: a second copy is a second place to drift. Extract it at generation time:
+
+```bash
+# Prints the canon: the import line, then the body
+node -p "require('./scripts/i18n-canon.js').I18N_CANON_V2"
+
+# Just the body — from I18N_CANON_BODY_START ("let uiLanguage = 'en';")
+# through the closing brace of initI18n (I18N_CANON_BODY_END_FN)
+node -e "const c = require('./scripts/i18n-canon.js'); const v = c.I18N_CANON_V2; process.stdout.write(v.slice(v.indexOf(c.I18N_CANON_BODY_START)))"
+```
+
+Paste the body into the controller, unchanged, above the `init()` call (see the skeleton in "HTML Structure").
+
+**The import line** is the one part whose specifier depends on where the controller lives:
+- inline `<script type="module">` at the UI root (the generator's default): `import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';`
+- a `js/app.js` controller: `I18N_CANON_V2_IMPORT` verbatim, which is the same line with `'./i18n.js'`.
+
+check-i18n accepts exactly those two forms and nothing else.
+
+**What the canon needs from the page:**
+- `Juce` in scope (`import * as Juce from './js/juce/index.js'`);
+- the natives `getUiLanguage` / `setUiLanguage` registered in C++ (`ui-finalization-agent.md` Phase 7);
+- `#lang-select` in the markup;
+- `initI18n()` called from inside `init()`, never at module top level.
+
+**The table module, `js/i18n.js`** (generated as `v[N]-i18n.js`):
+- **Exports only** — no top-level statement outside an `export` declaration (check-i18n [7]).
+- **No `innerHTML` and no `<` in any string** (check-i18n [9]) — machine-drafted copy must not open a markup path.
+- `export const LANGUAGES = ['en', 'fr', 'zh-Hans'];`
+- `export const I18N = Object.freeze({ key: { en: {t, b}, fr: {t, b, reviewed}, 'zh-Hans': {t, b, reviewed} } })` — tooltip title `t` and body `b` per language. en and fr key sets identical, every entry has `t` and `b` (check-i18n [1]).
+- `export const LABELS = Object.freeze({ key: { en: {t}, fr: {t, reviewed}, 'zh-Hans': {t, reviewed} } })` — visible captions. A control whose tooltip title already IS its label uses one I18N key instead of a second LABELS copy (`trLabel` falls back to I18N).
+- `export const I18N_EXEMPT = [[text, reason], [text, reason, scope], ...]` — every entry carries a reason (check-i18n [14]).
+- `export const TIP_BINDINGS = [['#selector', 'key'], ...]` — one row per tooltip anchor.
+- `export function tr(key, lang, vars)` — copied from O-ReverseDelay's committed `i18n.js` unchanged.
+- **fr** entries carry boolean `reviewed: false` (machine-drafted); **zh-Hans** entries carry `reviewed: 'mt'` (check-i18n [5]).
+- fr must differ from en unless the entry carries `sameAsEn: true` (check-i18n [4]).
+- Draft fr against `scripts/i18n-fr-glossary.js` and zh-Hans against `scripts/i18n-zh-glossary.js`; the lints enforce both.
+
+**JS-written labels** go through `setLabel(el, 'literal.key')`, so the element becomes a `[data-i18n]` element the language sweep owns. A state-dependent label is TWO calls in TWO branches — never one call with a ternary, and never a computed key (check-i18n [13]):
+
+```javascript
+if (on) setLabel(btn, 'ui.on');
+else    setLabel(btn, 'ui.off');
+```
+
+Word-valued readouts ("Off", "Centre") written to `textContent` are prose: key them through `setLabel`, or give them an `I18N_EXEMPT` entry with a reason (check-i18n [12]).
+
+**Text fit:** pin content-sized boxes at the widest language (usually fr), and let `scripts/check-ui-labels.js` prove the fit in all three languages.
+
+## Hover help and tooltips
+
+**The switch:**
+- Exactly ONE hover-help switch, `id="tips-toggle"`, in the settings popover beside `#lang-select` (check-i18n [16]).
+- A `<button type="button">` with `aria-pressed`, `data-i18n-aria`, `data-i18n="ui.on"` and `data-tip-always` (markup in "HTML Structure").
+- `data-tip-always` goes on that switch and on `#gear-btn` ONLY — the two controls that reach and restore the help layer keep explaining themselves while it is off.
+- Bound by a `TIP_BINDINGS` row `['#tips-toggle', 'tips-toggle']`, with a matching `'tips-toggle'` I18N entry.
+- State lives in `localStorage` under a per-plugin key (`<prefix>.tipsEnabled`), **defaults ON**, and survives a private-mode throw.
+- `applyTipsEnabled` sets `aria-pressed` and relabels the switch with `setLabel(btn, 'ui.on')` / `setLabel(btn, 'ui.off')`, in two branches.
+
+```javascript
+function applyTipsEnabled(on) {
+    tipsEnabled = !!on;
+    if (!tipsEnabled) hideTooltip();
+    const btn = document.getElementById('tips-toggle');
+    if (!btn) return;
+    btn.setAttribute('aria-pressed', tipsEnabled ? 'true' : 'false');
+    if (tipsEnabled) setLabel(btn, 'ui.on');
+    else             setLabel(btn, 'ui.off');
 }
 
-body {
-    background: var(--bg-color);
-    color: var(--text-color);
-}
-
-.control {
-    background: var(--control-bg);
-}
-
-.control:hover {
-    background: var(--control-hover);
+function initTipsToggle() {
+    const btn = document.getElementById('tips-toggle');
+    if (!btn) { console.error('Missing tips-toggle element'); return; }
+    let stored = null;
+    try { stored = localStorage.getItem(TIPS_STORAGE_KEY); } catch (e) { stored = null; }
+    applyTipsEnabled(stored !== 'false');          // first run and private mode → ON
+    btn.addEventListener('click', () => {
+        applyTipsEnabled(!tipsEnabled);
+        try { localStorage.setItem(TIPS_STORAGE_KEY, String(tipsEnabled)); }
+        catch (e) { /* private mode: the switch still works, it just forgets */ }
+    });
 }
 ```
+
+**Tooltip copy:**
+- `data-tip` and `data-tip-title` are written ONLY by the canon's `applyI18n()`, from `TIP_BINDINGS`. Never author them in markup (check-i18n [3]).
+- Every knob gets a `TIP_BINDINGS` row (`['#knob-threshold', 'knob-threshold']`) and an I18N entry whose body says what the control does, in the user's terms.
+
+**The renderer** — copy O-ReverseDelay's `handleTooltipOver`, `handleTooltipOut`, `showTooltip`, `hideTooltip` and `initTooltips`:
+- delegated `document` `mouseover` / `mouseout`, resolving `e.target.closest('[data-tip]')` at hover time;
+- `textContent` only, never `innerHTML` — the copy stays inert;
+- `showTooltip` returns early when `!tipsEnabled` unless the anchor has `data-tip-always`;
+- suppressed from a **capture-phase** `pointerdown` until `pointerup`, so a tip never hangs over a knob mid-drag (the knobs `preventDefault` their own pointerdown);
+- **measure, then pin, then clamp:** release the width, measure at `left: 0`, pin the measured width in px, then place above (or below when there is no room) and clamp `left` inside the frame. A fixed box measured at its previous offset shrinks to fit and re-wraps into a ribbon at the right edge.
+
+**`init()` order:** `initSettingsPopover` → `initI18n` → `initTooltips` → `initTipsToggle`, each in its own try/catch. `applyI18n()` is what puts `data-tip` on the anchors, so it must run before the renderer is live; a translation-table typo must not take the bound knobs down with it.
+
+## Styling Guidelines
+
+**Use the O-ReverseDelay token block** (in the "HTML Structure" skeleton, plus the `--knob-*` tokens in "Rotary Knob — Family A"). Colours come from `.claude/aesthetics/ouaricon-naturalist-001/aesthetic.md` and nowhere else.
 
 **Ensure readability:**
 
-- Minimum font size: 12px
+- **9 px text floor** for every text element — labels, readouts, captions, tooltips, popover rows. `aesthetic.md` sets parameter labels at 9–11 px; nothing goes below its bottom end.
 - Sufficient contrast (WCAG AA)
+- Text uses `--brown-text` (or `--brown-frame` for small-caps labels). `--brown-border` is for borders and decoration only — as text it fails AA at label sizes.
 - Clear visual hierarchy
 
-## Responsive Design
+## Motion
 
-**If window resizable:**
+Every `transition` and every `animation` the page emits needs a counterpart inside ONE `@media (prefers-reduced-motion: reduce)` block. That includes the knob's hover/active scale:
 
 ```css
-@media (max-width: 500px) {
-    .control {
-        font-size: 0.9em;
-    }
-}
-
-@media (min-width: 800px) {
-    .control {
-        font-size: 1.1em;
-    }
+@media (prefers-reduced-motion: reduce) {
+    .knob { transition: none; }
+    .knob:hover, .knob:active { transform: none; }
+    /* ...one line per other transition/animation in the page */
 }
 ```
+
+O-ReverseDelay's block is the reference for the shape of a counterpart: it swaps an infinite pulse (the armed Freeze segment) for a static dashed state, so the information survives without the motion. Its block covers only that pulse; a generated page covers every transition and animation it emits.
+
+## Sizing
+
+Fixed frame by default, no taller than 800 px — see `ui-design-rules.md` Rule 4. Fixed frames get no breakpoints. A frame that cannot fit is made resizable with a fixed aspect ratio and scales its whole composition; it does not reflow.
 
 ## Performance
 
@@ -555,12 +741,12 @@ body {
 - Minimize DOM queries
 
 ```javascript
-let animationId;
-function updateKnob(paramID, value) {
-    if (animationId) return;
-    animationId = requestAnimationFrame(() => {
-        // Update knob rotation
-        animationId = null;
+// `let rafId = null;` belongs in the module-state top block, like every binding.
+function scheduleMeterPaint() {
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+        // paint the latest meter / visualiser values
+        rafId = null;
     });
 }
 ```
