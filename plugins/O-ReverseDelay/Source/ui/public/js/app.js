@@ -37,14 +37,14 @@
 // SliderState or a ComboBoxState. getSliderState("freeze") does not fail loudly
 // — it builds a state the backend never updates.
 //
-// Native-function surface is 17 and must match PluginEditor.cpp exactly:
-// getParameterDefaults, getGrainMeter, getWindowCurve, v1.9.0's
-// getUiLanguage/setUiLanguage and v1.16.0's getMixLock/setMixLock are fetched
-// HERE; the other ten are fetched by
+// Native-function surface is 15 (+ A/B 4 + categories 1 = 20) and must match
+// PluginEditor.cpp exactly: getParameterDefaults, getGrainMeter, getWindowCurve
+// and v1.9.0's getUiLanguage/setUiLanguage are fetched HERE (v1.21.0 removed
+// v1.16.0's getMixLock/setMixLock with the padlock); the other ten are fetched by
 // js/preset-manager.js, which this file loads dynamically. Any grep-diff of the
 // bridge has to read both files.
 //
-// NOTE what is NOT in that 17: there is no setTooltipsEnabled. D13 scoped this
+// NOTE what is NOT in that 15: there is no setTooltipsEnabled. D13 scoped this
 // plugin's hover help to display only, and section 14 of ui_frontend_check.js
 // asserts the absence by name. v1.9.0 added the language pair and nothing else.
 //
@@ -286,6 +286,21 @@ const ENV_PAD       = 5;    // px inset so the curve's 0 and 1 are not on the fr
 const ENV_LINE_W    = 1.6;
 const ENV_REDRAW_MS = 40;   // coalescing delay while a knob is being dragged
 
+// ── Grain view (v1.21.0) ────────────────────────────────────────────────────
+// The OUTPUT panel's live grain cloud. Data arrives with the 15 Hz meter poll;
+// between polls each grain is advanced analytically at requestAnimationFrame
+// (phase grows 1/length per ms; a reverse grain's read point ages 2 ms per ms,
+// a forward grain's stays put), so motion is smooth without a faster bridge.
+const GV_PAD          = 5;      // px inset inside the canvas border
+const GV_MIN_AXIS_MS  = 200;    // shortest time axis, so a tiny delay still spreads out
+const GV_AXIS_HEAD    = 1.08;   // axis headroom over the furthest grain's end of life
+const GV_AXIS_GROW    = 0.25;   // per-frame easing when the axis must grow (never clip)
+const GV_AXIS_SHRINK  = 0.03;   // ... and when it may shrink (slow, so it doesn't pump)
+const GV_BAR_H        = 3;      // pill height, px
+const GV_DOT_R_MIN    = 1.8;    // playhead radius at the quietest level
+const GV_DOT_R_MAX    = 3.6;    // ... and the loudest
+const GV_STALE_MS     = 400;    // a snapshot this old with no new block = host idle
+
 // ── Mutable module state ────────────────────────────────────────────────────
 // EVERY module-level binding lives in this one block — see the TDZ note above.
 // The syncMode, sourceMode, freeze and noteDivision states are held only by
@@ -327,6 +342,17 @@ let envCtx       = null;       // its 2D context
 let envCurveFn   = null;       // the getWindowCurve native fn, resolved once
 let envRedrawTid = null;       // coalescing timer
 let envInFlight  = false;      // as meterInFlight — never queue fetches
+
+let gvCanvas     = null;       // #grainCanvas (v1.21.0)
+let gvCtx        = null;
+let gvGrains     = [];         // last snapshot: { age, len, phase, pan, level, fwd }
+let gvAnchorAt   = 0;          // performance.now() when gvGrains was taken
+let gvSeq        = -1;         // grainSeq of gvGrains; unchanged = no new block
+let gvDelayMs    = 0;          // from the meter, for the delay guide
+let gvAxisMs     = 0;          // eased time-axis length
+let gvCurve      = null;       // the window curve (shared with the envelope plot)
+let gvColors     = null;       // palette, read once from the CSS tokens
+let gvDrewEmpty  = false;      // skip redrawing an already-empty frame
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Function declarations (hoisted — safe to reference from init() below)
@@ -691,46 +717,6 @@ function bindFreezeSegments(juce) {
   segOn.addEventListener("click", () => { st.setValue(true); refresh(); });
 }
 
-// ── Mix lock (v1.16.0) ──────────────────────────────────────────────────────
-// NOT a relay: the lock is a processor state property, not a parameter, so it
-// uses a get/set native pair like the language. The page reads it once at init.
-// No preset load can change it (applyPresetJson walks preset["parameters"]
-// only), so pattern_webview_one_shot_state_push_stale_on_preset_load does not
-// apply. Classes and aria-pressed only; the button has no text to overwrite.
-//
-// The click paints optimistically, then repaints from what setMixLock returns,
-// so the button always shows the processor's value — including after a failed
-// call, which falls back to the last confirmed state.
-function initMixLock(juce) {
-  const btn = document.getElementById("mix-lock");
-  if (!btn) { console.error("Missing #mix-lock"); return; }
-
-  let getFn = null, setFn = null;
-  try {
-    getFn = juce.getNativeFunction("getMixLock");
-    setFn = juce.getNativeFunction("setMixLock");
-  } catch (e) {
-    console.warn("Mix lock not available:", e);
-  }
-
-  let locked = false;
-  const paint = (on) => {
-    btn.classList.toggle("active", on);
-    btn.setAttribute("aria-pressed", String(on));
-  };
-  const confirm = (raw) => { locked = parseNativeResult(raw) === true; paint(locked); };
-
-  paint(false);
-  if (getFn) getFn().then(confirm).catch((e) => console.warn("Could not read Mix lock:", e));
-
-  btn.addEventListener("click", () => {
-    if (!setFn) return;
-    const want = !locked;
-    paint(want);
-    setFn(want).then(confirm).catch(() => paint(locked));
-  });
-}
-
 // ── A/B compare + Randomise (v1.18.0) ───────────────────────────────────────
 // Four native functions, all answering { active, filledA, filledB }. The slots
 // live in the processor (they outlive this page), so the page PULLS once at
@@ -1083,7 +1069,8 @@ async function fetchEnvelope() {
     const curve = parseNativeResult(raw);
 
     if (Array.isArray(curve) && curve.length >= 2) {
-      drawEnvelope(curve.map(Number));
+      gvCurve = curve.map(Number);   // v1.21.0: the grain view fades by the same window
+      drawEnvelope(gvCurve);
     }
   } catch (e) {
     console.error("getWindowCurve failed:", e);   // the plot stays on its last curve
@@ -1220,6 +1207,185 @@ function initLevelMeter() {
   meter.addEventListener("click", () => clipLampEl.classList.remove("lit"));
 }
 
+// ── Grain view (v1.21.0) ────────────────────────────────────────────────────
+// Geometry, per grain, in "ms behind now" (the x axis, 0 at the left edge):
+//   reverse: reads [spawn − D − G, spawn − D] from its young end to its old end,
+//            so its read point ages 2 ms per ms and the stretch ages 1 ms per ms.
+//   forward: reads the same stretch old end to young end, in step with the
+//            write head, so its read point stays at D while the stretch ages.
+// From a snapshot (age = read point, p = phase, L = length) that gives:
+//   reverse  young = age − pL        old = young + L
+//   forward  young = age + pL − L    old = age + pL
+function gvAdvance(g, dt) {
+  const phase = g.phase + dt / g.len;
+  if (phase >= 1) return null;
+  const age = g.fwd ? g.age : g.age + 2 * dt;
+  const pl = phase * g.len;
+  const young = g.fwd ? age + pl - g.len : age - pl;
+  return { age, phase, young, old: young + g.len };
+}
+
+// End-of-life extent of a grain's stretch, for the axis target.
+function gvOldestAt(g) {
+  return g.fwd ? g.age + g.len : g.age - 2 * g.phase * g.len + 2 * g.len;
+}
+
+function gvWindow(phase) {
+  const c = gvCurve;
+  if (c && c.length >= 2) {
+    const x = Math.min(1, Math.max(0, phase)) * (c.length - 1);
+    const i = Math.floor(x);
+    const f = x - i;
+    return i >= c.length - 1 ? c[c.length - 1] : c[i] + (c[i + 1] - c[i]) * f;
+  }
+  const s = Math.sin(Math.PI * phase);   // Hann until the real curve arrives
+  return s * s;
+}
+
+function ingestGrainView(grains, seq, delayMs) {
+  if (!gvCanvas) return;
+  if (delayMs !== gvDelayMs) gvDrewEmpty = false;   // move the delay guide even when idle
+  gvDelayMs = delayMs;
+  if (!Array.isArray(grains)) return;   // torn read: keep animating the last frame
+
+  // Same block as last time = the host stopped calling processBlock. Keep the
+  // OLD anchor so the grains play out and fade instead of replaying 66 ms.
+  const s = Number(seq);
+  if (s === gvSeq) return;
+  gvSeq = s;
+
+  gvGrains = grains.map((t) => ({
+    age:   Number(t[0]) || 0,
+    len:   Math.max(1, Number(t[1]) || 1),
+    phase: Number(t[2]) || 0,
+    pan:   Math.min(1, Math.max(0, Number(t[3]))),
+    level: Math.max(0, Number(t[4]) || 0),
+    fwd:   Number(t[5]) === 1,
+  }));
+  gvAnchorAt = performance.now();
+}
+
+function gvResize() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = gvCanvas.clientWidth  || 330;
+  const h = gvCanvas.clientHeight || 62;
+  const bw = Math.round(w * dpr);
+  const bh = Math.round(h * dpr);
+  if (gvCanvas.width !== bw || gvCanvas.height !== bh) {   // assigning clears
+    gvCanvas.width = bw;
+    gvCanvas.height = bh;
+  }
+  gvCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { w, h };
+}
+
+function drawGrainView(now) {
+  requestAnimationFrame(drawGrainView);
+  if (!gvCtx) return;
+
+  const dt = Math.max(0, now - gvAnchorAt);
+  const live = [];
+  let target = Math.max(GV_MIN_AXIS_MS, gvDelayMs * 1.5);
+  let levelMax = 1;
+
+  // A snapshot with no successor for GV_STALE_MS is let run out, never renewed.
+  for (const g of gvGrains) {
+    const a = gvAdvance(g, dt);
+    if (!a) continue;
+    live.push([g, a]);
+    target = Math.max(target, gvOldestAt(g));
+    levelMax = Math.max(levelMax, g.level);
+  }
+  if (dt > GV_STALE_MS && live.length === 0) gvGrains = [];
+
+  target *= GV_AXIS_HEAD;
+  if (gvAxisMs <= 0) gvAxisMs = target;
+  gvAxisMs += (target - gvAxisMs) * (target > gvAxisMs ? GV_AXIS_GROW : GV_AXIS_SHRINK);
+
+  if (live.length === 0 && gvDrewEmpty) return;
+
+  const { w, h } = gvResize();
+  const c = gvColors;
+  gvCtx.clearRect(0, 0, w, h);
+
+  const x0 = GV_PAD, x1 = w - GV_PAD, span = x1 - x0;
+  const yTop = GV_PAD + GV_DOT_R_MAX, yBot = h - GV_PAD - GV_DOT_R_MAX;
+  const xAt = (ms) => x0 + span * Math.min(1, Math.max(0, ms / gvAxisMs));
+  const yAt = (pan) => yTop + (yBot - yTop) * pan;   // top = left, bottom = right
+
+  // Guides: the centre pan line, and the delay time — the age every grain is
+  // born at, so the cloud visibly launches from it.
+  gvCtx.save();
+  gvCtx.strokeStyle = c.rule;
+  gvCtx.lineWidth = 1;
+  gvCtx.globalAlpha = 0.35;
+  gvCtx.setLineDash([2, 3]);
+  gvCtx.beginPath();
+  gvCtx.moveTo(x0, Math.round(h / 2) + 0.5);
+  gvCtx.lineTo(x1, Math.round(h / 2) + 0.5);
+  if (gvDelayMs > 0) {
+    const xd = Math.round(xAt(gvDelayMs)) + 0.5;
+    gvCtx.moveTo(xd, GV_PAD);
+    gvCtx.lineTo(xd, h - GV_PAD);
+  }
+  gvCtx.stroke();
+  gvCtx.restore();
+
+  // "Now" edge: a solid tick on the left, so the direction of time is readable.
+  gvCtx.fillStyle = c.rule;
+  gvCtx.globalAlpha = 0.6;
+  gvCtx.fillRect(x0, GV_PAD, 1.5, h - 2 * GV_PAD);
+
+  // Stretches first, then every playhead on top, so no dot hides under a bar.
+  for (const [g, a] of live) {
+    const env = gvWindow(a.phase);
+    const xa = xAt(a.young), xb = xAt(a.old);
+    const y = yAt(g.pan);
+    gvCtx.globalAlpha = 0.10 + 0.22 * env;
+    gvCtx.fillStyle = g.fwd ? c.fwd : c.ink;
+    const bw = Math.max(1, xb - xa);
+    if (typeof gvCtx.roundRect === "function") {   // WKWebView < Safari 16 lacks it
+      gvCtx.beginPath();
+      gvCtx.roundRect(xa, y - GV_BAR_H / 2, bw, GV_BAR_H, GV_BAR_H / 2);
+      gvCtx.fill();
+    } else {
+      gvCtx.fillRect(xa, y - GV_BAR_H / 2, bw, GV_BAR_H);
+    }
+  }
+  for (const [g, a] of live) {
+    const env = gvWindow(a.phase);
+    const r = GV_DOT_R_MIN + (GV_DOT_R_MAX - GV_DOT_R_MIN) * Math.min(1, g.level / levelMax);
+    gvCtx.globalAlpha = 0.18 + 0.82 * env;
+    gvCtx.fillStyle = g.fwd ? c.fwd : c.ink;
+    gvCtx.beginPath();
+    gvCtx.arc(xAt(a.age), yAt(g.pan), r, 0, Math.PI * 2);
+    gvCtx.fill();
+  }
+  gvCtx.globalAlpha = 1;
+  gvDrewEmpty = live.length === 0;
+}
+
+function initGrainView() {
+  gvCanvas = document.getElementById("grainCanvas");
+  if (!gvCanvas || typeof gvCanvas.getContext !== "function") {
+    console.warn("Grain canvas not found — grain view disabled");
+    gvCanvas = null;
+    return;
+  }
+  gvCtx = gvCanvas.getContext("2d");
+  if (!gvCtx) { gvCanvas = null; return; }
+
+  // Read the palette once: a per-frame getComputedStyle would force style
+  // recalculation 60 times a second for values that never change.
+  const css = getComputedStyle(document.documentElement);
+  gvColors = {
+    ink:  css.getPropertyValue("--green-dark").trim()   || "#3C5C1A",
+    fwd:  css.getPropertyValue("--brown-frame").trim()  || "#5C4033",
+    rule: css.getPropertyValue("--brown-border").trim() || "#8B7355",
+  };
+  requestAnimationFrame(drawGrainView);
+}
+
 async function pollGrainMeter() {
   // Never let ticks stack: at 15 Hz a round trip that stalls would otherwise
   // queue, and the queue would drain as a burst of stale values.
@@ -1237,6 +1403,7 @@ async function pollGrainMeter() {
     renderEffectiveDelay(Number(m.delayMs) || 0, String(m.delaySource));
     renderGrainLink(Number(m.grainMs) || 0, String(m.grainSource));   // v1.17.0
     renderLevelMeter(Number(m.peakIn) || 0, Number(m.peakOut) || 0);
+    ingestGrainView(m.grains, m.grainSeq, Number(m.delayMs) || 0);   // v1.21.0
 
     const engaged = m.freezeEngaged === true || m.freezeEngaged === "true";
     if (engaged !== freezeEngaged) {
@@ -1259,6 +1426,7 @@ function initGrainMeter(juce) {
   meterOverlapEl = document.getElementById("meter-overlap");
   meterDelayEl   = document.getElementById("effective-delay");   // optional: its absence only blanks it
   initLevelMeter();                                               // v1.14.0: optional in the same way
+  initGrainView();                                                // v1.21.0: optional in the same way
 
   if (!meterActiveEl || !meterOverlapEl) {
     console.warn("Grain meter elements not found — meter disabled");
@@ -1952,7 +2120,6 @@ function init() {
   // reads setLabel() to rewrite it from the stored state. Its own try/catch,
   // matching the two above: a missing switch must not take the renderer down.
   try { initTipsToggle(); } catch (e) { console.error("tips toggle init failed:", e); }
-  try { initMixLock(Juce); }    catch (e) { console.error("mix lock init failed:", e); }   // v1.16.0
   try { initAbCompare(Juce); }  catch (e) { console.error("A/B init failed:", e); }        // v1.18.0
   initGrainMeter(Juce);          // v1.3.0 (B2); self-contained failure
   // AFTER bindKnob/bindSelectCombo above: it subscribes to sliderState[...] and

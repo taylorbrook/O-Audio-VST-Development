@@ -289,14 +289,13 @@
                               unwritten slot, and the length is latched at the
                               rising edge.
 
-    v1.16.0 probe (Mix lock):
-      BK. mixlock-*         — by name and from file: locked keeps Mix 80,
-                              unlocked applies the preset's 40, other params
-                              apply either way. A failed load moves nothing.
-                              The lock round-trips through session state and
-                              never enters preset JSON. setStateInformation
-                              restores the session's own Mix into a locked
-                              slot, and a state without the property unlocks.
+    v1.16.0 probe (Mix lock), REWRITTEN v1.21.0 (Mix always held):
+      BK. mixhold-*         — by name and from file, a preset load keeps Mix
+                              80 against the preset's 40 while every other
+                              param applies. A failed load moves nothing.
+                              setStateInformation restores the session's own
+                              Mix, and a v1.16–v1.20 session's obsolete
+                              `mixLock` property is dropped on restore.
 
     v1.17.0 probe (Grain Link):
       BL. grainlink-*       — Free is v1.16.0 BITWISE (pinned --digest hashes;
@@ -312,11 +311,20 @@
     v1.18.0 probe (A/B compare + Randomise):
       BM. ab-* / randomise-* — an empty target is a copy (nothing moves); A/B
                               recall is bitwise both ways incl. the preset
-                              name; Mix lock holds across a recall; copy goes
+                              name; a recall restores the slot's OWN Mix
+                              (v1.21.0 — no lock); copy goes
                               active -> inactive. Randomise moves ONLY the 11
                               kRandomiseParamIds, one gesture pair each; the
                               inactive slot recalls the pre-randomise state
                               bitwise; grainShape draws all five entries.
+
+    v1.21.0 probe (grain view):
+      BN. grainview-*       — the seqlock snapshot matches the pool (count,
+                              every field in range), its geometry is the
+                              engine's (reverse: age − 2·phase·G == D; forward:
+                              age == D), the sequence advances once per block,
+                              and reset() empties it. Audio is untouched: BL0's
+                              pinned digests still hold.
 
   ==============================================================================
 */
@@ -7060,17 +7068,17 @@ int main (int argc, char** argv)
         proc.prepareToPlay (fs, block);
     }
 
-    // --- Probe BK (v1.16.0): Mix lock ---------------------------------------------
+    // --- Probe BK (v1.16.0, rewritten v1.21.0): preset loads keep Mix ----------
     //
-    // The two page-reachable loads (by name, from file) keep Mix when the lock
-    // is on and apply the preset's Mix when it is off. A failed load does not
-    // move Mix. The lock survives a state round-trip, is not saved into the
-    // preset JSON, and setStateInformation restores the session's OWN Mix even
-    // with the lock on. A pre-v1.16 session turns the lock off.
+    // The two page-reachable loads (by name, from file) never change Mix; every
+    // other parameter still comes from the preset. A failed load moves nothing.
+    // setStateInformation restores the session's OWN Mix, and a v1.16–v1.20
+    // session's `mixLock` property is dropped instead of carried forward.
     //
-    // Reverse Bloom's Mix is 40, and the held value is 80, so each arm is a
-    // real difference and can't pass because the two values happen to match.
-    // The unlocked arm's value is printed and asserted to be the preset's.
+    // Reverse Bloom's Mix is 40 and the held value is 80, so the hold is a real
+    // difference: BK0 asserts the preset really does carry 40 (read back by the
+    // raw preset manager, which does not hold), so BK1 cannot pass because the
+    // two values happen to match.
     {
         const float held = 80.0f;
         ReverseDelayProcessor p;
@@ -7078,116 +7086,91 @@ int main (int argc, char** argv)
         const juce::String preset ("Reverse Bloom");
         auto near = [] (float a, float b) { return std::abs (a - b) < 0.01f; };
 
-        // BK1 — by name.
-        p.mixLock = false;
+        // BK0 — negative control: the unwrapped module load DOES apply 40.
         setParam (pa, "mix", held);
-        const bool okOff  = p.loadPresetHoldingMix (preset);
-        const float mixOff = paramValue (pa, "mix");
-        const float fbOff  = paramValue (pa, "feedback");
+        const bool rawOk = p.getPresetManager().loadPreset (preset);
+        const float rawMix = paramValue (pa, "mix");
+        const float fbPreset = paramValue (pa, "feedback");
+        check ("mixhold-control", rawOk && near (rawMix, 40.0f),
+               juce::String ("raw module load -> mix=") + juce::String (rawMix, 2) + " (preset 40)");
 
+        // BK1 — by name.
         setParam (pa, "feedback", 90.0f);
         setParam (pa, "mix", held);
-        p.mixLock = true;
-        const bool okOn  = p.loadPresetHoldingMix (preset);
-        const float mixOn = paramValue (pa, "mix");
-        const float fbOn  = paramValue (pa, "feedback");
+        const bool ok = p.loadPresetHoldingMix (preset);
+        const float mix = paramValue (pa, "mix");
+        const float fb  = paramValue (pa, "feedback");
+        check ("mixhold-by-name",
+               ok && near (mix, held) && near (fb, fbPreset),
+               juce::String ("mix=") + juce::String (mix, 2) + " (held " + juce::String (held, 0)
+                 + ") | feedback applied: " + juce::String (fb, 1) + " == " + juce::String (fbPreset, 1));
 
-        check ("mixlock-by-name",
-               okOff && okOn && near (mixOff, 40.0f) && near (mixOn, held) && near (fbOn, fbOff),
-               juce::String ("unlocked mix=") + juce::String (mixOff, 2) + " (preset 40) | locked mix="
-                 + juce::String (mixOn, 2) + " (held " + juce::String (held, 0) + ") | feedback still applied: "
-                 + juce::String (fbOn, 1) + " == " + juce::String (fbOff, 1));
-
-        // BK2 — from file. The file is written from the preset just loaded
-        // (Mix 40 after an unlocked load), so its Mix is known.
+        // BK2 — from file. Written at Mix 40, so the file really carries a Mix.
         auto file = juce::File::getSpecialLocation (juce::File::tempDirectory)
-                        .getChildFile ("ord-mixlock-probe.json");
-        p.mixLock = false;
-        p.loadPresetHoldingMix (preset);
+                        .getChildFile ("ord-mixhold-probe.json");
+        setParam (pa, "mix", 40.0f);
         const bool saved = p.getPresetManager().savePresetToFile (file);
-        const bool jsonClean = ! file.loadFileAsString().contains ("mixLock");
-
+        const bool carriesMix = file.loadFileAsString().contains ("\"mix\"");
         setParam (pa, "mix", held);
-        p.mixLock = true;
-        const bool fOn = p.loadPresetFromFileHoldingMix (file);
-        const float fMixOn = paramValue (pa, "mix");
-
-        setParam (pa, "mix", held);
-        p.mixLock = false;
-        const bool fOff = p.loadPresetFromFileHoldingMix (file);
-        const float fMixOff = paramValue (pa, "mix");
+        const bool fOk = p.loadPresetFromFileHoldingMix (file);
+        const float fMix = paramValue (pa, "mix");
         file.deleteFile();
+        check ("mixhold-from-file",
+               saved && carriesMix && fOk && near (fMix, held),
+               juce::String ("file mix 40 -> mix=") + juce::String (fMix, 2) + " (held "
+                 + juce::String (held, 0) + ") | file carries mix: " + (carriesMix ? "yes" : "NO"));
 
-        check ("mixlock-from-file",
-               saved && fOn && fOff && near (fMixOn, held) && near (fMixOff, 40.0f) && jsonClean,
-               juce::String ("locked mix=") + juce::String (fMixOn, 2) + " | unlocked mix=" + juce::String (fMixOff, 2)
-                 + " | preset JSON free of mixLock: " + (jsonClean ? "yes" : "NO"));
-
-        // BK3 — a failed load leaves Mix alone (either lock state).
+        // BK3 — a failed load leaves Mix alone.
         setParam (pa, "mix", 62.0f);
-        p.mixLock = true;
-        const bool badOn = p.loadPresetHoldingMix ("No Such Preset");
+        const bool bad     = p.loadPresetHoldingMix ("No Such Preset");
         const bool badFile = p.loadPresetFromFileHoldingMix (file);   // deleted above
         const float mixBad = paramValue (pa, "mix");
-        check ("mixlock-failed-load",
-               ! badOn && ! badFile && near (mixBad, 62.0f),
-               juce::String ("missing name -> ") + (badOn ? "true" : "false") + ", missing file -> "
+        check ("mixhold-failed-load",
+               ! bad && ! badFile && near (mixBad, 62.0f),
+               juce::String ("missing name -> ") + (bad ? "true" : "false") + ", missing file -> "
                  + (badFile ? "true" : "false") + ", mix=" + juce::String (mixBad, 2) + " (was 62)");
 
-        // BK4 — the lock round-trips through session state in both states.
-        auto roundTrip = [] (bool lock)
-        {
-            ReverseDelayProcessor src;
-            src.mixLock = lock;
-            juce::MemoryBlock blob;
-            src.getStateInformation (blob);
-            ReverseDelayProcessor dst;
-            dst.mixLock = ! lock;
-            dst.setStateInformation (blob.getData(), (int) blob.getSize());
-            return dst.mixLock.load() == lock;
-        };
-        const bool rtOn = roundTrip (true), rtOff = roundTrip (false);
-        check ("mixlock-state-roundtrip", rtOn && rtOff,
-               juce::String ("on->on: ") + (rtOn ? "yes" : "NO") + " | off->off: " + (rtOff ? "yes" : "NO"));
-
-        // BK5 — session recall restores its OWN Mix, even with the lock on.
+        // BK4 — session recall restores its OWN Mix.
         {
             ReverseDelayProcessor src;
             setParam (src.parameters, "mix", 25.0f);
-            src.mixLock = true;
             juce::MemoryBlock blob;
             src.getStateInformation (blob);
 
             ReverseDelayProcessor dst;
             setParam (dst.parameters, "mix", held);
-            dst.mixLock = true;
             dst.setStateInformation (blob.getData(), (int) blob.getSize());
             const float recalled = paramValue (dst.parameters, "mix");
-
-            check ("mixlock-session-recall",
-                   near (recalled, 25.0f) && dst.mixLock.load(),
-                   juce::String ("session mix 25 into a locked slot at ") + juce::String (held, 0)
-                     + " -> " + juce::String (recalled, 2) + ", lock=" + (dst.mixLock.load() ? "on" : "off"));
+            check ("mixhold-session-recall", near (recalled, 25.0f),
+                   juce::String ("session mix 25 into a slot at ") + juce::String (held, 0)
+                     + " -> " + juce::String (recalled, 2));
         }
 
-        // BK6 — a pre-v1.16 session (no mixLock property) turns the lock OFF.
+        // BK5 — a v1.16–v1.20 session (mixLock="1") restores, and the obsolete
+        // property is not written back out.
         {
             ReverseDelayProcessor src;
+            setParam (src.parameters, "mix", 30.0f);
             juce::MemoryBlock blob;
             src.getStateInformation (blob);
             auto xml = juce::AudioProcessor::getXmlFromBinary (blob.getData(), (int) blob.getSize());
-            const bool hadIt = xml->hasAttribute ("mixLock");
-            xml->removeAttribute ("mixLock");
+            const bool newWritesIt = xml->hasAttribute ("mixLock");
+            xml->setAttribute ("mixLock", "1");
             juce::MemoryBlock old;
             juce::AudioProcessor::copyXmlToBinary (*xml, old);
 
             ReverseDelayProcessor dst;
-            dst.mixLock = true;
             dst.setStateInformation (old.getData(), (int) old.getSize());
-            check ("mixlock-old-session",
-                   hadIt && ! dst.mixLock.load(),
-                   juce::String ("v1.16 state carries the attribute: ") + (hadIt ? "yes" : "NO")
-                     + " | stripped state into a locked slot -> lock " + (dst.mixLock.load() ? "ON" : "off"));
+            juce::MemoryBlock resaved;
+            dst.getStateInformation (resaved);
+            auto xml2 = juce::AudioProcessor::getXmlFromBinary (resaved.getData(), (int) resaved.getSize());
+            const bool carried = xml2->hasAttribute ("mixLock");
+            const float recalled = paramValue (dst.parameters, "mix");
+            check ("mixhold-old-session",
+                   ! newWritesIt && ! carried && near (recalled, 30.0f),
+                   juce::String ("v1.21 writes mixLock: ") + (newWritesIt ? "YES" : "no")
+                     + " | legacy mixLock=1 carried into resave: " + (carried ? "YES" : "no")
+                     + " | mix=" + juce::String (recalled, 2) + " (30)");
         }
     }
 
@@ -7439,31 +7422,22 @@ int main (int argc, char** argv)
                      + " | reselect no-op=" + juce::String ((int) (abSnap (p) == b)));
         }
 
-        // BM3 — Mix lock holds across a recall; unlocked, the slot's Mix returns.
+        // BM3 — v1.21.0: an A/B recall restores the slot's OWN Mix. A snapshot
+        // is not a preset, so the preset-load Mix hold does not apply to it.
         {
             ReverseDelayProcessor p;
             auto& pa = p.parameters;
             setParam (pa, "mix", 20.0f);
             p.abSelect (1);
             setParam (pa, "mix", 90.0f);
-            p.mixLock = true;
             p.abSelect (0);
-            const float locked = paramValue (pa, "mix");
-
-            // The held 90 is now A's LIVE Mix, so leaving A captures 90 — correct,
-            // the live state belongs to the active slot. Give A its own Mix again
-            // before the unlocked arm, so each slot's value is distinct.
-            p.mixLock = false;
-            setParam (pa, "mix", 20.0f);
+            const float a = paramValue (pa, "mix");
             p.abSelect (1);
-            const float unlockedB = paramValue (pa, "mix");
-            p.abSelect (0);
-            const float unlockedA = paramValue (pa, "mix");
-            check ("ab-mixlock",
-                   near (locked, 90.0f) && near (unlockedB, 90.0f) && near (unlockedA, 20.0f),
-                   juce::String ("locked recall of A mix=") + juce::String (locked, 2) + " (held 90)"
-                     + " | unlocked B=" + juce::String (unlockedB, 2) + " (90) A="
-                     + juce::String (unlockedA, 2) + " (20)");
+            const float b = paramValue (pa, "mix");
+            check ("ab-own-mix",
+                   near (a, 20.0f) && near (b, 90.0f),
+                   juce::String ("A mix=") + juce::String (a, 2) + " (20) | B mix="
+                     + juce::String (b, 2) + " (90)");
         }
 
         // BM4 — copy goes active -> inactive, both directions, with no recall.
@@ -7571,6 +7545,86 @@ int main (int argc, char** argv)
                 dist << n << " ";
             }
             check ("randomise-choice-uniform", allShapes, juce::String ("grainShape hits /500: ") + dist);
+        }
+    }
+
+    // --- Probe BN (v1.21.0): grain view snapshot ---------------------------------
+    //
+    // The UI's per-grain snapshot must describe the pool exactly (no stale or
+    // missing slots), carry the engine's geometry, advance once per block, and
+    // empty on reset(). Defaults: no scatter, no drift, so every grain latched
+    // gD == D and a reverse grain's read point sits at D + 2n.
+    {
+        auto noise = [] (int n)
+        {
+            juce::uint32 x = (juce::uint32) n * 2654435761u + 0x9e3779b9u;
+            x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+            return 0.25f * ((float) (x & 0xffffu) / 32768.0f - 1.0f);
+        };
+
+        auto inspect = [&] (float direction, const char* name)
+        {
+            ReverseDelayProcessor p;
+            p.setPlayConfigDetails (2, 2, fs, block);
+            p.prepareToPlay (fs, block);
+            setParam (p.parameters, "direction", direction);
+            renderEffect (p, 1.5, fs, block, noise);
+
+            ReverseDelayProcessor::GrainViewSnapshot v;
+            const bool ok = p.readGrainView (v);
+            const float D = p.getGrainMeter().delayMs;
+            const float tol = (float) (2000.0 / fs);   // two samples, in ms
+
+            // Gain RND is 0, so every grain shares ONE positive level. Not 1.0
+            // in general: a forward grain's output carries forwardTrim, an
+            // overlap-dependent coherent-sum norm (getForwardNorm).
+            const float level0 = v.count > 0 ? v.grains[0].level : 0.0f;
+            int bad = 0, wrongDir = 0;
+            float worst = 0.0f;
+            for (int i = 0; i < v.count; ++i)
+            {
+                const auto& g = v.grains[(size_t) i];
+                if (g.phase < 0.0f || g.phase > 1.0f || g.pan < 0.0f || g.pan > 1.0f
+                    || g.lengthMs <= 0.0f || g.level <= 0.0f
+                    || std::abs (g.level - level0) > 1.0e-4f)
+                    ++bad;
+                if (g.forward != (direction >= 100.0f))
+                    ++wrongDir;
+                const float expect = g.forward ? g.ageMs : g.ageMs - 2.0f * g.phase * g.lengthMs;
+                worst = juce::jmax (worst, std::abs (expect - D));
+            }
+
+            check (name,
+                   ok && v.count > 0 && v.count == p.getActiveGrainCount()
+                      && bad == 0 && wrongDir == 0 && worst <= tol,
+                   juce::String ("grains=") + juce::String (v.count) + " (pool "
+                     + juce::String (p.getActiveGrainCount()) + ") | out-of-range="
+                     + juce::String (bad) + " wrong-dir=" + juce::String (wrongDir)
+                     + " | level=" + juce::String (level0, 3)
+                     + " | worst |birth age − D|=" + juce::String (worst, 3) + " ms (tol "
+                     + juce::String (tol, 3) + ")");
+            return v.seq;
+        };
+
+        inspect (0.0f,   "grainview-reverse");
+        inspect (100.0f, "grainview-forward");
+
+        // Sequence advances by exactly one publish (2) per block; reset() empties.
+        {
+            ReverseDelayProcessor p;
+            p.setPlayConfigDetails (2, 2, fs, block);
+            p.prepareToPlay (fs, block);
+            renderEffect (p, 0.5, fs, block, noise);
+            ReverseDelayProcessor::GrainViewSnapshot a, b, c;
+            p.readGrainView (a);
+            renderEffect (p, (double) (3 * block) / fs, fs, block, noise);
+            p.readGrainView (b);
+            p.reset();
+            p.readGrainView (c);
+            check ("grainview-seq-reset",
+                   b.seq - a.seq == 6u && a.count > 0 && c.count == 0,
+                   juce::String ("seq +") + juce::String ((int) (b.seq - a.seq)) + " over 3 blocks (6)"
+                     + " | after reset count=" + juce::String (c.count));
         }
     }
 

@@ -1191,12 +1191,32 @@ body {
    v1.14.0-v1.18.0 hung this absolutely in a 190 px OUTPUT panel's bottom
    padding strip. v1.19.0's OUTPUT is 680 px wide, so the meter joins the flow
    BESIDE Duck / Width / Mix and takes the rest of the row. */
-.level-meter {
+/* v1.21.0: the grain view and the level meter share one column in the width
+   the three knobs leave (the meter used to take it alone). The column's 34 px
+   left / 18 px right margins are the meter's v1.19.0 ones. The canvas's top edge
+   sits on the knob tops and the meter sits under it, so the pair reads as one
+   instrument: what the grains are doing, then how loud the result is. */
+.output-display {
   flex: 1;
-  /* v1.19.0: in the flow of the 680 px OUTPUT panel, taking the width the three
-     knobs leave. The 36 px bottom margin lifts the bar's centre onto the knobs'
-     centre line (98 px cell / 2 − 62 px knob / 2 = 18). */
-  margin: 0 18px 36px 34px;
+  align-self: flex-start;
+  margin: 0 18px 0 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.grain-canvas {
+  display: block;
+  width: 100%;
+  height: 62px;          /* = the knob diameter, so its top and bottom line up */
+  border: 1px solid var(--brown-border);
+  border-radius: 3px;
+  background: rgba(255, 248, 220, 0.45);
+  box-shadow: inset 1px 1px 2px var(--shadow-light);
+  box-sizing: border-box;
+}
+
+.level-meter {
   height: 8px;
   display: flex;
   align-items: center;
@@ -1342,69 +1362,16 @@ body {
   to { border-style: dashed; border-color: var(--green-light); }
 }
 
-/* ── v1.16.0: Mix lock ───────────────────────────────────────────────────────
-   A 16 px square hanging off the right edge of the MIX caption. The OUTPUT
-   panel has no horizontal room (two 72 px cells in 162 px), so the lock uses
-   the empty space beside the caption. The caption-row shrinks to the caption,
-   and the button is absolute, so the caption stays centred and the knob-cell
-   keeps its height. Nothing else in row 1 moves.
-
-   States use .segment's tokens so a lit lock reads like every other lit
-   control on the page: unlit --btn-default with dark ink, lit --btn-active with
-   cream --knob-core ink (7.2:1, the v1.12.3 contrast fix) and the pressed
-   inset. The shackle also closes when lit, so the state does not rely on
-   colour alone. */
+/* ── Caption row (v1.16.0) ──────────────────────────────────────────────────
+   A caption wrapper that shrinks to its caption so a 16 px glyph button can hang
+   absolutely off its right edge without moving the caption or the cell height.
+   Introduced for the v1.16.0 Mix lock (removed in v1.21.0); Grain Link's chain
+   glyph under SIZE is its remaining user. */
 .caption-row { position: relative; }
 
-.mix-lock {
-  position: absolute;
-  left: calc(100% + 5px);
-  top: 50%;
-  width: 16px;
-  height: 16px;
-  margin-top: -8px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--green-darkest);
-  background: var(--btn-default);
-  border: 1.5px solid var(--btn-border);
-  border-radius: 4px;
-  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.mix-lock svg { display: block; overflow: visible; }
-.mix-lock path { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
-.mix-lock rect { fill: currentColor; }
-.mix-lock .shackle-closed,
-.mix-lock.active .shackle-open { display: none; }
-.mix-lock.active .shackle-closed { display: inline; }
-
-.mix-lock:hover {
-  background: rgba(139, 168, 112, 0.45);
-  transform: translateY(-1px);
-  box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.mix-lock.active,
-.mix-lock.active:hover {
-  background: var(--btn-active);
-  border-color: var(--btn-border-active);
-  color: var(--knob-core);
-  transform: none;
-  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.35);
-}
-
-.mix-lock:focus-visible {
-  outline: 2px dotted var(--green-mid);
-  outline-offset: 2px;
-}
-
 /* ── v1.17.0: Grain Link ─────────────────────────────────────────────────────
-   The Mix lock's box, token for token, hanging off the SIZE caption. The
+   The v1.16.0 Mix lock's box, token for token (the lock itself was removed in
+   v1.21.0), hanging off the SIZE caption. The
    difference is inside: a native <select> at opacity 0 covers the whole box, so
    a click opens the OS menu (Free, = Delay, then the divisions) rather than
    toggling. Unlinked, the two chain halves sit apart with no bar; linked, they

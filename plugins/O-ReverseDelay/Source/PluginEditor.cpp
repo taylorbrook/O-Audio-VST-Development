@@ -260,10 +260,9 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     for (const auto& relay : toggleRelays)
         options = options.withOptionsFrom (*relay);
 
-    // ── NATIVE FUNCTIONS — exactly 22 (17 below + A/B 4 + categories 1) ───
+    // ── NATIVE FUNCTIONS — exactly 20 (15 below + A/B 4 + categories 1) ───
     // 1 for dblclick-reset + 1 for the v1.3.0 grain meter + 1 for v1.4.0's
-    // window-shape curve + v1.9.0's getUiLanguage/setUiLanguage pair + v1.16.0's
-    // getMixLock/setMixLock pair + the 10
+    // window-shape curve + v1.9.0's getUiLanguage/setUiLanguage pair + the 10
     // that js/preset-manager.js fetches. The count is grep-diffed against app.js +
     // preset-manager.js at the Stage-4 gate: an unregistered fn leaves its
     // control silently dead while build, auval and pluginval all pass
@@ -330,6 +329,30 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
             const auto peaks = processorRef.takeLevelPeaks();
             obj->setProperty ("peakIn",  peaks.in);
             obj->setProperty ("peakOut", peaks.out);
+
+            // v1.21.0: the grain visualizer — every live grain at the end of the
+            // last block, as compact 6-tuples [ageMs, lengthMs, phase, pan,
+            // level, forward], plus the block's sequence number so the page can
+            // tell a new block from a host that has stopped calling
+            // processBlock. Same poll, so the bridge stays at 20. A torn read
+            // (a block landed mid-copy four times running) omits the key and the
+            // page keeps animating its previous frame.
+            ReverseDelayProcessor::GrainViewSnapshot view;
+            if (processorRef.readGrainView (view))
+            {
+                juce::Array<juce::var> grains;
+                grains.ensureStorageAllocated (view.count);
+
+                for (int i = 0; i < view.count; ++i)
+                {
+                    const auto& g = view.grains[static_cast<size_t> (i)];
+                    grains.add (juce::Array<juce::var> { g.ageMs, g.lengthMs, g.phase,
+                                                         g.pan, g.level, g.forward ? 1 : 0 });
+                }
+
+                obj->setProperty ("grains", grains);
+                obj->setProperty ("grainSeq", static_cast<int> (view.seq & 0x3fffffffu));
+            }
 
             complete (juce::var (obj));
         });
@@ -422,30 +445,8 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
                 processorRef.uiLanguage.load (std::memory_order_acquire))));
         });
 
-    // ── v1.16.0: the Mix lock pair ──────────────────────────────────────────
-    //
-    // Same shape as the language pair above: the page reads it once at init,
-    // with no push and no poll. A preset load cannot change the lock — it is a
-    // state property, not a parameter, and applyPresetJson only walks
-    // preset["parameters"]. Takes the bridge 15 -> 17.
-    options = options.withNativeFunction ("getMixLock",
-        [this] (auto&, auto complete)
-        {
-            complete (juce::var (processorRef.mixLock.load (std::memory_order_acquire)));
-        });
-
-    options = options.withNativeFunction ("setMixLock",
-        [this] (auto& args, auto complete)
-        {
-            // Only a real bool true locks. Anything else, including a missing
-            // argument or the string "true", unlocks, so a malformed call from
-            // the page can never turn the lock on by accident.
-            if (args.size() > 0)
-                processorRef.mixLock.store (args[0].isBool() && static_cast<bool> (args[0]),
-                                            std::memory_order_release);
-
-            complete (juce::var (processorRef.mixLock.load (std::memory_order_acquire)));
-        });
+    // v1.21.0: v1.16.0's getMixLock/setMixLock pair is gone — preset loads now
+    // always hold Mix, so there is no lock to read or set. Bridge 22 -> 20.
 
     // ── v1.18.0: A/B compare + Randomise ────────────────────────────────────
     //

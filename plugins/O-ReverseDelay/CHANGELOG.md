@@ -4,6 +4,99 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.21.0] — 2026-09-24
+
+Presets no longer change Mix, and a live grain view now fills the empty space in
+the OUTPUT panel. MINOR: nothing on the audio path, no parameter and no preset
+format changed, and the window is still 940 × 693. The v1.16.0 Mix lock is
+removed because presets now always leave Mix alone.
+
+### Changed
+
+- **Preset loads never change Mix.** Browsing (◀/▶, the dropdown) and loading
+  by name or from a file keep your current Mix. Every other parameter still
+  comes from the preset. `loadPresetHoldingMix()` and
+  `loadPresetFromFileHoldingMix()` now hold Mix unconditionally, and a preset
+  file's own `mix` value is ignored on load. It is still written when you save.
+  - **Why the lock went:** v1.16.0 made this an opt-in padlock that was off by
+    default, so out of the box every preset still reset Mix.
+  - **A/B snapshots recall their own Mix.** A snapshot is the plugin's own
+    earlier state rather than a preset, so A/B compares everything, Mix
+    included. (Before, the lock also held Mix across A/B.)
+  - **Session recall is unchanged.** `setStateInformation` restores the
+    session's own Mix.
+- The Mix tooltip adds "Presets never change it." in en, fr and zh-Hans (fr
+  goes back to `reviewed: false`, zh-Hans to `'mt'`).
+
+### Removed
+
+- **The Mix lock** (v1.16.0): the padlock button, its CSS, the `mixLock`
+  processor atomic, the `mixLock` state property, the `mixLock` i18n entry and
+  the `getMixLock` / `setMixLock` native functions. **Bridge 22 → 20.** A
+  v1.16–v1.20 session that carries `mixLock` still loads, and the property is
+  dropped on restore so it isn't saved again. `.caption-row` stays because
+  Grain Link's chain glyph under SIZE still uses it.
+
+### Added
+
+- **Grain view.** A 62 px canvas in the OUTPUT panel, right of Mix, with the
+  level meter moved underneath it at the same width.
+  - **Axes:** x is time behind now (left edge = now) and y is pan (top = L).
+  - **Grains:** each live grain is a faint pill covering the stretch of audio
+    it reads, with a playhead dot moving the way the grain plays: back in time
+    for reverse, forward for forward grains, which are drawn in brown instead
+    of green.
+  - **Brightness and size:** each dot's brightness follows the actual window
+    curve (the same `getWindowCurve` data the WINDOW plot draws, so tilt and
+    taper show), and its size follows per-grain level (Gain RND).
+  - **Guides:** a dashed vertical line marks the delay time (the age every
+    grain starts at) and a dashed horizontal line marks centre pan.
+  - **Axis:** the axis eases to fit the furthest grain. It grows quickly so
+    nothing clips and shrinks slowly so it doesn't pump.
+  - **Localized:** `grainView` tip and `aria.grainCanvas` in en, fr
+    (`reviewed: false`) and zh-Hans (`'mt'`).
+- **Real-time-safe grain snapshot.** At the end of each block,
+  `publishGrainView()` writes every active grain as `[ageMs, lengthMs, phase,
+  pan, level, forward]` into a fixed 32-slot array of relaxed atomics under a
+  seqlock.
+  - **Audio-thread safety:** no allocation and no locks, and nothing on the
+    audio path reads it back.
+  - **Reader:** `readGrainView()` retries up to four times if a block landed
+    mid-copy and otherwise reports failure, in which case the page keeps
+    animating its last frame.
+  - **Transport:** it rides the existing 15 Hz `getGrainMeter` poll as
+    `grains` plus a `grainSeq` block counter, so no native function was added.
+  - **Motion:** between polls the page advances each grain analytically at
+    display rate.
+  - **Idle host:** if the host stops calling `processBlock`, `grainSeq` stops
+    changing, so the grains play out and fade instead of replaying.
+
+### Tests
+
+- Render harness:
+  - **Probe BK rewritten (`mixhold-*`, 6 checks):**
+    - Negative control: the raw module load applies Reverse Bloom's Mix 40.
+    - Loads by name and from file keep 80 while Feedback still applies.
+    - A failed load moves nothing, and a session recalls its own Mix.
+    - A legacy `mixLock="1"` session restores, and the property isn't saved
+      again.
+  - **BM3:** `ab-mixlock` is now `ab-own-mix` (A recalls 20, B recalls 90).
+  - **New probe BN (`grainview-*`, 3 checks):**
+    - The snapshot count equals the pool and every field is in range.
+    - A reverse grain's age − 2·phase·G equals D within 2 samples, and a
+      forward grain's age equals D.
+    - The sequence advances by exactly 2 per block, and `reset()` empties it.
+  - Audio is bit-identical to v1.20.0. BL0's pinned digests hold, and the
+    full `--digest` diff against the v1.20.0 harness is empty.
+- `ui_frontend_check.js`: the bridge census is 20. `grains` and `grainSeq` are
+  checked as meter riders, a new check fails if any part of the Mix lock comes
+  back, and the grain canvas is required inside OUTPUT. The tooltip inventory
+  swaps `mix-lock` for `grainCanvas`.
+- UI stub: the lock functions are removed. A toy scheduler feeds the grain view
+  from the knobs (Density, Count, Scatter, Width, Direction, Gain RND).
+- `ui_tooltip_clamp_check`, `check-ui-labels`, `check-i18n`, `i18n-fr-lint` and
+  `i18n-zh-lint` all pass.
+
 ## [1.20.0] — 2026-09-24
 
 The preset name is now a dropdown, and the factory bank grows from 8 to
