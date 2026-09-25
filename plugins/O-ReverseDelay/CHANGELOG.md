@@ -4,6 +4,79 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.18.0] — 2026-09-24
+
+A/B compare and a limited Randomise. MINOR: no parameter was added, removed or
+changed, and nothing on the audio path moved, so every session, preset and
+render is bit-identical to v1.17.0 (all 51 `--digest` lines match the v1.17.0
+build). The window stays 940 × 768.
+
+### Added
+
+- **A / B / copy** in the preset bar, after a hairline divider following Delete.
+  - **Two in-memory snapshots** held by the processor, so they outlast closing
+    the editor. They are never saved with the session, and
+    `setStateInformation` never touches them. The live state always belongs to
+    the active slot, and leaving a slot captures it into that slot.
+  - **Recall is the preset-load path.** A snapshot is the JSON object a user
+    preset file holds (`capturePresetData()`). It is recalled through
+    `applyPresetData()`, which runs the same migration hook, reset to defaults
+    and meta-first order as a file load. It is wrapped in the same Mix-lock
+    hold as `loadPresetHoldingMix`, so with the lock on, A/B compares at a
+    fixed dry/wet balance. The preset name travels with the slot. Message
+    thread only.
+  - **An empty target starts as a copy** of the slot being left. The first
+    click on B therefore changes nothing you hear.
+  - **Copy goes from the active slot to the inactive one**, with no recall. The
+    face reads `A→B` on A and `B→A` on B, in a fixed 40 px box.
+- **Randomise** (a die, last in the group). It touches exactly 11 parameters,
+  the RANDOM, WINDOW, DRIFT and COLOUR panels (`kRandomiseParamIds`). Feedback,
+  Regen, Mix and Output are never touched.
+  - **The way back.** It first captures the live state into the **inactive**
+    slot, so one click on the other letter returns to the pre-randomise sound.
+  - **One undoable gesture per parameter.** Each parameter gets its own
+    begin / setValueNotifyingHost / end gesture, so the host records one touch
+    per parameter. The APVTS has no UndoManager, so the host's undo is what
+    "undoable" means here.
+  - **Distribution.** Floats are drawn uniform in *normalised* space, which
+    respects `driftRate`'s skew. `grainShape` is drawn uniform over its five
+    entries, not as a rounded float, which would give Hann and Expo-Decay half
+    the odds.
+- **i18n.** `abA`, `abB`, `abCopy`, `randomise` (tooltip + accessible name) and
+  `aria.abGroup`, in en / fr (`reviewed: false`) / zh-Hans (`'mt'`). The faces
+  are glyphs, so no caption width depends on the language.
+
+### Changed
+
+- **preset-manager module 1.0.7 → 1.0.8.** Public `capturePresetData()` and
+  `applyPresetData(const juce::var&)` are thin wrappers over the private
+  `createPresetJson()` and `applyPresetJson()`. The change is additive only, and
+  no other consumer's call path changes. `applyPresetData` leaves
+  `currentPresetName` alone.
+- **Bridge 17 → 21 native functions**: `getAbState`, `abSelect`, `abCopy` and
+  `randomise`, which all return `{ active, filledA, filledB }`. The ui-stub
+  models all four with the processor's rules.
+- **Preset bar layout.** The bar content grows from ~676 px to 800 px of 890 px
+  and stays centred, so the existing preset controls sit 62 px further left
+  than before. The geometry was measured identical in en, fr and zh-Hans.
+
+### Testing
+
+- Render harness: **190 / 190 probes pass**, including the new probe BM:
+  `ab-empty-target-is-copy`, `ab-recall-both-ways` (bitwise, plus the name),
+  `ab-mixlock`, `ab-copy-active-to-inactive`, `randomise-scope` (0 parameters
+  outside the list moved, 11/11 inside), `randomise-one-gesture-per-param`,
+  `randomise-way-back` and `randomise-result-kept` (both bitwise), and
+  `randomise-choice-uniform` (92/106/104/105/93 over 500 draws).
+- `--digest`: all 51 lines are identical to the v1.17.0 build.
+- `ui_frontend_check.js` passes, with the bridge census at 21.
+  `check-i18n`, `i18n-fr-lint --strict` and `i18n-zh-lint --strict` are clean.
+  `check-ui-labels` shows no element moving in fr or zh-Hans.
+  `ui_tooltip_clamp_check` passes in all three languages: 40 anchors, with
+  `#ab-random` clamped at 932 / 940.
+- Known and accepted: the fr settings popover, when open, covers `#ab-random`.
+  It is an opaque floating layer (check-ui-labels 8b notes it and does not fail).
+
 ## [1.17.0] — 2026-09-24
 
 Grain Link. MINOR: two new choice parameters, appended. Both default to the

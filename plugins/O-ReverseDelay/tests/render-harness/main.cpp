@@ -309,6 +309,15 @@
                               No tempo / no playhead falls back to Size; 50 and
                               4000 ms clamp and report `clamped`.
 
+    v1.18.0 probe (A/B compare + Randomise):
+      BM. ab-* / randomise-* — an empty target is a copy (nothing moves); A/B
+                              recall is bitwise both ways incl. the preset
+                              name; Mix lock holds across a recall; copy goes
+                              active -> inactive. Randomise moves ONLY the 11
+                              kRandomiseParamIds, one gesture pair each; the
+                              inactive slot recalls the pre-randomise state
+                              bitwise; grainShape draws all five entries.
+
   ==============================================================================
 */
 
@@ -324,6 +333,8 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -7269,6 +7280,208 @@ int main (int argc, char** argv)
                      + " | 1/1@40 -> " + juce::String (hi, 2) + " src=" + juce::String ((int) s2)
                      + " (rendered " + juce::String (rendered.m.grainMs, 2) + ")"
                      + " | 1/1@60 -> " + juce::String (in, 2) + " src=" + juce::String ((int) s3) + " (exact, not clamped)");
+        }
+    }
+
+    // --- Probe BM (v1.18.0): A/B compare + Randomise -----------------------------
+    //
+    // A/B: an empty target starts as a copy (nothing moves); leaving a slot
+    // captures it; a filled slot recalls EVERY parameter, including ones the
+    // other slot left at a non-default; the preset name travels with the slot;
+    // the Mix lock holds across a recall; copy goes active -> inactive.
+    //
+    // Randomise: every parameter OUTSIDE kRandomiseParamIds is bitwise
+    // unchanged (Feedback, Regen, Mix and Output among them); each listed one is
+    // exactly one begin/end gesture pair; the inactive slot recalls the
+    // pre-randomise state bitwise; grainShape draws all five entries.
+    {
+        auto abSnap = [] (ReverseDelayProcessor& target)
+        {
+            std::map<juce::String, float> m;
+            for (auto* prm : target.getParameters())
+                if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm))
+                    m[rp->paramID] = rp->getValue();
+            return m;
+        };
+        auto near = [] (float a, float b) { return std::abs (a - b) < 0.01f; };
+
+        // BM1 — first switch to an empty B changes nothing.
+        {
+            ReverseDelayProcessor p;
+            auto& pa = p.parameters;
+            setParam (pa, "jitter", 30.0f);
+            setParam (pa, "feedback", 70.0f);
+            const auto before = abSnap (p);
+            const auto s = p.abSelect (1);
+            check ("ab-empty-target-is-copy",
+                   abSnap (p) == before && s.active == 1 && s.filled[0] && s.filled[1],
+                   juce::String ("active=") + juce::String (s.active) + " filled="
+                     + juce::String ((int) s.filled[0]) + juce::String ((int) s.filled[1])
+                     + " params unchanged=" + juce::String ((int) (abSnap (p) == before)));
+        }
+
+        // BM2 — recall both ways, including a param B moved and A never touched,
+        // and the preset name travelling with the slot.
+        {
+            ReverseDelayProcessor p;
+            auto& pa = p.parameters;
+            setParam (pa, "jitter", 30.0f);
+            setParam (pa, "feedback", 70.0f);
+            p.getPresetManager().setCurrentPresetName ("Slot A Name");
+            const auto a = abSnap (p);
+
+            p.abSelect (1);
+            setParam (pa, "jitter", 80.0f);
+            setParam (pa, "feedback", 20.0f);
+            setParam (pa, "drive", 55.0f);         // A never moved it
+            p.getPresetManager().setCurrentPresetName ("Slot B Name");
+            const auto b = abSnap (p);
+
+            p.abSelect (0);
+            const bool backToA = abSnap (p) == a
+                              && p.getPresetManager().getCurrentPresetName() == "Slot A Name";
+            p.abSelect (1);
+            const bool backToB = abSnap (p) == b
+                              && p.getPresetManager().getCurrentPresetName() == "Slot B Name";
+            const auto same = p.abSelect (1);       // already active: no-op
+            check ("ab-recall-both-ways", backToA && backToB && same.active == 1 && abSnap (p) == b,
+                   juce::String ("A bitwise+name=") + juce::String ((int) backToA)
+                     + " | B bitwise+name=" + juce::String ((int) backToB)
+                     + " | reselect no-op=" + juce::String ((int) (abSnap (p) == b)));
+        }
+
+        // BM3 — Mix lock holds across a recall; unlocked, the slot's Mix returns.
+        {
+            ReverseDelayProcessor p;
+            auto& pa = p.parameters;
+            setParam (pa, "mix", 20.0f);
+            p.abSelect (1);
+            setParam (pa, "mix", 90.0f);
+            p.mixLock = true;
+            p.abSelect (0);
+            const float locked = paramValue (pa, "mix");
+
+            // The held 90 is now A's LIVE Mix, so leaving A captures 90 — correct,
+            // the live state belongs to the active slot. Give A its own Mix again
+            // before the unlocked arm, so each slot's value is distinct.
+            p.mixLock = false;
+            setParam (pa, "mix", 20.0f);
+            p.abSelect (1);
+            const float unlockedB = paramValue (pa, "mix");
+            p.abSelect (0);
+            const float unlockedA = paramValue (pa, "mix");
+            check ("ab-mixlock",
+                   near (locked, 90.0f) && near (unlockedB, 90.0f) && near (unlockedA, 20.0f),
+                   juce::String ("locked recall of A mix=") + juce::String (locked, 2) + " (held 90)"
+                     + " | unlocked B=" + juce::String (unlockedB, 2) + " (90) A="
+                     + juce::String (unlockedA, 2) + " (20)");
+        }
+
+        // BM4 — copy goes active -> inactive, both directions, with no recall.
+        {
+            ReverseDelayProcessor p;
+            auto& pa = p.parameters;
+            setParam (pa, "diffusion", 40.0f);
+            p.abCopyActiveToInactive();              // A -> B
+            setParam (pa, "diffusion", 10.0f);       // live A moves on
+            p.abSelect (1);
+            const float onB = paramValue (pa, "diffusion");
+            setParam (pa, "diffusion", 77.0f);
+            p.abCopyActiveToInactive();              // B -> A
+            const bool copyDidNotRecall = near (paramValue (pa, "diffusion"), 77.0f);
+            p.abSelect (0);
+            const float onA = paramValue (pa, "diffusion");
+            check ("ab-copy-active-to-inactive",
+                   near (onB, 40.0f) && near (onA, 77.0f) && copyDidNotRecall,
+                   juce::String ("A->B then B=") + juce::String (onB, 2) + " (40)"
+                     + " | B->A then A=" + juce::String (onA, 2) + " (77)");
+        }
+
+        // BM5 — Randomise scope, gestures, and the way back.
+        {
+            struct GestureCounter : juce::AudioProcessorListener
+            {
+                std::map<int, int> begins, ends;
+                void audioProcessorParameterChanged (juce::AudioProcessor*, int, float) override {}
+                void audioProcessorChanged (juce::AudioProcessor*, const ChangeDetails&) override {}
+                void audioProcessorParameterChangeGestureBegin (juce::AudioProcessor*, int i) override { ++begins[i]; }
+                void audioProcessorParameterChangeGestureEnd   (juce::AudioProcessor*, int i) override { ++ends[i]; }
+            } counter;
+
+            ReverseDelayProcessor p;
+            auto& pa = p.parameters;
+            setParam (pa, "feedback", 63.0f);
+            setParam (pa, "regenMakeup", 2.0f);
+            setParam (pa, "mix", 47.0f);
+            const auto pre = abSnap (p);
+
+            std::set<juce::String> listed;
+            for (const auto* id : ReverseDelayProcessor::kRandomiseParamIds)
+                listed.insert (id);
+
+            p.addListener (&counter);
+            juce::Random rng (1234);
+            const auto s = p.randomiseCharacter (rng);
+            p.removeListener (&counter);
+            const auto post = abSnap (p);
+
+            int outsideMoved = 0, insideMoved = 0;
+            juce::String movedNames;
+            for (const auto& [id, v] : pre)
+            {
+                const bool moved = post.at (id) != v;
+                if (listed.count (id)) insideMoved += moved ? 1 : 0;
+                else if (moved) { ++outsideMoved; movedNames << id << " "; }
+            }
+
+            bool gesturesOk = true;
+            int gestureParams = 0;
+            for (auto* prm : p.getParameters())
+            {
+                auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm);
+                const int idx = prm->getParameterIndex();
+                const int want = rp != nullptr && listed.count (rp->paramID) ? 1 : 0;
+                const int b = counter.begins.count (idx) ? counter.begins.at (idx) : 0;
+                const int e = counter.ends.count (idx)   ? counter.ends.at (idx)   : 0;
+                gesturesOk = gesturesOk && b == want && e == want;
+                gestureParams += want;
+            }
+
+            check ("randomise-scope",
+                   outsideMoved == 0 && insideMoved >= 9 && listed.size() == 11
+                     && near (paramValue (pa, "feedback"), 63.0f) && near (paramValue (pa, "mix"), 47.0f)
+                     && near (paramValue (pa, "regenMakeup"), 2.0f),
+                   juce::String ("outside moved=") + juce::String (outsideMoved) + " " + movedNames
+                     + "| inside moved=" + juce::String (insideMoved) + "/11");
+            check ("randomise-one-gesture-per-param", gesturesOk && gestureParams == 11,
+                   juce::String ("params with exactly one begin/end pair: ") + juce::String (gestureParams));
+
+            p.abSelect (1 - s.active);
+            check ("randomise-way-back", abSnap (p) == pre,
+                   juce::String ("inactive slot recalls pre-randomise bitwise: ")
+                     + juce::String ((int) (abSnap (p) == pre)));
+            p.abSelect (s.active);
+            check ("randomise-result-kept", abSnap (p) == post,
+                   juce::String ("active slot recalls the randomised state bitwise: ")
+                     + juce::String ((int) (abSnap (p) == post)));
+
+            // All five shapes reachable, endpoints included.
+            std::map<int, int> hits;
+            juce::Random r2 (99);
+            for (int i = 0; i < 500; ++i)
+            {
+                p.randomiseCharacter (r2);
+                ++hits[(int) paramValue (pa, "grainShape")];
+            }
+            bool allShapes = hits.size() == 5;
+            juce::String dist;
+            for (int k = 0; k < 5; ++k)
+            {
+                const int n = hits.count (k) ? hits.at (k) : 0;
+                allShapes = allShapes && n > 60;   // ~100 expected each
+                dist << n << " ";
+            }
+            check ("randomise-choice-uniform", allShapes, juce::String ("grainShape hits /500: ") + dist);
         }
     }
 

@@ -2,7 +2,7 @@
 # JSON-based preset persistence for Ouaricon plugins
 
 name: preset-manager
-version: 1.0.7
+version: 1.0.8
 description: |
   JSON-based preset persistence with factory/user preset separation.
   Supports APVTS parameter serialization, navigation (next/previous),
@@ -71,6 +71,10 @@ used_by:
     version: 1.0.0
 
 changelog:
+  - version: 1.0.8
+    date: 2026-09-24
+    changes:
+      - "O-ReverseDelay v1.18.0 (A/B compare): public capturePresetData() / applyPresetData(const juce::var&) thin wrappers over the private createPresetJson() / applyPresetJson(), so an in-memory snapshot is captured and recalled through the exact preset-load path. applyPresetData leaves currentPresetName alone. Additive only — no existing call path changes"
   - version: 1.0.7
     date: 2026-09-12
     changes:

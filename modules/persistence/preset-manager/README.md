@@ -265,6 +265,9 @@ When implementing a preset dropdown menu, use these styles to ensure it appears 
 
 ## Version History
 
+### 1.0.8 (2026-09-24)
+- Public `capturePresetData()` / `applyPresetData(const juce::var&)`: in-memory snapshots captured and recalled through the exact preset-load path (migration hook, reset-to-defaults, meta-first, `customLoad`). `applyPresetData` does not touch `currentPresetName`. Additive only (O-ReverseDelay v1.18.0 A/B compare).
+
 ### 1.0.7 (2026-09-12)
 - `customLoad` fires on every preset apply, with an empty `juce::var` when the preset carries no `customState` — a callback can now clear state a previous preset left live (O-Strata Stage 4 Round A: terrain image slots). Older callbacks null-check `getDynamicObject()`, so nothing changes for them.
 

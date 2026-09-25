@@ -144,6 +144,16 @@ public:
     /** Delete a user preset. Factory presets cannot be deleted. */
     bool deletePreset(const juce::String& presetName);
 
+    /** v1.0.8: the current state as the same JSON object savePreset() writes, kept
+        in memory (A/B compare, snapshots). No file I/O; currentPresetName untouched. */
+    juce::var capturePresetData() const { return createPresetJson(); }
+
+    /** v1.0.8: apply an in-memory preset object through the exact path a file load
+        takes (migration hook, reset-to-defaults, meta-first, customLoad). Does NOT
+        change currentPresetName — the caller owns what the display should say.
+        Message thread only (setValueNotifyingHost). */
+    bool applyPresetData(const juce::var& presetData) { return applyPresetJson(presetData); }
+
     //==========================================================================
     // Preset listing
     //==========================================================================

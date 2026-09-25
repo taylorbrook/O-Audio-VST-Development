@@ -2776,6 +2776,92 @@ bool ReverseDelayProcessor::loadPresetFromFileHoldingMix (const juce::File& file
     return loadHoldingMix (parameters, mixLock, [&] { return presetManager.loadPresetFromFile (file); });
 }
 
+//==============================================================================
+// v1.18.0: A/B compare and Randomise. Message thread only — every path ends in
+// setValueNotifyingHost, and the slots themselves are unsynchronised.
+ReverseDelayProcessor::AbSnapshot ReverseDelayProcessor::captureAbSnapshot() const
+{
+    return { presetManager.capturePresetData(), presetManager.getCurrentPresetName() };
+}
+
+ReverseDelayProcessor::AbState ReverseDelayProcessor::getAbState() const noexcept
+{
+    AbState s;
+    s.active    = abActive;
+    s.filled[0] = ! abSlots[0].data.isVoid();
+    s.filled[1] = ! abSlots[1].data.isVoid();
+    return s;
+}
+
+ReverseDelayProcessor::AbState ReverseDelayProcessor::abSelect (int slot)
+{
+    if ((slot != 0 && slot != 1) || slot == abActive)
+        return getAbState();
+
+    abSlots[abActive] = captureAbSnapshot();
+
+    // An empty target starts as a copy of the slot being left: identical state,
+    // so there is nothing to recall and nothing audible happens.
+    if (abSlots[slot].data.isVoid())
+    {
+        abSlots[slot] = abSlots[abActive];
+    }
+    else
+    {
+        const auto& target = abSlots[slot];
+
+        // Same Mix-lock hold as a preset load: with the lock on, A/B compares
+        // the sound at a fixed dry/wet balance.
+        if (loadHoldingMix (parameters, mixLock, [&] { return presetManager.applyPresetData (target.data); }))
+            presetManager.setCurrentPresetName (target.presetName);
+    }
+
+    abActive = slot;
+    return getAbState();
+}
+
+ReverseDelayProcessor::AbState ReverseDelayProcessor::abCopyActiveToInactive()
+{
+    abSlots[1 - abActive] = captureAbSnapshot();
+    return getAbState();
+}
+
+ReverseDelayProcessor::AbState ReverseDelayProcessor::randomiseCharacter()
+{
+    return randomiseCharacter (abRandom);
+}
+
+ReverseDelayProcessor::AbState ReverseDelayProcessor::randomiseCharacter (juce::Random& rng)
+{
+    // The way back: the pre-randomise state goes into the INACTIVE slot, so one
+    // click on the other slot letter returns to it.
+    abSlots[1 - abActive] = captureAbSnapshot();
+
+    for (const auto* id : kRandomiseParamIds)
+    {
+        auto* p = parameters.getParameter (id);
+        jassert (p != nullptr);
+
+        if (p == nullptr)
+            continue;
+
+        float value;
+
+        // A choice is drawn over its ENTRIES: a uniform normalised draw rounded
+        // to an index would give the first and last entries half the odds.
+        if (auto* choice = dynamic_cast<juce::AudioParameterChoice*> (p))
+            value = choice->convertTo0to1 (static_cast<float> (rng.nextInt (choice->choices.size())));
+        else
+            value = rng.nextFloat();
+
+        p->beginChangeGesture();
+        p->setValueNotifyingHost (value);
+        p->endChangeGesture();
+    }
+
+    return getAbState();
+}
+
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new ReverseDelayProcessor();

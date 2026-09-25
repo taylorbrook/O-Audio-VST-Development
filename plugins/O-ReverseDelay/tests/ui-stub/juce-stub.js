@@ -307,15 +307,39 @@ let uiLanguage = "en";
 // mirroring setMixLock's C++ rule: only a real boolean true locks.
 let mixLock = false;
 
-// Mirrors the SEVENTEEN native functions registered in PluginEditor.cpp:
+// v1.18.0 — A/B slots. A snapshot is every slider's normalised value and every
+// combo's index the stub has created, which is what the page can see.
+let abActive = 0;
+const abSlots = [null, null];
+const RANDOMISE_FLOAT_IDS = ["jitter", "delayScatter", "sizeRandom", "gainRandom",
+                             "grainTilt", "tukeyTaper", "driftRate", "driftDepth",
+                             "diffusion", "drive"];   // + grainShape (a combo)
+
+function abCapture() {
+  return {
+    sliders: new Map([...sliderStates].map(([id, s]) => [id, s.getNormalisedValue()])),
+    combos:  new Map([...comboStates].map(([id, s]) => [id, s.getChoiceIndex()])),
+  };
+}
+
+function abRecall(snap) {
+  for (const [id, v] of snap.sliders) getSliderState(id).setNormalisedValue(v);
+  for (const [id, i] of snap.combos)  getComboBoxState(id).setChoiceIndex(i);
+}
+
+function abStateVar() {
+  return { active: abActive, filledA: abSlots[0] !== null, filledB: abSlots[1] !== null };
+}
+
+// Mirrors the TWENTY-ONE native functions registered in PluginEditor.cpp:
 // getParameterDefaults + getGrainMeter + getWindowCurve + v1.9.0's
-// getUiLanguage/setUiLanguage + v1.16.0's getMixLock/setMixLock (all fetched
-// by app.js) + the ten preset fns
+// getUiLanguage/setUiLanguage + v1.16.0's getMixLock/setMixLock + v1.18.0's
+// getAbState/abSelect/abCopy/randomise (all fetched by app.js) + the ten preset fns
 // (fetched by js/preset-manager.js). Any OTHER name must still reject —
 // rejecting the unknown is the whole point of this stub, and is how a bridge gap
 // surfaces here instead of as a silently dead control in a DAW
 // (pattern_webview_native_fn_bridge_gap). The whitelist grew
-// 1 -> 11 -> 12 -> 13 -> 15 -> 17; it did not become permissive.
+// 1 -> 11 -> 12 -> 13 -> 15 -> 17 -> 21; it did not become permissive.
 //
 // NOTE what is NOT here and must never be added: setTooltipsEnabled. D13 scoped
 // this plugin to display-only hover help, and section 14 of ui_frontend_check.js
@@ -340,6 +364,37 @@ export function getNativeFunction(name) {
     return (on) => {
       mixLock = on === true;
       return Promise.resolve(mixLock);
+    };
+  }
+
+  // v1.18.0 — A/B compare + Randomise, mirroring the processor's rules: leaving
+  // a slot captures it, an empty target starts as a copy (no recall), copy goes
+  // active -> inactive, and Randomise writes the way back into the INACTIVE slot
+  // before touching only the eleven RANDOM/WINDOW/DRIFT/COLOUR parameters.
+  if (name === "getAbState") return () => Promise.resolve(abStateVar());
+
+  if (name === "abSelect") {
+    return (slot) => {
+      if ((slot === 0 || slot === 1) && slot !== abActive) {
+        abSlots[abActive] = abCapture();
+        if (abSlots[slot] === null) abSlots[slot] = abSlots[abActive];
+        else abRecall(abSlots[slot]);
+        abActive = slot;
+      }
+      return Promise.resolve(abStateVar());
+    };
+  }
+
+  if (name === "abCopy") {
+    return () => { abSlots[1 - abActive] = abCapture(); return Promise.resolve(abStateVar()); };
+  }
+
+  if (name === "randomise") {
+    return () => {
+      abSlots[1 - abActive] = abCapture();
+      for (const id of RANDOMISE_FLOAT_IDS) getSliderState(id).setNormalisedValue(Math.random());
+      getComboBoxState("grainShape").setChoiceIndex(Math.floor(Math.random() * 5));
+      return Promise.resolve(abStateVar());
     };
   }
 

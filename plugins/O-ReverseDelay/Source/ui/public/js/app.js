@@ -731,6 +731,68 @@ function initMixLock(juce) {
   });
 }
 
+// ── A/B compare + Randomise (v1.18.0) ───────────────────────────────────────
+// Four native functions, all answering { active, filledA, filledB }. The slots
+// live in the processor (they outlive this page), so the page PULLS once at
+// init and repaints from every answer — it never holds its own copy of the
+// state. Recall and Randomise move parameters through setValueNotifyingHost,
+// so the knobs follow through their relays; only the preset NAME needs a
+// nudge, and presetManager.refresh() is the module's own way to re-read it.
+//
+// #ab-copy's face is the one piece of text written here. It is a glyph pair
+// (A→B / B→A), carries no data-i18n, and so is outside applyLabel()'s sweep
+// (pattern_js_state_updater_overwrites_html_labels).
+function initAbCompare(juce) {
+  const btnA    = document.getElementById("ab-a");
+  const btnB    = document.getElementById("ab-b");
+  const btnCopy = document.getElementById("ab-copy");
+  const btnRnd  = document.getElementById("ab-random");
+  if (!btnA || !btnB || !btnCopy || !btnRnd) { console.error("Missing A/B elements"); return; }
+
+  let getFn = null, selectFn = null, copyFn = null, randomFn = null;
+  try {
+    getFn    = juce.getNativeFunction("getAbState");
+    selectFn = juce.getNativeFunction("abSelect");
+    copyFn   = juce.getNativeFunction("abCopy");
+    randomFn = juce.getNativeFunction("randomise");
+  } catch (e) {
+    console.warn("A/B not available:", e);
+    return;
+  }
+
+  let busy = false;   // one bridge round-trip at a time: a double click must not interleave two recalls
+
+  const paint = (raw) => {
+    const s = parseNativeResult(raw);
+    if (!s || typeof s !== "object") return;
+    const onB = s.active === 1;
+    btnA.classList.toggle("active", !onB);
+    btnB.classList.toggle("active", onB);
+    btnA.setAttribute("aria-pressed", String(!onB));
+    btnB.setAttribute("aria-pressed", String(onB));
+    btnCopy.textContent = onB ? "B→A" : "A→B";
+  };
+
+  const run = (fn, refreshName, ...args) => {
+    if (busy) return;
+    busy = true;
+    fn(...args)
+      .then((raw) => {
+        paint(raw);
+        if (refreshName && presetManager) return presetManager.refresh();
+      })
+      .catch((e) => console.warn("A/B call failed:", e))
+      .finally(() => { busy = false; });
+  };
+
+  getFn().then(paint).catch((e) => console.warn("Could not read A/B state:", e));
+
+  btnA.addEventListener("click", () => run(selectFn, true, 0));
+  btnB.addEventListener("click", () => run(selectFn, true, 1));
+  btnCopy.addEventListener("click", () => run(copyFn, false));
+  btnRnd.addEventListener("click", () => run(randomFn, false));
+}
+
 // ── sourceMode segment pair (v1.7.0, B4 #5) ─────────────────────────────────
 // A ComboBoxState like syncMode's, drawn as segments rather than as a select.
 // Deliberately not folded into bindSyncSegments: that one also owns the UI-02
@@ -1695,6 +1757,7 @@ function init() {
   // matching the two above: a missing switch must not take the renderer down.
   try { initTipsToggle(); } catch (e) { console.error("tips toggle init failed:", e); }
   try { initMixLock(Juce); }    catch (e) { console.error("mix lock init failed:", e); }   // v1.16.0
+  try { initAbCompare(Juce); }  catch (e) { console.error("A/B init failed:", e); }        // v1.18.0
   initGrainMeter(Juce);          // v1.3.0 (B2); self-contained failure
   // AFTER bindKnob/bindSelectCombo above: it subscribes to sliderState[...] and
   // shapeState, which those calls create. Ordering here is load-bearing in the

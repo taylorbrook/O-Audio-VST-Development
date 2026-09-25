@@ -447,6 +447,50 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
             complete (juce::var (processorRef.mixLock.load (std::memory_order_acquire)));
         });
 
+    // ── v1.18.0: A/B compare + Randomise ────────────────────────────────────
+    //
+    // All four answer with the same { active, filledA, filledB } object so the
+    // page redraws the slot buttons from one shape. Native functions run on the
+    // message thread, which is what every processor call here requires. Recall
+    // and Randomise change parameters through setValueNotifyingHost, so the
+    // knobs follow through their relays; the page refreshes the preset NAME
+    // itself (presetManager.refresh()). Takes the bridge 17 -> 21.
+    const auto abVar = [] (const ReverseDelayProcessor::AbState& s)
+    {
+        auto* o = new juce::DynamicObject();
+        o->setProperty ("active",  s.active);
+        o->setProperty ("filledA", s.filled[0]);
+        o->setProperty ("filledB", s.filled[1]);
+        return juce::var (o);
+    };
+
+    options = options.withNativeFunction ("getAbState",
+        [this, abVar] (auto&, auto complete)
+        {
+            complete (abVar (processorRef.getAbState()));
+        });
+
+    options = options.withNativeFunction ("abSelect",
+        [this, abVar] (auto& args, auto complete)
+        {
+            // Only 0 or 1 selects; anything else is answered with the unchanged state.
+            const int slot = args.size() > 0 && (args[0].isInt() || args[0].isDouble())
+                               ? static_cast<int> (args[0]) : -1;
+            complete (abVar (processorRef.abSelect (slot)));
+        });
+
+    options = options.withNativeFunction ("abCopy",
+        [this, abVar] (auto&, auto complete)
+        {
+            complete (abVar (processorRef.abCopyActiveToInactive()));
+        });
+
+    options = options.withNativeFunction ("randomise",
+        [this, abVar] (auto&, auto complete)
+        {
+            complete (abVar (processorRef.randomiseCharacter()));
+        });
+
     // ── Preset bridge (OuariconPresetManager v1.0.5 contract) ──────────────
     options = options
         .withNativeFunction ("savePreset", [this] (const auto& args, auto complete)

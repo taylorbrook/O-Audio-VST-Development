@@ -148,6 +148,54 @@ public:
     bool loadPresetHoldingMix         (const juce::String& name);
     bool loadPresetFromFileHoldingMix (const juce::File& file);
 
+    //==========================================================================
+    /** v1.18.0 — A/B compare and Randomise. MESSAGE THREAD ONLY, all of it.
+
+        Two in-memory snapshots, never saved with the session and never touched by
+        setStateInformation. The LIVE state always belongs to the active slot; the
+        stored copy of the active slot is refreshed whenever the page leaves it.
+
+        A snapshot is the same JSON object a user preset file holds
+        (OuariconPresetManager::capturePresetData) plus the preset name that was
+        showing, and it is recalled through applyPresetData — the exact
+        reset-to-defaults / meta-first / migration path a preset load takes —
+        wrapped in the same Mix-lock hold as loadPresetHoldingMix. */
+    struct AbState
+    {
+        int  active = 0;                 // 0 = A, 1 = B
+        bool filled[2] { false, false }; // an empty slot has never been captured
+    };
+
+    AbState getAbState() const noexcept;
+
+    /** Make `slot` active. Leaving the active slot captures the live state into
+        it first. An EMPTY target starts as a copy of the slot being left (so no
+        recall happens and nothing audible changes); a filled one is recalled.
+        Selecting the slot already active is a no-op. */
+    AbState abSelect (int slot);
+
+    /** Copy the live (active) state into the inactive slot. No recall. */
+    AbState abCopyActiveToInactive();
+
+    /** The parameters Randomise may touch: the RANDOM, WINDOW, DRIFT and COLOUR
+        panels, nothing else. Feedback, Regen, Mix and Output are deliberately
+        absent — the render harness asserts every other parameter is untouched. */
+    static constexpr std::array<const char*, 11> kRandomiseParamIds {
+        "jitter", "delayScatter", "sizeRandom", "gainRandom",   // RANDOM
+        "grainShape", "grainTilt", "tukeyTaper",                // WINDOW
+        "driftRate", "driftDepth",                              // DRIFT
+        "diffusion", "drive"                                    // COLOUR
+    };
+
+    /** Capture the live state into the INACTIVE slot (the way back), then set
+        each kRandomiseParamIds parameter to a uniform random value — uniform in
+        NORMALISED space for floats (so driftRate's skew is respected), uniform
+        over the entries for a choice. Each parameter is its own
+        begin/set/endChangeGesture, so the host records one undoable touch per
+        parameter. The overload taking an rng exists for the render harness. */
+    AbState randomiseCharacter();
+    AbState randomiseCharacter (juce::Random& rng);
+
     /** Stage 4: preset library access for the editor's 10 preset native functions
         and for the render harness' probe N factory audit. */
     OuariconPresetManager& getPresetManager() noexcept { return presetManager; }
@@ -1070,6 +1118,19 @@ private:
     // Name is hardcoded (no OUARICON_DEV_SUFFIX) so dev and release builds share
     // one library at ~/Library/O-ReverseDelay/Presets/{Factory,User}/.
     OuariconPresetManager presetManager { parameters, "O-ReverseDelay" };
+
+    // v1.18.0: A/B slots (message thread only — see AbState).
+    struct AbSnapshot
+    {
+        juce::var    data;          // capturePresetData() object; void = empty slot
+        juce::String presetName;
+    };
+
+    AbSnapshot abSlots[2];
+    int        abActive = 0;
+    juce::Random abRandom;          // seeded from the clock; message thread only
+
+    AbSnapshot captureAbSnapshot() const;
 
     //==========================================================================
     // DSP components (Stage 2). All allocation confined to prepareToPlay().
