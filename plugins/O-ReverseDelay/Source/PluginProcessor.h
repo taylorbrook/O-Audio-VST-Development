@@ -307,7 +307,10 @@ public:
         sits, `lengthMs` its latched G, `phase` how far through its window it is
         (n / G, 0..1), `forward` its read direction, `pan` 0 (L) .. 1 (R), and
         `level` its OUTPUT gain relative to its loop gain — 1.0 unless Gain RND
-        or the forward-grain trim moved it.
+        or the forward-grain trim moved it. `srcPeak` (v1.21.1) is the loudest
+        |source sample| the grain read during the last block — the level of the
+        MATERIAL under it, before window and gain — so the page can tell a
+        grain reading silence from one reading signal.
 
         Published by processBlock under a seqlock over relaxed atomics: the audio
         thread never blocks, never allocates and never reads any of it back, and
@@ -322,6 +325,7 @@ public:
         float pan      = 0.5f;
         float level    = 1.0f;
         bool  forward  = false;
+        float srcPeak  = 0.0f;   // v1.21.1: peak |source| the grain read last block (linear)
     };
 
     struct GrainViewSnapshot
@@ -1473,10 +1477,10 @@ private:
     std::atomic<int>          publishedGrainSource  { 0 };       // v1.17.0: GrainSource
     std::atomic<float>        peakInSinceRead       { 0.0f };    // v1.14.0: max-folded, drained by takeLevelPeaks()
     std::atomic<float>        peakOutSinceRead      { 0.0f };    // v1.14.0
-    // v1.21.0 — grain visualizer snapshot (see readGrainView). Six floats per
-    // slot: ageMs, lengthMs, phase, pan, level, forward (0/1). An odd sequence
-    // number means a write is in progress.
-    static constexpr int kGrainViewFields = 6;
+    // v1.21.0 — grain visualizer snapshot (see readGrainView). Seven floats per
+    // slot: ageMs, lengthMs, phase, pan, level, forward (0/1) and v1.21.1's
+    // srcPeak. An odd sequence number means a write is in progress.
+    static constexpr int kGrainViewFields = 7;
     std::atomic<juce::uint32> grainViewSeq   { 0 };
     std::atomic<int>          grainViewCount { 0 };
     std::array<std::atomic<float>, GrainPool::kMaxGrains * kGrainViewFields> grainViewData {};

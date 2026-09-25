@@ -183,6 +183,10 @@ struct ReverseGrain
     // −1 rather than 0 as the default so a slot read before being written
     // behaves as it always did; 0 would silently mean "left only".
     int         srcCh       = -1;
+
+    // v1.21.1: peak |source sample| read since the last grain-view publish —
+    // display only, reset by publishGrainView() and never read by the render.
+    float       srcPeak     = 0.0f;
 };
 
 class GrainPool

@@ -503,12 +503,12 @@ export const I18N = Object.freeze({
     // reviewed:false, zh-Hans at 'mt'.
     'grainView': {
         en: { t: 'Grain View',
-              b: 'Every grain playing right now. Left is now, right is further back in time. Each bar is the stretch of audio a grain reads, and its dot slides the way the grain plays: back in time when reversed, forward when not. Brighter means louder in the grain’s window. Height is pan.' },
+              b: 'Every grain playing right now. Left is now, right is further back in time. Each bar is the stretch of audio a grain reads, and its dot slides the way the grain plays: back in time when reversed, forward when not. Darker means louder: the level of the audio under the grain, through its window. A hollow ring is a grain reading silence. Height is pan.' },
         fr: { t: 'Vue des grains',
-              b: 'Chaque grain en cours de lecture. La gauche est l’instant présent, la droite remonte dans le temps. Chaque barre est le passage audio que lit un grain, et son point glisse dans le sens de lecture, vers le passé quand le grain est inversé, vers le présent sinon. Plus le point est vif, plus le grain est fort dans sa fenêtre. La hauteur indique le panoramique.',
+              b: 'Chaque grain en cours de lecture. La gauche est l’instant présent, la droite remonte dans le temps. Chaque barre est le passage audio que lit un grain, et son point glisse dans le sens de lecture, vers le passé quand le grain est inversé, vers le présent sinon. Plus le point est foncé, plus le grain est fort, selon le niveau de l’audio qu’il lit, à travers sa fenêtre. Un anneau vide est un grain qui lit du silence. La hauteur indique le panoramique.',
               reviewed: false },
         'zh-Hans': { t: '颗粒视图',
-              b: '此刻正在播放的每个颗粒。左侧为当前，越往右越久远。每条横条是一个颗粒读取的音频片段，其上的圆点沿播放方向滑动：倒放时向过去，正放时向现在。越亮表示颗粒在其窗口中越响。高度表示声像。',
+              b: '此刻正在播放的每个颗粒。左侧为当前，越往右越久远。每条横条是一个颗粒读取的音频片段，其上的圆点沿播放方向滑动：倒放时向过去，正放时向现在。颜色越深表示越响，即颗粒所读取音频的电平乘以其窗口。空心圆环表示颗粒正在读取静音。高度表示声像。',
               reviewed: 'mt' },
     },
 
