@@ -3,7 +3,7 @@ plugin: O-Formant
 stage: 4
 status: complete
 phase: verified
-version: 1.30.0
+version: 1.30.1
 last_updated: 2026-09-24
 complexity_score: 5.0
 staged_implementation: true

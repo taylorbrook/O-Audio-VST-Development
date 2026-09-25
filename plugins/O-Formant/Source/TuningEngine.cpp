@@ -430,8 +430,10 @@ std::optional<double> TuningEngine::parseScalaPitch(const juce::String& line) co
         return std::isfinite(cents) ? std::optional<double>(cents) : std::nullopt;
     }
 
-    // Ratio "n/d" or integer "n" (= n/1)
-    if (!token.containsOnly("0123456789/"))
+    // Ratio "n/d" or integer "n" (= n/1). v1.30.1: at most one '/' — "3/2/5"
+    // used to load as 3/2.
+    if (!token.containsOnly("0123456789/")
+        || token.indexOfChar('/') != token.lastIndexOfChar('/'))
         return std::nullopt;
 
     double ratio;
@@ -449,7 +451,11 @@ std::optional<double> TuningEngine::parseScalaPitch(const juce::String& line) co
         if (ratio <= 0.0)
             return std::nullopt;
     }
-    return 1200.0 * std::log2(ratio);
+
+    // v1.30.1: an over-long digit string parses as inf, so inf/inf gave a NaN
+    // pitch (and n/inf or inf/d a ±inf one) that loaded into the tuning table.
+    const double cents = 1200.0 * std::log2(ratio);
+    return std::isfinite(cents) ? std::optional<double>(cents) : std::nullopt;
 }
 
 bool TuningEngine::loadScalaFile(const juce::File& sclFile)
@@ -818,91 +824,114 @@ double TuningEngine::calculate12TETFrequency(int midiNote) const
     return a4Frequency * std::pow(2.0, stretchedSemitones / 12.0);
 }
 
+const std::vector<double>& TuningEngine::twelveTETIntervals() noexcept
+{
+    static const std::vector<double> intervals { 0.0, 100.0, 200.0, 300.0, 400.0, 500.0,
+                                                 600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0 };
+    return intervals;
+}
+
+double TuningEngine::calculateKBMFrequency(int midiNote, const std::vector<double>& intervals) const
+{
+    // Caller holds intervalMutex, kbmLoaded is true and intervals.size() >= 2.
+    // v1.30.1: shared by Scala AND 12-TET mode — a loaded .kbm used to apply in
+    // Scala mode only, yet was still saved and exported in 12-TET mode.
+
+    // WR-07: keys outside the KBM's retune range are unmapped — silent (0 Hz),
+    // per the Scala spec, instead of falling back to 12-TET.
+    if (midiNote < kbmFirstNote || midiNote > kbmLastNote)
+        return 0.0;
+
+    const double period = intervals.back();
+    const int scaleSize = static_cast<int>(intervals.size()) - 1;
+
+    // Full KBM mapping mode (Scala .kbm semantics, WR-07)
+    auto floorDiv = [](int a, int b) noexcept
+    {
+        int q = a / b;
+        if ((a % b != 0) && ((a < 0) != (b < 0)))
+            --q;
+        return q;
+    };
+
+    // Any scale degree, including beyond the scale size (it WRAPS into the
+    // next period instead of being clamped) and negative ones.
+    auto degreeCents = [&](int degree) noexcept
+    {
+        const int periods = floorDiv(degree, scaleSize);
+        const int index = degree - periods * scaleSize;
+        return intervals[static_cast<size_t>(index)] + periods * period;
+    };
+
+    // The formal octave: the pitch step between adjacent mapping patterns,
+    // taken from the file's octave degree (0 = the scale's own period).
+    const double patternCents = degreeCents(kbmOctaveDegree > 0 ? kbmOctaveDegree : scaleSize);
+
+    // Cents of a key relative to degree 0 at the middle note; false = 'x'.
+    auto keyCents = [&](int note, double& cents) noexcept
+    {
+        const int offset = note - kbmMiddleNote;
+        if (kbmMapSize == 0)            // linear: offset IS the degree
+        {
+            cents = degreeCents(offset);
+            return true;
+        }
+        const int pattern = floorDiv(offset, kbmMapSize);
+        const int position = offset - pattern * kbmMapSize;
+        const int mapped = position < static_cast<int>(kbmMapping.size())
+                               ? kbmMapping[static_cast<size_t>(position)] : -1;
+        if (mapped < 0)
+        {
+            cents = pattern * patternCents;   // degree 0 of its pattern
+            return false;
+        }
+        cents = degreeCents(mapped) + pattern * patternCents;
+        return true;
+    };
+
+    double noteCents;
+    if (!keyCents(midiNote, noteCents))
+        return 0.0;                         // 'x' key: silent
+
+    double refCents;
+    keyCents(kbmReferenceNote, refCents);   // an unmapped reference still anchors
+
+    const double stretchedCents = (noteCents - refCents) * static_cast<double>(octaveStretch);
+    return kbmReferenceFreq * std::pow(2.0, stretchedCents / 1200.0);
+}
+
+double TuningEngine::calculateTwelveTETTableFrequency(int midiNote) const
+{
+    {
+        std::lock_guard<std::mutex> lock(intervalMutex);
+        if (kbmLoaded)
+            return calculateKBMFrequency(midiNote, twelveTETIntervals());
+    }
+    return calculate12TETFrequency(midiNote);
+}
+
 double TuningEngine::calculateCustomFrequency(int midiNote) const
 {
     std::lock_guard<std::mutex> lock(intervalMutex);
 
     if (scaleIntervals.size() < 2)
-        return calculate12TETFrequency(midiNote);
-
-    // WR-07: keys outside the KBM's retune range are unmapped — silent (0 Hz),
-    // per the Scala spec, instead of falling back to 12-TET.
-    if (kbmLoaded && (midiNote < kbmFirstNote || midiNote > kbmLastNote))
-        return 0.0;
+        return kbmLoaded ? calculateKBMFrequency(midiNote, twelveTETIntervals())
+                         : calculate12TETFrequency(midiNote);
 
     // Use rotated intervals when tonic != 0
     int tonic = tonicOffset.load(std::memory_order_relaxed);
     const auto& activeIntervals = (tonic == 0 || rotatedIntervals.empty()) ? scaleIntervals : rotatedIntervals;
 
-    double period = activeIntervals.back();
-    int scaleSize = static_cast<int>(activeIntervals.size()) - 1;
-    if (scaleSize <= 0) scaleSize = 12;
-
-    int scaleDegree;
-
     if (kbmLoaded)
-    {
-        // Full KBM mapping mode (Scala .kbm semantics, WR-07)
-        auto floorDiv = [](int a, int b) noexcept
-        {
-            int q = a / b;
-            if ((a % b != 0) && ((a < 0) != (b < 0)))
-                --q;
-            return q;
-        };
+        return calculateKBMFrequency(midiNote, activeIntervals);
 
-        // Any scale degree, including beyond the scale size (it WRAPS into the
-        // next period instead of being clamped) and negative ones.
-        auto degreeCents = [&](int degree) noexcept
-        {
-            const int periods = floorDiv(degree, scaleSize);
-            const int index = degree - periods * scaleSize;
-            return activeIntervals[static_cast<size_t>(index)] + periods * period;
-        };
-
-        // The formal octave: the pitch step between adjacent mapping patterns,
-        // taken from the file's octave degree (0 = the scale's own period).
-        const double patternCents = degreeCents(kbmOctaveDegree > 0 ? kbmOctaveDegree : scaleSize);
-
-        // Cents of a key relative to degree 0 at the middle note; false = 'x'.
-        auto keyCents = [&](int note, double& cents) noexcept
-        {
-            const int offset = note - kbmMiddleNote;
-            if (kbmMapSize == 0)            // linear: offset IS the degree
-            {
-                cents = degreeCents(offset);
-                return true;
-            }
-            const int pattern = floorDiv(offset, kbmMapSize);
-            const int position = offset - pattern * kbmMapSize;
-            const int mapped = position < static_cast<int>(kbmMapping.size())
-                                   ? kbmMapping[static_cast<size_t>(position)] : -1;
-            if (mapped < 0)
-            {
-                cents = pattern * patternCents;   // degree 0 of its pattern
-                return false;
-            }
-            cents = degreeCents(mapped) + pattern * patternCents;
-            return true;
-        };
-
-        double noteCents;
-        if (!keyCents(midiNote, noteCents))
-            return 0.0;                         // 'x' key: silent
-
-        double refCents;
-        keyCents(kbmReferenceNote, refCents);   // an unmapped reference still anchors
-
-        const double stretchedCents = (noteCents - refCents) * static_cast<double>(octaveStretch);
-        return kbmReferenceFreq * std::pow(2.0, stretchedCents / 1200.0);
-    }
-    else
     {
         // Linear mapping for all scale sizes
+        const int scaleSize = static_cast<int>(activeIntervals.size()) - 1;
         const int anchorNote = 60 + tonic;
         int noteRelativeToAnchor = midiNote - anchorNote;
 
-        int scaleOctave;
+        int scaleOctave, scaleDegree;
         if (noteRelativeToAnchor >= 0)
         {
             scaleOctave = noteRelativeToAnchor / scaleSize;
@@ -951,7 +980,7 @@ void TuningEngine::rebuildFrequencyTable()
         double freq;
         if (mode == Mode::TwelveTET)
         {
-            freq = calculate12TETFrequency(midiNote);
+            freq = calculateTwelveTETTableFrequency(midiNote);
         }
         else
         {

@@ -740,6 +740,9 @@ OFormantAudioProcessor::OFormantAudioProcessor()
     // prefers the oldest released voice and protects the lowest/highest held
     // notes; FormantVoice declicks the stolen note's last sample.
     synthesiser.setVoiceStealingEnabled (true);
+
+    // v1.30.1: unmapped (.kbm 'x' / out-of-range) keys never claim a voice.
+    synthesiser.setTuningEngine (&tuningEngine);
 }
 
 OFormantAudioProcessor::~OFormantAudioProcessor()
