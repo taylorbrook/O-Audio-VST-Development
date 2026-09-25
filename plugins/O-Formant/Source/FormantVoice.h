@@ -124,6 +124,7 @@ private:
     float formantBWs[5] = {};
     float formantGains[5] = {};
     bool snapFormantsOnNextUpdate = false; // CR-03: first update of a note snaps
+    int lastTopology = -1;                 // IN-11: detects a formantTopology switch
 
     // Consonant-to-vowel F2/F3 locus transition
     // (Delattre-Liberman-Cooper 1955; Kewley-Port 1982 τ=15ms exp. decay)

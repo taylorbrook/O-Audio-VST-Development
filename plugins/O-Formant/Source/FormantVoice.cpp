@@ -116,6 +116,13 @@ void FormantVoice::prepare (double sampleRate)
     vibratoLFO.prepare (sampleRate);
     pitchGlide.prepare (sampleRate);
     consonantEngine.prepare (sampleRate, voiceIdx);
+    // v1.31.2 (review IN-06): vibrato jitter and aspiration noise were clock-
+    // seeded, so renders weren't reproducible. Seed per voice at prepare (as
+    // ConsonantEngine does) — not per note, which would freeze the breath noise
+    // into the same pattern on every note. Distinct constants per generator so
+    // no two streams on a voice share a seed.
+    vibratoLFO.setSeed (voiceIdx * 101 + 7);
+    aspirationNoise.setSeed (voiceIdx * 211 + 131);
     fricationBank.prepare (sampleRate);
     adsr.setSampleRate (sampleRate);
     declickCoeff = static_cast<float> (std::exp (-1.0 / (0.003 * sampleRate))); // WR-03: 3 ms tau
@@ -165,6 +172,7 @@ void FormantVoice::noteStarted()
         declickL = declickR = lastOutL = lastOutR = 0.0f;
         adsr.reset();
         voiceActive = false;
+        wasActive = false;
         clearCurrentNote();
         return;
     }
@@ -590,6 +598,23 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     // Formant topology: 0=Cascade, 1=Parallel (legacy), 2=Hybrid
     int topology = pFormantTopology != nullptr ? static_cast<int> (pFormantTopology->load()) : 0;
 
+    // v1.31.2 (review IN-11): a topology switch pairs filter state with the wrong
+    // coefficients — Cascade↔Hybrid turns cascade stages 4-5 from all-pole
+    // resonators into band-passes, and the bank Parallel skipped holds state and
+    // formant targets from whenever it last ran. Clear both banks' state and snap
+    // the next coefficient update onto the current formants (same path as a
+    // note-on, CR-03) instead of rendering one mismatched block.
+    if (topology != lastTopology)
+    {
+        if (lastTopology >= 0)
+        {
+            filterBank.reset();
+            cascadeBank.reset();
+            snapFormantsOnNextUpdate = true;
+        }
+        lastTopology = topology;
+    }
+
     // Formant transition time: per-formant SmoothedValue ramp durations
     float transitionTime = pTransitionTime != nullptr ? pTransitionTime->load() : 0.4f;
     filterBank.setTransitionTime (transitionTime);
@@ -624,10 +649,13 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     // multiplicatively. MPESynthesiser splits sub-blocks at bend events, so the
     // bend is constant across one renderNextBlock — compute once here.
     // bendRatio == 1.0 when the wheel is centred.
+    // v1.31.2 (review IN-01): the bend is applied AFTER the portamento smoother,
+    // not folded into its target — otherwise wheel moves lagged by the Glide
+    // time and a note-on with the wheel already bent slid up from unbent.
     const float bendRangeSt = pPitchBendRange != nullptr ? pPitchBendRange->load() : 2.0f;
     const float bendRatio = std::pow (2.0f,
         getCurrentlyPlayingNote().pitchbend.asSignedFloat() * bendRangeSt / 12.0f);
-    pitchGlide.setTarget (tunedF0 * bendRatio);
+    pitchGlide.setTarget (tunedF0);
 
     for (int i = 0; i < numSamples; ++i)
     {
@@ -787,7 +815,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         }
 
         // --- Per-sample pitch: PitchGlide -> VibratoLFO -> final F0 ---
-        float baseF0 = pitchGlide.getNextFrequency();
+        float baseF0 = pitchGlide.getNextFrequency() * bendRatio;
         float vibCents = vibratoLFO.getNextValue (vibratoRate, vibratoDepth);
         float jitterOffset = vibratoLFO.getJitterOffset() + sourceFilterJitterBoost;
         float finalF0 = baseF0 * std::pow (2.0f, vibCents / 1200.0f) * (1.0f + jitterOffset);
@@ -893,9 +921,8 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             rdSmoothed.setCurrentAndTargetValue (std::isfinite (rdT) ? rdT : 1.0f);
             const float sfgT = sourceFilterGain.getTargetValue();
             sourceFilterGain.setCurrentAndTargetValue (std::isfinite (sfgT) ? sfgT : 1.0f);
-            const float glideT = tunedF0 * bendRatio;
-            if (std::isfinite (glideT) && glideT > 0.0f)
-                pitchGlide.snapTo (glideT);
+            if (std::isfinite (tunedF0) && tunedF0 > 0.0f)
+                pitchGlide.snapTo (tunedF0);
         }
 
         // Stereo width: pan by MIDI note (equal-power)
@@ -914,6 +941,11 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     if (! adsr.isActive())
     {
         voiceActive = false;
+        // v1.31.2 (review IN-02): a voice that finished its release has no pitch
+        // to glide from — without this the next note on this voice slid in from
+        // whatever it last played. Glide still applies when a sounding voice is
+        // retaken (steal / retrigger during release).
+        wasActive = false;
         lastOutL = lastOutR = declickL = declickR = 0.0f; // inactive voices aren't rendered
         clearCurrentNote();
     }

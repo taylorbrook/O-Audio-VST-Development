@@ -11,7 +11,7 @@ findings:
   info: 24
   total: 53
 status: issues_found
-verified: 2026-09-24 — v1.31.0 (CR-01, WR-01, WR-11, WR-15, WR-17) via /improve-verify
+verified: 2026-09-24 — v1.31.1 (IN-03/07/09/16/19/20/21-save/22a,c/23a,b,d,e/24g-k) via /improve-verify; previously v1.31.0 (CR-01, WR-01, WR-11, WR-15, WR-17)
 supersedes: .planning/REVIEW.md (v1.25.0) — its CR-01/03/04/05, WR-01..08 are resolved (fixes re-verified correct); its CR-02, WR-10, WR-12 were still open and are carried forward here as CR-08 / CR-09
 ---
 
@@ -149,21 +149,21 @@ Border-box sizing puts the rotation origin inside the 2 px border: main knob piv
 
 ## Info
 
-- **IN-01** Glide lags pitch-wheel moves (bend goes through the portamento smoother, `FormantVoice.cpp:570`); a note-on with the wheel already bent slides from unbent. Apply `bendRatio` after `pitchGlide.getNextFrequency()`.
-- **IN-02** Glide starts from whatever the voice last played — `wasActive` never cleared on natural note end (`:813-816`), so chord notes slide from unrelated pitches.
+- **IN-01** Glide lags pitch-wheel moves (bend goes through the portamento smoother, `FormantVoice.cpp:570`); a note-on with the wheel already bent slides from unbent. Apply `bendRatio` after `pitchGlide.getNextFrequency()`. **Resolved in v1.32.0**
+- **IN-02** Glide starts from whatever the voice last played — `wasActive` never cleared on natural note end (`:813-816`), so chord notes slide from unrelated pitches. **Resolved in v1.32.0**
 - **IN-03** NaN guard doesn't clear `spectralTiltPrev` (`:748, 756, 787-802`) → a NaN there silences the voice until next note-on. Also snap `rdSmoothed`, `sourceFilterGain`, glide. **Resolved in v1.31.1**
-- **IN-04** `getTailLengthSeconds()` = 5 s vs release up to 10 s + delay feedback 0.95 × 2 s.
+- **IN-04** `getTailLengthSeconds()` = 5 s vs release up to 10 s + delay feedback 0.95 × 2 s. **Resolved in v1.32.0**
 - **IN-05** Output clipper `jlimit` (`PluginProcessor.cpp:887`) passes NaN; reverb ±2 tank clamp and delay feedback also latch NaN (`ReverbProcessor.cpp:400-401`, `DelayProcessor.cpp:103`). Add a finite guard at the output.
-- **IN-06** `VibratoLFO` `juce::Random` clock-seeded (`VibratoLFO.h:107`) → renders not reproducible.
+- **IN-06** `VibratoLFO` `juce::Random` clock-seeded (`VibratoLFO.h:107`) → renders not reproducible. **Resolved in v1.32.0**
 - **IN-07** `LFGlottalSource.h:144-146`: phase in `[1−2⁻²⁵, 1)` rounds to `1.0f` → reads index 2049 of the last frame (one past end; `frac = 0`, ASan-visible UB). Compute in double or `min(idx0, kTableSize-1)`. **Resolved in v1.31.1**
 - **IN-08** Glottal table carries DC equal to the return-phase area (mipmap stage removes it); resolves with CR-01. **Already fixed in v1.31.0** (CR-01 solver: net area over the period is 0; mipmap still zeroes DC).
 - **IN-09** `FricationFormantBank.h:125-127` F6F fixed 6 kHz with no Nyquist clamp (garbage coeffs below ~12 kHz SR). **Resolved in v1.31.1**
 - **IN-10** Aspiration closure burst at fixed phase 0.6 (`AspirationNoise.h:78`) while Te spans 0.30–0.99 — pass Te in.
-- **IN-11** Topology switch leaves resonator state paired with band-pass coefficients / stale skipped bank → one-block click. Reset on change.
-- **IN-12** Reverb damping (`damping*0.7` per-sample) and mod excursion (16 samples) are SR-dependent (`ReverbProcessor.cpp:342, 384`); IN-12 of the prior review aliases stage-0 diffusion below 44.1 kHz.
+- **IN-11** Topology switch leaves resonator state paired with band-pass coefficients / stale skipped bank → one-block click. Reset on change. **Resolved in v1.32.0**
+- **IN-12** Reverb damping (`damping*0.7` per-sample) and mod excursion (16 samples) are SR-dependent (`ReverbProcessor.cpp:342, 384`); IN-12 of the prior review aliases stage-0 diffusion below 44.1 kHz. **Resolved in v1.32.0**
 - **IN-13** Pre-delay 0 < d < 1 sample blends newest with a ~370 ms-old sample (`ReverbProcessor.cpp:62-67`). **Already fixed in v1.30.0** (WR-16).
-- **IN-14** Burst envelope truncated at `exp(-2)` = 13.5 % for high manner (`ConsonantEngine.h:276`); normalise. Aspiration-active test uses the bipolar noise sign (`:236`). *(Aspiration sign test: **already fixed in v1.30.0**, WR-18. Burst truncation: open.)*
-- **IN-15** EQ coefficient steps at block rate (mild zipper on fast sweeps).
+- **IN-14** Burst envelope truncated at `exp(-2)` = 13.5 % for high manner (`ConsonantEngine.h:276`); normalise. Aspiration-active test uses the bipolar noise sign (`:236`). *(Aspiration sign test: **already fixed in v1.30.0**, WR-18. Burst truncation: **Resolved in v1.32.0**.)* **Resolved in v1.32.0**
+- **IN-15** EQ coefficient steps at block rate (mild zipper on fast sweeps). **Resolved in v1.32.0**
 - **IN-16** Delay knob silently tops out at 1 s at 192 kHz (buffer 192000 samples) — size the buffer from SR in `prepare`. **Resolved in v1.31.1**
 - **IN-17** Partch 43-Tone has 41 entries (`EmbeddedTunings.cpp:130-133`) — missing 11/10 and 20/11.
 - **IN-18** Tonic semantics differ: linear mode shifts the anchor by 12-TET semitones (`TuningEngine.cpp:885`), KBM mode rotates by scale degrees (`:811, :352`).
@@ -201,7 +201,10 @@ Border-box sizing puts the rotation origin inside the 2 px border: main knob piv
 | v1.30.0 | `265eb24f` | CR-03/06, WR-03/04/06/07/08/09/14/16/18/19/20 (IN-13, IN-14b as side effects) |
 | v1.31.0 | `7c0baac5` | CR-01, WR-01, WR-11, WR-15, WR-17 (IN-08 as a side effect) |
 | v1.31.1 | `6bd37253` | IN-03, IN-07, IN-09, IN-16, IN-19, IN-20, IN-21 (save), IN-22a/c, IN-23a/b/d/e, IN-24g/h/i/j/k |
+| v1.32.0 | `PENDING` | IN-01, IN-02, IN-04, IN-06, IN-11, IN-12, IN-14a, IN-15 |
 
 Closed without change: IN-22b (drag listeners already on `document`), IN-23c (overlay adds 0 px — measured), IN-24f (UI shows `ct`).
 
-Still open: IN-01, IN-02, IN-04, IN-06, IN-10, IN-11, IN-12, IN-14a, IN-15, IN-17, IN-18, IN-21 (navigation), IN-24a–e.
+Still open: IN-10, IN-17, IN-18, IN-21 (navigation), IN-24a–e.
+
+Chosen resolutions for the next sweep (decided 2026-09-25): IN-17 — fix O-Formant's table only (add 11/10 = 165.0 ¢ and 20/11 = 1035.0 ¢; the scala-tuning-engine module and the O-Bells/Prism/Strata/Lyrica/IntonationPad copies as a separate follow-up); IN-18 — document and leave; IN-24 — semantics + i18n only (tab role/tabindex, gear `aria-expanded`, localized generated scale names); knob focus, wheel, double-click reset and fine drag stay open.

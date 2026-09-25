@@ -57,7 +57,8 @@ private:
     static constexpr int kDiffusionDelays[kNumDiffusionStages] = { 142, 107, 79, 53 };
     static constexpr float kDiffusionCoeff = 0.625f;
     static constexpr float kLfoRates[4] = { 0.15f, 0.33f, 0.57f, 0.97f };
-    static constexpr float kMaxModExcursion = 16.0f;
+    static constexpr float kMaxModExcursion = 16.0f;   // at 48 kHz (IN-12)
+    float modExcursionSamples = kMaxModExcursion;      // scaled in prepare()
 
     struct DelayLine
     {

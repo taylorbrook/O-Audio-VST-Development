@@ -750,6 +750,46 @@ OFormantAudioProcessor::~OFormantAudioProcessor()
 }
 
 //==============================================================================
+// v1.31.2 (review IN-04): the fixed 5 s tail was shorter than the Release knob
+// alone (up to 10 s), so hosts cut offline renders and freeze/bounce mid-tail.
+// The worst case over the parameter ranges is not a usable constant:
+//   release 10 s + delay 2 s · ln(1e-3)/ln(0.95) = 269.3 s (the feedback LPF is
+//   unity at DC, so lows decay at the full 0.95) + reverb predelay 0.2 s +
+//   RT60 0.2 + 1²·11.8 = 12 s  →  ≈ 291.5 s.
+// So the tail is computed from the current settings, mirroring processBlock's
+// FX gating (a bypassed or mix ≤ 0.001 stage runs nothing and adds nothing).
+// Figures are to −60 dB; the reverb term is its nominal RT60
+// (ReverbProcessor::computeFeedbackGain), the delay term counts one echo when
+// feedback is ~0. Hosts re-query this; it is never called on the audio thread.
+double OFormantAudioProcessor::getTailLengthSeconds() const
+{
+    auto get = [this] (const char* id, float fallback)
+    {
+        if (auto* v = parameters.getRawParameterValue (id))
+            return static_cast<double> (v->load());
+        return static_cast<double> (fallback);
+    };
+
+    double tail = get ("release", 0.5f);
+
+    if (get ("delayBypass", 0.0f) < 0.5 && get ("delayMix", 0.0f) > 0.001)
+    {
+        const double time = get ("delayTime", 0.375f);
+        const double fb   = juce::jlimit (0.0, 0.95, get ("delayFeedback", 0.3f));
+        const double repeats = fb > 1.0e-3 ? std::log (1.0e-3) / std::log (fb) : 1.0;
+        tail += time * juce::jmax (1.0, repeats);
+    }
+
+    if (get ("reverbBypass", 0.0f) < 0.5 && get ("reverbMix", 0.0f) > 0.001)
+    {
+        const double size = juce::jlimit (0.0, 1.0, get ("reverbSize", 0.5f));
+        tail += get ("reverbPredelay", 20.0f) * 0.001 + 0.2 + size * size * 11.8;
+    }
+
+    return tail;
+}
+
+//==============================================================================
 void OFormantAudioProcessor::cacheParamPointers()
 {
     // Fetch the effects/output raw-parameter pointers once (IN-02). getRawParameterValue

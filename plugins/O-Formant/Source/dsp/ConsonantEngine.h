@@ -103,6 +103,11 @@ public:
         // progress < 0 → exp() overflows to inf/NaN.
         burstTotalSamples = cachedBurstDuration;
         burstDecayRate = cachedBurstDecayRate;
+        // IN-14: the raw exp(-rate·progress) ends at exp(-rate) — 13.5 % at the
+        // fricative end (rate 2) — and the burst cut off there. Subtract that
+        // floor and rescale so the envelope still starts at 1 but lands on 0.
+        burstEnvFloor = std::exp (-burstDecayRate);
+        burstEnvNorm  = 1.0f / juce::jmax (1.0e-3f, 1.0f - burstEnvFloor);
         onsetSamplesRemaining = onsetTotalSamples;
         burstAmplitude = velocity;
 
@@ -289,7 +294,8 @@ public:
         {
             float progress = 1.0f - static_cast<float> (burstSamplesRemaining)
                                     / static_cast<float> (juce::jmax (1, burstTotalSamples));
-            float burstEnv = std::exp (-burstDecayRate * progress) * burstAmplitude;
+            float burstEnv = (std::exp (-burstDecayRate * progress) - burstEnvFloor)
+                             * burstEnvNorm * burstAmplitude;
 
             // Stevens-Blumstein place-dependent burst templates (plosives only)
             // For plosives (manner < 0.3), replace the generic dual-BPF shape
@@ -477,6 +483,8 @@ private:
     int burstSamplesRemaining = 0;
     int burstTotalSamples = 353;       // WR-02: latched at triggerBurst()
     float burstDecayRate = 7.0f;       // WR-02: latched at triggerBurst()
+    float burstEnvFloor = 0.0f;        // IN-14: exp(-burstDecayRate), latched with it
+    float burstEnvNorm = 1.0f;         // IN-14: 1 / (1 - burstEnvFloor)
     float burstAmplitude = 0.0f;
 
     int onsetSamplesRemaining = 0;

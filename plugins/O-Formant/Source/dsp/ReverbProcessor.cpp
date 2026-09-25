@@ -237,6 +237,12 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
         }
     }
 
+    // IN-12: kMaxModExcursion is in 48 kHz samples; scale it like the delay
+    // lengths so the chorus depth in ms doesn't shrink at high rates. The
+    // tank's worst read is base·1.5·srRatio + 16·srRatio, well inside the
+    // base·2·srRatio + 64 buffer (the smallest base, 809, leaves 404·srRatio).
+    modExcursionSamples = kMaxModExcursion * srRatio;
+
     for (int ch = 0; ch < kNumChannels; ++ch)
     {
         int maxDelay = static_cast<int> (static_cast<float> (kBaseDelays[ch]) * srRatio * 2.0f) + 64;
@@ -362,7 +368,11 @@ void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
         predelaySmoothed.setTargetValue (predelaySamplesTarget);
     }
 
-    float dampCoeff = damping * 0.7f;
+    // v1.31.2 (review IN-12): the one-pole damping coefficient is per sample,
+    // so a fixed value darkened the tail more at high rates. It is authored at
+    // the 48 kHz reference every delay length here uses (srRatio) and mapped to
+    // the running rate as a^(48000/sr) — identical at 48 kHz.
+    float dampCoeff = std::pow (damping * 0.7f, 48000.0f / currentSampleRate);
     for (int ch = 0; ch < kNumChannels; ++ch)
         tankFilters[static_cast<size_t> (ch)].setCoefficient (dampCoeff);
 
@@ -411,7 +421,7 @@ void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
             {
                 int lfoIdx = ch >> 1;
                 float mod = lfoBank[static_cast<size_t> (lfoIdx)].next();
-                delay += mod * modDepth * kMaxModExcursion;
+                delay += mod * modDepth * modExcursionSamples;
             }
 
             delay = std::max (delay, 1.0f);

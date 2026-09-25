@@ -3,8 +3,8 @@ plugin: O-Formant
 stage: 4
 status: complete
 phase: verified
-version: 1.31.1
-last_updated: 2026-09-24
+version: 1.32.0
+last_updated: 2026-09-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
@@ -24,6 +24,11 @@ contract_checksums:
 Stage: 4 of 4 (Polish) -- VERIFIED COMPLETE
 Status: All stages verified, pluginval level 10 PASSED (VST3 + AU)
 Progress: [####################] 100%
+
+## v1.32.0 -- CODE_REVIEW.md Info-tier sweep 2, audible (2026-09-25)
+
+- Resolved IN-01, 02, 04, 06, 11, 12, 14a, 15. MINOR (audible: bend/glide, burst tail, reverb off 48 kHz, EQ sweeps). Reverb exact at 48 kHz (all float damping values). Tail now computed from settings. auval PASS, pluginval 10 PASS (VST3), UI/i18n gates PASS. No render null (no harness).
+- Open: IN-10, IN-17 (fix local table), IN-18 (document), IN-21 nav, IN-24 (semantics+i18n chosen; interactions open). Listening pass on factory presets owed (v1.31.0 + v1.32.0).
 
 ## v1.31.1 -- CODE_REVIEW.md Info-tier sweep (2026-09-24)
 

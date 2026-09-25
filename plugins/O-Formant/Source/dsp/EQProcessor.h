@@ -64,6 +64,16 @@ private:
     std::atomic<float> targetMidFreqHz { 1000.0f };
     std::atomic<float> targetHighGainDB { 0.0f };
 
+    // IN-15: coefficients follow smoothed values, recomputed every
+    // kCoeffInterval samples while a smoother is moving (was once per block,
+    // which zippered on fast sweeps and depended on the host buffer size).
+    static constexpr int kCoeffInterval = 32;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> lowGainSm, midGainSm, highGainSm;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> midFreqSm;
+    bool snapOnNextProcess = true;
+
+    void updateCoefficients() noexcept;
+
     float prevLowGainDB = -999.0f;
     float prevMidGainDB = -999.0f;
     float prevMidFreqHz = -999.0f;
