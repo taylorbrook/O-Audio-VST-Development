@@ -155,29 +155,22 @@
     </div>
 
     <!-- ─── Groups ──────────────────────────────────────────────────────
-         THREE specimen rows sharing ONE pinned width contract
-         (190 | 190 | 276 | 190), so the columns align down the page.
+         v1.19.0: regrouped by what each control ACTS ON, and every panel is
+         full. THREE rows on ONE pinned width contract (190 | 190 | 276 | 190),
+         so the columns still align down the page; each row is as tall as its
+         content and no taller.
 
-         Row 1 — signal flow (D9), unchanged from v1.0.1.
-         Row 2 — character. RANDOM shipped with v1.1's four grain
-                 randomisations; WINDOW, COUNT and SPACE were framed and
-                 labelled empty at the same time, so that filling them through
-                 v1.6 would never resize the window again. Resizing is what
-                 invalidates the tooltip edge-clamp verification, so it was done
-                 once, there.
+         Row 1 — the grains: TIME | GRAIN | COUNT | DRIFT. COUNT sits next to
+                 GRAIN (it is a grain parameter), in the 276 px column its
+                 knob + readout needs. DRIFT modulates the delay time.
+         Row 2 — character: RANDOM | WINDOW | FEEDBACK | MOTION. FEEDBACK is
+                 the whole loop, COLOUR included.
+         Row 3 — in / out: SOURCE | OUTPUT (Duck, Width, Mix, meter), the
+                 output panel spanning columns 2-4.
 
-                 That plan held exactly: WINDOW filled at v1.2.0, COUNT at
-                 v1.3.0 and the last one — SPACE, now MOTION — at v1.6.0, and
-                 the frame did not move once across five releases and eleven
-                 controls.
-         Row 3 — space & response (v1.7.0). The reserve was spent, so this is
-                 the row-3 decision the review's section D warned about, paid at
-                 the same 940 px WIDTH: the tooltip clamp gate is horizontal, so
-                 a taller frame leaves the geometry under test unchanged and a
-                 wider one would not have.
-
-                 SOURCE | DUCK | DRIFT | COLOUR, with COLOUR framed and empty on
-                 the same principle that bought the last five releases.
+         Through v1.18.0 the chassis was a 4 x 4 x 4 grid of fixed-height rows,
+         which left COUNT, SOURCE and DUCK mostly empty and put 30 px of centring
+         slack around the rows. See CHANGELOG 1.19.0.
       -->
     <main class="groups">
 
@@ -265,76 +258,75 @@
         </div>
       </section>
 
-      <!-- FEEDBACK ─────────────────────────────────────────────────────── -->
-      <section class="group group-feedback">
-        <div class="group-label" data-i18n="knob-feedback">Feedback</div>
+      <!-- COUNT (v1.3.0, B2) ───────────────────────────────────────────────
+           The second reserved panel filled, and the one place this release
+           costs more than markup: the readout below needs its own CSS block
+           (.meter-cell), because it is the first element on the page that is
+           neither a knob, a select nor a segment pair.
+
+           It takes the panel that was labelled MOTION — the 276 px column, not
+           the 190 px one — because a knob plus two readout lines does not fit
+           the narrow width without crowding, and because the LABEL had to
+           change anyway: "Motion" describes delay-time drift (review B4 #6),
+           which is not this. That control now has SPACE reserved for it; the
+           row-3 decision the review's section D warns about arrives with
+           whichever of ducking / diffusion / stereo-source lands after that.
+
+           Count sits above the readout because it sets the ceiling the readout
+           reports against — reading the panel top-to-bottom is reading cause
+           then effect, the same ordering WINDOW uses for Shape over Tilt.
+           Default 8 is v1.2.0's hard-coded ceiling, so a v1.0-v1.2 session
+           opened here reads exactly as it did. -->
+      <section class="group group-count">
+        <div class="group-label" data-i18n="label.count">Count</div>
         <div class="group-body">
           <div class="knob-cell">
-            <div class="knob" id="knob-feedback" data-param="feedback"><div class="knob-stem"></div></div>
+            <div class="knob" id="knob-grainCount" data-param="grainCount"><div class="knob-stem"></div></div>
             <div class="knob-label" data-i18n="label.amount">Amount</div>
-            <div class="knob-value" id="val-feedback">&#8212;</div>
+            <div class="knob-value" id="val-grainCount">&#8212;</div>
           </div>
-          <div class="knob-cell">
-            <div class="knob" id="knob-lowCut" data-param="lowCut"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="knob-lowCut">Low Cut</div>
-            <div class="knob-value" id="val-lowCut">&#8212;</div>
-          </div>
-          <div class="knob-cell">
-            <div class="knob" id="knob-highCut" data-param="highCut"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="knob-highCut">High Cut</div>
-            <div class="knob-value" id="val-highCut">&#8212;</div>
+
+          <!-- Live engine readout, polled from getGrainMeter. Values are written
+               with textContent into the SPANS only — the "Active" / "Overlap"
+               captions are authored here and never touched by JS
+               (pattern_js_state_updater_overwrites_html_labels). aria-live is
+               off: this updates ~15x/s and would flood a screen reader. -->
+          <div class="meter-cell" id="grainMeter">
+            <div class="meter-row">
+              <span class="meter-label" data-i18n="label.active">Active</span>
+              <span class="meter-value" id="meter-active" aria-live="off">&#8212;</span>
+            </div>
+            <div class="meter-row">
+              <span class="meter-label" data-i18n="label.overlap">Overlap</span>
+              <span class="meter-value" id="meter-overlap" aria-live="off">&#8212;</span>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- OUTPUT ───────────────────────────────────────────────────────── -->
-      <section class="group group-output">
-        <div class="group-label" data-i18n="label.output">Output</div>
-        <div class="group-body">
-          <div class="knob-cell">
-            <div class="knob" id="knob-width" data-param="width"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="knob-width">Width</div>
-            <div class="knob-value" id="val-width">&#8212;</div>
-          </div>
-          <div class="knob-cell">
-            <div class="knob" id="knob-mix" data-param="mix"><div class="knob-stem"></div></div>
-            <!-- v1.16.0: Mix lock. The caption is wrapped so the lock can hang off
-                 its right edge. The wrapper shrinks to the caption, and the button
-                 is absolute, so the caption stays centred under the knob in every
-                 language and the cell keeps its height. The button sits BESIDE the
-                 .knob-label, never inside it: applyLabel() writes that element's
-                 textContent, which would erase a child
-                 (pattern_js_state_updater_overwrites_html_labels). Icon only, so
-                 the accessible name comes from data-i18n-aria. -->
-            <div class="caption-row">
-              <div class="knob-label" data-i18n="knob-mix">Mix</div>
-              <button type="button" class="mix-lock" id="mix-lock" aria-pressed="false"
-                      data-i18n-aria="mixLock" aria-label="Mix Lock">
-                <svg viewBox="0 0 10 12" width="9" height="11" aria-hidden="true" focusable="false">
-                  <path class="shackle-open"   d="M2.5 5.5V3.5a2.5 2.5 0 0 1 5 0" />
-                  <path class="shackle-closed" d="M2.5 5.5V3.5a2.5 2.5 0 0 1 5 0v2" />
-                  <rect x="1" y="5.5" width="8" height="6" rx="1" />
-                </svg>
-              </button>
-            </div>
-            <div class="knob-value" id="val-mix">&#8212;</div>
-          </div>
+      <!-- DRIFT (v1.7.0, B4 #6) ────────────────────────────────────────────
+           v1.19.0: row 1, column 4, at 190 px — two knob-cells are the same
+           72 + 14 + 72 = 158 px GRAIN has always filled.
 
-          <!-- v1.14.0: output level. Regen above 0 dB can push the output to
-               1.41–1.55 and the page had no level feedback at all. Upper bar =
-               output peak with a 1.5 s hold tick, lower hairline = input peak,
-               lamp = latched over-0-dBFS, cleared by a click anywhere on the
-               meter. Fed from getGrainMeter's peakIn / peakOut (peak since the
-               previous poll), so the bridge surface stays at 15. Numbers-free,
-               so nothing here is localized except its tip. -->
-          <div class="level-meter" id="levelMeter" aria-hidden="true">
-            <div class="level-track">
-              <div class="level-fill" id="level-out"></div>
-              <div class="level-hold" id="level-hold"></div>
-              <div class="level-in" id="level-in"></div>
-              <div class="level-zero"></div>
-            </div>
-            <div class="clip-lamp" id="clip-lamp"></div>
+           Rate sits above Depth because it sets the character Depth then scales
+           — the same cause-then-effect ordering WINDOW uses for Shape over Tilt
+           and COUNT uses for Count over its readout.
+
+           Rate is INERT while Depth is 0, which is the shipped state. Its cell
+           carries .knob-cell-inert then, exactly as Taper's does when the window
+           is not Tukey — dimmed and aria-disabled, but never unbound. -->
+      <section class="group group-drift">
+        <div class="group-label" data-i18n="label.drift">Drift</div>
+        <div class="group-body">
+          <div class="knob-cell" id="cell-driftRate">
+            <div class="knob" id="knob-driftRate" data-param="driftRate"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.rate">Rate</div>
+            <div class="knob-value" id="val-driftRate">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-driftDepth" data-param="driftDepth"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="label.depth">Depth</div>
+            <div class="knob-value" id="val-driftDepth">&#8212;</div>
           </div>
         </div>
       </section>
@@ -437,48 +429,39 @@
         </div>
       </section>
 
-      <!-- COUNT (v1.3.0, B2) ───────────────────────────────────────────────
-           The second reserved panel filled, and the one place this release
-           costs more than markup: the readout below needs its own CSS block
-           (.meter-cell), because it is the first element on the page that is
-           neither a knob, a select nor a segment pair.
-
-           It takes the panel that was labelled MOTION — the 276 px column, not
-           the 190 px one — because a knob plus two readout lines does not fit
-           the narrow width without crowding, and because the LABEL had to
-           change anyway: "Motion" describes delay-time drift (review B4 #6),
-           which is not this. That control now has SPACE reserved for it; the
-           row-3 decision the review's section D warns about arrives with
-           whichever of ducking / diffusion / stereo-source lands after that.
-
-           Count sits above the readout because it sets the ceiling the readout
-           reports against — reading the panel top-to-bottom is reading cause
-           then effect, the same ordering WINDOW uses for Shape over Tilt.
-           Default 8 is v1.2.0's hard-coded ceiling, so a v1.0-v1.2 session
-           opened here reads exactly as it did. -->
-      <section class="group group-count">
-        <div class="group-label" data-i18n="label.count">Count</div>
+      <!-- FEEDBACK (v1.19.0: absorbs COLOUR) ─────────────────────────────
+           The whole loop in one panel. Diffusion and Drive live INSIDE the
+           feedback return (allpasses, then the level-compensated saturator), so
+           they sit with Amount / Low Cut / High Cut rather than in a panel of
+           their own. Three over two, wrapping, loop order left to right.
+           Neither Diffusion nor Drive is ever inert. -->
+      <section class="group group-feedback">
+        <div class="group-label" data-i18n="knob-feedback">Feedback</div>
         <div class="group-body">
           <div class="knob-cell">
-            <div class="knob" id="knob-grainCount" data-param="grainCount"><div class="knob-stem"></div></div>
+            <div class="knob" id="knob-feedback" data-param="feedback"><div class="knob-stem"></div></div>
             <div class="knob-label" data-i18n="label.amount">Amount</div>
-            <div class="knob-value" id="val-grainCount">&#8212;</div>
+            <div class="knob-value" id="val-feedback">&#8212;</div>
           </div>
-
-          <!-- Live engine readout, polled from getGrainMeter. Values are written
-               with textContent into the SPANS only — the "Active" / "Overlap"
-               captions are authored here and never touched by JS
-               (pattern_js_state_updater_overwrites_html_labels). aria-live is
-               off: this updates ~15x/s and would flood a screen reader. -->
-          <div class="meter-cell" id="grainMeter">
-            <div class="meter-row">
-              <span class="meter-label" data-i18n="label.active">Active</span>
-              <span class="meter-value" id="meter-active" aria-live="off">&#8212;</span>
-            </div>
-            <div class="meter-row">
-              <span class="meter-label" data-i18n="label.overlap">Overlap</span>
-              <span class="meter-value" id="meter-overlap" aria-live="off">&#8212;</span>
-            </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-lowCut" data-param="lowCut"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="knob-lowCut">Low Cut</div>
+            <div class="knob-value" id="val-lowCut">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-highCut" data-param="highCut"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="knob-highCut">High Cut</div>
+            <div class="knob-value" id="val-highCut">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-diffusion" data-param="diffusion"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="knob-diffusion">Diffusion</div>
+            <div class="knob-value" id="val-diffusion">&#8212;</div>
+          </div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-drive" data-param="drive"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="knob-drive">Drive</div>
+            <div class="knob-value" id="val-drive">&#8212;</div>
           </div>
         </div>
       </section>
@@ -574,79 +557,63 @@
         </div>
       </section>
 
-      <!-- DUCK (v1.7.0, B4 #4) ─────────────────────────────────────────────
-           One knob, centred. The wet is attenuated by the dry input's envelope,
-           so the wash blooms in the gaps instead of competing with the source —
-           the brief's "vocal ambience behind a lead" case, specifically.
-
-           Applied to the OUTPUT only and never to the feedback tap, so it
-           changes WHEN the tail is heard and not how long it lasts. -->
-      <section class="group group-duck">
-        <div class="group-label" data-i18n="label.duck">Duck</div>
+      <!-- OUTPUT (v1.19.0: absorbs DUCK) ───────────────────────────────────
+           Everything that acts on the wet after the loop, in the order it acts:
+           Duck (applied to the output only, never to the feedback tap), Width,
+           Mix, then the level meter reading the result. Spans columns 2-4, so
+           the meter gets a real length instead of a sliver under two knobs. -->
+      <section class="group group-output">
+        <div class="group-label" data-i18n="label.output">Output</div>
         <div class="group-body">
           <div class="knob-cell">
             <div class="knob" id="knob-duck" data-param="duck"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="label.amount">Amount</div>
+            <div class="knob-label" data-i18n="knob-duck">Duck</div>
             <div class="knob-value" id="val-duck">&#8212;</div>
           </div>
-        </div>
-      </section>
-
-      <!-- DRIFT (v1.7.0, B4 #6) ────────────────────────────────────────────
-           The 276 px column, for the same reason FEEDBACK and COUNT have it:
-           two knobs plus their readouts crowd a 190 px panel.
-
-           Rate sits above Depth because it sets the character Depth then scales
-           — the same cause-then-effect ordering WINDOW uses for Shape over Tilt
-           and COUNT uses for Count over its readout.
-
-           Rate is INERT while Depth is 0, which is the shipped state. Its cell
-           carries .knob-cell-inert then, exactly as Taper's does when the window
-           is not Tukey — dimmed and aria-disabled, but never unbound. -->
-      <section class="group group-drift">
-        <div class="group-label" data-i18n="label.drift">Drift</div>
-        <div class="group-body">
-          <div class="knob-cell" id="cell-driftRate">
-            <div class="knob" id="knob-driftRate" data-param="driftRate"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="label.rate">Rate</div>
-            <div class="knob-value" id="val-driftRate">&#8212;</div>
+          <div class="knob-cell">
+            <div class="knob" id="knob-width" data-param="width"><div class="knob-stem"></div></div>
+            <div class="knob-label" data-i18n="knob-width">Width</div>
+            <div class="knob-value" id="val-width">&#8212;</div>
           </div>
           <div class="knob-cell">
-            <div class="knob" id="knob-driftDepth" data-param="driftDepth"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="label.depth">Depth</div>
-            <div class="knob-value" id="val-driftDepth">&#8212;</div>
+            <div class="knob" id="knob-mix" data-param="mix"><div class="knob-stem"></div></div>
+            <!-- v1.16.0: Mix lock. The caption is wrapped so the lock can hang off
+                 its right edge. The wrapper shrinks to the caption, and the button
+                 is absolute, so the caption stays centred under the knob in every
+                 language and the cell keeps its height. The button sits BESIDE the
+                 .knob-label, never inside it: applyLabel() writes that element's
+                 textContent, which would erase a child
+                 (pattern_js_state_updater_overwrites_html_labels). Icon only, so
+                 the accessible name comes from data-i18n-aria. -->
+            <div class="caption-row">
+              <div class="knob-label" data-i18n="knob-mix">Mix</div>
+              <button type="button" class="mix-lock" id="mix-lock" aria-pressed="false"
+                      data-i18n-aria="mixLock" aria-label="Mix Lock">
+                <svg viewBox="0 0 10 12" width="9" height="11" aria-hidden="true" focusable="false">
+                  <path class="shackle-open"   d="M2.5 5.5V3.5a2.5 2.5 0 0 1 5 0" />
+                  <path class="shackle-closed" d="M2.5 5.5V3.5a2.5 2.5 0 0 1 5 0v2" />
+                  <rect x="1" y="5.5" width="8" height="6" rx="1" />
+                </svg>
+              </button>
+            </div>
+            <div class="knob-value" id="val-mix">&#8212;</div>
           </div>
-        </div>
-      </section>
 
-      <!-- COLOUR (v1.8.0, B4 #7-#8) ────────────────────────────────────────
-           The reserve is SPENT, and it paid exactly what it was framed to pay.
-           v1.7.0 left this panel empty during a resize it was making anyway, on
-           the bet that the next release would then cost markup instead of
-           another resize. It did: two knob-cells are 72 + 14 + 72 = 158 px in
-           the 190 px panel already here, which is the shape GRAIN and OUTPUT
-           have had since Stage 3. No width change, no height change, no new
-           geometry — so the tooltip clamp geometry under test is untouched.
-
-           Diffusion above Drive, matching the loop's own order (allpasses feed
-           the saturator, not the reverse) — the same cause-then-effect ordering
-           DRIFT uses for Rate over Depth.
-
-           Neither knob is ever inert: diffusion at 0 leaves drive fully audible
-           and vice versa, so unlike Drift's Rate cell there is no .knob-cell-inert
-           state here. -->
-      <section class="group group-colour">
-        <div class="group-label" data-i18n="label.colour">Colour</div>
-        <div class="group-body">
-          <div class="knob-cell">
-            <div class="knob" id="knob-diffusion" data-param="diffusion"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="knob-diffusion">Diffusion</div>
-            <div class="knob-value" id="val-diffusion">&#8212;</div>
-          </div>
-          <div class="knob-cell">
-            <div class="knob" id="knob-drive" data-param="drive"><div class="knob-stem"></div></div>
-            <div class="knob-label" data-i18n="knob-drive">Drive</div>
-            <div class="knob-value" id="val-drive">&#8212;</div>
+          <!-- v1.14.0: output level. Regen above 0 dB can push the output to
+               1.41–1.55 and the page had no level feedback at all. Upper bar =
+               output peak with a 1.5 s hold tick, lower hairline = input peak,
+               lamp = latched over-0-dBFS, cleared by a click anywhere on the
+               meter. Fed from getGrainMeter's peakIn / peakOut (peak since the
+               previous poll), so the bridge surface stays at 15. Numbers-free,
+               so nothing here is localized except its tip. -->
+          <div class="level-meter" id="levelMeter" aria-hidden="true">
+            <div class="level-track">
+              <div class="level-fill" id="level-out"></div>
+              <div class="level-hold" id="level-hold"></div>
+              <div class="level-in" id="level-in"></div>
+              <div class="level-zero"></div>
+            </div>
+            <div class="clip-lamp" id="clip-lamp"></div>
           </div>
         </div>
       </section>

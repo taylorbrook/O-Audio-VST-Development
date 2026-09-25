@@ -673,7 +673,14 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
-    // Fixed 940 x 768.
+    // Fixed 940 x 693.
+    //
+    // ── v1.19.0: 768 -> 693, regrouped ───────────────────────────────────────
+    // COLOUR folded into FEEDBACK (both sit in the loop), DUCK into a wide
+    // OUTPUT panel, COUNT moved up beside GRAIN, and every row is sized by its
+    // content instead of a pinned height. The 75 px removed were the empty
+    // halves of COUNT / SOURCE / DUCK plus .groups' centring slack. The history
+    // below is kept for the reasoning; its figures describe v1.7.1-v1.18.0.
     //
     // ── v1.7.1: 972 -> 768, all of it empty space ────────────────────────────
     // The v1.7.0 frame did not fit a 1080p screen once a DAW's plugin header and
@@ -707,8 +714,8 @@ ReverseDelayEditor::ReverseDelayEditor (ReverseDelayProcessor& p)
     // the above/below flip, which is re-measured at 940 x 768 rather than assumed
     // — tests/ui_tooltip_clamp_check.js drives the real page at exactly this size.
     //
-    // Must stay in sync with styles.css (html/body and .frame both read 768px).
-    setSize (940, 768);
+    // Must stay in sync with styles.css (html/body and .frame both read 693px).
+    setSize (940, 693);
 }
 
 ReverseDelayEditor::~ReverseDelayEditor() = default;

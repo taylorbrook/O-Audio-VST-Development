@@ -488,12 +488,12 @@ export const I18N = Object.freeze({
     },
     'randomise': {
         en: { t: 'Randomise',
-              b: 'Sets random values for the Random, Window, Drift and Colour controls only. Feedback, Regen, Mix and Output are never touched. The settings from before are kept in the other snapshot, so one click on it takes you back.' },
+              b: 'Sets random values for the Random, Window and Drift controls plus Diffusion and Drive, and nothing else. Feedback Amount, the cut filters, Regen, Mix and Output are never touched. The settings from before are kept in the other snapshot, so one click on it takes you back.' },
         fr: { t: 'Aléatoire',
-              b: 'Donne des valeurs aléatoires aux seules commandes Aléa, Fenêtre, Dérive et Couleur. La réinjection, le regain, le mix et la sortie ne sont jamais modifiés. Les réglages d’avant sont conservés dans l’autre instantané, et un clic sur celui-ci vous y ramène.',
+              b: 'Donne des valeurs aléatoires aux seules commandes Aléa, Fenêtre et Dérive, plus Diffusion et Saturation. La quantité de réinjection, les filtres coupe-bas et coupe-haut, le regain, le mix et la sortie ne sont jamais modifiés. Les réglages d’avant sont conservés dans l’autre instantané, et un clic sur celui-ci vous y ramène.',
               reviewed: false },
         'zh-Hans': { t: '随机化',
-              b: '仅为随机、窗口、漂移和音色面板中的控件设置随机值。反馈、再生、混合和输出永远不会被改动。之前的设置保存在另一个快照中，点击它即可返回。',
+              b: '仅为随机、窗口和漂移面板中的控件以及扩散度和驱动设置随机值，不涉及其他任何控件。反馈量、低切和高切、再生、混合和输出永远不会被改动。之前的设置保存在另一个快照中，点击它即可返回。',
               reviewed: 'mt' },
     },
 
@@ -696,9 +696,9 @@ export const I18N = Object.freeze({
 // carries the measurement. v1.10.0's third case — knob-duck's title
 // "Atténuation dynamique", 179.95 px of caption for a 72 px cell — is gone:
 // the glossary settles Duck as the loanword *Ducking* in both places, so the
-// title and the caption are now the same word for the same control and the
-// separate label.duck key survives only because the page also uses it as a
-// group heading.
+// title and the caption are now the same word for the same control. Since
+// v1.19.0 (no DUCK panel) the caption reads knob-duck directly and the
+// separate label.duck key is gone.
 //
 // ── ENGLISH WAS MOVED, NOT RE-TYPED ────────────────────────────────────────
 // Every en below is what index.html carried through v1.9.0, taken from
@@ -806,26 +806,23 @@ export const LABELS = Object.freeze({
     'label.off':       { en: { t: 'Off' },      fr: { t: 'Arrêt',     reviewed: true } , 'zh-Hans': { t: '关', reviewed: 'bt' },},
     'label.mono':      { en: { t: 'Mono' },     fr: { t: 'Mono',      reviewed: true, sameAsEn: true } , 'zh-Hans': { t: '单声道', reviewed: 'bt' },},
     'label.stereo':    { en: { t: 'Stereo' },   fr: { t: 'Stéréo',    reviewed: true } , 'zh-Hans': { t: '立体声', reviewed: 'bt' },},
-    // The loanword — the word this technique is called by in a French control
-    // room, and what the glossary settles for "Duck" suite-wide. v1.10.0
-    // shipped it as the caption while knob-duck's TIP said "Atténuation
-    // dynamique"; v1.10.1 put the tip on the same word, so the control has one
-    // French name and the tip's body does the explaining instead.
-    'label.duck':      { en: { t: 'Duck' },     fr: { t: 'Ducking',   reviewed: true } , 'zh-Hans': { t: '闪避', reviewed: 'bt' },},
+    // label.duck went with the DUCK panel at v1.19.0 — the Duck caption now
+    // reads knob-duck's title (fr "Ducking", the glossary's loanword).
     'label.drift':     { en: { t: 'Drift' },    fr: { t: 'Dérive',    reviewed: true } , 'zh-Hans': { t: '漂移', reviewed: 'bt' },},
     'label.rate':      { en: { t: 'Rate' },     fr: { t: 'Vitesse',   reviewed: true } , 'zh-Hans': { t: '速率', reviewed: 'bt' },},
     // v1.10.1: v1.10.0 read "Profondeur is 72.4 px in a 72 px cell — 0.4 px
     // over, which is a clip rather than a near miss" and shipped Ampleur.
     // Re-measured, the number was right (72.36 px) and the conclusion was
     // wrong: .knob-label is a shrink-to-fit flex item with overflow: visible,
-    // so its box IS its text and there is nothing to clip against. In the
+    // so its box IS its text and there is nothing to clip against. (v1.19.0:
+    // DRIFT is 190 px now; check-ui-labels re-measures it.) In the
     // 276 px DRIFT panel the caption clears VITESSE by 27.67 px and the
     // panel's own right edge by 58.81 px. The root term goes back in — which
     // also puts the caption, knob-driftDepth's title ("Profondeur de dérive")
     // and knob-driftRate's body ("tant que la Profondeur reste à zéro") on one
     // word. "Ampleur" is forbidden for Depth suite-wide (lint F1).
     'label.depth':     { en: { t: 'Depth' },    fr: { t: 'Profondeur', reviewed: true } , 'zh-Hans': { t: '深度', reviewed: 'bt' },},
-    'label.colour':    { en: { t: 'Colour' },   fr: { t: 'Couleur',   reviewed: true } , 'zh-Hans': { t: '音色', reviewed: 'bt' },},
+    // label.colour went with the COLOUR panel at v1.19.0 (folded into FEEDBACK).
 
     // ── The grain meter's two captions ──────────────────────────────────────
     // Their VALUE spans are readouts and are never keyed: updateGrainMeter()

@@ -237,7 +237,7 @@
 
 html, body {
   width: 940px;
-  height: 768px;
+  height: 693px;
   overflow: hidden;
 }
 
@@ -276,7 +276,7 @@ body {
   position: relative;
   z-index: 2;
   width: 940px;
-  height: 768px;
+  height: 693px;
   padding: 18px 22px 14px;
   border: 3px solid var(--brown-frame);
   box-shadow: inset 0 0 32px rgba(92, 64, 51, 0.12);
@@ -290,7 +290,7 @@ body {
   text-align: center;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(139, 115, 85, 0.45);
-  margin-bottom: 16px;
+  margin-bottom: 10px;   /* v1.19.0: 16 -> 10 */
 }
 
 .title {
@@ -496,7 +496,7 @@ body {
   justify-content: center;
   gap: 8px;
   height: 32px;
-  margin-bottom: 12px;
+  margin-bottom: 0;      /* v1.19.0: .groups' padding-top clears the cartouches */
   border-bottom: 1px solid rgba(139, 115, 85, 0.45);
 }
 
@@ -667,12 +667,15 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 12px;             /* v1.19.0: 14 -> 12, the same gap as between columns */
+  padding-top: 11px;     /* v1.19.0: the row-1 cartouches straddle the top edge by 9 */
 }
 
+/* v1.19.0: rows STRETCH their panels to the tallest one, and the tallest one
+   is sized by its content. No row carries a pinned height any more. */
 .group-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   gap: 12px;
 }
@@ -684,10 +687,9 @@ body {
    viewport. Row 2 overrides this below and is deliberately unchanged. */
 .group {
   position: relative;
-  height: 145px;
   display: flex;
   flex-direction: column;
-  padding: 16px 14px 12px;
+  padding: 15px 14px 11px;
   border: 2px solid var(--brown-border);
   border-radius: 5px;
   background: rgba(212, 196, 176, 0.42);
@@ -700,16 +702,15 @@ body {
    a later release inherits its width from here and moves nothing. */
 .group-time,
 .group-grain,
-.group-output,
+.group-drift,                       /* v1.19.0: row 1, column 4 */
 .group-random,
 .group-window,
 .group-motion,                      /* v1.6.0: .group-space filled + renamed */
-.group-source,                      /* v1.7.0: row 3 */
-.group-duck,
-.group-colour   { width: 190px; }
-.group-feedback,
-.group-count,                       /* v1.3.0: row 2's 276 px column, was labelled Motion */
-.group-drift    { width: 276px; }   /* v1.7.0: row 3's wide column */
+.group-source   { width: 190px; }   /* v1.7.0: row 3 */
+.group-count,                       /* v1.19.0: row 1's 276 px column */
+.group-feedback { width: 276px; }   /* v1.19.0: row 2's, loop + COLOUR */
+.group-output   { width: 680px; }   /* v1.19.0: columns 2-4, 190 + 276 + 190 + 2 x 12 */
+.group-output .group-body { justify-content: flex-start; padding-left: 18px; }
 
 /* Row 2 is 100 px taller than rows 1 and 3 because its bodies wrap to two
    knob-cell rows AND, in WINDOW, carry the envelope display under them. Row 3
@@ -731,7 +732,6 @@ body {
    it that can fail.
 
    145 + 14 + 245 + 14 + 145 = 563 of rows, centred in .groups' 592.5. */
-.group-row-2 .group { height: 245px; }
 
 /* Two cell rows, wrapping. Row 1's bodies never wrap (they hold 2–3 cells in a
    190–276 px panel), so this is inert there and row 1 is untouched. */
@@ -773,8 +773,7 @@ body {
    Both overrides are scoped to this panel: .segments and .segment are shared
    with the TIME panel's vertical Free/Sync pair, and an unscoped edit here would
    turn that one sideways too. */
-.group-motion .segments,
-.group-source .segments {           /* v1.7.0: SOURCE shares the layout */
+.group-motion .segments {
   flex: 0 0 100%;
   flex-direction: row;
   justify-content: center;
@@ -786,8 +785,12 @@ body {
    the WINDOW panel's height budget both use. Two 72 px knob-cells plus the
    body's 14 px gap land on the same 158, so the segment pair and the knob row
    share one edge-to-edge width. */
-.group-motion .segment,
-.group-source .segment { width: 75px; }
+.group-motion .segment { width: 75px; }
+
+/* v1.19.0: SOURCE stacks its pair vertically, TIME's Free / Sync shape, so the
+   pair fills the panel's height instead of a 29 px strip across it. */
+.group-source .segments { gap: 8px; }
+.group-source .segment  { width: 96px; }
 
 /* v1.15.0: Freeze Length — a full-width select-cell row between the Off / Freeze
    pair and the knobs. STACKED (the base column .select-cell), not caption-beside-
@@ -1074,20 +1077,23 @@ body {
    The knob-cell grows 92 -> 98 px inside row 1's 113 px content box, so no
    panel height, row height or window size moves. The stem keeps the ~86 %
    radius it has at 56 px (24 / 28 -> 27 / 31). */
-.group-row-1 .knob      { width: 62px; height: 62px; }
-.group-row-1 .knob-stem { height: 27px; }
+.group-row-1 .knob,
+.group-feedback .knob,
+.group-output .knob      { width: 62px; height: 62px; }
+.group-row-1 .knob-stem,
+.group-feedback .knob-stem,
+.group-output .knob-stem { height: 27px; }
 
 /* ── v1.14.0: OUTPUT level meter ────────────────────────────────────────────
-   Positioned in OUTPUT's 12 px bottom PADDING strip rather than in the flow:
-   wrapping it into .group-body lifted OUTPUT's knobs 7 px above the other three
-   panels' and broke row 1's shared knob line. Here it takes no body height, the
-   knob-cells stay centred with their neighbours, and it sits 7.5 px under the
-   value readouts (body bottom 281 -> meter 281..289 of the 295 panel edge). */
+   v1.14.0-v1.18.0 hung this absolutely in a 190 px OUTPUT panel's bottom
+   padding strip. v1.19.0's OUTPUT is 680 px wide, so the meter joins the flow
+   BESIDE Duck / Width / Mix and takes the rest of the row. */
 .level-meter {
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 4px;
+  flex: 1;
+  /* v1.19.0: in the flow of the 680 px OUTPUT panel, taking the width the three
+     knobs leave. The 36 px bottom margin lifts the bar's centre onto the knobs'
+     centre line (98 px cell / 2 − 62 px knob / 2 = 18). */
+  margin: 0 18px 36px 34px;
   height: 8px;
   display: flex;
   align-items: center;
