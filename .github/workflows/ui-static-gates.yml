@@ -3,6 +3,8 @@
 #   scripts/check-i18n.js    repo i18n consistency + canon drift (44 plugins)
 #   scripts/i18n-fr-lint.js  French typography / glossary
 #   scripts/i18n-zh-lint.js  Simplified Chinese typography / glossary (Z1–Z8)
+#   scripts/check-ui-canon.js  REPORT-ONLY UI component / module-copy drift report —
+#                              never fails the job (R3)
 #
 # Why: all three existed but ran only by hand, so a red gate could sit on main
 # unnoticed (O-Comp zh `scSource` Z5, 2026-09-24). R1 of
@@ -50,3 +52,9 @@ jobs:
       - name: i18n-zh-lint
         if: ${{ !cancelled() }}
         run: node scripts/i18n-zh-lint.js
+
+      - name: ui-canon drift report (report-only)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: node scripts/check-ui-canon.js
