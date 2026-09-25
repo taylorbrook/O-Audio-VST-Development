@@ -1,5 +1,13 @@
 # O-Prism Simplification Audit (v1.17.0)
 
+> **Audited against v1.17.0; the plugin ships v1.28.1 (IN-10, 2026-09-24).** Line
+> numbers and LOC estimates below have drifted and every candidate needs
+> re-verification against current source before it is applied. Phase 3
+> (MEDIUM-01..07 + LOW-01..05) is still genuinely open — `/simplify-phase3
+> O-Prism` remains the way to run it. This is a simplification audit, not a code
+> review: the live review is `plugins/O-Prism/CODE_REVIEW.md`.
+
+
 ## Summary
 - Files audited: 56 (C++: 23 .cpp + 24 .h; WebView: 1 HTML + 3 JS + 2 CSS; CMakeLists.txt + dsp/MathConstants.h spot-checked)
 - Candidates found: 19 (HIGH: 7, MEDIUM: 7, LOW: 5)

@@ -127,6 +127,8 @@
 #include "dsp/LFO.h"
 #include "dsp/ModulationMatrix.h"
 #include "dsp/NoiseGenerator.h"
+#include "dsp/SVFFilter.h"
+#include "dsp/WavetableData.h"
 #include "dsp/WavetableFactory.h"
 #include "dsp/WavetableOscillator.h"
 
@@ -1165,19 +1167,513 @@ void checkGlideDomain()
            "[G3-nv] the geometric and arithmetic means are far enough apart for [G3] to "
            "discriminate (" + num (geoMean, 2) + " Hz vs " + num (0.5 * (kC2 + kC5), 2) + " Hz)");
 }
+
+// ═════════════════════════════════════════════════════════════════════════
+//  Info-tier sweep (v1.28.1) — IN-04/IN-05 (SVF), IN-06 (mod matrix), IN-08
+// ═════════════════════════════════════════════════════════════════════════
+
+/** v1.28.0's SVFFilter arithmetic, reproduced verbatim as a BUILT-IN NEGATIVE
+    CONTROL for IN-04 and IN-05.
+
+    IN-04 moved the `h` coefficient out of the per-sample path and IN-05 folded
+    `processNotch` into the shared core as case 6. Both are claimed to be
+    bit-identical, and a claim of bit-identity needs something to be identical
+    TO. A hardcoded golden hash cannot serve: this gate builds at -O3, where
+    arm64 FMA contraction can legitimately change the last bits of an
+    expression that a -O0 capture would not, so a fixed digest would fail for a
+    reason that has nothing to do with the refactor. Instead the old code runs
+    beside the new one under the same flags, in the same translation unit, and
+    the two must agree to the bit.
+
+    Kept deliberately ugly and un-refactored — the per-sample `h`, the
+    duplicated notch body, the literal 0.707 inlined twice. That IS the thing
+    under test. Do not tidy it. */
+struct LegacySVF
+{
+    double currentSampleRate = 44100.0;
+    double cutoffHz = 20000.0;
+    double resonance = 0.0;
+    double driveAmount = 0.0;
+    int filterType = 0;
+    double ic1eq_1 = 0.0, ic2eq_1 = 0.0;
+    double ic1eq_2 = 0.0, ic2eq_2 = 0.0;
+    double g = 0.0, R2 = 0.0;
+    bool coeffsDirty = true;
+
+    void reset() { ic1eq_1 = ic2eq_1 = ic1eq_2 = ic2eq_2 = 0.0; }
+
+    void updateCoefficients()
+    {
+        const double maxCutoff = std::min (20000.0, 0.49 * currentSampleRate);
+        double fc = std::max (20.0, std::min (maxCutoff, cutoffHz));
+        g = std::tan (3.141592653589793 * fc / currentSampleRate);
+        double svfRes = 1.0 / (1.0 + resonance * 19.0);
+        R2 = 2.0 * svfRes;
+    }
+
+    void prepare (double sr) { currentSampleRate = sr; updateCoefficients(); coeffsDirty = false; }
+
+    double processSingleSVF (double input, double& s1, double& s2)
+    {
+        double h = 1.0 / (1.0 + R2 * g + g * g);
+        double yHP = h * (input - s1 * (R2 + g) - s2);
+        double yBP = yHP * g + s1;
+        s1 = yHP * g + yBP;
+        double yLP = yBP * g + s2;
+        s2 = yBP * g + yLP;
+
+        switch (filterType)
+        {
+            case 0: return yLP;
+            case 1: return yLP;
+            case 2: return yHP;
+            case 3: return yHP;
+            case 4: return yBP;
+            case 5: return yBP;
+            default: return yLP;
+        }
+    }
+
+    double processNotch (double input, double& s1, double& s2)
+    {
+        double h = 1.0 / (1.0 + R2 * g + g * g);
+        double yHP = h * (input - s1 * (R2 + g) - s2);
+        double yBP = yHP * g + s1;
+        s1 = yHP * g + yBP;
+        double yLP = yBP * g + s2;
+        s2 = yBP * g + yLP;
+        return yLP + yHP;
+    }
+
+    double processSample (double input)
+    {
+        if (coeffsDirty) { updateCoefficients(); coeffsDirty = false; }
+
+        if (driveAmount > 0.0)
+            input = std::tanh (input * (1.0 + driveAmount * 9.0));
+
+        if (filterType == 6)
+            return processNotch (input, ic1eq_1, ic2eq_1);
+
+        if (filterType == 0 || filterType == 2 || filterType == 4)
+            return processSingleSVF (input, ic1eq_1, ic2eq_1);
+
+        double stage1 = processSingleSVF (input, ic1eq_1, ic2eq_1);
+
+        double h = 1.0 / (1.0 + 2.0 * 0.707 * g + g * g);
+        double yHP = h * (stage1 - ic1eq_2 * (2.0 * 0.707 + g) - ic2eq_2);
+        double yBP = yHP * g + ic1eq_2;
+        ic1eq_2 = yHP * g + yBP;
+        double yLP = yBP * g + ic2eq_2;
+        ic2eq_2 = yBP * g + yLP;
+
+        switch (filterType)
+        {
+            case 1: return yLP;
+            case 3: return yHP;
+            case 5: return yBP;
+            default: return stage1;
+        }
+    }
+};
+
+void checkSvfRefactor()
+{
+    std::cout << "\n── IN-04 / IN-05: SVF coefficient caching and notch fold ──\n";
+
+    const double rates[]   = { 44100.0, 48000.0, 96000.0 };
+    const double cutoffs[] = { 20.0, 100.0, 440.0, 2000.0, 8000.0, 20000.0 };
+    const double resos[]   = { 0.0, 0.25, 0.5, 0.9, 1.0 };
+    const double drives[]  = { 0.0, 0.5, 1.0 };
+
+    long   compared    = 0;
+    long   mismatches  = 0;
+    double worstAbs    = 0.0;
+    long   notchCompared = 0;
+    long   cascadeCompared = 0;
+    double signalEnergy = 0.0;
+
+    for (double fs : rates)
+    for (int type = 0; type <= 6; ++type)
+    for (double fc : cutoffs)
+    for (double res : resos)
+    for (double dr : drives)
+    {
+        SVFFilter now;
+        now.setType (type);
+        now.setCutoff (fc);
+        now.setResonance (res);
+        now.setDrive (dr);
+        now.prepare (fs);
+        now.reset();
+
+        LegacySVF old;
+        old.filterType = type;
+        old.cutoffHz = fc;
+        old.resonance = res;
+        old.driveAmount = dr;
+        old.prepare (fs);
+        old.reset();
+
+        for (int i = 0; i < 256; ++i)
+        {
+            const double t = i / fs;
+            const double x = 0.5 * std::sin (2.0 * 3.141592653589793 * 220.0 * t)
+                           + 0.3 * std::sin (2.0 * 3.141592653589793 * 3300.0 * t)
+                           + (i == 0   ? 1.0 : 0.0)
+                           + (i >= 128 ? 0.2 : 0.0);
+
+            const double a = now.processSample (x);
+            const double b = old.processSample (x);
+
+            ++compared;
+            signalEnergy += std::abs (b);
+
+            // |a-b| > 0 rather than a != b: same predicate for finite values,
+            // and it keeps -Wfloat-equal quiet, matching [D] above.
+            const double d = std::abs (a - b);
+
+            if (d > 0.0)
+            {
+                ++mismatches;
+                worstAbs = std::max (worstAbs, d);
+            }
+
+            if (type == 6)            ++notchCompared;
+            if (type == 1 || type == 3 || type == 5) ++cascadeCompared;
+        }
+    }
+
+    // [S1] The refactor is bit-identical, not merely close. `!=` on doubles, no
+    //      epsilon — a cached coefficient that drifted by one ULP would show.
+    check (mismatches == 0,
+           juce::String ("[S1] refactored SVF is BIT-identical to the v1.28.0 arithmetic over ")
+           + juce::String (compared) + " samples (" + juce::String (mismatches)
+           + " mismatches, worst |diff| " + num (worstAbs, 12) + ")");
+
+    // [S2] Not a vacuous pass: the sweep has to actually exercise the two
+    //      branches the refactor touched, and carry signal while doing it.
+    check (notchCompared > 0 && cascadeCompared > 0,
+           juce::String ("[S2] sweep covers the folded notch (") + juce::String (notchCompared)
+           + " samples) and the 24 dB cascade (" + juce::String (cascadeCompared) + ")");
+
+    check (signalEnergy > 1.0,
+           juce::String ("[S3] excitation is not silence - summed |out| ") + num (signalEnergy, 3));
+}
+
+void checkModMatrixActiveSlots()
+{
+    std::cout << "\n── IN-06: mod matrix walks only active slots ──\n";
+
+    std::unique_ptr<juce::AudioProcessor> proc (createPluginFilter());
+    auto* prism = dynamic_cast<OPrismAudioProcessor*> (proc.get());
+
+    if (prism == nullptr)
+    {
+        check (false, "[N] processor cast failed");
+        return;
+    }
+
+    auto& apvts = prism->getAPVTS();
+
+    ModulationMatrix matrix;
+    matrix.setAPVTS (&apvts);
+
+    auto setSlot = [&] (int slot, const char* field, float norm)
+    {
+        const auto id = "modSlot" + juce::String (slot) + field;
+        if (auto* p = apvts.getParameter (id))
+            p->setValueNotifyingHost (norm);
+    };
+
+    // Route slot 0: LFO1 -> OscAPos, full amount, enabled.
+    const auto srcNorm = static_cast<float> (static_cast<int> (ModSource::LFO1))
+                       / static_cast<float> (ModulationMatrix::kNumSources - 1);
+    const auto dstNorm = static_cast<float> (static_cast<int> (ModDest::OscAPos))
+                       / static_cast<float> (ModulationMatrix::kNumDests - 1);
+
+    setSlot (0, "Src", srcNorm);
+    setSlot (0, "Dst", dstNorm);
+    setSlot (0, "Amt", 1.0f);
+    setSlot (0, "On",  1.0f);
+
+    matrix.updateFromAPVTS();
+    matrix.setSourceValue (ModSource::LFO1, 1.0f);
+    matrix.evaluate();
+
+    const float routedOffset = matrix.getModOffset (ModDest::OscAPos);
+
+    // [N1] The route has to be live, or everything after it is vacuous.
+    check (matrix.isDestinationRouted (ModDest::OscAPos) && routedOffset != 0.0f,
+           juce::String ("[N1] routed destination accumulates (offset ") + num (routedOffset, 6) + ")");
+
+    // ── THE REGRESSION IN-06 COULD INTRODUCE ─────────────────────────────
+    // evaluate() now clears only the destinations updateFromAPVTS() found
+    // routed. Turn the slot off: OscAPos leaves the routed set, so nothing in
+    // evaluate() will ever zero it again. The transition clear in
+    // updateFromAPVTS() - zeroing exactly the destinations that just left the
+    // routed set - is the only thing standing between that and a permanently
+    // stuck modulation offset. NEGATIVE CONTROL: delete that loop and [N2]
+    // fails with the offset frozen at the value printed by [N1].
+    //
+    // It must stay a TRANSITION clear, not a blanket wipe: updateFromAPVTS()
+    // runs per MIDI sub-block and PrismVoice reads ModDest::Pitch one sample
+    // late, so wiping a still-routed destination here makes the render
+    // density-sensitive. lfo-subblock-check [A]/[D] is the gate for that half.
+    setSlot (0, "On", 0.0f);
+
+    matrix.updateFromAPVTS();
+    matrix.setSourceValue (ModSource::LFO1, 1.0f);
+    matrix.evaluate();
+
+    const float strandedOffset = matrix.getModOffset (ModDest::OscAPos);
+
+    check (! matrix.isDestinationRouted (ModDest::OscAPos),
+           "[N2a] destination left the routed set when its slot was disabled");
+
+    // std::abs(x) > 0 is exactly "non-zero" for a finite float, and avoids
+    // -Wfloat-equal (same idiom as [D]).
+    check (! (std::abs (strandedOffset) > 0.0f),
+           juce::String ("[N2] a destination that STOPPED being routed reads exactly 0.0 (got ")
+           + num (strandedOffset, 9) + ", was " + num (routedOffset, 6) + ")");
+
+    // [N3] The same must hold on the very first sample of the block, not just
+    //      eventually — getModOffset is read per sample and nothing re-zeroes
+    //      an unrouted destination mid-block.
+    bool firstSampleClean = true;
+    for (int i = 0; i < 64; ++i)
+    {
+        matrix.setSourceValue (ModSource::LFO1, 1.0f);
+        matrix.evaluate();
+        if (std::abs (matrix.getModOffset (ModDest::OscAPos)) > 0.0f)
+            firstSampleClean = false;
+    }
+
+    check (firstSampleClean,
+           "[N3] stays 0.0 across 64 per-sample evaluate() calls within the block");
+
+    // [N4] Accumulation order is preserved. Two slots onto one destination sum
+    //      in ascending slot order both before and after the compaction; float
+    //      addition is not associative, so this is a real constraint, not a
+    //      formality.
+    setSlot (0, "Src", srcNorm);
+    setSlot (0, "Dst", dstNorm);
+    setSlot (0, "Amt", 1.0f);
+    setSlot (0, "On",  1.0f);
+    setSlot (5, "Src", static_cast<float> (static_cast<int> (ModSource::LFO2))
+                     / static_cast<float> (ModulationMatrix::kNumSources - 1));
+    setSlot (5, "Dst", dstNorm);
+    setSlot (5, "Amt", 1.0f);
+    setSlot (5, "On",  1.0f);
+
+    matrix.updateFromAPVTS();
+    matrix.setSourceValue (ModSource::LFO1, 1.0f / 3.0f);
+    matrix.setSourceValue (ModSource::LFO2, 1.0f / 7.0f);
+    matrix.evaluate();
+
+    const float summed = matrix.getModOffset (ModDest::OscAPos);
+
+    // The amounts come from the same atomics updateFromAPVTS() read, so the
+    // expectation is built from the matrix's own inputs rather than a
+    // hand-copied constant.
+    const float amt0 = apvts.getRawParameterValue ("modSlot0Amt")->load();
+    const float amt5 = apvts.getRawParameterValue ("modSlot5Amt")->load();
+    const float expected = (0.0f + (1.0f / 3.0f) * amt0) + (1.0f / 7.0f) * amt5;
+
+    check (! (std::abs (summed - expected) > 0.0f),
+           juce::String ("[N4] two routes onto one destination sum in ascending slot order, bit-exact (")
+           + num (summed, 9) + " vs " + num (expected, 9) + ")");
+}
+
+void checkReadSampleClamp()
+{
+    std::cout << "\n── IN-08: readSample frame-index clamp ──\n";
+
+    // [X1] The arithmetic that produced the out-of-bounds read, reproduced here
+    //      so the premise is asserted rather than asserted-about. This is the
+    //      built-in negative control for the clamp: if the wrap did NOT round
+    //      to exactly 1.0, or if kTableSize - 1 were the wrong bound, these
+    //      fail.
+    double phase = -1e-20;
+    phase -= std::floor (phase);
+
+    check (! (std::abs (phase - 1.0) > 0.0),
+           juce::String ("[X1] wrapping -1e-20 yields EXACTLY 1.0, not 1.0-eps (got ")
+           + num (phase, 17) + ")");
+
+    const double samplePos = phase * static_cast<double> (WavetableData::kTableSize);
+    const int idxUnclamped = static_cast<int> (samplePos);
+
+    check (idxUnclamped == WavetableData::kTableSize,
+           juce::String ("[X2] unclamped idx0 is ") + juce::String (idxUnclamped)
+           + " — one past the last sample of a " + juce::String (WavetableData::kFrameSize)
+           + "-element frame, so idx0+1 reads index " + juce::String (idxUnclamped + 1));
+
+    const int idxClamped = std::min (idxUnclamped, WavetableData::kTableSize - 1);
+
+    check (idxClamped + 1 <= WavetableData::kTableSize,
+           juce::String ("[X3] the clamp keeps idx0+1 (") + juce::String (idxClamped + 1)
+           + ") inside the frame (max index " + juce::String (WavetableData::kTableSize) + ")");
+
+    // [X4] And it changes no audio. At idx0 = kTableSize-1 the fractional part
+    //      is exactly 1.0, so the interpolation lands on the guard sample —
+    //      which setGuardSamples() holds equal to sample 0. Same value the
+    //      out-of-bounds version returned, which is why IN-08 is a safety fix
+    //      and not an audio change. Driven through the real object: the public
+    //      resetWithPhase() takes an unvalidated phase, which is how a caller
+    //      could reach this at all.
+    auto lib = WavetableFactory::createFactoryLibrary();
+
+    if (lib.empty() || lib[0].table == nullptr)
+    {
+        check (false, "[X4] factory library unavailable");
+        return;
+    }
+
+    const auto* table = lib[0].table.get();
+
+    WavetableOscillator osc;
+    osc.prepare (48000.0);
+    osc.setWavetable (table);
+    osc.setPosition (0.0f);
+    osc.setWarpType (WarpType::Off);
+    osc.setFrequency (440.0);
+    osc.setUnison (1, 0.0f, 0.0f);
+    osc.resetWithPhase (-1e-20);
+
+    double outL = 0.0, outR = 0.0;
+    osc.getNextSampleStereo (outL, outR);
+
+    check (std::isfinite (outL) && std::isfinite (outR),
+           juce::String ("[X4] a negative start phase renders finite (") + num (outL, 9) + ")");
+
+    // [X5] The guard sample is the wrap point at EVERY level, which is what
+    //      makes the clamp's redirect the correct read rather than merely an
+    //      in-bounds one.
+    int guardMismatches = 0;
+    for (int level = 0; level < WavetableData::kNumMipmapLevels; ++level)
+        for (int frame = 0; frame < table->numFrames; ++frame)
+            if (std::abs (table->getSample (level, frame, WavetableData::kTableSize)
+                          - table->getSample (level, frame, 0)) > 0.0f)
+                ++guardMismatches;
+
+    check (guardMismatches == 0,
+           juce::String ("[X5] guard sample == sample 0 at every level and frame (")
+           + juce::String (guardMismatches) + " mismatches over "
+           + juce::String (WavetableData::kNumMipmapLevels * table->numFrames) + " frames)");
+
+    // [X6] Audio-neutrality, stated level-agnostically. readSample interpolates
+    //      across mipmap LEVELS as well as samples and frames - at 440 Hz and
+    //      48 kHz it blends levels 4 and 5 - so comparing against level 0's
+    //      sample 0 would be comparing the wrong quantity. Phase 1.0 and phase
+    //      0.0 are the same point on the table, so the two renders must agree
+    //      bit-for-bit. Post-clamp: idx0 = 2047 with frac exactly 1.0, and
+    //      a + 1.0*(b-a) == b exactly for float operands widened to double.
+    WavetableOscillator ref;
+    ref.prepare (48000.0);
+    ref.setWavetable (table);
+    ref.setPosition (0.0f);
+    ref.setWarpType (WarpType::Off);
+    ref.setFrequency (440.0);
+    ref.setUnison (1, 0.0f, 0.0f);
+    ref.resetWithPhase (0.0);
+
+    double refL = 0.0, refR = 0.0;
+    ref.getNextSampleStereo (refL, refR);
+
+    check (! (std::abs (outL - refL) > 0.0) && ! (std::abs (outR - refR) > 0.0),
+           juce::String ("[X6] phase -1e-20 renders bit-identically to phase 0.0, so the clamp is "
+                         "audio-neutral (") + num (outL, 12) + " vs " + num (refL, 12) + ")");
+
+    check (std::abs (refL) > 0.0,
+           juce::String ("[X6-nv] and that wrap point is a non-zero sample, so [X6] is not "
+                         "comparing two zeroes (") + num (refL, 12) + ")");
+
+    // [X7] THE NEGATIVE CONTROL, and the only assertion here that a clamp
+    //      removal can fail.
+    //
+    //      [X1]-[X3] pin the arithmetic and [X6] pins audio-neutrality, but
+    //      none of them can detect the defect: without the clamp, idx0 is 2048
+    //      and frac is exactly 0.0, so the interpolation is
+    //      `a + 0.0 * (b - a)` and the out-of-bounds b is multiplied away. The
+    //      read happens; the value does not change. That is precisely why the
+    //      bug sat latent.
+    //
+    //      It becomes observable if b is INFINITY, because 0.0 * inf is NaN.
+    //      Index 2049 of a frame is index 0 of the next frame's slot, so
+    //      poisoning frame 1's sample 0 with infinity puts an inf exactly where
+    //      the overflowing read lands and nowhere a legitimate read reaches
+    //      (position 0.0 gives frameFrac 0.0, and every in-bounds lookup at
+    //      idx0 >= 2047 hits the guard, not sample 0). Unclamped -> NaN out;
+    //      clamped -> finite.
+    //
+    //      Three frames, not two, so that frame 1's own idx0+1 lands in frame 2
+    //      rather than off the end of the buffer — the test must not itself
+    //      depend on an out-of-bounds read.
+    WavetableData poisoned;
+    poisoned.allocate (3);
+
+    for (int level = 0; level < WavetableData::kNumMipmapLevels; ++level)
+        for (int frame = 0; frame < poisoned.numFrames; ++frame)
+            for (int i = 0; i < WavetableData::kTableSize; ++i)
+                poisoned.setSample (level, frame, i,
+                                    static_cast<float> (0.25 * std::sin (6.283185307179586
+                                                        * static_cast<double> (i)
+                                                        / WavetableData::kTableSize)));
+
+    poisoned.setGuardSamples();
+
+    for (int level = 0; level < WavetableData::kNumMipmapLevels; ++level)
+        poisoned.setSample (level, 1, 0, std::numeric_limits<float>::infinity());
+
+    WavetableOscillator trap;
+    trap.prepare (48000.0);
+    trap.setWavetable (&poisoned);
+    trap.setPosition (0.0f);
+    trap.setWarpType (WarpType::Off);
+    trap.setFrequency (440.0);
+    trap.setUnison (1, 0.0f, 0.0f);
+    trap.resetWithPhase (-1e-20);
+
+    double trapL = 0.0, trapR = 0.0;
+    trap.getNextSampleStereo (trapL, trapR);
+
+    check (std::isfinite (trapL) && std::isfinite (trapR),
+           juce::String ("[X7] with an infinity planted one past frame 0, a negative start phase "
+                         "still renders finite - the clamp never reads index ")
+           + juce::String (WavetableData::kFrameSize) + " (" + num (trapL, 12) + ")");
+
+    // [X7-nv] Prove the trap is armed: the same infinity IS reachable through a
+    //         legitimate in-bounds read, so its absence above is the clamp
+    //         working rather than the poison having failed to take.
+    trap.setPosition (0.5f);
+    trap.resetWithPhase (0.0);
+
+    double armedL = 0.0, armedR = 0.0;
+    trap.getNextSampleStereo (armedL, armedR);
+
+    check (! std::isfinite (armedL),
+           juce::String ("[X7-nv] the planted infinity is live - reading frame 1 sample 0 in "
+                         "bounds does render non-finite (") + num (armedL, 12) + ")");
+}
+
 } // namespace
 
 int main()
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
 
-    std::cout << "O-Prism v1.28.0 DSP-quality gate — WR-02, WR-04, WR-05, WR-06, WR-08\n";
+    std::cout << "O-Prism v1.28.1 DSP-quality gate — WR-02, WR-04, WR-05, WR-06, WR-08"
+                 " + IN-04/05/06/08\n";
 
     checkDeterminism();
     checkWarpLevelSelect();
     checkMonoDelay();
     checkPinkRate();
     checkGlideDomain();
+    checkSvfRefactor();
+    checkModMatrixActiveSlots();
+    checkReadSampleClamp();
 
     std::cout << "\n" << (failures == 0 ? "ALL CHECKS PASSED"
                                         : "FAILED: " + std::to_string (failures) + " check(s)")

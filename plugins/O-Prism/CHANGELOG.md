@@ -1,5 +1,245 @@
 # O-Prism Changelog
 
+## [1.28.1] - 2026-09-24
+
+Closes the **Info tier** of `CODE_REVIEW.md` — the eight findings `/improve-review`
+leaves behind by design. PATCH: no parameter ID, range, type or state-format
+change, no preset migration, and **no audio change anywhere**. Every item is
+either comment/doc work, a refactor proven bit-identical, or a bounds guard on a
+path that was already value-correct.
+
+Two of the ten Info findings did not survive verification as written, and one was
+deferred on its merits. Those three are dispositioned below rather than silently
+dropped.
+
+### IN-01: REFUTED — the "dead" WavetableGenerator API is live
+
+The review reported `generateProceduralTable`, `generateSaw/Square/Triangle/Sine`
+and the `WaveShape` enum as ~105 LOC with no callers anywhere, on the premise that
+"`WavetableFactory` owns every factory table". That premise is false.
+`WavetableFactory::createFactoryLibrary()` (`WavetableFactory.cpp:178`) *delegates*
+factory tables 0–3 to exactly those functions at `:184-187`, and it is called from
+`PluginProcessor.cpp:560` and from `tests/dsp_quality_check.cpp:434,487`. Deleting
+any of it would have removed the Saw, Square, Triangle and Sine factory
+wavetables. Nothing changed.
+
+The finding's secondary observation stands and is *not* acted on here: the three
+additive generators are O(N²) (2048 harmonics × 2048 samples ≈ 4.2M `std::sin`
+each). That is live construction-time cost, not dead cost, and reducing it would
+change the tables' contents — a DSP change, not an Info sweep.
+
+### IN-03c: SKIPPED — `TuningEngine::getScaleFrequencies` is module-owned
+
+Genuinely uncalled, but `Source/TuningEngine.{h,cpp}` is a vendored copy of
+`modules/tuning/scala-tuning-engine`, where the identical method sits at
+`cpp/TuningEngine.cpp:793`. Deleting it from one consumer makes O-Prism a
+customized divergence that the next `/module-upgrade` would fight, and would not
+help the other consumers. It belongs to a module change, not to this sweep.
+
+### IN-09: DEFERRED — Fold's aliasing is not patch-shaped
+
+Real: `DistortionProcessor` runs at 2× (`:34`, factor `1`) and Fold is
+`std::sin (x * kPi)` (`:95`), whose harmonic order is unbounded — at drive 1.0 the
+10× pre-gain puts components an order of magnitude above what 2× can contain.
+Neither prescribed fix fits a PATCH:
+
+- **Raise oversampling for this mode.** The factor is fixed in the constructor and
+  `initProcessing` allocates, so it cannot follow a parameter on the audio thread.
+  Worse, the distortion is the plugin's only latency source and its latency *is*
+  reported to the host (`PluginProcessor.cpp:765, 1151`) — reported latency would
+  start moving when the user changes distortion type.
+- **Swap to a bounded triangle fold.** Changes Fold's timbre for every existing
+  patch and preset.
+
+Left open for its own MINOR. It is now the only open finding in the report.
+
+### Changed — comments and docs (IN-10)
+
+- `.planning/IMPROVE-STATE.md` still described the v1.8.0 → v1.9.0 cycle as in
+  progress ("Completed Fixes (3/40)") against a plugin shipping 1.28.0, and three
+  items it listed as open were re-found by the 2026-09-22 review as IN-04/IN-05.
+  Moved to `.planning/archive/` with an explicit ARCHIVED header.
+- `.planning/CODE-REVIEW.md` (the resolved v1.18.1 review) now carries a
+  `superseded_by` front-matter key. Its numbering is its own — its IN-08 is not
+  this report's IN-08, which is exactly the confusion the key prevents.
+- `.planning/SIMPLIFICATION-AUDIT.md` now states that it was audited against
+  v1.17.0 and that its line numbers have drifted. Phase 3 (MEDIUM-01..07 +
+  LOW-01..05) is still genuinely open, so the `/simplify-phase3` pointer at the
+  v1.17.1 entry below remains accurate and was left alone.
+
+### Changed — refactors, all bit-identical (IN-02, IN-04, IN-05, IN-07)
+
+- **IN-02: the two mipmap builders were ~55 lines of verbatim duplication.**
+  `generateMipmaps` and `generateMipmapsForFrame` had identical FFT setup, bin
+  zeroing, negative-frequency mirror loop, IFFT and copy. Extracted to one
+  file-static `buildFrameMipmaps`; both callers own their FFT and scratch buffers
+  and pass them in, so the whole-table path keeps its allocate-once property.
+  The guard-sample write is deliberately **not** in the helper — that is the one
+  place the two paths differ (whole-table sweeps every guard once at the end;
+  single-frame sets only its own frame's, per level) and folding it in would end
+  the equivalence. Side effect: the duplicated `bin * 2` indexing was the source
+  of 8 `-Wsign-conversion` warnings; there are now 4.
+- **IN-04: the 24 dB cascade recomputed its Butterworth `h` every sample** from a
+  literal `0.707`, and `processSingleSVF` recomputed its own `h` every sample too.
+  All four coefficients (`g`, `R2`, `h`, `butterR2`/`butterH`) are pure functions
+  of cutoff, resonance and sample rate, so they now live in
+  `updateCoefficients()`. `processSingleSVF` takes its coefficient pair as
+  arguments, which lets the second stage run the shared core instead of
+  open-coding it.
+
+  **The literal `0.707` is preserved exactly and must not be "corrected".** It
+  sits 1.510e-4 relative below true Butterworth (`2*0.707 = 1.414` against
+  `sqrt(2) = 1.4142135623730951`, measured, not estimated). The old comment
+  claimed `R2 = sqrt(2)`, which was simply wrong; the comment now states the
+  literal, the measured gap, and why substituting the exact value is not on the
+  table — it changes rendered output for every existing patch on LP24/HP24/BP24.
+- **IN-05: `processNotch` was `processSingleSVF`'s core plus one line.** Folded in
+  as `case 6: return yLP + yHP;`. Same operations in the same order.
+
+  One nuance preserved deliberately: for an out-of-range `filterType` the pre-fix
+  24 dB path ran the second stage's integrators and then returned *stage 1*.
+  `filterType` is an APVTS Choice over 0–6 so this is unreachable, but it is
+  reproduced verbatim rather than tidied away, so the refactor is bit-identical
+  even on the branch that cannot execute.
+- **IN-07: `getFrameHarmonics` built a `juce::dsp::FFT` on every call** — 2048-point
+  twiddle tables allocated per harmonic-editor refresh — purely because the method
+  is `const` and the `fft` member was not `mutable`. It is now. Safe to share:
+  all five uses (`:213, 254, 305, 527, 545`) are message-thread, reached only from
+  the WebView native functions in `PluginEditor.cpp`; the audio thread never
+  touches the object.
+
+### Fixed — IN-06: the mod matrix rescanned all 16 slots every sample
+
+`ModulationMatrix::evaluate()` is called per sample per voice
+(`PrismVoice.cpp:627`). It zeroed all 26 destinations and walked all 16 slots
+regardless of how many were enabled — at 16 voices and 48 kHz, tens of millions of
+operations a second to service the two or three routes a typical patch uses.
+
+`updateFromAPVTS()` (already once per block) now compacts the passing slots into
+`activeSlots` and records the destinations they reach; `evaluate()` walks and
+clears only those. Half of this already existed: `destRouted` /
+`isDestinationRouted()` were added for REG-03 in v1.27.0 and already computed the
+routed-destination set using the same predicate, so that set is reused rather than
+recomputed. Both bounds checks `evaluate()` performed per sample are hoisted too —
+a slot that would fail either can never contribute, so it never enters the list.
+
+**The trap this change walks into, and what stops it.** If `evaluate()` clears only
+the currently-routed destinations, a destination that was routed last block and is
+not routed now keeps the offset it last accumulated — permanently, because nothing
+would ever zero it again. A stuck modulation offset on a route the user just turned
+off. The old code was safe only because it wiped all 26 every sample.
+`updateFromAPVTS()` now snapshots the previous routing and zeroes exactly the
+destinations that just left the set — a **transition clear**, once per transition.
+
+**The first attempt at this was a blanket `destOffsets.fill (0.0f)` in
+`updateFromAPVTS()`, and it was wrong.** `updateFromAPVTS()` runs once per MIDI
+**sub-block**, not once per block, and `PrismVoice` reads `ModDest::Pitch` at the
+*top* of the sample loop (`PrismVoice.cpp:599`) — one sample late, using whatever
+the previous iteration's `evaluate()` left behind. Wiping a still-routed
+destination at a sub-block boundary therefore changed the rendered pitch on the
+first sample after every MIDI event, making the render density-sensitive: max
+\|diff\| **0.380141199** at 15 CC/block against the undivided block. `FiltACutoff`
+was unaffected because it is read at `:756`, *after* `evaluate()`. Caught by
+`lfo-subblock-check` `[A]`/`[D]`, which failed 3/21; the transition clear restores
+21/21. Destinations that stay routed carry across a sub-block boundary exactly as
+they did before IN-06.
+
+Accumulation order is unchanged: `activeSlots` is filled in ascending slot index,
+so two routes onto one destination still sum in the same order. Float addition is
+not associative, so this is a real constraint rather than a formality, and `[N4]`
+asserts it bit-exactly.
+
+### Removed — IN-03b: dead `ModulationMatrix::clearOffsets`
+
+Deleted, as the review prescribed. It had no callers and `evaluate()` already
+filled zero.
+
+Recorded because the intermediate state is instructive: this sweep first tried to
+resolve IN-03b *by making the function live*, as IN-06's per-block wipe. That wipe
+turned out to be the density-sensitivity bug above, so the function went back to
+having no caller and the finding resolves by deletion after all. The clean-looking
+pairing of two findings was the wrong answer, and only the sub-block gate
+distinguished it from the right one.
+
+### Fixed — IN-03a: `SVFFilter::setKeyTrack` removed
+
+Zero callers (`PrismVoice` computes key tracking itself and calls `setCutoff`), and
+wrong as written: it multiplied `cutoffHz` into itself cumulatively on every call.
+Deleted from both header and implementation.
+
+### Fixed — IN-08: `readSample` could index one past the frame
+
+`phase -= std::floor (phase)` does not guarantee `phase < 1.0`. For a tiny negative
+phase such as `-1e-20` it evaluates `1.0 - 1e-20`, which rounds to **exactly 1.0**
+in double (eps at 1.0 is ~2.2e-16). That puts `samplePos` at 2048.0 and `idx0` at
+2048, so the eight trilinear `idx0 + 1` lookups read sample index 2049 of a
+2049-element frame — past its end, and past the end of the whole buffer for the last
+frame at the last mipmap level. `WavetableData::getSample` is a bare vector index
+with no bounds check, so that is an unchecked heap read.
+
+Closed with `idx0 = std::min (idx0, WavetableData::kTableSize - 1)`.
+
+Not reachable from the plugin: every internal caller wraps first (Bend returns
+`pow(p, e)` with `p >= 0`, FM wraps, Sync/Off read a wrapped accumulator), and the
+`oscAPhase`/`oscBPhase` parameters that feed `resetWithPhase` are non-negative. It
+*is* reachable through the class's public API, since `resetWithPhase` takes an
+unvalidated phase — which is how the gate reaches it.
+
+**Audio-neutral, and that is why it sat latent.** Without the clamp, `frac` is
+exactly 0.0, so the interpolation is `a + 0.0 * (b - a)` and the out-of-bounds `b`
+is multiplied away: the read happens, the value does not change. With the clamp,
+`idx0` is 2047 and `frac` is exactly 1.0, landing on the guard sample — which
+`setGuardSamples()` holds equal to sample 0, the same value. `[X6]` asserts the two
+render bit-identically.
+
+### Notes
+
+`O-Prism-dsp-quality-check` grew from 64 to **79 checks, 0 failed**, covering the
+four behaviour-adjacent findings. `-Wfloat-equal` is avoided throughout by the
+`! (std::abs (d) > 0)` form the file already used for `[D]`, so the sweep adds no
+compiler warnings; the only warning delta in the whole plugin is IN-02's 8 → 4.
+
+**IN-04 / IN-05 — negative control by reproduction, not by golden.** `LegacySVF` in
+the gate is v1.28.0's arithmetic copied verbatim — per-sample `h`, duplicated notch
+body, `0.707` inlined twice — and `[S1]` requires the two to agree to the bit over
+483,840 samples (3 rates × 7 types × 6 cutoffs × 5 resonances × 3 drives). A
+hardcoded digest would not do: the gate builds at `-O3`, where arm64 FMA
+contraction can legitimately move the last bits of an expression a `-O0` capture
+would not, so a fixed hash would fail for reasons unrelated to the refactor.
+Confirmed to fail on a real break — setting `butterR2` to exact `sqrt(2)` gives
+**207,360 mismatches, worst |diff| 3.186e-4**, and 207,360 is exactly the 24 dB
+cascade's sample count reported by `[S2]`, i.e. every cascade sample and no others.
+Corroborated independently: `SVFFilter.cpp` has no JUCE dependency, so the same
+sweep compiled standalone at `-O0` hashes to `0x3C9207A97B1E76E5` both before and
+after the refactor, and to `0xDE950D98FD065DDF` under the `sqrt(2)` break.
+
+**IN-06 — two negative controls, and they are complementary.** Removing the
+transition clear entirely fails `[N2]` with the offset frozen at **0.999999940**
+(it had been 1.000000) and fails `[N3]`. Replacing it with the blanket wipe instead
+passes `dsp-quality-check` with **0 failures** while failing `lfo-subblock-check`
+3/21 on the Pitch density assertions. So neither gate alone is sufficient for this
+change: the mod-matrix assertions see the stale-offset half, the sub-block gate sees
+the carry-across-boundary half, and a fix has to satisfy both. Both breaks restored
+and SHA-256 verified. `edit_rotation_check`'s existing 200-configuration unrouted
+sweep asserts the stale-offset property independently and also still passes.
+
+**IN-08 — the honest position on what is gated.** `[X1]`–`[X3]` pin the arithmetic
+(the wrap really does reach exactly 1.0; the unclamped index really is 2048) and
+`[X6]` pins audio-neutrality, but **none of them can fail if the clamp is removed** —
+the defect is an invisible read, not a wrong value. `[X7]` is the assertion that
+can. It plants an infinity at frame 1 sample 0, which is byte-for-byte where an
+overflowing read of frame 0 lands and nowhere a legitimate read reaches, exploiting
+`0.0 * inf == NaN` to make the invisible read visible. Removing the clamp fails
+`[X7]` with a rendered `nan`; `[X7-nv]` proves the trap is armed by reaching the
+same infinity through an in-bounds read and getting `nan` on purpose. Three frames
+rather than two, so the test does not itself depend on an out-of-bounds read.
+
+### Still open
+
+**IN-09 only** (Fold aliases at 2× oversampling — see above). All Critical and
+Warning findings were dispositioned in v1.26.1 through v1.28.0; the Info tier is
+closed apart from IN-09's deferral and IN-03c's referral to the module.
+
 ## [1.28.0] - 2026-09-24
 
 Closes the Warning tier of `CODE_REVIEW.md`. Three findings were real and are

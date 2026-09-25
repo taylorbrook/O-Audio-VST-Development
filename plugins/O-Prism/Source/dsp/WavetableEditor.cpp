@@ -208,9 +208,9 @@ std::vector<float> WavetableEditor::getFrameHarmonics (int frameIndex, int numBi
     const float* frameData = source->getFrameData (0, frameIndex);
     std::copy (frameData, frameData + kFFTSize, fftBuffer.begin());
 
-    // Use a non-const copy of the FFT (JUCE FFT is mutable-safe but needs non-const)
-    juce::dsp::FFT tempFFT (11);
-    tempFFT.performRealOnlyForwardTransform (fftBuffer.data(), true);
+    // The member FFT is mutable (IN-07); this used to build a fresh
+    // juce::dsp::FFT — and its twiddle tables — on every call.
+    fft.performRealOnlyForwardTransform (fftBuffer.data(), true);
 
     // Extract magnitudes for bins 1..numBins (skip DC)
     std::vector<float> magnitudes (static_cast<size_t> (numBins));
