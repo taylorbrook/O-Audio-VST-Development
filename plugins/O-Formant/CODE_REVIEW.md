@@ -201,7 +201,7 @@ Border-box sizing puts the rotation origin inside the 2 px border: main knob piv
 | v1.30.0 | `265eb24f` | CR-03/06, WR-03/04/06/07/08/09/14/16/18/19/20 (IN-13, IN-14b as side effects) |
 | v1.31.0 | `7c0baac5` | CR-01, WR-01, WR-11, WR-15, WR-17 (IN-08 as a side effect) |
 | v1.31.1 | `6bd37253` | IN-03, IN-07, IN-09, IN-16, IN-19, IN-20, IN-21 (save), IN-22a/c, IN-23a/b/d/e, IN-24g/h/i/j/k |
-| v1.32.0 | `PENDING` | IN-01, IN-02, IN-04, IN-06, IN-11, IN-12, IN-14a, IN-15 |
+| v1.32.0 | `3fa4d4a0` | IN-01, IN-02, IN-04, IN-06, IN-11, IN-12, IN-14a, IN-15 |
 
 Closed without change: IN-22b (drag listeners already on `document`), IN-23c (overlay adds 0 px — measured), IN-24f (UI shows `ct`).
 
