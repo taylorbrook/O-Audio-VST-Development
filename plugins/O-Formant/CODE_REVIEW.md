@@ -11,6 +11,7 @@ findings:
   info: 24
   total: 53
 status: issues_found
+verified: 2026-09-24 — v1.31.0 (CR-01, WR-01, WR-11, WR-15, WR-17) via /improve-verify
 supersedes: .planning/REVIEW.md (v1.25.0) — its CR-01/03/04/05, WR-01..08 are resolved (fixes re-verified correct); its CR-02, WR-10, WR-12 were still open and are carried forward here as CR-08 / CR-09
 ---
 

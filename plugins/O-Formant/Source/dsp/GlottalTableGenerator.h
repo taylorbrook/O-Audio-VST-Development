@@ -45,10 +45,10 @@ private:
     // Fant 1995 regression: Rd -> R-parameters -> timing
     struct LFTimingParams
     {
-        float Tp;   // Time of max flow derivative (normalized to period = 1.0)
-        float Te;   // Time of excitation (glottal closure)
-        float Ta;   // Return phase time constant
-        float Tc;   // Full period (always 1.0)
+        double Tp;   // Time of max flow derivative (normalized to period = 1.0)
+        double Te;   // Time of excitation (glottal closure)
+        double Ta;   // Return phase time constant
+        double Tc;   // Full period (always 1.0)
     };
 
     static LFTimingParams computeTimingFromRd (float Rd);
@@ -59,7 +59,8 @@ private:
     // FFT-based mipmap generation (adapted from O-Prism)
     static void generateMipmaps (GlottalWavetable& table);
 
-    // Newton-Raphson solvers (offline only)
-    static float solveAlpha (float Tp, float Te);
-    static float solveEpsilon (float Ta, float Te, float Tc);
+    // Bracketed bisection solvers (offline only)
+    static double netArea (double alpha, const LFTimingParams& p, double epsilon);
+    static double solveAlpha (const LFTimingParams& p, double epsilon);
+    static double solveEpsilon (const LFTimingParams& p);
 };

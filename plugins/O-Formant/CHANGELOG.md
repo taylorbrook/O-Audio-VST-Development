@@ -2,6 +2,86 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.31.0] - 2026-09-24
+
+Wave 3 of the v1.29.0 `CODE_REVIEW.md`: the timbre findings deferred from
+v1.29.1 / v1.30.0 (CR-01, WR-01, WR-11, WR-15, WR-17). MINOR: the voice
+re-renders across the pressed half of Voice Quality, so saved sessions and
+presets sound different. No parameter ID, range, type or state format changed.
+With this wave, every Critical and Warning finding in the review is resolved.
+
+### Changed
+
+- **The pressed half of Voice Quality rendered the wrong waveform (CR-01).**
+  `solveAlpha` zeroed the open-phase integral alone, without normalisation.
+  That function tends to 0 as α → −∞, so for every Rd ≤ ~0.8 (table steps
+  0–57) Newton converged on α ≈ −4000…−7900. The open phase underflowed and
+  the fallback `Ee = −1` produced a near-silent open phase with a
+  positive-polarity spike, the opposite polarity to every other step. The LF
+  model balances open + return phase over the whole period with α > 0. The
+  table is now built from the full-period net area (Ee = 1, E0 chosen so the
+  phases meet at −1 at Te, written with e^{α(t−Te)} so it cannot overflow),
+  solved by bracketed bisection on α > 0. Across all 128 steps the solver
+  finds exactly one root and zero mean area (checked on a float64
+  prototype). Measured (parallel topology, /a/, A3): level across Rd
+  0.3–0.85 went from a 21 dB slope (−49 → −28 dB) to flat within 2 dB.
+  H1–H2 now rises almost steadily with Rd, from −7 dB pressed to +14 dB
+  breathy. Presets that sat in the broken zone come up +11 to +19 dB (Creature
+  Growl, Sci-Fi Choir, Formant Bass, Glitch Vocal, Natural Tenor, Pressed
+  Baritone, Child Voice), level with the presets that were never affected.
+- **The breathiest setting had the sharpest closure (WR-01).** The ad-hoc
+  piecewise OQ ramp reached 0.98 at Rd 2.7 (Fant gives ~0.79), so the return
+  phase was shorter than Ta and `1 − e^{−εD} = εTa` had no root. Newton
+  parked on its ε = 0.1 floor, and the return phase began at 17–80 % of −Ee
+  (a step at Te). Rg now comes from Fant's own regression,
+  `Rg = 0.25·Rk / (0.11·Rd/(0.5+1.2·Rk) − Ra)`. Ta is clamped to 0.9·(Tc − Te)
+  and ε is solved by bracketed bisection, which always has a root.
+- **Every note swept Rd, and MPE expression was dropped at note-on (WR-11).**
+  The running Rd target added `(pressure − 0.5)·0.8` (−0.4 with no pressure)
+  while the note-on Rd left it out. Every note therefore slid Rd by
+  −0.4 × Rd Mod Depth over 20 ms, and non-MPE playing sat permanently below
+  the knob. The offset is now centred: `pressure · 0.4` (no pressure = no
+  offset, full pressure = +0.4 as before), applied identically at note-on and
+  in the running target. Note-on also seeds pressure and timbre from the note
+  instead of zeroing them (JUCE starts a note at pressure 0 and timbre
+  centre, so a note with no expression still seeds 0/0).
+- **Shimmer pitched up +19 st instead of an octave (WR-15).** The shifter
+  advanced `readPos` by 2 per sample while the write head advanced 1, so the
+  read head moved at 3×. It now advances by 1 (2× read speed). The 4-head Hann
+  overlap is still unity. Measured: the tail's A-series energy (octaves of the
+  played A) over the +19 st E-series grows from +0.3 dB to +7.5 dB over the
+  tail, where it stayed near 0 dB before. The review's second (PLAUSIBLE) claim,
+  loop gain > 1 at Shimmer 1 + Size 1, did not reproduce: the tail decays in
+  both builds. The old +19 st path, however, pinned at full scale indefinitely
+  at Shimmer 1 + Size 0.5, and the octave path now decays to silence there. No
+  injection scaling was added, because `(1 − feedbackGain)` would all but mute
+  shimmer at large sizes.
+- **Cascade/hybrid ignored vowel gains and the Singer's Formant boost; the
+  near-Nyquist gain estimate undershot (WR-17).** `CascadeFormantBank`
+  hard-coded `gain = 1`, so the hybrid topology's parallel F4/F5 sat at 0 dB
+  for every vowel, and the +4 dB Singer's Formant boost reached only the
+  parallel bank. `updateCoefficients` now takes the vowel gains and applies
+  them to the hybrid's parallel stages. Series stages stay at unity, because in
+  a Klatt cascade the resonators set the relative formant levels themselves. The
+  normalisation peak is now the exact |H(e^{jθ})| of the resonator instead of
+  the `2(1−r)sinθ` floor, and formants clamp to 0.45·sr instead of
+  Nyquist − 100 Hz. Measured at A3: hybrid /o/ 2.4–3.3 kHz share −22.0 → −43.8 dB
+  (table: −20/−40 dB). Hybrid Singer's Formant now lifts that band +6.8 dB.
+  Pure cascade already lifted it +19 dB through the F3–F5 clustering and
+  narrowing, so it needs no extra gain. Cascade /r/ at Shift +24 / Spread 2:
+  the old estimate normalised the whole voice down to −73.6 dB RMS, and it is
+  now −45.8 dB with the >18 kHz share down 13 dB.
+
+### Testing
+
+- Before/after renders of all 16 factory presets (PresetHost VST3 harness,
+  48 kHz / 512, 4-note phrase), plus a targeted Rd sweep, shimmer, hybrid and
+  near-Nyquist set. All outputs finite.
+- auval `aumu OuFm OuDv` PASS; pluginval strictness 10 PASS (VST3).
+- Listening pass on the 16 presets is still owed (the level change on the
+  pressed presets is intended; check that each preset still reads as its
+  name).
+
 ## [1.30.1] - 2026-09-24
 
 Four regressions from v1.30.0. PATCH: no parameter ID, range, type or state

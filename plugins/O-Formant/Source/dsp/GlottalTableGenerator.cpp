@@ -26,7 +26,7 @@
     Developer: Taylor Brook
 
     Offline LF glottal pulse table generation with Fant 1995 regression,
-    Newton-Raphson solvers for alpha/epsilon, and FFT mipmap generation.
+    bracketed bisection solvers for alpha/epsilon, and FFT mipmap generation.
 
   ==============================================================================
 */
@@ -41,154 +41,128 @@
 GlottalTableGenerator::LFTimingParams GlottalTableGenerator::computeTimingFromRd (float Rd)
 {
     // Fant 1995 regression: Rd -> R-parameters
-    float Ra = std::max (0.001f, (-1.0f + 4.8f * Rd) / 100.0f);
-    float Rk = (22.4f + 11.8f * Rd) / 100.0f;
+    const double rd = Rd;
+    const double Ra = std::max (0.001, (-1.0 + 4.8 * rd) / 100.0);
+    const double Rk = (22.4 + 11.8 * rd) / 100.0;
 
-    // OQ (Open Quotient) -- piecewise regression, clamped [0.3, 0.98]
-    float OQ;
-    if (Rd < 0.5f)
-        OQ = 0.3f + 0.2f * (Rd - 0.3f) / 0.2f;
-    else if (Rd < 1.2f)
-        OQ = 0.5f + 0.3f * (Rd - 0.5f) / 0.7f;
-    else
-        OQ = 0.8f + 0.18f * (Rd - 1.2f) / 1.5f;
-    OQ = juce::jlimit (0.3f, 0.98f, OQ);
-
-    float Rg = (1.0f + Rk) / (2.0f * OQ);
+    // WR-01: Rg from Fant's own regression, not an ad-hoc OQ ramp. The old
+    // piecewise OQ reached 0.98 at Rd 2.7 (Fant gives ~0.79), which left the
+    // return phase shorter than Ta, so the epsilon equation had no root.
+    const double Rg = 0.25 * Rk / (0.11 * rd / (0.5 + 1.2 * Rk) - Ra);
 
     // Timing (normalized to period = 1.0)
     LFTimingParams params;
-    params.Tp = 1.0f / (2.0f * Rg);
-    params.Te = params.Tp * (1.0f + Rk);
-    params.Ta = Ra;
-    params.Tc = 1.0f;
+    params.Tp = 1.0 / (2.0 * Rg);
+    params.Te = std::min (params.Tp * (1.0 + Rk), 0.99);
+    params.Tc = 1.0;
 
-    // Safety clamp Te to be within period
-    params.Te = std::min (params.Te, 0.99f);
-    params.Ta = std::max (params.Ta, 0.001f);
+    // Keep Ta inside the return phase so solveEpsilon always has a root.
+    params.Ta = juce::jlimit (0.001, 0.9 * (params.Tc - params.Te), Ra);
 
     return params;
 }
 
 //==============================================================================
-float GlottalTableGenerator::solveAlpha (float Tp, float Te)
+double GlottalTableGenerator::netArea (double alpha, const LFTimingParams& p, double epsilon)
 {
-    // Solve for alpha such that integral of open-phase LF derivative is zero
-    // E0 * exp(alpha*t) * sin(omega_g*t) from 0 to Te
-    // omega_g = pi / Tp
+    // Net area of one LF period with Ee = 1 (E0 chosen so g(Te) = -1).
+    // Open phase:  E0 e^{alpha t} sin(wt),  E0 = -1 / (e^{alpha Te} sin(wTe)),
+    //              written with e^{-alpha Te} so it never overflows.
+    // Return phase: -(e^{-eps(t-Te)} - e^{-eps(Tc-Te)}) / (eps Ta).
+    const double w = juce::MathConstants<double>::pi / p.Tp;
+    const double s = std::sin (w * p.Te);
+    const double c = std::cos (w * p.Te);
+    const double D = p.Tc - p.Te;
 
-    float omega_g = juce::MathConstants<float>::pi / Tp;
-    float alpha = 1.0f / Tp; // Initial guess
+    const double openArea = -((alpha * s - w * c) + w * std::exp (-alpha * p.Te))
+                            / ((alpha * alpha + w * w) * s);
+    const double returnArea = -(1.0 / epsilon - D * std::exp (-epsilon * D) / (epsilon * p.Ta));
 
-    for (int iter = 0; iter < 50; ++iter)
+    return openArea + returnArea;
+}
+
+double GlottalTableGenerator::solveAlpha (const LFTimingParams& p, double epsilon)
+{
+    // CR-01: the old solver zeroed the open-phase integral alone, un-normalized.
+    // That goes to 0 as alpha -> -inf, so Newton ran to alpha ~ -4000 for every
+    // Rd <= ~0.8 and the pressed half rendered a near-silent open phase with a
+    // positive spike. LF balances open + return over the whole period, and its
+    // alpha is positive: netArea(0) > 0 and falls through a single root. Bisect.
+    double lo = 0.0;
+    double hi = 1.0;
+
+    jassert (netArea (lo, p, epsilon) > 0.0);
+
+    while (netArea (hi, p, epsilon) > 0.0 && hi < 1.0e6)
+        hi *= 2.0;
+
+    jassert (netArea (hi, p, epsilon) <= 0.0);
+
+    for (int iter = 0; iter < 100; ++iter)
     {
-        // Compute integral: E0 * [exp(alpha*Te)*(alpha*sin(omega_g*Te) - omega_g*cos(omega_g*Te)) + omega_g]
-        //                   / (alpha^2 + omega_g^2)
-        float expATe = std::exp (alpha * Te);
-        float sinWTe = std::sin (omega_g * Te);
-        float cosWTe = std::cos (omega_g * Te);
-        float denom = alpha * alpha + omega_g * omega_g;
-
-        if (std::abs (denom) < 1e-12f)
-            break;
-
-        // f(alpha) = integral = 0
-        // Numerator of integral (without E0 which cancels):
-        float f = (expATe * (alpha * sinWTe - omega_g * cosWTe) + omega_g) / denom;
-
-        // Derivative df/dalpha (numerical approximation for stability)
-        float da = 0.01f;
-        float alpha2 = alpha + da;
-        float expATe2 = std::exp (alpha2 * Te);
-        float denom2 = alpha2 * alpha2 + omega_g * omega_g;
-        float f2 = (expATe2 * (alpha2 * sinWTe - omega_g * cosWTe) + omega_g) / denom2;
-
-        float df = (f2 - f) / da;
-
-        if (std::abs (df) < 1e-12f)
-            break;
-
-        alpha -= f / df;
-
-        if (std::abs (f) < 1e-6f)
-            break;
+        const double mid = 0.5 * (lo + hi);
+        if (netArea (mid, p, epsilon) > 0.0)
+            lo = mid;
+        else
+            hi = mid;
     }
 
-    return alpha;
+    return 0.5 * (lo + hi);
 }
 
 //==============================================================================
-float GlottalTableGenerator::solveEpsilon (float Ta, float Te, float Tc)
+double GlottalTableGenerator::solveEpsilon (const LFTimingParams& p)
 {
-    // Solve: 1 - exp(-epsilon*(Tc-Te)) = epsilon * Ta
-    float returnDuration = Tc - Te;
-    float epsilon = 1.0f / std::max (Ta, 0.001f); // Initial guess
+    // Solve: eps * Ta = 1 - exp(-eps * (Tc - Te)).
+    // f(eps) = 1 - e^{-eps D} - eps Ta is positive just above 0 (D > Ta) and
+    // negative at 1/Ta, so the positive root is bracketed. Bisect.
+    const double D = p.Tc - p.Te;
+    jassert (D > p.Ta);
 
-    for (int iter = 0; iter < 30; ++iter)
+    double lo = 1.0e-9;
+    double hi = 1.0 / p.Ta;
+
+    for (int iter = 0; iter < 100; ++iter)
     {
-        float expTerm = std::exp (-epsilon * returnDuration);
-
-        // f(epsilon) = 1 - exp(-epsilon*(Tc-Te)) - epsilon*Ta = 0
-        float f = 1.0f - expTerm - epsilon * Ta;
-
-        // f'(epsilon) = (Tc-Te)*exp(-epsilon*(Tc-Te)) - Ta
-        float df = returnDuration * expTerm - Ta;
-
-        if (std::abs (df) < 1e-12f)
-            break;
-
-        epsilon -= f / df;
-        epsilon = std::max (epsilon, 0.1f); // Keep positive
-
-        if (std::abs (f) < 1e-6f)
-            break;
+        const double mid = 0.5 * (lo + hi);
+        if (1.0 - std::exp (-mid * D) - mid * p.Ta > 0.0)
+            lo = mid;
+        else
+            hi = mid;
     }
 
-    return epsilon;
+    return 0.5 * (lo + hi);
 }
 
 //==============================================================================
 void GlottalTableGenerator::renderLFPeriod (float* buffer, int size, const LFTimingParams& params)
 {
-    float Tp = params.Tp;
-    float Te = params.Te;
-    float Ta = params.Ta;
-    float Tc = params.Tc;
+    const double Tp = params.Tp;
+    const double Te = params.Te;
+    const double Ta = params.Ta;
+    const double Tc = params.Tc;
 
-    float omega_g = juce::MathConstants<float>::pi / Tp;
-    float alpha = solveAlpha (Tp, Te);
-    float epsilon = solveEpsilon (Ta, Te, Tc);
+    const double omega_g = juce::MathConstants<double>::pi / Tp;
+    const double epsilon = solveEpsilon (params);
+    const double alpha = solveAlpha (params, epsilon);
 
-    // Compute Ee (peak negative excitation at Te)
-    float Ee = -std::exp (alpha * Te) * std::sin (omega_g * Te);
+    // Ee = 1: open phase scaled so it meets the return phase at -1 at Te
+    const double E0 = -1.0 / std::sin (omega_g * Te);
+    const double expEnd = std::exp (-epsilon * (Tc - Te));
 
-    // Handle degenerate case
-    if (std::abs (Ee) < 1e-10f)
-        Ee = -1.0f;
-
-    float invSize = 1.0f / static_cast<float> (size);
+    const double invSize = 1.0 / static_cast<double> (size);
 
     for (int i = 0; i < size; ++i)
     {
-        float t = static_cast<float> (i) * invSize; // Normalized time [0, 1)
+        const double t = static_cast<double> (i) * invSize; // Normalized time [0, 1)
 
         if (t < Te)
-        {
-            // Open phase: E0 * exp(alpha*t) * sin(omega_g*t)
-            // E0 is implicit (will be normalized)
-            buffer[i] = std::exp (alpha * t) * std::sin (omega_g * t);
-        }
+            buffer[i] = static_cast<float> (E0 * std::exp (alpha * (t - Te)) * std::sin (omega_g * t));
         else
-        {
-            // Return phase: (-Ee / (epsilon*Ta)) * [exp(-epsilon*(t-Te)) - exp(-epsilon*(Tc-Te))]
-            float tRel = t - Te;
-            float expDecay = std::exp (-epsilon * tRel);
-            float expEnd = std::exp (-epsilon * (Tc - Te));
-            buffer[i] = (-Ee / (epsilon * Ta)) * (expDecay - expEnd);
-        }
+            buffer[i] = static_cast<float> (-(std::exp (-epsilon * (t - Te)) - expEnd) / (epsilon * Ta));
     }
 
-    // Sanitize NaN/Inf from Newton-Raphson edge cases
+    // Sanitize NaN/Inf (defensive; the bracketed solvers cannot diverge)
     for (int i = 0; i < size; ++i)
     {
         if (! std::isfinite (buffer[i]))

@@ -101,9 +101,11 @@ public:
         numCascade = juce::jlimit (1, 5, n);
     }
 
-    // Update coefficients — same freq/bw/shift/spread as parallel bank
-    // Cascade filters use all-pole resonators (Klatt 1980); hybrid parallel filters use BPF
-    void updateCoefficients (const float freq[5], const float bw[5],
+    // Update coefficients — same freq/bw/gain/shift/spread as parallel bank
+    // Cascade filters use all-pole resonators (Klatt 1980); hybrid parallel filters use BPF.
+    // gain[] only reaches the hybrid parallel stages: in series, the cascade's
+    // relative formant levels come from the resonators themselves.
+    void updateCoefficients (const float freq[5], const float bw[5], const float gain[5],
                              float shift, float spread, double sr) noexcept
     {
         float shiftFactor = std::pow (2.0f, shift / 12.0f);
@@ -124,27 +126,26 @@ public:
             float distance = shiftedFreq[i] - centerOfMass;
             float finalFreq = centerOfMass + distance * spread;
 
-            float nyquistLimit = static_cast<float> (sr * 0.5) - 100.0f;
-            finalFreq = std::max (20.0f, std::min (finalFreq, nyquistLimit));
+            // WR-17: clamp to 0.45·sr, not Nyquist − 100 Hz. A resonator
+            // parked just under Nyquist (R/L vowel, Shift +24, Spread 2 → F5
+            // ≈ 21.95 kHz) is a +55 dB whistle.
+            finalFreq = juce::jlimit (20.0f, maxFormantFreq (sr), finalFreq);
 
             float scaledBW = bw[i] * shiftFactor;
 
             smoothedFreq[i].setTargetValue (finalFreq);
             smoothedBW[i].setTargetValue (scaledBW);
-            filters[i].gain = 1.0f;
 
-            // Estimate resonator peak gain for cascade normalization
+            // WR-17: the hybrid's parallel F4/F5 were hard-wired to 0 dB, so
+            // every vowel got full-level upper formants (/o/ F5 should be
+            // −40 dB) and the Singer's Formant boost never reached them.
+            filters[i].gain = i < numCascade ? 1.0f : gain[i];
+
+            // Resonator peak gain for cascade normalization — WR-17: exact
+            // |H(e^{jθ})| at the centre frequency. The old 2(1−r)sinθ floor
+            // underestimated the peak near Nyquist.
             if (i < numCascade)
-            {
-                float r = std::exp (-juce::MathConstants<float>::pi * scaledBW
-                                    / static_cast<float> (sr));
-                float theta = juce::MathConstants<float>::twoPi * finalFreq
-                              / static_cast<float> (sr);
-                float sinTheta = std::abs (std::sin (theta));
-                float A = 1.0f - 2.0f * r * std::cos (theta) + r * r;
-                float peakGain = A / std::max (2.0f * (1.0f - r) * sinTheta, 0.01f);
-                maxPeakGain = std::max (maxPeakGain, peakGain);
-            }
+                maxPeakGain = std::max (maxPeakGain, resonatorPeakGain (sr, finalFreq, scaledBW));
 
             if (! smoothedFreq[i].isSmoothing() && ! smoothedBW[i].isSmoothing())
             {
@@ -216,15 +217,38 @@ private:
     // Unlike makeBandPass (which has zeros that kill out-of-band signal),
     // this adds a peak at freq without attenuating other frequencies,
     // allowing cascade of resonators at different formant frequencies.
+    static float maxFormantFreq (double sr) noexcept
+    {
+        return static_cast<float> (sr * 0.45);
+    }
+
+    static float resonatorRadius (double sr, float bw) noexcept
+    {
+        float r = std::exp (-juce::MathConstants<float>::pi * std::max (1.0f, bw) / static_cast<float> (sr));
+        return std::min (r, 0.9999f);
+    }
+
+    // |H(e^{jθ})| of makeResonator() at its own centre frequency
+    static float resonatorPeakGain (double sr, float freq, float bw) noexcept
+    {
+        freq = juce::jlimit (20.0f, maxFormantFreq (sr), freq);
+        const float theta = juce::MathConstants<float>::twoPi * freq / static_cast<float> (sr);
+        const float r = resonatorRadius (sr, bw);
+        const float cosTheta = std::cos (theta);
+        const float A = 1.0f - 2.0f * r * cosTheta + r * r;
+
+        // Denominator 1 − 2r cosθ e^{−jθ} + r² e^{−j2θ}
+        const float re = 1.0f - 2.0f * r * cosTheta * cosTheta + r * r * std::cos (2.0f * theta);
+        const float im = 2.0f * r * cosTheta * std::sin (theta) - r * r * std::sin (2.0f * theta);
+        return A / std::max (std::sqrt (re * re + im * im), 1.0e-6f);
+    }
+
     static std::array<float, 6> makeResonator (double sr, float freq, float bw) noexcept
     {
-        float nyLimit = static_cast<float> (sr * 0.5) - 100.0f;
-        freq = juce::jlimit (20.0f, nyLimit, freq);
-        bw = std::max (1.0f, bw);
+        freq = juce::jlimit (20.0f, maxFormantFreq (sr), freq);
 
         float theta = juce::MathConstants<float>::twoPi * freq / static_cast<float> (sr);
-        float r = std::exp (-juce::MathConstants<float>::pi * bw / static_cast<float> (sr));
-        r = std::min (r, 0.9999f);
+        float r = resonatorRadius (sr, bw);
 
         float cosTheta = std::cos (theta);
 

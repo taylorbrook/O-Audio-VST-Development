@@ -123,7 +123,7 @@ float ReverbProcessor::ShimmerShifter::process (float input)
     hpPrevOut = hpOut;
     out = hpOut;
 
-    readPos += 2.0f;
+    readPos += 1.0f;
     if (readPos >= grainSizeF)
         readPos -= grainSizeF;
 
