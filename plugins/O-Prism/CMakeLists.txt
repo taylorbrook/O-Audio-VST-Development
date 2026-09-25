@@ -9,7 +9,7 @@ juce_add_plugin(O-Prism
     PLUGIN_CODE OuPr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Prism${OUARICON_DEV_SUFFIX}"
-    VERSION 1.28.1
+    VERSION 1.29.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -211,4 +211,22 @@ if(OUARICON_BUILD_TESTS)
     # Exit code = number of failed checks.
     ouaricon_add_processor_console(O-Prism ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/dsp_quality_check.cpp dsp-quality-check)
+
+    # v1.29.0 — distortion aliasing gate (IN-09). The distortion stage had NO
+    # coverage of any kind before this: seven gates and not one drove
+    # DistortionProcessor. Fold is `sin(pi*u)`, whose harmonic order is unbounded,
+    # so at drive 1.0's 10x pre-gain it reaches ~37 per input partial and 2x could
+    # not contain it — at 4 kHz the alias was as loud as the signal. Raising the
+    # factor alone is INEFFECTIVE (441 Hz / drive 1.0: 2x -17.2 dB, 4x -21.7,
+    # 8x -23.2), so Fold is antialiased directly with first-order antiderivative
+    # antialiasing on top of 2x -> 4x. Asserted as PARITY with Soft Clip / Hard
+    # Clip / Tube, since the absolute figure is strongly pitch-dependent. Carries
+    # a BUILT-IN negative control — the pre-fix naive Fold at 2x is reproduced
+    # in-gate from its own Oversampling instance and must breach that parity bound
+    # at every fundamental — plus a bit-identity assertion on the other three
+    # modes, so the Fold-only scope of the change is proven rather than assumed.
+    #     ninja O-Prism-distortion-alias-check && ./build/plugins/O-Prism/O-Prism-distortion-alias-check_artefacts/Release/O-Prism-distortion-alias-check
+    # Exit code = number of failed checks.
+    ouaricon_add_processor_console(O-Prism ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/distortion_alias_check.cpp distortion-alias-check)
 endif()
