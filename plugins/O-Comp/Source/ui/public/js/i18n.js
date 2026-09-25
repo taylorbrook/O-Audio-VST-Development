@@ -443,7 +443,7 @@ export const I18N = Object.freeze({
         fr: { t: 'Source',
               b: 'Le signal que le détecteur écoute. Interne utilise l’audio en cours de compression ; Externe utilise ce qui est routé vers l’entrée sidechain. Si Externe est choisi sans rien de routé, le détecteur revient à l’interne et le compresseur continue de fonctionner au lieu de se taire. Interne ou Externe.',
               reviewed: false },
-    'zh-Hans': { t: '来源',
+    'zh-Hans': { t: '源',
           b: '检测器所监听的信号。内部使用正在被压缩的音频；外部使用路由到侧链输入的信号。若选择外部却未路由任何信号，检测器会回退到内部，压缩器继续工作而不会静音。内部或外部。',
           reviewed: 'mt' },
     },
@@ -676,7 +676,7 @@ export const LABELS = Object.freeze({
     // fr reviewed: false / zh 'mt'. Interne and Externe are the ordinary French
     // adjectives and need no glossary term.
     'label.detector':    { en: { t: 'Detector / Sidechain' }, fr: { t: 'Détecteur / Sidechain', reviewed: true }, 'zh-Hans': { t: '检测器 / 侧链', reviewed: 'bt' } },
-    'label.scSource':    { en: { t: 'Source' },   fr: { t: 'Source',  reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '来源', reviewed: 'mt' } },
+    'label.scSource':    { en: { t: 'Source' },   fr: { t: 'Source',  reviewed: false, sameAsEn: true }, 'zh-Hans': { t: '源', reviewed: 'mt' } },
     'label.scSourceInt': { en: { t: 'Internal' }, fr: { t: 'Interne', reviewed: false }, 'zh-Hans': { t: '内部', reviewed: 'mt' } },
     'label.scSourceExt': { en: { t: 'External' }, fr: { t: 'Externe', reviewed: false }, 'zh-Hans': { t: '外部', reviewed: 'mt' } },
     'label.scHpf':       { en: { t: 'SC HPF' },    fr: { t: 'SC PH',     reviewed: true }, 'zh-Hans': { t: 'SC 高通', reviewed: 'bt' } },
