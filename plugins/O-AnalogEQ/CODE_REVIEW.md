@@ -1,7 +1,7 @@
 ---
 phase: O-AnalogEQ-code-review
 reviewed: 2026-09-25T00:00:00Z
-verified: 2026-09-26T00:00:00Z   # /improve-verify O-AnalogEQ v1.5.2 — PASS
+verified: 2026-09-26T00:00:00Z   # /improve-verify O-AnalogEQ v1.5.3 — PASS (v1.5.2 also PASS)
 depth: thorough
 files_reviewed: 10
 files_reviewed_list:
@@ -625,7 +625,18 @@ fileChooser = std::make_unique<juce::FileChooser> (…);
 and clear `fileChooser` at the end of each completion body (via `safeThis`, inside the
 non-null branch, so the dead-editor path still touches nothing — see WR-04).
 
-### IN-09: The page's init log still announces v1.3.1 — **Resolved in v1.5.3**
+### IN-09: The page's init log still announces v1.3.1 — **Resolved in v1.5.3; class closed in v1.5.4**
+
+> **v1.5.4 — the fix was scoped to the instance, not the class.** This finding names
+> *the page's* init log, so the v1.5.3 sweep deleted the page's literal and wrote check
+> [10] to scan `index.html` alone. The identical hand-maintained literal on the other
+> announcing surface — the render-harness banner, printing `(v1.5.2)` against a 1.5.3
+> build — was never in scope and survived, with the new gate printing green over it for
+> a full version. v1.5.4 drops that copy in favour of `JucePlugin_VersionString` and
+> widens [10] to the announcing call on both surfaces. Adjudicating a duplicated-literal
+> finding: enumerate every surface that announces the value before writing the gate,
+> because a gate written to the one instance the review happened to find is indistinguishable
+> from a gate that works.
 
 **Label:** CONFIRMED
 **File:** `plugins/O-AnalogEQ/Source/ui/public/index.html:1527`
@@ -936,7 +947,7 @@ the existing ones. Each was **seen to fail** before acceptance.
 |------|--------|------------------|
 | `tests/render-harness/` G4 (v1.5.2) | `oaeq::presetSaveRefusal` | Guard neutered → the four refusal arms fail; name-only guard → the export arm fails **alone**. |
 | `tests/check-param-cache.js` (v1.5.3) | IN-07's member↔ID mapping, cache completeness against the layout, no lookup outside the constructor | Swapped `pHmfFreq`/`pHmfGain` → [3] fails; lookup reintroduced in `processBlock` → [5] fails; assignment dropped → [2] and [4] fail. |
-| `ui_tip_render_check.js` [10] (v1.5.3) | no `vX.Y.Z` literal in any `console.*` call in `index.html` | Restoring the v1.3.1 string turns [10] red. |
+| `ui_tip_render_check.js` [10] (v1.5.3, widened v1.5.4) | no `vX.Y.Z` literal in the announcing call on either surface — `console.*` in `index.html`, `printf` in `tests/render-harness/main.cpp` | Restoring the v1.3.1 string turns [10] red; so does restoring the harness's `(v1.5.2)` banner; both at once names both files in one verdict. A `vX.Y.Z` in a non-call comment line does **not** trip it, which is what keeps the history comments legal. |
 
 IN-07's mapping is gated by **name rather than by audio** on purpose: G1–G4 all still pass
 with two same-band parameter reads exchanged, so the render harness cannot see the one

@@ -7,7 +7,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # .factory-version sentinel compares against JucePlugin_VersionString, so a
 # harness left on a stale literal would restamp the real factory-preset
 # directory with the wrong version.
-set(OAEQ_VERSION 1.5.3)
+set(OAEQ_VERSION 1.5.4)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OuariconAnalogEQ

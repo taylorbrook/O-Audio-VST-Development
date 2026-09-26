@@ -1171,19 +1171,32 @@ function outsideViewport(rect, W, H) {
         // and WILL go stale again, so the gate is that there is no second copy — not a
         // corrected one. A comment cannot fail a build; this can.
         //
-        // Scoped to console.* call lines ON PURPOSE. This file is full of legitimate
+        // Scoped to the CALL lines of the announcing function ON PURPOSE — console.*
+        // in the page, printf in the harness. Both files are full of legitimate
         // "v1.2.0: the settings cluster" history comments, and a blanket vX.Y.Z ban
         // would fail on every one of them.
-        const pageSrcPath = path.join(REPO_ROOT, 'plugins', PLUGIN,
-                                      'Source', 'ui', 'public', 'index.html');
-        const versionedLogs = fs.readFileSync(pageSrcPath, 'utf8')
-            .split('\n')
-            .map((line, i) => ({ n: i + 1, line }))
-            .filter(({ line }) => /console\.\w+\s*\(/.test(line) && /v\d+\.\d+\.\d+/.test(line));
+        //
+        // v1.5.4 widened this from index.html alone to the render harness too. IN-09
+        // was adjudicated as the page's defect, but the identical literal sat in the
+        // harness banner (`main.cpp` printed "(v1.5.2)" while the plugin shipped
+        // 1.5.3) and survived the IN-09 sweep BECAUSE the gate was written narrower
+        // than the defect class. Two announcing surfaces, one rule
+        // (pattern_check_i18n_served_set_drops_cmake_source_dir_modules: widen the
+        // gate to the class, and negative-control the widening).
+        const announcers = [
+            { file: 'Source/ui/public/index.html',        call: /console\.\w+\s*\(/ },
+            { file: 'tests/render-harness/main.cpp',      call: /printf\s*\(/        },
+        ];
+        const versionedLogs = announcers.flatMap(({ file, call }) =>
+            fs.readFileSync(path.join(REPO_ROOT, 'plugins', PLUGIN, file), 'utf8')
+                .split('\n')
+                .map((line, i) => ({ file, n: i + 1, line }))
+                .filter(({ line }) => call.test(line) && /v\d+\.\d+\.\d+/.test(line)));
         check(versionedLogs.length === 0,
-            `[10] no console.* call in index.html hard-codes a vX.Y.Z literal — CMakeLists is the `
-            + `version truth and a second hand-edited copy has no gate`,
-            versionedLogs.map(({ n, line }) => `index.html:${n}: ${line.trim()}`).join(' | '));
+            `[10] no console.*/printf call in index.html or the render harness hard-codes a `
+            + `vX.Y.Z literal — CMakeLists is the version truth and a second hand-edited copy `
+            + `has no gate`,
+            versionedLogs.map(({ file, n, line }) => `${file}:${n}: ${line.trim()}`).join(' | '));
 
     } finally {
         await browser.close();
