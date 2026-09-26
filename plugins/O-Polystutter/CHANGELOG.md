@@ -383,7 +383,7 @@ against a glossary and a lint, not a native speaker's.
 
 ## [1.12.3] - 2026-07-01
 
-RT-safety and correctness fixes from the 2026-07-01 adversarial code review (`.planning/CODE-REVIEW.md`, findings CR-01, CR-02, WR-01, WR-05, WR-08).
+RT-safety and correctness fixes from the 2026-07-01 adversarial code review (`CODE_REVIEW.md`, findings CR-01, CR-02, WR-01, WR-05, WR-08).
 
 ### Fixed
 

@@ -546,7 +546,7 @@ report 1.2.0 and the binary carries the table, both native function names and
   aborts fail-safe (no accidental delete) and logs when no confirmation mechanism exists.
 
 ### Notes
-- Closes all remaining items from the 2026-06-30 code review (`.planning/CODE-REVIEW.md`):
+- Closes all remaining items from the 2026-06-30 code review (`CODE_REVIEW.md`):
   CR-01 + WR-01 (1.1.8), WR-02/03/04 (1.1.9), IN-01..IN-05 (this release).
 - IN-04/IN-05 fixes were made in the **shared `preset-manager` module** (bumped to 1.0.1);
   O-AnalogEQ's copy is synced. The other 10 dependent plugins can adopt it via `/module-upgrade`.
@@ -579,7 +579,7 @@ report 1.2.0 and the binary carries the table, both native function names and
   raw `this` capture across an async native dialog.
 
 ### Notes
-- Closes the remaining WARNING items from the 2026-06-30 code review (`.planning/CODE-REVIEW.md`).
+- Closes the remaining WARNING items from the 2026-06-30 code review (`CODE_REVIEW.md`).
   CR-01 and WR-01 were fixed in 1.1.8. Only the IN-* info items remain (all benign/documented).
 
 ## [1.1.8] - 2026-06-30
@@ -601,7 +601,7 @@ report 1.2.0 and the binary carries the table, both native function names and
   unchanged. Root cause: JS display math did not mirror the parameter's frequency skew.
 
 ### Notes
-- Both issues from the 2026-06-30 code review (`.planning/CODE-REVIEW.md`). Remaining review
+- Both issues from the 2026-06-30 code review (`CODE_REVIEW.md`). Remaining review
   items (WR-02 coefficient smoothing, WR-03 Nyquist clamp, WR-04 FileChooser lifetime, and the
   IN-* info items) are not addressed in this patch.
 

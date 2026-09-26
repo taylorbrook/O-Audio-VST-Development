@@ -52,22 +52,25 @@ evidence in current code, per finding. The counts in this document's frontmatter
 therefore describe **new** findings only — they are not a regression against the prior
 review's ten, and a zero in a tier here does not mean a prior finding was dropped.
 
-### Artifact-path mismatch — read this before running `/improve-review`
+### Artifact path — resolved 2026-09-25
 
-`.claude/commands/improve-review.md` declares a **blocking** precondition on
-`plugins/[PluginName]/CODE_REVIEW.md` — underscore, plugin root. Twenty-five plugins use
-that path. O-AnalogEQ and six others (`O-DigiDelay`, `O-Freeze`, `O-Gain`,
-`O-MultiBandCompressor`, `O-Polystutter`, `O-Prism`) use
-`.planning/CODE-REVIEW.md` — hyphen, `.planning/` subdirectory. This file is pinned to
-the hyphen path by the task that wrote it and has deliberately **not** been moved.
+This review was originally written to `plugins/O-AnalogEQ/.planning/CODE-REVIEW.md`
+(hyphen, `.planning/` subdirectory), which `/improve-review` could not find: the command
+declares a **blocking** `<review_present>` precondition on
+`plugins/[PluginName]/CODE_REVIEW.md` (underscore, plugin root).
 
-**Consequence:** `/improve-review O-AnalogEQ` will reject on its `<review_present>`
-precondition ("No CODE_REVIEW.md found for O-AnalogEQ") even though this review exists.
-`/improve-review-info O-AnalogEQ` rejects identically. Point either command at
-`plugins/O-AnalogEQ/.planning/CODE-REVIEW.md` explicitly, or resolve the path split
-repo-wide first. The frontmatter key set here matches what those commands parse
-(`findings:` block for the severity menu, `CR-*`/`WR-*` default scope, `IN-*` opt-in),
-so nothing but the path needs adapting.
+That split has since been resolved. This file now lives at the canonical path, together
+with the four other plugins that were on the non-standard one (`O-DigiDelay`, `O-Freeze`,
+`O-Gain`, `O-Polystutter`). `/improve-review O-AnalogEQ` and `/improve-review-info
+O-AnalogEQ` both resolve normally — the frontmatter key set here already matches what
+they parse (`findings:` block for the severity menu, `CR-*`/`WR-*` default scope, `IN-*`
+opt-in).
+
+Three plugins (`O-MultiBandCompressor`, `O-Octagon`, `O-Prism`) keep a second, older
+review under `.planning/` **deliberately** — those are retained archives, cross-linked by
+`supersedes` / `superseded_by` / `previous_review` frontmatter keys from the current
+review at the root path. O-Octagon's in particular still holds 34 open Info findings that
+were never re-filed. Do not treat them as duplicates to clean up.
 
 ## Prior Findings: Re-adjudication
 
