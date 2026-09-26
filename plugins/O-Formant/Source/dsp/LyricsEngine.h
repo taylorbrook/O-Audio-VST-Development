@@ -79,6 +79,7 @@ public:
             syllables[i] = targets[i];
         numSyllables.store (n, std::memory_order_release);
         currentIndex.store (0, std::memory_order_release);
+        lastIndex.store (-1, std::memory_order_release);
     }
 
     void clear()
@@ -86,6 +87,7 @@ public:
         juce::SpinLock::ScopedLockType lock (syllableLock);
         numSyllables.store (0, std::memory_order_release);
         currentIndex.store (0, std::memory_order_release);
+        lastIndex.store (-1, std::memory_order_release);
     }
 
     // Called from audio thread on note-on — returns current syllable and advances
@@ -104,6 +106,7 @@ public:
             idx = count - 1;
 
         SyllableTarget result = syllables[idx];
+        lastIndex.store (idx, std::memory_order_release);
 
         // Advance (loop or hold on last)
         int next = idx + 1;
@@ -135,9 +138,28 @@ public:
     }
 
     int getCurrentIndex() const { return currentIndex.load (std::memory_order_acquire); }
+
+    // v1.33.1: the syllable the most recent note-on took (the one sounding),
+    // -1 before the first note after a load / edit / reset. currentIndex is the
+    // NEXT syllable, so the page highlighting it ran one syllable ahead.
+    int getLastIndex() const { return lastIndex.load (std::memory_order_acquire); }
+
+    // MESSAGE-THREAD ONLY, same contract as peekCurrent() (IN-13).
+    SyllableTarget peekLast() const
+    {
+        int count = numSyllables.load (std::memory_order_acquire);
+        int idx = lastIndex.load (std::memory_order_acquire);
+        if (count == 0 || idx < 0)
+            return SyllableTarget {};
+        return syllables[std::min (idx, count - 1)];
+    }
     int getNumSyllables() const { return numSyllables.load (std::memory_order_acquire); }
 
-    void reset() { currentIndex.store (0, std::memory_order_release); }
+    void reset()
+    {
+        currentIndex.store (0, std::memory_order_release);
+        lastIndex.store (-1, std::memory_order_release);
+    }
     void setLooping (bool loop) { looping.store (loop, std::memory_order_release); }
     bool isLooping() const { return looping.load (std::memory_order_acquire); }
 
@@ -213,6 +235,7 @@ private:
     std::array<SyllableTarget, kMaxSyllables> syllables;
     std::atomic<int> numSyllables { 0 };
     std::atomic<int> currentIndex { 0 };
+    std::atomic<int> lastIndex { -1 };   // v1.33.1: see getLastIndex()
     std::atomic<bool> looping { true };
     juce::SpinLock syllableLock;
 

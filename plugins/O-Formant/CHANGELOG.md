@@ -2,6 +2,25 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.33.1] - 2026-09-25
+
+PATCH. The lyric window now highlights the syllable being sung.
+
+### Fixed
+
+- **The highlight ran one syllable ahead.** The page polled the engine's
+  `currentIndex`, which is the syllable the next note will take (a note-on
+  returns `idx` and stores `idx + 1`). After the first note the chip, the
+  counter and the XY pad cursor all showed the upcoming syllable. With
+  looping on, the last syllable was sung while the first was highlighted.
+  The engine now records the syllable each note-on takes (`lastIndex`,
+  cleared to −1 on load, edit and reset). `getLyricsPosition` reports it as
+  `index`, and the next syllable as `next`. Before the first note nothing is
+  highlighted and the pads preview the first syllable.
+- **The highlight disappeared after a text edit** until the next note. The
+  poll only re-rendered when the index changed, so it now also re-renders
+  when the text changes.
+
 ## [1.33.0] - 2026-09-25
 
 Lyric-mode accuracy. Syllables now sing the vowel you wrote after a consonant,

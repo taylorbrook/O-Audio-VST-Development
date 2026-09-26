@@ -1980,6 +1980,7 @@ function updateLyricsAnimatingState() {
 
 function startPositionPolling(initialParsed, container, counterEl) {
   let lastIdx = -1;
+  let lastText = null;
   let cachedParsed = initialParsed;
 
   const input = document.getElementById('lyrics-input');
@@ -2040,11 +2041,17 @@ function startPositionPolling(initialParsed, container, counterEl) {
         drawConsonantXYPad();
       }
 
-      // Update syllable chips on lyrics tab
+      // Update syllable chips on lyrics tab. v1.33.1: pos.index is the
+      // sounding syllable (-1 before the first note). Re-render on a text
+      // edit too — the input handler draws chips with no highlight, and the
+      // index alone did not change, so the highlight stayed off until the
+      // next note.
       const idx = pos.index;
-      if (lyricsTabActive && idx !== lastIdx) {
+      const text = input ? input.value : '';
+      if (lyricsTabActive && (idx !== lastIdx || text !== lastText)) {
         lastIdx = idx;
-        if (input) cachedParsed = parseArpabet(input.value);
+        if (input && text !== lastText) cachedParsed = parseArpabet(text);
+        lastText = text;
         renderSyllables(cachedParsed, container, counterEl, idx);
       }
     } catch (e) { /* ignore polling errors */ }
