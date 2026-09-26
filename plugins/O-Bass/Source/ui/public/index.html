@@ -23,7 +23,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ouaricon Bass</title>
+    <!-- v1.8.0 (R5): the bundled house serif, ahead of the page style. -->
+    <link rel="stylesheet" href="css/eb-garamond.css">
     <style>
+        /* ── v1.8.0 PALETTE (review R4) ─────────────────────────────────────
+           Every colour on the page is a token here; there is no hex literal
+           outside this block. Text colours come from the ouaricon-naturalist-001
+           AA variants. The page's ground is img.background (paper.jpg), not a
+           colour, so every text ratio below was measured on the rendered
+           pixels (text hidden, p5/p95 of the glyph band) — measure-ui's
+           --contrast scores against the nearest background-color only. */
+        :root {
+            --bg-host: #2A2A2A;            /* behind the frame */
+            --bg-paper: #F5E6D3;           /* flat colour under paper.jpg */
+            /* paper.jpg over --bg-paper, and a CONTRAST PARAMETER — see the
+               v1.8.0 note on .background. */
+            --paper-opacity: 0.85;
+            --cream: #FFF8DC;              /* knob core, pressed-switch text */
+            --cream-rgb: 255, 248, 220;    /* dropdown, popover, tooltip plates */
+            --parchment-light: #F5DEB3;    /* knob chambers */
+            --parchment-mid: #E8D5B7;      /* knob chambers (alternate) */
+            --knob-ring: #C9A27B;          /* knob outer ring, meter tail */
+
+            --walnut: #8B7355;             /* borders and decoration only — 3.49:1 as text */
+            --walnut-rgb: 139, 115, 85;
+            --walnut-deep: #6A5641;        /* walnut TEXT: dropdown header, empty preset row */
+            --brown-frame: #5C4033;        /* frame and control borders */
+            --brown-frame-rgb: 92, 64, 51;
+            --brown-text: #3C2F2F;         /* text on flat fills and plates */
+            --ink: #1E1612;                /* text on the bare paper image */
+            --ochre: #8B6914;              /* knob indicator */
+
+            --olive-rgb: 107, 142, 35;     /* dropdown active row */
+            --olive-dark: #3C5C1A;         /* control borders, focus rings, pressed switch */
+            --olive-ink: #2C3E10;          /* text on the olive fills */
+            --olive-ink-deep: #1A2A10;     /* gear glyph with its popover open */
+            --sage: #8BA870;               /* meter head */
+            --sage-rgb: 139, 168, 112;     /* dropdown hover row */
+            --sage-mid: #6B8E4E;           /* meter body */
+
+            --led-off-hi: #4A4A4A;         /* LIMIT LED at rest */
+            --led-off-lo: #2A2A2A;
+            --led-on-hi: #FF6B3D;          /* LIMIT LED lit */
+            --led-on-lo: #CC3300;
+            --led-glow-rgb: 255, 100, 50;
+
+            /* opaque fills — the v1.7.0 wash composited once over its own
+               ground, so the stain no longer shows through a caption */
+            --fill-bar: #DAD6BA;           /* sage 25% over --bg-paper: preset bar, LIMIT */
+            --fill-name: #ECE7CB;          /* cream 50% over --fill-bar: preset name */
+            --fill-name-hover: #F8F1D5;    /* cream 80% */
+            --fill-nav: #AEB97E;           /* olive 40% over --fill-bar: < > */
+            --fill-nav-hover: #97AB5F;     /* olive 60% */
+            --fill-file: #B9C08D;          /* olive 30% over --fill-bar: Load / Save */
+            --fill-file-hover: #A2B26E;    /* olive 50% */
+            --fill-gear: #BEC38D;          /* olive 40% over --bg-paper */
+            --fill-gear-hover: #A2B169;    /* olive 60% */
+            --fill-gear-open: #94A858;     /* olive 70% — takes --olive-ink-deep */
+
+            /* EB Garamond first (bundled — modules/ui/eb-garamond, so every
+               host resolves the same face); Georgia before Times; the CJK
+               tail BEFORE the trailing generic, which Chromium resolves
+               against the document language. */
+            --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -42,8 +106,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: var(--bg-host);
+            font-family: var(--font-serif);
         }
 
         .plugin-container {
@@ -51,7 +115,8 @@
             height: 320px;
             position: relative;
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-            border: 3px solid #5C4033;
+            border: 3px solid var(--brown-frame);
+            background-color: var(--bg-paper);
             overflow: hidden;
         }
 
@@ -60,6 +125,10 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            /* v1.8.0: a contrast parameter over the container's --bg-paper.
+               The census ground is also right now, where it used to composite
+               over body --bg-host. */
+            opacity: var(--paper-opacity);
         }
 
         .botanical-overlay {
@@ -90,7 +159,7 @@
 
         .title {
             font-size: 26px;
-            color: #3C2F2F;
+            color: var(--ink);
             letter-spacing: 4px;
             font-weight: normal;
             text-transform: uppercase;
@@ -110,8 +179,8 @@
             align-items: center;
             gap: 8px;
             padding: 6px 12px;
-            background: rgba(139, 168, 112, 0.25);
-            border: 2px solid #5C4033;
+            background: var(--fill-bar);
+            border: 2px solid var(--brown-frame);
             border-radius: 4px;
         }
 
@@ -120,8 +189,8 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            background: rgba(139, 168, 112, 0.25);
-            border: 2px solid #5C4033;
+            background: var(--fill-bar);
+            border: 2px solid var(--brown-frame);
             border-radius: 4px;
             padding: 4px 8px;
             box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
@@ -131,13 +200,13 @@
         .preset-nav-btn {
             width: 22px;
             height: 22px;
-            background: rgba(107, 142, 35, 0.4);
-            border: 1px solid #3C5C1A;
+            background: var(--fill-nav);
+            border: 1px solid var(--olive-dark);
             border-radius: 3px;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: var(--font-serif);
             font-size: 14px;
             font-weight: bold;
-            color: #2C3E10;
+            color: var(--olive-ink);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -146,7 +215,7 @@
         }
 
         .preset-nav-btn:hover {
-            background: rgba(107, 142, 35, 0.6);
+            background: var(--fill-nav-hover);
             transform: scale(1.05);
         }
 
@@ -154,11 +223,11 @@
             min-width: 100px;
             max-width: 140px;
             text-align: center;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            font-family: var(--font-serif);
             font-size: 12px;
-            color: #3C2F2F;
+            color: var(--brown-text);
             padding: 2px 6px;
-            background: rgba(255, 248, 220, 0.5);
+            background: var(--fill-name);
             border-radius: 2px;
             cursor: pointer;
             white-space: nowrap;
@@ -167,7 +236,7 @@
         }
 
         .preset-name:hover {
-            background: rgba(255, 248, 220, 0.8);
+            background: var(--fill-name-hover);
         }
 
         /* v1.4.0 GEOMETRY PINS — BOTH LOAD-BEARING, controls in the report.
@@ -196,38 +265,38 @@
 
         .preset-save-btn {
             padding: 3px 8px;
-            background: rgba(107, 142, 35, 0.3);
-            border: 1px solid #3C5C1A;
+            background: var(--fill-file);
+            border: 1px solid var(--olive-dark);
             border-radius: 3px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #2C3E10;
+            color: var(--olive-ink);
             cursor: pointer;
             transition: all 0.15s;
         }
 
         .preset-save-btn:hover {
-            background: rgba(107, 142, 35, 0.5);
+            background: var(--fill-file-hover);
         }
 
         .preset-load-btn {
             padding: 3px 8px;
-            background: rgba(107, 142, 35, 0.3);
-            border: 1px solid #3C5C1A;
+            background: var(--fill-file);
+            border: 1px solid var(--olive-dark);
             border-radius: 3px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #2C3E10;
+            color: var(--olive-ink);
             cursor: pointer;
             transition: all 0.15s;
         }
 
         .preset-load-btn:hover {
-            background: rgba(107, 142, 35, 0.5);
+            background: var(--fill-file-hover);
         }
 
         /* Preset Dropdown Menu */
@@ -238,8 +307,8 @@
             left: 0;
             right: 0;
             margin-top: 4px;
-            background: rgba(255, 248, 220, 0.95);
-            border: 2px solid #5C4033;
+            background: rgba(var(--cream-rgb), 0.95);
+            border: 2px solid var(--brown-frame);
             border-radius: 4px;
             box-shadow: 2px 4px 8px rgba(0,0,0,0.3);
             max-height: 200px;
@@ -257,31 +326,38 @@
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: #8B7355;
-            background: rgba(139, 115, 85, 0.1);
-            border-bottom: 1px solid rgba(92, 64, 51, 0.2);
+            color: var(--walnut-deep);
+            background: rgba(var(--walnut-rgb), 0.1);
+            border-bottom: 1px solid rgba(var(--brown-frame-rgb), 0.2);
         }
 
         .preset-dropdown-item {
             padding: 6px 10px;
             font-size: 11px;
-            color: #3C2F2F;
+            color: var(--brown-text);
             cursor: pointer;
-            border-bottom: 1px solid rgba(92, 64, 51, 0.1);
+            border-bottom: 1px solid rgba(var(--brown-frame-rgb), 0.1);
             transition: background 0.15s;
         }
 
         .preset-dropdown-item:hover {
-            background: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--sage-rgb), 0.3);
         }
 
         .preset-dropdown-item.active {
-            background: rgba(107, 142, 35, 0.3);
+            background: rgba(var(--olive-rgb), 0.3);
             font-weight: bold;
         }
 
         .preset-dropdown-item.factory {
             font-style: italic;
+        }
+
+        /* v1.8.0: the empty-bank row. Was an inline style.color '#888'
+           (3.3:1 on the dropdown plate). */
+        .preset-dropdown-item.empty {
+            font-style: italic;
+            color: var(--walnut-deep);
         }
 
         /* v1.4.0 GEOMETRY PIN — LOAD-BEARING, negative control below.
@@ -294,13 +370,15 @@
            English moves 0.45 px and no more. text-align keeps the shorter
            French centred over the same spot the English occupied.
            Remove this rule alone and assertion 7 reports the preset bar, both
-           arrows, the preset name, both buttons and the LED as moved. */
+           arrows, the preset name, both buttons and the LED as moved.
+           v1.8.0: EB Garamond sets LIMIT at 36.19 px, past the 36 px box, so
+           the pin is re-taken the same way at 37 (LIM. 26.61, 限制 24.48). */
         .limit-label {
             font-size: 11px;
-            color: #3C2F2F;
+            color: var(--brown-text);
             text-transform: uppercase;
             letter-spacing: 1px;
-            width: 36px;
+            width: 37px;
             text-align: center;
         }
 
@@ -308,17 +386,17 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: radial-gradient(circle at 40% 40%, #4a4a4a, #2a2a2a);
-            border: 1px solid #3C2F2F;
+            background: radial-gradient(circle at 40% 40%, var(--led-off-hi), var(--led-off-lo));
+            border: 1px solid var(--brown-text);
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
             transition: all 0.1s;
         }
 
         .limit-led.active {
-            background: radial-gradient(circle at 40% 40%, #ff6b3d, #cc3300);
+            background: radial-gradient(circle at 40% 40%, var(--led-on-hi), var(--led-on-lo));
             box-shadow:
                 inset 0 1px 2px rgba(255,255,255,0.3),
-                0 0 8px rgba(255, 100, 50, 0.6);
+                0 0 8px rgba(var(--led-glow-rgb), 0.6);
         }
 
         .controls-row {
@@ -341,53 +419,53 @@
             height: 65px;
             border-radius: 50%;
             background:
-                radial-gradient(circle at 50% 50%, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+                radial-gradient(circle at 50% 50%, transparent 88%, var(--knob-ring) 88%, var(--knob-ring) 92%, var(--walnut) 92%, var(--walnut) 94%, transparent 94%),
                 conic-gradient(from 0deg,
-                    #F5DEB3 0deg, #F5DEB3 18deg,
-                    #8B7355 18deg, #8B7355 19deg,
-                    #E8D5B7 19deg, #E8D5B7 36deg,
-                    #8B7355 36deg, #8B7355 37deg,
-                    #F5DEB3 37deg, #F5DEB3 54deg,
-                    #8B7355 54deg, #8B7355 55deg,
-                    #E8D5B7 55deg, #E8D5B7 72deg,
-                    #8B7355 72deg, #8B7355 73deg,
-                    #F5DEB3 73deg, #F5DEB3 90deg,
-                    #8B7355 90deg, #8B7355 91deg,
-                    #E8D5B7 91deg, #E8D5B7 108deg,
-                    #8B7355 108deg, #8B7355 109deg,
-                    #F5DEB3 109deg, #F5DEB3 126deg,
-                    #8B7355 126deg, #8B7355 127deg,
-                    #E8D5B7 127deg, #E8D5B7 144deg,
-                    #8B7355 144deg, #8B7355 145deg,
-                    #F5DEB3 145deg, #F5DEB3 162deg,
-                    #8B7355 162deg, #8B7355 163deg,
-                    #E8D5B7 163deg, #E8D5B7 180deg,
-                    #8B7355 180deg, #8B7355 181deg,
-                    #F5DEB3 181deg, #F5DEB3 198deg,
-                    #8B7355 198deg, #8B7355 199deg,
-                    #E8D5B7 199deg, #E8D5B7 216deg,
-                    #8B7355 216deg, #8B7355 217deg,
-                    #F5DEB3 217deg, #F5DEB3 234deg,
-                    #8B7355 234deg, #8B7355 235deg,
-                    #E8D5B7 235deg, #E8D5B7 252deg,
-                    #8B7355 252deg, #8B7355 253deg,
-                    #F5DEB3 253deg, #F5DEB3 270deg,
-                    #8B7355 270deg, #8B7355 271deg,
-                    #E8D5B7 271deg, #E8D5B7 288deg,
-                    #8B7355 288deg, #8B7355 289deg,
-                    #F5DEB3 289deg, #F5DEB3 306deg,
-                    #8B7355 306deg, #8B7355 307deg,
-                    #E8D5B7 307deg, #E8D5B7 324deg,
-                    #8B7355 324deg, #8B7355 325deg,
-                    #F5DEB3 325deg, #F5DEB3 342deg,
-                    #8B7355 342deg, #8B7355 343deg,
-                    #E8D5B7 343deg, #E8D5B7 360deg
+                    var(--parchment-light) 0deg, var(--parchment-light) 18deg,
+                    var(--walnut) 18deg, var(--walnut) 19deg,
+                    var(--parchment-mid) 19deg, var(--parchment-mid) 36deg,
+                    var(--walnut) 36deg, var(--walnut) 37deg,
+                    var(--parchment-light) 37deg, var(--parchment-light) 54deg,
+                    var(--walnut) 54deg, var(--walnut) 55deg,
+                    var(--parchment-mid) 55deg, var(--parchment-mid) 72deg,
+                    var(--walnut) 72deg, var(--walnut) 73deg,
+                    var(--parchment-light) 73deg, var(--parchment-light) 90deg,
+                    var(--walnut) 90deg, var(--walnut) 91deg,
+                    var(--parchment-mid) 91deg, var(--parchment-mid) 108deg,
+                    var(--walnut) 108deg, var(--walnut) 109deg,
+                    var(--parchment-light) 109deg, var(--parchment-light) 126deg,
+                    var(--walnut) 126deg, var(--walnut) 127deg,
+                    var(--parchment-mid) 127deg, var(--parchment-mid) 144deg,
+                    var(--walnut) 144deg, var(--walnut) 145deg,
+                    var(--parchment-light) 145deg, var(--parchment-light) 162deg,
+                    var(--walnut) 162deg, var(--walnut) 163deg,
+                    var(--parchment-mid) 163deg, var(--parchment-mid) 180deg,
+                    var(--walnut) 180deg, var(--walnut) 181deg,
+                    var(--parchment-light) 181deg, var(--parchment-light) 198deg,
+                    var(--walnut) 198deg, var(--walnut) 199deg,
+                    var(--parchment-mid) 199deg, var(--parchment-mid) 216deg,
+                    var(--walnut) 216deg, var(--walnut) 217deg,
+                    var(--parchment-light) 217deg, var(--parchment-light) 234deg,
+                    var(--walnut) 234deg, var(--walnut) 235deg,
+                    var(--parchment-mid) 235deg, var(--parchment-mid) 252deg,
+                    var(--walnut) 252deg, var(--walnut) 253deg,
+                    var(--parchment-light) 253deg, var(--parchment-light) 270deg,
+                    var(--walnut) 270deg, var(--walnut) 271deg,
+                    var(--parchment-mid) 271deg, var(--parchment-mid) 288deg,
+                    var(--walnut) 288deg, var(--walnut) 289deg,
+                    var(--parchment-light) 289deg, var(--parchment-light) 306deg,
+                    var(--walnut) 306deg, var(--walnut) 307deg,
+                    var(--parchment-mid) 307deg, var(--parchment-mid) 324deg,
+                    var(--walnut) 324deg, var(--walnut) 325deg,
+                    var(--parchment-light) 325deg, var(--parchment-light) 342deg,
+                    var(--walnut) 342deg, var(--walnut) 343deg,
+                    var(--parchment-mid) 343deg, var(--parchment-mid) 360deg
                 ),
-                radial-gradient(circle at 50% 50%, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
-            border: 2px solid #8B7355;
+                radial-gradient(circle at 50% 50%, var(--cream) 0%, var(--cream) 20%, transparent 20%);
+            border: 2px solid var(--walnut);
             box-shadow:
                 inset 1px 1px 3px rgba(0,0,0,0.3),
-                inset -1px -1px 2px rgba(255,248,220,0.5),
+                inset -1px -1px 2px rgba(var(--cream-rgb), 0.5),
                 2px 2px 6px rgba(0,0,0,0.25);
             position: relative;
             cursor: pointer;
@@ -408,16 +486,16 @@
                 repeating-conic-gradient(from 0deg at 50% 50%,
                     transparent 0deg,
                     transparent 2deg,
-                    rgba(139, 115, 85, 0.15) 2deg,
-                    rgba(139, 115, 85, 0.15) 2.5deg,
+                    rgba(var(--walnut-rgb), 0.15) 2deg,
+                    rgba(var(--walnut-rgb), 0.15) 2.5deg,
                     transparent 2.5deg,
                     transparent 36deg
                 ),
                 repeating-radial-gradient(circle at 50% 50%,
                     transparent 0px,
                     transparent 8px,
-                    rgba(139, 115, 85, 0.08) 8px,
-                    rgba(139, 115, 85, 0.08) 9px
+                    rgba(var(--walnut-rgb), 0.08) 8px,
+                    rgba(var(--walnut-rgb), 0.08) 9px
                 );
             pointer-events: none;
             mix-blend-mode: multiply;
@@ -432,14 +510,14 @@
             height: 0;
             border-left: 5px solid transparent;
             border-right: 5px solid transparent;
-            border-top: 24px solid #8B6914;
+            border-top: 24px solid var(--ochre);
             filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
             opacity: 0.9;
         }
 
         .knob-label {
             font-size: 12px;
-            color: #3C2F2F;
+            color: var(--ink);
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -487,7 +565,7 @@
 
         .knob-value {
             font-size: 13px;
-            color: #5C4033;
+            color: var(--ink);
             font-weight: bold;
             min-width: 60px;
             text-align: center;
@@ -518,21 +596,24 @@
            gate now FAILS: #outputMeter dx=-0.6 and .meter-row dw=-1.1 between
            English and French — measured, plant restored byte-identical. The
            control that used to pass now fails, which is what a load-bearing
-           pin looks like. */
+           pin looks like.
+           v1.8.0: EB Garamond sets OUT at 24.72 px — check-ui-labels [4]
+           caught it overflowing 24 — so the pin is re-taken at 25 (SOR 22.42,
+           输出 22.45). The meter shifts 0.5 px in every language alike. */
         .meter-label {
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 1px;
-            width: 24px;
+            width: 25px;
             text-align: center;
         }
 
         .meter-container {
             width: 180px;
             height: 16px;
-            background: rgba(139, 115, 85, 0.3);
-            border: 2px solid #5C4033;
+            background: rgba(var(--walnut-rgb), 0.3);
+            border: 2px solid var(--brown-frame);
             border-radius: 3px;
             overflow: hidden;
             position: relative;
@@ -544,7 +625,7 @@
             top: 0;
             height: 100%;
             width: 0%;
-            background: linear-gradient(to right, #8BA870, #6B8E4E, #C9A27B);
+            background: linear-gradient(to right, var(--sage), var(--sage-mid), var(--knob-ring));
             transition: width 0.05s ease-out;
         }
 
@@ -567,11 +648,11 @@
             width: 20px;
             height: 20px;
             padding: 0;
-            background: rgba(107, 142, 35, 0.4);
-            border: 1px solid #3C5C1A;
+            background: var(--fill-gear);
+            border: 1px solid var(--olive-dark);
             border-radius: 50%;
-            color: #2C3E10;
-            font-family: 'Garamond', 'Times New Roman', serif;
+            color: var(--olive-ink);
+            font-family: var(--font-serif);
             font-size: 11px;
             line-height: 1;
             cursor: pointer;
@@ -582,15 +663,16 @@
         }
 
         .gear-btn:hover {
-            background: rgba(107, 142, 35, 0.6);
+            background: var(--fill-gear-hover);
         }
 
         .gear-btn[aria-expanded="true"] {
-            background: rgba(107, 142, 35, 0.7);
+            background: var(--fill-gear-open);
+            color: var(--olive-ink-deep);
         }
 
         .gear-btn:focus-visible {
-            outline: 1px solid #3C5C1A;
+            outline: 1px solid var(--olive-dark);
             outline-offset: 2px;
         }
 
@@ -617,8 +699,8 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
-            background: rgba(255, 248, 220, 0.97);
-            border: 2px solid #5C4033;
+            background: rgba(var(--cream-rgb), 0.97);
+            border: 2px solid var(--brown-frame);
             border-radius: 4px;
             box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.3);
         }
@@ -653,9 +735,9 @@
            push existed; here the keyed span sits inside a flex column whose
            height it changes. */
         .settings-label {
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--brown-text);
             text-transform: uppercase;
             letter-spacing: 1px;
             white-space: nowrap;
@@ -664,18 +746,18 @@
         .settings-select {
             flex: 0 0 auto;
             padding: 1px 3px;
-            background: rgba(255, 248, 220, 0.6);
-            border: 1px solid #3C5C1A;
+            background: rgba(var(--cream-rgb), 0.6);
+            border: 1px solid var(--olive-dark);
             border-radius: 2px;
-            color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            color: var(--brown-text);
+            font-family: var(--font-serif);
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
         }
 
         .settings-select:focus-visible {
-            outline: 1px solid #3C5C1A;
+            outline: 1px solid var(--olive-dark);
             outline-offset: 1px;
         }
 
@@ -694,11 +776,11 @@
            measures — verified with check-ui-labels [7] after the port. */
         .settings-toggle {
           padding: 1px 3px;
-          background: rgba(255, 248, 220, 0.6);
-          border: 1px solid #3C5C1A;
+          background: rgba(var(--cream-rgb), 0.6);
+          border: 1px solid var(--olive-dark);
           border-radius: 2px;
-          color: #3C2F2F;
-          font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+          color: var(--brown-text);
+          font-family: var(--font-serif);
           font-size: 10px;
           line-height: 1.2;
           flex: 0 0 auto;
@@ -709,13 +791,13 @@
         }
 
         .settings-toggle[aria-pressed="true"] {
-          background: #3C5C1A;
-          border-color: #3C5C1A;
-          color: #FFF8DC;
+          background: var(--olive-dark);
+          border-color: var(--olive-dark);
+          color: var(--cream);
         }
 
         .settings-toggle:focus-visible {
-          outline: 1px solid #3C5C1A;
+          outline: 1px solid var(--olive-dark);
           outline-offset: 1px;
         }
 
@@ -775,14 +857,14 @@
             z-index: 200;
             max-width: 208px;
             padding: 7px 9px;
-            background: rgba(255, 248, 220, 0.98);
-            border: 2px solid #5C4033;
+            background: rgba(var(--cream-rgb), 0.98);
+            border: 2px solid var(--brown-frame);
             border-radius: 4px;
             box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.3);
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 11px;
             line-height: 1.35;
-            color: #3C2F2F;
+            color: var(--brown-text);
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.12s ease;
@@ -800,7 +882,7 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: #2C3E10;
+            color: var(--olive-ink);
             margin-bottom: 3px;
         }
 
@@ -1070,14 +1152,12 @@
 
                 if (presets.length === 0) {
                     const empty = document.createElement('div');
-                    empty.className = 'preset-dropdown-item';
+                    empty.className = 'preset-dropdown-item empty';
                     // v1.4.0: setLabel, not textContent. The element becomes a
                     // [data-i18n] element from this moment on, so the
                     // language-change sweep owns it and there is no second code
                     // path to go stale in the other language (contract 3).
                     setLabel(empty, 'label.noPresets');
-                    empty.style.fontStyle = 'italic';
-                    empty.style.color = '#888';
                     presetDropdown.appendChild(empty);
                 } else {
                     // Add Factory section header

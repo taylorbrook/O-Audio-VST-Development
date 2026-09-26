@@ -1,5 +1,87 @@
 # O-Bass Changelog
 
+## [1.8.0] - 2026-09-26
+
+**Every caption now clears WCAG AA against the paper as it actually renders,
+and the house serif actually renders.** MINOR: a UI pass (review R4/R5), per
+`.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C. Page
+CSS, one JS line pair, the CMake resource list and four resource-provider
+branches. No DSP, parameter, range, type, state format or i18n key changed.
+The knob JS is untouched, so the O-ReverseDelay keyboard/ARIA knob port stays
+out of scope (R7).
+
+### Root cause
+
+The page's ground is `img.background` (paper.jpg), not a colour.
+`measure-ui --contrast` reads the nearest opaque background-colour, so it
+scored every caption against body `#2A2A2A` (15/22 below AA, min 1.12) — the
+wrong ground in both directions. The pass was measured with an image-aware
+probe instead: all text hidden (transitions off), a 2x screenshot, and the
+worse of p5/p95 of the real pixels under each glyph band, with pixels inside
+a foreign open popover excluded. On that ground v1.7.0 had **12 of 22 text
+leaves below AA in every language, min 2.76**:
+
+- Knob values are `#5C4033` on the bare paper: 2.76-3.18.
+- `< >`, Load, Save and the gear are `#2C3E10` on rgba olive washes that let
+  the stain through: 3.21-3.90.
+- OUTPUT / OUT / LIMIT are `#3C2F2F` over the stain and the botanical plate:
+  3.39-4.05.
+- The dropdown header is `#8B7355`: 3.57.
+
+### Changed
+
+- **Palette tokens.** The page carried 133 hex literals (132 in CSS, 1 in
+  JS) and no custom property. Every colour is now a `:root` token, with
+  `*-rgb` triples for the remaining translucent plates. **0 hex literals
+  outside `:root`.**
+- **Text on the bare paper is `--ink #1E1612`:** title, knob labels, knob
+  values, meter label.
+- **`--paper-opacity: 0.85`** over a new `--bg-paper` background-colour on
+  `.plugin-container`. It is a contrast parameter, and the background-colour
+  also gives the census the right ground.
+- **State fills are opaque**, pre-composited once from the v1.7.0 wash over
+  its own ground: preset bar and LIMIT `--fill-bar`, preset name
+  `--fill-name`, `< >` `--fill-nav`, Load / Save `--fill-file`, gear
+  `--fill-gear` (+ hover variants). Same colour as before, minus the stain.
+  The gear's open state (olive 70 %, 4.44:1) takes `--olive-ink-deep`.
+- **Walnut text moves off `#8B7355`.** The dropdown header and the
+  empty-preset row use `--walnut-deep #6A5641`. The empty row was an inline
+  `style.color = '#888'` (3.3:1) and is now the `.empty` class.
+- **9 px floor:** already met — no declaration under 9 px (the dropdown
+  header is the floor at 9 px).
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed): 4
+  SOURCES, 4 `getResource()` branches and a `<link>` ahead of the page style.
+  `--font-serif` replaces the ten `'Garamond', 'Times New Roman', …` stacks.
+  The bare `'Garamond'` lead never resolved on macOS, and on Windows it would
+  let an Office Garamond win. Resolved face verified by CDP: EB Garamond on
+  every Latin node (400, 700, italic in the dropdown), PingFang SC on Han.
+- **Two width pins re-taken for the face.** EB Garamond sets OUT at 24.72 px
+  (pin 24 → 25; check-ui-labels [4] caught it) and LIMIT at 36.19 px
+  (pin 36 → 37). Each is its new English box rounded up; French and Chinese
+  fit inside both, so the rows stay language-invariant. The meter row and
+  the preset row shift 0.5 px, identically in every language.
+
+### Known
+
+- The module ships no Bold-Italic, so the dropdown's active factory row
+  renders italic without the bold. It is still marked by its olive fill.
+- The open preset dropdown overlaps the OUTPUT caption by about 4 px
+  (x 298.7 vs dropdown right edge 302.5). Unchanged from v1.7.0.
+
+### Testing
+
+| Gate (en / fr / zh-Hans, default + gear + preset dropdown) | v1.7.0 | v1.8.0 |
+|---|---|---|
+| Image-aware probe, below AA | 12 / 12 / 12 of 22, min 2.76 | **0 / 0 / 0**, min 5.57 |
+| `measure-ui --contrast`, below AA | 15 / 22 each (vs `#2A2A2A`) | **0 / 22**, min 5.57 |
+| `measure-ui --contrast`, under 9 px | 0 | **0** |
+| `check-ui-labels` | PASS | **PASS** (FAIL on OUT before the re-pin) |
+| `check-i18n` | PASS | **PASS** |
+| `tests/ui_tip_render_check.js` | — | **PASS** (145) |
+
+- The image probe is a scratchpad Playwright script over `scripts/serve-ui.js`.
+  v1.7.0 was measured from a `git archive HEAD` tree.
+
 ## [1.7.0] - 2026-09-04
 
 **Simplified Chinese.** Every caption, hover-help body and accessible name

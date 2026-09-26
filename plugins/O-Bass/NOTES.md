@@ -2,11 +2,17 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.3
+- **Version:** 1.8.0
 - **Type:** Audio Effect (Bass Enhancer)
 
 ## Lifecycle Timeline
 
+- **2026-09-26 (v1.8.0):** UI pass, design review 260924-nho Phase C (R4/R5). `:root` palette
+  tokens, 0 hex outside `:root` (was 133); text on the bare paper image is `--ink`, state fills opaque
+  and pre-composited, `--paper-opacity` 0.85 over `--bg-paper`; 9px floor already met; bundled EB
+  Garamond by direct embed (OUT / LIMIT pins re-taken for the face). Image probe 12/22 -> 0/22 below
+  AA (en/fr/zh-Hans, min 2.76 -> 5.57); census 15/22 -> 0/22; check-ui-labels + check-i18n pass.
+  Knob JS untouched (R7 open). No DSP change.
 - **2026-07-08 (v1.3.3):** Resolved v1.3.2 deep code-review Critical + Warning findings — CR-01 (SafePointer-guarded the FileChooser launchAsync completions, bare-return on teardown), WR-01 (factory `crossover_freq` now authored in Hz + `convertTo0to1` so the 0.5 skew is honoured), WR-02 (`latency_mode` now applied live in `processBlock` via RT-safe atomic `setMode`), WR-03 (`applyPresetJson` resets all params to default before applying — inlined preset-manager v1.0.3 fix). Build + auval PASS.
 - **2026-01-28 (v1.2.1):** Increased harmonic coefficients for more dramatic bass enhancement effect
 - **2026-01-28 (v1.2.0):** Code quality cleanup - removed unused code (harmonicWeights, StereoMode::MatchOriginal, envelope followers, lookahead), extracted magic numbers to constants, added documentation for disabled features
