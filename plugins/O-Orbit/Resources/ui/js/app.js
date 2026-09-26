@@ -204,6 +204,25 @@ const TRAIL_LENGTH = 120; // 2 seconds at 60fps
 const CANVAS_FONT = "'EB Garamond', Georgia, 'Times New Roman', serif";
 const CANVAS_INK_MUTED = '#6A5641';
 
+// v1.4.2: paper halo. The shell illustration shows through the canvas (the
+// only veil is the 0.08 container wash), so text drawn straight on the plate
+// crossed its stripes: hint 2.98, R letter 3.47 at p5. A --paper stroke under
+// the glyphs (cartographic halo) puts every free-standing caption on paper.
+// Text drawn inside its own fill (speaker icons, the readout box) skips it.
+const CANVAS_HALO = '#F5E6D3';
+const CANVAS_HALO_WIDTH = 3;
+
+function fillTextHalo(ctx, text, x, y) {
+    ctx.save();
+    ctx.strokeStyle = CANVAS_HALO;
+    ctx.lineWidth = CANVAS_HALO_WIDTH;
+    ctx.lineJoin = 'round';
+    ctx.globalAlpha = 1;
+    ctx.strokeText(text, x, y);
+    ctx.restore();
+    ctx.fillText(text, x, y);
+}
+
 // ─── View Mode & Editor State ───────────────────────────────────
 
 let viewMode = 'motion'; // 'motion' or 'editor'
@@ -506,7 +525,7 @@ function drawMotionFrame(canvas, ctx) {
     ctx.fillStyle = CANVAS_INK_MUTED;
     ctx.font = '9px ' + CANVAS_FONT;
     ctx.textAlign = 'center';
-    ctx.fillText('FRONT', centerX, centerY - radius - 5);
+    fillTextHalo(ctx, 'FRONT', centerX, centerY - radius - 5);
 
     // Draw speaker icons
     drawSpeakers(ctx, centerX, centerY, radius);
@@ -624,7 +643,7 @@ function drawElevationMeter(ctx, x, cy, radius) {
     ctx.font = '9px ' + CANVAS_FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('ELEV', x + 3, top - 4);
+    fillTextHalo(ctx, 'ELEV', x + 3, top - 4);
 
     const markerY = (el) => cy - (Math.max(-90, Math.min(90, el)) / 90) * (h / 2);
 
@@ -699,7 +718,7 @@ function drawSourceDot(ctx, x, y, color, label, elevation, labelInk) {
         ctx.fillStyle = labelInk || color;
         ctx.font = 'bold 9px ' + CANVAS_FONT;
         ctx.textAlign = 'center';
-        ctx.fillText(label, x, y + 18);
+        fillTextHalo(ctx, label, x, y + 18);
     }
 }
 
@@ -768,8 +787,8 @@ function drawEditorFrame(canvas, ctx) {
     ctx.font = '9px ' + CANVAS_FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('FRONT', centerX, centerY - radius - 5);
-    ctx.fillText('REAR', centerX, centerY + radius + 12);
+    fillTextHalo(ctx, 'FRONT', centerX, centerY - radius - 5);
+    fillTextHalo(ctx, 'REAR', centerX, centerY + radius + 12);
 
     // Draw interactive speaker icons. Radial position follows the speaker's
     // DISTANCE (D1) via the same distToRadial() the hit-test uses.
@@ -803,8 +822,8 @@ function drawEditorFrame(canvas, ctx) {
             ctx.font = '9px ' + CANVAS_FONT;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'alphabetic';
-            ctx.fillText((spk.elevation > 0 ? '+' : '') + Math.round(spk.elevation) + '\u00b0',
-                         x, y - spkRadius - 7);
+            fillTextHalo(ctx, (spk.elevation > 0 ? '+' : '') + Math.round(spk.elevation) + '\u00b0',
+                              x, y - spkRadius - 7);
         }
 
         // Label
@@ -842,7 +861,7 @@ function drawEditorFrame(canvas, ctx) {
     ctx.font = '9px ' + CANVAS_FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('Drag azimuth \u2022 Shift-drag elevation \u2022 Alt-drag / scroll distance \u2022 Click to add \u2022 Right-click to remove', centerX, h - 38);
+    fillTextHalo(ctx, 'Drag azimuth \u2022 Shift-drag elevation \u2022 Alt-drag / scroll distance \u2022 Click to add \u2022 Right-click to remove', centerX, h - 38);
 }
 
 // ─── Speaker Editor Interactions ────────────────────────────────

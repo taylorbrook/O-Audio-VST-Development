@@ -1,5 +1,56 @@
 # Changelog — O-Orbit
 
+## [1.4.2] - 2026-09-26
+
+The canvas text that crosses the shell gets a paper halo. This is the follow-up v1.4.1 listed under "Known". It is PATCH because it is a canvas-only legibility fix. **There is no DSP, parameter, state, CSS or C++ change.**
+
+### Fixed
+
+- **Canvas text on the shell.** v1.4.1 put the shell under the page, but in the visualizer the only veil is the 0.08 container wash, so canvas text that crossed a shell stripe stayed below AA. A new `fillTextHalo()` in `js/app.js` strokes the glyphs in `--paper` `#F5E6D3` at 3px with round joins, then fills them in their own ink. This is a cartographic halo: each glyph carries its own paper ground wherever it lands.
+- It covers the free-standing captions: FRONT / REAR, ELEV, the editor hint line, the L / R source letters and the elevation badges. The speaker labels and the hover readout already sit on their own fills and keep a bare `fillText`.
+- Pixel sample, 2×, glyph pixels only, contrast of the ink against the ground with the text removed, p5:
+
+  | Text | v1.4.1 | v1.4.2 |
+  |---|---|---|
+  | Hint line (crosses the shell) | 3.17 | 5.66 |
+  | R letter, on a shell stripe | 3.41 | 5.88 |
+  | FRONT / REAR / ELEV | 4.47–4.48 | 5.64–5.68 |
+  | Elevation badge −20° | 4.78 | 5.90 |
+  | L letter, +35° badges | 5.29–5.50 | 6.67–6.71 |
+
+  Each caption's p5 now matches its ink on `--paper`, so no glyph pixel is on the shell or the plate any more.
+- The halo also knocks the grid lines and trails out around the letters. That is intended, because the lines are 0.15-alpha rules.
+
+### Known, not addressed here
+
+- The three-letter speaker labels (Ltf, Rtr) are wider than their 6px (motion) and 8px (editor) icons, so their ends cross the ring. That was already the case before this release.
+
+## [1.4.1] - 2026-09-26
+
+The botanical shell illustration moves from above the page to below it. It is PATCH because it is a one-property layering fix. **There is no DSP, parameter, state or C++ change.**
+
+### Fixed
+
+- **The shell washed the text it crossed.** `#botanical-overlay` was `position: fixed` at `z-index: 1000` and `opacity: 0.35`, so it drew over the text as well as the ground. It is now `z-index: -1`. That puts it above the body's paper, which is painted on the root canvas, and below every in-flow box. The panels' translucent washes now veil it (0.6 on the parameter groups, 0.9 on the editor toolbar), and the text draws in its own ink.
+- Pixel sample, 2×, text hidden, transitions off, glyph band, p5 of per-pixel contrast. For the old layering the shell was composited over the text colour as well as the ground:
+
+  | Label | v1.4.0 | v1.4.1 |
+  |---|---|---|
+  | Phase | 3.81 | 9.83 |
+  | Export | 3.45 | 8.88 |
+  | Import | 3.50 | 8.80 |
+  | Del (layout) | 3.44 | 8.56 |
+  | Save (layout) | 3.89 | 8.56 |
+
+  The review quoted PHASE ≈3.98 and EXPORT ≈3.50. The three other toolbar buttons were under the shell too and failed the same way.
+- 68 text rows in the motion and speaker-editor views: 0 got worse. The shell is still visible (screenshots checked in both views).
+- The comments on `#preset-menu` and `.settings-popover` no longer cite the overlay's 1000.
+
+### Known, not addressed here
+
+- **Canvas text on the shell.** In the visualizer the only veil is the 0.08 container wash, so the canvas hint line and the right edge of the orbit (L/R letters, badges) still cross shell stripes. This release improves them but they stay below AA at p5. The hint line `#6A5641` goes from 2.44 to 2.98 (p50 2.86 → 4.05). The R letter `#6F5228` goes from 2.64 to 3.47 at the orbit's right edge. v1.4.0 computed these inks against the plate only. A paper halo (`strokeText`) under that canvas text is the likely fix.
+- The Elevation pill's "Off" reads 2.85 in both versions, because the thumb covers the first glyph. That is the existing pill follow-up and the shell does not cause it.
+
 ## [1.4.0] - 2026-09-26
 
 This is the UI pass from the 260924-nho design review (Phase C). It adds a CSS custom-property palette, AA text colours from `ouaricon-naturalist-001` (R4), the 9px text floor, the bundled EB Garamond face (R5), and `:focus-visible` rings. It is MINOR because the change is visible and bundles a font. **There is no DSP, parameter, range, type or state-format change.** No processor file was touched. The only C++ change is four `getResource()` branches for the font. Knob keyboard/ARIA (R7) was left out on purpose, because no knob code was touched.
