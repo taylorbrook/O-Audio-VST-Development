@@ -2,6 +2,103 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.6.0] - 2026-09-26
+
+**Every active caption now meets WCAG AA on the real paper, nothing renders
+below 9px, and the house serif actually renders.** MINOR: a UI pass (review
+R4/R5), per `.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md`.
+No DSP, parameter, range, state format or i18n key changed. The Effects-tab
+knob code is untouched, so R7 (keyboard/ARIA knobs) is deferred. The main-page
+controls are native range inputs and were already keyboard-operable.
+
+### Changed
+
+- **Palette tokens.** The `<style>` block carried 142 hex literals and no
+  custom property. Every literal is now one of the `:root` tokens, and all 117
+  palette washes use `rgba(var(--x-rgb), a)` triples. What stays literal is the
+  black/white shadows, plus canvas colours in the polar wheel and
+  `setAttribute` stroke colours in the pitch circle (canvas cannot read
+  `var()`); every one of those is a palette value. The pitch circle's SVG
+  presentation attributes and the custom-degree toggles' inline `cssText`
+  moved to CSS rules so they read the tokens.
+- **Paper wash.** `.plugin-container` lays `--paper` at 0.40 over
+  `paper1.jpg`. The bare JPG renders at a median of about `#BE9965`
+  (L≈0.35), where even `--ink` read 2.6–4.5:1 and the `--brown` readouts read
+  2.0–4.0:1 at 9px. With a 0.35 wash every caption cleared except one readout
+  on a stain (4.21:1), and 0.40 clears that one too (4.52:1). The paper still
+  reads as aged. The container also gets `background-color: --paper-ground`
+  (`#D8B88E`, the washed median). It is invisible under the cover image, and
+  it stops `measure-ui --contrast` from scoring the page against body
+  `#2A2A2A`.
+- **AA inks** (from `ouaricon-naturalist-001`):
+  - Text on the paper moves to `--ink`: section headers, slider and knob
+    readouts, the pitch-circle / A4 REF / Stretch captions, the library and
+    generator headers, their ▼ toggles and the generator captions.
+  - Walnut `#8B7355` stays for borders and rings. Walnut text (brand,
+    "Click to play", preset-menu heading, library info) moves to
+    `--text-muted #6A5641`, which reads 5.35:1 on the footer.
+  - Opacity used as de-emphasis is replaced by a colour: keyboard note names
+    (0.7), True Keys hint (0.7), deviation readouts (0.8), preset caret (0.6)
+    and the empty-preset row (0.6).
+  - Effects bypass button: the On fill is opaque `--fx-on-bg #B0BA7B` (the old
+    olive at 0.5 let the paper through, 3.94:1 on EQ). Off is `--fx-off-bg` +
+    `--brown` (was ink at 0.4 over walnut at 0.2).
+  - Export HTML: opaque parchment + `--ink` (was walnut at 0.15, 2.51:1).
+  - Deviation colours: the Material green/orange/blue (2–3:1) become
+    `--dev-pure #1F5E24`, `--dev-sharp #7A4000` and `--dev-flat #0D4A8F`
+    (4.8 / 5.0 / 5.4:1 on the interval list). The matrix cell tints keep the
+    bright hues as washes.
+  - Custom-degree toggles: styled like `.viz-btn` / `.gliss-toggle` (were cream
+    on walnut 0.5 at 2.5:1 on, cream at 0.4 over black at 0.2 off).
+  - Disabled first cents cell: `--text-muted` instead of `#888`.
+- **9px floor.** Every declared size under 9px is raised to 9, and the
+  `line-height` zh pins are updated to the 10px-over-9px form. This covers the
+  keyboard note names (6px), tonic caption, footer help, rotation/matrix cells
+  and deviations (7px), and the viz/file/glissando buttons, interval list, A4
+  REF / Stretch / pitch-circle captions, brand and library info (8px). The
+  pitch-circle degree labels (6px above 12 notes) and the polar wheel's canvas
+  labels (8px above 12 notes) are 9px too. The preset ▼ caret stays 7px as an
+  icon.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed): 4 SOURCES
+  and 4 `getResource()` branches, linked before the page's `<style>`. The five
+  stacks (Garamond/Times, Georgia, Menlo, Arial, `inherit`) fold into one
+  `--font-serif`: `'EB Garamond', Georgia, Times New Roman`, then the CJK tail,
+  then `serif`. The bare `'Garamond'` lead is dropped. The Menlo cents columns
+  still align, because EB Garamond's default figures are tabular (every digit
+  480 units). The canvas labels ask for `'EB Garamond'` (bare `Garamond` fell
+  back to Times).
+- **Re-measured width pins** (the face and the size both changed):
+  - tonic caption 35 → 46px (TONIQUE : 45.53);
+  - Stretch caption 50 → 57px (ÉTIREMENT 56.52);
+  - rotation first column 21.34 → 25.45px;
+  - viz buttons per mode 51 / 54 / 57 / 64 / 64, with side padding 8 → 6px.
+    At 8px padding the row's left edge landed 3px inside the interval list.
+    Now it spans 157–463px.
+- **Preset ◀ ▶ arrows** 12 → 15px. EB Garamond draws the triangles about 25%
+  smaller than Times did.
+
+### Testing
+
+- `measure-ui --contrast` (en / fr / zh-Hans):
+  - below AA: 356/387 → 6/387 (92.0% → 1.6%);
+  - under 9px: 216 → 0;
+  - median ratio: 2.64 → 7.40.
+  - The 6 are the Chorus knob captions and readouts in the "Chorus bypassed"
+    state, dimmed by the section's `opacity: 0.35` as inactive controls.
+- Real-ground pixel probe: text hidden with transitions off, 2× capture, and
+  the worse of p5/p95 under each glyph band.
+  - Before: 112 of 167 distinct nodes failed (en).
+  - After: 0 on active text in 11 states × 3 languages (main, techniques,
+    custom degrees, tuning, polar, matrix, rotation, true keys, generator,
+    effects, gear).
+  - The one gear-state hit is the open settings popover covering the Reverb
+    MIX readout, the same as before.
+  - Resolved face: EB Garamond.
+- `check-ui-labels`: ALL CHECKS PASSED before and after (fr/zh-Hans geometry
+  diff green).
+- `check-i18n`: pass.
+- `measure-ui --report all`: undeclared-font 0.
+
 ## [2.5.1] - 2026-09-06
 
 PATCH: a host-facing parameter attribute only. No parameter, range, default, type
