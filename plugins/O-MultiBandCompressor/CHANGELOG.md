@@ -1,5 +1,55 @@
 # O-MultiBandCompressor Changelog
 
+## [1.14.0] - 2026-09-26
+
+**Every caption now meets WCAG AA and the 9px floor, and the house serif actually
+renders.** MINOR: a UI pass (review R4/R5), per `.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md`.
+No DSP, parameter, range, state format or i18n key changed. The knob keyboard and
+ARIA handling is untouched.
+
+### Changed
+
+- **Palette tokens.** `styles.css` carried 202 hex literals and no custom
+  property. Every literal is now one of 32 `:root` tokens, and palette washes
+  use `rgba(var(--walnut-rgb), a)` triples. Tokenising alone moves no pixel.
+- **AA inks** (from `ouaricon-naturalist-001`). Walnut `#8B7355` stays for
+  borders and rings, and text moves off it:
+  - `--text-muted #6A5641`: the Detector/Sidechain titles (3.79 → 5.46:1) and
+    the empty preset row.
+  - Gear and hover-help toggle: the quiet rest state is now carried by the ink,
+    not by `opacity: 0.55` (2.52 → 5.46:1). The border keeps the 0.55 wash.
+  - HI-MID band title `--ochre-ink #7A5C10` (4.29 → 5.27:1). The band border
+    keeps `#8B6914`.
+  - Active Solo/Bypass/SC Listen and Auto-Mu fills `#5E7A28 → #556B2F`: white
+    text goes from 3.81 to 4.89:1. The dragged crossover chip is now olive-dark.
+  - Tooltip title `--olive-ink #4E632B` (was 4.49:1 at the popover's dark end).
+  - Analyzer placeholder: solid `#6A5641` instead of ink at 0.4 alpha.
+- **9px floor.** Knob captions go from 8 to 9px and Detector titles from 7 to
+  9px, both with the 10 / 9 line-height pin. Band columns keep 15.06px of their
+  20px slack, and nothing overflows in any language.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed): 4 SOURCES
+  and 4 `resourceMap` rows. `--font-serif` leads with the bundled face,
+  followed by Georgia, then Times, then the CJK tail. The bare `'Garamond'`
+  lead is dropped. The canvas placeholder repaints on `document.fonts.ready`
+  while no live spectrum owns the canvas. The Auto-Mu toggle keeps its
+  documented Arial (v1.12.0 form-4 note).
+- `.plugin-container` gets `background-color` = the gradient's dark stop. It is
+  invisible under the gradient. Without it, `measure-ui --contrast` fell
+  through to body `#2A2A2A` and reported 109/133 labels against grey.
+
+### Testing
+
+- `measure-ui --contrast` (en/fr/zh-Hans, same ground both runs):
+  - below AA: 7/133 → **0/133**;
+  - under 9px: 40 → **0**;
+  - min ratio: 2.52 → **4.94**.
+- `check-ui-labels`: all pass (fr and zh-Hans geometry diff green).
+  `check-i18n`: pass.
+- Resolved face: EB Garamond 400/700 loaded.
+- `scripts/serve-ui.js` now also reads table-form `getResource()` maps. This
+  plugin is the only one that uses that form. Without it, the gate's served
+  tree 404'd the font, measured Georgia, and reported 183 false French moves.
+
 ## [1.13.0] - 2026-09-25
 
 > **This download ships v1.12.2 as well** — the previous release tag was v1.12.1.

@@ -561,6 +561,13 @@ OMultiBandCompressorAudioProcessorEditor::getResource(const juce::String& url)
         { "/js/juce/index.js",                 BinaryData::index_js,                BinaryData::index_jsSize,                "application/javascript" },
         { "/js/juce/check_native_interop.js",  BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize, "application/javascript" },
         { "/modules/preset-manager.js",        BinaryData::presetmanager_js,        BinaryData::presetmanager_jsSize,        "application/javascript" },
+        // v1.14.0 (R5): shared EB Garamond face (modules/ui/eb-garamond) — the
+        // stylesheet under /css/, the three woff2 faces under /fonts/ where its
+        // relative url('../fonts/...') lands.
+        { "/css/eb-garamond.css",              BinaryData::ebgaramond_css,          BinaryData::ebgaramond_cssSize,          "text/css; charset=utf-8" },
+        { "/fonts/EBGaramond-Regular.woff2",   BinaryData::EBGaramondRegular_woff2, BinaryData::EBGaramondRegular_woff2Size, "font/woff2" },
+        { "/fonts/EBGaramond-Italic.woff2",    BinaryData::EBGaramondItalic_woff2,  BinaryData::EBGaramondItalic_woff2Size,  "font/woff2" },
+        { "/fonts/EBGaramond-Bold.woff2",      BinaryData::EBGaramondBold_woff2,    BinaryData::EBGaramondBold_woff2Size,    "font/woff2" },
     };
 
     for (const auto& entry : resourceMap)
