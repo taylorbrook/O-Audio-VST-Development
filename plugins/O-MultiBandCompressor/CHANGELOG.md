@@ -1,6 +1,12 @@
 # O-MultiBandCompressor Changelog
 
-## Version 1.13.0 (2026-09-25)
+## [1.13.0] - 2026-09-25
+
+> **This download ships v1.12.2 as well** — the previous release tag was v1.12.1.
+> v1.12.2 fixed a per-band sidechain low-pass that built an unstable detector
+> biquad at sample rates under 40 kHz, where a band quietly stopped compressing
+> (up to 7 dB of gain reduction lost per band at 32 kHz). Full entry for v1.12.2
+> is in `plugins/O-MultiBandCompressor/CHANGELOG.md`.
 
 **Gain reduction now reads off the analyzer, not just off four strip meters.**
 MINOR: one new view of a number the plugin already computed. No parameter, range,
@@ -84,7 +90,7 @@ restores exactly. Bumping the version restamps the factory-preset directory's
 `.factory-version` sentinel, which is the designed behaviour on every version
 change.
 
-## Version 1.12.2 (2026-09-14)
+## [1.12.2] - 2026-09-14
 
 **The per-band sidechain low-pass could build an unstable filter below 40 kHz.**
 PATCH: no parameter, range, type, state format or string changed, and nothing
@@ -119,7 +125,7 @@ rendered in English, French or Simplified Chinese is different.
 No parameter, range, type or state-format change. A v1.12.1 preset or session
 restores exactly.
 
-## Version 1.12.1 (2026-09-07)
+## [1.12.1] - 2026-09-07
 
 **The spectrum placeholder stops advertising an internal build stage.** PATCH:
 no parameter, range, type, state format or string changed, and nothing rendered
@@ -155,7 +161,7 @@ in English, French or Simplified Chinese is different.
   is now absolute. A comment stating a permanent fact about a plugin is wrong the
   first time the plugin changes — wave 4d's own finding M3.
 
-## Version 1.12.0 (2026-09-06)
+## [1.12.0] - 2026-09-06
 
 **Simplified Chinese (`zh-Hans`) joins English and French.** Stage 4 wave 4d of
 the suite-wide localization rollout, and this plugin was the wave's tracer.
@@ -245,7 +251,7 @@ of what the meter shows. It now carries the whole phrase. A correction round
 with a fresh salt, a fresh session and a **different model** returned *"Gain
 Reduction"*, and corrected nothing further, so there was no round two.
 
-## Version 1.11.2 (2026-09-03)
+## [1.11.2] - 2026-09-03
 
 The French rendering of the hover-help surface changes suite-wide (task
 260903-ukp; O-Gain 1.3.3 was the tracer). PATCH: French strings and source
@@ -276,7 +282,7 @@ comments only — no parameter, range, type or state format changed.
   repo-wide unreviewed-French TOTAL stays at 0.
 
 
-## Version 1.11.1 (2026-08-31)
+## [1.11.1] - 2026-08-31
 
 French copy revised. Stage N of the repo-wide i18n rollout — a second reading of
 every French string against the suite glossary (`scripts/i18n-fr-glossary.js`)
@@ -323,7 +329,7 @@ selector or CSS rule changed.
 - **`label.msMid` keeps "Mid"**, with a `termNote`: this is the M/S encoding,
   not the frequency band the glossary's *Médium* names two rows away.
 
-## Version 1.11.0 (2026-08-27)
+## [1.11.0] - 2026-08-27
 
 The PAGE speaks French now, not only the hover help. Every control caption,
 section heading, button face and accessible name is localized; value readouts
@@ -415,7 +421,7 @@ the band's own thirds. French did not cause it; French exposed it.
   `reviewed: false`. `Enreg.` / `Ouvrir` were picked by MEASURED WIDTH rather
   than by meaning and should be the first two a native speaker challenges.
 
-## Version 1.10.0 (2026-08-26)
+## [1.10.0] - 2026-08-26
 
 Hover help now speaks French, and all of its copy moved out of the code into one
 table. First plugin in the suite to be localized — it is the pattern the other
@@ -478,7 +484,7 @@ table. First plugin in the suite to be localized — it is the pattern the other
 - Control labels, value readouts and preset names stay in English. This release
   localizes hover help only.
 
-## Version 1.9.0 (2026-08-20)
+## [1.9.0] - 2026-08-20
 
 Bands now engage at sensible thresholds. Two detector-level fixes, both raising
 what the sidechain actually reads.
@@ -517,7 +523,7 @@ what the sidechain actually reads.
   mostly-correlated noise bed the RMS calibration dominates the shift; on
   wide stereo program the link fix contributes more.
 
-## Version 1.8.0 (2026-08-20)
+## [1.8.0] - 2026-08-20
 
 All 39 dials now use the suite's house knob instead of a styled range input.
 
@@ -580,7 +586,7 @@ The readout formatters are untouched. They were correct and working, and rewriti
 them onto `getScaledValue()` is a separate change with its own regression surface;
 value entry does not depend on them.
 
-## Version 1.7.0 (2026-08-19)
+## [1.7.0] - 2026-08-19
 
 Twenty-five more factory presets (50 total), and a categorised preset browser to
 make a bank that size navigable.
@@ -683,7 +689,7 @@ make a bank that size navigable.
   delete buttons only under User, and ▶ from the last Init preset landing on the first
   Mastering preset rather than the next name alphabetically.
 - `auval -v aufx OMbc OuDv`: PASS. `pluginval --strictness-level 10`: SUCCESS.
-## Version 1.6.1 (2026-08-19)
+## [1.6.1] - 2026-08-19
 
 Resolves the Critical and all five Warning findings from the 2026-08-19 deep code
 review (CODE_REVIEW.md): CR-01, WR-01..WR-05. No parameter, preset, or state-format
@@ -755,7 +761,7 @@ changes.
   channel-separation ratio): 3/3 pass.
 - auval (aufx OMbc OuDv): PASS.
 
-## Version 1.6.0 (2026-07-23)
+## [1.6.0] - 2026-07-23
 
 Nine more factory presets (25 total), and a sidechain-filter bug found while
 verifying them.
@@ -829,7 +835,7 @@ verifying them.
   non-finite output, **all 25 presets identical in forward and reverse order**
 - All 25 factory `.json` files regenerated by the installed binary
 
-## Version 1.5.0 (2026-07-22)
+## [1.5.0] - 2026-07-22
 
 Adds preset management with 16 factory presets, and puts on-screen controls on
 three per-band parameters that previously had none.
@@ -940,7 +946,7 @@ not hold the de-esser open.
   little below 120 Hz except plosives, they engage far less. The figures are most
   useful as a relative ordering, not as absolute expectations.
 
-## Version 1.4.2 (2026-07-22)
+## [1.4.2] - 2026-07-22
 
 UI-only release. No DSP, parameter, or state-format changes — presets and
 automation load unchanged.
@@ -986,7 +992,7 @@ labels survive toggling on and off, `.active` and `aria-pressed` both track
 state, and the Auto-MU toggle still reads On/Off. Built clean and validated with
 auval.
 
-## Version 1.4.1 (2026-07-22)
+## [1.4.1] - 2026-07-22
 
 UI-only release, following on from the v1.4.0 tooltip work. No DSP, parameter, or
 state-format changes — presets and automation load unchanged.
@@ -1045,7 +1051,7 @@ state-format changes — presets and automation load unchanged.
   `withNativeFunction` registrations in `PluginEditor.cpp` (see
   `pattern_webview_native_fn_bridge_gap` — an unregistered name fails silently).
 
-## Version 1.4.0 (2026-07-22)
+## [1.4.0] - 2026-07-22
 
 UI-only release. No DSP, parameter, or state-format changes — presets and automation from
 v1.3.0 load unchanged.
@@ -1135,7 +1141,7 @@ v1.3.0 load unchanged.
 - Bundle version confirmed at the binary: `CFBundleShortVersionString` 1.4.0 and
   `AudioComponents` version `66560` (`0x010400`), up from `65536` (`0x010000` = 1.0.0).
 
-## Version 1.3.0 (2026-07-01)
+## [1.3.0] - 2026-07-01
 
 Transparency fix from `.planning/CODE-REVIEW.md` (WR-03). **Changes the sound** (for the
 better): the plugin is now magnitude-flat at unity with all compressors bypassed.
@@ -1169,7 +1175,7 @@ better): the plugin is now magnitude-flat at unity with all compressors bypassed
 - **pluginval** strictness 10 — PASS.
 - **auval** (`aufx OMbc`) — PASS.
 
-## Version 1.2.2 (2026-07-01)
+## [1.2.2] - 2026-07-01
 
 Correctness + polish pass from `.planning/CODE-REVIEW.md` (WR-02, WR-04, IN-05, IN-06).
 
@@ -1198,7 +1204,7 @@ Correctness + polish pass from `.planning/CODE-REVIEW.md` (WR-02, WR-04, IN-05, 
   ~5 kHz into the left sliver. Each UI bin takes the peak (not average) of its FFT bins,
   so narrowband energy is no longer smeared. Cosmetic/analyzer-fidelity only.
 
-## Version 1.2.1 (2026-07-01)
+## [1.2.1] - 2026-07-01
 
 Real-time-safety pass from `.planning/CODE-REVIEW.md`. Removes all audio-thread
 allocation, locking, and redundant work. **No intended sonic change** — the crossover
@@ -1263,7 +1269,7 @@ refactor is verified bit-identical to v1.2.0 (see Verification).
 
 ---
 
-## Version 1.2.0 (2026-01-26)
+## [1.2.0] - 2026-01-26
 
 ### Added
 
@@ -1284,7 +1290,7 @@ refactor is verified bit-identical to v1.2.0 (see Verification).
 
 ---
 
-## Version 1.1.0 (2026-01-25)
+## [1.1.0] - 2026-01-25
 
 ### Added
 
@@ -1304,7 +1310,7 @@ refactor is verified bit-identical to v1.2.0 (see Verification).
 
 ---
 
-## Version 1.0.0 - Stage 3 Complete (2026-01-25)
+## [1.0.0] - 2026-01-25 (Stage 3 Complete)
 
 **PRODUCTION READY:** All stages complete - build system, DSP processing, and GUI with real-time metering functional.
 
