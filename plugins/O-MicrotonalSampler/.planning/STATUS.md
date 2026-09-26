@@ -1,15 +1,26 @@
 ---
 plugin: O-MicrotonalSampler
 stage: improve
-phase: v1.18.3 PATCH SHIPPED — technique sample lookup no longer reverts to ord on a missing velocity layer (pizz stays pizz)
-status: v1_18_3_velocity_layer_technique_fallback_fixed_installed_verified
-last_updated: 2026-06-21
-version: 1.18.3
+phase: v1.28.0 MINOR — UI pass (260924-nho R4/R5/R7) — AA text colours, 9px floor, bundled EB Garamond + ui-monospace values, keyboard/ARIA control-strip knobs
+status: v1_28_0_ui_pass_built_installed_daw_check_pending
+last_updated: 2026-09-25
+version: 1.28.0
 next_brief: (none — two known follow-ups: FilenameParser maps trem→slot 8 / flaut→slot 9 outside the 8-slot KS range; load-modal target-technique dropdown is a no-op unless "Force" is checked)
-previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4, 1.16.5, 1.16.6, 1.16.7, 1.16.8, 1.16.9, 1.16.10, 1.16.11, 1.17.0, 1.17.1, 1.17.2, 1.18.0, 1.18.1, 1.18.2
+previous_versions: 1.0.0, 1.0.1, 1.0.2, 1.0.4, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.4.0, 1.5.0, 1.5.1, 1.6.0, 1.7.0, 1.7.1, 1.8.0, 1.9.0, 1.9.1, 1.10.0, 1.11.0, 1.12.0, 1.12.1, 1.12.2, 1.12.3, 1.12.4, 1.13.0, 1.14.0, 1.15.0, 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4, 1.16.5, 1.16.6, 1.16.7, 1.16.8, 1.16.9, 1.16.10, 1.16.11, 1.17.0, 1.17.1, 1.17.2, 1.18.0, 1.18.1, 1.18.2, 1.18.3, …, 1.27.0
 ---
 
 # Resume Point
+
+## v1.28.0 (2026-09-25) — UI pass from the 260924-nho design review
+
+UI only (sampler-shell.css, tuning-panel.css, index.html, sampler-app.js) + 4 getResource
+branches and 4 CMake SOURCES lines for modules/ui/eb-garamond. No DSP/processor/param/state change.
+Backup: backups/O-MicrotonalSampler/v1.27.0/. Details + before/after gate table in CHANGELOG [1.28.0].
+
+- contrast below-AA 106/632 -> 1/632 (disabled #technique-add), <9px 337 -> 0
+- check-ui-labels: one [8][fr] artefact (label.savePreset x label.pcHint, pcHint scrolled
+  under the header, unpainted) — gate [8] uses unclipped rects; 8b already uses vr()
+- Pending: hands-on DAW check of knob keyboard focus/arrows + visual pass
 
 ## v1.18.3 Patch Shipped (2026-06-21) — technique lookup no longer reverts to ord on missing velocity layer
 

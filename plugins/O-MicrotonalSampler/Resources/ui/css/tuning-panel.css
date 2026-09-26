@@ -32,8 +32,13 @@
     --tuning-bg: rgba(245, 230, 211, 0.95);
     --tuning-border: rgba(139, 115, 85, 0.5);
     --tuning-text: #3C2F2F;
-    --tuning-text-muted: #8B7355;
+    /* v1.28.0 (R4): muted text #8B7355 -> #6A5641 (3.64 -> 5.64 on the panel
+       paper). #8BC34A stays for borders and the gradient; text and the two
+       filled buttons take --tuning-accent-ink, the suite's sage-deep, because
+       #8BC34A read 2.02 as the cents text and 2.10 under white. */
+    --tuning-text-muted: #6A5641;
     --tuning-accent: #8BC34A;
+    --tuning-accent-ink: #4E6839;
     --tuning-input-bg: rgba(255, 255, 255, 0.8);
     --tuning-hover: rgba(139, 168, 112, 0.3);
     --tuning-active: rgba(139, 195, 74, 0.4);
@@ -51,7 +56,7 @@
     padding: 15px;
     background: var(--tuning-bg);
     border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
     font-size: 11px;
     color: var(--tuning-text);
 }
@@ -270,7 +275,7 @@
 
 .matrix-table {
     border-collapse: collapse;
-    font-size: 8px;
+    font-size: 9px;     /* v1.28.0: the template's 9px floor (was 8px) */
 }
 
 .matrix-table th,
@@ -287,6 +292,7 @@
 
 .matrix-table td {
     background: var(--tuning-input-bg);
+    font-family: var(--font-mono);   /* v1.28.0 (R5): cents values */
 }
 
 /* True Keys View */
@@ -323,9 +329,9 @@
 }
 
 .tk-cents {
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
-    color: var(--tuning-accent, #8B7355);
+    color: var(--tuning-accent-ink);
 }
 
 .tk-total {
@@ -340,7 +346,7 @@
 
 .rotation-table {
     border-collapse: collapse;
-    font-size: 8px;
+    font-size: 9px;     /* v1.28.0: the template's 9px floor (was 8px) */
 }
 
 .rotation-table th,
@@ -352,6 +358,10 @@
 
 .rotation-table th {
     background: rgba(139, 115, 85, 0.15);
+}
+
+.rotation-table td {
+    font-family: var(--font-mono);   /* v1.28.0 (R5): cents values */
 }
 
 .rotation-table .current-tonic {
@@ -492,7 +502,7 @@
 .generator-btn {
     width: 100%;
     padding: 8px;
-    background: var(--tuning-accent);
+    background: var(--tuning-accent-ink);
     border: none;
     border-radius: 4px;
     color: white;
@@ -627,8 +637,8 @@
 
 .tuning-export-btn {
     grid-column: span 2;
-    background: var(--tuning-accent);
-    border-color: var(--tuning-accent);
+    background: var(--tuning-accent-ink);
+    border-color: var(--tuning-accent-ink);
     color: white;
     font-weight: 600;
 }
@@ -702,7 +712,12 @@
    only by a codepoint Arial does not carry. That is proved by the EN arm of
    check-ui-labels assertion 7, not asserted here. Inheriting the panel font
    instead would have been the tidier CSS and would have moved every English
-   box on this screen. ─────────────────────────────────────────────────────── */
+   box on this screen.
+
+   v1.28.0 (R5): SUPERSEDED on purpose. The design review unified the page on
+   one bundled face, so moving the English boxes is now the intent rather than
+   the risk; the nine controls take --font-serif and check-ui-labels re-measured
+   every language. The O-Octagon half above still holds. ───────────────────── */
 .viz-btn,
 .tuning-file-btn,
 .generator-btn,
@@ -710,7 +725,7 @@
 .library-filter-select option,
 .generator-type-select,
 .generator-type-select option {
-    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
 }
 
 /* ── MEASURED LINE-HEIGHT PINS (v1.27.0, zh-Hans) ────────────────────────────
