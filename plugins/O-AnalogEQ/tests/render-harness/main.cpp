@@ -20,7 +20,7 @@
 /*
   ==============================================================================
 
-    O-AnalogEQ — DSP render harness (v1.5.2)
+    O-AnalogEQ — DSP render harness
 
     Gates the three DSP fixes from the v1.5.0 code review, plus the preset-save
     guard added in v1.5.2. Every DSP verdict is read off RENDERED AUDIO, never
@@ -124,7 +124,14 @@ namespace
 int main()
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
-    std::printf ("\nO-AnalogEQ DSP render harness (v1.5.2)\n");
+    // The version is JucePlugin_VersionString, never a literal. The harness
+    // CMakeLists already inherits it from OAEQ_VERSION in the plugin's
+    // CMakeLists, which is this repo's single version truth; a second
+    // hand-edited copy here has no gate and went four versions stale once
+    // already (IN-09, the page's init log). Concatenated rather than passed
+    // through %s so a missing define fails the compile instead of printing
+    // something plausible.
+    std::printf ("\nO-AnalogEQ DSP render harness — plugin v" JucePlugin_VersionString "\n");
     std::printf ("sample rate %.0f Hz, block %d\n\n", kSampleRate, kBlockSize);
 
     // ════════════════════════════════════════════════════════════════════════

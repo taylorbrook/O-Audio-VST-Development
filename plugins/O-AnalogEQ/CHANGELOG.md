@@ -1,5 +1,68 @@
 # O-AnalogEQ Changelog
 
+## [1.5.4] - 2026-09-26
+
+A cosmetic leftover from v1.5.3's IN-09 sweep, plus the gate widening that should
+have come with it. PATCH: no parameter ID, range, type or state format changed,
+nothing outside `tests/` and the version line touched, and the rendered audio is
+byte-identical (harness 19/19, identical verdicts).
+
+### Fixed
+
+- **The render-harness banner still announced a hand-maintained version.**
+  `tests/render-harness/main.cpp` printed `O-AnalogEQ DSP render harness (v1.5.2)`
+  while the plugin shipped 1.5.3. Two further copies sat in the file-title comments
+  — `main.cpp` said `(v1.5.2)` and the harness `CMakeLists.txt` said `(v1.5.1)`,
+  already disagreeing with each other, which is what an ungated hand-edited literal
+  does on its own.
+
+  *Root cause:* v1.5.3 closed IN-09 — *"the page's init log still announces
+  v1.3.1"* — by deleting the literal and gating `index.html`. The finding was
+  written against the page because that is where the review looked, so the identical
+  literal on the **other** announcing surface was never in its scope and survived the
+  sweep untouched. Same defect class, different file: the fix was scoped to the
+  instance rather than the class.
+
+  *Fix:* the banner now reads `JucePlugin_VersionString`, which the harness target's
+  `CMakeLists.txt` has always inherited from `OAEQ_VERSION` — this repo's single
+  version truth — for the factory-preset sentinel, so the value was already in the
+  translation unit and the literal was pure duplication. Concatenated into the format
+  string rather than passed through `%s`, so a missing define fails the compile
+  instead of printing something plausible. The two title comments **drop** the
+  version rather than being corrected to 1.5.4, on the same reasoning IN-06 and
+  IN-09 were closed: a corrected hand-maintained copy still has no gate and goes
+  stale again on the next bump.
+
+  Nothing that runs in the plugin changed — the banner is a `printf` in a test
+  target that is off unless `-DOUARICON_BUILD_TESTS=ON`. The cost it carried was the
+  one IN-09 named: a developer reads `v1.5.2` off a harness run of a 1.5.3 build,
+  concludes the binary is stale, and re-runs the whole cache-clear-and-reinstall
+  sequence from `CLAUDE.md` chasing a staleness that exists only in the string.
+
+### Changed
+
+- **`ui_tip_render_check.js` check [10] now gates both announcing surfaces.** It
+  scanned `console.*` call lines in `index.html` only — written to the shape of
+  IN-09's one instance, which is exactly why it printed green over the harness copy
+  for a full version. It now scans the call lines of whichever function announces on
+  each surface: `console.*` in the page, `printf` in the harness. Still call-scoped
+  on purpose — both files carry legitimate `v1.2.0: the settings cluster` history
+  comments, and a blanket `vX.Y.Z` ban would fail on every one of them.
+
+### Testing
+
+- **Check [10] negative-controlled in five arms before acceptance**, driving the
+  *shipped* scan text sliced out of the test file rather than a retyped copy of it,
+  so the arms test the gate and not a paraphrase: clean on the real tree; red with
+  IN-09's `v1.3.1` `console.log` restored; red with the `(v1.5.2)` `printf`
+  restored; **both** files named in one verdict when both are restored (a stop-at-
+  first-hit scan would have passed that arm on one file); and silent on a `v9.9.9`
+  added to a non-call comment line, which is the property that keeps the history
+  comments legal.
+- **Render harness G1–G4: 19/19 PASS**, verdict-for-verdict identical to v1.5.3,
+  and the banner now prints `plugin v1.5.4` from the build system.
+- `check-param-cache.js`: 11/11 PASS (unchanged).
+
 ## [1.5.3] - 2026-09-26
 
 Clears the Info tier of the v1.5.0 thorough code review — **IN-06 through IN-09,

@@ -1,4 +1,4 @@
-# O-AnalogEQ DSP render harness (v1.5.1).
+# O-AnalogEQ DSP render harness.
 #
 # Console app. Instantiates the processor directly and gates the three DSP fixes
 # from the v1.5.0 code review on RENDERED AUDIO rather than on flags — see
