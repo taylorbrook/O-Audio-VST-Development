@@ -42,6 +42,7 @@
 #include "dsp/ConsonantEngine.h"
 #include "dsp/FricationFormantBank.h"
 #include "dsp/LyricsEngine.h"
+#include "dsp/ArpabetFormants.h"
 #include "NoteExpression.h"  // modules/tuning/note-expression (PendingTuningTable + helpers)
 
 class TuningEngine;
@@ -147,6 +148,18 @@ private:
     LyricsEngine* lyricsEnginePtr = nullptr;
     LyricsEngine::SyllableTarget currentSyllable;
     bool lyricsActive = false;  // cached per-note: was lyrics enabled at note-on?
+
+    // v1.33.0 — lyric phoneme timing (samples since note-on, set in prepare()).
+    // Onset glide W/Y/L/R: hold the approximant, then decay into the vowel.
+    // Diphthong: raised-cosine move from nucleus to offglide.
+    float lyricGlideHoldSamples = 0.0f;   // 25 ms
+    float lyricGlideTauSamples  = 1.0f;   // 20 ms
+    float lyricDiphStartSamples = 0.0f;   // 90 ms
+    float lyricDiphLenSamples   = 1.0f;   // 160 ms
+    bool  lyricPhonemes = false;          // syllable carries 1.33 phoneme targets
+    float lyricNoisePlace = 0.5f;         // consonant noise place (bank grid in lyric mode)
+    float lyricAspirationGain = 1.0f;     // voiceless-stop VOT noise trim (lyric mode)
+    void computeLyricFormants (float outFreq[5], float outBW[5], float outGain[5]) const noexcept;
 
     // --- APVTS ---
     juce::AudioProcessorValueTreeState* parameters = nullptr;

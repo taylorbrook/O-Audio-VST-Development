@@ -202,6 +202,14 @@ public:
         cachedGlottalPhase = phase01;
     }
 
+    // v1.33.0: lyric mode bypasses the place band-passes and feeds white noise
+    // straight to the Klatt frication bank. In series, the two place filters
+    // and the bank were on different grids (S = 3 kHz band-pass into a 6 kHz
+    // formant), so sibilants lost most of their energy while /f θ/ took the
+    // bank's full-band bypass unattenuated — the weakest fricatives came out
+    // loudest. Manual mode keeps the band-passes (preset sound unchanged).
+    void setFlatSource (bool flat) noexcept { flatSource = flat; }
+
     // Set VOT scale factor (0-1, default 0.5 = 1.0x nominal VOT duration)
     void setVOTScale (float vot01) noexcept
     {
@@ -278,8 +286,9 @@ public:
         // Kept for back-compat: contributes to sustained fricative shape but
         // the primary frication coloration now comes from FricationFormantBank
         // applied downstream in FormantVoice.
-        float shaped = placeFilter1.processSample (noise)
-                       + 0.4f * placeFilter2.processSample (noise);
+        float shaped = flatSource ? noise
+                                  : placeFilter1.processSample (noise)
+                                        + 0.4f * placeFilter2.processSample (noise);
 
         // Continuous component: fricatives produce sustained noise (scales with manner).
         // Envelope is applied here only — the burst transient bypasses it so the
@@ -471,6 +480,8 @@ private:
     float burstHpLpState = 0.0f;       // one-pole LP used to derive HP (alveolar)
     float burstLpAlpha = 0.0f;
     float burstHpLpAlpha = 0.0f;
+
+    bool flatSource = false;           // v1.33.0: lyric mode — see setFlatSource()
 
     float cachedPlace = 0.5f;
     float cachedManner = 0.5f;

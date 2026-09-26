@@ -1603,49 +1603,62 @@ const ARPABET_VOWELS = new Set([
 ]);
 
 // Phoneme → parameter mapping
-const PHONEME_MAP = {
-  // Vowels → vowelX, vowelY (from research brief + VowelData.h positions)
-  'IY':  { vowelX: 0.00, vowelY: 1.00 },
-  'IH':  { vowelX: 0.10, vowelY: 0.80 },
-  'EY':  { vowelX: 0.31, vowelY: 0.43 },
-  'EH':  { vowelX: 0.25, vowelY: 0.30 },
-  'AE':  { vowelX: 0.50, vowelY: 0.05 },
-  'AA':  { vowelX: 0.83, vowelY: 0.00 },
-  'AH':  { vowelX: 0.60, vowelY: 0.15 },
-  'AO':  { vowelX: 0.92, vowelY: 0.20 },
-  'OW':  { vowelX: 1.00, vowelY: 0.35 },
-  'UH':  { vowelX: 0.85, vowelY: 0.78 },
-  'UW':  { vowelX: 0.98, vowelY: 0.93 },
-  'ER':  { vowelX: 0.55, vowelY: 0.50 },
-  'AW':  { vowelX: 0.55, vowelY: 0.08 },
-  'AY':  { vowelX: 0.65, vowelY: 0.10 },
-  'OY':  { vowelX: 0.90, vowelY: 0.28 },
+// v1.33.0: vowels also carry `id` (+ `off` for diphthongs) — the index into
+// ArpabetFormants.h (keep ARPABET_FORMANT_ID in sync). Lyric notes read their
+// formants from that table; vowelX/vowelY now only drive the pad cursor.
+const ARPABET_FORMANT_ID = {
+  IY: 0, IH: 1, EY: 2, EH: 3, AE: 4, AA: 5, AH: 6, AO: 7, OW: 8, UH: 9, UW: 10, ER: 11,
+  AW_NUC: 12, AY_NUC: 13, OY_NUC: 14, W: 15, Y: 16, L: 17, R: 18
+};
+const FID = ARPABET_FORMANT_ID;
 
-  // Consonants → place, manner, voicing, level, nasal
-  'P':  { consonantTone: 0.00, sibilance: 0.00, consonantVoicing: 0.0, consonantLevel: 0.6 },
-  'B':  { consonantTone: 0.00, sibilance: 0.00, consonantVoicing: 1.0, consonantLevel: 0.6 },
+const PHONEME_MAP = {
+  // Vowels → vowelX, vowelY (pad cursor) + formant-table id / diphthong offglide
+  'IY':  { vowelX: 0.00, vowelY: 1.00, id: FID.IY },
+  'IH':  { vowelX: 0.10, vowelY: 0.80, id: FID.IH },
+  'EY':  { vowelX: 0.31, vowelY: 0.43, id: FID.EY, off: FID.IY },
+  'EH':  { vowelX: 0.25, vowelY: 0.30, id: FID.EH },
+  'AE':  { vowelX: 0.50, vowelY: 0.05, id: FID.AE },
+  'AA':  { vowelX: 0.83, vowelY: 0.00, id: FID.AA },
+  'AH':  { vowelX: 0.60, vowelY: 0.15, id: FID.AH },
+  'AO':  { vowelX: 0.92, vowelY: 0.20, id: FID.AO },
+  'OW':  { vowelX: 1.00, vowelY: 0.35, id: FID.OW, off: FID.UW },
+  'UH':  { vowelX: 0.85, vowelY: 0.78, id: FID.UH },
+  'UW':  { vowelX: 0.98, vowelY: 0.93, id: FID.UW },
+  'ER':  { vowelX: 0.55, vowelY: 0.50, id: FID.ER },
+  'AW':  { vowelX: 0.55, vowelY: 0.08, id: FID.AW_NUC, off: FID.UH },
+  'AY':  { vowelX: 0.65, vowelY: 0.10, id: FID.AY_NUC, off: FID.IH },
+  'OY':  { vowelX: 0.90, vowelY: 0.28, id: FID.OY_NUC, off: FID.IH },
+
+  // Consonants → place (locus grid), manner, voicing, level, nasal.
+  // v1.33.0: fricPlace = frication-bank place (labial 0 / dental .25 /
+  // alveolar .5 / post-alveolar .75 / velar 1); consGainDb = per-phoneme noise
+  // level, calibrated so noise-to-vowel ratios follow measured phonetic power
+  // (Fry 1979): SH > CH > S > T,K > Z > P > F > TH, voiced below voiceless.
+  'P':  { consonantTone: 0.00, sibilance: 0.00, consonantVoicing: 0.0, consonantLevel: 0.6, fricPlace: 0.00, consGainDb: -3 },
+  'B':  { consonantTone: 0.00, sibilance: 0.00, consonantVoicing: 1.0, consonantLevel: 0.6, fricPlace: 0.00, consGainDb: -12 },
   'M':  { nasalCoupling: 1.0, nasalPlace: 0.0, consonantLevel: 0.0 },
-  'F':  { consonantTone: 0.08, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.5 },
-  'V':  { consonantTone: 0.08, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.5 },
-  'W':  { vowelX: 0.98, vowelY: 0.93, consonantLevel: 0.0 },  // Glide from U-region
-  'TH': { consonantTone: 0.15, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.4 },
-  'DH': { consonantTone: 0.15, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.4 },
-  'T':  { consonantTone: 0.33, sibilance: 0.00, consonantVoicing: 0.0, consonantLevel: 0.6 },
-  'D':  { consonantTone: 0.33, sibilance: 0.00, consonantVoicing: 1.0, consonantLevel: 0.6 },
+  'F':  { consonantTone: 0.08, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.5, fricPlace: 0.00, consGainDb: -26 },
+  'V':  { consonantTone: 0.08, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.5, fricPlace: 0.00, consGainDb: -26 },
+  'W':  { glide: FID.W },
+  'TH': { consonantTone: 0.15, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.4, fricPlace: 0.20, consGainDb: -27 },
+  'DH': { consonantTone: 0.15, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.4, fricPlace: 0.20, consGainDb: -27 },
+  'T':  { consonantTone: 0.33, sibilance: 0.00, consonantVoicing: 0.0, consonantLevel: 0.6, fricPlace: 0.45, consGainDb: 0 },
+  'D':  { consonantTone: 0.33, sibilance: 0.00, consonantVoicing: 1.0, consonantLevel: 0.6, fricPlace: 0.45, consGainDb: -5 },
   'N':  { nasalCoupling: 1.0, nasalPlace: 0.5, consonantLevel: 0.0 },
-  'S':  { consonantTone: 0.33, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.5 },
-  'Z':  { consonantTone: 0.33, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.5 },
-  'L':  { vowelX: 0.55, vowelY: 0.85, consonantLevel: 0.0 },  // Existing morph point
-  'R':  { vowelX: 0.12, vowelY: 0.72, consonantLevel: 0.0 },  // Existing morph point
-  'CH': { consonantTone: 0.55, sibilance: 0.15, consonantVoicing: 0.0, consonantLevel: 0.6 },
-  'JH': { consonantTone: 0.55, sibilance: 0.15, consonantVoicing: 1.0, consonantLevel: 0.6 },
-  'SH': { consonantTone: 0.55, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.5 },
-  'ZH': { consonantTone: 0.55, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.5 },
-  'Y':  { vowelX: 0.00, vowelY: 1.00, consonantLevel: 0.0 },  // Glide from I-region
-  'K':  { consonantTone: 1.00, sibilance: 0.00, consonantVoicing: 0.0, consonantLevel: 0.6 },
-  'G':  { consonantTone: 1.00, sibilance: 0.00, consonantVoicing: 1.0, consonantLevel: 0.6 },
+  'S':  { consonantTone: 0.33, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.5, fricPlace: 0.50, consGainDb: -8 },
+  'Z':  { consonantTone: 0.33, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.5, fricPlace: 0.50, consGainDb: -10 },
+  'L':  { glide: FID.L },
+  'R':  { glide: FID.R },
+  'CH': { consonantTone: 0.55, sibilance: 0.45, consonantVoicing: 0.0, consonantLevel: 0.6, fricPlace: 0.75, consGainDb: 4 },
+  'JH': { consonantTone: 0.55, sibilance: 0.45, consonantVoicing: 1.0, consonantLevel: 0.6, fricPlace: 0.75, consGainDb: 2 },
+  'SH': { consonantTone: 0.55, sibilance: 1.00, consonantVoicing: 0.0, consonantLevel: 0.5, fricPlace: 0.75, consGainDb: 1 },
+  'ZH': { consonantTone: 0.55, sibilance: 1.00, consonantVoicing: 1.0, consonantLevel: 0.5, fricPlace: 0.75, consGainDb: 0 },
+  'Y':  { glide: FID.Y },
+  'K':  { consonantTone: 1.00, sibilance: 0.00, consonantVoicing: 0.0, consonantLevel: 0.6, fricPlace: 1.00, consGainDb: 12 },
+  'G':  { consonantTone: 1.00, sibilance: 0.00, consonantVoicing: 1.0, consonantLevel: 0.6, fricPlace: 1.00, consGainDb: 7 },
   'NG': { nasalCoupling: 1.0, nasalPlace: 1.0, consonantLevel: 0.0 },
-  'HH': { consonantTone: 0.50, sibilance: 0.85, consonantVoicing: 0.0, consonantLevel: 0.3 },
+  'HH': { consonantTone: 0.50, sibilance: 0.85, consonantVoicing: 0.0, consonantLevel: 0.3, fricPlace: 0.50, consGainDb: -19, aspirate: true },
 };
 
 // Legal 2-consonant onsets for MOP syllabification
@@ -1717,38 +1730,47 @@ function syllableToTarget(phonemes) {
     consonantTone: 0.5, sibilance: 0.5,
     consonantVoicing: 0.5, consonantLevel: 0.0,
     nasalCoupling: 0.0, nasalPlace: 0.5,
-    hasConsonant: false
+    hasConsonant: false,
+    // v1.33.0 phoneme targets (see ArpabetFormants.h / LyricsEngine.h)
+    vowelId: -1, offglideId: -1, glideId: -1,
+    fricPlace: 0.5, consGainDb: 0.0, aspirate: false
   };
 
   // Find the vowel nucleus
-  let vowelFound = false;
   for (const ph of phonemes) {
     if (ARPABET_VOWELS.has(ph) && PHONEME_MAP[ph]) {
-      target.vowelX = PHONEME_MAP[ph].vowelX;
-      target.vowelY = PHONEME_MAP[ph].vowelY;
-      vowelFound = true;
+      const v = PHONEME_MAP[ph];
+      target.vowelX = v.vowelX;
+      target.vowelY = v.vowelY;
+      target.vowelId = v.id;
+      if (v.off !== undefined) target.offglideId = v.off;
       break;
     }
   }
 
-  // Find the first onset consonant (before the vowel)
+  // Onset (before the vowel). The first obstruent or nasal sets the consonant;
+  // an approximant (W Y L R) sets the onset glide INTO the vowel. v1.33.0: the
+  // approximant used to overwrite the vowel for the whole note ("L AA" held an
+  // L, "Y UW" sang "ee"), and a glide after a stop ("P L AY") was never read.
+  let onsetSet = false;
   for (const ph of phonemes) {
     if (ARPABET_VOWELS.has(ph)) break;  // Stop at vowel
     const map = PHONEME_MAP[ph];
     if (!map) continue;
+
+    if (map.glide !== undefined) {
+      target.glideId = map.glide;  // last approximant before the vowel wins
+      continue;
+    }
+    if (onsetSet) continue;
 
     // Nasal consonants
     if (map.nasalCoupling !== undefined && map.nasalCoupling > 0) {
       target.nasalCoupling = map.nasalCoupling;
       target.nasalPlace = map.nasalPlace;
       target.hasConsonant = true;
-      break;
-    }
-    // Approximants (L, R, W, Y) — override vowel position for coloring
-    if (map.vowelX !== undefined && (map.consonantLevel === undefined || map.consonantLevel === 0)) {
-      target.vowelX = map.vowelX;
-      target.vowelY = map.vowelY;
-      continue;  // Don't count as consonant onset
+      onsetSet = true;
+      continue;
     }
     // Plosive/fricative consonants
     if (map.consonantLevel !== undefined && map.consonantLevel > 0) {
@@ -1756,8 +1778,11 @@ function syllableToTarget(phonemes) {
       target.sibilance = map.sibilance;
       target.consonantVoicing = map.consonantVoicing;
       target.consonantLevel = map.consonantLevel;
+      target.fricPlace = map.fricPlace;
+      target.consGainDb = map.consGainDb;
+      target.aspirate = !!map.aspirate;
       target.hasConsonant = true;
-      break;
+      onsetSet = true;
     }
   }
 
@@ -1782,7 +1807,9 @@ function parseArpabet(text) {
   const cleaned = text.trim().toUpperCase().replace(/[^A-Z0-9\s]/g, '');
   if (!cleaned) return [];
 
-  const tokens = cleaned.split(/\s+/);
+  // v1.33.0: drop CMU-dict stress digits (AA1, IY0) — the stressed token
+  // matched no phoneme, so the vowel was silently discarded.
+  const tokens = cleaned.split(/\s+/).map(t => t.replace(/[0-9]+$/, '')).filter(Boolean);
 
   // Merge digraphs: CH, SH, ZH, TH, DH, JH, HH, NG, etc.
   const phonemes = [];

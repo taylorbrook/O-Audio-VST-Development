@@ -56,6 +56,16 @@ public:
         float nasalPlace = 0.5f;
 
         bool hasConsonant = false;
+
+        // v1.33.0 — direct phoneme targets (ArpabetFormants.h). A schedule
+        // saved before 1.33 has none of these; the defaults keep its old
+        // XY-morpher / consonantTone behaviour until the page re-parses it.
+        int   vowelId    = -1;     // nucleus formants; -1 = use vowelX/Y
+        int   offglideId = -1;     // diphthong target; -1 = monophthong
+        int   glideId    = -1;     // onset approximant (W Y L R); -1 = none
+        float fricPlace  = -1.0f;  // frication-bank place; <0 = consonantTone
+        float consGain   = 1.0f;   // per-phoneme consonant noise gain (linear)
+        bool  aspirate   = false;  // /h/: noise through the vocal tract
     };
 
     static constexpr int kMaxSyllables = 256;
@@ -168,6 +178,23 @@ public:
                 t.nasalCoupling    = static_cast<float> (obj->getProperty ("nasalCoupling"));
                 t.nasalPlace       = static_cast<float> (obj->getProperty ("nasalPlace"));
                 t.hasConsonant     = static_cast<bool>  (obj->getProperty ("hasConsonant"));
+
+                // v1.33.0 fields — absent in older schedules, so default rather
+                // than let a void var cast to 0 (vowelId 0 = IY).
+                auto intOr = [obj] (const char* key, int fallback)
+                {
+                    return obj->hasProperty (key) ? static_cast<int> (obj->getProperty (key)) : fallback;
+                };
+                auto floatOr = [obj] (const char* key, float fallback)
+                {
+                    return obj->hasProperty (key) ? static_cast<float> (obj->getProperty (key)) : fallback;
+                };
+                t.vowelId    = intOr ("vowelId", -1);
+                t.offglideId = intOr ("offglideId", -1);
+                t.glideId    = intOr ("glideId", -1);
+                t.fricPlace  = floatOr ("fricPlace", -1.0f);
+                t.consGain   = std::pow (10.0f, floatOr ("consGainDb", 0.0f) / 20.0f);
+                t.aspirate   = obj->hasProperty ("aspirate") && static_cast<bool> (obj->getProperty ("aspirate"));
             }
         }
 
