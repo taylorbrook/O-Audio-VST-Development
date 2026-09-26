@@ -6,5 +6,9 @@
   {
     "name": "preset dropdown open (label.noPresets, written by setLabel)",
     "click": "#presetName"
+  },
+  {
+    "name": "settings popover open, hover-help OFF (ui.off on the switch)",
+    "click": ["#gear-btn", "#tips-toggle"]
   }
 ]

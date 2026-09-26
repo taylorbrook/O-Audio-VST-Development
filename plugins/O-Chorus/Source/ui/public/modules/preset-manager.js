@@ -416,13 +416,27 @@ export function createPresetBar(containerId, options = {}) {
     }
 
     // Create UI elements
+    //
+    // WR-10 (v1.0.9): these four buttons carried hardcoded English `title=` attributes.
+    // A native title renders a SECOND, OS-drawn tooltip in a language unrelated to the
+    // page's, competing with the measure-then-pin tooltip renderers the suite's plugins
+    // build — which is exactly what the i18n contract's §4 "no native title=" rule
+    // exists to prevent. They survived because check-i18n's JS scan only ever looked at
+    // the inline <script type="module"> in index.html and never at the served modules,
+    // so its "zero native title= remain" was a statement about one file printed as a
+    // statement about the page.
+    //
+    // aria-label is the correct replacement: it names the control for assistive tech
+    // without drawing anything, so it cannot compete with a custom renderer. Consumers
+    // that localize should set these from their own i18n table after construction; the
+    // English here is the unlocalized fallback, not a translation target.
     container.innerHTML = `
         <div class="preset-bar" style="display: flex; align-items: center; gap: 8px;">
-            <button class="preset-prev" title="Previous preset">&lt;</button>
+            <button class="preset-prev" aria-label="Previous preset">&lt;</button>
             <span class="preset-name" style="min-width: 120px; text-align: center;">Default</span>
-            <button class="preset-next" title="Next preset">&gt;</button>
-            <button class="preset-load" title="Load preset from file">Load</button>
-            <button class="preset-save" title="Save preset">Save</button>
+            <button class="preset-next" aria-label="Next preset">&gt;</button>
+            <button class="preset-load" aria-label="Load preset from file">Load</button>
+            <button class="preset-save" aria-label="Save preset">Save</button>
         </div>
     `;
 

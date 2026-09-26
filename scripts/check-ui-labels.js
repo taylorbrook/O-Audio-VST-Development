@@ -612,13 +612,28 @@ const overlaps = (a, b) =>
         // states file that drove the DOM directly would be measuring a state
         // the plugin cannot actually produce, and that is worth failing on
         // review rather than forbidding here.
+        //   click ARRAY — a state two clicks deep. O-AnalogEQ's hover-help switch
+        //              (WR-09) is the case: the switch lives INSIDE the settings
+        //              popover, so its Off arm needs #gear-btn then #tips-toggle.
+        //              A single selector could only ever measure the arm the
+        //              control happens to boot in, and a two-state control
+        //              measured once reads as "11 of 11 VISIBLE" — true, and
+        //              exactly the blind spot. The clicks are applied in order
+        //              against the SAME page, and every selector is asserted to
+        //              exist, so a renamed control fails loudly instead of
+        //              quietly measuring one arm.
         if (state.click || state.dblclick) {
             const sel = state.click || state.dblclick;
-            const el = await page.$(sel);
-            if (!el) { check(false, `[state ${state.name}] selector ${sel} exists`); continue; }
-            if (state.dblclick) await el.dblclick({ force: true });
-            else                await el.click({ force: true });
-            await page.waitForTimeout(250);
+            const sels = Array.isArray(sel) ? sel : [sel];
+            let reached = true;
+            for (const one of sels) {
+                const el = await page.$(one);
+                if (!el) { check(false, `[state ${state.name}] selector ${one} exists`); reached = false; break; }
+                if (state.dblclick) await el.dblclick({ force: true });
+                else                await el.click({ force: true });
+                await page.waitForTimeout(250);
+            }
+            if (!reached) continue;
         }
         if (state.eval) {
             try { await page.evaluate((src) => { (0, eval)(src); }, state.eval); }

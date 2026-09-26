@@ -214,7 +214,7 @@ function outsideViewport(rect, W, H) {
     note(`tooltip max-width parsed from index.html: ${CAP === null ? 'NOT FOUND' : CAP + 'px'}`);
 
     const table = await loadTable();
-    const { I18N, TIP_BINDINGS, LANGUAGES } = table;
+    const { I18N, LABELS, TIP_BINDINGS, LANGUAGES } = table;
 
     // ── THE LANGUAGE LIST IS DERIVED, NEVER SPELLED ─────────────────────────
     //
@@ -985,6 +985,162 @@ function outsideViewport(rect, W, H) {
         }
         await page.keyboard.press('Escape');
         await page.waitForTimeout(150);
+
+        // ── 9. THE HOVER-HELP SWITCH ITSELF (WR-08) ─────────────────────────
+        //
+        // Everything above drives the renderer with help ON. The v1.4.0 switch
+        // shipped with ZERO behavioural assertions: the only mention of
+        // #tips-toggle in this file was in `anchorsOpen`, which hovers the
+        // switch to read ITS tooltip and never presses it. Both page.click
+        // calls were #gear-btn.
+        //
+        // What that costs: delete the show gate at index.html
+        // `if (!tipsEnabled && !el.hasAttribute('data-tip-always')) return;`
+        // and the switch becomes decorative — it flips aria-pressed, relabels
+        // itself and persists a value nothing reads, while hover-help keeps
+        // appearing. This file still reported 415 PASS, check-i18n still exited
+        // 0 (the keys are present and referenced), check-ui-labels still exited
+        // 0 (the surface is pointer-events: none decoration it never counts),
+        // and the fr/zh lints never look at behaviour. Everything green,
+        // because the thing measured was not the thing that broke.
+        //
+        // Each assertion below fails on a DISTINCT single-line deletion, which
+        // is the property that makes the set worth having rather than one
+        // coarse "the switch does something" probe.
+        console.log('\n-- hover-help switch: OFF arm');
+
+        // TWO TABLES, AND THE SWITCH CAPTION IS IN THE OTHER ONE. `I18N` is the
+        // TIP table (hover-help title/body pairs); the switch's own On/Off
+        // caption is a LABEL and lives in `LABELS`. Reading ui.off off I18N
+        // yields undefined and throws at `.t` — derive-or-abort instead, so a
+        // key that moves between tables fails with a sentence rather than a
+        // raw TypeError halfway through the sweep.
+        const OFF_LABEL = ((LABELS || {})['ui.off'] || {}).en;
+        if (!OFF_LABEL || typeof OFF_LABEL.t !== 'string') {
+            console.error("[9] LABELS['ui.off'].en.t is not a string — the switch caption key "
+                + 'moved or was renamed. This arm asserts the switch relabels itself, so it '
+                + 'aborts rather than comparing against undefined.');
+            process.exit(1);
+        }
+
+        await page.evaluate((l) => window.__setLanguage(l), 'en');
+        await page.waitForTimeout(150);
+
+        // A NORMAL anchor and an ALWAYS anchor, derived from the bindings
+        // rather than spelled: the always-set is exactly the elements carrying
+        // data-tip-always, so a fourth one added later is covered without
+        // editing this block, and a renamed one fails the derive guard instead
+        // of silently shrinking the probe.
+        const alwaysSet = await page.evaluate(() =>
+            Array.from(document.querySelectorAll('[data-tip-always]'))
+                 .map(el => el.id ? '#' + el.id : null).filter(Boolean));
+        const normalAnchor = TIP_BINDINGS.map(b => b[0]).find(sel => !alwaysSet.includes(sel));
+
+        check(alwaysSet.length > 0 && normalAnchor !== undefined,
+            `[9] the page has both an always-on anchor and a normal one to contrast — `
+            + `always=[${alwaysSet.join(', ')}] normal=${normalAnchor} `
+            + `(without BOTH this arm cannot tell "gate works" from "renderer died")`);
+
+        if (alwaysSet.length > 0 && normalAnchor !== undefined) {
+            const normalBinding = TIP_BINDINGS.find(b => b[0] === normalAnchor);
+            const normalWrapper = normalBinding ? normalBinding[2] : null;
+
+            await setPopover(true);
+            await page.click('#tips-toggle');
+            await page.waitForTimeout(150);
+
+            const offState = await page.evaluate(() => {
+                const b = document.getElementById('tips-toggle');
+                return { pressed: b.getAttribute('aria-pressed'), text: b.textContent.trim() };
+            });
+            check(offState.pressed === 'false',
+                `[9] pressing the switch sets aria-pressed="false" — got "${offState.pressed}"`);
+            check(offState.text === OFF_LABEL.t,
+                `[9] and relabels itself to ui.off ("${OFF_LABEL.t}") — got "${offState.text}"`);
+
+            // ── 9a. the show gate ───────────────────────────────────────────
+            await setPopover(false);
+            const offNormal = await hoverAnchor(normalAnchor, normalWrapper);
+            check(offNormal !== null, `[9a] ${normalAnchor} is still hoverable with help off`);
+            if (offNormal) {
+                const t = offNormal.tip;
+                const visible = t.shown && t.visibility === 'visible' && t.opacity === '1';
+                check(!visible,
+                    `[9a] with help OFF, hovering a NORMAL anchor (${normalAnchor}) shows NO tip `
+                    + `(show=${t.shown} visibility=${t.visibility} opacity=${t.opacity}) — `
+                    + `this is the index.html show-gate line, and deleting it fails here`);
+            }
+
+            // ── 9b. the data-tip-always bypass ──────────────────────────────
+            //
+            // THE ASSERTION THAT MATTERS MOST. Without it, a "fix" that
+            // disables the renderer wholesale passes 9a. 9a says the gate
+            // stops normal anchors; 9b says the renderer is still alive.
+            await setPopover(true);
+            const alwaysSel = alwaysSet.includes('#gear-btn') ? '#gear-btn' : alwaysSet[0];
+            const alwaysBinding = TIP_BINDINGS.find(b => b[0] === alwaysSel);
+            const offAlways = await hoverAnchor(alwaysSel, alwaysBinding ? alwaysBinding[2] : null);
+            check(offAlways !== null, `[9b] ${alwaysSel} is hoverable with help off`);
+            if (offAlways) {
+                const t = offAlways.tip;
+                const visible = t.shown && t.visibility === 'visible' && t.opacity === '1';
+                check(visible,
+                    `[9b] with help OFF, a data-tip-always anchor (${alwaysSel}) STILL shows its tip `
+                    + `(show=${t.shown} visibility=${t.visibility} opacity=${t.opacity}) — `
+                    + `proves the bypass is live, not that the whole renderer died`);
+                check(t.body.trim() !== '',
+                    '[9b] and that tip still carries a body, so it is a real tip and not an empty box');
+            }
+
+            // ── 9c. the hideTip coupling ────────────────────────────────────
+            //
+            // applyTipsEnabled calls hideTip() when it goes off. A tip standing
+            // open at the instant the switch is pressed must come down; without
+            // this, the show gate alone would leave a stale tip on screen.
+            await page.click('#tips-toggle');          // back ON
+            await page.waitForTimeout(150);
+            const onAgain = await hoverAnchor(alwaysSel, alwaysBinding ? alwaysBinding[2] : null);
+            const standing = onAgain && onAgain.tip.shown;
+            check(standing, '[9c] a tip is standing open before the switch is pressed (setup for the coupling probe)');
+            if (standing) {
+                await page.click('#tips-toggle');      // OFF, with a tip up
+                await page.waitForTimeout(150);
+                const after = await page.evaluate(READ_TIP);
+                check(!after.shown || after.visibility !== 'visible' || after.opacity === '0',
+                    `[9c] pressing the switch with a tip UP pulls it down (hideTip coupling) — `
+                    + `show=${after.shown} visibility=${after.visibility} opacity=${after.opacity}`);
+            }
+
+            // ── 9d. the localStorage round-trip ─────────────────────────────
+            //
+            // Seeded BEFORE the reload, then read off the rendered switch —
+            // asserting on the stored string alone would pass on a page that
+            // never reads it back.
+            await page.evaluate(() => {
+                try { localStorage.setItem('oaeq.tipsEnabled', 'false'); } catch (e) {}
+            });
+            await page.reload({ waitUntil: 'networkidle' });
+            await page.waitForTimeout(500);
+            const booted = await page.evaluate(() => {
+                const b = document.getElementById('tips-toggle');
+                return b ? { pressed: b.getAttribute('aria-pressed'), text: b.textContent.trim() } : null;
+            });
+            check(booted !== null, '[9d] the switch exists after a reload');
+            if (booted) {
+                check(booted.pressed === 'false',
+                    `[9d] with oaeq.tipsEnabled='false' pre-seeded, the switch boots aria-pressed="false" `
+                    + `— got "${booted.pressed}"`);
+                check(booted.text === OFF_LABEL.t,
+                    `[9d] and boots reading ui.off ("${OFF_LABEL.t}") — got "${booted.text}"`);
+            }
+
+            // Leave the page as the rest of the file expects to find it.
+            await page.evaluate(() => {
+                try { localStorage.removeItem('oaeq.tipsEnabled'); } catch (e) {}
+            });
+            await page.reload({ waitUntil: 'networkidle' });
+            await page.waitForTimeout(500);
+        }
 
         // ── housekeeping ────────────────────────────────────────────────────
         console.log('');

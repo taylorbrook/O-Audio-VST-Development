@@ -979,6 +979,72 @@ function checkPlugin(p) {
             + (missing.length ? ` — ${missing.length} missing: ${missing.join(', ')}` : ''));
     }
 
+    // ── THE SERVED SET IS THE BUILD'S, NOT THE js/ DIRECTORY'S ───────────
+    //
+    // WR-10 (O-AnalogEQ v1.5.0 review). Everything above enumerates: inline
+    // scripts, `Source/ui/public/js/*.js`, `${CMAKE_SOURCE_DIR}/modules/**.js`
+    // named from CMakeLists, and a bundle's authored source. None of them reach
+    // a plugin-LOCAL vendored copy in a sibling directory — O-AnalogEQ embeds
+    // `Source/ui/public/modules/preset-manager.js` and serves it from
+    // `/modules/preset-manager.js` (PluginEditor.cpp's getResource), and it is
+    // in no js/ directory and carries no ${CMAKE_SOURCE_DIR} prefix.
+    //
+    // So assertion [12] reported "1 module(s): the inline <script type=module>"
+    // on a page that imports THREE, and [11] then certified "zero native title=
+    // remain" over the half it could see. Inside the unseen half,
+    // createPresetBar's markup template carried four hardcoded English `title=`
+    // attributes. The gate's green was a statement about one file, printed as a
+    // statement about the page — the same shape as the venue.js and
+    // tuning-panel.js holes this file already argues against twice above.
+    //
+    // DERIVED FROM juce_add_binary_data's SOURCES, never a directory guess or a
+    // transcribed list. That block is what the build actually embeds, so it
+    // cannot silently omit a file the page runs, and a plugin that starts
+    // serving a fifth module is covered without editing this scan. js/juce/ is
+    // excluded as verbatim upstream JUCE, exactly as the directory scan excludes
+    // it; i18n.js is the canon target and is already read by readInlineModule.
+    const servedModuleJs = [];
+    if (p.cmake && fs.existsSync(p.cmake)) {
+        const cmakeText = fs.readFileSync(p.cmake, 'utf8')
+            .split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+        const seenServed = new Set();
+        for (const block of cmakeText.matchAll(/juce_add_binary_data\s*\(([\s\S]*?)\)/g)) {
+            for (const m of block[1].matchAll(/([A-Za-z0-9._\/-]+\.js)/g)) {
+                const rel = m[1];
+                if (seenServed.has(rel)) continue;
+                seenServed.add(rel);
+                if (/(^|\/)js\/juce\//.test(rel)) continue;          // verbatim upstream
+                if (/(^|\/)i18n\.js$/.test(rel)) continue;            // the canon target
+                if (/\.(bundle|min)\.js$/.test(rel)) continue;        // unparseable, handled above
+                const full = path.join(p.pluginRoot, rel);
+                if (!fs.existsSync(full) || !fs.statSync(full).isFile()) continue;
+                const code = fs.readFileSync(full, 'utf8');
+                // Deduped by CODE: a file already reached through the js/ scan or
+                // the ${CMAKE_SOURCE_DIR} follow must not be scanned twice.
+                if (pageModules.some((pm) => pm.code === code)) continue;
+                if (servedModuleJs.some((pm) => pm.code === code)) continue;
+                servedModuleJs.push({ label: rel, code, inline: false });
+            }
+        }
+    }
+
+    // WHY THIS IS NOT SIMPLY PUSHED INTO pageModules.
+    //
+    // pageModules drives [12]/[13]/[15] — the PROSE rules. The TODO(wave 4f+)
+    // above is explicit that firing those over the shared modules turns seven
+    // unrelated plugins red at once (O-Bassoon/O-Bowed/O-Reed/O-Wind 39 each,
+    // O-Contrabass 46, O-ReverseDelay 6, O-Marimba 5) because their served
+    // modules render unkeyed English captions. Those are real findings and a
+    // real rollout, and putting seven plugins' UIs into one unrelated plugin's
+    // patch is what that TODO exists to prevent.
+    //
+    // The §4 native-title rule is a different question with a different answer:
+    // it is satisfied REPO-WIDE today except for this one factory template, so
+    // gating it over the served set costs nothing and closes WR-10 now. The
+    // prose debt stays scoped and is REPORTED below rather than passing in
+    // silence, which is the distinction between a scoped gate and a blind one.
+    const titleScanModules = [...pageModules, ...servedModuleJs];
+
     // A bundled plugin's prose lives in the AUTHORED source, which is not in
     // the served root at all — O-TextureForge builds `Source/ui/src/app.js`
     // into `Source/ui/public/js/app.bundle.js`. Skipping the bundle without
@@ -1273,7 +1339,27 @@ function checkPlugin(p) {
     // So §4 is enforced over both sources at once. Splitting them into two
     // assertions would let a plugin pass the one it happens to trip.
     const TITLE_WRITE = /(?:\.\s*title\s*=|setAttribute\s*\(\s*['"]title['"]\s*,)\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/g;
-    for (const pm of pageModules) {
+
+    // A NATIVE TITLE DOES NOT HAVE TO BE A PROPERTY WRITE EITHER.
+    //
+    // TITLE_WRITE catches `el.title = '...'` and `setAttribute('title', ...)`.
+    // It does NOT catch the third form, which is the one WR-10 actually found:
+    // an HTML attribute sitting inside a markup string the module assigns to
+    // innerHTML. preset-manager.js's createPresetBar writes
+    //   container.innerHTML = `... <button class="preset-prev" title="Previous
+    //   preset">&lt;</button> ...`
+    // — four native titles, rendered on any page that calls the factory, and
+    // invisible to BOTH the markup scan (the bytes are in a .js file) and to
+    // TITLE_WRITE (no `.title =`, no setAttribute). Widening the module set
+    // alone would therefore have left WR-10 open while appearing to close it.
+    //
+    // The lookbehind is what keeps this from double-reporting: `el.title =` has
+    // a `.` before `title` and `setAttribute('title'` has a quote, so both stay
+    // with TITLE_WRITE and are counted once. `data-title=` and `aria-label=`
+    // are likewise excluded — neither draws an OS tooltip.
+    const TITLE_MARKUP = /(?<![\w.$'"-])title\s*=\s*(["'])([^"']*)\1/g;
+
+    for (const pm of titleScanModules) {
         const stripped = EXTRACT.stripJsComments(pm.code);
         for (const m of stripped.matchAll(TITLE_WRITE)) {
             // `el.title = ''` REMOVES a title. Clearing one is the fix, not the
@@ -1283,6 +1369,10 @@ function checkPlugin(p) {
             const before = stripped.slice(Math.max(0, m.index - 20), m.index);
             if (/\bdocument\s*$/.test(before)) continue;
             nativeTitles.push(`${pm.label}[title="${m[2].replace(/\s+/g, ' ').slice(0, 24)}"]`);
+        }
+        for (const m of stripped.matchAll(TITLE_MARKUP)) {
+            if (m[2].trim() === '') continue;
+            nativeTitles.push(`${pm.label}[markup title="${m[2].replace(/\s+/g, ' ').slice(0, 24)}"]`);
         }
     }
 
@@ -1301,7 +1391,22 @@ function checkPlugin(p) {
         // §21 of O-Octagon's gate exists to catch in its own module registry.
         check(pageModules.length > 0,
             `[12] there is shipped page JS to scan — ${pageModules.length} module(s): `
-            + pageModules.map((m) => m.label).join(', '));
+            + pageModules.map((m) => m.label).join(', ')
+            + (servedModuleJs.length
+                ? ` (+${servedModuleJs.length} served module(s) under the §4 title scan: `
+                  + servedModuleJs.map((m) => m.label).join(', ') + ')'
+                : ''));
+
+        // WR-10: say out loud which served modules the PROSE rules still cannot
+        // see. The old message said "1 module(s)" on a three-module page and read
+        // as a complete census; a scoped gate that names its own scope is a
+        // different thing from one that quietly reports the smaller set.
+        if (servedModuleJs.length)
+            console.log(`  NOTE: [${scope}] [12] ${servedModuleJs.length} served module(s) are scanned for `
+                + `native title= (§4) but NOT yet for unkeyed prose — `
+                + `${servedModuleJs.map((m) => m.label).join(', ')}. `
+                + `Keying them is a shared-module rollout (preset-manager.js alone has 19 consumers); `
+                + `see the TODO(wave 4f+) above CMAKE_MODULE_JS_SCOPE.`);
 
         const jsRows = pageModules.flatMap((m) => EXTRACT.extractJsRows(m));
 

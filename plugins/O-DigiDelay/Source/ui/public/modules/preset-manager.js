@@ -348,11 +348,11 @@ export function createPresetBar(containerId, options = {}) {
     // Create UI elements
     container.innerHTML = `
         <div class="preset-bar" style="display: flex; align-items: center; gap: 8px;">
-            <button class="preset-prev" title="Previous preset">&lt;</button>
+            <button class="preset-prev" aria-label="Previous preset">&lt;</button>
             <span class="preset-name" style="min-width: 120px; text-align: center;">Default</span>
-            <button class="preset-next" title="Next preset">&gt;</button>
-            <button class="preset-load" title="Load preset from file">Load</button>
-            <button class="preset-save" title="Save preset">Save</button>
+            <button class="preset-next" aria-label="Next preset">&gt;</button>
+            <button class="preset-load" aria-label="Load preset from file">Load</button>
+            <button class="preset-save" aria-label="Save preset">Save</button>
         </div>
     `;
 

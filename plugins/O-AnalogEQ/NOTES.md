@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.10
+- **Version:** 1.5.1
 - **Type:** Audio Effect (4-Band Parametric/Shelving EQ)
 - **Complexity Score:** 4.0 (Complex - Phase-based implementation)
 
@@ -33,11 +33,15 @@
 - **2026-02-09 (v1.1.7):** Preset system + UI/EQ algorithm improvements
 - **2026-06-30 (v1.1.8):** Code-review fixes — CR-01 (audio-thread coefficient allocation removed via change-gated rebuild) + WR-01 (frequency tooltips now honor the 0.3 skew)
 - **2026-06-30 (v1.1.9):** Remaining code-review warnings — WR-02 (per-band freq/gain SmoothedValue with 32-sample sub-block coefficient rebuild via allocation-free ArrayCoefficients, kills zipper noise while staying RT-safe) + WR-03 (all cutoffs clamped to 0.99×Nyquist; verified via auval at 11025/22050 Hz) + WR-04 (FileChooser callbacks guarded with Component::SafePointer)
+- **2026-09-25 (v1.5.1):** Second thorough code review (v1.5.0) resolved — CR-02 (`isBusesLayoutSupported` override; the base class advertised asymmetric layouts, and a 2-in/1-out negotiation prepared one mono filter per band against a 2-channel buffer, so `ProcessorDuplicator` indexed `processors[1]` → `nullptr` on the audio thread in Release), WR-05 (`output_gain` now ramps — `dsp::Gain`'s default `rampDurationSeconds` is 0, and `setRampDurationSeconds` was never called), WR-06 (band on/off is a 30 ms wet/dry crossfade and the filter runs unconditionally, which fixes the toggle click AND the stale-`z⁻¹` burst on re-enable in one mechanism), WR-07 (Save Preset writes to the chosen path via `savePresetToFile`; it had been discarding the directory and could silently overwrite a library preset), WR-08 (hover-help switch gained 13 behavioural assertions — deleting the show gate now fails the suite, where it previously left 415 PASS), WR-09 (the switch's Off arm is geometry-measured; `check-ui-labels` states may now carry a selector array), WR-10 (`check-i18n` derives its served set from `juce_add_binary_data` and gained a markup-in-JS title detector; preset-manager → 1.0.9 with `title=` → `aria-label`)
 - **2026-06-30 (v1.1.10):** Code-review info items — IN-01 (documented `output_gain` as intentionally UI-hidden/host-only), IN-02 (double-click reset restores true APVTS freq defaults via skew inverse), IN-03 (removed dead `currentParamName`), IN-04+IN-05 (shared `preset-manager` module → 1.0.1: bounded `_waitForNative` poll + robust `promptDelete` with `onConfirmDelete` hook)
 
 ## Known Issues
 
-- None. All 2026-06-30 code-review findings (CR-01, WR-01..04, IN-01..05) are resolved as of v1.1.10. IN-04/IN-05 fixes live in the shared `preset-manager` module (v1.0.1); the other 10 dependent plugins can adopt them via `/module-upgrade`.
+- **Deferred from the v1.5.0 review (Info tier, opt-in):** IN-06 (settings-popover contract comments still describe a one-row panel), IN-07 (16 `getRawParameterValue(StringRef)` lookups per block — a red-black-tree walk, NOT an allocation; deliberately not escalated), IN-08 (a second dialog launch destroys the first `FileChooser` mid-flight — PLAUSIBLE, needs the page to open two native dialogs at once), IN-09 (the page's init log still announces v1.3.1). Sweep them with `/improve-review-info O-AnalogEQ`.
+- **`check-i18n` prose rules do not scan served shared modules.** A deliberate scope boundary, not an oversight: firing [12]/[13]/[15] unrestricted turns seven plugins red on unkeyed English captions (O-Bassoon/O-Bowed/O-Reed/O-Wind 39 each, O-Contrabass 46, O-ReverseDelay 6, O-Marimba 5). That is a shared-module keying rollout. The §4 native-title rule IS now enforced over the served set, and the gate names the modules it is not prose-scanning on every run.
+- **18 other `preset-manager.js` consumers carry the v1.0.9 markup fix but were not re-versioned or rebuilt.** Seven are git-ignored copies regenerated from canonical at configure time (no action needed). Five tracked copies were overwritten to canonical. Six tracked copies remain diverged 24–184 lines and took a surgical edit — none of them uses `ouaricon_add_module` for this module, so their committed copy is authoritative and they need `/module-upgrade` on their own schedule to converge.
+- All 2026-06-30 code-review findings (CR-01, WR-01..04, IN-01..05) remain resolved; the v1.5.0 review re-adjudicated all ten as FIXED with no regressions across thirteen versions.
 
 ## Additional Notes
 

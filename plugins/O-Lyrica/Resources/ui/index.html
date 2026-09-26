@@ -4285,7 +4285,16 @@
                     else if (Math.abs(interval - 500) < 20) cellClass += ' medium'; // ~P4
                     else if (Math.abs(interval - 400) < 20) cellClass += ' small';  // ~M3
 
-                    html += `<td class="${cellClass}" title="${interval.toFixed(1)}¢">${Math.round(interval)}</td>`;
+                    // 2026-09-25 (found by O-AnalogEQ WR-10's widened §4 scan; no O-Lyrica
+                    // version bump — markup-only, and the page is unversioned here): this cell's native
+                    // title= was the LAST pair on the page, and it survived the v2.4.0
+                    // sweep above only because check-i18n's title scan could not see an
+                    // HTML attribute written inside a template literal. It competed with
+                    // the measure-then-pin renderer exactly as the four above did.
+                    // aria-label keeps the precise cent value available to assistive tech
+                    // — the visible text is deliberately rounded — and draws nothing, so
+                    // no OS tooltip competes. Same resolution as v2.4.0: no new prose.
+                    html += `<td class="${cellClass}" aria-label="${interval.toFixed(1)}¢">${Math.round(interval)}</td>`;
                 }
                 html += '</tr>';
             }
@@ -4436,7 +4445,9 @@
                         cls += ' large';  // Minor third or larger (orange)
                     }
 
-                    html += `<td class="${cls}" title="${interval.toFixed(1)}¢">${step === 0 ? '-' : Math.round(interval)}</td>`;
+                    // Second of the pair — see the note on the interval-matrix
+                    // cell above. Native title -> aria-label, per contract §4.
+                    html += `<td class="${cls}" aria-label="${interval.toFixed(1)}¢">${step === 0 ? '-' : Math.round(interval)}</td>`;
                 }
                 html += '</tr>';
             }
