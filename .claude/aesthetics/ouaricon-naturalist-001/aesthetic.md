@@ -71,6 +71,8 @@ Every piece of text a user must read meets **4.5:1** against the colour it sits 
 |---|---|---|---|
 | #7A654B | #F5E6D3 | 4.52 | Walnut text on the lighter paper |
 | #715D45 | #EBD9C7 | 4.56 | Walnut text on the darker paper - also 5.11 on #F5E6D3, so the walnut that is safe on either paper tone |
+| #6A5641 | #E8D0B8 | 4.68 | Walnut text on the deepest paper stop - also 5.06 on #EBD9C7 and 5.68 on #F5E6D3, so the walnut for text over a three-stop paper gradient (O-TextureForge v1.5.0) |
+| #F5E6D3 | #4E6839 | 5.10 | Paper text on a sage FILL (pressed toggles, expanded buttons) - #6B8E4E and #5C7A3A fills read 3.06 / 3.99 |
 | #55703E | #F5E6D3 | 4.54 | Sage text on the lighter paper |
 | #4E6839 | #EBD9C7 | 4.54 | Sage text on the darker paper |
 | #3C2F2F | #F5E6D3 | 10.45 | Primary text (already passing) |
@@ -81,6 +83,7 @@ Every piece of text a user must read meets **4.5:1** against the colour it sits 
 | #8BA870 | #F5E6D3 | 2.16 | Borders / fills / decoration only - fails as text |
 
 - **Bound to the background:** #7A654B and #55703E FAIL on #EBD9C7 (4.03 / 4.05). On the darker paper use #715D45 and #4E6839.
+- **Gradient bodies:** the `#F5E6D3 → #EBD9C7 → #E8D0B8` body gradient reaches its deepest stop in the bottom-right corner, where #715D45 reads only 4.22. Text anywhere over that gradient uses #6A5641.
 - Ratios are WCAG 2.x relative luminance. Each variant was derived by scaling the original's RGB until it clears 4.5:1 (R4, UI design review 260924-nho).
 - Text over a background image (paper JPG, botanical plate) is not captured by a colour ratio. Keep reading-critical text on flat colour, or check it by eye.
 - Measure a plugin with `node scripts/measure-ui.js --plugin <Name> --contrast`.

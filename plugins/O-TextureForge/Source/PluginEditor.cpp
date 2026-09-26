@@ -417,6 +417,37 @@ TextureForgeEditor::getResource(const juce::String& url)
             juce::String("image/png")};
     }
 
+    // v1.5.0 (R5): shared EB Garamond face (modules/ui/eb-garamond). The
+    // stylesheet is served under /css/ and the three woff2 faces under /fonts/,
+    // where its relative url('../fonts/…') references land.
+    if (url == "/css/eb-garamond.css")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::ebgaramond_css, BinaryData::ebgaramond_cssSize),
+            juce::String("text/css; charset=utf-8")};
+    }
+
+    if (url == "/fonts/EBGaramond-Regular.woff2")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::EBGaramondRegular_woff2, BinaryData::EBGaramondRegular_woff2Size),
+            juce::String("font/woff2")};
+    }
+
+    if (url == "/fonts/EBGaramond-Italic.woff2")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::EBGaramondItalic_woff2, BinaryData::EBGaramondItalic_woff2Size),
+            juce::String("font/woff2")};
+    }
+
+    if (url == "/fonts/EBGaramond-Bold.woff2")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::EBGaramondBold_woff2, BinaryData::EBGaramondBold_woff2Size),
+            juce::String("font/woff2")};
+    }
+
     juce::Logger::writeToLog("Resource not found: " + url);
     return std::nullopt;
 }

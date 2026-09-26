@@ -27,7 +27,7 @@ juce_add_plugin(OuariconTextureForge
     PLUGIN_CODE OuTF
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-TextureForge${OUARICON_DEV_SUFFIX}"
-    VERSION 1.4.0
+    VERSION 1.5.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -99,6 +99,12 @@ juce_add_binary_data(OuariconTextureForge_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/css/ouaricon-naturalist.css
         Source/ui/public/images/fern.png
+        # v1.5.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the matching getResource branches
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(OuariconTextureForge
