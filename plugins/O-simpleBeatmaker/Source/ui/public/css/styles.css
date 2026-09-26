@@ -61,6 +61,20 @@
   --shadow-medium: rgba(0, 0, 0, 0.25);
   --shadow-heavy: rgba(0, 0, 0, 0.5);
   --text-emboss: rgba(255, 255, 255, 0.5);
+  /* v1.4.0 (R4): AA text tokens. #8B7355-at-opacity captions measured 3.47-3.78
+     on paper; these are the review's AA replacements. --text-muted is 5.68 on
+     --bg-paper and 4.72 on the kbd chip; --fill-active carries the cream
+     #FFF8DC face at 5.22 where the translucent --btn-active composited to
+     2.18. --btn-active stays for the pressed hover-help switch, whose face is
+     the dark --green-darkest. */
+  --text-muted: #6A5641;
+  --fill-active: #55703E;
+  /* v1.4.0 (R5): the bundled face first (css/eb-garamond.css, linked ahead of
+     this sheet), Georgia before Times, CJK tail before the generic. The bare
+     'Garamond' lead is dropped: an Office-installed Windows Garamond would
+     otherwise outrank the bundled file. */
+  --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  --font-mono: 'Menlo', 'Consolas', 'PingFang SC', 'Microsoft YaHei', monospace;
   --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
@@ -76,7 +90,7 @@ html, body {
 }
 
 body {
-  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  font-family: var(--font-serif);
   color: var(--brown-text);
   background:
     radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
@@ -180,7 +194,7 @@ body {
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 .gear-btn:hover { background: var(--bg-paper-mid); border-color: var(--green-mid); }
-.gear-btn.open  { background: var(--btn-active); border-color: var(--btn-border-active); color: #fff8dc; }
+.gear-btn.open  { background: var(--fill-active); border-color: var(--btn-border-active); color: #fff8dc; }
 .gear-btn:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
 
 .settings-popover {
@@ -276,11 +290,11 @@ body {
               transport starts either — a pre-existing twitch, fixed for free.
    The cost lands in ENGLISH as a 16.7px gap after LENGTH, and in French as
    trailing space after "pas" and "libre". */
-.tr-key-tempo  { display: inline-block; min-width: 37.5px; line-height: 1.047619; }   /* zh floor: the EXACT measured English box ("TEMPO" 37.5px) — 速度 is 22.47px and un-floored it narrowed the whole transport strip 15px. zh pin: en content box 11px at 10.5px */
-.tr-key-length { display: inline-block; min-width: 60px; line-height: 1.047619; }   /* zh pin: en content box 11px at 10.5px */
+.tr-key-tempo  { display: inline-block; min-width: 39px; line-height: 1.047619; }   /* v1.4.0: re-pinned in EB Garamond — "TEMPO" 38.72px (was 37.5px in Times). zh floor: the measured English box — 速度 is 22.47px and un-floored it narrowed the whole transport strip 15px. zh pin: en content box 11px at 10.5px */
+.tr-key-length { display: inline-block; min-width: 61px; line-height: 1.047619; }   /* v1.4.0: LONGUEUR 60.69px in EB Garamond (60.0 in Times). zh pin: en content box 11px at 10.5px */
 .tr-unit-steps { display: inline-block; min-width: 21px; line-height: 1.047619; }   /* zh pin: en content box 11px at 10.5px */
-.tr-label { font-style: italic; opacity: 0.6; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; }
-.tr-unit { opacity: 0.6; font-size: 10.5px; }
+.tr-label { font-style: italic; color: var(--text-muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; }
+.tr-unit { color: var(--text-muted); font-size: 10.5px; }
 .tr-item span[id] { font-weight: 700; font-variant-numeric: tabular-nums; }
 .tr-state #readTransport { color: var(--brown-soft); font-weight: 600; display: inline-block; min-width: 53px; line-height: 1.25; }   /* zh pin: en content box 15px at 12px — the leading bullet comes from --symbol-font and sets a taller line box than the page serif */
 .tr-state #readTransport.synced { color: var(--green-dark); }
@@ -303,12 +317,11 @@ body {
 .grid-hint, .lane-hint, .midi-hint {
   font-weight: 400;
   font-style: italic;
-  color: var(--brown-soft);
-  opacity: 0.8;
+  color: var(--text-muted);   /* v1.4.0: was --brown-soft at 0.8 — 4.11 on the kbd chip */
   font-size: 11px;
 }
 .grid-label kbd {
-  font-family: 'Menlo', 'Consolas', 'PingFang SC', 'Microsoft YaHei', monospace;
+  font-family: var(--font-mono);
   font-size: 9.5px;
   background: rgba(92, 64, 51, 0.12);
   border: 1px solid rgba(92, 64, 51, 0.3);
@@ -446,7 +459,7 @@ body {
   border-radius: 6px;
   background: #2a2118;
   color: #e8d5b7;
-  font-family: 'Menlo', 'Consolas', 'PingFang SC', 'Microsoft YaHei', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.5;
   padding: 4px 9px;
@@ -494,7 +507,7 @@ body {
   letter-spacing: 0.3px;
   line-height: 1.2;   /* zh pin: en content box 15px at 12.5px */
 }
-.group-route { font-weight: 400; font-style: italic; font-size: 10.5px; opacity: 0.7; color: var(--brown-soft); }
+.group-route { font-weight: 400; font-style: italic; font-size: 10.5px; color: var(--text-muted); }
 
 .knob-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .knob-cell {
@@ -591,7 +604,10 @@ select.combo:focus { outline: none; border-color: var(--green-mid); }
   flex-direction: column;
   gap: 5px;
 }
-.vs-name { font-size: 11.5px; font-weight: 700; color: var(--voice-hue, var(--brown-text)); filter: brightness(0.7); line-height: 1.0434783; }   /* zh pin: en content box 12px at 11.5px */
+/* v1.4.0: --voice-ink is the hue at brightness 0.7, precomputed in app.js
+   (VOICES[].ink). The rendered colour is unchanged; a filter was invisible to
+   the contrast census, which read the raw hue (2.82-4.07) instead. */
+.vs-name { font-size: 11.5px; font-weight: 700; color: var(--voice-ink, var(--brown-text)); line-height: 1.0434783; }   /* zh pin: en content box 12px at 11.5px */
 .vs-knobs { display: flex; gap: 7px; flex-wrap: wrap; }
 .vs-toggles { display: flex; gap: 6px; margin-top: 1px; }
 .toggle-btn {
@@ -609,7 +625,7 @@ select.combo:focus { outline: none; border-color: var(--green-mid); }
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
 }
-.toggle-btn.active { background: var(--btn-active); color: #fff8dc; border-color: var(--btn-border-active); }
+.toggle-btn.active { background: var(--fill-active); color: #fff8dc; border-color: var(--btn-border-active); }
 .toggle-btn.solo.active { background: var(--amber); color: #2a2118; border-color: var(--amber-deep); }
 .toggle-btn:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
 
@@ -622,7 +638,7 @@ select.combo:focus { outline: none; border-color: var(--green-mid); }
   gap: 6px;
 }
 .tour-label { font-size: 12px; font-weight: 700; color: var(--green-dark); line-height: 1.25; }   /* zh pin: en content box 15px at 12px — the fourth caption row of the same LINE-BOX class as .grid-label / .lane-label / .midi-label */
-.tour-soon { font-weight: 400; font-style: italic; font-size: 10.5px; opacity: 0.6; }
+.tour-soon { font-weight: 400; font-style: italic; font-size: 10.5px; color: var(--text-muted); }
 .tour-buttons { display: flex; flex-wrap: wrap; gap: 7px; }
 .tour-btn {
   font-family: inherit;
@@ -636,7 +652,7 @@ select.combo:focus { outline: none; border-color: var(--green-mid); }
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 .tour-btn:hover { background: var(--bg-paper-mid); border-color: var(--green-mid); }
-.tour-btn.armed { background: var(--btn-active); color: #fff8dc; border-color: var(--btn-border-active); }
+.tour-btn.armed { background: var(--fill-active); color: #fff8dc; border-color: var(--btn-border-active); }
 .tour-caption { font-size: 11px; font-style: italic; color: var(--brown-soft); opacity: 0.85; line-height: 1.0909091; }   /* zh pin: en content box 12px at 11px */
 
 /* ── Tooltip ────────────────────────────────────────────────────────────── */
