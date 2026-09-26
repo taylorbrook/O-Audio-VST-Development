@@ -22,19 +22,79 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- v1.30.0 (R5): bundled EB Garamond faces, loaded before the inline sheet. -->
+<link rel="stylesheet" href="css/eb-garamond.css">
 <style>
 /* ═══════════════════════════════════════════════════════════════════
    OUARICON NATURALIST DESIGN SYSTEM — O-PRISM
    ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+    --ink: #3C2F2F;
+    --ink-deep: #2A2020;
+    --ink-darkest: #1A1010;
+    --ink-panel: #332828;
+    --text-body: #5C4033;
+    --rule-muted: #8B7355;
+    --paper: #F5E6D3;
+    --paper-card: #EFDFCB;
+    --paper-deep: #EBD9C7;
+    --paper-tint: #EDD8C0;
+    --paper-light: #FAF0E3;
+    --paper-lighter: #F8ECDC;
+    --paper-warm: #E8D5B7;
+    --paper-shade: #D4C4B0;
+    --white: #FFF;
+    --accent-tan: #C9A27B;
+    --walnut-light: #B8A08C;
+    --walnut-dark: #6B5A42;
+    --leaf: #6B8E4E;
+    --leaf-deep: #4A6B35;
+    --moss: #3C5C1A;
+    --lime: #9DC76B;
+    --leaf-pale: #D6EBC8;
+    --slate: #5A7A6A;
+    --slate-deep: #4A6A5A;
+    --sienna: #A0522D;
+    --gold: #8B6914;
+    --grey: #888;
+    /* v1.30.0 (R4): TEXT tokens are AA (>= 4.5:1) on every paper stop they sit
+       on — #6A5641 is 5.03 on the darkest (#EDD8C0 mod rows), 5.68 on #F5E6D3.
+       --rule-muted keeps the old #8B7355 for borders, strokes and fills, which
+       have no text-contrast requirement. --text-muted-on-dark is the same role
+       on the bark strips (5.15 on #3C2F2F). Knob values used a lighter #A08870
+       (2.57–2.91): they now take --text-muted. */
+    --text-muted: #6A5641;
+    --text-muted-on-dark: #B8A08C;
+    /* Fills under light text: 4.9–5.7 with --paper on top. The lighter --leaf /
+       --slate / --rule-muted stay for borders, arcs and inactive fills. */
+    --leaf-fill: var(--leaf-deep);
+    --slate-fill: var(--slate-deep);
+    --slate-fill-hover: #3D5A4C;
+    --walnut-fill: var(--text-muted);
+    /* Scale-deviation inks, AA on the tuning panel's paper at full opacity. The
+       old material colours (#4CAF50 / #FF9800 / #2196F3 at opacity 0.8) were
+       1.9–2.6. */
+    --dev-pure: #2A6E2E;
+    --dev-sharp: #9A4F00;
+    --dev-flat: #1A65A6;
+
+    /* v1.30.0 (R5): one text face, bundled (modules/ui/eb-garamond, linked
+       before this sheet). The bare 'Garamond' entry is gone so an
+       Office-installed Windows Garamond cannot outrank the bundled face;
+       Georgia precedes Times; the CJK tail precedes the generic. */
+    --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
+}
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
     height: 100%; width: 100%;
     overflow: hidden;
-    background: #F5E6D3;
-    color: #3C2F2F;
-    font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-serif);
     font-size: 11px;
     user-select: none;
     -webkit-user-select: none;
@@ -44,6 +104,10 @@ body {
     display: flex;
     flex-direction: column;
 }
+/* v1.30.0 (R5): form controls take the page face instead of the UA's bare
+   Arial / system-ui, so a <button>, <select> or <input> that names no family
+   is still EB Garamond. */
+button, select, input, textarea { font-family: inherit; }
 
 /* ─── HEADER BAR ─── */
 .header-bar {
@@ -51,8 +115,8 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 6px 16px;
-    background: #3C2F2F;
-    color: #F5E6D3;
+    background: var(--ink);
+    color: var(--paper);
     flex-shrink: 0;
     height: 34px;
 }
@@ -61,7 +125,7 @@ body {
     letter-spacing: 4px;
     text-transform: uppercase;
     font-weight: normal;
-    color: #C9A27B;
+    color: var(--accent-tan);
 }
 .header-bar .subtitle {
     /* NO PIN HERE, and that is a measured result rather than an oversight. The
@@ -76,7 +140,7 @@ body {
        changing the French will read it. */
     font-size: 10px;
     letter-spacing: 1.5px;
-    color: #8B7355;
+    color: var(--text-muted-on-dark);
     font-style: italic;
     flex-shrink: 0;
 }
@@ -98,8 +162,8 @@ body {
 }
 .gear-btn {
     background: transparent;
-    border: 1px solid #8B7355;
-    color: #C9A27B;
+    border: 1px solid var(--rule-muted);
+    color: var(--accent-tan);
     width: 22px;
     height: 22px;
     cursor: pointer;
@@ -107,10 +171,10 @@ body {
     line-height: 1;
     padding: 0;
     border-radius: 2px;
-    font-family: 'Garamond', 'Georgia', serif;
+    font-family: var(--font-serif);
     transition: background 0.15s, color 0.15s;
 }
-.gear-btn:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+.gear-btn:hover { background: rgba(201, 162, 123, 0.18); color: var(--paper); }
 /* v1.23.0: TWO ROWS, so this is now a flex COLUMN. Until this version the
    popover was a single flat flex row — the caption and the <select> were direct
    children and there was no .settings-row wrapper anywhere on the page. A
@@ -142,8 +206,8 @@ body {
     right: 0;
     z-index: 9998;
     width: 168px;
-    background: #3C2F2F;
-    border: 1px solid #8B7355;
+    background: var(--ink);
+    border: 1px solid var(--rule-muted);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
     padding: 8px 10px;
     border-radius: 2px;
@@ -169,19 +233,19 @@ body {
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 1.2px;
-    color: #8B7355;
+    color: var(--text-muted-on-dark);
 }
 .settings-select {
-    background: #2A2020;
-    border: 1px solid #8B7355;
-    color: #F5E6D3;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    background: var(--ink-deep);
+    border: 1px solid var(--rule-muted);
+    color: var(--paper);
+    font-family: var(--font-serif);
     font-size: 10px;
     padding: 2px 4px;
     border-radius: 2px;
     cursor: pointer;
 }
-.settings-select:focus { outline: 1px solid #C9A27B; }
+.settings-select:focus { outline: 1px solid var(--accent-tan); }
 
 /* v1.23.0 THE HOVER-HELP SWITCH.
 
@@ -197,10 +261,10 @@ body {
    a [data-i18n] node, so a face that grows moves nothing the geometry gate
    measures — verified with check-ui-labels [7] after the port. */
 .settings-toggle {
-  background: #2A2020;
-  border: 1px solid #8B7355;
-  color: #F5E6D3;
-  font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+  background: var(--ink-deep);
+  border: 1px solid var(--rule-muted);
+  color: var(--paper);
+  font-family: var(--font-serif);
   font-size: 10px;
   padding: 2px 4px;
   border-radius: 2px;
@@ -212,13 +276,13 @@ body {
 }
 
 .settings-toggle[aria-pressed="true"] {
-  background: #C9A27B;
-  border-color: #C9A27B;
-  color: #2A2020;
+  background: var(--accent-tan);
+  border-color: var(--accent-tan);
+  color: var(--ink-deep);
 }
 
 .settings-toggle:focus-visible {
-  outline: 2px solid #C9A27B;
+  outline: 2px solid var(--accent-tan);
   outline-offset: 1px;
 }
 
@@ -235,8 +299,8 @@ body {
 }
 .preset-nav {
     background: transparent;
-    border: 1px solid #8B7355;
-    color: #C9A27B;
+    border: 1px solid var(--rule-muted);
+    color: var(--accent-tan);
     width: 22px;
     height: 22px;
     cursor: pointer;
@@ -244,31 +308,31 @@ body {
     line-height: 1;
     padding: 0;
     border-radius: 2px;
-    font-family: 'Garamond', 'Georgia', serif;
+    font-family: var(--font-serif);
     transition: background 0.15s, color 0.15s;
 }
-.preset-nav:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+.preset-nav:hover { background: rgba(201, 162, 123, 0.18); color: var(--paper); }
 .preset-display {
     flex: 1;
     max-width: 320px;
     text-align: center;
     padding: 4px 10px;
-    background: #2A2020;
-    border: 1px solid #8B7355;
+    background: var(--ink-deep);
+    border: 1px solid var(--rule-muted);
     border-radius: 2px;
     cursor: pointer;
     font-size: 10px;
     line-height: 1.2;
-    color: #F5E6D3;
+    color: var(--paper);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-family: 'Garamond', 'Georgia', serif;
+    font-family: var(--font-serif);
     transition: background 0.15s;
 }
-.preset-display:hover { background: #332828; }
+.preset-display:hover { background: var(--ink-panel); }
 .preset-category {
-    color: #8B7355;
+    color: var(--text-muted-on-dark);
     letter-spacing: 1.2px;
     text-transform: uppercase;
     font-size: 9px;
@@ -276,13 +340,13 @@ body {
 }
 .preset-category:empty { margin-right: 0; }
 .preset-name {
-    color: #F5E6D3;
+    color: var(--paper);
     font-style: italic;
 }
 .preset-save {
     background: transparent;
-    border: 1px solid #8B7355;
-    color: #C9A27B;
+    border: 1px solid var(--rule-muted);
+    color: var(--accent-tan);
     width: 22px;
     height: 22px;
     cursor: pointer;
@@ -291,7 +355,7 @@ body {
     border-radius: 2px;
     transition: background 0.15s, color 0.15s;
 }
-.preset-save:hover { background: rgba(201, 162, 123, 0.18); color: #F5E6D3; }
+.preset-save:hover { background: rgba(201, 162, 123, 0.18); color: var(--paper); }
 
 /* ─── PRESET MENU (overlay opening from header) ─── */
 .preset-menu {
@@ -300,25 +364,25 @@ body {
     top: 34px;
     left: 50%;
     transform: translateX(-50%);
-    background: #3C2F2F;
-    border: 1px solid #8B7355;
+    background: var(--ink);
+    border: 1px solid var(--rule-muted);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
     z-index: 9999;
     max-height: 520px;
     overflow-y: auto;
     width: 540px;
-    font-family: 'Garamond', 'Georgia', serif;
+    font-family: var(--font-serif);
 }
 .preset-menu.visible { display: block; }
 .preset-menu-category {
-    background: #2A2020;
-    color: #C9A27B;
+    background: var(--ink-deep);
+    color: var(--accent-tan);
     padding: 7px 14px;
     letter-spacing: 2.5px;
     text-transform: uppercase;
     font-size: 10px;
-    border-top: 1px solid #1A1010;
-    border-bottom: 1px solid #1A1010;
+    border-top: 1px solid var(--ink-darkest);
+    border-bottom: 1px solid var(--ink-darkest);
     font-weight: bold;
 }
 .preset-menu > .preset-menu-category:first-child { border-top: none; }
@@ -327,12 +391,12 @@ body {
     grid-template-columns: repeat(2, 1fr);
     gap: 1px;
     padding: 3px;
-    background: #1A1010;
+    background: var(--ink-darkest);
 }
 .preset-menu-item {
     padding: 6px 10px;
-    background: #3C2F2F;
-    color: #F5E6D3;
+    background: var(--ink);
+    color: var(--paper);
     font-size: 11px;
     cursor: pointer;
     font-style: italic;
@@ -342,20 +406,20 @@ body {
     text-overflow: ellipsis;
 }
 .preset-menu-item:hover {
-    background: #5C4033;
-    color: #FFF;
+    background: var(--text-body);
+    color: var(--white);
 }
 .preset-menu-item.active {
-    background: #8B7355;
-    color: #FFF;
+    background: var(--walnut-fill);
+    color: var(--white);
     font-weight: bold;
 }
 
 /* ─── TAB BAR ─── */
 .tab-bar {
     display: flex;
-    background: #D4C4B0;
-    border-bottom: 2px solid #8B7355;
+    background: var(--paper-shade);
+    border-bottom: 2px solid var(--rule-muted);
     flex-shrink: 0;
 }
 .tab {
@@ -366,17 +430,17 @@ body {
     text-transform: uppercase;
     letter-spacing: 1.5px;
     font-size: 12px;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
-    color: #5C4033;
-    border-right: 1px solid #8B7355;
+    font-family: var(--font-serif);
+    color: var(--text-body);
+    border-right: 1px solid var(--rule-muted);
     transition: background 0.2s, color 0.2s;
 }
 .tab:last-child { border-right: none; }
-.tab:hover { background: #E8D5B7; }
+.tab:hover { background: var(--paper-warm); }
 .tab.active {
-    background: #F5E6D3;
-    color: #3C2F2F;
-    border-bottom: 2px solid #F5E6D3;
+    background: var(--paper);
+    color: var(--ink);
+    border-bottom: 2px solid var(--paper);
     margin-bottom: -2px;
     font-weight: bold;
 }
@@ -400,20 +464,20 @@ body {
 /* ─── MOD MATRIX ─── */
 .mod-matrix-info {
     font-style: italic;
-    color: #8B7355;
+    color: var(--text-muted);
     margin-bottom: 8px;
     font-size: 11px;
 }
 .mod-matrix-table {
-    border: 1px solid #8B7355;
+    border: 1px solid var(--rule-muted);
     border-radius: 4px;
     overflow: hidden;
 }
 .mod-matrix-header {
     display: flex;
     align-items: center;
-    background: #3C2F2F;
-    color: #C9A27B;
+    background: var(--ink);
+    color: var(--accent-tan);
     padding: 6px 8px;
     font-size: 10px;
     letter-spacing: 1px;
@@ -429,44 +493,44 @@ body {
     display: flex;
     align-items: center;
     padding: 4px 8px;
-    border-bottom: 1px solid #D4C4B0;
-    background: #F5E6D3;
+    border-bottom: 1px solid var(--paper-shade);
+    background: var(--paper);
     transition: background 0.15s;
 }
-.mod-row:nth-child(even) { background: #EDD8C0; }
-.mod-row:hover { background: #E8D5B7; }
+.mod-row:nth-child(even) { background: var(--paper-tint); }
+.mod-row:hover { background: var(--paper-warm); }
 .mod-row.disabled { opacity: 0.45; }
 .mod-row .mod-col-on input[type="checkbox"] {
     width: 14px; height: 14px;
-    accent-color: #C9A27B;
+    accent-color: var(--accent-tan);
     cursor: pointer;
 }
 .mod-row .mod-col-slot {
     font-weight: bold;
-    color: #8B7355;
+    color: var(--text-muted);
     font-size: 10px;
 }
 .mod-row select {
     width: 100%;
     padding: 3px 4px;
-    border: 1px solid #B8A08C;
+    border: 1px solid var(--walnut-light);
     border-radius: 3px;
-    background: #FAF0E3;
-    color: #3C2F2F;
+    background: var(--paper-light);
+    color: var(--ink);
     font-family: inherit;
     font-size: 11px;
     cursor: pointer;
 }
-.mod-row select:focus { outline: 1px solid #C9A27B; }
+.mod-row select:focus { outline: 1px solid var(--accent-tan); }
 .mod-row .mod-amt-slider {
     width: 100%;
     height: 6px;
-    accent-color: #C9A27B;
+    accent-color: var(--accent-tan);
     cursor: pointer;
 }
 .mod-row .mod-col-val {
     font-size: 10px;
-    color: #5C4033;
+    color: var(--text-body);
     font-variant-numeric: tabular-nums;
 }
 
@@ -477,8 +541,8 @@ body {
     justify-content: center;
     gap: 28px;
     padding: 6px 20px;
-    background: #3C2F2F;
-    border-top: 2px solid #8B7355;
+    background: var(--ink);
+    border-top: 2px solid var(--rule-muted);
     flex-shrink: 0;
     height: 68px;
 }
@@ -487,16 +551,19 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 2px;
+    /* v1.30.0: the widest caption at the 9 px floor (振荡器混合 46.0, "OSC MIX"
+       45.19), so the column no longer tracks the language. */
+    min-width: 46px;
 }
 .footer-label {
-    font-size: 8px;
+    font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 1.2px;
-    color: #8B7355;
+    color: var(--text-muted-on-dark);
 }
 .footer-value {
     font-size: 10px;
-    color: #C9A27B;
+    color: var(--accent-tan);
 }
 
 /* ─── SECTION HEADERS ─── */
@@ -504,7 +571,7 @@ body {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 2px;
-    color: #8B7355;
+    color: var(--text-muted);
     border-bottom: 1px solid rgba(139,115,85,0.4);
     padding-bottom: 4px;
     margin-bottom: 8px;
@@ -551,7 +618,7 @@ body {
 }
 .knob-vine {
     fill: none;
-    stroke: #5a7a6a;
+    stroke: var(--slate);
     stroke-width: 3;
     stroke-linecap: round;
 }
@@ -574,14 +641,20 @@ body {
 .knob-label {
     font-size: 9px;
     letter-spacing: 0.8px;
-    color: #8b7355;
+    color: var(--text-muted);
     text-transform: uppercase;
     margin-top: 4px;
     text-align: center;
 }
+/* v1.30.0 (R7): keyboard focus ring on the role=slider knob root. Dotted and
+   outside the knob so it never overlaps the arc; :focus-visible keeps it off
+   for mouse users, whose mousedown also focuses the knob. */
+.knob:focus { outline: none; }
+.knob:focus-visible { outline: 1px dotted var(--text-body); outline-offset: 2px; border-radius: 3px; }
+.footer-param .knob:focus-visible { outline-color: var(--accent-tan); }
 .knob-value {
     font-size: 10px;
-    color: #a08870;
+    color: var(--text-muted);
     margin-top: 1px;
     min-width: 50px;
     text-align: center;
@@ -632,34 +705,39 @@ body {
 /* GEOMETRY PIN, English box (82.08 px). This caption is wider than its own
    <select>, so the shrink-wrapping `.dropdown-group` takes ITS width, and that
    group sits between the two `flex: 1` filter sections — a 6.8 px change here
-   redistributes 3.4 px to each of them. */
-#lbl-filt-routing { display: inline-block; width: 82.08px; }
+   redistributes 3.4 px to each of them.
+   v1.30.0: re-pinned at 88 px for the 9 px floor + EB Garamond — "FILTER
+   ROUTING" is 87.88 px there and wrapped to two lines inside 82.08, growing
+   the group 10 px in English only. Widest caption, one line in all three. */
+#lbl-filt-routing { display: inline-block; width: 88px; }
 /* NOT a caption pin (v1.26.0): the SELECT is sized past its caption instead.
    "Glide Mode" is 61.48 px, "Mode porta" 63.28, and the custom-chevron
    select is 60, so the shrink-wrapping group took the caption's width and
    the Glide knob after it moved 1.8 px in French. A pin at the English box
    wraps the French onto two lines instead. 64 px on the select clears every
    caption, so the group is language-invariant with nothing pinned. */
-#select-glideMode { width: 64px; }
+/* v1.30.0: 64 -> 68 px. At the 9 px floor in EB Garamond the captions are
+   "Glide Mode" 65.39, "Mode porta" 67.48, 滑音模式 40.8. */
+#select-glideMode { width: 68px; }
 .dropdown-label {
-    font-size: 8px;
+    font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: #5C4033;
+    color: var(--text-body);
     margin-bottom: 3px;
 }
 .param-select {
-    background: #EBD9C7;
-    border: 1px solid #8B7355;
-    color: #3C2F2F;
-    font-family: 'Garamond', 'Georgia', serif;
+    background: var(--paper-deep);
+    border: 1px solid var(--rule-muted);
+    color: var(--ink);
+    font-family: var(--font-serif);
     font-size: 10px;
     padding: 3px 6px;
     border-radius: 3px;
     cursor: pointer;
     min-width: 60px;
 }
-.param-select:focus { outline: 1px solid #C9A27B; }
+.param-select:focus { outline: 1px solid var(--accent-tan); }
 
 /* ─── WAVETABLE DRAG-DROP ─── */
 .osc-canvas-wrap {
@@ -670,15 +748,15 @@ body {
     position: absolute;
     inset: 0;
     background: rgba(139, 105, 20, 0.3);
-    border: 2px dashed #8B6914;
+    border: 2px dashed var(--gold);
     border-radius: 4px;
     z-index: 10;
     pointer-events: none;
     align-items: center;
     justify-content: center;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 12px;
-    color: #5C4033;
+    color: var(--text-body);
     font-weight: bold;
 }
 .osc-canvas-wrap.drag-over .wt-drop-overlay {
@@ -699,20 +777,20 @@ body {
     display: flex;
 }
 .wt-modal {
-    background: #F5E6D3;
-    border: 2px solid #8B7355;
+    background: var(--paper);
+    border: 2px solid var(--rule-muted);
     border-radius: 6px;
     padding: 16px;
     min-width: 280px;
     max-width: 400px;
     max-height: 400px;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
-    color: #3C2F2F;
+    font-family: var(--font-serif);
+    color: var(--ink);
 }
 .wt-modal h3 {
     margin: 0 0 12px;
     font-size: 14px;
-    border-bottom: 1px solid #8B7355;
+    border-bottom: 1px solid var(--rule-muted);
     padding-bottom: 6px;
 }
 .wt-modal-list {
@@ -733,25 +811,26 @@ body {
     font-size: 11px;
 }
 .wt-modal-list .wt-delete-btn {
-      /* The UA sheet gives a <button> that names no family a bare Arial,
-         and this caption is Chinese in the zh pass (setLabel label.delete).
-         Arial stays FIRST so the Latin metrics are byte-unchanged. */
-      font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      /* v1.30.0 (R5): the v1.2x "Arial stays FIRST" pin is retired on
+         purpose — form controls now inherit the page face (see the
+         button/select/input rule under html, body), and this caption takes
+         the bundled serif like every other. */
+      font-family: var(--font-serif);
     background: transparent;
-    border: 1px solid #A0522D;
-    color: #A0522D;
+    border: 1px solid var(--sienna);
+    color: var(--sienna);
     font-size: 9px;
     padding: 2px 6px;
     border-radius: 3px;
     cursor: pointer;
 }
 .wt-modal-list .wt-delete-btn:hover {
-    background: #A0522D;
-    color: #F5E6D3;
+    background: var(--sienna);
+    color: var(--paper);
 }
 .wt-modal-close {
-    background: #8B7355;
-    color: #F5E6D3;
+    background: var(--walnut-fill);
+    color: var(--paper);
     border: none;
     padding: 4px 14px;
     border-radius: 3px;
@@ -761,17 +840,17 @@ body {
 }
 .wt-modal-empty {
     font-size: 11px;
-    color: #8B7355;
+    color: var(--text-muted);
     font-style: italic;
     padding: 8px 0;
 }
 
 /* ─── TOGGLE BUTTON ─── */
 .toggle-btn {
-    background: #EBD9C7;
-    border: 1px solid #8B7355;
-    color: #5C4033;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    background: var(--paper-deep);
+    border: 1px solid var(--rule-muted);
+    color: var(--text-body);
+    font-family: var(--font-serif);
     font-size: 10px;
     padding: 4px 10px;
     border-radius: 3px;
@@ -780,9 +859,9 @@ body {
     letter-spacing: 1px;
 }
 .toggle-btn.active {
-    background: #6B8E4E;
-    color: #F5E6D3;
-    border-color: #4A6B35;
+    background: var(--leaf-fill);
+    color: var(--paper);
+    border-color: var(--leaf-deep);
 }
 
 /* ─── PARAM ROW ─── */
@@ -806,9 +885,9 @@ body {
 .osc-canvas {
     width: 160px;
     height: 90px;
-    border: 2px solid #8B7355;
+    border: 2px solid var(--rule-muted);
     border-radius: 3px;
-    background: #EBD9C7;
+    background: var(--paper-deep);
     display: block;
 }
 .osc-params {
@@ -832,7 +911,7 @@ body {
    title row's margin are what hold that: widen either and the LFO row falls
    below the fold again, which is the v1.25.0 defect this version retires. */
 .card {
-    background: #EFDFCB;
+    background: var(--paper-card);
     border: 1px solid rgba(139, 115, 85, 0.45);
     border-radius: 4px;
     padding: 5px 10px 5px;
@@ -952,16 +1031,16 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 8px;
+    font-size: 9px;
     padding: 2px 8px 2px 6px;
-    border: 1px solid #4A6B35;
+    border: 1px solid var(--leaf-deep);
     border-radius: 9px;
-    background: #6B8E4E;
-    color: #F5E6D3;
+    background: var(--leaf);
+    color: var(--paper);
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 1px;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     line-height: 1.2;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
@@ -970,17 +1049,17 @@ body {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #D6EBC8;
+    background: var(--leaf-pale);
     box-shadow: 0 0 4px rgba(214, 235, 200, 0.9);
     flex-shrink: 0;
 }
 .bypass-toggle.off {
-    background: #D4C4B0;
-    color: #5C4033;
-    border-color: #8B7355;
+    background: var(--paper-shade);
+    color: var(--text-body);
+    border-color: var(--rule-muted);
 }
 .bypass-toggle.off::before {
-    background: #8B7355;
+    background: var(--rule-muted);
     box-shadow: none;
 }
 
@@ -1014,7 +1093,7 @@ body {
     width: 130px;
     max-height: 100%;
     background: rgba(235, 217, 199, 0.6);
-    border: 1px solid #8B7355;
+    border: 1px solid var(--rule-muted);
     border-radius: 4px;
     overflow-y: auto;
     padding: 6px 8px;
@@ -1022,7 +1101,7 @@ body {
 }
 .interval-list-header {
     font-size: 9px;
-    color: #5C4033;
+    color: var(--text-body);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 1px solid rgba(139, 115, 85, 0.4);
@@ -1037,18 +1116,20 @@ body {
     padding: 2px 4px;
     margin-bottom: 3px;
     background: rgba(139, 168, 112, 0.2);
-    border: 1px solid #8B7355;
+    border: 1px solid var(--rule-muted);
     border-radius: 3px;
 }
 .tonic-label { /* GEOMETRY PIN, English box (27.8 px). `.tonic-selector` is
       `justify-content: space-between`, so the caption's width moves the tonic
       readout between the two arrows. */
-  display: inline-block; width: 27.8px; font-size: 8px; color: #5C4033; text-transform: uppercase; }
-.tonic-value { font-size: 10px; font-weight: bold; color: #3C2F2F; min-width: 22px; text-align: center; }
+  /* v1.30.0: 27.8 -> 32 px, the widest caption at the 9 px floor ("TONIC:"
+     31.53, "TON. :" 25.95, 主音： 27.61). */
+  display: inline-block; width: 32px; font-size: 9px; color: var(--text-body); text-transform: uppercase; }
+.tonic-value { font-size: 10px; font-weight: bold; color: var(--ink); min-width: 22px; text-align: center; }
 .tonic-arrow {
     width: 14px; height: 14px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 8px; color: #5C4033;
+    font-size: 9px; color: var(--text-body);
     background: rgba(212, 196, 176, 0.6);
     border: 1px solid rgba(139, 115, 85, 0.5);
     border-radius: 2px; cursor: pointer;
@@ -1060,19 +1141,19 @@ body {
     padding: 3px 4px; border-radius: 2px; margin-bottom: 2px;
 }
 .interval-row:hover { background: rgba(139, 168, 112, 0.15); }
-.note-name { color: #5C4033; font-weight: 500; font-size: 9px; min-width: 20px; }
+.note-name { color: var(--text-body); font-weight: 500; font-size: 9px; min-width: 20px; }
 .interval-input {
     width: 55px; background: rgba(245, 230, 211, 0.8);
     border: 1px solid rgba(139, 115, 85, 0.4); border-radius: 2px;
-    font-family: monospace; font-size: 9px; color: #3C2F2F;
+    font-family: var(--font-mono); font-size: 9px; color: var(--ink);
     text-align: right; padding: 1px 4px; outline: none;
 }
-.interval-input:focus { background: #FFF; border-color: #6B8E4E; }
-.interval-input:disabled { background: rgba(200, 200, 200, 0.3); color: #888; }
-.deviation { font-family: monospace; font-size: 8px; opacity: 0.8; min-width: 34px; text-align: right; }
-.deviation.pure { color: #4CAF50; }
-.deviation.sharp { color: #FF9800; }
-.deviation.flat { color: #2196F3; }
+.interval-input:focus { background: var(--white); border-color: var(--leaf); }
+.interval-input:disabled { background: rgba(200, 200, 200, 0.3); color: var(--grey); }
+.deviation { font-family: var(--font-mono); font-size: 9px; min-width: 34px; text-align: right; }
+.deviation.pure { color: var(--dev-pure); }
+.deviation.sharp { color: var(--dev-sharp); }
+.deviation.flat { color: var(--dev-flat); }
 
 /* Viz mode toggle */
 .viz-mode-toggle {
@@ -1082,14 +1163,14 @@ body {
 }
 .viz-btn {
     padding: 5px 12px;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-    color: #5C4033; background: rgba(212, 196, 176, 0.7);
-    border: 1px solid #8B7355; border-radius: 3px;
+    color: var(--text-body); background: rgba(212, 196, 176, 0.7);
+    border: 1px solid var(--rule-muted); border-radius: 3px;
     cursor: pointer; transition: background 0.15s, color 0.15s;
 }
 .viz-btn:hover { background: rgba(139, 168, 112, 0.3); }
-.viz-btn.active { background: rgba(139, 168, 112, 0.5); color: #3C2F2F; border-color: #3C5C1A; font-weight: 500; }
+.viz-btn.active { background: rgba(139, 168, 112, 0.5); color: var(--ink); border-color: var(--moss); font-weight: 500; }
 
 /* Visualization container. position: relative is what the held-notes bar's
    `position: absolute; bottom: 0` hangs from. */
@@ -1108,7 +1189,7 @@ body {
 .pitch-circle svg { width: 100%; height: 100%; }
 .pitch-circle-label {
     position: absolute; bottom: -20px; width: 100%; text-align: center;
-    font-size: 10px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px;
+    font-size: 10px; color: var(--text-body); text-transform: uppercase; letter-spacing: 0.5px;
 }
 
 /* Polar canvas */
@@ -1118,16 +1199,16 @@ body {
 .matrix-view { width: 100%; height: 100%; overflow: auto; padding: 8px; }
 .matrix-table { border-collapse: collapse; font-size: 10px; width: 100%; }
 .matrix-table th, .matrix-table td { padding: 4px 6px; border: 1px solid rgba(139, 115, 85, 0.3); text-align: center; min-width: 30px; }
-.matrix-table th { background: rgba(139, 115, 85, 0.25); font-weight: 600; color: #3C2F2F; }
-.matrix-cell { font-family: monospace; font-size: 9px; }
+.matrix-table th { background: rgba(139, 115, 85, 0.25); font-weight: 600; color: var(--ink); }
+.matrix-cell { font-family: var(--font-mono); font-size: 9px; }
 
 /* True Keys view */
 .truekeys-view.active { flex-direction: column; padding: 12px; }
-.tk-hint { font-size: 13px; color: #5C4033; opacity: 0.7; text-align: center; }
+.tk-hint { font-size: 13px; color: var(--text-body); opacity: 0.7; text-align: center; }
 .tk-grid { display: flex; flex-direction: column; gap: 8px; width: 100%; max-height: 300px; overflow-y: auto; }
 .tk-interval { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(235, 217, 199, 0.6); border: 1px solid rgba(139, 115, 85, 0.4); border-radius: 4px; }
-.tk-interval span:first-child { font-size: 12px; color: #3C2F2F; font-weight: 500; }
-.tk-cents { font-family: monospace; font-size: 13px; color: #3C5C1A; font-weight: 600; }
+.tk-interval span:first-child { font-size: 12px; color: var(--ink); font-weight: 500; }
+.tk-cents { font-family: var(--font-mono); font-size: 13px; color: var(--moss); font-weight: 600; }
 
 /* Held notes bar (persistent across all viz tabs) */
 .held-notes-bar { display: none; position: absolute; bottom: 0; left: 0; right: 0; background: rgba(60, 47, 47, 0.92); border-top: 1px solid rgba(139, 115, 85, 0.5); padding: 6px 10px; z-index: 10; }
@@ -1141,17 +1222,17 @@ body {
    goes to the ENGLISH box instead. It moves one `.hn-cents` readout by 1.53 px in
    English, in a bar that only appears while notes are held. */
 .hn-span { display: inline-block; width: 26.03px; }
-.hn-item { font-size: 11px; color: #EBD9C7; font-weight: 500; }
-.hn-item .hn-cents { font-family: monospace; color: #9DC76B; font-weight: 600; margin-left: 3px; }
-.hn-item .hn-name { color: rgba(235, 217, 199, 0.6); font-size: 10px; margin-left: 2px; }
+.hn-item { font-size: 11px; color: var(--paper-deep); font-weight: 500; }
+.hn-item .hn-cents { font-family: var(--font-mono); color: var(--lime); font-weight: 600; margin-left: 3px; }
+.hn-item .hn-name { color: rgba(235, 217, 199, 0.85); font-size: 10px; margin-left: 2px; }
 
 /* Rotation view */
 .rotation-view { width: 100%; height: 100%; overflow: auto; padding: 6px; }
 .rotation-table { border-collapse: collapse; font-size: 9px; width: 100%; }
 .rotation-table th, .rotation-table td { padding: 3px 5px; border: 1px solid rgba(139, 115, 85, 0.25); text-align: center; min-width: 26px; }
-.rotation-table th { background: rgba(139, 115, 85, 0.2); font-weight: 500; color: #3C2F2F; }
+.rotation-table th { background: rgba(139, 115, 85, 0.2); font-weight: 500; color: var(--ink); }
 .mode-name { background: rgba(139, 115, 85, 0.3) !important; font-weight: bold; font-size: 10px; }
-.int-cell { font-family: monospace; font-size: 9px; }
+.int-cell { font-family: var(--font-mono); font-size: 9px; }
 .int-cell.small { background: rgba(33, 150, 243, 0.35); }
 .int-cell.medium { background: rgba(76, 175, 80, 0.35); }
 .int-cell.large { background: rgba(255, 152, 0, 0.35); }
@@ -1172,14 +1253,17 @@ body {
 /* Scale name */
 .scale-name-display {
     padding: 6px 10px; background: rgba(245, 230, 211, 0.8);
-    border: 1px solid #8B7355; border-radius: 3px;
-    font-size: 10px; color: #3C2F2F; text-align: center; min-height: 24px; width: 100%;
+    border: 1px solid var(--rule-muted); border-radius: 3px;
+    font-size: 10px; color: var(--ink); text-align: center; min-height: 24px; width: 100%;
 }
 
 /* Octave stretch */
 .octave-stretch-section { display: flex; flex-direction: column; gap: 4px; width: 100%; }
 .octave-stretch-row { display: flex; align-items: center; gap: 8px; }
-.octave-stretch-label { font-size: 8px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; min-width: 40px; }
+.octave-stretch-label { font-size: 9px; color: var(--text-body); text-transform: uppercase; letter-spacing: 0.5px;
+    /* v1.30.0: a fixed 45 px column ("STRETCH" is 44.75 at the 9 px floor);
+       min-width 40 let the slider squeeze the caption under its text. */
+    flex: 0 0 45px; }
 .octave-stretch-slider {
     flex: 1; height: 6px; -webkit-appearance: none; appearance: none;
     background: rgba(139, 115, 85, 0.3); border-radius: 3px; outline: none;
@@ -1187,23 +1271,23 @@ body {
 .octave-stretch-slider::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
     background: radial-gradient(circle at 35% 35%, rgba(255, 248, 220, 0.9) 0%, rgba(212, 196, 176, 0.8) 70%, rgba(139, 115, 85, 0.6) 100%);
-    border: 1px solid #8B7355; border-radius: 50%; cursor: pointer;
+    border: 1px solid var(--rule-muted); border-radius: 50%; cursor: pointer;
 }
-.octave-stretch-value { font-size: 9px; font-family: monospace; color: #3C2F2F; min-width: 32px; text-align: right; }
+.octave-stretch-value { font-size: 9px; font-family: var(--font-mono); color: var(--ink); min-width: 32px; text-align: right; }
 
 /* File buttons */
 .tuning-file-section { display: flex; flex-direction: column; gap: 4px; }
 .tuning-file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .tuning-file-btn {
-    padding: 6px 8px; font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    padding: 6px 8px; font-family: var(--font-serif);
     font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px;
-    color: #5C4033; background: rgba(212, 196, 176, 0.7);
-    border: 1px solid #8B7355; border-radius: 2px;
+    color: var(--text-body); background: rgba(212, 196, 176, 0.7);
+    border: 1px solid var(--rule-muted); border-radius: 2px;
     cursor: pointer; transition: background 0.15s;
 }
 .tuning-file-btn:hover { background: rgba(139, 168, 112, 0.3); }
 .tuning-file-btn:active { transform: scale(0.97); }
-.tuning-export-btn { grid-column: span 2; background: rgba(139, 115, 85, 0.15); border-color: #6b5a42; color: #5c4033; }
+.tuning-export-btn { grid-column: span 2; background: rgba(139, 115, 85, 0.15); border-color: var(--walnut-dark); color: var(--text-body); }
 .tuning-export-btn:hover { background: rgba(139, 115, 85, 0.3); }
 
 /* Library section */
@@ -1212,19 +1296,19 @@ body {
     display: flex; align-items: center; justify-content: space-between;
     cursor: pointer; padding: 4px 0; user-select: none;
 }
-.library-header-text { font-size: 9px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; }
-.library-toggle { font-size: 10px; color: #8B7355; transition: transform 0.2s; }
+.library-header-text { font-size: 9px; color: var(--text-body); text-transform: uppercase; letter-spacing: 0.5px; }
+.library-toggle { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; }
 .library-toggle.expanded { transform: rotate(180deg); }
 .library-content { display: none; padding-top: 8px; }
 .library-content.expanded { display: block; }
 .library-filter { margin-bottom: 8px; }
 .library-filter-select {
     width: 100%; padding: 5px 6px;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 10px;
-    color: #3C2F2F; background: rgba(245, 230, 211, 0.9);
-    border: 1px solid #8B7355; border-radius: 3px; cursor: pointer; outline: none;
+    font-family: var(--font-serif); font-size: 10px;
+    color: var(--ink); background: rgba(245, 230, 211, 0.9);
+    border: 1px solid var(--rule-muted); border-radius: 3px; cursor: pointer; outline: none;
 }
-.library-filter-select:focus { border-color: #6B8E4E; }
+.library-filter-select:focus { border-color: var(--leaf); }
 .library-list {
     max-height: 150px; overflow-y: auto;
     border: 1px solid rgba(139, 115, 85, 0.3); border-radius: 3px;
@@ -1234,9 +1318,9 @@ body {
 .library-item:last-child { border-bottom: none; }
 .library-item:hover { background: rgba(139, 168, 112, 0.2); }
 .library-item.selected { background: rgba(139, 168, 112, 0.35); }
-.library-item-name { font-size: 10px; color: #3C2F2F; font-weight: 500; }
-.library-item-info { font-size: 8px; color: #8B7355; margin-top: 2px; }
-.library-item-desc { font-size: 8px; color: #5C4033; font-style: italic; margin-top: 2px; display: none; }
+.library-item-name { font-size: 10px; color: var(--ink); font-weight: 500; }
+.library-item-info { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+.library-item-desc { font-size: 9px; color: var(--text-body); font-style: italic; margin-top: 2px; display: none; }
 .library-item:hover .library-item-desc { display: block; }
 .library-list::-webkit-scrollbar { width: 6px; }
 .library-list::-webkit-scrollbar-track { background: rgba(139, 115, 85, 0.1); border-radius: 3px; }
@@ -1246,34 +1330,34 @@ body {
 /* Generator section */
 .generator-section { margin-top: 8px; border-top: 1px solid rgba(139, 115, 85, 0.3); padding-top: 8px; }
 .generator-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0; user-select: none; }
-.generator-header-text { font-size: 9px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; }
-.generator-toggle { font-size: 10px; color: #8B7355; transition: transform 0.2s; }
+.generator-header-text { font-size: 9px; color: var(--text-body); text-transform: uppercase; letter-spacing: 0.5px; }
+.generator-toggle { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; }
 .generator-toggle.expanded { transform: rotate(180deg); }
 .generator-content { display: none; padding-top: 8px; }
 .generator-content.expanded { display: block; }
 .generator-type-row { margin-bottom: 8px; }
 .generator-type-select {
     width: 100%; padding: 5px 6px;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 10px;
-    color: #3C2F2F; background: rgba(245, 230, 211, 0.9);
-    border: 1px solid #8B7355; border-radius: 3px; cursor: pointer; outline: none;
+    font-family: var(--font-serif); font-size: 10px;
+    color: var(--ink); background: rgba(245, 230, 211, 0.9);
+    border: 1px solid var(--rule-muted); border-radius: 3px; cursor: pointer; outline: none;
 }
 .generator-inputs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .gen-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.gen-row label { font-size: 9px; color: #5C4033; flex-shrink: 0; }
+.gen-row label { font-size: 9px; color: var(--text-body); flex-shrink: 0; }
 .gen-row input[type="number"] {
     width: 70px; padding: 4px 6px;
-    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
-    color: #3C2F2F; background: rgba(255, 248, 220, 0.9);
-    border: 1px solid #8B7355; border-radius: 3px; text-align: right;
+    font-family: var(--font-serif); font-size: 10px;
+    color: var(--ink); background: rgba(255, 248, 220, 0.9);
+    border: 1px solid var(--rule-muted); border-radius: 3px; text-align: right;
 }
-.gen-row input[type="number"]:focus { outline: none; border-color: #6B8E4E; }
+.gen-row input[type="number"]:focus { outline: none; border-color: var(--leaf); }
 .generator-btn {
     width: 100%; padding: 8px;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif; font-size: 10px;
-    text-transform: uppercase; letter-spacing: 0.5px; color: #3C2F2F;
+    font-family: var(--font-serif); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink);
     background: linear-gradient(to bottom, rgba(139, 168, 112, 0.6), rgba(107, 142, 78, 0.7));
-    border: 1px solid #6B8E4E; border-radius: 4px; cursor: pointer; transition: all 0.15s;
+    border: 1px solid var(--leaf); border-radius: 4px; cursor: pointer; transition: all 0.15s;
 }
 .generator-btn:hover { background: linear-gradient(to bottom, rgba(139, 168, 112, 0.8), rgba(107, 142, 78, 0.9)); }
 .generator-btn:active { transform: scale(0.97); }
@@ -1300,10 +1384,10 @@ select.param-select,
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='%23C9A27B'/></svg>");
 }
 select.param-select {
-    background-color: #F8ECDC;
-    border-color: #B8A08C;
+    background-color: var(--paper-lighter);
+    border-color: var(--walnut-light);
 }
-select.param-select:hover { border-color: #8B7355; }
+select.param-select:hover { border-color: var(--rule-muted); }
 .mod-row select { padding-right: 20px; }
 
 /* ─── SCROLLBAR ─── */
@@ -1333,13 +1417,13 @@ select.param-select:hover { border-color: #8B7355; }
     left: 0; top: 0;
     z-index: 10000;
     max-width: 280px;
-    background: #3C2F2F;
-    color: #F5E6D3;
-    border: 1px solid #8B7355;
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--rule-muted);
     border-radius: 3px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
     padding: 7px 10px;
-    font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 11px;
     line-height: 1.4;
     opacity: 0;
@@ -1353,7 +1437,7 @@ select.param-select:hover { border-color: #8B7355; }
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 1.2px;
-    color: #C9A27B;
+    color: var(--accent-tan);
     margin-bottom: 3px;
 }
 
@@ -2023,7 +2107,7 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
                         <circle class="knob-vine" id="vine-refPitch" cx="32" cy="32" r="27" stroke-dasharray="127.24" stroke-dashoffset="127.24"/>
                     </svg>
                 </div>
-                <span class="knob-label" data-i18n="label.a4Ref">A4 Ref</span>
+                <span class="knob-label" id="knob-label-refPitch" data-i18n="label.a4Ref">A4 Ref</span>
                 <span class="knob-value" id="ref-pitch-value">440.0 Hz</span>
             </div>
         </div>
@@ -2245,7 +2329,7 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
         <input type="text" id="wt-save-name-input" placeholder="Wavetable name..." data-i18n-placeholder="aria.wavetableName">
         <div class="wt-save-modal-buttons">
             <button class="wt-op-btn" id="wt-save-cancel" data-i18n="label.cancel">Cancel</button>
-            <button class="wt-op-btn" id="wt-save-confirm" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;" data-i18n="label.save">Save</button>
+            <button class="wt-op-btn" id="wt-save-confirm" style="background:var(--slate-fill);color:var(--paper);border-color:var(--slate-fill);" data-i18n="label.save">Save</button>
         </div>
     </div>
 </div>
@@ -2257,7 +2341,7 @@ html[lang="zh-Hans"] .wt-osc-btn            { padding-left: 9.3px; padding-right
         <input type="text" id="preset-save-name-input" placeholder="Preset name..." data-i18n-placeholder="aria.presetName">
         <div class="wt-save-modal-buttons">
             <button class="wt-op-btn" id="preset-save-cancel" data-i18n="label.cancel">Cancel</button>
-            <button class="wt-op-btn" id="preset-save-confirm" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;" data-i18n="label.save">Save</button>
+            <button class="wt-op-btn" id="preset-save-confirm" style="background:var(--slate-fill);color:var(--paper);border-color:var(--slate-fill);" data-i18n="label.save">Save</button>
         </div>
     </div>
 </div>
@@ -2690,7 +2774,7 @@ function setupTooltips() {
                         '<circle class="knob-vine" id="vine-' + paramId + '" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/>' +
                     '</svg>' +
                 '</div>' +
-                '<span class="knob-label">' + label + '</span>' +
+                '<span class="knob-label" id="knob-label-' + paramId + '">' + label + '</span>' +
                 '<span class="knob-value" id="val-' + paramId + '">' + initial + '</span>' +
             '</div>';
 
@@ -3082,6 +3166,67 @@ function attachValueEntry(valueEl, state, formatFn) {
     input.addEventListener('wheel', (e) => e.stopPropagation());
 }
 
+// ─── KNOB KEYBOARD + ARIA (v1.30.0, R7) ───
+// Ported from O-ReverseDelay's bindKnob / nudgeStep, same as O-MicrotonalSampler
+// v1.28.0. The knob root becomes the role=slider: focusable, named by its
+// caption, and speaking the same scaled string the readout shows.
+//
+// One nudge is KNOB_NUDGE_STEP, floored at one parameter step:
+// setNormalisedValue() snaps to the range's interval, so a move under half a
+// step rounds straight back. On Unison (1–16, step 1) 0.02 is 0.3 of a step and
+// the wheel did nothing at all; every continuous knob's step is far below it.
+const KNOB_NUDGE_STEP = 0.02;
+function knobNudgeStep(state) {
+    const p = (state && state.properties) || {};
+    const span = p.end - p.start;
+    if (!(p.interval > 0) || !Number.isFinite(span) || span <= 0) return KNOB_NUDGE_STEP;
+    return Math.max(KNOB_NUDGE_STEP, p.interval / span);
+}
+
+// Marks knobEl up as a slider and binds arrow keys (one bracketed gesture per
+// press) and Enter (opens the same inline value entry as a double-click).
+// `canKey()` lets the caller refuse a key mid-drag; `beforeKey()` closes any
+// open wheel gesture first so the key's begin/end never nests inside it.
+// Returns setValueText(norm, text), which the caller runs wherever the
+// readout changes.
+function makeKnobAccessible(knobEl, state, valueEl, labelEl, formatFn, hooks) {
+    const h = hooks || {};
+    knobEl.setAttribute('role', 'slider');
+    knobEl.setAttribute('tabindex', '0');
+    knobEl.setAttribute('aria-valuemin', '0');
+    knobEl.setAttribute('aria-valuemax', '1');
+    if (labelEl && labelEl.id) knobEl.setAttribute('aria-labelledby', labelEl.id);
+    // The readout is spoken through aria-valuetext; reading it again as a
+    // separate text node would double it.
+    if (valueEl) valueEl.setAttribute('aria-hidden', 'true');
+
+    knobEl.addEventListener('keydown', (e) => {
+        if (e.altKey || e.ctrlKey || e.metaKey) return;
+        let dir = 0;
+        if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 1;
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = -1;
+        else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (h.beforeKey) h.beforeKey();
+            attachValueEntry(valueEl, state, formatFn);
+            return;
+        } else return;
+        e.preventDefault();
+        if (h.canKey && !h.canKey()) return;
+        if (h.beforeKey) h.beforeKey();
+        const next = Math.max(0, Math.min(1, state.getNormalisedValue() + dir * knobNudgeStep(state)));
+        state.sliderDragStarted();
+        state.setNormalisedValue(next);
+        state.sliderDragEnded();
+    });
+
+    const setValueText = (norm, text) => {
+        knobEl.setAttribute('aria-valuenow', Math.max(0, Math.min(1, norm)).toFixed(3));
+        if (text) knobEl.setAttribute('aria-valuetext', text);
+    };
+    return setValueText;
+}
+
 // defaultNorm is the Alt/Option-click reset target and is NORMALISED [0,1] —
 // it goes straight to setNormalisedValue(). It is NOT the parameter's scaled
 // default. For a skewed NormalisableRange the two differ a lot:
@@ -3107,23 +3252,52 @@ function bindKnob(paramId, formatFn, defaultNorm, size) {
         arcLength: sizeConfig.arcLength
     };
 
+    // Drag + wheel state, declared ahead of the keyboard hooks that read it.
+    let isDragging = false;
+    // The open wheel gesture, if any: opened on the first tick, closed after a
+    // short idle, so hosts in automation-write mode record wheel tweaks the
+    // same way as drags. Every other interaction closes it first.
+    let wheelGestureTimer = null;
+    const endWheelGesture = () => {
+        if (wheelGestureTimer === null) return;
+        clearTimeout(wheelGestureTimer);
+        wheelGestureTimer = null;
+        state.sliderDragEnded();
+    };
+
+    // v1.30.0 (R7): the generated knobs name themselves by their .knob-label;
+    // the two footer knobs by the .footer-label beside them.
+    const labelEl = knobEl.querySelector('.knob-label')
+                 || (knobEl.parentElement && knobEl.parentElement.querySelector('.footer-label'));
+    if (labelEl && !labelEl.id) labelEl.id = 'knob-label-' + paramId;
+    const setValueText = makeKnobAccessible(knobEl, state, valueEl, labelEl, formatFn, {
+        canKey: () => !isDragging,
+        beforeKey: endWheelGesture,
+    });
+
     // Set initial position
     vine.style.strokeDashoffset = sizeConfig.arcLength - (initNorm * sizeConfig.arcLength);
-    if (valueEl && formatFn) valueEl.textContent = formatFn(initNorm);
+    if (formatFn) {
+        const text = formatFn(initNorm);
+        if (valueEl) valueEl.textContent = text;
+        setValueText(initNorm, text);
+    }
 
     // Listen for value changes
     state.valueChangedEvent.addListener(() => {
         const norm = state.getNormalisedValue();
         animationState.targets[paramId].target = norm;
         startAnimationLoop();
+        if (!formatFn) return;
+        const text = formatFn(norm);
+        setValueText(norm, text);
         // Suppressed while an entry field is open — textContent would wipe out
         // the <input> that lives inside this span.
-        if (valueEl && formatFn && valueEl.dataset.editing !== '1')
-            valueEl.textContent = formatFn(norm);
+        if (valueEl && valueEl.dataset.editing !== '1')
+            valueEl.textContent = text;
     });
 
     // Drag interaction
-    let isDragging = false;
     const knobVisual = knobEl.querySelector('.knob-visual');
     const dragTarget = knobVisual || knobEl;
 
@@ -3140,13 +3314,25 @@ function bindKnob(paramId, formatFn, defaultNorm, size) {
     }, true);
 
     dragTarget.addEventListener('mousedown', (e) => {
+        endWheelGesture();
         isDragging = true;
         state.sliderDragStarted();
         e.preventDefault();
+        // preventDefault() also cancels the focus a mousedown would give; take
+        // it explicitly so arrow keys act on the knob that was just touched.
+        knobEl.focus({ preventScroll: true });
     });
-    document.addEventListener('mouseup', () => {
+    const endDrag = () => {
         if (isDragging) { isDragging = false; state.sliderDragEnded(); }
-    });
+    };
+    document.addEventListener('mouseup', endDrag);
+    // v1.30.0 (R7): the capture-loss case. This drag runs on document mouse
+    // events rather than pointer capture, so there is no lostpointercapture to
+    // hear; what takes the mouse away mid-drag (a host modal, the WebView
+    // losing focus) arrives as a window blur, and the mouseup never comes.
+    // Without this the gesture stayed open and the knob followed the cursor
+    // with no button held.
+    window.addEventListener('blur', endDrag);
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         let sensitivity = 0.005;
@@ -3162,15 +3348,24 @@ function bindKnob(paramId, formatFn, defaultNorm, size) {
     // Double-click opens inline value entry (Alt/Option-click resets instead).
     knobEl.addEventListener('dblclick', (e) => {
         if (e.altKey) return;
+        endWheelGesture();
         attachValueEntry(valueEl, state, formatFn);
     });
 
-    // Mouse wheel support
+    // Mouse wheel support. v1.30.0 (R7): bracketed as one gesture (above),
+    // stepped by knobNudgeStep so stepped knobs move, ignored mid-drag, and a
+    // horizontal-dominant event (sideways trackpad swipe, deltaY 0 — which
+    // used to read as "down" and walk the knob to its floor) is left alone and
+    // not preventDefault()ed.
     knobEl.addEventListener('wheel', (e) => {
+        if (isDragging) { e.preventDefault(); return; }
+        if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
         e.preventDefault();
-        const currentNorm = state.getNormalisedValue();
-        const delta = e.deltaY < 0 ? 0.02 : -0.02;
-        state.setNormalisedValue(Math.max(0, Math.min(1, currentNorm + delta)));
+        if (wheelGestureTimer === null) state.sliderDragStarted();
+        else clearTimeout(wheelGestureTimer);
+        wheelGestureTimer = setTimeout(endWheelGesture, 250);
+        const dir = e.deltaY < 0 ? 1 : -1;
+        state.setNormalisedValue(Math.max(0, Math.min(1, state.getNormalisedValue() + dir * knobNudgeStep(state))));
     }, { passive: false });
 }
 
@@ -4313,7 +4508,7 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
 
             const labelR = r + 14;
             ctx.fillStyle = '#3C2F2F';
-            ctx.font = total > 12 ? '8px Garamond' : '10px Garamond';
+            ctx.font = total > 12 ? "9px 'EB Garamond', Georgia, serif" : "10px 'EB Garamond', Georgia, serif";
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(getDegreeLabel(i, total), cx + Math.cos(angle) * labelR, cy + Math.sin(angle) * labelR);
         }
@@ -4412,7 +4607,7 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         }
         if (sorted.length > 2) {
             const totalCents = 1200 * Math.log2(sorted[sorted.length - 1].freq / sorted[0].freq);
-            html += `<div class="tk-interval" style="border-color:#6B8E4E;margin-top:6px;"><span><strong data-i18n="label.totalSpan">Total span</strong></span><span class="tk-cents">${totalCents.toFixed(1)}\u00A2</span></div>`;
+            html += `<div class="tk-interval" style="border-color:var(--leaf);margin-top:6px;"><span><strong data-i18n="label.totalSpan">Total span</strong></span><span class="tk-cents">${totalCents.toFixed(1)}\u00A2</span></div>`;
         }
         html += '</div>';
         container.innerHTML = html;
@@ -4602,11 +4797,18 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
     const masterTuneState = Juce.getSliderState('masterTune');
 
     const refPitchVine = document.getElementById('vine-refPitch');
+    // v1.30.0 (R7): keyboard + ARIA, same helper as bindKnob.
+    const refPitchValueText = (refPitchKnob && masterTuneState)
+        ? makeKnobAccessible(refPitchKnob, masterTuneState, refPitchValue,
+                             document.getElementById('knob-label-refPitch'), masterTuneFmt,
+                             { canKey: () => !knobDragging })
+        : null;
     function updateKnobVisual(norm) {
         if (refPitchVine) {
             const offset = 127.24 - (norm * 127.24);
             refPitchVine.style.strokeDashoffset = offset;
         }
+        if (refPitchValueText) refPitchValueText(norm, masterTuneFmt(norm));
         // masterTuneFmt maps through the parameter's real C++ range (420..460 Hz).
         // The inline `415 + norm * 50` this replaces was a 415..465 mirror that
         // had drifted from the parameter: right at centre, 5 Hz out at both ends.
@@ -4642,6 +4844,7 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
             knobStartValue = masterTuneState ? masterTuneState.getNormalisedValue() : 0.5;
             if (masterTuneState) masterTuneState.sliderDragStarted();
             e.preventDefault();
+            refPitchKnob.focus({ preventScroll: true });
         });
         // Double-click opens inline value entry on the readout.
         refPitchKnob.addEventListener('dblclick', (e) => {
@@ -4664,6 +4867,8 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
     };
     document.addEventListener('mousemove', refPitchMouseMoveHandler);
     document.addEventListener('mouseup', refPitchMouseUpHandler);
+    // v1.30.0 (R7): capture loss — see bindKnob's window blur.
+    window.addEventListener('blur', refPitchMouseUpHandler);
 
     // Cleanup registry — any code that needs to tear down the tuning UI
     // (e.g. future destroy path) can call window.__prismTuningCleanup() to
@@ -4673,6 +4878,7 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
     window.__prismTuningCleanup = () => {
         document.removeEventListener('mousemove', refPitchMouseMoveHandler);
         document.removeEventListener('mouseup', refPitchMouseUpHandler);
+        window.removeEventListener('blur', refPitchMouseUpHandler);
         if (typeof prevCleanup === 'function') prevCleanup();
     };
 

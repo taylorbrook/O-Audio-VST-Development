@@ -2,11 +2,19 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.29.0
+- **Version:** 1.30.0
 - **Type:** Synth (Microtonal Wavetable)
 
 ## Lifecycle Timeline
 
+- **2026-09-25 (v1.30.0):** UI pass (260924-nho Phase C: R4/R5/R7). 38-token `:root`
+  palette replaces all 216 CSS hex literals, landed first as a zero-change refactor.
+  AA text: `--text-muted` #6A5641, knob values off #A08870, `--text-muted-on-dark`
+  #B8A08C on the bark strips, darker fills under light text, deviation inks at full
+  opacity. 9px floor, with 4 pins re-sized at the widest language. Bundled EB Garamond
+  via `--font-serif`/`--font-mono`. 67 knobs get role=slider, arrows, Enter-to-entry,
+  bracketed wheel, and blur-ends-drag. Contrast below-AA 230/652 → 75/652, **0 on
+  active controls**; <9px 55 → 0; labels/tip/i18n gates all pass; auval pass. No DSP.
 - **2026-09-24 (v1.29.0):** IN-09 closed — `CODE_REVIEW.md` now has **no open
   findings**. Fold aliased badly at 2x (at 4 kHz / drive 0.5 the alias measured
   *louder than the signal*, -0.3 dB). **Both fixes the review prescribed were

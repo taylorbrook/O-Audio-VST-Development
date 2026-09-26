@@ -1,5 +1,67 @@
 # O-Prism Changelog
 
+## [1.30.0] - 2026-09-25
+
+The UI pass from the 260924-nho design review (Phase C). It covers AA text colours (R4), the 9px text floor, the bundled EB Garamond face (R5), a CSS custom-property palette, and keyboard/ARIA on the Family B knobs (R7). It is MINOR because the change is visible and adds keyboard access. **No DSP, parameter, range, type or state-format change.** No processor file was touched. The only C++ change is four `getResource()` branches for the fonts.
+
+### Changed
+
+- **The palette is custom properties.** A `:root` block of 38 tokens replaces every hex literal in the inline stylesheet (179) and in `css/wavetable-editor.css` (37). That includes the two inline `style=""` Save buttons. Before any colour moved, this was landed as a pure refactor: the contrast census came out identical, apart from 4 rows of 1-LSB alpha-compositing noise from a mid-transition sample. Canvas `fillStyle`/`strokeStyle` and SVG presentation-attribute literals in the script stay as literals, because neither accepts `var()`. `rgba()` alpha variants are unchanged.
+- **Text tokens are AA on every paper stop.**
+  - `--text-muted` moves `#8B7355 → #6A5641`. That is 5.03 on the darkest stop (`#EDD8C0`, the mod rows) and 5.68 on `#F5E6D3`. `#8B7355` is kept as `--rule-muted` for borders, strokes and fills. The split follows the property: `color:` takes the text token, and everything else takes the rule token.
+  - **Knob values** (`#A08870`, 2.57–2.91 at 10px, the review's headline defect) now use `--text-muted`.
+  - **On the bark strips** the same role is `--text-muted-on-dark` `#B8A08C`: 5.15 on `#3C2F2F`, and 6.37 on `#2A2020`. That covers the subtitle, the settings captions, the preset category, the footer captions and the waveform-preview caption.
+  - **Fills under light text** get their own tokens. `--leaf-fill` covers the LFO Sync/Retrig active pill, 3.3 → 4.97. `--slate-fill` covers the active osc/bin buttons, both Save buttons and the primary wavetable op, 3.87 → 4.90. `--walnut-fill` covers the modal Close and the active preset-menu item, 3.4 → 5.68 / 6.95. The lighter originals stay for borders, arcs and hovers.
+  - **Scale-deviation inks** drop `opacity: 0.8` and move to `#2A6E2E` / `#9A4F00` / `#1A65A6` (pure / sharp / flat). These were 1.9–2.6 and are now ≥ 4.58.
+  - **Held-note interval names** go from 0.6 to 0.85 alpha, 3.81 → 5.91.
+- **9px floor.** 15 rules at 8px move to 9px: the dropdown captions, deviation readouts, bypass pills, tonic caption and arrows, stretch caption, library info/description and footer captions. The circle-view degree labels on the canvas move from 8px to 9px as well. The bigger captions outgrew four geometry pins, so each was re-pinned at the widest language (measured at 9px in EB Garamond):
+  - `#lbl-filt-routing` 82.08 → 88px ("FILTER ROUTING" is 87.88 and had wrapped to two lines in English only).
+  - `#select-glideMode` 64 → 68px ("Mode porta" 67.48).
+  - `.tonic-label` 27.8 → 32px ("TONIC:" 31.53).
+  - `.octave-stretch-label` becomes a fixed 45px column ("STRETCH" 44.75).
+  - `.footer-param` gets `min-width: 46px` (振荡器混合 46.0 against "OSC MIX" 45.19).
+- **One text face, bundled.** EB Garamond comes from `modules/ui/eb-garamond` 1.0.0 by direct embed: 4 `SOURCES` lines, 4 `getResource()` branches, and `css/eb-garamond.css` linked ahead of the inline sheet. Every `font-family` resolves through `--font-serif` (`'EB Garamond', 'Georgia', 'Times New Roman'` + CJK tail) or `--font-mono` (`ui-monospace` stack, which replaces 7 bare `monospace`).
+  - The bare `'Garamond'` entry is dropped, so an Office-installed Windows Garamond can no longer outrank the bundled face.
+  - Form controls `inherit` the page face.
+  - The v1.2x "Arial stays FIRST" pin on the wavetable delete button is retired on purpose, and its comment says so.
+  - Both canvas `ctx.font` strings name `'EB Garamond'`.
+- **Keyboard and ARIA knobs.** This covers all 67 knobs: the 64 generated ones, the two footer knobs and A4 Ref. It is ported from O-ReverseDelay through one helper, `makeKnobAccessible()`.
+  - The knob root is `role="slider"` with `tabindex="0"`. It has `aria-valuenow` and `aria-valuetext`, the latter the same string as the readout. `aria-labelledby` points at its caption (`knob-label-<id>` / the footer caption). The readout is `aria-hidden` so it isn't read twice.
+  - The arrow keys make one bracketed gesture per press. The step is 0.02, floored at one parameter step, so Unison (1–16) now moves by keyboard and by wheel. **Enter** opens the same inline value entry as a double-click.
+  - The wheel is bracketed as one gesture (opened on the first tick, closed after 250ms idle), so automation-write hosts record it the way they record drags. It is ignored mid-drag, and a horizontal-dominant wheel (a sideways trackpad swipe, which used to read as "down") is left alone.
+  - A **window blur ends a drag.** This drag runs on document mouse events, not pointer capture, so the capture-loss case arrives as a blur and the mouseup never comes. Before, the knob kept following the cursor with no button held. The refPitch cleanup registry removes the new listener too.
+  - A mousedown now focuses the knob, so arrow keys act on the knob you just touched. There is a dotted `:focus-visible` ring (`.knob:focus` has no outline, so mouse focus shows none).
+
+### Measured (v1.29.0 → v1.30.0, served page at the shipping 1200×800 frame, all 24 states in `tests/i18n-states.json`)
+
+| Gate | Before | After |
+|---|---|---|
+| `measure-ui.js --contrast`, per language (en = fr = zh-Hans) | 230 / 652 below AA (35.3%), 55 under 9px, min 1.36 | 75 / 652 (11.5%), **0 under 9px** |
+| — of which on **active** controls | 120 | **0** |
+| `check-ui-labels.js` (en / fr / zh-Hans) | ALL CHECKS PASSED | ALL CHECKS PASSED |
+| `tests/ui_tip_render_check.js` | ALL PASSED | ALL PASSED (2851) |
+| `check-i18n.js` | ALL PASS | ALL PASS |
+| CDP resolved face (section header, knob caption, readout, title, button) | Georgia / system | **EB Garamond (custom)** |
+| auval (`aumu OuPr OuDv`) | — | AU VALIDATION SUCCEEDED |
+
+**The 75 that remain are all inactive controls, which WCAG exempts:**
+- 41 in a bypassed effect section. Its param row is `opacity: 0.35; pointer-events: none`.
+- 32 in the 16 disabled mod-matrix rows (`.mod-row.disabled`, `opacity: 0.45`).
+- The 2 wavetable undo/redo buttons while `disabled`.
+
+The same rule was used in O-MicrotonalSampler v1.28.0 for its disabled `#technique-add`.
+
+A stub-page keyboard probe checked the following:
+- 67 sliders, all tabbable, all labelled, all with valuetext.
+- ArrowUp/Down move the readout, and valuetext follows it.
+- Enter opens entry.
+- A horizontal wheel leaves the value unchanged, and a vertical wheel steps it.
+- A mousedown focuses the knob.
+- The A4 Ref arrows go 440.0 → 440.8 Hz.
+- 0 page errors.
+
+The stub's `sliderDragStarted`/`Ended` are no-ops, so it cannot observe gesture bracketing. That is verified by reading the code. The hands-on DAW check is still pending.
+
 ## [1.29.0] - 2026-09-24
 
 Closes **IN-09**, the one finding `CODE_REVIEW.md` still had open — the Fold
