@@ -81,6 +81,22 @@ OSimplePhysicalModelSynthAudioProcessorEditor::getResource (const juce::String& 
         return makeBinaryResource (BinaryData::presetmanager_js,
                                    BinaryData::presetmanager_jsSize, "application/javascript; charset=utf-8");
 
+    // v1.4.0 (R5): shared EB Garamond face (modules/ui/eb-garamond) —
+    // stylesheet under /css/, the three woff2 faces under /fonts/ where its
+    // relative font URLs land.
+    if (url == "/css/eb-garamond.css")
+        return makeBinaryResource (BinaryData::ebgaramond_css, BinaryData::ebgaramond_cssSize,
+                                   "text/css; charset=utf-8");
+    if (url == "/fonts/EBGaramond-Regular.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondRegular_woff2,
+                                   BinaryData::EBGaramondRegular_woff2Size, "font/woff2");
+    if (url == "/fonts/EBGaramond-Italic.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondItalic_woff2,
+                                   BinaryData::EBGaramondItalic_woff2Size, "font/woff2");
+    if (url == "/fonts/EBGaramond-Bold.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondBold_woff2,
+                                   BinaryData::EBGaramondBold_woff2Size, "font/woff2");
+
     return std::nullopt;
 }
 
@@ -296,9 +312,28 @@ OSimplePhysicalModelSynthAudioProcessorEditor::OSimplePhysicalModelSynthAudioPro
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
-    setSize (1040, 860);   // fixed window — left→right signal-flow layout
+    // Read BEFORE the first setSize: resized() records the live scale.
+    const float storedScale = processorRef.editorScale;
 
-    startTimerHz (30);     // drive the spectrum + scope (analyzer runs here, off the audio thread)
+    // The 1040x860 design frame — the page lays out at exactly this size and
+    // scales itself (CSS transform on .frame) to whatever the window is. The
+    // headless UI gates parse this literal, so it stays the numeric setSize.
+    setSize (1040, 860);
+
+    // v1.4.0 (R7): resizable at a fixed 1040:860 aspect, 0.6x..1.5x. 860px is
+    // off-screen on a 13" laptop, so a fresh editor fits the display it opens
+    // on; a size the user chose is kept for the rest of the session.
+    setResizable (true, true);
+    setResizeLimits (juce::roundToInt (designW * minScale), juce::roundToInt (designH * minScale),
+                     juce::roundToInt (designW * maxScale), juce::roundToInt (designH * maxScale));
+    if (auto* constrainer = getConstrainer())
+        constrainer->setFixedAspectRatio ((double) designW / (double) designH);
+
+    const float scale = storedScale > 0.0f ? storedScale : fitScaleForDisplay();
+    if (! juce::approximatelyEqual (scale, 1.0f))
+        setSize (juce::roundToInt (designW * scale), juce::roundToInt (designH * scale));
+
+    startTimerHz (30);    // drive the spectrum + scope (analyzer runs here, off the audio thread)
 }
 
 OSimplePhysicalModelSynthAudioProcessorEditor::~OSimplePhysicalModelSynthAudioProcessorEditor()
@@ -364,4 +399,24 @@ void OSimplePhysicalModelSynthAudioProcessorEditor::resized()
 {
     if (webView != nullptr)
         webView->setBounds (getLocalBounds());
+
+    processorRef.editorScale = (float) getWidth() / (float) designW;
+}
+
+// Largest scale ≤ 1 whose window fits the usable height of the display under
+// the mouse (where the host is about to open the editor), leaving room for the
+// host's own plugin-window title bar and header.
+float OSimplePhysicalModelSynthAudioProcessorEditor::fitScaleForDisplay()
+{
+    constexpr int hostChromeAllowance = 90;
+
+    const auto& displays = juce::Desktop::getInstance().getDisplays();
+    const auto* display = displays.getDisplayForPoint (juce::Desktop::getMousePosition());
+    if (display == nullptr)
+        display = displays.getPrimaryDisplay();
+    if (display == nullptr)
+        return 1.0f;
+
+    const int available = display->userArea.getHeight() - hostChromeAllowance;
+    return juce::jlimit (minScale, 1.0f, (float) available / (float) designH);
 }

@@ -19,7 +19,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # against JucePlugin_VersionString). Introduced in v1.2.0: through v1.1.0 the
 # harness carried the literal "1.0.0" while the plugin shipped 1.1.0, so every
 # harness run stamped the real preset directory with a version two releases stale.
-set(OSIMPLEPHYSICALMODELSYNTH_VERSION "1.3.0")
+set(OSIMPLEPHYSICALMODELSYNTH_VERSION "1.4.0")
 
 juce_add_plugin(O-simplePhysicalModelSynth
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
@@ -93,6 +93,12 @@ juce_add_binary_data(O-simplePhysicalModelSynth_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/modules/preset-manager.js
+        # v1.4.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the matching getResource branches
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 # Required JUCE modules. juce_dsp is linked NOW even though the DSP (DelayLine<Thiran>,

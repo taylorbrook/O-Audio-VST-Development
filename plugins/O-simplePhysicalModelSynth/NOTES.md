@@ -2,11 +2,18 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.0
+- **Version:** 1.4.0
 - **Type:** Synth (Pedagogical Physical Modeling)
 
 ## Lifecycle Timeline
 
+- **2026-09-25 (v1.4.0):** UI pass (design review 260924-nho R4/R5/R7) via /improve:
+  - AA text-ink tokens: below-AA 32/77 → 9/77, all 9 inactive or decorative;
+  - 9 px floor (13 → 0 nodes under 9 px);
+  - bundled EB Garamond (modules/ui/eb-garamond);
+  - resizable editor, fixed 1040:860 aspect, 0.6–1.5x, with a CSS `transform` scale; it opens fitted to the display, so the 860 px frame fits a 13" laptop.
+
+  No DSP, parameter or state change. check-ui-labels and check-i18n pass.
 - **2026-08-09 (v1.1.0):** Added "?" tooltip toggle button to the header (right of the preset bar) via /improve — toggles on-hover tooltips, persists via localStorage, `aria-pressed` state. Same pattern as O-simpleGrain v1.2.0.
 - **2026-08-08 (v1.0.3):** Maintenance patch — MSVC SafePointer init-capture hoist for Windows CI + AGPL-3.0 notice headers. First published release since v1.0.1.
 - **2026-06-26 (Stage 0):** Research & Planning complete — ARCHITECTURE.md + ROADMAP.md. Complexity 5.0, staged implementation.
