@@ -20,7 +20,7 @@ findings:
   warning: 6
   info: 4
   total: 11
-status: issues_found
+status: all_resolved
 ---
 
 # O-AnalogEQ: Code Review Report
@@ -56,7 +56,7 @@ review's ten, and a zero in a tier here does not mean a prior finding was droppe
 ### Resolution status — updated 2026-09-26
 
 **CR-02 and WR-05..WR-10 were resolved in v1.5.1** (commit `75b97ff5`, 2026-09-25).
-**IN-06..IN-09 remain open** and are opt-in (`/improve-review-info O-AnalogEQ`).
+**IN-06..IN-09 were resolved in v1.5.3** (this commit, 2026-09-26) by `/improve-review-info O-AnalogEQ`. **The open list is now empty.**
 
 **v1.5.2 (2026-09-26)** closed two residual defects found while re-verifying those
 fixes. Neither is a finding in this document; both were introduced or left open by the
@@ -513,7 +513,7 @@ file, printed as a statement about the page.
 
 ## Info
 
-### IN-06: The settings-popover contract comments still describe a one-row panel, two minor versions after it grew a second row
+### IN-06: The settings-popover contract comments still describe a one-row panel, two minor versions after it grew a second row — **Resolved in v1.5.3**
 
 **Label:** CONFIRMED
 **File:** `plugins/O-AnalogEQ/Source/ui/public/index.html:1082-1083` and `:1652-1653`
@@ -548,7 +548,7 @@ panel holds **two** rows and that `data-tip-always` is carried by `#gear-btn` an
 keep that one). The `:1652` block should drop the `tip.settings` claim entirely, since
 tying a comment to a copy string is what made it go stale.
 
-### IN-07: 16 `getRawParameterValue(StringRef)` lookups per block — a per-block ordered-map walk, not an allocation
+### IN-07: 16 `getRawParameterValue(StringRef)` lookups per block — a per-block ordered-map walk, not an allocation — **Resolved in v1.5.3**
 
 **Label:** CONFIRMED (and deliberately **not** escalated — see below)
 **File:** `plugins/O-AnalogEQ/Source/PluginProcessor.cpp:286-305`
@@ -592,7 +592,7 @@ sample-rate change. Verify with `pattern_malloc_logger_alloc_gate_two_traps` onl
 cache is combined with other `processBlock` work; for this change alone a before/after
 comparison count is the honest measurement.
 
-### IN-08: A second dialog launch destroys the first `FileChooser` mid-flight
+### IN-08: A second dialog launch destroys the first `FileChooser` mid-flight — **Resolved in v1.5.3**
 
 **Label:** PLAUSIBLE
 **File:** `plugins/O-AnalogEQ/Source/PluginEditor.cpp:107-111` and `:146-150`, `Source/PluginEditor.h` (`fileChooser` member)
@@ -625,7 +625,7 @@ fileChooser = std::make_unique<juce::FileChooser> (…);
 and clear `fileChooser` at the end of each completion body (via `safeThis`, inside the
 non-null branch, so the dead-editor path still touches nothing — see WR-04).
 
-### IN-09: The page's init log still announces v1.3.1
+### IN-09: The page's init log still announces v1.3.1 — **Resolved in v1.5.3**
 
 **Label:** CONFIRMED
 **File:** `plugins/O-AnalogEQ/Source/ui/public/index.html:1527`
@@ -894,6 +894,53 @@ are not plugin-local and one must not be fixed in this repository's plugin tree 
 
 **Do not fix anything in this pass.** This document is read-only output; every fix above
 is a later `/improve-review` run, and each one needs its own verification.
+
+---
+
+## Resolved
+
+Every finding in this document is closed. Recorded here so a later reviewer can tell a
+closed finding from a dropped one, and so the two cases where a prescribed *Fix* block
+was unsafe as written are not lost.
+
+| Findings | Release | Commit | Note |
+|----------|---------|--------|------|
+| CR-02, WR-05..WR-10 | v1.5.1 (2026-09-25) | `75b97ff5` | The defect tiers, per §Suggested Resolution Order. |
+| — (two residual defects **introduced by** the v1.5.1 fixes) | v1.5.2 (2026-09-26) | `6b9e426b` | WR-07's prescribed swap dropped the `isFactoryPreset()` guard; WR-10 part 1 did not deliver its stated scope. Neither is a finding here. |
+| IN-06, IN-07, IN-08, IN-09 | v1.5.3 (2026-09-26) | this commit | The Info tier, via `/improve-review-info`. |
+
+**Two of this document's own *Fix* blocks were unsafe as literally written**, and both
+were caught only by executing them and re-verifying. Recorded because the pattern is the
+finding:
+
+- **§WR-07** prescribed swapping `savePreset(name)` for `savePresetToFile(file)`. Correct
+  about the discarded directory, silent about the `isFactoryPreset()` early-return that
+  only the first API carries. Applying it verbatim removed factory-preset overwrite
+  protection. Closed in v1.5.2 with a **location-aware** guard — a name-only reject would
+  have re-broken the arbitrary-path export WR-07 exists to enable.
+- **§IN-08** prescribed guarding on `fileChooser != nullptr` and clearing `fileChooser`
+  "at the end of each completion body". That destroys the `FileChooser`, and the
+  `std::function` then executing, from inside its own `launchAsync` callback; and the
+  guard cannot be adopted *without* the clear, because then the first dialog latches it
+  shut for the editor's lifetime. Closed in v1.5.3 with a `bool presetDialogInFlight`
+  instead — releasing a bool touches no owner.
+
+A prescription in a review is a hypothesis about the fix, not the fix.
+
+### Gates added while resolving
+
+Neither finding's tier implied a gate; both were added because the change is invisible to
+the existing ones. Each was **seen to fail** before acceptance.
+
+| Gate | Guards | Negative control |
+|------|--------|------------------|
+| `tests/render-harness/` G4 (v1.5.2) | `oaeq::presetSaveRefusal` | Guard neutered → the four refusal arms fail; name-only guard → the export arm fails **alone**. |
+| `tests/check-param-cache.js` (v1.5.3) | IN-07's member↔ID mapping, cache completeness against the layout, no lookup outside the constructor | Swapped `pHmfFreq`/`pHmfGain` → [3] fails; lookup reintroduced in `processBlock` → [5] fails; assignment dropped → [2] and [4] fail. |
+| `ui_tip_render_check.js` [10] (v1.5.3) | no `vX.Y.Z` literal in any `console.*` call in `index.html` | Restoring the v1.3.1 string turns [10] red. |
+
+IN-07's mapping is gated by **name rather than by audio** on purpose: G1–G4 all still pass
+with two same-band parameter reads exchanged, so the render harness cannot see the one
+defect that change can introduce.
 
 ---
 

@@ -113,6 +113,48 @@ private:
     using StereoFilter = juce::dsp::ProcessorDuplicator<IIRFilter, IIRCoefficients>;
     using SmoothedFloat = juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear>;
 
+    // IN-07: the sixteen raw parameter pointers, resolved ONCE in the constructor.
+    //
+    // processBlock used to open with sixteen
+    // `parameters.getRawParameterValue("…")->load()` calls. That is NOT an RT-safety
+    // violation and the distinction is load-bearing: APVTS keeps
+    // `std::map<StringRef, unique_ptr<ParameterAdapter>, StringRefLessThan>`, keyed on
+    // StringRef rather than juce::String, so a find() with a string literal constructs
+    // no juce::String and allocates nothing. The tempting reading — "a string-keyed map
+    // lookup on the audio thread must be allocating" — is wrong here, and a future
+    // reviewer should not re-raise it as a CR-01-class blocker.
+    //
+    // What it cost was ~16 x log2(16) = 64 string comparisons per block, forever, to
+    // re-derive sixteen pointers that are FIXED for the processor's lifetime — at a
+    // 64-sample buffer and 48 kHz, ~48 000 comparisons per second of pure overhead.
+    //
+    // Resolved in the CONSTRUCTOR, not prepareToPlay: the adapter table is built with
+    // `parameters` and the pointers are stable for the object's lifetime, so a
+    // sample-rate change has nothing to re-resolve.
+    //
+    // NAMING IS A CONTRACT, not a convention. Each member is `p` + the camelCase of the
+    // parameter ID it holds, and `tests/check-param-cache.js` asserts exactly that over
+    // every member/assignment pair. A silent swap — pHmfFreq taking "hmf_gain" — is the
+    // one defect this cache can introduce and the one thing render-harness G1-G4 would
+    // not catch, because all four gates still pass with two same-band reads exchanged.
+    // Rename a member without renaming its ID and the gate fails by name mismatch.
+    std::atomic<float>* pLfFreq     = nullptr;
+    std::atomic<float>* pLfGain     = nullptr;
+    std::atomic<float>* pLfOn       = nullptr;
+    std::atomic<float>* pLmfFreq    = nullptr;
+    std::atomic<float>* pLmfGain    = nullptr;
+    std::atomic<float>* pLmfQ       = nullptr;
+    std::atomic<float>* pLmfOn      = nullptr;
+    std::atomic<float>* pHmfFreq    = nullptr;
+    std::atomic<float>* pHmfGain    = nullptr;
+    std::atomic<float>* pHmfQ       = nullptr;
+    std::atomic<float>* pHmfOn      = nullptr;
+    std::atomic<float>* pHfFreq     = nullptr;
+    std::atomic<float>* pHfGain     = nullptr;
+    std::atomic<float>* pHfOn       = nullptr;
+    std::atomic<float>* pOutputGain = nullptr;
+    std::atomic<float>* pAnalog     = nullptr;
+
     // EQ Band Filters (4 bands: LF shelf, LMF bell, HMF bell, HF shelf)
     StereoFilter lfFilter, lmfFilter, hmfFilter, hfFilter;
 
