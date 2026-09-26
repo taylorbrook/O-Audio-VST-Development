@@ -462,6 +462,26 @@ function updateDrawbarSpectrum(sounding, levels) {
   }
 }
 
+// ── UI scale (v1.4.0) ────────────────────────────────────────────────────────
+// The editor is resizable at a fixed 860:930 aspect. The page always LAYS OUT
+// at the 860x930 design frame and .frame is scaled to the window with a CSS
+// transform, so every pinned width, line box and label geometry is identical
+// at any size. At scale 1 the transform is removed outright — the headless
+// gates run at 860x930 and measure exactly the page they always did.
+// Only .frame scales: the tooltip is a body child positioned in viewport px
+// from clientX/Y, which a transform never skews. The drawbar drag reads the
+// track's getBoundingClientRect, which is already in scaled viewport px.
+const DESIGN_W = 860, DESIGN_H = 930;
+let uiScale = 1;
+
+function applyUiScale() {
+  const frame = document.querySelector(".frame");
+  if (!frame) return;
+  const s = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
+  uiScale = (s > 0 && Math.abs(s - 1) > 0.002) ? s : 1;
+  frame.style.transform = uiScale === 1 ? "" : `scale(${uiScale})`;
+}
+
 // ── Oscilloscope (DPR-aware canvas) ─────────────────────────────────────────
 function makeCanvas(id) {
   const canvas = document.getElementById(id);
@@ -470,7 +490,9 @@ function makeCanvas(id) {
   // canvas.width/height clears the canvas even when the value is identical, so a
   // no-op resize must not repaint.
   const resize = () => {
-    const dpr = window.devicePixelRatio || 1;
+    // clientWidth is the UNSCALED layout width; fold uiScale into the backing
+    // store so a scaled-up canvas stays sharp and a scaled-down one costs less.
+    const dpr = (window.devicePixelRatio || 1) * uiScale;
     const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
     const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
     if (canvas.width === w && canvas.height === h) return false;
@@ -533,6 +555,7 @@ function setupVizEvents() {
 
 function rewireResize() {
   window.addEventListener("resize", () => {
+    applyUiScale();
     if (scope) scope.resize();
     if (lastScope) drawScope(lastScope);
   });
@@ -920,6 +943,7 @@ function setupSettingsPopover() {
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 function boot() {
+  applyUiScale();   // before makeCanvas: the backing store reads uiScale
   scope = makeCanvas("scopeCanvas");
 
   // buildDrawbars FIRST: the sixteen cells it creates carry data-param and

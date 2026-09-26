@@ -62,6 +62,18 @@
   --shadow-heavy: rgba(0, 0, 0, 0.5);
   --text-emboss: rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
+  /* Text inks (v1.4.0, R4) — WCAG AA (4.5:1) on every paper tone this page
+     uses (#FAF0E6 / #F8EBDD / #F5E6D3 / #EBD9C7). --brown-border and
+     --green-mid stay for rules, borders and fills; they are 3.66 / 3.06 as
+     text on paper and must not colour text again. */
+  --text-muted: #715D45;        /* walnut, 4.56 on #EBD9C7 .. 5.57 on #FAF0E6 */
+  --green-text: #4E6838;        /* sage,   4.55 on #EBD9C7 .. 5.56 on #FAF0E6 */
+  --green-fill-strong: #55703E; /* active fill under #F5F0E6 text: 4.90 */
+  /* Bundled EB Garamond (modules/ui/eb-garamond, Times metrics baked in).
+     Georgia before Times so an unbundled fallback converges on one face; the
+     CJK tail precedes the generic. No bare 'Garamond' — an Office-installed
+     Windows Garamond would outrank the bundled face. */
+  --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   /* Symbol-glyph fallback — Garamond lacks ❦ / ♪ on Windows; these fonts carry them. */
   --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS',
                  'PingFang SC', 'Microsoft YaHei', serif;
@@ -79,8 +91,7 @@ html, body {
 }
 
 body {
-  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman',
-               'PingFang SC', 'Microsoft YaHei', serif;
+  font-family: var(--serif);
   color: var(--brown-text);
   background:
     radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
@@ -106,8 +117,11 @@ body {
 .frame {
   position: relative;
   z-index: 1;
-  width: 100%;
-  height: 100%;
+  /* The 860x930 design frame, fixed (v1.4.0). The editor resizes at this
+     aspect and app.js applyUiScale() scales the frame to the window. */
+  width: 860px;
+  height: 930px;
+  transform-origin: 0 0;
   padding: 12px 20px;
   display: flex;
   flex-direction: column;
@@ -159,7 +173,7 @@ body {
   font-size: 11px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: var(--brown-border);
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -310,7 +324,7 @@ body {
   letter-spacing: 1.4px;
   color: var(--green-darkest);
 }
-.viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; font-size: 11px; color: var(--green-mid); opacity: 0.9; }
+.viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; font-size: 11px; color: var(--green-text); }
 
 .drawbar-bay {
   display: flex;
@@ -381,7 +395,7 @@ body {
 .drawbar-cell.db-fundamental .drawbar-num { color: var(--green-darkest); font-weight: 600; }
 .drawbar-val {
   font-size: 9px;
-  color: var(--brown-border);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   margin-top: 1px;
 }
@@ -397,7 +411,7 @@ body {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--brown-border);
+  color: var(--text-muted);
   margin-bottom: 3px;
 }
 .canvas-wrap {
@@ -610,7 +624,7 @@ body {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--brown-border);
+  color: var(--text-muted);
 }
 .tour-buttons { flex: 1 1 auto; min-width: 0; display: flex; gap: 8px; flex-wrap: wrap; }
 .tour-btn {
@@ -626,7 +640,7 @@ body {
   transition: all 0.15s ease;
 }
 .tour-btn:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
-.tour-btn.active { background: var(--green-mid); color: #f5f0e6; border-color: var(--green-darkest); }
+.tour-btn.active { background: var(--green-fill-strong); color: #f5f0e6; border-color: var(--green-darkest); }
 .tour-caption {
   font-size: 11px;
   font-style: italic;
@@ -645,8 +659,8 @@ body {
   padding: 6px 12px 2px;
   border-top: 1px solid rgba(139, 115, 85, 0.4);
 }
-.keyboard-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--brown-border); }
-.kbd-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-mid); opacity: 0.85; }
+.keyboard-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); }
+.kbd-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-text); }
 .keyboard {
   position: relative;
   height: 96px;
@@ -688,12 +702,15 @@ body {
   bottom: 4px;
   left: 0; right: 0;
   text-align: center;
-  font-size: 8px;
+  font-size: 9px;       /* 9px floor (v1.4.0) */
   letter-spacing: 0.5px;
-  color: var(--brown-border);
+  /* --brown-soft, not --text-muted: the label sits on the key's darker
+     #E6D4BA tail, where #715D45 is only 4.32. */
+  color: var(--brown-soft);
   pointer-events: none;
 }
-.key-black .key-label { color: rgba(245, 230, 211, 0.7); }
+/* 0.9: 6.56 on the black key's #5C4033 foot (0.7 was 4.69, with no margin). */
+.key-black .key-label { color: rgba(245, 230, 211, 0.9); }
 
 /* ── Tooltip ────────────────────────────────────────────────────────────── */
 .tooltip {
