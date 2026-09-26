@@ -1,150 +1,128 @@
 ---
 phase: O-AnalogEQ-code-review
-reviewed: 2026-06-30T00:00:00Z
-depth: standard
-files_reviewed: 6
+reviewed: 2026-09-25T00:00:00Z
+depth: thorough
+files_reviewed: 10
 files_reviewed_list:
   - plugins/O-AnalogEQ/Source/PluginProcessor.cpp
   - plugins/O-AnalogEQ/Source/PluginProcessor.h
   - plugins/O-AnalogEQ/Source/PluginEditor.cpp
   - plugins/O-AnalogEQ/Source/PluginEditor.h
   - plugins/O-AnalogEQ/Source/ui/public/index.html
+  - plugins/O-AnalogEQ/Source/ui/public/js/i18n.js
   - plugins/O-AnalogEQ/Source/ui/public/modules/preset-manager.js
+  - plugins/O-AnalogEQ/tests/ui_tip_render_check.js
+  - plugins/O-AnalogEQ/tests/i18n-states.json
+  - plugins/O-AnalogEQ/CMakeLists.txt
 findings:
-  critical: 1
-  warning: 4
-  info: 5
-  total: 10
+  critical: 0
+  warning: 0
+  info: 0
+  total: 0
 status: issues_found
 ---
 
 # O-AnalogEQ: Code Review Report
 
-**Reviewed:** 2026-06-30
-**Depth:** standard
-**Files Reviewed:** 6
+**Reviewed:** 2026-09-25
+**Depth:** thorough
+**Files Reviewed:** 10
 **Status:** issues_found
 
 ## Summary
 
-Reviewed the audio processor, WebView editor bridge, UI HTML/JS, and the preset-manager JS module for O-AnalogEQ (v1.1.7, shipped/installed). The plugin is structurally sound: the WebView native-function bridge is complete (every `getNativeFunction` call in JS has a matching `withNativeFunction` registration), the resource provider uses explicit path mapping with no traversal risk, denormals are handled, and the VU meter uses a lock-free atomic. No hardcoded secrets, no injection surfaces, no `eval`.
+This review covers **v1.5.0** (CMakeLists `VERSION "1.5.0"`). The prior review was
+`depth: standard` against **v1.1.7** on 2026-06-30 — **thirteen versions elapsed**
+(1.1.8 → 1.1.11, then the four minor versions 1.2.0, 1.3.0, 1.4.0, 1.5.0 plus their
+patches 1.3.1 and 1.4.1). Four whole surfaces shipped in that window and **have never
+been reviewed**: the i18n canon and language-persistence path, the tooltip / hover-help
+renderer and its `oaeq.tipsEnabled` switch, the Simplified Chinese (`zh-Hans`) table,
+and the settings popover. This review is the first pass over all four.
 
-However there is one real-time-safety defect that violates the plugin's own audio-thread contract, plus a user-facing frequency-display correctness bug and several robustness gaps. Key concerns:
+**Prior findings: all ten are closed.** Every one of CR-01, WR-01..04 and IN-01..05 was
+resolved in the v1.1.8–v1.1.11 window (commits `1cef1017`, `2f973a53`) and **none has
+regressed** in the thirteen versions since. The re-adjudication table below records the
+evidence in current code, per finding. The counts in this document's frontmatter
+therefore describe **new** findings only — they are not a regression against the prior
+review's ten, and a zero in a tier here does not mean a prior finding was dropped.
 
-1. **BLOCKER** — `processBlock` heap-allocates filter coefficients on the audio thread every block.
-2. **WARNING** — Frequency tooltips/readouts display wrong Hz values because the JS ignores the parameter skew.
-3. **WARNING** — No coefficient smoothing (zipper noise on automation) and no Nyquist clamp on HF frequency.
+### Artifact-path mismatch — read this before running `/improve-review`
 
-## Critical Issues
+`.claude/commands/improve-review.md` declares a **blocking** precondition on
+`plugins/[PluginName]/CODE_REVIEW.md` — underscore, plugin root. Twenty-five plugins use
+that path. O-AnalogEQ and six others (`O-DigiDelay`, `O-Freeze`, `O-Gain`,
+`O-MultiBandCompressor`, `O-Polystutter`, `O-Prism`) use
+`.planning/CODE-REVIEW.md` — hyphen, `.planning/` subdirectory. This file is pinned to
+the hyphen path by the task that wrote it and has deliberately **not** been moved.
 
-### CR-01: Filter coefficients heap-allocated on the audio thread every block
+**Consequence:** `/improve-review O-AnalogEQ` will reject on its `<review_present>`
+precondition ("No CODE_REVIEW.md found for O-AnalogEQ") even though this review exists.
+`/improve-review-info O-AnalogEQ` rejects identically. Point either command at
+`plugins/O-AnalogEQ/.planning/CODE-REVIEW.md` explicitly, or resolve the path split
+repo-wide first. The frontmatter key set here matches what those commands parse
+(`findings:` block for the severity menu, `CR-*`/`WR-*` default scope, `IN-*` opt-in),
+so nothing but the path needs adapting.
 
-**File:** `plugins/O-AnalogEQ/Source/PluginProcessor.cpp:262-265`
-**Issue:** Each `IIRCoefficients::makeLowShelf` / `makePeakFilter` / `makeHighShelf` call returns a newly `new`-allocated reference-counted `Coefficients<float>` object. These run unconditionally on every `processBlock` invocation (4 allocations + 4 frees per block, on the real-time audio thread), directly violating the plugin's stated contract ("no allocations, locks, or unbounded work on the audio thread"). Under heavy track counts or small buffer sizes this risks priority-inversion glitches and dropouts. The allocation also happens even when no parameter changed, so it is pure overhead.
+## Prior Findings: Re-adjudication
 
-```cpp
-// Current (allocates 4 Coefficients objects on the audio thread every block):
-*lfFilter.state  = *IIRCoefficients::makeLowShelf(currentSampleRate, lfFreq, 0.707f, dBtoGain(lfGain));
-*lmfFilter.state = *IIRCoefficients::makePeakFilter(currentSampleRate, lmfFreq, qValues[lmfQ], dBtoGain(lmfGain));
-*hmfFilter.state = *IIRCoefficients::makePeakFilter(currentSampleRate, hmfFreq, qValues[hmfQ], dBtoGain(hmfGain));
-*hfFilter.state  = *IIRCoefficients::makeHighShelf(currentSampleRate, hfFreq, 0.707f, dBtoGain(hfGain));
-```
+All ten prior findings were re-checked against **current v1.5.0 source**, locating each
+construct **by name** — the v1.1.7 line numbers in the prior report have all drifted.
 
-**Fix:** Only recompute when inputs change, and compute coefficients into pre-allocated stack/member storage instead of via the allocating `make*` factory helpers. Two options:
+| ID | Title | Verdict | Evidence in current code |
+|----|-------|---------|--------------------------|
+| CR-01 | Filter coefficients heap-allocated on the audio thread every block | **FIXED** | `PluginProcessor.cpp:370-380` now calls `ArrayCoeffs::makeLowShelf` / `makePeakFilter` / `makeHighShelf` (`juce::dsp::IIR::ArrayCoefficients<float>`, aliased `PluginProcessor.h:100`), which returns a `std::array` by value — no `new`. Rebuilds are additionally gated behind `lfMoving`/`lmfMoving`/`hmfMoving`/`hfMoving` (`:331-334`); the steady-state branch at `:355-360` touches no coefficient at all. Commit `1cef1017` (v1.1.9). Matches `pattern_arraycoefficients_rt_safe_iir`. |
+| WR-01 | Frequency readouts show wrong Hz (skew ignored in JS) | **FIXED** | `index.html:1172-1173` defines `FREQ_SKEW = 0.3` and `toHz = (v,min,max) => min + (max-min) * Math.pow(v, 1/FREQ_SKEW)`; all four `*_freq` formatters at `:1192-1198` route through it. Commit `1cef1017`. |
+| WR-02 | No parameter smoothing — zipper noise on automation | **FIXED** | Eight `juce::SmoothedValue<float, Linear>` members (`PluginProcessor.h:118-121`), `reset(sampleRate, kSmoothingSeconds=0.03f)` and `setCurrentAndTargetValue` seeding in `prepareToPlay` (`:258-269`), and a `kSmoothingBlock = 32`-sample chunked rebuild loop in `processBlock` (`:363-383`). Commit `1cef1017`. |
+| WR-03 | HF frequency not clamped to Nyquist | **FIXED** | `PluginProcessor.cpp:321-322` computes `nyquist = currentSampleRate * 0.5f` and applies `clampFreq(hz) = jmin(hz, nyquist * 0.99f)` to **all four** cutoffs at `:371, :374, :377, :380`, not just HF. Commit `1cef1017`. |
+| WR-04 | FileChooser async callbacks capture `this` — use-after-free | **FIXED** | `PluginEditor.cpp:115` and `:152` construct `juce::Component::SafePointer<OuariconAnalogEQAudioProcessorEditor> safeThis(this)`; both callback **bodies** capture `[safeThis, complete]` (`:118`, `:155`), test `if (safeThis == nullptr) return;` (`:119-120`, `:156-157`), and dereference through `safeThis->audioProcessor` (`:131`, `:167`) rather than a raw `this`. Commit `1cef1017`. See the note below on the bail path. |
+| IN-01 | `output_gain` processed but has no UI control | **FIXED** | Resolved by the "document the decision" arm of the prescribed fix: `PluginProcessor.cpp:87-91` now carries an explicit `NOTE (IN-01)` recording that the output knob was removed in the v1.0.5 UI simplification, that the parameter is kept for host automation and preset fidelity, and that a relay must **not** be added. Mirrored in `i18n.js:115` and `:853`. Commit `2f973a53` (v1.1.10). |
+| IN-02 | Double-click reset uses 0.5, not the parameter default | **FIXED** | `index.html:1174` adds the forward map `toNorm(hz,min,max) = Math.pow((hz-min)/(max-min), FREQ_SKEW)`, and `DEFAULT_VALUES` (`:1179-1188`) is now built from the real C++ Hz defaults — `toNorm(100,30,500)`, `toNorm(500,100,2000)`, `toNorm(2000,500,8000)`, `toNorm(8000,2000,20000)` — matching `createParameterLayout` (`:43, :53, :66, :79`). Commit `1cef1017`. |
+| IN-03 | Dead variable `currentParamName` in `setupDualKnob` | **FIXED** | `grep -n currentParamName plugins/O-AnalogEQ/Source/ui/public/index.html` returns **zero** matches in v1.5.0. Commit `2f973a53`. |
+| IN-04 | `_waitForNative` polls indefinitely with no timeout | **FIXED** | `preset-manager.js:149-168`: `_waitForNative(maxAttempts = 100, intervalMs = 50)` bounds the poll at 5 s, logs `JUCE backend unavailable after 5s` and resolves rather than looping. Commit `2f973a53`. **Scope:** shared module preset-manager v1.0.8 (~30 consumers). |
+| IN-05 | `promptDelete` relies on unreliable `confirm()` | **FIXED** | `preset-manager.js:65-69` adds an `options.onConfirmDelete` injection hook; `promptDelete` (`:352-365`) prefers it, falls back to a guarded `window.confirm()`, and **fail-safes to abort with a log** when neither is available. Commit `2f973a53`. **Scope:** shared module preset-manager v1.0.8 (~30 consumers). |
 
-1. Cache last-seen parameter values and skip the whole coefficient update when nothing changed (eliminates the allocation in the common steady-state case):
-```cpp
-if (lfFreq != lastLfFreq || lfGain != lastLfGain) {
-    *lfFilter.state = *IIRCoefficients::makeLowShelf(currentSampleRate, lfFreq, 0.707f, dBtoGain(lfGain));
-    lastLfFreq = lfFreq; lastLfGain = lfGain;
-}
-// ...repeat per band
-```
-This still allocates on change; for full RT-safety, compute the biquad coefficients directly into the existing `state->coefficients` array (which is already sized) using the RBJ formulas, avoiding the `make*` temporary entirely. Combine with smoothing (see WR-02) so changes are gradual.
+**Verdict split: 10 FIXED, 0 STILL OPEN, 0 SUPERSEDED, 0 NOT-A-BUG.**
 
-## Warnings
+### Notes on individual verdicts
 
-### WR-01: Frequency tooltips/readouts show wrong Hz (skew ignored in JS)
+**WR-04 — the bail path is correct, and deliberately so.** Both SafePointer null paths
+`return` **without** calling `complete`. That looks like
+`pattern_webview_launchasync_safepointer_no_complete`'s hung-promise trap and is not:
+that same pattern file records the non-obvious gotcha that calling `complete` on the
+dead-editor path is what UAFs, because JUCE 8's native-function completion holds a raw
+pointer into the destroyed `WebBrowserComponent::Impl`. The editor and its page are gone
+together, so the unresolved promise is moot. The current code matches the pattern's
+prescription exactly. **No finding.**
 
-**File:** `plugins/O-AnalogEQ/Source/ui/public/index.html:710-717, 742-744`
-**Issue:** The C++ frequency parameters use `NormalisableRange<float>(min, max, 0.1f, 0.3f)` — a 0.3 skew — and the factory-preset comment at `PluginProcessor.cpp:86` confirms `normalized = pow((hz-min)/(max-min), 0.3)`. But the JS formatters map the normalized value **linearly**: `v => Math.round(30 + v * 470) + ' Hz'`. `getNormalisedValue()` returns the skewed 0–1 proportion, so the displayed frequency does not match the actual filter frequency. Example: stored value `0.577` (the default = 100 Hz in C++) is displayed as `30 + 0.577*470 ≈ 301 Hz`. Every band's frequency tooltip is wrong, worsening toward the low end of each range. (The dB readouts are correct — gain uses the default skew of 1.0.)
+**IN-05 — still an unreached path, as the prior review noted.** `grep -n
+'deleteButton\|onConfirmDelete' index.html` returns zero matches, so O-AnalogEQ supplies
+neither a delete button nor the confirm hook. The module-level fix is nonetheless the
+right resolution: it removes the latent fragility for the ~30 consumers that do wire a
+delete button.
 
-**Fix:** Apply the same skew inverse the C++ range uses before formatting, e.g.:
-```js
-// proportion (0..1) -> Hz for a NormalisableRange with skew s:
-const toHz = (v, min, max, skew) => min + (max - min) * Math.pow(v, 1 / skew);
-lf_freq: { format: v => Math.round(toHz(v, 30, 500, 0.3)) + ' Hz' },
-// ...per band, using each band's min/max and skew 0.3
-```
-Update all four `*_freq` formatters (and confirm the SVG notch labels/knob-rotation mapping match the skewed positions).
+**IN-04 / IN-05 are shared-module findings, not plugin-local.** `diff
+modules/persistence/preset-manager/js/preset-manager.js
+plugins/O-AnalogEQ/Source/ui/public/modules/preset-manager.js` returns **zero lines** —
+the plugin's copy is byte-identical to the canonical module at `modules/registry.yaml:140`
+version **1.0.8**. Any future fix in this file must land in `modules/persistence/` and
+propagate, never in the plugin's copy; a plugin-local edit forks the module for one
+consumer and silently diverges the other ~30.
 
-### WR-02: No parameter smoothing — coefficient jumps cause zipper noise on automation
+**Stale-`<CustomState>`-child bug class: NOT-APPLICABLE.** `grep -rn
+'setCustomStateCallbacks\|CustomState' plugins/O-AnalogEQ/Source/` returns **nothing**.
+`CustomState` exists only in `modules/persistence/preset-manager/cpp/OuariconPresetManager.h:605,631`
+and O-AnalogEQ never registers custom-state callbacks, so
+`critical_preset_manager_stale_customstate_child` (the stale child shadowing a second
+reopen) cannot fire here. Recorded explicitly rather than left unstated.
 
-**File:** `plugins/O-AnalogEQ/Source/PluginProcessor.cpp:238-267`
-**Issue:** Parameters are read once per block and coefficients are recomputed from the raw values with no smoothing. When a user automates or drags frequency/gain, the coefficients step per-block, producing audible zipper/click artifacts — noticeable on an EQ, especially with the skewed frequency ranges where small normalized moves cause large Hz jumps. `output_gain` is also applied via `Gain` (which smooths internally), but the filter cutoffs/gains are not smoothed.
+**Planner lead disproved: `label.level` is not an `output_gain` control.**
+`i18n.js:618` `'label.level'` is consumed at `index.html:1076` by
+`<div class="vu-meter-label" data-i18n="label.level">` — the **VU meter caption**, a
+read-only output-level display. It is not a widget, has no relay and touches no
+parameter. IN-01's resolution stands.
 
-**Fix:** Smooth the frequency/gain/dB values with `juce::SmoothedValue<float>` (or `LinearSmoothedValue`) prepared in `prepareToPlay`, and either recompute coefficients on sub-block boundaries or per small chunk. This also complements the CR-01 fix (recompute only when the smoothed target is still moving).
+## New Findings
 
-### WR-03: HF frequency (up to 20 kHz) is not clamped to Nyquist
+<!-- gsd:write-continue -->
 
-**File:** `plugins/O-AnalogEQ/Source/PluginProcessor.cpp:252, 265`
-**Issue:** `hf_freq` ranges to 20000 Hz and is passed straight to `makeHighShelf(currentSampleRate, hfFreq, ...)`. At 44.1/48 kHz this is fine (Nyquist 22.05/24 kHz), but if the host runs at a sample rate below ~40 kHz the cutoff exceeds Nyquist. JUCE's coefficient math `jassert`s `cutoff <= sampleRate/2` and will produce degenerate/NaN coefficients in release builds (no assert). `hmf_freq` (to 8 kHz) has the same theoretical exposure at very low rates.
 
-**Fix:** Clamp each cutoff before building coefficients:
-```cpp
-const float nyquist = static_cast<float>(currentSampleRate) * 0.5f;
-const float hfClamped = std::min(hfFreq, nyquist * 0.99f);
-*hfFilter.state = *IIRCoefficients::makeHighShelf(currentSampleRate, hfClamped, 0.707f, dBtoGain(hfGain));
-```
-
-### WR-04: FileChooser async callbacks capture `this` — use-after-free if editor closes mid-dialog
-
-**File:** `plugins/O-AnalogEQ/Source/PluginEditor.cpp:87-113, 120-145`
-**Issue:** `savePresetWithDialog` and `loadPresetFromFile` launch an async `FileChooser` whose completion lambda captures `[this, complete]` and dereferences `audioProcessor.presetManager`. If the plugin editor window is closed (editor destroyed) while the native dialog is still open, the callback fires against a destroyed `this`/processor reference, risking a crash. The `fileChooser` member being destroyed does not reliably cancel an already-presented OS dialog on all platforms.
-
-**Fix:** Guard the callback with a lifetime token, e.g. capture a `juce::Component::SafePointer<OuariconAnalogEQAudioProcessorEditor>` (or a `std::weak_ptr` flag) and bail early if it has been deleted:
-```cpp
-juce::Component::SafePointer<OuariconAnalogEQAudioProcessorEditor> safeThis(this);
-fileChooser->launchAsync(flags, [safeThis, complete](const juce::FileChooser& fc) {
-    if (safeThis == nullptr) { complete(false); return; }
-    // ... existing body via safeThis->audioProcessor
-});
-```
-
-## Info
-
-### IN-01: `output_gain` parameter is processed but has no UI control
-
-**File:** `plugins/O-AnalogEQ/Source/PluginProcessor.cpp:65-67, 256, 267` / `PluginEditor.cpp` (no relay/attachment) / `index.html` (no widget)
-**Issue:** `output_gain` is declared, applied in `processBlock`, and set by every factory preset (e.g. "Surgical Cut" = 0.542), but there is no `WebSliderRelay`/attachment in the editor and no control in the HTML. It is only reachable via host automation. Defaults to 0 dB so it is benign, but it is effectively hidden from the plugin UI.
-**Fix:** Either add an output-gain knob (relay + attachment + HTML widget) or remove the parameter if it is intentionally not user-facing. If kept hidden, document the decision.
-
-### IN-02: Double-click knob reset uses 0.5, not the parameter default
-
-**File:** `plugins/O-AnalogEQ/Source/ui/public/index.html:697-706, 785-787`
-**Issue:** Double-click resets frequency knobs to `DEFAULT_VALUES[...] = 0.5`, but due to the 0.3 skew, normalized 0.5 is ~77 Hz for LF, whereas the actual parameter default is 100 Hz (normalized 0.577). "Reset" therefore does not restore the true default.
-**Fix:** Reset to the real parameter defaults (mirror the C++ defaults / preset "Default" normalized values), or call a native "reset to default" that uses the APVTS default.
-
-### IN-03: Dead variable `currentParamName` in `setupDualKnob`
-
-**File:** `plugins/O-AnalogEQ/Source/ui/public/index.html:735, 759, 762, 808`
-**Issue:** `currentParamName` is assigned in `handlePointerDown` and cleared in `pointerup` but never read. Dead state.
-**Fix:** Remove `currentParamName` (and its assignments) — `currentState` already carries the needed reference.
-
-### IN-04: `_waitForNative` polls indefinitely with no timeout
-
-**File:** `plugins/O-AnalogEQ/Source/ui/public/modules/preset-manager.js:124-135`
-**Issue:** If `window.__JUCE__.backend` never appears, the poll loops every 50 ms forever and `initialize()` never resolves, silently hanging the preset UI with no diagnostic.
-**Fix:** Add a bounded retry / timeout that rejects (or logs an error) after N attempts so the failure surfaces.
-
-### IN-05: `promptDelete` relies on `confirm()` which is unreliable in JUCE WebView
-
-**File:** `plugins/O-AnalogEQ/Source/ui/public/modules/preset-manager.js:316-320`
-**Issue:** The code comment already flags that `confirm()` may be a no-op in some JUCE WebView contexts; if it returns falsy or throws, deletion silently never happens. (Note: `promptDelete` is wired via `deleteButton`, which is not currently supplied by `index.html`, so this path is presently unreached — but the latent fragility remains if a delete button is added.)
-**Fix:** Replace with a native confirm dialog (a `withNativeFunction` that shows `AlertWindow`) or an in-DOM confirmation UI instead of `confirm()`.
-
----
-
-_Reviewed: 2026-06-30_
-_Reviewer: Claude (gsd-code-reviewer)_
-_Depth: standard_
