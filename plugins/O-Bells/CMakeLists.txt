@@ -8,7 +8,7 @@ juce_add_plugin(O-Bells
     PLUGIN_CODE OBls
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bells${OUARICON_DEV_SUFFIX}"
-    VERSION 4.8.0
+    VERSION 4.9.0
     # Synthesizer configuration
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
@@ -105,6 +105,12 @@ juce_add_binary_data(O-Bells_UIResources
         Resources/ui/img/snail.png
         Resources/ui/js/tuning-panel.js
         Resources/ui/css/tuning-panel.css
+        # v4.9.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the matching getResource branches
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(O-Bells

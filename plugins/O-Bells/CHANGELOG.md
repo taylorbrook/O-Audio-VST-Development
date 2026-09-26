@@ -2,6 +2,63 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [4.9.0] - 2026-09-25
+
+UI pass per `.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C
+(R4 AA text colours + 9px floor, R5 bundled serif). MINOR: no DSP, parameter, range,
+state or preset change. Sessions load and sound exactly as on 4.8.0.
+
+### Changed — legibility (R4)
+
+- **Text colours are the ouaricon-naturalist-001 AA pairs.** New `:root` tokens
+  `--text-walnut-mid` #715D45 (5.11:1 on #F5E6D3, 4.56:1 on #EBD9C7), `--text-sage-mid`
+  #4E6839 and `--text-secondary` #5C4033. #8B7355 and #6B8E23 stay for borders,
+  tracks and decoration only.
+- **Footer version label**: 7px walnut at 0.6 opacity (2.04:1) → 9px walnut-mid at
+  full opacity (5.11:1).
+- **Keyboard note names**: 6px at 0.7 opacity (3.34:1) → 9px full ink, `line-height: 1`
+  so they stay in the strip below the black keys.
+- **Keyboard help** 7 → 9px, **Ouaricon Audio** credit 8 → 9px, **meter L/R** 8 → 9px,
+  all in AA colours. The wider footer credit moves the keyboard block about 2.5px left
+  (space-between footer).
+- **Section hints** (Bloom Fine, Envelope) #6B8E23 → #4E6839 (2.94 → 4.83:1). The
+  checked-box glyph is #2C3E10 (3.08 → 4.67:1). The preset-dropdown header uses
+  walnut-mid. A bypassed FX section's OFF caption is #5C4033 instead of ink at 0.4
+  opacity, because that button turns the section back on.
+- **Tuning tab**: muted text #8B7355 → #715D45 (interval degrees and units, Tonic,
+  A4 REF, Stretch, Scale Intervals, library descriptions, generator labels). The accent
+  #B8860B → #8A6508 keeps the goldenrod hue and reaches 4.95:1 as the cents readout and
+  5.32:1 under the white Generate / Export HTML captions (both were 3.0–3.25). The
+  matrix and rotation tables go 8 → 9px (the views scroll).
+
+### Changed — typeface (R5)
+
+- **EB Garamond is bundled** from `modules/ui/eb-garamond` (direct embed: 4 CMake
+  SOURCES, 4 `getResource()` branches). Every page font stack is `var(--serif)`:
+  `'EB Garamond', Georgia, 'Times New Roman', PingFang SC, Microsoft YaHei, serif`.
+  Before this, "Garamond" resolved to Times New Roman on stock macOS. The tuning
+  panel's form controls keep their deliberate Arial rule.
+- **Rotation-table corner pin** re-measured at 9px in the new face: `min-width`
+  30.56 → 32.19px (en/fr 32.19, zh 30.55). The 8px value left zh-Hans short and moved
+  228 elements.
+
+### Not changed
+
+- **R7 keyboard/ARIA knobs**: not applied. No knob code was touched (the main page
+  uses sliders, and the Effects knobs were left as they are).
+
+### Verification
+
+- `measure-ui.js --contrast`, en/fr/zh-Hans, 598 text nodes per language: below AA
+  **68 → 4** (the 4 are the disabled Bloom Speed/Amount sliders, which WCAG exempts
+  as inactive controls), under 9px **356 → 0**, minimum ratio 2.04 → 2.15 (disabled
+  row only).
+- `check-ui-labels.js` (en/fr/zh-Hans, all 14 states): ALL CHECKS PASSED, before and
+  after.
+- `tests/ui_tip_render_check.js` and `check-i18n.js` pass.
+- CDP `getPlatformFontsForNode`: the header, labels and footer render
+  `EBGaramond-Regular` (custom font). All 3 faces load and no resource 404s.
+
 ## [4.8.0] - 2026-09-21
 
 ### Since the last published release (4.5.0)
