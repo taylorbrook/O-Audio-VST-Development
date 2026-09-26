@@ -23,6 +23,13 @@
     ui_shell_diff_check.js
     O-Strata — the inherited shell must render pixel-identical to O-Prism.
 
+    O-Strata v1.1.0: the reference is now O-Prism v1.30.0 (c9bab23b). Its
+    260924-nho Phase C pass (tokens, AA text, 9 px floor, EB Garamond,
+    keyboard/ARIA knobs) was ported into O-Strata's shell, so the two pages
+    match again; until the port, this gate read red on all four tabs because
+    the O-Prism working tree had moved on. If O-Prism's shell changes again,
+    port it or pin this gate to a revision — the working tree is the input.
+
     Stage 3 Round A re-forked the page from O-Prism v1.26.0 (4f12ef57) and
     spliced the v2 mockup's NEW regions in (Terrain tab, oscillator cards, the
     terrain view). Everything else — Mod, Tuning, Effects, the header, the
@@ -32,7 +39,7 @@
     a dropped rule, or a card grid that no longer sums to the frame, so this
     gate measures the rendered page instead (pattern_ui_gate_asserts_attributes_
     never_rendered_geometry): two serve-ui instances (O-Prism from its working
-    tree, which is byte-identical to 4f12ef57; O-Strata from Source/ui/public),
+    tree; O-Strata from Source/ui/public),
     one screenshot per inherited tab on each, and a canvas diff INSIDE a
     Playwright page — no pixelmatch, no pngjs, no new dependency.
 
@@ -171,7 +178,7 @@ async function diff(scratch, a, b, masks) {
 }
 
 (async () => {
-    console.log(`ui_shell_diff_check — O-Strata inherited tabs vs O-Prism (working tree = 4f12ef57), ${SHIP_W}x${SHIP_H}, DPR 1, en`);
+    console.log(`ui_shell_diff_check — O-Strata inherited tabs vs O-Prism (working tree, reference v1.30.0 = c9bab23b), ${SHIP_W}x${SHIP_H}, DPR 1, en`);
 
     const pw = S.resolvePlaywright();
     if (pw == null) {

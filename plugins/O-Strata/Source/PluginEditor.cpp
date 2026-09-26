@@ -127,6 +127,22 @@ OStrataAudioProcessorEditor::getResource (const juce::String& url)
         return makeBinaryResource (BinaryData::shell_conchologiaiconi12reev_0090_png,
                                    BinaryData::shell_conchologiaiconi12reev_0090_pngSize, "image/png");
 
+    // v1.1.0 (R5): shared EB Garamond face (modules/ui/eb-garamond) —
+    // stylesheet under /css/, the three woff2 faces under /fonts/ where its
+    // relative font URLs land.
+    if (url == "/css/eb-garamond.css")
+        return makeBinaryResource (BinaryData::ebgaramond_css, BinaryData::ebgaramond_cssSize,
+                                   "text/css; charset=utf-8");
+    if (url == "/fonts/EBGaramond-Regular.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondRegular_woff2,
+                                   BinaryData::EBGaramondRegular_woff2Size, "font/woff2");
+    if (url == "/fonts/EBGaramond-Italic.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondItalic_woff2,
+                                   BinaryData::EBGaramondItalic_woff2Size, "font/woff2");
+    if (url == "/fonts/EBGaramond-Bold.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondBold_woff2,
+                                   BinaryData::EBGaramondBold_woff2Size, "font/woff2");
+
     return std::nullopt;
 }
 
