@@ -36,7 +36,7 @@ Ouaricon Plugins:
 | O-SimpleReverb | 📦 Installed | 1.9.0 | Audio Effect (Reverb) | 2026-09-05 |
 | O-Polystutter | 📦 Installed | 1.15.0 | Audio Effect (Beat Repeater) | 2026-09-07 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
 | O-Lyrica | 📦 Installed | 2.5.1 | Synth (Physical Modeling Harp) | 2026-09-06 |
-| O-MultiBandCompressor | 📦 Installed | 1.12.2 | Audio Effect (Dynamics) | 2026-09-14 |
+| O-MultiBandCompressor | 📦 Installed | 1.13.0 | Audio Effect (Dynamics) | 2026-09-25 |
 | O-Bass | 📦 Installed | 1.7.0 | Audio Effect (Bass Enhancer) |  2026-09-04 |
 | O-IntonationPad | 📦 Installed | 2.10.0 | Synth (Wavetable Pad) | 2026-09-05 |
 | O-Detune | 📦 Installed | 1.9.0 | Audio Effect (Detuning) | 2026-09-05 |
@@ -46,7 +46,7 @@ Ouaricon Plugins:
 | O-GrainScatter | 📦 Installed | 2.8.0 | Audio Effect (Granular Stutter Engine) | 2026-09-07 |
 | O-Chorus | 📦 Installed | 1.6.3 | Audio Effect (Chorus) | 2026-09-08 |
 | O-Orbit | 📦 Installed | 1.3.0 | Audio Effect (Spatial Orbiter) | 2026-09-07 |
-| O-TextureForge | 📦 Installed | 1.4.0 | Instrument (Concatenative Synth) | 2026-09-05 |
+| O-TextureForge | 📦 Installed | 1.5.0 | Instrument (Concatenative Synth) | 2026-09-25 |
 | O-Texture | 📦 Installed | 0.5.0 | Instrument/Effect (Neural Texture Synth) |  2026-09-04 |
 | O-Prism | 📦 Installed | 1.29.0 | Synth (Microtonal Wavetable) |  2026-09-24 |
 | O-Strata | 📦 Installed — **installed locally, not published** (no tag; `/publish` is a separate decision). Stage 4 Round B (Phase 4.2) executed 2026-09-13 (`stages/4-polish/SUMMARY.md`): the padded Chebyshev evaluator on the audio thread (`clenshaw2D` 84–95 ns → `chebEvalPadded` 28–30 ns; H7 Bandlimited delta 11.69 % → 4.5 %, accuracy contracted at ≤ 2e-5 random / ≤ 1e-6 projected; H6 band worst shift 0.100 dB with the muted / equality sets identical), the S&H LFO seeded under the harness phase seed (H2 20 / 20 bit-stable across three runs), `ci-tests.yml` with a `plugin` dispatch input — Windows MSVC + WebView2 VST3 build and pluginval 10 SUCCESS (COMPAT-02 at the named-deferral ceiling); `--gate all` 162 / 162 in 111.7 s, labels 1809 / 0 over default + 42, tips 3215 at 122, layout 607 / 0, shell diff 0 px, orbit golden 44 / 44, params diff empty, 0 new warnings; pluginval ×2 + auval SUCCEEDED on the installed `-dev` bundles, byte-identical to the build. QUAL-04 listening material ready (`stages/4-polish/LISTENING.md`, 15 human rows open); PERF-03 pending. Round B verify next | 1.0.0 | Synth (Microtonal Wave Terrain) | 2026-09-13 |
