@@ -2,6 +2,64 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.33.0] - 2026-09-25
+
+Lyric-mode accuracy. Syllables now sing the vowel you wrote after a consonant,
+and consonant loudness follows natural speech. MINOR. Lyric mode only: manual
+consonant/vowel controls and all presets sound exactly as before.
+
+### Fixed
+
+- **L, R, W and Y replaced the vowel.** An onset approximant overwrote the
+  syllable's vowel for the whole note, so "L AA" held an L and "Y UW" sang
+  "ee". A glide after a stop ("P L AY") was never read. Approximants are now
+  onset glides: the note starts on the L/R/W/Y formants, holds 25 ms, then
+  moves into the vowel (τ 20 ms).
+- **Vowels between the pad anchors came out wrong.** Lyric vowels went
+  through the XY inverse-distance morpher, which only has A E I O U R L as
+  anchors. Measured F2 against Hillenbrand 1995 targets: IH 1093 Hz vs
+  2034 Hz (the R anchor 0.08 away gave it an F3 of 1682 Hz, so it sounded
+  like "er"), AE 1110 Hz vs 1952 Hz (sounded like "ah"), UH 715 Hz vs 1122 Hz.
+  Lyric notes now read F1–F5 directly from a per-phoneme table
+  (`dsp/ArpabetFormants.h`, Hillenbrand F1–F3). The pad cursor still moves.
+- **Diphthongs were static.** AY, AW, OY, EY and OW now move from nucleus to
+  offglide (starting at 90 ms, over 160 ms).
+- **CMU stress digits dropped the vowel.** `AA1` or `IY0` matched no phoneme,
+  so the vowel was discarded. Trailing digits are now stripped.
+- **Every vowel, nasal and glide onset hissed.** The consonant burst fired on
+  every note, even with no consonant: a −8 dB default-place noise burst plus
+  a dip in the voice. In lyric mode the burst now fires only for an obstruent
+  onset.
+- **Consonant loudness was inverted.** There were two causes.
+  - The page sent place values on the locus grid (S 0.33, SH 0.55). The
+    frication bank reads a different grid (alveolar 0.5, post-alveolar
+    0.75), so S came out half-flat and SH like S. The consonant engine's
+    place band-pass also sat in series with the bank at a different centre.
+  - The burst ignored the per-phoneme level.
+
+  Measured noise-to-vowel before: F +2 dB, V 0 dB, TH −1 dB, S −8 dB,
+  K −29 dB. Each consonant now sends a frication-bank place and a
+  calibrated gain. Lyric noise is white into the bank (Klatt topology, no
+  extra place band-pass). Levels follow Fry's phonetic power ordering,
+  relative to the vowel: SH −10, CH −12, ZH −14, S −16, JH −16, T/K −17,
+  Z −20, P/HH −20…−22, D/G −22, F −24, B/V −26, TH −28, DH −30 dB.
+  /p t k/ aspiration is trimmed 10 dB (from −5 to −15 dB re vowel).
+- **/h/ is aspiration.** HH noise now goes through the vocal-tract (cascade)
+  bank, so it takes the colour of the following vowel.
+- **CH/JH frication was too short.** Manner 0.15 → 0.45, which gives about
+  45 ms of frication after the release.
+
+### Notes
+
+- Vowel Focus and MPE timbre (the vowel-Y offset) act on the XY pad, so they
+  no longer affect lyric vowels. Manual mode is unchanged.
+- A session saved before 1.33 plays its stored lyric schedule the old way
+  until the editor is opened. The page then re-parses the text and sends the
+  new targets.
+- Calibration was done with an offline replica of the lyric voice chain
+  (glottal source → cascade, flat noise → frication bank → tanh, AA reference,
+  velocity 0.8).
+
 ## [1.32.2] - 2026-09-25
 
 Third Info-tier sweep of the v1.29.0 `CODE_REVIEW.md` (`/improve-review-info`):

@@ -136,6 +136,53 @@ void FormantVoice::prepare (double sampleRate)
     consonantTauSamples = static_cast<float> (0.015 * sampleRate);
     consonantTransitionActive = false;
     consonantTransitionSamples = 0;
+
+    // v1.33.0 lyric phoneme timing
+    const float srF = static_cast<float> (sampleRate);
+    lyricGlideHoldSamples = 0.025f * srF;
+    lyricGlideTauSamples  = 0.020f * srF;
+    lyricDiphStartSamples = 0.090f * srF;
+    lyricDiphLenSamples   = 0.160f * srF;
+}
+
+// v1.33.0: lyric-mode formants straight from the phoneme table (no XY blend).
+// Onset glide: hold the approximant for 25 ms, then decay into the nucleus
+// (τ = 20 ms, ~95 % there by 85 ms). Diphthong: after 90 ms the nucleus moves
+// to the offglide over 160 ms (raised cosine) and stays there. The two stack:
+// "Y AY" glides into /a/, then moves toward /ɪ/.
+void FormantVoice::computeLyricFormants (float outFreq[5], float outBW[5], float outGain[5]) const noexcept
+{
+    const float t = static_cast<float> (sampleCounter);
+    const int nucleus = currentSyllable.vowelId;
+
+    int from = nucleus;
+    int to   = nucleus;
+    float mix = 0.0f;
+    if (ArpabetFormants::isValid (currentSyllable.offglideId) && t > lyricDiphStartSamples)
+    {
+        const float p = juce::jmin (1.0f, (t - lyricDiphStartSamples) / lyricDiphLenSamples);
+        to  = currentSyllable.offglideId;
+        mix = 0.5f - 0.5f * std::cos (p * juce::MathConstants<float>::pi);
+    }
+    ArpabetFormants::blend (from, to, mix, outFreq, outBW, outGain);
+
+    if (ArpabetFormants::isValid (currentSyllable.glideId))
+    {
+        const float w = t <= lyricGlideHoldSamples
+                            ? 1.0f
+                            : std::exp (-(t - lyricGlideHoldSamples) / lyricGlideTauSamples);
+        if (w > 1.0e-3f)
+        {
+            float gF[5], gB[5], gG[5];
+            ArpabetFormants::blend (currentSyllable.glideId, currentSyllable.glideId, 0.0f, gF, gB, gG);
+            for (int f = 0; f < 5; ++f)
+            {
+                outFreq[f] = std::exp (w * std::log (gF[f]) + (1.0f - w) * std::log (outFreq[f]));
+                outBW[f]   = w * gB[f] + (1.0f - w) * outBW[f];
+                outGain[f] = w * gG[f] + (1.0f - w) * outGain[f];
+            }
+        }
+    }
 }
 
 // F2 locus by place (Delattre-Liberman-Cooper 1955; Kewley-Port 1982)
@@ -290,6 +337,15 @@ void FormantVoice::noteStarted()
     if (lyricsActive)
         currentSyllable = lyricsEnginePtr->advanceAndGet();
 
+    // v1.33.0: syllables parsed by 1.33+ carry direct phoneme targets; an older
+    // saved schedule (no fields) keeps the XY-morpher / consonantTone path.
+    lyricPhonemes = lyricsActive && ArpabetFormants::isValid (currentSyllable.vowelId);
+    const bool lyricNoise = lyricsActive && currentSyllable.fricPlace >= 0.0f;
+    consonantEngine.setFlatSource (lyricNoise);
+    // v1.33.0: /p t k/ aspiration measured −5 dB re the vowel over its 85 ms
+    // window; natural aspiration sits near −15 dB. −10 dB trim, lyric only.
+    lyricAspirationGain = lyricNoise ? 0.3162f : 1.0f;
+
     // Prime consonant engine + frication bank with THIS note's parameters
     // BEFORE triggerBurst. Fixes stale-cache bug where burst duration, VOT
     // trigger, and frication amplitudes used the previous syllable's values,
@@ -305,7 +361,12 @@ void FormantVoice::noteStarted()
                                               : (pConsonantVoicing != nullptr ? pConsonantVoicing->load() : 0.5f);
         double sr = getSampleRate();
 
-        consonantEngine.updateCoefficients (consonantTone, sibilance, consonantVoicing, sr);
+        // v1.33.0: lyric noise uses the frication bank's place grid
+        // (labial 0 / dental .25 / alveolar .5 / post-alveolar .75 / velar 1);
+        // consonantTone stays on the locus grid for the F2/F3 transition.
+        lyricNoisePlace = lyricNoise ? currentSyllable.fricPlace : consonantTone;
+
+        consonantEngine.updateCoefficients (lyricNoisePlace, sibilance, consonantVoicing, sr);
 
         // Manual envelope override when auto-consonant is off (lyrics always auto)
         bool autoConsonant = lyricsActive
@@ -324,12 +385,17 @@ void FormantVoice::noteStarted()
 
         // Frication bank: set new target then snap so the 8ms plosive burst
         // is filtered by the correct place amplitudes from the very first sample
-        fricationBank.setPlace (consonantTone);
+        fricationBank.setPlace (lyricNoisePlace);
         fricationBank.snapToTargets();
     }
 
-    // Always trigger consonant envelope + burst at note onset (fresh coeffs)
-    consonantEngine.triggerBurst (noteVelocity);
+    // Trigger consonant envelope + burst at note onset (fresh coeffs).
+    // v1.33.0: in lyric mode only when the syllable has an obstruent onset —
+    // vowel, nasal and glide onsets (level 0) got a default-place noise burst
+    // plus glottal ducking, a hiss in front of every such syllable. Manual
+    // mode always triggers, as before.
+    if (! lyricsActive || currentSyllable.consonantLevel > 0.0f)
+        consonantEngine.triggerBurst (noteVelocity);
 
     // Locus-based F2/F3 transition — Delattre-Liberman-Cooper 1955.
     // Active only when a consonant is present at onset (level > 0.1).
@@ -572,11 +638,19 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         autoConsonant    = pAutoConsonant    != nullptr && pAutoConsonant->load() >= 0.5f;
     }
 
+    // v1.33.0: lyric noise place is latched at note-on (frication-bank grid)
+    const float noisePlace = lyricsActive ? lyricNoisePlace : consonantTone;
+
     // Update consonant filter coefficients (block-rate)
-    consonantEngine.updateCoefficients (consonantTone, sibilance, consonantVoicing, getSampleRate());
+    consonantEngine.updateCoefficients (noisePlace, sibilance, consonantVoicing, getSampleRate());
 
     // Frication formant bank: place-dependent amplitudes (F3F/F4F/F6F/bypass)
-    fricationBank.setPlace (consonantTone);
+    fricationBank.setPlace (noisePlace);
+
+    // v1.33.0: per-phoneme consonant level (1 outside lyric mode) and /h/
+    // routing — /h/ is aspiration shaped by the vocal tract, not frication.
+    const float consGain = lyricsActive ? currentSyllable.consGain : 1.0f;
+    const bool  aspirateOnset = lyricsActive && currentSyllable.aspirate;
 
     // VOT scale: user knob 0-1 scales aspiration duration (default 0.5 = nominal)
     float votScale = pConsonantVOT != nullptr ? pConsonantVOT->load() : 0.5f;
@@ -665,27 +739,38 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             effectiveBreath = juce::jlimit (0.0f, 1.0f, baseBreath * breathEnvelopeMul());
             aspirationNoise.setBreathiness (effectiveBreath);
 
-            float vowelX, vowelY;
-            if (lyricsActive)
-            {
-                vowelX = currentSyllable.vowelX;
-                vowelY = currentSyllable.vowelY;
-            }
-            else
-            {
-                vowelX = pVowelX != nullptr ? pVowelX->load() : 0.5f;
-                vowelY = pVowelY != nullptr ? pVowelY->load() : 0.5f;
-            }
-
-            // Apply MPE timbre offset to vowelY
-            vowelY = juce::jlimit (0.0f, 1.0f, vowelY + mpeVowelYOffset);
-
-            float focus  = pVowelFocus != nullptr ? pVowelFocus->load() : 2.5f;
             float shift  = pFormantShift != nullptr ? pFormantShift->load() : 0.0f;
             float spread = pFormantSpread != nullptr ? pFormantSpread->load() : 1.0f;
 
-            vowelMorpher.compute (vowelX, vowelY, focus,
-                                  formantFreqs, formantBWs, formantGains);
+            if (lyricPhonemes)
+            {
+                // v1.33.0: direct phoneme formants — Vowel Focus and the MPE
+                // timbre→vowelY offset address the XY pad, which lyric vowels
+                // no longer pass through.
+                computeLyricFormants (formantFreqs, formantBWs, formantGains);
+            }
+            else
+            {
+                float vowelX, vowelY;
+                if (lyricsActive)
+                {
+                    vowelX = currentSyllable.vowelX;
+                    vowelY = currentSyllable.vowelY;
+                }
+                else
+                {
+                    vowelX = pVowelX != nullptr ? pVowelX->load() : 0.5f;
+                    vowelY = pVowelY != nullptr ? pVowelY->load() : 0.5f;
+                }
+
+                // Apply MPE timbre offset to vowelY
+                vowelY = juce::jlimit (0.0f, 1.0f, vowelY + mpeVowelYOffset);
+
+                float focus = pVowelFocus != nullptr ? pVowelFocus->load() : 2.5f;
+
+                vowelMorpher.compute (vowelX, vowelY, focus,
+                                      formantFreqs, formantBWs, formantGains);
+            }
 
             // F2/F3 locus bias — Delattre-Liberman-Cooper 1955; Kewley-Port 1982.
             // Exponential decay (τ=15ms) from place-specific loci toward the
@@ -837,7 +922,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         float source = aspirationNoise.process (glottal);
 
         // Consonant noise (shaped by place/manner filters + dedicated envelope)
-        float consonantNoise = consonantEngine.getNextSample (consonantLevel);
+        float consonantNoise = consonantEngine.getNextSample (consonantLevel) * consGain;
         float onsetSuppression = consonantEngine.getOnsetSuppression();
         float continuousSuppression = consonantEngine.getContinuousSuppression();
 
@@ -869,7 +954,14 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
             // Aspiration noise (VOT phase) routed through cascade bank so it is
             // shaped by the opening vocal tract toward the following vowel.
-            float aspirationInject = consonantEngine.getAspirationNoise();
+            float aspirationInject = consonantEngine.getAspirationNoise() * lyricAspirationGain;
+
+            // v1.33.0: lyric /h/ noise joins the aspiration into the tract
+            if (aspirateOnset)
+            {
+                aspirationInject += consonantNoise;
+                consonantNoise = 0.0f;
+            }
 
             // Voiced through cascade bank (correct relative formant amplitudes)
             float voicedFiltered = cascadeBank.process (tiltedVoice + aspirationInject);
