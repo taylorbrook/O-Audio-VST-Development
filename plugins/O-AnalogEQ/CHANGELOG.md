@@ -1,5 +1,136 @@
 # O-AnalogEQ Changelog
 
+## [1.5.3] - 2026-09-26
+
+Clears the Info tier of the v1.5.0 thorough code review — **IN-06 through IN-09,
+all four**, verified LIVE against current source before any edit. PATCH: no
+parameter ID, range, type or state format changed, and the rendered audio is
+byte-identical.
+
+Three of the four were comment and dead-number work whose whole risk was the
+compiler's. Two touch what runs, and both are gated.
+
+### Fixed
+
+- **IN-08 — a second preset dialog destroyed the first `FileChooser` mid-flight.**
+  *Root cause:* `savePresetWithDialog` and `loadPresetFromFile` assign to the same
+  `std::unique_ptr<juce::FileChooser>` editor member, so a second launch while the
+  first dialog was still presented destroyed that chooser underneath its own open
+  dialog. The pending completion then either never fires — a hung JS promise with
+  the editor still **alive**, which is precisely the case WR-04's bail path is not
+  — or fires against a destroyed `Pimpl`.
+
+  *Fix:* a `bool presetDialogInFlight` member on the editor, set before each
+  launch and released inside the completion above every early return.
+  **Deliberately not the review's prescribed fix.** §IN-08 says to guard on
+  `fileChooser != nullptr` and "clear `fileChooser` at the end of each completion
+  body" — which would destroy the `FileChooser`, and the `std::function` then
+  executing, from inside that very callback. The nullptr test also cannot be
+  adopted without that clear: guard without it and the first dialog latches the
+  guard shut, so no preset dialog ever opens again for the editor's lifetime.
+  Clearing a bool touches no owner, so the chooser is replaced only on the *next*
+  launch, when the previous dialog has certainly finished — which is what the code
+  did before, and was safe. This is the second time a §Fix block in this review
+  has been unsafe as literally written (WR-07's was the first, closed in v1.5.2).
+
+  The refusal is reported as `{success: false, name: ""}`, matching the shape the
+  cancel path already returns, so `preset-manager.js` needs no change.
+
+### Changed
+
+- **IN-07 — sixteen `getRawParameterValue(StringRef)` lookups per block are now
+  sixteen pointers resolved once in the constructor.** Not an RT-safety fix, and
+  the distinction is recorded in `PluginProcessor.h` so a later reviewer does not
+  re-raise it as a CR-01-class blocker: APVTS keys `adapterTable` on `StringRef`,
+  not `juce::String`, so a `find` with a literal constructs no `juce::String` and
+  allocates nothing. What it cost was ~16 × log₂16 ≈ 64 string comparisons per
+  block forever — ~48 000/second at 64 samples and 48 kHz — to re-derive pointers
+  fixed for the processor's lifetime. Resolved in the constructor rather than
+  `prepareToPlay`: the adapter table is built with `parameters`, so a sample-rate
+  change has nothing to re-resolve. The twelve `prepareToPlay` seeds read through
+  the cache too.
+
+  Output is identical by construction, which is exactly why it needed a gate
+  rather than a build: the one defect this change can introduce is a silent
+  mapping typo (`pHmfFreq` taking `"hmf_gain"`), and render-harness G1–G4 all
+  still pass with two same-band reads exchanged. See Testing.
+
+- **IN-06 — the settings-popover contract comments described a one-row panel two
+  minor versions after it grew a second row.** Both blocks rewritten
+  (`index.html:1079` and the popover's JS section heading). The `:1079` block had
+  read as an argument *against* adding the hover-help toggle — "adding one means a
+  second control here, a preference persisted through C++ and a data-tip-always
+  bypass" — all three of which shipped in v1.4.0, so an executor adding a third
+  row would have concluded the work was unbuilt and re-derived a bypass that
+  already exists.
+
+  **The count in that block was wrong in both terms and is deleted rather than
+  refreshed.** It claimed "Two plugins in the suite have that toggle and forty-one
+  do not"; measured at v1.5.3, **25 of 44** carry `#tips-toggle` and 19 do not
+  (and 2 + 41 = 43, never the suite size). Its premise — that the toggle is rare
+  and uniformity is a separate pass — has inverted since it was written. Writing
+  `25/19` in its place would go stale the same way: a suite-wide fact has no gate
+  inside one plugin's markup, so the sentence is gone. The popover heading's
+  `tip.settings` claim is deleted for the same reason — it asserted what a copy
+  string promises, the string was revised in v1.5.0, and the comment lost that
+  race immediately.
+
+  The surviving geometry half was **re-measured, not assumed**: `bottom: 8px` on
+  `.settings-cluster`, `height: 220px` on `.container`, `overflow: hidden` — all
+  three confirmed, so the "opens upwards" reasoning is kept and now cites the
+  rules it depends on.
+
+- **IN-09 — the page's init log announced `v1.3.1`** while `CMakeLists` declared
+  1.5.2: four versions stale, not the two the review recorded. The literal is
+  dropped rather than corrected (`'OuariconAnalogEQ UI initialized'`). A
+  hand-maintained second copy of the version has no gate and will go stale again,
+  so the fix is that there is no second copy. Gated by check [10] below.
+
+### Testing
+
+Two new gates, because three of these four findings are the kind a comment cannot
+protect. **Both were seen to FAIL before being accepted** — a check that has never
+failed is not a guard.
+
+- **`tests/check-param-cache.js`** (new, 11 assertions) gates IN-07's mapping by
+  NAME rather than by audio, since audio cannot see the defect. Each cache member
+  must be `p` + CamelCase of the ID it holds; the cache must be complete against
+  `createParameterLayout()`'s own `ParameterID` list in both directions; and no
+  `getRawParameterValue` call may survive outside the constructor, so the per-block
+  lookup cannot creep back one parameter at a time. Negative controls, all three
+  restored afterwards:
+  - `pHmfFreq`/`pHmfGain` swapped → **[3] FAILS**, naming both sides and the
+    expected member. This is the exact typo the file exists for.
+  - one per-block lookup reintroduced in `processBlock` → **[5] FAILS**.
+  - one cache assignment dropped (a parameter added without an entry) →
+    **[2] and [4] FAIL**, naming `lmf_q` and the member it expected.
+  11/11 with the real cache.
+
+- **`tests/ui_tip_render_check.js` check [10]** gates IN-09: no `console.*` call in
+  `index.html` may hard-code a `vX.Y.Z` literal. Scoped to console call lines on
+  purpose — the file is full of legitimate `// v1.2.0:` history comments and a
+  blanket ban would fail on every one. Negative control: restoring the v1.3.1
+  string turns [10] red and names the line.
+
+- Render harness **19/19** unchanged, which is the honest statement of what it can
+  say here: G1–G4 confirm IN-07 broke none of CR-02, WR-05, WR-06 or the WR-07
+  follow-up guard, and by design cannot confirm the mapping — check-param-cache
+  does that.
+
+- `check-i18n` 0 FAIL repo-wide over 44 plugins; `auval` SUCCEEDED; build clean.
+
+### Notes
+
+The review's open list is now **empty**: CR-02 and WR-05..10 closed in v1.5.1, the
+two residual defects those fixes introduced closed in v1.5.2, and IN-06..09 here.
+`CODE_REVIEW.md` is retained as the record rather than deleted.
+
+Deferred, unchanged from v1.5.2 and both larger than this plugin:
+`savePresetToFile()` is still unguarded inside `modules/persistence/` with nine
+other dialog callers unaudited, and `check-i18n`'s prose rules still do not scan
+served shared modules (reported per plugin as a `NOTE:` rather than passing in
+silence).
+
 ## [1.5.2] - 2026-09-26
 
 Closes two residual defects found while re-verifying the v1.5.1 review fixes.

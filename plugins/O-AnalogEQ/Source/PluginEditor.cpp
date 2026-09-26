@@ -105,6 +105,18 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
                     complete(false);
             })
             .withNativeFunction("savePresetWithDialog", [this](auto&, auto complete) {
+                // IN-08: one native dialog at a time. Assigning fileChooser while the
+                // other entry point's dialog is still presented destroys that FileChooser
+                // underneath its own open dialog. See PluginEditor.h for why this is a
+                // flag and not a `fileChooser != nullptr` test.
+                if (presetDialogInFlight) {
+                    auto* busy = new juce::DynamicObject();
+                    busy->setProperty("success", false);
+                    busy->setProperty("name", "");
+                    complete(juce::var(busy));
+                    return;
+                }
+                presetDialogInFlight = true;
                 fileChooser = std::make_unique<juce::FileChooser>(
                     "Save Preset",
                     audioProcessor.presetManager.getUserPresetsDirectory(),
@@ -119,6 +131,11 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
                     [safeThis, complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;
+                        // IN-08: released here, above every early return below, so a
+                        // cancelled dialog does not latch the guard shut. Clearing a bool
+                        // touches no owner — the FileChooser itself is replaced only on the
+                        // next launch, by which point this dialog has certainly finished.
+                        safeThis->presetDialogInFlight = false;
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
                             auto* result = new juce::DynamicObject();
@@ -199,6 +216,15 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
                     complete(false);
             })
             .withNativeFunction("loadPresetFromFile", [this](auto&, auto complete) {
+                // IN-08: one native dialog at a time — see savePresetWithDialog above.
+                if (presetDialogInFlight) {
+                    auto* busy = new juce::DynamicObject();
+                    busy->setProperty("success", false);
+                    busy->setProperty("name", "");
+                    complete(juce::var(busy));
+                    return;
+                }
+                presetDialogInFlight = true;
                 fileChooser = std::make_unique<juce::FileChooser>(
                     "Load Preset",
                     audioProcessor.presetManager.getPresetsDirectory(),
@@ -211,6 +237,11 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
                     [safeThis, complete](const juce::FileChooser& fc) {
                         if (safeThis == nullptr)
                             return;
+                        // IN-08: released here, above every early return below, so a
+                        // cancelled dialog does not latch the guard shut. Clearing a bool
+                        // touches no owner — the FileChooser itself is replaced only on the
+                        // next launch, by which point this dialog has certainly finished.
+                        safeThis->presetDialogInFlight = false;
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
                             auto* result = new juce::DynamicObject();

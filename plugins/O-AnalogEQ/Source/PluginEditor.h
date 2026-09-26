@@ -112,6 +112,25 @@ private:
     // File chooser for preset save/load dialogs (must persist during async operation)
     std::unique_ptr<juce::FileChooser> fileChooser;
 
+    // IN-08: savePresetWithDialog and loadPresetFromFile assign to the SAME fileChooser
+    // member, so a second launch while the first dialog is still presented destroyed the
+    // first FileChooser underneath its own open dialog — its pending completion then
+    // either never fires (a hung JS promise with the editor still ALIVE, which is the
+    // case WR-04's bail path deliberately is not) or fires against a destroyed Pimpl.
+    //
+    // A separate FLAG rather than testing `fileChooser != nullptr`, which is what the
+    // review prescribed. Two reasons, and both matter:
+    //   1. The nullptr test needs fileChooser cleared when the dialog finishes, and the
+    //      only place to do that is inside launchAsync's completion — which would destroy
+    //      the FileChooser, and the std::function currently executing, from within that
+    //      very callback.
+    //   2. Clearing a bool in the completion touches no owner, so the FileChooser is only
+    //      ever replaced on the NEXT launch, when the previous dialog has certainly
+    //      finished. That is exactly what the code did before, which was safe.
+    // Whether a platform-modal dialog already prevents the second click is per-backend;
+    // nothing in this code enforced it, so this does.
+    bool presetDialogInFlight = false;
+
     // Resource provider for WebView
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 

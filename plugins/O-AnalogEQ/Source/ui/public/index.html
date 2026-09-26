@@ -1079,12 +1079,18 @@
       <!-- v1.2.0: the settings cluster. Positioned absolutely in the empty
            bottom-left margin, so no existing element moves for it.
 
-           STILL ONE ROW AT v1.3.0, and #gear-btn's tip says so. This plugin now
-           HAS hover-help but no on/off TOGGLE for it: adding one means a second
-           control here, a preference persisted through C++ and a data-tip-always
-           bypass so the toggle's own tip works when tips are off. Two plugins in
-           the suite have that toggle and forty-one do not; uniformity is a
-           separate pass, not a Stage M side effect. -->
+           TWO ROWS since v1.4.0: the language selector, then the hover-help
+           switch. The three things a toggle was once argued to require — a second
+           control here, a preference persisted through C++, and a data-tip-always
+           bypass so the switch's own tip survives tips being off — all shipped in
+           v1.4.0 and are present below. Nothing described here is unbuilt.
+
+           The bypass's exact scope is stated once, on the switch itself; it is
+           deliberately not restated here. A count of how many other plugins carry
+           this toggle also used to sit here and had INVERTED by the time anyone
+           re-read it (a minority when written, the majority now) — a suite-wide
+           fact has no gate inside one plugin's markup, so it is gone rather than
+           refreshed. -->
       <div class="settings-cluster">
         <button type="button" class="gear-btn" id="gear-btn"
                 aria-haspopup="dialog" aria-expanded="false"
@@ -1524,7 +1530,7 @@
     });
     presetMgr.initialize();
 
-    console.log('OuariconAnalogEQ v1.3.1 UI initialized');
+    console.log('OuariconAnalogEQ UI initialized');
 
     // ════════════════════════════════════════════════════════════════════════
     // i18n — the canon v2 block, VERBATIM from scripts/i18n-canon.js
@@ -1649,13 +1655,16 @@
     // The settings popover (v1.2.0)
     // ════════════════════════════════════════════════════════════════════════
     //
-    // ONE row, at v1.3.0 as at v1.2.0: the language selector alone. The
-    // hover-help this version adds is always on and has no toggle here, and
-    // tip.settings' body is written to promise exactly this one control and
-    // nothing else — a tip that describes a control the panel does not have is
-    // worse than no tip. The panel opens UPWARDS: the gear is 8 px from the
-    // BOTTOM of a 220 px frame, and .container is overflow: hidden, so a panel
-    // below it would be unreachable rather than merely clipped.
+    // TWO rows since v1.4.0: the language selector, then the hover-help switch.
+    // No claim about tip.settings' body is made here on purpose — the previous
+    // version of this comment asserted what that string promises, the string was
+    // revised in v1.5.0, and the comment went stale the moment it was. A comment
+    // tied to a copy string will always lose that race; read i18n.js for the copy.
+    //
+    // The panel opens UPWARDS: the gear is 8 px from the BOTTOM of a 220 px frame
+    // (.settings-cluster { bottom: 8px }, .container { height: 220px }), and
+    // .container is overflow: hidden, so a panel below it would be unreachable
+    // rather than merely clipped.
 
     let settingsPopoverEl = null;
     let gearBtnEl = null;

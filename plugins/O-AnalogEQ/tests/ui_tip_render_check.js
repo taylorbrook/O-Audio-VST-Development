@@ -1158,6 +1158,33 @@ function outsideViewport(rect, W, H) {
         check(nativeTitles === 0,
             `[8] zero native title= attributes on the page — got ${nativeTitles}`);
 
+        // ── [10] IN-09: no hand-maintained version literal in the page's JS ──
+        //
+        // The init log read 'OuariconAnalogEQ v1.3.1 UI initialized' from v1.3.1
+        // through v1.5.2 — four versions stale. The cost is not cosmetic: a developer
+        // debugging a shipped binary opens the inspector, reads v1.3.1, concludes the
+        // build is stale, and re-runs the whole cache-clear-and-reinstall sequence from
+        // CLAUDE.md chasing a staleness that exists only in this string.
+        //
+        // CMakeLists is the version truth for this repo and it already flows into
+        // JucePlugin_VersionString. A second, hand-edited copy in page JS has no gate
+        // and WILL go stale again, so the gate is that there is no second copy — not a
+        // corrected one. A comment cannot fail a build; this can.
+        //
+        // Scoped to console.* call lines ON PURPOSE. This file is full of legitimate
+        // "v1.2.0: the settings cluster" history comments, and a blanket vX.Y.Z ban
+        // would fail on every one of them.
+        const pageSrcPath = path.join(REPO_ROOT, 'plugins', PLUGIN,
+                                      'Source', 'ui', 'public', 'index.html');
+        const versionedLogs = fs.readFileSync(pageSrcPath, 'utf8')
+            .split('\n')
+            .map((line, i) => ({ n: i + 1, line }))
+            .filter(({ line }) => /console\.\w+\s*\(/.test(line) && /v\d+\.\d+\.\d+/.test(line));
+        check(versionedLogs.length === 0,
+            `[10] no console.* call in index.html hard-codes a vX.Y.Z literal — CMakeLists is the `
+            + `version truth and a second hand-edited copy has no gate`,
+            versionedLogs.map(({ n, line }) => `index.html:${n}: ${line.trim()}`).join(' | '));
+
     } finally {
         await browser.close();
         await close();

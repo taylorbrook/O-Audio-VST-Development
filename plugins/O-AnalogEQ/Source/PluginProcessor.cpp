@@ -223,6 +223,35 @@ OuariconAnalogEQAudioProcessor::OuariconAnalogEQAudioProcessor()
     };
 
     presetManager.initializeFactoryPresets(factoryPresets);
+
+    // IN-07: resolve the sixteen raw parameter pointers once, here rather than in
+    // prepareToPlay — the adapter table is built with `parameters` above and these
+    // pointers are stable for the object's lifetime, so there is nothing for a
+    // sample-rate change to re-resolve. See PluginProcessor.h for why the per-block
+    // lookup was waste rather than an RT-safety violation, and why the member names
+    // are a contract gated by tests/check-param-cache.js.
+    pLfFreq     = parameters.getRawParameterValue("lf_freq");
+    pLfGain     = parameters.getRawParameterValue("lf_gain");
+    pLfOn       = parameters.getRawParameterValue("lf_on");
+    pLmfFreq    = parameters.getRawParameterValue("lmf_freq");
+    pLmfGain    = parameters.getRawParameterValue("lmf_gain");
+    pLmfQ       = parameters.getRawParameterValue("lmf_q");
+    pLmfOn      = parameters.getRawParameterValue("lmf_on");
+    pHmfFreq    = parameters.getRawParameterValue("hmf_freq");
+    pHmfGain    = parameters.getRawParameterValue("hmf_gain");
+    pHmfQ       = parameters.getRawParameterValue("hmf_q");
+    pHmfOn      = parameters.getRawParameterValue("hmf_on");
+    pHfFreq     = parameters.getRawParameterValue("hf_freq");
+    pHfGain     = parameters.getRawParameterValue("hf_gain");
+    pHfOn       = parameters.getRawParameterValue("hf_on");
+    pOutputGain = parameters.getRawParameterValue("output_gain");
+    pAnalog     = parameters.getRawParameterValue("analog");
+
+    // A null here means a parameter ID in the block above does not exist in the layout
+    // — a typo that would otherwise surface as a null deref on the first audio block.
+    jassert (pLfFreq && pLfGain && pLfOn && pLmfFreq && pLmfGain && pLmfQ && pLmfOn
+             && pHmfFreq && pHmfGain && pHmfQ && pHmfOn && pHfFreq && pHfGain && pHfOn
+             && pOutputGain && pAnalog);
 }
 
 void OuariconAnalogEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -272,14 +301,14 @@ void OuariconAnalogEQAudioProcessor::prepareToPlay(double sampleRate, int sample
                       &hmfFreqSm, &hmfGainSm, &hfFreqSm, &hfGainSm })
         sm->reset(sampleRate, static_cast<double>(kSmoothingSeconds));
 
-    lfFreqSm.setCurrentAndTargetValue(parameters.getRawParameterValue("lf_freq")->load());
-    lfGainSm.setCurrentAndTargetValue(parameters.getRawParameterValue("lf_gain")->load());
-    lmfFreqSm.setCurrentAndTargetValue(parameters.getRawParameterValue("lmf_freq")->load());
-    lmfGainSm.setCurrentAndTargetValue(parameters.getRawParameterValue("lmf_gain")->load());
-    hmfFreqSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hmf_freq")->load());
-    hmfGainSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hmf_gain")->load());
-    hfFreqSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hf_freq")->load());
-    hfGainSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hf_gain")->load());
+    lfFreqSm.setCurrentAndTargetValue(pLfFreq->load());
+    lfGainSm.setCurrentAndTargetValue(pLfGain->load());
+    lmfFreqSm.setCurrentAndTargetValue(pLmfFreq->load());
+    lmfGainSm.setCurrentAndTargetValue(pLmfGain->load());
+    hmfFreqSm.setCurrentAndTargetValue(pHmfFreq->load());
+    hmfGainSm.setCurrentAndTargetValue(pHmfGain->load());
+    hfFreqSm.setCurrentAndTargetValue(pHfFreq->load());
+    hfGainSm.setCurrentAndTargetValue(pHfGain->load());
 
     // WR-06: configure the four band wet/dry mix smoothers over the same 30 ms ramp,
     // then seed each to the band's CURRENT on/off state. Seeding matters: without it
@@ -288,10 +317,10 @@ void OuariconAnalogEQAudioProcessor::prepareToPlay(double sampleRate, int sample
     for (auto* sm : { &lfMixSm, &lmfMixSm, &hmfMixSm, &hfMixSm })
         sm->reset(sampleRate, static_cast<double>(kSmoothingSeconds));
 
-    lfMixSm.setCurrentAndTargetValue (parameters.getRawParameterValue("lf_on")->load()  > 0.5f ? 1.0f : 0.0f);
-    lmfMixSm.setCurrentAndTargetValue(parameters.getRawParameterValue("lmf_on")->load() > 0.5f ? 1.0f : 0.0f);
-    hmfMixSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hmf_on")->load() > 0.5f ? 1.0f : 0.0f);
-    hfMixSm.setCurrentAndTargetValue (parameters.getRawParameterValue("hf_on")->load()  > 0.5f ? 1.0f : 0.0f);
+    lfMixSm.setCurrentAndTargetValue (pLfOn->load()  > 0.5f ? 1.0f : 0.0f);
+    lmfMixSm.setCurrentAndTargetValue(pLmfOn->load() > 0.5f ? 1.0f : 0.0f);
+    hmfMixSm.setCurrentAndTargetValue(pHmfOn->load() > 0.5f ? 1.0f : 0.0f);
+    hfMixSm.setCurrentAndTargetValue (pHfOn->load()  > 0.5f ? 1.0f : 0.0f);
 
     // Wet scratch for the crossfade. Sized from the prepared channel count and block
     // size so processBlock never allocates; processBlock additionally slices against
@@ -331,26 +360,26 @@ void OuariconAnalogEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
         buffer.clear(i, 0, buffer.getNumSamples());
 
     // Read parameters
-    const float lfFreq  = parameters.getRawParameterValue("lf_freq")->load();
-    const float lfGain  = parameters.getRawParameterValue("lf_gain")->load();
-    const bool  lfOn    = parameters.getRawParameterValue("lf_on")->load() > 0.5f;
+    const float lfFreq  = pLfFreq->load();
+    const float lfGain  = pLfGain->load();
+    const bool  lfOn    = pLfOn->load() > 0.5f;
 
-    const float lmfFreq = parameters.getRawParameterValue("lmf_freq")->load();
-    const float lmfGain = parameters.getRawParameterValue("lmf_gain")->load();
-    const int   lmfQ    = static_cast<int>(parameters.getRawParameterValue("lmf_q")->load());
-    const bool  lmfOn   = parameters.getRawParameterValue("lmf_on")->load() > 0.5f;
+    const float lmfFreq = pLmfFreq->load();
+    const float lmfGain = pLmfGain->load();
+    const int   lmfQ    = static_cast<int>(pLmfQ->load());
+    const bool  lmfOn   = pLmfOn->load() > 0.5f;
 
-    const float hmfFreq = parameters.getRawParameterValue("hmf_freq")->load();
-    const float hmfGain = parameters.getRawParameterValue("hmf_gain")->load();
-    const int   hmfQ    = static_cast<int>(parameters.getRawParameterValue("hmf_q")->load());
-    const bool  hmfOn   = parameters.getRawParameterValue("hmf_on")->load() > 0.5f;
+    const float hmfFreq = pHmfFreq->load();
+    const float hmfGain = pHmfGain->load();
+    const int   hmfQ    = static_cast<int>(pHmfQ->load());
+    const bool  hmfOn   = pHmfOn->load() > 0.5f;
 
-    const float hfFreq  = parameters.getRawParameterValue("hf_freq")->load();
-    const float hfGain  = parameters.getRawParameterValue("hf_gain")->load();
-    const bool  hfOn    = parameters.getRawParameterValue("hf_on")->load() > 0.5f;
+    const float hfFreq  = pHfFreq->load();
+    const float hfGain  = pHfGain->load();
+    const bool  hfOn    = pHfOn->load() > 0.5f;
 
-    const float outputGainDB = parameters.getRawParameterValue("output_gain")->load();
-    const bool  analogOn     = parameters.getRawParameterValue("analog")->load() > 0.5f;
+    const float outputGainDB = pOutputGain->load();
+    const bool  analogOn     = pAnalog->load() > 0.5f;
 
     // WR-02: feed the smoothers; their per-chunk values drive the coefficients below.
     lfFreqSm.setTargetValue(lfFreq);   lfGainSm.setTargetValue(lfGain);
