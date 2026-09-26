@@ -26,7 +26,7 @@
 Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
-| O-Bells | 📦 Installed | 4.9.0 | Synth (Physical Modeling Bells) | 2026-09-25 |
+| O-Bells | 📦 Installed | 4.8.0 | Synth (Physical Modeling Bells) | 2026-09-20 |
 | O-Tremolo | 📦 Installed | 1.10.0 | Audio Effect (Tremolo) | 2026-09-05 |
 | O-AnalogSaturation | 📦 Installed | 1.5.0 | Audio Effect (Saturation) |  2026-09-04 |
 | O-Marimba | 📦 Installed | 1.14.0 | Synth (Physical Model) | 2026-08-31 |
@@ -61,7 +61,7 @@ Ouaricon Plugins:
 | O-simpleFM | 📦 Installed | 1.5.0 | Synth (Pedagogical 2-Op FM) | 2026-09-06 |
 | O-simpleAdditive | 📦 Installed | 1.3.0 | Synth (Pedagogical Additive + Wavetable) | 2026-09-07 |
 | O-simpleGrain | 📦 Installed | 1.5.0 | Synth (Pedagogical Granular) | 2026-09-07 |
-| O-simpleSubtractive | 📦 Installed | 1.5.0 | Synth (Pedagogical Subtractive) | 2026-09-07 |
+| O-simpleSubtractive | 📦 Installed | 1.6.0 | Synth (Pedagogical Subtractive) | 2026-09-25 |
 | O-simpleSampler | 📦 Installed | 1.5.0 | Synth (Pedagogical Sampler) | 2026-09-07 |
 | O-simpleBeatmaker | 📦 Installed | 1.3.0 | Synth (Pedagogical Step-Sequencer Drum Machine) | 2026-09-06 |
 | O-simplePhysicalModelSynth | 📦 Installed | 1.3.0 | Synth (Pedagogical Physical Modeling) | 2026-09-06 |

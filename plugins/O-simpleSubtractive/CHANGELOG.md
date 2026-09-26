@@ -3,6 +3,107 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.6.0] — 2026-09-25
+
+The UI pass from the 260924-nho design review (R4 AA text colours and the 9px
+floor, R5 the bundled EB Garamond face, R7 the frame fit). MINOR because the
+change is visible. No parameter, range, type or state format changed, and no DSP
+or processor file was touched. The only C++ change is four `getResource()`
+branches for the fonts. The editor size and resize limits are unchanged.
+
+### Fixed
+
+- **The whole UI now fits the shipping 1180×820 frame.** Through v1.5.0 the page
+  scrolled 1118px of content inside its 814px `.frame`, so the VOICE / OUTPUT
+  group and the keyboard were below the fold at the size the plugin opens at.
+  - **Root cause.** The five control groups had 1190px of flex basis
+    (150 / 320 / 260 / 260 / 160 plus gaps) in a 1126px line. VOICE / OUTPUT
+    wrapped to a second, full-width row (+190px), and each envelope's RELEASE
+    knob wrapped under the other three, making the first row 282px tall.
+  - **Fix.** The five groups share one row. Oscillator, Filter and Voice/Output
+    are content-sized (152 / 270 / 152px) and the two envelopes split the rest
+    (276px each). Each envelope's four knobs sit on one line, spread edge to
+    edge. Group padding goes from 14px to 10px, frame padding from 16×24 to
+    12×12, and the frame gap from 10px to 8px. The control row goes from 472px to
+    199px.
+  - **The headline visualization takes the remaining height** (`flex: 1 0 auto`,
+    `min-height: 170px`) instead of a fixed 220px. It is 203px at 1180×820 and
+    grows when the window is resized taller.
+  - Measured with every `tests/i18n-states.json` state and a second lesson
+    preset, in en / fr / zh-Hans: `.frame` scrollHeight 814 / clientHeight 814,
+    keyboard bottom at 801px.
+
+### Changed
+
+- **Text inks are AA on every paper stop.** Two text tokens are split from the
+  decoration colours. `--brown-border` `#8B7355` and `--green-mid` `#6B8E4E` stay
+  for rules, strokes, the knob stem and the lit states.
+  - `--text-muted` `#6A5641` (the suite value from O-MicrotonalSampler) replaces
+    `#8B7355` on the subtitle, the viz, routing, tour and keyboard captions, the
+    envelope route labels and the white-key letters. These moved from 3.26–3.66
+    to 5.06–5.68.
+  - `--green-text` `#4E6839` replaces the sage on the italic hints, the routing
+    meta, the group route tags and ♪. These moved from 2.53–3.19 to 4.54–5.31.
+    The hints' `opacity: 0.85` is gone; it was a contrast cut.
+  - The active lesson button's fill is `--green-text` (3.16 → 5.5 under its
+    light face).
+  - The black-key letters are opaque paper (8.87) instead of 70% paper. The key
+    also carries its gradient's top stop as a `background-color`, so a contrast
+    census stops measuring the letter against the page behind the key.
+- **9px floor, on what renders.** The key letters go from 8px to 9px.
+  - The signal-path SVG was drawn at 0.719× (viewBox 430×128 into 340×92), so its
+    declared 11 / 8.5 / 8px text rendered at 7.9 / 6.1 / 5.75px.
+  - The viewBox now starts at the node circles' top edge (`0 18 430 106`) and is
+    drawn at 0.906× into 390×96. The node sub-labels and the envelope route
+    labels are 10 viewBox units, so they render at 9.06px. The node names render
+    at 9.96px.
+  - The routing panel grows by 4px, from 106px to 110px.
+- **One face.** EB Garamond is bundled from `modules/ui/eb-garamond` 1.0.0 by
+  direct embed: 4 `SOURCES` lines, 4 `getResource()` branches, and
+  `css/eb-garamond.css` linked before `styles.css`.
+  - The body resolves through `--font-serif` (`'EB Garamond', 'Georgia',
+    'Times New Roman'` plus the CJK tail). The bare `'Garamond'` entry is dropped
+    so an Office-installed Windows Garamond cannot outrank the bundled face.
+  - The spectrum canvas's axis labels use the same face.
+  - CDP resolves every sampled Latin run to EB Garamond (custom) and every Han
+    run to PingFang SC. Before, Latin text rendered in Times New Roman.
+- **Geometry pins re-derived for the new face.**
+  - `.tour-caption { min-width: 46% }` is now unscoped. The narrower face put the
+    English resting caption under the 46% cap. The tour then collapsed to one
+    line in English only (-26px) while French kept two, and everything below it
+    moved between the two languages.
+  - The zh-Hans `共振` readout trim goes from 10.5px to 9.8px. English "Res" is
+    now 20.05px, and 10.5px came out 1.4px wider, which moved `#readCutoff`.
+  - French envelope captions are untracked (`letter-spacing: 0`). At the house
+    0.6px, MAINTIEN and RELÂCHEMENT, now side by side, cleared by 1.0px, and
+    RELÂCHEMENT ran 2px past the group border. Untracked, they clear by 6.7px and
+    sit 2.2px inside the border.
+- The `Res` readout's hair space becomes a thin space. EB Garamond's U+200A
+  collapsed "Res 0.50" into "Res0.50".
+
+### Resize limits (verified, unchanged: 820×560 – 1700×1200)
+
+- **1180×820 (shipping):** no scroll. The control row has about 76px of slack
+  before it would wrap (~1104px window width).
+- **1700×1200:** no scroll. The visualization grows to 609px. The envelope knob
+  rows are capped at 272px and centred under their canvases, so four knobs do not
+  spread across a 534px group.
+- **820×560 (floor):** the control row wraps to two lines and the frame scrolls,
+  as it did before. The content is taller than the floor.
+
+### Measured (v1.5.0 → v1.6.0, served page at 1180×820, every state in `tests/i18n-states.json`)
+
+| Gate | v1.5.0 | v1.6.0 |
+|---|---|---|
+| `measure-ui.js --contrast` (per language) | 29 / 95 below AA (30.5%), 17 under 9px, min 1.00 (black keys, a census artefact) / 2.53 real | **0 / 95** (en, zh-Hans) and **0 / 93** (fr), 0 under 9px, min 3.06 (the 26px title accent, which only needs 3:1 as large text) |
+| `check-ui-labels.js` (en / fr / zh-Hans) | ALL CHECKS PASSED | ALL CHECKS PASSED |
+| `check-i18n.js` | ALL PASS | ALL PASS |
+| `.frame` scroll / client | 1118 / 814 | 814 / 814 |
+
+The fr row counts 93 nodes because the census caught the hover-help tooltip
+open over the gear in the English pass only. That is harness mouse residue. The
+tooltip is 12px `#f5e6d3` on `#2a2118` and passes.
+
 ## [1.5.0] — 2026-09-07
 
 Simplified Chinese. The interface now offers three languages; MINOR because a

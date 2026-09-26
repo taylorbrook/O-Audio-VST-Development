@@ -60,6 +60,20 @@
   --shadow-heavy: rgba(0, 0, 0, 0.5);
   --text-emboss: rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
+  /* v1.6.0 — TEXT inks, split from the decoration colours (260924-nho R4).
+     --brown-border (#8B7355) and --green-mid (#6B8E4E) stay for rules, strokes,
+     the knob stem and the lit states; as text on this paper they measured
+     3.26-3.66 and 2.53-3.19, under WCAG AA (4.5). These two clear 4.5 on every
+     paper stop the page puts text on (#FAF0E6 / #F5E6D3 / #F7EBDC / #EBD9C7):
+       --text-muted  #6A5641  5.06 - 6.18   (suite value, O-MicrotonalSampler)
+       --green-text  #4E6839  4.54 - 5.55   (suite value, its tuning ink)  */
+  --text-muted: #6A5641;
+  --green-text: #4E6839;
+  /* v1.6.0 — the bundled house serif (modules/ui/eb-garamond, R5). The bare
+     'Garamond' entry is gone: ahead of the bundled face it let an
+     Office-installed Windows Garamond win. Georgia before Times, CJK tail before
+     the generic (a bare `serif` resolves against the document lang). */
+  --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   /* Symbol-glyph fallback — Garamond lacks ❦ / ♪ on Windows; these fonts carry them. */
   --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', 'PingFang SC', 'Microsoft YaHei', serif;
 }
@@ -76,7 +90,7 @@ html, body {
 }
 
 body {
-  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  font-family: var(--font-serif);
   color: var(--brown-text);
   background:
     radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
@@ -86,15 +100,24 @@ body {
 }
 
 /* ── Frame ──────────────────────────────────────────────────────────────── */
+/* v1.6.0 — the whole page fits the shipping 1180x820 frame. Through v1.5.0 it
+   scrolled 1118px of content inside an 814px frame: the five control groups
+   needed 1190px of flex basis in a 1126px line, so VOICE / OUTPUT wrapped to a
+   second full-width row below the fold, and each envelope's RELEASE knob wrapped
+   under the other three. The five groups now share ONE row (see .controls), the
+   frame's padding and gaps are trimmed, and the headline visualization takes
+   whatever height is left (.viz-panel), so the stack measures to the frame
+   instead of past it. overflow-y stays auto: below 820px tall (the resize floor
+   is 560) the frame still scrolls, as before. */
 .frame {
   position: relative;
   z-index: 1;
   width: 100%;
   height: 100%;
-  padding: 16px 24px;
+  padding: 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   border: 3px solid var(--brown-frame);
   border-image: linear-gradient(160deg, #6b5340, #5C4033) 1;
   overflow-y: auto;
@@ -143,7 +166,7 @@ body {
   font-size: 11px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: var(--brown-border);
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -278,10 +301,16 @@ body {
 .settings-toggle:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 1px; }
 
 /* ── Visualization ──────────────────────────────────────────────────────── */
+/* v1.6.0 — flex-grows into the frame's remaining height instead of a fixed
+   220px (every row below it is fixed), and grows taller when the window is
+   resized taller. min-height keeps the canvases legible when the window is
+   shorter than the stack; the frame scrolls then. */
 .viz-panel {
   display: flex;
   gap: 14px;
-  height: 220px;
+  flex: 1 0 auto;
+  height: 0;
+  min-height: 170px;
 }
 .viz-block {
   flex: 1;
@@ -294,10 +323,10 @@ body {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--brown-border);
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
-.viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-mid); opacity: 0.85; }
+.viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-text); }
 .canvas-wrap {
   flex: 1;
   position: relative;
@@ -340,22 +369,29 @@ body {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--brown-border);
+  color: var(--text-muted);
 }
-#routingSvg { height: 92px; width: 340px; }
+/* v1.6.0 — rendered at 0.906x (viewBox 430x106 into 390x96), up from 0.719x
+   (430x128 into 340x92), and the three small text classes are sized in
+   viewBox units so that what LANDS on screen clears the 9px floor:
+   .node-text 11 -> 9.96px, .node-sub and .env-route-label 10 -> 9.06px. Through
+   v1.5.0 they declared 11 / 8.5 / 8 and rendered 7.9 / 6.1 / 5.75px. The
+   viewBox now starts at y=18 (the node circles' top edge) instead of 0, which
+   is where most of the extra scale came from. */
+#routingSvg { height: 96px; width: 390px; }
 .path-node { stroke: var(--brown-frame); stroke-width: 2; transition: filter 0.08s ease; }
 .node-osc { fill: #c8b48f; }
 .node-filter { fill: var(--knob-seg-1); }
 .node-vca { fill: var(--green-light); }
 .node-text { font-family: inherit; font-size: 11px; letter-spacing: 1px; fill: var(--brown-frame); }
-.node-sub { font-family: inherit; font-size: 8.5px; letter-spacing: 0.3px; fill: var(--green-darkest); }
-.node-out { font-size: 18px; fill: var(--green-mid); font-family: var(--symbol-font); }
+.node-sub { font-family: inherit; font-size: 10px; letter-spacing: 0; fill: var(--green-darkest); }
+.node-out { font-size: 18px; fill: var(--green-text); font-family: var(--symbol-font); }
 .route-line, .route-arc { stroke: var(--green-dark); stroke-width: 2.5; }
 .route-line-out { stroke: var(--brown-border); }
 .route-arc { stroke: var(--amber); stroke-dasharray: 3 3; }
 .route-head { fill: var(--green-dark); }
 .route-head-env { fill: var(--amber); }
-.env-route-label { font-family: inherit; font-size: 8px; letter-spacing: 0.3px; fill: var(--brown-border); }
+.env-route-label { font-family: inherit; font-size: 10px; letter-spacing: 0.3px; fill: var(--text-muted); }
 .routing-readout-col {
   margin-left: auto;
   display: flex;
@@ -374,7 +410,7 @@ body {
   font-size: 10px;
   font-style: italic;
   letter-spacing: 0.3px;
-  color: var(--green-mid);
+  color: var(--green-text);
   white-space: nowrap;
 }
 
@@ -385,21 +421,26 @@ body {
   flex-direction: row;
   flex-wrap: wrap;
   align-items: stretch;
-  gap: 10px;
+  gap: 6px;
 }
 .group {
   background: rgba(250, 240, 230, 0.45);
   border: 1px solid rgba(139, 115, 85, 0.35);
   border-radius: 5px;
-  padding: 6px 14px 10px;
+  padding: 6px 10px 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.group-osc      { flex: 1 1 150px; }
-.group-filter   { flex: 2 1 320px; }
-.group-env      { flex: 1.4 1 260px; }
-.group-output   { flex: 1 1 160px; }
+/* v1.6.0 — ONE row at the shipping frame. Oscillator, Filter and Voice/Output
+   are content-sized (152 / 270 / 152px) and the two envelopes split the rest
+   equally (276px each at 1180 wide). Each envelope's four knobs sit on one line,
+   spread edge to edge, so RELEASE no longer wraps under ATTACK. The row still
+   wraps when the window is resized narrower than its min-content (~1070px). */
+.group-osc      { flex: 0 0 auto; }
+.group-filter   { flex: 0 0 auto; }
+.group-env      { flex: 1 1 0; }
+.group-output   { flex: 0 0 auto; }
 .group-title {
   font-size: 12px;
   font-weight: 500;
@@ -415,14 +456,19 @@ body {
   font-style: italic;
   letter-spacing: 0.4px;
   text-transform: none;
-  color: var(--green-mid);
+  color: var(--green-text);
 }
 .knob-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
+  flex-wrap: nowrap;
+  gap: 10px;
   align-items: flex-start;
 }
+.group-filter .knob-row { gap: 8px; }
+/* max-width: at the shipping frame the envelope row is 254px and the cap is
+   inert; on a window resized wider it stops four knobs spreading across a
+   500px group, and centres them under the canvas instead. */
+.group-env .knob-row    { gap: 4px; justify-content: space-between; padding: 0 2px; max-width: 272px; width: 100%; margin: 0 auto; }
 
 .knob-cell {
   display: flex;
@@ -525,7 +571,8 @@ select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
 .knob:hover { transform: scale(1.05); }
 .knob:active { transform: scale(0.98); }
 .knob.knob-sm { width: 46px; height: 46px; }
-.knob-cell:has(.knob-sm) { width: 54px; }
+.knob-cell:has(.knob-sm) { width: 50px; }
+.group-filter .knob-cell { width: 56px; }
 
 /* indicator stem — rotates with value (set via JS transform on .knob-stem) */
 .knob-stem {
@@ -566,6 +613,14 @@ select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
    content is well inside that. Measured after: row 1 still 281.9px, keyboard
    bottom still 1100.8px. */
 .group-filter .knob-label { min-height: 2.2em; }   /* 2 x 1.1 line-height at 9.5px = 20.9px */
+/* v1.6.0 — the envelope knobs now sit four to a line, 66.7px apart. At the
+   0.6px house tracking the French pair MAINTIEN + RELÂCHEMENT (53.2 + 78.2px)
+   cleared each other by 1.0px, and RELÂCHEMENT ran 2px past the group's right
+   border. Untracked it measures 71.6px: 6.7px clear of MAINTIEN and 2.2px
+   inside the border. Scoped to French because no other language comes close
+   (English's tightest envelope gap is ~25px), and a caption is a label, so
+   nothing else moves. */
+html[lang="fr"] .group-env .knob-label { letter-spacing: 0; }
 .knob-value {
   font-size: 11px;
   color: var(--brown-text);
@@ -598,7 +653,7 @@ select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--brown-border);
+  color: var(--text-muted);
 }
 .tour-buttons { flex: 1 1 auto; min-width: 0; display: flex; gap: 8px; flex-wrap: wrap; }
 .tour-btn {
@@ -614,16 +669,23 @@ select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
   transition: all 0.15s ease;
 }
 .tour-btn:hover { background: var(--green-light); color: #1f2b08; transform: translateY(-1px); }
-.tour-btn.active { background: var(--green-mid); color: #f5f0e6; border-color: var(--green-darkest); }
+.tour-btn.active { background: var(--green-text); color: #f5f0e6; border-color: var(--green-darkest); }
 .tour-caption {
   font-size: 11px;
   font-style: italic;
   color: var(--brown-soft);
   margin-left: auto;
   opacity: 0.85;
+  min-width: 46%;
   max-width: 46%;
   text-align: right;
 }
+/* v1.6.0 — min-width: 46% moved here from the zh-Hans block below, unscoped.
+   EB Garamond is ~5% narrower than Times, and the English resting caption now
+   fits UNDER the 46% cap: the three items collapsed onto one flex line in
+   English only (-26px) while French still took two, so everything below the
+   tour moved between the languages. With the floor at the cap the caption is
+   exactly 46% wide in every language and always takes line 2. */
 
 /* ── On-screen keyboard ─────────────────────────────────────────────────── */
 .keyboard-panel {
@@ -637,14 +699,13 @@ select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--brown-border);
+  color: var(--text-muted);
 }
 .kbd-hint {
   text-transform: none;
   letter-spacing: 0.3px;
   font-style: italic;
-  color: var(--green-mid);
-  opacity: 0.85;
+  color: var(--green-text);
 }
 .keyboard {
   position: relative;
@@ -671,7 +732,10 @@ select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
   top: 0;
   width: 24px;
   height: 60%;
-  background: linear-gradient(180deg, #4a3a2c 0%, var(--brown-frame) 100%);
+  /* background-color is the gradient's own top stop, painted under it: a
+     contrast census samples background-color only, and without it the key's
+     letter measured against the paper behind the key (1.00). */
+  background: linear-gradient(180deg, #4a3a2c 0%, var(--brown-frame) 100%) #4a3a2c;
   border: 1px solid #261a12;
   border-top: none;
   border-radius: 0 0 3px 3px;
@@ -693,12 +757,14 @@ select.combo:focus { outline: 2px solid var(--green-mid); outline-offset: 1px; }
   bottom: 4px;
   left: 0; right: 0;
   text-align: center;
-  font-size: 8px;
+  font-size: 9px;              /* v1.6.0 — the 9px floor (was 8px) */
   letter-spacing: 0.5px;
-  color: var(--brown-border);
+  color: var(--text-muted);
   pointer-events: none;
 }
-.key-black .key-label { color: rgba(245, 230, 211, 0.7); }
+/* Opaque paper on the black key: 8.87 on #4a3a2c. At 0.7 alpha it composited
+   to about 5 on the gradient's light end. */
+.key-black .key-label { color: var(--bg-paper); }
 
 /* ── Tooltip ────────────────────────────────────────────────────────────── */
 .tooltip {
@@ -796,8 +862,11 @@ html[lang="zh-Hans"] .routing-readout { line-height: 1.2307692; }   /* 13px, en 
       English box, to the pixel. 10.5px is a size this page already uses on
       .tour-btn, and the neighbouring .routing-meta is 10px, so the readout
       strip stays typographically of a piece. ──────────────────────────────── */
+/* v1.6.0 — re-measured under EB Garamond: English "Res" is now 20.05px, and
+   共振 at 10.5px (21.47px, 2.045em) came out 1.4px wider, moving #readCutoff.
+   9.8px puts it at 20.04px — the English box again, and still over the floor. */
 html[lang="zh-Hans"] .routing-readout [data-i18n="label.res"] {
-  font-size: 10.5px;
+  font-size: 9.8px;
   letter-spacing: 0;
 }
 
@@ -821,4 +890,4 @@ html[lang="zh-Hans"] .routing-readout [data-i18n="label.res"] {
       long in Chinese — the lesson-preset click — is clamped too, so the floor
       is a no-op there as well. NOT a fixed width: that would cap a language
       needing a wider sentence. ─────────────────────────────────────────────── */
-html[lang="zh-Hans"] .tour-caption { min-width: 46%; }
+/* v1.6.0 — this floor is now UNSCOPED; see the .tour-caption rule above. */

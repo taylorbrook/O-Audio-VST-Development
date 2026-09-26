@@ -42,6 +42,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>O-simpleSubtractive</title>
+  <link rel="stylesheet" href="css/eb-garamond.css" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -123,7 +124,7 @@
     <!-- ─── Signal-path diagram ────────────────────────────────── -->
     <section class="routing-panel" id="routingPanel">
       <div class="routing-label" data-i18n="label.signalPath">Signal Path</div>
-      <svg id="routingSvg" viewBox="0 0 430 128" preserveAspectRatio="xMidYMid meet">
+      <svg id="routingSvg" viewBox="0 18 430 106" preserveAspectRatio="xMidYMid meet">
         <!-- main chain arrows -->
         <line class="route-line" x1="80"  y1="46" x2="148" y2="46" />
         <polygon class="route-head" points="148,41 148,51 158,46" />
@@ -155,7 +156,7 @@
         <text class="node-out" x="416" y="52" text-anchor="end">&#9834;</text>
       </svg>
       <div class="routing-readout-col">
-        <div class="routing-readout"><span id="readCutoff">2.0 kHz</span> &#183; <span data-i18n="label.res">Res</span>&#8202;<span id="readRes">0.10</span></div>
+        <div class="routing-readout"><span id="readCutoff">2.0 kHz</span> &#183; <span data-i18n="label.res">Res</span>&#8201;<span id="readRes">0.10</span></div>
         <div class="routing-meta" id="routeMeta">low-pass &#183; 24 dB/oct</div>
       </div>
     </section>
