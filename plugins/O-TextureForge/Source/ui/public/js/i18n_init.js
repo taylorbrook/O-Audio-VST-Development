@@ -290,11 +290,11 @@ function initializeSettingsPopover() {
 // correct.
 
 let tipsEnabled = true;
-let hideTip = () => {};
+let hideTooltip = () => {};
 
 function applyTipsEnabled(on) {
     tipsEnabled = !!on;
-    if (!tipsEnabled) hideTip();
+    if (!tipsEnabled) hideTooltip();
     const btn = document.getElementById('tips-toggle');
     if (!btn) return;
     btn.setAttribute('aria-pressed', tipsEnabled ? 'true' : 'false');
@@ -306,7 +306,7 @@ function applyTipsEnabled(on) {
     else             setLabel(btn, 'ui.off');
 }
 
-function initializeTipsToggle() {
+function initTipsToggle() {
     const btn = document.getElementById('tips-toggle');
     if (!btn) { console.error('Missing tips-toggle element'); return; }
     let stored = null;
@@ -389,7 +389,7 @@ function setupTooltips() {
     // down at the instant the switch goes Off. hide is a closure over the
     // surface and the active anchor, so it cannot simply be hoisted out; a
     // reference is the whole of the coupling.
-    hideTip = hide;
+    hideTooltip = hide;
 
     const anchorOf = (t) => (t && t.closest ? t.closest('[data-tip]') : null);
 
@@ -463,4 +463,4 @@ function setupTooltips() {
 // and a top-level call reaching a lower let/const is a TDZ throw that kills
 // every later initializer (pattern_module_toplevel_init_tdz).
 initializeSettingsPopover();
-try { initI18n(); setupTooltips(); initializeTipsToggle(); } catch (e) { console.error('i18n init failed:', e); }
+try { initI18n(); setupTooltips(); initTipsToggle(); } catch (e) { console.error('i18n init failed:', e); }

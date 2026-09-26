@@ -1,5 +1,64 @@
 # O-TextureForge Changelog
 
+## [1.5.0] - 2026-09-25
+
+The UI pass from the 260924-nho design review: AA text colours (R4), the 9px
+text floor, and the bundled EB Garamond face (R5). MINOR because the change is
+visible. No parameter, range, type or state format changed. No DSP or processor
+file was touched, and **the webpack bundle was not rebuilt**: `js/app.bundle.js`
+and `src/app.js` are byte-identical to v1.4.0.
+
+### Changed
+
+- **Walnut text is `#6A5641`, down from `#8B7355`.** The body is a three-stop
+  gradient (`#F5E6D3 → #EBD9C7 → #E8D0B8`). On its deepest stop, where the
+  Gain and Crossfade captions sit, the template's `#715D45` reads only 4.22.
+  `#6A5641` reads 4.68 / 5.06 / 5.68 across the three stops. `#8B7355` stays as
+  `--knob-border` and on the two decorative fleurons.
+- **Pressed or expanded sage fills are `#4E6839` (`--sage-deep`).** The expanded
+  gear and the ON hover-help toggle read 3.06 and 3.99 under their paper text;
+  they now read 5.10. `--active-green` and `--active-green-dark` still draw the
+  borders, focus outlines and progress fill, which carry no text.
+- **The large-file dialog's "Load Anyway" fill is `#7A5C10`,** up from 4.15 to
+  5.09. The colour lives in an inline style that `src/app.js` builds, so the
+  repair is a stylesheet `!important` rather than a bundle rebuild.
+- **The drop zone's drag-over caption stays walnut.** Green text there read
+  about 2.7:1. The green border and tint still carry the drag cue.
+- **9px text floor.** The section labels, bottom-strip knob captions and
+  readouts, the MIDI-mode caption and the UMAP progress caption move from 8px to
+  9px. The unitless line-height pins were kept, so they scale with the size.
+- **EB Garamond, bundled** from `modules/ui/eb-garamond` 1.0.0 by direct embed:
+  4 `SOURCES` lines, 4 `getResource()` branches, and `css/eb-garamond.css`
+  linked before the page stylesheet. `--font-primary` now starts
+  `'EB Garamond', 'Georgia', …`. The bare `'Garamond'` entry is dropped so that
+  an Office-installed Windows Garamond cannot outrank the bundled face.
+- **`.midi-mode-label` min-width is re-pinned 55.17 → 58.66 px**, the new widest
+  (en 58.66, fr 58.66, zh 55.16). The old pin fell below English at 9px in the
+  new face, and check-ui-labels [7] moved `#midi-mode` 3.5 px on the Chinese arm.
+- **Hover-help init renamed onto the canon spelling:** `initializeTipsToggle` →
+  `initTipsToggle`, and `hideTip` → `hideTooltip`. Behaviour is unchanged and
+  the `otf.tipsEnabled` key is kept. check-ui-canon moves `hover-help-init`
+  from a variant to `shape`: identical code, only the storage key differs.
+  `tests/ui_tip_render_check.js` [0] follows the rename.
+- **The decorative fleurons carry `aria-hidden="true"`.**
+
+### Not changed
+
+- **Knob interaction.** The knob code (`setupKnob` in `src/app.js`) was not
+  touched, so the O-ReverseDelay keyboard/ARIA port (R7) is deferred to a
+  change that rebuilds the bundle.
+
+### Measured (before v1.4.0 → after)
+
+| Gate | Before | After |
+|---|---|---|
+| `measure-ui.js --contrast`, per language | 24 / 35 below AA (68.6%), 10 under 9px, median 4.49 | 2 / 35 (5.7%, the two `aria-hidden` fleurons), 0 under 9px, median 6.95 |
+| `check-ui-labels.js` (en / fr / zh-Hans, 3 states) | ALL PASSED, 130 PASS | ALL PASSED, 130 PASS |
+| CDP face probe (all 3 languages) | exit 2: no EB Garamond FontFace | PASS: every Latin run on the bundled face, Han on PingFang SC, 0 unserved |
+| `check-ui-canon.js` | tooltip v, hover-help v, knob-binding v, knob-visual — | tooltip v, **hover-help shape**, knob-binding v, knob-visual — |
+| `tests/ui_tip_render_check.js` | ALL PASSED | ALL PASSED |
+| check-i18n / i18n-fr-lint / i18n-zh-lint | pass | pass |
+
 ## [1.4.0] - 2026-09-05
 
 Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c).

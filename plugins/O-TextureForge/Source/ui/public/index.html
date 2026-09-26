@@ -23,6 +23,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>O-TextureForge</title>
+    <!-- v1.5.0 (R5): the bundled EB Garamond faces load BEFORE the page stylesheet -->
+    <link rel="stylesheet" href="/css/eb-garamond.css" />
     <link rel="stylesheet" href="/css/ouaricon-naturalist.css" />
     <script type="module" src="./js/juce/index.js"></script>
     <script>
@@ -118,7 +120,7 @@
              keyed. The glyph is now authored once and never rewritten, and the
              three JS writes became setLabel calls carrying no markup. -->
         <div class="scatter-placeholder">
-            <span class="fleuron">&#10087;</span><span class="placeholder-text" data-i18n="placeholder.dropToBegin">Drop an audio file to begin</span>
+            <span class="fleuron" aria-hidden="true">&#10087;</span><span class="placeholder-text" data-i18n="placeholder.dropToBegin">Drop an audio file to begin</span>
         </div>
     </div>
 
@@ -142,7 +144,7 @@
             <span class="knob-value" data-value="texture">50%</span>
         </div>
 
-        <div class="divider">&#10087;</div>
+        <div class="divider" aria-hidden="true">&#10087;</div>
 
         <span class="section-label" data-i18n="section.scatterPosition">Scatter Position</span>
 

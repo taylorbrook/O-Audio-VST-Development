@@ -27,7 +27,12 @@
     --paper-mid: #EBD9C7;
     --paper-deep: #E8D0B8;
     --text-primary: #3C2F2F;
-    --text-secondary: #8B7355;
+    /* v1.5.0 (R4): walnut TEXT, AA on every stop of the body gradient —
+       5.68 on #F5E6D3, 5.06 on #EBD9C7, 4.68 on #E8D0B8 (the bottom-right corner,
+       where the Gain and Crossfade captions sit). The template's #715D45 reads
+       only 4.22 on that last stop. Was #8B7355 (3.66 / 3.26 / 3.02), which now
+       survives only as --knob-border and on the decorative fleurons below. */
+    --text-secondary: #6A5641;
     --knob-cream: #FFF8DC;
     --knob-wheat-a: #F5DEB3;
     --knob-wheat-b: #E8D5B7;
@@ -35,6 +40,10 @@
     --knob-indicator: #8B6914;
     --active-green: #6B8E4E;
     --active-green-dark: #5C7A3A;
+    /* v1.5.0 (R4): sage FILL under paper-coloured text — #F5E6D3 on it is 5.10.
+       --active-green (3.06) and --active-green-dark (3.99) stay for borders,
+       outlines and the progress fill, none of which carries text. */
+    --sage-deep: #4E6839;
     --amber: #8B6914;
     --amber-light: #C9A27B;
     --toggle-active: rgba(107,142,35,0.5);
@@ -46,8 +55,12 @@
        looks right on macOS, which is what makes that mistake survive review.
        No face had to be named: Garamond is not installed on the build machine
        (measured, 0 family matches) but Georgia and Times New Roman both are,
-       so the Latin half of the stack was already safe. */
-    --font-primary: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+       so the Latin half of the stack was already safe.
+       v1.5.0 (R5): the face is now BUNDLED — css/eb-garamond.css, linked before
+       this file, serves modules/ui/eb-garamond. The bare 'Garamond' entry is
+       gone: left ahead of the bundled face it would let an Office-installed
+       Windows Garamond win. */
+    --font-primary: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * {
@@ -151,7 +164,14 @@ body::after {
    and 关 are both far inside it.
 
    EVERY ONE IS A NO-OP IN ENGLISH AND IN FRENCH — that is the test, and
-   check-ui-labels reports 0 moved elements on both those arms after them. */
+   check-ui-labels reports 0 moved elements on both those arms after them.
+
+   v1.5.0: the four 8px rows above now render at 9px (the template's text
+   floor). The ratios were KEPT, not re-derived: being unitless they scale with
+   the font-size (1.125 x 9 = 10.125 px), and they apply in every language, so
+   the boxes stay language-invariant — check-ui-labels [7] still reports 0
+   moved elements on all three arms. The measurements above are the v1.4.0
+   derivation, on Georgia at 8px. */
 
 .header .tagline {
     line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the LINE-HEIGHT PINS block */
@@ -222,6 +242,7 @@ body::after {
 
 .scatter-placeholder .fleuron {
     font-size: 18px;
+    color: var(--knob-border);   /* v1.5.0: decoration keeps the pre-AA walnut */
     opacity: 0.3;
     display: block;
     margin-bottom: 6px;
@@ -258,7 +279,7 @@ body::after {
 
 .macro-panel .section-label {
     line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px — see the LINE-HEIGHT PINS block */
-    font-size: 8px;
+    font-size: 9px;       /* v1.5.0: the template's 9px text floor (was 8px) */
     text-transform: uppercase;
     letter-spacing: 2px;
     color: var(--text-secondary);
@@ -293,7 +314,7 @@ body::after {
 /* Fleuron divider */
 .divider {
     text-align: center;
-    color: var(--text-secondary);
+    color: var(--knob-border);   /* v1.5.0: decoration keeps the pre-AA walnut */
     opacity: 0.3;
     font-size: 14px;
     margin: 2px 0;
@@ -313,7 +334,7 @@ body::after {
 }
 
 .umap-progress-label {
-    font-size: 8px;
+    font-size: 9px;       /* v1.5.0: the 9px text floor (was 8px) */
     text-transform: uppercase;
     letter-spacing: 1.5px;
     color: var(--text-secondary);
@@ -384,14 +405,14 @@ body::after {
 
 .bottom-knob-group .knob-label {
     line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px — see the LINE-HEIGHT PINS block */
-    font-size: 8px;
+    font-size: 9px;       /* v1.5.0: the 9px text floor (was 8px) */
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
 }
 
 .bottom-knob-group .knob-value {
-    font-size: 8px;
+    font-size: 9px;       /* v1.5.0: the 9px text floor (was 8px) */
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
 }
@@ -431,11 +452,14 @@ body::after {
        label that SHRANK, which is the half a clip check is blind to. Pinned at
        the widest of the three, so the pin is a no-op in English and French and a
        floor only in Chinese. display:inline-block is what makes min-width apply
-       to a span at all. R8: this selector carried no min-width before; checked. */
-    min-width: 55.17px;
+       to a span at all. R8: this selector carried no min-width before; checked.
+       v1.5.0 RE-MEASURED after the 9px floor and the bundled EB Garamond:
+       en 58.66, fr 58.66, zh 55.16 — the old 55.17 had fallen below English and
+       check-ui-labels [7] moved #midi-mode 3.5 px on the Chinese arm. */
+    min-width: 58.66px;
     display: inline-block;
     line-height: 1.125;   /* 9.00 - 0 - 0 = 9.00 / 8px — see the LINE-HEIGHT PINS block */
-    font-size: 8px;
+    font-size: 9px;       /* v1.5.0: the 9px text floor (was 8px) */
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--text-secondary);
@@ -460,7 +484,8 @@ body::after {
 .drop-zone.drag-over {
     border-color: var(--active-green);
     background: rgba(107,142,78,0.1);
-    color: var(--active-green);
+    /* v1.5.0: the caption stays walnut — --active-green text read 2.7:1 on the
+       tinted zone. The green border and tint still carry the drag cue. */
 }
 
 /* ===== KNOB ===== */
@@ -581,7 +606,7 @@ body::after {
 }
 
 .gear-btn[aria-expanded="true"] {
-    background: var(--active-green);
+    background: var(--sage-deep);   /* v1.5.0: was --active-green, 3.06 under the paper glyph */
     color: var(--paper-bg);
     border-color: var(--active-green-dark);
 }
@@ -688,8 +713,8 @@ body::after {
 }
 
 .settings-toggle[aria-pressed="true"] {
-  background: var(--active-green-dark);
-  border-color: var(--active-green-dark);
+  background: var(--sage-deep);     /* v1.5.0: was --active-green-dark, 3.99 */
+  border-color: var(--sage-deep);
   color: var(--paper-bg);
 }
 
@@ -813,4 +838,14 @@ body::after {
        third line or a wider sentence. */
     min-height: 32px;
     min-width: 270px;
+}
+
+/* v1.5.0 (R4): the dialog's primary button. src/app.js paints it #8B6914 in an
+   INLINE style, and paper text on that fill reads 4.15:1. !important is the
+   only stylesheet rule that outranks an inline declaration, and repairing it
+   here keeps js/app.bundle.js byte-identical to its committed build — the same
+   reasoning as the font-family repair above. #7A5C10 is the same amber one step
+   darker: 5.09:1 under #F5E6D3. */
+#btn-load-anyway {
+    background: #7A5C10 !important;
 }

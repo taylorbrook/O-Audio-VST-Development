@@ -260,7 +260,7 @@ const READ_TIP = `() => {
 
     // The renderer is called AFTER initI18n(), inside the same try/catch. Before
     // initI18n() every anchor is bare and every hover would open an empty box.
-    // v1.3.0: the same try/catch now also carries initializeTipsToggle(), which
+    // v1.3.0: the same try/catch now also carries initTipsToggle(), which
     // needs setLabel() and would be a TDZ throw taking the whole module if it
     // were called at top level. The ORDER assertion is what matters and is
     // unchanged — initI18n() first, then the renderer — so the pattern admits
@@ -268,8 +268,8 @@ const READ_TIP = `() => {
     // byte-for-byte and going red the next time one is added.
     check(/try\s*\{\s*initI18n\(\);\s*setupTooltips\(\);[^}]*\}\s*catch/.test(initSrc),
         '[0] setupTooltips() is called AFTER initI18n() and inside the same try/catch');
-    check(/try\s*\{[^}]*initializeTipsToggle\(\);[^}]*\}\s*catch/.test(initSrc),
-        '[0] initializeTipsToggle() is inside that SAME guarded block — it reads setLabel, '
+    check(/try\s*\{[^}]*initTipsToggle\(\);[^}]*\}\s*catch/.test(initSrc),
+        '[0] initTipsToggle() is inside that SAME guarded block — it reads setLabel, '
         + 'and a top-level call reaching a lower let/const is the TDZ throw that takes the '
         + 'whole module with it');
 
