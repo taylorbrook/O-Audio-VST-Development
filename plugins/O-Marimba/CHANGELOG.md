@@ -2,6 +2,59 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.15.0] - 2026-09-26
+
+This is the UI pass from the 260924-nho design review, Phase C: palette custom properties, AA text colours (R4), the 9px text floor, and the bundled EB Garamond face (R5). The change touches page CSS, markup SVG, two small spots in `app.js`, the CMake resource list and four `getResource()` branches. **There is no DSP, parameter, range, type or state-format change.** The release is MINOR because the page looks visibly different and ships a new font.
+
+### Root cause
+
+`measure-ui --contrast` reported 70 of 90 text nodes below AA, with a median of 1.53. Most of that was a census artefact. `.plugin-container` declared its paper as `background: url(...)` with no colour, so the census composited every translucent fill over the body's `#2A2A2A`. The real defect was the paper itself. Sampled under the text with the text hidden, `paper1.jpg` renders at relative luminance 0.19–0.45, not the 0.80 of `#F5E6D3`. Measured on those real pixels:
+- `#3C2F2F` knob captions read 2.9–4.5:1 on it, and the `#5C4033` readouts read 2.8–3.9:1.
+- The translucent sage fills let the stain through. The tuning-mode and Scala buttons read 3.6–4.0:1.
+
+### Changed
+
+- **The palette is custom properties.** There are 35 tokens on `:root`, named after `ouaricon-naturalist-001` and O-Gain, which uses the same paper. **0 hex literals remain outside `:root`.** Before this release the page had 121 in the stylesheet and markup and 3 in `app.js`.
+  - The inline SVG strokes and fills use `style="…var()"`.
+  - The pitch circle reads `--green-mid` and `--ink` once through `getComputedStyle`. They are set as attributes, not inline style, so `activateIntervalLine()` can still override a line's stroke per note.
+- **The census ground is declared.** `.plugin-container` now has a `var(--bg-paper)` fallback colour under the JPG.
+- **Text on the bare paper image is `--ink` (black):**
+  - knob captions and readouts;
+  - the VU, response-graph and pitch-circle captions;
+  - the VU numerals and the degree labels;
+  - the MTS status line.
+- **"Click to play" also gets a paper chip** (`--chip-paper`, padding on the sides only). It sits over the darkest part of the stain (p5 luminance 0.117), where black alone reads 3.3:1.
+- **State fills are opaque.** Each is pre-composited over `--bg-paper-mid`, or over `--bg-accent` for the gear. This covers the `.btn` rest, hover and active states, the tonic row, the gear hover and open states, and the preset dropdown header.
+  - The interval list and the scale-name box move from 60–70% paper to opaque `--bg-paper-mid`.
+  - Interval cents move from `#6B8E4E` (2.73) to `--text-sage-mid` `#4E6839` (4.54).
+  - The dropdown header moves from `#8B7355` to `--brown-frame`.
+  - The disabled interval input moves from `#888` to `--text-walnut-mid`.
+  - The gear glyph moves from 4.04 to 5.51 at rest.
+- **9px floor.** Fourteen rules move up to 9px: the knob readouts, the interval header, cents and inputs, the pitch-circle and keyboard captions, and the dropdown header (all 8px); the response title, VU label, tonic label, Scala buttons and key letters (all 7px); and the In/Out axis labels (6px). The degree labels move from 5/7 to 9. The line-height pins fold into the 9px row (10 / 9). The ▼ after the preset name stays at 7px, because it is an icon.
+- **VU scale redrawn at 1:1.** The viewBox is now the meter's 76 × 38 content box, so `font-size="9"` renders at 9 CSS px. It was 4 units, which rendered at about 4.6px. The scale shows three numerals, **-60 / -20 / 0**, because -40 and +3 collide at 9px. -60 sits above the needle's rest line so that the silent needle does not cover it.
+- **The Scala buttons form a 2 × 2 grid.** At 9px the single row of four measured 231.8px in French, in a 200px panel. Each button is now 97 × 18px with its caption on one line in every language. The grid ends 10px above the keyboard. `updateTuningModeUI()` shows the row as `grid`, where it used `flex`.
+- **The tonic row is re-pinned.** The label is 46px, French's 45.5px rounded up. The readout's min-width goes from 20 to 16px and the arrow side padding from 4 to 3px. The total is 90 of the row's 91px.
+- **One text face, bundled.** EB Garamond comes from `modules/ui/eb-garamond` 1.0.0 by direct embed: 4 `SOURCES` lines, 4 `getResource()` branches, and `css/eb-garamond.css` linked ahead of the inline sheet. Every serif stack is `--font-serif`, including the gear, which was on a Georgia stack. The mono stack is `--font-mono`. The bare `'Garamond'` entry is dropped. The resolved face is verified as EB Garamond.
+- **Width re-pins for the new face:**
+  - LOAD/SAVE go from 52 to 53px. CHARG. measures 52.97px and moved the French preset arrows by 1px.
+  - The RESONANCE column goes from 69.02 to 70px, because its caption measures 69.56px.
+  - The other four column pins still clear.
+
+### Not changed
+
+- **The Effects tab panels.** The EQ and compressor come from the shared `analog-eq-unit` / `compressor-unit` modules. They still carry 20 below-AA text nodes on their dark panels (1.43–3.30:1, with 7–8px captions). These are left for a module-level fix that reaches every consumer. The page does not override them.
+- **Knob interaction.** No knob code was touched, so the O-ReverseDelay keyboard/ARIA port (R7) stays out of scope.
+
+### Measured (v1.14.0 → v1.15.0, served page at the shipping 600×400 frame, default + all `tests/i18n-states.json` states)
+
+| Gate | v1.14.0 | v1.15.0 |
+|---|---|---|
+| `measure-ui.js --contrast`, per language (en = fr = zh-Hans) | 70 / 90 below AA, 45 under 9px, min 1.09 (census artefact: `#2A2A2A` ground) | **0 / 88**, **0 under 9px**, min 5.21 |
+| Image-aware probe, page-owned text (p5/p95 of the real pixels under each node, text hidden, transitions off, occluded nodes skipped) | 33 / 81 en, 34 fr, 31 zh-Hans; min 1.34 | **0 / 79** in each language, min 4.68 |
+| Image-aware probe, Effects-tab module text | 20 / 20 | 20 / 20 (unchanged, not in scope) |
+| `check-ui-labels.js` (en / fr / zh-Hans) | ALL CHECKS PASSED | ALL CHECKS PASSED |
+| `check-i18n.js` | ALL PASS | ALL PASS |
+
 ## [1.14.0] - 2026-09-06
 
 O-Marimba speaks Simplified Chinese. Stage 4 wave 4d of the zh-Hans rollout:
