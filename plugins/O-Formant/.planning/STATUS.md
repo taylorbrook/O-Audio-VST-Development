@@ -3,7 +3,7 @@ plugin: O-Formant
 stage: 4
 status: complete
 phase: verified
-version: 1.32.1
+version: 1.32.2
 last_updated: 2026-09-25
 complexity_score: 5.0
 staged_implementation: true
@@ -24,6 +24,10 @@ contract_checksums:
 Stage: 4 of 4 (Polish) -- VERIFIED COMPLETE
 Status: All stages verified, pluginval level 10 PASSED (VST3 + AU)
 Progress: [####################] 100%
+
+## v1.32.2 -- CODE_REVIEW.md Info-tier sweep 3 (2026-09-25)
+
+- Resolved IN-17 (Partch 43 now 43 degrees), IN-18 (tonic semantics documented, left as is), IN-24 semantics+i18n (tab ARIA + keyboard, gear aria-expanded, localized generated scale names). PATCH. Still open: IN-10, IN-21 nav, IN-24 knob interaction.
 
 ## v1.32.1 -- IN-12 diffusion remainder (2026-09-25)
 

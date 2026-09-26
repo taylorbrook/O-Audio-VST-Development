@@ -1306,13 +1306,20 @@ function bindSettingsPopover() {
   const pop = document.getElementById('settings-popover');
   if (!btn || !pop) return;
 
-  const close = () => { pop.classList.remove('open'); btn.classList.remove('open'); };
+  // IN-24: aria-expanded tracks the popover on every path that opens or
+  // closes it (the toggle, click-away and Escape all route through setOpen).
+  const setOpen = (open) => {
+    pop.classList.toggle('open', open);
+    btn.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  const close = () => setOpen(false);
+  btn.setAttribute('aria-controls', 'settings-popover');
+  btn.setAttribute('aria-expanded', 'false');
 
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
-    const open = !pop.classList.contains('open');
-    pop.classList.toggle('open', open);
-    btn.classList.toggle('open', open);
+    setOpen(!pop.classList.contains('open'));
   });
 
   // Click-away closes; a click INSIDE must not, or picking a language would

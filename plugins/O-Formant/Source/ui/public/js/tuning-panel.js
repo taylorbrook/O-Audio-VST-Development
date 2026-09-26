@@ -41,6 +41,8 @@
  *   const panel = await initTuningPanel(document.getElementById('tuning-container'), window.__JUCE__);
  */
 
+import { tr } from './i18n.js';
+
 export class TuningPanel {
     constructor(containerElement, juceApi) {
         this.container = containerElement;
@@ -94,6 +96,12 @@ export class TuningPanel {
     // The language comes from #lang-select because the canon's applyI18n
     // syncs that control to uiLanguage on every sweep, so it is the current
     // language by construction rather than a second copy of it that can drift.
+    // IN-24: same source as localize() — #lang-select is synced by applyI18n.
+    uiLanguage() {
+        const sel = typeof document !== 'undefined' ? document.getElementById('lang-select') : null;
+        return sel && sel.value ? sel.value : 'en';
+    }
+
     localize() {
         if (typeof window === 'undefined' || typeof window.__setLanguage !== 'function') return;
         const sel = document.getElementById('lang-select');
@@ -890,7 +898,7 @@ export class TuningPanel {
                     const start = parseInt(this.container.querySelector('#gen-start').value);
                     const end = parseInt(this.container.querySelector('#gen-end').value);
                     intervalsJson = await this.juce.getNativeFunction('generateHarmonicSeries')(start, end);
-                    scaleName = `Harmonics ${start}-${end}`;
+                    scaleName = tr('js.scaleNameHarmonics', this.uiLanguage(), { start, end }).t;
                     break;
                 }
                 case 'rank2': {
@@ -901,7 +909,7 @@ export class TuningPanel {
                     const generator = clampNum(parseFloat(this.container.querySelector('#gen-generator').value), 1, period - 1, 696.6);
                     const count = clampNum(parseInt(this.container.querySelector('#gen-count').value), 3, 31, 12);
                     intervalsJson = await this.juce.getNativeFunction('generateRank2')(generator, period, count);
-                    scaleName = `Rank-2 (${generator.toFixed(1)}c, ${count} notes)`;
+                    scaleName = tr('js.scaleNameRank2', this.uiLanguage(), { g: generator.toFixed(1), n: count }).t;
                     break;
                 }
             }

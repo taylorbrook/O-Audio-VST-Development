@@ -2,6 +2,56 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.32.2] - 2026-09-25
+
+Third Info-tier sweep of the v1.29.0 `CODE_REVIEW.md` (`/improve-review-info`):
+IN-17, IN-18 and IN-24 (semantics + i18n part). PATCH. Only Partch 43-Tone
+changes pitch; every other tuning plays exactly as before.
+
+### Fixed
+
+- **Partch 43-Tone had 41 degrees (IN-17).** 11/10 (165.0 ¢) and 20/11
+  (1035.0 ¢) were missing from `EmbeddedTunings.cpp`, so every degree above
+  150.6 ¢ sat one or two keys lower than it should. The table now has all 43
+  degrees, each within 0.05 ¢ of its exact ratio. Only O-Formant's table is
+  fixed. The `scala-tuning-engine` module and the other plugins' copies are a
+  separate follow-up.
+- **Tabs are keyboard- and screen-reader-accessible (IN-24).** The tab bar is a
+  `tablist` with `role="tab"`, `aria-selected` and `aria-controls` on each tab,
+  and each tab panel has `role="tabpanel"`. Only the active tab is in the Tab
+  order. Enter or Space activates a tab, and the arrow keys, Home and End move
+  between tabs. The tabs are still `<div>`s and no CSS changed.
+- **The gear button reports its state (IN-24).** It now carries
+  `aria-controls` and an `aria-expanded` that follows the popover on every
+  path: the button itself, click-away and Escape.
+- **Generated scale names are localized (IN-24).** "Harmonics a-b" and
+  "Rank-2 (…c, n notes)" now come from `tr()` (`js.scaleNameHarmonics`,
+  `js.scaleNameRank2`; fr at `reviewed: false`, zh-Hans at `'mt'`). A stored
+  name keeps the language the UI was in when the scale was generated.
+
+### Changed
+
+- `TuningEngine.h` now documents both meanings of the tonic (IN-18, left as is
+  on purpose). Without a KBM, the tonic moves the anchor by 12-TET semitones
+  and the intervals are not rotated. With a KBM, it rotates the scale by
+  scale degrees.
+
+### Verification
+
+- Build and install passed; `auval -v aumu OuFm OuDv` passed.
+- check-i18n (44 plugins), check-ui-labels, i18n-fr-lint and i18n-zh-lint all
+  pass with 0 findings. `tests/ui_tip_render_check.js` passes (1794 checks).
+- Live page check (serve-ui + browser). ArrowRight, ArrowLeft (wrapping),
+  Home, End and Space each move `aria-selected`, the roving tabindex, the
+  active panel and focus together. `aria-expanded` follows the gear toggle,
+  click-away and Escape. The tuning panel loads with its new `i18n.js`
+  import, and `tr()` resolves both names in en, fr and zh-Hans.
+
+### Notes
+
+- IN-24 still open: knob focus, mouse wheel, double-click reset and fine drag.
+  Also open: IN-10 and IN-21 (category navigation).
+
 ## [1.32.1] - 2026-09-25
 
 Finishes IN-12 from the v1.29.0 `CODE_REVIEW.md` (`/improve-review`). v1.32.0
@@ -90,7 +140,7 @@ factory presets.
 
 ### Notes — still open from CODE_REVIEW.md
 
-- **Chosen resolutions, not yet applied:**
+- **Chosen resolutions, not yet applied** *(applied in v1.32.2)*:
   - IN-17: fix O-Formant's Partch 43 table only (add 11/10 = 165.0 ¢ and
     20/11 = 1035.0 ¢). The shared module and five other copies follow
     separately. This moves every degree above 11/10 onto a different key.
