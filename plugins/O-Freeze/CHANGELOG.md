@@ -380,7 +380,7 @@ elements moved, 2 added.
 
 ## [2.0.1] - 2026-07-01
 
-Resolves five findings from the 2026-07-01 deep code review (`.planning/CODE-REVIEW.md`).
+Resolves five findings from the 2026-07-01 deep code review (`CODE_REVIEW.md`).
 All fixes are DSP-internal — no parameter IDs, ranges, or state format changed (presets
 and automation remain compatible).
 
