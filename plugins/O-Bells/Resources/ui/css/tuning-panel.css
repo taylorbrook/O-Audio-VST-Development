@@ -129,6 +129,7 @@
      .viz-btn                24.00 -12 pad - 2 border = 10.00 /  9px = 1.1111
      .pitch-circle-label     10.00 - 0 - 0            = 10.00 /  9px = 1.1111
      .rotation-table th      16.00 - 6 pad - 2 border =  8.00 /  8px = 1  (+ nowrap)
+                             (O-Bells v4.9.0: 9px floor, same unitless 1)
      .tk-total-label         11.00 - 0 - 0            = 11.00 / 10px = 1.1
      .library-header-text    11.00 - 0 - 0            = 11.00 / 10px = 1.1
      .generator-header-text  11.00 - 0 - 0            = 11.00 / 10px = 1.1
@@ -357,7 +358,7 @@
 
 .matrix-table {
     border-collapse: collapse;
-    font-size: 8px;
+    font-size: 9px;   /* O-Bells v4.9.0: 9px floor (was 8px); the view scrolls */
 }
 
 .matrix-table th,
@@ -444,7 +445,7 @@
 
 .rotation-table {
     border-collapse: collapse;
-    font-size: 8px;
+    font-size: 9px;   /* O-Bells v4.9.0: 9px floor (was 8px); the view scrolls */
 }
 
 .rotation-table th,
@@ -478,9 +479,12 @@
    cell under them — 228 non-label elements moved from one two-character caption.
    Pinned at the WIDEST of the three, so it is a no-op in English and in French.
    The [data-i18n] attribute selector is what keeps the pin off the note names:
-   the corner header is the only cell in either table that has one. */
+   the corner header is the only cell in either table that has one.
+   O-Bells v4.9.0 RE-MEASURED at the 9px floor in EB Garamond: en 32.19, fr
+   32.19, zh 30.55 — the 8px value left zh-Hans 1.64 px short and moved the
+   same 228 elements again. */
 .rotation-table th[data-i18n] {
-    min-width: 30.56px;
+    min-width: 32.19px;
 }
 
 .rotation-table .current-tonic {

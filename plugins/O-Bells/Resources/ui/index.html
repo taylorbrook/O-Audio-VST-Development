@@ -23,8 +23,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=800, height=600">
     <title>Ouaricon Bells</title>
+    <link rel="stylesheet" href="/css/eb-garamond.css">
     <link rel="stylesheet" href="/css/tuning-panel.css">
     <style>
+        /* ====================================================================
+           v4.9.0 TOKENS (R4/R5). Text colours are the AA pairs from
+           ouaricon-naturalist-001 "Text Contrast": each is bound to the paper it
+           sits on. #8B7355 / #6B8E23 stay for borders, tracks and decoration.
+           --serif leads with the bundled EB Garamond (modules/ui/eb-garamond,
+           Times vertical metrics baked in); Georgia before Times so a failed
+           font load still lands on one face.
+           ==================================================================== */
+        :root {
+            --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            --text-walnut-mid: #715D45;   /* 5.11 on #F5E6D3, 4.56 on #EBD9C7 */
+            --text-sage-mid: #4E6839;     /* 4.83 on the #EDE1CB hint band */
+            --text-secondary: #5C4033;    /* 7.67 on #F5E6D3 */
+        }
+
         /* ====================================================================
            CRITICAL CSS CONSTRAINTS
            ==================================================================== */
@@ -54,7 +70,7 @@
             align-items: center;
             min-height: 100%;
             background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--serif);
 
             /* Native feel CSS */
             user-select: none;
@@ -277,7 +293,7 @@
 
         .fx-bypass-btn.bypassed {
             background: rgba(139, 115, 85, 0.2);
-            color: rgba(60, 47, 47, 0.4);
+            color: var(--text-secondary);   /* v4.9.0: was ink at 0.4 — OFF is the control that turns it back on */
         }
 
         .fx-knobs {
@@ -398,10 +414,10 @@
         }
 
         .footer p {
-            font-size: 8px;
+            font-size: 9px;
             font-weight: 300;
             letter-spacing: 1px;
-            color: #8B7355;
+            color: var(--text-walnut-mid);
             text-transform: uppercase;
             flex-shrink: 0;
         }
@@ -487,11 +503,13 @@
             border-right: none;
         }
 
+        /* v4.9.0: 6px at 0.7 opacity (3.34:1) -> 9px full ink. line-height 1
+           keeps the label inside the 12px strip below the 24px black keys. */
         .footer-keyboard .white-key span {
-            font-size: 6px;
-            color: #5C4033;
+            font-size: 9px;
+            line-height: 1;
+            color: #3C2F2F;
             pointer-events: none;
-            opacity: 0.7;
         }
 
         .footer-keyboard .white-key:hover:not(.pressed) {
@@ -524,9 +542,9 @@
         }
 
         .footer-keyboard-help {
-            line-height: 1.1429;   /* 8.00 - 0 - 0 = 8.00 / 7px — see the LINE-HEIGHT PINS block */
-            font-size: 7px;
-            color: #8B7355;
+            line-height: 1.1111;   /* v4.9.0: 10.00 / 9px (was 8.00 / 7px) — see the LINE-HEIGHT PINS block */
+            font-size: 9px;
+            color: var(--text-walnut-mid);
         }
 
         /* ====================================================================
@@ -611,6 +629,7 @@
              .settings-label     10.00 - 0 - 0            = 10.00 /  9px = 1.1111
              .footer-gain-label  10.00 - 0 - 0            = 10.00 /  9px = 1.1111
              .footer-keyboard-help 8.00 - 0 - 0           =  8.00 /  7px = 1.1429
+                                   (v4.9.0: 9px floor -> 10.00 / 9px = 1.1111)
              #effects-tab .knob-label 10.00 - 0 - 0       = 10.00 /  9px = 1.1111
 
            R8: the five line-height declarations this page already carried
@@ -783,7 +802,7 @@
             justify-content: space-around;
             width: 100%;
             margin-top: 4px;
-            font-size: 8px;
+            font-size: 9px;   /* v4.9.0: 9px floor (was 8px) */
             color: #5C4033;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -826,7 +845,7 @@
 
         .expandable-section .section-hint {
             font-size: 9px;
-            color: #6B8E23;
+            color: var(--text-sage-mid);   /* v4.9.0: #6B8E23 read 2.94:1 */
             font-style: italic;
             margin-top: -2px;
             margin-bottom: 8px;
@@ -873,6 +892,7 @@
 
         .hi-fi-toggle.active .toggle-checkbox {
             background: rgba(107, 142, 35, 0.6);
+            color: #2C3E10;   /* v4.9.0: the check mark read 3.08:1 in #3C5C1A */
         }
 
         .hi-fi-toggle .toggle-label {
@@ -919,6 +939,7 @@
 
         .lp-filter-toggle.active .toggle-checkbox {
             background: rgba(107, 142, 35, 0.6);
+            color: #2C3E10;   /* v4.9.0: the check mark read 3.08:1 in #3C5C1A */
         }
 
         .lp-filter-toggle .toggle-label {
@@ -959,6 +980,7 @@
 
         .bloom-fine-toggle.active .toggle-checkbox {
             background: rgba(107, 142, 35, 0.6);
+            color: #2C3E10;   /* v4.9.0: the check mark read 3.08:1 in #3C5C1A */
         }
 
         .bloom-fine-toggle .toggle-label {
@@ -1015,7 +1037,7 @@
 
         .envelope-section .section-hint {
             font-size: 9px;
-            color: #6B8E23;
+            color: var(--text-sage-mid);   /* v4.9.0: #6B8E23 read 2.94:1 */
             font-style: italic;
             margin-top: -2px;
             margin-bottom: 8px;
@@ -1286,7 +1308,7 @@
             font-weight: 500;
             letter-spacing: 1px;
             text-transform: uppercase;
-            color: #8B7355;
+            color: var(--text-walnut-mid);   /* v4.9.0: 4.56 on #EBD9C7 (was 3.26) */
             background: #EBD9C7;
             border-bottom: 1px solid #D4C4B0;
             position: sticky;
@@ -1354,12 +1376,16 @@
             --tuning-bg: rgba(245, 230, 211, 0.95);
             --tuning-border: rgba(139, 115, 85, 0.5);
             --tuning-text: #3C2F2F;
-            --tuning-text-muted: #8B7355;
-            --tuning-accent: #B8860B;
+            /* v4.9.0 AA: muted text #8B7355 -> walnut-mid (5.15-5.87 on the
+               panel's cream fills); accent #B8860B -> #8A6508, same goldenrod
+               hue, now 4.95 as text on #FEF6E4 and 5.32 under the white
+               captions of Generate / Export HTML (both were 3.0-3.25). */
+            --tuning-text-muted: var(--text-walnut-mid);
+            --tuning-accent: #8A6508;
             --tuning-input-bg: rgba(255, 248, 230, 0.9);
             --tuning-hover: rgba(184, 134, 11, 0.2);
             --tuning-active: rgba(184, 134, 11, 0.3);
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--serif);
             height: 100%;
         }
 
@@ -1413,12 +1439,13 @@
             position: absolute;
             bottom: 5px;
             left: 8px;
-            font-size: 7px;
+            /* v4.9.0: 7px walnut at 0.6 opacity read 2.04:1 -> 9px walnut-mid
+               at full opacity, 5.11:1. */
+            font-size: 9px;
             font-weight: 300;
             letter-spacing: 0.5px;
-            color: #8B7355;
+            color: var(--text-walnut-mid);
             z-index: 3;
-            opacity: 0.6;
         }
 
         /* ====================================================================
@@ -2051,7 +2078,7 @@
         </div>
 
         <!-- Version Label -->
-        <span class="version-label">v4.8.0</span>
+        <span class="version-label">v4.9.0</span>
 
         <!-- Footer (v2.2.0: Added Gain slider and keyboard) -->
         <div class="footer">
@@ -2758,7 +2785,7 @@ import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
             }
         });
 
-        console.log('O-Bells v4.8.0 UI initialized - 39 sliders + 3 choice params + keyboard + tuning');
+        console.log('O-Bells v4.9.0 UI initialized - 39 sliders + 3 choice params + keyboard + tuning');
 
         // ====================================================================
         // PRESET BROWSER FUNCTIONALITY
