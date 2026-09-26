@@ -416,7 +416,7 @@ function drawHeadline() {
   const logRange = Math.log(nyquistHz / 20);
   ctx.strokeStyle = "rgba(139,115,85,0.22)";
   ctx.fillStyle = "rgba(210,190,150,0.7)";
-  ctx.font = "9px Garamond, 'Times New Roman', serif";
+  ctx.font = "9px 'EB Garamond', Georgia, 'Times New Roman', serif";   // v1.6.0 — the bundled face
   ctx.textAlign = "center";
   for (const f of FREQ_TICKS) {
     if (f >= nyquistHz) continue;

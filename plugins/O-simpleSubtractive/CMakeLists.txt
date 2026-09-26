@@ -13,7 +13,7 @@ juce_add_plugin(O-simpleSubtractive
     PLUGIN_CODE OSiS
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleSubtractive${OUARICON_DEV_SUFFIX}"
-    VERSION "1.5.0"
+    VERSION "1.6.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -53,6 +53,11 @@ juce_add_binary_data(O-simpleSubtractive_UIResources
         Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        # v1.6.0 - bundled house serif, direct embed from modules/ui/eb-garamond
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 # Required JUCE modules
