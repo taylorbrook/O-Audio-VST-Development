@@ -269,6 +269,14 @@ function initializeUI() {
 
     // Initialize spectrum placeholder
     initializeSpectrumPlaceholder();
+    // v1.14.0: the placeholder is painted before the bundled face has loaded
+    // (font-display: block does not hold a canvas), so repaint it once fonts are
+    // ready — but only while no live spectrum has claimed the canvas.
+    // `spectrumCtx` is a `let` declared far below this top-level call; reading it
+    // here synchronously would be a TDZ throw. The .then callback is a microtask,
+    // so it runs after the module has finished evaluating and the binding exists.
+    if (document.fonts && document.fonts.ready)
+        document.fonts.ready.then(() => { if (!spectrumCtx) initializeSpectrumPlaceholder(); });
 
     // Note: tooltips are initialized at the foot of this file, not here.
     // initializeUI() runs at module top level, above the `let`/`const` tooltip
@@ -923,8 +931,11 @@ function initializeSpectrumPlaceholder() {
     // this context is the object the live path caches as spectrumCtx, and
     // baseline is persistent state.
     const canvasLang = document.documentElement.lang || 'en';
-    ctx.fillStyle = 'rgba(60, 47, 47, 0.4)';
-    ctx.font = "14px Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif";
+    // v1.14.0: solid --text-muted (#6A5641), not ink at 0.4 alpha (~2.4:1 on
+    // the analyzer ground); the stack is styles.css --font-serif, bundled face
+    // first. A canvas cannot take var(), so the two are mirrored by hand.
+    ctx.fillStyle = '#6A5641';
+    ctx.font = "14px 'EB Garamond', Georgia, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif";
     ctx.textAlign = 'center';
     ctx.fillText(tr('canvas.spectrumPlaceholder', canvasLang).t, width / 2, height / 2);
 }

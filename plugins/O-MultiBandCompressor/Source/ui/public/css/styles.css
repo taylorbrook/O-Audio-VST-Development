@@ -41,8 +41,8 @@
      .meter-label           10    13      9px      10 /  9 = 1.1111111
      .gr-label              10    13      9px      10 /  9 = 1.1111111
      .band-title            16    20     14px      16 / 14 = 1.1428571
-     .knob-label             9    11      8px       9 /  8 = 1.125
-     .detector-title         8     9      7px       8 /  7 = 1.1428571
+     .knob-label             9    11      8px       9 /  8 = 1.125      (v1.14.0: 9px, 10 / 9)
+     .detector-title         8     9      7px       8 /  7 = 1.1428571  (v1.14.0: 9px, 10 / 9)
 
    v1.13.0 adds two more 9px leaves, .gr-readout and .gr-band-readout, carrying
    the same 10 / 9 pin. Their content is digits and "dB" — Latin in all three
@@ -55,9 +55,88 @@
    the box language-dependent and would have to be re-derived every time the
    type scale changes.
 
+   v1.14.0 raised .knob-label (8px) and .detector-title (7px) to the 9px floor
+   and gave both the 10 / 9 pin the other 9px leaves carry. Their boxes are
+   9.98px in all three languages (check-ui-labels assertion 7 green on fr and
+   zh-Hans). The band columns absorb the growth: .band-controls free space
+   went from 20 to 15.06px, with no overflow.
+
    R8: none of these seven selectors carried a `line-height` declaration before
    this release — grepped, not assumed — so there is no specificity conflict and
    no French-era pin is silently un-pinned by these.                          */
+
+/* ── PALETTE TOKENS (v1.14.0, R4) ───────────────────────────────────────────
+
+   Before this release the sheet carried 202 hex literals and no custom
+   property. Every literal is now one of the tokens below; the values are the
+   ones the sheet already used, so tokenising alone moves no pixel.
+
+   The AA inks are the exception, and the only new colours. Walnut #8B7355 is
+   3.52:1 on the paper gradient's dark stop, so it stays for borders, rings and
+   rules and --text-muted carries the text it used to. Ratios are against the
+   darkest ground each ink sits on:
+     --text-muted   #6A5641  5.46 on #EBE3D5, 5.25 on #E8DFCD (popover end)
+     --ochre-ink    #7A5C10  5.27 on the band ground (HI-MID title; #8B6914 4.29)
+     --olive-ink    #4E632B  tooltip title (#556B2F was 4.49 on #E8DFCD)
+     --fill-active  #5E7A28 → #556B2F, white text 4.89 → 5.95 (#6B8E23 was 3.81)
+
+   *-rgb triples exist so translucent washes of a palette colour stay tokens:
+   rgba(var(--walnut-rgb), 0.05). Black and white shadows/highlights are not
+   palette colours and stay literal.                                          */
+:root {
+    --ink:            #3C2F2F;
+    --brown:          #5C4033;
+    --walnut:         #8B7355;   /* borders, rings, rules — not text */
+    --text-muted:     #6A5641;   /* AA muted text on paper */
+    --wheat:          #F5DEB3;
+    --wheat-2:        #E8D5B7;
+    --tan:            #C9A27B;
+    --cornsilk:       #FFF8DC;
+    --paper:          #F5F0E6;
+    --paper-2:        #EBE3D5;
+    --paper-3:        #E8DFCD;
+    --olive:          #6B8E23;
+    --olive-dark:     #556B2F;
+    --olive-ink:      #4E632B;
+    --olive-deep:     #3C5C1A;
+    --olive-darkest:  #2C3E10;
+    --fill-active-a:  #5E7A28;
+    --fill-active-b:  #556B2F;
+    --moss:           #8BA870;
+    --lime:           #8BA632;
+    --mint:           #C9E4A5;
+    --gold:           #D4A528;
+    --orange:         #E67E22;
+    --red:            #CC3300;
+    --ochre:          #8B6914;
+    --ochre-ink:      #7A5C10;
+    --umber:          #654321;
+    --rust:           #B8733B;
+    --saddle:         #8B4513;
+    --delete-ink:     #8B4033;
+    --host-bg:        #2A2A2A;
+    --white:          #FFFFFF;
+    /* the two headings' pre-composited washes (see .preset-group-heading) */
+    --preset-heading-bg: rgb(226, 228, 193);
+    --confirm-bg:        rgb(249, 232, 179);
+
+    --walnut-rgb:     139, 115, 85;
+    --brown-rgb:      92, 64, 51;
+    --moss-rgb:       139, 168, 112;
+    --olive-rgb:      107, 142, 35;
+    --olive-dark-rgb: 85, 107, 47;
+    --cornsilk-rgb:   255, 248, 220;
+    --paper-rgb:      245, 240, 230;
+    --chip-rgb:       245, 240, 225;
+    --gold-rgb:       212, 165, 40;
+    --delete-rgb:     139, 64, 51;
+
+    /* v1.14.0 (R5): the bundled face (modules/ui/eb-garamond) leads; Georgia
+       before Times; CJK tail before the generic. The bare 'Garamond' lead is
+       dropped — on Windows an Office-installed Garamond would outrank the
+       bundled face. */
+    --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+}
 
 * {
     margin: 0;
@@ -77,8 +156,8 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: #2a2a2a;
-    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    background: var(--host-bg);
+    font-family: var(--font-serif);
 }
 
 .plugin-container {
@@ -88,8 +167,14 @@ body {
        band columns from crowding their button row. Mirror any change here in
        PluginEditor.cpp's setSize(). */
     height: 640px;
-    background: linear-gradient(135deg, #f5f0e6 0%, #ebe3d5 100%);
-    border: 3px solid #5C4033;
+    /* v1.14.0: background-color is the gradient's DARK stop, painted under it
+       and never seen. It exists for measure-ui --contrast, which reads the
+       nearest opaque background-COLOR: with only the gradient image here it fell
+       through to body's #2A2A2A and reported every label against grey. The
+       dark stop makes the census measure each ink against its worst ground. */
+    background-color: var(--paper-2);
+    background-image: linear-gradient(135deg, var(--paper) 0%, var(--paper-2) 100%);
+    border: 3px solid var(--brown);
     box-shadow: 0 10px 40px rgba(0,0,0,0.5);
     display: flex;
     flex-direction: column;
@@ -106,9 +191,9 @@ body {
     right: 0;
     bottom: 0;
     background-image:
-        radial-gradient(circle at 20% 50%, transparent 1%, rgba(139, 115, 85, 0.03) 1%),
-        radial-gradient(circle at 60% 80%, transparent 1%, rgba(139, 115, 85, 0.02) 1%),
-        radial-gradient(circle at 80% 20%, transparent 1%, rgba(139, 115, 85, 0.025) 1%);
+        radial-gradient(circle at 20% 50%, transparent 1%, rgba(var(--walnut-rgb), 0.03) 1%),
+        radial-gradient(circle at 60% 80%, transparent 1%, rgba(var(--walnut-rgb), 0.02) 1%),
+        radial-gradient(circle at 80% 20%, transparent 1%, rgba(var(--walnut-rgb), 0.025) 1%);
     background-size: 120px 120px, 180px 180px, 150px 150px;
     pointer-events: none;
     opacity: 0.6;
@@ -120,15 +205,15 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 8px 25px;
-    background: rgba(139, 168, 112, 0.15);
-    border-bottom: 2px solid #5C4033;
+    background: rgba(var(--moss-rgb), 0.15);
+    border-bottom: 2px solid var(--brown);
     position: relative;
     z-index: 1;
 }
 
 .plugin-title {
     font-size: 24px;
-    color: #3C2F2F;
+    color: var(--ink);
     letter-spacing: 2px;
     font-weight: normal;
     text-transform: uppercase;
@@ -137,7 +222,7 @@ body {
 
 .brand-name {
     font-size: 11px;
-    color: #5C4033;
+    color: var(--brown);
     text-transform: uppercase;
     letter-spacing: 1px;
     font-weight: 600;
@@ -158,12 +243,12 @@ body {
     min-width: 20px;
     padding: 0 6px;
     background: rgba(255,255,255,0.4);
-    border: 1px solid #5C4033;
+    border: 1px solid var(--brown);
     border-radius: 3px;
     font-family: inherit;
     font-size: 10px;
     line-height: 1;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -190,7 +275,7 @@ body {
 }
 
 .preset-btn:active {
-    background: rgba(107, 142, 35, 0.35);
+    background: rgba(var(--olive-rgb), 0.35);
 }
 
 .preset-name-display {
@@ -203,12 +288,12 @@ body {
     max-width: 190px;
     height: 20px;
     padding: 0 8px;
-    background: rgba(255,248,220,0.75);
-    border: 1px solid #5C4033;
+    background: rgba(var(--cornsilk-rgb), 0.75);
+    border: 1px solid var(--brown);
     border-radius: 3px;
     font-size: 11px;
     line-height: 18px;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 600;
     text-align: center;
     cursor: pointer;
@@ -219,7 +304,7 @@ body {
 }
 
 .preset-name-display:hover {
-    background: rgba(255,248,220,0.95);
+    background: rgba(var(--cornsilk-rgb), 0.95);
 }
 
 .preset-dropdown {
@@ -229,8 +314,8 @@ body {
     left: 24px;      /* aligned with the name display, clear of the ◀ button */
     width: 190px;
     margin-top: 4px;
-    background: rgba(255, 248, 220, 0.98);
-    border: 2px solid #5C4033;
+    background: rgba(var(--cornsilk-rgb), 0.98);
+    border: 2px solid var(--brown);
     border-radius: 4px;
     box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
     /* v1.7.0: 50 factory presets across 7 category groups. The editor is 640px tall
@@ -255,7 +340,7 @@ body {
 /* v1.7.0: category grouping. One .preset-group wraps a heading and its items so the
    two stay associated for assistive tech; the heading itself is presentational. */
 .preset-group + .preset-group {
-    border-top: 1px solid rgba(92, 64, 51, 0.25);
+    border-top: 1px solid rgba(var(--brown-rgb), 0.25);
 }
 
 .preset-group-heading {
@@ -267,19 +352,19 @@ body {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #5C4033;
-    /* Opaque, not the rgba(139,168,112,0.25) this rule used before it went sticky:
+    color: var(--brown);
+    /* Opaque, not the rgba(var(--moss-rgb), 0.25) this rule used before it went sticky:
        a translucent heading lets the rows it is pinned over show through it. This is
        that same olive at 25% pre-composited onto the dropdown's parchment. */
-    background: rgb(226, 228, 193);
-    border-bottom: 1px solid rgba(92, 64, 51, 0.4);
+    background: var(--preset-heading-bg);
+    border-bottom: 1px solid rgba(var(--brown-rgb), 0.4);
     cursor: default;
 }
 
 .preset-dropdown-item {
     padding: 5px 10px;
     font-size: 11px;
-    color: #3C2F2F;
+    color: var(--ink);
     cursor: pointer;
     transition: background 0.15s;
     display: flex;
@@ -289,17 +374,17 @@ body {
 }
 
 .preset-dropdown-item:hover {
-    background: rgba(139, 168, 112, 0.3);
+    background: rgba(var(--moss-rgb), 0.3);
 }
 
 .preset-dropdown-item.active {
-    background: rgba(107, 142, 35, 0.3);
+    background: rgba(var(--olive-rgb), 0.3);
     font-weight: 700;
 }
 
 .preset-dropdown-item.empty {
     cursor: default;
-    color: #8B7355;
+    color: var(--text-muted);
     font-style: italic;
 }
 
@@ -317,7 +402,7 @@ body {
     border: none;
     border-radius: 2px;
     background: transparent;
-    color: #8B4033;
+    color: var(--delete-ink);
     font-family: inherit;
     font-size: 12px;
     line-height: 1;
@@ -332,7 +417,7 @@ body {
 
 .preset-delete:hover {
     opacity: 1;
-    background: rgba(139, 64, 51, 0.2);
+    background: rgba(var(--delete-rgb), 0.2);
 }
 
 /* In-DOM delete confirmation. window.confirm() is a silent no-op in some JUCE
@@ -347,9 +432,9 @@ body {
     z-index: 2;
     padding: 6px 10px;
     font-size: 10px;
-    color: #3C2F2F;
-    background: rgb(249, 232, 179);
-    border-bottom: 1px solid rgba(92, 64, 51, 0.4);
+    color: var(--ink);
+    background: var(--confirm-bg);
+    border-bottom: 1px solid rgba(var(--brown-rgb), 0.4);
 }
 
 /* v1.11.0: the prompt is its own element rather than a text node on .preset-confirm.
@@ -397,32 +482,36 @@ body {
     height: 20px;
     padding: 0;
     flex: 0 0 auto;
-    border: 1px solid #5C4033;
+    border: 1px solid var(--brown);
     border-radius: 50%;
     background: transparent;
-    color: #5C4033;
-    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    /* v1.14.0: the quiet rest state is carried by the INK, not by opacity.
+       opacity 0.55 put the glyph at ~2.3:1; --text-muted is 5.46:1 and still
+       reads a step below the engaged fill. The border keeps the 0.55 wash so
+       the silhouette stays as quiet as before. */
+    border-color: rgba(var(--brown-rgb), 0.55);
+    color: var(--text-muted);
+    font-family: var(--font-serif);
     font-size: 12px;
     font-weight: 600;
     line-height: 1;
     cursor: pointer;
-    opacity: 0.55;
-    transition: background 120ms ease-out, color 120ms ease-out, opacity 120ms ease-out;
+    transition: background 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
 }
 
 .gear-btn:hover {
-    opacity: 1;
+    border-color: var(--brown);
+    color: var(--ink);
 }
 
 .gear-btn[aria-expanded="true"] {
-    background: #8BA870;
-    border-color: #5C4033;
-    color: #3C2F2F;
-    opacity: 1;
+    background: var(--moss);
+    border-color: var(--brown);
+    color: var(--ink);
 }
 
 .gear-btn:focus-visible {
-    outline: 2px solid #556B2F;
+    outline: 2px solid var(--olive-dark);
     outline-offset: 2px;
 }
 
@@ -437,8 +526,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 7px;
-    background: linear-gradient(135deg, #f5f0e6 0%, #e8dfcd 100%);
-    border: 1px solid #5C4033;
+    background: linear-gradient(135deg, var(--paper) 0%, var(--paper-3) 100%);
+    border: 1px solid var(--brown);
     border-radius: 3px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
@@ -467,9 +556,9 @@ body {
 
 .settings-label {
     line-height: 1.0909091;   /* 12.00 / 11px — see the LINE-HEIGHT PINS block */
-    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 11px;
-    color: #5C4033;
+    color: var(--brown);
     text-transform: uppercase;
     letter-spacing: 1px;
     font-weight: 600;
@@ -479,18 +568,18 @@ body {
 .settings-popover select {
     flex: 0 0 auto;
     padding: 2px 4px;
-    border: 1px solid #5C4033;
+    border: 1px solid var(--brown);
     border-radius: 2px;
-    background: #f5f0e6;
-    color: #3C2F2F;
-    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-serif);
     font-size: 12px;
     line-height: 1.2;
     cursor: pointer;
 }
 
 .settings-popover select:focus-visible {
-    outline: 2px solid #556B2F;
+    outline: 2px solid var(--olive-dark);
     outline-offset: 1px;
 }
 
@@ -500,31 +589,33 @@ body {
     min-width: 38px;
     padding: 2px 8px;
     flex: 0 0 auto;
-    border: 1px solid #5C4033;
+    border: 1px solid var(--brown);
     border-radius: 2px;
     background: transparent;
-    color: #5C4033;
-    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    /* v1.14.0: rest state by ink, not opacity — see .gear-btn. */
+    border-color: rgba(var(--brown-rgb), 0.55);
+    color: var(--text-muted);
+    font-family: var(--font-serif);
     font-size: 12px;
     font-weight: 600;
     line-height: 1.2;
     cursor: pointer;
-    opacity: 0.55;
-    transition: background 120ms ease-out, color 120ms ease-out, opacity 120ms ease-out;
+    transition: background 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
 }
 
 .settings-toggle:hover {
-    opacity: 1;
+    border-color: var(--brown);
+    color: var(--ink);
 }
 
 .settings-toggle[aria-pressed="true"] {
-    background: #8BA870;
-    color: #3C2F2F;
-    opacity: 1;
+    background: var(--moss);
+    border-color: var(--brown);
+    color: var(--ink);
 }
 
 .settings-toggle:focus-visible {
-    outline: 2px solid #556B2F;
+    outline: 2px solid var(--olive-dark);
     outline-offset: 2px;
 }
 
@@ -534,7 +625,7 @@ body {
     gap: 8px;
     padding: 8px 20px;
     background: rgba(255,255,255,0.2);
-    border-bottom: 2px solid #5C4033;
+    border-bottom: 2px solid var(--brown);
     position: relative;
     z-index: 1;
 }
@@ -544,7 +635,7 @@ body {
     position: relative;
     height: 100px;
     background: rgba(0,0,0,0.1);
-    border: 2px solid #8B7355;
+    border: 2px solid var(--walnut);
     border-radius: 4px;
     overflow: hidden;
 }
@@ -597,7 +688,7 @@ body {
     top: 0;
     bottom: 0;
     overflow: hidden;   /* a band dragged narrow clips its readout, never spills it */
-    background: rgba(139, 115, 85, 0.05);
+    background: rgba(var(--walnut-rgb), 0.05);
     transition: left 0.1s ease-out, width 0.1s ease-out,
                 opacity 0.15s ease, filter 0.15s ease;
     will-change: left, width;
@@ -605,7 +696,7 @@ body {
 
 /* Alternating tint so the four zones read as distinct at rest, with no data in them. */
 .gr-bands > .gr-band:nth-child(even) {
-    background: rgba(139, 115, 85, 0.09);
+    background: rgba(var(--walnut-rgb), 0.09);
 }
 
 .gr-band-fill {
@@ -615,10 +706,10 @@ body {
     right: 0;
     height: 0%;
     background: linear-gradient(to bottom,
-        rgba(107, 142, 35, 0.34) 0%,
-        rgba(107, 142, 35, 0.20) 55%,
-        rgba(107, 142, 35, 0.08) 100%);
-    border-bottom: 1px solid rgba(85, 107, 47, 0.7);
+        rgba(var(--olive-rgb), 0.34) 0%,
+        rgba(var(--olive-rgb), 0.20) 55%,
+        rgba(var(--olive-rgb), 0.08) 100%);
+    border-bottom: 1px solid rgba(var(--olive-dark-rgb), 0.7);
     transition: height 0.05s ease-out, opacity 0.15s ease;
     will-change: height;
 }
@@ -630,7 +721,7 @@ body {
     right: 0;
     top: 0;
     height: 2px;
-    background: rgba(212, 165, 40, 0.85);
+    background: rgba(var(--gold-rgb), 0.85);
     opacity: 0;
     transition: top 0.08s linear, opacity 0.15s ease;
     will-change: top;
@@ -649,7 +740,7 @@ body {
     text-align: center;
     font-size: 9px;
     font-weight: 600;
-    color: #3C2F2F;
+    color: var(--ink);
     white-space: nowrap;
     opacity: 0;
     transition: opacity 0.12s ease;
@@ -676,10 +767,10 @@ body {
 .gr-bands > .gr-band.is-muted {
     background: repeating-linear-gradient(
         45deg,
-        rgba(92, 64, 51, 0.11) 0px,
-        rgba(92, 64, 51, 0.11) 3px,
-        rgba(92, 64, 51, 0.03) 3px,
-        rgba(92, 64, 51, 0.03) 6px);
+        rgba(var(--brown-rgb), 0.11) 0px,
+        rgba(var(--brown-rgb), 0.11) 3px,
+        rgba(var(--brown-rgb), 0.03) 3px,
+        rgba(var(--brown-rgb), 0.03) 6px);
 }
 
 .gr-band.is-muted .gr-band-fill,
@@ -693,7 +784,7 @@ body {
     top: 0;
     bottom: 0;
     width: 2px;
-    background: rgba(139, 115, 85, 0.6);
+    background: rgba(var(--walnut-rgb), 0.6);
     pointer-events: all;
     cursor: ew-resize;
     transition: left 0.1s ease-out, background 0.15s ease;
@@ -701,7 +792,7 @@ body {
 }
 
 .crossover-line:hover {
-    background: rgba(139, 115, 85, 0.9);
+    background: rgba(var(--walnut-rgb), 0.9);
 }
 
 .crossover-line:hover .crossover-handle {
@@ -710,21 +801,22 @@ body {
 }
 
 .crossover-line.dragging {
-    background: rgba(107, 142, 35, 0.9);
+    background: rgba(var(--olive-rgb), 0.9);
     transition: none; /* Disable transition during drag for instant response */
 }
 
 .crossover-line.dragging .crossover-handle {
     transform: translate(-50%, -50%) scale(1.3);
-    background: radial-gradient(circle at 40% 40%, #C9E4A5, #6B8E23);
-    border-color: #556B2F;
+    background: radial-gradient(circle at 40% 40%, var(--mint), var(--olive));
+    border-color: var(--olive-dark);
     box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
 .crossover-line.dragging .crossover-label {
-    background: rgba(107, 142, 35, 0.95);
-    color: #FFF;
-    border-color: #556B2F;
+    /* v1.14.0: olive-dark, not olive — white on olive was 3.81:1 */
+    background: rgba(var(--olive-dark-rgb), 0.95);
+    color: var(--white);
+    border-color: var(--olive-dark);
     font-size: 10px;
     padding: 3px 8px;
 }
@@ -736,8 +828,8 @@ body {
     transform: translate(-50%, -50%);
     width: 12px;
     height: 12px;
-    background: radial-gradient(circle at 40% 40%, #F5DEB3, #C9A27B);
-    border: 2px solid #8B7355;
+    background: radial-gradient(circle at 40% 40%, var(--wheat), var(--tan));
+    border: 2px solid var(--walnut);
     border-radius: 50%;
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
@@ -748,15 +840,15 @@ body {
     bottom: 5px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(245, 240, 230, 0.9);
+    background: rgba(var(--paper-rgb), 0.9);
     padding: 2px 6px;
     border-radius: 3px;
     font-size: 9px;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 600;
     white-space: nowrap;
     pointer-events: none;
-    border: 1px solid #8B7355;
+    border: 1px solid var(--walnut);
     transition: background 0.15s ease, color 0.15s ease, font-size 0.15s ease;
 }
 
@@ -765,7 +857,7 @@ body {
     width: 30px;
     height: 100px;
     background: rgba(0,0,0,0.2);
-    border: 2px solid #8B7355;
+    border: 2px solid var(--walnut);
     border-radius: 4px;
     position: relative;
     overflow: hidden;
@@ -778,11 +870,11 @@ body {
     right: 0;
     height: 0%;
     background: linear-gradient(to top,
-        #6B8E23 0%,
-        #8BA632 40%,
-        #D4A528 70%,
-        #E67E22 85%,
-        #CC3300 95%);
+        var(--olive) 0%,
+        var(--lime) 40%,
+        var(--gold) 70%,
+        var(--orange) 85%,
+        var(--red) 95%);
     transition: height 0.03s ease-out;
     will-change: height;
 }
@@ -794,7 +886,7 @@ body {
     left: 50%;
     transform: translateX(-50%);
     font-size: 9px;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 600;
     text-transform: uppercase;
 }
@@ -812,7 +904,7 @@ body {
 
 .band {
     background: rgba(255,255,255,0.3);
-    border: 2px solid #8B7355;
+    border: 2px solid var(--walnut);
     border-radius: 6px;
     padding: 8px;
     display: flex;
@@ -828,7 +920,7 @@ body {
 .band-title {
     line-height: 1.1428571;   /* 16.00 / 14px — see the LINE-HEIGHT PINS block */
     font-size: 14px;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -837,7 +929,7 @@ body {
 
 .band-range {
     font-size: 9px;
-    color: #5C4033;
+    color: var(--brown);
     font-weight: 500;
 }
 
@@ -853,7 +945,7 @@ body {
     width: 100%;
     height: 24px;
     background: rgba(0,0,0,0.15);
-    border: 2px solid #8B7355;
+    border: 2px solid var(--walnut);
     border-radius: 4px;
     position: relative;
     overflow: hidden;
@@ -867,9 +959,9 @@ body {
     width: 0%;
     background: linear-gradient(to right,
         transparent 0%,
-        #6B8E23 20%,
-        #8BA632 50%,
-        #D4A528 75%);
+        var(--olive) 20%,
+        var(--lime) 50%,
+        var(--gold) 75%);
     transition: width 0.05s ease-out;
     will-change: width;
 }
@@ -881,7 +973,7 @@ body {
     top: 50%;
     transform: translateY(-50%);
     font-size: 9px;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 600;
     text-transform: uppercase;
 }
@@ -908,9 +1000,9 @@ body {
     transform: translateY(-50%);
     padding: 1px 4px;
     border-radius: 2px;
-    background: rgba(245, 240, 225, 0.82);
+    background: rgba(var(--chip-rgb), 0.82);
     font-size: 9px;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
@@ -948,9 +1040,9 @@ body {
 
    The palette needed no translation: O-ReverseDelay's knob variables are the
    same seven colours this stylesheet already used, and .placeholder-circle
-   below is already this exact ring formula. Values are inlined rather than
-   promoted to custom properties because the rest of this file is written that
-   way; a :root token block is a separate change.
+   below is already this exact ring formula. v1.14.0 moved every value
+   onto the :root palette tokens at the top of this file; the ring formula is
+   unchanged.
 
    Geometry is NOT ported. O-ReverseDelay's knob is 56px; the four band columns
    here have three knob rows inside 900x640, so the three established sizes
@@ -961,36 +1053,36 @@ body {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    border: 2px solid #8B7355;
+    border: 2px solid var(--walnut);
     cursor: ns-resize;
     transition: transform 0.1s ease;
     background:
-        radial-gradient(circle, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+        radial-gradient(circle, transparent 88%, var(--tan) 88%, var(--tan) 92%, var(--walnut) 92%, var(--walnut) 94%, transparent 94%),
         conic-gradient(from 0deg,
-            #F5DEB3 0deg,   #F5DEB3 18deg,  #8B7355 18deg,  #8B7355 19deg,
-            #E8D5B7 19deg,  #E8D5B7 36deg,  #8B7355 36deg,  #8B7355 37deg,
-            #F5DEB3 37deg,  #F5DEB3 54deg,  #8B7355 54deg,  #8B7355 55deg,
-            #E8D5B7 55deg,  #E8D5B7 72deg,  #8B7355 72deg,  #8B7355 73deg,
-            #F5DEB3 73deg,  #F5DEB3 90deg,  #8B7355 90deg,  #8B7355 91deg,
-            #E8D5B7 91deg,  #E8D5B7 108deg, #8B7355 108deg, #8B7355 109deg,
-            #F5DEB3 109deg, #F5DEB3 126deg, #8B7355 126deg, #8B7355 127deg,
-            #E8D5B7 127deg, #E8D5B7 144deg, #8B7355 144deg, #8B7355 145deg,
-            #F5DEB3 145deg, #F5DEB3 162deg, #8B7355 162deg, #8B7355 163deg,
-            #E8D5B7 163deg, #E8D5B7 180deg, #8B7355 180deg, #8B7355 181deg,
-            #F5DEB3 181deg, #F5DEB3 198deg, #8B7355 198deg, #8B7355 199deg,
-            #E8D5B7 199deg, #E8D5B7 216deg, #8B7355 216deg, #8B7355 217deg,
-            #F5DEB3 217deg, #F5DEB3 234deg, #8B7355 234deg, #8B7355 235deg,
-            #E8D5B7 235deg, #E8D5B7 252deg, #8B7355 252deg, #8B7355 253deg,
-            #F5DEB3 253deg, #F5DEB3 270deg, #8B7355 270deg, #8B7355 271deg,
-            #E8D5B7 271deg, #E8D5B7 288deg, #8B7355 288deg, #8B7355 289deg,
-            #F5DEB3 289deg, #F5DEB3 306deg, #8B7355 306deg, #8B7355 307deg,
-            #E8D5B7 307deg, #E8D5B7 324deg, #8B7355 324deg, #8B7355 325deg,
-            #F5DEB3 325deg, #F5DEB3 342deg, #8B7355 342deg, #8B7355 343deg,
-            #E8D5B7 343deg, #E8D5B7 360deg),
-        radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+            var(--wheat) 0deg,   var(--wheat) 18deg,  var(--walnut) 18deg,  var(--walnut) 19deg,
+            var(--wheat-2) 19deg,  var(--wheat-2) 36deg,  var(--walnut) 36deg,  var(--walnut) 37deg,
+            var(--wheat) 37deg,  var(--wheat) 54deg,  var(--walnut) 54deg,  var(--walnut) 55deg,
+            var(--wheat-2) 55deg,  var(--wheat-2) 72deg,  var(--walnut) 72deg,  var(--walnut) 73deg,
+            var(--wheat) 73deg,  var(--wheat) 90deg,  var(--walnut) 90deg,  var(--walnut) 91deg,
+            var(--wheat-2) 91deg,  var(--wheat-2) 108deg, var(--walnut) 108deg, var(--walnut) 109deg,
+            var(--wheat) 109deg, var(--wheat) 126deg, var(--walnut) 126deg, var(--walnut) 127deg,
+            var(--wheat-2) 127deg, var(--wheat-2) 144deg, var(--walnut) 144deg, var(--walnut) 145deg,
+            var(--wheat) 145deg, var(--wheat) 162deg, var(--walnut) 162deg, var(--walnut) 163deg,
+            var(--wheat-2) 163deg, var(--wheat-2) 180deg, var(--walnut) 180deg, var(--walnut) 181deg,
+            var(--wheat) 181deg, var(--wheat) 198deg, var(--walnut) 198deg, var(--walnut) 199deg,
+            var(--wheat-2) 199deg, var(--wheat-2) 216deg, var(--walnut) 216deg, var(--walnut) 217deg,
+            var(--wheat) 217deg, var(--wheat) 234deg, var(--walnut) 234deg, var(--walnut) 235deg,
+            var(--wheat-2) 235deg, var(--wheat-2) 252deg, var(--walnut) 252deg, var(--walnut) 253deg,
+            var(--wheat) 253deg, var(--wheat) 270deg, var(--walnut) 270deg, var(--walnut) 271deg,
+            var(--wheat-2) 271deg, var(--wheat-2) 288deg, var(--walnut) 288deg, var(--walnut) 289deg,
+            var(--wheat) 289deg, var(--wheat) 306deg, var(--walnut) 306deg, var(--walnut) 307deg,
+            var(--wheat-2) 307deg, var(--wheat-2) 324deg, var(--walnut) 324deg, var(--walnut) 325deg,
+            var(--wheat) 325deg, var(--wheat) 342deg, var(--walnut) 342deg, var(--walnut) 343deg,
+            var(--wheat-2) 343deg, var(--wheat-2) 360deg),
+        radial-gradient(circle, var(--cornsilk) 0%, var(--cornsilk) 20%, transparent 20%);
     box-shadow:
         inset 1px 1px 3px rgba(0, 0, 0, 0.3),
-        inset -1px -1px 2px rgba(255, 248, 220, 0.5),
+        inset -1px -1px 2px rgba(var(--cornsilk-rgb), 0.5),
         2px 2px 6px rgba(0, 0, 0, 0.25);
 }
 
@@ -998,7 +1090,7 @@ body {
 .knob:active { transform: scale(0.98); }
 
 .knob:focus-visible {
-    outline: 2px dotted #6B8E23;
+    outline: 2px dotted var(--olive);
     outline-offset: 3px;
 }
 
@@ -1013,16 +1105,16 @@ body {
     width: 2px;
     height: 15px;
     border-radius: 1px;
-    background: #5C4033;
+    background: var(--brown);
     transform-origin: 50% 100%;
     transform: translate(-50%, -100%) rotate(0deg);
     pointer-events: none;
 }
 
 .knob-label {
-    line-height: 1.125;   /* 9.00 / 8px — see the LINE-HEIGHT PINS block */
-    font-size: 8px;
-    color: #3C2F2F;
+    line-height: 1.1111111;   /* 10.00 / 9px — v1.14.0 9px floor, see the LINE-HEIGHT PINS block */
+    font-size: 9px;
+    color: var(--ink);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -1030,7 +1122,7 @@ body {
 
 .knob-value {
     font-size: 9px;
-    color: #5C4033;
+    color: var(--brown);
     font-weight: 600;
     min-height: 11px;
 }
@@ -1081,13 +1173,13 @@ body {
 .detector-group {
     width: 100%;
     padding-top: 4px;
-    border-top: 1px solid rgba(139, 115, 85, 0.45);
+    border-top: 1px solid rgba(var(--walnut-rgb), 0.45);
 }
 
 .detector-title {
-    line-height: 1.1428571;   /* 8.00 / 7px — see the LINE-HEIGHT PINS block */
-    font-size: 7px;
-    color: #8B7355;
+    line-height: 1.1111111;   /* 10.00 / 9px — v1.14.0 9px floor, see the LINE-HEIGHT PINS block */
+    font-size: 9px;
+    color: var(--text-muted);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1146,12 +1238,12 @@ body {
     height: 20px;
     padding: 0 5px;
     background: rgba(255,255,255,0.4);
-    border: 2px solid #5C4033;
+    border: 2px solid var(--brown);
     border-radius: 4px;
     font-family: inherit;
     font-size: 9px;
     line-height: 1;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 700;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -1166,9 +1258,9 @@ body {
 }
 
 .band-button.active {
-    background: linear-gradient(135deg, #6B8E23, #556B2F);
-    color: white;
-    border-color: #3C5C1A;
+    background: linear-gradient(135deg, var(--fill-active-a), var(--fill-active-b));
+    color: var(--white);
+    border-color: var(--olive-deep);
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 
@@ -1178,8 +1270,8 @@ body {
     justify-content: space-around;
     align-items: center;
     padding: 10px 25px;
-    background: rgba(139, 168, 112, 0.15);
-    border-top: 2px solid #5C4033;
+    background: rgba(var(--moss-rgb), 0.15);
+    border-top: 2px solid var(--brown);
     position: relative;
     z-index: 1;
 }
@@ -1200,7 +1292,7 @@ body {
 .control-label {
     line-height: 1.0909091;   /* 12.00 / 11px — see the LINE-HEIGHT PINS block */
     font-size: 11px;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1208,7 +1300,7 @@ body {
 
 .control-value {
     font-size: 10px;
-    color: #5C4033;
+    color: var(--brown);
     font-weight: 600;
     margin-top: 4px;
 }
@@ -1247,11 +1339,11 @@ body {
     font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
     width: 60px;
     height: 30px;
-    background: rgba(139, 168, 112, 0.3);
-    border: 2px solid #5C4033;
+    background: rgba(var(--moss-rgb), 0.3);
+    border: 2px solid var(--brown);
     border-radius: 15px;
     font-size: 11px;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -1259,13 +1351,13 @@ body {
 }
 
 .toggle-button:hover {
-    background: rgba(139, 168, 112, 0.4);
+    background: rgba(var(--moss-rgb), 0.4);
 }
 
 .toggle-button.active {
-    background: linear-gradient(135deg, #6B8E23, #556B2F);
-    color: white;
-    border-color: #3C5C1A;
+    background: linear-gradient(135deg, var(--fill-active-a), var(--fill-active-b));
+    color: var(--white);
+    border-color: var(--olive-deep);
 }
 
 /* Mode Select */
@@ -1276,12 +1368,12 @@ body {
     width: 96px;
     padding: 6px 12px;
     background: rgba(255,255,255,0.4);
-    border: 2px solid #8B7355;
+    border: 2px solid var(--walnut);
     border-radius: 4px;
     font-size: 11px;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 600;
-    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     cursor: pointer;
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
     outline: none;
@@ -1292,8 +1384,8 @@ body {
 }
 
 .mode-select option {
-    background: #f5f0e6;
-    color: #3C2F2F;
+    background: var(--paper);
+    color: var(--ink);
 }
 
 /* Placeholder Controls (Phase 5.1 - visual only) */
@@ -1309,12 +1401,12 @@ body {
     height: 50px;
     border-radius: 50%;
     background:
-        radial-gradient(circle at 50% 50%, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%),
-        radial-gradient(circle at 50% 50%, #FFF8DC 0%, #E8D5B7 70%, #C9A27B 100%);
-    border: 2px solid #8B7355;
+        radial-gradient(circle at 50% 50%, transparent 88%, var(--tan) 88%, var(--tan) 92%, var(--walnut) 92%),
+        radial-gradient(circle at 50% 50%, var(--cornsilk) 0%, var(--wheat-2) 70%, var(--tan) 100%);
+    border: 2px solid var(--walnut);
     box-shadow:
         inset 1px 1px 3px rgba(0,0,0,0.2),
-        inset -1px -1px 2px rgba(255,248,220,0.5),
+        inset -1px -1px 2px rgba(var(--cornsilk-rgb), 0.5),
         2px 2px 4px rgba(0,0,0,0.15);
     position: relative;
 }
@@ -1329,13 +1421,13 @@ body {
     height: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-top: 18px solid #8B6914;
+    border-top: 18px solid var(--ochre);
     opacity: 0.7;
 }
 
 .placeholder-text {
     font-size: 10px;
-    color: #5C4033;
+    color: var(--brown);
     font-weight: 600;
 }
 
@@ -1349,8 +1441,8 @@ body {
 .placeholder-switch {
     width: 60px;
     height: 30px;
-    background: rgba(139, 168, 112, 0.3);
-    border: 2px solid #5C4033;
+    background: rgba(var(--moss-rgb), 0.3);
+    border: 2px solid var(--brown);
     border-radius: 15px;
     position: relative;
     box-shadow: inset 1px 1px 3px rgba(0,0,0,0.15);
@@ -1363,9 +1455,9 @@ body {
     left: 3px;
     width: 20px;
     height: 20px;
-    background: radial-gradient(circle at 40% 40%, #6B8E23, #3C5C1A);
+    background: radial-gradient(circle at 40% 40%, var(--olive), var(--olive-deep));
     border-radius: 50%;
-    border: 1px solid #2C3E10;
+    border: 1px solid var(--olive-darkest);
     box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
@@ -1380,10 +1472,10 @@ body {
     min-width: 70px;
     padding: 6px 12px;
     background: rgba(255,255,255,0.4);
-    border: 2px solid #8B7355;
+    border: 2px solid var(--walnut);
     border-radius: 4px;
     font-size: 11px;
-    color: #3C2F2F;
+    color: var(--ink);
     font-weight: 600;
     text-align: center;
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
@@ -1391,35 +1483,35 @@ body {
 
 /* Color scheme per band */
 #band-low {
-    border-color: #8B6914;
+    border-color: var(--ochre);
 }
 
 #band-low .band-title {
-    color: #654321;
+    color: var(--umber);
 }
 
 #band-lomid {
-    border-color: #6B8E23;
+    border-color: var(--olive);
 }
 
 #band-lomid .band-title {
-    color: #3C5C1A;
+    color: var(--olive-deep);
 }
 
 #band-himid {
-    border-color: #D4A528;
+    border-color: var(--gold);
 }
 
 #band-himid .band-title {
-    color: #8B6914;
+    color: var(--ochre-ink);   /* v1.14.0: the border keeps --ochre; as text it was 4.29:1 */
 }
 
 #band-high {
-    border-color: #B8733B;
+    border-color: var(--rust);
 }
 
 #band-high .band-title {
-    color: #8B4513;
+    color: var(--saddle);
 }
 
 /* ==========================================================================
@@ -1444,11 +1536,11 @@ body {
     z-index: 10001;
     max-width: 230px;
     padding: 7px 10px;
-    background: linear-gradient(135deg, #f5f0e6 0%, #e8dfcd 100%);
-    border: 1px solid #5C4033;
+    background: linear-gradient(135deg, var(--paper) 0%, var(--paper-3) 100%);
+    border: 1px solid var(--brown);
     border-radius: 3px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     pointer-events: none;
     opacity: 0;
     transition: opacity 110ms ease-out;
@@ -1463,14 +1555,14 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    color: #556B2F;
+    color: var(--olive-ink);
     margin-bottom: 3px;
 }
 
 .tooltip-body {
     font-size: 11px;
     line-height: 1.35;
-    color: #3C2F2F;
+    color: var(--ink);
 }
 
 /* Arrow — horizontal offset tracks the anchor via --arrow-x so the tip can be
@@ -1485,10 +1577,10 @@ body {
 
 .tooltip[data-placement="above"]::after {
     top: 100%;
-    border-top-color: #5C4033;
+    border-top-color: var(--brown);
 }
 
 .tooltip[data-placement="below"]::after {
     bottom: 100%;
-    border-bottom-color: #5C4033;
+    border-bottom-color: var(--brown);
 }

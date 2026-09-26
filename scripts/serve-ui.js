@@ -255,6 +255,17 @@ function urlSymbolMap(name, repoRoot = REPO_ROOT) {
         }
     }
 
+    // The other getResource() shape: a static table of
+    // `{ "/x", BinaryData::x_y, BinaryData::x_ySize, "mime" }` rows walked by a
+    // loop (O-MultiBandCompressor's IN-05 resourceMap). Without this, a file the
+    // table embeds from OUTSIDE the UI root — the modules/ui/eb-garamond face —
+    // is a silent 404 in the served tree and every gate measures the fallback.
+    for (const m of src.matchAll(/\{\s*"(\/[^"]+)"\s*,\s*(?:[A-Za-z_]\w*)?BinaryData\s*::\s*(\w+)/g)) {
+        const [, url, sym] = m;
+        if (/Size$/.test(sym)) continue;
+        if (!map.has(sym)) map.set(sym, url);
+    }
+
     return map;
 }
 

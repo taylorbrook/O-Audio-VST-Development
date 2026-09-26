@@ -6,7 +6,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # JucePlugin_VersionString: the processor ctor runs initializeFactoryPresets(), whose
 # .factory-version sentinel compares against it, so a harness left on a stale literal
 # would restamp the user's real factory-preset directory with the wrong version.
-set(OMBC_VERSION 1.13.0)
+set(OMBC_VERSION 1.14.0)
 
 # Plugin Configuration
 juce_add_plugin(O-MultiBandCompressor
@@ -36,6 +36,12 @@ juce_add_binary_data(O-MultiBandCompressor_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/modules/preset-manager.js
+        # v1.14.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the matching resourceMap entries
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 # Source files
