@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.0
+- **Version:** 1.4.2
 - **Type:** Audio Effect (Spatial Orbiter)
 
 ## Lifecycle Timeline
@@ -15,11 +15,13 @@
 - **2026-08-27:** v1.1.1 — tempo-sync table corrected to true cycles-per-beat (was 4× slow; two duplicate triplet/dotted pairs), mirrored from O-Octagon v1.10.0 WR-01. Tooltip states the convention. auval clean.
 
 - **2026-09-26:** v1.4.0 — UI pass (260924-nho Phase C): 21-token :root palette (159 literals → 0), AA text + canvas inks, 9px floor, bundled EB Garamond, :focus-visible rings. Contrast 6/67 → 0/67 below AA, labels/i18n pass, resize limits hold. No DSP change.
+- **2026-09-26:** v1.4.1 — shell illustration moved under the text (z-index 1000 → -1). Phase 3.81→9.83, Export 3.45→8.88, Import/Del/Save 3.4–3.9 → 8.6–8.8 by pixel sample; 0/68 rows worse.
+- **2026-09-26:** v1.4.2 — paper halo (`strokeText`, 3px `#F5E6D3`) under free-standing canvas text. Glyph-pixel p5 on the shell: hint 3.17→5.66, R 3.41→5.88; every haloed caption now reads its ink-on-paper value.
 
 ## Known Issues
 
 - C2 (Doppler) and C4 (custom drawn path) from `.planning/improvements/v1.1-review-findings.md` remain deferred — separate brief if pursued.
-- Botanical overlay (z-index 1000, 0.35) sits above text: PHASE ≈3.98, EXPORT ≈3.50 by pixel sample — needs a layering decision.
+- Elevation pill thumb covers the first glyph of "Off" (2.85).
 - Knobs are mouse-only (R7 keyboard/ARIA not yet ported).
 - No offline render harness — regression coverage is pluginval/auval + manual DAW testing only.
 

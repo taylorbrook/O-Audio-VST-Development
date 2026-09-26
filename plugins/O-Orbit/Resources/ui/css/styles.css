@@ -571,7 +571,7 @@ body {
 #preset-select[aria-expanded="true"] #preset-caret { transform: rotate(180deg); }
 
 /* Categorized preset menu. Left-anchored under the trigger; z-index sits
-   above .tooltip (1000) and #botanical-overlay (1000). */
+   above .tooltip (1100). */
 #preset-menu {
     display: none;
     position: absolute;
@@ -667,7 +667,7 @@ body {
     box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-/* z-index sits ABOVE #botanical-overlay (1000) and BELOW .tooltip (1100).
+/* z-index sits BELOW .tooltip (1100).
    Below the tooltip deliberately: the gear, the selector and the toggle all
    carry data-tip-always, and at a 34px header there is no room above them, so
    their tips flip BELOW and land on top of this panel. A panel above the tip
@@ -855,7 +855,11 @@ body {
 }
 #layout-library button:hover { background: rgba(139, 163, 112, 0.4); }
 
-/* Botanical Overlay */
+/* Botanical Overlay — an underlay since v1.4.1. At z-index 1000 it washed
+   the text it crossed as well as the ground (pixel sample: Phase 3.81, Export
+   3.45, Import 3.50, Del 3.44, Save 3.89). -1 puts it above the body's paper
+   (painted on the root canvas) and below every in-flow box, so the panels'
+   translucent washes veil it and the text draws in its own ink. */
 #botanical-overlay {
     position: fixed;
     right: 0;
@@ -865,7 +869,7 @@ body {
     width: auto;
     opacity: 0.35;
     pointer-events: none;
-    z-index: 1000;
+    z-index: -1;
 }
 
 /* ── Keyboard focus (v1.4.0) ─────────────────────────────────────────────
