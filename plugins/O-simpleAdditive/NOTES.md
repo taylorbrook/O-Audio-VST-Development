@@ -58,6 +58,13 @@ morph, spectral-decay tilt, bit-depth quantizer.
   params only on value change and never mid-release. New render-harness
   `noteoff-click` gate, negative-control verified against v1.0.6. ALL PASS.
 
+- **2026-09-25 — v1.4.0** — UI pass (design review R4/R5/R7): AA text inks
+  (`--text-muted`, `--green-text`, `--green-fill-strong`), 9 px floor, bundled
+  EB Garamond, resizable editor 0.6x–1.5x at a fixed 860:930 aspect with a CSS
+  transform scale (fits a 13" laptop on open). Below-AA text 36/103 → 5/103
+  (the 5 are black-key labels the census cannot sample); labels gate PASS.
+  No DSP change.
+
 ## Known Limitations
 
 Deferred from Stage 4: preset save/load bar (planned v1.1).

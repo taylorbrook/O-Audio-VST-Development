@@ -51,6 +51,13 @@ public:
 private:
     void timerCallback() override;
 
+    // Design frame the page lays out at, and the resize range (v1.4.0).
+    static constexpr int   designW  = 860;
+    static constexpr int   designH  = 930;
+    static constexpr float minScale = 0.6f;
+    static constexpr float maxScale = 1.5f;
+    static float fitScaleForDisplay();
+
     // Resource provider — serves embedded UI files (bare-path matching).
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
 

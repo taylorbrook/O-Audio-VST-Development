@@ -161,6 +161,11 @@ public:
     // thread). Queued via a MidiMessageCollector and merged into processBlock.
     void handleUiMidi (int noteNumber, bool noteOn, float velocity);
 
+    // Editor window scale (v1.4.0), relative to the 860x930 design frame.
+    // Message thread only. 0 = never resized this session → the editor fits
+    // the display on open. Session-lifetime by design: NOT written to state.
+    float editorScale = 0.0f;
+
     //==========================================================================
     // INTERFACE LANGUAGE (v1.1.0) — the WebView UI's own language preference.
     //

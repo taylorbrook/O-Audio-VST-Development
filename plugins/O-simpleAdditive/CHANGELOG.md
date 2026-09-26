@@ -3,6 +3,69 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.0] — 2026-09-25
+
+UI pass from the 2026-09-24 suite design review (R4 AA text, R5 bundled serif,
+R7 resizing; task 260924-nho), mirroring the sibling O-simpleFM v1.6.0. MINOR:
+the editor becomes resizable and the page changes colour and face. No DSP
+change, and no parameter, range, type or state-format change.
+
+### Added
+
+- **Resizable editor at a fixed 860:930 aspect, 0.6x to 1.5x.** The 930 px
+  frame was off-screen on a 13" laptop (about 800 px usable under the menu bar
+  and a host's plugin header). The editor keeps `setSize (860, 930)` as its
+  design frame, installs a fixed-aspect `ComponentBoundsConstrainer` with
+  limits of 516x558 to 1290x1395, and on open fits the usable height of the
+  display under the mouse minus 90 px for host chrome (about 0.9x on a 13"
+  MacBook Air). A size the user drags to is kept for the rest of the session
+  in a processor member. It is deliberately NOT written to state.
+- **CSS scale.** `.frame` is fixed at 860x930 and `applyUiScale()` scales it
+  with `transform: scale(s)` (origin top-left), removing the transform at
+  s = 1, so the page the headless gates measure at 860x930 is unchanged. The
+  tooltip is a body child in viewport px and the drawbar drag reads the track's
+  `getBoundingClientRect`, so neither is skewed. The scope's backing store
+  folds the scale into its DPR, so it stays sharp above 1x.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed: 4 SOURCES
+  and 4 `getResource` branches, stylesheet linked before `styles.css`). A new
+  `--serif` token reads `'EB Garamond', Georgia, 'Times New Roman', PingFang SC,
+  Microsoft YaHei, serif`. The bare `'Garamond'` is gone, so an
+  Office-installed Windows Garamond can no longer outrank the bundled face. The
+  page used to resolve to Times; the module carries Times metrics, so no
+  label geometry moved (`check-ui-labels.js` passed with no re-pin).
+
+### Changed
+
+- **AA text inks as tokens.** `--text-muted #715D45` replaces `--brown-border`
+  (3.66 to 3.83:1) as the text colour of the strapline, the 16 drawbar values,
+  the Waveform head, Lesson Presets and the Play head. `--green-text #4E6838`
+  replaces `--green-mid` on the drawbar and keyboard hints, and the
+  `opacity` 0.9 / 0.85 that pushed them to 2.53 to 2.80:1 is removed. The
+  active lesson button fills with `--green-fill-strong #55703E` (4.90:1 under
+  its light text; was 3.30:1). White-key labels use `--brown-soft`, because
+  the key's #E6D4BA tail leaves `--text-muted` at only 4.32:1. Black-key labels
+  go to alpha 0.9 (6.56:1; 0.7 gave 4.69:1). Borders and rules keep `#8B7355`.
+- **9 px floor.** `.key-label` goes from 8 px to 9 px. No rule now declares
+  less than 9 px.
+
+### Verification
+
+- `measure-ui.js --contrast` at 860x930, identical in en, fr and zh-Hans:
+  below-AA text went from **36/103 (35.0%) to 5/103 (4.9%)**, and text under
+  9 px from **13 to 0**. The 5 that remain are the black-key labels, which the
+  census measures against paper because it cannot sample the key's gradient
+  (the real ratio is 6.56:1).
+- `check-ui-labels.js`: ALL CHECKS PASSED before and after (40/40 labels
+  visible, every resource served, no page errors).
+- Scaled path, checked headlessly at 860x930, 774x837, 516x558 and 1290x1395:
+  the frame fills the viewport exactly; the tooltip lands at the hovered knob
+  plus (14, 16) in viewport px at every scale; CDP resolves EB Garamond on the
+  title, strapline, drawbar numbers and lesson buttons; 0 page errors and 0
+  missed resources.
+- Known: at the 0.6x floor the 9 px captions paint at about 5.4 px. That is
+  the user's own choice of window size; the fit-on-open default stays at or
+  near 0.9x on a 13" display.
+
 ## [1.3.0] — 2026-09-07
 
 Simplified Chinese joins English and French. MINOR: 131 rows of new copy, a

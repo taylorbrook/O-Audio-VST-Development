@@ -81,6 +81,22 @@ OSimpleAdditiveAudioProcessorEditor::getResource (const juce::String& url)
     if (url == "/img/insects.png")
         return makeBinaryResource (BinaryData::insects_png, BinaryData::insects_pngSize, "image/png");
 
+    // v1.4.0 (R5): shared EB Garamond face (modules/ui/eb-garamond) —
+    // stylesheet under /css/, the three woff2 faces under /fonts/ where its
+    // relative font URLs land.
+    if (url == "/css/eb-garamond.css")
+        return makeBinaryResource (BinaryData::ebgaramond_css, BinaryData::ebgaramond_cssSize,
+                                   "text/css; charset=utf-8");
+    if (url == "/fonts/EBGaramond-Regular.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondRegular_woff2,
+                                   BinaryData::EBGaramondRegular_woff2Size, "font/woff2");
+    if (url == "/fonts/EBGaramond-Italic.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondItalic_woff2,
+                                   BinaryData::EBGaramondItalic_woff2Size, "font/woff2");
+    if (url == "/fonts/EBGaramond-Bold.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondBold_woff2,
+                                   BinaryData::EBGaramondBold_woff2Size, "font/woff2");
+
     return std::nullopt;
 }
 
@@ -204,7 +220,28 @@ OSimpleAdditiveAudioProcessorEditor::OSimpleAdditiveAudioProcessorEditor (OSimpl
     // height, so the on-screen keyboard sits above the fold with ~32px of margin —
     // far more than the <=2px the layout shifts across serif fallbacks. The frame
     // still scrolls if a host gives us less height than we asked for.
+    //
+    // Read BEFORE the first setSize: resized() records the live scale.
+    const float storedScale = processorRef.editorScale;
+
+    // The 860x930 design frame — the page lays out at exactly this size and
+    // scales itself (CSS transform on .frame) to whatever the window is. The
+    // headless UI gates parse this literal, so it stays the numeric setSize.
     setSize (860, 930);
+
+    // v1.4.0 (R7): resizable at a fixed 860:930 aspect, 0.6x..1.5x. 930px is
+    // off-screen on a 13" laptop, so a fresh editor fits the display it opens
+    // on; a size the user chose is kept for the rest of the session.
+    setResizable (true, true);
+    setResizeLimits (juce::roundToInt (designW * minScale), juce::roundToInt (designH * minScale),
+                     juce::roundToInt (designW * maxScale), juce::roundToInt (designH * maxScale));
+    if (auto* constrainer = getConstrainer())
+        constrainer->setFixedAspectRatio ((double) designW / (double) designH);
+
+    const float scale = storedScale > 0.0f ? storedScale : fitScaleForDisplay();
+    if (! juce::approximatelyEqual (scale, 1.0f))
+        setSize (juce::roundToInt (designW * scale), juce::roundToInt (designH * scale));
+
     startTimerHz (30);
 }
 
@@ -255,4 +292,24 @@ void OSimpleAdditiveAudioProcessorEditor::resized()
 {
     if (webView != nullptr)
         webView->setBounds (getLocalBounds());
+
+    processorRef.editorScale = (float) getWidth() / (float) designW;
+}
+
+// Largest scale <= 1 whose window fits the usable height of the display under
+// the mouse (where the host is about to open the editor), leaving room for the
+// host's own plugin-window title bar and header.
+float OSimpleAdditiveAudioProcessorEditor::fitScaleForDisplay()
+{
+    constexpr int hostChromeAllowance = 90;
+
+    const auto& displays = juce::Desktop::getInstance().getDisplays();
+    const auto* display = displays.getDisplayForPoint (juce::Desktop::getMousePosition());
+    if (display == nullptr)
+        display = displays.getPrimaryDisplay();
+    if (display == nullptr)
+        return 1.0f;
+
+    const int available = display->userArea.getHeight() - hostChromeAllowance;
+    return juce::jlimit (minScale, 1.0f, (float) available / (float) designH);
 }
