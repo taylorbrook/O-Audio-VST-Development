@@ -644,11 +644,17 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             .withNativeFunction ("getLyricsPosition", [this] (auto, auto complete) {
                 auto& le = processorRef.getLyricsEngine();
                 auto* obj = new juce::DynamicObject();
-                obj->setProperty ("index", le.getCurrentIndex());
+                // v1.33.1: "index" is the syllable SOUNDING (last note-on),
+                // -1 before the first note; "next" is the one the next note
+                // takes. Highlighting currentIndex ran one syllable ahead.
+                const int last = le.getLastIndex();
+                obj->setProperty ("index", last);
+                obj->setProperty ("next", le.getCurrentIndex());
                 obj->setProperty ("total", le.getNumSyllables());
 
-                // Include current syllable target for XY pad animation
-                auto syl = le.peekCurrent();
+                // XY pad cursor follows the sounding syllable; before the
+                // first note it previews the one about to play.
+                auto syl = last >= 0 ? le.peekLast() : le.peekCurrent();
                 obj->setProperty ("vowelX", syl.vowelX);
                 obj->setProperty ("vowelY", syl.vowelY);
                 obj->setProperty ("consonantTone", syl.consonantTone);
