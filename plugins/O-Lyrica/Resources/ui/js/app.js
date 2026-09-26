@@ -660,8 +660,8 @@ function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter)
         input.value = formatted;
         input.style.cssText = `
             width: 45px; text-align: center; font-size: 9px;
-            color: #5C4033; background: rgba(255,248,220,0.9);
-            border: 1px solid #8B7355; border-radius: 3px;
+            color: var(--brown); background: rgba(var(--cornsilk-rgb), 0.9);
+            border: 1px solid var(--walnut); border-radius: 3px;
             padding: 1px 2px; outline: none; user-select: text;
             -webkit-user-select: text;
         `;

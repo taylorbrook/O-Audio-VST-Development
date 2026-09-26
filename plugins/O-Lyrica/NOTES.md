@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.3.2
+- **Version:** 2.6.0
 - **Type:** Synth (Physical Modeling Harp)
 
 ## Lifecycle Timeline
@@ -41,6 +41,14 @@
   - **IN-16** embedded-tuning JSON now serialized via `juce::JSON` (proper escaping).
   - **IN-15/17/18** documented as intentional (temperamentPreset unbound; tonic rotation-vs-
     transposition split) / stale effects-chain comment corrected.
+- **2026-09-26 (v2.6.0):** UI pass (review 260924-nho R4/R5):
+  - 142 hex literals became `:root` tokens.
+  - A `--paper` wash at 0.40 over `paper1.jpg`, with AA inks.
+  - 9px floor.
+  - Bundled EB Garamond (`modules/ui/eb-garamond`); five font stacks became one.
+  - Results: census below-AA 356/387 → 6/387 (only bypassed Chorus knobs); pixel probe 0 on
+    active text; `check-ui-labels` green; `auval` pass. No DSP change.
+  - R7 (keyboard/ARIA on the Effects-tab SVG knobs) deferred.
 
 ## Known Issues / Limitations
 

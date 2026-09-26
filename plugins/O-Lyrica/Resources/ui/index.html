@@ -23,7 +23,81 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=700, height=450">
     <title>OuariconLyrica</title>
+    <!-- v2.6.0 (R5): the shared EB Garamond face (modules/ui/eb-garamond),
+         linked before the page's own rules so --font-serif can lead with it. -->
+    <link rel="stylesheet" href="/css/eb-garamond.css">
     <style>
+        /* ====================================================================
+           v2.6.0 (R4): THE PALETTE. Every colour in this stylesheet is one of
+           these tokens; palette washes use rgba(var(--x-rgb), a). Values are the
+           ouaricon-naturalist-001 palette plus its AA text variants.
+
+           Text on the paper takes --ink. The paper JPG renders at a median of
+           about #BE9965 (L 0.35), where even --ink read 2.6-4.5:1, so
+           .plugin-container lays a --paper wash at 0.40 over it (see there).
+           --walnut is for borders, rules and rings, never text; quiet text
+           on the opaque cream bars and panels takes --text-muted.
+           ==================================================================== */
+        :root {
+            --ink:                    #3C2F2F;
+            --brown:                  #5C4033;
+            --walnut:                 #8B7355;   /* borders, rules, rings - not text */
+            --walnut-deep:            #6B5A42;
+            --text-muted:             #6A5641;   /* AA quiet text on the cream bars/panels */
+            --sage:                   #6B8E4E;
+            --moss-light:             #A8C08C;   /* tooltip title, on the dark tooltip only */
+            --olive:                  #6B8E23;
+            --olive-deep:             #3C5C1A;
+            --olive-darkest:          #2C3E10;
+            --olive-hover:            #2A4A10;
+            --olive-ink-dark:         #1A2A10;
+            --fx-on-bg:               #B0BA7B;   /* olive 0.5 pre-composited over --paper */
+            --fx-off-bg:              #E0CFBA;   /* walnut 0.2 pre-composited over --paper */
+            --cornsilk:               #FFF8DC;
+            --linen:                  #FAF0E6;
+            --paper:                  #F5E6D3;
+            --paper-2:                #EBD9C7;
+            --parchment:              #D4C4B0;
+            --wheat:                  #F5DEB3;
+            --wheat-2:                #E8D5B7;
+            --paper-ground:           #D8B88E;   /* the washed JPG's measured median, for the census only */
+            --white:                  #FFFFFF;
+            --host-bg:                #2A2A2A;
+            --key-pressed:            #8BC34A;
+            --key-black-mapped:       #4A6B2A;
+            --key-black-hover:        #5A3A3A;
+            --key-black-mapped-hover: #5A8B3A;
+            /* deviation readouts: AA-dark variants of the green/orange/blue
+               status hues (on the interval list: 4.8 / 5.0 / 5.4:1) */
+            --dev-pure:               #1F5E24;
+            --dev-sharp:              #7A4000;
+            --dev-flat:               #0D4A8F;
+
+            --ink-rgb:                60, 47, 47;
+            --walnut-rgb:             139, 115, 85;
+            --moss-rgb:               139, 168, 112;
+            --sage-rgb:               107, 142, 78;
+            --olive-rgb:              107, 142, 35;
+            --cornsilk-rgb:           255, 248, 220;
+            --paper-rgb:              245, 230, 211;
+            --paper-2-rgb:            235, 217, 199;
+            --parchment-rgb:          212, 196, 176;
+            --wheat-rgb:              245, 222, 179;
+            --grey-rgb:               200, 200, 200;
+            --dev-pure-bright-rgb:    76, 175, 80;
+            --dev-flat-bright-rgb:    33, 150, 243;
+            --dev-sharp-bright-rgb:   255, 152, 0;
+
+            /* v2.6.0 (R5): ONE stack for the whole page. The bundled face
+               leads; Georgia before Times; the CJK tail before the generic.
+               The bare 'Garamond' lead is dropped - on Windows an
+               Office-installed Garamond would outrank the bundled face. The
+               former Menlo / Arial / Georgia stacks fold in here: EB Garamond's
+               default figures are tabular (every digit 480 units), so the
+               cents columns still align. */
+            --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+        }
+
         /* ====================================================================
            CRITICAL CSS CONSTRAINTS
            ==================================================================== */
@@ -52,8 +126,8 @@
             justify-content: center;
             align-items: center;
             min-height: 100%;
-            background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: var(--host-bg);
+            font-family: var(--font-serif);
 
             /* Native feel CSS */
             user-select: none;
@@ -70,8 +144,18 @@
             height: 450px;
             position: relative;
             /* Actual paper texture background */
-            background: url('/images/paper1.jpg') center center / cover no-repeat;
-            border: 3px solid #5C4033;
+            /* v2.6.0 (R4): a --paper wash at 0.40 over the JPG. Bare, the paper
+               renders at a median of about #BE9965 (L 0.35, stains darker), where
+               --ink read 2.6-4.5:1 and --brown 2.0-4.0:1 at 9px. 0.35 cleared
+               every caption but one readout on a stain (4.21:1); 0.40 is the
+               lightest wash that clears them all (that one: 4.52:1). background-color is the washed median, so
+               measure-ui --contrast stops scoring the page against body --host-bg
+               (it is invisible under the cover image). */
+            background:
+                linear-gradient(rgba(var(--paper-rgb), 0.40), rgba(var(--paper-rgb), 0.40)),
+                url('/images/paper1.jpg') center center / cover no-repeat;
+            background-color: var(--paper-ground);
+            border: 3px solid var(--brown);
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             overflow: hidden;
         }
@@ -118,22 +202,22 @@
             justify-content: space-between;
             align-items: center;
             padding: 0 20px;
-            border-bottom: 1px solid rgba(139, 115, 85, 0.5);
+            border-bottom: 1px solid rgba(var(--walnut-rgb), 0.5);
             z-index: 10;
-            background: rgba(245, 230, 211, 0.9);
+            background: rgba(var(--paper-rgb), 0.9);
         }
 
         .title {
             font-size: 16px;
             font-weight: normal;
-            color: #3C2F2F;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 2.5px;
         }
 
         .voice-display {
             font-size: 10px;
-            color: #5C4033;
+            color: var(--brown);
             letter-spacing: 1px;
         }
 
@@ -159,8 +243,8 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(235, 217, 199, 0.9);
-            border: 1px solid #8B7355;
+            background: rgba(var(--paper-2-rgb), 0.9);
+            border: 1px solid var(--walnut);
             border-radius: 4px;
             padding: 4px 10px;
             height: 28px;
@@ -169,25 +253,25 @@
         .preset-arrow {
             width: 24px;
             height: 24px;
-            background: rgba(139, 168, 112, 0.5);
-            border: 2px solid #3C5C1A;
+            background: rgba(var(--moss-rgb), 0.5);
+            border: 2px solid var(--olive-deep);
             border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            color: #3C2F2F;
-            font-size: 12px;
+            color: var(--ink);
+            font-size: 15px;   /* v2.6.0: EB Garamond draws the triangles ~25% smaller than Times did at 12px */
             font-weight: bold;
         }
 
         .preset-arrow:hover {
-            background: rgba(107, 142, 35, 0.6);
-            border-color: #2a4a10;
+            background: rgba(var(--olive-rgb), 0.6);
+            border-color: var(--olive-hover);
         }
 
         .preset-arrow:active {
-            background: rgba(107, 142, 35, 0.8);
+            background: rgba(var(--olive-rgb), 0.8);
             transform: scale(0.95);
         }
 
@@ -197,7 +281,7 @@
 
         .preset-name {
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--ink);
             min-width: 120px;
             text-align: center;
             cursor: pointer;
@@ -207,13 +291,13 @@
         }
 
         .preset-name:hover {
-            background: rgba(139, 168, 112, 0.2);
+            background: rgba(var(--moss-rgb), 0.2);
         }
 
         .preset-name::after {
             content: ' \25BC';
-            font-size: 7px;
-            opacity: 0.6;
+            font-size: 7px;   /* an icon, not text: exempt from the 9px floor */
+            color: var(--text-muted);
         }
 
         /* Preset dropdown menu */
@@ -226,8 +310,8 @@
             min-width: 180px;
             max-height: 240px;
             overflow-y: auto;
-            background: rgba(245, 230, 211, 0.98);
-            border: 1px solid #8B7355;
+            background: rgba(var(--paper-rgb), 0.98);
+            border: 1px solid var(--walnut);
             border-radius: 4px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 1000;
@@ -240,20 +324,20 @@
 
         .preset-dropdown-header {
             padding: 4px 12px;
-            font-size: 8px;
-            color: #8B7355;
+            font-size: 9px;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 1px;
-            border-bottom: 1px solid rgba(139, 115, 85, 0.3);
-            background: rgba(212, 196, 176, 0.5);
+            border-bottom: 1px solid rgba(var(--walnut-rgb), 0.3);
+            background: rgba(var(--parchment-rgb), 0.5);
         }
 
         .preset-dropdown-item {
             padding: 6px 12px;
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--ink);
             cursor: pointer;
-            border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+            border-bottom: 1px solid rgba(var(--walnut-rgb), 0.2);
         }
 
         .preset-dropdown-item:last-child {
@@ -261,11 +345,11 @@
         }
 
         .preset-dropdown-item:hover {
-            background: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--moss-rgb), 0.3);
         }
 
         .preset-dropdown-item.active {
-            background: rgba(107, 142, 35, 0.25);
+            background: rgba(var(--olive-rgb), 0.25);
             font-weight: 600;
         }
 
@@ -283,10 +367,10 @@
             text-align: center;
             padding: 3px 8px;
             font-size: 9px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
-            color: #3C2F2F;
-            background: rgba(212, 196, 176, 0.8);
-            border: 1px solid #8B7355;
+            font-family: var(--font-serif);
+            color: var(--ink);
+            background: rgba(var(--parchment-rgb), 0.8);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             cursor: pointer;
             text-transform: uppercase;
@@ -295,13 +379,13 @@
         }
 
         .preset-action-btn:hover {
-            background: rgba(139, 168, 112, 0.4);
-            border-color: #6B8E4E;
+            background: rgba(var(--moss-rgb), 0.4);
+            border-color: var(--sage);
         }
 
         .preset-action-btn:active {
             transform: scale(0.95);
-            background: rgba(139, 168, 112, 0.6);
+            background: rgba(var(--moss-rgb), 0.6);
         }
 
         /* ====================================================================
@@ -315,8 +399,8 @@
             width: 100%;
             height: 30px;
             display: flex;
-            background: rgba(235, 217, 199, 0.95);
-            border-bottom: 1px solid rgba(139, 115, 85, 0.5);
+            background: rgba(var(--paper-2-rgb), 0.95);
+            border-bottom: 1px solid rgba(var(--walnut-rgb), 0.5);
             z-index: 10;
         }
 
@@ -327,11 +411,11 @@
             justify-content: center;
             font-size: 10px;
             font-weight: normal;
-            color: #5C4033;
+            color: var(--brown);
             text-transform: uppercase;
             letter-spacing: 1.5px;
             cursor: pointer;
-            border-right: 1px solid rgba(139, 115, 85, 0.3);
+            border-right: 1px solid rgba(var(--walnut-rgb), 0.3);
             transition: background 0.2s, color 0.2s;
         }
 
@@ -340,13 +424,13 @@
         }
 
         .tab.active {
-            background: rgba(139, 168, 112, 0.3);
-            color: #3C2F2F;
+            background: rgba(var(--moss-rgb), 0.3);
+            color: var(--ink);
             font-weight: 500;
         }
 
         .tab:hover:not(.active) {
-            background: rgba(139, 168, 112, 0.15);
+            background: rgba(var(--moss-rgb), 0.15);
         }
 
         /* ====================================================================
@@ -404,12 +488,12 @@
             line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
             font-weight: normal;
-            color: #5C4033;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 1.5px;
             margin-bottom: 8px;
             padding-bottom: 4px;
-            border-bottom: 1px solid rgba(139, 115, 85, 0.3);
+            border-bottom: 1px solid rgba(var(--walnut-rgb), 0.3);
         }
 
         .section-content {
@@ -433,7 +517,7 @@
         .slider-label {
             line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
-            color: #3C2F2F;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 4px;
@@ -451,8 +535,8 @@
             appearance: none;
             width: 100%;
             height: 6px;
-            background: linear-gradient(to bottom, #D4C4B0 0%, #E8D5B7 50%, #D4C4B0 100%);
-            border: 1px solid #8B7355;
+            background: linear-gradient(to bottom, var(--parchment) 0%, var(--wheat-2) 50%, var(--parchment) 100%);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             cursor: pointer;
             box-shadow: inset 1px 1px 2px rgba(0,0,0,0.15);
@@ -464,8 +548,8 @@
             appearance: none;
             width: 14px;
             height: 14px;
-            background: radial-gradient(circle at 30% 30%, #FFF8DC 0%, #F5DEB3 40%, #D4C4B0 100%);
-            border: 2px solid #8B7355;
+            background: radial-gradient(circle at 30% 30%, var(--cornsilk) 0%, var(--wheat) 40%, var(--parchment) 100%);
+            border: 2px solid var(--walnut);
             border-radius: 50%;
             cursor: pointer;
             box-shadow: 1px 1px 3px rgba(0,0,0,0.25);
@@ -482,7 +566,7 @@
 
         .slider-value {
             font-size: 9px;
-            color: #5C4033;
+            color: var(--ink);
             min-width: 35px;
             text-align: right;
         }
@@ -502,7 +586,7 @@
         .dropdown-label {
             line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
-            color: #3C2F2F;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 4px;
@@ -513,11 +597,11 @@
             appearance: none;
             width: 100%;
             padding: 5px 25px 5px 8px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
-            color: #3C2F2F;
-            background: linear-gradient(to bottom, #FAF0E6 0%, #EBD9C7 100%);
-            border: 1px solid #8B7355;
+            color: var(--ink);
+            background: linear-gradient(to bottom, var(--linen) 0%, var(--paper-2) 100%);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             cursor: pointer;
             box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
@@ -527,12 +611,12 @@
         }
 
         select:hover {
-            background: linear-gradient(to bottom, #FFF8DC 0%, #F5E6D3 100%);
+            background: linear-gradient(to bottom, var(--cornsilk) 0%, var(--paper) 100%);
         }
 
         select:focus {
             outline: none;
-            border-color: #6B8E4E;
+            border-color: var(--sage);
         }
 
         /* ====================================================================
@@ -550,9 +634,9 @@
             align-items: center;
             justify-content: space-between;
             padding: 0 20px;
-            border-top: 1px solid rgba(139, 115, 85, 0.5);
+            border-top: 1px solid rgba(var(--walnut-rgb), 0.5);
             z-index: 10;
-            background: rgba(245, 230, 211, 0.9);
+            background: rgba(var(--paper-rgb), 0.9);
         }
 
         .master-volume {
@@ -571,7 +655,7 @@
             display: inline-block;
             min-width: 49px;
             font-size: 9px;
-            color: #3C2F2F;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 1px;
         }
@@ -582,7 +666,7 @@
 
         .master-value {
             font-size: 10px;
-            color: #5C4033;
+            color: var(--brown);
             min-width: 50px;
         }
 
@@ -600,8 +684,8 @@
         .footer-keyboard-viz {
             width: 100%;
             height: 42px;
-            background: #FAF0E6;
-            border: 1px solid #8B7355;
+            background: var(--linen);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             display: flex;
             overflow: visible;
@@ -610,8 +694,8 @@
 
         .footer-keyboard .white-key {
             flex: 1;
-            background: #FAF0E6;
-            border-right: 1px solid rgba(139, 115, 85, 0.6);
+            background: var(--linen);
+            border-right: 1px solid rgba(var(--walnut-rgb), 0.6);
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
@@ -628,26 +712,26 @@
         }
 
         .footer-keyboard .white-key.mapped {
-            background: rgba(139, 168, 112, 0.35);
+            background: rgba(var(--moss-rgb), 0.35);
         }
 
         .footer-keyboard .white-key span {
-            font-size: 6px;
-            color: #5C4033;
+            font-size: 9px;   /* v2.6.0: 6 -> 9px floor */
+            color: var(--brown);
             pointer-events: none;
-            opacity: 0.7;
+            line-height: 1;
         }
 
         .footer-keyboard .white-key:hover:not(.pressed) {
-            background: #FFF8DC;
+            background: var(--cornsilk);
         }
 
         .footer-keyboard .white-key.mapped:hover:not(.pressed) {
-            background: rgba(139, 168, 112, 0.5);
+            background: rgba(var(--moss-rgb), 0.5);
         }
 
         .footer-keyboard .white-key:active, .footer-keyboard .white-key.pressed {
-            background: #8BC34A !important;
+            background: var(--key-pressed) !important;
             transform: translateY(1px);
             z-index: 2;
         }
@@ -656,7 +740,7 @@
             position: absolute;
             width: 14px;
             height: 28px;
-            background: #3C2F2F;
+            background: var(--ink);
             border-radius: 0 0 2px 2px;
             top: 0;
             z-index: 10;
@@ -666,33 +750,33 @@
         }
 
         .footer-keyboard .black-key.mapped {
-            background: #4A6B2A;
+            background: var(--key-black-mapped);
         }
 
         .footer-keyboard .black-key:hover {
-            background: #5A3A3A;
+            background: var(--key-black-hover);
         }
 
         .footer-keyboard .black-key.mapped:hover {
-            background: #5A8B3A;
+            background: var(--key-black-mapped-hover);
         }
 
         .footer-keyboard .black-key:active, .footer-keyboard .black-key.pressed {
-            background: #8BC34A !important;
+            background: var(--key-pressed) !important;
             transform: translateY(1px);
             box-shadow: 0 0 2px rgba(0,0,0,0.3);
         }
 
         .footer-keyboard-help {
-            line-height: 1.1428571;   /* zh pin: 8px English CONTENT line box over 7px font-size */
-            font-size: 7px;
-            color: #8B7355;
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size (v2.6.0: 7 -> 9px floor) */
+            font-size: 9px;
+            color: var(--text-muted);
             text-align: center;
         }
 
         .brand {
-            font-size: 8px;
-            color: #8B7355;
+            font-size: 9px;
+            color: var(--text-muted);
             letter-spacing: 1px;
             text-transform: uppercase;
             flex-shrink: 0;
@@ -708,7 +792,7 @@
             align-items: center;
             justify-content: center;
             height: 100%;
-            color: #8B7355;
+            color: var(--text-muted);
             text-align: center;
         }
 
@@ -722,7 +806,7 @@
 
         .placeholder-content p {
             font-size: 11px;
-            opacity: 0.7;
+            /* v2.6.0: opacity 0.7 dropped - a contrast change, not styling */
         }
 
         /* v1.32.0: Effects Tab Styles */
@@ -731,8 +815,8 @@
         }
 
         .fx-section {
-            background: rgba(255, 248, 220, 0.25);
-            border: 1px solid rgba(139, 115, 85, 0.35);
+            background: rgba(var(--cornsilk-rgb), 0.25);
+            border: 1px solid rgba(var(--walnut-rgb), 0.35);
             border-radius: 5px;
             padding: 4px 10px;
             display: flex;
@@ -764,7 +848,7 @@
             min-width: 61px;
             font-size: 11px;
             font-weight: bold;
-            color: #2C3E10;
+            color: var(--olive-darkest);
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-right: auto;
@@ -793,11 +877,11 @@
             min-width: 34px;
             text-align: center;
             padding: 2px 8px;
-            background: rgba(107, 142, 35, 0.5);
-            border: 1px solid #5C4033;
+            background: var(--fx-on-bg);   /* opaque: an rgba fill let the paper through */
+            border: 1px solid var(--brown);
             border-radius: 3px;
             font-size: 9px;
-            color: #1a2a10;
+            color: var(--olive-ink-dark);
             cursor: pointer;
             transition: all 0.15s;
             font-family: inherit;
@@ -806,8 +890,8 @@
         }
 
         .fx-bypass-btn.bypassed {
-            background: rgba(139, 115, 85, 0.2);
-            color: rgba(60, 47, 47, 0.4);
+            background: var(--fx-off-bg);
+            color: var(--brown);   /* was ink @ 0.4 (a state label, not a disabled control) */
         }
 
         .fx-knobs {
@@ -862,13 +946,13 @@
 
         #effects-tab .knob-track {
             fill: none;
-            stroke: rgba(139, 115, 85, 0.3);
+            stroke: rgba(var(--walnut-rgb), 0.3);
             stroke-width: 2;
         }
 
         #effects-tab .knob-vine {
             fill: none;
-            stroke: #6B8E23;
+            stroke: var(--olive);
             stroke-width: 3;
             stroke-linecap: round;
         }
@@ -876,7 +960,7 @@
         #effects-tab .knob-label {
             line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
-            color: #3C2F2F;
+            color: var(--ink);
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -885,7 +969,7 @@
 
         #effects-tab .knob-value {
             font-size: 9px;
-            color: #5C4033;
+            color: var(--ink);
             font-weight: bold;
         }
 
@@ -898,11 +982,11 @@
 
         .fx-dropdown {
             padding: 2px 4px;
-            background: rgba(235, 217, 199, 0.9);
-            border: 1px solid #8B7355;
+            background: rgba(var(--paper-2-rgb), 0.9);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             font-size: 9px;
-            color: #3C2F2F;
+            color: var(--ink);
             cursor: pointer;
             font-family: inherit;
         }
@@ -938,14 +1022,23 @@
             height: 100%;
         }
 
+        /* v2.6.0 (R4): the circle's presentation attributes moved here so
+           they read the palette tokens (an SVG attribute cannot take var()).
+           The degree labels were --ink per <text> (JS) over a --brown group
+           default; one --ink rule now. */
+        .pitch-circle .pc-rim  { stroke: var(--walnut); }
+        .pitch-circle .pc-face { fill: rgba(var(--paper-2-rgb), 0.4); stroke: var(--walnut); }
+        .pitch-circle .pc-hub  { fill: var(--ink); }
+        #degree-labels         { fill: var(--ink); }
+
         .pitch-circle-label {
-            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size (v2.6.0: 8 -> 9px floor) */
             position: absolute;
             bottom: -16px;
             width: 100%;
             text-align: center;
-            font-size: 8px;
-            color: #5C4033;
+            font-size: 9px;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -963,8 +1056,8 @@
         .interval-list {
             width: 130px;
             max-height: 280px;
-            background: rgba(235, 217, 199, 0.6);
-            border: 1px solid #8B7355;
+            background: rgba(var(--paper-2-rgb), 0.6);
+            border: 1px solid var(--walnut);
             border-radius: 4px;
             overflow-y: auto;
             padding: 4px 6px;
@@ -972,12 +1065,12 @@
         }
 
         .interval-list-header {
-            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
-            font-size: 8px;
-            color: #5C4033;
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size (v2.6.0: 8 -> 9px floor) */
+            font-size: 9px;
+            color: var(--brown);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            border-bottom: 1px solid rgba(139, 115, 85, 0.4);
+            border-bottom: 1px solid rgba(var(--walnut-rgb), 0.4);
             padding-bottom: 3px;
             margin-bottom: 3px;
             text-align: center;
@@ -989,8 +1082,8 @@
             align-items: center;
             padding: 2px 4px;
             margin-bottom: 3px;
-            background: rgba(139, 168, 112, 0.2);
-            border: 1px solid #8B7355;
+            background: rgba(var(--moss-rgb), 0.2);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
         }
 
@@ -1002,17 +1095,17 @@
            was still being flex-shrunk inside an over-full row, and left a 0.9px
            residual. Unshrunk, TONIQUE : is 34.67px. */
         .tonic-label {
-            line-height: 1.1428571;   /* zh pin: 8px English CONTENT line box over 7px font-size */
-            font-size: 7px;
-            color: #5C4033;
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size (v2.6.0: 7 -> 9px floor) */
+            font-size: 9px;
+            color: var(--brown);
             text-transform: uppercase;
-            min-width: 35px;
+            min-width: 46px;   /* v2.6.0: re-measured at 9px EB Garamond - TONIQUE : 45.53, TONIC: 31.53 */
         }
 
         .tonic-value {
             font-size: 9px;
             font-weight: bold;
-            color: #3C2F2F;
+            color: var(--ink);
             min-width: 20px;
             text-align: center;
         }
@@ -1028,17 +1121,17 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 8px;
-            color: #5C4033;
-            background: rgba(212, 196, 176, 0.6);
-            border: 1px solid rgba(139, 115, 85, 0.5);
+            font-size: 9px;
+            color: var(--brown);
+            background: rgba(var(--parchment-rgb), 0.6);
+            border: 1px solid rgba(var(--walnut-rgb), 0.5);
             border-radius: 2px;
             cursor: pointer;
             transition: background 0.15s;
         }
 
         .tonic-arrow:hover {
-            background: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--moss-rgb), 0.3);
         }
 
         .interval-item {
@@ -1051,37 +1144,37 @@
         }
 
         .interval-item:hover {
-            background: rgba(139, 168, 112, 0.15);
+            background: rgba(var(--moss-rgb), 0.15);
         }
 
         .interval-degree {
-            color: #5C4033;
+            color: var(--brown);
             font-weight: 500;
-            font-size: 8px;
+            font-size: 9px;
             min-width: 18px;
         }
 
         .interval-input {
             width: 50px;
-            background: rgba(245, 230, 211, 0.8);
-            border: 1px solid rgba(139, 115, 85, 0.4);
+            background: rgba(var(--paper-rgb), 0.8);
+            border: 1px solid rgba(var(--walnut-rgb), 0.4);
             border-radius: 2px;
-            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
-            font-size: 8px;
-            color: #3C2F2F;
+            font-family: var(--font-serif);
+            font-size: 9px;
+            color: var(--ink);
             text-align: right;
             padding: 0 3px;
             outline: none;
         }
 
         .interval-input:focus {
-            background: #FFF;
-            border-color: #6B8E4E;
+            background: var(--white);
+            border-color: var(--sage);
         }
 
         .interval-input:disabled {
-            background: rgba(200, 200, 200, 0.3);
-            color: #888;
+            background: rgba(var(--grey-rgb), 0.3);
+            color: var(--text-muted);
         }
 
         /* Tuning Controls Panel - Right side */
@@ -1116,11 +1209,11 @@
             width: 60px;
             height: 60px;
             background: radial-gradient(circle at 35% 35%,
-                rgba(255, 248, 220, 0.9) 0%,
-                rgba(245, 222, 179, 0.8) 40%,
-                rgba(212, 196, 176, 0.7) 70%,
-                rgba(139, 115, 85, 0.5) 100%);
-            border: 2px solid #8B7355;
+                rgba(var(--cornsilk-rgb), 0.9) 0%,
+                rgba(var(--wheat-rgb), 0.8) 40%,
+                rgba(var(--parchment-rgb), 0.7) 70%,
+                rgba(var(--walnut-rgb), 0.5) 100%);
+            border: 2px solid var(--walnut);
             border-radius: 50%;
             cursor: pointer;
             position: relative;
@@ -1134,15 +1227,15 @@
             transform: translateX(-50%);
             width: 3px;
             height: 12px;
-            background: #3C2F2F;
+            background: var(--ink);
             border-radius: 2px;
             transform-origin: center 25px;
         }
 
         .ref-knob-label {
-            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
-            font-size: 8px;
-            color: #5C4033;
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size (v2.6.0: 8 -> 9px floor) */
+            font-size: 9px;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             text-align: center;
@@ -1150,7 +1243,7 @@
 
         .ref-knob-value {
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--ink);
             text-align: center;
             font-weight: 500;
         }
@@ -1158,11 +1251,11 @@
         /* Scale name display */
         .scale-name-display {
             padding: 6px 10px;
-            background: rgba(245, 230, 211, 0.8);
-            border: 1px solid #8B7355;
+            background: rgba(var(--paper-rgb), 0.8);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--ink);
             text-align: center;
             min-height: 24px;
             width: 100%;
@@ -1182,22 +1275,22 @@
         }
 
         .tuning-file-btn {
-            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size (v2.6.0: 8 -> 9px floor) */
             padding: 5px 6px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
-            font-size: 8px;
+            font-family: var(--font-serif);
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
-            color: #5C4033;
-            background: rgba(212, 196, 176, 0.7);
-            border: 1px solid #8B7355;
+            color: var(--brown);
+            background: rgba(var(--parchment-rgb), 0.7);
+            border: 1px solid var(--walnut);
             border-radius: 2px;
             cursor: pointer;
             transition: background 0.15s;
         }
 
         .tuning-file-btn:hover {
-            background: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--moss-rgb), 0.3);
         }
 
         .tuning-file-btn:active {
@@ -1207,19 +1300,19 @@
         /* v1.16.0: Export HTML button styling */
         .tuning-export-btn {
             grid-column: span 2;
-            background: rgba(139, 115, 85, 0.15);
-            border-color: #6b5a42;
-            color: #5c4033;
+            background: rgba(var(--parchment-rgb), 0.85);   /* v2.6.0: was walnut @ 0.15, which let the paper read through (3.5:1) */
+            border-color: var(--walnut-deep);
+            color: var(--ink);
         }
 
         .tuning-export-btn:hover {
-            background: rgba(139, 115, 85, 0.3);
+            background: rgba(var(--walnut-rgb), 0.3);
         }
 
         /* v1.14.0: Scale Generator Section */
         .generator-section {
             margin-top: 8px;
-            border-top: 1px solid rgba(139, 115, 85, 0.3);
+            border-top: 1px solid rgba(var(--walnut-rgb), 0.3);
             padding-top: 8px;
         }
 
@@ -1235,14 +1328,14 @@
         .generator-header-text {
             line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
-            color: #5C4033;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .generator-toggle {
             font-size: 10px;
-            color: #8B7355;
+            color: var(--ink);
             transition: transform 0.2s;
         }
 
@@ -1266,11 +1359,11 @@
         .generator-type-select {
             width: 100%;
             padding: 5px 6px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
-            color: #3C2F2F;
-            background: rgba(245, 230, 211, 0.9);
-            border: 1px solid #8B7355;
+            color: var(--ink);
+            background: rgba(var(--paper-rgb), 0.9);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             cursor: pointer;
             outline: none;
@@ -1293,45 +1386,45 @@
         .gen-row label {
             line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
-            color: #5C4033;
+            color: var(--ink);
             flex-shrink: 0;
         }
 
         .gen-row input[type="number"] {
             width: 70px;
             padding: 4px 6px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
-            color: #3C2F2F;
-            background: rgba(255, 248, 220, 0.9);
-            border: 1px solid #8B7355;
+            color: var(--ink);
+            background: rgba(var(--cornsilk-rgb), 0.9);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             text-align: right;
         }
 
         .gen-row input[type="number"]:focus {
             outline: none;
-            border-color: #6B8E4E;
+            border-color: var(--sage);
         }
 
         .generator-btn {
             line-height: 1.1;   /* zh pin: 11px English CONTENT line box over 10px font-size */
             width: 100%;
             padding: 8px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #3C2F2F;
-            background: linear-gradient(to bottom, rgba(139, 168, 112, 0.6), rgba(107, 142, 78, 0.7));
-            border: 1px solid #6B8E4E;
+            color: var(--ink);
+            background: linear-gradient(to bottom, rgba(var(--moss-rgb), 0.6), rgba(var(--sage-rgb), 0.7));
+            border: 1px solid var(--sage);
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.15s;
         }
 
         .generator-btn:hover {
-            background: linear-gradient(to bottom, rgba(139, 168, 112, 0.8), rgba(107, 142, 78, 0.9));
+            background: linear-gradient(to bottom, rgba(var(--moss-rgb), 0.8), rgba(var(--sage-rgb), 0.9));
         }
 
         .generator-btn:active {
@@ -1359,12 +1452,12 @@
            ÉTIREMENT renders 49.83px and pushed the flex: 1 slider beside it
            9.8px right. Raised to the wider of the two. */
         .octave-stretch-label {
-            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
-            font-size: 8px;
-            color: #5C4033;
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size (v2.6.0: 8 -> 9px floor) */
+            font-size: 9px;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            min-width: 50px;
+            min-width: 57px;   /* v2.6.0: re-measured at 9px EB Garamond - ÉTIREMENT 56.52, STRETCH 44.75 */
         }
 
         .octave-stretch-slider {
@@ -1372,7 +1465,7 @@
             height: 6px;
             -webkit-appearance: none;
             appearance: none;
-            background: rgba(139, 115, 85, 0.3);
+            background: rgba(var(--walnut-rgb), 0.3);
             border-radius: 3px;
             outline: none;
         }
@@ -1383,10 +1476,10 @@
             width: 14px;
             height: 14px;
             background: radial-gradient(circle at 35% 35%,
-                rgba(255, 248, 220, 0.9) 0%,
-                rgba(212, 196, 176, 0.8) 70%,
-                rgba(139, 115, 85, 0.6) 100%);
-            border: 1px solid #8B7355;
+                rgba(var(--cornsilk-rgb), 0.9) 0%,
+                rgba(var(--parchment-rgb), 0.8) 70%,
+                rgba(var(--walnut-rgb), 0.6) 100%);
+            border: 1px solid var(--walnut);
             border-radius: 50%;
             cursor: pointer;
         }
@@ -1395,18 +1488,18 @@
             width: 14px;
             height: 14px;
             background: radial-gradient(circle at 35% 35%,
-                rgba(255, 248, 220, 0.9) 0%,
-                rgba(212, 196, 176, 0.8) 70%,
-                rgba(139, 115, 85, 0.6) 100%);
-            border: 1px solid #8B7355;
+                rgba(var(--cornsilk-rgb), 0.9) 0%,
+                rgba(var(--parchment-rgb), 0.8) 70%,
+                rgba(var(--walnut-rgb), 0.6) 100%);
+            border: 1px solid var(--walnut);
             border-radius: 50%;
             cursor: pointer;
         }
 
         .octave-stretch-value {
             font-size: 9px;
-            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
-            color: #3C2F2F;
+            font-family: var(--font-serif);
+            color: var(--ink);
             min-width: 32px;
             text-align: right;
         }
@@ -1430,15 +1523,15 @@
 
         /* v1.30.0: Glissando toggle buttons */
         .gliss-toggle {
-            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size (v2.6.0: 8 -> 9px floor) */
             padding: 2px 8px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
-            font-size: 8px;
+            font-family: var(--font-serif);
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
-            color: #5C4033;
-            background: rgba(212, 196, 176, 0.7);
-            border: 1px solid #8B7355;
+            color: var(--brown);
+            background: rgba(var(--parchment-rgb), 0.7);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             cursor: pointer;
             transition: background 0.15s, color 0.15s;
@@ -1447,13 +1540,36 @@
         }
 
         .gliss-toggle:hover {
-            background: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--moss-rgb), 0.3);
         }
 
         .gliss-toggle.active {
-            background: rgba(139, 168, 112, 0.5);
-            color: #3C2F2F;
-            border-color: #3C5C1A;
+            background: rgba(var(--moss-rgb), 0.5);
+            color: var(--ink);
+            border-color: var(--olive-deep);
+            font-weight: 500;
+        }
+
+        /* v2.6.0 (R4): the custom-degree toggles. Geometry is the former inline
+           cssText, unchanged; the colours follow .viz-btn / .gliss-toggle. They
+           were cream text on walnut 0.5 (2.5:1) when on and cream 0.4 on black
+           0.2 (1.2:1) when off. */
+        .degree-btn {
+            min-width: 24px;
+            height: 20px;
+            font-size: 10px;
+            padding: 0 3px;
+            border: 1px solid var(--walnut);
+            border-radius: 3px;
+            cursor: pointer;
+            color: var(--brown);
+            background: rgba(var(--parchment-rgb), 0.7);
+        }
+
+        .degree-btn.active {
+            color: var(--ink);
+            background: rgba(var(--moss-rgb), 0.5);
+            border-color: var(--olive-deep);
             font-weight: 500;
         }
 
@@ -1476,15 +1592,15 @@
         }
 
         .viz-btn {
-            line-height: 1.125;   /* zh pin: 9px English CONTENT line box over 8px font-size */
-            padding: 4px 8px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
-            font-size: 8px;
+            line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size (v2.6.0: 8 -> 9px floor) */
+            padding: 4px 6px;   /* v2.6.0: 8 -> 6px, see GEOMETRY RULE 7 */
+            font-family: var(--font-serif);
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
-            color: #5C4033;
-            background: rgba(212, 196, 176, 0.7);
-            border: 1px solid #8B7355;
+            color: var(--brown);
+            background: rgba(var(--parchment-rgb), 0.7);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             cursor: pointer;
             transition: background 0.15s, color 0.15s;
@@ -1507,20 +1623,33 @@
 
            Total 302px against English's 284.7 — the row grows 17.3px and stays
            clear of the controls panel by 14px. */
+        /* v2.6.0 RE-MEASURED at the 9px floor in EB Garamond, with the side
+           padding cut 8 -> 6px so the row keeps its old footprint: the 8px
+           padding put the row's left edge at 147px, 3px INTO the 150px-wide
+           interval list. Widest face per button, border box at 6px padding:
+
+             circle    CIRCLE 48.39 / CERCLE 50.41 / zh 33.00
+             polar     POLAR  45.25 / POLAIRE 53.98 / zh 42.50
+             matrix    MATRIX 51.16 / MATRICE 56.56 / zh 33.00
+             truekeys  TRUE KEYS 63.27 / TOUCHES 58.41 / zh 52.00
+             rotation  ROTATION 63.23, identical in en/fr / zh 33.00
+
+           Total 306px: left edge 157, right edge 463 (12px clear of the
+           controls panel at 475). */
         .viz-btn[data-mode="circle"]   { min-width: 51px; }
         .viz-btn[data-mode="polar"]    { min-width: 54px; }
-        .viz-btn[data-mode="matrix"]   { min-width: 56px; }
-        .viz-btn[data-mode="truekeys"] { min-width: 65px; }
-        .viz-btn[data-mode="rotation"] { min-width: 60px; }
+        .viz-btn[data-mode="matrix"]   { min-width: 57px; }
+        .viz-btn[data-mode="truekeys"] { min-width: 64px; }
+        .viz-btn[data-mode="rotation"] { min-width: 64px; }
 
         .viz-btn:hover {
-            background: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--moss-rgb), 0.3);
         }
 
         .viz-btn.active {
-            background: rgba(139, 168, 112, 0.5);
-            color: #3C2F2F;
-            border-color: #3C5C1A;
+            background: rgba(var(--moss-rgb), 0.5);
+            color: var(--ink);
+            border-color: var(--olive-deep);
             font-weight: 500;
         }
 
@@ -1565,26 +1694,26 @@
 
         .matrix-table {
             border-collapse: collapse;
-            font-size: 8px;
+            font-size: 9px;
             width: 100%;
         }
 
         .matrix-table th, .matrix-table td {
             padding: 2px 3px;
-            border: 1px solid rgba(139, 115, 85, 0.3);
+            border: 1px solid rgba(var(--walnut-rgb), 0.3);
             text-align: center;
             min-width: 22px;
         }
 
         .matrix-table th {
-            background: rgba(139, 115, 85, 0.25);
+            background: rgba(var(--walnut-rgb), 0.25);
             font-weight: 600;
-            color: #3C2F2F;
+            color: var(--ink);
         }
 
         .matrix-cell {
-            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
-            font-size: 7px;
+            font-family: var(--font-serif);
+            font-size: 9px;
         }
 
         /* True Keys visualization */
@@ -1600,8 +1729,7 @@
         .tk-hint {
             line-height: 1.0909091;   /* zh pin: 12px English CONTENT line box over 11px font-size */
             font-size: 11px;
-            color: #5C4033;
-            opacity: 0.7;
+            color: var(--brown);
             text-align: center;
         }
 
@@ -1619,21 +1747,21 @@
             justify-content: space-between;
             align-items: center;
             padding: 6px 10px;
-            background: rgba(235, 217, 199, 0.6);
-            border: 1px solid rgba(139, 115, 85, 0.4);
+            background: rgba(var(--paper-2-rgb), 0.6);
+            border: 1px solid rgba(var(--walnut-rgb), 0.4);
             border-radius: 4px;
         }
 
         .tk-interval span:first-child {
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--ink);
             font-weight: 500;
         }
 
         .tk-cents {
-            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
+            font-family: var(--font-serif);
             font-size: 11px;
-            color: #3C5C1A;
+            color: var(--olive-deep);
             font-weight: 600;
         }
 
@@ -1647,23 +1775,23 @@
 
         .rotation-table {
             border-collapse: collapse;
-            font-size: 7px;
+            font-size: 9px;
             width: 100%;
         }
 
         .rotation-table th, .rotation-table td {
             padding: 1px 2px;
-            border: 1px solid rgba(139, 115, 85, 0.25);
+            border: 1px solid rgba(var(--walnut-rgb), 0.25);
             text-align: center;
             min-width: 18px;
         }
 
         .rotation-table th {
-            line-height: 1;   /* zh pin: 7px English CONTENT line box over 7px font-size */
+            line-height: 1;   /* zh pin: 9px English CONTENT line box over 9px font-size (v2.6.0: 7 -> 9px floor) */
             white-space: nowrap;   /* zh: 模式 wraps to two lines in an 18px auto-sized cell */
-            background: rgba(139, 115, 85, 0.2);
+            background: rgba(var(--walnut-rgb), 0.2);
             font-weight: 500;
-            color: #3C2F2F;
+            color: var(--ink);
         }
 
         /* zh FLOOR, not a clip. This table is auto-layout and OVERFLOWS its 220px
@@ -1678,23 +1806,23 @@
            that floor for ONE cell rather than lowering it for any — the twelve digit
            columns keep their 18px. */
         .rotation-table th:first-child {
-            min-width: 21.34px;
+            min-width: 25.45px;   /* v2.6.0: re-measured, English "Mode" at 9px EB Garamond */
         }
 
         .mode-name {
-            background: rgba(139, 115, 85, 0.3) !important;
+            background: rgba(var(--walnut-rgb), 0.3) !important;
             font-weight: bold;
-            font-size: 8px;
+            font-size: 9px;
         }
 
         .int-cell {
-            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
-            font-size: 7px;
+            font-family: var(--font-serif);
+            font-size: 9px;
         }
 
-        .int-cell.small { background: rgba(33, 150, 243, 0.35); }
-        .int-cell.medium { background: rgba(76, 175, 80, 0.35); }
-        .int-cell.large { background: rgba(255, 152, 0, 0.35); }
+        .int-cell.small { background: rgba(var(--dev-flat-bright-rgb), 0.35); }
+        .int-cell.medium { background: rgba(var(--dev-pure-bright-rgb), 0.35); }
+        .int-cell.large { background: rgba(var(--dev-sharp-bright-rgb), 0.35); }
 
         /* Deviation display in interval list */
         .interval-row {
@@ -1707,39 +1835,38 @@
         }
 
         .interval-row:hover {
-            background: rgba(139, 168, 112, 0.15);
+            background: rgba(var(--moss-rgb), 0.15);
         }
 
         .note-name {
-            color: #5C4033;
+            color: var(--brown);
             font-weight: 500;
-            font-size: 8px;
+            font-size: 9px;
             min-width: 18px;
         }
 
         .cents-value {
-            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
-            font-size: 8px;
-            color: #3C2F2F;
+            font-family: var(--font-serif);
+            font-size: 9px;
+            color: var(--ink);
         }
 
         .deviation {
-            font-family: Menlo, 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
-            font-size: 7px;
-            opacity: 0.8;
+            font-family: var(--font-serif);
+            font-size: 9px;
             min-width: 32px;
             text-align: right;
         }
 
-        .deviation.pure { color: #4CAF50; }
-        .deviation.sharp { color: #FF9800; }
-        .deviation.flat { color: #2196F3; }
+        .deviation.pure { color: var(--dev-pure); }
+        .deviation.sharp { color: var(--dev-sharp); }
+        .deviation.flat { color: var(--dev-flat); }
 
         /* v1.15.0: Tuning Library Section */
         /* v1.18.2: When at top, no margin/border needed */
         .library-section {
             margin-top: 8px;
-            border-top: 1px solid rgba(139, 115, 85, 0.3);
+            border-top: 1px solid rgba(var(--walnut-rgb), 0.3);
             padding-top: 8px;
         }
 
@@ -1761,14 +1888,14 @@
         .library-header-text {
             line-height: 1.1111111;   /* zh pin: 10px English CONTENT line box over 9px font-size */
             font-size: 9px;
-            color: #5C4033;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .library-toggle {
             font-size: 10px;
-            color: #8B7355;
+            color: var(--ink);
             transition: transform 0.2s;
         }
 
@@ -1792,32 +1919,32 @@
         .library-filter-select {
             width: 100%;
             padding: 5px 6px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
-            color: #3C2F2F;
-            background: rgba(245, 230, 211, 0.9);
-            border: 1px solid #8B7355;
+            color: var(--ink);
+            background: rgba(var(--paper-rgb), 0.9);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             cursor: pointer;
             outline: none;
         }
 
         .library-filter-select:focus {
-            border-color: #6B8E4E;
+            border-color: var(--sage);
         }
 
         .library-list {
             max-height: 150px;
             overflow-y: auto;
-            border: 1px solid rgba(139, 115, 85, 0.3);
+            border: 1px solid rgba(var(--walnut-rgb), 0.3);
             border-radius: 3px;
-            background: rgba(245, 230, 211, 0.5);
+            background: rgba(var(--paper-rgb), 0.5);
         }
 
         .library-item {
             padding: 6px 8px;
             cursor: pointer;
-            border-bottom: 1px solid rgba(139, 115, 85, 0.15);
+            border-bottom: 1px solid rgba(var(--walnut-rgb), 0.15);
             transition: background 0.15s;
         }
 
@@ -1826,28 +1953,28 @@
         }
 
         .library-item:hover {
-            background: rgba(139, 168, 112, 0.2);
+            background: rgba(var(--moss-rgb), 0.2);
         }
 
         .library-item.selected {
-            background: rgba(139, 168, 112, 0.35);
+            background: rgba(var(--moss-rgb), 0.35);
         }
 
         .library-item-name {
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--ink);
             font-weight: 500;
         }
 
         .library-item-info {
-            font-size: 8px;
-            color: #8B7355;
+            font-size: 9px;
+            color: var(--text-muted);
             margin-top: 2px;
         }
 
         .library-item-desc {
-            font-size: 8px;
-            color: #5C4033;
+            font-size: 9px;
+            color: var(--brown);
             font-style: italic;
             margin-top: 2px;
             display: none;
@@ -1863,17 +1990,17 @@
         }
 
         .library-list::-webkit-scrollbar-track {
-            background: rgba(139, 115, 85, 0.1);
+            background: rgba(var(--walnut-rgb), 0.1);
             border-radius: 3px;
         }
 
         .library-list::-webkit-scrollbar-thumb {
-            background: rgba(139, 115, 85, 0.4);
+            background: rgba(var(--walnut-rgb), 0.4);
             border-radius: 3px;
         }
 
         .library-list::-webkit-scrollbar-thumb:hover {
-            background: rgba(139, 115, 85, 0.6);
+            background: rgba(var(--walnut-rgb), 0.6);
         }
 
         /* ====================================================================
@@ -1902,12 +2029,12 @@
             height: 20px;
             padding: 0;
             border-radius: 50%;
-            background: rgba(212, 196, 176, 0.7);
-            border: 1px solid #8B7355;
-            color: #5C4033;
+            background: rgba(var(--parchment-rgb), 0.7);
+            border: 1px solid var(--walnut);
+            color: var(--brown);
             font-size: 12px;
             font-weight: bold;
-            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             line-height: 1;
             cursor: pointer;
             display: flex;
@@ -1917,19 +2044,19 @@
         }
 
         .gear-btn:hover {
-            background: rgba(139, 168, 112, 0.5);
-            border-color: #6B8E4E;
+            background: rgba(var(--moss-rgb), 0.5);
+            border-color: var(--sage);
         }
 
         .gear-btn[aria-expanded="true"] {
-            background: rgba(139, 168, 112, 0.7);
-            color: #3C2F2F;
-            border-color: #3C5C1A;
-            box-shadow: 0 0 6px rgba(107, 142, 78, 0.4);
+            background: rgba(var(--moss-rgb), 0.7);
+            color: var(--ink);
+            border-color: var(--olive-deep);
+            box-shadow: 0 0 6px rgba(var(--sage-rgb), 0.4);
         }
 
         .gear-btn:focus-visible {
-            outline: 2px solid #6B8E4E;
+            outline: 2px solid var(--sage);
             outline-offset: 2px;
         }
 
@@ -1945,8 +2072,8 @@
             display: flex;
             flex-direction: column;
             gap: 7px;
-            background: rgba(245, 230, 211, 0.98);
-            border: 2px solid #8B7355;
+            background: rgba(var(--paper-rgb), 0.98);
+            border: 2px solid var(--walnut);
             border-radius: 4px;
             box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.4);
         }
@@ -1966,7 +2093,7 @@
             line-height: 1.1;   /* zh pin: 11px English CONTENT line box over 10px font-size */
             font-family: inherit;
             font-size: 10px;
-            color: #5C4033;
+            color: var(--brown);
             letter-spacing: 0.5px;
             white-space: nowrap;
         }
@@ -1975,10 +2102,10 @@
             flex: 0 0 auto;
             width: auto;
             padding: 2px 4px;
-            border: 1px solid #8B7355;
+            border: 1px solid var(--walnut);
             border-radius: 3px;
-            background: #E8D5B7;
-            color: #3C2F2F;
+            background: var(--wheat-2);
+            color: var(--ink);
             font-family: inherit;
             font-size: 10px;
             line-height: 1.2;
@@ -1986,7 +2113,7 @@
         }
 
         .settings-popover select:focus-visible {
-            outline: 2px solid #6B8E4E;
+            outline: 2px solid var(--sage);
             outline-offset: 1px;
         }
 
@@ -2000,10 +2127,10 @@
             min-width: 40px;
             padding: 2px 8px;
             flex: 0 0 auto;
-            border: 1px solid #8B7355;
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             background: transparent;
-            color: #5C4033;
+            color: var(--brown);
             font-family: inherit;
             font-size: 10px;
             line-height: 1.2;
@@ -2012,17 +2139,17 @@
         }
 
         .settings-toggle:hover {
-            background: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--moss-rgb), 0.3);
         }
 
         .settings-toggle[aria-pressed="true"] {
-            background: rgba(139, 168, 112, 0.7);
-            color: #3C2F2F;
-            border-color: #3C5C1A;
+            background: rgba(var(--moss-rgb), 0.7);
+            color: var(--ink);
+            border-color: var(--olive-deep);
         }
 
         .settings-toggle:focus-visible {
-            outline: 2px solid #6B8E4E;
+            outline: 2px solid var(--sage);
             outline-offset: 2px;
         }
 
@@ -2055,12 +2182,12 @@
             z-index: 1000;
             max-width: 200px;
             padding: 6px 10px;
-            background: rgba(60, 47, 47, 0.95);
-            color: #F5E6D3;
-            border: 1px solid rgba(139, 115, 85, 0.6);
+            background: rgba(var(--ink-rgb), 0.95);
+            color: var(--paper);
+            border: 1px solid rgba(var(--walnut-rgb), 0.6);
             border-radius: 4px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             pointer-events: none;
             opacity: 0;
             transition: opacity 150ms ease;
@@ -2075,14 +2202,14 @@
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.6px;
-            color: #A8C08C;
+            color: var(--moss-light);
             margin-bottom: 3px;
         }
 
         .tooltip-body {
             font-size: 10px;
             line-height: 1.4;
-            color: #F5E6D3;
+            color: var(--paper);
         }
 
         /* Arrow - its horizontal offset tracks the anchor via --arrow-x, so the
@@ -2098,17 +2225,17 @@
 
         .tooltip[data-placement="above"]::after {
             top: 100%;
-            border-top-color: rgba(139, 115, 85, 0.6);
+            border-top-color: rgba(var(--walnut-rgb), 0.6);
         }
 
         .tooltip[data-placement="below"]::after {
             bottom: 100%;
-            border-bottom-color: rgba(139, 115, 85, 0.6);
+            border-bottom-color: rgba(var(--walnut-rgb), 0.6);
         }
 
         /* Elements with tooltips get subtle indicator when tooltips enabled */
         .tooltips-enabled [data-tip]:hover {
-            outline: 1px dashed rgba(139, 168, 112, 0.4);
+            outline: 1px dashed rgba(var(--moss-rgb), 0.4);
             outline-offset: 2px;
         }
         /* ── v2.5.0: the form-4 repair (Simplified Chinese) ──────────────────
@@ -2144,7 +2271,7 @@
            the CJK tail BEFORE the generic — under zh-Hans the bare generic is
            already a Chinese face and a tail written after it is never read. */
         button, input, textarea {
-            font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-family: var(--font-serif);
         }
 
     </style>
@@ -2690,15 +2817,15 @@
                     <div class="pitch-circle">
                         <svg viewBox="0 0 188 188" id="pitch-circle-svg">
                             <!-- Outer circle -->
-                            <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                            <circle class="pc-rim" cx="94" cy="94" r="88" fill="none" stroke-width="1.5"/>
                             <!-- Inner circle -->
-                            <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                            <circle class="pc-face" cx="94" cy="94" r="73" stroke-width="0.5"/>
                             <!-- Center dot -->
-                            <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
+                            <circle class="pc-hub" cx="94" cy="94" r="4"/>
                             <!-- Interval lines (drawn by JS) -->
                             <g id="interval-lines"></g>
                             <!-- Degree labels around the circle -->
-                            <g id="degree-labels" font-size="9" fill="#5C4033"></g>
+                            <g id="degree-labels" font-size="9"></g>
                         </svg>
                         <div class="pitch-circle-label" data-i18n="label.scaleIntervals">Scale Intervals</div>
                     </div>
@@ -3676,13 +3803,12 @@
                     const btn = document.createElement('button');
                     btn.textContent = (i + 1).toString();
                     btn.className = 'degree-btn' + (isDegreeEnabled(i) ? ' active' : '');
-                    btn.style.cssText = 'min-width: 24px; height: 20px; font-size: 10px; padding: 0 3px; border: 1px solid rgba(139,119,91,0.4); border-radius: 3px; cursor: pointer; background: ' + (isDegreeEnabled(i) ? 'rgba(139,119,91,0.5)' : 'rgba(0,0,0,0.2)') + '; color: ' + (isDegreeEnabled(i) ? '#f5efe6' : 'rgba(245,239,230,0.4)') + ';';
+                    // v2.6.0 (R4): colours live in the .degree-btn rules. The
+                    // inline cream-on-walnut read 2.5:1 when on and 1.2:1 when off.
                     btn.addEventListener('click', () => {
                         toggleDegree(i);
                         const on = isDegreeEnabled(i);
                         btn.className = 'degree-btn' + (on ? ' active' : '');
-                        btn.style.background = on ? 'rgba(139,119,91,0.5)' : 'rgba(0,0,0,0.2)';
-                        btn.style.color = on ? '#f5efe6' : 'rgba(245,239,230,0.4)';
                     });
                     buttonContainer.appendChild(btn);
                 }
@@ -3797,7 +3923,7 @@
                 emptyItem.className = 'preset-dropdown-item';
                 window.__setLabel(emptyItem, 'label.noPresets');
                 emptyItem.style.fontStyle = 'italic';
-                emptyItem.style.opacity = '0.6';
+                emptyItem.style.color = 'var(--text-muted)';   // v2.6.0: was opacity 0.6 (a contrast change)
                 presetDropdown.appendChild(emptyItem);
                 presetDropdown.classList.add('show');
                 return;
@@ -3981,7 +4107,7 @@
             const cx = 94, cy = 94;
             const innerR = 13, outerR = 73, labelR = 80;
             const total = currentIntervals.length;
-            const fontSize = total > 12 ? 6 : 9;
+            const fontSize = 9;   // v2.6.0: was 6px above 12 notes - the 9px floor
 
             currentIntervals.forEach((cents, i) => {
                 // Angle: 12 o'clock = 0, clockwise
@@ -4011,7 +4137,6 @@
                     text.setAttribute('y', labelY + 2);
                     text.setAttribute('text-anchor', 'middle');
                     text.setAttribute('font-size', fontSize);
-                    text.setAttribute('fill', '#3C2F2F');
                     text.textContent = getDegreeLabel(i, total);
                     labelsGroup.appendChild(text);
                 }
@@ -4247,7 +4372,9 @@
                 const labelY = cy + Math.sin(angle) * labelR;
 
                 ctx.fillStyle = '#3C2F2F';
-                ctx.font = total > 12 ? '8px Garamond' : '10px Garamond';
+                // v2.6.0: the bundled face (bare 'Garamond' resolved to Times);
+                // 8px above 12 notes raised to the 9px floor
+                ctx.font = (total > 12 ? '9px' : '10px') + " 'EB Garamond', Georgia, serif";
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(getDegreeLabel(i, total), labelX, labelY);

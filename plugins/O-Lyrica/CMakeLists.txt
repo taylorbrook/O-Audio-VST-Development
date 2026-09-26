@@ -9,7 +9,7 @@ juce_add_plugin(OLyrica
     PLUGIN_CODE OLyr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Lyrica${OUARICON_DEV_SUFFIX}"
-    VERSION "2.5.1"
+    VERSION "2.6.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -100,6 +100,12 @@ juce_add_binary_data(OLyricaBinaryData
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/images/paper1.jpg
         Resources/ui/images/fern_naturalistsmisc1Geor_0089.png
+        # v2.6.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the four matching getResource() branches
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 # Link binary data to plugin
