@@ -23,7 +23,68 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=600, height=400">
     <title>O-Marimba</title>
+    <!-- v1.15.0: bundled EB Garamond (modules/ui/eb-garamond, SIL OFL 1.1),
+         linked ahead of the page style so --font-serif resolves to it. -->
+    <link rel="stylesheet" href="css/eb-garamond.css" />
     <style>
+        /* ====================================================================
+           PALETTE (v1.15.0, UI design review 260924-nho Phase C: R4 / R5)
+
+           Names follow ouaricon-naturalist-001 and O-Gain, which shares this
+           paper1.jpg. The paper image renders at relative luminance 0.19-0.45
+           under the text (sampled with the text hidden), NOT at the #F5E6D3
+           fallback, so text on the bare image is --ink; boxed controls sit on
+           OPAQUE fills pre-composited over --bg-paper-mid, because an rgba()
+           fill lets the paper through and its ratio then depends on the stain.
+           ==================================================================== */
+        :root {
+            --body-bg: #2A2A2A;
+            --bg-paper: #F5E6D3;          /* fallback under paper1.jpg; popover, active tab */
+            --bg-paper-mid: #EBD9C7;      /* interval list, the base the sage fills are composited over */
+            --bg-accent: #D4C4B0;         /* gear button rest */
+            --bg-cream: #FFF8DC;          /* knob hub, white-key hover */
+            --bg-linen: #FAF0E6;          /* keyboard */
+            --bg-white: #FFFFFF;          /* focused interval input */
+            --chip-paper: rgba(245, 230, 211, 0.7);   /* backing where even --ink fails on the stain */
+
+            --ink: #000000;               /* ALL text on the bare paper image */
+            --brown-text: #3C2F2F;        /* primary text on flat fills; tooltip ground */
+            --brown-frame: #5C4033;       /* frame; secondary text on flat fills (6.83 on --bg-paper-mid) */
+            --brown-border: #8B7355;      /* borders and decoration only — never text */
+            --text-walnut-mid: #715D45;   /* disabled input text (4.56 on --bg-paper-mid) */
+
+            --knob-ring: #C9A27B;
+            --knob-wheat: #F5DEB3;
+            --knob-tan: #E8D5B7;
+
+            --green-mid: #6B8E4E;         /* strokes, focus borders, MTS connected */
+            --green-olive: #6B8E23;       /* focus outlines */
+            --green-dark: #3C5C1A;        /* button borders, VU needle */
+            --green-darkest: #2C3E10;     /* active borders; tonic arrows (7.50 on --fill-tonic) */
+            --text-sage-mid: #4E6839;     /* sage text on --bg-paper-mid (4.54) */
+            --tooltip-title: #A8C08A;     /* on the tooltip ground (6.45) */
+
+            /* Sage state fills, OPAQUE: rgba(139,168,112,a) / rgba(107,142,35,a)
+               composited over --bg-paper-mid (or --bg-accent for the gear). */
+            --fill-sage: #CECAAD;         /* 30% rest — --brown-text 7.73 */
+            --fill-sage-hover: #B8BB85;   /* 40% olive — 6.39 */
+            --fill-sage-active: #9EAC65;  /* 60% olive — 5.21 */
+            --fill-tonic: #D8CFB6;        /* 20% — tonic row */
+            --fill-gear-hover: #B0B690;   /* 50% over --bg-accent — --brown-text 6.06 */
+            --fill-gear-open: #A1B083;    /* 70% over --bg-accent — 5.52 */
+            --fill-dropdown-head: #E5D5C2;/* 50% --bg-accent over --bg-paper — --brown-frame 6.54 */
+
+            --key-mapped-black: #4A6B2A;
+            --key-hover-black: #5A3A3A;
+            --key-mapped-hover-black: #5A8B3A;
+            --key-playing: #8BC34A;
+
+            /* EB Garamond first (bundled, so every host resolves one face);
+               Georgia before Times; the CJK tail BEFORE the trailing generic. */
+            --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            --font-mono: 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
+        }
+
         /* ====================================================================
            CRITICAL CSS CONSTRAINTS
            ==================================================================== */
@@ -52,8 +113,8 @@
             justify-content: center;
             align-items: center;
             min-height: 100%;
-            background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: var(--body-bg);
+            font-family: var(--font-serif);
 
             /* Native feel CSS */
             user-select: none;
@@ -69,9 +130,11 @@
             width: 600px;
             height: 400px;
             position: relative;
-            /* Actual paper texture background */
-            background: url('/images/paper1.jpg') center center / cover no-repeat;
-            border: 3px solid #5C4033;
+            /* Actual paper texture background. v1.15.0: the fallback colour is
+               declared, so the contrast census scores text against paper rather
+               than compositing every translucent fill over the body's #2A2A2A. */
+            background: var(--bg-paper) url('/images/paper1.jpg') center center / cover no-repeat;
+            border: 3px solid var(--brown-frame);
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             overflow: hidden;
         }
@@ -118,7 +181,7 @@
         .title {
             font-size: 18px;
             font-weight: normal;
-            color: #3C2F2F;
+            color: var(--brown-text);
             text-transform: uppercase;
             letter-spacing: 2.5px;
         }
@@ -129,7 +192,7 @@
             align-items: center;
             gap: 8px;
             background: rgba(235, 217, 199, 0.9);
-            border: 1px solid #8B7355;
+            border: 1px solid var(--brown-border);
             border-radius: 4px;
             padding: 4px 10px;
             height: 28px;
@@ -139,13 +202,13 @@
             width: 20px;
             height: 20px;
             background: rgba(139, 168, 112, 0.3);
-            border: 1px solid #3C5C1A;
+            border: 1px solid var(--green-dark);
             border-radius: 3px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            color: #3C2F2F;
+            color: var(--brown-text);
             font-size: 10px;
         }
 
@@ -159,7 +222,7 @@
 
         .preset-name {
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--brown-text);
             min-width: 120px;
             text-align: center;
             cursor: pointer;
@@ -172,6 +235,7 @@
             background: rgba(139, 168, 112, 0.2);
         }
 
+        /* The ▼ is an icon, not text, so it stays under the 9px floor. */
         .preset-name::after {
             content: ' ▼';
             font-size: 7px;
@@ -189,7 +253,7 @@
             max-height: 200px;
             overflow-y: auto;
             background: rgba(245, 230, 211, 0.98);
-            border: 1px solid #8B7355;
+            border: 1px solid var(--brown-border);
             border-radius: 4px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 1000;
@@ -203,7 +267,7 @@
         .preset-dropdown-item {
             padding: 6px 12px;
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--brown-text);
             cursor: pointer;
             border-bottom: 1px solid rgba(139, 115, 85, 0.2);
         }
@@ -228,12 +292,12 @@
 
         .preset-dropdown-header {
             padding: 4px 12px;
-            font-size: 8px;
-            color: #8B7355;
+            font-size: 9px;
+            color: var(--brown-frame);
             text-transform: uppercase;
             letter-spacing: 1px;
             border-bottom: 1px solid rgba(139, 115, 85, 0.3);
-            background: rgba(212, 196, 176, 0.5);
+            background: var(--fill-dropdown-head);
         }
 
         /* v1.13.0: pinned to 52 px, which is the wider language.
@@ -243,16 +307,19 @@
            and every control inside it. Pinning widens the browser by ~20 px in
            ENGLISH too; the title ends at x=140 and the browser now starts at
            x=262, so there is no collision. The alternative was abbreviating the
-           French to OUV. / ENR., which is terser than this page needs to be. */
+           French to OUV. / ENR., which is terser than this page needs to be.
+           v1.15.0: 52 -> 53 px. In EB Garamond CHARG. measures 34.97 px, so
+           its border box is 52.97 and the min-content floor grew it past the
+           basis in French only, moving the preset arrows by 1 px. */
         .preset-save, .preset-load {
             font-size: 9px;
-            color: #3C2F2F;
+            color: var(--brown-text);
             background: rgba(139, 168, 112, 0.3);
-            border: 1px solid #3C5C1A;
+            border: 1px solid var(--green-dark);
             border-radius: 3px;
             padding: 2px 8px;
             cursor: pointer;
-            flex: 0 0 52px;
+            flex: 0 0 53px;
             text-align: center;
         }
 
@@ -280,9 +347,9 @@
             font-size: 11px;
             letter-spacing: 1.5px;
             text-transform: uppercase;
-            color: #3C2F2F;
+            color: var(--brown-text);
             cursor: pointer;
-            border: 1px solid #8B7355;
+            border: 1px solid var(--brown-border);
             border-bottom: none;
             border-radius: 4px 4px 0 0;
             background: rgba(212, 196, 176, 0.5);
@@ -290,8 +357,8 @@
         }
 
         .tab.active {
-            background: #F5E6D3;
-            border-bottom: 1px solid #F5E6D3;
+            background: var(--bg-paper);
+            border-bottom: 1px solid var(--bg-paper);
             margin-bottom: -1px;
         }
 
@@ -327,34 +394,34 @@
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            border: 2px solid #8B7355;
+            border: 2px solid var(--brown-border);
             position: relative;
             cursor: pointer;
             background:
-                radial-gradient(circle, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+                radial-gradient(circle, transparent 88%, var(--knob-ring) 88%, var(--knob-ring) 92%, var(--brown-border) 92%, var(--brown-border) 94%, transparent 94%),
                 conic-gradient(from 0deg,
-                    #F5DEB3 0deg, #F5DEB3 17deg, #8B7355 17deg, #8B7355 19deg,
-                    #E8D5B7 19deg, #E8D5B7 35deg, #8B7355 35deg, #8B7355 37deg,
-                    #F5DEB3 37deg, #F5DEB3 53deg, #8B7355 53deg, #8B7355 55deg,
-                    #E8D5B7 55deg, #E8D5B7 71deg, #8B7355 71deg, #8B7355 73deg,
-                    #F5DEB3 73deg, #F5DEB3 89deg, #8B7355 89deg, #8B7355 91deg,
-                    #E8D5B7 91deg, #E8D5B7 107deg, #8B7355 107deg, #8B7355 109deg,
-                    #F5DEB3 109deg, #F5DEB3 125deg, #8B7355 125deg, #8B7355 127deg,
-                    #E8D5B7 127deg, #E8D5B7 143deg, #8B7355 143deg, #8B7355 145deg,
-                    #F5DEB3 145deg, #F5DEB3 161deg, #8B7355 161deg, #8B7355 163deg,
-                    #E8D5B7 163deg, #E8D5B7 179deg, #8B7355 179deg, #8B7355 181deg,
-                    #F5DEB3 181deg, #F5DEB3 197deg, #8B7355 197deg, #8B7355 199deg,
-                    #E8D5B7 199deg, #E8D5B7 215deg, #8B7355 215deg, #8B7355 217deg,
-                    #F5DEB3 217deg, #F5DEB3 233deg, #8B7355 233deg, #8B7355 235deg,
-                    #E8D5B7 235deg, #E8D5B7 251deg, #8B7355 251deg, #8B7355 253deg,
-                    #F5DEB3 253deg, #F5DEB3 269deg, #8B7355 269deg, #8B7355 271deg,
-                    #E8D5B7 271deg, #E8D5B7 287deg, #8B7355 287deg, #8B7355 289deg,
-                    #F5DEB3 289deg, #F5DEB3 305deg, #8B7355 305deg, #8B7355 307deg,
-                    #E8D5B7 307deg, #E8D5B7 323deg, #8B7355 323deg, #8B7355 325deg,
-                    #F5DEB3 325deg, #F5DEB3 341deg, #8B7355 341deg, #8B7355 343deg,
-                    #E8D5B7 343deg, #E8D5B7 359deg, #8B7355 359deg, #8B7355 360deg
+                    var(--knob-wheat) 0deg, var(--knob-wheat) 17deg, var(--brown-border) 17deg, var(--brown-border) 19deg,
+                    var(--knob-tan) 19deg, var(--knob-tan) 35deg, var(--brown-border) 35deg, var(--brown-border) 37deg,
+                    var(--knob-wheat) 37deg, var(--knob-wheat) 53deg, var(--brown-border) 53deg, var(--brown-border) 55deg,
+                    var(--knob-tan) 55deg, var(--knob-tan) 71deg, var(--brown-border) 71deg, var(--brown-border) 73deg,
+                    var(--knob-wheat) 73deg, var(--knob-wheat) 89deg, var(--brown-border) 89deg, var(--brown-border) 91deg,
+                    var(--knob-tan) 91deg, var(--knob-tan) 107deg, var(--brown-border) 107deg, var(--brown-border) 109deg,
+                    var(--knob-wheat) 109deg, var(--knob-wheat) 125deg, var(--brown-border) 125deg, var(--brown-border) 127deg,
+                    var(--knob-tan) 127deg, var(--knob-tan) 143deg, var(--brown-border) 143deg, var(--brown-border) 145deg,
+                    var(--knob-wheat) 145deg, var(--knob-wheat) 161deg, var(--brown-border) 161deg, var(--brown-border) 163deg,
+                    var(--knob-tan) 163deg, var(--knob-tan) 179deg, var(--brown-border) 179deg, var(--brown-border) 181deg,
+                    var(--knob-wheat) 181deg, var(--knob-wheat) 197deg, var(--brown-border) 197deg, var(--brown-border) 199deg,
+                    var(--knob-tan) 199deg, var(--knob-tan) 215deg, var(--brown-border) 215deg, var(--brown-border) 217deg,
+                    var(--knob-wheat) 217deg, var(--knob-wheat) 233deg, var(--brown-border) 233deg, var(--brown-border) 235deg,
+                    var(--knob-tan) 235deg, var(--knob-tan) 251deg, var(--brown-border) 251deg, var(--brown-border) 253deg,
+                    var(--knob-wheat) 253deg, var(--knob-wheat) 269deg, var(--brown-border) 269deg, var(--brown-border) 271deg,
+                    var(--knob-tan) 271deg, var(--knob-tan) 287deg, var(--brown-border) 287deg, var(--brown-border) 289deg,
+                    var(--knob-wheat) 289deg, var(--knob-wheat) 305deg, var(--brown-border) 305deg, var(--brown-border) 307deg,
+                    var(--knob-tan) 307deg, var(--knob-tan) 323deg, var(--brown-border) 323deg, var(--brown-border) 325deg,
+                    var(--knob-wheat) 325deg, var(--knob-wheat) 341deg, var(--brown-border) 341deg, var(--brown-border) 343deg,
+                    var(--knob-tan) 343deg, var(--knob-tan) 359deg, var(--brown-border) 359deg, var(--brown-border) 360deg
                 ),
-                radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+                radial-gradient(circle, var(--bg-cream) 0%, var(--bg-cream) 20%, transparent 20%);
             box-shadow:
                 inset 1px 1px 3px rgba(0,0,0,0.3),
                 inset -1px -1px 2px rgba(255,248,220,0.5),
@@ -371,7 +438,7 @@
             position: absolute;
             width: 6px;
             height: 6px;
-            background: #3C2F2F;
+            background: var(--brown-text);
             border-radius: 50%;
             /* Position at top center, with rotation point at knob center */
             top: 5px;
@@ -407,7 +474,7 @@
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: #3C2F2F;
+            color: var(--ink);
             text-align: center;
             width: 100%;
         }
@@ -432,36 +499,41 @@
            English border box rather than rounded up, so the en and fr arms do
            not move at all:
 
-               RESONANCE          69.02  ->  共振             55.00              */
-        .knob-col-resonance { width: 69.02px; }
+               RESONANCE          69.02  ->  共振             55.00
+
+           v1.15.0 — re-pinned for EB Garamond, whose RESONANCE / RÉSONANCE
+           caption measures 69.56 px of text and overflowed the 69.02 box.
+           Rounded up to 70. The other four still clear their pins in the new
+           face (60.56 / 60.56 / 61.47 / 56.81 in English). */
+        .knob-col-resonance { width: 70px; }
         .knob-col-mallet   { width: 61px; }
         .knob-col-material { width: 61px; }
         .knob-col-damping  { width: 62px; }
         .knob-col-velocity { width: 58px; }
 
         .knob-sublabel {
-            font-size: 8px;
-            color: #5C4033;
+            font-size: 9px;
+            color: var(--ink);
             margin-top: -4px;
         }
 
         /* Buttons */
         .btn {
-            background: rgba(139, 168, 112, 0.3);
-            border: 2px solid #3C5C1A;
+            background: var(--fill-sage);
+            border: 2px solid var(--green-dark);
             border-radius: 4px;
             padding: 6px 14px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.8px;
-            color: #3C2F2F;
+            color: var(--brown-text);
             cursor: pointer;
             transition: all 0.2s;
         }
 
         .btn:hover {
-            background: rgba(107, 142, 35, 0.4);
+            background: var(--fill-sage-hover);
             transform: translateY(-1px);
         }
 
@@ -480,13 +552,13 @@
            the French verbs stay the words CHARG. and ENREG. that the preset bar
            already uses. */
         .btn.btn-small {
-            padding: 4px 4px;
-            font-size: 7px;
+            padding: 2px 4px;
+            font-size: 9px;
         }
 
         .btn.active {
-            background: rgba(107, 142, 35, 0.6);
-            border-color: #2C3E10;
+            background: var(--fill-sage-active);
+            border-color: var(--green-darkest);
         }
 
         /* Waveform Display */
@@ -497,7 +569,7 @@
             width: 260px;
             height: 120px;
             background: rgba(139, 168, 112, 0.15);
-            border: 1px solid #8B7355;
+            border: 1px solid var(--brown-border);
             border-radius: 4px;
             overflow: hidden;
         }
@@ -515,15 +587,15 @@
             width: 105px;
             height: 75px;
             background: rgba(139, 168, 112, 0.12);
-            border: 1px solid #8B7355;
+            border: 1px solid var(--brown-border);
             border-radius: 4px;
             overflow: hidden;
         }
 
         .velocity-curve-display .axis-label {
             position: absolute;
-            font-size: 6px;
-            color: #5C4033;
+            font-size: 9px;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -542,8 +614,8 @@
             position: absolute;
             top: 2px;
             right: 6px;
-            font-size: 7px;
-            color: #3C2F2F;
+            font-size: 9px;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -553,7 +625,7 @@
             width: 80px;
             height: 80px;
             background: rgba(139, 168, 112, 0.2);
-            border: 2px solid #3C5C1A;
+            border: 2px solid var(--green-dark);
             border-radius: 50%;
             position: relative;
             overflow: hidden;
@@ -570,7 +642,7 @@
             position: absolute;
             width: 2px;
             height: 32px;
-            background: #3C5C1A;
+            background: var(--green-dark);
             bottom: 50%;
             left: 50%;
             transform-origin: bottom center;
@@ -583,7 +655,7 @@
             position: absolute;
             width: 10px;
             height: 10px;
-            background: #3C2F2F;
+            background: var(--brown-text);
             border-radius: 50%;
             bottom: calc(50% - 5px);
             left: calc(50% - 5px);
@@ -594,8 +666,8 @@
             bottom: 10px;
             width: 100%;
             text-align: center;
-            font-size: 7px;
-            color: #3C2F2F;
+            font-size: 9px;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -658,8 +730,8 @@
             bottom: -16px;
             width: 100%;
             text-align: center;
-            font-size: 8px;
-            color: #5C4033;
+            font-size: 9px;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -668,8 +740,8 @@
         .interval-list {
             width: 115px;
             max-height: 280px;
-            background: rgba(235, 217, 199, 0.6);
-            border: 1px solid #8B7355;
+            background: var(--bg-paper-mid);
+            border: 1px solid var(--brown-border);
             border-radius: 4px;
             overflow-y: auto;
             padding: 4px 6px;
@@ -677,8 +749,8 @@
         }
 
         .interval-list-header {
-            font-size: 8px;
-            color: #5C4033;
+            font-size: 9px;
+            color: var(--brown-frame);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border-bottom: 1px solid rgba(139, 115, 85, 0.4);
@@ -693,26 +765,30 @@
             align-items: center;
             padding: 2px 4px;
             margin-bottom: 3px;
-            background: rgba(139, 168, 112, 0.2);
-            border: 1px solid #8B7355;
+            background: var(--fill-tonic);
+            border: 1px solid var(--brown-border);
             border-radius: 3px;
         }
 
         /* v1.13.0: "Tonic:" 23.22 -> "Tonique :" 34.67, at the head of a
            space-between row, so the caption's width IS the position of the note
-           readout after it. Pinned to the wider language. */
+           readout after it. Pinned to the wider language.
+           v1.15.0: re-pinned at the 9px floor to French's 45.5 px, rounded up.
+           The row's content box is 91 px, so the readout's min-width drops
+           20 -> 16 and each arrow's side padding 4 -> 3:
+           ◀ 14 + label 46 + value 16 + ▶ 14 = 90. */
         .tonic-label {
-            font-size: 7px;
-            color: #5C4033;
+            font-size: 9px;
+            color: var(--brown-frame);
             text-transform: uppercase;
-            flex: 0 0 35px;
+            flex: 0 0 46px;
         }
 
         .tonic-value {
             font-size: 9px;
             font-weight: bold;
-            color: #3C2F2F;
-            min-width: 20px;
+            color: var(--brown-text);
+            min-width: 16px;
             text-align: center;
         }
 
@@ -723,8 +799,8 @@
 
         .tonic-arrow {
             font-size: 10px;
-            color: #3C5C1A;
-            padding: 2px 4px;
+            color: var(--green-darkest);
+            padding: 2px 3px;
             cursor: pointer;
             border-radius: 2px;
             transition: background 0.15s;
@@ -743,7 +819,7 @@
             justify-content: space-between;
             align-items: center;
             font-size: 9px;
-            color: #3C2F2F;
+            color: var(--brown-text);
             padding: 1px 0;
             border-bottom: 1px solid rgba(139, 115, 85, 0.15);
             height: 16px;
@@ -754,40 +830,40 @@
         }
 
         .interval-degree {
-            color: #5C4033;
+            color: var(--brown-frame);
             font-weight: normal;
             width: 28px;
             flex-shrink: 0;
         }
 
         .interval-cents {
-            color: #6B8E4E;
-            font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
-            font-size: 8px;
+            color: var(--text-sage-mid);
+            font-family: var(--font-mono);
+            font-size: 9px;
         }
 
         .interval-input {
             width: 55px;
             height: 14px;
             background: rgba(255, 255, 255, 0.7);
-            border: 1px solid #8B7355;
+            border: 1px solid var(--brown-border);
             border-radius: 2px;
-            font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
-            font-size: 8px;
-            color: #3C2F2F;
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: var(--brown-text);
             text-align: right;
             padding: 0 3px;
             outline: none;
         }
 
         .interval-input:focus {
-            background: #FFF;
-            border-color: #6B8E4E;
+            background: var(--bg-white);
+            border-color: var(--green-mid);
         }
 
         .interval-input:disabled {
             background: rgba(200, 200, 200, 0.3);
-            color: #888;
+            color: var(--text-walnut-mid);
         }
 
         /* Tuning Controls Panel */
@@ -863,19 +939,26 @@
         .scale-name-display {
             width: 180px;
             height: 24px;
-            background: rgba(235, 217, 199, 0.7);
-            border: 1px solid #8B7355;
+            background: var(--bg-paper-mid);
+            border: 1px solid var(--brown-border);
             border-radius: 3px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--brown-text);
         }
 
+        /* v1.15.0: a 2 x 2 grid. At the 9px floor the single row of four
+           measured 231.8 px in French against the 200 px panel. Two equal
+           columns give each button 97 px, so every caption sits on ONE line in
+           all three languages. Rows are 18 px with a 3 px gap, so the grid
+           ends ~10 px above the keyboard it overhangs on the left. */
         .file-buttons {
-            display: flex;
-            gap: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3px 6px;
+            width: 100%;
         }
 
         .mts-status {
@@ -888,11 +971,11 @@
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: #8B7355;
+            background: var(--brown-border);
         }
 
         .mts-indicator.connected {
-            background: #6B8E4E;
+            background: var(--green-mid);
             box-shadow: 0 0 6px rgba(107, 142, 35, 0.6);
         }
 
@@ -902,7 +985,7 @@
            display: inline-block. Pinned to the wider language. */
         .mts-label {
             font-size: 9px;
-            color: #3C2F2F;
+            color: var(--ink);
             flex: 0 0 91px;
         }
 
@@ -921,8 +1004,8 @@
         .keyboard-viz {
             width: 280px;
             height: 70px;
-            background: #FAF0E6;
-            border: 1px solid #8B7355;
+            background: var(--bg-linen);
+            border: 1px solid var(--brown-border);
             border-radius: 4px;
             display: flex;
             overflow: visible; /* Allow black keys to render above container */
@@ -931,8 +1014,8 @@
 
         .white-key {
             flex: 1;
-            background: #FAF0E6;
-            border-right: 1px solid #8B7355;
+            background: var(--bg-linen);
+            border-right: 1px solid var(--brown-border);
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
@@ -952,7 +1035,7 @@
         }
 
         .white-key:hover:not(.playing) {
-            background: #FFF8DC;
+            background: var(--bg-cream);
         }
 
         .white-key.mapped:hover:not(.playing) {
@@ -960,14 +1043,14 @@
         }
 
         .white-key:active, .white-key.playing {
-            background: #8BC34A !important; /* Bright green for visibility */
+            background: var(--key-playing) !important; /* Bright green for visibility */
             transform: translateY(2px);
             z-index: 2;
         }
 
         .white-key span {
-            font-size: 7px;
-            color: #3C2F2F;
+            font-size: 9px;
+            color: var(--brown-text);
             pointer-events: none;
         }
 
@@ -975,7 +1058,7 @@
             position: absolute;
             width: 22px;
             height: 50px;
-            background: #3C2F2F;
+            background: var(--brown-text);
             border-radius: 0 0 3px 3px;
             top: 0;
             z-index: 10; /* Higher z-index to ensure clickability */
@@ -993,27 +1076,33 @@
         .black-key#key-as1 { left: 229px; }  /* A#: between A-B (240 - 11) */
 
         .black-key.mapped {
-            background: #4A6B2A;
+            background: var(--key-mapped-black);
         }
 
         .black-key:hover {
-            background: #5A3A3A;
+            background: var(--key-hover-black);
         }
 
         .black-key.mapped:hover {
-            background: #5A8B3A;
+            background: var(--key-mapped-hover-black);
         }
 
         .black-key:active, .black-key.playing {
-            background: #8BC34A !important; /* Bright green for visibility */
+            background: var(--key-playing) !important; /* Bright green for visibility */
             transform: translateY(2px);
             box-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
 
+        /* v1.15.0: --ink on a paper chip. The caption sits over the darkest
+           patch of the stain (p5 luminance 0.117), where black alone reads
+           3.3:1. Padding on the sides only, so no line box moves. */
         .keyboard-help {
-            font-size: 8px;
-            color: #5C4033;
+            font-size: 9px;
+            color: var(--ink);
             text-align: center;
+            background: var(--chip-paper);
+            padding: 0 4px;
+            border-radius: 2px;
         }
 
         /* ====================================================================
@@ -1036,12 +1125,12 @@
             height: 20px;
             padding: 0;
             border-radius: 50%;
-            background: rgba(212, 196, 176, 0.7);
-            border: 1px solid #8B7355;
-            color: #5C4033;
+            background: var(--bg-accent);
+            border: 1px solid var(--brown-border);
+            color: var(--brown-frame);
             font-size: 12px;
             font-weight: bold;
-            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -1050,19 +1139,20 @@
         }
 
         .gear-btn:hover {
-            background: rgba(139, 168, 112, 0.5);
-            border-color: #6B8E4E;
+            background: var(--fill-gear-hover);
+            color: var(--brown-text);
+            border-color: var(--green-mid);
         }
 
         .gear-btn[aria-expanded="true"] {
-            background: rgba(139, 168, 112, 0.7);
-            color: #3C2F2F;
-            border-color: #3C5C1A;
+            background: var(--fill-gear-open);
+            color: var(--brown-text);
+            border-color: var(--green-dark);
             box-shadow: 0 0 6px rgba(107, 142, 78, 0.4);
         }
 
         .gear-btn:focus-visible {
-            outline: 2px solid #6B8E23;
+            outline: 2px solid var(--green-olive);
             outline-offset: 2px;
         }
 
@@ -1080,7 +1170,7 @@
             flex-direction: column;
             gap: 7px;
             background: rgba(245, 230, 211, 0.98);
-            border: 1px solid #8B7355;
+            border: 1px solid var(--brown-border);
             border-radius: 4px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
         }
@@ -1097,9 +1187,9 @@
         }
 
         .settings-label {
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--brown-text);
             letter-spacing: 0.5px;
             white-space: nowrap;
         }
@@ -1107,18 +1197,18 @@
         .settings-popover select {
             flex: 0 0 auto;
             padding: 2px 4px;
-            border: 1px solid #8B7355;
+            border: 1px solid var(--brown-border);
             border-radius: 3px;
             background: rgba(139, 168, 112, 0.25);
-            color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            color: var(--brown-text);
+            font-family: var(--font-serif);
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
         }
 
         .settings-popover select:focus-visible {
-            outline: 2px solid #6B8E23;
+            outline: 2px solid var(--green-olive);
             outline-offset: 1px;
         }
 
@@ -1129,11 +1219,11 @@
         .settings-toggle {
             min-width: 52px;
             padding: 2px 8px;
-            border: 1px solid #8B7355;
+            border: 1px solid var(--brown-border);
             border-radius: 3px;
             background: rgba(139, 168, 112, 0.25);
-            color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            color: var(--brown-text);
+            font-family: var(--font-serif);
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
@@ -1141,11 +1231,11 @@
 
         .settings-toggle[aria-pressed="true"] {
             background: rgba(107, 142, 35, 0.55);
-            border-color: #3C5C1A;
+            border-color: var(--green-dark);
         }
 
         .settings-toggle:focus-visible {
-            outline: 2px solid #6B8E23;
+            outline: 2px solid var(--green-olive);
             outline-offset: 1px;
         }
 
@@ -1165,11 +1255,11 @@
             left: 0;
             top: 0;
             background: rgba(60, 47, 47, 0.95);
-            color: #F5E6D3;
+            color: var(--bg-paper);
             padding: 6px 10px;
             border: 1px solid rgba(139, 115, 85, 0.6);
             border-radius: 4px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             line-height: 1.4;
             max-width: 200px;
             z-index: 1000;
@@ -1189,14 +1279,14 @@
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.6px;
-            color: #A8C08A;
+            color: var(--tooltip-title);
             margin-bottom: 3px;
         }
 
         .tooltip-body {
             font-size: 10px;
             line-height: 1.4;
-            color: #F5E6D3;
+            color: var(--bg-paper);
         }
 
         /* Arrow - its horizontal offset tracks the anchor via --arrow-x, so the
@@ -1264,21 +1354,25 @@
            box is 11px at 10px, so 1.1 is what the en and fr arms actually
            render and neither moves.                                          */
 
-        .velocity-curve-display .axis-label      { line-height: 1.0; }        /*  6.00 /  6px */
-
-        .velocity-curve-display .title-label,
-        .vu-meter-label,
-        .tonic-label,
-        .btn.btn-small                           { line-height: 1.1428571; }  /*  8.00 /  7px */
-
-        .pitch-circle-label,
-        .interval-list-header,
-        .keyboard-help                           { line-height: 1.125; }      /*  9.00 /  8px */
+/* v1.15.0 — THE 9px FLOOR folds the 6, 7 and 8px rows into the 9px row.
+           Each moved selector takes the 9px ratio the page already measured
+           (10 / 9), not a new one: EB Garamond ships with Times New Roman's
+           vertical metrics baked in, so a 9px line box is 10px in either face.
+           .btn.btn-small no longer wraps, since the Scala row went 2 x 2.     */
 
         /* .mts-label is `display: none` until MTS-ESP mode is entered, so the
            census reports it at h=0 and only the state-driven gate sees it grow.
-           Same 9px ratio as the two preset buttons; its WIDTH was already pinned
-           at v1.13.0 by `flex: 0 0 91px`, so only the line box needed holding. */
+           Its WIDTH was already pinned at v1.13.0 by `flex: 0 0 91px`, so only
+           the line box needed holding. */
+        .velocity-curve-display .axis-label,
+        .velocity-curve-display .title-label,
+        .vu-meter-label,
+        .tonic-label,
+        .btn.btn-small,
+        .pitch-circle-label,
+        .interval-list-header,
+        .keyboard-help,
+        .knob-sublabel,
         .preset-save, .preset-load,
         .mts-label                               { line-height: 1.1111111; }  /* 10.00 /  9px */
 
@@ -1416,7 +1510,7 @@
             <div class="waveform-display">
                 <svg viewBox="0 0 260 120" preserveAspectRatio="none">
                     <path id="waveform-path" d="M0,60 L260,60"
-                          fill="none" stroke="#6B8E4E" stroke-width="2"/>
+                          fill="none" style="stroke: var(--green-mid)" stroke-width="2"/>
                     <path id="waveform-fill" d="M0,60 L260,60 L260,120 L0,120 Z"
                           fill="rgba(107, 142, 35, 0.25)"/>
                 </svg>
@@ -1438,10 +1532,10 @@
                     <span class="axis-label y" data-i18n="label.axisOut">Out</span>
                     <span class="axis-label x" data-i18n="label.axisIn">In</span>
                     <svg width="105" height="75" viewBox="0 0 140 100" id="curve-svg">
-                        <line x1="15" y1="85" x2="125" y2="85" stroke="#8B7355" stroke-width="0.5" opacity="0.5"/>
-                        <line x1="15" y1="15" x2="15" y2="85" stroke="#8B7355" stroke-width="0.5" opacity="0.5"/>
+                        <line x1="15" y1="85" x2="125" y2="85" style="stroke: var(--brown-border)" stroke-width="0.5" opacity="0.5"/>
+                        <line x1="15" y1="15" x2="15" y2="85" style="stroke: var(--brown-border)" stroke-width="0.5" opacity="0.5"/>
                         <path id="velocity-curve" d="M15,85 Q70,50 125,15"
-                              fill="none" stroke="#6B8E4E" stroke-width="2"/>
+                              fill="none" style="stroke: var(--green-mid)" stroke-width="2"/>
                         <path id="velocity-fill" d="M15,85 Q70,50 125,15 L125,85 Z"
                               fill="rgba(107, 142, 35, 0.2)"/>
                     </svg>
@@ -1459,20 +1553,23 @@
                 </div>
 
                 <div class="vu-meter">
-                    <svg class="vu-meter-scale" viewBox="0 0 70 35">
-                        <!-- Arc from left (-90°) to right (+90°) -->
-                        <path d="M 5 30 A 30 30 0 0 1 65 30" fill="none" stroke="#8B7355" stroke-width="1"/>
-                        <!-- Labels positioned on arc: angle = -90 + ((dB+60)/63)*180 -->
-                        <!-- -60dB at -90° (leftmost) -->
-                        <text x="8" y="27" font-size="4" fill="#3C2F2F" text-anchor="middle">-60</text>
-                        <!-- -40dB at -32.9° -->
-                        <text x="22" y="9" font-size="4" fill="#3C2F2F" text-anchor="middle">-40</text>
-                        <!-- -20dB at +24.3° -->
-                        <text x="45" y="7" font-size="4" fill="#3C2F2F" text-anchor="middle">-20</text>
-                        <!-- 0dB at +81.4° (very close to right edge) -->
-                        <text x="58" y="24" font-size="5" fill="#3C2F2F" text-anchor="middle">0</text>
-                        <!-- +3dB at +90° (rightmost) -->
-                        <text x="62" y="27" font-size="4" fill="#3C2F2F" text-anchor="middle">+3</text>
+                    <!-- v1.15.0: the viewBox is the meter's CONTENT box (80 px less a
+                         2 px border each side = 76 x 38), so one user unit is one
+                         CSS pixel and font-size="9" renders at the 9 px floor. The
+                         arc is the v1.14.0 arc scaled by 76/70. Three numerals,
+                         not five: at 9 px, -40 and +3 collide with -60 / -20 and
+                         0. -20 and 0 sit on their arc angle,
+                         angle = -90 + ((dB + 60) / 63) * 180, 23 units in; -60
+                         is lifted above the needle's rest line (y = 34), where
+                         the silent needle and the pivot would otherwise cover it. -->
+                    <svg class="vu-meter-scale" viewBox="0 0 76 38">
+                        <path d="M 5.43 32.57 A 32.57 32.57 0 0 1 70.57 32.57" fill="none" style="stroke: var(--brown-border)" stroke-width="1.09"/>
+                        <!-- -60 dB at -90 deg -->
+                        <text x="15" y="28" font-size="9" style="fill: var(--ink)" text-anchor="middle">-60</text>
+                        <!-- -20 dB at +24.3 deg -->
+                        <text x="47.5" y="14.6" font-size="9" style="fill: var(--ink)" text-anchor="middle">-20</text>
+                        <!-- 0 dB at +81.4 deg -->
+                        <text x="60.7" y="32.1" font-size="9" style="fill: var(--ink)" text-anchor="middle">0</text>
                     </svg>
                     <div class="vu-meter-needle" id="vu-needle"></div>
                     <div class="vu-meter-pivot"></div>
@@ -1495,15 +1592,15 @@
                 <div class="pitch-circle">
                     <svg viewBox="0 0 150 150" id="pitch-circle-svg">
                         <!-- Outer circle -->
-                        <circle cx="75" cy="75" r="70" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                        <circle cx="75" cy="75" r="70" fill="none" style="stroke: var(--brown-border)" stroke-width="1.5"/>
                         <!-- Inner circle -->
-                        <circle cx="75" cy="75" r="58" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                        <circle cx="75" cy="75" r="58" fill="rgba(235, 217, 199, 0.4)" style="stroke: var(--brown-border)" stroke-width="0.5"/>
                         <!-- Center dot -->
-                        <circle cx="75" cy="75" r="3" fill="#3C2F2F"/>
+                        <circle cx="75" cy="75" r="3" style="fill: var(--brown-text)"/>
                         <!-- Interval lines (drawn by JS) -->
                         <g id="interval-lines"></g>
                         <!-- Degree labels around the circle -->
-                        <g id="degree-labels" font-size="7" fill="#5C4033"></g>
+                        <g id="degree-labels" font-size="9" style="fill: var(--ink)"></g>
                     </svg>
                     <div class="pitch-circle-label" data-i18n="label.scaleIntervals">Scale Intervals</div>
                 </div>
@@ -1583,7 +1680,7 @@
             <div id="comp-panel" style="position: absolute; top: 109px; left: 50%; transform: translateX(-50%);"></div>
 
             <!-- Future effects modules placeholder -->
-            <div id="effects-future" style="position: absolute; top: 190px; left: 0; right: 0; bottom: 0; opacity: 0.3; display: flex; align-items: center; justify-content: center; color: #8B7355; font-size: 12px; letter-spacing: 1px;">
+            <div id="effects-future" style="position: absolute; top: 190px; left: 0; right: 0; bottom: 0; opacity: 0.3; display: flex; align-items: center; justify-content: center; color: var(--brown-border); font-size: 12px; letter-spacing: 1px;">
                 <!-- Placeholder for future effects -->
             </div>
         </div>

@@ -515,6 +515,37 @@ OMarimbaAudioProcessorEditor::getResource(const juce::String& url)
         };
     }
 
+    // v1.15.0: bundled EB Garamond (modules/ui/eb-garamond, SIL OFL 1.1),
+    // direct-embedded. The stylesheet's url('../fonts/...') resolves against
+    // /css/, so the faces are served from /fonts/.
+    if (url == "/css/eb-garamond.css") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::ebgaramond_css, BinaryData::ebgaramond_cssSize),
+            juce::String("text/css; charset=utf-8")
+        };
+    }
+
+    if (url == "/fonts/EBGaramond-Regular.woff2") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::EBGaramondRegular_woff2, BinaryData::EBGaramondRegular_woff2Size),
+            juce::String("font/woff2")
+        };
+    }
+
+    if (url == "/fonts/EBGaramond-Italic.woff2") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::EBGaramondItalic_woff2, BinaryData::EBGaramondItalic_woff2Size),
+            juce::String("font/woff2")
+        };
+    }
+
+    if (url == "/fonts/EBGaramond-Bold.woff2") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::EBGaramondBold_woff2, BinaryData::EBGaramondBold_woff2Size),
+            juce::String("font/woff2")
+        };
+    }
+
     // Resource not found
     juce::Logger::writeToLog("Resource not found: " + url);
     return std::nullopt;

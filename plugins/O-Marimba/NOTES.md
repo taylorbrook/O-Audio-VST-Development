@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.12.1
+- **Version:** 1.15.0
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -130,6 +130,12 @@
   - WR-09: shared `analog-eq-unit` module → v1.1.1 (freq readouts use scaled value; skew-aware reset).
   - Built VST3 + AU; `auval -v aumu OuMa OuDv` PASSED (incl. mono + stereo render, MIDI).
   - Note: CMake `PLUGIN_VERSION`/CHANGELOG had drifted to 1.11.0 while shipping 1.12.0; reconciled to 1.12.1.
+- **2026-09-26 (v1.15.0):** UI pass, design review 260924-nho Phase C (R4/R5). 35 `:root`
+  palette tokens, 0 hex outside `:root`; text on the bare paper image is `--ink`, state fills opaque
+  and pre-composited; 9px floor (VU scale redrawn at 1:1 with -60/-20/0, Scala buttons 2 x 2);
+  bundled EB Garamond by direct embed. Census 70/90 -> 0/88 below AA, image probe page-owned
+  33/81 -> 0/79; check-ui-labels + check-i18n pass; auval PASS. Effects-tab module text
+  (analog-eq-unit / compressor-unit, 20 nodes) left for a module-level fix. No DSP change.
 
 ## Known Issues
 
@@ -217,4 +223,4 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 - AU (Audio Unit)
 - Standalone
 
-**Last Updated:** 2026-02-09
+**Last Updated:** 2026-09-26

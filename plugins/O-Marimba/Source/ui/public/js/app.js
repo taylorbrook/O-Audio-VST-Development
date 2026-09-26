@@ -684,7 +684,7 @@ function updateTuningModeUI(normalizedValue) {
     btnMts.classList.toggle('active', index === 2);
 
     // Show/hide mode-specific controls
-    scalaButtons.style.display = index === 1 ? 'flex' : 'none';
+    scalaButtons.style.display = index === 1 ? 'grid' : 'none';   // v1.15.0: 2 x 2 (see .file-buttons)
     mtsStatus.style.display = index === 2 ? 'flex' : 'none';
 
     if (index === 0) {
@@ -879,6 +879,15 @@ function loadScalePreset(presetKey) {
     document.getElementById('scale-name').textContent = currentScaleName;
 }
 
+// v1.15.0: SVG presentation attributes do not accept var(), so the pitch
+// circle reads its palette tokens once from :root instead of hard-coding hex.
+// Attributes (not inline style) on purpose: activateIntervalLine() overrides
+// the stroke attribute per note, and an inline style would beat it.
+const cssToken = (name) =>
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const INTERVAL_LINE_INK = cssToken('--green-mid');
+const DEGREE_LABEL_INK = cssToken('--ink');
+
 function drawPitchCircle() {
     const linesGroup = document.getElementById('interval-lines');
     const labelsGroup = document.getElementById('degree-labels');
@@ -893,8 +902,10 @@ function drawPitchCircle() {
     const labelR = 65;
     const total = currentIntervals.length;
 
-    // Adjust font size based on number of notes
-    const fontSize = total > 12 ? 5 : 7;
+    // v1.15.0: one size at the 9px text floor (was 5 above 12 notes, else 7).
+    // labelR 65 gives 2*pi*65 / 24 = 17 px of arc per label at the densest
+    // case that draws every label (past 24 every other one is skipped).
+    const fontSize = 9;
 
     currentIntervals.forEach((cents, i) => {
         // Convert cents to angle (0 cents = top, clockwise)
@@ -913,7 +924,7 @@ function drawPitchCircle() {
         line.setAttribute('y1', y1);
         line.setAttribute('x2', x2);
         line.setAttribute('y2', y2);
-        line.setAttribute('stroke', '#6B8E4E');
+        line.setAttribute('stroke', INTERVAL_LINE_INK);
         line.setAttribute('stroke-width', total > 19 ? '1' : '2');
         line.setAttribute('stroke-linecap', 'round');
         linesGroup.appendChild(line);
@@ -927,7 +938,7 @@ function drawPitchCircle() {
             text.setAttribute('y', labelY + 2);
             text.setAttribute('text-anchor', 'middle');
             text.setAttribute('font-size', fontSize);
-            text.setAttribute('fill', '#3C2F2F');
+            text.setAttribute('fill', DEGREE_LABEL_INK);
             text.textContent = getDegreeLabel(i, total);
             labelsGroup.appendChild(text);
         }
@@ -1147,7 +1158,7 @@ function updateIntervalLineVisual(scaleIndex) {
         } else {
             // Inactive: restore original green
             const scaleSize = currentIntervals.length;
-            line.setAttribute('stroke', '#6B8E4E');
+            line.setAttribute('stroke', INTERVAL_LINE_INK);
             line.setAttribute('stroke-width', scaleSize > 19 ? '1' : '2');
         }
     }
