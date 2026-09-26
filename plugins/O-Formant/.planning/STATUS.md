@@ -3,7 +3,7 @@ plugin: O-Formant
 stage: 4
 status: complete
 phase: verified
-version: 1.32.0
+version: 1.32.1
 last_updated: 2026-09-25
 complexity_score: 5.0
 staged_implementation: true
@@ -24,6 +24,10 @@ contract_checksums:
 Stage: 4 of 4 (Polish) -- VERIFIED COMPLETE
 Status: All stages verified, pluginval level 10 PASSED (VST3 + AU)
 Progress: [####################] 100%
+
+## v1.32.1 -- IN-12 diffusion remainder (2026-09-25)
+
+- Stage-0 diffusion ring wrapped below ~36 kHz (142 read, 128 buffer). Buffers now sized max(scaled, raw)+1. PATCH; no change at >=44.1 kHz.
 
 ## v1.32.0 -- CODE_REVIEW.md Info-tier sweep 2, audible (2026-09-25)
 

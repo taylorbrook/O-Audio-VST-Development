@@ -174,14 +174,10 @@ void ReverbProcessor::applyInputDiffusion (float* channels)
         for (int ch = 0; ch < kNumChannels; ++ch)
         {
             float input = channels[ch];
-            // IN-12 (known tuning inconsistency): reads the raw constant
-            // kDiffusionDelays[stage] while the backing buffer is sized from the
-            // SR-scaled delayLen in prepare(). At >=44.1 kHz the buffer is large
-            // enough that this stays in-bounds (no OOB), but the diffusion time is
-            // effectively fixed in samples rather than seconds — unlike tankDelays,
-            // which use scaledDelays. Reading a stored scaledDiffusionDelays[stage]
-            // would make it SR-consistent, but that shifts the reverb's diffusion
-            // colour at non-44.1 kHz rates, so it is left unchanged here.
+            // IN-12: diffusion time is fixed in samples, not seconds (unlike
+            // the tank, which uses scaledDelays). Kept deliberately — scaling
+            // would change the colour at 44.1 and 96 kHz. prepare() sizes the
+            // buffer to hold the raw constant at every rate, so it never wraps.
             float delayed = diffusionDelays[static_cast<size_t> (stage)][static_cast<size_t> (ch)].readNearest (kDiffusionDelays[stage]);
 
             float v = input - kDiffusionCoeff * diffusionState[static_cast<size_t> (stage)][static_cast<size_t> (ch)];
@@ -229,7 +225,13 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 
     for (int stage = 0; stage < kNumDiffusionStages; ++stage)
     {
-        int delayLen = static_cast<int> (static_cast<float> (kDiffusionDelays[stage]) * srRatio) + 1;
+        // v1.32.1 (review IN-12): process() reads the raw kDiffusionDelays
+        // constant, so the buffer must hold it at every rate. Sized from the
+        // scaled length alone, stage 0 (142) got a 128-sample ring below
+        // ~36 kHz and the read wrapped to 14 samples (stages 1-2 also wrapped
+        // at <=16 kHz). Sizes at 44.1-192 kHz are unchanged.
+        int delayLen = std::max (static_cast<int> (static_cast<float> (kDiffusionDelays[stage]) * srRatio),
+                                 kDiffusionDelays[stage]) + 1;
         for (int ch = 0; ch < kNumChannels; ++ch)
         {
             diffusionDelays[static_cast<size_t> (stage)][static_cast<size_t> (ch)].resize (delayLen + 32);

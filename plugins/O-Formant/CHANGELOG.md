@@ -2,6 +2,28 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.32.1] - 2026-09-25
+
+Finishes IN-12 from the v1.29.0 `CODE_REVIEW.md` (`/improve-review`). v1.32.0
+fixed the damping and modulation halves of the finding; this fixes the
+diffusion half. PATCH: output is unchanged at 44.1 kHz and above.
+
+### Fixed
+
+- **The reverb's first diffusion stage read the wrong delay below ~36 kHz
+  (IN-12).** `process()` reads the raw `kDiffusionDelays` constant (142
+  samples for stage 0), but `prepare()` sized each buffer from the
+  sample-rate-scaled length. At 32 kHz and below, stage 0 got a 128-sample
+  ring. `142 & 127` wrapped the read to 14 samples, so that stage acted as a
+  much shorter allpass. Buffers are now sized from the larger of the scaled
+  length and the raw constant, so the read never wraps. At 16 kHz, stage 2
+  wrapped too, and at 11.025 kHz and below, stages 1 and 2 did as well; all
+  are fixed. From 44.1 to 192 kHz every buffer is the same size as before, so
+  output is bit-identical there.
+- Diffusion times stay fixed in samples. Scaling them to the 48 kHz
+  reference, like the tank delays, would change the reverb's colour at
+  44.1 and 96 kHz. That was left out of this PATCH.
+
 ## [1.32.0] - 2026-09-25
 
 Second Info-tier sweep of the v1.29.0 `CODE_REVIEW.md`

@@ -11,7 +11,7 @@ findings:
   info: 24
   total: 53
 status: issues_found
-verified: 2026-09-24 — v1.31.1 (IN-03/07/09/16/19/20/21-save/22a,c/23a,b,d,e/24g-k) via /improve-verify; previously v1.31.0 (CR-01, WR-01, WR-11, WR-15, WR-17)
+verified: 2026-09-25 — v1.32.1 (IN-12 stage-0 diffusion wrap) via /improve-verify; 2026-09-25 — v1.32.0 (IN-01/02/04/06/11/12 damping+mod/14/15) via /improve-verify; previously 2026-09-24 — v1.31.1 (IN-03/07/09/16/19/20/21-save/22a,c/23a,b,d,e/24g-k) via /improve-verify; previously v1.31.0 (CR-01, WR-01, WR-11, WR-15, WR-17)
 supersedes: .planning/REVIEW.md (v1.25.0) — its CR-01/03/04/05, WR-01..08 are resolved (fixes re-verified correct); its CR-02, WR-10, WR-12 were still open and are carried forward here as CR-08 / CR-09
 ---
 
@@ -160,7 +160,7 @@ Border-box sizing puts the rotation origin inside the 2 px border: main knob piv
 - **IN-09** `FricationFormantBank.h:125-127` F6F fixed 6 kHz with no Nyquist clamp (garbage coeffs below ~12 kHz SR). **Resolved in v1.31.1**
 - **IN-10** Aspiration closure burst at fixed phase 0.6 (`AspirationNoise.h:78`) while Te spans 0.30–0.99 — pass Te in.
 - **IN-11** Topology switch leaves resonator state paired with band-pass coefficients / stale skipped bank → one-block click. Reset on change. **Resolved in v1.32.0**
-- **IN-12** Reverb damping (`damping*0.7` per-sample) and mod excursion (16 samples) are SR-dependent (`ReverbProcessor.cpp:342, 384`); IN-12 of the prior review aliases stage-0 diffusion below 44.1 kHz. **Resolved in v1.32.0**
+- **IN-12** Reverb damping (`damping*0.7` per-sample) and mod excursion (16 samples) are SR-dependent (`ReverbProcessor.cpp:342, 384`); IN-12 of the prior review aliases stage-0 diffusion below 44.1 kHz. *(Damping + mod excursion: **Resolved in v1.32.0**. Stage-0 diffusion wrap (below ~36 kHz): **Resolved in v1.32.1**.)* **Resolved in v1.32.1**
 - **IN-13** Pre-delay 0 < d < 1 sample blends newest with a ~370 ms-old sample (`ReverbProcessor.cpp:62-67`). **Already fixed in v1.30.0** (WR-16).
 - **IN-14** Burst envelope truncated at `exp(-2)` = 13.5 % for high manner (`ConsonantEngine.h:276`); normalise. Aspiration-active test uses the bipolar noise sign (`:236`). *(Aspiration sign test: **already fixed in v1.30.0**, WR-18. Burst truncation: **Resolved in v1.32.0**.)* **Resolved in v1.32.0**
 - **IN-15** EQ coefficient steps at block rate (mild zipper on fast sweeps). **Resolved in v1.32.0**
@@ -201,7 +201,8 @@ Border-box sizing puts the rotation origin inside the 2 px border: main knob piv
 | v1.30.0 | `265eb24f` | CR-03/06, WR-03/04/06/07/08/09/14/16/18/19/20 (IN-13, IN-14b as side effects) |
 | v1.31.0 | `7c0baac5` | CR-01, WR-01, WR-11, WR-15, WR-17 (IN-08 as a side effect) |
 | v1.31.1 | `6bd37253` | IN-03, IN-07, IN-09, IN-16, IN-19, IN-20, IN-21 (save), IN-22a/c, IN-23a/b/d/e, IN-24g/h/i/j/k |
-| v1.32.0 | `3fa4d4a0` | IN-01, IN-02, IN-04, IN-06, IN-11, IN-12, IN-14a, IN-15 |
+| v1.32.0 | `3fa4d4a0` | IN-01, IN-02, IN-04, IN-06, IN-11, IN-12 (damping/mod), IN-14a, IN-15 |
+| v1.32.1 | — | IN-12 (stage-0 diffusion wrap) |
 
 Closed without change: IN-22b (drag listeners already on `document`), IN-23c (overlay adds 0 px — measured), IN-24f (UI shows `ct`).
 
