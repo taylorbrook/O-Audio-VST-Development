@@ -633,8 +633,29 @@ function knobUpdateVisual(vineEl, valueEl, fmt, norm, state) {
     // which applies the C++ NormalisableRange incl. skew (WR-01). See the
     // KNOB_FORMATS note.
     if (valueEl && fmt && state) {
-        valueEl.textContent = fmt.format(state.getScaledValue()) + fmt.suffix;
+        const text = fmt.format(state.getScaledValue()) + fmt.suffix;
+        valueEl.textContent = text;
+        // v1.28.0 (R7): the knob root is the role=slider, so it carries the
+        // spoken value — the same scaled string the readout shows.
+        const knob = valueEl.closest('.ouaricon-knob');
+        if (knob) {
+            knob.setAttribute('aria-valuenow', Math.max(0, Math.min(1, norm)).toFixed(3));
+            knob.setAttribute('aria-valuetext', text);
+        }
     }
+}
+
+// v1.28.0 (R7): ported from O-ReverseDelay (bindKnob / nudgeStep). One nudge
+// is KNOB_NUDGE_STEP, floored at one parameter step: setNormalisedValue()
+// snaps to the range's interval, so a move under half a step rounds straight
+// back. On polyphony (1-16, step 1) 0.02 is 0.3 of a step and the wheel did
+// nothing at all; every other knob's step is far below 0.02 normalised.
+const KNOB_NUDGE_STEP = 0.02;
+function knobNudgeStep(state) {
+    const p = state.properties || {};
+    const span = p.end - p.start;
+    if (!(p.interval > 0) || !Number.isFinite(span) || span <= 0) return KNOB_NUDGE_STEP;
+    return Math.max(KNOB_NUDGE_STEP, p.interval / span);
 }
 
 function bindOneKnob({ domId, relayId }) {
@@ -700,10 +721,48 @@ function bindOneKnob({ domId, relayId }) {
         }
     });
 
+    // v1.23.7 (WR-05): the open wheel gesture, if any. v1.28.0 (R7): every
+    // other interaction on this knob closes it first, so a key, drag or
+    // double-click never nests its own begin/end inside it.
+    let wheelGestureTimer = null;
+    const endWheelGesture = () => {
+        if (wheelGestureTimer === null) return;
+        clearTimeout(wheelGestureTimer);
+        wheelGestureTimer = null;
+        state.sliderDragEnded();
+    };
+    const stepBy = (nudges) => {
+        const next = Math.max(0, Math.min(1, state.getNormalisedValue() + nudges * knobNudgeStep(state)));
+        state.setNormalisedValue(next);
+        input.value = next;
+        knobUpdateVisual(vineEl, valueEl, fmt, next, state);
+    };
+
+    // v1.28.0 (R7): keyboard — the knob root is focusable (tabindex=0 in the
+    // template) and each arrow press is one full bracketed gesture.
+    knob.addEventListener('keydown', (e) => {
+        let dir = 0;
+        if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 1;
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = -1;
+        else return;
+        if (knobDrag.active) return;
+        endWheelGesture();
+        state.sliderDragStarted();
+        stepBy(dir);
+        state.sliderDragEnded();
+        e.preventDefault();
+    });
+
+    // v1.28.0 (R7): a capture the backend takes away (host modal grab, WebView
+    // focus loss) ends the drag like a pointerup. Without it the gesture stayed
+    // open and the knob followed the cursor with no button held.
+    knob.addEventListener('lostpointercapture', endKnobDrag);
+
     // Pointer drag — relative-vertical 200 px = full sweep (matches the
     // O-Reed sensitivity from agent memory; feels natural for 44 px knobs).
     knob.addEventListener('pointerdown', (e) => {
         if (knobDrag.active) return;
+        endWheelGesture();
         knobDrag.active     = true;
         knobDrag.knob       = knob;
         knobDrag.state      = state;
@@ -724,21 +783,18 @@ function bindOneKnob({ domId, relayId }) {
     // v1.23.7 (WR-05): wrapped in a sliderDragStarted/Ended gesture — opened
     // on the first tick, closed after a short idle — so hosts in
     // automation-write mode record wheel tweaks the same way as drags.
-    let wheelGestureTimer = null;
+    // v1.28.0 (R7): a horizontal-dominant event (sideways trackpad swipe,
+    // deltaY 0) used to read as "down" and walk the knob to its floor; it is
+    // now left alone and not preventDefault()ed. Ignored mid-drag too — the
+    // drag already holds the gesture.
     knob.addEventListener('wheel', (e) => {
+        if (knobDrag.active) { e.preventDefault(); return; }
+        if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
         e.preventDefault();
         if (wheelGestureTimer === null) state.sliderDragStarted();
         else clearTimeout(wheelGestureTimer);
-        wheelGestureTimer = setTimeout(() => {
-            wheelGestureTimer = null;
-            state.sliderDragEnded();
-        }, 250);
-        const cur = state.getNormalisedValue();
-        const delta = e.deltaY < 0 ? 0.02 : -0.02;
-        const next = Math.max(0, Math.min(1, cur + delta));
-        state.setNormalisedValue(next);
-        input.value = next;
-        knobUpdateVisual(vineEl, valueEl, fmt, next, state);
+        wheelGestureTimer = setTimeout(endWheelGesture, 250);
+        stepBy(e.deltaY < 0 ? 1 : -1);
     }, { passive: false });
 
     // Double-click resets to the parameter's APVTS default (WR-04). Defaults
@@ -747,6 +803,7 @@ function bindOneKnob({ domId, relayId }) {
     // if that pull failed or hasn't landed yet.
     knob.addEventListener('dblclick', (e) => {
         e.preventDefault();
+        endWheelGesture();
         const def = (typeof paramDefaults[relayId] === 'number')
             ? Math.max(0, Math.min(1, paramDefaults[relayId]))
             : 0.5;
@@ -769,27 +826,33 @@ function bindKnobGlobalDrag() {
         knobUpdateVisual(knobDrag.vineEl, knobDrag.valueEl, knobDrag.fmt, next, knobDrag.state);
     });
 
-    const endDrag = (e) => {
-        if (!knobDrag.active) return;
-        if (e && e.pointerId !== knobDrag.pointerId) return;
-        try {
-            if (knobDrag.knob && knobDrag.knob.hasPointerCapture && knobDrag.knob.hasPointerCapture(knobDrag.pointerId)) {
-                knobDrag.knob.releasePointerCapture(knobDrag.pointerId);
-            }
-        } catch (_) {}
-        if (knobDrag.state) knobDrag.state.sliderDragEnded();
-        if (knobDrag.knob) knobDrag.knob.classList.remove('dragging');
-        knobDrag.active = false;
-        knobDrag.knob = null;
-        knobDrag.state = null;
-        knobDrag.input = null;
-        knobDrag.fmt = null;
-        knobDrag.valueEl = null;
-        knobDrag.vineEl = null;
-        knobDrag.pointerId = -1;
-    };
-    document.addEventListener('pointerup',     endDrag);
-    document.addEventListener('pointercancel', endDrag);
+    document.addEventListener('pointerup',     endKnobDrag);
+    document.addEventListener('pointercancel', endKnobDrag);
+}
+
+// v1.28.0 (R7): hoisted out of bindKnobGlobalDrag so each knob can also end a
+// drag on lostpointercapture. Idempotent, and the drag is marked inactive
+// BEFORE the capture is released: releasing fires lostpointercapture back into
+// this function, and the early return is what keeps sliderDragEnded() single.
+function endKnobDrag(e) {
+    if (!knobDrag.active) return;
+    if (e && e.pointerId !== knobDrag.pointerId) return;
+    const { knob, state, pointerId } = knobDrag;
+    knobDrag.active = false;
+    knobDrag.knob = null;
+    knobDrag.state = null;
+    knobDrag.input = null;
+    knobDrag.fmt = null;
+    knobDrag.valueEl = null;
+    knobDrag.vineEl = null;
+    knobDrag.pointerId = -1;
+    try {
+        if (knob && knob.hasPointerCapture && knob.hasPointerCapture(pointerId)) {
+            knob.releasePointerCapture(pointerId);
+        }
+    } catch (_) {}
+    if (state) state.sliderDragEnded();
+    if (knob) knob.classList.remove('dragging');
 }
 
 // v1.16.8 (HIGH-06): render the 8 knob blocks from SLIDER_BINDINGS into
@@ -805,16 +868,17 @@ function renderControlStrip() {
     }
     const knobsHtml = SLIDER_BINDINGS.map(b => {
         return `
-      <div class="ouaricon-knob" data-knob-id="${b.domId}">
+      <div class="ouaricon-knob" data-knob-id="${b.domId}" role="slider" tabindex="0"
+           aria-labelledby="${b.domId}-label" aria-valuemin="0" aria-valuemax="1">
         <div class="ouaricon-knob-visual">
           <svg viewBox="0 0 44 44">
             <circle class="knob-track" cx="22" cy="22" r="18"/>
             <circle class="knob-vine"  cx="22" cy="22" r="18"/>
           </svg>
         </div>
-        <label class="ouaricon-knob-label" for="${b.domId}">${b.label}</label>
-        <span class="ouaricon-knob-value"></span>
-        <input type="range" id="${b.domId}" min="0" max="1" step="0.001" />
+        <label class="ouaricon-knob-label" id="${b.domId}-label" for="${b.domId}">${b.label}</label>
+        <span class="ouaricon-knob-value" aria-hidden="true"></span>
+        <input type="range" id="${b.domId}" min="0" max="1" step="0.001" tabindex="-1" aria-hidden="true" />
       </div>`;
     }).join('');
 
@@ -879,6 +943,10 @@ function labelControlStrip() {
     if (expr) expr.dataset.i18nAria = 'aria.knobExpr';
     const dyn = document.querySelector('[data-knob-id="ctrl-dynamic-range"]');
     if (dyn) dyn.dataset.i18nAria = 'aria.knobDynRng';
+    // v1.28.0 (R7): aria-labelledby outranks aria-label, so these two drop the
+    // caption reference and keep the keyed name above.
+    if (expr) expr.removeAttribute('aria-labelledby');
+    if (dyn)  dyn.removeAttribute('aria-labelledby');
 }
 
 // v1.21.0: bind the Dynamics Mode segmented toggle to the "dynamics_mode"

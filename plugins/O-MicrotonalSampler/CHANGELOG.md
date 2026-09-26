@@ -1,5 +1,43 @@
 # O-MicrotonalSampler Changelog
 
+## [1.28.0] - 2026-09-25
+
+The UI pass from the 260924-nho design review. It covers AA text colours (R4), the 9px text floor, the bundled EB Garamond face (R5) and keyboard/ARIA knobs ported from O-ReverseDelay (R7). It is MINOR because the change is visible and adds keyboard access. No parameter, range, type or state format changed, and no DSP or processor file was touched. The only C++ change is four `getResource()` branches for the fonts.
+
+### Changed
+
+- **Text tokens are AA on every paper stop.** `--text-muted` moves `#8B7355 → #6A5641`, from 3.30 to 5.11 on the header and footer card and from 3.66 to 5.68 on the cream. `#8B7355` is kept as `--rule-muted` for the octave separators.
+- **Gold is split three ways.** `--accent-gold` (`#B8860B`) stays for borders, the knob arc, underlines and outlines. `--accent-gold-text` (`#6E520C`) covers gold text: the active tab, the loop-editor filename, the About version and link, and the tooltip title. The active tab moves from 2.42 to 5.37. `--accent-gold-fill` (`#76580A`) covers fills under light text: the active technique tab, Dynamics segment, hover-help On, Apply, the folder-load Load button and the active loop variant. These moved from 2.19–3.25 to 5.41–6.62.
+- **Empty technique tabs are dimmed by colour, not opacity.** They are live controls (they take a folder or a rename). `opacity: 0.55` had put them at 2.64.
+- **Tuning panel:** muted text is `#6A5641`, and `#8BC34A` stays for borders only. The cents readout and the Generate and Export buttons take `--tuning-accent-ink` `#4E6839`, moving from 2.02–2.10 to 6.0 and 6.24.
+- **The missing-folder path readout** is body ink on a lighter tint (3.85 → AA).
+- **9px floor.** The tuning Matrix and Rotation tables move from 8px to 9px. They were the only text under the floor.
+- **One text face, one value face.** EB Garamond is bundled from `modules/ui/eb-garamond` 1.0.0 by direct embed: 4 `SOURCES` lines, 4 `getResource()` branches, and `css/eb-garamond.css` linked before both stylesheets. Every `font-family` now resolves through `--font-serif` (`'EB Garamond', 'Georgia', 'Times New Roman'` + CJK tail) or `--font-mono` (`ui-monospace` + CJK tail).
+  - Before, the page mixed four families: `-apple-system` (the knob captions, the About meta, the segmented toggle and the variant tabs), Garamond → Times New Roman, UA-default Arial and `ui-monospace`.
+  - Values use `--font-mono`: knob readouts, cents, table numbers, loop points, trim readouts and paths.
+  - The bare `'Garamond'` entry is dropped so an Office-installed Windows Garamond cannot outrank the bundled face.
+  - Form controls now `inherit` the page face.
+  - The v1.27.0 "Arial stays first" pins on the reset buttons and the nine tuning controls are retired on purpose, and their comments say so.
+- **Keyboard and ARIA knobs (the 9 control-strip knobs).**
+  - The knob root is `role="slider"` with `tabindex="0"`, `aria-valuenow` and `aria-valuetext` (the same scaled string as the readout), and `aria-labelledby` pointing at its caption. Expression and Dyn Rng keep their keyed accessible names.
+  - Arrow keys make one bracketed gesture per press. The step is 0.02, floored at one parameter step, so the wheel and arrow keys now move Polyphony (a step of 1 in 1–16).
+  - `lostpointercapture` ends a drag. The teardown is hoisted to `endKnobDrag()`, is idempotent, and marks the drag inactive before it releases capture.
+  - A horizontal-dominant wheel is ignored, and so is a wheel during a drag. An open wheel gesture is closed before a key press, drag or double-click.
+  - There is a dotted `:focus-visible` ring.
+  - The invisible range input is out of the tab order (`tabindex="-1"`, `aria-hidden`). Before, Tab landed on a 1px transparent input with no visible focus.
+
+### Measured (before v1.27.0 → after, served page at the shipping 900×640 frame, every state in `tests/i18n-states.json`)
+
+| Gate | Before | After |
+|---|---|---|
+| `measure-ui.js --contrast`, per language | 106 / 632 below AA (16.8%), 337 under 9px, min 2.02 | 1 / 632 (0.2%, `#technique-add` while **disabled** at 8 slots — an inactive control, exempt), 0 under 9px |
+| `check-ui-labels.js` (en / fr / zh-Hans) | ALL PASSED | all PASS except [8][fr] `label.savePreset × label.pcHint` in the 4 states where the trigger and trim panels are both open (see below) |
+| `tests/ui_tip_render_check.js` | ALL PASSED | ALL PASSED |
+| `check-i18n.js` | ALL PASS | ALL PASS |
+| CDP resolved face | Times New Roman / system sans / Arial | EB Garamond (custom) for text, ui-monospace for values |
+
+**The one [8] failure is a gate artefact, not a visible collision.** With both panels open, the Sample Map section scrolls and `pcHint` sits at y=4, which is clipped under the header and never painted. Assertion [8] intersects unclipped `getBoundingClientRect` boxes. Its sibling 8b already uses the painted rect for this exact class (the O-IntonationPad note in `check-ui-labels.js`). English sits 1px clear of it, and the wider French line in EB Garamond crosses it.
+
 ## [1.27.0] - 2026-09-04
 
 ### Added — Simplified Chinese (zh-Hans rollout, Stage 3)

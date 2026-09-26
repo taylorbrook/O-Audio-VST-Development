@@ -31,8 +31,29 @@
     --bg-card:        rgba(235, 217, 199, 0.9);
     --text-body:      #3C2F2F;
     --text-secondary: #5C4033;
-    --text-muted:     #8B7355;
+    /* v1.28.0 (R4): TEXT tokens are AA on every paper stop this page paints;
+       the pre-1.28 values stay for rules, borders, arcs and outlines, which
+       carry no text. #8B7355 read 3.30 on the header/footer card and 3.66 on
+       the cream; gold #B8860B read 2.39 as text and 2.66-3.25 under light text.
+         --text-muted       #6A5641  5.68 cream / 5.11 card / 4.68 #E8D0B8
+         --accent-gold-text #6E520C  5.96 cream / 5.37 card
+         --accent-gold-fill #76580A  white 6.62 / #F5E6D3 5.41 / #FBF3E4 6.01 */
+    --text-muted:     #6A5641;
+    --rule-muted:     #8B7355;
     --accent-gold:    #B8860B;
+    --accent-gold-text: #6E520C;
+    --accent-gold-fill: #76580A;
+    --accent-gold-fill-hover: #5E4608;
+
+    /* v1.28.0 (R5): ONE text face and ONE value face. Every font-family on
+       this page and in tuning-panel.css resolves through these two, so the CJK
+       tail lands exactly once each. Up to v1.27.0 the page mixed -apple-system
+       sans (knob captions, about, segmented toggle), Garamond -> Times New
+       Roman (body), Arial (UA-default buttons) and ui-monospace. 'EB Garamond'
+       is bundled (modules/ui/eb-garamond); the bare 'Garamond' entry is gone
+       so an Office-installed Windows Garamond cannot outrank it. */
+    --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    --font-mono:  ui-monospace, 'SF Mono', Menlo, Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
     --accent-rust:    #C0392B;
     --border-warm:    rgba(139, 115, 85, 0.35);
     --shadow-card:    0 10px 40px rgba(0,0,0,0.5);
@@ -52,6 +73,14 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+/* v1.28.0 (R5): form controls inherit the page face. Chromium's UA sheet
+   gives a <button>/<select>/<input> that names no font-family its own (Arial
+   on macOS), which is how Arial reached this page with no declaration. An
+   element selector, so every class rule below still wins. */
+button, input, select, textarea {
+    font-family: inherit;
+}
+
 html, body {
     width: 100%;
     height: 100%;
@@ -69,7 +98,7 @@ body {
                 url('/images/paper1.jpg') center/cover no-repeat fixed,
                 var(--bg-cream);
     color: var(--text-body);
-    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 14px;
     line-height: 1.4;
 }
@@ -195,7 +224,7 @@ body {
 }
 
 .tab-btn.active {
-    color: var(--accent-gold);
+    color: var(--accent-gold-text);
 }
 
 .tab-btn.active::after {
@@ -297,7 +326,7 @@ body {
 }
 
 .gear-btn[aria-expanded="true"] {
-    color: var(--accent-gold);
+    color: var(--accent-gold-text);
     border-color: var(--accent-gold);
     background: rgba(0, 0, 0, 0.15);
 }
@@ -384,9 +413,9 @@ body {
 }
 
 .settings-toggle[aria-pressed="true"] {
-  background: var(--accent-gold);
-  border-color: var(--accent-gold);
-  color: var(--bg-card);
+  background: var(--accent-gold-fill);
+  border-color: var(--accent-gold-fill);
+  color: #FBF3E4;
 }
 
 .settings-toggle:focus-visible {
@@ -406,11 +435,11 @@ body {
 /* Missing-folder modal — saved-path readout. Monospace + faint border so
    the user can read long absolute paths without ambiguity. */
 .missing-folder-path {
-    background: var(--bg-page, rgba(0, 0, 0, 0.25));
+    background: var(--bg-page, rgba(0, 0, 0, 0.08));
     border: 1px solid var(--border-warm);
     border-radius: 3px;
-    color: var(--text-secondary);
-    font-family: ui-monospace, Menlo, Consolas, monospace;
+    color: var(--text-body);
+    font-family: var(--font-mono);
     font-size: 11px;
     margin: var(--gap-md) 0;
     max-height: 80px;
@@ -633,7 +662,7 @@ body {
     border: 1px solid var(--border-warm);
     padding: 10px 12px;
     border-radius: 4px;
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
     line-height: 1.45;
     color: var(--text-body);
@@ -870,7 +899,7 @@ body {
 }
 
 .flo-embed-size.has-warning {
-    color: var(--accent-gold);
+    color: var(--accent-gold-text);
     font-weight: 500;
 }
 
@@ -883,9 +912,9 @@ body {
 }
 
 .confirm-dialog-actions button.flo-primary {
-    background: var(--accent-gold);
+    background: var(--accent-gold-fill);
     color: #fff;
-    border-color: var(--accent-gold);
+    border-color: var(--accent-gold-fill);
 }
 
 .confirm-dialog-actions button.flo-primary:hover {
@@ -1023,7 +1052,7 @@ body {
 /* Octave separators — a thicker left border every 12 columns helps the eye
    parse 88 cells. Applied via nth-child counting from the start of each row. */
 .grid-cell[data-octave-start="1"] {
-    border-left: 2px solid var(--text-muted);
+    border-left: 2px solid var(--rule-muted);
 }
 
 /* CSS-only context menu */
@@ -1156,7 +1185,7 @@ body {
 }
 
 .loop-editor-title #le-filename {
-    color: var(--accent-gold);
+    color: var(--accent-gold-text);
 }
 
 .loop-editor-sep {
@@ -1213,11 +1242,17 @@ body {
     gap: 4px;
     font-size: 12px;
     color: var(--text-secondary);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
 }
 
 .loop-meta span {
     white-space: nowrap;
+}
+
+/* v1.28.0 (R5): the two loop-point readouts are values, in the value face. */
+#le-loop-start-ms,
+#le-loop-end-ms {
+    font-family: var(--font-mono);
 }
 
 .loop-editor-actions {
@@ -1246,14 +1281,14 @@ body {
 }
 
 .loop-editor-actions button.primary {
-    background: var(--accent-gold);
+    background: var(--accent-gold-fill);
     color: var(--bg-cream);
     border-color: var(--accent-gold);
 }
 
 .loop-editor-actions button.primary:hover:not([disabled]) {
-    background: #A8780A;
-    border-color: #A8780A;
+    background: var(--accent-gold-fill-hover);
+    border-color: var(--accent-gold-fill-hover);
 }
 
 .loop-editor-actions button[disabled] {
@@ -1335,7 +1370,7 @@ body {
 }
 
 .about-title {
-    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 22px;
     font-weight: normal;
     color: var(--text-body);
@@ -1344,9 +1379,9 @@ body {
 }
 
 .about-version {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
     font-size: 12px;
-    color: var(--accent-gold);
+    color: var(--accent-gold-text);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     margin-bottom: var(--gap-sm);
@@ -1376,11 +1411,11 @@ body {
     border-top: 1px solid var(--border-warm);
     font-size: 12px;
     color: var(--text-muted);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
 }
 
 .about-link {
-    color: var(--accent-gold);
+    color: var(--accent-gold-text);
     text-decoration: none;
     border-bottom: 1px dotted var(--accent-gold);
     cursor: pointer;
@@ -1421,6 +1456,18 @@ body {
     cursor: pointer;
     user-select: none;
     position: relative;
+}
+
+/* v1.28.0 (R7): the knob root is the keyboard target (role=slider,
+   tabindex=0). Keyboard focus only — a click on a knob does not focus it,
+   because pointerdown is preventDefault()ed for the drag. */
+.ouaricon-knob:focus {
+    outline: none;
+}
+.ouaricon-knob:focus-visible {
+    outline: 2px dotted var(--accent-gold-text);
+    outline-offset: 3px;
+    border-radius: 6px;
 }
 
 /* Hide the native range input — the SVG arc is the visual + interaction
@@ -1487,7 +1534,7 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
     cursor: pointer;
 }
 
@@ -1495,7 +1542,7 @@ body {
     font-size: 10px;
     color: var(--text-muted);
     font-weight: 600;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-mono);
     min-height: 1em;
     letter-spacing: 0.02em;
 }
@@ -1522,7 +1569,7 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
 }
 
 .seg-toggle {
@@ -1543,7 +1590,7 @@ body {
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
     padding: 5px 10px;
     cursor: pointer;
     transition: background 140ms ease, color 140ms ease;
@@ -1560,7 +1607,7 @@ body {
 }
 
 .seg-btn.active {
-    background: var(--accent-gold);
+    background: var(--accent-gold-fill);
     color: #FBF3E4;
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
 }
@@ -1637,7 +1684,7 @@ body {
     font-weight: 600;
     color: var(--text-secondary);
     margin-right: 4px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
 }
 .le-variant-tabs .le-variant-tab {
     min-width: 26px;
@@ -1650,16 +1697,16 @@ body {
     font-size: 11px;
     font-weight: 600;
     cursor: pointer;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
     transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 .le-variant-tabs .le-variant-tab:hover {
     background: var(--accent-gold-soft, rgba(201, 166, 71, 0.18));
 }
 .le-variant-tabs .le-variant-tab.active {
-    background: var(--accent-gold, #c9a647);
-    color: var(--bg-deep, #2a1810);
-    border-color: var(--accent-gold, #c9a647);
+    background: var(--accent-gold-fill);
+    color: #FBF3E4;
+    border-color: var(--accent-gold-fill);
 }
 
 /* Round-robin confirmation modal — same chrome as missing-folder modal,
@@ -1688,7 +1735,7 @@ body {
     font-weight: 600;
     color: var(--text-primary);
     font-size: 12px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
     margin-bottom: 4px;
 }
 .rr-confirm-filename-list {
@@ -1697,7 +1744,7 @@ body {
     list-style: disc;
     color: var(--text-secondary);
     font-size: 11px;
-    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
+    font-family: var(--font-mono);
 }
 .rr-confirm-filename-list > li {
     padding: 1px 0;
@@ -1786,14 +1833,17 @@ body {
 }
 
 .tech-tab.active {
-    background: var(--accent-gold);
+    background: var(--accent-gold-fill);
     color: #FFFFFF;
-    border-color: var(--accent-gold);
+    border-color: var(--accent-gold-fill);
     font-weight: 600;
 }
 
+/* v1.28.0 (R4): an empty slot is still a live control (it takes a folder or
+   a rename), so it is dimmed by COLOUR rather than opacity. opacity: 0.55 put
+   its caption at 2.64:1. */
 .tech-tab.empty {
-    opacity: 0.55;
+    color: var(--text-muted);
     font-style: italic;
 }
 
@@ -1849,7 +1899,7 @@ body {
 }
 
 .ks-range-label > input[type="number"] {
-    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
+    font-family: var(--font-mono);
     width: 56px;
     padding: 2px 4px;
     border: 1px solid var(--border-warm);
@@ -1908,7 +1958,7 @@ body {
 }
 
 .trigger-precedence {
-    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
+    font-family: var(--font-serif);
     font-weight: 400;
     font-size: 11px;
     color: var(--text-muted);
@@ -1957,7 +2007,7 @@ body {
 }
 
 .trigger-cc-number-label > input[type="number"] {
-    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
+    font-family: var(--font-mono);
     width: 56px;
     padding: 2px 4px;
     border: 1px solid var(--border-warm);
@@ -1978,7 +2028,7 @@ body {
 .trigger-table {
     width: 100%;
     border-collapse: collapse;
-    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
 }
 
@@ -2060,7 +2110,7 @@ body {
 }
 
 .trim-active-tech {
-    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
+    font-family: var(--font-serif);
     font-weight: 400;
     font-size: 11px;
     color: var(--text-muted);
@@ -2091,7 +2141,7 @@ body {
 }
 
 .trim-layer-label {
-    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
+    font-family: var(--font-serif);
     font-weight: 500;
     color: var(--text-muted);
 }
@@ -2106,7 +2156,7 @@ body {
 .trim-readout {
     flex: 0 0 56px;
     text-align: right;
-    font-family: ui-monospace, 'SF Mono', Menlo, 'PingFang SC', 'Microsoft YaHei', monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-body);
 }
@@ -2394,7 +2444,7 @@ body {
     z-index: 1100;
     max-width: 260px;
     padding: 7px 10px 8px;
-    font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 12px;
     line-height: 1.38;
     color: var(--text-body);
@@ -2421,7 +2471,7 @@ body {
     font-size: 10px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--accent-gold);
+    color: var(--accent-gold-text);
     margin-bottom: 3px;
 }
 
@@ -2429,11 +2479,12 @@ body {
    The shell half of the rule documented at the foot of css/tuning-panel.css.
    #trigger-reset and #trim-reset are <button>s that declare no font-family, so
    they take Chromium's UA default (bare Arial) and render 恢复默认值 /
-   全部重置 through it. Arial stays FIRST so their English metrics are
-   unchanged. ────────────────────────────────────────────────────────────── */
+   全部重置 through it. v1.28.0 (R5) retires the Arial pin: the English
+   geometry is now expected to move onto EB Garamond, and check-ui-labels
+   re-measured it. ─────────────────────────────────────────────────────────── */
 #trigger-reset,
 #trim-reset {
-    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
 }
 
 /* ── MEASURED LINE-HEIGHT PINS (v1.27.0, zh-Hans) ────────────────────────────

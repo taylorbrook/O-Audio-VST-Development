@@ -57,7 +57,7 @@ Ouaricon Plugins:
 | O-Wind | 📦 Installed | 1.21.0 | Synth (Physical Model Flute) | 2026-09-07 |
 | O-Contrabass | 📦 Installed | 1.10.0 | Synth (Physical Model Bowed Bass) | 2026-09-07 |
 | O-Bassoon | 📦 Installed | 1.5.0 | Synth (Physical Model Bassoon) | 2026-09-06 |
-| O-MicrotonalSampler | 📦 Installed | 1.27.0 | Synth (Microtonal Sampler) | 2026-09-04 |
+| O-MicrotonalSampler | 📦 Installed | 1.28.0 | Synth (Microtonal Sampler) | 2026-09-25 |
 | O-simpleFM | 📦 Installed | 1.5.0 | Synth (Pedagogical 2-Op FM) | 2026-09-06 |
 | O-simpleAdditive | 📦 Installed | 1.3.0 | Synth (Pedagogical Additive + Wavetable) | 2026-09-07 |
 | O-simpleGrain | 📦 Installed | 1.5.0 | Synth (Pedagogical Granular) | 2026-09-07 |

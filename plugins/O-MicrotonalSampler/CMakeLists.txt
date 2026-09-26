@@ -16,7 +16,7 @@ juce_add_plugin(O-MicrotonalSampler
     # (=1.0.0 from the root CMakeLists), so the About tab and bundle plist
     # would always show v1.0.0. Keep this token as `VERSION` to wire bumps
     # through to JucePlugin_VersionString → getPluginVersion → About tab.
-    VERSION "1.27.0"
+    VERSION "1.28.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -106,6 +106,12 @@ juce_add_binary_data(O-MicrotonalSampler_UIResources
         # v1.11.0: paper textures — page (paper1) and card (paper2) backgrounds
         Resources/ui/images/paper1.jpg
         Resources/ui/images/paper2.jpg
+        # v1.28.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the matching getResource branches
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 # Required JUCE modules
