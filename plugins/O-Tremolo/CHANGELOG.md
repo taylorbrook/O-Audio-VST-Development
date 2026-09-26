@@ -5,6 +5,90 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-09-26
+
+**Every caption now clears WCAG AA against the paper as it actually renders,
+and the house serif actually renders.** MINOR: a UI pass (review R4/R5), per
+`.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C. Page
+CSS, two JS lines, CMake resource list and four resource-provider branches.
+No DSP, parameter, range, type, state format or i18n key changed. The knob
+JS is untouched, so the O-ReverseDelay keyboard/ARIA knob port stays out of
+scope (R7).
+
+### Root cause
+
+The page's ground is `img.background` (paper.jpg), not a colour.
+`measure-ui --contrast` reads the nearest opaque background-colour, so it
+scored every caption against body `#2A2A2A` (18/24 below AA, min 1.04). That
+is the wrong ground in both directions, so the pass was measured with an
+image-aware probe instead. The probe hides all text (transitions off), takes
+a 2x screenshot and uses the 5th percentile of the real pixels under each
+glyph band. On that ground, v1.10.0 had **16-17 of 24 text leaves below AA,
+min 1.52**:
+
+- The footer is `#3C2F2F` at 0.4 alpha: 1.52.
+- Knob values are `#5C4033` over the stain: 2.35.
+- The preset and toggle buttons had `#2C3E10` text on rgba olive/sage
+  washes. Those let the stain through, giving 3.3-4.2.
+- The pressed hover-help switch is cream on `#8BA870`: 2.48.
+- The dropdown header is `#8B7355`: 3.60.
+
+### Changed
+
+- **Palette tokens.** The page carried 138 hex literals (136 in CSS, 2 in the
+  canvas JS) and no custom property. Every colour is now a `:root` token,
+  with `*-rgb` triples for the washes. There are **0 hex literals outside
+  `:root`**. The waveform canvas reads `--brown-frame` / `--brown-frame-rgb`
+  from the root style.
+- **Text on the bare paper is `--ink #1E1612`.** This covers the title, knob
+  labels, knob values, section labels and footer. The footer drops its 0.4
+  alpha.
+- **`--paper-opacity: 0.85`** over a new `--bg-paper` background-colour on
+  `.plugin-container`. It is a contrast parameter. At 1.0 the stain under
+  DEPTH and the footer held `--ink` to 4.11:1. At 0.9 it reads 4.69, and at
+  0.85 it reads 5.02. The background-colour also gives the census the right
+  ground.
+- **State fills are opaque**, pre-composited once from the v1.10.0 wash over
+  its own ground:
+  - preset bar `--fill-bar`;
+  - `< >` `--fill-nav` / hover;
+  - Load and Save `--fill-file` / hover;
+  - toggles, gear and waveform select `--fill-sage` / hover / open;
+  - toggle on `--fill-olive-active`.
+
+  The look is the same colour as before, minus the stain showing through.
+- **Pressed hover-help switch:** `--sage-deep #4E6839` fill with `--bg-paper`
+  text (2.48 → 5.10).
+- **Walnut text moves off `#8B7355`.** The dropdown header and the
+  empty-preset row use `--walnut-deep #6A5641`. The empty row was an inline
+  `#888` (3.3:1) and is now the `.empty` class.
+- **9 px floor:** the footer version goes from 8 to 9 px. That was the last
+  sub-9 px text. The 8 px toggle fleuron is a decorative pseudo-element and
+  stays.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed): 4
+  SOURCES, 4 `getResource()` branches and a `<link>` ahead of the page style.
+  `--font-serif` replaces the twelve `'Garamond', 'Times New Roman', …`
+  stacks. The bare `'Garamond'` lead never resolved on macOS, and on Windows
+  it would let an Office Garamond win. Resolved face verified by CDP: EB
+  Garamond on every text node, with 400 and 700 loaded.
+- **Side effect:** the waveform column is shrink-to-fit, so the select is
+  about 3 px narrower under the narrower face. It is the same in every
+  language, and check-ui-labels is green.
+
+### Testing
+
+| Gate (en / fr / zh-Hans, default + gear + preset dropdown) | v1.10.0 | v1.11.0 |
+|---|---|---|
+| Image-aware probe, below AA at p5 ground | 16 / 17 / 17 of 24 | **0 / 0 / 0**, min 4.85 |
+| `measure-ui --contrast`, below AA | 18 / 24 each (vs `#2A2A2A`) | **0 / 24**, min 5.10 |
+| `measure-ui --contrast`, under 9 px | 1 each | **0** |
+| `check-ui-labels` | PASS | **PASS** |
+| `check-i18n` | PASS | **PASS** |
+
+- The image probe is a scratchpad Playwright script over `scripts/serve-ui.js`,
+  adapted from O-Gain v1.10.0's. It skips labels hidden under an open popover.
+  v1.10.0 was measured from a `git archive HEAD` tree.
+
 ## [1.10.0] - 2026-09-05
 
 **Simplified Chinese.** The interface, the hover-help and the accessible names
