@@ -3,6 +3,39 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.0] - 2026-09-25
+
+The UI pass from the 260924-nho design review (Phase C). It covers AA text colours (R4), the 9px floor, the bundled EB Garamond face (R5), and scale-to-fit for small screens (R7, resizing half). It is MINOR because the change is visible. **No DSP, parameter, range, type or state-format change.** No processor file was touched. The C++ changes are four `getResource()` branches for the fonts and an opening-size clamp in the editor constructor.
+
+### Changed
+
+- **AA text tokens.** `--text-muted` `#6A5641` (5.68 on paper, 4.72 on the kbd chip) replaces the opacity-dimmed captions that measured 3.47–4.11: the transport-strip keys and units (`.tr-label`, `.tr-unit`), the grid/lane/MIDI hints including the `Del` keycap, the voice-group route line and the lesson-tour aside. `--fill-active` `#55703E` sits under the cream `#FFF8DC` face on the armed lesson preset, an active Mute and the open gear. That is 5.22, up from 2.18 on the translucent `--btn-active`, which is kept for the pressed hover-help switch because its face is dark.
+- **Voice-strip names** take `--voice-ink`, the voice hue at brightness 0.7, precomputed in `VOICES[].ink`. The pixels are the same as the old `filter: brightness(0.7)`. The filter was invisible to the contrast census, which read the raw hue (2.82–4.07). The real colour is 5.13–7.74.
+- **9px floor: already met.** The smallest declared text is 9px (`.cell-mark`) and 9.5px (`kbd`), and the census counts 0 rendered nodes under 9px, before and after. No size changed.
+- **One text face, bundled.** EB Garamond comes from `modules/ui/eb-garamond` 1.0.0 by direct embed: 4 `SOURCES` lines, 4 `getResource()` branches, and `css/eb-garamond.css` linked ahead of `styles.css`. `--font-serif` is `'EB Garamond', 'Georgia', 'Times New Roman'` + CJK tail. The bare `'Garamond'` lead is dropped, so an Office-installed Windows Garamond can't outrank the bundled face. Through v1.3.0 the page rendered in Times New Roman. The two monospace stacks go through `--font-mono`, with the same value as before.
+- **Two transport pins re-measured in the new face** at the widest language: `.tr-key-tempo` 37.5 → 39px ("TEMPO" 38.72) and `.tr-key-length` 60 → 61px ("LONGUEUR" 60.69). Without them, `check-ui-labels` failed 12 geometry-diff assertions, all 0.7–1.2px shifts in the header.
+- **Scale-to-fit below the design frame.** Width already reflowed. Height did not: narrowing the window made the page taller (1041px of content at 1060 wide, 1283px at the 860×640 minimum), so a small window just scrolled, and about half the page sat below the fold at the minimum. `applyUiScale()` now lays `.frame` out at ≥ 1060×900 and CSS-zooms it to the window (`zoom = min(1, w/1060, h/900)`). At or above 1060×900 nothing changes, and there is no upscale. Only `.frame` is zoomed, so the tooltip keeps its 12px face and its clientX/Y positioning. The lane canvas is sized after the zoom so its backing store matches its layout box.
+- **The editor opens no larger than the screen.** `setSize (1060, 900)` is followed by a clamp to the primary display's user area, less 40×100px for host chrome, within the existing 860×640 limits. On a 13" laptop the 900px frame used to open with its resize corner off-screen. A screen that holds 1060×900 is unaffected.
+
+### Measured (v1.3.0 → v1.4.0, served page at the shipping 1060×900 frame, all 5 states in `tests/i18n-states.json`)
+
+| Gate | Before | After |
+|---|---|---|
+| `measure-ui.js --contrast`, per language (en = fr = zh-Hans) | 13 / 135 below AA (9.6%), 0 under 9px, min 2.18 | **0 / 135**, 0 under 9px, min 4.72 |
+| `check-ui-labels.js` (en / fr / zh-Hans) | ALL CHECKS PASSED | ALL CHECKS PASSED (92 / 92 labels visible) |
+| `check-i18n.js` | ALL PASS | ALL PASS |
+| CDP resolved face (title, subtitle, hints, row/knob labels, values, tour, strip names, transport) | Times New Roman | **EB Garamond (custom)**, 0 404s |
+| auval (`aumu OSiB OuDv`) | — | AU VALIDATION SUCCEEDED |
+
+**Scale probe** (Chromium and Playwright WebKit): the frame fills 1060×800, 1340×780, 960×700, 860×640 and 1400×640 exactly, at zoom 0.89 / 0.87 / 0.78 / 0.71 / 0.71. There is 0 horizontal overflow, the grid-cell hit test lands, and the lane backing equals its layout box.
+
+**Not changed, noted:**
+- The design frame itself scrolls 147px: the lesson-preset strip sits below the fold at 1060×900, and did in v1.3.0 too. Scaling preserves that view rather than altering the default layout.
+- Below about 0.9 zoom, 10px captions render under 9 CSS px (7.1px at the 0.71 minimum; 14 device px on Retina). This is the price of fitting the whole design frame on a small screen.
+- The accent/ghost glyph (`.cell-mark`, cream on the voice fill) is a redundant velocity cue and isn't measured by the census.
+
+Hands-on DAW check pending: the opening size on a small display, drag-resize, and knob drag at zoom < 1.
+
 ## [1.3.0] - 2026-09-06
 
 Simplified Chinese joins English and French (task 260906-h8y, wave 4e). MINOR: a

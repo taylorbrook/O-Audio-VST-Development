@@ -15,7 +15,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 # against JucePlugin_VersionString). Introduced in v1.1.0: through v1.0.3 the
 # harness carried the literal "1.0.1" while the plugin shipped 1.0.3, and its
 # JucePlugin_VersionCode said 0x10000.
-set(OSIMPLEBEATMAKER_VERSION "1.3.0")
+set(OSIMPLEBEATMAKER_VERSION "1.4.0")
 
 juce_add_plugin(O-simpleBeatmaker
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
@@ -68,6 +68,12 @@ juce_add_binary_data(O-simpleBeatmaker_UIResources
         Source/ui/public/js/i18n.js
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        # v1.4.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the matching getResource branches
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 # Required JUCE modules

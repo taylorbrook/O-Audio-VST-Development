@@ -163,13 +163,15 @@ function initI18n() {
 // requires every setLabel key to be a plain string literal and assertion 15
 // counts only literal keys as references — VOICES[v].key is neither, so a
 // key-driven call would fail one gate and report all six keys DEAD to the other.
+// `ink` (v1.4.0) is `hue` at brightness 0.7, the strip-name colour the CSS used
+// to reach through `filter: brightness(0.7)`. Same pixels; 5.13-7.74 on the strip.
 const VOICES = [
-  { prefix: "kick",      name: "Kick",       key: "label.voiceKick",      note: 36, hue: "#c0532b" },
-  { prefix: "snare",     name: "Snare",      key: "label.voiceSnare",     note: 38, hue: "#b5862e" },
-  { prefix: "clap",      name: "Clap",       key: "label.voiceClap",      note: 39, hue: "#9a6b3f" },
-  { prefix: "closedHat", name: "Closed Hat", key: "label.voiceClosedHat", note: 42, hue: "#5f9e57" },
-  { prefix: "openHat",   name: "Open Hat",   key: "label.voiceOpenHat",   note: 46, hue: "#3f8e93" },
-  { prefix: "tom",       name: "Tom",        key: "label.voiceTom",       note: 45, hue: "#7a5ba6" },
+  { prefix: "kick",      name: "Kick",       key: "label.voiceKick",      note: 36, hue: "#c0532b", ink: "#863a1e" },
+  { prefix: "snare",     name: "Snare",      key: "label.voiceSnare",     note: 38, hue: "#b5862e", ink: "#7f5e20" },
+  { prefix: "clap",      name: "Clap",       key: "label.voiceClap",      note: 39, hue: "#9a6b3f", ink: "#6c4b2c" },
+  { prefix: "closedHat", name: "Closed Hat", key: "label.voiceClosedHat", note: 42, hue: "#5f9e57", ink: "#436f3d" },
+  { prefix: "openHat",   name: "Open Hat",   key: "label.voiceOpenHat",   note: 46, hue: "#3f8e93", ink: "#2c6367" },
+  { prefix: "tom",       name: "Tom",        key: "label.voiceTom",       note: 45, hue: "#7a5ba6", ink: "#554074" },
 ];
 const VOICE_NAME_WRITERS = {
   kick:      (el) => setLabel(el, "label.voiceKick"),
@@ -964,6 +966,7 @@ function buildVoiceStrips() {
     const strip = document.createElement("div");
     strip.className = "voice-strip";
     strip.style.setProperty("--voice-hue", v.hue);
+    strip.style.setProperty("--voice-ink", v.ink);
 
     const nameEl = document.createElement("div");
     nameEl.className = "vs-name";
@@ -1044,7 +1047,9 @@ async function boot() {
   if (!document.querySelector(".cell")) renderGridColumns();
   await refreshGridFromBackend(true);
 
-  // canvases + visuals
+  // canvases + visuals. Scale first (v1.4.0): makeCanvas sizes the backing store
+  // from the canvas's layout box, which the zoom changes.
+  applyUiScale();
   lane = makeCanvas("laneCanvas");
   midiReadout = document.getElementById("midiReadout");
 
@@ -1073,8 +1078,33 @@ async function boot() {
     console.error("window.__JUCE__.backend unavailable — playhead/lane/MIDI will not animate.");
   }
 
-  window.addEventListener("resize", () => { if (lane) lane.resize(); });
+  // Scale BEFORE the lane re-measures, so its backing store is sized for the
+  // frame's new layout box.
+  window.addEventListener("resize", () => { applyUiScale(); if (lane) lane.resize(); });
   requestAnimationFrame(raf);
+}
+
+// ── UI scale (v1.4.0) ────────────────────────────────────────────────────────
+// Below the 1060x900 design frame the page SCALES instead of only scrolling.
+// Width already reflowed, but narrowing made the page taller (1041px of content
+// at 1060 wide, 1283px at the 860 minimum), so a 13" laptop saw half of it below
+// the fold. The frame is laid out at >= the design size and CSS-zoomed down to
+// the window; at or above the design size nothing changes (no upscale — a wider
+// window still means wider grid cells). Only .frame is zoomed: the tooltip is
+// its sibling, positioned from unzoomed clientX/Y, and keeps its 12px face.
+const DESIGN_W = 1060, DESIGN_H = 900;
+function applyUiScale() {
+  const frame = document.querySelector(".frame");
+  if (!frame) return;
+  const w = window.innerWidth, h = window.innerHeight;
+  const z = Math.min(1, w / DESIGN_W, h / DESIGN_H);
+  if (!(z > 0) || z >= 1) {
+    frame.style.zoom = ""; frame.style.width = ""; frame.style.height = "";
+    return;
+  }
+  frame.style.zoom = String(z);
+  frame.style.width = `${w / z}px`;    // px lengths on a zoomed element are
+  frame.style.height = `${h / z}px`;   // multiplied by z: this lands on w x h
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

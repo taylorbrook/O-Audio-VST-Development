@@ -78,6 +78,22 @@ OSimpleBeatmakerAudioProcessorEditor::getResource (const juce::String& url)
         return makeBinaryResource (BinaryData::check_native_interop_js,
                                    BinaryData::check_native_interop_jsSize, "application/javascript; charset=utf-8");
 
+    // v1.4.0 (R5): shared EB Garamond face (modules/ui/eb-garamond) —
+    // stylesheet under /css/, the three woff2 faces under /fonts/ where its
+    // relative font URLs land.
+    if (url == "/css/eb-garamond.css")
+        return makeBinaryResource (BinaryData::ebgaramond_css, BinaryData::ebgaramond_cssSize,
+                                   "text/css; charset=utf-8");
+    if (url == "/fonts/EBGaramond-Regular.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondRegular_woff2,
+                                   BinaryData::EBGaramondRegular_woff2Size, "font/woff2");
+    if (url == "/fonts/EBGaramond-Italic.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondItalic_woff2,
+                                   BinaryData::EBGaramondItalic_woff2Size, "font/woff2");
+    if (url == "/fonts/EBGaramond-Bold.woff2")
+        return makeBinaryResource (BinaryData::EBGaramondBold_woff2,
+                                   BinaryData::EBGaramondBold_woff2Size, "font/woff2");
+
     return std::nullopt;
 }
 
@@ -237,6 +253,20 @@ OSimpleBeatmakerAudioProcessorEditor::OSimpleBeatmakerAudioProcessorEditor (OSim
     setResizable (true, true);
     setResizeLimits (860, 640, 1920, 1400);
     setSize (1060, 900);   // wide enough to seat a 16-step grid; the grid scrolls at 32 steps
+
+    // v1.4.0: open no larger than the screen. On a 13" laptop (~800px below the
+    // menu bar) the 900px frame opened with its resize corner off-screen, so the
+    // limits above were unreachable. Shrink to the primary display's user area,
+    // less room for the host's title bar and plugin header; the page scales to
+    // fit (app.js applyUiScale). A screen that holds 1060x900 is untouched.
+    if (const auto* display = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay())
+    {
+        const auto area = display->userArea;
+        const int w = juce::jlimit (860, 1060, area.getWidth()  - 40);
+        const int h = juce::jlimit (640, 900,  area.getHeight() - 100);
+        if (w != getWidth() || h != getHeight())
+            setSize (w, h);
+    }
     startTimerHz (60);
 }
 
