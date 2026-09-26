@@ -8,7 +8,23 @@
     "click": "#help-toggle"
   },
   {
+    "name": "hover help ON, SETTLED (a no-op step: .settings-toggle transitions background + color over 0.2s and the walk samples 140ms after a click, so without this the census reads the mid-fade pair - v1.3.0's 1.72 was that, the settled pair was 2.16; the last visible sample wins)",
+    "eval": "void 0"
+  },
+  {
     "name": "SPEAKER LAYOUT VIEW (#editor-toolbar) — 15 of this plugin's labels live behind #view-toggle and are invisible at rest",
     "click": "#view-toggle"
+  },
+  {
+    "name": "ELEVATION ON (the lit .param-toggle pill: paper face on the sage fill)",
+    "click": "label.toggle-label[for=\"elevation_enable\"]"
+  },
+  {
+    "name": "PRESET MENU OPEN (category headers + the .active item; needs getPresetListGrouped from generic-overrides.json)",
+    "click": "#preset-select"
+  },
+  {
+    "name": "TOOLTIP SHOWN via keyboard focus on #path (focusin opens at once once a keydown clears the pointer latch; hover help is ON from state 2)",
+    "eval": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true})); document.getElementById('path').focus();"
   }
 ]

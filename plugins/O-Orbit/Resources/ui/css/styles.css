@@ -19,6 +19,48 @@
 */
 /* Ouaricon Naturalist Aesthetic for O-Orbit */
 
+/* ── Palette (v1.4.0, R4 of UI design review 260924-nho) ─────────────────
+   Every colour in this sheet resolves through a token below; there are no hex
+   literals outside :root. Canvas fillStyle/strokeStyle in js/app.js stay
+   literal (a canvas context does not resolve var()), and rgba() washes keep
+   their alpha inline.
+
+   TEXT tokens are AA (>= 4.5:1) against the surface each one sits on, taken
+   from the ouaricon-naturalist-001 Text Contrast table. --rule-muted keeps the
+   old #8B7355 for borders, rules and fills only (3.66 on --paper as text). */
+:root {
+    --ink: #3C2F2F;               /* primary text, 10.45 on --paper */
+    --text-body: #5C4033;         /* secondary text, 6.17 on the badge wash */
+    --text-muted: #6A5641;        /* walnut TEXT: 4.98 on the menu-category wash, 5.68 on --paper */
+    --rule-muted: #8B7355;        /* walnut borders / rules / fills — NOT text */
+    --paper: #F5E6D3;
+    --paper-deep: #EBD9C7;
+    --cream: #FFF8DC;
+
+    --sage: #8BA870;              /* active BORDERS, knob pointer — NOT under text (2.16) */
+    --sage-ink: #5C6E3E;          /* sage borders on the pressed gear */
+    --leaf-fill: #4E6839;         /* fills under --paper text: 5.10 (toggles, lit help switch) */
+    --leaf-text: #4E6839;         /* sage TEXT on the paper gradient: 4.54 on --paper-deep */
+    --gear-ink: #3F5530;          /* the ⚙ glyph: 5.74 at rest, 5.04 on hover */
+    --gear-ink-open: #2C3E10;     /* the ⚙ glyph on the pressed 0.65 wash: 5.90 */
+    --walnut-fill: #6A5641;       /* fill under --paper text: 5.68 (active preset item) */
+
+    /* Knob: botanical seed cross-section (aesthetic "Control Colors") */
+    --knob-ring: #C9A27B;
+    --knob-segment-1: #F5DEB3;
+    --knob-segment-2: #E8D5B7;
+    --knob-divider: #8B7355;
+    --knob-core: #FFF8DC;
+
+    --focus-ring: var(--text-body);
+
+    /* v1.4.0 (R5): one text face, bundled (modules/ui/eb-garamond, linked
+       before this sheet). The bare 'Garamond' entry is gone so an
+       Office-installed Windows Garamond cannot outrank the bundled face;
+       Georgia precedes Times; the CJK tail precedes the generic. */
+    --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -29,14 +71,14 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
-    color: #3C2F2F;
+    font-family: var(--font-serif);
+    color: var(--ink);
     user-select: none;
     -webkit-user-select: none;
 }
 
 body {
-    background: #F5E6D3;
+    background: var(--paper);
     /* CSS paper grain texture */
     background-image:
         repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(60, 47, 47, 0.03) 2px, rgba(60, 47, 47, 0.03) 4px),
@@ -53,7 +95,7 @@ body {
     justify-content: space-between;
     gap: 10px;
     padding: 0 12px;
-    border-bottom: 2px solid #8B7355;
+    border-bottom: 2px solid var(--rule-muted);
 }
 
 #header h1 {
@@ -77,7 +119,11 @@ body {
    It fixes a French shift AND a pre-existing ENGLISH one. The button has always
    changed width when the view is switched (Motion View -> Speaker Editor is
    +21px), and because #header is justify-content: space-between that dragged
-   the whole preset band 21px left on every click. Nothing was measuring it. */
+   the whole preset band 21px left on every click. Nothing was measuring it.
+
+   v1.4.0 re-measured in the bundled EB Garamond, border-box with the pin
+   lifted: Motion View 111.81, Speaker Editor 130.59, Vue mouvement 135.88,
+   Editeur d'enceintes 169.00, 运动视图 71.02, 扬声器编辑器 97.52. 170 holds. */
 #view-toggle {
     font-size: 12px;
     letter-spacing: 1px;
@@ -86,7 +132,7 @@ body {
     padding: 4px 8px;
     min-width: 170px;
     text-align: center;
-    border: 1px solid #8B7355;
+    border: 1px solid var(--rule-muted);
     background: rgba(139, 115, 85, 0.1);
 }
 
@@ -100,7 +146,7 @@ body {
     height: 53.3vh;
     min-height: 240px;
     background: rgba(139, 115, 85, 0.08);
-    border-bottom: 3px solid #8B7355;
+    border-bottom: 3px solid var(--rule-muted);
     position: relative;
     overflow: hidden;
 }
@@ -121,7 +167,7 @@ body {
 /* Parameter Groups */
 .param-group {
     margin-bottom: 12px;
-    border: 2px solid #8B7355;
+    border: 2px solid var(--rule-muted);
     padding: 8px;
     background: rgba(245, 230, 211, 0.6);
     box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.25);
@@ -133,7 +179,7 @@ body {
     letter-spacing: 2px;
     text-transform: uppercase;
     margin-bottom: 8px;
-    color: #3C2F2F;
+    color: var(--ink);
 }
 
 .param-grid {
@@ -155,7 +201,7 @@ body {
     letter-spacing: 1px;
     text-transform: uppercase;
     text-align: center;
-    color: #3C2F2F;
+    color: var(--ink);
 }
 
 /* Knobs (Botanical Seed Style) */
@@ -169,35 +215,35 @@ body {
     width: 55px;
     height: 55px;
     border-radius: 50%;
-    border: 2px solid #8B7355;
+    border: 2px solid var(--rule-muted);
     /* 10-segment botanical seed cross-section */
     background:
         /* Inner core circle */
-        radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%),
+        radial-gradient(circle, var(--knob-core) 0%, var(--knob-core) 20%, transparent 20%),
         /* Outer ring */
-        radial-gradient(circle, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+        radial-gradient(circle, transparent 88%, var(--knob-ring) 88%, var(--knob-ring) 92%, var(--knob-divider) 92%, var(--knob-divider) 94%, transparent 94%),
         /* 10-segment radial pattern with 1deg brown dividers */
         conic-gradient(from 0deg,
-            #F5DEB3 0deg, #F5DEB3 17deg, #8B7355 17deg, #8B7355 18deg,
-            #E8D5B7 18deg, #E8D5B7 35deg, #8B7355 35deg, #8B7355 36deg,
-            #F5DEB3 36deg, #F5DEB3 53deg, #8B7355 53deg, #8B7355 54deg,
-            #E8D5B7 54deg, #E8D5B7 71deg, #8B7355 71deg, #8B7355 72deg,
-            #F5DEB3 72deg, #F5DEB3 89deg, #8B7355 89deg, #8B7355 90deg,
-            #E8D5B7 90deg, #E8D5B7 107deg, #8B7355 107deg, #8B7355 108deg,
-            #F5DEB3 108deg, #F5DEB3 125deg, #8B7355 125deg, #8B7355 126deg,
-            #E8D5B7 126deg, #E8D5B7 143deg, #8B7355 143deg, #8B7355 144deg,
-            #F5DEB3 144deg, #F5DEB3 161deg, #8B7355 161deg, #8B7355 162deg,
-            #E8D5B7 162deg, #E8D5B7 179deg, #8B7355 179deg, #8B7355 180deg,
-            #F5DEB3 180deg, #F5DEB3 197deg, #8B7355 197deg, #8B7355 198deg,
-            #E8D5B7 198deg, #E8D5B7 215deg, #8B7355 215deg, #8B7355 216deg,
-            #F5DEB3 216deg, #F5DEB3 233deg, #8B7355 233deg, #8B7355 234deg,
-            #E8D5B7 234deg, #E8D5B7 251deg, #8B7355 251deg, #8B7355 252deg,
-            #F5DEB3 252deg, #F5DEB3 269deg, #8B7355 269deg, #8B7355 270deg,
-            #E8D5B7 270deg, #E8D5B7 287deg, #8B7355 287deg, #8B7355 288deg,
-            #F5DEB3 288deg, #F5DEB3 305deg, #8B7355 305deg, #8B7355 306deg,
-            #E8D5B7 306deg, #E8D5B7 323deg, #8B7355 323deg, #8B7355 324deg,
-            #F5DEB3 324deg, #F5DEB3 341deg, #8B7355 341deg, #8B7355 342deg,
-            #E8D5B7 342deg, #E8D5B7 359deg, #8B7355 359deg, #8B7355 360deg
+            var(--knob-segment-1) 0deg, var(--knob-segment-1) 17deg, var(--knob-divider) 17deg, var(--knob-divider) 18deg,
+            var(--knob-segment-2) 18deg, var(--knob-segment-2) 35deg, var(--knob-divider) 35deg, var(--knob-divider) 36deg,
+            var(--knob-segment-1) 36deg, var(--knob-segment-1) 53deg, var(--knob-divider) 53deg, var(--knob-divider) 54deg,
+            var(--knob-segment-2) 54deg, var(--knob-segment-2) 71deg, var(--knob-divider) 71deg, var(--knob-divider) 72deg,
+            var(--knob-segment-1) 72deg, var(--knob-segment-1) 89deg, var(--knob-divider) 89deg, var(--knob-divider) 90deg,
+            var(--knob-segment-2) 90deg, var(--knob-segment-2) 107deg, var(--knob-divider) 107deg, var(--knob-divider) 108deg,
+            var(--knob-segment-1) 108deg, var(--knob-segment-1) 125deg, var(--knob-divider) 125deg, var(--knob-divider) 126deg,
+            var(--knob-segment-2) 126deg, var(--knob-segment-2) 143deg, var(--knob-divider) 143deg, var(--knob-divider) 144deg,
+            var(--knob-segment-1) 144deg, var(--knob-segment-1) 161deg, var(--knob-divider) 161deg, var(--knob-divider) 162deg,
+            var(--knob-segment-2) 162deg, var(--knob-segment-2) 179deg, var(--knob-divider) 179deg, var(--knob-divider) 180deg,
+            var(--knob-segment-1) 180deg, var(--knob-segment-1) 197deg, var(--knob-divider) 197deg, var(--knob-divider) 198deg,
+            var(--knob-segment-2) 198deg, var(--knob-segment-2) 215deg, var(--knob-divider) 215deg, var(--knob-divider) 216deg,
+            var(--knob-segment-1) 216deg, var(--knob-segment-1) 233deg, var(--knob-divider) 233deg, var(--knob-divider) 234deg,
+            var(--knob-segment-2) 234deg, var(--knob-segment-2) 251deg, var(--knob-divider) 251deg, var(--knob-divider) 252deg,
+            var(--knob-segment-1) 252deg, var(--knob-segment-1) 269deg, var(--knob-divider) 269deg, var(--knob-divider) 270deg,
+            var(--knob-segment-2) 270deg, var(--knob-segment-2) 287deg, var(--knob-divider) 287deg, var(--knob-divider) 288deg,
+            var(--knob-segment-1) 288deg, var(--knob-segment-1) 305deg, var(--knob-divider) 305deg, var(--knob-divider) 306deg,
+            var(--knob-segment-2) 306deg, var(--knob-segment-2) 323deg, var(--knob-divider) 323deg, var(--knob-divider) 324deg,
+            var(--knob-segment-1) 324deg, var(--knob-segment-1) 341deg, var(--knob-divider) 341deg, var(--knob-divider) 342deg,
+            var(--knob-segment-2) 342deg, var(--knob-segment-2) 359deg, var(--knob-divider) 359deg, var(--knob-divider) 360deg
         );
     box-shadow:
         inset 1px 1px 3px rgba(0, 0, 0, 0.3),
@@ -221,7 +267,7 @@ body {
     position: absolute;
     width: 4px;
     height: 20px;
-    background: #8BA870;
+    background: var(--sage);
     top: 5px;
     left: 50%;
     transform: translateX(-50%);
@@ -232,7 +278,7 @@ body {
 /* Value Display */
 .value-display {
     font-size: 10px;
-    color: #3C2F2F;
+    color: var(--ink);
     text-align: center;
     min-height: 12px;
 }
@@ -241,10 +287,10 @@ body {
 .param-dropdown {
     width: 100%;
     padding: 4px 6px;
-    border: 2px solid #8B7355;
-    background: #F5E6D3;
-    color: #3C2F2F;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    border: 2px solid var(--rule-muted);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-serif);
     font-size: 11px;
     border-radius: 2px;
     cursor: pointer;
@@ -252,7 +298,7 @@ body {
 
 .param-dropdown:focus {
     outline: none;
-    border-color: #8BA870;
+    border-color: var(--sage);
 }
 
 /* Toggle Button */
@@ -285,7 +331,7 @@ body {
     width: 50px;
     height: 24px;
     background: rgba(139, 115, 85, 0.3);
-    border: 2px solid #8B7355;
+    border: 2px solid var(--rule-muted);
     border-radius: 12px;
     cursor: pointer;
     transition: background 0.2s;
@@ -301,7 +347,7 @@ body {
     position: absolute;
     width: 18px;
     height: 18px;
-    background: #8B7355;
+    background: var(--rule-muted);
     border-radius: 50%;
     left: 2px;
     transition: left 0.2s;
@@ -309,16 +355,16 @@ body {
 }
 
 .param-toggle:checked + .toggle-label {
-    background: #8BA870;
+    background: var(--leaf-fill);     /* was --sage: 2.16 under --paper, now 5.10 */
 }
 
 .param-toggle:checked + .toggle-label::after {
     left: 28px;
-    background: #F5E6D3;
+    background: var(--paper);
 }
 
 .param-toggle:checked + .toggle-label {
-    color: #F5E6D3;
+    color: var(--paper);
 }
 
 /* Footer */
@@ -327,7 +373,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-top: 2px solid #8B7355;
+    border-top: 2px solid var(--rule-muted);
     font-size: 10px;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -342,7 +388,7 @@ body {
     right: 0;
     height: 32px;
     background: rgba(245, 230, 211, 0.9);
-    border-top: 1px solid #8B7355;
+    border-top: 1px solid var(--rule-muted);
     padding: 4px 8px;
     gap: 8px;
     align-items: center;
@@ -373,13 +419,13 @@ body {
    where the budget comes from. */
 .preset-btn {
     padding: 2px 4px;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     background: rgba(139, 115, 85, 0.15);
-    border: 1px solid #8B7355;
-    color: #3C2F2F;
+    border: 1px solid var(--rule-muted);
+    color: var(--ink);
     cursor: pointer;
 }
 
@@ -388,7 +434,7 @@ body {
    (40.8 and 30.9), and 5.1 through 7.1.4 are digits. 40 = 29.8 + 8 + 2. */
 .preset-btn[data-preset="6"],
 .preset-btn[data-preset="7"] {
-    min-width: 40px;
+    min-width: 41px;              /* v1.4.0: Octo 40.88 in EB Garamond (was 40) */
 }
 
 .preset-btn:hover {
@@ -408,14 +454,14 @@ body {
    Importer (72). */
 #file-buttons button {
     padding: 2px 8px;
-    min-width: 74px;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    min-width: 74px;              /* v1.4.0: holds Exporter 73.47 in EB Garamond */
+    font-family: var(--font-serif);
     font-size: 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     background: rgba(139, 163, 112, 0.2);
-    border: 1px solid #8BA870;
-    color: #3C2F2F;
+    border: 1px solid var(--sage);
+    color: var(--ink);
     cursor: pointer;
 }
 
@@ -429,8 +475,8 @@ body {
     font-size: 9px;
     padding: 1px 5px;
     background: rgba(139, 115, 85, 0.2);
-    border: 1px solid #8B7355;
-    color: #5C4033;
+    border: 1px solid var(--rule-muted);
+    color: var(--text-body);
     letter-spacing: 0.5px;
     text-align: center;
     white-space: nowrap;
@@ -453,12 +499,12 @@ body {
     width: 20px;
     height: 20px;
     padding: 0;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 9px;
     line-height: 1;
-    color: #3C2F2F;
+    color: var(--ink);
     background: rgba(139, 115, 85, 0.15);
-    border: 1px solid #8B7355;
+    border: 1px solid var(--rule-muted);
     border-radius: 50%;
     cursor: pointer;
 }
@@ -470,15 +516,15 @@ body {
    button in both languages and makes the three a uniform set. */
 .preset-btn-hdr {
     padding: 3px 7px;
-    min-width: 58px;
+    min-width: 59px;              /* v1.4.0: Ouvrir 58.39 in EB Garamond (was 58) */
     text-align: center;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     background: rgba(139, 163, 112, 0.2);
-    border: 1px solid #8BA870;
-    color: #3C2F2F;
+    border: 1px solid var(--sage);
+    color: var(--ink);
     cursor: pointer;
 }
 .preset-btn-hdr:hover:not(:disabled) { background: rgba(139, 163, 112, 0.4); }
@@ -497,12 +543,12 @@ body {
     max-width: 190px;
     min-width: 130px;
     padding: 3px 8px;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 11px;
     font-style: italic;
-    color: #3C2F2F;
+    color: var(--ink);
     background: rgba(245, 230, 211, 0.8);
-    border: 1px solid #8B7355;
+    border: 1px solid var(--rule-muted);
     border-radius: 2px;
     cursor: pointer;
 }
@@ -519,7 +565,7 @@ body {
 
 #preset-caret {
     flex: 0 0 auto;
-    font-size: 8px;
+    font-size: 9px;                   /* v1.4.0: the 9px floor (was 8px) */
     transition: transform 0.15s;
 }
 #preset-select[aria-expanded="true"] #preset-caret { transform: rotate(180deg); }
@@ -535,8 +581,8 @@ body {
     width: 300px;
     max-height: 420px;
     overflow-y: auto;
-    background: #F5E6D3;
-    border: 1.5px solid #8B7355;
+    background: var(--paper);
+    border: 1.5px solid var(--rule-muted);
     border-radius: 3px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
     text-align: left;
@@ -548,7 +594,7 @@ body {
     font-variant: small-caps;
     font-size: 10px;
     letter-spacing: 2px;
-    color: #8B7355;
+    color: var(--text-muted);     /* was --rule-muted, 3.22 on this wash */
     background: rgba(139, 115, 85, 0.12);
     border-bottom: 1px solid rgba(139, 115, 85, 0.45);
 }
@@ -566,7 +612,7 @@ body {
     font-style: italic;
     font-size: 11px;
     letter-spacing: 0.3px;
-    color: #3C2F2F;
+    color: var(--ink);
     border-radius: 3px;
     cursor: pointer;
     white-space: nowrap;
@@ -575,8 +621,8 @@ body {
 }
 .preset-menu-item:hover { background: rgba(139, 115, 85, 0.2); }
 .preset-menu-item.active {
-    background: #8B7355;
-    color: #F5E6D3;
+    background: var(--walnut-fill);   /* was --rule-muted: 3.66 under --paper, now 5.68 */
+    color: var(--paper);
     font-style: normal;
 }
 
@@ -586,10 +632,11 @@ body {
    only the glyph differs. The "?" toggle itself moved INSIDE the panel, beside
    the language selector — it is not duplicated.
 
-   The panel is written in this plugin's own paper vocabulary: the #F5E6D3
-   plate, the #8B7355 rule and the 2px shadow the .param-group panels already
-   use, with the sage #8BA870 reserved for the lit state exactly as it is on the
-   knob pointer and the .param-toggle. It is not the dark card O-Contrabass uses
+   The panel is written in this plugin's own paper vocabulary: the --paper
+   plate, the --rule-muted rule and the 2px shadow the .param-group panels already
+   use, with sage reserved for the lit state exactly as it is on the knob
+   pointer and the .param-toggle (v1.4.0: a lit FILL under text takes the
+   darker --leaf-fill; --sage stays on borders). It is not the dark card O-Contrabass uses
    — that plugin's header band is dark and this one's is paper. */
 #settings-cluster {
     position: relative;
@@ -601,12 +648,12 @@ body {
     width: 20px;
     height: 20px;
     padding: 0;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 12px;
     line-height: 1;
-    color: #5C6E3E;
+    color: var(--gear-ink);           /* was --sage-ink, 3.90 on this wash */
     background: rgba(139, 168, 112, 0.22);
-    border: 1.5px solid #8BA870;
+    border: 1.5px solid var(--sage);
     border-radius: 50%;
     cursor: pointer;
     transition: background 0.2s, box-shadow 0.2s;
@@ -614,8 +661,9 @@ body {
 }
 .gear-btn:hover { background: rgba(139, 168, 112, 0.4); }
 .gear-btn[aria-expanded="true"] {
+    color: var(--gear-ink-open);
     background: rgba(139, 168, 112, 0.65);
-    border-color: #5C6E3E;
+    border-color: var(--sage-ink);
     box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.3);
 }
 
@@ -634,8 +682,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 7px;
-    background: #F5E6D3;
-    border: 1.5px solid #8B7355;
+    background: var(--paper);
+    border: 1.5px solid var(--rule-muted);
     border-radius: 3px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
     text-align: left;
@@ -657,22 +705,22 @@ body {
     min-width: 0;
     font-size: 11px;
     letter-spacing: 0.5px;
-    color: #3C2F2F;
+    color: var(--ink);
 }
 
 .settings-select {
     flex: 0 0 92px;
     width: 92px;
     padding: 2px 4px;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 11px;
-    background: #FFF8DC;
-    border: 1px solid #8B7355;
+    background: var(--cream);
+    border: 1px solid var(--rule-muted);
     border-radius: 2px;
-    color: #3C2F2F;
+    color: var(--ink);
     cursor: pointer;
 }
-.settings-select:focus { outline: none; border-color: #8BA870; }
+.settings-select:focus { outline: none; border-color: var(--sage); }
 
 /* Pinned to the wider of the two languages. Without the pin the panel's right
    edge steps by ~5px when the help is switched on, in French only.
@@ -688,23 +736,23 @@ body {
     flex: 0 0 46px;
     width: 46px;
     padding: 2px 0;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     text-align: center;
-    color: #3C2F2F;
+    color: var(--ink);
     background: rgba(139, 115, 85, 0.15);
-    border: 1px solid #8B7355;
+    border: 1px solid var(--rule-muted);
     border-radius: 2px;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
 }
 .settings-toggle:hover { background: rgba(139, 115, 85, 0.3); }
 .settings-toggle.active {
-    background: #8BA870;
-    border-color: #5C6E3E;
-    color: #F5E6D3;
+    background: var(--leaf-fill);     /* was --sage: 1.72 under --paper, now 5.10 */
+    border-color: var(--sage-ink);
+    color: var(--paper);
 }
 
 /* ============ Hover help: the tooltip surface (v1.1.0) ============
@@ -719,11 +767,11 @@ body {
     z-index: 1100;
     max-width: 230px;
     padding: 7px 10px;
-    background: linear-gradient(135deg, #F5E6D3 0%, #EBD9C7 100%);
-    border: 1px solid #8B7355;
+    background: linear-gradient(135deg, var(--paper) 0%, var(--paper-deep) 100%);
+    border: 1px solid var(--rule-muted);
     border-radius: 3px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     pointer-events: none;
     opacity: 0;
     transition: opacity 110ms ease-out;
@@ -735,13 +783,13 @@ body {
     font-weight: 600;
     font-variant: small-caps;
     letter-spacing: 0.8px;
-    color: #5C6E3E;
+    color: var(--leaf-text);          /* was --sage-ink: 4.07 on the gradient's --paper-deep stop */
     margin-bottom: 3px;
 }
 .tooltip-body {
     font-size: 11px;
     line-height: 1.35;
-    color: #3C2F2F;
+    color: var(--ink);
 }
 
 /* Arrow tracks the anchor via --arrow-x so an edge-clamped tip still points
@@ -753,8 +801,8 @@ body {
     transform: translateX(-50%);
     border: 5px solid transparent;
 }
-.tooltip[data-placement="above"]::after { top: 100%; border-top-color: #8B7355; }
-.tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: #8B7355; }
+.tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--rule-muted); }
+.tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--rule-muted); }
 
 /* ============ Layout library (D2, v1.1.0) ============ */
 #layout-library {
@@ -770,37 +818,39 @@ body {
     width: 92px;
     max-width: 92px;
     padding: 2px 4px;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 10px;
-    background: #F5E6D3;
-    border: 1px solid #8B7355;
-    color: #3C2F2F;
+    background: var(--paper);
+    border: 1px solid var(--rule-muted);
+    color: var(--ink);
 }
 
 #layout-name {
     width: 80px;
     padding: 2px 5px;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 10px;
     background: rgba(255, 248, 220, 0.8);
-    border: 1px solid #8B7355;
-    color: #3C2F2F;
+    border: 1px solid var(--rule-muted);
+    color: var(--ink);
 }
-#layout-name:focus { outline: none; border-color: #8BA870; }
+#layout-name:focus { outline: none; border-color: var(--sage); }
+/* The UA placeholder grey reads 4.20 on this cream; walnut text is 6.33. */
+#layout-name::placeholder { color: var(--text-muted); opacity: 1; }
 
 /* 53 = Enreg. 38.8 + 12px padding + 2px border. It also holds Suppr. (50.1)
    and the armed Sur ? (42.9), so neither of these two buttons changes width in
    either language or in either arm of the two-click delete. */
 #layout-library button {
     padding: 2px 6px;
-    min-width: 53px;
-    font-family: Garamond, 'EB Garamond', Times, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    min-width: 53px;              /* v1.4.0: holds Enreg. 52.92 in EB Garamond */
+    font-family: var(--font-serif);
     font-size: 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     background: rgba(139, 163, 112, 0.2);
-    border: 1px solid #8BA870;
-    color: #3C2F2F;
+    border: 1px solid var(--sage);
+    color: var(--ink);
     cursor: pointer;
 }
 #layout-library button:hover { background: rgba(139, 163, 112, 0.4); }
@@ -816,6 +866,34 @@ body {
     opacity: 0.35;
     pointer-events: none;
     z-index: 1000;
+}
+
+/* ── Keyboard focus (v1.4.0) ─────────────────────────────────────────────
+   Every Tab-reachable control gets one ring. Through v1.3.0 the page had no
+   :focus-visible rule at all, and three `:focus { outline: none }` rules
+   (.param-dropdown, .settings-select, #layout-name) left a keyboard user only
+   a border-colour change to follow. :focus-visible keeps the ring off for
+   mouse users. The selectors are listed by class/id, not by element, so each
+   one outranks (or ties and follows) the `:focus` rule it overrides.
+   --focus-ring is --text-body, 7.67 on --paper (non-text needs 3:1).
+
+   Not reachable by Tab, so not listed: the knobs (mouse-only divs — R7 is a
+   separate pass), #view-toggle (a div), the preset-menu items (divs), and the
+   Elevation checkbox (display: none under its pill). */
+.preset-nav:focus-visible,
+#preset-select:focus-visible,
+.preset-btn-hdr:focus-visible,
+.gear-btn:focus-visible,
+.settings-select:focus-visible,
+.settings-toggle:focus-visible,
+.param-dropdown:focus-visible,
+.preset-btn:focus-visible,
+#layout-select:focus-visible,
+#layout-name:focus-visible,
+#layout-library button:focus-visible,
+#file-buttons button:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
 }
 
 /* ── Simplified Chinese line boxes (v1.3.0) ───────────────────────────────
@@ -846,16 +924,27 @@ body {
 
    Scoped to the Chinese arm so the English and French arms keep the `normal`
    they shipped with and cannot move by a sub-pixel. */
-html[lang="zh-Hans"] .preset-btn-hdr        { line-height: 1.3; }
-html[lang="zh-Hans"] .preset-btn            { line-height: 1.3; }
-html[lang="zh-Hans"] #file-buttons button   { line-height: 1.3; }
-html[lang="zh-Hans"] #layout-library button { line-height: 1.3; }
-html[lang="zh-Hans"] .settings-toggle       { line-height: 1.3; }
-html[lang="zh-Hans"] #view-toggle           { line-height: 1.1666667; }
+/* v1.4.0 — RE-DERIVED for the bundled EB Garamond. Its line box is Times
+   New Roman's (1.15 em, baked into the font), not the macOS Times the ratios
+   above were measured on, so English content boxes moved by 1px-2px and
+   the old ratios would have held the Chinese arm at the OLD height. Same
+   method, English content box / font-size:
+     5 form controls      10px  content 11  -> 1.1        (was 13 -> 1.3)
+     .settings-label      11px  content 12  -> 1.0909091  (was 13)
+     .param-container lbl 11px  content 12  -> 1.0909091  (was 13)
+     .group-label         14px  content 16  -> 1.1428571  (was 17)
+     #view-toggle         12px  content 15  -> 1.25       (was 14)
+     #downmix-badge        9px  content 10  -> 1.1111111  (unchanged) */
+html[lang="zh-Hans"] .preset-btn-hdr        { line-height: 1.1; }
+html[lang="zh-Hans"] .preset-btn            { line-height: 1.1; }
+html[lang="zh-Hans"] #file-buttons button   { line-height: 1.1; }
+html[lang="zh-Hans"] #layout-library button { line-height: 1.1; }
+html[lang="zh-Hans"] .settings-toggle       { line-height: 1.1; }
+html[lang="zh-Hans"] #view-toggle           { line-height: 1.25; }
 html[lang="zh-Hans"] #downmix-badge         { line-height: 1.1111111; }
-html[lang="zh-Hans"] .settings-label        { line-height: 1.1818182; }
-html[lang="zh-Hans"] .param-container label { line-height: 1.1818182; }
-html[lang="zh-Hans"] .group-label           { line-height: 1.2142857; }
+html[lang="zh-Hans"] .settings-label        { line-height: 1.0909091; }
+html[lang="zh-Hans"] .param-container label { line-height: 1.0909091; }
+html[lang="zh-Hans"] .group-label           { line-height: 1.1428571; }
 
 /* ── The four WORDED format chips, floored and capped to the English row ────
    The eight chips are a flex row inside a fixed 800px frame, so any width
@@ -888,7 +977,9 @@ html[lang="zh-Hans"] .preset-btn[data-preset="7"] {
     padding-left: 3px;
     padding-right: 3px;
 }
-html[lang="zh-Hans"] .preset-btn[data-preset="0"] { width: 50.78px; }
-html[lang="zh-Hans"] .preset-btn[data-preset="1"] { width: 40.89px; }
+/* v1.4.0: re-pinned to the English row in EB Garamond — Stereo 50.39,
+   Quad 41.48, Hex/Oct 41 (the min-width pin). The Han runs are 38.67. */
+html[lang="zh-Hans"] .preset-btn[data-preset="0"] { width: 50.39px; }
+html[lang="zh-Hans"] .preset-btn[data-preset="1"] { width: 41.48px; }
 html[lang="zh-Hans"] .preset-btn[data-preset="6"],
-html[lang="zh-Hans"] .preset-btn[data-preset="7"] { width: 40px; }
+html[lang="zh-Hans"] .preset-btn[data-preset="7"] { width: 41px; }

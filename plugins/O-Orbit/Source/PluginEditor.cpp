@@ -825,6 +825,36 @@ OOrbitEditor::getResource (const juce::String& url)
             makeVector (BinaryData::shell_png, BinaryData::shell_pngSize),
             juce::String ("image/png") };
 
+    // v1.4.0 — shared EB Garamond face (modules/ui/eb-garamond, direct embed):
+    // the stylesheet under css/, the three woff2 faces under fonts/ where its
+    // relative url('../fonts/...') lands. BinaryData strips hyphens:
+    // EBGaramond-Regular.woff2 -> EBGaramondRegular_woff2.
+    //
+    // These four test the raw `url` (the module snippet's shape), not the
+    // normalized `path` the branches above use: scripts/serve-ui.js places
+    // out-of-root embeds by pairing a `url == "..."` literal with the symbol
+    // below it, and a `path ==` branch leaves the served test tree 404ing the
+    // font, so every headless gate would measure the fallback face.
+    if (url == "/css/eb-garamond.css")
+        return juce::WebBrowserComponent::Resource {
+            makeVector (BinaryData::ebgaramond_css, BinaryData::ebgaramond_cssSize),
+            juce::String ("text/css; charset=utf-8") };
+
+    if (url == "/fonts/EBGaramond-Regular.woff2")
+        return juce::WebBrowserComponent::Resource {
+            makeVector (BinaryData::EBGaramondRegular_woff2, BinaryData::EBGaramondRegular_woff2Size),
+            juce::String ("font/woff2") };
+
+    if (url == "/fonts/EBGaramond-Italic.woff2")
+        return juce::WebBrowserComponent::Resource {
+            makeVector (BinaryData::EBGaramondItalic_woff2, BinaryData::EBGaramondItalic_woff2Size),
+            juce::String ("font/woff2") };
+
+    if (url == "/fonts/EBGaramond-Bold.woff2")
+        return juce::WebBrowserComponent::Resource {
+            makeVector (BinaryData::EBGaramondBold_woff2, BinaryData::EBGaramondBold_woff2Size),
+            juce::String ("font/woff2") };
+
     // Resource not found
     juce::Logger::writeToLog ("O-Orbit: Resource not found: " + url);
     return std::nullopt;
