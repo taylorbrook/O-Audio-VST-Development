@@ -3,7 +3,7 @@ plugin: O-simplePhysicalModelSynth
 stage: 4
 phase: verify
 status: complete
-last_updated: 2026-06-27
+last_updated: 2026-09-25
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
@@ -19,6 +19,16 @@ contract_checksums:
 ---
 
 # O-simplePhysicalModelSynth Status
+
+## Latest improvement — v1.4.0 (2026-09-25)
+
+UI pass (R4 AA inks, 9 px floor, R5 bundled EB Garamond, R7 resizable 1040:860 at 0.6–1.5x); see CHANGELOG. Automated gates are green.
+
+**Owed:** a DAW hands-on of the resize:
+- drag the corner in Logic and in Ableton, and confirm the aspect locks;
+- reopen the editor in the same session, and confirm the size is remembered;
+- open it fresh on a 13" screen, and confirm it fits;
+- check the colours and the face in the real WKWebView.
 
 ## Current Position
 

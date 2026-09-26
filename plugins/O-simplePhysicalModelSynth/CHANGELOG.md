@@ -3,6 +3,90 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.0] - 2026-09-25
+
+UI pass from the 2026-09-24 suite design review (R4 AA text, R5 bundled serif,
+R7 resizing; task 260924-nho). MINOR: the editor becomes resizable, and the page
+changes colour and typeface. No DSP change, and no parameter, range, type or
+state-format change.
+
+### Added
+
+- **Resizable editor at a fixed 1040:860 aspect, 0.6x to 1.5x.** The 860 px
+  frame fell off the bottom of a 13" laptop screen, which has about 800 px free
+  under the menu bar and a host's plugin header. The editor keeps
+  `setSize (1040, 860)` as its design frame. It installs a fixed-aspect
+  `ComponentBoundsConstrainer` with limits of 624x516 to 1560x1290. On open, it
+  fits the usable height of the display under the mouse, minus 90 px for host
+  chrome: about 0.91x (949x785) on a 1440x900 panel and 0.97x on a 1470x956
+  one. A size the user drags to is kept for the rest of the session in
+  `editorScale`, a processor member that is deliberately NOT written to state.
+- **CSS scale.** The page always lays out at 1040x860. `applyUiScale()` scales
+  `.frame` with `transform: scale(s)` (origin top-left) and removes the
+  transform at s = 1, so the headless gates, which run at 1040x860, measure an
+  unchanged page. Only `.frame` scales. The tooltip is a body child positioned
+  in viewport px, so its placement stays exact at every size. The spectrum and
+  scope backing stores fold the scale into their DPR, so they stay sharp above 1x.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed: 4 SOURCES
+  and 4 `getResource` branches). A new `--serif` token reads `'EB Garamond',
+  Georgia, 'Times New Roman', PingFang SC, Microsoft YaHei, serif`. It replaces
+  the three hand-written stacks (body, `.box-text`, `.box-sub`), and the canvas
+  axis labels use the same face. The bare `'Garamond'` is gone, so an
+  Office-installed Windows Garamond can no longer outrank the bundled face. The
+  page used to resolve to Times New Roman, and the module carries Times metrics,
+  so no line box moved and no width pin needed re-sizing.
+
+### Changed
+
+- **AA text inks as tokens.** `--text-muted #715D45` gives 4.53:1 or better on
+  every paper tone here, including the diagram's `#EAD9C2` tail. It replaces
+  `--brown-border` (3.66:1) as the text colour of:
+  - the strapline;
+  - the Signal Flow, Spectrum, Waveform and Play heads;
+  - the settings captions;
+  - the preset group labels;
+  - the diagram's italic sub-captions (`#resonatorMode` included);
+  - the reserved-panel note, whose `opacity: 0.7` is dropped.
+
+  `--green-text #4E6838` (4.52:1 or better) replaces `--green-mid` at 0.85
+  opacity (2.53:1) on the three viz hints and the keyboard hint. The open gear
+  and the lit hover-help switch now fill with `--green-fill-strong #55703E`,
+  which gives 4.90:1 under their light text (it was 3.30:1). White-key labels
+  use `--brown-soft`, because the key's `#E6D4BA` tail would leave
+  `--text-muted` at only 4.32:1. Black-key labels go to alpha 0.9 (6.56:1; 0.7
+  gave 4.69:1). Borders, rules, strokes and fills keep `#8B7355` and `#6B8E4E`.
+  `.title-accent` keeps `--green-mid`, since at 26 px it is large text and its
+  3.06:1 clears the 3:1 bar.
+- **9 px floor.** `.key-label` goes from 8 px to 9 px. No rule now declares
+  less than 9 px.
+- **The preset-bar fleuron is `aria-hidden`.**
+
+### Verification
+
+- `measure-ui.js --contrast` at 1040x860, the same in en, fr and zh-Hans:
+  below-AA text went from **32/77 (41.6%) to 9/77 (11.7%)**, and text under
+  9 px from **13 to 0** (fr: 33/75 to 9/75). The 9 that remain are:
+  - 5 black-key labels, which the census measures against paper because it
+    cannot sample the key's gradient (their real ratio is 6.56:1);
+  - the `aria-hidden` preset fleuron;
+  - the Bow Force caption and readout, dimmed by `.pm-disabled` because the
+    default exciter is not Bow;
+  - the disabled Delete button.
+
+  WCAG exempts inactive controls.
+- `check-ui-labels.js`: ALL CHECKS PASSED before and after (en/fr/zh-Hans).
+  Every resource was served, including the stylesheet and the three woff2
+  files, and there were no page errors. `check-i18n.js` passes on all 44
+  plugins, and `i18n-fr-lint` and `i18n-zh-lint` both exit 0.
+- Scaled path, checked headlessly at 1040x860, 988x817, 830x686, 624x516 and
+  1560x1290:
+  - the frame fills the viewport exactly;
+  - the content fits the frame with no internal scroll (scrollHeight 854 =
+    clientHeight 854);
+  - the tooltip lands at the hovered knob plus (14, 16) in viewport px;
+  - EB Garamond reports `loaded`, with 0 page errors and 0 missed resources.
+- Build: the installed bundle reports 1.4.0; auval `aumu OsPM OuDv` reports AU VALIDATION SUCCEEDED.
+
 ## [1.3.0] - 2026-09-06
 
 Simplified Chinese joins English and French (task 260906-h8y, wave 4e). MINOR: a

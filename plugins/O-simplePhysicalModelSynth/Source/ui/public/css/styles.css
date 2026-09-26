@@ -58,6 +58,18 @@
   --shadow-heavy: rgba(0, 0, 0, 0.5);
   --text-emboss: rgba(255, 255, 255, 0.5);
   --fleuron-color: rgba(60, 47, 47, 0.3);
+  /* Text inks (v1.4.0, R4) — WCAG AA (4.5:1) on every paper tone this page
+     uses (#FAF0E6 / #F7EBDC / #F5E6D3 / #EBD9C7, and the diagram's #EAD9C2
+     tail). --brown-border and --green-mid stay for rules, borders, strokes and
+     fills; they are 3.66 / 3.06 as text on paper and must not colour text. */
+  --text-muted: #715D45;        /* walnut, 4.53 on #EAD9C2 .. 5.57 on #FAF0E6 */
+  --green-text: #4E6838;        /* sage,   4.52 on #EAD9C2 .. 5.56 on #FAF0E6 */
+  --green-fill-strong: #55703E; /* active fill under #F5F0E6 text: 4.90 (green-mid gave 3.30) */
+  /* Bundled EB Garamond (modules/ui/eb-garamond, Times metrics baked in).
+     Georgia before Times so an unbundled fallback converges on one face; the
+     CJK tail precedes the generic. No bare 'Garamond' — an Office-installed
+     Windows Garamond would outrank the bundled face. */
+  --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   /* Symbol-glyph fallback — Garamond lacks ❦ / ♪ on Windows; these fonts carry them. */
   --symbol-font: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', 'PingFang SC', 'Microsoft YaHei', serif;
 }
@@ -74,7 +86,7 @@ html, body {
 }
 
 body {
-  font-family: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  font-family: var(--serif);
   color: var(--brown-text);
   background:
     radial-gradient(circle at 30% 20%, var(--bg-paper-light), transparent 60%),
@@ -87,8 +99,11 @@ body {
 .frame {
   position: relative;
   z-index: 1;
-  width: 100%;
-  height: 100%;
+  /* The 1040x860 design frame, fixed (v1.4.0). The editor resizes at this
+     aspect and app.js applyUiScale() scales the frame to the window. */
+  width: 1040px;
+  height: 860px;
+  transform-origin: 0 0;
   padding: 16px 24px;
   display: flex;
   flex-direction: column;
@@ -144,7 +159,7 @@ body {
   font-size: 11px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: var(--brown-border);
+  color: var(--text-muted);
   margin-top: 2px;
   line-height: 1.0909091;   /* zh pin: en content box 12px at 11px */
 }
@@ -218,7 +233,7 @@ body {
   transition: all 0.15s ease;
 }
 .gear-btn:hover { background: var(--green-light); color: #1f2b08; }
-.gear-btn[aria-expanded="true"] { background: var(--green-mid); color: #f5f0e6; border-color: var(--green-darkest); }
+.gear-btn[aria-expanded="true"] { background: var(--green-fill-strong); color: #f5f0e6; border-color: var(--green-darkest); }
 .gear-btn:focus-visible { outline: 2px solid var(--green-mid); outline-offset: 2px; }
 
 .settings-popover {
@@ -263,7 +278,7 @@ body {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--brown-border);
+  color: var(--text-muted);
   line-height: 1.1;   /* zh pin: en content box 11px at 10px */
 }
 
@@ -299,7 +314,7 @@ body {
   font-size: 10px;
 }
 .settings-toggle[aria-pressed="true"] {
-  background: var(--green-mid);
+  background: var(--green-fill-strong);
   color: #f5f0e6;
   border-color: var(--green-darkest);
 }
@@ -328,7 +343,7 @@ body {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--brown-border);
+  color: var(--text-muted);
   padding: 5px 8px 2px;
   border-bottom: 1px dotted rgba(139, 115, 85, 0.4);
   margin-bottom: 2px;
@@ -352,11 +367,11 @@ body {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--brown-border);
+  color: var(--text-muted);
   margin-bottom: 4px;
   line-height: 1.1;   /* zh pin: en content box 11px at 10px */
 }
-.viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-mid); opacity: 0.85; }
+.viz-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-text); }
 
 /* Canvas/diagram panels — fixed minimum height so the reserved (un-drawn)
    replaced-element <canvas> cannot collapse to 0 in the flex column. */
@@ -387,8 +402,7 @@ body {
   font-size: 11px;
   font-style: italic;
   letter-spacing: 0.5px;
-  color: var(--brown-border);
-  opacity: 0.7;
+  color: var(--text-muted);
 }
 .canvas-wrap .reserved-note { color: rgba(210, 190, 150, 0.6); position: absolute; left: 0; right: 0; text-align: center; top: 50%; transform: translateY(-50%); }
 
@@ -404,15 +418,15 @@ body {
 .box-rect-res { fill: rgba(245, 236, 215, 0.5); stroke: var(--brown-frame); stroke-width: 2; }
 .box-text {
   fill: var(--green-darkest);
-  font-family: 'Garamond', 'EB Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  font-family: var(--serif);
   font-size: 13px;
   letter-spacing: 1px;
   text-transform: uppercase;
   pointer-events: none;
 }
 .box-sub {
-  fill: var(--brown-border);
-  font-family: 'Garamond', 'EB Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  fill: var(--text-muted);
+  font-family: var(--serif);
   font-size: 9px;
   letter-spacing: 0.4px;
   font-style: italic;
@@ -589,8 +603,8 @@ body {
   padding: 8px 14px 4px;
   border-top: 1px solid rgba(139, 115, 85, 0.4);
 }
-.keyboard-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--brown-border); line-height: 1.1; }   /* zh pin: en content box 11px at 10px */
-.kbd-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-mid); opacity: 0.85; }
+.keyboard-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); line-height: 1.1; }   /* zh pin: en content box 11px at 10px */
+.kbd-hint { text-transform: none; letter-spacing: 0.3px; font-style: italic; color: var(--green-text); }
 .keyboard {
   position: relative;
   height: 96px;
@@ -632,12 +646,15 @@ body {
   bottom: 4px;
   left: 0; right: 0;
   text-align: center;
-  font-size: 8px;
+  font-size: 9px;       /* 9px floor (v1.4.0) */
   letter-spacing: 0.5px;
-  color: var(--brown-border);
+  /* --brown-soft, not --text-muted: the label sits on the key's darker
+     #E6D4BA tail, where #715D45 is only 4.32. */
+  color: var(--brown-soft);
   pointer-events: none;
 }
-.key-black .key-label { color: rgba(245, 230, 211, 0.7); }
+/* 0.9: 6.56 on the black key's #5C4033 foot (0.7 was 4.69, with no margin). */
+.key-black .key-label { color: rgba(245, 230, 211, 0.9); }
 
 /* ── Tooltip (wired in Phase 3.3) ────────────────────────────────────────── */
 .tooltip {

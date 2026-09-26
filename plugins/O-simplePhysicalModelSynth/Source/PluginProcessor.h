@@ -145,6 +145,11 @@ public:
     // modal stems) from here. Written copy-only on the audio thread (PERF-01).
     VizTap& getVizTap() noexcept { return viz; }
 
+    // Editor window scale (v1.4.0), relative to the 1040x860 design frame.
+    // Message thread only. 0 = never resized this session → the editor fits
+    // the display on open. Session-lifetime by design: NOT written to state.
+    float editorScale = 0.0f;
+
     //==========================================================================
     // INTERFACE LANGUAGE (v1.2.0) — the WebView UI's own language preference.
     //

@@ -437,6 +437,25 @@ function setupPresetManager() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDropdown(); });
 }
 
+// ── UI scale (v1.4.0) ────────────────────────────────────────────────────────
+// The editor is resizable at a fixed 1040:860 aspect. The page always LAYS OUT
+// at the 1040x860 design frame and .frame is scaled to the window with a CSS
+// transform, so every pinned width, line box and label geometry is identical
+// at any size. At scale 1 the transform is removed outright — the headless
+// gates run at 1040x860 and measure exactly the page they always did.
+// Only .frame scales: the tooltip is a body child positioned in viewport px
+// from clientX/Y, which a transform never skews.
+const DESIGN_W = 1040, DESIGN_H = 860;
+let uiScale = 1;
+
+function applyUiScale() {
+  const frame = document.querySelector(".frame");
+  if (!frame) return;
+  const s = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
+  uiScale = (s > 0 && Math.abs(s - 1) > 0.002) ? s : 1;
+  frame.style.transform = uiScale === 1 ? "" : `scale(${uiScale})`;
+}
+
 // ── Spectrum + oscilloscope (Phase 3.2) ─────────────────────────────────────
 // DPR-aware canvas: backing store sized to clientWidth*dpr (crisp on Retina); the
 // canvas stretches to 100% inside a positioned overflow:hidden .canvas-wrap (the
@@ -446,7 +465,9 @@ function makeCanvas(id) {
   if (!canvas) { console.error(`Missing canvas: ${id}`); return null; }
   const ctx = canvas.getContext("2d");
   const resize = () => {
-    const dpr = window.devicePixelRatio || 1;
+    // clientWidth is the UNSCALED layout width; fold uiScale into the backing
+    // store so a scaled-up canvas stays sharp and a scaled-down one costs less.
+    const dpr = (window.devicePixelRatio || 1) * uiScale;
     const w = canvas.clientWidth, h = canvas.clientHeight;
     canvas.width = Math.max(1, Math.round(w * dpr));
     canvas.height = Math.max(1, Math.round(h * dpr));
@@ -498,7 +519,7 @@ function drawSpectrum(arr) {
   const logRange = Math.log(nyquistHz / 20);
   ctx.strokeStyle = "rgba(139,115,85,0.22)";
   ctx.fillStyle = "rgba(210,190,150,0.7)";
-  ctx.font = "9px Garamond, 'Times New Roman', serif";
+  ctx.font = "9px 'EB Garamond', Georgia, 'Times New Roman', serif";
   ctx.textAlign = "center";
   for (const f of FREQ_TICKS) {
     if (f >= nyquistHz) continue;
@@ -550,6 +571,7 @@ function setupVizEvents() {
 // frame (preserves the visible image across an editor resize).
 function rewireResize() {
   window.addEventListener("resize", () => {
+    applyUiScale();
     if (specCanvas) specCanvas.resize();
     if (scopeCanvas) scopeCanvas.resize();
     if (lastSpectrum) drawSpectrum(lastSpectrum);
@@ -951,6 +973,7 @@ function setupKeyboard() {
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 function boot() {
+  applyUiScale();   // before makeCanvas: the backing stores read uiScale
   specCanvas = makeCanvas("spectrumCanvas");
   scopeCanvas = makeCanvas("scopeCanvas");
   buildStems();
