@@ -201,6 +201,13 @@ export const I18N = Object.freeze({
     // trLabel, not a DOM caption.
     'js.savePresetFailed': { en: { t: 'Save failed', b: '' }, fr: { t: 'Échec de l’enregistrement', b: '', reviewed: false }, 'zh-Hans': { t: '保存失败', b: '', reviewed: 'mt' },},
 
+    // v1.32.2 (IN-24): the names the tuning generator gives a scale, built by
+    // tuning-panel.js generate() through tr(), not a DOM caption. Sent to
+    // applyGeneratedScale, so a stored name keeps the language the UI was in
+    // when the scale was generated. `c` is the cents unit (exempt).
+    'js.scaleNameHarmonics': { en: { t: 'Harmonics {start}-{end}', b: '' }, fr: { t: 'Harmoniques {start}-{end}', b: '', reviewed: false }, 'zh-Hans': { t: '泛音 {start}-{end}', b: '', reviewed: 'mt' },},
+    'js.scaleNameRank2':     { en: { t: 'Rank-2 ({g}c, {n} notes)', b: '' }, fr: { t: 'Rang 2 ({g}c, {n} notes)', b: '', reviewed: false }, 'zh-Hans': { t: '二阶（{g}c，{n} 个音）', b: '', reviewed: 'mt' },},
+
     // ── HOVER-HELP (v1.27.0, Stage M batch M3) ──────────────────────────────
     //
     // 55 parameter tips + 2 chrome tips = 57, one per CONTROL on this page.

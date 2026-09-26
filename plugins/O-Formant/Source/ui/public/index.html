@@ -1247,14 +1247,16 @@ canvas#consonant-xy-pad {
     <button class="preset-save-btn" id="preset-save" data-i18n="label.save">Save</button>
   </div>
 
-  <div class="tab-bar">
-    <div class="tab active" data-tab="synth" data-i18n="label.tabSynth">Synth</div>
-    <div class="tab" data-tab="lyrics" data-i18n="label.tabLyrics">Lyrics</div>
-    <div class="tab" data-tab="tuning" data-i18n="label.tabTuning">Tuning</div>
-    <div class="tab" data-tab="effects" data-i18n="label.tabEffects">Effects</div>
+  <!-- IN-24: WAI-ARIA tabs on the existing divs (no CSS change). Roving
+       tabindex: only the active tab is in the Tab order; arrows move between. -->
+  <div class="tab-bar" role="tablist">
+    <div class="tab active" id="tab-synth" data-tab="synth" role="tab" tabindex="0" aria-selected="true" aria-controls="synth-tab" data-i18n="label.tabSynth">Synth</div>
+    <div class="tab" id="tab-lyrics" data-tab="lyrics" role="tab" tabindex="-1" aria-selected="false" aria-controls="lyrics-tab" data-i18n="label.tabLyrics">Lyrics</div>
+    <div class="tab" id="tab-tuning" data-tab="tuning" role="tab" tabindex="-1" aria-selected="false" aria-controls="tuning-tab" data-i18n="label.tabTuning">Tuning</div>
+    <div class="tab" id="tab-effects" data-tab="effects" role="tab" tabindex="-1" aria-selected="false" aria-controls="effects-tab" data-i18n="label.tabEffects">Effects</div>
   </div>
 
-  <div id="synth-tab" class="tab-content active">
+  <div id="synth-tab" class="tab-content active" role="tabpanel" aria-labelledby="tab-synth">
 
   <div class="xy-area">
     <h2 data-i18n="label.vowelMorph">Vowel Morph</h2>
@@ -1473,7 +1475,7 @@ canvas#consonant-xy-pad {
 
   </div><!-- end synth-tab -->
 
-  <div id="effects-tab" class="tab-content">
+  <div id="effects-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-effects">
     <!-- Chorus -->
     <div class="fx-section" id="chorusSection">
       <div class="fx-header">
@@ -1602,7 +1604,7 @@ canvas#consonant-xy-pad {
     </div>
   </div><!-- end effects-tab -->
 
-  <div id="lyrics-tab" class="tab-content">
+  <div id="lyrics-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-lyrics">
     <div class="lyrics-panel">
       <div class="lyrics-input-section">
         <div class="lyrics-header">
@@ -1630,7 +1632,7 @@ canvas#consonant-xy-pad {
     </div>
   </div>
 
-  <div id="tuning-tab" class="tab-content">
+  <div id="tuning-tab" class="tab-content" role="tabpanel" aria-labelledby="tab-tuning">
     <div id="tuning-container"></div>
   </div>
 
@@ -1641,17 +1643,38 @@ import * as Juce from './js/juce/index.js';
 // Tab switching with lazy tuning init
 let tuningInitialized = false;
 
-document.querySelectorAll('.tab').forEach(tab => {
+const tabs = Array.from(document.querySelectorAll('.tab'));
+tabs.forEach((tab, i) => {
     tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tabs.forEach(t => {
+            t.classList.remove('active');
+            t.setAttribute('aria-selected', 'false');
+            t.tabIndex = -1;
+        });
         document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
         tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+        tab.tabIndex = 0;
         document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
 
         if (tab.dataset.tab === 'tuning' && !tuningInitialized) {
             initTuningPanel();
             tuningInitialized = true;
         }
+    });
+
+    // IN-24: Enter/Space activate; arrows/Home/End move focus AND activate.
+    tab.addEventListener('keydown', (e) => {
+        let next = null;
+        if (e.key === 'Enter' || e.key === ' ') next = tab;
+        else if (e.key === 'ArrowRight') next = tabs[(i + 1) % tabs.length];
+        else if (e.key === 'ArrowLeft')  next = tabs[(i - 1 + tabs.length) % tabs.length];
+        else if (e.key === 'Home')       next = tabs[0];
+        else if (e.key === 'End')        next = tabs[tabs.length - 1];
+        if (!next) return;
+        e.preventDefault();
+        next.click();
+        next.focus();
     });
 });
 

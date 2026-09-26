@@ -204,9 +204,15 @@ public:
     /**
      * Set the tonic note (0-11, where 0=C, 1=C#, etc.)
      *
-     * Tonic shifts the anchor point by 12-TET semitones:
-     * - Anchor = MIDI 60 + tonic (e.g., tonic=D means MIDI 62 = degree 0)
-     * - Works for ANY scale size (7, 12, 19, 31, etc.)
+     * The tonic means different things with and without a KBM (IN-18,
+     * kept deliberately):
+     * - No KBM (linear mapping): tonic shifts the ANCHOR by 12-TET
+     *   semitones. Anchor = MIDI 60 + tonic, pitched at its 12-TET
+     *   frequency, and degree 0 there is the scale's own degree 0 — the
+     *   intervals are NOT rotated. Works for any scale size (7, 12, 19, 31…).
+     * - KBM loaded: the mapping owns the anchor, so tonic ROTATES the scale
+     *   by scale degrees instead (rotateIntervalsForTonic): degree `tonic`
+     *   becomes the new 0 cents, the mode of the same scale.
      */
     void setTonicNote(int tonicIndex);
 
