@@ -1,6 +1,6 @@
 ---
 plugin: O-Prism
-version: 1.29.0
+version: 1.30.0
 stage: 4
 gsd_phase: verify_complete
 status: plugin_complete
@@ -77,7 +77,11 @@ Progress: [####################] 100%
    setting (partial-spectrum deviation -4 to -20 dB vs v1.28.1). The factory preset
    to check is "Fold Engine". Automated verification is complete; this is the ear
    gate only.
-3. **O-Strata carries the pre-fix DistortionProcessor** — byte-identical to
+3. **DAW hands-on of the v1.30.0 UI pass** — check the new colours and EB Garamond in the
+   real WKWebView, Tab through the knobs (dotted focus ring, arrow keys, Enter entry),
+   wheel automation-write in Logic, and a drag interrupted by a host modal (blur ends
+   it). The automated gates are all green; the stub cannot observe gesture bracketing.
+4. **O-Strata carries the pre-fix DistortionProcessor** — byte-identical to
    O-Prism's v1.28.1 file apart from two comment lines, so it has IN-09 in full.
    Not a shared module, so the v1.29.0 fix did not propagate. Its own `/improve`.
 

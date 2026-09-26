@@ -194,7 +194,7 @@ const WavetableEditor = (() => {
 
             // Frame number
             ctx.fillStyle = '#8B7355';
-            ctx.font = '9px Garamond, Georgia, serif';
+            ctx.font = "9px 'EB Garamond', Georgia, serif";
             ctx.textAlign = 'center';
             ctx.fillText(String(f), x + FRAME_W / 2, STRIP_Y_PAD + FRAME_H + LABEL_H - 2);
         }
