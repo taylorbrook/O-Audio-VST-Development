@@ -15,10 +15,10 @@ files_reviewed_list:
   - plugins/O-AnalogEQ/tests/i18n-states.json
   - plugins/O-AnalogEQ/CMakeLists.txt
 findings:
-  critical: 0
-  warning: 0
-  info: 0
-  total: 0
+  critical: 1
+  warning: 6
+  info: 4
+  total: 11
 status: issues_found
 ---
 
@@ -28,6 +28,12 @@ status: issues_found
 **Depth:** thorough
 **Files Reviewed:** 10
 **Status:** issues_found
+**Findings:** 1 critical, 6 warning, 4 info — **11 open**
+
+> The eleven are **all new**. The prior review's ten are every one of them FIXED and are
+> recorded in the re-adjudication table below; a finding adjudicated FIXED or NOT-A-BUG
+> does **not** count toward these totals. Eleven here against ten there is not a
+> regression — it is a first pass over four surfaces that had never been reviewed.
 
 ## Summary
 
@@ -838,7 +844,29 @@ so a sample-rate change rebuilds the bells. `coeffsInitialised` is set only when
 `numSamples > 0` (`:386-387`), so a zero-length block cannot consume the forced first
 build. All three of those are the right edge cases and all three are handled.
 
-<!-- gsd:write-continue -->
+## Suggested Resolution Order
+
+For a later `/improve-review` run. Grouped by where the fix lands, because three of these
+are not plugin-local and one must not be fixed in this repository's plugin tree at all.
+
+| Order | Findings | Lands in | Note |
+|-------|----------|----------|------|
+| 1 | **CR-02** | `Source/PluginProcessor.h` + `.cpp` | Four lines, closes a crash path. Do it first and alone. |
+| 2 | **WR-05**, **WR-06** | `Source/PluginProcessor.cpp` | Both are audio-thread; one rebuild, one render-harness pass covers both. |
+| 3 | **WR-07**, **IN-08** | `Source/PluginEditor.cpp` | Same two functions; fix together. |
+| 4 | **WR-08**, **WR-09** | `tests/` + `tests/i18n-states.json` | Coverage, not behaviour. Land **before** anyone edits the switch. |
+| 5 | **WR-10** | `modules/persistence/preset-manager/` **and** `scripts/check-i18n.js` | **Shared module + repo-wide gate.** Not a plugin-local fix. Expect it to surface findings in other plugins. |
+| 6 | **IN-06**, **IN-07**, **IN-09** | `Source/` | `/improve-review-info` tier. Comment and cache work; risk is the compiler's. |
+
+**Do not fix anything in this pass.** This document is read-only output; every fix above
+is a later `/improve-review` run, and each one needs its own verification.
+
+---
+
+_Reviewed: 2026-09-25_
+_Reviewer: Claude (GSD quick task 260925-r5c)_
+_Depth: thorough — 10 files, v1.5.0, 13 versions since the prior standard review_
+
 
 
 
