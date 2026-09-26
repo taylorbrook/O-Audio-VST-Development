@@ -10,7 +10,7 @@ juce_add_plugin(OuariconTremolo
     PLUGIN_CODE OuTr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Tremolo${OUARICON_DEV_SUFFIX}"
-    VERSION 1.10.0
+    VERSION 1.11.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -75,6 +75,12 @@ juce_add_binary_data(OuariconTremolo_UIResources
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/carrot.png
         Source/ui/public/modules/preset-manager.js
+        # v1.11.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the matching getResource() branches
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(OuariconTremolo

@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.6.0
+- **Version:** 1.11.0
 - **Type:** Audio Effect (Tremolo)
 
 ## Lifecycle Timeline
 
+- **2026-09-26 (v1.11.0):** UI pass (review R4/R5). 138 hex literals became `:root` tokens; AA inks; opaque state fills; 9px floor; bundled EB Garamond. Real-ground probe below-AA 16-17/24 → 0/24 (min 4.85). **Worth remembering:** the ground here is an `<img>`, so `measure-ui --contrast` scored against body `#2A2A2A` and is useless on its own. Measure with the image-aware probe (text hidden, transitions off, p5 of the glyph band). `--paper-opacity` is a contrast parameter: 1.0 held black-brown ink to 4.11 over the stain under DEPTH, and 0.85 gives 5.02. The knob JS was not touched, so keyboard/ARIA knobs (R7) remain open.
 - **2026-07-08 (v1.6.0):** Dedicated discrete sync-division parameter (see CHANGELOG)
   - New `SYNC_DIVISION_PARAM` (16-choice "Sync Division"). When Tempo Sync is ON the DSP computes
     the rate directly from the chosen division (`beatsPerSecond / beatMultiplier`) — no 20 Hz cap,
