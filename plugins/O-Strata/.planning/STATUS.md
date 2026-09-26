@@ -1,11 +1,12 @@
 ---
 plugin: O-Strata
+version: 1.1.0
 stage: 4
 stage_name: polish
 phase: verify
 status: stage_4_complete_verified
 round: B
-last_updated: 2026-09-14
+last_updated: 2026-09-26
 workflow_mode: manual
 complexity_score: 5.0
 complexity_raw: 25.0
@@ -37,6 +38,8 @@ stage_0_status: ui_design_complete
 # O-Strata Status
 
 ## Current Position
+
+**v1.1.0 (2026-09-26, `/improve`):** UI pass (260924-nho Phase C, ported from O-Prism v1.30.0) built + installed, auval pass, all UI gates green (CHANGELOG [1.1.0]). **Open:** DAW hands-on — new colours + EB Garamond in the real WKWebView, Tab through knobs (focus ring, arrows, Enter entry), wheel automation-write in Logic, a drag interrupted by a host modal (blur ends it), Unison arrow steps one voice.
 
 Stage: 4 — **Polish / Validation ✅ VERIFIED 2026-09-14 — PLUGIN COMPLETE.** Round B (4.2) carries the Stage 4 verdict (`stages/4-polish/VERIFICATION.md`); Round A (4.1) ✅ VERIFIED 2026-09-13 (`stages/4-polish/round-a/VERIFICATION.md`). v1.0.0 installed locally, **no tag, not published** (CONTEXT D3). All 24 `must` requirements complete; QUAL-04 (nice) and PERF-03 (should) pending a human sitting.
 Status: `stages/4-polish/VERIFICATION.md` — **✅ VERIFIED (Stage 4, automated)** = the plugin verdict. Every B1–B20 gate re-measured from the release commit `005cbcf7` on a quiet machine (`--gate all` 162 / 0 in 108.6 s, H7 Bandlimited 4.24 % ≤ 4.13 + 2.0, H2 ×3 stable at −3.6 dB, orbit golden 44 / 44, pluginval ×2 + auval green on installed bundles byte-identical to a forced rebuild); CI `windows-vst3` green ×3 → COMPAT-02 complete. **All 24 `must` requirements complete**; QUAL-04 + PERF-03 pending a human sitting. No tag, not published (D3).

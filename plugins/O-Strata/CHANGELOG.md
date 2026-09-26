@@ -1,6 +1,66 @@
 # O-Strata Changelog
 
-## v1.0.0 — 2026-09-13
+## [1.1.0] - 2026-09-26
+
+This is the UI pass from the 260924-nho design review (Phase C). It adds a CSS custom-property palette, AA text colours (R4), the 9px text floor, the bundled EB Garamond face (R5) and keyboard/ARIA knobs (R7). O-Strata's page is a fork of O-Prism's, so O-Prism v1.30.0's pass was applied to it as a patch: 61 of its 66 hunks applied cleanly. The inherited shell is pixel-identical to O-Prism v1.30.0 again, and `ui_shell_diff_check` measures 0 px on all four inherited tabs. The O-Strata-only regions were tokenised and fixed by hand. The release is MINOR because the change is visible and adds keyboard access. **There is no DSP, parameter, range, type or state-format change.** No processor file was touched. The only C++ change is four `getResource()` branches for the fonts.
+
+### Changed
+
+- **The palette is custom properties.** The `:root` block is O-Prism's 38 tokens plus one new one, `--notice-ink`. It replaces every hex literal in the stylesheet. Before this release there were no custom properties and 208 literals. Canvas `fillStyle` and `strokeStyle` values in the script stay literal, because neither accepts `var()`. The `rgba()` alpha variants are unchanged.
+- **Text tokens are AA on every paper stop.** The shared shell takes O-Prism's split:
+  - Text uses `--text-muted` `#6A5641`: 5.03 on the darkest stop, 5.68 on `#F5E6D3`. That includes the knob values, which were `#A08870` at 2.57–2.91.
+  - Borders and fills keep `#8B7355` as `--rule-muted`.
+  - Captions on the bark strips use `--text-muted-on-dark` `#B8A08C`.
+  - Fills under light text use darker tokens (`--leaf-fill`, `--slate-fill`, `--walnut-fill`).
+  - Scale-deviation inks are now at full opacity.
+- **O-Strata-only text:**
+  - The Terrain toolbar captions, the readout, the hint line and the ⬡ / ≋ view glyphs move to `--text-muted`. The hint was `#8B7355` at 0.85 alpha.
+  - The active quality segment and the Osc A/B buttons use `--slate-fill`, and the active view glyph uses `--leaf-fill`. The same colours apply on O-Prism.
+  - The readout's *approx.* suffix loses its 0.8 opacity, which had put it at 3.70. The italic still sets it apart.
+  - The terrain HUD stays quiet at rest and goes full on hover, as before. At rest it is now `--text-body` at 0.85 (4.83), where it was `#8B7355` at 0.72.
+  - The source-missing / import notice ink moves from `#C9822B` (2.35 on its own amber wash) to `--notice-ink` `#8A4A0C` (5.14). The wash and the border keep the lighter amber.
+- **9px floor.** O-Prism's 15 rules at 8px, the circle-view degree labels on the canvas, and O-Prism's four width re-pins all come across with the patch: `#lbl-filt-routing` 88px, `#select-glideMode` 68px, `.tonic-label` 32px, `.octave-stretch-label` 45px, and `.footer-param` min 46px. The O-Strata-only rules were already at 9px or above.
+- **One text face, bundled.** EB Garamond comes from `modules/ui/eb-garamond` 1.0.0 by direct embed: 4 `SOURCES` lines, 4 `getResource()` branches, and `css/eb-garamond.css` linked ahead of the inline sheet. Every `font-family` resolves through `--font-serif` or `--font-mono`, including the terrain HUD, which was on a bare `'SF Mono'` stack. The bare `'Garamond'` entry is dropped, and form controls inherit the page face.
+- **Keyboard and ARIA knobs.** This covers all 81 knobs, including the 14 Terrain-tab knobs bound to proxy states. It uses O-Prism's `makeKnobAccessible()`, which was ported from O-ReverseDelay.
+  - `role="slider"`, `tabindex="0"`, `aria-valuenow`/`aria-valuetext` (the readout string) and `aria-labelledby` (the caption).
+  - The arrow keys make one bracketed gesture per press. The step is 0.02, floored at one parameter step.
+  - **Enter** opens the inline value entry.
+  - A wheel scroll is bracketed as one gesture, and a horizontal-dominant wheel is ignored.
+  - A window blur ends a drag.
+  - A mousedown focuses the knob, and there is a dotted `:focus-visible` ring.
+  - The knob-setup hunk was ported by hand. It was the only functional reject, and it failed only because O-Strata's `formatFn` takes `(norm, scaled)`.
+- `tests/ui_shell_diff_check.js`: the header and the log line now name O-Prism v1.30.0 (`c9bab23b`) as the reference. The gate's logic is unchanged.
+- The first launch of 1.1.0 regenerates `Factory/` once with identical content, because the bank stamp is `JucePlugin_VersionString + "+" + sha`. `User/` is never touched.
+
+### Measured (v1.0.0 → v1.1.0, served page at the shipping 1200×800 frame, all states in `tests/i18n-states.json`)
+
+| Gate | Before | After |
+|---|---|---|
+| `measure-ui.js --contrast`, per language (en = fr = zh-Hans) | 270 / 683 below AA (39.5%), 58 under 9px, min 1.36 | 73 / 683 (10.7%), **0 under 9px** |
+| — of which on **active** controls | 197 (270 − the 73 inactive, all already below AA) | **0** |
+| `check-ui-labels.js` (en / fr / zh-Hans) | ALL CHECKS PASSED | ALL CHECKS PASSED |
+| `tests/ui_layout_check.js` | 607 / 0 | 607 / 0 |
+| `tests/ui_shell_diff_check.js` | **red**: 4 tabs, 10,410–50,695 px (the O-Prism working tree had moved to v1.30.0) | **0 px** on synth / mod / tuning / effects; the planted-defect control is live |
+| `tests/ui_tip_render_check.js` | ALL PASSED (3215) | ALL PASSED (3215) |
+| `check-i18n.js` | ALL PASS | ALL PASS |
+
+**The 73 that remain are all inactive controls, which WCAG exempts.** It is the same set that O-Prism v1.30.0 leaves:
+- 41 are in bypassed effect sections (`opacity: 0.35; pointer-events: none`).
+- 32 are in the 16 disabled mod-matrix rows (`opacity: 0.45`).
+
+The Terrain tab has none.
+
+A stub-page keyboard probe checked the following, with 0 page errors and 0 404s:
+- 81 sliders, all tabbable, all labelled, all with valuetext.
+- ArrowUp ×2 / ArrowDown moves Level 80 → 84 → 82%, and valuetext follows.
+- Enter opens entry.
+- A horizontal wheel leaves the value unchanged, and a vertical wheel steps it.
+- A mousedown focuses the knob.
+- `document.fonts.check('EB Garamond')` is true.
+
+The stub hard-codes `interval: 0` (`serve-ui.js:324`), so it cannot show the one-step floor on Unison, and its `sliderDragStarted`/`Ended` are no-ops. Both are verified by reading the code, which is identical to O-Prism's. A hands-on DAW check is still pending.
+
+## [1.0.0] - 2026-09-13
 
 O-Strata is a microtonal **wave-terrain** synthesizer: two oscillators each trace an
 orbit across a 2-D height field and read the surface as their waveform, with the whole

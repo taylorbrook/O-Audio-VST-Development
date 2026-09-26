@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed (not published)
-- **Version:** 1.0.0
+- **Version:** 1.1.0
 - **Type:** Synth (Microtonal Wave Terrain)
 
 ## Lifecycle Timeline
@@ -18,6 +18,7 @@
 - 2026-09-12 — Stage 4 Round A (Phase 4.1) executed: `terrainImports` persistence (bytes ≤ 2 MiB inline / path form above, SHA-256 checked), Sine Product fallback for a missing source + Locate…, the 18-preset factory bank under a content stamp, preset-manager v1.0.7. Details: `.planning/stages/4-polish/round-a/SUMMARY.md`
 - 2026-09-13 — Stage 4 Round A VERIFIED (`.planning/stages/4-polish/round-a/VERIFICATION.md`): every Round A gate re-measured; FUNC-08 / FUNC-11 / QUAL-03 complete; the S&H LFO's non-reproducible H2 row recorded as a Round B item.
 - 2026-09-13 — Stage 4 Round B (Phase 4.2) executed: the padded Chebyshev evaluator on the audio thread (H7 Bandlimited 11.69 % → 4.5 %, accuracy contracted in `--gate clenshaw`), the S&H LFO under the harness phase seed (all 20 H2 preset rows bit-stable), `ci-tests.yml` with a `plugin` dispatch input and O-Strata's macOS-harness + Windows-VST3 jobs (COMPAT-02), the listening material and `LISTENING.md`, CHANGELOG v1.0.0, local install + validators. Details: `.planning/stages/4-polish/SUMMARY.md`
+- 2026-09-26 — v1.1.0 `/improve`: UI pass per the 260924-nho design review, Phase C (R4/R5/R7). O-Prism v1.30.0's pass applied as a patch (61/66 hunks clean; knob-setup and `.toggle-btn` hand-ported), Strata-only regions tokenised by hand; `--notice-ink` added; EB Garamond direct-embedded. Contrast below-AA 270 → 73 / 683 (remaining = bypassed FX + disabled mod rows), 0 under 9px; shell diff back to 0 px against O-Prism v1.30.0. Backup `backups/O-Strata/v1.0.0/`. Details: CHANGELOG [1.1.0].
 
 ## Attribution & licence
 
@@ -28,6 +29,9 @@
 - **Artwork:** the Terrain tab's botanical is `Source/ui/public/img/shell_conchologiaiconi12reev_0090.png`, a scan of a plate from Lovell Reeve's *Conchologia Iconica* vol. 12 (1854–1878) — a public-domain 19th-century natural-history work, in keeping with the suite's "Ouaricon Naturalist" aesthetic. *(No credit line for this plate existed elsewhere in the repository at the time of writing; this one was written from the asset's own filename rather than copied — see `stages/4-polish/SUMMARY.md`, deviations.)*
 
 ## Known Issues
+
+- **v1.1.0 hands-on DAW check pending:** knob keyboard access (arrows, Enter, wheel bracketing in automation-write, blur-ends-drag) and the Unison one-step floor are verified by probe/code reading only — the stub has `interval: 0` and no-op gesture brackets.
+- `tests/ui_shell_diff_check.js` reads O-Prism's **working tree**; any further O-Prism shell change turns it red until ported (it was red from O-Prism v1.30.0 until this release).
 
 - `stereoWidth` has no UI binding (inherited from O-Prism).
 - A preset's imported PNG above 2 MiB is linked by **absolute path**; on another machine it opens with the "Source missing" notice and Locate…. A preset without an image clears both terrain slots on load.
