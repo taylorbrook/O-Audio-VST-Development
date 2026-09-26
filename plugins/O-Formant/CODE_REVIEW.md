@@ -11,7 +11,7 @@ findings:
   info: 24
   total: 53
 status: issues_found
-verified: 2026-09-25 — v1.32.1 (IN-12 stage-0 diffusion wrap) via /improve-verify; 2026-09-25 — v1.32.0 (IN-01/02/04/06/11/12 damping+mod/14/15) via /improve-verify; previously 2026-09-24 — v1.31.1 (IN-03/07/09/16/19/20/21-save/22a,c/23a,b,d,e/24g-k) via /improve-verify; previously v1.31.0 (CR-01, WR-01, WR-11, WR-15, WR-17)
+verified: 2026-09-25 — v1.32.2 (IN-17, IN-18 documented, IN-24 tabs/gear/scale names) via /improve-verify; 2026-09-25 — v1.32.1 (IN-12 stage-0 diffusion wrap) via /improve-verify; 2026-09-25 — v1.32.0 (IN-01/02/04/06/11/12 damping+mod/14/15) via /improve-verify; previously 2026-09-24 — v1.31.1 (IN-03/07/09/16/19/20/21-save/22a,c/23a,b,d,e/24g-k) via /improve-verify; previously v1.31.0 (CR-01, WR-01, WR-11, WR-15, WR-17)
 supersedes: .planning/REVIEW.md (v1.25.0) — its CR-01/03/04/05, WR-01..08 are resolved (fixes re-verified correct); its CR-02, WR-10, WR-12 were still open and are carried forward here as CR-08 / CR-09
 ---
 
