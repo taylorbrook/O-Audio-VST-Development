@@ -3,7 +3,7 @@
 ## Status
 - **Current Status:** 📦 Installed — stage-4 roll-up re-verify ✅ VERIFIED 2026-08-14, all four
   stages complete; dev-branded build (`O-Octagon-dev`), not yet released
-- **Version:** 1.13.0 (dev build installed; not released)
+- **Version:** 1.13.1 (dev build installed; not released)
 - **Type:** Audio Effect (8-Channel DBAP Spatializer)
 - **Build target:** `OuariconOctagon` (folder `plugins/O-Octagon`) — `PLUGIN_CODE OuOc`
 - **Complexity:** 5.0 (capped; raw 13.0) — staged implementation
@@ -266,6 +266,14 @@
   new 200 m cap (λ 2.1 → 8, Δ 0.0109); the CU and DC cross-version digests were RE-ANCHORED by
   narrowing each scenario to blur 0 / air 0 and re-deriving both constants from the pristine
   v1.12.0 tree, never re-recorded from the new build.
+
+- **2026-09-25 (v1.13.1 — `/improve`, text contrast to WCAG AA):** per the suite UI review
+  (quick 260924-nho, R4, adapted to keep the dark theme and Iowan Old Style + ui-monospace).
+  All 69 below-AA text nodes were one token, `--ink-faint #6F6459`; repointed to `#9A8D7D`
+  (≥ 4.65:1 on ground/panel/panel-lift). Old value kept as `--ink-quiet` for interior-glyph
+  strokes and `.scene-btn:disabled`. `.elev-spk-num` 8 → 9 px. measure-ui `--contrast`:
+  69/202 → 4/202 below AA per language (the 4 = disabled empty U1–U4, exempt), < 9 px 8 → 0.
+  UI only; no DSP/param/state change.
 
 **Still open from the v1.8.0 CODE_REVIEW after the v1.10.1 sweep:** design calls IN-03, 04, 11,
 13, 14, 20, 22 and the fail-first test work IN-23 … IN-30 (DF's `motionSolves > 0` liveness gate,

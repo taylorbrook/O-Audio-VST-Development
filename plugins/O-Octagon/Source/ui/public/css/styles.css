@@ -53,7 +53,14 @@
   --rule-soft:   #2F2823;
   --ink:         #F0E8DC;
   --ink-dim:     #A99C8C;
-  --ink-faint:   #6F6459;
+  /* --ink-faint is TEXT and must clear WCAG AA (4.5:1) on all three grounds:
+     #9A8D7D = 5.55 ground / 5.08 panel / 4.65 panel-lift (v1.13.1). It was
+     #6F6459 (2.61-3.12), which put every header, table head and caption below
+     AA. The old value survives as --ink-quiet for NON-TEXT marks (interior
+     glyph strokes) and for :disabled, which WCAG 1.4.3 exempts and which must
+     stay visibly quieter than an enabled --ink-dim button. */
+  --ink-faint:   #9A8D7D;
+  --ink-quiet:   #6F6459;
 
   /* ── The level ramp — brass to pale gold, the only hue on the surface ── */
   --level-lo:    #8A6A2F;
@@ -500,7 +507,7 @@ html, body {
    venue speakers 3 and 8 are ON_EDGE, not vertices. */
 .glyph.is-vertex   .glyph-dot { stroke: var(--level-hi); stroke-width: 2; }
 .glyph.is-onedge   .glyph-dot { stroke: var(--level-mid); stroke-dasharray: 3 2.5; }
-.glyph.is-interior .glyph-dot { stroke: var(--ink-faint); }
+.glyph.is-interior .glyph-dot { stroke: var(--ink-quiet); }
 
 /* ── The eight meters (UI-03 / D23) ──────────────────────────────────────
    A CONCENTRIC ARC OUTSIDE THE GLYPH STROKE. The glyph's own stroke is already
@@ -1034,7 +1041,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
    mid-concert is unrecoverable. This is the AFFORDANCE; applyScene's
    `{ ok:false, reason:"emptyScene" }` in C++ is the GUARANTEE. */
 .scene-btn:disabled {
-  color: var(--ink-faint);
+  color: var(--ink-quiet);
   border-color: var(--rule-soft);
   background: transparent;
   cursor: not-allowed;
@@ -1129,7 +1136,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 .elev-spk-num {
   fill: var(--ink-faint);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 9px;   /* 9 px floor (v1.13.1); was 8 */
   text-anchor: middle;
 }
 
@@ -1540,7 +1547,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 
 .mini-glyph.is-vertex   .mini-dot { stroke: var(--level-hi); stroke-width: 1.75; }
 .mini-glyph.is-onedge   .mini-dot { stroke: var(--level-mid); stroke-dasharray: 2.5 2; }
-.mini-glyph.is-interior .mini-dot { stroke: var(--ink-faint); }
+.mini-glyph.is-interior .mini-dot { stroke: var(--ink-quiet); }
 
 /* ══ Footer ══════════════════════════════════════════════════════════════ */
 

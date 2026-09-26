@@ -1,5 +1,40 @@
 # O-Octagon Changelog
 
+## [1.13.1] - 2026-09-25
+
+Text contrast brought to WCAG AA inside O-Octagon's own dark palette. PATCH:
+UI colour and one font size only — no DSP, parameter, preset or state change.
+The dark venue theme, Iowan Old Style and ui-monospace are kept deliberately;
+this is R4 of the suite UI review (quick 260924-nho) adapted to them, not the
+naturalist palette or EB Garamond.
+
+### Fixed
+
+- **Secondary text was below WCAG AA everywhere it appeared.** Root cause: one
+  token. Every one of the 69 below-AA text nodes (per language, of 202 measured
+  across all UI states) was `--ink-faint #6F6459` — section heads, the venue
+  table head and row numbers, the plan/field and footer captions, the header
+  subtitle, the output-order note, the STORE toggle and the elevation axis —
+  at 2.61:1 on `--panel-lift`, 2.86:1 on `--panel` and 3.12:1 on `--ground`.
+  `--ink-faint` is now `#9A8D7D`: 4.65 / 5.08 / 5.55:1, still one visible step
+  below `--ink-dim #A99C8C`, so the three-level ink hierarchy is unchanged.
+- **The old value is kept as `--ink-quiet`** for the two NON-TEXT uses (the
+  interior-speaker glyph strokes on the room plan and its mini copy, so the
+  hull classification reads exactly as before) and for `.scene-btn:disabled`,
+  which WCAG 1.4.3 exempts and which must stay visibly quieter than an
+  enabled button.
+- **9 px floor.** The elevation strip's speaker numerals (`.elev-spk-num`)
+  were the only text under 9 px; 8 → 9 px.
+
+### Verification
+
+- `measure-ui.js --contrast`, en / fr / zh-Hans: below AA 69 → 4 (34.2 % →
+  2.0 %), under 9 px 8 → 0, ratio min 2.61 → 2.86. The remaining 4 are the
+  empty user scene slots U1–U4 while disarmed — `:disabled`, exempt.
+- `check-ui-labels.js`: all checks pass in en / fr / zh-Hans before and after
+  (424 PASS lines both runs); `ui_frontend_check.js` 43/43,
+  `ui_layout_check.js` 34/34, `check-i18n.js` pass.
+
 ## [1.13.0] - 2026-09-08
 
 Blur and Air made audible. MINOR: both controls were reported as having no
