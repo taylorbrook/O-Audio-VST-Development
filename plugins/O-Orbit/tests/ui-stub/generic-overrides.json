@@ -1,6 +1,27 @@
 {
-  "_why": "The downmix badge is the only COMPOSED label on this page and it renders ONLY when getDownmixStatus() reports an active fold-down. The generic stub's default for that name is the STRING '{}', on which `status.active` is undefined, so the badge stays hidden and ui.downmix would be a key the geometry gate never measures. This supplies the shape PluginEditor.cpp really completes with (an object carrying active/sourceChannels/targetChannels), so the badge renders and both languages are measured. TEST FIXTURE ONLY - never shipped, never embedded.",
+  "_why": "The downmix badge is the only COMPOSED label on this page and it renders ONLY when getDownmixStatus() reports an active fold-down. The generic stub's default for that name is the STRING '{}', on which `status.active` is undefined, so the badge stays hidden and ui.downmix would be a key the geometry gate never measures. This supplies the shape PluginEditor.cpp really completes with (an object carrying active/sourceChannels/targetChannels), so the badge renders and both languages are measured. TEST FIXTURE ONLY - never shipped, never embedded. v1.4.0 adds getPresetListGrouped and getCurrentPreset: the generic stub returns an empty menu, so the category headers and the .active item - two of the page's walnut-on-paper text surfaces - were never rendered and never measured by measure-ui --contrast. The shape is the ARRAY of {category, presets} PluginEditor.cpp completes with.",
   "natives": {
-    "getDownmixStatus": { "active": true, "sourceChannels": 8, "targetChannels": 2 }
+    "getDownmixStatus": {
+      "active": true,
+      "sourceChannels": 8,
+      "targetChannels": 2
+    },
+    "getPresetListGrouped": [
+      {
+        "category": "Orbits",
+        "presets": [
+          "Default",
+          "Slow Circle",
+          "Wide Sweep"
+        ]
+      },
+      {
+        "category": "User",
+        "presets": [
+          "My Layout"
+        ]
+      }
+    ],
+    "getCurrentPreset": "Default"
   }
 }

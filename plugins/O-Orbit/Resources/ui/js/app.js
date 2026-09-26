@@ -197,6 +197,13 @@ let trailL = [];    // Circular buffer of L source positions
 let trailR = [];    // Circular buffer of R source positions
 const TRAIL_LENGTH = 120; // 2 seconds at 60fps
 
+// v1.4.0 (R4/R5): canvas text. A 2D context resolves neither var() nor the
+// page's --font-serif, so the bundled face and the AA walnut are spelled out
+// here once. The captions were rgba(60,47,47,0.3-0.4) at 8-9px, 1.70-2.09 on
+// the plate; #6A5641 is --text-muted, 4.93 on it. Nothing below 9px.
+const CANVAS_FONT = "'EB Garamond', Georgia, 'Times New Roman', serif";
+const CANVAS_INK_MUTED = '#6A5641';
+
 // ─── View Mode & Editor State ───────────────────────────────────
 
 let viewMode = 'motion'; // 'motion' or 'editor'
@@ -496,8 +503,8 @@ function drawMotionFrame(canvas, ctx) {
     ctx.stroke();
 
     // "Front" label
-    ctx.fillStyle = 'rgba(60, 47, 47, 0.4)';
-    ctx.font = '9px Garamond, serif';
+    ctx.fillStyle = CANVAS_INK_MUTED;
+    ctx.font = '9px ' + CANVAS_FONT;
     ctx.textAlign = 'center';
     ctx.fillText('FRONT', centerX, centerY - radius - 5);
 
@@ -537,11 +544,11 @@ function drawMotionFrame(canvas, ctx) {
     }
 
     // Draw source dots — scaled and brightened by elevation (D3)
-    drawSourceDot(ctx, posL.x, posL.y, '#8BA870', 'L', motionState.elL);  // Green for L
+    drawSourceDot(ctx, posL.x, posL.y, '#8BA870', 'L', motionState.elL, '#3F5530');  // Green for L
 
     if (motionState.split) {
         const posR = azToCanvas(motionState.azR, motionState.dist);
-        drawSourceDot(ctx, posR.x, posR.y, '#C9A27B', 'R', motionState.elR);  // Amber for R
+        drawSourceDot(ctx, posR.x, posR.y, '#C9A27B', 'R', motionState.elR, '#6F5228');  // Amber for R
     }
 
     // Side elevation gauge (D3)
@@ -590,7 +597,7 @@ function drawSpeakers(ctx, cx, cy, radius) {
 
         // Label
         ctx.fillStyle = '#5C4033';
-        ctx.font = '8px Garamond, serif';
+        ctx.font = '9px ' + CANVAS_FONT;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(spk.label, x, y);
@@ -613,8 +620,8 @@ function drawElevationMeter(ctx, x, cy, radius) {
     ctx.lineTo(x + 7, cy);
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(60, 47, 47, 0.4)';
-    ctx.font = '8px Garamond, serif';
+    ctx.fillStyle = CANVAS_INK_MUTED;
+    ctx.font = '9px ' + CANVAS_FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText('ELEV', x + 3, top - 4);
@@ -649,7 +656,10 @@ function drawTrail(ctx, trail, color, maxOpacity) {
     ctx.globalAlpha = 1.0;
 }
 
-function drawSourceDot(ctx, x, y, color, label, elevation) {
+// labelInk (v1.4.0): the dot colours are 1.67-1.88 on the plate, so the
+// L / R letter takes a darker ink of the same hue (5.83 / 5.11) — the dot and
+// its glow keep `color`.
+function drawSourceDot(ctx, x, y, color, label, elevation, labelInk) {
     // Elevation cue (D3): the dot grows and brightens as the source rises.
     const el = Math.max(-90, Math.min(90, elevation || 0));
     const scale = 1 + (el / 90) * 0.5;
@@ -686,8 +696,8 @@ function drawSourceDot(ctx, x, y, color, label, elevation) {
 
     // Label below dot (only in split mode)
     if (label) {
-        ctx.fillStyle = color;
-        ctx.font = 'bold 8px Garamond, serif';
+        ctx.fillStyle = labelInk || color;
+        ctx.font = 'bold 9px ' + CANVAS_FONT;
         ctx.textAlign = 'center';
         ctx.fillText(label, x, y + 18);
     }
@@ -754,8 +764,8 @@ function drawEditorFrame(canvas, ctx) {
     ctx.stroke();
 
     // Labels
-    ctx.fillStyle = 'rgba(60, 47, 47, 0.4)';
-    ctx.font = '9px Garamond, serif';
+    ctx.fillStyle = CANVAS_INK_MUTED;
+    ctx.font = '9px ' + CANVAS_FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText('FRONT', centerX, centerY - radius - 5);
@@ -789,8 +799,8 @@ function drawEditorFrame(canvas, ctx) {
 
         // Elevation badge (D1/D3)
         if (Math.abs(spk.elevation) >= 0.5) {
-            ctx.fillStyle = spk.elevation > 0 ? '#5C6E3E' : '#8A5A2B';
-            ctx.font = '8px Garamond, serif';
+            ctx.fillStyle = spk.elevation > 0 ? '#3F5530' : '#7A4A1E';   // 5.83 / 5.27 (were 3.97 / 4.16)
+            ctx.font = '9px ' + CANVAS_FONT;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'alphabetic';
             ctx.fillText((spk.elevation > 0 ? '+' : '') + Math.round(spk.elevation) + '\u00b0',
@@ -798,8 +808,9 @@ function drawEditorFrame(canvas, ctx) {
         }
 
         // Label
-        ctx.fillStyle = '#5C4033';
-        ctx.font = (isHovered ? 'bold ' : '') + '9px Garamond, serif';
+        // On the sage drag fill #5C4033 reads 3.55; the primary ink reads 4.84.
+        ctx.fillStyle = isDragging ? '#3C2F2F' : '#5C4033';
+        ctx.font = (isHovered ? 'bold ' : '') + '9px ' + CANVAS_FONT;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(spk.label, x, y);
@@ -811,7 +822,7 @@ function drawEditorFrame(canvas, ctx) {
         const spk = speakers[readoutIndex];
         const text = spk.label + '   az ' + Math.round(spk.azimuth) + '\u00b0   el '
                    + Math.round(spk.elevation) + '\u00b0   ' + Number(spk.distance).toFixed(1) + ' m';
-        ctx.font = '11px Garamond, serif';
+        ctx.font = '11px ' + CANVAS_FONT;
         const tw = ctx.measureText(text).width;
 
         ctx.fillStyle = 'rgba(245, 230, 211, 0.9)';
@@ -827,8 +838,8 @@ function drawEditorFrame(canvas, ctx) {
     }
 
     // Instructions
-    ctx.fillStyle = 'rgba(60, 47, 47, 0.3)';
-    ctx.font = '9px Garamond, serif';
+    ctx.fillStyle = CANVAS_INK_MUTED;
+    ctx.font = '9px ' + CANVAS_FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText('Drag azimuth \u2022 Shift-drag elevation \u2022 Alt-drag / scroll distance \u2022 Click to add \u2022 Right-click to remove', centerX, h - 38);

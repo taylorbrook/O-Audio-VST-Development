@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.1
+- **Version:** 1.4.0
 - **Type:** Audio Effect (Spatial Orbiter)
 
 ## Lifecycle Timeline
@@ -14,9 +14,13 @@
 - **2026-08-19:** v1.1.0 — Parts B–D: preset-manager migration (categorized menu + user presets), hover help, PPQ-locked tempo sync, Ping-Pong path, speaker-editor elevation/distance editing, named layout library, height visualization, resizable editor.
 - **2026-08-27:** v1.1.1 — tempo-sync table corrected to true cycles-per-beat (was 4× slow; two duplicate triplet/dotted pairs), mirrored from O-Octagon v1.10.0 WR-01. Tooltip states the convention. auval clean.
 
+- **2026-09-26:** v1.4.0 — UI pass (260924-nho Phase C): 21-token :root palette (159 literals → 0), AA text + canvas inks, 9px floor, bundled EB Garamond, :focus-visible rings. Contrast 6/67 → 0/67 below AA, labels/i18n pass, resize limits hold. No DSP change.
+
 ## Known Issues
 
 - C2 (Doppler) and C4 (custom drawn path) from `.planning/improvements/v1.1-review-findings.md` remain deferred — separate brief if pursued.
+- Botanical overlay (z-index 1000, 0.35) sits above text: PHASE ≈3.98, EXPORT ≈3.50 by pixel sample — needs a layering decision.
+- Knobs are mouse-only (R7 keyboard/ARIA not yet ported).
 - No offline render harness — regression coverage is pluginval/auval + manual DAW testing only.
 
 ## Additional Notes

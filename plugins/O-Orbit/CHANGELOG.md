@@ -1,5 +1,63 @@
 # Changelog — O-Orbit
 
+## [1.4.0] - 2026-09-26
+
+This is the UI pass from the 260924-nho design review (Phase C). It adds a CSS custom-property palette, AA text colours from `ouaricon-naturalist-001` (R4), the 9px text floor, the bundled EB Garamond face (R5), and `:focus-visible` rings. It is MINOR because the change is visible and bundles a font. **There is no DSP, parameter, range, type or state-format change.** No processor file was touched. The only C++ change is four `getResource()` branches for the font. Knob keyboard/ARIA (R7) was left out on purpose, because no knob code was touched.
+
+### Changed
+
+- **The palette is custom properties.** A `:root` block of 21 tokens (20 colours and the font) replaces all 159 hex literals in `css/styles.css`. There were no custom properties before this release, and there are now 0 literals outside `:root`. Canvas colours in `js/app.js` stay literal, because a 2D context does not resolve `var()`. The `rgba()` washes are unchanged.
+- **AA text colours.** `#8B7355` becomes `--rule-muted` and is kept for borders, rules and fills only. Each text failure takes its variant from the aesthetic's Text Contrast table:
+  - Preset-menu category headers: `--text-muted` `#6A5641`, 3.22 → 4.98.
+  - The active preset-menu item: the fill is `--walnut-fill` `#6A5641`, 3.66 → 5.68.
+  - The lit Elevation pill and the lit hover-help switch: the fill is `--leaf-fill` `#4E6839`, 2.16 → 5.10. `--sage` stays on borders and on the knob pointer.
+  - The ⚙ glyph: `--gear-ink` `#3F5530`, 3.90 → 5.74. On the pressed 0.65 wash it is `--gear-ink-open` `#2C3E10` (5.90).
+  - The tooltip title: `--leaf-text` `#4E6839`. It was 4.07 on the tooltip gradient's `#EBD9C7` stop and is now 4.54.
+  - The layout-name placeholder: `--text-muted`. The UA grey was 4.20 on its cream field and it is now 6.33.
+- **9px floor.** The preset caret goes from 8px to 9px. The canvas text goes from 8px to 9px: speaker labels, elevation badges, the ELEV caption and the L/R source letters.
+- **Canvas text inks.** The census cannot see these, so they were computed against the canvas plate `#E7D7C2`.
+  - FRONT / REAR / ELEV and the editor hint line were `rgba(60,47,47,0.3–0.4)` (1.70–2.09). They are now `#6A5641` (4.93).
+  - The L/R letters take a darker ink of their dot's hue: `#3F5530` at 5.83 and `#6F5228` at 5.11, where they were 1.88 / 1.67. The dots and glows keep their colours.
+  - Elevation badges go from `#5C6E3E` / `#8A5A2B` to `#3F5530` / `#7A4A1E`. They were 3.97 / 4.16 and are now 5.83 / 5.27.
+  - A speaker label on the sage drag fill uses `#3C2F2F`, which reads 4.84. `#5C4033` read 3.55 there.
+- **One text face, bundled.** EB Garamond comes from `modules/ui/eb-garamond` by direct embed:
+  - 4 `SOURCES` lines, 4 `getResource()` branches, and `css/eb-garamond.css` linked ahead of `css/styles.css`.
+  - The 14 repeated font stacks become `var(--font-serif)`, and the canvas uses one `CANVAS_FONT` constant.
+  - The bare `Garamond` and `Times` entries are dropped. A CDP probe shows EB Garamond resolving on every Latin node in en/fr/zh-Hans, with the Han runs on PingFang SC.
+  - The four branches test the raw `url`, the module snippet's own shape, not the normalized `path`. `scripts/serve-ui.js` only places out-of-root embeds from `url == "…"` literals. The first cut used `path ==`, which made the served test tree 404 the font, so every gate measured the Georgia fallback.
+- **Keyboard focus.** There was no `:focus-visible` rule before. Now a 2px `--text-body` ring (7.67 on paper) covers all 12 Tab-reachable control families. It also replaces the bare border-colour change that three `:focus { outline: none }` rules left behind. The knobs, `#view-toggle` and the preset-menu items are divs and cannot be reached by Tab. The Elevation checkbox is `display: none`. None of these is listed.
+- **Metric re-pins for the new face.** EB Garamond carries Times New Roman's line box. This page previously resolved to macOS *Times*, which has a taller line box, so the English and French rows lose 1–2px each: the controls pane scrolls 11–12px less at 800×600. Widths were re-measured with each pin lifted:
+  - `.preset-btn-hdr` goes from 58 to 59, for Ouvrir at 58.39.
+  - The Hex/Oct chips go from 40 to 41, for Octo at 40.88.
+  - `#view-toggle` stays at 170 (Éditeur d'enceintes is 169.00). The layout buttons stay at 53 and the file buttons at 74.
+  - The ten Chinese-scoped line-height ratios were re-derived from the new English content boxes, the same method v1.3.0 used. The form controls go from 1.3 to 1.1, the 11px leaves to 1.0909091, `.group-label` to 1.1428571 and `#view-toggle` to 1.25.
+  - The four Han format chips are re-pinned to the new English row: 50.39 / 41.48 / 41 / 41.
+
+### Tests
+
+- `tests/i18n-states.json` gains four states, so that before and after are measured on the same fuller page:
+  - Elevation on.
+  - The preset menu open.
+  - A keyboard-focused tooltip.
+  - A no-op settle step after the hover-help click. The switch fades over 0.2s and the census samples 140ms after the click, so v1.3.0's "1.72" was the mid-fade pair. The settled pair was 2.16.
+- `tests/ui-stub/generic-overrides.json` gains `getPresetListGrouped` / `getCurrentPreset`, so the menu renders under the stub.
+
+### Measured (v1.3.0 → v1.4.0, served page, 800×600, all states in `tests/i18n-states.json`)
+
+| Gate | Before | After |
+|---|---|---|
+| `measure-ui.js --contrast`, per language (en = fr = zh-Hans) | 6 / 67 below AA, 1 under 9px, min 1.72 (mid-fade; settled 2.16) | **0 / 67**, **0 under 9px**, min 4.98 |
+| `check-ui-labels.js` (en / fr / zh-Hans) | ALL CHECKS PASSED | ALL CHECKS PASSED (340 PASS lines) |
+| `check-i18n.js` | ALL PASS | ALL PASS |
+| Resize probe at 600×450 / 800×600 / 1600×1200 (en / fr / zh-Hans, rest + speaker editor) | no horizontal overflow; 600px toolbar scrolls 187px (D4, by design) | no horizontal overflow; toolbar scrolls 186px; 0 page errors, 0 404s |
+
+### Known, not addressed here
+
+- **The botanical overlay sits above the text.** The overlay is `#botanical-overlay`: z-index 1000 at 0.35 opacity. Pixel-sampled at 800×600, PHASE reads about 3.98 and EXPORT about 3.50 through it. The census cannot see an `<img>` ground. This was unchanged by this release and needs a design decision: it could move below the panels.
+- **The Elevation pill's thumb covers the first glyph of OFF** (unchanged).
+- **R7 keyboard/ARIA knobs** remain for a separate pass: the O-ReverseDelay port, and making `#view-toggle` / the Elevation checkbox focusable.
+- **The canvas captions are still English-only**: FRONT, REAR, ELEV and the editor hint line.
+
 ## [1.3.0] - 2026-09-07
 
 Simplified Chinese joins English and French. MINOR: 125 new interface strings,

@@ -17,7 +17,7 @@ juce_add_plugin(OuariconOrbit
     PLUGIN_CODE OuOr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Orbit${OUARICON_DEV_SUFFIX}"
-    VERSION 1.3.0
+    VERSION 1.4.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
     IS_SYNTH FALSE
@@ -67,6 +67,12 @@ juce_add_binary_data(OuariconOrbit_WebUI
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/img/shell.png
+        # v1.4.0 (R5) - bundled EB Garamond, direct embed from the shared
+        # module; served by four getResource() branches in PluginEditor.cpp.
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_include_directories(OuariconOrbit
