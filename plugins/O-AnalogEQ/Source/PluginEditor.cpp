@@ -31,6 +31,7 @@
 
 #include "PluginEditor.h"
 #include "BinaryData.h"
+#include "PresetSaveGuard.h"
 
 //==============================================================================
 OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(OuariconAnalogEQAudioProcessor& p)
@@ -138,7 +139,46 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
                         // v1.0.8) and handles the .json extension and parent-directory
                         // creation itself. loadPresetFromFile below already used its
                         // counterpart correctly — save and load were simply asymmetric.
-                        bool success = safeThis->audioProcessor.presetManager.savePresetToFile(file);
+                        auto& pm = safeThis->audioProcessor.presetManager;
+
+                        // WR-07 follow-up (v1.5.2): the two save APIs are NOT
+                        // interchangeable. savePreset(name) early-returns false on
+                        // isFactoryPreset(); savePresetToFile() has no guard at all, so the
+                        // v1.5.1 swap that fixed the discarded-directory bug also removed
+                        // factory-preset overwrite protection. The predicate lives in
+                        // PresetSaveGuard.h — see there for the two silent failures it
+                        // closes and why the test is location-aware rather than name-only —
+                        // because the editor TU is not compiled into the render harness, so
+                        // a lambda here would be ungateable.
+                        auto target = file.hasFileExtension("json") ? file
+                                                                    : file.withFileExtension("json");
+                        const auto refusal = oaeq::presetSaveRefusal(file, pm);
+
+                        if (refusal.isNotEmpty())
+                        {
+                            // The page's SAVE button is fire-and-forget — preset-manager.js
+                            // wires `() => this.saveWithDialog()` and saveWithDialog discards
+                            // everything but {success, name} — so a refusal carried only on
+                            // `complete` would be invisible, which is the same silent-failure
+                            // class WR-07 itself was. Report it on the surface the file dialog
+                            // just used. Doing it here keeps the fix plugin-local; threading a
+                            // reason through the shared module is a 19-consumer rollout.
+                            juce::NativeMessageBox::showAsync(
+                                juce::MessageBoxOptions()
+                                    .withIconType(juce::MessageBoxIconType::WarningIcon)
+                                    .withTitle("Save Preset")
+                                    .withMessage(refusal)
+                                    .withButton("OK"),
+                                nullptr);
+
+                            auto* refused = new juce::DynamicObject();
+                            refused->setProperty("success", false);
+                            refused->setProperty("name", "");
+                            complete(juce::var(refused));
+                            return;
+                        }
+
+                        bool success = pm.savePresetToFile(target);
                         // Report the name that actually landed on disk rather than
                         // re-deriving it: savePresetToFile sets currentPresetName from the
                         // resolved target, after any extension fixup.

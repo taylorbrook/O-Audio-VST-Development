@@ -1,6 +1,7 @@
 ---
 phase: O-AnalogEQ-code-review
 reviewed: 2026-09-25T00:00:00Z
+verified: 2026-09-26T00:00:00Z   # /improve-verify O-AnalogEQ v1.5.2 — PASS
 depth: thorough
 files_reviewed: 10
 files_reviewed_list:
@@ -51,6 +52,36 @@ regressed** in the thirteen versions since. The re-adjudication table below reco
 evidence in current code, per finding. The counts in this document's frontmatter
 therefore describe **new** findings only — they are not a regression against the prior
 review's ten, and a zero in a tier here does not mean a prior finding was dropped.
+
+### Resolution status — updated 2026-09-26
+
+**CR-02 and WR-05..WR-10 were resolved in v1.5.1** (commit `75b97ff5`, 2026-09-25).
+**IN-06..IN-09 remain open** and are opt-in (`/improve-review-info O-AnalogEQ`).
+
+**v1.5.2 (2026-09-26)** closed two residual defects found while re-verifying those
+fixes. Neither is a finding in this document; both were introduced or left open by the
+v1.5.1 fixes themselves, and both are recorded here because this file is the record of
+what the review's prescriptions actually produced:
+
+- **WR-07's prescribed fix was incomplete as written.** Swapping `savePreset(name)` for
+  `savePresetToFile(file)` — which is what §WR-07's *Fix* block says to do, verbatim —
+  drops the `isFactoryPreset()` early-return that only the first API carries. The result
+  reported success while writing a preset that `loadPreset()` can never reach, and let
+  the dialog overwrite the factory bank. v1.5.2 re-imposes the guard at the call site
+  (`Source/PresetSaveGuard.h`), **location-aware** rather than name-only so the
+  arbitrary-path export WR-07 exists to enable is not re-broken. Gated by render-harness
+  G4, verified non-vacuous against both a neutered guard and a name-only one.
+
+- **WR-10 part 1 landed but did not deliver its stated scope.** §WR-10's fix says
+  widening the scan means "[11] and [13] cover it for all 43 plugins." It did not: the
+  served-set regex `[A-Za-z0-9._/-]+\.js` excludes `$`, `{` and `}`, so a
+  `${CMAKE_SOURCE_DIR}/…` SOURCES entry resolved under the *plugin* root, missed, and
+  was dropped with no `missing[]` report. O-AnalogEQ was covered (its SOURCES are all
+  plugin-relative); **O-ReverseDelay, O-Contrabass, O-Marimba and O-MicrotonalSampler
+  were not**, and printed green while embedding unscanned modules — the same shape the
+  finding was opened over, one scan lower down. Fixed in `scripts/check-i18n.js`, with
+  the phantom-extension and trailing-comment traps closed alongside, since both become
+  false failures once unresolvable paths are reported rather than swallowed.
 
 ### Artifact path — resolved 2026-09-25
 

@@ -1,5 +1,116 @@
 # O-AnalogEQ Changelog
 
+## [1.5.2] - 2026-09-26
+
+Closes two residual defects found while re-verifying the v1.5.1 review fixes.
+Both were introduced or left open BY that release rather than by the v1.5.0
+code under review: WR-07's fix dropped a guard, and WR-10's gate widening
+covered O-AnalogEQ but not the repo it claimed. PATCH — no parameter ID, range,
+type or state format changed.
+
+### Fixed
+
+- **WR-07 follow-up — the fix that closed the discarded-directory bug silently
+  removed factory-preset overwrite protection.** *Root cause:* preset-manager's
+  two save APIs are not interchangeable. `savePreset(name)` early-returns
+  `false` on `isFactoryPreset()`; `savePresetToFile(file)` has **no guard at
+  all** and writes wherever it is pointed. v1.5.1 swapped the first for the
+  second — correctly, since the dialog's chosen directory was being discarded —
+  and lost the check with it. Two failures, both reachable from a dialog that
+  opens in `getUserPresetsDirectory()`, and both silent:
+  1. Typing a factory name (e.g. `Surgical Cut`) writes
+     `Presets/User/Surgical Cut.json` and returns `true`, so the UI reports
+     success — but `loadPreset()` searches `Presets/Factory/` **first**
+     (`OuariconPresetManager.h:450-453`), so the save is written and
+     permanently unreachable. Pre-swap, `savePreset()` returned `false` and the
+     UI correctly said so.
+  2. Navigating up into `Presets/Factory/` overwrites the factory JSON
+     outright. `initializeFactoryPresets()` early-returns while the
+     `.factory-version` sentinel matches `JucePlugin_VersionString`, so nothing
+     restores it until the next version bump.
+
+  *Fix:* `oaeq::presetSaveRefusal` in the new `Source/PresetSaveGuard.h`, called
+  at the dialog callback before the write. The test is **location-aware rather
+  than name-only** on purpose: a bare `isFactoryPreset(basename)` reject would
+  re-break the arbitrary-path export WR-07 exists to enable, because saving a
+  tweaked "Surgical Cut" to `~/Desktop` shadows nothing — `loadPreset()` only
+  ever searches the two library directories. Only a write into those can
+  collide, so only those are refused. The refusal is reported through
+  `NativeMessageBox` as well as `complete`, because the page's SAVE button is
+  fire-and-forget (`preset-manager.js` wires `() => this.saveWithDialog()` and
+  that method discards everything but `{success, name}`), so a reason carried
+  only on the bridge would be invisible — the same silent-failure class WR-07
+  itself was. Reporting it in C++ keeps the fix plugin-local; threading a reason
+  through the shared module is a 19-consumer rollout.
+
+- **WR-10 follow-up — the widened `check-i18n` scan resolved
+  `${CMAKE_SOURCE_DIR}` entries against the wrong root and dropped them in
+  silence.** *Root cause:* the served-set scan added in v1.5.1 derives shipped
+  page JS from `juce_add_binary_data`'s SOURCES, but its path regex
+  `[A-Za-z0-9._/-]+\.js` excludes `$`, `{` and `}`. A SOURCES line reading
+  `${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/js/preset-manager.js`
+  therefore captured the **leading-slash** remainder, which
+  `path.join(pluginRoot, rel)` resolved to `plugins/<Name>/modules/…` — a path
+  that does not exist — and the branch then `continue`d with no `missing[]`
+  report, unlike its sibling scan directly above it. So WR-10 closed the hole
+  for O-AnalogEQ (whose SOURCES are all plugin-relative) while leaving it open
+  for every plugin that references the shared module by its canonical path.
+  Four were affected, embedding modules that nothing scanned for the contract
+  §4 native-`title=` rule: **O-ReverseDelay** and **O-Contrabass**
+  (`preset-manager.js`), **O-Marimba** (`analog-eq-unit.js`,
+  `compressor-unit.js`), **O-MicrotonalSampler** (`webview-drop-streaming.js`).
+  O-ReverseDelay's gate printed `[12] … 1 module(s): js/app.js` with no `NOTE:`
+  line and passed `[11] zero native title= remain` — the exact "statement about
+  one file printed as a statement about the page" shape WR-10 was opened over.
+
+  *Fix* (`scripts/check-i18n.js`), three parts, and the first alone would not
+  have been safe:
+  1. `${CMAKE_SOURCE_DIR}/` entries resolve against the **repo** root and
+     plugin-relative ones against the plugin root; deduplication keys on the
+     resolved path, since the two forms can name one file.
+  2. An unresolvable entry is **reported**, never skipped — a path the gate
+     cannot open is a file the build embeds and the page runs while nothing
+     scans it.
+  3. The extension is anchored with `(?![\w.])` and trailing `#` comments are
+     stripped. Both were latent while unresolvable paths were dropped in
+     silence and become **false failures** the moment they are reported: a
+     SOURCES entry `strings.json` otherwise yields a phantom `strings.js`, and
+     `foo.js  # superseded by bar.js` otherwise harvests `bar.js`.
+
+### Testing
+
+- `tests/render-harness/` gains **G4**, seven assertions over
+  `oaeq::presetSaveRefusal`. The predicate was lifted into its own header
+  specifically so this target can reach it: the editor TU is not compiled in
+  (`JUCE_WEB_BROWSER=0` — `pattern_render_harness_breaks_on_webview_editor`),
+  so a lambda in the dialog callback would have been ungateable, and G4 asserts
+  the value the callback actually branches on rather than a downstream proxy.
+  **Verified non-vacuous in both directions:**
+  - Guard neutered to `return {}` → the four refusal arms FAIL, the two "allow"
+    arms still pass.
+  - Guard replaced with the obvious name-only `isFactoryPreset(basename)`
+    reject → the export arm FAILS alone, which is the arm that exists to stop
+    WR-07 being re-broken by its own fix.
+  - The first assertion gates the factory bank itself being non-empty, without
+    which every arm below it would pass over nothing.
+  - 19/19 pass with the real guard in place (12 prior + 7 new).
+- `check-i18n` verified non-vacuous for the widened scan: re-adding
+  `title="Save preset"` to the canonical `createPresetBar` template now turns
+  **O-ReverseDelay and O-Contrabass red**, where before the fix both stayed
+  green while embedding that exact file. Repo-wide the gate remains 0 FAIL over
+  44 plugins, and the four previously-blind plugins now report their served
+  modules in `[12]`.
+
+### Known limitations
+
+- The served modules are scanned for the §4 native-`title=` rule but still not
+  for unkeyed prose; the gate reports this per plugin as a `NOTE:` rather than
+  passing in silence. Keying them is a shared-module rollout across 19
+  consumers, unchanged from v1.5.1.
+- `savePresetToFile()` itself remains unguarded in `modules/persistence/`. The
+  guard here is at O-AnalogEQ's call site. Nine other plugins call that API from
+  a dialog and have not been audited for the same gap.
+
 ## [1.5.1] - 2026-09-25
 
 Resolves seven findings from the v1.5.0 thorough code review (`CODE_REVIEW.md`):

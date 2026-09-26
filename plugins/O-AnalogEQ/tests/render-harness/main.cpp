@@ -20,12 +20,12 @@
 /*
   ==============================================================================
 
-    O-AnalogEQ — DSP render harness (v1.5.1)
+    O-AnalogEQ — DSP render harness (v1.5.2)
 
-    Gates the three DSP fixes from the v1.5.0 code review. Every verdict is read
-    off RENDERED AUDIO, never off a flag or a pointer: a bypass that "took"
-    because a boolean changed is not a bypass that sounds right
-    (pattern_pointer_moved_is_not_audio_changed).
+    Gates the three DSP fixes from the v1.5.0 code review, plus the preset-save
+    guard added in v1.5.2. Every DSP verdict is read off RENDERED AUDIO, never
+    off a flag or a pointer: a bypass that "took" because a boolean changed is
+    not a bypass that sounds right (pattern_pointer_moved_is_not_audio_changed).
 
     G1 — CR-02. isBusesLayoutSupported must REFUSE asymmetric negotiation.
          Before the fix the base class returned true for everything, so a host
@@ -54,10 +54,17 @@
                left z-1/z-2 holding loud samples through the whole quiet passage;
                a fed filter has tracked the quiet signal and has nothing to dump.
 
+    G4 — WR-07 follow-up. The factory-preset guard. Not an audio gate: the
+         quantity is a refusal string, and it is asserted directly rather than
+         through a proxy because the value the dialog branches on IS the
+         predicate. It lives in PresetSaveGuard.h precisely so this target can
+         reach it without compiling the WebView editor TU.
+
   ==============================================================================
 */
 
 #include "PluginProcessor.h"
+#include "PresetSaveGuard.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <cstdio>
 #include <cmath>
@@ -117,7 +124,7 @@ namespace
 int main()
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
-    std::printf ("\nO-AnalogEQ DSP render harness (v1.5.1)\n");
+    std::printf ("\nO-AnalogEQ DSP render harness (v1.5.2)\n");
     std::printf ("sample rate %.0f Hz, block %d\n\n", kSampleRate, kBlockSize);
 
     // ════════════════════════════════════════════════════════════════════════
@@ -379,6 +386,77 @@ int main()
                    "fed holds no stale z-1/z-2",
                    "burst " + juce::String (burst, 6) + " vs settled " + juce::String (settled, 6));
         }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // G4 — WR-07 follow-up: the factory-preset guard savePresetToFile() lacks
+    // ════════════════════════════════════════════════════════════════════════
+    //
+    // v1.5.1 closed WR-07 by swapping savePreset(name) -> savePresetToFile(file).
+    // That fixed the discarded directory and silently dropped the
+    // isFactoryPreset() early-return savePreset() carried, because the two APIs
+    // are not interchangeable. v1.5.2 re-imposes it at the call site through
+    // oaeq::presetSaveRefusal.
+    //
+    // Gated on the PREDICATE, which is the value the dialog callback branches
+    // on, rather than on a downstream proxy for it. The callback itself lives
+    // in the editor TU, which JUCE_WEB_BROWSER=0 keeps out of this target — the
+    // reason the predicate was lifted into its own header at all.
+    std::printf ("\n-- G4 (WR-07 follow-up) factory-preset save guard\n");
+    {
+        OuariconAnalogEQAudioProcessor proc;
+        const auto& pm = proc.presetManager;
+
+        const auto factoryDir = pm.getFactoryPresetsDirectory();
+        const auto userDir    = pm.getUserPresetsDirectory();
+
+        // NON-VACUITY FIRST. Every assertion below is about a real factory
+        // preset name; if the bank is empty they all pass over nothing.
+        juce::String factoryName;
+        for (const auto& n : pm.getPresetList())
+            if (pm.isFactoryPreset (n)) { factoryName = n; break; }
+
+        check (factoryName.isNotEmpty(),
+               "[G4] the factory bank is non-empty — without a real factory name every "
+               "assertion below would be vacuous",
+               "using \"" + factoryName + "\"");
+
+        if (factoryName.isNotEmpty())
+        {
+            // Failure 1: lands in User/, returns true, and loadPreset() never
+            // reaches it because it searches Factory/ first.
+            check (oaeq::presetSaveRefusal (userDir.getChildFile (factoryName + ".json"), pm).isNotEmpty(),
+                   "[G4] a FACTORY name saved into the User library is REFUSED — loadPreset() "
+                   "searches Factory/ first, so the write would be unreachable forever");
+
+            // The same target typed without an extension must be judged
+            // identically: savePresetToFile() appends .json itself, so a guard
+            // that skipped the fixup would wave through the path it just refused.
+            check (oaeq::presetSaveRefusal (userDir.getChildFile (factoryName), pm).isNotEmpty(),
+                   "[G4] ... and so is that same target typed WITHOUT the .json extension");
+
+            // Failure 2: overwriting the factory JSON outright.
+            check (oaeq::presetSaveRefusal (factoryDir.getChildFile (factoryName + ".json"), pm).isNotEmpty(),
+                   "[G4] writing into the Factory directory is REFUSED");
+
+            check (oaeq::presetSaveRefusal (factoryDir.getChildFile ("sub").getChildFile ("x.json"), pm).isNotEmpty(),
+                   "[G4] ... including anywhere beneath it, not only directly in it");
+
+            // THE OVER-BLOCKING ARM, and the reason the guard is location-aware.
+            // WR-07 exists to make arbitrary-path export work; a name-only
+            // isFactoryPreset() reject would refuse this and re-break it.
+            // Nothing outside the two library directories can shadow anything.
+            check (oaeq::presetSaveRefusal (
+                       juce::File::getSpecialLocation (juce::File::SpecialLocationType::tempDirectory)
+                           .getChildFile (factoryName + ".json"), pm).isEmpty(),
+                   "[G4] exporting under a factory NAME to a directory outside the library is "
+                   "ALLOWED — location-aware, so the WR-07 fix is not re-broken");
+        }
+
+        // The common path. A guard that simply refused everything would pass
+        // every arm above; this is what separates a class from a blanket.
+        check (oaeq::presetSaveRefusal (userDir.getChildFile ("My Mix Bus EQ.json"), pm).isEmpty(),
+               "[G4] an ordinary user preset name in the User library is ALLOWED");
     }
 
     std::printf ("\n%s   (%d passed)\n\n",

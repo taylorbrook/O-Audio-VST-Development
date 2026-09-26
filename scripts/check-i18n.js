@@ -1004,20 +1004,51 @@ function checkPlugin(p) {
     // excluded as verbatim upstream JUCE, exactly as the directory scan excludes
     // it; i18n.js is the canon target and is already read by readInlineModule.
     const servedModuleJs = [];
+    const servedMissing = [];
     if (p.cmake && fs.existsSync(p.cmake)) {
+        // Trailing comments matter here, not just comment-leading lines: an
+        // unquoted `foo.js  # superseded by bar.js` would otherwise harvest
+        // bar.js as if the build embedded it. CMake comments run from an
+        // unquoted # to end of line, and these paths are always unquoted.
         const cmakeText = fs.readFileSync(p.cmake, 'utf8')
-            .split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+            .split('\n').map((l) => l.replace(/(^|\s)#.*$/, '$1')).join('\n');
         const seenServed = new Set();
         for (const block of cmakeText.matchAll(/juce_add_binary_data\s*\(([\s\S]*?)\)/g)) {
-            for (const m of block[1].matchAll(/([A-Za-z0-9._\/-]+\.js)/g)) {
-                const rel = m[1];
-                if (seenServed.has(rel)) continue;
-                seenServed.add(rel);
+            // TWO PATH FORMS, TWO ROOTS. A SOURCES entry is either plugin-relative
+            // (`Source/ui/public/modules/preset-manager.js`) or repo-absolute via
+            // `${CMAKE_SOURCE_DIR}/`. The original WR-10 scan matched only
+            // `[A-Za-z0-9._/-]+\.js`, which excludes `$`, `{` and `}` — so a line
+            // reading `${CMAKE_SOURCE_DIR}/modules/.../preset-manager.js` captured
+            // the LEADING-SLASH remainder `/modules/.../preset-manager.js`,
+            // path.join'd it under the PLUGIN root, found nothing, and `continue`d
+            // in silence. O-ReverseDelay's gate therefore printed "[12] … 1
+            // module(s): js/app.js" with no NOTE and passed [11] while embedding the
+            // very factory template WR-10 was opened over: re-adding a `title=` to
+            // the canonical module turned O-AnalogEQ red and left O-ReverseDelay
+            // green. Same blindness, one scan lower down.
+            //
+            // The extension is anchored with (?![\w.]) because `[A-Za-z0-9._/-]+`
+            // is otherwise happy to stop mid-token: a SOURCES entry `strings.json`
+            // yields a phantom `strings.js`, harmless while unresolvable paths were
+            // dropped in silence and a false FAIL now that they are reported.
+            for (const m of block[1].matchAll(/(\$\{CMAKE_SOURCE_DIR\}\/)?([A-Za-z0-9._\/-]+\.js)(?![\w.])/g)) {
+                const fromRepoRoot = Boolean(m[1]);
+                const rel = m[2];
+                const full = fromRepoRoot ? path.join(repoRoot, rel)
+                                          : path.join(p.pluginRoot, rel);
+                if (seenServed.has(full)) continue;   // dedupe by RESOLVED path: the
+                seenServed.add(full);                 // two forms can name one file
                 if (/(^|\/)js\/juce\//.test(rel)) continue;          // verbatim upstream
                 if (/(^|\/)i18n\.js$/.test(rel)) continue;            // the canon target
                 if (/\.(bundle|min)\.js$/.test(rel)) continue;        // unparseable, handled above
-                const full = path.join(p.pluginRoot, rel);
-                if (!fs.existsSync(full) || !fs.statSync(full).isFile()) continue;
+                if (!fs.existsSync(full) || !fs.statSync(full).isFile()) {
+                    // NEVER a silent continue. A path the gate cannot open is a file
+                    // the page runs and nothing scans — the exact shape of the hole
+                    // this block exists to close, so it is reported like its sibling
+                    // ${CMAKE_SOURCE_DIR} scan above rather than swallowed.
+                    servedMissing.push(fromRepoRoot ? '${CMAKE_SOURCE_DIR}/' + rel : rel);
+                    continue;
+                }
                 const code = fs.readFileSync(full, 'utf8');
                 // Deduped by CODE: a file already reached through the js/ scan or
                 // the ${CMAKE_SOURCE_DIR} follow must not be scanned twice.
@@ -1026,6 +1057,11 @@ function checkPlugin(p) {
                 servedModuleJs.push({ label: rel, code, inline: false });
             }
         }
+        check(servedMissing.length === 0,
+            `[12] every .js in juce_add_binary_data's SOURCES resolves on disk — plugin-relative `
+            + `against the plugin root, ${'${CMAKE_SOURCE_DIR}'}/ against the repo root; an `
+            + `unresolvable entry is a file the build embeds and the page runs while nothing scans it`
+            + (servedMissing.length ? ` — ${servedMissing.length} missing: ${servedMissing.join(', ')}` : ''));
     }
 
     // WHY THIS IS NOT SIMPLY PUSHED INTO pageModules.
