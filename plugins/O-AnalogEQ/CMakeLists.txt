@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 3.15)
 
 include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
+# Single source of truth for the version. The DSP render harness needs the same
+# value: the processor ctor runs initializeFactoryPresets(), whose
+# .factory-version sentinel compares against JucePlugin_VersionString, so a
+# harness left on a stale literal would restamp the real factory-preset
+# directory with the wrong version.
+set(OAEQ_VERSION 1.5.1)
+
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OuariconAnalogEQ
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
@@ -9,7 +16,7 @@ juce_add_plugin(OuariconAnalogEQ
     PLUGIN_CODE OuAE
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-AnalogEQ${OUARICON_DEV_SUFFIX}"
-    VERSION 1.5.0
+    VERSION ${OAEQ_VERSION}
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -92,4 +99,9 @@ if(OUARICON_BUILD_TESTS)
     # AudioProcessor::getParameters() on a constructed processor sees the real set.
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(OuariconAnalogEQ ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+
+    # v1.5.1 DSP render harness — gates CR-02 (asymmetric bus layouts refused),
+    # WR-05 (output_gain ramps) and WR-06 (band bypass crossfades, bypassed band
+    # still fed) on RENDERED AUDIO rather than on flags.
+    add_subdirectory(tests/render-harness)
 endif()

@@ -1,5 +1,177 @@
 # O-AnalogEQ Changelog
 
+## [1.5.1] - 2026-09-25
+
+Resolves seven findings from the v1.5.0 thorough code review (`CODE_REVIEW.md`):
+one critical, six warning. PATCH — no parameter ID, range, type or state format
+changed, and every fix is a defect repair rather than a feature.
+
+**A version bump is load-bearing here, not cosmetic.** CR-02 changes what bus
+layouts the AU advertises, and Logic caches an AU's I/O configuration per plugin
+VERSION — clearing the cache is not enough, the version must move for Logic to
+re-negotiate.
+
+### Fixed
+
+- **CR-02 — `isBusesLayoutSupported` was never overridden, so a stereo-in /
+  mono-out negotiation null-dereferenced every filter on the audio thread.**
+  *Root cause:* the base `juce::AudioProcessor::isBusesLayoutSupported` returns
+  `true` unconditionally, so the wrappers advertised every layout they enumerate
+  — including asymmetric ones — although `BusesProperties` declares stereo in /
+  stereo out. On a `(2,1)` negotiation `prepareToPlay` sized each
+  `ProcessorDuplicator` from `getTotalNumOutputChannels()` = 1, allocating ONE
+  mono filter, while JUCE sized the audio buffer at `max(totalIn, totalOut)` = 2.
+  `ProcessorDuplicator::process` then loops `jmin(inCh, outCh)` = 2 and indexes
+  `processors[1]`, which is out of range on an `OwnedArray` and returns
+  `nullptr`; its two `jassert`s are debug-only, so a Release build dereferenced
+  it at the first block. *Fix:* the override accepts mono or stereo and requires
+  input to equal output, refusing asymmetric negotiation outright. `processBlock`
+  additionally clamps the chain to the prepared channel count as defence in
+  depth, since a buffer's width is a max over both directions and says nothing
+  on its own about how many output channels exist.
+
+- **WR-05 — `output_gain` stepped instead of ramping; `dsp::Gain`'s default ramp
+  is zero seconds.** *Root cause:* the prior review's WR-02 excluded
+  `output_gain` from the v1.1.9 smoothing work on the stated grounds that
+  `juce::dsp::Gain` "smooths internally". It does not by default:
+  `rampDurationSeconds` is declared `0`, `reset()` calls
+  `gain.reset(sampleRate, 0)`, and a `SmoothedValue` with zero steps jumps on
+  `setTargetValue`. `setRampDurationSeconds` was never called anywhere in the
+  plugin. Loading "Surgical Cut" moved `output_gain` 0.5 → 0.542, i.e.
+  0 dB → +1.008 dB, in a single sample while every band around it ramped over
+  30 ms. *Fix:* `setRampDurationSeconds(kSmoothingSeconds)` before
+  `outputGain.prepare(spec)` — that order matters, because `reset()` no-ops
+  while `sampleRate` is still 0, so `prepare()` is what applies the duration.
+
+- **WR-06 — band on/off was a hard bypass over stale filter state: a click on
+  toggle, a transient burst on re-enable.** *Root cause:* the four `*_on`
+  booleans were read once per block and used as a raw `if` branch around each
+  filter. Two defects followed, neither covered by WR-02's frequency/gain
+  smoothing. (1) The falling edge removed an entire shelf between one block and
+  the next — an instantaneous spectral change, automatable from a DAW lane.
+  (2) Worse, a bypassed band's `ProcessorDuplicator` was neither fed nor reset,
+  so its biquad `z⁻¹`/`z⁻²` retained the last samples seen before the bypass —
+  possibly minutes earlier and at an unrelated level — and re-enabling convolved
+  them into the current signal as an impulse-like burst. *Fix:* each band now
+  carries a wet/dry `SmoothedValue` driven from its boolean over the same 30 ms
+  ramp, and the filter runs **unconditionally**. A band that is always fed cannot
+  hold stale state, so (2) disappears as a consequence of fixing (1). A settled
+  fully-on band still filters in place, so the common path costs exactly what the
+  old branch did; only a fading or fully-off band uses the scratch buffer, which
+  is sized in `prepareToPlay` so the crossfade allocates nothing on the audio
+  thread.
+
+- **WR-07 — "Save Preset" silently ignored the directory the user chose.**
+  *Root cause:* the dialog handler took the chosen `juce::File`, discarded
+  everything but its base name, and called `savePreset(name)` — which always
+  writes to `getUserPresetsDirectory()`. Saving to `~/Desktop` reported success
+  and updated the name display while writing nothing there; saving to
+  `~/Desktop/Default.json` silently overwrote the user preset `Default` in the
+  library directory. `savePresetToFile(const juce::File&)` has existed since
+  preset-manager v1.0.8 and handles the extension and parent directory itself;
+  `loadPresetFromFile` already used its counterpart correctly, so load and save
+  were simply asymmetric. *Fix:* call `savePresetToFile(file)`, and report the
+  name that actually landed on disk rather than re-deriving it.
+
+- **WR-08 — the v1.4.0 hover-help switch shipped with zero behavioural
+  assertions.** *Root cause:* `#tips-toggle` appeared in `ui_tip_render_check.js`
+  exactly once, in the `anchorsOpen` array — which hovers the switch to read its
+  own tooltip and never presses it. Both `page.click` calls were `#gear-btn`.
+  Deleting the show gate itself left the file reporting 415 PASS, `check-i18n` 0,
+  and `check-ui-labels` 0, while a user who turned hover-help off got it anyway.
+  *Fix:* a tips-off arm with thirteen assertions, each failing on a distinct
+  single-line deletion — the show gate, the `data-tip-always` bypass (the one
+  that distinguishes "gate works" from "renderer died"), the `hideTip` coupling,
+  and the `localStorage` round-trip read back off the rendered switch. The
+  always-set and the contrast anchor are derived from the DOM rather than
+  spelled. *Verified:* deleting the show gate now fails the suite (exit 1);
+  428 assertions pass with it in place.
+
+- **WR-09 — the switch's Off label was never geometry-measured, in any
+  language.** *Root cause:* `check-ui-labels` drives the states in
+  `tests/i18n-states.json`, which held two entries, both of which leave the
+  switch in its `ui.on` arm. Its "11 of 11 `[data-i18n]` elements were VISIBLE"
+  line was true and was exactly the blind spot — a two-state control counted
+  once. `.settings-toggle` is `flex: 0 0 auto` with `min-width: 42px`, a floor
+  rather than a cap, so the box grows with its content. *Fix:* a third state
+  reaching the Off arm, plus a schema extension to `scripts/check-ui-labels.js`
+  so a state may carry an ARRAY of selectors (the switch lives inside the
+  popover, so it needs `#gear-btn` then `#tips-toggle`). A string still works
+  everywhere it did before. *Verified:* planting a long French `ui.off` string
+  now fails assertion [5] with `ui.off 0.0px -> 52.2px`.
+
+- **WR-10 — `check-i18n`'s JS scan saw one module; the page ships three.**
+  *Root cause:* assertion [12] enumerated the inline `<script type="module">`
+  plus `Source/ui/public/js/*.js` plus `${CMAKE_SOURCE_DIR}/modules/**.js`
+  named from CMakeLists. None of those reach a plugin-local vendored copy in a
+  sibling directory, and this plugin serves `/modules/preset-manager.js` from
+  `Source/ui/public/modules/`. Assertion [11] then certified "zero native
+  `title=` remain" over the half it could see. *Fix, two parts — and the first
+  alone would not have closed it:* (1) the served set is now derived from
+  `juce_add_binary_data`'s SOURCES, which is the build's own authority on what
+  the page is served, excluding `js/juce/` as upstream; and (2) a markup-in-JS
+  title detector, because the four offending attributes sit inside an
+  `innerHTML` template literal and are invisible to both the markup scan and to
+  the existing `.title =` / `setAttribute` regex. The prose rules ([12]/[13]/
+  [15]) stay deliberately scoped to avoid a 19-consumer keying rollout, and now
+  SAY so in their own output rather than reporting the smaller set in silence.
+  *Verified:* re-adding one `title=` to a served module fails the gate; the
+  repo-wide run is 0 FAIL, exit 0.
+
+### Shared modules
+
+- **preset-manager 1.0.8 → 1.0.9.** `createPresetBar`'s markup template carried
+  four hardcoded English `title=` attributes, replaced with `aria-label`. A
+  native title draws a second, OS-rendered tooltip in a language unrelated to
+  the page's, competing with the measure-then-pin renderer — contract §4.
+  **Markup-only, and only inside the `createPresetBar` factory:** every current
+  consumer constructs `new PresetManager({...})` directly, so no rendered UI
+  changes anywhere. Propagated to all 18 other consumer copies, which fall into
+  three groups: **7 are git-ignored artifacts** regenerated from canonical by
+  `ouaricon_add_module`'s `configure_file(COPYONLY)` at configure time, so they
+  pick the fix up automatically and carry no commit; **5 tracked copies** at
+  canonical 1.0.8 took a clean overwrite; and **6 tracked copies had diverged
+  24–184 lines** and took a surgical four-attribute edit instead, preserving
+  that divergence. The surgical arm is not merely conservative — none of those
+  six calls `ouaricon_add_module` for this module, so their committed copy is
+  authoritative and a blind overwrite would have silently discarded real local
+  changes rather than being corrected on the next configure.
+
+- **O-Lyrica** carried the same §4 defect in its own inline module —
+  `title="${interval.toFixed(1)}¢"` on interval-matrix cells, written into a
+  template literal and therefore invisible to the old scan. Converted to
+  `aria-label`, following the precedent that plugin's own v2.4.0 sweep set for
+  four other native titles. The precise cent value stays available to assistive
+  tech; the visible text was already rounded.
+
+### Testing
+
+- **New:** `tests/render-harness/` — a console app gating the three DSP fixes on
+  rendered audio rather than on flags. G1 drives `(2,1)` and `(1,2)` and requires
+  refusal (driving `(2,2)` alone would pass on the broken build). G2 measures the
+  gain step on a DC bed with every band off, so the gain stage is the only thing
+  that can produce a first difference, and derives its threshold from the ramp
+  length — it also asserts the gate separates ramped from stepped by more than
+  10×, so a pass cannot come from measuring something too small to tell them
+  apart. G3 calibrates its click threshold against the signal's own slew measured
+  on the same render, and drives a loud→quiet→re-enable sequence for the stale
+  state. Off by default; `-DOUARICON_BUILD_TESTS=ON`.
+- `ui_tip_render_check.js` 415 → 428 assertions.
+- `tests/i18n-states.json` 2 → 3 states.
+
+### Known limitations
+
+- The `check-i18n` prose rules ([12]/[13]/[15]) still do not scan served shared
+  modules. That is a deliberate scope boundary, not an oversight: firing them
+  unrestricted turns seven plugins red on unkeyed English captions
+  (O-Bassoon/O-Bowed/O-Reed/O-Wind 39 each, O-Contrabass 46, O-ReverseDelay 6,
+  O-Marimba 5), which is a shared-module keying rollout rather than part of this
+  fix. The gate now names the modules it is not prose-scanning on every run.
+- The other 18 `preset-manager.js` consumers received the markup fix but have
+  **not** been re-versioned or rebuilt; they pick the change up on their next
+  build. Six of them remain diverged from canonical and should go through
+  `/module-upgrade` on their own schedule.
+
 ## [1.5.0] - 2026-09-05
 
 > **This release ships versions 1.2.0 through 1.5.0.** The last tagged release

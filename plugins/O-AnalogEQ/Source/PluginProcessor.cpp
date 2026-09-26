@@ -239,6 +239,19 @@ void OuariconAnalogEQAudioProcessor::prepareToPlay(double sampleRate, int sample
     hmfFilter.prepare(spec);
     hfFilter.prepare(spec);
     saturation.prepare(spec);
+
+    // WR-05: juce::dsp::Gain defaults `rampDurationSeconds = 0`, and reset() then calls
+    // gain.reset(sampleRate, 0) — a SmoothedValue with zero steps to target, so
+    // setGainDecibels JUMPS. The v1.1.9 smoothing work (WR-02) covered the eight band
+    // frequency/gain values and left this one gain stage stepping per block: loading a
+    // preset whose output_gain differs (Default 0.5 -> Surgical Cut 0.542, i.e.
+    // 0 dB -> +1.008 dB, ~12% linear) clicked in a single sample while every band
+    // around it ramped over 30 ms. Host automation of Output Gain zippered for the
+    // same reason.
+    // Order matters: setRampDurationSeconds() calls reset() internally, which no-ops
+    // while sampleRate is still 0 — so set the duration FIRST and let prepare()'s own
+    // reset() pick it up with the real sample rate.
+    outputGain.setRampDurationSeconds(static_cast<double>(kSmoothingSeconds));
     outputGain.prepare(spec);
 
     lfFilter.reset();
@@ -268,10 +281,45 @@ void OuariconAnalogEQAudioProcessor::prepareToPlay(double sampleRate, int sample
     hfFreqSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hf_freq")->load());
     hfGainSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hf_gain")->load());
 
+    // WR-06: configure the four band wet/dry mix smoothers over the same 30 ms ramp,
+    // then seed each to the band's CURRENT on/off state. Seeding matters: without it
+    // every enabled band would fade in from silence on the first blocks after load,
+    // which is a new artefact rather than a fix.
+    for (auto* sm : { &lfMixSm, &lmfMixSm, &hmfMixSm, &hfMixSm })
+        sm->reset(sampleRate, static_cast<double>(kSmoothingSeconds));
+
+    lfMixSm.setCurrentAndTargetValue (parameters.getRawParameterValue("lf_on")->load()  > 0.5f ? 1.0f : 0.0f);
+    lmfMixSm.setCurrentAndTargetValue(parameters.getRawParameterValue("lmf_on")->load() > 0.5f ? 1.0f : 0.0f);
+    hmfMixSm.setCurrentAndTargetValue(parameters.getRawParameterValue("hmf_on")->load() > 0.5f ? 1.0f : 0.0f);
+    hfMixSm.setCurrentAndTargetValue (parameters.getRawParameterValue("hf_on")->load()  > 0.5f ? 1.0f : 0.0f);
+
+    // Wet scratch for the crossfade. Sized from the prepared channel count and block
+    // size so processBlock never allocates; processBlock additionally slices against
+    // this length, so a host that hands us a longer block than it promised cannot
+    // overrun it.
+    scratch.setSize(juce::jmax(1, static_cast<int>(spec.numChannels)),
+                    juce::jmax(1, samplesPerBlock),
+                    false, true, false);
+    scratch.clear();
+
     // Force a coefficient (re)build on the first block after prepare (also covers a
     // sample-rate change); Q sentinels reset so the first block rebuilds the bells too.
     lastLmfQ = lastHmfQ = -1;
     coeffsInitialised = false;
+}
+
+// CR-02: see the declaration in PluginProcessor.h for the crash this closes.
+// Mono and stereo are both accepted (the DSP is channel-count agnostic once the
+// filter count matches the buffer width), but only symmetrically — an asymmetric
+// negotiation is what breaks the ProcessorDuplicator/buffer-width invariant.
+bool OuariconAnalogEQAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    const auto& out = layouts.getMainOutputChannelSet();
+
+    if (out != juce::AudioChannelSet::mono() && out != juce::AudioChannelSet::stereo())
+        return false;
+
+    return layouts.getMainInputChannelSet() == out;
 }
 
 void OuariconAnalogEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -333,37 +381,129 @@ void OuariconAnalogEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     const bool hmfMoving = force || hmfQChanged || hmfFreqSm.isSmoothing() || hmfGainSm.isSmoothing();
     const bool hfMoving  = force || hfFreqSm.isSmoothing()  || hfGainSm.isSmoothing();
 
+    // WR-06: feed the band mix smoothers from the on/off booleans. The filters run
+    // unconditionally from here on; these ramps decide how much of each band's output
+    // is heard, which is what turns a hard branch into a 30 ms crossfade.
+    lfMixSm.setTargetValue (lfOn  ? 1.0f : 0.0f);
+    lmfMixSm.setTargetValue(lmfOn ? 1.0f : 0.0f);
+    hmfMixSm.setTargetValue(hmfOn ? 1.0f : 0.0f);
+    hfMixSm.setTargetValue (hfOn  ? 1.0f : 0.0f);
+
     // Process audio: LF -> LMF -> HMF -> HF -> Saturation -> Output Gain
+    //
+    // The chain is clamped to the channel count the duplicators were actually prepared
+    // with. CR-02's layout override already makes buffer width == prepared filter count,
+    // so this clamp is unreachable; it stays as defence in depth because a buffer's
+    // width is max(totalIn, totalOut) and therefore says nothing on its own about how
+    // many output channels exist (pattern_stereo_in_mono_out_buffer_width_lies).
+    const size_t preparedChannels = static_cast<size_t>(juce::jmax(0, scratch.getNumChannels()));
+    const size_t usableChannels   = juce::jmin(static_cast<size_t>(buffer.getNumChannels()),
+                                               juce::jmin(preparedChannels, kMaxChannels));
+
     juce::dsp::AudioBlock<float> block(buffer);
+    juce::dsp::AudioBlock<float> scratchBlock(scratch);
+
+    if (usableChannels == 0)
+        return;
+
+    block        = block.getSubsetChannelBlock(0, usableChannels);
+    scratchBlock = scratchBlock.getSubsetChannelBlock(0, usableChannels);
+
+    // WR-06: run one band over `sub`, honouring its wet/dry ramp. Three paths, and the
+    // middle one is the finding's real fix:
+    //   m == 1, settled -> filter IN PLACE. Identical cost to the old `if (lfOn)` branch,
+    //                      so the overwhelmingly common case pays nothing for the fix.
+    //   m == 0, settled -> filter into scratch and DISCARD the samples. The band is
+    //                      inaudible, but its z-1/z-2 keep tracking the signal, so the
+    //                      next rising edge has nothing stale to convolve in.
+    //   otherwise       -> filter into scratch, then blend per sample. Dry and wet are
+    //                      strongly correlated (wet IS dry, filtered), so they sum
+    //                      coherently and a linear amplitude fade is the equal-GAIN
+    //                      choice here — an equal-power (sqrt) pair would bulge.
+    auto runBand = [&](StereoFilter& filter, SmoothedFloat& mixSm,
+                       juce::dsp::AudioBlock<float>& sub)
+    {
+        const size_t len = sub.getNumSamples();
+        const size_t nch = sub.getNumChannels();
+
+        if (! mixSm.isSmoothing())
+        {
+            const float settled = mixSm.getCurrentValue();
+
+            if (settled >= 1.0f)
+            {
+                juce::dsp::ProcessContextReplacing<float> ctx(sub);
+                filter.process(ctx);
+                return;
+            }
+
+            if (settled <= 0.0f)
+            {
+                auto wet = scratchBlock.getSubBlock(0, len);
+                juce::dsp::ProcessContextNonReplacing<float> ctx(sub, wet);
+                filter.process(ctx);
+                return;
+            }
+        }
+
+        auto wet = scratchBlock.getSubBlock(0, len);
+        juce::dsp::ProcessContextNonReplacing<float> ctx(sub, wet);
+        filter.process(ctx);
+
+        // Sample-outer, channel-inner: the ramp is advanced ONCE per sample so every
+        // channel sees the same mix. Advancing it per channel would run the fade nch
+        // times too fast and decorrelate L from R.
+        float* dryWrite[kMaxChannels] {};
+        const float* wetRead[kMaxChannels] {};
+
+        for (size_t ch = 0; ch < nch; ++ch)
+        {
+            dryWrite[ch] = sub.getChannelPointer(ch);
+            wetRead[ch]  = wet.getChannelPointer(ch);
+        }
+
+        for (size_t i = 0; i < len; ++i)
+        {
+            const float m   = mixSm.getNextValue();
+            const float dry = 1.0f - m;
+
+            for (size_t ch = 0; ch < nch; ++ch)
+                dryWrite[ch][i] = dryWrite[ch][i] * dry + wetRead[ch][i] * m;
+        }
+    };
 
     auto processChunk = [&](size_t start, size_t len)
     {
         auto sub = block.getSubBlock(start, len);
+
+        runBand(lfFilter,  lfMixSm,  sub);
+        runBand(lmfFilter, lmfMixSm, sub);
+        runBand(hmfFilter, hmfMixSm, sub);
+        runBand(hfFilter,  hfMixSm,  sub);
+
         juce::dsp::ProcessContextReplacing<float> context(sub);
-
-        if (lfOn)  lfFilter.process(context);
-        if (lmfOn) lmfFilter.process(context);
-        if (hmfOn) hmfFilter.process(context);
-        if (hfOn)  hfFilter.process(context);
-
         if (analogOn) saturation.process(context);
         outputGain.process(context);
     };
 
-    const int numSamples = buffer.getNumSamples();
+    const int numSamples   = buffer.getNumSamples();
+    const bool coeffsMoving = (lfMoving || lmfMoving || hmfMoving || hfMoving);
 
-    if (! (lfMoving || lmfMoving || hmfMoving || hfMoving))
+    // Chunk granularity. Coefficient rebuilds need kSmoothingBlock; when nothing is
+    // moving the whole block still goes in one pass, preserving CR-01's steady-state
+    // path. Either way the chunk never exceeds the scratch length, so a host handing us
+    // a longer block than it promised in prepareToPlay cannot overrun it. The mix
+    // crossfade imposes no granularity of its own — it ramps per sample inside runBand.
+    const int scratchLen = juce::jmax(1, scratch.getNumSamples());
+    const int chunkLen   = coeffsMoving ? juce::jmin(kSmoothingBlock, scratchLen)
+                                        : scratchLen;
+
+    for (int pos = 0; pos < numSamples; pos += chunkLen)
     {
-        // Steady state: coefficients unchanged, run the whole block in a single pass.
-        if (numSamples > 0)
-            processChunk(0, static_cast<size_t>(numSamples));
-    }
-    else
-    {
-        for (int pos = 0; pos < numSamples; pos += kSmoothingBlock)
+        const int n = juce::jmin(chunkLen, numSamples - pos);
+
+        if (coeffsMoving)
         {
-            const int n = juce::jmin(kSmoothingBlock, numSamples - pos);
-
             // Advance moving bands and rebuild from the end-of-chunk value (skip()
             // returns the exact target on the final ramp chunk, so no residual offset).
             if (lfMoving)
@@ -378,9 +518,9 @@ void OuariconAnalogEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
             if (hfMoving)
                 *hfFilter.state = ArrayCoeffs::makeHighShelf(
                     currentSampleRate, clampFreq(hfFreqSm.skip(n)), 0.707f, dBtoGain(hfGainSm.skip(n)));
-
-            processChunk(static_cast<size_t>(pos), static_cast<size_t>(n));
         }
+
+        processChunk(static_cast<size_t>(pos), static_cast<size_t>(n));
     }
 
     if (numSamples > 0)

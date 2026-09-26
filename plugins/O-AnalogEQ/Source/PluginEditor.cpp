@@ -127,11 +127,27 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
                             return;
                         }
                         auto file = results.getFirst();
-                        auto presetName = file.getFileNameWithoutExtension();
-                        bool success = safeThis->audioProcessor.presetManager.savePreset(presetName);
+                        // WR-07: this used to take the user's chosen juce::File, throw away
+                        // everything but its base name, and call savePreset(name) — which
+                        // always writes to getUserPresetsDirectory(), never to the chosen
+                        // path. A "Save to ~/Desktop" reported success, updated the name
+                        // display, and left no file on the Desktop; worse, choosing
+                        // ~/Desktop/Default.json silently OVERWROTE the user preset
+                        // "Default" in the library directory the user never navigated to.
+                        // savePresetToFile() is the arbitrary-path API (preset-manager
+                        // v1.0.8) and handles the .json extension and parent-directory
+                        // creation itself. loadPresetFromFile below already used its
+                        // counterpart correctly — save and load were simply asymmetric.
+                        bool success = safeThis->audioProcessor.presetManager.savePresetToFile(file);
+                        // Report the name that actually landed on disk rather than
+                        // re-deriving it: savePresetToFile sets currentPresetName from the
+                        // resolved target, after any extension fixup.
+                        auto presetName = success
+                            ? safeThis->audioProcessor.presetManager.getCurrentPresetName()
+                            : juce::String();
                         auto* result = new juce::DynamicObject();
                         result->setProperty("success", success);
-                        result->setProperty("name", success ? presetName : juce::String());
+                        result->setProperty("name", presetName);
                         complete(juce::var(result));
                     }
                 );

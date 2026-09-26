@@ -41,6 +41,18 @@ public:
     void releaseResources() override {}
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
+    // CR-02: the base implementation returns true for EVERY layout the wrappers
+    // enumerate, including asymmetric ones, even though BusesProperties declares
+    // stereo/stereo. A host that negotiated 2 in / 1 out would prepare the four
+    // ProcessorDuplicators with spec.numChannels = 1 (one mono filter each) while
+    // JUCE sized the buffer at max(in, out) = 2 — and ProcessorDuplicator::process
+    // loops jmin(inCh, outCh) = 2, so processors[1] is an out-of-range OwnedArray
+    // read returning nullptr, dereferenced on the audio thread. Its two jasserts are
+    // debug-only, so Release crashes at the first block.
+    // Refusing the asymmetric negotiation outright is what closes it: buffer width
+    // then always equals the prepared filter count.
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
+
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
@@ -120,8 +132,35 @@ private:
     SmoothedFloat hmfFreqSm, hmfGainSm;
     SmoothedFloat hfFreqSm,  hfGainSm;
 
+    // WR-06: band on/off used to be a raw `if (lfOn) lfFilter.process(...)` branch.
+    // That had two defects, and smoothing frequency/gain (WR-02) fixed neither:
+    //   1. the falling edge removed a whole shelf between one block and the next —
+    //      an instantaneous spectral change, audible as a click, fully automatable;
+    //   2. the rising edge was worse — a bypassed band was neither fed nor reset, so
+    //      its biquad z-1/z-2 held samples from whenever it was switched off (possibly
+    //      minutes earlier, at an unrelated level) and re-enabling convolved them into
+    //      the current signal as an impulse-like burst.
+    // The fix is one mechanism for both: each band carries a wet/dry mix smoother, and
+    // the filter runs UNCONDITIONALLY. A band that is always fed can never hold stale
+    // state, so (2) disappears as a side effect of fixing (1). An off band's output is
+    // computed into `scratch` and discarded — it is the filter STATE that must stay
+    // current, not the samples.
+    SmoothedFloat lfMixSm, lmfMixSm, hmfMixSm, hfMixSm;
+
+    // Wet destination for the non-replacing filter pass. Sized in prepareToPlay, so
+    // the crossfade allocates nothing on the audio thread. Only used when a band is
+    // mid-fade or fully off; a steady fully-on band still filters in place, which keeps
+    // the common path exactly as cheap as the old branch was.
+    juce::AudioBuffer<float> scratch;
+
     int lastLmfQ = -1, lastHmfQ = -1;   // discrete Q — recompute only on change
     bool coeffsInitialised = false;     // force first coefficient build after prepareToPlay
+
+    // WR-06: the crossfade hoists one dry and one wet channel pointer per channel into
+    // fixed-size locals, so it needs a compile-time ceiling. CR-02's layout override
+    // accepts only mono or stereo, which makes 2 the true maximum; the static_assert in
+    // processBlock keeps the two facts from drifting apart.
+    static constexpr size_t kMaxChannels = 2;
 
     static constexpr int   kSmoothingBlock   = 32;    // coefficient update granularity (samples)
     static constexpr float kSmoothingSeconds = 0.03f; // 30 ms parameter ramp

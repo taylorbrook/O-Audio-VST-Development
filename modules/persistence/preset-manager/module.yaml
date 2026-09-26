@@ -2,7 +2,7 @@
 # JSON-based preset persistence for Ouaricon plugins
 
 name: preset-manager
-version: 1.0.8
+version: 1.0.9
 description: |
   JSON-based preset persistence with factory/user preset separation.
   Supports APVTS parameter serialization, navigation (next/previous),
@@ -71,6 +71,10 @@ used_by:
     version: 1.0.0
 
 changelog:
+  - version: 1.0.9
+    date: 2026-09-25
+    changes:
+      - "O-AnalogEQ v1.5.1 code review (WR-10): createPresetBar()'s markup template carried four hardcoded English title= attributes (Previous preset / Next preset / Load preset from file / Save preset), replaced with aria-label. A native title draws a SECOND, OS-rendered tooltip in a language unrelated to the page's, competing with the measure-then-pin tooltip renderers the suite's plugins build — the i18n contract §4 case. They went unnoticed because check-i18n's JS scan only read the inline <script type=\"module\"> in index.html and never the served modules, so assertion [11]'s 'zero native title= remain' described one file while claiming to describe the page; that scan is widened in the same change. MARKUP-ONLY and only inside the createPresetBar factory — consumers that construct `new PresetManager({...})` directly (most of them, incl. O-AnalogEQ) render no preset bar from this template and are behaviourally unaffected"
   - version: 1.0.8
     date: 2026-09-24
     changes:
