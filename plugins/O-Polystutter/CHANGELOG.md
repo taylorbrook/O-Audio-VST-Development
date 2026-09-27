@@ -2,6 +2,85 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.16.0] — 2026-09-27
+
+UI pass R4/R5 from review 260924-nho: palette tokens, a paper wash, AA text
+inks, the 9px floor and the bundled EB Garamond face. MINOR because the colour,
+face and sizes visibly change. There is no DSP, parameter, range, state-format
+or i18n-key change. The bespoke rotate knob's interaction JS is untouched (its
+colours moved to tokens), so keyboard/ARIA knobs (R7) remain open.
+
+### Changed
+
+- **Palette tokens (R4).** The page `<style>` had 0 custom properties and 98
+  hex literals. It now has a `:root` block, and no hex literal remains outside
+  it. Palette washes use `rgba(var(--x-rgb), a)`. Black/white shadows stay
+  literal. No JS file carried a colour.
+- **Paper wash.** `.plugin-frame` lays `--paper` at 0.40 over
+  `paper-background.jpg`. The bare JPG renders at a median of `#C3975F`
+  (L≈0.34) with stains near 0.25. On that ground even `--ink` fell below 4.5:1,
+  and the DROPOUT readout read 1.09:1. `background-color` is now the washed
+  median `--paper-ground #D7B78D` instead of `#F5E6D3`. It is invisible under
+  the image, and it is what `measure-ui --contrast` scores against.
+- **Tape-section panel.** It gets a 0.40 paper wash, the same device the
+  sequencer section has carried at 0.3, plus an inset 1px leaf hairline where
+  the sequencer has its border. The bottom band is the most stained part of the
+  paper: DROPOUT read 2.93:1 under the page wash alone and 4.48:1 at 0.3.
+- **AA inks** (from `ouaricon-naturalist-001`):
+  - Cream text sits only on opaque fills. Idle walnut (lane headers, preset
+    `< > SAVE LOAD`, factory badge) moves to `--walnut-fill #6A5641`. The
+    preset buttons were walnut at 0.7, which let the paper through (2.3–3.2:1).
+    Engaged sage (the six `.active`/`aria-pressed` toggle rules, active lane
+    header, open gear, preset-button hover) moves to `--leaf-fill #4E6839`
+    (3.06 → 5.10:1).
+  - Idle toggles and the gear move from walnut at 0.3 / 0.5 to opaque
+    pre-composited `--toggle-off #D5C4AD` / `--gear-off #C0AD94`, where the
+    stains had put ink at 3.8–4.2:1 on MIDI, TRIG, BYPASS, SEQ and the gear.
+  - SUBDIV: `--ink` on the unchanged moss circle (cream read 2.16:1).
+  - The preset-row delete ✕ moves to `--text-muted`.
+  - `--walnut` and `--leaf` stay for borders, rings, progress and focus.
+- **9px floor.** The mini-knob MIN/MAX captions go 7 → 9px (same 10px box) and
+  their readouts 8 → 9px (same 12px box). The PING/REV/MAN, RND/ST (24 inline
+  `font-size: 8px`), EUC toggles, PULSES/STEPS headers and factory badge go
+  8 → 9px. The last two are at `line-height: 1` in every language, which keeps
+  their 9px content box, so their zh pins now read 1. The preset ▼ caret stays
+  8px as an icon and is `aria-hidden`.
+- **Bundled EB Garamond (R5).** `modules/ui/eb-garamond` is direct-embedded: 4
+  SOURCES in `OPolystutter_UIResources` and 4 `url ==` `getResource` branches.
+  The stylesheet is linked before the page `<style>`. `--font-serif` replaces
+  the six `'Garamond'`/Times stacks and the gear's Georgia stack. The `< >`
+  preset arrows keep Arial through `--font-icon`, since they are glyph icons.
+  EB Garamond's default figures are lining, so readouts need no
+  `font-variant` change.
+
+### Fixed
+
+- **A disabled lane's LANE N button was unreadable** (1.35–3.06:1). The dim was
+  `opacity: 0.4` on `.lane-container`, and the header's own `opacity: 1`
+  override (v1.0.2) could never escape a parent's opacity. The dim now sits on
+  the container's children, minus the header. The bug plate (0.2) and an
+  inactive progress bar (0.12) keep their old effective opacities, and the
+  300ms fade is kept for everything but the toggles, which keep their own
+  100ms transition.
+- Removed an orphaned `} 50% { … } }` keyframe fragment. It had turned the
+  following `.step-button.current-step` rule into an invalid selector.
+  `current-step` is never set by any script, so nothing renders differently.
+
+### Testing
+
+- **Pixel probe**: text hidden, transitions off, 2× screenshot, worse of p5/p95
+  under each glyph band, 4 states (lanes/SEQ/tape active, all toggles
+  engaged, settings popover, preset menu) × en/fr/zh-Hans. Before (HEAD tree):
+  83/125 active text nodes below AA, min **1.09**, 38 under 9px. After:
+  **0/124**, min **4.84**, 0 under 9px.
+- **`measure-ui --contrast`**: 133/164 → 118/164 below AA per language, and
+  48 → 1 node under 9px (the aria-hidden ▼ caret). Every remaining node sits
+  inside the stub's default state, where all four lanes and the sequencer are
+  switched off and dimmed to 0.4. WCAG 1.4.3 exempts inactive UI. The lane
+  headers no longer appear in the list.
+- `check-ui-labels` (en/fr/zh-Hans): pass, 172 checks before and after.
+  `check-i18n`, `i18n-fr-lint`, `i18n-zh-lint`: pass.
+
 ## [1.15.0] — 2026-09-07
 
 Simplified Chinese. The interface now offers three languages; MINOR because a
