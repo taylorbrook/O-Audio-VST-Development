@@ -36,9 +36,14 @@ export class CurveEditor {
         this.numBands = config.numBands || 32;
         this.minFreq = 20;
         this.maxFreq = 22050; // Will be set to Nyquist in init
-        this.accentColor = config.accentColor || '#9BB877';
-        this.gridColor = 'rgba(201, 183, 154, 0.16)';
-        this.textColor = '#94816A';
+        // v1.9.0: palette read from the css/styles.css tokens, not mirrored.
+        const css = getComputedStyle(document.documentElement);
+        const token = (name) => css.getPropertyValue(name).trim();
+        this.accentColor = config.accentColor || token('--accent-attack');
+        this.gridColor = `rgba(${token('--plate-ink-rgb')}, 0.16)`;
+        this.gridColorStrong = `rgba(${token('--plate-ink-rgb')}, 0.32)`;
+        this.textColor = token('--plate-ink-dim');
+        this.font = `9px ${token('--serif')}`;
 
         // Cached log constants (used by freqToX/xToFreq every frame)
         this.logMinFreq = Math.log(this.minFreq);
@@ -63,7 +68,7 @@ export class CurveEditor {
         // Spectrum overlay data (257 FFT bins, raw magnitudes)
         this.spectrumData = null;
         this.showSpectrum = false;
-        this.spectrumColor = config.accentColor || '#9BB877';
+        this.spectrumColor = this.accentColor;
 
         // Callback for curve updates
         this.onCurveChange = null;
@@ -186,7 +191,7 @@ export class CurveEditor {
     drawGrid() {
         this.ctx.strokeStyle = this.gridColor;
         this.ctx.lineWidth = 1;
-        this.ctx.font = "9px Garamond, 'Times New Roman', serif";
+        this.ctx.font = this.font;
         this.ctx.fillStyle = this.textColor;
 
         // Vertical grid lines (frequency markers)
@@ -225,7 +230,7 @@ export class CurveEditor {
 
         // Center line (0dB) emphasis
         const centerY = this.gainToY(0.0);
-        this.ctx.strokeStyle = 'rgba(201, 183, 154, 0.32)';
+        this.ctx.strokeStyle = this.gridColorStrong;
         this.ctx.lineWidth = 1;
         this.ctx.beginPath();
         this.ctx.moveTo(0, centerY);

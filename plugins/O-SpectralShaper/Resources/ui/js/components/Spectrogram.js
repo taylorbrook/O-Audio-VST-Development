@@ -437,10 +437,13 @@ export class Spectrogram {
         // Chinese document language is already resolved to a Chinese face and a
         // tail written after it is never consulted.
         const lang = document.documentElement.lang || 'en';
-        this.ctx.fillStyle = '#1C1712';
+        // v1.9.0: colours and face read from the css/styles.css tokens.
+        const css = getComputedStyle(document.documentElement);
+        const token = (name) => css.getPropertyValue(name).trim();
+        this.ctx.fillStyle = token('--plate');
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.fillStyle = '#C9B79A';
-        this.ctx.font = "14px Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif";
+        this.ctx.fillStyle = token('--plate-ink');
+        this.ctx.font = `14px ${token('--serif')}`;
         this.ctx.textAlign = 'center';
         this.ctx.fillText(tr('canvas.webglUnsupported', lang).t,
                           this.canvas.width / 2, this.canvas.height / 2);

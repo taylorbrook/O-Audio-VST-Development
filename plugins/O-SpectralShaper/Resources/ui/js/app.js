@@ -39,10 +39,13 @@ import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './i18n.js';
 
 // Curve accents, Ouaricon Naturalist palette. Earth tones chosen to stay
 // legible against the dark specimen plate the curve editors are drawn on.
-// Mirrors --accent-attack / --accent-sustain in css/styles.css.
+// v1.9.0: READ from --accent-attack / --accent-sustain in css/styles.css rather
+// than mirrored here, so the palette has one source. The stylesheet is linked
+// in <head> and this module is deferred, so the tokens resolve at load.
+const rootStyle = getComputedStyle(document.documentElement);
 const ACCENT_COLORS = {
-    attack: '#9BB877',  // moss
-    sustain: '#D4A257'  // ochre
+    attack: rootStyle.getPropertyValue('--accent-attack').trim(),   // moss
+    sustain: rootStyle.getPropertyValue('--accent-sustain').trim()  // ochre
 };
 
 const app = {
@@ -1097,6 +1100,15 @@ function initializeSpectrogram() {
 
     // Start render loop
     startRenderLoop();
+
+    // v1.9.0 (R5): the curve plates' frequency/dB labels are canvas text in the
+    // bundled EB Garamond. A canvas does not repaint when a webfont arrives, and
+    // the render loop only repaints a plate while it is animating, so a quiet
+    // plate would keep its first-frame fallback face. Repaint once on load.
+    document.fonts.ready.then(() => {
+        if (app.curveEditors.attack) app.curveEditors.attack.render();
+        if (app.curveEditors.sustain) app.curveEditors.sustain.render();
+    });
 }
 
 function startRenderLoop() {

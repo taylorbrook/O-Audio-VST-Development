@@ -58,17 +58,43 @@
     --plate: #1C1712;
     --plate-curve: #221C15;
     --plate-ink: #C9B79A;      /* legible warm text on plate */
-    --plate-ink-dim: #94816A;
+    --plate-ink-dim: #9C8971;  /* v1.9.0: was #94816A, 4.50:1 on --plate-curve — 5.00 now */
+
+    /* v1.9.0 (R4): AA ink for text on the bare paper image. paper-bg.webp
+       under the 0.42 cream wash, with the slug overlay behind the sidebar,
+       samples as dark as L~0.31 under a glyph band: --brown-soft read 2.39 there,
+       --ink reads >= 6. */
+    --ink: #1E1612;
+
+    /* Seed cross-section (the knob face and the toggle thumb) */
+    --seed-core: #FFF8DC;
+    --seed-light: #F5DEB3;
+    --seed-mid: #E8D5B7;
+    --seed-rim: #C9A27B;
 
     /* Curve accents — earth tones, legible on the dark plate */
     --accent-attack: #9BB877;  /* moss */
     --accent-sustain: #D4A257; /* ochre */
 
+    /* RGB triples for the translucent washes: rgba(var(--x-rgb), a) */
+    --paper-light-rgb: 250, 240, 230;
+    --paper-wash-rgb: 252, 246, 236;
+    --brown-border-rgb: 139, 115, 85;
+    --brown-frame-rgb: 92, 64, 51;
+    --brown-text-rgb: 60, 47, 47;
+    --green-light-rgb: 139, 168, 112;
+    --green-mid-rgb: 107, 142, 78;
+    --green-dark-rgb: 60, 92, 26;
+    --seed-core-rgb: 255, 248, 220;
+    --plate-ink-rgb: 201, 183, 154;
+    --accent-attack-rgb: 155, 184, 119;
+    --accent-sustain-rgb: 212, 162, 87;
+
     /* Effects */
-    --shadow-light: rgba(60, 47, 47, 0.16);
-    --shadow-medium: rgba(60, 47, 47, 0.28);
+    --shadow-light: rgba(var(--brown-text-rgb), 0.16);
+    --shadow-medium: rgba(var(--brown-text-rgb), 0.28);
     --text-emboss: rgba(255, 250, 240, 0.55);
-    --fleuron: rgba(92, 64, 51, 0.32);
+    --fleuron: rgba(var(--brown-frame-rgb), 0.32);
 
     /* ONE TOKEN, TWELVE DECLARATIONS. Every font-family on this page resolves
        through --serif, so the CJK tail lands exactly once. It goes BEFORE the
@@ -76,14 +102,15 @@
        document's lang, so under zh-Hans the generic is ALREADY a Chinese face
        and a tail written after it is never consulted — and the page still
        looks right on macOS, which is what makes that mistake survive review.
-       No face had to be named here: of the four Latin families listed, only
-       Times New Roman is installed on the build machine (measured with
-       system_profiler SPFontsDataType — Garamond 0, EB Garamond 0, Adobe
-       Garamond Pro 0, Times New Roman 4), and one installed face before the
-       generic is all the Latin half needs. Note that the type token is named
-       for the typeface ROLE and not for the word `font`, so a screen greping
-       for a custom property containing `font` does not find it. */
-    --serif: 'Garamond', 'EB Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+       v1.9.0 (R5): 'EB Garamond' is now BUNDLED (modules/ui/eb-garamond, served
+       at /css/eb-garamond.css) and leads the stack; its Times vertical metrics
+       are baked in, so line boxes do not move. The bare 'Garamond' entry is
+       gone — left ahead of the bundled face it would let an Office-installed
+       Windows Garamond win — and Georgia goes before Times so a missing woff2
+       degrades to one predictable face. The canvas labels (CurveEditor,
+       Spectrogram) read this token too. Named for the typeface ROLE, not the
+       word `font`, so a screen greping for `font` custom properties misses it. */
+    --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 /* ============================================================================
@@ -108,7 +135,7 @@ html, body {
     /* Aged paper ground: a cream wash over the paper grain */
     background-color: var(--paper-mid);
     background-image:
-        linear-gradient(rgba(252, 246, 236, 0.42), rgba(252, 246, 236, 0.42)),
+        linear-gradient(rgba(var(--paper-wash-rgb), 0.42), rgba(var(--paper-wash-rgb), 0.42)),
         url('/images/paper-bg.webp');
     background-size: cover;
     background-position: center;
@@ -123,7 +150,7 @@ body::before {
     left: 0;
     width: 700px;
     height: 500px;
-    box-shadow: inset 0 0 46px rgba(92, 64, 51, 0.20);
+    box-shadow: inset 0 0 46px rgba(var(--brown-frame-rgb), 0.20);
     pointer-events: none;
     z-index: 1;
 }
@@ -169,7 +196,7 @@ body::after {
     align-items: center;
     justify-content: space-between;
     padding: 0 12px;
-    border-bottom: 1px solid rgba(139, 115, 85, 0.45);
+    border-bottom: 1px solid rgba(var(--brown-border-rgb), 0.45);
 }
 
 .header h1 {
@@ -194,7 +221,7 @@ body::after {
 .header .version {
     font-size: 11px;
     letter-spacing: 1px;
-    color: var(--brown-border);
+    color: var(--brown-text);   /* v1.9.0: walnut read 2.12:1 on the paper image */
     text-shadow: 1px 1px 2px var(--text-emboss);
 }
 
@@ -217,18 +244,18 @@ body::after {
     letter-spacing: 0.5px;
     color: var(--brown-text);
     padding: 3px 8px;
-    background: rgba(250, 240, 230, 0.55);
-    border: 1px solid rgba(139, 115, 85, 0.50);
+    background: rgba(var(--paper-light-rgb), 0.55);
+    border: 1px solid rgba(var(--brown-border-rgb), 0.50);
     border-radius: 3px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: pointer;
-    box-shadow: inset 1px 1px 2px rgba(92, 64, 51, 0.12);
+    box-shadow: inset 1px 1px 2px rgba(var(--brown-frame-rgb), 0.12);
 }
 
 .preset-name:hover {
-    background: rgba(139, 168, 112, 0.28);
+    background: rgba(var(--green-light-rgb), 0.28);
     border-color: var(--green-dark);
 }
 
@@ -273,11 +300,11 @@ body::after {
     text-transform: uppercase;
     color: var(--green-darkest);
     background: var(--paper-accent);   /* opaque — sticky header requirement */
-    border-bottom: 1px solid rgba(139, 115, 85, 0.45);
+    border-bottom: 1px solid rgba(var(--brown-border-rgb), 0.45);
 }
 
 .preset-menu-category:not(:first-child) {
-    border-top: 1px solid rgba(139, 115, 85, 0.45);
+    border-top: 1px solid rgba(var(--brown-border-rgb), 0.45);
 }
 
 .preset-menu-item {
@@ -292,11 +319,11 @@ body::after {
 }
 
 .preset-menu-item:hover {
-    background: rgba(139, 168, 112, 0.28);
+    background: rgba(var(--green-light-rgb), 0.28);
 }
 
 .preset-menu-item.active {
-    background: rgba(107, 142, 78, 0.42);
+    background: rgba(var(--green-mid-rgb), 0.42);
     color: var(--green-darkest);
     font-weight: 600;
 }
@@ -309,8 +336,8 @@ body::after {
     text-align: center;
     padding: 0;
     color: var(--brown-frame);
-    background: rgba(250, 240, 230, 0.50);
-    border: 1px solid rgba(139, 115, 85, 0.50);
+    background: rgba(var(--paper-light-rgb), 0.50);
+    border: 1px solid rgba(var(--brown-border-rgb), 0.50);
     border-radius: 3px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -318,7 +345,7 @@ body::after {
 }
 
 .preset-nav-btn:hover {
-    background: rgba(139, 168, 112, 0.28);
+    background: rgba(var(--green-light-rgb), 0.28);
     border-color: var(--green-dark);
     transform: translateY(-1px);
     box-shadow: 1px 2px 4px var(--shadow-light);
@@ -326,7 +353,7 @@ body::after {
 
 .preset-nav-btn:active {
     transform: translateY(0);
-    background: rgba(107, 142, 78, 0.42);
+    background: rgba(var(--green-mid-rgb), 0.42);
 }
 
 .preset-action-btn {
@@ -336,7 +363,7 @@ body::after {
     font-family: var(--serif);
     letter-spacing: 0.8px;
     color: var(--green-darkest);
-    background: rgba(139, 168, 112, 0.26);
+    background: rgba(var(--green-light-rgb), 0.26);
     border: 1px solid var(--green-dark);
     border-radius: 4px;
     cursor: pointer;
@@ -345,7 +372,7 @@ body::after {
 }
 
 .preset-action-btn:hover {
-    background: rgba(107, 142, 78, 0.50);
+    background: rgba(var(--green-mid-rgb), 0.50);
     border-color: var(--green-darkest);
     transform: translateY(-1px);
     box-shadow: 1px 2px 4px var(--shadow-light);
@@ -525,8 +552,8 @@ body::after {
     letter-spacing: 0.8px;
     text-transform: uppercase;
     color: var(--paper-light);
-    background: rgba(139, 168, 112, 0.20);
-    border: 1px solid rgba(155, 184, 119, 0.55);
+    background: rgba(var(--green-light-rgb), 0.20);
+    border: 1px solid rgba(var(--accent-attack-rgb), 0.55);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -536,10 +563,15 @@ body::after {
    English rendered widths (75.92 / 53.52 / 76.41 px). The mode toggle's pin
    covers all FOUR of its faces — Freehand, Node, Libre, Points — so the row no
    longer jumps 26px when the mode is switched, which it did in English through
-   v1.6.2. */
-.curve-spectrum-btn { min-width: 75.92px; }
+   v1.6.2.
+   v1.9.0 (R5) re-measured in the bundled EB Garamond: SPECTRUM came in at 76.22
+   and FREEHAND at 77.02, past their Times pins, so the English row grew 0.9px
+   and check-ui-labels saw undo/redo shift 0.6px against fr/zh-Hans. Re-pinned to
+   the new English widths; RESET (52.80) still sits under its 53.52 pin, which is
+   kept so the row's other edges do not move. */
+.curve-spectrum-btn { min-width: 76.22px; }
 .curve-reset-btn    { min-width: 53.52px; }
-.curve-mode-toggle  { min-width: 76.41px; }
+.curve-mode-toggle  { min-width: 77.02px; }
 
 .curve-undo-btn,
 .curve-redo-btn {
@@ -555,7 +587,7 @@ body::after {
 .curve-reset-btn:hover,
 .curve-undo-btn:hover:not(:disabled),
 .curve-redo-btn:hover:not(:disabled) {
-    background: rgba(139, 168, 112, 0.42);
+    background: rgba(var(--green-light-rgb), 0.42);
     border-color: var(--green-light);
     transform: translateY(-1px);
     box-shadow: 1px 2px 5px rgba(0, 0, 0, 0.35);
@@ -567,25 +599,33 @@ body::after {
 .curve-undo-btn:active:not(:disabled),
 .curve-redo-btn:active:not(:disabled) {
     transform: translateY(0);
-    background: rgba(107, 142, 78, 0.55);
+    background: rgba(var(--green-mid-rgb), 0.55);
 }
 
-/* Spectrum toggle active state — accent per plate */
+/* Spectrum toggle active state — accent per plate, INVERTED: the accent is the
+   fill and the plate is the ink. v1.9.0: accent text over a 0.30 accent tint
+   read 4.05:1; plate on moss reads 7.64, plate on ochre 7.31, and the lit chip
+   is a far louder "on" than the tint was. */
 .attack-curve-container .curve-spectrum-btn.active {
-    background: rgba(155, 184, 119, 0.30);
+    background: var(--accent-attack);
     border-color: var(--accent-attack);
-    color: var(--accent-attack);
+    color: var(--plate-curve);
 }
 
 .sustain-curve-container .curve-spectrum-btn.active {
-    background: rgba(212, 162, 87, 0.28);
+    background: var(--accent-sustain);
     border-color: var(--accent-sustain);
-    color: var(--accent-sustain);
+    color: var(--plate-curve);
 }
 
+/* v1.9.0: disabled is a COLOUR, not opacity. opacity 0.28 read 2.38:1; the dim
+   ink on the bare plate reads 5.00, and enabled (paper-light on the tint, 10.6)
+   stays clearly brighter — the state is carried by fill + ink, not by fading. */
 .curve-undo-btn:disabled,
 .curve-redo-btn:disabled {
-    opacity: 0.28;
+    color: var(--plate-ink-dim);
+    background: transparent;
+    border-color: rgba(var(--plate-ink-rgb), 0.28);
     cursor: default;
 }
 
@@ -605,8 +645,8 @@ body::after {
     gap: 10px 4px;
     padding: 10px 8px;
     /* Translucent so the specimen shows through behind the controls */
-    background: rgba(250, 240, 230, 0.14);
-    border: 1px solid rgba(139, 115, 85, 0.42);
+    background: rgba(var(--paper-light-rgb), 0.14);
+    border: 1px solid rgba(var(--brown-border-rgb), 0.42);
     border-radius: 3px;
 }
 
@@ -645,55 +685,55 @@ body::after {
     position: relative;
     background:
         /* centre core */
-        radial-gradient(circle at 50% 50%, #FFF8DC 0%, #FFF8DC 20%, transparent 20%),
+        radial-gradient(circle at 50% 50%, var(--seed-core) 0%, var(--seed-core) 20%, transparent 20%),
         /* outer ring */
-        radial-gradient(circle at 50% 50%, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+        radial-gradient(circle at 50% 50%, transparent 88%, var(--seed-rim) 88%, var(--seed-rim) 92%, var(--brown-border) 92%, var(--brown-border) 94%, transparent 94%),
         /* radial segments */
         conic-gradient(from 0deg,
-            #F5DEB3 0deg, #F5DEB3 17deg,
-            #8B7355 17deg, #8B7355 18deg,
-            #E8D5B7 18deg, #E8D5B7 35deg,
-            #8B7355 35deg, #8B7355 36deg,
-            #F5DEB3 36deg, #F5DEB3 53deg,
-            #8B7355 53deg, #8B7355 54deg,
-            #E8D5B7 54deg, #E8D5B7 71deg,
-            #8B7355 71deg, #8B7355 72deg,
-            #F5DEB3 72deg, #F5DEB3 89deg,
-            #8B7355 89deg, #8B7355 90deg,
-            #E8D5B7 90deg, #E8D5B7 107deg,
-            #8B7355 107deg, #8B7355 108deg,
-            #F5DEB3 108deg, #F5DEB3 125deg,
-            #8B7355 125deg, #8B7355 126deg,
-            #E8D5B7 126deg, #E8D5B7 143deg,
-            #8B7355 143deg, #8B7355 144deg,
-            #F5DEB3 144deg, #F5DEB3 161deg,
-            #8B7355 161deg, #8B7355 162deg,
-            #E8D5B7 162deg, #E8D5B7 179deg,
-            #8B7355 179deg, #8B7355 180deg,
-            #F5DEB3 180deg, #F5DEB3 197deg,
-            #8B7355 197deg, #8B7355 198deg,
-            #E8D5B7 198deg, #E8D5B7 215deg,
-            #8B7355 215deg, #8B7355 216deg,
-            #F5DEB3 216deg, #F5DEB3 233deg,
-            #8B7355 233deg, #8B7355 234deg,
-            #E8D5B7 234deg, #E8D5B7 251deg,
-            #8B7355 251deg, #8B7355 252deg,
-            #F5DEB3 252deg, #F5DEB3 269deg,
-            #8B7355 269deg, #8B7355 270deg,
-            #E8D5B7 270deg, #E8D5B7 287deg,
-            #8B7355 287deg, #8B7355 288deg,
-            #F5DEB3 288deg, #F5DEB3 305deg,
-            #8B7355 305deg, #8B7355 306deg,
-            #E8D5B7 306deg, #E8D5B7 323deg,
-            #8B7355 323deg, #8B7355 324deg,
-            #F5DEB3 324deg, #F5DEB3 341deg,
-            #8B7355 341deg, #8B7355 342deg,
-            #E8D5B7 342deg, #E8D5B7 359deg,
-            #8B7355 359deg, #8B7355 360deg
+            var(--seed-light) 0deg, var(--seed-light) 17deg,
+            var(--brown-border) 17deg, var(--brown-border) 18deg,
+            var(--seed-mid) 18deg, var(--seed-mid) 35deg,
+            var(--brown-border) 35deg, var(--brown-border) 36deg,
+            var(--seed-light) 36deg, var(--seed-light) 53deg,
+            var(--brown-border) 53deg, var(--brown-border) 54deg,
+            var(--seed-mid) 54deg, var(--seed-mid) 71deg,
+            var(--brown-border) 71deg, var(--brown-border) 72deg,
+            var(--seed-light) 72deg, var(--seed-light) 89deg,
+            var(--brown-border) 89deg, var(--brown-border) 90deg,
+            var(--seed-mid) 90deg, var(--seed-mid) 107deg,
+            var(--brown-border) 107deg, var(--brown-border) 108deg,
+            var(--seed-light) 108deg, var(--seed-light) 125deg,
+            var(--brown-border) 125deg, var(--brown-border) 126deg,
+            var(--seed-mid) 126deg, var(--seed-mid) 143deg,
+            var(--brown-border) 143deg, var(--brown-border) 144deg,
+            var(--seed-light) 144deg, var(--seed-light) 161deg,
+            var(--brown-border) 161deg, var(--brown-border) 162deg,
+            var(--seed-mid) 162deg, var(--seed-mid) 179deg,
+            var(--brown-border) 179deg, var(--brown-border) 180deg,
+            var(--seed-light) 180deg, var(--seed-light) 197deg,
+            var(--brown-border) 197deg, var(--brown-border) 198deg,
+            var(--seed-mid) 198deg, var(--seed-mid) 215deg,
+            var(--brown-border) 215deg, var(--brown-border) 216deg,
+            var(--seed-light) 216deg, var(--seed-light) 233deg,
+            var(--brown-border) 233deg, var(--brown-border) 234deg,
+            var(--seed-mid) 234deg, var(--seed-mid) 251deg,
+            var(--brown-border) 251deg, var(--brown-border) 252deg,
+            var(--seed-light) 252deg, var(--seed-light) 269deg,
+            var(--brown-border) 269deg, var(--brown-border) 270deg,
+            var(--seed-mid) 270deg, var(--seed-mid) 287deg,
+            var(--brown-border) 287deg, var(--brown-border) 288deg,
+            var(--seed-light) 288deg, var(--seed-light) 305deg,
+            var(--brown-border) 305deg, var(--brown-border) 306deg,
+            var(--seed-mid) 306deg, var(--seed-mid) 323deg,
+            var(--brown-border) 323deg, var(--brown-border) 324deg,
+            var(--seed-light) 324deg, var(--seed-light) 341deg,
+            var(--brown-border) 341deg, var(--brown-border) 342deg,
+            var(--seed-mid) 342deg, var(--seed-mid) 359deg,
+            var(--brown-border) 359deg, var(--brown-border) 360deg
         );
     box-shadow:
         inset 1px 1px 3px rgba(0, 0, 0, 0.30),
-        inset -1px -1px 2px rgba(255, 248, 220, 0.50),
+        inset -1px -1px 2px rgba(var(--seed-core-rgb), 0.50),
         2px 2px 6px var(--shadow-medium);
     transition: border-color 0.2s ease;
 }
@@ -714,14 +754,14 @@ body::after {
     transform-origin: bottom center;
     transform: translateX(-50%);
     border-radius: 1px;
-    box-shadow: 0 0 1px rgba(255, 248, 220, 0.6);
+    box-shadow: 0 0 1px rgba(var(--seed-core-rgb), 0.6);
 }
 
 .knob-label {
     line-height: 1.1;   /* 11.00 - 0 - 0 = 11.00 / 10px — see the LINE-HEIGHT PINS block */
     font-size: 10px;
     letter-spacing: 1px;
-    color: var(--brown-soft);
+    color: var(--ink);   /* v1.9.0: --brown-soft read 2.39-4.24:1 over the slug */
     text-align: center;
     text-transform: uppercase;
     max-width: 80px;
@@ -753,17 +793,17 @@ body::after {
 .toggle-switch {
     width: 44px;
     height: 24px;
-    background: rgba(139, 168, 112, 0.28);
+    background: rgba(var(--green-light-rgb), 0.28);
     border-radius: 12px;
     position: relative;
     cursor: pointer;
     transition: background 0.3s ease, border-color 0.3s ease;
     border: 2px solid var(--green-dark);
-    box-shadow: inset 1px 1px 3px rgba(92, 64, 51, 0.22);
+    box-shadow: inset 1px 1px 3px rgba(var(--brown-frame-rgb), 0.22);
 }
 
 .toggle-switch.active {
-    background: rgba(107, 142, 78, 0.75);
+    background: rgba(var(--green-mid-rgb), 0.75);
     border-color: var(--green-darkest);
 }
 
@@ -774,7 +814,7 @@ body::after {
     left: 2px;
     width: 16px;
     height: 16px;
-    background: radial-gradient(circle at 40% 35%, #FFF8DC 0%, #E8D5B7 70%, #C9A27B 100%);
+    background: radial-gradient(circle at 40% 35%, var(--seed-core) 0%, var(--seed-mid) 70%, var(--seed-rim) 100%);
     border: 1px solid var(--brown-border);
     border-radius: 50%;
     transition: transform 0.3s ease;
@@ -789,7 +829,7 @@ body::after {
     line-height: 1.1111;   /* 10.00 - 0 - 0 = 10.00 / 9px — see the LINE-HEIGHT PINS block */
     font-size: 9px;
     letter-spacing: 1px;
-    color: var(--brown-soft);
+    color: var(--ink);   /* v1.9.0: --brown-soft read 3.09:1 */
     text-align: center;
     text-transform: uppercase;
     text-shadow: 1px 1px 2px var(--text-emboss);
@@ -858,10 +898,10 @@ body::after {
 }
 
 .gear-btn[aria-expanded="true"] {
-    background: var(--green-mid);
+    background: var(--green-dark);   /* v1.9.0: --green-mid read 3.33:1 under paper-light */
     border-color: var(--green-darkest);
     color: var(--paper-light);
-    box-shadow: 0 0 5px rgba(60, 92, 26, 0.45);
+    box-shadow: 0 0 5px rgba(var(--green-dark-rgb), 0.45);
 }
 
 .gear-btn:focus-visible {
@@ -992,11 +1032,11 @@ body::after {
 }
 
 .settings-toggle:hover {
-    background: rgba(139, 168, 112, 0.30);
+    background: rgba(var(--green-light-rgb), 0.30);
 }
 
 .settings-toggle[aria-pressed="true"] {
-    background: rgba(107, 142, 78, 0.55);
+    background: rgba(var(--green-mid-rgb), 0.55);
     color: var(--green-darkest);
     border-color: var(--green-darkest);
 }
@@ -1015,7 +1055,7 @@ body::after {
     top: 0;
     max-width: 240px;
     padding: 6px 10px;
-    background: rgba(60, 47, 47, 0.96);   /* --brown-text at 96% */
+    background: rgba(var(--brown-text-rgb), 0.96);   /* --brown-text at 96% */
     color: var(--plate-ink);
     border: 1px solid var(--brown-border);
     border-radius: 3px;
@@ -1073,7 +1113,7 @@ body::after {
 
 /* Hover affordance — only while tooltips are armed. */
 .tooltips-enabled [data-tip]:hover {
-    outline: 1px dashed rgba(107, 142, 78, 0.55);
+    outline: 1px dashed rgba(var(--green-mid-rgb), 0.55);
     outline-offset: 2px;
 }
 

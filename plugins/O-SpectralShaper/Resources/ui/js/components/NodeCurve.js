@@ -219,7 +219,7 @@ export class NodeCurve extends CurveEditor {
 
         // Draw nodes
         this.ctx.fillStyle = this.accentColor;
-        this.ctx.strokeStyle = '#E8D5B7';
+        this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--seed-mid').trim();
         this.ctx.lineWidth = 2;
 
         this.nodes.forEach((node, i) => {
