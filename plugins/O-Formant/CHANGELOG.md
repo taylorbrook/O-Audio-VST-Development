@@ -2,6 +2,83 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.34.0] - 2026-09-27
+
+**Every caption now meets WCAG AA, nothing renders below 9px, and the house
+serif actually renders.** MINOR: a UI pass (review R4/R5), per
+`.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C. No DSP,
+parameter, range, state format or i18n key changed. The knob JS is untouched,
+so R7 (keyboard/ARIA knobs) is deferred.
+
+### Changed
+
+- **Palette tokens.** The page had 8 custom properties (all
+  `--tuning-*`), and the review counted 133 hex literals. The `<style>` block now has 22 `:root` colour tokens,
+  8 `*-rgb` triples and 0 hex literals outside `:root`. Every rgba wash reads
+  `rgba(var(--x-rgb), a)`. The tuning-panel failure message's inline
+  `#8B7355` now reads `var(--text-muted)`.
+- **AA inks** (from `ouaricon-naturalist-001`):
+  - Walnut `#8B7355` stays for borders, rules and rings. As text it read
+    3.27–3.66:1. Walnut **text** (tabs, section heads, knob readouts,
+    segmented/topology captions, lyrics buttons, the gear, the tuning muted
+    text) moves to `--text-muted #6A5641`, which reads 4.78–5.68:1 on every
+    ground here.
+  - Moss fills (topology/segmented active, lyrics Loop/Enable active, FX On)
+    keep their colour and take `--moss-ink #1A2A10` (5.74:1). Cream on moss
+    read 2.16:1.
+  - Sage fills under light text deepen to `--sage-deep #4A6B35`: the current
+    syllable chip, the pressed hover-help switch, Generate and Export HTML
+    (white 3.75:1 → 6.09:1).
+  - Green text (the syllable counter, the preset ‹ ›, the gear when open)
+    moves to `--sage-ink #3C5C1A` (5.44–6.26:1).
+  - The FX Off state has `--brown` on the seed fill (5.26:1, was 3.10:1).
+  - The "Save failed" flash is `--sienna #8B3A1A` (5.64:1, was 4.10:1).
+  - Lyrics help, placeholder and consonant pad captions had `#B8A590` or walnut
+    at 0.6 (1.94–1.97:1). They now use `--text-muted`.
+  - Past syllable chips are de-emphasised by colour (`--text-muted`), not
+    `opacity: 0.5` (2.9:1).
+- **Canvas text** (invisible to `measure-ui`):
+  - vowel and consonant pad letters and the consonant readout: ink at
+    0.4–0.5 → solid `#6A5641` (5.35:1);
+  - the Lyrics caption and the F1–F5 markers: moss/sage at 0.6 → `#3C5C1A`
+    (5.90:1).
+  - The lyrics-mode wash is now painted on the ground before the labels,
+    not over them (it faded them to ~3.7:1).
+- **9px floor.** These were 8px and are now 9px: knob readouts, FX bypass
+  buttons, lyrics help, consonant pad captions, matrix and rotation table
+  cells, and the canvas F-markers and consonant readout. The zh `line-height`
+  pins move to the 10/9 group, and the rotation-table `th` pin moves to
+  9/9.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed): 4
+  SOURCES, 4 `getResource()` branches, and the stylesheet linked before the
+  page's `<style>`. The 15 `'Garamond', 'Times New Roman'` stacks fold into
+  `--font-serif`, with the bare `'Garamond'` lead dropped. The 31 tuning-panel
+  form controls leave Arial for the same stack. Courier stays for phonemes as
+  `--font-mono`. The canvases ask for `'EB Garamond'` and repaint once the
+  face loads (`document.fonts.load`). CDP resolves every sampled node to EB
+  Garamond, where before it was Times New Roman plus Arial.
+- **Re-measured pins:**
+  - tonic caption 40 → 42px (TONIQUE 41.5);
+  - Stretch caption 51 → 53px (ÉTIREMENT 52.02);
+  - rotation `Mode` column 30.56 → 32.19px;
+  - preset ‹ › 16 → 19px (EB Garamond draws the chevrons smaller).
+
+### Testing
+
+- `measure-ui --contrast` (en / fr / zh-Hans, 492 text nodes each):
+  - below AA: 123 → 0 (25.0% → 0%);
+  - under 9px: 344 → 0;
+  - min ratio: 1.94 → 4.93 (median 11.82).
+- `check-ui-labels`: pass (the tonic, Stretch and rotation pins were
+  re-measured to get there).
+- `check-i18n`, `i18n-fr-lint`, `i18n-zh-lint` and `ui_tip_render_check`
+  (1794): pass.
+- Headless screenshots of all four tabs reviewed before and after.
+- No page errors.
+- Regression surface: UI files only (`index.html`, `main.js` canvas text,
+  CMake binary data, and 4 resource branches). No DSP, parameter or state
+  code was touched, so no render null test was run.
+
 ## [1.33.1] - 2026-09-25
 
 PATCH. The lyric window now highlights the syllable being sung.
