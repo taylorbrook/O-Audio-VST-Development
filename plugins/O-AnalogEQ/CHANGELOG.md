@@ -2,6 +2,48 @@
 
 ## [1.5.4] - 2026-09-26
 
+### This release — everything since v1.5.0
+
+`O-AnalogEQ-v1.5.0` was the last published tag. This release consolidates four
+internal patch versions, 1.5.1 through 1.5.4. Every one of them was PATCH: across
+the whole span no parameter ID, range, type or state format changed, so **presets
+and saved sessions carry over from 1.5.0 unchanged**.
+
+If you are upgrading from 1.5.0, this is the fix that matters:
+
+- **CR-02 (critical) — `isBusesLayoutSupported` was never overridden, so a
+  stereo-in / mono-out negotiation null-dereferenced every filter on the audio
+  thread.** The base `juce::AudioProcessor` implementation returns `true`
+  unconditionally, so the wrappers advertised every layout they enumerate —
+  including asymmetric ones — although `BusesProperties` declares stereo in /
+  stereo out. A host that negotiates `(2,1)` no longer crashes. Logic caches an
+  AU's I/O configuration per plugin version, so this version bump is itself what
+  makes Logic re-read the corrected layout.
+
+The rest, by the version that fixed it:
+
+- **1.5.1** — seven findings from the v1.5.0 thorough code review, one critical
+  and six warning: CR-02 above; WR-05 `output_gain` stepped instead of ramping;
+  WR-06 band on/off was a hard bypass over stale filter state and clicked; WR-07
+  "Save Preset" silently ignored the directory you chose; WR-08 the v1.4.0
+  hover-help switch shipped with zero behavioural assertions, so turning it off
+  could leave you with hover-help anyway; WR-09 the switch's Off label was never
+  geometry-measured in any language; WR-10 `check-i18n`'s JS scan saw one module
+  where the page ships three.
+- **1.5.2** — two residual defects that the 1.5.1 release itself introduced or
+  left open rather than inheriting from the reviewed code: the WR-07 fix had
+  dropped a guard, and the WR-10 gate widening covered O-AnalogEQ but not the
+  repo-wide scope it claimed.
+- **1.5.3** — the review's entire Info tier, IN-06 through IN-09: IN-08 a second
+  preset dialog destroyed the first `FileChooser` mid-flight; IN-07 sixteen
+  per-block `getRawParameterValue(StringRef)` lookups became cached pointers;
+  IN-06 settings-popover contract comments described a panel two revisions old;
+  IN-09 the page's init log announced `v1.3.1`.
+- **1.5.4** — the harness banner that survived IN-09's sweep, plus the gate
+  widening that should have come with it. Detailed below.
+
+---
+
 A cosmetic leftover from v1.5.3's IN-09 sweep, plus the gate widening that should
 have come with it. PATCH: no parameter ID, range, type or state format changed,
 nothing outside `tests/` and the version line touched, and the rendered audio is
