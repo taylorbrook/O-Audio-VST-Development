@@ -1,5 +1,64 @@
 # O-SpectralShaper Changelog
 
+## [1.9.0] - 2026-09-26
+
+UI pass from review 260924-nho (R4 palette/contrast, R5 bundled serif). MINOR: a
+bundled typeface and a visible colour shift. No parameter, range, type or state
+format changed, and no audio path was touched.
+
+### Changed
+- **Text is legible on the paper.** The page ground is `paper-bg.webp` under a
+  0.42 cream wash, with the nudibranch overlay sitting behind the knob sidebar.
+  Measured against the real pixels (text hidden, worse of p5/p95 under each glyph
+  band), the knob captions read 2.39–4.24:1, the header version 2.12, and
+  LOOKAHEAD 3.69. Knob and toggle captions now use a new near-black `--ink`
+  (#1E1612), and the version uses `--brown-text`. The sidebar wash stays at 0.14,
+  so the specimen still shows through.
+- **Lit Spectrum is an inverted chip.** Accent text over a 0.30 accent tint read
+  4.05–4.21:1. The accent is now the fill and the plate colour is the ink (7.64
+  moss, 7.31 ochre).
+- **Disabled undo/redo is a colour, not opacity 0.28** (2.38:1). It uses the dim
+  plate ink on a bare plate (5.00:1), while enabled keeps paper-light on the green
+  tint (10.6:1).
+- **Gear open** takes `--green-dark` under paper-light (6.82:1; it was 3.33).
+- `--plate-ink-dim` #94816A → #9C8971: the canvas frequency/dB labels sat at
+  exactly 4.50:1 on the curve plate, and now read 5.00.
+- **Palette is tokens only.** All 107 hex literals now resolve through `:root`:
+  the seed-knob conic gradient via `--seed-core/-light/-mid/-rim`, and the rgba
+  washes via `*-rgb` triples. 0 hex remain outside `:root`. The canvas colours
+  and the `ACCENT_COLORS` mirror in app.js now READ the CSS tokens (0 hex in JS).
+
+### Added
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, OFL). It is direct-embedded
+  (4 SOURCES, 4 `getResource()` branches) and linked before `styles.css`.
+  `--serif` now leads with 'EB Garamond' and puts Georgia before Times. The bare
+  'Garamond' entry is dropped: it resolved to nothing on macOS, and on Windows it
+  would let Office's Garamond win. The canvas labels (curve grid,
+  WebGL-unsupported fallback) use the same token and repaint once on
+  `document.fonts.ready`.
+
+### Fixed
+- Header version string read `v1.7.2` on the 1.8.0 build. It now reads `v1.9.0`.
+- Width pins re-measured for the new face: `.curve-spectrum-btn` 75.92 → 76.22px
+  and `.curve-mode-toggle` 76.41 → 77.02px. SPECTRUM and FREEHAND outgrew the
+  Times pins, and the undo/redo row shifted 0.6px between languages. The
+  hover-help toggle (66px) and the popover (168px) were re-measured and hold.
+
+### Testing
+- `measure-ui --contrast`: 6/37 → 0/37 below AA in each of en/fr/zh-Hans. Min
+  2.25 → 5.00, median 7.60 → 9.57, 0 under the 9px floor (the floor was already
+  met).
+- Image-aware pixel probe, 7 states × 3 languages: 81/230 → 0/230 below AA. Min
+  2.12 → 4.95, median 5.79 → 7.18. One node, a preset row scrolled out of the
+  open menu, is excluded from both runs as a probe artefact.
+- `check-ui-labels` passes on all three arms. `check-i18n` passes.
+  `tests/ui_preset_menu_check.js` passes; its hand-built tree now places the
+  module's css/fonts, which were a 404 without it.
+- Knob interaction JS (`RotaryKnob.js`) was not touched, so keyboard/ARIA knobs
+  (R7) remain open.
+- Pre-existing, not changed: the canvas "+6dB" grid label overlaps the "ATTACK /
+  SUSTAIN CURVE" plate caption.
+
 ## [1.8.0] - 2026-09-05
 
 Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c).

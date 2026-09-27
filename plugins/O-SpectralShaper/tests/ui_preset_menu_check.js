@@ -71,6 +71,7 @@ const MIME = {
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
     '.webp': 'image/webp',
+    '.woff2': 'font/woff2',
 };
 
 let failed = 0;
@@ -93,6 +94,13 @@ function buildRoot() {
     fs.cpSync(uiDir, root, { recursive: true });
     fs.copyFileSync(path.join(pluginRoot, 'tests', 'ui-stub', 'juce-stub.js'),
                     path.join(root, 'js', 'juce', 'index.js'));
+    // v1.9.0: the bundled EB Garamond face is embedded from the module tree,
+    // not the UI root, so place it at the urls getResource() serves it from.
+    const ebg = path.join(pluginRoot, '..', '..', 'modules', 'ui', 'eb-garamond');
+    fs.copyFileSync(path.join(ebg, 'css', 'eb-garamond.css'), path.join(root, 'css', 'eb-garamond.css'));
+    fs.mkdirSync(path.join(root, 'fonts'), { recursive: true });
+    for (const f of ['EBGaramond-Regular.woff2', 'EBGaramond-Italic.woff2', 'EBGaramond-Bold.woff2'])
+        fs.copyFileSync(path.join(ebg, 'fonts', f), path.join(root, 'fonts', f));
     return root;
 }
 

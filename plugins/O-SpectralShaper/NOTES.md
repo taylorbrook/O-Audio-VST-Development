@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.6.2
+- **Version:** 1.9.0
 - **Type:** Audio Effect (Spectral Transient Shaper)
 
 ## Lifecycle Timeline
 
+- **2026-09-26 (v1.9.0):** UI pass (review 260924-nho R4/R5): AA ink on the paper image (pixel probe 81/230 → 0 below AA; census 6/37 → 0), inverted Spectrum chip, colour-not-opacity disabled undo/redo, 107 hex → `:root` tokens (JS reads them), bundled EB Garamond, stale `v1.7.2` header fixed, two width pins re-measured. Knob keyboard/ARIA (R7) still open. No DSP/param/state change.
 - **2026-02-03:** Creative brief completed — per-frequency transient shaping concept finalized
 - **2026-02-07:** v1.1.0 released and installed
 - **2026-08-20 (v1.6.2):** Fixed the "Open editor whilst processing" hang that failed the v1.6.1 release build on Windows CI — and closed the Known Issue open since 2026-08-19. Root cause was the editor's visualization drain, `while (fifo.getNumReady() > 0)`, which re-asks the audio thread how much is pending on every iteration: at realtime the producer (one frame per `HOP_SIZE` 256 hop = 187/sec at 48 kHz) loses to the 60 Hz timer and the loop ends, but under a faster-than-realtime render it wins, the count never reaches zero, `timerCallback()` never returns, and the message loop starves so the WebView cannot finish opening. Fix: snapshot `getNumReady()` once, emit at most the 16 newest frames, `finishedRead()` the whole snapshot. Also skips the ~4 kB JSON build when `webView->isVisible()` is false — JUCE's own gate inside `emitEventIfBrowserIsVisible()`, not the stricter `isShowing()`. Negative-controlled: restoring the old loop reproduces the timeout at the same 90 s budget (exit 1), the fix passes (SUCCESS).
