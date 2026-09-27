@@ -1,5 +1,69 @@
 # O-Wind Changelog
 
+## [1.22.0] - 2026-09-27
+
+UI pass under review 260924-nho: R4 (AA text), R5 (bundled EB Garamond) and the
+9px floor. MINOR: a visible colour and face change. No parameter, range, type or
+state format changed, and no audio path was touched. The C++ change is four
+resource branches. Knob interaction JS is untouched, so R7 (keyboard/ARIA knobs)
+stays open. The main page (Family C) and Effects tab (Family B) keep their own
+knob visuals.
+
+### Changed — contrast (ouaricon-naturalist-001 Text Contrast table)
+
+- **Section captions** go from `#8B7B6F` (3.50) to `--text-walnut-mid #715D45` (5.38).
+- **The ADSR row when disabled** (the default state): opacity 0.35 on the whole
+  row put captions at 1.65 and readouts at 2.07, the worst text on the page.
+  Now only the knob graphic dims, and readouts step down to walnut.
+- **Bypassed Effects rows** get the same rule. The arcs dim, captions and readouts
+  go walnut, and the bypass button text changes from 0.4-alpha ink (2.06) to
+  `--brown-frame` (6.17).
+- **Tuning panel.** `--tuning-text-muted` goes from `#8B7355` (3.42) to `#6A5640`,
+  which reads 4.93 on the worst ground, the selected interval row `#E0DAB8`. The
+  template's `#715D45` reads only 4.44 there. The Generate and Export HTML fills
+  change from `--tuning-accent` (white text 3.75) to `#4E6839` (6.24). The accent
+  stays on borders and on the slider gradient. The change is made from O-Wind's
+  side, and the shared module is not edited.
+- **Other text:**
+  - active tab: `#4A6B35` (4.26) to `#3C5C1A` (5.37);
+  - hover-help switch ON fill: `#6B8E4E` to `#4E6839` (5.10);
+  - brand label: opacity 0.5 (2.90) to solid `#D4C4AD` (5.50);
+  - tuning-failed notice: `#8B7355` to walnut.
+
+### Changed — one bundled face
+
+- **modules/ui/eb-garamond is direct-embedded.** CMake lists 4 SOURCES, and
+  `getResource()` has 4 branches (`/css/eb-garamond.css`, `/fonts/*.woff2`).
+- **One `--serif` token replaces the 4 declared stacks.** They were body, the
+  tuning panel body, the tuning form controls and `.viz-btn`, and they resolved
+  to Georgia, Times New Roman, or Arial on shared-module controls. The FX
+  value-edit input names the token too.
+- **Resolved faces (CDP):** EB Garamond covers 441 text runs in en and fr, and
+  PingFang covers the Han runs in zh-Hans. Two exceptions remain:
+  - Arial on the shared panel's 28 undeclared numeric inputs and tonic arrows;
+  - Menlo for ⚙, which is not in the subset.
+
+### Fixed — geometry after the face change
+
+- Two tuning-panel floors were re-measured in EB Garamond. `.tonic-label` goes
+  from 39.83 to 41.6 (French "Tonique" measures 41.5), and
+  `.octave-stretch-label` goes from 51 to 52.1 ("Étirement" measures 52.02).
+  Before the re-pin, check-ui-labels failed [4] and [7] (the slider moved by 1.0).
+
+### Testing
+
+- **measure-ui --contrast:** 50/177 below AA to 0/177 per language, and the
+  minimum rose from 1.65 to 4.54. 0 nodes sit below 9px, before and after.
+- **Real-pixel probe** (text hidden, 2×, 7 states × en/fr/zh-Hans, including
+  ADSR on, preset menu, bypassed FX and the tuning popover): 87 to 0 in en/fr.
+  zh-Hans shows 2 rows, and neither is a colour defect:
+  - "乐器" is half covered by the open preset menu;
+  - "主音" is clipped by the 130px interval list. That clip was already in
+    v1.21.0: the stub prints "undefined" as the tonic readout. The overhang grew
+    from 2.8 to 3.7px with the re-pin.
+- **check-ui-labels:** 172 PASS before and after (en/fr/zh-Hans). check-i18n,
+  the fr and zh lints and ui_tip_render_check all pass.
+
 ## [1.21.0] - 2026-09-07
 
 Simplified Chinese (task 260907-ja8, Stage 4 wave 4f). MINOR: a third interface

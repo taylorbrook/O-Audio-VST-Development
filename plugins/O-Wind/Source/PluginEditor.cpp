@@ -874,6 +874,29 @@ OWindAudioProcessorEditor::getResource(const juce::String& url)
             makeVector(BinaryData::fern_png, BinaryData::fern_pngSize),
             juce::String("image/png") };
 
+    // v1.22.0: shared EB Garamond face (modules/ui/eb-garamond). Stylesheet
+    // under /css/, the three woff2 faces under /fonts/ where its relative
+    // url('../fonts/...') lands. Embedded in the SOURCES block in the same commit.
+    if (url == "/css/eb-garamond.css")
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::ebgaramond_css, BinaryData::ebgaramond_cssSize),
+            juce::String("text/css; charset=utf-8") };
+
+    if (url == "/fonts/EBGaramond-Regular.woff2")
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::EBGaramondRegular_woff2, BinaryData::EBGaramondRegular_woff2Size),
+            juce::String("font/woff2") };
+
+    if (url == "/fonts/EBGaramond-Italic.woff2")
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::EBGaramondItalic_woff2, BinaryData::EBGaramondItalic_woff2Size),
+            juce::String("font/woff2") };
+
+    if (url == "/fonts/EBGaramond-Bold.woff2")
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::EBGaramondBold_woff2, BinaryData::EBGaramondBold_woff2Size),
+            juce::String("font/woff2") };
+
     DBG("Resource not found: " + url);
     return std::nullopt;
 }
