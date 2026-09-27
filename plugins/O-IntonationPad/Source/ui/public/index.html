@@ -23,8 +23,87 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>O-IntonationPad</title>
+    <!-- v2.11.0 (R5): the shared EB Garamond face (modules/ui/eb-garamond),
+         linked first so every stylesheet after it can name it. -->
+    <link rel="stylesheet" href="/css/eb-garamond.css">
     <link rel="stylesheet" href="/css/tuning-panel.css">
     <style>
+        /* ═══ v2.11.0 (review R4/R5): THE PALETTE ═══
+
+           Every colour on this page and in css/tuning-panel.css is one of these
+           tokens; no rule below carries a hex literal. Washes read
+           rgba(var(--x-rgb), a).
+
+           THE GROUND IS THE PAPER JPG, NOT A COLOUR. Bare, img/paper.jpg renders
+           at a median luminance of about 0.35, where even --ink read 3.1:1
+           and the walnut/brown captions 1.4-3.0:1. measure-ui --contrast cannot
+           see an <img> ground, so these values come from a pixel probe (text
+           hidden, transitions off, 2x screenshot, worse of the p5/p95 glyph-band
+           luminance). The paper now sits at 0.5 over --paper (see .background),
+           and on that washed ground only near-black clears 4.5:1: captions and
+           readouts on the paper take --ink, green captions --leaf.
+
+           Walnut stays for borders, rules and rings; as text it read 3.3-3.9:1
+           even on the tuning panel's cream. Walnut TEXT takes --text-muted. */
+        :root {
+            --ink:          #3C2F2F;
+            --brown:        #5C4033;   /* borders; text on the bypassed fill (6.05:1) */
+            --text-muted:   #6A5641;   /* AA quiet text on cream: walnut in hue */
+            --walnut:       #8B7355;   /* borders, rules, rings - not text */
+            --tan:          #C9A27B;   /* note name on a black key */
+            --key-edge:     #2A2020;
+            --paper:        #F5E6D3;
+            --cornsilk:     #FFF8DC;
+            --parchment:    #D4C4B0;
+            --white:        #FFFFFF;
+            --leaf:         #2C3E10;   /* green captions on the paper */
+            --moss-ink:     #1A2A10;   /* text on olive / moss fills */
+            --moss:         #8BA870;
+            --olive:        #6B8E23;   /* knob vine, focus rings */
+            --forest:       #4A6E1E;   /* flat cents, interval dots */
+            --lime:         #8BC34A;   /* tuning accent: rules and borders only */
+            --sage-deep:    #4A6B35;   /* fills under white text (6.09:1) */
+            --sienna:       #8B4513;   /* sharp cents, out-of-range */
+            --fx-on-bg:     #B0BA7B;   /* olive 0.5 pre-composited over --paper */
+            --fx-off-bg:    #E0CFBA;   /* walnut 0.2 pre-composited over --paper */
+            --night:        #2A2A2A;   /* host ground outside the frame */
+            --scope:        #1A1A1A;   /* wavetable canvas ground */
+            --bone:         #D4C9B0;   /* text on the dark overlays */
+            --bone-2:       #E8E0D0;
+            --bone-dim:     #B8AC94;   /* quiet text on the dark overlays (4.93:1 on the dice menu) */
+            --sage-light:   #A8C08A;   /* tooltip title */
+            --danger:       #CC4444;
+
+            --ink-rgb:      60, 47, 47;
+            --brown-rgb:    92, 64, 51;
+            --walnut-rgb:   139, 115, 85;
+            --paper-rgb:    245, 230, 211;
+            --wash-rgb:     235, 217, 199;
+            --cornsilk-rgb: 255, 248, 220;
+            --moss-rgb:     139, 168, 112;
+            --olive-rgb:    107, 142, 35;
+            --forest-rgb:   74, 110, 30;
+            --leaf-rgb:     60, 92, 26;
+            --lime-rgb:     139, 195, 74;
+            --sienna-rgb:   139, 69, 19;
+            --bone-rgb:     212, 201, 176;
+            --umber-rgb:    62, 52, 40;
+            --dusk-rgb:     42, 36, 30;
+            --dialog-rgb:   52, 44, 36;
+            --danger-rgb:   180, 60, 60;
+            --black-rgb:    0, 0, 0;
+            --white-rgb:    255, 255, 255;
+
+            /* EB Garamond first (bundled, so every host resolves the same face);
+               Georgia before Times; the CJK tail BEFORE the trailing generic,
+               which Chromium resolves against the document language. The bare
+               'Garamond' lead is dropped: on Windows an Office-installed
+               Garamond would outrank the bundled face. ONE stack for the whole
+               page - the old Arial, -apple-system and Menlo stacks fold into it
+               (EB Garamond's figures are already tabular, 480 units). */
+            --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -43,17 +122,26 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: var(--night);
+            font-family: var(--font-serif);
+        }
+
+        /* Form controls do not inherit font-family - the UA stylesheet hands
+           them Arial. Every button, input and select on the page (and the 31
+           that js/tuning-panel.js builds) takes the page face here; a rule that
+           names its own family still wins by specificity. */
+        button, input, select, textarea {
+            font-family: var(--font-serif);
         }
 
         .plugin-container {
             width: 800px;
             height: 500px;
             position: relative;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-            border: 3px solid #5C4033;
+            box-shadow: 0 10px 40px rgba(var(--black-rgb), 0.5);
+            border: 3px solid var(--brown);
             overflow: hidden;
+            background-color: var(--paper);
         }
 
         .background {
@@ -61,6 +149,10 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            /* v2.11.0 (R4): the paper at 0.5 over --paper, i.e. a 0.5 paper
+               wash. 0.4 left the darkest stains under --ink at 4.06:1; 0.5 is
+               the lightest wash that clears every caption on the page. */
+            opacity: 0.5;
         }
 
         .botanical-overlay {
@@ -69,7 +161,9 @@
             top: 50%;
             transform: translateY(-50%);
             height: 75%;
-            opacity: 0.35;
+            /* v2.11.0 (R4): 0.35 -> 0.25. At 0.35 the shell's darkest stripes
+               sat under OSC B's GAIN caption at 4.32:1. */
+            opacity: 0.25;
             pointer-events: none;
         }
 
@@ -91,11 +185,11 @@
 
         .title {
             font-size: 17px;
-            color: #3C2F2F;
+            color: var(--ink);
             letter-spacing: 3px;
             font-weight: normal;
             text-transform: uppercase;
-            text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+            text-shadow: 1px 1px 2px rgba(var(--white-rgb), 0.5);
             white-space: nowrap;
         }
 
@@ -124,14 +218,14 @@
 
         .tab-button {
             padding: 6px 14px;
-            background: rgba(139, 168, 112, 0.3);
-            border: 2px solid #5C4033;
+            background: rgba(var(--moss-rgb), 0.3);
+            border: 2px solid var(--brown);
             border-radius: 4px 4px 0 0;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: #3C2F2F;
+            color: var(--ink);
             cursor: pointer;
             transition: all 0.2s;
             position: relative;
@@ -143,16 +237,16 @@
             top: 2px;
             right: 4px;
             font-size: 7px;
-            color: rgba(60, 92, 26, 0.2);
+            color: rgba(var(--leaf-rgb), 0.2);
         }
 
         .tab-button:hover {
-            background: rgba(139, 168, 112, 0.5);
+            background: rgba(var(--moss-rgb), 0.5);
         }
 
         .tab-button.active {
-            background: rgba(107, 142, 35, 0.6);
-            color: #1a2a10;
+            background: rgba(var(--olive-rgb), 0.6);
+            color: var(--moss-ink);
             border-bottom: none;
         }
 
@@ -189,7 +283,7 @@
         }
 
         .scrollable-tab::-webkit-scrollbar-thumb {
-            background: rgba(139, 115, 85, 0.3);
+            background: rgba(var(--walnut-rgb), 0.3);
             border-radius: 3px;
         }
 
@@ -270,20 +364,20 @@
 
         .knob-track {
             fill: none;
-            stroke: rgba(139, 115, 85, 0.3);
+            stroke: rgba(var(--walnut-rgb), 0.3);
             stroke-width: 2;
         }
 
         .knob-vine {
             fill: none;
-            stroke: #6B8E23;
+            stroke: var(--olive);
             stroke-width: 3;
             stroke-linecap: round;
         }
 
         .knob-label {
             font-size: 11px;
-            color: #3C2F2F;
+            color: var(--ink);
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -291,7 +385,7 @@
 
         .knob-value {
             font-size: 10px;
-            color: #5C4033;
+            color: var(--ink);   /* v2.11.0: brown read 1.4-3.0:1 on the paper */
             font-weight: bold;
         }
 
@@ -306,17 +400,17 @@
         .dropdown {
             width: 140px;
             padding: 6px 24px 6px 10px;
-            background: rgba(139, 168, 112, 0.3);
-            border: 2px solid #5C4033;
+            background: rgba(var(--moss-rgb), 0.3);
+            border: 2px solid var(--brown);
             border-radius: 4px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 11px;
-            color: #3C2F2F;
+            color: var(--ink);
             cursor: pointer;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 2px 2px 5px rgba(var(--black-rgb), 0.2);
             background-image:
-                linear-gradient(135deg, transparent 45%, rgba(92, 64, 51, 0.1) 45%, rgba(92, 64, 51, 0.1) 55%, transparent 55%),
-                linear-gradient(225deg, transparent 45%, rgba(92, 64, 51, 0.1) 45%, rgba(92, 64, 51, 0.1) 55%, transparent 55%);
+                linear-gradient(135deg, transparent 45%, rgba(var(--brown-rgb), 0.1) 45%, rgba(var(--brown-rgb), 0.1) 55%, transparent 55%),
+                linear-gradient(225deg, transparent 45%, rgba(var(--brown-rgb), 0.1) 45%, rgba(var(--brown-rgb), 0.1) 55%, transparent 55%);
             background-size: 8px 8px;
             background-position: calc(100% - 10px) center, calc(100% - 6px) center;
             background-repeat: no-repeat;
@@ -331,14 +425,14 @@
         .wt-canvas {
             width: 120px;
             height: 68px;
-            border: 2px solid #5C4033;
+            border: 2px solid var(--brown);
             border-radius: 3px;
-            background: #1a1a1a;
+            background: var(--scope);
         }
 
         .section-divider {
             height: 1px;
-            background: repeating-linear-gradient(90deg, #5C4033 0px, #5C4033 4px, transparent 4px, transparent 8px);
+            background: repeating-linear-gradient(90deg, var(--brown) 0px, var(--brown) 4px, transparent 4px, transparent 8px);
             opacity: 0.3;
             margin: 5px 0;
         }
@@ -356,42 +450,42 @@
         .mini-keyboard {
             position: relative;
             height: 50px;
-            border: 1px solid #8B7355;
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             overflow: hidden;
-            background: rgba(255, 248, 220, 0.3);
+            background: rgba(var(--cornsilk-rgb), 0.3);
         }
 
         .key {
             position: absolute;
             top: 0;
-            border: 1px solid #8B7355;
+            border: 1px solid var(--walnut);
             border-radius: 0 0 2px 2px;
             transition: background 0.08s;
         }
 
         .key.white {
             height: 100%;
-            background: rgba(255, 248, 220, 0.8);
+            background: rgba(var(--cornsilk-rgb), 0.8);
             z-index: 1;
         }
 
         .key.black {
             height: 60%;
-            background: #3C2F2F;
+            background: var(--ink);
             z-index: 2;
-            border-color: #2a2020;
+            border-color: var(--key-edge);
         }
 
         .key.white.active {
-            background: rgba(107, 142, 35, var(--key-opacity, 0.7));
-            box-shadow: inset 0 0 6px rgba(107, 142, 35, calc(var(--key-opacity, 0.7) * 0.7));
+            background: rgba(var(--olive-rgb), var(--key-opacity, 0.7));
+            box-shadow: inset 0 0 6px rgba(var(--olive-rgb), calc(var(--key-opacity, 0.7) * 0.7));
             transition: background 0.15s, box-shadow 0.15s;
         }
 
         .key.black.active {
-            background: rgba(74, 110, 30, var(--key-opacity, 1.0));
-            box-shadow: inset 0 0 6px rgba(107, 142, 35, calc(var(--key-opacity, 1.0) * 0.7));
+            background: rgba(var(--forest-rgb), var(--key-opacity, 1.0));
+            box-shadow: inset 0 0 6px rgba(var(--olive-rgb), calc(var(--key-opacity, 1.0) * 0.7));
             transition: background 0.15s, box-shadow 0.15s;
         }
 
@@ -400,14 +494,14 @@
             bottom: 2px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 6px;
-            color: #5C4033;
+            font-size: 9px;   /* v2.11.0: the 9px floor (was 6px) */
+            color: var(--brown);
             pointer-events: none;
             white-space: nowrap;
         }
 
         .key.black .key-label {
-            color: #C9A27B;
+            color: var(--tan);
         }
 
         /* Frequency List */
@@ -424,7 +518,7 @@
 
         .freq-placeholder {
             font-size: 10px;
-            color: rgba(60, 47, 47, 0.4);
+            color: var(--ink);   /* v2.11.0: ink at 0.4 read 1.7:1; the italic keeps it quiet */
             font-style: italic;
         }
 
@@ -432,55 +526,54 @@
             display: flex;
             gap: 4px;
             align-items: baseline;
-            background: rgba(255, 248, 220, 0.5);
+            background: rgba(var(--cornsilk-rgb), 0.5);
             padding: 3px 6px;
             border-radius: 3px;
-            border: 1px solid rgba(139, 115, 85, 0.4);
+            border: 1px solid rgba(var(--walnut-rgb), 0.4);
             font-size: 9px;
-            color: #3C2F2F;
+            color: var(--ink);
         }
 
         .freq-note {
             font-weight: bold;
-            color: #2C3E10;
+            color: var(--leaf);
             font-size: 10px;
         }
 
         .freq-hz {
-            color: #5C4033;
+            color: var(--brown);
         }
 
         .freq-cents {
-            font-size: 8px;
+            font-size: 9px;
         }
 
         .freq-cents.sharp {
-            color: #8B4513;
+            color: var(--sienna);
         }
 
         .freq-cents.flat {
-            color: #4a6e1e;
+            color: var(--forest);
         }
 
         .freq-cents.zero {
-            color: #888;
+            color: var(--text-muted);
         }
 
         .freq-count {
-            font-size: 8px;
-            color: #5C4033;
+            font-size: 9px;
+            color: var(--text-muted);   /* v2.11.0: by colour, not opacity */
             font-weight: bold;
-            opacity: 0.7;
         }
 
         .freq-item.out-of-range {
-            border-color: rgba(139, 69, 19, 0.6);
-            background: rgba(139, 69, 19, 0.15);
+            border-color: rgba(var(--sienna-rgb), 0.6);
+            background: rgba(var(--sienna-rgb), 0.15);
         }
 
         .freq-range-badge {
-            font-size: 7px;
-            color: #8B4513;
+            font-size: 9px;
+            color: var(--sienna);
             vertical-align: super;
             margin-left: 1px;
         }
@@ -489,12 +582,12 @@
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            font-size: 8px;
-            color: #8B4513;
-            background: rgba(255, 248, 220, 0.8);
+            font-size: 9px;
+            color: var(--sienna);
+            background: rgba(var(--cornsilk-rgb), 0.8);
             padding: 2px 4px;
             border-radius: 2px;
-            border: 1px solid rgba(139, 69, 19, 0.4);
+            border: 1px solid rgba(var(--sienna-rgb), 0.4);
             z-index: 10;
             pointer-events: none;
             white-space: nowrap;
@@ -533,19 +626,19 @@
 
         .interval-quick-btn {
             padding: 2px 8px;
-            background: rgba(139, 168, 112, 0.3);
-            border: 1px solid #5C4033;
+            background: rgba(var(--moss-rgb), 0.3);
+            border: 1px solid var(--brown);
             border-radius: 3px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 9px;
-            color: #3C2F2F;
+            color: var(--ink);
             cursor: pointer;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .interval-quick-btn:hover {
-            background: rgba(139, 168, 112, 0.5);
+            background: rgba(var(--moss-rgb), 0.5);
         }
 
         .interval-toggle-list {
@@ -555,8 +648,8 @@
             max-height: 90px;
             overflow-y: auto;
             padding: 4px;
-            background: rgba(255, 248, 220, 0.3);
-            border: 1px solid rgba(139, 115, 85, 0.4);
+            background: rgba(var(--cornsilk-rgb), 0.3);
+            border: 1px solid rgba(var(--walnut-rgb), 0.4);
             border-radius: 4px;
         }
 
@@ -565,29 +658,29 @@
             align-items: center;
             gap: 3px;
             padding: 2px 6px;
-            background: rgba(255, 248, 220, 0.5);
-            border: 1px solid rgba(139, 115, 85, 0.3);
+            background: rgba(var(--cornsilk-rgb), 0.5);
+            border: 1px solid rgba(var(--walnut-rgb), 0.3);
             border-radius: 3px;
             cursor: pointer;
             transition: all 0.15s;
             font-size: 9px;
-            color: #5C4033;
+            color: var(--brown);
         }
 
         .interval-toggle-item:hover {
-            background: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--moss-rgb), 0.3);
         }
 
         .interval-toggle-item.enabled {
-            background: rgba(107, 142, 35, 0.4);
-            border-color: rgba(107, 142, 35, 0.6);
-            color: #1a2a10;
+            background: rgba(var(--olive-rgb), 0.4);
+            border-color: rgba(var(--olive-rgb), 0.6);
+            color: var(--moss-ink);
         }
 
         .interval-toggle-item.root {
-            background: rgba(107, 142, 35, 0.6);
-            border-color: rgba(107, 142, 35, 0.8);
-            color: #1a2a10;
+            background: rgba(var(--olive-rgb), 0.6);
+            border-color: rgba(var(--olive-rgb), 0.8);
+            color: var(--moss-ink);
             font-weight: bold;
             cursor: default;
         }
@@ -596,27 +689,30 @@
             width: 6px;
             height: 6px;
             border-radius: 50%;
-            background: rgba(139, 115, 85, 0.3);
+            background: rgba(var(--walnut-rgb), 0.3);
             flex-shrink: 0;
         }
 
         .interval-toggle-item.enabled .interval-toggle-dot,
         .interval-toggle-item.root .interval-toggle-dot {
-            background: #4a6e1e;
+            background: var(--forest);
         }
 
         .interval-toggle-cents {
-            font-size: 8px;
-            color: rgba(92, 64, 51, 0.6);
+            font-size: 9px;
+            color: var(--text-muted);
         }
 
-        .interval-toggle-item.enabled .interval-toggle-cents {
-            color: rgba(26, 42, 16, 0.7);
+        /* v2.11.0: solid --moss-ink on the olive chips (the root chip's cents
+           read 2.0:1 in brown at 0.6, the enabled chips' 3.0:1 at 0.7). */
+        .interval-toggle-item.enabled .interval-toggle-cents,
+        .interval-toggle-item.root .interval-toggle-cents {
+            color: var(--moss-ink);
         }
 
         .interval-loading {
             font-size: 10px;
-            color: rgba(60, 47, 47, 0.4);
+            color: var(--text-muted);
             font-style: italic;
             padding: 6px;
         }
@@ -626,8 +722,8 @@
         }
 
         .fx-section {
-            background: rgba(255, 248, 220, 0.25);
-            border: 1px solid rgba(139, 115, 85, 0.35);
+            background: rgba(var(--cornsilk-rgb), 0.25);
+            border: 1px solid rgba(var(--walnut-rgb), 0.35);
             border-radius: 5px;
             padding: 4px 8px;
         }
@@ -646,19 +742,22 @@
         .fx-title {
             font-size: 11px;
             font-weight: bold;
-            color: #2C3E10;
+            color: var(--leaf);
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
+        /* v2.11.0: OPAQUE fills, pre-composited over --paper. An rgba() fill
+           let the paper through: moss-ink on it read 3.05:1, and the bypassed
+           face (ink at 0.4) 1.4:1. */
         .fx-bypass-btn {
             padding: 2px 8px;
-            background: rgba(107, 142, 35, 0.5);
-            border: 1px solid #5C4033;
+            background: var(--fx-on-bg);
+            border: 1px solid var(--brown);
             border-radius: 3px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 9px;
-            color: #1a2a10;
+            color: var(--moss-ink);
             cursor: pointer;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -666,8 +765,8 @@
         }
 
         .fx-bypass-btn.bypassed {
-            background: rgba(139, 115, 85, 0.2);
-            color: rgba(60, 47, 47, 0.4);
+            background: var(--fx-off-bg);
+            color: var(--brown);
         }
 
         .fx-knobs {
@@ -698,13 +797,13 @@
             width: 26px;
             height: 26px;
             padding: 0;
-            border: 2px solid #5C4033;
+            border: 2px solid var(--brown);
             border-radius: 50%;
-            background: rgba(139, 168, 112, 0.3);
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: rgba(var(--moss-rgb), 0.3);
+            font-family: var(--font-serif);
             font-size: 14px;
             font-weight: bold;
-            color: #3C2F2F;
+            color: var(--ink);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -714,17 +813,17 @@
         }
 
         .gear-btn:hover {
-            background: rgba(139, 168, 112, 0.5);
+            background: rgba(var(--moss-rgb), 0.5);
         }
 
         .gear-btn[aria-expanded="true"] {
-            background: rgba(107, 142, 35, 0.6);
-            color: #1a2a10;
-            box-shadow: 0 0 8px rgba(107, 142, 35, 0.4);
+            background: rgba(var(--olive-rgb), 0.6);
+            color: var(--moss-ink);
+            box-shadow: 0 0 8px rgba(var(--olive-rgb), 0.4);
         }
 
         .gear-btn:focus-visible {
-            outline: 2px solid #6B8E23;
+            outline: 2px solid var(--olive);
             outline-offset: 2px;
         }
 
@@ -740,10 +839,10 @@
             display: flex;
             flex-direction: column;
             gap: 7px;
-            background: rgba(255, 248, 220, 0.98);
-            border: 2px solid #5C4033;
+            background: rgba(var(--cornsilk-rgb), 0.98);
+            border: 2px solid var(--brown);
             border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+            box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.35);
         }
 
         .settings-popover[hidden] {
@@ -758,9 +857,9 @@
         }
 
         .settings-label {
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 11px;
-            color: #3C2F2F;
+            color: var(--ink);
             letter-spacing: 0.5px;
             white-space: nowrap;
         }
@@ -768,18 +867,18 @@
         .settings-popover select {
             flex: 0 0 auto;
             padding: 2px 4px;
-            border: 1px solid #8B7355;
+            border: 1px solid var(--walnut);
             border-radius: 3px;
-            background: rgba(139, 168, 112, 0.25);
-            color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: rgba(var(--moss-rgb), 0.25);
+            color: var(--ink);
+            font-family: var(--font-serif);
             font-size: 11px;
             line-height: 1.2;
             cursor: pointer;
         }
 
         .settings-popover select:focus-visible {
-            outline: 2px solid #6B8E23;
+            outline: 2px solid var(--olive);
             outline-offset: 1px;
         }
 
@@ -790,23 +889,23 @@
         .settings-toggle {
             min-width: 56px;
             padding: 2px 8px;
-            border: 1px solid #8B7355;
+            border: 1px solid var(--walnut);
             border-radius: 3px;
-            background: rgba(139, 168, 112, 0.25);
-            color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: rgba(var(--moss-rgb), 0.25);
+            color: var(--ink);
+            font-family: var(--font-serif);
             font-size: 11px;
             line-height: 1.2;
             cursor: pointer;
         }
 
         .settings-toggle[aria-pressed="true"] {
-            background: rgba(107, 142, 35, 0.6);
-            color: #1a2a10;
+            background: rgba(var(--olive-rgb), 0.6);
+            color: var(--moss-ink);
         }
 
         .settings-toggle:focus-visible {
-            outline: 2px solid #6B8E23;
+            outline: 2px solid var(--olive);
             outline-offset: 1px;
         }
 
@@ -833,11 +932,11 @@
            the same inert-tail failure W1 describes, arriving through an absent
            declaration instead of a misplaced one.
 
-           ARIAL STAYS FIRST, DELIBERATELY. Naming the page's serif stack here
-           would change the Latin metrics of thirteen buttons on the English
-           and French arms, for a defect that only exists on the Chinese one.
-           Keeping Arial in front leaves every Latin glyph byte-identical and
-           only redirects the Han. */
+           v2.10.0 kept Arial first so the Latin metrics did not move.
+           v2.11.0 (R5) folds these buttons, and every other form control, onto
+           --font-serif through the `button, input, select, textarea` rule at
+           the top of this block - the explicit declaration this comment says
+           they lacked. */
 
         /* ── LINE-HEIGHT PINS (v2.10.0, the Chinese arm) ─────────────────────
            `line-height: normal` is not a number. It is whatever the RESOLVED
@@ -934,14 +1033,14 @@
         .dice-btn,
         .preset-nav-btn,
         .preset-item-action-btn {
-            font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-family: var(--font-serif);
         }
         .dice-btn {
             width: 26px;
             height: 26px;
-            border: 2px solid #5C4033;
+            border: 2px solid var(--brown);
             border-radius: 50%;
-            background: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--moss-rgb), 0.3);
             font-size: 14px;
             cursor: pointer;
             display: flex;
@@ -951,7 +1050,7 @@
         }
 
         .dice-btn:hover {
-            background: rgba(139, 168, 112, 0.5);
+            background: rgba(var(--moss-rgb), 0.5);
         }
 
         .dice-btn.rolling {
@@ -969,13 +1068,13 @@
             position: absolute;
             top: 32px;
             right: 0;
-            background: rgba(62, 52, 40, 0.95);
-            border: 2px solid #5C4033;
+            background: rgba(var(--umber-rgb), 0.95);
+            border: 2px solid var(--brown);
             border-radius: 6px;
             padding: 4px 0;
             z-index: 100;
             min-width: 140px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 16px rgba(var(--black-rgb), 0.4);
         }
 
         .dice-menu.open {
@@ -988,22 +1087,22 @@
             padding: 6px 12px;
             background: none;
             border: none;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 12px;
-            color: #d4c9b0;
+            color: var(--bone);
             text-align: left;
             cursor: pointer;
             transition: background 0.15s;
         }
 
         .dice-menu-item:hover {
-            background: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--moss-rgb), 0.3);
         }
 
         .dice-menu-item .mode-desc {
             display: block;
             font-size: 9px;
-            color: rgba(212, 201, 176, 0.6);
+            color: var(--bone-dim);
             margin-top: 1px;
         }
 
@@ -1019,15 +1118,15 @@
             top: 0;
             max-width: 220px;
             padding: 6px 10px;
-            background: rgba(60, 47, 47, 0.92);
-            color: #FFF8DC;
-            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: rgba(var(--ink-rgb), 0.92);
+            color: var(--cornsilk);
+            font-family: var(--font-serif);
             border-radius: 4px;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.15s;
             z-index: 9999;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 8px rgba(var(--black-rgb), 0.3);
             white-space: normal;
         }
 
@@ -1040,14 +1139,14 @@
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.6px;
-            color: #A8C08A;
+            color: var(--sage-light);
             margin-bottom: 3px;
         }
 
         .tooltip-body {
             font-size: 10px;
             line-height: 1.4;
-            color: #FFF8DC;
+            color: var(--cornsilk);
         }
 
         /* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the
@@ -1063,17 +1162,17 @@
 
         .tooltip[data-placement="above"]::after {
             top: 100%;
-            border-top-color: rgba(60, 47, 47, 0.92);
+            border-top-color: rgba(var(--ink-rgb), 0.92);
         }
 
         .tooltip[data-placement="below"]::after {
             bottom: 100%;
-            border-bottom-color: rgba(60, 47, 47, 0.92);
+            border-bottom-color: rgba(var(--ink-rgb), 0.92);
         }
 
         /* Subtle outline on hoverable tooltip targets when help mode active */
         .tooltips-enabled [data-tip]:hover {
-            outline: 1px dashed rgba(107, 142, 35, 0.5);
+            outline: 1px dashed rgba(var(--olive-rgb), 0.5);
             outline-offset: 2px;
         }
 
@@ -1116,8 +1215,8 @@
             gap: 6px;
             margin-bottom: 6px;
             padding: 4px 8px;
-            background: rgba(92, 64, 51, 0.15);
-            border: 1px solid rgba(92, 64, 51, 0.3);
+            background: rgba(var(--brown-rgb), 0.15);
+            border: 1px solid rgba(var(--brown-rgb), 0.3);
             border-radius: 4px;
             height: 28px;
             flex-shrink: 0;
@@ -1126,11 +1225,13 @@
         .preset-nav-btn {
             width: 20px;
             height: 20px;
-            border: 1px solid rgba(92, 64, 51, 0.4);
+            border: 1px solid rgba(var(--brown-rgb), 0.4);
             border-radius: 3px;
-            background: rgba(139, 168, 112, 0.2);
-            color: #3C2F2F;
-            font-size: 11px;
+            background: rgba(var(--moss-rgb), 0.2);
+            color: var(--ink);
+            /* v2.11.0: 11 -> 14px. EB Garamond draws the triangles about 25%
+               smaller than Arial did; 14px restores their old size. */
+            font-size: 14px;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -1140,14 +1241,14 @@
         }
 
         .preset-nav-btn:hover {
-            background: rgba(139, 168, 112, 0.4);
+            background: rgba(var(--moss-rgb), 0.4);
         }
 
         .preset-name-display {
             flex: 1;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 12px;
-            color: #3C2F2F;
+            color: var(--ink);
             text-align: center;
             cursor: pointer;
             padding: 2px 8px;
@@ -1159,7 +1260,7 @@
         }
 
         .preset-name-display:hover {
-            background: rgba(139, 168, 112, 0.2);
+            background: rgba(var(--moss-rgb), 0.2);
         }
 
         /* v2.9.0: pinned. SAVE is 44.83 px and ENREG. is wider, and
@@ -1169,12 +1270,12 @@
         .preset-save-btn {
             width: 60px;
             padding: 2px 8px;
-            border: 1px solid rgba(92, 64, 51, 0.4);
+            border: 1px solid rgba(var(--brown-rgb), 0.4);
             border-radius: 3px;
-            background: rgba(139, 168, 112, 0.2);
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: rgba(var(--moss-rgb), 0.2);
+            font-family: var(--font-serif);
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--ink);
             cursor: pointer;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -1183,7 +1284,7 @@
         }
 
         .preset-save-btn:hover {
-            background: rgba(139, 168, 112, 0.4);
+            background: rgba(var(--moss-rgb), 0.4);
         }
 
         /* Preset Browser Overlay */
@@ -1194,7 +1295,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(42, 36, 30, 0.95);
+            background: rgba(var(--dusk-rgb), 0.95);
             z-index: 200;
             flex-direction: column;
             padding: 15px;
@@ -1212,9 +1313,9 @@
         }
 
         .preset-browser-title {
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 16px;
-            color: #d4c9b0;
+            color: var(--bone);
             letter-spacing: 2px;
             text-transform: uppercase;
         }
@@ -1222,10 +1323,10 @@
         .preset-browser-close {
             width: 24px;
             height: 24px;
-            border: 1px solid rgba(212, 201, 176, 0.3);
+            border: 1px solid rgba(var(--bone-rgb), 0.3);
             border-radius: 50%;
             background: none;
-            color: #d4c9b0;
+            color: var(--bone);
             font-size: 14px;
             cursor: pointer;
             display: flex;
@@ -1234,7 +1335,7 @@
         }
 
         .preset-browser-close:hover {
-            background: rgba(212, 201, 176, 0.1);
+            background: rgba(var(--bone-rgb), 0.1);
         }
 
         .preset-categories {
@@ -1246,12 +1347,12 @@
 
         .preset-category-btn {
             padding: 4px 10px;
-            border: 1px solid rgba(139, 168, 112, 0.3);
+            border: 1px solid rgba(var(--moss-rgb), 0.3);
             border-radius: 12px;
             background: none;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
-            color: #d4c9b0;
+            color: var(--bone);
             cursor: pointer;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -1259,13 +1360,13 @@
         }
 
         .preset-category-btn:hover {
-            background: rgba(139, 168, 112, 0.2);
+            background: rgba(var(--moss-rgb), 0.2);
         }
 
         .preset-category-btn.active {
-            background: rgba(107, 142, 35, 0.5);
-            color: #e8e0d0;
-            border-color: rgba(107, 142, 35, 0.6);
+            background: rgba(var(--olive-rgb), 0.5);
+            color: var(--bone-2);
+            border-color: rgba(var(--olive-rgb), 0.6);
         }
 
         .preset-list {
@@ -1280,7 +1381,7 @@
         .preset-list::-webkit-scrollbar { width: 5px; }
         .preset-list::-webkit-scrollbar-track { background: transparent; }
         .preset-list::-webkit-scrollbar-thumb {
-            background: rgba(139, 115, 85, 0.3);
+            background: rgba(var(--walnut-rgb), 0.3);
             border-radius: 3px;
         }
 
@@ -1288,7 +1389,7 @@
             display: flex;
             align-items: center;
             padding: 6px 10px;
-            border: 1px solid rgba(92, 64, 51, 0.2);
+            border: 1px solid rgba(var(--brown-rgb), 0.2);
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.15s;
@@ -1296,37 +1397,37 @@
         }
 
         .preset-item:hover {
-            background: rgba(139, 168, 112, 0.15);
-            border-color: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--moss-rgb), 0.15);
+            border-color: rgba(var(--moss-rgb), 0.3);
         }
 
         .preset-item.active {
-            background: rgba(107, 142, 35, 0.25);
-            border-color: rgba(107, 142, 35, 0.5);
+            background: rgba(var(--olive-rgb), 0.25);
+            border-color: rgba(var(--olive-rgb), 0.5);
         }
 
         .preset-item-name {
             flex: 1;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 12px;
-            color: #d4c9b0;
+            color: var(--bone);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         .preset-item-category {
-            font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            font-size: 8px;
-            color: rgba(212, 201, 176, 0.5);
+            font-family: var(--font-serif);
+            font-size: 9px;
+            color: var(--bone-dim);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             flex-shrink: 0;
         }
 
         .preset-item-factory {
-            font-size: 8px;
-            color: rgba(139, 168, 112, 0.6);
+            font-size: 9px;
+            color: var(--moss);
             flex-shrink: 0;
         }
 
@@ -1345,10 +1446,10 @@
         .preset-item-action-btn {
             width: 18px;
             height: 18px;
-            border: 1px solid rgba(212, 201, 176, 0.2);
+            border: 1px solid rgba(var(--bone-rgb), 0.2);
             border-radius: 3px;
             background: none;
-            color: rgba(212, 201, 176, 0.5);
+            color: var(--bone-dim);
             font-size: 10px;
             cursor: pointer;
             display: flex;
@@ -1357,13 +1458,13 @@
         }
 
         .preset-item-action-btn:hover {
-            background: rgba(212, 201, 176, 0.1);
-            color: #d4c9b0;
+            background: rgba(var(--bone-rgb), 0.1);
+            color: var(--bone);
         }
 
         .preset-item-action-btn.delete:hover {
-            background: rgba(180, 60, 60, 0.2);
-            color: #c44;
+            background: rgba(var(--danger-rgb), 0.2);
+            color: var(--danger);
         }
 
         /* Save Dialog */
@@ -1373,13 +1474,13 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(52, 44, 36, 0.98);
-            border: 2px solid #5C4033;
+            background: rgba(var(--dialog-rgb), 0.98);
+            border: 2px solid var(--brown);
             border-radius: 8px;
             padding: 20px;
             z-index: 300;
             width: 300px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            box-shadow: 0 8px 32px rgba(var(--black-rgb), 0.5);
         }
 
         .preset-save-dialog.open {
@@ -1387,9 +1488,9 @@
         }
 
         .preset-save-dialog-title {
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 14px;
-            color: #d4c9b0;
+            color: var(--bone);
             letter-spacing: 1px;
             text-transform: uppercase;
             margin-bottom: 12px;
@@ -1398,28 +1499,28 @@
         .preset-save-input {
             width: 100%;
             padding: 6px 8px;
-            border: 1px solid rgba(92, 64, 51, 0.5);
+            border: 1px solid rgba(var(--brown-rgb), 0.5);
             border-radius: 4px;
-            background: rgba(0, 0, 0, 0.2);
-            color: #d4c9b0;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: rgba(var(--black-rgb), 0.2);
+            color: var(--bone);
+            font-family: var(--font-serif);
             font-size: 12px;
             margin-bottom: 10px;
             outline: none;
         }
 
         .preset-save-input:focus {
-            border-color: rgba(139, 168, 112, 0.5);
+            border-color: rgba(var(--moss-rgb), 0.5);
         }
 
         .preset-save-category-select {
             width: 100%;
             padding: 6px 8px;
-            border: 1px solid rgba(92, 64, 51, 0.5);
+            border: 1px solid rgba(var(--brown-rgb), 0.5);
             border-radius: 4px;
-            background: rgba(0, 0, 0, 0.2);
-            color: #d4c9b0;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: rgba(var(--black-rgb), 0.2);
+            color: var(--bone);
+            font-family: var(--font-serif);
             font-size: 12px;
             margin-bottom: 12px;
             outline: none;
@@ -1433,9 +1534,9 @@
 
         .preset-save-btns button {
             padding: 5px 14px;
-            border: 1px solid rgba(92, 64, 51, 0.5);
+            border: 1px solid rgba(var(--brown-rgb), 0.5);
             border-radius: 4px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 11px;
             cursor: pointer;
             text-transform: uppercase;
@@ -1444,17 +1545,17 @@
 
         .preset-save-cancel {
             background: none;
-            color: #d4c9b0;
+            color: var(--bone);
         }
 
         .preset-save-confirm {
-            background: rgba(107, 142, 35, 0.5);
-            color: #e8e0d0;
-            border-color: rgba(107, 142, 35, 0.6) !important;
+            background: rgba(var(--olive-rgb), 0.5);
+            color: var(--bone-2);
+            border-color: rgba(var(--olive-rgb), 0.6) !important;
         }
 
         .preset-save-confirm:hover {
-            background: rgba(107, 142, 35, 0.7);
+            background: rgba(var(--olive-rgb), 0.7);
         }
 
         /* Dim backdrop when save dialog is open */
@@ -1465,7 +1566,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(var(--black-rgb), 0.4);
             z-index: 250;
         }
 

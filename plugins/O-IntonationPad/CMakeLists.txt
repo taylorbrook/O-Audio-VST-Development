@@ -6,7 +6,7 @@ juce_add_plugin(O-IntonationPad
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuIP
-    VERSION "2.10.0"
+    VERSION "2.11.0"
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-IntonationPad${OUARICON_DEV_SUFFIX}"
     IS_SYNTH TRUE
@@ -77,6 +77,12 @@ juce_add_binary_data(O-IntonationPad_UIResources
         Source/ui/public/css/tuning-panel.css
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/shell.png
+        # v2.11.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the matching getResource() branches
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(O-IntonationPad

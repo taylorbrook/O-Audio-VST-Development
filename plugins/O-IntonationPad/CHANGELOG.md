@@ -1,5 +1,101 @@
 # O-IntonationPad Changelog
 
+## [2.11.0] - 2026-09-27
+
+**Every active caption now meets WCAG AA on the ground it actually sits on,
+nothing renders below 9px, and the house serif actually renders.** MINOR: a UI
+pass (review R4/R5), per
+`.planning/quick/260924-nho-…/260924-nho-UI-DESIGN-REVIEW.md` Phase C. No DSP,
+parameter, range, state format or i18n key changed. The knob JS is untouched,
+so R7 (keyboard/ARIA knobs) is deferred.
+
+### Changed
+
+- **Palette tokens.** The page had 0 custom properties and the review counted
+  74 hex literals. `index.html` now has 27 `:root` colour tokens and 19 `*-rgb`
+  triples, with 0 hex literals outside `:root`. Every wash reads
+  `rgba(var(--x-rgb), a)`. `js/app.js` carries 0 hex: the inline captions
+  read `var()`, and the wavetable scope reads the tokens at draw time through
+  `getComputedStyle`. `css/tuning-panel.css` maps its `--tuning-*` theme onto
+  the page tokens. Its unused `.dark-theme` block is module API and was left
+  as it was.
+- **The ground is the paper JPG, and it is washed.** Bare, `img/paper.jpg`
+  renders at a median luminance of about 0.35, where even `--ink` read
+  3.1:1 and the brown readouts 1.4–3.0:1. `measure-ui` cannot see an `<img>`
+  ground, so the fix was sized with a pixel probe: text hidden, transitions
+  off, a 2x screenshot, and the worse of the p5/p95 glyph-band luminance.
+  - The paper now draws at `opacity: 0.5` over `--paper`, which is a 0.5
+    wash. At 0.4, the darkest stain still left `--ink` at 4.06:1.
+  - The shell illustration moves from 0.35 to 0.25. Its darkest stripes sat
+    under OSC B's GAIN caption at 4.32:1.
+- **AA inks** (from `ouaricon-naturalist-001`):
+  - On the washed paper only near-black clears 4.5:1. Knob readouts move
+    from brown to `--ink`. The OSC A/B and GAIN captions move to `--leaf`
+    (GAIN was olive `#6B8E23`, 1.1:1). The chord placeholder, ink at 0.4
+    (1.7:1), is now solid `--ink` and keeps its italic.
+  - Tuning-panel muted text (Intervals, Tonic, A4 REF, Stretch, PB Range,
+    Scale Intervals, the True Keys hint, the degree and unit columns) moves
+    from walnut (3.3–3.9:1 on its cream) to `--text-muted #6A5641`.
+  - Export HTML and Generate were white on lime (2.10:1). They now use a
+    `--sage-deep` fill (6.09:1). The True Keys cents move from lime text to
+    `--leaf`.
+  - The FX bypass buttons get OPAQUE fills, pre-composited over `--paper`.
+    The On face is `--fx-on-bg` (moss-ink, 7.4:1, was 3.05:1). The Off face is
+    `--fx-off-bg` with `--brown` text (6.05:1, was ink at 0.4, 1.4:1).
+  - Interval-chip cents on the enabled and root chips are solid `--moss-ink`.
+    They were brown at 0.6 (2.0:1) and moss-ink at 0.7 (3.0:1).
+  - The frequency-count badge is de-emphasised by colour, not by `opacity`.
+    The zero-cents grey `#888` is now `--text-muted`.
+  - The dice-menu descriptions and the preset browser's category, factory
+    and action glyphs had bone or moss at 0.4–0.6. They now use solid
+    `--bone-dim` or `--moss` (≥ 4.93:1 on the dark overlays).
+- **9px floor.** Keyboard note names were 6px. The chip cents, frequency
+  cents and count, range badge, overflow marker, preset category and factory
+  tags, and the matrix and rotation tables were 7–8px. All are now 9px. The
+  rotation-table line-height pin goes from 1.125 to 1, so its cells keep the
+  measured 9.00px line box.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed): 4
+  SOURCES, 4 `getResource()` branches, and the stylesheet linked before the
+  others.
+  - Five stacks fold into one `--font-serif`: `'Garamond'`/Times, the
+    tooltip and tuning `-apple-system`, the preset-tag `-apple-system`, the
+    Arial-first button carriers, and the True Keys Menlo. EB Garamond's
+    figures are tabular, so the Menlo column loses no alignment.
+  - A `button, input, select, textarea` rule gives every form control the
+    face. That includes the tuning panel's generated inputs, which fell back
+    to the UA's Arial.
+  - CDP resolved faces, all states, English: before, Times 3778 glyphs,
+    SF 2590, Arial 722 and Menlo 20. After, EB Garamond 7196. The only
+    other faces left are symbol fallbacks for ⚙ ◄ ► ✕ ✎ 🎲, which the subset
+    lacks. Chinese keeps PingFang for Han.
+- **Preset ◀ ▶** go from 11 to 14px. EB Garamond draws the triangles about
+  25% smaller than Arial did.
+
+### Testing
+
+- Real-ground pixel probe (`ground-probe.js`, all 19 `i18n-states.json`
+  states, scroll-clipped and occluded text excluded, hover tooltip parked):
+  - below AA: en 138 → 6, fr 136 → 6, zh-Hans 133 → 6;
+  - under 9px: 159 → 0;
+  - min on active text: 1.02–1.08 → 4.55 (zh-Hans 4.79), median 8.34.
+- `measure-ui --contrast` (en / fr / zh-Hans, 360 text nodes each):
+  - below AA: 164 → 6 (45.6% → 1.7%);
+  - under 9px: 159 → 0;
+  - median ratio: 7.68 → 10.45.
+- **The 6 remaining findings on both tools** are the captions and readouts
+  of a BYPASSED effect section. `.fx-section.bypassed .fx-knobs` dims them to
+  0.35 and sets `pointer-events: none`, so they form an inactive component,
+  which WCAG 1.4.3 exempts. The dim is the bypass signal, so it was kept.
+- `check-ui-labels` passes: no clipped labels and no non-label moves between
+  English and fr/zh-Hans.
+- `check-i18n`, `i18n-fr-lint` and `i18n-zh-lint` pass.
+- Headless screenshots of all four tabs, the dice menu and the preset browser
+  were reviewed before and after. No page errors.
+- Regression surface: UI files only (`index.html`, `css/tuning-panel.css`,
+  `js/app.js` inline styles and scope colours), CMake binary data, and 4
+  resource branches. No DSP, parameter or state code was touched, so no
+  render null test was run.
+
 ## [2.10.0] - 2026-09-05
 
 **Simplified Chinese.** The interface, all 80 hover-help anchors and the
