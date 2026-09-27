@@ -8,7 +8,7 @@ juce_add_plugin(OPolystutter
     PLUGIN_CODE OuPs
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Polystutter${OUARICON_DEV_SUFFIX}"
-    VERSION 1.15.0
+    VERSION 1.16.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -69,6 +69,12 @@ juce_add_binary_data(OPolystutter_UIResources
         Source/ui/public/modules/preset-manager.js
         Source/ui/public/img/paper-background.jpg
         Source/ui/public/img/botanical-bug.png
+        # v1.16.0 (R5) - bundled EB Garamond, direct embed from the shared
+        # module; served by four getResource() branches in PluginEditor.cpp.
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 # Link UIResources to plugin
