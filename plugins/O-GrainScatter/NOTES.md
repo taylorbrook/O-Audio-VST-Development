@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.4.4
+- **Version:** 2.9.0
 - **Type:** Audio Effect (Granular Stutter Engine)
 
 ## Lifecycle Timeline
 
+- **2026-09-26 (v2.9.0):** UI pass R4/R5 (review 260924-nho). Adds `:root` palette tokens (127 hex → 0 outside `:root`), AA inks from ouaricon-naturalist-001 (#6A5641 walnut text over the gradient, #4E6839 lit switch), the 9px floor (captions, hints and canvas labels), and bundled EB Garamond via `modules/ui/eb-garamond`. Active text below AA 12/41 → 0/41 (min 2.28 → 5.14, pixel probe). Knob keyboard/ARIA (R7) still open. The inactive dimmed controls (opacity 0.25) are unchanged. No DSP change.
 - **2026-08-19 (v2.4.4):** UI layout fix (authored as 2.4.3 pre-licensing-release; renumbered at merge) — the Spatial Audio section was clipped off the bottom of the editor (content ran to y=884.5 in an 850 px window, cutting the bottom row of spatial knob readouts and the mode hint). Root cause: `.controls-area` used `grid-template-rows: 1fr 1fr`, forcing the Beat Sync / Euclidean Rhythm row to match the taller Core Engine / Pitch & Scale row (199.5 px rendered for 111 px of content). Changed to `auto auto` (row 2 now 112 px), shortened the editor 850 → 800 px, made `.plugin-container` size from `setSize()` rather than hard-coding 900×850, and let `.viz-area` absorb the remaining slack via `flex: 1 1 auto; min-height: 200px`.
 - **2026-08-19 (v2.4.3):** Licensing release — AGPL-3.0 notice headers added to all Ouaricon-authored source files. No audible or behavioral change.
 - **2026-07-09 (v2.4.2):** Info-finding cleanup sweep (CODE_REVIEW.md IN-* items). Applied IN-01 (removed dead `getCrossfadeGain()` + `crossfadeDirection`), IN-02 (removed dead `TempoTracker::lastPpq`), IN-05 (`GrainPool::clearVoices()` in `prepareToPlay`), IN-09 (cached HOA write pointers per block), IN-10 (documented distance split-semantics), IN-11 (`reset()` resets `TempoTracker`), IN-14 (removed dead `.dimmed-spatial` CSS), IN-15 (`timerCallback` early-returns when hidden). Reviewed & no change needed: IN-03 (not a bug), IN-04/IN-06 (already fixed in v2.4.1), IN-07 (intended stutter), IN-08 (negligible), IN-12/IN-13 (acceptable/documented). No audible or behavioral change.

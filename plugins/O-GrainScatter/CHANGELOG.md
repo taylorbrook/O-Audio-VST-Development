@@ -1,5 +1,68 @@
 # Changelog
 
+## [2.9.0] - 2026-09-26
+
+UI pass R4/R5 from review 260924-nho: palette tokens, AA text inks, the 9px
+floor and the bundled EB Garamond face. MINOR: a visible colour, face and size
+change. No DSP, parameter, range or state-format change. Knob interaction JS is
+untouched, so keyboard/ARIA knobs (R7) remain open.
+
+### Changed
+
+- **Palette tokens (R4).** The sheet had 0 custom properties and 127 hex
+  literals. It now has a `:root` block, and no hex literal remains outside it.
+  rgba() washes keep their alpha inline. Canvas colours stay literal because a
+  2D context cannot resolve `var()`; `TEXT_MUTED` and `CANVAS_FONT` in `app.js`
+  mirror the tokens.
+- **AA text inks from ouaricon-naturalist-001.** The ground is the body
+  gradient, which `measure-ui --contrast` cannot sample (it flags it as
+  background-image and scores against white). So the change was measured with an
+  image-aware probe: text hidden, transitions off, 2× screenshot, and the worse
+  of p5/p95 luminance under each glyph band.
+  - Walnut text (#8B7355) moves to `--text-muted` #6A5641, the template's ink
+    for text anywhere over this gradient. This covers the tagline, group labels,
+    viz labels and both hints. Group labels went from 3.34–3.55 to 5.1+.
+  - Viz labels lose their `opacity: 0.7` (2.28, zh 2.01 → 5.1+).
+  - The lit hover-help switch fill moves from #6B8E4E to `--leaf-fill` #4E6839
+    (cream text 3.52 → ~6.0).
+  - The ⚙ glyph moves to `--ink` (4.05 → pass).
+  - Canvas text (axis labels, grain count, Euclidean step count) drops the
+    0.3/0.4-alpha walnut for solid #6A5641.
+- **9px floor.** Knob and dropdown captions go from 8 to 9px at `line-height: 1`,
+  so a two-line caption still fills exactly the 18px box it was pinned to. The
+  pitch and spatial hints go from 8 to 9px at `line-height: 1`, which keeps the
+  same 9px box in the zero-slack spatial row. Canvas axis labels go from 8 to 9px.
+- **`+24st` axis label moved from baseline 14 to 26.** It sat under the
+  `GRAIN SCATTER` caption. The old 0.3-alpha ink hid the clash, and the AA ink
+  exposed it.
+- **Bundled EB Garamond (R5).** `modules/ui/eb-garamond` is direct-embedded:
+  4 SOURCES in the existing UI binary-data target and 4 `url ==` getResource
+  branches. The stylesheet is linked before the page `<style>`. One
+  `--font-serif` token replaces nine stacks, including the bare `'Garamond'`
+  entries and v2.8.0's `'Times'` stack on `.toggle`. The Times vertical metrics
+  are baked into the face, so that stack's 1.3 line-height pin still holds. CDP
+  resolves every Latin run to EB Garamond and every Han run to PingFang SC in
+  en, fr and zh-Hans.
+- **`#stutter-gate-btn` re-pinned from 110 to 111px.** EB Garamond caps set
+  "STUTTER GATE" at 110.50px, so English wrapped to two lines (+13px) and
+  check-ui-labels [7] reported the wrapper moving.
+- Fleuron marked `aria-hidden="true"`. It stays decorative at low opacity, as
+  the template allows.
+
+### Testing
+
+- **Pixel probe, active text** (en/fr/zh-Hans): 12/41 below AA → **0/41**.
+  Minimum ratio 2.28 (zh 2.01) → **5.14**.
+- **`measure-ui --contrast`**: 36/79 below AA → 25/79. The remaining 25 are the
+  24 inactive dimmed controls (the pitch gate and spatial Mode = Off at
+  `opacity: 0.25`, which WCAG 1.4.3 exempts) plus the aria-hidden fleuron.
+  Nodes under 9px: 36 → **0**.
+- `check-ui-labels`: pass. `check-i18n`, `i18n-fr-lint` and `i18n-zh-lint`:
+  pass.
+- `ui_tip_render_check`: pass, 1054 checks. Its [6b] clamp plant grew from
+  130 to 190 repeats. The narrower face shrank the old plant to 478px, so it
+  fit above the cursor and stopped exercising the clamp.
+
 ## [2.8.0] - 2026-09-07
 
 Simplified Chinese joins English and French (task 260907-ja8, wave 4f of the

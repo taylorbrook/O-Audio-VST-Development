@@ -23,13 +23,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>O-GrainScatter</title>
+    <link rel="stylesheet" href="css/eb-garamond.css">
     <style>
+        /* ══ v2.9.0 — PALETTE TOKENS (R4) ════════════════════════════════════
+           Every hex in this sheet lives here; none appear below :root. rgba()
+           washes keep their alpha inline. Canvas colours in js/app.js stay
+           literal (a 2D context does not resolve var()).
+
+           TEXT tokens are AA (>= 4.5:1) against the ground they actually sit
+           on — the body gradient's deepest stop, sampled as pixels, not the
+           fallback colour (ouaricon-naturalist-001, Text Contrast). --rule keeps
+           the old #8B7355 for borders, rules and fills only: as text it read
+           3.3-3.5 on this gradient. */
+        :root {
+            --ink: #3C2F2F;               /* primary text */
+            --text-body: #5C4033;         /* captions, readouts */
+            --text-muted: #6A5641;        /* walnut TEXT anywhere over the gradient */
+            --rule: #8B7355;              /* walnut borders / rules / decoration — NOT text */
+            --paper: #F5E6D3;
+            --paper-deep: #EBD9C7;
+            --paper-deepest: #E8D0B8;
+            --cream: #FFF8DC;
+            --plate: #E8D5B7;             /* select / switch plate */
+
+            --olive: #6B8E4E;             /* focus rings, freeze glow — NOT under text */
+            --olive-border: #5C7A3A;
+            --olive-deep: #2C3E10;        /* toggle text + active border */
+            --leaf-fill: #4E6839;         /* fill under --cream text: lit help switch */
+
+            /* Knob: botanical seed cross-section (aesthetic "Control Colors") */
+            --knob-ring: #C9A27B;
+            --knob-segment-1: #F5DEB3;
+            --knob-segment-2: var(--plate);
+            --knob-divider: var(--rule);
+            --knob-core: var(--cream);
+            --knob-pointer: #8B6914;
+
+            --tip-title: #C9A27B;         /* tooltip title on the dark tooltip body */
+
+            /* v2.9.0 (R5): one text face, bundled (modules/ui/eb-garamond,
+               linked before this sheet). Its Times vertical metrics are baked
+               in, so the .toggle that resolved to Times keeps its line box. The
+               bare 'Garamond' entry is gone so an Office-installed Windows
+               Garamond cannot outrank the bundled face; the CJK tail precedes
+               the generic. */
+            --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { width: 100%; height: 100%; overflow: hidden; }
         body {
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
-            background: linear-gradient(135deg, #F5E6D3 0%, #EBD9C7 40%, #E8D0B8 100%);
-            color: #3C2F2F;
+            font-family: var(--font-serif);
+            background: linear-gradient(135deg, var(--paper) 0%, var(--paper-deep) 40%, var(--paper-deepest) 100%);
+            color: var(--ink);
             user-select: none;
             -webkit-user-select: none;
         }
@@ -54,12 +100,12 @@
             font-size: 22px;
             font-weight: 400;
             letter-spacing: 3px;
-            color: #3C2F2F;
+            color: var(--ink);
             text-transform: uppercase;
         }
         .header .tagline {
             font-size: 10px;
-            color: #8B7355;
+            color: var(--text-muted);
             letter-spacing: 1.5px;
             font-style: italic;
         }
@@ -84,8 +130,7 @@
             font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: #8B7355;
-            opacity: 0.7;
+            color: var(--text-muted);
         }
         .grain-viz { flex: 65; }
         .euclidean-viz { flex: 35; }
@@ -122,7 +167,7 @@
             font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 1.5px;
-            color: #8B7355;
+            color: var(--text-muted);
             margin-bottom: 6px;
             font-variant: small-caps;
         }
@@ -141,13 +186,15 @@
             width: 62px;
         }
         .knob-name {
-            font-size: 8px;
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #5C4033;
+            color: var(--text-body);
             margin-bottom: 3px;
             text-align: center;
-            line-height: 1.1;
+            /* v2.9.0: 8 -> 9px (the 9px floor) at line-height 1, so a two-line
+               caption is still exactly the 18px box it was pinned to. */
+            line-height: 1;
             height: 18px;
             display: flex;
             align-items: center;
@@ -156,34 +203,34 @@
             width: 48px;
             height: 48px;
             border-radius: 50%;
-            border: 2px solid #8B7355;
+            border: 2px solid var(--rule);
             position: relative;
             cursor: pointer;
             background:
-                radial-gradient(circle, transparent 86%, #C9A27B 86%, #C9A27B 90%, #8B7355 90%, #8B7355 92%, transparent 92%),
+                radial-gradient(circle, transparent 86%, var(--knob-ring) 86%, var(--knob-ring) 90%, var(--knob-divider) 90%, var(--knob-divider) 92%, transparent 92%),
                 conic-gradient(from 0deg,
-                    #F5DEB3 0deg, #F5DEB3 18deg, #8B7355 18deg, #8B7355 19deg,
-                    #E8D5B7 19deg, #E8D5B7 36deg, #8B7355 36deg, #8B7355 37deg,
-                    #F5DEB3 37deg, #F5DEB3 54deg, #8B7355 54deg, #8B7355 55deg,
-                    #E8D5B7 55deg, #E8D5B7 72deg, #8B7355 72deg, #8B7355 73deg,
-                    #F5DEB3 73deg, #F5DEB3 90deg, #8B7355 90deg, #8B7355 91deg,
-                    #E8D5B7 91deg, #E8D5B7 108deg, #8B7355 108deg, #8B7355 109deg,
-                    #F5DEB3 109deg, #F5DEB3 126deg, #8B7355 126deg, #8B7355 127deg,
-                    #E8D5B7 127deg, #E8D5B7 144deg, #8B7355 144deg, #8B7355 145deg,
-                    #F5DEB3 145deg, #F5DEB3 162deg, #8B7355 162deg, #8B7355 163deg,
-                    #E8D5B7 163deg, #E8D5B7 180deg, #8B7355 180deg, #8B7355 181deg,
-                    #F5DEB3 181deg, #F5DEB3 198deg, #8B7355 198deg, #8B7355 199deg,
-                    #E8D5B7 199deg, #E8D5B7 216deg, #8B7355 216deg, #8B7355 217deg,
-                    #F5DEB3 217deg, #F5DEB3 234deg, #8B7355 234deg, #8B7355 235deg,
-                    #E8D5B7 235deg, #E8D5B7 252deg, #8B7355 252deg, #8B7355 253deg,
-                    #F5DEB3 253deg, #F5DEB3 270deg, #8B7355 270deg, #8B7355 271deg,
-                    #E8D5B7 271deg, #E8D5B7 288deg, #8B7355 288deg, #8B7355 289deg,
-                    #F5DEB3 289deg, #F5DEB3 306deg, #8B7355 306deg, #8B7355 307deg,
-                    #E8D5B7 307deg, #E8D5B7 324deg, #8B7355 324deg, #8B7355 325deg,
-                    #F5DEB3 325deg, #F5DEB3 342deg, #8B7355 342deg, #8B7355 343deg,
-                    #E8D5B7 343deg, #E8D5B7 360deg
+                    var(--knob-segment-1) 0deg, var(--knob-segment-1) 18deg, var(--knob-divider) 18deg, var(--knob-divider) 19deg,
+                    var(--knob-segment-2) 19deg, var(--knob-segment-2) 36deg, var(--knob-divider) 36deg, var(--knob-divider) 37deg,
+                    var(--knob-segment-1) 37deg, var(--knob-segment-1) 54deg, var(--knob-divider) 54deg, var(--knob-divider) 55deg,
+                    var(--knob-segment-2) 55deg, var(--knob-segment-2) 72deg, var(--knob-divider) 72deg, var(--knob-divider) 73deg,
+                    var(--knob-segment-1) 73deg, var(--knob-segment-1) 90deg, var(--knob-divider) 90deg, var(--knob-divider) 91deg,
+                    var(--knob-segment-2) 91deg, var(--knob-segment-2) 108deg, var(--knob-divider) 108deg, var(--knob-divider) 109deg,
+                    var(--knob-segment-1) 109deg, var(--knob-segment-1) 126deg, var(--knob-divider) 126deg, var(--knob-divider) 127deg,
+                    var(--knob-segment-2) 127deg, var(--knob-segment-2) 144deg, var(--knob-divider) 144deg, var(--knob-divider) 145deg,
+                    var(--knob-segment-1) 145deg, var(--knob-segment-1) 162deg, var(--knob-divider) 162deg, var(--knob-divider) 163deg,
+                    var(--knob-segment-2) 163deg, var(--knob-segment-2) 180deg, var(--knob-divider) 180deg, var(--knob-divider) 181deg,
+                    var(--knob-segment-1) 181deg, var(--knob-segment-1) 198deg, var(--knob-divider) 198deg, var(--knob-divider) 199deg,
+                    var(--knob-segment-2) 199deg, var(--knob-segment-2) 216deg, var(--knob-divider) 216deg, var(--knob-divider) 217deg,
+                    var(--knob-segment-1) 217deg, var(--knob-segment-1) 234deg, var(--knob-divider) 234deg, var(--knob-divider) 235deg,
+                    var(--knob-segment-2) 235deg, var(--knob-segment-2) 252deg, var(--knob-divider) 252deg, var(--knob-divider) 253deg,
+                    var(--knob-segment-1) 253deg, var(--knob-segment-1) 270deg, var(--knob-divider) 270deg, var(--knob-divider) 271deg,
+                    var(--knob-segment-2) 271deg, var(--knob-segment-2) 288deg, var(--knob-divider) 288deg, var(--knob-divider) 289deg,
+                    var(--knob-segment-1) 289deg, var(--knob-segment-1) 306deg, var(--knob-divider) 306deg, var(--knob-divider) 307deg,
+                    var(--knob-segment-2) 307deg, var(--knob-segment-2) 324deg, var(--knob-divider) 324deg, var(--knob-divider) 325deg,
+                    var(--knob-segment-1) 325deg, var(--knob-segment-1) 342deg, var(--knob-divider) 342deg, var(--knob-divider) 343deg,
+                    var(--knob-segment-2) 343deg, var(--knob-segment-2) 360deg
                 ),
-                radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+                radial-gradient(circle, var(--knob-core) 0%, var(--knob-core) 20%, transparent 20%);
             box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3),
                         inset -1px -1px 2px rgba(255,248,220,0.5),
                         2px 2px 6px rgba(0,0,0,0.2);
@@ -196,14 +243,14 @@
             height: 0;
             border-left: 4px solid transparent;
             border-right: 4px solid transparent;
-            border-top: 18px solid #8B6914;
+            border-top: 18px solid var(--knob-pointer);
             transform: translateX(-50%) rotate(0deg);
             transform-origin: center 22px;
             pointer-events: none;
         }
         .knob-value {
             font-size: 9px;
-            color: #5C4033;
+            color: var(--text-body);
             margin-top: 2px;
             text-align: center;
             min-width: 40px;
@@ -217,23 +264,24 @@
             width: 80px;
         }
         .dropdown-name {
-            font-size: 8px;
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #5C4033;
+            color: var(--text-body);
             margin-bottom: 3px;
             text-align: center;
+            line-height: 1;
             height: 18px;
             display: flex;
             align-items: center;
         }
         .dropdown {
             width: 100%;
-            background: #E8D5B7;
-            border: 1px solid #8B7355;
-            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: var(--plate);
+            border: 1px solid var(--rule);
+            font-family: var(--font-serif);
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--ink);
             padding: 4px 6px;
             border-radius: 3px;
             appearance: none;
@@ -244,41 +292,30 @@
             background-position: right 5px center;
             padding-right: 18px;
         }
-        .dropdown:focus { outline: 1px solid #6B8E4E; }
+        .dropdown:focus { outline: 1px solid var(--olive); }
 
         /* ── Toggle ── */
         .toggle {
             background: rgba(139,168,112,0.2);
-            border: 2px solid #5C7A3A;
+            border: 2px solid var(--olive-border);
             border-radius: 4px;
             padding: 6px 14px;
-            /* v2.8.0 — THE FACE-NAMING HALF, and a grep for a bare generic finds
-               nothing here. This stack named ONE family and that family is not on
-               the build machine, so its only survivor was the trailing generic —
-               and Chromium resolves a bare `serif` against the DOCUMENT's lang, so
-               under Chinese it would have rendered the Latin captions through a
-               Chinese face too.
-
-               `Times` is the face this declaration ALREADY resolves to, measured
-               through CDP getPlatformFontsForNode on the two nodes it reaches
-               rather than inferred from the stack: freeze-toggle and
-               #stutter-gate-btn both come back Times, while every other caption on
-               this page comes back Georgia. Naming Georgia here would have been
-               tidier and would have moved both English captions, so the face that
-               is already rendering is the one that is named. The CJK tail then
-               goes BEFORE the generic, which is where a tail has to sit to be
-               consulted at all. */
-            font-family: 'Garamond', 'Times', 'PingFang SC', 'Microsoft YaHei', serif;
+            /* v2.8.0 named 'Times' here: the face these two captions
+               (freeze-toggle, #stutter-gate-btn) actually resolved to, measured
+               by CDP. v2.9.0 moves them onto the shared token with the rest of
+               the page; the bundled EB Garamond carries Times' vertical metrics,
+               so the 1.3 line-height pin below still reproduces the same box. */
+            font-family: var(--font-serif);
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #2C3E10;
+            color: var(--olive-deep);
             cursor: pointer;
             transition: all 0.15s;
         }
         .toggle.active {
             background: rgba(107,142,35,0.5);
-            border-color: #2C3E10;
+            border-color: var(--olive-deep);
         }
 
         /* A LOAD-BEARING WIDTH PIN, not decoration. #stutter-gate-btn is a
@@ -292,9 +329,15 @@
            by 0.05 px — an order of magnitude inside the gate's 0.5 px
            tolerance — while the rectangle becomes language-invariant. It also
            caps what a future French edit may spend here: "Porte bégaiement"
-           (138.58) would overflow it visibly instead of pushing silently. */
+           (138.58) would overflow it visibly instead of pushing silently.
+
+           v2.9.0 RE-PIN for EB Garamond: its caps set "STUTTER GATE" at
+           110.50 px, so the 110 px pin wrapped the English caption onto two
+           lines (+13 px) while fr/zh stayed on one - check-ui-labels [7]
+           reported the wrapper moving. 111 px is the new English border box
+           rounded up. */
         #stutter-gate-btn {
-            width: 110px;
+            width: 111px;
         }
         /* ── Pitch gate dimming ── */
         .dropdown-container {
@@ -305,8 +348,8 @@
             pointer-events: none;
         }
         .pitch-hint {
-            font-size: 8px;
-            color: #8B7355;
+            font-size: 9px;
+            color: var(--text-muted);
             font-style: italic;
             text-align: center;
             width: 100%;
@@ -352,8 +395,8 @@
             align-items: flex-start;
         }
         .spatial-hint {
-            font-size: 8px;
-            color: #8B7355;
+            font-size: 9px;
+            color: var(--text-muted);
             font-style: italic;
             text-align: center;
             width: 100%;
@@ -373,7 +416,7 @@
            so an in-flow insertion anywhere would have to be paid for somewhere.
 
            Styled in this plugin's own visual system rather than pasted in: the
-           Garamond of the body, the #8B7355 rules and #FFF8DC cream of the
+           Garamond of the body, the var(--rule) rules and var(--cream) cream of the
            knobs, and the olive rgba(107,142,78) the freeze toggle already uses
            for its active state. */
         .settings-cluster {
@@ -388,10 +431,10 @@
             height: 20px;
             padding: 0;
             background: rgba(107,142,78,0.22);
-            border: 1px solid #8B7355;
+            border: 1px solid var(--rule);
             border-radius: 50%;
-            color: #5C4033;
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            color: var(--ink);
+            font-family: var(--font-serif);
             font-size: 11px;
             line-height: 1;
             cursor: pointer;
@@ -403,7 +446,7 @@
 
         .gear-btn:hover { background: rgba(107,142,78,0.4); }
         .gear-btn[aria-expanded="true"] { background: rgba(107,142,78,0.55); }
-        .gear-btn:focus-visible { outline: 2px solid #6B8E4E; outline-offset: 2px; }
+        .gear-btn:focus-visible { outline: 2px solid var(--olive); outline-offset: 2px; }
 
         /* Opens DOWNWARDS. The gear sits 11 px from the TOP of an 800 px frame,
            so there is no reason to open upward the way the short-framed plugins
@@ -427,7 +470,7 @@
             flex-direction: column;
             gap: 6px;
             background: rgba(255,248,220,0.98);
-            border: 1px solid #8B7355;
+            border: 1px solid var(--rule);
             border-radius: 4px;
             box-shadow: 2px 4px 12px rgba(60,47,47,0.35);
         }
@@ -449,28 +492,28 @@
            declared because it converts the next French edit on this caption
            from a silent push into a loud failure. */
         .settings-label {
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: #5C4033;
+            color: var(--text-body);
             white-space: nowrap;
         }
 
         .settings-select {
             flex: 0 0 auto;
             padding: 1px 3px;
-            background: #E8D5B7;
-            border: 1px solid #8B7355;
+            background: var(--plate);
+            border: 1px solid var(--rule);
             border-radius: 2px;
-            color: #3C2F2F;
-            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            color: var(--ink);
+            font-family: var(--font-serif);
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
         }
 
-        .settings-select:focus { outline: 1px solid #6B8E4E; }
+        .settings-select:focus { outline: 1px solid var(--olive); }
 
         /* v2.7.0 THE HOVER-HELP SWITCH.
 
@@ -487,11 +530,11 @@
            measures — verified with check-ui-labels [7] after the port. */
         .settings-toggle {
           padding: 1px 3px;
-          background: #E8D5B7;
-          border: 1px solid #8B7355;
+          background: var(--plate);
+          border: 1px solid var(--rule);
           border-radius: 2px;
-          color: #3C2F2F;
-          font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+          color: var(--ink);
+          font-family: var(--font-serif);
           font-size: 10px;
           line-height: 1.2;
           flex: 0 0 auto;
@@ -502,13 +545,13 @@
         }
 
         .settings-toggle[aria-pressed="true"] {
-          background: #6B8E4E;
-          border-color: #6B8E4E;
-          color: #FFF8DC;
+          background: var(--leaf-fill);
+          border-color: var(--leaf-fill);
+          color: var(--cream);
         }
 
         .settings-toggle:focus-visible {
-          outline: 2px solid #6B8E4E;
+          outline: 2px solid var(--olive);
           outline-offset: 2px;
         }
 
@@ -549,11 +592,11 @@
             max-width: 280px;
             padding: 7px 10px;
             background: rgba(60,47,47,0.97);
-            color: #F5E6D3;
-            border: 1px solid #8B7355;
+            color: var(--paper);
+            border: 1px solid var(--rule);
             border-radius: 4px;
             box-shadow: 2px 4px 12px rgba(60,47,47,0.45);
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 11px;
             line-height: 1.4;
             opacity: 0;
@@ -569,7 +612,7 @@
             font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: #C9A27B;
+            color: var(--tip-title);
             margin-bottom: 3px;
         }
         /* ══ v2.8.0 — LINE-BOX PINS FOR THE CHINESE ARM ═════════════════════
@@ -594,6 +637,7 @@
                .group-label        9 px, content 10 px      -> 1.1111111
                .settings-label     9 px, content 10 px      -> 1.1111111
                .pitch-hint         8 px, content  9 px      -> 1.125
+                                     (v2.9.0: 9 px at 1 — same 9 px content box)
                .spatial-hint          (11 px box less 2 px padding-top)
                .toggle            10 px, content 13 px      -> 1.3
                                      (29 px box less 6+6 padding and 2+2 border)
@@ -608,7 +652,7 @@
         .group-label               { line-height: 1.1111111; }
         .settings-label            { line-height: 1.1111111; }
         .pitch-hint,
-        .spatial-hint              { line-height: 1.125; }
+        .spatial-hint              { line-height: 1; }      /* v2.9.0: 9px x 1 = the same 9px box */
         .toggle                    { line-height: 1.3; }
     </style>
 </head>
@@ -679,7 +723,7 @@
         <button class="toggle freeze-toggle" data-param="freeze" data-i18n="label.freeze">Freeze</button>
     </div>
 
-    <div class="fleuron">&#10087;</div>
+    <div class="fleuron" aria-hidden="true">&#10087;</div>
 
     <!-- Controls -->
     <div class="controls-area">
