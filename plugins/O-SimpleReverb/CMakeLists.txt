@@ -5,7 +5,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-SimpleReverb
-    VERSION 1.9.0
+    VERSION 1.10.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuSr
@@ -65,6 +65,12 @@ juce_add_binary_data(O-SimpleReverb_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/flora.png
+        # v1.10.0 - bundled EB Garamond, direct embed from the shared
+        # module; served by four getResource branches in PluginEditor.cpp.
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(O-SimpleReverb

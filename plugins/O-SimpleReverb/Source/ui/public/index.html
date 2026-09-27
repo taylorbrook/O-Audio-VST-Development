@@ -23,6 +23,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ouaricon Simple Reverb</title>
+    <!-- v1.10.0 (R5): bundled EB Garamond, served from modules/ui/eb-garamond. -->
+    <link rel="stylesheet" href="css/eb-garamond.css" />
     <style>
         * {
             margin: 0;
@@ -32,11 +34,59 @@
             -webkit-user-select: none;
         }
 
+        /* v1.10.0 PALETTE TOKENS (review 260924-nho R4). Every colour on the
+           page is declared here and nowhere else; washes are written as
+           rgba(var(--x-rgb), a). Text colours are the ouaricon-naturalist-001
+           AA variants: walnut #8B7355 and moss #8BA870 stay for borders,
+           rings and decoration only, never for text.
+
+           Tints that sit UNDER text are opaque hex, pre-composited over
+           --paper, not rgba(): a translucent fill lets paper.jpg's stains
+           through and makes the caption's contrast depend on where the
+           button happens to sit on the image. */
         :root {
-            --knob-track: rgba(139, 115, 85, 0.3);
-            --knob-vine: #5a7a6a;
-            --text-secondary: #8b7355;
-            --text-muted: #a08870;
+            --ink:        #3C2F2F;   /* primary text */
+            --ink-soft:   #5C4033;   /* secondary text, frame, hairlines */
+            --ink-soft-rgb: 92, 64, 51;
+            --paper:      #F5E6D3;   /* wash under paper.jpg (see .plugin-container) */
+            --cream:      #FFF8DC;
+            --cream-rgb:  255, 248, 220;
+            --cream-plate: #FBF1D8;  /* cream 0.6 over --paper, opaque */
+            --cream-plate-hover: #FEF6DB; /* cream 0.9 over --paper */
+            --moss:       #8BA870;   /* focus rings, decoration */
+            --moss-rgb:   139, 168, 112;
+            --moss-plate: #D5D3B5;   /* moss 0.3 over --paper: nav/type/gear idle */
+            --moss-plate-mid: #CBCDAB;   /* moss 0.4 over --paper: engaged toggle, type hover */
+            --moss-plate-hover: #C0C7A2; /* moss 0.5 over --paper */
+            --meter-face: #E0DABF;   /* moss 0.2 over --paper: VU dial */
+            --btn-idle:   #DECDBB;   /* ink-soft 0.15 over --paper: SAVE/LOAD */
+            --btn-hover:  #D5D3B5;
+            --toggle-idle: #E6D5C3;  /* ink-soft 0.10 over --paper: LOW CUT OFF */
+            --toggle-hover: #D6C5B3; /* ink-soft 0.20 over --paper */
+            --walnut:     #8B7355;   /* borders, VU arc, decoration */
+            --walnut-rgb: 139, 115, 85;
+            --olive-rgb:  107, 142, 35;
+            --leaf:       #3C5C1A;   /* the page's one "active" ink: ON caption, VU bezel, needle, tip title */
+            --leaf-fill:  #4E6839;   /* engaged fills under cream text */
+            --danger:     #8B0000;   /* VU 0 dB tick + label */
+            --host-bg:    #2a2a2a;   /* outside the 500x350 frame */
+            --shadow-rgb: 0, 0, 0;
+            --highlight-rgb: 255, 255, 255;
+
+            --knob-track: rgba(var(--walnut-rgb), 0.3);
+            --knob-vine:  #5a7a6a;
+            --text-secondary: var(--ink-soft);  /* knob captions (was #8B7355, 3.66:1 on flat paper) */
+            --text-muted: var(--ink);           /* knob readouts (was #A08870) */
+
+            /* #TYPE's caret. A data: URI cannot read a custom property, so the
+               fill is spelled here, as %23 + --ink-soft. */
+            --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235C4033' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+
+            /* R5: the bundled face (modules/ui/eb-garamond, direct embed).
+               Bare 'Garamond' is gone: stock macOS has no such face, so it had
+               resolved to Times, and on Windows an Office Garamond would have
+               won ahead of the bundle. */
+            --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
         }
 
         html, body {
@@ -49,17 +99,23 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background: #2a2a2a;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            background: var(--host-bg);
+            font-family: var(--font-serif);
         }
 
         .plugin-container {
             width: 500px;
             height: 350px;
             position: relative;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-            border: 3px solid #5C4033;
+            box-shadow: 0 10px 40px rgba(var(--shadow-rgb), 0.5);
+            border: 3px solid var(--ink-soft);
             overflow: hidden;
+            /* v1.10.0: the --paper wash. paper.jpg bare renders as a mid ochre
+               with darker stains under the knob captions, where the 9-10 px
+               text measured 1.2-1.9:1. The container carries --paper and the
+               image is drawn at 1 - wash over it (.background opacity), which
+               is the same as a 0.40 --paper layer on top, with no new markup. */
+            background-color: var(--paper);
         }
 
         .background {
@@ -71,6 +127,7 @@
             transform: translate(-50%, -50%);
             object-fit: none;
             object-position: center;
+            opacity: 0.6;   /* = a 0.40 --paper wash; see .plugin-container */
         }
 
         .botanical-overlay {
@@ -102,11 +159,11 @@
 
         .title {
             font-size: 16px;
-            color: #3C2F2F;
+            color: var(--ink);
             letter-spacing: 2px;
             font-weight: normal;
             text-transform: uppercase;
-            text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+            text-shadow: 1px 1px 2px rgba(var(--highlight-rgb), 0.5);
             line-height: 1.2;
         }
 
@@ -119,29 +176,29 @@
         }
 
         .preset-nav-btn {
-            background: rgba(139, 168, 112, 0.3);
-            border: 1px solid #5C4033;
+            background: var(--moss-plate);
+            border: 1px solid var(--ink-soft);
             border-radius: 3px;
             padding: 3px 8px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 14px;
-            color: #3C2F2F;
+            color: var(--ink);
             cursor: pointer;
             transition: background 0.15s;
         }
 
         .preset-nav-btn:hover {
-            background: rgba(139, 168, 112, 0.5);
+            background: var(--moss-plate-hover);
         }
 
         .preset-display {
-            background: rgba(255, 248, 220, 0.6);
-            border: 1px solid #5C4033;
+            background: var(--cream-plate);
+            border: 1px solid var(--ink-soft);
             border-radius: 3px;
             padding: 3px 10px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 12px;
-            color: #3C2F2F;
+            color: var(--ink);
             min-width: 130px;
             text-align: center;
             cursor: pointer;
@@ -149,7 +206,7 @@
         }
 
         .preset-display:hover {
-            background: rgba(255, 248, 220, 0.9);
+            background: var(--cream-plate-hover);
         }
 
         .preset-dropdown {
@@ -159,10 +216,10 @@
             left: 0;
             right: 0;
             margin-top: 2px;
-            background: rgba(255, 248, 220, 0.98);
-            border: 2px solid #5C4033;
+            background: rgba(var(--cream-rgb), 0.98);
+            border: 2px solid var(--ink-soft);
             border-radius: 4px;
-            box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
+            box-shadow: 2px 4px 12px rgba(var(--shadow-rgb), 0.4);
             max-height: 200px;
             overflow-y: auto;
             z-index: 9999;
@@ -184,11 +241,11 @@
         }
 
         .preset-dropdown-item:hover {
-            background: rgba(139, 168, 112, 0.3);
+            background: rgba(var(--moss-rgb), 0.3);
         }
 
         .preset-dropdown-item.active {
-            background: rgba(107, 142, 35, 0.3);
+            background: rgba(var(--olive-rgb), 0.3);
             font-weight: bold;
         }
 
@@ -196,20 +253,20 @@
             padding: 4px 10px;
             font-size: 10px;
             font-weight: bold;
-            color: #5C4033;
-            background: rgba(139, 115, 85, 0.15);
+            color: var(--ink-soft);
+            background: rgba(var(--walnut-rgb), 0.15);
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
         .preset-action-btn {
-            background: rgba(92, 64, 51, 0.15);
-            border: 1px solid #8B7355;
+            background: var(--btn-idle);
+            border: 1px solid var(--walnut);
             border-radius: 3px;
             padding: 3px 6px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
-            color: #5C4033;
+            color: var(--ink-soft);
             cursor: pointer;
             transition: background 0.15s;
             text-transform: uppercase;
@@ -217,7 +274,7 @@
         }
 
         .preset-action-btn:hover {
-            background: rgba(139, 168, 112, 0.3);
+            background: var(--btn-hover);
         }
 
         /* v1.6.0 GEOMETRY PINS — BOTH LOAD-BEARING, negative controls in the
@@ -266,22 +323,22 @@
         }
 
         #TYPE {
-            background: rgba(139, 168, 112, 0.3);
-            border: 2px solid #5C4033;
+            background: var(--moss-plate);
+            border: 2px solid var(--ink-soft);
             border-radius: 4px;
             padding: 6px 12px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 14px;
-            color: #3C2F2F;
+            color: var(--ink);
             cursor: pointer;
-            box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+            box-shadow: 1px 1px 3px rgba(var(--shadow-rgb), 0.15);
             min-width: 120px;
             text-align: center;
             text-align-last: center;
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235C4033' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+            background-image: var(--select-caret);
             background-repeat: no-repeat;
             background-position: right 8px center;
             padding-right: 28px;
@@ -292,11 +349,11 @@
         }
 
         #TYPE:hover {
-            background-color: rgba(139, 168, 112, 0.4);
+            background-color: var(--moss-plate-mid);
         }
 
         #TYPE:focus {
-            outline: 2px solid #8BA870;
+            outline: 2px solid var(--moss);
             outline-offset: 2px;
         }
 
@@ -328,6 +385,14 @@
         .knob.disabled {
             opacity: 0.4;
             cursor: not-allowed;
+        }
+
+        /* v1.10.0: LOW CUT's OFF dim lands on the ARC only. It used to be an
+           inline opacity: 0.5 on the whole .knob, which halved the caption,
+           the 20/400 scale and the ON/OFF switch to 1.0-1.3:1. The arc still
+           greys out; the words stay readable. */
+        .knob.lp-off .knob-visual svg {
+            opacity: 0.5;
         }
 
         .knob-visual {
@@ -394,10 +459,19 @@
            now TRAITÉ 36.80, the glossary's settled wet/dry against DIRECT. It
            is still 15.20 px UNDER cliff A, so the claim above is unchanged and
            this knob stays unpinned. SIGNAL TRAITÉ (77.16) would have been
-           25.16 px past the cliff and was rejected on that. */
+           25.16 px past the cliff and was rejected on that.
+
+           v1.10.0 (R5, EB Garamond): the bundled face widened the captions,
+           re-measured in all three languages —
+
+             CHARACTER 63.77 -> pin 64    CARACTÈRE 61.55   特性 20.00
+
+           62 left English 1.77 px over its own content box (check-ui-labels
+           [4]). The other five are still under cliff A in every language
+           (widest: DIRECT 38.56), so the unpinned decision stands. */
 
         #CHARACTER-knob > .knob-label {
-            width: 62px;
+            width: 64px;
             text-align: center;
         }
 
@@ -409,11 +483,13 @@
             text-align: center;
         }
 
+        /* v1.10.0: 8 -> 9 px (the template's floor) and the 0.7 opacity
+           dropped. Under the old whole-knob 0.5 dim these two read at 0.35
+           effective alpha. */
         .hz-label {
             position: absolute;
-            font-size: 8px;
-            color: #5C4033;
-            opacity: 0.7;
+            font-size: 9px;
+            color: var(--ink-soft);
         }
 
         .hz-left {
@@ -435,20 +511,20 @@
         .toggle-btn {
             padding: 2px 8px;
             border-radius: 3px;
-            background: rgba(92, 64, 51, 0.1);
-            border: 1px solid #8B7355;
+            background: var(--toggle-idle);
+            border: 1px solid var(--walnut);
             transition: all 0.15s ease;
             cursor: pointer;
         }
 
         .toggle-btn:hover {
-            background: rgba(92, 64, 51, 0.2);
+            background: var(--toggle-hover);
         }
 
         .toggle-btn.active {
-            background: rgba(139, 168, 112, 0.4);
-            border-color: #3C5C1A;
-            color: #3C5C1A;
+            background: var(--moss-plate-mid);
+            border-color: var(--leaf);
+            color: var(--leaf);
         }
 
         /* Bottom row: 3-column grid aligned with top row */
@@ -465,8 +541,8 @@
         .vu-meter {
             width: 100px;
             height: 100px;
-            background: rgba(139, 168, 112, 0.2);
-            border: 2px solid #3C5C1A;
+            background: var(--meter-face);
+            border: 2px solid var(--leaf);
             border-radius: 50%;
             position: relative;
             overflow: hidden;
@@ -485,7 +561,7 @@
             position: absolute;
             width: 2px;
             height: 40px;
-            background: linear-gradient(to top, #3C5C1A, #3C5C1A);
+            background: var(--leaf);
             bottom: 50%;
             left: 50%;
             transform-origin: bottom center;
@@ -498,7 +574,7 @@
             position: absolute;
             width: 12px;
             height: 12px;
-            background: #3C2F2F;
+            background: var(--ink);
             border-radius: 50%;
             bottom: calc(50% - 6px);
             left: calc(50% - 6px);
@@ -507,9 +583,9 @@
 
         .vu-db-label {
             position: absolute;
-            font-size: 8px;
-            color: #5C4033;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-size: 9px;   /* v1.10.0: 8 -> 9 px floor */
+            color: var(--ink);
+            font-family: var(--font-serif);
         }
 
         /* Footer */
@@ -519,10 +595,21 @@
             padding-top: 5px;
         }
 
+        .vu-db-label.vu-db-zero {
+            color: var(--danger);
+        }
+
+        /* VU scale strokes, moved out of SVG presentation attributes so the
+           colours live in :root. */
+        .vu-arc  { stroke: var(--walnut); }
+        .vu-tick { stroke: var(--ink-soft); }
+        .vu-tick-zero { stroke: var(--danger); }
+
+        /* v1.10.0: opacity 0.7 removed — it is a contrast change, and it
+           took the footer to 2.0:1 on the paper stain under it. */
         .version {
             font-size: 10px;
-            color: #5C4033;
-            opacity: 0.7;
+            color: var(--ink);   /* --ink-soft read 4.31:1 on the stain under the footer */
         }
 
         /* ── v1.6.0: the settings cluster ────────────────────────────────────
@@ -537,8 +624,8 @@
            x 237.41 and is pointer-events: none.
 
            The plugin's own visual system, not a pasted-in widget: Garamond,
-           #5C4033 borders, the olive rgba(139,168,112) of .preset-nav-btn and
-           the cream rgba(255,248,220) of .preset-display. */
+           --ink-soft borders, the moss plate of .preset-nav-btn and
+           the cream plate of .preset-display. */
         .settings-cluster {
             position: absolute;
             left: 6px;
@@ -550,11 +637,11 @@
             width: 20px;
             height: 20px;
             padding: 0;
-            background: rgba(139, 168, 112, 0.3);
-            border: 1px solid #5C4033;
+            background: var(--moss-plate);
+            border: 1px solid var(--ink-soft);
             border-radius: 50%;
-            color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            color: var(--ink);
+            font-family: var(--font-serif);
             font-size: 11px;
             line-height: 1;
             cursor: pointer;
@@ -565,15 +652,17 @@
         }
 
         .gear-btn:hover {
-            background: rgba(139, 168, 112, 0.5);
+            background: var(--moss-plate-hover);
         }
 
         .gear-btn[aria-expanded="true"] {
-            background: rgba(139, 168, 112, 0.6);
+            background: var(--leaf-fill);
+            border-color: var(--leaf-fill);
+            color: var(--cream);
         }
 
         .gear-btn:focus-visible {
-            outline: 2px solid #8BA870;
+            outline: 2px solid var(--moss);
             outline-offset: 2px;
         }
 
@@ -600,10 +689,10 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
-            background: rgba(255, 248, 220, 0.98);
-            border: 2px solid #5C4033;
+            background: rgba(var(--cream-rgb), 0.98);
+            border: 2px solid var(--ink-soft);
             border-radius: 4px;
-            box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.4);
+            box-shadow: 2px 4px 12px rgba(var(--shadow-rgb), 0.4);
         }
 
         .settings-popover[hidden] {
@@ -628,9 +717,9 @@
            commit 4fa586e8 added assertion 8b for. The plant result is in the
            report. */
         .settings-label {
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
-            color: #3C2F2F;
+            color: var(--ink);
             text-transform: uppercase;
             letter-spacing: 1px;
             white-space: nowrap;
@@ -639,18 +728,18 @@
         .settings-select {
             flex: 0 0 auto;
             padding: 1px 3px;
-            background: rgba(255, 248, 220, 0.6);
-            border: 1px solid #5C4033;
+            background: var(--cream-plate);
+            border: 1px solid var(--ink-soft);
             border-radius: 2px;
-            color: #3C2F2F;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            color: var(--ink);
+            font-family: var(--font-serif);
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
         }
 
         .settings-select:focus-visible {
-            outline: 2px solid #8BA870;
+            outline: 2px solid var(--moss);
             outline-offset: 1px;
         }
 
@@ -669,11 +758,11 @@
            measures — verified with check-ui-labels [7] after the port. */
         .settings-toggle {
           padding: 1px 3px;
-          background: rgba(255, 248, 220, 0.6);
-          border: 1px solid #5C4033;
+          background: var(--cream-plate);
+          border: 1px solid var(--ink-soft);
           border-radius: 2px;
-          color: #3C2F2F;
-          font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+          color: var(--ink);
+          font-family: var(--font-serif);
           font-size: 10px;
           line-height: 1.2;
           flex: 0 0 auto;
@@ -684,13 +773,13 @@
         }
 
         .settings-toggle[aria-pressed="true"] {
-          background: #8BA870;
-          border-color: #8BA870;
-          color: #FFF8DC;
+          background: var(--leaf-fill);
+          border-color: var(--leaf-fill);
+          color: var(--cream);
         }
 
         .settings-toggle:focus-visible {
-          outline: 2px solid #8BA870;
+          outline: 2px solid var(--moss);
           outline-offset: 1px;
         }
 
@@ -699,8 +788,8 @@
            ONE floating box for the whole page, moved and refilled per anchor by
            setupTooltips(). It wears THIS page's vocabulary rather than a
            sibling's: the .settings-popover plate exactly — cream
-           rgba(255,248,220,0.98), a 2 px #5C4033 border, 4 px radius and the
-           same 2/4/12 drop shadow — with the title line in #3C5C1A, which is
+           cream at 0.98, a 2 px --ink-soft border, 4 px radius and the
+           same 2/4/12 drop shadow — with the title line in --leaf, which is
            this page's one "active" ink (the .toggle-btn.active caption, the VU
            bezel and the needle all use it).
 
@@ -756,14 +845,14 @@
             z-index: 70;
             max-width: 220px;
             padding: 6px 9px 7px;
-            font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 11px;
             line-height: 1.4;
-            color: #3C2F2F;
-            background: rgba(255, 248, 220, 0.98);
-            border: 2px solid #5C4033;
+            color: var(--ink);
+            background: rgba(var(--cream-rgb), 0.98);
+            border: 2px solid var(--ink-soft);
             border-radius: 4px;
-            box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.4);
+            box-shadow: 2px 4px 12px rgba(var(--shadow-rgb), 0.4);
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
@@ -780,7 +869,7 @@
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: #3C5C1A;
+            color: var(--leaf);
             margin-bottom: 2px;
         }
         /* ── LINE-HEIGHT PINS (v1.9.0, the Chinese arm) ──────────────────────
@@ -888,7 +977,7 @@
                 </div>
 
                 <div class="knob-control">
-                    <div class="knob" id="LPFREQ-knob" style="opacity: 0.5;">
+                    <div class="knob lp-off" id="LPFREQ-knob">
                         <div class="knob-visual lpfreq-wrapper">
                             <span class="hz-label hz-left">20</span>
                             <span class="hz-label hz-right">400</span>
@@ -960,25 +1049,27 @@
                 <div class="vu-meter">
                     <svg class="vu-meter-scale" viewBox="0 0 100 100">
                         <!-- Arc from -60dB (left) to 0dB (right), center=(50,50) r=44 -->
-                        <path d="M 6 50 A 44 44 0 0 1 94 50" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                        <path d="M 6 50 A 44 44 0 0 1 94 50" fill="none" class="vu-arc" stroke-width="1.5"/>
                         <!-- Tick marks positioned at correct angles for linear dB scale -->
                         <!-- -60dB at 180° -->
-                        <line x1="6" y1="50" x2="14" y2="50" stroke="#5C4033" stroke-width="1"/>
+                        <line x1="6" y1="50" x2="14" y2="50" class="vu-tick" stroke-width="1"/>
                         <!-- -30dB at 90° -->
-                        <line x1="50" y1="6" x2="50" y2="14" stroke="#5C4033" stroke-width="1"/>
+                        <line x1="50" y1="6" x2="50" y2="14" class="vu-tick" stroke-width="1"/>
                         <!-- -12dB at 36° -->
-                        <line x1="85.6" y1="24.2" x2="79.6" y2="28.8" stroke="#5C4033" stroke-width="1"/>
+                        <line x1="85.6" y1="24.2" x2="79.6" y2="28.8" class="vu-tick" stroke-width="1"/>
                         <!-- -6dB at 18° -->
-                        <line x1="91.8" y1="36.4" x2="84.7" y2="38.7" stroke="#5C4033" stroke-width="1"/>
+                        <line x1="91.8" y1="36.4" x2="84.7" y2="38.7" class="vu-tick" stroke-width="1"/>
                         <!-- 0dB at 0° -->
-                        <line x1="94" y1="50" x2="86" y2="50" stroke="#8B0000" stroke-width="1.5"/>
+                        <line x1="94" y1="50" x2="86" y2="50" class="vu-tick-zero" stroke-width="1.5"/>
                     </svg>
                     <!-- dB labels positioned inward along the arc for legibility -->
-                    <span class="vu-db-label" style="left: 14px; top: 44px;">-60</span>
+                    <!-- v1.10.0: -60 moved 44 -> 36 px. At 44 the resting needle (-90 deg,
+                         y 49-51) struck through it: 1.67:1 at rest. -->
+                    <span class="vu-db-label" style="left: 14px; top: 36px;">-60</span>
                     <span class="vu-db-label" style="left: 40px; top: 14px;">-30</span>
                     <span class="vu-db-label" style="left: 64px; top: 22px;">-12</span>
                     <span class="vu-db-label" style="right: 14px; top: 34px;">-6</span>
-                    <span class="vu-db-label" style="right: 14px; top: 44px; color: #8B0000;">0</span>
+                    <span class="vu-db-label vu-db-zero" style="right: 14px; top: 44px;">0</span>
                     <div class="vu-meter-needle" id="vu_needle"></div>
                     <div class="vu-meter-pivot"></div>
                 </div>
@@ -1597,7 +1688,9 @@
                 const isOn = lponState.getNormalisedValue() >= 0.5;
                 const freqNorm = lpfreqState.getNormalisedValue();
 
-                lpfreqKnob.style.opacity = isOn ? "1.0" : "0.5";
+                // v1.10.0: a class, not an inline opacity on the whole knob —
+                // the dim now lands on the arc only (see .knob.lp-off).
+                lpfreqKnob.classList.toggle("lp-off", !isOn);
                 // v1.6.0: setLabel, not textContent. The element declares its
                 // own key from this moment on, so the language-change sweep
                 // owns it and there is no second code path to go stale in the
