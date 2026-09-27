@@ -3,8 +3,8 @@ plugin: O-Formant
 stage: 4
 status: complete
 phase: verified
-version: 1.33.1
-last_updated: 2026-09-25
+version: 1.34.0
+last_updated: 2026-09-27
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
@@ -24,6 +24,10 @@ contract_checksums:
 Stage: 4 of 4 (Polish) -- VERIFIED COMPLETE
 Status: All stages verified, pluginval level 10 PASSED (VST3 + AU)
 Progress: [####################] 100%
+
+## v1.34.0 -- UI pass R4/R5 (2026-09-27)
+
+- 22 palette tokens (0 hex outside :root), AA text (below-AA 123/492 -> 0), 9px floor (344 -> 0), bundled EB Garamond (tuning form controls folded in), AA canvas text. check-ui-labels / check-i18n / fr+zh lint / tip-render pass. R7 keyboard/ARIA knobs deferred. DAW visual check owed.
 
 ## v1.32.2 -- CODE_REVIEW.md Info-tier sweep 3 (2026-09-25)
 

@@ -26,14 +26,63 @@
 <script src="js/juce/check_native_interop.js"></script>
 <script type="module" src="js/juce/index.js"></script>
 <script type="module" src="js/main.js"></script>
+<link rel="stylesheet" href="css/eb-garamond.css">
 <style>
+/* v1.34.0 (review R4/R5): THE PALETTE. Every colour on this page is one of
+   these tokens; the rules below carry no hex literal. Walnut stays for
+   borders, rules and rings — as text it reads 3.27-3.66:1 on these grounds.
+   Walnut TEXT takes --text-muted, which reads 4.78-5.68:1 on every ground
+   here. Moss fills keep their colour and take --moss-ink; sage fills that
+   carry light text deepen to --sage-deep; green TEXT is --sage-ink. */
+:root {
+  --ink:          #3C2F2F;
+  --brown:        #5C4033;   /* text on the bypassed seed fill (5.26:1) */
+  --text-muted:   #6A5641;   /* AA quiet text: walnut in hue */
+  --walnut:       #8B7355;   /* borders, rules, rings - not text */
+  --sienna:       #8B3A1A;   /* preset "Save failed" (5.64:1 on the bar) */
+  --paper:        #F5E6D3;
+  --paper-2:      #EDD9C4;   /* tab bar, preset bar, popover */
+  --paper-3:      #EDE0CF;   /* pads, lyrics field, segmented buttons */
+  --paper-hover:  #E3D4C0;
+  --parchment:    #D4C4B0;
+  --cornsilk:     #FFF8DC;
+  --white:        #FFFFFF;
+  --seed-a:       #C4A882;   /* knob seed ring, tooltip title */
+  --seed-b:       #B89B74;
+  --seed-c:       #D4BFA0;   /* also the off / bypassed fill */
+  --seed-d:       #A88E6A;
+  --moss:         #8BA870;   /* active fills (dark text) */
+  --moss-edge:    #6E8A58;
+  --moss-ink:     #1A2A10;   /* text on --moss (5.74:1) */
+  --sage:         #6B8E4E;   /* rules, focus rings, underline */
+  --sage-deep:    #4A6B35;   /* fills under light text (cream 4.97:1) */
+  --sage-ink:     #3C5C1A;   /* green text on the paper grounds (5.44-6.26:1) */
+
+  --ink-rgb:      60, 47, 47;
+  --walnut-rgb:   139, 115, 85;
+  --paper-rgb:    245, 230, 211;
+  --paper-2-rgb:  237, 217, 196;
+  --wash-rgb:     235, 217, 199;
+  --moss-rgb:     139, 168, 112;
+  --lime-rgb:     139, 195, 74;
+  --white-rgb:    255, 255, 255;
+
+  /* EB Garamond first (bundled - modules/ui/eb-garamond, so every host
+     resolves the same face); Georgia before Times; the CJK tail BEFORE the
+     trailing generic, which Chromium resolves against the document language.
+     The bare 'Garamond' lead is dropped: on Windows an Office-installed
+     Garamond would outrank the bundled face. */
+  --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  --font-mono:  'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   width: 800px; height: 600px;
   overflow: hidden;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
-  background: #F5E6D3;
-  color: #3C2F2F;
+  font-family: var(--font-serif);
+  background: var(--paper);
+  color: var(--ink);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -51,8 +100,8 @@ html, body {
   grid-column: 1 / -1;
   display: flex;
   align-items: stretch;
-  background: #EDD9C4;
-  border-bottom: 1px solid #8B7355;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--walnut);
   padding: 0 16px;
   gap: 0;
 }
@@ -61,18 +110,18 @@ html, body {
   font-size: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #8B7355;
+  color: var(--text-muted);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: color 0.15s, border-color 0.15s;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  font-family: var(--font-serif);
   display: flex;
   align-items: center;
 }
-.tab:hover { color: #3C2F2F; }
+.tab:hover { color: var(--ink); }
 .tab.active {
-  color: #3C2F2F;
-  border-bottom-color: #6B8E4E;
+  color: var(--ink);
+  border-bottom-color: var(--sage);
 }
 
 /* Tab content */
@@ -104,14 +153,14 @@ html, body {
   gap: 8px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(139,115,85,0.3) transparent;
+  scrollbar-color: rgba(var(--walnut-rgb), 0.3) transparent;
 }
 #effects-tab::-webkit-scrollbar { width: 4px; }
-#effects-tab::-webkit-scrollbar-thumb { background: rgba(139,115,85,0.3); border-radius: 2px; }
+#effects-tab::-webkit-scrollbar-thumb { background: rgba(var(--walnut-rgb), 0.3); border-radius: 2px; }
 .fx-section {
-  border: 1px solid rgba(139,115,85,0.3);
+  border: 1px solid rgba(var(--walnut-rgb), 0.3);
   border-radius: 4px;
-  background: rgba(237,217,196,0.4);
+  background: rgba(var(--paper-2-rgb), 0.4);
   padding: 6px 10px 8px;
 }
 .fx-header {
@@ -119,30 +168,30 @@ html, body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
-  border-bottom: 1px solid rgba(139,115,85,0.2);
+  border-bottom: 1px solid rgba(var(--walnut-rgb), 0.2);
   padding-bottom: 3px;
 }
 .fx-title {
   font-size: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #8B7355;
+  color: var(--text-muted);
 }
 .fx-bypass-btn {
-  background: #8BA870;
-  color: #F5E6D3;
+  background: var(--moss);
+  color: var(--moss-ink);
   border: none;
   border-radius: 3px;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
-  font-size: 8px;
+  font-family: var(--font-serif);
+  font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
   padding: 2px 8px;
   cursor: pointer;
 }
 .fx-bypass-btn.bypassed {
-  background: #D4BFA0;
-  color: #8B7355;
+  background: var(--seed-c);
+  color: var(--brown);
 }
 .fx-knobs {
   display: flex;
@@ -165,11 +214,11 @@ html, body {
   width: 12px; height: 12px;
 }
 .fx-mode-select {
-  background: #F5E6D3;
-  border: 1px solid #8B7355;
+  background: var(--paper);
+  border: 1px solid var(--walnut);
   border-radius: 3px;
-  color: #3C2F2F;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  color: var(--ink);
+  font-family: var(--font-serif);
   font-size: 9px;
   padding: 2px 4px;
   cursor: pointer;
@@ -201,7 +250,7 @@ html, body {
   font-size: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #8B7355;
+  color: var(--text-muted);
   margin: 0;
 }
 .lyrics-controls {
@@ -210,11 +259,11 @@ html, body {
   gap: 8px;
 }
 .lyrics-btn {
-  background: #EDD9C4;
-  border: 1px solid rgba(139,115,85,0.4);
+  background: var(--paper-2);
+  border: 1px solid rgba(var(--walnut-rgb), 0.4);
   border-radius: 3px;
-  color: #8B7355;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  color: var(--text-muted);
+  font-family: var(--font-serif);
   font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -232,26 +281,26 @@ html, body {
    longer string. Negative-controlled: removing this line alone re-fails
    assertion 7 on four elements in the lyrics tab. */
 .lyrics-btn { min-width: 66px; }
-.lyrics-btn:hover { background: rgba(139,115,85,0.15); color: #3C2F2F; }
-.lyrics-btn.active { background: #8BA870; color: #F5E6D3; border-color: #8BA870; }
+.lyrics-btn:hover { background: rgba(var(--walnut-rgb), 0.15); color: var(--ink); }
+.lyrics-btn.active { background: var(--moss); color: var(--moss-ink); border-color: var(--moss); }
 #lyrics-input {
   width: 100%;
-  background: #EDE0CF;
-  border: 1px solid #8B7355;
+  background: var(--paper-3);
+  border: 1px solid var(--walnut);
   border-radius: 3px;
-  color: #3C2F2F;
-  font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
+  color: var(--ink);
+  font-family: var(--font-mono);
   font-size: 12px;
   padding: 8px 10px;
   resize: none;
   outline: none;
   letter-spacing: 1px;
 }
-#lyrics-input::placeholder { color: #B8A590; font-style: italic; font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif; letter-spacing: 0; font-size: 11px; }
-#lyrics-input:focus { border-color: #6B8E4E; }
+#lyrics-input::placeholder { color: var(--text-muted); font-style: italic; font-family: var(--font-serif); letter-spacing: 0; font-size: 11px; }
+#lyrics-input:focus { border-color: var(--sage); }
 .lyrics-help {
-  font-size: 8px;
-  color: #B8A590;
+  font-size: 9px;
+  color: var(--text-muted);
   letter-spacing: 0.5px;
   line-height: 1.4;
 }
@@ -266,7 +315,7 @@ html, body {
   font-size: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #8B7355;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -275,9 +324,9 @@ html, body {
    span (contract §5) the counter was the only span in this row, and the loose
    selector would now repaint "Syllables" in Courier green. */
 #lyrics-counter {
-  font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
-  color: #6B8E4E;
+  color: var(--sage-ink);
   letter-spacing: 0;
 }
 /* GEOMETRY PIN (v1.26.0), and the one on this page where French is SHORTER:
@@ -292,35 +341,37 @@ html, body {
   flex-wrap: wrap;
   gap: 6px;
   padding: 10px;
-  background: #EDE0CF;
-  border: 1px solid rgba(139,115,85,0.3);
+  background: var(--paper-3);
+  border: 1px solid rgba(var(--walnut-rgb), 0.3);
   border-radius: 3px;
   flex: 1;
   overflow-y: auto;
   align-content: flex-start;
   scrollbar-width: thin;
-  scrollbar-color: rgba(139,115,85,0.3) transparent;
+  scrollbar-color: rgba(var(--walnut-rgb), 0.3) transparent;
 }
 .lyrics-syllables::-webkit-scrollbar { width: 4px; }
-.lyrics-syllables::-webkit-scrollbar-thumb { background: rgba(139,115,85,0.3); border-radius: 2px; }
+.lyrics-syllables::-webkit-scrollbar-thumb { background: rgba(var(--walnut-rgb), 0.3); border-radius: 2px; }
 .syl-chip {
-  background: #F5E6D3;
-  border: 1px solid rgba(139,115,85,0.3);
+  background: var(--paper);
+  border: 1px solid rgba(var(--walnut-rgb), 0.3);
   border-radius: 3px;
   padding: 4px 8px;
-  font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: #3C2F2F;
+  color: var(--ink);
   transition: background 0.15s, border-color 0.15s, color 0.15s;
   white-space: nowrap;
 }
 .syl-chip.current {
-  background: #6B8E4E;
-  border-color: #4A6B35;
-  color: #F5E6D3;
+  background: var(--sage-deep);
+  border-color: var(--sage-ink);
+  color: var(--paper);
 }
+/* v1.34.0: de-emphasis by COLOUR, not opacity. ink at 0.5 read 2.9:1. */
 .syl-chip.past {
-  opacity: 0.5;
+  color: var(--text-muted);
+  border-color: rgba(var(--walnut-rgb), 0.15);
 }
 .lyrics-toggle .toggle-btn {
   width: 28px; height: 14px;
@@ -340,7 +391,7 @@ html, body {
 }
 #tuning-container .tuning-panel {
   height: 100%;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  font-family: var(--font-serif);
 }
 /* THE FORM-4 REPAIR, v1.29.0.
    A <button>, <input> or <select> takes its face from the UA stylesheet rather
@@ -352,16 +403,16 @@ html, body {
    stack, and every one INSIDE it on the bare UA face, so this descendant rule
    reaches exactly the 31 and nothing else. Measured, not assumed.
 
-   ARIAL IS KEPT FIRST so the Latin metrics of the en and fr arms do not move:
-   it is the face these controls already resolved to. The tail goes after it and
-   before the generic, because under a Chinese document language a bare
-   `sans-serif` is ALREADY a Chinese face and a tail written after it would
-   never be consulted. */
+   v1.29.0 kept Arial first so the Latin metrics did not move. v1.34.0 (R5)
+   folds these 31 controls into the page's one serif, so the tuning tab stops
+   being the only place a fourth face renders. The rule still exists for the
+   reason above: without it they fall back to the UA face. --font-serif already
+   carries the CJK tail before its generic. */
 #tuning-container button,
 #tuning-container input,
 #tuning-container select,
 #tuning-container textarea {
-  font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: var(--font-serif);
 }
 
 /* Header */
@@ -370,40 +421,40 @@ html, body {
   display: flex;
   align-items: center;
   padding: 0 20px;
-  border-bottom: 1px solid #8B7355;
-  background: linear-gradient(180deg, #F5E6D3 0%, #EDD9C4 100%);
+  border-bottom: 1px solid var(--walnut);
+  background: linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%);
 }
 .header h1 {
   font-size: 16px;
   font-weight: normal;
   letter-spacing: 3px;
   text-transform: uppercase;
-  color: #3C2F2F;
+  color: var(--ink);
 }
 .header span {
   font-size: 11px;
-  color: #8B7355;
+  color: var(--text-muted);
   margin-left: 12px;
   font-style: italic;
 }
 
 /* Settings popover (v1.26.0) — the language selector lives here.
-   Styled in O-Formant's own parchment system: the same #8B7355 rule, the same
-   #EDD9C4 fill and the same Garamond small-caps register as the preset bar. */
+   Styled in O-Formant's own parchment system: the same var(--walnut) rule, the same
+   var(--paper-2) fill and the same Garamond small-caps register as the preset bar. */
 .gear-btn {
   margin-left: auto;
   background: none;
   border: none;
-  color: #8B7355;
+  color: var(--text-muted);
   font-size: 15px;
   line-height: 1;
   padding: 2px 4px;
   cursor: pointer;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  font-family: var(--font-serif);
   transition: color 0.15s;
 }
-.gear-btn:hover { color: #3C2F2F; }
-.gear-btn.open   { color: #6B8E4E; }
+.gear-btn:hover { color: var(--ink); }
+.gear-btn.open   { color: var(--sage-ink); }
 .settings-popover {
   display: none;
   position: absolute;
@@ -411,18 +462,18 @@ html, body {
   z-index: 60;
   min-width: 168px;
   padding: 8px 10px 10px;
-  background: #EDD9C4;
-  border: 1px solid #8B7355;
+  background: var(--paper-2);
+  border: 1px solid var(--walnut);
   border-radius: 4px;
-  box-shadow: 0 3px 10px rgba(60,47,47,0.25);
+  box-shadow: 0 3px 10px rgba(var(--ink-rgb), 0.25);
 }
 .settings-popover.open { display: block; }
 .settings-title {
   font-size: 9px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #8B7355;
-  border-bottom: 1px solid rgba(139,115,85,0.3);
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(var(--walnut-rgb), 0.3);
   padding-bottom: 3px;
   margin-bottom: 7px;
 }
@@ -439,15 +490,15 @@ html, body {
 .settings-row + .settings-row { margin-top: 6px; }
 .settings-label {
   font-size: 10px;
-  color: #3C2F2F;
+  color: var(--ink);
   white-space: nowrap;
 }
 #lang-select {
-  background: #F5E6D3;
-  border: 1px solid #8B7355;
+  background: var(--paper);
+  border: 1px solid var(--walnut);
   border-radius: 3px;
-  color: #3C2F2F;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  color: var(--ink);
+  font-family: var(--font-serif);
   font-size: 10px;
   padding: 1px 4px;
   cursor: pointer;
@@ -467,11 +518,11 @@ html, body {
    a [data-i18n] node, so a face that grows moves nothing the geometry gate
    measures — verified with check-ui-labels [7] after the port. */
 .settings-toggle {
-  background: #F5E6D3;
-  border: 1px solid #8B7355;
+  background: var(--paper);
+  border: 1px solid var(--walnut);
   border-radius: 3px;
-  color: #3C2F2F;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  color: var(--ink);
+  font-family: var(--font-serif);
   font-size: 10px;
   padding: 1px 4px;
   flex: 0 0 auto;
@@ -482,13 +533,13 @@ html, body {
 }
 
 .settings-toggle[aria-pressed="true"] {
-  background: #6B8E4E;
-  border-color: #6B8E4E;
-  color: #EDD9C4;
+  background: var(--sage-deep);
+  border-color: var(--sage-deep);
+  color: var(--paper);
 }
 
 .settings-toggle:focus-visible {
-  outline: 2px solid #6B8E4E;
+  outline: 2px solid var(--sage);
   outline-offset: 1px;
 }
 
@@ -501,27 +552,27 @@ html, body {
   justify-content: center;
   gap: 8px;
   padding: 0 16px;
-  background: #EDD9C4;
-  border-bottom: 1px solid rgba(139,115,85,0.3);
+  background: var(--paper-2);
+  border-bottom: 1px solid rgba(var(--walnut-rgb), 0.3);
   font-size: 12px;
 }
 .preset-bar .preset-nav {
   background: none;
   border: none;
-  font-size: 16px;
-  color: #6B8E4E;
+  font-size: 19px;   /* v1.34.0: 16 -> 19, EB Garamond draws the chevrons ~20% smaller than Times */
+  color: var(--sage-ink);
   cursor: pointer;
   padding: 0 4px;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  font-family: var(--font-serif);
   line-height: 1;
 }
 .preset-bar .preset-nav:hover {
-  color: #4A6B35;
+  color: var(--moss-ink);
 }
 .preset-bar .preset-name {
   min-width: 140px;
   text-align: center;
-  color: #3C2F2F;
+  color: var(--ink);
   font-style: italic;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -529,25 +580,25 @@ html, body {
 }
 /* v1.31.1 (IN-21): transient "Save failed" state, set by main.js for 2.5 s. */
 .preset-bar .preset-name.preset-name-error {
-  color: #A0522D;
+  color: var(--sienna);
   font-style: normal;
 }
 .preset-bar select {
-  background: #F5E6D3;
-  border: 1px solid #8B7355;
+  background: var(--paper);
+  border: 1px solid var(--walnut);
   border-radius: 3px;
-  color: #3C2F2F;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  color: var(--ink);
+  font-family: var(--font-serif);
   font-size: 10px;
   padding: 1px 4px;
   cursor: pointer;
 }
 .preset-bar .preset-save-btn {
   background: none;
-  border: 1px solid rgba(139,115,85,0.4);
+  border: 1px solid rgba(var(--walnut-rgb), 0.4);
   border-radius: 3px;
-  color: #8B7355;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  color: var(--text-muted);
+  font-family: var(--font-serif);
   font-size: 10px;
   padding: 1px 8px;
   cursor: pointer;
@@ -572,8 +623,8 @@ html, body {
   min-width: 65px;
 }
 .preset-bar .preset-save-btn:hover {
-  background: rgba(139,115,85,0.1);
-  color: #3C2F2F;
+  background: rgba(var(--walnut-rgb), 0.1);
+  color: var(--ink);
 }
 
 /* XY Pad area */
@@ -581,21 +632,21 @@ html, body {
   padding: 12px 8px 12px 16px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #8B7355;
+  border-right: 1px solid var(--walnut);
 }
 .xy-area h2 {
   font-size: 11px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #8B7355;
+  color: var(--text-muted);
   margin-bottom: 6px;
 }
 .xy-canvas-wrap {
   flex: 1;
   position: relative;
-  border: 1px solid #8B7355;
+  border: 1px solid var(--walnut);
   border-radius: 3px;
-  background: #EDE0CF;
+  background: var(--paper-3);
   overflow: hidden;
 }
 canvas#xy-pad {
@@ -615,13 +666,13 @@ canvas#xy-pad {
   overflow-x: hidden;
   position: relative;
   scrollbar-width: thin;
-  scrollbar-color: rgba(139,115,85,0.3) transparent;
+  scrollbar-color: rgba(var(--walnut-rgb), 0.3) transparent;
 }
 .right-col::-webkit-scrollbar {
   width: 4px;
 }
 .right-col::-webkit-scrollbar-thumb {
-  background: rgba(139,115,85,0.3);
+  background: rgba(var(--walnut-rgb), 0.3);
   border-radius: 2px;
 }
 .right-col::-webkit-scrollbar-track {
@@ -637,9 +688,9 @@ canvas#xy-pad {
   font-size: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #8B7355;
+  color: var(--text-muted);
   margin-bottom: 4px;
-  border-bottom: 1px solid rgba(139,115,85,0.3);
+  border-bottom: 1px solid rgba(var(--walnut-rgb), 0.3);
   padding-bottom: 2px;
 }
 .param-row {
@@ -666,21 +717,21 @@ canvas#xy-pad {
 .bottom-row {
   grid-column: 1 / -1;
   display: flex;
-  border-top: 1px solid #8B7355;
-  background: linear-gradient(0deg, #EDD9C4 0%, #F5E6D3 100%);
+  border-top: 1px solid var(--walnut);
+  background: linear-gradient(0deg, var(--paper-2) 0%, var(--paper) 100%);
 }
 .bottom-group {
   flex: 1;
   padding: 8px 16px;
 }
 .bottom-group:first-child {
-  border-right: 1px solid rgba(139,115,85,0.3);
+  border-right: 1px solid rgba(var(--walnut-rgb), 0.3);
 }
 .bottom-group h3 {
   font-size: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #8B7355;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 .bottom-group .param-row {
@@ -700,25 +751,25 @@ canvas#xy-pad {
   position: relative;
   cursor: grab;
   background: conic-gradient(
-    #C4A882 0deg,   #B89B74 36deg,
-    #D4BFA0 36deg,  #C4A882 72deg,
-    #B89B74 72deg,  #A88E6A 108deg,
-    #D4BFA0 108deg, #C4A882 144deg,
-    #B89B74 144deg, #A88E6A 180deg,
-    #C4A882 180deg, #B89B74 216deg,
-    #D4BFA0 216deg, #C4A882 252deg,
-    #B89B74 252deg, #A88E6A 288deg,
-    #D4BFA0 288deg, #C4A882 324deg,
-    #B89B74 324deg, #C4A882 360deg
+    var(--seed-a) 0deg,   var(--seed-b) 36deg,
+    var(--seed-c) 36deg,  var(--seed-a) 72deg,
+    var(--seed-b) 72deg,  var(--seed-d) 108deg,
+    var(--seed-c) 108deg, var(--seed-a) 144deg,
+    var(--seed-b) 144deg, var(--seed-d) 180deg,
+    var(--seed-a) 180deg, var(--seed-b) 216deg,
+    var(--seed-c) 216deg, var(--seed-a) 252deg,
+    var(--seed-b) 252deg, var(--seed-d) 288deg,
+    var(--seed-c) 288deg, var(--seed-a) 324deg,
+    var(--seed-b) 324deg, var(--seed-a) 360deg
   );
-  border: 2px solid #8B7355;
-  box-shadow: 0 1px 3px rgba(60,47,47,0.25), inset 0 1px 2px rgba(255,255,255,0.15);
+  border: 2px solid var(--walnut);
+  box-shadow: 0 1px 3px rgba(var(--ink-rgb), 0.25), inset 0 1px 2px rgba(var(--white-rgb), 0.15);
 }
 .knob:active { cursor: grabbing; }
 .knob-indicator {
   position: absolute;
   width: 3px; height: 14px;
-  background: #3C2F2F;
+  background: var(--ink);
   border-radius: 1px;
   left: 50%; top: 4px;
   /* WR-19: border-box with a 2px border — the padding box is 51px, centre
@@ -730,8 +781,8 @@ canvas#xy-pad {
 .knob-center {
   position: absolute;
   width: 15px; height: 15px;
-  background: radial-gradient(circle, #F5E6D3 0%, #D4BFA0 100%);
-  border: 1px solid #A88E6A;
+  background: radial-gradient(circle, var(--paper) 0%, var(--seed-c) 100%);
+  border: 1px solid var(--seed-d);
   border-radius: 50%;
   left: 50%; top: 50%;
   transform: translate(-50%, -50%);
@@ -739,14 +790,14 @@ canvas#xy-pad {
 }
 .knob-label {
   font-size: 9px;
-  color: #3C2F2F;
+  color: var(--ink);
   margin-top: 3px;
   text-align: center;
   white-space: nowrap;
 }
 .knob-value {
-  font-size: 8px;
-  color: #8B7355;
+  font-size: 9px;
+  color: var(--text-muted);
   text-align: center;
   font-style: italic;
 }
@@ -761,29 +812,29 @@ canvas#xy-pad {
 .toggle-btn {
   width: 42px; height: 22px;
   border-radius: 11px;
-  border: 1.5px solid #8B7355;
-  background: #D4BFA0;
+  border: 1.5px solid var(--walnut);
+  background: var(--seed-c);
   position: relative;
   cursor: pointer;
   transition: background 0.15s;
 }
 .toggle-btn.active {
-  background: #8BA870;
-  border-color: #6E8A58;
+  background: var(--moss);
+  border-color: var(--moss-edge);
 }
 .toggle-thumb {
   position: absolute;
   width: 16px; height: 16px;
   border-radius: 50%;
-  background: #F5E6D3;
-  border: 1px solid #8B7355;
+  background: var(--paper);
+  border: 1px solid var(--walnut);
   top: 2px; left: 2px;
   transition: left 0.15s;
   pointer-events: none;
 }
 .toggle-btn.active .toggle-thumb {
   left: 22px;
-  border-color: #6E8A58;
+  border-color: var(--moss-edge);
 }
 #adsr-canvas {
   width: 100%;
@@ -792,7 +843,7 @@ canvas#xy-pad {
 }
 .toggle-label {
   font-size: 9px;
-  color: #3C2F2F;
+  color: var(--ink);
   margin-top: 3px;
   text-align: center;
 }
@@ -806,23 +857,23 @@ canvas#xy-pad {
 }
 .segmented-label {
   font-size: 9px;
-  color: #8B7355;
+  color: var(--text-muted);
   margin-bottom: 2px;
   letter-spacing: 1px;
   text-transform: uppercase;
 }
 .segmented-control {
   display: flex;
-  border: 1px solid #8B7355;
+  border: 1px solid var(--walnut);
   border-radius: 3px;
   overflow: hidden;
 }
 .segmented-btn {
-  background: #EDE0CF;
+  background: var(--paper-3);
   border: none;
-  border-right: 1px solid rgba(139,115,85,0.3);
-  color: #8B7355;
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  border-right: 1px solid rgba(var(--walnut-rgb), 0.3);
+  color: var(--text-muted);
+  font-family: var(--font-serif);
   font-size: 9px;
   padding: 3px 10px;
   cursor: pointer;
@@ -830,10 +881,10 @@ canvas#xy-pad {
   transition: background 0.12s, color 0.12s;
 }
 .segmented-btn:last-child { border-right: none; }
-.segmented-btn:hover { background: #E3D4C0; }
+.segmented-btn:hover { background: var(--paper-hover); }
 .segmented-btn.active {
-  background: #8BA870;
-  color: #F5E6D3;
+  background: var(--moss);
+  color: var(--moss-ink);
 }
 
 /* Consonant XY pad layout */
@@ -874,9 +925,9 @@ canvas#xy-pad {
   flex: 1;
   height: 80px;
   position: relative;
-  border: 1px solid #8B7355;
+  border: 1px solid var(--walnut);
   border-radius: 3px;
-  background: #EDE0CF;
+  background: var(--paper-3);
   overflow: hidden;
 }
 canvas#consonant-xy-pad {
@@ -892,8 +943,8 @@ canvas#consonant-xy-pad {
 }
 .cxy-label {
   position: absolute;
-  font-size: 8px;
-  color: rgba(139,115,85,0.6);
+  font-size: 9px;
+  color: var(--text-muted);
   letter-spacing: 0.5px;
 }
 .cxy-left { left: 4px; bottom: 2px; }
@@ -905,14 +956,15 @@ canvas#consonant-xy-pad {
 
 /* ===== Tuning Panel Styles ===== */
 .tuning-panel {
-    --tuning-bg: rgba(245, 230, 211, 0.95);
-    --tuning-border: rgba(139, 115, 85, 0.5);
-    --tuning-text: #3C2F2F;
-    --tuning-text-muted: #8B7355;
-    --tuning-accent: #6B8E4E;
-    --tuning-input-bg: rgba(255, 255, 255, 0.8);
-    --tuning-hover: rgba(139, 168, 112, 0.3);
-    --tuning-active: rgba(139, 195, 74, 0.4);
+    --tuning-bg: rgba(var(--paper-rgb), 0.95);
+    --tuning-border: rgba(var(--walnut-rgb), 0.5);
+    --tuning-text: var(--ink);
+    --tuning-text-muted: var(--text-muted);
+    --tuning-accent: var(--sage);
+    --tuning-accent-fill: var(--sage-deep);   /* under light text: 6.09:1 */
+    --tuning-input-bg: rgba(var(--white-rgb), 0.8);
+    --tuning-hover: rgba(var(--moss-rgb), 0.3);
+    --tuning-active: rgba(var(--lime-rgb), 0.4);
 }
 .tuning-panel {
     position: relative;
@@ -941,7 +993,7 @@ canvas#consonant-xy-pad {
     position: absolute;
     left: 150px; right: 220px; top: 36px; bottom: 10px;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,0.3);
+    background: rgba(var(--white-rgb), 0.3);
     border: 1px solid var(--tuning-border);
     border-radius: 6px;
 }
@@ -955,7 +1007,7 @@ canvas#consonant-xy-pad {
     max-height: calc(100% - 20px);
     overflow-y: auto;
 }
-.interval-list { width: 130px; max-height: 100%; background: rgba(235,217,199,0.6); border: 1px solid var(--tuning-border); border-radius: 4px; padding: 6px 8px; overflow-y: auto; order: -1; }
+.interval-list { width: 130px; max-height: 100%; background: rgba(var(--wash-rgb), 0.6); border: 1px solid var(--tuning-border); border-radius: 4px; padding: 6px 8px; overflow-y: auto; order: -1; }
 .interval-list-header { font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; color: var(--tuning-text-muted); }
 /* GEOMETRY PIN (v1.26.0). justify-content: center again, so "TONIC" -> "TONIQUE"
    (+12.5 px) pushed #tonic-down, #tonic-value and #tonic-up right by 6.3 px.
@@ -969,23 +1021,23 @@ canvas#consonant-xy-pad {
    Negative-controlled: removing the min-width alone re-fails assertion 7 on the
    three siblings. */
 .tonic-selector { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 10px; padding: 6px; background: var(--tuning-input-bg); border-radius: 4px; }
-.tonic-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); min-width: 40px; text-align: center; }
+.tonic-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); min-width: 42px; text-align: center; } /* v1.34.0: 40 -> 42, TONIQUE is 41.5px in EB Garamond */
 .tonic-arrow { background: none; border: 1px solid var(--tuning-border); border-radius: 3px; padding: 2px 6px; cursor: pointer; font-size: 10px; color: var(--tuning-text); }
 .tonic-arrow:hover { background: var(--tuning-hover); }
 .tonic-value { font-weight: 600; min-width: 24px; text-align: center; }
-.interval-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid rgba(139,115,85,0.2); }
+.interval-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid rgba(var(--walnut-rgb), 0.2); }
 .interval-item:last-child { border-bottom: none; }
-.interval-item.octave { background: rgba(139,195,74,0.15); margin: 4px -8px 0; padding: 6px 8px; border-radius: 0 0 5px 5px; }
+.interval-item.octave { background: rgba(var(--lime-rgb), 0.15); margin: 4px -8px 0; padding: 6px 8px; border-radius: 0 0 5px 5px; }
 .interval-degree { width: 20px; font-size: 9px; color: var(--tuning-text-muted); text-align: right; }
 .interval-input { flex: 1; background: var(--tuning-input-bg); border: 1px solid var(--tuning-border); border-radius: 3px; padding: 3px 6px; font-size: 10px; text-align: right; width: 60px; }
 .interval-input:focus { outline: none; border-color: var(--tuning-accent); }
 .interval-input[readonly] { background: transparent; border-color: transparent; font-weight: 600; }
 .interval-unit { font-size: 9px; color: var(--tuning-text-muted); width: 12px; }
 .viz-mode-toggle { display: flex; gap: 4px; margin-bottom: 10px; }
-.viz-btn { flex: 1; padding: 6px 8px; background: rgba(255,255,255,0.5); border: 1px solid var(--tuning-border); border-radius: 4px; font-size: 9px; cursor: pointer; color: var(--tuning-text); transition: all 0.15s; }
+.viz-btn { flex: 1; padding: 6px 8px; background: rgba(var(--white-rgb), 0.5); border: 1px solid var(--tuning-border); border-radius: 4px; font-size: 9px; cursor: pointer; color: var(--tuning-text); transition: all 0.15s; }
 .viz-btn:hover { background: var(--tuning-hover); }
 .viz-btn.active { background: var(--tuning-active); border-color: var(--tuning-accent); font-weight: 600; }
-.viz-container { background: rgba(255,255,255,0.6); border: 1px solid var(--tuning-border); border-radius: 6px; padding: 15px; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+.viz-container { background: rgba(var(--white-rgb), 0.6); border: 1px solid var(--tuning-border); border-radius: 6px; padding: 15px; min-height: 200px; display: flex; align-items: center; justify-content: center; }
 .viz-view { display: none; width: 100%; height: 100%; }
 .viz-view.active { display: flex; align-items: center; justify-content: center; }
 .pitch-circle { text-align: center; }
@@ -993,23 +1045,23 @@ canvas#consonant-xy-pad {
 .pitch-circle-label { font-size: 9px; color: var(--tuning-text-muted); margin-top: 8px; }
 #polar-canvas { width: 100%; height: auto; max-width: 320px; }
 .matrix-view { overflow: auto; }
-.matrix-table { border-collapse: collapse; font-size: 8px; }
+.matrix-table { border-collapse: collapse; font-size: 9px; }
 .matrix-table th, .matrix-table td { padding: 3px 5px; border: 1px solid var(--tuning-border); text-align: center; }
-.matrix-table th { background: rgba(139,115,85,0.15); font-weight: 600; }
+.matrix-table th { background: rgba(var(--walnut-rgb), 0.15); font-weight: 600; }
 .matrix-table td { background: var(--tuning-input-bg); }
 .truekeys-view { flex-direction: column; }
 .tk-hint { color: var(--tuning-text-muted); font-style: italic; }
 .tk-intervals { display: flex; flex-direction: column; gap: 4px; }
 .tk-interval { padding: 4px 8px; background: var(--tuning-input-bg); border-radius: 3px; }
 .rotation-view { overflow: auto; }
-.rotation-table { border-collapse: collapse; font-size: 8px; }
+.rotation-table { border-collapse: collapse; font-size: 9px; }
 .rotation-table th, .rotation-table td { padding: 3px 5px; border: 1px solid var(--tuning-border); text-align: center; }
-.rotation-table th { background: rgba(139,115,85,0.15); }
+.rotation-table th { background: rgba(var(--walnut-rgb), 0.15); }
 .rotation-table .current-tonic { background: var(--tuning-active); }
 .tuning-controls-panel { display: flex; flex-direction: column; gap: 12px; }
-.library-section, .generator-section { background: rgba(255,255,255,0.5); border: 1px solid var(--tuning-border); border-radius: 6px; overflow: hidden; }
-.library-header, .generator-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: rgba(139,115,85,0.1); cursor: pointer; user-select: none; }
-.library-header:hover, .generator-header:hover { background: rgba(139,115,85,0.2); }
+.library-section, .generator-section { background: rgba(var(--white-rgb), 0.5); border: 1px solid var(--tuning-border); border-radius: 6px; overflow: hidden; }
+.library-header, .generator-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: rgba(var(--walnut-rgb), 0.1); cursor: pointer; user-select: none; }
+.library-header:hover, .generator-header:hover { background: rgba(var(--walnut-rgb), 0.2); }
 .library-header-text, .generator-header-text { font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
 .library-toggle, .generator-toggle { font-size: 10px; transition: transform 0.2s; }
 .library-toggle.expanded, .generator-toggle.expanded { transform: rotate(180deg); }
@@ -1025,15 +1077,15 @@ canvas#consonant-xy-pad {
 .gen-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .gen-row label { font-size: 10px; color: var(--tuning-text-muted); }
 .gen-row input { width: 80px; padding: 4px 6px; border: 1px solid var(--tuning-border); border-radius: 3px; background: var(--tuning-input-bg); font-size: 10px; text-align: right; }
-.generator-btn { width: 100%; padding: 8px; background: var(--tuning-accent); border: none; border-radius: 4px; color: white; font-weight: 600; font-size: 10px; cursor: pointer; }
+.generator-btn { width: 100%; padding: 8px; background: var(--tuning-accent-fill); border: none; border-radius: 4px; color: var(--white); font-weight: 600; font-size: 10px; cursor: pointer; }
 .generator-btn:hover { filter: brightness(1.1); }
 .tuning-ref-section { text-align: center; padding: 10px; }
 .ref-knob-container { display: inline-block; }
-.ref-knob { width: 50px; height: 50px; background: radial-gradient(circle at 30% 30%, #FFF8DC, #D4C4B0); border: 2px solid var(--tuning-border); border-radius: 50%; position: relative; cursor: ns-resize; }
+.ref-knob { width: 50px; height: 50px; background: radial-gradient(circle at 30% 30%, var(--cornsilk), var(--parchment)); border: 2px solid var(--tuning-border); border-radius: 50%; position: relative; cursor: ns-resize; }
 .ref-knob-indicator { position: absolute; top: 8px; left: 50%; width: 2px; height: 12px; background: var(--tuning-text); transform-origin: 50% 15px; margin-left: -1px; } /* WR-19: 50px knob, 46px padding box: 23 - top 8 (bottom center pivoted 3px high) */
 .ref-knob-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); margin-top: 6px; }
 .ref-knob-value { font-size: 11px; font-weight: 600; }
-.scale-name-display { text-align: center; padding: 8px; background: rgba(255,255,255,0.6); border: 1px solid var(--tuning-border); border-radius: 4px; font-weight: 500; font-size: 11px; }
+.scale-name-display { text-align: center; padding: 8px; background: rgba(var(--white-rgb), 0.6); border: 1px solid var(--tuning-border); border-radius: 4px; font-weight: 500; font-size: 11px; }
 .octave-stretch-section { padding: 8px; }
 .octave-stretch-row { display: flex; align-items: center; gap: 8px; }
 /* GEOMETRY PIN (v1.26.0). "STRETCH" -> "ÉTIREMENT" is +11 px and pushed the
@@ -1041,7 +1093,7 @@ canvas#consonant-xy-pad {
    both languages render the identical row. Negative-controlled: removing the
    min-width alone re-fails assertion 7 on #octave-stretch and
    #octave-stretch-value. */
-.octave-stretch-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); min-width: 51px; }
+.octave-stretch-label { font-size: 9px; text-transform: uppercase; color: var(--tuning-text-muted); min-width: 53px; } /* v1.34.0: 51 -> 53, ÉTIREMENT is 52.02px in EB Garamond */
 /* PRE-EXISTING ENGLISH DEFECT, fixed in v1.26.0 and NOT caused by French.
    `flex: 1` leaves min-width at `auto`, and an <input type=range>'s intrinsic
    minimum is 129 px. The row's content box is 184 px and its content summed to
@@ -1052,15 +1104,15 @@ canvas#consonant-xy-pad {
    (flex items are floored by min-content unless told otherwise); the slider now
    absorbs the slack and the readout lands inside the frame in both languages. */
 .octave-stretch-slider { flex: 1; min-width: 0; height: 4px; -webkit-appearance: none; background: linear-gradient(to right, var(--tuning-border), var(--tuning-accent)); border-radius: 2px; }
-.octave-stretch-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: radial-gradient(circle at 30% 30%, #FFF8DC, #D4C4B0); border: 1px solid var(--tuning-border); border-radius: 50%; cursor: pointer; }
+.octave-stretch-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: radial-gradient(circle at 30% 30%, var(--cornsilk), var(--parchment)); border: 1px solid var(--tuning-border); border-radius: 50%; cursor: pointer; }
 .octave-stretch-value { font-size: 10px; min-width: 30px; text-align: right; }
 .tuning-file-section { padding: 8px; }
 .tuning-file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.tuning-file-btn { padding: 6px 8px; background: rgba(255,255,255,0.6); border: 1px solid var(--tuning-border); border-radius: 4px; font-size: 9px; cursor: pointer; color: var(--tuning-text); }
+.tuning-file-btn { padding: 6px 8px; background: rgba(var(--white-rgb), 0.6); border: 1px solid var(--tuning-border); border-radius: 4px; font-size: 9px; cursor: pointer; color: var(--tuning-text); }
 .tuning-file-btn:hover { background: var(--tuning-hover); }
 .tuning-kbm-clear-btn { grid-column: span 2; }
 .tuning-kbm-clear-btn[hidden] { display: none; }
-.tuning-export-btn { grid-column: span 2; background: var(--tuning-accent); border-color: var(--tuning-accent); color: white; font-weight: 600; }
+.tuning-export-btn { grid-column: span 2; background: var(--tuning-accent-fill); border-color: var(--tuning-accent-fill); color: var(--white); font-weight: 600; }
 .tuning-export-btn:hover { filter: brightness(1.1); }
 
 /* ── Hover-help surface (v1.27.0) ──────────────────────────────────────────
@@ -1083,12 +1135,12 @@ canvas#consonant-xy-pad {
   z-index: 200;
   max-width: 260px;
   padding: 7px 10px;
-  background: rgba(60,47,47,0.97);
-  color: #F5E6D3;
-  border: 1px solid #8B7355;
+  background: rgba(var(--ink-rgb), 0.97);
+  color: var(--paper);
+  border: 1px solid var(--walnut);
   border-radius: 4px;
-  box-shadow: 2px 4px 12px rgba(60,47,47,0.45);
-  font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+  box-shadow: 2px 4px 12px rgba(var(--ink-rgb), 0.45);
+  font-family: var(--font-serif);
   font-size: 11px;
   line-height: 1.4;
   opacity: 0;
@@ -1102,7 +1154,7 @@ canvas#consonant-xy-pad {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #C4A882;
+  color: var(--seed-a);
   margin-bottom: 3px;
 }
 
@@ -1125,8 +1177,8 @@ canvas#consonant-xy-pad {
    parsed 800 x 600 shipping frame.
 
      font-size  English line box  pin
-       8px             9px        9 / 8  = 1.125
-       8px  (th)       8px        8 / 8  = 1.0
+       8px             9px        9 / 8  = 1.125   (retired v1.34.0: 9px floor)
+       9px  (th)       9px        9 / 9  = 1.0     (was 8px / 8px until v1.34.0)
        9px            10px        10 / 9 = 1.1111111
       10px            11px        11 / 10 = 1.1
       11px            12px        12 / 11 = 1.0909091
@@ -1142,10 +1194,12 @@ canvas#consonant-xy-pad {
    of them is a selector below. Grepped, not assumed, so no French-era
    declaration is silently un-pinned by a new rule at higher specificity.      */
 
-.cxy-label,
-.fx-bypass-btn                  { line-height: 1.125; }      /*  9.00 /  8px */
-.rotation-table th              { line-height: 1.0; }        /*  8.00 /  8px */
+.rotation-table th              { line-height: 1.0; }        /*  9.00 /  9px (v1.34.0; was 8/8) */
 
+/* v1.34.0 (9px floor): .cxy-label and .fx-bypass-btn were 8px (1.125) and
+   join the 9px group. */
+.cxy-label,
+.fx-bypass-btn,
 .knob-label,
 .settings-title,
 .toggle-label,
@@ -1196,7 +1250,8 @@ canvas#consonant-xy-pad {
    word for Mode is wider is free to widen the column rather than being clipped
    by it. box-sizing is border-box page-wide (index.html:30), so this value is
    the border box and not the content box. */
-.rotation-table th:first-child  { min-width: 30.56px; white-space: nowrap; }
+/* v1.34.0: re-measured at 9px in EB Garamond — Mode 32.19px, 模式 30.55px. */
+.rotation-table th:first-child  { min-width: 32.19px; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -1690,7 +1745,7 @@ async function initTuningPanel() {
         console.error('[O-Formant] Failed to init tuning panel:', err);
         const failBox = document.getElementById('tuning-container');
         failBox.innerHTML =
-            '<div style="padding:20px;color:#8B7355;font-style:italic;" data-i18n="label.tuningPanelFailed">Tuning panel failed to load.</div>';
+            '<div style="padding:20px;color:var(--text-muted);font-style:italic;" data-i18n="label.tuningPanelFailed">Tuning panel failed to load.</div>';
         // The canon publishes window.__setLabel precisely so a sibling module
         // can write a localized label without app.js exporting anything. The
         // node is created after initI18n's sweep has already run, so the sweep

@@ -272,6 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
   try { initI18n(); setupTooltips(); initializeTipsToggle(); } catch (e) { console.error('i18n init failed:', e); }
   bindSettingsPopover();
   watchLanguageForCanvasRepaint();
+  repaintCanvasesWhenFontLoads();
   initRelays();
   setupCanvas();
   setupConsonantXYCanvas();
@@ -643,6 +644,16 @@ function updateXYFromPointer(e) {
   drawXYPad();
 }
 
+// v1.34.0 (R4/R5). Canvas text cannot read var(), so these mirror the page's
+// :root tokens: --font-serif (EB Garamond, bundled), --text-muted and
+// --sage-ink. The grounds are --paper-3 (#EDE0CF) and, in lyrics mode, that
+// ground under the 0.25 paper wash (#EFE1D0): muted 5.35 / 5.41:1, green
+// 5.90 / 5.97:1. Declared above CXY_READOUT, which reads CANVAS_SERIF at
+// module evaluation (a const below it would throw in the TDZ).
+const CANVAS_SERIF = "'EB Garamond', Georgia, 'Times New Roman', serif";
+const CANVAS_TEXT_MUTED = '#6A5641';
+const CANVAS_TEXT_GREEN = '#3C5C1A';
+
 function drawXYPad() {
   if (!ctx) return;
   const w = canvas.width;
@@ -653,6 +664,13 @@ function drawXYPad() {
   const ch = h / dpr;
 
   ctx.clearRect(0, 0, cw, ch);
+
+  // Lyrics mode wash — v1.34.0: laid on the GROUND, before the labels. Drawn
+  // over them (as until v1.33.1) it faded the vowel letters to ~3.7:1.
+  if (lyricsAnimating) {
+    ctx.fillStyle = 'rgba(245, 230, 211, 0.25)';
+    ctx.fillRect(0, 0, cw, ch);
+  }
 
   // Grid lines
   ctx.strokeStyle = 'rgba(139,115,85,0.15)';
@@ -665,8 +683,8 @@ function drawXYPad() {
   }
 
   // Vowel labels
-  ctx.font = '14px Garamond, Times New Roman, serif';
-  ctx.fillStyle = 'rgba(60,47,47,0.5)';
+  ctx.font = '14px ' + CANVAS_SERIF;
+  ctx.fillStyle = CANVAS_TEXT_MUTED;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const pad = 16;
@@ -684,10 +702,8 @@ function drawXYPad() {
 
   // Lyrics mode overlay
   if (lyricsAnimating) {
-    ctx.fillStyle = 'rgba(245, 230, 211, 0.25)';
-    ctx.fillRect(0, 0, cw, ch);
-    ctx.font = '9px Garamond, Times New Roman, serif';
-    ctx.fillStyle = 'rgba(107, 142, 78, 0.6)';
+    ctx.font = '9px ' + CANVAS_SERIF;
+    ctx.fillStyle = CANVAS_TEXT_GREEN;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
     // A canvas string is invisible to BOTH gates: assertion 10 walks text
@@ -740,7 +756,7 @@ function drawXYPad() {
   const logMax = Math.log(5000);
   const logRange = logMax - logMin;
 
-  ctx.font = '8px Garamond, Times New Roman, serif';
+  ctx.font = '9px ' + CANVAS_SERIF;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   for (let i = 0; i < 5; i++) {
@@ -753,7 +769,7 @@ function drawXYPad() {
     ctx.strokeStyle = 'rgba(139, 168, 112, 0.8)';
     ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.fillStyle = 'rgba(139, 168, 112, 0.6)';
+    ctx.fillStyle = CANVAS_TEXT_GREEN;
     ctx.fillText('F' + (i + 1), fx, fy + 5);
   }
 }
@@ -851,6 +867,12 @@ function drawConsonantXYPad() {
   const ch = h / cxyDpr;
   cxyCtx.clearRect(0, 0, cw, ch);
 
+  // Lyrics mode wash on the ground, before the labels (see drawXYPad).
+  if (lyricsAnimating) {
+    cxyCtx.fillStyle = 'rgba(245, 230, 211, 0.25)';
+    cxyCtx.fillRect(0, 0, cw, ch);
+  }
+
   // Grid
   cxyCtx.strokeStyle = 'rgba(139,115,85,0.12)';
   cxyCtx.lineWidth = 1;
@@ -863,8 +885,8 @@ function drawConsonantXYPad() {
 
   // IPA consonant labels
   const pad = 6;
-  cxyCtx.font = '12px Garamond, Times New Roman, serif';
-  cxyCtx.fillStyle = 'rgba(60,47,47,0.4)';
+  cxyCtx.font = '12px ' + CANVAS_SERIF;
+  cxyCtx.fillStyle = CANVAS_TEXT_MUTED;
   cxyCtx.textAlign = 'center';
   cxyCtx.textBaseline = 'middle';
   // v1.31.1 (review IN-23): at the shipped frame the plosive row sat on the
@@ -885,12 +907,6 @@ function drawConsonantXYPad() {
   const normY = lyricsAnimating && lyricsTarget ? lyricsTarget.sibilance : sibilanceState.getNormalisedValue();
   const cx = pad + normX * (cw - pad * 2);
   const cy = pad + (1.0 - normY) * (ch - pad * 2);
-
-  // Lyrics mode overlay
-  if (lyricsAnimating) {
-    cxyCtx.fillStyle = 'rgba(245, 230, 211, 0.25)';
-    cxyCtx.fillRect(0, 0, cw, ch);
-  }
 
   // Cursor glow
   const glowColor = lyricsAnimating ? 'rgba(107, 142, 78, 0.4)' : 'rgba(139, 168, 112, 0.3)';
@@ -937,14 +953,14 @@ function drawConsonantXYPad() {
   else if (normY > 0.7) mannerKey = 'canvas.fricative';
   const mannerText = trLabel(mannerKey, uiLanguage);
   cxyCtx.font = CXY_READOUT.font;
-  cxyCtx.fillStyle = 'rgba(60,47,47,0.5)';
+  cxyCtx.fillStyle = CANVAS_TEXT_MUTED;
   cxyCtx.textAlign = 'left';
   cxyCtx.textBaseline = 'top';
   cxyCtx.fillText(freqText + 'Hz ' + mannerText, CXY_READOUT.x, CXY_READOUT.y);
 }
 
 // Readout geometry, shared by the draw above and consonantRowShifts below.
-const CXY_READOUT = { font: '8px Garamond, Times New Roman, serif', x: 4, y: 2 };
+const CXY_READOUT = { font: '9px ' + CANVAS_SERIF, x: 4, y: 2 };
 // Clearance between a glyph row and the readout / place captions it avoids.
 const CXY_LABEL_GAP = 1;
 let cxyReadoutBottomCache = { lang: null, bottom: 0 };
@@ -1347,6 +1363,23 @@ function bindSettingsPopover() {
 // that attribute on one always-present label catches BOTH paths — and any
 // third one a future canon adds — without touching the canon block, which
 // assertion 6 byte-compares.
+// v1.34.0 (R5). A canvas paints with whatever face is loaded at draw time and
+// never repaints itself, so the first draws land on the Georgia fallback while
+// the bundled EB Garamond (font-display: block) is still arriving. Ask for the
+// face explicitly — document.fonts.ready can resolve before layout has even
+// requested it — then repaint both pads. The consonant readout's measured box
+// was taken with the fallback metrics, so its cache is dropped first.
+function repaintCanvasesWhenFontLoads() {
+  if (!document.fonts || typeof document.fonts.load !== 'function') return;
+  document.fonts.load("14px 'EB Garamond'").then(() => {
+    cxyReadoutBottomCache = { lang: null, bottom: 0 };
+    try {
+      if (ctx) drawXYPad();
+      if (cxyCtx) drawConsonantXYPad();
+    } catch (e) { /* relays not up yet; the next state change repaints */ }
+  }).catch(() => { /* the fallback face stays; nothing to repaint */ });
+}
+
 function watchLanguageForCanvasRepaint() {
   const witness = document.getElementById('preset-save');
   if (!witness || typeof MutationObserver !== 'function') return;
