@@ -24,7 +24,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ouaricon Compressor</title>
 
+  <link rel="stylesheet" href="css/eb-garamond.css" />
   <style>
+    /* v1.11.0 (R4/R5): the palette. Every colour on the page is one of these;
+       no hex literal remains outside this block. Palette washes are written
+       rgba(var(--x-rgb), a). Black/white shadows and the viz panels' white
+       plate stay literal. Canvas cannot read var(), so the four colours the
+       canvases paint are mirrored in CANVAS_INK in the module script.
+
+       Text inks follow ouaricon-naturalist-001 "Text Contrast (WCAG AA)":
+       walnut, sage and moss are border/fill/decoration colours and never
+       text. Cream text sits only on --leaf-fill (5.10:1). */
+    :root {
+      --ink:        #3C2F2F;   /* primary text */
+      --ink-soft:   #5C4033;   /* secondary text, on opaque paper only */
+      --text-muted: #715D45;   /* walnut text, AA on either paper tone */
+      --paper:      #F5E6D3;
+      --paper-rgb:  245, 230, 211;
+      /* paper-bg.jpg under the 0.40 --paper wash, at its median. Invisible
+         under the image; it is what measure-ui --contrast scores against. */
+      --paper-ground: #E7CFB0;
+      --cream:      #FFF8DC;
+      --cream-rgb:  255, 248, 220;
+      --tan-hi:     #E8D5BF;   /* idle button gradient */
+      --tan:        #D4C4B0;
+      --btn-idle:   #D5C4AD;   /* walnut 0.3 pre-composited, opaque */
+      --btn-hover:  #C0AD94;   /* walnut 0.5 pre-composited, opaque */
+      --walnut:     #8B7355;   /* borders, LEDs, decoration */
+      --walnut-rgb: 139, 115, 85;
+      --moss:       #8BA870;
+      --moss-rgb:   139, 168, 112;
+      --sage:       #6B8E4E;   /* borders, focus rings, curves */
+      --leaf-fill:  #4E6839;   /* engaged fills under cream text */
+      --amber:      #C9A27B;
+      --vine:       #5a7a6a;
+
+      --font-serif: 'EB Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    }
+
     /* CRITICAL: WebView constraints */
     html, body {
       height: 100%;  /* REQUIRED - replaces viewport units */
@@ -44,11 +81,18 @@
       overflow: hidden;
 
       /* Ouaricon Naturalist styling */
-      background-image: url('paper-bg.jpg');
+      /* v1.11.0: a 0.40 --paper wash over the JPG. The bare image renders
+         at a median of #DDBF99, but its stains sit under the knob row and the
+         detector strip, where --ink-soft readouts and the ink captions read
+         2.3-4.2:1 at these 9-11px sizes. */
+      background-color: var(--paper-ground);
+      background-image:
+        linear-gradient(rgba(var(--paper-rgb), 0.40), rgba(var(--paper-rgb), 0.40)),
+        url('paper-bg.jpg');
       background-size: cover;
       background-position: center;
-      color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
     }
 
     /* Container fills entire window */
@@ -75,7 +119,7 @@
       font-size: 16px;
       font-weight: bold;
       letter-spacing: 2px;
-      color: #3C2F2F;
+      color: var(--ink);
       white-space: nowrap;
     }
 
@@ -84,8 +128,8 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      background: rgba(139, 168, 112, 0.25);
-      border: 1px solid #8B7355;
+      background: rgba(var(--moss-rgb), 0.25);
+      border: 1px solid var(--walnut);
       border-radius: 3px;
       padding: 2px 4px;
       box-shadow: 1px 1px 2px rgba(0,0,0,0.1);
@@ -94,13 +138,13 @@
     .preset-nav-btn {
       width: 18px;
       height: 16px;
-      background: rgba(139, 115, 85, 0.3);
-      border: 1px solid #8B7355;
+      background: var(--btn-idle);
+      border: 1px solid var(--walnut);
       border-radius: 2px;
-      font-family: Garamond, 'Times New Roman', serif;
+      font-family: var(--font-serif);
       font-size: 11px;
       font-weight: bold;
-      color: #3C2F2F;
+      color: var(--ink);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -109,7 +153,7 @@
     }
 
     .preset-nav-btn:hover {
-      background: rgba(139, 115, 85, 0.5);
+      background: var(--btn-hover);
     }
 
     .preset-name-container {
@@ -120,11 +164,11 @@
       min-width: 70px;
       max-width: 100px;
       text-align: center;
-      font-family: Garamond, 'Times New Roman', serif;
+      font-family: var(--font-serif);
       font-size: 10px;
-      color: #3C2F2F;
+      color: var(--ink);
       padding: 1px 4px;
-      background: rgba(255, 248, 220, 0.5);
+      background: var(--paper);
       border-radius: 2px;
       cursor: pointer;
       white-space: nowrap;
@@ -133,7 +177,7 @@
     }
 
     .preset-name:hover {
-      background: rgba(255, 248, 220, 0.8);
+      background: var(--cream);
     }
 
     /* Preset Dropdown Menu */
@@ -146,8 +190,8 @@
       min-width: 120px;
       max-height: 200px;
       overflow-y: auto;
-      background: #F5E6D3;
-      border: 1px solid #8B7355;
+      background: var(--paper);
+      border: 1px solid var(--walnut);
       border-radius: 3px;
       box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
       z-index: 100;
@@ -160,12 +204,12 @@
 
     .preset-dropdown-item {
       padding: 4px 8px;
-      font-family: Garamond, 'Times New Roman', serif;
+      font-family: var(--font-serif);
       font-size: 10px;
-      color: #3C2F2F;
+      color: var(--ink);
       cursor: pointer;
       white-space: nowrap;
-      border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+      border-bottom: 1px solid rgba(var(--walnut-rgb), 0.2);
     }
 
     .preset-dropdown-item:last-child {
@@ -173,22 +217,22 @@
     }
 
     .preset-dropdown-item:hover {
-      background: rgba(139, 168, 112, 0.3);
+      background: rgba(var(--moss-rgb), 0.3);
     }
 
     .preset-dropdown-item.active {
-      background: rgba(139, 168, 112, 0.5);
+      background: rgba(var(--moss-rgb), 0.5);
       font-weight: bold;
     }
 
     .preset-dropdown-header {
       padding: 3px 8px;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 9px;
-      color: #5C4033;
+      color: var(--ink-soft);
       font-weight: bold;
-      background: rgba(139, 115, 85, 0.15);
-      border-bottom: 1px solid rgba(139, 115, 85, 0.3);
+      background: rgba(var(--walnut-rgb), 0.15);
+      border-bottom: 1px solid rgba(var(--walnut-rgb), 0.3);
     }
 
     /* PIN A (v1.6.0). padding: 0 is the only geometry change in this commit,
@@ -220,12 +264,12 @@
       width: 32px;
       height: 16px;
       padding: 0;
-      background: rgba(139, 115, 85, 0.3);
-      border: 1px solid #8B7355;
+      background: var(--btn-idle);
+      border: 1px solid var(--walnut);
       border-radius: 2px;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 9px;
-      color: #3C2F2F;
+      color: var(--ink);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -234,7 +278,7 @@
     }
 
     .preset-action-btn:hover {
-      background: rgba(139, 115, 85, 0.5);
+      background: var(--btn-hover);
     }
 
     /* Control group container - FLEXBOX FOR ALIGNMENT */
@@ -249,16 +293,18 @@
     /* Parameter labels */
     .param-label {
       font-size: 11px;
-      color: #3C2F2F;
+      color: var(--ink);
       text-align: center;
       letter-spacing: 0.5px;
       white-space: nowrap;
     }
 
-    /* Value displays */
+    /* Value displays. v1.11.0: --ink, not --ink-soft. At 9px over the
+       paper's stains --ink-soft read 3.9-4.5:1 even under the wash; the
+       readout stays subordinate to its 11px caption by size. */
     .value-display {
       font-size: 9px;
-      color: #5C4033;
+      color: var(--ink);
       text-align: center;
       font-weight: normal;
       white-space: nowrap;
@@ -286,13 +332,13 @@
 
     .knob-track {
       fill: none;
-      stroke: rgba(139, 115, 85, 0.3);
+      stroke: rgba(var(--walnut-rgb), 0.3);
       stroke-width: 2;
     }
 
     .knob-vine {
       fill: none;
-      stroke: #5a7a6a;
+      stroke: var(--vine);
       stroke-width: 3;
       stroke-linecap: round;
     }
@@ -301,26 +347,28 @@
     .toggle-button {
       width: 70px;
       height: 40px;
-      border: 2px solid #8B7355;
+      border: 2px solid var(--walnut);
       border-radius: 4px;
-      background: linear-gradient(to bottom, #E8D5BF, #D4C4B0);
+      background: linear-gradient(to bottom, var(--tan-hi), var(--tan));
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 10px;
       font-weight: bold;
-      color: #3C2F2F;
+      color: var(--ink);
       transition: all 0.15s ease;
       box-shadow:
         inset 0 1px 2px rgba(255, 255, 255, 0.5),
         0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
+    /* v1.11.0: an opaque --leaf-fill under cream text (5.10:1). The old
+       moss->sage gradient under white read 2.2-3.1:1. */
     .toggle-button.active {
-      background: linear-gradient(to bottom, #8BA870, #6B8E4E);
-      border-color: #6B8E4E;
-      color: #FFFFFF;
+      background: var(--leaf-fill);
+      border-color: var(--leaf-fill);
+      color: var(--paper);
       box-shadow:
         inset 0 2px 4px rgba(0, 0, 0, 0.3),
         0 1px 2px rgba(0, 0, 0, 0.2);
@@ -339,7 +387,7 @@
       top: 350px;
       width: 600px;
       height: 64px;
-      border-top: 1px solid rgba(139, 115, 85, 0.35);
+      border-top: 1px solid rgba(var(--walnut-rgb), 0.35);
     }
 
     .sc-section-label {
@@ -347,7 +395,7 @@
       left: 8px;
       top: 26px;
       font-size: 11px;
-      color: #3C2F2F;
+      color: var(--ink);
       letter-spacing: 0.5px;
       white-space: nowrap;
       /* PINNED at the widest language. "Détecteur / Sidechain" is the longest of
@@ -401,10 +449,10 @@
       width: 92px;
       height: 22px;
       padding: 0 6px;
-      border: 1px solid #8B7355;
+      border: 1px solid var(--walnut);
       border-radius: 3px;
-      background: linear-gradient(to bottom, #E8D5BF, #D4C4B0);
-      color: #3C2F2F;
+      background: linear-gradient(to bottom, var(--tan-hi), var(--tan));
+      color: var(--ink);
       font-size: 10px;
       font-family: inherit;
       cursor: pointer;
@@ -423,8 +471,8 @@
       display: flex;
       flex-direction: column-reverse;
       gap: 2px;
-      background: rgba(139, 115, 85, 0.1);
-      border: 1px solid #8B7355;
+      background: rgba(var(--walnut-rgb), 0.1);
+      border: 1px solid var(--walnut);
       padding: 4px;
       border-radius: 2px;
     }
@@ -432,31 +480,31 @@
     .led-segment {
       width: 100%;
       height: 14px;
-      background: #8B7355;
+      background: var(--walnut);
       border-radius: 1px;
       transition: background 0.1s ease;
     }
 
     .led-segment.active-low {
-      background: #8BA870;
-      box-shadow: 0 0 4px #8BA870;
+      background: var(--moss);
+      box-shadow: 0 0 4px var(--moss);
     }
 
     .led-segment.active-mid {
-      background: #6B8E4E;
-      box-shadow: 0 0 4px #6B8E4E;
+      background: var(--sage);
+      box-shadow: 0 0 4px var(--sage);
     }
 
     .led-segment.active-high {
-      background: #C9A27B;
-      box-shadow: 0 0 4px #C9A27B;
+      background: var(--amber);
+      box-shadow: 0 0 4px var(--amber);
     }
 
     /* Visualization panels */
     .viz-panel {
       position: absolute;
       background: rgba(255, 255, 255, 0.6);
-      border: 2px solid #8B7355;
+      border: 2px solid var(--walnut);
       border-radius: 4px;
       overflow: hidden;
     }
@@ -467,8 +515,8 @@
       left: 50%;
       transform: translateX(-50%);
       font-size: 9px;
-      color: #3C2F2F;
-      background: rgba(245, 230, 211, 0.8);
+      color: var(--ink);
+      background: rgba(var(--paper-rgb), 0.8);
       padding: 2px 8px;
       border-radius: 2px;
       letter-spacing: 0.5px;
@@ -517,11 +565,11 @@
       width: 20px;
       height: 20px;
       padding: 0;
-      background: rgba(139, 115, 85, 0.3);
-      border: 1px solid #8B7355;
+      background: var(--btn-idle);
+      border: 1px solid var(--walnut);
       border-radius: 2px;
-      color: #3C2F2F;
-      font-family: Garamond, 'Times New Roman', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 11px;
       line-height: 1;
       cursor: pointer;
@@ -529,22 +577,23 @@
       align-items: center;
       justify-content: center;
       transition: all 0.1s;
-      opacity: 0.6;
     }
 
+    /* v1.11.0: the idle gear was dimmed with opacity 0.6, which dims the
+       glyph with it (2.1:1 on the paper). It is quiet by fill now, not by
+       opacity. */
     .gear-btn:hover {
-      background: rgba(139, 115, 85, 0.5);
-      opacity: 1;
+      background: var(--btn-hover);
     }
 
     .gear-btn[aria-expanded="true"] {
-      background: rgba(139, 168, 112, 0.5);
-      border-color: #6B8E4E;
-      opacity: 1;
+      background: var(--leaf-fill);
+      border-color: var(--leaf-fill);
+      color: var(--paper);
     }
 
     .gear-btn:focus-visible {
-      outline: 2px solid #6B8E4E;
+      outline: 2px solid var(--sage);
       outline-offset: 2px;
     }
 
@@ -574,8 +623,8 @@
       display: flex;
       flex-direction: column;
       gap: 7px;
-      background: #F5E6D3;
-      border: 1px solid #8B7355;
+      background: var(--paper);
+      border: 1px solid var(--walnut);
       border-radius: 4px;
       box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
     }
@@ -595,7 +644,7 @@
        grow the row's height and move the control beside it. */
     .settings-label {
       font-size: 9px;
-      color: #5C4033;
+      color: var(--ink-soft);
       letter-spacing: 0.5px;
       text-transform: uppercase;
       white-space: nowrap;
@@ -604,11 +653,11 @@
     .settings-select {
       flex: 0 0 auto;
       padding: 2px 4px;
-      background: rgba(255, 248, 220, 0.8);
-      border: 1px solid #8B7355;
+      background: rgba(var(--cream-rgb), 0.8);
+      border: 1px solid var(--walnut);
       border-radius: 2px;
-      color: #3C2F2F;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 10px;
       line-height: 1.2;
       cursor: pointer;
@@ -616,7 +665,7 @@
     }
 
     .settings-select:focus-visible {
-      outline: 2px solid #6B8E4E;
+      outline: 2px solid var(--sage);
       outline-offset: 1px;
     }
 
@@ -635,11 +684,11 @@
        measures — verified with check-ui-labels [7] after the port. */
     .settings-toggle {
       padding: 2px 4px;
-      background: rgba(255, 248, 220, 0.8);
-      border: 1px solid #8B7355;
+      background: rgba(var(--cream-rgb), 0.8);
+      border: 1px solid var(--walnut);
       border-radius: 2px;
-      color: #3C2F2F;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 10px;
       line-height: 1.2;
       outline: none;
@@ -651,13 +700,13 @@
     }
 
     .settings-toggle[aria-pressed="true"] {
-      background: #6B8E4E;
-      border-color: #6B8E4E;
-      color: #F5E6D3;
+      background: var(--leaf-fill);
+      border-color: var(--leaf-fill);
+      color: var(--paper);
     }
 
     .settings-toggle:focus-visible {
-      outline: 2px solid #6B8E4E;
+      outline: 2px solid var(--sage);
       outline-offset: 1px;
     }
 
@@ -668,9 +717,9 @@
        writes onto the anchors named in TIP_BINDINGS.
 
        IT WEARS .settings-popover's PLATE, not another plugin's: the same
-       #F5E6D3 paper, the same 1px #8B7355 rule, the same 4px radius and the
-       same 2/2/6 drop shadow, with the title line in #5C4033 and letter-spaced
-       like .settings-label. Body ink is the page's #3C2F2F Garamond.
+       --paper plate, the same 1px --walnut rule, the same 4px radius and the
+       same 2/2/6 drop shadow, with the title line in --ink-soft and
+       letter-spaced like .settings-label. Body ink is the page's --ink serif.
 
        position: fixed AND visibility: hidden are both load-bearing, and not for
        the reason they look like:
@@ -707,12 +756,12 @@
       z-index: 70;
       max-width: 250px;
       padding: 7px 10px 8px;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 11.5px;
       line-height: 1.4;
-      color: #3C2F2F;
-      background: #F5E6D3;
-      border: 1px solid #8B7355;
+      color: var(--ink);
+      background: var(--paper);
+      border: 1px solid var(--walnut);
       border-radius: 4px;
       box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
       opacity: 0;
@@ -729,7 +778,7 @@
       font-weight: bold;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #5C4033;
+      color: var(--ink-soft);
       margin-bottom: 3px;
     }
 
@@ -1102,6 +1151,19 @@
     // strings, which have no element to hang a key on.
     import { LANGUAGES, I18N, LABELS, TIP_BINDINGS, tr } from './js/i18n.js';
 
+    // v1.11.0: canvas cannot read var(), so the canvases' colours mirror the
+    // :root tokens here, and their text names the bundled face first. The
+    // envelope canvas repaints every animation frame, so its labels pick the
+    // face up as soon as it has loaded; the transfer curve draws no text.
+    const CANVAS_INK = {
+      ink:     '#3C2F2F',                   // --ink
+      inkSoft: '#5C4033',                   // --ink-soft
+      sage:    '#6B8E4E',                   // --sage
+      walnut:  (a) => `rgba(139, 115, 85, ${a})`,   // --walnut-rgb
+      amber:   (a) => `rgba(201, 162, 123, ${a})`,  // --amber (GR bars)
+    };
+    const CANVAS_FONT = "'EB Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif";
+
     // Disable context menu (REQUIRED)
     document.addEventListener("contextmenu", (e) => {
       e.preventDefault();
@@ -1458,7 +1520,7 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Grid
-      ctx.strokeStyle = 'rgba(139, 115, 85, 0.2)';
+      ctx.strokeStyle = CANVAS_INK.walnut(0.2);
       ctx.lineWidth = 1;
 
       for (let i = 0; i <= 4; i++) {
@@ -1492,7 +1554,7 @@
       const knee = kneeNorm * 20.0;
 
       // Transfer curve with compression
-      ctx.strokeStyle = '#6B8E4E';
+      ctx.strokeStyle = CANVAS_INK.sage;
       ctx.lineWidth = 3.5;
       ctx.beginPath();
 
@@ -1591,7 +1653,7 @@
 
         // Envelope history (top half - green line)
         if (count > 1) {
-          envCtx.strokeStyle = '#6B8E4E';
+          envCtx.strokeStyle = CANVAS_INK.sage;
           envCtx.lineWidth = 2;
           envCtx.beginPath();
           for (let i = 0; i < count; i++) {
@@ -1607,7 +1669,7 @@
 
         // Gain reduction histogram (bottom half - amber bars)
         if (count > 0) {
-          envCtx.fillStyle = 'rgba(201, 162, 123, 0.6)';
+          envCtx.fillStyle = CANVAS_INK.amber(0.6);
           const barWidth = envCanvas.width / HISTORY_SIZE;
           for (let i = 0; i < count; i++) {
             const ri = (idx - count + i + HISTORY_SIZE) % HISTORY_SIZE;
@@ -1636,15 +1698,15 @@
         const grValue = meterState.gainReduction > 0
           ? `-${meterState.gainReduction.toFixed(1)}`
           : '0.0';
-        envCtx.fillStyle = '#3C2F2F';
-        envCtx.font = '11px Garamond, "PingFang SC", "Microsoft YaHei", serif';
+        envCtx.fillStyle = CANVAS_INK.ink;
+        envCtx.font = '11px ' + CANVAS_FONT;
         envCtx.fillText(
           trLabel('canvas.gr', uiLanguage, { v: grValue }),
           10, envCanvas.height - 25
         );
 
         // Dividing line
-        envCtx.strokeStyle = 'rgba(139, 115, 85, 0.3)';
+        envCtx.strokeStyle = CANVAS_INK.walnut(0.3);
         envCtx.lineWidth = 1;
         envCtx.beginPath();
         envCtx.moveTo(0, envCanvas.height / 2 + 10);
@@ -1654,8 +1716,8 @@
         // Labels — v1.6.0: localized, same reasoning as the GR readout above.
         // Both are drawn at x = 10 in a 308px canvas, so length is free:
         // measured 33.99 -> 38.49 and 56.74 -> 65.48 with ctx.measureText.
-        envCtx.fillStyle = '#5C4033';
-        envCtx.font = '9px Garamond, "PingFang SC", "Microsoft YaHei", serif';
+        envCtx.fillStyle = CANVAS_INK.inkSoft;
+        envCtx.font = '9px ' + CANVAS_FONT;
         envCtx.fillText(trLabel('canvas.envelope', uiLanguage), 10, 15);
         envCtx.fillText(trLabel('canvas.gainReduction', uiLanguage), 10, envCanvas.height / 2 + 35);
 
@@ -1715,7 +1777,7 @@
           // authors around the inflection rather than building a plural engine.
           setLabel(emptyItem, 'label.noPresets');
           emptyItem.style.fontStyle = 'italic';
-          emptyItem.style.color = '#888';
+          emptyItem.style.color = 'var(--text-muted)';   // #888 read 3.0:1 on --paper
           presetDropdown.appendChild(emptyItem);
           return;
         }
@@ -1794,7 +1856,7 @@
       initializeSettingsPopover();
       try { initI18n(); setupTooltips(); initializeTipsToggle(); } catch (e) { console.error('i18n init failed:', e); }
 
-      console.log('O-Comp v1.10.0 UI loaded - vine-arc knobs, hover-help');
+      console.log('O-Comp v1.11.0 UI loaded - vine-arc knobs, hover-help');
     });
 
     // ═══════════════════════════════════════════════════════════════════════

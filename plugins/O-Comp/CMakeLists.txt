@@ -8,7 +8,7 @@ juce_add_plugin(O-Comp
     PLUGIN_CODE OuCp
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Comp${OUARICON_DEV_SUFFIX}"
-    VERSION 1.10.2
+    VERSION 1.11.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -66,6 +66,12 @@ juce_add_binary_data(O-Comp_UIResources
         Source/ui/public/paper-bg.jpg
         Source/ui/public/shell.png
         Source/ui/public/modules/preset-manager.js
+        # v1.11.0 - bundled EB Garamond, direct embed from the shared
+        # module; served by four getResource branches in PluginEditor.cpp.
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 # Compile definitions

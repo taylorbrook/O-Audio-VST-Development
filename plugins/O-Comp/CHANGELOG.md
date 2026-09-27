@@ -2,6 +2,72 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.11.0] - 2026-09-27
+
+UI pass R4/R5 from review 260924-nho (Phase C): palette tokens, a paper wash,
+AA text inks and the bundled EB Garamond face. MINOR because the colour and
+face visibly change. There is no DSP, parameter, range, state-format or
+i18n-key change, and no element moves. The vine-arc knob interaction JS is
+untouched (its colours are CSS and moved to tokens), so keyboard/ARIA knobs
+(R7) remain open.
+
+### Changed
+
+- **Palette tokens (R4).** The page `<style>` had 0 custom properties and 62
+  hex literals. It now opens with a `:root` block, and no hex literal remains
+  outside it. Palette washes use `rgba(var(--x-rgb), a)`. Black/white shadows
+  and the viz panels' white plate stay literal. The canvases cannot read
+  `var()`, so their colours mirror the tokens in a `CANVAS_INK` constant, and
+  the empty-preset row's inline `#888` (3.0:1 on paper) is `--text-muted`.
+- **Paper wash.** `body` lays `--paper` at 0.40 over `paper-bg.jpg`. The bare
+  JPG's median is `#DDBF99`, but its stains sit under the knob row and the
+  detector strip, where captions and readouts read 2.1-4.2:1.
+  `background-color` is the washed median `--paper-ground #E7CFB0`
+  (invisible under the image; it is what `measure-ui --contrast` scores).
+- **AA inks** (from `ouaricon-naturalist-001`):
+  - Engaged fills move to an opaque `--leaf-fill #4E6839` under cream text:
+    Auto-Gain / SC Listen ON (a moss-to-sage gradient under white, 2.2-3.1:1),
+    the pressed hover-help switch (3.06:1) and the open gear.
+  - The preset `< > Load Save` buttons and the gear move from walnut at
+    0.3 / 0.5 to opaque pre-composited `--btn-idle #D5C4AD` /
+    `--btn-hover #C0AD94`, and the preset name to opaque `--paper` /
+    `--cream`. Translucent fills let the stains through (3.7-4.0:1).
+  - The gear is no longer dimmed with `opacity: 0.6`, which dimmed its glyph
+    to 2.1:1. It is quiet by fill instead.
+  - Knob readouts (`.value-display`) move from `--ink-soft` to `--ink`. At
+    9px over the stains, `--ink-soft` still read 3.9-4.5:1 under the wash.
+    The readout stays subordinate to its 11px caption by size.
+- **9px floor.** Already met: no DOM text and no canvas label renders below
+  9px, before or after.
+- **Bundled EB Garamond (R5).** `modules/ui/eb-garamond` is direct-embedded:
+  4 SOURCES in `O-Comp_UIResources` and 4 `getResource()` branches. The
+  stylesheet is linked before the page `<style>`. `--font-serif` replaces
+  the 10 declarations across the three `Garamond`/Times stacks, and the canvas
+  labels take the same stack through `CANVAS_FONT`. The bare `Garamond` entry
+  never resolved on macOS: CDP shows the page rendered in Times New Roman, and
+  the canvas labels (`Garamond, "PingFang SC", ...`) in PingFang, a sans face.
+  Both now resolve to EB Garamond. The envelope canvas repaints every frame and
+  the transfer-curve canvas draws no text, so no `document.fonts.load()` repaint
+  hook is needed.
+
+### Testing
+
+- **Pixel probe** (text and canvases hidden, transitions off, 2x screenshot,
+  p5 under each glyph band, overlay-occluded boxes skipped; 4 states: default,
+  Auto-Gain + SC Listen armed, settings popover, preset menu; en/fr/zh-Hans):
+  before **69/108** text boxes below AA, min **2.08**. After **0/105**
+  unoccluded. The last 3 rows are the `+0.0 dB` output readout while the preset
+  menu is open, whose bottom edge (y 100) covers the readout's top 4px
+  (p5 2.85, median 5.8). Default state clears AA. 0 under 9px before and after.
+- **`measure-ui --contrast`**: 3/37 -> 0/37 below AA per language (min
+  1.01 -> 4.59), 0 under the 9px floor. It is blind to the JPG ground (24 nodes
+  over background-image), which is why the probe above is the real measurement.
+- **CDP `getPlatformFontsForNode`**: title, readouts, strip caption and preset
+  buttons resolve to EB Garamond (were Times New Roman).
+- `check-ui-labels` (en/fr/zh-Hans): all checks pass, 171 PASS lines before and
+  after, geometry unchanged. `check-i18n`, `i18n-fr-lint` and `i18n-zh-lint`
+  pass.
+
 ## [1.10.2] - 2026-09-24
 
 **Chinese sidechain Source caption now uses the glossary term.** PATCH: UI

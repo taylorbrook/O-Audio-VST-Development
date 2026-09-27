@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.10.2
+- **Version:** 1.11.0
 - **Type:** Audio Effect (Compressor)
 
 ## Lifecycle Timeline
 
+- **2026-09-27 (v1.11.0):** UI pass R4/R5 (review 260924-nho Phase C): 62 hex literals -> `:root` tokens, 0.40 paper wash over paper-bg.jpg, opaque AA fills (`--leaf-fill`, `--btn-idle`), readouts to `--ink`, gear un-dimmed, bundled EB Garamond (page + canvas; bare `Garamond` had resolved to Times / PingFang). Real-ground probe 69/108 below AA -> 0 unoccluded. Knob JS untouched; R7 keyboard/ARIA knobs still open.
 - **2026-09-24 (v1.10.2):** zh-Hans sidechain Source caption and tooltip title changed from 来源 to the glossary root 源, which clears the i18n-zh-lint Z5 gate failure.
 - **2026-09-14 (v1.10.1):** Four defects in the v1.10.0 sidechain, all found in verify. (1) The External auto-fallback tested the *bus*, not the *signal*. An AU host does not disable an unrouted sidechain — it negotiates the bus, reports it enabled, and hands it silence — so all three bus properties read true in Logic with nothing patched in, the detector read zeros, the envelope parked at −60 dB and the compressor went inert. The verdict now comes from signal presence, latched one-way so a key with real dynamics cannot flap back mid-phrase. (2) SC LPF above Nyquist built a biquad with poles at |z| = 1.32; below a 40 kHz rate anything between Nyquist and the absolute 20 kHz "Off" ceiling diverged and the plugin output digital silence. Both detector filters now clamp to 0.45 × rate. (3) `paramDefaults[id] || 0.5` ate the 0.0 Off default, so double-clicking SC HPF/LPF switched the filter *on* at 198/1984 Hz; the handler now tests the type, not the truthiness. (4) `IIR::Filter<float>` default-constructs first-order, so the first biquad assignment in `processBlock` changed the order and triggered `HeapBlock::malloc()` on the audio thread — `prepareToPlay` now seeds a real biquad, as O-MultiBandCompressor has since its v1.6.0.
 
