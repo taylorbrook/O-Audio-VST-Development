@@ -9,7 +9,7 @@ juce_add_plugin(OuariconDigitalDelay
     PLUGIN_CODE OuDD
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-DigiDelay${OUARICON_DEV_SUFFIX}"
-    VERSION 1.6.0
+    VERSION 1.7.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -71,6 +71,12 @@ juce_add_binary_data(OuariconDigitalDelay_UIResources
         Source/ui/public/img/paper1.jpg
         Source/ui/public/img/butterfly2_bw.png
         Source/ui/public/modules/preset-manager.js
+        # v1.7.0 (R5) - bundled EB Garamond, direct embed from the shared
+        # module; served by four getResource() branches in PluginEditor.cpp.
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(OuariconDigitalDelay

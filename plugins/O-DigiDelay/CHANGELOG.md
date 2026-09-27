@@ -5,6 +5,76 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-09-27
+
+UI pass R4/R5 from review 260924-nho: palette tokens, a paper wash, opaque
+control fills, caption chips over the butterfly echoes, the 9px floor and the
+bundled EB Garamond face. MINOR because colour, face and two sizes visibly
+change. No DSP, parameter, range, state-format or i18n-key change. The knob
+interaction JS is untouched, so keyboard/ARIA knobs (R7) remain open.
+
+### Changed
+
+- **Palette tokens (R4).** The page `<style>` had 0 custom properties and 47
+  hex literals. It now opens with a `:root` block, and no hex literal remains
+  outside it. Palette washes read `rgba(var(--x-rgb), a)`; black drop shadows
+  stay literal. The one colour in JS (the "no presets" row's inline `#888`,
+  3.3:1) moved to a `.preset-dropdown-item.empty` rule in `--text-walnut-mid`.
+- **Paper wash.** `.paper-background` lays `--paper` at 0.40 over
+  `paper1.jpg`, the same wash O-Lyrica and O-Polystutter carry. Bare, the JPG
+  renders at a median of `#C3985F` with stains near L 0.25. The container's
+  fallback colour is now the washed median `--paper-ground #D7B78D`.
+- **Opaque control fills.** The preset bar, `< >`, LOAD/SAVE, the preset name,
+  the gear and the SYNC toggle were sage/olive/cream at 0.25–0.8. On the
+  stained paper and the echoes the same ink read 2.6–4.0:1 depending on what
+  was underneath. Each fill is now the original rgba pre-composited over
+  `--paper` (`--bar-fill`, `--btn-fill`, `--nav-fill`, `--gear-fill`,
+  `--toggle-off`/`--toggle-on`, plus their hover and open states). The preset
+  bar reads paler than before because it no longer takes on the stain.
+- **Caption chips.** Knob captions, readouts, SYNC, OUT and the footer sit on
+  the butterfly feedback echoes, whose darkness is set by FEEDBACK × WET. At
+  full feedback and wet, 20 copies at full opacity put engraving behind every
+  caption (TIME readout 2.11:1, OUT 2.40:1), so no ink colour could hold a
+  fixed ratio there. Each now sits on a text-hugging `--chip` (paper at 0.8),
+  widened 3px per side by offset box-shadows so layout does not move. To make
+  the chip hug, `.knob-label` (60px), `.led-meter-label` (38px) and
+  `.knob-value` (`min-width: 60px`) became `fit-content`. Their containers keep
+  their widths, so every knob, readout and the meter stay where they were.
+- **Footer.** Ink at 0.4 (1.59:1) is replaced by `--walnut-dark` on one chip.
+  The box is `max-content`, centred between `left: 0` and `right: 0`.
+- **9px floor.** The version label and the preset-dropdown header go 8 → 9px.
+  The header's colour moves from `--walnut` (3.70:1) to `--text-walnut-mid`,
+  and its zh line-height pin goes 1.125 → 1, keeping the same 9px content box.
+- **Bundled EB Garamond (R5).** `modules/ui/eb-garamond` is direct-embedded: 4
+  SOURCES in `OuariconDigitalDelay_UIResources` and 4 `url ==` `getResource`
+  branches. The stylesheet is linked before the page `<style>`, and
+  `--font-serif` replaces the nine `Garamond, 'Times New Roman'` stacks. CDP
+  `getPlatformFontsForNode` resolves every Latin run to EB Garamond and the
+  Han runs to PingFang SC. The ⚙ glyph is in neither face and falls back to a
+  system symbol font, as it did under Times.
+
+### Testing
+
+- **Pixel probe** (text hidden, transitions off, 2× screenshot, worse of the
+  p5/p95 luminance under each glyph band). It runs 6 states (default, echoes
+  at maximum with long and short time, SYNC on, settings popover, preset menu)
+  in en, fr and zh-Hans. Before: **296/444** text nodes below AA, min
+  **1.59**, 21 under 9px. After: **0/444**, min **4.84**, 0 under 9px.
+- **`measure-ui --contrast`**: 3/31 → **0/31** below AA per language, min
+  2.15 → 5.21. Under 9px: 2 → 0.
+- `check-ui-labels` (en/fr/zh-Hans): pass, 130 PASS lines before and after.
+  `check-i18n`, `i18n-fr-lint`, `i18n-zh-lint` and
+  `tests/ui_tip_render_check.js` (300 checks): pass. `check-ui-canon` still
+  reports the pre-existing preset-manager fork.
+- Build + install (VST3/AU, `-dev`): pass. `auval -v aufx OuDD OuDv`: pass.
+  BinaryData carries the css and all three woff2 faces.
+
+### Not changed
+
+- **The knob rings are unchanged.** The vine (`#5A7A6A`) and track (walnut at
+  0.3) fall below WCAG 1.4.11's 3:1 non-text ratio on the washed paper. They
+  are the page's signature look, so this pass left them alone.
+
 ## [1.6.0] - 2026-09-05
 
 **Simplified Chinese.** Every caption, hover-help body and accessible name now
