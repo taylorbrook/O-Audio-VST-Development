@@ -173,6 +173,19 @@ function initializeKnobs() {
     bindKnobToParameter(app.knobs.outputGain, 'OUTPUT_GAIN');
 }
 
+// Arrow-key increment in normalised units: KNOB_NUDGE_STEP, floored at one
+// parameter step. setNormalisedValue() snaps to the range's interval, so a
+// nudge under half a step would round straight back (O-ReverseDelay v1.12.3).
+// All six knobs here have steps under 0.01 normalised, so the floor is a guard.
+const KNOB_NUDGE_STEP = 0.02;
+
+function knobNudgeStep(sliderState) {
+    const p = sliderState.properties;
+    const span = p ? p.end - p.start : NaN;
+    if (!p || !(p.interval > 0) || !isFinite(span) || span <= 0) return KNOB_NUDGE_STEP;
+    return Math.max(KNOB_NUDGE_STEP, p.interval / span);
+}
+
 /**
  * Bind RotaryKnob to JUCE parameter via WebSliderRelay
  *
@@ -185,13 +198,41 @@ function bindKnobToParameter(knob, parameterId) {
         // Get slider state from JUCE
         const sliderState = Juce.getSliderState(parameterId);
 
+        // ARIA range, in the parameter's own units. valuetext (set by the knob)
+        // carries the formatted readout; these give AT the numeric position.
+        const syncAria = () => {
+            const p = sliderState.properties;
+            if (p && isFinite(p.start) && isFinite(p.end)) {
+                knob.container.setAttribute('aria-valuemin', String(p.start));
+                knob.container.setAttribute('aria-valuemax', String(p.end));
+            }
+            knob.container.setAttribute('aria-valuenow', String(sliderState.getScaledValue()));
+        };
+
         // Initialize knob with current parameter value
         const initialValue = sliderState.getNormalisedValue();
         knob.setValue(initialValue);
+        syncAria();
 
-        // Knob changes → JUCE parameter
+        // Knob changes → JUCE parameter, bracketed as one host gesture per drag.
+        // Before v1.10.0 no drag called sliderDragStarted/Ended at all, so
+        // automation Touch/Latch never saw the knob grabbed.
+        knob.onGestureStart = () => sliderState.sliderDragStarted();
+        knob.onGestureEnd = () => sliderState.sliderDragEnded();
         knob.onValueChange = (value) => {
             sliderState.setNormalisedValue(value);
+            syncAria();
+        };
+
+        // Arrow keys: one nudge, a full bracketed gesture (O-ReverseDelay).
+        knob.onNudge = (dir) => {
+            const n = Math.min(1, Math.max(0,
+                sliderState.getNormalisedValue() + dir * knobNudgeStep(sliderState)));
+            sliderState.sliderDragStarted();
+            sliderState.setNormalisedValue(n);
+            sliderState.sliderDragEnded();
+            knob.setValue(sliderState.getNormalisedValue());
+            syncAria();
         };
 
         // JUCE parameter changes → Knob (automation, preset load)
@@ -199,7 +240,9 @@ function bindKnobToParameter(knob, parameterId) {
         sliderState.valueChangedEvent.addListener(() => {
             const newValue = sliderState.getNormalisedValue();
             knob.setValue(newValue);
+            syncAria();
         });
+        sliderState.propertiesChangedEvent.addListener(syncAria);
 
         console.log(`Bound knob to parameter: ${parameterId}`);
     } catch (error) {

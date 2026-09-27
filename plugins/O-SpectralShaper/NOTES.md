@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.0
+- **Version:** 1.10.0
 - **Type:** Audio Effect (Spectral Transient Shaper)
 
 ## Lifecycle Timeline
 
+- **2026-09-27 (v1.10.0):** R7 knob keyboard/ARIA ported from O-ReverseDelay: six knobs are Tab-reachable `role="slider"` (named by caption, valuetext = readout, valuenow/min/max in param units), arrows nudge 0.02 (floored at one step) as a bracketed gesture, drags use pointer capture (no latched drag on release outside the WebView) and now bracket `sliderDragStarted/Ended` — they never did before. Dotted `--green-dark` focus ring. Resize half of R7 N/A (700×500 < 820). No DSP/param/state change.
 - **2026-09-26 (v1.9.0):** UI pass (review 260924-nho R4/R5): AA ink on the paper image (pixel probe 81/230 → 0 below AA; census 6/37 → 0), inverted Spectrum chip, colour-not-opacity disabled undo/redo, 107 hex → `:root` tokens (JS reads them), bundled EB Garamond, stale `v1.7.2` header fixed, two width pins re-measured. Knob keyboard/ARIA (R7) still open. No DSP/param/state change.
 - **2026-02-03:** Creative brief completed — per-frequency transient shaping concept finalized
 - **2026-02-07:** v1.1.0 released and installed

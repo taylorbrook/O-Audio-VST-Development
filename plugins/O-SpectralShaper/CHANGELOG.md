@@ -1,5 +1,58 @@
 # O-SpectralShaper Changelog
 
+## [1.10.0] - 2026-09-27
+
+Knob keyboard access and ARIA, ported from O-ReverseDelay (review 260924-nho
+R7). MINOR: a new way to operate the knobs. No parameter, range, type or state
+format changed, and no audio path was touched. The resizing half of R7 does not
+apply, because the frame is 700 × 500, under the 820 px threshold.
+
+### Added
+- **The six knobs work from the keyboard.** Each knob container is focusable
+  (`tabindex="0"`), so Tab reaches Mix, Attack, Sustain, Sensitivity, Output
+  and LA Time. Up/Right steps the knob up and Down/Left steps it down.
+  - A step is 0.02 normalised, floored at one parameter step. That is the
+    O-ReverseDelay `nudgeStep()` rule; every knob here has a step under 0.01,
+    so the floor is only a guard.
+  - Each key press is a complete host gesture.
+- **Screen readers see sliders.** Each container has `role="slider"` and is
+  named by its visible caption through `aria-labelledby`, so a French caption
+  names it in French. `aria-valuetext` is the printed readout string.
+  `aria-valuenow`, `aria-valuemin` and `aria-valuemax` are in the parameter's
+  own units, taken from the live range. The O-ReverseDelay reference sets
+  neither a name nor `valuenow`, and `valuenow` is required for the role.
+- **Focus ring.** A 2 px dotted `--green-dark` ring sits 3 px out, drawn round
+  to follow the seed. O-ReverseDelay uses `--green-mid`, which reads about
+  3:1 on this paper (see the v1.9.0 gear note), so this plugin uses the darker
+  token.
+
+### Fixed
+- **Knob drags now open and close a host gesture.** `RotaryKnob` never called
+  `sliderDragStarted()` / `sliderDragEnded()`. Automation Touch and Latch
+  therefore never saw a knob being held, and each move reached the host as an
+  unbracketed change.
+- **A drag can no longer stay latched.** The drag used `mousemove`/`mouseup`
+  listeners on `document`. Releasing outside the WebView, a host modal grab,
+  or a focus loss could leave it running, so the knob followed the cursor with
+  no button held. The container now takes pointer capture, and the drag ends on
+  `pointerup`, `pointercancel` or `lostpointercapture`. The handler is
+  idempotent, as in O-ReverseDelay v1.7.2 WR-05.
+  - Text-selection suppression stays on `mousedown`, not `pointerdown`. A
+    `preventDefault()` on `pointerdown` would cancel the compatibility
+    `mousedown` that the preset menu and settings popover dismiss on.
+
+### Testing
+- Headless probe against `tests/ui-stub` at 700 × 500:
+  - all 6 knobs report role, name, valuetext and range;
+  - Tab reaches the knobs, and `:focus-visible` shows the ring;
+  - Up, Up, Left moves Attack 10 → 11 ms, with 3 bracketed gestures;
+  - one drag is exactly one start/end pair;
+  - moving the pointer after release changes nothing;
+  - the page logs 0 console errors.
+- `tests/ui_preset_menu_check.js` still passes.
+
+---
+
 ## [1.9.0] - 2026-09-26
 
 UI pass from review 260924-nho (R4 palette/contrast, R5 bundled serif). MINOR: a
