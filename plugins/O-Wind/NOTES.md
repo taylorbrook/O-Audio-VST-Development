@@ -1,7 +1,7 @@
 # O-Wind — Development Notes
 
 **Status:** 📦 Installed
-**Version:** 1.16.3
+**Version:** 1.22.0
 **Type:** Synth (Physical Model Flute) — 2× oversampled jet-drive waveguide (Verge 1995)
 
 ## Known Limitations
@@ -21,6 +21,8 @@
 
 ## Timeline
 
+- **2026-09-27 — v1.22.0:** UI pass (review 260924-nho R4/R5): AA text tokens, disabled/bypassed rows dim graphics not text, tuning muted text #6A5640, bundled EB Garamond via one `--serif` token (4 stacks folded). measure-ui 50/177 → 0/177 below AA; check-ui-labels 172 PASS unchanged. No DSP change. R7 (keyboard/ARIA knobs) still open.
+- **v1.17.0–v1.21.0:** i18n en/fr/zh-Hans, hover-help, localized tuning panel (see CHANGELOG).
 - **2026-07-10 — v1.16.3:** Final info-finding sweep (IN-01, IN-08..10, IN-12..15,
   IN-17 via /improve-review) — CODE_REVIEW.md fully resolved (40/40): voice +
   processor raw-param-pointer caches (no string-keyed APVTS lookups on the audio

@@ -54,7 +54,7 @@ Ouaricon Plugins:
 | O-Formant | 📦 Installed | 1.34.0 | Synth (Physical Model Vocal) | 2026-09-27 |
 | O-Bowed | 📦 Installed | 1.9.4 | Synth (Physical Model Bowed String) | 2026-09-24 |
 | O-Reed | 📦 Installed | 1.6.0 | Synth (Physical Modeling Reed Wind) | 2026-09-07 |
-| O-Wind | 📦 Installed | 1.21.0 | Synth (Physical Model Flute) | 2026-09-07 |
+| O-Wind | 📦 Installed | 1.22.0 | Synth (Physical Model Flute) | 2026-09-27 |
 | O-Contrabass | 📦 Installed | 1.10.0 | Synth (Physical Model Bowed Bass) | 2026-09-07 |
 | O-Bassoon | 📦 Installed | 1.5.0 | Synth (Physical Model Bassoon) | 2026-09-06 |
 | O-MicrotonalSampler | 📦 Installed | 1.28.0 | Synth (Microtonal Sampler) | 2026-09-25 |

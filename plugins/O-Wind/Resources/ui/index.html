@@ -23,6 +23,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>O-Wind</title>
+    <link rel="stylesheet" href="/css/eb-garamond.css">
     <link rel="stylesheet" href="/css/tuning-panel.css">
     <style>
         /* ====================================================================
@@ -36,7 +37,23 @@
             --bg-paper-darker: #D4C4AD;
             --brown-text: #3C2F2F;
             --brown-text-light: #6B5B4F;
-            --brown-text-lighter: #8B7B6F;
+            /* v1.22.0 AA TEXT (ouaricon-naturalist-001 Text Contrast table).
+               #8B7B6F / #8B7355 / #6B8E4E fail as text on this paper (3.50 /
+               3.66 / 3.06). Each variant below is bound to the grounds it was
+               measured on; the originals stay for borders and decoration. */
+            --text-walnut-mid: #715D45;   /* 5.11 on #F5E6D3, 5.38 on the section-box #F8ECDE */
+            --text-sage-mid: #4E6839;     /* fill under paper text: 5.10 (was #6B8E4E, 2.48) */
+            --text-green-deep: #3C5C1A;   /* active tab on #E8D5BE: 5.37 (was #4A6B35, 4.26) */
+            /* One face everywhere (R5). EB Garamond is bundled (css/eb-garamond.css,
+               Times metrics baked in); Georgia before Times; CJK tail BEFORE the
+               generic (W1 — a bare `serif` resolves against the document's lang,
+               so a tail written after it is never consulted under zh-Hans). No
+               bare 'Garamond': an Office-installed Windows face would outrank
+               the bundled one. Form controls do not inherit font-family by
+               default, so every <button>/<select>/<input> rule carries
+               `font-family: inherit` or names this token. */
+            --serif: 'EB Garamond', 'Georgia', 'Times New Roman',
+                     'PingFang SC', 'Microsoft YaHei', serif;
             --green-light: #8BA870;
             --green-mid: #6B8E4E;
             --green-dark: #4A6B35;
@@ -66,16 +83,7 @@
             width: 900px;
             height: 600px;
             overflow: hidden;
-            /* CJK tail BEFORE the trailing generic (W1). Chromium resolves a
-               bare `serif` against the DOCUMENT's lang, so under zh-Hans the
-               generic is ALREADY a Chinese face and a tail written after it is
-               never consulted — and the page still looks right on macOS, which
-               is what makes that mistake survive review. Georgia and Times New
-               Roman are both measured installed on the build machine (4 family
-               matches each), so the Latin half of this stack was already safe
-               and only the tail was missing. */
-            font-family: 'Garamond', 'Georgia', 'Times New Roman',
-                         'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--serif);
             background: var(--bg-paper);
             color: var(--brown-text);
         }
@@ -335,8 +343,8 @@
         }
 
         .settings-toggle[aria-pressed="true"] {
-          background: var(--green-mid);
-          border-color: var(--green-mid);
+          background: var(--text-sage-mid);
+          border-color: var(--text-sage-mid);
           color: var(--bg-paper);
         }
 
@@ -350,7 +358,10 @@
             font-size: 10px;
             letter-spacing: 1.5px;
             text-transform: uppercase;
-            opacity: 0.5;
+            /* v1.22.0: was opacity 0.5 (paper -> #A99383 on the frame, 2.90).
+               Opacity is a contrast change; a solid tone keeps the recession
+               and reads 5.50. */
+            color: var(--bg-paper-darker);
             margin-left: 8px;
         }
 
@@ -382,7 +393,7 @@
         }
         .tab-btn:hover { color: var(--brown-text); background: var(--white-overlay); }
         .tab-btn.active {
-            color: var(--green-dark);
+            color: var(--text-green-deep);
             border-bottom-color: var(--green-mid);
             font-weight: bold;
         }
@@ -417,7 +428,7 @@
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: var(--brown-text-lighter);
+            color: var(--text-walnut-mid);
             margin-bottom: 8px;
             padding-bottom: 4px;
             border-bottom: 1px solid var(--bg-paper-darker);
@@ -649,10 +660,16 @@
             cursor: pointer;
         }
 
+        /* v1.22.0: the disabled look dims the knob GRAPHIC only. Opacity 0.35
+           on the whole row took the captions to #C7B9AC (1.65) and the
+           readouts to #B6AAA1 (2.07) — the page's worst text, in its default
+           state (ADSR is off by default). The readouts step down to walnut
+           (5.38) so the row still reads as inactive. */
         .adsr-disabled {
-            opacity: 0.35;
             pointer-events: none;
         }
+        .adsr-disabled .knob-wrapper { opacity: 0.35; }
+        .adsr-disabled .knob-value { color: var(--text-walnut-mid); }
 
         .controls-inline {
             display: flex;
@@ -705,9 +722,15 @@
              .octave-stretch-label  en 40.02   fr 51
 
            Floored at the WIDEST arm (French in both cases), which equalizes
-           both languages. */
-        #tuning-container .tonic-label          { min-width: 39.83px; }
-        #tuning-container .octave-stretch-label { min-width: 51px; }
+           both languages.
+
+           v1.22.0 RE-PINNED for the bundled EB Garamond (the panel resolved to
+           Times before). French text measured: "Tonique" 41.5, "Étirement"
+           52.02 — the old floors let the slider move 1.0px and clipped Tonique
+           by 1.5. Reverted alone, [4] fails on label.tonic and [7] on
+           #octave-stretch dx=1.0. */
+        #tuning-container .tonic-label          { min-width: 41.6px; }
+        #tuning-container .octave-stretch-label { min-width: 52.1px; }
 
         /* ── THE LINE-BOX RATIO, and why <button> is listed explicitly ──────
            Transferred from plugins/O-Bassoon/Resources/ui/index.html
@@ -766,7 +789,7 @@
            FORM 4 of the font-carrier census. A <button> and a <select> do NOT
            inherit font-family — the UA stylesheet gives them one, on this
            build Arial — so the panel override's
-           `font-family: 'Garamond', 'Times New Roman', ...` never reaches
+           `font-family: var(--serif)` never reaches
            them and neither does any CJK face. Measured before this rule,
            `measure-ui --report undeclared-font` named six Han-carrying nodes
            on `ff=Arial`:
@@ -796,8 +819,17 @@
         #tuning-container .generator-btn,
         #tuning-container .generator-type-select,
         #tuning-container .library-filter-select {
-            font-family: 'Garamond', 'Georgia', 'Times New Roman',
-                         'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--serif);
+        }
+
+        /* v1.22.0: the shared panel fills these two with --tuning-accent under
+           white text (3.75 at #6B8E4E). The accent also drives borders and the
+           stretch-slider gradient, so it stays; only the text-bearing fills
+           move to the AA sage (6.24; export's hover brightness(1.1) ~5.5). */
+        #tuning-container .generator-btn,
+        #tuning-container .tuning-export-btn {
+            background: var(--text-sage-mid);
+            border-color: var(--text-sage-mid);
         }
 
         #tuning-container .tuning-panel-root {
@@ -810,16 +842,20 @@
             --tuning-bg: rgba(245, 230, 211, 0.95);
             --tuning-border: rgba(139, 115, 85, 0.5);
             --tuning-text: #3C2F2F;
-            --tuning-text-muted: #8B7355;
+            /* v1.22.0: #8B7355 read 3.42 on the interval list (#EFDECC) and
+               the 12 degree/unit columns were the bulk of this page's
+               below-AA text. #6A5640 is the walnut hue at 4.93 on the
+               WORST ground it lands on, the selected row (#E0DAB8), where
+               the template's #715D45 reads only 4.44. */
+            --tuning-text-muted: #6A5640;
             --tuning-accent: #6B8E4E;
             --tuning-input-bg: rgba(255, 248, 230, 0.9);
             --tuning-hover: rgba(107, 142, 78, 0.2);
             --tuning-active: rgba(107, 142, 78, 0.3);
             /* CJK tail before the generic (W1). This override is what keeps
                O-Wind's panel body off the shared module's -apple-system stack;
-               its Latin half was already safe, so it takes the tail alone. */
-            font-family: 'Garamond', 'Times New Roman',
-                         'PingFang SC', 'Microsoft YaHei', serif;
+               v1.22.0: the shared --serif token (bundled EB Garamond first). */
+            font-family: var(--serif);
             height: 100%;
             display: block;
             position: relative;
@@ -868,10 +904,9 @@
                five buttons were the ONLY form-4 controls in this panel whose
                Latin half was already named — the reason this plugin's bare-UA
                census reads 25 where O-Contrabass, O-Reed and O-Bowed read 30.
-               They take the tail here rather than being named a second time in
+               They take --serif here rather than being named a second time in
                the four-selector rule below. */
-            font-family: 'Garamond', 'Georgia',
-                         'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--serif);
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -1028,9 +1063,10 @@
             margin-left: auto;
         }
 
+        /* v1.22.0: text was rgba(60,47,47,0.4) -> #9E8F82 on #E0CFBA (2.06). */
         .fx-bypass-btn.bypassed {
             background: rgba(139, 115, 85, 0.2);
-            color: rgba(60, 47, 47, 0.4);
+            color: var(--brown-frame);
         }
 
         .fx-knobs {
@@ -1039,10 +1075,14 @@
             flex-wrap: wrap;
         }
 
+        /* v1.22.0: same rule as .adsr-disabled — dim the arcs, not the text
+           (0.35 on the row put every bypassed caption near 1.7:1). */
         .fx-section.bypassed .fx-knobs {
-            opacity: 0.35;
             pointer-events: none;
         }
+        .fx-section.bypassed .knob-visual { opacity: 0.35; }
+        #tab-effects .fx-section.bypassed .knob-label,
+        #tab-effects .fx-section.bypassed .knob-value { color: var(--text-walnut-mid); }
 
         /* SVG Vine-Arc Knobs for Effects Tab */
         #tab-effects .knob-container {
@@ -2582,7 +2622,7 @@
                 // markup path (check-i18n assertion 9), and setLabel makes the
                 // notice a [data-i18n] element the language sweep owns.
                 const notice = document.createElement('div');
-                notice.style.cssText = 'padding:20px;color:#8B7355;font-style:italic;';
+                notice.style.cssText = 'padding:20px;color:var(--text-walnut-mid);font-style:italic;';
                 setLabel(notice, 'label.tuningFailed');
                 const host = document.getElementById('tuning-container');
                 host.textContent = '';
@@ -2739,6 +2779,7 @@
                 input.value = formatter(realValue);
                 input.style.cssText = `
                     width: 45px; text-align: center; font-size: 9px;
+                    font-family: var(--serif);
                     color: var(--brown-frame); background: rgba(255,248,220,0.9);
                     border: 1px solid var(--brown-border); border-radius: 3px;
                     padding: 1px 2px; outline: none; user-select: text;
