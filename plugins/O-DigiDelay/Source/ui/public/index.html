@@ -23,7 +23,70 @@
   <meta charset="UTF-8">
   <title>Ouaricon Digital Delay</title>
 
+  <!-- v1.7.0 (R5): the bundled EB Garamond face, direct-embedded from
+       modules/ui/eb-garamond. Linked BEFORE the page <style> so --font-serif
+       resolves to a face that is already declared. -->
+  <link rel="stylesheet" href="css/eb-garamond.css" />
+
   <style>
+    /* ============================================
+       PALETTE (v1.7.0, R4)
+       ============================================
+       Until v1.6.0 this page carried 0 custom properties and 47 hex literals.
+       Every colour below is named once here; no hex literal remains outside
+       this block. Palette washes read rgba(var(--x-rgb), a). Black drop
+       shadows stay literal. */
+    :root {
+      --paper: #F5E6D3;
+      --paper-rgb: 245, 230, 211;
+      --paper-ground: #D7B78D;     /* paper1.jpg's median (#C3985F) under the 0.40 wash */
+      --ink: #3C2F2F;
+      --walnut-dark: #5C4033;      /* hairlines, and the footer's quieter TEXT */
+      --walnut-dark-rgb: 92, 64, 51;
+      --walnut: #8B7355;           /* borders and decoration, not text */
+      --walnut-rgb: 139, 115, 85;
+      --text-walnut-mid: #715D45;  /* walnut TEXT on cream (naturalist AA pair) */
+      --sage-rgb: 139, 168, 112;
+      --olive-rgb: 107, 142, 35;
+      --leaf-dark: #3C5C1A;        /* control borders, focus rings, engaged switch */
+      --olive-ink: #2C3E10;        /* text on the olive preset/gear fills */
+      --cream: #FFF8DC;
+      --cream-rgb: 255, 248, 220;
+      --vine: #5A7A6A;
+      --led-low: #8BA870;
+      --led-mid: #6B8E4E;
+      --led-high: #C9A27B;
+
+      /* OPAQUE fills. The translucent originals (sage 0.25 / olive 0.3-0.6 /
+         cream 0.5-0.8) let paper1.jpg's stains and the butterfly echoes
+         through, so the same ink read anywhere from 2.6 to 4.0:1 depending on
+         what sat underneath. Each value is the ORIGINAL rgba pre-composited
+         over --paper, so the ground under the text is fixed. */
+      --bar-fill: #DAD6BA;         /* sage 0.25 */
+      --btn-fill: #B9C08D;         /* olive 0.3 over --bar-fill */
+      --btn-hover: #A2B26E;        /* olive 0.5 over --bar-fill */
+      --nav-fill: #AEB97E;         /* olive 0.4 over --bar-fill */
+      --nav-hover: #97AB5F;        /* olive 0.6 over --bar-fill */
+      --name-fill: #ECE7CB;        /* cream 0.5 over --bar-fill */
+      --name-hover: #F8F1D5;       /* cream 0.8 over --bar-fill */
+      --gear-fill: #CCCC9E;        /* olive 0.3 */
+      --gear-hover: #B0BA7B;       /* olive 0.5 */
+      --gear-open: #A2B169;        /* olive 0.6 */
+      --toggle-off: #D5D3B5;       /* sage 0.3 */
+      --toggle-on: #A2B169;        /* olive 0.6 */
+
+      /* The caption chip. Canvas text sits on the butterfly feedback echoes,
+         whose darkness is set by FEEDBACK x WET, so no ink colour alone has a
+         fixed ratio there. A translucent paper plate hugging each caption and
+         readout makes the ground deterministic while the echoes stay visible
+         everywhere else. */
+      --chip: rgba(var(--paper-rgb), 0.8);
+
+      /* One serif for every run. Georgia before Times so a failed load lands
+         on one face; the CJK tail before the generic. */
+      --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    }
+
     /* ============================================
        WEBVIEW CONSTRAINTS (CRITICAL)
        ============================================ */
@@ -56,8 +119,10 @@
       width: 100%;
       height: 100%;
       position: relative;
-      background: #F5E6D3;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      /* The washed paper's median: invisible under the image, and the ground
+         measure-ui --contrast scores canvas text against. */
+      background: var(--paper-ground);
+      font-family: var(--font-serif);
       overflow: hidden;
     }
 
@@ -70,7 +135,12 @@
       left: 0;
       width: 700px;
       height: 196px;
-      background-image: url('img/paper1.jpg');
+      /* v1.7.0: --paper at 0.40 over the JPG. Bare, paper1.jpg renders at a
+         median of #C3985F with stains near L 0.25, where even --ink read below
+         4.5:1 at 9px. The same wash O-Lyrica and O-Polystutter carry. */
+      background-image:
+        linear-gradient(rgba(var(--paper-rgb), 0.40), rgba(var(--paper-rgb), 0.40)),
+        url('img/paper1.jpg');
       background-size: cover;
       background-position: center;
       z-index: 0;
@@ -130,7 +200,7 @@
     .title {
       font-size: 16px;
       letter-spacing: 2.5px;
-      color: #3C2F2F;
+      color: var(--ink);
       font-weight: normal;
       white-space: nowrap;
     }
@@ -142,8 +212,8 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      background: rgba(139, 168, 112, 0.25);
-      border: 2px solid #5C4033;
+      background: var(--bar-fill);
+      border: 2px solid var(--walnut-dark);
       border-radius: 4px;
       padding: 3px 6px;
       box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
@@ -153,13 +223,13 @@
     .preset-nav-btn {
       width: 20px;
       height: 20px;
-      background: rgba(107, 142, 35, 0.4);
-      border: 1px solid #3C5C1A;
+      background: var(--nav-fill);
+      border: 1px solid var(--leaf-dark);
       border-radius: 3px;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 12px;
       font-weight: bold;
-      color: #2C3E10;
+      color: var(--olive-ink);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -168,7 +238,7 @@
     }
 
     .preset-nav-btn:hover {
-      background: rgba(107, 142, 35, 0.6);
+      background: var(--nav-hover);
       transform: scale(1.05);
     }
 
@@ -176,11 +246,11 @@
       min-width: 80px;
       max-width: 120px;
       text-align: center;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 11px;
-      color: #3C2F2F;
+      color: var(--ink);
       padding: 2px 6px;
-      background: rgba(255, 248, 220, 0.5);
+      background: var(--name-fill);
       border-radius: 2px;
       cursor: pointer;
       white-space: nowrap;
@@ -189,7 +259,7 @@
     }
 
     .preset-name:hover {
-      background: rgba(255, 248, 220, 0.8);
+      background: var(--name-hover);
     }
 
     /* WIDTH IS PINNED (v1.3.0), and this pin is LOAD-BEARING rather than
@@ -224,20 +294,20 @@
     .preset-action-btn {
       padding: 2px 6px;
       width: 62px;
-      background: rgba(107, 142, 35, 0.3);
-      border: 1px solid #3C5C1A;
+      background: var(--btn-fill);
+      border: 1px solid var(--leaf-dark);
       border-radius: 3px;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 9px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #2C3E10;
+      color: var(--olive-ink);
       cursor: pointer;
       transition: all 0.15s;
     }
 
     .preset-action-btn:hover {
-      background: rgba(107, 142, 35, 0.5);
+      background: var(--btn-hover);
     }
 
     /* Preset Dropdown Menu */
@@ -248,8 +318,8 @@
       left: 0;
       right: 0;
       margin-top: 4px;
-      background: rgba(255, 248, 220, 0.98);
-      border: 2px solid #5C4033;
+      background: rgba(var(--cream-rgb), 0.98);
+      border: 2px solid var(--walnut-dark);
       border-radius: 4px;
       box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
       max-height: 180px;
@@ -268,35 +338,43 @@
 
     .preset-dropdown-header {
       padding: 3px 6px;
-      font-size: 8px;
+      font-size: 9px;              /* v1.7.0: 8 -> 9, the template's floor */
       font-weight: bold;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: #8B7355;
-      background: rgba(139, 115, 85, 0.1);
-      border-bottom: 1px solid rgba(92, 64, 51, 0.2);
+      color: var(--text-walnut-mid);   /* was --walnut, 3.70:1 */
+      background: rgba(var(--walnut-rgb), 0.1);
+      border-bottom: 1px solid rgba(var(--walnut-dark-rgb), 0.2);
     }
 
     .preset-dropdown-item {
       padding: 4px 8px;
       font-size: 10px;
-      color: #3C2F2F;
+      color: var(--ink);
       cursor: pointer;
-      border-bottom: 1px solid rgba(92, 64, 51, 0.1);
+      border-bottom: 1px solid rgba(var(--walnut-dark-rgb), 0.1);
       transition: background 0.15s;
     }
 
     .preset-dropdown-item:hover {
-      background: rgba(139, 168, 112, 0.3);
+      background: rgba(var(--sage-rgb), 0.3);
     }
 
     .preset-dropdown-item.active {
-      background: rgba(107, 142, 35, 0.3);
+      background: rgba(var(--olive-rgb), 0.3);
       font-weight: bold;
     }
 
     .preset-dropdown-item.factory {
       font-style: italic;
+    }
+
+    /* The "no presets" row. Was an inline style.color = '#888' in JS (3.3:1
+       on the dropdown's cream). */
+    .preset-dropdown-item.empty {
+      font-style: italic;
+      color: var(--text-walnut-mid);
+      cursor: default;
     }
 
     /* ============================================
@@ -324,11 +402,14 @@
     .knob-label {
       font-size: 9px;
       letter-spacing: 0.8px;
-      color: #3C2F2F;
+      color: var(--ink);
       text-transform: uppercase;
       margin-bottom: 4px;
       text-align: center;
-      width: 60px;
+      /* v1.7.0: was width: 60px. The box now hugs its caption so the chip
+         below does too; .knob-container stays 60px wide because .knob-visual
+         is, and align-items: center keeps the caption where it was. */
+      width: fit-content;
     }
 
     .knob {
@@ -352,22 +433,22 @@
 
     .knob-track {
       fill: none;
-      stroke: rgba(139, 115, 85, 0.3);
+      stroke: rgba(var(--walnut-rgb), 0.3);
       stroke-width: 2;
     }
 
     .knob-vine {
       fill: none;
-      stroke: #5a7a6a;
+      stroke: var(--vine);
       stroke-width: 3;
       stroke-linecap: round;
     }
 
     .knob-value {
       font-size: 11px;
-      color: #3C2F2F;
+      color: var(--ink);
       margin-top: 4px;
-      min-width: 60px;
+      /* v1.7.0: min-width: 60px dropped for the chip, as .knob-label above. */
       text-align: center;
     }
 
@@ -384,7 +465,7 @@
     .toggle-label {
       font-size: 9px;
       letter-spacing: 0.8px;
-      color: #3C2F2F;
+      color: var(--ink);
       text-transform: uppercase;
       margin-bottom: 4px;
       text-align: center;
@@ -393,21 +474,21 @@
     .toggle {
       width: 50px;
       height: 24px;
-      border: 2px solid #3C5C1A;
+      border: 2px solid var(--leaf-dark);
       border-radius: 4px;
-      background: rgba(139, 168, 112, 0.3);
+      background: var(--toggle-off);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 9px;
       letter-spacing: 0.8px;
-      color: #3C2F2F;
+      color: var(--ink);
       cursor: pointer;
       transition: background 100ms;
     }
 
     .toggle.active {
-      background: rgba(107, 142, 35, 0.6);
+      background: var(--toggle-on);
     }
 
     /* ============================================
@@ -445,19 +526,22 @@
     .led-meter-label {
       font-size: 9px;
       letter-spacing: 0.8px;
-      color: #3C2F2F;
+      color: var(--ink);
       text-transform: uppercase;
       margin-bottom: 4px;
       text-align: center;
-      width: 38px;   /* was 18px — see the container note above */
+      /* was 18px, then 38px (see the container note above). v1.7.0: hugs its
+         caption for the chip; the CONTAINER keeps the 38 px, so SORTIE still
+         has its 2.23 px and the meter still sits at x = 645. */
+      width: fit-content;
     }
 
     .led-meter {
       display: flex;
       flex-direction: column-reverse;
       gap: 2px;
-      background: rgba(139, 115, 85, 0.1);
-      border: 1px solid #8B7355;
+      background: rgba(var(--walnut-rgb), 0.1);
+      border: 1px solid var(--walnut);
       padding: 4px;
       border-radius: 2px;
       width: 18px;
@@ -467,24 +551,24 @@
     .led-segment {
       width: 100%;
       height: 10px;
-      background: #8B7355;
+      background: var(--walnut);
       border-radius: 1px;
       transition: background 100ms, box-shadow 100ms;
     }
 
     .led-segment.active-low {
-      background: #8BA870;
-      box-shadow: 0 0 4px #8BA870;
+      background: var(--led-low);
+      box-shadow: 0 0 4px var(--led-low);
     }
 
     .led-segment.active-mid {
-      background: #6B8E4E;
-      box-shadow: 0 0 4px #6B8E4E;
+      background: var(--led-mid);
+      box-shadow: 0 0 4px var(--led-mid);
     }
 
     .led-segment.active-high {
-      background: #C9A27B;
-      box-shadow: 0 0 4px #C9A27B;
+      background: var(--led-high);
+      box-shadow: 0 0 4px var(--led-high);
     }
 
     /* ============================================
@@ -525,24 +609,48 @@
       left: 495px;
     }
 
+    /* v1.7.0: ink at 0.4 read 1.59:1 on the echoes. The footer stays the
+       quietest text on the page through --walnut-dark rather than opacity, and
+       sits on one chip: width: max-content + margin: auto centres the box
+       between left: 0 and right: 0, so the text lands where it always did. */
     .footer-brand {
       position: absolute;
       bottom: 6px;
       left: 0;
       right: 0;
+      width: max-content;
+      margin: 0 auto;
+      padding: 0 3px;
       text-align: center;
       font-size: 9px;
       letter-spacing: 1.5px;
       text-transform: uppercase;
-      color: rgba(60, 47, 47, 0.4);
+      color: var(--walnut-dark);
+      background: var(--chip);
+      border-radius: 2px;
       pointer-events: none;
       z-index: 2;
     }
 
     .footer-brand .version {
       margin-left: 4px;
-      font-size: 8px;
+      font-size: 9px;              /* v1.7.0: 8 -> 9, the template's floor */
       letter-spacing: 1px;
+    }
+
+    /* ============================================
+       CAPTION CHIPS (v1.7.0)
+       ============================================
+       See --chip. background paints the text box; the two offset shadows
+       widen it 3 px each side WITHOUT touching layout (an outer box-shadow is
+       never drawn under its own box, so the translucent plate never doubles). */
+    .knob-label,
+    .knob-value,
+    .toggle-label,
+    .led-meter-label {
+      background: var(--chip);
+      box-shadow: 3px 0 0 var(--chip), -3px 0 0 var(--chip);
+      border-radius: 2px;
     }
 
     /* ============================================
@@ -571,11 +679,11 @@
       width: 20px;
       height: 20px;
       padding: 0;
-      background: rgba(107, 142, 35, 0.3);
-      border: 1px solid #3C5C1A;
+      background: var(--gear-fill);
+      border: 1px solid var(--leaf-dark);
       border-radius: 50%;
-      color: #2C3E10;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      color: var(--olive-ink);
+      font-family: var(--font-serif);
       font-size: 11px;
       line-height: 1;
       cursor: pointer;
@@ -586,15 +694,15 @@
     }
 
     .gear-btn:hover {
-      background: rgba(107, 142, 35, 0.5);
+      background: var(--gear-hover);
     }
 
     .gear-btn[aria-expanded="true"] {
-      background: rgba(107, 142, 35, 0.6);
+      background: var(--gear-open);
     }
 
     .gear-btn:focus-visible {
-      outline: 1px solid #3C5C1A;
+      outline: 1px solid var(--leaf-dark);
       outline-offset: 2px;
     }
 
@@ -619,8 +727,8 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      background: rgba(245, 230, 211, 0.97);
-      border: 2px solid #5C4033;
+      background: rgba(var(--paper-rgb), 0.97);
+      border: 2px solid var(--walnut-dark);
       border-radius: 4px;
       box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.3);
     }
@@ -639,9 +747,9 @@
     /* nowrap because the row is space-between: a caption that wrapped would
        grow the row's height and move the control beside it. */
     .settings-label {
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 9px;
-      color: #3C2F2F;
+      color: var(--ink);
       text-transform: uppercase;
       letter-spacing: 0.8px;
       white-space: nowrap;
@@ -650,18 +758,18 @@
     .settings-select {
       flex: 0 0 auto;
       padding: 1px 3px;
-      background: rgba(255, 248, 220, 0.5);
-      border: 1px solid #3C5C1A;
+      background: rgba(var(--cream-rgb), 0.5);
+      border: 1px solid var(--leaf-dark);
       border-radius: 2px;
-      color: #3C2F2F;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 9px;
       line-height: 1.2;
       cursor: pointer;
     }
 
     .settings-select:focus-visible {
-      outline: 1px solid #3C5C1A;
+      outline: 1px solid var(--leaf-dark);
       outline-offset: 1px;
     }
 
@@ -680,11 +788,11 @@
        measures — verified with check-ui-labels [7] after the port. */
     .settings-toggle {
       padding: 1px 3px;
-      background: rgba(255, 248, 220, 0.5);
-      border: 1px solid #3C5C1A;
+      background: rgba(var(--cream-rgb), 0.5);
+      border: 1px solid var(--leaf-dark);
       border-radius: 2px;
-      color: #3C2F2F;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 9px;
       line-height: 1.2;
       flex: 0 0 auto;
@@ -695,13 +803,13 @@
     }
 
     .settings-toggle[aria-pressed="true"] {
-      background: #3C5C1A;
-      border-color: #3C5C1A;
-      color: #FFF8DC;
+      background: var(--leaf-dark);
+      border-color: var(--leaf-dark);
+      color: var(--cream);
     }
 
     .settings-toggle:focus-visible {
-      outline: 1px solid #3C5C1A;
+      outline: 1px solid var(--leaf-dark);
       outline-offset: 1px;
     }
 
@@ -755,12 +863,12 @@
       z-index: 70;
       max-width: 300px;
       padding: 6px 9px 7px;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 11px;
       line-height: 1.4;
-      color: #3C2F2F;
-      background: rgba(245, 230, 211, 0.97);
-      border: 1.5px solid #5C4033;
+      color: var(--ink);
+      background: rgba(var(--paper-rgb), 0.97);
+      border: 1.5px solid var(--walnut-dark);
       border-radius: 4px;
       box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.3);
       opacity: 0;
@@ -779,7 +887,7 @@
       font-size: 9px;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      color: #3C5C1A;
+      color: var(--leaf-dark);
       margin-bottom: 3px;
     }
         /* ── LINE-HEIGHT PINS (v1.6.0, the Chinese arm) ──────────────────────
@@ -817,8 +925,10 @@
         .settings-label {
             line-height: 1.1111;
         }
+        /* v1.7.0: the header went 8 -> 9px, so 1.125 becomes 1: the same
+           9 px content box in every language. */
         .preset-dropdown-header {
-            line-height: 1.125;
+            line-height: 1;
         }
   </style>
 </head>
@@ -1503,8 +1613,7 @@
           // needs no plural rule, where a count would need one that treats zero
           // as singular in French and plural in English.
           setLabel(empty, 'label.noPresets');
-          empty.style.fontStyle = 'italic';
-          empty.style.color = '#888';
+          empty.classList.add('empty');   // v1.7.0: italic + AA walnut, in CSS
           presetDropdown.appendChild(empty);
         } else {
           const header = document.createElement('div');
