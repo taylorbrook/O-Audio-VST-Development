@@ -28,15 +28,21 @@
    CSS VARIABLES (Theming)
    ═══════════════════════════════════════════════════════════════════ */
 
+/* O-IntonationPad v2.11.0 (review R4/R5): the theme reads the page palette
+   (index.html :root). Walnut muted text read 3.3-3.9:1 on this cream and moves
+   to --text-muted; the accent stays lime for rules and borders, and the two
+   filled buttons under white text take --tuning-accent-fill (6.09:1, was
+   white on lime at 2.10:1). */
 .tuning-panel {
-    --tuning-bg: rgba(245, 230, 211, 0.95);
-    --tuning-border: rgba(139, 115, 85, 0.5);
-    --tuning-text: #3C2F2F;
-    --tuning-text-muted: #8B7355;
-    --tuning-accent: #8BC34A;
-    --tuning-input-bg: rgba(255, 255, 255, 0.8);
-    --tuning-hover: rgba(139, 168, 112, 0.3);
-    --tuning-active: rgba(139, 195, 74, 0.4);
+    --tuning-bg: rgba(var(--paper-rgb), 0.95);
+    --tuning-border: rgba(var(--walnut-rgb), 0.5);
+    --tuning-text: var(--ink);
+    --tuning-text-muted: var(--text-muted);
+    --tuning-accent: var(--lime);
+    --tuning-accent-fill: var(--sage-deep);
+    --tuning-input-bg: rgba(var(--white-rgb), 0.8);
+    --tuning-hover: rgba(var(--moss-rgb), 0.3);
+    --tuning-active: rgba(var(--lime-rgb), 0.4);
 
     display: grid;
     grid-template-columns: 160px 1fr 220px;
@@ -45,7 +51,7 @@
     padding: 15px;
     background: var(--tuning-bg);
     border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
     font-size: 11px;
     color: var(--tuning-text);
 }
@@ -61,7 +67,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(var(--white-rgb), 0.3);
     border: 1px solid var(--tuning-border);
     border-radius: 6px;
     padding: 8px;
@@ -73,7 +79,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 .interval-list {
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(var(--white-rgb), 0.5);
     border: 1px solid var(--tuning-border);
     border-radius: 6px;
     padding: 8px;
@@ -130,7 +136,7 @@
     align-items: center;
     gap: 6px;
     padding: 3px 0;
-    border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+    border-bottom: 1px solid rgba(var(--walnut-rgb), 0.2);
 }
 
 .interval-item:last-child {
@@ -138,7 +144,7 @@
 }
 
 .interval-item.octave {
-    background: rgba(139, 195, 74, 0.15);
+    background: rgba(var(--lime-rgb), 0.15);
     margin: 4px -8px 0;
     padding: 6px 8px;
     border-radius: 0 0 5px 5px;
@@ -215,17 +221,17 @@
     line-height: 1.2222;
 }
 /* The same fourth carrier, on the tuning panel's own buttons — see the block
-   in index.html headed "A FOURTH FONT CARRIER". Arial stays first so the Latin
-   metrics of the English and French arms do not move. */
+   in index.html headed "A FOURTH FONT CARRIER". v2.11.0 (R5): the page serif,
+   no longer Arial. */
 .viz-btn,
 .tuning-file-btn,
 .generator-btn {
-    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-serif);
 }
 .viz-btn {
     flex: 1;
     padding: 6px 8px;
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(var(--white-rgb), 0.5);
     border: 1px solid var(--tuning-border);
     border-radius: 4px;
     font-size: 9px;
@@ -293,7 +299,7 @@
 
 .matrix-table {
     border-collapse: collapse;
-    font-size: 8px;
+    font-size: 9px;   /* v2.11.0: the 9px floor (was 8px) */
 }
 
 .matrix-table th,
@@ -304,7 +310,7 @@
 }
 
 .matrix-table th {
-    background: rgba(139, 115, 85, 0.15);
+    background: rgba(var(--walnut-rgb), 0.15);
     font-weight: 600;
 }
 
@@ -338,22 +344,22 @@
     padding: 4px 8px;
     background: var(--tuning-input-bg);
     border-radius: 3px;
-    border-left: 2px solid var(--tuning-accent, #8B7355);
+    border-left: 2px solid var(--tuning-accent);
 }
 
 .tk-interval span:first-child {
     font-size: 10px;
-    color: var(--tuning-text, #3C2F2F);
+    color: var(--tuning-text);
 }
 
 .tk-cents {
-    font-family: 'Menlo', 'Consolas', 'PingFang SC', 'Microsoft YaHei', monospace;
+    font-family: var(--font-serif);   /* v2.11.0: EB Garamond figures are tabular */
     font-size: 11px;
-    color: var(--tuning-accent, #8B7355);
+    color: var(--leaf);   /* v2.11.0: lime text read under 2:1 */
 }
 
 .tk-total {
-    border-left-color: #6B8E4E;
+    border-left-color: var(--olive);
     margin-top: 4px;
 }
 
@@ -364,7 +370,7 @@
 
 .rotation-table {
     border-collapse: collapse;
-    font-size: 8px;
+    font-size: 9px;   /* v2.11.0: the 9px floor (was 8px) */
 }
 
 .rotation-table th,
@@ -373,12 +379,13 @@
     border: 1px solid var(--tuning-border);
     text-align: center;
     /* 17.00 measured English box, minus 6 px padding, minus 2 px border,
-       = 9.00 / 8px. See the pin block in index.html. */
-    line-height: 1.125;
+       = 9.00 px of line. v2.11.0: the size moved 8 -> 9px and the pin to
+       1.0 keeps the same 9.00 px box. See the pin block in index.html. */
+    line-height: 1;
 }
 
 .rotation-table th {
-    background: rgba(139, 115, 85, 0.15);
+    background: rgba(var(--walnut-rgb), 0.15);
 }
 
 /* ── A HAN RUN'S MIN-CONTENT WIDTH IS ONE CHARACTER (v2.10.0) ────────────────
@@ -419,7 +426,7 @@
 /* Library Section */
 .library-section,
 .generator-section {
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(var(--white-rgb), 0.5);
     border: 1px solid var(--tuning-border);
     border-radius: 6px;
     overflow: hidden;
@@ -431,14 +438,14 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 10px;
-    background: rgba(139, 115, 85, 0.1);
+    background: rgba(var(--walnut-rgb), 0.1);
     cursor: pointer;
     user-select: none;
 }
 
 .library-header:hover,
 .generator-header:hover {
-    background: rgba(139, 115, 85, 0.2);
+    background: rgba(var(--walnut-rgb), 0.2);
 }
 
 .library-header-text,
@@ -539,10 +546,10 @@
 .generator-btn {
     width: 100%;
     padding: 8px;
-    background: var(--tuning-accent);
+    background: var(--tuning-accent-fill);
     border: none;
     border-radius: 4px;
-    color: white;
+    color: var(--white);
     font-weight: 600;
     font-size: 10px;
     cursor: pointer;
@@ -565,7 +572,7 @@
 .ref-knob {
     width: 50px;
     height: 50px;
-    background: radial-gradient(circle at 30% 30%, #FFF8DC, #D4C4B0);
+    background: radial-gradient(circle at 30% 30%, var(--cornsilk), var(--parchment));
     border: 2px solid var(--tuning-border);
     border-radius: 50%;
     position: relative;
@@ -599,7 +606,7 @@
 .scale-name-display {
     text-align: center;
     padding: 8px;
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(var(--white-rgb), 0.6);
     border: 1px solid var(--tuning-border);
     border-radius: 4px;
     font-weight: 500;
@@ -635,7 +642,7 @@
     -webkit-appearance: none;
     width: 14px;
     height: 14px;
-    background: radial-gradient(circle at 30% 30%, #FFF8DC, #D4C4B0);
+    background: radial-gradient(circle at 30% 30%, var(--cornsilk), var(--parchment));
     border: 1px solid var(--tuning-border);
     border-radius: 50%;
     cursor: pointer;
@@ -660,7 +667,7 @@
 
 .tuning-file-btn {
     padding: 6px 8px;
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(var(--white-rgb), 0.6);
     border: 1px solid var(--tuning-border);
     border-radius: 4px;
     font-size: 9px;
@@ -674,9 +681,9 @@
 
 .tuning-export-btn {
     grid-column: span 2;
-    background: var(--tuning-accent);
-    border-color: var(--tuning-accent);
-    color: white;
+    background: var(--tuning-accent-fill);
+    border-color: var(--tuning-accent-fill);
+    color: var(--white);
     font-weight: 600;
 }
 

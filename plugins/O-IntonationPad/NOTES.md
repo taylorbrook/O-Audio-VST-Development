@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.8.4
+- **Version:** 2.11.0
 - **Type:** Synth (Wavetable Pad)
 
 ## Lifecycle Timeline
 
+- **2026-09-27 (v2.11.0):** UI pass (review 260924-nho R4/R5): 27 `:root` colour tokens + 19 rgb triples (0 hex outside `:root`); the paper JPG washed to 0.5 over `--paper` and the shell to 0.25 so ink clears AA on the real ground; 9px floor (6px key labels, 7–8px chips/tables); 5 font stacks → bundled EB Garamond. Real-ground probe below-AA 138 → 6 (the bypassed-FX captions, WCAG-exempt inactive), measure-ui 164 → 6, <9px 159 → 0; check-ui-labels / check-i18n / fr+zh lint / auval pass. Knob JS untouched — R7 (keyboard/ARIA) deferred. No DSP change.
 - **2026-08-02 (v2.8.4):** Fixed the Windows CI pluginval strictness-10 failure (Automation/Fuzz Inf/NaN): `EQProcessor::updateCoefficients` copied 6 RAW ArrayCoefficients values into the 5-slot NORMALISED `IIR::Coefficients` array → unstable EQ on any EQ param change. Now assigns via `Coefficients::operator=(std::array)` (normalises by a0, still allocation-free after prepare). Reproduced + verified locally with seeded pluginval. **O-Bells has the identical bug (3 sites) — pending.**
 - **2026-08-02 (v2.8.3):** Windows CI fix — hoisted `SafePointer(this)` init-captures for MSVC. (Release run failed pluginval on the pre-existing EQ bug above; fixed in v2.8.4.)
 - **2026-04-26 (v2.8.0):** Added VST3 Note Expression microtonal support for Dorico; adopted shared `note-expression` module.

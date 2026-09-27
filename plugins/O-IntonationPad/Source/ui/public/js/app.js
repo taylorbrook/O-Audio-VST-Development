@@ -553,7 +553,7 @@ function makeWavetableDropdown(selectId, canvasId) {
     wrapper.className = 'dropdown-container';
     const lbl = document.createElement('div');
     lbl.className = 'knob-label';
-    lbl.style.cssText = 'font-weight: bold; color: #2C3E10;';
+    lbl.style.cssText = 'font-weight: bold; color: var(--leaf);';
     const sel = document.createElement('select');
     sel.className = 'dropdown';
     sel.id = selectId;
@@ -589,6 +589,11 @@ function addWavetableDropdown(row, selectId, canvasId) {
 // ====================================================================
 // Wavetable Waveform Display
 // ====================================================================
+
+// v2.11.0 (R4): a canvas cannot read var(), so the scope reads the page
+// palette (index.html :root) at draw time instead of carrying its own hex.
+const cssToken = (name) =>
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 class WavetableDisplay {
     constructor(canvasId) {
@@ -652,15 +657,16 @@ class WavetableDisplay {
         const { ctx, w, h, samples } = this;
         if (!samples.length || w === 0 || h === 0) return;
         const mid = h / 2;
+        const olive = cssToken('--olive-rgb');
 
         ctx.clearRect(0, 0, w, h);
 
         // Dark background
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = cssToken('--scope');
         ctx.fillRect(0, 0, w, h);
 
         // Center line
-        ctx.strokeStyle = 'rgba(107, 142, 35, 0.2)';
+        ctx.strokeStyle = `rgba(${olive}, 0.2)`;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, mid);
@@ -669,9 +675,9 @@ class WavetableDisplay {
 
         // Waveform fill (green gradient matching theme)
         const grad = ctx.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, 'rgba(107, 142, 35, 0.3)');
-        grad.addColorStop(0.5, 'rgba(107, 142, 35, 0.08)');
-        grad.addColorStop(1, 'rgba(107, 142, 35, 0.0)');
+        grad.addColorStop(0, `rgba(${olive}, 0.3)`);
+        grad.addColorStop(0.5, `rgba(${olive}, 0.08)`);
+        grad.addColorStop(1, `rgba(${olive}, 0.0)`);
 
         ctx.beginPath();
         for (let i = 0; i < samples.length; i++) {
@@ -692,12 +698,12 @@ class WavetableDisplay {
             const y = mid - samples[i] * mid * 0.85;
             i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         }
-        ctx.strokeStyle = '#8BC34A';
+        ctx.strokeStyle = cssToken('--lime');
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
         // Border
-        ctx.strokeStyle = '#5C4033';
+        ctx.strokeStyle = cssToken('--brown');
         ctx.lineWidth = 1;
         ctx.strokeRect(0, 0, w, h);
     }
@@ -789,7 +795,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setLabel(addKnob(oscARow, 'wavetablePos', 'small'), 'label.pos');
     setLabel(addKnob(oscARow, 'lfoRate',      'small'), 'label.rate');
     setLabel(addKnob(oscARow, 'lfoDepth',     'small'), 'label.depth');
-    setLabel(addKnob(oscARow, 'gainA',        'small', 'color: #6B8E23;'), 'label.gain');
+    setLabel(addKnob(oscARow, 'gainA',        'small', 'color: var(--leaf);'), 'label.gain');
 
     // OSC B: dropdown + waveform canvas + knobs
     const oscBRow = document.getElementById('oscB-row');
@@ -797,7 +803,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setLabel(addKnob(oscBRow, 'wavetablePos2', 'small'), 'label.pos');
     setLabel(addKnob(oscBRow, 'lfoRate2',      'small'), 'label.rate');
     setLabel(addKnob(oscBRow, 'lfoDepth2',     'small'), 'label.depth');
-    setLabel(addKnob(oscBRow, 'gainB',         'small', 'color: #6B8E23;'), 'label.gain');
+    setLabel(addKnob(oscBRow, 'gainB',         'small', 'color: var(--leaf);'), 'label.gain');
 
     setLabel(addKnob('synth-env-knobs', 'attackTime',       'small'), 'label.attack');
     setLabel(addKnob('synth-env-knobs', 'decayTime',        'small'), 'label.decay');
@@ -1336,7 +1342,7 @@ function setupPresetSystem() {
 
         if (filtered.length === 0) {
             const empty = document.createElement('div');
-            empty.style.cssText = 'grid-column: 1/-1; text-align: center; color: rgba(212,201,176,0.4); font-family: Garamond, serif; font-size: 12px; padding: 20px;';
+            empty.style.cssText = 'grid-column: 1/-1; text-align: center; color: var(--bone-dim); font-family: var(--font-serif); font-size: 12px; padding: 20px;';
             setLabel(empty, 'label.noPresetsInCategory');
             listEl.appendChild(empty);
         }
@@ -1482,9 +1488,9 @@ function setupKnob(paramId, state, dispMin, dispMax, unit, formatter, opts) {
         input.value = formatted;
         input.style.cssText = `
             width: 50px; text-align: center; font-size: 10px;
-            font-family: 'Garamond', serif; font-weight: bold;
-            color: #5C4033; background: rgba(255,248,220,0.9);
-            border: 1px solid #8B7355; border-radius: 3px;
+            font-family: var(--font-serif); font-weight: bold;
+            color: var(--brown); background: rgba(var(--cornsilk-rgb), 0.9);
+            border: 1px solid var(--walnut); border-radius: 3px;
             padding: 1px 2px; outline: none; user-select: text;
             -webkit-user-select: text;
         `;
