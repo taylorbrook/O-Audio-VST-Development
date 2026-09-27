@@ -2,6 +2,64 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.10.0] - 2026-09-27
+
+**UI legibility pass** (review 260924-nho, R4 + R5). The page now reads on the
+paper it is painted on: every colour is a token, text uses the
+ouaricon-naturalist-001 AA variants, the 9 px floor holds, and the house serif
+is actually rendered. MINOR: visible colour and face change; no parameter,
+range, type, state format or DSP was touched.
+
+### Changed
+
+- **Palette tokens.** The 4-entry `:root` grew to the full palette, and every
+  one of the 47 hex literals outside it is gone — the VU scale's SVG
+  `stroke=` attributes and the inline `#8B0000` on the 0 dB label moved to
+  classes, and `#TYPE`'s caret data-URI lives in `:root` as `--select-caret`.
+  Washes are written `rgba(var(--x-rgb), a)`.
+- **AA text colours.** Knob captions `#8B7355` -> `--ink-soft` `#5C4033`,
+  readouts `#A08870` -> `--ink`, footer `--ink-soft` at opacity 0.7 -> `--ink`.
+  Walnut and moss stay for borders, rings and decoration only.
+- **A 0.40 `--paper` wash over `paper.jpg`.** The bare image is a mid ochre
+  with stains under the knob row; `.plugin-container` carries `--paper` and
+  the image draws at opacity 0.60 over it.
+- **Opaque tints under text.** Nav/type/gear, SAVE/LOAD, the LOW CUT switch,
+  the preset display and the VU dial were `rgba()` fills, which let the paper
+  stains through. They are now the same tints pre-composited over `--paper`
+  as opaque hex. The engaged hover-help switch and the open gear moved from
+  cream on `#8BA870` (2.48:1) to cream on `--leaf-fill` `#4E6839`.
+- **LOW CUT OFF dims the arc only.** It was an inline `opacity: 0.5` on the
+  whole knob, which took the caption, the 20/400 scale and the ON/OFF switch
+  to 1.0-1.3:1. The JS now toggles `.lp-off`; the CSS dims the SVG.
+- **9 px floor.** `.hz-label` and `.vu-db-label` 8 -> 9 px (`.hz-label` also
+  lost its 0.7 opacity). `-60` moved from top 44 to 36 px: the resting needle
+  struck through it (1.67:1).
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed: 4 binary-data
+  SOURCES, 4 `getResource` branches, `<link>` ahead of the page style).
+  `--font-serif` replaces the 11 `'Garamond', 'Times New Roman', …` stacks;
+  bare `'Garamond'` had resolved to Times.
+- **CHARACTER pin 62 -> 64 px.** The new face measures CHARACTER 63.77 /
+  CARACTÈRE 61.55 / 特性 20.00; 62 left English 1.77 px over its box. Every
+  other caption is still under the 52 px cliff in all three languages.
+
+### Verification
+
+- **Real-ground pixel probe** (text hidden, transitions off, 2x, worse of
+  p5/p95 under each glyph band; en/fr/zh-Hans x default, LOW CUT on, preset
+  menu, settings, tooltip, tips off): **416/552 below AA, min 1.02 -> 3/503,
+  min 2.93**. The 3 rows are `400` sitting in the open preset menu's drop
+  shadow (menu-open only). The after count excludes text under the tooltip box
+  itself; without that exclusion it is 45, all of them tip-covered.
+- `measure-ui --contrast`: 28/31 below AA per language, 7 under 9 px ->
+  **0/31, 0 under 9 px, min 4.70**. (Its baseline scored against the
+  `#2A2A2A` host colour because the ground is an `<img>`; the pixel probe is
+  the honest number.)
+- `check-ui-labels` ALL PASS (130 PASS before and after, en/fr/zh-Hans);
+  `check-i18n` pass; `i18n-fr-lint` clean; `i18n-zh-lint` 0 findings;
+  `tests/ui_tip_render_check.js` pass; 0 404s (fonts served).
+- Knob interaction JS untouched, so the O-ReverseDelay keyboard/ARIA port (R7)
+  is still open for this plugin.
+
 ## [1.9.0] - 2026-09-05
 
 **Simplified Chinese.** Every caption, hover-help body and accessible name now

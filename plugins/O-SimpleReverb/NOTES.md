@@ -4,7 +4,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.5.6
+- **Version:** 1.10.0
 - **Type:** Audio Effect (Reverb)
 - **Complexity:** 4.2 (Complex)
 
@@ -23,6 +23,7 @@
 - **2026-01-24 (v1.5.0):** Renamed from OuariconSimpleReverb to O-SimpleReverb
 - **2026-02-07..15 (v1.5.1–v1.5.5):** VU meter accuracy/size polish, version footer
 - **2026-07-07 (v1.5.6):** Code-review fixes (CR-01..04, WR-01..05) - FileChooser SafePointer UAF guards, corrected DECAY skew (0.6309), RT-safe ArrayCoefficients filter updates, pre-allocated work buffers, preset reset-to-defaults + version-stamped factory sentinel (preset-manager v1.0.3), CHARACTER readout aligned to DSP, smoothed wet/dry gains, mono/stereo bus constraint
+- **2026-09-27 (v1.10.0):** UI pass (review 260924-nho R4/R5) - palette tokens (0 hex outside :root), naturalist AA text colours, 0.40 --paper wash over paper.jpg, 9px floor, bundled EB Garamond; real-ground probe 416/552 -> 3/503 below AA. No DSP change
 
 ## Known Issues
 
