@@ -22,6 +22,10 @@
  *
  * Implements relative drag pattern for smooth knob control
  * Rotation range: -135° to +135° (270° total)
+ *
+ * v1.10.0 (R7): pointer capture, keyboard and ARIA, ported from O-ReverseDelay.
+ * The container is the focusable role="slider"; .knob keeps the rotation
+ * transform and the container keeps the hover scale, as before.
  */
 
 export class RotaryKnob {
@@ -42,32 +46,58 @@ export class RotaryKnob {
         this.rotation = 0; // Current rotation in degrees (-135 to +135)
         this.value = 0; // Normalized value (0.0 to 1.0)
 
+        // Callbacks, wired by bindKnobToParameter():
+        //   onValueChange(norm)  — every drag move
+        //   onGestureStart/End() — bracket a drag, so the host sees ONE gesture
+        //   onNudge(dir)         — an arrow key, dir = ±1 (a full gesture itself)
+        this.onValueChange = null;
+        this.onGestureStart = null;
+        this.onGestureEnd = null;
+        this.onNudge = null;
+
         // Bind event handlers
-        this.onMouseDown = this.onMouseDown.bind(this);
-        this.onMouseMove = this.onMouseMove.bind(this);
-        this.onMouseUp = this.onMouseUp.bind(this);
+        this.onPointerDown = this.onPointerDown.bind(this);
+        this.onPointerMove = this.onPointerMove.bind(this);
+        this.onPointerUp = this.onPointerUp.bind(this);
+        this.onKeyDown = this.onKeyDown.bind(this);
+
+        // Accessibility: focusable slider, named by its visible caption.
+        this.container.setAttribute('tabindex', '0');
+        this.container.setAttribute('role', 'slider');
+        const caption = this.container.closest('.knob-wrapper')?.querySelector('.knob-label');
+        if (caption) {
+            if (!caption.id) caption.id = `${containerId}-label`;
+            this.container.setAttribute('aria-labelledby', caption.id);
+        }
 
         // Attach listeners
-        this.container.addEventListener('mousedown', this.onMouseDown);
-
-        // Callback for value changes
-        this.onValueChange = null;
+        this.container.addEventListener('pointerdown', this.onPointerDown);
+        this.container.addEventListener('keydown', this.onKeyDown);
+        // Text-selection suppression stays on mousedown, NOT pointerdown:
+        // preventDefault on pointerdown would cancel the compatibility mousedown,
+        // and the settings popover and preset menu dismiss on document mousedown.
+        this.container.addEventListener('mousedown', (e) => e.preventDefault());
     }
 
-    onMouseDown(e) {
-        e.preventDefault();
+    // Capture on the CONTAINER rather than listening on document (O-ReverseDelay
+    // v1.7.2 WR-05). With document listeners and only a mouseup to end the drag,
+    // a release outside the WebView, a host modal grab or a focus loss left the
+    // drag latched: the knob followed the cursor with no button held. Capture
+    // guarantees a terminating pointerup / pointercancel / lostpointercapture.
+    onPointerDown(e) {
+        if (e.button !== 0 || this.isDragging) return;
         this.isDragging = true;
         this.lastY = e.clientY;
+        if (this.onGestureStart) this.onGestureStart();
 
-        // Attach global listeners
-        document.addEventListener('mousemove', this.onMouseMove);
-        document.addEventListener('mouseup', this.onMouseUp);
-
-        // Visual feedback
-        this.container.style.cursor = 'ns-resize';
+        try { this.container.setPointerCapture(e.pointerId); } catch (_) { /* older backends */ }
+        this.container.addEventListener('pointermove', this.onPointerMove);
+        this.container.addEventListener('pointerup', this.onPointerUp);
+        this.container.addEventListener('pointercancel', this.onPointerUp);
+        this.container.addEventListener('lostpointercapture', this.onPointerUp);
     }
 
-    onMouseMove(e) {
+    onPointerMove(e) {
         if (!this.isDragging) return;
 
         // Calculate delta from LAST frame (relative drag)
@@ -91,27 +121,45 @@ export class RotaryKnob {
 
         // Store for next frame
         this.lastY = e.clientY;
+        e.preventDefault();
     }
 
-    onMouseUp(e) {
+    // Idempotent (the !isDragging early-return): up, cancel and lost-capture can
+    // all fire for one release.
+    onPointerUp(e) {
         if (!this.isDragging) return;
 
         this.isDragging = false;
 
-        // Remove global listeners
-        document.removeEventListener('mousemove', this.onMouseMove);
-        document.removeEventListener('mouseup', this.onMouseUp);
+        this.container.removeEventListener('pointermove', this.onPointerMove);
+        this.container.removeEventListener('pointerup', this.onPointerUp);
+        this.container.removeEventListener('pointercancel', this.onPointerUp);
+        this.container.removeEventListener('lostpointercapture', this.onPointerUp);
+        if (e && e.pointerId !== undefined) {
+            try { this.container.releasePointerCapture(e.pointerId); } catch (_) { /* already released */ }
+        }
 
-        // Reset cursor
-        this.container.style.cursor = 'ns-resize';
+        if (this.onGestureEnd) this.onGestureEnd();
+    }
+
+    onKeyDown(e) {
+        let dir = 0;
+        if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dir = 1;
+        else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dir = -1;
+        else return;
+        if (!this.isDragging && this.onNudge) this.onNudge(dir);
+        e.preventDefault();
     }
 
     updateVisuals() {
         // Rotate knob visual
         this.knob.style.transform = `rotate(${this.rotation}deg)`;
 
-        // Update value display
-        this.valueElement.textContent = this.formatValue(this.value);
+        // Update value display — the readout and the slider's spoken value are
+        // one string, so a screen reader hears exactly what is printed.
+        const text = this.formatValue(this.value);
+        this.valueElement.textContent = text;
+        this.container.setAttribute('aria-valuetext', text);
     }
 
     /**

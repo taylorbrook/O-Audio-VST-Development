@@ -676,6 +676,19 @@ body::after {
     transform: scale(0.98);
 }
 
+/* v1.10.0 (R7): the container is the focusable role="slider". Round, so the
+   ring follows the seed rather than its 56px box. --green-dark, not
+   O-ReverseDelay's --green-mid: a non-text indicator needs 3:1 and green-mid
+   sits at about that line on this paper. */
+.knob-container {
+    border-radius: 50%;
+}
+
+.knob-container:focus-visible {
+    outline: 2px dotted var(--green-dark);
+    outline-offset: 3px;
+}
+
 /* Botanical seed cross-section: 20 radial segments with engraved dividers */
 .knob {
     width: 56px;
