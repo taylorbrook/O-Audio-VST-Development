@@ -728,7 +728,11 @@ function outsideViewport(rect, W, H) {
         // clamp doing the work rather than the flip.
         console.log('\n-- 6b. the clamp after the flip (positive control)');
         const MID_SEL = '.knob[data-param="probability"]';
-        const TALL = 'clamp probe. '.repeat(130);
+        // v2.9.0: 130 -> 190. EB Garamond sets ~27% more per line than the
+        // Georgia this was sized on, so 130 repeats measured 478 px and fit
+        // ABOVE the cursor (needs > ~591 px here); 190 gives ~700 px, which
+        // still fits the 784 px clamp window.
+        const TALL = 'clamp probe. '.repeat(190);
         await page.evaluate(({ sel, body }) => {
             document.querySelector(sel).closest('.knob-container')
                     .setAttribute('data-tip', body);

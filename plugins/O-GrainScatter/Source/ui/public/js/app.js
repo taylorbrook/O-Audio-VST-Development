@@ -398,6 +398,11 @@ function initI18n() {
     // Grain Scatter Visualization (Canvas 2D)
     // ════════════════════════════════════════════════════════════════════
 
+    // v2.9.0 — canvas text ink and face. A 2D context cannot resolve var(), so
+    // these mirror :root --text-muted and --font-serif in index.html.
+    const TEXT_MUTED = '#6A5641';
+    const CANVAS_FONT = "'EB Garamond', Georgia, 'Times New Roman', serif";
+
     class GrainScatterViz {
         constructor(canvas) {
             this.canvas = canvas;
@@ -437,11 +442,16 @@ function initI18n() {
             }
 
             // Axis labels
-            ctx.fillStyle = 'rgba(139,115,85,0.3)';
-            ctx.font = '8px Georgia';
+            // v2.9.0: solid AA walnut ink (was #8B7355 at 0.3, ~1.5:1) and the
+            // 9px floor, on the bundled face. Canvas cannot read var(), so the
+            // ink is --text-muted's literal.
+            ctx.fillStyle = TEXT_MUTED;
+            ctx.font = '9px ' + CANVAS_FONT;
             ctx.fillText('0s', 4, h - 4);
             ctx.fillText('2s', w - 16, h - 4);
-            ctx.fillText('+24st', 4, 14);
+            // v2.9.0: baseline 14 -> 26. At 14 this sat under the .viz-label
+            // caption (top 4px, 10px box); the old 0.3-alpha ink hid the clash.
+            ctx.fillText('+24st', 4, 26);
             ctx.fillText('-24st', 4, h - 14);
 
             // Center line (0 semitones)
@@ -485,8 +495,8 @@ function initI18n() {
             }
 
             // Active count
-            ctx.fillStyle = 'rgba(139,115,85,0.4)';
-            ctx.font = '9px Georgia';
+            ctx.fillStyle = TEXT_MUTED;
+            ctx.font = '9px ' + CANVAS_FONT;
             ctx.textAlign = 'right';
             ctx.fillText(this.activeCount + ' grains', w - 8, 14);
             ctx.textAlign = 'left';
@@ -622,8 +632,8 @@ function initI18n() {
             }
 
             // Step counter in center (show rotation if non-zero)
-            ctx.fillStyle = 'rgba(139,115,85,0.4)';
-            ctx.font = '10px Georgia';
+            ctx.fillStyle = TEXT_MUTED;
+            ctx.font = '10px ' + CANVAS_FONT;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const activeCount = this.pattern.filter(Boolean).length;
