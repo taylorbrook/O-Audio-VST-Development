@@ -1,0 +1,334 @@
+{
+  "_why": "The generic stub seeds every toggle FALSE and every slider 0..1 def 0.5. For O-FreqPulse that renders all four bands MUTED (bandN_enable false -> .band-row.muted, opacity 0.35), so every contrast and label measurement was taken on a page state the plugin never opens in. Values below are createParameterLayout() ranges and defaults. The 128 step_bN_sM velocities are deliberately NOT overridden: their real default 0 renders an empty grid, and the neutral 0.5 keeps the lit-step fill on screen for the probes.",
+  "sliders": {
+    "mix": {
+      "start": 0,
+      "end": 1,
+      "skew": 1,
+      "interval": 0.01,
+      "def": 1
+    },
+    "steps": {
+      "start": 2,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 16
+    },
+    "swing": {
+      "start": 0,
+      "end": 1,
+      "skew": 1,
+      "interval": 0.01,
+      "def": 0
+    },
+    "attack": {
+      "start": 0,
+      "end": 500,
+      "skew": 0.4,
+      "interval": 0.1,
+      "def": 5
+    },
+    "release": {
+      "start": 0,
+      "end": 500,
+      "skew": 0.4,
+      "interval": 0.1,
+      "def": 5
+    },
+    "crossover_1": {
+      "start": 20,
+      "end": 20000,
+      "skew": 0.3,
+      "interval": 1,
+      "def": 120
+    },
+    "crossover_2": {
+      "start": 20,
+      "end": 20000,
+      "skew": 0.3,
+      "interval": 1,
+      "def": 500
+    },
+    "crossover_3": {
+      "start": 20,
+      "end": 20000,
+      "skew": 0.3,
+      "interval": 1,
+      "def": 4000
+    },
+    "freq_low": {
+      "start": 20,
+      "end": 20000,
+      "skew": 0.3,
+      "interval": 1,
+      "def": 20
+    },
+    "freq_high": {
+      "start": 20,
+      "end": 20000,
+      "skew": 0.3,
+      "interval": 1,
+      "def": 20000
+    },
+    "band0_depth": {
+      "start": 0,
+      "end": 1,
+      "skew": 1,
+      "interval": 0.01,
+      "def": 1
+    },
+    "band0_euc_steps": {
+      "start": 1,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 16
+    },
+    "band0_euc_pulses": {
+      "start": 1,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 8
+    },
+    "band0_euc_offset": {
+      "start": 0,
+      "end": 31,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    },
+    "band0_phase_offset": {
+      "start": 0,
+      "end": 31,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    },
+    "band0_steps": {
+      "start": 0,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    },
+    "band1_depth": {
+      "start": 0,
+      "end": 1,
+      "skew": 1,
+      "interval": 0.01,
+      "def": 1
+    },
+    "band1_euc_steps": {
+      "start": 1,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 16
+    },
+    "band1_euc_pulses": {
+      "start": 1,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 8
+    },
+    "band1_euc_offset": {
+      "start": 0,
+      "end": 31,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    },
+    "band1_phase_offset": {
+      "start": 0,
+      "end": 31,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    },
+    "band1_steps": {
+      "start": 0,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    },
+    "band2_depth": {
+      "start": 0,
+      "end": 1,
+      "skew": 1,
+      "interval": 0.01,
+      "def": 1
+    },
+    "band2_euc_steps": {
+      "start": 1,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 16
+    },
+    "band2_euc_pulses": {
+      "start": 1,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 8
+    },
+    "band2_euc_offset": {
+      "start": 0,
+      "end": 31,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    },
+    "band2_phase_offset": {
+      "start": 0,
+      "end": 31,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    },
+    "band2_steps": {
+      "start": 0,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    },
+    "band3_depth": {
+      "start": 0,
+      "end": 1,
+      "skew": 1,
+      "interval": 0.01,
+      "def": 1
+    },
+    "band3_euc_steps": {
+      "start": 1,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 16
+    },
+    "band3_euc_pulses": {
+      "start": 1,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 8
+    },
+    "band3_euc_offset": {
+      "start": 0,
+      "end": 31,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    },
+    "band3_phase_offset": {
+      "start": 0,
+      "end": 31,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    },
+    "band3_steps": {
+      "start": 0,
+      "end": 32,
+      "skew": 1,
+      "interval": 1,
+      "def": 0
+    }
+  },
+  "toggles": {
+    "band0_enable": true,
+    "band0_euc_on": false,
+    "band1_enable": true,
+    "band1_euc_on": false,
+    "band2_enable": true,
+    "band2_euc_on": false,
+    "band3_enable": true,
+    "band3_euc_on": false
+  },
+  "combos": {
+    "rate": {
+      "choices": [
+        "1/1",
+        "1/2",
+        "1/4",
+        "1/8",
+        "1/16",
+        "1/32",
+        "1/8T",
+        "1/16T",
+        "1/4D",
+        "1/8D"
+      ],
+      "def": 4
+    },
+    "band0_rate": {
+      "choices": [
+        "Global",
+        "1/1",
+        "1/2",
+        "1/4",
+        "1/8",
+        "1/16",
+        "1/32",
+        "1/8T",
+        "1/16T",
+        "1/4D",
+        "1/8D"
+      ],
+      "def": 0
+    },
+    "band1_rate": {
+      "choices": [
+        "Global",
+        "1/1",
+        "1/2",
+        "1/4",
+        "1/8",
+        "1/16",
+        "1/32",
+        "1/8T",
+        "1/16T",
+        "1/4D",
+        "1/8D"
+      ],
+      "def": 0
+    },
+    "band2_rate": {
+      "choices": [
+        "Global",
+        "1/1",
+        "1/2",
+        "1/4",
+        "1/8",
+        "1/16",
+        "1/32",
+        "1/8T",
+        "1/16T",
+        "1/4D",
+        "1/8D"
+      ],
+      "def": 0
+    },
+    "band3_rate": {
+      "choices": [
+        "Global",
+        "1/1",
+        "1/2",
+        "1/4",
+        "1/8",
+        "1/16",
+        "1/32",
+        "1/8T",
+        "1/16T",
+        "1/4D",
+        "1/8D"
+      ],
+      "def": 0
+    }
+  }
+}

@@ -5,7 +5,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-FreqPulse
-    VERSION 1.19.0
+    VERSION 1.20.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OFPu
@@ -65,6 +65,12 @@ juce_add_binary_data(O-FreqPulse_UIResources
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/modules/preset-manager.js
+        # v1.20.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module (modules/ui/eb-garamond) into this one binary-data target.
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 # Compile definitions

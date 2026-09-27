@@ -1576,8 +1576,9 @@ function initializePresetManager() {
             // in i18n.js where assertion 9 forbids the angle bracket the
             // template is made of.
             const empty = document.createElement('div');
-            empty.className = 'preset-dropdown-item';
-            empty.style.opacity = '0.5';
+            // v1.20.0: a class, not an inline opacity 0.5 — ink at half opacity
+            // was 3.5:1 on the menu. The CSS colours it --text-secondary.
+            empty.className = 'preset-dropdown-item empty';
             setLabel(empty, 'label.noPresets');
             presetDropdown.appendChild(empty);
             presetDropdown.classList.add('show');

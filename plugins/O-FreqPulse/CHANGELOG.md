@@ -2,6 +2,74 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.20.0] - 2026-09-27
+
+**UI legibility pass** (review 260924-nho, R4 + R5). Text on the paper and on
+the dark step grid now meets WCAG AA, the 9 px floor holds, and the house serif
+is actually rendered: five font declarations (the Georgia body and tooltip
+stacks, two Arial stacks, `inherit`) collapse onto one bundled EB Garamond
+token. MINOR: visible colour and face change; no parameter, range, type, state
+format or DSP was touched.
+
+### Changed
+
+- **Palette tokens.** `:root` grew from 11 entries to the full palette and
+  every hex literal outside it is gone (thumbs, mute/solo, Euclidean step
+  brown, parchment fills); washes are written `rgba(var(--x-rgb), a)`.
+- **AA text colours** (ouaricon-naturalist-001 variants; walnut `#8B7355` and
+  accent `#5A7A6A` stay for borders, step cells and focus rings only):
+  - captions and readouts on paper `#8B7355` -> `--text-secondary` `#5C4033`
+    (3.66 -> 7.67; 6.54 on the parchment fills, 6.83 on the header top);
+  - band captions, frequency ranges, Manual/Euclidean, per-band Mix on the
+    grid -> `--text-on-grid` `#A08870` (4.07 -> 5.43);
+  - cream on walnut buttons (preset nav, Load/Save, clear/random, expand) ->
+    fill `--walnut-fill` `#715D45` (3.66 -> 5.11);
+  - cream on green (button hover, open gear, hover-help On, Euclidean mode) ->
+    `--accent-fill` `#4A6858` (3.87 -> 5.02);
+  - mute active: white on amber (3.25) -> dark ink, as solo already had (5.60).
+- **Opacity is no longer used to dim text.** The gear and hover-help switch sat
+  at `opacity: 0.6` at rest and the version label at 0.5; they now take the AA
+  colour, and hover is a tint instead of an opacity step. The empty preset
+  menu's inline `opacity: 0.5` became a `.empty` class.
+- **Tooltip surface opaque** (`--text-primary`, was 0.95), so the title's moss
+  holds 4.84 whatever is underneath.
+- **9 px floor.** `.ms-btn` (M/S) and the per-band Mix caption 8 -> 9 px; the
+  Mix caption's line-height pin 1.125 -> 1, so its line box stays 9 px.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed: 4
+  binary-data SOURCES, 4 `getResource()` branches, `<link>` ahead of
+  `styles.css`). `--font-serif` = `'EB Garamond', 'Georgia', 'Times New Roman',
+  'PingFang SC', 'Microsoft YaHei', serif` replaces the Georgia body/tooltip
+  stacks, the M/S buttons' Arial stack and the v1.19.0 form-control Arial rule.
+  Width pins are floors and the face is narrower, so none needed re-measuring.
+- Native range inputs kept as-is (they are already keyboard-operable).
+
+### Fixed
+
+- **A muted band's caption and M/S buttons were dimmed with the row.**
+  `.band-row.muted { opacity: 0.35 }` plus `.band-label { opacity: 1 }` cannot
+  work — a child cannot undo its parent's opacity — so the Unmute control
+  rendered at 1.5:1. The dim now applies to the row's other cells only, which
+  is what the old rule said it intended.
+
+### Verification
+
+- `measure-ui --contrast` (new `tests/ui-stub/generic-overrides.json` so the
+  stub opens with all bands enabled, as the plugin does — without it every row
+  rendered muted): **59/71 below AA per language, min 1.78, 12 under 9 px ->
+  0/71, min 4.73, 0 under 9 px** (en/fr/zh-Hans).
+- Real-pixel probe (text hidden, transitions off, 2x, worse of p5/p95 in the
+  glyph band; 8 states x 3 languages incl. muted band, solo, Euclidean, band
+  panel, settings, tooltip, preset menu): **183/213 below AA, min 1.54 ->
+  0/213, min 4.84**. The 39 cells inside a muted row (deliberately 0.35) are
+  reported separately, not counted.
+- CDP `getPlatformFontsForNode`: 159 text runs probed, every Latin/digit run on
+  the bundled EB Garamond (before: 100 on Georgia/Arial); 0 404s.
+- `check-ui-labels` ALL PASS, 255 PASS before and after (en/fr/zh-Hans);
+  `boot-all-uis` clean, 0 dead / 0 late tip bindings; `check-i18n` pass;
+  `i18n-fr-lint` clean; `i18n-zh-lint` 0 findings; `auval -v aufx OFPu OuDv`
+  pass.
+- Not yet checked hands-on in a DAW (WKWebView face and colours).
+
 ## [1.19.0] - 2026-09-06
 
 O-FreqPulse speaks Simplified Chinese. Stage 4 wave 4d of the zh-Hans rollout:
