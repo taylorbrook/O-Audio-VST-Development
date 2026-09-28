@@ -8,7 +8,7 @@ juce_add_plugin(OBitrot
     PLUGIN_CODE OBrt
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bitrot${OUARICON_DEV_SUFFIX}"
-    VERSION 1.16.0
+    VERSION 1.17.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_WEB_BROWSER TRUE
@@ -112,6 +112,13 @@ juce_add_binary_data(OBitrot_UIResources
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/specimen.webp
         Source/ui/public/modules/preset-manager.js
+        # v1.17.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module (modules/ui/eb-garamond) into this one binary-data target.
+        # Symbols: ebgaramond_css, EBGaramond{Regular,Italic,Bold}_woff2.
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(OBitrot PRIVATE OBitrot_UIResources)

@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>O-Bitrot</title>
+<!-- v1.17.0 (R5): the bundled house serif (modules/ui/eb-garamond), linked AHEAD
+     of the inline style so --serif's first family is defined before any rule
+     asks for it. Through v1.16.0 'EB Garamond' was named first in the stack but
+     never shipped, so the page rendered in Times New Roman. -->
+<link rel="stylesheet" href="css/eb-garamond.css" />
 <style>
   /* ============ WebView constraints ============ */
   html, body { height: 100%; margin: 0; padding: 0; }
@@ -12,7 +17,12 @@
   :root {
     --bg-paper: #F5E6D3;
     --bg-paper-light: #FAF0E6;
-    --panel: rgba(250, 240, 230, 0.66);
+    /* v1.17.0 (R4): 0.66 -> 0.85. The plates are translucent over paper.jpg and
+       the Sowerby specimen (opacity 0.9, z-index 1), and at 0.66 the specimen's
+       darkest strokes pulled #5C4033 captions under the Vinyl and Crush plates
+       to 4.4. The specimen still reads through the plates; it no longer reads
+       through the words on them. */
+    --panel: rgba(250, 240, 230, 0.85);
     --brown-border: #8B7355;
     --brown-frame: #5C4033;
     --brown-text: #3C2F2F;
@@ -24,6 +34,25 @@
     --seg-a: #F5DEB3;
     --seg-b: #E8D5B7;
     --knob-core: #FFF8DC;
+
+    /* v1.17.0 (R4) — WCAG AA text inks, ouaricon-naturalist-001 "Text Contrast".
+       Every colour a user must READ is solid; opacity and rgba alpha are kept for
+       decoration only (fleurons, rules, the specimen). */
+    /* The quiet ink: marginal notes, settings labels, OFF families. The
+       template's gradient-safe walnut (5.68 on #F5E6D3, 5.06 on #EBD9C7) rather
+       than #715D45: the panels are translucent over paper.jpg AND the specimen,
+       and #715D45 bottomed out at exactly 4.50 on the real pixels under the
+       Vinyl plate's marginal note. */
+    --text-walnut-deep: #6A5641;
+    /* The page's ONE active vocabulary, pre-composited. Through v1.16.0 it was
+       rgba(107,142,35,0.55), which let the paper image through the button and
+       read 4.36 under #2C3E10 on the darker stains. #A9B672 IS that rgba over
+       #F5E6D3, so on clean paper nothing changes; it just stops varying. 5.33. */
+    --active-fill: #A9B672;
+    /* The same green at half strength, for a selected segment in an OFF family:
+       still reads as "the selected one", no longer reads as lit. #5C4033 on it
+       is 5.76. */
+    --active-fill-off: #CECDA2;
     /* v1.16.0 — THE CJK TAIL, ON THE TOKEN. Every one of this page's 13
        `font-family` declarations reads `var(--serif)`, so the whole page
        resolves through THIS ONE DECLARATION and the tail belongs here rather
@@ -37,7 +66,12 @@
        Latin still resolves to EB Garamond FIRST, so English geometry is
        unmoved. That is proved by the EN arm of check-ui-labels assertion 7, not
        asserted here. */
-    --serif: 'EB Garamond', 'Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    /* v1.17.0 (R5): 'EB Garamond' is now BUNDLED (css/eb-garamond.css), so the
+       first family always resolves. The bare 'Garamond' and 'Adobe Garamond Pro'
+       entries are gone — left ahead of the bundled face they let an
+       Office-installed Garamond win on Windows — and Georgia precedes Times so a
+       font-load failure converges on the suite's one fallback face. */
+    --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 
     /* LEFT UNTOUCHED (1): `#diceBtn.die`, which declares no font-family and so
        takes Chromium's UA button default, Arial. It is reached by the Han scan
@@ -135,13 +169,13 @@
     font-variant: small-caps;
     letter-spacing: 2.5px;
     font-size: 11px;
-    color: var(--brown-frame);
+    color: var(--brown-text);   /* v1.17.0: was --brown-frame, 4.52 on the bare paper */
   }
   .hdr-right .plate {
     font-style: italic;
     font-size: 9.5px;
     letter-spacing: 1px;
-    color: rgba(92,64,51,0.8);
+    color: var(--brown-text);   /* v1.17.0: was rgba(92,64,51,0.8), 3.23 on the bare paper */
   }
 
   /* ============ preset band (header center, Stage 4) ============
@@ -173,7 +207,10 @@
     width: 22px;
     height: 22px;
     padding: 0 0 1px;
-    font-size: 8px;
+    /* v1.17.0 (R5): 8 -> 10px. EB Garamond draws the triangles ~25% smaller
+       than Times did, so 10px restores the v1.16.0 glyph size (before/after
+       crop) and clears the 9px floor. */
+    font-size: 10px;
     line-height: 1;
   }
   .preset-btn { padding: 2px 9px 3px; }
@@ -238,9 +275,9 @@
   .preset-caret {
     flex: 0 0 9px;
     text-align: right;
-    font-size: 8px;
+    font-size: 8px;   /* an icon, not text: raised to the 9px floor it reads heavy */
     line-height: 1;
-    color: rgba(92,64,51,0.75);
+    color: var(--brown-frame);   /* v1.17.0: was rgba(92,64,51,0.75) */
     transition: transform 0.18s ease-out;
   }
   .preset-select[aria-expanded="true"] .preset-caret { transform: rotate(180deg); }
@@ -301,7 +338,7 @@
   .preset-menu-item:hover { background: var(--seg-a); }
   .preset-menu-item.active {
     background: var(--knob-ring);
-    color: var(--bg-paper-light);
+    color: var(--brown-text);   /* v1.17.0: was --bg-paper-light, 2.2 on the ring tan */
     font-style: normal;
   }
 
@@ -399,14 +436,13 @@
     z-index: 4;
   }
   .en:hover { transform: translateY(-1px); box-shadow: 1px 2px 5px rgba(0,0,0,0.25); }
-  .en.on { background: rgba(107,142,35,0.55); border-color: var(--green-darkest); }
+  .en.on { background: var(--active-fill); border-color: var(--green-darkest); }
 
   .p-body {
     flex: 1 1 auto;
     display: flex;
     align-items: center;
     justify-content: space-evenly;
-    transition: opacity 0.25s;
   }
   /* v1.12.0: the interaction block moved from the whole body onto the
      interactive elements themselves. `pointer-events: none` on .p-body also
@@ -421,13 +457,28 @@
      The cursor is unchanged too: .knob's ns-resize does not apply while the
      knob itself is pointer-events:none, so the body's `cursor: default` shows
      through, as it did before. */
-  .panel.off .p-body { opacity: 0.45; }
+  /* v1.17.0 (R4): OFF dims the control GRAPHICS, never the words. Through
+     v1.16.0 the whole body sat at opacity 0.45 and the caption at 0.55, which
+     put every caption, readout, note and segment label in the four families
+     that ship OFF at 1.6-2.5:1 — the page's largest block of unreadable text,
+     and a description is most wanted BEFORE a family is switched on. The knob
+     keeps the 0.45 fade; segment and dropdown chrome lighten; the text moves
+     to the walnut AA ink, so an OFF family still reads quieter than an ON one. */
+  .panel.off .p-body .knob { opacity: 0.45; }
+  .panel.off .caption,
+  .panel.off .ctl-label,
+  .panel.off .ro,
+  .panel.off .annot { color: var(--text-walnut-deep); }
+  .panel.off .seg { border-color: rgba(60,92,26,0.45); box-shadow: none; }
+  .panel.off .seg button { color: var(--text-walnut-deep); }
+  .panel.off .seg button + button { border-left-color: rgba(60,92,26,0.3); }
+  .panel.off .seg button.sel { background: var(--active-fill-off); color: var(--brown-frame); }
+  .panel.off select.field { color: var(--text-walnut-deep); border-color: rgba(139,115,85,0.55); box-shadow: none; }
   .panel.off .p-body .knob,
   .panel.off .p-body .seg,
   .panel.off .p-body .seg button,
   .panel.off .p-body select,
   .panel.off .p-body button { pointer-events: none; }
-  .panel.off .caption { opacity: 0.55; }
   .panel.off .led { opacity: 0.3; }
 
   /* ============ control cells ============ */
@@ -448,9 +499,9 @@
   }
   .annot {
     font-style: italic;
-    font-size: 8.5px;
+    font-size: 9px;                  /* v1.17.0: 9px floor, was 8.5px */
     letter-spacing: 0.4px;
-    color: rgba(92,64,51,0.7);
+    color: var(--text-walnut-deep);   /* v1.17.0: was rgba(92,64,51,0.7), 2.8 on the panels */
     margin-top: 2px;
   }
 
@@ -471,7 +522,7 @@
       inset 1px 1px 3px rgba(0,0,0,0.3),
       inset -1px -1px 2px rgba(255,248,220,0.5),
       2px 2px 6px rgba(0,0,0,0.25);
-    transition: transform 0.1s ease-out;
+    transition: transform 0.1s ease-out, opacity 0.25s;
   }
   .knob:hover { transform: scale(1.05); }
   .knob:active { transform: scale(0.98); }
@@ -523,7 +574,7 @@
   /* VINYL_RPM grew a third entry in v1.7.0; trim the horizontal padding so the
      wider control still clears its 50px neighbours inside a 256px panel row. */
   .seg3 button { padding: 4px 8px; }
-  .seg button.sel { background: rgba(107,142,35,0.55); }
+  .seg button.sel { background: var(--active-fill); }
   .seg button:hover:not(.sel) { background: rgba(139,168,112,0.3); }
 
   /* ============ dropdown (4+ choices) ============ */
@@ -678,8 +729,8 @@
     box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
   }
   .edge-btn:hover { transform: translateY(-1px); }
-  .edge-btn.on { background: rgba(107,142,35,0.55); border-color: var(--green-darkest); }
-  .edge-btn .flr { position: absolute; right: 3px; bottom: 0; font-size: 8px; opacity: 0.3; }
+  .edge-btn.on { background: var(--active-fill); border-color: var(--green-darkest); }
+  .edge-btn .flr { position: absolute; right: 3px; bottom: 0; font-size: 9px; opacity: 0.3; }
 
   .mix-group { flex-direction: row; align-items: center; gap: 10px; }
   .mix-text { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
@@ -716,7 +767,7 @@
     box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
   }
   .help-toggle:hover { transform: translateY(-1px); box-shadow: 1px 2px 5px rgba(0,0,0,0.25); }
-  .help-toggle.active { background: rgba(107,142,35,0.55); border-color: var(--green-darkest); }
+  .help-toggle.active { background: var(--active-fill); border-color: var(--green-darkest); }
   .help-toggle.active:hover { transform: none; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3); }
   .help-toggle:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
 
@@ -742,7 +793,7 @@
      differ, because ⚙ sits lower in its em box than ?. */
   .gear-btn { font-size: 12px; }
   .gear-btn[aria-expanded="true"] {
-    background: rgba(107,142,35,0.55);
+    background: var(--active-fill);
     border-color: var(--green-darkest);
     transform: none;
     box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
@@ -780,7 +831,7 @@
     font-size: 9px;
     letter-spacing: 0.8px;
     text-transform: uppercase;
-    color: var(--brown-border);
+    color: var(--text-walnut-deep);   /* v1.17.0: was --brown-border #8B7355, 3.8 */
   }
 
   /* .field's recessed cartouche, sized for "Français". */
@@ -818,7 +869,7 @@
     transition: background 0.2s;
   }
   .settings-toggle.active {
-    background: rgba(107,142,35,0.55);
+    background: var(--active-fill);
     border-color: var(--green-darkest);
   }
   .settings-toggle:focus-visible { outline: 2px dotted var(--green-mid); outline-offset: 2px; }
@@ -933,6 +984,14 @@
     #clockModeSeg { width: 112px; }
     #clockModeSeg button { flex: 1; }
     #edgeBtn { width: 118px; }
+    /* v1.17.0 (R5): under the bundled EB Garamond, FRONTS FRANCS is ~1 px wider
+       than the 83 px the 16 px side padding left inside this pinned box, and it
+       WRAPPED to two lines — the Splices group grew 55 -> 67 px, the global strip
+       100 -> 104, and the grid gave up 4 px (check-ui-labels [7], 203 moved).
+       The box is fixed and its text centred, so trimming the side padding to
+       8 px moves nothing in English; nowrap makes the next face change fail as
+       an overflow the gate can see rather than a silent second line. */
+    #edgeBtn { padding-left: 8px; padding-right: 8px; white-space: nowrap; }
 
     /* The Rot plate's head carries a caption AND a marginal note before the
        spacer, so with the caption taking the slack it shrank by exactly what
@@ -1026,7 +1085,7 @@
     .ctl-label           { line-height: 1.0526316; }   /* 10 / 9.5  */
     .g-label             { line-height: 1.1111111; }   /* 10 / 9    */
     .settings-label      { line-height: 1.1111111; }   /* 10 / 9    */
-    .annot               { line-height: 1.1764706; }   /* 10 / 8.5  */
+    .annot               { line-height: 1.1111111; }   /* 10 / 9 — v1.17.0: 9px floor, same 10px box */
     #preset-save,
     #preset-load,
     #preset-delete       { line-height: 1.1; }         /* 11 / 10   */
@@ -1049,7 +1108,7 @@
        the ENGLISH arm too, so the fleuron is pinned back at its own measured
        ratio. English is unmoved on both. */
     #edgeBtn                  { line-height: 1.0909091; }   /* 12 / 11   */
-    #edgeBtn .flr             { line-height: 1.125; }       /*  9 / 8    */
+    #edgeBtn .flr             { line-height: 1; }           /*  9 / 9 — v1.17.0: 9px floor, same 9px box */
 
     /* THE SECOND CONTENT-SIZED <select>, and the same mechanism as #viewSync
        above — but this one moves the OTHER WAY. Chinese renders all four
@@ -1072,13 +1131,13 @@
 <body>
   <div class="plugin">
     <img class="specimen" src="img/specimen.webp" alt="" draggable="false" />
-    <span class="corner-fleuron bl">❦</span>
-    <span class="corner-fleuron tr">❦</span>
+    <span class="corner-fleuron bl" aria-hidden="true">❦</span>
+    <span class="corner-fleuron tr" aria-hidden="true">❦</span>
 
     <div class="inner">
       <!-- ================= header ================= -->
       <div class="hdr">
-        <div class="wordmark"><span class="fleuron">❦</span>O-BITROT</div>
+        <div class="wordmark"><span class="fleuron" aria-hidden="true">❦</span>O-BITROT</div>
         <!-- Preset band — element IDs are exactly the ones preset-manager.js
              binds. #preset-name stays childless (_updateDisplay writes
              textContent). Button copy lives in data-label / data-confirm,
@@ -1551,7 +1610,7 @@
           <!-- hard edges -->
           <div class="g-group">
             <div class="g-label" data-i18n="label.splices">Splices</div>
-            <button class="edge-btn" data-param="HARD_EDGES" id="edgeBtn"><span data-i18n="label.hardEdges">Hard Edges</span><span class="flr">❦</span></button>
+            <button class="edge-btn" data-param="HARD_EDGES" id="edgeBtn"><span data-i18n="label.hardEdges">Hard Edges</span><span class="flr" aria-hidden="true">❦</span></button>
             <div class="annot" data-i18n="label.annotSplices">crossfades bypassed when lit</div>
           </div>
 

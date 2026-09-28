@@ -19,6 +19,12 @@ rm -rf "$ROOT"
 mkdir -p "$ROOT"
 cp -R "$PUBLIC"/. "$ROOT"/
 cp "$HERE/juce-stub.js" "$ROOT/js/juce/index.js"
+# v1.17.0 (R5): the bundled face is module-embedded, outside PUBLIC — place it
+# where the resource provider serves it (/css/, /fonts/) or the page 404s it.
+EBG="$(cd "$HERE/../../../../modules/ui/eb-garamond" && pwd)"
+mkdir -p "$ROOT/css" "$ROOT/fonts"
+cp "$EBG/css/eb-garamond.css" "$ROOT/css/"
+cp "$EBG"/fonts/EBGaramond-{Regular,Italic,Bold}.woff2 "$ROOT/fonts/"
 
 echo "Serving $ROOT on http://localhost:$PORT"
 exec python3 -m http.server "$PORT" --directory "$ROOT" --bind 127.0.0.1
