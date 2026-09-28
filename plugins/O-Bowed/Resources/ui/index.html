@@ -23,6 +23,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>O-Bowed</title>
+    <!-- v1.10.0: the bundled EB Garamond face (modules/ui/eb-garamond), linked
+         before every other stylesheet. -->
+    <link rel="stylesheet" href="/css/eb-garamond.css">
     <link rel="stylesheet" href="/css/tuning-panel.css">
     <style>
         /* ====================================================================
@@ -36,11 +39,30 @@
             --bg-paper-darker: #D4C4AD;
             --brown-text: #3C2F2F;
             --brown-text-light: #6B5B4F;
-            --brown-text-lighter: #8B7B6F;
+            /* v1.10.0 AA (R4, review 260924-nho). Was #8B7B6F: 3.32 on the
+               paper, 3.10 on the right panel's real ground (section box over
+               the botanical plate). #715D45 is the naturalist template's
+               walnut that is safe on either paper tone: 5.11 / 5.38. */
+            --brown-text-lighter: #715D45;
             --green-light: #8BA870;
             --green-mid: #6B8E4E;
             --green-dark: #4A6B35;
+            /* Sage TEXT on --bg-paper-dark (the viz tab bar). #4A6B35 read
+               4.26 there; derived by the template's rule (scale RGB until it
+               clears 4.5): 4.53. --green-dark stays for fills and borders. */
+            --green-text: #476733;
+            /* Sage FILL under paper text (hover-help On). #6B8E4E read 3.06;
+               the template's #4E6839 reads 5.10. */
+            --leaf-fill: #4E6839;
+            /* The maker's name on --brown-frame. It was paper at opacity 0.5
+               (3.21); this is paper at 0.7 pre-composited, as a solid: 4.69. */
+            --brand-ink: #C7B4A3;
             --green-accent: #A3C288;
+            /* v1.10.0 R5: the bundled face first (modules/ui/eb-garamond),
+               Georgia before Times, the CJK tail before the generic. The bare
+               'Garamond' entry is gone so an Office-installed Windows Garamond
+               cannot outrank the bundled face. */
+            --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
             --brown-border: #8B7355;
             --brown-frame: #5C4033;
             --brown-frame-light: #7A5C47;
@@ -67,9 +89,9 @@
             /* The CJK tail goes BEFORE the trailing generic. Chromium resolves a bare
                `serif` against the DOCUMENT's lang, so under lang="zh-Hans" the generic is
                already a Chinese face and anything written after it is never consulted.
-               Georgia and Times New Roman are installed here and carry the Latin; Garamond
-               is installed on none of these machines and never was. */
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+               v1.10.0: the Latin is the bundled EB Garamond (it was Georgia, because
+               Garamond is installed on none of these machines). */
+            font-family: var(--font-serif);
             background: var(--bg-paper);
             color: var(--brown-text);
         }
@@ -125,7 +147,10 @@
             height: 28px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
+            /* v1.10.0: 14 -> 17px. EB Garamond draws the preset triangles
+               about 25% smaller than Times/Georgia did at the same size; 17px
+               restores them. The 28 x 28 box is fixed, so nothing moves. */
+            font-size: 17px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -226,7 +251,9 @@
             font-size: 10px;
             letter-spacing: 1.5px;
             text-transform: uppercase;
-            opacity: 0.5;
+            /* v1.10.0: a solid colour, not opacity 0.5 — opacity on text is a
+               contrast change (3.21 on the bar). */
+            color: var(--brand-ink);
         }
 
         /* ====================================================================
@@ -374,8 +401,8 @@
         }
 
         .settings-toggle[aria-pressed="true"] {
-          background: var(--green-mid);
-          border-color: var(--green-mid);
+          background: var(--leaf-fill);
+          border-color: var(--leaf-fill);
           color: var(--bg-paper);
         }
 
@@ -490,7 +517,7 @@
         }
 
         .knob-label {
-            font-size: 8px;
+            font-size: 9px;   /* v1.10.0: 8 -> 9, the template's floor */
             text-transform: uppercase;
             letter-spacing: 0.3px;
             color: var(--brown-text-light);
@@ -513,8 +540,13 @@
             text-overflow: ellipsis;
         }
 
+        /* v1.10.0: 9 -> 10px. EB Garamond's x-height is smaller than
+           Georgia's, so at 9px the italic readouts drew about 22% narrower than
+           they did at v1.9.4 (the uppercase captions barely moved). 10px brings
+           them back to their old size. The 12px min-height already holds a 10px
+           line box (11.5), so no row grows. */
         .knob-value {
-            font-size: 9px;
+            font-size: 10px;
             color: var(--brown-text);
             text-align: center;
             font-style: italic;
@@ -577,7 +609,7 @@
         }
         .viz-tab-btn:hover { color: var(--brown-text); background: var(--white-overlay); }
         .viz-tab-btn.active {
-            color: var(--green-dark);
+            color: var(--green-text);
             border-bottom-color: var(--green-mid);
             font-weight: bold;
         }
@@ -611,6 +643,13 @@
             align-items: flex-start;
             background: rgba(255, 255, 255, 0.12);
         }
+        /* v1.10.0: at the 9px floor "Rev. Friction" is 68px wide, over the
+           64px caption cap, and it would ellipsize. This centred row has
+           ~250px of slack, so its three controls take 72px instead of 62px.
+           The widest caption in any language is then 68.0 (en), and the
+           neighbours clear it by the 4px gap. */
+        .impossible-row .knob-control { width: 72px; }
+        .impossible-row .knob-label   { max-width: 72px; }
 
         .impossible-label {
             font-size: 9px;
@@ -657,7 +696,7 @@
         }
 
         .footer-bar .knob-value {
-            font-size: 9px;
+            font-size: 10px;
             min-width: 50px;
         }
 
@@ -882,7 +921,7 @@
            O-Contrabass's and O-Reed's measured value, which is the corroboration:
            three consumers rendering one face agree on one number. */
         #tuning-container .tuning-panel {
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
         }
 
         /* ── 4. THE PANEL'S FORM CONTROLS (v1.9.0) ────────────────────────
@@ -903,7 +942,32 @@
         #tuning-container .generator-btn,
         #tuning-container .generator-type-select,
         #tuning-container .library-filter-select {
-            font-family: 'Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
+        }
+
+        /* ── 5. THE PANEL'S TEXT CONTRAST (v1.10.0, R4) ───────────────────
+           Page-local for the same reason as rules 1-4: the shared
+           tuning-panel.css has five consumers and stays byte-frozen. Values
+           are O-MicrotonalSampler v1.28.0's, which made the same pass on its
+           own copy of this panel.
+             muted text  #8B7355 -> #6A5641   2.19-4.14 -> AA (5.68 on paper,
+                                              5.72 on the tonic row's tint)
+             Generate / Export HTML  white on #8BC34A (1.43 / 2.10)
+                                  -> white on #4E6839 (6.24)
+           --tuning-accent itself (#8BC34A) is untouched: it is borders and the
+           focus ring there, never text. */
+        #tuning-container .tuning-panel {
+            --tuning-text-muted: #6A5641;
+        }
+        #tuning-container .generator-btn,
+        #tuning-container .tuning-export-btn {
+            background: var(--leaf-fill);
+            border-color: var(--leaf-fill);
+        }
+        /* The template's 9px floor: the Matrix and Rotation tables were 8px. */
+        #tuning-container .matrix-table,
+        #tuning-container .rotation-table {
+            font-size: 9px;
         }
 
         /* ====================================================================
@@ -953,9 +1017,14 @@
             gap: 2px;
             width: 100%;
         }
+        /* v1.10.0: 8 -> 9px, and SENTENCE CASE. The four columns are 39.75px
+           each with a 1px gap, and the uppercase heads never fitted them:
+           "PRESSURE" and "POSITION" already ran together in English at 8px
+           (44.0 + 41.0 in 39.75 columns). At 9px uppercase they measure
+           45.4 / 44.6 and French added "PRESSIONPOSITIONCOLOPH.". Sentence
+           case at 9px fits every head in all three languages. */
         .humanize-col-label {
-            font-size: 8px;
-            text-transform: uppercase;
+            font-size: 9px;
             letter-spacing: 0.3px;
             color: var(--brown-text-lighter);
             margin-bottom: 2px;
@@ -967,11 +1036,13 @@
             width: 30px;
             height: 30px;
         }
+        /* v1.10.0: caption 8 -> 9 (the template's floor), readout 8 -> 10
+           (see .knob-value). */
         .humanize-knob .knob-label {
-            font-size: 8px;
+            font-size: 9px;
         }
         .humanize-knob .knob-value {
-            font-size: 8px;
+            font-size: 10px;
         }
 
         /* ====================================================================
@@ -1741,6 +1812,20 @@
         // ====================================================================
         const cv = (key, vars) => tr(key, uiLanguage, vars).t;
 
+        // v1.10.0 (R4/R5). A canvas cannot read var(), so the page's face and
+        // its canvas text inks are mirrored here from :root. Every canvas
+        // paints an opaque --bg-paper (#F5E6D3) first, so each ink below is
+        // rated against that one ground. measure-ui cannot see canvas text;
+        // these ratios are computed, not measured.
+        const CANVAS_FONT  = "'EB Garamond', Georgia, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif";
+        const canvasFont   = (px) => px + 'px ' + CANVAS_FONT;
+        // Readout and axis text was 10px Georgia; it is 11px here because EB
+        // Garamond draws about 15% narrower at one size (see .knob-value).
+        const INK_MUTED    = '#715D45';   // --brown-text-lighter; was #8B7B6F (3.32) -> 5.11
+        const INK_SECOND   = '#6B5B4F';   // --brown-text-light, 5.30 (unchanged)
+        const INK_SAGE     = '#4A6B35';   // --green-dark as text, 4.97 (unchanged)
+        const INK_SAGE_MIN = '#586B47';   // P_min legend; its line stays #8BA870 (was 2.16 as text) -> 4.75
+
         new MutationObserver(() => {
             spectrumNeedsRedraw = true;
             schellengNeedsRedraw = true;
@@ -1808,8 +1893,8 @@
             ctx.fillRect(stringEndX, stringY - 8, 4, 16);
 
             // Labels
-            ctx.fillStyle = '#8B7B6F';
-            ctx.font = '9px Georgia';
+            ctx.fillStyle = INK_MUTED;
+            ctx.font = canvasFont(9);
             ctx.textAlign = 'center';
             ctx.fillText(cv('canvas.bridge'), stringStartX, stringY + 24);
             ctx.fillText(cv('canvas.nut'), stringEndX, stringY + 24);
@@ -1874,8 +1959,8 @@
             ctx.stroke();
 
             // Labels
-            ctx.fillStyle = '#6B5B4F';
-            ctx.font = '10px Georgia';
+            ctx.fillStyle = INK_SECOND;
+            ctx.font = canvasFont(11);
             ctx.textAlign = 'left';
             ctx.fillText(cv('canvas.speed',    { v: vizState.bowSpeed.toFixed(2) }), margin, 20);
             ctx.fillText(cv('canvas.pressure', { v: vizState.bowPressure.toFixed(2) }), margin, 34);
@@ -1931,11 +2016,14 @@
 
             // Material-based color
             const mat = vizState.material;
-            let color;
-            if (mat < 0.25) color = '#B8860B';      // membrane (amber)
-            else if (mat < 0.5) color = '#6B8E4E';   // wood (green)
-            else if (mat < 0.75) color = '#4682B4';   // metal (blue)
-            else color = '#D4D4D4';                    // glass (silver)
+            // v1.10.0: the curve keeps its colour; the material NAME is drawn
+            // in the same hue darkened until it clears AA on the paper (4.75).
+            // As text, the curve colours read 2.73 / 3.06 / 3.66 / 1.36.
+            let color, textColor;
+            if (mat < 0.25)      { color = '#B8860B'; textColor = '#835F08'; }   // membrane (amber)
+            else if (mat < 0.5)  { color = '#6B8E4E'; textColor = '#526D3C'; }   // wood (green)
+            else if (mat < 0.75) { color = '#4682B4'; textColor = '#396992'; }   // metal (blue)
+            else                 { color = '#D4D4D4'; textColor = '#656565'; }   // glass (silver)
 
             // Generate 8 resonance peaks based on material and size
             const baseFreqs = [80, 200, 400, 800, 1600, 3200, 6400, 12000];
@@ -1956,8 +2044,8 @@
                 ctx.lineTo(x, margin.top + plotH);
                 ctx.stroke();
 
-                ctx.fillStyle = '#8B7B6F';
-                ctx.font = '8px Georgia';
+                ctx.fillStyle = INK_MUTED;
+                ctx.font = canvasFont(9);
                 ctx.textAlign = 'center';
                 const label = freq >= 1000 ? (freq/1000) + 'k' : freq.toString();
                 ctx.fillText(label, x, h - margin.bottom + 14);
@@ -1974,8 +2062,8 @@
                 ctx.lineTo(margin.left + plotW, y);
                 ctx.stroke();
 
-                ctx.fillStyle = '#8B7B6F';
-                ctx.font = '8px Georgia';
+                ctx.fillStyle = INK_MUTED;
+                ctx.font = canvasFont(9);
                 ctx.textAlign = 'right';
                 ctx.fillText(db + ' dB', margin.left - 4, y + 3);
             });
@@ -2027,16 +2115,16 @@
             ctx.globalAlpha = 1.0;
 
             // Axis labels
-            ctx.fillStyle = '#6B5B4F';
-            ctx.font = '10px Georgia';
+            ctx.fillStyle = INK_SECOND;
+            ctx.font = canvasFont(11);
             ctx.textAlign = 'center';
             ctx.fillText(cv('canvas.frequency'), margin.left + plotW / 2, h - 4);
 
             // Material label
             const matKeys = ['canvas.matMembrane', 'canvas.matWood', 'canvas.matMetal', 'canvas.matGlass'];
             const matIdx = Math.min(3, Math.floor(mat * 4));
-            ctx.fillStyle = color;
-            ctx.font = '11px Georgia';
+            ctx.fillStyle = textColor;
+            ctx.font = canvasFont(11);
             ctx.textAlign = 'right';
             ctx.fillText(cv(matKeys[matIdx]), w - margin.right, 16);
 
@@ -2099,7 +2187,7 @@
             for (let b = 0.05; b <= 0.30; b += 0.05) {
                 const x = betaToX(b);
                 ctx.beginPath(); ctx.moveTo(x, margin.top); ctx.lineTo(x, margin.top + plotH); ctx.stroke();
-                ctx.fillStyle = '#8B7B6F'; ctx.font = '8px Georgia'; ctx.textAlign = 'center';
+                ctx.fillStyle = INK_MUTED; ctx.font = canvasFont(9); ctx.textAlign = 'center';
                 ctx.fillText(b.toFixed(2), x, h - margin.bottom + 14);
             }
 
@@ -2108,7 +2196,7 @@
             pressureGridValues.forEach(p => {
                 const y = logPToY(Math.log10(p));
                 ctx.beginPath(); ctx.moveTo(margin.left, y); ctx.lineTo(margin.left + plotW, y); ctx.stroke();
-                ctx.fillStyle = '#8B7B6F'; ctx.font = '8px Georgia'; ctx.textAlign = 'right';
+                ctx.fillStyle = INK_MUTED; ctx.font = canvasFont(9); ctx.textAlign = 'right';
                 ctx.fillText(p.toString(), margin.left - 4, y + 3);
             });
 
@@ -2188,8 +2276,8 @@
             ctx.stroke();
 
             // Labels
-            ctx.fillStyle = '#6B5B4F';
-            ctx.font = '10px Georgia';
+            ctx.fillStyle = INK_SECOND;
+            ctx.font = canvasFont(11);
             ctx.textAlign = 'center';
             ctx.fillText(cv('canvas.bowPositionAxis'), margin.left + plotW / 2, h - 4);
 
@@ -2200,15 +2288,31 @@
             ctx.restore();
 
             // Legend
-            ctx.font = '9px Georgia';
+            ctx.font = canvasFont(9);
             ctx.textAlign = 'left';
-            ctx.fillStyle = '#4A6B35';
+            ctx.fillStyle = INK_SAGE;
             ctx.fillText(cv('canvas.pMax'), w - margin.right - 95, margin.top + 12);
-            ctx.fillStyle = '#8BA870';
+            ctx.fillStyle = INK_SAGE_MIN;
             ctx.fillText(cv('canvas.pMin'), w - margin.right - 95, margin.top + 24);
+            // v1.10.0: once both names are AA they are near-identical sages, so
+            // the key is carried by a line sample in each boundary's own stroke,
+            // beside the Helmholtz swatch's column.
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#4A6B35';
+            ctx.beginPath();
+            ctx.moveTo(w - margin.right - 105, margin.top + 9);
+            ctx.lineTo(w - margin.right - 97, margin.top + 9);
+            ctx.stroke();
+            ctx.strokeStyle = '#8BA870';
+            ctx.setLineDash([3, 2]);
+            ctx.beginPath();
+            ctx.moveTo(w - margin.right - 105, margin.top + 21);
+            ctx.lineTo(w - margin.right - 97, margin.top + 21);
+            ctx.stroke();
+            ctx.setLineDash([]);
             ctx.fillStyle = 'rgba(107, 142, 78, 0.5)';
             ctx.fillRect(w - margin.right - 105, margin.top + 30, 10, 10);
-            ctx.fillStyle = '#6B5B4F';
+            ctx.fillStyle = INK_SECOND;
             ctx.fillText(cv('canvas.helmholtz'), w - margin.right - 95, margin.top + 39);
 
             ctx.restore();
@@ -2419,7 +2523,7 @@
                 // fires, and nothing would ever re-render it.
                 const container = document.getElementById('tuning-container');
                 container.innerHTML =
-                    '<div class="tuning-error" style="padding:20px;color:#8B7355;font-style:italic;"></div>';
+                    '<div class="tuning-error" style="padding:20px;color:#6A5641;font-style:italic;"></div>';
                 setLabel(container.querySelector('.tuning-error'), 'ui.tuningPanelFailed');
             }
         }
@@ -2453,6 +2557,18 @@
             // Setup default visualization
             setupBowStringCanvas();
             drawBowString();
+
+            // v1.10.0 R5: a canvas rasterises with the face loaded AT DRAW TIME
+            // and never repaints itself. The bow-string canvas repaints every
+            // frame; the two on-demand canvases are flagged for a redraw once
+            // the bundled face has arrived. fonts.load, not fonts.ready, which
+            // can resolve before layout has requested the face.
+            document.fonts.load("10px 'EB Garamond'").then(() => {
+                spectrumNeedsRedraw = true;
+                schellengNeedsRedraw = true;
+                if (activeVizTab === 'bodySpectrum') drawBodySpectrum();
+                else if (activeVizTab === 'schelleng') drawSchelleng();
+            }).catch(() => {});
 
             // Start visualization polling at ~15 Hz
             vizPollTimer = setInterval(pollVisualizationState, 66);
