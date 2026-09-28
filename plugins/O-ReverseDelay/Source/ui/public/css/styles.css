@@ -219,7 +219,13 @@
      5.6:1 on --bg-paper — off the green/brown axis so it reads as a caution,
      not as another label. */
   --warn-text:     #8E4420;
-  --fleuron-color: rgba(60, 47, 47, 0.3);
+  /* v1.22.1: solid walnut, was rgba(60,47,47,0.3) — 1.78:1, the page's only
+     text below AA. Chosen against the DARKEST real ground pixel under each of
+     the four glyphs (gradient + inset shadow, text hidden): the footer-right
+     one sits on #E5D3C1, where this reads 4.77:1. #715D45 fails there (4.30).
+     Same value as O-Bitrot's --text-walnut-deep; still lighter than the
+     footer caption's --brown-frame, so the ornament stays subordinate. */
+  --fleuron-color: #6A5641;
 
   /* v1.22.0 — the face is BUNDLED. 'EB Garamond' is the @font-face family from
      the shared module modules/ui/eb-garamond, served at /css/eb-garamond.css
