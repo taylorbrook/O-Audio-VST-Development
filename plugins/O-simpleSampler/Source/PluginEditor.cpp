@@ -91,6 +91,21 @@ OSimpleSamplerAudioProcessorEditor::getResource (const juce::String& url)
         return makeBinaryResource (UIBinaryData::webviewdropstreaming_js,
                                    UIBinaryData::webviewdropstreaming_jsSize, "application/javascript; charset=utf-8");
 
+    // v1.6.0 (R5): shared EB Garamond face (modules/ui/eb-garamond) — the
+    // stylesheet under /css/, the three woff2 faces under /fonts/ where its
+    // relative url('../fonts/...') lands.
+    if (url == "/css/eb-garamond.css")
+        return makeBinaryResource (UIBinaryData::ebgaramond_css, UIBinaryData::ebgaramond_cssSize, "text/css; charset=utf-8");
+
+    if (url == "/fonts/EBGaramond-Regular.woff2")
+        return makeBinaryResource (UIBinaryData::EBGaramondRegular_woff2, UIBinaryData::EBGaramondRegular_woff2Size, "font/woff2");
+
+    if (url == "/fonts/EBGaramond-Italic.woff2")
+        return makeBinaryResource (UIBinaryData::EBGaramondItalic_woff2, UIBinaryData::EBGaramondItalic_woff2Size, "font/woff2");
+
+    if (url == "/fonts/EBGaramond-Bold.woff2")
+        return makeBinaryResource (UIBinaryData::EBGaramondBold_woff2, UIBinaryData::EBGaramondBold_woff2Size, "font/woff2");
+
     return std::nullopt;
 }
 
