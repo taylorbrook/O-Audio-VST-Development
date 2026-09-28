@@ -2,6 +2,87 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.11.0] - 2026-09-27
+
+**Full review: bugs, simplification, UI gestures.** MINOR: sessions and presets
+now sound the way their names say, and Spring loses a +20 dB low-end boost.
+No parameter ID, range, type or state format changed.
+
+### Fixed
+
+- **12 of 24 factory presets played the wrong reverb type.** The table stored
+  TYPE as sixths (0.167, 0.333, 0.5 …) for a 6-choice parameter whose
+  normalised step is 1/5. JUCE snaps the value to the nearest index, which
+  saved Room and Hall, but every Spring preset ran Hall, every Plate preset
+  ran Spring and every Ambient preset ran Plate, and the dropdown showed the
+  wrong type too. The table is now k/5. `processBlock` also reads TYPE with
+  `roundToInt` rather than `static_cast<int>`: this is defensive, since the
+  snapped raw value is already an integer. A user preset saved from an affected
+  factory preset keeps the type it was saved with.
+- **Spring's "all-pass" chain was a comb cascade.** The feed-forward term had
+  the wrong sign (`y = d + g·(x − g·d)` instead of `y = d − g·v`). Computed
+  from the difference equation, the 3-stage chain was +20.5 dB at DC with
+  −42 dB notches, where an all-pass is flat. It is now a true Schroeder
+  all-pass (flat to ±0.00 dB): the same chirpy dispersion without the
+  low-end boost or the notches. Verified analytically, not by render.
+- **CHARACTER clicked on every large move, not only at centre.** One biquad
+  switched family (low-pass ↔ shelf) and `reset()` at every
+  Warm/Neutral/Bright crossing, and its coefficients jumped once per block
+  with no smoothing. `tests/render-check` measures the peak |second
+  difference| of the wet output with CHARACTER toggled every 8 blocks, against
+  holding it steady: **2154×** (−80↔−10), **762×** (−80↔0) and **332×**
+  (10↔60). CHARACTER is now two filters that always run and never change
+  family, fed a 50 ms smoothed value and re-coefficiented every 32 samples:
+  - **Warm** is a TPT state-variable low-pass (`StateVariableTPTFilter`), the
+    same prewarped Butterworth magnitude as before: 2 kHz..20 kHz, clamped
+    to 0.45·fs. Outside Warm it parks at 0.49·fs, which measures −0.009 dB
+    at 20 kHz @ 44.1 kHz, so Neutral and Bright sound as they did bypassed.
+    −0.5..0 glides between the two.
+  - **Bright** is the same RBJ 4 kHz shelf, at 0 dB outside Bright.
+
+  Now: **1.03×** on the Warm side, and **5×** (about −54 dB) on the Bright side
+  under the same every-43-ms toggling. A biquad low-pass parked near Nyquist
+  was tried first and was worse: its poles sit by z = −1, and its state blows
+  up on the next coefficient change.
+- **LOW CUT clicked when switched on.** It resumed from filter state left over
+  from the last time it ran; it now resets on the off→on edge.
+- **Ambient's early reflections were clamped above 156 kHz.** The fixed
+  9600-sample capacity (50 ms @ 192 kHz) was shorter than Ambient's 61.5 ms.
+  All delay capacities are now sized in ms at the running rate.
+- **The VU meter showed only the last block.** Each block overwrote the peak,
+  and the 30 Hz timer saw about 1 block in 3 at 512 samples. The audio thread
+  now raises a held linear peak (`outputPeak`, CAS max) and the editor
+  `exchange()`s it.
+
+### Added
+
+- **Double-click a knob to reset it** to its default (normalised; DECAY 1.0x = 0.5).
+- **Host gestures on every UI write.** A mouse-wheel burst is one gesture,
+  closed 200 ms after its last notch. The LOW CUT ON/OFF click is bracketed
+  too, so hosts record automation for both.
+- **`tests/render-check`** (`OUARICON_BUILD_TESTS`, target
+  `O-SimpleReverb-render-check`): factory TYPE recall in DSP/host/page,
+  CHARACTER click ratios, an Ambient @ 192 kHz smoke render, VU peak hold.
+
+### Changed
+
+- **A knob drag released outside the window no longer sticks.** The first
+  button-less `mousemove`, or a window `blur`, ends it.
+- **Dead code removed:** `TypePreset::modDepth` (set for six types, never
+  read), the `shimmerFreq` member (now the `kShimmerFreq` constant), the
+  `spec` member (now local to `prepareToPlay`), `CharacterMode`, and a
+  `numSamples > 0` guard behind the early return. The "pitch modulation"
+  comment now says what the code does: ±3 % amplitude modulation.
+
+### Verification
+
+- `tests/render-check`: 9/9 on v1.11.0. The same checks built against the
+  v1.10.0 backup fail 5: 12 presets wrong, and all four click ratios.
+- `check-i18n` all pass; `tests/ui_tip_render_check.js` all pass;
+  `boot-all-uis` no diagnostics. A scripted Playwright pass covered
+  double-click reset, a single wheel gesture, the LOW CUT gesture, stuck-drag
+  release and a normal drag, with no page errors.
+
 ## [1.10.0] - 2026-09-27
 
 **UI legibility pass** (review 260924-nho, R4 + R5). The page now reads on the

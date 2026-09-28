@@ -24,7 +24,7 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    v1.5.6 - Code-review fixes (CR-01..04, WR-01..05)
+    v1.11.0 - Full-review fixes (see CHANGELOG)
 
     Each reverb type now has distinct sonic character:
     - Booth: Tight, immediate, minimal reflections
@@ -54,7 +54,6 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         0.3f,       // earlyReflectionScale (tight)
         0.2f,       // earlyReflectionMix (minimal)
         0.0f,       // modRate (no modulation)
-        0.0f,       // modDepth
         false,      // useAllPass
         false,      // useShimmer
         150.0f,     // eqFreq (high-pass to remove rumble)
@@ -71,7 +70,6 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         1.0f,       // earlyReflectionScale (natural)
         0.4f,       // earlyReflectionMix
         0.0f,       // modRate
-        0.0f,       // modDepth
         false,      // useAllPass
         false,      // useShimmer
         0.0f,       // eqFreq (no EQ)
@@ -88,7 +86,6 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         2.0f,       // earlyReflectionScale (spread out)
         0.5f,       // earlyReflectionMix
         0.15f,      // modRate (very subtle movement)
-        0.3f,       // modDepth
         false,      // useAllPass
         false,      // useShimmer
         3000.0f,    // eqFreq (gentle roll-off)
@@ -105,7 +102,6 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         0.5f,       // earlyReflectionScale
         0.15f,      // earlyReflectionMix (less - spring character dominates)
         4.5f,       // modRate (flutter speed)
-        1.2f,       // modDepth (noticeable wobble)
         true,       // useAllPass (spring dispersion!)
         false,      // useShimmer
         800.0f,     // eqFreq (resonant mid boost)
@@ -122,7 +118,6 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         0.6f,       // earlyReflectionScale
         0.6f,       // earlyReflectionMix (dense early reflections)
         0.0f,       // modRate
-        0.0f,       // modDepth
         false,      // useAllPass
         true,       // useShimmer (plate shimmer!)
         5000.0f,    // eqFreq (bright shelf)
@@ -139,7 +134,6 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         2.5f,       // earlyReflectionScale (very spread)
         0.3f,       // earlyReflectionMix
         0.4f,       // modRate (slow, dreamy movement)
-        2.0f,       // modDepth (deep modulation)
         false,      // useAllPass
         false,      // useShimmer
         2500.0f,    // eqFreq
@@ -244,17 +238,6 @@ OSimpleReverbAudioProcessor::OSimpleReverbAudioProcessor()
 
     // Initialize factory presets (4 per reverb type = 24 total)
     initializeFactoryPresets();
-    // Initialize early reflection delay lines
-    for (auto& delay : earlyReflectionsL)
-        delay.setMaximumDelayInSamples(kMaxEarlyReflectionSamples);
-    for (auto& delay : earlyReflectionsR)
-        delay.setMaximumDelayInSamples(kMaxEarlyReflectionSamples);
-
-    // Initialize all-pass delay lines
-    for (auto& delay : allPassL)
-        delay.setMaximumDelayInSamples(kMaxAllPassSamples);
-    for (auto& delay : allPassR)
-        delay.setMaximumDelayInSamples(kMaxAllPassSamples);
 }
 
 OSimpleReverbAudioProcessor::~OSimpleReverbAudioProcessor() = default;
@@ -264,17 +247,31 @@ void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     currentSampleRate = sampleRate;
 
     // Prepare DSP spec
+    juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
     spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
+
+    // Delay capacities follow the running rate. The pre-1.11.0 fixed 9600-sample
+    // capacity (50 ms @ 192 kHz) clamped Ambient's 61.5 ms early reflections
+    // above 156 kHz.
+    const auto msToSamples = [sampleRate](float ms) {
+        return static_cast<int>(std::ceil(ms * 0.001 * sampleRate)) + 1;
+    };
 
     // Prepare main reverb
     reverb.prepare(spec);
     reverb.reset();
 
     // Prepare filters using template helper
-    prepareFilterAsAllPass(characterFilter, spec, sampleRate);
-    previousMode = CharacterMode::Neutral;
+    warmFilter.prepare(spec);
+    warmFilter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
+    warmFilter.setResonance(1.0f / juce::MathConstants<float>::sqrt2);  // Butterworth, as makeLowPass
+    prepareFilterAsAllPass(brightFilter, spec, sampleRate);
+    characterSmoothed.reset(sampleRate, 0.05);
+    characterSmoothed.setCurrentAndTargetValue(characterParam->load());
+    previousCharacterValue = -1000.0f;  // out of range: forces the first coefficient update
+    updateCharacterCoefficients(characterSmoothed.getCurrentValue());
 
     prepareFilterAsAllPass(typeEqFilter, spec, sampleRate);
 
@@ -285,18 +282,18 @@ void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     lpFilter.reset();
     *lpFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(sampleRate, 200.0f);
     previousLPFreq = -1.0f;
+    previousLPOn = false;
 
-    // Prepare pre-delay lines
-    preDelayL.prepare(spec);
-    preDelayR.prepare(spec);
-    preDelayL.reset();
-    preDelayR.reset();
-
-    // Prepare delay line containers using template helper
-    prepareDelayContainer(earlyReflectionsL, spec);
-    prepareDelayContainer(earlyReflectionsR, spec);
-    prepareDelayContainer(allPassL, spec);
-    prepareDelayContainer(allPassR, spec);
+    // Prepare delay lines
+    for (auto* delay : { &preDelayL, &preDelayR }) {
+        delay->setMaximumDelayInSamples(msToSamples(kMaxPreDelayMs));
+        delay->prepare(spec);
+        delay->reset();
+    }
+    prepareDelayContainer(earlyReflectionsL, spec, msToSamples(kMaxEarlyReflectionMs));
+    prepareDelayContainer(earlyReflectionsR, spec, msToSamples(kMaxEarlyReflectionMs));
+    prepareDelayContainer(allPassL, spec, msToSamples(kMaxAllPassMs));
+    prepareDelayContainer(allPassR, spec, msToSamples(kMaxAllPassMs));
 
     // Reset modulation
     lfoPhase = 0.0f;
@@ -379,16 +376,49 @@ void OSimpleReverbAudioProcessor::updateTypeSpecificDSP(int typeIndex)
     }
 }
 
+void OSimpleReverbAudioProcessor::updateCharacterCoefficients(float characterValue)
+{
+    if (juce::exactlyEqual(characterValue, previousCharacterValue))
+        return;
+    previousCharacterValue = characterValue;
+
+    // Warm (< -0.5): low-pass 2 kHz..20 kHz, the pre-1.11.0 curve (clamped to
+    // 0.45 fs). From 0 up it is parked at 0.49 fs, where the prewarped
+    // low-pass is flat across the audible band, so Neutral and Bright sound as
+    // they did when this filter was bypassed. -0.5..0 glides between the two
+    // so the map has no step for a smoothed crossing to click on.
+    const float fs = static_cast<float>(currentSampleRate);
+    const float warmTopHz = juce::jmin(20000.0f, 0.45f * fs);
+    const float parkHz = 0.49f * fs;
+    float cutoffHz;
+    if (characterValue < -0.5f)
+        cutoffHz = juce::jmin(2000.0f + 18000.0f * juce::jlimit(0.0f, 1.0f, (characterValue + 100.0f) / 99.0f), warmTopHz);
+    else if (characterValue < 0.0f)
+        cutoffHz = juce::jmap(characterValue, -0.5f, 0.0f, warmTopHz, parkHz);
+    else
+        cutoffHz = parkHz;
+    warmFilter.setCutoffFrequency(cutoffHz);  // RT-safe: one tan(), no allocation
+
+    // Bright (> 0.5): +0..6 dB shelf at 4 kHz; otherwise 0 dB (identity).
+    const float brightValue = characterValue > 0.5f ? juce::jlimit(0.0f, 1.0f, characterValue / 100.0f) : 0.0f;
+    *brightFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(
+        currentSampleRate, 4000.0f, 0.707f, juce::Decibels::decibelsToGain(brightValue * 6.0f));  // CR-03: RT-safe, no heap alloc
+}
+
 float OSimpleReverbAudioProcessor::processAllPassChain(float input, bool isLeft)
 {
     float output = input;
     auto& delays = isLeft ? allPassL : allPassR;
 
+    // Schroeder all-pass: v[n] = x[n] + g*v[n-D],  y[n] = v[n-D] - g*v[n]
+    // H(z) = (-g + z^-D) / (1 - g*z^-D), |H| = 1. The pre-1.11.0 form summed
+    // the feed-forward term with the wrong sign, which made the 3-stage chain
+    // a comb cascade (+20.5 dB at DC, -42 dB notches) instead of an all-pass.
     for (int i = 0; i < numAllPassFilters; ++i) {
-        float delayed = delays[i].popSample(0);
-        float feedforward = output + (-allPassCoeff * delayed);
-        delays[i].pushSample(0, output + (allPassCoeff * delayed));
-        output = delayed + (allPassCoeff * feedforward);
+        const float delayed = delays[i].popSample(0);
+        const float v = output + allPassCoeff * delayed;
+        delays[i].pushSample(0, v);
+        output = delayed - allPassCoeff * v;
     }
 
     return output;
@@ -407,7 +437,10 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         buffer.clear(i, 0, buffer.getNumSamples());
 
     // Read parameters (pointers cached in constructor)
-    int typeValue = static_cast<int>(typeParam->load());
+    // TYPE: ROUND the raw choice value, as AudioParameterChoice::getIndex() does.
+    // The raw value is normalised * 5 with no snapping, so truncation played the
+    // type BELOW the one the host and the UI showed for any value not exactly k/5.
+    int typeValue = juce::roundToInt(typeParam->load());
     float characterValue = characterParam->load();
     float sizeValue = sizeParam->load();
     float decayValue = decayParam->load();
@@ -515,7 +548,7 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
             float lfoValue = std::sin(lfoPhase);
 
-            // Apply subtle pitch modulation by varying gain (simpler than true pitch shift)
+            // Subtle amplitude modulation (+/-3%), R channel phase-offset for stereo
             float modGain = 1.0f + (lfoValue * kLfoAmplitudeModulation);
             processedL *= modGain;
             processedR *= (1.0f + (std::sin(lfoPhase + 0.5f) * kLfoAmplitudeModulation));  // Phase offset for stereo
@@ -523,7 +556,7 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
         // === 5. Plate Shimmer (if enabled) ===
         if (preset.useShimmer) {
-            shimmerPhase += (2.0f * juce::MathConstants<float>::pi * shimmerFreq) / static_cast<float>(currentSampleRate);
+            shimmerPhase += (2.0f * juce::MathConstants<float>::pi * kShimmerFreq) / static_cast<float>(currentSampleRate);
             if (shimmerPhase >= 2.0f * juce::MathConstants<float>::pi)
                 shimmerPhase -= 2.0f * juce::MathConstants<float>::pi;
 
@@ -559,45 +592,25 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 
     // === 8. Character Control ===
-    CharacterMode currentMode;
-    if (characterValue < -0.5f)
-        currentMode = CharacterMode::Warm;
-    else if (characterValue > 0.5f)
-        currentMode = CharacterMode::Bright;
-    else
-        currentMode = CharacterMode::Neutral;
-
-    if (currentMode != previousMode) {
-        characterFilter.reset();
-        previousMode = currentMode;
-        previousCharacterValue = characterValue - 1.0f; // Force coefficient update on mode change
-    }
-
-    if (currentMode == CharacterMode::Warm) {
-        if (std::abs(characterValue - previousCharacterValue) > 0.1f) {
-            float warmValue = (characterValue + 100.0f) / 99.0f;
-            warmValue = juce::jlimit(0.0f, 1.0f, warmValue);
-            float cutoffHz = 2000.0f + (18000.0f * warmValue);
-            cutoffHz = juce::jlimit(2000.0f, 20000.0f, cutoffHz);
-            *characterFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass(currentSampleRate, cutoffHz);  // CR-03: RT-safe, no heap alloc
-            previousCharacterValue = characterValue;
-        }
-        characterFilter.process(wetContext);
-    }
-    else if (currentMode == CharacterMode::Bright) {
-        if (std::abs(characterValue - previousCharacterValue) > 0.1f) {
-            float brightValue = characterValue / 100.0f;
-            brightValue = juce::jlimit(0.0f, 1.0f, brightValue);
-            float gainDb = brightValue * 6.0f;
-            float gainLinear = juce::Decibels::decibelsToGain(gainDb);
-            *characterFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(currentSampleRate, 4000.0f, 0.707f, gainLinear);  // CR-03: RT-safe, no heap alloc
-            previousCharacterValue = characterValue;
-        }
-        characterFilter.process(wetContext);
+    // Smoothed (50 ms) and re-coefficiented every kCharacterSubBlock samples,
+    // so a drag or an automation step glides instead of stepping.
+    characterSmoothed.setTargetValue(characterValue);
+    for (int start = 0; start < numSamples; start += kCharacterSubBlock) {
+        const int len = juce::jmin(kCharacterSubBlock, numSamples - start);
+        characterSmoothed.skip(len);
+        updateCharacterCoefficients(characterSmoothed.getCurrentValue());
+        auto sub = wetBlock.getSubBlock(static_cast<size_t>(start), static_cast<size_t>(len));
+        juce::dsp::ProcessContextReplacing<float> subContext(sub);
+        warmFilter.process(subContext);
+        brightFilter.process(subContext);
     }
 
     // === 8.5. User High-Pass / Low Cut Filter (if enabled) ===
     if (lpFilterOn) {
+        // Off -> on: drop the state left from the last time it ran (a click)
+        if (! previousLPOn)
+            lpFilter.reset();
+
         // Update filter coefficients if frequency changed
         if (std::abs(lpFreqValue - previousLPFreq) > 0.5f) {
             *lpFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(currentSampleRate, lpFreqValue);  // CR-03: RT-safe, no heap alloc
@@ -605,9 +618,10 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
         lpFilter.process(wetContext);
     }
+    previousLPOn = lpFilterOn;
 
     // === 9. Dry/Wet Mix (gain-ramped, WR-03) ===
-    const float rampStep = numSamples > 0 ? 1.0f / static_cast<float>(numSamples) : 0.0f;
+    const float rampStep = 1.0f / static_cast<float>(numSamples);  // numSamples > 0 (early return)
     for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
         float* output = buffer.getWritePointer(channel);
         const float* dry = dryBuffer.getReadPointer(channel);
@@ -628,10 +642,10 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         float channelPeak = buffer.getMagnitude(ch, 0, buffer.getNumSamples());
         peakLevel = std::max(peakLevel, channelPeak);
     }
-    float levelDB = peakLevel > 0.00001f
-        ? juce::Decibels::gainToDecibels(peakLevel)
-        : kVuMeterFloorDB;
-    outputLevelDB.store(levelDB, std::memory_order_relaxed);
+    // Raise the held peak; the editor's exchange() resets it once per read
+    float held = outputPeak.load(std::memory_order_relaxed);
+    while (peakLevel > held
+           && ! outputPeak.compare_exchange_weak(held, peakLevel, std::memory_order_relaxed)) {}
 }
 
 #if JUCE_WEB_BROWSER
@@ -699,6 +713,8 @@ void OSimpleReverbAudioProcessor::setStateInformation(const void* data, int size
 
 void OSimpleReverbAudioProcessor::initializeFactoryPresets()
 {
+    // TYPE is normalised over 6 choices: index k -> k / 5 (NOT k / 6 — the
+    // pre-1.11.0 table used sixths, which recalled the wrong type for 20 of 24).
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
         // === BOOTH PRESETS (4) ===
         { "Booth - Vocal Booth", {
@@ -720,91 +736,91 @@ void OSimpleReverbAudioProcessor::initializeFactoryPresets()
 
         // === ROOM PRESETS (4) ===
         { "Room - Small Room", {
-            {"TYPE", 0.167f}, {"CHARACTER", 0.50f}, {"WET", 0.25f}, {"DRY", 1.0f},
+            {"TYPE", 0.2f}, {"CHARACTER", 0.50f}, {"WET", 0.25f}, {"DRY", 1.0f},
             {"DECAY", 0.33f}, {"SIZE", 0.35f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
         { "Room - Live Room", {
-            {"TYPE", 0.167f}, {"CHARACTER", 0.45f}, {"WET", 0.35f}, {"DRY", 1.0f},
+            {"TYPE", 0.2f}, {"CHARACTER", 0.45f}, {"WET", 0.35f}, {"DRY", 1.0f},
             {"DECAY", 0.50f}, {"SIZE", 0.55f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
         { "Room - Studio A", {
-            {"TYPE", 0.167f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
+            {"TYPE", 0.2f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
             {"DECAY", 0.45f}, {"SIZE", 0.50f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
         { "Room - Jazz Club", {
-            {"TYPE", 0.167f}, {"CHARACTER", 0.40f}, {"WET", 0.40f}, {"DRY", 1.0f},
+            {"TYPE", 0.2f}, {"CHARACTER", 0.40f}, {"WET", 0.40f}, {"DRY", 1.0f},
             {"DECAY", 0.55f}, {"SIZE", 0.60f}, {"LPFREQ", 0.26f}, {"LPON", 1.0f}
         }, juce::var() },
 
         // === HALL PRESETS (4) ===
         { "Hall - Concert Hall", {
-            {"TYPE", 0.333f}, {"CHARACTER", 0.50f}, {"WET", 0.35f}, {"DRY", 1.0f},
+            {"TYPE", 0.4f}, {"CHARACTER", 0.50f}, {"WET", 0.35f}, {"DRY", 1.0f},
             {"DECAY", 0.60f}, {"SIZE", 0.75f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
         { "Hall - Cathedral", {
-            {"TYPE", 0.333f}, {"CHARACTER", 0.45f}, {"WET", 0.45f}, {"DRY", 0.85f},
+            {"TYPE", 0.4f}, {"CHARACTER", 0.45f}, {"WET", 0.45f}, {"DRY", 0.85f},
             {"DECAY", 0.80f}, {"SIZE", 0.90f}, {"LPFREQ", 0.21f}, {"LPON", 1.0f}
         }, juce::var() },
         { "Hall - Theater", {
-            {"TYPE", 0.333f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
+            {"TYPE", 0.4f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
             {"DECAY", 0.55f}, {"SIZE", 0.65f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
         { "Hall - Ballroom", {
-            {"TYPE", 0.333f}, {"CHARACTER", 0.60f}, {"WET", 0.40f}, {"DRY", 1.0f},
+            {"TYPE", 0.4f}, {"CHARACTER", 0.60f}, {"WET", 0.40f}, {"DRY", 1.0f},
             {"DECAY", 0.70f}, {"SIZE", 0.80f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
 
         // === SPRING PRESETS (4) ===
         { "Spring - Vintage Spring", {
-            {"TYPE", 0.50f}, {"CHARACTER", 0.45f}, {"WET", 0.35f}, {"DRY", 1.0f},
+            {"TYPE", 0.6f}, {"CHARACTER", 0.45f}, {"WET", 0.35f}, {"DRY", 1.0f},
             {"DECAY", 0.50f}, {"SIZE", 0.50f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
         { "Spring - Surf Guitar", {
-            {"TYPE", 0.50f}, {"CHARACTER", 0.60f}, {"WET", 0.45f}, {"DRY", 1.0f},
+            {"TYPE", 0.6f}, {"CHARACTER", 0.60f}, {"WET", 0.45f}, {"DRY", 1.0f},
             {"DECAY", 0.55f}, {"SIZE", 0.55f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
         { "Spring - Dub Echo", {
-            {"TYPE", 0.50f}, {"CHARACTER", 0.35f}, {"WET", 0.50f}, {"DRY", 0.90f},
+            {"TYPE", 0.6f}, {"CHARACTER", 0.35f}, {"WET", 0.50f}, {"DRY", 0.90f},
             {"DECAY", 0.65f}, {"SIZE", 0.60f}, {"LPFREQ", 0.32f}, {"LPON", 1.0f}
         }, juce::var() },
         { "Spring - Twang", {
-            {"TYPE", 0.50f}, {"CHARACTER", 0.70f}, {"WET", 0.40f}, {"DRY", 1.0f},
+            {"TYPE", 0.6f}, {"CHARACTER", 0.70f}, {"WET", 0.40f}, {"DRY", 1.0f},
             {"DECAY", 0.45f}, {"SIZE", 0.45f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
 
         // === PLATE PRESETS (4) ===
         { "Plate - Studio Plate", {
-            {"TYPE", 0.667f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
+            {"TYPE", 0.8f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
             {"DECAY", 0.50f}, {"SIZE", 0.55f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
         { "Plate - Shimmer Plate", {
-            {"TYPE", 0.667f}, {"CHARACTER", 0.70f}, {"WET", 0.40f}, {"DRY", 1.0f},
+            {"TYPE", 0.8f}, {"CHARACTER", 0.70f}, {"WET", 0.40f}, {"DRY", 1.0f},
             {"DECAY", 0.65f}, {"SIZE", 0.70f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
         { "Plate - Vocal Plate", {
-            {"TYPE", 0.667f}, {"CHARACTER", 0.50f}, {"WET", 0.25f}, {"DRY", 1.0f},
+            {"TYPE", 0.8f}, {"CHARACTER", 0.50f}, {"WET", 0.25f}, {"DRY", 1.0f},
             {"DECAY", 0.45f}, {"SIZE", 0.50f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
         { "Plate - Lush Plate", {
-            {"TYPE", 0.667f}, {"CHARACTER", 0.45f}, {"WET", 0.45f}, {"DRY", 0.95f},
+            {"TYPE", 0.8f}, {"CHARACTER", 0.45f}, {"WET", 0.45f}, {"DRY", 0.95f},
             {"DECAY", 0.70f}, {"SIZE", 0.75f}, {"LPFREQ", 0.26f}, {"LPON", 1.0f}
         }, juce::var() },
 
         // === AMBIENT PRESETS (4) ===
         { "Ambient - Pad Wash", {
-            {"TYPE", 0.833f}, {"CHARACTER", 0.40f}, {"WET", 0.50f}, {"DRY", 0.80f},
+            {"TYPE", 1.0f}, {"CHARACTER", 0.40f}, {"WET", 0.50f}, {"DRY", 0.80f},
             {"DECAY", 0.75f}, {"SIZE", 0.85f}, {"LPFREQ", 0.26f}, {"LPON", 1.0f}
         }, juce::var() },
         { "Ambient - Infinite Drone", {
-            {"TYPE", 0.833f}, {"CHARACTER", 0.35f}, {"WET", 0.60f}, {"DRY", 0.60f},
+            {"TYPE", 1.0f}, {"CHARACTER", 0.35f}, {"WET", 0.60f}, {"DRY", 0.60f},
             {"DECAY", 1.0f}, {"SIZE", 1.0f}, {"LPFREQ", 0.21f}, {"LPON", 1.0f}
         }, juce::var() },
         { "Ambient - Ethereal", {
-            {"TYPE", 0.833f}, {"CHARACTER", 0.55f}, {"WET", 0.55f}, {"DRY", 0.75f},
+            {"TYPE", 1.0f}, {"CHARACTER", 0.55f}, {"WET", 0.55f}, {"DRY", 0.75f},
             {"DECAY", 0.80f}, {"SIZE", 0.90f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
         }, juce::var() },
         { "Ambient - Cloud Nine", {
-            {"TYPE", 0.833f}, {"CHARACTER", 0.50f}, {"WET", 0.65f}, {"DRY", 0.70f},
+            {"TYPE", 1.0f}, {"CHARACTER", 0.50f}, {"WET", 0.65f}, {"DRY", 0.70f},
             {"DECAY", 0.85f}, {"SIZE", 0.95f}, {"LPFREQ", 0.32f}, {"LPON", 1.0f}
         }, juce::var() }
     };

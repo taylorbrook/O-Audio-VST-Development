@@ -1573,6 +1573,39 @@
         // Slider states cache
         const sliderStates = {};
 
+        // v1.11.0: every write is bracketed as a host gesture, so hosts record
+        // automation for the wheel and the LOW CUT switch too, not only drags.
+        // A wheel burst is ONE gesture, closed 200 ms after its last notch.
+        const wheelGestureTimers = {};
+        function wheelNudge(id, state, deltaY) {
+            if (wheelGestureTimers[id]) clearTimeout(wheelGestureTimers[id]);
+            else state.sliderDragStarted();
+            const delta = deltaY < 0 ? 0.02 : -0.02;
+            state.setNormalisedValue(Math.max(0, Math.min(1, state.getNormalisedValue() + delta)));
+            wheelGestureTimers[id] = setTimeout(() => {
+                wheelGestureTimers[id] = null;
+                state.sliderDragEnded();
+            }, 200);
+        }
+
+        function setAsGesture(state, norm) {
+            state.sliderDragStarted();
+            state.setNormalisedValue(norm);
+            state.sliderDragEnded();
+        }
+
+        // Double-click resets a knob to its APVTS default, written NORMALISED.
+        // DECAY 1.0x is 0.5 through its 0.6309 skew; LPFREQ 200 Hz is 180/380.
+        const DEFAULT_NORM = { CHARACTER: 0.5, WET: 0.25, DRY: 1.0, DECAY: 0.5, SIZE: 0.5, LPFREQ: 180 / 380 };
+
+        function endDrag() {
+            if (!dragState.isDragging) return;
+            const state = sliderStates[dragState.target];
+            if (state) state.sliderDragEnded();
+            dragState.isDragging = false;
+            dragState.target = null;
+        }
+
         // Setup standard knobs (all except LPFREQ which has special toggle behavior)
         ['CHARACTER', 'WET', 'DRY', 'DECAY', 'SIZE'].forEach(id => {
             const config = knobConfigs[id];
@@ -1623,19 +1656,22 @@
                 state.sliderDragStarted();
             });
 
+            knobVisual.addEventListener('dblclick', () => setAsGesture(state, DEFAULT_NORM[id]));
+
             // Mouse wheel support
             knobEl.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                const currentNorm = state.getNormalisedValue();
-                const delta = e.deltaY < 0 ? 0.02 : -0.02;
-                const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
-                state.setNormalisedValue(newNorm);
+                wheelNudge(id, state, e.deltaY);
             }, { passive: false });
         });
 
         // Global mouse handlers for knob dragging
         document.addEventListener('mousemove', (e) => {
             if (!dragState.isDragging || !dragState.target) return;
+
+            // Released outside the window: no mouseup ever reached the page, so
+            // the first move back in with no button held ends the drag.
+            if (e.buttons === 0) { endDrag(); return; }
 
             const state = sliderStates[dragState.target];
             if (!state) return;
@@ -1647,17 +1683,8 @@
             state.setNormalisedValue(newNormalised);
         });
 
-        document.addEventListener('mouseup', () => {
-            if (!dragState.isDragging) return;
-
-            const state = sliderStates[dragState.target];
-            if (state) {
-                state.sliderDragEnded();
-            }
-
-            dragState.isDragging = false;
-            dragState.target = null;
-        });
+        document.addEventListener('mouseup', endDrag);
+        window.addEventListener('blur', endDrag);
 
         // ====================================================================
         // LOW CUT FILTER (LPFREQ with LPON toggle) - SVG vine-arc version
@@ -1709,7 +1736,7 @@
             // Toggle on/off by clicking label
             lpfreqValue.addEventListener("click", (e) => {
                 const isOn = lponState.getNormalisedValue() >= 0.5;
-                lponState.setNormalisedValue(isOn ? 0.0 : 1.0);
+                setAsGesture(lponState, isOn ? 0.0 : 1.0);
                 updateDisplay();
                 e.preventDefault();
             });
@@ -1725,13 +1752,12 @@
                 lpfreqState.sliderDragStarted();
             });
 
+            knobVisual.addEventListener('dblclick', () => setAsGesture(lpfreqState, DEFAULT_NORM.LPFREQ));
+
             // Mouse wheel support
             lpfreqKnob.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                const currentNorm = lpfreqState.getNormalisedValue();
-                const delta = e.deltaY < 0 ? 0.02 : -0.02;
-                const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
-                lpfreqState.setNormalisedValue(newNorm);
+                wheelNudge('LPFREQ', lpfreqState, e.deltaY);
             }, { passive: false });
 
             lpfreqState.valueChangedEvent.addListener(updateDisplay);
