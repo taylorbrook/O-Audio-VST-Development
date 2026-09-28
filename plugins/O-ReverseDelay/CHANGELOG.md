@@ -4,6 +4,38 @@ All notable changes to the O-ReverseDelay granular reverse delay.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — there is no earlier release track.
 
+## [1.22.1] — 2026-09-27
+
+The four decorative fleurons now meet WCAG AA. PATCH: one colour token.
+Audio and every other pixel are untouched. This is the Phase C (R4) item from the
+2026-09-24 UI design review, which keeps this page as the reference UI.
+
+### Fixed
+
+- **Fleuron ink.** `--fleuron-color` changes from `rgba(60, 47, 47, 0.3)` to solid
+  `#6A5641`. The old colour measured 1.78:1, and the fleurons were the only text
+  on the page below AA. The new value is the lightest walnut that clears AA on
+  the darkest real ground pixel under each glyph. Those pixels were probed with
+  the text hidden, so the gradient and the frame's inset shadow are both in the
+  sample:
+  - preset bar: 5.81 (left) and 5.48 (right);
+  - footer: 4.97 (left) and 4.77 (right, on `#E5D3C1`).
+  `#715D45` was rejected because it fails at the footer (4.30). `#6A5641` is also
+  O-Bitrot's `--text-walnut-deep`, and it stays lighter than the footer
+  caption's `--brown-frame`.
+
+### Verified
+
+- `measure-ui.js --contrast`: 8 → 4 nodes below AA per language (en/fr/zh-Hans),
+  and 0 under the 9 px floor both before and after (smallest size: 9 px). The 4
+  that remain are the Rate and Taper label and readout inside the deliberately
+  dimmed "inapplicable" cells (`.knob-cell-inert`, opacity 0.38). They are out of
+  scope for this release.
+- `check-ui-labels.js`: 172/172 PASS before and after.
+- `ui_frontend_check.js`: 187/187 PASS before and after.
+- `ui_tooltip_clamp_check.js`: 157/157 PASS before and after.
+- `cdp-font-probe.js`: PASS, with 0 unserved requests.
+
 ## [1.22.0] — 2026-09-25
 
 The UI now ships its own typeface. MINOR: a new bundled face. This is the R5
