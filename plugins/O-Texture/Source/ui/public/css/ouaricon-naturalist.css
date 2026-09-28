@@ -24,26 +24,42 @@
   ==============================================================================
 */
 
+/* v0.6.0 (review 260924-nho R4/R5): the page is on the ouaricon-naturalist-001
+   core. Until v0.5.0 it carried its own paper (#E8DCC8), ink (#3D2817) and
+   green-dark (#4A6B35), none of which any other plugin uses.
+
+   TEXT vs DECORATION. Every colour below that text is set in is WCAG AA
+   (4.5:1) on every ground it sits on; the ratios are in the comments. Walnut
+   and sage are decoration only - walnut is 3.66 on paper and sage 3.06 under
+   cream - so no caption, readout or active label is set in or on them. */
 :root {
-    /* Aged paper palette */
-    --paper-light: #E8DCC8;
-    --paper-medium: #D4C4B0;
-    --paper-dark: #C8B8A0;
-    --paper-darkest: #B8A890;
+    /* Grounds */
+    --paper: #F5E6D3;            /* page, settings popover, tooltip */
+    --paper-mid: #EBD9C7;        /* control plates: buttons, tracks, select */
+    --paper-accent: #D4C4B0;     /* hover plate, XY pad ground */
+    --knob-ring: #C9A27B;        /* foot of the knob face gradient */
 
-    /* Botanical colors */
-    --botanical-green: #6B8E4E;
-    --botanical-green-dark: #4A6B35;
-    --botanical-amber: #8B6914;
+    /* Text (AA) */
+    --ink: #3C2F2F;              /* primary text + rules: 10.45 paper, 7.51 accent */
+    --oak: #5C4033;              /* captions: 7.67 paper, 6.83 mid, 5.51 accent */
+    --text-walnut-mid: #715D45;  /* readouts, disabled captions: 5.11 paper, 4.56 mid */
+    --on-fill: #F5E6D3;          /* cream on --sage-fill: 5.10 */
 
-    /* Brown ink tones */
-    --ink-brown: #3D2817;
-    --ink-light: #5C4A3A;
-    --ink-faded: #7A6A58;
+    /* Decoration only - never text */
+    --walnut: #8B7355;           /* hairlines, disabled borders */
+    --sage: #6B8E4E;             /* slider thumbs, knob pointer, XY trail */
+    --sage-rgb: 107, 142, 78;
+    --sage-fill: #4E6839;        /* active fills behind cream text; tooltip title (5.10 on paper) */
+    --sage-deep: #3C5C1A;        /* active-fill borders, focus rings */
 
-    /* Ice crystal for Freeze */
+    /* Ice crystal for Freeze (this plugin's own motif) */
     --ice-blue: #C8D8E8;
     --ice-blue-light: #D8E8F8;
+
+    /* R5: the bundled house serif (modules/ui/eb-garamond, linked ahead of
+       this sheet). Georgia before Times so an un-loaded face still converges
+       on the suite's fallback; the CJK tail is the v0.5.0 one. */
+    --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * {
@@ -56,9 +72,9 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
-    background: var(--paper-light);
-    color: var(--ink-brown);
+    font-family: var(--font-serif);
+    background: var(--paper);
+    color: var(--ink);
     user-select: none;
     -webkit-user-select: none;
 }
@@ -93,7 +109,7 @@ body::after {
     justify-content: space-between;
     align-items: center;
     padding: 8px 12px;
-    border-bottom: 2px solid var(--ink-brown);
+    border-bottom: 2px solid var(--ink);
     margin-bottom: 12px;
 }
 
@@ -101,7 +117,7 @@ body::after {
     font-size: 20px;
     font-weight: 400;
     letter-spacing: 0.15em;
-    color: var(--ink-brown);
+    color: var(--ink);
 }
 
 /* Mode toggle */
@@ -112,32 +128,39 @@ body::after {
 
 .mode-toggle button {
     padding: 4px 16px;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 13px;
-    background: var(--paper-medium);
-    color: var(--ink-light);
-    border: 1px solid var(--ink-brown);
+    /* v0.6.0: EB Garamond's normal line box is 16 px at 13 px, one more than
+       Georgia's. That grew .header 43 -> 44 and took the pixel from .main-area
+       (306 -> 305). Pinned to the pre-v0.6.0 15 px box so nothing below moves. */
+    line-height: 1.1538;
+    background: var(--paper-mid);
+    color: var(--oak);
+    border: 1px solid var(--ink);
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .mode-toggle button:hover {
-    background: var(--paper-dark);
+    background: var(--paper-accent);
 }
 
 .mode-toggle button.active {
-    background: var(--botanical-green);
-    color: var(--paper-light);
-    border-color: var(--botanical-green-dark);
+    background: var(--sage-fill);
+    color: var(--on-fill);
+    border-color: var(--sage-deep);
 }
 
-.mode-toggle button:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-}
-
+/* v0.6.0: disabled is a GHOST - no plate, a walnut rule, walnut text - NOT
+   opacity. At 0.35 the caption read 1.67:1, illegible rather than inactive.
+   Dropping the plate is what now says "inactive"; the text reads 5.11 on the
+   paper it sits on. */
+.mode-toggle button:disabled,
 .mode-toggle button:disabled:hover {
-    background: var(--paper-medium);
+    background: transparent;
+    color: var(--text-walnut-mid);
+    border-color: var(--walnut);
+    cursor: not-allowed;
 }
 
 /* Main area: XY pad + vertical sliders */
@@ -186,8 +209,8 @@ body::after {
 .xy-pad {
     width: 100%;
     height: 100%;
-    background: var(--paper-dark);
-    border: 2px solid var(--ink-brown);
+    background: var(--paper-accent);
+    border: 2px solid var(--ink);
     box-shadow: inset 4px 4px 8px rgba(0,0,0,0.15);
     cursor: crosshair;
     position: relative;
@@ -231,7 +254,7 @@ body::after {
 
 .vertical-slider .label {
     font-size: 11px;
-    color: var(--ink-light);
+    color: var(--oak);
     margin-bottom: 6px;
     text-align: center;
     letter-spacing: 0.05em;
@@ -240,8 +263,8 @@ body::after {
 .slider-track {
     width: 24px;
     height: 100%;
-    background: var(--paper-medium);
-    border: 1px solid var(--ink-brown);
+    background: var(--paper-mid);
+    border: 1px solid var(--ink);
     box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1);
     position: relative;
     cursor: ns-resize;
@@ -252,15 +275,15 @@ body::after {
     left: -4px;
     width: 32px;
     height: 16px;
-    background: radial-gradient(ellipse at center, var(--botanical-green) 30%, var(--botanical-green-dark) 100%);
-    border: 1px solid var(--ink-brown);
+    background: radial-gradient(ellipse at center, var(--sage) 30%, var(--sage-fill) 100%);
+    border: 1px solid var(--ink);
     border-radius: 50%;
     cursor: ns-resize;
 }
 
 .vertical-slider .value {
     font-size: 10px;
-    color: var(--ink-faded);
+    color: var(--text-walnut-mid);   /* 5.11 on paper (was 3.85) */
     margin-top: 6px;
 }
 
@@ -270,16 +293,19 @@ body::after {
     justify-content: center;
     gap: 8px;
     padding: 8px;
-    border-top: 1px solid var(--ink-faded);
-    border-bottom: 1px solid var(--ink-faded);
+    border-top: 1px solid var(--walnut);
+    border-bottom: 1px solid var(--walnut);
     margin-bottom: 12px;
 }
 
 .source-button {
     width: 60px;
     height: 50px;
-    background: var(--paper-medium);
-    border: 2px solid var(--ink-brown);
+    /* v0.6.0: a <button> does not inherit font-family, so the six captions
+       inside rendered in the UA's Arial until now (CDP: 60 glyphs). */
+    font-family: var(--font-serif);
+    background: var(--paper-mid);
+    border: 2px solid var(--ink);
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
@@ -290,43 +316,54 @@ body::after {
 }
 
 .source-button:hover {
-    background: var(--paper-dark);
+    background: var(--paper-accent);
 }
 
 .source-button.active {
-    background: var(--botanical-green);
-    border-color: var(--botanical-green-dark);
+    background: var(--sage-fill);
+    border-color: var(--sage-deep);
 }
 
-.source-button:disabled {
-    opacity: 0.35;
+/* v0.6.0: dim the GRAPHIC, not the caption. The whole button at opacity 0.35
+   put Metal / Wind / Crowd / Synth / Organic at 1.67:1. The same ghost as the
+   Transform button: no plate, walnut rule; the icon keeps the old dim and the
+   caption is walnut text (5.11 on paper). */
+.source-button:disabled,
+.source-button:disabled:hover {
+    background: transparent;
+    border-color: var(--walnut);
     cursor: not-allowed;
 }
 
-.source-button:disabled:hover {
-    background: var(--paper-medium);
+.source-button:disabled svg {
+    opacity: 0.35;
 }
+
+.source-button:disabled .label {
+    color: var(--text-walnut-mid);
+}
+
 
 .source-button svg {
     width: 24px;
     height: 24px;
-    stroke: var(--ink-brown);
+    stroke: var(--ink);
     stroke-width: 1.5;
     fill: none;
 }
 
 .source-button.active svg {
-    stroke: var(--paper-light);
+    stroke: var(--on-fill);
 }
 
 .source-button .label {
     font-size: 9px;
-    color: var(--ink-light);
+    color: var(--oak);
     letter-spacing: 0.05em;
 }
 
 .source-button.active .label {
-    color: var(--paper-light);
+    color: var(--on-fill);
 }
 
 /* Bottom strip: knobs + freeze toggle */
@@ -356,8 +393,8 @@ body::after {
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, var(--paper-medium), var(--paper-darkest));
-    border: 2px solid var(--ink-brown);
+    background: radial-gradient(circle at 30% 30%, var(--paper-mid), var(--knob-ring));
+    border: 2px solid var(--ink);
     box-shadow:
         inset 2px 2px 4px rgba(0,0,0,0.2),
         2px 2px 4px rgba(0,0,0,0.1);
@@ -369,7 +406,7 @@ body::after {
     left: 50%;
     width: 3px;
     height: 28px;
-    background: var(--botanical-green);
+    background: var(--sage);
     transform-origin: bottom center;
     transform: translate(-50%, -100%) rotate(0deg);
     transition: transform 0.05s;
@@ -377,13 +414,13 @@ body::after {
 
 .knob-label {
     font-size: 11px;
-    color: var(--ink-light);
+    color: var(--oak);
     letter-spacing: 0.05em;
 }
 
 .knob-value {
     font-size: 10px;
-    color: var(--ink-faded);
+    color: var(--text-walnut-mid);   /* 5.11 on paper (was 3.85) */
 }
 
 /* Freeze toggle */
@@ -398,8 +435,8 @@ body::after {
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: var(--paper-medium);
-    border: 2px solid var(--ink-brown);
+    background: var(--paper-mid);
+    border: 2px solid var(--ink);
     cursor: pointer;
     transition: all 0.3s;
     display: flex;
@@ -408,31 +445,31 @@ body::after {
 }
 
 .freeze-button:hover {
-    background: var(--paper-dark);
+    background: var(--paper-accent);
 }
 
 .freeze-button.active {
-    background: var(--botanical-green);
-    border-color: var(--botanical-green-dark);
-    box-shadow: 0 0 16px rgba(107, 142, 78, 0.4);
+    background: var(--sage-fill);
+    border-color: var(--sage-deep);
+    box-shadow: 0 0 16px rgba(var(--sage-rgb), 0.4);
 }
 
 .freeze-button svg {
     width: 32px;
     height: 32px;
-    stroke: var(--ink-brown);
+    stroke: var(--ink);
     stroke-width: 1.5;
     fill: none;
     transition: stroke 0.3s;
 }
 
 .freeze-button.active svg {
-    stroke: var(--paper-light);
+    stroke: var(--on-fill);
 }
 
 .freeze-label {
     font-size: 11px;
-    color: var(--ink-light);
+    color: var(--oak);
     letter-spacing: 0.05em;
     text-transform: uppercase;
 }
@@ -440,9 +477,9 @@ body::after {
 
 /* ===== SETTINGS POPOVER (v0.2.0) =====
    Written in THIS page's vocabulary rather than pasted in from another plugin:
-   the aged-paper fills, the single 1 px --ink-brown rule that .mode-toggle
-   button already uses, the --botanical-green active state that .source-button
-   and .freeze-button use, Garamond, and the 0.05em tracking every small caption
+   the paper fills, the single 1 px --ink rule that .mode-toggle
+   button already uses, the --sage-fill active state that .source-button
+   and .freeze-button use, --font-serif, and the 0.05em tracking every small caption
    here carries.
 
    The cluster is an IN-FLOW flex item beside the h1, inside .header-left. It is
@@ -470,11 +507,11 @@ body::after {
     width: 22px;
     height: 22px;
     padding: 0;
-    background: var(--paper-medium);
-    color: var(--ink-light);
-    border: 1px solid var(--ink-brown);
+    background: var(--paper-mid);
+    color: var(--oak);
+    border: 1px solid var(--ink);
     border-radius: 50%;
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 13px;
     line-height: 1;
     cursor: pointer;
@@ -485,17 +522,17 @@ body::after {
 }
 
 .gear-btn:hover {
-    background: var(--paper-dark);
+    background: var(--paper-accent);
 }
 
 .gear-btn[aria-expanded="true"] {
-    background: var(--botanical-green);
-    color: var(--paper-light);
-    border-color: var(--botanical-green-dark);
+    background: var(--sage-fill);
+    color: var(--on-fill);
+    border-color: var(--sage-deep);
 }
 
 .gear-btn:focus-visible {
-    outline: 2px solid var(--botanical-green-dark);
+    outline: 2px solid var(--sage-deep);
     outline-offset: 2px;
 }
 
@@ -519,8 +556,8 @@ body::after {
     display: flex;
     flex-direction: column;
     gap: 7px;
-    background: var(--paper-light);
-    border: 1px solid var(--ink-brown);
+    background: var(--paper);
+    border: 1px solid var(--ink);
     box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.25);
 }
 
@@ -539,7 +576,7 @@ body::after {
    the row's height and move the control beside it. */
 .settings-label {
     font-size: 11px;
-    color: var(--ink-light);
+    color: var(--oak);
     letter-spacing: 0.05em;
     white-space: nowrap;
 }
@@ -547,17 +584,17 @@ body::after {
 .settings-select {
     flex: 0 0 auto;
     padding: 2px 4px;
-    background: var(--paper-medium);
-    color: var(--ink-brown);
-    border: 1px solid var(--ink-brown);
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    background: var(--paper-mid);
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    font-family: var(--font-serif);
     font-size: 11px;
     line-height: 1.2;
     cursor: pointer;
 }
 
 .settings-select:focus-visible {
-    outline: 2px solid var(--botanical-green-dark);
+    outline: 2px solid var(--sage-deep);
     outline-offset: 1px;
 }
 
@@ -576,10 +613,10 @@ body::after {
    measures — verified with check-ui-labels [7] after the port. */
 .settings-toggle {
   padding: 2px 4px;
-  background: var(--paper-medium);
-  color: var(--ink-brown);
-  border: 1px solid var(--ink-brown);
-  font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+  background: var(--paper-mid);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  font-family: var(--font-serif);
   font-size: 11px;
   line-height: 1.2;
   flex: 0 0 auto;
@@ -590,13 +627,13 @@ body::after {
 }
 
 .settings-toggle[aria-pressed="true"] {
-  background: var(--botanical-green-dark);
-  border-color: var(--botanical-green-dark);
-  color: var(--paper-light);
+  background: var(--sage-fill);
+  border-color: var(--sage-deep);
+  color: var(--on-fill);
 }
 
 .settings-toggle:focus-visible {
-  outline: 2px solid var(--botanical-green-dark);
+  outline: 2px solid var(--sage-deep);
   outline-offset: 1px;
 }
 
@@ -605,10 +642,10 @@ body::after {
 /* ===== HOVER-HELP TOOLTIP (v0.3.0) =====
    Styled in THIS page's vocabulary, not pasted in from another plugin. The
    settings popover is the only other floating surface here, and this wears the
-   same treatment: the aged-paper ground, one 1 px --ink-brown rule, the same
-   3px 3px 8px shadow, Garamond, and the 0.05em uppercase tracking every small
-   caption on this page carries. The title line takes --botanical-green-dark,
-   which is the same ink .source-button.active and .freeze-button.active use.
+   same treatment: the paper ground, one 1 px --ink rule, the same
+   3px 3px 8px shadow, --font-serif, and the 0.05em uppercase tracking every small
+   caption on this page carries. The title line takes --sage-fill, the same
+   green .source-button.active and .freeze-button.active fill with (v0.6.0).
 
    Z-INDEX 1200, AND THAT NUMBER IS LOAD-BEARING. body::after paints a 180 x 180
    fern at z-index 1000 pinned to the bottom-right corner — 10 px in from each
@@ -633,11 +670,11 @@ body::after {
     z-index: 1200;
     max-width: 260px;
     padding: 8px 10px;
-    background: var(--paper-light);
-    color: var(--ink-brown);
-    border: 1px solid var(--ink-brown);
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--ink);
     box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.25);
-    font-family: 'Garamond', 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--font-serif);
     font-size: 12px;
     line-height: 1.4;
     opacity: 0;
@@ -659,7 +696,7 @@ body::after {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--botanical-green-dark);
+    color: var(--sage-fill);   /* 5.10 on paper */
     margin-bottom: 3px;
 }
 

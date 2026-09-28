@@ -5,6 +5,71 @@ All notable changes to O-Texture will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-09-27
+
+**UI legibility pass** (review 260924-nho, R4 + R5). The page moves onto the
+ouaricon-naturalist-001 core — until now it used none of the suite's ink,
+walnut or paper — every text colour meets WCAG AA on the ground it sits on,
+and the house serif is actually rendered. MINOR: visible colour and face
+change; no parameter, range, type, state format or DSP was touched.
+
+### Changed
+
+- **Palette tokens.** `:root` is rebuilt on the core: `--paper` `#F5E6D3`
+  (was `#E8DCC8`), `--paper-mid` `#EBD9C7`, `--paper-accent` `#D4C4B0`,
+  `--ink` `#3C2F2F` (was `#3D2817`), `--oak` `#5C4033`, `--walnut` `#8B7355`,
+  `--sage` `#6B8E4E`. The page's private `#4A6B35`, `#5C4A3A`, `#7A6A58`,
+  `#C8B8A0`, `#B8A890` and the unused `--botanical-amber` are gone. Walnut and
+  sage are decoration only (hairlines, thumbs, knob pointer, XY trail).
+- **AA text colours:**
+  - captions on paper and plates `#5C4A3A` -> `--oak` (7.67 / 6.83; 5.51 on
+    the hover plate);
+  - slider and knob readouts `#7A6A58` -> `--text-walnut-mid` `#715D45`
+    (3.85 -> 5.11);
+  - cream on green (active source, Freeze on, gear open, hover-help On) ->
+    fill `--sage-fill` `#4E6839` (3.06 / 4.50 -> 5.10), border `--sage-deep`;
+  - tooltip title -> `--sage-fill` (5.10 on paper).
+- **Disabled buttons are a ghost, not an opacity.** Transform and the five
+  unshipped sources sat at `opacity: 0.35` (1.67:1). They now drop the plate
+  and take a walnut rule and walnut text (5.11); the source icons keep the
+  0.35 dim.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed: 4
+  binary-data SOURCES, 4 `getResource()` branches, `<link>` ahead of the page
+  sheet). `--font-serif` = `'EB Garamond', 'Georgia', 'Times New Roman',
+  'PingFang SC', 'Microsoft YaHei', serif` replaces the six Garamond/Georgia
+  stacks. The source-button captions were rendering in the UA's **Arial** (a
+  `<button>` does not inherit `font-family`); they now take the serif too.
+- **One line-height pin.** EB Garamond's normal line box is 16 px at 13 px, so
+  the mode buttons grew `.header` 43 -> 44 and took the pixel from the 306 px
+  `.main-area`. `.mode-toggle button` is pinned to its old 15 px box; no
+  structural element moves (15 rects compared before/after in all 3 languages).
+- XY-pad cursor ring `#4A6B35` -> `#4E6839`; editor pre-load fill dark navy
+  `#1A1A2E` -> `--paper`, so the frame no longer flashes navy before the page
+  paints.
+- 9 px floor already held (smallest text is the 9 px source captions).
+- Knob code untouched, so the Family D keyboard/ARIA port from O-ReverseDelay
+  (R7) was not in scope this pass.
+
+### Verification
+
+- `measure-ui --contrast` (en/fr/zh-Hans): **13/24 below AA per language, min
+  1.62 -> 1/24**, 0 under 9 px. The one row is `#gear-btn` captured
+  mid-transition (`transition: all 0.2s`; the reading drifts 3.68-4.27 across
+  runs, fg/bg are interpolated values). Settled it is `#F5E6D3` on `#4E6839`,
+  5.10, confirmed at 150 ms and 600 ms.
+- Real-pixel probe (text hidden, transitions off, 2x, worse of p5/p95 in the
+  glyph band; 6 states x 3 languages incl. settings, hover-help off, Freeze on,
+  source hover, tooltip): **30/72 below AA, min 1.67 -> 0/72, min 5.10**. The
+  fern overlay does not pull the Freeze caption below AA.
+- CDP `getPlatformFontsForNode`: every Latin/digit run on the bundled EB
+  Garamond (before: Georgia + 60 Arial glyphs); Han on PingFang SC; the gear
+  glyph falls back to Menlo as before. 0 404s.
+- `check-ui-labels` ALL PASS, 88 PASS before and after (en/fr/zh-Hans);
+  `check-i18n` pass; `i18n-fr-lint` clean; `i18n-zh-lint` 0 findings;
+  `tests/ui_tip_render_check.js` pass; `boot-all-uis` clean, 0 dead / 0 late
+  bindings; `auval -v aumu OuTx OuDv` pass.
+- Not yet checked hands-on in a DAW (WKWebView face and colours).
+
 ## [0.5.0] - 2026-09-04
 
 **Simplified Chinese.** Every caption, hover-help body and accessible name

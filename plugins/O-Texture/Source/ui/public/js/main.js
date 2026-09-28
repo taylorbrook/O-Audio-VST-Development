@@ -277,7 +277,7 @@ function drawXYPad(normX, normY) {
     ctx.arc(normX * w, (1 - normY) * h, 7, 0, Math.PI * 2);
     ctx.fillStyle = '#6B8E4E';
     ctx.fill();
-    ctx.strokeStyle = '#4A6B35';
+    ctx.strokeStyle = '#4E6839'; // --sage-fill (v0.6.0; was the retired #4A6B35)
     ctx.lineWidth = 2;
     ctx.stroke();
 }
