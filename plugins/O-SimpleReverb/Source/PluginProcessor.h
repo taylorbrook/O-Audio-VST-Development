@@ -24,7 +24,8 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    v1.5.6 - Code-review fixes (CR-01..04, WR-01..05)
+    v1.11.0 - Full-review fixes (TYPE rounding, true Spring all-pass,
+              click-free CHARACTER / LOW CUT, rate-sized delays, VU peak hold)
 
   ==============================================================================
 */
@@ -40,10 +41,11 @@ public:
     // ==================== DSP Constants ====================
     // These named constants replace magic numbers for clarity and tuneability
 
-    // Delay line sizing (samples at 192kHz)
-    static constexpr int kMaxPreDelaySamples = 19200;       // ~100ms at 192kHz
-    static constexpr int kMaxEarlyReflectionSamples = 9600; // ~50ms at 192kHz
-    static constexpr int kMaxAllPassSamples = 960;          // ~5ms at 192kHz
+    // Delay line sizing (ms; converted at the running rate in prepareToPlay).
+    // Each must cover the longest delay any TypePreset asks for:
+    static constexpr float kMaxPreDelayMs = 50.0f;          // Hall pre-delay
+    static constexpr float kMaxEarlyReflectionMs = 62.0f;   // 23 ms x 2.5 (Ambient) x 1.07 (R offset) = 61.5 ms
+    static constexpr float kMaxAllPassMs = 4.0f;            // 3.7 ms x 1.05 (R offset) = 3.9 ms
 
     // Stereo offsets for spatial separation
     static constexpr float kEarlyReflectionStereoOffset = 1.07f;  // 7% L/R offset
@@ -52,7 +54,7 @@ public:
     // Modulation amounts
     static constexpr float kLfoAmplitudeModulation = 0.03f;  // ±3% amplitude modulation
     static constexpr float kShimmerMixAmount = 0.08f;        // 8% shimmer mix
-    static constexpr float kDefaultShimmerFreq = 1500.0f;    // ~1.5kHz ring modulation
+    static constexpr float kShimmerFreq = 1500.0f;           // ~1.5kHz ring modulation
 
     // Early reflection base times (ms) - prime numbers for natural sound
     static constexpr std::array<float, 4> kBaseEarlyDelaysMs = { 7.0f, 11.0f, 17.0f, 23.0f };
@@ -99,8 +101,10 @@ public:
     juce::AudioProcessorValueTreeState parameters;
     OuariconPresetManager presetManager;
 
-    // VU Meter - output level for WebView (thread-safe)
-    std::atomic<float> outputLevelDB { kVuMeterFloorDB };
+    // VU Meter - linear output peak HELD until the editor reads it. The audio
+    // thread raises it (max), the editor timer exchange()s it back to 0, so a
+    // peak in any block between two 30 Hz reads reaches the meter.
+    std::atomic<float> outputPeak { 0.0f };
 
     // ------------------------------------------------------------------------
     // v1.6.0 - the UI language. 0 = en, 1 = fr.
@@ -134,19 +138,24 @@ private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     // DSP Components
-    juce::dsp::ProcessSpec spec;
     juce::dsp::Reverb reverb;
-    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> characterFilter;
-
-    // Character filter mode tracking
-    enum class CharacterMode { Warm, Neutral, Bright };
-    CharacterMode previousMode = CharacterMode::Neutral;
+    // CHARACTER = two filters that ALWAYS run and never change family: a Warm
+    // low-pass (parked near Nyquist unless warm) into a Bright high shelf (0 dB
+    // unless bright). Switching one biquad between low-pass and shelf, or
+    // resetting it, clicked at every crossing of centre. The low-pass is a TPT
+    // state-variable filter: a biquad parked near Nyquist has poles by z = -1
+    // and its state explodes on the next coefficient change.
+    juce::dsp::StateVariableTPTFilter<float> warmFilter;
+    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> brightFilter;
+    juce::SmoothedValue<float> characterSmoothed;
+    static constexpr int kCharacterSubBlock = 32;  // coefficient update interval (samples)
+    void updateCharacterCoefficients(float characterValue);
 
     // === Type-Specific DSP Components (v1.1.0) ===
 
     // Pre-delay line
-    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayL { kMaxPreDelaySamples };
-    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayR { kMaxPreDelaySamples };
+    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayL;
+    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayR;
 
     // Early reflection comb filters (4 per channel for density)
     static constexpr int numEarlyReflections = 4;
@@ -154,14 +163,14 @@ private:
     std::array<juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>, numEarlyReflections> earlyReflectionsR;
     std::array<float, numEarlyReflections> earlyReflectionGains = { 0.7f, 0.5f, 0.35f, 0.25f };
 
-    // All-pass diffusers for Spring dispersion (creates metallic chirp)
+    // Schroeder all-pass diffusers for Spring dispersion (flat magnitude, chirpy phase)
     static constexpr int numAllPassFilters = 3;
     std::array<juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>, numAllPassFilters> allPassL;
     std::array<juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>, numAllPassFilters> allPassR;
     std::array<float, numAllPassFilters> allPassDelayMs = { 1.5f, 2.3f, 3.7f };  // Prime-ish ratios
     float allPassCoeff = 0.6f;  // Feedback coefficient
 
-    // Modulation LFO for Spring flutter and Ambient movement
+    // Amplitude-modulation LFO for Spring flutter and Hall/Ambient movement
     float lfoPhase = 0.0f;
     float lfoIncrement = 0.0f;
 
@@ -171,10 +180,10 @@ private:
     // Lowpass filter for wet signal (user-controlled, 20-400Hz)
     juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> lpFilter;
     float previousLPFreq = -1.0f;
+    bool previousLPOn = false;
 
     // Shimmer for Plate (octave-up pitch shift approximation via ring modulation)
     float shimmerPhase = 0.0f;
-    float shimmerFreq = kDefaultShimmerFreq;
 
     // Pre-allocated buffers (sized in prepareToPlay — CR-04)
     juce::AudioBuffer<float> dryBuffer;
@@ -197,7 +206,7 @@ private:
     // State tracking
     int previousType = -1;
     double currentSampleRate = 44100.0;
-    float previousCharacterValue = 0.0f;
+    float previousCharacterValue = 0.0f;   // seeded out of range in prepareToPlay
 
     // Type preset structure (expanded)
     struct TypePreset {
@@ -208,7 +217,6 @@ private:
         float earlyReflectionScale; // Scale factor for early reflection times
         float earlyReflectionMix;   // How much early reflections to mix in
         float modRate;              // LFO rate in Hz (0 = no modulation)
-        float modDepth;             // Modulation depth in ms
         bool useAllPass;            // Enable all-pass dispersion (Spring)
         bool useShimmer;            // Enable shimmer effect (Plate)
         float eqFreq;               // Type-specific EQ frequency
@@ -226,8 +234,9 @@ private:
 
     // Template helpers to reduce initialization code duplication
     template<typename DelayContainer>
-    void prepareDelayContainer(DelayContainer& delays, const juce::dsp::ProcessSpec& spec) {
+    void prepareDelayContainer(DelayContainer& delays, const juce::dsp::ProcessSpec& spec, int maxDelaySamples) {
         for (auto& delay : delays) {
+            delay.setMaximumDelayInSamples(maxDelaySamples);
             delay.prepare(spec);
             delay.reset();
         }

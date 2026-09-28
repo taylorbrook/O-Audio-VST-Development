@@ -250,8 +250,11 @@ OSimpleReverbAudioProcessorEditor::~OSimpleReverbAudioProcessorEditor()
 //==============================================================================
 void OSimpleReverbAudioProcessorEditor::timerCallback()
 {
-    // VU Meter - emit output level to WebView
-    const float outputDB = processorRef.outputLevelDB.load(std::memory_order_relaxed);
+    // VU Meter - emit the peak held since the last read, then clear it
+    const float peak = processorRef.outputPeak.exchange(0.0f, std::memory_order_relaxed);
+    const float outputDB = peak > 0.00001f
+        ? juce::Decibels::gainToDecibels(peak)
+        : OSimpleReverbAudioProcessor::kVuMeterFloorDB;
     webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);
 }
 
