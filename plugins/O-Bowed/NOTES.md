@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.4
+- **Version:** 1.10.0
 - **Type:** Synth (Physical Model Bowed String)
 
 ## Lifecycle Timeline
@@ -62,6 +62,12 @@
   scala-tuning-engine 3.2.0 `setKbmReferenceFrequency()`. Save .kbm writes the real reference
   frequency. The harness gained `--kbm` / `--kbm-roundtrip` / `--save-kbm`. The default render is
   byte-identical (`c8aa14d6…`).
+- **2026-09-27 (v1.10.0):** UI pass from design review 260924-nho (R4/R5). Text colours are AA
+  from the naturalist template, nothing is under the 9px floor, and the page uses the bundled
+  EB Garamond (`modules/ui/eb-garamond`, direct embed, 4 `getResource()` branches). The
+  canvases got AA inks, the floor and the face too. measure-ui `--contrast`: 49/140 → 0/140 below
+  AA per language. The real-ground probe min went 1.43 → 4.51. check-ui-labels 172 PASS. Knob
+  interaction JS untouched (R7 still open). No DSP/param/state change.
 
 ## Known Issues
 

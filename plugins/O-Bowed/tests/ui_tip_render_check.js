@@ -221,9 +221,12 @@ const READ_TIP = `() => {
     const { I18N, TIP_BINDINGS, LANGUAGES } = loadTable(i18nSrc);
     // v1.7.0: THREE chrome anchors, not two — #tips-toggle joined #gear-btn and
     // #lang-select when the settings popover grew a hover-help switch.
-    check(Array.isArray(TIP_BINDINGS) && TIP_BINDINGS.length === 31,
-        `TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} anchor(s), expected 31 `
-        + `(${KNOB_COUNT} parameters with a control + #gear-btn + #lang-select + #tips-toggle)`);
+    // v1.10.0: 32 — v1.9.3 (CR-03) bound #tuning-system-select, the tuning
+    // overlay's Tuning System selector, and this count was never moved with it.
+    check(Array.isArray(TIP_BINDINGS) && TIP_BINDINGS.length === 32,
+        `TIP_BINDINGS parsed from js/i18n.js — ${TIP_BINDINGS.length} anchor(s), expected 32 `
+        + `(${KNOB_COUNT} parameters with a control + #gear-btn + #lang-select + #tips-toggle `
+        + `+ #tuning-system-select)`);
     // ── the language list, DERIVED ──────────────────────────────────────────
     // This gate used to pin the joined list to a literal. That assertion goes
     // red on the first day the plugin gains a language, which is the one day a
@@ -409,12 +412,18 @@ const READ_TIP = `() => {
     // #lang-select lives inside a popover that ships hidden, so it is not
     // hoverable until the gear is clicked. Everything else is reachable at rest.
     const NEEDS_POPOVER = new Set(['#lang-select']);
+    // v1.10.0: #tuning-system-select lives in the tuning overlay, which also ships
+    // closed. It is the LAST binding, so opening the overlay for it cannot cover
+    // an anchor still to be hovered; the sweep closes it again on the way out so
+    // the next language starts from the page at rest.
+    const NEEDS_TUNING = new Set(['#tuning-system-select']);
 
     const placement = { flippedLeft: 0, flippedUp: 0, onRail: 0, total: 0 };
 
     const sweep = async (lang) => {
         console.log(`\n-- ${lang.toUpperCase()}: hover every anchor, byte-compare, measure the rect`);
         let popoverOpen = false;
+        let tuningOpen = false;
         const seen = [];
         for (const [sel, key] of TIP_BINDINGS) {
             const entry = (I18N[key] || {})[lang];
@@ -424,6 +433,12 @@ const READ_TIP = `() => {
                 await page.click('#gear-btn', { force: true });
                 await page.waitForSelector('#settings-popover:not([hidden])', { timeout: 2000 });
                 popoverOpen = true;
+            }
+
+            if (NEEDS_TUNING.has(sel) && !tuningOpen) {
+                await page.click('#tuning-toggle', { force: true });
+                await page.waitForSelector('#tuning-overlay.open', { timeout: 2000 });
+                tuningOpen = true;
             }
 
             const hs = hoverSelFor(sel);
@@ -473,6 +488,10 @@ const READ_TIP = `() => {
         if (popoverOpen) {
             await page.keyboard.press('Escape');       // also clears the focus latch
             await page.waitForTimeout(150);
+        }
+        if (tuningOpen) {
+            await page.click('#tuning-toggle', { force: true });
+            await page.waitForSelector('#tuning-overlay:not(.open)', { state: 'attached', timeout: 2000 });
         }
         return seen;
     };

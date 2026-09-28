@@ -2,6 +2,44 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.10.0] - 2026-09-27
+
+The UI pass from design review 260924-nho: AA text colours from `ouaricon-naturalist-001` (R4), the template's 9px floor, and the bundled EB Garamond face (R5). It is MINOR because the change is visible. No parameter, range, type or state format changed, and no DSP or processor file was touched. The only C++ change is four `getResource()` branches for the font files. The knob interaction JS is untouched, so R7 (keyboard/ARIA knobs from O-ReverseDelay) stays open for this plugin.
+
+### Changed
+- **Text colours are AA** (tokens in `:root`):
+  - **Section, settings, Impossible and humanize-column captions:** `--brown-text-lighter` moves `#8B7B6F → #715D45`, the template's walnut that is safe on either paper tone. It read 3.32 on the paper and 3.10 on the right panel's real ground, where the section boxes sit over the botanical plate. It now reads 5.11 / 5.38.
+  - **Active viz tab:** new `--green-text` `#476733` (4.53 on `--bg-paper-dark`, was 4.26). `--green-dark` stays for fills and borders.
+  - **Hover-help On:** the fill is `--leaf-fill` `#4E6839`. Paper text on it reads 5.10, up from 3.06.
+  - **"Ouaricon" in the header:** a solid `--brand-ink` `#C7B4A3` (4.69) replaces `opacity: 0.5` (3.21).
+  - **Tuning panel,** page-local under `#tuning-container` because the shared `tuning-panel.css` has five consumers and stays byte-frozen. The values are O-MicrotonalSampler v1.28.0's. `--tuning-text-muted` `#8B7355 → #6A5641` (2.19–4.14 → 5.68 on paper). The Generate and Export HTML buttons move to white on `#4E6839` (6.24, was 1.43 / 2.10 on `#8BC34A`). The panel's load-error message moves to the same ink.
+- **9px floor.** Knob captions, humanize column heads and the tuning Matrix and Rotation tables move from 8px to 9px.
+  - **Humanize column heads are now sentence case.** The four columns are 39.75px wide with a 1px gap, and the uppercase heads never fitted them. "PRESSURE" and "POSITION" already ran together in English at 8px. At 9px French added "PRESSIONPOSITIONCOLOPH.". Sentence case fits every head in all three languages.
+  - **The Impossible row's three controls are 72px wide** (were 62px). At 9px "Rev. Friction" is 68px and would have ellipsized under the 64px caption cap. The row is centred with about 250px of slack.
+- **Bundled EB Garamond** from `modules/ui/eb-garamond`, by direct embed: 4 `SOURCES` lines, 4 `getResource()` branches, and `/css/eb-garamond.css` linked before `tuning-panel.css`. `--font-serif` replaces the three hand-written stacks. The bare `'Garamond'` entry is dropped so an Office-installed Windows Garamond cannot outrank the bundled face. Before, the page resolved to Georgia.
+  - **Readouts go from 9px to 10px** (knob, humanize and footer). EB Garamond's x-height is smaller than Georgia's, so at one size the italic readouts drew about 22% narrower than at v1.9.4. The 12px min-height already holds the 10px line box, so no row grows.
+  - **The preset ◀ ▶ go from 14px to 17px.** EB Garamond draws the triangles about 25% smaller. The 28×28 buttons are fixed, so nothing moves.
+- **Canvases** (none of this is visible to measure-ui; the ratios are computed against the opaque `#F5E6D3` each canvas paints first):
+  - **Face.** Every `ctx.font` uses the bundled face through `canvasFont()`. The two on-demand canvases repaint after `document.fonts.load("10px 'EB Garamond'")`. The bow-string canvas repaints every frame anyway.
+  - **Sizes.** Tick labels go from 8px to 9px. Readouts and axis titles go from 10px to 11px, for the same x-height reason as the DOM readouts.
+  - **Inks.** Tick labels and Bridge / Nut take `#715D45` (was `#8B7B6F`, 3.32).
+  - **Material name** (Body Spectrum) is drawn in its curve's hue, darkened to 4.75: amber `#835F08`, wood `#526D3C`, metal `#396992`, glass `#656565`. As text, the curve colours read 2.73 / 3.06 / 3.66 / 1.36. The curves keep their colours.
+  - **Schelleng legend.** P_min moves to `#586B47` (was `#8BA870`, 2.16). Both boundary names are now close sages, so the key moves into a solid and a dashed line sample in each boundary's own stroke, beside the Helmholtz swatch.
+
+### Measured (v1.9.4 → v1.10.0, served page at the shipping 900×600 frame, en / fr / zh-Hans)
+
+| Gate | Before | After |
+|---|---|---|
+| `measure-ui.js --contrast`, per language | 49 / 140 below AA (35%), 35 under 9px, min 2.10 | 0 / 140, 0 under 9px, min 4.51 |
+| Real-ground pixel probe (text hidden, 2× capture, p5/p95 under each glyph band; 7 states × 3 languages) | 330 / 1611 below AA, min 1.43 | 9 / 1612, all clip artefacts (below); min 4.51 without them |
+| `check-ui-labels.js` | ALL PASSED (172) | ALL PASSED (172) |
+| `check-i18n.js`, `i18n-fr-lint.js`, `i18n-zh-lint.js` | pass | pass |
+| `tests/ui_tip_render_check.js` | FAIL (stale anchor count, hidden anchor) | ALL CHECKS PASSED (680) |
+
+- **The 9 probe residues are never painted.** In each of the three languages there are three: `#btn-generate` sits inside the collapsed generator section and below the overlay's clip edge, and interval row 8's degree and unit straddle the interval list's scroll edge (text 391–401, list clips at 397). Both are sampled over whatever is behind the clip. On their real grounds the new inks read 6.24 and 5.72–6.31.
+- **`tests/ui_tip_render_check.js` was red since v1.9.3, and it is fixed here.** v1.9.3 (CR-03) bound a tip to `#tuning-system-select`, but the gate kept expecting 31 anchors and tried to hover the selector inside the closed tuning overlay (`page.hover: Element is not visible`). A clean v1.9.4 tree fails the same way, which is the negative control. The gate now expects 32 anchors. It opens the overlay for that anchor (the last binding, so it covers nothing still to be hovered) and closes it before the next language. Result: ALL CHECKS PASSED (680), and the Tuning System tip is byte-compared and rect-checked in en, fr and zh-Hans.
+- **Not changed:** the shared `tuning-panel.js` polar canvas still draws its dots with `#8B7355`. That is module code with five consumers, and the dots are marks, not text.
+
 ## [1.9.4] - 2026-09-24
 
 KBM reference note. PATCH. No parameter ID, range or type changed. The default
