@@ -1,7 +1,7 @@
 # O-Texture — Development Notes
 
 **Status:** 📦 Installed
-**Version:** 0.1.2
+**Version:** 0.6.0
 
 ## Known Limitations
 
@@ -29,6 +29,12 @@
 
 ## Timeline
 
+- **2026-09-27 — v0.6.0**: UI legibility pass (review 260924-nho R4/R5). Palette
+  moved onto the naturalist core (paper/ink/oak/walnut/sage) with AA text
+  variants; disabled mode/source buttons are a walnut ghost instead of opacity
+  0.35; bundled EB Garamond via `--font-serif` (source-button captions were
+  Arial). measure-ui 13/24 → 1/24 below AA (a mid-transition capture, settled
+  5.10); pixel probe 30/72 → 0/72. No DSP change.
 - **2026-07-15 — v0.1.2**: Resolved CODE_REVIEW.md IN-01, IN-03–IN-10. ANIRA
   unlinked (ORT linked directly; fetch kept as ORT provisioner), arch-correct ORT
   dylib path, encoder/prior.onnx dropped from BinaryData, dead `decoderReady` and

@@ -156,7 +156,9 @@ TextureEditor::~TextureEditor()
 
 void TextureEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(0xff1a1a2e));
+    // v0.6.0: the page's --paper, so the frame before the WebView paints is
+    // the same ground and not a dark navy flash.
+    g.fillAll(juce::Colour(0xfff5e6d3));
 }
 
 void TextureEditor::resized()
@@ -221,6 +223,37 @@ TextureEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource{
             makeVector(BinaryData::main_js, BinaryData::main_jsSize),
             juce::String("application/javascript")};
+    }
+
+    // v0.6.0 (R5): shared EB Garamond face (modules/ui/eb-garamond) — the
+    // stylesheet under /css/, the three woff2 faces under /fonts/ where its
+    // relative url('../fonts/...') lands.
+    if (url == "/css/eb-garamond.css")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::ebgaramond_css, BinaryData::ebgaramond_cssSize),
+            juce::String("text/css")};
+    }
+
+    if (url == "/fonts/EBGaramond-Regular.woff2")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::EBGaramondRegular_woff2, BinaryData::EBGaramondRegular_woff2Size),
+            juce::String("font/woff2")};
+    }
+
+    if (url == "/fonts/EBGaramond-Italic.woff2")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::EBGaramondItalic_woff2, BinaryData::EBGaramondItalic_woff2Size),
+            juce::String("font/woff2")};
+    }
+
+    if (url == "/fonts/EBGaramond-Bold.woff2")
+    {
+        return juce::WebBrowserComponent::Resource{
+            makeVector(BinaryData::EBGaramondBold_woff2, BinaryData::EBGaramondBold_woff2Size),
+            juce::String("font/woff2")};
     }
 
     // Images

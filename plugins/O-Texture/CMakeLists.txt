@@ -39,7 +39,7 @@ juce_add_plugin(${PROJECT_NAME}
     PLUGIN_CODE OuTx
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Texture${OUARICON_DEV_SUFFIX}"
-    VERSION 0.5.0
+    VERSION 0.6.0
     IS_SYNTH TRUE
     # MIDI input is required by the AU spec for MusicDevice (aumu) — auval
     # fails without it — even though v0.1.x ignores all MIDI (IN-07).
@@ -129,6 +129,13 @@ juce_add_binary_data(${PROJECT_NAME}_UIResources
         # assertion 8 exists for exactly this pair.
         Source/ui/public/js/i18n.js
         Source/ui/public/img/fern.png
+        # v0.6.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module (modules/ui/eb-garamond). Each file is ALSO served from a
+        # getResource() branch in PluginEditor.cpp.
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(${PROJECT_NAME}
