@@ -97,6 +97,7 @@ const MIME = {
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
     '.webp': 'image/webp',
+    '.woff2': 'font/woff2',
 };
 
 let failed = 0;
@@ -115,6 +116,17 @@ function buildRoot() {
     fs.cpSync(publicDir, root, { recursive: true });
     fs.copyFileSync(path.join(pluginRoot, 'tests', 'ui-stub', 'juce-stub.js'),
                     path.join(root, 'js', 'juce', 'index.js'));
+    // v1.17.0 (R5): the bundled EB Garamond lives in modules/ui/eb-garamond,
+    // OUTSIDE publicDir, and the resource provider serves it at /css/ and
+    // /fonts/. A tree copied from publicDir alone 404s it and every width here
+    // is measured on the Times fallback
+    // (pattern_hand_built_gate_tree_404s_module_embedded_assets).
+    const ebg = path.join(pluginRoot, '..', '..', 'modules', 'ui', 'eb-garamond');
+    fs.mkdirSync(path.join(root, 'css'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'fonts'), { recursive: true });
+    fs.copyFileSync(path.join(ebg, 'css', 'eb-garamond.css'), path.join(root, 'css', 'eb-garamond.css'));
+    for (const f of ['EBGaramond-Regular.woff2', 'EBGaramond-Italic.woff2', 'EBGaramond-Bold.woff2'])
+        fs.copyFileSync(path.join(ebg, 'fonts', f), path.join(root, 'fonts', f));
     return root;
 }
 
@@ -287,6 +299,14 @@ function serve(root) {
         `the module ran and bound the knobs — ${boundReadouts}/${expectedReadouts} readouts populated`);
     check(consoleErrors.length === 0,
         'no console errors on load' + (consoleErrors.length ? ` — ${consoleErrors[0]}` : ''));
+
+    // v1.17.0 (R5): measure on the face that ships. With font-display:block a
+    // missing face is invisible text, not a visible fallback, so assert it.
+    const ebgLoaded = await page.evaluate(async () => {
+        await document.fonts.ready;
+        return [...document.fonts].some(f => f.family.replace(/["']/g, '') === 'EB Garamond' && f.status === 'loaded');
+    });
+    check(ebgLoaded, 'the bundled EB Garamond face loaded (not the Times fallback)');
 
     // Real viewport, not a guess.
     const vp = await page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));

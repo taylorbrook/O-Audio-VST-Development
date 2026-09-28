@@ -2,6 +2,125 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.17.0] - 2026-09-27
+
+UI pass: WCAG AA text, a 9 px floor and the bundled EB Garamond. It follows the
+review 260924-nho, recommendations R4 and R5. MINOR: the restyle is visible, and
+nothing else changes. **No DSP, parameter, range, default, preset or state
+change.** Nothing under `Source/dsp` or in `PluginProcessor.*` moved. The knob
+interaction JS is also untouched, so R7 (keyboard/ARIA knobs from
+O-ReverseDelay) stays open for this plugin.
+
+### Changed
+
+- **Every colour a user has to read is now a solid AA ink**, taken from
+  ouaricon-naturalist-001's Text Contrast table. Opacity and rgba alpha are kept
+  only for decoration (fleurons, rules, the specimen).
+  - Marginal notes (`.annot`) were `rgba(92,64,51,0.7)`. They now use
+    `--text-walnut-deep` `#6A5641`, the template's gradient-safe walnut, at
+    5.68 on `#F5E6D3`. `#715D45` was tried first and bottomed out at exactly
+    4.50 on the real pixels under the Vinyl plate's note.
+  - The settings-popover labels were `#8B7355` (3.83). They now use the same
+    walnut.
+  - The header imprint (`.plate`, alpha 0.8, 3.23 on bare paper) and the
+    `.brand` line (4.52) now use `--brown-text`.
+  - The preset caret was `rgba(92,64,51,0.75)`. It is now solid `--brown-frame`.
+  - The active preset row was paper-light on the knob-ring tan (about 2.2). Its
+    text is now `--brown-text`.
+- **The one active vocabulary is opaque.** `.en.on`, `.seg button.sel`,
+  `.edge-btn.on`, the gear, the help toggle and the settings toggle used
+  `rgba(107,142,35,0.55)`, which let the paper image through the button. They
+  now take `--active-fill` `#A9B672`, which is that rgba pre-composited over
+  `#F5E6D3`, so nothing changes on clean paper. `#2C3E10` on it is 5.33.
+- **OFF dims the control graphics, never the words.** Four of the seven families
+  ship OFF. Their whole body sat at opacity 0.45 and the caption at 0.55, which
+  put 249 caption, 210 readout and 51 note rows at 1.6–2.5:1 on the real
+  pixels. That was the largest block of unreadable text on the page.
+  - The knob keeps the 0.45 fade, now transitioned on the knob itself.
+  - Segment and dropdown chrome lightens. A selected segment in an OFF family
+    takes `--active-fill-off` `#CECDA2` with `#5C4033` text (5.76).
+  - Captions, labels, readouts and notes switch to the walnut ink, so an OFF
+    family still reads quieter than an ON one.
+  - `pointer-events` gating is unchanged.
+- **The plates are 0.85 opaque, up from 0.66.** They sit over `paper.jpg` and the
+  Sowerby specimen (opacity 0.9), and the specimen's darkest strokes pulled
+  `#5C4033` captions under the Vinyl and Crush plates to 4.4. The specimen still
+  shows through the plates, but more faintly than before.
+- **9 px floor.**
+  - `.annot` goes from 8.5 to 9 px. Its line-height pin moves from 10/8.5 to
+    10/9, so the 10 px line box is held.
+  - The Hard Edges fleuron goes from 8 to 9 px, with its pin moved to 9/9 to
+    hold the same 9 px box.
+  - The ◀ ▶ preset arrows go from 8 to 10 px. EB Garamond draws the triangles
+    about 25% smaller than Times, and 10 px restores the v1.16.0 glyph size
+    (checked on a before/after crop at 2×).
+  - The ▾ caret stays at 8 px as an aria-hidden icon.
+- **Fleurons are out of the accessibility tree.** The two corner marks, the
+  wordmark fleuron and the Hard Edges fleuron now carry `aria-hidden="true"`,
+  so the button's accessible name is no longer "Hard Edges❦".
+
+### Added
+
+- **The bundled EB Garamond (`modules/ui/eb-garamond`, R5).** Through v1.16.0,
+  `--serif` named 'EB Garamond' first but nothing shipped it, so the page
+  rendered in Times New Roman.
+  - Four SOURCES were added to the one `OBitrot_UIResources` target and four
+    `getResource()` branches were added (`/css/eb-garamond.css`, three
+    `/fonts/*.woff2`). The stylesheet is linked ahead of the inline `<style>`.
+  - The stack is now `'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC',
+    'Microsoft YaHei', serif`. The bare `'Garamond'` and
+    `'Adobe Garamond Pro'` are dropped, because ahead of the bundled face they
+    let an Office-installed Garamond win on Windows.
+  - CDP `CSS.getPlatformFontsForNode` confirms every Latin run resolves to EB
+    Garamond in en, fr and zh-Hans, and Han runs resolve to PingFang SC. The
+    only other faces are single symbol glyphs: ⅓ in "33⅓" (Georgia), ⚙ and ⚅
+    (Menlo) and ▾ (Lucida Grande). There were 0 404s.
+
+### Fixed
+
+- **French "Fronts francs" wrapped under the new face.** It came out about 1 px
+  wider than the 83 px content box of the pinned 118 px `#edgeBtn`.
+  `check-ui-labels` caught it: [7] FAIL, 203 moved, with the Splices group at
+  55 → 67 px, the global strip at 100 → 104 px and the grid giving up 4 px.
+  - The side padding is now 8 px (99 px content box), with `nowrap`.
+  - The box is fixed and its text centred, so English does not move.
+- **The hand-built gate trees now serve the font.** `ui_tooltip_clamp_check.js`,
+  `ui_preset_menu_check.js` and `tests/ui-stub/serve-stub.sh` copy
+  `Source/ui/public` alone, which would 404 the module-embedded face and measure
+  every tooltip width on Times.
+  - All three now place `css/eb-garamond.css` and `fonts/*.woff2`, and both
+    gates map `.woff2 → font/woff2`.
+  - Each gate gained one assertion: the bundled EB Garamond face loaded.
+  - Negative control: with the placement stripped, the menu gate FAILs that
+    assertion and the console-error assertion (a 404).
+
+### Measured (shipping frame 900 × 740)
+
+| Check | Before (v1.16.0) | After (v1.17.0) |
+|---|---|---|
+| Real-pixel probe¹, 6 states × en/fr/zh-Hans, rows below AA | **814 / 2131** (min 1.50) | **0 / 2060** (min 4.84) |
+| Real-pixel probe, rows under 9 px | 162 | 15 (the ▾ caret icon only) |
+| `measure-ui --contrast`, below AA per language | 58 / 124 | 4 / 124 (all four are aria-hidden fleurons) |
+| `measure-ui --contrast`, under 9 px per language | 10 | 1 (the ▾ caret icon) |
+| `measure-ui --contrast`, median ratio | 5.51 | 6.12 |
+| `check-ui-labels` (en/fr/zh-Hans) | 88 PASS / 0 FAIL | 88 PASS / 0 FAIL |
+| `tests/ui_tooltip_clamp_check.js` | 218 PASS | 219 PASS (+1 font assertion) |
+| `tests/ui_preset_menu_check.js` | 33 PASS | 34 PASS (+1 font assertion) |
+| `check-i18n`, `i18n-fr-lint`, `i18n-zh-lint` | pass | pass |
+| `auval -v aufx OBrt OuDv` | — | AU VALIDATION SUCCEEDED |
+
+¹ How the probe works:
+- It hides every glyph (`color: transparent`) with transitions off and
+  screenshots at 2×.
+- For each text node it samples the glyph band and takes the worse of the p5 and
+  p95 luminance.
+- It skips text under an open overlay or its 20 px shadow.
+- The states are default, all families ON, settings open, preset menu open, and
+  a tooltip over an ON control and over an OFF control.
+- Both columns come from the same probe. The before column was run on a
+  `git archive HEAD` tree.
+- The node count differs only because the fleurons are now aria-hidden.
+
 ## [1.16.0] - 2026-09-04
 
 Simplified Chinese. MINOR: a third language on the hover-help and label tables,
