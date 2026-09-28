@@ -23,6 +23,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=600, initial-scale=1.0">
     <title>O-Detune - Ouaricon Audio</title>
+    <!-- v1.10.0 (R5): the bundled EB Garamond face. Served from the plugin
+         binary by getResource(); the stylesheet's own url('../fonts/...')
+         resolves to /fonts/*.woff2, which getResource serves too. FIRST, so
+         the @font-face rules are registered before the page's own <style>
+         names the family in --font-serif. -->
+    <link rel="stylesheet" href="/css/eb-garamond.css">
     <script type="module" src="/js/juce/index.js"></script>
     <style>
         * {
@@ -31,21 +37,74 @@
             box-sizing: border-box;
         }
 
+        /* ── PALETTE (v1.10.0, R4 of the UI design review 260924-nho) ───────
+           Text takes the AA variants; the palette originals stay underneath
+           them for borders, arcs and decoration, which carry no reading load.
+
+           Two things made the old text fail, and both are fixed here:
+
+           1. THE INK. --text-secondary #8b7355 is 3.66:1 and --text-muted
+              #a08870 is 2.74:1 on flat #F5E6D3 — below 4.5:1 before the paper
+              is even considered.
+
+           2. THE GROUND. paper1.jpg is not #F5E6D3. It renders as a mid ochre
+              (median #C09962) with dark blotches down to #3B100A, and nothing
+              used to sit between it and the captions: #app carried the image
+              with NO background-color, so a 9 px caption's real ground was
+              whatever blotch it landed on. A pixel probe of the shipped page
+              read 105/105 text nodes below AA, worst 1.00:1.
+
+           So every tint a caption sits on is spelled OPAQUE below, as its old
+           rgba() pre-composited over --paper. A translucent plate lets the
+           blotches through and makes a caption's contrast depend on where it
+           happens to sit on the image, which is not a property a stylesheet
+           can check. Ratios in the comments are against the plate named. */
         :root {
-            /* Ouaricon Naturalist Palette */
-            --paper-bg: #F5E6D3;
-            --text-primary: #3C2F2F;
-            --text-secondary: #8b7355;
-            --text-muted: #a08870;
+            --ink:        #3C2F2F;   /* primary text      10.45:1 on --paper */
+            --ink-soft:   #5C4033;   /* secondary text     7.67:1 on --paper */
+            --leaf-text:  #245046;   /* the teal as TEXT   7.42:1 (--accent-green is 3.87:1) */
+            --ink-muted:  #7A654B;   /* inactive-control caption — 4.52:1, the AA floor */
+            --leaf-fill:  #4a6a5a;   /* engaged fill under cream text — 4.90:1 */
+
+            --paper:    #F5E6D3;     /* the wash under paper1.jpg (see #app) */
+            --paper-rgb: 245, 230, 211;
+            --paper-bg: #F5E6D3;     /* legacy alias: popovers, dropdowns, option rows */
+
+            /* The three names the rest of this stylesheet already spells. They
+               are aliases now, so the ink moved in ONE place rather than in the
+               23 rules that reference them. */
+            --text-primary:   var(--ink);
+            --text-secondary: var(--ink-soft);
+            --text-muted:     var(--ink);
+
             --border-walnut: #8B7355;
             --border-oak: #5C4033;
-            --accent-green: #5a7a6a;
+            --accent-green: #5a7a6a;       /* arcs, thumbs, focus rings — never text */
             --accent-green-light: #8BA870;
             --accent-green-dark: #4a6a5a;
-            --panel-bg: rgba(245, 230, 211, 0.6);
-            --panel-border: rgba(139, 115, 85, 0.25);
+
+            /* Opaque plates — each is its former rgba() composited over --paper */
+            --panel-bg:  #F5E6D3;    /* cream 0.60 over --paper */
+            --sage-015:  #DED6C3;    /* preset-dropdown item hover */
+            --sage-020:  #D6D0BE;    /* LOAD / SAVE idle     — ink-soft 6.09:1 */
+            --sage-030:  #C6C6B4;    /* nav + gear idle      — ink 7.40:1 */
+            --sage-040:  #B7BBA9;    /* LOAD / SAVE hover    — ink 6.52:1 */
+            --sage-050:  #A8B09E;    /* nav + gear hover     — ink 5.71:1 */
+
+            --walnut-rgb: 139, 115, 85;
+            --panel-border: rgba(var(--walnut-rgb), 0.25);
             --knob-track: rgba(139, 115, 85, 0.3);
             --knob-vine: #5a7a6a;
+
+            /* The dropdown caret. A data: URI cannot read a custom property, so
+               the fill is spelled here as %23 + --border-walnut, and this is
+               the one place the literal may appear. */
+            --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238B7355' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+
+            /* R5: the bundled face (modules/ui/eb-garamond, direct embed).
+               Georgia stays second so an un-served font falls back to the face
+               this page shipped with rather than to Times. */
+            --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
         }
 
         html, body {
@@ -54,17 +113,44 @@
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
-            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
-            background: #1a1410;
+            font-family: var(--font-serif);
+            /* v1.10.0: was #1a1410. #app covers the frame exactly, so this was
+               never seen — but it WAS the nearest opaque ancestor, so every
+               contrast census composited the whole page over near-black and
+               reported ratios for a page nobody renders. */
+            background: var(--paper);
         }
 
         #app {
             width: 600px;
             height: 480px;
             position: relative;
-            background-image: url('assets/paper1.jpg');
-            background-size: cover;
-            background-position: center;
+            /* v1.10.0: --paper underneath, and a flat --paper layer at 0.55 ON
+               TOP of the texture. Two background layers rather than new markup:
+               the gradient paints first (it is listed first), the JPG second.
+               The wash is GRADED, not flat, because the page's worst ground
+               and its only unplated text are the same place. paper1.jpg's
+               darkest blotch (raw #522700) sits in the top-left corner, under
+               the logo — the one piece of text on this page that sits on bare
+               texture rather than on a plate. A flat wash strong enough for
+               that corner would have scrubbed the grain off the whole page.
+
+               So the header band takes 0.72 and the body relaxes to 0.52,
+               which is LESS wash than a flat fix would have needed and leaves
+               more texture across the panels' surrounds than v1.9.0's bare
+               image did under its captions. On the logo that is 6.18 for
+               OUARICON and 5.01 for DETUNE, both on the worst pixel their
+               glyphs cross. */
+            background-color: var(--paper);
+            background-image:
+                linear-gradient(to bottom,
+                    rgba(var(--paper-rgb), 0.72) 0,
+                    rgba(var(--paper-rgb), 0.72) 54px,
+                    rgba(var(--paper-rgb), 0.52) 130px,
+                    rgba(var(--paper-rgb), 0.52) 100%),
+                url('assets/paper1.jpg');
+            background-size: cover, cover;
+            background-position: center, center;
         }
 
         /* Botanical Overlay - Nudibranch */
@@ -74,6 +160,10 @@
             top: 50%;
             transform: translateY(-50%);
             height: 85%;
+            /* Stays at 0.32. In v1.9.0 the slug read THROUGH the translucent
+               panels and darkened the captions over it; now that every plate
+               is opaque it shows only in the surrounds, where no text sits.
+               Verified by the pixel probe, not assumed. */
             opacity: 0.32;
             pointer-events: none;
             z-index: 1;
@@ -115,7 +205,7 @@
         }
 
         .logo span {
-            color: var(--accent-green);
+            color: var(--leaf-text);   /* 22px is not "large" (< 24px), so it needs 4.5:1 */
         }
 
         /* Panels - Subtle naturalist styling */
@@ -193,9 +283,41 @@
             align-items: stretch;
         }
 
+        /* ── THE BLEND DIM (v1.10.0) ───────────────────────────────────────
+           updatePanelOpacity() used to set `opacity` on this element, which
+           faded the panel's CAPTIONS along with its arcs. At the default
+           blend of 0.5 both panels sat at 0.675, putting every caption in
+           BOTH panels at 3.47:1; a blend pushed fully to one side took the
+           far panel's captions to 1.79:1 — while its knobs stayed live,
+           draggable and automatable. A dimmed control that still responds is
+           not a disabled control, so WCAG's disabled-control exemption does
+           not cover it.
+
+           The signal is unchanged and the ink no longer moves: --engine-dim
+           now drives the vine arcs, the track and the hairline, which are
+           this panel's dominant visual mass (five knobs each), over a WIDER
+           range than the old 0.35 floor gave. Captions stay at full ink. */
         .engine-panel {
-            border: 1px solid var(--panel-border);
-            transition: opacity 0.2s ease;
+            --engine-dim: 1;
+            border: 1px solid rgba(var(--walnut-rgb), calc(0.08 + 0.17 * var(--engine-dim)));
+            /* plate recedes with the dim; both ends clear AA for --ink-soft
+               (#F5E6D3 7.67:1, #EDDDC8 7.02:1). The first declaration is the
+               fallback: color-mix() is dropped at PARSE time where it is not
+               supported, and an OPAQUE plate is the one thing this rule must
+               not lose — a dropped background would put captions back on the
+               bare texture. */
+            background: var(--panel-bg);
+            background: color-mix(in srgb, var(--paper) calc(var(--engine-dim) * 100%), #EDDDC8);
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .engine-panel .knob-track,
+        .engine-panel .knob-vine {
+            /* 0.22 -> 1.00 across the blend — a WIDER swing than the panel's
+               own 0.35 -> 1.00, which is what pays for the captions no longer
+               fading with it. */
+            stroke-opacity: calc(0.22 + 0.78 * var(--engine-dim));
+            transition: stroke-opacity 0.2s ease;
         }
 
         .engine-controls {
@@ -377,18 +499,18 @@
         }
 
         .dropdown {
-            background: rgba(245, 230, 211, 0.8);
+            background: var(--paper);
             border: 1px solid var(--border-walnut);
             border-radius: 3px;
             padding: 6px 10px;
             color: var(--text-primary);
-            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 11px;
             cursor: pointer;
             outline: none;
             -webkit-appearance: none;
             appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238B7355' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+            background-image: var(--select-caret);
             background-repeat: no-repeat;
             background-position: right 8px center;
             padding-right: 24px;
@@ -502,14 +624,27 @@
             background: var(--accent-green-light);
         }
 
-        /* Disabled slider state (mono-safe forces width to 0) */
+        /* Disabled slider state (mono-safe forces width to 0).
+
+           v1.10.0: the 0.4 opacity that used to sit on the CONTAINER moved to
+           the slider itself. WCAG 1.4.3 does exempt an inactive component, so
+           the old rule was defensible — but "Width: 0%" is the caption that
+           explains WHY the control is inactive, and at 0.4 it read 1.95:1,
+           which is the one line a user most needs when they are looking for
+           the setting that stopped responding. The track and thumb carry the
+           dim; the caption goes to a lighter ink that still clears AA. */
         .slider-container.disabled {
-            opacity: 0.4;
             pointer-events: none;
         }
 
         .slider-container.disabled .slider {
+            opacity: 0.4;
             cursor: not-allowed;
+        }
+
+        .slider-container.disabled .slider-label,
+        .slider-container.disabled .slider-label #width_value {
+            color: var(--ink-muted);   /* 4.52:1 on --paper, visibly lighter than --ink-soft */
         }
 
         /* Toggle - Naturalist botanical style */
@@ -616,12 +751,12 @@
         .preset-nav-btn {
             width: 20px;
             height: 20px;
-            background: rgba(90, 122, 106, 0.3);
+            background: var(--sage-030);
             border: 1px solid var(--panel-border);
             border-radius: 3px;
             color: var(--text-primary);
             font-size: 11px;
-            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -632,7 +767,7 @@
         }
 
         .preset-nav-btn:hover {
-            background: rgba(90, 122, 106, 0.5);
+            background: var(--sage-050);
         }
 
         .preset-name {
@@ -664,12 +799,12 @@
                2.91 px of spare on OUVRIR before, the tightest margin on this page
                and tight enough to matter under different font metrics. */
             padding: 2px 6px;
-            background: rgba(90, 122, 106, 0.2);
+            background: var(--sage-020);
             border: 1px solid var(--panel-border);
             border-radius: 3px;
             color: var(--text-secondary);
             font-size: 9px;
-            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             cursor: pointer;
@@ -677,7 +812,7 @@
         }
 
         .preset-action-btn:hover {
-            background: rgba(90, 122, 106, 0.4);
+            background: var(--sage-040);
             color: var(--text-primary);
         }
 
@@ -738,16 +873,16 @@
             font-size: 11px;
             color: var(--text-primary);
             cursor: pointer;
-            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             transition: background 0.1s;
         }
 
         .preset-dropdown-item:hover {
-            background: rgba(90, 122, 106, 0.15);
+            background: var(--sage-015);
         }
 
         .preset-dropdown-item.active {
-            color: var(--accent-green);
+            color: var(--leaf-text);   /* --accent-green was 3.87:1 on the plate */
             font-weight: 600;
         }
 
@@ -783,11 +918,11 @@
             width: 20px;
             height: 20px;
             padding: 0;
-            background: rgba(90, 122, 106, 0.3);
+            background: var(--sage-030);
             border: 1px solid var(--panel-border);
             border-radius: 3px;
             color: var(--text-primary);
-            font-family: 'Georgia', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 11px;
             line-height: 1;
             cursor: pointer;
@@ -795,18 +930,21 @@
             align-items: center;
             justify-content: center;
             transition: all 0.15s;
-            opacity: 0.6;
+            /* v1.10.0: opacity 0.6 dropped. Opacity on a node that owns text is
+               a contrast change, and it took the gear glyph to 2.9:1. The idle
+               and hover plates below carry the affordance instead. */
         }
 
         .gear-btn:hover {
-            background: rgba(90, 122, 106, 0.5);
-            opacity: 1;
+            background: var(--sage-050);
         }
 
         .gear-btn[aria-expanded="true"] {
-            background: rgba(90, 122, 106, 0.55);
+            /* the open state is the page's one engaged fill: cream glyph on
+               --leaf-fill, 4.90:1. The old sage 0.55 plate read 1.95:1. */
+            background: var(--leaf-fill);
             border-color: var(--accent-green-dark);
-            opacity: 1;
+            color: var(--paper);
         }
 
         .gear-btn:focus-visible {
@@ -866,11 +1004,11 @@
         .settings-select {
             flex: 0 0 auto;
             padding: 2px 4px;
-            background: rgba(245, 230, 211, 0.8);
+            background: var(--paper);
             border: 1px solid var(--border-walnut);
             border-radius: 3px;
             color: var(--text-primary);
-            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 10px;
             line-height: 1.2;
             cursor: pointer;
@@ -897,11 +1035,11 @@
            measures — verified with check-ui-labels [7] after the port. */
         .settings-toggle {
           padding: 2px 4px;
-          background: rgba(245, 230, 211, 0.8);
+          background: var(--paper);
           border: 1px solid var(--border-walnut);
           border-radius: 3px;
           color: var(--text-primary);
-          font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+          font-family: var(--font-serif);
           font-size: 10px;
           line-height: 1.2;
           outline: none;
@@ -913,8 +1051,9 @@
         }
 
         .settings-toggle[aria-pressed="true"] {
-          background: var(--accent-green);
-          border-color: var(--accent-green);
+          /* cream on --accent-green was 3.87:1; --leaf-fill is 4.90:1 */
+          background: var(--leaf-fill);
+          border-color: var(--leaf-fill);
           color: var(--paper-bg);
         }
 
@@ -931,7 +1070,8 @@
             font-size: 9px;
             color: var(--text-muted);
             letter-spacing: 0.5px;
-            opacity: 0.6;
+            /* v1.10.0: opacity 0.6 dropped — see .gear-btn. It read 1.0:1 on the
+               paper stain under the bottom-right corner. */
             z-index: 2;
             pointer-events: none;
         }
@@ -980,7 +1120,7 @@
             border: 1px solid var(--border-walnut);
             border-radius: 4px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-            font-family: 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+            font-family: var(--font-serif);
             font-size: 11px;
             line-height: 1.4;
             color: var(--text-primary);
@@ -1001,7 +1141,7 @@
             font-size: 9px;
             letter-spacing: 0.5px;
             text-transform: uppercase;
-            color: var(--accent-green);
+            color: var(--leaf-text);
         }
     </style>
 </head>
@@ -1060,7 +1200,7 @@
             </div>
         </div>
 
-        <span class="version-label">v1.7.1</span>
+        <span class="version-label">v1.10.0</span>
         <div class="container">
             <!-- Header -->
             <div class="header">
@@ -1486,8 +1626,11 @@
             const wobbleOpacity = 1 - (blendNorm * (1 - MIN_OPACITY));
             const unisonOpacity = MIN_OPACITY + (blendNorm * (1 - MIN_OPACITY));
 
-            wobblePanel.style.opacity = wobbleOpacity;
-            unisonPanel.style.opacity = unisonOpacity;
+            // v1.10.0: --engine-dim, not style.opacity. The CSS routes it to
+            // the arcs, the track and the plate; the captions keep full ink.
+            // See THE BLEND DIM in the stylesheet.
+            wobblePanel.style.setProperty('--engine-dim', wobbleOpacity);
+            unisonPanel.style.setProperty('--engine-dim', unisonOpacity);
         };
 
         if (sliderStates.blend) {

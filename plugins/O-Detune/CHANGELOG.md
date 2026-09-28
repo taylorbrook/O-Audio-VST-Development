@@ -1,5 +1,107 @@
 # O-Detune Changelog
 
+## [1.10.0] - 2026-09-27
+
+The UI pass from the suite design review (quick task 260924-nho), R4 + R5:
+WCAG AA text on a ground that can be checked, and the bundled serif. MINOR: no
+parameter, range, type or state format changed, and no audio path was touched.
+
+### Changed
+
+- **The ground is now knowable.** `#app` carried `paper1.jpg` with **no**
+  `background-color`, over a `#1a1410` body. Two consequences, both fixed:
+  every contrast census composited the page over near-black and called 100% of
+  it a failure, and — the real defect — a 9 px caption's actual ground was
+  whichever part of the texture it landed on. `paper1.jpg` is not `#F5E6D3`: it
+  renders as a mid ochre (median `#C09962`) with blotches down to `#3B100A`. A
+  pixel probe of the shipped page read **105/105 text nodes below AA, worst
+  1.00:1**. `#app` now carries `--paper` with the texture over it under a
+  graded wash, and every tint a caption sits on is spelled **opaque**, as its
+  old `rgba()` pre-composited over `--paper`.
+
+- **The wash is graded, not flat** — 0.72 across the header band, relaxing to
+  0.52 below it. The page's darkest blotch and its only unplated text are the
+  same place (the top-left corner, under the logo), and a flat wash strong
+  enough for that corner would have scrubbed the grain off the whole page. The
+  body therefore keeps **more** visible texture than a flat fix would have left.
+
+- **AA text colours** from `ouaricon-naturalist-001`: `--text-secondary`
+  `#8b7355` (3.66:1) and `--text-muted` `#a08870` (2.74:1) are now aliases of
+  `--ink-soft` `#5C4033` (7.67:1) and `--ink` `#3C2F2F` (10.45:1). The palette
+  originals stay underneath for borders, arcs and decoration. `--accent-green`
+  `#5a7a6a` was 3.87:1 as text, so the logo's DETUNE, the active preset row and
+  the tooltip heading take `--leaf-text` `#245046`; cream on an engaged fill
+  takes `--leaf-fill` `#4a6a5a` (4.90:1) in place of `--accent-green` (3.87:1).
+
+- **The blend dim no longer fades text.** `updatePanelOpacity()` set `opacity`
+  on each engine panel, which faded its captions along with its arcs: at the
+  default blend of 0.5 both panels sat at 0.675, putting every caption in
+  **both** panels at 3.47:1, and a blend pushed fully to one side took the far
+  panel's captions to 1.79:1 — while its knobs stayed live, draggable and
+  automatable. A dimmed control that still responds is not a disabled control,
+  so WCAG's disabled-control exemption does not cover it. `--engine-dim` now
+  drives the vine arcs (0.22 → 1.00, a wider swing than the old 0.35 → 1.00),
+  the hairline and the plate tint; the ink does not move.
+
+- **The mono-safe slider's caption stays readable when the slider is
+  inactive.** The 0.4 opacity moved from the container to the slider itself,
+  and `Width: 0%` — the line that explains *why* the control stopped
+  responding — takes `--ink-muted` `#7A654B` (4.52:1) instead of reading
+  1.95:1. WCAG 1.4.3 would have exempted it; it is the one line a user looking
+  for the setting most needs.
+
+- **Opacity dropped from two nodes that own text** — `.version-label` (1.00:1
+  on the stain under the bottom-right corner) and `.gear-btn` (2.9:1). Opacity
+  on a text node is a contrast change; the gear's idle and hover plates carry
+  the affordance instead.
+
+- **`#botanical-overlay` stays at 0.32.** It read *through* the translucent
+  panels in 1.9.0 and darkened the captions over it; now that every plate is
+  opaque it shows only in the surrounds. Verified by the pixel probe, not
+  assumed.
+
+### Added
+
+- **Bundled EB Garamond** (R5) — `modules/ui/eb-garamond` direct-embedded: four
+  `SOURCES` in the UI binary-data target and four `getResource` branches.
+  `--font-serif` replaces 10 hand-spelled Georgia stacks. The `.slider`'s
+  deliberate Arial stack is left alone. The module's Times-matched vertical
+  metrics plus this page's existing unitless line-height pins held every width
+  pin: `check-ui-labels` reports the same 129 PASS / 0 FAIL as before the swap.
+
+- **`--paper-rgb`, `--walnut-rgb` and `--select-caret` tokens**, so the washes
+  are `rgba(var(--x-rgb), a)` and the dropdown caret's `data:` URI — which
+  cannot read a custom property — is the one place a colour literal may stand
+  outside `:root`.
+
+### Fixed
+
+- **The version label read `v1.7.1` on a 1.9.0 build.** It now reads `v1.10.0`.
+
+### Testing
+
+- `measure-ui.js --contrast`, en/fr/zh-Hans: **120 findings → 0**; below AA
+  40/40 per language (100%) → **0/40**; median 1.29 → **7.45**, min 1.01 →
+  **4.52**; 0 under the 9 px floor before and after; nodes over a
+  background-image 37 → 4.
+- **Real-ground pixel probe** (the census flags a background-image but does not
+  sample it), 3 languages × 3 states, worst pixel per glyph run with text
+  hidden and transitions frozen: **105/105 below AA → 0/105**; worst 1.00 →
+  **4.52**, median 1.50 → **7.45**.
+- `check-ui-labels.js` **129 PASS / 0 FAIL** before and after (en/fr/zh-Hans).
+- `check-i18n.js`, `i18n-fr-lint.js`, `i18n-zh-lint.js` clean;
+  `ui_tip_render_check.js` 532 passed.
+- Resolved face confirmed per node by CDP `CSS.getPlatformFontsForNode`, not by
+  the declared stack: EB Garamond on the logo, panel labels, knob labels and
+  readouts, preset name, version label and dropdown. No non-200 responses.
+
+### Not done
+
+- **R7 keyboard/ARIA on the knobs is still open.** Only knob *presentation*
+  (arc `stroke-opacity`) was touched here, not the pointer/interaction code, so
+  the O-ReverseDelay port was not triggered. Same call as O-SimpleReverb
+  v1.10.0 and O-DigiDelay v1.7.0.
+
 ## [1.9.0] - 2026-09-05
 
 Simplified Chinese joins English and French (task 260905-rwh, Stage 4 wave 4c —

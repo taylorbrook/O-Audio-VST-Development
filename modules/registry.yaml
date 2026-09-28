@@ -558,6 +558,8 @@ modules:
     used_by:
       - plugin: O-ReverseDelay
         version: 1.22.0
+      - plugin: O-Detune
+        version: 1.10.0
 
 # ============================================================================
 # HOW TO USE THIS REGISTRY

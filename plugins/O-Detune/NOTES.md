@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.6
+- **Version:** 1.10.0
 - **Type:** Audio Effect (Detuning / Pitch Thickening)
 - **Complexity:** 5.0 (Maximum)
 
@@ -206,6 +206,25 @@ None
   (`wobbleLFO`, `feedbackStateL/R`, `randomRefreshCounter`, `noiseLastQuarter`).
   All behavior-preserving except `random_amt` activation. Report: `.planning/REVIEW.md`.
 
+- **2026-09-27 — v1.10.0 (UI pass, design review 260924-nho R4/R5).** WCAG AA
+  text on a ground that can be checked. `#app` carried `paper1.jpg` with no
+  `background-color` over a `#1a1410` body, so a caption's real ground was
+  whichever blotch it landed on — a pixel probe of the shipped page read
+  105/105 text nodes below AA, worst 1.00:1. Now: `--paper` under the texture
+  with a graded wash (0.72 across the header band, 0.52 below — the darkest
+  blotch and the only unplated text are the same corner), every tint under text
+  spelled opaque, and the naturalist AA inks (`--ink-soft` #5C4033,
+  `--leaf-text` #245046, `--leaf-fill` #4a6a5a). The blend dim moved off the
+  panels' text onto their arcs, hairline and plate: `opacity` on `.engine-panel`
+  had been fading live, draggable controls' captions to 1.79:1. Bundled
+  EB Garamond (`modules/ui/eb-garamond`, direct embed) behind `--font-serif`.
+  Version label corrected from a stale `v1.7.1`. Gates: contrast census
+  120 findings → 0 (below AA 40/40 → 0/40 per language, min 1.01 → 4.52),
+  real-ground probe 105/105 → 0/105, `check-ui-labels` 129 PASS / 0 FAIL before
+  and after, check-i18n + fr/zh lints + tip_render clean, auval SUCCEEDED, 0
+  build warnings. No DSP, parameter or state change. R7 (knob keyboard/ARIA)
+  remains open — only knob presentation was touched. DAW hands-on pending.
+
 ---
 
-*Last updated: 2026-07-01*
+*Last updated: 2026-09-27*
