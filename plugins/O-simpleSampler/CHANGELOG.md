@@ -3,6 +3,79 @@
 All notable changes to this plugin are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.6.0] — 2026-09-27
+
+UI legibility pass: AA text inks, a 9 px text floor, and the bundled EB
+Garamond face (UI review 260924-nho, R4/R5). MINOR: a visible colour and face
+change. No parameter, range, type, state format or DSP change.
+
+### Changed
+
+- **AA text inks from `ouaricon-naturalist-001`.** Text that used the
+  decoration colours now takes the template's text variants at full opacity:
+  - Walnut captions (subtitle, section labels, tour label, drop-zone sentence):
+    `#8B7355` → `#715D45` (3.66–3.99 → 5.11–5.57).
+  - Sage hints and readouts (waveform/keyboard hints, `#sourceStatus`,
+    `#pitchModeReadout`): `#6B8E4E` at opacity 0.85–0.9 → `#4E6839` (2.5–2.8 →
+    5.10).
+  - Lesson caption: `#5C4033` at opacity 0.85 → solid `#6A5641`.
+  - Truncated-source warning: `#b8863a` → `#7F5410` (5.62).
+  - Lit tour chip and open gear: `#6B8E4E` fill → `#4E6839`, so the paper text
+    on it reads 5.10 instead of 3.30.
+- **Keyboard note names.** 8 px → 9 px. White keys `#8B7355` → `#6A5641` (they
+  sit on the `#E6D4BA` foot of the key). Black keys: solid paper instead of 0.7
+  alpha. A pressed white key's label is now `#0E1403`; it had been walnut on
+  green at 1.19:1.
+- **Fleurons** (`.preset-fleuron`, `.fleuron-corner`) are `aria-hidden`. The
+  corner fleuron is 9 px, up from 8. Both stay at their decorative 0.3 alpha.
+- **EB Garamond, bundled** (`modules/ui/eb-garamond`, direct-embedded into the
+  `UIBinaryData` target, with 4 `getResource` branches). The stack is now
+  `'EB Garamond', Georgia, 'Times New Roman', PingFang SC, Microsoft YaHei,
+  serif`. It drops the bare `'Garamond'` and `'Adobe Garamond Pro'` entries.
+  Stock macOS has neither, so **the page had rendered in Times New Roman since
+  v1.0.0**.
+- **Waveform canvas.** Uses the bundled face and repaints after
+  `document.fonts.load`. The empty-state hint alpha goes 0.4 → 0.75 (≈2.3 →
+  ≈5.6 on the well).
+
+Keyboard/ARIA knob handling (arrows, `role=slider`, focus rings) is untouched,
+and so is `app.js` outside the two canvas `ctx.font` lines, the empty-state
+alpha and the font-load repaint.
+
+### Measured (shipping frame 980 × 720)
+
+| Check | Before (v1.5.0) | After (v1.6.0) |
+|---|---|---|
+| Real-pixel probe¹, 4 states × en/fr/zh-Hans, rows below AA | **138 / 793** (min 1.19) | **21 / 793**, all aria-hidden fleurons. Readable text: min 4.91 (normal), 3.22 (the 26 px title accent, large-text need 3.0) |
+| Real-pixel probe, rows under 9 px | 51 | 0 |
+| `measure-ui --contrast`, below AA per language | 24 / 82 | 7 / 82² |
+| `measure-ui --contrast`, under 9 px per language | 14 | 0 |
+| Resolved face (CDP), Latin glyphs | Times New Roman | EB Garamond (custom) — en 723, fr 895, zh-Hans 179 (+185 PingFang) |
+| `check-ui-labels` (en/fr/zh-Hans) | 214 PASS, ALL CHECKS PASSED | 214 PASS, ALL CHECKS PASSED |
+| `check-i18n`, `i18n-fr-lint`, `i18n-zh-lint` | pass | pass |
+| `auval -v aumu OsSm OuDv` | — | AU VALIDATION SUCCEEDED |
+
+¹ How the probe works: it hides every glyph (`color: transparent`, transitions
+off) and screenshots at 2×. For each visible, unoccluded text node it samples
+the glyph band and takes the worse of the p5 and p95 background luminance
+against the computed ink × the opacity chain. The four states are default,
+settings open, keys pressed with the frame scrolled to the keyboard, and a knob
+tooltip. The before column was run on a `git archive HEAD` tree.
+
+² The remaining 7 are 2 aria-hidden fleurons and the 5 black-key letters.
+`measure-ui` cannot sample a `background-image` ground: it composites the
+black-key labels against the paper (1.00). The real ground is the
+`#4a3a2c → #5C4033` key, where the solid paper ink reads 7.7–8.9, and the probe
+confirms it passes.
+
+### Open
+
+- The waveform empty-state string ("drop or load a source to see its
+  waveform") is hard-coded English on the canvas, so no i18n gate sees it. It is
+  normally never shown, because the built-in piano provides a thumbnail.
+- R7 (resizable frame) is still open. The frame is 980 × 720, so it is not in
+  the ≥ 820 px group.
+
 ## [1.5.0] — 2026-09-07
 
 Simplified Chinese. The interface now offers English, French and 简体中文, on a

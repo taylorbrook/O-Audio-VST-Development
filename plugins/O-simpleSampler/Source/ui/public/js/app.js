@@ -1009,6 +1009,17 @@ function drawMarker(ctx, x, h, colour, kind) {
   ctx.closePath(); ctx.fill();
 }
 
+// v1.6.0 (R5) — the bundled face. A canvas keeps whatever face it resolved at
+// its first fillText, so the editor repaints once document.fonts has it loaded
+// (pattern_canvas_text_needs_font_load_repaint).
+const CANVAS_SERIF = "'EB Garamond', Georgia, 'Times New Roman', serif";
+if (document.fonts && document.fonts.load) {
+  Promise.all([
+    document.fonts.load(`10px ${CANVAS_SERIF}`),
+    document.fonts.load(`italic 10px ${CANVAS_SERIF}`),
+  ]).then(() => drawWaveformEditor(), () => {});
+}
+
 function drawWaveformEditor() {
   const c = canvases.wave;
   if (!c) return;
@@ -1037,8 +1048,8 @@ function drawWaveformEditor() {
     ctx.closePath();
     ctx.fill();
   } else {
-    ctx.fillStyle = "rgba(210,190,150,0.4)";
-    ctx.font = "12px Garamond, 'Times New Roman', serif";
+    ctx.fillStyle = "rgba(210,190,150,0.75)";   // v1.6.0 — 0.4 read 2.3:1 on the well
+    ctx.font = `12px ${CANVAS_SERIF}`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText("drop or load a source to see its waveform", w / 2, mid);
   }
@@ -1073,7 +1084,7 @@ function drawWaveformEditor() {
   const rk = sliderState["rootKey"]?.getScaledValue();
   if (rk != null) {
     ctx.fillStyle = "rgba(245,230,211,0.7)";
-    ctx.font = "10px Garamond, 'Times New Roman', serif";
+    ctx.font = `10px ${CANVAS_SERIF}`;
     ctx.textAlign = "left"; ctx.textBaseline = "top";
     ctx.fillText(`root ${fmtNote(rk)}`, 6, 5);
   }

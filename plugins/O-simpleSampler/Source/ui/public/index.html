@@ -23,6 +23,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>O-simpleSampler</title>
+  <link rel="stylesheet" href="css/eb-garamond.css" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -39,7 +40,7 @@
            localized — it is also the tip anchor now that data-tip carries the
            tip BODY rather than a key (v1.4.0). -->
       <div class="preset-bar-container">
-        <span class="preset-fleuron">&#10086;</span>
+        <span class="preset-fleuron" aria-hidden="true">&#10086;</span>
         <div class="preset-bar-tour" id="presetTour" role="group"
              data-i18n-aria="aria.presetTour" aria-label="Concept presets">
           <button class="tour-btn" data-preset="Raw One-Shot"              data-i18n="label.presetRawOneShot">Raw One-Shot</button>
@@ -180,7 +181,7 @@
           </div>
           <div class="toggle-cell">
             <button class="toggle" id="toggle-reverse">
-              <span data-i18n="label.reverse">Reverse</span><span class="fleuron-corner">&#10086;</span>
+              <span data-i18n="label.reverse">Reverse</span><span class="fleuron-corner" aria-hidden="true">&#10086;</span>
             </button>
           </div>
         </div>

@@ -17,7 +17,7 @@ juce_add_plugin(O-simpleSampler
     PLUGIN_CODE OsSm
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-simpleSampler${OUARICON_DEV_SUFFIX}"
-    VERSION "1.5.0"
+    VERSION "1.6.0"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -71,6 +71,14 @@ juce_add_binary_data(O-simpleSampler_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/modules/webview-drop-streaming.js
+        # v1.6.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module (modules/ui/eb-garamond) into this UI target. Namespace is
+        # UIBinaryData here, not BinaryData. Symbols: ebgaramond_css,
+        # EBGaramond{Regular,Italic,Bold}_woff2.
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 # Required JUCE modules
