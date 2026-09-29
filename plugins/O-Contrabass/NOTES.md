@@ -5,7 +5,7 @@ bow-friction excitation (2× oversampled), Schelleng-calibrated bow-force limiti
 cascaded-allpass dispersion, an 8-mode body resonator, 3-band bow-noise generator, and
 a mono→stereo master chain, plus the shared Scala tuning engine + VST3 Note Expression.
 
-**Status:** 📦 Installed — **v1.7.2** (2026-08-20). Stage-2 DSP engine complete through
+**Status:** 📦 Installed — **v1.11.0** (2026-09-28). Stage-2 DSP engine complete through
 Phase 2.6c; Stage-3 WebView editor complete (mockup v1 integrated, 31 bindings, preset
 bar, full Tuning tab, three real-data visualizations); Stage-4 polish shipped as v1.0.0.
 v1.1.0 closed the DSP-07/08/09 deferrals as **measurement** corrections with no audio-path
@@ -13,6 +13,15 @@ change (19/19 goldens byte-identical).
 
 ## Timeline
 
+- **2026-09-28 — v1.11.0 UI pass (review 260924-nho, R4 and R5).** The page
+  moves onto the naturalist core colours, with AA text from the template's
+  pair table and a 9px floor on DOM and canvas text. It adds `:focus-visible`
+  styling (there was none) and the bundled EB Garamond module (direct embed:
+  4 SOURCES, 4 `getResource()` branches). Real-pixel probe below-AA count
+  32 → 1 per language, the aria-hidden plate caption. Census 39 → 1.
+  Labels 172 and frontend 31 PASS, before and after. R7 (knob
+  keyboard/ARIA) is still open because knob interaction was not touched. No
+  DSP change.
 - **2026-08-20 — v1.7.2 Tuning tab restored to the 3-column layout.** Shared-module
   bug: scala-tuning-engine v3.0.0 emitted four direct children under the 3-column
   `.tuning-panel` grid (the O-Bells `.tuning-center-column` wrapper was never

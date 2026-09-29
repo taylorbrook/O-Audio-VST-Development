@@ -25,6 +25,7 @@
 <!-- Stage 3 Task 9 (D3) — shared tuning-panel styles (canonical module CSS,
      served from binary data). Loaded BEFORE the inline style block so the
      parchment-palette overrides below win at equal specificity. -->
+<link rel="stylesheet" href="css/eb-garamond.css">
 <link rel="stylesheet" href="css/tuning-panel.css">
 <style>
 /* ============================================================================
@@ -36,27 +37,65 @@
    ============================================================================ */
 
 :root {
-    /* Darkened/warmed ~10% from O-Bowed reference set */
-    --bg-paper: #EDD9BE;
-    --bg-paper-dark: #DFC6A6;
-    --bg-paper-darker: #C6B294;
-    --brown-text: #332625;
-    --brown-text-light: #5E4D40;
-    --brown-text-lighter: #7D6C5E;
-    --green-light: #7E9A62;
-    --green-mid: #5F8143;
-    --green-dark: #3F5D2C;
-    --green-accent: #96B57A;
-    --brown-border: #7C6547;
-    --brown-frame: #4A3226;
-    --brown-frame-light: #684C39;
-    --white-overlay: rgba(255, 255, 255, 0.15);
-    --shadow-soft: rgba(51, 38, 37, 0.15);
-    --shadow-hard: rgba(51, 38, 37, 0.3);
+    /* v1.11.0 — the naturalist core (.claude/aesthetics/ouaricon-naturalist-001),
+       replacing the page's private "darkened ~10% from O-Bowed" set, which named
+       none of ink / walnut / paper. Text colours come from the template's
+       Text Contrast table and were checked against the REAL ground by a pixel
+       probe (text hidden, 2x screenshot, glyph band p5/p95), not the census's
+       flat fallback: every gradient here reads as background-image to it. */
+    --paper-light: #FAF0E6;
+    --paper: #F5E6D3;
+    --paper-mid: #EBD9C7;          /* the page ground */
+    --paper-deep: #E8D0B8;
+    --paper-accent: #D4C4B0;       /* tracks; and header SECONDARY text on ink (7.3:1) */
+    --ink: #3C2F2F;                /* primary text; the header / menu / popover band */
+    --oak: #5C4033;                /* secondary text, strong borders */
+    --walnut: #8B7355;             /* borders + decoration ONLY (3.66:1 as text) */
+    --walnut-text: #6A5641;        /* tertiary text over the graded ground (template row 3) */
+    --sage-light: #8BA870;         /* fills; as TEXT only on flat ink (4.84:1) */
+    --sage: #6B8E4E;               /* arcs, toggles, hover fills */
+    --sage-fill: #4E6839;          /* fill under paper / white text (5.10:1) */
+    --green-dark: #3C5C1A;         /* numerals, macro arc, focus ring on paper */
+    --green-darkest: #2C3E10;      /* numerals on the darker drone ground */
+    --rust: #9C3B22;               /* over-0-VU and out-of-wedge, semantic only */
+
+    /* rgb triplets for the translucent layers — rgba(var(--x-rgb), a) */
+    --paper-light-rgb: 250, 240, 230;
+    --paper-rgb: 245, 230, 211;
+    --paper-deep-rgb: 232, 208, 184;
+    --ink-rgb: 60, 47, 47;
+    --oak-rgb: 92, 64, 51;
+    --walnut-rgb: 139, 115, 85;
+    --sage-light-rgb: 139, 168, 112;
+    --sage-rgb: 107, 142, 78;
+    --green-dark-rgb: 60, 92, 26;
+    --rust-rgb: 156, 59, 34;
+
+    --rule: rgba(var(--walnut-rgb), 0.42);   /* panel borders + label hairlines */
+    --shadow-soft: rgba(var(--ink-rgb), 0.15);
+    --shadow-hard: rgba(var(--ink-rgb), 0.3);
+    --drop-shadow: rgba(0, 0, 0, 0.45);
+    --well: rgba(0, 0, 0, 0.2);             /* recessed field on the ink band */
+    --input-well: rgba(255, 255, 255, 0.55);
+
+    /* The fine-tuner thumbs are brass hardware, a material rather than a
+       palette colour — kept, but named here so no literal lives below :root. */
+    --brass-hi: #D8B978;
+    --brass-lo: #B4924E;
+    --brass-edge: #7A5F33;
+
     --knob-size: 55px;
-    --knob-track: #C6B294;
-    --knob-fill: #5F8143;
-    --drone-label: #B08F5E;
+    --knob-track: var(--paper-accent);
+    --knob-fill: var(--sage);
+
+    /* Bundled EB Garamond first (modules/ui/eb-garamond), Georgia before Times,
+       and the CJK tail BEFORE the generic (W1): Chromium resolves a bare `serif`
+       against the document's lang, so under lang="zh-Hans" the generic is
+       already a Chinese face and a tail written after it is never consulted.
+       The bare 'Garamond' entry is gone: ahead of the bundled face it would let
+       an Office-installed Windows Garamond win. */
+    --serif: 'EB Garamond', 'Georgia', 'Times New Roman',
+             'PingFang SC', 'Microsoft YaHei', serif;
 }
 
 * {
@@ -78,14 +117,8 @@ body {
     overflow: hidden;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
-    /* The CJK tail goes BEFORE the trailing generic (W1): Chromium resolves a
-       bare `serif` against the document's lang, so under lang="zh-Hans" the
-       generic is ALREADY a Chinese face and a tail written after it is never
-       consulted. Garamond is installed on no build machine here; Georgia and
-       Times New Roman both are, so the Latin half of this stack was already
-       safe and this is a tail-only change — the en and fr arms do not move. */
-    font-family: 'Garamond', 'Georgia', 'Times New Roman',
-                 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--serif);
+    background: var(--paper-mid);
 }
 
 /* ============================ Plugin root ================================= */
@@ -95,11 +128,11 @@ body {
     display: flex;
     flex-direction: column;
     position: relative;
-    color: var(--brown-text);
+    color: var(--ink);
     background:
-        radial-gradient(ellipse 120% 90% at 50% 8%, rgba(255,244,222,0.55), rgba(255,244,222,0) 60%),
-        radial-gradient(ellipse 140% 120% at 50% 108%, rgba(74,50,38,0.18), rgba(74,50,38,0) 55%),
-        var(--bg-paper);
+        radial-gradient(ellipse 120% 90% at 50% 8%, rgba(var(--paper-light-rgb), 0.55), rgba(var(--paper-light-rgb), 0) 60%),
+        radial-gradient(ellipse 140% 120% at 50% 108%, rgba(var(--oak-rgb), 0.16), rgba(var(--oak-rgb), 0) 55%),
+        var(--paper-mid);
     overflow: hidden;
 }
 
@@ -114,6 +147,7 @@ body {
     pointer-events: none;
     z-index: 0;
     filter: sepia(0.4) brightness(0.9);
+    color: var(--oak);   /* the engraving draws in currentColor */
 }
 
 /* ============================ Header / preset bar ========================= */
@@ -123,12 +157,15 @@ body {
     height: 42px;
     min-height: 42px;
     padding: 0 12px;
-    background: linear-gradient(var(--brown-frame), #3E2A20);
-    color: var(--bg-paper);
+    /* v1.11.0 — flat ink, where it was an oak-to-umber gradient: the sage
+       accent (.o-dash, the current preset) clears AA on ink (4.84:1) and not
+       on the old #4A3226 top stop. A paper lift of even 0.05 took it to 4.43. */
+    background: var(--ink);
+    color: var(--paper);
     gap: 8px;
     z-index: 10;
-    border-bottom: 1px solid rgba(0,0,0,0.35);
-    box-shadow: 0 1px 0 rgba(255,240,215,0.08) inset;
+    border-bottom: 1px solid var(--drop-shadow);
+    box-shadow: 0 1px 0 rgba(var(--paper-rgb), 0.08) inset;
 }
 
 .plugin-name {
@@ -143,12 +180,12 @@ body {
     white-space: nowrap;
     flex-shrink: 0;
 }
-.plugin-name .o-dash { color: var(--green-accent); }
+.plugin-name .o-dash { color: var(--sage-light); }
 
 .preset-nav-btn, .preset-save-btn {
     background: none;
-    border: 1px solid rgba(237, 217, 190, 0.3);
-    color: var(--bg-paper);
+    border: 1px solid rgba(var(--paper-rgb), 0.3);
+    color: var(--paper);
     border-radius: 4px;
     cursor: pointer;
     font-family: inherit;
@@ -160,8 +197,8 @@ body {
     display: flex; align-items: center; justify-content: center;
 }
 .preset-save-btn { padding: 4px 12px; font-size: 12px; letter-spacing: 0.5px; }
-.preset-nav-btn:hover, .preset-save-btn:hover { background: rgba(237, 217, 190, 0.15); }
-.preset-nav-btn:active, .preset-save-btn:active { background: rgba(237, 217, 190, 0.25); }
+.preset-nav-btn:hover, .preset-save-btn:hover { background: rgba(var(--paper-rgb), 0.15); }
+.preset-nav-btn:active, .preset-save-btn:active { background: rgba(var(--paper-rgb), 0.25); }
 
 .preset-name-display {
     /* v1.8.0 — 300 -> 200, and this corrects an ENGLISH bug that nothing was
@@ -183,14 +220,14 @@ body {
     cursor: pointer;
     padding: 4px 10px;
     border-radius: 4px;
-    border: 1px solid rgba(237, 217, 190, 0.18);
-    background: rgba(0,0,0,0.15);
+    border: 1px solid rgba(var(--paper-rgb), 0.18);
+    background: var(--well);
     transition: background 0.15s;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.preset-name-display:hover { background: rgba(237, 217, 190, 0.1); }
+.preset-name-display:hover { background: rgba(var(--paper-rgb), 0.1); }
 
 /* Preset dropdown (v1.6.0) — flat list in C++ order (matches ◀/▶ walk;
    grouping would desync them). Fixed-position, width pinned to the display. */
@@ -206,10 +243,10 @@ body {
     max-height: 340px;
     overflow-y: auto;
     z-index: 200;
-    background: linear-gradient(#4A3226, #3E2A20);
-    border: 1px solid rgba(237, 217, 190, 0.3);
+    background: var(--ink);
+    border: 1px solid rgba(var(--paper-rgb), 0.3);
     border-radius: 4px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    box-shadow: 0 6px 18px var(--drop-shadow);
     padding: 4px 0;
 }
 .preset-menu[hidden] { display: none; }
@@ -218,35 +255,41 @@ body {
     font-size: 13px;
     font-style: italic;
     letter-spacing: 0.5px;
-    color: var(--bg-paper);
+    color: var(--paper);
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.preset-menu-item:hover { background: rgba(237, 217, 190, 0.15); }
+.preset-menu-item:hover { background: rgba(var(--paper-rgb), 0.15); }
+/* v1.11.0 — the current row keeps its sage, on flat ink only (4.84:1); the
+   hover wash would take it to 3.3, so a hovered current row goes paper and
+   the sage ▸ (an indicator, 3:1) carries the state. */
 .preset-menu-item.current {
-    color: var(--green-accent);
+    color: var(--sage-light);
     font-weight: bold;
 }
-.preset-menu-item.current::before { content: "\25B8\00A0"; }
+.preset-menu-item.current:hover { color: var(--paper); }
+.preset-menu-item.current::before { content: "\25B8\00A0"; color: var(--sage-light); }
 
 .header-spacer { flex: 1; }
 
-.header-whale { opacity: 0.75; margin-right: 4px; }
+.header-whale { opacity: 0.75; margin-right: 4px; color: var(--paper); }
 
+/* v1.11.0 — opacity 0.55 (3.87:1) replaced by a solid secondary ink: text
+   opacity is a contrast change, not a style. */
 .brand-label {
     font-size: 9px;
     letter-spacing: 1.8px;
     text-transform: uppercase;
-    opacity: 0.55;
+    color: var(--paper-accent);
 }
 
 /* ============ hover help: the "?" toggle (v1.7.0) ============
    A flex child of .preset-bar between the spacer and the whale — the spacer
    absorbs its width so nothing re-centres. Idiom matches the header's own
    vocabulary: .tab-btn borders/hover, and the lit state reuses .tab-btn.active
-   (rgba(150,181,122,0.25) + --green-accent). */
+   (the sage-light wash + border). */
 .help-toggle {
     flex: 0 0 auto;
     width: 26px;
@@ -256,20 +299,21 @@ body {
     font-family: inherit;
     font-size: 14px;
     line-height: 1;
-    color: var(--bg-paper);
+    color: var(--paper-accent);
     background: none;
-    border: 1px solid rgba(237, 217, 190, 0.3);
+    border: 1px solid rgba(var(--paper-rgb), 0.3);
     border-radius: 50%;
     cursor: pointer;
-    opacity: 0.7;
-    transition: background 0.15s, opacity 0.15s;
+    transition: background 0.15s, color 0.15s;
 }
-.help-toggle:hover { background: rgba(237, 217, 190, 0.15); opacity: 1; }
+.help-toggle:hover { background: rgba(var(--paper-rgb), 0.15); color: var(--paper); }
+/* v1.11.0 — the lit state keeps the sage border + wash but writes the glyph in
+   paper: sage text on its own wash read 3.5:1. One active vocabulary still,
+   shared with .settings-toggle.active and .tab-btn.active. */
 .help-toggle.active {
-    background: rgba(150, 181, 122, 0.25);
-    border-color: var(--green-accent);
-    color: var(--green-accent);
-    opacity: 1;
+    background: rgba(var(--sage-light-rgb), 0.25);
+    border-color: var(--sage-light);
+    color: var(--paper);
 }
 
 /* ============ settings popover (v1.8.0) ============
@@ -280,8 +324,8 @@ body {
    language selector.
 
    The panel is written in the PRESET MENU's vocabulary, not in a foreign one:
-   the same #4A3226 -> #3E2A20 header gradient, the same
-   rgba(237,217,190,0.3) rule and the same 4px radius that .preset-menu already
+   the same ink ground, the same translucent paper
+   rule and the same 4px radius that .preset-menu already
    uses two rules above. This header band is dark; a paper card here would read
    as pasted in from another plugin.
 
@@ -300,10 +344,9 @@ body {
    em box than "?" and reads heavy at 14px. */
 .gear-btn { font-size: 13px; }
 .gear-btn[aria-expanded="true"] {
-    background: rgba(150, 181, 122, 0.25);
-    border-color: var(--green-accent);
-    color: var(--green-accent);
-    opacity: 1;
+    background: rgba(var(--sage-light-rgb), 0.25);
+    border-color: var(--sage-light);
+    color: var(--paper);
 }
 
 .settings-popover {
@@ -317,10 +360,10 @@ body {
     flex-direction: column;
     gap: 9px;
     text-align: left;
-    background: linear-gradient(#4A3226, #3E2A20);
-    border: 1px solid rgba(237, 217, 190, 0.3);
+    background: var(--ink);
+    border: 1px solid rgba(var(--paper-rgb), 0.3);
     border-radius: 4px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    box-shadow: 0 6px 18px var(--drop-shadow);
 }
 .settings-popover[hidden] { display: none; }
 
@@ -336,8 +379,7 @@ body {
     font-size: 9px;
     letter-spacing: 1.4px;
     text-transform: uppercase;
-    color: var(--bg-paper);
-    opacity: 0.75;
+    color: var(--paper-accent);
     white-space: nowrap;
 }
 
@@ -350,14 +392,14 @@ body {
     padding: 0 4px;
     font-family: inherit;
     font-size: 10px;
-    color: var(--bg-paper);
-    background: rgba(237, 217, 190, 0.1);
-    border: 1px solid rgba(237, 217, 190, 0.3);
+    color: var(--paper);
+    background: rgba(var(--paper-rgb), 0.1);
+    border: 1px solid rgba(var(--paper-rgb), 0.3);
     border-radius: 3px;
     cursor: pointer;
     outline: none;
 }
-.settings-select:focus { border-color: var(--green-accent); }
+.settings-select:focus { border-color: var(--sage-light); }
 
 /* The moved hover-help toggle. Rectangular here rather than the old circle:
    inside the panel it is a labelled row, so it reads as a setting instead of
@@ -373,20 +415,18 @@ body {
     font-size: 9px;
     letter-spacing: 0.6px;
     text-transform: uppercase;
-    color: var(--bg-paper);
-    background: rgba(237, 217, 190, 0.1);
-    border: 1px solid rgba(237, 217, 190, 0.3);
+    color: var(--paper-accent);
+    background: rgba(var(--paper-rgb), 0.1);
+    border: 1px solid rgba(var(--paper-rgb), 0.3);
     border-radius: 3px;
     cursor: pointer;
-    opacity: 0.8;
-    transition: background 0.15s, opacity 0.15s;
+    transition: background 0.15s, color 0.15s;
 }
-.settings-toggle:hover { background: rgba(237, 217, 190, 0.2); opacity: 1; }
+.settings-toggle:hover { background: rgba(var(--paper-rgb), 0.2); color: var(--paper); }
 .settings-toggle.active {
-    background: rgba(150, 181, 122, 0.25);
-    border-color: var(--green-accent);
-    color: var(--green-accent);
-    opacity: 1;
+    background: rgba(var(--sage-light-rgb), 0.25);
+    border-color: var(--sage-light);
+    color: var(--paper);
 }
 
 /* The Tuning tab's load-failure notice. Through v1.7.2 this was an inline
@@ -394,7 +434,7 @@ body {
    presentation had to leave the JS with the copy. */
 .tuning-load-error {
     padding: 20px;
-    color: var(--brown-text-lighter);
+    color: var(--walnut-text);
     font-style: italic;
 }
 
@@ -413,10 +453,10 @@ body {
     z-index: 1000;
     max-width: 230px;
     padding: 7px 10px;
-    background: linear-gradient(135deg, var(--bg-paper) 0%, var(--bg-paper-dark) 100%);
-    border: 1px solid var(--brown-frame);
+    background: linear-gradient(135deg, var(--paper) 0%, var(--paper-mid) 100%);
+    border: 1px solid var(--oak);
     border-radius: 3px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    box-shadow: 0 4px 14px var(--drop-shadow);
     font-family: inherit;
     pointer-events: none;
     opacity: 0;
@@ -435,7 +475,7 @@ body {
 .tooltip-body {
     font-size: 11px;
     line-height: 1.35;
-    color: var(--brown-text);
+    color: var(--ink);
 }
 
 /* Arrow — its horizontal offset tracks the anchor via --arrow-x, so the tip
@@ -448,8 +488,8 @@ body {
     transform: translateX(-50%);
     border: 5px solid transparent;
 }
-.tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--brown-frame); }
-.tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--brown-frame); }
+.tooltip[data-placement="above"]::after { top: 100%; border-top-color: var(--oak); }
+.tooltip[data-placement="below"]::after { bottom: 100%; border-bottom-color: var(--oak); }
 
 /* ============================ Main grid =================================== */
 .main {
@@ -473,11 +513,11 @@ body {
 
 /* ============================ Section panels ============================== */
 .panel {
-    background: linear-gradient(rgba(255, 250, 240, 0.34), rgba(255, 250, 240, 0.22));
-    border: 1px solid var(--bg-paper-darker);
+    background: linear-gradient(rgba(var(--paper-light-rgb), 0.34), rgba(var(--paper-light-rgb), 0.22));
+    border: 1px solid var(--rule);
     border-radius: 6px;
     padding: 8px 10px;
-    box-shadow: 0 1px 2px var(--shadow-soft), 0 0 0 1px rgba(255,250,240,0.25) inset;
+    box-shadow: 0 1px 2px var(--shadow-soft), 0 0 0 1px rgba(var(--paper-light-rgb), 0.25) inset;
     display: flex;
     flex-direction: column;
     position: relative;
@@ -488,10 +528,10 @@ body {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 1.6px;
-    color: var(--brown-text-lighter);
+    color: var(--walnut-text);
     padding-bottom: 4px;
     margin-bottom: 6px;
-    border-bottom: 1px solid var(--bg-paper-darker);
+    border-bottom: 1px solid var(--rule);
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -510,14 +550,13 @@ body {
     text-transform: none;
     letter-spacing: 0.4px;
     font-size: 9px;
-    color: var(--brown-text-lighter);
-    opacity: 0.85;
+    color: var(--walnut-text);
 }
 
 /* Drone — visually distinct deeper umber panel */
 .sec-drone {
-    background: linear-gradient(rgba(58, 38, 26, 0.16), rgba(58, 38, 26, 0.09));
-    border-color: var(--brown-frame-light);
+    background: linear-gradient(rgba(var(--oak-rgb), 0.16), rgba(var(--oak-rgb), 0.09));
+    border-color: var(--oak);
     transition: box-shadow 0.4s;
 }
 /* v1.8.0 — the two sublabels that grow in French, pinned to the wider language
@@ -530,16 +569,19 @@ body {
 .sec-body .sublabel       { min-width: 93px; }
 .sec-expression .sublabel { min-width: 108px; }
 
-.sec-drone .panel-label { color: var(--drone-label); border-bottom-color: rgba(104, 76, 57, 0.5); }
+/* v1.11.0 — the drone's own caption tone was a gold #B08F5E at 1.64:1 on its
+   umber wash; the panel stays distinct through that wash and its oak border,
+   and every word on it is oak (the numeral goes one green deeper, 6:1). */
+.sec-drone .panel-label { color: var(--oak); border-bottom-color: rgba(var(--oak-rgb), 0.5); }
+.sec-drone .panel-label .numeral { color: var(--green-darkest); }
 .sec-drone.awake {
-    box-shadow: 0 0 0 1px rgba(150, 181, 122, 0.55), 0 0 14px rgba(95, 129, 67, 0.35);
+    box-shadow: 0 0 0 1px rgba(var(--sage-light-rgb), 0.55), 0 0 14px rgba(var(--sage-rgb), 0.35);
 }
 .drone-caption {
     font-size: 9px;
     font-style: italic;
-    color: var(--brown-text-light);
+    color: var(--oak);
     text-align: center;
-    opacity: 0.8;
     margin-top: auto;
     padding-bottom: 2px;
 }
@@ -571,20 +613,24 @@ body {
 .knob-track { fill: none; stroke: var(--knob-track); stroke-width: 4; stroke-linecap: round; }
 .knob-fill  { fill: none; stroke: var(--knob-fill);  stroke-width: 4; stroke-linecap: round; }
 .knob-center {
-    fill: var(--bg-paper);
-    stroke: var(--bg-paper-darker);
+    fill: var(--paper);
+    stroke: var(--walnut);
     stroke-width: 1;
 }
-.knob-indicator { fill: none; stroke: var(--brown-text); stroke-width: 2; stroke-linecap: round; }
+.knob-indicator { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
 
+/* v1.11.0 — 8px -> 9px, the template's floor. */
 .knob-label {
-    font-size: 8px;
+    font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    color: var(--brown-text-light);
+    color: var(--oak);
     text-align: center;
     line-height: 1.2;
-    max-width: 62px;
+    /* v1.11.0 — 62 -> 66: at the 9px floor the widest caption, French
+       "Entrée vibr.", is 63.1px. The column stays 62; a centred label may
+       run 2px into each 11px gap, never into its neighbour. */
+    max-width: 66px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -592,7 +638,7 @@ body {
 
 .knob-value {
     font-size: 9px;
-    color: var(--brown-text);
+    color: var(--ink);
     text-align: center;
     font-style: italic;
     min-height: 12px;
@@ -614,9 +660,9 @@ body {
 /* ============================ Viz panels ================================== */
 .viz-canvas { display: block; }
 .viz-caption {
-    font-size: 8.5px;
+    font-size: 9px;
     font-style: italic;
-    color: var(--brown-text-lighter);
+    color: var(--walnut-text);
     text-align: center;
     margin-top: 3px;
     letter-spacing: 0.3px;
@@ -627,35 +673,37 @@ body {
 
 .stepper-block { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 8px; }
 .stepper-label {
-    font-size: 8px; text-transform: uppercase; letter-spacing: 0.4px;
-    color: var(--brown-text-light);
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.4px;
+    color: var(--oak);
 }
-.segmented { display: flex; border: 1px solid var(--brown-border); border-radius: 4px; overflow: hidden; }
+.segmented { display: flex; border: 1px solid var(--walnut); border-radius: 4px; overflow: hidden; }
 .segmented button {
     width: 27px; height: 24px;
-    background: rgba(255,250,240,0.35);
+    background: rgba(var(--paper-light-rgb), 0.35);
     border: none;
-    border-right: 1px solid var(--brown-border);
+    border-right: 1px solid var(--walnut);
     font-family: inherit;
     font-size: 11px;
-    color: var(--brown-text-light);
+    color: var(--oak);
     cursor: pointer;
     transition: background 0.12s, color 0.12s;
 }
 .segmented button:last-child { border-right: none; }
-.segmented button:hover { background: rgba(150, 181, 122, 0.25); }
+.segmented button:hover { background: rgba(var(--sage-light-rgb), 0.25); }
+/* v1.11.0 — paper on the template's sage FILL (5.10:1); #F3E8D5 on #5F8143
+   read 3.68. */
 .segmented button.active {
-    background: var(--green-mid);
-    color: #F3E8D5;
+    background: var(--sage-fill);
+    color: var(--paper);
     font-weight: bold;
 }
-.stepper-value { font-size: 9px; font-style: italic; color: var(--brown-text); }
+.stepper-value { font-size: 9px; font-style: italic; color: var(--ink); }
 
 /* Tailpiece fine-tuners (per-string detune) */
 .finetuner-block { margin-top: 8px; }
 .finetuner-title {
-    font-size: 8px; text-transform: uppercase; letter-spacing: 1px;
-    color: var(--brown-text-lighter); text-align: center; margin-bottom: 4px;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--walnut-text); text-align: center; margin-bottom: 4px;
 }
 .finetuner-row { display: flex; justify-content: center; gap: 26px; }
 .finetuner {
@@ -663,24 +711,24 @@ body {
     width: 36px; gap: 2px;
 }
 .finetuner .string-name {
-    font-size: 10px; font-weight: bold; color: var(--brown-text);
+    font-size: 10px; font-weight: bold; color: var(--ink);
     font-style: italic;
 }
 .fader-track {
     width: 8px; height: 74px;
-    background: linear-gradient(180deg, #BCA987, #9E8A69);
+    background: linear-gradient(180deg, var(--paper-accent), var(--walnut));
     border-radius: 4px;
-    border: 1px solid var(--brown-border);
+    border: 1px solid var(--walnut);
     position: relative;
     cursor: grab;
-    box-shadow: inset 0 1px 3px rgba(51,38,37,0.4);
+    box-shadow: inset 0 1px 3px rgba(var(--ink-rgb), 0.4);
 }
 .fader-track:active { cursor: grabbing; }
 .fader-detent {
     position: absolute;
     left: -5px; right: -5px;
     top: 50%; height: 1px;
-    background: var(--brown-frame-light);
+    background: var(--oak);
     opacity: 0.8;
 }
 .fader-thumb {
@@ -691,14 +739,14 @@ body {
     border-radius: 3px;
     background:
         repeating-linear-gradient(90deg,
-            rgba(51,38,37,0.25) 0 1px, rgba(255,246,226,0.25) 1px 3px),
-        linear-gradient(180deg, #D8B978, #B4924E);
-    border: 1px solid #7A5F33;
+            rgba(var(--ink-rgb), 0.25) 0 1px, rgba(var(--paper-light-rgb), 0.25) 1px 3px),
+        linear-gradient(180deg, var(--brass-hi), var(--brass-lo));
+    border: 1px solid var(--brass-edge);
     box-shadow: 0 1px 2px var(--shadow-hard);
     pointer-events: none;
 }
 .fader-value {
-    font-size: 9px; font-style: italic; color: var(--brown-text);
+    font-size: 9px; font-style: italic; color: var(--ink);
     min-height: 11px;
 }
 
@@ -706,9 +754,9 @@ body {
 .vu-block { margin-top: auto; display: flex; flex-direction: column; align-items: center; }
 .vu-face {
     border-radius: 4px;
-    border: 1px solid var(--brown-border);
-    background: linear-gradient(#F6EAD2, #EBD9B8);
-    box-shadow: inset 0 1px 3px rgba(51,38,37,0.25);
+    border: 1px solid var(--walnut);
+    background: linear-gradient(var(--paper), var(--paper-mid));
+    box-shadow: inset 0 1px 3px rgba(var(--ink-rgb), 0.25);
 }
 
 /* ============================ Microtonal strip ============================ */
@@ -717,31 +765,33 @@ body {
     align-items: center;
     gap: 14px;
     padding: 0 14px;
-    background: linear-gradient(rgba(223, 198, 166, 0.7), rgba(223, 198, 166, 0.45));
+    background: linear-gradient(rgba(var(--paper-deep-rgb), 0.7), rgba(var(--paper-deep-rgb), 0.45));
 }
+/* The strip sits in the page's darkest band (the bottom radial), so its
+   caption takes oak, not the walnut the upper panel headings carry. */
 .sec-microtonal .strip-label {
     font-size: 10px; text-transform: uppercase; letter-spacing: 1.6px;
-    color: var(--brown-text-lighter);
-    border-right: 1px solid var(--bg-paper-darker);
+    color: var(--oak);
+    border-right: 1px solid var(--rule);
     padding-right: 14px;
     white-space: nowrap;
 }
 .sec-microtonal .strip-label .numeral { color: var(--green-dark); font-weight: bold; }
 
 .dropdown-select {
-    background: rgba(255, 250, 240, 0.5);
-    border: 1px solid var(--brown-border);
+    background: rgba(var(--paper-light-rgb), 0.5);
+    border: 1px solid var(--walnut);
     border-radius: 4px;
     padding: 4px 6px;
     font-family: inherit;
     font-size: 11px;
-    color: var(--brown-text);
+    color: var(--ink);
     cursor: pointer;
     outline: none;
     width: 150px;
     height: 28px;
 }
-.dropdown-select:focus { border-color: var(--green-mid); }
+.dropdown-select:focus { border-color: var(--sage); }
 .strip-field { display: flex; align-items: center; gap: 6px; }
 /* v1.8.0 — pinned to the wider language so the select, the .scl button and the
    Note Expression toggle stop sliding: Tuning System 80.3 -> Systeme d'accord
@@ -753,7 +803,7 @@ body {
 .strip-field > .strip-field-label { min-width: 98px; }
 .strip-field-label {
     font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;
-    color: var(--brown-text-light); white-space: nowrap;
+    color: var(--oak); white-space: nowrap;
 }
 
 .scl-btn {
@@ -763,17 +813,17 @@ body {
     height: 28px;
     white-space: nowrap;
     padding: 0 12px;
-    background: rgba(255,250,240,0.4);
-    border: 1px solid var(--brown-border);
+    background: rgba(var(--paper-light-rgb), 0.4);
+    border: 1px solid var(--walnut);
     border-radius: 4px;
     font-family: inherit;
     font-size: 11px;
-    color: var(--brown-text);
+    color: var(--ink);
     cursor: pointer;
     letter-spacing: 0.4px;
     transition: background 0.15s, opacity 0.15s;
 }
-.scl-btn:hover { background: rgba(150, 181, 122, 0.3); }
+.scl-btn:hover { background: rgba(var(--sage-light-rgb), 0.3); }
 .scl-btn:disabled { opacity: 0.45; cursor: default; }
 
 /* Toggle switch */
@@ -781,8 +831,8 @@ body {
 .toggle-track {
     width: 40px; height: 20px;
     border-radius: 10px;
-    background: var(--bg-paper-darker);
-    border: 1px solid var(--brown-border);
+    background: var(--paper-accent);
+    border: 1px solid var(--walnut);
     position: relative;
     transition: background 0.18s;
 }
@@ -791,22 +841,21 @@ body {
     top: 1px; left: 1px;
     width: 16px; height: 16px;
     border-radius: 50%;
-    background: linear-gradient(#FBF2DF, #E4D2B2);
-    border: 1px solid var(--brown-border);
+    background: linear-gradient(var(--paper-light), var(--paper-deep));
+    border: 1px solid var(--walnut);
     transition: left 0.18s;
     box-shadow: 0 1px 2px var(--shadow-soft);
 }
-.toggle-field.on .toggle-track { background: var(--green-mid); }
+.toggle-field.on .toggle-track { background: var(--sage); }
 .toggle-field.on .toggle-thumb { left: 20px; }
 
 .range-caption {
     margin-left: auto;
     font-size: 10px;
     font-style: italic;
-    color: var(--brown-text-light);
+    color: var(--oak);
     letter-spacing: 0.4px;
     white-space: nowrap;
-    opacity: 0.85;
 }
 
 /* ==================== Stage 3 Task 9 (D3) — Main/Tuning tabs ============== */
@@ -824,8 +873,8 @@ body {
        share is the wider one — which widens the English tabs too, deliberately. */
     min-width: 100px;
     background: none;
-    border: 1px solid rgba(237, 217, 190, 0.3);
-    color: var(--bg-paper);
+    border: 1px solid rgba(var(--paper-rgb), 0.3);
+    color: var(--paper-accent);
     border-radius: 4px;
     cursor: pointer;
     font-family: inherit;
@@ -833,14 +882,13 @@ body {
     letter-spacing: 1px;
     text-transform: uppercase;
     padding: 4px 14px;
-    opacity: 0.7;
-    transition: background 0.15s, opacity 0.15s;
+    transition: background 0.15s, color 0.15s;
 }
-.tab-btn:hover { background: rgba(237, 217, 190, 0.15); opacity: 1; }
+.tab-btn:hover { background: rgba(var(--paper-rgb), 0.15); color: var(--paper); }
 .tab-btn.active {
-    background: rgba(150, 181, 122, 0.25);
-    border-color: var(--green-accent);
-    opacity: 1;
+    background: rgba(var(--sage-light-rgb), 0.25);
+    border-color: var(--sage-light);
+    color: var(--paper);
 }
 
 /* Tab panels — the Main panel is the untouched `.main` grid; hiding uses
@@ -982,8 +1030,7 @@ body {
 #tuning-container .generator-btn,
 #tuning-container .generator-type-select,
 #tuning-container .library-filter-select {
-    font-family: 'Garamond', 'Georgia', 'Times New Roman',
-                 'PingFang SC', 'Microsoft YaHei', serif;
+    font-family: var(--serif);
 }
 
 /* ── 5. THE PAGE'S OWN line-height:normal LEAVES ──────────────────────
@@ -1027,9 +1074,9 @@ body {
 #active-strings-value,
 .strip-field-label      { line-height: 1.1111111; }
 .stepper-label,
-.finetuner-title        { line-height: 1.125; }
+.finetuner-title        { line-height: 1.1111111; }   /* v1.11.0: 8px -> 9px */
 .range-caption          { line-height: 1.1; }
-.viz-caption            { line-height: 1.1764706; }
+.viz-caption            { line-height: 1.1111111; }   /* v1.11.0: 8.5px -> 9px, same 10px box */
 
 /* ── 6. FOUR CAPTION *ROWS* THAT GREW WITH NO LEAF REPORTING IT ───────
    Wave 4e's N4, and it is the whole of what was left after block 5.
@@ -1094,23 +1141,51 @@ body {
 /* Parchment-palette overrides for the shared tuning panel (D3: stay
    in-family — module CSS variables are the supported theming surface). */
 .tuning-panel {
-    --tuning-bg: rgba(255, 250, 240, 0.35);
-    --tuning-border: var(--bg-paper-darker);
-    --tuning-text: var(--brown-text);
-    --tuning-text-muted: var(--brown-text-lighter);
-    --tuning-accent: var(--green-mid);
-    --tuning-input-bg: rgba(255, 255, 255, 0.55);
-    --tuning-hover: rgba(126, 154, 98, 0.25);
-    --tuning-active: rgba(95, 129, 67, 0.35);
+    --tuning-bg: rgba(var(--paper-light-rgb), 0.35);
+    --tuning-border: var(--rule);
+    --tuning-text: var(--ink);
+    --tuning-text-muted: var(--walnut-text);
+    /* the module also fills its primary buttons with the accent under white
+       text: #5F8143 read 4.46, the sage fill reads 6.3 */
+    --tuning-accent: var(--sage-fill);
+    --tuning-input-bg: var(--input-well);
+    --tuning-hover: rgba(var(--sage-light-rgb), 0.25);
+    --tuning-active: rgba(var(--sage-rgb), 0.35);
     /* This override is what keeps the panel BODY off the shared module's
        `-apple-system, BlinkMacSystemFont, sans-serif` (tuning-panel.css:66),
        which names no Han face at all. O-Contrabass and O-Wind override it;
        O-Reed and O-Bowed do not, and render 116 nodes each through the
        document-language fallback. Tail only here, for the same reason as the
-       house stack above: this stack's Latin half already resolves to Georgia. */
-    font-family: 'Garamond', 'Georgia', 'Times New Roman',
-                 'PingFang SC', 'Microsoft YaHei', serif;
+       house stack above. */
+    font-family: var(--serif);
 }
+
+/* ==================== Keyboard focus (v1.11.0) ============================
+   The page had no :focus-visible rule at all, and four of its controls set
+   outline:none — a keyboard user tabbing through the header, the stepper, the
+   microtonal strip and the whole tuning panel could not see where they were.
+   :focus-visible, so a mouse click never draws the ring.
+
+   Placed LAST and written element:focus-visible (0,1,1), so it outranks the
+   class-only outline:none on .settings-select / .dropdown-select (0,1,0).
+   Green-dark on the paper body (6:1 against #EBD9C7); sage-light on the ink
+   band, the menu and the popover (4.8:1 against ink) — both clear the 3:1 a
+   focus indicator needs. */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--green-dark);
+    outline-offset: 2px;
+}
+.preset-bar :focus-visible,
+.preset-menu :focus-visible {
+    outline-color: var(--sage-light);
+}
+/* .segmented clips its children (overflow:hidden), so an outset ring would be
+   cut away: inset it, in ink, and in paper on the sage-filled active cell. */
+.segmented button:focus-visible { outline-color: var(--ink); outline-offset: -3px; }
+.segmented button.active:focus-visible { outline-color: var(--paper); }
 </style>
 </head>
 <body>
@@ -1118,30 +1193,30 @@ body {
 <div class="plugin-root">
 
     <!-- Whale engraving placeholder (final artwork = production asset TODO) -->
-    <svg class="engraving-overlay" viewBox="0 0 460 200" xmlns="http://www.w3.org/2000/svg">
-        <g fill="none" stroke="#4A3226" stroke-width="1.6" stroke-linecap="round">
+    <svg class="engraving-overlay" viewBox="0 0 460 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
             <!-- body -->
-            <path fill="rgba(74,50,38,0.06)" d="M 62,105
+            <path fill="currentColor" fill-opacity="0.06" d="M 62,105
                 C 120,56 220,46 298,51
                 C 352,55 402,66 428,90
                 C 436,99 436,113 426,122
                 C 384,140 330,144 280,139
                 C 200,132 128,128 62,111 Z"/>
             <!-- fluke -->
-            <path fill="rgba(74,50,38,0.06)" d="M 64,108
+            <path fill="currentColor" fill-opacity="0.06" d="M 64,108
                 L 32,70 C 22,58 10,52 3,49
                 C 15,66 21,84 19,100
                 C 14,118 8,134 3,148
                 C 14,142 27,131 37,123 L 64,112 Z"/>
             <!-- flipper -->
-            <path fill="rgba(74,50,38,0.06)" d="M 330,124 C 341,140 337,153 322,157 C 319,144 322,132 330,124 Z"/>
+            <path fill="currentColor" fill-opacity="0.06" d="M 330,124 C 341,140 337,153 322,157 C 319,144 322,132 330,124 Z"/>
             <!-- jaw line -->
             <path stroke-width="1.1" d="M 427,116 C 395,129 358,133 328,130"/>
             <!-- eye -->
-            <circle cx="396" cy="104" r="2.6" fill="#4A3226" stroke="none"/>
+            <circle cx="396" cy="104" r="2.6" fill="currentColor" stroke="none"/>
         </g>
         <!-- engraving hatch lines -->
-        <g fill="none" stroke="#4A3226" stroke-width="0.7" opacity="0.8">
+        <g fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.8">
             <path d="M 84,113 C 165,122 262,126 344,121"/>
             <path d="M 92,105 C 172,113 272,117 356,111"/>
             <path d="M 102,96 C 182,103 280,107 368,100"/>
@@ -1152,13 +1227,13 @@ body {
             <path d="M 240,52 C 288,51 342,56 416,63"/>
         </g>
         <!-- water lines -->
-        <g fill="none" stroke="#4A3226" stroke-width="0.9" opacity="0.7">
+        <g fill="none" stroke="currentColor" stroke-width="0.9" opacity="0.7">
             <path d="M 30,172 C 110,165 210,178 296,169"/>
             <path d="M 316,178 C 372,171 424,181 456,174"/>
             <path d="M 70,184 C 140,179 208,188 268,182"/>
         </g>
-        <text x="230" y="199" text-anchor="middle" font-family="Georgia, 'PingFang SC', 'Microsoft YaHei', serif" font-style="italic"
-              font-size="10" fill="#4A3226" data-i18n="label.plate">Physeter macrocephalus — Plate VII</text>
+        <text x="230" y="199" text-anchor="middle" font-family="'EB Garamond', Georgia, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif" font-style="italic"
+              font-size="10" fill="currentColor" data-i18n="label.plate">Physeter macrocephalus — Plate VII</text>
     </svg>
 
     <!-- ==================== Header / preset bar ==================== -->
@@ -1234,7 +1309,7 @@ body {
         <svg class="header-whale" width="44" height="16" viewBox="0 0 44 16" xmlns="http://www.w3.org/2000/svg">
             <path d="M 6,9 C 12,4 24,3.4 33,4.4 C 37,5 40.5,6 42,8.2 C 40.5,10.4 36,11.6 30,11.6 C 21,11.6 12,11 6,9.6 Z
                      M 6.4,9.2 L 2.6,5.4 C 1.6,7 1.8,8.6 1.6,9.4 C 1.4,10.6 1,12 0.6,13 C 2,12.2 4,11 5,10.2 Z"
-                  fill="none" stroke="#EDD9BE" stroke-width="1"/>
+                  fill="none" stroke="currentColor" stroke-width="1"/>
         </svg>
         <span class="brand-label">Ouaricon &middot; Naturalist Series</span>
     </div>
@@ -2010,6 +2085,20 @@ function updateDroneAwake() {
 /* ============================================================================
    Canvas helpers (DPR-aware backing store — canvas is a CSS replaced element)
    ============================================================================ */
+/* v1.11.0 — canvas colours come from the :root tokens, read once, so the three
+   viz panels share the page's naturalist core instead of carrying their own
+   hex. A canvas cannot resolve var(), hence the read. `cv.a(name, alpha)`
+   builds an rgba() from a --name-rgb triplet. */
+const rootStyle = getComputedStyle(document.documentElement);
+const cv = {
+    t: (name) => rootStyle.getPropertyValue("--" + name).trim(),
+    a: (name, alpha) => "rgba(" + rootStyle.getPropertyValue("--" + name + "-rgb").trim() + ", " + alpha + ")",
+};
+// The bundled face, with the old stack behind it. Canvas text resolves its
+// font at fillText() time and never repaints on its own, so the first frames
+// can draw in the fallback; see the fonts.load() repaint after init.
+const CANVAS_SERIF = "'EB Garamond', Georgia, 'Times New Roman', serif";
+
 function setupCanvas(id, w, h) {
     const c = document.getElementById(id);
     const dpr = window.devicePixelRatio || 1;
@@ -2080,14 +2169,14 @@ function drawSchelleng() {
     ctx.clearRect(0, 0, SCH_W, SCH_H);
 
     // plot bg
-    ctx.fillStyle = "rgba(255, 250, 240, 0.35)";
+    ctx.fillStyle = cv.a("paper-light", 0.35);
     ctx.fillRect(sch.padL, sch.padT, SCH_W - sch.padL - sch.padR, SCH_H - sch.padT - sch.padB);
 
     // grid
-    ctx.strokeStyle = "rgba(124, 101, 71, 0.22)";
+    ctx.strokeStyle = cv.a("walnut", 0.22);
     ctx.lineWidth = 0.5;
-    ctx.font = "8px Georgia, serif";
-    ctx.fillStyle = "#7D6C5E";
+    ctx.font = "9px " + CANVAS_SERIF;      // v1.11.0: 8px -> the 9px floor
+    ctx.fillStyle = cv.t("walnut-text");
     [0.05, 0.1, 0.2, 0.5, 1.0].forEach(v => {
         const x = schXof(v);
         ctx.beginPath(); ctx.moveTo(x, sch.padT); ctx.lineTo(x, SCH_H - sch.padB); ctx.stroke();
@@ -2130,19 +2219,19 @@ function drawSchelleng() {
         ctx.lineTo(schXof(v), y);
     }
     ctx.closePath();
-    ctx.fillStyle = "rgba(95, 129, 67, 0.13)";
+    ctx.fillStyle = cv.a("sage", 0.13);
     ctx.fill();
 
     // pMax / pMin curves
     ctx.lineWidth = 1.2;
-    ctx.strokeStyle = "rgba(63, 93, 44, 0.75)";
+    ctx.strokeStyle = cv.a("green-dark", 0.75);
     ctx.beginPath();
     vs.forEach((v, i) => {
         const y = schYof(Math.max(sch.pMin * 0.5, Math.min(sch.pMax * 2, wedgePmax(v, beta))));
         i === 0 ? ctx.moveTo(schXof(v), y) : ctx.lineTo(schXof(v), y);
     });
     ctx.stroke();
-    ctx.strokeStyle = "rgba(124, 101, 71, 0.75)";
+    ctx.strokeStyle = cv.a("walnut", 0.75);
     ctx.beginPath();
     vs.forEach((v, i) => {
         const y = schYof(Math.max(sch.pMin * 0.5, Math.min(sch.pMax * 2, wedgePmin(v, beta))));
@@ -2151,16 +2240,18 @@ function drawSchelleng() {
     ctx.stroke();
 
     // region labels
-    ctx.font = "italic 9px Georgia, serif";
+    // v1.11.0 — solid inks: the 0.75 / 0.85 alphas composited these captions
+    // to 3-4:1 on the plot, and text opacity is a contrast change.
+    ctx.font = "italic 9px " + CANVAS_SERIF;
     ctx.textAlign = "left";
-    ctx.fillStyle = "rgba(122, 62, 44, 0.75)";
+    ctx.fillStyle = cv.t("rust");
     ctx.fillText("raucous", sch.padL + 8, sch.padT + 13);
-    ctx.fillStyle = "rgba(63, 93, 44, 0.85)";
+    ctx.fillStyle = cv.t("green-dark");
     const vMid = 0.28;
     const pMid = Math.sqrt(wedgePmax(vMid, beta) * wedgePmin(vMid, beta));
     if (pMid > sch.pMin && pMid < sch.pMax)
         ctx.fillText("Helmholtz regime", schXof(vMid), schYof(pMid) + 3);
-    ctx.fillStyle = "rgba(125, 108, 94, 0.85)";
+    ctx.fillStyle = cv.t("oak");   // sits in the wedge fill: walnut read 4.23
     ctx.fillText("surface / slipping", SCH_W - sch.padR - 92, SCH_H - sch.padB - 8);
 
     // operating point (eased + noise jitter)
@@ -2174,10 +2265,10 @@ function drawSchelleng() {
     const dx = sch.dotX + sch.jx * jAmp, dy = sch.dotY + sch.jy * jAmp;
 
     const inWedge = pressure <= wedgePmax(speed, beta) && pressure >= wedgePmin(speed, beta);
-    const dotColor = inWedge ? "#3F5D2C" : "#8A4128";
+    const dotColor = inWedge ? cv.t("green-dark") : cv.t("rust");
     ctx.beginPath();
     ctx.arc(dx, dy, 8, 0, Math.PI * 2);
-    ctx.fillStyle = inWedge ? "rgba(95, 129, 67, 0.25)" : "rgba(138, 65, 40, 0.22)";
+    ctx.fillStyle = inWedge ? cv.a("sage", 0.25) : cv.a("rust", 0.22);
     ctx.fill();
     ctx.beginPath();
     ctx.arc(dx, dy, 3.4, 0, Math.PI * 2);
@@ -2238,10 +2329,10 @@ function drawSpectrum() {
     const ampMax = Math.max(...amps);
 
     // grid + freq labels
-    ctx.strokeStyle = "rgba(124, 101, 71, 0.18)";
+    ctx.strokeStyle = cv.a("walnut", 0.18);
     ctx.lineWidth = 0.5;
-    ctx.font = "7.5px Georgia, serif";
-    ctx.fillStyle = "#7D6C5E";
+    ctx.font = "9px " + CANVAS_SERIF;      // v1.11.0: 7.5px -> the 9px floor
+    ctx.fillStyle = cv.t("walnut-text");
     ctx.textAlign = "center";
     [50, 100, 200, 400, 800].forEach(f => {
         const x = spcXof(f);
@@ -2271,19 +2362,19 @@ function drawSpectrum() {
     ctx.lineTo(SPC_W, SPC_H - SPC.padB);
     ctx.closePath();
     const grad = ctx.createLinearGradient(0, SPC.padT, 0, SPC_H - SPC.padB);
-    grad.addColorStop(0, "rgba(95, 129, 67, 0.45)");
-    grad.addColorStop(1, "rgba(95, 129, 67, 0.08)");
+    grad.addColorStop(0, cv.a("sage", 0.45));
+    grad.addColorStop(1, cv.a("sage", 0.08));
     ctx.fillStyle = grad;
     ctx.fill();
 
     ctx.beginPath();
     pts.forEach((p, i) => i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]));
-    ctx.strokeStyle = "#3F5D2C";
+    ctx.strokeStyle = cv.t("green-dark");
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
     // mode markers
-    ctx.fillStyle = "rgba(63, 93, 44, 0.8)";
+    ctx.fillStyle = cv.a("green-dark", 0.8);
     modes.forEach((f, m) => {
         if (f < SPC.fMin || f > SPC.fMax) return;
         const x = spcXof(f);
@@ -2336,39 +2427,41 @@ function drawVU() {
 
     // scale arc
     ctx.lineWidth = 2.2;
-    ctx.strokeStyle = "#5E4D40";
+    ctx.strokeStyle = cv.t("oak");
     ctx.beginPath();
     ctx.arc(vu.cx, vu.cy, vu.r, -Math.PI / 2 + vuAngle(-20), -Math.PI / 2 + vuAngle(0));
     ctx.stroke();
-    ctx.strokeStyle = "#9C3B22";
+    ctx.strokeStyle = cv.t("rust");
     ctx.beginPath();
     ctx.arc(vu.cx, vu.cy, vu.r, -Math.PI / 2 + vuAngle(0), -Math.PI / 2 + vuAngle(3));
     ctx.stroke();
 
-    // ticks + labels
-    ctx.font = "6.5px Georgia, serif";
-    ctx.fillStyle = "#5E4D40";
+    // ticks + labels. v1.11.0 — 6.5px -> the 9px floor. At 9px the −1 and 0
+    // numerals (one dB, ~5 px of arc apart) collide, as they already touched
+    // at 6.5px: −1 keeps its tick and drops its numeral.
+    ctx.font = "9px " + CANVAS_SERIF;
     ctx.textAlign = "center";
     [-20, -10, -7, -5, -3, -1, 0, 3].forEach(db => {
         const a = -Math.PI / 2 + vuAngle(db);
         const x1 = vu.cx + Math.cos(a) * (vu.r - 4), y1 = vu.cy + Math.sin(a) * (vu.r - 4);
         const x2 = vu.cx + Math.cos(a) * (vu.r + 3), y2 = vu.cy + Math.sin(a) * (vu.r + 3);
         ctx.lineWidth = 1;
-        ctx.strokeStyle = db >= 0 ? "#9C3B22" : "#5E4D40";
+        ctx.strokeStyle = db >= 0 ? cv.t("rust") : cv.t("oak");
         ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
         const lx = vu.cx + Math.cos(a) * (vu.r + 9), ly = vu.cy + Math.sin(a) * (vu.r + 9);
-        ctx.fillStyle = db >= 0 ? "#9C3B22" : "#5E4D40";
+        if (db === -1) return;
+        ctx.fillStyle = db >= 0 ? cv.t("rust") : cv.t("oak");
         ctx.fillText(db > 0 ? "+" + db : db.toString(), lx, ly + 2);
     });
 
     // "VU" mark
-    ctx.font = "italic bold 9px Georgia, serif";
-    ctx.fillStyle = "rgba(94, 77, 64, 0.7)";
+    ctx.font = "italic bold 9px " + CANVAS_SERIF;
+    ctx.fillStyle = cv.t("oak");
     ctx.fillText("VU", vu.cx, VU_H - 5);
 
     // needle
     const na = -Math.PI / 2 + vuAngle(vu.needleDb);
-    ctx.strokeStyle = "#332625";
+    ctx.strokeStyle = cv.t("ink");
     ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.moveTo(vu.cx + Math.cos(na) * (vu.r - 30), vu.cy + Math.sin(na) * (vu.r - 30));
@@ -2411,6 +2504,13 @@ function tick(t) {
 bindActiveStrings();
 bindMicrotonal();
 updateDroneAwake();
+
+// v1.11.0 — repaint the canvases once the bundled face is in. Schelleng and
+// the VU redraw on their own every frame; the spectrum only when dirty, so
+// without this its axis would keep the fallback face until a knob moved.
+Promise.all(["9px", "italic 9px", "italic bold 9px"].map(f =>
+    document.fonts.load(f + " 'EB Garamond'"))).then(() => { vizDirty.spectrum = true; })
+    .catch(() => { /* fallback face stays — cosmetic only */ });
 
 /* ============================================================================
    Preset bar (Task 8, D6) — canonical preset-manager v1.0.4 module.

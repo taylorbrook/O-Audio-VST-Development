@@ -4,6 +4,100 @@ All notable changes to the O-Contrabass physical-model bowed-contrabass synth.
 Format loosely follows [Keep a Changelog]. **v1.0.0 is the first shipped product
 version** — the pre-release `1.x-dev` engine track collapses into it.
 
+## [1.11.0] - 2026-09-28
+
+UI pass under the UI design review (260924-nho), items R4 and R5. The page moves
+onto the naturalist core colours with AA text, a 9px text floor, keyboard focus
+styling and the bundled EB Garamond face. MINOR: the change is visible. No
+parameter, range, type, state format or audio path changed.
+
+### Changed
+
+- **Colours now use the naturalist core.** The page carried a private set
+  ("darkened ~10% from O-Bowed") that named none of ink, walnut or paper. It
+  now uses the template's tokens: `--ink #3C2F2F`, `--oak #5C4033`, `--walnut
+  #8B7355` (borders and decoration only), `--paper #F5E6D3` / `--paper-mid
+  #EBD9C7` (the page ground), `--sage #6B8E4E` and `--green-dark #3C5C1A`. Text
+  takes the Text Contrast table's AA variants: `--walnut-text #6A5641` for
+  tertiary text over the graded ground, and `--sage-fill #4E6839` under paper
+  text. No colour literal remains below `:root`. The canvases read the same
+  tokens at startup, the whale engraving draws in `currentColor`, and the
+  fine-tuner brass is kept as named material tokens.
+- **Header, preset menu and settings popover sit on flat ink.** They used an
+  `#4A3226 → #3E2A20` gradient. The sage accents (the `-` in the name and the
+  current preset) clear AA only on ink (4.84:1). A paper lift of even 0.05
+  took them to 4.43.
+- **Text opacity removed.** `.brand-label` (0.55), the inactive tabs, the unlit
+  gear and toggle, `.settings-label`, `.sublabel`, `.drone-caption` and
+  `.range-caption` each dimmed their text with `opacity`. They now use a solid
+  secondary ink: `--paper-accent` on the ink band, and walnut or oak on paper.
+- **Lit states keep their sage border and wash, but the text is paper.** Sage
+  text on its own wash measured 3.5:1 (gear ⚙, hover-help "On"). The pressed
+  Active Strings cell uses the template's sage fill: 5.10:1, up from 3.68.
+- **Drone panel.** Its gold heading (`#B08F5E`, 1.64:1) is now oak, and the
+  numeral goes one green deeper. The panel still stands apart through its oak
+  wash and border.
+- **9px floor.** `.knob-label`, `.stepper-label` and `.finetuner-title` go from
+  8px to 9px, and `.viz-caption` from 8.5px to 9px. The canvas text moves too:
+  Schelleng ticks 8 → 9, spectrum axis 7.5 → 9 and VU scale 6.5 → 9. At 9px
+  the VU's −1 and 0 numerals, one dB apart, would collide (they already touched
+  at 6.5px), so −1 keeps its tick and drops its numeral. The line-height
+  ratios are re-set for 9px. `.viz-caption` keeps its 10px box. The stepper
+  and fine-tuner captions grow from a 9px box to 10px.
+- **`.knob-label` max-width 62 → 66px.** At 9px the widest caption, French
+  "Entrée vibr.", measures 63.1px. The column stays 62px wide, so a centred
+  label runs at most 2px into each 11px gap.
+- **Tuning panel accent → sage fill.** The module also fills its primary
+  buttons with the accent under white text. That read 4.46:1 on `#5F8143` and
+  reads 6.3:1 now. Muted text moves to `--walnut-text`.
+
+### Added
+
+- **`:focus-visible` styling.** The page had no focus rule at all, and four
+  controls set `outline: none`. The ring is 2px green-dark on paper and
+  sage-light on the ink band and the menu. In the Active Strings stepper,
+  whose `overflow: hidden` would clip an outer ring, the ring is inset.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed). There are 4
+  new binary-data SOURCES and 4 new `getResource()` branches, and the
+  stylesheet loads before `tuning-panel.css`. The four font stacks become one
+  `--serif` token, and the bare `'Garamond'` entry is gone. The canvases load
+  the face and repaint the spectrum once it arrives: canvas text never
+  repaints on its own.
+- The whale engraving SVG is `aria-hidden="true"`. It is a 0.13-opacity
+  watermark, and its plate caption is decoration.
+
+### Measured
+
+| Gate | Before | After |
+|---|---|---|
+| Real-pixel probe¹, 7 states × en/fr/zh-Hans, rows below AA (per language) | 32 / 148 (min 1.23) | 1 / 148 (the aria-hidden plate caption; min real text 4.84) |
+| Real-pixel probe, rows under 9px | 26 | 0 |
+| `measure-ui --contrast`, below AA (per language) | 39 / 169 | 1 / 169 (the plate) |
+| `measure-ui --contrast`, under 9px floor | 26 | 0 |
+| `check-ui-labels` (en/fr/zh-Hans) | 172 PASS | 172 PASS |
+| `ui_frontend_check` | 31 PASS | 31 PASS |
+| CDP resolved face (en/fr, Main) | Georgia | EB Garamond 1489 / 1619 glyphs (◀ ▶ ⚙ fall to Georgia) |
+
+¹ The census scores against the nearest opaque colour and flags every
+gradient as a background image, which is everything on this page. So its
+header rows read 1.00, and its body rows read against a flat `#EDD9BE` the
+text never sits on. The probe hides text (with transitions off), takes a 2×
+screenshot and composites the foreground, including its opacity chain, over
+the p5 and p95 of the glyph band.
+
+Canvas text is outside both tools, so it was sampled from the 2× screenshot
+(glyph-free ground, p5 and max). Schelleng ticks read 5.43, "raucous" 5.25,
+"Helmholtz regime" 4.65 (in the wedge fill), spectrum axis 5.33, VU scale 6.95,
+and the VU's +3 / 0 in rust 4.78. "surface / slipping" sits inside the wedge
+fill, where `--walnut-text` read 4.23; it takes oak there, at 5.71.
+
+### Not changed
+
+- **R7 is still open.** Knob interaction (keyboard, ARIA) was not touched:
+  only knob colours changed, through CSS classes. The same applies to the
+  Note Expression toggle, a non-focusable `<div>`.
+- No DSP, parameter or state change.
+
 ## [1.10.0] - 2026-09-07
 
 Simplified Chinese joins English and French (wave 4f, task 260907-ja8). MINOR:
