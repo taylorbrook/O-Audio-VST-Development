@@ -560,6 +560,8 @@ modules:
         version: 1.22.0
       - plugin: O-Detune
         version: 1.10.0
+      - plugin: O-Contrabass
+        version: 1.11.0
 
 # ============================================================================
 # HOW TO USE THIS REGISTRY

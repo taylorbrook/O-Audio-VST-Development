@@ -13,7 +13,7 @@ juce_add_plugin(O-Contrabass
     # silently ignores). Without it the bundle Info.plist reports JUCE's 1.0.0
     # default, so v1.0.0 was correct only by coincidence and any future bump
     # would never have reached the built artefact.
-    VERSION 1.10.0
+    VERSION 1.11.0
 
     # Synthesizer configuration (juce8-critical-patterns #22)
     IS_SYNTH TRUE
@@ -121,6 +121,12 @@ juce_add_binary_data(OContrabass_UIResources
         ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/js/preset-manager.js
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/js/tuning-panel.js
         ${CMAKE_SOURCE_DIR}/modules/tuning/scala-tuning-engine/snippets/tuning-panel.css
+        # v1.11.0 — bundled EB Garamond (modules/ui/eb-garamond, direct embed,
+        # R5). Served as /css/eb-garamond.css + /fonts/*.woff2 by getResource().
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(O-Contrabass
