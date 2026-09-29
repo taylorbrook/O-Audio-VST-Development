@@ -2,6 +2,85 @@
 
 All notable changes to O-Emulator are documented here.
 
+## [1.5.0] - 2026-09-28
+
+**Readable text on the real paper, and the house serif actually ships.** The
+R4/R5 pass from UI review 260924-nho (Phase C). MINOR: colours, one bundled
+font and three width pins change; no parameter, range, type, state format or
+DSP was touched, and the knob interaction code is untouched (R7 stays open).
+
+### Fixed
+
+- **Text contrast, measured on the real pixels.** `measure-ui --contrast` scores
+  text against the `#F5E6D3` fallback, but the page's ground is `paper.jpg`
+  under a 0.42–0.5 wash with the Marsh specimen engraved ABOVE it. A
+  real-pixel probe (text hidden, 2× screenshot, worst of p5/p95 per glyph band;
+  10 states — five consoles, settings open, delete armed, band disabled, two
+  tooltip states — × en/fr/zh-Hans) read **197 of 756 rows below AA, worst
+  1.99** on readable text. After: **0 of 735, worst 4.64**.
+  - `.brand` and `.plate` → `--brown-text` (were `#5C4033` at 3.98 and
+    `rgba(92,64,51,0.8)` at 3.05).
+  - **The accent split into three jobs.** `--accent-dark` keeps strokes (knob
+    stems, the open gear's border). `--accent-fill` is now OPAQUE — the accent
+    at 0.35 pre-composited over `#F5E6D3`; as `rgba(accent, 0.5)` it let the
+    paper through and put the selected segment at 1.99–2.17 and the open gear
+    at 1.92. New `--accent-ink` carries every accent-coloured WORD (selected
+    segment, spec line, open gear, tip title): the console's own hue, darkened
+    until it clears 4.6 on the fill and 5.0 on the caption chip. SNES 4.64,
+    PS1 4.66, NES 4.68, Game Boy 4.64, Genesis 4.67 on the fill.
+  - **Caption chip** under the spec line, the knob captions and the readouts.
+    The specimen sits above the wash, so no wash can lighten its engraving —
+    it had the spec line at 2.16–2.46 and the Mix readout at 3.63 even in
+    `#3C2F2F`. A feathered `rgba(paper, 0.85)` plate (own background + blurred
+    outer shadow, no padding — zero layout) makes the ground deterministic:
+    worst case over the darkest stroke `#D9CAB8`. The spec line is now
+    `align-self: center` so the plate hugs the words; its text was already
+    centred, so no glyph moves.
+  - **Disabled preset band** dims its chrome, not its words: walnut
+    `--text-walnut-deep #6A5641` and a lighter border in place of
+    `opacity: 0.4` (2.0).
+  - **Armed delete** fill `rgba(139,69,19,0.3)` → `#D5B699`, the same colour
+    pre-composited, so the paper no longer shows through.
+  - Fleurons are `aria-hidden`; they stay decorative at 2.2 and are the only
+    rows left below AA in either census.
+- **9 px floor.** Preset ◀ ▶ 8 → 10 px (EB Garamond draws the triangles ~25%
+  smaller; the 20 px box is fixed). 0 nodes under 9 px, was 2 per language.
+
+### Changed
+
+- **Bundled EB Garamond (R5).** `modules/ui/eb-garamond` embedded directly into
+  the one binary-data target (4 SOURCES, 4 `getResource` branches, served at
+  `/css/` and `/fonts/`); stylesheet linked ahead of the inline style. The
+  stack drops the bare `'Garamond'` / `'Adobe Garamond Pro'` and puts Georgia
+  before Times. CDP resolved faces: **Times New Roman 177 glyphs → EB Garamond
+  181** in English (fr 190, zh-Hans 119 + PingFang 23 for Han); 0 unserved.
+- **Three pins moved for the new face**, each found by `check-ui-labels`:
+  - `.ctl` pinned at 66 px — French "Broyage" is 64.33 px in EB Garamond small
+    caps, wider than the 60 px knob that set the column, and space-evenly slid
+    all four knobs in French alone ([7], 16 moved). The columns move ≤ 1.8 px
+    from v1.4.0 in every language alike.
+  - `#preset-load` 39 → 40 and `#preset-delete` 51 → 52 — "Ouvrir" 37.89 in
+    37 and the armed "Confirm?" 49.61 in 49 ([4]). The band grows 2 px in every
+    language alike, so the language-invariance the pin exists for holds.
+- **PS1 segment keeps a real "1".** EB Garamond's `smcp` maps digits to
+  small-cap figures and its small-cap one is a dotless stroke ("PSı");
+  `lining-nums` does not help because `smcp` substitutes after it. PS1 has no
+  lowercase, so `font-variant-caps: normal` on that one segment changes nothing
+  else. No other small-caps text carries a figure in any language.
+- `tests/ui_tip_render_check.js`: +1 assertion that the bundled face loaded
+  (negative control — stylesheet unlinked — FAILs it).
+
+### Verification
+
+- Real-pixel probe: 197/756 → 0/735 readable rows below AA (min 1.99 → 4.64);
+  under 9 px 60 → 0.
+- `measure-ui --contrast`: 5/30 → 3/30 below AA per language, all three
+  `aria-hidden` fleurons; < 9 px 2 → 0.
+- `check-ui-labels` (en/fr/zh-Hans): 129 PASS before and after.
+- `ui_tip_render_check.js`: ALL PASS (138). `check-i18n`, `i18n-fr-lint`,
+  `i18n-zh-lint`: pass.
+- Release build (VST3 + AU, dev branding) installed; bundled face present in the binary; `auval -v aufx OEmu OuDv` PASS.
+
 ## [1.4.0] - 2026-09-05
 
 **Simplified Chinese.** Every caption, hover-help body and accessible name now

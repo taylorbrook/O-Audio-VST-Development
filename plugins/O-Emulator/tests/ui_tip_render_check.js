@@ -248,6 +248,16 @@ const READ_TIP = `() => {
     check(vp.width === SHIP_W && vp.height === SHIP_H,
         `the browser really is ${SHIP_W} x ${SHIP_H} — got ${vp.width} x ${vp.height}`);
 
+    // v1.5.0 (R5): measure on the face that ships. The bundled EB Garamond is
+    // module-embedded (modules/ui/eb-garamond), outside Source/ui/public, and
+    // with font-display:block a 404 is invisible text rather than a visible
+    // fallback — every tip width below would be measured on the wrong face.
+    const ebgLoaded = await page.evaluate(async () => {
+        await document.fonts.ready;
+        return [...document.fonts].some(f => f.family.replace(/["']/g, '') === 'EB Garamond' && f.status === 'loaded');
+    });
+    check(ebgLoaded, 'the bundled EB Garamond face loaded (not the Times fallback)');
+
     // Non-vacuity: the module must have RUN. A TDZ throw out of module
     // evaluation leaves the HTML looking correct and every control dead
     // (pattern_module_toplevel_init_tdz), and on this plugin the entire UI is

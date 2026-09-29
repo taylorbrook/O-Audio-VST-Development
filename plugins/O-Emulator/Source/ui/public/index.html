@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>O-Emulator</title>
+<!-- v1.5.0 (R5): the bundled house serif (modules/ui/eb-garamond), linked AHEAD
+     of the inline style so --serif's first family is defined before any rule
+     asks for it. Through v1.4.0 'EB Garamond' was named first in the stack but
+     never shipped, so the page rendered in Times New Roman. -->
+<link rel="stylesheet" href="css/eb-garamond.css" />
 <style>
   /* ============ WebView constraints ============ */
   html, body { height: 100%; margin: 0; padding: 0; }
@@ -24,21 +29,53 @@
     --seg-a: #F5DEB3;
     --seg-b: #E8D5B7;
     --knob-core: #FFF8DC;
-    --serif: 'EB Garamond', 'Garamond', 'Adobe Garamond Pro', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+
+    /* v1.5.0 (R4) — WCAG AA text, ouaricon-naturalist-001 "Text Contrast".
+       Every colour a user must READ is solid; opacity and rgba alpha stay on
+       decoration only (fleurons, hairlines, the specimen). */
+    /* The quiet ink: the preset band while it is disabled (before
+       presetManager.initialize() resolves). 5.1 on the band's plate over the
+       median paper. */
+    --text-walnut-deep: #6A5641;
+    /* THE CAPTION CHIP. The Marsh specimen sits ABOVE the paper wash (z-index 1
+       over .plugin's background), so no wash can lighten its engraving, and it
+       runs through the console line and the Reverb / Mix columns: a real-pixel
+       probe put #consoleInfo at 2.16-2.46 and the Mix readout at 3.63 in
+       #3C2F2F. A zero-layout paper plate under those captions (background plus
+       two offset box-shadows, no padding) makes their ground deterministic:
+       worst case, over the darkest stroke, #D9CAB8 (L 0.605). */
+    --chip: rgba(245, 230, 211, 0.85);
+    /* v1.5.0 (R5): 'EB Garamond' is now BUNDLED (css/eb-garamond.css), so the
+       first family always resolves. The bare 'Garamond' and 'Adobe Garamond Pro'
+       entries are gone — left ahead of the bundled face they let an
+       Office-installed Garamond win on Windows — and Georgia precedes Times so a
+       font-load failure converges on the suite's one fallback face. */
+    --serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
   }
 
   /* ============ per-console accent system ============
      One accent hue shifts per console (RESEARCH §2 — console brand colors
      pulled down to naturalist ink saturation). Swapped by the SAME
      getComboBoxState listener that renders the segments, so host automation
-     and preset load re-theme too. --accent-fill is the accent at 0.5 alpha
-     over the paper tone (active segment); --accent-dark is the accent
-     darkened ~15% (active border/text, knob stems, info readout). */
-  body[data-console="0"] { --accent: #7B6480; --accent-dark: #68556D; --accent-fill: rgba(123,100,128,0.5); }  /* SNES — muted plum */
-  body[data-console="1"] { --accent: #5F7386; --accent-dark: #516272; --accent-fill: rgba(95,115,134,0.5);  }  /* PS1 — slate */
-  body[data-console="2"] { --accent: #9B5A48; --accent-dark: #844D3D; --accent-fill: rgba(155,90,72,0.5);   }  /* NES — brick oxide */
-  body[data-console="3"] { --accent: #6F7D3F; --accent-dark: #5E6A36; --accent-fill: rgba(111,125,63,0.5);  }  /* Game Boy — DMG olive */
-  body[data-console="4"] { --accent: #4E7A70; --accent-dark: #42685F; --accent-fill: rgba(78,122,112,0.5);  }  /* Genesis — deep teal */
+     and preset load re-theme too. */
+  /* v1.5.0 (R4): the accent split into three jobs.
+       --accent-dark  STROKES only now: knob stems, the open gear's border.
+       --accent-fill  OPAQUE, the accent at 0.35 pre-composited over #F5E6D3.
+                      Through v1.4.0 it was rgba(accent, 0.5), which let the
+                      paper image through the selected segment and the open
+                      gear and put their captions at 1.9-2.2 on the real pixels
+                      (2.9 even on flat #F5E6D3).
+       --accent-ink   TEXT: the selected segment, the spec line, the open gear
+                      glyph, the tip title. The console's own hue, darkened in
+                      HSL lightness until it clears 4.6 on --accent-fill AND
+                      5.0 on the caption chip over the darkest specimen stroke.
+     Ratios (ink on fill / on worst chip): SNES 4.64 / 5.50, PS1 4.66 / 5.39,
+     NES 4.68 / 5.58, Game Boy 4.64 / 5.27, Genesis 4.67 / 5.42. */
+  body[data-console="0"] { --accent: #7B6480; --accent-dark: #68556D; --accent-fill: #CAB8B6; --accent-ink: #554559; }  /* SNES — muted plum */
+  body[data-console="1"] { --accent: #5F7386; --accent-dark: #516272; --accent-fill: #C0BEB8; --accent-ink: #404D5A; }  /* PS1 — slate */
+  body[data-console="2"] { --accent: #9B5A48; --accent-dark: #844D3D; --accent-fill: #D6B5A2; --accent-ink: #6A3E31; }  /* NES — brick oxide */
+  body[data-console="3"] { --accent: #6F7D3F; --accent-dark: #5E6A36; --accent-fill: #C6C19F; --accent-ink: #485129; }  /* Game Boy — DMG olive */
+  body[data-console="4"] { --accent: #4E7A70; --accent-dark: #42685F; --accent-fill: #BBC0B0; --accent-ink: #33514A; }  /* Genesis — deep teal */
 
   body {
     user-select: none;
@@ -156,7 +193,10 @@
     width: 20px;
     height: 20px;
     padding: 0 0 1px;
-    font-size: 8px;
+    /* v1.5.0 (R5): 8 -> 10px. EB Garamond draws the triangles ~25% smaller
+       than Times did, so 10px restores the v1.4.0 glyph size and clears the
+       9px floor. The 20px box is fixed, so nothing moves. */
+    font-size: 10px;
     line-height: 1;
   }
   .preset-btn { padding: 2px 7px 3px; }
@@ -212,9 +252,14 @@
      which still slides .hdr-right and .brand — but it is now a WIDTH failure
      only, not a width-and-height one. The pin got no weaker; the way it fails
      without it got quieter, which is the reason to write the number down. */
+  /* v1.5.0 (R5): Load 39 -> 40 and Delete 51 -> 52. Under the bundled EB
+     Garamond small caps "Ouvrir" measures 37.89 in a 37 px content box and the
+     armed "Confirm?" 49.61 in 49 (check-ui-labels [4]). The band grows 2 px in
+     EVERY language alike (284 -> 286), so .hdr-right and .brand still do not
+     move between languages — the invariant the pin exists for. */
   #preset-save   { width: 38px; padding: 2px 0 3px; }
-  #preset-load   { width: 39px; padding: 2px 0 3px; }
-  #preset-delete { width: 51px; padding: 2px 0 3px; }
+  #preset-load   { width: 40px; padding: 2px 0 3px; }
+  #preset-delete { width: 52px; padding: 2px 0 3px; }
 
   .preset-nav:not(:disabled):hover,
   .preset-btn:not(:disabled):hover {
@@ -222,10 +267,19 @@
     transform: translateY(-1px);
     box-shadow: 1px 2px 5px rgba(0,0,0,0.25);
   }
+  /* v1.5.0 (R4): disabled dims the CHROME, not the words. opacity 0.4 put the
+     band's captions at 2.0 until initialize() resolved (and for good if the
+     bridge never comes up). The ink steps down to the walnut AA variant and
+     the border lightens, so the band still reads as inert. */
   .preset-nav:disabled,
-  .preset-btn:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+  .preset-btn:disabled {
+    color: var(--text-walnut-deep);
+    border-color: rgba(139,115,85,0.5);
+    cursor: default;
+    box-shadow: none;
+  }
   #preset-delete[data-armed="1"] {
-    background: rgba(139,69,19,0.3);
+    background: #D5B699;   /* v1.5.0: rgba(139,69,19,0.3) pre-composited over #F5E6D3 — the paper no longer shows through */
     border-color: var(--brown-frame);
     box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
   }
@@ -250,13 +304,13 @@
     font-variant: small-caps;
     letter-spacing: 2.5px;
     font-size: 11px;
-    color: var(--brown-frame);
+    color: var(--brown-text);   /* v1.5.0: was --brown-frame, 3.98 on the real paper */
   }
   .hdr-right .plate {
     font-style: italic;
     font-size: 9.5px;
     letter-spacing: 1px;
-    color: rgba(92,64,51,0.8);
+    color: var(--brown-text);   /* v1.5.0: was rgba(92,64,51,0.8), 3.05 on the real paper */
   }
 
   /* ============ console selector (5-segment) ============
@@ -294,9 +348,16 @@
     transition: background 0.2s, color 0.2s;
   }
   .seg button + button { border-left: 1px solid rgba(92,64,51,0.4); }
+  /* v1.5.0 (R5): EB Garamond's smcp maps DIGITS to small-cap figures too, and
+     its small-cap 1 is a dotless stroke — "PS1" read "PSı" (lining-nums does
+     not help; smcp substitutes after it). Small caps only ever change
+     lowercase, and PS1 has none, so switching them off on this one segment
+     restores the digit and changes nothing else. No other small-caps text on
+     the page carries a figure, in any language. */
+  .seg button[data-value="1"] { font-variant-caps: normal; }
   .seg button.sel {
     background: var(--accent-fill);
-    color: var(--accent-dark);
+    color: var(--accent-ink);
     font-weight: 600;
   }
   .seg button:hover:not(.sel) { background: rgba(139,168,112,0.3); }
@@ -304,13 +365,31 @@
   /* ============ info readout ============ */
   .console-info {
     flex: 0 0 auto;
+    /* v1.5.0: centred at its own width (was stretched across the column) so the
+       caption chip hugs the words. The text was already centred, so no glyph
+       moves. */
+    align-self: center;
     margin-top: 9px;
     text-align: center;
     font-style: italic;
     font-size: 12.5px;
     letter-spacing: 1px;
-    color: var(--accent-dark);
+    color: var(--accent-ink);   /* v1.5.0: was --accent-dark, 2.16-2.46 over the specimen */
     transition: color 0.2s;
+  }
+
+  /* v1.5.0 (R4): the caption chip — see --chip. Zero layout: no padding. The
+     plate is FEATHERED rather than a hard box: the element's own background
+     is the solid core under the glyphs, and a blurred outer shadow fades it
+     into the paper over ~5 px, so it reads as the engraving lifting off the
+     words rather than a sticker. An outer shadow is never painted under its
+     own box, so the translucent core does not double up. */
+  .console-info,
+  .ctl-label,
+  .ro {
+    background: var(--chip);
+    box-shadow: 0 0 4px 3px var(--chip);
+    border-radius: 4px;
   }
 
   /* ============ knob row ============ */
@@ -322,6 +401,13 @@
     padding: 6px 20px 2px;
   }
   .ctl {
+    /* v1.5.0 (R5): PINNED at the widest caption. Under EB Garamond small caps
+       the French "Broyage" is 64.33 px, wider than the 60 px knob that set
+       every column's width through v1.4.0, so the Crush column widened in
+       French alone and space-evenly slid all four knobs (check-ui-labels [7],
+       16 moved). 66 px holds it with margin; the columns move <= 1.8 px from
+       v1.4.0 in every language alike. */
+    width: 66px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -403,8 +489,8 @@
      Styled in THIS page's vocabulary, not pasted in from another plugin. The
      gear is the .preset-nav idiom exactly — a small paper-filled box, 1.5 px
      --brown-border, 4 px radius, the same 1px/1px/3px drop shadow — and its
-     OPEN state uses the page's one "active" pair, --accent-fill over
-     --accent-dark, which is the same rule .seg button.sel uses. That means the
+     OPEN state uses the page's one "active" pair, --accent-ink on
+     --accent-fill, which is the same rule .seg button.sel uses. That means the
      open gear re-themes with the console alongside every other accented
      surface, which is the conceit the whole page is built on.
 
@@ -449,7 +535,7 @@
   .gear-btn[aria-expanded="true"] {
     background: var(--accent-fill);
     border-color: var(--accent-dark);
-    color: var(--accent-dark);
+    color: var(--accent-ink);
   }
   .gear-btn:focus-visible {
     outline: 2px solid var(--brown-frame);
@@ -563,7 +649,7 @@
      ONE floating surface, moved and refilled per anchor. It wears this page's
      own vocabulary rather than another plugin's: the .settings-popover plate
      exactly — 0.97-alpha paper, a 1.5 px --brown-border, 4 px radius and the
-     same 2/2/6 drop shadow — with the title line in --accent-dark, which is
+     same 2/2/6 drop shadow — with the title line in --accent-ink, which is
      the page's one "active" ink and re-themes with the console alongside the
      selected segment, the knob stems and the spec readout.
 
@@ -617,7 +703,7 @@
     font-variant: small-caps;
     font-size: 11px;
     letter-spacing: 1px;
-    color: var(--accent-dark);
+    color: var(--accent-ink);
     margin-bottom: 2px;
   }
   /* ── LINE-HEIGHT PINS (v1.4.0, the Chinese arm) ────────────────────────────
@@ -664,8 +750,8 @@
 <body data-console="0">
   <div class="plugin">
     <img class="specimen" src="img/specimen.webp" alt="" draggable="false" />
-    <span class="corner-fleuron tr">❦</span>
-    <span class="corner-fleuron bl">❦</span>
+    <span class="corner-fleuron tr" aria-hidden="true">❦</span>
+    <span class="corner-fleuron bl" aria-hidden="true">❦</span>
 
     <div class="inner">
       <!-- ================= header ================= -->
@@ -674,7 +760,7 @@
              I18N_EXEMPT: a product name is never translated, and the text
              node has a ❦ span sibling that applyLabel's textContent write
              would delete. -->
-        <div class="wordmark"><span class="fleuron">❦</span>O-EMULATOR</div>
+        <div class="wordmark"><span class="fleuron" aria-hidden="true">❦</span>O-EMULATOR</div>
         <!-- Preset band — IDs are exactly the ones preset-manager.js binds.
              All buttons ship disabled and are un-disabled only after
              presetManager.initialize() resolves. -->
@@ -820,7 +906,7 @@
          English in both languages.
 
          A direct child of .plugin, beside .settings-cluster, so it inherits
-         the per-console --accent-dark that body[data-console] sets. It is
+         the per-console --accent-ink that body[data-console] sets. It is
          position: fixed, so its place in the markup decides nothing about
          where it paints — only what it inherits. -->
     <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
