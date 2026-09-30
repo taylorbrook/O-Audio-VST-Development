@@ -18,7 +18,7 @@ findings:
   warning: 7
   info: 7
   total: 15
-status: issues_found
+status: resolved
 ---
 
 # O-Chorus: Code Review Report
@@ -53,7 +53,7 @@ The defects cluster in the DSP engine and in the bus layout:
 
 ## Critical
 
-### CR-01: Mono and mono→stereo layouts are accepted but broken
+### CR-01: Mono and mono→stereo layouts are accepted but broken **Resolved in v1.8.0**
 
 **Files:** `Source/PluginProcessor.h` (no `isBusesLayoutSupported` override),
 `Source/DSP/ChorusEngine.cpp:185`, `Source/PluginProcessor.cpp:89-90`
@@ -79,7 +79,7 @@ for a chorus. Bump the version for Logic's per-version AU I/O cache
 
 ## Warnings
 
-### WR-01: Tone clamp is 0.245·fs, not near-Nyquist. The top of Tone is dead at 44.1/48 kHz
+### WR-01: Tone clamp is 0.245·fs, not near-Nyquist. The top of Tone is dead at 44.1/48 kHz **Resolved in v1.8.0**
 
 **File:** `Source/DSP/ChorusEngine.cpp:122-123`
 
@@ -101,7 +101,7 @@ The Shimmer preset (+50%, meant to be about 14 kHz) plays at 10.8 kHz at 44.1 kH
 **Fix:** `cutoff = jmin (cutoff, 0.45f * (float) sampleRate)`, which gives 19.8 kHz at 44.1 kHz.
 The biquad stays stable up to Nyquist, so a 0.45·fs ceiling is safe.
 
-### WR-02: Voice-count crossfade runs the new layer on the old layout, then snaps LFO phases and pans
+### WR-02: Voice-count crossfade runs the new layer on the old layout, then snaps LFO phases and pans **Resolved in v1.8.0**
 
 **File:** `Source/DSP/ChorusEngine.cpp:98-112, 268-331`
 
@@ -121,7 +121,7 @@ Its pan also jumps from 1/3 to 1/7.
 count's phase, pan and spread, and let the fade hide the difference. Only relabel at the end, when
 the old layer's gain is already 0.
 
-### WR-03: Changing the voice count again during a fade drops the half-faded layer
+### WR-03: Changing the voice count again during a fade drops the half-faded layer **Resolved in v1.8.0**
 
 **File:** `Source/DSP/ChorusEngine.cpp:199-203`
 
@@ -137,7 +137,7 @@ several counts within 50 ms clicks at every step.
 **Fix:** When a new target arrives mid-fade, either queue it until the current fade completes, or
 promote whichever layer is louder to "current" and restart the fade from it.
 
-### WR-04: High-Spread voices are still pinned flat. The 2026-06-30 WR-01 fix moved the pin to 1 sample
+### WR-04: High-Spread voices are still pinned flat. The 2026-06-30 WR-01 fix moved the pin to 1 sample **Resolved in v1.8.0**
 
 **File:** `Source/DSP/ChorusEngine.cpp:250-266`
 
@@ -160,7 +160,7 @@ unmodulated, slightly low-passed doubling, which undoes the chorus the preset is
 `baseDelayMs` so that `base − spreadRange − maxDepthExcursion ≥ ~1 ms` (for example, base 22 ms).
 Both options change the sound of existing presets, so this needs a MINOR bump and a listening pass.
 
-### WR-05: Drive jumps +2.4 dB at 1% and then spans only 2 dB
+### WR-05: Drive jumps +2.4 dB at 1% and then spans only 2 dB **Resolved in v1.8.0**
 
 **File:** `Source/DSP/ChorusEngine.cpp:146-159`
 
@@ -178,7 +178,7 @@ Both options change the sound of existing presets, so this needs a MINOR bump an
 remove the `< 0.01` bypass branch. This changes the sound of every preset with drive > 0, so it
 needs a MINOR bump.
 
-### WR-06: The mouse wheel on the Voices knob does nothing
+### WR-06: The mouse wheel on the Voices knob does nothing **Resolved in v1.8.0**
 
 **File:** `Source/ui/public/index.html:1272-1276`
 
@@ -189,7 +189,7 @@ empty undo step in some hosts.
 
 **Fix:** When `p.isVoices`, step by `±1/7`. This amounts to `snapVoicesNorm(norm + sign/7)`.
 
-### WR-07: Factory presets never refresh after the first install
+### WR-07: Factory presets never refresh after the first install **Resolved in v1.8.0**
 
 **File:** `Source/PluginProcessor.cpp:198-201`
 
@@ -211,7 +211,7 @@ WR-04 and WR-05 will need, will never reach an existing install
 
 ## Info
 
-### IN-01: No `AudioProcessor::reset()` override, so `ChorusEngine::reset()` is dead code
+### IN-01: No `AudioProcessor::reset()` override, so `ChorusEngine::reset()` is dead code **Resolved in v1.9.0**
 
 **Files:** `Source/PluginProcessor.h`, `Source/DSP/ChorusEngine.cpp:87-96`
 
@@ -219,7 +219,7 @@ A host `reset()` (transport jump, bypass-flush, offline render start) leaves up 
 audio in the delay lines and old state in the tone filters. That produces a burst of the previous
 material at the next play. Fix: `void reset() override { chorusEngine.reset(); }`.
 
-### IN-02: A knob drag sticks when the mouse is released outside the WebView
+### IN-02: A knob drag sticks when the mouse is released outside the WebView **Resolved in v1.9.0**
 
 **File:** `Source/ui/public/index.html:1181-1196, 1261-1269`
 
@@ -227,7 +227,7 @@ Dragging starts on `mousedown`, and `mouseup` is listened for on `document`. If 
 released outside the plugin window, `mouseup` never arrives. The knob keeps following the pointer on
 re-entry and the host gesture stays open. Fix: use pointer events with `setPointerCapture`.
 
-### IN-03: The preset name display goes stale on host program changes and session restores
+### IN-03: The preset name display goes stale on host program changes and session restores **Resolved in v1.9.0**
 
 **File:** `Source/ui/public/modules/preset-manager.js:173` (refresh runs only at init and after the
 page's own operations)
@@ -237,7 +237,7 @@ With the editor open, changes made by `setCurrentProgram()` from the host's prog
 re-pulled. Fix: re-pull `getCurrentPreset` on a low-rate timer, or push a revision counter
 (pattern_webview_one_shot_state_push_stale_on_preset_load).
 
-### IN-04: "Save…" ignores the folder the user picks
+### IN-04: "Save…" ignores the folder the user picks **Resolved in v1.9.0**
 
 **File:** `Source/PluginEditor.cpp:129-156`
 
@@ -246,18 +246,18 @@ The preset is written to the user-presets directory, so a user who saves to Desk
 there. Fix: lock the chooser to the user dir, or call `savePresetToFile(file)` and add the factory
 guard that call lacks (pattern_savepresettofile_has_no_factory_guard).
 
-### IN-05: The knobs cannot be operated from the keyboard
+### IN-05: The knobs cannot be operated from the keyboard **Resolved in v1.9.0**
 
 **File:** `Source/ui/public/index.html:928-1045`
 
 The `.knob` elements have no `tabindex`, `role="slider"` or `aria-value*`, and there is no arrow-key
 handler. The v1.7.0 pass added `:focus-visible` styling that no knob can receive.
 
-### IN-06: Stale "Stage 1 (Foundation) — Placeholder UI" header comment (IN-01 from 2026-06-30, still open)
+### IN-06: Stale "Stage 1 (Foundation) — Placeholder UI" header comment (IN-01 from 2026-06-30, still open) **Resolved in v1.9.0**
 
 **File:** `Source/PluginEditor.h:30`
 
-### IN-07: The Vibrato preset plays 3 dB below the input
+### IN-07: The Vibrato preset plays 3 dB below the input **Acknowledged in v1.9.0 — documented, not changed**
 
 **File:** `Source/PluginProcessor.cpp:232-237`, `Source/DSP/ChorusEngine.cpp:277-281`
 
@@ -296,3 +296,13 @@ compensate the wet gain by √2 when voices = 1, or accept the drop and note it 
 - **PATCH:** CR-01 (with a version bump for the AU cache), WR-01, WR-06, WR-07, IN-01, IN-02, IN-06.
   None of these change the sound at stereo defaults, except that Tone now reaches its intended range.
 - **MINOR (sound change + listening pass + preset re-check):** WR-02, WR-03, WR-04, WR-05, IN-07.
+
+---
+
+## Resolved
+
+| Findings | Version | Commit |
+|----------|---------|--------|
+| CR-01, WR-01..07 | v1.8.0 | b4ebd225 |
+| IN-01..06 | v1.9.0 | (v1.9.0 commit) |
+| IN-07 | v1.9.0 | acknowledged — documented in NOTES.md, not changed (equal-power pan law) |

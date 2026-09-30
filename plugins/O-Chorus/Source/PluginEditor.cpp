@@ -144,9 +144,24 @@ OChorusAudioProcessorEditor::OChorusAudioProcessorEditor(OChorusAudioProcessor& 
                         complete(juce::var(result));
                         return;
                     }
-                    auto file = results.getFirst();
+                    // Honour the folder the user picked (v1.9.0, IN-04). v1.8.0 kept only
+                    // the file name and always wrote to the user dir.
+                    //   - user dir      -> savePreset(name): sanitised name, refuses a
+                    //                      name that would shadow a factory preset
+                    //   - factory dir   -> refused; savePresetToFile() has no factory guard
+                    //   - anywhere else -> savePresetToFile(): an export, not listed
+                    auto& pm = audioProcessor.presetManager;
+                    auto file = results.getFirst().withFileExtension ("json");
                     auto presetName = file.getFileNameWithoutExtension();
-                    bool success = audioProcessor.presetManager.savePreset(presetName);
+                    const auto dir = file.getParentDirectory();
+                    const auto factoryDir = pm.getFactoryPresetsDirectory();
+                    bool success = false;
+                    if (dir == pm.getUserPresetsDirectory())
+                        success = pm.savePreset (presetName);
+                    else if (dir == factoryDir || dir.isAChildOf (factoryDir))
+                        success = false;
+                    else
+                        success = pm.savePresetToFile (file);
                     auto* result = new juce::DynamicObject();
                     result->setProperty("success", success);
                     result->setProperty("name", success ? presetName : juce::String());
