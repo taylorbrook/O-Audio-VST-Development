@@ -31,6 +31,7 @@ O-Chorus is a lush, analog-inspired multi-voice chorus plugin with 1-8 selectabl
 
 ## Lifecycle Timeline
 
+- **2026-09-30 (v1.9.0):** `/improve-review-info` sweep of IN-01..07. Adds a `reset()` override, pointer-capture knob drag, a 2 Hz preset-name poll, and a Save… that honours the chosen folder (factory dir refused). The knobs are keyboard sliders. The stale header comment is fixed. IN-07 (−3 dB centred wet) is documented, not changed.
 - **2026-09-30 (v1.8.0):** `/improve-review` of CR-01 and WR-01..07. Accepts mono→mono and mono→stereo. Tone clamp raised to 0.45·fs. Each Voices-crossfade layer now uses its own layout, and a count that arrives mid-fade is queued. Spread is one-sided (10–25 ms), so no tap is pinned. Drive is level-compensated `tanh(d·x)/d`. The mouse wheel steps Voices. The plugin-side factory guard is removed. auval passes. DAW listening pass pending.
 - **2026-09-26 (v1.7.0):** 260924-nho Phase C UI pass via /improve: insect plate reduced to its central specimen behind the LFO ring (no knob face or caption over it), paper texture at 55% so text is AA on the painted ground (min 2.83 → 5.59:1; measure-ui's 0% was a false pass — it cannot see the jpg/img layers), palette custom properties, LFO caption 8 → 9px, bundled EB Garamond. Knob code untouched, so still mouse-only (R7 deferred). No DSP/param/state change.
 - **2026-06-30 (v1.2.2):** Code-review fixes (WR-01/WR-02/WR-03) — clamp per-voice delay to a
@@ -48,7 +49,7 @@ O-Chorus is a lush, analog-inspired multi-voice chorus plugin with 1-8 selectabl
 
 ## Known Limitations
 
-- Open Info findings from the 2026-09-30 review (IN-01..07), as listed in `CODE_REVIEW.md`: no `reset()` override; a knob drag sticks when released outside the WebView; the preset name goes stale after a host program change; Save… ignores the chosen folder; the knobs are not keyboard-operable; a stale Stage 1 comment; Vibrato plays at −3 dB.
+- **A centred wet voice plays at −3 dB on stereo outputs** (review IN-07, acknowledged v1.9.0, not changed). Pan is equal-power: centre = cos(π/4) = 0.707 per side. At Width 0 every voice is centred, so Vibrato (mix 1.0, 1 voice) sits 3 dB below bypass. The mono→mono path sums unpanned and is unity. A √2 boost at Voices 1 only would put a 3 dB step between 1 and 2 voices; a Width-aware compensation would move the level of every preset. Left as is.
 - v1.8.0 changes the sound of existing presets and sessions with Drive > 0 (the wet path is quieter on quiet material) and with Spread > 0 (voices spread one-sided). Presets were not re-voiced.
 
 ## Architecture Highlights

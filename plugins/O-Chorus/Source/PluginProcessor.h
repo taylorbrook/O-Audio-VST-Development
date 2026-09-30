@@ -40,6 +40,10 @@ public:
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
+    // Host reset (transport jump, bypass flush, offline render start) clears the
+    // delay lines and tone filters, so old audio does not burst out at the next
+    // play. (v1.9.0, IN-01)
+    void reset() override { chorusEngine.reset(); }
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
 

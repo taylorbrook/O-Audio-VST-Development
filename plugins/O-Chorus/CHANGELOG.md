@@ -1,5 +1,60 @@
 # O-Chorus Changelog
 
+## [1.9.0] - 2026-09-30
+
+Info-tier sweep of the 2026-09-30 `CODE_REVIEW.md` (IN-01..07). MINOR because the
+knobs gain keyboard control (IN-05). No parameter ID, range, state or DSP change.
+
+### Added
+- **The knobs are keyboard sliders (IN-05).** Each of the 8 knobs is focusable,
+  has `role="slider"`, is named by its caption, and reports `aria-valuenow` and
+  `aria-valuetext` (the readout text). Arrow keys move 1% (Shift: 0.2%),
+  Page Up/Down move 10%, and Home/End go to the ends. Voices moves one count per
+  key. A burst of key presses is one host gesture (200 ms debounce, shared with
+  the wheel), and a key at a bound opens no gesture. Focus shows a 1 px outline,
+  so no layout moves.
+
+### Fixed
+- **Host reset clears the chorus (IN-01).** There was no `AudioProcessor::reset()`
+  override, so `ChorusEngine::reset()` never ran. A transport jump, bypass flush
+  or offline render start could replay up to 31 ms of old audio. `reset()` now
+  clears the delay lines, tone filters, LFO phase and Voices crossfade.
+- **A knob drag no longer sticks after a release outside the window (IN-02).**
+  The drag now uses pointer events with `setPointerCapture`, and ends on
+  `pointerup`, `pointercancel` or `lostpointercapture`, so the host gesture
+  always closes. The settings popover now dismisses on `pointerdown` instead of
+  `mousedown`, because the new drag suppresses the compatibility `mousedown` and
+  a knob press would otherwise have left the popover open.
+- **The preset name follows host program changes and session restores (IN-03).**
+  The page polls the current preset name at 2 Hz and refreshes the list and
+  display only when the name differs, with one call in flight at a time.
+- **Save… writes where the user chose (IN-04).** A save into the user presets
+  folder works as before: sanitised name, and a name that would shadow a factory
+  preset is refused. A save into the factory folder is refused.
+  `savePresetToFile()` has no factory guard of its own. A save anywhere else
+  writes that file as an export.
+- Stale "Stage 1 (Foundation) - Placeholder UI" header comment in
+  `PluginEditor.h` (IN-06).
+
+### Notes
+- IN-07 (a centred wet voice plays at −3 dB on stereo outputs, so Vibrato sits
+  3 dB below bypass) is documented in NOTES.md and not changed. It is the
+  equal-power pan law and affects every setting at Width 0. A √2 boost at
+  Voices 1 only would put a 3 dB step between 1 and 2 voices.
+
+### Testing
+- Built and installed (VST3 + AU). `auval -v aufx OuCh OuDv` passes.
+- check-i18n, check-ui-canon, check-ui-labels and `tests/ui_tip_render_check.js`
+  (345 checks) pass.
+- A throwaway real-event probe passes 19/19: ARIA, keys and bounds, the gesture
+  count per drag and key burst, `lostpointercapture`, double-click reset, popover
+  dismissal on a knob press, and the preset-name poll. Against the v1.8.0 page it
+  fails 12/19, which covers IN-02, IN-03 and IN-05. Drag-off tracking passes on
+  both, because Chromium captures the mouse implicitly. The WebView case that
+  motivated IN-02 still needs a hands-on check in a host.
+- Needs a DAW check: keyboard control of a knob in Logic, Save… to Desktop, and
+  switching presets from the host's program menu with the editor open.
+
 ## [1.8.0] - 2026-09-30
 
 Resolves CR-01 and WR-01..07 of the 2026-09-30 `CODE_REVIEW.md`. MINOR: WR-02,

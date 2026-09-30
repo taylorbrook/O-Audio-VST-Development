@@ -555,6 +555,13 @@
       outline-offset: 2px;
     }
 
+    /* v1.9.0 (IN-05): the knobs are focusable sliders now. Outline only, so
+       no box moves. */
+    .knob:focus-visible {
+      outline: 1px solid var(--green-ink);
+      outline-offset: 2px;
+    }
+
     /* Opens UPWARDS. The gear sits 5 px from the BOTTOM of a 125 px frame, so
        a panel below it would leave the frame entirely; upward it occupies
        y 59..99, well inside.
@@ -1175,10 +1182,15 @@
     // Global drag state
     const drag = { active: false, state: null, startY: 0, startNorm: 0, isVoices: false };
 
-    // Wheel gesture tracking
+    // Wheel and keyboard gesture tracking: one debounced gesture per knob,
+    // shared by both, so interleaving them never opens a second gesture.
     const wheelTimers = new Map();
 
-    document.addEventListener('mousemove', (e) => {
+    // Drag uses pointer capture (v1.9.0, IN-02). The v1.8.0 document-level
+    // mouseup never arrived when the button was released outside the plugin
+    // window, so the knob kept following the pointer and the host gesture
+    // stayed open. With capture, pointerup/lostpointercapture always arrive.
+    function dragMove(e) {
       if (!drag.active || !drag.state) return;
       const sens = e.shiftKey ? FINE_SENSITIVITY : SENSITIVITY;
       const deltaY = drag.startY - e.clientY;
@@ -1187,14 +1199,14 @@
       if (drag.isVoices) newNorm = snapVoicesNorm(newNorm);
 
       drag.state.setNormalisedValue(newNorm);
-    });
+    }
 
-    document.addEventListener('mouseup', () => {
+    function dragEnd() {
       if (!drag.active) return;
       if (drag.state && drag.state.sliderDragEnded) drag.state.sliderDragEnded();
       drag.active = false;
       drag.state = null;
-    });
+    }
 
     // ════════════════════════════════════════════════════════════════
     // LFO Ring animation
@@ -1248,38 +1260,37 @@
           if (valueEl && p.fmt) valueEl.textContent = p.fmt(norm);
         }
 
+        // Keyboard slider (v1.9.0, IN-05): focusable, named by its caption,
+        // value exposed through aria-valuenow/-valuetext.
+        const labelEl = knobEl.querySelector('.knob-label');
+        if (labelEl) {
+          labelEl.id = `knob-label-${p.id}`;
+          knobEl.setAttribute('aria-labelledby', labelEl.id);
+        }
+        knobEl.tabIndex = 0;
+        knobEl.setAttribute('role', 'slider');
+        knobEl.setAttribute('aria-valuemin', '0');
+        knobEl.setAttribute('aria-valuemax', '100');
+
+        function updateAria(norm) {
+          knobEl.setAttribute('aria-valuenow', (norm * 100).toFixed(1));
+          knobEl.setAttribute('aria-valuetext', p.fmt(norm));
+        }
+
         // Sync from JUCE
         state.valueChangedEvent.addListener(() => {
           updateDisplay(state.getNormalisedValue());
+          updateAria(state.getNormalisedValue());
         });
+        updateAria(state.getNormalisedValue());
 
-        // Initial display
-        updateDisplay(state.getNormalisedValue());
-
-        // Drag on knob-visual
-        const knobVisual = knobEl.querySelector('.knob-visual');
-        knobVisual.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          drag.active = true;
-          drag.state = state;
-          drag.startY = e.clientY;
-          drag.startNorm = state.getNormalisedValue();
-          drag.isVoices = !!p.isVoices;
-          if (state.sliderDragStarted) state.sliderDragStarted();
-        });
-
-        // Mouse wheel with debounced gesture brackets
-        knobVisual.addEventListener('wheel', (e) => {
-          e.preventDefault();
-          // Voices steps one whole count per notch: a 0.02 step is 0.14 of a
-          // 1/7 slot and the snap rounded it straight back (v1.8.0, WR-06).
-          const step = p.isVoices ? 1 / 7 : 0.02;
-          const cur = state.getNormalisedValue();
-          let newNorm = Math.max(0, Math.min(1, cur + (e.deltaY < 0 ? step : -step)));
+        // Debounced gesture shared by wheel and keys. At a bound (or a snap
+        // that lands where it started) no gesture opens, so the host gets no
+        // empty undo step.
+        function stepGesture(newNorm) {
+          newNorm = Math.max(0, Math.min(1, newNorm));
           if (p.isVoices) newNorm = snapVoicesNorm(newNorm);
-          // At a bound (or a snap that lands where it started) open no gesture,
-          // so the host gets no empty undo step.
-          if (Math.abs(newNorm - cur) < 1e-6) return;
+          if (Math.abs(newNorm - state.getNormalisedValue()) < 1e-6) return;
 
           if (!wheelTimers.has(p.id)) {
             state.sliderDragStarted();
@@ -1293,6 +1304,49 @@
             state.sliderDragEnded();
             wheelTimers.delete(p.id);
           }, 200));
+        }
+
+        knobEl.addEventListener('keydown', (e) => {
+          const v = state.getNormalisedValue();
+          // Voices moves one whole count per arrow; Shift has nothing finer.
+          const small = p.isVoices ? 1 / 7 : (e.shiftKey ? 0.002 : 0.01);
+          const big = p.isVoices ? 1 / 7 : 0.1;
+          const next = { ArrowUp: v + small, ArrowRight: v + small,
+                         ArrowDown: v - small, ArrowLeft: v - small,
+                         PageUp: v + big, PageDown: v - big, Home: 0, End: 1 }[e.key];
+          if (next === undefined) return;
+          e.preventDefault();
+          stepGesture(next);
+        });
+
+        // Initial display
+        updateDisplay(state.getNormalisedValue());
+
+        // Drag on knob-visual
+        const knobVisual = knobEl.querySelector('.knob-visual');
+        knobVisual.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          knobVisual.setPointerCapture(e.pointerId);
+          drag.active = true;
+          drag.state = state;
+          drag.startY = e.clientY;
+          drag.startNorm = state.getNormalisedValue();
+          drag.isVoices = !!p.isVoices;
+          if (state.sliderDragStarted) state.sliderDragStarted();
+        });
+        knobVisual.addEventListener('pointermove', dragMove);
+        knobVisual.addEventListener('pointerup', dragEnd);
+        knobVisual.addEventListener('pointercancel', dragEnd);
+        knobVisual.addEventListener('lostpointercapture', dragEnd);
+
+        // Mouse wheel with debounced gesture brackets
+        knobVisual.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          // Voices steps one whole count per notch: a 0.02 step is 0.14 of a
+          // 1/7 slot and the snap rounded it straight back (v1.8.0, WR-06).
+          const step = p.isVoices ? 1 / 7 : 0.02;
+          stepGesture(state.getNormalisedValue() + (e.deltaY < 0 ? step : -step));
         }, { passive: false });
 
         // Double-click reset
@@ -1345,6 +1399,24 @@
       });
 
       presetMgr.initialize();
+
+      // Host program changes and session restores load a preset without the
+      // page asking, so the name went stale (v1.9.0, IN-03). Poll the name at
+      // 2 Hz and refresh only when it differs; one call in flight at a time.
+      const getCurrentPresetName = getNativeFunction('getCurrentPreset');
+      let presetPollBusy = false;
+      setInterval(async () => {
+        if (presetPollBusy) return;
+        presetPollBusy = true;
+        try {
+          const name = (await getCurrentPresetName()) || 'Default';
+          if (name !== presetMgr.getCurrentPreset()) await presetMgr.refresh();
+        } catch (e) {
+          // Bridge not ready or editor closing: try again on the next tick.
+        } finally {
+          presetPollBusy = false;
+        }
+      }, 500);
 
       // Toggle dropdown on preset name click
       presetDisplay.addEventListener('click', () => {
@@ -1510,10 +1582,12 @@
             setSettingsPopoverOpen(settingsPopoverEl.hidden);
         });
 
-        // Dismiss on a press anywhere else, and on Escape. mousedown rather
+        // Dismiss on a press anywhere else, and on Escape. pointerdown rather
         // than click, so the panel is gone before a drag on a knob underneath
-        // it begins — this page starts a knob drag on mousedown.
-        document.addEventListener('mousedown', (e) => {
+        // it begins. It was mousedown until v1.9.0; the knob drag now starts on
+        // a preventDefault()ed pointerdown (IN-02), which suppresses the
+        // compatibility mousedown, so a knob press would have left it open.
+        document.addEventListener('pointerdown', (e) => {
             if (settingsPopoverEl.hidden) return;
             if (settingsPopoverEl.contains(e.target) || gearBtnEl.contains(e.target)) return;
             setSettingsPopoverOpen(false);
@@ -1556,7 +1630,7 @@
     //     case: every knob cell spans y 28..103, so the naive y + 16 puts the
     //     tip's top below the frame's own bottom at almost every anchor.
     //  6  Escape hides it, and so does pointerdown: this page starts a knob
-    //     drag on mousedown, and a tip left standing over a knob being dragged
+    //     drag on pointerdown, and a tip left standing over a knob being dragged
     //     is a tip covering the readout the user is watching.
     //  7  drag.active suppresses a SHOW outright. That is the one deliberate
     //     addition to the reference family, and it is specific to this page: a
