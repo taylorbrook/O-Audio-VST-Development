@@ -343,6 +343,6 @@ memory is allocated (about 780k floats per line at 192kHz). Prepare each with
 | Version | Commit | Findings |
 |---------|--------|----------|
 | v1.8.0 | aeebc2a2 | CR-01, WR-01..WR-10 |
-| v1.8.1 | SHA_PENDING | IN-01..IN-09, IN-11, IN-13..IN-15 (IN-04/05/06/14 by documentation) |
+| v1.8.1 | 87326721 | IN-01..IN-09, IN-11, IN-13..IN-15 (IN-04/05/06/14 by documentation) |
 
 Open: IN-10, IN-12, IN-16.
