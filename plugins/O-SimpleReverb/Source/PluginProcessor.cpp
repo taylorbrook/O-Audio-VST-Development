@@ -24,14 +24,14 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    v1.11.0 - Full-review fixes (see CHANGELOG)
+    v1.13.0 - Real flutter + octave shimmer, DECAY headroom map (see CHANGELOG)
 
     Each reverb type now has distinct sonic character:
     - Booth: Tight, immediate, minimal reflections
     - Room: Natural early reflections, balanced character
     - Hall: Long pre-delay, spacious early reflections
-    - Spring: Chirpy dispersion, pitch modulation (flutter)
-    - Plate: Dense diffusion, bright shimmer
+    - Spring: Chirpy dispersion, pitch flutter
+    - Plate: Dense diffusion, octave-up shimmer
     - Ambient: Maximum diffusion, slow modulation, washy tail
 
   ==============================================================================
@@ -43,7 +43,10 @@
 // createEditor(), so a console target that compiles this TU with
 // JUCE_WEB_BROWSER=0 and no editor sources (scripts/param-dump) links.
 
-// Define the type presets with distinct DSP characteristics
+// Define the type presets with distinct DSP characteristics.
+// wetTrimDb (v1.12.0) level-matches each type's wet output to Room at default
+// SIZE/DECAY/CHARACTER: K-weighted (BS.1770) RMS on pink noise, WET 100 / DRY 0.
+// Before the trim the six types spanned +1.5..+9.2 dB re input.
 const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typePresets[6] = {
     // 0: Booth - tight, intimate, minimal reflections
     {
@@ -54,12 +57,14 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         0.3f,       // earlyReflectionScale (tight)
         0.2f,       // earlyReflectionMix (minimal)
         0.0f,       // modRate (no modulation)
+        0.0f,       // modCents
         false,      // useAllPass
         false,      // useShimmer
         150.0f,     // eqFreq (high-pass to remove rumble)
         0.0f,       // eqGain
         0.707f,     // eqQ
-        TypePreset::EqType::HighPass
+        TypePreset::EqType::HighPass,
+        4.9f        // wetTrimDb
     },
     // 1: Room - natural, versatile
     {
@@ -70,12 +75,14 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         1.0f,       // earlyReflectionScale (natural)
         0.4f,       // earlyReflectionMix
         0.0f,       // modRate
+        0.0f,       // modCents
         false,      // useAllPass
         false,      // useShimmer
         0.0f,       // eqFreq (no EQ)
         0.0f,       // eqGain
         0.707f,     // eqQ
-        TypePreset::EqType::None
+        TypePreset::EqType::None,
+        0.0f        // wetTrimDb
     },
     // 2: Hall - large concert hall, spacious
     {
@@ -86,12 +93,14 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         2.0f,       // earlyReflectionScale (spread out)
         0.5f,       // earlyReflectionMix
         0.15f,      // modRate (very subtle movement)
+        3.0f,       // modCents (slow drift in the tail)
         false,      // useAllPass
         false,      // useShimmer
         3000.0f,    // eqFreq (gentle roll-off)
         -2.0f,      // eqGain (slight high cut for distance)
         0.5f,       // eqQ
-        TypePreset::EqType::HighShelf
+        TypePreset::EqType::HighShelf,
+        -2.1f       // wetTrimDb
     },
     // 3: Spring - metallic chirp, flutter
     {
@@ -102,12 +111,14 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         0.5f,       // earlyReflectionScale
         0.15f,      // earlyReflectionMix (less - spring character dominates)
         4.5f,       // modRate (flutter speed)
+        6.0f,       // modCents (audible spring wobble)
         true,       // useAllPass (spring dispersion!)
         false,      // useShimmer
         800.0f,     // eqFreq (resonant mid boost)
         4.0f,       // eqGain (metallic resonance)
         2.5f,       // eqQ (narrow resonance)
-        TypePreset::EqType::Peak
+        TypePreset::EqType::Peak,
+        2.1f        // wetTrimDb
     },
     // 4: Plate - dense, bright, shimmering
     {
@@ -118,12 +129,14 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         0.6f,       // earlyReflectionScale
         0.6f,       // earlyReflectionMix (dense early reflections)
         0.0f,       // modRate
+        0.0f,       // modCents
         false,      // useAllPass
         true,       // useShimmer (plate shimmer!)
         5000.0f,    // eqFreq (bright shelf)
         3.0f,       // eqGain (add sparkle)
         0.707f,     // eqQ
-        TypePreset::EqType::HighShelf
+        TypePreset::EqType::HighShelf,
+        -2.1f       // wetTrimDb
     },
     // 5: Ambient - washy, ethereal, infinite
     {
@@ -134,12 +147,14 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         2.5f,       // earlyReflectionScale (very spread)
         0.3f,       // earlyReflectionMix
         0.4f,       // modRate (slow, dreamy movement)
+        4.0f,       // modCents
         false,      // useAllPass
         false,      // useShimmer
         2500.0f,    // eqFreq
         -3.0f,      // eqGain (soften highs for washy sound)
         0.5f,       // eqQ
-        TypePreset::EqType::HighShelf
+        TypePreset::EqType::HighShelf,
+        -2.8f       // wetTrimDb
     }
 };
 
@@ -200,18 +215,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout OSimpleReverbAudioProcessor:
         50.0f  // Default: 50% (Medium)
     ));
 
-    // LPFREQ - Lowpass filter cutoff frequency (20Hz to 400Hz)
+    // LPFREQ - LOW CUT (high-pass) cutoff, 20Hz to 400Hz. IN-02 (v1.12.0): the
+    // host-visible NAME says what the filter is; the ID keeps its historical
+    // "LP" so sessions and automation still bind.
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "LPFREQ", 1 },
-        "LP Filter Freq",
+        "Low Cut Freq",
         juce::NormalisableRange<float>(20.0f, 400.0f, 1.0f),
         200.0f  // Default: 200Hz
     ));
 
-    // LPON - Lowpass filter on/off toggle (0 = off, 1 = on)
+    // LPON - LOW CUT on/off (0 = off, 1 = on)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "LPON", 1 },
-        "LP Filter On",
+        "Low Cut On",
         juce::NormalisableRange<float>(0.0f, 1.0f, 1.0f),
         0.0f  // Default: Off
     ));
@@ -273,16 +290,23 @@ void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     previousCharacterValue = -1000.0f;  // out of range: forces the first coefficient update
     updateCharacterCoefficients(characterSmoothed.getCurrentValue());
 
-    prepareFilterAsAllPass(typeEqFilter, spec, sampleRate);
+    for (auto& eq : typeEq)
+        prepareFilterAsAllPass(eq, spec, sampleRate);
+    eqFadeBuffer.setSize(static_cast<int>(spec.numChannels), samplesPerBlock);
+    eqActive = 0;
+    eqMix = 0.0f;
+    eqMixStep = 1.0f / (kTypeEqFadeMs * 0.001f * static_cast<float>(sampleRate));
 
-    // Prepare user high-pass (low cut) filter
-    // (ArrayCoefficients assignment also primes the state's coefficient storage,
-    //  so the audio-thread updates in processBlock never reallocate — CR-03)
-    lpFilter.prepare(spec);
-    lpFilter.reset();
-    *lpFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(sampleRate, 200.0f);
-    previousLPFreq = -1.0f;
-    previousLPOn = false;
+    // User LOW CUT: always running, crossfaded in/out (v1.12.0)
+    lowCutFilter.prepare(spec);
+    lowCutFilter.setType(juce::dsp::StateVariableTPTFilterType::highpass);
+    lowCutFilter.setResonance(1.0f / juce::MathConstants<float>::sqrt2);  // Butterworth, as makeHighPass
+    lowCutBuffer.setSize(static_cast<int>(spec.numChannels), samplesPerBlock);
+    lowCutFreqSmoothed.reset(sampleRate, 0.05);
+    lowCutFreqSmoothed.setCurrentAndTargetValue(lpFreqParam->load());
+    lowCutFilter.setCutoffFrequency(lowCutFreqSmoothed.getCurrentValue());
+    lowCutMixSmoothed.reset(sampleRate, 0.02);
+    lowCutMixSmoothed.setCurrentAndTargetValue(lpOnParam->load() >= 0.5f ? 1.0f : 0.0f);
 
     // Prepare delay lines
     for (auto* delay : { &preDelayL, &preDelayR }) {
@@ -295,82 +319,113 @@ void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     prepareDelayContainer(allPassL, spec, msToSamples(kMaxAllPassMs));
     prepareDelayContainer(allPassR, spec, msToSamples(kMaxAllPassMs));
 
-    // Reset modulation
+    // Modulation (v1.13.0): the flutter line is sized for the deepest type
+    float maxFlutterMs = 0.0f;
+    for (const auto& t : typePresets) {
+        FlutterDelay probe;
+        probe.prepare(sampleRate, 0.0f);
+        probe.setModulation(t.modRate, t.modCents);
+        maxFlutterMs = juce::jmax(maxFlutterMs, probe.getDepthSamples() * 1000.0f / static_cast<float>(sampleRate));
+    }
+    flutterL.prepare(sampleRate, maxFlutterMs);
+    flutterR.prepare(sampleRate, maxFlutterMs);
+    shimmerL.prepare(sampleRate);
+    shimmerR.prepare(sampleRate);
     lfoPhase = 0.0f;
-    shimmerPhase = 0.0f;
 
     // CR-04: pre-allocate work buffers so the setSize() calls in processBlock
     // are no-op reuse instead of a guaranteed first-callback allocation
     dryBuffer.setSize(getTotalNumOutputChannels(), samplesPerBlock);
     wetBuffer.setSize(getTotalNumOutputChannels(), samplesPerBlock);
 
+    // Start on the current TYPE with no duck and no EQ crossfade
+    const int startType = juce::jlimit(0, 5, juce::roundToInt(typeParam->load()));
+    activeType = -1;
+    switchChainTo(startType);
+    chainGain = 1.0f;
+    chainGainStep = 1.0f / (kTypeDuckMs * 0.001f * static_cast<float>(sampleRate));
+    setTypeEq(eqActive, startType);
+    eqType = startType;
+
     // WR-03: 20ms wet/dry gain smoothing (zipper-noise-free knob drags/automation)
     wetGainSmoothed.reset(sampleRate, 0.02);
     dryGainSmoothed.reset(sampleRate, 0.02);
     wetGainSmoothed.setCurrentAndTargetValue(wetParam->load() / 100.0f);
     dryGainSmoothed.setCurrentAndTargetValue(dryParam->load() / 100.0f);
-
-    // Force type update on first block
-    previousType = -1;
 }
 
 void OSimpleReverbAudioProcessor::releaseResources()
 {
 }
 
-void OSimpleReverbAudioProcessor::updateTypeSpecificDSP(int typeIndex)
+void OSimpleReverbAudioProcessor::switchChainTo(int typeIndex)
 {
+    // Called with chainGain at 0 (or before the first block): the delay times
+    // jump and the lines are cleared, which is silent because nothing is being
+    // fed to the reverb. Clearing also drops the OLD type's reflections, which
+    // would otherwise re-emerge at the new spacing.
     const auto& preset = typePresets[typeIndex];
+    activeType = typeIndex;
+    const float fs = static_cast<float>(currentSampleRate);
 
-    // Update LFO increment
-    if (preset.modRate > 0.0f) {
-        lfoIncrement = (2.0f * juce::MathConstants<float>::pi * preset.modRate) / static_cast<float>(currentSampleRate);
-    } else {
-        lfoIncrement = 0.0f;
+    lfoIncrement = preset.modRate > 0.0f ? juce::MathConstants<float>::twoPi * preset.modRate / fs : 0.0f;
+    for (auto* f : { &flutterL, &flutterR }) {
+        f->setModulation(preset.modRate, preset.modCents);
+        f->reset();
+    }
+    shimmerL.reset();
+    shimmerR.reset();
+
+    const float preDelaySamples = preset.preDelayMs * 0.001f * fs;
+    for (auto* d : { &preDelayL, &preDelayR }) {
+        d->reset();
+        d->setDelay(preDelaySamples);
     }
 
-    // Set early reflection delay times based on type
     for (int i = 0; i < numEarlyReflections; ++i) {
-        float delayMs = kBaseEarlyDelaysMs[i] * preset.earlyReflectionScale;
-        float delaySamples = (delayMs / 1000.0f) * static_cast<float>(currentSampleRate);
-
+        const float delaySamples = kBaseEarlyDelaysMs[i] * preset.earlyReflectionScale * 0.001f * fs;
+        earlyReflectionsL[i].reset();
+        earlyReflectionsR[i].reset();
         earlyReflectionsL[i].setDelay(delaySamples);
         earlyReflectionsR[i].setDelay(delaySamples * kEarlyReflectionStereoOffset);
     }
 
-    // Set all-pass delay times (for Spring)
     for (int i = 0; i < numAllPassFilters; ++i) {
-        float delaySamples = (allPassDelayMs[i] / 1000.0f) * static_cast<float>(currentSampleRate);
+        const float delaySamples = allPassDelayMs[i] * 0.001f * fs;
+        allPassL[i].reset();
+        allPassR[i].reset();
         allPassL[i].setDelay(delaySamples);
         allPassR[i].setDelay(delaySamples * kAllPassStereoOffset);
     }
+}
 
-    // Update type-specific EQ
-    // CR-03: this runs on the audio thread (type change in processBlock), so use
-    // ArrayCoefficients (stack std::array, identical math) instead of
-    // Coefficients::makeXXX, which heap-allocates a ref-counted object.
-    // Assignment reuses the state's existing storage (primed in prepareToPlay).
+void OSimpleReverbAudioProcessor::setTypeEq(int slot, int typeIndex)
+{
+    // CR-03: runs on the audio thread, so ArrayCoefficients (stack std::array)
+    // rather than Coefficients::makeXXX, which heap-allocates. Assignment reuses
+    // the storage primed in prepareToPlay.
+    const auto& preset = typePresets[typeIndex];
+    auto& state = *typeEq[static_cast<size_t>(slot)].state;
     switch (preset.eqType) {
         case TypePreset::EqType::None:
-            *typeEqFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(currentSampleRate, 1000.0f);
+            // Identity (not an all-pass, which shifts phase): the instance
+            // still runs, so crossfades into and out of Room are seamless.
+            state = std::array<float, 6> { 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f };
             break;
         case TypePreset::EqType::LowShelf:
-            *typeEqFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf(
-                currentSampleRate, preset.eqFreq, preset.eqQ,
-                juce::Decibels::decibelsToGain(preset.eqGain));
+            state = juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf(
+                currentSampleRate, preset.eqFreq, preset.eqQ, juce::Decibels::decibelsToGain(preset.eqGain));
             break;
         case TypePreset::EqType::HighShelf:
-            *typeEqFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(
-                currentSampleRate, preset.eqFreq, preset.eqQ,
-                juce::Decibels::decibelsToGain(preset.eqGain));
+            state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(
+                currentSampleRate, preset.eqFreq, preset.eqQ, juce::Decibels::decibelsToGain(preset.eqGain));
             break;
         case TypePreset::EqType::Peak:
-            *typeEqFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter(
-                currentSampleRate, preset.eqFreq, preset.eqQ,
-                juce::Decibels::decibelsToGain(preset.eqGain));
+            state = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter(
+                currentSampleRate, preset.eqFreq, preset.eqQ, juce::Decibels::decibelsToGain(preset.eqGain));
             break;
         case TypePreset::EqType::HighPass:
-            *typeEqFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
+            state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(
                 currentSampleRate, preset.eqFreq, preset.eqQ);
             break;
     }
@@ -399,8 +454,11 @@ void OSimpleReverbAudioProcessor::updateCharacterCoefficients(float characterVal
         cutoffHz = parkHz;
     warmFilter.setCutoffFrequency(cutoffHz);  // RT-safe: one tan(), no allocation
 
-    // Bright (> 0.5): +0..6 dB shelf at 4 kHz; otherwise 0 dB (identity).
-    const float brightValue = characterValue > 0.5f ? juce::jlimit(0.0f, 1.0f, characterValue / 100.0f) : 0.0f;
+    // Bright: +0..6 dB shelf at 4 kHz, CONTINUOUS from 0 (v1.12.0). The old
+    // `> 0.5 ? ... : 0` step from the identity shelf burst at about -51 dB
+    // above 3 kHz on every crossing; at +0.5 the shelf is +0.03 dB, inaudible,
+    // so the UI's "neutral" zone still reads true.
+    const float brightValue = juce::jlimit(0.0f, 1.0f, characterValue / 100.0f);
     *brightFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf(
         currentSampleRate, 4000.0f, 0.707f, juce::Decibels::decibelsToGain(brightValue * 6.0f));  // CR-03: RT-safe, no heap alloc
 }
@@ -451,23 +509,26 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     typeValue = juce::jlimit(0, 5, typeValue);
 
-    // Get current preset
+    // The requested type drives the reverb core (juce::Reverb smooths its own
+    // room size, damping and width). The pre-reverb chain, and with it the
+    // level trim, runs activeType and follows via the duck below.
     const auto& preset = typePresets[typeValue];
-
-    // Update type-specific DSP if type changed
-    if (typeValue != previousType) {
-        updateTypeSpecificDSP(typeValue);
-        previousType = typeValue;
-    }
 
     // Calculate reverb parameters
     // Size affects room size
     float sizeNorm = sizeValue / 100.0f;
     float finalRoomSize = preset.baseRoomSize * (0.5f + sizeNorm * 0.5f);
 
-    // Decay multiplier (0.5x to 2.0x) scales room size and inversely scales damping
-    // Higher decay = larger room + less damping = longer tail
-    finalRoomSize *= decayValue;
+    // Decay (0.5x to 2.0x) scales room size and inversely scales damping:
+    // higher decay = larger room + less damping = longer tail. v1.13.0: above
+    // 1.0x it closes the HEADROOM to 1.0 rather than multiplying, so the
+    // maximum arrives at 2.0x on every type. The multiply clamped early on big
+    // rooms: Ambient at SIZE 100 hit 1.0 at 1.05x, and the top ~47 % of the
+    // knob moved only damping. Below 1.0x is unchanged.
+    if (decayValue <= 1.0f)
+        finalRoomSize *= decayValue;
+    else
+        finalRoomSize += (1.0f - finalRoomSize) * (decayValue - 1.0f);
     finalRoomSize = juce::jlimit(0.0f, 1.0f, finalRoomSize);
 
     // Damping: lower values = longer decay, so divide by decay multiplier
@@ -497,19 +558,29 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     float* leftChannel = buffer.getWritePointer(0);
     float* rightChannel = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : leftChannel;
 
-    const float* dryLeft = dryBuffer.getReadPointer(0);
-    const float* dryRight = dryBuffer.getNumChannels() > 1 ? dryBuffer.getReadPointer(1) : dryLeft;
-
-    // Pre-delay in samples
-    float preDelaySamples = (preset.preDelayMs / 1000.0f) * static_cast<float>(currentSampleRate);
-    preDelayL.setDelay(preDelaySamples);
-    preDelayR.setDelay(preDelaySamples);
-
     // Prepare wet buffer (using pre-allocated buffer, resize only if needed)
     wetBuffer.setSize(buffer.getNumChannels(), numSamples, false, false, true);
     wetBuffer.clear();
 
+    const TypePreset* chain = &typePresets[activeType];
+    float chainTrim = wetTrimGain(activeType);
+
     for (int sample = 0; sample < numSamples; ++sample) {
+        // === 0. TYPE duck-and-swap (v1.12.0) ===
+        // Jumping the delay times under signal clicked (60x..6900x). Fall to 0 on
+        // the old type, swap with nothing feeding the reverb, rise on the new one.
+        if (typeValue != activeType) {
+            chainGain -= chainGainStep;
+            if (chainGain <= 0.0f) {
+                chainGain = 0.0f;
+                switchChainTo(typeValue);
+                chain = &typePresets[activeType];
+                chainTrim = wetTrimGain(activeType);
+            }
+        } else if (chainGain < 1.0f) {
+            chainGain = juce::jmin(1.0f, chainGain + chainGainStep);
+        }
+
         float inputL = leftChannel[sample];
         float inputR = rightChannel[sample];
 
@@ -531,45 +602,47 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
 
         // Mix early reflections
-        float processedL = preDelayedL + (earlyL * preset.earlyReflectionMix);
-        float processedR = preDelayedR + (earlyR * preset.earlyReflectionMix);
+        float processedL = preDelayedL + (earlyL * chain->earlyReflectionMix);
+        float processedR = preDelayedR + (earlyR * chain->earlyReflectionMix);
 
         // === 3. Spring All-Pass Dispersion (if enabled) ===
-        if (preset.useAllPass) {
+        if (chain->useAllPass) {
             processedL = processAllPassChain(processedL, true);
             processedR = processAllPassChain(processedR, false);
         }
 
-        // === 4. Modulation (if enabled) ===
-        if (preset.modRate > 0.0f) {
+        // === 4. Pitch flutter (v1.13.0) ===
+        // A swept short delay: Spring 6 cents at 4.5 Hz, Hall 3 at 0.15 Hz,
+        // Ambient 4 at 0.4 Hz. It replaced a +/-3 % amplitude wobble that
+        // measured +/-0.26 dB. L and R share ONE phase: juce::Reverb sums its
+        // input to mono before the combs, so an L/R offset (tried: a quarter
+        // cycle) became a sweeping comb filter there - a flanger, -3 dB on noise.
+        if (chain->modRate > 0.0f) {
             lfoPhase += lfoIncrement;
-            if (lfoPhase >= 2.0f * juce::MathConstants<float>::pi)
-                lfoPhase -= 2.0f * juce::MathConstants<float>::pi;
-
-            float lfoValue = std::sin(lfoPhase);
-
-            // Subtle amplitude modulation (+/-3%), R channel phase-offset for stereo
-            float modGain = 1.0f + (lfoValue * kLfoAmplitudeModulation);
-            processedL *= modGain;
-            processedR *= (1.0f + (std::sin(lfoPhase + 0.5f) * kLfoAmplitudeModulation));  // Phase offset for stereo
+            if (lfoPhase >= juce::MathConstants<float>::twoPi)
+                lfoPhase -= juce::MathConstants<float>::twoPi;
+            const float lfo = std::sin(lfoPhase);
+            processedL = flutterL.process(processedL, lfo);
+            processedR = flutterR.process(processedR, lfo);
         }
 
-        // === 5. Plate Shimmer (if enabled) ===
-        if (preset.useShimmer) {
-            shimmerPhase += (2.0f * juce::MathConstants<float>::pi * kShimmerFreq) / static_cast<float>(currentSampleRate);
-            if (shimmerPhase >= 2.0f * juce::MathConstants<float>::pi)
-                shimmerPhase -= 2.0f * juce::MathConstants<float>::pi;
-
-            // Subtle ring modulation for shimmer effect
-            float shimmerMod = std::sin(shimmerPhase);
-            processedL += processedL * shimmerMod * kShimmerMixAmount;
-            processedR += processedR * shimmerMod * kShimmerMixAmount;
+        // === 5. Plate shimmer (v1.13.0) ===
+        // A real octave up, blended into the reverb's input. It replaced a
+        // 1.5 kHz ring modulator, whose sidebands were inharmonic.
+        if (chain->useShimmer) {
+            processedL += kShimmerMixAmount * shimmerL.process(processedL);
+            processedR += kShimmerMixAmount * shimmerR.process(processedR);
         }
 
-        // Write to wet buffer for reverb processing
-        wetBuffer.setSample(0, sample, processedL);
+        // Write to wet buffer for reverb processing. The type's level trim
+        // (v1.12.0) goes in HERE, at the reverb input and inside the duck: on
+        // the output it would re-scale the old type's ringing tail on a switch
+        // (Ambient -> Booth lifted it 7.7 dB). The reverb is linear, so the
+        // steady level is the same either way.
+        const float g = chainGain * chainTrim;
+        wetBuffer.setSample(0, sample, processedL * g);
         if (wetBuffer.getNumChannels() > 1)
-            wetBuffer.setSample(1, sample, processedR);
+            wetBuffer.setSample(1, sample, processedR * g);
     }
 
     // === 6. Main Reverb Processing ===
@@ -586,39 +659,91 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     juce::dsp::ProcessContextReplacing<float> wetContext(wetBlock);
     reverb.process(wetContext);
 
-    // === 7. Type-Specific EQ ===
-    if (preset.eqType != TypePreset::EqType::None) {
-        typeEqFilter.process(wetContext);
+    // === 7. Type-Specific EQ (crossfaded on a type change, v1.12.0) ===
+    // Start a crossfade only when none is running; a type change arriving
+    // mid-fade is picked up by the next block after this one lands.
+    if (eqMix <= 0.0f && typeValue != eqType) {
+        const int idle = 1 - eqActive;
+        setTypeEq(idle, typeValue);
+        typeEq[static_cast<size_t>(idle)].reset();
+        eqType = typeValue;
+        eqMix = eqMixStep;   // > 0: fade running
+    }
+    if (eqMix > 0.0f) {
+        const int idle = 1 - eqActive;
+        eqFadeBuffer.setSize(wetBuffer.getNumChannels(), numSamples, false, false, true);
+        for (int ch = 0; ch < wetBuffer.getNumChannels(); ++ch)
+            eqFadeBuffer.copyFrom(ch, 0, wetBuffer, ch, 0, numSamples);
+        juce::dsp::AudioBlock<float> fadeBlock(eqFadeBuffer);
+        juce::dsp::ProcessContextReplacing<float> fadeContext(fadeBlock);
+        typeEq[static_cast<size_t>(eqActive)].process(wetContext);
+        typeEq[static_cast<size_t>(idle)].process(fadeContext);
+
+        float mix = eqMix;
+        for (int sample = 0; sample < numSamples; ++sample) {
+            for (int ch = 0; ch < wetBuffer.getNumChannels(); ++ch) {
+                const float a = wetBuffer.getSample(ch, sample);
+                wetBuffer.setSample(ch, sample, a + mix * (eqFadeBuffer.getSample(ch, sample) - a));
+            }
+            mix = juce::jmin(1.0f, mix + eqMixStep);
+        }
+        if (mix >= 1.0f) {
+            eqActive = idle;
+            eqMix = 0.0f;
+        } else {
+            eqMix = mix;
+        }
+    } else {
+        typeEq[static_cast<size_t>(eqActive)].process(wetContext);
     }
 
-    // === 8. Character Control ===
-    // Smoothed (50 ms) and re-coefficiented every kCharacterSubBlock samples,
-    // so a drag or an automation step glides instead of stepping.
+    // === 8. Character ===
+    // Smoothed over 50 ms. While it moves, the coefficients follow EVERY sample:
+    // stepping the Bright shelf every 32 samples zippered at about -46 dB above
+    // 3 kHz (v1.12.0 probe); per sample it is -67 dB, level with a held knob.
+    // Settled, one update per block (a no-op: the value has not changed).
     characterSmoothed.setTargetValue(characterValue);
+    if (characterSmoothed.isSmoothing()) {
+        for (int i = 0; i < numSamples; ++i) {
+            updateCharacterCoefficients(characterSmoothed.getNextValue());
+            auto one = wetBlock.getSubBlock(static_cast<size_t>(i), 1);
+            juce::dsp::ProcessContextReplacing<float> oneContext(one);
+            warmFilter.process(oneContext);
+            brightFilter.process(oneContext);
+        }
+    } else {
+        updateCharacterCoefficients(characterSmoothed.getCurrentValue());
+        warmFilter.process(wetContext);
+        brightFilter.process(wetContext);
+    }
+
+    // === 8.5. User LOW CUT (v1.12.0) ===
+    // Always runs into lowCutBuffer, its cutoff smoothed (50 ms) and set every
+    // kCharacterSubBlock samples; ON/OFF crossfades it against the unfiltered
+    // wet over 20 ms. v1.11.0 switched it in and out between blocks (a click).
+    lowCutFreqSmoothed.setTargetValue(lpFreqValue);
+    lowCutMixSmoothed.setTargetValue(lpFilterOn ? 1.0f : 0.0f);
+    lowCutBuffer.setSize(wetBuffer.getNumChannels(), numSamples, false, false, true);
+    juce::dsp::AudioBlock<float> lowCutBlock(lowCutBuffer);
     for (int start = 0; start < numSamples; start += kCharacterSubBlock) {
         const int len = juce::jmin(kCharacterSubBlock, numSamples - start);
-        characterSmoothed.skip(len);
-        updateCharacterCoefficients(characterSmoothed.getCurrentValue());
+        lowCutFreqSmoothed.skip(len);
+        lowCutFilter.setCutoffFrequency(lowCutFreqSmoothed.getCurrentValue());  // RT-safe: one tan()
         auto sub = wetBlock.getSubBlock(static_cast<size_t>(start), static_cast<size_t>(len));
-        juce::dsp::ProcessContextReplacing<float> subContext(sub);
-        warmFilter.process(subContext);
-        brightFilter.process(subContext);
+        auto cutSub = lowCutBlock.getSubBlock(static_cast<size_t>(start), static_cast<size_t>(len));
+        juce::dsp::ProcessContextNonReplacing<float> cutContext(sub, cutSub);
+        lowCutFilter.process(cutContext);
     }
 
-    // === 8.5. User High-Pass / Low Cut Filter (if enabled) ===
-    if (lpFilterOn) {
-        // Off -> on: drop the state left from the last time it ran (a click)
-        if (! previousLPOn)
-            lpFilter.reset();
-
-        // Update filter coefficients if frequency changed
-        if (std::abs(lpFreqValue - previousLPFreq) > 0.5f) {
-            *lpFilter.state = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass(currentSampleRate, lpFreqValue);  // CR-03: RT-safe, no heap alloc
-            previousLPFreq = lpFreqValue;
+    if (lowCutMixSmoothed.isSmoothing() || lowCutMixSmoothed.getTargetValue() > 0.0f) {
+        for (int sample = 0; sample < numSamples; ++sample) {
+            const float m = lowCutMixSmoothed.getNextValue();
+            for (int ch = 0; ch < wetBuffer.getNumChannels(); ++ch) {
+                const float a = wetBuffer.getSample(ch, sample);
+                wetBuffer.setSample(ch, sample, a + m * (lowCutBuffer.getSample(ch, sample) - a));
+            }
         }
-        lpFilter.process(wetContext);
     }
-    previousLPOn = lpFilterOn;
 
     // === 9. Dry/Wet Mix (gain-ramped, WR-03) ===
     const float rampStep = 1.0f / static_cast<float>(numSamples);  // numSamples > 0 (early return)

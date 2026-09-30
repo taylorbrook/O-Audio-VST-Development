@@ -51,8 +51,10 @@ OSimpleReverbAudioProcessorEditor::OSimpleReverbAudioProcessorEditor(OSimpleReve
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
             .withWinWebView2Options(
                 juce::WebBrowserComponent::Options::WinWebView2{}
+                    // IN-03 (v1.12.0): a plugin-scoped folder, not the bare temp
+                    // root shared with every other WebView2 host in the process
                     .withUserDataFolder(juce::File::getSpecialLocation(
-                        juce::File::SpecialLocationType::tempDirectory)))
+                        juce::File::SpecialLocationType::tempDirectory).getChildFile("O-SimpleReverb_WebView")))
             .withNativeIntegrationEnabled()
             .withResourceProvider([this](const auto& url) { return getResource(url); })
             .withOptionsFrom(*typeRelay)
@@ -151,7 +153,7 @@ OSimpleReverbAudioProcessorEditor::OSimpleReverbAudioProcessorEditor(OSimpleReve
                                        processorRef.uiLanguage.load(std::memory_order_acquire))));
             })
             .withNativeFunction("setUiLanguage", [this](const auto& args, auto complete) {
-                // languageIndex() maps anything that is not "fr" to 0, so an
+                // languageIndex() maps anything but "fr" / "zh-Hans" to 0, so an
                 // unexpected argument from the page degrades to English rather
                 // than being stored unvalidated.
                 if (args.size() > 0)

@@ -2,6 +2,194 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.13.0] - 2026-09-30
+
+**Flutter and shimmer made real; DECAY's top range brought back to life.**
+MINOR: Spring, Hall, Ambient and Plate sound different, and so do sessions with
+DECAY above 1.0x on large types. No parameter ID, range, type or state format
+changed.
+
+### Changed
+
+- **Spring / Hall / Ambient flutter is now pitch.** Until now it was ±3 %
+  amplitude modulation, ±0.26 dB before the reverb, which was effectively
+  inaudible. It is now a short swept delay (`FlutterDelay`, Lagrange
+  interpolation), stated as a peak pitch swing:
+  - **Spring** 6 cents at 4.5 Hz;
+  - **Hall** 3 cents at 0.15 Hz;
+  - **Ambient** 4 cents at 0.4 Hz.
+
+  L and R share one LFO phase. `juce::Reverb` sums its input to mono before
+  the combs, so the quarter-cycle L/R offset tried first became a sweeping
+  comb filter (a flanger, about −3 dB on noise).
+- **Plate shimmer is now an octave up.** Until now it was a 1.5 kHz ring
+  modulator (8 %), whose sidebands are inharmonic. It is now a two-grain
+  pitch shifter (`OctaveUpShifter`): 40 ms grains, sin²/cos² equal-gain
+  windows, each grain's jump landing at its window's zero. It is mixed into
+  the reverb input at 0.3 (about −10 dB). It is feed-forward, so output
+  stays bit-identical across block sizes.
+- **DECAY above 1.0x closes the headroom** to the maximum room size
+  (`r + (1 − r)(d − 1)`) instead of multiplying (`r · d`), so every type
+  reaches the maximum at 2.0x.
+  - Before, the multiply clamped early on big rooms. With Ambient at SIZE 100
+    it clamped at 1.05x, and the top ~47 % of the knob moved only damping.
+    Ambient tail at 1.25x / 1.6x / 2.0x: v1.12.0 **6.01 / 6.11 / 6.11 s**, now
+    **4.27 / 4.95 / 6.28 s**.
+  - At and below 1.0x nothing changed, and the default is 1.0x.
+  - **Sessions with DECAY above 1.0x on Hall or Ambient ring shorter at
+    moderate settings**; the full length is now at the top of the knob.
+- The two units live in `Source/ModulationFx.h`, so `tests/render-check`
+  measures them directly.
+- Factory presets now span +0.5 .. +7.7 dB re input (v1.12.0: +0.5 .. +8.4),
+  mostly because the Hall and Ambient presets sit above 1.0x DECAY. Peak on the
+  noise input: 0.96.
+
+### Verification
+
+- `tests/render-check`: **23/23**. Section 7 checks three things:
+  - each flutter's output equals the ideal swept-delay sine (max error 7e-6)
+    and swings exactly its stated cents;
+  - the shifter puts a 1 kHz sine at 2 kHz (+103 dB over 1 kHz);
+  - Plate's 600/300 Hz ratio is −11.9 dB against Room's −118.7 dB.
+
+  Section 8 checks the Ambient tail across 1.25 / 1.6 / 2.0x. Built against
+  the v1.12.0 backup (with the new header copied in so it compiles), the two
+  plugin-level checks fail: Plate at −114 dB, and the tail flat at 6.11 s.
+  The v1.12.0 click and level gates still pass: TYPE worst 1.26x, spread
+  0.12 dB.
+- A zero-crossing pitch counter was tried first for flutter. It reported
+  isolated 4.5-cent spikes on the 3-cent Hall, which the ideal-sine comparison
+  shows are the counter's, not the DSP's, so the gate uses that comparison.
+- `auval -v aufx OuSr OuDv`: AU VALIDATION SUCCEEDED. pluginval strictness 10
+  (VST3): SUCCESS.
+- **Not yet checked in a DAW:** the flutter depths and the shimmer level
+  are by ear.
+
+## [1.12.0] - 2026-09-30
+
+**Fresh audit: clicks, level match, gestures, keyboard.** MINOR: every switch
+is now click-free, the six types play at one loudness, and the knobs work from
+the keyboard. No parameter ID, range, type or state format changed. Two
+host-visible NAMES changed (below); sessions and automation still bind by ID.
+
+The click numbers below are **HF bursts**: the peak |x| above 3 kHz (4th-order
+high-pass) in the 30 ms after a toggle, in dB re the 0.5 test sine. For scale,
+a smoothed WET 20<->100 move measures -60.2 dB. The v1.11.0 render check
+scored clicks by peak |second difference|, which on a reverb tracks the tail's
+own build-up and can miss a real click. Two v1.11.0 claims fail under the HF
+metric: LOW CUT and CHARACTER were not click-free.
+
+### Fixed
+
+- **LOW CUT ON/OFF clicked hard: -1.1 dB HF burst.** v1.11.0 reset the filter
+  on the off->on edge, but still switched between filtered and unfiltered wet
+  between one block and the next, in both directions. The filter now runs all
+  the time, into its own buffer, and ON/OFF is a 20 ms crossfade:
+  **-59.5 dB**.
+- **LOW CUT frequency jumps clicked: -23.5 dB.** The cutoff is now smoothed
+  over 50 ms and set every 32 samples on a TPT state-variable high-pass (the
+  same Butterworth response as the old `makeHighPass` biquad, but safe to
+  modulate): **-54.6 dB**.
+- **CHARACTER still zippered on the Bright side: -46 dB (10<->60).** The 4 kHz
+  shelf's coefficients stepped every 32 samples. While CHARACTER is smoothing
+  they now follow every sample (once per block when settled): **-66.8 dB**.
+  Crossing +0.5 also burst at -51 dB, because the shelf stepped from identity
+  to +0.03 dB. Bright now rises continuously from 0: **-67.2 dB**. At +0.5 the
+  shelf is +0.03 dB, so the "neutral" readout still tells the truth.
+- **TYPE changes clicked: up to 5.4x the steady HF** (Hall<->Plate,
+  Room<->Booth). The pre-delay, early-reflection and all-pass delay times
+  jumped under signal. The chain before the reverb now ducks to silence over
+  10 ms on the OLD type, swaps and clears its lines, then comes back over 10 ms.
+  The reverb tail rings on through the swap. The type EQ is two instances,
+  crossfaded over 30 ms. Room's EQ used to be skipped and is now an identity
+  biquad, so its state is always current. Worst of six pairs: **1.48x**.
+- **The six types were 7.7 dB apart** (K-weighted pink noise, WET 100 / DRY 0:
+  Booth +1.5 .. Ambient +9.2 dB re input). Each type now carries a fixed trim
+  that matches it to Room: Booth +4.9, Hall -2.1, Spring +2.1, Plate -2.1,
+  Ambient -2.8 dB. Spread: **0.07 dB**. The trim is applied at the reverb
+  INPUT, inside the TYPE duck. Applied at the output, it re-scaled the old
+  type's ringing tail on a switch: Ambient -> Booth lifted it 7.7 dB, and TYPE
+  measured 2.44x.
+  - Factory presets now span +0.5 .. +8.4 dB re input (was +0.1 .. +11.0).
+    The noise-input peak across the bank went from 1.53 to 1.12. The preset
+    table itself is unchanged.
+  - **Sessions change loudness:** Booth and Spring get about 2-5 dB louder,
+    and Hall, Plate and Ambient about 2-3 dB quieter.
+- **The knob arcs lit a quarter ring at 0 and the full ring at 100 %.** The
+  dasharray was the full circle, while the JS used the 270-degree length. The
+  SVG was also rotated -135 degrees, so the arc started at 10:30 with the gap
+  on the left. Track and vine are now a 103.67 dash (270 degrees), rotated
+  +135 degrees: 7:30 to 4:30, gap at the bottom, the way LOW CUT's 20 / 400
+  labels always assumed.
+- **Nested host gestures.** A wheel notch during a drag, or a double-click
+  inside a wheel burst, sent begin, begin, end, end. There is now one gesture
+  per parameter, shared by drag, wheel, keyboard and double-click. A drag adopts
+  an open burst; a burst closes 200 ms after its last step.
+- **A sideways trackpad swipe turned knobs down** (`deltaY === 0` counted as a
+  downward notch). Only vertical wheel movement is taken.
+- **Gestures left open.** A drag no longer starts from a non-primary button,
+  and a second drag can't start while one is running. `pagehide` ends any open
+  gesture when the editor closes mid-drag.
+- **A failed preset load still showed the new name.** `loadPreset` returns
+  false for a file removed while the list was open. The page now keeps the
+  loaded preset's name and re-reads the list.
+- **Preset names with two ` - ` were cut:** "Hall - Big - Wet" showed "Big".
+  Everything after the first separator is now shown.
+- **The VU needle was smoothed twice.** A 150 ms CSS transition sat on top of
+  the per-frame JS smoothing, restarted every frame and lagged attacks. It is
+  gone. The ballistics are now in time (attack ~24 ms, release ~200 ms), so a
+  120 Hz display no longer releases twice as fast.
+
+### Added
+
+- **Keyboard and screen-reader support for the knobs and the LOW CUT switch**
+  (the R7 item). Each knob is a focusable `role="slider"`, named by its
+  caption through `aria-labelledby`, so no new i18n strings. It carries
+  `aria-valuenow` and an `aria-valuetext` that matches the readout
+  (LOW CUT: "200 Hz"). Keys: arrows 1 % (Shift 0.1 %), PageUp/PageDown 10 %,
+  Home/End. The LOW CUT ON/OFF is a `role="switch"` with `aria-checked` and
+  Space/Enter. Focus rings use `--leaf` and appear under `:focus-visible` only.
+- **`tests/render-check` sections 5 and 6:** HF-burst gates for LOW CUT on/off,
+  LOW CUT frequency, three CHARACTER moves and six TYPE pairs, plus the type
+  loudness spread.
+
+### Changed
+
+- **Host names:** "LP Filter Freq" -> **"Low Cut Freq"**, "LP Filter On" ->
+  **"Low Cut On"** (CODE_REVIEW IN-02). The filter was always a high-pass.
+  The IDs `LPFREQ` / `LPON` are unchanged.
+- **WebView2 user-data folder** is `%TEMP%/O-SimpleReverb_WebView`, not the
+  bare temp root (CODE_REVIEW IN-03).
+- **The DECAY readout reads `getScaledValue()`**, so it follows the range's own
+  skew instead of a hard-coded 1.585 exponent. Knob setup is one `bindKnob()`
+  for all six knobs, replacing the duplicated LOW CUT block. The unused
+  `valueDisplay` animation field is removed.
+
+### Verification
+
+- `tests/render-check`: **16/16** on v1.12.0. The same file built against the
+  v1.11.0 backup passes all 9 original checks and fails all 7 new ones: LOW CUT
+  -1.1 dB, LPFREQ -23.5 dB, CHARACTER -50.7 / -46.1 / -45.9 dB, TYPE 5.38x,
+  spread 7.67 dB.
+- Output is still bit-identical at block sizes 64 and 512 (Spring,
+  CHARACTER -40). Mono renders finite.
+- Scripted Playwright pass at 500x350, **19/19**:
+  - arc geometry and rotation;
+  - a drag with a wheel notch in it is one gesture; wheel + double-click makes
+    no nested pairs; a sideways swipe and a right-button drag do nothing;
+  - 3x ArrowUp is one gesture, +0.03; Home gives `aria-valuenow` 0.0 /
+    `aria-valuetext` "0%"; six knob tab stops;
+  - LOW CUT Space/Enter updates `aria-checked`, as one LPON gesture;
+  - `pagehide` mid-drag closes the gesture; a failed load keeps its name;
+  - no page errors.
+- `check-i18n` all pass; `check-ui-labels` all pass; `i18n-fr-lint` and
+  `i18n-zh-lint` 0 findings for this plugin; `tests/ui_tip_render_check.js`
+  all pass.
+- `auval -v aufx OuSr OuDv`: AU VALIDATION SUCCEEDED. pluginval strictness 10
+  (VST3, in-process, no GUI tests): SUCCESS.
+- **Not yet checked in a DAW:** the listening check of TYPE / LOW CUT switching
+  and the new type levels.
+
 ## [1.11.0] - 2026-09-27
 
 **Full review: bugs, simplification, UI gestures.** MINOR: sessions and presets

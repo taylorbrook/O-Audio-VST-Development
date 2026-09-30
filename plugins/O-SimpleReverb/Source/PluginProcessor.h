@@ -24,8 +24,7 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    v1.11.0 - Full-review fixes (TYPE rounding, true Spring all-pass,
-              click-free CHARACTER / LOW CUT, rate-sized delays, VU peak hold)
+    v1.13.0 - Real flutter + octave shimmer, DECAY headroom map (see CHANGELOG)
 
   ==============================================================================
 */
@@ -34,6 +33,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "OuariconPresetManager.h"
+#include "ModulationFx.h"
 
 class OSimpleReverbAudioProcessor : public juce::AudioProcessor
 {
@@ -51,16 +51,19 @@ public:
     static constexpr float kEarlyReflectionStereoOffset = 1.07f;  // 7% L/R offset
     static constexpr float kAllPassStereoOffset = 1.05f;          // 5% L/R offset
 
-    // Modulation amounts
-    static constexpr float kLfoAmplitudeModulation = 0.03f;  // ±3% amplitude modulation
-    static constexpr float kShimmerMixAmount = 0.08f;        // 8% shimmer mix
-    static constexpr float kShimmerFreq = 1500.0f;           // ~1.5kHz ring modulation
+    // Plate shimmer: the octave-up voice's level against the dry chain (v1.13.0)
+    static constexpr float kShimmerMixAmount = 0.3f;         // about -10 dB
 
     // Early reflection base times (ms) - prime numbers for natural sound
     static constexpr std::array<float, 4> kBaseEarlyDelaysMs = { 7.0f, 11.0f, 17.0f, 23.0f };
 
     // VU meter floor level
     static constexpr float kVuMeterFloorDB = -100.0f;
+
+    // TYPE change (v1.12.0): the pre-reverb chain ducks to silence on the OLD
+    // type's delays, swaps, and comes back; the post-reverb type EQ crossfades.
+    static constexpr float kTypeDuckMs = 10.0f;
+    static constexpr float kTypeEqFadeMs = 30.0f;
 
 
     OSimpleReverbAudioProcessor();
@@ -107,7 +110,7 @@ public:
     std::atomic<float> outputPeak { 0.0f };
 
     // ------------------------------------------------------------------------
-    // v1.6.0 - the UI language. 0 = en, 1 = fr.
+    // v1.6.0 - the UI language. 0 = en, 1 = fr, 2 = zh-Hans.
     //
     // An INDEX rather than a string because std::atomic<juce::String> does not
     // compile (juce::String is not trivially copyable), so the audio-safe form
@@ -148,7 +151,7 @@ private:
     juce::dsp::StateVariableTPTFilter<float> warmFilter;
     juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> brightFilter;
     juce::SmoothedValue<float> characterSmoothed;
-    static constexpr int kCharacterSubBlock = 32;  // coefficient update interval (samples)
+    static constexpr int kCharacterSubBlock = 32;  // LOW CUT cutoff update interval (samples)
     void updateCharacterCoefficients(float characterValue);
 
     // === Type-Specific DSP Components (v1.1.0) ===
@@ -170,20 +173,34 @@ private:
     std::array<float, numAllPassFilters> allPassDelayMs = { 1.5f, 2.3f, 3.7f };  // Prime-ish ratios
     float allPassCoeff = 0.6f;  // Feedback coefficient
 
-    // Amplitude-modulation LFO for Spring flutter and Hall/Ambient movement
+    // Pitch flutter (Spring) and slow tail movement (Hall/Ambient): a swept
+    // short delay per channel, driven by one shared sine (v1.13.0)
     float lfoPhase = 0.0f;
     float lfoIncrement = 0.0f;
+    FlutterDelay flutterL, flutterR;
 
-    // Type-specific EQ filters
-    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> typeEqFilter;
+    // Type-specific EQ: two instances, crossfaded over kTypeEqFadeMs on a type
+    // change (a coefficient jump on the running tail clicked). eqMix ramps the
+    // idle instance in; at 1 it becomes the active one.
+    std::array<juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>>, 2> typeEq;
+    int eqActive = 0;
+    int eqType = -1;            // type whose EQ typeEq[eqActive] holds
+    float eqMix = 0.0f;         // 0 = no crossfade running
+    float eqMixStep = 0.0f;
+    juce::AudioBuffer<float> eqFadeBuffer;
+    void setTypeEq(int slot, int typeIndex);
 
-    // Lowpass filter for wet signal (user-controlled, 20-400Hz)
-    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> lpFilter;
-    float previousLPFreq = -1.0f;
-    bool previousLPOn = false;
+    // User LOW CUT (a high-pass, 20-400 Hz; the LPFREQ/LPON IDs are historical).
+    // v1.12.0: always runs, into lowCutBuffer, so ON/OFF is a crossfade rather
+    // than a switch and the filter state is never stale. A TPT SVF because its
+    // cutoff is modulated (smoothed) every kCharacterSubBlock samples.
+    juce::dsp::StateVariableTPTFilter<float> lowCutFilter;
+    juce::AudioBuffer<float> lowCutBuffer;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> lowCutFreqSmoothed;
+    juce::SmoothedValue<float> lowCutMixSmoothed;
 
-    // Shimmer for Plate (octave-up pitch shift approximation via ring modulation)
-    float shimmerPhase = 0.0f;
+    // Plate shimmer: a real octave-up voice (v1.13.0; was a 1.5 kHz ring modulator)
+    OctaveUpShifter shimmerL, shimmerR;
 
     // Pre-allocated buffers (sized in prepareToPlay — CR-04)
     juce::AudioBuffer<float> dryBuffer;
@@ -204,7 +221,11 @@ private:
     std::atomic<float>* lpOnParam = nullptr;
 
     // State tracking
-    int previousType = -1;
+    // TYPE duck-and-swap: the chain runs activeType; when the parameter moves,
+    // chainGain falls to 0 on the old settings, the chain switches, then rises.
+    int activeType = -1;
+    float chainGain = 1.0f;
+    float chainGainStep = 0.0f;
     double currentSampleRate = 44100.0;
     float previousCharacterValue = 0.0f;   // seeded out of range in prepareToPlay
 
@@ -216,19 +237,22 @@ private:
         float preDelayMs;           // Pre-delay in milliseconds
         float earlyReflectionScale; // Scale factor for early reflection times
         float earlyReflectionMix;   // How much early reflections to mix in
-        float modRate;              // LFO rate in Hz (0 = no modulation)
+        float modRate;              // flutter rate in Hz (0 = no modulation)
+        float modCents;             // flutter depth: peak pitch deviation (v1.13.0)
         bool useAllPass;            // Enable all-pass dispersion (Spring)
         bool useShimmer;            // Enable shimmer effect (Plate)
         float eqFreq;               // Type-specific EQ frequency
         float eqGain;               // Type-specific EQ gain (dB)
         float eqQ;                  // Type-specific EQ Q
         enum class EqType { None, LowShelf, HighShelf, Peak, HighPass } eqType;
+        float wetTrimDb;            // v1.12.0: level match to Room at defaults
     };
 
     static const TypePreset typePresets[6];
 
     // Helper methods
-    void updateTypeSpecificDSP(int typeIndex);
+    void switchChainTo(int typeIndex);
+    static float wetTrimGain(int typeIndex) { return juce::Decibels::decibelsToGain(typePresets[typeIndex].wetTrimDb); }
     float processAllPassChain(float input, bool isLeft);
     void initializeFactoryPresets();
 

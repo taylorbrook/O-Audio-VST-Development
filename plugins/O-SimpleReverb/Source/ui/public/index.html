@@ -401,10 +401,26 @@
             position: relative;
         }
 
+        /* v1.12.0: a 270-degree arc from 7:30 to 4:30. The circle's stroke
+           starts at 3 o'clock, so +135 puts it at 7:30; both circles carry a
+           103.67 dash (270 of 138.23), the track included. It was -135 over a
+           full-circle dasharray, which lit a quarter ring at 0 and started at
+           10:30. */
         .knob-visual svg {
             width: 100%;
             height: 100%;
-            transform: rotate(-135deg);
+            transform: rotate(135deg);
+        }
+
+        /* v1.12.0: knobs and the LOW CUT switch take keyboard focus. */
+        .knob-visual:focus-visible,
+        .toggle-btn:focus-visible {
+            outline: 2px solid var(--leaf);
+            outline-offset: 2px;
+            border-radius: 50%;
+        }
+        .toggle-btn:focus-visible {
+            border-radius: 2px;
         }
 
         .knob-track {
@@ -567,7 +583,9 @@
             transform-origin: bottom center;
             transform: translateX(-50%) rotate(-90deg);
             border-radius: 1px;
-            transition: transform 0.15s ease-out, background 0.15s ease-out;
+            /* v1.12.0: no CSS transition. The JS sets the angle every frame
+               with its own ballistics; a transition on top restarted each
+               frame and lagged attacks (short peaks read low). */
         }
 
         .vu-meter-pivot {
@@ -960,34 +978,34 @@
                 </select>
             </div>
 
-            <!-- Knobs Grid - Top Row (4 knobs: Character, LP Filter, Wet, Dry) -->
+            <!-- Knobs Grid - Top Row (4 knobs: Character, Low Cut, Wet, Dry) -->
             <div class="knobs-container">
                 <div class="knob-control">
                     <div class="knob" id="CHARACTER-knob">
-                        <div class="knob-visual">
+                        <div class="knob-visual" tabindex="0" role="slider" aria-labelledby="CHARACTER-label" aria-valuemin="0" aria-valuemax="100">
                             <svg viewBox="0 0 52 52">
-                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-track" cx="26" cy="26" r="22" stroke-dasharray="103.67 138.23"/>
                                 <circle class="knob-vine" id="CHARACTER-vine" cx="26" cy="26" r="22"
-                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                    stroke-dasharray="103.67 138.23" stroke-dashoffset="103.67"/>
                             </svg>
                         </div>
-                        <span class="knob-label" data-i18n="label.character" data-label="Character">Character</span>
+                        <span class="knob-label" id="CHARACTER-label" data-i18n="label.character" data-label="Character">Character</span>
                         <span class="knob-value" id="CHARACTER-value">neutral</span>
                     </div>
                 </div>
 
                 <div class="knob-control">
                     <div class="knob lp-off" id="LPFREQ-knob">
-                        <div class="knob-visual lpfreq-wrapper">
+                        <div class="knob-visual lpfreq-wrapper" tabindex="0" role="slider" aria-labelledby="LPFREQ-label" aria-valuemin="0" aria-valuemax="100">
                             <span class="hz-label hz-left">20</span>
                             <span class="hz-label hz-right">400</span>
                             <svg viewBox="0 0 52 52">
-                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-track" cx="26" cy="26" r="22" stroke-dasharray="103.67 138.23"/>
                                 <circle class="knob-vine" id="LPFREQ-vine" cx="26" cy="26" r="22"
-                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                    stroke-dasharray="103.67 138.23" stroke-dashoffset="103.67"/>
                             </svg>
                         </div>
-                        <span class="knob-label" data-i18n="label.lowCut" data-label="Low Cut">Low Cut</span>
+                        <span class="knob-label" id="LPFREQ-label" data-i18n="label.lowCut" data-label="Low Cut">Low Cut</span>
                         <!-- D-01 arm 3 says a .knob-value is a readout and is EXEMPT. OVERRULED
                              here with four reasons, written down in js/i18n.js: this node
                              never holds a number, it is a clickable toggle rather than a
@@ -996,34 +1014,36 @@
                              js-prose LABEL rows. The key is REWRITTEN by setLabel() on
                              every toggle, so the language sweep owns it in both states. -->
                         <span class="knob-value toggle-btn" id="LPFREQ-value"
+                              role="switch" tabindex="0" aria-checked="false"
+                              aria-labelledby="LPFREQ-label"
                               data-i18n="ui.off" data-label="OFF">OFF</span>
                     </div>
                 </div>
 
                 <div class="knob-control">
                     <div class="knob" id="WET-knob">
-                        <div class="knob-visual">
+                        <div class="knob-visual" tabindex="0" role="slider" aria-labelledby="WET-label" aria-valuemin="0" aria-valuemax="100">
                             <svg viewBox="0 0 52 52">
-                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-track" cx="26" cy="26" r="22" stroke-dasharray="103.67 138.23"/>
                                 <circle class="knob-vine" id="WET-vine" cx="26" cy="26" r="22"
-                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                    stroke-dasharray="103.67 138.23" stroke-dashoffset="103.67"/>
                             </svg>
                         </div>
-                        <span class="knob-label" data-i18n="label.wet" data-label="Wet">Wet</span>
+                        <span class="knob-label" id="WET-label" data-i18n="label.wet" data-label="Wet">Wet</span>
                         <span class="knob-value" id="WET-value">25%</span>
                     </div>
                 </div>
 
                 <div class="knob-control">
                     <div class="knob" id="DRY-knob">
-                        <div class="knob-visual">
+                        <div class="knob-visual" tabindex="0" role="slider" aria-labelledby="DRY-label" aria-valuemin="0" aria-valuemax="100">
                             <svg viewBox="0 0 52 52">
-                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-track" cx="26" cy="26" r="22" stroke-dasharray="103.67 138.23"/>
                                 <circle class="knob-vine" id="DRY-vine" cx="26" cy="26" r="22"
-                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                    stroke-dasharray="103.67 138.23" stroke-dashoffset="103.67"/>
                             </svg>
                         </div>
-                        <span class="knob-label" data-i18n="label.dry" data-label="Dry">Dry</span>
+                        <span class="knob-label" id="DRY-label" data-i18n="label.dry" data-label="Dry">Dry</span>
                         <span class="knob-value" id="DRY-value">100%</span>
                     </div>
                 </div>
@@ -1033,14 +1053,14 @@
             <div class="bottom-row">
                 <div class="knob-control">
                     <div class="knob" id="DECAY-knob">
-                        <div class="knob-visual">
+                        <div class="knob-visual" tabindex="0" role="slider" aria-labelledby="DECAY-label" aria-valuemin="0" aria-valuemax="100">
                             <svg viewBox="0 0 52 52">
-                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-track" cx="26" cy="26" r="22" stroke-dasharray="103.67 138.23"/>
                                 <circle class="knob-vine" id="DECAY-vine" cx="26" cy="26" r="22"
-                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                    stroke-dasharray="103.67 138.23" stroke-dashoffset="103.67"/>
                             </svg>
                         </div>
-                        <span class="knob-label" data-i18n="label.decay" data-label="Decay">Decay</span>
+                        <span class="knob-label" id="DECAY-label" data-i18n="label.decay" data-label="Decay">Decay</span>
                         <span class="knob-value" id="DECAY-value">1.0x</span>
                     </div>
                 </div>
@@ -1076,14 +1096,14 @@
 
                 <div class="knob-control">
                     <div class="knob" id="SIZE-knob">
-                        <div class="knob-visual">
+                        <div class="knob-visual" tabindex="0" role="slider" aria-labelledby="SIZE-label" aria-valuemin="0" aria-valuemax="100">
                             <svg viewBox="0 0 52 52">
-                                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                <circle class="knob-track" cx="26" cy="26" r="22" stroke-dasharray="103.67 138.23"/>
                                 <circle class="knob-vine" id="SIZE-vine" cx="26" cy="26" r="22"
-                                    stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                    stroke-dasharray="103.67 138.23" stroke-dashoffset="103.67"/>
                             </svg>
                         </div>
-                        <span class="knob-label" data-i18n="label.size" data-label="Size">Size</span>
+                        <span class="knob-label" id="SIZE-label" data-i18n="label.size" data-label="Size">Size</span>
                         <span class="knob-value" id="SIZE-value">50%</span>
                     </div>
                 </div>
@@ -1380,16 +1400,15 @@
                     const item = document.createElement('div');
                     item.className = 'preset-dropdown-item';
                     if (name === currentPresetName) item.classList.add('active');
-                    // Show just the preset name without category prefix
-                    const displayName = name.includes(' - ') ? name.split(' - ')[1] : name;
+                    // Show just the preset name without category prefix. Everything
+                    // after the FIRST ' - ', so "Hall - Big - Wet" shows "Big - Wet".
+                    const sep = name.indexOf(' - ');
+                    const displayName = sep >= 0 ? name.slice(sep + 3) : name;
                     item.textContent = displayName;
                     item.addEventListener('click', async () => {
                         try {
-                            await loadPreset(name);
-                            currentPresetName = name;
-                            presetNameEl.textContent = name;
                             closeDropdown();
-                            renderDropdown();
+                            await applyPreset(name);
                         } catch (e) {
                             console.error('[Presets] Load preset failed:', e);
                         }
@@ -1425,15 +1444,25 @@
             }
         });
 
+        // v1.12.0: the display follows the load's RESULT. loadPreset returns false
+        // for a file that has gone (deleted in Finder with the list still open);
+        // the page used to show the new name anyway. On failure the list is
+        // re-read and the name stays the preset that is actually loaded.
+        async function applyPreset(name) {
+            if (await loadPreset(name)) {
+                currentPresetName = name;
+                presetNameEl.textContent = name;
+                renderDropdown();
+            } else {
+                console.warn('[Presets] Load failed, keeping', currentPresetName, '- missing:', name);
+                await refreshPresets();
+            }
+        }
+
         presetPrev.addEventListener('click', async () => {
             try {
                 const prevName = await selectPreviousPreset();
-                if (prevName) {
-                    await loadPreset(prevName);
-                    currentPresetName = prevName;
-                    presetNameEl.textContent = prevName;
-                    renderDropdown();
-                }
+                if (prevName) await applyPreset(prevName);
             } catch (e) {
                 console.error('[Presets] Previous navigation failed:', e);
             }
@@ -1442,12 +1471,7 @@
         presetNext.addEventListener('click', async () => {
             try {
                 const nextName = await selectNextPreset();
-                if (nextName) {
-                    await loadPreset(nextName);
-                    currentPresetName = nextName;
-                    presetNameEl.textContent = nextName;
-                    renderDropdown();
-                }
+                if (nextName) await applyPreset(nextName);
             } catch (e) {
                 console.error('[Presets] Next navigation failed:', e);
             }
@@ -1505,23 +1529,24 @@
             LPFREQ:    { vineId: 'LPFREQ-vine',    valueId: 'LPFREQ-value',    arcLength: ARC_LENGTH }
         };
 
-        // Value formatters
+        // Value formatters. Each takes the SliderState and reads what it needs:
+        // DECAY reads getScaledValue(), which applies the range's own skew, so
+        // the readout cannot drift from the C++ NormalisableRange (it used to
+        // hard-code the 1.585 exponent).
         const formatters = {
-            CHARACTER: norm => {
-                // WR-02: mirror the DSP exactly — the character filter engages
-                // outside ±0.5 on the -100..+100 range, so "neutral" must only
-                // show inside that dead zone (the old ±50 label zones read
-                // "neutral" while an 11kHz low-pass / +3dB shelf was audible).
-                const value = norm * 200 - 100;
+            CHARACTER: state => {
+                // WR-02: the character filter is audible outside ±0.5 on the
+                // -100..+100 range, so "neutral" only shows inside that zone.
+                const value = state.getNormalisedValue() * 200 - 100;
                 if (value < -0.5) return `warm ${Math.abs(value).toFixed(0)}%`;
                 if (value > 0.5) return `bright ${value.toFixed(0)}%`;
                 return "neutral";
             },
-            WET:   norm => `${(norm * 100).toFixed(0)}%`,
-            DRY:   norm => `${(norm * 100).toFixed(0)}%`,
-            // DECAY curve must match the C++ NormalisableRange: skew 0.6309 → exponent 1/0.6309 = 1.585 (CR-02)
-            DECAY: norm => `${(0.5 + 1.5 * Math.pow(norm, 1.585)).toFixed(1)}x`,
-            SIZE:  norm => `${(norm * 100).toFixed(0)}%`
+            WET:    state => `${(state.getNormalisedValue() * 100).toFixed(0)}%`,
+            DRY:    state => `${(state.getNormalisedValue() * 100).toFixed(0)}%`,
+            DECAY:  state => `${state.getScaledValue().toFixed(1)}x`,
+            SIZE:   state => `${(state.getNormalisedValue() * 100).toFixed(0)}%`,
+            LPFREQ: state => `${state.getScaledValue().toFixed(0)} Hz`   // aria-valuetext only; no visible readout
         };
 
         // Animation state for smooth knob movement
@@ -1573,26 +1598,58 @@
         // Slider states cache
         const sliderStates = {};
 
-        // v1.11.0: every write is bracketed as a host gesture, so hosts record
-        // automation for the wheel and the LOW CUT switch too, not only drags.
-        // A wheel burst is ONE gesture, closed 200 ms after its last notch.
-        const wheelGestureTimers = {};
-        function wheelNudge(id, state, deltaY) {
-            if (wheelGestureTimers[id]) clearTimeout(wheelGestureTimers[id]);
-            else state.sliderDragStarted();
-            const delta = deltaY < 0 ? 0.02 : -0.02;
-            state.setNormalisedValue(Math.max(0, Math.min(1, state.getNormalisedValue() + delta)));
-            wheelGestureTimers[id] = setTimeout(() => {
-                wheelGestureTimers[id] = null;
-                state.sliderDragEnded();
-            }, 200);
+        // ── Host gestures (v1.12.0) ──────────────────────────────────────────
+        // Every write is bracketed as a host gesture, so hosts record automation
+        // for every input, not only drags. ONE gesture per parameter at a time:
+        // a drag, a wheel burst, a key burst and a double-click share it, so the
+        // host never sees begin, begin, end, end (v1.11.0 nested a wheel notch
+        // inside a drag, and a double-click inside a wheel burst). A burst of
+        // wheel notches or key presses closes 200 ms after its last step; a drag
+        // closes on mouseup and adopts any burst already open.
+        const openGestures = {};   // id -> { state, timer }
+        const BURST_CLOSE_MS = 200;
+
+        function gestureBegin(id, state) {
+            const g = openGestures[id];
+            if (g) {
+                if (g.timer) { clearTimeout(g.timer); g.timer = null; }
+                return;
+            }
+            openGestures[id] = { state, timer: null };
+            state.sliderDragStarted();
         }
 
-        function setAsGesture(state, norm) {
-            state.sliderDragStarted();
-            state.setNormalisedValue(norm);
-            state.sliderDragEnded();
+        function gestureEnd(id) {
+            const g = openGestures[id];
+            if (!g) return;
+            if (g.timer) clearTimeout(g.timer);
+            delete openGestures[id];
+            g.state.sliderDragEnded();
         }
+
+        const clamp01 = v => Math.max(0, Math.min(1, v));
+
+        function burstStep(id, state, norm) {
+            gestureBegin(id, state);
+            state.setNormalisedValue(clamp01(norm));
+            if (dragState.isDragging && dragState.target === id) return;   // the drag closes it
+            openGestures[id].timer = setTimeout(() => gestureEnd(id), BURST_CLOSE_MS);
+        }
+
+        // A one-shot write (double-click reset, LOW CUT switch). Inside an open
+        // gesture it is just a write; otherwise it is its own gesture.
+        function setAsGesture(id, state, norm) {
+            if (openGestures[id]) { state.setNormalisedValue(norm); return; }
+            gestureBegin(id, state);
+            state.setNormalisedValue(norm);
+            gestureEnd(id);
+        }
+
+        // The editor can close mid-gesture; nothing else would end it.
+        window.addEventListener('pagehide', () => {
+            endDrag();
+            for (const id of Object.keys(openGestures)) gestureEnd(id);
+        });
 
         // Double-click resets a knob to its APVTS default, written NORMALISED.
         // DECAY 1.0x is 0.5 through its 0.6309 skew; LPFREQ 200 Hz is 180/380.
@@ -1600,69 +1657,81 @@
 
         function endDrag() {
             if (!dragState.isDragging) return;
-            const state = sliderStates[dragState.target];
-            if (state) state.sliderDragEnded();
+            const id = dragState.target;
             dragState.isDragging = false;
             dragState.target = null;
+            gestureEnd(id);
         }
 
-        // Setup standard knobs (all except LPFREQ which has special toggle behavior)
-        ['CHARACTER', 'WET', 'DRY', 'DECAY', 'SIZE'].forEach(id => {
-            const config = knobConfigs[id];
-            const state = getSliderState(id);
-            sliderStates[id] = state;
+        // Keyboard steps, as O-AnalogSaturation's knob: 1 % (Shift 0.1 %),
+        // PageUp/Down 10 %, Home/End the ends.
+        function keyTarget(e, v) {
+            const fine = e.shiftKey ? 0.1 : 1;
+            return { ArrowUp: v + 0.01 * fine, ArrowRight: v + 0.01 * fine,
+                     ArrowDown: v - 0.01 * fine, ArrowLeft: v - 0.01 * fine,
+                     PageUp: v + 0.1, PageDown: v - 0.1, Home: 0, End: 1 }[e.key];
+        }
 
+        // Binds one vine-arc knob: arc animation, ARIA value, drag, wheel,
+        // keyboard and double-click reset. onChange runs after each value change
+        // (the visible readout, or LOW CUT's display).
+        function bindKnob(id, state, onChange) {
+            const config = knobConfigs[id];
             const knobEl = document.getElementById(id + '-knob');
             const vine = document.getElementById(config.vineId);
-            const valueDisplay = document.getElementById(config.valueId);
-
-            if (!knobEl || !vine || !valueDisplay) return;
+            const knobVisual = knobEl && knobEl.querySelector('.knob-visual');
+            if (!knobEl || !vine || !knobVisual) return;
+            sliderStates[id] = state;
 
             const initialNorm = state.getNormalisedValue();
-            animationState.targets[id] = {
-                current: initialNorm,
-                target: initialNorm,
-                vine: vine,
-                valueDisplay: valueDisplay,
-                config: config
-            };
+            animationState.targets[id] = { current: initialNorm, target: initialNorm, vine, config };
+            vine.style.strokeDashoffset = config.arcLength - (initialNorm * config.arcLength);
 
-            const initialOffset = config.arcLength - (initialNorm * config.arcLength);
-            vine.style.strokeDashoffset = initialOffset;
-
-            if (formatters[id]) {
-                valueDisplay.textContent = formatters[id](initialNorm);
-            }
-
-            state.valueChangedEvent.addListener(() => {
-                const normalised = state.getNormalisedValue();
-                animationState.targets[id].target = normalised;
-
-                if (formatters[id]) {
-                    valueDisplay.textContent = formatters[id](normalised);
-                }
-
+            const refresh = () => {
+                const norm = state.getNormalisedValue();
+                animationState.targets[id].target = norm;
+                knobVisual.setAttribute('aria-valuenow', (norm * 100).toFixed(1));
+                knobVisual.setAttribute('aria-valuetext', formatters[id](state));
+                onChange();
                 startAnimationLoop();
-            });
+            };
+            state.valueChangedEvent.addListener(refresh);
+            refresh();
 
-            // Mouse drag on knob visual
-            const knobVisual = knobEl.querySelector('.knob-visual');
             knobVisual.addEventListener('mousedown', (e) => {
+                if (e.button !== 0 || dragState.isDragging) return;   // primary button, one drag at a time
                 e.preventDefault();
                 dragState.isDragging = true;
                 dragState.target = id;
                 dragState.startY = e.clientY;
                 dragState.startValue = state.getNormalisedValue();
-                state.sliderDragStarted();
+                gestureBegin(id, state);
             });
 
-            knobVisual.addEventListener('dblclick', () => setAsGesture(state, DEFAULT_NORM[id]));
+            knobVisual.addEventListener('dblclick', () => setAsGesture(id, state, DEFAULT_NORM[id]));
 
-            // Mouse wheel support
+            // Vertical wheel only: a sideways trackpad swipe (deltaY 0, or mostly
+            // deltaX) used to count as a downward notch.
             knobEl.addEventListener('wheel', (e) => {
+                if (e.deltaY === 0 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
                 e.preventDefault();
-                wheelNudge(id, state, e.deltaY);
+                burstStep(id, state, state.getNormalisedValue() + (e.deltaY < 0 ? 0.02 : -0.02));
             }, { passive: false });
+
+            knobVisual.addEventListener('keydown', (e) => {
+                const next = keyTarget(e, state.getNormalisedValue());
+                if (next === undefined) return;
+                e.preventDefault();
+                burstStep(id, state, next);
+            });
+        }
+
+        ['CHARACTER', 'WET', 'DRY', 'DECAY', 'SIZE'].forEach(id => {
+            const state = getSliderState(id);
+            const valueDisplay = document.getElementById(knobConfigs[id].valueId);
+            bindKnob(id, state, () => {
+                if (valueDisplay) valueDisplay.textContent = formatters[id](state);
+            });
         });
 
         // Global mouse handlers for knob dragging
@@ -1677,43 +1746,23 @@
             if (!state) return;
 
             const deltaY = dragState.startY - e.clientY;
-            let newNormalised = dragState.startValue + (deltaY * DRAG_SENSITIVITY);
-            newNormalised = Math.max(0, Math.min(1, newNormalised));
-
-            state.setNormalisedValue(newNormalised);
+            state.setNormalisedValue(clamp01(dragState.startValue + (deltaY * DRAG_SENSITIVITY)));
         });
 
-        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('mouseup', (e) => { if (e.button === 0) endDrag(); });
         window.addEventListener('blur', endDrag);
 
         // ====================================================================
-        // LOW CUT FILTER (LPFREQ with LPON toggle) - SVG vine-arc version
+        // LOW CUT FILTER (LPFREQ knob + LPON switch)
         // ====================================================================
         (function() {
             const lpfreqState = getSliderState("LPFREQ");
             const lponState = getSliderState("LPON");
-            sliderStates['LPFREQ'] = lpfreqState;
-
             const lpfreqKnob = document.getElementById("LPFREQ-knob");
-            const lpfreqVine = document.getElementById("LPFREQ-vine");
             const lpfreqValue = document.getElementById("LPFREQ-value");
-            const config = knobConfigs.LPFREQ;
-
-            const initialNorm = lpfreqState.getNormalisedValue();
-            animationState.targets['LPFREQ'] = {
-                current: initialNorm,
-                target: initialNorm,
-                vine: lpfreqVine,
-                valueDisplay: lpfreqValue,
-                config: config
-            };
-
-            const initialOffset = config.arcLength - (initialNorm * config.arcLength);
-            lpfreqVine.style.strokeDashoffset = initialOffset;
 
             const updateDisplay = () => {
                 const isOn = lponState.getNormalisedValue() >= 0.5;
-                const freqNorm = lpfreqState.getNormalisedValue();
 
                 // v1.10.0: a class, not an inline opacity on the whole knob —
                 // the dim now lands on the arc only (see .knob.lp-off).
@@ -1728,39 +1777,24 @@
                 if (isOn) setLabel(lpfreqValue, 'ui.on');
                 else      setLabel(lpfreqValue, 'ui.off');
                 lpfreqValue.classList.toggle("active", isOn);
-
-                animationState.targets['LPFREQ'].target = freqNorm;
-                startAnimationLoop();
+                lpfreqValue.setAttribute('aria-checked', isOn ? 'true' : 'false');
             };
 
-            // Toggle on/off by clicking label
-            lpfreqValue.addEventListener("click", (e) => {
+            bindKnob('LPFREQ', lpfreqState, updateDisplay);
+
+            // The ON/OFF switch: click, or Space/Enter when focused
+            const toggle = () => {
                 const isOn = lponState.getNormalisedValue() >= 0.5;
-                setAsGesture(lponState, isOn ? 0.0 : 1.0);
+                setAsGesture('LPON', lponState, isOn ? 0.0 : 1.0);
                 updateDisplay();
+            };
+            lpfreqValue.addEventListener("click", (e) => { e.preventDefault(); toggle(); });
+            lpfreqValue.addEventListener("keydown", (e) => {
+                if (e.key !== ' ' && e.key !== 'Enter') return;
                 e.preventDefault();
+                toggle();
             });
 
-            // Mouse drag on knob visual
-            const knobVisual = lpfreqKnob.querySelector('.knob-visual');
-            knobVisual.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                dragState.isDragging = true;
-                dragState.target = 'LPFREQ';
-                dragState.startY = e.clientY;
-                dragState.startValue = lpfreqState.getNormalisedValue();
-                lpfreqState.sliderDragStarted();
-            });
-
-            knobVisual.addEventListener('dblclick', () => setAsGesture(lpfreqState, DEFAULT_NORM.LPFREQ));
-
-            // Mouse wheel support
-            lpfreqKnob.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                wheelNudge('LPFREQ', lpfreqState, e.deltaY);
-            }, { passive: false });
-
-            lpfreqState.valueChangedEvent.addListener(updateDisplay);
             lponState.valueChangedEvent.addListener(updateDisplay);
             updateDisplay();
         })();
@@ -1772,8 +1806,12 @@
         let currentVUAngle = -90;
         let targetVUAngle = -90;
 
-        const VU_ATTACK_SPEED = 0.5;
-        const VU_DECAY_SPEED = 0.08;
+        // v1.12.0: ballistics in TIME, not per frame. The old per-frame 0.5 /
+        // 0.08 factors ran twice as fast on a 120 Hz display; these are the
+        // same curves at 60 Hz (attack ~24 ms, release ~200 ms).
+        const VU_ATTACK_TAU_MS = 24;
+        const VU_DECAY_TAU_MS = 200;
+        let vuLastFrameMs = null;
         const VU_MIN_ANGLE = -90;
         const VU_MAX_ANGLE = 90;
 
@@ -1806,6 +1844,7 @@
         function startVUAnimation() {
             if (!vuAnimationRunning) {
                 vuAnimationRunning = true;
+                vuLastFrameMs = null;
                 requestAnimationFrame(animateVUMeter);
             }
         }
@@ -1817,9 +1856,11 @@
             });
         }
 
-        function animateVUMeter() {
-            const vuSpeed = currentVUAngle < targetVUAngle ? VU_ATTACK_SPEED : VU_DECAY_SPEED;
-            currentVUAngle += (targetVUAngle - currentVUAngle) * vuSpeed;
+        function animateVUMeter(nowMs) {
+            const dt = vuLastFrameMs === null ? 1000 / 60 : Math.min(100, nowMs - vuLastFrameMs);
+            vuLastFrameMs = nowMs;
+            const tau = currentVUAngle < targetVUAngle ? VU_ATTACK_TAU_MS : VU_DECAY_TAU_MS;
+            currentVUAngle += (targetVUAngle - currentVUAngle) * (1 - Math.exp(-dt / tau));
 
             if (targetVUAngle <= VU_MIN_ANGLE && Math.abs(currentVUAngle - VU_MIN_ANGLE) < 2.0) {
                 currentVUAngle = VU_MIN_ANGLE;
