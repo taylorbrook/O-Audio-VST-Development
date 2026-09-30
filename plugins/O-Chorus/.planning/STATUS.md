@@ -3,11 +3,11 @@ plugin: O-Chorus
 stage: 4-polish
 phase: verified
 status: complete
-last_updated: 2026-02-08
+last_updated: 2026-09-30
 complexity_score: 2.8
 staged_implementation: false
 orchestration_mode: true
-next_action: install
+next_action: publish
 contract_checksums:
   brief: sha256:ba2a191e2ac696d0414b7f41d8275bc3e4794c1cb8a5234e09a28dc91fbc2362
   architecture: sha256:7323d5554f4930bdb38afeb4c54ed03855bb192faf8abd24abf4959cb9bd3fd8
@@ -17,6 +17,14 @@ contract_checksums:
 # O-Chorus Status
 
 ## Current Position
+
+**Post-release (2026-09-30):** v1.9.0 installed and DAW-checked. 📦 Installed.
+Last published release v1.6.3; v1.7.0 (R4/R5 UI), v1.8.0 (CR/WR review fixes) and
+v1.9.0 (Info sweep, keyboard knobs) are unreleased. `CODE_REVIEW.md` fully closed.
+Plugin now has 8 parameters (Spread added after Stage 4) and a 700 × 125 editor;
+the stage history below describes the original 7-parameter, 700 × 250 build.
+
+### Stage history (2026-02)
 
 **Stage:** 4 of 4 (Polish) -- VERIFIED ✓
 **Status:** All stages complete — plugin ready for installation
@@ -83,7 +91,7 @@ contract_checksums:
 
 ## Next Steps
 
-1. **Install** — `/install-plugin O-Chorus` for DAW use
+1. **Publish** — `/publish O-Chorus` to release v1.9.0
 
 ## Files Created
 
