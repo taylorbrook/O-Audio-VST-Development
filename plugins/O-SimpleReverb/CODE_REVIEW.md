@@ -175,7 +175,7 @@ bool isBusesLayoutSupported(const BusesLayout& layouts) const override
 
 ## Info
 
-### IN-01 — `preset-manager.js` is dead code; preset UI logic duplicated inline; three native functions registered with no UI consumer
+### IN-01 — `preset-manager.js` is dead code; preset UI logic duplicated inline; three native functions registered with no UI consumer **Resolved in v1.13.1**
 
 **File:** `plugins/O-SimpleReverb/Source/ui/public/modules/preset-manager.js` (entire file), `plugins/O-SimpleReverb/Source/ui/public/index.html:595-767`, `plugins/O-SimpleReverb/CMakeLists.txt:60-67`, `plugins/O-SimpleReverb/Source/PluginEditor.cpp:48-89`
 
@@ -222,3 +222,14 @@ bool isBusesLayoutSupported(const BusesLayout& layouts) const override
 _Reviewed: 2026-07-05_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+
+## Resolved
+
+| Finding | Version | Resolution |
+|---------|---------|------------|
+| CR-01..CR-04, WR-01..WR-05 | v1.5.6 | Per CHANGELOG; re-verified in source 2026-09-30 |
+| IN-02 | v1.12.0 | Host names "Low Cut Freq" / "Low Cut On"; IDs unchanged |
+| IN-03 | v1.12.0 | WebView2 folder `tempDirectory/O-SimpleReverb_WebView` |
+| IN-01 | v1.13.1 (`8e48c799`) | Removed the unused `savePreset` / `deletePreset` / `isFactoryPreset` natives; untracked the gitignored `modules/preset-manager.js` copy. Delete-preset UI not added (dead-code arm chosen) |
+
+All findings resolved.
