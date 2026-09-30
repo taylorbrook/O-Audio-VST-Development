@@ -19,6 +19,7 @@ findings:
   info: 14
   total: 26
 status: issues_found
+verified: 2026-09-30T00:00:00Z  # improve-verify v1.17.1 — WR-01..WR-12 CLOSED
 ---
 
 # O-Bitrot: Code Review Report
