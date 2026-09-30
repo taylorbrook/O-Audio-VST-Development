@@ -71,8 +71,17 @@ public:
 
     // VU Meter levels (atomic for thread-safe access from editor)
     // Uses peak level like TapeAge (getMagnitude), not RMS
+    // v1.7.0: PEAK-HOLD between editor reads. The audio thread only ever raises
+    // the value; the editor's 30 Hz timer takes it with exchange(-100). Before,
+    // each block overwrote the last, so the meter saw only the final block of
+    // every ~33 ms and dropped the peaks in between.
     std::atomic<float> inputLevelDB { -100.0f };   // Peak level in dB
     std::atomic<float> outputLevelDB { -100.0f };  // Peak level in dB
+    static void raisePeak(std::atomic<float>& a, float db) noexcept
+    {
+        float prev = a.load(std::memory_order_relaxed);
+        while (db > prev && ! a.compare_exchange_weak(prev, db, std::memory_order_relaxed)) {}
+    }
 
     // ------------------------------------------------------------------------
     // v1.2.0 — the UI language. 0 = en, 1 = fr; v1.5.0 adds 2.
@@ -118,6 +127,55 @@ private:
     std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingHigh;
 
     int currentQuality = 1;  // Track current quality mode (0=LOW, 1=MID, 2=HIGH)
+
+    // v1.7.0: parameter atomics, looked up once in the constructor instead of by
+    // string on every block.
+    std::atomic<float>* intensityParam = nullptr;
+    std::atomic<float>* modelParam     = nullptr;
+    std::atomic<float>* qualityParam   = nullptr;
+    std::atomic<float>* autogainParam  = nullptr;
+
+    // v1.7.0: the oversamplers, the dry buffer and the intensity ramp are sized for
+    // the block length prepareToPlay() announced. A host that then sends a LONGER
+    // block (it happens: offline bounce, some hosts' first block) used to overrun
+    // the oversamplers' internal buffers — a jassert in Debug, a heap write past
+    // the end in Release. processBlock() now walks any block in chunks of at most
+    // this many samples, so nothing on the audio thread ever outgrows its allocation.
+    int preparedBlockSize = 512;
+
+    // v1.7.0: INTENSITY drives both the per-model input gain and the dry/wet mix.
+    // Read once per block and applied flat, a knob move or automation step jumped
+    // both at the block boundary (a click ~290x the steady waveform curvature).
+    // Ramp it per base-rate sample; the oversampled path reads the ramp at
+    // i / osFactor.
+    static constexpr float INTENSITY_SMOOTHING_SECONDS = 0.02f;
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> intensitySmoothed;
+    std::vector<float> intensityRamp;
+
+    // v1.7.0: a MODEL change used to swap the waveshaper and its tone filters on
+    // one sample, into filter/hysteresis state left over from whenever that model
+    // last ran. Now the incoming model's state is cleared and it is crossfaded in
+    // against the outgoing one (both run for the fade). A further change arriving
+    // mid-fade waits for the fade to finish, so the fade never restarts from a jump.
+    static constexpr float MODEL_FADE_SECONDS = 0.01f;
+    int currentModel = 0;
+    int fadeFromModel = 0;
+    float modelFadeTotal = 1.0f;   // fade length in base-rate samples
+    float modelFadeDone  = 1.0f;   // >= modelFadeTotal means no fade in progress
+    void resetModelState(int model);
+
+    // v1.7.0: a QUALITY change swaps oversamplers with different latencies (0 / 49 /
+    // 59.5 samples) and resets them, which cannot be crossfaded without combing. The
+    // output is ducked to silence over 5 ms, the switch happens while silent, and
+    // the output ramps back in over 5 ms.
+    static constexpr float QUALITY_DUCK_SECONDS = 0.005f;
+    // The ramp-in waits out the new path's latency first: the oversampler and the
+    // dry delay were just reset, so for that many samples they emit the zeros they
+    // were cleared to and then the signal starts mid-cycle — ramping over that
+    // onset is a step.
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> qualityDuck;
+    int qualityDuckHold = 0;   // samples still held at zero after a switch
+    void switchQuality(int quality);
 
     // IN-03: per-model drive/hardness/normalization tuning constants. Drive range is the
     // amount added to unity input gain as intensity sweeps 0→100% (drive = 1 + wetMix*range).
@@ -197,8 +255,25 @@ private:
     // phase-aligned; at LOW quality the latency is 0 and the delay line is bypassed.
     juce::AudioBuffer<float> dryBuffer;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::None> dryDelay;
-    int currentLatencySamples = 0;
+    int currentLatencySamples = 0;          // what the host is told (whole samples)
     int computeLatencyForQuality(int quality) const;
+
+    // v1.7.0: the 4x cascade's latency is 59.5 samples, not a whole number. The dry
+    // delay above is integer-only, so the dry copy sat half a sample early and the
+    // dry/wet sum combed (-1.1 dB at 19 kHz, 50% intensity, 48 kHz). JUCE's own
+    // integer-latency mode adds a Thiran allpass to the WET path, whose phase is
+    // only exact near DC (still -0.8 dB at 19 kHz). Instead the dry path gets the
+    // missing half sample from a linear-phase windowed-sinc FIR (32 taps, Kaiser
+    // beta 6: 15.5 samples of exact delay, flat to +/-0.01 dB below 21 kHz), and
+    // the integer delay line supplies the rest. The host is told the rounded total.
+    static constexpr int HALF_FIR_TAPS = 32;
+    std::array<float, HALF_FIR_TAPS> halfFirCoeffs {};
+    std::vector<std::array<float, 2 * HALF_FIR_TAPS>> halfFirHistory;  // mirrored ring
+    int halfFirPos = 0;
+    bool dryUsesHalfFir = false;
+    int dryIntegerDelay = 0;
+    float oversamplerLatency(int quality) const;   // exact, may be fractional
+    void configureDryPath(int quality);
 
     // WR-01: setLatencySamples() triggers updateHostDisplay(), which is not real-time safe
     // from the audio callback. On a Quality change the audio thread stores the new latency
@@ -210,10 +285,10 @@ private:
     // Processing helpers
     float calculatePeakDB(const juce::AudioBuffer<float>& buffer);
     void captureInputRMS(const juce::AudioBuffer<float>& buffer);
-    void processSaturationDirect(juce::AudioBuffer<float>& buffer, int model, float intensity);
-    void processSaturationBlock(juce::dsp::AudioBlock<float>& block, int model, float intensity);
+    void processChunk(juce::dsp::AudioBlock<float> chunk);
+    void processWet(juce::dsp::AudioBlock<float>& block, int osFactor);
     float processSample(float input, int model, float intensity, int channel);
-    void mixDryWet(juce::AudioBuffer<float>& wetBuffer, const juce::AudioBuffer<float>& dry, float intensity);
+    void mixDryWet(juce::dsp::AudioBlock<float>& wet);
     void applyAutoGain(juce::AudioBuffer<float>& buffer, bool enabled);
 
     // Saturation model implementations

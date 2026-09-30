@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.6.0
+- **Version:** 1.7.0
 - **Type:** Audio Effect (Saturation)
 
 ## Lifecycle Timeline
@@ -12,6 +12,7 @@
 - **2026-01-09 (v1.0.0):** First release - VST3 and AU installed
 - **2026-01-14 (v1.0.1):** Fixed snake PNG opacity - now transitions smoothly with knob, no snap-back on release
 - **2026-01-24 (v1.1.0):** Renamed from OuariconSaturationModeling to O-AnalogSaturation
+- **2026-09-30 (v1.7.0):** Code review pass — oversize-block overrun fixed, HIGH dry/wet half-sample alignment, INTENSITY smoothing, MODEL crossfade, QUALITY duck, VU scale registration, host gestures, knob keyboard/ARIA
 
 ## Features
 
@@ -22,7 +23,7 @@
 4. **DIODE** - Symmetric soft clipping waveshaper
 
 ### Controls
-- **Intensity** (0-100%) - Dry/wet mix with drive scaling
+- **Intensity** (0-100%) - Dry/wet mix with drive scaling (20 ms ramp; double-click = 50%, Shift = fine, wheel, arrow/Page/Home/End keys)
 - **Model** - Select saturation type (4 options)
 - **Quality** - Oversampling: LOW (1x), MID (2x), HIGH (4x)
 - **Autogain** - Automatic output level compensation
@@ -31,7 +32,7 @@
 - Vintage botanical WebView interface
 - Paper texture background
 - Snake illustration (changes per model, opacity tied to intensity)
-- Dual VU meters with green-to-red gradient needles
+- Dual VU meters with green-to-red gradient needles (peak-hold between UI ticks; needle registered to the printed scale since v1.7.0)
 
 ## Known Issues
 
