@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.7.0
+- **Version:** 1.8.0
 - **Type:** Audio Effect (Saturation)
 
 ## Lifecycle Timeline
@@ -13,6 +13,7 @@
 - **2026-01-14 (v1.0.1):** Fixed snake PNG opacity - now transitions smoothly with knob, no snap-back on release
 - **2026-01-24 (v1.1.0):** Renamed from OuariconSaturationModeling to O-AnalogSaturation
 - **2026-09-30 (v1.7.0):** Code review pass — oversize-block overrun fixed, HIGH dry/wet half-sample alignment, INTENSITY smoothing, MODEL crossfade, QUALITY duck, VU scale registration, host gestures, knob keyboard/ARIA
+- **2026-09-30 (v1.8.0):** INTENSITY pushes harder — 0–50% unchanged, drive curve bends up above 50% to 2× the old extra drive at 100%
 
 ## Features
 
