@@ -2,6 +2,24 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.8.0] - 2026-09-30
+
+**INTENSITY pushes harder.** At full intensity the drive is now twice as strong. MINOR:
+the parameter ID, its range and the saved-state format are unchanged, and at 50 % or
+below (including the 50 % default) the audio is sample-identical to v1.7.0.
+
+### Changed
+
+- **The drive curve bends upward above 50 %.** Each model's drive was
+  `1 + w * RANGE`, which capped DIODE at 7x, TRANSFORMER at 8.5x, TUBE at 5.5x and
+  MAGNETIC at 4x. It is now `1 + f(w) * RANGE`. f(w) = w up to 0.5; above that,
+  f(w) = w + 4(w - 0.5)^2. The slope matches at 50 %, so the knob turns with no kink,
+  and f(1) = 2. Maximum drive is now DIODE 13x, TRANSFORMER 16x, TUBE 10x and
+  MAGNETIC 7x. At 75 %, the drive is what 100 % was in v1.7.0.
+  The dry/wet mix still follows INTENSITY linearly.
+- **Existing sessions:** a setting above 50 % now sounds more saturated than it did
+  in v1.7.0. With AUTO GAIN on, the level difference is compensated.
+
 ## [1.7.0] - 2026-09-30
 
 **Code review pass.** Fixes a real-time memory overrun, a half-sample dry/wet

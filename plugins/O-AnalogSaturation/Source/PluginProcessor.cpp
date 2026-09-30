@@ -774,7 +774,7 @@ float OAnalogSaturationAudioProcessor::processDiodeSample(float input, float int
 
     // INTENSITY sets the input drive; the dry/wet balance is applied later in mixDryWet.
     const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
-    const float drive = 1.0f + wetMix * DIODE_DRIVE_RANGE;
+    const float drive = 1.0f + driveCurve(wetMix) * DIODE_DRIVE_RANGE;
 
     // Apply input drive
     float x = input * drive;
@@ -805,7 +805,7 @@ float OAnalogSaturationAudioProcessor::processTransformerSample(float input, flo
 
     // INTENSITY sets the input drive; the dry/wet balance is applied later in mixDryWet.
     const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
-    const float intensityGain = 1.0f + wetMix * TRANSFORMER_DRIVE_RANGE;
+    const float intensityGain = 1.0f + driveCurve(wetMix) * TRANSFORMER_DRIVE_RANGE;
 
     // Apply input gain
     float driven = input * intensityGain;
@@ -839,7 +839,7 @@ float OAnalogSaturationAudioProcessor::processTubeSample(float input, float inte
 
     // INTENSITY sets the input drive; the dry/wet balance is applied later in mixDryWet.
     const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
-    const float drive = 1.0f + wetMix * TUBE_DRIVE_RANGE;
+    const float drive = 1.0f + driveCurve(wetMix) * TUBE_DRIVE_RANGE;
 
     // Apply input drive
     float x = input * drive;
@@ -911,7 +911,7 @@ float OAnalogSaturationAudioProcessor::processMagneticSample(float input, float 
 
     // INTENSITY sets the input drive; the dry/wet balance is applied later in mixDryWet.
     const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
-    const float drive = 1.0f + wetMix * MAGNETIC_DRIVE_RANGE;
+    const float drive = 1.0f + driveCurve(wetMix) * MAGNETIC_DRIVE_RANGE;
 
     // Apply input drive
     float H = input * drive;  // Magnetic field (input signal)

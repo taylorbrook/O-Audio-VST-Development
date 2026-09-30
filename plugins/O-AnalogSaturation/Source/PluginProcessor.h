@@ -178,13 +178,22 @@ private:
     void switchQuality(int quality);
 
     // IN-03: per-model drive/hardness/normalization tuning constants. Drive range is the
-    // amount added to unity input gain as intensity sweeps 0→100% (drive = 1 + wetMix*range).
+    // amount added to unity input gain as intensity sweeps 0→100% (drive = 1 + driveCurve(wetMix)*range).
     static constexpr float DIODE_DRIVE_RANGE        = 6.0f;
     static constexpr float DIODE_HARDNESS           = 0.7f;   // waveshaper knee exponent
     static constexpr float TRANSFORMER_DRIVE_RANGE  = 7.5f;
     static constexpr float TUBE_DRIVE_RANGE         = 4.5f;
     static constexpr float TUBE_OUTPUT_NORMALIZATION = 1.2f;  // recover level lost to asymmetric clip
     static constexpr float MAGNETIC_DRIVE_RANGE     = 3.0f;
+
+    // v1.8.0: drive curve. Linear to 50% (identical to v1.7.0 there, including the
+    // default), then bends up with matching slope so 100% reaches twice the old drive
+    // range: f(w) = w + 4(w - 0.5)^2 above 0.5, f(1) = 2. drive = 1 + f(wetMix) * range.
+    static float driveCurve(float wetMix) noexcept
+    {
+        const float over = juce::jmax(0.0f, wetMix - 0.5f);
+        return wetMix + 4.0f * over * over;
+    }
 
     // TRANSFORMER model filters and parameters
     std::vector<juce::dsp::IIR::Filter<float>> transformerLFBumpFilters;
