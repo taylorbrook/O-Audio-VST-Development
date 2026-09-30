@@ -382,7 +382,8 @@
       background: linear-gradient(180deg, var(--needle-a) 0%, var(--needle-b) 100%);
       transform-origin: bottom center;
       transform: translateX(-50%) rotate(-45deg);
-      transition: transform 0.1s ease-out;
+      /* v1.7.0: no CSS transition - animateVUMeters() eases every frame and a
+         0.1 s transition restarted on each of those frames was a second lag. */
       pointer-events: none;
       z-index: 5;
     }
@@ -561,6 +562,12 @@
       background: var(--leaf);
       border-color: var(--leaf-dark);
       color: var(--cream);
+    }
+
+    /* v1.7.0: the knob takes keyboard focus (role=slider). */
+    .knob:focus-visible {
+      outline: 2px solid var(--leaf);
+      outline-offset: 3px;
     }
 
     .gear-btn:focus-visible {
@@ -857,7 +864,9 @@
 
     <!-- Intensity knob (V4: Indicator at EDGE) -->
     <div class="knob-container">
-      <div class="knob" id="intensityKnob">
+      <div class="knob" id="intensityKnob" tabindex="0" role="slider"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"
+           data-i18n-aria="label.intensity" aria-label="INTENSITY">
         <div class="knob-segments"></div>
         <div class="knob-indicator"></div>
       </div>
@@ -909,7 +918,7 @@
             data-i18n="label.autogain" data-label="AUTOGAIN">AUTOGAIN</button>
 
     <!-- Version -->
-    <div class="version-label">v1.6.0</div>
+    <div class="version-label">v1.7.0</div>
   </div>
 
   <!-- The floating hover-help surface (v1.3.0). EMPTY in the markup and never
@@ -973,7 +982,10 @@
 
       buttons.forEach((btn, idx) => {
         btn.addEventListener('click', () => {
+          // v1.7.0: a complete host gesture, so touch/latch automation records it.
+          state.sliderDragStarted();
           state.setNormalisedValue(idx / maxIndex);
+          state.sliderDragEnded();
           updateVisual(idx);
         });
       });
@@ -992,17 +1004,51 @@
     function updateKnobVisual(value) {
       intensityKnob.style.transform = `rotate(${-135 + value * 270}deg)`;
       snakeImage.style.opacity = 0.2 + value * 0.8;
+      intensityKnob.setAttribute('aria-valuenow', (value * 100).toFixed(1));
     }
 
-    intensityKnob.addEventListener('mousedown', (e) => { isDragging = true; lastY = e.clientY; e.preventDefault(); });
-    document.addEventListener('mouseup', () => { isDragging = false; });
+    // v1.7.0: every edit is bracketed by sliderDragStarted/Ended so the host sees
+    // a gesture (touch/latch automation). Shift = fine; double-click = default.
+    const INTENSITY_DEFAULT = 0.5;   // 50 % of the linear 0-100 range
+    const setIntensity = (v) => intensityState.setNormalisedValue(Math.max(0, Math.min(1, v)));
+    const intensityGesture = (v) => {
+      intensityState.sliderDragStarted();
+      setIntensity(v);
+      intensityState.sliderDragEnded();
+    };
+
+    intensityKnob.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isDragging = true; lastY = e.clientY; e.preventDefault();
+      intensityState.sliderDragStarted();
+    });
+    document.addEventListener('mouseup', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      intensityState.sliderDragEnded();
+    });
     document.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
-      const delta = (lastY - e.clientY) * 0.005;
-      const newValue = Math.max(0, Math.min(1, intensityState.getNormalisedValue() + delta));
-      intensityState.setNormalisedValue(newValue);
+      const delta = (lastY - e.clientY) * (e.shiftKey ? 0.001 : 0.005);
+      setIntensity(intensityState.getNormalisedValue() + delta);
       // Visual update handled by valueChangedEvent listener for single source of truth
       lastY = e.clientY;
+    });
+    intensityKnob.addEventListener('dblclick', () => intensityGesture(INTENSITY_DEFAULT));
+    intensityKnob.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const step = (e.shiftKey ? 0.002 : 0.01) * (e.deltaY < 0 ? 1 : -1);
+      intensityGesture(intensityState.getNormalisedValue() + step);
+    }, { passive: false });
+    intensityKnob.addEventListener('keydown', (e) => {
+      const fine = e.shiftKey ? 0.1 : 1;
+      const v = intensityState.getNormalisedValue();
+      const next = { ArrowUp: v + 0.01 * fine, ArrowRight: v + 0.01 * fine,
+                     ArrowDown: v - 0.01 * fine, ArrowLeft: v - 0.01 * fine,
+                     PageUp: v + 0.1, PageDown: v - 0.1, Home: 0, End: 1 }[e.key];
+      if (next === undefined) return;
+      e.preventDefault();
+      intensityGesture(next);
     });
 
     intensityState.valueChangedEvent.addListener(() => updateKnobVisual(intensityState.getNormalisedValue()));
@@ -1031,17 +1077,53 @@
     updateAutogainVisual(autogainState.getValue());
 
     // VU Meters
-    let currentInputAngle = -45, targetInputAngle = -45;
-    let currentOutputAngle = -45, targetOutputAngle = -45;
-    const ATTACK_SPEED = 0.4, DECAY_SPEED = 0.15;
+    // v1.7.0: the needle is REGISTERED to the printed scale. The seven labels are
+    // spaced evenly along a flat row while the old mapping was linear in dB over
+    // -20..+3, so the needle read ~5 dB hot mid-scale (-10 dBFS pointed at "-5").
+    // The angle of each label as seen from the needle pivot is measured from the
+    // live layout, and the needle interpolates in dB between those points. -45 deg
+    // (rest) and +45 deg (pinned) sit beyond the printed ends, as on a real meter.
+    const VU_REST = -45, VU_PIN = 45;
+    let vuTable = [{ db: -20, deg: VU_REST }, { db: 3, deg: VU_PIN }];
 
-    function mapDBToAngle(db) {
-      const normalized = Math.max(0, Math.min(1, (Math.max(-20, Math.min(3, db)) + 20) / 23));
-      return -45 + normalized * 90;
+    function measureVuTable() {
+      const face = document.querySelector('.vu-meter.input .vu-face');
+      const scale = face && face.querySelector('.vu-scale');
+      if (!face || !scale || !inputNeedle.offsetHeight) return;
+      const px = inputNeedle.offsetLeft;
+      const py = inputNeedle.offsetTop + inputNeedle.offsetHeight;
+      const pts = [...scale.children].map((el) => ({
+        db: parseFloat(el.textContent),
+        deg: Math.atan2(scale.offsetLeft + el.offsetLeft + el.offsetWidth / 2 - px,
+                        py - (scale.offsetTop + el.offsetTop + el.offsetHeight / 2)) * 180 / Math.PI
+      })).filter((p) => Number.isFinite(p.db)).sort((a, b) => a.db - b.db);
+      if (pts.length < 2) return;
+      vuTable = [{ db: pts[0].db - 20, deg: VU_REST }, ...pts,
+                 { db: pts[pts.length - 1].db + 3, deg: VU_PIN }];
     }
 
+    function mapDBToAngle(db) {
+      const t = vuTable;
+      if (!(db > t[0].db)) return t[0].deg;
+      for (let i = 1; i < t.length; ++i)
+        if (db <= t[i].db)
+          return t[i - 1].deg + (db - t[i - 1].db) / (t[i].db - t[i - 1].db) * (t[i].deg - t[i - 1].deg);
+      return t[t.length - 1].deg;
+    }
+
+    measureVuTable();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureVuTable);
+    window.__vuTable = () => vuTable;   // probe hook (read-only)
+
+    let currentInputAngle = VU_REST, targetInputAngle = VU_REST;
+    let currentOutputAngle = VU_REST, targetOutputAngle = VU_REST;
+    // Per-frame easing at 60 fps; scaled by the real frame time below so the
+    // ballistics are the same on a 120 Hz display.
+    const ATTACK_SPEED = 0.4, DECAY_SPEED = 0.15;
+    const ease = (k, frames) => 1 - Math.pow(1 - k, frames);
+
     function updateNeedleColor(needle, angle) {
-      const t = (angle + 45) / 90;
+      const t = (angle - VU_REST) / (VU_PIN - VU_REST);
       const r = Math.round(34 + t * 221);
       const g = Math.round(139 - t * 89);
       const b = Math.round(34 + t * 16);
@@ -1053,9 +1135,12 @@
       window.__JUCE__.backend.addEventListener("outputLevel", (db) => { targetOutputAngle = mapDBToAngle(db); });
     }
 
-    function animateVUMeters() {
-      currentInputAngle += (targetInputAngle - currentInputAngle) * (currentInputAngle < targetInputAngle ? ATTACK_SPEED : DECAY_SPEED);
-      currentOutputAngle += (targetOutputAngle - currentOutputAngle) * (currentOutputAngle < targetOutputAngle ? ATTACK_SPEED : DECAY_SPEED);
+    let lastFrame = null;
+    function animateVUMeters(now) {
+      const frames = lastFrame === null ? 1 : Math.min(10, (now - lastFrame) / (1000 / 60));
+      lastFrame = now;
+      currentInputAngle += (targetInputAngle - currentInputAngle) * ease(currentInputAngle < targetInputAngle ? ATTACK_SPEED : DECAY_SPEED, frames);
+      currentOutputAngle += (targetOutputAngle - currentOutputAngle) * ease(currentOutputAngle < targetOutputAngle ? ATTACK_SPEED : DECAY_SPEED, frames);
 
       inputNeedle.style.transform = `translateX(-50%) rotate(${currentInputAngle}deg)`;
       outputNeedle.style.transform = `translateX(-50%) rotate(${currentOutputAngle}deg)`;
@@ -1066,7 +1151,7 @@
       requestAnimationFrame(animateVUMeters);
     }
 
-    animateVUMeters();
+    requestAnimationFrame(animateVUMeters);
 
     // ═══════════════════════════════════════════════════════════════════════
     // i18n — the canon v2 block, VERBATIM from scripts/i18n-canon.js

@@ -71,9 +71,9 @@ OAnalogSaturationAudioProcessorEditor::OAnalogSaturationAudioProcessorEditor(OAn
     options = options.withNativeFunction("setUiLanguage",
         [this](auto& args, auto complete)
         {
-            // languageIndex() maps anything that is not "fr" to 0, so an
-            // unexpected argument from the page degrades to English rather than
-            // being stored unvalidated.
+            // languageIndex() maps anything that is not one of the three
+            // stored codes to 0, so an unexpected argument from the page
+            // degrades to English rather than being stored unvalidated.
             if (args.size() > 0)
                 processorRef.uiLanguage.store(
                     OAnalogSaturationAudioProcessor::languageIndex(args[0].toString()),
@@ -100,6 +100,10 @@ OAnalogSaturationAudioProcessorEditor::OAnalogSaturationAudioProcessorEditor(OAn
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
     setSize(600, 450);
+
+    // Drop whatever peak was held while no editor was open.
+    processorRef.inputLevelDB.store(-100.0f, std::memory_order_relaxed);
+    processorRef.outputLevelDB.store(-100.0f, std::memory_order_relaxed);
     startTimerHz(30);
 }
 
@@ -110,8 +114,9 @@ OAnalogSaturationAudioProcessorEditor::~OAnalogSaturationAudioProcessorEditor()
 
 void OAnalogSaturationAudioProcessorEditor::timerCallback()
 {
-    const float inputDB = processorRef.inputLevelDB.load(std::memory_order_relaxed);
-    const float outputDB = processorRef.outputLevelDB.load(std::memory_order_relaxed);
+    // v1.7.0: take-and-clear the peak held since the last tick.
+    const float inputDB = processorRef.inputLevelDB.exchange(-100.0f, std::memory_order_relaxed);
+    const float outputDB = processorRef.outputLevelDB.exchange(-100.0f, std::memory_order_relaxed);
 
     webView->emitEventIfBrowserIsVisible("inputLevel", inputDB);
     webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);

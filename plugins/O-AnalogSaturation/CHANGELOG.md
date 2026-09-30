@@ -2,6 +2,91 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.7.0] - 2026-09-30
+
+**Code review pass.** Fixes a real-time memory overrun, a half-sample dry/wet
+misalignment at HIGH quality, and the clicks on every parameter move; registers
+the VU needles to their printed scale. MINOR: no parameter ID, range or state
+change, and a render with no parameter moves at LOW or MID is sample-identical
+to v1.6.0.
+
+### Fixed
+
+- **Heap overrun on a block longer than `prepareToPlay()` announced.** The
+  oversamplers are sized in `initProcessing(samplesPerBlock)` and only
+  `jassert` the length, so a longer host block (offline bounce, some hosts'
+  first block) wrote past their buffers in Release: MID segfaulted in the
+  harness, HIGH produced wrong audio (max error 0.98). The `dryBuffer` fallback
+  also reallocated on the audio thread. `processBlock()` now runs the
+  saturation core in chunks of at most the prepared size; no audio-thread
+  allocation remains.
+- **HIGH quality: dry sat half a sample early.** The 4x steep-FIR cascade's
+  latency is 59.5 samples; `static_cast<int>` truncated it to 59 for both the
+  dry delay and the host report, so the dry/wet sum combed (-1.14 dB at 19 kHz
+  at 50 % intensity, 48 kHz). JUCE's `setUsingIntegerLatency()` was tried and
+  rejected: its Thiran allpass on the wet path is only phase-exact near DC
+  (still -0.79 dB). The dry path now takes the half sample from a 32-tap
+  Kaiser-windowed sinc (15.5 samples of linear-phase delay, flat to 0.01 dB
+  below 21 kHz) plus a 44-sample integer delay; the host is told 60. Result:
+  -0.001 dB, matching MID.
+- **INTENSITY zipper.** Drive and dry/wet were read once per block and applied
+  flat; a 20 -> 80 % move stepped at the block edge (click ~290x the steady
+  waveform curvature). Now a 20 ms per-sample ramp; the oversampled path reads
+  it at `i / osFactor`. Click ratio 1.00.
+- **MODEL switch click** (up to ~190x). The incoming model's filter and
+  hysteresis state is cleared and it is crossfaded in over 10 ms against the
+  outgoing one; a change arriving mid-fade waits for the fade. Ratio <= 1.00.
+- **QUALITY switch click** (~700-1000x: two oversamplers and the dry delay
+  reset mid-stream). The output ducks to silence over 5 ms, switches while
+  silent, holds for the new path's latency (so the reset delay lines' zeros
+  never meet the ramp), then ramps back in over 5 ms. Ratio ~4 — the corners
+  of a linear fade, not a step.
+- **VU needles read ~3 dB hot.** The seven labels are spaced evenly along a flat
+  row; the needle was linear in dB over -20..+3 across +/-45 deg, so 0 dBFS
+  pointed at "+3" and -10 at "-7". The page now measures each label's angle
+  from the needle pivot in the live layout and interpolates between those
+  points; -45 deg rest and +45 deg pin sit beyond the printed ends.
+- **Meters dropped peaks.** Each block overwrote the level the 30 Hz timer
+  read. The processor now holds the maximum (`compare_exchange`) and the
+  editor takes it with `exchange(-100)`.
+- **Double needle smoothing.** A CSS `transition` restarted on every rAF
+  frame on top of the JS easing; removed. The easing is now scaled by real
+  frame time, so a 120 Hz display matches 60 Hz.
+- **No host gestures.** Knob drags, wheel, keys, double-click and model/quality
+  clicks now send `sliderDragStarted/Ended`, so touch/latch automation records.
+
+### Added
+
+- **Knob:** double-click resets to 50 %; Shift-drag fine (5x); mouse wheel
+  (Shift = fine); `role="slider"` + `tabindex` with Arrow (1 %, Shift 0.1 %),
+  PageUp/Down (10 %), Home/End; `aria-valuenow`; localized `aria-label`
+  (`label.intensity`); `:focus-visible` ring in `--leaf`.
+
+### Changed
+
+- Parameter atomics cached in the constructor (no per-block string lookup).
+- Stale comments: `languageIndex()` accepts three codes, not "anything not fr".
+
+### Not changed (reviewed, measured)
+
+- **Auto-gain stays per-channel.** Proposed as a stereo link in review; the
+  harness showed per-channel holds a 20 dB L/R input balance exactly
+  (20.00 dB out), while a link would narrow it to the saturated balance.
+
+### Testing
+
+- Offline harness (processor compiled headless against JUCE 8.0.15, v1.6.0
+  backup vs v1.7.0): LOW/MID renders, 4 models x autogain on/off, **max
+  difference 0**; HIGH differs only by the latency change (RMS within 0.014 dB).
+  Oversize block 1024 on a 256 prepare = 4x256 exactly (MID and HIGH). Stress:
+  4 M samples mono + stereo, random blocks 1-4096 on a 512 prepare, random
+  automation of all four parameters — no assert, all finite.
+- `auval -v aufx OaSa OuDv`: PASS. pluginval strictness 8 (in-process, no GUI):
+  SUCCESS.
+- `check-i18n`, `check-ui-labels`, `tests/ui_tip_render_check.js`: pass.
+  Headless page probe: label table -20..+3 at -32.3..+32.7 deg; knob
+  keyboard/double-click drive `aria-valuenow`; no page errors, no 404s.
+
 ## [1.6.0] - 2026-09-27
 
 **Legibility pass (UI review 260924-nho, R4/R5).** A palette of CSS custom

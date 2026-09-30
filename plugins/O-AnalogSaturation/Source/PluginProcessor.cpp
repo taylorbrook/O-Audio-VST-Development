@@ -78,6 +78,10 @@ OAnalogSaturationAudioProcessor::OAnalogSaturationAudioProcessor()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
+    intensityParam = parameters.getRawParameterValue("INTENSITY");
+    modelParam     = parameters.getRawParameterValue("MODEL");
+    qualityParam   = parameters.getRawParameterValue("QUALITY");
+    autogainParam  = parameters.getRawParameterValue("AUTOGAIN");
 }
 
 OAnalogSaturationAudioProcessor::~OAnalogSaturationAudioProcessor()
@@ -108,6 +112,7 @@ void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int sampl
 
     // Store sample rate for the per-block auto-gain coefficient (CR-02)
     sampleRateHz = sampleRate;
+    preparedBlockSize = juce::jmax(1, samplesPerBlock);
 
     const int numChannels = getTotalNumOutputChannels();
 
@@ -146,7 +151,6 @@ void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int sampl
     }
 
     // Get initial quality setting BEFORE selecting the active coefficient set
-    auto* qualityParam = parameters.getRawParameterValue("QUALITY");
     currentQuality = static_cast<int>(qualityParam->load());
 
     // Point every filter at its current-quality coefficients, then clear state
@@ -172,7 +176,6 @@ void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int sampl
 
     // WR-02: dry copy + latency-matched delay line. Size the delay for the largest latency
     // any Quality can request so switching never needs a (non-RT-safe) reallocation.
-    currentLatencySamples = computeLatencyForQuality(currentQuality);
     const int maxLatency = juce::jmax(computeLatencyForQuality(1), computeLatencyForQuality(2));
     dryDelay.setMaximumDelayInSamples(maxLatency + 4);
     juce::dsp::ProcessSpec spec {
@@ -181,10 +184,49 @@ void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int sampl
         static_cast<juce::uint32>(numChannels)
     };
     dryDelay.prepare(spec);
-    dryDelay.setDelay(static_cast<float>(currentLatencySamples));
+
+    // v1.7.0: half-sample FIR for the 4x dry path (see PluginProcessor.h):
+    // Kaiser-windowed sinc centred on 15.5, normalised to unity DC gain.
+    {
+        const auto besselI0 = [](double x)
+        {
+            double sum = 1.0, term = 1.0;
+            for (int k = 1; k < 30; ++k) { term *= (x / (2 * k)) * (x / (2 * k)); sum += term; }
+            return sum;
+        };
+        constexpr double beta = 6.0;
+        const double centre = (HALF_FIR_TAPS - 1) * 0.5;
+        const double pi = juce::MathConstants<double>::pi;
+        double sum = 0.0;
+        for (int k = 0; k < HALF_FIR_TAPS; ++k)
+        {
+            const double d = k - centre;               // never 0: centre is a half-integer
+            const double r = d / centre;
+            const double w = besselI0(beta * std::sqrt(juce::jmax(0.0, 1.0 - r * r))) / besselI0(beta);
+            halfFirCoeffs[static_cast<size_t>(k)] = static_cast<float>(std::sin(pi * d) / (pi * d) * w);
+            sum += halfFirCoeffs[static_cast<size_t>(k)];
+        }
+        for (auto& c : halfFirCoeffs) c = static_cast<float>(c / sum);
+    }
+    halfFirHistory.assign(static_cast<size_t>(numChannels), {});
+
+    configureDryPath(currentQuality);
     dryDelay.reset();
-    dryBuffer.setSize(numChannels, samplesPerBlock);
+    dryBuffer.setSize(numChannels, preparedBlockSize);
     dryBuffer.clear();
+
+    // v1.7.0: intensity ramp, model crossfade, quality duck. All start settled, so
+    // a render with no parameter moves is sample-identical to v1.6.0.
+    intensitySmoothed.reset(sampleRate, INTENSITY_SMOOTHING_SECONDS);
+    intensitySmoothed.setCurrentAndTargetValue(intensityParam->load());
+    intensityRamp.assign(static_cast<size_t>(preparedBlockSize), 0.0f);
+
+    currentModel = fadeFromModel = static_cast<int>(modelParam->load());
+    modelFadeTotal = juce::jmax(1.0f, MODEL_FADE_SECONDS * static_cast<float>(sampleRate));
+    modelFadeDone  = modelFadeTotal;
+
+    qualityDuck.reset(sampleRate, QUALITY_DUCK_SECONDS);
+    qualityDuck.setCurrentAndTargetValue(1.0f);
 
     // Report latency to host (prepareToPlay runs on the message thread, so a direct call
     // is safe here — only the audio-thread Quality-change path defers via AsyncUpdater).
@@ -206,13 +248,41 @@ void OAnalogSaturationAudioProcessor::handleAsyncUpdate()
     setLatencySamples(pendingLatencySamples.load(std::memory_order_relaxed));
 }
 
-int OAnalogSaturationAudioProcessor::computeLatencyForQuality(int quality) const
+float OAnalogSaturationAudioProcessor::oversamplerLatency(int quality) const
 {
     if (quality == 1 && oversamplingMid)
-        return static_cast<int>(oversamplingMid->getLatencyInSamples());
+        return oversamplingMid->getLatencyInSamples();
     if (quality == 2 && oversamplingHigh)
-        return static_cast<int>(oversamplingHigh->getLatencyInSamples());
-    return 0;  // LOW quality: no oversampling, no added latency
+        return oversamplingHigh->getLatencyInSamples();
+    return 0.0f;  // LOW quality: no oversampling, no added latency
+}
+
+int OAnalogSaturationAudioProcessor::computeLatencyForQuality(int quality) const
+{
+    // Host-reported latency: the exact figure rounded (59.5 -> 60 at 4x). The dry
+    // path is aligned to the exact figure internally; only PDC sees the rounding.
+    return static_cast<int>(std::lround(oversamplerLatency(quality)));
+}
+
+void OAnalogSaturationAudioProcessor::configureDryPath(int quality)
+{
+    // RT-safe: integer/flag updates only (called from switchQuality()).
+    const float exact = oversamplerLatency(quality);
+    const float frac = exact - std::floor(exact);
+    constexpr float firDelay = (HALF_FIR_TAPS - 1) * 0.5f;   // 15.5
+
+    // Only the half-sample case exists (4x steep FIR = 59.5); any other fraction
+    // would need a different FIR, so it falls back to the truncated integer delay.
+    dryUsesHalfFir = std::abs(frac - 0.5f) < 1.0e-3f && exact >= firDelay;
+    jassert(dryUsesHalfFir || frac < 1.0e-3f);
+
+    dryIntegerDelay = dryUsesHalfFir ? static_cast<int>(std::lround(exact - firDelay))
+                                     : static_cast<int>(exact);
+    dryDelay.setDelay(static_cast<float>(dryIntegerDelay));
+    currentLatencySamples = computeLatencyForQuality(quality);
+
+    for (auto& h : halfFirHistory) h.fill(0.0f);
+    halfFirPos = 0;
 }
 
 float OAnalogSaturationAudioProcessor::osFactorForQuality(int quality)
@@ -260,81 +330,76 @@ void OAnalogSaturationAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
+    const int numSamples = buffer.getNumSamples();
+
     // Read parameters (atomic, real-time safe)
-    const float intensity = parameters.getRawParameterValue("INTENSITY")->load();
-    const int model = static_cast<int>(parameters.getRawParameterValue("MODEL")->load());
-    const int quality = static_cast<int>(parameters.getRawParameterValue("QUALITY")->load());
-    const bool autoGainEnabled = parameters.getRawParameterValue("AUTOGAIN")->load() > 0.5f;
+    intensitySmoothed.setTargetValue(intensityParam->load());
+    const int requestedModel = static_cast<int>(modelParam->load());
+    const int requestedQuality = static_cast<int>(qualityParam->load());
+    const bool autoGainEnabled = autogainParam->load() > 0.5f;
 
-    // Update latency if quality changed
-    if (quality != currentQuality)
+    // v1.7.0: QUALITY change = duck out, switch while silent, ramp back in.
+    if (requestedQuality != currentQuality)
     {
-        currentQuality = quality;
+        if (qualityDuck.getTargetValue() > 0.5f)
+            qualityDuck.setTargetValue(0.0f);                 // start the fade-out
+        else if (! qualityDuck.isSmoothing())
+        {
+            switchQuality(requestedQuality);                  // silent: safe to reset
+            qualityDuckHold = currentLatencySamples + 1;      // let the new path refill
+            qualityDuck.setTargetValue(1.0f);
+        }
+    }
+    else if (qualityDuck.getTargetValue() < 0.5f)
+    {
+        qualityDuck.setTargetValue(1.0f);                     // switched back before it landed
+    }
 
-        // CR-01: retarget the tone filters at the coefficient set designed for the
-        // new oversampling rate (RT-safe Ptr swap; same biquad order preserves state).
-        // Also rescales the MAGNETIC deltaH clamp for the new oversampling factor.
-        applyQualityToneCoeffs(currentQuality);
-
-        // WR-02: match the dry delay to the new oversampler latency (RT-safe int update).
-        currentLatencySamples = computeLatencyForQuality(currentQuality);
-        dryDelay.setDelay(static_cast<float>(currentLatencySamples));
-
-        // WR-01: defer the (non-RT-safe) host latency notification to the message thread.
-        pendingLatencySamples.store(currentLatencySamples, std::memory_order_relaxed);
-        triggerAsyncUpdate();
-
-        if (oversamplingMid)
-            oversamplingMid->reset();
-        if (oversamplingHigh)
-            oversamplingHigh->reset();
-        dryDelay.reset();
+    // v1.7.0: MODEL change = crossfade from the outgoing model. Not taken while a
+    // fade is still running; the next block picks it up.
+    if (requestedModel != currentModel && modelFadeDone >= modelFadeTotal)
+    {
+        fadeFromModel = currentModel;
+        currentModel = requestedModel;
+        resetModelState(currentModel);
+        modelFadeDone = 0.0f;
     }
 
     // Capture input peak level for VU meter
-    inputLevelDB.store(calculatePeakDB(buffer), std::memory_order_relaxed);
+    raisePeak(inputLevelDB, calculatePeakDB(buffer));
 
     // Capture input RMS for auto-gain (before saturation)
     captureInputRMS(buffer);
 
-    // WR-02: snapshot a clean, base-rate dry copy BEFORE the oversampled nonlinear path so
-    // the dry component is mixed back in later without the oversampler's FIR coloration.
-    const int numCh = buffer.getNumChannels();
-    const int numSamples = buffer.getNumSamples();
-    if (dryBuffer.getNumSamples() < numSamples || dryBuffer.getNumChannels() < numCh)
-        dryBuffer.setSize(numCh, numSamples, false, false, true);  // fallback if host exceeds prepared size
-    for (int ch = 0; ch < numCh; ++ch)
-        dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
-
-    // Generate the pure WET (fully saturated) signal — models no longer mix dry internally.
-    if (quality == 0)
+    // v1.7.0: the saturation core runs in chunks no longer than the prepared block,
+    // so an oversized host block can never overrun the oversamplers or dryBuffer.
+    juce::dsp::AudioBlock<float> whole(buffer);
+    for (int start = 0; start < numSamples; start += preparedBlockSize)
     {
-        // LOW quality: No oversampling
-        processSaturationDirect(buffer, model, intensity);
+        const int n = juce::jmin(preparedBlockSize, numSamples - start);
+        processChunk(whole.getSubBlock(static_cast<size_t>(start), static_cast<size_t>(n)));
     }
-    else
-    {
-        // MID/HIGH quality: Use oversampling
-        auto* oversampler = (quality == 1) ? oversamplingMid.get() : oversamplingHigh.get();
-
-        if (oversampler != nullptr)
-        {
-            auto oversampledBlock = oversampler->processSamplesUp(buffer);
-            processSaturationBlock(oversampledBlock, model, intensity);
-
-            juce::dsp::AudioBlock<float> outputBlock(buffer);
-            oversampler->processSamplesDown(outputBlock);
-        }
-    }
-
-    // WR-02: mix the clean dry (delayed to match oversampler latency) with the wet result.
-    mixDryWet(buffer, dryBuffer, intensity);
 
     // Apply auto-gain compensation if enabled
     applyAutoGain(buffer, autoGainEnabled);
 
+    // v1.7.0: quality-change duck (a no-op unless a switch is in flight).
+    if (qualityDuck.isSmoothing() || qualityDuck.getTargetValue() < 0.5f || qualityDuckHold > 0)
+    {
+        for (int i = 0; i < numSamples; ++i)
+        {
+            float g = 0.0f;
+            if (qualityDuckHold > 0)
+                --qualityDuckHold;
+            else
+                g = qualityDuck.getNextValue();
+            for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+                buffer.getWritePointer(ch)[i] *= g;
+        }
+    }
+
     // Capture output peak level for VU meter
-    outputLevelDB.store(calculatePeakDB(buffer), std::memory_order_relaxed);
+    raisePeak(outputLevelDB, calculatePeakDB(buffer));
 }
 
 #if JUCE_WEB_BROWSER
@@ -384,8 +449,9 @@ void OAnalogSaturationAudioProcessor::setStateInformation(const void* data, int 
         // `var (value)` over the attribute STRING
         // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.2.0 session has
         // no such property at all and the default (English) stands.
-        // languageIndex() clamps anything that is not "fr" to 0, so a
-        // hand-edited value degrades to English rather than to a bad index.
+        // languageIndex() clamps anything that is not one of the three stored
+        // codes to 0, so a hand-edited value degrades to English rather than to
+        // a bad index.
         //
         // The editor PULLS this through the getUiLanguage native fn at page
         // init rather than being pushed from here — a push would race the
@@ -468,37 +534,118 @@ void OAnalogSaturationAudioProcessor::captureInputRMS(const juce::AudioBuffer<fl
     }
 }
 
-void OAnalogSaturationAudioProcessor::processSaturationDirect(
-    juce::AudioBuffer<float>& buffer, int model, float intensity)
+void OAnalogSaturationAudioProcessor::processChunk(juce::dsp::AudioBlock<float> chunk)
 {
-    const int numChannels = buffer.getNumChannels();
-    const int numSamples = buffer.getNumSamples();
+    const int numCh = juce::jmin(static_cast<int>(chunk.getNumChannels()), dryBuffer.getNumChannels());
+    const int n = static_cast<int>(chunk.getNumSamples());
+
+    // Per-sample intensity for this chunk (base rate).
+    for (int i = 0; i < n; ++i)
+        intensityRamp[static_cast<size_t>(i)] = intensitySmoothed.getNextValue();
+
+    // WR-02: snapshot a clean, base-rate dry copy BEFORE the oversampled nonlinear path so
+    // the dry component is mixed back in later without the oversampler's FIR coloration.
+    for (int ch = 0; ch < numCh; ++ch)
+        juce::FloatVectorOperations::copy(dryBuffer.getWritePointer(ch), chunk.getChannelPointer(static_cast<size_t>(ch)), n);
+
+    // Generate the pure WET (fully saturated) signal — models no longer mix dry internally.
+    auto* oversampler = currentQuality == 1 ? oversamplingMid.get()
+                      : currentQuality == 2 ? oversamplingHigh.get() : nullptr;
+
+    if (oversampler == nullptr)
+    {
+        // LOW quality: No oversampling
+        processWet(chunk, 1);
+    }
+    else
+    {
+        // MID/HIGH quality: Use oversampling
+        auto oversampledBlock = oversampler->processSamplesUp(chunk);
+        processWet(oversampledBlock, static_cast<int>(oversampler->getOversamplingFactor()));
+        oversampler->processSamplesDown(chunk);
+    }
+
+    // WR-02: mix the clean dry (delayed to match oversampler latency) with the wet result.
+    mixDryWet(chunk);
+
+    modelFadeDone = juce::jmin(modelFadeTotal, modelFadeDone + static_cast<float>(n));
+}
+
+void OAnalogSaturationAudioProcessor::processWet(juce::dsp::AudioBlock<float>& block, int osFactor)
+{
+    const int numChannels = static_cast<int>(block.getNumChannels());
+    const int numSamples = static_cast<int>(block.getNumSamples());
+    const bool fading = modelFadeDone < modelFadeTotal;
+    const float invOs = 1.0f / static_cast<float>(osFactor);
 
     for (int channel = 0; channel < numChannels; ++channel)
     {
-        float* channelData = buffer.getWritePointer(channel);
+        float* channelData = block.getChannelPointer(static_cast<size_t>(channel));
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            channelData[sample] = processSample(channelData[sample], model, intensity, channel);
+            const float intensity = intensityRamp[static_cast<size_t>(sample / osFactor)];
+            const float x = channelData[sample];
+            float y = processSample(x, currentModel, intensity, channel);
+
+            if (fading)
+            {
+                const float t = juce::jmin(1.0f, (modelFadeDone + static_cast<float>(sample) * invOs) / modelFadeTotal);
+                const float yOld = processSample(x, fadeFromModel, intensity, channel);
+                y = yOld + t * (y - yOld);
+            }
+
+            channelData[sample] = y;
         }
     }
 }
 
-void OAnalogSaturationAudioProcessor::processSaturationBlock(
-    juce::dsp::AudioBlock<float>& block, int model, float intensity)
+void OAnalogSaturationAudioProcessor::switchQuality(int quality)
 {
-    const int numChannels = static_cast<int>(block.getNumChannels());
-    const int numSamples = static_cast<int>(block.getNumSamples());
+    currentQuality = quality;
 
-    for (int channel = 0; channel < numChannels; ++channel)
+    // CR-01: retarget the tone filters at the coefficient set designed for the
+    // new oversampling rate (RT-safe Ptr swap). Also rescales the MAGNETIC
+    // deltaH clamp for the new oversampling factor.
+    applyQualityToneCoeffs(currentQuality);
+
+    // WR-02: match the dry delay to the new oversampler latency (RT-safe int update).
+    configureDryPath(currentQuality);
+
+    // WR-01: defer the (non-RT-safe) host latency notification to the message thread.
+    pendingLatencySamples.store(currentLatencySamples, std::memory_order_relaxed);
+    triggerAsyncUpdate();
+
+    // The output is ducked to silence here, so every piece of state can start clean.
+    if (oversamplingMid)
+        oversamplingMid->reset();
+    if (oversamplingHigh)
+        oversamplingHigh->reset();
+    dryDelay.reset();
+    for (int m = 0; m < 4; ++m)
+        resetModelState(m);
+}
+
+void OAnalogSaturationAudioProcessor::resetModelState(int model)
+{
+    // RT-safe: biquad reset() only zeroes two state floats.
+    switch (model)
     {
-        float* channelData = block.getChannelPointer(channel);
-
-        for (int sample = 0; sample < numSamples; ++sample)
-        {
-            channelData[sample] = processSample(channelData[sample], model, intensity, channel);
-        }
+        case 0:
+            std::fill(magneticM.begin(), magneticM.end(), 0.0f);
+            std::fill(magneticHPrev.begin(), magneticHPrev.end(), 0.0f);
+            for (auto& f : magneticHeadBumpFilters)   f.reset();
+            for (auto& f : magneticHFRolloffFilters)  f.reset();
+            break;
+        case 1:
+            for (auto& f : tubePresenceFilters)       f.reset();
+            break;
+        case 2:
+            for (auto& f : transformerLFBumpFilters)  f.reset();
+            for (auto& f : transformerHFSheenFilters) f.reset();
+            break;
+        default:
+            break;  // DIODE is memoryless
     }
 }
 
@@ -515,43 +662,55 @@ float OAnalogSaturationAudioProcessor::processSample(
     }
 }
 
-void OAnalogSaturationAudioProcessor::mixDryWet(
-    juce::AudioBuffer<float>& wetBuffer, const juce::AudioBuffer<float>& dry, float intensity)
+void OAnalogSaturationAudioProcessor::mixDryWet(juce::dsp::AudioBlock<float>& wet)
 {
     // WR-02: apply the dry/wet mix at base rate. INTENSITY sets the wet proportion (the
     // per-model drive scaling that shapes the wet signal already happened upstream).
-    const float wetMix = juce::jlimit(0.0f, 1.0f, intensity / 100.0f);
-    const float dryMix = 1.0f - wetMix;
-    const int numCh = wetBuffer.getNumChannels();
-    const int numSamples = wetBuffer.getNumSamples();
+    // v1.7.0: per sample, from the same ramp the wet path's drive read.
+    const int numCh = juce::jmin(static_cast<int>(wet.getNumChannels()), dryBuffer.getNumChannels());
+    const int numSamples = static_cast<int>(wet.getNumSamples());
 
-    if (currentLatencySamples <= 0)
+    int firPos = halfFirPos;
+
+    for (int ch = 0; ch < numCh; ++ch)
     {
-        // LOW quality (no oversampler latency): dry and wet are already sample-aligned.
-        for (int ch = 0; ch < numCh; ++ch)
+        const float* dryData = dryBuffer.getReadPointer(ch);
+        float* wetData = wet.getChannelPointer(static_cast<size_t>(ch));
+        auto& hist = halfFirHistory[static_cast<size_t>(ch)];
+        firPos = halfFirPos;
+
+        for (int n = 0; n < numSamples; ++n)
         {
-            const float* dryData = dry.getReadPointer(ch);
-            float* wetData = wetBuffer.getWritePointer(ch);
-            for (int n = 0; n < numSamples; ++n)
-                wetData[n] = dryMix * dryData[n] + wetMix * wetData[n];
-        }
-    }
-    else
-    {
-        // MID/HIGH: delay the clean dry by the oversampler latency so it stays phase-aligned
-        // with the wet path (which the oversampler delayed by the same amount).
-        for (int ch = 0; ch < numCh; ++ch)
-        {
-            const float* dryData = dry.getReadPointer(ch);
-            float* wetData = wetBuffer.getWritePointer(ch);
-            for (int n = 0; n < numSamples; ++n)
+            const float wetMix = juce::jlimit(0.0f, 1.0f, intensityRamp[static_cast<size_t>(n)] / 100.0f);
+            const float dryMix = 1.0f - wetMix;
+
+            // MID/HIGH: delay the clean dry by the oversampler latency so it stays
+            // phase-aligned with the wet path. LOW has no latency: already aligned.
+            float drySample = dryData[n];
+            if (dryIntegerDelay > 0)
             {
-                dryDelay.pushSample(ch, dryData[n]);
-                const float dryDelayed = dryDelay.popSample(ch);
-                wetData[n] = dryMix * dryDelayed + wetMix * wetData[n];
+                dryDelay.pushSample(ch, drySample);
+                drySample = dryDelay.popSample(ch);
             }
+
+            if (dryUsesHalfFir)
+            {
+                // Mirrored ring: the newest sample is written at pos and pos+TAPS,
+                // so hist[pos .. pos+TAPS) is always contiguous, newest first.
+                firPos = (firPos == 0 ? HALF_FIR_TAPS : firPos) - 1;
+                hist[static_cast<size_t>(firPos)] = drySample;
+                hist[static_cast<size_t>(firPos + HALF_FIR_TAPS)] = drySample;
+                float acc = 0.0f;
+                for (int k = 0; k < HALF_FIR_TAPS; ++k)
+                    acc += halfFirCoeffs[static_cast<size_t>(k)] * hist[static_cast<size_t>(firPos + k)];
+                drySample = acc;
+            }
+
+            wetData[n] = dryMix * drySample + wetMix * wetData[n];
         }
     }
+
+    halfFirPos = firPos;
 }
 
 void OAnalogSaturationAudioProcessor::applyAutoGain(juce::AudioBuffer<float>& buffer, bool enabled)
