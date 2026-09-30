@@ -304,5 +304,5 @@ compensate the wet gain by √2 when voices = 1, or accept the drop and note it 
 | Findings | Version | Commit |
 |----------|---------|--------|
 | CR-01, WR-01..07 | v1.8.0 | b4ebd225 |
-| IN-01..06 | v1.9.0 | (v1.9.0 commit) |
+| IN-01..06 | v1.9.0 | f5dd6a6a |
 | IN-07 | v1.9.0 | acknowledged — documented in NOTES.md, not changed (equal-power pan law) |
