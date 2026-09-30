@@ -206,18 +206,15 @@ export const LANGUAGES = ['en', 'fr', 'zh-Hans'];
 // direction and for the same reason:
 //
 //   params.tsv name     page caption     tip title
-//   LP Filter Freq      LOW CUT          Low Cut
-//   LP Filter On        (the ON/OFF      Low Cut On
+//   Low Cut Freq        LOW CUT          Low Cut
+//   Low Cut On          (the ON/OFF      Low Cut On
 //                        toggle inside
 //                        the same knob)
 //
-// The parameter IDs and names say "LP Filter", and the DSP is a HIGH-pass:
-// PluginProcessor.cpp:603 calls ArrayCoefficients::makeHighPass(sr, lpFreqValue).
-// So the parameter's own name is wrong about its own filter and the page's
-// caption is right. This is REPORTED, not repaired — renaming an
-// AudioParameterFloat changes what a host shows in its automation lane and what
-// every saved session's parameter list reads, which is a host-visible change
-// unrelated to localization.
+// Until v1.12.0 the parameter names said "LP Filter Freq" / "LP Filter On"
+// while the DSP is a HIGH-pass, so the page's caption was right and the name
+// wrong. v1.12.0 renamed the two host-visible NAMES to "Low Cut Freq" / "Low
+// Cut On"; the IDs stay LPFREQ / LPON, so sessions and automation still bind.
 //
 // ── THE FRENCH TITLE SPELLS OUT WHAT THE CAPTION ABBREVIATES ────────────────
 //
@@ -387,10 +384,9 @@ export const I18N = Object.freeze({
     },
 
     // LPFREQ — AudioParameterFloat, 20 .. 400 Hz, default 200.
-    // Title from the CAPTION, not from the dump's "LP Filter Freq": the DSP is
-    // makeHighPass (PluginProcessor.cpp:603) and the caption is the half that
-    // is right. It runs on wetContext only and ONLY when LPON is on
-    // (line 600), which is the sentence a user cannot get from the dial.
+    // Title from the CAPTION (the host name is "Low Cut Freq" since v1.12.0).
+    // It acts on the wet signal only and ONLY when LPON is on, which is the
+    // sentence a user cannot get from the dial.
     // The French title is the full word where the caption is COUPE-B.
     'tip.lowCut': {
         en: { t: "Low Cut",

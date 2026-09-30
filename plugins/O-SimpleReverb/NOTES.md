@@ -4,7 +4,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.11.0
+- **Version:** 1.13.0
 - **Type:** Audio Effect (Reverb)
 - **Complexity:** 4.2 (Complex)
 
@@ -25,10 +25,12 @@
 - **2026-07-07 (v1.5.6):** Code-review fixes (CR-01..04, WR-01..05) - FileChooser SafePointer UAF guards, corrected DECAY skew (0.6309), RT-safe ArrayCoefficients filter updates, pre-allocated work buffers, preset reset-to-defaults + version-stamped factory sentinel (preset-manager v1.0.3), CHARACTER readout aligned to DSP, smoothed wet/dry gains, mono/stereo bus constraint
 - **2026-09-27 (v1.10.0):** UI pass (review 260924-nho R4/R5) - palette tokens (0 hex outside :root), naturalist AA text colours, 0.40 --paper wash over paper.jpg, 9px floor, bundled EB Garamond; real-ground probe 416/552 -> 3/503 below AA. No DSP change
 - **2026-09-27 (v1.11.0):** Full review - factory TYPE recall fixed (k/6 table: 12/24 presets - Spring/Plate/Ambient - played the type below), Spring all-pass sign fixed (was +20.5 dB DC comb cascade), click-free CHARACTER (SVF warm + shelf, smoothed; 2154x -> 1.03x) + LOW CUT enable, rate-sized delay capacities, VU peak hold, dblclick reset + wheel/toggle host gestures, stuck-drag release; tests/render-check added
+- **2026-09-30 (v1.12.0):** Fresh audit - click-free LOW CUT on/off (HF burst -1.1 -> -59.5 dB) and freq (-23.5 -> -54.6), CHARACTER Bright zipper + +0.5 step (-46 -> -67 dB), TYPE duck-and-swap + EQ crossfade (5.4x -> 1.48x), per-type level trim at the reverb input (spread 7.7 -> 0.07 dB), 270-degree knob arcs, one host gesture per param, knob/switch keyboard + ARIA (R7), time-based VU, failed-load display, host names "Low Cut Freq/On" (IN-02), scoped WebView2 folder (IN-03); render-check 16/16, v1.11.0 fails 7
+- **2026-09-30 (v1.13.0):** Real pitch flutter (swept delay: Spring 6c@4.5Hz, Hall 3c@0.15Hz, Ambient 4c@0.4Hz; L/R share phase — the mono-summing reverb turned an offset into a flanger), real octave-up Plate shimmer (two-grain shifter, was 1.5 kHz ring mod), DECAY headroom map above 1.0x (Ambient tail 1.25/1.6/2.0x: 6.01/6.11/6.11 -> 4.27/4.95/6.28 s); render-check 23/23
 
 ## Known Issues
 
-None
+None known.
 
 ## Additional Notes
 

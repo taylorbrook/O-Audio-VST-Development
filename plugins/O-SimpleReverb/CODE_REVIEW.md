@@ -185,6 +185,8 @@ bool isBusesLayoutSupported(const BusesLayout& layouts) const override
 
 ### IN-02 — "LP Filter" parameter names describe a low-pass but the DSP is a high-pass (low cut)
 
+**Status:** RESOLVED in v1.12.0 — display names are "Low Cut Freq" / "Low Cut On"; IDs unchanged.
+
 **File:** `plugins/O-SimpleReverb/Source/PluginProcessor.cpp:182-196` (param names "LP Filter Freq"/"LP Filter On"), `plugins/O-SimpleReverb/Source/PluginProcessor.cpp:257, 549` (`makeHighPass`)
 
 **Issue:** LPFREQ/LPON and the host-visible names "LP Filter Freq"/"LP Filter On" say low-pass, but the filter is `makeHighPass` (a 20–400 Hz low cut — the UI correctly labels it "Low Cut"). In DAW automation lanes and generic editors the parameter name actively misleads. Parameter IDs can't be renamed without breaking sessions, but the display names can.
@@ -192,6 +194,8 @@ bool isBusesLayoutSupported(const BusesLayout& layouts) const override
 **Fix:** Change the display names to "Low Cut Freq" / "Low Cut On" (keep the `LPFREQ`/`LPON` IDs for session compatibility) and correct the source comments (PluginProcessor.h:115 also says "Lowpass filter for wet signal").
 
 ### IN-03 — WebView2 user-data folder is the shared temp root, not a plugin-scoped subfolder
+
+**Status:** RESOLVED in v1.12.0 — `tempDirectory/O-SimpleReverb_WebView`.
 
 **File:** `plugins/O-SimpleReverb/Source/PluginEditor.cpp:33-36`
 
