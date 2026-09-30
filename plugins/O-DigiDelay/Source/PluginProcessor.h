@@ -183,9 +183,9 @@ private:
         1.5f,     // 1/4D (dotted)
         0.75f,    // 1/8D
         0.375f,   // 1/16D
-        0.667f,   // 1/4T (triplet)
-        0.333f,   // 1/8T
-        0.167f,   // 1/16T
+        2.0f / 3.0f,   // 1/4T (triplet) — IN-02: exact, 0.667 drifted off the grid
+        1.0f / 3.0f,   // 1/8T
+        1.0f / 6.0f,   // 1/16T
         0.8f,     // 1/4(5) (quintuplet)
         0.4f,     // 1/8(5)
         0.2f      // 1/16(5)

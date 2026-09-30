@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.8.0
+- **Version:** 1.8.1
 - **Type:** Audio Effect (Delay)
 - **Complexity:** 2.4 (Moderate)
 
@@ -24,11 +24,17 @@
 - **2026-07-01 (v1.2.12):** WebView/editor fixes from code review (WR-05 plugin-specific WebView2 user-data folder; WR-07 renamed butterfly asset to space-free `butterfly2_bw.png` to avoid %20 percent-encoding 404). Butterfly overlay verified rendering on macOS.
 - **2026-09-27 (v1.7.0):** UI pass R4/R5 (review 260924-nho) - palette tokens, 0.40 paper wash, opaque control fills, caption chips over the butterfly echoes, 9px floor, bundled EB Garamond. Pixel-probe below-AA 296/444 -> 0/444 (min 1.59 -> 4.84). No DSP change. See CHANGELOG 1.3.0-1.6.0 for the i18n versions.
 - **2026-09-30 (v1.8.0):** Review resolution (CODE_REVIEW.md 2026-09-30: CR-01, WR-01..10). Spillover bypass is now real: a host-mapped `bypass` parameter (9th, appended) keeps the tail ringing out. Also fixed the Save-dialog use-after-free, seeded smoothers, knob arcs (true 0-270deg from 7:30), dropdown clipped at 196px, wheel/sync-drag automation gestures, a stale preset name after host restore, the mono meter reading 6 dB low, tips during drags, and a localized Save dialog. auval + pluginval 10 pass; offline spillover render verified.
+- **2026-09-30 (v1.8.1):** Info-tier review sweep (IN-01..09, 11, 13..15). LFO no longer ramps down from 440 Hz on load, exact triplet factors, mono delay lines (half the memory), a -60 dB tail estimate, preset apply resets omitted params and sends gestures, the Save dialog reports the sanitized name, no "1 ms / 0%" readout flash on open, the dropdown re-reads the list, and the meter skips unchanged frames and hidden windows. IN-10/12/16 deferred.
 
 ## Known Issues
 
 - **Logic AU hard bypass:** Logic's own plugin-bypass button can skip calling the plugin entirely, and then no tail is possible. Spillover holds for VST3 hosts and for any host that drives the `bypass` parameter.
-- **Open review Info items (v1.8.0):** CODE_REVIEW.md IN-01..IN-16 were not selected for this pass. Notably IN-03 (feedback above 95% is dead travel), IN-04 (large time jumps chirp) and IN-16 (keyboard/ARIA knobs, R7).
+- **Feedback above 95% is inert (IN-03).** The DSP clamps feedback at 0.95 for stability, so the top 5% of the knob does nothing. The 0-100% range is kept, because rescaling it would change every saved preset and automation lane.
+- **Time changes glide like tape (IN-04).** A time change is a 20 ms ramp of the read head, so a large jump (2000 -> 1 ms, or a division change in sync) replays up to 2 s of history in 20 ms and chirps. This is intended. A two-tap crossfade would be the "transparent" alternative and is deferred.
+- **Sync clamps to 2000 ms (IN-05).** 1/4D below 45 BPM and 1/4 below 30 BPM exceed the buffer and are clamped to 2000 ms, off the grid, with no UI indication.
+- **Sync with no host tempo (IN-06).** With SYNC on and no BPM from the host (Standalone, or a host with no transport), the DSP uses the free TIME value while the readout still shows the division.
+- **Cross-thread state access (IN-14).** `getStateInformation` writes `uiLanguage` into `parameters.state` from the host's thread, and `currentPresetName` is read in `getStateAsXml`. This is the suite-wide pattern with low practical risk, and it is left as is.
+- **Open review Info items (v1.8.1):** IN-10 (no modified indicator; a failed load is silent, in the vendored preset module), IN-12 (no double-click reset, fine-drag or delta-scaled wheel) and IN-16 (keyboard/ARIA knobs, R7). Each is feature-sized (MINOR).
 
 ## Description
 
