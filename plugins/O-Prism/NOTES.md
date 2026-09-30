@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.30.0
+- **Version:** 1.30.1
 - **Type:** Synth (Microtonal Wavetable)
 
 ## Lifecycle Timeline
 
+- **2026-09-30 (v1.30.1):** Distortion stage: the dry path was never delayed (a default `DryWetMixer` has max latency 0), so the dry/wet sum combed by −15.8 dB at 19 kHz at 50 % mix. It is now a 44-sample integer delay plus a 15.5-sample Kaiser half-sample FIR, flat to ±0.004 dB. The mix ≤ 0.001 stage-skip is removed (it caused a time-jump click when the mix was automated through 0); the wet path sleeps internally and holds the mix at 0 through its latency on waking. The FX chain is chunked to the prepared block, so an oversized host block is bit-identical to a matching prepare. Latency is reported as `lround` = 60.
 - **2026-09-25 (v1.30.0):** UI pass (260924-nho Phase C: R4/R5/R7). 38-token `:root`
   palette replaces all 216 CSS hex literals, landed first as a zero-change refactor.
   AA text: `--text-muted` #6A5641, knob values off #A08870, `--text-muted-on-dark`

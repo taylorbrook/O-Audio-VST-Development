@@ -1,10 +1,10 @@
 ---
 plugin: O-Prism
-version: 1.30.0
+version: 1.30.1
 stage: 4
 gsd_phase: verify_complete
 status: plugin_complete
-last_updated: 2026-09-25
+last_updated: 2026-09-30
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true

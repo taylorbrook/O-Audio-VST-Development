@@ -1,5 +1,28 @@
 # O-Prism Changelog
 
+## [1.30.1] - 2026-09-30
+
+Three distortion-stage defects, found by a cross-plugin audit of oversampler block-size and fractional-latency handling. It is a PATCH: **no parameter, range, type or state-format change**, and no UI change. The one audible difference is intended: at a partial Dist Mix the dry signal is now time-aligned with the wet.
+
+### Fixed
+
+- **The distortion's dry path was never delayed.** `DistortionProcessor` used a default-constructed `juce::dsp::DryWetMixer`, whose maximum wet latency is **0**. So `setWetLatency (59.5)` did nothing and the dry copy was mixed in 59.5 samples ahead of the 4x oversampled wet. At 50 % mix and small signal this combed the sum by −2.7 dB at 1 kHz, −9.9 dB at 10 kHz and −15.8 dB at 19 kHz.
+  - The dry path is now an integer delay line (44 samples) plus a 32-tap Kaiser (β = 6) windowed-sinc FIR centred on 15.5, which together give exactly 59.5 samples. This is the O-AnalogSaturation v1.7.0 recipe. `DryWetMixer` is gone from this stage; its linear law and 50 ms ramp are kept.
+  - At 50 % mix the response is now flat to ±0.004 dB from 1 to 21 kHz. Delay is identical to the wet path at every mix.
+- **An automated Dist Mix jumped in time.** The processor skipped the whole distortion stage whenever the mix was ≤ 0.001, and reset it on the way out. The stage's 59.5-sample latency disappeared while the host still compensated 59. So the output jumped in time whenever the mix crossed 0, with a click. With a 200 Hz sine and the mix switched 0 → 0.5 → 0, the peak second difference over the steady state was 954 / 473 (Soft Clip) and 60.5 / 21.3 (Fold).
+  - The mix gate is gone from `processBlock`. The stage always runs while not bypassed. The wet path sleeps inside `DistortionProcessor` while the mix is ~0 (distMix defaults to 0, so a default patch still does not pay 4x oversampling), but the dry path keeps carrying the latency.
+  - On waking, the mix is held at 0 for the oversampler's latency before ramping, so the ramp never runs over the reset filter's onset. With both changes the click ratio is 1.0 on both edges, for both modes.
+- **Host blocks longer than the prepared block.** The FX chain ran on the whole host block. `juce::dsp::Oversampling` only jasserts the length, so in Release a longer block (offline bounce, some hosts' first block) overran the stage buffers and returned wrong audio. Prepared at 256 and fed 1024, the max error was 1.3–1.9 against a 1024-prepared instance, in every mode. The Delay and Reverb `DryWetMixer` FIFOs hold one prepared block, so they also silently dropped their dry signal past that point.
+  - `processBlock` now runs the five FX stages in sub-blocks no longer than the prepared block. `DistortionProcessor::process` chunks on its own as well. The synth render and the width/volume stage are unchanged.
+  - Prepared 256 / fed 1024 is now **bit-identical** to prepared 1024, in all four modes.
+- **Reported latency is rounded, not truncated.** It is `lround (59.5)` = 60 where it had been `static_cast<int>` = 59, both in `prepareToPlay` and in the bypass-tracking `timerCallback`. The dry path is aligned to the exact figure internally, so only PDC sees the rounding.
+
+### Testing
+
+- A scratch harness (`DistortionProcessor` against the v1.30.0 backup) ran the size gate (prepared 256 vs 1024, fed 1024), the tone gate (1 / 10 / 19 / 21 kHz at mix 0 / 0.5 / 1, 0.001 amplitude) and the automation click gate (mix 0 → 0.5 → 0, Soft Clip and Fold). Every figure above comes from it. v1.30.0 fails all three; v1.30.1 passes all three.
+- Not re-run: `tests/distortion_alias_check.cpp`, because it is only built in the ASan tree and ASan hangs at init on macOS 26. At mix 1.0 the new mix computes `0·dry + 1·wet`, bit-identical to the old `DryWetMixer` output, so its fully-wet measurements are unaffected.
+- Known and unchanged: un-bypassing the distortion still starts from reset delay lines (up to 60 samples of silence on the dry path). This dates from IN-04; bypass is a latency change the host is told about.
+
 ## [1.30.0] - 2026-09-25
 
 The UI pass from the 260924-nho design review (Phase C). It covers AA text colours (R4), the 9px text floor, the bundled EB Garamond face (R5), a CSS custom-property palette, and keyboard/ARIA on the Family B knobs (R7). It is MINOR because the change is visible and adds keyboard access. **No DSP, parameter, range, type or state-format change.** No processor file was touched. The only C++ change is four `getResource()` branches for the fonts.
