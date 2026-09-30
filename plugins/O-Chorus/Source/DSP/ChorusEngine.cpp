@@ -78,9 +78,6 @@ void ChorusEngine::prepare (double newSampleRate, int samplesPerBlock)
     // Crossfade
     crossfadeIncrement = 1.0f / static_cast<float> (sampleRate * crossfadeDurationMs / 1000.0f);
 
-    // Initialize voice distribution
-    setVoiceCount (currentVoiceCount);
-
     lfoPhase = 0.0f;
 }
 
@@ -93,22 +90,18 @@ void ChorusEngine::reset()
     toneFilterR.reset();
     lfoPhase = 0.0f;
     crossfadeProgress = 1.0f;
+    currentVoiceCount = targetVoiceCount;
+    pendingVoiceCount = targetVoiceCount;
 }
 
-void ChorusEngine::setVoiceCount (int newCount)
+float ChorusEngine::layoutPhaseOffset (size_t v, int count)
 {
-    newCount = juce::jlimit (1, maxVoices, newCount);
+    return (juce::MathConstants<float>::twoPi * static_cast<float> (v)) / static_cast<float> (count);
+}
 
-    for (size_t i = 0; i < static_cast<size_t> (newCount); ++i)
-    {
-        voices[i].lfoPhaseOffset = (juce::MathConstants<float>::twoPi * static_cast<float> (i))
-                                   / static_cast<float> (newCount);
-
-        if (newCount == 1)
-            voices[i].panPosition = 0.5f;
-        else
-            voices[i].panPosition = static_cast<float> (i) / static_cast<float> (newCount - 1);
-    }
+float ChorusEngine::layoutPan (size_t v, int count)
+{
+    return count == 1 ? 0.5f : static_cast<float> (v) / static_cast<float> (count - 1);
 }
 
 void ChorusEngine::updateToneFilter (float toneParam)
@@ -118,9 +111,10 @@ void ChorusEngine::updateToneFilter (float toneParam)
     // Clamp cutoff below Nyquist so the bilinear-transform coefficients stay stable.
     // Without this, at sample rates <= ~40 kHz the 20 kHz max cutoff meets/exceeds
     // Nyquist, tan(pi*cutoff/fs) blows up or goes negative, and the biquad poles leave
-    // the unit circle (NaN/Inf output). (WR-03)
-    const float nyquist = static_cast<float> (sampleRate) * 0.5f;
-    cutoff = juce::jmin (cutoff, nyquist * 0.49f);
+    // the unit circle (NaN/Inf output). The ceiling is 0.45 * fs (19.8 kHz at 44.1 kHz).
+    // v1.7.0 and earlier used nyquist * 0.49 = 0.245 * fs, which pinned Tone at
+    // 10.8 kHz above +23% at 44.1 kHz. (v1.8.0, WR-01)
+    cutoff = juce::jmin (cutoff, 0.45f * static_cast<float> (sampleRate));
 
     // Butterworth LPF coefficients computed directly (RT-safe, no heap allocation)
     // Replicates JUCE makeLowPass with Q = 1/sqrt(2)
@@ -145,17 +139,20 @@ void ChorusEngine::updateToneFilter (float toneParam)
 
 float ChorusEngine::saturate (float sample, float drive)
 {
-    if (drive < 0.01f)
+    // Level-compensated tanh(d*x)/d. Its slope at x = 0 is exactly 1 for every d,
+    // so Drive adds harmonics and compresses peaks without a level step. v1.7.0
+    // used tanh((1+k)x)/tanh(1+k) behind a `drive < 0.01` bypass: +2.4 dB the
+    // moment the knob left zero, then only 2 dB more across the rest of its
+    // travel. (v1.8.0, WR-05)
+    //
+    // d = 4^drive (1 ... 4). The negative half runs at 0.9x the drive exponent
+    // for the BBD-style asymmetry the old curve had.
+    if (drive <= 0.0f)
         return sample;
 
-    float scaledDrive = drive * 0.5f; // Keep saturation subtle
-
-    // Asymmetric drive for BBD character: positive half driven at 1.0x, negative at 0.9x
-    float driveMultiplier = (sample >= 0.0f) ? 1.0f : 0.9f;
-    float driven = sample * (1.0f + scaledDrive * driveMultiplier);
-    float normalizer = std::tanh (1.0f + scaledDrive * driveMultiplier);
-
-    return std::tanh (driven) / normalizer;
+    const float exponent = (sample >= 0.0f) ? drive : drive * 0.9f;
+    const float d = std::exp2 (2.0f * exponent);
+    return std::tanh (d * sample) / d;
 }
 
 float ChorusEngine::mapToneParamToCutoff (float toneParam)
@@ -182,7 +179,7 @@ void ChorusEngine::process (juce::AudioBuffer<float>& buffer,
     const int numSamples = buffer.getNumSamples();
     const int numChannels = buffer.getNumChannels();
 
-    if (numSamples == 0 || numChannels < 2)
+    if (numSamples == 0 || numChannels < 1)
         return;
 
     // Set smoothed parameter targets
@@ -194,18 +191,23 @@ void ChorusEngine::process (juce::AudioBuffer<float>& buffer,
     smoothedDrive.setTargetValue (drive);
     smoothedTone.setTargetValue (tone);
 
-    // Handle voice count change with crossfade
-    numVoices = juce::jlimit (1, maxVoices, numVoices);
-    if (numVoices != targetVoiceCount)
+    // Handle voice count change with crossfade. A new count that arrives while a
+    // fade is running is queued, not applied: restarting the fade would drop the
+    // half-faded layer in one sample. Only the latest queued count is kept, so a
+    // fast sweep costs at most one extra 50 ms fade. (v1.8.0, WR-03)
+    pendingVoiceCount = juce::jlimit (1, maxVoices, numVoices);
+    if (crossfadeProgress >= 1.0f && pendingVoiceCount != currentVoiceCount)
     {
-        targetVoiceCount = numVoices;
+        targetVoiceCount = pendingVoiceCount;
         crossfadeProgress = 0.0f;
     }
 
-    auto* leftChannel = buffer.getWritePointer (0);
-    auto* rightChannel = buffer.getWritePointer (1);
+    // Mono (1 channel) runs the same voices and sums them unpanned into ch 0.
+    // v1.7.0 returned early here, so a mono insert passed audio through. (v1.8.0, CR-01)
+    const bool mono = (numChannels < 2);
 
-    float phaseIncrement = 0.0f;
+    auto* leftChannel = buffer.getWritePointer (0);
+    auto* rightChannel = mono ? nullptr : buffer.getWritePointer (1);
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
@@ -223,103 +225,98 @@ void ChorusEngine::process (juce::AudioBuffer<float>& buffer,
             updateToneFilter (curTone);
 
         // LFO phase increment
-        phaseIncrement = (curRate * juce::MathConstants<float>::twoPi) / static_cast<float> (sampleRate);
+        const float phaseIncrement = (curRate * juce::MathConstants<float>::twoPi) / static_cast<float> (sampleRate);
 
         // Mono sum input for chorus processing
         float dryL = leftChannel[sample];
-        float dryR = rightChannel[sample];
+        float dryR = mono ? dryL : rightChannel[sample];
         float monoInput = (dryL + dryR) * 0.5f;
-
-        // Accumulate wet signal
-        float wetL = 0.0f;
-        float wetR = 0.0f;
 
         // Determine the two voice-count "layers" to blend this sample. Normal operation is
         // a single layer (oldCount voices at unity gain). During a voice-count change the
         // old layer fades out while the new layer fades in. Each delay line must be
         // popped/pushed EXACTLY ONCE per sample no matter how many layers reference it,
         // otherwise voices shared by both layers advance their read/write pointers at 2x
-        // the real sample rate for the crossfade duration. (WR-02)
+        // the real sample rate for the crossfade duration.
         const bool crossfading = (crossfadeProgress < 1.0f);
         const int  oldCount    = currentVoiceCount;
         const int  newCount    = crossfading ? targetVoiceCount : 0;
-        const float oldGain    = crossfading ? (1.0f - crossfadeProgress) : 1.0f;
-        const float newGain    = crossfading ? crossfadeProgress : 0.0f;
-        const int  activeCount = juce::jmax (oldCount, newCount);
+        const float oldScale   = 1.0f / std::sqrt (static_cast<float> (oldCount));
+        const float oldGain    = (crossfading ? (1.0f - crossfadeProgress) : 1.0f) * oldScale;
+        const float newGain    = crossfading ? crossfadeProgress / std::sqrt (static_cast<float> (newCount)) : 0.0f;
 
-        // Per-voice modulated delay in samples for a given layer voice-count, clamped to a
-        // valid positive range. At high Spread the raw per-voice delay can go negative
-        // (e.g. voice 0 at Spread 1.0 → base 10ms − spread 15ms), which the JUCE DelayLine
-        // silently pins to its last-set clamped value, collapsing that voice toward ~0ms
-        // and killing symmetric modulation. Clamping keeps every voice modulating. (WR-01)
-        auto delaySamplesForCount = [&] (size_t v, int count, float lfoValue, float effectiveDepth)
+        // One layer's tap for voice v: the layer's OWN phase offset, pan and spread
+        // position. v1.7.0 stored a single phase/pan per voice and rewrote it when the
+        // fade ended, so the incoming layer ran on the old layout and then snapped
+        // (about 1.9 ms of tap jump at 4 -> 8 voices, depth 0.5). With the layout
+        // computed per layer, the fade hides the difference. (v1.8.0, WR-02)
+        float wetL = 0.0f, wetR = 0.0f, wetM = 0.0f;
+
+        auto addTap = [&] (ChorusVoice& voice, size_t v, int count, float gain, bool advance)
         {
-            float voiceOffset = 0.0f;
+            // Spread is one-sided: voice 0 sits at the base delay and the last voice
+            // at base + 15 ms. v1.7.0 spread symmetrically (base +/- 15 ms), so above
+            // Spread 0.667 the outer voices went below zero and sat clamped at a static
+            // 1-sample delay, an unmodulated near-dry copy. The shortest tap is now
+            // 10 - 5 * 1.15 = 4.25 ms and the longest 30.75 ms, inside the 50 ms line.
+            // (v1.8.0, WR-04)
+            float voiceOffsetMs = 0.0f;
             if (count > 1)
-                voiceOffset = curSpread * spreadRangeMs
-                              * (2.0f * static_cast<float> (v) / static_cast<float> (count - 1) - 1.0f);
+                voiceOffsetMs = curSpread * spreadRangeMs * static_cast<float> (v) / static_cast<float> (count - 1);
 
-            float voiceBaseDelayMs = baseDelayMs + voiceOffset;
-            float modulatedDelayMs = voiceBaseDelayMs + (lfoValue * effectiveDepth * delayRangeMs);
-            float modulatedDelaySamples = (modulatedDelayMs / 1000.0f) * static_cast<float> (sampleRate);
-            return juce::jlimit (1.0f, maxDelaySamplesAllocated, modulatedDelaySamples);
+            const float lfoValue = std::sin (lfoPhase + layoutPhaseOffset (v, count));
+            const float modulatedDelayMs = baseDelayMs + voiceOffsetMs
+                                         + lfoValue * curDepth * voice.depthVariation * delayRangeMs;
+            const float delaySamples = juce::jlimit (1.0f, maxDelaySamplesAllocated,
+                                                     modulatedDelayMs * 0.001f * static_cast<float> (sampleRate));
+
+            const float tap = saturate (voice.delayLine.popSample (0, delaySamples, advance), curDrive) * gain;
+
+            if (mono)
+            {
+                wetM += tap;
+                return;
+            }
+
+            // Equal-power stereo panning
+            const float effectivePan = 0.5f + (layoutPan (v, count) - 0.5f) * curWidth;
+            const float panAngle = effectivePan * juce::MathConstants<float>::halfPi;
+            wetL += tap * std::cos (panAngle);
+            wetR += tap * std::sin (panAngle);
         };
 
-        for (size_t v = 0; v < static_cast<size_t> (activeCount); ++v)
+        for (size_t v = 0; v < static_cast<size_t> (maxVoices); ++v)
         {
             auto& voice = voices[v];
-
-            // Per-voice LFO and pan are independent of the layer voice-count.
-            float voicePhase = lfoPhase + voice.lfoPhaseOffset;
-            float lfoValue = std::sin (voicePhase);
-            float effectiveDepth = curDepth * voice.depthVariation;
-
-            // Equal-power stereo panning (shared by both layers for this voice)
-            float effectivePan = 0.5f + (voice.panPosition - 0.5f) * curWidth;
-            float panAngle = effectivePan * juce::MathConstants<float>::halfPi;
-            float leftGain = std::cos (panAngle);
-            float rightGain = std::sin (panAngle);
-
             const bool inOld = (static_cast<int> (v) < oldCount);
             const bool inNew = (static_cast<int> (v) < newCount);
 
-            // Read whichever layer(s) this voice belongs to, then push the input exactly
-            // once. Only the final pop advances the read pointer (updateReadPointer=true);
-            // an earlier multi-tap pop leaves it in place. This keeps read/write pointers
-            // in lockstep at 1x the real sample rate even for voices shared by both layers.
+            // Only the final pop advances the read pointer (advance = true); an earlier
+            // multi-tap pop leaves it in place, keeping read/write pointers in lockstep.
             if (inOld && inNew)
             {
-                float oldDelayed = voice.delayLine.popSample (0, delaySamplesForCount (v, oldCount, lfoValue, effectiveDepth), false);
-                float newDelayed = voice.delayLine.popSample (0, delaySamplesForCount (v, newCount, lfoValue, effectiveDepth), true);
-                voice.delayLine.pushSample (0, monoInput);
-
-                float blended = saturate (oldDelayed, curDrive) * oldGain
-                              + saturate (newDelayed, curDrive) * newGain;
-                wetL += blended * leftGain;
-                wetR += blended * rightGain;
+                addTap (voice, v, oldCount, oldGain, false);
+                addTap (voice, v, newCount, newGain, true);
             }
             else if (inOld)
             {
-                float delayed = voice.delayLine.popSample (0, delaySamplesForCount (v, oldCount, lfoValue, effectiveDepth), true);
-                voice.delayLine.pushSample (0, monoInput);
-
-                float saturated = saturate (delayed, curDrive) * oldGain;
-                wetL += saturated * leftGain;
-                wetR += saturated * rightGain;
+                addTap (voice, v, oldCount, oldGain, true);
             }
-            else // inNew only
+            else if (inNew)
             {
-                float delayed = voice.delayLine.popSample (0, delaySamplesForCount (v, newCount, lfoValue, effectiveDepth), true);
-                voice.delayLine.pushSample (0, monoInput);
-
-                float saturated = saturate (delayed, curDrive) * newGain;
-                wetL += saturated * leftGain;
-                wetR += saturated * rightGain;
+                addTap (voice, v, newCount, newGain, true);
             }
+            else
+            {
+                // Idle voice: keep its line fed so it holds current audio, not a burst
+                // of whatever it last heard, when a later voice-count change fades it in.
+                voice.delayLine.popSample (0, -1.0f, true);
+            }
+
+            voice.delayLine.pushSample (0, monoInput);
         }
 
-        // Advance the crossfade after all of this sample's voices are processed, so the
-        // voiceScale interpolation below sees the same progress the original code did.
+        // Advance the crossfade after all of this sample's voices are processed.
         if (crossfading)
         {
             crossfadeProgress += crossfadeIncrement;
@@ -327,32 +324,32 @@ void ChorusEngine::process (juce::AudioBuffer<float>& buffer,
             {
                 crossfadeProgress = 1.0f;
                 currentVoiceCount = targetVoiceCount;
-                setVoiceCount (currentVoiceCount);
+
+                // A count queued during the fade starts its own fade now, from the
+                // layer that is fully up. (WR-03)
+                if (pendingVoiceCount != currentVoiceCount)
+                {
+                    targetVoiceCount = pendingVoiceCount;
+                    crossfadeProgress = 0.0f;
+                }
             }
         }
 
-        // Normalize by voice count (interpolate during crossfade to prevent volume bump)
-        float voiceScale;
-        if (crossfadeProgress < 1.0f)
+        if (mono)
         {
-            float oldScale = 1.0f / std::sqrt (static_cast<float> (currentVoiceCount));
-            float newScale = 1.0f / std::sqrt (static_cast<float> (targetVoiceCount));
-            voiceScale = oldScale + (newScale - oldScale) * crossfadeProgress;
+            const float wet = toneFilterL.processSample (wetM);
+            leftChannel[sample] = dryL * (1.0f - curMix) + wet * curMix;
         }
         else
         {
-            voiceScale = 1.0f / std::sqrt (static_cast<float> (currentVoiceCount));
+            // Apply tone filter to wet signal
+            wetL = toneFilterL.processSample (wetL);
+            wetR = toneFilterR.processSample (wetR);
+
+            // Mix: dry * (1 - mix) + wet * mix
+            leftChannel[sample] = dryL * (1.0f - curMix) + wetL * curMix;
+            rightChannel[sample] = dryR * (1.0f - curMix) + wetR * curMix;
         }
-        wetL *= voiceScale;
-        wetR *= voiceScale;
-
-        // Apply tone filter to wet signal
-        wetL = toneFilterL.processSample (wetL);
-        wetR = toneFilterR.processSample (wetR);
-
-        // Mix: dry * (1 - mix) + wet * mix
-        leftChannel[sample] = dryL * (1.0f - curMix) + wetL * curMix;
-        rightChannel[sample] = dryR * (1.0f - curMix) + wetR * curMix;
 
         // Advance global LFO phase
         lfoPhase += phaseIncrement;

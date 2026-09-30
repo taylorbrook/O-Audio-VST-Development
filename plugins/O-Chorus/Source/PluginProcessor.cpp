@@ -81,13 +81,40 @@ void OChorusAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     chorusEngine.prepare(sampleRate, samplesPerBlock);
 }
 
+bool OChorusAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    // v1.8.0 (CR-01): mono -> mono, mono -> stereo and stereo -> stereo.
+    // Stereo -> mono is refused: the chorus would have to fold its own image.
+    const auto in  = layouts.getMainInputChannelSet();
+    const auto out = layouts.getMainOutputChannelSet();
+
+    if (out != juce::AudioChannelSet::mono() && out != juce::AudioChannelSet::stereo())
+        return false;
+
+    if (in != juce::AudioChannelSet::mono() && in != juce::AudioChannelSet::stereo())
+        return false;
+
+    return in.size() <= out.size();
+}
+
 void OChorusAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
 
-    for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
+    // v1.8.0 (CR-01): mono -> stereo duplicates the input into the right
+    // channel, so the dry signal stays centred and the engine sees a full-level
+    // mono source. Any other surplus output channel is cleared as before.
+    const int numIn  = getTotalNumInputChannels();
+    const int numOut = getTotalNumOutputChannels();
+
+    for (int i = numIn; i < numOut; ++i)
+    {
+        if (numIn == 1)
+            buffer.copyFrom(i, 0, buffer, 0, 0, buffer.getNumSamples());
+        else
+            buffer.clear(i, 0, buffer.getNumSamples());
+    }
 
     // Read all parameters via atomic loads (real-time safe)
     float rate   = parameters.getRawParameterValue("rate")->load();
@@ -195,11 +222,10 @@ const juce::String OChorusAudioProcessor::getProgramName(int index)
 //==============================================================================
 void OChorusAudioProcessor::initializeFactoryPresets()
 {
-    auto factoryDir = presetManager.getFactoryPresetsDirectory();
-
-    if (factoryDir.isDirectory() && factoryDir.getNumberOfChildFiles(juce::File::findFiles) > 0)
-        return;
-
+    // No plugin-side "directory already has files" guard: the module's
+    // version-stamped .factory-version sentinel decides when to rewrite, so a
+    // corrected factory bank reaches existing installs on the next version
+    // (v1.8.0, WR-07).
     std::vector<OuariconPresetManager::FactoryPresetDef> presets = {
         {
             "Classic",

@@ -31,6 +31,8 @@ O-Chorus is a lush, analog-inspired multi-voice chorus plugin with 1-8 selectabl
 
 ## Lifecycle Timeline
 
+- **2026-09-30 (v1.8.0):** `/improve-review` of CR-01 and WR-01..07. Accepts mono→mono and mono→stereo. Tone clamp raised to 0.45·fs. Each Voices-crossfade layer now uses its own layout, and a count that arrives mid-fade is queued. Spread is one-sided (10–25 ms), so no tap is pinned. Drive is level-compensated `tanh(d·x)/d`. The mouse wheel steps Voices. The plugin-side factory guard is removed. auval passes. DAW listening pass pending.
+- **2026-09-26 (v1.7.0):** 260924-nho Phase C UI pass via /improve: insect plate reduced to its central specimen behind the LFO ring (no knob face or caption over it), paper texture at 55% so text is AA on the painted ground (min 2.83 → 5.59:1; measure-ui's 0% was a false pass — it cannot see the jpg/img layers), palette custom properties, LFO caption 8 → 9px, bundled EB Garamond. Knob code untouched, so still mouse-only (R7 deferred). No DSP/param/state change.
 - **2026-06-30 (v1.2.2):** Code-review fixes (WR-01/WR-02/WR-03) — clamp per-voice delay to a
   positive range (fixes voice collapse at high Spread), pop/push each delay line exactly once
   during a voice-count crossfade (fixes 2× pointer advance / doubling glitch), and clamp the tone
@@ -43,6 +45,11 @@ O-Chorus is a lush, analog-inspired multi-voice chorus plugin with 1-8 selectabl
   - Complexity score: 2.8 (Moderate, single-pass implementation)
   - ARCHITECTURE.md documented (complete DSP specification with JUCE API mappings)
   - ROADMAP.md documented (stage breakdown, ~3.25 hour timeline)
+
+## Known Limitations
+
+- Open Info findings from the 2026-09-30 review (IN-01..07), as listed in `CODE_REVIEW.md`: no `reset()` override; a knob drag sticks when released outside the WebView; the preset name goes stale after a host program change; Save… ignores the chosen folder; the knobs are not keyboard-operable; a stale Stage 1 comment; Vibrato plays at −3 dB.
+- v1.8.0 changes the sound of existing presets and sessions with Drive > 0 (the wet path is quieter on quiet material) and with Spread > 0 (voices spread one-sided). Presets were not re-voiced.
 
 ## Architecture Highlights
 

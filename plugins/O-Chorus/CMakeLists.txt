@@ -9,7 +9,7 @@ juce_add_plugin(OuariconChorus
     PLUGIN_CODE OuCh
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Chorus${OUARICON_DEV_SUFFIX}"
-    VERSION 1.6.3
+    VERSION 1.8.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -66,6 +66,12 @@ juce_add_binary_data(OuariconChorus_UIResources
         Source/ui/public/img/paper1.jpg
         Source/ui/public/img/insects.png
         Source/ui/public/modules/preset-manager.js
+        # v1.7.0 (R5): the shared EB Garamond face, embedded straight from the
+        # module and served by the matching getResource branches
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(OuariconChorus

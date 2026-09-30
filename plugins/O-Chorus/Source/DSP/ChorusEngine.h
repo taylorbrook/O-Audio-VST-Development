@@ -46,12 +46,13 @@ private:
     struct ChorusVoice
     {
         juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> delayLine { 4410 };
-        float lfoPhaseOffset = 0.0f;
         float depthVariation = 1.0f;
-        float panPosition = 0.5f;
     };
 
-    void setVoiceCount (int newCount);
+    // Phase offset and pan of voice v in a layer of `count` voices. Computed per
+    // layer so a voice-count crossfade runs each layer on its own layout (WR-02).
+    static float layoutPhaseOffset (size_t v, int count);
+    static float layoutPan (size_t v, int count);
     void updateToneFilter (float toneParam);
 
     static float saturate (float sample, float drive);
@@ -75,6 +76,7 @@ private:
     // Voice crossfade
     int currentVoiceCount = 4;
     int targetVoiceCount = 4;
+    int pendingVoiceCount = 4;   // latest requested count, applied when the running fade ends (WR-03)
     float crossfadeProgress = 1.0f;
     static constexpr float crossfadeDurationMs = 50.0f;
     float crossfadeIncrement = 0.0f;
