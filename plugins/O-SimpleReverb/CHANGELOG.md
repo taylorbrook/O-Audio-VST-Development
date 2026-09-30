@@ -2,6 +2,22 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.13.1] - 2026-09-30
+
+**Info-tier review sweep (1 finding).** PATCH: dead code only; nothing the
+plugin does changes.
+
+### Removed
+- **IN-01 — unused preset bridge functions:** `savePreset`, `deletePreset`
+  and `isFactoryPreset` were registered on the WebView but never called by
+  `index.html` (saving goes through `savePresetWithDialog`; there is no delete
+  control). Registrations removed from `PluginEditor.cpp`. The
+  `OuariconPresetManager` methods stay (the render check calls
+  `isFactoryPreset` directly in C++).
+- Untracked `Source/ui/public/modules/preset-manager.js` — a gitignored
+  configure-time copy of the shared module's JS, never embedded or served,
+  committed by accident. The build still regenerates it locally.
+
 ## [1.13.0] - 2026-09-30
 
 **Flutter and shimmer made real; DECAY's top range brought back to life.**
