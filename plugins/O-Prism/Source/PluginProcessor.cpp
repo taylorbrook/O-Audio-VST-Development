@@ -737,7 +737,8 @@ void OPrismAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     }
 
     // Effects chain
-    juce::dsp::ProcessSpec spec { sampleRate, static_cast<juce::uint32> (samplesPerBlock), 2 };
+    preparedBlockSize = juce::jmax (1, samplesPerBlock);
+    juce::dsp::ProcessSpec spec { sampleRate, static_cast<juce::uint32> (preparedBlockSize), 2 };
     distortion.prepare (spec);
     chorus.prepare (spec);
     delay.prepare (spec);
@@ -762,8 +763,10 @@ void OPrismAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     // IN-04: distortion (oversampler) is the only latency source and is
     // skipped entirely when bypassed — report 0 then, or the host delay-
     // compensates a path with no latency. Kept current by timerCallback.
+    // v1.30.1: rounded (59.5 -> 60), not truncated; the dry path inside the
+    // distortion is aligned to the exact figure, only PDC sees the rounding.
     setLatencySamples (pDistBypass->load() > 0.5f
-        ? 0 : static_cast<int> (distortion.getLatencyInSamples()));
+        ? 0 : distortion.getReportedLatencySamples());
 }
 
 void OPrismAudioProcessor::releaseResources() {}
@@ -899,114 +902,127 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     fxModMatrix.setSourceValue (ModSource::Aftertouch, aftertouchValue.load (std::memory_order_relaxed));
     fxModMatrix.evaluate();
 
-    // Effects chain (float precision)
-    juce::dsp::AudioBlock<float> block (buffer);
-
-    // 1. Distortion
-    const bool distRan = runEffect (pDistBypass, distortion, block, [this] (auto& fx, auto& blk)
+    // Effects chain (float precision).
+    // v1.30.1: in chunks no longer than the prepared block. The distortion's
+    // oversampler only jasserts the length (a Release heap overrun past it),
+    // and the delay/reverb DryWetMixer FIFOs hold one prepared block, so a
+    // longer host block (offline bounce, some hosts' first block) lost their
+    // dry signal after the first `preparedBlockSize` samples.
+    juce::dsp::AudioBlock<float> wholeBlock (buffer);
+    const int fxTotal = static_cast<int> (wholeBlock.getNumSamples());
+    for (int fxStart = 0; fxStart < fxTotal; fxStart += preparedBlockSize)
     {
-        fx.setType (static_cast<int> (pDistType->load()));
-        fx.setDrive (pDistDrive->load());
-        const float mix = juce::jlimit (0.0f, 1.0f,
-            pDistMix->load() + fxModMatrix.getModOffset (ModDest::DistMix));
-        fx.setMix (mix);
-        if (mix <= 0.001f)
-            return false;
-        fx.process (blk);
-        return true;
-    });
-    if (! distRan && distWasActive)
-        distortion.reset();
-    distWasActive = distRan;
+        auto block = wholeBlock.getSubBlock (static_cast<size_t> (fxStart),
+                                             static_cast<size_t> (juce::jmin (preparedBlockSize, fxTotal - fxStart)));
 
-    // 2. Chorus
-    const bool chorusRan = runEffect (pChorusBypass, chorus, block, [this] (auto& fx, auto& blk)
-    {
-        fx.setRate (pChorusRate->load());
-        fx.setDepth (pChorusDepth->load());
-        const float mix = juce::jlimit (0.0f, 1.0f,
-            pChorusMix->load() + fxModMatrix.getModOffset (ModDest::ChorusMix));
-        fx.setMix (mix);
-        if (mix <= 0.001f)
-            return false;
-        fx.process (blk);
-        return true;
-    });
-    if (! chorusRan && chorusWasActive)
-        chorus.reset();
-    chorusWasActive = chorusRan;
-
-    // 3. Delay (WR-03: tempo sync — delaySync + delayDivision drive the time
-    // from the host BPM, mirroring the LFO division table)
-    const bool delayRan = runEffect (pDelayBypass, delay, block, [this] (auto& fx, auto& blk)
-    {
-        float timeSec;
-        if (pDelaySync->load() > 0.5f)
+        // 1. Distortion
+        const bool distRan = runEffect (pDistBypass, distortion, block, [this] (auto& fx, auto& blk)
         {
-            const int divIdx = juce::jlimit (0, 17, static_cast<int> (pDelayDivision->load()));
-            const double bpm = currentBPM.load (std::memory_order_relaxed);
-            timeSec = static_cast<float> (NoteDiv::kDivBeats[divIdx] * 60.0 / bpm);
-        }
-        else
-        {
-            timeSec = pDelayTime->load();
-        }
-        fx.setTime (timeSec); // clamped to kMaxDelaySeconds internally
-
-        fx.setFeedback (pDelayFeedback->load());
-        fx.setMode (static_cast<int> (pDelayMode->load()));
-        const float mix = juce::jlimit (0.0f, 1.0f,
-            pDelayMix->load() + fxModMatrix.getModOffset (ModDest::DelayMix));
-        fx.setMix (mix);
-        if (mix <= 0.001f)
-            return false;
-        fx.process (blk);
-        return true;
-    });
-    if (! delayRan && delayWasActive)
-        delay.reset();
-    delayWasActive = delayRan;
-
-    // 4. Reverb
-    const bool reverbRan = runEffect (pReverbBypass, reverbProcessor, block, [this] (auto& fx, auto& blk)
-    {
-        fx.setSize (pReverbSize->load());
-        fx.setDamping (pReverbDamp->load());
-        fx.setPredelay (pReverbPredelay->load());
-        const float mix = juce::jlimit (0.0f, 1.0f,
-            pReverbMix->load() + fxModMatrix.getModOffset (ModDest::ReverbMix));
-        fx.setMix (mix);
-        fx.setModDepth (pReverbModDepth->load());
-        fx.setModRate (pReverbModRate->load());
-        if (mix <= 0.001f)
-            return false;
-        fx.process (blk);
-        return true;
-    });
-    if (! reverbRan && reverbWasActive)
-        reverbProcessor.reset();
-    reverbWasActive = reverbRan;
-
-    // 5. EQ
-    const bool eqRan = runEffect (pEqBypass, eq, block, [this] (auto& fx, auto& blk)
-    {
-        const float lowGain  = pEqLowGain->load();
-        const float midGain  = pEqMidGain->load();
-        const float highGain = pEqHighGain->load();
-        fx.setLowGain (lowGain);
-        fx.setMidGain (midGain);
-        fx.setMidFreq (pEqMidFreq->load());
-        fx.setHighGain (highGain);
-        if (std::abs (lowGain) > 0.1f || std::abs (midGain) > 0.1f || std::abs (highGain) > 0.1f)
-        {
+            fx.setType (static_cast<int> (pDistType->load()));
+            fx.setDrive (pDistDrive->load());
+            const float mix = juce::jlimit (0.0f, 1.0f,
+                pDistMix->load() + fxModMatrix.getModOffset (ModDest::DistMix));
+            fx.setMix (mix);
+            // v1.30.1: no mix gate here. Skipping the stage at mix ~0 also skipped
+            // its 59.5-sample latency while the host still compensated for it, so
+            // automating the mix through 0 jumped the output in time. The wet path
+            // sleeps inside DistortionProcessor instead; the dry path keeps the delay.
             fx.process (blk);
             return true;
-        }
-        return false;
-    });
-    if (! eqRan && eqWasActive)
-        eq.reset();
-    eqWasActive = eqRan;
+        });
+        if (! distRan && distWasActive)
+            distortion.reset();
+        distWasActive = distRan;
+
+        // 2. Chorus
+        const bool chorusRan = runEffect (pChorusBypass, chorus, block, [this] (auto& fx, auto& blk)
+        {
+            fx.setRate (pChorusRate->load());
+            fx.setDepth (pChorusDepth->load());
+            const float mix = juce::jlimit (0.0f, 1.0f,
+                pChorusMix->load() + fxModMatrix.getModOffset (ModDest::ChorusMix));
+            fx.setMix (mix);
+            if (mix <= 0.001f)
+                return false;
+            fx.process (blk);
+            return true;
+        });
+        if (! chorusRan && chorusWasActive)
+            chorus.reset();
+        chorusWasActive = chorusRan;
+
+        // 3. Delay (WR-03: tempo sync — delaySync + delayDivision drive the time
+        // from the host BPM, mirroring the LFO division table)
+        const bool delayRan = runEffect (pDelayBypass, delay, block, [this] (auto& fx, auto& blk)
+        {
+            float timeSec;
+            if (pDelaySync->load() > 0.5f)
+            {
+                const int divIdx = juce::jlimit (0, 17, static_cast<int> (pDelayDivision->load()));
+                const double bpm = currentBPM.load (std::memory_order_relaxed);
+                timeSec = static_cast<float> (NoteDiv::kDivBeats[divIdx] * 60.0 / bpm);
+            }
+            else
+            {
+                timeSec = pDelayTime->load();
+            }
+            fx.setTime (timeSec); // clamped to kMaxDelaySeconds internally
+
+            fx.setFeedback (pDelayFeedback->load());
+            fx.setMode (static_cast<int> (pDelayMode->load()));
+            const float mix = juce::jlimit (0.0f, 1.0f,
+                pDelayMix->load() + fxModMatrix.getModOffset (ModDest::DelayMix));
+            fx.setMix (mix);
+            if (mix <= 0.001f)
+                return false;
+            fx.process (blk);
+            return true;
+        });
+        if (! delayRan && delayWasActive)
+            delay.reset();
+        delayWasActive = delayRan;
+
+        // 4. Reverb
+        const bool reverbRan = runEffect (pReverbBypass, reverbProcessor, block, [this] (auto& fx, auto& blk)
+        {
+            fx.setSize (pReverbSize->load());
+            fx.setDamping (pReverbDamp->load());
+            fx.setPredelay (pReverbPredelay->load());
+            const float mix = juce::jlimit (0.0f, 1.0f,
+                pReverbMix->load() + fxModMatrix.getModOffset (ModDest::ReverbMix));
+            fx.setMix (mix);
+            fx.setModDepth (pReverbModDepth->load());
+            fx.setModRate (pReverbModRate->load());
+            if (mix <= 0.001f)
+                return false;
+            fx.process (blk);
+            return true;
+        });
+        if (! reverbRan && reverbWasActive)
+            reverbProcessor.reset();
+        reverbWasActive = reverbRan;
+
+        // 5. EQ
+        const bool eqRan = runEffect (pEqBypass, eq, block, [this] (auto& fx, auto& blk)
+        {
+            const float lowGain  = pEqLowGain->load();
+            const float midGain  = pEqMidGain->load();
+            const float highGain = pEqHighGain->load();
+            fx.setLowGain (lowGain);
+            fx.setMidGain (midGain);
+            fx.setMidFreq (pEqMidFreq->load());
+            fx.setHighGain (highGain);
+            if (std::abs (lowGain) > 0.1f || std::abs (midGain) > 0.1f || std::abs (highGain) > 0.1f)
+            {
+                fx.process (blk);
+                return true;
+            }
+            return false;
+        });
+        if (! eqRan && eqWasActive)
+            eq.reset();
+        eqWasActive = eqRan;
+    }
 
     // Stereo width (mid-side processing) + master volume (smoothed per-sample).
     // Master volume takes the WR-02 MasterVol mod offset.
@@ -1148,7 +1164,7 @@ void OPrismAudioProcessor::timerCallback()
     // IN-04: follow distortion bypass with the reported latency (message
     // thread — setLatencySamples notifies the host).
     const int wantedLatency = pDistBypass->load() > 0.5f
-        ? 0 : static_cast<int> (distortion.getLatencyInSamples());
+        ? 0 : distortion.getReportedLatencySamples();
     if (wantedLatency != getLatencySamples())
         setLatencySamples (wantedLatency);
 

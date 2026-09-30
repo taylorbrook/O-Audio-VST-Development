@@ -78,25 +78,74 @@ DistortionProcessor::DistortionProcessor()
 {
 }
 
+namespace
+{
+    // Below this the wet path sleeps -- the same threshold the processor's
+    // per-FX mix gate used before v1.30.1.
+    constexpr float kWetFloor = 0.001f;
+}
+
 void DistortionProcessor::prepare (const juce::dsp::ProcessSpec& spec)
 {
+    preparedBlockSize = static_cast<int> (spec.maximumBlockSize);
     oversampling.initProcessing (spec.maximumBlockSize);
-    dryWetMixer.prepare (spec);
 
-    // Tracks the oversampler automatically -- nothing here needs to know the
-    // factor. The antialiased Fold adds a further half sample of group delay AT
-    // THE OVERSAMPLED RATE (0.125 samples at base rate for 4x), which is NOT
+    // The antialiased Fold adds a further half sample of group delay AT THE
+    // OVERSAMPLED RATE (0.125 samples at base rate for 4x), which is NOT
     // included here and is left uncompensated as inaudible.
-    dryWetMixer.setWetLatency (static_cast<float> (oversampling.getLatencyInSamples()));
+    const float exact = getLatencyInSamples();
+    const float frac = exact - std::floor (exact);
+    constexpr float firDelay = (kHalfFirTaps - 1) * 0.5f;   // 15.5
 
-    for (auto& u : adaaPrevU)
-        u = 0.0;
+    // Only the half-sample case exists (4x steep FIR = 59.5); any other
+    // fraction would need a different FIR, so it falls back to truncation.
+    dryUsesHalfFir = std::abs (frac - 0.5f) < 1.0e-3f && exact >= firDelay;
+    jassert (dryUsesHalfFir || frac < 1.0e-3f);
+    const int dryIntegerDelay = dryUsesHalfFir ? static_cast<int> (std::lround (exact - firDelay))
+                                               : static_cast<int> (exact);
+
+    // Kaiser-windowed sinc centred on 15.5, normalised to unity DC gain.
+    {
+        const auto besselI0 = [] (double x)
+        {
+            double sum = 1.0, term = 1.0;
+            for (int k = 1; k < 30; ++k) { term *= (x / (2 * k)) * (x / (2 * k)); sum += term; }
+            return sum;
+        };
+        constexpr double beta = 6.0;
+        const double centre = (kHalfFirTaps - 1) * 0.5;
+        double sum = 0.0;
+        for (int k = 0; k < kHalfFirTaps; ++k)
+        {
+            const double d = k - centre;               // never 0: centre is a half-integer
+            const double r = d / centre;
+            const double w = besselI0 (beta * std::sqrt (juce::jmax (0.0, 1.0 - r * r))) / besselI0 (beta);
+            halfFirCoeffs[static_cast<size_t> (k)] = static_cast<float> (std::sin (kPi * d) / (kPi * d) * w);
+            sum += halfFirCoeffs[static_cast<size_t> (k)];
+        }
+        for (auto& c : halfFirCoeffs) c = static_cast<float> (c / sum);
+    }
+
+    dryDelay.setMaximumDelayInSamples (dryIntegerDelay + 4);
+    dryDelay.prepare ({ spec.sampleRate, spec.maximumBlockSize, static_cast<juce::uint32> (kNumChannels) });
+    dryDelay.setDelay (static_cast<float> (dryIntegerDelay));
+    dryBuffer.setSize (static_cast<int> (kNumChannels), preparedBlockSize, false, false, true);
+
+    mixSmoothed.reset (spec.sampleRate, 0.05);
+    reset();
 }
 
 void DistortionProcessor::reset()
 {
     oversampling.reset();
-    dryWetMixer.reset();
+    dryDelay.reset();
+
+    for (auto& h : halfFirHistory) h.fill (0.0f);
+    halfFirPos = 0;
+
+    mixSmoothed.setCurrentAndTargetValue (0.0f);
+    wetAsleep = true;
+    wakeHoldRemaining = 0;
 
     for (auto& u : adaaPrevU)
         u = 0.0;
@@ -114,7 +163,7 @@ void DistortionProcessor::setDrive (float drive)
 
 void DistortionProcessor::setMix (float mix)
 {
-    dryWetMixer.setWetMixProportion (mix);
+    targetMix = juce::jlimit (0.0f, 1.0f, mix);
 }
 
 /*  IN-09 -- the antialiased Fold.
@@ -228,11 +277,126 @@ void DistortionProcessor::applyDistortion (juce::dsp::AudioBlock<float>& block)
 
 void DistortionProcessor::process (juce::dsp::AudioBlock<float>& block)
 {
-    dryWetMixer.pushDrySamples (block);
+    // v1.30.1: never hand the oversampler more than it was prepared for.
+    const int total = static_cast<int> (block.getNumSamples());
+    const int maxChunk = juce::jmax (1, preparedBlockSize);
+    for (int start = 0; start < total; start += maxChunk)
+    {
+        const int n = juce::jmin (maxChunk, total - start);
+        processChunk (block.getSubBlock (static_cast<size_t> (start), static_cast<size_t> (n)));
+    }
+}
 
-    auto osBlock = oversampling.processSamplesUp (block);
+float DistortionProcessor::delayDrySample (size_t ch, float x) noexcept
+{
+    // Integer part first, then the 15.5-sample FIR. Mirrored ring: the newest
+    // sample is written at pos and pos+TAPS, so hist[pos .. pos+TAPS) is always
+    // contiguous, newest first. The caller advances halfFirPos once per sample.
+    dryDelay.pushSample (static_cast<int> (ch), x);
+    x = dryDelay.popSample (static_cast<int> (ch));
+
+    if (! dryUsesHalfFir)
+        return x;
+
+    auto& hist = halfFirHistory[ch];
+    hist[static_cast<size_t> (halfFirPos)] = x;
+    hist[static_cast<size_t> (halfFirPos + kHalfFirTaps)] = x;
+    float acc = 0.0f;
+    for (int k = 0; k < kHalfFirTaps; ++k)
+        acc += halfFirCoeffs[static_cast<size_t> (k)] * hist[static_cast<size_t> (halfFirPos + k)];
+    return acc;
+}
+
+void DistortionProcessor::processDryOnly (juce::dsp::AudioBlock<float> chunk)
+{
+    const size_t numCh = juce::jmin (chunk.getNumChannels(), kNumChannels);
+    const int n = static_cast<int> (chunk.getNumSamples());
+    const int startPos = halfFirPos;
+
+    for (size_t ch = 0; ch < numCh; ++ch)
+    {
+        auto* data = chunk.getChannelPointer (ch);
+        halfFirPos = startPos;
+        for (int i = 0; i < n; ++i)
+        {
+            halfFirPos = (halfFirPos == 0 ? kHalfFirTaps : halfFirPos) - 1;
+            data[i] = delayDrySample (ch, data[i]);
+        }
+    }
+}
+
+void DistortionProcessor::processChunk (juce::dsp::AudioBlock<float> chunk)
+{
+    if (wetAsleep)
+    {
+        if (targetMix <= kWetFloor)
+        {
+            processDryOnly (chunk);
+            return;
+        }
+
+        // Wake. The oversampler was reset on the way to sleep, so it emits its
+        // latency in zeros before the signal arrives: hold the mix at 0 across
+        // that, then ramp.
+        wetAsleep = false;
+        wakeHoldRemaining = static_cast<int> (std::ceil (getLatencyInSamples()));
+        mixSmoothed.setCurrentAndTargetValue (0.0f);
+    }
+
+    const size_t numCh = juce::jmin (chunk.getNumChannels(), kNumChannels);
+    const int n = static_cast<int> (chunk.getNumSamples());
+
+    for (size_t ch = 0; ch < numCh; ++ch)
+        juce::FloatVectorOperations::copy (dryBuffer.getWritePointer (static_cast<int> (ch)),
+                                           chunk.getChannelPointer (ch), n);
+
+    auto osBlock = oversampling.processSamplesUp (chunk);
     applyDistortion (osBlock);
-    oversampling.processSamplesDown (block);
+    oversampling.processSamplesDown (chunk);
 
-    dryWetMixer.mixWetSamples (block);
+    // Linear law (dry = 1 - m), one ramp shared by both channels.
+    const int startPos = halfFirPos;
+    const int holdAtStart = wakeHoldRemaining;
+    const auto mixAtStart = mixSmoothed;
+
+    for (size_t ch = 0; ch < numCh; ++ch)
+    {
+        const float* dry = dryBuffer.getReadPointer (static_cast<int> (ch));
+        auto* wet = chunk.getChannelPointer (ch);
+        halfFirPos = startPos;
+        int hold = holdAtStart;
+        auto ramp = mixAtStart;
+        ramp.setTargetValue (targetMix);
+
+        for (int i = 0; i < n; ++i)
+        {
+            halfFirPos = (halfFirPos == 0 ? kHalfFirTaps : halfFirPos) - 1;
+            const float d = delayDrySample (ch, dry[i]);
+
+            float m = 0.0f;
+            if (hold > 0)
+                --hold;
+            else
+                m = ramp.getNextValue();
+
+            wet[i] = (1.0f - m) * d + m * wet[i];
+        }
+
+        if (ch + 1 == numCh)
+        {
+            wakeHoldRemaining = hold;
+            mixSmoothed = ramp;
+        }
+    }
+
+    // Sleep once the ramp has landed at ~0. Resetting here is what lets the
+    // wake path assume a zeroed oversampler.
+    if (wakeHoldRemaining == 0 && targetMix <= kWetFloor && ! mixSmoothed.isSmoothing())
+    {
+        oversampling.reset();
+        for (auto& u : adaaPrevU)
+            u = 0.0;
+        mixSmoothed.setCurrentAndTargetValue (0.0f);
+        wetAsleep = true;
+    }
 }

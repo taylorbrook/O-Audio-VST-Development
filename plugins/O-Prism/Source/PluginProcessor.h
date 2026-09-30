@@ -412,6 +412,9 @@ private:
     bool reverbWasActive = false;
     bool eqWasActive = false;
 
+    // v1.30.1: processBlock runs the FX chain in chunks no longer than this.
+    int preparedBlockSize = 512;
+
     // ─── Processor-level mod matrix for global FX destinations (WR-02) ───
     // Sources: global LFOs 1-4, ModWheel, Aftertouch (per-voice sources are 0).
     // Destinations consumed here: Reverb/Delay/Chorus/Dist Mix, Master Vol.
