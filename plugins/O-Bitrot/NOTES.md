@@ -2,11 +2,23 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.17.0
+- **Version:** 1.17.1
 - **Type:** Audio Effect (Broken-Media Degradation)
 
 ## Lifecycle Timeline
 
+- **2026-09-30 (v1.17.1):** **Code-review fixes WR-01..WR-12** (`CODE_REVIEW.md`, v1.17.0 review; there were no Critical findings).
+  - Host integration:
+    - Host bypass keeps the 20 ms latency (WR-01).
+    - `reset()` is now overridden, so stop/locate/bounce clear the engine and FUNC-04 holds (WR-02).
+    - The preset name is saved with the session (WR-09).
+  - Click seams: the read-head fade (WR-03), the CD conceal blend (WR-04), a tape stop mid-bend (WR-05) and the vinyl-warp RPM glide (WR-06).
+  - Design drift:
+    - GSM encode/decode runs every frame (WR-07).
+    - Rot flips use bits 3..flipBits (WR-08).
+    - The pop/tick level cap is raised to 1000 (WR-12).
+  - UI: Shift mid-drag no longer jumps the knob (WR-10), and no tooltip opens over the open preset menu (WR-11).
+  - The IN-* findings stay open; they were not selected.
 - **2026-09-27 (v1.17.0):** **UI pass (R4/R5): AA text, 9 px floor, bundled EB Garamond.**
   - Readable text is now solid AA ink, and the active fills are opaque.
   - OFF families dim their knobs, not their words.
@@ -62,6 +74,10 @@
 - **Build:** compiled as the `OBitrot_gsm` STATIC library with definitions
   `SASR NDEBUG NeedFunctionPrototypes=1` (never `WAV49`/`FAST`), warnings
   suppressed PRIVATE, PIC on; linked PRIVATE into `OBitrot`.
+- **Local addition (v1.17.1):** `src/gsm_reset.c` (`ouaricon_gsm_reset`) is
+  NOT upstream. It is `gsm_create()`'s initialisation without the `malloc`,
+  used by `AudioProcessor::reset()` on the audio thread. Upstream files are
+  unmodified.
 
 ## Latency Scheme (Stage 2)
 
@@ -70,9 +86,13 @@ Constant reported latency of 20 ms in ALL modes:
 owns the alignment: a hand-rolled integer delay of exactly that figure when
 the codec is disabled or in Mu-law mode; the GSM 160-frame chain replaces it
 structurally in GSM mode (one 8 kHz frame = 0.020 s). `DryWetMixer::
-setWetLatency` aligns the dry path. The first 20 ms of GSM output after
-engagement is silence (output frame primed with zeros; the 10 ms
-CODEC_ENABLE fade covers it). At non-integer `0.020*fs` host rates the GSM
+setWetLatency` aligns the dry path.
+
+As of v1.17.1, GSM encode/decode runs every frame whether or not it is
+audible, so engaging GSM is a plain crossfade. The old ≤ 20 ms silence after
+engagement is gone; the 10 ms fade had never covered it (WR-07). Host bypass
+runs the same 20 ms integer delay in `processBlockBypassed` (WR-01). At
+non-integer `0.020*fs` host rates the GSM
 path misaligns by < 1 sample versus the plain delay — accepted.
 
 ## Known Issues

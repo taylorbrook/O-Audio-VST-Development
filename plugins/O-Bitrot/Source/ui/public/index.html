@@ -288,8 +288,10 @@
      centred menu would need measuring, while a left-anchored 372px panel is
      provably inside the 900px frame from the band's own offset. .plugin sets
      overflow:hidden, so max-height keeps the tail scrollable instead of clipped.
-     z-index sits ABOVE .tooltip (1000) — a tip anchored to the trigger places
-     itself "below" and would otherwise float over the open list. */
+     The z-index only ranks INSIDE .inner (position:absolute; z-index:2 makes
+     it a stacking context), so it does NOT lift the menu above the root-level
+     .tooltip (1000). The tooltip module keeps the tip off instead: no tip on a
+     trigger whose popup is open (v1.17.1, CODE_REVIEW WR-11). */
   .preset-menu {
     display: none;
     position: absolute;
@@ -1693,6 +1695,9 @@
     state.propertiesChangedEvent.addListener(render);
     render();
 
+    // v1.17.1 (CODE_REVIEW WR-10): accumulate per move. Re-scaling the WHOLE
+    // drag distance by the current modifier made pressing or releasing Shift
+    // mid-drag jump the value (0.4 normalised after a 100 px drag).
     let dragY = null, dragNorm = 0;
     el.addEventListener("pointerdown", (e) => {
       dragY = e.clientY;
@@ -1703,7 +1708,9 @@
     el.addEventListener("pointermove", (e) => {
       if (dragY === null) return;
       const fine = e.shiftKey ? 0.001 : 0.005;
-      state.setNormalisedValue(clamp01(dragNorm + (dragY - e.clientY) * fine));
+      dragNorm = clamp01(dragNorm + (dragY - e.clientY) * fine);
+      dragY = e.clientY;
+      state.setNormalisedValue(dragNorm);
     });
     const endDrag = (e) => {
       if (dragY === null) return;
@@ -2293,7 +2300,14 @@
     let tipsEnabled = false;        // the "?" state; PULLED from C++ at init
     let setTipsFn = null;           // native fn, resolved once
 
-    const tipAllowed = (t) => tipsEnabled || t.hasAttribute("data-tip-always");
+    // v1.17.1 (CODE_REVIEW WR-11): no tip over a control whose popup is open.
+    // .inner is a stacking context, so the preset menu's z-index 1200 only
+    // ranks inside it and the root-level tip (1000) painted OVER the open list
+    // — re-armed by the pointer crossing the trigger's inner spans.
+    const popupOpen = (t) => t.getAttribute("aria-expanded") === "true"
+      || t.querySelector('[aria-expanded="true"]') !== null;
+    const tipAllowed = (t) => (tipsEnabled || t.hasAttribute("data-tip-always"))
+      && !popupOpen(t);
 
     const hideTip = () => {
       clearTimeout(tipTimer);
@@ -2433,6 +2447,12 @@
         hideTip();
       }, true);
       document.addEventListener("pointerup", () => { tipSuppressed = false; }, true);
+
+      // WR-11: a keyboard Enter/Space on a popup trigger opens it without a
+      // pointerdown, so clear any tip on the click that opens it too.
+      document.addEventListener("click", (e) => {
+        if (e.target.closest && e.target.closest("[aria-haspopup], [aria-expanded]")) hideTip();
+      }, true);
 
       if (toggleEl) {
         toggleEl.addEventListener("click", () => {

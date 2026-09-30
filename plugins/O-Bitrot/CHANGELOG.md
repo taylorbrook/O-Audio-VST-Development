@@ -2,6 +2,166 @@
 
 All notable changes to O-Bitrot are documented here.
 
+## [1.17.1] - 2026-09-30
+
+Resolves the Warning tier of the v1.17.0 code review (`CODE_REVIEW.md`,
+WR-01..WR-12; there were no Critical findings). PATCH: **no parameter ID,
+range, default or state-format change.** The session gains one optional
+property, `currentPreset`, and older sessions load unchanged. Three fixes are
+audible by design: WR-07, WR-08 and WR-12. Renders containing a GSM
+engagement, a Rot flip or a pop at 96/192 kHz differ from v1.17.0.
+
+### Fixed
+
+- **WR-01: host bypass kept the 20 ms latency compensation, but not the
+  delay.**
+  - JUCE's default `processBlockBypassed` passes input straight through. Under
+    PDC, a bypassed track therefore played 20 ms early, and the timing jumped
+    on every toggle.
+  - On un-bypass, the codec and dry delay lines replayed 20 ms of pre-bypass
+    audio.
+  - In a mono→stereo layout, bypass left R silent.
+  - Now `processBlockBypassed` runs a per-channel integer delay of exactly
+    `compLatencySamples`, with the same scrub and mono→stereo duplicate as
+    `processBlock`.
+  - On entering bypass, that delay is seeded from the capture ring's last
+    20 ms of input. Without the seed, the first 20 ms of bypass was silent.
+  - The first processed block after a bypass resets the engine. It then loads
+    the codec alignment ring and the `DryWetMixer` dry line with the bypass
+    history, so the hand-back is continuous rather than replaying or dropping
+    20 ms.
+- **WR-02: `AudioProcessor::reset()` was not overridden.**
+  - AU `Reset()` and VST3 `setProcessing(false)` call `reset()`, not
+    `prepareToPlay`. Logic calls them on stop, locate and bounce.
+  - The 10 s capture ring, running tape/CD/vinyl events, the head lag and the
+    RNG positions all survived. Two bounces of one region with one SEED
+    differed, which broke FUNC-04.
+  - Now an allocation-free `reset()` returns every stage to its
+    post-`prepareToPlay` state:
+    - The ring is cleared.
+    - Each stage is reset.
+    - The fades and smoothers snap to the current parameters.
+    - The mixer is reset.
+    - The RNG is reseeded from SEED.
+  - GSM state is re-initialised in place with `ouaricon_gsm_reset`, a new
+    local addition to the vendored libgsm that is `gsm_create()` without the
+    malloc. This also removes the IN-06 reseed race on a preset load with an
+    unchanged SEED.
+- **WR-03: the outgoing crossfade head repeated a sample on every jump from
+  live.** `oldPos` was clamped to `hi` while the main head pins at `hi + 1`.
+  At lag 0 the outgoing head therefore read x[n] twice, a (1−t)·Δx error of
+  up to ~0.65 FS on HF material. It now pins at `hi + 1`, like the main head.
+- **WR-04: the CD conceal rung switched its filter in with no blend.** A
+  one-pole at fMax is not transparent: its first sample is ≈ 0.79·x at
+  48 kHz, which made a ~20 % step at onset and a snap back at exit. It is now
+  blended by the rung's own `tri`, exactly as `TapeDropout` has done since
+  v1.4.0, so both endpoints are the identity.
+- **WR-05: a tape stop installed during a down-bend stepped the gain by −3 to
+  −6.4 dB in one sample.**
+  - With the rate already below the 0.9 threshold, the speed law engaged
+    mid-curve. At rate 0.5 that means g = 0.625 and a zero-state filter at
+    G ≈ 0.45, so the first sample was ≈ 0.48·x. This was re-derived
+    analytically before the fix.
+  - A stop *armed* below the threshold now latches `xRef = rate/0.9` and
+    renormalises against it. Gain 1 and wet 0 on the engaging sample make
+    that sample the exact identity, and the gain still reaches 0 at rate 0.
+  - A crossing from above keeps `xRef = 1`, which is the old law
+    bit-for-bit.
+- **WR-06: changing VINYL_RPM with warp depth > 0 stepped the read offset.**
+  `lagAmp ∝ revSamples` switched instantly. Going from 33⅓ to 78 at the LFO
+  peak jumped ~95 samples, a click plus a pitch glitch. `lagAmp` now glides
+  onto its new value over 2 s (≤ ~0.1 % pitch), landing exactly on target.
+  `prepare()`/`reset()` snap it to the saved RPM, so session starts do not
+  glide.
+- **WR-07: re-engaging GSM left a gap of up to 10 ms and then a +10 dB AGC
+  overshoot.**
+  - Encode/decode only ran while audible. The enable fade reached unity
+    ~10 ms before the first decoded frame.
+  - Meanwhile the AGC envelope had decayed toward 0, so the first frame met
+    the full +10 dB makeup, and the LTP state was stale.
+  - The codec now runs every frame whenever the handles exist, audible or
+    not: 50 frames/s, still deterministic. Engagement is a plain crossfade.
+  - Bypass stays bit-exact (the g == 0 rail outputs the aligned dry pair).
+    The header's "≤ 20 ms silence covered by the fades" claim is corrected.
+- **WR-08: Rot bit flips ignored `kFlipBitMin`.**
+  - The draw was `nextInt(flipBits + 1)`, bits 0..flipBits, not the designed
+    field of 3..flipBits. At DEPTH 0, 3/4 of flips landed on inaudible bits
+    0–2. At DEPTH 100 the sign bit came up 1 time in 16, not 1 in 13.
+  - It is now `kFlipBitMin + nextInt(flipBits − kFlipBitMin + 1)`. This is
+    still one draw, so stream alignment holds.
+  - Flip is audibly denser, as designed.
+- **WR-09: the current preset name was not saved with the session.**
+  - Load "Worn Cassette", save, reopen: the band showed "Default", and ◀ ▶
+    walked from the top.
+  - `currentPreset` is now written on the saved copy of the state.
+  - On load it is read back with an `isVoid()` guard, so a pre-1.17.1 session
+    keeps "Default". It is then stripped from `apvts.state` so it never leaks
+    into a preset file.
+- **WR-10: pressing or releasing Shift mid-drag made the knob jump.** The
+  whole drag distance was re-scaled by the current modifier. The drag now
+  accumulates per move, on all 30 float knobs.
+- **WR-11: with hover help on, the Preset tooltip covered the open preset
+  menu.**
+  - `.inner` is a stacking context, so the menu's z-index 1200 never outranked
+    the root-level tip (1000). Crossing the trigger's inner spans re-armed the
+    tip.
+  - Tips are now refused on any control whose popup is open
+    (`aria-expanded="true"`).
+  - A capture-phase click on a popup trigger clears a showing tip, which
+    covers keyboard opening.
+  - The wrong CSS comment is corrected.
+- **WR-12: pop and tick levels dropped 4–10 dB at 96/192 kHz.** The `1/g`
+  and `(1+g)/g` level compensation was capped at 20, but a 900 Hz pop at
+  192 kHz needs ~68. The cap only guards g → 0, and every cutoff is
+  ≥ 900 Hz, so it is raised to 1000. Crackle balance no longer depends on the
+  session rate.
+
+### Testing
+
+- **Render harness: 113/113.** There were 109 probes before; four were
+  added.
+- **Attribution.** Four existing probes failed on the fixed tree. Each was
+  traced by reverting one fix at a time and re-running:
+
+  | Probe | Caused by | Proof |
+  |---|---|---|
+  | V1 collision digest | WR-04 conceal blend | With only WR-04 reverted, the v1.9.0 digest returns exactly |
+  | A3 single-firer/cd | WR-04 conceal blend | With only WR-04 reverted, the v1.8.0 digest returns exactly |
+  | A1 conceal-dip detector | WR-04 conceal blend | With only WR-04 reverted, the probe passes |
+  | A3 single-firer/vinyl | WR-03 outgoing-head pin | With only WR-03 reverted, the v1.8.0 digest returns exactly |
+
+  No other fix moved any existing probe.
+- **Re-anchored digests.**
+  - V1 → `0x308b0a99f6652a41`.
+  - A3 cd → `0xcfb1d438cd84063c`.
+  - A3 vinyl → `0x7d34120709466e5c`.
+  - The retired anchors are now asserted NEGATIVELY, so a revert of either
+    fix fails the gate.
+- **A1 recalibrated.** The blended conceal dip is shallower, so A1 now uses
+  256-sample windows instead of 1024. The 0.5 bar is unchanged.
+  - Measured per-tick min/median: 0.11–0.28 with CD_PROB 100, against
+    0.59–0.97 with CD_PROB 0.
+  - The new **A1b** asserts the CD_PROB 0 negative control.
+- **New H1 (WR-02).** A busy render with GSM and Rot active re-renders after
+  `reset()` identical to a fresh instance. Without `reset()` it differs, which
+  shows the probe is not vacuous.
+- **New H2 (WR-01).** Processed → bypassed → processed on one continuous input
+  holds `in[n − kComp]`, bit-exact at MIX 100 and within 1e-6 at MIX 50,
+  through both transitions. H2 caught the bypass-entry gap described above.
+- **Validators.** `auval -v aufx OBrt OuDv` PASS. pluginval at strictness 10
+  (VST3) SUCCESS.
+- **New `tests/ui_drag_tooltip_check.js` (WR-10/WR-11).** A headless Playwright
+  check at the shipping 900 × 740 size, 6/6.
+  - A control asserts that the tip DOES show on the closed trigger first, so
+    the open-menu assertion cannot pass vacuously.
+  - Against the v1.17.0 `index.html`, 3 assertions fail. A bare Shift press
+    moved the knob 67.5° → −40.5°, and the tip stayed over the open menu.
+  - The existing `ui_preset_menu_check.js` and `ui_tooltip_clamp_check.js`
+    still pass.
+- **Not covered by a probe:** WR-05, WR-06, WR-08 and WR-12. WR-05 was
+  re-derived analytically, and the other three are one-line changes to a
+  documented design. Audition them in a DAW.
+
 ## [1.17.0] - 2026-09-27
 
 UI pass: WCAG AA text, a 9 px floor and the bundled EB Garamond. It follows the

@@ -63,6 +63,17 @@ public:
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
+    // v1.17.1 (CODE_REVIEW WR-01): host bypass keeps the reported 20 ms
+    // latency. JUCE's default passes input straight through (and asserts
+    // latency == 0), so a bypassed track played 20 ms early under PDC.
+    void processBlockBypassed(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+
+    // v1.17.1 (CODE_REVIEW WR-02): AU Reset() / VST3 setProcessing(false) call
+    // this, not prepareToPlay — Logic resets on stop, locate and bounce start.
+    // Allocation-free; returns the engine to its post-prepareToPlay state so
+    // two bounces with the same SEED are identical (FUNC-04).
+    void reset() override;
+
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
@@ -268,6 +279,20 @@ private:
     // 250 ms of lag already costs the trim ~12.5 s of stale playback.
     static constexpr double kStopRecoverySeconds = 0.25;
     double stopRecoveryLagSamples = kStopRecoverySeconds * 48000.0;
+
+    // Host-bypass latency path (WR-01). An integer delay of exactly
+    // compLatencySamples per channel, sized in prepareToPlay. On the first
+    // processBlock after a bypass the engine is reset and its two 20 ms delay
+    // lines (codec alignment + DryWetMixer dry) are primed from this ring, so
+    // the hand-back neither replays stale pre-bypass audio nor drops 20 ms.
+    juce::AudioBuffer<float> bypassRing;
+    juce::AudioBuffer<float> bypassPrimeScratch;   // dry-delay priming chunks
+    int  bypassWrite       = 0;
+    bool bypassedLastBlock = false;
+
+    // Alloc-free engine reset shared by reset() and the un-bypass hand-back.
+    void resetEngine();
+    void primeDelaysFromBypassRing();
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

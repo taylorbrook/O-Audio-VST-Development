@@ -4604,9 +4604,18 @@ int main()
     // arbitration rewrite left SINGLE-firer ticks bit-identical is a different
     // claim and is carried by A3 below, which is the probe that actually
     // constrains this change.
+    //
+    // RE-ANCHORED A FOURTH TIME at v1.17.1 (CODE_REVIEW WR-04). Every CD event
+    // in this render is a conceal, and the conceal rung is now blended in by
+    // its own triangle instead of being switched in at fMax (it stepped ~20%
+    // at onset). Attributed, not assumed: with ONLY the WR-04 blend reverted,
+    // the v1.17.1 tree reproduces 0x70e744c93cbcc2a3 exactly, so no other
+    // v1.17.1 change touches this render. The v1.9.0 number is now asserted
+    // NEGATIVELY, the same discipline as v1.3.0 before it.
     {
-        constexpr juce::uint64 kV190CanonicalDigest = 0x70e744c93cbcc2a3ULL;
-        constexpr juce::uint64 kV130CanonicalDigest = 0x44a5de77d572facdULL;   // retired, kept for provenance
+        constexpr juce::uint64 kV1171CanonicalDigest = 0x308b0a99f6652a41ULL;
+        constexpr juce::uint64 kV190CanonicalDigest  = 0x70e744c93cbcc2a3ULL;   // retired at v1.17.1 (WR-04)
+        constexpr juce::uint64 kV130CanonicalDigest  = 0x44a5de77d572facdULL;   // retired, kept for provenance
 
         auto p = makeProc();
         configureCanonicalRender (*p);
@@ -4619,15 +4628,16 @@ int main()
 
         const juce::uint64 digest = renderChecksum (out);
         const bool         live   = out.getMagnitude (0, 0, total) > 1.0e-4f;
-        const bool         match  = digest == kV190CanonicalDigest;
-        const bool         moved  = digest != kV130CanonicalDigest;
+        const bool         match  = digest == kV1171CanonicalDigest;
+        const bool         moved  = digest != kV130CanonicalDigest
+                                    && digest != kV190CanonicalDigest;
 
-        check ("V1 v1.9.0-collision-identity", match && live && moved,
+        check ("V1 v1.17.1-collision-identity", match && live && moved,
                juce::String ("digest 0x") + juce::String::toHexString ((juce::int64) digest)
-                   + " vs v1.9.0 0x"
-                   + juce::String::toHexString ((juce::int64) kV190CanonicalDigest)
+                   + " vs v1.17.1 0x"
+                   + juce::String::toHexString ((juce::int64) kV1171CanonicalDigest)
                    + (match ? " — collision render pinned" : " — COLLISION RENDER DRIFTED")
-                   + (moved ? "" : " — STILL EQUALS v1.3.0: the overlay split DID NOT LAND")
+                   + (moved ? "" : " — STILL EQUALS A RETIRED ANCHOR: the overlay split or the WR-04 blend DID NOT LAND")
                    + (live ? "" : " — SILENT, probe vacuous"));
     }
 
@@ -6000,26 +6010,44 @@ int main()
     // also tick-aligned (12 s is exactly 48 tick periods, plus kComp for the
     // reported latency), so each tick sits at the START of its period and its
     // conceal — 30-80 ms into a 250 ms period — cannot straddle a boundary.
+    //
+    // v1.17.1 recalibration (CODE_REVIEW WR-04). The conceal rung is now
+    // BLENDED in by its own triangle instead of switched in at fMax, so only
+    // the middle of a 30-80 ms event is fully filtered and a 1024-sample
+    // window averages the dip away (13/31 ticks passed the bar on the fixed
+    // tree; 31/31 with the blend reverted, which is how the drop was
+    // attributed). 256-sample windows resolve the blended trough: measured
+    // per-tick min/median 0.11-0.28 with CD_PROB 100 against 0.59-0.97 with
+    // CD_PROB 0, so the 0.5 bar is unchanged and sits in a wide gap. The
+    // CD_PROB 0 render is now asserted too — a negative control, so a window
+    // short enough to see noise wobble as a "dip" cannot pass this vacuously.
     {
+      auto renderA1 = [&] (float cdProb, juce::AudioBuffer<float>& out)
+      {
         auto p = makeProc();
         setBaseline (*p);
         setParam (*p, "CLOCK_MODE",      1.0f);    // Free
         setParam (*p, "CLOCK_FREE_RATE", 4.0f);
         setParam (*p, "TAPE_ENABLE",     0.0f);
-        setParam (*p, "CD_PROB",         100.0f);
+        setParam (*p, "CD_PROB",         cdProb);
         setParam (*p, "CD_SEVERITY",     0.0f);
         setParam (*p, "VINYL_PROB",      100.0f);
         setParam (*p, "VINYL_POP",       0.0f);
         setParam (*p, "SEED",            31337.0f);
+        renderInto (*p, out, (int) (20.0 * kFs), { 512 }, noiseStereo);
+      };
 
+      for (const float cdProb : { 100.0f, 0.0f })
+      {
+        const bool control = cdProb == 0.0f;
         const int total = (int) (20.0 * kFs);
         juce::AudioBuffer<float> out;
-        renderInto (*p, out, total, { 512 }, noiseStereo);
+        renderA1 (cdProb, out);
 
         const auto*   o          = out.getReadPointer (0);
         const int     tickPeriod = (int) (kFs / 4.0);
         const int     scanFrom   = kComp + 48 * tickPeriod;   // 12 s, tick-aligned
-        constexpr int win        = 1024;
+        constexpr int win        = 256;
 
         // Global median of the HF ratio, over every window in the scan region.
         std::vector<double> allRatios;
@@ -6069,6 +6097,18 @@ int main()
                             && median > 0.1;
         const bool always = frac >= 0.9;
 
+        if (control)
+        {
+            check ("A1b cd-overlay-negative-control", live && dipped == 0,
+                   juce::String ("CD_PROB 0: ") + juce::String (dipped) + "/"
+                       + juce::String ((int) perTick.size())
+                       + " tick periods read as a conceal dip (need 0), median ratio "
+                       + juce::String (median, 4)
+                       + (dipped == 0 ? "" : " — THE DIP BAR FIRES WITHOUT A CONCEAL, A1 IS VACUOUS")
+                       + (live ? "" : " — SCAN REGION SILENT, probe vacuous"));
+            continue;
+        }
+
         check ("A1 cd-overlay-under-foreign-owner", live && always,
                juce::String ("conceal dip present in ") + juce::String (dipped) + "/"
                    + juce::String ((int) perTick.size()) + " tick periods (frac "
@@ -6077,6 +6117,7 @@ int main()
                    + (always ? " — overlay fires regardless of the owner"
                              : " — CD STILL LOSES TICKS TO VINYL (single-winner behaviour)")
                    + (live ? "" : " — SCAN REGION SILENT, probe vacuous"));
+      }
     }
 
     //==========================================================================
@@ -6199,20 +6240,37 @@ int main()
     // v1.8.0 tree (git 627f8afb) in a detached worktree, BEFORE any v1.9.0
     // edit. An anchor recorded after the change would only prove the new engine
     // equals itself.
+    //
+    // v1.17.1 RE-ANCHORS cd and vinyl (tape is untouched and still asserts the
+    // v1.8.0 number). Two click fixes move the seam samples on purpose, and
+    // each move was attributed by reverting ONE fix and re-running:
+    //   cd    — WR-04, the conceal rung blended by `tri` instead of switched in.
+    //           With only that reverted, the v1.8.0 digest comes back exactly.
+    //   vinyl — WR-03, the outgoing crossfade head pinned at hi + 1 (it
+    //           re-read x[n] on every jump from live). With only that reverted,
+    //           the v1.8.0 digest comes back exactly.
+    // The v1.8.0 numbers are kept and asserted NEGATIVELY on those two cases.
+    // The containment claim above (single-firer ticks are untouched by the
+    // arbitration rewrite) stands; what moved is the event rendering inside
+    // the stage, which is the point of the fix.
     {
-        constexpr juce::uint64 kV180TapeOnly  = 0x24fd1e9c6fae03aaULL;
-        constexpr juce::uint64 kV180CdOnly    = 0x8eb70326e6ce1d95ULL;
-        constexpr juce::uint64 kV180VinylOnly = 0x9a54f4f8c9ad6a9fULL;
+        constexpr juce::uint64 kV180TapeOnly   = 0x24fd1e9c6fae03aaULL;
+        constexpr juce::uint64 kV180CdOnly     = 0x8eb70326e6ce1d95ULL;   // retired at v1.17.1 (WR-04)
+        constexpr juce::uint64 kV180VinylOnly  = 0x9a54f4f8c9ad6a9fULL;   // retired at v1.17.1 (WR-03)
+        constexpr juce::uint64 kV1171CdOnly    = 0xcfb1d438cd84063cULL;
+        constexpr juce::uint64 kV1171VinylOnly = 0x7d34120709466e5cULL;
 
         struct Case
         {
             const char*  name;
             juce::uint64 anchor;
+            juce::uint64 retired;   // 0 = none; otherwise must NOT match
+            const char*  anchorVersion;
             void (*configure) (OBitrotAudioProcessor&);
         };
 
         const Case cases[3] = {
-            { "tape", kV180TapeOnly, [] (OBitrotAudioProcessor& proc)
+            { "tape", kV180TapeOnly, 0, "v1.8.0", [] (OBitrotAudioProcessor& proc)
               {
                   setBaseline (proc);
                   setParam (proc, "CLOCK_MODE",      1.0f);
@@ -6224,7 +6282,7 @@ int main()
                   setParam (proc, "VINYL_ENABLE",    0.0f);
                   setParam (proc, "SEED",            2024.0f);
               } },
-            { "cd", kV180CdOnly, [] (OBitrotAudioProcessor& proc)
+            { "cd", kV1171CdOnly, kV180CdOnly, "v1.17.1", [] (OBitrotAudioProcessor& proc)
               {
                   setBaseline (proc);
                   setParam (proc, "CLOCK_MODE",      1.0f);
@@ -6235,7 +6293,7 @@ int main()
                   setParam (proc, "VINYL_ENABLE",    0.0f);
                   setParam (proc, "SEED",            2024.0f);
               } },
-            { "vinyl", kV180VinylOnly, [] (OBitrotAudioProcessor& proc)
+            { "vinyl", kV1171VinylOnly, kV180VinylOnly, "v1.17.1", [] (OBitrotAudioProcessor& proc)
               {
                   setBaseline (proc);
                   setParam (proc, "CLOCK_MODE",      1.0f);
@@ -6260,14 +6318,17 @@ int main()
             const juce::uint64 digest = renderChecksum (out);
             const bool         live   = out.getMagnitude (0, 0, total) > 1.0e-4f;
             const bool         match  = digest == c.anchor;
+            const bool         moved  = c.retired == 0 || digest != c.retired;
 
             const juce::String probeName = juce::String ("A3 single-firer/") + c.name;
 
-            check (probeName.toRawUTF8(), match && live,
+            check (probeName.toRawUTF8(), match && live && moved,
                    juce::String ("digest 0x") + juce::String::toHexString ((juce::int64) digest)
-                       + " vs v1.8.0 0x" + juce::String::toHexString ((juce::int64) c.anchor)
-                       + (match ? " — single-firer ticks bit-unchanged"
-                                : " — THE OVERLAY SPLIT LEAKED INTO A SINGLE-FAMILY RENDER")
+                       + " vs " + c.anchorVersion + " 0x"
+                       + juce::String::toHexString ((juce::int64) c.anchor)
+                       + (match ? " — single-firer ticks pinned"
+                                : " — SINGLE-FAMILY RENDER DRIFTED")
+                       + (moved ? "" : " — STILL EQUALS THE RETIRED v1.8.0 ANCHOR: the v1.17.1 seam fix DID NOT LAND")
                        + (live ? "" : " — SILENT, probe vacuous"));
         }
     }
@@ -6706,6 +6767,133 @@ int main()
                        + ", absent-property restore left it "
                        + (after ? "untouched" : "CLEARED"));
         }
+    }
+
+    //==========================================================================
+    // H1 — v1.17.1 (CODE_REVIEW WR-02): AudioProcessor::reset() returns the
+    // engine to its post-prepareToPlay state. Logic calls it (AU Reset) on
+    // stop, locate and bounce start, so FUNC-04 — same seed + input + params =
+    // identical bounce — has to hold across it, not only across a fresh
+    // instance. Baseline families at their 25% defaults plus GSM and Rot, so
+    // the ring, running events, the head lag, the RNG streams and the codec
+    // state are all dirty when reset() lands.
+    //
+    // Two-sided: the same second render WITHOUT reset() must differ, or the
+    // render is too quiet to have carried any state and the probe is vacuous.
+    {
+        auto configure = [] (OBitrotAudioProcessor& proc)
+        {
+            setParam (proc, "CLOCK_MODE",      1.0f);
+            setParam (proc, "CLOCK_FREE_RATE", 4.0f);
+            setParam (proc, "CODEC_ENABLE",    1.0f);
+            setParam (proc, "CODEC_MODE",      1.0f);    // GSM
+            setParam (proc, "ROT_ENABLE",      1.0f);
+            setParam (proc, "SEED",            4242.0f);
+        };
+
+        const int total = (int) (3.0 * kFs);
+
+        auto fresh = makeProc();
+        configure (*fresh);
+        juce::AudioBuffer<float> outFresh;
+        renderInto (*fresh, outFresh, total, { 512 }, noiseStereo);
+
+        auto p = makeProc();
+        configure (*p);
+        juce::AudioBuffer<float> first, noReset, afterReset;
+        renderInto (*p, first, total, { 512 }, noiseStereo);
+        renderInto (*p, noReset, total, { 512 }, noiseStereo);   // state carried
+        p->reset();
+        renderInto (*p, afterReset, total, { 512 }, noiseStereo);
+
+        const juce::uint64 dFresh = renderChecksum (outFresh);
+        const juce::uint64 dFirst = renderChecksum (first);
+        const juce::uint64 dCarry = renderChecksum (noReset);
+        const juce::uint64 dReset = renderChecksum (afterReset);
+        const bool live = outFresh.getMagnitude (0, 0, total) > 1.0e-4f;
+
+        check ("H1 reset-rebounce-identity",
+               live && dReset == dFresh && dFirst == dFresh && dCarry != dFresh,
+               juce::String ("fresh 0x") + juce::String::toHexString ((juce::int64) dFresh)
+                   + ", after reset() 0x" + juce::String::toHexString ((juce::int64) dReset)
+                   + (dReset == dFresh ? " — identical" : " — RESET LEFT ENGINE STATE BEHIND")
+                   + (dCarry != dFresh ? "" : " — no-reset re-render ALSO identical, probe vacuous")
+                   + (dFirst == dFresh ? "" : " — first render differs from a fresh instance")
+                   + (live ? "" : " — SILENT, probe vacuous"));
+    }
+
+    //==========================================================================
+    // H2 — v1.17.1 (CODE_REVIEW WR-01): host bypass keeps the 20 ms latency,
+    // and the hand-back is seamless. All families off (probe B's null), so
+    // the processed path is in[n - kComp] exactly. Render processed -> bypassed
+    // -> processed on one continuous input: every sample from kComp on must be
+    // in[n - kComp] bit-exact through BOTH transitions. JUCE's default bypass
+    // is undelayed (off by kComp for the whole bypass); the pre-priming
+    // hand-back replayed 20 ms of pre-bypass audio or, reset alone, 20 ms of
+    // zeros — each fails here.
+    //
+    // Run at MIX 100 (codec alignment ring carries it) and MIX 50 (the
+    // DryWetMixer dry line must be primed too; tolerance 1e-6 for the blend).
+    for (const float mixPct : { 100.0f, 50.0f })
+    {
+        auto p = makeProc();
+        setParam (*p, "TAPE_ENABLE",  0.0f);
+        setParam (*p, "CD_ENABLE",    0.0f);
+        setParam (*p, "VINYL_ENABLE", 0.0f);
+        setParam (*p, "MIX",          mixPct);
+
+        const int seg[3] = { (int) (0.3 * kFs), (int) (0.5 * kFs), (int) (0.5 * kFs) };
+        const int total  = seg[0] + seg[1] + seg[2];
+        juce::AudioBuffer<float> out (2, total);
+        juce::AudioBuffer<float> scratch (2, kMaxBlock);
+        juce::MidiBuffer midi;
+
+        int n = 0;
+        for (int phase = 0; phase < 3; ++phase)
+        {
+            const int end = n + seg[phase];
+            while (n < end)
+            {
+                const int chunk = juce::jmin (512, end - n);
+                juce::AudioBuffer<float> block (scratch.getArrayOfWritePointers(), 2, chunk);
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int k = 0; k < chunk; ++k)
+                        block.setSample (ch, k, noiseStereo (ch, n + k));
+
+                if (phase == 1) p->processBlockBypassed (block, midi);
+                else            p->processBlock (block, midi);
+
+                for (int ch = 0; ch < 2; ++ch)
+                    out.copyFrom (ch, n, block, ch, 0, chunk);
+                n += chunk;
+            }
+        }
+
+        // From 0.2 s: the DryWetMixer ramps have settled (probe B's warmup).
+        const int   startAt = kComp + (int) (0.2 * kFs);
+        const float tol     = mixPct == 100.0f ? 0.0f : 1.0e-6f;
+        int   bad = -1, badCh = 0;
+        for (int ch = 0; ch < 2 && bad < 0; ++ch)
+        {
+            const auto* o = out.getReadPointer (ch);
+            for (int k = startAt; k < total; ++k)
+            {
+                const float ref = noiseStereo (ch, k - kComp);
+                const bool  ok  = tol == 0.0f ? bitExact (o[k], ref)
+                                              : std::abs (o[k] - ref) <= tol;
+                if (! ok) { bad = k; badCh = ch; break; }
+            }
+        }
+
+        const juce::String name = juce::String ("H2 bypass-latency/mix") + juce::String ((int) mixPct);
+        check (name.toRawUTF8(), bad < 0,
+               bad < 0 ? juce::String ("in[n - kComp] held through bypass and hand-back (")
+                             + juce::String (seg[0]) + " / " + juce::String (seg[0] + seg[1])
+                             + " transitions)"
+                       : juce::String ("first mismatch ch") + juce::String (badCh) + " @ "
+                             + juce::String (bad) + " (bypass spans "
+                             + juce::String (seg[0]) + ".." + juce::String (seg[0] + seg[1])
+                             + ")");
     }
 
     //==========================================================================

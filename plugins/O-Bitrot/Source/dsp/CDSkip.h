@@ -307,9 +307,20 @@ public:
                 const double tri = 1.0 - std::abs (2.0 * x - 1.0);            // 0 -> 1 -> 0
                 const double cut = fMax * std::pow (2000.0 / fMax, tri);      // log-f sweep
 
+                // BLENDED in by `tri`, not switched in (v1.17.1, CODE_REVIEW
+                // WR-04): a one-pole at fMax is not transparent (G ~= 0.79 at
+                // 0.45*fs), so the unblended filter stepped the output ~20% at
+                // onset and snapped back at exit. TapeDropout measured and
+                // fixed this exact shape; tri == 0 at both ends makes them the
+                // exact identity.
+                const float wet = static_cast<float> (tri);
+                const float dry = 1.0f - wet;
+
                 concealFilter.setCutoffFrequency (static_cast<float> (cut));
-                left  = concealFilter.processSample (0, left);
-                right = concealFilter.processSample (1, right);
+                const float fl = concealFilter.processSample (0, left);
+                const float fr = concealFilter.processSample (1, right);
+                left  = left  * dry + fl * wet;
+                right = right * dry + fr * wet;
 
                 if (++eventT >= eventDur)
                     state = State::Idle;

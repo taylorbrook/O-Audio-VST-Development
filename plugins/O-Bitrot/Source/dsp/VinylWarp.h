@@ -92,6 +92,14 @@ public:
     // 20 ms fade would be an audible bend every time the knob is touched.
     static constexpr double kDepthRampSeconds = 3.0;
 
+    // Excursion glide on a VINYL_RPM change (v1.17.1, CODE_REVIEW WR-06). The
+    // phase accumulator was already continuous across the change, but lagAmp
+    // (revSamples-proportional) switched instantly: 33 1/3 -> 78 at depth 1
+    // and the LFO peak moved the read ~95 samples in one sample, a click and a
+    // pitch glitch. Gliding it over 2 s keeps that worst case to ~48 samples/s
+    // of lag slope, ~0.1% pitch — well under the warp's own 0.6% ceiling.
+    static constexpr double kLagAmpGlideSeconds = 2.0;
+
     void prepare (double sampleRate)
     {
         fs        = sampleRate;
@@ -106,6 +114,8 @@ public:
         depth       = 0.0;
         depthTarget = 0.0;
         phase       = 0.0;
+        lagAmp      = lagAmpTarget;   // a reset is not a speed change: no glide
+        lagAmpStep  = 0.0;
     }
 
     /** Per-block snapshot. `depth01` arrives already gated by VINYL_ENABLE —
@@ -115,6 +125,17 @@ public:
     {
         depthTarget = juce::jlimit (0.0, 1.0, depth01);
         setRpm (rpmIndex);
+    }
+
+    /** Jump the excursion straight to an RPM's value, with no glide. For
+        prepare/reset only, where there is no running warp to step: the caller
+        passes the SAVED VINYL_RPM so a session restored at 45 or 78 does not
+        glide in from 33 1/3 (which would also move every existing render). */
+    void snapRpm (int rpmIndex) noexcept
+    {
+        setRpm (rpmIndex);
+        lagAmp     = lagAmpTarget;
+        lagAmpStep = 0.0;
     }
 
     /** True while the warp contributes EXACTLY nothing — the condition under
@@ -137,6 +158,19 @@ public:
         if (depth < depthTarget)      depth = juce::jmin (depthTarget, depth + depthStep);
         else if (depth > depthTarget) depth = juce::jmax (depthTarget, depth - depthStep);
 
+        // Excursion glide, landing EXACTLY on the target for the same reason
+        // as the depth ramp. Runs before the depth-0 early-out so a speed
+        // change made while the warp is silent is already settled when the
+        // depth comes back up.
+        if (lagAmp != lagAmpTarget)
+        {
+            lagAmp += lagAmpStep;
+            if ((lagAmpStep > 0.0 && lagAmp >= lagAmpTarget)
+                || (lagAmpStep < 0.0 && lagAmp <= lagAmpTarget)
+                || lagAmpStep == 0.0)
+                lagAmp = lagAmpTarget;
+        }
+
         if (depth == 0.0)
             return 0.0;
 
@@ -158,8 +192,19 @@ private:
 
         // deviation -> peak-to-peak lag, inverting rate = L*pi*f/fs with
         // f = fs/revSamples. The fs cancels: L = deviation * revSamples / pi.
-        lagAmp = kMaxDeviation * static_cast<double> (revSamples)
-                 / juce::MathConstants<double>::pi;
+        //
+        // Sets the TARGET; nextOffsetSamples glides lagAmp onto it (WR-06).
+        // An unchanged speed writes back the identical target, so the step is
+        // only recomputed on a real change and a settled glide stays settled.
+        const double target = kMaxDeviation * static_cast<double> (revSamples)
+                              / juce::MathConstants<double>::pi;
+
+        if (target != lagAmpTarget)
+        {
+            lagAmpTarget = target;
+            lagAmpStep   = (lagAmpTarget - lagAmp)
+                           / juce::jmax (1.0, kLagAmpGlideSeconds * fs);
+        }
     }
 
     double fs = 48000.0;
@@ -170,5 +215,7 @@ private:
 
     double phase    = 0.0;
     double phaseInc = 0.0;
-    double lagAmp   = 0.0;
+    double lagAmp       = 0.0;
+    double lagAmpTarget = 0.0;
+    double lagAmpStep   = 0.0;
 };

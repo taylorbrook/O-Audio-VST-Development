@@ -132,6 +132,10 @@ public:
         reset();
     }
 
+    // v1.17.1 (WR-02): re-snap the enable fade to the current PACKET_ENABLE, as
+    // prepare() does, for AudioProcessor::reset(). Alloc-free.
+    void snapEnable (bool enabled) noexcept { enableFade.prepare (fs, enabled); }
+
     void reset() noexcept
     {
         for (auto& b : pkt)

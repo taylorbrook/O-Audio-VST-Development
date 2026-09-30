@@ -8,7 +8,7 @@ juce_add_plugin(OBitrot
     PLUGIN_CODE OBrt
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bitrot${OUARICON_DEV_SUFFIX}"
-    VERSION 1.17.0
+    VERSION 1.17.1
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_WEB_BROWSER TRUE
@@ -74,6 +74,7 @@ add_library(OBitrot_gsm STATIC
     third_party/libgsm/src/gsm_implode.c
     third_party/libgsm/src/gsm_option.c
     third_party/libgsm/src/gsm_print.c
+    third_party/libgsm/src/gsm_reset.c      # Ouaricon addition (alloc-free reset, v1.17.1)
     third_party/libgsm/src/short_term.c
     third_party/libgsm/src/table.c
 )

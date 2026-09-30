@@ -238,7 +238,11 @@ public:
                 // sequence does not depend on how many flips happened to land.
                 if (rotStream.nextFloat() < flipProb)
                 {
-                    const int  bit   = rotStream.nextInt (flipBits + 1);
+                    // kFlipBitMin..flipBits, the field DEPTH opens (v1.17.1,
+                    // CODE_REVIEW WR-08: drew 0..flipBits, wasting 3/4 of the
+                    // flips at DEPTH 0 on inaudible bits). Still ONE draw, so
+                    // the stream alignment is unchanged.
+                    const int  bit   = kFlipBitMin + rotStream.nextInt (flipBits - kFlipBitMin + 1);
                     const bool onRight = rotStream.nextBool();
 
                     // ONE channel per flip. A corrupt block damages the bytes
