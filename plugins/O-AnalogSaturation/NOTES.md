@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.0
+- **Version:** 1.6.0
 - **Type:** Audio Effect (Saturation)
 
 ## Lifecycle Timeline

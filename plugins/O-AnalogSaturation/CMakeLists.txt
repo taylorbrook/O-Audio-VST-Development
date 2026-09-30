@@ -3,7 +3,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-AnalogSaturation
-    VERSION 1.5.0
+    VERSION 1.6.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OaSa
@@ -63,6 +63,12 @@ juce_add_binary_data(O-AnalogSaturation_UIResources
         Source/ui/public/img/snake_mobot31753000317195_0070.png
         Source/ui/public/img/snake_NA_0145.png
         Source/ui/public/img/snake_snakesaustralia00kref_0145.png
+        # v1.6.0 (R5) - bundled EB Garamond, direct embed from the shared
+        # module; served by four getResource() branches in PluginEditor.cpp.
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/css/eb-garamond.css
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Regular.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Italic.woff2
+        ${CMAKE_SOURCE_DIR}/modules/ui/eb-garamond/fonts/EBGaramond-Bold.woff2
 )
 
 target_link_libraries(O-AnalogSaturation
