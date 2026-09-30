@@ -81,6 +81,13 @@ private:
     // File chooser for preset dialogs (kept alive for async operations)
     std::unique_ptr<juce::FileChooser> fileChooser;
 
+    // v1.8.0 (CR-01): the self-deleting Save prompt, watched so ~Editor can
+    // dismiss it. Its callback holds a SafePointer to the editor, not `this`.
+    juce::Component::SafePointer<juce::AlertWindow> saveDialog;
+
+    // v1.8.0 (WR-07): last processor state revision the page was told about.
+    uint32_t lastStateRevision = 0;
+
     // Navigation flag (prevents re-navigation on window reopen)
     bool hasNavigated = false;
 

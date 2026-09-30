@@ -395,6 +395,19 @@ export const I18N = Object.freeze({
               b: '开启或关闭这些悬停帮助。关闭后，只有齿轮和这个开关仍会自我说明。',
               reviewed: 'bt' },
     },
+
+    // ── Runtime-composed strings that are not element text (v1.8.0, WR-10) ─
+
+    // The native Save prompt, a juce::AlertWindow rather than page markup, so
+    // no [data-i18n] element can own these: the controller passes all four
+    // through savePresetWithDialog(title, prompt, save, cancel) and the C++ side
+    // carries no localized literal. Same shape as O-Formant's js.* dialog keys.
+    // 'js.save' is the full verb, not label.save — that one is abbreviated
+    // ("Enreg") to fit the 62 px preset-bar pin; the dialog has no such limit.
+    'js.savePresetTitle':  { en: { t: 'Save Preset', b: '' },                   fr: { t: 'Enregistrer le préréglage', b: '', reviewed: true },  'zh-Hans': { t: '保存预设', b: '', reviewed: 'bt' },},
+    'js.savePresetPrompt': { en: { t: 'Enter a name for this preset:', b: '' }, fr: { t: 'Nom de ce préréglage :',    b: '', reviewed: false }, 'zh-Hans': { t: '输入此预设的名称：', b: '', reviewed: 'mt' },},
+    'js.save':             { en: { t: 'Save', b: '' },                          fr: { t: 'Enregistrer',               b: '', reviewed: false }, 'zh-Hans': { t: '保存', b: '', reviewed: 'mt' },},
+    'js.cancel':           { en: { t: 'Cancel', b: '' },                        fr: { t: 'Annuler',                   b: '', reviewed: false }, 'zh-Hans': { t: '取消', b: '', reviewed: 'mt' },},
 });
 
 // ============================================================================
@@ -608,6 +621,7 @@ export const LABELS = Object.freeze({
     // written as two if/else calls rather than one conditional key.
     'label.presets':    { en: { t: 'Presets' },              fr: { t: 'Préréglages',                reviewed: true } , 'zh-Hans': { t: '预设', reviewed: 'bt' }},
     'label.noPresets':  { en: { t: 'No presets available' }, fr: { t: 'Aucun préréglage disponible', reviewed: true } , 'zh-Hans': { t: '没有可用预设', reviewed: 'bt' }},
+
 
     // ── The settings popover (v1.3.0) ───────────────────────────────────────
     'label.language': { en: { t: 'Language' }, fr: { t: 'Langue', reviewed: true } , 'zh-Hans': { t: '语言', reviewed: 'bt' }},

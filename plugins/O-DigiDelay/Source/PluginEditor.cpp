@@ -71,24 +71,54 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
                 else
                     complete(false);
             })
-            .withNativeFunction("savePresetWithDialog", [this](auto&, auto complete) {
+            .withNativeFunction("savePresetWithDialog", [this](auto& args, auto complete) {
                 // WR-03: presets always live in the managed User folder (so they appear
                 // in getPresetList() and navigate with prev/next). A folder-navigable
                 // FileChooser implied a destination that savePreset() silently ignored,
                 // so use a name-only prompt instead.
-                auto* aw = new juce::AlertWindow("Save Preset",
-                                                 "Enter a name for this preset:",
+                //
+                // v1.8.0 (WR-10): the page passes the four strings already localized
+                // (title, prompt, save, cancel) from its i18n table, so no French or
+                // Han literal lives under Source/. English stands for a missing arg.
+                auto arg = [&args](int i, const char* fallback) {
+                    return args.size() > i && args[i].toString().isNotEmpty()
+                               ? args[i].toString() : juce::String(fallback);
+                };
+
+                // A second press while the prompt is open just brings it forward.
+                if (auto* open = saveDialog.getComponent())
+                {
+                    open->toFront(true);
+                    auto* result = new juce::DynamicObject();
+                    result->setProperty("success", false);
+                    result->setProperty("name", "");
+                    complete(juce::var(result));
+                    return;
+                }
+
+                auto* aw = new juce::AlertWindow(arg(0, "Save Preset"),
+                                                 arg(1, "Enter a name for this preset:"),
                                                  juce::MessageBoxIconType::NoIcon);
                 aw->addTextEditor("presetName", juce::String(), juce::String());
-                aw->addButton("Save",   1, juce::KeyPress(juce::KeyPress::returnKey));
-                aw->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+                aw->addButton(arg(2, "Save"),   1, juce::KeyPress(juce::KeyPress::returnKey));
+                aw->addButton(arg(3, "Cancel"), 0, juce::KeyPress(juce::KeyPress::escapeKey));
+                saveDialog = aw;
+
+                // CR-01: the prompt is not owned by the editor and can outlive it
+                // (close the plugin window while it is open). Capture a SafePointer,
+                // never a raw `this` — and `complete` calls into the WebView, which
+                // dies with the editor, so it is only called while the editor lives.
+                juce::Component::SafePointer<OuariconDigitalDelayAudioProcessorEditor> safeThis(this);
                 aw->enterModalState(true,
-                    juce::ModalCallbackFunction::create([this, aw, complete](int choice) {
+                    juce::ModalCallbackFunction::create([safeThis, aw, complete](int choice) {
+                        if (safeThis == nullptr)
+                            return;
+
                         auto* result = new juce::DynamicObject();
                         if (choice == 1) {
                             auto presetName = aw->getTextEditorContents("presetName").trim();
                             bool success = presetName.isNotEmpty()
-                                        && processorRef.presetManager.savePreset(presetName);
+                                        && safeThis->processorRef.presetManager.savePreset(presetName);
                             result->setProperty("success", success);
                             result->setProperty("name", success ? presetName : juce::String());
                         } else {
@@ -210,6 +240,9 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
     // Note: Navigation happens in parentHierarchyChanged (JUCE 8 requirement)
     // This prevents crashes during plugin scanning when no window context exists
 
+    // The page reads the preset name itself at init; only LATER restores need a push.
+    lastStateRevision = processorRef.getStateRevision();
+
     // Start timer for RMS meter updates (30 Hz)
     startTimerHz(30);
 }
@@ -217,6 +250,11 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
 OuariconDigitalDelayAudioProcessorEditor::~OuariconDigitalDelayAudioProcessorEditor()
 {
     stopTimer();
+
+    // CR-01: dismiss a still-open Save prompt. Its callback then runs with a
+    // null SafePointer and returns; the modal manager deletes the window.
+    if (auto* aw = saveDialog.getComponent())
+        aw->exitModalState(0);
 }
 
 void OuariconDigitalDelayAudioProcessorEditor::paint(juce::Graphics& g)
@@ -244,10 +282,13 @@ void OuariconDigitalDelayAudioProcessorEditor::parentHierarchyChanged()
 
 void OuariconDigitalDelayAudioProcessorEditor::timerCallback()
 {
-    // Get RMS levels from processor (average L+R for mono meter)
+    // Get RMS levels from processor (average over the ACTIVE channels — WR-08:
+    // a mono layout never writes the right snapshot, so a fixed L+R average
+    // metered a mono track 6 dB low)
     float rmsLeft = processorRef.getRmsLevelLeft();
     float rmsRight = processorRef.getRmsLevelRight();
-    float rmsLevel = (rmsLeft + rmsRight) * 0.5f;
+    float rmsLevel = processorRef.getMeterChannelCount() >= 2 ? (rmsLeft + rmsRight) * 0.5f
+                                                              : rmsLeft;
 
     // Clamp to 0-1 range
     rmsLevel = juce::jlimit(0.0f, 1.0f, rmsLevel);
@@ -256,6 +297,16 @@ void OuariconDigitalDelayAudioProcessorEditor::timerCallback()
     juce::String js = "if (typeof updateLEDMeter === 'function') { updateLEDMeter(" +
                       juce::String(rmsLevel, 4) + "); }";
     webView->evaluateJavascript(js, nullptr);
+
+    // WR-07: setStateInformation (host preset recall, A/B, undo) rewrote the
+    // preset name behind the page's back. Tell it to re-read name and list.
+    // Consumed only while the page can receive it: emitEventIfBrowserIsVisible
+    // drops the event on a hidden browser, and a dropped push would be lost.
+    if (const auto rev = processorRef.getStateRevision(); rev != lastStateRevision && webView->isShowing())
+    {
+        lastStateRevision = rev;
+        webView->emitEventIfBrowserIsVisible("presetChanged", juce::var());
+    }
 }
 
 //==============================================================================

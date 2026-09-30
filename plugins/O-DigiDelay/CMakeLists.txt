@@ -9,7 +9,7 @@ juce_add_plugin(OuariconDigitalDelay
     PLUGIN_CODE OuDD
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-DigiDelay${OUARICON_DEV_SUFFIX}"
-    VERSION 1.7.0
+    VERSION 1.8.0
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
