@@ -1277,6 +1277,7 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     tapeStopGain.prepare(sampleRate);
     wowFlutter.prepare(sampleRate);
     vinylWarp.prepare(sampleRate);
+    vinylWarp.snapRpm((int) vinylRpmParam->load());   // WR-06: no glide in from 33 1/3
     tapeBed.prepare(sampleRate);
     vinylBed.prepare(sampleRate);
     codecBed.prepare(sampleRate);
@@ -1308,6 +1309,196 @@ void OBitrotAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     lastAppliedRate = 1.0;
 
     stopRecoveryLagSamples = kStopRecoverySeconds * sampleRate;
+
+    // WR-01 host-bypass delay: the only allocation it needs, done here.
+    bypassRing.setSize(2, juce::jmax(1, compLatencySamples));
+    bypassRing.clear();
+    bypassPrimeScratch.setSize(2, juce::jmax(1, samplesPerBlock));
+    bypassPrimeScratch.clear();
+    bypassWrite       = 0;
+    bypassedLastBlock = false;
+}
+
+// v1.17.1 (CODE_REVIEW WR-02). Everything prepareToPlay does to the ENGINE
+// STATE, minus the allocations: each stage's own reset() (or its alloc-free
+// prepare, where the enable fade / smoothers must re-snap to the current
+// parameter the way prepareToPlay snaps them), the capture ring cleared, the
+// RNG reseeded from SEED. Without it, stop/locate/bounce carried the 10 s
+// ring, running tape/CD/vinyl events, the head lag and the RNG positions
+// across the reset, so two bounces of one region with one SEED differed.
+void OBitrotAudioProcessor::resetEngine()
+{
+    const double fs = getSampleRate();
+    if (fs <= 0.0 || captureRing.getSize() == 0)
+        return;                                    // never prepared
+
+    captureRing.clear();
+    readHead.reset();
+    mediaClock.reset();
+    tapeTransport.reset();
+    tapeDropout.reset();
+    tapeStopGain.reset();
+    wowFlutter.reset();
+    vinylWarp.reset();
+    vinylWarp.snapRpm((int) vinylRpmParam->load());
+    tapeBed.reset();
+    vinylBed.reset();
+    codecBed.reset();
+    cdSkip.reset();
+    vinylTransport.reset();
+    artifactSynth.reset();
+    rotStage.reset();
+
+    packetStage.reset();
+    packetStage.snapEnable(packetEnableParam->load() > 0.5f);
+
+    codecStage.reset(codecEnableParam->load() > 0.5f,
+                     ((int) codecModeParam->load()) == 1,
+                     codecMixParam->load() * 0.01f,
+                     codecAgcParam->load() * 0.01f);
+
+    // Both prepares are alloc-free (smoothers, fade, latch) and are the exact
+    // calls prepareToPlay makes.
+    crushStage.prepare(fs, crushEnableParam->load() > 0.5f,
+                       (double) crushRateParam->load());
+    quantStage.prepare(fs, crushEnableParam->load() > 0.5f,
+                       (double) crushBitsParam->load());
+
+    // Target first, then reset() snaps the ramps onto it (DryWetMixer::reset
+    // is alloc-free: same-size setSize with avoidReallocating).
+    dryWetMixer.setWetMixProportion(juce::jlimit(0.0f, 1.0f, mixParam->load() * 0.01f));
+    dryWetMixer.reset();
+
+    lastSeed = (int) seedParam->load();
+    rngBank.reseed(lastSeed);
+    lastAppliedRate = 1.0;
+}
+
+void OBitrotAudioProcessor::reset()
+{
+    resetEngine();
+
+    bypassRing.clear();
+    bypassWrite       = 0;
+    bypassedLastBlock = false;
+}
+
+// v1.17.1 (CODE_REVIEW WR-01). A plain integer delay of compLatencySamples,
+// so a bypassed track stays where the host's delay compensation put it. The
+// scrub and the mono->stereo duplicate mirror processBlock (JUCE's default
+// left R silent on a mono->stereo layout).
+void OBitrotAudioProcessor::processBlockBypassed(juce::AudioBuffer<float>& buffer,
+                                                 juce::MidiBuffer& midiMessages)
+{
+    juce::ignoreUnused(midiMessages);
+
+    const int totalNumInputChannels  = getTotalNumInputChannels();
+    const int totalNumOutputChannels = getTotalNumOutputChannels();
+    const int numSamples             = buffer.getNumSamples();
+    const int numChannels            = buffer.getNumChannels();
+
+    for (int channel = totalNumInputChannels;
+         channel < totalNumOutputChannels && channel < numChannels;
+         ++channel)
+        buffer.clear(channel, 0, numSamples);
+
+    const int len = bypassRing.getNumSamples();
+    if (numSamples == 0 || numChannels < 1 || len < 1 || compLatencySamples < 1)
+        return;
+
+    for (int channel = 0; channel < juce::jmin(2, numChannels); ++channel)
+    {
+        auto* d = buffer.getWritePointer(channel);
+        for (int n = 0; n < numSamples; ++n)
+            if (! std::isfinite(d[n]))
+                d[n] = 0.0f;
+    }
+
+    if (totalNumInputChannels == 1 && numChannels >= 2)
+        buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
+
+    // Entering bypass: seed the ring with the last compLatencySamples of
+    // INPUT, which the capture ring already holds (it is written with the
+    // scrubbed input every processed sample, dual-mono on a mono bus). An
+    // empty ring would make the first 20 ms of bypass silent. Integer reads
+    // take CaptureRing's exact fast path; pre-history reads as zeros.
+    if (! bypassedLastBlock)
+    {
+        const juce::int64 written = captureRing.getTotalWritten();
+        for (int k = 0; k < len; ++k)
+        {
+            const juce::int64 abs = written - len + k;
+            for (int c = 0; c < 2; ++c)
+                bypassRing.setSample(c, k, abs >= 0 && captureRing.getSize() > 0
+                                               ? captureRing.readFrac(c, (double) abs)
+                                               : 0.0f);
+        }
+        bypassWrite = 0;
+    }
+
+    const int ch = juce::jmin(2, numChannels);
+    auto* r0 = bypassRing.getWritePointer(0);
+    auto* r1 = bypassRing.getWritePointer(1);
+    float* io0 = buffer.getWritePointer(0);
+    float* io1 = ch > 1 ? buffer.getWritePointer(1) : nullptr;
+
+    // Read old, write new, advance — the codec alignment ring's exact order,
+    // which is what lets primeDelaysFromBypassRing hand it over verbatim.
+    for (int n = 0; n < numSamples; ++n)
+    {
+        const float x0 = io0[n];
+        const float x1 = io1 != nullptr ? io1[n] : x0;
+        io0[n] = r0[bypassWrite];
+        if (io1 != nullptr)
+            io1[n] = r1[bypassWrite];
+        r0[bypassWrite] = x0;
+        r1[bypassWrite] = x1;
+        if (++bypassWrite >= len)
+            bypassWrite = 0;
+    }
+
+    bypassedLastBlock = true;
+}
+
+// Un-bypass hand-back. After resetEngine() the idle wet path is the exact
+// input delayed by the codec alignment ring, and the dry path is the input
+// delayed by DryWetMixer's line — both empty. Loading them with the last
+// compLatencySamples of input (the bypass ring, oldest first) makes the first
+// processed block continue the bypassed output sample-for-sample instead of
+// replaying 20 ms of pre-bypass audio (the old behaviour) or dropping 20 ms.
+void OBitrotAudioProcessor::primeDelaysFromBypassRing()
+{
+    const int len = bypassRing.getNumSamples();
+    if (len < 1)
+        return;
+
+    codecStage.primeAlignment(bypassRing, bypassWrite);
+
+    // The dry delay is private to DryWetMixer, so feed it the same history
+    // through its own push/mix pair, in chunks the prepared FIFO can hold.
+    // The mixed output lands in scratch and is discarded.
+    const int chunkMax = bypassPrimeScratch.getNumSamples();
+    int done = 0;
+    while (done < len)
+    {
+        const int chunk = juce::jmin(chunkMax, len - done);
+        for (int c = 0; c < 2; ++c)
+        {
+            const float* src = bypassRing.getReadPointer(c);
+            float* dst = bypassPrimeScratch.getWritePointer(c);
+            for (int k = 0; k < chunk; ++k)
+                dst[k] = src[(bypassWrite + done + k) % len];
+        }
+
+        juce::dsp::AudioBlock<float> primeBlock(bypassPrimeScratch.getArrayOfWritePointers(),
+                                                2, (size_t) chunk);
+        dryWetMixer.pushDrySamples(primeBlock);
+        dryWetMixer.mixWetSamples(primeBlock);
+        done += chunk;
+    }
+
+    bypassRing.clear();
+    bypassWrite = 0;
 }
 
 void OBitrotAudioProcessor::releaseResources()
@@ -1361,6 +1552,16 @@ void OBitrotAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     if (numSamples == 0 || numChannels < 1 || captureRing.getSize() == 0)
         return;
+
+    // WR-01: first block after a host bypass. Reset the engine (nothing that
+    // was running before the bypass may resume mid-event) and hand the two
+    // 20 ms delay lines the bypass history so the timeline stays continuous.
+    if (bypassedLastBlock)
+    {
+        bypassedLastBlock = false;
+        resetEngine();
+        primeDelaysFromBypassRing();
+    }
 
     // Scrub non-finite INPUT at the boundary (QUAL-01). Downstream state that
     // is fed signal — the capture ring, packet history, and especially the
@@ -1764,6 +1965,12 @@ void OBitrotAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
     state.setProperty("uiLanguage",
                       languageCode(uiLanguage.load(std::memory_order_acquire)), nullptr);
 
+    // v1.17.1 (CODE_REVIEW WR-09): the loaded preset's name, so a reopened
+    // session shows "Worn Cassette" instead of "Default" and the prev/next
+    // walk resumes from it. Written on the COPY only — apvts.state never
+    // carries it, so preset files saved later stay clean.
+    state.setProperty("currentPreset", presetManager.getCurrentPresetName(), nullptr);
+
     if (auto xml = state.createXml())
         copyXmlToBinary(*xml, destData);
 }
@@ -1810,6 +2017,17 @@ void OBitrotAudioProcessor::setStateInformation(const void* data, int sizeInByte
 
         if (! lang.isVoid())
             uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
+
+        // v1.17.1 (WR-09): same isVoid() guard — a pre-1.17.1 session has no
+        // name and "Default" stands. Stripped from apvts.state after reading so
+        // it cannot leak into a preset file saved from this session.
+        const juce::var presetName = apvts.state.getProperty("currentPreset");
+
+        if (! presetName.isVoid())
+        {
+            presetManager.setCurrentPresetName(presetName.toString());
+            apvts.state.removeProperty("currentPreset", nullptr);
+        }
     }
 }
 

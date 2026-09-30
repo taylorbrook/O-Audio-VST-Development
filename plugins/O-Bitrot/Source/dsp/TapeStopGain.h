@@ -92,6 +92,8 @@ public:
     {
         armed     = false;
         engaged   = false;
+        armedBelow = false;
+        xRef      = 1.0;
         speedGain = 1.0f;
         speedFilter.reset();
     }
@@ -123,12 +125,16 @@ public:
                         float& left, float& right) noexcept
     {
         if (stopInstalled)
-            armed = true;
+        {
+            armed      = true;
+            armedBelow = appliedRate < kRateThreshold;
+        }
 
         if (tapeIdle)
         {
             armed   = false;
             engaged = false;
+            xRef    = 1.0;
         }
 
         if (! armed)
@@ -149,6 +155,7 @@ public:
             {
                 engaged = false;
                 armed   = false;
+                xRef    = 1.0;
             }
             return;
         }
@@ -157,9 +164,25 @@ public:
         {
             engaged = true;
             speedFilter.reset();
+
+            // Engaging BELOW the threshold (v1.17.1, CODE_REVIEW WR-05). Two
+            // back-to-back tape ticks — a 0.5/0.67 down-bend, then a stop —
+            // arm the law with the rate already under 0.9, so it used to enter
+            // mid-curve: at rate 0.5, g = 0.625 and a zero-state filter at
+            // G ~= 0.45, a one-sample step to ~0.48*x. Latch the entry point
+            // and renormalise against it, so x == 1 (gain 1, wet 0: the exact
+            // identity) on the engaging sample wherever it happens, and still
+            // reaches 0 at rate 0. Only a stop ARMED below the threshold
+            // latches; a crossing from above keeps xRef = 1.0, which is the
+            // old law bit-for-bit (its first sample sits a hair under 0.9, and
+            // renormalising against that would move every existing stop render
+            // by an LSB for no audible reason).
+            xRef = armedBelow
+                     ? juce::jlimit (1.0e-6, 1.0, juce::jmax (0.0, appliedRate) / kRateThreshold)
+                     : 1.0;
         }
 
-        const double x   = juce::jmax (0.0, appliedRate) / kRateThreshold;   // 0..1
+        const double x   = juce::jmin (1.0, (juce::jmax (0.0, appliedRate) / kRateThreshold) / xRef);   // 0..1
         const double g   = std::pow (x, kAlpha);
         const double cut = juce::jmax (kMinCutoffHz, fMax * x);
 
@@ -194,5 +217,7 @@ private:
 
     bool  armed     = false;   // a stop was installed and has not recovered
     bool  engaged   = false;   // currently below the threshold, law applying
+    bool  armedBelow = false;  // the stop was installed with the rate under 0.9
+    double xRef     = 1.0;     // rate/threshold at engagement; 1.0 from above
     float speedGain = 1.0f;    // gain applied last sample; 1.0 when bypassed
 };

@@ -152,7 +152,7 @@ public:
             // First-order TPT LP unit-impulse peak = G = g/(1+g); compensate
             // so the click lands near the base level.
             const double g = std::tan (juce::MathConstants<double>::pi * cutoff / fs);
-            popAmp = gain * static_cast<float> (juce::jmin (20.0, (1.0 + g) / g));
+            popAmp = gain * static_cast<float> (juce::jmin (kMaxLevelComp, (1.0 + g) / g));
             popAge = 0;
         }
         else if (rClass < kTickWeight + kPopWeight)
@@ -173,7 +173,7 @@ public:
             // The ring that follows is 7-13 dB under the click, which is the
             // shape a stylus impact actually has.
             const double g = std::tan (juce::MathConstants<double>::pi * f0 / fs);
-            popAmp = gain * static_cast<float> (juce::jmin (20.0, 1.0 / g));
+            popAmp = gain * static_cast<float> (juce::jmin (kMaxLevelComp, 1.0 / g));
             popAge = 0;
         }
         else
@@ -313,6 +313,14 @@ public:
 
 private:
     static constexpr float kBaseLevel = 0.126f;   // ~-18 dBFS
+
+    // Ceiling on the tick (1+g)/g and pop 1/g level compensation. It only
+    // guards g -> 0, and every cutoff here is >= 900 Hz, so it never binds at a
+    // real rate: 1/g is ~68 for a 900 Hz pop at 192 kHz. It was 20, which
+    // capped pops 4.6-10.6 dB quieter at 96/192 kHz than at 48 kHz and made
+    // the crackle balance depend on the session rate (v1.17.1, CODE_REVIEW
+    // WR-12).
+    static constexpr double kMaxLevelComp = 1000.0;
 
     // Class weights (brief item 17's ~70/25/5). Scratch is whatever is left, so
     // the three always sum to exactly 1 by construction.

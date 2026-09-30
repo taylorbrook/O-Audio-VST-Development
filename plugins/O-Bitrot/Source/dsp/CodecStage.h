@@ -106,14 +106,21 @@
     params, sample count). Both are per-sample, so block-size invariance
     (QUAL-02) holds. The 8 kHz latch phase and both delay rings advance
     unconditionally every sample (pure functions of the sample count — never
-    reset by enable/mode flips); mu-law is computed per grid crossing. Only
-    the GSM encode/decode call is gated on audibility
-    (enable gain > 0 and gsm mode weight > 0) — when gated, the output frame
-    is zeroed, so (re-)engagement starts with <= 20 ms of silence covered by
-    the 10 ms fades (documented; output frame is also primed with zeros in
-    prepare). Mode switch mu-law <-> GSM crossfades ~10 ms between the two
-    delay-aligned sub-paths; CODEC_ENABLE rides the EnableFade rails
-    (bit-transparent when off).
+    reset by enable/mode flips); mu-law is computed per grid crossing. As of
+    v1.17.1 the GSM encode/decode runs on EVERY frame whenever the handles
+    exist (50 frames/s), audible or not. It used to be gated on audibility
+    (enable gain > 0 and gsm mode weight > 0), and the old claim here that
+    re-engagement's "<= 20 ms of silence" was covered by the 10 ms fades was
+    wrong: the fade reached unity ~10 ms before the first decoded frame, so
+    CODEC_ENABLE-on in GSM mode (and a mu-law -> GSM switch) dipped to silence,
+    then met an AGC envelope that had decayed toward 0 at the full +10 dB
+    makeup, with LTP state stale from the last time GSM ran (CODE_REVIEW
+    WR-07). Running always keeps the decoded frame, the AGC envelope and the
+    codec state live, so engagement is a plain crossfade. Still deterministic
+    (a pure function of the signal), and bypass stays bit-exact because the
+    g == 0 rail outputs the aligned dry pair. Mode switch mu-law <-> GSM
+    crossfades ~10 ms between the two delay-aligned sub-paths; CODEC_ENABLE
+    rides the EnableFade rails (bit-transparent when off).
 
     RT contract: gsm_create() allocates in prepare only; gsm_encode/decode
     are allocation-free fixed work per 160-slot frame on the audio thread;
@@ -126,6 +133,11 @@
 
 #include <JuceHeader.h>
 #include <gsm.h>
+
+// Ouaricon addition to the vendored lib (third_party/libgsm/src/gsm_reset.c):
+// gsm_create()'s initialisation without the malloc, for the audio-thread
+// reset() below.
+extern "C" void ouaricon_gsm_reset (gsm);
 
 #include <array>
 #include <cstddef>
@@ -301,6 +313,64 @@ public:
         agcSmooth.setCurrentAndTargetValue (juce::jlimit (0.0f, 1.0f, initialAgc01));
     }
 
+    // v1.17.1 (CODE_REVIEW WR-02). Allocation-free return to the state
+    // prepare() leaves, for AudioProcessor::reset() on the audio thread: rings
+    // and filters cleared, GSM state re-initialised in place (never
+    // gsm_create), fades and smoothers snapped to the current parameters.
+    void reset (bool enabled, bool gsmMode, float mix01, float agc01) noexcept
+    {
+        delayBuffer.clear();
+        writeIndex = 0;
+        std::fill (muDelay.begin(), muDelay.end(), 0.0f);
+        muWrite = 0;
+
+        gridLatch.reset();
+        muHeld  = 0.0f;
+        gsmHeld = 0.0f;
+
+        for (auto* f : { &hp1, &hp2, &lp1, &lp2, &post1, &post2 })
+            f->reset();
+
+        ouaricon_gsm_reset (encState);
+        ouaricon_gsm_reset (decState);
+
+        frameSlot = 0;
+        std::fill (std::begin (frameIn),        std::end (frameIn),        (gsm_signal) 0);
+        std::fill (std::begin (prevDecoded),    std::end (prevDecoded),    (gsm_signal) 0);
+        std::fill (std::begin (prevFrameBytes), std::end (prevFrameBytes), (unsigned char) 0);
+
+        havePrevFrame = false;
+        lostFrameRun  = 0;
+        plcPrev       = 1.0f;
+        plcTarget     = 1.0f;
+
+        agcEnv = kAgcUnityEnv;
+
+        enableFade.prepare (fs, enabled);
+        modeFade.prepare (fs, gsmMode);
+        mixSmooth.setCurrentAndTargetValue (juce::jlimit (0.0f, 1.0f, mix01));
+        agcSmooth.setCurrentAndTargetValue (juce::jlimit (0.0f, 1.0f, agc01));
+    }
+
+    // Load the pre-codec alignment ring with a history of exactly `length`
+    // samples, oldest at `oldestIndex` (the processor's host-bypass ring, WR-01).
+    // Call right after reset(): writeIndex is 0, so slot k is read k samples
+    // from now and the idle wet path continues that history seamlessly.
+    void primeAlignment (const juce::AudioBuffer<float>& history, int oldestIndex) noexcept
+    {
+        const int n = history.getNumSamples();
+        if (n != length || history.getNumChannels() < 2)
+            return;
+
+        for (int c = 0; c < 2; ++c)
+        {
+            const float* src = history.getReadPointer (c);
+            float* dst = delayBuffer.getWritePointer (c);
+            for (int k = 0; k < n; ++k)
+                dst[(writeIndex + k) % length] = src[(oldestIndex + k) % n];
+        }
+    }
+
     // gsm_destroy is safe here (guarded); prepare recreates. processSample
     // guards on null handles (skips codec work, zero frames).
     void releaseHandles() noexcept { destroyHandles(); }
@@ -372,7 +442,9 @@ public:
                 frameSlot = 0;
                 plcPrev   = plcTarget;
 
-                if (encState != nullptr && decState != nullptr && g > 0.0f && w > 0.0f)
+                // Every frame, audible or not (v1.17.1, WR-07): see the
+                // DETERMINISM note in the header block.
+                if (encState != nullptr && decState != nullptr)
                 {
                     // The encoder is at the FAR end of the link and always
                     // runs on the source frame — loss happens in transit, so
@@ -426,11 +498,10 @@ public:
                 }
                 else
                 {
-                    // GSM side inaudible: keep the output frame silent so
-                    // (re-)engagement is deterministic (<= 20 ms of silence,
-                    // covered by the 10 ms fades). The PLC state resets with
-                    // it — a stale retained frame must not surface 30 seconds
-                    // later on the first loss after re-engagement.
+                    // No handles (between releaseResources and the next
+                    // prepare): keep the output frame silent and the PLC state
+                    // clean, so a stale retained frame cannot surface on the
+                    // first loss once the handles are back.
                     std::fill (std::begin (prevDecoded), std::end (prevDecoded),
                                (gsm_signal) 0);
                     havePrevFrame = false;

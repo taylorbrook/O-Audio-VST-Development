@@ -293,9 +293,14 @@ public:
             outL = mL * t + oL * (1.0f - t);
             outR = mR * t + oR * (1.0f - t);
 
+            // Pinned at the SAME next-write slot as the main head below, not
+            // at hi. A jump from live (lag 0) sets oldPos = hi; clamping it
+            // back to hi after the write advanced made the outgoing head read
+            // x[n] twice, a (1-t)*(x[n+1]-x[n]) error on every jump from live
+            // (v1.17.1, CODE_REVIEW WR-03).
             oldPos += oldRate;
-            if (oldPos > hi)
-                oldPos = hi;
+            if (oldPos > hi + 1.0)
+                oldPos = hi + 1.0;
 
             if (fadeCount >= fadeLenActive)
                 fadeActive = false;
