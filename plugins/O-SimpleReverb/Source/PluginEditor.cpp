@@ -65,13 +65,9 @@ OSimpleReverbAudioProcessorEditor::OSimpleReverbAudioProcessorEditor(OSimpleReve
             .withOptionsFrom(*sizeRelay)
             .withOptionsFrom(*lpFreqRelay)
             .withOptionsFrom(*lpOnRelay)
-            // Preset manager native functions
-            .withNativeFunction("savePreset", [this](const auto& args, auto complete) {
-                if (args.size() > 0)
-                    complete(processorRef.presetManager.savePreset(args[0].toString()));
-                else
-                    complete(false);
-            })
+            // Preset manager native functions — only those index.html calls.
+            // savePreset/deletePreset/isFactoryPreset were dropped in v1.13.1
+            // (IN-01): no UI consumer; saving goes through savePresetWithDialog.
             .withNativeFunction("loadPreset", [this](const auto& args, auto complete) {
                 if (args.size() > 0)
                     complete(processorRef.presetManager.loadPreset(args[0].toString()));
@@ -95,18 +91,6 @@ OSimpleReverbAudioProcessorEditor::OSimpleReverbAudioProcessorEditor(OSimpleReve
             .withNativeFunction("selectPreviousPreset", [this](const auto&, auto complete) {
                 auto prev = processorRef.presetManager.getPreviousPreset();
                 complete(prev);
-            })
-            .withNativeFunction("deletePreset", [this](const auto& args, auto complete) {
-                if (args.size() > 0)
-                    complete(processorRef.presetManager.deletePreset(args[0].toString()));
-                else
-                    complete(false);
-            })
-            .withNativeFunction("isFactoryPreset", [this](const auto& args, auto complete) {
-                if (args.size() > 0)
-                    complete(processorRef.presetManager.isFactoryPreset(args[0].toString()));
-                else
-                    complete(false);
             })
             .withNativeFunction("savePresetWithDialog", [this](const auto&, auto complete) {
                 auto userDir = processorRef.presetManager.getUserPresetsDirectory();
