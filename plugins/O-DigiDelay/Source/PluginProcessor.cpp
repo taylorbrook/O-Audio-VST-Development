@@ -157,14 +157,18 @@ void OuariconDigitalDelayAudioProcessor::prepareToPlay(double sampleRate, int sa
     // Prepare delay lines with maximum size
     delayLineLeft.setMaximumDelayInSamples(maxDelaySamples);
     delayLineRight.setMaximumDelayInSamples(maxDelaySamples);
-    delayLineLeft.prepare(spec);
-    delayLineRight.prepare(spec);
+    // IN-15: each line is its own channel (only channel 0 is ever pushed or
+    // popped), so prepare it mono rather than with the bus width.
+    auto lineSpec = spec;
+    lineSpec.numChannels = 1;
+    delayLineLeft.prepare(lineSpec);
+    delayLineRight.prepare(lineSpec);
     delayLineLeft.reset();
     delayLineRight.reset();
 
     // Prepare LFO (0.3Hz sine wave)
     lfo.prepare(spec);
-    lfo.setFrequency(0.3f);
+    lfo.setFrequency(0.3f, true);   // IN-01: force, or it ramps down from 440 Hz over 50 ms
     lfo.initialise([](float x) { return std::sin(x); }, 128);
 
     // Reset smoothed values with 20ms ramp time
@@ -378,12 +382,14 @@ double OuariconDigitalDelayAudioProcessor::getTailLengthSeconds() const
     if (feedbackValue < 0.01f)
         return 0.0;
 
-    // Calculate maximum possible delay time (2000ms)
+    // Longest possible repeat (2000 ms) — conservative, since the resolved
+    // time can change (sync, automation) after the host reads this.
     const double maxDelaySeconds = 2.0;
 
-    // Tail length formula: maxDelay * (1 / (1 - feedback))
-    // This calculates how long it takes for the delay to decay to silence
-    double tailLength = maxDelaySeconds * (1.0 / (1.0 - static_cast<double>(feedbackValue)));
+    // IN-03: each repeat is scaled by fb, so the tail reaches -60 dB after
+    // ln(0.001) / ln(fb) repeats (fb 0.95 needs ~135 of them).
+    const double repeatsTo60dB = std::log(0.001) / std::log(static_cast<double>(feedbackValue));
+    double tailLength = maxDelaySeconds * repeatsTo60dB;
 
     // Cap at reasonable maximum (30 seconds)
     return juce::jmin(tailLength, 30.0);
@@ -409,7 +415,7 @@ void OuariconDigitalDelayAudioProcessor::getStateInformation(juce::MemoryBlock& 
     // v1.3.0: the UI language rides the same tree as one more plain property.
     // Written BEFORE getStateAsXml(), because that method serialises
     // parameters.copyState() and would otherwise take a snapshot without it.
-    // Written as a STRING ("en"/"fr") rather than the atomic's int index, so a
+    // Written as a STRING ("en"/"fr"/"zh-Hans") rather than the atomic's int index, so a
     // hand-inspected session file says what it means.
     parameters.state.setProperty("uiLanguage",
                                  languageCode(uiLanguage.load(std::memory_order_acquire)),
@@ -439,8 +445,8 @@ void OuariconDigitalDelayAudioProcessor::setStateInformation(const void* data, i
     // `var (value)` over the attribute STRING
     // (critical_valuetree_xml_roundtrip_loses_type). A pre-1.3.0 session has no
     // such property at all and the default (English) stands. languageIndex()
-    // clamps anything that is not "fr" to 0, so a hand-edited value degrades to
-    // English rather than to a bad index.
+    // maps "fr" to 1, "zh-Hans" to 2 and anything else to 0, so a hand-edited
+    // value degrades to English rather than to a bad index.
     //
     // The editor PULLS this through the getUiLanguage native fn at page init
     // rather than being pushed from here — a push would race the WebView's load.

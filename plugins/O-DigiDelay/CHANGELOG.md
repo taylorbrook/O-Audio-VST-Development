@@ -5,6 +5,75 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2026-09-30
+
+Info-tier sweep of the 2026-09-30 review (CODE_REVIEW.md IN-01..IN-09, IN-11,
+IN-13..IN-15). PATCH: no parameter, range or state format changed. IN-10, IN-12
+and IN-16 are feature-sized and stay open.
+
+### Fixed
+
+- **IN-01: the mod LFO swept 440 -> 0.3 Hz for 50 ms after load.**
+  `dsp::Oscillator`'s frequency smoother starts at 440 Hz, and
+  `setFrequency(0.3f)` ramped down from there. It is now
+  `setFrequency(0.3f, true)`.
+- **IN-02: the triplet factors were rounded.** 0.667, 0.333 and 0.167 are now
+  exactly 2/3, 1/3 and 1/6. At 1/16T and 120 BPM the repeats drifted about
+  0.2 ms per repeat off the grid.
+- **IN-03: the tail estimate was not a decay time.** `getTailLengthSeconds`
+  used `2 s / (1 - fb)`, which is 2.86 s at the default 30 % feedback. It now
+  returns the time to -60 dB at the longest repeat, `2 s * ln(0.001) / ln(fb)`,
+  still capped at 30 s: 11.5 s at 30 %, 19.9 s at 50 %, and the cap from about
+  63 %. The 0.95 feedback clamp and the 0-100 % range are unchanged. The inert
+  top 5 % is now documented in NOTES.md, because rescaling the range would
+  change every saved preset.
+- **IN-07: preset apply gaps.** `applyPresetJson` now walks the processor's
+  parameters instead of the JSON's keys. A parameter the preset omits, or
+  whose value is not a number or bool, goes to its default instead of keeping
+  the previous sound. Each set is wrapped in a begin/end gesture, and values
+  are clamped to 0..1. `bypass` is still never applied from a preset. All 12
+  factory presets carry all 8 parameters, so they load exactly as before. The
+  Save dialog now reports the name the manager stored (sanitized, "A/B" ->
+  "A_B") instead of the raw text, so the bar matches the list and ◀▶ can find
+  it.
+- **IN-08: the readouts flashed "1 ms / 0%" on open.** A JUCE slider state
+  reads 0 until the backend's first `propertiesChanged` + `valueChanged` pair
+  arrives. The knob setup now leaves the markup defaults in place while
+  `properties.parameterIndex === -1`. The first real value snaps the arc into
+  place instead of sweeping it up from 0.
+- **IN-09: the dropdown list and ◀▶ disagreed.** `showPresetDropdown` now
+  awaits `presetManager.refresh()` before building the list. A token drops an
+  open that a hide overtook mid-await.
+- **IN-11: the meter did redundant work.** `updateLEDMeter` returns early when
+  the lit count has not changed, and the editor timer skips
+  `evaluateJavascript` while the WebView is not showing. The `presetChanged`
+  push logic is untouched.
+- **IN-15: the delay lines allocated a channel they never used.** Each
+  `DelayLine` is now prepared from a copy of the spec with `numChannels = 1`,
+  since only channel 0 of each is pushed or popped. The LFO keeps the bus
+  spec. This saves about 390k floats per line at 192 kHz.
+
+### Changed
+
+- **IN-13:** three stale comments said `languageIndex()` maps "anything not
+  fr" to 0 and the stored code is "en"/"fr". They now name zh-Hans -> 2. The
+  code was already correct.
+- **IN-04, IN-05, IN-06, IN-14:** resolved by documentation in NOTES.md
+  (Known Issues). These cover the tape-like glide on time changes, the
+  2000 ms sync clamp, sync with no host tempo, and the suite-wide
+  cross-thread state pattern.
+
+### Testing
+
+- Build and install succeeded. `auval -v aufx OuDD OuDv`: AU VALIDATION
+  SUCCEEDED.
+- pluginval strictness 10 (VST3, `--skip-gui-tests`): SUCCESS.
+- `check-i18n`: ALL CHECKS PASS (44 localized plugins).
+  `check-ui-labels --plugin O-DigiDelay`: ALL CHECKS PASSED.
+  `tests/ui_tip_render_check.js`: 300/300.
+- Backup: `backups/O-DigiDelay/v1.8.0/`.
+- Deferred: IN-10, IN-12, IN-16 (see NOTES.md, Known Issues).
+
 ## [1.8.0] - 2026-09-30
 
 Resolves the Critical and Warning findings of the 2026-09-30 full-plugin review
@@ -94,7 +163,7 @@ appended last, so earlier sessions and presets load unchanged, with bypass off.
 - The offline pedalboard renders for WR-01 and WR-02 are described above.
 - Regression baseline: `backups/O-DigiDelay/v1.7.0/`. No automated
   baseline-vs-current regression suite exists for this plugin.
-- Not selected: IN-01..IN-16 (see NOTES.md, Known Issues).
+- Not selected: IN-01..IN-16. Swept in 1.8.1, except IN-10, IN-12 and IN-16.
 
 ## [1.7.0] - 2026-09-27
 

@@ -120,7 +120,10 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
                             bool success = presetName.isNotEmpty()
                                         && safeThis->processorRef.presetManager.savePreset(presetName);
                             result->setProperty("success", success);
-                            result->setProperty("name", success ? presetName : juce::String());
+                            // IN-07: report the name the manager stored (sanitized, "A/B" -> "A_B"),
+                            // so the bar matches the list and prev/next can find it.
+                            result->setProperty("name", success ? safeThis->processorRef.presetManager.getCurrentPresetName()
+                                                                : juce::String());
                         } else {
                             result->setProperty("success", false);
                             result->setProperty("name", "");
@@ -198,8 +201,8 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
                                        processorRef.uiLanguage.load(std::memory_order_acquire))));
             })
             .withNativeFunction("setUiLanguage", [this](auto& args, auto complete) {
-                // languageIndex() maps anything that is not "fr" to 0, so an
-                // unexpected argument from the page degrades to English rather
+                // languageIndex() maps anything that is neither "fr" nor
+                // "zh-Hans" to 0, so an unexpected argument from the page degrades to English rather
                 // than being stored unvalidated.
                 if (args.size() > 0)
                     processorRef.uiLanguage.store(
@@ -293,10 +296,14 @@ void OuariconDigitalDelayAudioProcessorEditor::timerCallback()
     // Clamp to 0-1 range
     rmsLevel = juce::jlimit(0.0f, 1.0f, rmsLevel);
 
-    // Send to WebView via JavaScript evaluation
-    juce::String js = "if (typeof updateLEDMeter === 'function') { updateLEDMeter(" +
-                      juce::String(rmsLevel, 4) + "); }";
-    webView->evaluateJavascript(js, nullptr);
+    // Send to WebView via JavaScript evaluation — IN-11: not while hidden,
+    // where nobody sees the meter and the next visible tick repaints it.
+    if (webView->isShowing())
+    {
+        juce::String js = "if (typeof updateLEDMeter === 'function') { updateLEDMeter(" +
+                          juce::String(rmsLevel, 4) + "); }";
+        webView->evaluateJavascript(js, nullptr);
+    }
 
     // WR-07: setStateInformation (host preset recall, A/B, undo) rewrote the
     // preset name behind the page's back. Tell it to re-read name and list.

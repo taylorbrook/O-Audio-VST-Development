@@ -311,15 +311,28 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
         auto paramsVar = preset->getProperty("parameters");
         if (auto* paramsObj = paramsVar.getDynamicObject())
         {
-            for (auto& prop : paramsObj->getProperties())
+            // IN-07: walk the PROCESSOR's parameters, not the JSON's keys, so a
+            // parameter the preset omits (older or hand-written file) goes to its
+            // default instead of inheriting the previous sound. A value that is
+            // not a number or bool counts as omitted. Each set is its own gesture
+            // so Touch/Latch hosts record the load.
+            for (auto* param : parameters.processor.getParameters())
             {
-                if (auto* param = parameters.getParameter(prop.name.toString()))
-                {
-                    if (param == parameters.processor.getBypassParameter())
-                        continue;   // v1.8.0: never applied from a preset (see createPresetJson)
+                if (param == parameters.processor.getBypassParameter())
+                    continue;   // v1.8.0: never applied from a preset (see createPresetJson)
 
-                    param->setValueNotifyingHost(static_cast<float>(prop.value));
-                }
+                auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param);
+                if (ranged == nullptr)
+                    continue;
+
+                const auto& v = paramsObj->getProperty(ranged->getParameterID());
+                const bool valid = v.isDouble() || v.isInt() || v.isInt64() || v.isBool();
+                const float normalised = valid ? juce::jlimit(0.0f, 1.0f, static_cast<float>(v))
+                                               : ranged->getDefaultValue();
+
+                ranged->beginChangeGesture();
+                ranged->setValueNotifyingHost(normalised);
+                ranged->endChangeGesture();
             }
         }
     }

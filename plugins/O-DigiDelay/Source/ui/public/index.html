@@ -1329,11 +1329,16 @@
       ledSegments = meterContainer.querySelectorAll('.led-segment');
     }
 
+    let lastActiveCount = -1;
     window.updateLEDMeter = function(rmsLevel) {
       if (!ledSegments) return;
       const boostedLevel = rmsLevel * 6.0;
       const logLevel = boostedLevel > 0 ? Math.log10(1 + boostedLevel * 9) : 0;
       const activeCount = Math.floor(Math.min(1.0, Math.max(0.0, logLevel)) * 14);
+
+      // IN-11: 30 Hz calls, but the lit count changes far less often.
+      if (activeCount === lastActiveCount) return;
+      lastActiveCount = activeCount;
 
       ledSegments.forEach((segment, index) => {
         segment.classList.remove('active-low', 'active-mid', 'active-high');
@@ -1372,6 +1377,18 @@
       toggle.addEventListener('click', () => syncState.setValue(!syncState.getValue()));
     }
 
+    // IN-08: a slider state reads 0 until the backend's propertiesChanged +
+    // valueChanged pair arrives (parameterIndex stays -1 until then). Writing
+    // from it flashed "1 ms / 0%" and swept every arc up from 0 on each open.
+    // Until then the markup's defaults stand; the first real value SNAPS the
+    // arc into place instead of animating to it.
+    const backendReady = (state) => state?.properties?.parameterIndex !== -1;
+    function snapArc(key, norm) {
+      const t = animState.targets[key];
+      t.current = t.target = norm;
+      t.vine.style.strokeDashoffset = ARC_LENGTH - (norm * ARC_LENGTH);
+    }
+
     function setupStandardKnob(paramId, min, max, formatFn) {
       const sliderState = getSliderState(paramId);
       const config = knobConfigs[paramId];
@@ -1382,20 +1399,23 @@
       const knobEl = document.getElementById(`${paramId}-knob`);
       if (!vine || !valueDisplay || !knobEl) return;
 
-      const initialNorm = sliderState.getNormalisedValue();
+      let primed = backendReady(sliderState);
+      const initialNorm = primed ? sliderState.getNormalisedValue() : 0;
       animState.targets[paramId] = {
         current: initialNorm,
         target: initialNorm,
         vine: vine
       };
-      vine.style.strokeDashoffset = ARC_LENGTH - (initialNorm * ARC_LENGTH);
-
-      if (formatFn) {
-        valueDisplay.textContent = formatFn(min + (initialNorm * (max - min)));
+      if (primed) {
+        vine.style.strokeDashoffset = ARC_LENGTH - (initialNorm * ARC_LENGTH);
+        if (formatFn) {
+          valueDisplay.textContent = formatFn(min + (initialNorm * (max - min)));
+        }
       }
 
       sliderState.valueChangedEvent.addListener(() => {
         const norm = sliderState.getNormalisedValue();
+        if (!primed) { primed = true; snapArc(paramId, norm); }
         animState.targets[paramId].target = norm;
         if (formatFn) {
           valueDisplay.textContent = formatFn(min + (norm * (max - min)));
@@ -1436,19 +1456,23 @@
       const knobEl = document.getElementById('time-knob');
       if (!vine || !valueDisplay || !knobEl) return;
 
-      const initialNorm = timeState.getNormalisedValue();
+      let primed = backendReady(timeState);
+      const initialNorm = primed ? timeState.getNormalisedValue() : 0;
       animState.targets.time = {
         current: initialNorm,
         target: initialNorm,
         vine: vine
       };
-      vine.style.strokeDashoffset = ARC_LENGTH - (initialNorm * ARC_LENGTH);
+      if (primed) vine.style.strokeDashoffset = ARC_LENGTH - (initialNorm * ARC_LENGTH);
 
       let syncNormalized = 0;
 
       const getDivisionIndex = () => getChoiceIndexSafe(divisionState);
 
       const updateVisual = () => {
+        if (!backendReady(timeState)) return;   // IN-08: markup default stands
+        const snap = !primed;
+        primed = true;
         if (syncState?.getValue() && divisionState) {
           const divIndex = Math.max(0, Math.min(11, getDivisionIndex()));
           valueDisplay.textContent = musicalDivisions[divIndex].name;
@@ -1459,6 +1483,7 @@
           animState.targets.time.target = normalized;
           valueDisplay.textContent = `${Math.round(1.0 + normalized * 1999.0)} ms`;
         }
+        if (snap) snapArc('time', animState.targets.time.target);
         startAnim();
       };
 
@@ -1621,6 +1646,7 @@
           }
       });
 
+      let dropdownOpenToken = 0;   // IN-09, see showPresetDropdown
       const presetManager = new PresetManager({
         displayElement: presetNameDisplay,
         prevButton: document.getElementById('prevPreset'),
@@ -1652,7 +1678,15 @@
         presetManager.refresh();
       });
 
-      function showPresetDropdown() {
+      // IN-09: the list cached at init/last save went stale against disk while
+      // ◀▶ fetched a fresh one. Re-read before building. The token drops an
+      // open that a hide (outside click, preset change) overtook mid-await.
+      // (dropdownOpenToken is declared above the PresetManager, whose
+      // callbacks reach hidePresetDropdown — no TDZ window.)
+      async function showPresetDropdown() {
+        const token = ++dropdownOpenToken;
+        await presetManager.refresh();
+        if (token !== dropdownOpenToken) return;
         const presets = presetManager.getPresetList();
         presetDropdown.innerHTML = '';
 
@@ -1691,6 +1725,7 @@
       }
 
       function hidePresetDropdown() {
+        ++dropdownOpenToken;
         presetDropdown.classList.remove('show');
       }
 

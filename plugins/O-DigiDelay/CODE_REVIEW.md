@@ -18,7 +18,7 @@ findings:
   warning: 10
   info: 16
   total: 27
-status: partially_resolved
+status: partially_resolved  # open: IN-10, IN-12, IN-16
 supersedes: v1.2.9 review (2026-07-01, 11 findings, all resolved in v1.2.10–v1.2.12; see git history of this file)
 ---
 
@@ -53,7 +53,10 @@ What this review turns up:
 
 - **v1.8.0 (2026-09-30):** resolved CR-01 and WR-01..WR-10 (WR-01 resolved by
   implementing spillover, not by removing the claim). See CHANGELOG [1.8.0].
-- **Outstanding:** IN-01..IN-16 (Info tier, not selected).
+- **v1.8.1 (2026-09-30):** Info-tier sweep, which resolved IN-01..IN-03, IN-07..IN-09,
+  IN-11, IN-13 and IN-15 in code, and IN-04, IN-05, IN-06 and IN-14 by documentation
+  (NOTES.md, Known Issues). See CHANGELOG [1.8.1].
+- **Outstanding:** IN-10, IN-12, IN-16 (feature-sized, deferred).
 
 ---
 
@@ -240,19 +243,19 @@ or keep a small C++ table keyed on `uiLanguage`.
 
 ## Info
 
-### IN-01: The mod LFO sweeps 440→0.3Hz over the first 50ms after instantiation
+### IN-01: The mod LFO sweeps 440→0.3Hz over the first 50ms after instantiation **Resolved in v1.8.1**
 `PluginProcessor.cpp:153-155`. `dsp::Oscillator`'s frequency smoother starts at
 440Hz, and `setFrequency(0.3f)` without `force` ramps down from there over 50ms.
 With MOD above 0, a short delay time and audio in the first 50ms, the result is
 a brief FM warble. Fix with `lfo.setFrequency(0.3f, true)`.
 
-### IN-02: The triplet factors are rounded
+### IN-02: The triplet factors are rounded **Resolved in v1.8.1**
 `PluginProcessor.h:153-155` uses `0.667 / 0.333 / 0.167` where the exact values
 are 2/3, 1/3 and 1/6. At 1/16T that is 0.2% off: repeats drift off the grid by
 about 0.2ms per repeat at 120BPM, and the error accumulates over long feedback
 tails. Use `2.0f/3.0f` and so on.
 
-### IN-03: FEEDBACK above 95% does nothing, and the tail estimate is not a decay time
+### IN-03: FEEDBACK above 95% does nothing, and the tail estimate is not a decay time **Resolved in v1.8.1**
 - The DSP clamps feedback to 0.95 (`PluginProcessor.cpp:244`), but the
   parameter and readout go to 100%, so the top 5% of knob travel is dead.
 - `getTailLengthSeconds` (`:302-320`) always uses 2s rather than the actual
@@ -260,23 +263,23 @@ tails. Use `2.0f/3.0f` and so on.
   135 repeats. The 30s cap hides most of this.
 - Either rescale the range so 100% maps to 0.95, or show the clamp.
 
-### IN-04: A large time change plays the buffer at up to 100× speed
+### IN-04: A large time change plays the buffer at up to 100× speed **Resolved in v1.8.1** (by documentation, NOTES.md)
 The 20ms linear ramp on `smoothedTimeMs` moves the read head across the
 buffer. A 2000→1ms jump, or a division change in sync mode, plays about 2s of
 history in 20ms and produces a loud chirp. That may be intended (tape-like),
 but for a "transparent" digital delay a crossfade between two taps is the
 usual approach.
 
-### IN-05: Sync silently clamps to 2000ms
+### IN-05: Sync silently clamps to 2000ms **Resolved in v1.8.1** (by documentation, NOTES.md)
 `PluginProcessor.cpp:222`. 1/4D below 45BPM, or 1/4 below 30BPM, exceeds
 2000ms and falls off the grid with no UI indication.
 
-### IN-06: The UI shows a division that the DSP isn't using
+### IN-06: The UI shows a division that the DSP isn't using **Resolved in v1.8.1** (by documentation, NOTES.md)
 `index.html:1424-1428` vs `PluginProcessor.cpp:213-227`. With SYNC on and no
 BPM from the host (Standalone, or a host with no transport), the DSP uses the
 free TIME value while the readout and echo spacing show the division.
 
-### IN-07: Preset apply gaps
+### IN-07: Preset apply gaps **Resolved in v1.8.1**
 `OuariconPresetManager.h:294-326`:
 - `applyPresetJson` doesn't reset parameters that the JSON omits, so a
   partial or older preset inherits the previous values.
@@ -287,12 +290,12 @@ The Save dialog also returns the *unsanitized* name (`PluginEditor.cpp:93`)
 while the manager stores the sanitized one, so "A/B" shows in the bar but the
 list holds "A_B".
 
-### IN-08: The readouts flash "1 ms / 0%" when the editor opens
+### IN-08: The readouts flash "1 ms / 0%" when the editor opens **Resolved in v1.8.1**
 `index.html:1366-1368`, `1417`, `1440`. Setup writes `formatFn(0)` before the
 backend's first update arrives, so the arcs sweep up from 0 on every open.
 Skip the write while `parameterIndex === -1`.
 
-### IN-09: The dropdown list and ◀▶ disagree
+### IN-09: The dropdown list and ◀▶ disagree **Resolved in v1.8.1**
 `index.html:1605`, `preset-manager.js:331`. The dropdown uses the list cached
 at init or the last save, while ◀▶ fetch a fresh list from C++. Call
 `refresh()` when the dropdown opens.
@@ -301,7 +304,7 @@ at init or the last save, while ◀▶ fetch a fresh list from C++. Call
 `preset-manager.js:193-203`. The bar keeps showing the preset name after a
 knob moves. A failed `loadPreset` (file deleted on disk) gives no feedback.
 
-### IN-11: The meter rewrites all 14 LED segments at 30Hz whether or not the level changed
+### IN-11: The meter rewrites all 14 LED segments at 30Hz whether or not the level changed **Resolved in v1.8.1**
 `index.html:1311-1316`. Cache `activeCount`. The editor timer also keeps
 calling `evaluateJavascript` while the window is hidden.
 
@@ -309,19 +312,19 @@ calling `evaluateJavascript` while the window is hidden.
 A trackpad flick can sweep the full range. Scale the wheel step by `deltaY`
 and add Shift for fine steps.
 
-### IN-13: Stale comments
+### IN-13: Stale comments **Resolved in v1.8.1**
 `PluginEditor.cpp:171-173` and `PluginProcessor.cpp:342` say "anything not
 'fr' → 0" and "en/fr", but `languageIndex` also maps zh-Hans to 2. The code is
 correct.
 
-### IN-14: Cross-thread state access
+### IN-14: Cross-thread state access **Resolved in v1.8.1** (by documentation, NOTES.md)
 - `getStateInformation` calls `parameters.state.setProperty` (`:344`) from
   whatever thread the host uses, while the message thread may touch the tree.
 - `currentPresetName` (a `juce::String`) is written on the message thread and
   read inside `getStateAsXml`.
 - This is the suite-wide pattern and has low practical risk.
 
-### IN-15: Delay lines allocate channels they never use
+### IN-15: Delay lines allocate channels they never use **Resolved in v1.8.1**
 `PluginProcessor.cpp:135,147`. Each `DelayLine` is prepared with
 `numChannels = 2`, but only channel 0 of each is used, so twice the needed
 memory is allocated (about 780k floats per line at 192kHz). Prepare each with
@@ -332,3 +335,14 @@ memory is allocated (about 780k floats per line at 192kHz). Prepare each with
 - SYNC (`index.html:987`) is a `<div>` with no `tabindex` or `role="switch"`.
 - `#presetName` (`:963`) is a span that cannot receive focus, so the preset
   list is mouse-only.
+
+---
+
+## Resolved
+
+| Version | Commit | Findings |
+|---------|--------|----------|
+| v1.8.0 | aeebc2a2 | CR-01, WR-01..WR-10 |
+| v1.8.1 | SHA_PENDING | IN-01..IN-09, IN-11, IN-13..IN-15 (IN-04/05/06/14 by documentation) |
+
+Open: IN-10, IN-12, IN-16.
