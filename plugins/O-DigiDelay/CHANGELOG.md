@@ -5,6 +5,97 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-09-30
+
+Resolves the Critical and Warning findings of the 2026-09-30 full-plugin review
+(CODE_REVIEW.md: CR-01, WR-01..WR-10). MINOR because WR-01 adds a parameter.
+No existing parameter ID, range or type changed. The new `bypass` parameter is
+appended last, so earlier sessions and presets load unchanged, with bypass off.
+
+### Added
+
+- **Spillover bypass (WR-01).** NOTES.md advertised "delay tail continues on
+  bypass", but there was no `getBypassParameter()` and no
+  `processBlockBypassed` override. JUCE's default passed the input through
+  and froze the delay lines, so the repeats stopped dead. There is now an
+  `AudioParameterBool` "bypass", returned from `getBypassParameter()`, so the
+  host's bypass switch drives it. While it is on, a 20 ms ramp takes the
+  delay-line input to 0 and the dry signal to unity. Wet level and feedback
+  are untouched, so the tail rings out at the level it had.
+  `processBlockBypassed` runs the same path. Verified with an offline render
+  (VST3, 200 ms / 50 %): echoes after bypass are bit-identical to the
+  unbypassed render, and a burst played during bypass passes dry and is never
+  delayed. `bypass` is excluded from preset save and apply in
+  `OuariconPresetManager.h`, so a preset saved while bypassed cannot bypass
+  the plugin on load.
+
+### Fixed
+
+- **CR-01: the Save dialog used the editor after it was freed.** The
+  self-deleting `AlertWindow`'s modal callback captured a raw `this` and the
+  WebView's `complete`. Closing the plugin window while the name prompt was
+  open, then pressing Save or Cancel, read `processorRef` from a freed editor
+  and called into a destroyed `WebBrowserComponent`. The callback now holds a
+  `SafePointer` to the editor and returns while it is null, and it calls
+  `complete` only while the editor lives. The editor watches the dialog
+  through a `SafePointer<AlertWindow>` and dismisses it in its destructor.
+- **WR-02: the first block ramped from the constructor defaults.**
+  `SmoothedValue::reset()` snaps *current* to *target*, and on the first
+  `prepareToPlay` the target was still the constructor literal (dry 1.0,
+  wet 0.3, and so on). A Dry 0 / Wet 100 session therefore leaked dry signal
+  that faded out over the first 20 ms of every first playback or bounce.
+  `prepareToPlay` now arms a snap, and the first processed block calls
+  `setCurrentAndTargetValue` with the live values. The synced time is
+  included, because the play head is only valid inside processBlock.
+  Offline: the first 480 ms at Dry 0 is silent (−240 dB).
+- **WR-03: the knob arcs drew 90° at 0 and a closed ring at 100 %.** The
+  markup's `stroke-dasharray="157.08"` (dash = gap = circumference) did not
+  match the JS offset math, which assumed a 117.81 dash. The dasharray is now
+  `117.81 314.16` (one 270° dash, then a gap longer than the circle). The
+  sweep start moves from 10:30 to the conventional 7:30 (`rotate(135deg)`),
+  so the gap is at the bottom. Headless renders: 0 % draws nothing, 50 % runs
+  7:30 → 12, and 100 % runs 7:30 → 4:30.
+- **WR-04: the last dropdown row sat outside the 196 px frame.** The list
+  opens at y 38, and `max-height: 180px` ended it at y 218 inside a clipping
+  `.container`. It is now `150px` (ends at y 188). With 14 rows scrolled to
+  the bottom, the last row ends at y 186.
+- **WR-05: mouse-wheel moves sent no automation gesture.** Each wheel burst
+  is now one gesture: the first event calls `sliderDragStarted()`, and 150 ms
+  of wheel inactivity calls `sliderDragEnded()`. Touch and Latch automation
+  now records wheel moves.
+- **WR-06: a sync-mode TIME drag opened its gesture on `time`.** The values
+  went to `division`, so in Touch or Latch the Time lane was overwritten for
+  the whole drag. A sync drag no longer starts or ends a gesture on `time`.
+- **WR-07: the preset name went stale after a host restore.** A host preset
+  recall, an A/B compare or an undo went through `setStateInformation`, which
+  rewrote the preset name, and the page was never told. The processor now
+  bumps a state revision counter. The editor's 30 Hz timer emits
+  `presetChanged` when the counter moves and the WebView is showing, and the
+  page re-reads the name and list.
+- **WR-08: the output meter read 6 dB low in mono.** It averaged L and R, and
+  a mono layout never writes R. The processor now zeroes the right snapshot
+  when there is no right channel and publishes the active channel count, and
+  the editor averages over that count. Stereo metering is unchanged.
+- **WR-09: hover tips came back during a knob drag.** The `pointerover` and
+  `pointermove` handlers now return while `dragState.isDragging` is set.
+- **WR-10: the native Save dialog was English-only.** The page now passes the
+  title, prompt, Save and Cancel strings to `savePresetWithDialog`, taken
+  from four new `js.*` entries in `i18n.js` (same shape as O-Formant's). No
+  French or Han literal is added under `Source/`. The prompt's French and the
+  full-word "Enregistrer" are machine-drafted (`reviewed: false`), and the
+  zh-Hans prompt is `reviewed: 'mt'`.
+
+### Testing
+
+- Build and install succeeded. `auval -v aufx OuDD OuDv` passes and lists
+  `Bypass`. pluginval strictness 10 (VST3) reports SUCCESS.
+- `check-i18n` passes on all 44 localized plugins, and
+  `tests/ui_tip_render_check.js` passes 300/300.
+- The offline pedalboard renders for WR-01 and WR-02 are described above.
+- Regression baseline: `backups/O-DigiDelay/v1.7.0/`. No automated
+  baseline-vs-current regression suite exists for this plugin.
+- Not selected: IN-01..IN-16 (see NOTES.md, Known Issues).
+
 ## [1.7.0] - 2026-09-27
 
 UI pass R4/R5 from review 260924-nho: palette tokens, a paper wash, opaque

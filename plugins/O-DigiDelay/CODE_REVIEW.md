@@ -1,9 +1,9 @@
 ---
 plugin: O-DigiDelay
-version: 1.2.9
-reviewed: 2026-07-01T14:09:01Z
+version: 1.7.0
+reviewed: 2026-09-30
 depth: deep
-files_reviewed: 7
+files_reviewed: 8
 files_reviewed_list:
   - plugins/O-DigiDelay/Source/PluginProcessor.cpp
   - plugins/O-DigiDelay/Source/PluginProcessor.h
@@ -11,231 +11,324 @@ files_reviewed_list:
   - plugins/O-DigiDelay/Source/PluginEditor.h
   - plugins/O-DigiDelay/Source/OuariconPresetManager.h
   - plugins/O-DigiDelay/Source/ui/public/index.html
+  - plugins/O-DigiDelay/Source/ui/public/js/i18n.js
   - plugins/O-DigiDelay/Source/ui/public/modules/preset-manager.js
 findings:
-  critical: 0
-  warning: 7
-  info: 4
-  total: 11
-status: issues_found
+  critical: 1
+  warning: 10
+  info: 16
+  total: 27
+status: partially_resolved
+supersedes: v1.2.9 review (2026-07-01, 11 findings, all resolved in v1.2.10–v1.2.12; see git history of this file)
 ---
 
-# O-DigiDelay: Full-Plugin Code Review Report
+# O-DigiDelay: Full-Plugin Code Review Report (v1.7.0)
 
-**Reviewed:** 2026-07-01T14:09:01Z
-**Depth:** deep (DSP → parameter-binding → WebView UI data flow)
-**Files Reviewed:** 7
+**Reviewed:** 2026-09-30
+**Depth:** deep (DSP → parameter binding → WebView UI → preset system)
 **Status:** issues_found
 
 ## Summary
 
-O-DigiDelay is a well-structured JUCE 8 stereo digital delay. The core audio path is
-solid on the fundamentals adversarial review usually catches first: `processBlock` is
-allocation-free and lock-free, feedback is hard-clamped to 0.95 (no runaway),
-`ScopedNoDenormals` is present, all parameter reads go through cached atomic pointers,
-`numSamples == 0` is guarded before the RMS division, tempo-sync degrades correctly when
-the playhead or BPM is absent, and the division index is `jlimit`-clamped before the LUT
-lookup. The WebView bridge is also clean: **all 11 `getNativeFunction()` calls in JS have
-matching `withNativeFunction()` registrations** (no silent bridge gaps), the resource
-provider uses bare-path equality (per the codebase convention), and preset names are
-injected into the DOM via `textContent` (no XSS).
+The audio path is still sound on the basics. It allocates nothing, takes no
+locks, applies the 0.95 feedback clamp, guards against NaN recirculation, keeps
+the WR-01 buffer headroom and checks the bus layout. None of the 11 v1.2.9
+findings has regressed. All 8 relay IDs match `createParameterLayout`, all 13
+`getNativeFunction` names are registered, and every i18n key has an en, fr and
+zh-Hans entry.
 
-No BLOCKER-class defects (crash, data loss, injection, auth bypass) were proven. The
-findings below are correctness/robustness gaps: a delay-buffer that consumes 100% of its
-declared modulation headroom (zero margin at 48/96/192 kHz), a persistent-NaN hazard in
-the feedback loop, a save-dialog that silently ignores the folder the user chose, an
-unsanitized preset filename (the known codebase regression), a shared WebView2 user-data
-folder, and a cross-thread meter race.
+What this review turns up:
 
----
+- **One use-after-free.** The Save dialog outlives the editor.
+- **A documented feature that does not exist.** NOTES.md advertises
+  "Spillover", but bypass cuts the tail.
+- **Two visible UI defects.** The knob arcs draw 90° at minimum and a closed
+  ring at maximum. The last row of the preset dropdown is clipped outside the
+  196px frame.
+- **Three automation-gesture bugs.** Wheel changes send no gesture, a
+  sync-mode TIME drag touches the wrong lane, and the preset name goes stale
+  when the host restores state.
 
 ## Resolution Log
 
-- **v1.2.10** (DSP robustness): WR-01, WR-02, WR-06, IN-04 — resolved.
-- **v1.2.11** (preset system): WR-03, WR-04, IN-02, IN-03 — resolved; IN-01 — doc corrected (path intentionally unchanged, migration deferred).
-- **v1.2.12** (WebView/editor): WR-05 (plugin-specific WebView2 user-data folder), WR-07 (butterfly asset renamed to space-free `butterfly2_bw.png`) — resolved; butterfly overlay verified rendering on macOS.
-- **Outstanding:** none — all 7 warnings + 4 info findings addressed.
+- **v1.8.0 (2026-09-30):** resolved CR-01 and WR-01..WR-10 (WR-01 resolved by
+  implementing spillover, not by removing the claim). See CHANGELOG [1.8.0].
+- **Outstanding:** IN-01..IN-16 (Info tier, not selected).
 
 ---
 
-## Structural Findings (fallow)
+## Critical
 
-No `<structural_findings>` block was provided with this review; no structural pre-pass to
-reconcile. All findings below are from direct (narrative) code review.
+### CR-01: Save dialog callback uses the editor after it is freed
+
+**File:** `Source/PluginEditor.cpp:79-100`
+
+`savePresetWithDialog` creates a heap `AlertWindow`. The editor does not own it,
+and it runs through `enterModalState(true, callback, deleteWhenDismissed)`. The
+callback captures a raw `this` and the `complete` callback of the WebView
+(`juce_WebBrowserComponent.cpp:317` captures `[this, resultId]`).
+
+**Failure:** press SAVE so the name prompt opens, then close the plugin window
+or the project. Pressing Save or Cancel afterwards reads
+`this->processorRef` from the freed editor, and `complete()` calls into the
+destroyed WebBrowserComponent, so the host crashes. The Load path is safe
+because `fileChooser` is a member, and destroying it cancels its callback.
+
+**Fix:**
+- Hold the dialog in a `std::unique_ptr<juce::AlertWindow>` member or a
+  `SafePointer`, and dismiss it in `~Editor()`.
+- In the callback, capture `juce::Component::SafePointer<Editor>` and return
+  early if it is null.
 
 ---
-
-## Narrative Findings (AI reviewer)
 
 ## Warnings
 
-### WR-01: Delay modulation consumes 100% of buffer headroom — zero margin at 48/96/192 kHz
+### WR-01: "Spillover — delay tail continues on bypass" is advertised but not implemented
 
-**File:** `plugins/O-DigiDelay/Source/PluginProcessor.cpp:117-118, 208-213`
-**Issue:** The buffer is sized for `2000ms + 25ms` headroom
-(`maxDelaySamples = ceil(2.025 * sampleRate)`), but the maximum read index consumes
-*exactly* that 25 ms:
+**Files:** `NOTES.md` (Key Features), `Source/PluginProcessor.h`
 
-- base = `time(≤2000ms)` → `2.000·fs`
-- spread = `spread(≤1.0) · 15ms` → `0.015·fs`
-- mod = `mod(≤1.0) · 10ms · lfo(≤+1.0)` → `0.010·fs`
-- max read = `2.025·fs`
+There is no `processBlockBypassed` override and no `getBypassParameter()`.
+JUCE's default `processBlockBypassed` passes the input through untouched, and
+the delay lines stop.
 
-At 48 kHz, 96 kHz, and 192 kHz, `2.025·fs` is an integer that equals `ceil(2.025·fs)`
-exactly (verified: margin = 0.0 samples; only 44.1 kHz has a 0.5-sample cushion). The read
-therefore lands on `maximumDelayInSamples` with no headroom, relying entirely on JUCE's
-internal `totalSize = maxDelay + 1` allocation to stay in-bounds for the 4-tap Lagrange3rd
-interpolator. The "25 ms headroom" comment is misleading — it is fully consumed, not
-reserved. Any future increase to the 15 ms spread scale or 10 ms mod scale (line 209-210)
-will silently push the read past `maximumDelayInSamples`.
-**Fix:** Add genuine headroom so the read never reaches the buffer edge:
-```cpp
-// PluginProcessor.cpp:117 — reserve modulation depth PLUS a safety pad
-const double maxDelaySeconds = (2000.0 + 15.0 + 10.0 + 5.0) / 1000.0; // +5ms pad
-```
+**Failure:** bypass the plugin in a VST3 host and the repeats stop dead instead
+of ringing out. In Logic's AU bypass the plugin is not called at all.
 
-### WR-02: NaN/Inf in input persists in the feedback loop indefinitely
-
-**File:** `plugins/O-DigiDelay/Source/PluginProcessor.cpp:218-229`
-**Issue:** `ScopedNoDenormals` flushes denormals but does nothing for NaN/Inf. If an
-upstream plugin emits a single NaN/Inf sample, it is written into the delay line and
-recirculated: `feedbackLeft = delayedSample * currentFeedback` becomes NaN, is pushed back
-via `pushSample(0, drySample + feedbackLeft)`, and contaminates the delay buffer
-permanently. The delay output stays NaN (silent/garbage) until `prepareToPlay` is called
-again (sample-rate/block-size change or re-instantiation). There is no `isfinite` guard on
-the feedback state.
-**Fix:** Sanitize the recirculated feedback each sample (cheap, RT-safe):
-```cpp
-feedbackLeft = delayedSample * currentFeedback;
-if (! std::isfinite(feedbackLeft)) feedbackLeft = 0.0f;   // break NaN/Inf recirculation
-// (same for feedbackRight)
-```
-
-### WR-03: `savePresetWithDialog` discards the folder the user chose in the dialog
-
-**File:** `plugins/O-DigiDelay/Source/PluginEditor.cpp:51-70`
-**Issue:** The native save dialog lets the user navigate to any folder and pick a filename,
-but the handler only extracts `getFileNameWithoutExtension()` (line 63) and passes it to
-`presetManager.savePreset(presetName)`, which *always* writes to
-`getUserPresetsDirectory()` (`OuariconPresetManager.h:306`). If a user opens the dialog,
-navigates to the Desktop, and saves "MyPreset", the file is silently written to
-`~/Library/O-DigiDelay/Presets/User/MyPreset.json` instead — the chosen destination is
-ignored, and the dialog's returned path is thrown away. The UI reports success with the
-name, so the user believes the file is on their Desktop.
-**Fix:** Either (a) honor the chosen path by writing the JSON to `results.getFirst()`
-directly, or (b) if "save into the managed User folder only" is the intended behavior,
-replace the folder-navigable `FileChooser` with a simple name-entry prompt so the UI does
-not imply a destination it ignores.
-
-### WR-04: Preset name is not sanitized before use as a filename (path-separator drop)
-
-**File:** `plugins/O-DigiDelay/Source/OuariconPresetManager.h:306, 227, 386`
-**Issue:** `savePreset` builds the file as
-`getUserPresetsDirectory().getChildFile(presetName + ".json")` with no sanitization. A name
-containing `/` (or `:` on some platforms) is interpreted by `getChildFile` as a path
-separator, so the file is written to an unexpected location or silently dropped, and
-`getPresetList()` (non-recursive `findChildFiles`) will not find it — the exact regression
-documented for `OuariconPresetManager` elsewhere in this codebase (O-simplePhysicalModelSynth
-"Koto / Harp"). In this specific UI the risk is reduced because the only wired entry point
-is the native save dialog (WR-03), but the `savePreset(name)` native function is still
-exposed to JS and this is a shared module reused verbatim across plugins.
-**Fix:** Strip path separators before constructing the filename:
-```cpp
-auto safeName = presetName.replaceCharacters("/\\:", "___");
-auto presetFile = getUserPresetsDirectory().getChildFile(safeName + ".json");
-```
-(Apply consistently in `isFactoryPreset`, `loadPreset`, and `deletePreset` so the same name
-round-trips.)
-
-### WR-05: WebView2 user-data folder is the shared temp root, not a plugin-specific subfolder
-
-**File:** `plugins/O-DigiDelay/Source/PluginEditor.cpp:31-33`
-**Issue:** `withUserDataFolder(File::getSpecialLocation(SpecialLocationType::tempDirectory))`
-points every Ouaricon plugin's WebView2 instance at the *same* bare temp directory. The
-project MEMORY explicitly prescribes a plugin-specific child
-(`...getChildFile("PluginName_WebView")`). WebView2 places a lock on its user-data folder;
-loading two Ouaricon plugins (or two instances) in the same Windows host can produce
-contention over the shared folder, and a failed WebView2 construction silently falls back
-to IE (blank UI, no error). This is Windows-only but a real cross-instance hazard.
 **Fix:**
-```cpp
-.withUserDataFolder(juce::File::getSpecialLocation(juce::File::tempDirectory)
-                        .getChildFile("O-DigiDelay_WebView"))
-```
+- Add an `AudioParameterBool` "bypass", returned from `getBypassParameter()`.
+- While it is on, keep running the delay with no new input fed in, and ramp the
+  dry signal to unity.
+- Return the same handling from `processBlockBypassed`.
+- Alternatively, remove the claim from NOTES.md.
 
-### WR-06: Non-atomic RMS meter state shared across audio and message threads
+### WR-02: Smoothers aren't seeded from the parameters, so the first block ramps from the constructor defaults
 
-**File:** `plugins/O-DigiDelay/Source/PluginProcessor.cpp:240-251` and `PluginProcessor.h:90-91`
-**Issue:** `rmsLevelLeft/Right` (`juce::LinearSmoothedValue<float>`) are written on the audio
-thread (`setTargetValue` + `skip`, lines 240-241 / 249-250) and read on the message thread
-via `getRmsLevelLeft()`/`getRmsLevelRight()` (`PluginProcessor.h:50-51`), which the 30 Hz
-editor timer calls (`PluginEditor.cpp:194-195`). `LinearSmoothedValue` is not thread-safe;
-this is a data race on a plain `float` (technically UB). It is benign for a visual meter but
-still a genuine cross-thread defect.
-**Fix:** Publish the meter value through a `std::atomic<float>` written at the end of
-`processBlock` and read (relaxed) in the getters, rather than reading the smoother's internal
-state across threads.
+**File:** `Source/PluginProcessor.cpp:157-164` (with the defaults at `PluginProcessor.h:116-121`)
 
-### WR-07: Butterfly image path contains spaces — resource-provider match is percent-encoding-fragile
+`SmoothedValue::reset(numSteps)` snaps the current value to the *target*. On
+the first `prepareToPlay` the target is still the constructor literal (dry 1.0,
+wet 0.3, feedback 0.3, time 500), not the restored parameter value. The same
+failure class is in memory as `pattern_gain_ramp_without_seeding_fades_in_from_silence`.
 
-**File:** `plugins/O-DigiDelay/Source/PluginEditor.cpp:257-262`, `index.html:70, 87`
-**Issue:** The resource provider matches `url == "/img/butterfly2_Black and white.png"` with
-literal spaces, while the CSS references `url('img/butterfly2_Black and white.png')`.
-WebView engines commonly percent-encode spaces to `%20` in the request path; if the path
-arrives as `/img/butterfly2_Black%20and%20white.png`, the exact-string comparison fails,
-`getResource` returns `std::nullopt` (404), and the butterfly overlay/echoes silently
-disappear. Even though v1.2.9 is "Installed" (so it currently works on the tested engine),
-a filename with spaces is a latent cross-platform/cross-engine hazard (macOS WKWebView vs
-Windows WebView2 may differ).
-**Fix:** Rename the asset to a space-free filename (e.g. `butterfly2_bw.png`) and update the
-CSS + the `getResource` match, or decode the path before comparison
-(`juce::URL::removeEscapeChars(url)`).
+**Failure:** a session saved with Dry 0 / Wet 100 (a send or bus delay) leaks a
+dry signal that fades from full level to silence over the first 20ms of the
+first playback or bounce after load.
 
-## Info
+**Fix:** in `prepareToPlay`, call `setCurrentAndTargetValue(param->load() / 100)`
+for each smoother, and resolve the delay time through the sync logic.
 
-### IN-01: Preset directory diverges from its own doc and from the platform convention
+### WR-03: The knob arcs draw 90° at minimum and a full closed ring at maximum
 
-**File:** `plugins/O-DigiDelay/Source/OuariconPresetManager.h:206-213`
-**Issue:** The doc comment (lines 22-24, 208) says presets live in
-`~/Library/Application Support/{pluginName}/Presets/`, but the code builds
-`~/Library/{pluginName}/Presets/` (no "Application Support"). The result is a
-non-standard top-level `~/Library/O-DigiDelay/` folder. Not a bug, but it contradicts the
-documented path and the macOS convention.
-**Fix:** Use `File::commonApplicationDataDirectory` / `userApplicationDataDirectory`
-(`~/Library/Application Support`) and update the comment to match.
+**File:** `Source/ui/public/index.html:998` (and the same line on all 6 knobs), with `1205`, `1232`, `1364` and `1417`
 
-### IN-02: Preset JSON hard-codes `"version": "1.0.0"` regardless of plugin version
+The markup is `stroke-dasharray="157.08"` (dash and gap both 157.08) combined
+with `strokeDashoffset = ARC_LENGTH - norm*ARC_LENGTH`, where `ARC_LENGTH`
+is 117.81. The visible dash is therefore 39.27 + 117.81·norm, which runs from 90°
+to 360°. This was confirmed with a headless render at 700×196.
 
-**File:** `plugins/O-DigiDelay/Source/OuariconPresetManager.h:254, 540`
-**Issue:** Every saved preset records `version = "1.0.0"` even though the plugin is at
-v1.2.9. This metadata is currently unused on load, but it defeats any future
-version-migration logic.
-**Fix:** Write `JucePlugin_VersionString` (already used at `PluginEditor.cpp:126`) instead
-of the literal.
+**Failure:**
+- SPREAD and MOD default to 0% but draw a quarter arc.
+- DRY defaults to 100% and draws a closed ring, so nothing marks where the 270°
+  sweep ends.
 
-### IN-03: `getNextPreset`/`getPreviousPreset` fall back to index 0 after a dialog-loaded file
+**Fix:**
+- Set `stroke-dasharray="117.81 314.16"`.
+- Check the start rotation: `rotate(-135deg)` starts at 10:30, and the
+  conventional 7:30 start is `rotate(135deg)`.
 
-**File:** `plugins/O-DigiDelay/Source/OuariconPresetManager.h:436-438, 450-452`
-**Issue:** After `loadPresetFromFile`, `currentPresetName` is set to the imported file's base
-name, which may not exist in the Factory/User list. On the next prev/next press,
-`indexOf(currentPresetName)` returns -1 and navigation jumps to `presets[0]` rather than to
-a neighbor of the current sound. Minor UX quirk.
-**Fix:** When `currentIndex < 0`, remember the last known list index (or treat prev/next as
-relative to the last in-list selection) instead of snapping to element 0.
+### WR-04: The last row of the preset dropdown sits outside the editor frame
 
-### IN-04: No `isBusesLayoutSupported` override; mono/other layouts unvalidated
+**File:** `Source/ui/public/index.html:314-328`
 
-**File:** `plugins/O-DigiDelay/Source/PluginProcessor.cpp:91-94` (and absence in header)
-**Issue:** The processor declares a fixed stereo-in/stereo-out bus but provides no
-`isBusesLayoutSupported`. In a mono context the right channel is null and `delayLineRight`
-is simply unused (handled safely at `processBlock:224`), so there is no crash — but hosts
-that probe alternate layouts get no explicit accept/reject, which can cause the plugin to be
-offered layouts it does not truly process.
-**Fix:** Add an `isBusesLayoutSupported` that accepts mono→mono and stereo→stereo (input set
-== output set) and rejects the rest.
+The dropdown uses `top: 100%; margin-top: 4px; max-height: 180px`, so it spans
+y 38–218 in a 196px frame. `.container` has `overflow: hidden`.
+
+**Failure:** with the 12 factory presets installed, "Triplet Feel" sits at
+y 196–216 even when the list is scrolled to the bottom. The only way to reach
+it, or any user preset that sorts after it, is ◀▶.
+
+**Fix:** use `max-height: 150px`, or compute it from
+`innerHeight - rect.bottom - 8` in `showPresetDropdown`.
+
+### WR-05: Mouse-wheel changes on a knob send no automation gesture
+
+**File:** `Source/ui/public/index.html:1392-1397`, `1470-1485`
+
+The wheel handler calls `setNormalisedValue` without
+`sliderDragStarted()`/`sliderDragEnded()` around it.
+`WebSliderParameterAttachment` then calls `setValueNotifyingHost` with no
+gesture.
+
+**Failure:** in Touch or Latch automation (Logic, Cubase, Pro Tools), wheel
+moves are either not written or are overwritten by existing automation.
+
+**Fix:** start a gesture on the first wheel event and end it after about
+150ms of wheel inactivity.
+
+### WR-06: A sync-mode TIME drag opens a gesture on `time` but changes `division`
+
+**File:** `Source/ui/public/index.html:1279-1284`, `1446-1466`
+
+The drag calls `timeState.sliderDragStarted/Ended`, but the values go through
+`divisionState.setChoiceIndex`.
+
+**Failure:** in Touch or Latch, the whole drag touches the Time lane, so the
+current Time value overwrites existing Time automation. Division gets one
+separate complete gesture for each step.
+
+**Fix:** skip the time gesture while `isSyncMode`.
+
+### WR-07: The preset name goes stale when the host restores state while the editor is open
+
+**Files:** `Source/ui/public/modules/preset-manager.js:159-176`, `Source/OuariconPresetManager.h:557`
+
+`setStateFromXml` rewrites `currentPresetName`, but C++ never pushes an event
+and JS never polls for it.
+
+**Failure:** after a host preset recall, an A/B compare or an undo, the knobs
+update but the bar shows the old name. The `.active` dropdown row is wrong, and
+◀▶ steps from a name the user cannot see.
+
+**Fix:**
+- Keep a revision counter on the preset manager and check it in the 30Hz
+  editor timer.
+- When it changes, fire `emitEventIfBrowserIsVisible("presetChanged", …)`,
+  and have JS call `refresh()`.
+
+### WR-08: The output meter reads 6dB low in a mono layout
+
+**Files:** `Source/PluginEditor.cpp:248-250`, `Source/PluginProcessor.cpp:291-299`
+
+The meter computes `(rmsLeft + rmsRight) * 0.5f`. `isBusesLayoutSupported`
+accepts mono, and in mono `rmsMeterRight` is never written. It stays at 0, or
+at its last stereo value after a layout change.
+
+**Failure:** a mono track meters exactly half its level. After a switch from
+stereo to mono, the meter is frozen partly on a stale right-channel value.
+
+**Fix:**
+- Store 0 to `rmsMeterRight` when there is no right channel.
+- Meter with `max(L, R)`, or average over the active channel count.
+
+### WR-09: Hover tips come back during a knob drag
+
+**File:** `Source/ui/public/index.html:2008-2013`, `2022`
+
+`pointerdown` hides the tip and clears `active`. The next `pointerover`, for
+example crossing the arc stroke or the caption, shows it again, because the
+handler doesn't check `dragState.isDragging`.
+
+**Failure:** while TIME is being dragged, the tip follows the cursor over the
+neighbouring captions and readouts.
+
+**Fix:** return early from `pointerover`/`pointermove` while a drag is active.
+
+### WR-10: The native Save dialog is English-only
+
+**File:** `Source/PluginEditor.cpp:79-84`
+
+The strings "Save Preset", "Enter a name for this preset:", "Save" and "Cancel"
+are hard-coded. check-i18n only scans the page, so it cannot see them.
+
+**Failure:** a fr or zh-Hans user presses "Enreg" and gets an English dialog.
+
+**Fix:** pass localized strings from JS as arguments to `savePresetWithDialog`,
+or keep a small C++ table keyed on `uiLanguage`.
 
 ---
 
-_Reviewed: 2026-07-01T14:09:01Z_
-_Reviewer: Claude (gsd-code-reviewer)_
-_Depth: deep_
+## Info
+
+### IN-01: The mod LFO sweeps 440→0.3Hz over the first 50ms after instantiation
+`PluginProcessor.cpp:153-155`. `dsp::Oscillator`'s frequency smoother starts at
+440Hz, and `setFrequency(0.3f)` without `force` ramps down from there over 50ms.
+With MOD above 0, a short delay time and audio in the first 50ms, the result is
+a brief FM warble. Fix with `lfo.setFrequency(0.3f, true)`.
+
+### IN-02: The triplet factors are rounded
+`PluginProcessor.h:153-155` uses `0.667 / 0.333 / 0.167` where the exact values
+are 2/3, 1/3 and 1/6. At 1/16T that is 0.2% off: repeats drift off the grid by
+about 0.2ms per repeat at 120BPM, and the error accumulates over long feedback
+tails. Use `2.0f/3.0f` and so on.
+
+### IN-03: FEEDBACK above 95% does nothing, and the tail estimate is not a decay time
+- The DSP clamps feedback to 0.95 (`PluginProcessor.cpp:244`), but the
+  parameter and readout go to 100%, so the top 5% of knob travel is dead.
+- `getTailLengthSeconds` (`:302-320`) always uses 2s rather than the actual
+  time, and `2/(1-fb)` is not a −60dB decay: 95% feedback needs about
+  135 repeats. The 30s cap hides most of this.
+- Either rescale the range so 100% maps to 0.95, or show the clamp.
+
+### IN-04: A large time change plays the buffer at up to 100× speed
+The 20ms linear ramp on `smoothedTimeMs` moves the read head across the
+buffer. A 2000→1ms jump, or a division change in sync mode, plays about 2s of
+history in 20ms and produces a loud chirp. That may be intended (tape-like),
+but for a "transparent" digital delay a crossfade between two taps is the
+usual approach.
+
+### IN-05: Sync silently clamps to 2000ms
+`PluginProcessor.cpp:222`. 1/4D below 45BPM, or 1/4 below 30BPM, exceeds
+2000ms and falls off the grid with no UI indication.
+
+### IN-06: The UI shows a division that the DSP isn't using
+`index.html:1424-1428` vs `PluginProcessor.cpp:213-227`. With SYNC on and no
+BPM from the host (Standalone, or a host with no transport), the DSP uses the
+free TIME value while the readout and echo spacing show the division.
+
+### IN-07: Preset apply gaps
+`OuariconPresetManager.h:294-326`:
+- `applyPresetJson` doesn't reset parameters that the JSON omits, so a
+  partial or older preset inherits the previous values.
+- It sets values with no begin/end gesture.
+- It casts `prop.value` without validating it.
+
+The Save dialog also returns the *unsanitized* name (`PluginEditor.cpp:93`)
+while the manager stores the sanitized one, so "A/B" shows in the bar but the
+list holds "A_B".
+
+### IN-08: The readouts flash "1 ms / 0%" when the editor opens
+`index.html:1366-1368`, `1417`, `1440`. Setup writes `formatFn(0)` before the
+backend's first update arrives, so the arcs sweep up from 0 on every open.
+Skip the write while `parameterIndex === -1`.
+
+### IN-09: The dropdown list and ◀▶ disagree
+`index.html:1605`, `preset-manager.js:331`. The dropdown uses the list cached
+at init or the last save, while ◀▶ fetch a fresh list from C++. Call
+`refresh()` when the dropdown opens.
+
+### IN-10: No modified indicator, and preset loads fail silently
+`preset-manager.js:193-203`. The bar keeps showing the preset name after a
+knob moves. A failed `loadPreset` (file deleted on disk) gives no feedback.
+
+### IN-11: The meter rewrites all 14 LED segments at 30Hz whether or not the level changed
+`index.html:1311-1316`. Cache `activeCount`. The editor timer also keeps
+calling `evaluateJavascript` while the window is hidden.
+
+### IN-12: No double-click reset or fine-drag modifier, and a fixed 2% wheel step
+A trackpad flick can sweep the full range. Scale the wheel step by `deltaY`
+and add Shift for fine steps.
+
+### IN-13: Stale comments
+`PluginEditor.cpp:171-173` and `PluginProcessor.cpp:342` say "anything not
+'fr' → 0" and "en/fr", but `languageIndex` also maps zh-Hans to 2. The code is
+correct.
+
+### IN-14: Cross-thread state access
+- `getStateInformation` calls `parameters.state.setProperty` (`:344`) from
+  whatever thread the host uses, while the message thread may touch the tree.
+- `currentPresetName` (a `juce::String`) is written on the message thread and
+  read inside `getStateAsXml`.
+- This is the suite-wide pattern and has low practical risk.
+
+### IN-15: Delay lines allocate channels they never use
+`PluginProcessor.cpp:135,147`. Each `DelayLine` is prepared with
+`numChannels = 2`, but only channel 0 of each is used, so twice the needed
+memory is allocated (about 780k floats per line at 192kHz). Prepare each with
+`numChannels = 1`.
+
+### IN-16: Accessibility (R7, known open)
+- The knobs have no keyboard or ARIA support.
+- SYNC (`index.html:987`) is a `<div>` with no `tabindex` or `role="switch"`.
+- `#presetName` (`:963`) is a span that cannot receive focus, so the preset
+  list is mouse-only.

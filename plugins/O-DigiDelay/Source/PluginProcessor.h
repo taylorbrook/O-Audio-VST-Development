@@ -42,6 +42,12 @@ public:
     void releaseResources() override;
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    void processBlockBypassed(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+
+    // v1.8.0 (WR-01): the host bypass maps to the plugin's own "bypass"
+    // parameter, so a bypassed instance keeps being processed and the delay
+    // tail rings out (spillover) instead of stopping dead.
+    juce::AudioProcessorParameter* getBypassParameter() const override { return bypassParameter; }
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
@@ -70,6 +76,13 @@ public:
     // Read the published atomic snapshot, not the audio-thread smoother state (WR-06).
     float getRmsLevelLeft() const { return rmsMeterLeft.load(std::memory_order_relaxed); }
     float getRmsLevelRight() const { return rmsMeterRight.load(std::memory_order_relaxed); }
+    // v1.8.0 (WR-08): channels the meter snapshots cover (1 = mono layout, 2 = stereo).
+    int getMeterChannelCount() const { return meterChannels.load(std::memory_order_relaxed); }
+
+    // v1.8.0 (WR-07): bumped by every setStateInformation() so the editor can
+    // tell the page the preset name may have changed behind its back (host
+    // preset recall, A/B compare, undo).
+    uint32_t getStateRevision() const { return stateRevision.load(std::memory_order_acquire); }
 
     // ------------------------------------------------------------------------
     // v1.3.0 — the UI language. 0 = en, 1 = fr.
@@ -102,6 +115,13 @@ private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    // The shared body of processBlock / processBlockBypassed. hostBypassed is
+    // true when the host routed the block through processBlockBypassed.
+    void process(juce::AudioBuffer<float>& buffer, bool hostBypassed);
+
+    // Free TIME, or the synced division when SYNC is on and the host reports a bpm.
+    float resolveDelayTimeMs();
+
     // DSP Components (declare BEFORE APVTS for initialization order)
     juce::dsp::ProcessSpec spec;
 
@@ -119,6 +139,14 @@ private:
     juce::SmoothedValue<float> smoothedMod { 0.0f };
     juce::SmoothedValue<float> smoothedWet { 0.3f };
     juce::SmoothedValue<float> smoothedDry { 1.0f };
+    // v1.8.0 (WR-01): gain on the signal fed INTO the delay lines. Ramps to 0
+    // while bypassed so no new input enters and the existing tail rings out.
+    juce::SmoothedValue<float> smoothedInputGain { 1.0f };
+
+    // v1.8.0 (WR-02): set by prepareToPlay. The first processed block snaps
+    // every smoother to the live parameter values instead of ramping from the
+    // constructor literals above (a Dry 0 session leaked 20 ms of dry signal).
+    bool snapSmoothers = true;
 
     // Feedback state (per-channel)
     float feedbackLeft = 0.0f;
@@ -133,6 +161,8 @@ private:
     std::atomic<float>* modParam = nullptr;
     std::atomic<float>* wetParam = nullptr;
     std::atomic<float>* dryParam = nullptr;
+    std::atomic<float>* bypassParam = nullptr;
+    juce::AudioParameterBool* bypassParameter = nullptr;
 
     // RMS level calculation for output meter (audio-thread only)
     juce::LinearSmoothedValue<float> rmsLevelLeft { 0.0f };
@@ -141,6 +171,9 @@ private:
     // Thread-safe meter snapshots published from processBlock, read by the editor timer (WR-06)
     std::atomic<float> rmsMeterLeft { 0.0f };
     std::atomic<float> rmsMeterRight { 0.0f };
+    std::atomic<int>   meterChannels { 2 };
+
+    std::atomic<uint32_t> stateRevision { 0 };
 
     // Subdivision lookup table (12 values)
     static constexpr float subdivisionFactors[12] = {

@@ -270,6 +270,11 @@ inline juce::var OuariconPresetManager::createPresetJson() const
     auto* paramsObj = new juce::DynamicObject();
     for (auto* param : parameters.processor.getParameters())
     {
+        // O-DigiDelay v1.8.0: the host bypass parameter is session state, not
+        // preset content — a preset saved while bypassed must not bypass on load.
+        if (param == parameters.processor.getBypassParameter())
+            continue;
+
         if (auto* paramWithID = dynamic_cast<juce::RangedAudioParameter*>(param))
         {
             paramsObj->setProperty(paramWithID->getParameterID(),
@@ -310,6 +315,9 @@ inline bool OuariconPresetManager::applyPresetJson(const juce::var& presetData)
             {
                 if (auto* param = parameters.getParameter(prop.name.toString()))
                 {
+                    if (param == parameters.processor.getBypassParameter())
+                        continue;   // v1.8.0: never applied from a preset (see createPresetJson)
+
                     param->setValueNotifyingHost(static_cast<float>(prop.value));
                 }
             }

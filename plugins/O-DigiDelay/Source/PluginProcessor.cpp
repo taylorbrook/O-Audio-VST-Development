@@ -107,6 +107,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconDigitalDelayAudioPro
         "%"
     ));
 
+    // bypass - Bool (default: false). v1.8.0 (WR-01). Returned from
+    // getBypassParameter(), so the host's bypass switch drives it. Appended
+    // LAST so every existing parameter keeps its index. Excluded from preset
+    // save/apply (OuariconPresetManager) — a preset must not bypass the plugin.
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "bypass", 1 },
+        "Bypass",
+        false
+    ));
+
     return layout;
 }
 
@@ -125,6 +135,9 @@ OuariconDigitalDelayAudioProcessor::OuariconDigitalDelayAudioProcessor()
     modParam      = parameters.getRawParameterValue("mod");
     wetParam      = parameters.getRawParameterValue("wet");
     dryParam      = parameters.getRawParameterValue("dry");
+    bypassParam   = parameters.getRawParameterValue("bypass");
+    bypassParameter = dynamic_cast<juce::AudioParameterBool*>(parameters.getParameter("bypass"));
+    jassert(bypassParameter != nullptr);
 }
 
 void OuariconDigitalDelayAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -162,6 +175,13 @@ void OuariconDigitalDelayAudioProcessor::prepareToPlay(double sampleRate, int sa
     smoothedMod.reset(rampTimeSamples);
     smoothedWet.reset(rampTimeSamples);
     smoothedDry.reset(rampTimeSamples);
+    smoothedInputGain.reset(rampTimeSamples);
+
+    // WR-02: reset() snaps current to the TARGET, which on the first prepare
+    // is still the constructor literal, not the restored parameter. The first
+    // processed block snaps to the live values instead (the play head, which
+    // the synced time needs, is only valid inside processBlock).
+    snapSmoothers = true;
 
     // Reset RMS meters with faster response (10ms)
     rmsLevelLeft.reset(sampleRate, 0.01);
@@ -196,21 +216,23 @@ bool OuariconDigitalDelayAudioProcessor::isBusesLayoutSupported(const BusesLayou
 
 void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
+    process(buffer, false);
+}
 
-    const int numSamples = buffer.getNumSamples();
-    const int numChannels = buffer.getNumChannels();
+void OuariconDigitalDelayAudioProcessor::processBlockBypassed(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+{
+    // WR-01: JUCE's default passes the input through and stops the delay
+    // lines. Run the same path with the input muted so the tail rings out.
+    juce::ignoreUnused(midiMessages);
+    process(buffer, true);
+}
 
-    // Early return for empty buffers
-    if (numSamples == 0 || numChannels == 0)
-        return;
-
-    // Calculate delay time (free mode or synced mode)
+float OuariconDigitalDelayAudioProcessor::resolveDelayTimeMs()
+{
     float delayTimeMs = timeParam->load();
-    bool isSync = syncParam->load() > 0.5f;
 
-    if (isSync)
+    if (syncParam->load() > 0.5f)
     {
         if (auto* playHead = getPlayHead())
         {
@@ -226,13 +248,52 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         }
     }
 
+    return delayTimeMs;
+}
+
+void OuariconDigitalDelayAudioProcessor::process(juce::AudioBuffer<float>& buffer, bool hostBypassed)
+{
+    juce::ScopedNoDenormals noDenormals;
+
+    const int numSamples = buffer.getNumSamples();
+    const int numChannels = buffer.getNumChannels();
+
+    // Early return for empty buffers
+    if (numSamples == 0 || numChannels == 0)
+        return;
+
+    // Calculate delay time (free mode or synced mode)
+    const float delayTimeMs = resolveDelayTimeMs();
+
+    // WR-01 spillover: while bypassed, nothing new enters the delay lines,
+    // the dry path ramps to unity and the wet tail keeps its level and decay.
+    const bool bypassed = hostBypassed || bypassParam->load() > 0.5f;
+    const float inputGainTarget = bypassed ? 0.0f : 1.0f;
+    const float dryTarget       = bypassed ? 1.0f : dryParam->load() / 100.0f;
+
     // Set smoothed parameter targets
-    smoothedTimeMs.setTargetValue(delayTimeMs);
-    smoothedFeedback.setTargetValue(feedbackParam->load() / 100.0f);
-    smoothedSpread.setTargetValue(spreadParam->load() / 100.0f);
-    smoothedMod.setTargetValue(modParam->load() / 100.0f);
-    smoothedWet.setTargetValue(wetParam->load() / 100.0f);
-    smoothedDry.setTargetValue(dryParam->load() / 100.0f);
+    if (snapSmoothers)
+    {
+        // WR-02: first block after prepareToPlay — start AT the live values.
+        smoothedTimeMs.setCurrentAndTargetValue(delayTimeMs);
+        smoothedFeedback.setCurrentAndTargetValue(feedbackParam->load() / 100.0f);
+        smoothedSpread.setCurrentAndTargetValue(spreadParam->load() / 100.0f);
+        smoothedMod.setCurrentAndTargetValue(modParam->load() / 100.0f);
+        smoothedWet.setCurrentAndTargetValue(wetParam->load() / 100.0f);
+        smoothedDry.setCurrentAndTargetValue(dryTarget);
+        smoothedInputGain.setCurrentAndTargetValue(inputGainTarget);
+        snapSmoothers = false;
+    }
+    else
+    {
+        smoothedTimeMs.setTargetValue(delayTimeMs);
+        smoothedFeedback.setTargetValue(feedbackParam->load() / 100.0f);
+        smoothedSpread.setTargetValue(spreadParam->load() / 100.0f);
+        smoothedMod.setTargetValue(modParam->load() / 100.0f);
+        smoothedWet.setTargetValue(wetParam->load() / 100.0f);
+        smoothedDry.setTargetValue(dryTarget);
+        smoothedInputGain.setTargetValue(inputGainTarget);
+    }
 
     const float msToSamples = static_cast<float>(spec.sampleRate) / 1000.0f;
     float* leftChannel = numChannels >= 1 ? buffer.getWritePointer(0) : nullptr;
@@ -246,6 +307,7 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         float currentMod = smoothedMod.getNextValue();
         float currentWet = smoothedWet.getNextValue();
         float currentDry = smoothedDry.getNextValue();
+        float currentInputGain = smoothedInputGain.getNextValue();
 
         float baseDelaySamples = currentDelayMs * msToSamples;
         float spreadSamples = currentSpread * 15.0f * msToSamples;
@@ -257,7 +319,7 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         if (leftChannel != nullptr)
         {
             float drySample = leftChannel[sample];
-            delayLineLeft.pushSample(0, drySample + feedbackLeft);
+            delayLineLeft.pushSample(0, drySample * currentInputGain + feedbackLeft);
             float delayedSample = delayLineLeft.popSample(0, leftDelaySamples);
             feedbackLeft = delayedSample * currentFeedback;
             if (! std::isfinite(feedbackLeft)) feedbackLeft = 0.0f; // break NaN/Inf recirculation (ScopedNoDenormals doesn't catch these)
@@ -267,7 +329,7 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         if (rightChannel != nullptr)
         {
             float drySample = rightChannel[sample];
-            delayLineRight.pushSample(0, drySample + feedbackRight);
+            delayLineRight.pushSample(0, drySample * currentInputGain + feedbackRight);
             float delayedSample = delayLineRight.popSample(0, rightDelaySamples);
             feedbackRight = delayedSample * currentFeedback;
             if (! std::isfinite(feedbackRight)) feedbackRight = 0.0f; // break NaN/Inf recirculation (ScopedNoDenormals doesn't catch these)
@@ -297,6 +359,14 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         rmsLevelRight.skip(numSamples);
         rmsMeterRight.store(rmsLevelRight.getCurrentValue(), std::memory_order_relaxed);
     }
+    else
+    {
+        // WR-08: a mono layout never writes the right snapshot. Zero it so a
+        // stale stereo value cannot linger after a layout change.
+        rmsMeterRight.store(0.0f, std::memory_order_relaxed);
+    }
+
+    meterChannels.store(rightChannel != nullptr ? 2 : 1, std::memory_order_relaxed);
 }
 
 double OuariconDigitalDelayAudioProcessor::getTailLengthSeconds() const
@@ -378,6 +448,10 @@ void OuariconDigitalDelayAudioProcessor::setStateInformation(const void* data, i
 
     if (! lang.isVoid())
         uiLanguage.store(languageIndex(lang.toString()), std::memory_order_release);
+
+    // WR-07: the restored state may carry a different preset name. The editor
+    // timer watches this counter and tells the page to re-read it.
+    stateRevision.fetch_add(1, std::memory_order_acq_rel);
 }
 
 // Factory function
