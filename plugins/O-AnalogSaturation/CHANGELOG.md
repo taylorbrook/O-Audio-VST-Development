@@ -2,6 +2,56 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.6.0] - 2026-09-27
+
+**Legibility pass (UI review 260924-nho, R4/R5).** A palette of CSS custom
+properties, text that clears WCAG AA on the real paper ground, a 9 px floor,
+and the bundled EB Garamond face. MINOR: no DSP, parameter, range or state
+change; the knob JS is untouched.
+
+### Changed
+
+- **Palette tokens.** 67 hex literals become 20 `:root` tokens (15 colours,
+  4 `*-rgb` triples, `--font-serif`); **0 hex and 0 raw `rgba()` remain
+  outside `:root`**. Shadows and washes are `rgba(var(--x-rgb), a)`.
+- **A 0.40 `--paper` wash over `paper1.jpg`**, with `--paper-ground #D8B78B`
+  (the washed JPG's median) as the frame's background-color. The bare JPG
+  renders at luminance 0.24 (p5) - 0.43 (p95); its stains took `--ink` under
+  AA. The body behind the frame is `--paper-ground`, not `#000`.
+- **Opaque plates.** Idle buttons, the gear and both VU faces are
+  `--sage-plate #C1B283` (sage 0.3 pre-composited over the washed ground),
+  hover `--sage-hover #B1AF7D`; the popover's select and switch are
+  `--sage-control #D5D7B8`; popover and tooltip are opaque `--cream`. An
+  `rgba()` plate let whatever stain sat under it set the ratio, and the snake
+  showed through the output VU face at high intensity.
+- **Engaged states are cream on `--leaf #3C5C1A`** (model, quality, autogain,
+  open gear) — the fill the hover-help switch already used since v1.4.0 —
+  instead of ink on a 0.6 olive, which read 3.36-3.77:1.
+- **9 px floor.** VU dB ticks 7 → 9 px (side padding 8 → 4 px so seven ticks
+  keep a gap), IN/OUT 8 → 9 px, version label 8 px ink-at-0.4 → 9 px `--ink`.
+- **Bundled EB Garamond** (`modules/ui/eb-garamond`, direct embed: 4 binary-data
+  SOURCES, 4 `getResource()` branches). `--font-serif` replaces all 10 font
+  stacks; the bare `'Garamond'` lead is dropped. CDP resolves EB Garamond on
+  every sampled node (was Times New Roman + Zapf Dingbats for the ❦).
+
+### Fixed
+
+- **The version label read `v1.3.1`** through v1.4.0 and v1.5.0; it now reads
+  the shipping version.
+
+### Testing
+
+- Real-ground pixel probe (text hidden, transitions off, 2x, p5/p95 of the
+  glyph band; idle at snake opacity 1, all-engaged, all-idle, popover with
+  help on/off; en/fr/zh-Hans): below-AA **25/33 → 0/33**, min **1.41 → 4.59**
+  (version label on the corner stain; everything else ≥ 5.78), <9 px 10 → 0.
+- `measure-ui --contrast`: below-AA **29/32 → 0/32** per language, <9 px
+  17 → 0, min 1.04 → 6.08 (the old figure scored text against the `#000` body
+  behind the frame).
+- `check-ui-labels` (en/fr/zh-Hans), `check-i18n`, fr + zh lints,
+  `tests/ui_tip_render_check.js`: pass, before and after.
+- Knob keyboard/ARIA (review R7) NOT ported: no knob code was touched.
+
 ## [1.5.0] - 2026-09-04
 
 **Simplified Chinese.** The page, the hover help and every accessible name now

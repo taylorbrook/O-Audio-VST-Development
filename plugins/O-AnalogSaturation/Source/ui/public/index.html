@@ -24,7 +24,57 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ouaricon Saturation Modeling</title>
 
+  <!-- v1.6.0 (review R5): the bundled EB Garamond face, served from
+       modules/ui/eb-garamond by getResource(). BEFORE the page's own rules. -->
+  <link rel="stylesheet" href="css/eb-garamond.css" />
+
   <style>
+    /* ===== THE PALETTE (v1.6.0, review R4) =====
+       Every colour on this page is one of these tokens; the rules below carry
+       no hex literal. Measured against the REAL ground, not the CSS fallback:
+       paper1.jpg renders at luminance 0.24 (p5) - 0.43 (p95), on which the
+       old ink-on-translucent-sage buttons read 3.4-4.5:1 and the 8 px version
+       label 1.41:1. Three levers fix it:
+
+         1. a 0.40 --paper wash over the JPG (the O-Lyrica / O-Polystutter
+            value), which lifts the stains so --ink clears AA on bare paper;
+         2. OPAQUE pre-composited fills for every plate that carries text —
+            an rgba() plate lets the stain under it set the ratio;
+         3. engaged states take cream on --leaf, the fill the hover-help
+            switch has used since v1.4.0, instead of ink on a 0.6 olive.
+
+       --walnut stays for borders, rules and the knob's segment lines; as text
+       it would read under 3:1 on this ground. */
+    :root {
+      --ink:           #3C2F2F;   /* all text on paper and plates */
+      --leaf:          #3C5C1A;   /* borders, focus rings, engaged fill */
+      --leaf-dark:     #2C3E10;   /* engaged border, tooltip title */
+      --cream:         #F5EBD7;   /* text on --leaf; popover + tooltip fill */
+      --walnut:        #8B7355;   /* frame, dividers, knob segment lines */
+      --paper:         #F5E6D3;   /* the wash over paper1.jpg */
+      --paper-ground:  #D8B78B;   /* the washed JPG's median: frame fallback */
+      --sage-plate:    #C1B283;   /* idle button / VU face (sage 0.3 over the washed ground, opaque) */
+      --sage-hover:    #B1AF7D;   /* idle hover (sage 0.5, opaque) */
+      --sage-control:  #D5D7B8;   /* select + switch on the cream popover (sage 0.3 over cream, opaque) */
+      --wheat:         #F5DEB3;   /* knob body */
+      --wheat-2:       #E8D5B7;
+      --wheat-3:       #D8C5A7;
+      --needle-a:      #D4A574;   /* VU needle rest colour (JS repaints it live) */
+      --needle-b:      #C49564;
+
+      --walnut-rgb:    139, 115, 85;
+      --paper-rgb:     245, 230, 211;
+      --black-rgb:     0, 0, 0;
+      --white-rgb:     255, 255, 255;
+
+      /* EB Garamond first (bundled, so every host resolves the same face);
+         Georgia before Times; the CJK tail BEFORE the trailing generic, which
+         Chromium resolves against the document language. The bare 'Garamond'
+         lead is dropped: on Windows an Office-installed Garamond would outrank
+         the bundled face. */
+      --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    }
+
     /* ===== CRITICAL WEBVIEW CONSTRAINTS ===== */
     html, body {
       height: 100%;  /* REQUIRED - replaces viewport units */
@@ -42,11 +92,11 @@
       -webkit-user-select: none;
       cursor: default;
       overflow: hidden;
-      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #000;
+      background: var(--paper-ground);
     }
 
     /* ===== PLUGIN CONTAINER ===== */
@@ -55,8 +105,14 @@
       height: 100%;
       position: relative;
 
-      /* Paper texture background */
-      background-image: url('img/paper1.jpg');
+      /* Paper texture background under a 0.40 --paper wash (v1.6.0). The
+         wash is a contrast parameter, not decoration: without it the JPG's
+         stains take --ink under 4.5:1. --paper-ground is what a gate that
+         reads background-COLOR sees, and what shows before the JPG decodes. */
+      background-color: var(--paper-ground);
+      background-image:
+        linear-gradient(rgba(var(--paper-rgb), 0.40), rgba(var(--paper-rgb), 0.40)),
+        url('img/paper1.jpg');
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
@@ -69,7 +125,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      border: 3px solid #8B7355;
+      border: 3px solid var(--walnut);
       pointer-events: none;
       z-index: 100;
     }
@@ -79,7 +135,7 @@
       left: 20px;
       right: 20px;
       height: 1px;
-      background: rgba(139, 115, 85, 0.4);
+      background: rgba(var(--walnut-rgb), 0.4);
       pointer-events: none;
       z-index: 10;
     }
@@ -96,7 +152,7 @@
       transform: translateX(-50%);
       font-size: 20px;
       font-weight: normal;
-      color: #3C2F2F;
+      color: var(--ink);
       text-transform: uppercase;
       letter-spacing: 3px;
       z-index: 20;
@@ -115,11 +171,11 @@
     .model-button {
       width: 110px;
       height: 30px;
-      background: rgba(139, 168, 112, 0.3);
-      border: 2px solid #3C5C1A;
+      background: var(--sage-plate);
+      border: 2px solid var(--leaf);
       border-radius: 5px;
-      color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.8px;
@@ -135,12 +191,13 @@
     }
 
     .model-button:hover {
-      background: rgba(139, 168, 112, 0.5);
+      background: var(--sage-hover);
     }
 
     .model-button.active {
-      background: rgba(107, 142, 35, 0.6);
-      border-color: #2C3E10;
+      background: var(--leaf);
+      border-color: var(--leaf-dark);
+      color: var(--cream);
       font-weight: bold;
     }
 
@@ -162,17 +219,17 @@
       cursor: ns-resize;
 
       /* ENHANCED 3D TEXTURE */
-      background: radial-gradient(circle at 35% 35%, #F5DEB3, #E8D5B7 50%, #D8C5A7 100%);
-      border: 2px solid #8B7355;
+      background: radial-gradient(circle at 35% 35%, var(--wheat), var(--wheat-2) 50%, var(--wheat-3) 100%);
+      border: 2px solid var(--walnut);
 
       /* Multiple layered inset shadows for depth */
       box-shadow:
-        inset 0 -3px 6px rgba(0,0,0,0.3),
-        inset 0 3px 6px rgba(255,255,255,0.2),
-        inset -2px -2px 4px rgba(0,0,0,0.2),
-        inset 2px 2px 4px rgba(255,255,255,0.15),
+        inset 0 -3px 6px rgba(var(--black-rgb), 0.3),
+        inset 0 3px 6px rgba(var(--white-rgb), 0.2),
+        inset -2px -2px 4px rgba(var(--black-rgb), 0.2),
+        inset 2px 2px 4px rgba(var(--white-rgb), 0.15),
         /* Pronounced drop shadow for lift */
-        0 4px 8px rgba(0,0,0,0.4);
+        0 4px 8px rgba(var(--black-rgb), 0.4);
 
       transform-origin: center center;
       transition: transform 0.05s ease-out;
@@ -185,8 +242,8 @@
       inset: 5px;
       border-radius: 50%;
       background:
-        repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px),
-        repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+        repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(var(--black-rgb), 0.08) 2px, rgba(var(--black-rgb), 0.08) 4px),
+        repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(var(--black-rgb), 0.08) 2px, rgba(var(--black-rgb), 0.08) 4px);
       opacity: 0.15;
       pointer-events: none;
     }
@@ -200,7 +257,7 @@
       right: 40%;
       bottom: 40%;
       border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent 60%);
+      background: radial-gradient(circle at 30% 30%, rgba(var(--white-rgb), 0.3), transparent 60%);
       pointer-events: none;
     }
 
@@ -211,25 +268,25 @@
       border-radius: 50%;
       background:
         conic-gradient(
-          #F5DEB3 0deg 36deg,
-          #8B7355 36deg 38deg,
-          #E8D5B7 38deg 72deg,
-          #8B7355 72deg 74deg,
-          #F5DEB3 74deg 108deg,
-          #8B7355 108deg 110deg,
-          #E8D5B7 110deg 144deg,
-          #8B7355 144deg 146deg,
-          #F5DEB3 146deg 180deg,
-          #8B7355 180deg 182deg,
-          #E8D5B7 182deg 216deg,
-          #8B7355 216deg 218deg,
-          #F5DEB3 218deg 252deg,
-          #8B7355 252deg 254deg,
-          #E8D5B7 254deg 288deg,
-          #8B7355 288deg 290deg,
-          #F5DEB3 290deg 324deg,
-          #8B7355 324deg 326deg,
-          #E8D5B7 326deg 360deg
+          var(--wheat) 0deg 36deg,
+          var(--walnut) 36deg 38deg,
+          var(--wheat-2) 38deg 72deg,
+          var(--walnut) 72deg 74deg,
+          var(--wheat) 74deg 108deg,
+          var(--walnut) 108deg 110deg,
+          var(--wheat-2) 110deg 144deg,
+          var(--walnut) 144deg 146deg,
+          var(--wheat) 146deg 180deg,
+          var(--walnut) 180deg 182deg,
+          var(--wheat-2) 182deg 216deg,
+          var(--walnut) 216deg 218deg,
+          var(--wheat) 218deg 252deg,
+          var(--walnut) 252deg 254deg,
+          var(--wheat-2) 254deg 288deg,
+          var(--walnut) 288deg 290deg,
+          var(--wheat) 290deg 324deg,
+          var(--walnut) 324deg 326deg,
+          var(--wheat-2) 326deg 360deg
         );
       pointer-events: none;
     }
@@ -242,9 +299,9 @@
       transform: translateX(-50%);
       width: 6px;
       height: 6px;
-      background: #3C2F2F;
+      background: var(--ink);
       border-radius: 50%;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+      box-shadow: 0 1px 2px rgba(var(--black-rgb), 0.4);
       pointer-events: none;
     }
 
@@ -255,7 +312,7 @@
       top: 280px;
       width: 90px;
       font-size: 11px;
-      color: #3C2F2F;
+      color: var(--ink);
       text-transform: uppercase;
       letter-spacing: 1.2px;
       text-align: center;
@@ -278,8 +335,8 @@
     .vu-face {
       width: 100%;
       height: 100%;
-      background: rgba(139, 168, 112, 0.3);  /* V4: Light green */
-      border: 2px solid #3C5C1A;  /* V4: Dark green border */
+      background: var(--sage-plate);  /* V4: Light green */
+      border: 2px solid var(--leaf);  /* V4: Dark green border */
       border-radius: 5px;
       position: relative;
       overflow: hidden;
@@ -294,18 +351,19 @@
       height: 20px;
       display: flex;
       justify-content: space-between;
-      padding: 0 8px;
-      font-size: 7px;
-      color: #3C2F2F;
-      /* 'Times New Roman' NAMED, not left to the generic. Garamond is not a
-         macOS face, so on this platform the trailing generic is the only
-         survivor of this stack — and Chromium resolves a generic against the
-         document's lang, which made these ASCII dB ticks render Times under en
-         and fr and Songti SC under zh-Hans. All six ticks then shrank and the
-         space-between row redistributed: twelve reported movers, none of them
-         holding a translated string. No CJK tail here — nothing in .vu-scale
-         can ever hold a Han codepoint; the ticks are numbers. */
-      font-family: 'Garamond', 'Times New Roman', serif;
+      /* v1.6.0: 9 px floor (was 7). Seven ticks now need ~65 px of the
+         face's 86, so the side padding drops 8 -> 4 to keep a gap between
+         them. */
+      padding: 0 4px;
+      font-size: 9px;
+      color: var(--ink);
+      /* The face is NAMED, never left to the generic: Chromium resolves a
+         generic against the document's lang, which once made these ASCII dB
+         ticks render Times under en/fr and Songti SC under zh-Hans and
+         redistributed the whole space-between row (v1.5.0). Since v1.6.0 the
+         bundled EB Garamond answers first in every language, and its figures
+         are tabular. */
+      font-family: var(--font-serif);
       pointer-events: none;
     }
 
@@ -321,7 +379,7 @@
       left: 50%;
       width: 2px;
       height: 40px;
-      background: linear-gradient(180deg, #d4a574 0%, #c49564 100%);
+      background: linear-gradient(180deg, var(--needle-a) 0%, var(--needle-b) 100%);
       transform-origin: bottom center;
       transform: translateX(-50%) rotate(-45deg);
       transition: transform 0.1s ease-out;
@@ -337,7 +395,7 @@
       transform: translateX(-50%);
       width: 5px;
       height: 5px;
-      background: #3C5C1A;  /* V4: Dark green pivot */
+      background: var(--leaf);  /* V4: Dark green pivot */
       border-radius: 50%;
     }
 
@@ -346,8 +404,8 @@
       bottom: 5px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 8px;
-      color: #3C2F2F;
+      font-size: 9px;   /* v1.6.0: 9 px floor (was 8) */
+      color: var(--ink);
       font-weight: bold;
       pointer-events: none;
     }
@@ -374,7 +432,7 @@
       left: 162px;
       top: 375px;
       font-size: 9px;
-      color: #3C2F2F;
+      color: var(--ink);
       text-transform: uppercase;
       letter-spacing: 1px;
       z-index: 20;
@@ -392,11 +450,11 @@
     .quality-button {
       width: 75px;
       height: 28px;
-      background: rgba(139, 168, 112, 0.3);
-      border: 2px solid #3C5C1A;
+      background: var(--sage-plate);
+      border: 2px solid var(--leaf);
       border-radius: 4px;
-      color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.6px;
@@ -408,12 +466,13 @@
     }
 
     .quality-button:hover {
-      background: rgba(139, 168, 112, 0.5);
+      background: var(--sage-hover);
     }
 
     .quality-button.active {
-      background: rgba(107, 142, 35, 0.6);
-      border-color: #2C3E10;
+      background: var(--leaf);
+      border-color: var(--leaf-dark);
+      color: var(--cream);
       font-weight: bold;
     }
 
@@ -424,11 +483,11 @@
       top: 395px;
       width: 100px;
       height: 28px;
-      background: rgba(139, 168, 112, 0.3);
-      border: 2px solid #3C5C1A;
+      background: var(--sage-plate);
+      border: 2px solid var(--leaf);
       border-radius: 4px;
-      color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.6px;
@@ -442,12 +501,13 @@
     }
 
     .autogain-toggle:hover {
-      background: rgba(139, 168, 112, 0.5);
+      background: var(--sage-hover);
     }
 
     .autogain-toggle.active {
-      background: rgba(107, 142, 35, 0.6);
-      border-color: #2C3E10;
+      background: var(--leaf);
+      border-color: var(--leaf-dark);
+      color: var(--cream);
       font-weight: bold;
     }
 
@@ -459,8 +519,8 @@
 
     /* ===== SETTINGS POPOVER (v1.2.0) =====
        Styled in THIS page's vocabulary, not pasted in from another plugin: the
-       olive fill rgba(139,168,112,0.3) over a #3C5C1A border, the #2C3E10
-       active state, Garamond, uppercase, letter-spacing — the same four rules
+       olive plate --sage-plate over a --leaf border, the --leaf engaged
+       state, Garamond, uppercase, letter-spacing — the same four rules
        every other control on this page already uses.
 
        The cluster sits top-right ABOVE the first divider (y = 47) and clear of
@@ -479,11 +539,11 @@
       width: 22px;
       height: 22px;
       padding: 0;
-      background: rgba(139, 168, 112, 0.3);
-      border: 2px solid #3C5C1A;
+      background: var(--sage-plate);
+      border: 2px solid var(--leaf);
       border-radius: 50%;
-      color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 12px;
       line-height: 1;
       cursor: pointer;
@@ -494,16 +554,17 @@
     }
 
     .gear-btn:hover {
-      background: rgba(139, 168, 112, 0.5);
+      background: var(--sage-hover);
     }
 
     .gear-btn[aria-expanded="true"] {
-      background: rgba(107, 142, 35, 0.6);
-      border-color: #2C3E10;
+      background: var(--leaf);
+      border-color: var(--leaf-dark);
+      color: var(--cream);
     }
 
     .gear-btn:focus-visible {
-      outline: 2px solid #3C5C1A;
+      outline: 2px solid var(--leaf);
       outline-offset: 2px;
     }
 
@@ -528,10 +589,10 @@
       display: flex;
       flex-direction: column;
       gap: 7px;
-      background: rgba(245, 235, 215, 0.97);
-      border: 2px solid #3C5C1A;
+      background: var(--cream);
+      border: 2px solid var(--leaf);
       border-radius: 5px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 4px 10px rgba(var(--black-rgb), 0.35);
     }
 
     .settings-popover[hidden] {
@@ -548,9 +609,9 @@
     /* nowrap because the row is space-between: a caption that wrapped would
        grow the row's height and move the control beside it. */
     .settings-label {
-      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 10px;
-      color: #3C2F2F;
+      color: var(--ink);
       text-transform: uppercase;
       letter-spacing: 0.6px;
       white-space: nowrap;
@@ -559,18 +620,18 @@
     .settings-select {
       flex: 0 0 auto;
       padding: 2px 4px;
-      background: rgba(139, 168, 112, 0.3);
-      border: 1px solid #3C5C1A;
+      background: var(--sage-control);
+      border: 1px solid var(--leaf);
       border-radius: 3px;
-      color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 10px;
       line-height: 1.2;
       cursor: pointer;
     }
 
     .settings-select:focus-visible {
-      outline: 2px solid #3C5C1A;
+      outline: 2px solid var(--leaf);
       outline-offset: 1px;
     }
 
@@ -589,11 +650,11 @@
        measures — verified with check-ui-labels [7] after the port. */
     .settings-toggle {
       padding: 2px 4px;
-      background: rgba(139, 168, 112, 0.3);
-      border: 1px solid #3C5C1A;
+      background: var(--sage-control);
+      border: 1px solid var(--leaf);
       border-radius: 3px;
-      color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 10px;
       line-height: 1.2;
       flex: 0 0 auto;
@@ -604,13 +665,13 @@
     }
 
     .settings-toggle[aria-pressed="true"] {
-      background: #3C5C1A;
-      border-color: #3C5C1A;
-      color: #F5EBD7;
+      background: var(--leaf);
+      border-color: var(--leaf);
+      color: var(--cream);
     }
 
     .settings-toggle:focus-visible {
-      outline: 2px solid #3C5C1A;
+      outline: 2px solid var(--leaf);
       outline-offset: 1px;
     }
 
@@ -624,9 +685,9 @@
        Styled in THIS page's vocabulary rather than pasted in from O-simpleFM,
        whose tip is dark-on-cream. This page's only other floating surface is
        .settings-popover, so the tip wears the same three rules: the aged-paper
-       fill rgba(245,235,215,~1) over a 2 px #3C5C1A border at radius 5, and
-       Garamond in #3C2F2F. The title takes the popover's uppercase treatment in
-       the darker #2C3E10 the active buttons use.
+       fill --cream over a 2 px --leaf border at radius 5, and Garamond in
+       --ink. The title takes the popover's uppercase treatment in the darker
+       --leaf-dark the active buttons use for their border.
 
        FOUR PROPERTIES ARE LOAD-BEARING, not styling:
 
@@ -656,12 +717,12 @@
       z-index: 200;
       max-width: 260px;
       padding: 7px 10px;
-      background: rgba(245, 235, 215, 0.98);
-      border: 2px solid #3C5C1A;
+      background: var(--cream);
+      border: 2px solid var(--leaf);
       border-radius: 5px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
-      color: #3C2F2F;
-      font-family: 'Garamond', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      box-shadow: 0 4px 10px rgba(var(--black-rgb), 0.35);
+      color: var(--ink);
+      font-family: var(--font-serif);
       font-size: 12px;
       line-height: 1.35;
       opacity: 0;
@@ -680,7 +741,7 @@
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      color: #2C3E10;
+      color: var(--leaf-dark);
       margin-bottom: 3px;
     }
 
@@ -689,8 +750,11 @@
       position: absolute;
       bottom: 6px;
       right: 10px;
-      font-size: 8px;
-      color: rgba(60, 47, 47, 0.4);
+      /* v1.6.0: 9 px and full --ink. The old 8 px ink at 0.4 alpha read
+         1.41:1 on the paper; opacity is a contrast change, and on this
+         ground nothing lighter than --ink clears AA at this size. */
+      font-size: 9px;
+      color: var(--ink);
       letter-spacing: 0.5px;
       pointer-events: none;
       z-index: 20;
@@ -845,7 +909,7 @@
             data-i18n="label.autogain" data-label="AUTOGAIN">AUTOGAIN</button>
 
     <!-- Version -->
-    <div class="version-label">v1.3.1</div>
+    <div class="version-label">v1.6.0</div>
   </div>
 
   <!-- The floating hover-help surface (v1.3.0). EMPTY in the markup and never

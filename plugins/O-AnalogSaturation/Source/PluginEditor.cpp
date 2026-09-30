@@ -174,6 +174,22 @@ OAnalogSaturationAudioProcessorEditor::getResource(const juce::String& url)
     if (url == "/img/snake_snakesaustralia00kref_0145.png")
         return makeResource(BinaryData::snake_snakesaustralia00kref_0145_png, BinaryData::snake_snakesaustralia00kref_0145_pngSize, "image/png");
 
+    // v1.6.0 - shared EB Garamond face (modules/ui/eb-garamond, direct embed):
+    // the stylesheet under css/, the three woff2 faces under fonts/ where its
+    // relative url('../fonts/...') lands. BinaryData strips hyphens:
+    // EBGaramond-Regular.woff2 -> EBGaramondRegular_woff2.
+    if (url == "/css/eb-garamond.css")
+        return makeResource(BinaryData::ebgaramond_css, BinaryData::ebgaramond_cssSize, "text/css; charset=utf-8");
+
+    if (url == "/fonts/EBGaramond-Regular.woff2")
+        return makeResource(BinaryData::EBGaramondRegular_woff2, BinaryData::EBGaramondRegular_woff2Size, "font/woff2");
+
+    if (url == "/fonts/EBGaramond-Italic.woff2")
+        return makeResource(BinaryData::EBGaramondItalic_woff2, BinaryData::EBGaramondItalic_woff2Size, "font/woff2");
+
+    if (url == "/fonts/EBGaramond-Bold.woff2")
+        return makeResource(BinaryData::EBGaramondBold_woff2, BinaryData::EBGaramondBold_woff2Size, "font/woff2");
+
     juce::Logger::writeToLog("Resource not found: " + url);
     return std::nullopt;
 }
