@@ -1,5 +1,112 @@
 # O-Chorus Changelog
 
+## [1.8.0] - 2026-09-30
+
+Resolves CR-01 and WR-01..07 of the 2026-09-30 `CODE_REVIEW.md`. MINOR: WR-02,
+WR-04 and WR-05 change the sound of the Voices control, high-Spread settings and
+every preset with Drive above zero. No parameter ID, range or state change.
+
+### Fixed
+- **Mono and mono→stereo inserts now chorus (CR-01).** The processor had no
+  `isBusesLayoutSupported`, so hosts offered mono layouts that the engine did
+  not handle. Mono→mono passed the input through untouched (`numChannels < 2`
+  early return). On mono→stereo the right output was cleared before the engine
+  ran, so the dry signal came out hard left and the wet path was fed at −6 dB.
+  The plugin now accepts mono→mono, mono→stereo and stereo→stereo, and rejects
+  stereo→mono. Mono→stereo copies the input into the right channel before the
+  engine. Mono→mono runs the same voices, summed unpanned. The version bump
+  also refreshes Logic's per-version AU I/O cache.
+- **Tone reaches its full range at 44.1/48 kHz (WR-01).** The 2026-06-30
+  Nyquist clamp was `nyquist * 0.49` = 0.245·fs. That pinned the cutoff at
+  10.8 kHz above +23% Tone at 44.1 kHz (+31% at 48 kHz), so Tone sounded
+  different at each sample rate. The clamp is now 0.45·fs (19.8 kHz at
+  44.1 kHz). The biquad is stable right up to Nyquist.
+- **The Voices crossfade no longer snaps at the end (WR-02).** Phase offset and
+  pan were stored once per voice and rewritten only when the 50 ms fade ended.
+  So the incoming layer ran on the old count's layout and then jumped in one
+  sample (about 1.9 ms of delay-tap jump at 4→8 voices and depth 0.5). Now
+  each layer computes its own phase, pan and spread position, and the fade
+  covers the difference.
+- **A second Voices change during a fade no longer clicks (WR-03).** A new
+  count restarted the fade from the old layer, which dropped the half-faded
+  layer in one sample. A count that arrives mid-fade is now queued, keeping
+  only the latest one, and it starts its own fade when the running one ends.
+  Idle voices keep their delay lines fed, so a voice that fades in carries
+  current audio rather than a stale buffer.
+- **High-Spread voices modulate again (WR-04).** Spread was symmetric
+  (base 10 ms ± 15 ms). Above Spread 0.667 the outer voices went below 0 ms and
+  were clamped to a static 1-sample delay, which made them unmodulated,
+  near-dry copies. This affected Ensemble (voices 0 and 1) and Lush (voice 0).
+  Spread is now one-sided: 10 ms up to 25 ms, with every tap between 4.25 and
+  30.75 ms. Spread 0, the default, is unchanged.
+- **Drive is continuous from zero (WR-05).** The old curve
+  `tanh((1+k)x)/tanh(1+k)` sat behind a `drive < 0.01` bypass. It jumped
+  +2.4 dB at 1%, then added only 2 dB more across the rest of the knob's
+  travel. It is now level-compensated, `tanh(d·x)/d` with d = 4^drive
+  (negative half 4^(0.9·drive)). Small-signal gain is exactly 1 at every
+  setting, and Drive 0 is still a bit-exact bypass.
+  **Audible:** at matching Drive settings the wet path is 2.4–4.4 dB quieter
+  than in v1.7.0 on quiet material, and louder peaks saturate harder.
+- **The mouse wheel works on Voices (WR-06).** The ±0.02 step was 0.14 of a
+  1/7 slot, and the snap rounded it back. Voices now steps one count per notch.
+  A wheel notch at a bound no longer opens an empty host gesture.
+- **Factory presets refresh on version change (WR-07).** A plugin-side "the
+  directory already has files" guard returned before the preset module's
+  `.factory-version` sentinel was checked, so existing installs never received
+  a corrected bank. The guard is removed.
+
+### Testing
+- Built and installed (VST3 + AU). `auval -v aufx OuCh OuDv` passes, including
+  the 1-channel and 1→2 render tests.
+- A listening pass is still needed: Voices sweeps, Ensemble and Lush at high
+  Spread, preset levels with the new Drive curve, and a mono track in Logic.
+
+## [1.7.0] - 2026-09-26
+
+The insect plate ran through five of the eight knob faces, and the page's
+contrast figure was a false pass. `measure-ui --contrast` reported 0 of 27 text
+nodes below AA because it reads the container's `#F5E6D3`. The ground actually
+painted under the text is `paper1.jpg` at full opacity (mean `#C2955B`) plus
+the plate. Sampled against those real pixels, knob values read 2.9–3.9:1 and
+the LFO caption 2.8:1. MINOR: a visible restyle and a bundled face. No DSP,
+parameter, range or state change (260924-nho Phase C, R4/R5).
+
+### Changed
+- **Illustration: one specimen, not the plate.** The sheet no longer lies
+  rotated across the frame. It stands upright at 330 px, placed so its central
+  specimen sits between the two knob groups, behind the LFO ring. A horizontal
+  mask (zero outside x 292–408) keeps every knob face (SPREAD ends at 295,
+  WIDTH starts at 406) and every caption off painted pixels. A top-edge fade
+  drops the neighbouring specimens' wingtips.
+- **Paper ground lifted.** The texture sits at 55% over `#F5E6D3`. On the
+  sampled ground every text node is now ≥ 5.59:1 on the median pixel under its
+  box, and ≥ 5.25:1 on the darkest 5%, in en/fr/zh-Hans (was min 2.83 / 1.97).
+- **Palette tokens.** A `:root` block holds every colour the page uses (0
+  custom properties before, 45 literal sites replaced). Names follow
+  ouaricon-naturalist-001 where the value is the template's (`--bg-paper`,
+  `--brown-text`). The LFO ring's SVG attributes moved to CSS.
+- **Text is solid ink, never opacity-dimmed.** `--text-soft` `#4A3B2A` for
+  knob captions, values, LFO and the tip title (values were `#5C4A32`). The
+  0.9/0.95 opacity on the LFO caption, preset arrows, Load/Save and the gear
+  is gone.
+- **9 px floor.** The LFO caption goes from 8 to 9 px. `line-height: 1` holds
+  its 9.00 px line box, so the ring does not move. The unused 8 px
+  `.group-label` rule is deleted.
+- **EB Garamond bundled** (modules/ui/eb-garamond, direct embed: 4 SOURCES,
+  4 `getResource` branches). `--font-serif` leads with it, puts Georgia before
+  Times and drops the bare `Garamond`. ◀/▶ now come from one face, so they are
+  a matched 17×16 px pair (were 20×21 and 18.33×18 from two system faces).
+  The gear keeps its own stack, because U+2699 is not in EB Garamond.
+
+### Verification
+- Geometry diff v1.6.3 → v1.7.0, en/fr/zh-Hans: no element moved vertically
+  apart from the preset arrows and `.preset-bar`, whose box shrank 5 px around
+  them. Load/Save and the preset name hold. The only other deltas are
+  advance widths of centred captions and the title (+5.2 px) in the new face.
+- `measure-ui --contrast`: 0/27 below AA, 1 → 0 under 9 px, min 5.41 → 6.10.
+- `check-ui-labels` all pass (en/fr/zh-Hans). `check-i18n` all pass (44).
+  fr/zh lints exit 0. `ui_tip_render_check` 345 passed.
+
 ## [1.6.3] - 2026-09-06
 
 Six of this page's nine `font-family` declarations named `PingFang SC` and not

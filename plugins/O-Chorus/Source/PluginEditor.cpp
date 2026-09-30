@@ -326,6 +326,37 @@ OChorusAudioProcessorEditor::getResource(const juce::String& url)
         };
     }
 
+    // v1.7.0 (R5): shared EB Garamond face (modules/ui/eb-garamond) —
+    // stylesheet under /css/, the three woff2 faces under /fonts/ where its
+    // relative font URLs land.
+    if (url == "/css/eb-garamond.css") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::ebgaramond_css, BinaryData::ebgaramond_cssSize),
+            juce::String("text/css; charset=utf-8")
+        };
+    }
+
+    if (url == "/fonts/EBGaramond-Regular.woff2") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::EBGaramondRegular_woff2, BinaryData::EBGaramondRegular_woff2Size),
+            juce::String("font/woff2")
+        };
+    }
+
+    if (url == "/fonts/EBGaramond-Italic.woff2") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::EBGaramondItalic_woff2, BinaryData::EBGaramondItalic_woff2Size),
+            juce::String("font/woff2")
+        };
+    }
+
+    if (url == "/fonts/EBGaramond-Bold.woff2") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::EBGaramondBold_woff2, BinaryData::EBGaramondBold_woff2Size),
+            juce::String("font/woff2")
+        };
+    }
+
     if (url == "/modules/preset-manager.js") {
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::presetmanager_js, BinaryData::presetmanager_jsSize),

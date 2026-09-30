@@ -23,7 +23,48 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=700, height=125">
   <title>Ouaricon Chorus</title>
+  <!-- v1.7.0 (R5): the bundled EB Garamond face (modules/ui/eb-garamond),
+       ahead of the page's own styles so --font-serif resolves to it -->
+  <link rel="stylesheet" href="css/eb-garamond.css">
   <style>
+    /* ===== PALETTE (v1.7.0) =====
+       Names follow ouaricon-naturalist-001's token vocabulary where the value
+       is the template's; the rest are this page's own. Every literal the page
+       styled with before v1.7.0 now lives here and nowhere else.
+
+       TEXT IS MEASURED ON THE PAINTED GROUND, not on --bg-paper. Through
+       v1.6.3 the ground was paper1.jpg at full opacity (mean #C2955B), so
+       measure-ui --contrast — which reads the nearest opaque background-color
+       and cannot see an <img> — reported 0 below AA while the real pixels put
+       knob values at 2.9-3.9:1 and LFO at 2.8:1. The texture now sits at
+       --paper-texture-opacity over --bg-paper, and every text node measures
+       >= 4.5:1 against the sampled ground (median pixel under its box) in
+       en/fr/zh-Hans. Raising that opacity is a contrast change; re-measure. */
+    :root {
+      --bg-paper: #F5E6D3;
+      --paper-texture-opacity: 0.55;
+      --bg-plate: rgba(245, 230, 211, 0.97);        /* popover, dropdown, tooltip */
+      --shadow-plate: 1px 2px 8px rgba(0, 0, 0, 0.15);
+
+      --brown-text: #3C2F2F;                        /* template primary text */
+      --text-soft: #4A3B2A;                         /* knob captions, values, LFO, tip title — solid, never opacity-dimmed */
+      --green-ink: #3a5c4a;                         /* hover / active text and focus rings */
+      --green-arc: #5a7a6a;                         /* knob vines, LFO ring and dot — decoration, not text */
+
+      --rule: rgba(74, 59, 42, 0.4);                /* button and select hairlines */
+      --rule-walnut: rgba(139, 115, 85, 0.4);       /* plate hairlines */
+      --rule-green-hover: rgba(58, 92, 74, 0.5);
+      --rule-green-active: rgba(58, 92, 74, 0.6);
+      --knob-track: rgba(139, 115, 85, 0.3);
+      --wash-hover: rgba(90, 122, 106, 0.15);
+      --wash-active: rgba(90, 122, 106, 0.25);
+
+      /* EB Garamond is bundled, so it leads and the bare 'Garamond' is gone:
+         left ahead of it, an Office-installed Windows Garamond would win.
+         Georgia before Times, CJK tail before the one generic (see CJK TAIL). */
+      --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+    }
+
     html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
     *, *::before, *::after { box-sizing: border-box; }
 
@@ -100,13 +141,21 @@
        preserve, is that Latin geometry is byte-unchanged across it: every en
        and fr row in the uu7 before/after capture is identical apart from the
        animated #lfo-dot, and check-ui-labels assertion 7 reports 0 moved
-       elements on both arms. */
+       elements on both arms.
+
+       v1.7.0: every stack above now reads var(--font-serif), and Latin
+       resolves to the bundled EB Garamond (built with Times' vertical metrics,
+       so line boxes hold). Two of the three untouched stacks joined it:
+       .preset-nav, because EB Garamond carries U+25C0 and U+25B6, so the two arrows
+       now come from ONE face and are a matched pair; .preset-dropdown-item,
+       whose ASCII names simply take the house face. .gear-btn keeps its own
+       stack: EB Garamond has no U+2699. */
     .container {
       width: 700px;
       height: 125px;
       position: relative;
-      background: #F5E6D3;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      background: var(--bg-paper);
+      font-family: var(--font-serif);
       overflow: hidden;
     }
 
@@ -120,9 +169,25 @@
       background-position: center;
       z-index: 0;
       pointer-events: none;
+      opacity: var(--paper-texture-opacity);   /* v1.7.0: over --bg-paper — see PALETTE */
     }
 
-    /* Insects illustration overlay */
+    /* Insects illustration — ONE SPECIMEN, NOT THE PLATE (v1.7.0).
+       Through v1.6.3 the whole 634x868 sheet lay rotated 90deg across the
+       frame, so specimens ran through the RATE, DEPTH, SPREAD, TONE and MIX
+       knob faces and under their captions. Now the sheet stands upright at
+       330px tall, positioned so its central specimen sits in the gap between
+       the two knob groups, behind the LFO ring: head below the "LFO" caption,
+       wings inside the fades.
+
+         img   330 / 868 = 0.380 scale; the specimen's axis (sheet x ~307)
+               lands at 233 + 307 x 0.380 = 350, the frame's centre.
+         mask  horizontal: opaque 322..378, zero outside 292..408. The nearest
+               knob faces end at x 295 (SPREAD) and begin at 406 (WIDTH), so
+               neither sits on any painted pixel. Vertical: zero above 14px,
+               full by 30px, which drops the neighbouring specimens' wingtips
+               that the sheet otherwise leaves along the top edge.
+         Both mask layers must be opaque for a pixel to show (intersect). */
     .insects-background {
       position: absolute;
       top: 0; left: 0;
@@ -130,14 +195,22 @@
       z-index: 1;
       pointer-events: none;
       overflow: hidden;
-      opacity: 0.3;
+      opacity: 0.4;
+      -webkit-mask-image:
+        linear-gradient(to right, transparent 292px, #000 322px, #000 378px, transparent 408px),
+        linear-gradient(to bottom, transparent 14px, #000 30px);
+      -webkit-mask-composite: source-in;
+      mask-image:
+        linear-gradient(to right, transparent 292px, #000 322px, #000 378px, transparent 408px),
+        linear-gradient(to bottom, transparent 14px, #000 30px);
+      mask-composite: intersect;
     }
 
     .insects-background img {
       position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%) rotate(90deg);
-      height: 700px;
+      top: -98px;
+      left: 233px;
+      height: 330px;
       width: auto;
     }
 
@@ -155,7 +228,7 @@
     .title {
       font-size: 16px;
       letter-spacing: 2.5px;
-      color: #3C2F2F;
+      color: var(--brown-text);
       font-weight: normal;
       text-transform: uppercase;
     }
@@ -171,24 +244,23 @@
     .preset-nav {
       background: none;
       border: none;
-      font-family: Garamond, 'Times New Roman', serif;
+      font-family: var(--font-serif);
       font-size: 14px;
-      color: #3C2F2F;
+      color: var(--brown-text);
       cursor: pointer;
       padding: 0 3px;
-      opacity: 0.95;
       transition: opacity 0.15s;
     }
 
     .preset-nav:hover {
       opacity: 1;
-      color: #3a5c4a;
+      color: var(--green-ink);
     }
 
     .preset-name {
       font-size: 10px;
       letter-spacing: 1px;
-      color: #3C2F2F;
+      color: var(--brown-text);
       text-transform: uppercase;
       cursor: pointer;
       min-width: 60px;
@@ -199,7 +271,7 @@
 
     .preset-name:hover {
       opacity: 1;
-      color: #3a5c4a;
+      color: var(--green-ink);
     }
 
     /* WIDTH IS PINNED (v1.3.0), and this pin is LOAD-BEARING rather than
@@ -224,9 +296,9 @@
        39.00, so there is no value that holds French and leaves English alone. */
     .preset-action {
       background: none;
-      border: 1px solid rgba(74, 59, 42, 0.4);
+      border: 1px solid var(--rule);
       border-radius: 2px;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 9px;
       /* v1.5.0 PIN, and assertion 7 named it: at line-height: normal these two
          buttons measured 14.00 px border-box in English and 17.00 px in Chinese
@@ -246,19 +318,18 @@
          pinned above, so the wider PingFang advance has nothing to move. */
       line-height: 1.1111;   /* re-measured v1.6.3 under PingFang SC: pinned line box 9.984 px in all three arms; at `normal` it would be EN 10.00 / FR 10.00 / ZH 13.00 px at a 9 px font */
       letter-spacing: 0.5px;
-      color: #3C2F2F;
+      color: var(--brown-text);
       cursor: pointer;
       padding: 1px 5px;
       width: 62px;
-      opacity: 0.95;
       text-transform: uppercase;
       transition: opacity 0.15s, border-color 0.15s;
     }
 
     .preset-action:hover {
       opacity: 1;
-      border-color: rgba(58, 92, 74, 0.5);
-      color: #3a5c4a;
+      border-color: var(--rule-green-hover);
+      color: var(--green-ink);
     }
 
     .preset-dropdown {
@@ -267,10 +338,10 @@
       top: 100%;
       right: 0;
       margin-top: 4px;
-      background: rgba(245, 230, 211, 0.97);
-      border: 1px solid rgba(139, 115, 85, 0.4);
+      background: var(--bg-plate);
+      border: 1px solid var(--rule-walnut);
       border-radius: 3px;
-      box-shadow: 1px 2px 8px rgba(0,0,0,0.15);
+      box-shadow: var(--shadow-plate);
       max-height: 160px;
       overflow-y: auto;
       z-index: 9999;
@@ -283,10 +354,10 @@
 
     .preset-dropdown-item {
       padding: 4px 10px;
-      font-family: Garamond, 'Times New Roman', serif;
+      font-family: var(--font-serif);
       font-size: 10px;
       letter-spacing: 0.5px;
-      color: #3C2F2F;
+      color: var(--brown-text);
       cursor: pointer;
       transition: background 0.15s;
       white-space: nowrap;
@@ -314,19 +385,6 @@
       padding: 0 6px;
     }
 
-    .group-label {
-      position: absolute;
-      top: -14px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 8px;
-      letter-spacing: 1.2px;
-      color: #5C4A32;
-      text-transform: uppercase;
-      white-space: nowrap;
-      opacity: 0.9;
-    }
-
     .left-group, .right-group {
       position: relative;
     }
@@ -341,13 +399,16 @@
       padding-top: 0;
     }
 
+    /* v1.7.0: 8 -> 9px, the template floor, and solid --text-soft instead of
+       0.9 opacity. line-height: 1 holds the caption's line box at the 9.00px
+       it measured at 8px/normal, so the ring below it does not move. */
     .lfo-ring-label {
-      font-size: 8px;
+      font-size: 9px;
+      line-height: 1;
       letter-spacing: 1.2px;
-      color: #5C4A32;
+      color: var(--text-soft);
       text-transform: uppercase;
       margin-bottom: 2px;
-      opacity: 0.9;
     }
 
     .lfo-ring {
@@ -355,6 +416,9 @@
       height: 65px;
       position: relative;
     }
+
+    .lfo-ring .lfo-track { stroke: var(--green-arc); }
+    #lfo-dot { fill: var(--green-arc); }
 
     .lfo-ring svg {
       width: 100%;
@@ -390,13 +454,13 @@
 
     .knob-track {
       fill: none;
-      stroke: rgba(139, 115, 85, 0.3);
+      stroke: var(--knob-track);
       stroke-width: 2;
     }
 
     .knob-vine {
       fill: none;
-      stroke: #5a7a6a;
+      stroke: var(--green-arc);
       stroke-width: 3;
       stroke-linecap: round;
     }
@@ -423,7 +487,7 @@
          .knob-container still. check-ui-labels [7]: 0 moved elements on zh. */
       line-height: 1.1111;   /* re-measured v1.6.3 under PingFang SC: pinned line box 9.984 px in all three arms; at `normal` it would be EN 10.00 / ZH 13.00 px at a 9 px font */
       letter-spacing: 0.8px;
-      color: #4A3B2A;
+      color: var(--text-soft);
       text-transform: uppercase;
       margin-top: 2px;
       text-align: center;
@@ -431,7 +495,7 @@
 
     .knob-value {
       font-size: 10px;
-      color: #5C4A32;
+      color: var(--text-soft);
       margin-top: 0;
       text-align: center;
       min-width: 50px;
@@ -462,33 +526,32 @@
       height: 20px;
       padding: 0;
       background: none;
-      border: 1px solid rgba(74, 59, 42, 0.4);
+      border: 1px solid var(--rule);
       border-radius: 50%;
-      color: #3C2F2F;
-      font-family: Garamond, 'Times New Roman', serif;
+      color: var(--brown-text);
+      font-family: 'Times New Roman', serif;   /* v1.7.0: bare Garamond dropped; U+2699 is in neither face, so the glyph still resolves past both */
       font-size: 11px;
       line-height: 1;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      opacity: 0.95;
       transition: opacity 0.15s, border-color 0.15s, color 0.15s;
     }
 
     .gear-btn:hover {
       opacity: 1;
-      border-color: rgba(58, 92, 74, 0.5);
-      color: #3a5c4a;
+      border-color: var(--rule-green-hover);
+      color: var(--green-ink);
     }
 
     .gear-btn[aria-expanded="true"] {
-      border-color: rgba(58, 92, 74, 0.6);
-      color: #3a5c4a;
+      border-color: var(--rule-green-active);
+      color: var(--green-ink);
     }
 
     .gear-btn:focus-visible {
-      outline: 1px solid #3a5c4a;
+      outline: 1px solid var(--green-ink);
       outline-offset: 2px;
     }
 
@@ -524,10 +587,10 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      background: rgba(245, 230, 211, 0.97);
-      border: 1px solid rgba(139, 115, 85, 0.4);
+      background: var(--bg-plate);
+      border: 1px solid var(--rule-walnut);
       border-radius: 3px;
-      box-shadow: 1px 2px 8px rgba(0, 0, 0, 0.15);
+      box-shadow: var(--shadow-plate);
     }
 
     .settings-popover[hidden] {
@@ -544,7 +607,7 @@
     /* nowrap because the row is space-between: a caption that wrapped would
        grow the row's height and move the control beside it. */
     .settings-label {
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 9px;
       /* v1.5.0 PIN. Assertion 7 did NOT name this node and could not: the
          popover is `hidden` at rest, so the gate never measures it. Measured
@@ -565,7 +628,7 @@
          control, and the popover is still 170.00 x 54.00 px in all three arms.
          Height unchanged at 9.98 px. */
       line-height: 1.1111;   /* re-measured v1.6.3 under PingFang SC: pinned line box 9.984 px in all three arms; at `normal` it would be EN 10.00 / ZH 13.00 px at a 9 px font */
-      color: #3C2F2F;
+      color: var(--brown-text);
       text-transform: uppercase;
       letter-spacing: 0.6px;
       white-space: nowrap;
@@ -575,9 +638,9 @@
       flex: 0 0 auto;
       padding: 1px 3px;
       background: none;
-      border: 1px solid rgba(74, 59, 42, 0.4);
+      border: 1px solid var(--rule);
       border-radius: 2px;
-      color: #3C2F2F;
+      color: var(--brown-text);
       /* The endonym option is the one place Han reaches the MARKUP rather than
          i18n.js, so this stack takes the tail even though no [data-i18n] node
          resolves through it.
@@ -592,7 +655,7 @@
          tail, but unlike the tail it is dead SAFELY: a host whose UA sheet does
          not override <select> would need it, and deleting it buys nothing
          measurable here. */
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 9px;
       line-height: 1.2;
       /* v1.5.0 WIDTH PIN, RE-DERIVED at v1.6.3 (quick-260906-uu7). With
@@ -633,7 +696,7 @@
     }
 
     .settings-select:focus-visible {
-      outline: 1px solid #3a5c4a;
+      outline: 1px solid var(--green-ink);
       outline-offset: 1px;
     }
 
@@ -683,10 +746,10 @@
       height: 16px;
       padding: 0 6px;
       background: none;
-      border: 1px solid rgba(74, 59, 42, 0.4);
+      border: 1px solid var(--rule);
       border-radius: 2px;
-      color: #3C2F2F;
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      color: var(--brown-text);
+      font-family: var(--font-serif);
       font-size: 9px;
       line-height: 1.2;
       cursor: pointer;
@@ -694,13 +757,13 @@
     }
 
     .settings-toggle[aria-pressed="true"] {
-      background: #3a5c4a;
-      border-color: #3a5c4a;
-      color: #f5e6d3;
+      background: var(--green-ink);
+      border-color: var(--green-ink);
+      color: var(--bg-paper);
     }
 
     .settings-toggle:focus-visible {
-      outline: 1px solid #3a5c4a;
+      outline: 1px solid var(--green-ink);
       outline-offset: 1px;
     }
 
@@ -710,7 +773,7 @@
        same rgba(245,230,211,0.97) plate, rgba(139,115,85,0.4) hairline,
        3 px radius and 1px/2px/8px shadow the settings popover and the preset
        dropdown already use, Garamond throughout, and the #5C4A32 uppercase of
-       .group-label / .lfo-ring-label for the title line. O-simpleFM's tooltip
+       .lfo-ring-label for the title line. O-simpleFM's tooltip
        is a dark #2a2118 chip, which is that plugin's system and would read as a
        foreign object over this paper ground.
 
@@ -773,16 +836,16 @@
       z-index: 200;
       max-width: 384px;
       padding: 5px 8px;
-      background: rgba(245, 230, 211, 0.97);
-      border: 1px solid rgba(139, 115, 85, 0.4);
+      background: var(--bg-plate);
+      border: 1px solid var(--rule-walnut);
       border-radius: 3px;
-      box-shadow: 1px 2px 8px rgba(0, 0, 0, 0.15);
+      box-shadow: var(--shadow-plate);
       /* This surface NEVER carries [data-i18n]: the renderer fills it from
          data-tip / data-tip-title at hover time, so a scan of keyed nodes alone
          would have missed it and every Chinese tooltip would have fallen back
          to a system face. It is in the resolution set because of what it
          RECEIVES, not what it holds at rest. */
-      font-family: Garamond, 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif;
+      font-family: var(--font-serif);
       font-size: 10px;
       /* RE-MEASURED at v1.6.3 (quick-260906-uu7) under PingFang SC — the
          v1.5.0 number was taken while Han rendered Songti SC, and this surface
@@ -800,7 +863,7 @@
          44.3 px of headroom this comment budgeted is intact.
          ui_tip_render_check: 345 PASS, 0 FAIL, on the PingFang tree. */
       line-height: 1.3;   /* already unitless: .tip-title re-measured 11.69 px in ALL THREE languages under PingFang SC */
-      color: #3C2F2F;
+      color: var(--brown-text);
       opacity: 0;
       visibility: hidden;
       transition: opacity 0.12s ease;
@@ -817,7 +880,7 @@
       font-size: 9px;
       letter-spacing: 1.2px;
       text-transform: uppercase;
-      color: #5C4A32;
+      color: var(--text-soft);
       margin-bottom: 2px;
     }
   </style>
@@ -920,8 +983,8 @@
         <div class="lfo-ring-label" data-i18n="label.lfo" data-label="LFO">LFO</div>
         <div class="lfo-ring">
           <svg viewBox="0 0 90 90">
-            <circle cx="45" cy="45" r="36" fill="none" stroke="#5a7a6a" stroke-width="2.5"/>
-            <circle id="lfo-dot" cx="45" cy="9" r="5" fill="#5a7a6a" opacity="0.9"/>
+            <circle class="lfo-track" cx="45" cy="45" r="36" fill="none" stroke-width="2.5"/>
+            <circle id="lfo-dot" cx="45" cy="9" r="5" opacity="0.9"/>
           </svg>
         </div>
       </div>
@@ -1208,9 +1271,15 @@
         // Mouse wheel with debounced gesture brackets
         knobVisual.addEventListener('wheel', (e) => {
           e.preventDefault();
-          const delta = e.deltaY < 0 ? 0.02 : -0.02;
-          let newNorm = Math.max(0, Math.min(1, state.getNormalisedValue() + delta));
+          // Voices steps one whole count per notch: a 0.02 step is 0.14 of a
+          // 1/7 slot and the snap rounded it straight back (v1.8.0, WR-06).
+          const step = p.isVoices ? 1 / 7 : 0.02;
+          const cur = state.getNormalisedValue();
+          let newNorm = Math.max(0, Math.min(1, cur + (e.deltaY < 0 ? step : -step)));
           if (p.isVoices) newNorm = snapVoicesNorm(newNorm);
+          // At a bound (or a snap that lands where it started) open no gesture,
+          // so the host gets no empty undo step.
+          if (Math.abs(newNorm - cur) < 1e-6) return;
 
           if (!wheelTimers.has(p.id)) {
             state.sliderDragStarted();
