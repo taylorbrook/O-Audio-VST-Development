@@ -95,19 +95,20 @@ version built out of tree from `git archive`.
   run through all 48 presets stay within the click gates.
 - pluginval strictness 10 and `auval -v aufx OuSr OuDv` pass.
 
-### Not yet checked by ear
-Nothing in this release has had a listening pass. The decay times, the gates
-above and the levels are measured; these are not, and each is one constant:
+### Checked by ear
+Listening pass in a DAW on 2026-10-01, on the installed build; it asked for
+no change. The decay times, the gates above and the levels are measured;
+these were set by choice, one constant each, and stand as shipped:
 - early-reflection levels and spans, pre-delays and type EQs (carried from
   v1.14.0);
 - the plate's shimmer amount and damping. **The plate's echo density is
   under the 0.80 aimed for from SIZE 50 up** (0.92 / 0.77 / 0.70 at SIZE 0 /
-  50 / 100, 100 ms in), so it may sound grainy on short sounds at large SIZE;
+  50 / 100, 100 ms in);
 - the spring's chirp length and band limit. **The chirp differs by sample
   rate** (3 kHz lags 1 kHz by 6.2 ms at 44.1 kHz and 9.8 ms at 48 kHz),
   because the dispersion filters land on whole samples;
-- how much DECAY should move the level (half of the engines' own 4.5 dB is
-  taken back);
+- how much DECAY moves the level (half of the engines' own 4.5 dB is taken
+  back);
 - the 48 re-voiced presets.
 
 ## [1.14.0] - 2026-09-30

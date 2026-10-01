@@ -106,9 +106,10 @@ summed, then CHARACTER -> LOW CUT -> wet/dry -> VU peak.
   next chunk recovers. No allocation in `processBlock` (gated).
 - **Determinism:** modulation phases are fixed; no `Random`, no clock.
 
-**Voicing constants still to be confirmed by ear:** early-reflection levels and spans, pre-delays,
-type EQs (all carried from v1.14.0), the plate's shimmer share (`kShimmerPerLoopSecond`), damping
-and SIZE range, the spring table (`SpringEngine::kSpring`), and the DECAY half of the level law.
+**Voicing constants set by choice, kept by the listening pass (2026-10-01, no change):**
+early-reflection levels and spans, pre-delays, type EQs (all carried from v1.14.0), the plate's
+shimmer share (`kShimmerPerLoopSecond`), damping and SIZE range, the spring table
+(`SpringEngine::kSpring`), and the DECAY half of the level law.
 
 **CPU** (render-check `--baseline`, one core, 48 / 96 kHz, one slot; a ring-out runs two): FDN types
 about 0.6 % / 1.3 %, Plate 0.3 % / 0.8 %, Spring 1.2 % / 2.3 %. v1.14.0 was 0.3-0.4 % / 0.7-0.9 %.

@@ -9,8 +9,8 @@
 
 ## Verification Summary
 
-**Status:** AUTOMATED CHECKS PASSED — one human gate open: the listening pass. The milestone is not
-closed until it is done. (The translations were read and approved in this phase.)
+**Status:** PASSED — automated checks, the translations read, and the listening pass (Taylor,
+2026-10-01, no constant changed). Milestone closed.
 **Version:** 1.14.0 → 2.0.0 (already applied in execute, Task 14; nothing tagged, nothing pushed)
 
 Every number SUMMARY.md reports was re-produced in this phase from a clean rebuild, not copied.
@@ -159,7 +159,8 @@ caught, re-run here — each new gate has been seen to fail.
 
 ### Criterion 13: Listening pass in a DAW on the re-voiced bank before any tag
 
-**Status:** ☐ OPEN — Taylor. Nothing measured stands in for this. The list is in "Human gates" below.
+**Status:** ✓ PASS — Taylor, 2026-10-01, on the installed 2.0.0 build. No constant changed, so nothing
+was re-rendered. The list is in "Human gates" below.
 
 ### Criterion 14: `tip.type` / `tip.decay` / `tip.size` in en / fr / zh-Hans; fr and zh-Hans read by Taylor
 
@@ -429,7 +430,7 @@ auval -v aufx OuSr OuDv
 |------|----------|--------|
 | UI source | untouched by this milestone, `i18n.js` aside | ✓ (`git diff --stat 02bac73f HEAD`) |
 | Tooltips fit at 500 × 350 in en / fr / zh-Hans | inside the frame | ✓ (French `tip.type` is 9.1 px from the bottom edge) |
-| UI in a host | loads, controls respond | not exercised here (pluginval ran with GUI tests skipped) — part of the listening pass |
+| UI in a host | loads, controls respond | ✓ with the listening pass, 2026-10-01 (pluginval ran with GUI tests skipped) |
 
 ---
 
@@ -504,7 +505,7 @@ None found by measurement or by reading the code.
 
 ## Human gates
 
-### 1. Listening pass (criterion 13)
+### 1. Listening pass (criterion 13) — done 2026-10-01, no change asked for
 
 On the installed 2.0.0 build, or the Standalone rebuilt above. A change to any of these constants needs
 render-check re-run (and `--levels` if it is a level), not a new stage.
@@ -531,7 +532,8 @@ Read and approved; `tip.type`, `tip.decay`, `tip.size` are `reviewed: true` (fr)
 ### 3. Commit shape — decided 2026-10-01
 
 This phase goes on top of the five local `wip(O-SimpleReverb)` commits (`65b6672e`..`bf748c18`) as a sixth,
-path-scoped, unpushed. Whether to squash the six waits for the listening pass, since a constant may still move.
+path-scoped, unpushed. After the listening pass: the six stay as they are, with one closing commit on top
+(no history rewrite in a checkout other sessions share).
 
 ---
 
@@ -544,26 +546,25 @@ path-scoped, unpushed. Whether to squash the six waits for the listening pass, s
 - [x] No regressions in existing features
 - [x] Preset compatibility confirmed (values load; sound changes by design)
 - [x] Baseline compared row by row
-- [ ] Listening pass in a DAW — Taylor
+- [x] Listening pass in a DAW — Taylor, 2026-10-01
 - [x] French and zh-Hans back-translation read; flags flipped — Taylor, 2026-10-01
-- [ ] UI exercised in a host — with the listening pass
+- [x] UI exercised in a host — with the listening pass
 
 ---
 
 ## Final Status
 
-### PASSED WITH NOTES ⚠ — pending the listening pass
+### PASSED WITH NOTES ✓ — milestone closed 2026-10-01
 
 Every measurable criterion (1–12) passes, reproduced from a clean build and cross-checked on the installed
-binary with independent code. Criterion 14 is closed. Criterion 13, the listening pass, needs Taylor.
+binary with independent code. Criterion 14 is closed. Criterion 13, the listening pass, was done by Taylor
+on 2026-10-01 and changed no constant, so the installed 2.0.0 binary is the verified one. The notes are the
+nine non-critical items above; none blocks.
 
-**When it is done and nothing needs changing:**
-1. Set `phases.verify.status: complete` and remove `activeMilestone` from `.planning/STATUS.md`.
-2. Squash the six `wip` commits or leave them.
+**Closed out:**
+1. `phases.verify.status: complete`; `activeMilestone` removed from `.planning/STATUS.md`.
+2. The six `wip` commits stay; one closing commit on top.
 3. **No git tag here.** The tag is `/publish`'s, as `O-SimpleReverb-v2.0.0`.
-
-**If the listening pass changes a constant:** edit it, re-run `render-check` (and `--mutants`, `--levels`),
-rebuild with `./scripts/build-and-install.sh O-SimpleReverb`, and re-run this phase.
 
 ---
 
