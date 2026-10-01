@@ -4,6 +4,8 @@ The three bodies were rewritten for the new engines. The French is flagged `revi
 Simplified Chinese `reviewed: 'mt'` in `Source/ui/public/js/i18n.js` until you have read this page.
 Titles are unchanged. After reading: flip fr to `reviewed: true` and zh-Hans to `reviewed: 'bt'`.
 
+**Read and approved by Taylor, 2026-10-01 (verify phase). The six flags are flipped: fr `true`, zh-Hans `'bt'`.**
+
 - French: `scripts/i18n-fr-lint.js` 0 findings for this plugin; glossary terms Taille / Déclin / Type.
 - Chinese: `scripts/i18n-zh-lint.js` 0 findings. The back-translation (en') is from a separate pass
   that was given the Chinese only (blinded ids, English and key names withheld): Claude Sonnet, fresh
