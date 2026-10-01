@@ -1,6 +1,6 @@
 milestone: reverb-engine-rewrite
 created: 2026-10-01T03:06:58Z
-lastActivity: 2026-10-01T06:35:00Z
+lastActivity: 2026-10-01T14:36:00Z
 description: "Replace the Freeverb core with purpose-built engines (FDN for Booth/Room/Hall/Ambient, Dattorro plate, dispersive spring) per plugins/O-SimpleReverb/improvements/reverb-engine-rewrite.md"
 brief: plugins/O-SimpleReverb/improvements/reverb-engine-rewrite.md
 phases:
@@ -27,23 +27,30 @@ phases:
       typeSwitch: ring-out   # two slots
       wipCommits: per-stage  # local, path-scoped, no push, no tag
   execute:
-    status: in_progress
+    status: complete
     startedAt: 2026-10-01T04:45:00Z
-    stage: 4                 # next stage to run; see PLAN.md "Execute runs in five sessions"
+    completedAt: 2026-10-01T14:36:00Z
     buildDir: cmake-build-tests   # Release, OUARICON_BUILD_TESTS=ON, SKIP_PLUGINS = every other plugin; gitignored (cmake-build-*/)
     renderCheck: cmake-build-tests/plugins/O-SimpleReverb/O-SimpleReverb-render-check_artefacts/Release/O-SimpleReverb-render-check
-    renderCheckModes: "(none) gates | --mutants | --levels | --baseline"
-    lastGates: "113 PASS, 0 FAIL, 1 PEND; mutants 24 of 24"
-    installed: "O-SimpleReverb-dev 1.14.0, stage-3 build (all three engines; v1.14.0 preset values, placeholder voicings)"
+    renderCheckModes: "(none) gates | --mutants | --levels [raw] | --baseline"
+    lastGates: "126 PASS, 0 FAIL, 0 PEND; mutants 30 of 30; v1.14.0 out of tree 51 PASS, 42 FAIL"
+    installed: "O-SimpleReverb-dev 2.0.0 (VST3 + AU; Standalone not rebuilt); pluginval 10 and auval pass"
     backup: backups/O-SimpleReverb/v1.14.0
     stages:
       - { id: 0, name: baseline,            tasks: [1, 2],              status: complete, completedAt: 2026-10-01T04:55:00Z }
       - { id: 1, name: fdn-er-host,         tasks: [3, 4, 5, 6, 7],     status: complete, completedAt: 2026-10-01T05:30:00Z }
       - { id: 2, name: plate,               tasks: [8],                 status: complete, completedAt: 2026-10-01T06:10:00Z }
       - { id: 3, name: spring,              tasks: [9],                 status: complete, completedAt: 2026-10-01T06:35:00Z }
-      - { id: 4, name: voicing-release,     tasks: [10, 11, 12, 13, 14], status: pending }
+      - { id: 4, name: voicing-release,     tasks: [10, 11, 12, 13, 14], status: complete, completedAt: 2026-10-01T14:36:00Z }
   verify:
     status: pending
+    open:                    # what execute leaves for verify; see SUMMARY.md "For verify"
+      - listening pass in a DAW (voicing constants, 48 presets, plate density, spring chirp, DECAY level share)
+      - read I18N-REVIEW.md, then flip fr reviewed -> true and zh-Hans -> 'bt' for tip.type / tip.decay / tip.size
+      - BASELINE.md vs BASELINE-v2.0.0.md, row by row, into VERIFICATION.md
+      - squash the wip commits or leave them
+    versionApplied: true     # CMakeLists, CHANGELOG, NOTES and PLUGINS.md are already at 2.0.0 (PLAN Task 14)
+    noTag: true              # tags are cut by /publish only, as O-SimpleReverb-v2.0.0
 versionBump: major
 baseVersion: 1.14.0
 targetVersion: 2.0.0

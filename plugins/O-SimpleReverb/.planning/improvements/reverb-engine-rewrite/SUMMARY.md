@@ -2,9 +2,39 @@
 
 **Plugin:** O-SimpleReverb
 **Milestone:** reverb-engine-rewrite
-**Phase:** Execute (in progress — stages 0, 1, 2 and 3 of 0–4 complete)
+**Phase:** Execute — complete 2026-10-01 (stages 0–4). Next: verify, which includes the listening pass.
 
-Written stage by stage. Each stage adds a section; the final summary is assembled in stage 4.
+Written stage by stage. The result is first; each stage's section follows, oldest first, with stage 4 last.
+
+---
+
+## Result
+
+O-SimpleReverb **2.0.0** is built and installed (`O-SimpleReverb-dev`, VST3 + AU). `juce::dsp::Reverb` is
+gone: Booth / Room / Hall / Ambient run the 16-line FDN with early reflections at the output, Plate
+Dattorro's tank with the shimmer in the loop, Spring three dispersive springs. Nothing is tagged or pushed.
+
+| Success criterion (PLAN.md) | State |
+|---|---|
+| 1 `juce::dsp::Reverb` gone; three engines | done — `grep -rn "dsp::Reverb" Source/` is empty |
+| 2 RT60 = base x DECAY within 10 %, holding across SIZE | done — worst +2.8 % through `processBlock`, +5.3 % driven directly over three rates |
+| 3 Early reflections at the output, different in L and R | done — 4–5 arrivals a side, none shared |
+| 4 Spring chirp; Plate shimmer builds and never runs away | done — 9.7 ms at 3 kHz, echoes 33 ms apart; +21.9 dB bloom; decays even asked for an endless tail |
+| 5 TYPE, SIZE, DECAY, CHARACTER, LOW CUT click-free | done — all section 5 gates |
+| 6 `params.tsv` unchanged; v1.14.0 state loads | done — byte-identical; 9 of 9 values |
+| 7 48 presets re-voiced; inserts <= +5 dB; types re-trimmed | done — +0.2..+2.9 dB; type spread 0.07 dB stereo and mono |
+| 8 v1.14.0 baseline captured and compared | captured: `BASELINE.md` and `BASELINE-v2.0.0.md` (same tool); the row-by-row comparison is verify's |
+| 9 No allocation; stable at 44.1 / 48 / 96 kHz, oversized blocks | done — 0 allocations; 192 kHz too |
+| 10 render-check passes; v1.14.0 fails the new gates | done — 126 PASS here, 42 FAIL of 93 there |
+| 11 Builds without warnings | done — 0 in the plugin and test builds |
+| 12 pluginval and `auval -v` | done — pluginval strictness 10 SUCCESS; `auval -v aufx OuSr OuDv` AU VALIDATION SUCCEEDED |
+| 13 Listening pass before any tag | **open — Taylor, at verify** |
+| 14 Three tooltips rewritten in en / fr / zh-Hans; fr and zh-Hans read | written and gated; **reading is open — `I18N-REVIEW.md`** |
+
+**Decisions made in execute that the plan did not make** (each is in its stage's "Departures"):
+the level law (SIZE fully compensated, DECAY half — stage 4); a mono bus now as loud as a stereo one,
+about 6 dB wetter than v1.14.0's mono (stages 1 and 4); no pre-delay on Spring and a chirp that differs
+by sample rate (stage 3); Plate's echo density under target from SIZE 50 up (stage 2).
 
 ---
 
@@ -488,3 +518,260 @@ Spring is now the most expensive type (the FDN types: 0.63 % / 1.34 %; a ring-ou
 - **Task 13.** Gates not yet run on v1.14.0: bloom, Spring chirp, Spring band limit, and the three new
   measurer self-checks (which must pass on both).
 - **Task 14.** NOTES.md and CHANGELOG still describe the Freeverb path; "32/32" there is wrong (stage 0).
+
+---
+
+## Stage 4 — Voicing and release prep (Tasks 10–14) — complete 2026-10-01
+
+The wet level follows a level law, the 48 presets are re-voiced, the three tooltips are rewritten, the
+finished gates have been run on v1.14.0, and 2.0.0 is built and installed.
+
+### What exists now
+
+| Item | Where |
+|---|---|
+| Level law at the slot input; per-type mono trim | `Source/PluginProcessor.{h,cpp}` (`levelLawDb`, `kSizeLevelDbPerOctave`, `kDecayLevelDbPerOctave`, `TypePreset::monoTrimDb`) |
+| Re-voiced bank, each row's tail length in its comment | `PluginProcessor.cpp`, `initializeFactoryPresets` |
+| Gates: wet level across SIZE and across DECAY per type (section 6); the +5 dB ceiling is a gate again (9) | `tests/render-check/main.cpp` |
+| Mutant `noLevelLaw`; `--levels raw` | same |
+| `tip.type`, `tip.decay`, `tip.size` in en / fr / zh-Hans | `Source/ui/public/js/i18n.js` |
+| zh-Hans sweep in the tip render check | `tests/ui_tip_render_check.js` |
+| The three bodies and the blind back-translation, to read | `I18N-REVIEW.md` (milestone directory) |
+| v2.0.0's measurement table, same tool as `BASELINE.md` | `BASELINE-v2.0.0.md` (milestone directory) |
+| Version 2.0.0, CHANGELOG, NOTES (DSP Architecture rewritten), PLUGINS.md row | `CMakeLists.txt`, `CHANGELOG.md`, `NOTES.md`, `PLUGINS.md` |
+
+### Results
+
+render-check: **126 PASS, 0 FAIL, 0 PEND**. `--mutants`: **30 of 30 caught**. `params.tsv` byte-identical.
+The same gates on v1.14.0 out of tree: **51 PASS, 42 FAIL**.
+
+### Task 10 — level
+
+`render-check --levels raw` (law off) and `--levels` (law on): wet loudness re input, K-weighted pink,
+WET 100 / DRY 0, dB.
+
+| Type | default | DECAY 0.5x / 0.71x / 1.41x / 2.0x, law off | law on | SIZE 0 / 25 / 75 / 100, law off | law on |
+|---|---|---|---|---|---|
+| Booth | +6.40 | +4.54 / +5.43 / +7.46 / +8.62 | +5.64 / +5.97 / +6.92 / +7.52 | +9.00 / +7.73 / +5.49 / +4.67 | +6.75 / +6.61 / +6.61 / +6.92 |
+| Room | +6.38 | +4.32 / +5.31 / +7.54 / +8.77 | +5.42 / +5.85 / +6.99 / +7.67 | +8.89 / +7.48 / +5.10 / +4.21 | +6.64 / +6.35 / +6.22 / +6.46 |
+| Hall | +6.43 | +4.20 / +5.26 / +7.67 / +8.97 | +5.30 / +5.81 / +7.13 / +7.87 | +9.04 / +7.67 / +5.34 / +4.41 | +6.79 / +6.55 / +6.46 / +6.66 |
+| Spring | +6.38 | +4.06 / +5.21 / +7.59 / +8.84 | +5.16 / +5.75 / +7.05 / +7.74 | +7.58 / +6.90 / +5.80 / +5.39 | +6.50 / +6.36 / +6.34 / +6.47 |
+| Plate | +6.37 | +4.49 / +5.38 / +7.45 / +8.60 | +5.59 / +5.93 / +6.91 / +7.50 | +7.36 / +6.94 / +6.04 / +5.28 | +6.34 / +6.43 / +6.55 / +6.30 |
+| Ambient | +6.36 | +3.93 / +5.14 / +7.57 / +8.73 | +5.03 / +5.68 / +7.02 / +7.63 | +9.09 / +7.70 / +5.15 / +4.13 | +6.84 / +6.57 / +6.28 / +6.38 |
+
+**Decision.** The spread across DECAY was 4.1–4.9 dB (over the plan's 3 dB), and across SIZE 2.1–4.9 dB,
+which the plan did not cover. The slot's input gain now follows both, in dB per octave of each control:
+
+- **SIZE: all of it** — 2.25 dB per octave on the FDN, 2.05 on the plate, 2.6 on the spring. The engines
+  differ per SIZE percent because their ranges differ (two octaves, one, 0.83); per octave of length they
+  are close. With the tail time fixed, taking back the steady level also takes back the level the tail
+  starts at, so nothing is traded. Left: 0.16–0.57 dB across the knob.
+- **DECAY: half of it** — 1.1 of the 2.2 dB per octave measured. Here there is a trade: taking all of it
+  back would start a long tail 4.4 dB under a short one. Left: 1.9–2.6 dB across the knob, rising.
+  **This half is a choice, not a measurement** (`kDecayLevelDbPerOctave`); it is on the listening list.
+
+The gain moves through two poles of 30 ms, as the duck does. The SIZE and DECAY glide gates moved by
+less than 1.1 dB with it (DECAY 0.5↔2.0 on Hall: −57.7 → −56.6 dB against a limit of −52.4).
+
+**Type trims.** Stereo spread 0.07 dB (6.36..6.43) on the trims already in place; nothing to re-measure.
+**Mono** was 0.71 dB on the stereo trims, because the fold assumes L and R share nothing and each type
+shares a little. `monoTrimDb` (−0.52..+0.14 dB per type) brings mono to the same 0.07 dB.
+Mono and stereo are now equally loud; v1.14.0's mono wet read −0.1..+0.9 dB, so a mono session is about
+6 dB wetter at the same WET. It is in the CHANGELOG.
+
+### Task 11 — the bank
+
+Names, types, 8 per type and one Send per type are unchanged, so the stale-file sweep had nothing to
+remove. Tail = the type's decay time x DECAY (the gates hold that within 10 %). Level is the whole
+output re input, K-weighted pink.
+
+| Preset | Tail (s) | Level re input (dB) | CHAR | WET | DRY | DECAY | SIZE | LOW CUT |
+|---|---|---|---|---|---|---|---|---|
+| Booth - Dark Closet | 0.22 | +1.2 | -65 | 30 | 100 | 0.55x | 5 | off |
+| Booth - Drum Close | 0.25 | +0.3 | -30 | 15 | 100 | 0.62x | 20 | 119 Hz |
+| Booth - Send | 0.40 | +5.8 | +0 | 100 | 0 | 1.00x | 50 | 150 Hz |
+| Booth - Snare Ambience | 0.50 | +0.9 | +25 | 22 | 100 | 1.25x | 55 | 160 Hz |
+| Booth - Tight Room | 0.40 | +1.1 | +0 | 25 | 100 | 1.00x | 60 | off |
+| Booth - Vocal Booth | 0.24 | +0.6 | +0 | 20 | 100 | 0.60x | 30 | off |
+| Booth - Voiceover | 0.20 | +0.2 | -20 | 12 | 100 | 0.50x | 20 | 120 Hz |
+| Booth - Whisper | 0.28 | +1.4 | +40 | 30 | 100 | 0.70x | 15 | off |
+| Room - Bright Chamber | 1.65 | +1.3 | +55 | 32 | 100 | 1.50x | 70 | 150 Hz |
+| Room - Drum Room | 0.71 | +0.9 | +15 | 30 | 100 | 0.65x | 40 | 90 Hz |
+| Room - Jazz Club | 1.21 | +1.3 | -20 | 35 | 100 | 1.10x | 60 | 119 Hz |
+| Room - Live Room | 0.99 | +1.7 | +0 | 35 | 100 | 0.90x | 55 | off |
+| Room - Send | 1.10 | +4.7 | +0 | 100 | 0 | 1.00x | 50 | 120 Hz |
+| Room - Small Room | 0.61 | +0.8 | +0 | 25 | 100 | 0.55x | 25 | off |
+| Room - Studio A | 0.79 | +1.3 | +10 | 30 | 100 | 0.72x | 45 | off |
+| Room - Wood Room | 0.90 | +1.3 | -45 | 30 | 100 | 0.82x | 50 | off |
+| Hall - Ballroom | 2.61 | +1.9 | +20 | 35 | 100 | 0.87x | 70 | off |
+| Hall - Cathedral | 5.40 | +1.5 | -10 | 40 | 85 | 1.80x | 95 | 100 Hz |
+| Hall - Choir Loft | 3.90 | +1.4 | +35 | 38 | 95 | 1.30x | 80 | 140 Hz |
+| Hall - Concert Hall | 2.01 | +1.4 | +0 | 30 | 100 | 0.67x | 60 | off |
+| Hall - Dark Hall | 3.30 | +1.5 | -65 | 40 | 95 | 1.10x | 75 | 120 Hz |
+| Hall - Send | 3.00 | +4.9 | +0 | 100 | 0 | 1.00x | 60 | 120 Hz |
+| Hall - Strings Hall | 2.40 | +1.4 | -25 | 35 | 100 | 0.80x | 65 | 100 Hz |
+| Hall - Theater | 1.50 | +1.2 | +10 | 30 | 100 | 0.50x | 35 | off |
+| Spring - Amp Spring | 2.00 | +0.9 | +0 | 25 | 100 | 0.80x | 40 | off |
+| Spring - Bright Tank | 3.25 | +2.1 | +65 | 40 | 95 | 1.30x | 70 | 160 Hz |
+| Spring - Dark Tank | 2.75 | +2.0 | -55 | 38 | 100 | 1.10x | 60 | 140 Hz |
+| Spring - Dub Spring | 3.50 | +2.5 | -30 | 45 | 90 | 1.40x | 80 | 142 Hz |
+| Spring - Send | 2.50 | +6.0 | +0 | 100 | 0 | 1.00x | 50 | 150 Hz |
+| Spring - Surf Guitar | 3.00 | +2.9 | +20 | 45 | 100 | 1.20x | 65 | off |
+| Spring - Twang | 1.75 | +1.7 | +40 | 35 | 100 | 0.70x | 30 | off |
+| Spring - Vintage Spring | 2.50 | +1.4 | -10 | 30 | 100 | 1.00x | 50 | off |
+| Plate - Dark Plate | 2.75 | +1.4 | -45 | 35 | 100 | 1.10x | 60 | 120 Hz |
+| Plate - Long Plate | 4.50 | +1.8 | +15 | 38 | 95 | 1.80x | 90 | 120 Hz |
+| Plate - Lush Plate | 3.25 | +1.6 | -10 | 40 | 95 | 1.30x | 70 | 119 Hz |
+| Plate - Send | 2.50 | +4.8 | +0 | 100 | 0 | 1.00x | 50 | 150 Hz |
+| Plate - Shimmer Plate | 3.50 | +2.2 | +40 | 35 | 100 | 1.40x | 85 | off |
+| Plate - Snare Plate | 1.25 | +0.9 | +30 | 30 | 100 | 0.50x | 10 | 180 Hz |
+| Plate - Studio Plate | 2.00 | +1.5 | +10 | 30 | 100 | 0.80x | 40 | off |
+| Plate - Vocal Plate | 1.75 | +1.0 | +0 | 25 | 100 | 0.70x | 30 | off |
+| Ambient - Cloud Nine | 10.50 | +1.3 | +0 | 55 | 65 | 1.50x | 90 | 142 Hz |
+| Ambient - Ethereal | 9.10 | +2.3 | +10 | 50 | 70 | 1.30x | 85 | off |
+| Ambient - Frozen Lake | 12.60 | +0.7 | -55 | 50 | 60 | 1.80x | 100 | 140 Hz |
+| Ambient - Glass Haze | 7.00 | +0.4 | +50 | 40 | 80 | 1.00x | 70 | 160 Hz |
+| Ambient - Infinite Drone | 14.00 | +1.8 | -30 | 55 | 55 | 2.00x | 100 | 100 Hz |
+| Ambient - Pad Wash | 8.40 | +1.0 | -20 | 45 | 80 | 1.20x | 75 | 119 Hz |
+| Ambient - Send | 7.00 | +4.7 | +0 | 100 | 0 | 1.00x | 60 | 120 Hz |
+| Ambient - Soft Halo | 4.90 | +0.5 | -10 | 35 | 90 | 0.70x | 55 | 100 Hz |
+
+What changed in kind, not only in number:
+- **Tail lengths follow the names.** v1.14.0's Concert Hall would be 3.5 s on the new Hall and its
+  Vocal Booth 0.30 s; they are now 2.0 s and 0.24 s. Cathedral is 5.4 s, Theater 1.5 s, Amp Spring 2.0 s,
+  Studio Plate 2.0 s, Snare Plate 1.25 s.
+- **SIZE is spread for what it now does.** Plate presets run SIZE 10–90 because its range is one octave;
+  Spring's SIZE is the echo time (25–44 ms), so Twang is short and Dub Spring long.
+- **Infinite Drone, Ethereal and Cloud Nine** carry round numbers again (55/55, 50/70, 55/65). v1.14.0 had
+  scaled them down to hold +4.5 dB under a tank that ran hot at long DECAY; the level law does that now.
+- Inserts span +0.2..+2.9 dB; Sends +4.7..+6.0 dB wet-only.
+- The loudness reading is 4 s after 1 s of settling. Ambient at 14 s has not finished building by then, so
+  the three longest Ambient presets read a little low (about 0.5 dB by the arithmetic of the build-up; not
+  rendered longer).
+
+### Task 12 — tooltips
+
+Three bodies rewritten in each language; titles, keys, bindings, `index.html` and CSS untouched.
+
+| Gate | Result |
+|---|---|
+| `scripts/check-i18n.js` | ALL CHECKS PASS; 3 fr entries now unreviewed (these three) |
+| `scripts/i18n-fr-lint.js` | O-SimpleReverb 0 findings (the script exits 2 on O-DigiDelay's own finding, not this plugin's) |
+| `scripts/i18n-zh-lint.js` | 0 findings, exit 0; 3 entries at `'mt'` |
+| `tests/ui_tip_render_check.js` | ALL CHECKS PASSED, 251 assertions, en + fr + zh-Hans |
+| `scripts/check-ui-labels.js --plugin O-SimpleReverb` | ALL CHECKS PASSED, unchanged |
+
+Tip heights at 500 x 350, en / fr / zh-Hans: type 202.3 / **233.1** / 202.3 px, decay 110.0 / 125.3 / 110.0,
+size 186.9 / 202.3 / 156.1. **The French `tip.type` is 9.1 px from the bottom edge** (it had 39 px). It is
+inside the frame and gated; one more line of French would not be.
+
+Back-translation: `i18n-zh-backtranslate.js --emit` (blinded ids, zh only) → a fresh Sonnet subagent that
+was told to read that one file → `--ingest`. All three read back with the meaning intact; the triples are in
+`I18N-REVIEW.md`. Not done: the flags stay `false` / `'mt'` until Taylor has read them.
+
+### Task 13 — the finished gates on v1.14.0
+
+`git archive 02bac73f` into the scratchpad, this stage's `tests/render-check` and `tests/fixtures` dropped
+over it, built out of tree. 93 gates run there (section 11 and the NaN gate need the engine headers and the
+test hooks). **51 PASS, 42 FAIL.**
+
+| Gate | v1.14.0 | v2.0.0 |
+|---|---|---|
+| RT60 = base x DECAY, six types | FAIL x6 (worst +350 %; 2.0x reads 3.6–11.2 s) | PASS x6 (worst +2.0 %) |
+| RT60 holds across SIZE, six types | FAIL x6 (worst −82 %) | PASS x6 (worst +2.8 %) |
+| First arrival moves with SIZE, six types | FAIL x6 (0.00 ms) | PASS x6 (1.15–19.2 ms) |
+| Early arrivals discrete and unshared, four room types | FAIL x4 (93–101 a side, about 60 unshared) | PASS x4 (4–5, all unshared) |
+| Tail spectra of the room types unrelated | FAIL (0.96) | PASS (−0.06) |
+| Late-tail L/R correlation | FAIL (+0.54, Booth) | PASS (−0.10) |
+| Old tail rings out on a TYPE change | FAIL (−17.4 dB, 0.73 s) | PASS (−3.7 dB, 3.03 s) |
+| No allocation in `processBlock` | FAIL (4) | PASS (0) |
+| Oversized host block = prepared-size blocks | FAIL (differs by 0.08) | PASS (identical) |
+| All 48 presets 64 ms apart | FAIL (−33.5 dB above 8 kHz) | PASS (−60.1 dB) |
+| Plate shimmer blooms | FAIL (−11.6 → −12.1 dB: no rise) | PASS (−35.2 → −13.3 dB) |
+| Plate at DECAY 2.0x ends | FAIL (−37.5 dB 5–6 s on) | PASS (−69.8 / −71.8 dB) |
+| Spring chirp | FAIL (0.4 ms; echoes 48.9 ms apart, match 0.13) | PASS (9.7 ms; 33.0 ms, 0.81) |
+| Spring band limit | FAIL (+5.8 dB above 6 kHz) | PASS (−30.8 dB) |
+| Wet level across DECAY, six types | FAIL x6 (9.5–10.5 dB) | PASS x6 (1.9–2.6 dB) |
+| Wet level across SIZE, six types | FAIL x4, PASS x2 (Booth 0.30, Spring 0.66 dB) | PASS x6 (0.16–0.57 dB) |
+| `params.tsv` identity | same file | byte-identical |
+| v1.14.0 state blob loads | PASS | PASS |
+| Sections 1, 2, 4, the other section 5 cases, 7's shifter, 9, 10 | PASS | PASS |
+| Type level spread, stereo / mono | PASS (0.12 / 0.98 dB) | PASS (0.07 / 0.07 dB) |
+
+Read with care:
+- **The chirp gate fails on v1.14.0 on every condition, not only echo spacing** — stage 3 asked for this to
+  be checked. Freeverb's combs gave a best period of 48.9 ms at a match of 0.13.
+- **Two v1.14.0 types pass the SIZE level gate.** Its SIZE moved Booth and Spring by under 0.7 dB anyway.
+  That gate is shown to work by the `noLevelLaw` mutant, not by the negative control.
+- v1.14.0's mono spread passes at 0.98 against a limit of 1.
+- The rapid-TYPE and SIZE/DECAY glide gates pass on v1.14.0 as they should: it did not click either.
+- The negative control rewrote the installed factory bank with v1.14.0's values while it ran. The 2.0.0
+  gates and then the 2.0.0 plugin ran after it, and each rewrites the bank from its own table.
+
+### Mutants added
+
+| Mutant | Gate | Reading on the broken build |
+|---|---|---|
+| input gain ignores SIZE | wet level across SIZE (Room / Spring / Plate) | 4.69 / 2.19 / 2.09 dB across the knob (limit 1) |
+| input gain ignores DECAY | wet level across DECAY (Room / Spring / Plate) | 4.45 / 4.78 / 4.12 dB (limit 3) |
+
+### Departures from PLAN.md
+
+1. **SIZE has a level law as well as DECAY**, and the two are not the same strength (above).
+2. **The level law is in dB per octave of the control, not `1/sqrt(T60)`.** `1/sqrt` is 3 dB per octave;
+   the engines measure 2.2, and half of that is 1.1.
+3. **The SIZE level gate reads the spread over five sizes**, not the worst departure from SIZE 50. On the
+   first draft the plate's mutant failed by 1.10 against a limit of 1.0; by spread it is 2.09.
+4. **`monoTrimDb` per type** — the plan asked for the mono spread to be measured; it was fixable in one
+   field.
+5. **`tests/ui_tip_render_check.js` sweeps zh-Hans too.** The plan's "in all three languages" was not
+   something the gate did: it drove English and French only.
+6. **The French and Chinese bodies are new text, not edits**, so the fr flags went from `true` to `false`.
+7. **`tip.character` and `tip.lowCutOn` still say the filter is bypassed** when neutral / off. That has not
+   been true since v1.12.0 (both filters always run). Out of this milestone's scope; not touched.
+8. **`pend()` is unused** now that nothing is pending; it is kept (`[[maybe_unused]]`) for the next stage
+   that needs it.
+9. **`inject-context.py` was not run** (see stages 0–3).
+
+### Still placeholders — the listening list
+
+One constant each; none is closed by a gate.
+
+| What | Constant | Now |
+|---|---|---|
+| DECAY's share of the level law | `kDecayLevelDbPerOctave` | 1.1 dB per octave (half) |
+| Early-reflection levels and spans, pre-delays, type EQs | `typePresets` | v1.14.0's |
+| Plate shimmer amount / damping / SIZE range | `PlateEngine::kShimmerPerLoopSecond`, `kDampingHz`, `typePresets[4]` | 0.121 / 10 kHz / x0.40–0.80 |
+| Plate echo density at SIZE 50 and up | `typePresets[4].sizeHi`, or more input diffusion | 0.77 / 0.70 against a target of 0.80 |
+| Spring chirp length, band limit, wobble | `SpringEngine::kSpring`, `kAllpassCoefficient`, `kWobbleMs` | stage 3's table |
+| The 48 presets | `bank[]` | chosen by decay time and level, not by ear |
+
+### Build and install
+
+`./scripts/build-and-install.sh O-SimpleReverb`: VST3 + AU, 0 compiler warnings (0 in the test build too).
+
+| Check | Result |
+|---|---|
+| Installed bundles | `O-SimpleReverb-dev.vst3`, `O-SimpleReverb-dev.component` — both report 2.0.0; no unsuffixed variant on disk |
+| pluginval, strictness 10, GUI tests skipped, in process (VST3) | SUCCESS |
+| `auval -v aufx OuSr OuDv` | AU VALIDATION SUCCEEDED |
+| Installed factory bank | `.factory-version` 2.0.0, 48 files, new values (Concert Hall: SIZE 60, WET 30, DECAY 0.67x) |
+
+Not built: the Standalone. `build-and-install.sh` does not rebuild it, so
+`build/plugins/O-SimpleReverb/.../Standalone` is stale; rebuild it (`ninja -C build O-SimpleReverb_Standalone`)
+before using it for the listening pass.
+
+No tag, no push. This stage is a fifth path-scoped `wip(O-SimpleReverb)` commit (the plugin's directory and
+its one `PLUGINS.md` row); whether to squash the five is Taylor's call at verify.
+
+### For verify
+
+- **Listening pass** on the installed build, with the list above. A change to any of those constants means
+  re-running render-check (and `--levels` if it is a level or trim), not a new stage.
+- **Read `I18N-REVIEW.md`**, then flip the three fr flags to `true` and the three zh-Hans flags to `'bt'`.
+- **Row-by-row comparison** of `BASELINE.md` against `BASELINE-v2.0.0.md` into VERIFICATION.md. Their CPU
+  tables are from different runs of the same machine.
+- **Logic caches an AU's I/O per version**; this is a version bump, so nothing to clear by hand. If a DAW
+  shows v1.14.0 behaviour, quit it fully and reopen.
+- `.planning/STATUS.md` is still the stale January file plus `activeMilestone`; clearing that field is the
+  post-verify step.

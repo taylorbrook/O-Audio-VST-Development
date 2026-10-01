@@ -2,6 +2,114 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [2.0.0] - 2026-10-01
+
+**Reverb engine rewrite.** MAJOR: the Freeverb core (`juce::dsp::Reverb`) is
+replaced by three purpose-built engines. No parameter ID, range, skew, default
+or state format changed: v1.x sessions, automation and user presets load with
+the same values. **Every one of them sounds different** — that is the point of
+the release, and there is no legacy mode.
+
+### Changed
+- **Booth, Room, Hall and Ambient run a 16-line feedback delay network**
+  (`Source/dsp/FdnEngine.h`), each on its own delay set, with stereo early
+  reflections mixed to the output (`EarlyReflections.h`). Before, all six
+  types were one tank with different settings, and the early reflections
+  were summed into that tank.
+- **Plate runs Dattorro's plate tank** (`PlateEngine.h`). The octave-up
+  shimmer sits inside the loop, so it grows over the tail. Before, it was
+  added once ahead of the reverb.
+- **Spring runs three dispersive springs** (`SpringEngine.h`): each echo
+  arrives low frequencies first, 33 ms apart at SIZE 50, and the tank passes
+  little above 4.5 kHz. Before, Spring was the same tank behind three
+  allpasses and a flutter.
+- **DECAY is a multiple of the type's own decay time**: 0.40 s (Booth),
+  1.1 s (Room), 3.0 s (Hall), 2.5 s (Spring, Plate), 7.0 s (Ambient) at 1.0x.
+  Before, 2.0x ran every type to 10-11 s, Booth included.
+- **SIZE scales the space and nothing else.** The tail time holds as SIZE
+  moves. The room types run x0.5 to x2.0 of their delay lengths, Plate x0.40
+  to x0.80, Spring x0.75 to x1.33. Moving SIZE while sound rings glides the
+  lengths, so the tail bends in pitch for a moment.
+- **A TYPE change lets the old tail ring out** in a second slot, under its
+  own type, size, decay and EQ. Before, the tank was ducked and swapped.
+- **Wet level against SIZE and DECAY.** The slot's input gain takes back
+  what the tank's level would otherwise do: across SIZE the wet level now
+  moves at most 0.6 dB (the engines alone: 2.1 to 4.9 dB, small louder), and
+  across DECAY 1.9 to 2.6 dB (the engines alone: 4.1 to 4.9 dB).
+- **A mono bus is as loud as a stereo one**, +6.4 dB wet re input on every
+  type (spread 0.07 dB on both). v1.14.0's mono wet sat at -0.1 to +0.9 dB,
+  so **a mono session comes up about 6 dB wetter at the same WET**.
+- **All 48 factory presets are re-voiced** for the new engines. Names, types
+  and the 8-per-type layout with one Send each are unchanged. Presets named
+  after real spaces now have those spaces' decay times (Vocal Booth 0.24 s,
+  Concert Hall 2.0 s, Cathedral 5.4 s, Amp Spring 2.0 s, Studio Plate
+  2.0 s). Insert presets span +0.2 to +2.9 dB re input (ceiling +5).
+- **Hover help for Type, Decay and Size is rewritten** in English, French and
+  Simplified Chinese. The new French and Chinese bodies are flagged
+  unreviewed.
+- `getTailLengthSeconds()` is 15 s (was 10), for Ambient at 2.0x.
+- CPU is higher: about 0.6 % of one core per FDN type at 48 kHz, 0.3 % for
+  Plate and 1.2 % for Spring, against 0.3-0.4 % for v1.14.0. A ring-out runs
+  two engines at once. Sound quality was the stated priority.
+
+### Removed
+- `juce::dsp::Reverb`, the pre-reverb flutter (`FlutterDelay`), the Spring
+  allpass chain, the one-shot shimmer and the DECAY headroom map.
+
+### Measured: v1.14.0 against 2.0.0
+Both columns are the same measurement code (`tests/render-check`,
+`measure.h`), through `processBlock` at 48 kHz. The v1.14.0 column is that
+version built out of tree from `git archive`.
+
+| Reading | v1.14.0 | 2.0.0 |
+|---|---|---|
+| Mid RT60 at DECAY 1.0x, Booth / Room / Hall / Spring / Plate / Ambient (target 0.40 / 1.1 / 3.0 / 2.5 / 2.5 / 7.0 s) | 0.72 / 1.04 / 1.73 / 0.90 / 1.28 / 2.17 s | 0.40 / 1.10 / 3.00 / 2.51 / 2.51 / 6.98 s |
+| Worst RT60 error against base x DECAY, 0.5x to 2.0x | +350 % | +2.0 % |
+| RT60 at SIZE 0 and 100, worst error | -82 % | +2.8 % |
+| First arrival, SIZE 0 to 100 | does not move | 1.2 ms (Booth) to 19 ms (Spring) later |
+| Two room types sharing resonances (tail-spectrum correlation, worst pair) | 0.96 | -0.06 |
+| Early arrivals in the first 60 ms, per side | about 100, half of them at the same time in L and R | 4 to 5, none shared |
+| Late-tail L/R correlation, worst room type | +0.54 (Booth) | -0.10 |
+| Old tail 200 ms after Hall to Booth | -17.4 dB, then decays at 0.73 s | -3.7 dB, decays at 3.03 s |
+| Plate octave against fundamental, during a note / in its tail | -11.6 / -12.1 dB | -35.2 / -13.3 dB |
+| Spring: 3 kHz behind 1 kHz in an echo | no echoes | 9.7 ms, echoes 33 ms apart |
+| Spring: energy above 6 kHz re the 1 kHz octave | +5.8 dB | -30.8 dB |
+| Allocations in `processBlock` over 600 blocks, oversized blocks included | 4 | 0 |
+| Host block 4x the prepared size against prepared-size blocks | differs by 0.08 | identical |
+
+### Verification
+- `tests/render-check`: **126 PASS, 0 FAIL**. `--mutants`: **30 of 30** —
+  each new gate is run against a build with the gated behaviour broken and
+  must fail there.
+- The same gates on v1.14.0, out of tree: **51 PASS, 42 FAIL**. The decay
+  time, SIZE, early-reflection, resonance, stereo, ring-out, allocation,
+  plate and spring gates all fail there; the state blob, the preset bank
+  shape and the measurer's own checks pass on both.
+- `params.tsv` is byte-identical, and a v1.14.0 state blob
+  (`tests/fixtures/state-v1.14.0.bin`) loads with all eight values and the
+  UI language equal.
+- RT60 within 10 % of base x DECAY for all six types at 44.1, 48 and 96 kHz
+  (engines driven directly, DECAY 0.5 / 1 / 2 x SIZE 0 / 50 / 100; worst
+  +5.3 %, Booth at 96 kHz). Stable at 192 kHz.
+- TYPE, SIZE, DECAY, CHARACTER and LOW CUT moves, rapid TYPE switching and a
+  run through all 48 presets stay within the click gates.
+- pluginval strictness 10 and `auval -v aufx OuSr OuDv` pass.
+
+### Not yet checked by ear
+Nothing in this release has had a listening pass. The decay times, the gates
+above and the levels are measured; these are not, and each is one constant:
+- early-reflection levels and spans, pre-delays and type EQs (carried from
+  v1.14.0);
+- the plate's shimmer amount and damping. **The plate's echo density is
+  under the 0.80 aimed for from SIZE 50 up** (0.92 / 0.77 / 0.70 at SIZE 0 /
+  50 / 100, 100 ms in), so it may sound grainy on short sounds at large SIZE;
+- the spring's chirp length and band limit. **The chirp differs by sample
+  rate** (3 kHz lags 1 kHz by 6.2 ms at 44.1 kHz and 9.8 ms at 48 kHz),
+  because the dispersion filters land on whole samples;
+- how much DECAY should move the level (half of the engines' own 4.5 dB is
+  taken back);
+- the 48 re-voiced presets.
+
 ## [1.14.0] - 2026-09-30
 
 **Factory bank reviewed and doubled: 24 -> 48 presets.** MINOR: new presets,

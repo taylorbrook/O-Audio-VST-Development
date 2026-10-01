@@ -369,9 +369,12 @@ build (e.g. SIZE wired to nothing; ER level 0) before it is trusted.
   from the measurement); if not, leave it alone and say so.
 
 **Verification:**
-- [ ] Section 6: type loudness spread ≤ 1 dB (gate), target ≤ 0.1 dB (v1.12.0 measured 0.07)
-- [ ] Same in mono
-- [ ] The DECAY level table is in SUMMARY.md, with the decision
+- [x] Section 6: type loudness spread ≤ 1 dB (gate), target ≤ 0.1 dB (v1.12.0 measured 0.07) — 0.07 dB
+- [x] Same in mono — 0.07 dB, with a per-type mono trim
+- [x] The DECAY level table is in SUMMARY.md, with the decision (half taken back; SIZE, which this task
+      did not mention, fully)
+- Departures: a SIZE level law; dB per octave rather than `1/sqrt(T60)`; two new gates per type and a
+  mutant — SUMMARY.md, stage 4
 
 **Dependencies:** Task 9
 
@@ -391,9 +394,9 @@ DECAY now means something. Plate SIZE spans a narrower audible range — spread 
 accordingly.
 
 **Verification:**
-- [ ] Section 9: 8 per type, six Sends at 100/0, insert presets ≤ +5 dB re input
-- [ ] Section 1: 48 presets recall their TYPE
-- [ ] SUMMARY.md lists all 48 with level and RT60
+- [x] Section 9: 8 per type, six Sends at 100/0, insert presets ≤ +5 dB re input (+0.2..+2.9)
+- [x] Section 1: 48 presets recall their TYPE
+- [x] SUMMARY.md lists all 48 with level and RT60
 
 **Dependencies:** Task 10
 
@@ -416,10 +419,12 @@ glossary, lint and back-translation; new bodies are marked unreviewed until Tayl
 French and the zh-Hans back-translation.
 
 **Verification:**
-- [ ] `scripts/check-i18n.js`, `i18n-fr-lint.js`, `i18n-zh-lint.js` clean for O-SimpleReverb
-- [ ] `tests/ui_tip_render_check.js` passes at the shipping viewport in all three languages
-      (the longest new body still fits)
-- [ ] `check-ui-labels.js` unchanged result; `index.html` and layout CSS untouched
+- [x] `scripts/check-i18n.js`, `i18n-fr-lint.js`, `i18n-zh-lint.js` clean for O-SimpleReverb
+- [x] `tests/ui_tip_render_check.js` passes at the shipping viewport in all three languages
+      (the longest new body still fits — French `tip.type`, 9.1 px from the bottom edge; the gate now
+      sweeps zh-Hans, which it did not before)
+- [x] `check-ui-labels.js` unchanged result; `index.html` and layout CSS untouched
+- Open: fr `reviewed: false`, zh-Hans `'mt'` until Taylor reads `I18N-REVIEW.md`
 
 **Dependencies:** Task 9 (text depends on final behaviour); independent of Tasks 10–11
 
@@ -436,10 +441,10 @@ new `tests/render-check/` over it, build out of tree, run. Never a checkout in t
 tree. Copy any gitignored UI module files the build needs.
 
 **Verification:**
-- [ ] On v1.14.0 these fail: RT60 table, RT60-holds-across-SIZE, SIZE-moves-structure,
-      type resonance decorrelation, early taps at output, spring chirp
-- [ ] These pass on both: `params.tsv` identity, state-blob load
-- [ ] Result table in SUMMARY.md (gate × v1.14.0 × v2.0.0)
+- [x] On v1.14.0 these fail: RT60 table, RT60-holds-across-SIZE, SIZE-moves-structure,
+      type resonance decorrelation, early taps at output, spring chirp (51 PASS, 42 FAIL of 93)
+- [x] These pass on both: `params.tsv` identity, state-blob load
+- [x] Result table in SUMMARY.md (gate × v1.14.0 × v2.0.0)
 
 **Dependencies:** Task 11
 
@@ -468,10 +473,11 @@ would play the old preset values in the DAW.
 - **No git tag.** Tags are cut by `/publish` only, in the form `O-SimpleReverb-v2.0.0`.
 
 **Verification:**
-- [ ] render-check all PASS, zero PEND, in the recorded build directory
-- [ ] Build without warnings; pluginval passes; `auval -v` passes
-- [ ] Installed bundle reports 2.0.0; no alternate `-dev`/unsuffixed variant left on disk
-- [ ] SUMMARY.md written; `wip` commits squashed or left as-is per Taylor's call at verify
+- [x] render-check all PASS, zero PEND, in the recorded build directory (126 PASS; mutants 30 of 30)
+- [x] Build without warnings; pluginval passes (strictness 10); `auval -v` passes
+- [x] Installed bundle reports 2.0.0; no alternate `-dev`/unsuffixed variant left on disk
+- [x] SUMMARY.md written; `wip` commits left as they are — squashing is Taylor's call at verify
+- Not done: the Standalone was not rebuilt (SUMMARY.md, stage 4, Build and install)
 
 **Dependencies:** Task 12, Task 13
 
@@ -597,21 +603,21 @@ render-check run; `dsp-agent` has none). Brief it with the DSP real-time rules b
 
 From CONTEXT.md, the improvement is successful when:
 
-1. [ ] `juce::dsp::Reverb` is gone; Booth/Room/Hall/Ambient run the FDN, Plate the Dattorro
+1. [x] `juce::dsp::Reverb` is gone; Booth/Room/Hall/Ambient run the FDN, Plate the Dattorro
        tank, Spring the dispersive spring (Tasks 6, 8, 9)
-2. [ ] Measured RT60 matches base × DECAY for all six types within ±10 %, and holds across
+2. [x] Measured RT60 matches base × DECAY for all six types within ±10 %, and holds across
        SIZE (Tasks 4, 7, 8, 9)
-3. [ ] Early reflections appear at the output, different in L and R (Tasks 5, 7)
-4. [ ] Spring shows a dispersive chirp; Plate shimmer builds in the tail and never runs away
+3. [x] Early reflections appear at the output, different in L and R (Tasks 5, 7)
+4. [x] Spring shows a dispersive chirp; Plate shimmer builds in the tail and never runs away
        (Tasks 8, 9)
-5. [ ] TYPE, SIZE, DECAY, CHARACTER and LOW CUT moves are click-free (Task 7)
-6. [ ] `params.tsv` unchanged; the v1.14.0 state blob loads with equal values (Tasks 1, 7)
-7. [ ] 48 presets re-voiced; insert presets ≤ +5 dB; type spread re-trimmed (Tasks 10, 11)
+5. [x] TYPE, SIZE, DECAY, CHARACTER and LOW CUT moves are click-free (Task 7)
+6. [x] `params.tsv` unchanged; the v1.14.0 state blob loads with equal values (Tasks 1, 7)
+7. [x] 48 presets re-voiced; insert presets ≤ +5 dB; type spread re-trimmed (Tasks 10, 11)
 8. [ ] v1.14.0 baseline captured and compared row by row (Task 2; comparison in VERIFICATION.md)
-9. [ ] No allocation in `processBlock`; stable at 44.1/48/96 kHz and with oversized blocks (Task 7)
-10. [ ] render-check passes; v1.14.0 fails the new gates (Tasks 13, 14)
-11. [ ] Build succeeds without warnings (Task 14)
-12. [ ] Pluginval passes (Level 5+); `auval -v` passes (Task 14)
+9. [x] No allocation in `processBlock`; stable at 44.1/48/96 kHz and with oversized blocks (Task 7)
+10. [x] render-check passes; v1.14.0 fails the new gates (Tasks 13, 14)
+11. [x] Build succeeds without warnings (Task 14)
+12. [x] Pluginval passes (Level 5+); `auval -v` passes (Task 14)
 13. [ ] Listening pass in a DAW on the re-voiced bank before any tag (verify phase — Taylor)
 14. [ ] `tip.type` / `tip.decay` / `tip.size` describe the new behaviour in en, fr, zh-Hans;
         fr and zh-Hans read by Taylor (Task 12; review at verify)

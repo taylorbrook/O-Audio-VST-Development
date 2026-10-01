@@ -28,14 +28,17 @@
          a run through all 48 presets must not burst either, and must leave
          the plugin sounding as if it had never happened.
       6. The six types sit within 1 dB of each other (K-weighted, BS.1770,
-         pink noise, WET 100 / DRY 0), in stereo and on a mono bus.
+         pink noise, WET 100 / DRY 0), in stereo and on a mono bus. Each
+         type's wet level moves no more than 1 dB across SIZE, and rises 1..3 dB
+         from DECAY 0.5x to 2.0x (the level law).
       7. The octave shifter is an octave: a 1 kHz sine comes out at 2 kHz.
          On Plate it sits inside the tank: after a 300 Hz burst the octave
          is at least 10 dB stronger against the fundamental in the tail than
          it was while the burst sounded. Room has no octave at all.
       9. Factory bank: 8 per type, one "Send" each (WET 100 / DRY 0), no stale
          file from a renamed preset, and every insert preset at or below
-         +5 dB re input (K-weighted pink).
+         +5 dB re input (K-weighted pink). Each preset is listed with its level
+         and its tail length (the type's decay time x DECAY).
      10. The measurer in measure.h reads a synthetic decay of known T60 (a
          tone within 1 %, noise within 2 % on the mean over seeds), and finds
          a known tap, correlation, echo density, chirp, echo period and band
@@ -73,8 +76,9 @@
                               behaviour deliberately broken, and must FAIL
                               there. A gate that still passes has not been
                               shown to test anything.
-      --levels                print each type's wet loudness (stereo, mono, and
-                              against DECAY and SIZE), for setting wetTrimDb.
+      --levels [raw]          print each type's wet loudness (stereo, mono, and
+                              against DECAY and SIZE), for setting wetTrimDb;
+                              raw = with the level law off, for setting the law.
       --baseline              print the measurement table as Markdown: 6 types x
                               DECAY 0.5/1.0/2.0 at SIZE 50 and SIZE 0/100 at
                               DECAY 1.0. No gate runs. BASELINE.md in the
@@ -154,7 +158,7 @@ static void check(bool ok, const juce::String& what)
 }
 
 // A gate whose subject is not finished yet.
-static void pend(const juce::String& what)
+[[maybe_unused]] static void pend(const juce::String& what)
 {
     std::printf("PEND: %s\n", what.toRawUTF8());
     ++pending;
@@ -848,6 +852,36 @@ static Verdict oversizedBlockGate()
     }
     return { finite && peak > 0.01f && diff <= 1.0e-6f, "host blocks of 1024 on a processor prepared for 256 render what blocks of 256 do: max difference "
                                                         + juce::String(diff, 8) + " (<= 1e-6), peak " + juce::String(peak, 3) };
+}
+
+// The level law: the wet level holds as SIZE moves, and DECAY moves it by
+// about half of what the tank would on its own.
+static constexpr double kSizeLevelDb = 1.0, kDecayLevelLoDb = 1.0, kDecayLevelHiDb = 3.0;
+static Verdict sizeLevelGate(int type)
+{
+    // Read as the spread over the five sizes: with the law off the level
+    // runs one way through SIZE 50, so the spread is twice the worst
+    // departure from it (2.1 dB on Plate, 4.7 on Room) and stands well clear
+    // of the limit.
+    const double at50 = typeLoudnessDb(type);
+    double lo = 0.0, hi = 0.0;
+    juce::String list;
+    for (float size : { 0.0f, 25.0f, 75.0f, 100.0f }) {
+        const double d = typeLoudnessDb(type, 2, 1.0f, size) - at50;
+        lo = std::min(lo, d); hi = std::max(hi, d);
+        list << (list.isEmpty() ? "" : ", ") << juce::String(d, 2);
+    }
+    return { hi - lo <= kSizeLevelDb, juce::String(kTypeNames[type]) + " wet level at SIZE 0 / 25 / 75 / 100 re SIZE 50: " + list
+                                      + " dB; " + juce::String(hi - lo, 2) + " dB across the knob (<= " + juce::String(kSizeLevelDb, 0) + ")" };
+}
+
+static Verdict decayLevelGate(int type)
+{
+    const double lo = typeLoudnessDb(type, 2, 0.5f), mid = typeLoudnessDb(type), hi = typeLoudnessDb(type, 2, 2.0f);
+    const double spread = hi - lo;
+    return { lo < mid && mid < hi && spread >= kDecayLevelLoDb && spread <= kDecayLevelHiDb,
+             juce::String(kTypeNames[type]) + " wet level at DECAY 0.5x / 2.0x re 1.0x: " + juce::String(lo - mid, 2) + " / +" + juce::String(hi - mid, 2)
+             + " dB; " + juce::String(spread, 2) + " dB across the knob (rising, " + juce::String(kDecayLevelLoDb, 0) + ".." + juce::String(kDecayLevelHiDb, 0) + ")" };
 }
 
 // ── Plate ────────────────────────────────────────────────────────────────────
@@ -1717,19 +1751,34 @@ static int runMutants()
     mustFail(Mutant::sizeDead,    "SIZE not reaching the spring",         [] { return sizeStructureGate(3); });
     mustFail(Mutant::springNoChirp,  "the spring's allpass cascade out of its loop", [] { return springChirpGate(); });
     mustFail(Mutant::springOpenBand, "the spring's low-pass out of its loop",        [] { return springBandGate(); });
+    for (int type : { 1, 3, 4 }) {   // one type per engine
+        mustFail(Mutant::noLevelLaw, "the input gain ignoring SIZE",  [type] { return sizeLevelGate(type); });
+        mustFail(Mutant::noLevelLaw, "the input gain ignoring DECAY", [type] { return decayLevelGate(type); });
+    }
     std::printf("\n%d of %d mutants caught\n", passes, passes + failures);
     return failures == 0 ? 0 : 1;
 }
 #endif
 
 // ── --levels ─────────────────────────────────────────────────────────────────
-static int printLevels()
+// `--levels raw` prints the same table with the level law off (the engines'
+// own level against DECAY and SIZE), which is what the law's constants are
+// set from.
+static int printLevels(bool raw)
 {
-    std::printf("Wet loudness re input, K-weighted pink noise, WET 100 / DRY 0 (dB).\n\n"
-                "| Type | stereo | mono | DECAY 0.5x | DECAY 2.0x | SIZE 0 | SIZE 100 |\n|---|---|---|---|---|---|---|\n");
+   #if OSIMPLEREVERB_TEST_HOOKS
+    if (raw) activeMutant = Mutant::noLevelLaw;
+   #else
+    juce::ignoreUnused(raw);
+   #endif
+    std::printf("Wet loudness re input, K-weighted pink noise, WET 100 / DRY 0 (dB)%s.\n\n"
+                "| Type | stereo | mono | DECAY 0.5x | 0.71x | 1.41x | 2.0x | SIZE 0 | 25 | 75 | 100 |\n|---|---|---|---|---|---|---|---|---|---|---|\n",
+                raw ? ", level law off" : "");
     for (int t = 0; t < 6; ++t)
-        std::printf("| %s | %+.2f | %+.2f | %+.2f | %+.2f | %+.2f | %+.2f |\n", kTypeNames[t], typeLoudnessDb(t), typeLoudnessDb(t, 1),
-                    typeLoudnessDb(t, 2, 0.5f), typeLoudnessDb(t, 2, 2.0f), typeLoudnessDb(t, 2, 1.0f, 0.0f), typeLoudnessDb(t, 2, 1.0f, 100.0f));
+        std::printf("| %s | %+.2f | %+.2f | %+.2f | %+.2f | %+.2f | %+.2f | %+.2f | %+.2f | %+.2f | %+.2f |\n", kTypeNames[t],
+                    typeLoudnessDb(t), typeLoudnessDb(t, 1),
+                    typeLoudnessDb(t, 2, 0.5f), typeLoudnessDb(t, 2, 0.71f), typeLoudnessDb(t, 2, 1.41f), typeLoudnessDb(t, 2, 2.0f),
+                    typeLoudnessDb(t, 2, 1.0f, 0.0f), typeLoudnessDb(t, 2, 1.0f, 25.0f), typeLoudnessDb(t, 2, 1.0f, 75.0f), typeLoudnessDb(t, 2, 1.0f, 100.0f));
     return 0;
 }
 
@@ -1740,7 +1789,7 @@ int main(int argc, char** argv)
     const juce::String mode(argc > 1 ? argv[1] : "");
     if (mode == "--baseline") return printBaseline();
     if (mode == "--write-fixture") return writeFixture();
-    if (mode == "--levels") return printLevels();
+    if (mode == "--levels") return printLevels(argc > 2 && juce::String(argv[2]) == "raw");
    #if OSIMPLEREVERB_TEST_HOOKS
     if (mode == "--mutants") return runMutants();
    #endif
@@ -1887,7 +1936,11 @@ int main(int argc, char** argv)
         double lo = 1.0e9, hi = -1.0e9;
         for (int t = 0; t < 6; ++t) { const double l = typeLoudnessDb(t, channels); lo = std::min(lo, l); hi = std::max(hi, l); }
         check(hi - lo <= 1.0, juce::String(channels == 2 ? "stereo" : "mono") + ": type loudness spread " + juce::String(hi - lo, 2)
-                              + " dB <= 1 (K-weighted pink, " + juce::String(lo, 1) + ".." + juce::String(hi, 1) + " dB re input)");
+                              + " dB <= 1 (K-weighted pink, " + juce::String(lo, 2) + ".." + juce::String(hi, 2) + " dB re input)");
+    }
+    for (int type = 0; type < 6; ++type) {
+        check(sizeLevelGate(type));
+        check(decayLevelGate(type));
     }
 
     // ── 7. the shifter is an octave ───────────────────────────────────────────
@@ -1921,8 +1974,8 @@ int main(int argc, char** argv)
             const double db = loudnessDb(*fresh);
             auto v = [&](const char* id) { return fresh->parameters.getParameter(id)->convertFrom0to1(
                                                       fresh->parameters.getParameter(id)->getValue()); };
-            std::printf("  %-30s %+5.1f dB   char %+5.0f wet %5.1f dry %5.1f decay %.2fx size %3.0f lowcut %s %3.0f Hz\n",
-                        name.toRawUTF8(), db, v("CHARACTER"), v("WET"), v("DRY"), v("DECAY"), v("SIZE"),
+            std::printf("  %-30s %+5.1f dB   char %+5.0f wet %5.1f dry %5.1f decay %.2fx (%5.2f s) size %3.0f lowcut %s %3.0f Hz\n",
+                        name.toRawUTF8(), db, v("CHARACTER"), v("WET"), v("DRY"), v("DECAY"), t >= 0 ? kBaseT60[t] * v("DECAY") : 0.0, v("SIZE"),
                         v("LPON") >= 0.5f ? "on " : "off", v("LPFREQ"));
             if (name.endsWith(" - Send")) {
                 ++sends;
@@ -1939,8 +1992,8 @@ int main(int argc, char** argv)
                                            + " sends, " + juce::String(badSends) + " wrong)");
         check(! proc->presetManager.getFactoryPresetsDirectory().getChildFile("Spring - Dub Echo.json").exists(),
               "renamed preset's stale file removed from the installed bank");
-        pend("insert presets " + juce::String(lo, 1) + " (" + loName + ") .. " + juce::String(hi, 1) + " dB (" + hiName
-             + ") re input, ceiling +5.0 (the bank is re-voiced for the new engines in stage 4)");
+        check(hi <= 5.0, "insert presets " + juce::String(lo, 1) + " (" + loName + ") .. " + juce::String(hi, 1) + " dB (" + hiName
+                         + ") re input, ceiling +5.0");
     }
 
     // ── 10. the measurer, and the v1.14.0 state ───────────────────────────────
