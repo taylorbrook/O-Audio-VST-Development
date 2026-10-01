@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.8.1
+- **Version:** 1.9.0
 - **Type:** Audio Effect (Delay)
 - **Complexity:** 2.4 (Moderate)
 
@@ -25,6 +25,7 @@
 - **2026-09-27 (v1.7.0):** UI pass R4/R5 (review 260924-nho) - palette tokens, 0.40 paper wash, opaque control fills, caption chips over the butterfly echoes, 9px floor, bundled EB Garamond. Pixel-probe below-AA 296/444 -> 0/444 (min 1.59 -> 4.84). No DSP change. See CHANGELOG 1.3.0-1.6.0 for the i18n versions.
 - **2026-09-30 (v1.8.0):** Review resolution (CODE_REVIEW.md 2026-09-30: CR-01, WR-01..10). Spillover bypass is now real: a host-mapped `bypass` parameter (9th, appended) keeps the tail ringing out. Also fixed the Save-dialog use-after-free, seeded smoothers, knob arcs (true 0-270deg from 7:30), dropdown clipped at 196px, wheel/sync-drag automation gestures, a stale preset name after host restore, the mono meter reading 6 dB low, tips during drags, and a localized Save dialog. auval + pluginval 10 pass; offline spillover render verified.
 - **2026-09-30 (v1.8.1):** Info-tier review sweep (IN-01..09, 11, 13..15). LFO no longer ramps down from 440 Hz on load, exact triplet factors, mono delay lines (half the memory), a -60 dB tail estimate, preset apply resets omitted params and sends gestures, the Save dialog reports the sanitized name, no "1 ms / 0%" readout flash on open, the dropdown re-reads the list, and the meter skips unchanged frames and hidden windows. IN-10/12/16 deferred.
+- **2026-09-30 (v1.9.0):** Factory bank 12 -> 24, and now defined in code (`initializeFactoryPresets()`); it previously existed only on the dev machine, so release installs had no factory presets. Vendored preset manager gains the module's `.factory-version` sentinel.
 
 ## Known Issues
 
@@ -161,7 +162,10 @@ Presets are stored in:
 - **User presets:** `~/Library/O-DigiDelay/Presets/User/`
 - **Factory presets:** `~/Library/O-DigiDelay/Presets/Factory/`
 
-### Factory Presets (12)
+### Factory Presets (24)
+
+Defined in `initializeFactoryPresets()` (`PluginProcessor.cpp`) and rewritten once per plugin version (`.factory-version` sentinel).
+
 | Preset | Description |
 |--------|-------------|
 | Short Slap | Quick 75ms slap-back delay |
@@ -175,6 +179,18 @@ Presets are stored in:
 | Swell Pad | Long, wet, high feedback for pads |
 | Lo-Fi Drift | Heavy modulation for lo-fi vibe |
 | Clean Repeat | Clean repeats without modulation |
-| Ping Pong Style | Max spread for wide stereo
+| Ping Pong Style | Max spread for wide stereo |
+| Quarter Note Echo | Synced 1/4, moderate feedback |
+| Sixteenth Stutter | Synced 1/16, tight rhythmic repeats |
+| Dotted Quarter Space | Synced 1/4D, spacious rhythmic echo |
+| Sixteenth Triplet Roll | Synced 1/16T rolling repeats |
+| Quintuplet Scatter | Synced 1/8(5), off-grid, wide |
+| Dub Throw | Synced 1/4D, 82% feedback, for throws |
+| Runaway | 375 ms, 92% feedback, builds |
+| Endless Repeats | Synced 1/4 at the 95% feedback clamp |
+| Haas Widener | 8 ms, right side +12 ms, no feedback |
+| Slow Chorus | 18 ms, heavy mod, chorus-style |
+| Resonant Comb | 12 ms at 80% feedback, pitched ~83 Hz ring |
+| Cathedral Wash | 1900 ms, 85% feedback, full spread |
 
-**Last Updated:** 2026-02-07
+**Last Updated:** 2026-09-30

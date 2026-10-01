@@ -138,6 +138,8 @@ OuariconDigitalDelayAudioProcessor::OuariconDigitalDelayAudioProcessor()
     bypassParam   = parameters.getRawParameterValue("bypass");
     bypassParameter = dynamic_cast<juce::AudioParameterBool*>(parameters.getParameter("bypass"));
     jassert(bypassParameter != nullptr);
+
+    initializeFactoryPresets();
 }
 
 void OuariconDigitalDelayAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -458,6 +460,95 @@ void OuariconDigitalDelayAudioProcessor::setStateInformation(const void* data, i
     // WR-07: the restored state may carry a different preset name. The editor
     // timer watches this counter and tells the page to re-read it.
     stateRevision.fetch_add(1, std::memory_order_acq_rel);
+}
+
+//==============================================================================
+// Factory Presets
+//==============================================================================
+void OuariconDigitalDelayAudioProcessor::initializeFactoryPresets()
+{
+    // v1.9.0: the bank used to exist only as hand-written files on the dev
+    // machine, so a fresh install had none. Values are written in real units
+    // and normalized through each parameter's own range, so a preset cannot
+    // drift from the layout. The vendored manager's .factory-version sentinel
+    // limits the rewrite to once per plugin version.
+    struct Def
+    {
+        const char* name;
+        float timeMs;
+        const char* division;   // nullptr = free time (SYNC off)
+        float feedback, spread, mod, wet, dry;   // percent
+    };
+
+    // Existing 12 (pre-1.9.0 values; free times rounded to the whole ms).
+    // Synced presets keep TIME at 500 ms for when SYNC is switched off.
+    static const Def defs[] = {
+        { "Clean Repeat",           500.0f, nullptr,  55.0f,   0.0f,  0.0f, 30.0f, 100.0f },
+        { "Dotted Eighth",          500.0f, "1/8D",   35.0f,  30.0f,  0.0f, 40.0f, 100.0f },
+        { "Eighth Note Sync",       500.0f, "1/8",    40.0f,  15.0f,  0.0f, 35.0f, 100.0f },
+        { "Lo-Fi Drift",            600.0f, nullptr,  50.0f,  35.0f, 70.0f, 40.0f,  85.0f },
+        { "Long Ambient",           800.0f, nullptr,  65.0f,  40.0f, 35.0f, 45.0f,  80.0f },
+        { "Ping Pong Style",        350.0f, nullptr,  50.0f, 100.0f,  5.0f, 45.0f,  90.0f },
+        { "Short Slap",              75.0f, nullptr,  15.0f,  20.0f,  0.0f, 35.0f, 100.0f },
+        { "Stereo Wide",            400.0f, nullptr,  35.0f, 100.0f, 10.0f, 40.0f, 100.0f },
+        { "Subtle Doubler",          31.0f, nullptr,   0.0f,  50.0f, 15.0f, 25.0f, 100.0f },
+        { "Swell Pad",             1200.0f, nullptr,  75.0f,  60.0f, 25.0f, 60.0f,  50.0f },
+        { "Tape Echo",              400.0f, nullptr,  45.0f,  25.0f, 40.0f, 35.0f, 100.0f },
+        { "Triplet Feel",           500.0f, "1/8T",   40.0f,  20.0f,  0.0f, 35.0f, 100.0f },
+
+        // v1.9.0 — rhythmic
+        { "Quarter Note Echo",      500.0f, "1/4",    35.0f,  10.0f,  0.0f, 30.0f, 100.0f },
+        { "Sixteenth Stutter",      500.0f, "1/16",   55.0f,   0.0f,  0.0f, 35.0f, 100.0f },
+        { "Dotted Quarter Space",   500.0f, "1/4D",   45.0f,  25.0f,  5.0f, 30.0f, 100.0f },
+        { "Sixteenth Triplet Roll", 500.0f, "1/16T",  50.0f,  10.0f,  0.0f, 30.0f, 100.0f },
+        { "Quintuplet Scatter",     500.0f, "1/8(5)", 45.0f,  35.0f,  0.0f, 35.0f, 100.0f },
+
+        // v1.9.0 — dub / runaway (the DSP clamps feedback at 95 %)
+        { "Dub Throw",              500.0f, "1/4D",   82.0f,  20.0f, 10.0f, 45.0f, 100.0f },
+        { "Runaway",                375.0f, nullptr,  92.0f,  30.0f, 15.0f, 50.0f,  90.0f },
+        { "Endless Repeats",        500.0f, "1/4",    95.0f,  40.0f,  5.0f, 50.0f, 100.0f },
+
+        // v1.9.0 — texture / mod
+        { "Haas Widener",             8.0f, nullptr,   0.0f,  80.0f,  0.0f, 35.0f, 100.0f },
+        { "Slow Chorus",             18.0f, nullptr,  20.0f,  40.0f, 60.0f, 45.0f, 100.0f },
+        { "Resonant Comb",           12.0f, nullptr,  80.0f,   0.0f,  3.0f, 20.0f, 100.0f },
+        { "Cathedral Wash",        1900.0f, nullptr,  85.0f, 100.0f, 50.0f, 50.0f,  80.0f },
+    };
+
+    auto norm = [this](const char* id, float value)
+    {
+        auto* param = parameters.getParameter(id);
+        jassert(param != nullptr);
+        return param->convertTo0to1(value);
+    };
+
+    auto* divisionChoice = dynamic_cast<juce::AudioParameterChoice*>(parameters.getParameter("division"));
+    jassert(divisionChoice != nullptr);
+
+    std::vector<OuariconPresetManager::FactoryPresetDef> presets;
+    presets.reserve(std::size(defs));
+
+    for (const auto& d : defs)
+    {
+        const bool synced = d.division != nullptr;
+        const int divisionIndex = synced ? divisionChoice->choices.indexOf(d.division) : 1;  // free: 1/8 (default)
+        jassert(divisionIndex >= 0);
+
+        presets.push_back({
+            d.name,
+            {{"time",     norm("time", d.timeMs)},
+             {"sync",     synced ? 1.0f : 0.0f},
+             {"division", norm("division", static_cast<float>(divisionIndex))},
+             {"feedback", norm("feedback", d.feedback)},
+             {"spread",   norm("spread", d.spread)},
+             {"mod",      norm("mod", d.mod)},
+             {"wet",      norm("wet", d.wet)},
+             {"dry",      norm("dry", d.dry)}},
+            juce::var()
+        });
+    }
+
+    presetManager.initializeFactoryPresets(presets);
 }
 
 // Factory function

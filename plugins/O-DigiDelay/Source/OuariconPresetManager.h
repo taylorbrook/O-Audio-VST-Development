@@ -186,7 +186,8 @@ public:
 
     /**
      * Initialize factory presets from definitions.
-     * Call this once at plugin startup if factory presets don't exist.
+     * Call at plugin startup; a .factory-version sentinel skips the rewrite
+     * unless the plugin version changed.
      *
      * @param presets  Vector of factory preset definitions
      */
@@ -582,11 +583,24 @@ inline void OuariconPresetManager::initializeFactoryPresets(
     const std::vector<FactoryPresetDef>& presets)
 {
     auto factoryDir = getFactoryPresetsDirectory();
+
+    // Ported from module v1.0.9 (WR-04): version-stamped sentinel — only
+    // (re)write the factory .json files when the plugin version changes, not on
+    // every processor construction (auval/pluginval scans, each new instance),
+    // and without two instances racing on the same files. No .json extension,
+    // so getPresetList() never sees it.
+    auto sentinel = factoryDir.getChildFile(".factory-version");
+    if (sentinel.existsAsFile()
+        && sentinel.loadFileAsString().trim() == JucePlugin_VersionString)
+        return;
+
     factoryDir.createDirectory();
 
     for (const auto& preset : presets)
     {
-        auto presetFile = factoryDir.getChildFile(preset.name + ".json");
+        // Sanitize like load/save/delete do, so a name with a path separator
+        // cannot write outside factoryDir.
+        auto presetFile = factoryDir.getChildFile(sanitizePresetName(preset.name) + ".json");
 
         auto* presetObj = new juce::DynamicObject();
 
@@ -612,6 +626,8 @@ inline void OuariconPresetManager::initializeFactoryPresets(
         auto jsonString = juce::JSON::toString(juce::var(presetObj), true);
         presetFile.replaceWithText(jsonString);
     }
+
+    sentinel.replaceWithText(JucePlugin_VersionString);
 
     juce::Logger::writeToLog("[PresetManager] Factory presets initialized: " +
                              juce::String(presets.size()));
