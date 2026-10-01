@@ -70,6 +70,20 @@ public:
     static constexpr float kRetireLevel = 1.0e-5f;
     static constexpr float kRetireHoldMs = 300.0f;
 
+    // The level law. A tank's steady level follows its decay time over its
+    // length: left alone, the wet signal moves 4.1..4.9 dB across DECAY and
+    // 2.1..4.9 dB across SIZE (small is louder). The slot's input gain takes
+    // that back, in dB per octave of each control.
+    //   SIZE: all of it, per engine (measured; render-check --levels). The tail
+    //   then starts at the same level at every SIZE as well as averaging the
+    //   same, since its length does not move.
+    //   DECAY: half of the 2.2 dB per octave measured. All of it would start a
+    //   long tail 4.4 dB under a short one; none of it runs DECAY 2.0x 2.4 dB
+    //   hot. Half leaves 2.2 dB across the knob, split between the two.
+    static constexpr float kDecayLevelDbPerOctave = 1.1f;
+    static constexpr float kSizeLevelDbPerOctave[3] = { 2.25f, 2.05f, 2.6f };   // Fdn, Plate, Spring
+    static constexpr float kLevelSlewMs = 60.0f;    // two poles of half this each, as the duck
+
     // Per-type voicing. DECAY multiplies baseT60; SIZE scales the engine's
     // lengths geometrically from sizeLo (0 %) to sizeHi (100 %), and moves
     // nothing else - the tail time holds.
@@ -86,6 +100,7 @@ public:
         float eqQ;                  // Type-specific EQ Q
         enum class EqType { None, LowShelf, HighShelf, Peak, HighPass } eqType;
         float wetTrimDb;            // level match across types at defaults
+        float monoTrimDb;           // on a mono bus, on top of the fold: what the type's L/R correlation adds
     };
 
     static const TypePreset typePresets[6];
@@ -116,7 +131,8 @@ public:
         noShimmer,      // the plate's cross-feeds bypass the octave shifter
         decayStuck,     // the engine is asked for an endless tail (the plate sits on its decay ceiling)
         springNoChirp,  // the spring's allpass cascade is out of its loop
-        springOpenBand  // the spring's low-pass is out of its loop
+        springOpenBand, // the spring's low-pass is out of its loop
+        noLevelLaw      // the slot's input gain ignores DECAY and SIZE
     };
     Mutant testMutant = Mutant::none;
     bool testInjectNaN = false;     // poisons the playing slot's input once, then clears itself
@@ -235,7 +251,9 @@ private:
         float inputGain = 0.0f;         // the duck: rises to 1 while playing, falls to 0 otherwise
         float inputLead = 0.0f;         //   its first pole (see renderSlot)
         float outputGain = 1.0f;        // the steal fade's position: 1, except while a stolen slot fades
-        float trim = 1.0f;              // the type's wetTrimDb, at the INPUT (see renderSlot)
+        float trim = 1.0f;              // the type's wetTrimDb and the level law, at the INPUT (see renderSlot)
+        float trimLead = 1.0f;          //   its first pole
+        float trimTarget = 1.0f;        //   where DECAY and SIZE now put it (see driveSlot)
         float earlyLevel = 0.0f;
         float monoFold = 0.70710678f;   // what a mono bus multiplies L + R by (see renderSlot)
         int quietSamples = 0;           // how long the output has been under kRetireLevel
@@ -280,6 +298,7 @@ private:
     double currentSampleRate = 44100.0;
     int maxChunkSamples = 512;             // the prepared block size: nothing below is sized for more
     float duckCoeff = 1.0f;                // of each of the duck's two poles
+    float levelCoeff = 1.0f;               // of each of the level law's two poles
     float stealStep = 0.0f;                // per sample, for kStealFadeMs
     int retireHoldSamples = 0;
     float previousCharacterValue = 0.0f;   // seeded out of range in prepareToPlay
@@ -287,6 +306,7 @@ private:
     // Helper methods
     void processChunk(juce::AudioBuffer<float>& buffer, int start, int numSamples);
     static float wetTrimGain(int typeIndex) { return juce::Decibels::decibelsToGain(typePresets[typeIndex].wetTrimDb); }
+    static float levelLawDb(const TypePreset& preset, float decayValue, float scale);
     void initializeFactoryPresets();
 
     template<typename FilterType>

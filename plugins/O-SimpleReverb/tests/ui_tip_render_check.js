@@ -445,6 +445,15 @@ const READ_TIP = `() => {
     check(frLang === 'fr', `[5] window.__setLanguage('fr') took — selector reads "${frLang}"`);
     await sweep('fr');
 
+    // v2.0.0: Simplified Chinese as well. Its bodies are the shortest of the
+    // three, so this sweep is here for the byte-compare and the binding, and so
+    // that "fits in every language" is measured rather than argued from length.
+    await page.evaluate((l) => window.__setLanguage(l), 'zh-Hans');
+    await page.waitForTimeout(150);
+    const zhLang = await page.evaluate(() => document.getElementById('lang-select').value);
+    check(zhLang === 'zh-Hans', `[5] window.__setLanguage('zh-Hans') took — selector reads "${zhLang}"`);
+    await sweep('zh-Hans');
+
     await page.evaluate((l) => window.__setLanguage(l), 'en');
     await page.waitForTimeout(150);
     const backSt = await hoverAndRead('#CHARACTER-knob');

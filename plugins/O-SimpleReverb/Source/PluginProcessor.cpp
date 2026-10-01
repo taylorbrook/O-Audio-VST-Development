@@ -52,7 +52,9 @@
 // wetTrimDb level-matches each type's wet output at default SIZE/DECAY/
 // CHARACTER: K-weighted (BS.1770) RMS on pink noise, WET 100 / DRY 0, to
 // +6.4 dB re input - where v1.14.0's types sat in stereo (6.3..6.5;
-// render-check --levels prints the table these are set from).
+// render-check --levels prints the table these are set from). monoTrimDb
+// brings a mono bus to the same figure: the fold assumes L and R share
+// nothing, and each type's early reflections and tank share a little.
 const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typePresets[6] = {
     // 0: Booth - tight, intimate
     {
@@ -67,7 +69,8 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         0.0f,       // eqGain
         0.707f,     // eqQ
         TypePreset::EqType::HighPass,
-        6.6f        // wetTrimDb
+        6.6f,       // wetTrimDb
+        -0.17f      // monoTrimDb
     },
     // 1: Room - natural, versatile
     {
@@ -82,7 +85,8 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         0.0f,       // eqGain
         0.707f,     // eqQ
         TypePreset::EqType::None,
-        5.4f        // wetTrimDb
+        5.4f,       // wetTrimDb
+        -0.47f      // monoTrimDb
     },
     // 2: Hall - large concert hall, spacious
     {
@@ -97,7 +101,8 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         -2.0f,      // eqGain (slight high cut for distance)
         0.5f,       // eqQ
         TypePreset::EqType::HighShelf,
-        5.9f        // wetTrimDb
+        5.9f,       // wetTrimDb
+        -0.52f      // monoTrimDb
     },
     // 3: Spring - three dispersive springs. SIZE runs x0.75..x1.33 of their
     // echo times (33 / 37 / 41 ms at 50 %), which keeps the tank inside what
@@ -115,7 +120,8 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         4.0f,       // eqGain (metallic resonance)
         2.5f,       // eqQ (narrow resonance)
         TypePreset::EqType::Peak,
-        -0.5f       // wetTrimDb
+        -0.5f,      // wetTrimDb
+        0.14f       // monoTrimDb
     },
     // 4: Plate - Dattorro's tank. SIZE runs x0.40..x0.80 of the paper's
     // lengths (x0.57 at 50 %): above that the tank is audibly sparse. No
@@ -132,7 +138,8 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         3.0f,       // eqGain (add sparkle)
         0.707f,     // eqQ
         TypePreset::EqType::HighShelf,
-        1.9f        // wetTrimDb
+        1.9f,       // wetTrimDb
+        -0.01f      // monoTrimDb
     },
     // 5: Ambient - washy, ethereal, very long
     {
@@ -147,7 +154,8 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         -3.0f,      // eqGain (soften highs for washy sound)
         0.5f,       // eqQ
         TypePreset::EqType::HighShelf,
-        4.1f        // wetTrimDb
+        4.1f,       // wetTrimDb
+        -0.15f      // monoTrimDb
     }
 };
 
@@ -307,6 +315,7 @@ void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
         slot.type = -1;
     }
     duckCoeff = static_cast<float>(osr::slewCoefficient(0.25 * kTypeDuckMs * 0.001, sampleRate));
+    levelCoeff = static_cast<float>(osr::slewCoefficient(0.5 * kLevelSlewMs * 0.001, sampleRate));
     stealStep = 1.0f / (kStealFadeMs * 0.001f * static_cast<float>(sampleRate));
     retireHoldSamples = static_cast<int>(kRetireHoldMs * 0.001 * sampleRate);
 
@@ -341,13 +350,13 @@ void OSimpleReverbAudioProcessor::startSlot(Slot& slot, int typeIndex, float dec
     slot.inputGain = slot.inputLead = inputOpen ? 1.0f : 0.0f;
     slot.outputGain = 1.0f;
     slot.quietSamples = 0;
-    slot.trim = wetTrimGain(typeIndex);
     slot.earlyLevel = OSR_MUTANT(earlyMuted) ? 0.0f : preset.earlyLevel;
     slot.preDelaySamples = juce::jmax(1, juce::roundToInt(preset.preDelayMs * 0.001 * currentSampleRate));
 
     // A mono bus sums the slot's L and R. The FDN's and the plate's are
     // decorrelated, so 0.7071 keeps the power; the spring's are not.
-    slot.monoFold = preset.engine == TypePreset::Engine::Spring ? osr::SpringEngine::kMonoFold : 0.70710678f;
+    slot.monoFold = (preset.engine == TypePreset::Engine::Spring ? osr::SpringEngine::kMonoFold : 0.70710678f)
+                    * juce::Decibels::decibelsToGain(preset.monoTrimDb);
 
     switch (preset.engine) {
         case TypePreset::Engine::Plate:
@@ -369,8 +378,17 @@ void OSimpleReverbAudioProcessor::startSlot(Slot& slot, int typeIndex, float dec
     }
     slot.early.setType(juce::jmax(1.0f, preset.earlySpanMs));
     driveSlot(slot, decayValue, sizeValue);
+    slot.trim = slot.trimLead = slot.trimTarget;    // the slot is silent: no slew to wait for
     clearSlot(slot);
     setTypeEq(slot, typeIndex);
+}
+
+float OSimpleReverbAudioProcessor::levelLawDb(const TypePreset& preset, float decayValue, float scale)
+{
+    // 0 dB at DECAY 1.0x, SIZE 50, where wetTrimDb is set.
+    const float decayOctaves = std::log2(juce::jlimit(0.5f, 2.0f, decayValue));
+    const float sizeOctaves = std::log2(scale / sizeScale(preset, 50.0f));
+    return kSizeLevelDbPerOctave[static_cast<int>(preset.engine)] * sizeOctaves - kDecayLevelDbPerOctave * decayOctaves;
 }
 
 void OSimpleReverbAudioProcessor::clearSlot(Slot& slot)
@@ -398,6 +416,10 @@ void OSimpleReverbAudioProcessor::driveSlot(Slot& slot, float decayValue, float 
     double t60 = preset.baseT60 * (OSR_MUTANT(decayDead) ? 1.0f : decayValue);
     if (OSR_MUTANT(sizeIsDecay)) t60 *= scale / sizeScale(preset, 50.0f);
     if (OSR_MUTANT(decayStuck)) t60 = 1.0e6;
+
+    slot.trimTarget = wetTrimGain(slot.type)
+                      * (OSR_MUTANT(noLevelLaw) ? 1.0f : juce::Decibels::decibelsToGain(levelLawDb(preset, decayValue, static_cast<float>(scale))));
+    if (OSR_MUTANT(noGlide)) slot.trim = slot.trimLead = slot.trimTarget;
 
     if (preset.engine == TypePreset::Engine::Plate) {
         slot.plate.setSize(scale);
@@ -530,7 +552,14 @@ void OSimpleReverbAudioProcessor::renderSlot(Slot& slot, const float* inL, const
         // The type's level trim goes in HERE, at the input and inside the
         // duck: on the output it would re-scale a tail that is ringing out
         // (v1.11.0: Ambient -> Booth lifted it 7.7 dB). The engines are
-        // linear, so the steady level is the same either way.
+        // linear, so the steady level is the same either way. It follows
+        // DECAY and SIZE (the level law) through two poles, as the duck does.
+        if (! juce::exactlyEqual(slot.trim, slot.trimTarget)) {
+            slot.trimLead += (slot.trimTarget - slot.trimLead) * levelCoeff;
+            slot.trim += (slot.trimLead - slot.trim) * levelCoeff;
+            if (std::abs(slot.trimTarget - slot.trim) < 1.0e-6f && std::abs(slot.trimTarget - slot.trimLead) < 1.0e-6f)
+                slot.trim = slot.trimLead = slot.trimTarget;
+        }
         const float g = slot.inputGain * slot.trim;
         float xL = inL[i] * g, xR = inR[i] * g;
        #if OSIMPLEREVERB_TEST_HOOKS
@@ -851,78 +880,80 @@ void OSimpleReverbAudioProcessor::setStateInformation(const void* data, int size
 
 void OSimpleReverbAudioProcessor::initializeFactoryPresets()
 {
-    // v1.14.0: authored in the parameters' own units and converted once through
-    // each range below. The table used to hold hand-normalised fractions, which
-    // for the skewed DECAY meant hand-computing norm^1.585 (0.33 -> 0.76x).
+    // Authored in the parameters' own units and converted once through each
+    // range below (v1.14.0; the table used to hold hand-normalised fractions).
     //   type: 0 Booth, 1 Room, 2 Hall, 3 Spring, 4 Plate, 5 Ambient
     //   character -100..100 (dark..bright), wet/dry %, decay x, size %,
     //   low cut Hz and on/off.
+    // v2.0.0: re-voiced for the new engines. DECAY is a multiple of the type's
+    // own decay time (Booth 0.40 s, Room 1.1 s, Hall 3.0 s, Spring and Plate
+    // 2.5 s, Ambient 7.0 s), so each row's tail length is the figure in its
+    // comment, and a name that promises a real space gets that space's time.
+    // SIZE no longer moves the tail: it is how far apart the echoes are.
     // "Send" presets are 100 % wet / 0 % dry, for an aux bus. Insert presets
     // stay at or below +5 dB re input (render-check section 9).
     struct Def { const char* name; int type; float character, wet, dry, decay, size, lowCutHz; bool lowCut; };
     static constexpr Def bank[] = {
-        // name                          type  char   wet    dry   decay  size  lowcut
+        // name                          type  char   wet    dry   decay  size  lowcut           tail
         // === BOOTH ===
-        { "Booth - Vocal Booth",           0,    0.0f, 20.0f, 100.0f, 0.76f, 30.0f, 199.0f, false },
-        { "Booth - Drum Close",            0,  -30.0f, 15.0f, 100.0f, 0.62f, 20.0f, 119.0f, true  },
-        { "Booth - Tight Room",            0,    0.0f, 25.0f, 100.0f, 0.85f, 40.0f, 199.0f, false },
-        { "Booth - Whisper",               0,   40.0f, 30.0f, 100.0f, 0.67f, 15.0f, 199.0f, false },
-        { "Booth - Snare Ambience",        0,   25.0f, 22.0f, 100.0f, 0.70f, 25.0f, 160.0f, true  },
-        { "Booth - Voiceover",             0,  -20.0f, 12.0f, 100.0f, 0.58f, 20.0f, 120.0f, true  },
-        { "Booth - Dark Closet",           0,  -65.0f, 30.0f, 100.0f, 0.55f, 10.0f, 199.0f, false },
-        { "Booth - Send",                  0,    0.0f,100.0f,   0.0f, 0.85f, 40.0f, 150.0f, true  },
+        { "Booth - Vocal Booth",           0,    0.0f, 20.0f, 100.0f, 0.60f, 30.0f, 199.0f, false },  // 0.24 s
+        { "Booth - Drum Close",            0,  -30.0f, 15.0f, 100.0f, 0.62f, 20.0f, 119.0f, true  },  // 0.25 s
+        { "Booth - Tight Room",            0,    0.0f, 25.0f, 100.0f, 1.00f, 60.0f, 199.0f, false },  // 0.40 s
+        { "Booth - Whisper",               0,   40.0f, 30.0f, 100.0f, 0.70f, 15.0f, 199.0f, false },  // 0.28 s
+        { "Booth - Snare Ambience",        0,   25.0f, 22.0f, 100.0f, 1.25f, 55.0f, 160.0f, true  },  // 0.50 s
+        { "Booth - Voiceover",             0,  -20.0f, 12.0f, 100.0f, 0.50f, 20.0f, 120.0f, true  },  // 0.20 s
+        { "Booth - Dark Closet",           0,  -65.0f, 30.0f, 100.0f, 0.55f,  5.0f, 199.0f, false },  // 0.22 s
+        { "Booth - Send",                  0,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 150.0f, true  },  // 0.40 s
 
         // === ROOM ===
-        { "Room - Small Room",             1,    0.0f, 25.0f, 100.0f, 0.76f, 35.0f, 199.0f, false },
-        { "Room - Live Room",              1,  -10.0f, 35.0f, 100.0f, 1.00f, 55.0f, 199.0f, false },
-        { "Room - Studio A",               1,   10.0f, 30.0f, 100.0f, 0.92f, 50.0f, 199.0f, false },
-        { "Room - Jazz Club",              1,  -20.0f, 40.0f, 100.0f, 1.08f, 60.0f, 119.0f, true  },
-        { "Room - Drum Room",              1,   15.0f, 30.0f, 100.0f, 0.80f, 45.0f,  90.0f, true  },
-        { "Room - Wood Room",              1,  -45.0f, 30.0f, 100.0f, 0.95f, 50.0f, 199.0f, false },
-        { "Room - Bright Chamber",         1,   55.0f, 32.0f, 100.0f, 1.15f, 60.0f, 150.0f, true  },
-        { "Room - Send",                   1,    0.0f,100.0f,   0.0f, 1.00f, 55.0f, 120.0f, true  },
+        { "Room - Small Room",             1,    0.0f, 25.0f, 100.0f, 0.55f, 25.0f, 199.0f, false },  // 0.61 s
+        { "Room - Live Room",              1,    0.0f, 35.0f, 100.0f, 0.90f, 55.0f, 199.0f, false },  // 0.99 s
+        { "Room - Studio A",               1,   10.0f, 30.0f, 100.0f, 0.72f, 45.0f, 199.0f, false },  // 0.79 s
+        { "Room - Jazz Club",              1,  -20.0f, 35.0f, 100.0f, 1.10f, 60.0f, 119.0f, true  },  // 1.21 s
+        { "Room - Drum Room",              1,   15.0f, 30.0f, 100.0f, 0.65f, 40.0f,  90.0f, true  },  // 0.72 s
+        { "Room - Wood Room",              1,  -45.0f, 30.0f, 100.0f, 0.82f, 50.0f, 199.0f, false },  // 0.90 s
+        { "Room - Bright Chamber",         1,   55.0f, 32.0f, 100.0f, 1.50f, 70.0f, 150.0f, true  },  // 1.65 s
+        { "Room - Send",                   1,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 120.0f, true  },  // 1.10 s
 
         // === HALL ===
-        { "Hall - Concert Hall",           2,    0.0f, 35.0f, 100.0f, 1.17f, 75.0f, 199.0f, false },
-        { "Hall - Cathedral",              2,  -10.0f, 45.0f,  85.0f, 1.55f, 90.0f, 100.0f, true  },
-        { "Hall - Theater",                2,   10.0f, 30.0f, 100.0f, 1.08f, 65.0f, 199.0f, false },
-        { "Hall - Ballroom",               2,   20.0f, 40.0f, 100.0f, 1.35f, 80.0f, 199.0f, false },
-        { "Hall - Strings Hall",           2,  -25.0f, 35.0f, 100.0f, 1.35f, 80.0f, 100.0f, true  },
-        { "Hall - Dark Hall",              2,  -65.0f, 40.0f,  95.0f, 1.45f, 85.0f, 120.0f, true  },
-        { "Hall - Choir Loft",             2,   35.0f, 38.0f,  95.0f, 1.60f, 85.0f, 140.0f, true  },
-        { "Hall - Send",                   2,    0.0f,100.0f,   0.0f, 1.25f, 75.0f, 120.0f, true  },
+        { "Hall - Concert Hall",           2,    0.0f, 30.0f, 100.0f, 0.67f, 60.0f, 199.0f, false },  // 2.0 s
+        { "Hall - Cathedral",              2,  -10.0f, 40.0f,  85.0f, 1.80f, 95.0f, 100.0f, true  },  // 5.4 s
+        { "Hall - Theater",                2,   10.0f, 30.0f, 100.0f, 0.50f, 35.0f, 199.0f, false },  // 1.5 s
+        { "Hall - Ballroom",               2,   20.0f, 35.0f, 100.0f, 0.87f, 70.0f, 199.0f, false },  // 2.6 s
+        { "Hall - Strings Hall",           2,  -25.0f, 35.0f, 100.0f, 0.80f, 65.0f, 100.0f, true  },  // 2.4 s
+        { "Hall - Dark Hall",              2,  -65.0f, 40.0f,  95.0f, 1.10f, 75.0f, 120.0f, true  },  // 3.3 s
+        { "Hall - Choir Loft",             2,   35.0f, 38.0f,  95.0f, 1.30f, 80.0f, 140.0f, true  },  // 3.9 s
+        { "Hall - Send",                   2,    0.0f,100.0f,   0.0f, 1.00f, 60.0f, 120.0f, true  },  // 3.0 s
 
-        // === SPRING ===
-        { "Spring - Vintage Spring",       3,  -10.0f, 35.0f, 100.0f, 1.00f, 50.0f, 199.0f, false },
-        { "Spring - Surf Guitar",          3,   20.0f, 45.0f, 100.0f, 1.08f, 55.0f, 199.0f, false },
-        { "Spring - Dub Spring",           3,  -30.0f, 50.0f,  90.0f, 1.26f, 60.0f, 142.0f, true  },  // v1.14.0: was "Dub Echo"
-        { "Spring - Twang",                3,   40.0f, 40.0f, 100.0f, 0.92f, 45.0f, 199.0f, false },
-        { "Spring - Amp Spring",           3,    0.0f, 25.0f, 100.0f, 0.85f, 40.0f, 199.0f, false },
-        { "Spring - Dark Tank",            3,  -55.0f, 40.0f, 100.0f, 1.10f, 50.0f, 140.0f, true  },
-        { "Spring - Bright Tank",          3,   65.0f, 45.0f,  95.0f, 1.40f, 65.0f, 160.0f, true  },
-        { "Spring - Send",                 3,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 150.0f, true  },
+        // === SPRING === (SIZE is the echo time: 25 ms at 0, 33 at 50, 44 at 100)
+        { "Spring - Vintage Spring",       3,  -10.0f, 30.0f, 100.0f, 1.00f, 50.0f, 199.0f, false },  // 2.5 s
+        { "Spring - Surf Guitar",          3,   20.0f, 45.0f, 100.0f, 1.20f, 65.0f, 199.0f, false },  // 3.0 s
+        { "Spring - Dub Spring",           3,  -30.0f, 45.0f,  90.0f, 1.40f, 80.0f, 142.0f, true  },  // 3.5 s
+        { "Spring - Twang",                3,   40.0f, 35.0f, 100.0f, 0.70f, 30.0f, 199.0f, false },  // 1.75 s
+        { "Spring - Amp Spring",           3,    0.0f, 25.0f, 100.0f, 0.80f, 40.0f, 199.0f, false },  // 2.0 s
+        { "Spring - Dark Tank",            3,  -55.0f, 38.0f, 100.0f, 1.10f, 60.0f, 140.0f, true  },  // 2.75 s
+        { "Spring - Bright Tank",          3,   65.0f, 40.0f,  95.0f, 1.30f, 70.0f, 160.0f, true  },  // 3.25 s
+        { "Spring - Send",                 3,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 150.0f, true  },  // 2.5 s
 
-        // === PLATE ===
-        { "Plate - Studio Plate",          4,   10.0f, 30.0f, 100.0f, 1.00f, 55.0f, 199.0f, false },
-        { "Plate - Shimmer Plate",         4,   40.0f, 40.0f, 100.0f, 1.26f, 70.0f, 199.0f, false },
-        { "Plate - Vocal Plate",           4,    0.0f, 25.0f, 100.0f, 0.92f, 50.0f, 199.0f, false },
-        { "Plate - Lush Plate",            4,  -10.0f, 45.0f,  95.0f, 1.35f, 75.0f, 119.0f, true  },
-        { "Plate - Snare Plate",           4,   30.0f, 30.0f, 100.0f, 0.85f, 45.0f, 180.0f, true  },
-        { "Plate - Dark Plate",            4,  -45.0f, 35.0f, 100.0f, 1.15f, 60.0f, 120.0f, true  },
-        { "Plate - Long Plate",            4,   15.0f, 40.0f,  95.0f, 1.60f, 85.0f, 120.0f, true  },
-        { "Plate - Send",                  4,    0.0f,100.0f,   0.0f, 1.10f, 60.0f, 150.0f, true  },
+        // === PLATE === (SIZE is spread wide: the plate's range is the narrowest)
+        { "Plate - Studio Plate",          4,   10.0f, 30.0f, 100.0f, 0.80f, 40.0f, 199.0f, false },  // 2.0 s
+        { "Plate - Shimmer Plate",         4,   40.0f, 35.0f, 100.0f, 1.40f, 85.0f, 199.0f, false },  // 3.5 s
+        { "Plate - Vocal Plate",           4,    0.0f, 25.0f, 100.0f, 0.70f, 30.0f, 199.0f, false },  // 1.75 s
+        { "Plate - Lush Plate",            4,  -10.0f, 40.0f,  95.0f, 1.30f, 70.0f, 119.0f, true  },  // 3.25 s
+        { "Plate - Snare Plate",           4,   30.0f, 30.0f, 100.0f, 0.50f, 10.0f, 180.0f, true  },  // 1.25 s
+        { "Plate - Dark Plate",            4,  -45.0f, 35.0f, 100.0f, 1.10f, 60.0f, 120.0f, true  },  // 2.75 s
+        { "Plate - Long Plate",            4,   15.0f, 38.0f,  95.0f, 1.80f, 90.0f, 120.0f, true  },  // 4.5 s
+        { "Plate - Send",                  4,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 150.0f, true  },  // 2.5 s
 
         // === AMBIENT ===
-        // v1.14.0: Infinite Drone, Ethereal and Cloud Nine trimmed WET and DRY
-        // together (same balance) from +7.5 / +6.8 / +6.7 dB re input.
-        { "Ambient - Pad Wash",            5,  -20.0f, 50.0f,  80.0f, 1.45f, 85.0f, 119.0f, true  },
-        { "Ambient - Infinite Drone",       5,  -30.0f, 42.5f,  42.5f, 2.00f,100.0f, 100.0f, true  },
-        { "Ambient - Ethereal",            5,   10.0f, 42.2f,  57.5f, 1.55f, 90.0f, 199.0f, false },
-        { "Ambient - Cloud Nine",          5,    0.0f, 50.4f,  54.3f, 1.66f, 95.0f, 142.0f, true  },
-        { "Ambient - Frozen Lake",         5,  -55.0f, 45.0f,  60.0f, 2.00f,100.0f, 140.0f, true  },
-        { "Ambient - Glass Haze",          5,   50.0f, 40.0f,  80.0f, 1.55f, 85.0f, 160.0f, true  },
-        { "Ambient - Soft Halo",           5,  -10.0f, 35.0f,  90.0f, 1.20f, 75.0f, 100.0f, true  },
-        { "Ambient - Send",                5,    0.0f,100.0f,   0.0f, 1.60f, 90.0f, 120.0f, true  },
+        { "Ambient - Pad Wash",            5,  -20.0f, 45.0f,  80.0f, 1.20f, 75.0f, 119.0f, true  },  // 8.4 s
+        { "Ambient - Infinite Drone",      5,  -30.0f, 55.0f,  55.0f, 2.00f,100.0f, 100.0f, true  },  // 14 s
+        { "Ambient - Ethereal",            5,   10.0f, 50.0f,  70.0f, 1.30f, 85.0f, 199.0f, false },  // 9.1 s
+        { "Ambient - Cloud Nine",          5,    0.0f, 55.0f,  65.0f, 1.50f, 90.0f, 142.0f, true  },  // 10.5 s
+        { "Ambient - Frozen Lake",         5,  -55.0f, 50.0f,  60.0f, 1.80f,100.0f, 140.0f, true  },  // 12.6 s
+        { "Ambient - Glass Haze",          5,   50.0f, 40.0f,  80.0f, 1.00f, 70.0f, 160.0f, true  },  // 7.0 s
+        { "Ambient - Soft Halo",           5,  -10.0f, 35.0f,  90.0f, 0.70f, 55.0f, 100.0f, true  },  // 4.9 s
+        { "Ambient - Send",                5,    0.0f,100.0f,   0.0f, 1.00f, 60.0f, 120.0f, true  },  // 7.0 s
     };
 
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets;

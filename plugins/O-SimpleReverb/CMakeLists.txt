@@ -5,7 +5,7 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-SimpleReverb
-    VERSION 1.14.0
+    VERSION 2.0.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuSr
@@ -99,9 +99,11 @@ if(OUARICON_BUILD_TESTS)
     include(${CMAKE_SOURCE_DIR}/scripts/param-dump/ParamDump.cmake)
     ouaricon_add_param_dump(O-SimpleReverb ${CMAKE_CURRENT_SOURCE_DIR}/Source)
 
-    # v1.11.0/v1.12.0 render check: factory TYPE recall, click-free CHARACTER,
-    # LOW CUT and TYPE switches, per-type level match,
-    # Ambient @ 192 kHz, VU peak hold. See tests/render-check/main.cpp.
+    # Render check: factory TYPE recall and bank levels, click-free CHARACTER,
+    # LOW CUT, TYPE, SIZE and DECAY moves, per-type level match and the level
+    # law, VU peak hold, and (v2.0.0) the reverb engines - decay time against
+    # target, early reflections, stereo, ring-out, no allocation.
+    # See tests/render-check/main.cpp.
     ouaricon_add_processor_console(O-SimpleReverb ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/render-check/main.cpp render-check)
     # Mutants and the NaN injection hook exist in this target only (see
