@@ -30,6 +30,9 @@
       6. The six types sit within 1 dB of each other (K-weighted, BS.1770,
          pink noise, WET 100 / DRY 0), in stereo and on a mono bus.
       7. The octave shifter is an octave: a 1 kHz sine comes out at 2 kHz.
+         On Plate it sits inside the tank: after a 300 Hz burst the octave
+         is at least 10 dB stronger against the fundamental in the tail than
+         it was while the burst sounded. Room has no octave at all.
       9. Factory bank: 8 per type, one "Send" each (WET 100 / DRY 0), no stale
          file from a renamed preset, and every insert preset at or below
          +5 dB re input (K-weighted pink).
@@ -39,13 +42,16 @@
          tests/fixtures loads with the values its .tsv lists.
      11. The engine headers in Source/dsp, driven directly: the building
          blocks (allpass, Lagrange read, RT60-to-gain, mid-band shelf, glide),
-         the early-reflection taps, and the FDN's decay time against its
-         target at 44.1 / 48 / 96 kHz over DECAY x SIZE.
+         the early-reflection taps, and the FDN's and the plate's decay time
+         against target at 44.1 / 48 / 96 kHz over DECAY x SIZE. The plate
+         with its shifter taking the whole cross-feed, asked for an endless
+         tail, still decays.
      12. The reverb through processBlock: RT60 = base x DECAY within 10 % and
          holding across SIZE; SIZE moving the first arrival; no two FDN types
          sharing resonances; discrete early arrivals, different in L and R;
          a decorrelated tail; the old tail ringing out on a TYPE change; a
-         NaN recovered within one block; no allocation in processBlock.
+         NaN recovered within one block; no allocation in processBlock; Plate
+         at DECAY 2.0x under 10 s of noise neither growing nor hanging.
 
     (8, "Ambient's tail grows with DECAY", is superseded by 12's RT60 table.)
 
@@ -59,7 +65,7 @@
     Modes:
       (none)                  the gates above
       --mutants               each gate of 12 (and the SIZE, DECAY and TYPE
-                              cases of 5) is run against a build with the gated
+                              cases of 5, and 7's bloom) is run against a build with the gated
                               behaviour deliberately broken, and must FAIL
                               there. A gate that still passes has not been
                               shown to test anything.
@@ -93,6 +99,7 @@
 #if __has_include("dsp/FdnEngine.h")
  #include "dsp/ReverbPrimitives.h"
  #include "dsp/FdnEngine.h"
+ #include "dsp/PlateEngine.h"
  #include "dsp/EarlyReflections.h"
  #define OSR_ENGINES 1
 #else
@@ -565,6 +572,7 @@ static constexpr float kSizeGlideMarginDb = 6.0f, kDecayGlideMarginDb = 6.0f, kR
 // same on v1.14.0 (the negative control) and on any mutant.
 
 static const int kFdnTypes[4] = { 0, 1, 2, 5 };   // Booth, Room, Hall, Ambient
+static const int kStereoTypes[5] = { 0, 1, 2, 4, 5 };   // and Plate. A spring is a mono device.
 static constexpr double kRt60Tolerance = 0.10;
 
 static double typeRt60(int type, float decay, float size)
@@ -658,7 +666,7 @@ static Verdict stereoGate()
 {
     double worst = 0.0;
     juce::String where;
-    for (int type : kFdnTypes) {
+    for (int type : kStereoTypes) {
         const auto ir = typeIrCovering(type, 1.0f, 50.0f);
         const auto w = correlationWindow(ir.l, 48000.0, measure::midRt60(ir.l, 48000.0));
         const double r = measure::correlation(ir.l, ir.r, (size_t) (w.t0 * 48000.0), (size_t) (w.t1 * 48000.0));
@@ -705,7 +713,7 @@ static Verdict glideGate(const char* id, float a, float b, float refDb, float ma
 {
     float worst = -200.0f;
     juce::String list;
-    for (int type : { 1, 2 }) {
+    for (int type : { 1, 2, 4 }) {
         const float db = hfBurst(id, a, b, 0.0f, type).db;
         worst = std::max(worst, db);
         list << (list.isEmpty() ? "" : ", ") << kTypeNames[type] << " " << juce::String(db, 1);
@@ -837,6 +845,113 @@ static Verdict oversizedBlockGate()
                                                         + juce::String(diff, 8) + " (<= 1e-6), peak " + juce::String(peak, 3) };
 }
 
+// ── Plate ────────────────────────────────────────────────────────────────────
+
+// 600 Hz over 300 Hz, in dB, in the Hann-windowed stretch [t0, t1) seconds.
+static double octaveOverFundamentalDb(const std::vector<float>& x, double sr, double t0, double t1)
+{
+    const size_t from = (size_t) (t0 * sr), to = std::min(x.size(), (size_t) (t1 * sr));
+    measure::Vec seg(to - from);
+    for (size_t i = 0; i < seg.size(); ++i)
+        seg[i] = x[from + i] * (0.5 - 0.5 * std::cos(2.0 * measure::kPi * (double) i / (double) (seg.size() - 1)));
+    return 10.0 * std::log10((measure::goertzel(seg, 600.0, sr, 0, seg.size()) + 1.0e-30)
+                             / (measure::goertzel(seg, 300.0, sr, 0, seg.size()) + 1.0e-30));
+}
+
+// A 300 Hz burst of one second (10 ms raised-cosine edges, so the burst's own
+// start and stop put nothing at 600 Hz), then three seconds of tail.
+static std::vector<float> burstResponse(int type)
+{
+    const double sr = 48000.0;
+    const int bs = 512, burst = 48000, edge = 480;
+    auto proc = makeProcessor();
+    setParam(*proc, "TYPE", (float) type); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
+    configure(*proc, 2, sr, bs);
+    juce::AudioBuffer<float> buf(2, bs);
+    juce::MidiBuffer midi;
+    std::vector<float> out;
+    for (int n = 0; n < 4 * 48000; n += bs) {
+        for (int i = 0; i < bs; ++i) {
+            const int t = n + i;
+            float env = t < burst ? 1.0f : 0.0f;
+            if (t < edge) env = 0.5f - 0.5f * (float) std::cos(measure::kPi * t / edge);
+            else if (t >= burst - edge && t < burst) env = 0.5f + 0.5f * (float) std::cos(measure::kPi * (t - (burst - edge)) / edge);
+            const float x = 0.5f * env * (float) std::sin(2.0 * measure::kPi * 300.0 * t / sr);
+            buf.setSample(0, i, x); buf.setSample(1, i, x);
+        }
+        proc->processBlock(buf, midi);
+        for (int i = 0; i < bs; ++i) out.push_back(buf.getSample(0, i));
+    }
+    return out;
+}
+
+// The shimmer is inside the tank: the octave is nearly absent while the burst
+// sounds and builds up over the tail. v1.14.0 added it once, ahead of the
+// reverb, at about -10 dB from the first sample - the same ratio all the way.
+//
+// The rise alone is not the gate: with the shifter bypassed the two readings
+// are both leakage (-108 and -79 dB) and still 28 dB apart. The octave has to
+// be THERE in the tail - and stay under the fundamental, or it is a shimmer
+// effect and not a plate.
+static constexpr double kBloomDb = 10.0, kNoOctaveDb = -40.0, kTailOctaveLoDb = -30.0, kTailOctaveHiDb = -6.0;
+static Verdict bloomGate()
+{
+    const double sr = 48000.0;
+    const auto plate = burstResponse(4), room = burstResponse(1);
+    const double onset = octaveOverFundamentalDb(plate, sr, 0.1, 1.0), tail = octaveOverFundamentalDb(plate, sr, 1.5, 3.5);
+    const double roomTail = octaveOverFundamentalDb(room, sr, 1.1, 2.0);
+    return { tail - onset >= kBloomDb && tail >= kTailOctaveLoDb && tail <= kTailOctaveHiDb && roomTail < kNoOctaveDb,
+             "Plate shimmer blooms: 600 / 300 Hz is " + juce::String(onset, 1) + " dB while a 300 Hz burst sounds, " + juce::String(tail, 1)
+             + " dB over the 2 s after it (-30..-6; " + juce::String(tail - onset, 1) + " dB more, >= 10); Room's tail " + juce::String(roomTail, 1) + " dB (< -40: no octave)" };
+}
+
+// Plate at DECAY 2.0x, both ends of SIZE: ten seconds of noise, then silence.
+// The level under the noise has stopped rising, the tail falls second by
+// second, and five seconds on (one RT60) it is at least 45 dB down.
+static Verdict plateRunawayGate()
+{
+    const double sr = 48000.0;
+    const int bs = 512, noiseBlocks = (int) (10.0 * sr) / bs, tailBlocks = (int) (8.0 * sr) / bs;
+    bool ok = true;
+    juce::String list;
+    for (float size : { 0.0f, 100.0f }) {
+        auto proc = makeProcessor();
+        setParam(*proc, "TYPE", 4.0f); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
+        setParam(*proc, "DECAY", 2.0f); setParam(*proc, "SIZE", size);
+        configure(*proc, 2, sr, bs);
+        juce::AudioBuffer<float> buf(2, bs);
+        juce::MidiBuffer midi;
+        std::mt19937 rng(33);
+        std::normal_distribution<float> nd(0.0f, 0.1f);
+        std::vector<float> out;
+        bool finite = true;
+        for (int blk = 0; blk < noiseBlocks + tailBlocks; ++blk) {
+            for (int i = 0; i < bs; ++i) {
+                const float x = blk < noiseBlocks ? nd(rng) : 0.0f;
+                buf.setSample(0, i, x); buf.setSample(1, i, x);
+            }
+            proc->processBlock(buf, midi);
+            for (int i = 0; i < bs; ++i) { out.push_back(buf.getSample(0, i)); finite = finite && std::isfinite(buf.getSample(0, i)); }
+        }
+        const size_t stop = (size_t) noiseBlocks * bs, second = (size_t) sr;
+        auto db = [&](size_t from, size_t to) { return 20.0 * std::log10(rmsOf(out, from, to) + 1.0e-30); };
+        const double steady = db(stop - 2 * second, stop), growth = steady - db(4 * second, 6 * second);
+        bool falling = true;
+        double previous = steady;
+        for (int k = 0; k < 7; ++k) {
+            const double now = db(stop + (size_t) k * second, stop + (size_t) (k + 1) * second);
+            if (previous - steady > -90.0) falling = falling && now < previous;
+            previous = now;
+        }
+        const double after5 = db(stop + 5 * second, stop + 6 * second) - steady;
+        ok = ok && finite && growth < 1.0 && falling && after5 < -45.0;
+        list << (list.isEmpty() ? "" : "; ") << "SIZE " << juce::String(size, 0) << ": " << (finite ? "finite" : "NOT FINITE") << ", last 2 s of noise "
+             << juce::String(growth, 2) << " dB re 4-6 s (< 1), tail " << (falling ? "falls every second" : "DOES NOT FALL every second")
+             << ", " << juce::String(after5, 1) << " dB 5-6 s on (< -45)";
+    }
+    return { ok, "Plate does not run away at DECAY 2.0x under 10 s of noise - " + list };
+}
+
 // No allocation inside processBlock: prepared-size blocks, odd sizes, an
 // oversized block, with every control moving and TYPE going through a start,
 // a ring-out, a reopen and a steal.
@@ -928,6 +1043,144 @@ static measure::Stereo fdnIr(const osr::FdnConfig& cfg, double fs, double sizeSc
         s.l[i] = l; s.r[i] = r;
     }
     return s;
+}
+
+// The plate driven directly. shimmer < 0 leaves the engine's own share.
+struct PlateRun { measure::Stereo ir; double loopSeconds; float decay, share; };
+static PlateRun plateIr(double fs, double sizeScale, double t60, double seconds, double shimmer = -1.0)
+{
+    osr::PlateEngine engine;
+    engine.prepare(fs);
+    if (shimmer >= 0.0) engine.setShimmer(shimmer);
+    engine.setSize(sizeScale);
+    engine.setT60(t60);
+    engine.reset();
+    const size_t n = (size_t) (seconds * fs);
+    PlateRun run { { measure::Vec(n), measure::Vec(n) }, engine.loopSeconds(), engine.decayCoefficient(), engine.shimmerShare() };
+    for (size_t i = 0; i < n; ++i) {
+        float l, r;
+        const float x = i == 0 ? 1.0f : 0.0f;
+        engine.process(x, x, l, r);
+        run.ir.l[i] = l; run.ir.r[i] = r;
+    }
+    return run;
+}
+
+static void plateGates()
+{
+    const auto& preset = OSimpleReverbAudioProcessor::typePresets[4];
+    const double sizes[3] = { OSimpleReverbAudioProcessor::sizeScale(preset, 0.0f), OSimpleReverbAudioProcessor::sizeScale(preset, 50.0f),
+                              OSimpleReverbAudioProcessor::sizeScale(preset, 100.0f) };
+
+    // -- decay time against target, with the shifter in the loop and without --
+    for (double shimmer : { -1.0, 0.0 }) {
+        double worst = 0.0, worstCorr = 0.0, lo = 1.0e9, hi = -1.0e9;
+        juce::String where;
+        for (double fs : { 44100.0, 48000.0, 96000.0 })
+            for (double decay : { 0.5, 1.0, 2.0 })
+                for (double size : sizes) {
+                    const double t60 = preset.baseT60 * decay;
+                    const auto run = plateIr(fs, size, t60, 1.35 * t60 + 0.4, shimmer);
+                    const double mid = measure::midRt60(run.ir.l, fs), err = mid / t60 - 1.0;
+                    lo = std::min(lo, err); hi = std::max(hi, err);
+                    if (std::abs(err) > std::abs(worst)) {
+                        worst = err;
+                        where = juce::String(fs / 1000.0, 1) + " kHz, DECAY " + juce::String(decay, 1) + "x, size x" + juce::String(size, 2);
+                    }
+                    worstCorr = std::max(worstCorr, std::abs(measure::correlation(run.ir.l, run.ir.r, (size_t) (0.25 * t60 * fs), (size_t) (0.75 * t60 * fs))));
+                }
+        check(std::abs(worst) <= kRt60Tolerance, juce::String("plate, ") + (shimmer < 0.0 ? "shimmer in the loop" : "shimmer out") + ": mid RT60 within 10 % of base x DECAY at 27 points "
+                                                 "(44.1 / 48 / 96 kHz x DECAY 0.5 / 1 / 2 x size x0.40 / x0.57 / x0.80); " + juce::String(100.0 * lo, 1) + " .. "
+                                                 + juce::String(100.0 * hi, 1) + " %, worst at " + where);
+        if (shimmer < 0.0)
+            check(worstCorr < 0.3, "plate: late-tail L/R correlation at all 27 points, worst |r| " + juce::String(worstCorr, 3) + " (< 0.3)");
+    }
+
+    // -- the loop cannot grow --
+    // Asked for an endless tail, the coefficient stops at its ceiling, and the
+    // tank still loses energy - with the shifter taking none of the
+    // cross-feed, its usual share, and all of it.
+    {
+        const double fs = 48000.0;
+        bool ok = true;
+        juce::String list;
+        for (double shimmer : { 0.0, -1.0, 1000.0 }) {
+            osr::PlateEngine engine;
+            engine.prepare(fs);
+            if (shimmer >= 0.0) engine.setShimmer(shimmer);
+            engine.setSize(sizes[0]);
+            engine.setT60(1.0e6);
+            engine.reset();
+            std::mt19937 rng(9);
+            std::normal_distribution<float> nd(0.0f, 0.1f);
+            double energy[4] = {};
+            bool finite = true;
+            for (int i = 0; i < (int) (32.0 * fs); ++i) {
+                float l, r;
+                const float x = i < (int) (2.0 * fs) ? nd(rng) : 0.0f;
+                engine.process(x, x, l, r);
+                finite = finite && std::isfinite(l) && std::isfinite(r);
+                const int second = i / (int) fs;
+                if (second == 1 || second == 11 || second == 21 || second == 31) energy[second / 10] += (double) l * l + (double) r * r;
+            }
+            const bool falling = finite && energy[1] < energy[0] && energy[2] < energy[1] && energy[3] < energy[2];
+            ok = ok && falling && engine.decayCoefficient() <= (float) osr::PlateEngine::kDecayCeiling;
+            list << (list.isEmpty() ? "" : "; ") << "share " << juce::String(engine.shimmerShare(), 2) << ": "
+                 << juce::String(10.0 * std::log10(energy[1] / energy[0] + 1.0e-30), 1) << " / " << juce::String(10.0 * std::log10(energy[2] / energy[0] + 1.0e-30), 1)
+                 << " / " << juce::String(10.0 * std::log10(energy[3] / energy[0] + 1.0e-30), 1) << " dB";
+        }
+        check(ok, "plate asked for an endless tail: decay coefficient held at " + juce::String(osr::PlateEngine::kDecayCeiling, 2)
+                  + ", energy 10 / 20 / 30 s after the noise falls each time - " + list);
+    }
+
+    // -- the worst case for capacity --
+    {
+        const double fs = 192000.0, t60 = preset.baseT60 * 2.0;
+        const auto run = plateIr(fs, osr::PlateEngine::kMaxSizeScale, t60, 1.35 * t60 + 0.4);
+        bool finite = true;
+        for (size_t i = 0; i < run.ir.l.size(); ++i) finite = finite && std::isfinite(run.ir.l[i]) && std::isfinite(run.ir.r[i]);
+        const double mid = finite ? measure::midRt60(run.ir.l, fs) : 0.0;
+        check(finite && std::abs(mid / t60 - 1.0) <= kRt60Tolerance, "plate at 192 kHz, DECAY 2.0x, size x1 (the longest lines there are): finite, mid RT60 "
+                                                                     + juce::String(mid, 2) + " s (5.0, within 10 %)");
+    }
+
+    // -- the same input gives the same output --
+    {
+        auto render = [&]() {
+            osr::PlateEngine engine;
+            engine.prepare(48000.0);
+            engine.setSize(sizes[1]);
+            engine.setT60(2.5);
+            engine.reset();
+            std::mt19937 rng(4);
+            std::normal_distribution<float> nd(0.0f, 0.1f);
+            std::vector<float> out;
+            for (int i = 0; i < 96000; ++i) {
+                float l, r;
+                const float x = i < 24000 ? nd(rng) : 0.0f;
+                if (i == 30000) engine.setSize(sizes[2]);   // a glide, the modulation and the shifter are all in the render
+                engine.process(x, x, l, r);
+                out.push_back(l); out.push_back(r);
+            }
+            return out;
+        };
+        check(render() == render(), "plate: two renders of the same input, modulation, shifter and a SIZE glide included, are the same samples");
+    }
+
+    // -- a SIZE glide lands where a reset at that size starts --
+    {
+        osr::PlateEngine glided, fresh;
+        glided.prepare(48000.0); fresh.prepare(48000.0);
+        glided.setSize(sizes[0]); glided.setT60(2.5); glided.reset();
+        glided.setSize(sizes[2]);
+        for (int i = 0; i < (int) (4.0 * 48000.0); ++i) { float l, r; glided.process(0.0f, 0.0f, l, r); }
+        fresh.setSize(sizes[2]); fresh.setT60(2.5); fresh.reset();
+        check(osr::sameValue(glided.loopSeconds(), fresh.loopSeconds()) && osr::sameValue(glided.decayCoefficient(), fresh.decayCoefficient())
+              && osr::sameValue(glided.shimmerShare(), fresh.shimmerShare()),
+              "plate: after a SIZE glide the loop is " + juce::String(1000.0 * glided.loopSeconds(), 2) + " ms, decay " + juce::String(glided.decayCoefficient(), 4)
+              + ", shifter share " + juce::String(glided.shimmerShare(), 4) + " - as a reset at that size (" + juce::String(1000.0 * fresh.loopSeconds(), 2) + " ms, "
+              + juce::String(fresh.decayCoefficient(), 4) + ", " + juce::String(fresh.shimmerShare(), 4) + ")");
+    }
 }
 
 static void engineGates()
@@ -1141,6 +1394,8 @@ static void engineGates()
         };
         check(render() == render(), "FDN: two renders of the same input, modulation and a SIZE glide included, are the same samples");
     }
+
+    plateGates();
 }
 #endif // OSR_ENGINES
 
@@ -1173,6 +1428,11 @@ static int runMutants()
     mustFail(Mutant::noGlide,     "DECAY landing at once",                [ref] { return glideGate("DECAY", 0.5f, 2.0f, ref, kDecayGlideMarginDb); });
     mustFail(Mutant::hardSteal,   "a sounding slot taken back without a fade", [slow] { return rapidSwitchGate({ 0, 1, 2 }, slow, kRapidMarginDb); });
     mustFail(Mutant::hardSteal,   "a sounding slot taken back without a fade", [] { return presetSweepGate(hfBurst("WET", 20.0f, 100.0f, 0.0f, -1, 8000.0f).db, kSweepMarginDb); });
+    mustFail(Mutant::decayDead,   "DECAY not reaching the plate",         [] { return rt60DecayGate(4); });
+    mustFail(Mutant::sizeIsDecay, "SIZE scaling the plate's decay time",  [] { return rt60SizeGate(4); });
+    mustFail(Mutant::sizeDead,    "SIZE not reaching the plate",          [] { return sizeStructureGate(4); });
+    mustFail(Mutant::noShimmer,   "the plate's shifter bypassed",         [] { return bloomGate(); });
+    mustFail(Mutant::decayStuck,  "the plate asked for an endless tail",  [] { return plateRunawayGate(); });
     std::printf("\n%d of %d mutants caught\n", passes, passes + failures);
     return failures == 0 ? 0 : 1;
 }
@@ -1354,7 +1614,7 @@ int main(int argc, char** argv)
         for (int i = 0; i < 48000; ++i) y.push_back(oct.process(0.5f * (float) std::sin(juce::MathConstants<double>::twoPi * 1000.0 * i / 48000.0)));
         const double octDb = 10.0 * std::log10(goertzel(y, 2000.0, 48000.0, 4800) / goertzel(y, 1000.0, 48000.0, 4800));
         check(octDb > 20.0, "octave shifter: 2 kHz over 1 kHz " + juce::String(octDb, 1) + " dB > 20");
-        pend("Plate shimmer blooms in the tail: 600/300 Hz in the tail exceeds the ratio at onset by >= 10 dB, Room shows none (Dattorro tank: stage 2)");
+        check(bloomGate());
     }
 
     // ── 9. factory bank shape and level ───────────────────────────────────────
@@ -1506,15 +1766,22 @@ int main(int argc, char** argv)
 
     // ── 12. the reverb through processBlock ───────────────────────────────────
     for (int type = 0; type < 6; ++type) {
-        if (type == 3 || type == 4) {
-            pend(juce::String(kTypeNames[type]) + " RT60 = base x DECAY, and holding across SIZE (its own engine: stage "
-                 + (type == 4 ? "2" : "3") + ")");
+        if (type == 3) {
+            pend("Spring RT60 = base x DECAY, and holding across SIZE (its own engine: stage 3)");
             continue;
         }
         check(rt60DecayGate(type));
         check(rt60SizeGate(type));
         check(sizeStructureGate(type));
-        check(earlyTapsGate(type));
+        if (type != 4) check(earlyTapsGate(type));     // a plate has no early reflections
+    }
+    // Reported, not gated: the Dattorro tank is sparse by design and SIZE is
+    // kept small because of it. Whether it is dense enough is a listening call.
+    for (float size : { 0.0f, 50.0f, 100.0f }) {
+        const auto ir = typeIr(4, 1.0f, size, 0.6);
+        const size_t on = measure::onsetIndex(ir.l);
+        std::printf("  (Plate echo density 100 ms after the first arrival, SIZE %.0f: %.2f; mixing time %.0f ms; 1.0 = Gaussian, Hall reads 0.99)\n",
+                    size, measure::echoDensityAt(ir.l, 48000.0, on + 4800), measure::mixingTimeMs(ir.l, 48000.0, on));
     }
     check(tailSpectrumGate());
     check(stereoGate());
@@ -1524,7 +1791,7 @@ int main(int argc, char** argv)
    #endif
     check(allocGate());
     pend("Spring chirp: the first echo arrives >= 2 ms later at 3 kHz than at 1 kHz, repeating at the echo time (stage 3)");
-    pend("Plate does not run away: DECAY 2.0x, SIZE 0 and 100, 10 s of noise, then a monotone decay (stage 2)");
+    check(plateRunawayGate());
 
     std::printf("\n%d PASS, %d FAIL, %d PEND\n%s\n", passes, failures, pending,
                 failures > 0 ? "FAILED" : pending > 0 ? "ALL PASS (with gates pending)" : "ALL PASS");

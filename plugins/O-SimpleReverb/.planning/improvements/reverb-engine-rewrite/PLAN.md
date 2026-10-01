@@ -309,12 +309,17 @@ build (e.g. SIZE wired to nothing; ER level 0) before it is trusted.
 - O-Strata's `ReverbProcessor` is a reference for the output-tap wiring only.
 
 **Verification:**
-- [ ] RT60 table rows for Plate within ±10 % (DECAY 0.5/1.0/2.0; SIZE 0/100), 44.1/48/96 kHz
-- [ ] Bloom: 600/300 Hz ratio in the tail exceeds the ratio at onset by ≥ 10 dB; Room shows none
-- [ ] No runaway: DECAY 2.0×, SIZE 0 and 100, 10 s of noise, then monotone decay
-- [ ] Echo density at 100 ms reported (target ≥ 0.80; reported, judged at the listening pass)
-- [ ] TYPE HF-burst gate still < 2× with Plate pairs; all earlier gates still pass
-- [ ] `wip` commit — **end of stage 2**
+- [x] RT60 table rows for Plate within ±10 % (DECAY 0.5/1.0/2.0; SIZE 0/100), 44.1/48/96 kHz
+      (through `processBlock` +1.3 / +2.8 %; driven directly −1.7..+2.5 % over 27 points)
+- [x] Bloom: 600/300 Hz ratio in the tail exceeds the ratio at onset by ≥ 10 dB; Room shows none
+      (−35.2 → −13.3 dB; and the tail ratio must sit in −30..−6 dB — SUMMARY.md, stage 2, item 1)
+- [x] No runaway: DECAY 2.0×, SIZE 0 and 100, 10 s of noise, then monotone decay
+- [x] Echo density at 100 ms reported (target ≥ 0.80; reported, judged at the listening pass)
+      — **0.92 / 0.77 / 0.70 at SIZE 0 / 50 / 100: under the target from SIZE 50 up**
+- [x] TYPE HF-burst gate still < 2× with Plate pairs (1.80×); all earlier gates still pass
+- [x] `wip` commit — **end of stage 2**
+- Departures: damping is a cutoff in Hz and is folded into the decay solve; no input bandwidth
+  filter; shimmer share is per second of loop time — SUMMARY.md, stage 2
 
 **Dependencies:** Task 7
 

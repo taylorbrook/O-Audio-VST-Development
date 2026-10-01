@@ -30,9 +30,12 @@
     a multiplier on the type's own decay time in seconds, and SIZE scales the
     delay lengths without moving the tail time.
 
-    Plate and Spring get their own engines next (a Dattorro tank and a
-    dispersive spring). Until those land they run the FDN on a provisional
-    delay set, so the plugin builds and validates at every stage.
+    Plate runs Dattorro's figure-8 tank (Source/dsp/PlateEngine.h), with the
+    octave-up shimmer inside its loop and no early reflections.
+
+    Spring gets its own engine next (a dispersive spring). Until that lands
+    it runs the FDN on a provisional delay set, so the plugin builds and
+    validates at every stage.
 
   ==============================================================================
 */
@@ -111,13 +114,14 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         TypePreset::EqType::Peak,
         3.7f        // wetTrimDb
     },
-    // 4: Plate - PROVISIONAL: the FDN on a stand-in delay set until the
-    // Dattorro tank lands. No early reflections.
+    // 4: Plate - Dattorro's tank. SIZE runs x0.40..x0.80 of the paper's
+    // lengths (x0.57 at 50 %): above that the tank is audibly sparse. No
+    // early reflections - a plate has none.
     {
         TypePreset::Engine::Plate,
         2.5f,       // baseT60 (s)
-        0.5f, 2.0f, // sizeLo, sizeHi
-        { 5.9f, 47.3f, 6, 0.65f, 6000.0f, 0.10f, 1.0f, 1.0f },
+        0.40f, 0.80f, // sizeLo, sizeHi
+        {},         // fdn: not an FDN type
         0.0f,       // earlySpanMs
         0.0f,       // earlyLevel
         8.0f,       // preDelayMs (short for density)
@@ -125,7 +129,7 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         3.0f,       // eqGain (add sparkle)
         0.707f,     // eqQ
         TypePreset::EqType::HighShelf,
-        2.1f        // wetTrimDb
+        1.9f        // wetTrimDb
     },
     // 5: Ambient - washy, ethereal, very long
     {
@@ -289,6 +293,7 @@ void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     const int preDelayCapacity = static_cast<int>(std::ceil(maxPreDelayMs * 0.001 * sampleRate)) + 1;
     for (auto& slot : slots) {
         slot.fdn.prepare(sampleRate, maxLineMs, maxModMs);
+        slot.plate.prepare(sampleRate);
         slot.early.prepare(sampleRate, maxSpanMs);
         slot.preDelayL.prepare(preDelayCapacity);
         slot.preDelayR.prepare(preDelayCapacity);
@@ -336,13 +341,17 @@ void OSimpleReverbAudioProcessor::startSlot(Slot& slot, int typeIndex, float dec
     slot.earlyLevel = OSR_MUTANT(earlyMuted) ? 0.0f : preset.earlyLevel;
     slot.preDelaySamples = juce::jmax(1, juce::roundToInt(preset.preDelayMs * 0.001 * currentSampleRate));
 
-    auto fdn = preset.fdn;
-    if (OSR_MUTANT(sameDelays)) {
-        fdn.minMs = typePresets[2].fdn.minMs;
-        fdn.maxMs = typePresets[2].fdn.maxMs;
-        fdn.jitter = typePresets[2].fdn.jitter;
+    if (runsPlate(typeIndex)) {
+        slot.plate.setShimmer(OSR_MUTANT(noShimmer) ? 0.0 : osr::PlateEngine::kShimmerPerLoopSecond);
+    } else {
+        auto fdn = preset.fdn;
+        if (OSR_MUTANT(sameDelays)) {
+            fdn.minMs = typePresets[2].fdn.minMs;
+            fdn.maxMs = typePresets[2].fdn.maxMs;
+            fdn.jitter = typePresets[2].fdn.jitter;
+        }
+        slot.fdn.setType(fdn);
     }
-    slot.fdn.setType(fdn);
     slot.early.setType(juce::jmax(1.0f, preset.earlySpanMs));
     driveSlot(slot, decayValue, sizeValue);
     clearSlot(slot);
@@ -351,9 +360,12 @@ void OSimpleReverbAudioProcessor::startSlot(Slot& slot, int typeIndex, float dec
 
 void OSimpleReverbAudioProcessor::clearSlot(Slot& slot)
 {
+    // Only the engine the slot's type runs: the other holds nothing that will
+    // be heard, and is cleared here when a type that runs it starts.
     slot.preDelayL.reset();
     slot.preDelayR.reset();
-    slot.fdn.reset();
+    if (runsPlate(slot.type)) slot.plate.reset();
+    else                      slot.fdn.reset();
     slot.early.reset();
     slot.eq.reset();
 }
@@ -361,14 +373,20 @@ void OSimpleReverbAudioProcessor::clearSlot(Slot& slot)
 void OSimpleReverbAudioProcessor::driveSlot(Slot& slot, float decayValue, float sizeValue)
 {
     // DECAY is a multiplier on the type's own decay time; SIZE is a length
-    // scale and nothing else. The engine turns the decay time into per-line
-    // gains from each line's current length, so the tail time holds as SIZE
-    // moves.
+    // scale and nothing else. The engine turns the decay time into its loop
+    // gains from the current lengths, so the tail time holds as SIZE moves.
     const auto& preset = typePresets[slot.type];
     const double scale = sizeScale(preset, OSR_MUTANT(sizeDead) ? 50.0f : sizeValue);
     double t60 = preset.baseT60 * (OSR_MUTANT(decayDead) ? 1.0f : decayValue);
-    if (OSR_MUTANT(sizeIsDecay)) t60 *= scale;
+    if (OSR_MUTANT(sizeIsDecay)) t60 *= scale / sizeScale(preset, 50.0f);
+    if (OSR_MUTANT(decayStuck)) t60 = 1.0e6;
 
+    if (runsPlate(slot.type)) {
+        slot.plate.setSize(scale);
+        slot.plate.setT60(t60);
+        if (OSR_MUTANT(noGlide)) slot.plate.land();
+        return;
+    }
     slot.fdn.setSize(scale);
     slot.fdn.setT60(t60);
     slot.early.setSize(scale);
@@ -470,6 +488,7 @@ void OSimpleReverbAudioProcessor::renderSlot(Slot& slot, const float* inL, const
     float* outR = mono ? nullptr : slot.out.getWritePointer(1);
     const float gainTarget = slot.state == Slot::State::playing ? 1.0f : 0.0f;
     const bool useEarly = slot.earlyLevel > 0.0f;
+    const bool plate = runsPlate(slot.type);
 
     for (int i = 0; i < numSamples; ++i) {
         // The duck: two one-poles in series, each a quarter of kTypeDuckMs. A
@@ -504,7 +523,8 @@ void OSimpleReverbAudioProcessor::renderSlot(Slot& slot, const float* inL, const
         slot.preDelayR.push(xR);
 
         float l, r;
-        slot.fdn.process(pL, pR, l, r);
+        if (plate) slot.plate.process(pL, pR, l, r);
+        else       slot.fdn.process(pL, pR, l, r);
         if (useEarly) {
             float earlyL, earlyR;
             slot.early.process(pL, pR, earlyL, earlyR);

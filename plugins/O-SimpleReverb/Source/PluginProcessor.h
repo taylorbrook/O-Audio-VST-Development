@@ -36,6 +36,7 @@
 #include <juce_dsp/juce_dsp.h>
 #include "OuariconPresetManager.h"
 #include "dsp/FdnEngine.h"
+#include "dsp/PlateEngine.h"
 #include "dsp/EarlyReflections.h"
 
 // Test hooks: defined on the render-check target only (CMakeLists.txt). A
@@ -75,7 +76,7 @@ public:
         enum class Engine { Fdn, Plate, Spring } engine;
         float baseT60;              // mid-band RT60 in seconds at DECAY 1.0x
         float sizeLo, sizeHi;       // length scale at SIZE 0 / SIZE 100
-        osr::FdnConfig fdn;         // the delay set and absorption (Engine::Fdn)
+        osr::FdnConfig fdn;         // the delay set and absorption (unused by the plate: all zero)
         float earlySpanMs;          // last early-reflection tap at size scale 1 (0 = no taps)
         float earlyLevel;           // early reflections at the slot output, re the tank
         float preDelayMs;           // ahead of the taps and the tank; not scaled by SIZE
@@ -87,6 +88,9 @@ public:
     };
 
     static const TypePreset typePresets[6];
+
+    // Which engine a type runs. Spring stays on the FDN until its own engine lands.
+    static bool runsPlate(int typeIndex) { return typePresets[typeIndex].engine == TypePreset::Engine::Plate; }
 
     // Engine length scale for a SIZE in percent.
     static float sizeScale(const TypePreset& preset, float sizePercent)
@@ -107,7 +111,9 @@ public:
         noNanGuard,     // a non-finite slot output is passed on
         noChunking,     // an oversized host block is processed in one piece
         noGlide,        // SIZE and DECAY land at once instead of gliding
-        hardSteal       // a sounding slot is taken back without its output fade
+        hardSteal,      // a sounding slot is taken back without its output fade
+        noShimmer,      // the plate's cross-feeds bypass the octave shifter
+        decayStuck      // the engine is asked for an endless tail (the plate sits on its decay ceiling)
     };
     Mutant testMutant = Mutant::none;
     bool testInjectNaN = false;     // poisons the playing slot's input once, then clears itself
@@ -210,7 +216,9 @@ private:
     struct Slot {
         enum class State { idle, playing, ringing, stolen };
 
+        // One engine of each kind; only the one the slot's type runs is processed
         osr::FdnEngine fdn;
+        osr::PlateEngine plate;
         osr::EarlyReflections early;
         osr::RingDelay preDelayL, preDelayR;
         // Type EQ: one per slot, so a ringing tail keeps its own type's EQ
