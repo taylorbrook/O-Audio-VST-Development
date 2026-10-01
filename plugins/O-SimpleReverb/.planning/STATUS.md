@@ -11,7 +11,6 @@ phased_implementation: true
 orchestration_mode: true
 next_action: invoke_dsp_agent
 next_phase: 3.1
-activeMilestone: reverb-engine-rewrite
 ---
 
 # Resume Point
