@@ -1,6 +1,6 @@
 milestone: reverb-engine-rewrite
 created: 2026-10-01T03:06:58Z
-lastActivity: 2026-10-01T06:10:00Z
+lastActivity: 2026-10-01T06:35:00Z
 description: "Replace the Freeverb core with purpose-built engines (FDN for Booth/Room/Hall/Ambient, Dattorro plate, dispersive spring) per plugins/O-SimpleReverb/improvements/reverb-engine-rewrite.md"
 brief: plugins/O-SimpleReverb/improvements/reverb-engine-rewrite.md
 phases:
@@ -29,18 +29,18 @@ phases:
   execute:
     status: in_progress
     startedAt: 2026-10-01T04:45:00Z
-    stage: 3                 # next stage to run; see PLAN.md "Execute runs in five sessions"
+    stage: 4                 # next stage to run; see PLAN.md "Execute runs in five sessions"
     buildDir: cmake-build-tests   # Release, OUARICON_BUILD_TESTS=ON, SKIP_PLUGINS = every other plugin; gitignored (cmake-build-*/)
     renderCheck: cmake-build-tests/plugins/O-SimpleReverb/O-SimpleReverb-render-check_artefacts/Release/O-SimpleReverb-render-check
     renderCheckModes: "(none) gates | --mutants | --levels | --baseline"
-    lastGates: "96 PASS, 0 FAIL, 3 PEND; mutants 19 of 19"
-    installed: "O-SimpleReverb-dev 1.14.0, stage-2 build (Plate on the Dattorro tank; Spring still the stand-in FDN)"
+    lastGates: "113 PASS, 0 FAIL, 1 PEND; mutants 24 of 24"
+    installed: "O-SimpleReverb-dev 1.14.0, stage-3 build (all three engines; v1.14.0 preset values, placeholder voicings)"
     backup: backups/O-SimpleReverb/v1.14.0
     stages:
       - { id: 0, name: baseline,            tasks: [1, 2],              status: complete, completedAt: 2026-10-01T04:55:00Z }
       - { id: 1, name: fdn-er-host,         tasks: [3, 4, 5, 6, 7],     status: complete, completedAt: 2026-10-01T05:30:00Z }
       - { id: 2, name: plate,               tasks: [8],                 status: complete, completedAt: 2026-10-01T06:10:00Z }
-      - { id: 3, name: spring,              tasks: [9],                 status: pending }
+      - { id: 3, name: spring,              tasks: [9],                 status: complete, completedAt: 2026-10-01T06:35:00Z }
       - { id: 4, name: voicing-release,     tasks: [10, 11, 12, 13, 14], status: pending }
   verify:
     status: pending

@@ -20,14 +20,12 @@
 /*
   ==============================================================================
 
-    O-SimpleReverb - pre-reverb modulation (v1.13.0)
+    O-SimpleReverb - octave-up shifter
     Ouaricon Audio
 
-    Two single-channel units the pre-reverb chain runs per channel. They
-    replace the pre-1.13.0 stand-ins: a +/-3 % amplitude wobble called
-    "flutter" (+/-0.26 dB, inaudible) and a 1.5 kHz ring modulator called
-    "shimmer" (inharmonic sidebands, not an octave). Kept in their own header
-    so tests/render-check can measure them directly.
+    The plate runs one of these on each of its cross-feeds
+    (Source/dsp/PlateEngine.h). Kept in its own header so tests/render-check
+    can measure it directly.
 
   ==============================================================================
 */
@@ -36,59 +34,6 @@
 #include <juce_dsp/juce_dsp.h>
 #include <cmath>
 #include <vector>
-
-// Pitch flutter: a short delay swept by a sine. The pitch ratio is 1 - d'(t),
-// so a sweep of depth D samples at rate f peaks at a ratio deviation of
-// 2*pi*f*D/fs. setModulation() inverts that from a depth in CENTS, so every
-// type states its flutter as what it sounds like, not as milliseconds.
-class FlutterDelay
-{
-public:
-    // maxDepthMs: the deepest sweep any caller will set (sizes the line)
-    void prepare(double sampleRate, float maxDepthMs)
-    {
-        sr = sampleRate;
-        const int capacity = static_cast<int>(std::ceil(2.0 * maxDepthMs * 0.001 * sampleRate)) + 8;
-        line.setMaximumDelayInSamples(capacity);
-        line.prepare({ sampleRate, 1, 1 });
-        reset();
-    }
-
-    void reset() { line.reset(); }
-
-    // Not while signal is flowing: the centre delay moves with the depth.
-    // The pre-reverb chain calls this only at its TYPE-duck zero.
-    void setModulation(float rateHz, float cents)
-    {
-        if (rateHz <= 0.0f || cents <= 0.0f) { depth = 0.0f; centre = 2.0f; return; }
-        const double ratio = std::pow(2.0, cents / 1200.0) - 1.0;
-        depth = static_cast<float>(ratio * sr / (juce::MathConstants<double>::twoPi * rateHz));
-        centre = depth + 2.0f;   // Lagrange needs a little room below the sweep
-    }
-
-    // lfo: the shared sine, -1..1
-    float process(float x, float lfo)
-    {
-        line.pushSample(0, x);
-        return line.popSample(0, centre + depth * lfo);
-    }
-
-    float getDepthSamples() const { return depth; }
-
-    // Maximum pitch deviation of a setModulation() pair, in cents, as a sample-
-    // rate-free check value.
-    static float centsFor(float rateHz, float depthSamples, double sampleRate)
-    {
-        const double ratio = juce::MathConstants<double>::twoPi * rateHz * depthSamples / sampleRate;
-        return static_cast<float>(1200.0 * std::log2(1.0 + ratio));
-    }
-
-private:
-    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> line;
-    double sr = 44100.0;
-    float depth = 0.0f;
-    float centre = 2.0f;
-};
 
 // Octave-up shimmer: two read taps sweep a grain of W samples from delay W down
 // to 0 at one sample per sample, so each plays at 2x. They run half a grain

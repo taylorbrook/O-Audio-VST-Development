@@ -33,9 +33,10 @@
     Plate runs Dattorro's figure-8 tank (Source/dsp/PlateEngine.h), with the
     octave-up shimmer inside its loop and no early reflections.
 
-    Spring gets its own engine next (a dispersive spring). Until that lands
-    it runs the FDN on a provisional delay set, so the plugin builds and
-    validates at every stage.
+    Spring runs three dispersive springs (Source/dsp/SpringEngine.h): each
+    echo arrives low frequencies first, and the tank passes nothing much above
+    4.5 kHz. No early reflections and no pre-delay - the first echo is the
+    spring's own.
 
   ==============================================================================
 */
@@ -98,21 +99,23 @@ const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typeP
         TypePreset::EqType::HighShelf,
         5.9f        // wetTrimDb
     },
-    // 3: Spring - PROVISIONAL: the FDN on a stand-in delay set until the
-    // dispersive spring engine lands. No early reflections.
+    // 3: Spring - three dispersive springs. SIZE runs x0.75..x1.33 of their
+    // echo times (33 / 37 / 41 ms at 50 %), which keeps the tank inside what
+    // real springs do. No early reflections, and no pre-delay: nothing comes
+    // out of a spring before its first echo, 25..44 ms after the input.
     {
         TypePreset::Engine::Spring,
         2.5f,       // baseT60 (s)
-        0.5f, 2.0f, // sizeLo, sizeHi
-        { 11.3f, 43.0f, 5, 0.40f, 3500.0f, 0.0f, 0.0f, 1.0f },
+        0.75f, 1.3333333f, // sizeLo, sizeHi
+        {},         // fdn: not an FDN type
         0.0f,       // earlySpanMs
         0.0f,       // earlyLevel
-        20.0f,      // preDelayMs
+        0.0f,       // preDelayMs
         800.0f,     // eqFreq (resonant mid boost)
         4.0f,       // eqGain (metallic resonance)
         2.5f,       // eqQ (narrow resonance)
         TypePreset::EqType::Peak,
-        3.7f        // wetTrimDb
+        -0.5f       // wetTrimDb
     },
     // 4: Plate - Dattorro's tank. SIZE runs x0.40..x0.80 of the paper's
     // lengths (x0.57 at 50 %): above that the tank is audibly sparse. No
@@ -294,6 +297,7 @@ void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     for (auto& slot : slots) {
         slot.fdn.prepare(sampleRate, maxLineMs, maxModMs);
         slot.plate.prepare(sampleRate);
+        slot.spring.prepare(sampleRate);
         slot.early.prepare(sampleRate, maxSpanMs);
         slot.preDelayL.prepare(preDelayCapacity);
         slot.preDelayR.prepare(preDelayCapacity);
@@ -341,16 +345,27 @@ void OSimpleReverbAudioProcessor::startSlot(Slot& slot, int typeIndex, float dec
     slot.earlyLevel = OSR_MUTANT(earlyMuted) ? 0.0f : preset.earlyLevel;
     slot.preDelaySamples = juce::jmax(1, juce::roundToInt(preset.preDelayMs * 0.001 * currentSampleRate));
 
-    if (runsPlate(typeIndex)) {
-        slot.plate.setShimmer(OSR_MUTANT(noShimmer) ? 0.0 : osr::PlateEngine::kShimmerPerLoopSecond);
-    } else {
-        auto fdn = preset.fdn;
-        if (OSR_MUTANT(sameDelays)) {
-            fdn.minMs = typePresets[2].fdn.minMs;
-            fdn.maxMs = typePresets[2].fdn.maxMs;
-            fdn.jitter = typePresets[2].fdn.jitter;
+    // A mono bus sums the slot's L and R. The FDN's and the plate's are
+    // decorrelated, so 0.7071 keeps the power; the spring's are not.
+    slot.monoFold = preset.engine == TypePreset::Engine::Spring ? osr::SpringEngine::kMonoFold : 0.70710678f;
+
+    switch (preset.engine) {
+        case TypePreset::Engine::Plate:
+            slot.plate.setShimmer(OSR_MUTANT(noShimmer) ? 0.0 : osr::PlateEngine::kShimmerPerLoopSecond);
+            break;
+        case TypePreset::Engine::Spring:
+            slot.spring.setVoicing(! OSR_MUTANT(springNoChirp), ! OSR_MUTANT(springOpenBand));
+            break;
+        case TypePreset::Engine::Fdn: {
+            auto fdn = preset.fdn;
+            if (OSR_MUTANT(sameDelays)) {
+                fdn.minMs = typePresets[2].fdn.minMs;
+                fdn.maxMs = typePresets[2].fdn.maxMs;
+                fdn.jitter = typePresets[2].fdn.jitter;
+            }
+            slot.fdn.setType(fdn);
+            break;
         }
-        slot.fdn.setType(fdn);
     }
     slot.early.setType(juce::jmax(1.0f, preset.earlySpanMs));
     driveSlot(slot, decayValue, sizeValue);
@@ -360,12 +375,15 @@ void OSimpleReverbAudioProcessor::startSlot(Slot& slot, int typeIndex, float dec
 
 void OSimpleReverbAudioProcessor::clearSlot(Slot& slot)
 {
-    // Only the engine the slot's type runs: the other holds nothing that will
-    // be heard, and is cleared here when a type that runs it starts.
+    // Only the engine the slot's type runs: the others hold nothing that will
+    // be heard, and are cleared here when a type that runs them starts.
     slot.preDelayL.reset();
     slot.preDelayR.reset();
-    if (runsPlate(slot.type)) slot.plate.reset();
-    else                      slot.fdn.reset();
+    switch (engineOf(slot.type)) {
+        case TypePreset::Engine::Plate:  slot.plate.reset(); break;
+        case TypePreset::Engine::Spring: slot.spring.reset(); break;
+        case TypePreset::Engine::Fdn:    slot.fdn.reset(); break;
+    }
     slot.early.reset();
     slot.eq.reset();
 }
@@ -381,10 +399,16 @@ void OSimpleReverbAudioProcessor::driveSlot(Slot& slot, float decayValue, float 
     if (OSR_MUTANT(sizeIsDecay)) t60 *= scale / sizeScale(preset, 50.0f);
     if (OSR_MUTANT(decayStuck)) t60 = 1.0e6;
 
-    if (runsPlate(slot.type)) {
+    if (preset.engine == TypePreset::Engine::Plate) {
         slot.plate.setSize(scale);
         slot.plate.setT60(t60);
         if (OSR_MUTANT(noGlide)) slot.plate.land();
+        return;
+    }
+    if (preset.engine == TypePreset::Engine::Spring) {
+        slot.spring.setSize(scale);
+        slot.spring.setT60(t60);
+        if (OSR_MUTANT(noGlide)) slot.spring.land();
         return;
     }
     slot.fdn.setSize(scale);
@@ -488,7 +512,7 @@ void OSimpleReverbAudioProcessor::renderSlot(Slot& slot, const float* inL, const
     float* outR = mono ? nullptr : slot.out.getWritePointer(1);
     const float gainTarget = slot.state == Slot::State::playing ? 1.0f : 0.0f;
     const bool useEarly = slot.earlyLevel > 0.0f;
-    const bool plate = runsPlate(slot.type);
+    const auto engine = engineOf(slot.type);
 
     for (int i = 0; i < numSamples; ++i) {
         // The duck: two one-poles in series, each a quarter of kTypeDuckMs. A
@@ -523,8 +547,9 @@ void OSimpleReverbAudioProcessor::renderSlot(Slot& slot, const float* inL, const
         slot.preDelayR.push(xR);
 
         float l, r;
-        if (plate) slot.plate.process(pL, pR, l, r);
-        else       slot.fdn.process(pL, pR, l, r);
+        if (engine == TypePreset::Engine::Fdn)        slot.fdn.process(pL, pR, l, r);
+        else if (engine == TypePreset::Engine::Plate) slot.plate.process(pL, pR, l, r);
+        else                                          slot.spring.process(pL, pR, l, r);
         if (useEarly) {
             float earlyL, earlyR;
             slot.early.process(pL, pR, earlyL, earlyR);
@@ -533,10 +558,10 @@ void OSimpleReverbAudioProcessor::renderSlot(Slot& slot, const float* inL, const
         }
         if (OSR_MUTANT(monoTail)) r = l;
 
-        // Mono bus: the engines still run in stereo. L and R are decorrelated,
-        // so 0.7071 (L + R) keeps the power.
+        // Mono bus: the engines still run in stereo, and the fold keeps the
+        // power (see startSlot).
         if (mono) {
-            outL[i] = 0.70710678f * (l + r);
+            outL[i] = slot.monoFold * (l + r);
         } else {
             outL[i] = l;
             outR[i] = r;
