@@ -1,0 +1,11 @@
+# O-SimpleReverb v1.14.0 state fixture: what state-v1.14.0.bin holds
+#id	value	normalised
+TYPE	4.0000	0.800000
+CHARACTER	-37.5000	0.312500
+WET	62.5000	0.625000
+DRY	41.0000	0.410000
+DECAY	1.3700	0.709164
+SIZE	83.0000	0.830000
+LPFREQ	137.0000	0.307895
+LPON	1.0000	1.000000
+uiLanguage	fr	

@@ -37,9 +37,24 @@
          DRY 0), no stale file from a renamed preset, and every insert preset
          at or below +5 dB re input (K-weighted pink). v1.13.1: +0.4 .. +7.5.
 
+     10. (reverb-engine-rewrite) The measurer in measure.h reads a synthetic
+         decay of known T60 (a tone within 1 %, noise within 2 % on the mean
+         over seeds), and finds a known tap, correlation and echo density. The
+         v1.14.0 state blob in tests/fixtures loads with the values its .tsv
+         lists.
+
     The factory bank is read from the INSTALLED Factory folder, which the
     processor rewrites only when its `.factory-version` sentinel differs. main()
     deletes the sentinel first, so the bank under test is this build's table.
+
+    Modes (reverb-engine-rewrite):
+      (none)                  the gates above
+      --baseline              print the measurement table as Markdown: 6 types x
+                              DECAY 0.5/1.0/2.0 at SIZE 50 and SIZE 0/100 at
+                              DECAY 1.0. No gate runs. BASELINE.md in the
+                              milestone directory is this mode's output at v1.14.0.
+      --write-fixture         write tests/fixtures/state-v1.14.0.{bin,tsv}.
+                              Refuses on any version but 1.14.0.
 */
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -49,6 +64,8 @@
 #include <cstdio>
 #include <random>
 #include <juce_dsp/juce_dsp.h>
+
+#include "measure.h"
 
 extern juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter();
 
@@ -253,9 +270,242 @@ static double ambientTailSeconds(float decay)
     return 30.0;
 }
 
-int main()
+// ── reverb-engine-rewrite: measurements, baseline, state fixture ─────────────
+
+static const char* const kTypeNames[6] = { "Booth", "Room", "Hall", "Spring", "Plate", "Ambient" };
+
+// v2.0.0's RT60 at DECAY 1.0x, in TYPE order (CONTEXT.md requirement 5). The
+// target is base x DECAY at every SIZE.
+static const double kBaseT60[6] = { 0.40, 1.1, 3.0, 2.5, 2.5, 7.0 };
+
+static float paramValue(OSimpleReverbAudioProcessor& proc, const char* id)
+{
+    auto* p = proc.parameters.getParameter(id);
+    return p->convertFrom0to1(p->getValue());
+}
+
+// Wet impulse response of one type at 48 kHz, block 512.
+static measure::Stereo typeIr(int type, float decay, float size, double seconds, double sr = 48000.0)
+{
+    auto proc = makeProcessor();
+    setParam(*proc, "TYPE", (float) type); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
+    setParam(*proc, "DECAY", decay); setParam(*proc, "SIZE", size);
+    return measure::impulseResponse(*proc, sr, 512, seconds);
+}
+
+// The same, rendered again at a longer length until the IR covers
+// 1.35 x its own mid RT60 + 0.4 s (for a tail whose length is not known).
+static measure::Stereo typeIrCovering(int type, float decay, float size, double sr = 48000.0)
+{
+    double seconds = 6.0;
+    for (;;) {
+        auto ir = typeIr(type, decay, size, seconds, sr);
+        const double need = 1.35 * measure::midRt60(ir.l, sr) + 0.4;
+        if (seconds >= need || seconds >= 45.0) return ir;
+        seconds = std::min(45.0, std::max(need + 0.1, seconds * 1.5));
+    }
+}
+
+// The window of an IR's tail used for stereo correlation and for the tail
+// spectrum: it starts a quarter of the mid RT60 after the first arrival.
+struct TailWindow { double t0, t1; };
+static TailWindow correlationWindow(const measure::Vec& ir, double sr, double t60)
+{
+    const double on = (double) measure::onsetIndex(ir) / sr;
+    return { on + 0.25 * t60, on + 0.75 * t60 };
+}
+static TailWindow spectrumWindow(const measure::Vec& ir, double sr, double t60)
+{
+    const double on = (double) measure::onsetIndex(ir) / sr;
+    const double t0 = on + std::max(0.05, 0.25 * t60);
+    return { t0, std::min((double) ir.size() / sr, t0 + juce::jlimit(0.25, 2.0, t60)) };
+}
+
+static juce::String tapList(const std::vector<measure::Tap>& taps, size_t most = 8)
+{
+    juce::String s;
+    for (size_t i = 0; i < taps.size() && i < most; ++i)
+        s << (i ? ", " : "") << juce::String(taps[i].ms, 2) << (taps[i].amp < 0 ? "-" : "+");
+    if (taps.size() > most) s << ", ...";
+    return s.isEmpty() ? juce::String("none") : s;
+}
+
+static int printBaseline()
+{
+    const double sr = 48000.0;
+    std::printf("# Baseline: O-SimpleReverb %s\n\n", JucePlugin_VersionString);
+    std::printf("Output of `O-SimpleReverb-render-check --baseline`. Measured through `processBlock` only\n"
+                "(`tests/render-check/measure.h`): 48 kHz, block 512, WET 100 / DRY 0, CHARACTER 0, LOW CUT off,\n"
+                "a unit impulse in both channels after 0.5 s of silence. Left channel unless a column says L / R.\n\n");
+
+    struct Row { int type; float decay, size; };
+    std::vector<Row> rows;
+    for (int t = 0; t < 6; ++t)
+        for (auto ds : { std::pair<float, float> { 0.5f, 50.0f }, { 1.0f, 50.0f }, { 2.0f, 50.0f }, { 1.0f, 0.0f }, { 1.0f, 100.0f } })
+            rows.push_back({ t, ds.first, ds.second });
+
+    std::vector<measure::Stereo> irs;
+    std::vector<double> mids;
+    for (const auto& r : rows) {
+        irs.push_back(typeIrCovering(r.type, r.decay, r.size, sr));
+        mids.push_back(measure::midRt60(irs.back().l, sr));
+    }
+
+    std::printf("## Decay time and stereo\n\n"
+                "RT60 is T30 (Schroeder integral, line over -5..-35 dB, extrapolated to 60 dB). Mid = 354-1414 Hz,\n"
+                "8 kHz = 5657-11314 Hz, 125 Hz = 88-177 Hz. Target = v2.0.0's base RT60 x DECAY, at every SIZE.\n"
+                "L/R correlation is zero-lag, full band, from 0.25 to 0.75 x mid RT60 after the first arrival.\n\n"
+                "| Type | DECAY | SIZE | Target (s) | Mid RT60 (s) | vs target | 8 kHz RT60 (s) | 125 Hz RT60 (s) | L/R correlation | IR length (s) |\n"
+                "|---|---|---|---|---|---|---|---|---|---|\n");
+    for (size_t i = 0; i < rows.size(); ++i) {
+        const auto& r = rows[i]; const auto& ir = irs[i];
+        const double target = kBaseT60[r.type] * r.decay;
+        const auto w = correlationWindow(ir.l, sr, mids[i]);
+        std::printf("| %s | %.1fx | %.0f | %.2f | %.3f | %+.0f %% | %.3f | %.3f | %+.3f | %.1f |\n",
+                    kTypeNames[r.type], r.decay, r.size, target, mids[i], 100.0 * (mids[i] / target - 1.0),
+                    measure::hfRt60(ir.l, sr), measure::lfRt60(ir.l, sr),
+                    measure::correlation(ir.l, ir.r, (size_t) (w.t0 * sr), (size_t) (w.t1 * sr)), (double) ir.l.size() / sr);
+    }
+
+    std::printf("\n## Impulse response structure\n\n"
+                "First arrival = first sample within 40 dB of the IR's peak. Early arrivals = local maxima within\n"
+                "20 dB of the largest sample in the 60 ms after the first arrival (count L / R, and how many of L's\n"
+                "have no R arrival within 0.1 ms). Echo density is Abel & Huang's (1.0 = Gaussian), 20 ms window,\n"
+                "100 ms after the first arrival; mixing time is when it first reads 0.9. -60 dB = the decay curve's\n"
+                "own crossing, no extrapolation.\n\n"
+                "| Type | DECAY | SIZE | First arrival L / R (ms) | Early arrivals L / R | L without R | Echo density @ 100 ms | Mixing time (ms) | Peak (dBFS) | Energy (dB) | -60 dB at (s) |\n"
+                "|---|---|---|---|---|---|---|---|---|---|---|\n");
+    for (size_t i = 0; i < rows.size(); ++i) {
+        const auto& r = rows[i]; const auto& ir = irs[i];
+        const size_t onL = measure::onsetIndex(ir.l), onR = measure::onsetIndex(ir.r);
+        const auto tl = measure::earlyTaps(ir.l, sr, onL), tr = measure::earlyTaps(ir.r, sr, onL);
+        double peak = 0, energy = 0;
+        for (double v : ir.l) { peak = std::max(peak, std::abs(v)); energy += v * v; }
+        std::printf("| %s | %.1fx | %.0f | %.2f / %.2f | %d / %d | %d | %.2f | %.0f | %.1f | %.1f | %.2f |\n",
+                    kTypeNames[r.type], r.decay, r.size, 1000.0 * (double) onL / sr, 1000.0 * (double) onR / sr,
+                    (int) tl.size(), (int) tr.size(), measure::tapsWithoutPartner(tl, tr),
+                    measure::echoDensityAt(ir.l, sr, onL + (size_t) (0.1 * sr)), measure::mixingTimeMs(ir.l, sr, onL),
+                    20.0 * std::log10(peak + 1.0e-30), 10.0 * std::log10(energy + 1.0e-30), measure::decayTimeTo(ir.l, sr, 60.0));
+    }
+
+    std::printf("\n## Early arrivals at DECAY 1.0x, SIZE 50\n\n"
+                "Times in ms after the left channel's first arrival, with the sign of the sample; first eight.\n\n"
+                "| Type | L | R |\n|---|---|---|\n");
+    for (size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].decay != 1.0f || rows[i].size != 50.0f) continue;
+        const size_t on = measure::onsetIndex(irs[i].l);
+        std::printf("| %s | %s | %s |\n", kTypeNames[rows[i].type],
+                    tapList(measure::earlyTaps(irs[i].l, sr, on)).toRawUTF8(), tapList(measure::earlyTaps(irs[i].r, sr, on)).toRawUTF8());
+    }
+
+    std::printf("\n## Do two types share resonances?\n\n"
+                "Pearson correlation of the tail's dB spectrum between types at DECAY 1.0x, SIZE 50: 200-2000 Hz in\n"
+                "0.5 Hz steps, Hann window starting 0.25 x mid RT60 (at least 50 ms) after the first arrival and one\n"
+                "mid RT60 long (0.25..2 s), a 100 Hz moving average removed so that an EQ tilt does not count.\n"
+                "1.0 = the same resonant frequencies, 0 = unrelated.\n\n| |");
+    std::vector<measure::Vec> spectra(6);
+    for (size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].decay != 1.0f || rows[i].size != 50.0f) continue;
+        const auto w = spectrumWindow(irs[i].l, sr, mids[i]);
+        spectra[(size_t) rows[i].type] = measure::tailSpectrumDb(irs[i].l, sr, w.t0, w.t1);
+    }
+    for (int t = 1; t < 6; ++t) std::printf(" %s |", kTypeNames[t]);
+    std::printf("\n|---|");
+    for (int t = 1; t < 6; ++t) std::printf("---|");
+    std::printf("\n");
+    for (int a = 0; a < 5; ++a) {
+        std::printf("| %s |", kTypeNames[a]);
+        for (int b = 1; b < 6; ++b) {
+            if (b <= a) std::printf(" |");
+            else std::printf(" %+.2f |", measure::pearson(spectra[(size_t) a], spectra[(size_t) b]));
+        }
+        std::printf("\n");
+    }
+
+    std::printf("\n## When each band arrives (DECAY 1.0x, SIZE 50)\n\n"
+                "First sample of a narrow band (f / 1.06 .. f x 1.06) within 20 dB of that band's largest in the\n"
+                "160 ms after the first arrival, in ms, less the same reading of the band filter itself. A\n"
+                "dispersive spring arrives later as frequency rises (a chirp); anything else reads about 0.\n\n"
+                "| Type | 300 Hz | 600 Hz | 1 kHz | 2 kHz | 3 kHz | 3.8 kHz | 3 kHz - 1 kHz |\n|---|---|---|---|---|---|---|---|\n");
+    for (size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].decay != 1.0f || rows[i].size != 50.0f) continue;
+        const size_t on = measure::onsetIndex(irs[i].l);
+        std::printf("| %s |", kTypeNames[rows[i].type]);
+        double at1k = 0, at3k = 0;
+        for (double f : { 300.0, 600.0, 1000.0, 2000.0, 3000.0, 3800.0 }) {
+            const double ms = measure::bandArrivalMs(irs[i].l, sr, on, f);
+            if (f == 1000.0) at1k = ms;
+            if (f == 3000.0) at3k = ms;
+            std::printf(" %.1f |", ms);
+        }
+        std::printf(" %+.1f |\n", at3k - at1k);
+    }
+
+    std::printf("\n## CPU\n\n"
+                "Wall time inside `processBlock` per second of audio, white noise in, block 512, median of 5 runs of\n"
+                "5 s, at each type's defaults (WET 25 / DRY 100). One core of the machine that ran this; a figure to\n"
+                "compare on the same machine, never a pass/fail.\n\n"
+                "| Type | 48 kHz | 96 kHz |\n|---|---|---|\n");
+    for (int t = 0; t < 6; ++t) {
+        std::printf("| %s |", kTypeNames[t]);
+        for (double rate : { 48000.0, 96000.0 }) {
+            auto proc = makeProcessor();
+            setParam(*proc, "TYPE", (float) t);
+            std::printf(" %.2f %% |", measure::cpuPercent(*proc, rate));
+        }
+        std::printf("\n");
+    }
+    return 0;
+}
+
+// The v1.14.0 state blob: every parameter away from its default, and the UI
+// language away from English. The .tsv beside it is what the blob holds, as
+// read back from the processor that wrote it.
+static const struct { const char* id; float value; } kFixtureValues[8] = {
+    { "TYPE", 4.0f }, { "CHARACTER", -37.5f }, { "WET", 62.5f }, { "DRY", 41.0f },
+    { "DECAY", 1.37f }, { "SIZE", 83.0f }, { "LPFREQ", 137.0f }, { "LPON", 1.0f },
+};
+
+static juce::File fixtureDir()
+{
+    return juce::File(__FILE__).getParentDirectory().getSiblingFile("fixtures");
+}
+
+static int writeFixture()
+{
+    if (juce::String(JucePlugin_VersionString) != "1.14.0") {
+        std::printf("refused: this build is %s; the fixture is a v1.14.0 state and is written once\n", JucePlugin_VersionString);
+        return 1;
+    }
+    auto proc = makeProcessor();
+    for (const auto& v : kFixtureValues) setParam(*proc, v.id, v.value);
+    proc->uiLanguage.store(1);   // fr
+    juce::MemoryBlock blob;
+    proc->getStateInformation(blob);
+
+    juce::String tsv("# O-SimpleReverb v1.14.0 state fixture: what state-v1.14.0.bin holds\n#id\tvalue\tnormalised\n");
+    for (const auto& v : kFixtureValues)
+        tsv << v.id << "\t" << juce::String(paramValue(*proc, v.id), 4) << "\t"
+            << juce::String(proc->parameters.getParameter(v.id)->getValue(), 6) << "\n";
+    tsv << "uiLanguage\t" << OSimpleReverbAudioProcessor::languageCode(proc->uiLanguage.load()) << "\t\n";
+
+    const auto dir = fixtureDir();
+    const bool ok = dir.createDirectory().wasOk()
+                    && dir.getChildFile("state-v1.14.0.bin").replaceWithData(blob.getData(), blob.getSize())
+                    && dir.getChildFile("state-v1.14.0.tsv").replaceWithText(tsv, false, false, "\n");
+    std::printf("%s %s (%d bytes) and state-v1.14.0.tsv\n", ok ? "wrote" : "FAILED to write",
+                dir.getChildFile("state-v1.14.0.bin").getFullPathName().toRawUTF8(), (int) blob.getSize());
+    return ok ? 0 : 1;
+}
+
+int main(int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
+
+    const juce::String mode(argc > 1 ? argv[1] : "");
+    if (mode == "--baseline") return printBaseline();
+    if (mode == "--write-fixture") return writeFixture();
+    if (mode.isNotEmpty()) { std::printf("unknown mode %s\n", mode.toRawUTF8()); return 2; }
 
     {
         auto proc = makeProcessor();   // locate the Factory folder, then force a rewrite
@@ -454,6 +704,106 @@ int main()
               "renamed preset's stale file removed from the installed bank");
         check(hi <= 5.0, "insert presets " + juce::String(lo, 1) + " (" + loName + ") .. "
                          + juce::String(hi, 1) + " dB (" + hiName + ") re input, ceiling +5.0");
+    }
+
+    // ── 10. reverb-engine-rewrite: the measurer, and the v1.14.0 state ────────
+    {
+        // The RT60 gates are only as good as the measurer. A tone decaying
+        // 60 dB in a known time has no statistics of its own and must read that
+        // time. Decaying noise is what a reverb tail looks like: one
+        // realisation scatters about the true value (the spread printed here
+        // is the floor under any RT60 tolerance - about 3 % at 0.2 s, 1 % at
+        // 3 s), so it is the MEAN over seeds that must sit on the target.
+        for (double sr : { 44100.0, 48000.0, 96000.0 })
+            for (double t60 : { 0.2, 0.4, 3.0, 14.0 }) {
+                if (sr != 48000.0 && t60 != 3.0) continue;
+                measure::Vec mid((size_t) ((1.35 * t60 + 0.4) * sr)), hf(mid.size());
+                for (size_t i = 0; i < mid.size(); ++i) {
+                    const double env = std::pow(10.0, -3.0 * (double) i / (sr * t60));
+                    mid[i] = env * std::sin(2.0 * measure::kPi * 1000.0 * (double) i / sr);
+                    hf[i]  = env * std::sin(2.0 * measure::kPi * 8000.0 * (double) i / sr);
+                }
+                const double toneMid = 100.0 * (measure::midRt60(mid, sr) / t60 - 1.0), toneHf = 100.0 * (measure::hfRt60(hf, sr) / t60 - 1.0);
+                check(std::abs(toneMid) <= 1.0 && std::abs(toneHf) <= 1.0,
+                      "measurer: decaying tone, T60 " + juce::String(t60, 1) + " s @ " + juce::String(sr / 1000.0, 1) + " kHz reads mid "
+                      + juce::String(toneMid, 2) + " %, 8 kHz " + juce::String(toneHf, 2) + " % (within 1)");
+
+                const int seeds = t60 > 5.0 ? 8 : 24;
+                double sum = 0, sumSq = 0, sumHf = 0;
+                for (int seed = 1; seed <= seeds; ++seed) {
+                    const auto x = measure::decayingNoise(sr, t60, 1.35 * t60 + 0.4, (unsigned) seed);
+                    const double e = 100.0 * (measure::midRt60(x, sr) / t60 - 1.0);
+                    sum += e; sumSq += e * e; sumHf += 100.0 * (measure::hfRt60(x, sr) / t60 - 1.0);
+                }
+                const double mean = sum / seeds, sd = std::sqrt(std::max(0.0, sumSq / seeds - mean * mean)), meanHf = sumHf / seeds;
+                check(std::abs(mean) <= 2.0 && std::abs(meanHf) <= 2.0,
+                      "measurer: decaying noise, T60 " + juce::String(t60, 1) + " s @ " + juce::String(sr / 1000.0, 1) + " kHz reads mid "
+                      + juce::String(mean, 2) + " %, 8 kHz " + juce::String(meanHf, 2) + " % (mean of " + juce::String(seeds)
+                      + " seeds, within 2; one seed scatters " + juce::String(sd, 1) + " %)");
+            }
+
+        // Two independent decaying noises are uncorrelated and fully mixed; a
+        // signal against itself correlates at 1. An impulse train is sparse.
+        const auto a = measure::decayingNoise(48000.0, 3.0, 3.0, 11), b = measure::decayingNoise(48000.0, 3.0, 3.0, 12);
+        const double rab = measure::correlation(a, b, 36000, 108000), raa = measure::correlation(a, a, 36000, 108000);
+        const double dense = measure::echoDensityAt(a, 48000.0, 4800);
+        measure::Vec sparse(48000, 0.0);
+        for (size_t i = 0; i < sparse.size(); i += 480) sparse[i] = 1.0;
+        const double thin = measure::echoDensityAt(sparse, 48000.0, 4800);
+        check(std::abs(rab) < 0.05 && raa > 0.999, "measurer: correlation of independent noises " + juce::String(rab, 3)
+                                                   + " (|r| < 0.05), of a signal with itself " + juce::String(raa, 3));
+        check(dense > 0.9 && dense < 1.1 && thin < 0.1, "measurer: echo density of Gaussian noise " + juce::String(dense, 2)
+                                                         + " (0.9..1.1), of a 10 ms impulse train " + juce::String(thin, 2) + " (< 0.1)");
+
+        // A tap at a known time is found there, and a band's arrival is its delay.
+        measure::Vec taps(48000, 0.0);
+        taps[100] = 1.0; taps[100 + 480] = -0.5; taps[100 + 1200] = 0.25;
+        const auto found = measure::earlyTaps(taps, 48000.0, measure::onsetIndex(taps));
+        check(measure::onsetIndex(taps) == 100 && found.size() == 3 && std::abs(found[1].ms - 10.0) < 0.01 && found[1].amp < 0
+              && std::abs(found[2].ms - 25.0) < 0.01,
+              "measurer: taps at 0 / 10 / 25 ms found (" + tapList(found) + ")");
+        const double arrive = measure::bandArrivalMs(taps, 48000.0, 0, 1000.0);
+        check(std::abs(arrive - 100.0 / 48.0) < 0.05, "measurer: 1 kHz band of an impulse delayed 2.08 ms arrives at "
+                                                       + juce::String(arrive, 2) + " ms");
+        // A chirp: a 3 kHz burst 5 ms behind a 1 kHz burst reads about 5 ms later;
+        // an impulse (every band at once) reads none.
+        measure::Vec lo(9600, 0.0), hi(9600, 0.0), chirp(9600);
+        lo[480] = 1.0; hi[720] = 1.0;
+        lo = measure::band(lo, 48000.0, 700.0, 1400.0); hi = measure::band(hi, 48000.0, 2200.0, 4000.0);
+        for (size_t i = 0; i < chirp.size(); ++i) chirp[i] = lo[i] + hi[i];
+        const double lag = measure::bandArrivalMs(chirp, 48000.0, 0, 3000.0) - measure::bandArrivalMs(chirp, 48000.0, 0, 1000.0);
+        const double none = measure::bandArrivalMs(taps, 48000.0, 0, 3000.0) - measure::bandArrivalMs(taps, 48000.0, 0, 1000.0);
+        check(lag > 3.5 && lag < 6.5 && std::abs(none) < 0.5, "measurer: 3 kHz burst 5 ms behind a 1 kHz burst reads "
+                                                               + juce::String(lag, 2) + " ms later (3.5..6.5); an impulse reads "
+                                                               + juce::String(none, 2) + " ms (|x| < 0.5)");
+
+        // The v1.14.0 state loads with the values it was written with.
+        const auto dir = fixtureDir();
+        const auto bin = dir.getChildFile("state-v1.14.0.bin");
+        juce::StringArray lines;
+        dir.getChildFile("state-v1.14.0.tsv").readLines(lines);
+        juce::MemoryBlock blob;
+        int checked = 0, wrong = 0;
+        if (bin.loadFileAsData(blob) && blob.getSize() > 0) {
+            auto proc = makeProcessor();
+            proc->setStateInformation(blob.getData(), (int) blob.getSize());
+            for (const auto& line : lines) {
+                if (line.startsWithChar('#') || line.trim().isEmpty()) continue;
+                const auto cols = juce::StringArray::fromTokens(line, "\t", "");
+                const auto id = cols[0];
+                ++checked;
+                if (id == "uiLanguage") {
+                    if (OSimpleReverbAudioProcessor::languageCode(proc->uiLanguage.load()) != cols[1]) ++wrong;
+                } else if (proc->parameters.getParameter(id) == nullptr
+                           || std::abs(paramValue(*proc, id.toRawUTF8()) - cols[1].getFloatValue()) > 1.0e-3f) {
+                    ++wrong;
+                    std::printf("  %s: fixture %s, loaded %s\n", id.toRawUTF8(), cols[1].toRawUTF8(),
+                                proc->parameters.getParameter(id) ? juce::String(paramValue(*proc, id.toRawUTF8()), 4).toRawUTF8() : "no such parameter");
+                }
+            }
+        }
+        check(checked == 9 && wrong == 0, "v1.14.0 state blob loads with its 8 parameter values and UI language ("
+                                          + juce::String(checked) + " checked, " + juce::String(wrong) + " wrong)");
     }
 
     std::printf("\n%s (%d failure%s)\n", failures == 0 ? "ALL PASS" : "FAILED", failures, failures == 1 ? "" : "s");
