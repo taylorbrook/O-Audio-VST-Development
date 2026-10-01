@@ -2,7 +2,7 @@
 
 **Plugin:** O-SimpleReverb
 **Milestone:** reverb-engine-rewrite
-**Phase:** Execute (in progress — stages 0 and 1 of 0–4 complete)
+**Phase:** Execute (in progress — stages 0, 1 and 2 of 0–4 complete)
 
 Written stage by stage. Each stage adds a section; the final summary is assembled in stage 4.
 
@@ -251,4 +251,117 @@ about 4–9 dB under the tail's.
 release-branded `O-SimpleReverb.vst3` / `.component` off the machine** (same AU triple as the dev
 build) and installed `O-SimpleReverb-dev`. What is installed is this stage's build: version 1.14.0,
 new FDN on four types, stand-in FDN on Plate and Spring, v1.14.0's preset values.
+
+---
+
+## Stage 2 — Plate (Task 8) — complete 2026-09-30
+
+Plate runs Dattorro's figure-8 tank with the octave shifter inside the loop. Spring is still the
+stand-in FDN. Version is still 1.14.0.
+
+### What exists now
+
+| Item | Where |
+|---|---|
+| Dattorro tank: stereo in, 14 output taps, gliding lengths, decay in seconds, in-loop shimmer | `Source/dsp/PlateEngine.h` |
+| Slot runs the plate or the FDN by type (`runsPlate`); only the active engine is cleared | `Source/PluginProcessor.{h,cpp}` |
+| Gates: bloom (section 7), plate driven directly (11), Plate rows and no-runaway (12) | `tests/render-check/main.cpp` |
+| Mutants `noShimmer`, `decayStuck`; the three RT60 / SIZE mutants repeated on Plate | same |
+
+### Results
+
+render-check: **96 PASS, 0 FAIL, 3 PEND** (Spring RT60, Spring chirp, the bank's +5 dB ceiling).
+`--mutants`: **19 of 19 caught**. `params.tsv` byte-identical. VST3 + AU + Standalone build with no compiler
+warning. pluginval strictness 10: SUCCESS. `auval -v aufx OuSr OuDv`: AU VALIDATION SUCCEEDED.
+Installed: `O-SimpleReverb-dev` 1.14.0, this stage's build.
+
+Mid RT60, Plate (2.5 s base), 48 kHz through `processBlock`:
+
+| 0.5× | 1.0× | 2.0× | SIZE 0 | SIZE 100 | worst |
+|---|---|---|---|---|---|
+| 1.266 | 2.514 | 4.940 | 2.571 | 2.515 | +2.8 % |
+
+Driven directly at 44.1 / 48 / 96 kHz × DECAY 0.5 / 1 / 2 × size ×0.40 / ×0.57 / ×0.80: −1.7..+2.5 % with
+the shifter in the loop, −0.3..+3.6 % with it out. At 192 kHz, DECAY 2.0×, size ×1: 4.91 s.
+RESEARCH's 1.055 loop correction is unchanged.
+
+| Other reading | Value |
+|---|---|
+| 600 / 300 Hz while a 300 Hz burst sounds → over the 2 s after it | −35.2 → −13.3 dB (+21.9) |
+| Room's tail, same reading | −74.9 dB |
+| 8 kHz / 125 Hz RT60 at DECAY 1.0×, SIZE 50 | 1.85 s / 2.75 s |
+| Late-tail L/R correlation, worst of 27 points | 0.022 |
+| First arrival, SIZE 0 → 100 | 11.58 → 15.15 ms |
+| DECAY 2.0×, 10 s of noise: level 5–6 s after it stops | −69.8 dB (SIZE 0), −71.8 dB (SIZE 100) |
+| Asked for an endless tail: energy 10 / 20 / 30 s on, shifter share 1.0 | −67.7 / −93.9 / −118.3 dB |
+| SIZE 0↔100 / DECAY 0.5↔2.0 HF burst | −62.0 / −58.3 dB (WET reference −59.3, limit +6) |
+| TYPE ratio gate, six pairs incl. Hall↔Plate and Spring↔Plate | 1.80× (limit 2) |
+| CPU, 48 / 96 kHz | 0.32 % / 0.76 % (the FDN types: 0.63 % / 1.3 %) |
+
+**Echo density is under the plan's target from SIZE 50 up.** 100 ms after the first arrival
+(1.0 = Gaussian; Hall reads 0.99):
+
+| SIZE | scale | density | mixing time |
+|---|---|---|---|
+| 0 | ×0.40 | 0.92 | 92 ms |
+| 50 | ×0.57 | 0.77 | 210 ms |
+| 100 | ×0.80 | 0.70 | 255 ms |
+
+Target was ≥ 0.80; the prototype read 0.84 at ×0.55. Reported, not gated, as planned. If Plate
+sounds grainy at the listening pass, the options are a lower `sizeHi` (one number in `typePresets`)
+or more input diffusion, measured the same way.
+
+### Mutants added
+
+| Mutant | Gate | Reading on the broken build |
+|---|---|---|
+| DECAY does not reach the plate | Plate RT60 = base × DECAY | 2.51 s at all three (+101 %) |
+| SIZE scales the plate's decay time | Plate RT60 holds across SIZE | 1.80 s / 3.53 s (+41 %) |
+| SIZE does not reach the plate | Plate first arrival moves | 0.00 ms |
+| shifter bypassed | bloom | tail ratio −79.2 dB (must be −30..−6) |
+| endless tail asked for (coefficient at its 0.97 ceiling) | no runaway | −37.3 / −28.0 dB after 5 s (must be < −45) |
+
+### Departures from PLAN.md
+
+1. **The bloom gate also bounds the tail ratio (−30..−6 dB), not only its rise.** With the shifter
+   bypassed the "rise" still read +28.5 dB: both readings were leakage (−108 and −79 dB). The
+   `noShimmer` mutant caught it. The upper bound keeps the octave under the fundamental.
+2. **Damping is a cutoff in Hz (10 kHz) and is part of the decay solve.** The prototype used a raw
+   one-pole coefficient (0.25), which is a different filter at every sample rate. Its gain at 1 kHz is
+   now divided out of `decay`, as the FDN's shelf is.
+3. **No input bandwidth filter.** Dattorro's 0.9995 passes everything; CHARACTER and the type EQ follow.
+4. **Shimmer share is a rate, `kShimmerPerLoopSecond` = 0.121**, which is the planned 0.05 at SIZE 50
+   (0.035 at SIZE 0, 0.070 at SIZE 100). Its low-pass is 4.5 kHz in Hz, not a raw coefficient.
+5. **The "no runaway" mutant is a tail that does not end, not a tank that grows.** Nothing reachable
+   from the host makes this loop grow: the coefficient is clamped and the shimmer mix is convex. The
+   growth case is gated on the header instead (endless tail, shifter share 0 / 0.04 / 1.0).
+6. **Plate joined the SIZE and DECAY glide gates and the stereo gate**; it is not in the
+   tail-spectrum gate (FDN delay sets only) and has no early-taps gate (a plate has none).
+7. **`clearSlot` clears only the engine the slot's type runs.** The other one is cleared when a type
+   that runs it starts.
+8. **`sizeIsDecay` now scales by size relative to SIZE 50**, so it means the same on the plate
+   (×0.57 there) as on the FDN (×1, unchanged).
+9. **`inject-context.py` was not run** — it has failed twice on the stale `.planning/STATUS.md`.
+
+### Voicing constants that are placeholders (Plate)
+
+| Constant | Value | Where |
+|---|---|---|
+| Shimmer share per loop second | 0.121 | `PlateEngine::kShimmerPerLoopSecond` |
+| In-loop damping | 10 kHz | `PlateEngine::kDampingHz` |
+| SIZE range | ×0.40..×0.80 | `typePresets[4]` |
+| Pre-delay / type EQ | 8 ms / +3 dB shelf at 5 kHz | `typePresets[4]` (v1.14.0's) |
+| Wet trim | +1.9 dB (stereo spread across types 0.07 dB) | `typePresets[4]`, Task 10 re-measures |
+
+### For the stages ahead
+
+- **Task 10.** Plate's level moves less with SIZE than the FDN's (+7.56 / +5.48 dB at SIZE 0 / 100,
+  against about +9.0 / +4.4), and as much with DECAY (+4.69 / +8.80 dB). One law for all engines will
+  not fit SIZE.
+- **Task 13.** The bloom gate has not been run on v1.14.0 yet. It should fail there (the one-shot
+  shimmer is at the same ratio from the first sample).
+- **Stage 3.** `PlateEngine.h` includes `ModulationFx.h` for `OctaveUpShifter`; removing
+  `FlutterDelay` from that header must leave the shifter and its `juce_dsp` include.
+- Plate's first arrival through the plugin is 13.06 ms at SIZE 50: 8 ms pre-delay plus the tank's
+  first tap (266 samples at 29761 Hz × 0.57).
 
