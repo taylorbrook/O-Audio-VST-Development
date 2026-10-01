@@ -424,7 +424,7 @@ French and the zh-Hans back-translation.
       (the longest new body still fits — French `tip.type`, 9.1 px from the bottom edge; the gate now
       sweeps zh-Hans, which it did not before)
 - [x] `check-ui-labels.js` unchanged result; `index.html` and layout CSS untouched
-- Open: fr `reviewed: false`, zh-Hans `'mt'` until Taylor reads `I18N-REVIEW.md`
+- Closed at verify (2026-10-01): Taylor read `I18N-REVIEW.md`; fr `reviewed: true`, zh-Hans `'bt'`
 
 **Dependencies:** Task 9 (text depends on final behaviour); independent of Tasks 10–11
 
@@ -613,14 +613,14 @@ From CONTEXT.md, the improvement is successful when:
 5. [x] TYPE, SIZE, DECAY, CHARACTER and LOW CUT moves are click-free (Task 7)
 6. [x] `params.tsv` unchanged; the v1.14.0 state blob loads with equal values (Tasks 1, 7)
 7. [x] 48 presets re-voiced; insert presets ≤ +5 dB; type spread re-trimmed (Tasks 10, 11)
-8. [ ] v1.14.0 baseline captured and compared row by row (Task 2; comparison in VERIFICATION.md)
+8. [x] v1.14.0 baseline captured and compared row by row (Task 2; comparison in VERIFICATION.md)
 9. [x] No allocation in `processBlock`; stable at 44.1/48/96 kHz and with oversized blocks (Task 7)
 10. [x] render-check passes; v1.14.0 fails the new gates (Tasks 13, 14)
 11. [x] Build succeeds without warnings (Task 14)
 12. [x] Pluginval passes (Level 5+); `auval -v` passes (Task 14)
 13. [ ] Listening pass in a DAW on the re-voiced bank before any tag (verify phase — Taylor)
-14. [ ] `tip.type` / `tip.decay` / `tip.size` describe the new behaviour in en, fr, zh-Hans;
-        fr and zh-Hans read by Taylor (Task 12; review at verify)
+14. [x] `tip.type` / `tip.decay` / `tip.size` describe the new behaviour in en, fr, zh-Hans;
+        fr and zh-Hans read by Taylor (Task 12; read and approved at verify, 2026-10-01)
 
 ---
 
