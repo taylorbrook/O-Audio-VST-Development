@@ -24,7 +24,9 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    v1.13.0 - Real flutter + octave shimmer, DECAY headroom map (see CHANGELOG)
+    Reverb engines live in Source/dsp/; this class hosts them in two ring-out
+    slots and keeps everything after the reverb (type EQ, CHARACTER, LOW CUT,
+    wet/dry, meter).
 
   ==============================================================================
 */
@@ -33,38 +35,83 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "OuariconPresetManager.h"
-#include "ModulationFx.h"
+#include "dsp/FdnEngine.h"
+#include "dsp/EarlyReflections.h"
+
+// Test hooks: defined on the render-check target only (CMakeLists.txt). A
+// mutant is a deliberately broken build of one behaviour, which render-check
+// --mutants uses to show that each gate fails when the thing it gates is gone.
+#if OSIMPLEREVERB_TEST_HOOKS
+ #define OSR_MUTANT(m) (testMutant == Mutant::m)
+#else
+ #define OSR_MUTANT(m) false
+#endif
 
 class OSimpleReverbAudioProcessor : public juce::AudioProcessor
 {
 public:
     // ==================== DSP Constants ====================
-    // These named constants replace magic numbers for clarity and tuneability
-
-    // Delay line sizing (ms; converted at the running rate in prepareToPlay).
-    // Each must cover the longest delay any TypePreset asks for:
-    static constexpr float kMaxPreDelayMs = 50.0f;          // Hall pre-delay
-    static constexpr float kMaxEarlyReflectionMs = 62.0f;   // 23 ms x 2.5 (Ambient) x 1.07 (R offset) = 61.5 ms
-    static constexpr float kMaxAllPassMs = 4.0f;            // 3.7 ms x 1.05 (R offset) = 3.9 ms
-
-    // Stereo offsets for spatial separation
-    static constexpr float kEarlyReflectionStereoOffset = 1.07f;  // 7% L/R offset
-    static constexpr float kAllPassStereoOffset = 1.05f;          // 5% L/R offset
-
-    // Plate shimmer: the octave-up voice's level against the dry chain (v1.13.0)
-    static constexpr float kShimmerMixAmount = 0.3f;         // about -10 dB
-
-    // Early reflection base times (ms) - prime numbers for natural sound
-    static constexpr std::array<float, 4> kBaseEarlyDelaysMs = { 7.0f, 11.0f, 17.0f, 23.0f };
 
     // VU meter floor level
     static constexpr float kVuMeterFloorDB = -100.0f;
 
-    // TYPE change (v1.12.0): the pre-reverb chain ducks to silence on the OLD
-    // type's delays, swaps, and comes back; the post-reverb type EQ crossfades.
+    // TYPE change: the playing slot's input falls to 0 and the slot rings out;
+    // the other slot's input rises. The duck is 90 % there after kTypeDuckMs.
+    // A slot that has to be taken back while it still sounds fades its OUTPUT
+    // over kStealFadeMs first.
     static constexpr float kTypeDuckMs = 10.0f;
-    static constexpr float kTypeEqFadeMs = 30.0f;
+    static constexpr float kStealFadeMs = 10.0f;
 
+    // A ringing slot is retired once its output has stayed under kRetireLevel
+    // (-100 dB) for kRetireHoldMs - longer than the longest delay line, so a
+    // gap between echoes is not mistaken for the end of the tail.
+    static constexpr float kRetireLevel = 1.0e-5f;
+    static constexpr float kRetireHoldMs = 300.0f;
+
+    // Per-type voicing. DECAY multiplies baseT60; SIZE scales the engine's
+    // lengths geometrically from sizeLo (0 %) to sizeHi (100 %), and moves
+    // nothing else - the tail time holds.
+    struct TypePreset {
+        enum class Engine { Fdn, Plate, Spring } engine;
+        float baseT60;              // mid-band RT60 in seconds at DECAY 1.0x
+        float sizeLo, sizeHi;       // length scale at SIZE 0 / SIZE 100
+        osr::FdnConfig fdn;         // the delay set and absorption (Engine::Fdn)
+        float earlySpanMs;          // last early-reflection tap at size scale 1 (0 = no taps)
+        float earlyLevel;           // early reflections at the slot output, re the tank
+        float preDelayMs;           // ahead of the taps and the tank; not scaled by SIZE
+        float eqFreq;               // Type-specific EQ frequency
+        float eqGain;               // Type-specific EQ gain (dB)
+        float eqQ;                  // Type-specific EQ Q
+        enum class EqType { None, LowShelf, HighShelf, Peak, HighPass } eqType;
+        float wetTrimDb;            // level match across types at defaults
+    };
+
+    static const TypePreset typePresets[6];
+
+    // Engine length scale for a SIZE in percent.
+    static float sizeScale(const TypePreset& preset, float sizePercent)
+    {
+        return preset.sizeLo * std::pow(preset.sizeHi / preset.sizeLo, juce::jlimit(0.0f, 1.0f, sizePercent / 100.0f));
+    }
+
+#if OSIMPLEREVERB_TEST_HOOKS
+    enum class Mutant {
+        none,
+        decayDead,      // DECAY does not reach the engine
+        sizeIsDecay,    // SIZE scales the decay time as well as the lengths
+        sizeDead,       // SIZE does not reach the engine
+        sameDelays,     // every FDN type runs Hall's delay set
+        earlyMuted,     // early reflections at level 0
+        monoTail,       // right output = left output
+        noRingOut,      // a TYPE change clears the old slot instead of letting it ring
+        noNanGuard,     // a non-finite slot output is passed on
+        noChunking,     // an oversized host block is processed in one piece
+        noGlide,        // SIZE and DECAY land at once instead of gliding
+        hardSteal       // a sounding slot is taken back without its output fade
+    };
+    Mutant testMutant = Mutant::none;
+    bool testInjectNaN = false;     // poisons the playing slot's input once, then clears itself
+#endif
 
     OSimpleReverbAudioProcessor();
     ~OSimpleReverbAudioProcessor() override;
@@ -75,7 +122,7 @@ public:
 
     // WR-05: constrain layouts to mono/stereo. The default returns true for
     // anything, letting surround hosts negotiate >2-channel layouts that the
-    // reverb (juce::dsp::Reverb is stereo-max) would silently pass through dry.
+    // reverb (stereo-max) would silently pass through dry.
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override
     {
         auto out = layouts.getMainOutputChannelSet();
@@ -90,7 +137,7 @@ public:
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 10.0; }
+    double getTailLengthSeconds() const override { return 15.0; }   // Ambient at DECAY 2.0x: 14 s, plus pre-delay
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
@@ -141,7 +188,6 @@ private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     // DSP Components
-    juce::dsp::Reverb reverb;
     // CHARACTER = two filters that ALWAYS run and never change family: a Warm
     // low-pass (parked near Nyquist unless warm) into a Bright high shelf (0 dB
     // unless bright). Switching one biquad between low-pass and shelf, or
@@ -154,41 +200,41 @@ private:
     static constexpr int kCharacterSubBlock = 32;  // LOW CUT cutoff update interval (samples)
     void updateCharacterCoefficients(float characterValue);
 
-    // === Type-Specific DSP Components (v1.1.0) ===
+    // === Reverb slots ===
+    // Two of them. One plays the current TYPE. On a TYPE change its input
+    // ducks to zero and it keeps running - the old tail rings out under its
+    // own type, size, decay and EQ - while the other slot starts the new type
+    // from silence. Clearing the tank at the switch would cut the tail on
+    // every type and preset change. A third change while both still sound
+    // takes the older slot back behind a fast output fade.
+    struct Slot {
+        enum class State { idle, playing, ringing, stolen };
 
-    // Pre-delay line
-    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayL;
-    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayR;
+        osr::FdnEngine fdn;
+        osr::EarlyReflections early;
+        osr::RingDelay preDelayL, preDelayR;
+        // Type EQ: one per slot, so a ringing tail keeps its own type's EQ
+        juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> eq;
+        juce::AudioBuffer<float> out;   // the slot's output for one chunk, bus-wide
 
-    // Early reflection comb filters (4 per channel for density)
-    static constexpr int numEarlyReflections = 4;
-    std::array<juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>, numEarlyReflections> earlyReflectionsL;
-    std::array<juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>, numEarlyReflections> earlyReflectionsR;
-    std::array<float, numEarlyReflections> earlyReflectionGains = { 0.7f, 0.5f, 0.35f, 0.25f };
+        State state = State::idle;
+        int type = -1;
+        int preDelaySamples = 1;
+        float inputGain = 0.0f;         // the duck: rises to 1 while playing, falls to 0 otherwise
+        float inputLead = 0.0f;         //   its first pole (see renderSlot)
+        float outputGain = 1.0f;        // the steal fade's position: 1, except while a stolen slot fades
+        float trim = 1.0f;              // the type's wetTrimDb, at the INPUT (see renderSlot)
+        float earlyLevel = 0.0f;
+        int quietSamples = 0;           // how long the output has been under kRetireLevel
+    };
+    std::array<Slot, 2> slots;
+    int currentSlot = 0;                // the slot that plays, or is about to play, the current TYPE
 
-    // Schroeder all-pass diffusers for Spring dispersion (flat magnitude, chirpy phase)
-    static constexpr int numAllPassFilters = 3;
-    std::array<juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>, numAllPassFilters> allPassL;
-    std::array<juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>, numAllPassFilters> allPassR;
-    std::array<float, numAllPassFilters> allPassDelayMs = { 1.5f, 2.3f, 3.7f };  // Prime-ish ratios
-    float allPassCoeff = 0.6f;  // Feedback coefficient
-
-    // Pitch flutter (Spring) and slow tail movement (Hall/Ambient): a swept
-    // short delay per channel, driven by one shared sine (v1.13.0)
-    float lfoPhase = 0.0f;
-    float lfoIncrement = 0.0f;
-    FlutterDelay flutterL, flutterR;
-
-    // Type-specific EQ: two instances, crossfaded over kTypeEqFadeMs on a type
-    // change (a coefficient jump on the running tail clicked). eqMix ramps the
-    // idle instance in; at 1 it becomes the active one.
-    std::array<juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>>, 2> typeEq;
-    int eqActive = 0;
-    int eqType = -1;            // type whose EQ typeEq[eqActive] holds
-    float eqMix = 0.0f;         // 0 = no crossfade running
-    float eqMixStep = 0.0f;
-    juce::AudioBuffer<float> eqFadeBuffer;
-    void setTypeEq(int slot, int typeIndex);
+    void startSlot(Slot& slot, int typeIndex, float decayValue, float sizeValue, bool inputOpen);
+    void clearSlot(Slot& slot);
+    void driveSlot(Slot& slot, float decayValue, float sizeValue);
+    void renderSlot(Slot& slot, const float* inL, const float* inR, int numSamples);
+    void setTypeEq(Slot& slot, int typeIndex);
 
     // User LOW CUT (a high-pass, 20-400 Hz; the LPFREQ/LPON IDs are historical).
     // v1.12.0: always runs, into lowCutBuffer, so ON/OFF is a crossfade rather
@@ -198,9 +244,6 @@ private:
     juce::AudioBuffer<float> lowCutBuffer;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> lowCutFreqSmoothed;
     juce::SmoothedValue<float> lowCutMixSmoothed;
-
-    // Plate shimmer: a real octave-up voice (v1.13.0; was a 1.5 kHz ring modulator)
-    OctaveUpShifter shimmerL, shimmerR;
 
     // Pre-allocated buffers (sized in prepareToPlay — CR-04)
     juce::AudioBuffer<float> dryBuffer;
@@ -221,50 +264,17 @@ private:
     std::atomic<float>* lpOnParam = nullptr;
 
     // State tracking
-    // TYPE duck-and-swap: the chain runs activeType; when the parameter moves,
-    // chainGain falls to 0 on the old settings, the chain switches, then rises.
-    int activeType = -1;
-    float chainGain = 1.0f;
-    float chainGainStep = 0.0f;
     double currentSampleRate = 44100.0;
+    int maxChunkSamples = 512;             // the prepared block size: nothing below is sized for more
+    float duckCoeff = 1.0f;                // of each of the duck's two poles
+    float stealStep = 0.0f;                // per sample, for kStealFadeMs
+    int retireHoldSamples = 0;
     float previousCharacterValue = 0.0f;   // seeded out of range in prepareToPlay
 
-    // Type preset structure (expanded)
-    struct TypePreset {
-        float baseRoomSize;
-        float baseDamping;
-        float width;
-        float preDelayMs;           // Pre-delay in milliseconds
-        float earlyReflectionScale; // Scale factor for early reflection times
-        float earlyReflectionMix;   // How much early reflections to mix in
-        float modRate;              // flutter rate in Hz (0 = no modulation)
-        float modCents;             // flutter depth: peak pitch deviation (v1.13.0)
-        bool useAllPass;            // Enable all-pass dispersion (Spring)
-        bool useShimmer;            // Enable shimmer effect (Plate)
-        float eqFreq;               // Type-specific EQ frequency
-        float eqGain;               // Type-specific EQ gain (dB)
-        float eqQ;                  // Type-specific EQ Q
-        enum class EqType { None, LowShelf, HighShelf, Peak, HighPass } eqType;
-        float wetTrimDb;            // v1.12.0: level match to Room at defaults
-    };
-
-    static const TypePreset typePresets[6];
-
     // Helper methods
-    void switchChainTo(int typeIndex);
+    void processChunk(juce::AudioBuffer<float>& buffer, int start, int numSamples);
     static float wetTrimGain(int typeIndex) { return juce::Decibels::decibelsToGain(typePresets[typeIndex].wetTrimDb); }
-    float processAllPassChain(float input, bool isLeft);
     void initializeFactoryPresets();
-
-    // Template helpers to reduce initialization code duplication
-    template<typename DelayContainer>
-    void prepareDelayContainer(DelayContainer& delays, const juce::dsp::ProcessSpec& spec, int maxDelaySamples) {
-        for (auto& delay : delays) {
-            delay.setMaximumDelayInSamples(maxDelaySamples);
-            delay.prepare(spec);
-            delay.reset();
-        }
-    }
 
     template<typename FilterType>
     void prepareFilterAsAllPass(FilterType& filter, const juce::dsp::ProcessSpec& spec, double sampleRate) {

@@ -5,10 +5,10 @@
    SPDX-License-Identifier: AGPL-3.0-or-later
 */
 /*
-    O-SimpleReverb render check (v1.11.0, extended v1.12.0 and v1.13.0)
+    O-SimpleReverb render check
 
-    Offline console gate for the v1.11.0 and v1.12.0 review fixes. Build with
-    -DOUARICON_BUILD_TESTS=ON, target O-SimpleReverb-render-check.
+    Offline console gate. Build with -DOUARICON_BUILD_TESTS=ON, target
+    O-SimpleReverb-render-check.
 
       1. Every factory preset recalls the TYPE its name says — in the DSP
          (roundToInt of the raw value), in the host (getIndex) and in the page
@@ -16,77 +16,175 @@
       2. CHARACTER moves do not click: toggling it every 8 blocks keeps the
          wet output's max |second difference| near the held value (v1.10.0:
          332x..2154x).
-      3. Ambient at 192 kHz renders finite, non-silent audio.
+      3. All six types render finite, non-silent audio at 44.1, 96 and
+         192 kHz, and a host block four times the prepared size renders the
+         same samples as four prepared-size blocks.
       4. The VU peak is HELD across blocks until read, then clears.
-      5. (v1.12.0) Switches do not click, by HF burst: the peak |x| above
-         3 kHz in the 30 ms after each toggle. LOW CUT on/off, LOW CUT freq
-         jumps and CHARACTER Bright/centre crossings are gated in dB against
-         a smoothed WET move; TYPE, whose types differ in steady HF, as a
-         ratio over the steady HF of both types. v1.11.0: LOW CUT -1.1 dB,
-         LPFREQ -23.5 dB, CHARACTER 10<->60 -46 dB (WET ref -60 dB); TYPE up
-         to 5.4x.
-      6. (v1.12.0) The six types sit within 1 dB of each other (K-weighted,
-         BS.1770, pink noise, WET 100 / DRY 0). v1.11.0 spread: 7.7 dB.
-      7. (v1.13.0) Flutter is pitch: a 1 kHz sine through FlutterDelay equals
-         the ideal swept-delay sine, and the sweep swings the stated cents. Shimmer is an octave:
-         a 1 kHz sine through OctaveUpShifter comes out at 2 kHz. In the
-         plugin, Plate carries 2f content that Room does not.
-      8. (v1.13.0) DECAY's top range works: Ambient at SIZE 100 rings longer
-         at each of 1.25x / 1.6x / 2.0x. v1.12.0 clamped room size at 1.05x.
-      9. (v1.14.0) Factory bank: 8 per type, one "Send" each (WET 100 /
-         DRY 0), no stale file from a renamed preset, and every insert preset
-         at or below +5 dB re input (K-weighted pink). v1.13.1: +0.4 .. +7.5.
+      5. Switches do not click, by HF burst: the peak |x| above 3 kHz in the
+         30 ms after each toggle. LOW CUT on/off, LOW CUT freq jumps,
+         CHARACTER crossings, SIZE 0 <-> 100 and DECAY 0.5 <-> 2.0 are gated in
+         dB against a smoothed WET move; TYPE, whose types differ in steady HF,
+         as a ratio over the steady HF of both types. Rapid TYPE switching and
+         a run through all 48 presets must not burst either, and must leave
+         the plugin sounding as if it had never happened.
+      6. The six types sit within 1 dB of each other (K-weighted, BS.1770,
+         pink noise, WET 100 / DRY 0), in stereo and on a mono bus.
+      7. The octave shifter is an octave: a 1 kHz sine comes out at 2 kHz.
+      9. Factory bank: 8 per type, one "Send" each (WET 100 / DRY 0), no stale
+         file from a renamed preset, and every insert preset at or below
+         +5 dB re input (K-weighted pink).
+     10. The measurer in measure.h reads a synthetic decay of known T60 (a
+         tone within 1 %, noise within 2 % on the mean over seeds), and finds
+         a known tap, correlation and echo density. The v1.14.0 state blob in
+         tests/fixtures loads with the values its .tsv lists.
+     11. The engine headers in Source/dsp, driven directly: the building
+         blocks (allpass, Lagrange read, RT60-to-gain, mid-band shelf, glide),
+         the early-reflection taps, and the FDN's decay time against its
+         target at 44.1 / 48 / 96 kHz over DECAY x SIZE.
+     12. The reverb through processBlock: RT60 = base x DECAY within 10 % and
+         holding across SIZE; SIZE moving the first arrival; no two FDN types
+         sharing resonances; discrete early arrivals, different in L and R;
+         a decorrelated tail; the old tail ringing out on a TYPE change; a
+         NaN recovered within one block; no allocation in processBlock.
 
-     10. (reverb-engine-rewrite) The measurer in measure.h reads a synthetic
-         decay of known T60 (a tone within 1 %, noise within 2 % on the mean
-         over seeds), and finds a known tap, correlation and echo density. The
-         v1.14.0 state blob in tests/fixtures loads with the values its .tsv
-         lists.
+    (8, "Ambient's tail grows with DECAY", is superseded by 12's RT60 table.)
+
+    A gate that waits for an engine not yet written prints PEND. PEND is
+    counted on its own line and is neither a pass nor a failure.
 
     The factory bank is read from the INSTALLED Factory folder, which the
     processor rewrites only when its `.factory-version` sentinel differs. main()
     deletes the sentinel first, so the bank under test is this build's table.
 
-    Modes (reverb-engine-rewrite):
+    Modes:
       (none)                  the gates above
+      --mutants               each gate of 12 (and the SIZE, DECAY and TYPE
+                              cases of 5) is run against a build with the gated
+                              behaviour deliberately broken, and must FAIL
+                              there. A gate that still passes has not been
+                              shown to test anything.
+      --levels                print each type's wet loudness (stereo, mono, and
+                              against DECAY and SIZE), for setting wetTrimDb.
       --baseline              print the measurement table as Markdown: 6 types x
                               DECAY 0.5/1.0/2.0 at SIZE 50 and SIZE 0/100 at
                               DECAY 1.0. No gate runs. BASELINE.md in the
                               milestone directory is this mode's output at v1.14.0.
       --write-fixture         write tests/fixtures/state-v1.14.0.{bin,tsv}.
                               Refuses on any version but 1.14.0.
+
+    Sections 1-10 and 12 go through the processor's public surface only, so
+    this file also builds against v1.14.0's Source/ (the negative control):
+    section 11 and the mutants need the engine headers and the test hooks,
+    and are compiled out where those do not exist.
 */
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
+#include "ModulationFx.h"
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <random>
 #include <juce_dsp/juce_dsp.h>
 
 #include "measure.h"
 
+#if __has_include("dsp/FdnEngine.h")
+ #include "dsp/ReverbPrimitives.h"
+ #include "dsp/FdnEngine.h"
+ #include "dsp/EarlyReflections.h"
+ #define OSR_ENGINES 1
+#else
+ #define OSR_ENGINES 0
+#endif
+
+#ifndef OSIMPLEREVERB_TEST_HOOKS
+ #define OSIMPLEREVERB_TEST_HOOKS 0
+#endif
+
+#if JUCE_MAC
+ #include <pthread.h>
+// libmalloc's stack-logging hook (what MallocStackLogging / Instruments attach
+// to). It sees malloc / calloc / realloc whoever calls them, so operator new
+// and juce::HeapBlock are both covered.
+extern "C"
+{
+    typedef void (malloc_logger_t) (uint32_t type, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3,
+                                    uintptr_t result, uint32_t numHotFramesToSkip);
+    extern malloc_logger_t* malloc_logger;
+}
+
+// volatile: clang knows malloc() as a builtin that cannot touch globals, so it
+// folds "armed = true; malloc(); armed = false" into "armed = false" and the
+// hook never sees the flag up.
+static volatile bool allocArmed = false;
+static volatile int allocCount = 0;
+static pthread_t audioThread;
+
+static void countAllocation(uint32_t type, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uint32_t)
+{
+    // The hook is process-wide and JUCE's TimerThread mallocs whenever it
+    // likes: only the thread that calls processBlock is the audio thread.
+    if (allocArmed && (type & 2u) != 0 && pthread_equal(pthread_self(), audioThread))   // MALLOC_LOG_TYPE_ALLOCATE
+        allocCount = allocCount + 1;
+}
+#endif
+
 extern juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter();
 
-static int failures = 0;
+static int passes = 0, failures = 0, pending = 0;
 
 static void check(bool ok, const juce::String& what)
 {
     std::printf("%s: %s\n", ok ? "PASS" : "FAIL", what.toRawUTF8());
-    if (! ok) ++failures;
+    ++(ok ? passes : failures);
 }
+
+// A gate whose engine is not written yet.
+static void pend(const juce::String& what)
+{
+    std::printf("PEND: %s\n", what.toRawUTF8());
+    ++pending;
+}
+
+// What a gate found. Section 12's gates return one, so --mutants can run the
+// same code against a broken build and require the opposite answer.
+struct Verdict { bool ok; juce::String text; };
+static void check(const Verdict& v) { check(v.ok, v.text); }
+
+#if OSIMPLEREVERB_TEST_HOOKS
+using Mutant = OSimpleReverbAudioProcessor::Mutant;
+static Mutant activeMutant = Mutant::none;   // every processor made below is this build
+#endif
 
 static std::unique_ptr<OSimpleReverbAudioProcessor> makeProcessor()
 {
     std::unique_ptr<juce::AudioProcessor> base(createPluginFilter());
-    return std::unique_ptr<OSimpleReverbAudioProcessor>(dynamic_cast<OSimpleReverbAudioProcessor*>(base.release()));
+    std::unique_ptr<OSimpleReverbAudioProcessor> proc(dynamic_cast<OSimpleReverbAudioProcessor*>(base.release()));
+   #if OSIMPLEREVERB_TEST_HOOKS
+    if (proc != nullptr) proc->testMutant = activeMutant;
+   #endif
+    return proc;
 }
 
 static void setParam(OSimpleReverbAudioProcessor& proc, const char* id, float value)
 {
     auto* p = proc.parameters.getParameter(id);
     p->setValueNotifyingHost(p->convertTo0to1(value));
+}
+
+// Puts the processor on a stereo or a mono bus and prepares it.
+static bool configure(OSimpleReverbAudioProcessor& proc, int channels, double sr, int blockSize)
+{
+    const auto set = channels == 1 ? juce::AudioChannelSet::mono() : juce::AudioChannelSet::stereo();
+    juce::AudioProcessor::BusesLayout layout;
+    layout.inputBuses.add(set);
+    layout.outputBuses.add(set);
+    const bool ok = proc.setBusesLayout(layout);
+    proc.setRateAndBufferSizeDetails(sr, blockSize);
+    proc.prepareToPlay(sr, blockSize);
+    return ok;
 }
 
 // Renders `blocks` blocks of a 300 Hz sine at 0.5, calling perBlock(b) first.
@@ -115,36 +213,53 @@ static std::vector<float> renderSine(OSimpleReverbAudioProcessor& proc, double s
     return out;
 }
 
-// ── v1.12.0 click metric ─────────────────────────────────────────────────────
-// Toggles `id` between a and b every 24 blocks (256 @ 48 kHz) under a 300 Hz
-// sine at 0.5, WET 100 / DRY 0. The output's left channel goes through a 4th-
-// order Butterworth high-pass at 3 kHz; a click is a broadband burst there.
+// ── click metric ──────────────────────────────────────────────────────────────
+// A 300 Hz sine at 0.5 goes in; the output's left channel goes through a 4th-
+// order Butterworth high-pass at 3 kHz. A click is a broadband burst there.
+static std::vector<float> above(float hz, const std::vector<float>& x, double sr = 48000.0)
+{
+    juce::dsp::IIR::Filter<float> h1, h2;
+    h1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sr, hz, 0.541f);
+    h2.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sr, hz, 1.307f);
+    std::vector<float> hf;
+    hf.reserve(x.size());
+    for (float v : x) hf.push_back(std::abs(h2.processSample(h1.processSample(v))));
+    return hf;
+}
+
+static float peakOf(const std::vector<float>& x, size_t from, size_t to)
+{
+    float m = 1.0e-7f;
+    for (size_t i = from; i < to && i < x.size(); ++i) m = std::max(m, std::abs(x[i]));
+    return m;
+}
+
+static double rmsOf(const std::vector<float>& x, size_t from, size_t to)
+{
+    double sum = 0.0;
+    size_t n = 0;
+    for (size_t i = from; i < to && i < x.size(); ++i, ++n) sum += (double) x[i] * x[i];
+    return std::sqrt(sum / (double) std::max((size_t) 1, n));
+}
+
+// Toggles `id` between a and b every 24 blocks (256 @ 48 kHz), WET 100 / DRY 0.
 struct Burst { float db; float ratio; };  // db re 0.5; ratio over steady HF
-static Burst hfBurst(const char* id, float a, float b, float lpOn = 0.0f)
+static Burst hfBurst(const char* id, float a, float b, float lpOn = 0.0f, int type = -1, float aboveHz = 3000.0f)
 {
     auto proc = makeProcessor();
     setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
+    if (type >= 0) setParam(*proc, "TYPE", (float) type);
     setParam(*proc, "LPON", lpOn); setParam(*proc, id, a);
     const int bs = 256, per = 24;
-    juce::dsp::IIR::Filter<float> h1, h2;
-    h1.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(48000.0, 3000.0f, 0.541f);
-    h2.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(48000.0, 3000.0f, 1.307f);
-    std::vector<float> hf;
-    const auto out = renderSine(*proc, 48000.0, bs, per * 2 * 14, [&](int blk) {
+    const auto hf = above(aboveHz, renderSine(*proc, 48000.0, bs, per * 2 * 14, [&](int blk) {
         setParam(*proc, id, (blk / per) % 2 ? b : a);
-    });
-    for (float x : out) hf.push_back(std::abs(h2.processSample(h1.processSample(x))));
-    auto peak = [&](size_t from, size_t to) {
-        float m = 1.0e-7f;
-        for (size_t i = from; i < to; ++i) m = std::max(m, hf[i]);
-        return m;
-    };
+    }));
     const size_t W = 1440, T = (size_t) per * bs;
     float burst = 0.0f, worst = 0.0f;
     for (size_t t = 4 * T; t + T < hf.size(); t += T) {
-        const float after = peak(t, t + W);
+        const float after = peakOf(hf, t, t + W);
         burst = std::max(burst, after);
-        worst = std::max(worst, after / std::max(peak(t - W, t), peak(t + T - W, t + T)));
+        worst = std::max(worst, after / std::max(peakOf(hf, t - W, t), peakOf(hf, t + T - W, t + T)));
     }
     return { juce::Decibels::gainToDecibels(burst / 0.5f), worst };
 }
@@ -163,14 +278,14 @@ struct KWeight {
 };
 
 // Output loudness re input, K-weighted, pink noise (Kellet), 4 s after 1 s
-// settle, with the processor's parameters as they stand.
-static double loudnessDb(OSimpleReverbAudioProcessor& p)
+// settle, with the processor's parameters as they stand. channels = 1 puts the
+// processor on a mono bus.
+static double loudnessDb(OSimpleReverbAudioProcessor& p, int channels = 2)
 {
     auto* proc = &p;
     const int bs = 512;
-    proc->setPlayConfigDetails(2, 2, 48000.0, bs);
-    proc->prepareToPlay(48000.0, bs);
-    juce::AudioBuffer<float> buf(2, bs);
+    configure(*proc, channels, 48000.0, bs);
+    juce::AudioBuffer<float> buf(channels, bs);
     juce::MidiBuffer midi;
     std::mt19937 rng(7);
     std::normal_distribution<float> nd(0.0f, 0.1f);
@@ -183,13 +298,13 @@ static double loudnessDb(OSimpleReverbAudioProcessor& p)
             const float w = nd(rng);
             p1 = 0.99886f * p1 + w * 0.0555f; p2 = 0.99332f * p2 + w * 0.0750f; p3 = 0.969f * p3 + w * 0.1538f;
             const float x = p1 + p2 + p3 + w * 0.1848f;
-            buf.setSample(0, i, x); buf.setSample(1, i, x);
+            for (int ch = 0; ch < channels; ++ch) buf.setSample(ch, i, x);
             const double k = kin(x);
             if (measure) sumIn += k * k;
         }
         proc->processBlock(buf, midi);
         for (int i = 0; i < bs; ++i) {
-            const double l = kl(buf.getSample(0, i)), r = kr(buf.getSample(1, i));
+            const double l = kl(buf.getSample(0, i)), r = channels > 1 ? kr(buf.getSample(1, i)) : l;
             if (measure) sumOut += 0.5 * (l * l + r * r);
         }
     }
@@ -197,11 +312,12 @@ static double loudnessDb(OSimpleReverbAudioProcessor& p)
 }
 
 // Wet loudness of one type re its input (WET 100 / DRY 0).
-static double typeLoudnessDb(int type)
+static double typeLoudnessDb(int type, int channels = 2, float decay = 1.0f, float size = 50.0f)
 {
     auto proc = makeProcessor();
     setParam(*proc, "TYPE", (float) type); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
-    return loudnessDb(*proc);
+    setParam(*proc, "DECAY", decay); setParam(*proc, "SIZE", size);
+    return loudnessDb(*proc, channels);
 }
 
 // Goertzel power of x at f (Hz)
@@ -211,63 +327,6 @@ static double goertzel(const std::vector<float>& x, double f, double sr, size_t 
     double s1 = 0, s2 = 0;
     for (size_t i = from; i < x.size(); ++i) { const double s0 = x[i] + c * s1 - s2; s2 = s1; s1 = s0; }
     return s1 * s1 + s2 * s2 - c * s1 * s2;
-}
-
-// A FlutterDelay's output against the analytic ideal sin(2 pi f0 (n - D(n)) / fs),
-// where D(n) is the delay the unit was asked for. `err` proves it realises that
-// trajectory; `cents` is the peak pitch deviation of the trajectory itself,
-// from its largest per-sample slope (the ratio is 1 - D'(n)). A zero-crossing
-// period count was tried first: it showed isolated one-period spikes
-// (4.5 cents on a 3-cent Hall) that the ideal-sine comparison rules out.
-struct FlutterResult { double err; float cents; };
-static FlutterResult flutterAgainstIdeal(float rate, float cents, double sr, double f0 = 1000.0)
-{
-    FlutterDelay fl;
-    fl.prepare(sr, 5.0f);
-    fl.setModulation(rate, cents);
-    const double depth = fl.getDepthSamples();
-    const int n = static_cast<int>(sr * (1.0 / rate + 0.5));
-    double lfo = 0.0, err = 0.0, prevD = -1.0, slope = 0.0;
-    for (int i = 0; i < n; ++i) {
-        const float l = static_cast<float>(std::sin(lfo));
-        const float y = fl.process(static_cast<float>(std::sin(juce::MathConstants<double>::twoPi * f0 * i / sr)), l);
-        const double d = depth + 2.0 + depth * l;
-        if (i > 1000)
-            err = std::max(err, std::abs(y - std::sin(juce::MathConstants<double>::twoPi * f0 * (i - d) / sr)));
-        if (prevD >= 0.0) slope = std::max(slope, std::abs(d - prevD));
-        prevD = d;
-        lfo += juce::MathConstants<double>::twoPi * rate / sr;
-    }
-    return { err, static_cast<float>(1200.0 * std::log2(1.0 + slope)) };
-}
-
-// Time (s) for Ambient's tail to fall 40 dB after 1 s of noise stops.
-static double ambientTailSeconds(float decay)
-{
-    auto proc = makeProcessor();
-    setParam(*proc, "TYPE", 5.0f); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
-    setParam(*proc, "SIZE", 100.0f); setParam(*proc, "DECAY", decay);
-    const int bs = 480;   // 10 ms @ 48 kHz
-    proc->setPlayConfigDetails(2, 2, 48000.0, bs);
-    proc->prepareToPlay(48000.0, bs);
-    juce::AudioBuffer<float> buf(2, bs);
-    juce::MidiBuffer midi;
-    std::mt19937 rng(3);
-    std::normal_distribution<float> nd(0.0f, 0.1f);
-    double ref = -1.0;
-    for (int blk = 0; blk < 100 + 3000; ++blk) {
-        for (int i = 0; i < bs; ++i) {
-            const float x = blk < 100 ? nd(rng) : 0.0f;
-            buf.setSample(0, i, x); buf.setSample(1, i, x);
-        }
-        proc->processBlock(buf, midi);
-        if (blk < 100) continue;
-        double e = 0.0;
-        for (int i = 0; i < bs; ++i) e += buf.getSample(0, i) * buf.getSample(0, i);
-        if (blk == 105) ref = e;                         // 50 ms after the stop
-        if (blk > 105 && e < ref * 1.0e-4) return (blk - 100) * 0.01;
-    }
-    return 30.0;
 }
 
 // ── reverb-engine-rewrite: measurements, baseline, state fixture ─────────────
@@ -498,6 +557,638 @@ static int writeFixture()
     return ok ? 0 : 1;
 }
 
+// Margins of section 5's SIZE, DECAY, rapid-TYPE and preset-sweep cases (dB).
+static constexpr float kSizeGlideMarginDb = 6.0f, kDecayGlideMarginDb = 6.0f, kRapidMarginDb = 6.0f, kSweepMarginDb = 12.0f;
+
+// ── 12. the reverb through processBlock ──────────────────────────────────────
+// Each gate is a function of the processor's public surface, so it reads the
+// same on v1.14.0 (the negative control) and on any mutant.
+
+static const int kFdnTypes[4] = { 0, 1, 2, 5 };   // Booth, Room, Hall, Ambient
+static constexpr double kRt60Tolerance = 0.10;
+
+static double typeRt60(int type, float decay, float size)
+{
+    const double target = kBaseT60[type] * decay;
+    return measure::midRt60(typeIr(type, decay, size, 1.35 * target + 0.6).l, 48000.0);
+}
+
+// RT60 = base x DECAY at SIZE 50.
+static Verdict rt60DecayGate(int type)
+{
+    juce::String list;
+    double worst = 0.0;
+    for (float decay : { 0.5f, 1.0f, 2.0f }) {
+        const double target = kBaseT60[type] * decay, got = typeRt60(type, decay, 50.0f), err = got / target - 1.0;
+        if (std::abs(err) > std::abs(worst)) worst = err;
+        list << (list.isEmpty() ? "" : ", ") << juce::String(decay, 1) << "x " << juce::String(got, 3) << " s (" << juce::String(target, 2) << ")";
+    }
+    return { std::abs(worst) <= kRt60Tolerance,
+             juce::String(kTypeNames[type]) + " RT60 = base x DECAY: " + list + "; worst " + juce::String(100.0 * worst, 1) + " % (within 10)" };
+}
+
+// The same RT60 at SIZE 0 and SIZE 100: SIZE is not a decay control.
+static Verdict rt60SizeGate(int type)
+{
+    const double target = kBaseT60[type], at0 = typeRt60(type, 1.0f, 0.0f), at100 = typeRt60(type, 1.0f, 100.0f);
+    const double worst = std::abs(at0 / target - 1.0) > std::abs(at100 / target - 1.0) ? at0 / target - 1.0 : at100 / target - 1.0;
+    return { std::abs(worst) <= kRt60Tolerance,
+             juce::String(kTypeNames[type]) + " RT60 holds across SIZE: " + juce::String(at0, 3) + " s at 0, " + juce::String(at100, 3)
+             + " s at 100 (" + juce::String(target, 2) + "); worst " + juce::String(100.0 * worst, 1) + " % (within 10)" };
+}
+
+// SIZE moves the structure: the first arrival comes later in a larger space.
+// Read on the first arrival, not on the mixing time - v1.14.0's mixing time
+// moved with SIZE (Ambient 85 -> 278 ms) with no delay changing, because it
+// follows the decay.
+static Verdict sizeStructureGate(int type)
+{
+    const auto small = typeIr(type, 1.0f, 0.0f, 0.4), large = typeIr(type, 1.0f, 100.0f, 0.4);
+    const double a = 1000.0 * (double) measure::onsetIndex(small.l) / 48000.0, b = 1000.0 * (double) measure::onsetIndex(large.l) / 48000.0;
+    return { b - a >= 0.5, juce::String(kTypeNames[type]) + " first arrival moves with SIZE: " + juce::String(a, 2) + " ms at 0, "
+                           + juce::String(b, 2) + " ms at 100 (" + juce::String(b - a, 2) + " ms later, >= 0.5)" };
+}
+
+// No two FDN types share their resonances.
+static Verdict tailSpectrumGate()
+{
+    measure::Vec spectra[4];
+    for (int k = 0; k < 4; ++k) {
+        const auto ir = typeIrCovering(kFdnTypes[k], 1.0f, 50.0f);
+        const auto w = spectrumWindow(ir.l, 48000.0, measure::midRt60(ir.l, 48000.0));
+        spectra[k] = measure::tailSpectrumDb(ir.l, 48000.0, w.t0, w.t1);
+    }
+    double worst = 0.0;
+    juce::String pair;
+    for (int a = 0; a < 4; ++a)
+        for (int b = a + 1; b < 4; ++b) {
+            const double r = measure::pearson(spectra[a], spectra[b]);
+            if (std::abs(r) >= std::abs(worst)) { worst = r; pair = juce::String(kTypeNames[kFdnTypes[a]]) + " / " + kTypeNames[kFdnTypes[b]]; }
+        }
+    return { std::abs(worst) < 0.3, "tail spectra of Booth, Room, Hall, Ambient are unrelated: worst pair " + pair + " "
+                                    + juce::String(worst, 2) + " (|r| < 0.3; v1.14.0: 0.72..0.96)" };
+}
+
+// Discrete early arrivals at the output, different in L and R: a handful of
+// arrivals stand above everything else in the 60 ms after the first one, and
+// none of L's has an R arrival at the same time. v1.14.0 has about a hundred
+// (its taps went into the tank, whose eight combs each repeated them), and so
+// does the tank on its own.
+struct EarlyCount { int l, r, alone; };
+static EarlyCount earlyCount(int type, float decay)
+{
+    const auto ir = typeIr(type, decay, 50.0f, 0.4);
+    const size_t on = measure::onsetIndex(ir.l);
+    const auto tl = measure::earlyTaps(ir.l, 48000.0, on, 60.0, -12.0), tr = measure::earlyTaps(ir.r, 48000.0, on, 60.0, -12.0);
+    return { (int) tl.size(), (int) tr.size(), measure::tapsWithoutPartner(tl, tr) };
+}
+
+static Verdict earlyTapsGate(int type)
+{
+    const auto atBase = earlyCount(type, 1.0f), atMin = earlyCount(type, 0.5f);
+    auto discrete = [](const EarlyCount& c) { return c.l >= 3 && c.l <= 12 && c.r >= 3 && c.r <= 12 && c.alone == c.l; };
+    return { discrete(atBase) && discrete(atMin),
+             juce::String(kTypeNames[type]) + " early arrivals within 12 dB of the largest, L / R (L with no R partner): "
+             + juce::String(atBase.l) + " / " + juce::String(atBase.r) + " (" + juce::String(atBase.alone) + ") at DECAY 1.0x, "
+             + juce::String(atMin.l) + " / " + juce::String(atMin.r) + " (" + juce::String(atMin.alone) + ") at 0.5x (3..12 a side, all of L's alone)" };
+}
+
+// The late tail is decorrelated between L and R for a mono input.
+static Verdict stereoGate()
+{
+    double worst = 0.0;
+    juce::String where;
+    for (int type : kFdnTypes) {
+        const auto ir = typeIrCovering(type, 1.0f, 50.0f);
+        const auto w = correlationWindow(ir.l, 48000.0, measure::midRt60(ir.l, 48000.0));
+        const double r = measure::correlation(ir.l, ir.r, (size_t) (w.t0 * 48000.0), (size_t) (w.t1 * 48000.0));
+        if (std::abs(r) >= std::abs(worst)) { worst = r; where = kTypeNames[type]; }
+    }
+    return { std::abs(worst) < 0.3, "late-tail L/R correlation, mono input: worst " + juce::String(worst, 3) + " (" + where + "), |r| < 0.3" };
+}
+
+// Noise into `from` for 1.5 s, then TYPE goes to `to` and the input stops.
+// The old tail must still be there 200 ms later, and decay on ITS type's time.
+static Verdict ringOutGate(int from = 2, int to = 0)
+{
+    const double sr = 48000.0;
+    const int bs = 512, noiseBlocks = 141, tailBlocks = (int) ((1.35 * kBaseT60[from] + 0.6) * sr) / bs;
+    auto proc = makeProcessor();
+    setParam(*proc, "TYPE", (float) from); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
+    configure(*proc, 2, sr, bs);
+    juce::AudioBuffer<float> buf(2, bs);
+    juce::MidiBuffer midi;
+    std::mt19937 rng(21);
+    std::normal_distribution<float> nd(0.0f, 0.1f);
+    std::vector<float> out;
+    for (int blk = 0; blk < noiseBlocks + tailBlocks; ++blk) {
+        if (blk == noiseBlocks) setParam(*proc, "TYPE", (float) to);
+        for (int i = 0; i < bs; ++i) {
+            const float x = blk < noiseBlocks ? nd(rng) : 0.0f;
+            buf.setSample(0, i, x); buf.setSample(1, i, x);
+        }
+        proc->processBlock(buf, midi);
+        for (int i = 0; i < bs; ++i) out.push_back(buf.getSample(0, i));
+    }
+    const size_t at = (size_t) noiseBlocks * bs;
+    const double before = rmsOf(out, at - 4800, at), later = rmsOf(out, at + 7200, at + 12000);
+    const double stillDb = 20.0 * std::log10(later / before + 1.0e-30);
+    measure::Vec tail(out.begin() + (long) at + 2400, out.end());
+    const double t60 = measure::midRt60(tail, sr), err = t60 / kBaseT60[from] - 1.0;
+    return { stillDb > -10.0 && std::abs(err) <= 0.15,
+             juce::String(kTypeNames[from]) + " -> " + kTypeNames[to] + ": old tail 200 ms after the switch " + juce::String(stillDb, 1)
+             + " dB re before (> -10), decays at " + juce::String(t60, 2) + " s (" + juce::String(kBaseT60[from], 1) + " s, its own type; within 15 %)" };
+}
+
+// SIZE and DECAY moves under signal do not click.
+static Verdict glideGate(const char* id, float a, float b, float refDb, float marginDb)
+{
+    float worst = -200.0f;
+    juce::String list;
+    for (int type : { 1, 2 }) {
+        const float db = hfBurst(id, a, b, 0.0f, type).db;
+        worst = std::max(worst, db);
+        list << (list.isEmpty() ? "" : ", ") << kTypeNames[type] << " " << juce::String(db, 1);
+    }
+    return { worst < refDb + marginDb, juce::String(id) + " " + juce::String(a, 1) + "<->" + juce::String(b, 1) + " HF burst " + list
+                                       + " dB < ref + " + juce::String(marginDb, 0) };
+}
+
+// TYPE switched every `per` blocks round `cycle` for 1.5 s, then held on the
+// first type. Two failures to catch: a click while it switches, and a slot
+// left stuck or silent afterwards. burstDb is re 0.5; settleDb is the last
+// quarter second's level against a render that never switched. The cycle
+// starts on Booth, whose lines are not modulated: a modulated type's level
+// under a steady sine depends on where its LFOs are, and a slot restarted
+// during the switching is somewhere else in them (Room read -0.8 dB).
+struct Switching { float burstDb; double settleDb; bool finite; };
+static Switching rapidSwitching(const std::vector<int>& cycle, int per = 3)
+{
+    const int bs = 256, hold = 188, rapid = 282, after = 940;
+    auto run = [&](bool switching) {
+        auto proc = makeProcessor();
+        setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f); setParam(*proc, "DECAY", 0.5f);
+        setParam(*proc, "TYPE", (float) cycle[0]);
+        return renderSine(*proc, 48000.0, bs, hold + rapid + after, [&](int blk) {
+            const bool inRapid = switching && blk >= hold && blk < hold + rapid;
+            setParam(*proc, "TYPE", (float) (inRapid ? cycle[(size_t) ((blk - hold) / per) % cycle.size()] : cycle[0]));
+        });
+    };
+    const auto out = run(true), ref = run(false);
+    bool finite = true;
+    for (float v : out) finite = finite && std::isfinite(v);
+    const auto hf = above(3000.0f, out);
+    const size_t n = out.size(), q = 12000;
+    return { juce::Decibels::gainToDecibels(peakOf(hf, (size_t) hold * bs, (size_t) (hold + rapid) * bs + 4800) / 0.5f),
+             20.0 * std::log10(rmsOf(out, n - q, n) / rmsOf(ref, n - q, n) + 1.0e-30), finite };
+}
+
+static Verdict rapidSwitchGate(const std::vector<int>& cycle, float slowDb, float marginDb)
+{
+    const auto s = rapidSwitching(cycle);
+    juce::String names;
+    for (int t : cycle) names << (names.isEmpty() ? "" : "-") << kTypeNames[t];
+    return { s.finite && s.burstDb < slowDb + marginDb && std::abs(s.settleDb) < 0.5,
+             "TYPE " + names + " every 16 ms: HF burst " + juce::String(s.burstDb, 1) + " dB < slow switch " + juce::String(slowDb, 1)
+             + " + " + juce::String(marginDb, 0) + "; afterwards " + juce::String(s.settleDb, 2) + " dB re never switched (|x| < 0.5)" };
+}
+
+// Every factory preset loaded in turn, 64 ms apart, under the sine; Booth's
+// eight last, so the tails are short by the end. Then the last one is held.
+// The sweep starts a second in: the sine's own start is a click (-41 dB above
+// 8 kHz through the dry path) and has to ring out first. Above 8 kHz, not 3:
+// consecutive presets of one type move SIZE, and the glide's pitch bend takes
+// a 300 Hz tail up to 1.2 kHz, which a 3 kHz filter's skirt lets through.
+static Verdict presetSweepGate(float refDb, float marginDb)
+{
+    const int bs = 256, lead = 188, per = 12, after = 1128;
+    juce::StringArray order, booth;
+    {
+        auto proc = makeProcessor();
+        for (const auto& name : proc->presetManager.getPresetList()) {
+            if (! proc->presetManager.isFactoryPreset(name)) continue;
+            (name.startsWith("Booth") ? booth : order).add(name);
+        }
+        order.addArray(booth);
+    }
+    if (order.isEmpty()) return { false, "preset sweep: no factory presets found" };
+    auto run = [&](bool sweeping) {
+        auto proc = makeProcessor();
+        if (! sweeping) proc->presetManager.loadPreset(order[order.size() - 1]);
+        return renderSine(*proc, 48000.0, bs, lead + per * order.size() + after, [&](int blk) {
+            const int step = blk - lead;
+            if (sweeping && step >= 0 && step % per == 0 && step / per < order.size()) proc->presetManager.loadPreset(order[step / per]);
+        });
+    };
+    const auto out = run(true), ref = run(false);
+    bool finite = true;
+    for (float v : out) finite = finite && std::isfinite(v);
+    const auto hf = above(8000.0f, out);
+    const size_t n = out.size(), q = 12000;
+    const size_t from = (size_t) lead * bs, to = (size_t) (lead + per * order.size()) * bs + 4800;
+    const float burstDb = juce::Decibels::gainToDecibels(peakOf(hf, from, to) / 0.5f);
+    std::printf("  (preset sweep: above 3 kHz %.1f dB, above 8 kHz %.1f dB)\n",
+                juce::Decibels::gainToDecibels(peakOf(above(3000.0f, out), from, to) / 0.5f), burstDb);
+    const double settleDb = 20.0 * std::log10(rmsOf(out, n - q, n) / rmsOf(ref, n - q, n) + 1.0e-30);
+    return { finite && burstDb < refDb + marginDb && std::abs(settleDb) < 0.5,
+             "all " + juce::String(order.size()) + " presets 64 ms apart: burst above 8 kHz " + juce::String(burstDb, 1) + " dB < WET ref there ("
+             + juce::String(refDb, 1) + ") + "
+             + juce::String(marginDb, 0) + "; afterwards " + juce::String(settleDb, 2) + " dB re the last preset held (|x| < 0.5)" };
+}
+
+// A host block four times the prepared size, with WET and TYPE moving, renders
+// the same samples as four prepared-size blocks.
+static Verdict oversizedBlockGate()
+{
+    const int bs = 256, big = 4 * bs, bigBlocks = 96;
+    auto run = [&](int blockSize) {
+        auto proc = makeProcessor();
+        setParam(*proc, "WET", 20.0f); setParam(*proc, "DRY", 50.0f);
+        configure(*proc, 2, 48000.0, bs);                      // prepared for 256 either way
+        juce::AudioBuffer<float> buf(2, blockSize);
+        juce::MidiBuffer midi;
+        std::vector<float> out;
+        double phase = 0.0;
+        for (int b = 0; b < bigBlocks * big / blockSize; ++b) {
+            const int step = b * blockSize / big;              // parameters move on the big-block grid
+            if (b * blockSize % big == 0) {
+                setParam(*proc, "WET", step % 2 ? 100.0f : 20.0f);
+                if (step % 8 == 4) setParam(*proc, "TYPE", (float) ((step / 8) % 6));
+            }
+            for (int i = 0; i < blockSize; ++i) {
+                const float x = 0.5f * (float) std::sin(phase);
+                phase += 2.0 * juce::MathConstants<double>::pi * 300.0 / 48000.0;
+                buf.setSample(0, i, x); buf.setSample(1, i, x);
+            }
+            proc->processBlock(buf, midi);
+            for (int i = 0; i < blockSize; ++i) out.push_back(buf.getSample(0, i));
+        }
+        return out;
+    };
+    const auto small = run(bs), large = run(big);
+    float diff = 0.0f, peak = 0.0f;
+    bool finite = true;
+    for (size_t i = 0; i < small.size(); ++i) {
+        diff = std::max(diff, std::abs(small[i] - large[i]));
+        peak = std::max(peak, std::abs(large[i]));
+        finite = finite && std::isfinite(large[i]);
+    }
+    return { finite && peak > 0.01f && diff <= 1.0e-6f, "host blocks of 1024 on a processor prepared for 256 render what blocks of 256 do: max difference "
+                                                        + juce::String(diff, 8) + " (<= 1e-6), peak " + juce::String(peak, 3) };
+}
+
+// No allocation inside processBlock: prepared-size blocks, odd sizes, an
+// oversized block, with every control moving and TYPE going through a start,
+// a ring-out, a reopen and a steal.
+static Verdict allocGate()
+{
+   #if JUCE_MAC
+    audioThread = pthread_self();
+    malloc_logger = countAllocation;
+    allocCount = 0;
+    allocArmed = true;
+    void* volatile probe = std::malloc(64);
+    allocArmed = false;
+    std::free(probe);
+    const bool live = allocCount == 1;      // a dead hook must not read as a clean render
+    allocCount = 0;
+
+    const int bs = 256;
+    auto proc = makeProcessor();
+    setParam(*proc, "WET", 60.0f); setParam(*proc, "DRY", 80.0f);
+    configure(*proc, 2, 48000.0, bs);
+    juce::AudioBuffer<float> buffers[3] = { juce::AudioBuffer<float>(2, bs), juce::AudioBuffer<float>(2, 100), juce::AudioBuffer<float>(2, 4 * bs) };
+    juce::MidiBuffer midi;
+    std::mt19937 rng(5);
+    std::normal_distribution<float> nd(0.0f, 0.1f);
+    const int types[] = { 1, 2, 1, 5, 0, 3, 4, 2 };
+    const int blocks = 600;
+    for (int blk = 0; blk < blocks; ++blk) {
+        if (blk % 40 == 0)  setParam(*proc, "TYPE", (float) types[(blk / 40) % 8]);
+        if (blk % 23 == 0)  setParam(*proc, "SIZE", (float) ((blk * 37) % 101));
+        if (blk % 31 == 0)  setParam(*proc, "DECAY", 0.5f + 1.5f * (float) ((blk * 13) % 10) / 9.0f);
+        if (blk % 17 == 0)  setParam(*proc, "CHARACTER", (float) ((blk * 29) % 201) - 100.0f);
+        if (blk % 53 == 0)  setParam(*proc, "LPON", (float) ((blk / 53) % 2));
+        if (blk % 19 == 0)  setParam(*proc, "LPFREQ", 20.0f + (float) ((blk * 7) % 380));
+        auto& buf = buffers[blk % 11 == 5 ? 2 : blk % 7 == 3 ? 1 : 0];
+        for (int ch = 0; ch < 2; ++ch)
+            for (int i = 0; i < buf.getNumSamples(); ++i) buf.setSample(ch, i, nd(rng));
+        allocArmed = true;
+        proc->processBlock(buf, midi);
+        allocArmed = false;
+    }
+    malloc_logger = nullptr;
+    const int count = allocCount;
+    return { live && count == 0, "no allocation in processBlock over " + juce::String(blocks) + " blocks (sizes 256 / 100 / 1024, every control moving): "
+                                 + juce::String(count) + " allocation" + (count == 1 ? "" : "s") + (live ? "" : "; THE MALLOC HOOK IS NOT LIVE") };
+   #else
+    return { true, "no allocation in processBlock: not measured on this platform (macOS malloc_logger only)" };
+   #endif
+}
+
+#if OSIMPLEREVERB_TEST_HOOKS
+// A NaN in the playing slot's input: that block is finite (silent wet), and
+// the reverb is back within the next 100 ms.
+static Verdict nanGate()
+{
+    const int bs = 256, at = 200, blocks = 400;
+    auto proc = makeProcessor();
+    setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
+    const auto out = renderSine(*proc, 48000.0, bs, blocks, [&](int blk) { if (blk == at) proc->testInjectNaN = true; });
+    bool finite = true;
+    for (float v : out) finite = finite && std::isfinite(v);
+    const size_t t = (size_t) at * bs;
+    const float before = peakOf(out, t - 4800, t), back = finite ? peakOf(out, t + 4800, t + 9600) : 0.0f;
+    return { finite && back > 0.5f * before, "NaN into the playing slot: output " + juce::String(finite ? "stays finite" : "IS NOT FINITE")
+                                             + ", wet peak " + juce::String(before, 3) + " before, " + juce::String(back, 3) + " 100-200 ms after (> half)" };
+}
+#endif
+
+#if OSR_ENGINES
+// ── 11. the engine headers, driven directly ──────────────────────────────────
+
+static measure::Stereo fdnIr(const osr::FdnConfig& cfg, double fs, double sizeScale, double t60, double seconds)
+{
+    float maxLineMs = 1.0f, maxModMs = 0.0f;
+    for (const auto& t : OSimpleReverbAudioProcessor::typePresets) {
+        maxLineMs = std::max(maxLineMs, t.fdn.maxMs); maxModMs = std::max(maxModMs, t.fdn.modMs);
+    }
+    osr::FdnEngine engine;
+    engine.prepare(fs, maxLineMs, maxModMs);
+    engine.setType(cfg);
+    engine.setSize(sizeScale);
+    engine.setT60(t60);
+    engine.reset();
+    const size_t n = (size_t) (seconds * fs);
+    measure::Stereo s { measure::Vec(n), measure::Vec(n) };
+    for (size_t i = 0; i < n; ++i) {
+        float l, r;
+        const float x = i == 0 ? 1.0f : 0.0f;
+        engine.process(x, x, l, r);
+        s.l[i] = l; s.r[i] = r;
+    }
+    return s;
+}
+
+static void engineGates()
+{
+    juce::ScopedNoDenormals noDenormals;
+    const auto& presets = OSimpleReverbAudioProcessor::typePresets;
+
+    // -- building blocks --
+    {
+        double worstDb = 0.0;
+        for (auto lg : { std::pair<int, float> { 229, 0.75f }, { 611, 0.625f }, { 43, 0.75f } }) {
+            osr::Allpass ap;
+            ap.prepare(1024);
+            ap.set(lg.first, lg.second);
+            measure::Vec ir(96000);
+            for (size_t i = 0; i < ir.size(); ++i) ir[i] = ap.process(i == 0 ? 1.0f : 0.0f);
+            for (double f : { 60.0, 317.0, 1000.0, 3170.0, 10000.0, 19000.0 })
+                worstDb = std::max(worstDb, std::abs(10.0 * std::log10(measure::goertzel(ir, f, 48000.0, 0, ir.size()))));
+        }
+        check(worstDb < 0.01, "allpass magnitude is flat: worst " + juce::String(worstDb, 5) + " dB from 0 (3 lengths x 6 frequencies, < 0.01)");
+
+        // Read first, push after: at(D) is D samples of delay; a fractional
+        // read is the analytic sine at that delay.
+        osr::RingDelay line;
+        line.prepare(64);
+        double errWhole = 0.0, errFrac = 0.0;
+        const double w = 2.0 * measure::kPi * 1000.0 / 48000.0, d = 23.37;
+        for (int n = 0; n < 4800; ++n) {
+            const double whole = line.at(23), frac = line.readLagrange(d);
+            line.push((float) std::sin(w * n));
+            if (n > 100) {
+                errWhole = std::max(errWhole, std::abs(whole - std::sin(w * (n - 23))));
+                errFrac = std::max(errFrac, std::abs(frac - std::sin(w * (n - d))));
+            }
+        }
+        check(errWhole < 1.0e-6 && errFrac < 1.0e-4, "ring delay: at(23) is 23 samples (max err " + juce::String(errWhole, 8)
+                                                    + "), Lagrange read at 23.37 is the sine at that delay (max err " + juce::String(errFrac, 7) + " < 1e-4)");
+
+        // RT60 -> gain: the algebra round-trips, and a loop built with that
+        // gain decays in that time.
+        const double g = osr::rt60ToGain(1000.0, 48000.0, 2.0), back = osr::gainToRt60(g, 1000.0, 48000.0);
+        osr::RingDelay loop;
+        loop.prepare(1000);
+        measure::Vec comb((size_t) (3.1 * 48000.0));
+        for (size_t i = 0; i < comb.size(); ++i) {
+            const float y = loop.at(1000);
+            loop.push((i == 0 ? 1.0f : 0.0f) + (float) g * y);
+            comb[i] = y;
+        }
+        const double measured = measure::rt60(comb, 48000.0);
+        check(std::abs(back - 2.0) < 1.0e-9 && std::abs(measured / 2.0 - 1.0) < 0.01,
+              "rt60ToGain: round-trips to " + juce::String(back, 6) + " s, and a 1000-sample loop at that gain decays in "
+              + juce::String(measured, 3) + " s (2.0, within 1 %)");
+
+        // The shelf, solved at 1 kHz, has the target gain AT 1 kHz.
+        double worstShelf = 0.0;
+        for (double fs : { 44100.0, 48000.0, 96000.0 }) {
+            osr::OnePole lp;
+            lp.setCutoff(4000.0, fs);
+            const double gHi = 0.70, gTarget = 0.90, gLo = osr::solveShelfLow(gHi, gTarget, osr::shelfReference(lp.a, 1000.0, fs));
+            measure::Vec in((size_t) fs), out(in.size());
+            for (size_t i = 0; i < in.size(); ++i) {
+                const float x = (float) std::sin(2.0 * measure::kPi * 1000.0 * (double) i / fs);
+                in[i] = x;
+                out[i] = (float) gHi * x + (float) (gLo - gHi) * lp.lowPass(x);
+            }
+            const size_t from = in.size() / 2;
+            worstShelf = std::max(worstShelf, std::abs(std::sqrt(measure::goertzel(out, 1000.0, fs, from, out.size())
+                                                                 / measure::goertzel(in, 1000.0, fs, from, in.size())) / gTarget - 1.0));
+        }
+        check(worstShelf < 1.0e-3, "mid-band shelf: gain at 1 kHz is the target within " + juce::String(100.0 * worstShelf, 4) + " % (44.1 / 48 / 96 kHz, < 0.1)");
+
+        // The glide: two poles of 125 ms, so 3 / e^2 of the way is left after
+        // 250 ms at any rate; it starts with no velocity; it lands exactly.
+        double worstGlide = 0.0, firstStep = 0.0;
+        bool lands = true;
+        for (double fs : { 44100.0, 48000.0, 96000.0 }) {
+            osr::GlideLength len;
+            len.set(1000.0); len.land(); len.set(2000.0);
+            const double c = osr::slewCoefficient(0.5 * osr::kSizeGlideSeconds, fs);
+            len.tick(c);
+            firstStep = std::max(firstStep, (len.current - 1000.0) * fs);     // samples per second, first tick
+            for (int i = 1; i < (int) (osr::kSizeGlideSeconds * fs); ++i) len.tick(c);
+            worstGlide = std::max(worstGlide, std::abs((2000.0 - len.current) / 1000.0 - 3.0 * std::exp(-2.0)));
+            for (int i = 0; i < (int) (5.0 * fs) && len.moving; ++i) len.tick(c);
+            lands = lands && ! len.moving && len.current == 2000.0;
+        }
+        // A single pole would start at 1000 / 0.25 = 4000 samples per second.
+        check(worstGlide < 0.005 && lands && firstStep < 40.0,
+              "glide: 3/e^2 left after 250 ms at 44.1 / 48 / 96 kHz (worst off by " + juce::String(worstGlide, 5) + "), starts at "
+              + juce::String(firstStep, 2) + " of 1000 samples per second (< 40), and lands on its target");
+    }
+
+    // -- early reflections --
+    {
+        const double fs = 48000.0;
+        auto tapsOf = [&](double scale, bool glideThere, std::vector<int>& timesL, std::vector<int>& timesR) {
+            osr::EarlyReflections er;
+            er.prepare(fs, 57.5f);
+            er.setType(23.0f);
+            er.setSize(glideThere ? 1.0 : scale);
+            er.reset();
+            if (glideThere) {
+                er.setSize(scale);
+                for (int i = 0; i < (int) (4.0 * fs); ++i) { float l, r; er.process(0.0f, 0.0f, l, r); }
+            }
+            bool asStated = true;
+            measure::Vec l(8192), r(8192);
+            for (size_t i = 0; i < l.size(); ++i) {
+                float a, b;
+                er.process(i == 0 ? 1.0f : 0.0f, i == 0 ? 1.0f : 0.0f, a, b);
+                l[i] = a; r[i] = b;
+            }
+            for (int side = 0; side < 2; ++side) {
+                const auto& ir = side == 0 ? l : r;
+                auto& times = side == 0 ? timesL : timesR;
+                for (size_t i = 0; i < ir.size(); ++i) if (ir[i] != 0.0) times.push_back((int) i);
+                asStated = asStated && times.size() == (size_t) osr::EarlyReflections::kTaps;
+                for (int k = 0; k < osr::EarlyReflections::kTaps && asStated; ++k) {
+                    const int want = (int) std::lround((side == 0 ? osr::EarlyReflections::kTimesL : osr::EarlyReflections::kTimesR)[(size_t) k] * 23.0 * scale * 0.001 * fs);
+                    asStated = times[(size_t) k] == want && std::abs(ir[(size_t) want] - er.tapGain(side, k)) < 1.0e-6
+                               && (ir[(size_t) want] > 0.0) == (k % 2 == 0);
+                }
+            }
+            return asStated;
+        };
+        std::vector<int> l1, r1, l2, r2, l3, r3;
+        const bool base = tapsOf(1.0, false, l1, r1), big = tapsOf(2.0, false, l2, r2), glided = tapsOf(2.0, true, l3, r3);
+        bool differ = true;
+        for (int a : l1) for (int b : r1) differ = differ && std::abs(a - b) > 4;     // 0.1 ms
+        check(base && differ, "early reflections: 8 taps a side at the stated times and gains, alternating sign, no L tap within 0.1 ms of an R tap ("
+                              + juce::String(l1.empty() ? 0.0 : l1.front() / 48.0, 2) + ".." + juce::String(l1.empty() ? 0.0 : l1.back() / 48.0, 2) + " ms at a 23 ms span)");
+        check(big && glided && l2 == l3 && r2 == r3 && ! l2.empty() && ! l1.empty() && l2.back() == 2 * l1.back(),
+              "early reflections: tap times follow SIZE (last tap " + juce::String(l1.empty() ? 0.0 : l1.back() / 48.0, 2) + " -> "
+              + juce::String(l2.empty() ? 0.0 : l2.back() / 48.0, 2) + " ms at x2), and a glide lands on the same taps as a reset");
+    }
+
+    // -- FDN: decay time against target --
+    double worstCorr = 0.0;
+    int hfNotShorter = 0, points = 0;
+    for (int type : kFdnTypes) {
+        const auto& cfg = presets[type].fdn;
+        double worst = 0.0;
+        juce::String where;
+        for (double fs : { 44100.0, 48000.0, 96000.0 })
+            for (double decay : { 0.5, 1.0, 2.0 })
+                for (double size : { 0.5, 1.0, 2.0 }) {
+                    const double t60 = presets[type].baseT60 * decay;
+                    const auto ir = fdnIr(cfg, fs, size, t60, 1.35 * t60 + 0.4);
+                    const double mid = measure::midRt60(ir.l, fs), err = mid / t60 - 1.0;
+                    if (std::abs(err) > std::abs(worst)) {
+                        worst = err;
+                        where = juce::String(fs / 1000.0, 1) + " kHz, DECAY " + juce::String(decay, 1) + "x, size x" + juce::String(size, 1);
+                    }
+                    if (measure::hfRt60(ir.l, fs) >= mid) ++hfNotShorter;
+                    worstCorr = std::max(worstCorr, std::abs(measure::correlation(ir.l, ir.r, (size_t) (0.25 * t60 * fs), (size_t) (0.75 * t60 * fs))));
+                    ++points;
+                }
+        check(std::abs(worst) <= kRt60Tolerance, juce::String("FDN ") + kTypeNames[type] + ": mid RT60 within 10 % of base x DECAY at 27 points "
+                                                 "(44.1 / 48 / 96 kHz x DECAY 0.5 / 1 / 2 x size x0.5 / x1 / x2); worst "
+                                                 + juce::String(100.0 * worst, 1) + " % at " + where);
+    }
+    check(hfNotShorter == 0, "FDN: the 8 kHz octave decays faster than the mid band at all " + juce::String(points) + " points ("
+                             + juce::String(hfNotShorter) + " do not)");
+    check(worstCorr < 0.3, "FDN: late-tail L/R correlation at all " + juce::String(points) + " points, worst |r| " + juce::String(worstCorr, 3) + " (< 0.3)");
+
+    // -- FDN: the four delay sets do not share resonances --
+    {
+        measure::Vec spectra[4];
+        for (int k = 0; k < 4; ++k)
+            spectra[k] = measure::tailSpectrumDb(fdnIr(presets[kFdnTypes[k]].fdn, 48000.0, 1.0, 3.0, 2.6).l, 48000.0, 0.5, 2.5);
+        double worst = 0.0;
+        for (int a = 0; a < 4; ++a)
+            for (int b = a + 1; b < 4; ++b) worst = std::max(worst, std::abs(measure::pearson(spectra[a], spectra[b])));
+        check(worst < 0.3, "FDN: tail spectra of the four delay sets at one decay time, worst pair |r| " + juce::String(worst, 2) + " (< 0.3)");
+    }
+
+    // -- FDN: the worst case for stability and for capacity --
+    {
+        const double fs = 192000.0, t60 = presets[5].baseT60 * 2.0;
+        const auto ir = fdnIr(presets[5].fdn, fs, 2.0, t60, 1.35 * t60 + 0.4);
+        bool finite = true;
+        for (size_t i = 0; i < ir.l.size(); ++i) finite = finite && std::isfinite(ir.l[i]) && std::isfinite(ir.r[i]);
+        const double mid = finite ? measure::midRt60(ir.l, fs) : 0.0;
+        check(finite && std::abs(mid / t60 - 1.0) <= kRt60Tolerance, "FDN Ambient at 192 kHz, DECAY 2.0x, size x2 (the longest lines there are): finite, mid RT60 "
+                                                                     + juce::String(mid, 2) + " s (14.0, within 10 %)");
+    }
+
+    // -- FDN: the same input gives the same output --
+    {
+        auto render = [&]() {
+            float maxLineMs = 1.0f, maxModMs = 0.0f;
+            for (const auto& t : presets) { maxLineMs = std::max(maxLineMs, t.fdn.maxMs); maxModMs = std::max(maxModMs, t.fdn.modMs); }
+            osr::FdnEngine engine;
+            engine.prepare(48000.0, maxLineMs, maxModMs);
+            engine.setType(presets[2].fdn);
+            engine.setSize(1.0);
+            engine.setT60(3.0);
+            engine.reset();
+            std::mt19937 rng(4);
+            std::normal_distribution<float> nd(0.0f, 0.1f);
+            std::vector<float> out;
+            for (int i = 0; i < 96000; ++i) {
+                float l, r;
+                const float x = i < 24000 ? nd(rng) : 0.0f;
+                if (i == 30000) engine.setSize(1.7);        // a glide and the modulation are both in the render
+                engine.process(x, x, l, r);
+                out.push_back(l); out.push_back(r);
+            }
+            return out;
+        };
+        check(render() == render(), "FDN: two renders of the same input, modulation and a SIZE glide included, are the same samples");
+    }
+}
+#endif // OSR_ENGINES
+
+#if OSIMPLEREVERB_TEST_HOOKS
+// ── --mutants ────────────────────────────────────────────────────────────────
+template <typename Gate>
+static void mustFail(Mutant mutant, const char* broken, Gate gate)
+{
+    activeMutant = mutant;
+    const Verdict v = gate();
+    activeMutant = Mutant::none;
+    check(! v.ok, juce::String("with ") + broken + ", this gate fails -> " + v.text);
+}
+
+static int runMutants()
+{
+    const float ref = hfBurst("WET", 20.0f, 100.0f).db;
+    const float slow = hfBurst("TYPE", 1.0f, 0.0f).db;
+    mustFail(Mutant::decayDead,   "DECAY not reaching the engine",        [] { return rt60DecayGate(1); });
+    mustFail(Mutant::sizeIsDecay, "SIZE scaling the decay time",          [] { return rt60SizeGate(1); });
+    mustFail(Mutant::sizeDead,    "SIZE not reaching the engine",         [] { return sizeStructureGate(1); });
+    mustFail(Mutant::sameDelays,  "every type on Hall's delay set",       [] { return tailSpectrumGate(); });
+    mustFail(Mutant::earlyMuted,  "early reflections muted",              [] { return earlyTapsGate(1); });
+    mustFail(Mutant::monoTail,    "right = left",                         [] { return stereoGate(); });
+    mustFail(Mutant::noRingOut,   "the old slot cleared on a TYPE change", [] { return ringOutGate(); });
+    mustFail(Mutant::noNanGuard,  "no NaN guard",                         [] { return nanGate(); });
+    mustFail(Mutant::noChunking,  "an oversized block processed whole",   [] { return allocGate(); });
+    mustFail(Mutant::noChunking,  "an oversized block processed whole",   [] { return oversizedBlockGate(); });
+    mustFail(Mutant::noGlide,     "SIZE landing at once",                 [ref] { return glideGate("SIZE", 0.0f, 100.0f, ref, kSizeGlideMarginDb); });
+    mustFail(Mutant::noGlide,     "DECAY landing at once",                [ref] { return glideGate("DECAY", 0.5f, 2.0f, ref, kDecayGlideMarginDb); });
+    mustFail(Mutant::hardSteal,   "a sounding slot taken back without a fade", [slow] { return rapidSwitchGate({ 0, 1, 2 }, slow, kRapidMarginDb); });
+    mustFail(Mutant::hardSteal,   "a sounding slot taken back without a fade", [] { return presetSweepGate(hfBurst("WET", 20.0f, 100.0f, 0.0f, -1, 8000.0f).db, kSweepMarginDb); });
+    std::printf("\n%d of %d mutants caught\n", passes, passes + failures);
+    return failures == 0 ? 0 : 1;
+}
+#endif
+
+// ── --levels ─────────────────────────────────────────────────────────────────
+static int printLevels()
+{
+    std::printf("Wet loudness re input, K-weighted pink noise, WET 100 / DRY 0 (dB).\n\n"
+                "| Type | stereo | mono | DECAY 0.5x | DECAY 2.0x | SIZE 0 | SIZE 100 |\n|---|---|---|---|---|---|---|\n");
+    for (int t = 0; t < 6; ++t)
+        std::printf("| %s | %+.2f | %+.2f | %+.2f | %+.2f | %+.2f | %+.2f |\n", kTypeNames[t], typeLoudnessDb(t), typeLoudnessDb(t, 1),
+                    typeLoudnessDb(t, 2, 0.5f), typeLoudnessDb(t, 2, 2.0f), typeLoudnessDb(t, 2, 1.0f, 0.0f), typeLoudnessDb(t, 2, 1.0f, 100.0f));
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -505,6 +1196,10 @@ int main(int argc, char** argv)
     const juce::String mode(argc > 1 ? argv[1] : "");
     if (mode == "--baseline") return printBaseline();
     if (mode == "--write-fixture") return writeFixture();
+    if (mode == "--levels") return printLevels();
+   #if OSIMPLEREVERB_TEST_HOOKS
+    if (mode == "--mutants") return runMutants();
+   #endif
     if (mode.isNotEmpty()) { std::printf("unknown mode %s\n", mode.toRawUTF8()); return 2; }
 
     {
@@ -574,17 +1269,23 @@ int main(int argc, char** argv)
         }
     }
 
-    // ── 3. Ambient at 192 kHz ────────────────────────────────────────────────
-    {
-        auto proc = makeProcessor();
-        setParam(*proc, "TYPE", 5.0f); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
-        setParam(*proc, "DECAY", 2.0f); setParam(*proc, "SIZE", 100.0f);
-        const auto out = renderSine(*proc, 192000.0, 512, 750, [](int) {});
-        bool finite = true; float peak = 0.0f;
-        for (float x : out) { finite = finite && std::isfinite(x); peak = std::max(peak, std::abs(x)); }
-        check(finite && peak > 0.01f, "Ambient @ 192 kHz renders finite, non-silent (peak "
-                                      + juce::String(peak, 4) + ")");
+    // ── 3. Every type at 44.1 / 96 / 192 kHz; an oversized host block ─────────
+    for (double sr : { 44100.0, 96000.0, 192000.0 }) {
+        bool finite = true;
+        float quietest = 1.0e9f;
+        for (int type = 0; type < 6; ++type) {
+            auto proc = makeProcessor();
+            setParam(*proc, "TYPE", (float) type); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
+            setParam(*proc, "DECAY", 2.0f); setParam(*proc, "SIZE", 100.0f);
+            const auto out = renderSine(*proc, sr, 512, (int) (2.0 * sr) / 512, [](int) {});
+            float peak = 0.0f;
+            for (float x : out) { finite = finite && std::isfinite(x); peak = std::max(peak, std::abs(x)); }
+            quietest = std::min(quietest, peak);
+        }
+        check(finite && quietest > 0.01f, "all six types @ " + juce::String(sr / 1000.0, 1) + " kHz, DECAY 2.0x, SIZE 100: finite, non-silent (quietest peak "
+                                          + juce::String(quietest, 4) + ")");
     }
+    check(oversizedBlockGate());
 
     // ── 4. VU peak is held until read ────────────────────────────────────────
     {
@@ -601,7 +1302,7 @@ int main(int argc, char** argv)
         check(after == 0.0f, "reading the peak clears it");
     }
 
-    // ── 5. v1.12.0: switches do not click (HF burst) ───────────────────────────
+    // ── 5. switches do not click (HF burst) ────────────────────────────────────
     {
         const float ref = hfBurst("WET", 20.0f, 100.0f).db;   // a smoothed 20 ms move
         std::printf("  (reference: WET 20<->100 burst %.1f dB)\n", ref);
@@ -615,56 +1316,48 @@ int main(int argc, char** argv)
             check(db < ref + c.margin, juce::String(c.id) + " " + juce::String(c.a, 1) + "<->" + juce::String(c.b, 1)
                                        + " HF burst " + juce::String(db, 1) + " dB < ref + " + juce::String(c.margin, 0));
         }
-        float worst = 0.0f;
+        // SIZE glides and DECAY slews. The glide bends the tail's pitch, which
+        // is why this is the HF-burst metric and not a second difference: a
+        // bend raises the second difference by itself (4.3x at a 250 ms glide).
+        check(glideGate("SIZE", 0.0f, 100.0f, ref, kSizeGlideMarginDb));
+        check(glideGate("DECAY", 0.5f, 2.0f, ref, kDecayGlideMarginDb));
+
+        float worst = 0.0f, slowDb = -200.0f;
         const int pairs[][2] = { { 1, 2 }, { 1, 3 }, { 2, 4 }, { 0, 5 }, { 1, 0 }, { 3, 4 } };
-        for (const auto& pr : pairs)
-            worst = std::max(worst, hfBurst("TYPE", (float) pr[0], (float) pr[1]).ratio);
-        check(worst < 2.0f, "TYPE switch HF burst over steady HF " + juce::String(worst, 2) + "x < 2 (worst of 6 pairs)");
-    }
-
-    // ── 6. v1.12.0: types are level-matched ──────────────────────────────────
-    {
-        double lo = 1.0e9, hi = -1.0e9;
-        for (int t = 0; t < 6; ++t) { const double l = typeLoudnessDb(t); lo = std::min(lo, l); hi = std::max(hi, l); }
-        check(hi - lo <= 1.0, "type loudness spread " + juce::String(hi - lo, 2) + " dB <= 1 (K-weighted pink)");
-    }
-
-    // ── 7. v1.13.0: flutter is pitch, shimmer is an octave ────────────────────
-    {
-        struct F { const char* name; float rate, cents; };
-        for (auto f : { F { "Spring", 4.5f, 6.0f }, F { "Hall", 0.15f, 3.0f }, F { "Ambient", 0.4f, 4.0f } }) {
-            const auto r = flutterAgainstIdeal(f.rate, f.cents, 48000.0);
-            check(r.err < 1.0e-4 && std::abs(r.cents - f.cents) < 0.25f,
-                  juce::String(f.name) + " flutter: output = ideal swept delay (max err " + juce::String(r.err, 7)
-                  + "), swing " + juce::String(r.cents, 2) + " cents (stated " + juce::String(f.cents, 0) + ")");
+        for (const auto& pr : pairs) {
+            const auto b = hfBurst("TYPE", (float) pr[0], (float) pr[1]);
+            worst = std::max(worst, b.ratio);
+            slowDb = std::max(slowDb, b.db);
         }
+        check(worst < 2.0f, "TYPE switch HF burst over steady HF " + juce::String(worst, 2) + "x < 2 (worst of 6 pairs, "
+                            + juce::String(slowDb, 1) + " dB)");
+        // Two types alternate between the two slots (each reopens its own
+        // ringing tail); three force the older slot to be taken back.
+        check(rapidSwitchGate({ 0, 1 }, slowDb, kRapidMarginDb));
+        check(rapidSwitchGate({ 0, 1, 2 }, slowDb, kRapidMarginDb));
+        check(presetSweepGate(hfBurst("WET", 20.0f, 100.0f, 0.0f, -1, 8000.0f).db, kSweepMarginDb));
+    }
 
+    // ── 6. types are level-matched, in stereo and on a mono bus ───────────────
+    for (int channels : { 2, 1 }) {
+        double lo = 1.0e9, hi = -1.0e9;
+        for (int t = 0; t < 6; ++t) { const double l = typeLoudnessDb(t, channels); lo = std::min(lo, l); hi = std::max(hi, l); }
+        check(hi - lo <= 1.0, juce::String(channels == 2 ? "stereo" : "mono") + ": type loudness spread " + juce::String(hi - lo, 2)
+                              + " dB <= 1 (K-weighted pink, " + juce::String(lo, 1) + ".." + juce::String(hi, 1) + " dB re input)");
+    }
+
+    // ── 7. the shifter is an octave ───────────────────────────────────────────
+    {
         OctaveUpShifter oct;
         oct.prepare(48000.0);
         std::vector<float> y;
         for (int i = 0; i < 48000; ++i) y.push_back(oct.process(0.5f * (float) std::sin(juce::MathConstants<double>::twoPi * 1000.0 * i / 48000.0)));
         const double octDb = 10.0 * std::log10(goertzel(y, 2000.0, 48000.0, 4800) / goertzel(y, 1000.0, 48000.0, 4800));
         check(octDb > 20.0, "octave shifter: 2 kHz over 1 kHz " + juce::String(octDb, 1) + " dB > 20");
-
-        auto twoF = [](int type) {
-            auto proc = makeProcessor();
-            setParam(*proc, "TYPE", (float) type); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
-            const auto out = renderSine(*proc, 48000.0, 256, 750, [](int) {});
-            return 10.0 * std::log10(goertzel(out, 600.0, 48000.0, 48000) / goertzel(out, 300.0, 48000.0, 48000));
-        };
-        const double plate = twoF(4), room = twoF(1);
-        check(plate > room + 20.0, "Plate carries the octave: 600/300 Hz " + juce::String(plate, 1)
-                                   + " dB vs Room " + juce::String(room, 1) + " dB (> +20)");
+        pend("Plate shimmer blooms in the tail: 600/300 Hz in the tail exceeds the ratio at onset by >= 10 dB, Room shows none (Dattorro tank: stage 2)");
     }
 
-    // ── 8. v1.13.0: DECAY's top range is live ─────────────────────────────────
-    {
-        const double t1 = ambientTailSeconds(1.25f), t2 = ambientTailSeconds(1.6f), t3 = ambientTailSeconds(2.0f);
-        check(t2 > t1 * 1.1 && t3 > t2 * 1.1, "Ambient SIZE 100 tail -40 dB: 1.25x " + juce::String(t1, 2) + " s, 1.6x "
-                                              + juce::String(t2, 2) + " s, 2.0x " + juce::String(t3, 2) + " s (each > +10 %)");
-    }
-
-    // ── 9. v1.14.0: factory bank shape and level ─────────────────────────────
+    // ── 9. factory bank shape and level ───────────────────────────────────────
     // Each factory preset's output re its input (K-weighted pink noise), so a
     // step through the bank does not jump in level. Send presets go on an aux
     // bus with no dry beside them; they are listed but not held to the ceiling.
@@ -702,11 +1395,11 @@ int main(int argc, char** argv)
                                            + " sends, " + juce::String(badSends) + " wrong)");
         check(! proc->presetManager.getFactoryPresetsDirectory().getChildFile("Spring - Dub Echo.json").exists(),
               "renamed preset's stale file removed from the installed bank");
-        check(hi <= 5.0, "insert presets " + juce::String(lo, 1) + " (" + loName + ") .. "
-                         + juce::String(hi, 1) + " dB (" + hiName + ") re input, ceiling +5.0");
+        pend("insert presets " + juce::String(lo, 1) + " (" + loName + ") .. " + juce::String(hi, 1) + " dB (" + hiName
+             + ") re input, ceiling +5.0 (the bank is re-voiced for the new engines in stage 4)");
     }
 
-    // ── 10. reverb-engine-rewrite: the measurer, and the v1.14.0 state ────────
+    // ── 10. the measurer, and the v1.14.0 state ───────────────────────────────
     {
         // The RT60 gates are only as good as the measurer. A tone decaying
         // 60 dB in a known time has no statistics of its own and must read that
@@ -806,6 +1499,34 @@ int main(int argc, char** argv)
                                           + juce::String(checked) + " checked, " + juce::String(wrong) + " wrong)");
     }
 
-    std::printf("\n%s (%d failure%s)\n", failures == 0 ? "ALL PASS" : "FAILED", failures, failures == 1 ? "" : "s");
+    // ── 11. the engine headers, driven directly ───────────────────────────────
+   #if OSR_ENGINES
+    engineGates();
+   #endif
+
+    // ── 12. the reverb through processBlock ───────────────────────────────────
+    for (int type = 0; type < 6; ++type) {
+        if (type == 3 || type == 4) {
+            pend(juce::String(kTypeNames[type]) + " RT60 = base x DECAY, and holding across SIZE (its own engine: stage "
+                 + (type == 4 ? "2" : "3") + ")");
+            continue;
+        }
+        check(rt60DecayGate(type));
+        check(rt60SizeGate(type));
+        check(sizeStructureGate(type));
+        check(earlyTapsGate(type));
+    }
+    check(tailSpectrumGate());
+    check(stereoGate());
+    check(ringOutGate());
+   #if OSIMPLEREVERB_TEST_HOOKS
+    check(nanGate());
+   #endif
+    check(allocGate());
+    pend("Spring chirp: the first echo arrives >= 2 ms later at 3 kHz than at 1 kHz, repeating at the echo time (stage 3)");
+    pend("Plate does not run away: DECAY 2.0x, SIZE 0 and 100, 10 s of noise, then a monotone decay (stage 2)");
+
+    std::printf("\n%d PASS, %d FAIL, %d PEND\n%s\n", passes, failures, pending,
+                failures > 0 ? "FAILED" : pending > 0 ? "ALL PASS (with gates pending)" : "ALL PASS");
     return failures == 0 ? 0 : 1;
 }
