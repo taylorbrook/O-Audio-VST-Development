@@ -104,4 +104,7 @@ if(OUARICON_BUILD_TESTS)
     # Ambient @ 192 kHz, VU peak hold. See tests/render-check/main.cpp.
     ouaricon_add_processor_console(O-SimpleReverb ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/render-check/main.cpp render-check)
+    # Mutants and the NaN injection hook exist in this target only (see
+    # OSR_MUTANT in Source/PluginProcessor.h); the plugin is built without them.
+    target_compile_definitions(O-SimpleReverb-render-check PRIVATE OSIMPLEREVERB_TEST_HOOKS=1)
 endif()
