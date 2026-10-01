@@ -332,23 +332,34 @@
       color: var(--green-ink);
     }
 
+    /* v1.10.0: a COLUMN-FLOW GRID, not a tall list. The frame is 125 px tall
+       with overflow: hidden on .container, and the list opened at y ~33 with
+       max-height: 160px — so only the first four rows were ever visible and
+       every name below them (Vibrato, Warm, all user presets) was clipped with
+       no scrollbar to reach it. Four rows fit the frame; extra names add
+       columns that grow leftward from the bar, and past 668 px (the frame
+       less its 16 px gutters) the panel scrolls sideways instead of clipping. */
     .preset-dropdown {
       display: none;
       position: absolute;
       top: 100%;
       right: 0;
       margin-top: 4px;
+      padding: 2px;
       background: var(--bg-plate);
       border: 1px solid var(--rule-walnut);
       border-radius: 3px;
       box-shadow: var(--shadow-plate);
-      max-height: 160px;
-      overflow-y: auto;
+      grid-auto-flow: column;
+      grid-template-rows: repeat(4, auto);
+      max-width: 668px;
+      overflow-x: auto;
+      overflow-y: hidden;
       z-index: 9999;
       min-width: 100px;
     }
 
-    .preset-dropdown.show { display: block; }
+    .preset-dropdown.show { display: grid; }
 
     .header:has(.preset-dropdown.show) { z-index: 9999; }
 

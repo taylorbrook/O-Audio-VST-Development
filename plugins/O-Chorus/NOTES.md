@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.0 (last published release: v1.6.3, so v1.7.0–v1.9.0 are unreleased)
+- **Version:** 1.10.0 (last published release: v1.6.3, so v1.7.0–v1.10.0 are unreleased)
 - **Type:** Audio Effect (Multi-Voice BBD-Style Chorus)
 - **Formats:** VST3, AU (`aufx OuCh OuDv`), Standalone
 - **Layouts:** stereo→stereo, mono→stereo, mono→mono (stereo→mono refused)
@@ -31,6 +31,7 @@ Factory presets (6): Classic, Lush, Shimmer, Ensemble, Vibrato, Warm.
 ## Lifecycle Timeline
 
 - **2026-09-30 (v1.9.0):** `/improve-review-info` sweep of IN-01..07. Adds a `reset()` override, pointer-capture knob drag, a 2 Hz preset-name poll, and a Save… that honours the chosen folder (factory dir refused). The knobs are keyboard sliders. The stale header comment is fixed. IN-07 (−3 dB centred wet) is documented, not changed. DAW-checked OK 2026-09-30.
+- **2026-09-30 (v1.10.0):** `/improve`. 16 new factory presets (22 total). The preset dropdown is a 4-row column-flow grid; the old 160 px list was clipped by the 125 px frame, so only 4 names were reachable. DAW check pending.
 - **2026-09-30 (v1.8.0):** `/improve-review` of CR-01 and WR-01..07. Accepts mono→mono and mono→stereo. Tone clamp raised to 0.45·fs. Each Voices-crossfade layer now uses its own layout, and a count that arrives mid-fade is queued. Spread is one-sided (10–25 ms), so no tap is pinned. Drive is level-compensated `tanh(d·x)/d`. The mouse wheel steps Voices. The plugin-side factory guard is removed. auval passes. DAW listening pass pending.
 - **2026-09-26 (v1.7.0):** 260924-nho Phase C UI pass via /improve: insect plate reduced to its central specimen behind the LFO ring (no knob face or caption over it), paper texture at 55% so text is AA on the painted ground (min 2.83 → 5.59:1; measure-ui's 0% was a false pass — it cannot see the jpg/img layers), palette custom properties, LFO caption 8 → 9px, bundled EB Garamond. Knob code untouched, so still mouse-only (R7 deferred). No DSP/param/state change.
 - **v1.0.0–v1.6.3 (2026-02-08 → 2026-09-08):** see CHANGELOG.md; only the v1.2.2 review pass is summarised here.
@@ -49,7 +50,7 @@ Factory presets (6): Classic, Lush, Shimmer, Ensemble, Vibrato, Warm.
 
 ## Known Limitations
 
-- **A centred wet voice plays at −3 dB on stereo outputs** (review IN-07, acknowledged v1.9.0, not changed). Pan is equal-power: centre = cos(π/4) = 0.707 per side. At Width 0 every voice is centred, so Vibrato (mix 1.0, 1 voice) sits 3 dB below bypass. The mono→mono path sums unpanned and is unity. A √2 boost at Voices 1 only would put a 3 dB step between 1 and 2 voices; a Width-aware compensation would move the level of every preset. Left as is.
+- **A centred wet voice plays at −3 dB on stereo outputs** (review IN-07, acknowledged v1.9.0, not changed). Pan is equal-power: centre = cos(π/4) = 0.707 per side. At Width 0 every voice is centred, so Vibrato, Slow Vibrato and Fast Vibrato (mix 1.0, 1 voice, Width 0) sit 3 dB below bypass; Mono Chorus's wet voices are centred as well. The mono→mono path sums unpanned and is unity. A √2 boost at Voices 1 only would put a 3 dB step between 1 and 2 voices; a Width-aware compensation would move the level of every preset. Left as is.
 - v1.8.0 changes the sound of existing presets and sessions with Drive > 0 (the wet path is quieter on quiet material) and with Spread > 0 (voices spread one-sided). Presets were not re-voiced.
 
 ## Architecture (as built)
