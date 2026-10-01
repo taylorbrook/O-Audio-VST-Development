@@ -1,5 +1,27 @@
 # O-Chorus Changelog
 
+## [1.10.0] - 2026-09-30
+
+Sixteen new factory presets, and a preset list you can actually reach. MINOR
+because the factory bank grows. No parameter ID, range, state or DSP change.
+
+### Added
+- **Sixteen factory presets (22 in all):** Choir Pad, Dark Thick, Eighties Poly,
+  Fast Vibrato, Glassy, Grit Chorus, Mono Chorus, Parallel Wash, Seasick,
+  Slow Swirl, Slow Vibrato, Spinner, Stereo Widener, Strings, Subtle Doubler and
+  Tape Warble. The factory sentinel is version-stamped, so the new bank is
+  written on the first load of v1.10.0.
+
+### Fixed
+- **Every preset in the list can be selected.** Root cause: the editor is
+  700 x 125 px with `overflow: hidden` on `.container`, and the list opened at
+  y ~33 with `max-height: 160px`. Only the first four rows were visible; the
+  rest (Vibrato, Warm and every user preset) were clipped by the frame with no
+  scrollbar to reach them. The list is now a column-flow grid of four rows that
+  fits the frame (bottom edge at 116.5 px). More names add columns that grow
+  leftward from the bar, and past 668 px the panel scrolls sideways instead of
+  clipping.
+
 ## [1.9.0] - 2026-09-30
 
 Info-tier sweep of the 2026-09-30 `CODE_REVIEW.md` (IN-01..07). MINOR because the

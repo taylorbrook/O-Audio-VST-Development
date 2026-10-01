@@ -268,6 +268,121 @@ void OChorusAudioProcessor::initializeFactoryPresets()
              {"spread", 0.4f}, {"width", 0.6f}, {"tone", 0.25f},
              {"mix", 0.5f}, {"drive", 0.5f}},
             juce::var()
+        },
+        // v1.10.0: sixteen more. Values are NORMALISED (0..1), so rate is
+        // ((Hz - 0.05) / 4.95)^0.35, voices is (n - 1) / 7 and tone is
+        // (t + 1) / 2 — the module writes them straight to setValueNotifyingHost.
+        {
+            "Subtle Doubler",
+            {{"rate", 0.352f}, {"depth", 0.15f}, {"voices", 0.143f},
+             {"spread", 0.6f}, {"width", 0.8f}, {"tone", 0.5f},
+             {"mix", 0.3f}, {"drive", 0.1f}},
+            juce::var()
+        },
+        {
+            "Slow Swirl",
+            {{"rate", 0.225f}, {"depth", 0.7f}, {"voices", 0.714f},
+             {"spread", 0.7f}, {"width", 1.0f}, {"tone", 0.45f},
+             {"mix", 0.5f}, {"drive", 0.2f}},
+            juce::var()
+        },
+        {
+            "Stereo Widener",
+            {{"rate", 0.396f}, {"depth", 0.25f}, {"voices", 0.143f},
+             {"spread", 0.2f}, {"width", 1.0f}, {"tone", 0.55f},
+             {"mix", 0.45f}, {"drive", 0.1f}},
+            juce::var()
+        },
+        {
+            "Eighties Poly",
+            {{"rate", 0.432f}, {"depth", 0.5f}, {"voices", 0.143f},
+             {"spread", 0.4f}, {"width", 1.0f}, {"tone", 0.575f},
+             {"mix", 0.5f}, {"drive", 0.2f}},
+            juce::var()
+        },
+        {
+            "Tape Warble",
+            {{"rate", 0.517f}, {"depth", 0.35f}, {"voices", 0.0f},
+             {"spread", 0.0f}, {"width", 0.3f}, {"tone", 0.35f},
+             {"mix", 0.7f}, {"drive", 0.45f}},
+            juce::var()
+        },
+        {
+            "Spinner",
+            {{"rate", 0.963f}, {"depth", 0.35f}, {"voices", 0.143f},
+             {"spread", 0.3f}, {"width", 1.0f}, {"tone", 0.55f},
+             {"mix", 0.6f}, {"drive", 0.3f}},
+            juce::var()
+        },
+        {
+            "Choir Pad",
+            {{"rate", 0.325f}, {"depth", 0.55f}, {"voices", 1.0f},
+             {"spread", 0.9f}, {"width", 1.0f}, {"tone", 0.4f},
+             {"mix", 0.6f}, {"drive", 0.15f}},
+            juce::var()
+        },
+        {
+            "Glassy",
+            {{"rate", 0.695f}, {"depth", 0.2f}, {"voices", 0.286f},
+             {"spread", 0.4f}, {"width", 0.9f}, {"tone", 0.75f},
+             {"mix", 0.35f}, {"drive", 0.05f}},
+            juce::var()
+        },
+        {
+            "Dark Thick",
+            {{"rate", 0.375f}, {"depth", 0.6f}, {"voices", 0.571f},
+             {"spread", 0.6f}, {"width", 0.8f}, {"tone", 0.25f},
+             {"mix", 0.55f}, {"drive", 0.4f}},
+            juce::var()
+        },
+        {
+            "Seasick",
+            {{"rate", 0.28f}, {"depth", 1.0f}, {"voices", 0.0f},
+             {"spread", 0.0f}, {"width", 0.5f}, {"tone", 0.5f},
+             {"mix", 0.6f}, {"drive", 0.1f}},
+            juce::var()
+        },
+        {
+            "Fast Vibrato",
+            {{"rate", 0.924f}, {"depth", 0.35f}, {"voices", 0.0f},
+             {"spread", 0.0f}, {"width", 0.0f}, {"tone", 0.5f},
+             {"mix", 1.0f}, {"drive", 0.0f}},
+            juce::var()
+        },
+        {
+            "Slow Vibrato",
+            {{"rate", 0.6f}, {"depth", 0.5f}, {"voices", 0.0f},
+             {"spread", 0.0f}, {"width", 0.0f}, {"tone", 0.5f},
+             {"mix", 1.0f}, {"drive", 0.0f}},
+            juce::var()
+        },
+        {
+            "Grit Chorus",
+            {{"rate", 0.517f}, {"depth", 0.45f}, {"voices", 0.286f},
+             {"spread", 0.4f}, {"width", 0.7f}, {"tone", 0.6f},
+             {"mix", 0.5f}, {"drive", 0.8f}},
+            juce::var()
+        },
+        {
+            "Strings",
+            {{"rate", 0.463f}, {"depth", 0.4f}, {"voices", 0.714f},
+             {"spread", 0.8f}, {"width", 1.0f}, {"tone", 0.5f},
+             {"mix", 0.6f}, {"drive", 0.1f}},
+            juce::var()
+        },
+        {
+            "Mono Chorus",
+            {{"rate", 0.491f}, {"depth", 0.45f}, {"voices", 0.286f},
+             {"spread", 0.4f}, {"width", 0.0f}, {"tone", 0.5f},
+             {"mix", 0.5f}, {"drive", 0.2f}},
+            juce::var()
+        },
+        {
+            "Parallel Wash",
+            {{"rate", 0.294f}, {"depth", 0.8f}, {"voices", 1.0f},
+             {"spread", 1.0f}, {"width", 1.0f}, {"tone", 0.45f},
+             {"mix", 0.35f}, {"drive", 0.2f}},
+            juce::var()
         }
     };
 
