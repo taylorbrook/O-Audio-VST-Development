@@ -253,7 +253,7 @@ OSimpleReverbAudioProcessor::OSimpleReverbAudioProcessor()
     lpFreqParam = parameters.getRawParameterValue("LPFREQ");
     lpOnParam = parameters.getRawParameterValue("LPON");
 
-    // Initialize factory presets (4 per reverb type = 24 total)
+    // Initialize factory presets (8 per reverb type = 48 total)
     initializeFactoryPresets();
 }
 
@@ -838,117 +838,104 @@ void OSimpleReverbAudioProcessor::setStateInformation(const void* data, int size
 
 void OSimpleReverbAudioProcessor::initializeFactoryPresets()
 {
-    // TYPE is normalised over 6 choices: index k -> k / 5 (NOT k / 6 — the
-    // pre-1.11.0 table used sixths, which recalled the wrong type for 20 of 24).
-    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
-        // === BOOTH PRESETS (4) ===
-        { "Booth - Vocal Booth", {
-            {"TYPE", 0.0f}, {"CHARACTER", 0.5f}, {"WET", 0.20f}, {"DRY", 1.0f},
-            {"DECAY", 0.33f}, {"SIZE", 0.30f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Booth - Drum Close", {
-            {"TYPE", 0.0f}, {"CHARACTER", 0.35f}, {"WET", 0.15f}, {"DRY", 1.0f},
-            {"DECAY", 0.20f}, {"SIZE", 0.20f}, {"LPFREQ", 0.26f}, {"LPON", 1.0f}
-        }, juce::var() },
-        { "Booth - Tight Room", {
-            {"TYPE", 0.0f}, {"CHARACTER", 0.50f}, {"WET", 0.25f}, {"DRY", 1.0f},
-            {"DECAY", 0.40f}, {"SIZE", 0.40f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Booth - Whisper", {
-            {"TYPE", 0.0f}, {"CHARACTER", 0.70f}, {"WET", 0.30f}, {"DRY", 1.0f},
-            {"DECAY", 0.25f}, {"SIZE", 0.15f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
+    // v1.14.0: authored in the parameters' own units and converted once through
+    // each range below. The table used to hold hand-normalised fractions, which
+    // for the skewed DECAY meant hand-computing norm^1.585 (0.33 -> 0.76x).
+    //   type: 0 Booth, 1 Room, 2 Hall, 3 Spring, 4 Plate, 5 Ambient
+    //   character -100..100 (dark..bright), wet/dry %, decay x, size %,
+    //   low cut Hz and on/off.
+    // "Send" presets are 100 % wet / 0 % dry, for an aux bus. Insert presets
+    // stay at or below +5 dB re input (render-check section 9).
+    struct Def { const char* name; int type; float character, wet, dry, decay, size, lowCutHz; bool lowCut; };
+    static constexpr Def bank[] = {
+        // name                          type  char   wet    dry   decay  size  lowcut
+        // === BOOTH ===
+        { "Booth - Vocal Booth",           0,    0.0f, 20.0f, 100.0f, 0.76f, 30.0f, 199.0f, false },
+        { "Booth - Drum Close",            0,  -30.0f, 15.0f, 100.0f, 0.62f, 20.0f, 119.0f, true  },
+        { "Booth - Tight Room",            0,    0.0f, 25.0f, 100.0f, 0.85f, 40.0f, 199.0f, false },
+        { "Booth - Whisper",               0,   40.0f, 30.0f, 100.0f, 0.67f, 15.0f, 199.0f, false },
+        { "Booth - Snare Ambience",        0,   25.0f, 22.0f, 100.0f, 0.70f, 25.0f, 160.0f, true  },
+        { "Booth - Voiceover",             0,  -20.0f, 12.0f, 100.0f, 0.58f, 20.0f, 120.0f, true  },
+        { "Booth - Dark Closet",           0,  -65.0f, 30.0f, 100.0f, 0.55f, 10.0f, 199.0f, false },
+        { "Booth - Send",                  0,    0.0f,100.0f,   0.0f, 0.85f, 40.0f, 150.0f, true  },
 
-        // === ROOM PRESETS (4) ===
-        { "Room - Small Room", {
-            {"TYPE", 0.2f}, {"CHARACTER", 0.50f}, {"WET", 0.25f}, {"DRY", 1.0f},
-            {"DECAY", 0.33f}, {"SIZE", 0.35f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Room - Live Room", {
-            {"TYPE", 0.2f}, {"CHARACTER", 0.45f}, {"WET", 0.35f}, {"DRY", 1.0f},
-            {"DECAY", 0.50f}, {"SIZE", 0.55f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Room - Studio A", {
-            {"TYPE", 0.2f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
-            {"DECAY", 0.45f}, {"SIZE", 0.50f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Room - Jazz Club", {
-            {"TYPE", 0.2f}, {"CHARACTER", 0.40f}, {"WET", 0.40f}, {"DRY", 1.0f},
-            {"DECAY", 0.55f}, {"SIZE", 0.60f}, {"LPFREQ", 0.26f}, {"LPON", 1.0f}
-        }, juce::var() },
+        // === ROOM ===
+        { "Room - Small Room",             1,    0.0f, 25.0f, 100.0f, 0.76f, 35.0f, 199.0f, false },
+        { "Room - Live Room",              1,  -10.0f, 35.0f, 100.0f, 1.00f, 55.0f, 199.0f, false },
+        { "Room - Studio A",               1,   10.0f, 30.0f, 100.0f, 0.92f, 50.0f, 199.0f, false },
+        { "Room - Jazz Club",              1,  -20.0f, 40.0f, 100.0f, 1.08f, 60.0f, 119.0f, true  },
+        { "Room - Drum Room",              1,   15.0f, 30.0f, 100.0f, 0.80f, 45.0f,  90.0f, true  },
+        { "Room - Wood Room",              1,  -45.0f, 30.0f, 100.0f, 0.95f, 50.0f, 199.0f, false },
+        { "Room - Bright Chamber",         1,   55.0f, 32.0f, 100.0f, 1.15f, 60.0f, 150.0f, true  },
+        { "Room - Send",                   1,    0.0f,100.0f,   0.0f, 1.00f, 55.0f, 120.0f, true  },
 
-        // === HALL PRESETS (4) ===
-        { "Hall - Concert Hall", {
-            {"TYPE", 0.4f}, {"CHARACTER", 0.50f}, {"WET", 0.35f}, {"DRY", 1.0f},
-            {"DECAY", 0.60f}, {"SIZE", 0.75f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Hall - Cathedral", {
-            {"TYPE", 0.4f}, {"CHARACTER", 0.45f}, {"WET", 0.45f}, {"DRY", 0.85f},
-            {"DECAY", 0.80f}, {"SIZE", 0.90f}, {"LPFREQ", 0.21f}, {"LPON", 1.0f}
-        }, juce::var() },
-        { "Hall - Theater", {
-            {"TYPE", 0.4f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
-            {"DECAY", 0.55f}, {"SIZE", 0.65f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Hall - Ballroom", {
-            {"TYPE", 0.4f}, {"CHARACTER", 0.60f}, {"WET", 0.40f}, {"DRY", 1.0f},
-            {"DECAY", 0.70f}, {"SIZE", 0.80f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
+        // === HALL ===
+        { "Hall - Concert Hall",           2,    0.0f, 35.0f, 100.0f, 1.17f, 75.0f, 199.0f, false },
+        { "Hall - Cathedral",              2,  -10.0f, 45.0f,  85.0f, 1.55f, 90.0f, 100.0f, true  },
+        { "Hall - Theater",                2,   10.0f, 30.0f, 100.0f, 1.08f, 65.0f, 199.0f, false },
+        { "Hall - Ballroom",               2,   20.0f, 40.0f, 100.0f, 1.35f, 80.0f, 199.0f, false },
+        { "Hall - Strings Hall",           2,  -25.0f, 35.0f, 100.0f, 1.35f, 80.0f, 100.0f, true  },
+        { "Hall - Dark Hall",              2,  -65.0f, 40.0f,  95.0f, 1.45f, 85.0f, 120.0f, true  },
+        { "Hall - Choir Loft",             2,   35.0f, 38.0f,  95.0f, 1.60f, 85.0f, 140.0f, true  },
+        { "Hall - Send",                   2,    0.0f,100.0f,   0.0f, 1.25f, 75.0f, 120.0f, true  },
 
-        // === SPRING PRESETS (4) ===
-        { "Spring - Vintage Spring", {
-            {"TYPE", 0.6f}, {"CHARACTER", 0.45f}, {"WET", 0.35f}, {"DRY", 1.0f},
-            {"DECAY", 0.50f}, {"SIZE", 0.50f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Spring - Surf Guitar", {
-            {"TYPE", 0.6f}, {"CHARACTER", 0.60f}, {"WET", 0.45f}, {"DRY", 1.0f},
-            {"DECAY", 0.55f}, {"SIZE", 0.55f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Spring - Dub Echo", {
-            {"TYPE", 0.6f}, {"CHARACTER", 0.35f}, {"WET", 0.50f}, {"DRY", 0.90f},
-            {"DECAY", 0.65f}, {"SIZE", 0.60f}, {"LPFREQ", 0.32f}, {"LPON", 1.0f}
-        }, juce::var() },
-        { "Spring - Twang", {
-            {"TYPE", 0.6f}, {"CHARACTER", 0.70f}, {"WET", 0.40f}, {"DRY", 1.0f},
-            {"DECAY", 0.45f}, {"SIZE", 0.45f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
+        // === SPRING ===
+        { "Spring - Vintage Spring",       3,  -10.0f, 35.0f, 100.0f, 1.00f, 50.0f, 199.0f, false },
+        { "Spring - Surf Guitar",          3,   20.0f, 45.0f, 100.0f, 1.08f, 55.0f, 199.0f, false },
+        { "Spring - Dub Spring",           3,  -30.0f, 50.0f,  90.0f, 1.26f, 60.0f, 142.0f, true  },  // v1.14.0: was "Dub Echo"
+        { "Spring - Twang",                3,   40.0f, 40.0f, 100.0f, 0.92f, 45.0f, 199.0f, false },
+        { "Spring - Amp Spring",           3,    0.0f, 25.0f, 100.0f, 0.85f, 40.0f, 199.0f, false },
+        { "Spring - Dark Tank",            3,  -55.0f, 40.0f, 100.0f, 1.10f, 50.0f, 140.0f, true  },
+        { "Spring - Bright Tank",          3,   65.0f, 45.0f,  95.0f, 1.40f, 65.0f, 160.0f, true  },
+        { "Spring - Send",                 3,    0.0f,100.0f,   0.0f, 1.00f, 50.0f, 150.0f, true  },
 
-        // === PLATE PRESETS (4) ===
-        { "Plate - Studio Plate", {
-            {"TYPE", 0.8f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
-            {"DECAY", 0.50f}, {"SIZE", 0.55f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Plate - Shimmer Plate", {
-            {"TYPE", 0.8f}, {"CHARACTER", 0.70f}, {"WET", 0.40f}, {"DRY", 1.0f},
-            {"DECAY", 0.65f}, {"SIZE", 0.70f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Plate - Vocal Plate", {
-            {"TYPE", 0.8f}, {"CHARACTER", 0.50f}, {"WET", 0.25f}, {"DRY", 1.0f},
-            {"DECAY", 0.45f}, {"SIZE", 0.50f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Plate - Lush Plate", {
-            {"TYPE", 0.8f}, {"CHARACTER", 0.45f}, {"WET", 0.45f}, {"DRY", 0.95f},
-            {"DECAY", 0.70f}, {"SIZE", 0.75f}, {"LPFREQ", 0.26f}, {"LPON", 1.0f}
-        }, juce::var() },
+        // === PLATE ===
+        { "Plate - Studio Plate",          4,   10.0f, 30.0f, 100.0f, 1.00f, 55.0f, 199.0f, false },
+        { "Plate - Shimmer Plate",         4,   40.0f, 40.0f, 100.0f, 1.26f, 70.0f, 199.0f, false },
+        { "Plate - Vocal Plate",           4,    0.0f, 25.0f, 100.0f, 0.92f, 50.0f, 199.0f, false },
+        { "Plate - Lush Plate",            4,  -10.0f, 45.0f,  95.0f, 1.35f, 75.0f, 119.0f, true  },
+        { "Plate - Snare Plate",           4,   30.0f, 30.0f, 100.0f, 0.85f, 45.0f, 180.0f, true  },
+        { "Plate - Dark Plate",            4,  -45.0f, 35.0f, 100.0f, 1.15f, 60.0f, 120.0f, true  },
+        { "Plate - Long Plate",            4,   15.0f, 40.0f,  95.0f, 1.60f, 85.0f, 120.0f, true  },
+        { "Plate - Send",                  4,    0.0f,100.0f,   0.0f, 1.10f, 60.0f, 150.0f, true  },
 
-        // === AMBIENT PRESETS (4) ===
-        { "Ambient - Pad Wash", {
-            {"TYPE", 1.0f}, {"CHARACTER", 0.40f}, {"WET", 0.50f}, {"DRY", 0.80f},
-            {"DECAY", 0.75f}, {"SIZE", 0.85f}, {"LPFREQ", 0.26f}, {"LPON", 1.0f}
-        }, juce::var() },
-        { "Ambient - Infinite Drone", {
-            {"TYPE", 1.0f}, {"CHARACTER", 0.35f}, {"WET", 0.60f}, {"DRY", 0.60f},
-            {"DECAY", 1.0f}, {"SIZE", 1.0f}, {"LPFREQ", 0.21f}, {"LPON", 1.0f}
-        }, juce::var() },
-        { "Ambient - Ethereal", {
-            {"TYPE", 1.0f}, {"CHARACTER", 0.55f}, {"WET", 0.55f}, {"DRY", 0.75f},
-            {"DECAY", 0.80f}, {"SIZE", 0.90f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
-        }, juce::var() },
-        { "Ambient - Cloud Nine", {
-            {"TYPE", 1.0f}, {"CHARACTER", 0.50f}, {"WET", 0.65f}, {"DRY", 0.70f},
-            {"DECAY", 0.85f}, {"SIZE", 0.95f}, {"LPFREQ", 0.32f}, {"LPON", 1.0f}
-        }, juce::var() }
+        // === AMBIENT ===
+        // v1.14.0: Infinite Drone, Ethereal and Cloud Nine trimmed WET and DRY
+        // together (same balance) from +7.5 / +6.8 / +6.7 dB re input.
+        { "Ambient - Pad Wash",            5,  -20.0f, 50.0f,  80.0f, 1.45f, 85.0f, 119.0f, true  },
+        { "Ambient - Infinite Drone",       5,  -30.0f, 42.5f,  42.5f, 2.00f,100.0f, 100.0f, true  },
+        { "Ambient - Ethereal",            5,   10.0f, 42.2f,  57.5f, 1.55f, 90.0f, 199.0f, false },
+        { "Ambient - Cloud Nine",          5,    0.0f, 50.4f,  54.3f, 1.66f, 95.0f, 142.0f, true  },
+        { "Ambient - Frozen Lake",         5,  -55.0f, 45.0f,  60.0f, 2.00f,100.0f, 140.0f, true  },
+        { "Ambient - Glass Haze",          5,   50.0f, 40.0f,  80.0f, 1.55f, 85.0f, 160.0f, true  },
+        { "Ambient - Soft Halo",           5,  -10.0f, 35.0f,  90.0f, 1.20f, 75.0f, 100.0f, true  },
+        { "Ambient - Send",                5,    0.0f,100.0f,   0.0f, 1.60f, 90.0f, 120.0f, true  },
     };
+
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets;
+    for (const auto& d : bank) {
+        auto norm = [this](const char* id, float v) { return parameters.getParameter(id)->convertTo0to1(v); };
+        factoryPresets.push_back({ d.name, {
+            { "TYPE", norm("TYPE", (float) d.type) }, { "CHARACTER", norm("CHARACTER", d.character) },
+            { "WET", norm("WET", d.wet) }, { "DRY", norm("DRY", d.dry) },
+            { "DECAY", norm("DECAY", d.decay) }, { "SIZE", norm("SIZE", d.size) },
+            { "LPFREQ", norm("LPFREQ", d.lowCutHz) }, { "LPON", d.lowCut ? 1.0f : 0.0f }
+        }, juce::var() });
+    }
+
+    // v1.14.0: the module (re)writes only the files the table names, so a
+    // renamed preset ("Dub Echo") would stay in the installed bank. When the
+    // bank is about to be rewritten (version sentinel differs), first remove
+    // factory files the table no longer names.
+    const auto factoryDir = presetManager.getFactoryPresetsDirectory();
+    const auto sentinel = factoryDir.getChildFile(".factory-version");
+    if (! (sentinel.existsAsFile() && sentinel.loadFileAsString().trim() == JucePlugin_VersionString)) {
+        juce::StringArray names;
+        for (const auto& d : bank) names.add(d.name);
+        for (const auto& f : factoryDir.findChildFiles(juce::File::findFiles, false, "*.json"))
+            if (! names.contains(f.getFileNameWithoutExtension()))
+                f.deleteFile();
+    }
 
     presetManager.initializeFactoryPresets(factoryPresets);
 }

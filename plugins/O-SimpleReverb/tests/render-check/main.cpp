@@ -33,6 +33,13 @@
          plugin, Plate carries 2f content that Room does not.
       8. (v1.13.0) DECAY's top range works: Ambient at SIZE 100 rings longer
          at each of 1.25x / 1.6x / 2.0x. v1.12.0 clamped room size at 1.05x.
+      9. (v1.14.0) Factory bank: 8 per type, one "Send" each (WET 100 /
+         DRY 0), no stale file from a renamed preset, and every insert preset
+         at or below +5 dB re input (K-weighted pink). v1.13.1: +0.4 .. +7.5.
+
+    The factory bank is read from the INSTALLED Factory folder, which the
+    processor rewrites only when its `.factory-version` sentinel differs. main()
+    deletes the sentinel first, so the bank under test is this build's table.
 */
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -138,11 +145,11 @@ struct KWeight {
     }
 };
 
-// Wet loudness of one type re its input, K-weighted, pink noise (Kellet), 4 s.
-static double typeLoudnessDb(int type)
+// Output loudness re input, K-weighted, pink noise (Kellet), 4 s after 1 s
+// settle, with the processor's parameters as they stand.
+static double loudnessDb(OSimpleReverbAudioProcessor& p)
 {
-    auto proc = makeProcessor();
-    setParam(*proc, "TYPE", (float) type); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
+    auto* proc = &p;
     const int bs = 512;
     proc->setPlayConfigDetails(2, 2, 48000.0, bs);
     proc->prepareToPlay(48000.0, bs);
@@ -170,6 +177,14 @@ static double typeLoudnessDb(int type)
         }
     }
     return 10.0 * std::log10(sumOut / sumIn);
+}
+
+// Wet loudness of one type re its input (WET 100 / DRY 0).
+static double typeLoudnessDb(int type)
+{
+    auto proc = makeProcessor();
+    setParam(*proc, "TYPE", (float) type); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
+    return loudnessDb(*proc);
 }
 
 // Goertzel power of x at f (Hz)
@@ -242,6 +257,13 @@ int main()
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
 
+    {
+        auto proc = makeProcessor();   // locate the Factory folder, then force a rewrite
+        auto dir = proc->presetManager.getFactoryPresetsDirectory();
+        dir.getChildFile(".factory-version").deleteFile();
+        dir.getChildFile("Spring - Dub Echo.json").replaceWithText("{}");   // stand-in for a v1.13.1 file
+    }
+
     // ── 1. Factory presets recall their TYPE ─────────────────────────────────
     {
         auto proc = makeProcessor();
@@ -269,7 +291,7 @@ int main()
                             name.toRawUTF8(), expected, dsp, host, page);
             }
         }
-        check(factoryCount == 24, "24 factory presets found (" + juce::String(factoryCount) + ")");
+        check(factoryCount == 48, "48 factory presets found (" + juce::String(factoryCount) + ")");
         check(wrong == 0, "every factory preset recalls its named TYPE in DSP, host and page ("
                           + juce::String(wrong) + " wrong)");
     }
@@ -390,6 +412,48 @@ int main()
         const double t1 = ambientTailSeconds(1.25f), t2 = ambientTailSeconds(1.6f), t3 = ambientTailSeconds(2.0f);
         check(t2 > t1 * 1.1 && t3 > t2 * 1.1, "Ambient SIZE 100 tail -40 dB: 1.25x " + juce::String(t1, 2) + " s, 1.6x "
                                               + juce::String(t2, 2) + " s, 2.0x " + juce::String(t3, 2) + " s (each > +10 %)");
+    }
+
+    // ── 9. v1.14.0: factory bank shape and level ─────────────────────────────
+    // Each factory preset's output re its input (K-weighted pink noise), so a
+    // step through the bank does not jump in level. Send presets go on an aux
+    // bus with no dry beside them; they are listed but not held to the ceiling.
+    {
+        auto proc = makeProcessor();
+        const juce::StringArray typeNames { "Booth", "Room", "Hall", "Spring", "Plate", "Ambient" };
+        int perType[6] = {}, sends = 0, badSends = 0;
+        double lo = 1.0e9, hi = -1.0e9;
+        juce::String loName, hiName;
+        for (const auto& name : proc->presetManager.getPresetList()) {
+            if (! proc->presetManager.isFactoryPreset(name))
+                continue;
+            const int t = typeNames.indexOf(name.upToFirstOccurrenceOf(" - ", false, false));
+            if (t >= 0) ++perType[t];
+            auto fresh = makeProcessor();
+            fresh->presetManager.loadPreset(name);
+            const double db = loudnessDb(*fresh);
+            auto v = [&](const char* id) { return fresh->parameters.getParameter(id)->convertFrom0to1(
+                                                      fresh->parameters.getParameter(id)->getValue()); };
+            std::printf("  %-30s %+5.1f dB   char %+5.0f wet %5.1f dry %5.1f decay %.2fx size %3.0f lowcut %s %3.0f Hz\n",
+                        name.toRawUTF8(), db, v("CHARACTER"), v("WET"), v("DRY"), v("DECAY"), v("SIZE"),
+                        v("LPON") >= 0.5f ? "on " : "off", v("LPFREQ"));
+            if (name.endsWith(" - Send")) {
+                ++sends;
+                if (v("WET") != 100.0f || v("DRY") != 0.0f) ++badSends;
+                continue;
+            }
+            if (db < lo) { lo = db; loName = name; }
+            if (db > hi) { hi = db; hiName = name; }
+        }
+        bool eight = true;
+        for (int n : perType) eight = eight && n == 8;
+        check(eight, "8 factory presets per type");
+        check(sends == 6 && badSends == 0, "one Send per type, each WET 100 / DRY 0 (" + juce::String(sends)
+                                           + " sends, " + juce::String(badSends) + " wrong)");
+        check(! proc->presetManager.getFactoryPresetsDirectory().getChildFile("Spring - Dub Echo.json").exists(),
+              "renamed preset's stale file removed from the installed bank");
+        check(hi <= 5.0, "insert presets " + juce::String(lo, 1) + " (" + loName + ") .. "
+                         + juce::String(hi, 1) + " dB (" + hiName + ") re input, ceiling +5.0");
     }
 
     std::printf("\n%s (%d failure%s)\n", failures == 0 ? "ALL PASS" : "FAILED", failures, failures == 1 ? "" : "s");

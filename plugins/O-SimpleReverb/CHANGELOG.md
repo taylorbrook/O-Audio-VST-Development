@@ -2,6 +2,59 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.14.0] - 2026-09-30
+
+**Factory bank reviewed and doubled: 24 -> 48 presets.** MINOR: new presets,
+three existing presets play quieter, and one is renamed. No parameter ID,
+range, type or state format changed.
+
+### Added
+- **24 factory presets, for 8 per type.** Each type gains:
+  - a **Send** preset (WET 100 / DRY 0) for an aux bus. Until now every
+    preset carried 60-100 % dry, which doubles the dry signal on a send;
+  - three voicings that use the dark and bright ends of CHARACTER. The old
+    bank only used -30 .. +40.
+  - Booth: Snare Ambience, Voiceover, Dark Closet. Room: Drum Room, Wood
+    Room, Bright Chamber. Hall: Strings Hall, Dark Hall, Choir Loft. Spring:
+    Amp Spring, Dark Tank, Bright Tank. Plate: Snare Plate, Dark Plate, Long
+    Plate. Ambient: Frozen Lake, Glass Haze, Soft Halo.
+
+### Changed
+- **Insert presets now span +0.2 .. +4.7 dB re input** (K-weighted pink
+  noise). Before, they spanned +0.4 .. +7.5 dB, so stepping from Booth to
+  Ambient jumped about 7 dB. Infinite Drone, Ethereal and Cloud Nine scale
+  WET and DRY together, so the balance is unchanged:
+  - Infinite Drone: 60/60 -> 42.5/42.5;
+  - Ethereal: 55/75 -> 42.2/57.5;
+  - Cloud Nine: 65/70 -> 50.4/54.3.
+
+  All three now measure +4.5 dB, down from +7.5 / +6.8 / +6.7 dB. The Send
+  presets sit at +3.2 (Spring) .. +9.7 dB (Ambient) wet-only; on a bus the
+  send level sets that.
+- **"Spring - Dub Echo" is renamed "Spring - Dub Spring"**, because the
+  plugin has no echo. Its values are the same. When the version changes, the
+  processor now removes factory files that the table no longer names, so the
+  old name does not stay in the installed bank. Sessions that recall it still
+  load their own state.
+- **The factory table is written in the parameters' own units** (%, x, Hz)
+  and converted once through each range with `convertTo0to1`. Before, the
+  values were hand-normalised fractions, so skewed DECAY entries needed hand
+  math (0.33 meant 0.76x). The other 21 presets recall exactly as before.
+
+### Verification
+- `tests/render-check`: **32/32**. It now deletes the installed bank's
+  `.factory-version` sentinel first, so it tests this build's table. New
+  section 9 checks:
+  - 8 presets per type;
+  - one Send per type, at WET 100 / DRY 0;
+  - the stale "Dub Echo" file is gone;
+  - every insert preset is at or below +5 dB re input.
+
+  It prints the full bank with each preset's level. Section 1's count went
+  from 24 to 48; all 48 recall their named TYPE.
+- **Not yet checked in a DAW:** the new voicings were chosen by parameter
+  range and level, not by ear.
+
 ## [1.13.1] - 2026-09-30
 
 **Info-tier review sweep (1 finding).** PATCH: dead code only; nothing the
