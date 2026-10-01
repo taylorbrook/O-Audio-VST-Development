@@ -115,6 +115,9 @@ private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    // v1.9.0: the factory bank, written to Presets/Factory/ once per version.
+    void initializeFactoryPresets();
+
     // The shared body of processBlock / processBlockBypassed. hostBypassed is
     // true when the host routed the block through processBlockBypassed.
     void process(juce::AudioBuffer<float>& buffer, bool hostBypassed);

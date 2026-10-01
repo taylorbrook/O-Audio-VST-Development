@@ -32,7 +32,7 @@ Ouaricon Plugins:
 | O-Marimba | 📦 Installed | 1.15.0 | Synth (Physical Model) | 2026-09-26 |
 | O-Comp | 📦 Installed | 1.11.0 | Audio Effect (Compressor) |  2026-09-27 |
 | O-AnalogEQ | 📦 Installed | 1.5.4 | Audio Effect (EQ) | 2026-09-26 |
-| O-DigiDelay | 📦 Installed | 1.8.1 | Audio Effect (Delay) | 2026-09-30 |
+| O-DigiDelay | 📦 Installed | 1.9.0 | Audio Effect (Delay) | 2026-09-30 |
 | O-SimpleReverb | 📦 Installed | 1.13.1 | Audio Effect (Reverb) | 2026-09-30 |
 | O-Polystutter | 📦 Installed | 1.16.0 | Audio Effect (Beat Repeater) | 2026-09-27 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed, v1.12.4 — repackage pending) |
 | O-Lyrica | 📦 Installed | 2.6.0 | Synth (Physical Modeling Harp) | 2026-09-26 |

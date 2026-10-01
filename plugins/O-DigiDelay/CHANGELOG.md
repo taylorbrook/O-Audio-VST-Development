@@ -5,6 +5,46 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-09-30
+
+Factory bank grows from 12 to 24 presets, and now ships with the plugin.
+No parameter, range or state format changed.
+
+### Fixed
+
+- **The factory bank never shipped.** The 12 factory presets existed only as
+  hand-written JSON on the development machine
+  (`~/Library/O-DigiDelay/Presets/Factory/`). The processor never called
+  `initializeFactoryPresets()`, so an install from a release had none. The
+  bank is now defined in `PluginProcessor.cpp` and written on first run.
+
+### Added
+
+- **`initializeFactoryPresets()`.** Presets are written in real units (ms, %,
+  division name) and normalized through each parameter's own
+  `convertTo0to1`, so no hand-typed normalized values can drift from the
+  layout.
+- **The `.factory-version` sentinel (ported from preset-manager module
+  v1.0.9, WR-04)** in the vendored `OuariconPresetManager.h`. The factory
+  files are rewritten only when the plugin version changes, not on every
+  processor construction. Factory names are sanitized like save/load/delete.
+- **12 new factory presets:**
+  - Rhythmic: Quarter Note Echo (1/4), Sixteenth Stutter (1/16), Dotted
+    Quarter Space (1/4D), Sixteenth Triplet Roll (1/16T), Quintuplet
+    Scatter (1/8(5)).
+  - Dub / runaway: Dub Throw (1/4D, 82 %), Runaway (375 ms, 92 %), Endless
+    Repeats (1/4, 95 %, the DSP clamp).
+  - Texture / mod: Haas Widener (8 ms, R +12 ms), Slow Chorus (18 ms, mod
+    60 %), Resonant Comb (12 ms, about 83 Hz, 80 %), Cathedral Wash
+    (1900 ms, 85 %, full spread).
+
+### Changed
+
+- The existing 12 presets keep their sound. Their free times are rounded to
+  the whole millisecond (500.75 -> 500 ms, for example; every change is under
+  1 ms), and synced presets store 500 ms as the TIME value that applies when
+  SYNC is switched off.
+
 ## [1.8.1] - 2026-09-30
 
 Info-tier sweep of the 2026-09-30 review (CODE_REVIEW.md IN-01..IN-09, IN-11,
