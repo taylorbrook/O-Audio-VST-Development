@@ -4,7 +4,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.13.1
+- **Version:** 1.14.0
 - **Type:** Audio Effect (Reverb)
 - **Complexity:** 4.2 (Complex)
 
@@ -28,6 +28,7 @@
 - **2026-09-30 (v1.12.0):** Fresh audit - click-free LOW CUT on/off (HF burst -1.1 -> -59.5 dB) and freq (-23.5 -> -54.6), CHARACTER Bright zipper + +0.5 step (-46 -> -67 dB), TYPE duck-and-swap + EQ crossfade (5.4x -> 1.48x), per-type level trim at the reverb input (spread 7.7 -> 0.07 dB), 270-degree knob arcs, one host gesture per param, knob/switch keyboard + ARIA (R7), time-based VU, failed-load display, host names "Low Cut Freq/On" (IN-02), scoped WebView2 folder (IN-03); render-check 16/16, v1.11.0 fails 7
 - **2026-09-30 (v1.13.1):** Info-tier review sweep — IN-01: removed the unused savePreset/deletePreset/isFactoryPreset WebView natives; untracked the gitignored modules/preset-manager.js copy
 - **2026-09-30 (v1.13.0):** Real pitch flutter (swept delay: Spring 6c@4.5Hz, Hall 3c@0.15Hz, Ambient 4c@0.4Hz; L/R share phase — the mono-summing reverb turned an offset into a flanger), real octave-up Plate shimmer (two-grain shifter, was 1.5 kHz ring mod), DECAY headroom map above 1.0x (Ambient tail 1.25/1.6/2.0x: 6.01/6.11/6.11 -> 4.27/4.95/6.28 s); render-check 23/23
+- **2026-09-30 (v1.14.0):** Factory bank review - 24 -> 48 presets (8/type incl. a WET 100/DRY 0 Send each; dark/bright CHARACTER voicings), insert presets level-capped (+0.4..+7.5 -> +0.2..+4.7 dB; Infinite Drone/Ethereal/Cloud Nine WET+DRY scaled), "Dub Echo" -> "Dub Spring" with stale-factory-file sweep, table authored in engineering units + convertTo0to1; render-check 32/32
 
 ## Known Issues
 
