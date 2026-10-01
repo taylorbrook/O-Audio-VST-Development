@@ -1,0 +1,193 @@
+== 1. FDN: RT60 against target, DECAY x SIZE (48 kHz, N=16, Hadamard) ==
+  Booth decay 0.5x size x1.0         mid  0.232 s (+15.8 %)  hf  0.234 (want  0.11, +112.3 %)  lf  0.234  corrLR -0.049  mix  15.0 ms
+  Booth decay 1.0x size x0.5         mid  0.396 s ( -0.9 %)  hf  0.309 (want  0.22, +40.3 %)  lf  0.400  corrLR -0.110  mix   7.5 ms
+  Booth decay 1.0x size x1.0         mid  0.401 s ( +0.2 %)  hf  0.323 (want  0.22, +46.9 %)  lf  0.408  corrLR -0.054  mix  15.0 ms
+  Booth decay 1.0x size x2.0         mid  0.406 s ( +1.6 %)  hf  0.314 (want  0.22, +42.7 %)  lf  0.404  corrLR -0.012  mix  30.0 ms
+  Booth decay 2.0x size x1.0         mid  0.788 s ( -1.5 %)  hf  0.594 (want  0.44, +35.0 %)  lf  0.799  corrLR -0.078  mix  15.0 ms
+  Room decay 0.5x size x1.0          mid  0.526 s ( -4.3 %)  hf  0.379 (want  0.28, +37.9 %)  lf  0.550  corrLR -0.051  mix  25.0 ms
+  Room decay 1.0x size x0.5          mid  1.085 s ( -1.4 %)  hf  0.695 (want  0.55, +26.4 %)  lf  1.094  corrLR +0.017  mix  17.5 ms
+  Room decay 1.0x size x1.0          mid  1.080 s ( -1.8 %)  hf  0.719 (want  0.55, +30.8 %)  lf  1.053  corrLR -0.004  mix  27.5 ms
+  Room decay 1.0x size x2.0          mid  1.085 s ( -1.4 %)  hf  0.742 (want  0.55, +35.0 %)  lf  1.116  corrLR +0.000  mix  50.0 ms
+  Room decay 2.0x size x1.0          mid  2.147 s ( -2.4 %)  hf  1.402 (want  1.10, +27.4 %)  lf  2.178  corrLR -0.010  mix  25.0 ms
+  Hall decay 0.5x size x1.0          mid  1.452 s ( -3.2 %)  hf  0.876 (want  0.68, +29.8 %)  lf  1.521  corrLR -0.005  mix  65.0 ms
+  Hall decay 1.0x size x0.5          mid  2.804 s ( -6.5 %)  hf  1.644 (want  1.35, +21.8 %)  lf  3.065  corrLR -0.024  mix  35.0 ms
+  Hall decay 1.0x size x1.0          mid  2.827 s ( -5.8 %)  hf  1.677 (want  1.35, +24.2 %)  lf  3.071  corrLR -0.005  mix  62.5 ms
+  Hall decay 1.0x size x2.0          mid  2.959 s ( -1.4 %)  hf  1.739 (want  1.35, +28.8 %)  lf  2.966  corrLR -0.008  mix 182.5 ms
+  Hall decay 2.0x size x1.0          mid  5.700 s ( -5.0 %)  hf  3.271 (want  2.70, +21.2 %)  lf  6.070  corrLR -0.014  mix  62.5 ms
+  Ambient decay 0.5x size x1.0       mid  3.409 s ( -2.6 %)  hf  2.332 (want  2.10, +11.0 %)  lf  3.500  corrLR +0.002  mix 107.5 ms
+  Ambient decay 1.0x size x0.5       mid  6.709 s ( -4.2 %)  hf  4.345 (want  4.20,  +3.4 %)  lf  6.980  corrLR -0.007  mix  45.0 ms
+  Ambient decay 1.0x size x1.0       mid  6.740 s ( -3.7 %)  hf  4.495 (want  4.20,  +7.0 %)  lf  6.809  corrLR +0.007  mix 110.0 ms
+  Ambient decay 1.0x size x2.0       mid  6.714 s ( -4.1 %)  hf  4.684 (want  4.20, +11.5 %)  lf  6.911  corrLR -0.010  mix 157.5 ms
+  Ambient decay 2.0x size x1.0       mid 13.714 s ( -2.0 %)  hf  8.685 (want  8.40,  +3.4 %)  lf 14.154  corrLR -0.011  mix 105.0 ms
+
+== 2. FDN: line count and matrix (Hall, 48 kHz) ==
+  Hall N=8 Hadamard                  mid  2.868 s ( -4.4 %)  hf  1.707 (want  1.35, +26.5 %)  lf  2.957  corrLR +0.011  mix  62.5 ms
+  Hall N=8 Hadamard no in-diffusion  mid  2.869 s ( -4.4 %)  hf  1.706 (want  1.35, +26.4 %)  lf  2.961  corrLR +0.011  mix 287.5 ms
+  Hall N=8 Householder               mid  2.787 s ( -7.1 %)  hf  1.697 (want  1.35, +25.7 %)  lf  2.996  corrLR +0.023  mix  62.5 ms
+  Hall N=8 Householder no in-diffusion mid  2.808 s ( -6.4 %)  hf  1.709 (want  1.35, +26.6 %)  lf  2.966  corrLR +0.148  mix 390.0 ms
+  Hall N=16 Hadamard                 mid  2.827 s ( -5.8 %)  hf  1.677 (want  1.35, +24.2 %)  lf  3.071  corrLR -0.005  mix  62.5 ms
+  Hall N=16 Hadamard no in-diffusion mid  2.849 s ( -5.0 %)  hf  1.687 (want  1.35, +25.0 %)  lf  3.063  corrLR +0.019  mix 177.5 ms
+  Hall N=16 Householder              mid  2.807 s ( -6.4 %)  hf  1.661 (want  1.35, +23.1 %)  lf  2.975  corrLR +0.034  mix  60.0 ms
+  Hall N=16 Householder no in-diffusion mid  2.842 s ( -5.3 %)  hf  1.690 (want  1.35, +25.2 %)  lf  2.917  corrLR +0.132  mix 310.0 ms
+  Booth N=8 Hadamard                 mid  0.400 s ( +0.0 %)  hf  0.317 (want  0.22, +44.0 %)  lf  0.405  corrLR -0.088  mix  15.0 ms
+  Booth N=16 Hadamard                mid  0.401 s ( +0.2 %)  hf  0.323 (want  0.22, +46.9 %)  lf  0.408  corrLR -0.054  mix  15.0 ms
+  Ambient N=8 Hadamard               mid  6.696 s ( -4.3 %)  hf  4.548 (want  4.20,  +8.3 %)  lf  7.001  corrLR -0.014  mix  90.0 ms
+  total loop delay (modes per Hz), size x1:  Booth N=8 0.06 s  Booth N=16 0.11 s  Room N=8 0.16 s  Room N=16 0.32 s  Hall N=8 0.38 s  Hall N=16 0.74 s  Ambient N=8 0.54 s  Ambient N=16 1.06 s
+
+== 3. FDN: interpolation in the loop (Hall, modulated lines) ==
+  static, integer lines              mid  2.862 s ( -4.6 %)  hf  1.753 (want  1.35, +29.9 %)  lf  3.035  corrLR -0.076  mix  55.0 ms
+  modulated, 3rd-order Lagrange      mid  2.827 s ( -5.8 %)  hf  1.677 (want  1.35, +24.2 %)  lf  3.071  corrLR -0.005  mix  62.5 ms
+  modulated, linear                  mid  2.814 s ( -6.2 %)  hf  1.483 (want  1.35,  +9.8 %)  lf  3.071  corrLR -0.006  mix  62.5 ms
+  static, FRACTIONAL lines (Lagrange) mid  2.871 s ( -4.3 %)  hf  1.657 (want  1.35, +22.8 %)  lf  3.041  corrLR -0.080  mix  52.5 ms
+  static, FRACTIONAL lines (linear)  mid  2.844 s ( -5.2 %)  hf  1.351 (want  1.35,  +0.1 %)  lf  3.040  corrLR -0.076  mix  52.5 ms
+
+== 4. FDN: sample rate ==
+  Booth @ 44100 Hz                   mid  0.401 s ( +0.2 %)  hf  0.316 (want  0.22, +43.5 %)  lf  0.409  corrLR -0.040  mix  15.0 ms
+  Hall @ 44100 Hz                    mid  2.829 s ( -5.7 %)  hf  1.698 (want  1.35, +25.8 %)  lf  3.061  corrLR -0.014  mix  49.9 ms
+  Booth @ 96000 Hz                   mid  0.400 s ( -0.0 %)  hf  0.303 (want  0.22, +37.9 %)  lf  0.409  corrLR -0.037  mix  15.0 ms
+  Hall @ 96000 Hz                    mid  2.816 s ( -6.1 %)  hf  1.660 (want  1.35, +22.9 %)  lf  3.071  corrLR -0.008  mix  67.5 ms
+  Booth @ 192000 Hz                  mid  0.398 s ( -0.4 %)  hf  0.293 (want  0.22, +33.2 %)  lf  0.409  corrLR -0.026  mix  25.0 ms
+  Hall @ 192000 Hz                   mid  2.810 s ( -6.3 %)  hf  1.615 (want  1.35, +19.6 %)  lf  3.071  corrLR -0.005  mix 105.0 ms
+
+== 5. FDN: SIZE glide on a ringing tail (Hall, 300 Hz sine feed) ==
+  glide tau     0 ms: finite 1  peak 2.417  max|d2| during moves / held = 350.3x
+  glide tau    50 ms: finite 1  peak 4.346  max|d2| during moves / held = 20.4x
+  glide tau   250 ms: finite 1  peak 3.581  max|d2| during moves / held = 4.3x
+
+== 6. Plate: decay coefficient -> RT60 ==
+  size x0.7 T60 1.25 shimmer 0.00: decay 0.4958 loop 0.508 s  mid  1.345 s ( +7.6 %)  hf  1.171  corrLR -0.000  mix 127.5 ms
+  size x0.7 T60 1.25 shimmer 0.08: decay 0.4958 loop 0.508 s  mid  1.272 s ( +1.8 %)  hf  1.121  corrLR -0.001  mix 127.5 ms
+  size x0.7 T60 2.50 shimmer 0.00: decay 0.7041 loop 0.508 s  mid  2.602 s ( +4.1 %)  hf  2.059  corrLR +0.014  mix 252.5 ms
+  size x0.7 T60 2.50 shimmer 0.08: decay 0.7041 loop 0.508 s  mid  2.340 s ( -6.4 %)  hf  1.884  corrLR +0.015  mix 222.5 ms
+  size x0.7 T60 5.00 shimmer 0.00: decay 0.8391 loop 0.508 s  mid  5.175 s ( +3.5 %)  hf  3.518  corrLR -0.002  mix 222.5 ms
+  size x0.7 T60 5.00 shimmer 0.08: decay 0.8391 loop 0.508 s  mid  4.186 s (-16.3 %)  hf  3.023  corrLR +0.000  mix 257.5 ms
+  size x1.0 T60 1.25 shimmer 0.00: decay 0.3671 loop 0.725 s  mid  1.424 s (+13.9 %)  hf  1.296  corrLR +0.003  mix 282.5 ms
+  size x1.0 T60 1.25 shimmer 0.08: decay 0.3671 loop 0.725 s  mid  1.375 s (+10.0 %)  hf  1.259  corrLR +0.003  mix 282.5 ms
+  size x1.0 T60 2.50 shimmer 0.00: decay 0.6059 loop 0.725 s  mid  2.686 s ( +7.4 %)  hf  2.235  corrLR -0.014  mix 445.0 ms
+  size x1.0 T60 2.50 shimmer 0.08: decay 0.6059 loop 0.725 s  mid  2.492 s ( -0.3 %)  hf  2.095  corrLR -0.014  mix 450.0 ms
+  size x1.0 T60 5.00 shimmer 0.00: decay 0.7784 loop 0.725 s  mid  5.193 s ( +3.9 %)  hf  3.857  corrLR +0.003  mix 435.0 ms
+  size x1.0 T60 5.00 shimmer 0.08: decay 0.7784 loop 0.725 s  mid  4.470 s (-10.6 %)  hf  3.440  corrLR +0.002  mix 440.0 ms
+  size x1.4 T60 1.25 shimmer 0.00: decay 0.2458 loop 1.016 s  mid  1.510 s (+20.8 %)  hf  1.447  corrLR +0.006  mix 457.5 ms
+  size x1.4 T60 1.25 shimmer 0.08: decay 0.2458 loop 1.016 s  mid  1.485 s (+18.8 %)  hf  1.426  corrLR +0.006  mix 457.5 ms
+  size x1.4 T60 2.50 shimmer 0.00: decay 0.4958 loop 1.016 s  mid  2.680 s ( +7.2 %)  hf  2.347  corrLR +0.001  mix 477.5 ms
+  size x1.4 T60 2.50 shimmer 0.08: decay 0.4958 loop 1.016 s  mid  2.538 s ( +1.5 %)  hf  2.239  corrLR -0.001  mix 477.5 ms
+  size x1.4 T60 5.00 shimmer 0.00: decay 0.7042 loop 1.016 s  mid  5.180 s ( +3.6 %)  hf  4.132  corrLR -0.002  mix 477.5 ms
+  size x1.4 T60 5.00 shimmer 0.08: decay 0.7042 loop 1.016 s  mid  4.674 s ( -6.5 %)  hf  3.791  corrLR -0.002  mix 477.5 ms
+  T60 2.50 @ 44100 Hz: mid  2.679 s ( +7.2 %)
+  T60 2.50 @ 96000 Hz: mid  2.689 s ( +7.6 %)
+
+== 7. Plate: shifter inside the loop ==
+  decay 0.9999, damping 0, shimmer 0.08: energy 2-4 s 0 dB, 18-20 s -32.5 dB, 38-40 s -41.2 dB (peak 0.88) -> decaying
+  decay 0.9999, damping 0, shimmer 0.25: energy 2-4 s 0 dB, 18-20 s -31.8 dB, 38-40 s -36.0 dB (peak 0.80) -> decaying
+  decay 0.9999, damping 0, shimmer 1.00: energy 2-4 s 0 dB, 18-20 s -18.9 dB, 38-40 s -21.9 dB (peak 0.65) -> decaying
+  shimmer 0.00: 600/300 Hz  -47.6 dB @0.1-0.5 s (burst on), -47.3 @0.6-1.1, -48.6 @1.6-2.1, -51.5 @2.6-3.1 | 1200/300 @2.6-3.1 -60.2 dB
+  shimmer 0.04: 600/300 Hz  -45.6 dB @0.1-0.5 s (burst on), -42.5 @0.6-1.1, -34.1 @1.6-2.1, -33.0 @2.6-3.1 | 1200/300 @2.6-3.1 -54.4 dB
+  shimmer 0.08: 600/300 Hz  -43.7 dB @0.1-0.5 s (burst on), -38.7 @0.6-1.1, -26.9 @1.6-2.1, -26.3 @2.6-3.1 | 1200/300 @2.6-3.1 -42.4 dB
+  shimmer 0.15: 600/300 Hz  -41.0 dB @0.1-0.5 s (burst on), -34.0 @0.6-1.1, -19.8 @1.6-2.1, -20.1 @2.6-3.1 | 1200/300 @2.6-3.1 -31.4 dB
+
+== 8. Spring: RT60, chirp ==
+  44100 Hz T60 2.50: K 5  loop 1658.0 samples  g 0.8954  mid RT60  2.509 s ( +0.4 %)  band 2-4k RT60  2.589
+  48000 Hz T60 1.25: K 5  loop 1816.0 samples  g 0.8017  mid RT60  1.259 s ( +0.7 %)  band 2-4k RT60  1.311
+  48000 Hz T60 2.50: K 5  loop 1816.0 samples  g 0.8954  mid RT60  2.507 s ( +0.3 %)  band 2-4k RT60  2.571
+    first-echo arrival (envelope peak, ms) vs analytic echo time:  300 Hz 42.9 (39.8)  600 Hz 41.5 (39.9)  1000 Hz 41.0 (40.0)  2000 Hz 41.5 (40.8)  3000 Hz 42.8 (43.5)  3800 Hz 45.9 (50.6)
+  48000 Hz T60 5.00: K 5  loop 1816.0 samples  g 0.9462  mid RT60  4.997 s ( -0.1 %)  band 2-4k RT60  5.061
+  96000 Hz T60 2.50: K 11  loop 3606.2 samples  g 0.8954  mid RT60  2.509 s ( +0.4 %)  band 2-4k RT60  2.577
+  M  40 a1 0.50: echo time 300 Hz 39.9 ms, 1 kHz 40.0, 3 kHz 42.1, 4 kHz 46.6  (chirp span 6.7 ms, loop delay 38.5 ms)
+  M  40 a1 0.62: echo time 300 Hz 39.9 ms, 1 kHz 40.0, 3 kHz 41.7, 4 kHz 47.2  (chirp span 7.3 ms, loop delay 38.9 ms)
+  M  40 a1 0.75: echo time 300 Hz 39.9 ms, 1 kHz 40.0, 3 kHz 41.2, 4 kHz 46.3  (chirp span 6.3 ms, loop delay 39.3 ms)
+  M  80 a1 0.50: echo time 300 Hz 39.7 ms, 1 kHz 40.0, 3 kHz 44.1, 4 kHz 53.2  (chirp span 13.5 ms, loop delay 36.9 ms)
+  M  80 a1 0.62: echo time 300 Hz 39.8 ms, 1 kHz 40.0, 3 kHz 43.5, 4 kHz 54.4  (chirp span 14.5 ms, loop delay 37.8 ms)
+  M  80 a1 0.75: echo time 300 Hz 39.9 ms, 1 kHz 40.0, 3 kHz 42.4, 4 kHz 52.5  (chirp span 12.6 ms, loop delay 38.7 ms)
+  M 120 a1 0.50: echo time 300 Hz 39.6 ms, 1 kHz 40.0, 3 kHz 46.2, 4 kHz 59.8  (chirp span 20.2 ms, loop delay 35.4 ms)
+  M 120 a1 0.62: echo time 300 Hz 39.7 ms, 1 kHz 40.0, 3 kHz 45.2, 4 kHz 61.5  (chirp span 21.8 ms, loop delay 36.8 ms)
+  M 120 a1 0.75: echo time 300 Hz 39.8 ms, 1 kHz 40.0, 3 kHz 43.5, 4 kHz 58.8  (chirp span 19.0 ms, loop delay 38.0 ms)
+
+== 10. FDN: shelf solved at 1 kHz (mid-band target), Booth diffusers scaled ==
+  Booth decay 0.5x size x1.0         mid  0.202 s ( +0.9 %)  hf  0.147 (want  0.11, +34.0 %)  lf  0.194  corrLR -0.067  mix   2.5 ms
+  Booth decay 1.0x size x0.5         mid  0.405 s ( +1.2 %)  hf  0.300 (want  0.22, +36.4 %)  lf  0.402  corrLR -0.044  mix   0.0 ms
+  Booth decay 1.0x size x1.0         mid  0.400 s ( -0.1 %)  hf  0.302 (want  0.22, +37.3 %)  lf  0.407  corrLR -0.067  mix   0.0 ms
+  Booth decay 1.0x size x2.0         mid  0.397 s ( -0.9 %)  hf  0.304 (want  0.22, +38.2 %)  lf  0.392  corrLR -0.051  mix  20.0 ms
+  Booth decay 2.0x size x1.0         mid  0.804 s ( +0.5 %)  hf  0.604 (want  0.44, +37.2 %)  lf  0.811  corrLR -0.117  mix   2.5 ms
+  Room decay 0.5x size x1.0          mid  0.539 s ( -2.0 %)  hf  0.383 (want  0.28, +39.2 %)  lf  0.562  corrLR -0.051  mix  25.0 ms
+  Room decay 1.0x size x0.5          mid  1.111 s ( +1.0 %)  hf  0.702 (want  0.55, +27.7 %)  lf  1.126  corrLR +0.016  mix  17.5 ms
+  Room decay 1.0x size x1.0          mid  1.105 s ( +0.5 %)  hf  0.727 (want  0.55, +32.1 %)  lf  1.083  corrLR -0.003  mix  27.5 ms
+  Room decay 1.0x size x2.0          mid  1.108 s ( +0.7 %)  hf  0.750 (want  0.55, +36.3 %)  lf  1.142  corrLR -0.001  mix  50.0 ms
+  Room decay 2.0x size x1.0          mid  2.204 s ( +0.2 %)  hf  1.417 (want  1.10, +28.8 %)  lf  2.234  corrLR -0.010  mix  25.0 ms
+  Hall decay 0.5x size x1.0          mid  1.514 s ( +0.9 %)  hf  0.889 (want  0.68, +31.7 %)  lf  1.595  corrLR -0.005  mix  65.0 ms
+  Hall decay 1.0x size x0.5          mid  2.960 s ( -1.3 %)  hf  1.670 (want  1.35, +23.7 %)  lf  3.261  corrLR -0.024  mix  35.0 ms
+  Hall decay 1.0x size x1.0          mid  2.967 s ( -1.1 %)  hf  1.703 (want  1.35, +26.2 %)  lf  3.227  corrLR -0.005  mix  62.5 ms
+  Hall decay 1.0x size x2.0          mid  3.091 s ( +3.0 %)  hf  1.764 (want  1.35, +30.7 %)  lf  3.110  corrLR -0.008  mix 185.0 ms
+  Hall decay 2.0x size x1.0          mid  6.024 s ( +0.4 %)  hf  3.325 (want  2.70, +23.1 %)  lf  6.426  corrLR -0.013  mix  62.5 ms
+  Ambient decay 0.5x size x1.0       mid  3.532 s ( +0.9 %)  hf  2.358 (want  2.10, +12.3 %)  lf  3.646  corrLR +0.002  mix 107.5 ms
+  Ambient decay 1.0x size x0.5       mid  6.976 s ( -0.3 %)  hf  4.397 (want  4.20,  +4.7 %)  lf  7.270  corrLR -0.007  mix  45.0 ms
+  Ambient decay 1.0x size x1.0       mid  7.014 s ( +0.2 %)  hf  4.546 (want  4.20,  +8.2 %)  lf  7.136  corrLR +0.007  mix 105.0 ms
+  Ambient decay 1.0x size x2.0       mid  6.978 s ( -0.3 %)  hf  4.735 (want  4.20, +12.7 %)  lf  7.205  corrLR -0.010  mix 157.5 ms
+  Ambient decay 2.0x size x1.0       mid 14.278 s ( +2.0 %)  hf  8.791 (want  8.40,  +4.7 %)  lf 14.796  corrLR -0.012  mix 105.0 ms
+  Booth @ 44100 Hz                   mid  0.400 s ( +0.1 %)  hf  0.305 (want  0.22, +38.7 %)  lf  0.406  corrLR -0.098  mix   0.0 ms
+  Hall @ 44100 Hz                    mid  2.971 s ( -1.0 %)  hf  1.724 (want  1.35, +27.7 %)  lf  3.216  corrLR -0.013  mix  49.9 ms
+  Ambient @ 44100 Hz                 mid  7.007 s ( +0.1 %)  hf  4.526 (want  4.20,  +7.8 %)  lf  7.120  corrLR +0.001  mix 114.7 ms
+  Booth @ 96000 Hz                   mid  0.402 s ( +0.5 %)  hf  0.288 (want  0.22, +31.0 %)  lf  0.408  corrLR -0.081  mix   5.0 ms
+  Hall @ 96000 Hz                    mid  2.971 s ( -1.0 %)  hf  1.682 (want  1.35, +24.6 %)  lf  3.249  corrLR -0.008  mix  67.5 ms
+  Ambient @ 96000 Hz                 mid  7.003 s ( +0.0 %)  hf  4.718 (want  4.20, +12.3 %)  lf  7.161  corrLR +0.002  mix 130.0 ms
+
+== 11. FDN: do two types share resonances? correlation of the tail's dB spectrum, 200-2000 Hz ==
+  Booth vs Room: +0.071
+  Booth vs Hall: -0.075
+  Booth vs Ambient: +0.014
+  Room vs Hall: -0.006
+  Room vs Ambient: +0.049
+  Hall vs Ambient: +0.015
+  Hall vs Hall with different damping (same delays): +0.926   <- the v1.x situation
+  Hall vs Hall at SIZE x1.3: +0.027
+
+== 12. FDN: SIZE glide, HF burst above 3 kHz (click metric of render-check section 5) ==
+  glide tau     0 ms: HF burst -11.5 dB re wet peak (held -80.4 dB)
+  glide tau    50 ms: HF burst -40.7 dB re wet peak (held -85.8 dB)
+  glide tau   150 ms: HF burst -53.0 dB re wet peak (held -85.5 dB)
+  glide tau   250 ms: HF burst -63.4 dB re wet peak (held -86.1 dB)
+  glide tau   400 ms: HF burst -65.4 dB re wet peak (held -85.1 dB)
+
+== 13. Plate: echo density over time (NED, 1 = Gaussian), and calibrated decay ==
+  FDN Hall (reference)          NED @ 20/50/100/200/400 ms: 0.35 0.85 0.99 1.06 0.95
+  Plate size x0.40 in-diffusion x1.00 (loop 0.290 s) NED @ 20/50/100/200/400 ms: 0.42 0.70 0.89 1.00 0.95
+  Plate size x0.40 in-diffusion x1.15 (loop 0.290 s) NED @ 20/50/100/200/400 ms: 0.31 0.64 0.78 0.93 0.97
+  Plate size x0.55 in-diffusion x1.00 (loop 0.399 s) NED @ 20/50/100/200/400 ms: 0.33 0.57 0.84 0.91 1.01
+  Plate size x0.55 in-diffusion x1.15 (loop 0.399 s) NED @ 20/50/100/200/400 ms: 0.21 0.42 0.73 0.86 1.00
+  Plate size x0.70 in-diffusion x1.00 (loop 0.508 s) NED @ 20/50/100/200/400 ms: 0.28 0.53 0.67 0.87 0.95
+  Plate size x0.70 in-diffusion x1.15 (loop 0.508 s) NED @ 20/50/100/200/400 ms: 0.22 0.33 0.62 0.74 0.96
+  Plate size x1.00 in-diffusion x1.00 (loop 0.725 s) NED @ 20/50/100/200/400 ms: 0.22 0.51 0.60 0.74 0.80
+  Plate size x1.00 in-diffusion x1.15 (loop 0.725 s) NED @ 20/50/100/200/400 ms: 0.18 0.39 0.47 0.61 0.79
+  size x0.40 T60 1.25 shimmer 0.00 (fudge 1.055, comp 0.9): decay 0.6551  mid  1.275 s ( +2.0 %)
+  size x0.40 T60 1.25 shimmer 0.08 (fudge 1.055, comp 0.9): decay 0.6800  mid  1.264 s ( +1.1 %)
+  size x0.40 T60 1.25 shimmer 0.12 (fudge 1.055, comp 0.9): decay 0.6936  mid  1.259 s ( +0.7 %)
+  size x0.40 T60 2.50 shimmer 0.00 (fudge 1.055, comp 0.9): decay 0.8094  mid  2.525 s ( +1.0 %)
+  size x0.40 T60 2.50 shimmer 0.08 (fudge 1.055, comp 0.9): decay 0.8402  mid  2.485 s ( -0.6 %)
+  size x0.40 T60 2.50 shimmer 0.12 (fudge 1.055, comp 0.9): decay 0.8570  mid  2.471 s ( -1.2 %)
+  size x0.40 T60 5.00 shimmer 0.00 (fudge 1.055, comp 0.9): decay 0.8997  mid  5.061 s ( +1.2 %)
+  size x0.40 T60 5.00 shimmer 0.08 (fudge 1.055, comp 0.9): decay 0.9339  mid  4.854 s ( -2.9 %)
+  size x0.40 T60 5.00 shimmer 0.12 (fudge 1.055, comp 0.9): decay 0.9526  mid  4.771 s ( -4.6 %)
+  size x0.55 T60 1.25 shimmer 0.00 (fudge 1.055, comp 0.9): decay 0.5590  mid  1.265 s ( +1.2 %)
+  size x0.55 T60 1.25 shimmer 0.08 (fudge 1.055, comp 0.9): decay 0.5803  mid  1.257 s ( +0.5 %)
+  size x0.55 T60 1.25 shimmer 0.12 (fudge 1.055, comp 0.9): decay 0.5919  mid  1.254 s ( +0.3 %)
+  size x0.55 T60 2.50 shimmer 0.00 (fudge 1.055, comp 0.9): decay 0.7477  mid  2.487 s ( -0.5 %)
+  size x0.55 T60 2.50 shimmer 0.08 (fudge 1.055, comp 0.9): decay 0.7762  mid  2.453 s ( -1.9 %)
+  size x0.55 T60 2.50 shimmer 0.12 (fudge 1.055, comp 0.9): decay 0.7917  mid  2.441 s ( -2.4 %)
+  size x0.55 T60 5.00 shimmer 0.00 (fudge 1.055, comp 0.9): decay 0.8647  mid  4.991 s ( -0.2 %)
+  size x0.55 T60 5.00 shimmer 0.08 (fudge 1.055, comp 0.9): decay 0.8976  mid  4.859 s ( -2.8 %)
+  size x0.55 T60 5.00 shimmer 0.12 (fudge 1.055, comp 0.9): decay 0.9155  mid  4.801 s ( -4.0 %)
+  size x0.80 T60 1.25 shimmer 0.00 (fudge 1.055, comp 0.9): decay 0.4292  mid  1.261 s ( +0.9 %)
+  size x0.80 T60 1.25 shimmer 0.08 (fudge 1.055, comp 0.9): decay 0.4455  mid  1.254 s ( +0.3 %)
+  size x0.80 T60 1.25 shimmer 0.12 (fudge 1.055, comp 0.9): decay 0.4544  mid  1.251 s ( +0.1 %)
+  size x0.80 T60 2.50 shimmer 0.00 (fudge 1.055, comp 0.9): decay 0.6551  mid  2.507 s ( +0.3 %)
+  size x0.80 T60 2.50 shimmer 0.08 (fudge 1.055, comp 0.9): decay 0.6801  mid  2.482 s ( -0.7 %)
+  size x0.80 T60 2.50 shimmer 0.12 (fudge 1.055, comp 0.9): decay 0.6936  mid  2.473 s ( -1.1 %)
+  size x0.80 T60 5.00 shimmer 0.00 (fudge 1.055, comp 0.9): decay 0.8094  mid  4.943 s ( -1.1 %)
+  size x0.80 T60 5.00 shimmer 0.08 (fudge 1.055, comp 0.9): decay 0.8402  mid  4.862 s ( -2.8 %)
+  size x0.80 T60 5.00 shimmer 0.12 (fudge 1.055, comp 0.9): decay 0.8570  mid  4.827 s ( -3.5 %)
+  worst case in range (T60 5 s, smallest size, shimmer 0.12, damping 0): decay 0.9526, 10 s of noise then 19 s later -152.2 dB
+  size x0.55 shimmer 0.08: 600/300 Hz -32.2 dB @0.1-0.5 s, -14.3 @0.6-1.1, -14.0 @1.6-2.1, -7.7 @2.6-3.1 | 1200/300 @2.6-3.1 -30.2
+  size x0.55 shimmer 0.12: 600/300 Hz -28.2 dB @0.1-0.5 s, -10.6 @0.6-1.1, -9.9 @1.6-2.1, -3.7 @2.6-3.1 | 1200/300 @2.6-3.1 -22.4
+
+== 9. Cost (this prototype, double precision, -O2, one core): x real time ==
+  48000 Hz  FDN N=16 (Ambient): 121x   FDN N=8: 243x   Plate+shimmer: 468x   3 springs (M=80): 101x
+  96000 Hz  FDN N=16 (Ambient): 59x   FDN N=8: 117x   Plate+shimmer: 209x   3 springs (M=80): 46x

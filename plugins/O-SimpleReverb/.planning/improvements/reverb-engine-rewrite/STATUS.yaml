@@ -1,0 +1,46 @@
+milestone: reverb-engine-rewrite
+created: 2026-10-01T03:06:58Z
+lastActivity: 2026-10-01T04:55:00Z
+description: "Replace the Freeverb core with purpose-built engines (FDN for Booth/Room/Hall/Ambient, Dattorro plate, dispersive spring) per plugins/O-SimpleReverb/improvements/reverb-engine-rewrite.md"
+brief: plugins/O-SimpleReverb/improvements/reverb-engine-rewrite.md
+phases:
+  discuss:
+    status: complete
+    completedAt: 2026-10-01T03:20:00Z
+  research:
+    status: complete
+    startedAt: 2026-10-01T03:18:05Z
+    completedAt: 2026-10-01T03:27:21Z
+    domain: mixed            # keyword rule: DSP 8, GUI 5, Polish 4; DSP by content
+    recommendedExecuteAgent: general-purpose   # dsp-agent has no shell; every stage ends on a build + render-check
+    prototype: prototype/    # standalone C++ measurements behind RESEARCH.md (results.txt)
+    openQuestions: 3         # 16 FDN lines, tooltip text, ring-out slots — see RESEARCH.md
+  plan:
+    status: complete
+    completedAt: 2026-10-01T04:43:03Z
+    approvedAt: 2026-10-01T04:43:03Z
+    domain: mixed
+    executeAgent: general-purpose
+    decisions:               # RESEARCH open questions, answered at plan time
+      fdnLines: 16
+      tooltips: rewrite      # tip.type / tip.decay / tip.size in en, fr, zh-Hans
+      typeSwitch: ring-out   # two slots
+      wipCommits: per-stage  # local, path-scoped, no push, no tag
+  execute:
+    status: in_progress
+    startedAt: 2026-10-01T04:45:00Z
+    stage: 1                 # next stage to run; see PLAN.md "Execute runs in five sessions"
+    buildDir: cmake-build-tests   # Release, OUARICON_BUILD_TESTS=ON, SKIP_PLUGINS = every other plugin; gitignored (cmake-build-*/)
+    renderCheck: cmake-build-tests/plugins/O-SimpleReverb/O-SimpleReverb-render-check_artefacts/Release/O-SimpleReverb-render-check
+    backup: backups/O-SimpleReverb/v1.14.0
+    stages:
+      - { id: 0, name: baseline,            tasks: [1, 2],              status: complete, completedAt: 2026-10-01T04:55:00Z }
+      - { id: 1, name: fdn-er-host,         tasks: [3, 4, 5, 6, 7],     status: pending }
+      - { id: 2, name: plate,               tasks: [8],                 status: pending }
+      - { id: 3, name: spring,              tasks: [9],                 status: pending }
+      - { id: 4, name: voicing-release,     tasks: [10, 11, 12, 13, 14], status: pending }
+  verify:
+    status: pending
+versionBump: major
+baseVersion: 1.14.0
+targetVersion: 2.0.0
