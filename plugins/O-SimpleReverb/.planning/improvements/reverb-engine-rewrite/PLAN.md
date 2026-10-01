@@ -340,12 +340,18 @@ build (e.g. SIZE wired to nothing; ER level 0) before it is trusted.
 - Delete `FlutterDelay` from `ModulationFx.h` (last caller gone) and its remaining references.
 
 **Verification:**
-- [ ] Chirp: first echo arrives later at 3 kHz than at 1 kHz by ≥ 2 ms, and the pattern
-      repeats at the echo time
-- [ ] RT60 rows for Spring within ±10 %, 44.1/48/96 kHz
-- [ ] Output band-limited: energy above 6 kHz ≥ 20 dB below the 1 kHz octave
-- [ ] No `PEND` left on any engine gate; all earlier gates still pass
-- [ ] `wip` commit — **end of stage 3**
+- [x] Chirp: first echo arrives later at 3 kHz than at 1 kHz by ≥ 2 ms, and the pattern
+      repeats at the echo time (9.71 ms, the second echo 14.36 ms, echoes 32.96 ms apart;
+      read by centre of gravity, not first arrival — SUMMARY.md, stage 3, item 1)
+- [x] RT60 rows for Spring within ±10 %, 44.1/48/96 kHz
+      (through `processBlock` −0.2 / +0.2 %; driven directly −2.3..+1.1 % over 27 points, L and R)
+- [x] Output band-limited: energy above 6 kHz ≥ 20 dB below the 1 kHz octave
+      (−30.8 dB; read off the spectrum — SUMMARY.md, stage 3, item 2)
+- [x] No `PEND` left on any engine gate; all earlier gates still pass
+      (113 PASS, 0 FAIL, 1 PEND — the bank's +5 dB ceiling, Task 11)
+- [x] `wip` commit — **end of stage 3**
+- Departures: no pre-delay on Spring; the transition frequency is the nearest `fs / (2K)`;
+  a mono bus folds Spring by its own factor — SUMMARY.md, stage 3
 
 **Dependencies:** Task 8
 

@@ -38,25 +38,29 @@
          +5 dB re input (K-weighted pink).
      10. The measurer in measure.h reads a synthetic decay of known T60 (a
          tone within 1 %, noise within 2 % on the mean over seeds), and finds
-         a known tap, correlation and echo density. The v1.14.0 state blob in
+         a known tap, correlation, echo density, chirp, echo period and band
+         limit. The v1.14.0 state blob in
          tests/fixtures loads with the values its .tsv lists.
      11. The engine headers in Source/dsp, driven directly: the building
          blocks (allpass, Lagrange read, RT60-to-gain, mid-band shelf, glide),
          the early-reflection taps, and the FDN's and the plate's decay time
          against target at 44.1 / 48 / 96 kHz over DECAY x SIZE. The plate
          with its shifter taking the whole cross-feed, asked for an endless
-         tail, still decays.
+         tail, still decays. The spring's decay time likewise; each of its
+         echoes arrives later at 3 kHz than at 1 kHz, the second by more than
+         the first, one echo time apart; and it passes nothing much above 6 kHz.
      12. The reverb through processBlock: RT60 = base x DECAY within 10 % and
          holding across SIZE; SIZE moving the first arrival; no two FDN types
          sharing resonances; discrete early arrivals, different in L and R;
          a decorrelated tail; the old tail ringing out on a TYPE change; a
          NaN recovered within one block; no allocation in processBlock; Plate
-         at DECAY 2.0x under 10 s of noise neither growing nor hanging.
+         at DECAY 2.0x under 10 s of noise neither growing nor hanging; Spring's
+         chirp, repeating at its echo time, and its band limit.
 
     (8, "Ambient's tail grows with DECAY", is superseded by 12's RT60 table.)
 
-    A gate that waits for an engine not yet written prints PEND. PEND is
-    counted on its own line and is neither a pass nor a failure.
+    A gate that waits for work not yet done prints PEND. PEND is counted on
+    its own line and is neither a pass nor a failure.
 
     The factory bank is read from the INSTALLED Factory folder, which the
     processor rewrites only when its `.factory-version` sentinel differs. main()
@@ -65,7 +69,7 @@
     Modes:
       (none)                  the gates above
       --mutants               each gate of 12 (and the SIZE, DECAY and TYPE
-                              cases of 5, and 7's bloom) is run against a build with the gated
+                              cases of 5, 7's bloom and the Spring gates) is run against a build with the gated
                               behaviour deliberately broken, and must FAIL
                               there. A gate that still passes has not been
                               shown to test anything.
@@ -100,6 +104,7 @@
  #include "dsp/ReverbPrimitives.h"
  #include "dsp/FdnEngine.h"
  #include "dsp/PlateEngine.h"
+ #include "dsp/SpringEngine.h"
  #include "dsp/EarlyReflections.h"
  #define OSR_ENGINES 1
 #else
@@ -148,7 +153,7 @@ static void check(bool ok, const juce::String& what)
     ++(ok ? passes : failures);
 }
 
-// A gate whose engine is not written yet.
+// A gate whose subject is not finished yet.
 static void pend(const juce::String& what)
 {
     std::printf("PEND: %s\n", what.toRawUTF8());
@@ -572,7 +577,7 @@ static constexpr float kSizeGlideMarginDb = 6.0f, kDecayGlideMarginDb = 6.0f, kR
 // same on v1.14.0 (the negative control) and on any mutant.
 
 static const int kFdnTypes[4] = { 0, 1, 2, 5 };   // Booth, Room, Hall, Ambient
-static const int kStereoTypes[5] = { 0, 1, 2, 4, 5 };   // and Plate. A spring is a mono device.
+static const int kStereoTypes[5] = { 0, 1, 2, 4, 5 };   // and Plate. Spring shares one of its three springs between L and R.
 static constexpr double kRt60Tolerance = 0.10;
 
 static double typeRt60(int type, float decay, float size)
@@ -713,7 +718,7 @@ static Verdict glideGate(const char* id, float a, float b, float refDb, float ma
 {
     float worst = -200.0f;
     juce::String list;
-    for (int type : { 1, 2, 4 }) {
+    for (int type : { 1, 2, 3, 4 }) {
         const float db = hfBurst(id, a, b, 0.0f, type).db;
         worst = std::max(worst, db);
         list << (list.isEmpty() ? "" : ", ") << kTypeNames[type] << " " << juce::String(db, 1);
@@ -952,6 +957,80 @@ static Verdict plateRunawayGate()
     return { ok, "Plate does not run away at DECAY 2.0x under 10 s of noise - " + list };
 }
 
+// ── Spring ───────────────────────────────────────────────────────────────────
+
+// Wet impulse response to +1 in L and -1 in R. Spring feeds L, R and their sum
+// to three springs, so this input leaves the shared one silent and each output
+// holds one spring alone - the left one's echo time is kSpringEchoMs at SIZE 50.
+static constexpr double kSpringEchoMs = 33.0;
+static measure::Stereo sideIr(int type, double seconds, double sr = 48000.0)
+{
+    const int bs = 512;
+    auto proc = makeProcessor();
+    setParam(*proc, "TYPE", (float) type); setParam(*proc, "WET", 100.0f); setParam(*proc, "DRY", 0.0f);
+    configure(*proc, 2, sr, bs);
+    juce::AudioBuffer<float> buf(2, bs);
+    juce::MidiBuffer midi;
+    for (int b = 0; b < (int) (0.5 * sr) / bs + 1; ++b) { buf.clear(); proc->processBlock(buf, midi); }
+    const size_t n = (size_t) (seconds * sr);
+    measure::Stereo s { measure::Vec(n), measure::Vec(n) };
+    for (size_t pos = 0; pos < n; pos += (size_t) bs) {
+        buf.clear();
+        if (pos == 0) { buf.setSample(0, 0, 1.0f); buf.setSample(1, 0, -1.0f); }
+        proc->processBlock(buf, midi);
+        for (size_t i = 0; i < (size_t) bs && pos + i < n; ++i) { s.l[pos + i] = buf.getSample(0, (int) i); s.r[pos + i] = buf.getSample(1, (int) i); }
+    }
+    return s;
+}
+
+// The first two echoes of one spring. A spring is dispersive: within an echo,
+// the higher the frequency the later it comes (lag: 3 kHz behind 1 kHz, mid:
+// 2 kHz behind 1 kHz, by the band's centre of gravity over one echo time).
+// The next echo comes one echo time later and has been through the spring
+// twice, so it is spread further. A pre-reverb allpass chain into a tank
+// (v1.14.0's Spring) shows none of it: nothing comes in echoes.
+struct Echoes { double first; double lag[2]; double mid[2]; measure::Period period; };
+static Echoes echoReading(const measure::Vec& ir, double sr, double echoMs)
+{
+    Echoes e { measure::bandArrivalMs(ir, sr, 0, 1000.0), {}, {}, measure::envelopePeriod(ir, sr, 0) };
+    for (int k = 0; k < 2; ++k) {
+        const size_t from = (size_t) (std::max(0.0, e.first - 2.0 + k * echoMs) * 0.001 * sr);
+        const double at1k = measure::bandCentroidMs(ir, sr, from, 1000.0, echoMs);
+        e.mid[k] = measure::bandCentroidMs(ir, sr, from, 2000.0, echoMs) - at1k;
+        e.lag[k] = measure::bandCentroidMs(ir, sr, from, 3000.0, echoMs) - at1k;
+    }
+    return e;
+}
+
+static constexpr double kChirpMs = 2.0, kChirpGrowth = 1.25, kEchoToleranceMs = 1.0, kEchoStrength = 0.5;
+static bool chirps(const Echoes& e, double echoMs)
+{
+    return e.lag[0] >= kChirpMs && e.mid[0] > 0.0 && e.mid[0] < e.lag[0]
+           && e.lag[1] >= kChirpGrowth * e.lag[0] && e.mid[1] > e.mid[0]
+           && std::abs(e.period.ms - echoMs) <= kEchoToleranceMs && e.period.strength >= kEchoStrength;
+}
+
+static Verdict springChirpGate()
+{
+    const auto e = echoReading(sideIr(3, 0.4).l, 48000.0, kSpringEchoMs);
+    return { chirps(e, kSpringEchoMs),
+             "Spring chirp: in the first echo 2 kHz is " + juce::String(e.mid[0], 2) + " ms and 3 kHz " + juce::String(e.lag[0], 2) + " ms behind 1 kHz (>= 2, rising); in the second "
+             + juce::String(e.mid[1], 2) + " and " + juce::String(e.lag[1], 2) + " ms (>= 1.25 x); echoes " + juce::String(e.period.ms, 2) + " ms apart ("
+             + juce::String(kSpringEchoMs, 0) + " +/- 1), envelope match " + juce::String(e.period.strength, 2) + " (>= 0.5)" };
+}
+
+// Energy above 6 kHz re the 1 kHz octave, over the whole impulse response.
+static double above6kDb(const measure::Vec& ir, double sr) { return measure::energyAboveDb(ir, sr, 6000.0, 707.0, 1414.0); }
+
+// A spring tank passes little above its transition frequency (4-5 kHz).
+static constexpr double kSpringBandDb = -20.0;
+static Verdict springBandGate()
+{
+    const double spring = above6kDb(typeIr(3, 1.0f, 50.0f, 4.0).l, 48000.0), room = above6kDb(typeIr(1, 1.0f, 50.0f, 2.1).l, 48000.0);
+    return { spring <= kSpringBandDb, "Spring is band-limited: energy above 6 kHz " + juce::String(spring, 1) + " dB re the 1 kHz octave (<= -20; Room reads "
+                                      + juce::String(room, 1) + ")" };
+}
+
 // No allocation inside processBlock: prepared-size blocks, odd sizes, an
 // oversized block, with every control moving and TYPE going through a start,
 // a ring-out, a reopen and a steal.
@@ -1183,6 +1262,205 @@ static void plateGates()
     }
 }
 
+// The springs driven directly: the impulse is 1 in L and `right` in R.
+struct SpringRun { measure::Stereo ir; double echoMs[3]; float gain[3]; double transitionHz[3]; };
+static SpringRun springIr(double fs, double sizeScale, double t60, double seconds, float right = 1.0f)
+{
+    osr::SpringEngine engine;
+    engine.prepare(fs);
+    engine.setSize(sizeScale);
+    engine.setT60(t60);
+    engine.reset();
+    const size_t n = (size_t) (seconds * fs);
+    SpringRun run { { measure::Vec(n), measure::Vec(n) }, {}, {}, {} };
+    for (int i = 0; i < 3; ++i) {
+        run.echoMs[i] = 1000.0 * engine.echoSeconds(i); run.gain[i] = engine.reflectionGain(i); run.transitionHz[i] = engine.transitionHz(i);
+    }
+    for (size_t i = 0; i < n; ++i) {
+        float l, r;
+        engine.process(i == 0 ? 1.0f : 0.0f, i == 0 ? right : 0.0f, l, r);
+        run.ir.l[i] = l; run.ir.r[i] = r;
+    }
+    return run;
+}
+
+static void springGates()
+{
+    const auto& preset = OSimpleReverbAudioProcessor::typePresets[3];
+    const double sizes[3] = { OSimpleReverbAudioProcessor::sizeScale(preset, 0.0f), OSimpleReverbAudioProcessor::sizeScale(preset, 50.0f),
+                              OSimpleReverbAudioProcessor::sizeScale(preset, 100.0f) };
+
+    // -- decay time against target, both outputs --
+    {
+        double worst = 0.0, lo = 1.0e9, hi = -1.0e9;
+        juce::String where;
+        for (double fs : { 44100.0, 48000.0, 96000.0 })
+            for (double decay : { 0.5, 1.0, 2.0 })
+                for (double size : sizes) {
+                    const double t60 = preset.baseT60 * decay;
+                    const auto run = springIr(fs, size, t60, 1.35 * t60 + 0.4);
+                    for (const auto* side : { &run.ir.l, &run.ir.r }) {
+                        const double err = measure::midRt60(*side, fs) / t60 - 1.0;
+                        lo = std::min(lo, err); hi = std::max(hi, err);
+                        if (std::abs(err) > std::abs(worst)) {
+                            worst = err;
+                            where = juce::String(fs / 1000.0, 1) + " kHz, DECAY " + juce::String(decay, 1) + "x, size x" + juce::String(size, 2);
+                        }
+                    }
+                }
+        check(std::abs(worst) <= kRt60Tolerance, "spring: mid RT60 within 10 % of base x DECAY at 27 points, L and R "
+                                                 "(44.1 / 48 / 96 kHz x DECAY 0.5 / 1 / 2 x size x0.75 / x1 / x1.33); " + juce::String(100.0 * lo, 1) + " .. "
+                                                 + juce::String(100.0 * hi, 1) + " %, worst at " + where);
+    }
+
+    // -- the chirp, one spring alone in each output (impulse +1 / -1) --
+    // The echoes come when the engine says they do, each with its high
+    // frequencies behind its low ones, the second further than the first.
+    {
+        bool ok = true;
+        double leastLag = 1.0e9, mostLag = 0.0, leastGrowth = 1.0e9, worstFirst = 0.0, worstPeriod = 0.0, leastStrength = 1.0e9;
+        juce::String rates;
+        for (double fs : { 44100.0, 48000.0, 96000.0 }) {
+            for (double size : sizes) {
+                const auto run = springIr(fs, size, 2.5, 0.4, -1.0f);
+                for (int side = 0; side < 2; ++side) {
+                    const auto e = echoReading(side == 0 ? run.ir.l : run.ir.r, fs, run.echoMs[side]);
+                    leastLag = std::min(leastLag, e.lag[0]); mostLag = std::max(mostLag, e.lag[0]);
+                    leastGrowth = std::min(leastGrowth, e.lag[1] / e.lag[0]);
+                    leastStrength = std::min(leastStrength, e.period.strength);
+                    if (std::abs(e.first - run.echoMs[side]) > std::abs(worstFirst)) worstFirst = e.first - run.echoMs[side];
+                    if (std::abs(e.period.ms - run.echoMs[side]) > std::abs(worstPeriod)) worstPeriod = e.period.ms - run.echoMs[side];
+                    ok = ok && chirps(e, run.echoMs[side]) && std::abs(e.first - run.echoMs[side]) <= kEchoToleranceMs;
+                }
+            }
+            const auto run = springIr(fs, 1.0, 2.5, 0.01);
+            rates << (rates.isEmpty() ? "" : "; ") << juce::String(fs / 1000.0, 1) << " kHz: " << juce::String(run.transitionHz[0], 0) << " / "
+                  << juce::String(run.transitionHz[1], 0) << " / " << juce::String(run.transitionHz[2], 0) << " Hz";
+        }
+        check(ok, "spring: at 44.1 / 48 / 96 kHz x 3 sizes x 2 springs, the first echo's 3 kHz is " + juce::String(leastLag, 2) + " .. " + juce::String(mostLag, 2)
+                  + " ms behind its 1 kHz (>= 2, 2 kHz in between), the second echo's at least " + juce::String(leastGrowth, 2) + " x that (>= 1.25); first echo "
+                  + juce::String(worstFirst, 2) + " ms and echo spacing " + juce::String(worstPeriod, 2) + " ms off the engine's echo time at worst (+/- 1), envelope match >= "
+                  + juce::String(leastStrength, 2) + " (>= 0.5)");
+        std::printf("  (spring transition frequencies in use - %s)\n", rates.toRawUTF8());
+
+        // With the cascade out of the loop the echoes are still there and still
+        // on time, and every band arrives together.
+        osr::SpringEngine plain;
+        plain.prepare(48000.0);
+        plain.setVoicing(false, true);
+        plain.setT60(2.5);
+        plain.reset();
+        measure::Vec ir(19200);
+        for (size_t i = 0; i < ir.size(); ++i) { float l, r; plain.process(i == 0 ? 1.0f : 0.0f, i == 0 ? -1.0f : 0.0f, l, r); ir[i] = l; }
+        const auto e = echoReading(ir, 48000.0, 1000.0 * plain.echoSeconds(0));
+        check(std::abs(e.lag[0]) < 0.5 && std::abs(e.lag[1]) < 0.5 && std::abs(e.period.ms - 1000.0 * plain.echoSeconds(0)) <= kEchoToleranceMs,
+              "spring without its allpass cascade: 3 kHz is " + juce::String(e.lag[0], 2) + " and " + juce::String(e.lag[1], 2) + " ms behind 1 kHz in the first two echoes (|x| < 0.5), still "
+              + juce::String(e.period.ms, 2) + " ms apart - the chirp is the cascade's");
+    }
+
+    // -- band limit --
+    {
+        double worst = -1.0e9;
+        for (double fs : { 44100.0, 48000.0, 96000.0 })
+            worst = std::max(worst, above6kDb(springIr(fs, 1.0, 2.5, 3.8).ir.l, fs));
+        check(worst <= kSpringBandDb, "spring: energy above 6 kHz re the 1 kHz octave, worst of 44.1 / 48 / 96 kHz " + juce::String(worst, 1) + " dB (<= -20)");
+    }
+
+    // -- stereo: one spring a side and one in both, and what a mono bus does with that --
+    {
+        const double fs = 48000.0;
+        const auto run = springIr(fs, 1.0, 2.5, 3.8);
+        const double r = measure::correlation(run.ir.l, run.ir.r, (size_t) (0.25 * 2.5 * fs), (size_t) (0.75 * 2.5 * fs));
+        double stereo = 0.0, mono = 0.0;
+        for (size_t i = 0; i < run.ir.l.size(); ++i) {
+            stereo += 0.5 * (run.ir.l[i] * run.ir.l[i] + run.ir.r[i] * run.ir.r[i]);
+            const double m = osr::SpringEngine::kMonoFold * (run.ir.l[i] + run.ir.r[i]);
+            mono += m * m;
+        }
+        const double foldDb = 10.0 * std::log10(mono / stereo);
+        check(r > 0.15 && r < 0.5 && std::abs(foldDb) < 0.5, "spring: late-tail L/R correlation " + juce::String(r, 3) + " for a mono input (0.15..0.5: one spring is in both outputs); "
+                                                             "folded to mono by kMonoFold it is " + juce::String(foldDb, 2) + " dB re one stereo channel (|x| < 0.5)");
+    }
+
+    // -- the loop cannot grow --
+    {
+        const double fs = 48000.0;
+        osr::SpringEngine engine;
+        engine.prepare(fs);
+        engine.setSize(sizes[0]);
+        engine.setT60(1.0e6);
+        engine.reset();
+        std::mt19937 rng(9);
+        std::normal_distribution<float> nd(0.0f, 0.1f);
+        double energy[4] = {};
+        bool finite = true;
+        for (int i = 0; i < (int) (32.0 * fs); ++i) {
+            float l, r;
+            const float x = i < (int) (2.0 * fs) ? nd(rng) : 0.0f;
+            engine.process(x, x, l, r);
+            finite = finite && std::isfinite(l) && std::isfinite(r);
+            const int second = i / (int) fs;
+            if (second == 1 || second == 11 || second == 21 || second == 31) energy[second / 10] += (double) l * l + (double) r * r;
+        }
+        bool held = true;
+        for (int i = 0; i < 3; ++i) held = held && engine.reflectionGain(i) <= (float) osr::SpringEngine::kGainCeiling;
+        check(finite && held && energy[1] < energy[0] && energy[2] < energy[1] && energy[3] < energy[2],
+              "spring asked for an endless tail: reflection gain held at " + juce::String(osr::SpringEngine::kGainCeiling, 2) + ", energy 10 / 20 / 30 s after the noise "
+              + juce::String(10.0 * std::log10(energy[1] / energy[0] + 1.0e-30), 1) + " / " + juce::String(10.0 * std::log10(energy[2] / energy[0] + 1.0e-30), 1)
+              + " / " + juce::String(10.0 * std::log10(energy[3] / energy[0] + 1.0e-30), 1) + " dB, falling each time");
+    }
+
+    // -- the worst case for capacity --
+    {
+        const double fs = 192000.0, t60 = preset.baseT60 * 2.0;
+        const auto run = springIr(fs, osr::SpringEngine::kMaxSizeScale, t60, 1.35 * t60 + 0.4);
+        bool finite = true;
+        for (size_t i = 0; i < run.ir.l.size(); ++i) finite = finite && std::isfinite(run.ir.l[i]) && std::isfinite(run.ir.r[i]);
+        const double mid = finite ? measure::midRt60(run.ir.l, fs) : 0.0;
+        check(finite && std::abs(mid / t60 - 1.0) <= kRt60Tolerance, "spring at 192 kHz, DECAY 2.0x, size x1.33 (the longest lines there are): finite, mid RT60 "
+                                                                     + juce::String(mid, 2) + " s (5.0, within 10 %)");
+    }
+
+    // -- the same input gives the same output --
+    {
+        auto render = [&]() {
+            osr::SpringEngine engine;
+            engine.prepare(48000.0);
+            engine.setSize(sizes[1]);
+            engine.setT60(2.5);
+            engine.reset();
+            std::mt19937 rng(4);
+            std::normal_distribution<float> nd(0.0f, 0.1f);
+            std::vector<float> out;
+            for (int i = 0; i < 96000; ++i) {
+                float l, r;
+                const float x = i < 24000 ? nd(rng) : 0.0f;
+                if (i == 30000) engine.setSize(sizes[2]);   // a glide and the wobble are both in the render
+                engine.process(x, x, l, r);
+                out.push_back(l); out.push_back(r);
+            }
+            return out;
+        };
+        check(render() == render(), "spring: two renders of the same input, wobble and a SIZE glide included, are the same samples");
+    }
+
+    // -- a SIZE glide lands where a reset at that size starts --
+    {
+        osr::SpringEngine glided, fresh;
+        glided.prepare(48000.0); fresh.prepare(48000.0);
+        glided.setSize(sizes[0]); glided.setT60(2.5); glided.reset();
+        glided.setSize(sizes[2]);
+        for (int i = 0; i < (int) (4.0 * 48000.0); ++i) { float l, r; glided.process(0.0f, 0.0f, l, r); }
+        fresh.setSize(sizes[2]); fresh.setT60(2.5); fresh.reset();
+        bool same = true;
+        for (int i = 0; i < 3; ++i)
+            same = same && osr::sameValue(glided.echoSeconds(i), fresh.echoSeconds(i)) && osr::sameValue(glided.reflectionGain(i), fresh.reflectionGain(i));
+        check(same, "spring: after a SIZE glide the echo times are " + juce::String(1000.0 * glided.echoSeconds(0), 2) + " / " + juce::String(1000.0 * glided.echoSeconds(1), 2)
+                    + " / " + juce::String(1000.0 * glided.echoSeconds(2), 2) + " ms and the gains " + juce::String(glided.reflectionGain(0), 4) + " / "
+                    + juce::String(glided.reflectionGain(1), 4) + " / " + juce::String(glided.reflectionGain(2), 4) + " - as a reset at that size");
+    }
+}
+
 static void engineGates()
 {
     juce::ScopedNoDenormals noDenormals;
@@ -1396,6 +1674,7 @@ static void engineGates()
     }
 
     plateGates();
+    springGates();
 }
 #endif // OSR_ENGINES
 
@@ -1433,6 +1712,11 @@ static int runMutants()
     mustFail(Mutant::sizeDead,    "SIZE not reaching the plate",          [] { return sizeStructureGate(4); });
     mustFail(Mutant::noShimmer,   "the plate's shifter bypassed",         [] { return bloomGate(); });
     mustFail(Mutant::decayStuck,  "the plate asked for an endless tail",  [] { return plateRunawayGate(); });
+    mustFail(Mutant::decayDead,   "DECAY not reaching the spring",        [] { return rt60DecayGate(3); });
+    mustFail(Mutant::sizeIsDecay, "SIZE scaling the spring's decay time", [] { return rt60SizeGate(3); });
+    mustFail(Mutant::sizeDead,    "SIZE not reaching the spring",         [] { return sizeStructureGate(3); });
+    mustFail(Mutant::springNoChirp,  "the spring's allpass cascade out of its loop", [] { return springChirpGate(); });
+    mustFail(Mutant::springOpenBand, "the spring's low-pass out of its loop",        [] { return springBandGate(); });
     std::printf("\n%d of %d mutants caught\n", passes, passes + failures);
     return failures == 0 ? 0 : 1;
 }
@@ -1730,6 +2014,39 @@ int main(int argc, char** argv)
                                                                + juce::String(lag, 2) + " ms later (3.5..6.5); an impulse reads "
                                                                + juce::String(none, 2) + " ms (|x| < 0.5)");
 
+        // The centre of gravity of each band is where its burst's own is (the
+        // 1 kHz burst is the slower filter's, so they are less than 5 ms apart),
+        // and an impulse reads none.
+        auto centreMs = [](const measure::Vec& x) {
+            double e = 0, te = 0;
+            for (size_t i = 0; i < x.size(); ++i) { e += x[i] * x[i]; te += (double) i * x[i] * x[i]; }
+            return te / e / 48.0;
+        };
+        const double apart = centreMs(hi) - centreMs(lo);
+        const double lagC = measure::bandCentroidMs(chirp, 48000.0, 0, 3000.0, 60.0) - measure::bandCentroidMs(chirp, 48000.0, 0, 1000.0, 60.0);
+        const double noneC = measure::bandCentroidMs(taps, 48000.0, 0, 3000.0, 60.0) - measure::bandCentroidMs(taps, 48000.0, 0, 1000.0, 60.0);
+        check(std::abs(lagC - apart) < 0.3 && apart > 4.0 && std::abs(noneC) < 0.3,
+              "measurer: by centre of gravity the 3 kHz burst is " + juce::String(lagC, 2) + " ms behind the 1 kHz burst (the bursts' own centres are "
+              + juce::String(apart, 2) + " ms apart, within 0.3); the taps read " + juce::String(noneC, 2) + " ms (|x| < 0.3)");
+
+        // An echo every 33 ms is found at 33 ms; a tail that only decays has no period.
+        measure::Vec train(24000, 0.0);
+        for (size_t i = 1584, k = 0; i < train.size(); i += 1584, ++k) train[i] = std::pow(-0.9, (double) k);
+        const auto periodic = measure::envelopePeriod(train, 48000.0, 0), smooth = measure::envelopePeriod(a, 48000.0, 0);
+        check(std::abs(periodic.ms - 33.0) < 0.2 && periodic.strength > 0.6 && smooth.strength < 0.4,
+              "measurer: echoes 33 ms apart are found at " + juce::String(periodic.ms, 2) + " ms, envelope match " + juce::String(periodic.strength, 2)
+              + " (> 0.6); decaying noise matches itself " + juce::String(smooth.strength, 2) + " at best (< 0.4)");
+
+        // Energy above a frequency is read off the spectrum: a 1 kHz tone has
+        // none above 6 kHz, an impulse has 18 kHz of it against 707 Hz.
+        measure::Vec tone(48000), click(48000, 0.0);
+        for (size_t i = 0; i < tone.size(); ++i) tone[i] = std::sin(2.0 * measure::kPi * 1000.0 * (double) i / 48000.0) * (0.5 - 0.5 * std::cos(2.0 * measure::kPi * (double) i / 47999.0));
+        click[10] = 1.0;
+        const double toneDb = measure::energyAboveDb(tone, 48000.0, 6000.0, 707.0, 1414.0), clickDb = measure::energyAboveDb(click, 48000.0, 6000.0, 707.0, 1414.0);
+        check(toneDb < -80.0 && std::abs(clickDb - 10.0 * std::log10(18000.0 / 707.0)) < 0.2,
+              "measurer: energy above 6 kHz re the 1 kHz octave is " + juce::String(toneDb, 1) + " dB for a 1 kHz tone (< -80) and " + juce::String(clickDb, 2)
+              + " dB for an impulse (14.06)");
+
         // The v1.14.0 state loads with the values it was written with.
         const auto dir = fixtureDir();
         const auto bin = dir.getChildFile("state-v1.14.0.bin");
@@ -1766,14 +2083,10 @@ int main(int argc, char** argv)
 
     // ── 12. the reverb through processBlock ───────────────────────────────────
     for (int type = 0; type < 6; ++type) {
-        if (type == 3) {
-            pend("Spring RT60 = base x DECAY, and holding across SIZE (its own engine: stage 3)");
-            continue;
-        }
         check(rt60DecayGate(type));
         check(rt60SizeGate(type));
         check(sizeStructureGate(type));
-        if (type != 4) check(earlyTapsGate(type));     // a plate has no early reflections
+        if (type != 3 && type != 4) check(earlyTapsGate(type));     // a spring and a plate have no early reflections
     }
     // Reported, not gated: the Dattorro tank is sparse by design and SIZE is
     // kept small because of it. Whether it is dense enough is a listening call.
@@ -1790,7 +2103,8 @@ int main(int argc, char** argv)
     check(nanGate());
    #endif
     check(allocGate());
-    pend("Spring chirp: the first echo arrives >= 2 ms later at 3 kHz than at 1 kHz, repeating at the echo time (stage 3)");
+    check(springChirpGate());
+    check(springBandGate());
     check(plateRunawayGate());
 
     std::printf("\n%d PASS, %d FAIL, %d PEND\n%s\n", passes, failures, pending,

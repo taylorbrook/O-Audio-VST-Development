@@ -26,6 +26,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
 #include <algorithm>
 #include <chrono>
@@ -293,6 +294,83 @@ inline double bandArrivalMs(const Vec& ir, double fs, size_t from, double f, dou
     for (size_t i = 0; i < n && from + i < ir.size(); ++i) seg[i] = ir[from + i];
     unit[0] = 1.0;
     return 1000.0 * (firstArrival(seg) - firstArrival(unit)) / fs;
+}
+
+// Where a narrow band's energy sits in the windowMs after `from`: its centre
+// of gravity in ms re `from`, less the same reading of the band filter's own
+// impulse response. For ONE echo in the window this is the echo's group delay
+// at f. The first arrival is not: a dispersed echo's leading edge in a band is
+// whatever the filter's skirts pass of the faster frequencies below it (a
+// spring whose 3 kHz is 9.8 ms behind its 1 kHz read 1.2 ms on bandArrivalMs).
+// Over a window that holds a tail and not an echo it says nothing.
+inline double bandCentroidMs(const Vec& ir, double fs, size_t from, double f, double windowMs)
+{
+    auto centre = [&](const Vec& x) {
+        const Vec nb = band(band(x, fs, f / 1.06, f * 1.06), fs, f / 1.06, f * 1.06);
+        double e = 0, te = 0;
+        for (size_t i = 0; i < nb.size(); ++i) { e += nb[i] * nb[i]; te += (double) i * nb[i] * nb[i]; }
+        return e > 0.0 ? te / e : 0.0;
+    };
+    const size_t n = (size_t) (windowMs * 0.001 * fs);
+    Vec seg(n, 0.0), unit(n, 0.0);
+    for (size_t i = 0; i < n && from + i < ir.size(); ++i) seg[i] = ir[from + i];
+    unit[0] = 1.0;
+    return 1000.0 * (centre(seg) - centre(unit)) / fs;
+}
+
+// Whether the mid band (354-1414 Hz) comes in echoes, and how far apart: the
+// lag between minMs and maxMs at which the envelope of the spanMs after `from`
+// best matches itself, and how well (1 = the same shape again, about 0 = no
+// echo). The envelope is the rectified band over 1 ms, less its own 70 ms
+// average, so a tail that merely decays has no lag it prefers.
+struct Period { double ms; double strength; };
+inline Period envelopePeriod(const Vec& ir, double fs, size_t from, double minMs = 15.0, double maxMs = 70.0, double spanMs = 250.0)
+{
+    const Vec mid = band(ir, fs, 354.0, 1414.0);
+    const long n = (long) (spanMs * 0.001 * fs), w = std::max(1L, (long) (0.001 * fs)), slow = (long) (0.035 * fs);
+    Vec raw((size_t) n, 0.0), env((size_t) n);
+    for (long i = 0; i < n; ++i) {
+        double a = 0;
+        for (long j = 0; j < w && from + (size_t) (i + j) < mid.size(); ++j) a += std::abs(mid[from + (size_t) (i + j)]);
+        raw[(size_t) i] = a / (double) w;
+    }
+    for (long i = 0; i < n; ++i) {
+        double a = 0; long cnt = 0;
+        for (long j = std::max(0L, i - slow); j <= std::min(n - 1, i + slow); ++j) { a += raw[(size_t) j]; ++cnt; }
+        env[(size_t) i] = raw[(size_t) i] - a / (double) cnt;
+    }
+    double e0 = 0;
+    for (double v : env) e0 += v * v;
+    Period best { 0.0, 0.0 };
+    if (e0 <= 0.0) return best;
+    for (long lag = (long) (minMs * 0.001 * fs); lag <= (long) (maxMs * 0.001 * fs) && lag < n; ++lag) {
+        double a = 0;
+        for (long i = 0; i + lag < n; ++i) a += env[(size_t) i] * env[(size_t) (i + lag)];
+        if (a / e0 > best.strength) best = { 1000.0 * (double) lag / fs, a / e0 };
+    }
+    return best;
+}
+
+// Energy at and above f0 re the energy in [lo, hi), in dB, read off the
+// spectrum. Not through band(): a 4th-order high-pass at 6 kHz passes what is
+// at 4 kHz only 14 dB down, and read a spring that stops at 4.5 kHz as -15 dB
+// "above 6 kHz" where the spectrum says -24.
+inline double energyAboveDb(const Vec& x, double fs, double f0, double lo, double hi)
+{
+    int order = 1;
+    while ((size_t) 1 << order < x.size()) ++order;
+    const size_t n = (size_t) 1 << order;
+    juce::dsp::FFT fft(order);
+    std::vector<float> data(2 * n, 0.0f);
+    for (size_t i = 0; i < x.size(); ++i) data[i] = (float) x[i];
+    fft.performRealOnlyForwardTransform(data.data(), true);
+    double above = 0, ref = 0;
+    for (size_t k = 0; k <= n / 2; ++k) {
+        const double f = (double) k * fs / (double) n, p = (double) data[2 * k] * data[2 * k] + (double) data[2 * k + 1] * data[2 * k + 1];
+        if (f >= f0) above += p;
+        if (f >= lo && f < hi) ref += p;
+    }
+    return 10.0 * std::log10((above + 1.0e-30) / (ref + 1.0e-30));
 }
 
 // Gaussian noise decaying 60 dB every t60 seconds: the measurer's own test signal.

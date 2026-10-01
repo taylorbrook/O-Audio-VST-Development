@@ -2,7 +2,7 @@
 
 **Plugin:** O-SimpleReverb
 **Milestone:** reverb-engine-rewrite
-**Phase:** Execute (in progress — stages 0, 1 and 2 of 0–4 complete)
+**Phase:** Execute (in progress — stages 0, 1, 2 and 3 of 0–4 complete)
 
 Written stage by stage. Each stage adds a section; the final summary is assembled in stage 4.
 
@@ -365,3 +365,126 @@ or more input diffusion, measured the same way.
 - Plate's first arrival through the plugin is 13.06 ms at SIZE 50: 8 ms pre-delay plus the tank's
   first tap (266 samples at 29761 Hz × 0.57).
 
+---
+
+## Stage 3 — Spring (Task 9) — complete 2026-09-30
+
+Spring runs three dispersive springs. All six types are on their own engines; nothing of the v1.x
+pre-reverb chain is left (`FlutterDelay` is deleted). Version is still 1.14.0.
+
+### What exists now
+
+| Item | Where |
+|---|---|
+| Three springs: delay, 72 / 80 / 88 stretched allpasses, 6th-order low-pass, 100 Hz high-pass, inverting reflection; decay in seconds, gliding echo time | `Source/dsp/SpringEngine.h` |
+| Slot runs FDN, plate or spring by type (`engineOf`); per-slot mono fold | `Source/PluginProcessor.{h,cpp}` |
+| `ModulationFx.h` is the octave shifter only | `Source/ModulationFx.h` |
+| Measurers: band centre of gravity, echo period, energy above a frequency (each self-checked in section 10) | `tests/render-check/measure.h` |
+| Gates: spring driven directly (11), Spring rows, chirp and band limit (12) | `tests/render-check/main.cpp` |
+| Mutants `springNoChirp`, `springOpenBand`; the three RT60 / SIZE mutants repeated on Spring | same |
+
+### Results
+
+render-check: **113 PASS, 0 FAIL, 1 PEND** (the bank's +5 dB ceiling, Task 11). `--mutants`: **24 of 24 caught**.
+`params.tsv` byte-identical. VST3 + AU + Standalone build with no compiler warning. pluginval strictness 10
+(GUI tests skipped): SUCCESS. `auval -v aufx OuSr OuDv`: AU VALIDATION SUCCEEDED.
+Installed: `O-SimpleReverb-dev` 1.14.0, this stage's build.
+
+Mid RT60, Spring (2.5 s base), 48 kHz through `processBlock`:
+
+| 0.5× | 1.0× | 2.0× | SIZE 0 | SIZE 100 | worst |
+|---|---|---|---|---|---|
+| 1.251 | 2.505 | 4.988 | 2.497 | 2.505 | −0.2 % |
+
+Driven directly at 44.1 / 48 / 96 kHz × DECAY 0.5 / 1 / 2 × size ×0.75 / ×1 / ×1.33, both outputs:
+−2.3..+1.1 %. At 192 kHz, DECAY 2.0×, size ×1.33: 4.96 s.
+
+| Other reading | v1.14.0 | now |
+|---|---|---|
+| First echo, 3 kHz behind 1 kHz (SIZE 50, left spring) | none (−2.1 ms by first arrival) | 9.71 ms; 2 kHz 1.79 ms |
+| Second echo, the same | — | 14.36 ms; 2 kHz 3.68 ms |
+| Echo spacing (envelope match) | no echoes | 32.96 ms (0.81) |
+| The same at 44.1 / 48 / 96 kHz × 3 sizes × 2 springs, driven directly | — | 4.47..10.48 ms; second echo ≥ 1.32×; spacing within 0.10 ms of the engine's figure |
+| Energy above 6 kHz re the 1 kHz octave | not measured | −30.8 dB (Room: +11.0) |
+| First arrival, SIZE 0 / 50 / 100 | 45.5 ms, does not move | 23.94 / 32.19 / 43.17 ms |
+| Late-tail L/R correlation, mono input | +0.35 | +0.30 (driven directly: +0.34) |
+| 125 Hz RT60 at DECAY 1.0× | 0.88 s | 1.91 s (the loop's 100 Hz high-pass) |
+| Echo density 100 ms after the first arrival | 0.97 | 0.83 |
+| Asked for an endless tail: energy 10 / 20 / 30 s on | — | −57.2 / −114.3 / −170.4 dB |
+| SIZE 0↔100 / DECAY 0.5↔2.0 HF burst | — | −63.8 / −62.5 dB (WET reference −59.3, limit +6) |
+| CPU, 48 / 96 kHz | 0.43 % / 0.90 % | 1.16 % / 2.31 % |
+
+Spring is now the most expensive type (the FDN types: 0.63 % / 1.34 %; a ring-out runs two slots).
+240 allpass stages a sample is where it goes. Nothing was optimised.
+
+### Mutants added
+
+| Mutant | Gate | Reading on the broken build |
+|---|---|---|
+| DECAY does not reach the spring | Spring RT60 = base × DECAY | 2.50 s at all three (+100 %) |
+| SIZE scales the spring's decay time | Spring RT60 holds across SIZE | 1.87 s / 3.35 s (+34 %) |
+| SIZE does not reach the spring | Spring first arrival moves | 0.00 ms |
+| allpass cascade out of the loop | chirp | 3 kHz −0.07 ms behind 1 kHz; echoes still 33.04 ms apart |
+| low-pass out of the loop | band limit | +7.7 dB above 6 kHz |
+
+### Departures from PLAN.md
+
+1. **The chirp is read by each band's centre of gravity over one echo, not by its first arrival.** Stage 0's
+   first-arrival metric read 1.23 ms on a spring whose 3 kHz is 9.7 ms behind its 1 kHz, and −8 ms on the
+   second echo: a dispersed echo's leading edge in a band is what the band filter's skirts pass of the faster
+   frequencies below. The gate asks for all of: 3 kHz ≥ 2 ms behind 1 kHz with 2 kHz in between; the second
+   echo ≥ 1.25× the first; echoes 33 ± 1 ms apart with an envelope match ≥ 0.5. It is measured on an impulse
+   of +1 in L and −1 in R, which silences the shared spring and leaves one spring alone in each output.
+   **Not yet run on v1.14.0** (Task 13). A centre of gravity over a window of dense tail is noise, so the
+   echo-spacing condition is what should fail there; Freeverb's combs are 25–37 ms long, so check that it does.
+2. **"Energy above 6 kHz" is read off the spectrum (FFT), not through `measure::band`.** A 4th-order high-pass
+   at 6 kHz passes 4 kHz 14 dB down and read −15..−19 dB on a spring whose spectrum says −24..−30. I added an
+   output low-pass on that reading, then took it out again when the reading turned out to be the filter's.
+   The engine is as planned: no filter outside the loop.
+3. **The transition frequency is the nearest `fs / (2K)`, and differs by sample rate**: asked for 4300 / 4550 /
+   4800 Hz, the springs get 4410 / 4410 / 4410 at 44.1 kHz, 4000 / 4800 / 4800 at 48 kHz, 4364 / 4364 / 4800
+   at 96 kHz. Decay time is unaffected (the echo time is computed from the K in use). The chirp is not: the
+   left spring's 3 kHz lag is 6.2 ms at 44.1 kHz and 9.8 ms at 48 kHz. **A session moved between rates will
+   have a slightly different drip.** A fractional K would need an interpolator in each of 240 stages.
+4. **No pre-delay on Spring** (v1.14.0: 20 ms). Nothing leaves a spring before its first echo, which is
+   already 24–43 ms after the input; with 20 ms more the first sound was at 52 ms.
+5. **Spring is not decorrelated, and a mono bus folds it by 0.612, not 0.7071.** L is spring 1 plus half of
+   spring 3, R is spring 2 plus half of spring 3: correlation +0.34 for a mono input, v1.14.0's width. At
+   0.7071 a mono bus would come out 1.25 dB hot (the arithmetic, 10 log(1 + r); not rendered), enough to put
+   the mono type spread over its 1 dB gate. With the fold the engine reads 0.00 dB and the plugin −0.14 dB.
+   Spring stays out of the stereo gate, as planned.
+6. **The echo time counts the filters' group delay at 1 kHz as well as the cascade's** (0.14 ms). The prototype
+   left it out and read +0.3..+0.7 %.
+7. **Reflection gain is capped at 0.98**, the plan's "|g| < 1" made a number. The shortest spring at DECAY 2.0×
+   needs 0.966.
+8. **SIZE moves the delay line only.** The cascade is the same at every SIZE, so the chirp's length does not
+   scale with the echo time.
+9. **Stage counts are 72 / 80 / 88**, wider apart than "slightly different", because at 44.1 kHz all three
+   springs share one K.
+10. **Spring joined the SIZE and DECAY glide gates.**
+11. **`inject-context.py` was not run** (see stages 0–2).
+
+### Voicing constants that are placeholders (Spring)
+
+| Constant | Value | Where |
+|---|---|---|
+| Echo times / stages / transition | 33, 37, 41 ms / 72, 80, 88 / 4300, 4550, 4800 Hz | `SpringEngine::kSpring` |
+| Allpass coefficient | 0.62 | `SpringEngine::kAllpassCoefficient` |
+| Delay wobble | 0.15 ms at 0.71 / 0.93 / 1.19 Hz (about 1.5 cents) | `kWobbleMs`, `kSpring` |
+| Shared spring's level | 0.5 | `SpringEngine::kSharedLevel` (`kMonoFold` follows from it) |
+| SIZE range | ×0.75..×1.33 | `typePresets[3]` |
+| Type EQ | +4 dB peak at 800 Hz, Q 2.5 (v1.14.0's) | `typePresets[3]` |
+| Wet trim | −0.5 dB (stereo spread across types 0.07 dB, mono 0.71 dB) | `typePresets[3]`, Task 10 re-measures |
+
+### For stage 4
+
+- **Task 10.** Spring's row of `--levels`: +6.38 stereo, +6.24 mono, +4.06 / +8.84 at DECAY 0.5× / 2.0×,
+  +7.58 / +5.39 at SIZE 0 / 100. With DECAY it moves as the others do (4.8 dB); with SIZE as the plate does
+  (2.2 dB), not as the FDN does (4.6 dB).
+- **Task 11.** The old bank on the new Spring reads −1.3..+2.9 dB; "Spring - Dub Spring" is the loudest insert
+  preset in the bank. Spring's SIZE now means echo time 25–44 ms.
+- **Task 12.** `tip.size` has three different SIZE ranges to describe (FDN ×0.5–×2, plate ×0.40–×0.80, spring
+  ×0.75–×1.33).
+- **Task 13.** Gates not yet run on v1.14.0: bloom, Spring chirp, Spring band limit, and the three new
+  measurer self-checks (which must pass on both).
+- **Task 14.** NOTES.md and CHANGELOG still describe the Freeverb path; "32/32" there is wrong (stage 0).
