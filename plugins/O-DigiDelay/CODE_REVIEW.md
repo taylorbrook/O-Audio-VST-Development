@@ -2,6 +2,7 @@
 plugin: O-DigiDelay
 version: 1.7.0
 reviewed: 2026-09-30
+verified: 2026-09-30T14:19:17-0700  # v1.8.1 (IN-01..09, IN-11, IN-13..15) — /improve-verify PASS
 depth: deep
 files_reviewed: 8
 files_reviewed_list:
