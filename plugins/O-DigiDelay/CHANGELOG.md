@@ -5,6 +5,36 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-10-04
+
+Readability pass. UI only; no parameter, range, preset or state change.
+
+### Changed
+
+- **Every text run is larger.** Knob and SYNC captions 9 -> 12 px, knob
+  readouts 11 -> 14 px, OUT caption 9 -> 12 px, SYNC face 9 -> 11 px, preset
+  name 11 -> 13 px, Load/Save 9 -> 11 px, preset arrows 12 -> 14 px, dropdown
+  header/rows 9/10 -> 11/12 px, settings captions and controls 9 -> 11 px,
+  tooltip body/title 11/9 -> 12/11 px, footer 9 -> 11 px, title 16 -> 17 px.
+- **Text is darker.** `--ink` #3C2F2F -> #1E1614. The footer moves from
+  `--walnut-dark` to `--ink`; the dropdown header and empty row from
+  `--text-walnut-mid` to `--walnut-dark`; the tooltip title from `--leaf-dark`
+  to `--olive-ink`.
+- **Boxes widened to hold the larger captions:** Load/Save pin 62 -> 74 px
+  (CHARGER is the binding caption), SYNC toggle 50 -> 64 px, settings popover
+  pin 170 -> 196 px, hover-help switch min-width 42 -> 48 px, OUT container
+  38 -> 50 px (left 635 -> 629, so the meter stays at x 645).
+- **`.knob-container` pinned to 60 px.** At 12 px FEEDBACK (66.8 px) is wider
+  than the knob, so the shrink-to-fit container shifted the knob 3.4 px between
+  languages (check-ui-labels [7]). Pinned, a wide caption overhangs evenly.
+- **Header right inset 66 -> 74 px** so the 12 px SORTIE above the meter
+  clears the preset bar (check-ui-labels [8b]).
+
+### Testing
+
+- check-ui-labels, check-i18n and tests/ui_tip_render_check.js all green in
+  en / fr / zh-Hans at the shipping 700 x 196 frame.
+
 ## [1.9.0] - 2026-09-30
 
 Factory bank grows from 12 to 24 presets, and now ships with the plugin.
