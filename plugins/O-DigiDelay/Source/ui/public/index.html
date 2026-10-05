@@ -40,7 +40,7 @@
       --paper: #F5E6D3;
       --paper-rgb: 245, 230, 211;
       --paper-ground: #D7B78D;     /* paper1.jpg's median (#C3985F) under the 0.40 wash */
-      --ink: #3C2F2F;
+      --ink: #1E1614;              /* v1.9.1: was #3C2F2F — every text run reads darker */
       --walnut-dark: #5C4033;      /* hairlines, and the footer's quieter TEXT */
       --walnut-dark-rgb: 92, 64, 51;
       --walnut: #8B7355;           /* borders and decoration, not text */
@@ -189,7 +189,7 @@
       position: absolute;
       top: 8px;
       left: 16px;
-      right: 66px; /* 50px extra margin to avoid output meter label */
+      right: 74px; /* v1.9.1: 66 -> 74, clears the 12px SORTIE above the meter */
       height: 26px;
       display: flex;
       justify-content: space-between;
@@ -198,7 +198,7 @@
     }
 
     .title {
-      font-size: 16px;
+      font-size: 17px;
       letter-spacing: 2.5px;
       color: var(--ink);
       font-weight: normal;
@@ -227,7 +227,7 @@
       border: 1px solid var(--leaf-dark);
       border-radius: 3px;
       font-family: var(--font-serif);
-      font-size: 12px;
+      font-size: 14px;
       font-weight: bold;
       color: var(--olive-ink);
       cursor: pointer;
@@ -247,7 +247,7 @@
       max-width: 120px;
       text-align: center;
       font-family: var(--font-serif);
-      font-size: 11px;
+      font-size: 13px;
       color: var(--ink);
       padding: 2px 6px;
       background: var(--name-fill);
@@ -293,12 +293,12 @@
        and leaves English alone. */
     .preset-action-btn {
       padding: 2px 6px;
-      width: 62px;
+      width: 74px;                 /* v1.9.1: 62 -> 74 for the 11px caption */
       background: var(--btn-fill);
       border: 1px solid var(--leaf-dark);
       border-radius: 3px;
       font-family: var(--font-serif);
-      font-size: 9px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: var(--olive-ink);
@@ -340,18 +340,18 @@
 
     .preset-dropdown-header {
       padding: 3px 6px;
-      font-size: 9px;              /* v1.7.0: 8 -> 9, the template's floor */
+      font-size: 11px;             /* v1.9.1: 9 -> 11 */
       font-weight: bold;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: var(--text-walnut-mid);   /* was --walnut, 3.70:1 */
+      color: var(--walnut-dark);       /* v1.9.1: was --text-walnut-mid */
       background: rgba(var(--walnut-rgb), 0.1);
       border-bottom: 1px solid rgba(var(--walnut-dark-rgb), 0.2);
     }
 
     .preset-dropdown-item {
       padding: 4px 8px;
-      font-size: 10px;
+      font-size: 12px;
       color: var(--ink);
       cursor: pointer;
       border-bottom: 1px solid rgba(var(--walnut-dark-rgb), 0.1);
@@ -375,7 +375,7 @@
        on the dropdown's cream). */
     .preset-dropdown-item.empty {
       font-style: italic;
-      color: var(--text-walnut-mid);
+      color: var(--walnut-dark);
       cursor: default;
     }
 
@@ -396,13 +396,18 @@
        ============================================ */
     .knob-container {
       position: absolute;
+      /* v1.9.1: PINNED to the knob's 60px. At 12px FEEDBACK (66.8) is wider
+         than the knob, and a shrink-to-fit container followed whichever
+         caption was widest, so the knob slid 3.4px between languages. Pinned,
+         a wide caption overhangs both sides equally and the knob stays put. */
+      width: 60px;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
 
     .knob-label {
-      font-size: 9px;
+      font-size: 12px;
       letter-spacing: 0.8px;
       color: var(--ink);
       text-transform: uppercase;
@@ -452,7 +457,7 @@
     }
 
     .knob-value {
-      font-size: 11px;
+      font-size: 14px;
       color: var(--ink);
       margin-top: 4px;
       /* v1.7.0: min-width: 60px dropped for the chip, as .knob-label above. */
@@ -470,7 +475,7 @@
     }
 
     .toggle-label {
-      font-size: 9px;
+      font-size: 12px;
       letter-spacing: 0.8px;
       color: var(--ink);
       text-transform: uppercase;
@@ -479,7 +484,7 @@
     }
 
     .toggle {
-      width: 50px;
+      width: 64px;
       height: 24px;
       border: 2px solid var(--leaf-dark);
       border-radius: 4px;
@@ -487,7 +492,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 9px;
+      font-size: 11px;
       letter-spacing: 0.8px;
       color: var(--ink);
       cursor: pointer;
@@ -521,8 +526,8 @@
     .led-meter-container {
       position: absolute;
       top: 25px;
-      left: 635px;
-      width: 38px;
+      left: 629px;                 /* v1.9.1: 635/38 -> 629/50, meter still at x 645 */
+      width: 50px;
       height: 155px;
       z-index: 2;
       display: flex;
@@ -531,7 +536,7 @@
     }
 
     .led-meter-label {
-      font-size: 9px;
+      font-size: 12px;
       letter-spacing: 0.8px;
       color: var(--ink);
       text-transform: uppercase;
@@ -629,10 +634,10 @@
       margin: 0 auto;
       padding: 0 3px;
       text-align: center;
-      font-size: 9px;
+      font-size: 11px;
       letter-spacing: 1.5px;
       text-transform: uppercase;
-      color: var(--walnut-dark);
+      color: var(--ink);
       background: var(--chip);
       border-radius: 2px;
       pointer-events: none;
@@ -641,7 +646,7 @@
 
     .footer-brand .version {
       margin-left: 4px;
-      font-size: 9px;              /* v1.7.0: 8 -> 9, the template's floor */
+      font-size: 10px;
       letter-spacing: 1px;
     }
 
@@ -691,7 +696,7 @@
       border-radius: 50%;
       color: var(--olive-ink);
       font-family: var(--font-serif);
-      font-size: 11px;
+      font-size: 13px;
       line-height: 1;
       cursor: pointer;
       display: flex;
@@ -729,7 +734,7 @@
       bottom: calc(100% + 6px);
       left: 0;
       z-index: 61;
-      width: 170px;
+      width: 196px;                /* v1.9.1: 170 -> 196 for the 11px captions */
       padding: 7px 9px;
       display: flex;
       flex-direction: column;
@@ -755,7 +760,7 @@
        grow the row's height and move the control beside it. */
     .settings-label {
       font-family: var(--font-serif);
-      font-size: 9px;
+      font-size: 11px;
       color: var(--ink);
       text-transform: uppercase;
       letter-spacing: 0.8px;
@@ -770,7 +775,7 @@
       border-radius: 2px;
       color: var(--ink);
       font-family: var(--font-serif);
-      font-size: 9px;
+      font-size: 11px;
       line-height: 1.2;
       cursor: pointer;
     }
@@ -800,10 +805,10 @@
       border-radius: 2px;
       color: var(--ink);
       font-family: var(--font-serif);
-      font-size: 9px;
+      font-size: 11px;
       line-height: 1.2;
       flex: 0 0 auto;
-      min-width: 42px;
+      min-width: 48px;
       text-align: center;
       cursor: pointer;
       transition: background 0.15s, border-color 0.15s, color 0.15s;
@@ -871,7 +876,7 @@
       max-width: 300px;
       padding: 6px 9px 7px;
       font-family: var(--font-serif);
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.4;
       color: var(--ink);
       background: rgba(var(--paper-rgb), 0.97);
@@ -891,10 +896,10 @@
 
     .tooltip .tip-title {
       display: block;
-      font-size: 9px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      color: var(--leaf-dark);
+      color: var(--olive-ink);
       margin-bottom: 3px;
     }
         /* ── LINE-HEIGHT PINS (v1.6.0, the Chinese arm) ──────────────────────
@@ -933,7 +938,9 @@
             line-height: 1.1111;
         }
         /* v1.7.0: the header went 8 -> 9px, so 1.125 becomes 1: the same
-           9 px content box in every language. */
+           9 px content box in every language.
+           v1.9.1: every caption above grew (9 -> 11/12px). The pins are
+           unitless, so they scale with it and stay language-invariant. */
         .preset-dropdown-header {
             line-height: 1;
         }
