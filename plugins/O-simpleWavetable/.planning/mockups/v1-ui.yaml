@@ -1,0 +1,437 @@
+# v1 UI Design Specification
+# Generated: 2026-10-05
+# Plugin: O-simpleWavetable
+# Aesthetic: O-simple* field-guide family (O-simpleAdditive / O-simpleSubtractive):
+#   aged paper ground, EB Garamond, seed cross-section knobs (Family A stem),
+#   walnut plot wells with sage / amber / brass inks, suite tooltip + header/footer.
+# Geometry below is MEASURED from v1-ui-test.html (Chrome, plugin-frame coordinates),
+# not hand-estimated. Knob rects are the knob disc only (labels sit below).
+# Parameter IDs / ranges / defaults: ARCHITECTURE.md §Parameter Mapping (22 params).
+
+window:
+  width: 1120
+  height: 780
+  resizable: false          # Rule 4: fixed frame <= 800 px tall
+
+colors:
+  paper: "#F5E6D3"
+  paper_light: "#FAF0E6"
+  paper_mid: "#EBD9C7"
+  frame_brown: "#5C4033"
+  border_brown: "#8B7355"
+  text: "#3C2F2F"
+  text_muted: "#715D45"       # AA on all paper tones
+  green_text: "#4E6838"       # AA on all paper tones
+  green_fill_strong: "#55703E" # active segment fill under #F5F0E6 text
+  green_darkest: "#2C3E10"    # knob stem, group titles
+  well_top: "#2a2118"         # plot wells (sibling canvas-wrap)
+  well_bottom: "#1c160f"
+  ink_parchment: "#d6c4a0"    # bank-stack frames, axis text
+  ink_sage: "#9ec46f"         # current cycle trace, effective-position ring, amp env
+  ink_amber: "#e8b04a"        # current frame(s) in the stack, mod env, quantizer levels
+  brass: ["#E8B04A", "#C98F38", "#8a5a1e"]  # harmonic bars, Position-knob diamond
+  alias_rust: ["#f0a070", "#8a3c1e"]        # harmonics above Nyquist (Band-limiting Off)
+  tooltip_bg: "#2a2118"
+  tooltip_text: "#f5e6d3"
+
+typography:
+  serif: "'EB Garamond', 'Georgia', 'Times New Roman', 'PingFang SC', 'Microsoft YaHei', serif"
+  symbol_font: "'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols2', 'Arial Unicode MS', 'PingFang SC', 'Microsoft YaHei', serif"
+  size:
+    title: "25px"            # O – simple*Wavetable*
+    group_title: "12.5px"    # uppercase, 1.4px tracking
+    knob_label: "10px"       # uppercase
+    knob_value: "12.5px"     # tabular numerals
+    hero_value: "16px"
+    well_readout_large: "22px"   # "frame 12.4 / 32"
+    well_readout: "13px"
+    tooltip: "13px"
+    floor: "9.5px"           # nothing smaller (projector readable)
+
+layout:
+  type: vertical-sections
+  frame: { border: 3, padding: [12, 16], gap: 8 }
+  sections:
+    - id: header
+      rect: { x: 19, y: 15, width: 1082, height: 50 }
+      contents: [title, subtitle, bank, import_button, source_readout, settings]
+    - id: visual_band
+      height: 330
+      panels:
+        - { id: bank_stack,    width: 482, share: "45%" }
+        - { id: current_cycle, width: 290 }
+        - { id: harmonics,     width: 290 }
+    - id: controls
+      height: 236
+      groups:
+        - { id: oscillator,  rect: { x: 19,  y: 411, width: 258, height: 236 }, controls: [position, interp, bandlimit, bit_depth] }
+        - { id: movement,    rect: { x: 285, y: 411, width: 456, height: 236 },
+            subgroups: [ { id: lfo, controls: [lfo_sync, lfo_shape, lfo_rate|lfo_div, lfo_depth] },
+                         { id: mod_envelope, controls: [menv_attack, menv_decay, menv_sustain, menv_release, env_amount] } ] }
+        - { id: amp_output,  rect: { x: 749, y: 411, width: 352, height: 236 },
+            controls: [amp_attack, amp_decay, amp_sustain, amp_release, voice_mode, output_level] }
+    - id: lesson_presets
+      height: 28
+      presets: ["Stepped vs Smooth", "Alias Demo", "Drive Sweep", "Vowel Pad", "8-bit PPG"]
+    - id: keyboard
+      height: 66
+      note: "On-screen keyboard (2 octaves + C), computer keys A-K / W-U, Z/X or arrows for octave"
+
+controls:
+  # ── Header ──────────────────────────────────────────────────────────────
+  - id: bank
+    type: combo
+    relay: WebComboBoxRelay
+    label: "Bank"
+    parameter: bank
+    parameter_type: choice
+    choices: ["Sine → Saw", "Sine → Square", "Pulse Width", "Formant", "Drive", "Imported"]
+    default: 0
+    position: { x: 482, y: 21 }
+    size: { width: 172, height: 32 }
+
+  # ── Oscillator ──────────────────────────────────────────────────────────
+  - id: position
+    type: knob
+    widget: hero-knob          # 92 px seed knob; ALSO driven by the bank-stack drag (see special_elements)
+    relay: WebSliderRelay
+    label: "Position"
+    parameter: position
+    range: [0.0, 1.0]
+    unit: "%"                  # shown 0-100 %, 1 decimal; sub-readout "frame 12.4 / 32"
+    default: 0.0
+    position: { x: 38, y: 467 }
+    size: { width: 92, height: 92 }
+
+  - id: interp
+    type: toggle
+    widget: segmented-2        # Off | On
+    relay: WebToggleButtonRelay
+    label: "Interpolation"
+    parameter: interp
+    parameter_type: bool
+    default: true
+    position: { x: 148, y: 458 }
+    size: { width: 118, height: 26 }
+
+  - id: bandlimit
+    type: toggle
+    widget: segmented-2
+    relay: WebToggleButtonRelay
+    label: "Band-limiting"
+    parameter: bandlimit
+    parameter_type: bool
+    default: true
+    position: { x: 148, y: 506 }
+    size: { width: 118, height: 26 }
+
+  - id: bit_depth
+    type: knob
+    widget: stepped-knob       # 15 detent pips around the disc; readout "Full" / "N bit"
+    relay: WebComboBoxRelay
+    label: "Bit Depth"
+    parameter: bit_depth
+    parameter_type: choice
+    choices: ["Full", "16", "15", "14", "13", "12", "11", "10", "9", "8", "7", "6", "5", "4", "3"]
+    default: 0
+    position: { x: 185, y: 544 }
+    size: { width: 44, height: 44 }
+
+  # ── Movement · LFO ──────────────────────────────────────────────────────
+  - id: lfo_sync
+    type: toggle
+    widget: segmented-2        # Free | Tempo (choice param, 2 entries)
+    relay: WebComboBoxRelay
+    label: "LFO Sync"
+    parameter: lfo_sync
+    parameter_type: choice
+    choices: ["Free", "Tempo"]
+    default: 0
+    position: { x: 296, y: 464 }
+    size: { width: 188, height: 26 }
+
+  - id: lfo_shape
+    type: combo
+    widget: icon-segmented-5   # inline SVG glyphs: sine, triangle, saw, square, S&H
+    relay: WebComboBoxRelay
+    label: "LFO Shape"
+    parameter: lfo_shape
+    parameter_type: choice
+    choices: ["Sine", "Triangle", "Saw", "Square", "S&H"]
+    default: 1
+    position: { x: 296, y: 496 }
+    size: { width: 188, height: 28 }
+
+  - id: lfo_rate
+    type: knob
+    relay: WebSliderRelay
+    label: "Rate"
+    parameter: lfo_rate
+    range: [0.01, 20.0]
+    skew: 0.3
+    unit: "Hz"
+    default: 0.5
+    visible_when: "lfo_sync == Free"
+    position: { x: 316, y: 534 }
+    size: { width: 54, height: 54 }
+
+  - id: lfo_depth
+    type: knob
+    relay: WebSliderRelay
+    label: "Depth"
+    parameter: lfo_depth
+    range: [0.0, 1.0]
+    unit: "%"
+    default: 0.0
+    position: { x: 410, y: 534 }
+    size: { width: 54, height: 54 }
+
+  # ── Movement · Mod Envelope ─────────────────────────────────────────────
+  - id: env_amount
+    type: knob
+    widget: bipolar-knob       # centre detent mark above the disc; drag snaps to 0 within ±1.8 %
+    relay: WebSliderRelay
+    label: "Amount"
+    parameter: env_amount
+    range: [-1.0, 1.0]
+    unit: "%"                  # "+35%" / "−20%" / "0%"
+    default: 0.0
+    position: { x: 674, y: 464 }
+    size: { width: 54, height: 54 }
+
+  - id: menv_attack
+    type: knob
+    relay: WebSliderRelay
+    label: "Attack"
+    parameter: menv_attack
+    range: [0.001, 10.0]
+    skew: 0.3
+    unit: "s"
+    default: 0.5
+    position: { x: 509, y: 556 }
+    size: { width: 44, height: 44 }
+
+  - id: menv_decay
+    type: knob
+    relay: WebSliderRelay
+    label: "Decay"
+    parameter: menv_decay
+    range: [0.001, 10.0]
+    skew: 0.3
+    unit: "s"
+    default: 1.0
+    position: { x: 567, y: 556 }
+    size: { width: 44, height: 44 }
+
+  - id: menv_sustain
+    type: knob
+    relay: WebSliderRelay
+    label: "Sustain"
+    parameter: menv_sustain
+    range: [0.0, 1.0]
+    unit: "%"
+    default: 0.0
+    position: { x: 624, y: 556 }
+    size: { width: 44, height: 44 }
+
+  - id: menv_release
+    type: knob
+    relay: WebSliderRelay
+    label: "Release"
+    parameter: menv_release
+    range: [0.001, 10.0]
+    skew: 0.3
+    unit: "s"
+    default: 0.5
+    position: { x: 682, y: 556 }
+    size: { width: 44, height: 44 }
+
+  # ── Amp + Output ────────────────────────────────────────────────────────
+  - id: amp_attack
+    type: knob
+    relay: WebSliderRelay
+    label: "Attack"
+    parameter: amp_attack
+    range: [0.001, 5.0]
+    skew: 0.35
+    unit: "s"
+    default: 0.005
+    position: { x: 764, y: 556 }
+    size: { width: 44, height: 44 }
+
+  - id: amp_decay
+    type: knob
+    relay: WebSliderRelay
+    label: "Decay"
+    parameter: amp_decay
+    range: [0.001, 5.0]
+    skew: 0.35
+    unit: "s"
+    default: 0.3
+    position: { x: 820, y: 556 }
+    size: { width: 44, height: 44 }
+
+  - id: amp_sustain
+    type: knob
+    relay: WebSliderRelay
+    label: "Sustain"
+    parameter: amp_sustain
+    range: [0.0, 1.0]
+    unit: "%"
+    default: 0.8
+    position: { x: 875, y: 556 }
+    size: { width: 44, height: 44 }
+
+  - id: amp_release
+    type: knob
+    relay: WebSliderRelay
+    label: "Release"
+    parameter: amp_release
+    range: [0.001, 5.0]
+    skew: 0.35
+    unit: "s"
+    default: 0.2
+    position: { x: 931, y: 556 }
+    size: { width: 44, height: 44 }
+
+  - id: voice_mode
+    type: toggle
+    widget: segmented-2        # Poly | Mono (choice param)
+    relay: WebComboBoxRelay
+    label: "Voices"
+    parameter: voice_mode
+    parameter_type: choice
+    choices: ["Poly", "Mono"]
+    default: 0
+    position: { x: 1000, y: 478 }
+    size: { width: 90, height: 26 }
+
+  - id: output_level
+    type: knob
+    relay: WebSliderRelay
+    label: "Output"
+    parameter: output_level
+    range: [-60.0, 6.0]
+    unit: "dB"                 # text "-inf" at <= -60
+    default: -6.0
+    position: { x: 1018, y: 520 }
+    size: { width: 54, height: 54 }
+
+# Controls that SHARE a slot with another control (excluded from the overlap check on purpose)
+swapped_controls:
+  - id: lfo_div
+    type: knob
+    widget: stepped-knob       # 16 detent pips; readout "1/1", "1/4.", "1/8T" …
+    relay: WebComboBoxRelay
+    label: "Division"
+    parameter: lfo_div
+    parameter_type: choice
+    choices: ["4 bars", "2 bars", "1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/2.", "1/4.", "1/8.", "1/16.", "1/2T", "1/4T", "1/8T", "1/16T"]
+    default: 2
+    shares_slot_with: lfo_rate
+    visible_when: "lfo_sync == Tempo"
+    position: { x: 316, y: 534 }
+    size: { width: 54, height: 54 }
+
+special_elements:
+  - id: bank_stack
+    type: canvas-visualizer
+    position: { x: 19, y: 93 }
+    size: { width: 482, height: 310 }
+    data_source: "bankUpdate (N x 128-pt level-0 thumbnails) + 30 Hz atomics (dispPos, dispFrame, dispSounding)"
+    drawing:
+      - "Oblique 3D stack: frame 1 front-left, frame N back-right; drawn back-to-front with hidden-line fill"
+      - "Frames inked parchment with depth fade (0.88 -> 0.30 alpha); decimated to <= 40 traces when N > 40"
+      - "Current frame(s) re-inked amber: Interp On -> both neighbours, alpha/width by crossfade weight; Off -> one frame"
+      - "Oblique Position rail parallel to the depth axis, ticks per frame (every 4th past 64), labels 1 / 25% / 50% / 75% / N"
+      - "Brass diamond = Position knob; sage ring = effective (LFO + env) position; sage span between them; dotted leader to the read frame"
+    readouts: ["frame 12.4 / 32 (1 dp when Interp On, integer when Off)", "bank name (Imported · filename)", "mix line: '60% f12 + 40% f13' / 'stepped · snaps to frame 12'", "per-bank one-line lesson (bottom)"]
+    interaction: "Pointer drag (vertical height in the stack picks the frame) and wheel (one frame per notch) drive parameter `position` (same relay as the hero knob, with drag gestures)"
+    empty_state: "Bank = Imported with no import: dashed hollow stack, no rail, 'Import audio to fill this bank' + sub-line; Import button switches to amber pulsing 'attention' style; source readout 'no audio imported yet · 0 frames · the oscillator is silent'"
+
+  - id: current_cycle
+    type: canvas-visualizer
+    position: { x: 511, y: 93 }
+    size: { width: 290, height: 310 }
+    data_source: "cycleUpdate (256-pt point-sampled cycle, post band-limit + quantizer)"
+    drawing:
+      - "Sage 2 px trace; true staircase (step lines) when Bit Depth != Full, with the unquantized cycle ghosted in parchment"
+      - "Quantizer level lines (amber, faint) when 2^(b-1) <= 16 (b <= 5)"
+      - "Imported only: loop-seam bracket at the right edge when |x[0] - x[end]| > 0.12, readout 'loop seam jumps 0.42 → buzz'"
+    readouts: ["frames 12 ↔ 13 / frame 12", "full resolution / 'N bit · 2^N levels'"]
+
+  - id: harmonics
+    type: canvas-visualizer
+    position: { x: 811, y: 93 }
+    size: { width: 290, height: 310 }
+    data_source: "cycleUpdate harmonics k = 1..32 (bins of the periodic cycle), dB re max, -60 floor"
+    drawing:
+      - "32 brass bars (fundamental brighter, even harmonics darker brass — Additive drawbar tint)"
+      - "Band-limiting On + note held: bars above Kmax drawn as dashed ghosts (what the raw frame holds), sage dashed ceiling line"
+      - "Band-limiting Off + note held: bars above Nyquist harmonic tinted rust, rust dashed Nyquist line"
+    readouts: ["note · frequency", "'octave copy keeps h1–K' / 'above hN folds back — aliasing' / 'no note held'"]
+
+  - id: menv_canvas
+    type: adsr-display
+    position: { x: 505, y: 464 }
+    size: { width: 159, height: 64 }
+    color: amber
+    note: "sqrt time compression (0-10 s); dashed live-level line while a note plays"
+
+  - id: amp_canvas
+    type: adsr-display
+    position: { x: 760, y: 464 }
+    size: { width: 219, height: 86 }
+    color: sage
+    note: "sqrt time compression (0-5 s); dashed live-level line"
+
+  - id: import_button
+    type: button
+    native_function: "importAudio (FileChooser::launchAsync) + webview drop"
+    position: { x: 664, y: 21 }
+    size: { width: 123, height: 32 }
+    states: ["idle", "busy ('Slicing…')", "attention (amber pulse, Imported + empty)"]
+
+  - id: source_readout
+    type: readout
+    position: { x: 797, y: 21 }
+    size: { width: 262, height: 32 }
+    content: "filename / 'built-in · generated from a formula' + 'N frames · …'"
+
+  - id: settings
+    type: gear-popover
+    position: { x: 1077, y: 25 }
+    size: { width: 24, height: 24 }
+    content: "Hover help On/Off (+ language selector at finalization: en / fr / zh-Hans)"
+
+  - id: lfo_lamp
+    type: indicator
+    note: "8 px amber lamp beside the LFO sub-title; brightness follows the LFO value when depth > 0"
+
+  - id: lesson_presets
+    type: button-row
+    position: { x: 134, y: 660 }
+    size: { width: 457, height: 23 }
+    note: "Five lesson buttons + right-aligned caption (sibling preset-tour)"
+
+  - id: keyboard
+    type: on-screen-keyboard
+    position: { x: 181, y: 691 }
+    size: { width: 920, height: 66 }
+
+tooltips:
+  convention: "Plain-language hover tips on every control and panel (suite style: dark walnut card, sage uppercase title). Mockup keeps copy in a TIPS table + TIP_BINDINGS; finalization moves it to js/i18n.js (en / fr / zh-Hans)."
+  lessons_named:
+    bandlimit: aliasing (tones sliding the wrong way when playing up)
+    bank_formant: formants baked into the cycle shift with pitch, unlike a real voice
+    import_button: non-pitch-synchronous slices -> loop seam jump -> buzz
+    interp: stepped (PPG) vs smooth scanning
+    bit_depth: staircase + added harmonics
+
+notes:
+  - All positions in pixels from the plugin frame's top-left (0,0), measured from v1-ui-test.html
+  - "`type: knob` = rotary widget; the relay column is the binding (WebSliderRelay / WebToggleButtonRelay / WebComboBoxRelay)"
+  - "Choice params shown as segmented toggles (lfo_sync, voice_mode) bind through getComboBoxState; bools (interp, bandlimit) through getToggleState"
+  - "lfo_rate / lfo_div share one slot; the UI swaps them on lfo_sync"
+  - "position has two front-ends: hero knob + bank-stack drag/wheel"
+  - Readouts use getScaledValue(); never JS-mirrored ranges
