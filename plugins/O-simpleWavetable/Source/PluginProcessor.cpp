@@ -549,6 +549,11 @@ void OSimpleWavetableAudioProcessor::renderMono (juce::AudioBuffer<float>& view,
 
     if (pos < numSamples)
         v0->renderNextBlock (view, pos, numSamples - pos);
+
+    // Voices 1.. never get a Mono note, but a Poly -> Mono switch hard-stops
+    // them: render their 2 ms hard-stop tails (W1). Idle voices return at once.
+    for (size_t i = 1; i < wtVoices.size(); ++i)
+        wtVoices[i]->renderNextBlock (view, 0, numSamples);
 }
 
 //==============================================================================

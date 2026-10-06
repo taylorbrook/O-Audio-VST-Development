@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
 stage: 2
-status: stage_2_verify_partial_gap_closure_pending
-last_updated: 2026-10-06 10:30:00
+status: stage_2_gap_closure_executed_verify_pending
+last_updated: 2026-10-06 12:00:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_execute_stage_2_gap_closure
+next_action: plugin_verify_stage_2
 next_stage: 2
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -68,6 +68,8 @@ Progress: [#####...............] 25%
   - W2: a Mono retrigger during release steps velGain, 0.489 → 0.042 in one sample
 - **To do before Stage 3:** the W5 ARCHITECTURE §17 doc fix (Stage 3 must read the bank through `getImportedBankSnapshot()`).
 
+**Stage 2 gap closure execute:** ✓ 2026-10-06 — W1 2 ms hard-stop tail (steal, Poly↔Mono, all-sound-off), W2 3 ms velGain ramp on a sounding retrigger, W5 ARCHITECTURE row 17 / §12 / Threading / Amendments 12–13. New gates G-STEAL 1.076× (neg 4.99×), G-SWITCH-TAIL 0.656× (neg 20.0×), G-RETRIG-VEL 0.589× (neg 35.8×); all 5 drivers + alloc 0 green, goldens unchanged. auval + pluginval VST3/AU s10 pass; installed-VST3 repros W1 1.084× (was 8.7×), W2 0.964× (was ~10×). See SUMMARY.md §Gap closure.
+
 ## Phase Progress
 
 ### Stage 1: Foundation
@@ -88,7 +90,7 @@ Stage 0 open conflicts resolved (user, 2026-10-05): silence+prompt for empty Imp
 | research | ✓ | 2026-10-05 | |
 | plan | ✓ | 2026-10-05 | |
 | execute | ✓ | 2026-10-06 | |
-| verify | ⚠ partial | 2026-10-06 | |
+| verify | ⚠ partial → gap closure executed | 2026-10-06 | |
 
 Stage 2 decisions (user, 2026-10-05): checkpoint after 2.1+2.2 for listening; velocity squared; mono true legato; Interp-Off step click accepted. See stages/2-dsp/CONTEXT.md.
 
@@ -98,7 +100,7 @@ Stage 2 plan (2026-10-05): stages/2-dsp/PLAN.md, 24 tasks in two parts. User sig
 
 ## Next Steps
 
-1. Gap closure (user chose fix now, 2026-10-06): `/plugin-execute O-simpleWavetable 2-dsp`. Scope W1 steal fade + W2 velGain ramp + W5 ARCHITECTURE §17 doc, with new G-STEAL / G-RETRIG-VEL gates. See the stages/2-dsp/VERIFICATION.md §Gap Closure. Then `/plugin-verify O-simpleWavetable 2-dsp`.
+1. `/plugin-verify O-simpleWavetable 2-dsp` — re-verify after the gap closure (W1/W2/W5 executed 2026-10-06; QUAL-01 should now be complete).
 2. Optional (non-blocking, feeds verify): Task 23 DAW smoke — Square/S&H LFO, bank switch on held notes, octave bend, save/reopen Imported
 3. Optional: Stage 1 Task 14 DAW smoke (see stages/1-foundation/VERIFICATION.md Human Verification)
 

@@ -75,6 +75,18 @@
         stops crossfade storms from bend jitter. A note-on always takes the
         strict level (no history).
 
+    Hard-stop tail (W1, QUAL-01): stopNote (..., false) from a voice steal,
+    a Poly <-> Mono switch or all-sound-off ends the amp env in one sample.
+    The voice's last output sample (folded with any running tail) is then
+    added back as a 2 ms raised-cosine decay to 0, rendered at the top of
+    every render call even while the voice is idle or playing the stealing
+    note. A scalar only: no bank is read, so the reaper rules are untouched.
+
+    Velocity ramp (W2, QUAL-01): a note that starts on a voice whose amp env
+    is still active (a Mono retrigger from the release tail) ramps velGain
+    linearly from its current value to the new one over 3 ms. A start from
+    idle sets velGain instantly (G-VEL and the goldens are unchanged).
+
     Do NOT declare a method named isVoiceActive: that is the Synthesiser's
     allocation virtual; shadowing it would hijack voice stealing.
 
@@ -125,6 +137,8 @@ class WtVoice final : public juce::SynthesiserVoice
 public:
     static constexpr float kVoiceGain = 0.5f;   // tuned at the listening checkpoint (Task 11)
     static constexpr double kXfadeSeconds = 0.005;              // frozen-cycle crossfade (ARCHITECTURE 5)
+    static constexpr double kTailSeconds = 0.002;               // hard-stop tail decay (W1)
+    static constexpr double kVelRampSeconds = 0.003;            // sounding-retrigger velocity ramp (W2)
     static constexpr double kLevelHysteresis = 1.0293022366434921;   // 2^(1/24): D-K downward margin
 
     // parameter-spec defaults for the mod env (menv_attack/decay/sustain/release).
@@ -198,6 +212,16 @@ public:
             frozenSilent[b] = true;
         }
 
+        tailLen  = juce::jmax (1, (int) std::lround (kTailSeconds * sr));
+        tailVal  = 0.0f;
+        tailPos  = 0;
+        tailLeft = 0;
+        lastOut  = 0.0f;
+
+        velRampLen  = juce::jmax (1, (int) std::lround (kVelRampSeconds * sr));
+        velRampLeft = 0;
+        velStep     = 0.0f;
+
         updatePitch();
         clearCurrentNote();
 
@@ -248,7 +272,7 @@ public:
         updatePitch();
 
         const float v = velocity >= 0.0f ? (velocity <= 1.0f ? velocity : 1.0f) : 0.0f;   // NaN -> 0
-        velGain = v * v;                                // squared velocity (CONTEXT)
+        setVelocityGain (v * v, ! startedFromIdle);     // squared velocity (CONTEXT); ramp only if sounding
         noteAge = ++sNoteCounter;
 
         phase      = 0.0;
@@ -278,7 +302,10 @@ public:
         }
         else
         {
+            if (ampEnv.isActive())
+                startTail();                            // W1: decay the last sample, never a step to 0
             ampEnv.reset();
+            velRampLeft = 0;
             endVoice();
         }
         // Note-keyed state (noteHz, wheel, cfg) is NOT cleared here.
@@ -295,6 +322,9 @@ public:
     //==========================================================================
     void renderNextBlock (juce::AudioBuffer<float>& out, int startSample, int numSamples) override
     {
+        if (tailLeft > 0 && numSamples > 0 && out.getNumChannels() > 0)
+            renderTail (out.getWritePointer (0), startSample, numSamples);   // idle or not (W1)
+
         if (! ampEnv.isActive())
         {
             if (getCurrentlyPlayingNote() >= 0)
@@ -310,7 +340,6 @@ public:
 
         const WavetableBank* b = cfg.bank;
         const int nF = b != nullptr ? b->numFrames : 0;
-        const float gain = velGain * kVoiceGain;
         float* dst = out.getWritePointer (0);           // mono into channel 0; processor copies
 
         const float* knob  = ctx->knobPos;
@@ -378,7 +407,14 @@ public:
                     xfActive = false;
             }
 
-            dst[j] += s * env * gain;
+            if (velRampLeft > 0)                        // W2: sounding retrigger
+            {
+                velGain = --velRampLeft > 0 ? velGain + velStep : velTarget;
+            }
+
+            const float y = s * env * (velGain * kVoiceGain);
+            dst[j] += y;
+            lastOut = y;
 
             phase += inc;
             if (phase >= 1.0)
@@ -400,7 +436,10 @@ public:
         lastFrame = cfg.interp ? wt::latchFrame (eff, nF) : latchedFrame;
 
         if (! ampEnv.isActive())
+        {
+            lastOut = 0.0f;                             // ended by its own release: nothing to fade
             endVoice();
+        }
     }
 
     //==========================================================================
@@ -418,7 +457,7 @@ public:
         if (retrigger)
         {
             const float v = velocity >= 0.0f ? (velocity <= 1.0f ? velocity : 1.0f) : 0.0f;
-            velGain = v * v;
+            setVelocityGain (v * v, wasSounding);       // W2: ramp from the tail's gain, never a step
             if (! wasSounding)
             {
                 phase      = 0.0;
@@ -477,6 +516,12 @@ public:
     bool isCrossfading() const noexcept { return xfActive; }
     int  getXfadeLen() const noexcept    { return xfadeLen; }
     int  getActiveLevel() const noexcept { return cfg.level; }
+
+    // Gap-closure hooks (W1/W2 negative controls): false = the pre-fix
+    // behaviour (hard stop to 0, instant velGain on a sounding retrigger).
+    bool tailFadeEnabled = true;
+    bool velRampEnabled  = true;
+    bool isTailActive() const noexcept { return tailLeft > 0; }
    #endif
 
 private:
@@ -501,6 +546,65 @@ private:
             modEnv.setParameters (menvParams);
             appliedMenv = menvParams;
         }
+    }
+
+    // W2. ramp = the voice is still sounding; otherwise (from idle) instant.
+    void setVelocityGain (float target, bool ramp) noexcept
+    {
+       #if OSIW_TEST_HOOKS
+        if (! velRampEnabled)
+            ramp = false;
+       #endif
+        velTarget = target;
+        if (ramp && velRampLen > 1 && ! juce::exactlyEqual (velGain, target))
+        {
+            velStep     = (target - velGain) / (float) velRampLen;
+            velRampLeft = velRampLen;                   // velGain reaches target on the last step
+        }
+        else
+        {
+            velGain     = target;
+            velRampLeft = 0;
+        }
+    }
+
+    // W1. Called on a hard stop while the amp env is active: the heard value
+    // (this voice's last output plus any tail still decaying) becomes the
+    // start of a fresh tail.
+    void startTail() noexcept
+    {
+       #if OSIW_TEST_HOOKS
+        if (! tailFadeEnabled)
+        {
+            lastOut = 0.0f;
+            return;
+        }
+       #endif
+        const float running = tailLeft > 0 ? tailVal * tailWeight (tailPos, tailLen) : 0.0f;
+        const float start = lastOut + running;
+        lastOut = 0.0f;
+        if (! std::isfinite (start) || start == 0.0f)
+        {
+            tailLeft = 0;
+            return;
+        }
+        tailVal  = start;
+        tailPos  = 0;
+        tailLeft = tailLen;
+    }
+
+    void renderTail (float* dst, int startSample, int numSamples) noexcept
+    {
+        const int n = numSamples < tailLeft ? numSamples : tailLeft;
+        for (int i = 0; i < n; ++i)
+            dst[startSample + i] += tailVal * tailWeight (tailPos++, tailLen);
+        tailLeft -= n;
+    }
+
+    // Raised-cosine decay 1 -> 0 over len samples (zero slope at both ends).
+    static float tailWeight (int pos, int len) noexcept
+    {
+        return (float) (0.5 + 0.5 * std::cos (juce::MathConstants<double>::pi * (double) pos / (double) len));
     }
 
     // Voice lifetime ends with the AMP env only (FUNC-06). The mod env is
@@ -667,6 +771,16 @@ private:
     double phase  = 0.0;
     int pitchWheelPos = 8192;   // centre
     float velGain = 0.0f;
+    float velTarget = 0.0f;                 // W2 velocity ramp
+    float velStep   = 0.0f;
+    int   velRampLeft = 0;
+    int   velRampLen  = 1;                  // round(0.003 * fs), set in prepareToPlay
+
+    float lastOut  = 0.0f;                  // W1: this voice's last rendered output sample
+    float tailVal  = 0.0f;
+    int   tailPos  = 0;
+    int   tailLeft = 0;
+    int   tailLen  = 1;                     // round(0.002 * fs), set in prepareToPlay
 
     ReadCfg cfg;
     bool cfgFresh   = true;

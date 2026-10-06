@@ -257,6 +257,18 @@ public:
             v->forceLevel = level;
     }
 
+    // Gap-closure hooks (W1 / W2 negative controls).
+    void setTailFadeForTesting (bool on) noexcept              // false = hard stop to 0
+    {
+        for (auto* v : wtVoices)
+            v->tailFadeEnabled = on;
+    }
+    void setVelRampForTesting (bool on) noexcept               // false = instant velGain
+    {
+        for (auto* v : wtVoices)
+            v->velRampEnabled = on;
+    }
+
     // 2.4 hooks (reaper). Lock-taking ones: never from inside processBlock
     // except through the midBlockCallback (test only).
     void setDisableHeldExclusionForTesting (bool b) noexcept { testDisableHeldExclusion.store (b); }   // D-C negative control
