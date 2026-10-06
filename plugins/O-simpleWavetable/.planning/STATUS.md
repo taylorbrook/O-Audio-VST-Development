@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
 stage: 2
-status: stage_2_verify_partial
+status: stage_2_verify_partial_gap_closure_pending
 last_updated: 2026-10-06 10:30:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: decide_w1_w2_fix_or_defer
+next_action: plugin_execute_stage_2_gap_closure
 next_stage: 2
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -15,7 +15,7 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
-current_phase: verify
+current_phase: execute
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
@@ -98,7 +98,7 @@ Stage 2 plan (2026-10-05): stages/2-dsp/PLAN.md, 24 tasks in two parts. User sig
 
 ## Next Steps
 
-1. Decide W1 + W2: fix now (re-execute and re-verify) or defer to Stage 4. Also fix the W5 doc before Stage 3.
+1. Gap closure (user chose fix now, 2026-10-06): `/plugin-execute O-simpleWavetable 2-dsp`. Scope W1 steal fade + W2 velGain ramp + W5 ARCHITECTURE §17 doc, with new G-STEAL / G-RETRIG-VEL gates. See the stages/2-dsp/VERIFICATION.md §Gap Closure. Then `/plugin-verify O-simpleWavetable 2-dsp`.
 2. Optional (non-blocking, feeds verify): Task 23 DAW smoke — Square/S&H LFO, bank switch on held notes, octave bend, save/reopen Imported
 3. Optional: Stage 1 Task 14 DAW smoke (see stages/1-foundation/VERIFICATION.md Human Verification)
 

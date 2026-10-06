@@ -170,6 +170,35 @@ Notes, none blocking:
 
 **Status:** ⚠️ PARTIAL. Every planned gate passes, and 17 of the 18 stage-2 requirements are complete. QUAL-01 is partial because of 2 confirmed clicks in normal playing (W1, W2).
 
-**Ready for next stage:** Pending the user's decision: fix W1 + W2 (+ W5 doc) now, or defer them to Stage 4 polish.
+**Ready for next stage:** No. The user chose **fix now** on 2026-10-06, so a gap-closure execute run is next.
+
+## Gap Closure (for `/plugin-execute O-simpleWavetable 2-dsp`)
+
+**Scope:** W1 + W2 + W5 only. W3 and W4 are deferred to Stage 4 and logged here.
+
+1. **W1, steal tail fade.**
+   - On a hard stop (`stopNote(…, false)` from a steal and from the Poly↔Mono switch), capture the voice's last output sample per channel.
+   - Add it back to the new note as a 1–2 ms linear or raised-cosine decay to 0.
+   - RT-safe: per-voice members only, no allocation.
+2. **W2, velocity ramp.**
+   - When `startNote` / `noteOnDirect` retriggers a voice that is still sounding (amp env active), ramp `velGain` from the old value to the new one over about 2–5 ms (per-sample one-pole or linear).
+   - A start from idle keeps the instant `velGain`, so G-VEL and the goldens stay unchanged.
+3. **Gates to add in `dsp-check`:**
+   - **G-STEAL:** 16 held + a 17th note. Max \|Δy\| at the steal ≤ 1.5× steady state. Negative control with the fade disabled must be ≥ 4×.
+   - **G-RETRIG-VEL:** Mono vel 127 → release → vel 38 retrigger, same ratio rule, with a negative control.
+   - **Expect** G-POLY, G-MONO, G-RETRIG, G-VEL and the QUAL-03 exactness/ratio gates to stay unchanged. If a golden moves, explain why.
+4. **W5, doc fix:**
+   - ARCHITECTURE §17: Stage 3 reads the imported bank **only** through `getImportedBankSnapshot()`, because the worker and `setStateInformation` publish (Amendment 8).
+   - Correct the `unique_ptr` wording at line 157.
+5. **Re-run:**
+   - all 5 drivers plus `--alloc-check`
+   - `build-and-install.sh`
+   - auval, and pluginval VST3/AU strictness 10
+   - the W1/W2 pedalboard repros (scratch `w12.py` / `w2m.py` recipe: 16 sines + a 17th at 0.5 s; Mono 127 → off → 38)
+
+**Deferred to Stage 4:**
+- W3 (wheel seed on the Mono idle start)
+- W4 (crossfade source at the new mip level on upward legato)
+- Notes 3–8 (MIDI buffer limit, pre-prepare guard, Mono sustain, import cancel, restore lock comment, `-Wundef` include)
 
 **Blockers:** None from the critic. W1 and W2 are confirmed QUAL-01 shortfalls.
