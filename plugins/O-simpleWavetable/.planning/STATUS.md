@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
-stage: 3
-status: stage_3_complete_verified
-last_updated: 2026-10-06 23:59:00
+stage: 4
+status: stage_4_discuss_complete
+last_updated: 2026-10-06 23:59:30
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: plugin_discuss_stage_4
+next_action: plugin_research_stage_4
 next_stage: 4
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -15,7 +15,7 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
-current_phase: discuss
+current_phase: research
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
@@ -30,7 +30,7 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) ✓ COMPLETE — VERIFIED 2026-10-06. **Next: `/plugin-discuss O-simpleWavetable 4-polish`.**
+Stage: 4 of 4 (Polish) — discuss ✓ 2026-10-06. **Next: `/plugin-research O-simpleWavetable 4-polish`.**
 Status: Research & Planning complete; UI mockup v1 finalized with implementation scaffolding; parameter-spec.md locked (21 parameters). Ready for Stage 1.
 Progress: [################....] 80%
 
@@ -132,9 +132,20 @@ Stage 3 decisions (user, 2026-10-06): 3.1+3.2 → build/install → visual check
 
 Stage 3 plan (2026-10-06): stages/3-gui/PLAN.md, 20 tasks in two parts (Part 1 = 3.1+3.2, Tasks 1–12; Part 2 = 3.3, Tasks 13–20). Planner D-P…D-Z. User sign-offs: D-U dB ref = bins 1..1023; D-Y single-pass lesson apply; D-Z `importFromBase64` in processor (+ G-DROP); DAW pass in Logic. Execute stops at Task 12 (visual checkpoint); re-run `/plugin-execute O-simpleWavetable 3-gui` to resume Part 2. ARCHITECTURE checksum refreshed (W5 gap-closure edit, 850df9b9).
 
+### Stage 4: Polish
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-10-06 | |
+| research | | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+Stage 4 decisions (user, 2026-10-06): full preset-manager module + browser panel, factory = Init + 8 §A9, lessons reconciled to §A9 (Alias Demo → Drive); fix all W (S2 W3/W4, S3 W1–W5) + triaged N; Windows = CI `workflow_dispatch` validate-only build + pluginval (no hands-on); QUAL-04 measured gates + by-ear sign-off; v1.0.0 + CHANGELOG + CODE_REVIEW, no tag. See stages/4-polish/CONTEXT.md.
+
 ## Next Steps
 
-1. `/plugin-discuss O-simpleWavetable 4-polish`.
+1. `/plugin-research O-simpleWavetable 4-polish`.
 2. Stage 4 entry items:
    - Stage 3 critic W1–W5: the uiReady counter race, the 96 MB drop freeze, trackpad wheel stepping, the stale import error, and a stuck UI-held note on editor close
    - Stage 3 critic N1–N13 (stages/3-gui/VERIFICATION.md §Issues Found)
