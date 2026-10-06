@@ -1,12 +1,12 @@
 ---
 plugin: O-simpleWavetable
-stage: 0
-status: complete
-last_updated: 2026-10-05 20:05:00
+stage: 1
+status: stage_1_discuss_complete
+last_updated: 2026-10-05 21:00:00
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: proceed_to_stage_1
+next_action: plugin_research_stage_1
 next_stage: 1
 ready_for_implementation: true
 latest_mockup_version: 1
@@ -15,6 +15,7 @@ finalized_version: 1
 stage_0_status: ui_design_complete
 ui_scaffolding_phase_complete: true
 parameter_count: 21
+current_phase: research
 brief_updated_from_mockup: true
 mockup_version_synced: 1
 brief_update_timestamp: "2026-10-06T02:25:53Z"
@@ -46,6 +47,19 @@ Progress: [##..................] 10%
 - Strategy: phased (Stage 2: 4 phases, Stage 3: 3 phases)
 
 **UI mockup v1:** ✓ Finalized + Phase B scaffolding (mockups/v1-ui.html, v1-i18n.js, v1-PluginEditor.{h,cpp}, v1-CMakeLists.txt, v1-integration-checklist.md, v1-i18n-states.json); parameter-spec.md locked from ARCHITECTURE.md §Parameter Mapping
+
+## Phase Progress
+
+### Stage 1: Foundation
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-10-05 | |
+| research | → | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+Stage 0 open conflicts resolved (user, 2026-10-05): silence+prompt for empty Imported; keep ±2 st bend; mid-rise quantizer; reject <2048-sample imports. See stages/1-foundation/CONTEXT.md.
 
 ## Next Steps
 
