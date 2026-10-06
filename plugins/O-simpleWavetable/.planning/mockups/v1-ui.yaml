@@ -435,3 +435,8 @@ notes:
   - "lfo_rate / lfo_div share one slot; the UI swaps them on lfo_sync"
   - "position has two front-ends: hero knob + bank-stack drag/wheel"
   - Readouts use getScaledValue(); never JS-mirrored ranges
+
+# Finalization metadata
+finalized: true
+finalized_at: 2026-10-06T02:25:53Z
+finalized_by_phase: 5.5

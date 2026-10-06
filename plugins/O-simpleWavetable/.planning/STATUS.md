@@ -9,8 +9,14 @@ orchestration_mode: true
 next_action: invoke_foundation_shell_agent
 next_stage: 1
 ready_for_implementation: true
+latest_mockup_version: 1
+mockup_finalized: true
+finalized_version: 1
+brief_updated_from_mockup: true
+mockup_version_synced: 1
+brief_update_timestamp: "2026-10-06T02:25:53Z"
 contract_checksums:
-  brief: sha256:d9c66773fbd2fbfb674b46e1c1b0101279d0c97511f0eb98a180be057c0585e4
+  brief: sha256:9cee315a17720edd08c2e635537eb1af1c6e131bcff10fcb8090370688f49e9c
   parameter_spec: sha256:b21eca17bf0472f9f222396984fd8c4b3e9a9df0733f56bf91f9a5f66aaf5af5
   architecture: sha256:b61449b60ba24831dce780f2ba8c3feb7e36c75a609b5007bc4d60594c5d042c
   roadmap: sha256:f657e02a22d6dee0e4d8f2a08ec8736c6479a4eebed7e14dc78c014bf71f32b5

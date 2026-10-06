@@ -76,18 +76,26 @@ Like the other O-simple* plugins, it aims for a tight loop between a gesture and
 
 ## UI Concept
 
-*Captured from the brief. The full design happens in the mockup phase.*
+*Synced from finalized mockup v1 (`.planning/mockups/v1-ui.yaml`, 2026-10-05). The mockup is the source of truth for layout and visuals.*
 
-**Layout:** One classroom/projector-readable page with three visual panels as the main elements, and the controls grouped below them: Bank + Oscillator (Position, Interpolation, Band-limiting, Bit Depth, Import) | Movement (LFO, Mod Env) | Amp + Output.
+**Window:** 1120 × 780, fixed size (not resizable).
 
-**Visual Style:** Clean, instructional and uncluttered. Consistent with O-simpleFM and O-simpleAdditive.
+**Visual Style:** O-simple* field-guide family, matching O-simpleAdditive and O-simpleSubtractive: aged-paper ground, EB Garamond serif, seed cross-section knobs, dark walnut plot wells with sage / amber / brass inks, suite tooltip and header/footer conventions. Projector-readable (9.5 px type floor).
 
-**Key Elements (the pedagogical layer, treated as functional features):**
-1. **Bank panel:** a 3D/stacked view of all frames with the current frame highlighted and a Position marker. Mirrors the wk07 frame-bank figure. With Interpolation on, the marker sits *between* two frames; with it off, it jumps from frame to frame.
-2. **Current cycle panel:** the single interpolated (and bit-quantized) cycle being read right now.
-3. **Harmonics panel:** a live bar graph of harmonics 1–32 of the current cycle.
-- **Import audio** button with the source filename and resulting frame count.
-- **On-hover tooltips** in plain language for every control (suite convention, localized like the siblings).
+**Layout (top to bottom):**
+1. **Header:** title, Bank selector, Import audio button + source filename + frame count, settings gear (hover-help toggle).
+2. **Visual band (three panels):**
+   - **Bank stack (~45% width):** oblique 3D stack of frames receding back to front (frame 1 in front), current frame inked amber. Interpolation On inks the two neighbouring frames by crossfade weight (readout e.g. "frame 12.4 / 32 · 60% f12 + 40% f13"); Off snaps to one frame. Brass diamond = Position knob value; sage ring = effective Position after LFO + Mod Env. Drag or scroll on the stack to move `position`. Empty-Imported state: dashed hollow stack, "Import audio to fill this bank", pulsing Import button, "0 frames · the oscillator is silent".
+   - **Current cycle:** the interpolated, bit-quantized cycle; the quantized staircase is drawn over a faint unquantized trace. Imported banks show a loop-seam marker ("loop seam jumps … → buzz").
+   - **Harmonics 1–32:** live bars. Band-limiting On: harmonics dropped by the current octave's band-limited copy show as dashed ghosts. Off: harmonics above Nyquist turn rust with "folds back — aliasing".
+3. **Controls (three groups):**
+   - **Oscillator:** Position (hero knob), Interpolation, Band-limiting, Bit Depth (Full, 16…3).
+   - **Movement:** LFO (Sync, Shape selector, Rate ↔ Division in a shared slot, Depth) | Mod Env (A, D, S, R, Env Amount bipolar).
+   - **Amp + Output:** A, D, S, R, Voice Mode (Poly/Mono), Output Level (−60…+6 dB, "-inf" at the floor).
+4. **Lesson presets row:** Stepped vs Smooth, Alias Demo, Drive Sweep, Vowel Pad, 8-bit PPG.
+5. **On-screen keyboard:** 2 octaves + C, computer keys A–K / W–U, Z/X or arrows for octave.
+
+**Tooltips:** plain-language on-hover help for every control, localized per suite convention. The Band-limiting, Formant and Import tooltips name the aliasing, formant-shift and loop-buzz lessons.
 
 ## Use Cases
 
